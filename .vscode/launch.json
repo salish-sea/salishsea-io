@@ -6,10 +6,10 @@
     "configurations": [
       {
         "type": "node-terminal",
-        "name": "Run Script: serve",
+        "name": "Run Script: serve frontend",
         "request": "launch",
         "command": "npm run serve",
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}/frontend"
       }
     ]
 }

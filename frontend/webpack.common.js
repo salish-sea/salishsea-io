@@ -1,11 +1,7 @@
 import HtmlWebpackPlugin from 'html-webpack-plugin';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import { resolve } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-export const distDir = resolve(__dirname, 'dist');
+export const distDir = resolve(import.meta.dirname, 'dist');
 
 export const commonConfig = {
   entry: './src/index.ts',
