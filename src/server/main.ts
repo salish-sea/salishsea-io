@@ -1,15 +1,16 @@
 import express from "express";
 import type { Request, Response } from "express";
 import ViteExpress from "vite-express";
-import type { FeatureCollection } from 'geojson';
+import type { FeatureCollection, Point } from 'geojson';
 import {fetchCurrentLocations, location2geojson} from './ferries.ts';
+import type { FeatureProperties } from "./types.ts";
 
 const app = express();
 
 const collectFeatures = async () => {
   const ferries = await fetchCurrentLocations()
     .then(locations => locations.map(location2geojson));
-  const collection: FeatureCollection = {
+  const collection: FeatureCollection<Point, FeatureProperties> = {
     type: 'FeatureCollection',
     features: ferries,
   };
