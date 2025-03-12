@@ -1,6 +1,7 @@
 import express from "express";
 import type { Request, Response } from "express";
 import ViteExpress from "vite-express";
+import type { FeatureCollection } from 'geojson';
 
 const app = express();
 
@@ -8,7 +9,22 @@ app.get("/observations", (req: Request, res: Response) => {
   console.log(`Earliest: ${req.query.earliest}`);
   console.log(`Latest: ${req.query.latest}`);
   console.log(`Taxon: ${req.query.taxon}`);
-  res.send("Here are your observations!");
+
+  const observations: FeatureCollection = {
+    type: 'FeatureCollection',
+    features: [{
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: [-122.450, 47.8],
+      },
+      properties: {
+        name: "Center of our universe",
+      }
+    }],
+  };
+  res.contentType('application/geo+json');
+  res.json(observations);
 });
 
 const port = 3131;

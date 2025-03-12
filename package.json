@@ -16,6 +16,7 @@
   "devDependencies": {
     "@formatjs/intl-durationformat": "^0.7.3",
     "@types/express": "^5.0.0",
+    "@types/geojson": "^7946.0.16",
     "ol": "^10.4.0",
     "temporal-polyfill": "^0.2.5",
     "typescript": "~5.8.2",

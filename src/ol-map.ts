@@ -3,15 +3,17 @@ import { customElement, property, query, queryAll } from 'lit/decorators.js'
 import OpenLayersMap from "ol/Map";
 import View from "ol/View";
 
+// imports below these lines smell like they support functionality that should be factored out
+import VectorLayer from 'ol/layer/Vector';
 import TileLayer from 'ol/layer/Tile';
 import { fromLonLat } from 'ol/proj';
 import XYZ from 'ol/source/XYZ';
+import ObservationSource from './observation-source';
 
 const center = fromLonLat([-122.450, 47.8]);
 const sphericalMercator = 'EPSG:3857';
 
 // This is a thin wrapper around imperative code driving OpenLayers.
-// Functionality should be progressively factored into new web components.
 // The code is informed by the `openlayers-elements` project, but we avoid taking it as a dependency.
 @customElement('ol-map')
 export class OlMap extends LitElement {
@@ -48,7 +50,8 @@ export class OlMap extends LitElement {
             // NB: this source is unmaintained
             url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
           }),
-        })
+        }),
+        new VectorLayer({source: new ObservationSource()}),
       ],
       target: this.mapElement,
       view: new View({
