@@ -9,6 +9,12 @@ import TileLayer from 'ol/layer/Tile';
 import { fromLonLat } from 'ol/proj';
 import XYZ from 'ol/source/XYZ';
 import ObservationSource from './observation-source';
+import Style from 'ol/style/Style';
+import { FeatureLike } from 'ol/Feature';
+import Circle from 'ol/style/Circle';
+import Fill from 'ol/style/Fill';
+import Stroke from 'ol/style/Stroke';
+import Text from 'ol/style/Text';
 
 const center = fromLonLat([-122.450, 47.8]);
 const sphericalMercator = 'EPSG:3857';
@@ -51,7 +57,10 @@ export class OlMap extends LitElement {
             url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
           }),
         }),
-        new VectorLayer({source: new ObservationSource()}),
+        new VectorLayer({
+          source: new ObservationSource(),
+          style: observationStyle,
+        }),
       ],
       target: this.mapElement,
       view: new View({
@@ -61,6 +70,32 @@ export class OlMap extends LitElement {
       }),
     });
   }
+}
+
+const observationStyle = (observation: FeatureLike) => {
+  const fill = new Fill({color: 'rgba(255, 255, 255, 0.4)'});
+  const stroke = new Stroke({color: '#3399CC'});
+  const text = observation.get('name') ?? '';
+  return [
+    new Style({
+      image: new Circle({
+        radius: 6,
+        fill,
+        stroke,
+      }),
+      fill,
+      stroke,
+    }),
+    new Style({
+      text: new Text({
+        fill: new Fill({color: '#000000'}),
+        font: '10px monospace',
+        offsetY: 1.5,
+        text,
+        textBaseline: 'middle',
+      })
+    }),
+  ]
 }
 
 declare global {
