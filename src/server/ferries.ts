@@ -1,9 +1,13 @@
 import type { Feature, Point } from "geojson";
 import {Temporal} from "temporal-polyfill";
+import { withConnection } from "./database.ts";
+import { DuckDBConnection, DuckDBTimestampValue } from "@duckdb/node-api";
 
-type VesselLocation = {
+export type VesselLocation = {
   VesselID: number;
   VesselName: string;
+  DepartingTerminalAbbrev: string | null;
+  ArrivingTerminalAbbrev: string | null;
   Latitude: number;
   Longitude: number;
   Heading: number;
@@ -12,7 +16,7 @@ type VesselLocation = {
   TimeStamp: string;
 }
 
-type VesselLocationResponse = VesselLocation[];
+export type VesselLocationResponse = VesselLocation[];
 
 type InvalidRequestResponse = {
   Message?: string;
@@ -22,7 +26,7 @@ export type Properties = {
   kind: 'Ferry';
   name: string;
   source: 'WSF';
-  timestamp: Temporal.Instant;
+  timestamp: string;
 };
 
 const accessCode = process.env.WSF_ACCESS_CODE;
@@ -37,7 +41,7 @@ function assertValidResponse(response: any): asserts response is VesselLocationR
 }
 
 /// Fetch the current locations of vessels in service and under way.
-export const fetchCurrentLocations = async () => {
+const fetchCurrentLocations = async () => {
   if (!accessCode)
     throw "Must set an access code at WSF_ACCESS_CODE to use the WSF API.";
 
@@ -60,20 +64,68 @@ export const fetchCurrentLocations = async () => {
   return vessels;
 }
 
-export const location2geojson = (location: VesselLocation) => {
-  const feature: Feature<Point, Properties> = {
-    id: `wdf:${location.VesselName}`,
-    type: "Feature",
-    geometry: {
-      type: "Point",
-      coordinates: [location.Longitude, location.Latitude],
-    },
-    properties: {
-      kind: 'Ferry',
-      name: location.VesselName,
-      source: 'WSF',
-      timestamp: Temporal.Instant.fromEpochMilliseconds(parseInt(location.TimeStamp.slice(6, 19), 10)),
-    },
-  }
-  return feature;
-}
+// Load the most current location of each ferry, if any, within `within_s` seconds of `asof`.
+export const locationsAsOf = async (asof: Temporal.Instant, within_s: number = 90) => {
+  const query = `
+    SELECT *, abs(epoch("timestamp" - timestamptz '${asof}')) AS ts_delta_s
+    FROM ferry_locations
+    WINDOW w AS (PARTITION BY vessel_name ORDER BY ts_delta_s ASC)
+    QUALIFY row_number() OVER w = 1 AND ts_delta_s < ${within_s};
+  `;
+  const result = await withConnection(dbconn => dbconn.runAndReadAll(query));
+  const features: Feature<Point, Properties>[] = result.getRowObjectsJson()
+    .map(row => ({
+      id: `wsf:${row.vessel_name as string}`,
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [row.longitude as number, row.latitude as number],
+      },
+      properties: {
+        kind: 'Ferry',
+        name: row.vessel_name as string,
+        source: 'WSF',
+        timestamp: row.timestamp as string,
+      }
+    }));
+    return features;
+};
+
+/// Returns the number of inserted rows.
+export async function loadCurrentLocations() {
+  return await withConnection(async (dbconn: DuckDBConnection) => {
+    await dbconn.run(`
+CREATE TABLE IF NOT EXISTS ferry_locations (
+  vessel_id INT NOT NULL,
+  "timestamp" timestamptz NOT NULL,
+  vessel_name string NOT NULL,
+  latitude double NOT NULL,
+  longitude double NOT NULL,
+  heading integer,
+  in_service boolean not null,
+  at_dock boolean not null,
+);
+    `);
+
+    const appender = await dbconn.createAppender('ferry_locations');
+    const locations = await fetchCurrentLocations();
+
+    for (const ferry of locations) {
+      appender.appendInteger(ferry.VesselID);
+
+      const millis = BigInt(ferry.TimeStamp.slice(6, 19));
+      const timestamp = new DuckDBTimestampValue(millis * BigInt(1000));
+      appender.appendTimestamp(timestamp);
+
+      appender.appendVarchar(ferry.VesselName);
+      appender.appendDouble(ferry.Latitude);
+      appender.appendDouble(ferry.Longitude);
+      appender.appendInteger(ferry.Heading);
+      appender.appendBoolean(ferry.InService);
+      appender.appendBoolean(ferry.AtDock);
+      appender.endRow();
+    }
+    appender.close();
+    return locations.length;
+  });
+};

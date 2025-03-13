@@ -10,9 +10,15 @@ import { fromLonLat } from 'ol/proj';
 import XYZ from 'ol/source/XYZ';
 import ObservationSource from './observation-source';
 import { featureStyle } from './style';
+import { Temporal } from 'temporal-polyfill';
 
-const center = fromLonLat([-122.450, 47.8]);
 const sphericalMercator = 'EPSG:3857';
+
+const coordinates = {
+  latitude: 47.8,
+  longitude: -122.450,
+  time: Temporal.Now.instant(),
+};
 
 // This is a thin wrapper around imperative code driving OpenLayers.
 // The code is informed by the `openlayers-elements` project, but we avoid taking it as a dependency.
@@ -53,13 +59,13 @@ export class OlMap extends LitElement {
           }),
         }),
         new VectorLayer({
-          source: new ObservationSource(),
+          source: new ObservationSource(coordinates),
           style: featureStyle,
         }),
       ],
       target: this.mapElement,
       view: new View({
-        center,
+        center: fromLonLat([coordinates.longitude, coordinates.latitude]),
         projection: sphericalMercator,
         zoom: 9,
       }),

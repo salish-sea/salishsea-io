@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.38.5",
+    "@duckdb/node-api": "^1.2.1-alpha.16",
     "express": "^4.21.2",
+    "express-validator": "^7.2.1",
     "lit": "^3.2.1",
     "vite-express": "^0.20.0"
   },
