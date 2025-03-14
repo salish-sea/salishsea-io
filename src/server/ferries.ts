@@ -41,14 +41,14 @@ function assertValidResponse(response: any): asserts response is VesselLocationR
 }
 
 /// Fetch the current locations of vessels in service and under way.
-const fetchCurrentLocations = async () => {
+export const fetchCurrentLocations = async () => {
   if (!accessCode)
     throw "Must set an access code at WSF_ACCESS_CODE to use the WSF API.";
 
   const url = `https://wsdot.wa.gov/ferries/api/vessels/rest/vessellocations?apiaccesscode=${accessCode}`;
   const request = new Request(url);
   request.headers.append('Content-Type', 'application/json');
-  const response = await fetch(url);
+  const response = await fetch(request);
   if (response.status === 400) {
     const contentType = response.headers.get('Content-Type');
     let error = response.statusText;
@@ -60,8 +60,7 @@ const fetchCurrentLocations = async () => {
   }
   const data = await response.json();
   assertValidResponse(data);
-  const vessels = data.filter(vessel => vessel.InService && !vessel.AtDock);
-  return vessels;
+  return data;
 }
 
 // Load the most current location of each ferry, if any, within `within_s` seconds of `asof`.
@@ -69,6 +68,7 @@ export const locationsAsOf = async (asof: Temporal.Instant, within_s: number = 9
   const query = `
     SELECT *, abs(epoch("timestamp" - timestamptz '${asof}')) AS ts_delta_s
     FROM ferry_locations
+    WHERE in_service AND NOT at_dock
     WINDOW w AS (PARTITION BY vessel_name ORDER BY ts_delta_s ASC)
     QUALIFY row_number() OVER w = 1 AND ts_delta_s < ${within_s};
   `;
@@ -92,7 +92,7 @@ export const locationsAsOf = async (asof: Temporal.Instant, within_s: number = 9
 };
 
 /// Returns the number of inserted rows.
-export async function loadCurrentLocations() {
+export async function loadLocations(locations: VesselLocation[]) {
   return await withConnection(async (dbconn: DuckDBConnection) => {
     await dbconn.run(`
 CREATE TABLE IF NOT EXISTS ferry_locations (
@@ -108,7 +108,6 @@ CREATE TABLE IF NOT EXISTS ferry_locations (
     `);
 
     const appender = await dbconn.createAppender('ferry_locations');
-    const locations = await fetchCurrentLocations();
 
     for (const ferry of locations) {
       appender.appendInteger(ferry.VesselID);
