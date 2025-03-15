@@ -3,14 +3,14 @@ import Circle from 'ol/style/Circle';
 import Fill from 'ol/style/Fill';
 import Stroke from 'ol/style/Stroke';
 import Text from 'ol/style/Text';
-import type {FeatureProperties, FerryProperties} from '../server/types.ts';
+import type {FeatureProperties, FerryLocationProperties, SightingProperties} from '../server/types.ts';
 import { FeatureLike } from 'ol/Feature';
 import TextStyle from 'ol/style/Text';
 
-const observationStyle = (props: FeatureProperties) => {
+const observationStyle = (props: SightingProperties) => {
   const fill = new Fill({color: 'rgba(255, 255, 255, 0.4)'});
   const stroke = new Stroke({color: '#3399CC'});
-  const text = props.name;
+  const text = props.taxon[0];
   return [
     new Style({
       image: new Circle({
@@ -23,6 +23,7 @@ const observationStyle = (props: FeatureProperties) => {
     }),
     new Style({
       text: new Text({
+        declutterMode: 'none',
         fill: new Fill({color: '#000000'}),
         font: '10px monospace',
         offsetY: 1.5,
@@ -33,7 +34,7 @@ const observationStyle = (props: FeatureProperties) => {
   ]
 }
 
-const ferryStyle = (_ferryProps: FerryProperties) => {
+const ferryStyle = (_ferryProps: FerryLocationProperties) => {
   return new Style({
     text: new TextStyle({text: '⛴'}),
   });

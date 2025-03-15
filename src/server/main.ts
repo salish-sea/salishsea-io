@@ -1,7 +1,7 @@
 import express from "express";
 import type { Request, Response } from "express";
 import ViteExpress from "vite-express";
-import type { Feature, FeatureCollection, Point } from 'geojson';
+import type { FeatureCollection, Point } from 'geojson';
 import * as ferries from './ferries.ts';
 import * as maplify from './maplify.ts';
 import type { FeatureProperties } from "./types.ts";
@@ -11,12 +11,12 @@ import { query, matchedData, validationResult } from 'express-validator';
 const app = express();
 
 const collectFeatures = async (asof: Temporal.Instant) => {
-  const now = Temporal.Now.instant();
-  const earlier = now.subtract({hours: 24});
+  const now = Temporal.Now.zonedDateTimeISO('PST8PDT');
+  const earlier = now.subtract({hours: 48}).withPlainTime(); // beginning of day, two days ago
   const collection: FeatureCollection<Point, FeatureProperties> = {
     type: 'FeatureCollection',
     features: [
-      ...await maplify.sightingsBetween(earlier, now),
+      ...await maplify.sightingsBetween(earlier.toInstant(), now.toInstant()),
       ...await ferries.locationsAsOf(asof),
     ],
   };
@@ -45,7 +45,7 @@ app.post(
   "/fetch-ferry-locations",
   async (_req: Request, res: Response) => {
     const locations = await ferries.fetchCurrentLocations();
-    const insertionCount = await ferries.loadLocations(locations);
+    const insertionCount = ferries.loadLocations(locations);
     console.info(`Loaded ${insertionCount} ferry locations from WSF.`);
     res.send(`Loaded ${insertionCount} ferry locations from WSF.\n`);
   }
@@ -64,7 +64,7 @@ app.post(
 
     const {earliest, latest} = matchedData(req) as {earliest: Temporal.PlainDate, latest: Temporal.PlainDate};
     const sightings = await maplify.fetchSightings(earliest, latest);
-    const insertionCount = await maplify.loadSightings(sightings);
+    const insertionCount = maplify.loadSightings(sightings);
     console.info(`Loaded ${insertionCount} sightings from Maplify`);
     res.send(`Loaded ${insertionCount} sightings from Maplify`);
   }

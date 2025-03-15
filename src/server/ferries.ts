@@ -1,7 +1,6 @@
 import type { Feature, Point } from "geojson";
 import {Temporal} from "temporal-polyfill";
-import { withConnection } from "./database.ts";
-import { DuckDBConnection, DuckDBTimestampValue } from "@duckdb/node-api";
+import { db } from "./database.ts";
 
 export type VesselLocation = {
   VesselID: number;
@@ -22,11 +21,22 @@ type InvalidRequestResponse = {
   Message?: string;
 };
 
-export type Properties = {
+export type FerryLocationProperties = {
   kind: 'Ferry';
   name: string;
   source: 'WSF';
-  timestamp: string;
+  timestamp: number; // UNIX time
+};
+
+type FerryLocationRow = {
+  vessel_id: number;
+  timestamp: number;
+  vessel_name: string;
+  longitude: number;
+  latitude: number;
+  heading: number | null;
+  in_service: number;
+  at_dock: number;
 };
 
 const accessCode = process.env.WSF_ACCESS_CODE;
@@ -63,68 +73,53 @@ export const fetchCurrentLocations = async () => {
   return data;
 }
 
+const locationsAsOfQuery = db.prepare<{as_of: number; within_s: number}, FerryLocationRow>(`
+SELECT * FROM (
+  SELECT *, row_number() OVER w AS rank
+  FROM ferry_locations
+  WHERE in_service AND NOT at_dock AND "timestamp" BETWEEN @as_of - @within_s AND @as_of + @within_s
+  WINDOW w AS (PARTITION BY vessel_name ORDER BY abs("timestamp" - @as_of) ASC)
+) v WHERE rank = 1
+`);
 // Load the most current location of each ferry, if any, within `within_s` seconds of `asof`.
-export const locationsAsOf = async (asof: Temporal.Instant, within_s: number = 90) => {
-  const query = `
-    SELECT *, abs(epoch("timestamp" - timestamptz '${asof}')) AS ts_delta_s
-    FROM ferry_locations
-    WHERE in_service AND NOT at_dock
-    WINDOW w AS (PARTITION BY vessel_name ORDER BY ts_delta_s ASC)
-    QUALIFY row_number() OVER w = 1 AND ts_delta_s < ${within_s};
-  `;
-  const result = await withConnection(dbconn => dbconn.runAndReadAll(query));
-  const features: Feature<Point, Properties>[] = result.getRowObjectsJson()
-    .map(row => ({
-      id: `wsf:${row.vessel_name as string}`,
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [row.longitude as number, row.latitude as number],
-      },
-      properties: {
-        kind: 'Ferry',
-        name: row.vessel_name as string,
-        source: 'WSF',
-        timestamp: row.timestamp as string,
-      }
-    }));
-    return features;
+export const locationsAsOf = (as_of: Temporal.Instant, within_s: number = 90) => {
+  const locations = locationsAsOfQuery.all({as_of: as_of.epochSeconds, within_s});
+  const features: Feature<Point, FerryLocationProperties>[] = locations.map(row => ({
+    id: `wsf:${row.vessel_name}`,
+    type: 'Feature',
+    geometry: {
+      type: 'Point',
+      coordinates: [row.longitude, row.latitude],
+    },
+    properties: {
+      kind: 'Ferry',
+      name: row.vessel_name,
+      source: 'WSF',
+      timestamp: row.timestamp,
+    }
+  }));
+  return features;
 };
 
+const loadLocationStatement = db.prepare<FerryLocationRow>(`
+INSERT INTO ferry_locations
+( vessel_id,  timestamp,  vessel_name,  longitude,  latitude,  heading,  in_service,  at_dock)
+VALUES
+(@vessel_id, @timestamp, @vessel_name, @longitude, @latitude, @heading, @in_service, @at_dock);
+`);
 /// Returns the number of inserted rows.
-export async function loadLocations(locations: VesselLocation[]) {
-  return await withConnection(async (dbconn: DuckDBConnection) => {
-    await dbconn.run(`
-CREATE TABLE IF NOT EXISTS ferry_locations (
-  vessel_id INT NOT NULL,
-  "timestamp" timestamptz NOT NULL,
-  vessel_name string NOT NULL,
-  latitude double NOT NULL,
-  longitude double NOT NULL,
-  heading integer,
-  in_service boolean not null,
-  at_dock boolean not null,
-);
-    `);
-
-    const appender = await dbconn.createAppender('ferry_locations');
-
-    for (const ferry of locations) {
-      appender.appendInteger(ferry.VesselID);
-
-      const millis = BigInt(ferry.TimeStamp.slice(6, 19));
-      const timestamp = new DuckDBTimestampValue(millis * BigInt(1000));
-      appender.appendTimestamp(timestamp);
-
-      appender.appendVarchar(ferry.VesselName);
-      appender.appendDouble(ferry.Latitude);
-      appender.appendDouble(ferry.Longitude);
-      appender.appendInteger(ferry.Heading);
-      appender.appendBoolean(ferry.InService);
-      appender.appendBoolean(ferry.AtDock);
-      appender.endRow();
-    }
-    appender.close();
-    return locations.length;
-  });
+export function loadLocations(locations: VesselLocation[]) {
+  for (const location of locations) {
+    const timestamp = parseInt(location.TimeStamp.slice(6, 16), 10);
+    loadLocationStatement.run({
+      vessel_id: location.VesselID,
+      timestamp,
+      vessel_name: location.VesselName,
+      longitude: location.Longitude,
+      latitude: location.Latitude,
+      heading: location.Heading,
+      in_service: location.InService ? 1 : 0,
+      at_dock: location.AtDock ? 1 : 0,
+    });
+  }
 };

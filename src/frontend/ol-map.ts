@@ -1,5 +1,5 @@
 import { LitElement, PropertyValues, css, html } from 'lit'
-import { customElement, property, query, queryAll } from 'lit/decorators.js'
+import { customElement, query } from 'lit/decorators.js'
 import OpenLayersMap from "ol/Map";
 import View from "ol/View";
 
@@ -19,6 +19,11 @@ const coordinates = {
   longitude: -122.450,
   time: Temporal.Now.instant(),
 };
+
+const sightingLayer = new VectorLayer({
+  source: new ObservationSource(coordinates),
+  style: featureStyle,
+});
 
 // This is a thin wrapper around imperative code driving OpenLayers.
 // The code is informed by the `openlayers-elements` project, but we avoid taking it as a dependency.
@@ -58,10 +63,7 @@ export class OlMap extends LitElement {
             url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
           }),
         }),
-        new VectorLayer({
-          source: new ObservationSource(coordinates),
-          style: featureStyle,
-        }),
+        sightingLayer,
       ],
       target: this.mapElement,
       view: new View({
