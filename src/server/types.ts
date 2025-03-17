@@ -4,11 +4,3 @@ import type {SightingProperties} from './maplify.ts'
 export type {SightingProperties} from './maplify.ts';
 
 export type FeatureProperties = FerryLocationProperties | SightingProperties;
-
-export type Identification = {
-  species: string;
-  subspecies: string | null;
-  ecotype: string | null;
-  pod: string | null;
-  individuals: string[];
-};

@@ -2,6 +2,7 @@ import { Temporal } from "temporal-polyfill";
 import { queryStringAppend } from "../frontend/util.ts";
 import { db } from "./database.ts";
 import type { Feature, Point } from "geojson";
+import { detectEcotype, detectIndividuals, detectPod, symbolFor } from "./taxon.ts";
 
 type Source = 'CINMS' | 'ocean_alert' | 'rwsas' | 'FARPB' | 'whale_alert';
 
@@ -34,10 +35,14 @@ type APIResponse = {
 }
 
 export type SightingProperties = {
-  comments: string | null;
+  body: string | null;
+  count: number | null;
   kind: 'Sighting';
+  individuals: string[];
+  name: string;
   source: 'Maplify';
-  taxon: string;
+  species: string;
+  symbol: string;
   timestamp: number;
 }
 
@@ -82,7 +87,7 @@ export async function fetchSightings(earliest: Temporal.PlainDate, latest: Tempo
     end: latest,
   });
   const request = new Request(url);
-  request.headers.set('Content-Type', 'application/json')
+  request.headers.set('Accept', 'application/json')
   const response = await fetch(request);
   const body = await response.json();
   assertValidResponse(body);
@@ -105,7 +110,7 @@ WHERE t.scientific_name = coalesce(
   nullif(s.scientific_name, ''),
   CASE s.name
   WHEN 'Killer Whale (Orca)' THEN 'Orcinus orca'
-  WHEN 'Southern Resident Killer Whale' THEN 'Orcinus orca ater'
+  WHEN 'Southern Resident Killer Whale' THEN 'Orcinus orca'
   WHEN 'Grey' THEN 'Eschrichtius robustus'
   WHEN 'California Sea Lion' THEN 'Zalophus californianus'
   WHEN 'Long-beaked Common Dolphin' THEN 'Delphinus delphis'
@@ -117,7 +122,7 @@ function nullIfEmpty(str: string) {
   const trimmed = str.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
-const upsert = db.transaction((sightings) => {
+const upsert = db.transaction((sightings: Result[]) => {
   for (const sighting of sightings) {
     const created = Temporal.PlainDateTime.from(sighting.created).toZonedDateTime('GMT').toInstant();
     loadSightingStatement.run({
@@ -126,18 +131,30 @@ const upsert = db.transaction((sightings) => {
       created: created.epochSeconds,
       photo_url: nullIfEmpty(sighting.photo_url),
       scientific_name: sighting.scientific_name,
+      taxon_id: null,
     });
   }
   inferTaxonIds.run();
 });
 export function loadSightings(sightings: Result[]) {
   // Skip 'rwsas' source, which has duplicate record ids
-  upsert(sightings.filter(sighting => sighting.source !== 'rwsas'));
-  return sightings.length;
+  const toLoad = sightings.filter(sighting => sighting.source !== 'rwsas');
+  upsert(toLoad);
+  return toLoad.length;
 };
 
-const sightingsBetweenQuery = db.prepare<{earliest: number; latest: number}, SightingRow>(`
-SELECT s.*, t.scientific_name
+type SightingsBetweenRow = {
+  id: number;
+  comments: string | null;
+  created: number;
+  latitude: number;
+  longitude: number;
+  number_sighted: number;
+  scientific_name: string;
+  vernacular_name: string | null
+};
+const sightingsBetweenQuery = db.prepare<{earliest: number; latest: number}, SightingsBetweenRow>(`
+SELECT s.id, s.comments, s.created, s.latitude, s.longitude, s.number_sighted, t.scientific_name, t.vernacular_name
 FROM maplify_sightings AS s
 JOIN taxa AS t ON s.taxon_id = t.id
 WHERE created BETWEEN @earliest AND @latest;
@@ -153,11 +170,14 @@ export const sightingsBetween = async (earliest: Temporal.Instant, latest: Tempo
         coordinates: [row.longitude, row.latitude],
       },
       properties: {
-        comments: row.comments,
+        body: row.comments,
+        count: row.number_sighted < 1 ? null : row.number_sighted,
         kind: 'Sighting',
-        name: row.name,
+        individuals: row.comments ? detectIndividuals(row.comments) : [],
+        name: row.vernacular_name || row.scientific_name,
         source: 'Maplify',
-        taxon: row.scientific_name,
+        symbol: symbolFor({...row, body: row.comments}),
+        species: row.scientific_name,
         timestamp: row.created
       }
     }));

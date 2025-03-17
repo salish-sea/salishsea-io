@@ -4,15 +4,19 @@ import ViteExpress from "vite-express";
 import type { FeatureCollection, Point } from 'geojson';
 import * as ferries from './ferries.ts';
 import * as maplify from './maplify.ts';
+import * as inaturalist from './inaturalist.ts';
 import type { FeatureProperties } from "./types.ts";
 import { Temporal } from "temporal-polyfill";
 import { query, matchedData, validationResult } from 'express-validator';
+import type { Extent } from "ol/extent.js";
 
 const app = express();
 
+const extentOfInterest: Extent = [-130, 45, -120, 51];
+
 const collectFeatures = async (asof: Temporal.Instant) => {
   const now = Temporal.Now.zonedDateTimeISO('PST8PDT');
-  const earlier = now.subtract({hours: 48}).withPlainTime(); // beginning of day, two days ago
+  const earlier = now.subtract({hours: 100}).withPlainTime(); // beginning of day, two days ago
   const collection: FeatureCollection<Point, FeatureProperties> = {
     type: 'FeatureCollection',
     features: [
@@ -67,6 +71,26 @@ app.post(
     const insertionCount = maplify.loadSightings(sightings);
     console.info(`Loaded ${insertionCount} sightings from Maplify`);
     res.send(`Loaded ${insertionCount} sightings from Maplify`);
+  }
+);
+
+app.post(
+  "/fetch-inaturalist-observations",
+  query('taxa').notEmpty().custom((v: string) => v.split(',').map(id => parseInt(id, 10))),
+  query('earliest').notEmpty().custom(v => Temporal.PlainDate.from(v)),
+  query('latest').notEmpty().custom(v => Temporal.PlainDate.from(v)),
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (! errors.isEmpty()) {
+      res.send({errors: errors.array()});
+      return;
+    }
+
+    const {taxa, earliest, latest} = matchedData(req) as {taxa: number[], earliest: Temporal.PlainDate, latest: Temporal.PlainDate};
+    const observations = await inaturalist.fetchObservations({earliest, extent: extentOfInterest, latest, taxon_ids: taxa})
+    const insertionCount = await inaturalist.loadObservations(observations);
+    console.info(`Loaded ${insertionCount} observations from iNaturalist`);
+    res.send(`Loaded ${insertionCount} observations from iNaturalist`);
   }
 );
 

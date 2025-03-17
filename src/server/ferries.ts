@@ -25,6 +25,7 @@ export type FerryLocationProperties = {
   kind: 'Ferry';
   name: string;
   source: 'WSF';
+  symbol: string;
   timestamp: number; // UNIX time
 };
 
@@ -57,7 +58,7 @@ export const fetchCurrentLocations = async () => {
 
   const url = `https://wsdot.wa.gov/ferries/api/vessels/rest/vessellocations?apiaccesscode=${accessCode}`;
   const request = new Request(url);
-  request.headers.append('Content-Type', 'application/json');
+  request.headers.set('Accept', 'application/json');
   const response = await fetch(request);
   if (response.status === 400) {
     const contentType = response.headers.get('Content-Type');
@@ -95,6 +96,7 @@ export const locationsAsOf = (as_of: Temporal.Instant, within_s: number = 90) =>
       kind: 'Ferry',
       name: row.vessel_name,
       source: 'WSF',
+      symbol: '⛴',
       timestamp: row.timestamp,
     }
   }));
@@ -122,4 +124,5 @@ export function loadLocations(locations: VesselLocation[]) {
       at_dock: location.AtDock ? 1 : 0,
     });
   }
+  return locations.length;
 };

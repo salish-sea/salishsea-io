@@ -1,10 +1,10 @@
-import GeoJSON from 'ol/format/GeoJSON';
-import VectorSource from 'ol/source/Vector';
-import { all } from 'ol/loadingstrategy';
-import Point from 'ol/geom/Point';
-import Feature from 'ol/Feature';
+import GeoJSON from 'ol/format/GeoJSON.js';
+import VectorSource from 'ol/source/Vector.js';
+import { all } from 'ol/loadingstrategy.js';
+import Point from 'ol/geom/Point.js';
+import Feature from 'ol/Feature.js';
 import { Temporal } from 'temporal-polyfill';
-import { queryStringAppend } from './util';
+import { queryStringAppend } from './util.ts';
 
 const baseURL = '/temporal-features';
 
