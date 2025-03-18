@@ -159,7 +159,7 @@ FROM maplify_sightings AS s
 JOIN taxa AS t ON s.taxon_id = t.id
 WHERE created BETWEEN @earliest AND @latest;
 `);
-export const sightingsBetween = async (earliest: Temporal.Instant, latest: Temporal.Instant) => {
+export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.Instant) => {
   const features: Feature<Point, SightingProperties>[] = sightingsBetweenQuery
     .all({earliest: earliest.epochSeconds, latest: latest.epochSeconds})
     .map(row => ({

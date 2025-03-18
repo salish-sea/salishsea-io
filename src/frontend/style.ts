@@ -3,17 +3,21 @@ import Circle from 'ol/style/Circle.js';
 import Fill from 'ol/style/Fill.js';
 import Stroke from 'ol/style/Stroke.js';
 import Text from 'ol/style/Text.js';
-import type {FeatureProperties, FerryLocationProperties, SightingProperties} from '../server/types.ts';
+import type {FeatureProperties, FerryLocationProperties, ObservationProperties, SightingProperties} from '../server/types.ts';
 import type { FeatureLike } from 'ol/Feature.js';
 import TextStyle from 'ol/style/Text.js';
 import { Temporal } from 'temporal-polyfill';
+import { Point, type LineString } from 'ol/geom.js';
+import type Feature from 'ol/Feature.js';
+import Icon from 'ol/style/Icon.js';
+import arrowPNG from '../assets/arrow.png';
 
 const black = '#000000';
 const white = '#ffffff';
 const transparentWhite = 'rgba(255, 255, 255, 0.4)';
 const solidBlue = '#3399CC';
 
-const observationStyle2 = ({symbol}: SightingProperties, isSelected: boolean) => {
+const observationStyle2 = ({symbol}: SightingProperties | ObservationProperties, isSelected: boolean) => {
   const fill = new Fill({color: isSelected ? solidBlue : transparentWhite});
   const stroke = new Stroke({color: isSelected ? transparentWhite : solidBlue, width: 1.25});
   return [
@@ -39,7 +43,7 @@ const observationStyle2 = ({symbol}: SightingProperties, isSelected: boolean) =>
   ];
 }
 
-const observationStyle = (properties: SightingProperties) => {
+const observationStyle = (properties: SightingProperties | ObservationProperties) => {
   return observationStyle2(properties, false);
 };
 
@@ -78,10 +82,45 @@ const ferryStyle = ({symbol}: FerryLocationProperties) => {
   });
 }
 
-export const featureStyle = (feature: FeatureLike) => {
+export const travelStyle = (feature: Feature<LineString>, resolution: number) => {
+  if (resolution > 80)
+    return;
+
+  const styles = [
+    // linestring
+    new Style({
+      stroke: new Stroke({
+        color: '#ffcc33',
+        width: 2,
+      }),
+    }),
+  ];
+  feature.getGeometry()!.forEachSegment(function (start, end) {
+    const dx = end[0] - start[0];
+    const dy = end[1] - start[1];
+    const rotation = Math.atan2(dy, dx);
+    // arrows
+    styles.push(
+      new Style({
+        geometry: new Point([(end[0] + start[0]) / 2, (end[1] + start[1]) / 2]),
+        image: new Icon({
+          src: arrowPNG,
+          anchor: [0.75, 0.5],
+          rotateWithView: true,
+          rotation: -rotation,
+        }),
+      }),
+    );
+  });
+  return styles;
+}
+
+export const featureStyle = (feature: FeatureLike, resolution: number) => {
   const properties = feature.getProperties() as FeatureProperties;
   if (properties.kind === 'Ferry') {
     return ferryStyle(properties);
+  } else if (properties.kind === 'TravelLine') {
+    return travelStyle(feature as Feature<LineString>, resolution);
   } else {
     return observationStyle(properties);
   }

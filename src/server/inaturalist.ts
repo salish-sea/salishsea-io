@@ -157,7 +157,7 @@ FROM inaturalist_observations o
 JOIN taxa t ON o.taxon_id = t.id
 WHERE o.observed_at BETWEEN @earliest AND @latest
 `);
-export const sightingsBetween = async (earliest: Temporal.Instant, latest: Temporal.Instant) => {
+export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.Instant) => {
   const results: Feature<Point, ObservationProperties>[] = sightingsBetweenQuery
     .all({earliest: earliest.epochSeconds, latest: latest.epochSeconds})
     .map(row => ({

@@ -1,7 +1,7 @@
 import express from "express";
 import type { Request, Response } from "express";
 import ViteExpress from "vite-express";
-import type { FeatureCollection, Point } from 'geojson';
+import type { FeatureCollection, Geometry, Point } from 'geojson';
 import * as ferries from './ferries.ts';
 import * as maplify from './maplify.ts';
 import * as inaturalist from './inaturalist.ts';
@@ -9,20 +9,28 @@ import type { FeatureProperties } from "./types.ts";
 import { Temporal } from "temporal-polyfill";
 import { query, matchedData, validationResult } from 'express-validator';
 import type { Extent } from "ol/extent.js";
+import { imputeTravelLines } from "./travel.ts";
 
 const app = express();
 
 const extentOfInterest: Extent = [-130, 45, -120, 51];
 
-const collectFeatures = async (asof: Temporal.Instant) => {
-  const now = Temporal.Now.zonedDateTimeISO('PST8PDT');
-  const earlier = now.subtract({hours: 100}).withPlainTime(); // beginning of day, two days ago
-  const collection: FeatureCollection<Point, FeatureProperties> = {
+const collectFeatures = async (asOf: Temporal.ZonedDateTime) => {
+  const later = asOf.add({hours: 24}).with({hour: 23, minute: 59}); // end of day, tomorrow
+  const earlier = asOf.subtract({hours: 24}).withPlainTime(); // beginning of day, one day ago
+  const observations = [
+    ...maplify.sightingsBetween(earlier.toInstant(), later.toInstant()),
+    ...inaturalist.sightingsBetween(earlier.toInstant(), later.toInstant()),
+  ];
+  const travelLines = imputeTravelLines(observations);
+  const features = [
+    ...observations,
+    ...travelLines,
+    ...ferries.locationsAsOf(asOf.toInstant()),
+  ];
+  const collection: FeatureCollection<Geometry> = {
     type: 'FeatureCollection',
-    features: [
-      ...await maplify.sightingsBetween(earlier.toInstant(), now.toInstant()),
-      ...await ferries.locationsAsOf(asof),
-    ],
+    features,
   };
   return collection;
 };
@@ -38,7 +46,7 @@ app.get(
     }
 
     const {t} = matchedData(req) as {t: string};
-    const asOf = Temporal.Instant.from(t);
+    const asOf = Temporal.Instant.from(t).toZonedDateTimeISO('PST8PDT');
     const observations = await collectFeatures(asOf);
     res.contentType('application/geo+json');
     res.json(observations);
