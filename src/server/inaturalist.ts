@@ -1,9 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { queryStringAppend } from "../frontend/util.ts";
-import type { Extent } from "ol/extent.js";
 import { db } from "./database.ts";
-import type { Feature, Point } from "geojson";
-import { detectIndividuals, symbolFor } from "./taxon.ts";
+import type { Extent } from "../types.ts";
 
 type ResultPage<T> = {
   total_results: number;
@@ -12,11 +10,20 @@ type ResultPage<T> = {
   results: T[];
 }
 
+type Photo = {
+  id: number;
+  attribution: string;
+  hidden: boolean;
+  license_code: string | null;
+  url: string; // e.g. `.../square.jpeg`
+};
+
 type Observation = {
   id: number;
   description: string | null;
   geojson: {coordinates: [number, number], type: 'Point'};
-  photos: [{url: string}],
+  license_code: string;
+  photos: Photo[],
   taxon: {id: number; name: string; preferred_common_name: string | null};
   time_observed_at: string | null;
   uri: string;
@@ -29,6 +36,9 @@ type ObservationRow = {
   longitude: number;
   taxon_id: number;
   observed_at: number; // UNIX time
+  license_code: string;
+  photo_url: string | null;
+  photo_attribution: string | null;
 }
 
 function assertValidObservation(obs: any): asserts obs is Observation {
@@ -54,7 +64,7 @@ function assertValidResponse(body: any): asserts body is ResultPage<Observation>
 }
 
 const observationSearch = 'https://api.inaturalist.org/v2/observations';
-const observationFieldspec = "(id:!t,description:!t,geojson:!t,photos:(url:!t),taxon:(id:!t,name:!t,preferred_common_name:!t),time_observed_at:!t,uri:!t)";
+const observationFieldspec = "(id:!t,description:!t,geojson:!t,photos:(id:!t,attribution:!t,hidden:!t,license_code:!t,url:!t),license_code:!t,taxon:(id:!t,name:!t,preferred_common_name:!t),time_observed_at:!t,uri:!t)";
 export async function fetchObservations(
   {earliest, extent: [minx, miny, maxx, maxy], latest, taxon_ids}:
     {earliest: Temporal.PlainDate, extent: Extent, latest: Temporal.PlainDate, taxon_ids: number[]}
@@ -67,6 +77,7 @@ export async function fetchObservations(
     const url = queryStringAppend(observationSearch, {
       d1: earliest.toString(),
       d2: latest.toString(),
+      licensed: true,
       nelat: maxy.toFixed(6),
       nelng: maxx.toFixed(6),
       swlat: miny.toFixed(6),
@@ -85,16 +96,16 @@ export async function fetchObservations(
     assertValidResponse(body);
     total = body.total_results;
     page++;
-    results.concat(body.results);
+    results.push(...body.results);
   }
   return results;
 }
 
 const loadFeatureStatement = db.prepare<ObservationRow>(`
 INSERT OR REPLACE INTO inaturalist_observations
-( id,  description,  longitude,  latitude,  taxon_id,  observed_at)
+( id,  description,  longitude,  latitude,  license_code,  taxon_id,  observed_at,  photo_url,  photo_attribution)
 VALUES
-(@id, @description, @longitude, @latitude, @taxon_id, @observed_at)
+(@id, @description, @longitude, @latitude, @license_code, @taxon_id, @observed_at, @photo_url, @photo_attribution)
 `);
 const upsert = db.transaction((rows: ObservationRow[]) => {
   for (const row of rows) {
@@ -106,13 +117,19 @@ export async function loadObservations(observations: Observation[]) {
     .filter(observation => typeof observation.time_observed_at === 'string')
     .map(observation => {
       const observedAt = Temporal.Instant.from(observation.time_observed_at!);
+      const photo = observation
+        .photos
+        .filter(photo => photo.license_code && !photo.hidden)[0];
       return {
         id: observation.id,
         description: nullIfEmpty(observation.description),
         longitude: observation.geojson.coordinates[0],
         latitude: observation.geojson.coordinates[1],
-        observed_at: observedAt.epochSeconds,
+        license_code: observation.license_code,
         taxon_id: observation.taxon.id,
+        observed_at: observedAt.epochSeconds,
+        photo_url: photo ? photo.url : null,
+        photo_attribution: photo ? photo.attribution : null,
       }
     });
   upsert(rows);
@@ -125,53 +142,3 @@ function nullIfEmpty(str: string | null) {
   const trimmed = str.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
-
-export type ObservationProperties = {
-  id: string;
-  body: string | null;
-  count: null;
-  kind: 'Sighting';
-  individuals: string[];
-  name: string;
-  source: 'iNaturalist';
-  species: string;
-  symbol: string;
-  timestamp: number;
-}
-const sightingsBetweenQuery = db.prepare<
-{earliest: number; latest: number},
-  Omit<ObservationProperties, 'individuals' | 'symbol'> & {vernacular_name: string | null; scientific_name: string; longitude: number; latitude: number}
->(`
-SELECT
-  'inaturalist:' || o.id AS id,
-  o.description AS body,
-  null as count,
-  'Sighting' as kind,
-  'iNaturalist' as source,
-  o.longitude,
-  o.latitude,
-  t.vernacular_name,
-  t.scientific_name,
-  o.observed_at as "timestamp"
-FROM inaturalist_observations o
-JOIN taxa t ON o.taxon_id = t.id
-WHERE o.observed_at BETWEEN @earliest AND @latest
-`);
-export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.Instant) => {
-  const results: Feature<Point, ObservationProperties>[] = sightingsBetweenQuery
-    .all({earliest: earliest.epochSeconds, latest: latest.epochSeconds})
-    .map(row => ({
-      id: row.id,
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [row.longitude, row.latitude],
-      },
-      properties: {
-        ...row,
-        individuals: row.body ? detectIndividuals(row.body) : [],
-        symbol: 'HELLO' // symbolFor(row),
-      }
-    }));
-  return results;
-};

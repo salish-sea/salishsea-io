@@ -10,7 +10,11 @@
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.38.5",
-    "better-sqlite3": "^11.9.0",
+    "@formatjs/intl-datetimeformat": "^6.17.3",
+    "@turf/bearing": "^7.2.0",
+    "@turf/distance": "^7.2.0",
+    "@turf/helpers": "^7.2.0",
+    "better-sqlite3": "^11.9.1",
     "express": "^4.21.2",
     "express-validator": "^7.2.1",
     "lit": "^3.2.1",

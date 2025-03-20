@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "ES2023",
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "module": "nodenext",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "rewriteRelativeImportExtensions": true,
     "erasableSyntaxOnly": true,
@@ -21,7 +21,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+    "noUncheckedIndexedAccess": true
   },
   "include": ["src"]
 }

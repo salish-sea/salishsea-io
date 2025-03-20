@@ -1,24 +1,29 @@
 import { LitElement, css, html } from 'lit'
 import type { PropertyValues } from 'lit';
-import { customElement, query } from 'lit/decorators.js'
+import { customElement, query, state } from 'lit/decorators.js'
 import OpenLayersMap from "ol/Map.js";
 import View from "ol/View.js";
 import Select from 'ol/interaction/Select.js';
 import {defaults as defaultInteractions} from 'ol/interaction/defaults.js';
 import DragBox from 'ol/interaction/DragBox.js';
 import Link from 'ol/interaction/Link.js';
+import './obs-panel.ts';
+import './obs-summary.ts';
 
 // imports below these lines smell like they support functionality that should be factored out
 import VectorLayer from 'ol/layer/Vector.js';
 import TileLayer from 'ol/layer/Tile.js';
 import { fromLonLat } from 'ol/proj.js';
 import XYZ from 'ol/source/XYZ.js';
-import ObservationSource from './observation-source.ts';
+import TemporalFeatureSource from './temporal-feature-source.ts';
 import { featureStyle, selectedObservationStyle } from './style.ts';
 import { Temporal } from 'temporal-polyfill';
 import { platformModifierKeyOnly } from 'ol/events/condition.js';
 import type { CollectionEvent } from 'ol/Collection.js';
 import type { FeatureLike } from 'ol/Feature.js';
+import type {Feature as GeoJSONFeature, Point as GeoJSONPoint} from 'geojson';
+import type { SightingProperties } from '../types.ts';
+import type Point from 'ol/geom/Point.js';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -28,14 +33,14 @@ const coordinates = {
   time: Temporal.Now.instant(),
 };
 
-const sightingSource = new ObservationSource(coordinates);
-const sightingLayer = new VectorLayer({
-  source: sightingSource,
+const temporalSource = new TemporalFeatureSource(coordinates);
+const temporalLayer = new VectorLayer({
+  source: temporalSource,
   style: featureStyle,
 });
 
 const select = new Select({
-  layers: [sightingLayer],
+  layers: [temporalLayer],
   style: selectedObservationStyle,
 });
 const selection = select.getFeatures();
@@ -57,16 +62,43 @@ export class OlMap extends LitElement {
   public mapElement!: HTMLDivElement
 
   static styles = css`
-    :host { display: block; }
-    #map { height: 100%; }
+    :host { display: flex; align-items: stretch }
+    #map { flex-grow: 1; }
+    obs-panel { width: 320px; }
   `
+
+  @state()
+  private features: GeoJSONFeature<GeoJSONPoint, SightingProperties>[] = [];
+
+  constructor() {
+    super();
+    temporalSource.on('change', () => {
+      this.features = temporalSource
+        .getFeatures()
+        .filter(f => f.get('kind') === 'Sighting')
+        .toSorted((a, b) => b.get('timestamp') - a.get('timestamp'))
+        .map(f => {
+          const point = f.getGeometry() as Point;
+          const properties = f.getProperties() as SightingProperties;
+          return {
+            type: 'Feature',
+            geometry: {type: 'Point', coordinates: point.getCoordinates()},
+            properties,
+          };
+        })
+    });
+  }
+
   public render() {
     return html`
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.4.0/ol.css" type="text/css" />
-      <style>
-      </style>
       <div id="map"></div>
-      <slot></slot>
+      <obs-panel>
+        ${this.features.map(feature => {
+          const {body, count, name, date, time, prev_date} = feature.properties;
+          return html`<obs-summary .body=${body} .count=${count} .name=${name} .time=${time} .date=${date} .prev_date=${prev_date} />`
+        })}
+      </obs-panel>
     `;
   }
 
@@ -86,7 +118,7 @@ export class OlMap extends LitElement {
             url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
           }),
         }),
-        sightingLayer,
+        temporalLayer,
       ],
       target: this.mapElement,
       view: new View({
@@ -100,7 +132,7 @@ export class OlMap extends LitElement {
 
 dragBox.on('boxend', () => {
   const boxExtent = dragBox.getGeometry().getExtent();
-  const features = sightingSource.getFeaturesInExtent(boxExtent);
+  const features = temporalSource.getFeaturesInExtent(boxExtent);
   selection.clear();
   selection.extend(features);
   selection.changed();

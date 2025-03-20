@@ -15,7 +15,7 @@ export type Matriline = `${IndividualOrca}s`;
 const ecotypeRE = /\b(srkw|southern resident|transient|biggs)\b/gi;
 export const detectEcotype = (text: Readonly<string>) => {
   for (const [, ecotype] of text.matchAll(ecotypeRE)) {
-    switch (ecotype.toLowerCase()) {
+    switch (ecotype!.toLowerCase()) {
       case 'biggs': return 'Biggs';
       case 'southern resident': return 'SRKW';
       case 'srkw': return 'SRKW';
@@ -35,7 +35,7 @@ const podCleanerRE = /\s*(\+|,|&|and|-)\\s*/gi;
 const podRE = /\b([jklt]+)\s?pod\b/gi;
 export const detectPod = (text: Readonly<string>) => {
   for (const [, pods] of text.replaceAll(podCleanerRE, '').matchAll(podRE)) {
-    for (const pod of [...pods]) {
+    for (const pod of [...pods!]) {
       assertPod(pod);
       return pod.toUpperCase();
     }
@@ -54,8 +54,8 @@ const individualRE = /\b(t|j|k|l|t|crc)-?([0-9][0-9a-f]+)(s?)\b/gi;
 export const detectIndividuals = (text: Readonly<string>) => {
   const matches = new Set<string>();
   for (let [, pod, individual, matriline] of text.matchAll(individualRE)) {
-    pod = pod.toUpperCase();
-    const id = normalizeIndividual(`${pod}${individual.toUpperCase()}`);
+    pod = pod!.toUpperCase();
+    const id = normalizeIndividual(`${pod}${individual!.toUpperCase()}`);
     if (matriline) {
       matches.add(`${id}s` as Matriline);
     } else if (isIndividualOrca(id)) {
@@ -77,7 +77,7 @@ function isIndividualOrca(name: string): name is IndividualOrca {
 export function symbolFor(
   {body, scientific_name, vernacular_name}:
     {body: string | null; scientific_name: string; vernacular_name: string | null}
-): string {
+): string | undefined {
   let label = vernacular_name || scientific_name;
   if (scientific_name.startsWith('Orcinus orca')) {
     label = 'O';

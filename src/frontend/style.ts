@@ -3,7 +3,7 @@ import Circle from 'ol/style/Circle.js';
 import Fill from 'ol/style/Fill.js';
 import Stroke from 'ol/style/Stroke.js';
 import Text from 'ol/style/Text.js';
-import type {FeatureProperties, FerryLocationProperties, ObservationProperties, SightingProperties} from '../server/types.ts';
+import type {FeatureProperties, FerryLocationProperties, SightingProperties} from '../types.ts';
 import type { FeatureLike } from 'ol/Feature.js';
 import TextStyle from 'ol/style/Text.js';
 import { Temporal } from 'temporal-polyfill';
@@ -17,7 +17,7 @@ const white = '#ffffff';
 const transparentWhite = 'rgba(255, 255, 255, 0.4)';
 const solidBlue = '#3399CC';
 
-const observationStyle2 = ({symbol}: SightingProperties | ObservationProperties, isSelected: boolean) => {
+const observationStyle2 = ({symbol}: SightingProperties, isSelected: boolean) => {
   const fill = new Fill({color: isSelected ? solidBlue : transparentWhite});
   const stroke = new Stroke({color: isSelected ? transparentWhite : solidBlue, width: 1.25});
   return [
@@ -43,7 +43,7 @@ const observationStyle2 = ({symbol}: SightingProperties | ObservationProperties,
   ];
 }
 
-const observationStyle = (properties: SightingProperties | ObservationProperties) => {
+const observationStyle = (properties: SightingProperties) => {
   return observationStyle2(properties, false);
 };
 
@@ -68,6 +68,7 @@ export const selectedObservationStyle = (observation: FeatureLike) => {
         backgroundFill: new Fill({color: 'rgba(255, 255, 255, 0.8)'}),
         declutterMode: 'obstacle',
         offsetX: 8,
+        padding: [2, 2, 2, 2],
         text,
         textAlign: 'left',
       })
@@ -95,7 +96,9 @@ export const travelStyle = (feature: Feature<LineString>, resolution: number) =>
       }),
     }),
   ];
-  feature.getGeometry()!.forEachSegment(function (start, end) {
+  feature.getGeometry()!.forEachSegment(function (a, b) {
+    const start = a as [number, number];
+    const end = b as [number, number];
     const dx = end[0] - start[0];
     const dy = end[1] - start[1];
     const rotation = Math.atan2(dy, dx);

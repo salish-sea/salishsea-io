@@ -1,8 +1,6 @@
 import { Temporal } from "temporal-polyfill";
 import { queryStringAppend } from "../frontend/util.ts";
 import { db } from "./database.ts";
-import type { Feature, Point } from "geojson";
-import { detectEcotype, detectIndividuals, detectPod, symbolFor } from "./taxon.ts";
 
 type Source = 'CINMS' | 'ocean_alert' | 'rwsas' | 'FARPB' | 'whale_alert';
 
@@ -32,18 +30,6 @@ type Result = {
 type APIResponse = {
   count: string; // !!
   results: Result[];
-}
-
-export type SightingProperties = {
-  body: string | null;
-  count: number | null;
-  kind: 'Sighting';
-  individuals: string[];
-  name: string;
-  source: 'Maplify';
-  species: string;
-  symbol: string;
-  timestamp: number;
 }
 
 type SightingRow = {
@@ -141,45 +127,4 @@ export function loadSightings(sightings: Result[]) {
   const toLoad = sightings.filter(sighting => sighting.source !== 'rwsas');
   upsert(toLoad);
   return toLoad.length;
-};
-
-type SightingsBetweenRow = {
-  id: number;
-  comments: string | null;
-  created: number;
-  latitude: number;
-  longitude: number;
-  number_sighted: number;
-  scientific_name: string;
-  vernacular_name: string | null
-};
-const sightingsBetweenQuery = db.prepare<{earliest: number; latest: number}, SightingsBetweenRow>(`
-SELECT s.id, s.comments, s.created, s.latitude, s.longitude, s.number_sighted, t.scientific_name, t.vernacular_name
-FROM maplify_sightings AS s
-JOIN taxa AS t ON s.taxon_id = t.id
-WHERE created BETWEEN @earliest AND @latest;
-`);
-export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.Instant) => {
-  const features: Feature<Point, SightingProperties>[] = sightingsBetweenQuery
-    .all({earliest: earliest.epochSeconds, latest: latest.epochSeconds})
-    .map(row => ({
-      id: `maplify:${row.id}`,
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [row.longitude, row.latitude],
-      },
-      properties: {
-        body: row.comments,
-        count: row.number_sighted < 1 ? null : row.number_sighted,
-        kind: 'Sighting',
-        individuals: row.comments ? detectIndividuals(row.comments) : [],
-        name: row.vernacular_name || row.scientific_name,
-        source: 'Maplify',
-        symbol: symbolFor({...row, body: row.comments}),
-        species: row.scientific_name,
-        timestamp: row.created
-      }
-    }));
-  return features;
 };

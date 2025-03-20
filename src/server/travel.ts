@@ -1,4 +1,4 @@
-import type { Feature, FeatureCollection, LineString, Point } from "geojson";
+import type { Feature, LineString, Point } from "geojson";
 import { point as turfPoint } from '@turf/helpers';
 import { distance } from '@turf/distance';
 import { bearing as getBearing } from "@turf/bearing";
@@ -10,13 +10,12 @@ export type TravelLineProperties = {
   kind: 'TravelLine';
 }
 
-export function imputeTravelLines(observations: Feature<Point, {timestamp: number, species: string}>[]) {
-  const sorted = observations.toSorted((a, b) => b.properties.timestamp - a.properties.timestamp);
+export function imputeTravelLines(sorted: Feature<Point, {timestamp: number, species: string}>[]) {
   const lines: Feature<LineString, TravelLineProperties>[] = [];
   for (const obs of sorted) {
     const fromPoint = turfPoint(obs.geometry.coordinates)
     const fromObservedAt = obs.properties.timestamp;
-    for (const candidate of observations) {
+    for (const candidate of sorted) {
       if (obs.properties.species !== candidate.properties.species)
         continue;
 
