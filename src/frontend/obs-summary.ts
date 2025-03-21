@@ -55,7 +55,7 @@ export class ObsSummary extends LitElement {
         <a class="focus-observation" @click="${this.focusObservation}" href="#">📍</a>
         <b>${name}</b>${count}<time>${time}</time>
       </header>
-      <cite>via${user ? ` ${user} on` : undefined} ${url ? html`<a href=${url}>${source}</a>` : source}</cite>
+      <cite>via${user ? ` ${user} on` : undefined} ${url ? html`<a target="_new" href=${url}>${source}</a>` : source}</cite>
       ${body.map(p => html`<p class="body">${p}</p>`)}
       ${photos.length ?
         html`<ul class="photos">${

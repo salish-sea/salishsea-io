@@ -13,6 +13,7 @@ import arrowPNG from '../assets/arrow.png';
 
 const black = '#000000';
 const white = '#ffffff';
+const yellow = '#ffff00';
 const transparentWhite = 'rgba(255, 255, 255, 0.4)';
 const solidBlue = '#3399CC';
 
@@ -20,17 +21,17 @@ export type PresentedSighting = SightingProperties & {
   focused?: boolean;
 }
 
-const observationStyle2 = ({focused, symbol}: PresentedSighting, isSelected: boolean) => {
-  const fill = new Fill({color: isSelected ? solidBlue : transparentWhite});
+const observationStyle2 = ({focused, individuals, symbol}: PresentedSighting, isSelected: boolean) => {
+  let fill: Fill;
   let stroke: Stroke;
-  if (focused) {
-    stroke = new Stroke({color: 'rgb(255, 255, 0)', width: 3});
-  } else if (isSelected) {
-    stroke = new Stroke({color: transparentWhite, width: 1.25});
+  if (focused || isSelected) {
+    fill = new Fill({color: yellow});
+    stroke = new Stroke({color: yellow, width: 3});
   } else {
+    fill = new Fill({color: transparentWhite});
     stroke = new Stroke({color: solidBlue, width: 1.25});
   }
-  return [
+  const styles = [
     new Style({
       image: new Circle({
         radius: 6,
@@ -43,7 +44,7 @@ const observationStyle2 = ({focused, symbol}: PresentedSighting, isSelected: boo
     new Style({
       text: new Text({
         declutterMode: 'none',
-        fill: new Fill({color: isSelected ? white : black}),
+        fill: new Fill({color: black}),
         font: '10px monospace',
         offsetY: 1.5,
         text: symbol,
@@ -51,6 +52,19 @@ const observationStyle2 = ({focused, symbol}: PresentedSighting, isSelected: boo
       }),
     }),
   ];
+  if (individuals.length) {
+    styles.push(new Style({
+      text: new Text({
+        backgroundFill: new Fill({color: 'rgba(255, 255, 255, 0.8)'}),
+        declutterMode: 'obstacle',
+        offsetX: 10,
+        padding: [1, 1, 0, 1],
+        text: individuals.join(', '),
+        textAlign: 'left',
+      }),
+    }));
+  }
+  return styles;
 }
 
 const observationStyle = (properties: PresentedSighting) => {
@@ -74,7 +88,7 @@ const ferryStyle = ({symbol}: FerryLocationProperties) => {
 }
 
 export const travelStyle = (feature: Feature<LineString>, resolution: number) => {
-  if (resolution > 80)
+  if (resolution > 100)
     return;
 
   const styles = [

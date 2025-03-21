@@ -5,7 +5,6 @@ import OpenLayersMap from "ol/Map.js";
 import View from "ol/View.js";
 import Select from 'ol/interaction/Select.js';
 import {defaults as defaultInteractions} from 'ol/interaction/defaults.js';
-import DragBox from 'ol/interaction/DragBox.js';
 import Link from 'ol/interaction/Link.js';
 import './obs-panel.ts';
 import './obs-summary.ts';
@@ -18,7 +17,6 @@ import XYZ from 'ol/source/XYZ.js';
 import TemporalFeatureSource from './temporal-feature-source.ts';
 import { featureStyle, selectedObservationStyle, type PresentedSighting } from './style.ts';
 import { Temporal } from 'temporal-polyfill';
-import { platformModifierKeyOnly } from 'ol/events/condition.js';
 import type { CollectionEvent } from 'ol/Collection.js';
 import type { FeatureLike } from 'ol/Feature.js';
 import type {Feature as GeoJSONFeature, Point as GeoJSONPoint} from 'geojson';
@@ -28,6 +26,7 @@ import { classMap } from 'lit/directives/class-map.js';
 
 const sphericalMercator = 'EPSG:3857';
 
+const link = new Link({params: ['x', 'y', 'z'], replace: true});
 const coordinates = {
   latitude: 47.8,
   longitude: -122.450,
@@ -43,21 +42,23 @@ const temporalLayer = new VectorLayer({
 const select = new Select({
   layers: [temporalLayer],
   filter: (f) => f.get('kind') === 'Sighting',
-  multi: true,
+  multi: false,
   style: selectedObservationStyle,
 });
 const selection = select.getFeatures();
 selection.on('add', (e: CollectionEvent<FeatureLike>) => {
+  const id = e.element.getId();
+  if (id)
+    link.update('s', id as string);
   console.log(e.element.getProperties());
 });
-const dragBox = new DragBox({
-  condition: platformModifierKeyOnly,
+selection.on('remove', () => {
+  link.update('s', null);
 });
 const setTime = (timestamp: number) => {
   coordinates.timestamp = timestamp;
   temporalSource.refresh();
 };
-const link = new Link({params: ['x', 'y', 'z'], replace: true});
 const initialT = link.track('t', (v) => setTime(parseInt(v, 10)));
 if (initialT) {
   setTime(parseInt(initialT, 10));
@@ -79,6 +80,7 @@ export class ObsMap extends LitElement {
   align-items: stretch;
   display: flex;
   flex-direction: row;
+  flex-grow: 1;
   overflow: auto;
 }
 #map {
@@ -109,58 +111,30 @@ obs-panel {
   @state()
   private features: GeoJSONFeature<GeoJSONPoint, PresentedSighting>[] = [];
 
-  @state()
-  focusedId: string | undefined;
-
   constructor() {
     super();
     temporalSource.on('change', this.updateSightings.bind(this));
-    selection.on('change', this.updateSightings.bind(this));
     this.addEventListener('focus-observation', (evt) => {
       if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
         throw "oh no";
       this.focusObservation(evt.detail);
     });
-    dragBox.on('boxend', this.onDragBoxEnd.bind(this));
-  }
-
-  onDragBoxEnd() {
-    const boxExtent = dragBox.getGeometry().getExtent();
-    const features = temporalSource
-      .getFeaturesInExtent(boxExtent);
-    const firstFeature = features[0];
-    if (firstFeature && features.length === 1) {
-      this.focusObservation(firstFeature.getId() as string);
-    } else {
-      selection.clear();
-      selection.extend(features);
-      selection.changed();
-    }
+    link.track('s', (v) => v && this.focusObservation(v));
   }
 
   focusObservation(id: string) {
-    if (this.focusedId) {
-      temporalSource.getFeatureById(this.focusedId)!.unset('focused');
-      if (id === this.focusedId) {
-        this.focusedId = undefined;
-        return;
-      }
-    }
-    this.focusedId = id;
     const feature = temporalSource.getFeatureById(id)!;
-    feature.set('focused', true);
+    if (!feature)
+      return;
+    selection.clear();
+    selection.push(feature);
     const geometry = feature.getGeometry() as Point;
     this.map!.getView().animate({zoom: 12}, {center: geometry.getCoordinates()});
   }
 
+  // Used by the side panel
   updateSightings() {
-    const selected = selection.getArray();
-    if (selected.length === 1) {
-      this.focusedId = selected[0]!.getId() as string | undefined;
-    } else {
-      this.focusedId = undefined;
-    }
-    this.features = (selected.length > 1 ? selected : temporalSource.getFeatures())
+    this.features = temporalSource.getFeatures()
       .filter(f => f.get('kind') === 'Sighting')
       .toSorted((a, b) => b.get('timestamp') - a.get('timestamp'))
       .map(f => {
@@ -175,6 +149,7 @@ obs-panel {
   }
 
   public render() {
+    const selectedId = selection.getArray()[0]?.getId();
     let prev_date: string | undefined;
     return html`
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.4.0/ol.css" type="text/css" />
@@ -186,7 +161,7 @@ obs-panel {
           prev_date = date;
           return html`
             ${showHeader ? html`<header class="date">${date}</header>` : undefined}
-            <obs-summary class=${classMap({focused: id === this.focusedId})} .sighting=${feature.properties} />
+            <obs-summary class=${classMap({focused: id === selectedId})} .sighting=${feature.properties} />
           `;
         })}
       </obs-panel>
@@ -195,7 +170,7 @@ obs-panel {
 
   public firstUpdated(_changedProperties: PropertyValues): void {
     this.map = new OpenLayersMap({
-      interactions: defaultInteractions().extend([dragBox, link, select]),
+      interactions: defaultInteractions().extend([link, select]),
       layers: [
         new TileLayer({
           source: new XYZ({urls: [
