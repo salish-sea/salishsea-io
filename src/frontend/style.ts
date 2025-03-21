@@ -6,7 +6,6 @@ import Text from 'ol/style/Text.js';
 import type {FeatureProperties, FerryLocationProperties, SightingProperties} from '../types.ts';
 import type { FeatureLike } from 'ol/Feature.js';
 import TextStyle from 'ol/style/Text.js';
-import { Temporal } from 'temporal-polyfill';
 import { Point, type LineString } from 'ol/geom.js';
 import type Feature from 'ol/Feature.js';
 import Icon from 'ol/style/Icon.js';
@@ -17,9 +16,20 @@ const white = '#ffffff';
 const transparentWhite = 'rgba(255, 255, 255, 0.4)';
 const solidBlue = '#3399CC';
 
-const observationStyle2 = ({symbol}: SightingProperties, isSelected: boolean) => {
+export type PresentedSighting = SightingProperties & {
+  focused?: boolean;
+}
+
+const observationStyle2 = ({focused, symbol}: PresentedSighting, isSelected: boolean) => {
   const fill = new Fill({color: isSelected ? solidBlue : transparentWhite});
-  const stroke = new Stroke({color: isSelected ? transparentWhite : solidBlue, width: 1.25});
+  let stroke: Stroke;
+  if (focused) {
+    stroke = new Stroke({color: 'rgb(255, 255, 0)', width: 3});
+  } else if (isSelected) {
+    stroke = new Stroke({color: transparentWhite, width: 1.25});
+  } else {
+    stroke = new Stroke({color: solidBlue, width: 1.25});
+  }
   return [
     new Style({
       image: new Circle({
@@ -43,7 +53,7 @@ const observationStyle2 = ({symbol}: SightingProperties, isSelected: boolean) =>
   ];
 }
 
-const observationStyle = (properties: SightingProperties) => {
+const observationStyle = (properties: PresentedSighting) => {
   return observationStyle2(properties, false);
 };
 
@@ -53,27 +63,7 @@ const observationStyle = (properties: SightingProperties) => {
 
 export const selectedObservationStyle = (observation: FeatureLike) => {
   const properties = observation.getProperties() as SightingProperties;
-  const {body, count, name, timestamp} = properties;
-  const observedAt = Temporal.Instant.fromEpochSeconds(timestamp);
-  let text = observedAt.toLocaleString('en-US', {dateStyle: 'short', timeZone: 'PST8PDT', timeStyle: 'short'});
-  text += ` ${name}`;
-  if (count)
-    text += ` (${count})`;
-  if (body)
-    text += '\n' + body.replaceAll(/(<br>)+/gi, '\n');
-  return [
-    ...observationStyle2(properties, true),
-    new Style({
-      text: new Text({
-        backgroundFill: new Fill({color: 'rgba(255, 255, 255, 0.8)'}),
-        declutterMode: 'obstacle',
-        offsetX: 8,
-        padding: [2, 2, 2, 2],
-        text,
-        textAlign: 'left',
-      })
-    })
-  ];
+  return observationStyle2(properties, true);
 };
 
 

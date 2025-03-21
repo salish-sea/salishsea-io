@@ -15,6 +15,7 @@ type Photo = {
   attribution: string;
   hidden: boolean;
   license_code: string | null;
+  original_dimensions: {height: number, width: number};
   url: string; // e.g. `.../square.jpeg`
 };
 
@@ -27,6 +28,7 @@ type Observation = {
   taxon: {id: number; name: string; preferred_common_name: string | null};
   time_observed_at: string | null;
   uri: string;
+  user: {login: string};
 }
 
 type ObservationRow = {
@@ -37,8 +39,7 @@ type ObservationRow = {
   taxon_id: number;
   observed_at: number; // UNIX time
   license_code: string;
-  photo_url: string | null;
-  photo_attribution: string | null;
+  photos_json: string | null;
 }
 
 function assertValidObservation(obs: any): asserts obs is Observation {
@@ -64,7 +65,7 @@ function assertValidResponse(body: any): asserts body is ResultPage<Observation>
 }
 
 const observationSearch = 'https://api.inaturalist.org/v2/observations';
-const observationFieldspec = "(id:!t,description:!t,geojson:!t,photos:(id:!t,attribution:!t,hidden:!t,license_code:!t,url:!t),license_code:!t,taxon:(id:!t,name:!t,preferred_common_name:!t),time_observed_at:!t,uri:!t)";
+const observationFieldspec = "(id:!t,description:!t,geojson:!t,photos:(id:!t,attribution:!t,hidden:!t,license_code:!t,original_dimensions:(height:!t,width:!t),url:!t),license_code:!t,taxon:(id:!t,name:!t,preferred_common_name:!t),time_observed_at:!t,uri:!t,user:(login:!t))";
 export async function fetchObservations(
   {earliest, extent: [minx, miny, maxx, maxy], latest, taxon_ids}:
     {earliest: Temporal.PlainDate, extent: Extent, latest: Temporal.PlainDate, taxon_ids: number[]}
@@ -103,9 +104,9 @@ export async function fetchObservations(
 
 const loadFeatureStatement = db.prepare<ObservationRow>(`
 INSERT OR REPLACE INTO inaturalist_observations
-( id,  description,  longitude,  latitude,  license_code,  taxon_id,  observed_at,  photo_url,  photo_attribution)
+( id,  description,  longitude,  latitude,  license_code,  taxon_id,  observed_at,  photos_json,  url,  username)
 VALUES
-(@id, @description, @longitude, @latitude, @license_code, @taxon_id, @observed_at, @photo_url, @photo_attribution)
+(@id, @description, @longitude, @latitude, @license_code, @taxon_id, @observed_at, @photos_json, @url, @username)
 `);
 const upsert = db.transaction((rows: ObservationRow[]) => {
   for (const row of rows) {
@@ -117,9 +118,9 @@ export async function loadObservations(observations: Observation[]) {
     .filter(observation => typeof observation.time_observed_at === 'string')
     .map(observation => {
       const observedAt = Temporal.Instant.from(observation.time_observed_at!);
-      const photo = observation
+      const photos = observation
         .photos
-        .filter(photo => photo.license_code && !photo.hidden)[0];
+        .filter(photo => photo.license_code && !photo.hidden);
       return {
         id: observation.id,
         description: nullIfEmpty(observation.description),
@@ -128,8 +129,9 @@ export async function loadObservations(observations: Observation[]) {
         license_code: observation.license_code,
         taxon_id: observation.taxon.id,
         observed_at: observedAt.epochSeconds,
-        photo_url: photo ? photo.url : null,
-        photo_attribution: photo ? photo.attribution : null,
+        photos_json: photos.length ? JSON.stringify(photos) : null,
+        url: observation.uri,
+        username: observation.user.login,
       }
     });
   upsert(rows);

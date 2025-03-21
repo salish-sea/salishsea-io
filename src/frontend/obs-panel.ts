@@ -9,11 +9,17 @@ export class ObsPanel extends LitElement {
       border-left: 1px solid #cccccc;
       overflow: auto;
     }
+    header {
+      font-weight: bold;
+      margin-bottom: 1em;
+      text-align: center;
+    }
   `;
 
   public render() {
     return html`
       <div class="ol-control obs-panel">
+        <header class="title">Marine Mammal Observations</header>
         <slot></slot>
       </div>
     `;

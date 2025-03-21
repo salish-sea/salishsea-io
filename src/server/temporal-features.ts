@@ -5,14 +5,19 @@ import { detectIndividuals, symbolFor } from "./taxon.ts";
 import '@formatjs/intl-datetimeformat/polyfill.js';
 import '@formatjs/intl-datetimeformat/locale-data/en.js';
 
+export type SightingPhoto = {
+  attribution?: string | null;
+  url: string;
+};
+
 export type SightingProperties = SightingsBetweenRow & {
   date: string;
   individuals: string[];
   kind: 'Sighting';
-  prev_date: string | null;
+  photos: SightingPhoto[];
   symbol: string | undefined;
   time: string;
-}
+};
 
 type SightingsBetweenRow = {
   id: string;
@@ -20,17 +25,19 @@ type SightingsBetweenRow = {
   count: number | null;
   latitude: number;
   longitude: number;
-  name: string; // vernacular name, or else scientific name
-  prev_timestamp: number | null;
-  scientific_name: string;
-  species: string; // scientific name
+  photos_json: string | null;
+  source: string;
   timestamp: number;
+  url: string | null;
+  user: string | null;
+
+  name: string; // vernacular name, or else scientific name
+  scientific_name: string;
   vernacular_name: string | null;
-}
+};
 const sightingsBetweenQuery = db.prepare<{earliest: number; latest: number}, SightingsBetweenRow>(`
 SELECT
   s.*,
-  lag(timestamp) OVER (ORDER BY timestamp DESC) AS prev_timestamp,
   coalesce(t.vernacular_name, t.scientific_name) AS name,
   t.scientific_name,
   t.vernacular_name
@@ -42,6 +49,10 @@ FROM (
     latitude,
     longitude,
     created AS timestamp,
+    iif(photo_url is not null, json_array(json_object('url', photo_url))) AS photos_json,
+    source,
+    null as url,
+    null as user,
     taxon_id
   FROM maplify_sightings
 
@@ -54,6 +65,10 @@ FROM (
     latitude,
     longitude,
     observed_at as "timestamp",
+    photos_json,
+    'iNaturalist' as source,
+    url,
+    username AS user,
     taxon_id
   FROM inaturalist_observations
 ) AS s
@@ -68,7 +83,6 @@ export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.In
       const zoned = Temporal.Instant.fromEpochSeconds(row.timestamp).toZonedDateTimeISO('PST8PDT');
       const date = zoned.toPlainDate().toLocaleString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'});
       const time = zoned.toPlainTime().toLocaleString('en-US', {timeStyle: 'short'});
-      const prev_date = row.prev_timestamp ? Temporal.Instant.fromEpochSeconds(row.prev_timestamp).toZonedDateTimeISO('PST8PDT').toPlainDate().toLocaleString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) : null;
       return {
         id: row.id,
         type: 'Feature',
@@ -80,9 +94,9 @@ export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.In
           ...row,
           date,
           time,
-          prev_date,
           kind: 'Sighting',
           individuals: detectIndividuals(row.body || ''),
+          photos: row.photos_json ? JSON.parse(row.photos_json) : [],
           symbol: symbolFor(row),
         }
       }
