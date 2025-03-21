@@ -3,7 +3,7 @@ import type { PropertyValues } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js'
 import OpenLayersMap from "ol/Map.js";
 import View from "ol/View.js";
-import Select from 'ol/interaction/Select.js';
+import Select, { SelectEvent } from 'ol/interaction/Select.js';
 import {defaults as defaultInteractions} from 'ol/interaction/defaults.js';
 import Link from 'ol/interaction/Link.js';
 import './obs-panel.ts';
@@ -120,6 +120,12 @@ obs-panel {
       this.focusObservation(evt.detail);
     });
     link.track('s', (v) => v && this.focusObservation(v));
+    select.on('select', (e: SelectEvent) => {
+      const id = e.selected[0]?.getId() as string | undefined;
+      if (id) {
+        this.renderRoot.querySelector(`#${id.replace(':', '\\:')}`)?.scrollIntoView({block: 'center'});
+      }
+    });
   }
 
   focusObservation(id: string) {
@@ -161,7 +167,7 @@ obs-panel {
           prev_date = date;
           return html`
             ${showHeader ? html`<header class="date">${date}</header>` : undefined}
-            <obs-summary class=${classMap({focused: id === selectedId})} .sighting=${feature.properties} />
+            <obs-summary class=${classMap({focused: id === selectedId})} id=${id} .sighting=${feature.properties} />
           `;
         })}
       </obs-panel>
