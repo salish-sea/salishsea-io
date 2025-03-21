@@ -79,21 +79,24 @@ export class ObsMap extends LitElement {
   align-items: stretch;
   display: flex;
   flex-direction: row;
+  overflow: auto;
 }
 #map {
   flex-grow: 1;
-  height: 100%;
 }
 @media (max-aspect-ratio: 1) {
   :host {
     flex-direction: column;
   }
   obs-panel {
+    border-left: 0;
     border-top: 1px solid #cccccc;
   }
 }
 obs-panel {
-  flex-basis: 30%;
+  bordeer-left: 1px solid #cccccc;
+  border-top: 0;
+  flex-basis: 35%;
 }
 .date {
   font-size: 0.8rem;

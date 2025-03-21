@@ -6,7 +6,7 @@ export class ObsPanel extends LitElement {
   static styles = css`
     :host {
       padding: 0.5em;
-      overflow: auto;
+      overflow-y: scroll;
     }
     header {
       font-weight: bold;
