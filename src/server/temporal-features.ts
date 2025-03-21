@@ -15,6 +15,7 @@ export type SightingProperties = SightingsBetweenRow & {
   individuals: string[];
   kind: 'Sighting';
   photos: SightingPhoto[];
+  species: string;
   symbol: string | undefined;
   time: string;
 };
@@ -97,6 +98,7 @@ export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.In
           kind: 'Sighting',
           individuals: detectIndividuals(row.body || ''),
           photos: row.photos_json ? JSON.parse(row.photos_json) : [],
+          species: row.scientific_name.split(' ').slice(0, 2).join(' '),
           symbol: symbolFor(row),
         }
       }

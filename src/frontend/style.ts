@@ -12,19 +12,14 @@ import Icon from 'ol/style/Icon.js';
 import arrowPNG from '../assets/arrow.png';
 
 const black = '#000000';
-const white = '#ffffff';
 const yellow = '#ffff00';
 const transparentWhite = 'rgba(255, 255, 255, 0.4)';
 const solidBlue = '#3399CC';
 
-export type PresentedSighting = SightingProperties & {
-  focused?: boolean;
-}
-
-const observationStyle2 = ({focused, individuals, symbol}: PresentedSighting, isSelected: boolean) => {
+const observationStyle2 = ({individuals, symbol}: SightingProperties, isSelected: boolean) => {
   let fill: Fill;
   let stroke: Stroke;
-  if (focused || isSelected) {
+  if (isSelected) {
     fill = new Fill({color: yellow});
     stroke = new Stroke({color: yellow, width: 3});
   } else {
@@ -67,7 +62,7 @@ const observationStyle2 = ({focused, individuals, symbol}: PresentedSighting, is
   return styles;
 }
 
-const observationStyle = (properties: PresentedSighting) => {
+const observationStyle = (properties: SightingProperties) => {
   return observationStyle2(properties, false);
 };
 

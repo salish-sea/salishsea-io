@@ -15,7 +15,7 @@ import TileLayer from 'ol/layer/Tile.js';
 import { fromLonLat } from 'ol/proj.js';
 import XYZ from 'ol/source/XYZ.js';
 import TemporalFeatureSource from './temporal-feature-source.ts';
-import { featureStyle, selectedObservationStyle, type PresentedSighting } from './style.ts';
+import { featureStyle, selectedObservationStyle} from './style.ts';
 import { Temporal } from 'temporal-polyfill';
 import type { CollectionEvent } from 'ol/Collection.js';
 import type { FeatureLike } from 'ol/Feature.js';
@@ -109,7 +109,7 @@ obs-panel {
   `
 
   @state()
-  private features: GeoJSONFeature<GeoJSONPoint, PresentedSighting>[] = [];
+  private features: GeoJSONFeature<GeoJSONPoint, SightingProperties>[] = [];
 
   constructor() {
     super();

@@ -1,11 +1,11 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import type { PresentedSighting } from "./style.ts";
+import type { SightingProperties } from "../types.ts";
 
 @customElement('obs-summary')
 export class ObsSummary extends LitElement {
   @property()
-  sighting!: PresentedSighting
+  sighting!: SightingProperties
 
   static styles = css`
     :host {
