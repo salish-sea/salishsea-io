@@ -75,16 +75,25 @@ export class ObsMap extends LitElement {
   public mapElement!: HTMLDivElement
 
   static styles = css`
-:host { display: flex; align-items: stretch }
-#map { flex-grow: 1; }
-// @media (max-aspect-ratio: 1) {
-//   :host {
-//     flex-direction: column;
-//   }
-// }
+:host {
+  align-items: stretch;
+  display: flex;
+  flex-direction: row;
+}
+#map {
+  flex-grow: 1;
+  height: 100%;
+}
+@media (max-aspect-ratio: 1) {
+  :host {
+    flex-direction: column;
+  }
+  obs-panel {
+    border-top: 1px solid #cccccc;
+  }
+}
 obs-panel {
-  max-width: 35vw;
-  width: 320px;
+  flex-basis: 30%;
 }
 .date {
   font-size: 0.8rem;
