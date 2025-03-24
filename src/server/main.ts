@@ -1,7 +1,7 @@
 import express from "express";
 import type { Request, Response } from "express";
 import ViteExpress from "vite-express";
-import type { FeatureCollection, Geometry } from 'geojson';
+import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import * as ferries from './ferries.ts';
 import * as maplify from './maplify.ts';
 import * as inaturalist from './inaturalist.ts';
@@ -9,23 +9,27 @@ import { Temporal } from "temporal-polyfill";
 import { query, matchedData, validationResult } from 'express-validator';
 import { imputeTravelLines } from "./travel.ts";
 import { sightingsBetween } from "./temporal-features.ts";
-import type { Extent } from "../types.ts";
+import type { Extent, FeatureProperties } from "../types.ts";
 
 const app = express();
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
 const extentOfInterest: Extent = [-136, 36, -120, 54];
 
-const collectFeatures = async (asOf: Temporal.ZonedDateTime) => {
-  const later = asOf.add({hours: 24}).with({hour: 23, minute: 59}); // end of day, tomorrow
-  const earlier = asOf.subtract({hours: 24}).withPlainTime(); // beginning of day, one day ago
-  const sightings = sightingsBetween(earlier.toInstant(), later.toInstant());
+const collectFeatures = async (date: Temporal.PlainDate, time?: Temporal.PlainTime) => {
+  const earliest = date.toZonedDateTime('PST8PDT');
+  const latest = earliest.add({hours: 24});
+  const sightings = sightingsBetween(earliest.toInstant(), latest.toInstant());
   const travelLines = imputeTravelLines(sightings);
-  const features = [
+  const features: Feature<Geometry, FeatureProperties>[] = [
     ...sightings,
     ...travelLines,
-    ...ferries.locationsAsOf(asOf.toInstant()),
   ];
+  if (time) {
+    const asOf = date.toZonedDateTime({timeZone: 'PST8PDT', plainTime: time});
+    const ferryLocations = ferries.locationsAsOf(asOf.toInstant());
+    features.concat(ferryLocations);
+  }
   const collection: FeatureCollection<Geometry> = {
     type: 'FeatureCollection',
     features,
@@ -35,7 +39,7 @@ const collectFeatures = async (asOf: Temporal.ZonedDateTime) => {
 
 app.get(
   "/temporal-features",
-  query('t').notEmpty(),
+  query('d').notEmpty(),
   async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (! errors.isEmpty()) {
@@ -43,9 +47,9 @@ app.get(
       return;
     }
 
-    const {t} = matchedData(req) as {t: string};
-    const asOf = Temporal.Instant.from(t).toZonedDateTimeISO('PST8PDT');
-    const observations = await collectFeatures(asOf);
+    const {d} = matchedData(req) as {d: string};
+    const date = Temporal.PlainDate.from(d);
+    const observations = await collectFeatures(date);
     res.contentType('application/geo+json');
     res.json(observations);
   }

@@ -1,6 +1,6 @@
 import { LitElement, css, html } from 'lit'
 import type { PropertyValues } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js'
+import { customElement, property, query, state } from 'lit/decorators.js'
 import OpenLayersMap from "ol/Map.js";
 import View from "ol/View.js";
 import Select, { SelectEvent } from 'ol/interaction/Select.js';
@@ -30,7 +30,7 @@ const link = new Link({params: ['x', 'y', 'z'], replace: true});
 const coordinates = {
   latitude: 47.8,
   longitude: -122.450,
-  timestamp: Temporal.Now.instant().epochSeconds,
+  date: Temporal.Now.plainDateISO('PST8PDT').toString(),
 };
 
 const temporalSource = new TemporalFeatureSource(coordinates);
@@ -55,15 +55,14 @@ selection.on('add', (e: CollectionEvent<FeatureLike>) => {
 selection.on('remove', () => {
   link.update('s', null);
 });
-const setTime = (timestamp: number) => {
-  coordinates.timestamp = timestamp;
+const setDate = (date: string) => {
+  coordinates.date = date;
   temporalSource.refresh();
+  link.update('d', coordinates.date);
 };
-const initialT = link.track('t', (v) => setTime(parseInt(v, 10)));
-if (initialT) {
-  setTime(parseInt(initialT, 10));
-} else {
-  link.update('t', coordinates.timestamp.toString());
+const initialD = link.track('d', setDate);
+if (initialD) {
+  setDate(initialD);
 }
 
 // This is a thin wrapper around imperative code driving OpenLayers.
@@ -119,6 +118,11 @@ obs-panel {
         throw "oh no";
       this.focusObservation(evt.detail);
     });
+    this.addEventListener('date-selected', (evt) => {
+      if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
+        throw "oh no";
+      setDate(evt.detail);
+    });
     link.track('s', (v) => v && this.focusObservation(v));
     select.on('select', (e: SelectEvent) => {
       const id = e.selected[0]?.getId() as string | undefined;
@@ -160,7 +164,7 @@ obs-panel {
     return html`
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.4.0/ol.css" type="text/css" />
       <div id="map"></div>
-      <obs-panel>
+      <obs-panel date=${coordinates.date}>
         ${this.features.map(feature => {
           const {id, date} = feature.properties;
           const showHeader = (!prev_date || prev_date !== date);

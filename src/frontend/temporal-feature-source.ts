@@ -9,10 +9,9 @@ import type Geometry from 'ol/geom/Geometry.js';
 const baseURL = '/temporal-features';
 
 export default class TemporalFeatureSource extends VectorSource<Feature<Geometry>> {
-  constructor(coordinates: {timestamp: number}) {
+  constructor(coordinates: {date: string}) {
     const url = () => {
-      const t = Temporal.Instant.fromEpochSeconds(coordinates.timestamp);
-      return queryStringAppend(baseURL, {t});
+      return queryStringAppend(baseURL, {d: coordinates.date});
     };
     super({format: new GeoJSON<Feature<Geometry>>(), strategy: all, url});
   }
