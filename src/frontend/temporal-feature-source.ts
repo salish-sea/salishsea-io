@@ -2,7 +2,6 @@ import GeoJSON from 'ol/format/GeoJSON.js';
 import VectorSource from 'ol/source/Vector.js';
 import { all } from 'ol/loadingstrategy.js';
 import Feature from 'ol/Feature.js';
-import { Temporal } from 'temporal-polyfill';
 import { queryStringAppend } from './util.ts';
 import type Geometry from 'ol/geom/Geometry.js';
 

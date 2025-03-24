@@ -1,6 +1,6 @@
 import { LitElement, css, html } from 'lit'
 import type { PropertyValues } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js'
+import { customElement, query, state } from 'lit/decorators.js'
 import OpenLayersMap from "ol/Map.js";
 import View from "ol/View.js";
 import Select, { SelectEvent } from 'ol/interaction/Select.js';
