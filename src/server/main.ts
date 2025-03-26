@@ -77,7 +77,7 @@ app.post(
     }
 
     const {earliest, latest} = matchedData(req) as {earliest: Temporal.PlainDate, latest: Temporal.PlainDate};
-    const sightings = await maplify.fetchSightings(earliest, latest);
+    const sightings = await maplify.fetchSightings(earliest, latest, extentOfInterest);
     const insertionCount = maplify.loadSightings(sightings);
     console.info(`Loaded ${insertionCount} sightings from Maplify.`);
     res.send(`Loaded ${insertionCount} sightings from Maplify.\n`);

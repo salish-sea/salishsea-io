@@ -1,6 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { queryStringAppend } from "../frontend/util.ts";
 import { db } from "./database.ts";
+import type { Extent } from "../types.ts";
 
 type Source = 'CINMS' | 'ocean_alert' | 'rwsas' | 'FARPB' | 'whale_alert';
 
@@ -66,9 +67,9 @@ function assertValidResponse(response: any): asserts response is APIResponse {
 
 const baseURL = 'https://maplify.com/waseak/php/search-all-sightings.php';
 /// Earliest and latest are perhaps in Florida time?
-export async function fetchSightings(earliest: Temporal.PlainDate, latest: Temporal.PlainDate) {
+export async function fetchSightings(earliest: Temporal.PlainDate, latest: Temporal.PlainDate, extent: Extent) {
   const url = queryStringAppend(baseURL, {
-    BBOX: [-180, 0, 180, 90],
+    BBOX: extent,
     start: earliest,
     end: latest,
   });
