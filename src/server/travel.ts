@@ -47,6 +47,7 @@ export function imputeTravelLines(sorted: Feature<Point, {timestamp: number, spe
         },
       };
       lines.push(feature);
+      break;
     }
   }
   return lines;

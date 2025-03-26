@@ -87,6 +87,13 @@ export function symbolFor(
     if (body) {
       label = detectPod(body) || detectEcotype(body) || label;
     }
+  } else if (scientific_name.startsWith('Phoca vitulina')) {
+    label = 'H';
   }
+
   return label[0];
+}
+
+export function species(scientific_name: string) {
+ return scientific_name.split(' ').slice(0, 2).join(' ');
 }

@@ -75,7 +75,7 @@ FROM (
 ) AS s
 JOIN taxa t ON s.taxon_id = t.id
 WHERE timestamp BETWEEN @earliest AND @latest
-ORDER BY timestamp desc;
+ORDER BY timestamp asc;
 `);
 export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.Instant) => {
   const features: Feature<Point, SightingProperties>[] = sightingsBetweenQuery
