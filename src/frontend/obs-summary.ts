@@ -17,6 +17,7 @@ export class ObsSummary extends LitElement {
     }
     header {
       margin-top: 1.5rem;
+      overflow: auto;
     }
     time {
       float: right;
@@ -34,7 +35,17 @@ export class ObsSummary extends LitElement {
       font-size: 0.8rem;
     }
     .focus-observation {
+      border: 1px solid #3399CC;
+      border-radius: 50%;
+      color: inherit;
+      display: inline-block;
+      font-family: monospace;
+      font-weight: bold;
+      height: 0.8rem;
+      line-height: 0.8rem;
+      text-align: center;
       text-decoration: none;
+      width: 0.8rem;
     }
     ul.photos {
       display: flex;
@@ -47,12 +58,12 @@ export class ObsSummary extends LitElement {
   `;
 
   public render() {
-    const {name, time, photos, source, user, url} = this.sighting;
+    const {name, time, photos, source, symbol, user, url} = this.sighting;
     const body = this.sighting.body?.split('\n') || [];
     const count = this.sighting.count && this.sighting.count > 0 ? html` <span class="count">x${this.sighting.count}</span>` : undefined;
     return html`
       <header>
-        <a class="focus-observation" @click="${this.focusObservation}" href="#">📍</a>
+        <a class="focus-observation" @click="${this.focusObservation}" href="#">${symbol}</a>
         <b>${name}</b>${count}<time>${time}</time>
       </header>
       <cite>via${user ? ` ${user} on` : undefined} ${url ? html`<a target="_new" href=${url}>${source}</a>` : source}</cite>
