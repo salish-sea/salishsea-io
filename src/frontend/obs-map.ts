@@ -160,17 +160,13 @@ obs-panel {
 
   public render() {
     const selectedId = selection.getArray()[0]?.getId();
-    let prev_date: string | undefined;
     return html`
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.4.0/ol.css" type="text/css" />
       <div id="map"></div>
       <obs-panel date=${coordinates.date}>
         ${this.features.map(feature => {
-          const {id, date} = feature.properties;
-          const showHeader = (!prev_date || prev_date !== date);
-          prev_date = date;
+          const {id} = feature.properties;
           return html`
-            ${showHeader ? html`<header class="date">${date}</header>` : undefined}
             <obs-summary class=${classMap({focused: id === selectedId})} id=${id} .sighting=${feature.properties} />
           `;
         })}

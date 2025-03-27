@@ -11,12 +11,11 @@ export class ObsPanel extends LitElement {
       overflow-y: scroll;
     }
     header {
-      align-items: baseline;
-      display: flex;
-      justify-content: space-between;
       font-weight: bold;
-      margin-bottom: 1em;
       text-align: center;
+    }
+    h2 {
+      margin: 0.5rem;
     }
   `;
 
@@ -30,7 +29,7 @@ export class ObsPanel extends LitElement {
         <form>
           <input @click=${this.onGotoYesterday} type="button" name="yesterday" value="◀">
           <input @click=${this.onGotoTomorrow}  type="button" name="tomorrow" value="▶" ?disabled=${this.date === today}>
-          <input @click=${this.onDateChange} max=${today} min="2000-01-01" type="date" value=${this.date}>
+          <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" value=${this.date}>
         </form>
       </header>
       <slot></slot>
