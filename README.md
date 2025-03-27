@@ -10,3 +10,24 @@ This codebase was started by Peter Abrahamsen. My goals for the codebase are to 
 - lit for templating and scoped styles
 
 Most project planning currently happens on Zulip. You are welcome to join us there: https://orcasound.zulipchat.com/#narrow/channel/494032-salishsea-io
+
+## Setup
+
+Prerequisites:
+- `nvm` (or install the version of node from `.nvmrc` yourself)
+- `sqlite` (only needed for command line use)
+
+Suggested: for better output from sqlite, make a file `~/.sqliterc` with these lines:
+```
+.headers on
+.mode column
+```
+
+```
+$ nvm install
+$ nvm use
+$ npm install
+$ wget https://www.inaturalist.org/taxa/inaturalist-taxonomy.dwca.zip
+$ unzip inaturalist-taxonomy.dwca.zip taxa.csv VernacularNames-english.csv
+$ sqlite3 salish-sea.sqlite3 < setup.sql
+```
