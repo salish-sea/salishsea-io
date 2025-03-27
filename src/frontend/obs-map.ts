@@ -208,6 +208,6 @@ obs-panel {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "ol-map": ObsMap;
+    "obs-map": ObsMap;
   }
 }
