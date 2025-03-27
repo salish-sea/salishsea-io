@@ -97,12 +97,35 @@ app.post(
     }
 
     const {taxa, earliest, latest} = matchedData(req) as {taxa: number[], earliest: Temporal.PlainDate, latest: Temporal.PlainDate};
-    const observations = await inaturalist.fetchObservations({earliest, extent: extentOfInterest, latest, taxon_ids: taxa})
+    const observations = await inaturalist.fetchObservations({earliest, extent: extentOfInterest, latest, taxon_ids: taxa});
     const insertionCount = await inaturalist.loadObservations(observations);
     console.info(`Loaded ${insertionCount} observations from iNaturalist.`);
     res.send(`Loaded ${insertionCount} observations from iNaturalist.\n`);
   }
 );
+
+const loadRecent = async () => {
+  const earliest = Temporal.Now.plainDateISO().subtract({hours: 240});
+  const latest = Temporal.Now.plainDateISO().add({hours: 24});
+  const sightings = await maplify.fetchSightings(earliest, latest, extentOfInterest);
+  const sightingsInserted = maplify.loadSightings(sightings);
+  console.info(`Loaded ${sightingsInserted} sightings from Maplify.`);
+
+  const observations = await inaturalist.fetchObservations({earliest, extent: extentOfInterest, latest, taxon_ids: [152871]});
+  const observationsInserted = await inaturalist.loadObservations(observations);
+  console.info(`Loaded ${observationsInserted} sightings from iNaturalist.`);
+};
+
+const loadFerries = async () => {
+  const locations = await ferries.fetchCurrentLocations();
+  const insertionCount = ferries.loadLocations(locations);
+  console.info(`Loaded ${insertionCount} ferry locations from WSF.`);
+};
+
+await loadRecent();
+await loadFerries();
+setInterval(loadRecent, 1000 * 60 * 5);
+setTimeout(loadFerries, 1000 * 60);
 
 const port = 3131;
 ViteExpress.listen(app, port, () => console.debug(`Listening on port ${port}.`));
