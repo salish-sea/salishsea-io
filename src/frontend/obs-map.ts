@@ -8,6 +8,7 @@ import {defaults as defaultInteractions} from 'ol/interaction/defaults.js';
 import Link from 'ol/interaction/Link.js';
 import './obs-panel.ts';
 import './obs-summary.ts';
+import viewingLocationKML from '../assets/orcanetwork-viewing-locations.kml?url';
 
 // imports below these lines smell like they support functionality that should be factored out
 import VectorLayer from 'ol/layer/Vector.js';
@@ -44,7 +45,7 @@ const temporalLayer = new VectorLayer({
 const viewingLocations = new VectorLayer({
   maxResolution: 40,
   source: new VectorSource({
-    url: '/orcanetwork-viewing-locations.kml',
+    url: viewingLocationKML,
     format: new KML(),
   }),
 });
