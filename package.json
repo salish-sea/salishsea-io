@@ -27,7 +27,7 @@
     "@types/geojson": "^7946.0.16",
     "nodemon": "^3.1.9",
     "ol": "^10.4.0",
-    "temporal-polyfill": "^0.2.5",
+    "temporal-polyfill": "^0.3",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }
