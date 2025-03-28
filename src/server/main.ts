@@ -51,6 +51,7 @@ app.get(
     const date = Temporal.PlainDate.from(d);
     const observations = await collectFeatures(date);
     res.contentType('application/geo+json');
+    res.set('Cache-Control', 'max-age=60, public')
     res.json(observations);
   }
 );

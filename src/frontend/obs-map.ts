@@ -23,6 +23,8 @@ import type {Feature as GeoJSONFeature, Point as GeoJSONPoint} from 'geojson';
 import type { SightingProperties } from '../types.ts';
 import type Point from 'ol/geom/Point.js';
 import { classMap } from 'lit/directives/class-map.js';
+import KML from 'ol/format/KML.js';
+import VectorSource from 'ol/source/Vector.js';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -37,6 +39,14 @@ const temporalSource = new TemporalFeatureSource(coordinates);
 const temporalLayer = new VectorLayer({
   source: temporalSource,
   style: featureStyle,
+});
+
+const viewingLocations = new VectorLayer({
+  maxResolution: 40,
+  source: new VectorSource({
+    url: '/orcanetwork-viewing-locations.kml',
+    format: new KML(),
+  }),
 });
 
 const select = new Select({
@@ -191,6 +201,7 @@ obs-panel {
           }),
         }),
         temporalLayer,
+        viewingLocations,
       ],
       target: this.mapElement,
       view: new View({
@@ -199,6 +210,7 @@ obs-panel {
         zoom: 9,
       }),
     });
+    this.map.getView().on('change:resolution', console.log);
   }
 }
 
