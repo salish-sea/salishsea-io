@@ -106,21 +106,29 @@ app.post(
 );
 
 const loadRecent = async () => {
-  const earliest = Temporal.Now.plainDateISO().subtract({hours: 240});
-  const latest = Temporal.Now.plainDateISO().add({hours: 24});
-  const sightings = await maplify.fetchSightings(earliest, latest, extentOfInterest);
-  const sightingsInserted = maplify.loadSightings(sightings);
-  console.info(`Loaded ${sightingsInserted} sightings from Maplify.`);
+  try {
+    const earliest = Temporal.Now.plainDateISO().subtract({hours: 240});
+    const latest = Temporal.Now.plainDateISO().add({hours: 24});
+    const sightings = await maplify.fetchSightings(earliest, latest, extentOfInterest);
+    const sightingsInserted = maplify.loadSightings(sightings);
+    console.info(`Loaded ${sightingsInserted} sightings from Maplify.`);
 
-  const observations = await inaturalist.fetchObservations({earliest, extent: extentOfInterest, latest, taxon_ids: [152871]});
-  const observationsInserted = await inaturalist.loadObservations(observations);
-  console.info(`Loaded ${observationsInserted} sightings from iNaturalist.`);
+    const observations = await inaturalist.fetchObservations({earliest, extent: extentOfInterest, latest, taxon_ids: [152871]});
+    const observationsInserted = await inaturalist.loadObservations(observations);
+    console.info(`Loaded ${observationsInserted} sightings from iNaturalist.`);
+  } catch (e) {
+    console.error(`Error loading sightings: ${e}`);
+  }
 };
 
 const loadFerries = async () => {
-  const locations = await ferries.fetchCurrentLocations();
-  const insertionCount = ferries.loadLocations(locations);
-  console.info(`Loaded ${insertionCount} ferry locations from WSF.`);
+  try {
+    const locations = await ferries.fetchCurrentLocations();
+    const insertionCount = ferries.loadLocations(locations);
+    console.info(`Loaded ${insertionCount} ferry locations from WSF.`);
+  } catch (e) {
+    console.error(`Error loading ferry locations: ${e}`);
+  }
 };
 
 await loadRecent();
