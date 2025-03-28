@@ -79,9 +79,9 @@ ORDER BY timestamp asc;
 `);
 export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.Instant) => {
   const features: Feature<Point, SightingProperties>[] = sightingsBetweenQuery
-    .all({earliest: earliest.epochSeconds, latest: latest.epochSeconds})
+    .all({earliest: earliest.epochMilliseconds / 1000, latest: latest.epochMilliseconds / 1000})
     .map(row => {
-      const zoned = Temporal.Instant.fromEpochSeconds(row.timestamp).toZonedDateTimeISO('PST8PDT');
+      const zoned = Temporal.Instant.fromEpochMilliseconds(row.timestamp * 1000).toZonedDateTimeISO('PST8PDT');
       const date = zoned.toPlainDate().toLocaleString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'});
       const time = zoned.toPlainTime().toLocaleString('en-US', {timeStyle: 'short'});
       return {

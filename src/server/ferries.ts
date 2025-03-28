@@ -84,7 +84,7 @@ SELECT * FROM (
 `);
 // Load the most current location of each ferry, if any, within `within_s` seconds of `asof`.
 export const locationsAsOf = (as_of: Temporal.Instant, within_s: number = 90) => {
-  const locations = locationsAsOfQuery.all({as_of: as_of.epochSeconds, within_s});
+  const locations = locationsAsOfQuery.all({as_of: as_of.epochMilliseconds / 1000, within_s});
   const features: Feature<Point, FerryLocationProperties>[] = locations.map(row => ({
     id: `wsf:${row.vessel_name}`,
     type: 'Feature',

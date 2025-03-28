@@ -128,7 +128,7 @@ export async function loadObservations(observations: Observation[]) {
         latitude: observation.geojson.coordinates[1],
         license_code: observation.license_code,
         taxon_id: observation.taxon.id,
-        observed_at: observedAt.epochSeconds,
+        observed_at: observedAt.epochMilliseconds / 1000,
         photos_json: photos.length ? JSON.stringify(photos) : null,
         url: observation.uri,
         username: observation.user.login,

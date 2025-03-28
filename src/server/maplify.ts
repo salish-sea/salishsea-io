@@ -115,7 +115,7 @@ const upsert = db.transaction((sightings: Result[]) => {
     loadSightingStatement.run({
       ...sighting,
       comments: nullIfEmpty(sighting.comments),
-      created: created.epochSeconds,
+      created: created.epochMilliseconds / 1000,
       photo_url: nullIfEmpty(sighting.photo_url),
       scientific_name: sighting.scientific_name,
       taxon_id: null,
