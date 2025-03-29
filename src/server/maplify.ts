@@ -81,6 +81,9 @@ export async function fetchSightings(earliest: Temporal.PlainDate, latest: Tempo
   return body.results;
 }
 
+const clearExistingBetween = db.prepare<{earliest: number, latest: number}>(`
+DELETE FROM maplify_sightings WHERE created BETWEEN @earliest AND @latest;
+`);
 const loadSightingStatement = db.prepare<SightingRow>(`
 INSERT OR REPLACE INTO maplify_sightings
 ( id,  project_id,  trip_id,  name,  scientific_name,  latitude,  longitude,  number_sighted,  created,  photo_url,
@@ -109,23 +112,30 @@ function nullIfEmpty(str: string) {
   const trimmed = str.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
-const upsert = db.transaction((sightings: Result[]) => {
-  for (const sighting of sightings) {
-    const created = Temporal.PlainDateTime.from(sighting.created).toZonedDateTime('GMT').toInstant();
-    loadSightingStatement.run({
-      ...sighting,
-      comments: nullIfEmpty(sighting.comments),
-      created: created.epochMilliseconds / 1000,
-      photo_url: nullIfEmpty(sighting.photo_url),
-      scientific_name: sighting.scientific_name,
-      taxon_id: null,
-    });
+const upsert = db.transaction((rows: SightingRow[], earliest: number, latest: number) => {
+  clearExistingBetween.run({earliest, latest});
+  for (const row of rows) {
+    loadSightingStatement.run(row);
   }
   inferTaxonIds.run();
 });
 export function loadSightings(sightings: Result[]) {
   // Skip 'rwsas' source, which has duplicate record ids
-  const toLoad = sightings.filter(sighting => sighting.source !== 'rwsas');
-  upsert(toLoad);
+  const toLoad = sightings
+    .filter(sighting => sighting.source !== 'rwsas')
+    .map(sighting => {
+      const created = Temporal.PlainDateTime.from(sighting.created).toZonedDateTime('GMT').toInstant();
+      return {
+        ...sighting,
+        comments: nullIfEmpty(sighting.comments),
+        created: created.epochMilliseconds / 1000,
+        photo_url: nullIfEmpty(sighting.photo_url),
+        scientific_name: sighting.scientific_name,
+        taxon_id: null,
+      };
+    });
+  const earliest = Math.min(...toLoad.map(s => s.created));
+  const latest = Math.max(...toLoad.map(s => s.created));
+  upsert(toLoad, earliest, latest);
   return toLoad.length;
 };
