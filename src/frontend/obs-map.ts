@@ -45,6 +45,7 @@ const temporalLayer = new VectorLayer({
 const viewingLocations = new VectorLayer({
   maxResolution: 40,
   source: new VectorSource({
+    attributions: 'Sighting Viewpoints by Thorsten Lisker and Alisa Lemire Brooks of Orca Network',
     url: viewingLocationKML,
     format: new KML(),
   }),
@@ -190,7 +191,9 @@ obs-panel {
       interactions: defaultInteractions().extend([link, select]),
       layers: [
         new TileLayer({
-          source: new XYZ({urls: [
+          source: new XYZ({
+            attributions: 'Esri and its data providers',
+            urls: [
             'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
             'https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
           ]}),
