@@ -42,6 +42,7 @@ const temporalLayer = new VectorLayer({
   style: featureStyle,
 });
 
+// https://www.google.com/maps/d/u/0/kml?mid=1xIsepZY5h_8oA2nd6IwJN-Y7lhk
 const viewingLocations = new VectorLayer({
   maxResolution: 40,
   source: new VectorSource({
