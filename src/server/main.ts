@@ -12,6 +12,8 @@ import { sightingsBetween } from "./temporal-features.ts";
 import type { Extent, FeatureProperties } from "../types.ts";
 
 const app = express();
+const api = express.Router();
+app.use('/api', api);
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
 const extentOfInterest: Extent = [-136, 36, -120, 54];
@@ -37,7 +39,7 @@ const collectFeatures = async (date: Temporal.PlainDate, time?: Temporal.PlainTi
   return collection;
 };
 
-app.get(
+api.get(
   "/temporal-features",
   query('d').notEmpty(),
   async (req: Request, res: Response) => {
@@ -56,7 +58,7 @@ app.get(
   }
 );
 
-app.post(
+api.post(
   "/fetch-ferry-locations",
   async (_req: Request, res: Response) => {
     const locations = await ferries.fetchCurrentLocations();
@@ -66,7 +68,7 @@ app.post(
   }
 );
 
-app.post(
+api.post(
   "/fetch-maplify-sightings",
   query('earliest').notEmpty().custom(v => Temporal.PlainDate.from(v)),
   query('latest').notEmpty().custom(v => Temporal.PlainDate.from(v)),
@@ -85,7 +87,7 @@ app.post(
   }
 );
 
-app.post(
+api.post(
   "/fetch-inaturalist-observations",
   query('taxa').notEmpty().custom((v: string) => v.split(',').map(id => parseInt(id, 10))),
   query('earliest').notEmpty().custom(v => Temporal.PlainDate.from(v)),

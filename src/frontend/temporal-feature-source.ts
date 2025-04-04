@@ -5,7 +5,7 @@ import Feature from 'ol/Feature.js';
 import { queryStringAppend } from './util.ts';
 import type Geometry from 'ol/geom/Geometry.js';
 
-const baseURL = '/temporal-features';
+const baseURL = '/api/temporal-features';
 
 export default class TemporalFeatureSource extends VectorSource<Feature<Geometry>> {
   constructor(coordinates: {date: string}) {
