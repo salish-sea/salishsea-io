@@ -12,10 +12,10 @@ export type TravelLineProperties = {
 
 export function imputeTravelLines(sorted: Feature<Point, {timestamp: number, species: string}>[]) {
   const lines: Feature<LineString, TravelLineProperties>[] = [];
-  for (const obs of sorted) {
+  for (const [idx, obs] of sorted.entries()) {
     const fromPoint = turfPoint(obs.geometry.coordinates)
     const fromObservedAt = obs.properties.timestamp;
-    for (const candidate of sorted) {
+    for (const candidate of sorted.slice(idx + 1)) {
       if (obs.properties.species !== candidate.properties.species)
         continue;
 
@@ -31,7 +31,7 @@ export function imputeTravelLines(sorted: Feature<Point, {timestamp: number, spe
       if (displacementMeters > 10000)
         continue;
 
-      const metersPerHour = displacementMeters / (timeDelta / hour);
+      const metersPerHour = (displacementMeters - 1000) / (timeDelta / hour);
       if (metersPerHour > 10000)
         continue;
 
