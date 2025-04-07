@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.38.5",
+    "@dotenvx/dotenvx": "^1.39.1",
     "@formatjs/intl-datetimeformat": "^6.17.3",
     "@turf/bearing": "^7.2.0",
     "@turf/distance": "^7.2.0",
@@ -22,13 +22,13 @@
   },
   "devDependencies": {
     "@formatjs/intl-durationformat": "^0.7.3",
-    "@types/better-sqlite3": "^7.6.12",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.0",
     "@types/geojson": "^7946.0.16",
     "nodemon": "^3.1.9",
     "ol": "^10.5.0",
     "temporal-polyfill": "^0.3",
-    "typescript": "~5.8.2",
+    "typescript": "~5.8.3",
     "vite": "^6.2.4"
   }
 }
