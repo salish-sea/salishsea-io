@@ -31,7 +31,8 @@ export function imputeTravelLines(sorted: Feature<Point, {timestamp: number, spe
       if (displacementMeters > 10000)
         continue;
 
-      const metersPerHour = (displacementMeters - 1000) / (timeDelta / hour);
+      // Allow coordinates to be off by about a mile (each) when calculating speed
+      const metersPerHour = Math.max(0, (displacementMeters - 3000)) / (timeDelta / hour);
       if (metersPerHour > 10000)
         continue;
 
