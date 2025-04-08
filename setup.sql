@@ -22,3 +22,4 @@ UPDATE taxa SET vernacular_name=n.vernacularName
   WHERE taxa.id = n.id;
 UPDATE taxa SET species_id=parent_id WHERE taxon_rank='subspecies';
 COMMIT;
+VACUUM;
