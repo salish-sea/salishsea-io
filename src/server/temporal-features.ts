@@ -4,12 +4,14 @@ import { Temporal } from "temporal-polyfill";
 import { detectIndividuals, symbolFor } from "./taxon.ts";
 import '@formatjs/intl-datetimeformat/polyfill.js';
 import '@formatjs/intl-datetimeformat/locale-data/en.js';
+import { marked } from 'marked';
 
 export type SightingPhoto = {
   attribution?: string | null;
   url: string;
 };
 
+// body is html | null
 export type SightingProperties = SightingsBetweenRow & {
   date: string;
   individuals: string[];
@@ -84,6 +86,7 @@ export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.In
       const zoned = Temporal.Instant.fromEpochMilliseconds(row.timestamp * 1000).toZonedDateTimeISO('PST8PDT');
       const date = zoned.toPlainDate().toLocaleString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'});
       const time = zoned.toPlainTime().toLocaleString('en-US', {timeStyle: 'short'});
+      const body = row.body ? marked.parse(row.body, {async: false}) : null;
       return {
         id: row.id,
         type: 'Feature',
@@ -93,6 +96,7 @@ export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.In
         },
         properties: {
           ...row,
+          body,
           date,
           time,
           kind: 'Sighting',

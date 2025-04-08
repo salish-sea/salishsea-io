@@ -1,6 +1,7 @@
-import { css, html, LitElement } from "lit";
+import { css, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import type { SightingProperties } from "../types.ts";
+import { html, unsafeStatic } from "lit/static-html.js";
 
 @customElement('obs-summary')
 export class ObsSummary extends LitElement {
@@ -59,7 +60,7 @@ export class ObsSummary extends LitElement {
 
   public render() {
     const {name, time, photos, source, symbol, user, url} = this.sighting;
-    const body = this.sighting.body?.split('\n') || [];
+    const body = this.sighting.body ? unsafeStatic(this.sighting.body): undefined;
     const count = this.sighting.count && this.sighting.count > 0 ? html` <span class="count">x${this.sighting.count}</span>` : undefined;
     return html`
       <header>
@@ -67,7 +68,7 @@ export class ObsSummary extends LitElement {
         <b>${name}</b>${count}<time>${time}</time>
       </header>
       <cite>via${user ? ` ${user} on` : undefined} ${url ? html`<a target="_new" href=${url}>${source}</a>` : source}</cite>
-      ${body.map(p => html`<p class="body">${p}</p>`)}
+      ${body}
       ${photos.length ?
         html`<ul class="photos">${
           photos.map(photo =>

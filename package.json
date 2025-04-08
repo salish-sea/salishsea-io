@@ -19,7 +19,8 @@
     "express": "^5.1.0",
     "express-validator": "^7.2.1",
     "lit": "^3.2.1",
-    "vite-express": "^0.20.0"
+    "vite-express": "^0.20.0",
+    "marked": "15.0.8"
   },
   "devDependencies": {
     "@formatjs/intl-durationformat": "^0.7.3",
