@@ -50,7 +50,7 @@ const normalizeIndividual = (name: string) => {
 }
 
 // return an array of identifiers like 'Biggs', 'Transient', 'J', 'K37', etc.
-const individualRE = /\b(t|j|k|l|t|crc)-?([0-9][0-9a-f]+)(s?)\b/gi;
+const individualRE = /\b(t|j|k|l|t|crc)[- ]?([0-9][0-9a-f]+)(s?)\b/gi;
 export const detectIndividuals = (text: Readonly<string>) => {
   const matches = new Set<string>();
   for (let [, pod, individual, matriline] of text.matchAll(individualRE)) {
