@@ -193,7 +193,7 @@ obs-panel {
       layers: [
         new TileLayer({
           source: new XYZ({
-            attributions: 'Esri and its data providers',
+            attributions: 'Base map by Esri and its data providers',
             urls: [
             'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
             'https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
