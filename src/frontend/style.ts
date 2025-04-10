@@ -16,7 +16,43 @@ const yellow = '#ffff00';
 const transparentWhite = 'rgba(255, 255, 255, 0.4)';
 const solidBlue = '#3399CC';
 
-const observationStyle2 = ({individuals, symbol}: SightingProperties, isSelected: boolean) => {
+export type SightingStyleProperties = Pick<SightingProperties, 'individuals' | 'symbol'>;
+
+export const sighterStyle = new Style({
+  text: new Text({
+    declutterMode: 'none',
+    text: '👁️‍🗨️',
+  }),
+});
+
+export const bearingStyle = (feature: Feature<LineString>) => {
+  // const geom = feature.getGeometry();
+  const styles = [
+    new Style({
+      stroke: new Stroke({
+        color: '#0000ff',
+        lineDash: [3, 6],
+        width: 1.5,
+      }),
+    }),
+  ];
+
+  // if (geom) {
+  //   const [p1, p2] = geom.getCoordinates();
+  //   const distance = (getDistance(p1, p2) / 1000).toFixed(1);
+  //   const coords = geom.getCoordinates().map(coord => turfPoint(coord));
+  //   const bearing = getBearing(coords[0], coords[1]).toFixed(0);
+  //   styles.push(new Style({
+  //     text: new Text({
+  //       backgroundFill: new Fill({color: 'rgba(240, 240, 240, 0.85)'}),
+  //       text: `${distance} km at ${bearing}°`,
+  //     }),
+  //   }));
+  // }
+  return styles;
+};
+
+const observationStyle2 = ({individuals, symbol}: SightingStyleProperties, isSelected: boolean) => {
   let fill: Fill;
   let stroke: Stroke;
   if (isSelected) {
@@ -62,7 +98,7 @@ const observationStyle2 = ({individuals, symbol}: SightingProperties, isSelected
   return styles;
 }
 
-const observationStyle = (properties: SightingProperties) => {
+export const observationStyle = (properties: SightingStyleProperties) => {
   return observationStyle2(properties, false);
 };
 

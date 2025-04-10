@@ -26,6 +26,11 @@ import type Point from 'ol/geom/Point.js';
 import { classMap } from 'lit/directives/class-map.js';
 import KML from 'ol/format/KML.js';
 import VectorSource from 'ol/source/Vector.js';
+import mapContext from './map-context.ts';
+import { provide } from '@lit/context';
+import drawingSourceContext from './drawing-context.ts';
+import type Feature from 'ol/Feature.js';
+import Modify from 'ol/interaction/Modify.js';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -78,11 +83,49 @@ if (initialD) {
   setDate(initialD);
 }
 
+const drawingSource = new VectorSource<Feature<Point>>();
+const drawingLayer = new VectorLayer({
+  source: drawingSource,
+});
+const modify = new Modify({source: drawingSource});
+
+const map = new OpenLayersMap({
+  interactions: defaultInteractions().extend([link, modify, select]),
+  layers: [
+    new TileLayer({
+      source: new XYZ({
+        attributions: 'Base map by Esri and its data providers',
+        urls: [
+        'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
+        'https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
+      ]}),
+    }),
+    new TileLayer({
+      source: new XYZ({
+        // NB: this source is unmaintained
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
+      }),
+    }),
+    temporalLayer,
+    viewingLocations,
+    drawingLayer,
+  ],
+  view: new View({
+    center: fromLonLat([coordinates.longitude, coordinates.latitude]),
+    projection: sphericalMercator,
+    zoom: 9,
+  }),
+});
+
 // This is a thin wrapper around imperative code driving OpenLayers.
 // The code is informed by the `openlayers-elements` project, but we avoid taking it as a dependency.
 @customElement('obs-map')
 export class ObsMap extends LitElement {
-  public map?: OpenLayersMap = undefined
+  @provide({context: mapContext})
+  public map = map
+
+  @provide({context: drawingSourceContext})
+  public drawingSource = drawingSource
 
   @query('#map')
   public mapElement!: HTMLDivElement
@@ -188,33 +231,7 @@ obs-panel {
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
-    this.map = new OpenLayersMap({
-      interactions: defaultInteractions().extend([link, select]),
-      layers: [
-        new TileLayer({
-          source: new XYZ({
-            attributions: 'Base map by Esri and its data providers',
-            urls: [
-            'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
-            'https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
-          ]}),
-        }),
-        new TileLayer({
-          source: new XYZ({
-            // NB: this source is unmaintained
-            url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
-          }),
-        }),
-        temporalLayer,
-        viewingLocations,
-      ],
-      target: this.mapElement,
-      view: new View({
-        center: fromLonLat([coordinates.longitude, coordinates.latitude]),
-        projection: sphericalMercator,
-        zoom: 9,
-      }),
-    });
+    this.map.setTarget(this.mapElement);
     this.map.getView().on('change:resolution', console.log);
   }
 }

@@ -1,6 +1,8 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { Temporal } from "temporal-polyfill";
+import './add-observation.ts';
+import { v7 } from "uuid";
 
 const today = Temporal.Now.plainDateISO().toString();
 @customElement('obs-panel')
@@ -17,12 +19,15 @@ export class ObsPanel extends LitElement {
     h2 {
       margin: 0.5rem;
     }
+    add-observation {
+      margin-top: 0.5rem;
+    }
   `;
 
   @property({type: String})
   date!: string;
 
-  public render() {
+  protected render() {
     return html`
       <header>
         <h2>Marine Mammal Observations</h2>
@@ -32,6 +37,7 @@ export class ObsPanel extends LitElement {
           <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" value=${this.date}>
         </form>
       </header>
+      <add-observation class="show" .date=${this.date} id=${v7()}></add-observation>
       <slot></slot>
     `;
   }

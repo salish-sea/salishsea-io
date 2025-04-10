@@ -8,3 +8,15 @@ export type { SightingPhoto } from './server/temporal-features.ts';
 export type FeatureProperties = FerryLocationProperties | SightingProperties | TravelLineProperties;
 
 export type Extent = [number, number, number, number];
+
+export type SightingForm = {
+  id: string; // uuid
+  observed_at: number; // unix epoch time
+  subject_location: [number, number]; // lon, lat
+  observer_location: [number, number]; // lon, lat
+  taxon: string;
+  body: string | null;
+  count: number | null;
+  individuals: string[];
+  url: string | null;
+}

@@ -10,10 +10,12 @@ import { query, matchedData, validationResult } from 'express-validator';
 import { imputeTravelLines } from "./travel.ts";
 import { sightingsBetween } from "./temporal-features.ts";
 import type { Extent, FeatureProperties } from "../types.ts";
+import { upsertSighting } from "./sighting.ts";
 
 const app = express();
 const api = express.Router();
 app.use('/api', api);
+app.use(express.json());
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
 const extentOfInterest: Extent = [-136, 36, -120, 54];
@@ -104,6 +106,16 @@ api.post(
     const insertionCount = await inaturalist.loadObservations(observations);
     console.info(`Loaded ${insertionCount} observations from iNaturalist.`);
     res.send(`Loaded ${insertionCount} observations from iNaturalist.\n`);
+  }
+);
+
+api.post(
+  "/sightings/:sightingId",
+  async (req: Request, res: Response) => {
+    const id = req.params.sightingId!;
+    const sighting = req.body;
+    upsertSighting({...sighting, id});
+    res.status(204).send();
   }
 );
 

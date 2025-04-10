@@ -5,7 +5,7 @@ import { html, unsafeStatic } from "lit/static-html.js";
 
 @customElement('obs-summary')
 export class ObsSummary extends LitElement {
-  @property()
+  @property({attribute: false})
   sighting!: SightingProperties
 
   static styles = css`
@@ -31,6 +31,9 @@ export class ObsSummary extends LitElement {
     }
     p {
       margin: 0.5rem 0 0;
+    }
+    a {
+      word-break: break-word;
     }
     .count {
       font-size: 0.8rem;
@@ -72,7 +75,7 @@ export class ObsSummary extends LitElement {
       ${photos.length ?
         html`<ul class="photos">${
           photos.map(photo =>
-            html`<li><a target="_new" href=${photo.url}><img alt=${photo.attribution} height="75" src=${photo.url}></a></li>`
+            html`<li><a target="_new" href=${url}><img alt=${photo.attribution} height="75" src=${photo.url}></a></li>`
           )
         }</ul>`
       : undefined}
