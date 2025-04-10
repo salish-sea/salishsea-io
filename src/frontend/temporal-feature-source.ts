@@ -8,9 +8,9 @@ import type Geometry from 'ol/geom/Geometry.js';
 const baseURL = '/api/temporal-features';
 
 export default class TemporalFeatureSource extends VectorSource<Feature<Geometry>> {
-  constructor(coordinates: {date: string}) {
+  constructor(coordinates: {date: string, nonce: string}) {
     const url = () => {
-      return queryStringAppend(baseURL, {d: coordinates.date});
+      return queryStringAppend(baseURL, {d: coordinates.date, nonce: coordinates.nonce});
     };
     super({format: new GeoJSON<Feature<Geometry>>(), strategy: all, url});
   }

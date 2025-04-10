@@ -98,7 +98,7 @@ const observationStyle2 = ({individuals, symbol}: SightingStyleProperties, isSel
   return styles;
 }
 
-export const observationStyle = (properties: SightingStyleProperties) => {
+const observationStyle = (properties: SightingStyleProperties) => {
   return observationStyle2(properties, false);
 };
 

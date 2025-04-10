@@ -17,6 +17,5 @@ export type SightingForm = {
   taxon: string;
   body: string | null;
   count: number | null;
-  individuals: string[];
   url: string | null;
 }

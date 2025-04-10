@@ -1,5 +1,6 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import {Task} from '@lit/task';
 import { fromLonLat, toLonLat } from "ol/proj.js";
 import { bearing as getBearing } from "@turf/bearing";
 import { point as turfPoint } from "@turf/helpers";
@@ -35,8 +36,21 @@ export default class AddObservation extends LitElement {
   @state()
   private distance: number | null = null
 
+  formRef = createRef<HTMLFormElement>();
   observerInputRef = createRef<HTMLInputElement>();
   subjectInputRef = createRef<HTMLInputElement>();
+
+  private _saveTask = new Task(this, {
+    autoRun: false,
+    task: async ([request]: [Request]) => {
+      const response = await fetch(request);
+      const data = (await response.json()) as SightingForm;
+      const event = new CustomEvent('observation-created', {bubbles: true, composed: true, detail: data});
+      this.dispatchEvent(event);
+      this.formRef.value!.reset();
+      return data;
+    },
+  });
 
   static styles = css`
     :host {
@@ -76,12 +90,21 @@ export default class AddObservation extends LitElement {
     .actions {
       text-align: right;
     }
+    output {
+      display: block;
+    }
+    output.error {
+      color: red;
+    }
+    output.success {
+      color: green;
+    }
   `;
 
   protected render() {
     return html`
       <button @click=${this.show} name="show">Add an observation</button>
-      <form @submit=${this.onSubmit} action="/observations/${this.id}" method="post">
+      <form ${ref(this.formRef)} @submit=${this.onSubmit} action="/api/sightings/${this.id}">
         <label>
           <span>URL</span>
           <input type="url" name="url" />
@@ -89,7 +112,9 @@ export default class AddObservation extends LitElement {
         <label>
           <span>Species</span>
           <select name="taxon">
-            <option value="Orcinus orca" selected>Orca</option>
+            <option value="Orcinus orca" selected>Killer Whale (any type)</option>
+            <option value="Orcinus orca ater">Resident Killer Whale</option>
+            <option value="Orcinus orca rectipinnus">Bigg's Killer Whale</option>
           </select>
         </label>
         <label>
@@ -122,8 +147,28 @@ export default class AddObservation extends LitElement {
         </label>
         <div><em>* required field</em></div>
         <div class="actions">
-          <button type="button" @click=${this.hide}>Cancel</button>
-          <button type="submit">Create</button>
+          ${this._saveTask.render({
+            initial: () => html`
+              <output>&nbsp;</output>
+              <button type="button" @click=${this.hide}>Cancel</button>
+              <button type="submit">Create</button>
+            `,
+            pending: () => html`
+              <output>&nbsp;</output>
+              <button type="button" @click=${this.hide}>Cancel</button>
+              <button type="submit" disabled>Create</button>
+            `,
+            complete: (value: SightingForm) => html`
+              <output class="success">Sighting created.</output>
+              <button type="button" @click=${this.hide}>Cancel</button>
+              <button type="submit">Update</button>
+            `,
+            error: (error: unknown) => html`
+              <output class="error">${error}</output>
+              <button type="button" @click=${this.hide}>Cancel</button>
+              <button type="submit">Create</button>
+            `
+          })}
         </div>
       </form>
     `;
@@ -163,7 +208,7 @@ export default class AddObservation extends LitElement {
     this.distance = getDistance(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
   }
 
-  onSubmit(e: Event) {
+  async onSubmit(e: Event) {
     e.preventDefault();
     const form = this.shadowRoot!.querySelector('form') as HTMLFormElement;
     const data = new FormData(form);
@@ -174,16 +219,18 @@ export default class AddObservation extends LitElement {
       body: data.get('body') as string,
       count: parseInt(data.get('count') as string) || null,
       id: this.getAttribute('id')!,
-      individuals: [],
       observed_at: observedAt / 1000,
       observer_location: toLonLat(this.#observerPoint.getCoordinates()) as [number, number],
       subject_location: toLonLat(this.#subjectPoint.getCoordinates()) as [number, number],
       taxon: data.get('taxon') as string,
       url: data.get('url') as string,
     };
-    const event = new CustomEvent('create-sighting', {bubbles: true, composed: true, detail: sighting})
-    this.dispatchEvent(event);
-    console.log(event);
+    const request = new Request(form.action, {
+      body: JSON.stringify(sighting),
+      headers: {'Content-Type': 'application/json'},
+      method: 'PUT',
+    });
+    this._saveTask.run([request]);
   }
 
   hide() {

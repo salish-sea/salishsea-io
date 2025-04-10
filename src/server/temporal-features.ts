@@ -74,6 +74,22 @@ FROM (
     username AS user,
     taxon_id
   FROM inaturalist_observations
+
+  UNION ALL
+
+  SELECT
+    'salishsea:' || id AS id,
+    body,
+    count,
+    latitude,
+    longitude,
+    observed_at as "timestamp",
+    '[]' AS photos_json,
+    'salishsea',
+    url,
+    'unknown',
+    taxon_id
+  FROM sightings
 ) AS s
 JOIN taxa t ON s.taxon_id = t.id
 WHERE timestamp BETWEEN @earliest AND @latest

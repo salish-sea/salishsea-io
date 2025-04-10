@@ -1,6 +1,7 @@
 import {parse, stringify} from 'uuid';
 import { db } from './database.ts';
 import type { SightingForm } from '../types.ts';
+import { taxonByName } from './taxon.ts';
 
 type SightingRow = {
   id: string; // uuid
@@ -24,14 +25,20 @@ VALUES
 export function upsertSighting(sighting: SightingForm) {
   const [longitude, latitude] = sighting.subject_location;
   const [observer_longitude, observer_latitude] = sighting.observer_location;
+  const taxon = taxonByName(sighting.taxon);
+  if (!taxon)
+    throw `Couldn't find a taxon named ${sighting.taxon}`;
+  const body = sighting.body?.trim().length ? sighting.body.trim() : null;
   const row = {
     ...sighting,
+    body,
     id: stringify(parse(sighting.id)),
-    individuals: sighting.individuals.join(','),
+    individuals: '',
     latitude,
     longitude,
     observer_latitude,
     observer_longitude,
+    taxon_id: taxon.id,
   };
   upsertSightingStatement.run(row);
 }

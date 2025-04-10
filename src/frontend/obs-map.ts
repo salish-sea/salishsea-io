@@ -21,7 +21,7 @@ import { Temporal } from 'temporal-polyfill';
 import type { CollectionEvent } from 'ol/Collection.js';
 import type { FeatureLike } from 'ol/Feature.js';
 import type {Feature as GeoJSONFeature, Point as GeoJSONPoint} from 'geojson';
-import type { SightingProperties } from '../types.ts';
+import type { SightingForm, SightingProperties } from '../types.ts';
 import type Point from 'ol/geom/Point.js';
 import { classMap } from 'lit/directives/class-map.js';
 import KML from 'ol/format/KML.js';
@@ -36,9 +36,10 @@ const sphericalMercator = 'EPSG:3857';
 
 const link = new Link({params: ['x', 'y', 'z'], replace: true});
 const coordinates = {
+  date: Temporal.Now.plainDateISO('PST8PDT').toString(),
   latitude: 47.8,
   longitude: -122.450,
-  date: Temporal.Now.plainDateISO('PST8PDT').toString(),
+  nonce: new Date().toString(),
 };
 
 const temporalSource = new TemporalFeatureSource(coordinates);
@@ -178,6 +179,13 @@ obs-panel {
       if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
         throw "oh no";
       setDate(evt.detail);
+    });
+    this.addEventListener('observation-created', (evt) => {
+      if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'object')
+        throw "oh no";
+      const {id}: {id: string} = evt.detail;
+      coordinates.nonce = id;
+      temporalSource.refresh();
     });
     link.track('s', (v) => v && this.focusObservation(v));
     select.on('select', (e: SelectEvent) => {

@@ -14,8 +14,8 @@ import { upsertSighting } from "./sighting.ts";
 
 const app = express();
 const api = express.Router();
+api.use(express.json());
 app.use('/api', api);
-app.use(express.json());
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
 const extentOfInterest: Extent = [-136, 36, -120, 54];
@@ -109,13 +109,13 @@ api.post(
   }
 );
 
-api.post(
+api.put(
   "/sightings/:sightingId",
   async (req: Request, res: Response) => {
     const id = req.params.sightingId!;
     const sighting = req.body;
     upsertSighting({...sighting, id});
-    res.status(204).send();
+    res.status(201).json(sighting);
   }
 );
 
