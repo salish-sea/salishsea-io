@@ -10,9 +10,9 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.39.1",
+    "@dotenvx/dotenvx": "^1.40.0",
     "@formatjs/intl-datetimeformat": "^6.17.3",
-    "@lit/context": "^1.1.4",
+    "@lit/context": "^1.1.5",
     "@lit/task": "1.0.2",
     "@turf/bearing": "^7.2.0",
     "@turf/distance": "^7.2.0",
