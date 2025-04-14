@@ -9,18 +9,21 @@ const today = Temporal.Now.plainDateISO().toString();
 export class ObsPanel extends LitElement {
   static styles = css`
     :host {
+      font-family: Mukta,Helvetica,Arial,sans-serif;
       padding: 0.5em;
       overflow-y: scroll;
     }
     header {
-      font-weight: bold;
       text-align: center;
     }
     h2 {
+      font-size: 2.125rem;
+      font-weight: 400;
       margin: 0.5rem;
     }
     add-observation {
-      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      margin-top: 1rem;
     }
   `;
 
@@ -37,7 +40,7 @@ export class ObsPanel extends LitElement {
           <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" value=${this.date}>
         </form>
       </header>
-      <add-observation class="show" .date=${this.date} id=${v7()}></add-observation>
+      <add-observation .date=${this.date} id=${v7()}></add-observation>
       <slot></slot>
     `;
   }

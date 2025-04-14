@@ -15,7 +15,6 @@ import { featureStyle, sighterStyle, type SightingStyleProperties } from "./styl
 import type { SightingForm } from "../types.ts";
 import { Temporal } from "temporal-polyfill";
 
-
 @customElement('add-observation')
 export default class AddObservation extends LitElement {
   @property()
@@ -53,21 +52,63 @@ export default class AddObservation extends LitElement {
   });
 
   static styles = css`
+    .material-icons {
+      font-family: 'Material Icons';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 1.5em;  /* Preferred icon size */
+      display: inline-block;
+      line-height: 1;
+      text-transform: none;
+      letter-spacing: normal;
+      word-wrap: normal;
+      white-space: nowrap;
+      direction: ltr;
+
+      /* Support for all WebKit browsers. */
+      -webkit-font-smoothing: antialiased;
+      /* Support for Safari and Chrome. */
+      text-rendering: optimizeLegibility;
+
+      /* Support for Firefox. */
+      -moz-osx-font-smoothing: grayscale;
+
+      /* Support for IE. */
+      font-feature-settings: 'liga';
+    }
     :host {
+      display: block;
+      font-family: Mukta,Helvetica,Arial,sans-serif;
+    }
+    form {
       background-color: rgba(128, 128, 128, 0.1);
       border: 1px solid gray;
       border-radius: 0.5rem;
-      display: block;
-      padding: 0.5rem;
-    }
-    form {
       display: none;
+      padding: 0.5rem;
     }
     :host(.show) form {
       display: block;
     }
     :host(.show) [name=show] {
       display: none;
+    }
+    button {
+      align-items: center;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 0.5rem;
+      vertical-align: middle;
+    }
+    button[name=show] {
+      background-color: rgb(27, 43, 123);
+      border: none;
+      border-radius: 4px;
+      color: white;
+      fill: white;
+      font-weight: 500;
+      padding: 1rem;
+      text-transform: uppercase;
     }
     label {
       display: block;
@@ -103,7 +144,10 @@ export default class AddObservation extends LitElement {
 
   protected render() {
     return html`
-      <button @click=${this.show} name="show">Add an observation</button>
+      <button @click=${this.show} type="button" name="show">
+        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M440-440ZM120-120q-33 0-56.5-23.5T40-200v-480q0-33 23.5-56.5T120-760h126l74-80h240v80H355l-73 80H120v480h640v-360h80v360q0 33-23.5 56.5T760-120H120Zm640-560v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80ZM440-260q75 0 127.5-52.5T620-440q0-75-52.5-127.5T440-620q-75 0-127.5 52.5T260-440q0 75 52.5 127.5T440-260Zm0-80q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t29 71q0 42-29 71t-71 29Z"/></svg>
+        <span>Add a Sighting</span>
+      </button>
       <form ${ref(this.formRef)} @submit=${this.onSubmit} action="/api/sightings/${this.id}">
         <label>
           <span>URL</span>
