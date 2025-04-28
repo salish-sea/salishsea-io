@@ -11,16 +11,47 @@ import { imputeTravelLines } from "./travel.ts";
 import { sightingsBetween } from "./temporal-features.ts";
 import type { Extent, FeatureProperties } from "../types.ts";
 import { upsertSighting } from "./sighting.ts";
+import session from 'express-session';
+import SqliteStore, { sessionDuration } from "./session-store.ts";
+import { lookupByUUID } from "./user.ts";
+
+
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret)
+  throw "Please set a session secret in SESSION_SECRET";
 
 const app = express();
+app.set('trust proxy', 'loopback'); // https://expressjs.com/en/guide/behind-proxies.html
+app.use(session({
+  cookie: {
+    httpOnly: false,
+    maxAge: sessionDuration.total('milliseconds'),
+    sameSite: true,
+  },
+  rolling: true,
+  saveUninitialized: true,
+  secret: sessionSecret,
+  store: new SqliteStore(),
+}));
+
+const requireLogin = (req: Request, res: Response, next: Function) => {
+  if (typeof req.session.user_id !== 'number') {
+    res.status(403).send('You must be logged in to perform this action.');
+    return;
+  }
+  req.user_id = req.session.user_id;
+  next();
+}
+
 const api = express.Router();
 api.use(express.json());
+
 app.use('/api', api);
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
 const extentOfInterest: Extent = [-136, 36, -120, 54];
 
-const collectFeatures = async (date: Temporal.PlainDate, time?: Temporal.PlainTime) => {
+const collectFeatures = (date: Temporal.PlainDate, time?: Temporal.PlainTime) => {
   const earliest = date.toZonedDateTime('PST8PDT');
   const latest = earliest.add({hours: 24});
   const sightings = sightingsBetween(earliest.toInstant(), latest.toInstant());
@@ -44,7 +75,7 @@ const collectFeatures = async (date: Temporal.PlainDate, time?: Temporal.PlainTi
 api.get(
   "/temporal-features",
   query('d').notEmpty(),
-  async (req: Request, res: Response) => {
+  (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (! errors.isEmpty()) {
       res.send({errors: errors.array()});
@@ -53,7 +84,7 @@ api.get(
 
     const {d} = matchedData(req) as {d: string};
     const date = Temporal.PlainDate.from(d);
-    const observations = await collectFeatures(date);
+    const observations = collectFeatures(date);
     res.contentType('application/geo+json');
     res.set('Cache-Control', 'max-age=60, public')
     res.json(observations);
@@ -111,11 +142,27 @@ api.post(
 
 api.put(
   "/sightings/:sightingId",
-  async (req: Request, res: Response) => {
+  requireLogin,
+  (req: Request, res: Response) => {
     const id = req.params.sightingId!;
     const sighting = req.body;
     upsertSighting({...sighting, id});
     res.status(201).json(sighting);
+  }
+);
+
+api.get(
+  "/login",
+  query('user').notEmpty().isUUID(),
+  (req: Request, res: Response) => {
+    const {user: uuid} = matchedData<{user: string}>(req);
+    const user = lookupByUUID(uuid);
+    if (user) {
+      req.session.user_id = user.id;
+      res.redirect('/');
+    } else {
+      res.status(404).send('User not found.');
+    }
   }
 );
 
@@ -152,3 +199,9 @@ setInterval(loadFerries, 1000 * 60);
 
 const port = 3131;
 ViteExpress.listen(app, port, () => console.debug(`Listening on port ${port}.`));
+
+declare module 'express' {
+  interface Request {
+    user_id?: number;
+  }
+}

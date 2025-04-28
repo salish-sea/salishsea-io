@@ -1,4 +1,8 @@
 BEGIN;
+CREATE TABLE users (id int primary key, uuid text not null, email text not null);
+CREATE TABLE sessions (id text not null primary key, user_id REFERENCES users(id), data json not null, expires int not null);
+CREATE INDEX session_user_id ON sessions (user_id) WHERE user_id IS NOT NULL;
+
 CREATE TABLE ferry_locations (vessel_id INT NOT NULL, "timestamp" int not null, vessel_name text not null, longitude real not null, latitude real not null, heading int, in_service int not null, at_dock int not null);
 CREATE INDEX ferry_location_timestamp ON ferry_locations (timestamp);
 CREATE TABLE maplify_sightings (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id int not null, trip_id int not null, name text not null, scientific_name text not null, latitude real not null, longitude real not null, number_sighted integer not null, created number not null, photo_url text, comments text, in_ocean int not null, count_check int not null, moderated int not null, trusted int not null, is_test int not null, source text not null, usernm text, icon text, taxon_id int);
