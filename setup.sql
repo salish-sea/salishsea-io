@@ -25,5 +25,7 @@ UPDATE taxa SET vernacular_name=n.vernacularName
   FROM (SELECT id, first_value(vernacularName) OVER (PARTITION BY id ORDER BY rowid) vernacularName FROM vernacular_names_temp GROUP BY id) n
   WHERE taxa.id = n.id;
 UPDATE taxa SET species_id=parent_id WHERE taxon_rank='subspecies';
+
+CREATE TABLE sightings (id text primary key not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real not null, observer_latitude real not null, taxon_id int not null, body text, count int, individuals text, url text);
 COMMIT;
 VACUUM;
