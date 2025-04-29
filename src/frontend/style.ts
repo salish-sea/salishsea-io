@@ -25,7 +25,7 @@ export const sighterStyle = new Style({
   }),
 });
 
-export const bearingStyle = (feature: Feature<LineString>) => {
+export const bearingStyle = (_feature: Feature<LineString>) => {
   // const geom = feature.getGeometry();
   const styles = [
     new Style({

@@ -202,7 +202,7 @@ export default class AddObservation extends LitElement {
               <button type="button" @click=${this.hide}>Cancel</button>
               <button type="submit" disabled>Create</button>
             `,
-            complete: (value: SightingForm) => html`
+            complete: (_value: SightingForm) => html`
               <output class="success">Sighting created.</output>
               <button type="button" @click=${this.hide}>Cancel</button>
               <button type="submit">Update</button>

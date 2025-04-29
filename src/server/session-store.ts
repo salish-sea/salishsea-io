@@ -62,7 +62,7 @@ export default class SqliteStore extends Store {
     return cb();
   }
 
-  touch(id: string, session: SessionData, cb = noop) {
+  touch(id: string, _session: SessionData, cb = noop) {
     const expires = Temporal.Now.instant().add(sessionDuration);
     const expiresSec = Math.ceil(expires.epochMilliseconds / 1000);
 

@@ -21,7 +21,7 @@ import { Temporal } from 'temporal-polyfill';
 import type { CollectionEvent } from 'ol/Collection.js';
 import type { FeatureLike } from 'ol/Feature.js';
 import type {Feature as GeoJSONFeature, Point as GeoJSONPoint} from 'geojson';
-import type { SightingForm, SightingProperties } from '../types.ts';
+import type { SightingProperties } from '../types.ts';
 import type Point from 'ol/geom/Point.js';
 import { classMap } from 'lit/directives/class-map.js';
 import KML from 'ol/format/KML.js';

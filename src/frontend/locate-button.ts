@@ -5,7 +5,7 @@ import mapContext from "./map-context.ts";
 import { consume } from "@lit/context";
 import type OpenLayersMap from "ol/Map.js";
 import type Point from "ol/geom/Point.js";
-import { locatorStyle } from "./style.ts";
+import { sighterStyle } from "./style.ts";
 
 
 // TODO: This could maybe be a controller instead, and leave all the rendering to the host.
@@ -13,7 +13,7 @@ import { locatorStyle } from "./style.ts";
 @customElement('locate-button')
 export default class LocateButton extends LitElement {
   @state()
-  draw = new Draw({style: locatorStyle, type: 'Point'});
+  draw = new Draw({style: sighterStyle, type: 'Point'});
 
   @consume({context: mapContext})
   map!: OpenLayersMap
