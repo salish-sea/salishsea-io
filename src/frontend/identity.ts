@@ -1,4 +1,4 @@
-import { Auth0Client, createAuth0Client } from '@auth0/auth0-spa-js';
+import { createAuth0Client } from '@auth0/auth0-spa-js';
 
 export const auth0 = await createAuth0Client({
   domain: 'rainhead.auth0.com',
