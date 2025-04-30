@@ -23,9 +23,9 @@
     "express-openid-connect": "^2.18.0",
     "express-validator": "^7.2.1",
     "lit": "^3.3.0",
-    "marked": "15.0.8",
+    "marked": "15.0.11",
     "uuid": "^11.1.0",
-    "vite-express": "^0.20.0"
+    "vite-express": "^0.21.1"
   },
   "devDependencies": {
     "@formatjs/intl-durationformat": "^0.7.3",
@@ -33,11 +33,11 @@
     "@types/express": "^5.0.0",
     "@types/express-session": "^1.18.1",
     "@types/geojson": "^7946.0.16",
-    "nodemon": "^3.1.9",
+    "nodemon": "^3.1.10",
     "ol": "^10.5.0",
     "temporal-polyfill": "^0.3",
     "typescript": "~5.8.3",
-    "vite": "^6.3.2",
+    "vite": "^6.3.3",
     "vitest": "^3.1.2"
   }
 }
