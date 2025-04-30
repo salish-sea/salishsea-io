@@ -11,10 +11,7 @@ import { imputeTravelLines } from "./travel.ts";
 import { sightingsBetween } from "./temporal-features.ts";
 import type { Extent, FeatureProperties } from "../types.ts";
 import { upsertSighting } from "./sighting.ts";
-import session from 'express-session';
-import SqliteStore, { sessionDuration } from "./session-store.ts";
-import { lookupByUUID } from "./user.ts";
-
+import { auth } from "express-openid-connect";
 
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret)
@@ -22,29 +19,14 @@ if (!sessionSecret)
 
 const app = express();
 app.set('trust proxy', 'loopback'); // https://expressjs.com/en/guide/behind-proxies.html
-app.use(session({
-  cookie: {
-    httpOnly: false,
-    maxAge: sessionDuration.total('milliseconds'),
-    sameSite: true,
-  },
-  rolling: true,
-  saveUninitialized: true,
-  secret: sessionSecret,
-  store: new SqliteStore(),
-}));
-
-const requireLogin = (req: Request, res: Response, next: Function) => {
-  if (typeof req.session.user_id !== 'number') {
-    res.status(403).send('You must be logged in to perform this action.');
-    return;
-  }
-  req.user_id = req.session.user_id;
-  next();
-}
 
 const api = express.Router();
 api.use(express.json());
+api.use(auth({
+  authRequired: false,
+  auth0Logout: true,
+  baseURL: 'http://localhost:3131/api',
+}));
 
 app.use('/api', api);
 
@@ -142,27 +124,11 @@ api.post(
 
 api.put(
   "/sightings/:sightingId",
-  requireLogin,
   (req: Request, res: Response) => {
     const id = req.params.sightingId!;
     const sighting = req.body;
     upsertSighting({...sighting, id});
     res.status(201).json(sighting);
-  }
-);
-
-api.get(
-  "/login",
-  query('user').notEmpty().isUUID(),
-  (req: Request, res: Response) => {
-    const {user: uuid} = matchedData<{user: string}>(req);
-    const user = lookupByUUID(uuid);
-    if (user) {
-      req.session.user_id = user.id;
-      res.redirect('/');
-    } else {
-      res.status(404).send('User not found.');
-    }
   }
 );
 

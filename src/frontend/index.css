@@ -20,19 +20,6 @@
   }
 }
 
-header {
-  background-color: rgb(8, 13, 38);
-  color: white;
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-}
-
-h1 {
-  font-size: 1.2rem;
-  margin: 1rem 0.5rem;
-}
-
 a {
   font-weight: 500;
   color: #646cff;
@@ -43,10 +30,6 @@ a:hover {
 }
 
 body {
-  display: flex;
-  align-content: stretch;
-  align-items: stretch;
-  flex-direction: column;
   height: 100vh;
   margin: 0;
 }

@@ -152,7 +152,7 @@ export class ObsMap extends LitElement {
   }
 }
 obs-panel {
-  bordeer-left: 1px solid #cccccc;
+  border-left: 1px solid #cccccc;
   border-top: 0;
   flex-basis: 35%;
 }
@@ -240,7 +240,6 @@ obs-panel {
 
   public firstUpdated(_changedProperties: PropertyValues): void {
     this.map.setTarget(this.mapElement);
-    this.map.getView().on('change:resolution', console.log);
   }
 }
 

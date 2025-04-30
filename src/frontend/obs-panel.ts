@@ -59,14 +59,12 @@ export class ObsPanel extends LitElement {
 
   onDateChange(e: Event) {
     const date = (e.target as HTMLInputElement).value;
-    console.log(`date: ${date}`);
     if (date && date.match(/^20\d\d-\d\d-\d\d$/)) {
       const dateSelected = new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date})
       this.dispatchEvent(dateSelected);
     }
   }
 }
-
 
 declare global {
   interface HTMLElementTagNameMap {
