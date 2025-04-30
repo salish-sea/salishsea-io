@@ -37,9 +37,7 @@ export default class SalishSea extends LitElement {
         <h1>SalishSea.io</h1>
         <login-button></login-button>
       </header>
-      <div>
-        <obs-map></obs-map>
-      </div>
+      <obs-map></obs-map>
     `;
   }
 }
