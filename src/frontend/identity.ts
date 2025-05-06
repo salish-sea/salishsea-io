@@ -7,9 +7,9 @@ export const doLogInContext = createContext<() => Promise<boolean>>(Symbol('do-l
 export const doLogOutContext = createContext<() => Promise<void>>(Symbol('do-log-out'));
 
 export const auth0 = await createAuth0Client({
-  domain: 'rainhead.auth0.com',
+  domain: import.meta.env.VITE_AUTH0_DOMAIN,
   cacheLocation: 'localstorage',
-  clientId: 'yDgvV1cn-Q5XDbFQx1piWNVboU-Iwi1d',
+  clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
 });
 
 const query = window.location.search;

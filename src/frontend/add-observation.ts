@@ -14,7 +14,8 @@ import { createRef, ref } from "lit/directives/ref.js";
 import { featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
 import type { SightingForm } from "../types.ts";
 import { Temporal } from "temporal-polyfill";
-import { doLogInContext, tokenContext } from "./identity.ts";
+import { doLogInContext, userContext } from "./identity.ts";
+import type { User } from "@auth0/auth0-spa-js";
 
 @customElement('add-observation')
 export default class AddObservation extends LitElement {
@@ -42,8 +43,8 @@ export default class AddObservation extends LitElement {
   @consume({context: doLogInContext})
   logIn!: () => Promise<boolean>;
 
-  @consume({context: tokenContext, subscribe: true})
-  token: string | undefined;
+  @consume({context: userContext, subscribe: true})
+  user: User | undefined;
 
   formRef = createRef<HTMLFormElement>();
   observerInputRef = createRef<HTMLInputElement>();
@@ -216,7 +217,7 @@ export default class AddObservation extends LitElement {
 
   async onSubmit(e: Event) {
     e.preventDefault();
-    if (!this.token) {
+    if (!this.user) {
       if (! (await this.logIn()))
         return;
     }
@@ -234,6 +235,7 @@ export default class AddObservation extends LitElement {
       subject_location: toLonLat(this.#subjectPoint.getCoordinates()) as [number, number],
       taxon: data.get('taxon') as string,
       url: data.get('url') as string,
+      user: this.user!.sub!,
     };
     const request = new Request(form.action, {
       body: JSON.stringify(sighting),

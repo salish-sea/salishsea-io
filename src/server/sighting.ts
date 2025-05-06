@@ -18,9 +18,9 @@ type SightingRow = {
 }
 const upsertSightingStatement = db.prepare<SightingRow>(`
 INSERT OR REPLACE INTO sightings
-( id,  observed_at,  longitude,  latitude,  observer_longitude,  observer_latitude,  taxon_id,  body,  count,  individuals,  url)
+( id,  user,  observed_at,  longitude,  latitude,  observer_longitude,  observer_latitude,  taxon_id,  body,  count,  individuals,  url)
 VALUES
-(@id, @observed_at, @longitude, @latitude, @observer_longitude, @observer_latitude, @taxon_id, @body, @count, @individuals, @url)
+(@id, @user, @observed_at, @longitude, @latitude, @observer_longitude, @observer_latitude, @taxon_id, @body, @count, @individuals, @url)
 `);
 export function upsertSighting(sighting: SightingForm) {
   const [longitude, latitude] = sighting.subject_location;

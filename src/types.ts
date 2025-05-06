@@ -18,4 +18,5 @@ export type SightingForm = {
   body: string | null;
   count: number | null;
   url: string | null;
+  user: string;
 }

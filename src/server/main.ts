@@ -11,7 +11,6 @@ import { imputeTravelLines } from "./travel.ts";
 import { sightingsBetween } from "./temporal-features.ts";
 import type { Extent, FeatureProperties } from "../types.ts";
 import { upsertSighting } from "./sighting.ts";
-import { auth } from "express-openid-connect";
 
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret)
@@ -22,11 +21,6 @@ app.set('trust proxy', 'loopback'); // https://expressjs.com/en/guide/behind-pro
 
 const api = express.Router();
 api.use(express.json());
-api.use(auth({
-  authRequired: false,
-  auth0Logout: true,
-  baseURL: 'http://localhost:3131/api',
-}));
 
 app.use('/api', api);
 

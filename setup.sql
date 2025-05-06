@@ -22,6 +22,6 @@ UPDATE taxa SET vernacular_name=n.vernacularName
   WHERE taxa.id = n.id;
 UPDATE taxa SET species_id=parent_id WHERE taxon_rank='subspecies';
 
-CREATE TABLE sightings (id text primary key not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real not null, observer_latitude real not null, taxon_id int not null, body text, count int, individuals text, url text);
+CREATE TABLE sightings (id text primary key not null, user text not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real not null, observer_latitude real not null, taxon_id int not null, body text, count int, individuals text, url text);
 COMMIT;
 VACUUM;

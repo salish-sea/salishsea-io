@@ -75,7 +75,7 @@ export default class SalishSea extends LitElement {
   async doLogIn() {
     await auth0.loginWithPopup({
       authorizationParams: {
-        redirect_uri: 'http://localhost:3131/auth_redirect.html',
+        redirect_uri: new URL('/auth_redirect.html', window.location.href).toString(),
       }
     });
     await this.updateAuth();
