@@ -1,6 +1,6 @@
 import { LitElement, css, html } from 'lit'
 import type { PropertyValues } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js'
+import { customElement, property, query, state } from 'lit/decorators.js'
 import OpenLayersMap from "ol/Map.js";
 import View from "ol/View.js";
 import Select, { SelectEvent } from 'ol/interaction/Select.js';
@@ -164,6 +164,12 @@ obs-panel {
 }
   `
 
+  @property()
+  logIn!: () => Promise<boolean>;
+
+  @property({type: Boolean, reflect: true})
+  loggedIn: boolean = false
+
   @state()
   private features: GeoJSONFeature<GeoJSONPoint, SightingProperties>[] = [];
 
@@ -189,7 +195,7 @@ obs-panel {
     });
     link.track('s', (v) => v && this.focusObservation(v));
     select.on('select', (e: SelectEvent) => {
-      const id = e.selected[0]?.getId() as string | undefined;
+    const id = e.selected[0]?.getId() as string | undefined;
       if (id) {
         this.renderRoot.querySelector(`#${id.replace(':', '\\:')}`)?.scrollIntoView({block: 'center'});
       }
@@ -227,7 +233,7 @@ obs-panel {
     return html`
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.4.0/ol.css" type="text/css" />
       <div id="map"></div>
-      <obs-panel date=${coordinates.date}>
+      <obs-panel .logIn=${this.logIn} ?loggedIn=${this.loggedIn} date=${coordinates.date}>
         ${this.features.map(feature => {
           const {id} = feature.properties;
           return html`

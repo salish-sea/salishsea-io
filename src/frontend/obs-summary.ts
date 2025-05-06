@@ -17,7 +17,6 @@ export class ObsSummary extends LitElement {
       background-color: #ffff5530;
     }
     header {
-      margin-top: 1.5rem;
       overflow: auto;
     }
     time {

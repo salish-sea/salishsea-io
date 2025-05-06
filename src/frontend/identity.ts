@@ -6,6 +6,18 @@ export const auth0 = await createAuth0Client({
   clientId: 'yDgvV1cn-Q5XDbFQx1piWNVboU-Iwi1d',
 });
 
+export const logIn = async () => {
+  await auth0.loginWithPopup({
+    authorizationParams: {
+      redirect_uri: 'http://localhost:3131/auth_redirect.html',
+    }
+  });
+};
+
+export const logOut = async () => {
+  await auth0.logout({openUrl: false});
+}
+
 const query = window.location.search;
 if (query.includes("code=") && query.includes("state=")) {
   window.addEventListener('load', async () => {

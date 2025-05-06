@@ -9,9 +9,18 @@ const today = Temporal.Now.plainDateISO().toString();
 export class ObsPanel extends LitElement {
   static styles = css`
     :host {
+      align-items: flex-start;
+      display: flex;
+      flex-direction: column;
       font-family: Mukta,Helvetica,Arial,sans-serif;
+      gap: 1rem;
       padding: 0.5em;
       overflow-y: scroll;
+    }
+    .full-bleed {
+      align-self: stretch;
+      margin-left: -0.5rem;
+      margin-right: -0.5rem;
     }
     header {
       text-align: center;
@@ -19,16 +28,42 @@ export class ObsPanel extends LitElement {
     h2 {
       font-size: 2.125rem;
       font-weight: 400;
-      margin: 0.5rem;
+      margin-bottom: 0;
+      margin-top: 1rem;
+    }
+    button {
+      align-items: center;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 0.5rem;
+      vertical-align: middle;
+    }
+    button[name=show] {
+      background-color: rgb(27, 43, 123);
+      border: none;
+      border-radius: 4px;
+      color: white;
+      fill: white;
+      font-weight: 500;
+      padding: 1rem;
+      text-transform: uppercase;
     }
     add-observation {
-      margin-bottom: 1rem;
-      margin-top: 1rem;
+      background-color: rgba(128, 128, 128, 0.1);
     }
   `;
 
+  @property({type: Boolean})
+  _showForm: boolean = false
+
   @property({type: String})
   date!: string;
+
+  @property()
+  logIn!: () => Promise<boolean>;
+
+  @property({type: Boolean, reflect: true})
+  loggedIn: boolean = false
 
   protected render() {
     return html`
@@ -40,7 +75,14 @@ export class ObsPanel extends LitElement {
           <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" value=${this.date}>
         </form>
       </header>
-      <add-observation .date=${this.date} id=${v7()}></add-observation>
+      ${this._showForm ? html`
+        <add-observation class="full-bleed" .cancel=${this.hide.bind(this)} .logIn=${this.logIn} ?loggedIn=${this.loggedIn} .date=${this.date} id=${v7()}></add-observation>
+      ` : html`
+        <button @click=${this.showForm} type="button" name="show">
+          <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M440-440ZM120-120q-33 0-56.5-23.5T40-200v-480q0-33 23.5-56.5T120-760h126l74-80h240v80H355l-73 80H120v480h640v-360h80v360q0 33-23.5 56.5T760-120H120Zm640-560v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80ZM440-260q75 0 127.5-52.5T620-440q0-75-52.5-127.5T440-620q-75 0-127.5 52.5T260-440q0 75 52.5 127.5T440-260Zm0-80q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t29 71q0 42-29 71t-71 29Z"/></svg>
+          <span>Add a Sighting</span>
+        </button>
+      `}
       <slot></slot>
     `;
   }
@@ -63,6 +105,14 @@ export class ObsPanel extends LitElement {
       const dateSelected = new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date})
       this.dispatchEvent(dateSelected);
     }
+  }
+
+  hide() {
+    this._showForm = false;
+  }
+
+  showForm() {
+    this._showForm = true;
   }
 }
 

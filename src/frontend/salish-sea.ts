@@ -1,7 +1,9 @@
-import { css, html, LitElement } from "lit";
-import { customElement } from "lit/decorators.js";
+import { css, html, LitElement} from "lit";
+import { customElement, state } from "lit/decorators.js";
 import './obs-map.ts';
 import './login-button.ts';
+import type { User } from "@auth0/auth0-spa-js";
+import { auth0, logIn, logOut } from "./identity.ts";
 
 @customElement('salish-sea')
 export default class SalishSea extends LitElement {
@@ -31,13 +33,37 @@ export default class SalishSea extends LitElement {
     }
   `;
 
+  @state()
+  protected _user: User | undefined;
+
+  @state()
+  protected _token: string | undefined;
+
   protected render(): unknown {
+    const logIn = this.logIn.bind(this);
+    const logOut = this.logOut.bind(this);
     return html`
       <header>
         <h1>SalishSea.io</h1>
-        <login-button></login-button>
+        <login-button ?loggedIn=${this._user} .logIn=${logIn} .logOut=${logOut}></login-button>
       </header>
-      <obs-map></obs-map>
+      <obs-map .logIn=${logIn} ?loggedIn=${this._user}></obs-map>
     `;
+  }
+
+  async logIn() {
+    await logIn();
+    return this.updateAuthState();
+  }
+
+  async logOut() {
+    await logOut();
+    this.updateAuthState();
+  }
+
+  async updateAuthState() {
+    this._user = await auth0.getUser();
+    this._token = this._user ? await auth0.getTokenSilently() : undefined;
+    return this._user !== undefined;
   }
 }

@@ -1,7 +1,5 @@
-import { Task } from "@lit/task";
 import { css, html, LitElement } from "lit";
-import { auth0 } from "./identity.ts";
-import { customElement } from "lit/decorators.js";
+import { customElement, property } from "lit/decorators.js";
 
 
 @customElement('login-button')
@@ -10,47 +8,19 @@ export default class LoginButton extends LitElement {
     p { margin: 0; }
   `;
 
-  private _loginTask = new Task(this, {
-    args: () => [],
-    autoRun: false,
-    task: async () => {
-      await auth0.loginWithPopup({
-        authorizationParams: {
-          redirect_uri: 'http://localhost:3131/auth_redirect.html',
-        }
-      });
-      this._identityTask.run();
-    },
-  })
-  private _identityTask = new Task(this, {
-    args: () => [],
-    task: async () => {
-      return await auth0.getUser();
-    },
-  });
+  @property({type: Boolean, reflect: true})
+  loggedIn: boolean = false
 
-  protected render(): unknown {
-    const loginButton = html`
-      <button type="button" name="log_in" @click=${this.login}><span>Log in</span></button>
-    `;
-    const logoutButton = html`
-      <button type="button" name="log_out" @click=${this.logout}><span>Log out</span></button>
-    `;
-    return this._identityTask.render({
-      initial: () => loginButton,
-      pending: () => html`Logging in…`,
-      complete: (user) => user ? logoutButton : loginButton,
-      error: (error) => {console.error(error); return loginButton},
-    });
-  }
+  @property()
+  logIn = () => {};
 
-  login() {
-    this._loginTask.run();
-  }
+  @property()
+  logOut = () => {};
 
-  async logout() {
-    await auth0.logout({openUrl: false});
-    this._identityTask.run()
+  protected render() {
+    return this.loggedIn
+     ? html`<button type="button" name="log_out" @click=${this.logOut}><span>Log out</span></button>`
+     : html`<button type="button" name="log_in" @click=${this.logIn}><span>Log in</span></button>`;
   }
 }
 
