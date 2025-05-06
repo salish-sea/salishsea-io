@@ -1,7 +1,7 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { Temporal } from "temporal-polyfill";
-import './add-observation.ts';
+import './add-sighting.ts';
 import { v7 } from "uuid";
 
 const today = Temporal.Now.plainDateISO().toString();
@@ -48,7 +48,7 @@ export class ObsPanel extends LitElement {
       padding: 1rem;
       text-transform: uppercase;
     }
-    add-observation {
+    add-sighting {
       background-color: rgba(128, 128, 128, 0.1);
     }
   `;
@@ -76,7 +76,7 @@ export class ObsPanel extends LitElement {
         </form>
       </header>
       ${this._showForm ? html`
-        <add-observation class="full-bleed" .cancel=${this.hide.bind(this)} .logIn=${this.logIn} ?loggedIn=${this.loggedIn} .date=${this.date} id=${v7()}></add-observation>
+        <add-sighting class="full-bleed" .cancel=${this.hide.bind(this)} .logIn=${this.logIn} ?loggedIn=${this.loggedIn} .date=${this.date} id=${v7()}></add-sighting>
       ` : html`
         <button @click=${this.showForm} type="button" name="show">
           <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M440-440ZM120-120q-33 0-56.5-23.5T40-200v-480q0-33 23.5-56.5T120-760h126l74-80h240v80H355l-73 80H120v480h640v-360h80v360q0 33-23.5 56.5T760-120H120Zm640-560v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80ZM440-260q75 0 127.5-52.5T620-440q0-75-52.5-127.5T440-620q-75 0-127.5 52.5T260-440q0 75 52.5 127.5T440-260Zm0-80q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t29 71q0 42-29 71t-71 29Z"/></svg>

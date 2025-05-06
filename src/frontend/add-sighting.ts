@@ -17,8 +17,8 @@ import { Temporal } from "temporal-polyfill";
 import { doLogInContext, userContext } from "./identity.ts";
 import type { User } from "@auth0/auth0-spa-js";
 
-@customElement('add-observation')
-export default class AddObservation extends LitElement {
+@customElement('add-sighting')
+export default class AddSighting extends LitElement {
   @property()
   id!: string
 
@@ -269,6 +269,6 @@ export default class AddObservation extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "add-observation": AddObservation;
+    "add-sighting": AddSighting;
   }
 }
