@@ -1,5 +1,8 @@
 import { css, html, LitElement } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement } from "lit/decorators.js";
+import { doLogInContext, doLogOutContext, userContext } from "./identity.ts";
+import { consume } from "@lit/context";
+import type { User } from "@auth0/auth0-spa-js";
 
 
 @customElement('login-button')
@@ -8,19 +11,19 @@ export default class LoginButton extends LitElement {
     p { margin: 0; }
   `;
 
-  @property({type: Boolean, reflect: true})
-  loggedIn: boolean = false
+  @consume({context: userContext, subscribe: true})
+  user!: User | undefined;
 
-  @property()
-  logIn = () => {};
+  @consume({context: doLogInContext})
+  doLogIn!: () => Promise<boolean>;
 
-  @property()
-  logOut = () => {};
+  @consume({context: doLogOutContext})
+  doLogOut!: () => Promise<void>;
 
   protected render() {
-    return this.loggedIn
-     ? html`<button type="button" name="log_out" @click=${this.logOut}><span>Log out</span></button>`
-     : html`<button type="button" name="log_in" @click=${this.logIn}><span>Log in</span></button>`;
+    return this.user
+     ? html`<button type="button" name="log_out" @click=${this.doLogOut}><span>Log out</span></button>`
+     : html`<button type="button" name="log_in" @click=${this.doLogIn}><span>Log in</span></button>`;
   }
 }
 

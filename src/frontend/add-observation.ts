@@ -14,6 +14,7 @@ import { createRef, ref } from "lit/directives/ref.js";
 import { featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
 import type { SightingForm } from "../types.ts";
 import { Temporal } from "temporal-polyfill";
+import { doLogInContext, tokenContext } from "./identity.ts";
 
 @customElement('add-observation')
 export default class AddObservation extends LitElement {
@@ -38,11 +39,11 @@ export default class AddObservation extends LitElement {
   @property()
   cancel!: () => void;
 
-  @property()
+  @consume({context: doLogInContext})
   logIn!: () => Promise<boolean>;
 
-  @property({type: Boolean, reflect: true})
-  loggedIn: boolean = false
+  @consume({context: tokenContext, subscribe: true})
+  token: string | undefined;
 
   formRef = createRef<HTMLFormElement>();
   observerInputRef = createRef<HTMLInputElement>();
@@ -215,7 +216,7 @@ export default class AddObservation extends LitElement {
 
   async onSubmit(e: Event) {
     e.preventDefault();
-    if (!this.loggedIn) {
+    if (!this.token) {
       if (! (await this.logIn()))
         return;
     }
