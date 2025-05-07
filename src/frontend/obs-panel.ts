@@ -9,7 +9,6 @@ const today = Temporal.Now.plainDateISO().toString();
 export class ObsPanel extends LitElement {
   static styles = css`
     :host {
-      align-items: flex-start;
       display: flex;
       flex-direction: column;
       font-family: Mukta,Helvetica,Arial,sans-serif;
@@ -33,6 +32,7 @@ export class ObsPanel extends LitElement {
     }
     button {
       align-items: center;
+      align-self: flex-start;
       cursor: pointer;
       display: inline-flex;
       gap: 0.5rem;
