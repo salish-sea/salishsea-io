@@ -2,8 +2,8 @@ import { css, html, LitElement} from "lit";
 import { customElement, state } from "lit/decorators.js";
 import './obs-map.ts';
 import './login-button.ts';
-import type { User } from "@auth0/auth0-spa-js";
-import { auth0, doLogInContext, doLogOutContext, tokenContext, userContext } from "./identity.ts";
+import { type User } from "@auth0/auth0-spa-js";
+import { auth0promise, doLogInContext, doLogOutContext, tokenContext, userContext } from "./identity.ts";
 import { provide } from "@lit/context";
 
 @customElement('salish-sea')
@@ -68,11 +68,13 @@ export default class SalishSea extends LitElement {
   }
 
   async updateAuth() {
+    const auth0 = await auth0promise;
     this.user = await auth0.getUser();
     this.token = this.user ? await auth0.getTokenSilently() : undefined;
   }
 
   async doLogIn() {
+    const auth0 = await auth0promise;
     await auth0.loginWithPopup({
       authorizationParams: {
         redirect_uri: new URL('/auth_redirect.html', window.location.href).toString(),
@@ -83,6 +85,7 @@ export default class SalishSea extends LitElement {
   }
 
   async doLogOut() {
+    const auth0 = await auth0promise;
     await auth0.logout({openUrl: false});
     await this.updateAuth();
   }
