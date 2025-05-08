@@ -16,7 +16,7 @@ const yellow = '#ffff00';
 const transparentWhite = 'rgba(255, 255, 255, 0.4)';
 const solidBlue = '#3399CC';
 
-export type SightingStyleProperties = Pick<SightingProperties, 'individuals' | 'symbol'>;
+export type SightingStyleProperties = Pick<SightingProperties, 'individuals' | 'kind' | 'symbol'>;
 
 export const sighterStyle = new Style({
   text: new Text({
@@ -24,9 +24,11 @@ export const sighterStyle = new Style({
     text: '👁️‍🗨️',
   }),
 });
+const editSighterStyle = sighterStyle.clone();
+editSighterStyle.setStroke(new Stroke({color: yellow, width: 3}));
+editSighterStyle.setFill(new Fill({color: yellow}));
 
-export const bearingStyle = (_feature: Feature<LineString>) => {
-  // const geom = feature.getGeometry();
+export const bearingStyle = (feature: Feature<LineString>) => {
   const styles = [
     new Style({
       stroke: new Stroke({
@@ -37,18 +39,15 @@ export const bearingStyle = (_feature: Feature<LineString>) => {
     }),
   ];
 
-  // if (geom) {
-  //   const [p1, p2] = geom.getCoordinates();
-  //   const distance = (getDistance(p1, p2) / 1000).toFixed(1);
-  //   const coords = geom.getCoordinates().map(coord => turfPoint(coord));
-  //   const bearing = getBearing(coords[0], coords[1]).toFixed(0);
-  //   styles.push(new Style({
-  //     text: new Text({
-  //       backgroundFill: new Fill({color: 'rgba(240, 240, 240, 0.85)'}),
-  //       text: `${distance} km at ${bearing}°`,
-  //     }),
-  //   }));
-  // }
+  const {bearing, distance} = feature.getProperties() as {bearing: number | null, distance: number | null}
+  if (bearing && distance) {
+    styles.push(new Style({
+      text: new Text({
+        backgroundFill: new Fill({color: 'rgba(240, 240, 240, 0.85)'}),
+        text: `${distance.toFixed(3)} km at ${bearing.toFixed(0)}°`,
+      }),
+    }));
+  }
   return styles;
 };
 
@@ -162,4 +161,12 @@ export const featureStyle = (feature: FeatureLike, resolution: number) => {
   } else {
     return observationStyle(properties);
   }
+}
+
+export const editStyle = (feature: FeatureLike) => {
+  const kind = feature.get('kind') as string | undefined;
+  if (kind === 'Sighter')
+    return editSighterStyle;
+  else if (kind === 'Sighting')
+    return selectedObservationStyle(feature);
 }

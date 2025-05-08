@@ -37,7 +37,7 @@ export class ObsSummary extends LitElement {
     .count {
       font-size: 0.8rem;
     }
-    .focus-observation {
+    .focus-sighting {
       border: 1px solid #3399CC;
       border-radius: 50%;
       color: inherit;
@@ -66,7 +66,7 @@ export class ObsSummary extends LitElement {
     const count = this.sighting.count && this.sighting.count > 0 ? html` <span class="count">x${this.sighting.count}</span>` : undefined;
     return html`
       <header>
-        <a class="focus-observation" @click="${this.focusObservation}" href="#">${symbol}</a>
+        <a class="focus-sighting" @click="${this.focusSighting}" href="#">${symbol}</a>
         <b>${name}</b>${count}<time>${time}</time>
       </header>
       <cite>via${user ? ` ${user} on` : undefined} ${url ? html`<a target="_new" href=${url}>${source}</a>` : source}</cite>
@@ -81,10 +81,10 @@ export class ObsSummary extends LitElement {
     `
   }
 
-  focusObservation(interaction: Event) {
+  focusSighting(interaction: Event) {
     interaction.preventDefault();
-    const focusObservation = new CustomEvent('focus-observation', {bubbles: true, composed: true, detail: this.sighting.id});
-    this.dispatchEvent(focusObservation)
+    const focusSighting = new CustomEvent('focus-sighting', {bubbles: true, composed: true, detail: this.sighting.id});
+    this.dispatchEvent(focusSighting)
   }
 }
 

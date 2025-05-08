@@ -72,7 +72,7 @@ export default class SalishSea extends LitElement {
   `;
 
   @provide({context: drawingSourceContext})
-  drawingSource: VectorSource<Feature<Point>> | undefined
+  drawingSource: VectorSource | undefined
 
   @property()
   logIn!: () => Promise<boolean>;
@@ -81,14 +81,14 @@ export default class SalishSea extends LitElement {
   loggedIn: boolean = false
 
   @property({attribute: 'focused-feature', type: String, reflect: true})
-  set focusedFeatureId(id: string | undefined) {
-    this.#focusedFeatureId = id;
+  set focusedSightingId(id: string | undefined) {
+    this.#focusedSightingId = id;
     this.focusSighting(id)
   }
-  get focusedFeatureId() {
-    return this.#focusedFeatureId;
+  get focusedSightingId() {
+    return this.#focusedSightingId;
   }
-  #focusedFeatureId: string | undefined
+  #focusedSightingId: string | undefined
 
   @query('obs-map')
   map!: ObsMap
@@ -123,6 +123,10 @@ export default class SalishSea extends LitElement {
     this.updateAuth();
     this.addEventListener('log-in', this.doLogIn.bind(this));
     this.addEventListener('log-out', this.doLogOut.bind(this));
+    this.addEventListener('focus-sighting', evt => {
+      const e = evt as CustomEvent<string | undefined>;
+      this.focusedSightingId = e.detail;
+    });
     this.addEventListener('sightings-changed', evt => {
       const e = evt as CustomEvent<Feature<Point>[]>;
       this.updateSightings(e.detail);
@@ -148,12 +152,12 @@ export default class SalishSea extends LitElement {
         <login-button></login-button>
       </header>
       <main>
-        <obs-map url=${featureHref} date=${this.date}></obs-map>
+        <obs-map date=${this.date} url=${featureHref} focusedSightingId=${this.#focusedSightingId}></obs-map>
         <obs-panel .logIn=${this.logIn} ?loggedIn=${this.loggedIn} date=${this.date}>
-          ${repeat(this.features, f => f.id, feature => {
-            const {id} = feature.properties;
+          ${repeat(this.features, f => f.properties.id, feature => {
+            const id = feature.properties.id;
             return html`
-              <obs-summary class=${classMap({focused: id === this.#focusedFeatureId})} id=${id} .sighting=${feature.properties} />
+              <obs-summary class=${classMap({focused: id === this.#focusedSightingId})} id=${id} .sighting=${feature.properties} />
             `;
           })}
         </obs-panel>
@@ -195,7 +199,6 @@ export default class SalishSea extends LitElement {
     if (!feature)
       return;
     this.map.selectFeature(feature);
-    this.map.zoomToFeature(feature);
   }
 
   // Used by the side panel

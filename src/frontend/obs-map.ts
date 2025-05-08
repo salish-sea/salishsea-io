@@ -15,7 +15,7 @@ import VectorLayer from 'ol/layer/Vector.js';
 import TileLayer from 'ol/layer/Tile.js';
 import { fromLonLat } from 'ol/proj.js';
 import XYZ from 'ol/source/XYZ.js';
-import { featureStyle, selectedObservationStyle} from './style.ts';
+import { editStyle, featureStyle, selectedObservationStyle} from './style.ts';
 import type Point from 'ol/geom/Point.js';
 import KML from 'ol/format/KML.js';
 import VectorSource from 'ol/source/Vector.js';
@@ -26,6 +26,8 @@ import Modify from 'ol/interaction/Modify.js';
 import type Geometry from 'ol/geom/Geometry.js';
 import GeoJSON from 'ol/format/GeoJSON.js';
 import { all } from 'ol/loadingstrategy.js';
+import { never } from 'ol/events/condition.js';
+import { containsCoordinate } from 'ol/extent.js';
 
 const sphericalMercator = 'EPSG:3857';
 const initialCenter = [-122.450, 47.8];
@@ -35,7 +37,7 @@ const initialZoom = 9;
 // The code is informed by the `openlayers-elements` project, but we avoid taking it as a dependency.
 @customElement('obs-map')
 export class ObsMap extends LitElement {
-  public drawingSource = new VectorSource<Feature<Point>>();
+  public drawingSource = new VectorSource();
   public temporalSource = new VectorSource<Feature<Geometry>>({
     format: new GeoJSON<Feature<Geometry>>,
     strategy: all,
@@ -59,8 +61,19 @@ export class ObsMap extends LitElement {
     return this.temporalSource.getUrl() as string;
   }
 
+  @property({type: String, reflect: true})
+  date: string | undefined
+
+  @property({type: String, reflect: true})
+  focusedSightingId: string | undefined
+
   #link = new Link({params: ['x', 'y', 'z'], replace: true});
-  #modify = new Modify({source: this.drawingSource});
+  #modify = new Modify({
+    deleteCondition: never,
+    insertVertexCondition: never,
+    source: this.drawingSource,
+    style: editStyle,
+  });
   #select = new Select({
     filter: (f) => f.get('kind') === 'Sighting',
     multi: false,
@@ -93,6 +106,7 @@ export class ObsMap extends LitElement {
       this.#viewingLocations,
       new VectorLayer({
         source: this.drawingSource,
+        style: featureStyle,
       }),
     ],
     view: new View({
@@ -127,9 +141,8 @@ export class ObsMap extends LitElement {
     })
     this.#select.on('select', (e: SelectEvent) => {
       const id = e.selected[0]?.getId() as string | undefined;
-      if (id) {
-        this.renderRoot.querySelector(`#${id.replace(':', '\\:')}`)?.scrollIntoView({block: 'center'});
-      }
+      const evt = new CustomEvent('focus-sighting', {bubbles: true, composed: true, detail: id});
+      this.dispatchEvent(evt);
     });
     const initialD = this.#link.track('d', this.selectDate.bind(this));
     if (initialD) {
@@ -161,12 +174,22 @@ export class ObsMap extends LitElement {
 
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('date'))
-      this.#link.set('d', changedProperties.get('date'));
+      this.#link.update('d', this.date || null);
+
+    if (changedProperties.has('focusedSightingId') && this.focusedSightingId) {
+      const feature = this.temporalSource.getFeatureById(this.focusedSightingId) as Feature<Point>;
+      this.ensureSightingInViewport(feature)
+    }
   }
 
-  public zoomToFeature(feature: Feature) {
-    const geometry = feature.getGeometry() as Point;
-    this.map.getView().animate({zoom: 12}, {center: geometry.getCoordinates()});
+  public ensureSightingInViewport(feature: Feature<Point>) {
+    const view = this.map.getView();
+    const mapExtent = view.calculateExtent(this.map.getSize());
+    const featureCoordinates = feature.getGeometry()!.getCoordinates();
+    if (! containsCoordinate(mapExtent, featureCoordinates)) {
+      view.animate({zoom: 12});
+      view.animate({center: featureCoordinates});
+    }
   }
 }
 

@@ -10,12 +10,13 @@ import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
 import { createRef, ref } from "lit/directives/ref.js";
-import { featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
+import { bearingStyle, featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
 import type { SightingForm } from "../types.ts";
 import { Temporal } from "temporal-polyfill";
 import { doLogInContext, userContext } from "./identity.ts";
 import type { User } from "@auth0/auth0-spa-js";
 import drawingSourceContext from "./drawing-context.ts";
+import { LineString } from "ol/geom.js";
 
 @customElement('add-sighting')
 export default class AddSighting extends LitElement {
@@ -26,10 +27,11 @@ export default class AddSighting extends LitElement {
   date!: string
 
   @consume({context: drawingSourceContext})
-  drawingSource!: VectorSource<Feature<Point>> | undefined
+  drawingSource: VectorSource | undefined
 
-  #observerPoint = new Point(fromLonLat([-122.507610, 47.865992]));
-  #subjectPoint = new Point(fromLonLat([-122.415213, 47.897265]));
+  #observerPoint = new Point([]);
+  #subjectPoint = new Point([]);
+  #bearingFeature = new Feature(new LineString([]));
 
   @state()
   private bearing: number | null = null
@@ -141,14 +143,6 @@ export default class AddSighting extends LitElement {
           <input @change=${this.onSubjectInputChange} ${ref(this.subjectInputRef)} type="text" name="subject_location" size="16" placeholder="lon, lat" required>
         </label>
         <label>
-          <span>Bearing</span>
-          <input type="number" name="bearing" value="${this.bearing === null ? '' : this.bearing.toFixed(3)}" readonly>°
-        </label>
-        <label>
-          <span>Distance</span>
-          <input type="number" name="distance" value="${this.distance === null ? '' : this.distance.toFixed(1)}" readonly min="0" max="10"> km
-        </label>
-        <label>
           <span>Notes</span>
           <textarea name="body" rows="3" cols="21"></textarea>
         </label>
@@ -211,8 +205,15 @@ export default class AddSighting extends LitElement {
       observerInput.value = observerCoordinateStr;
       subjectInput.value = subjectCoordinateStr;
     }
-    this.bearing = getBearing(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
-    this.distance = getDistance(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
+    if (observerCoordinates.length && subjectCoordinates.length) {
+      const bearing = getBearing(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
+      const distance = getDistance(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
+      this.#bearingFeature.getGeometry()!.setCoordinates([this.#observerPoint.getCoordinates(), this.#subjectPoint.getCoordinates()]);
+      this.#bearingFeature.setProperties({bearing, distance});
+    } else {
+      this.#bearingFeature.getGeometry()!.setCoordinates([]);
+      this.#bearingFeature.setProperties({bearing: null, distance: null});
+    }
   }
 
   async onSubmit(e: Event) {
@@ -248,11 +249,12 @@ export default class AddSighting extends LitElement {
   protected firstUpdated(_changedProperties: PropertyValues): void {
     const sightingProperties: SightingStyleProperties = {
       individuals: [],
+      kind: 'Sighting',
       symbol: 'O',
     }
     const observerFeature = new Feature(this.#observerPoint);
     observerFeature.setId(`${this.id}/observer`);
-    observerFeature.setProperties({individuals: [], symbol: undefined});
+    observerFeature.setProperties({individuals: [], kind: 'Sighter', symbol: undefined});
     observerFeature.setStyle(sighterStyle);
 
     const subjectFeature = new Feature(this.#subjectPoint);
@@ -260,10 +262,11 @@ export default class AddSighting extends LitElement {
     subjectFeature.setProperties(sightingProperties);
     subjectFeature.setStyle(featureStyle);
 
-    this.drawingSource!.addFeatures([observerFeature, subjectFeature]);
+    this.#bearingFeature.setStyle(feature => bearingStyle(feature as Feature<LineString>));
+
+    this.drawingSource!.addFeatures([observerFeature, subjectFeature, this.#bearingFeature]);
     this.#observerPoint.on('change', this.onCoordinatesChanged.bind(this));
     this.#subjectPoint.on('change', this.onCoordinatesChanged.bind(this));
-    this.onCoordinatesChanged();
   }
 }
 
