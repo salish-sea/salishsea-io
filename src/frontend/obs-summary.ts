@@ -6,7 +6,7 @@ import { html, unsafeStatic } from "lit/static-html.js";
 @customElement('obs-summary')
 export class ObsSummary extends LitElement {
   @property({attribute: false})
-  sighting!: SightingProperties
+  private sighting!: SightingProperties
 
   static styles = css`
     :host {
@@ -81,7 +81,7 @@ export class ObsSummary extends LitElement {
     `
   }
 
-  focusSighting(interaction: Event) {
+  private focusSighting(interaction: Event) {
     interaction.preventDefault();
     const focusSighting = new CustomEvent('focus-sighting', {bubbles: true, composed: true, detail: this.sighting.id});
     this.dispatchEvent(focusSighting)

@@ -62,10 +62,10 @@ export class ObsMap extends LitElement {
   }
 
   @property({type: String, reflect: true})
-  date: string | undefined
+  private date: string | undefined
 
   @property({type: String, reflect: true})
-  focusedSightingId: string | undefined
+  private focusedSightingId: string | undefined
 
   #link = new Link({params: ['x', 'y', 'z'], replace: true});
   #modify = new Modify({
@@ -80,8 +80,10 @@ export class ObsMap extends LitElement {
     style: selectedObservationStyle,
   });
 
+  #refreshTimer: NodeJS.Timeout
+
   @provide({context: mapContext})
-  public map = new OpenLayersMap({
+  private map = new OpenLayersMap({
     interactions: defaultInteractions().extend([this.#link, this.#modify, this.#select]),
     layers: [
       new TileLayer({
@@ -148,6 +150,11 @@ export class ObsMap extends LitElement {
     if (initialD) {
       this.selectDate(initialD);
     }
+    this.#refreshTimer = setInterval(() => this.temporalSource.refresh(), 1000 * 60);
+  }
+
+  disconnectedCallback(): void {
+    clearInterval(this.#refreshTimer);
   }
 
   public render() {

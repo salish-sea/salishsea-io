@@ -1,5 +1,5 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { customElement, property } from "lit/decorators.js";
 import {Task} from '@lit/task';
 import { fromLonLat, toLonLat } from "ol/proj.js";
 import { bearing as getBearing } from "@turf/bearing";
@@ -17,40 +17,35 @@ import { doLogInContext, userContext } from "./identity.ts";
 import type { User } from "@auth0/auth0-spa-js";
 import drawingSourceContext from "./drawing-context.ts";
 import { LineString } from "ol/geom.js";
+import { v7 } from "uuid";
 
 @customElement('add-sighting')
 export default class AddSighting extends LitElement {
-  @property()
-  id!: string
+  @property({type: String, reflect: false})
+  id: string = v7()
 
   @property()
-  date!: string
+  private date!: string
 
   @consume({context: drawingSourceContext})
-  drawingSource: VectorSource | undefined
+  private drawingSource: VectorSource | undefined
 
   #observerPoint = new Point([]);
   #subjectPoint = new Point([]);
   #bearingFeature = new Feature(new LineString([]));
 
-  @state()
-  private bearing: number | null = null
-
-  @state()
-  private distance: number | null = null
-
   @property()
-  cancel!: () => void;
+  private cancel!: () => void;
 
   @consume({context: doLogInContext})
-  logIn!: () => Promise<boolean>;
+  private logIn!: () => Promise<boolean>;
 
   @consume({context: userContext, subscribe: true})
-  user: User | undefined;
+  private user: User | undefined;
 
-  formRef = createRef<HTMLFormElement>();
-  observerInputRef = createRef<HTMLInputElement>();
-  subjectInputRef = createRef<HTMLInputElement>();
+  private formRef = createRef<HTMLFormElement>();
+  private observerInputRef = createRef<HTMLInputElement>();
+  private subjectInputRef = createRef<HTMLInputElement>();
 
   private _saveTask = new Task(this, {
     autoRun: false,
@@ -60,6 +55,7 @@ export default class AddSighting extends LitElement {
       const event = new CustomEvent('observation-created', {bubbles: true, composed: true, detail: data});
       this.dispatchEvent(event);
       this.formRef.value!.reset();
+      this.id = v7();
       return data;
     },
   });
@@ -175,7 +171,7 @@ export default class AddSighting extends LitElement {
     `;
   }
 
-  onObserverInputChange(e: Event) {
+  private onObserverInputChange(e: Event) {
     const input = e.target as HTMLInputElement;
     const match = input.value.match(/^\s*(-[0-9]{3}.[0-9]+),\s*([0-9][0-9].[0-9]+)\s*$/);
     if (match) {
@@ -184,7 +180,7 @@ export default class AddSighting extends LitElement {
     }
   }
 
-  onSubjectInputChange(e: Event) {
+  private onSubjectInputChange(e: Event) {
     const input = e.target as HTMLInputElement;
     const match = input.value.match(/^\s*(-[0-9]{3}.[0-9]+),\s*([0-9][0-9].[0-9]+)\s*$/);
     if (match) {
@@ -194,7 +190,7 @@ export default class AddSighting extends LitElement {
     }
   }
 
-  onCoordinatesChanged() {
+  private onCoordinatesChanged() {
     const observerCoordinates = toLonLat(this.#observerPoint.getCoordinates());
     const subjectCoordinates = toLonLat(this.#subjectPoint.getCoordinates());
     const observerInput = this.observerInputRef.value;
@@ -216,7 +212,7 @@ export default class AddSighting extends LitElement {
     }
   }
 
-  async onSubmit(e: Event) {
+  private async onSubmit(e: Event) {
     e.preventDefault();
     if (!this.user) {
       if (! (await this.logIn()))
