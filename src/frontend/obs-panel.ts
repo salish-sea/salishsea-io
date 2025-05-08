@@ -1,5 +1,6 @@
 import { css, html, LitElement } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
+import { live } from 'lit/directives/live.js';
 import { Temporal } from "temporal-polyfill";
 import './add-sighting.ts';
 import { v7 } from "uuid";
@@ -53,10 +54,10 @@ export class ObsPanel extends LitElement {
     }
   `;
 
-  @property({type: Boolean})
+  @state()
   _showForm: boolean = false
 
-  @property({type: String})
+  @property({type: String, reflect: true})
   date!: string;
 
   @property()
@@ -72,11 +73,11 @@ export class ObsPanel extends LitElement {
         <form>
           <input @click=${this.onGotoYesterday} type="button" name="yesterday" value="◀">
           <input @click=${this.onGotoTomorrow}  type="button" name="tomorrow" value="▶" ?disabled=${this.date === today}>
-          <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" value=${this.date}>
+          <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" .value=${live(this.date)}>
         </form>
       </header>
       ${this._showForm ? html`
-        <add-sighting class="full-bleed" .cancel=${this.hide.bind(this)} .logIn=${this.logIn} ?loggedIn=${this.loggedIn} .date=${this.date} id=${v7()}></add-sighting>
+        <add-sighting class="full-bleed" .cancel=${this.hide.bind(this)} .logIn=${this.logIn} .date=${this.date} id=${v7()}></add-sighting>
       ` : html`
         <button @click=${this.showForm} type="button" name="show">
           <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M440-440ZM120-120q-33 0-56.5-23.5T40-200v-480q0-33 23.5-56.5T120-760h126l74-80h240v80H355l-73 80H120v480h640v-360h80v360q0 33-23.5 56.5T760-120H120Zm640-560v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80ZM440-260q75 0 127.5-52.5T620-440q0-75-52.5-127.5T440-620q-75 0-127.5 52.5T260-440q0 75 52.5 127.5T440-260Zm0-80q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t29 71q0 42-29 71t-71 29Z"/></svg>
