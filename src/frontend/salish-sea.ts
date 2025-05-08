@@ -116,6 +116,8 @@ export default class SalishSea extends LitElement {
   @property({type: String, reflect: true})
   nonce: string = Temporal.Now.instant().epochMilliseconds.toString();
 
+  #refreshTimer: NodeJS.Timeout
+
   constructor() {
     super();
     this._doLogIn = this.doLogIn.bind(this);
@@ -142,6 +144,11 @@ export default class SalishSea extends LitElement {
       const {id}: {id: string} = evt.detail;
       this.nonce = id;
     });
+    this.#refreshTimer = setInterval(() => this.nonce = Temporal.Now.instant().epochMilliseconds.toString(), 1000 * 60);
+  }
+
+  disconnectedCallback(): void {
+    clearInterval(this.#refreshTimer);
   }
 
   protected render(): unknown {

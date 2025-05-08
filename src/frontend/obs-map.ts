@@ -80,8 +80,6 @@ export class ObsMap extends LitElement {
     style: selectedObservationStyle,
   });
 
-  #refreshTimer: NodeJS.Timeout
-
   @provide({context: mapContext})
   private map = new OpenLayersMap({
     interactions: defaultInteractions().extend([this.#link, this.#modify, this.#select]),
@@ -150,11 +148,6 @@ export class ObsMap extends LitElement {
     if (initialD) {
       this.selectDate(initialD);
     }
-    this.#refreshTimer = setInterval(() => this.temporalSource.refresh(), 1000 * 60);
-  }
-
-  disconnectedCallback(): void {
-    clearInterval(this.#refreshTimer);
   }
 
   public render() {
