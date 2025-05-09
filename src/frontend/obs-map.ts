@@ -19,8 +19,6 @@ import { editStyle, featureStyle, selectedObservationStyle} from './style.ts';
 import type Point from 'ol/geom/Point.js';
 import KML from 'ol/format/KML.js';
 import VectorSource from 'ol/source/Vector.js';
-import mapContext from './map-context.ts';
-import { provide } from '@lit/context';
 import type Feature from 'ol/Feature.js';
 import Modify from 'ol/interaction/Modify.js';
 import type Geometry from 'ol/geom/Geometry.js';
@@ -80,8 +78,7 @@ export class ObsMap extends LitElement {
     style: selectedObservationStyle,
   });
 
-  @provide({context: mapContext})
-  private map = new OpenLayersMap({
+  public map = new OpenLayersMap({
     interactions: defaultInteractions().extend([this.#link, this.#modify, this.#select]),
     layers: [
       new TileLayer({

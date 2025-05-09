@@ -1,6 +1,8 @@
 import { createAuth0Client, User } from '@auth0/auth0-spa-js';
 import { createContext } from '@lit/context';
 
+export const redirectUri = new URL('/auth_redirect.html', window.location.href).toString();
+
 export const userContext = createContext<User | undefined>(Symbol('user'));
 export const tokenContext = createContext<string | undefined>(Symbol('token'));
 export const doLogInContext = createContext<() => Promise<boolean>>(Symbol('do-log-in'));

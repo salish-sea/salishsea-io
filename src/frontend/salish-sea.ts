@@ -3,7 +3,7 @@ import { customElement, property, query, state } from "lit/decorators.js";
 import './obs-map.ts';
 import './login-button.ts';
 import { type User } from "@auth0/auth0-spa-js";
-import { auth0promise, doLogInContext, doLogOutContext, tokenContext, userContext } from "./identity.ts";
+import { auth0promise, doLogInContext, doLogOutContext, redirectUri, tokenContext, userContext } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
 import { queryStringAppend } from "./util.ts";
@@ -12,10 +12,12 @@ import type {Feature as GeoJSONFeature, Point as GeoJSONPoint} from 'geojson';
 import type { SightingProperties } from "../types.ts";
 import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
-import type { ObsMap } from "./obs-map.ts";
 import type Feature from "ol/Feature.js";
 import drawingSourceContext from "./drawing-context.ts";
 import type VectorSource from "ol/source/Vector.js";
+import type OpenLayersMap from "ol/Map.js";
+import mapContext from "./map-context.ts";
+import type { ObsMap } from "./obs-map.ts";
 
 @customElement('salish-sea')
 export default class SalishSea extends LitElement {
@@ -70,6 +72,9 @@ export default class SalishSea extends LitElement {
       flex-basis: 35%;
     }
   `;
+
+  @provide({context: mapContext})
+  olmap: OpenLayersMap | undefined
 
   @provide({context: drawingSourceContext})
   drawingSource: VectorSource | undefined
@@ -175,14 +180,14 @@ export default class SalishSea extends LitElement {
   async updateAuth() {
     const auth0 = await auth0promise;
     this.user = await auth0.getUser();
-    this.token = this.user ? await auth0.getTokenSilently() : undefined;
+    this.token = this.user ? await auth0.getTokenSilently({authorizationParams: {redirect_uri: redirectUri}}) : undefined;
   }
 
   async doLogIn() {
     const auth0 = await auth0promise;
     await auth0.loginWithPopup({
       authorizationParams: {
-        redirect_uri: new URL('/auth_redirect.html', window.location.href).toString(),
+        redirect_uri: redirectUri,
       }
     });
     await this.updateAuth();
@@ -196,6 +201,7 @@ export default class SalishSea extends LitElement {
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
+    this.olmap = this.map.map;
     this.drawingSource = this.map.drawingSource;
   }
 

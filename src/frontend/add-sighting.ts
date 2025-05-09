@@ -1,5 +1,5 @@
-import { css, html, LitElement, type PropertyValues } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { css, html, LitElement, svg, type PropertyValues } from "lit";
+import { customElement, property, query } from "lit/decorators.js";
 import {Task} from '@lit/task';
 import { fromLonLat, toLonLat } from "ol/proj.js";
 import { bearing as getBearing } from "@turf/bearing";
@@ -9,15 +9,20 @@ import Point from "ol/geom/Point.js";
 import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
-import { createRef, ref } from "lit/directives/ref.js";
 import { bearingStyle, featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
 import type { SightingForm } from "../types.ts";
 import { Temporal } from "temporal-polyfill";
 import { doLogInContext, userContext } from "./identity.ts";
 import type { User } from "@auth0/auth0-spa-js";
 import drawingSourceContext from "./drawing-context.ts";
+import mapContext from './map-context.ts';
 import { LineString } from "ol/geom.js";
 import { v7 } from "uuid";
+import type Map from "ol/Map.js";
+import PlacePoint from "./place-point.ts";
+
+const clickTargetIcon = svg`<path d="M468-240q-96-5-162-74t-66-166q0-100 70-170t170-70q97 0 166 66t74 162l-84-25q-13-54-56-88.5T480-640q-66 0-113 47t-47 113q0 57 34.5 100t88.5 56l25 84Zm48 158q-9 2-18 2h-18q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480v18q0 9-2 18l-78-24v-12q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93h12l24 78Zm305 22L650-231 600-80 480-480l400 120-151 50 171 171-79 79Z"/>`;
+const locateMeIcon = svg`<path d="M440-42v-80q-125-14-214.5-103.5T122-440H42v-80h80q14-125 103.5-214.5T440-838v-80h80v80q125 14 214.5 103.5T838-520h80v80h-80q-14 125-103.5 214.5T520-122v80h-80Zm40-158q116 0 198-82t82-198q0-116-82-198t-198-82q-116 0-198 82t-82 198q0 116 82 198t198 82Zm0-120q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T560-480q0-33-23.5-56.5T480-560q-33 0-56.5 23.5T400-480q0 33 23.5 56.5T480-400Zm0-80Z"/>`;
 
 @customElement('add-sighting')
 export default class AddSighting extends LitElement {
@@ -29,6 +34,9 @@ export default class AddSighting extends LitElement {
 
   @consume({context: drawingSourceContext})
   private drawingSource: VectorSource | undefined
+
+  @consume({context: mapContext})
+  private map: Map | undefined
 
   #observerPoint = new Point([]);
   #subjectPoint = new Point([]);
@@ -43,10 +51,6 @@ export default class AddSighting extends LitElement {
   @consume({context: userContext, subscribe: true})
   private user: User | undefined;
 
-  private formRef = createRef<HTMLFormElement>();
-  private observerInputRef = createRef<HTMLInputElement>();
-  private subjectInputRef = createRef<HTMLInputElement>();
-
   private _saveTask = new Task(this, {
     autoRun: false,
     task: async ([request]: [Request]) => {
@@ -54,11 +58,13 @@ export default class AddSighting extends LitElement {
       const data = (await response.json()) as SightingForm;
       const event = new CustomEvent('observation-created', {bubbles: true, composed: true, detail: data});
       this.dispatchEvent(event);
-      this.formRef.value!.reset();
+      this.form!.reset();
       this.id = v7();
       return data;
     },
   });
+
+  private place: PlacePoint | undefined
 
   static styles = css`
     :host {
@@ -86,12 +92,10 @@ export default class AddSighting extends LitElement {
     label:has(input[required]) span::after {
       content: ' *';
     }
-    input[readonly]::-webkit-outer-spin-button, input[readonly]::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-    input[type=number][readonly] {
-      -moz-appearance: textfield;
+    .inline-icon {
+      height: 1rem;
+      vertical-align: middle;
+      width: 1rem;
     }
     .actions {
       text-align: right;
@@ -107,9 +111,18 @@ export default class AddSighting extends LitElement {
     }
   `;
 
+  @query('form', true)
+  private form: HTMLFormElement | undefined
+
+  @query('input[name=observer_location', true)
+  private observerLocationInput: HTMLInputElement | undefined
+
+  @query('input[name=subject_location', true)
+  private subjectLocationInput: HTMLInputElement | undefined
+
   protected render() {
     return html`
-      <form ${ref(this.formRef)} @submit=${this.onSubmit} action="/api/sightings/${this.id}">
+      <form @submit=${this.onSubmit} action="/api/sightings/${this.id}">
         <label>
           <span>URL</span>
           <input type="url" name="url" />
@@ -132,11 +145,14 @@ export default class AddSighting extends LitElement {
         </label>
         <label>
           <span>Observer location</span>
-          <input @change=${this.onObserverInputChange} ${ref(this.observerInputRef)} type="text" name="observer_location" size="16" placeholder="lon, lat" required>
+          <input @change=${this.onObserverInputChange} type="text" name="observer_location" size="14" placeholder="lon, lat" required>
+          <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
+          <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
         </label>
         <label>
           <span>Subject location</span>
-          <input @change=${this.onSubjectInputChange} ${ref(this.subjectInputRef)} type="text" name="subject_location" size="16" placeholder="lon, lat" required>
+          <input @change=${this.onSubjectInputChange} type="text" name="subject_location" size="14" placeholder="lon, lat" required>
+          <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
         </label>
         <label>
           <span>Notes</span>
@@ -171,6 +187,43 @@ export default class AddSighting extends LitElement {
     `;
   }
 
+  private async locateMe() {
+    const geo = navigator.geolocation;
+    geo.getCurrentPosition(({coords: {latitude, longitude}}) => {
+      this.#observerPoint.setCoordinates(fromLonLat([longitude, latitude]));
+    }, error => {
+      console.log(`Error reading location: ${error.message}`);
+    }, {
+      maximumAge: 1000 * 10,
+      timeout: 1000 * 5,
+      enableHighAccuracy: false,
+    });
+  }
+
+  private placeObserver() {
+    this.placePoint(this.#observerPoint);
+  }
+
+  private placeSubject() {
+    this.placePoint(this.#subjectPoint);
+  }
+
+  private placePoint(point: Point) {
+    if (this.place) {
+      this.endPlacingPoint();
+    } else {
+      this.place = new PlacePoint({onComplete: this.endPlacingPoint.bind(this), point});
+      this.map!.addInteraction(this.place);
+    }
+  }
+
+  private endPlacingPoint() {
+    if (this.place) {
+      this.map!.removeInteraction(this.place);
+      this.place = undefined;
+    }
+  }
+
   private onObserverInputChange(e: Event) {
     const input = e.target as HTMLInputElement;
     const match = input.value.match(/^\s*(-[0-9]{3}.[0-9]+),\s*([0-9][0-9].[0-9]+)\s*$/);
@@ -193,16 +246,16 @@ export default class AddSighting extends LitElement {
   private onCoordinatesChanged() {
     const observerCoordinates = toLonLat(this.#observerPoint.getCoordinates());
     const subjectCoordinates = toLonLat(this.#subjectPoint.getCoordinates());
-    const observerInput = this.observerInputRef.value;
-    const subjectInput = this.subjectInputRef.value;
     let observerCoordinateStr = observerCoordinates.map(v => v.toFixed(4)).join(', ');
     let subjectCoordinateStr = subjectCoordinates.map(v => v.toFixed(4)).join(', ');
-    if (observerInput && subjectInput) {
-      observerInput.value = observerCoordinateStr;
-      subjectInput.value = subjectCoordinateStr;
+    if (this.observerLocationInput && this.subjectLocationInput) {
+      this.observerLocationInput.value = observerCoordinateStr;
+      this.subjectLocationInput.value = subjectCoordinateStr;
     }
     if (observerCoordinates.length && subjectCoordinates.length) {
-      const bearing = getBearing(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
+      let bearing = getBearing(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
+      if (bearing < 0)
+        bearing += 360;
       const distance = getDistance(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
       this.#bearingFeature.getGeometry()!.setCoordinates([this.#observerPoint.getCoordinates(), this.#subjectPoint.getCoordinates()]);
       this.#bearingFeature.setProperties({bearing, distance});
