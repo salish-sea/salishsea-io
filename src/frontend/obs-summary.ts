@@ -1,4 +1,4 @@
-import { css, LitElement } from "lit";
+import { css, LitElement, type PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import type { SightingProperties } from "../types.ts";
 import { html, unsafeStatic } from "lit/static-html.js";
@@ -7,6 +7,9 @@ import { html, unsafeStatic } from "lit/static-html.js";
 export class ObsSummary extends LitElement {
   @property({attribute: false})
   private sighting!: SightingProperties
+
+  @property({type: Boolean, reflect: true})
+  private focused = false
 
   static styles = css`
     :host {
@@ -85,6 +88,11 @@ export class ObsSummary extends LitElement {
     interaction.preventDefault();
     const focusSighting = new CustomEvent('focus-sighting', {bubbles: true, composed: true, detail: this.sighting.id});
     this.dispatchEvent(focusSighting)
+  }
+
+  protected willUpdate(changedProperties: PropertyValues): void {
+    if (changedProperties.has('focused') && this.focused)
+      this.scrollIntoView({block: 'center'});
   }
 }
 

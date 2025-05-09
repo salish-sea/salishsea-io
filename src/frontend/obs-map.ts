@@ -116,7 +116,7 @@ export class ObsMap extends LitElement {
     }),
   });
 
-  @query('#map')
+  @query('#map', true)
   public mapElement!: HTMLDivElement
 
   static styles = css`

@@ -90,7 +90,7 @@ export default class SalishSea extends LitElement {
   }
   #focusedSightingId: string | undefined
 
-  @query('obs-map')
+  @query('obs-map', true)
   map!: ObsMap
 
   @state()
@@ -159,12 +159,12 @@ export default class SalishSea extends LitElement {
         <login-button></login-button>
       </header>
       <main>
-        <obs-map date=${this.date} url=${featureHref} focusedSightingId=${this.#focusedSightingId}></obs-map>
+        <obs-map date=${this.date} url=${featureHref} focusedSightingId=${this.focusedSightingId}></obs-map>
         <obs-panel .logIn=${this.logIn} ?loggedIn=${this.loggedIn} date=${this.date}>
           ${repeat(this.features, f => f.properties.id, feature => {
             const id = feature.properties.id;
             return html`
-              <obs-summary class=${classMap({focused: id === this.#focusedSightingId})} id=${id} .sighting=${feature.properties} />
+              <obs-summary class=${classMap({focused: id === this.focusedSightingId})} ?focused=${id === this.focusedSightingId} id=${id} .sighting=${feature.properties} />
             `;
           })}
         </obs-panel>
