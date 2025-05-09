@@ -40,6 +40,10 @@ export class ObsMap extends LitElement {
     format: new GeoJSON<Feature<Geometry>>,
     strategy: all,
   });
+  private temporalLayer = new VectorLayer({
+    source: this.temporalSource,
+    style: featureStyle,
+  })
   // https://www.google.com/maps/d/u/0/kml?mid=1xIsepZY5h_8oA2nd6IwJN-Y7lhk
   #viewingLocations = new VectorLayer({
     maxResolution: 40,
@@ -74,6 +78,7 @@ export class ObsMap extends LitElement {
   });
   #select = new Select({
     filter: (f) => f.get('kind') === 'Sighting',
+    layers: [this.temporalLayer],
     multi: false,
     style: selectedObservationStyle,
   });
@@ -96,10 +101,7 @@ export class ObsMap extends LitElement {
           url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
         }),
       }),
-      new VectorLayer({
-        source: this.temporalSource,
-        style: featureStyle,
-      }),
+      this.temporalLayer,
       this.#viewingLocations,
       new VectorLayer({
         source: this.drawingSource,
