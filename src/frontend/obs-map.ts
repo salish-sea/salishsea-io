@@ -26,6 +26,7 @@ import GeoJSON from 'ol/format/GeoJSON.js';
 import { all } from 'ol/loadingstrategy.js';
 import { never } from 'ol/events/condition.js';
 import { containsCoordinate } from 'ol/extent.js';
+import type { Coordinate } from 'ol/coordinate.js';
 
 const sphericalMercator = 'EPSG:3857';
 const initialCenter = [-122.450, 47.8];
@@ -143,10 +144,6 @@ export class ObsMap extends LitElement {
       const evt = new CustomEvent('focus-sighting', {bubbles: true, composed: true, detail: id});
       this.dispatchEvent(evt);
     });
-    const initialD = this.#link.track('d', this.selectDate.bind(this));
-    if (initialD) {
-      this.selectDate(initialD);
-    }
   }
 
   public render() {
@@ -166,28 +163,23 @@ export class ObsMap extends LitElement {
     selection.push(feature);
   }
 
-  protected selectDate(date: string) {
-    const evt = new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date});
-    this.dispatchEvent(evt);
-  }
-
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('date'))
       this.#link.update('d', this.date || null);
 
     if (changedProperties.has('focusedSightingId') && this.focusedSightingId) {
       const feature = this.temporalSource.getFeatureById(this.focusedSightingId) as Feature<Point>;
-      this.ensureSightingInViewport(feature)
+      const coords = feature.getGeometry()!.getCoordinates();
+      this.ensureCoordsInViewport(coords);
     }
   }
 
-  public ensureSightingInViewport(feature: Feature<Point>) {
+  public ensureCoordsInViewport(coords: Coordinate) {
     const view = this.map.getView();
     const mapExtent = view.calculateExtent(this.map.getSize());
-    const featureCoordinates = feature.getGeometry()!.getCoordinates();
-    if (! containsCoordinate(mapExtent, featureCoordinates)) {
+    if (! containsCoordinate(mapExtent, coords)) {
       view.animate({zoom: 12});
-      view.animate({center: featureCoordinates});
+      view.animate({center: coords});
     }
   }
 }

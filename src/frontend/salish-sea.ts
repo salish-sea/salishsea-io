@@ -53,6 +53,11 @@ export default class SalishSea extends LitElement {
       flex-grow: 1;
       overflow: auto;
     }
+    obs-panel {
+      border-left: 1px solid #cccccc;
+      border-top: 0;
+      flex-basis: 35%;
+    }
 
     @media (max-aspect-ratio: 1) {
       main {
@@ -66,11 +71,6 @@ export default class SalishSea extends LitElement {
         border-top: 1px solid #cccccc;
       }
     }
-    obs-panel {
-      border-left: 1px solid #cccccc;
-      border-top: 0;
-      flex-basis: 35%;
-    }
   `;
 
   @provide({context: mapContext})
@@ -81,9 +81,6 @@ export default class SalishSea extends LitElement {
 
   @property()
   logIn!: () => Promise<boolean>;
-
-  @property({type: Boolean, reflect: true})
-  loggedIn: boolean = false
 
   @property({attribute: 'focused-feature', type: String, reflect: true})
   set focusedSightingId(id: string | undefined) {
@@ -116,7 +113,7 @@ export default class SalishSea extends LitElement {
   _doLogOut: () => Promise<void>
 
   @property({type: String, reflect: true})
-  date: string = Temporal.Now.plainDateISO('PST8PDT').toString()
+  date: string
 
   @property({type: String, reflect: true})
   nonce: string = Temporal.Now.instant().epochMilliseconds.toString();
@@ -125,6 +122,12 @@ export default class SalishSea extends LitElement {
 
   constructor() {
     super();
+    const queryDate = new URLSearchParams(document.location.search).get('d');
+    if (queryDate?.match(/^\d\d\d\d-\d\d-\d\d$/)) {
+      this.date = queryDate;
+    } else {
+      this.date = Temporal.Now.plainDateISO('PST8PDT').toString();
+    }
     this._doLogIn = this.doLogIn.bind(this);
     this._doLogOut = this.doLogOut.bind(this);
     this.updateAuth();
@@ -164,8 +167,8 @@ export default class SalishSea extends LitElement {
         <login-button></login-button>
       </header>
       <main>
-        <obs-map date=${this.date} url=${featureHref} focusedSightingId=${this.focusedSightingId}></obs-map>
-        <obs-panel .logIn=${this.logIn} ?loggedIn=${this.loggedIn} date=${this.date}>
+        <obs-map date=${this.date} url=${featureHref}></obs-map>
+        <obs-panel .logIn=${this.logIn} date=${this.date}>
           ${repeat(this.features, f => f.properties.id, feature => {
             const id = feature.properties.id;
             return html`
@@ -208,10 +211,11 @@ export default class SalishSea extends LitElement {
   focusSighting(id: string | undefined) {
     if (!id)
       return;
-    const feature = this.map.temporalSource.getFeatureById(id)
+    const feature = this.map.temporalSource.getFeatureById(id) as Feature<Point> | null;
     if (!feature)
       return;
     this.map.selectFeature(feature);
+    this.map.ensureCoordsInViewport(feature.getGeometry()!.getCoordinates());
   }
 
   // Used by the side panel
