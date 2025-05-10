@@ -25,4 +25,5 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: cp test/*.csv .
+      - run: sqlite3 salish-sea.sqlite3 < setup.sql
       - run: npm test
