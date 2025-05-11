@@ -164,7 +164,14 @@ export default class SalishSea extends LitElement {
     return html`
       <header>
         <h1>SalishSea.io</h1>
-        <login-button></login-button>
+        <div>
+          <a href="https://orcasound.zulipchat.com/#narrow/channel/494032-salishsea-io/topic/changelog.20and.20feedback/with/508367635">
+            <button title="Get help or give feedback" type="button">
+              Feedback
+            </button>
+          </a>
+          <login-button></login-button>
+        </div>
       </header>
       <main>
         <obs-map date=${this.date} url=${featureHref}></obs-map>
