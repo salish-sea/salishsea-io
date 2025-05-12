@@ -20,6 +20,7 @@ import { LineString } from "ol/geom.js";
 import { v7 } from "uuid";
 import type Map from "ol/Map.js";
 import PlacePoint from "./place-point.ts";
+import { repeat } from "lit/directives/repeat.js";
 
 const clickTargetIcon = svg`<path d="M468-240q-96-5-162-74t-66-166q0-100 70-170t170-70q97 0 166 66t74 162l-84-25q-13-54-56-88.5T480-640q-66 0-113 47t-47 113q0 57 34.5 100t88.5 56l25 84Zm48 158q-9 2-18 2h-18q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480v18q0 9-2 18l-78-24v-12q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93h12l24 78Zm305 22L650-231 600-80 480-480l400 120-151 50 171 171-79 79Z"/>`;
 const locateMeIcon = svg`<path d="M440-42v-80q-125-14-214.5-103.5T122-440H42v-80h80q14-125 103.5-214.5T440-838v-80h80v80q125 14 214.5 103.5T838-520h80v80h-80q-14 125-103.5 214.5T520-122v80h-80Zm40-158q116 0 198-82t82-198q0-116-82-198t-198-82q-116 0-198 82t-82 198q0 116 82 198t198 82Zm0-120q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T560-480q0-33-23.5-56.5T480-560q-33 0-56.5 23.5T400-480q0 33 23.5 56.5T480-400Zm0-80Z"/>`;
@@ -44,6 +45,9 @@ export default class AddSighting extends LitElement {
 
   @property()
   private cancel!: () => void;
+
+  @property()
+  private thumbnails: string[] = []
 
   @consume({context: doLogInContext})
   private logIn!: () => Promise<boolean>;
@@ -97,6 +101,9 @@ export default class AddSighting extends LitElement {
       vertical-align: middle;
       width: 1rem;
     }
+    .thumbnail {
+      height: 4rem;
+    }
     .actions {
       text-align: right;
     }
@@ -120,9 +127,12 @@ export default class AddSighting extends LitElement {
   @query('input[name=subject_location', true)
   private subjectLocationInput: HTMLInputElement | undefined
 
+  @query('input[name=photos', true)
+  private photosInput: HTMLInputElement | undefined
+
   protected render() {
     return html`
-      <form @submit=${this.onSubmit} action="/api/sightings/${this.id}">
+      <form @submit=${this.onSubmit} @dragover=${this.onDragOver} @drop=${this.onDrop} action="/api/sightings/${this.id}">
         <label>
           <span>URL</span>
           <input type="url" name="url" />
@@ -157,6 +167,15 @@ export default class AddSighting extends LitElement {
         <label>
           <span>Notes</span>
           <textarea name="body" rows="3" cols="21"></textarea>
+        </label>
+        <label>
+          <span>Photos</span>
+          <input @change=${this.onFilesChanged} type="file" name="photos" accept="image/jpeg" multiple>
+          <div class="thumbnails">
+            ${repeat(this.thumbnails, src => src, src => html`
+              <img class="thumbnail" src=${src}>
+            `)}
+          </div>
         </label>
         <div><em>* required field</em></div>
         <div class="actions">
@@ -198,6 +217,45 @@ export default class AddSighting extends LitElement {
       timeout: 1000 * 5,
       enableHighAccuracy: false,
     });
+  }
+
+  private onDragOver(e: DragEvent) {
+    e.preventDefault();
+  }
+
+  private onDrop(e: DragEvent) {
+    const transfer = e.dataTransfer;
+    const input = this.photosInput!;
+    if (!transfer?.files.length)
+      return;
+    e.preventDefault();
+
+    // https://stackoverflow.com/a/68182158
+    for (const existingFile of input.files || []) {
+      transfer.items.add(existingFile);
+    }
+
+    input.files = transfer.files;
+    this.onFilesChanged();
+  }
+
+  async onFilesChanged() {
+    const ExifReader = await import('exifreader');
+    const input = this.photosInput!;
+    const thumbnails: Promise<string>[] = [];
+    for (const file of input.files!) {
+      const {gps} = await ExifReader.load(file, {async: true, expanded: true});
+      if (gps && gps.Latitude && gps.Longitude && this.#subjectPoint.getCoordinates().length === 0)
+        this.#subjectPoint.setCoordinates(fromLonLat([gps.Longitude, gps.Latitude]));
+
+      const promise = new Promise<string>(resolve => {
+        const fileReader = new FileReader();
+        fileReader.onload = () => resolve(fileReader.result as string);
+        fileReader.readAsDataURL(file);
+      });
+      thumbnails.push(promise);
+    }
+    this.thumbnails = await Promise.all(thumbnails);
   }
 
   private placeObserver() {
