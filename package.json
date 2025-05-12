@@ -18,7 +18,7 @@
     "@turf/bearing": "^7.2.0",
     "@turf/distance": "^7.2.0",
     "@turf/helpers": "^7.2.0",
-    "better-sqlite3": "^11.9.1",
+    "better-sqlite3": "^11.10.0",
     "express": "^5.1.0",
     "express-openid-connect": "^2.18.0",
     "express-validator": "^7.2.1",
