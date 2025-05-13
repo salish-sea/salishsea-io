@@ -1,6 +1,5 @@
-import { css, html, LitElement, svg, type PropertyValues } from "lit";
+import { css, html, LitElement, type PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import {Task} from '@lit/task';
 import { fromLonLat, toLonLat } from "ol/proj.js";
 import { bearing as getBearing } from "@turf/bearing";
 import { point as turfPoint } from "@turf/helpers";
@@ -12,7 +11,7 @@ import VectorSource from "ol/source/Vector.js";
 import { bearingStyle, featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
 import type { SightingForm } from "../types.ts";
 import { Temporal } from "temporal-polyfill";
-import { doLogInContext, userContext } from "./identity.ts";
+import { doLogInContext, tokenContext, userContext } from "./identity.ts";
 import type { User } from "@auth0/auth0-spa-js";
 import drawingSourceContext from "./drawing-context.ts";
 import mapContext from './map-context.ts';
@@ -21,14 +20,29 @@ import { v7 } from "uuid";
 import type Map from "ol/Map.js";
 import PlacePoint from "./place-point.ts";
 import { repeat } from "lit/directives/repeat.js";
-
-const clickTargetIcon = svg`<path d="M468-240q-96-5-162-74t-66-166q0-100 70-170t170-70q97 0 166 66t74 162l-84-25q-13-54-56-88.5T480-640q-66 0-113 47t-47 113q0 57 34.5 100t88.5 56l25 84Zm48 158q-9 2-18 2h-18q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480v18q0 9-2 18l-78-24v-12q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93h12l24 78Zm305 22L650-231 600-80 480-480l400 120-151 50 171 171-79 79Z"/>`;
-const locateMeIcon = svg`<path d="M440-42v-80q-125-14-214.5-103.5T122-440H42v-80h80q14-125 103.5-214.5T440-838v-80h80v80q125 14 214.5 103.5T838-520h80v80h-80q-14 125-103.5 214.5T520-122v80h-80Zm40-158q116 0 198-82t82-198q0-116-82-198t-198-82q-116 0-198 82t-82 198q0 116 82 198t198 82Zm0-120q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T560-480q0-33-23.5-56.5T480-560q-33 0-56.5 23.5T400-480q0 33 23.5 56.5T480-400Zm0-80Z"/>`;
+import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
+import {Task} from '@lit/task';
+import './photo-uploader.ts';
 
 @customElement('add-sighting')
 export default class AddSighting extends LitElement {
+  private _saveTask = new Task(this, {
+    autoRun: false,
+    task: async([request]: [Request]) => {
+      const response = await fetch(request);
+      const data = await response.json();
+      this.form!.reset();
+      const event = new CustomEvent('observation-created', {bubbles: true, composed: true, detail: this.id});
+      this.dispatchEvent(event);
+      return data;
+    }
+  });
+
   @property({type: String, reflect: false})
   id: string = v7()
+
+  @property()
+  private photos: File[] = []
 
   @property()
   private date!: string
@@ -46,27 +60,14 @@ export default class AddSighting extends LitElement {
   @property()
   private cancel!: () => void;
 
-  @property()
-  private thumbnails: string[] = []
-
   @consume({context: doLogInContext})
   private logIn!: () => Promise<boolean>;
 
   @consume({context: userContext, subscribe: true})
   private user: User | undefined;
 
-  private _saveTask = new Task(this, {
-    autoRun: false,
-    task: async ([request]: [Request]) => {
-      const response = await fetch(request);
-      const data = (await response.json()) as SightingForm;
-      const event = new CustomEvent('observation-created', {bubbles: true, composed: true, detail: data});
-      this.dispatchEvent(event);
-      this.form!.reset();
-      this.id = v7();
-      return data;
-    },
-  });
+  @consume({context: tokenContext, subscribe: true})
+  private token: string | undefined;
 
   private place: PlacePoint | undefined
 
@@ -88,12 +89,12 @@ export default class AddSighting extends LitElement {
     label {
       display: block;
     }
-    label span {
+    label > span {
       display: inline-block;
       vertical-align: top;
       width: 10em;
     }
-    label:has(input[required]) span::after {
+    label:has(input[required]) .required::after {
       content: ' *';
     }
     .inline-icon {
@@ -101,8 +102,20 @@ export default class AddSighting extends LitElement {
       vertical-align: middle;
       width: 1rem;
     }
+    input[name=photos] {
+      display: none;
+    }
+    .thumbnails {
+      display: inline-flex;
+      gap: 0.5rem;
+      width: 10em;
+    }
     .thumbnail {
       height: 4rem;
+    }
+    .upload-photo {
+      height: 4rem;
+      width: 4rem;
     }
     .actions {
       text-align: right;
@@ -121,6 +134,9 @@ export default class AddSighting extends LitElement {
   @query('form', true)
   private form: HTMLFormElement | undefined
 
+  @query('input[name=observed_time]', true)
+  private timeInput: HTMLInputElement | undefined
+
   @query('input[name=observer_location', true)
   private observerLocationInput: HTMLInputElement | undefined
 
@@ -130,15 +146,37 @@ export default class AddSighting extends LitElement {
   @query('input[name=photos', true)
   private photosInput: HTMLInputElement | undefined
 
+  constructor() {
+    super();
+
+    this.addEventListener('coordinates-detected', (e) => {
+      if (!(e instanceof CustomEvent) || !Array.isArray(e.detail))
+        throw "Bad coordinates-detected event";
+
+      if (this.#observerPoint.getCoordinates().length === 0)
+        this.#observerPoint.setCoordinates(e.detail);
+    });
+
+    this.addEventListener('datetime-detected', (e) => {
+      if (!(e instanceof CustomEvent) || typeof e.detail !== 'string')
+        throw "Bad datetime-detected event";
+
+      if (this.timeInput!.value === '') {
+        this.timeInput!.value = e.detail.split(' ')[1] || '';
+      }
+    })
+  }
+
   protected render() {
     return html`
+      <input @change=${this.onFilesChanged} type="file" name="photos" accept="image/jpeg" multiple>
       <form @submit=${this.onSubmit} @dragover=${this.onDragOver} @drop=${this.onDrop} action="/api/sightings/${this.id}">
         <label>
-          <span>URL</span>
+          <span class="label">URL</span>
           <input type="url" name="url" />
         </label>
         <label>
-          <span>Species</span>
+          <span class="label">Species</span>
           <select name="taxon">
             <option value="Orcinus orca" selected>Killer Whale (any type)</option>
             <option value="Orcinus orca ater">Resident Killer Whale</option>
@@ -146,35 +184,41 @@ export default class AddSighting extends LitElement {
           </select>
         </label>
         <label>
-          <span>Count</span>
+          <span class="label">Count</span>
           <input type="number" name="count" value="" min="0" max="100">
         </label>
         <label>
-          <span>Time</span>
-          <input type="time" name="observed_time" required />
+          <span class="label">Time</span>
+          <input type="time" name="observed_time" step="1" required />
         </label>
         <label>
-          <span>Observer location</span>
+          <span class="label">Observer location</span>
           <input @change=${this.onObserverInputChange} type="text" name="observer_location" size="14" placeholder="lon, lat" required>
           <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
           <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
         </label>
         <label>
-          <span>Subject location</span>
+          <span class="label">Subject location</span>
           <input @change=${this.onSubjectInputChange} type="text" name="subject_location" size="14" placeholder="lon, lat" required>
           <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
         </label>
         <label>
-          <span>Notes</span>
+          <span class="label">Notes</span>
           <textarea name="body" rows="3" cols="21"></textarea>
         </label>
         <label>
           <span>Photos</span>
-          <input @change=${this.onFilesChanged} type="file" name="photos" accept="image/jpeg" multiple>
           <div class="thumbnails">
-            ${repeat(this.thumbnails, src => src, src => html`
-              <img class="thumbnail" src=${src}>
+            ${repeat(this.photos, photo => photo, photo => html`
+              <photo-uploader sightingId=${this.id} .file=${photo}>
+                <img slot="thumbnail" class="thumbnail" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+                <input slot="input" type="hidden" name="photo" required>
+              </photo-uploader>
             `)}
+            <button @click=${this.onUploadClicked} class="upload-photo" type="button">
+              <svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${cameraAddIcon}</svg>
+              <span>Add</span>
+            </button>
           </div>
         </label>
         <div><em>* required field</em></div>
@@ -225,37 +269,22 @@ export default class AddSighting extends LitElement {
 
   private onDrop(e: DragEvent) {
     const transfer = e.dataTransfer;
-    const input = this.photosInput!;
     if (!transfer?.files.length)
       return;
     e.preventDefault();
 
-    // https://stackoverflow.com/a/68182158
-    for (const existingFile of input.files || []) {
-      transfer.items.add(existingFile);
-    }
-
-    input.files = transfer.files;
-    this.onFilesChanged();
+    this.photos = [...this.photos, ...transfer.files];
   }
 
-  async onFilesChanged() {
-    const ExifReader = await import('exifreader');
-    const input = this.photosInput!;
-    const thumbnails: Promise<string>[] = [];
-    for (const file of input.files!) {
-      const {gps} = await ExifReader.load(file, {async: true, expanded: true});
-      if (gps && gps.Latitude && gps.Longitude && this.#subjectPoint.getCoordinates().length === 0)
-        this.#subjectPoint.setCoordinates(fromLonLat([gps.Longitude, gps.Latitude]));
+  private onFilesChanged() {
+    if (!this.photosInput?.files)
+      return;
+    this.photos = [...this.photos, ...this.photosInput.files];
+    this.photosInput.value = '';
+  }
 
-      const promise = new Promise<string>(resolve => {
-        const fileReader = new FileReader();
-        fileReader.onload = () => resolve(fileReader.result as string);
-        fileReader.readAsDataURL(file);
-      });
-      thumbnails.push(promise);
-    }
-    this.thumbnails = await Promise.all(thumbnails);
+  private onUploadClicked() {
+    this.photosInput!.click();
   }
 
   private placeObserver() {
@@ -325,35 +354,38 @@ export default class AddSighting extends LitElement {
 
   private async onSubmit(e: Event) {
     e.preventDefault();
-    if (!this.user) {
+    if (!this.token) {
       if (! (await this.logIn()))
         return;
     }
+    if (!this.token)
+      throw "Tried to submit without a token";
+
     const form = this.shadowRoot!.querySelector('form') as HTMLFormElement;
-    const data = new FormData(form);
-    const observedAt = Temporal.PlainDate.from(this.date)
-      .toZonedDateTime({timeZone: 'PST8PDT', plainTime: data.get('observed_time') as string})
-      .epochMilliseconds;
-    const sighting: SightingForm = {
-      body: data.get('body') as string,
-      count: parseInt(data.get('count') as string) || null,
-      id: this.getAttribute('id')!,
-      observed_at: observedAt / 1000,
-      observer_location: toLonLat(this.#observerPoint.getCoordinates()) as [number, number],
-      subject_location: toLonLat(this.#subjectPoint.getCoordinates()) as [number, number],
-      taxon: data.get('taxon') as string,
-      url: data.get('url') as string,
-      user: this.user!.sub!,
-    };
+    const formData = new FormData(form);
+    const data: {[k: string]: unknown} = Object.fromEntries(formData);
+    data.count = parseInt(formData.get('count') as string, 10);
+    data.observed_at = Temporal.PlainDate.from(this.date)
+      .toZonedDateTime({timeZone: 'PST8PDT', plainTime: data.observed_time as string})
+      .epochMilliseconds / 1000;
+    data.photo = formData.getAll('photo');
+    data.observer_location = toLonLat(this.#observerPoint.getCoordinates());
+    data.subject_location = toLonLat(this.#subjectPoint.getCoordinates());
+    data.user = this.user!.sub!;
     const request = new Request(form.action, {
-      body: JSON.stringify(sighting),
-      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data),
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Content-Type': 'application/json',
+      },
       method: 'PUT',
     });
     this._saveTask.run([request]);
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
+    this.addEventListener('reset', () => {console.log('reset'); this.id = v7()});
+
     const sightingProperties: SightingStyleProperties = {
       individuals: [],
       kind: 'Sighting',

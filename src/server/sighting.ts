@@ -16,23 +16,40 @@ type SightingRow = {
   individuals: string;
   url: string | null;
 }
-const upsertSightingStatement = db.prepare<SightingRow>(`
-INSERT OR REPLACE INTO sightings
+type PhotoRow = {
+  id: number;
+  sighting_id: string;
+  idx: number;
+  href: string;
+}
+const insertSightingStatement = db.prepare<SightingRow>(`
+INSERT INTO sightings
 ( id,  user,  observed_at,  longitude,  latitude,  observer_longitude,  observer_latitude,  taxon_id,  body,  count,  individuals,  url)
 VALUES
 (@id, @user, @observed_at, @longitude, @latitude, @observer_longitude, @observer_latitude, @taxon_id, @body, @count, @individuals, @url)
 `);
-export function upsertSighting(sighting: SightingForm) {
-  const [longitude, latitude] = sighting.subject_location;
-  const [observer_longitude, observer_latitude] = sighting.observer_location;
-  const taxon = taxonByName(sighting.taxon);
+const insertPhotoStatement = db.prepare<Omit<PhotoRow, 'id'>>(`
+INSERT INTO sighting_photos
+( sighting_id,  idx,  href)
+VALUES
+(@sighting_id, @idx, @href)
+`);
+const insertSightingTxn = db.transaction((sighting: SightingRow, photos: Omit<PhotoRow, 'id'>[]) => {
+  insertSightingStatement.run(sighting);
+  for (const photo of photos)
+    insertPhotoStatement.run(photo);
+});
+export function upsertSighting(form: SightingForm) {
+  const [longitude, latitude] = form.subject_location;
+  const [observer_longitude, observer_latitude] = form.observer_location;
+  const taxon = taxonByName(form.taxon);
   if (!taxon)
-    throw `Couldn't find a taxon named ${sighting.taxon}`;
-  const body = sighting.body?.trim().length ? sighting.body.trim() : null;
-  const row = {
-    ...sighting,
+    throw `Couldn't find a taxon named ${form.taxon}`;
+  const body = form.body?.trim().length ? form.body.trim() : null;
+  const sighting = {
+    ...form,
     body,
-    id: stringify(parse(sighting.id)),
+    id: stringify(parse(form.id)),
     individuals: '',
     latitude,
     longitude,
@@ -40,5 +57,10 @@ export function upsertSighting(sighting: SightingForm) {
     observer_longitude,
     taxon_id: taxon.id,
   };
-  upsertSightingStatement.run(row);
+  const photos = form.photo.map((photo, idx) => ({
+    sighting_id: sighting.id,
+    href: photo,
+    idx,
+  }));
+  insertSightingTxn(sighting, photos);
 }

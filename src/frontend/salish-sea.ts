@@ -147,10 +147,9 @@ export default class SalishSea extends LitElement {
       this.date = evt.detail;
     });
     this.addEventListener('observation-created', (evt) => {
-      if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'object')
+      if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
         throw "oh no";
-      const {id}: {id: string} = evt.detail;
-      this.nonce = id;
+      this.nonce = evt.detail;
     });
     this.#refreshTimer = setInterval(() => this.nonce = Temporal.Now.instant().epochMilliseconds.toString(), 1000 * 60);
   }

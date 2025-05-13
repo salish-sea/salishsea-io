@@ -11,12 +11,13 @@ export type Extent = [number, number, number, number];
 
 export type SightingForm = {
   id: string; // uuid
-  observed_at: number; // unix epoch time
-  subject_location: [number, number]; // lon, lat
-  observer_location: [number, number]; // lon, lat
-  taxon: string;
   body: string | null;
   count: number | null;
+  observed_at: number; // unix epoch time
+  observer_location: [number, number]; // lon, lat
+  photo: string[];
+  subject_location: [number, number]; // lon, lat
+  taxon: string;
   url: string | null;
   user: string;
 }

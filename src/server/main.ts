@@ -11,6 +11,8 @@ import { imputeTravelLines } from "./travel.ts";
 import { sightingsBetween } from "./temporal-features.ts";
 import type { Extent, FeatureProperties } from "../types.ts";
 import { upsertSighting } from "./sighting.ts";
+import { getPresignedUserObjectURL } from "./storage.ts";
+import { v7 } from "uuid";
 
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret)
@@ -21,8 +23,9 @@ app.set('trust proxy', 'loopback'); // https://expressjs.com/en/guide/behind-pro
 
 const api = express.Router();
 api.use(express.json());
-
+api.use(express.urlencoded({limit: '50mb'}));
 app.use('/api', api);
+
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
 const extentOfInterest: Extent = [-136, 36, -120, 54];
@@ -67,55 +70,6 @@ api.get(
   }
 );
 
-api.post(
-  "/fetch-ferry-locations",
-  async (_req: Request, res: Response) => {
-    const locations = await ferries.fetchCurrentLocations();
-    const insertionCount = ferries.loadLocations(locations);
-    console.info(`Loaded ${insertionCount} ferry locations from WSF.`);
-    res.send(`Loaded ${insertionCount} ferry locations from WSF.\n`);
-  }
-);
-
-api.post(
-  "/fetch-maplify-sightings",
-  query('earliest').notEmpty().custom(v => Temporal.PlainDate.from(v)),
-  query('latest').notEmpty().custom(v => Temporal.PlainDate.from(v)),
-  async (req: Request, res: Response) => {
-    const errors = validationResult(req);
-    if (! errors.isEmpty()) {
-      res.send({errors: errors.array()});
-      return;
-    }
-
-    const {earliest, latest} = matchedData(req) as {earliest: Temporal.PlainDate, latest: Temporal.PlainDate};
-    const sightings = await maplify.fetchSightings(earliest, latest, extentOfInterest);
-    const insertionCount = maplify.loadSightings(sightings);
-    console.info(`Loaded ${insertionCount} sightings from Maplify.`);
-    res.send(`Loaded ${insertionCount} sightings from Maplify.\n`);
-  }
-);
-
-api.post(
-  "/fetch-inaturalist-observations",
-  query('taxa').notEmpty().custom((v: string) => v.split(',').map(id => parseInt(id, 10))),
-  query('earliest').notEmpty().custom(v => Temporal.PlainDate.from(v)),
-  query('latest').notEmpty().custom(v => Temporal.PlainDate.from(v)),
-  async (req: Request, res: Response) => {
-    const errors = validationResult(req);
-    if (! errors.isEmpty()) {
-      res.send({errors: errors.array()});
-      return;
-    }
-
-    const {taxa, earliest, latest} = matchedData(req) as {taxa: number[], earliest: Temporal.PlainDate, latest: Temporal.PlainDate};
-    const observations = await inaturalist.fetchObservations({earliest, extent: extentOfInterest, latest, taxon_ids: taxa});
-    const insertionCount = await inaturalist.loadObservations(observations);
-    console.info(`Loaded ${insertionCount} observations from iNaturalist.`);
-    res.send(`Loaded ${insertionCount} observations from iNaturalist.\n`);
-  }
-);
-
 api.put(
   "/sightings/:sightingId",
   (req: Request, res: Response) => {
@@ -123,6 +77,24 @@ api.put(
     const sighting = req.body;
     upsertSighting({...sighting, id});
     res.status(201).json(sighting);
+  }
+);
+
+api.get(
+  "/sightings/:sightingId/uploadUrl",
+  query('contentLength').isNumeric(),
+  query('contentType').isMimeType(),
+  query('fileName').notEmpty(),
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (! errors.isEmpty()) {
+      res.send({errors: errors.array()});
+      return;
+    }
+    const sid = v7();
+    const {contentLength, contentType, fileName} = matchedData(req) as {contentLength: string, contentType: string, fileName: string};
+    const presignedUrl = await getPresignedUserObjectURL(sid, fileName, contentType, parseInt(contentLength, 10));
+    res.contentType('text/plain').send(presignedUrl);
   }
 );
 
