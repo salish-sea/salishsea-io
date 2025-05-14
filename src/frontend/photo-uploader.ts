@@ -1,4 +1,4 @@
-import { css, html, LitElement, type CSSResultGroup, type PropertyValues } from "lit";
+import { css, html, LitElement, type PropertyValues } from "lit";
 import { customElement, property, query, queryAssignedElements } from "lit/decorators.js";
 import { fromLonLat } from "ol/proj.js";
 import { queryStringAppend } from "./util.ts";
