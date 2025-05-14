@@ -110,7 +110,7 @@ export default class AddSighting extends LitElement {
       gap: 0.5rem;
       width: 10em;
     }
-    .thumbnail {
+    photo-uploader {
       height: 4rem;
     }
     .upload-photo {
@@ -211,7 +211,6 @@ export default class AddSighting extends LitElement {
           <div class="thumbnails">
             ${repeat(this.photos, photo => photo, photo => html`
               <photo-uploader sightingId=${this.id} .file=${photo}>
-                <img slot="thumbnail" class="thumbnail" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
                 <input slot="input" type="hidden" name="photo" required>
               </photo-uploader>
             `)}
@@ -250,7 +249,7 @@ export default class AddSighting extends LitElement {
     `;
   }
 
-  private async locateMe() {
+  private locateMe() {
     const geo = navigator.geolocation;
     geo.getCurrentPosition(({coords: {latitude, longitude}}) => {
       this.#observerPoint.setCoordinates(fromLonLat([longitude, latitude]));
