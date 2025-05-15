@@ -84,7 +84,7 @@ FROM (
     latitude,
     longitude,
     observed_at as "timestamp",
-    '[]' AS photos_json,
+    (SELECT json_group_array(json_object('url', href)) FROM sighting_photos WHERE sighting_id = sightings.id) AS photos_json,
     'salishsea',
     url,
     'unknown',

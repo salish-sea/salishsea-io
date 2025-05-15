@@ -2,6 +2,9 @@ import {parse, stringify} from 'uuid';
 import { db } from './database.ts';
 import type { SightingForm } from '../types.ts';
 import { taxonByName } from './taxon.ts';
+import { bucket, region } from './storage.ts';
+
+const S3_BASE_URI = `https://${bucket}.s3.${region}.amazonaws.com`;
 
 type SightingRow = {
   id: string; // uuid
@@ -59,7 +62,7 @@ export function upsertSighting(form: SightingForm) {
   };
   const photos = form.photo.map((photo, idx) => ({
     sighting_id: sighting.id,
-    href: photo,
+    href: `https://${S3_BASE_URI}/${photo}`,
     idx,
   }));
   insertSightingTxn(sighting, photos);
