@@ -77,7 +77,7 @@ export class ObsSummary extends LitElement {
       ${photos.length ?
         html`<ul class="photos">${
           photos.map(photo =>
-            html`<li><a target="_new" href=${url}><img alt=${photo.attribution} height="75" src=${photo.url}></a></li>`
+            html`<li><a target="_new" href=${url || photo.url}><img alt=${photo.attribution} height="75" src=${photo.url}></a></li>`
           )
         }</ul>`
       : undefined}

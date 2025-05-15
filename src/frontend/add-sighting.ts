@@ -94,7 +94,7 @@ export default class AddSighting extends LitElement {
       vertical-align: top;
       width: 10em;
     }
-    label:has(input[required]) .required::after {
+    label:has(input[required]) .label::after {
       content: ' *';
     }
     .inline-icon {
@@ -220,7 +220,6 @@ export default class AddSighting extends LitElement {
             </button>
           </div>
         </label>
-        <div><em>* required field</em></div>
         <div class="actions">
           ${this._saveTask.render({
             initial: () => html`
