@@ -28,7 +28,7 @@ export function imputeTravelLines(sorted: Feature<Point, {timestamp: number, spe
 
       const toPoint = turfPoint(candidate.geometry.coordinates);
       const displacementMeters = distance(fromPoint, toPoint, {units: 'meters'});
-      if (displacementMeters > 10000)
+      if (displacementMeters > 20000)
         continue;
 
       // Allow coordinates to be off by about a mile (each) when calculating speed
