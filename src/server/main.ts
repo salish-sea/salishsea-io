@@ -13,6 +13,7 @@ import type { Extent, FeatureProperties } from "../types.ts";
 import { upsertSighting } from "./sighting.ts";
 import { getPresignedUserObjectURL } from "./storage.ts";
 import { v7 } from "uuid";
+import {auth} from 'express-oauth2-jwt-bearer';
 
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret)
@@ -26,6 +27,11 @@ api.use(express.json());
 api.use(express.urlencoded({limit: '50mb'}));
 app.use('/api', api);
 
+const checkJwt = auth({
+  audience: process.env.AUTH0_AUDIENCE,
+  authRequired: false,
+  issuerBaseURL: `https://${process.env.VITE_AUTH0_DOMAIN}`,
+});
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
 const extentOfInterest: Extent = [-136, 36, -120, 54];
@@ -72,6 +78,7 @@ api.get(
 
 api.put(
   "/sightings/:sightingId",
+  checkJwt,
   (req: Request, res: Response) => {
     const id = req.params.sightingId!;
     const sighting = req.body;
@@ -82,6 +89,7 @@ api.put(
 
 api.get(
   "/sightings/:sightingId/uploadUrl",
+  checkJwt,
   query('contentLength').isNumeric(),
   query('contentType').isMimeType(),
   query('fileName').notEmpty(),
