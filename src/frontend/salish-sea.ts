@@ -24,10 +24,8 @@ export default class SalishSea extends LitElement {
   static styles = css`
     :host {
       display: flex;
-      align-content: stretch;
-      align-items: stretch;
       flex-direction: column;
-      height: 100vh;
+      height: 100dvh;
     }
 
     header {
@@ -47,7 +45,6 @@ export default class SalishSea extends LitElement {
     }
 
     main {
-      align-items: stretch;
       display: flex;
       flex-direction: row;
       flex-grow: 1;
@@ -56,7 +53,7 @@ export default class SalishSea extends LitElement {
     obs-panel {
       border-left: 1px solid #cccccc;
       border-top: 0;
-      flex-basis: 35%;
+      width: 25rem;
     }
 
     @media (max-aspect-ratio: 1) {
@@ -64,11 +61,13 @@ export default class SalishSea extends LitElement {
         flex-direction: column;
       }
       obs-map {
-        flex-grow: 1;
+        flex-shrink: 0;
+        height: 50svh;
       }
       obs-panel {
         border-left: 0;
         border-top: 1px solid #cccccc;
+        width: 100%;
       }
     }
   `;

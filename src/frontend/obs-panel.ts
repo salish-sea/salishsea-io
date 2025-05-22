@@ -11,6 +11,7 @@ const today = Temporal.Now.plainDateISO().toString();
 export class ObsPanel extends LitElement {
   static styles = css`
     :host {
+      box-sizing: border-box;
       display: flex;
       flex-direction: column;
       font-family: Mukta,Helvetica,Arial,sans-serif;
@@ -27,7 +28,7 @@ export class ObsPanel extends LitElement {
       text-align: center;
     }
     h2 {
-      font-size: 2.125rem;
+      font-size: 1.5rem;
       font-weight: 400;
       margin-bottom: 0;
       margin-top: 1rem;
@@ -56,7 +57,7 @@ export class ObsPanel extends LitElement {
   `;
 
   @state()
-  private _showForm: boolean = true
+  private _showForm: boolean = false
 
   @property({type: String, reflect: true})
   private date!: string;
