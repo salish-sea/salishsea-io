@@ -33,6 +33,9 @@ export class ObsPanel extends LitElement {
       margin-bottom: 0;
       margin-top: 1rem;
     }
+    input[type=date] {
+      -webkit-min-logical-width: 5rem;
+    }
     button {
       align-items: center;
       align-self: flex-start;
