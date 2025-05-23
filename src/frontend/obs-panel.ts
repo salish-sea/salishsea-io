@@ -78,7 +78,7 @@ export class ObsPanel extends LitElement {
         </form>
       </header>
       ${this._showForm ? html`
-        <add-sighting class="full-bleed" .cancel=${this.hideForm.bind(this)} .logIn=${this.logIn} .date=${this.date}></add-sighting>
+        <add-sighting class="full-bleed" .cancel=${this.hideForm.bind(this)} .date=${this.date}></add-sighting>
       ` : html`
         <button @click=${this.showForm} type="button" name="show">
           <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px">${cameraAddIcon}</svg>

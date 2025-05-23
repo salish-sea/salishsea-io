@@ -79,9 +79,6 @@ export default class SalishSea extends LitElement {
   @provide({context: drawingSourceContext})
   drawingSource: VectorSource | undefined
 
-  @property()
-  logIn!: () => Promise<boolean>;
-
   @property({attribute: 'focused-feature', type: String, reflect: true})
   set focusedSightingId(id: string | undefined) {
     this.#focusedSightingId = id;
@@ -151,7 +148,7 @@ export default class SalishSea extends LitElement {
         throw "oh no";
       this.nonce = evt.detail;
     });
-    this.#refreshTimer = setInterval(() => this.nonce = Temporal.Now.instant().epochMilliseconds.toString(), 1000 * 60);
+    this.#refreshTimer = setInterval(() => this.nonce = Temporal.Now.instant().epochMilliseconds.toString(), 1000 * 30);
   }
 
   disconnectedCallback(): void {
@@ -174,7 +171,7 @@ export default class SalishSea extends LitElement {
       </header>
       <main>
         <obs-map date=${this.date} url=${featureHref}></obs-map>
-        <obs-panel .logIn=${this.logIn} date=${this.date}>
+        <obs-panel date=${this.date}>
           ${repeat(this.features, f => f.properties.id, feature => {
             const id = feature.properties.id;
             return html`
@@ -226,6 +223,7 @@ export default class SalishSea extends LitElement {
 
   // Used by the side panel
   updateSightings(features: Feature<Point>[]) {
+    console.log(`updateSightings: ${features.length}`);
     this.features = features
       .filter(feature => feature.get('kind') === 'Sighting')
       .toSorted((a, b) => b.get('timestamp') - a.get('timestamp'))

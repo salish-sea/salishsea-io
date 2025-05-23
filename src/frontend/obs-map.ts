@@ -134,7 +134,7 @@ export class ObsMap extends LitElement {
 
   constructor() {
     super();
-    this.temporalSource.on('change', () => {
+    this.temporalSource.on('featuresloadend', () => {
       const features = this.temporalSource.getFeatures();
       const evt = new CustomEvent('sightings-changed', {bubbles: true, composed: true, detail: features})
       this.dispatchEvent(evt);
