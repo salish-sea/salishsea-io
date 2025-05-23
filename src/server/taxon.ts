@@ -60,20 +60,11 @@ export const detectIndividuals = (text: Readonly<string>) => {
     const id = normalizeIndividual(`${pod}${individual!.toUpperCase()}`);
     if (matriline) {
       matches.add(`${id}s` as Matriline);
-    } else if (isIndividualOrca(id)) {
+    } else {
       matches.add(id);
     }
   }
   return [...matches].sort();
-}
-
-function isIndividualOrca(name: string): name is IndividualOrca {
-  // if (individuals.indexOf(name) !== -1)
-  //   return true;
-  if (name.startsWith('CRC'))
-    return true;
-  // console.warn(`${name} is not an individual Orca`);
-  return false;
 }
 
 export function symbolFor(
