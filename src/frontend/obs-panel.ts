@@ -64,9 +64,6 @@ export class ObsPanel extends LitElement {
   @property({type: String, reflect: true})
   private date!: string;
 
-  @property()
-  private logIn!: () => Promise<boolean>;
-
   protected render() {
     return html`
       <header>
