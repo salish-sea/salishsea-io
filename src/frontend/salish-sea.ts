@@ -53,6 +53,7 @@ export default class SalishSea extends LitElement {
     obs-panel {
       border-left: 1px solid #cccccc;
       border-top: 0;
+      padding: 0.5rem;
       width: 25rem;
     }
 
