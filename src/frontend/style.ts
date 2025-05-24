@@ -170,3 +170,28 @@ export const editStyle = (feature: FeatureLike) => {
   else if (kind === 'Sighting')
     return selectedObservationStyle(feature);
 }
+
+export const viewingLocationStyle = (location: FeatureLike) => {
+  const fill = new Fill({color: transparentWhite});
+  const stroke = new Stroke({color: solidBlue, width: 1.25});
+  const text = location.get('name');
+  return [
+    new Style({
+      image: new Circle({radius: 4, fill, stroke}),
+      fill,
+      stroke,
+    }),
+    new Style({
+      text: new Text({
+        declutterMode: 'obstacle',
+        fill: new Fill({color: black}),
+        font: '10px monospace',
+        offsetX: 10,
+        padding: [1, 1, 0, 1],
+        text,
+        textAlign: 'left',
+        textBaseline: 'middle',
+      }),
+    }),
+  ];
+}

@@ -8,16 +8,15 @@ import {defaults as defaultInteractions} from 'ol/interaction/defaults.js';
 import Link from 'ol/interaction/Link.js';
 import './obs-panel.ts';
 import './obs-summary.ts';
-import viewingLocationKML from '../assets/orcanetwork-viewing-locations.kml?url';
+import viewingLocationURL from '../assets/orcanetwork-viewing-locations.geojson?url';
 
 // imports below these lines smell like they support functionality that should be factored out
 import VectorLayer from 'ol/layer/Vector.js';
 import TileLayer from 'ol/layer/Tile.js';
 import { fromLonLat } from 'ol/proj.js';
 import XYZ from 'ol/source/XYZ.js';
-import { editStyle, featureStyle, selectedObservationStyle} from './style.ts';
+import { editStyle, featureStyle, selectedObservationStyle, viewingLocationStyle} from './style.ts';
 import type Point from 'ol/geom/Point.js';
-import KML from 'ol/format/KML.js';
 import VectorSource from 'ol/source/Vector.js';
 import type Feature from 'ol/Feature.js';
 import Modify from 'ol/interaction/Modify.js';
@@ -38,21 +37,22 @@ const initialZoom = 9;
 export class ObsMap extends LitElement {
   public drawingSource = new VectorSource();
   public temporalSource = new VectorSource<Feature<Geometry>>({
-    format: new GeoJSON<Feature<Geometry>>,
+    format: new GeoJSON<Feature<Geometry>>(),
     strategy: all,
   });
   private temporalLayer = new VectorLayer({
     source: this.temporalSource,
     style: featureStyle,
   })
-  // https://www.google.com/maps/d/u/0/kml?mid=1xIsepZY5h_8oA2nd6IwJN-Y7lhk
-  #viewingLocations = new VectorLayer({
-    maxResolution: 40,
+  #viewingLocationsLayer = new VectorLayer({
+    minZoom: 12,
     source: new VectorSource({
-      attributions: 'Sighting Viewpoints by Thorsten Lisker and Alisa Lemire Brooks of Orca Network',
-      url: viewingLocationKML,
-      format: new KML(),
+      attributions: 'Sighting Viewpoints by Thorsten Lisker and Alisa Lemire Brooks of Orca Network.',
+      format: new GeoJSON<Feature<Point>>(),
+      strategy: all,
+      url: viewingLocationURL,
     }),
+    style: viewingLocationStyle,
   });
 
   @property({type: String, reflect: true})
@@ -103,7 +103,7 @@ export class ObsMap extends LitElement {
         }),
       }),
       this.temporalLayer,
-      this.#viewingLocations,
+      this.#viewingLocationsLayer,
       new VectorLayer({
         source: this.drawingSource,
         style: featureStyle,

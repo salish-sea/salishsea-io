@@ -223,7 +223,6 @@ export default class SalishSea extends LitElement {
 
   // Used by the side panel
   updateSightings(features: Feature<Point>[]) {
-    console.log(`updateSightings: ${features.length}`);
     this.features = features
       .filter(feature => feature.get('kind') === 'Sighting')
       .toSorted((a, b) => b.get('timestamp') - a.get('timestamp'))
