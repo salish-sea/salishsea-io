@@ -28,8 +28,8 @@ api.use(express.urlencoded({limit: '50mb'}));
 app.use('/api', api);
 
 const checkJwt = auth({
-  audience: process.env.AUTH0_AUDIENCE,
-  authRequired: false,
+  audience: process.env.VITE_AUTH0_AUDIENCE,
+  authRequired: true,
   issuerBaseURL: `https://${process.env.VITE_AUTH0_DOMAIN}`,
 });
 

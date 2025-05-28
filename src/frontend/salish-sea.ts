@@ -3,7 +3,7 @@ import { customElement, property, query, state } from "lit/decorators.js";
 import './obs-map.ts';
 import './login-button.ts';
 import { type User } from "@auth0/auth0-spa-js";
-import { auth0promise, doLogInContext, doLogOutContext, redirectUri, tokenContext, userContext } from "./identity.ts";
+import { doLogIn, doLogInContext, doLogOut, doLogOutContext, getTokenSilently, getUser, tokenContext, userContext } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
 import { queryStringAppend } from "./util.ts";
@@ -115,6 +115,9 @@ export default class SalishSea extends LitElement {
   @property({type: String, reflect: true})
   nonce: string = Temporal.Now.instant().epochMilliseconds.toString();
 
+  @state()
+  showAbout: boolean = false;
+
   #refreshTimer: NodeJS.Timeout
 
   constructor() {
@@ -161,6 +164,7 @@ export default class SalishSea extends LitElement {
       <header>
         <h1>SalishSea.io</h1>
         <div>
+          <button @click=${this.onAboutClicked} title="About SalishSea.io" type="button">About</button>
           <a href="https://orcasound.zulipchat.com/#narrow/channel/494032-salishsea-io/topic/changelog.20and.20feedback/with/508367635">
             <button title="Get help or give feedback" type="button">
               Feedback
@@ -184,25 +188,19 @@ export default class SalishSea extends LitElement {
   }
 
   async updateAuth() {
-    const auth0 = await auth0promise;
-    this.user = await auth0.getUser();
-    this.token = this.user ? await auth0.getTokenSilently({authorizationParams: {redirect_uri: redirectUri}}) : undefined;
+    this.user = await getUser();
+    this.token = this.user ? await getTokenSilently() : undefined;
+    console.info(`token: ${this.token}`);
   }
 
   async doLogIn() {
-    const auth0 = await auth0promise;
-    await auth0.loginWithPopup({
-      authorizationParams: {
-        redirect_uri: redirectUri,
-      }
-    });
+    await doLogIn();
     await this.updateAuth();
     return !!this.user;
   }
 
   async doLogOut() {
-    const auth0 = await auth0promise;
-    await auth0.logout({openUrl: false});
+    await doLogOut();
     await this.updateAuth();
   }
 
@@ -219,6 +217,10 @@ export default class SalishSea extends LitElement {
       return;
     this.map.selectFeature(feature);
     this.map.ensureCoordsInViewport(feature.getGeometry()!.getCoordinates());
+  }
+
+  onAboutClicked() {
+    this.showAbout = true;
   }
 
   // Used by the side panel

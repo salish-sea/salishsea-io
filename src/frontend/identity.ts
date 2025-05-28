@@ -1,7 +1,7 @@
 import { createAuth0Client, User } from '@auth0/auth0-spa-js';
 import { createContext } from '@lit/context';
 
-export const redirectUri = new URL('/auth_redirect.html', window.location.href).toString();
+const redirectUri = new URL('/auth_redirect.html', window.location.href).toString();
 
 export const userContext = createContext<User | undefined>(Symbol('user'));
 export const tokenContext = createContext<string | undefined>(Symbol('token'));
@@ -13,6 +13,38 @@ export const auth0promise = createAuth0Client({
   cacheLocation: 'localstorage',
   clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
 });
+
+export const doLogIn = async () => {
+  const auth0 = await auth0promise;
+  await auth0.loginWithPopup({
+    authorizationParams: {
+      audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+      redirect_uri: redirectUri,
+      scope: 'openid name email',
+    }
+  });
+}
+
+export const doLogOut = async () => {
+  const auth0 = await auth0promise;
+  return await auth0.logout({openUrl: false});
+}
+
+export const getTokenSilently = async () => {
+  const auth0 = await auth0promise;
+  return await auth0.getTokenSilently({
+    authorizationParams: {
+      audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+      redirect_uri: redirectUri,
+      scope: 'openid name email',
+    }
+  });
+};
+
+export const getUser = async () => {
+  const auth0 = await auth0promise;
+  return await auth0.getUser();
+}
 
 const query = window.location.search;
 if (query.includes("code=") && query.includes("state=")) {
