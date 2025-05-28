@@ -27,6 +27,13 @@ export default class SalishSea extends LitElement {
       flex-direction: column;
       height: 100dvh;
     }
+    a {
+      text-decoration: none;
+    }
+    .about-link {
+      color: inherit;
+      font-size: 1rem;
+    }
 
     header {
       align-items: baseline;
@@ -49,6 +56,16 @@ export default class SalishSea extends LitElement {
       flex-direction: row;
       flex-grow: 1;
       overflow: auto;
+    }
+    dialog {
+      max-width: 30rem;
+      padding: 0.5rem;
+    }
+    dialog::backdrop {
+      backdrop-filter: blur(0.5rem);
+    }
+    .close-dialog {
+      float: right;
     }
     obs-panel {
       border-left: 1px solid #cccccc;
@@ -90,7 +107,10 @@ export default class SalishSea extends LitElement {
   #focusedSightingId: string | undefined
 
   @query('obs-map', true)
-  map!: ObsMap
+  map!: ObsMap;
+
+  @query('dialog', true)
+  aboutDialog!: HTMLDialogElement;
 
   @state()
   private features: GeoJSONFeature<GeoJSONPoint, SightingProperties>[] = [];
@@ -114,9 +134,6 @@ export default class SalishSea extends LitElement {
 
   @property({type: String, reflect: true})
   nonce: string = Temporal.Now.instant().epochMilliseconds.toString();
-
-  @state()
-  showAbout: boolean = false;
 
   #refreshTimer: NodeJS.Timeout
 
@@ -162,9 +179,8 @@ export default class SalishSea extends LitElement {
     const featureHref = queryStringAppend('/api/temporal-features', {d: this.date, nonce: this.nonce});
     return html`
       <header>
-        <h1>SalishSea.io</h1>
+        <h1>SalishSea.io <a @click=${this.onAboutClicked} class="about-link" href="#" title="About SalishSea.io">&#9432;</a></h1>
         <div>
-          <button @click=${this.onAboutClicked} title="About SalishSea.io" type="button">About</button>
           <a href="https://orcasound.zulipchat.com/#narrow/channel/494032-salishsea-io/topic/changelog.20and.20feedback/with/508367635">
             <button title="Get help or give feedback" type="button">
               Feedback
@@ -174,6 +190,17 @@ export default class SalishSea extends LitElement {
         </div>
       </header>
       <main>
+        <dialog>
+          <h3>About SalishSea.io <a @click=${this.onCloseModal} class="close-dialog" href="#">x</a></h3>
+          <p>Communities throughout the Salish Sea are working to protect the diversity of life it supports. This site serves as a portal into their efforts.</p>
+          <p>We currently show:</p>
+          <ul>
+            <li><a href="https://www.inaturalist.org/">iNaturalist</a> observations of cetaceans and seals</li>
+            <li>Sightings submitted to the <a href="https://www.whalealert.org/">Whale Alert</a> app by the public</li>
+            <li>Sightings by the <a href="https://www.orcanetwork.org/">Orca Network</a> community</li>
+          </ul>
+          <p>If you have any feedback, tap the Feedback button in the top-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a></p>
+        </dialog>
         <obs-map date=${this.date} url=${featureHref}></obs-map>
         <obs-panel date=${this.date}>
           ${repeat(this.features, f => f.properties.id, feature => {
@@ -219,8 +246,14 @@ export default class SalishSea extends LitElement {
     this.map.ensureCoordsInViewport(feature.getGeometry()!.getCoordinates());
   }
 
-  onAboutClicked() {
-    this.showAbout = true;
+  onAboutClicked(e: Event) {
+    e.preventDefault();
+    this.aboutDialog.showModal();
+  }
+
+  onCloseModal(e: Event) {
+    e.preventDefault();
+    this.aboutDialog.close();
   }
 
   // Used by the side panel
