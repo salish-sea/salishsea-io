@@ -28,6 +28,9 @@ export class ObsSummary extends LitElement {
       font-style: italic;
       line-height: 1.2rem;
     }
+    a {
+      text-decoration: none;
+    }
     cite {
       font-size: 0.8rem;
     }
@@ -70,7 +73,7 @@ export class ObsSummary extends LitElement {
     return html`
       <header>
         <a class="focus-sighting" @click="${this.focusSighting}" href="#">${symbol}</a>
-        <b>${name}</b>${count}<time>${time}</time>
+        <b>${name}</b>${count}<time><a @click="${this.focusSighting}" href="#">${time}</a></time>
       </header>
       <cite>via${user ? ` ${user} on` : undefined} ${url ? html`<a target="_new" href=${url}>${source}</a>` : source}</cite>
       ${body}
