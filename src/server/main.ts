@@ -7,6 +7,7 @@ import * as maplify from './maplify.ts';
 import * as inaturalist from './inaturalist.ts';
 import { Temporal } from "temporal-polyfill";
 import { query, matchedData, validationResult } from 'express-validator';
+import { z } from "zod";
 import { imputeTravelLines } from "./travel.ts";
 import { sightingsBetween } from "./temporal-features.ts";
 import type { Extent, FeatureProperties } from "../types.ts";
@@ -80,13 +81,36 @@ api.put(
   "/sightings/:sightingId",
   checkJwt,
   (req: Request, res: Response) => {
-    const sighting = {
-      ...req.body,
-      id: req.params.sightingId!,
-      user: req.auth!.payload.sub,
-    };
-    upsertSighting(sighting);
-    res.status(201).json(sighting);
+    try {
+      // Define the schema for sighting data
+      const sightingSchema = z.object({
+        subject_location: z.tuple([z.number(), z.number()]),
+        observer_location: z.tuple([z.number(), z.number()]),
+        taxon: z.string(),
+        body: z.string().optional(),
+        count: z.number().optional(),
+        photo: z.array(z.string()).default([]),
+        observed_at: z.number()
+      });
+      
+      // Validate the request body
+      const validatedData = sightingSchema.parse(req.body);
+      
+      const sighting = {
+        ...validatedData,
+        id: req.params.sightingId!,
+        user: req.auth!.payload.sub,
+      };
+      
+      upsertSighting(sighting);
+      res.status(201).json(sighting);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ errors: error.errors });
+      } else {
+        res.status(500).json({ error: "Internal server error" });
+      }
+    }
   }
 );
 
