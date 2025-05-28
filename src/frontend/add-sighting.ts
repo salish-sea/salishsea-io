@@ -369,7 +369,6 @@ export default class AddSighting extends LitElement {
     data.photo = formData.getAll('photo');
     data.observer_location = toLonLat(this.#observerPoint.getCoordinates());
     data.subject_location = toLonLat(this.#subjectPoint.getCoordinates());
-    data.user = this.user!.sub!;
     const request = new Request(form.action, {
       body: JSON.stringify(data),
       headers: {

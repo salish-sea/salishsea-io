@@ -80,9 +80,12 @@ api.put(
   "/sightings/:sightingId",
   checkJwt,
   (req: Request, res: Response) => {
-    const id = req.params.sightingId!;
-    const sighting = req.body;
-    upsertSighting({...sighting, id});
+    const sighting = {
+      ...req.body,
+      id: req.params.sightingId!,
+      user: req.auth!.payload.sub,
+    };
+    upsertSighting(sighting);
     res.status(201).json(sighting);
   }
 );

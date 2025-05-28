@@ -19,5 +19,4 @@ export type SightingForm = {
   subject_location: [number, number]; // lon, lat
   taxon: string;
   url: string | null;
-  user: string;
 }
