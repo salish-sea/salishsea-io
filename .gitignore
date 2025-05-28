@@ -30,3 +30,4 @@ dist-ssr
 *.duckdb
 *.duckdb.wal
 *.sqlite3*
+.aider*
