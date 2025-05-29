@@ -24,6 +24,7 @@ type PhotoRow = {
   sighting_id: string;
   idx: number;
   href: string;
+  license_code: string;
 }
 const insertSightingStatement = db.prepare<SightingRow>(`
 INSERT INTO sightings
@@ -33,9 +34,9 @@ VALUES
 `);
 const insertPhotoStatement = db.prepare<Omit<PhotoRow, 'id'>>(`
 INSERT INTO sighting_photos
-( sighting_id,  idx,  href)
+( sighting_id,  idx,  href,  license_code)
 VALUES
-(@sighting_id, @idx, @href)
+(@sighting_id, @idx, @href, @license_code)
 `);
 const insertSightingTxn = db.transaction((sighting: SightingRow, photos: Omit<PhotoRow, 'id'>[]) => {
   insertSightingStatement.run(sighting);
@@ -50,20 +51,23 @@ export function upsertSighting(form: SightingForm) {
     throw `Couldn't find a taxon named ${form.taxon}`;
   const body = form.body?.trim().length ? form.body.trim() : null;
   const sighting = {
-    ...form,
     body,
+    count: form.count || null,
     id: stringify(parse(form.id)),
     individuals: '',
     latitude,
     longitude,
+    observed_at: form.observed_at,
     observer_latitude,
     observer_longitude,
     taxon_id: taxon.id,
+    url: form.url || null,
   };
   const photos = form.photo.map((photo, idx) => ({
     sighting_id: sighting.id,
     href: `https://${S3_BASE_URI}/${photo}`,
     idx,
+    license_code: form.license_code,
   }));
   insertSightingTxn(sighting, photos);
 }

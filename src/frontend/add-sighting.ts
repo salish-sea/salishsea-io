@@ -9,10 +9,9 @@ import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
 import { bearingStyle, featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
-import type { SightingForm } from "../types.ts";
+import { licenseCodes, type SightingForm } from "../types.ts";
 import { Temporal } from "temporal-polyfill";
-import { doLogInContext, tokenContext, userContext } from "./identity.ts";
-import type { User } from "@auth0/auth0-spa-js";
+import { doLogInContext, tokenContext } from "./identity.ts";
 import drawingSourceContext from "./drawing-context.ts";
 import mapContext from './map-context.ts';
 import { LineString } from "ol/geom.js";
@@ -63,9 +62,6 @@ export default class AddSighting extends LitElement {
   @consume({context: doLogInContext})
   private logIn!: () => Promise<boolean>;
 
-  @consume({context: userContext, subscribe: true})
-  private user: User | undefined;
-
   @consume({context: tokenContext, subscribe: true})
   private token: string | undefined;
 
@@ -109,6 +105,9 @@ export default class AddSighting extends LitElement {
       display: inline-flex;
       gap: 0.5rem;
       width: 10em;
+    }
+    select {
+      max-width: 12rem;
     }
     photo-uploader {
       height: 4rem;
@@ -168,6 +167,8 @@ export default class AddSighting extends LitElement {
   }
 
   protected render() {
+    const licenseCode = localStorage.getItem('photoLicenseCode') || 'cc-by';
+
     return html`
       <input @change=${this.onFilesChanged} type="file" name="photos" accept="image/jpeg" multiple>
       <form @submit=${this.onSubmit} @dragover=${this.onDragOver} @drop=${this.onDrop} action="/api/sightings/${this.id}">
@@ -177,7 +178,7 @@ export default class AddSighting extends LitElement {
         </label>
         <label>
           <span class="label">Species</span>
-          <select name="taxon">
+          <select @change=${this.onLicenseChange} name="taxon">
             <option value="Orcinus orca" selected>Killer Whale (any type)</option>
             <option value="Orcinus orca ater">Resident Killer Whale</option>
             <option value="Orcinus orca rectipinnus">Bigg's Killer Whale</option>
@@ -219,6 +220,14 @@ export default class AddSighting extends LitElement {
               <span>Add</span>
             </button>
           </div>
+        </label>
+        <label>
+          <span class="label">Photo license</span>
+          <select @change=${this.onLicenseChange} name="license_code">
+            ${Object.entries(licenseCodes).map(([code, description]) => html`
+              <option value=${code} ?selected=${code === licenseCode}>${description}</option>
+            `)}
+          </select>
         </label>
         <div class="actions">
           ${this._saveTask.render({
@@ -279,6 +288,13 @@ export default class AddSighting extends LitElement {
       return;
     this.photos = [...this.photos, ...this.photosInput.files];
     this.photosInput.value = '';
+  }
+
+  private onLicenseChange(e: Event) {
+    if (!(e.target instanceof HTMLSelectElement))
+      throw `onLicenseChange is broken`;
+    const licenseCode = e.target.value;
+    localStorage.setItem('photoLicenseCode', licenseCode);
   }
 
   private onUploadClicked() {

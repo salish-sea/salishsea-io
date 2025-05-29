@@ -217,7 +217,6 @@ export default class SalishSea extends LitElement {
   async updateAuth() {
     this.user = await getUser();
     this.token = this.user ? await getTokenSilently() : undefined;
-    console.info(`token: ${this.token}`);
   }
 
   async doLogIn() {

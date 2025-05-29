@@ -33,7 +33,8 @@
     "marked": "15.0.12",
     "multer": "2.0.0",
     "uuid": "^11.1.0",
-    "vite-express": "^0.21.1"
+    "vite-express": "^0.21.1",
+    "zod": "^3.25.32"
   },
   "devDependencies": {
     "@formatjs/intl-durationformat": "^0.7.3",

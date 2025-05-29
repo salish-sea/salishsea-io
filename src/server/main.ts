@@ -77,31 +77,30 @@ api.get(
   }
 );
 
+const sightingSchema = z.object({
+  body: z.string(),
+  count: z.number().optional().nullish(),
+  license_code: z.string(),
+  observed_at: z.number(),
+  observer_location: z.tuple([z.number(), z.number()]),
+  photo: z.array(z.string()).default([]),
+  subject_location: z.tuple([z.number(), z.number()]),
+  taxon: z.string(),
+  url: z.string().trim().nullish(),
+});
 api.put(
   "/sightings/:sightingId",
   checkJwt,
   (req: Request, res: Response) => {
     try {
-      // Define the schema for sighting data
-      const sightingSchema = z.object({
-        subject_location: z.tuple([z.number(), z.number()]),
-        observer_location: z.tuple([z.number(), z.number()]),
-        taxon: z.string(),
-        body: z.string().optional(),
-        count: z.number().optional(),
-        photo: z.array(z.string()).default([]),
-        observed_at: z.number()
-      });
-      
-      // Validate the request body
       const validatedData = sightingSchema.parse(req.body);
-      
+
       const sighting = {
         ...validatedData,
         id: req.params.sightingId!,
         user: req.auth!.payload.sub,
       };
-      
+
       upsertSighting(sighting);
       res.status(201).json(sighting);
     } catch (error) {

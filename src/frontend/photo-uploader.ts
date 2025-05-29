@@ -36,6 +36,8 @@ export default class PhotoUploader extends LitElement {
         fileName: file.name,
       });
       const resp = await fetch(endpoint)
+      if (resp.status !== 200)
+        throw `Error authorizing upload: ${resp.statusText}`;
       const signedUrl = new URL(await resp.text());
       const signedRequest = new Request(signedUrl, {
         body: file,

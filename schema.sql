@@ -14,6 +14,6 @@ CREATE TABLE IF NOT EXISTS "vernacular_names_temp"(
 CREATE TABLE inaturalist_observations (id int not null primary key, description text, longitude real not null, latitude real not null, taxon_id integer not null, observed_at int not null, license_code varchar, photos_json json, url string not null, username string not null);
 CREATE INDEX inaturalist_observations_observed_at on inaturalist_observations (observed_at);
 CREATE TABLE sightings (id text primary key not null, user text not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real not null, observer_latitude real not null, taxon_id int not null, body text, count int, individuals text, url text);
-CREATE TABLE sighting_photos (id integer primary key not null, sighting_id text not null REFERENCES sightings (id), idx integer not null, href text not null, unique(id, idx));
+CREATE TABLE sighting_photos (id integer primary key not null, sighting_id text not null REFERENCES sightings (id), idx integer not null, href text not null, license_code text not null, unique(id, idx));
 CREATE INDEX sighting_photos_by_sighting_id ON sighting_photos (sighting_id);
 COMMIT;
