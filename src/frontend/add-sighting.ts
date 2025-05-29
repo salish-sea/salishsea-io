@@ -11,7 +11,7 @@ import VectorSource from "ol/source/Vector.js";
 import { bearingStyle, featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
 import { licenseCodes, type SightingForm } from "../types.ts";
 import { Temporal } from "temporal-polyfill";
-import { doLogInContext, tokenContext } from "./identity.ts";
+import { tokenContext } from "./identity.ts";
 import drawingSourceContext from "./drawing-context.ts";
 import mapContext from './map-context.ts';
 import { LineString } from "ol/geom.js";
@@ -31,6 +31,7 @@ export default class AddSighting extends LitElement {
       const response = await fetch(request);
       const data = await response.json();
       this.form!.reset();
+      this.photos = [];
       const event = new CustomEvent('observation-created', {bubbles: true, composed: true, detail: this.id});
       this.dispatchEvent(event);
       return data;
@@ -58,9 +59,6 @@ export default class AddSighting extends LitElement {
 
   @property()
   private cancel!: () => void;
-
-  @consume({context: doLogInContext})
-  private logIn!: () => Promise<boolean>;
 
   @consume({context: tokenContext, subscribe: true})
   private token: string | undefined;
@@ -368,13 +366,6 @@ export default class AddSighting extends LitElement {
 
   private async onSubmit(e: Event) {
     e.preventDefault();
-    if (!this.token) {
-      if (! (await this.logIn()))
-        return;
-    }
-    if (!this.token)
-      throw "Tried to submit without a token";
-
     const form = this.shadowRoot!.querySelector('form') as HTMLFormElement;
     const formData = new FormData(form);
     const data: {[k: string]: unknown} = Object.fromEntries(formData);

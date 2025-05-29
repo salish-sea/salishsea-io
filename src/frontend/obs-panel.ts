@@ -4,6 +4,8 @@ import { live } from 'lit/directives/live.js';
 import { Temporal } from "temporal-polyfill";
 import './add-sighting.ts';
 import { cameraAddIcon } from "./icons.ts";
+import { consume } from "@lit/context";
+import { doLogInContext, tokenContext } from "./identity.ts";
 
 const today = Temporal.Now.plainDateISO().toString();
 
@@ -64,6 +66,12 @@ export class ObsPanel extends LitElement {
   @property({type: String, reflect: true})
   private date!: string;
 
+  @consume({context: tokenContext, subscribe: true})
+  private token: string | undefined;
+
+  @consume({context: doLogInContext})
+  private logIn!: () => Promise<boolean>;
+
   protected render() {
     return html`
       <header>
@@ -110,7 +118,14 @@ export class ObsPanel extends LitElement {
     this._showForm = false;
   }
 
-  private showForm() {
+  private async showForm() {
+    if (!this.token) {
+      if (! (await this.logIn()))
+        return;
+    }
+    if (!this.token)
+      throw "Tried to submit without a token";
+
     this._showForm = true;
   }
 }
