@@ -4,6 +4,8 @@ import { fromLonLat } from "ol/proj.js";
 import { queryStringAppend } from "./util.ts";
 import { Task } from "@lit/task";
 import { classMap } from "lit/directives/class-map.js";
+import { consume } from "@lit/context";
+import { tokenContext } from "./identity.ts";
 
 
 @customElement('photo-uploader')
@@ -25,6 +27,9 @@ export default class PhotoUploader extends LitElement {
     }
   `;
 
+  @consume({context: tokenContext})
+  private token: string | undefined;
+
   #uploadTask = new Task(this, {
     args: () => [this.file],
     task: async ([file]) => {
@@ -35,7 +40,13 @@ export default class PhotoUploader extends LitElement {
         contentType: file.type,
         fileName: file.name,
       });
-      const resp = await fetch(endpoint)
+      const request = new Request(endpoint, {
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+        },
+        method: 'GET',
+      });
+      const resp = await fetch(request)
       if (resp.status !== 200)
         throw `Error authorizing upload: ${resp.statusText}`;
       const signedUrl = new URL(await resp.text());
