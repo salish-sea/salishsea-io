@@ -11,11 +11,11 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@auth0/auth0-spa-js": "^2.1.3",
-    "@aws-sdk/client-s3": "^3.812.0",
+    "@auth0/auth0-spa-js": "^2.2.0",
+    "@aws-sdk/client-s3": "^3.821.0",
     "@aws-sdk/hash-node": "^3.370.0",
     "@aws-sdk/protocol-http": "^3.370.0",
-    "@aws-sdk/s3-request-presigner": "^3.812.0",
+    "@aws-sdk/s3-request-presigner": "^3.821.0",
     "@aws-sdk/url-parser": "^3.370.0",
     "@dotenvx/dotenvx": "^1.43.0",
     "@formatjs/intl-datetimeformat": "^6.17.3",
@@ -25,7 +25,7 @@
     "@turf/distance": "^7.2.0",
     "@turf/helpers": "^7.2.0",
     "better-sqlite3": "^11.10.0",
-    "exifreader": "^4.30.1",
+    "exifreader": "^4.31.0",
     "express": "^5.1.0",
     "express-oauth2-jwt-bearer": "^1.6.1",
     "express-validator": "^7.2.1",
@@ -34,7 +34,7 @@
     "multer": "2.0.0",
     "uuid": "^11.1.0",
     "vite-express": "^0.21.1",
-    "zod": "^3.25.32"
+    "zod": "^3.25.48"
   },
   "devDependencies": {
     "@formatjs/intl-durationformat": "^0.7.3",
@@ -48,6 +48,6 @@
     "temporal-polyfill": "^0.3",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
-    "vitest": "^3.1.3"
+    "vitest": "^3.2.0"
   }
 }
