@@ -198,13 +198,13 @@ export default class AddSighting extends LitElement {
         </label>
         <label>
           <span class="label">Observer location</span>
-          <input @change=${this.onObserverInputChange} type="text" name="observer_location" size="14" placeholder="lon, lat">
+          <input @change=${this.onObserverInputChange} type="text" name="observer_location" size="14" placeholder="lat, lon">
           <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
           <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
         </label>
         <label>
           <span class="label">Subject location</span>
-          <input @change=${this.onSubjectInputChange} type="text" name="subject_location" size="14" placeholder="lon, lat" required>
+          <input @change=${this.onSubjectInputChange} type="text" name="subject_location" size="14" placeholder="lat, lon" required>
           <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
         </label>
         <label>
@@ -331,28 +331,32 @@ export default class AddSighting extends LitElement {
 
   private onObserverInputChange(e: Event) {
     const input = e.target as HTMLInputElement;
-    const match = input.value.match(/^\s*(-[0-9]{3}.[0-9]+),\s*([0-9][0-9].[0-9]+)\s*$/);
+    const match = input.value.match(/^\s*([0-9]{2}.[0-9]+),\s*(-\d{3}.[0-9]+)\s*$/);
     if (match) {
       const [, lat, lon] = match.map(v => parseFloat(v));
       this.#observerPoint.setCoordinates(fromLonLat([lon!, lat!]));
+    } else {
+      this.#observerPoint.setCoordinates([]);
     }
   }
 
   private onSubjectInputChange(e: Event) {
     const input = e.target as HTMLInputElement;
-    const match = input.value.match(/^\s*(-[0-9]{3}.[0-9]+),\s*([0-9][0-9].[0-9]+)\s*$/);
+    const match = input.value.match(/^\s*(\d{2}.[0-9]+),\s*(-\d{3}.[0-9]+)\s*$/);
     if (match) {
-      const [, lon, lat] = match.map(v => parseFloat(v));
+      const [, lat, lon] = match.map(v => parseFloat(v));
       // This triggers onCoordinatesChanged
       this.#subjectPoint.setCoordinates(fromLonLat([lon!, lat!]));
+    } else {
+      this.#subjectPoint.setCoordinates([]);
     }
   }
 
   private onCoordinatesChanged() {
     const observerCoordinates = toLonLat(this.#observerPoint.getCoordinates());
     const subjectCoordinates = toLonLat(this.#subjectPoint.getCoordinates());
-    let observerCoordinateStr = observerCoordinates.map(v => v.toFixed(4)).join(', ');
-    let subjectCoordinateStr = subjectCoordinates.map(v => v.toFixed(4)).join(', ');
+    let observerCoordinateStr = observerCoordinates.map(v => v.toFixed(4)).reverse().join(', ');
+    let subjectCoordinateStr = subjectCoordinates.map(v => v.toFixed(4)).reverse().join(', ');
     if (this.observerLocationInput && this.subjectLocationInput) {
       this.observerLocationInput.value = observerCoordinateStr;
       this.subjectLocationInput.value = subjectCoordinateStr;
