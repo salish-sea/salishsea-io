@@ -15,7 +15,7 @@ export type SightingForm = {
   count?: number | null;
   license_code: string;
   observed_at: number; // unix epoch time
-  observer_location: [number, number]; // lon, lat
+  observer_location: null | [number, number]; // lon, lat
   photo: string[];
   subject_location: [number, number]; // lon, lat
   taxon: string;

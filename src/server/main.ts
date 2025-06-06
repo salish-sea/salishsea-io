@@ -82,7 +82,7 @@ const sightingSchema = z.object({
   count: z.number().optional().nullish(),
   license_code: z.string(),
   observed_at: z.number(),
-  observer_location: z.tuple([z.number(), z.number()]),
+  observer_location: z.tuple([z.number(), z.number()]).nullable(),
   photo: z.array(z.string()).default([]),
   subject_location: z.tuple([z.number(), z.number()]),
   taxon: z.string(),
@@ -98,7 +98,7 @@ api.put(
       const sighting = {
         ...validatedData,
         id: req.params.sightingId!,
-        user: req.auth!.payload.sub,
+        user: req.auth!.payload.sub!,
       };
 
       upsertSighting(sighting);
@@ -107,6 +107,7 @@ api.put(
       if (error instanceof z.ZodError) {
         res.status(400).json({ errors: error.errors });
       } else {
+        console.log(error);
         res.status(500).json({ error: "Internal server error" });
       }
     }

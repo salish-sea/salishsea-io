@@ -8,11 +8,12 @@ const S3_BASE_URI = `https://${bucket}.s3.${region}.amazonaws.com`;
 
 type SightingRow = {
   id: string; // uuid
+  user: string;
   observed_at: number; // unix epoch time
   longitude: number;
   latitude: number;
-  observer_longitude: number;
-  observer_latitude: number;
+  observer_longitude: number | null;
+  observer_latitude: number | null;
   taxon_id: number;
   body: string | null;
   count: number | null;
@@ -43,9 +44,9 @@ const insertSightingTxn = db.transaction((sighting: SightingRow, photos: Omit<Ph
   for (const photo of photos)
     insertPhotoStatement.run(photo);
 });
-export function upsertSighting(form: SightingForm) {
+export function upsertSighting(form: SightingForm & {user: string}) {
   const [longitude, latitude] = form.subject_location;
-  const [observer_longitude, observer_latitude] = form.observer_location;
+  const [observer_longitude, observer_latitude] = form.observer_location || [null, null];
   const taxon = taxonByName(form.taxon);
   if (!taxon)
     throw `Couldn't find a taxon named ${form.taxon}`;
@@ -62,6 +63,7 @@ export function upsertSighting(form: SightingForm) {
     observer_longitude,
     taxon_id: taxon.id,
     url: form.url || null,
+    user: form.user,
   };
   const photos = form.photo.map((photo, idx) => ({
     sighting_id: sighting.id,

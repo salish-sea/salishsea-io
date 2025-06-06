@@ -30,11 +30,17 @@ export default class AddSighting extends LitElement {
     task: async([request]: [Request]) => {
       const response = await fetch(request);
       const data = await response.json();
-      this.form!.reset();
-      this.photos = [];
-      const event = new CustomEvent('observation-created', {bubbles: true, composed: true, detail: this.id});
-      this.dispatchEvent(event);
-      return data;
+      if (response.status === 201) {
+        this.form!.reset();
+        this.#observerPoint.setCoordinates([]);
+        this.#subjectPoint.setCoordinates([]);
+        this.photos = [];
+        const event = new CustomEvent('observation-created', {bubbles: true, composed: true, detail: this.id});
+        this.dispatchEvent(event);
+        return data;
+      } else {
+        throw response.statusText;
+      }
     }
   });
 
@@ -192,7 +198,7 @@ export default class AddSighting extends LitElement {
         </label>
         <label>
           <span class="label">Observer location</span>
-          <input @change=${this.onObserverInputChange} type="text" name="observer_location" size="14" placeholder="lon, lat" required>
+          <input @change=${this.onObserverInputChange} type="text" name="observer_location" size="14" placeholder="lon, lat">
           <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
           <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
         </label>
@@ -327,7 +333,7 @@ export default class AddSighting extends LitElement {
     const input = e.target as HTMLInputElement;
     const match = input.value.match(/^\s*(-[0-9]{3}.[0-9]+),\s*([0-9][0-9].[0-9]+)\s*$/);
     if (match) {
-      const [, lon, lat] = match.map(v => parseFloat(v));
+      const [, lat, lon] = match.map(v => parseFloat(v));
       this.#observerPoint.setCoordinates(fromLonLat([lon!, lat!]));
     }
   }
@@ -374,7 +380,8 @@ export default class AddSighting extends LitElement {
       .toZonedDateTime({timeZone: 'PST8PDT', plainTime: data.observed_time as string})
       .epochMilliseconds / 1000;
     data.photo = formData.getAll('photo');
-    data.observer_location = toLonLat(this.#observerPoint.getCoordinates());
+    const observerCoords = toLonLat(this.#observerPoint.getCoordinates())
+    data.observer_location = observerCoords.length ? observerCoords : null;
     data.subject_location = toLonLat(this.#subjectPoint.getCoordinates());
     const request = new Request(form.action, {
       body: JSON.stringify(data),
