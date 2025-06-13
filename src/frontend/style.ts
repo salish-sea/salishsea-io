@@ -10,6 +10,7 @@ import { Point, type LineString } from 'ol/geom.js';
 import type Feature from 'ol/Feature.js';
 import Icon from 'ol/style/Icon.js';
 import arrowPNG from '../assets/arrow.png';
+import hydrophoneIcon from '../assets/hydrophone-default.svg?url';
 
 const black = '#000000';
 const yellow = '#ffff00';
@@ -194,4 +195,12 @@ export const viewingLocationStyle = (location: FeatureLike) => {
       }),
     }),
   ];
+}
+
+export const hydrophoneStyle = (_hydrophone: FeatureLike) => {
+  return new Style({
+    image: new Icon({
+      src: hydrophoneIcon,
+    }),
+  })
 }

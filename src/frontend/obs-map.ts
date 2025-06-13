@@ -9,13 +9,14 @@ import Link from 'ol/interaction/Link.js';
 import './obs-panel.ts';
 import './obs-summary.ts';
 import viewingLocationURL from '../assets/orcanetwork-viewing-locations.geojson?url';
+import hydrophonesURL from '../assets/orcasound-hydrophones.geojson?url';
 
 // imports below these lines smell like they support functionality that should be factored out
 import VectorLayer from 'ol/layer/Vector.js';
 import TileLayer from 'ol/layer/Tile.js';
 import { fromLonLat } from 'ol/proj.js';
 import XYZ from 'ol/source/XYZ.js';
-import { editStyle, featureStyle, selectedObservationStyle, viewingLocationStyle} from './style.ts';
+import { editStyle, featureStyle, hydrophoneStyle, selectedObservationStyle, viewingLocationStyle} from './style.ts';
 import type Point from 'ol/geom/Point.js';
 import VectorSource from 'ol/source/Vector.js';
 import type Feature from 'ol/Feature.js';
@@ -26,6 +27,7 @@ import { all } from 'ol/loadingstrategy.js';
 import { never } from 'ol/events/condition.js';
 import { containsCoordinate } from 'ol/extent.js';
 import type { Coordinate } from 'ol/coordinate.js';
+import type MapBrowserEvent from 'ol/MapBrowserEvent.js';
 
 const sphericalMercator = 'EPSG:3857';
 const initialCenter = [-122.450, 47.8];
@@ -44,7 +46,7 @@ export class ObsMap extends LitElement {
     source: this.temporalSource,
     style: featureStyle,
   })
-  #viewingLocationsLayer = new VectorLayer({
+  private viewingLocationsLayer = new VectorLayer({
     minZoom: 12,
     source: new VectorSource({
       attributions: 'Sighting Viewpoints by Thorsten Lisker and Alisa Lemire Brooks of Orca Network.',
@@ -54,6 +56,14 @@ export class ObsMap extends LitElement {
     }),
     style: viewingLocationStyle,
   });
+  private hydrophoneLayer = new VectorLayer({
+    source: new VectorSource({
+      format: new GeoJSON<Feature<Point>>(),
+      strategy: all,
+      url: hydrophonesURL,
+    }),
+    style: hydrophoneStyle,
+  })
 
   @property({type: String, reflect: true})
   set url(url: string) {
@@ -103,7 +113,8 @@ export class ObsMap extends LitElement {
         }),
       }),
       this.temporalLayer,
-      this.#viewingLocationsLayer,
+      this.viewingLocationsLayer,
+      this.hydrophoneLayer,
       new VectorLayer({
         source: this.drawingSource,
         style: featureStyle,
@@ -143,6 +154,12 @@ export class ObsMap extends LitElement {
       const id = e.selected[0]?.getId() as string | undefined;
       const evt = new CustomEvent('focus-sighting', {bubbles: true, composed: true, detail: id});
       this.dispatchEvent(evt);
+    });
+    this.map.on('click', (evt: MapBrowserEvent) => {
+      const feature = this.map.getFeaturesAtPixel(evt.pixel).filter(f => f.get('kind') === 'Hydrophone')[0];
+      if (!feature)
+        return;
+      window.open(feature.get('url'), '_blank')
     });
   }
 
