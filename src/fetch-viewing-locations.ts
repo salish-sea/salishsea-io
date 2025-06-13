@@ -28,7 +28,7 @@ const collection: FeatureCollection = {
   type: 'FeatureCollection',
   features,
 }
-writeFileSync(assetPath, JSON.stringify(collection));
+writeFileSync(assetPath, JSON.stringify(collection) + '\n');
 
 type Kml = {
   kml: {

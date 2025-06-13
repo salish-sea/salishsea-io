@@ -31,12 +31,9 @@ export default class AddSighting extends LitElement {
       const response = await fetch(request);
       const data = await response.json();
       if (response.status === 201) {
-        this.form!.reset();
-        this.#observerPoint.setCoordinates([]);
-        this.#subjectPoint.setCoordinates([]);
-        this.photos = [];
         const event = new CustomEvent('observation-created', {bubbles: true, composed: true, detail: this.id});
         this.dispatchEvent(event);
+        this.reset();
         return data;
       } else {
         throw response.statusText;
@@ -237,7 +234,7 @@ export default class AddSighting extends LitElement {
           ${this._saveTask.render({
             initial: () => html`
               <output>&nbsp;</output>
-              <button type="button" @click=${this.cancel}>Cancel</button>
+              <button type="button" @click=${this.onCancel}>Cancel</button>
               <button type="submit">Create</button>
             `,
             pending: () => html`
@@ -272,6 +269,11 @@ export default class AddSighting extends LitElement {
       timeout: 1000 * 5,
       enableHighAccuracy: false,
     });
+  }
+
+  private onCancel() {
+    this.reset();
+    this.cancel();
   }
 
   private onDragOver(e: DragEvent) {
@@ -399,8 +401,6 @@ export default class AddSighting extends LitElement {
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
-    this.addEventListener('reset', () => {console.log('reset'); this.id = v7()});
-
     const sightingProperties: SightingStyleProperties = {
       individuals: [],
       kind: 'Sighting',
@@ -421,6 +421,19 @@ export default class AddSighting extends LitElement {
     this.drawingSource!.addFeatures([observerFeature, subjectFeature, this.#bearingFeature]);
     this.#observerPoint.on('change', this.onCoordinatesChanged.bind(this));
     this.#subjectPoint.on('change', this.onCoordinatesChanged.bind(this));
+  }
+
+  disconnectedCallback(): void {
+    this.reset();
+    super.disconnectedCallback();
+  }
+
+  private reset() {
+    this.form!.reset();
+    this.#observerPoint.setCoordinates([]);
+    this.#subjectPoint.setCoordinates([]);
+    this.photos = [];
+    this.id = v7();
   }
 }
 

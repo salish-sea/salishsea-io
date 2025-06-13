@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc && vite build",
     "dev": "dotenvx run -- nodemon -w src/server -x node src/server/main.ts",
+    "fetch-hydrophones": "dotenvx run -- node src/fetch-hydrophones.ts",
     "fetch-viewing-locations": "dotenvx run -- node src/fetch-viewing-locations.ts",
     "preview": "vite preview",
     "test": "vitest"
