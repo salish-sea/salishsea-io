@@ -35,7 +35,9 @@ const checkJwt = auth({
 });
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
-const extentOfInterest: Extent = [-136, 36, -120, 54];
+const acartiaExtent: Extent = [-136, 36, -120, 54];
+const srkwExtent: Extent = [-136, 36, -122, 54];
+const salishSeaExtent: Extent = [-126, 47, -122, 50.5];
 
 const collectFeatures = (date: Temporal.PlainDate, time?: Temporal.PlainTime) => {
   const earliest = date.toZonedDateTime('PST8PDT');
@@ -137,11 +139,17 @@ const loadRecent = async () => {
   try {
     const earliest = Temporal.Now.plainDateISO().subtract({hours: 240});
     const latest = Temporal.Now.plainDateISO().add({hours: 24});
-    const sightings = await maplify.fetchSightings(earliest, latest, extentOfInterest);
+    const sightings = await maplify.fetchSightings(earliest, latest, acartiaExtent);
     const sightingsInserted = maplify.loadSightings(sightings);
     console.info(`Loaded ${sightingsInserted} sightings from Maplify.`);
 
-    const observations = await inaturalist.fetchObservations({earliest, extent: extentOfInterest, latest, taxon_ids: [152871]});
+    const salishSeaObservations = await inaturalist.fetchObservations({earliest, extent: salishSeaExtent, latest, taxon_ids: [inaturalist.cetaceaId, inaturalist.otariidaeId]});
+    const salishSeaIds = salishSeaObservations.map(obs => obs.id);
+    const srkwObservations = await inaturalist.fetchObservations({earliest, extent: srkwExtent, latest, taxon_ids: [inaturalist.orcaId]});
+    const observations = [
+      ...salishSeaObservations,
+      ...srkwObservations.filter(obs => salishSeaIds.indexOf(obs.id) === -1),
+    ];
     const observationsInserted = await inaturalist.loadObservations(observations);
     console.info(`Loaded ${observationsInserted} sightings from iNaturalist.`);
   } catch (e) {

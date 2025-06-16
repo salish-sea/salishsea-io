@@ -5,6 +5,10 @@ import type { Extent } from "../types.ts";
 import { z } from 'zod';
 import { withTimeout } from "../utils.ts";
 
+export const orcaId = 41521;
+export const cetaceaId = 152871;
+export const otariidaeId = 41736;
+
 const ResultPageSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
   z.object({
     total_results: z.number(),
@@ -100,7 +104,7 @@ export async function fetchObservations({earliest, extent: [minx, miny, maxx, ma
         signal,
       });
       return await fetch(request);
-    })
+    });
     const payload = await response.json();
     const body = ObservationResultPageSchema.parse(payload);
     total = body.total_results;
