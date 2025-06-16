@@ -30,7 +30,7 @@ export default class AddSighting extends LitElement {
     task: async([request]: [Request]) => {
       const response = await fetch(request);
       const data = await response.json();
-      if (response.status === 201) {
+      if (response.ok) {
         const event = new CustomEvent('observation-created', {bubbles: true, composed: true, detail: this.id});
         this.dispatchEvent(event);
         this.reset();

@@ -2,34 +2,60 @@ import { Temporal } from "temporal-polyfill";
 import { queryStringAppend } from "../frontend/util.ts";
 import { db } from "./database.ts";
 import type { Extent } from "../types.ts";
+import { z } from 'zod';
+import { withTimeout } from "../utils.ts";
 
-type ResultPage<T> = {
-  total_results: number;
-  page: number;
-  per_page: number;
-  results: T[];
-}
+const ResultPageSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.object({
+    total_results: z.number(),
+    page: z.number(),
+    per_page: z.number(),
+    results: z.array(itemSchema),
+  });
 
-type Photo = {
-  id: number;
-  attribution: string;
-  hidden: boolean;
-  license_code: string | null;
-  original_dimensions: {height: number, width: number};
-  url: string; // e.g. `.../square.jpeg`
-};
+const PhotoSchema = z.object({
+  id: z.number(),
+  attribution: z.string(),
+  hidden: z.boolean(),
+  license_code: z.string().nullable(),
+  original_dimensions: z.object({
+    height: z.number(),
+    width: z.number(),
+  }),
+  url: z.string(),
+});
 
-type Observation = {
-  id: number;
-  description: string | null;
-  geojson: {coordinates: [number, number], type: 'Point'};
-  license_code: string;
-  photos: Photo[],
-  taxon: {id: number; name: string; preferred_common_name: string | null};
-  time_observed_at: string | null;
-  uri: string;
-  user: {login: string};
-}
+// It's worth validating the query results because it's easy for this type to diverge from the field spec, below.
+const ObservationSchema = z.object({
+  id: z.number(),
+  description: z.string().nullable(),
+  geojson: z.object({
+    coordinates: z.tuple([z.number(), z.number()]),
+    type: z.literal('Point'),
+  }),
+  license_code: z.string(),
+  photos: z.array(PhotoSchema),
+  taxon: z.object({
+    id: z.number(),
+    name: z.string(),
+    preferred_common_name: z.string().nullable(),
+  }),
+  time_observed_at: z.string().nullable(),
+  uri: z.string(),
+  user: z.object({
+    login: z.string().min(1),
+  }),
+});
+
+const ObservationResultPageSchema = ResultPageSchema(ObservationSchema);
+export type ObservationResultPage = z.infer<typeof ObservationResultPageSchema>;
+
+// Export the schemas
+export { PhotoSchema, ObservationSchema };
+
+// Export the inferred types if needed
+export type Photo = z.infer<typeof PhotoSchema>;
+export type Observation = z.infer<typeof ObservationSchema>;
 
 type ObservationRow = {
   id: number;
@@ -42,34 +68,10 @@ type ObservationRow = {
   photos_json: string | null;
 }
 
-function assertValidObservation(obs: any): asserts obs is Observation {
-  if (typeof obs !== 'object')
-    throw 'Invalid observation';
-  if (!('geojson' in obs))
-    throw 'Observation has no geojson field';
-  if (typeof obs.geojson !== 'object')
-    throw 'Observation has invalid geojson field';
-  // etc
-}
-
-function assertValidResponse(body: any): asserts body is ResultPage<Observation> {
-  if (typeof body !== 'object')
-    throw 'Response from iNaturalist was not an object';
-  if (!('results' in body))
-    throw 'Response from iNaturalist does not have results';
-  if (!Array.isArray(body.results))
-    throw 'Invalid results in iNaturalist response';
-  for (const obs of body.results) {
-    assertValidObservation(obs);
-  }
-}
-
 const observationSearch = 'https://api.inaturalist.org/v2/observations';
 const observationFieldspec = "(id:!t,description:!t,geojson:!t,photos:(id:!t,attribution:!t,hidden:!t,license_code:!t,original_dimensions:(height:!t,width:!t),url:!t),license_code:!t,taxon:(id:!t,name:!t,preferred_common_name:!t),time_observed_at:!t,uri:!t,user:(login:!t))";
-export async function fetchObservations(
-  {earliest, extent: [minx, miny, maxx, maxy], latest, taxon_ids}:
-    {earliest: Temporal.PlainDate, extent: Extent, latest: Temporal.PlainDate, taxon_ids: number[]}
-) {
+type FetchOptions = {earliest: Temporal.PlainDate, extent: Extent, latest: Temporal.PlainDate, taxon_ids: number[]};
+export async function fetchObservations({earliest, extent: [minx, miny, maxx, maxy], latest, taxon_ids}: FetchOptions) {
   const per_page = 200;
   let page = 1;
   let total = Infinity;
@@ -90,11 +92,17 @@ export async function fetchObservations(
       page,
       per_page,
     });
-    const request = new Request(url);
-    request.headers.set('Accept', 'application/json');
-    const response = await fetch(url);
-    const body = await response.json();
-    assertValidResponse(body);
+    const response = await withTimeout(30 * 1000, async (signal) => {
+      const request = new Request(url, {
+        headers: {
+          Accept: 'application/json',
+        },
+        signal,
+      });
+      return await fetch(request);
+    })
+    const payload = await response.json();
+    const body = ObservationResultPageSchema.parse(payload);
     total = body.total_results;
     page++;
     results.push(...body.results);

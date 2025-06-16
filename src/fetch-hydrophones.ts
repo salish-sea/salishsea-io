@@ -36,6 +36,7 @@ type Feed = {
     name: string;
     visible: boolean;
     slug: string;
+    intro_html: string;
     lat_lng: {
       lng: number;
       lat: number;
