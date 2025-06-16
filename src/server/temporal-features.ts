@@ -78,18 +78,19 @@ FROM (
   UNION ALL
 
   SELECT
-    'salishsea:' || id AS id,
+    'salishsea:' || s.id AS id,
     body,
     count,
     latitude,
     longitude,
     observed_at as "timestamp",
-    (SELECT json_group_array(json_object('url', href)) FROM sighting_photos WHERE sighting_id = sightings.id) AS photos_json,
+    (SELECT json_group_array(json_object('url', href)) FROM sighting_photos WHERE sighting_id = s.id) AS photos_json,
     'salishsea',
     url,
-    'unknown',
+    coalesce(u.name, u.nickname, 'someone') AS user,
     taxon_id
-  FROM sightings
+  FROM sightings AS s
+  LEFT JOIN users AS u ON s.user = u.sub
 ) AS s
 JOIN taxa t ON s.taxon_id = t.id
 WHERE timestamp BETWEEN @earliest AND @latest

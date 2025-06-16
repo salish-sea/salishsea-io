@@ -15,6 +15,7 @@ import { upsertSighting } from "./sighting.ts";
 import { getPresignedUserObjectURL } from "./storage.ts";
 import { v7 } from "uuid";
 import {auth} from 'express-oauth2-jwt-bearer';
+import { storeUser } from "./user.ts";
 
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret)
@@ -93,6 +94,7 @@ const sightingSchema = z.object({
 api.put(
   "/sightings/:sightingId",
   checkJwt,
+  storeUser,
   (req: Request, res: Response) => {
     try {
       const validatedData = sightingSchema.parse(req.body);

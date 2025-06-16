@@ -2,6 +2,7 @@ import { createAuth0Client, User } from '@auth0/auth0-spa-js';
 import { createContext } from '@lit/context';
 
 const redirectUri = new URL('/auth_redirect.html', window.location.href).toString();
+const scopes ='openid name email';
 
 export const userContext = createContext<User | undefined>(Symbol('user'));
 export const tokenContext = createContext<string | undefined>(Symbol('token'));
@@ -20,7 +21,7 @@ export const doLogIn = async () => {
     authorizationParams: {
       audience: import.meta.env.VITE_AUTH0_AUDIENCE,
       redirect_uri: redirectUri,
-      scope: 'openid name email',
+      scope: scopes,
     }
   });
 }
@@ -36,7 +37,7 @@ export const getTokenSilently = async () => {
     authorizationParams: {
       audience: import.meta.env.VITE_AUTH0_AUDIENCE,
       redirect_uri: redirectUri,
-      scope: 'openid name email',
+      scope: scopes,
     }
   });
 };
