@@ -3,6 +3,7 @@ import { db } from './database.ts';
 import type { SightingForm } from '../types.ts';
 import { taxonByName } from './taxon.ts';
 import { bucket, region } from './storage.ts';
+import path from 'node:path';
 
 const S3_BASE_URI = `https://${bucket}.s3.${region}.amazonaws.com`;
 
@@ -67,7 +68,7 @@ export function upsertSighting(form: SightingForm & {user: string}) {
   };
   const photos = form.photo.map((photo, idx) => ({
     sighting_id: sighting.id,
-    href: `https://${S3_BASE_URI}/${photo}`,
+    href: path.join(S3_BASE_URI, photo),
     idx,
     license_code: form.license_code,
   }));

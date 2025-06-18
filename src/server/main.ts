@@ -37,7 +37,7 @@ const checkJwt = auth({
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
 const acartiaExtent: Extent = [-136, 36, -120, 54];
-const srkwExtent: Extent = [-136, 36, -122, 54];
+const srkwExtent: Extent = [-125.5, 36, -122, 54];
 const salishSeaExtent: Extent = [-126, 47, -122, 50.5];
 
 const collectFeatures = (date: Temporal.PlainDate, time?: Temporal.PlainTime) => {
@@ -75,7 +75,7 @@ api.get(
     const date = Temporal.PlainDate.from(d);
     const observations = collectFeatures(date);
     res.contentType('application/geo+json');
-    res.header('Cache-Control', 'must-revalidate, public, max-age=3600');
+    res.header('Cache-Control', 'public, stale-if-error=14400');
     res.json(observations);
   }
 );
