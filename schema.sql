@@ -16,4 +16,59 @@ CREATE INDEX inaturalist_observations_observed_at on inaturalist_observations (o
 CREATE TABLE sightings (id text primary key not null, user text not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real, observer_latitude real, taxon_id int not null, body text, count int, individuals text, url text);
 CREATE TABLE sighting_photos (id integer primary key not null, sighting_id text not null REFERENCES sightings (id), idx integer not null, href text not null, license_code text not null, unique(id, idx));
 CREATE INDEX sighting_photos_by_sighting_id ON sighting_photos (sighting_id);
+CREATE VIEW combined_observations AS
+SELECT
+  s.*,
+  coalesce(t.vernacular_name, t.scientific_name) AS name,
+  t.scientific_name,
+  t.vernacular_name
+FROM (
+  SELECT
+    'maplify:' || id AS id,
+    comments AS body,
+    iif(number_sighted > 0, number_sighted) AS count,
+    latitude,
+    longitude,
+    created AS timestamp,
+    iif(photo_url is not null, json_array(json_object('url', photo_url))) AS photos_json,
+    source,
+    null as url,
+    null as user,
+    taxon_id
+  FROM maplify_sightings
+
+  UNION ALL
+
+  SELECT
+    'inaturalist:' || id AS id,
+    description AS body,
+    null as count,
+    latitude,
+    longitude,
+    observed_at as "timestamp",
+    photos_json,
+    'iNaturalist' as source,
+    url,
+    username AS user,
+    taxon_id
+  FROM inaturalist_observations
+
+  UNION ALL
+
+  SELECT
+    'salishsea:' || s.id AS id,
+    body,
+    count,
+    latitude,
+    longitude,
+    observed_at as "timestamp",
+    (SELECT json_group_array(json_object('url', href)) FROM sighting_photos WHERE sighting_id = s.id) AS photos_json,
+    'salishsea',
+    url,
+    coalesce(u.name, u.nickname, 'someone') AS user,
+    taxon_id
+  FROM sightings AS s
+  LEFT JOIN users AS u ON s.user = u.sub
+) AS s
+JOIN taxa t ON s.taxon_id = t.id
 COMMIT;

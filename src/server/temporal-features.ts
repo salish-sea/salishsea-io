@@ -39,62 +39,9 @@ type SightingsBetweenRow = {
   vernacular_name: string | null;
 };
 const sightingsBetweenQuery = db.prepare<{earliest: number; latest: number}, SightingsBetweenRow>(`
-SELECT
-  s.*,
-  coalesce(t.vernacular_name, t.scientific_name) AS name,
-  t.scientific_name,
-  t.vernacular_name
-FROM (
-  SELECT
-    'maplify:' || id AS id,
-    nullif(replace(trim(comments, ' '), '<br>', '\n'), '') AS body,
-    iif(number_sighted > 0, number_sighted) AS count,
-    latitude,
-    longitude,
-    created AS timestamp,
-    iif(photo_url is not null, json_array(json_object('url', photo_url))) AS photos_json,
-    source,
-    null as url,
-    null as user,
-    taxon_id
-  FROM maplify_sightings
-
-  UNION ALL
-
-  SELECT
-    'inaturalist:' || id AS id,
-    nullif(trim(description, ' '), '') AS body,
-    null as count,
-    latitude,
-    longitude,
-    observed_at as "timestamp",
-    photos_json,
-    'iNaturalist' as source,
-    url,
-    username AS user,
-    taxon_id
-  FROM inaturalist_observations
-
-  UNION ALL
-
-  SELECT
-    'salishsea:' || s.id AS id,
-    body,
-    count,
-    latitude,
-    longitude,
-    observed_at as "timestamp",
-    (SELECT json_group_array(json_object('url', href)) FROM sighting_photos WHERE sighting_id = s.id) AS photos_json,
-    'salishsea',
-    url,
-    coalesce(u.name, u.nickname, 'someone') AS user,
-    taxon_id
-  FROM sightings AS s
-  LEFT JOIN users AS u ON s.user = u.sub
-) AS s
-JOIN taxa t ON s.taxon_id = t.id
+SELECT * FROM combined_observations
 WHERE timestamp BETWEEN @earliest AND @latest
-ORDER BY timestamp asc;
+ORDER BY timestamp ASC;
 `);
 export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.Instant) => {
   const features: Feature<Point, SightingProperties>[] = sightingsBetweenQuery
