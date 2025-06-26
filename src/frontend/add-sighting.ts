@@ -9,7 +9,7 @@ import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
 import { bearingStyle, featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
-import { licenseCodes, type SightingForm, type UpsertSightingResponse } from "../types.ts";
+import { licenseCodes, type UpsertSightingResponse } from "../types.ts";
 import { Temporal } from "temporal-polyfill";
 import { tokenContext } from "./identity.ts";
 import drawingSourceContext from "./drawing-context.ts";
@@ -242,7 +242,7 @@ export default class AddSighting extends LitElement {
               <button type="button" @click=${this.cancel}>Cancel</button>
               <button type="submit" disabled>Create</button>
             `,
-            complete: (_value: SightingForm) => html`
+            complete: () => html`
               <output class="success">Sighting created.</output>
               <button type="button" @click=${this.cancel}>Cancel</button>
               <button type="submit">Create</button>

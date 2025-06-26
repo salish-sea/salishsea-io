@@ -4,7 +4,6 @@ import type { SightingForm } from '../types.ts';
 import { taxonByName } from './taxon.ts';
 import { bucket, region } from './storage.ts';
 import path from 'node:path';
-import type { Temporal } from 'temporal-polyfill';
 
 const S3_BASE_URI = `https://${bucket}.s3.${region}.amazonaws.com`;
 
