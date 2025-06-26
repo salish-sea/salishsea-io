@@ -135,7 +135,7 @@ export default class SalishSea extends LitElement {
   @property({type: String, reflect: true})
   dbt: number = 0;
 
-  // #refreshTimer: NodeJS.Timeout
+  #refreshTimer: NodeJS.Timeout
 
   constructor() {
     super();
@@ -168,11 +168,11 @@ export default class SalishSea extends LitElement {
         throw "oh no";
       this.dbt = evt.detail;
     });
-    // this.#refreshTimer = setInterval(() => this.nonce = Temporal.Now.instant().epochMilliseconds, 1000 * 30);
+    this.#refreshTimer = setInterval(() => this.dbt += 1, 1000 * 30);
   }
 
   disconnectedCallback(): void {
-    // clearInterval(this.#refreshTimer);
+    clearInterval(this.#refreshTimer);
   }
 
   protected render(): unknown {
