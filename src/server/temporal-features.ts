@@ -32,7 +32,9 @@ type SightingsBetweenRow = {
   source: string;
   timestamp: number;
   url: string | null;
-  user: string | null;
+  path: string | null;
+  userName: string | null;
+  userSub: string | null;
 
   name: string; // vernacular name, or else scientific name
   scientific_name: string;

@@ -13,9 +13,11 @@ CREATE TABLE IF NOT EXISTS "vernacular_names_temp"(
  "created" TEXT);
 CREATE TABLE inaturalist_observations (id int not null primary key, description text, longitude real not null, latitude real not null, taxon_id integer not null, observed_at int not null, license_code varchar, photos_json json, url string not null, username string not null);
 CREATE INDEX inaturalist_observations_observed_at on inaturalist_observations (observed_at);
-CREATE TABLE sightings (id text primary key not null, user text not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real, observer_latitude real, taxon_id int not null, body text, count int, individuals text, url text);
-CREATE TABLE sighting_photos (id integer primary key not null, sighting_id text not null REFERENCES sightings (id), idx integer not null, href text not null, license_code text not null, unique(id, idx));
+CREATE TABLE sightings (id text primary key not null, created_at integer not null, updated_at integer not null, user text not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real, observer_latitude real, taxon_id int not null, body text, count int, individuals text, url text);
+CREATE TABLE sighting_photos (id integer primary key not null, sighting_id text not null REFERENCES sightings (id) ON DELETE CASCADE, idx integer not null, href text not null, license_code text not null, unique(id, idx));
 CREATE INDEX sighting_photos_by_sighting_id ON sighting_photos (sighting_id);
+CREATE TABLE users (id integer primary key autoincrement, sub text not null unique, name text, nickname text, email text, updated_at int not null);
+DROP VIEW IF EXISTS combined_observations;
 CREATE VIEW combined_observations AS
 SELECT
   s.*,
@@ -30,10 +32,12 @@ FROM (
     latitude,
     longitude,
     created AS timestamp,
-    iif(photo_url is not null, json_array(json_object('url', photo_url))) AS photos_json,
+    iif(photo_url IS NOT NULL, json_array(json_object('url', photo_url))) AS photos_json,
     source,
-    null as url,
-    null as user,
+    null AS url,
+    null AS path,
+    null AS userName,
+    null AS userSub,
     taxon_id
   FROM maplify_sightings
 
@@ -42,14 +46,16 @@ FROM (
   SELECT
     'inaturalist:' || id AS id,
     description AS body,
-    null as count,
+    null AS count,
     latitude,
     longitude,
-    observed_at as "timestamp",
+    observed_at AS "timestamp",
     photos_json,
-    'iNaturalist' as source,
+    'iNaturalist' AS source,
     url,
-    username AS user,
+    null AS path,
+    username AS userName,
+    null AS userSub,
     taxon_id
   FROM inaturalist_observations
 
@@ -61,14 +67,16 @@ FROM (
     count,
     latitude,
     longitude,
-    observed_at as "timestamp",
+    observed_at AS "timestamp",
     (SELECT json_group_array(json_object('url', href)) FROM sighting_photos WHERE sighting_id = s.id) AS photos_json,
     'salishsea',
     url,
-    coalesce(u.name, u.nickname, 'someone') AS user,
+    '/api/sightings/' || s.id AS path,
+    coalesce(u.name, u.nickname, 'someone') AS userName,
+    s.user AS userSub,
     taxon_id
   FROM sightings AS s
   LEFT JOIN users AS u ON s.user = u.sub
 ) AS s
-JOIN taxa t ON s.taxon_id = t.id
+JOIN taxa t ON s.taxon_id = t.id;
 COMMIT;

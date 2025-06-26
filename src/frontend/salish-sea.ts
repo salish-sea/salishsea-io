@@ -133,7 +133,7 @@ export default class SalishSea extends LitElement {
   date: string
 
   @property({type: String, reflect: true})
-  nonce: string = Temporal.Now.instant().epochMilliseconds.toString();
+  dbt: number = 0;
 
   #refreshTimer: NodeJS.Timeout
 
@@ -163,12 +163,12 @@ export default class SalishSea extends LitElement {
         throw "oh no";
       this.date = evt.detail;
     });
-    this.addEventListener('observation-created', (evt) => {
-      if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
+    this.addEventListener('database-changed', (evt) => {
+      if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'number')
         throw "oh no";
-      this.nonce = evt.detail;
+      this.dbt = evt.detail;
     });
-    this.#refreshTimer = setInterval(() => this.nonce = Temporal.Now.instant().epochMilliseconds.toString(), 1000 * 30);
+    // this.#refreshTimer = setInterval(() => this.nonce = Temporal.Now.instant().epochMilliseconds, 1000 * 30);
   }
 
   disconnectedCallback(): void {
@@ -176,7 +176,7 @@ export default class SalishSea extends LitElement {
   }
 
   protected render(): unknown {
-    const featureHref = queryStringAppend('/api/temporal-features', {d: this.date, nonce: this.nonce});
+    const featureHref = queryStringAppend('/api/temporal-features', {d: this.date, t: this.dbt});
     return html`
       <header>
         <h1>SalishSea.io <a @click=${this.onAboutClicked} class="about-link" href="#" title="About SalishSea.io">&#9432;</a></h1>

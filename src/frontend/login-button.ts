@@ -12,7 +12,7 @@ export default class LoginButton extends LitElement {
   `;
 
   @consume({context: userContext, subscribe: true})
-  user!: User | undefined;
+  user: User | undefined;
 
   @consume({context: doLogInContext})
   doLogIn!: () => Promise<boolean>;

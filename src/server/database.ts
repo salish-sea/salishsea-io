@@ -1,6 +1,8 @@
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
 
+export type Timestamp = number; // epoch time in milliseconds
+
 const testDatabase = () => {
   const db = new Database();
   const sql = fs.readFileSync('schema.sql', 'utf8');

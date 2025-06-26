@@ -10,8 +10,8 @@ import { query, matchedData, validationResult } from 'express-validator';
 import { z } from "zod";
 import { imputeTravelLines } from "./travel.ts";
 import { sightingsBetween } from "./temporal-features.ts";
-import type { Extent, FeatureProperties } from "../types.ts";
-import { upsertSighting } from "./sighting.ts";
+import type { Extent, FeatureProperties, UpsertSightingResponse } from "../types.ts";
+import { deleteSighting, upsertSighting } from "./sighting.ts";
 import { getPresignedUserObjectURL } from "./storage.ts";
 import { v7 } from "uuid";
 import {auth} from 'express-oauth2-jwt-bearer';
@@ -98,15 +98,14 @@ api.put(
   (req: Request, res: Response) => {
     try {
       const validatedData = sightingSchema.parse(req.body);
+      const t = Temporal.Now.instant().epochMilliseconds;
+      const user = req.auth!.payload.sub!;
 
-      const sighting = {
-        ...validatedData,
-        id: req.params.sightingId!,
-        user: req.auth!.payload.sub!,
-      };
+      const sighting = {...validatedData, id: req.params.sightingId!};
 
-      upsertSighting(sighting);
-      res.status(201).json(sighting);
+      upsertSighting(sighting, t, t, user);
+      const response: UpsertSightingResponse = {id: sighting.id, t};
+      res.status(201).json(response);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ errors: error.errors });
@@ -117,6 +116,25 @@ api.put(
     }
   }
 );
+
+api.delete(
+  "/sightings/:sightingId",
+  checkJwt,
+  (req: Request, res: Response) => {
+    const id = req.params.sightingId!;
+    const user = req.auth!.payload.sub!;
+    const t = Temporal.Now.instant().epochMilliseconds;
+    const deleted = deleteSighting(id, user);
+    if (!deleted) {
+      res.statusCode = 404;
+      res.statusMessage = "Sighting not found or else owned by someone else";
+      res.status(404);
+    } else {
+      const response: UpsertSightingResponse = {id, t};
+      res.status(200).json(response);
+    }
+  }
+)
 
 api.get(
   "/sightings/:sightingId/uploadUrl",

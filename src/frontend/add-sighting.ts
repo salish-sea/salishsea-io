@@ -9,7 +9,7 @@ import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
 import { bearingStyle, featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
-import { licenseCodes, type SightingForm } from "../types.ts";
+import { licenseCodes, type SightingForm, type UpsertSightingResponse } from "../types.ts";
 import { Temporal } from "temporal-polyfill";
 import { tokenContext } from "./identity.ts";
 import drawingSourceContext from "./drawing-context.ts";
@@ -29,9 +29,9 @@ export default class AddSighting extends LitElement {
     autoRun: false,
     task: async([request]: [Request]) => {
       const response = await fetch(request);
-      const data = await response.json();
+      const data: UpsertSightingResponse = await response.json();
       if (response.ok) {
-        const event = new CustomEvent('observation-created', {bubbles: true, composed: true, detail: this.id});
+        const event = new CustomEvent('database-changed', {bubbles: true, composed: true, detail: data.t});
         this.dispatchEvent(event);
         this.reset();
         return data;

@@ -1,3 +1,4 @@
+import type { Timestamp } from './server/database.ts';
 import type {FerryLocationProperties} from './server/ferries.ts'
 import type { SightingProperties } from './server/temporal-features.ts';
 export type { SightingProperties } from './server/temporal-features.ts';
@@ -32,3 +33,8 @@ export const licenseCodes = {
   "cc-by-nd": "CC-BY-ND (attribution, no derivatives)",
   "cc-by-sa": "CC-BY-SA (attribution, share-alike)",
 };
+
+export type UpsertSightingResponse = {
+  id: string;
+  t: Timestamp;
+}
