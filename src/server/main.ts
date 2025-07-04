@@ -10,12 +10,14 @@ import { query, matchedData, validationResult } from 'express-validator';
 import { z } from "zod";
 import { imputeTravelLines } from "./travel.ts";
 import { sightingsBetween } from "./temporal-features.ts";
-import type { Extent, FeatureProperties, UpsertSightingResponse } from "../types.ts";
+import type { FeatureProperties, UpsertSightingResponse } from "../types.ts";
 import { deleteSighting, upsertSighting } from "./sighting.ts";
 import { getPresignedUserObjectURL } from "./storage.ts";
 import { v7 } from "uuid";
 import {auth} from 'express-oauth2-jwt-bearer';
 import { storeUser } from "./user.ts";
+import { makeT } from "./database.ts";
+import { acartiaExtent, salishSeaExtent, srkwExtent } from "../constants.ts";
 
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret)
@@ -34,11 +36,6 @@ const checkJwt = auth({
   authRequired: true,
   issuerBaseURL: `https://${process.env.VITE_AUTH0_DOMAIN}`,
 });
-
-// https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
-const acartiaExtent: Extent = [-136, 36, -120, 54];
-const srkwExtent: Extent = [-125.5, 36, -122, 54];
-const salishSeaExtent: Extent = [-126, 47, -122, 50.5];
 
 const collectFeatures = (date: Temporal.PlainDate, time?: Temporal.PlainTime) => {
   const earliest = date.toZonedDateTime('PST8PDT');
@@ -98,7 +95,7 @@ api.put(
   (req: Request, res: Response) => {
     try {
       const validatedData = sightingSchema.parse(req.body);
-      const t = Temporal.Now.instant().epochMilliseconds;
+      const t = makeT();
       const user = req.auth!.payload.sub!;
 
       const sighting = {...validatedData, id: req.params.sightingId!};
@@ -123,7 +120,7 @@ api.delete(
   (req: Request, res: Response) => {
     const id = req.params.sightingId!;
     const user = req.auth!.payload.sub!;
-    const t = Temporal.Now.instant().epochMilliseconds;
+    const t = makeT();
     const deleted = deleteSighting(id, user);
     if (!deleted) {
       res.statusCode = 404;

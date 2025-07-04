@@ -8,6 +8,7 @@ export type { SightingPhoto } from './server/temporal-features.ts';
 
 export type FeatureProperties = FerryLocationProperties | SightingProperties | TravelLineProperties;
 
+// [minx, miny, maxx, maxy]
 export type Extent = [number, number, number, number];
 
 export type SightingForm = {
