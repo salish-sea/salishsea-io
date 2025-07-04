@@ -1,6 +1,7 @@
 import { css, html, LitElement} from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { live } from 'lit/directives/live.js';
+import { when } from 'lit/directives/when.js';
 import { Temporal } from "temporal-polyfill";
 import './add-sighting.ts';
 import { cameraAddIcon } from "./icons.ts";
@@ -83,14 +84,14 @@ export class ObsPanel extends LitElement {
           <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" .value=${live(this.date)}>
         </form>
       </header>
-      ${this._showForm ? html`
-        <add-sighting class="full-bleed" .cancel=${this.hideForm.bind(this)} .date=${this.date}></add-sighting>
-      ` : html`
+      ${when(this._showForm, () => html`
+        <add-sighting class="full-bleed" .cancel=${this.hideForm.bind(this)} date=${this.date}></add-sighting>
+      `, () => html`
         <button @click=${this.showForm} type="button" name="show">
           <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px">${cameraAddIcon}</svg>
           <span>Add a Sighting</span>
         </button>
-      `}
+      `)}
       <slot></slot>
     `;
   }

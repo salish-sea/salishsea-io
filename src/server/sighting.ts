@@ -59,6 +59,10 @@ export function upsertSighting(form: SightingForm, created_at: number, updated_a
   const taxon = taxonByName(form.taxon);
   if (!taxon)
     throw `Couldn't find a taxon named ${form.taxon}`;
+  if (form.observed_at < 613162785)
+    throw `Sighting observed before 1985-06-13`;
+  if (form.observed_at > (created_at / 1000))
+    throw `Sighting observed in the future`;
   const body = form.body?.trim().length ? form.body.trim() : null;
   const sighting = {
     body,

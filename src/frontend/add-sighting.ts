@@ -47,7 +47,7 @@ export default class AddSighting extends LitElement {
   @property()
   private photos: File[] = []
 
-  @property()
+  @property({type: String, reflect: true})
   private date!: string
 
   @consume({context: drawingSourceContext})

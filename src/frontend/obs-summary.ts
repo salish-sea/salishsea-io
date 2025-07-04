@@ -1,10 +1,11 @@
-import { css, LitElement, nothing, type PropertyValues } from "lit";
+import { css, LitElement, type PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import type { SightingProperties, UpsertSightingResponse } from "../types.ts";
 import { html, unsafeStatic } from "lit/static-html.js";
 import { tokenContext, userContext } from "./identity.ts";
 import { consume } from "@lit/context";
 import type { User } from "@auth0/auth0-spa-js";
+import { when } from "lit/directives/when.js";
 
 @customElement('obs-summary')
 export class ObsSummary extends LitElement {
@@ -94,7 +95,7 @@ export class ObsSummary extends LitElement {
           )
         }</ul>`
       : undefined}
-      ${canEdit ? html`<button type="button" @click=${this.onDelete}>Delete</button>` : nothing}
+      ${when(canEdit, () => html`<p><button type="button" @click=${this.onDelete}>Delete</button></p>`)}
     `
   }
 
