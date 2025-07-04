@@ -80,6 +80,7 @@ api.get(
 const sightingSchema = z.object({
   body: z.string(),
   count: z.number().optional().nullish(),
+  direction: z.string().nullable(),
   license_code: z.string(),
   observed_at: z.number(),
   observer_location: z.tuple([z.number(), z.number()]).nullable(),

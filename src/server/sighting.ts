@@ -22,6 +22,7 @@ type SightingRow = {
   count: number | null;
   individuals: string;
   url: string | null;
+  direction: string | null;
 }
 type PhotoRow = {
   id: number;
@@ -32,9 +33,9 @@ type PhotoRow = {
 }
 const insertSightingStatement = db.prepare<SightingRow>(`
 INSERT INTO sightings
-( id,  created_at,  updated_at,  user,  observed_at,  longitude,  latitude,  observer_longitude,  observer_latitude,  taxon_id,  body,  count,  individuals,  url)
+( id,  created_at,  updated_at,  user,  observed_at,  longitude,  latitude,  observer_longitude,  observer_latitude,  taxon_id,  body,  count,  individuals,  url,  direction)
 VALUES
-(@id, @created_at, @updated_at, @user, @observed_at, @longitude, @latitude, @observer_longitude, @observer_latitude, @taxon_id, @body, @count, @individuals, @url)
+(@id, @created_at, @updated_at, @user, @observed_at, @longitude, @latitude, @observer_longitude, @observer_latitude, @taxon_id, @body, @count, @individuals, @url, @direction)
 ON CONFLICT (id) DO UPDATE SET
 updated_at=@updated_at, observed_at=@observed_at, longitude=@longitude, latitude=@latitude, observer_longitude=@observer_longitude,
 taxon_id=@taxon_id, body=@body, count=@count, individuals=@individuals, url=@url
@@ -68,6 +69,7 @@ export function upsertSighting(form: SightingForm, created_at: number, updated_a
     body,
     count: form.count || null,
     created_at,
+    direction: form.direction || null,
     id: stringify(parse(form.id)),
     individuals: '',
     latitude,

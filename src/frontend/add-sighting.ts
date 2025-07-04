@@ -9,7 +9,8 @@ import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
 import { bearingStyle, featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
-import { licenseCodes, type UpsertSightingResponse } from "../types.ts";
+import { type UpsertSightingResponse } from "../types.ts";
+import { licenseCodes } from '../constants.ts';
 import { Temporal } from "temporal-polyfill";
 import { tokenContext } from "./identity.ts";
 import drawingSourceContext from "./drawing-context.ts";
@@ -203,6 +204,20 @@ export default class AddSighting extends LitElement {
           <span class="label">Subject location</span>
           <input @change=${this.onSubjectInputChange} type="text" name="subject_location" size="14" placeholder="lat, lon" required>
           <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
+        </label>
+        <label>
+          <span class="label">Travel direction</span>
+          <select name="direction">
+            <option value="" selected>None or unknown</option>
+            <option value="north">North</option>
+            <option value="northeast">Northeast</option>
+            <option value="east">East</option>
+            <option value="southeast">Southeast</option>
+            <option value="south">South</option>
+            <option value="southwest">Southwest</option>
+            <option value="west">West</option>
+            <option value="northwest">Northwest</option>
+          </select>
         </label>
         <label>
           <span class="label">Notes</span>
@@ -402,6 +417,7 @@ export default class AddSighting extends LitElement {
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
     const sightingProperties: SightingStyleProperties = {
+      direction: null,
       individuals: [],
       kind: 'Sighting',
       symbol: 'O',

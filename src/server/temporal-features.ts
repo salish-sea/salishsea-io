@@ -5,6 +5,7 @@ import { detectIndividuals, symbolFor } from "./taxon.ts";
 import '@formatjs/intl-datetimeformat/polyfill.js';
 import '@formatjs/intl-datetimeformat/locale-data/en.js';
 import { marked } from 'marked';
+import type { Direction } from "../direction.ts";
 
 export type SightingPhoto = {
   attribution?: string | null;
@@ -14,6 +15,7 @@ export type SightingPhoto = {
 // body is html | null
 export type SightingProperties = SightingsBetweenRow & {
   date: string;
+  direction: Direction | null;
   individuals: string[];
   kind: 'Sighting';
   photos: SightingPhoto[];
@@ -26,6 +28,7 @@ type SightingsBetweenRow = {
   id: string;
   body: string | null;
   count: number | null;
+  direction: Direction | null;
   latitude: number;
   longitude: number;
   photos_json: string | null;
@@ -64,6 +67,7 @@ export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.In
           ...row,
           body,
           date,
+          direction: row.direction || detectDirection(row.body || ''),
           time,
           kind: 'Sighting',
           individuals: detectIndividuals(row.body || ''),
@@ -75,3 +79,11 @@ export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.In
     });
   return features;
 };
+
+const directionRE = /\b((north(east|west|))|(south(east|west|)))bound\b/i;
+const detectDirection: (text: string) => Direction | null = (text: string) => {
+  const matches = text.match(directionRE);
+  if (matches)
+    return matches[1]?.toLocaleLowerCase() as Direction || null;
+  return null;
+}

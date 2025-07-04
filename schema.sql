@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS "vernacular_names_temp"(
  "created" TEXT);
 CREATE TABLE inaturalist_observations (id int not null primary key, description text, longitude real not null, latitude real not null, taxon_id integer not null, observed_at int not null, license_code varchar, photos_json json, url string not null, username string not null);
 CREATE INDEX inaturalist_observations_observed_at on inaturalist_observations (observed_at);
-CREATE TABLE sightings (id text primary key not null, created_at integer not null, updated_at integer not null, user text not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real, observer_latitude real, taxon_id int not null, body text, count int, individuals text, url text);
+CREATE TABLE sightings (id text primary key not null, created_at integer not null, updated_at integer not null, user text not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real, observer_latitude real, taxon_id int not null, body text, count int, individuals text, url text, direction text);
 CREATE TABLE sighting_photos (id integer primary key not null, sighting_id text not null REFERENCES sightings (id) ON DELETE CASCADE, idx integer not null, href text not null, license_code text not null, unique(id, idx));
 CREATE INDEX sighting_photos_by_sighting_id ON sighting_photos (sighting_id);
 CREATE TABLE users (id integer primary key autoincrement, sub text not null unique, name text, nickname text, email text, updated_at int not null);
@@ -29,6 +29,7 @@ FROM (
     'maplify:' || id AS id,
     comments AS body,
     iif(number_sighted > 0, number_sighted) AS count,
+    null AS direction,
     latitude,
     longitude,
     created AS timestamp,
@@ -47,6 +48,7 @@ FROM (
     'inaturalist:' || id AS id,
     description AS body,
     null AS count,
+    null AS direction,
     latitude,
     longitude,
     observed_at AS "timestamp",
@@ -65,6 +67,7 @@ FROM (
     'salishsea:' || s.id AS id,
     body,
     count,
+    direction,
     latitude,
     longitude,
     observed_at AS "timestamp",

@@ -15,6 +15,7 @@ export type SightingForm = {
   id: string; // uuid
   body?: string | null;
   count?: number | null;
+  direction: string | null;
   license_code: string;
   observed_at: number; // unix epoch time
   observer_location: null | [number, number]; // lon, lat
@@ -23,17 +24,6 @@ export type SightingForm = {
   taxon: string;
   url?: string | null;
 }
-
-export const licenseCodes = {
-  "none": "None (all rights reserved)",
-  "cc0": "CC0 (public domain)",
-  "cc-by": "CC-BY (attribution)",
-  "cc-by-nc": "CC-BY-NC (attribution, non-commercial)",
-  "cc-by-nc-sa": "CC-BY-NC-SA (attribution, non-commercial, share-alike)",
-  "cc-by-nc-nd": "CC-BY-NC-ND (attribution, non-commercial, no derivatives)",
-  "cc-by-nd": "CC-BY-ND (attribution, no derivatives)",
-  "cc-by-sa": "CC-BY-SA (attribution, share-alike)",
-};
 
 export type UpsertSightingResponse = {
   id: string;
