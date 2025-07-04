@@ -19,6 +19,7 @@ export class ObsPanel extends LitElement {
       font-family: Mukta,Helvetica,Arial,sans-serif;
       gap: 1rem;
       overflow: clip scroll;
+      scroll-behavior: smooth;
     }
     .full-bleed {
       align-self: stretch;
