@@ -192,6 +192,7 @@ export default class SalishSea extends LitElement {
       <main>
         <dialog>
           <h3>About SalishSea.io <a @click=${this.onCloseModal} class="close-dialog" href="#">x</a></h3>
+          <p>A project of <a href="https://beamreach.blue/">Beam Reach</a>.</p>
           <p>Communities throughout the Salish Sea are working to protect the diversity of life it supports. This site serves as a portal into their efforts.</p>
           <p>We currently show:</p>
           <ul>
