@@ -19,11 +19,11 @@ import { storeUser } from "./user.ts";
 import { makeT } from "./database.ts";
 import { acartiaExtent, salishSeaExtent, srkwExtent } from "../constants.ts";
 
-const sessionSecret = process.env.SESSION_SECRET;
+const sessionSecret = process.env.SESSION_SECRET || 'test-secret';
 if (!sessionSecret)
   throw "Please set a session secret in SESSION_SECRET";
 
-const app = express();
+export const app = express();
 app.set('trust proxy', 'loopback'); // https://expressjs.com/en/guide/behind-proxies.html
 
 const api = express.Router();
