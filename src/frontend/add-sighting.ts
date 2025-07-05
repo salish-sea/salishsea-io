@@ -402,9 +402,13 @@ export default class AddSighting extends LitElement {
     const formData = new FormData(form);
     const data: {[k: string]: unknown} = Object.fromEntries(formData);
     data.count = parseInt(formData.get('count') as string, 10);
-    data.observed_at = Temporal.PlainDate.from(this.date)
-      .toZonedDateTime({timeZone: 'PST8PDT', plainTime: data.observed_time as string})
-      .epochMilliseconds / 1000;
+    const observedAt = Temporal.PlainDate.from(this.date)
+      .toZonedDateTime({timeZone: 'PST8PDT', plainTime: data.observed_time as string});
+    if (Temporal.ZonedDateTime.compare(observedAt, Temporal.Now.zonedDateTimeISO()) > 0) {
+      alert("Please ensure you've entered a time in the past");
+      return;
+    }
+    data.observed_at = observedAt.epochMilliseconds / 1000;
     data.photo = formData.getAll('photo');
     const observerCoords = toLonLat(this.#observerPoint.getCoordinates())
     data.observer_location = observerCoords.length ? observerCoords : null;
