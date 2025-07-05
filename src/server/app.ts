@@ -65,11 +65,13 @@ api.get(
       return;
     }
 
+    const dbt = makeT();
     const {d} = matchedData(req) as {d: string};
     const date = Temporal.PlainDate.from(d);
     const observations = collectFeatures(date);
     res.contentType('application/geo+json');
     res.header('Cache-Control', 'public, stale-if-error=14400');
+    res.header('Date', new Date().toUTCString());
     res.json(observations);
   }
 );
