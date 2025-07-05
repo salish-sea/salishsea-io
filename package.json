@@ -48,7 +48,7 @@
     "ol": "^10.6.1",
     "temporal-polyfill": "^0.3",
     "typescript": "~5.8.3",
-    "vite": "^6.3.5",
+    "vite": "^7.0.2",
     "vitest": "^3.2.4"
   }
 }
