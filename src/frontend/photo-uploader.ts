@@ -126,9 +126,11 @@ export default class PhotoUploader extends LitElement {
     }
 
     // e.g. '2025:05:09 15:05:20'
-    const datetime = exif?.DateTime?.value[0];
-    if (datetime)
-      this.dispatchEvent(new CustomEvent('datetime-detected', {bubbles: true, composed: true, detail: datetime}));
+    let [date, time] = exif?.DateTime?.value[0]?.split(' ') || [];
+    date = date?.replaceAll(':', '-');
+    if (date && time) {
+      this.dispatchEvent(new CustomEvent('datetime-detected', {bubbles: true, composed: true, detail: `${date} ${time}`}));
+    }
   }
 }
 

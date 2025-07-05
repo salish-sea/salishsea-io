@@ -162,8 +162,13 @@ export default class AddSighting extends LitElement {
       if (!(e instanceof CustomEvent) || typeof e.detail !== 'string')
         throw "Bad datetime-detected event";
 
-      if (this.timeInput!.value === '') {
-        this.timeInput!.value = e.detail.split(' ')[1] || '';
+      const [date, time] = e.detail.split(' ');
+      if (time && this.timeInput!.value === '') {
+        this.timeInput!.value = time;
+      }
+      if (date !== this.date) {
+        const dateSelected = new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date});
+        this.dispatchEvent(dateSelected);
       }
     })
   }
@@ -227,7 +232,7 @@ export default class AddSighting extends LitElement {
           <span>Photos</span>
           <div class="thumbnails">
             ${repeat(this.photos, photo => photo, photo => html`
-              <photo-uploader sightingId=${this.id} .file=${photo}>
+              <photo-uploader expected-date=${this.date} sightingId=${this.id} .file=${photo}>
                 <input slot="input" type="hidden" name="photo" required>
               </photo-uploader>
             `)}
