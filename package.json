@@ -9,7 +9,7 @@
     "fetch-hydrophones": "dotenvx run -- node src/fetch-hydrophones.ts",
     "fetch-viewing-locations": "dotenvx run -- node src/fetch-viewing-locations.ts",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "dotenvx run -f .env.test -- vitest"
   },
   "dependencies": {
     "@auth0/auth0-spa-js": "^2.2.0",
