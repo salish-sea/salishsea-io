@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import { app } from './main.ts';
+import { app } from "./app.ts";
 
 describe('GET /temporal-features', () => {
   it('responds with 200 and valid geojson for a valid date', async () => {
