@@ -1,0 +1,54 @@
+import type { ReactiveController } from "lit";
+import { queryStringAppend } from "./util.ts";
+import { Temporal } from "temporal-polyfill";
+import type { FeatureProperties, TemporalFeaturesResponse } from "../types.ts";
+import type { Feature, Geometry } from "geojson";
+import type SalishSea from "./salish-sea.ts";
+
+const REFRESH_INTERVAL = Temporal.Duration.from({seconds: 30}).total('milliseconds');
+
+export class SightingLoader implements ReactiveController {
+  host: SalishSea;
+
+  private date: string
+  private lastResponseGeneratedAt = new Temporal.Instant(0n)
+  private refreshTimer?: NodeJS.Timeout | undefined
+  public features: Feature<Geometry, FeatureProperties>[] = []
+
+  constructor(host: SalishSea, date: string) {
+    (this.host = host).addController(this);
+    this.date = date;
+  }
+
+  dateChanged(date: string) {
+    this.date = date;
+    this.lastResponseGeneratedAt = new Temporal.Instant(0n);
+    this.fetch();
+  }
+
+  hostConnected(): void {
+    this.fetch();
+    // set up timer
+    this.refreshTimer = setInterval(() => {
+      this.fetch();
+    }, REFRESH_INTERVAL);
+  }
+
+  hostDisconnected(): void {
+    clearInterval(this.refreshTimer);
+  }
+
+  async fetch() {
+    // TODO: use Cache API to improve offline experience, and to ensure up to date info
+    const endpoint = queryStringAppend('/api/temporal-features', {d: this.date});
+    const response = await fetch(endpoint, {headers: {Accept: 'application/json'}});
+    const responseGeneratedAt = Temporal.Instant.fromEpochMilliseconds(Date.parse(response.headers.get('Date')!));
+    const {params: {date}, ...collection}: TemporalFeaturesResponse = await response.json();
+    if (date === this.date && Temporal.Instant.compare(this.lastResponseGeneratedAt, responseGeneratedAt) === -1) {
+      this.features = collection.features;
+      this.lastResponseGeneratedAt = responseGeneratedAt;
+      this.host.setFeatures(collection);
+      this.host.requestUpdate();
+    }
+  }
+}

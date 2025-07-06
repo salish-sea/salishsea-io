@@ -2,7 +2,6 @@ import { Temporal } from "temporal-polyfill";
 import { acartiaExtent, salishSeaExtent, srkwExtent } from "../constants.ts";
 import * as inaturalist from "./inaturalist.ts";
 import * as maplify from "./maplify.ts";
-import * as ferries from "./ferries.ts";
 
 
 export const loadRecent = async () => {
@@ -25,13 +24,4 @@ export const loadRecent = async () => {
   } catch (e) {
     console.error(`Error loading sightings: ${e}`);
   }
-};export const loadFerries = async () => {
-  try {
-    const locations = await ferries.fetchCurrentLocations();
-    const insertionCount = ferries.loadLocations(locations);
-    console.info(`Loaded ${insertionCount} ferry locations from WSF.`);
-  } catch (e) {
-    console.error(`Error loading ferry locations: ${e}`);
-  }
 };
-

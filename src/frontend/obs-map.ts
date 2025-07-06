@@ -5,7 +5,6 @@ import OpenLayersMap from "ol/Map.js";
 import View from "ol/View.js";
 import Select, { SelectEvent } from 'ol/interaction/Select.js';
 import {defaults as defaultInteractions} from 'ol/interaction/defaults.js';
-import Link from 'ol/interaction/Link.js';
 import './obs-panel.ts';
 import './obs-summary.ts';
 import viewingLocationURL from '../assets/orcanetwork-viewing-locations.geojson?url';
@@ -28,10 +27,15 @@ import { never } from 'ol/events/condition.js';
 import { containsCoordinate } from 'ol/extent.js';
 import type { Coordinate } from 'ol/coordinate.js';
 import type MapBrowserEvent from 'ol/MapBrowserEvent.js';
+import type { FeatureCollection } from 'geojson';
+import olCSS from 'ol/ol.css?url';
+import Collection from 'ol/Collection.js';
 
 const sphericalMercator = 'EPSG:3857';
 const initialCenter = [-122.450, 47.8];
 const initialZoom = 9;
+
+const geoJSON = new GeoJSON();
 
 // This is a thin wrapper around imperative code driving OpenLayers.
 // The code is informed by the `openlayers-elements` project, but we avoid taking it as a dependency.
@@ -39,7 +43,7 @@ const initialZoom = 9;
 export class ObsMap extends LitElement {
   public drawingSource = new VectorSource();
   public temporalSource = new VectorSource<Feature<Geometry>>({
-    format: new GeoJSON<Feature<Geometry>>(),
+    features: new Collection(),
     strategy: all,
   });
   private temporalLayer = new VectorLayer({
@@ -66,21 +70,8 @@ export class ObsMap extends LitElement {
   })
 
   @property({type: String, reflect: true})
-  set url(url: string) {
-    this.temporalSource.setUrl(url);
-    this.temporalSource.refresh();
-  }
-  get url() {
-    return this.temporalSource.getUrl() as string;
-  }
-
-  @property({type: String, reflect: true})
-  private date: string | undefined
-
-  @property({type: String, reflect: true})
   private focusedSightingId: string | undefined
 
-  #link = new Link({params: ['x', 'y', 'z'], replace: true});
   #modify = new Modify({
     deleteCondition: never,
     insertVertexCondition: never,
@@ -95,7 +86,7 @@ export class ObsMap extends LitElement {
   });
 
   public map = new OpenLayersMap({
-    interactions: defaultInteractions().extend([this.#link, this.#modify, this.#select]),
+    interactions: defaultInteractions().extend([this.#modify, this.#select]),
     layers: [
       new TileLayer({
         source: new XYZ({
@@ -145,11 +136,6 @@ export class ObsMap extends LitElement {
 
   constructor() {
     super();
-    this.temporalSource.on('featuresloadend', () => {
-      const features = this.temporalSource.getFeatures();
-      const evt = new CustomEvent('sightings-changed', {bubbles: true, composed: true, detail: features})
-      this.dispatchEvent(evt);
-    })
     this.#select.on('select', (e: SelectEvent) => {
       const id = e.selected[0]?.getId() as string | undefined;
       const evt = new CustomEvent('focus-sighting', {bubbles: true, composed: true, detail: id});
@@ -165,13 +151,20 @@ export class ObsMap extends LitElement {
 
   public render() {
     return html`
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.4.0/ol.css" type="text/css" />
+      <link rel="stylesheet" href="${olCSS}" type="text/css" />
       <div id="map"></div>
     `;
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
     this.map.setTarget(this.mapElement);
+  }
+
+  public setFeatures(features: FeatureCollection) {
+    const collection = this.temporalSource.getFeaturesCollection()!;
+    const olFeatures = geoJSON.readFeatures(features, {featureProjection: sphericalMercator});
+    collection.clear();
+    collection.extend(olFeatures);
   }
 
   public selectFeature(feature: Feature) {
@@ -181,9 +174,6 @@ export class ObsMap extends LitElement {
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {
-    if (changedProperties.has('date'))
-      this.#link.update('d', this.date || null);
-
     if (changedProperties.has('focusedSightingId') && this.focusedSightingId) {
       const feature = this.temporalSource.getFeatureById(this.focusedSightingId) as Feature<Point>;
       const coords = feature.getGeometry()!.getCoordinates();

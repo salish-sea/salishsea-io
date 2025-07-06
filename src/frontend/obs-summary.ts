@@ -1,6 +1,6 @@
 import { css, LitElement, type PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import type { SightingProperties, UpsertSightingResponse } from "../types.ts";
+import type { SightingProperties } from "../types.ts";
 import { html, unsafeStatic } from "lit/static-html.js";
 import { tokenContext, userContext } from "./identity.ts";
 import { consume } from "@lit/context";
@@ -113,8 +113,7 @@ export class ObsSummary extends LitElement {
   private async onDelete() {
     const response = await fetch(this.sighting.path!, {headers: {Authorization: `Bearer ${this.authToken}`}, method: 'DELETE'});
     if (response.ok) {
-      const {t}: UpsertSightingResponse = await response.json();
-      const evt = new CustomEvent('database-changed', {bubbles: true, composed: true, detail: t});
+      const evt = new CustomEvent('database-changed', {bubbles: true, composed: true});
       this.dispatchEvent(evt);
     } else {
       alert(response.statusText);

@@ -1,19 +1,15 @@
 import express from "express";
 import type { Request, Response } from "express";
-import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import { query, matchedData, validationResult } from 'express-validator';
 import { z } from "zod";
-import { imputeTravelLines } from "./travel.ts";
-import { sightingsBetween } from "./temporal-features.ts";
-import type { FeatureProperties, UpsertSightingResponse } from "../types.ts";
+import { collectFeatures } from "./temporal-features.ts";
+import type { TemporalFeaturesResponse, UpsertSightingResponse } from "../types.ts";
 import { deleteSighting, upsertSighting } from "./sighting.ts";
 import { getPresignedUserObjectURL } from "./storage.ts";
 import { v7 } from "uuid";
 import {auth} from 'express-oauth2-jwt-bearer';
 import { storeUser } from "./user.ts";
-import { makeT } from "./database.ts";
 import { Temporal } from "temporal-polyfill";
-import * as ferries from './ferries.ts';
 
 export const app = express();
 
@@ -34,27 +30,6 @@ const checkJwt = auth({
   issuerBaseURL: `https://${process.env.VITE_AUTH0_DOMAIN}`,
 });
 
-const collectFeatures = (date: Temporal.PlainDate, time?: Temporal.PlainTime) => {
-  const earliest = date.toZonedDateTime('PST8PDT');
-  const latest = earliest.add({hours: 24});
-  const sightings = sightingsBetween(earliest.toInstant(), latest.toInstant());
-  const travelLines = imputeTravelLines(sightings);
-  const features: Feature<Geometry, FeatureProperties>[] = [
-    ...sightings,
-    ...travelLines,
-  ];
-  if (time) {
-    const asOf = date.toZonedDateTime({timeZone: 'PST8PDT', plainTime: time});
-    const ferryLocations = ferries.locationsAsOf(asOf.toInstant());
-    features.concat(ferryLocations);
-  }
-  const collection: FeatureCollection<Geometry> = {
-    type: 'FeatureCollection',
-    features,
-  };
-  return collection;
-};
-
 api.get(
   "/temporal-features",
   query('d').notEmpty(),
@@ -65,10 +40,9 @@ api.get(
       return;
     }
 
-    const dbt = makeT();
     const {d} = matchedData(req) as {d: string};
     const date = Temporal.PlainDate.from(d);
-    const observations = collectFeatures(date);
+    const observations: TemporalFeaturesResponse = collectFeatures(date);
     res.contentType('application/geo+json');
     res.header('Cache-Control', 'public, stale-if-error=14400');
     res.header('Date', new Date().toUTCString());
@@ -95,13 +69,13 @@ api.put(
   (req: Request, res: Response) => {
     try {
       const validatedData = sightingSchema.parse(req.body);
-      const t = makeT();
+      const updatedAt = new Date().valueOf();
       const user = req.auth!.payload.sub!;
 
       const sighting = {...validatedData, id: req.params.sightingId!};
 
-      upsertSighting(sighting, t, t, user);
-      const response: UpsertSightingResponse = {id: sighting.id, t};
+      upsertSighting(sighting, updatedAt, user);
+      const response: UpsertSightingResponse = {id: sighting.id};
       res.status(201).json(response);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -120,14 +94,13 @@ api.delete(
   (req: Request, res: Response) => {
     const id = req.params.sightingId!;
     const user = req.auth!.payload.sub!;
-    const t = makeT();
     const deleted = deleteSighting(id, user);
     if (!deleted) {
       res.statusCode = 404;
       res.statusMessage = "Sighting not found or else owned by someone else";
       res.status(404);
     } else {
-      const response: UpsertSightingResponse = {id, t};
+      const response: UpsertSightingResponse = {id};
       res.status(200).json(response);
     }
   }

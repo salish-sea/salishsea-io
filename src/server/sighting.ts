@@ -54,7 +54,7 @@ const insertSightingTxn = db.transaction((sighting: SightingRow, photos: Omit<Ph
   for (const photo of photos)
     insertPhotoStatement.run(photo);
 });
-export function upsertSighting(form: SightingForm, created_at: number, updated_at: number, user: string) {
+export function upsertSighting(form: SightingForm, timestamp: number, user: string) {
   const [longitude, latitude] = form.subject_location;
   const [observer_longitude, observer_latitude] = form.observer_location || [null, null];
   const taxon = taxonByName(form.taxon);
@@ -62,13 +62,13 @@ export function upsertSighting(form: SightingForm, created_at: number, updated_a
     throw `Couldn't find a taxon named ${form.taxon}`;
   if (form.observed_at < 613162785)
     throw `Sighting observed before 1985-06-13`;
-  if (form.observed_at > (created_at / 1000))
+  if (form.observed_at > (timestamp / 1000))
     throw `Sighting observed in the future`;
   const body = form.body?.trim().length ? form.body.trim() : null;
   const sighting = {
     body,
     count: form.count || null,
-    created_at,
+    created_at: timestamp,
     direction: form.direction || null,
     id: stringify(parse(form.id)),
     individuals: '',
@@ -78,7 +78,7 @@ export function upsertSighting(form: SightingForm, created_at: number, updated_a
     observer_latitude,
     observer_longitude,
     taxon_id: taxon.id,
-    updated_at,
+    updated_at: timestamp,
     url: form.url || null,
     user,
   };
@@ -88,7 +88,7 @@ export function upsertSighting(form: SightingForm, created_at: number, updated_a
     idx,
     license_code: form.license_code,
   }));
-  insertSightingTxn(sighting, photos);
+  return insertSightingTxn(sighting, photos);
 }
 
 const deleteSightingStatement = db.prepare<{id: string, user: string}>(`
