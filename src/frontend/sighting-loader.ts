@@ -51,7 +51,12 @@ export class SightingLoader implements ReactiveController {
     const endpoint = queryStringAppend('/api/temporal-features', {d: this.date});
     try {
       const response = await fetch(endpoint, {headers: {Accept: 'application/json'}});
-      const responseGeneratedAt = Temporal.Instant.fromEpochMilliseconds(Date.parse(response.headers.get('Date')!));
+      if (!response.ok)
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const dateHeader = response.headers.get('Date');
+      if (!dateHeader)
+        throw new Error('Response missing Date header');
+      const responseGeneratedAt = Temporal.Instant.fromEpochMilliseconds(Date.parse(dateHeader));
       const {params: {date}, ...collection}: TemporalFeaturesResponse = await response.json();
       if (date === this.date && Temporal.Instant.compare(this.lastResponseGeneratedAt, responseGeneratedAt) === -1) {
         this.features = collection.features;
