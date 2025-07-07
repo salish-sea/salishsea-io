@@ -75,6 +75,7 @@ export default class AddSighting extends LitElement {
       font-family: Mukta,Helvetica,Arial,sans-serif;
     }
     form {
+      line-height: 2;
       padding: 0.5rem;
     }
     button {
@@ -115,7 +116,6 @@ export default class AddSighting extends LitElement {
       height: 4rem;
     }
     .upload-photo {
-      height: 4rem;
       width: 4rem;
     }
     .actions {
