@@ -32,8 +32,6 @@ import olCSS from 'ol/ol.css?url';
 import Collection from 'ol/Collection.js';
 
 const sphericalMercator = 'EPSG:3857';
-const initialCenter = [-122.450, 47.8];
-const initialZoom = 9;
 
 const geoJSON = new GeoJSON();
 
@@ -85,6 +83,20 @@ export class ObsMap extends LitElement {
     style: selectedObservationStyle,
   });
 
+  @property({type: Number, reflect: true})
+  private centerX!: number
+
+  @property({type: Number, reflect: true})
+  private centerY!: number
+
+  @property({type: Number, reflect: true})
+  private zoom!: number
+
+  private view = new View({
+    projection: sphericalMercator,
+    zoom: 9,
+  })
+
   public map = new OpenLayersMap({
     interactions: defaultInteractions().extend([this.#modify, this.#select]),
     layers: [
@@ -111,11 +123,7 @@ export class ObsMap extends LitElement {
         style: featureStyle,
       }),
     ],
-    view: new View({
-      center: fromLonLat(initialCenter),
-      projection: sphericalMercator,
-      zoom: initialZoom,
-    }),
+    view: this.view,
   });
 
   @query('#map', true)
@@ -157,6 +165,7 @@ export class ObsMap extends LitElement {
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
+    this.view.setCenter([this.centerX, this.centerY, this.zoom]);
     this.map.setTarget(this.mapElement);
   }
 

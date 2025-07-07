@@ -20,8 +20,12 @@ import { SightingLoader } from "./sighting-loader.ts";
 import type { FeatureCollection } from 'geojson';
 
 const dateRE = /^(\d\d\d\d-\d\d-\d\d)$/;
-const initialQueryDate = new URLSearchParams(document.location.search).get('d');
+const initialSearchParams = new URLSearchParams(document.location.search);
+const initialQueryDate = initialSearchParams.get('d');
 const initialDate = dateRE.test(initialQueryDate || '') && initialQueryDate || Temporal.Now.plainDateISO('PST8PDT').toString();
+const initialX = parseFloat(initialSearchParams.get('x') || '-13631071');
+const initialY = parseFloat(initialSearchParams.get('y') || '6073646');
+const initialZ = parseFloat(initialSearchParams.get('z') || '9');
 
 @customElement('salish-sea')
 export default class SalishSea extends LitElement {
@@ -112,6 +116,7 @@ export default class SalishSea extends LitElement {
   }
   #focusedSightingId: string | undefined
 
+  // add-sighting needs access to the map to add and remove interactions
   @query('obs-map', true)
   map!: ObsMap;
 
@@ -190,12 +195,13 @@ export default class SalishSea extends LitElement {
           </ul>
           <p>If you have any feedback, tap the Feedback button in the top-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a></p>
         </dialog>
-        <obs-map></obs-map>
+        <obs-map centerX=${initialX} centerY=${initialY} zoom=${initialZ}></obs-map>
         <obs-panel date=${this.date}>
           ${repeat(sightings, sighting => sighting.id, feature => {
             const id = feature.properties.id;
+            const classes = {focused: id === this.focusedSightingId};
             return html`
-              <obs-summary class=${classMap({focused: id === this.focusedSightingId})} ?focused=${id === this.focusedSightingId} id=${id} .sighting=${feature.properties} />
+              <obs-summary class=${classMap(classes)} ?focused=${id === this.focusedSightingId} id=${id} .sighting=${feature.properties} />
             `;
           })}
         </obs-panel>

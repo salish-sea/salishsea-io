@@ -28,27 +28,41 @@ export class SightingLoader implements ReactiveController {
 
   hostConnected(): void {
     this.fetch();
-    // set up timer
+    this.startPeriodicFetch();
+  }
+
+  hostDisconnected(): void {
+    this.stopPeriodicFetch();
+  }
+
+  private startPeriodicFetch() {
     this.refreshTimer = setInterval(() => {
       this.fetch();
     }, REFRESH_INTERVAL);
   }
 
-  hostDisconnected(): void {
+  private stopPeriodicFetch() {
     clearInterval(this.refreshTimer);
   }
 
   async fetch() {
+    this.stopPeriodicFetch();
     // TODO: use Cache API to improve offline experience, and to ensure up to date info
     const endpoint = queryStringAppend('/api/temporal-features', {d: this.date});
-    const response = await fetch(endpoint, {headers: {Accept: 'application/json'}});
-    const responseGeneratedAt = Temporal.Instant.fromEpochMilliseconds(Date.parse(response.headers.get('Date')!));
-    const {params: {date}, ...collection}: TemporalFeaturesResponse = await response.json();
-    if (date === this.date && Temporal.Instant.compare(this.lastResponseGeneratedAt, responseGeneratedAt) === -1) {
-      this.features = collection.features;
-      this.lastResponseGeneratedAt = responseGeneratedAt;
-      this.host.setFeatures(collection);
-      this.host.requestUpdate();
+    try {
+      const response = await fetch(endpoint, {headers: {Accept: 'application/json'}});
+      const responseGeneratedAt = Temporal.Instant.fromEpochMilliseconds(Date.parse(response.headers.get('Date')!));
+      const {params: {date}, ...collection}: TemporalFeaturesResponse = await response.json();
+      if (date === this.date && Temporal.Instant.compare(this.lastResponseGeneratedAt, responseGeneratedAt) === -1) {
+        this.features = collection.features;
+        this.lastResponseGeneratedAt = responseGeneratedAt;
+        this.host.setFeatures(collection);
+        this.host.requestUpdate();
+      }
+    } catch (err) {
+      console.debug(`Failed to request sightings: ${err}`);
+    } finally {
+      this.startPeriodicFetch();
     }
   }
 }
