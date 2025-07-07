@@ -13,7 +13,6 @@ import hydrophonesURL from '../assets/orcasound-hydrophones.geojson?url';
 // imports below these lines smell like they support functionality that should be factored out
 import VectorLayer from 'ol/layer/Vector.js';
 import TileLayer from 'ol/layer/Tile.js';
-import { fromLonLat } from 'ol/proj.js';
 import XYZ from 'ol/source/XYZ.js';
 import { editStyle, featureStyle, hydrophoneStyle, selectedObservationStyle, viewingLocationStyle} from './style.ts';
 import type Point from 'ol/geom/Point.js';
@@ -34,6 +33,11 @@ import Collection from 'ol/Collection.js';
 const sphericalMercator = 'EPSG:3857';
 
 const geoJSON = new GeoJSON();
+
+export type MapMoveDetail = {
+  center: [number, number];
+  zoom: number;
+}
 
 // This is a thin wrapper around imperative code driving OpenLayers.
 // The code is informed by the `openlayers-elements` project, but we avoid taking it as a dependency.
@@ -154,6 +158,14 @@ export class ObsMap extends LitElement {
       if (!feature)
         return;
       window.open(feature.get('url'), '_blank')
+    });
+    this.map.on('moveend', () => {
+      const detail: MapMoveDetail = {
+        center: this.view.getCenter() as [number, number],
+        zoom: this.view.getZoom()!
+      };
+      const evt = new CustomEvent('map-move', {bubbles: true, composed: true, detail});
+      this.dispatchEvent(evt);
     });
   }
 

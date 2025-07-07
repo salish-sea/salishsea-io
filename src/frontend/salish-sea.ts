@@ -15,7 +15,7 @@ import drawingSourceContext from "./drawing-context.ts";
 import type VectorSource from "ol/source/Vector.js";
 import type OpenLayersMap from "ol/Map.js";
 import mapContext from "./map-context.ts";
-import type { ObsMap } from "./obs-map.ts";
+import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import { SightingLoader } from "./sighting-loader.ts";
 import type { FeatureCollection } from 'geojson';
 
@@ -155,15 +155,16 @@ export default class SalishSea extends LitElement {
       if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
         throw "oh no";
       this.date = evt.detail;
-      // Update the 'd' search param in the URL
-      const url = new URL(window.location.href);
-      url.searchParams.set('d', this.date);
-      window.history.pushState({}, '', url.toString());
+      setQueryParams({d: this.date});
       this.sightingLoader.dateChanged(this.date);
     });
     this.addEventListener('database-changed', () => {
       this.sightingLoader.fetch();
     });
+    this.addEventListener('map-move', (evt) => {
+      const {center: [x, y], zoom} = (evt as CustomEvent<MapMoveDetail>).detail;
+      setQueryParams({x: x.toFixed(), y: y.toFixed(), z: zoom.toFixed()});
+    })
   }
 
   protected render(): unknown {
@@ -253,6 +254,14 @@ export default class SalishSea extends LitElement {
     e.preventDefault();
     this.aboutDialog.close();
   }
+}
+
+function setQueryParams(params: {[k: string]: string}) {
+    const url = new URL(window.location.href);
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v);
+    }
+    window.history.pushState({}, '', url.toString());
 }
 
 
