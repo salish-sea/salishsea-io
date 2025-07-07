@@ -6,10 +6,8 @@ import { type User } from "@auth0/auth0-spa-js";
 import { doLogIn, doLogInContext, doLogOut, doLogOutContext, getTokenSilently, getUser, tokenContext, userContext } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
-import { queryStringAppend } from "./util.ts";
 import type Point from "ol/geom/Point.js";
-import type {Feature as GeoJSONFeature, Point as GeoJSONPoint} from 'geojson';
-import type { SightingProperties } from "../types.ts";
+import { isSighting } from "../types.ts";
 import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
 import type Feature from "ol/Feature.js";
@@ -17,7 +15,17 @@ import drawingSourceContext from "./drawing-context.ts";
 import type VectorSource from "ol/source/Vector.js";
 import type OpenLayersMap from "ol/Map.js";
 import mapContext from "./map-context.ts";
-import type { ObsMap } from "./obs-map.ts";
+import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
+import { SightingLoader } from "./sighting-loader.ts";
+import type { FeatureCollection } from 'geojson';
+
+const dateRE = /^(\d\d\d\d-\d\d-\d\d)$/;
+const initialSearchParams = new URLSearchParams(document.location.search);
+const initialQueryDate = initialSearchParams.get('d');
+const initialDate = dateRE.test(initialQueryDate || '') && initialQueryDate || Temporal.Now.plainDateISO('PST8PDT').toString();
+const initialX = parseFloat(initialSearchParams.get('x') || '-13631071');
+const initialY = parseFloat(initialSearchParams.get('y') || '6073646');
+const initialZ = parseFloat(initialSearchParams.get('z') || '9');
 
 @customElement('salish-sea')
 export default class SalishSea extends LitElement {
@@ -90,6 +98,8 @@ export default class SalishSea extends LitElement {
     }
   `;
 
+  private sightingLoader = new SightingLoader(this, initialDate);
+
   @provide({context: mapContext})
   olmap: OpenLayersMap | undefined
 
@@ -106,14 +116,12 @@ export default class SalishSea extends LitElement {
   }
   #focusedSightingId: string | undefined
 
+  // add-sighting needs access to the map to add and remove interactions
   @query('obs-map', true)
   map!: ObsMap;
 
   @query('dialog', true)
   aboutDialog!: HTMLDialogElement;
-
-  @state()
-  private features: GeoJSONFeature<GeoJSONPoint, SightingProperties>[] = [];
 
   @provide({context: userContext})
   @state()
@@ -130,21 +138,10 @@ export default class SalishSea extends LitElement {
   _doLogOut: () => Promise<void>
 
   @property({type: String, reflect: true})
-  date: string
-
-  @property({type: String, reflect: true})
-  dbt: number = 0;
-
-  #refreshTimer: NodeJS.Timeout
+  date = initialDate
 
   constructor() {
     super();
-    const queryDate = new URLSearchParams(document.location.search).get('d');
-    if (queryDate?.match(/^\d\d\d\d-\d\d-\d\d$/)) {
-      this.date = queryDate;
-    } else {
-      this.date = Temporal.Now.plainDateISO('PST8PDT').toString();
-    }
     this._doLogIn = this.doLogIn.bind(this);
     this._doLogOut = this.doLogOut.bind(this);
     this.updateAuth();
@@ -154,29 +151,26 @@ export default class SalishSea extends LitElement {
       const e = evt as CustomEvent<string | undefined>;
       this.focusedSightingId = e.detail;
     });
-    this.addEventListener('sightings-changed', evt => {
-      const e = evt as CustomEvent<Feature<Point>[]>;
-      this.updateSightings(e.detail);
-    });
     this.addEventListener('date-selected', (evt) => {
       if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
         throw "oh no";
       this.date = evt.detail;
+      setQueryParams({d: this.date});
+      this.sightingLoader.dateChanged(this.date);
     });
-    this.addEventListener('database-changed', (evt) => {
-      if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'number')
-        throw "oh no";
-      this.dbt = evt.detail;
+    this.addEventListener('database-changed', () => {
+      this.sightingLoader.fetch();
     });
-    this.#refreshTimer = setInterval(() => this.dbt += 1, 1000 * 30);
-  }
-
-  disconnectedCallback(): void {
-    clearInterval(this.#refreshTimer);
+    this.addEventListener('map-move', (evt) => {
+      const {center: [x, y], zoom} = (evt as CustomEvent<MapMoveDetail>).detail;
+      setQueryParams({x: x.toFixed(), y: y.toFixed(), z: zoom.toFixed()});
+    })
   }
 
   protected render(): unknown {
-    const featureHref = queryStringAppend('/api/temporal-features', {d: this.date, t: this.dbt});
+    const sightings = this.sightingLoader.features
+      .filter(isSighting)
+      .toSorted((a, b) => b.properties.timestamp - a.properties.timestamp)
     return html`
       <header>
         <h1>SalishSea.io <a @click=${this.onAboutClicked} class="about-link" href="#" title="About SalishSea.io">&#9432;</a></h1>
@@ -202,17 +196,22 @@ export default class SalishSea extends LitElement {
           </ul>
           <p>If you have any feedback, tap the Feedback button in the top-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a></p>
         </dialog>
-        <obs-map date=${this.date} url=${featureHref}></obs-map>
+        <obs-map centerX=${initialX} centerY=${initialY} zoom=${initialZ}></obs-map>
         <obs-panel date=${this.date}>
-          ${repeat(this.features, f => f.properties.id, feature => {
+          ${repeat(sightings, sighting => sighting.id, feature => {
             const id = feature.properties.id;
+            const classes = {focused: id === this.focusedSightingId};
             return html`
-              <obs-summary class=${classMap({focused: id === this.focusedSightingId})} ?focused=${id === this.focusedSightingId} id=${id} .sighting=${feature.properties} />
+              <obs-summary class=${classMap(classes)} ?focused=${id === this.focusedSightingId} id=${id} .sighting=${feature.properties} />
             `;
           })}
         </obs-panel>
       </main>
     `;
+  }
+
+  setFeatures(collection: FeatureCollection) {
+    this.map.setFeatures(collection);
   }
 
   async updateAuth() {
@@ -255,22 +254,14 @@ export default class SalishSea extends LitElement {
     e.preventDefault();
     this.aboutDialog.close();
   }
+}
 
-  // Used by the side panel
-  updateSightings(features: Feature<Point>[]) {
-    this.features = features
-      .filter(feature => feature.get('kind') === 'Sighting')
-      .toSorted((a, b) => b.get('timestamp') - a.get('timestamp'))
-      .map(f => {
-        const point = f.getGeometry() as Point;
-        const properties = f.getProperties() as SightingProperties;
-        return {
-          type: 'Feature',
-          geometry: {type: 'Point', coordinates: point.getCoordinates()},
-          properties,
-        };
-      });
-  }
+function setQueryParams(params: {[k: string]: string}) {
+    const url = new URL(window.location.href);
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v);
+    }
+    window.history.pushState({}, '', url.toString());
 }
 
 

@@ -1,11 +1,13 @@
 import { db } from "./database.ts";
-import type { Feature, Point } from "geojson";
+import type { Feature, Geometry, Point } from "geojson";
 import { Temporal } from "temporal-polyfill";
 import { detectIndividuals, symbolFor } from "./taxon.ts";
 import '@formatjs/intl-datetimeformat/polyfill.js';
 import '@formatjs/intl-datetimeformat/locale-data/en.js';
 import { marked } from 'marked';
 import type { Direction } from "../direction.ts";
+import type { FeatureProperties } from "../types.ts";
+import { imputeTravelLines } from "./travel.ts";
 
 export type SightingPhoto = {
   attribution?: string | null;
@@ -86,4 +88,21 @@ const detectDirection: (text: string) => Direction | null = (text: string) => {
   if (matches)
     return matches[1]?.toLocaleLowerCase() as Direction || null;
   return null;
-}
+};
+
+export const collectFeatures = (date: Temporal.PlainDate) => {
+  const earliest = date.toZonedDateTime('PST8PDT');
+  const latest = earliest.add({ hours: 24 });
+  const sightings = sightingsBetween(earliest.toInstant(), latest.toInstant());
+  const travelLines = imputeTravelLines(sightings);
+  const features: Feature<Geometry, FeatureProperties>[] = [
+    ...sightings,
+    ...travelLines,
+  ];
+  const collection = {
+    features,
+    params: {date: date.toString()},
+    type: 'FeatureCollection' as const,
+  };
+  return collection;
+};

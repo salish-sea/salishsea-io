@@ -38,6 +38,7 @@ export function imputeTravelLines(sorted: Feature<Point, {timestamp: number, spe
 
       const feature: Feature<LineString, TravelLineProperties> = {
         type: 'Feature',
+        id: `${obs.id}-${candidate.id}`,
         geometry: {
           type: 'LineString',
           coordinates: [obs.geometry.coordinates, candidate.geometry.coordinates],

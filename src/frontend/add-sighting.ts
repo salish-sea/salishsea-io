@@ -32,7 +32,7 @@ export default class AddSighting extends LitElement {
       const response = await fetch(request);
       const data: UpsertSightingResponse = await response.json();
       if (response.ok) {
-        const event = new CustomEvent('database-changed', {bubbles: true, composed: true, detail: data.t});
+        const event = new CustomEvent('database-changed', {bubbles: true, composed: true});
         this.dispatchEvent(event);
         this.reset();
         return data;
