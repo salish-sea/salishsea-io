@@ -1,3 +1,4 @@
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
@@ -11,6 +12,13 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         auth_redirect: resolve(__dirname, 'auth_redirect.html'),
       }
-    }
-  }
+    },
+
+    sourcemap: true
+  },
+
+  plugins: [sentryVitePlugin({
+    org: "beam-reach",
+    project: "salishsea-io"
+  })]
 });

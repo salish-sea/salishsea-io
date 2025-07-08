@@ -31,3 +31,6 @@ dist-ssr
 *.duckdb.wal
 *.sqlite3*
 .aider*
+
+# Sentry Config File
+.env.sentry-build-plugin

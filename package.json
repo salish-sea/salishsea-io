@@ -22,6 +22,7 @@
     "@formatjs/intl-datetimeformat": "^6.17.3",
     "@lit/context": "^1.1.5",
     "@lit/task": "1.0.2",
+    "@sentry/vite-plugin": "^3.5.0",
     "@turf/bearing": "^7.2.0",
     "@turf/distance": "^7.2.0",
     "@turf/helpers": "^7.2.0",
