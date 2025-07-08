@@ -50,7 +50,7 @@ export default class SalishSea extends LitElement {
       color: white;
       display: flex;
       justify-content: space-between;
-      padding: 1em;
+      padding: 0.5rem;
       width: 100%;
     }
 
