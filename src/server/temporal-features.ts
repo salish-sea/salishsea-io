@@ -11,7 +11,7 @@ import { imputeTravelLines } from "./travel.ts";
 import { JSDOM } from 'jsdom';
 import createDOMPurify from 'dompurify';
 
-const domPurify = createDOMPurify(new JSDOM('').window);
+const domPurify = createDOMPurify(new JSDOM('').window as any);
 
 export type SightingPhoto = {
   attribution?: string | null;
