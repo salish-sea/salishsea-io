@@ -2,7 +2,6 @@ import ViteExpress from "vite-express";
 import { app } from "./app.ts";
 import { loadRecent } from "./sources.ts";
 
-
 await loadRecent();
 setInterval(loadRecent, 1000 * 60 * 5);
 

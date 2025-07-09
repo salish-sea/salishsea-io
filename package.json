@@ -5,11 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "tsc && vite build",
-    "dev": "dotenvx run -- nodemon -w src/server -x node src/server/main.ts",
-    "fetch-hydrophones": "dotenvx run -- node src/fetch-hydrophones.ts",
-    "fetch-viewing-locations": "dotenvx run -- node src/fetch-viewing-locations.ts",
+    "dev": "nodemon -w src/server -x node --env-file=.env ./src/server/main.ts",
     "preview": "vite preview",
-    "test": "dotenvx run -f .env.test -- vitest"
+    "instrument": "node --env-file=.env --import ./src/server/instrument.ts ./src/server/main.ts",
+    "test": "vitest"
   },
   "dependencies": {
     "@auth0/auth0-spa-js": "^2.2.0",
@@ -18,10 +17,11 @@
     "@aws-sdk/protocol-http": "^3.370.0",
     "@aws-sdk/s3-request-presigner": "^3.842.0",
     "@aws-sdk/url-parser": "^3.370.0",
-    "@dotenvx/dotenvx": "^1.45.2",
     "@formatjs/intl-datetimeformat": "^6.17.3",
     "@lit/context": "^1.1.5",
     "@lit/task": "1.0.2",
+    "@sentry/browser": "^9.35.0",
+    "@sentry/node": "^9.35.0",
     "@sentry/vite-plugin": "^3.5.0",
     "@turf/bearing": "^7.2.0",
     "@turf/distance": "^7.2.0",

@@ -18,6 +18,23 @@ import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import { SightingLoader } from "./sighting-loader.ts";
 import type { FeatureCollection } from 'geojson';
+import * as Sentry from "@sentry/browser";
+
+Sentry.init({
+  dsn: "https://56ce99ce80994bab79dab62d06078c97@o4509634382331904.ingest.us.sentry.io/4509634387509248",
+  // Setting this option to true will send default PII data to Sentry.
+  // For example, automatic IP address collection on events
+  sendDefaultPii: true,
+  integrations: [
+    Sentry.feedbackIntegration({
+      colorScheme: "system",
+      formTitle: "Report a Bug or Give Feedback",
+      isNameRequired: true,
+      successMessageText: "Thank you for taking the time to let us know.",
+      triggerLabel: "Report Bug or Give Feedback",
+    }),
+  ]
+});
 
 const dateRE = /^(\d\d\d\d-\d\d-\d\d)$/;
 const initialSearchParams = new URLSearchParams(document.location.search);
@@ -178,11 +195,6 @@ export default class SalishSea extends LitElement {
       <header>
         <h1>SalishSea.io <a @click=${this.onAboutClicked} class="about-link" href="#" title="About SalishSea.io">&#9432;</a></h1>
         <div>
-          <a href="https://orcasound.zulipchat.com/#narrow/channel/494032-salishsea-io/topic/changelog.20and.20feedback/with/508367635">
-            <button title="Get help or give feedback" type="button">
-              Feedback
-            </button>
-          </a>
           <login-button></login-button>
         </div>
       </header>
@@ -220,6 +232,9 @@ export default class SalishSea extends LitElement {
   async updateAuth() {
     this.user = await getUser();
     this.token = this.user ? await getTokenSilently() : undefined;
+    if (this.user) {
+      Sentry.setUser({email: this.user.email, name: this.user.name});
+    }
   }
 
   async doLogIn() {
