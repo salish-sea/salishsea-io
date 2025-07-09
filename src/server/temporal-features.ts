@@ -8,6 +8,10 @@ import { marked } from 'marked';
 import type { Direction } from "../direction.ts";
 import type { FeatureProperties } from "../types.ts";
 import { imputeTravelLines } from "./travel.ts";
+import { JSDOM } from 'jsdom';
+import createDOMPurify from 'dompurify';
+
+const domPurify = createDOMPurify(new JSDOM('').window);
 
 export type SightingPhoto = {
   attribution?: string | null;
@@ -57,7 +61,7 @@ export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.In
       const zoned = Temporal.Instant.fromEpochMilliseconds(row.timestamp * 1000).toZonedDateTimeISO('PST8PDT');
       const date = zoned.toPlainDate().toLocaleString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'});
       const time = zoned.toPlainTime().toLocaleString('en-US', {timeStyle: 'short'});
-      const body = row.body ? marked.parse(row.body, {async: false}) : null;
+      const body = row.body ? domPurify.sanitize(marked.parse(row.body, {async: false})) : null;
       return {
         id: row.id,
         type: 'Feature',
