@@ -5,12 +5,6 @@ CREATE TABLE maplify_sightings (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id
 CREATE INDEX maplify_sightings_created ON maplify_sightings (created);
 CREATE TABLE taxa(id integer primary key, parent_id integer, scientific_name text not null, taxon_rank text not null, updated_at int not null, vernacular_name text, species_id int);
 CREATE INDEX taxa_scientific_name on taxa(scientific_name );
-CREATE TABLE taxon_vernacular_names (taxon_id int not null, name varchar not null);
-CREATE INDEX taxon_vernacular_names_taxon_id on taxon_vernacular_names (taxon_id);
-CREATE TABLE IF NOT EXISTS "vernacular_names_temp"(
-"id" TEXT, "vernacularName" TEXT, "language" TEXT, "locality" TEXT,
- "countryCode" TEXT, "source" TEXT, "lexicon" TEXT, "contributor" TEXT,
- "created" TEXT);
 CREATE TABLE inaturalist_observations (id int not null primary key, description text, longitude real not null, latitude real not null, taxon_id integer not null, observed_at int not null, license_code varchar, photos_json json, url string not null, username string not null);
 CREATE INDEX inaturalist_observations_observed_at on inaturalist_observations (observed_at);
 CREATE TABLE sightings (id text primary key not null, created_at integer not null, updated_at integer not null, user text not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real, observer_latitude real, taxon_id int not null, body text, count int, individuals text, url text, direction text);

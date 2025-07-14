@@ -37,8 +37,7 @@ $ nvm use
 $ npm install
 $ wget https://www.inaturalist.org/taxa/inaturalist-taxonomy.dwca.zip
 $ unzip inaturalist-taxonomy.dwca.zip taxa.csv VernacularNames-english.csv
-$ sqlite3 salish-sea.sqlite3 < schema.sql
-$ sqlite3 salish-sea.sqlite3 < import-taxa.sql
+$ node src/setup.ts
 ```
 
 Get an access code for the Washington State Ferries API [here](https://www.wsdot.wa.gov/traffic/api/). Put it in a file called `.env` like so:
