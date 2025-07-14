@@ -10,6 +10,7 @@ import type { FeatureProperties } from "../types.ts";
 import { imputeTravelLines } from "./travel.ts";
 import { JSDOM } from 'jsdom';
 import createDOMPurify from 'dompurify';
+import './marked-mentions.ts';
 
 const domPurify = createDOMPurify(new JSDOM('').window as any);
 
