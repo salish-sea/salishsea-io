@@ -34,6 +34,24 @@ features.push({
   },
   type: 'Feature',
 });
+features.push({
+  id: `simres:monarchheadhydrophone`,
+  geometry: {type: 'Point', coordinates: [-123.086, 48.766]},
+  properties: {
+    kind: 'Hydrophone',
+    url: 'https://simres.ca/',
+  },
+  type: 'Feature',
+});
+features.push({
+  id: `raincoast:penderhydrophone`,
+  geometry: {type: 'Point', coordinates: [-123.199, 48.730]},
+  properties: {
+    kind: 'Hydrophone',
+    url: 'https://www.youtube.com/live/v6YhBAIJqGM',
+  },
+  type: 'Feature',
+});
 const collection: FeatureCollection = {
   type: 'FeatureCollection',
   features,
