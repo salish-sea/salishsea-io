@@ -25,6 +25,15 @@ const features: Feature[] = body.data
       type: 'Feature',
     };
   });
+features.push({
+  id: `whalemuseum:limekilnhydrophone`,
+  geometry: {type: 'Point', coordinates: [-123.153, 48.516]},
+  properties: {
+    kind: 'Hydrophone',
+    url: 'https://whalemuseum.org/pages/seasound-remote-sensing-network',
+  },
+  type: 'Feature',
+});
 const collection: FeatureCollection = {
   type: 'FeatureCollection',
   features,
