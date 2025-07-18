@@ -30,7 +30,7 @@ features.push({
   geometry: {type: 'Point', coordinates: [-123.153, 48.516]},
   properties: {
     kind: 'Hydrophone',
-    url: 'https://whalemuseum.org/pages/seasound-remote-sensing-network',
+    url: 'https://www.youtube.com/thewhalemuseum/live',
   },
   type: 'Feature',
 });
