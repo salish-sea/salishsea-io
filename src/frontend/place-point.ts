@@ -13,15 +13,21 @@ export default class PlacePoint extends PointerInteraction {
     this.point = point;
   }
 
+  protected handleDragEvent({coordinate}: MapBrowserEvent): void {
+    this.point.setCoordinates(coordinate);
+  }
+
   protected handleMoveEvent({coordinate}: MapBrowserEvent): void {
     this.point.setCoordinates(coordinate);
   }
 
-  protected handleDownEvent(_mapBrowserEvent: MapBrowserEvent): boolean {
+  protected handleDownEvent({coordinate}: MapBrowserEvent): boolean {
+    this.point.setCoordinates(coordinate);
     return true;
   }
 
-  protected handleUpEvent(_mapBrowserEvent: MapBrowserEvent): boolean {
+  protected handleUpEvent({coordinate}: MapBrowserEvent): boolean {
+    this.point.setCoordinates(coordinate);
     this.onComplete();
     return false;
   }
