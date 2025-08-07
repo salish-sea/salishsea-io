@@ -20,5 +20,9 @@ export default defineConfig({
   plugins: [sentryVitePlugin({
     org: "beam-reach",
     project: "salishsea-io"
-  })]
+  })],
+
+  server: {
+    allowedHosts: ['peters-macbook-air.local'],
+  },
 });
