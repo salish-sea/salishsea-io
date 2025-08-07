@@ -7,7 +7,7 @@
     "build": "tsc && vite build",
     "dev": "nodemon -w src/server -x node --env-file=.env ./src/server/main.ts",
     "preview": "vite preview",
-    "instrument": "node --env-file=.env --import ./src/server/instrument.ts ./src/server/main.ts",
+    "serve": "node --env-file=.env ./src/server/main.ts",
     "test": "vitest"
   },
   "dependencies": {

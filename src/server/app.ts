@@ -10,6 +10,8 @@ import { v7 } from "uuid";
 import {auth} from 'express-oauth2-jwt-bearer';
 import { storeUser } from "./user.ts";
 import { Temporal } from "temporal-polyfill";
+import './instrument.ts';
+import * as Sentry from '@sentry/node';
 
 export const app = express();
 
@@ -124,6 +126,8 @@ api.get(
     res.contentType('text/plain').send(presignedUrl);
   }
 );
+
+Sentry.setupExpressErrorHandler(app);
 
 declare module 'express' {
   interface Request {

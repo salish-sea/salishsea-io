@@ -24,6 +24,36 @@ import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
 import {Task} from '@lit/task';
 import './photo-uploader.ts';
 
+const taxa = {
+  "Seals and sea lions": {
+    "Mirounga angustirostris": "Elephant seal",
+    "Zalophus californianus": "California sea lion",
+    "Phoca vitulina richardii": "Harbor porpoise",
+  },
+  "Dolphins and porpoises": {
+    "Sagmatias obliquidens": "Pacific white-sided dolphin",
+    "Phocoenoides dalli": "Dall's porpoise",
+    "Phocoena phocoena vomerina": "Harbor porpoise",
+  },
+  "Killer whales": {
+    "Orcinus orca": "Killer whale (unknown ecotype)",
+    "Orcinus orca ater": "Resident killer whale",
+    "Orcinus orca rectipinnus": "Bigg's killer whale",
+    "Eumetopias jubatus monteriensis": "Steller sea lion",
+  },
+  "Baleen whales": {
+    "Balaenoptera physalus": "Fin whale",
+    "Eschrichtius robustus": "Gray whale",
+    "Megaptera novaeangliae": "Humpback whale",
+    "Balaenoptera acutorostrata": "Minke whale",
+    "Physeter macrocephalus": "Sperm whale",
+  },
+  "Otters": {
+    "Lontra canadensis": "River otter",
+    "Enhydra lutris kenyoni": "Sea otter",
+  }
+};
+
 @customElement('add-sighting')
 export default class AddSighting extends LitElement {
   private _saveTask = new Task(this, {
@@ -174,6 +204,7 @@ export default class AddSighting extends LitElement {
   }
 
   protected render() {
+    const lastTaxon = localStorage.getItem('lastTaxon') || 'Orcinus orca';
     const licenseCode = localStorage.getItem('photoLicenseCode') || 'cc-by';
 
     return html`
@@ -185,10 +216,12 @@ export default class AddSighting extends LitElement {
         </label>
         <label>
           <span class="label">Species</span>
-          <select @change=${this.onLicenseChange} name="taxon">
-            <option value="Orcinus orca" selected>Killer Whale (any type)</option>
-            <option value="Orcinus orca ater">Resident Killer Whale</option>
-            <option value="Orcinus orca rectipinnus">Bigg's Killer Whale</option>
+          <select @change=${this.onTaxonChange} name="taxon">
+            ${Object.entries(taxa).map(([group, taxa]) => html`
+              <optgroup label=${group}>${Object.entries(taxa).map(([taxon, label]) => html`
+                <option value=${taxon} ?selected=${taxon === lastTaxon}>${label}</option>
+              `)}</optgroup>
+            `)}
           </select>
         </label>
         <label>
@@ -321,6 +354,13 @@ export default class AddSighting extends LitElement {
       throw `onLicenseChange is broken`;
     const licenseCode = e.target.value;
     localStorage.setItem('photoLicenseCode', licenseCode);
+  }
+
+  private onTaxonChange(e: Event) {
+    if (!(e.target instanceof HTMLSelectElement))
+      throw `onTaxonChange is broken`;
+    const taxon = e.target.value;
+    localStorage.setItem('lastTaxon', taxon);
   }
 
   private onUploadClicked() {
