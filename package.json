@@ -12,16 +12,16 @@
   },
   "dependencies": {
     "@auth0/auth0-spa-js": "^2.3.0",
-    "@aws-sdk/client-s3": "^3.859.0",
+    "@aws-sdk/client-s3": "^3.864.0",
     "@aws-sdk/hash-node": "^3.374.0",
     "@aws-sdk/protocol-http": "^3.374.0",
-    "@aws-sdk/s3-request-presigner": "^3.859.0",
+    "@aws-sdk/s3-request-presigner": "^3.864.0",
     "@aws-sdk/url-parser": "^3.374.0",
     "@formatjs/intl-datetimeformat": "^6.17.3",
     "@lit/context": "^1.1.6",
     "@lit/task": "1.0.3",
-    "@sentry/browser": "^10.1.0",
-    "@sentry/node": "^10.1.0",
+    "@sentry/browser": "^10.3.0",
+    "@sentry/node": "^10.3.0",
     "@sentry/vite-plugin": "^4.0.2",
     "@turf/bearing": "^7.2.0",
     "@turf/distance": "^7.2.0",
@@ -39,7 +39,7 @@
     "multer": "^2.0.2",
     "uuid": "^11.1.0",
     "vite-express": "^0.21.1",
-    "zod": "^4.0.14"
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@formatjs/intl-durationformat": "^0.7.3",
