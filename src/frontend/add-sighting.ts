@@ -26,32 +26,32 @@ import './photo-uploader.ts';
 
 const taxa = {
   "Seals and sea lions": {
-    "Mirounga angustirostris": "Elephant seal",
+    "Phoca vitulina richardii": "Harbor seal",
+    "Eumetopias jubatus monteriensis": "Steller sea lion",
     "Zalophus californianus": "California sea lion",
-    "Phoca vitulina richardii": "Harbor porpoise",
+    "Mirounga angustirostris": "Elephant seal",
   },
   "Dolphins and porpoises": {
-    "Sagmatias obliquidens": "Pacific white-sided dolphin",
+    "Phoca vitulina richardii": "Harbor porpoise",
     "Phocoenoides dalli": "Dall's porpoise",
-    "Phocoena phocoena vomerina": "Harbor porpoise",
+    "Sagmatias obliquidens": "Pacific white-sided dolphin",
   },
   "Killer whales": {
     "Orcinus orca": "Killer whale (unknown ecotype)",
-    "Orcinus orca ater": "Resident killer whale",
     "Orcinus orca rectipinnus": "Bigg's killer whale",
-    "Eumetopias jubatus monteriensis": "Steller sea lion",
+    "Orcinus orca ater": "Resident killer whale",
   },
   "Baleen whales": {
-    "Balaenoptera physalus": "Fin whale",
-    "Eschrichtius robustus": "Gray whale",
     "Megaptera novaeangliae": "Humpback whale",
+    "Eschrichtius robustus": "Gray whale",
     "Balaenoptera acutorostrata": "Minke whale",
+    "Balaenoptera physalus": "Fin whale",
     "Physeter macrocephalus": "Sperm whale",
   },
   "Otters": {
     "Lontra canadensis": "River otter",
     "Enhydra lutris kenyoni": "Sea otter",
-  }
+  },
 };
 
 @customElement('add-sighting')
