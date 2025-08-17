@@ -11,20 +11,6 @@ export type FeatureProperties = FerryLocationProperties | SightingProperties | T
 // [minx, miny, maxx, maxy]
 export type Extent = [number, number, number, number];
 
-export type SightingForm = {
-  id: string; // uuid
-  body?: string | null;
-  count?: number | null;
-  direction: string | null;
-  license_code: string;
-  observed_at: number; // unix epoch time
-  observer_location: null | [number, number]; // lon, lat
-  photo: string[];
-  subject_location: [number, number]; // lon, lat
-  taxon: string;
-  url?: string | null;
-}
-
 export type UpsertSightingResponse = {
   id: string;
 }

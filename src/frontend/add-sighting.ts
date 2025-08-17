@@ -23,6 +23,8 @@ import { repeat } from "lit/directives/repeat.js";
 import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
 import {Task} from '@lit/task';
 import './photo-uploader.ts';
+import { type SightingPayload } from "../server/sighting.ts";
+import { TanStackFormController } from '@tanstack/lit-form';
 
 const taxa = {
   "Seals and sea lions": {
@@ -177,6 +179,53 @@ export default class AddSighting extends LitElement {
   @query('input[name=photos', true)
   private photosInput: HTMLInputElement | undefined
 
+  #form = new TanStackFormController(this, {
+    defaultValues: {
+      body: '',
+      count: 0,
+      observed_time: '',
+      observer_location: '',
+      photo_license: localStorage.getItem('photoLicenseCode') || 'cc-by',
+      subject_location: '',
+      taxon: localStorage.getItem('lastTaxon') || 'Orcinus orca',
+      travel_direction: '',
+      url: '',
+    },
+    onSubmit: ({value}) => {
+      const observedAt = Temporal.PlainDate.from(this.date)
+        .toZonedDateTime({timeZone: 'PST8PDT', plainTime: value.observed_time as string});
+      if (Temporal.ZonedDateTime.compare(observedAt, Temporal.Now.zonedDateTimeISO()) > 0) {
+        alert("Please ensure you've entered a time in the past");
+        return;
+      }
+      // data.photo = formData.getAll('photo');
+      const observerCoords = toLonLat(this.#observerPoint.getCoordinates())
+      const subjectCoords = toLonLat(this.#subjectPoint.getCoordinates());
+      const payload: SightingPayload = {
+        body: value.body,
+        count: value.count,
+        direction: value.travel_direction,
+        observed_at: observedAt.toInstant.toString(),
+        observer_location: observerCoords.length === 2 ? observerCoords as [number, number] : null,
+        photo: [],
+        photo_license: value.photo_license,
+        subject_location: subjectCoords as [number, number],
+        taxon: value.taxon,
+      };
+      const endpoint = `/api/sightings/${this.id}`;
+      const request = new Request(endpoint, {
+        body: JSON.stringify(payload),
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'PUT',
+      });
+      this._saveTask.run([request]);
+      localStorage.setItem('lastTaxon', value.taxon);
+    },
+  })
+
   constructor() {
     super();
 
@@ -204,63 +253,89 @@ export default class AddSighting extends LitElement {
   }
 
   protected render() {
-    const lastTaxon = localStorage.getItem('lastTaxon') || 'Orcinus orca';
-    const licenseCode = localStorage.getItem('photoLicenseCode') || 'cc-by';
-
     return html`
       <input @change=${this.onFilesChanged} type="file" name="photos" accept="image/jpeg" multiple>
-      <form @submit=${this.onSubmit} @dragover=${this.onDragOver} @drop=${this.onDrop} action="/api/sightings/${this.id}">
-        <label>
-          <span class="label">URL</span>
-          <input type="url" name="url" />
-        </label>
-        <label>
-          <span class="label">Species</span>
-          <select @change=${this.onTaxonChange} name="taxon">
-            ${Object.entries(taxa).map(([group, taxa]) => html`
-              <optgroup label=${group}>${Object.entries(taxa).map(([taxon, label]) => html`
-                <option value=${taxon} ?selected=${taxon === lastTaxon}>${label}</option>
-              `)}</optgroup>
-            `)}
-          </select>
-        </label>
-        <label>
-          <span class="label">Count</span>
-          <input type="number" name="count" value="" min="0" max="100">
-        </label>
-        <label>
-          <span class="label">Time</span>
-          <input type="time" name="observed_time" step="1" required />
-        </label>
-        <label>
-          <span class="label">Observer location</span>
-          <input @change=${this.onObserverInputChange} type="text" name="observer_location" size="14" placeholder="lat, lon">
-          <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
-          <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
-        </label>
-        <label>
-          <span class="label">Subject location</span>
-          <input @change=${this.onSubjectInputChange} type="text" name="subject_location" size="14" placeholder="lat, lon" required>
-          <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
-        </label>
-        <label>
-          <span class="label">Travel direction</span>
-          <select name="direction">
-            <option value="" selected>None or unknown</option>
-            <option value="north">North</option>
-            <option value="northeast">Northeast</option>
-            <option value="east">East</option>
-            <option value="southeast">Southeast</option>
-            <option value="south">South</option>
-            <option value="southwest">Southwest</option>
-            <option value="west">West</option>
-            <option value="northwest">Northwest</option>
-          </select>
-        </label>
-        <label>
-          <span class="label">Notes</span>
-          <textarea name="body" rows="3" cols="21"></textarea>
-        </label>
+      <form
+        @submit=${(e: Event) => {
+          e.preventDefault();
+          this.#form.api.handleSubmit();
+        }}
+        @dragover=${this.onDragOver}
+        @drop=${this.onDrop}
+      >
+        ${this.#form.field({name: 'url'}, field => html`
+          <label>
+            <span class="label">URL</span>
+            <input type="url" name="${field.name}" .value=${field.state.value} @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).value)}>
+          </label>
+        `)}
+        ${this.#form.field({name: 'taxon'}, field => html`
+          <label>
+            <span class="label">Species</span>
+            <select @change=${field.handleChange} name="${field.name}" .value=${field.state.value}>
+              ${Object.entries(taxa).map(([group, taxa]) => html`
+                <optgroup label=${group}>${Object.entries(taxa).map(([taxon, label]) => html`
+                  <option value=${taxon}>${label}</option>
+                `)}</optgroup>
+              `)}
+            </select>
+          </label>
+        `)}
+        ${this.#form.field({name: 'count'}, field => html`
+          <label>
+            <span class="label">Count</span>
+            <input type="number" name="${field.name}" .value=${field.state.value} min="0" max="100" @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).valueAsNumber)}>
+          </label>
+        `)}
+        ${this.#form.field({name: 'observed_time'}, field => html`
+          <label>
+            <span class="label">Time</span>
+            <input type="time" name="${field.name}" step="1" required .value=${field.state.value} @change=${(e: InputEvent) => field.handleChange((e.target as HTMLInputElement).value)}>
+          </label>
+        `)}
+        ${this.#form.field({name: 'observer_location'}, field => html`
+          <label>
+            <span class="label">Observer location</span>
+            <input type="text" name="${field.name}" size="14" placeholder="lat, lon" .value=${field.state.value} @change=${(e: InputEvent) => {
+              field.handleChange((e.target as HTMLInputElement).value);
+              this.onObserverInputChange(e);
+            }}>
+            <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
+            <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
+          </label>
+        `)}
+        ${this.#form.field({name: 'subject_location'}, field => html`
+          <label>
+            <span class="label">Subject location</span>
+            <input type="text" name="${field.name}" size="14" placeholder="lat, lon" required .value=${field.state.value} @change=${(e: InputEvent) => {
+              field.handleChange((e.target as HTMLInputElement).value);
+              this.onSubjectInputChange(e);
+            }}>
+            <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
+          </label>
+        `)}
+        ${this.#form.field({name: 'travel_direction'}, field => html`
+          <label>
+            <span class="label">Travel direction</span>
+            <select name="${field.name}" .value=${field.state.value} @change=${(e: Event) => field.handleChange((e.target as HTMLSelectElement).value)}>
+              <option value="">None or unknown</option>
+              <option value="north">North</option>
+              <option value="northeast">Northeast</option>
+              <option value="east">East</option>
+              <option value="southeast">Southeast</option>
+              <option value="south">South</option>
+              <option value="southwest">Southwest</option>
+              <option value="west">West</option>
+              <option value="northwest">Northwest</option>
+            </select>
+          </label>
+        `)}
+        ${this.#form.field({name: 'body'}, field => html`
+          <label>
+            <span class="label">Notes</span>
+            <textarea name="${field.name}" rows="3" cols="21" .value=${field.state.value} @change=${(e: Event) => field.handleChange((e.target as HTMLTextAreaElement).value)}></textarea>
+          </label>
+        `)}
         <label>
           <span>Photos</span>
           <div class="thumbnails">
@@ -275,14 +350,16 @@ export default class AddSighting extends LitElement {
             </button>
           </div>
         </label>
-        <label>
-          <span class="label">Photo license</span>
-          <select @change=${this.onLicenseChange} name="license_code">
-            ${Object.entries(licenseCodes).map(([code, description]) => html`
-              <option value=${code} ?selected=${code === licenseCode}>${description}</option>
-            `)}
-          </select>
-        </label>
+        ${this.#form.field({name: 'photo_license'}, field => html`
+          <label>
+            <span class="label">Photo license</span>
+            <select @change=${this.onLicenseChange} name="${field.name}" .value=${field.state.value} @change=${(e: Event) => field.handleChange((e.target as HTMLSelectElement).value)}>
+              ${Object.entries(licenseCodes).map(([code, description]) => html`
+                <option value=${code}>${description}</option>
+              `)}
+            </select>
+          </label>
+        `)}
         <div class="actions">
           ${this._saveTask.render({
             initial: () => html`
@@ -354,13 +431,6 @@ export default class AddSighting extends LitElement {
       throw `onLicenseChange is broken`;
     const licenseCode = e.target.value;
     localStorage.setItem('photoLicenseCode', licenseCode);
-  }
-
-  private onTaxonChange(e: Event) {
-    if (!(e.target instanceof HTMLSelectElement))
-      throw `onTaxonChange is broken`;
-    const taxon = e.target.value;
-    localStorage.setItem('lastTaxon', taxon);
   }
 
   private onUploadClicked() {
@@ -436,34 +506,6 @@ export default class AddSighting extends LitElement {
     }
   }
 
-  private async onSubmit(e: Event) {
-    e.preventDefault();
-    const form = this.shadowRoot!.querySelector('form') as HTMLFormElement;
-    const formData = new FormData(form);
-    const data: {[k: string]: unknown} = Object.fromEntries(formData);
-    data.count = parseInt(formData.get('count') as string, 10);
-    const observedAt = Temporal.PlainDate.from(this.date)
-      .toZonedDateTime({timeZone: 'PST8PDT', plainTime: data.observed_time as string});
-    if (Temporal.ZonedDateTime.compare(observedAt, Temporal.Now.zonedDateTimeISO()) > 0) {
-      alert("Please ensure you've entered a time in the past");
-      return;
-    }
-    data.observed_at = observedAt.epochMilliseconds / 1000;
-    data.photo = formData.getAll('photo');
-    const observerCoords = toLonLat(this.#observerPoint.getCoordinates())
-    data.observer_location = observerCoords.length ? observerCoords : null;
-    data.subject_location = toLonLat(this.#subjectPoint.getCoordinates());
-    const request = new Request(form.action, {
-      body: JSON.stringify(data),
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-      },
-      method: 'PUT',
-    });
-    this._saveTask.run([request]);
-  }
-
   protected firstUpdated(_changedProperties: PropertyValues): void {
     const sightingProperties: SightingStyleProperties = {
       direction: null,
@@ -487,6 +529,10 @@ export default class AddSighting extends LitElement {
     this.#observerPoint.on('change', this.onCoordinatesChanged.bind(this));
     this.#subjectPoint.on('change', this.onCoordinatesChanged.bind(this));
   }
+
+  // public setProperties(props: Partial<SightingForm>) {
+  //   // this.
+  // }
 
   disconnectedCallback(): void {
     this.reset();

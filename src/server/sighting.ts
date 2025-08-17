@@ -1,18 +1,32 @@
 import {parse, stringify} from 'uuid';
 import { db } from './database.ts';
-import type { SightingForm } from '../types.ts';
 import { taxonByName } from './taxon.ts';
 import { bucket, region } from './storage.ts';
 import path from 'node:path';
+import { z } from 'zod';
 
 const S3_BASE_URI = `https://${bucket}.s3.${region}.amazonaws.com`;
+
+export const sightingSchema = z.object({
+  body: z.string(),
+  count: z.number().optional().nullish(),
+  direction: z.string().nullable(),
+  observed_at: z.string(),
+  observer_location: z.tuple([z.number(), z.number()]).nullable(),
+  photo: z.array(z.string()).default([]),
+  photo_license: z.string(),
+  subject_location: z.tuple([z.number(), z.number()]),
+  taxon: z.string(),
+  url: z.string().trim().nullish(),
+});
+export type SightingPayload = z.infer<typeof sightingSchema>;
 
 type SightingRow = {
   id: string; // uuid
   created_at: number; // unix epoch time in milliseconds
   updated_at: number; // unix epoch time in milliseconds
   user: string;
-  observed_at: number; // unix epoch time in seconds
+  observed_at: string; // RFC-3339
   longitude: number;
   latitude: number;
   observer_longitude: number | null;
@@ -54,23 +68,27 @@ const insertSightingTxn = db.transaction((sighting: SightingRow, photos: Omit<Ph
   for (const photo of photos)
     insertPhotoStatement.run(photo);
 });
-export function upsertSighting(form: SightingForm, timestamp: number, user: string) {
+export function upsertSighting(id: string, form: SightingPayload, timestamp: number, user: string) {
   const [longitude, latitude] = form.subject_location;
   const [observer_longitude, observer_latitude] = form.observer_location || [null, null];
+
   const taxon = taxonByName(form.taxon);
   if (!taxon)
     throw `Couldn't find a taxon named ${form.taxon}`;
-  if (form.observed_at < 613162785)
+
+  const observedAt = new Date(form.observed_at);
+  if (observedAt.valueOf() < 613162785)
     throw `Sighting observed before 1985-06-13`;
-  if (form.observed_at > (timestamp / 1000))
+  if (observedAt.valueOf() > (timestamp / 1000))
     throw `Sighting observed in the future`;
+
   const body = form.body?.trim().length ? form.body.trim() : null;
   const sighting = {
     body,
     count: form.count || null,
     created_at: timestamp,
     direction: form.direction || null,
-    id: stringify(parse(form.id)),
+    id: stringify(parse(id)),
     individuals: '',
     latitude,
     longitude,
@@ -86,7 +104,7 @@ export function upsertSighting(form: SightingForm, timestamp: number, user: stri
     sighting_id: sighting.id,
     href: path.join(S3_BASE_URI, photo),
     idx,
-    license_code: form.license_code,
+    license_code: form.photo_license,
   }));
   return insertSightingTxn(sighting, photos);
 }

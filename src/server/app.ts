@@ -4,7 +4,7 @@ import { query, matchedData, validationResult } from 'express-validator';
 import { z } from "zod";
 import { collectFeatures } from "./temporal-features.ts";
 import type { TemporalFeaturesResponse, UpsertSightingResponse } from "../types.ts";
-import { deleteSighting, upsertSighting } from "./sighting.ts";
+import { deleteSighting, sightingSchema, upsertSighting } from "./sighting.ts";
 import { getPresignedUserObjectURL } from "./storage.ts";
 import { v7 } from "uuid";
 import {auth} from 'express-oauth2-jwt-bearer';
@@ -52,18 +52,6 @@ api.get(
   }
 );
 
-const sightingSchema = z.object({
-  body: z.string(),
-  count: z.number().optional().nullish(),
-  direction: z.string().nullable(),
-  license_code: z.string(),
-  observed_at: z.number(),
-  observer_location: z.tuple([z.number(), z.number()]).nullable(),
-  photo: z.array(z.string()).default([]),
-  subject_location: z.tuple([z.number(), z.number()]),
-  taxon: z.string(),
-  url: z.string().trim().nullish(),
-});
 api.put(
   "/sightings/:sightingId",
   checkJwt,
@@ -74,10 +62,12 @@ api.put(
       const updatedAt = new Date().valueOf();
       const user = req.auth!.payload.sub!;
 
-      const sighting = {...validatedData, id: req.params.sightingId!};
+      const id = req.params.sightingId;
+      if (!id)
+        throw `Didn't find a sighting id!`;
 
-      upsertSighting(sighting, updatedAt, user);
-      const response: UpsertSightingResponse = {id: sighting.id};
+      upsertSighting(id, validatedData, updatedAt, user);
+      const response: UpsertSightingResponse = {id};
       res.status(201).json(response);
     } catch (error) {
       if (error instanceof z.ZodError) {
