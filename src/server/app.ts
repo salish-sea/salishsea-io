@@ -4,7 +4,7 @@ import { query, matchedData, validationResult } from 'express-validator';
 import { z } from "zod";
 import { collectFeatures } from "./temporal-features.ts";
 import type { TemporalFeaturesResponse, UpsertSightingResponse } from "../types.ts";
-import { deleteSighting, sightingSchema, upsertSighting } from "./sighting.ts";
+import { deleteSighting, upsertSighting } from "./sighting.ts";
 import { getPresignedUserObjectURL } from "./storage.ts";
 import { v7 } from "uuid";
 import {auth} from 'express-oauth2-jwt-bearer';
@@ -12,6 +12,7 @@ import { storeUser } from "./user.ts";
 import { Temporal } from "temporal-polyfill";
 import './instrument.ts';
 import * as Sentry from '@sentry/node';
+import { sightingSchema } from "../api.ts";
 
 export const app = express();
 

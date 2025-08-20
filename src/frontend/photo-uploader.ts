@@ -60,6 +60,7 @@ export default class PhotoUploader extends LitElement {
       await fetch(signedRequest);
       for (const input of this.inputs) {
         input.value = signedUrl.pathname;
+        input.dispatchEvent(new Event('change'));
       }
       return signedUrl.pathname;
     },

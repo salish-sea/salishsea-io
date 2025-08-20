@@ -23,7 +23,7 @@ import { repeat } from "lit/directives/repeat.js";
 import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
 import {Task} from '@lit/task';
 import './photo-uploader.ts';
-import { type SightingPayload } from "../server/sighting.ts";
+import { type SightingPayload } from "../api.ts";
 import { TanStackFormController } from '@tanstack/lit-form';
 
 const taxa = {
@@ -170,13 +170,13 @@ export default class AddSighting extends LitElement {
   @query('input[name=observed_time]', true)
   private timeInput: HTMLInputElement | undefined
 
-  @query('input[name=observer_location', true)
+  @query('input[name=observer_location]', true)
   private observerLocationInput: HTMLInputElement | undefined
 
-  @query('input[name=subject_location', true)
+  @query('input[name=subject_location]', true)
   private subjectLocationInput: HTMLInputElement | undefined
 
-  @query('input[name=photos', true)
+  @query('input[name=photos]', true)
   private photosInput: HTMLInputElement | undefined
 
   #form = new TanStackFormController(this, {
@@ -186,6 +186,7 @@ export default class AddSighting extends LitElement {
       observed_time: '',
       observer_location: '',
       photo_license: localStorage.getItem('photoLicenseCode') || 'cc-by',
+      photo_urls: [] as string[],
       subject_location: '',
       taxon: localStorage.getItem('lastTaxon') || 'Orcinus orca',
       travel_direction: '',
@@ -193,22 +194,21 @@ export default class AddSighting extends LitElement {
     },
     onSubmit: ({value}) => {
       const observedAt = Temporal.PlainDate.from(this.date)
-        .toZonedDateTime({timeZone: 'PST8PDT', plainTime: value.observed_time as string});
+        .toZonedDateTime({timeZone: 'PST8PDT', plainTime: value.observed_time});
       if (Temporal.ZonedDateTime.compare(observedAt, Temporal.Now.zonedDateTimeISO()) > 0) {
         alert("Please ensure you've entered a time in the past");
         return;
       }
-      // data.photo = formData.getAll('photo');
       const observerCoords = toLonLat(this.#observerPoint.getCoordinates())
       const subjectCoords = toLonLat(this.#subjectPoint.getCoordinates());
       const payload: SightingPayload = {
         body: value.body,
         count: value.count,
         direction: value.travel_direction,
-        observed_at: observedAt.toInstant.toString(),
+        observed_at: observedAt.toInstant().toString(),
         observer_location: observerCoords.length === 2 ? observerCoords as [number, number] : null,
-        photo: [],
         photo_license: value.photo_license,
+        photos: value.photo_urls,
         subject_location: subjectCoords as [number, number],
         taxon: value.taxon,
       };
@@ -244,6 +244,7 @@ export default class AddSighting extends LitElement {
       const [date, time] = e.detail.split(' ');
       if (time && this.timeInput!.value === '') {
         this.timeInput!.value = time;
+        this.timeInput!.dispatchEvent(new Event('change'));
       }
       if (date !== this.date) {
         const dateSelected = new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date});
@@ -272,7 +273,7 @@ export default class AddSighting extends LitElement {
         ${this.#form.field({name: 'taxon'}, field => html`
           <label>
             <span class="label">Species</span>
-            <select @change=${field.handleChange} name="${field.name}" .value=${field.state.value}>
+            <select name="${field.name}" .value=${field.state.value} @change=${(e: Event) => field.handleChange((e.target as HTMLSelectElement).value)}>
               ${Object.entries(taxa).map(([group, taxa]) => html`
                 <optgroup label=${group}>${Object.entries(taxa).map(([taxon, label]) => html`
                   <option value=${taxon}>${label}</option>
@@ -339,9 +340,15 @@ export default class AddSighting extends LitElement {
         <label>
           <span>Photos</span>
           <div class="thumbnails">
-            ${repeat(this.photos, photo => photo, photo => html`
+            ${repeat(this.photos, photo => photo, (photo, index) => html`
               <photo-uploader expected-date=${this.date} sightingId=${this.id} .file=${photo}>
-                <input slot="input" type="hidden" name="photo" required>
+                ${this.#form.field({name: `photo_urls[${index}]`}, field => html`
+                  <input slot="input" type="hidden" name=${field.name} required @change=${(e: Event) => {
+                    const url = (e.target as HTMLInputElement).value;
+                    console.log(`Got photo url ${url}`);
+                    field.handleChange(url);
+                  }}>
+                `)}
               </photo-uploader>
             `)}
             <button @click=${this.onUploadClicked} class="upload-photo" type="button">
@@ -353,7 +360,11 @@ export default class AddSighting extends LitElement {
         ${this.#form.field({name: 'photo_license'}, field => html`
           <label>
             <span class="label">Photo license</span>
-            <select @change=${this.onLicenseChange} name="${field.name}" .value=${field.state.value} @change=${(e: Event) => field.handleChange((e.target as HTMLSelectElement).value)}>
+            <select name="${field.name}" .value=${field.state.value} @change=${(e: Event) => {
+              const licenseCode = (e.target as HTMLSelectElement).value;
+              field.handleChange(licenseCode);
+              localStorage.setItem('photoLicenseCode', licenseCode);
+            }}>
               ${Object.entries(licenseCodes).map(([code, description]) => html`
                 <option value=${code}>${description}</option>
               `)}
@@ -426,13 +437,6 @@ export default class AddSighting extends LitElement {
     this.photosInput.value = '';
   }
 
-  private onLicenseChange(e: Event) {
-    if (!(e.target instanceof HTMLSelectElement))
-      throw `onLicenseChange is broken`;
-    const licenseCode = e.target.value;
-    localStorage.setItem('photoLicenseCode', licenseCode);
-  }
-
   private onUploadClicked() {
     this.photosInput!.click();
   }
@@ -490,8 +494,15 @@ export default class AddSighting extends LitElement {
     let observerCoordinateStr = observerCoordinates.map(v => v.toFixed(4)).reverse().join(', ');
     let subjectCoordinateStr = subjectCoordinates.map(v => v.toFixed(4)).reverse().join(', ');
     if (this.observerLocationInput && this.subjectLocationInput) {
-      this.observerLocationInput.value = observerCoordinateStr;
-      this.subjectLocationInput.value = subjectCoordinateStr;
+      if (this.observerLocationInput.value !== observerCoordinateStr) {
+        this.observerLocationInput.value = observerCoordinateStr;
+        this.observerLocationInput.dispatchEvent(new Event('change'));
+      }
+
+      if (this.subjectLocationInput.value !== subjectCoordinateStr) {
+        this.subjectLocationInput.value = subjectCoordinateStr;
+        this.subjectLocationInput.dispatchEvent(new Event('change'));
+      }
     }
     if (observerCoordinates.length && subjectCoordinates.length) {
       let bearing = getBearing(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
@@ -539,6 +550,7 @@ export default class AddSighting extends LitElement {
     super.disconnectedCallback();
   }
 
+  // TODO
   private reset() {
     this.form!.reset();
     this.#observerPoint.setCoordinates([]);
