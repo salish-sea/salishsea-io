@@ -2,7 +2,6 @@ import {parse, stringify} from 'uuid';
 import { db } from './database.ts';
 import { taxonByName } from './taxon.ts';
 import { bucket, region } from './storage.ts';
-import path from 'node:path';
 import type { SightingPayload } from '../api.ts';
 
 const S3_BASE_URI = `https://${bucket}.s3.${region}.amazonaws.com`;
@@ -61,13 +60,13 @@ export function upsertSighting(id: string, form: SightingPayload, timestamp: Dat
 
   const taxon = taxonByName(form.taxon);
   if (!taxon)
-    throw `Couldn't find a taxon named ${form.taxon}`;
+    throw new Error(`Couldn't find a taxon named ${form.taxon}`);
 
   const observedAt = new Date(form.observed_at);
   if (observedAt < MIN_SIGHTING_DATE)
-    throw `Sighting observed before ${MIN_SIGHTING_DATE.toLocaleDateString()}`;
+    throw new Error(`Sighting observed before ${MIN_SIGHTING_DATE.toLocaleDateString()}`);
   if (observedAt > timestamp)
-    throw `Sighting observed in the future`;
+    throw new Error(`Sighting observed in the future`);
 
   const body = form.body?.trim().length ? form.body.trim() : null;
   const sighting = {
@@ -89,7 +88,7 @@ export function upsertSighting(id: string, form: SightingPayload, timestamp: Dat
   };
   const photos = form.photos.map((photo, idx) => ({
     sighting_id: sighting.id,
-    href: path.join(S3_BASE_URI, photo),
+    href: new URL(photo, S3_BASE_URI + '/').toString(),
     idx,
     license_code: form.photo_license,
   }));

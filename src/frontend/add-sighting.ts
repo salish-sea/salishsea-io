@@ -164,9 +164,6 @@ export default class AddSighting extends LitElement {
     }
   `;
 
-  @query('form', true)
-  private form: HTMLFormElement | undefined
-
   @query('input[name=observed_time]', true)
   private timeInput: HTMLInputElement | undefined
 
@@ -200,17 +197,21 @@ export default class AddSighting extends LitElement {
         return;
       }
       const observerCoords = toLonLat(this.#observerPoint.getCoordinates())
-      const subjectCoords = toLonLat(this.#subjectPoint.getCoordinates());
+      const subjectCoords = this.#subjectPoint.getCoordinates();
+      if (subjectCoords.length !== 2)
+        throw new Error("Subject coordinates not set");
+
       const payload: SightingPayload = {
         body: value.body,
         count: value.count,
         direction: value.travel_direction,
         observed_at: observedAt.toInstant().toString(),
-        observer_location: observerCoords.length === 2 ? observerCoords as [number, number] : null,
+        observer_location: observerCoords.length === 2 ? observerCoords as [number, number] : undefined,
         photo_license: value.photo_license,
         photos: value.photo_urls,
-        subject_location: subjectCoords as [number, number],
+        subject_location: toLonLat(subjectCoords) as [number, number],
         taxon: value.taxon,
+        url: value.url,
       };
       const endpoint = `/api/sightings/${this.id}`;
       const request = new Request(endpoint, {
@@ -345,7 +346,6 @@ export default class AddSighting extends LitElement {
                 ${this.#form.field({name: `photo_urls[${index}]`}, field => html`
                   <input slot="input" type="hidden" name=${field.name} required @change=${(e: Event) => {
                     const url = (e.target as HTMLInputElement).value;
-                    console.log(`Got photo url ${url}`);
                     field.handleChange(url);
                   }}>
                 `)}
@@ -467,7 +467,7 @@ export default class AddSighting extends LitElement {
 
   private onObserverInputChange(e: Event) {
     const input = e.target as HTMLInputElement;
-    const match = input.value.match(/^\s*([0-9]{2}.[0-9]+),\s*(-\d{3}.[0-9]+)\s*$/);
+    const match = input.value.match(/^\s*(\d{2}\.\d+),\s*(-\d{3}\.\d+)\s*$/);
     if (match) {
       const [, lat, lon] = match.map(v => parseFloat(v));
       this.#observerPoint.setCoordinates(fromLonLat([lon!, lat!]));
@@ -478,7 +478,7 @@ export default class AddSighting extends LitElement {
 
   private onSubjectInputChange(e: Event) {
     const input = e.target as HTMLInputElement;
-    const match = input.value.match(/^\s*(\d{2}.[0-9]+),\s*(-\d{3}.[0-9]+)\s*$/);
+    const match = input.value.match(/^\s*(\d{2}\.\d+),\s*(-\d{3}\.\d+)\s*$/);
     if (match) {
       const [, lat, lon] = match.map(v => parseFloat(v));
       // This triggers onCoordinatesChanged
@@ -550,9 +550,8 @@ export default class AddSighting extends LitElement {
     super.disconnectedCallback();
   }
 
-  // TODO
   private reset() {
-    this.form!.reset();
+    this.#form.api.reset();
     this.#observerPoint.setCoordinates([]);
     this.#subjectPoint.setCoordinates([]);
     this.photos = [];

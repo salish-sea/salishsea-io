@@ -69,7 +69,7 @@ api.put(
 
       upsertSighting(id, validatedData, updatedAt, user);
       const response: UpsertSightingResponse = {id};
-      res.status(201).json(response);
+      res.status(200).json(response);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ errors: error.issues });

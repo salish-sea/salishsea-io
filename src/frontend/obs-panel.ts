@@ -62,7 +62,7 @@ export class ObsPanel extends LitElement {
     }
   `;
 
-  @property({attribute: true, type: Boolean})
+  @property({attribute: true, reflect: true, type: Boolean})
   public showForm: boolean = false
 
   @property({type: String, reflect: true})
@@ -118,11 +118,14 @@ export class ObsPanel extends LitElement {
 
   private async doShowForm() {
     if (!this.token) {
-      if (! (await this.logIn()))
+      const success = await this.logIn();
+      if (!success)
         return;
+      // Allow context subscription a microtask to propagate the token.
+      await Promise.resolve();
     }
     if (!this.token)
-      throw "Tried to submit without a token";
+      throw new Error("Login succeeded but token was not available");
 
     this.showForm = true;
   }

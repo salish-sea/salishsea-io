@@ -155,9 +155,6 @@ export class ObsMap extends LitElement {
     });
     this.map.on('singleclick', this.onClick.bind(this));
     this.map.on('moveend', this.onMoveEnd.bind(this));
-    this.view.addEventListener('contextmenu', (evt) => {
-      evt.preventDefault();
-    });
   }
 
   public render() {
