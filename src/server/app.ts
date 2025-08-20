@@ -60,7 +60,7 @@ api.put(
   (req: Request, res: Response) => {
     try {
       const validatedData = sightingSchema.parse(req.body);
-      const updatedAt = new Date().valueOf();
+      const updatedAt = new Date();
       const user = req.auth!.payload.sub!;
 
       const id = req.params.sightingId;

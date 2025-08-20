@@ -13,7 +13,7 @@ type SightingRow = {
   created_at: number; // unix epoch time in milliseconds
   updated_at: number; // unix epoch time in milliseconds
   user: string;
-  observed_at: string; // RFC-3339
+  observed_at: number; // unix epoch time in seconds
   longitude: number;
   latitude: number;
   observer_longitude: number | null;
