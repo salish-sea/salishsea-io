@@ -184,7 +184,12 @@ export default class SalishSea extends LitElement {
     this.addEventListener('map-move', (evt) => {
       const {center: [x, y], zoom} = (evt as CustomEvent<MapMoveDetail>).detail;
       setQueryParams({x: x.toFixed(), y: y.toFixed(), z: zoom.toFixed()});
-    })
+    });
+    // TODO
+    // this.addEventListener('clone-sighting', async (evt) => {
+    //   const sighting = (evt as CustomEvent<Feature<Point>>).detail;
+    //   await this.shadowRoot!.querySelector('obs-panel')!.editSighting(sighting.getProperties());
+    // });
   }
 
   protected render(): unknown {

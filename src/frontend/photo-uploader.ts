@@ -40,6 +40,8 @@ export default class PhotoUploader extends LitElement {
         contentType: file.type,
         fileName: file.name,
       });
+      if (!this.token)
+        throw new Error('Not authenticated, cannot upload photo.');
       const request = new Request(endpoint, {
         headers: {
           Authorization: `Bearer ${this.token}`,
@@ -57,9 +59,14 @@ export default class PhotoUploader extends LitElement {
         },
         method: 'PUT',
       });
-      await fetch(signedRequest);
+      const uploadResponse = await fetch(signedRequest);
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      }
       for (const input of this.inputs) {
         input.value = signedUrl.pathname;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
       }
       return signedUrl.pathname;
     },

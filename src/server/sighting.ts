@@ -1,11 +1,11 @@
 import {parse, stringify} from 'uuid';
 import { db } from './database.ts';
-import type { SightingForm } from '../types.ts';
 import { taxonByName } from './taxon.ts';
 import { bucket, region } from './storage.ts';
-import path from 'node:path';
+import type { SightingPayload } from '../api.ts';
 
 const S3_BASE_URI = `https://${bucket}.s3.${region}.amazonaws.com`;
+const MIN_SIGHTING_DATE = new Date(Date.parse('1985-06-13'));
 
 type SightingRow = {
   id: string; // uuid
@@ -54,39 +54,43 @@ const insertSightingTxn = db.transaction((sighting: SightingRow, photos: Omit<Ph
   for (const photo of photos)
     insertPhotoStatement.run(photo);
 });
-export function upsertSighting(form: SightingForm, timestamp: number, user: string) {
+export function upsertSighting(id: string, form: SightingPayload, timestamp: Date, user: string) {
   const [longitude, latitude] = form.subject_location;
   const [observer_longitude, observer_latitude] = form.observer_location || [null, null];
+
   const taxon = taxonByName(form.taxon);
   if (!taxon)
-    throw `Couldn't find a taxon named ${form.taxon}`;
-  if (form.observed_at < 613162785)
-    throw `Sighting observed before 1985-06-13`;
-  if (form.observed_at > (timestamp / 1000))
-    throw `Sighting observed in the future`;
+    throw new Error(`Couldn't find a taxon named ${form.taxon}`);
+
+  const observedAt = new Date(form.observed_at);
+  if (observedAt < MIN_SIGHTING_DATE)
+    throw new Error(`Sighting observed before ${MIN_SIGHTING_DATE.toLocaleDateString()}`);
+  if (observedAt > timestamp)
+    throw new Error(`Sighting observed in the future`);
+
   const body = form.body?.trim().length ? form.body.trim() : null;
   const sighting = {
     body,
     count: form.count || null,
-    created_at: timestamp,
+    created_at: timestamp.valueOf(),
     direction: form.direction || null,
-    id: stringify(parse(form.id)),
+    id: stringify(parse(id)),
     individuals: '',
     latitude,
     longitude,
-    observed_at: form.observed_at,
+    observed_at: observedAt.valueOf() / 1000,
     observer_latitude,
     observer_longitude,
     taxon_id: taxon.id,
-    updated_at: timestamp,
+    updated_at: timestamp.valueOf(),
     url: form.url || null,
     user,
   };
-  const photos = form.photo.map((photo, idx) => ({
+  const photos = form.photos.map((photo, idx) => ({
     sighting_id: sighting.id,
-    href: path.join(S3_BASE_URI, photo),
+    href: new URL(photo, S3_BASE_URI + '/').toString(),
     idx,
-    license_code: form.license_code,
+    license_code: form.photo_license,
   }));
   return insertSightingTxn(sighting, photos);
 }

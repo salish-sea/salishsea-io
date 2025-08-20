@@ -12,6 +12,7 @@ import { storeUser } from "./user.ts";
 import { Temporal } from "temporal-polyfill";
 import './instrument.ts';
 import * as Sentry from '@sentry/node';
+import { sightingSchema } from "../api.ts";
 
 export const app = express();
 
@@ -52,18 +53,6 @@ api.get(
   }
 );
 
-const sightingSchema = z.object({
-  body: z.string(),
-  count: z.number().optional().nullish(),
-  direction: z.string().nullable(),
-  license_code: z.string(),
-  observed_at: z.number(),
-  observer_location: z.tuple([z.number(), z.number()]).nullable(),
-  photo: z.array(z.string()).default([]),
-  subject_location: z.tuple([z.number(), z.number()]),
-  taxon: z.string(),
-  url: z.string().trim().nullish(),
-});
 api.put(
   "/sightings/:sightingId",
   checkJwt,
@@ -71,14 +60,16 @@ api.put(
   (req: Request, res: Response) => {
     try {
       const validatedData = sightingSchema.parse(req.body);
-      const updatedAt = new Date().valueOf();
+      const updatedAt = new Date();
       const user = req.auth!.payload.sub!;
 
-      const sighting = {...validatedData, id: req.params.sightingId!};
+      const id = req.params.sightingId;
+      if (!id)
+        throw `Didn't find a sighting id!`;
 
-      upsertSighting(sighting, updatedAt, user);
-      const response: UpsertSightingResponse = {id: sighting.id};
-      res.status(201).json(response);
+      upsertSighting(id, validatedData, updatedAt, user);
+      const response: UpsertSightingResponse = {id};
+      res.status(200).json(response);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ errors: error.issues });

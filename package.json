@@ -20,6 +20,7 @@
     "@formatjs/intl-datetimeformat": "^6.17.3",
     "@lit/context": "^1.1.6",
     "@lit/task": "1.0.3",
+    "@tanstack/lit-form": "^1.19.2",
     "@sentry/browser": "^10.5.0",
     "@sentry/node": "^10.5.0",
     "@sentry/vite-plugin": "^4.1.1",

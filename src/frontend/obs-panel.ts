@@ -1,5 +1,5 @@
 import { css, html, LitElement} from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { customElement, property } from "lit/decorators.js";
 import { live } from 'lit/directives/live.js';
 import { when } from 'lit/directives/when.js';
 import { Temporal } from "temporal-polyfill";
@@ -62,8 +62,8 @@ export class ObsPanel extends LitElement {
     }
   `;
 
-  @state()
-  private _showForm: boolean = false
+  @property({attribute: true, reflect: true, type: Boolean})
+  public showForm: boolean = false
 
   @property({type: String, reflect: true})
   private date!: string;
@@ -84,10 +84,10 @@ export class ObsPanel extends LitElement {
           <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" .value=${live(this.date)}>
         </form>
       </header>
-      ${when(this._showForm, () => html`
-        <add-sighting class="full-bleed" .cancel=${this.hideForm.bind(this)} date=${this.date}></add-sighting>
+      ${when(this.showForm, () => html`
+        <add-sighting class="full-bleed" .cancel=${() => this.showForm = false} date=${this.date}></add-sighting>
       `, () => html`
-        <button @click=${this.showForm} type="button" name="show">
+        <button @click=${this.doShowForm} type="button" name="show">
           <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px">${cameraAddIcon}</svg>
           <span>Add a Sighting</span>
         </button>
@@ -116,19 +116,18 @@ export class ObsPanel extends LitElement {
     }
   }
 
-  private hideForm() {
-    this._showForm = false;
-  }
-
-  private async showForm() {
+  private async doShowForm() {
     if (!this.token) {
-      if (! (await this.logIn()))
+      const success = await this.logIn();
+      if (!success)
         return;
+      // Allow context subscription a microtask to propagate the token.
+      await Promise.resolve();
     }
     if (!this.token)
-      throw "Tried to submit without a token";
+      throw new Error("Login succeeded but token was not available");
 
-    this._showForm = true;
+    this.showForm = true;
   }
 }
 

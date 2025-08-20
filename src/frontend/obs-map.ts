@@ -153,20 +153,8 @@ export class ObsMap extends LitElement {
       const evt = new CustomEvent('focus-sighting', {bubbles: true, composed: true, detail: id});
       this.dispatchEvent(evt);
     });
-    this.map.on('click', (evt: MapBrowserEvent) => {
-      const feature = this.map.getFeaturesAtPixel(evt.pixel).filter(f => f.get('kind') === 'Hydrophone')[0];
-      if (!feature)
-        return;
-      window.open(feature.get('url'), '_blank')
-    });
-    this.map.on('moveend', () => {
-      const detail: MapMoveDetail = {
-        center: this.view.getCenter() as [number, number],
-        zoom: this.view.getZoom()!
-      };
-      const evt = new CustomEvent('map-move', {bubbles: true, composed: true, detail});
-      this.dispatchEvent(evt);
-    });
+    this.map.on('singleclick', this.onClick.bind(this));
+    this.map.on('moveend', this.onMoveEnd.bind(this));
   }
 
   public render() {
@@ -176,9 +164,41 @@ export class ObsMap extends LitElement {
     `;
   }
 
+  protected onClick(evt: MapBrowserEvent<PointerEvent>) {
+    if (evt.originalEvent.altKey) {
+      // Prevent the Select from getting this click.
+      return false;
+    }
+
+    const feature = this.map.getFeaturesAtPixel(evt.pixel).filter(f => f.get('kind') === 'Hydrophone')[0];
+    if (!feature)
+      return;
+    window.open(feature.get('url'), '_blank')
+  }
+
+  protected onMoveEnd() {
+    const detail: MapMoveDetail = {
+      center: this.view.getCenter() as [number, number],
+      zoom: this.view.getZoom()!
+    };
+    const evt = new CustomEvent('map-move', {bubbles: true, composed: true, detail});
+    this.dispatchEvent(evt);
+  }
+
   public firstUpdated(_changedProperties: PropertyValues): void {
     this.view.setCenter([this.centerX, this.centerY, this.zoom]);
     this.map.setTarget(this.mapElement);
+    this.mapElement.addEventListener('pointerdown', evt => {
+      if (! evt.altKey)
+        return;
+
+      const pixel = this.map.getEventPixel(evt);
+      const sighting = this.map.getFeaturesAtPixel(pixel).filter(f => f.get('kind') === 'Sighting')[0];
+      if (sighting) {
+        const event = new CustomEvent('clone-sighting', {bubbles: true, composed: true, detail: sighting});
+        this.dispatchEvent(event);
+      }
+    });
   }
 
   public setFeatures(features: FeatureCollection) {
