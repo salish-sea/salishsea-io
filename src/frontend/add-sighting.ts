@@ -206,7 +206,7 @@ export default class AddSighting extends LitElement {
         count: value.count,
         direction: value.travel_direction,
         observed_at: observedAt.toInstant().toString(),
-        observer_location: observerCoords.length === 2 ? observerCoords as [number, number] : undefined,
+        observer_location: observerCoords.length === 2 ? observerCoords as [number, number] : null,
         photo_license: value.photo_license,
         photos: value.photo_urls,
         subject_location: toLonLat(subjectCoords) as [number, number],
