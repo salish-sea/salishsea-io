@@ -185,6 +185,10 @@ export default class SalishSea extends LitElement {
       const {center: [x, y], zoom} = (evt as CustomEvent<MapMoveDetail>).detail;
       setQueryParams({x: x.toFixed(), y: y.toFixed(), z: zoom.toFixed()});
     });
+    this.addEventListener('sighting-saved', (evt) => {
+      const id = (evt as CustomEvent<string>).detail;
+      this.focusedSightingId = id;
+    });
     // TODO
     // this.addEventListener('clone-sighting', async (evt) => {
     //   const sighting = (evt as CustomEvent<Feature<Point>>).detail;

@@ -93,8 +93,15 @@ export class ObsPanel extends LitElement {
           <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" .value=${live(this.date)}>
         </form>
       </header>
-      ${keyed(id, html`
-        <sighting-form class=${classMap({"full-bleed": true, hide: !this.showForm})} @cancel-edit=${this.onCancelEdit} @sighting-saved=${this.onSightingSaved} .initialValues=${sighting} id=${id} date=${this.date}></sighting-form>
+      ${keyed(this.#sightingForForm, html`
+        <sighting-form
+          class=${classMap({"full-bleed": true, hide: !this.showForm})}
+          @cancel-edit=${this.onCancelEdit}
+          @sighting-saved=${this.onSightingSaved}
+          .initialValues=${sighting}
+          id=${id}
+          date=${this.date}
+        ></sighting-form>
       `)}
       <button class=${classMap({hide: this.showForm})} @click=${this.doShowForm} type="button" name="show">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px">${cameraAddIcon}</svg>

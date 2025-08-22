@@ -68,7 +68,7 @@ api.put(
         throw `Didn't find a sighting id!`;
 
       upsertSighting(id, validatedData, updatedAt, user);
-      const response: UpsertSightingResponse = {id};
+      const response: UpsertSightingResponse = {id: `salishsea:${id}`};
       res.status(200).json(response);
     } catch (error) {
       if (error instanceof z.ZodError) {
