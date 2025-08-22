@@ -136,7 +136,7 @@ export default class SalishSea extends LitElement {
   }
   #focusedSightingId: string | undefined
 
-  // add-sighting needs access to the map to add and remove interactions
+  // SightingForm needs access to the map to add and remove interactions
   @query('obs-map', true)
   map!: ObsMap;
 

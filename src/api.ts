@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const sightingSchema = z.object({
-  body: z.string(),
+  body: z.string().nullable(),
   count: z.coerce.number().int().positive().nullable(),
   direction: z.string().nullable(),
   observed_at: z.string(),

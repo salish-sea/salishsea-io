@@ -1,12 +1,15 @@
 import { css, html, LitElement} from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { live } from 'lit/directives/live.js';
-import { when } from 'lit/directives/when.js';
+import { keyed } from 'lit/directives/keyed.js';
 import { Temporal } from "temporal-polyfill";
-import './add-sighting.ts';
+import './sighting-form.ts';
 import { cameraAddIcon } from "./icons.ts";
 import { consume } from "@lit/context";
 import { doLogInContext, tokenContext } from "./identity.ts";
+import { classMap } from "lit/directives/class-map.js";
+import { newSighting } from "./sighting-form.ts";
+import { v7 } from "uuid";
 
 const today = Temporal.Now.plainDateISO().toString();
 
@@ -57,8 +60,11 @@ export class ObsPanel extends LitElement {
       padding: 1rem;
       text-transform: uppercase;
     }
-    add-sighting {
+    sighting-form {
       background-color: rgba(128, 128, 128, 0.1);
+    }
+    .hide {
+      display: none;
     }
   `;
 
@@ -74,7 +80,10 @@ export class ObsPanel extends LitElement {
   @consume({context: doLogInContext})
   private logIn!: () => Promise<boolean>;
 
+  #sightingForForm = {...newSighting(), id: v7()};
+
   protected render() {
+    const {id, ...sighting} = this.#sightingForForm;
     return html`
       <header>
         <h2>Marine Mammal Observations</h2>
@@ -84,16 +93,25 @@ export class ObsPanel extends LitElement {
           <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" .value=${live(this.date)}>
         </form>
       </header>
-      ${when(this.showForm, () => html`
-        <add-sighting class="full-bleed" .cancel=${() => this.showForm = false} date=${this.date}></add-sighting>
-      `, () => html`
-        <button @click=${this.doShowForm} type="button" name="show">
-          <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px">${cameraAddIcon}</svg>
-          <span>Add a Sighting</span>
-        </button>
+      ${keyed(id, html`
+        <sighting-form class=${classMap({"full-bleed": true, hide: !this.showForm})} @cancel-edit=${this.onCancelEdit} @sighting-saved=${this.onSightingSaved} .initialValues=${sighting} id=${id} date=${this.date}></sighting-form>
       `)}
+      <button class=${classMap({hide: this.showForm})} @click=${this.doShowForm} type="button" name="show">
+        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px">${cameraAddIcon}</svg>
+        <span>Add a Sighting</span>
+      </button>
       <slot></slot>
     `;
+  }
+
+  private onCancelEdit() {
+    this.showForm = false;
+    this.#sightingForForm = {...newSighting(), id: v7()};
+  }
+
+  private onSightingSaved() {
+    this.showForm = false;
+    this.#sightingForForm = {...newSighting(), id: v7()};
   }
 
   private onGotoYesterday() {
