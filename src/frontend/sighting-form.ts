@@ -132,7 +132,7 @@ export default class SightingForm extends LitElement {
   });
 
   @property({type: String, reflect: false})
-  id!: string
+  sightingId!: string
 
   @property()
   private photos: File[] = []
@@ -265,7 +265,7 @@ export default class SightingForm extends LitElement {
         taxon: value.taxon,
         url: value.url,
       };
-      const endpoint = `/api/sightings/${this.id}`;
+      const endpoint = `/api/sightings/${this.sightingId}`;
       const request = new Request(endpoint, {
         body: JSON.stringify(payload),
         headers: {
@@ -349,7 +349,7 @@ export default class SightingForm extends LitElement {
         `)}
         ${this.#form.field({ name: 'count', }, field => html` <label>
             <span class="label">Count</span>
-            <input type="number" name="${field.name}" .value=${field.state.value} min="0" max="100" @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).valueAsNumber)}>
+            <input type="number" name="${field.name}" .value=${field.state.value} min="1" max="100" @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).valueAsNumber)}>
           </label>
         `)}
         ${this.#form.field({
@@ -422,7 +422,7 @@ export default class SightingForm extends LitElement {
           <span>Photos</span>
           <div class="thumbnails">
             ${repeat(this.photos, photo => photo, (photo, index) => html`
-              <photo-uploader expected-date=${this.date} sightingId=${this.id} .file=${photo}>
+              <photo-uploader expected-date=${this.date} sightingId=${this.sightingId} .file=${photo}>
                 ${this.#form.field({name: `photo_urls[${index}]`}, field => html`
                   <input slot="input" type="hidden" name=${field.name} required @change=${(e: Event) => {
                     const url = (e.target as HTMLInputElement).value;
@@ -601,12 +601,12 @@ export default class SightingForm extends LitElement {
       symbol: 'O',
     }
     const observerFeature = new Feature(this.#observerPoint);
-    observerFeature.setId(`${this.id}/observer`);
+    observerFeature.setId(`${this.sightingId}/observer`);
     observerFeature.setProperties({individuals: [], kind: 'Sighter', symbol: undefined});
     observerFeature.setStyle(sighterStyle);
 
     const subjectFeature = new Feature(this.#subjectPoint);
-    subjectFeature.setId(`${this.id}/subject`);
+    subjectFeature.setId(`${this.sightingId}/subject`);
     subjectFeature.setProperties(sightingProperties);
     subjectFeature.setStyle(featureStyle);
 

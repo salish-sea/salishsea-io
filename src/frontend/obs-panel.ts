@@ -99,7 +99,7 @@ export class ObsPanel extends LitElement {
           @cancel-edit=${this.onCancelEdit}
           @sighting-saved=${this.onSightingSaved}
           .initialValues=${sighting}
-          id=${id}
+          sightingId=${id}
           date=${this.date}
         ></sighting-form>
       `)}
