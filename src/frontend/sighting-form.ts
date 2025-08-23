@@ -324,7 +324,7 @@ export default class SightingForm extends LitElement {
             return;
           const url = URL.parse(value);
           if (!url)
-            return "Should start with https://...";
+            return "Should start with https://";
         }}}, field => html`
           <label>
             <span class="label">URL</span>
@@ -357,10 +357,16 @@ export default class SightingForm extends LitElement {
           name: 'observed_time',
           validators: {onChange: ({value}) => {
             const str = value.trim();
-            const observedAt = Temporal.PlainDate.from(this.date)
-              .toZonedDateTime({timeZone: 'PST8PDT', plainTime: str});
-            if (Temporal.ZonedDateTime.compare(observedAt, Temporal.Now.zonedDateTimeISO()) > 0) {
-              return "Must be in the past";
+            if (str.length === 0)
+              return;
+            try {
+              const observedAt = Temporal.PlainDate.from(this.date)
+                .toZonedDateTime({timeZone: 'PST8PDT', plainTime: str});
+              if (Temporal.ZonedDateTime.compare(observedAt, Temporal.Now.zonedDateTimeISO()) > 0) {
+                return "Must be in the past";
+              }
+            } catch (e) {
+              return `Couldn't interpret timestamp: ${e}`;
             }
           }},
         }, field => html`
