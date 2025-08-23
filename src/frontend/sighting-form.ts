@@ -25,6 +25,7 @@ import './photo-uploader.ts';
 import { type SightingPayload } from "../api.ts";
 import { TanStackFormController } from '@tanstack/lit-form';
 import { convert as parseCoords } from 'geo-coordinates-parser';
+import { detectIndividuals, symbolFor } from "../identifiers.ts";
 
 const TAXON_OPTIONS = {
   "Seals and sea lions": {
@@ -156,8 +157,8 @@ export default class SightingForm extends LitElement {
   @consume({context: mapContext})
   private map: Map | undefined
 
-  #observerPoint = new Point([]);
-  #subjectPoint = new Point([]);
+  #observerFeature = new Feature(new Point([]));
+  #subjectFeature = new Feature(new Point([]));
   #bearingFeature = new Feature(new LineString([]));
 
   @consume({context: tokenContext, subscribe: true})
@@ -248,8 +249,8 @@ export default class SightingForm extends LitElement {
     defaultValues: newSighting(),
     onSubmit: ({value}) => {
       const observedAt = Temporal.PlainDate.from(this.date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: value.observed_time});
-      const observerCoords = toLonLat(this.#observerPoint.getCoordinates())
-      const subjectCoords = this.#subjectPoint.getCoordinates();
+      const observerCoords = toLonLat(this.#observerFeature.getGeometry()!.getCoordinates())
+      const subjectCoords = this.#subjectFeature.getGeometry()!.getCoordinates();
       if (subjectCoords.length !== 2)
         throw new Error("Subject coordinates not set");
 
@@ -286,8 +287,8 @@ export default class SightingForm extends LitElement {
       if (!(e instanceof CustomEvent) || !Array.isArray(e.detail))
         throw "Bad coordinates-detected event";
 
-      if (this.#observerPoint.getCoordinates().length === 0)
-        this.#observerPoint.setCoordinates(e.detail);
+      if (this.#observerFeature.getGeometry()!.getCoordinates().length === 0)
+        this.#observerFeature.getGeometry()!.setCoordinates(e.detail);
     });
 
     this.addEventListener('datetime-detected', (e) => {
@@ -482,7 +483,7 @@ export default class SightingForm extends LitElement {
   private locateMe() {
     const geo = navigator.geolocation;
     geo.getCurrentPosition(({coords: {latitude, longitude}}) => {
-      this.#observerPoint.setCoordinates(fromLonLat([longitude, latitude]));
+      this.#observerFeature.getGeometry()!.setCoordinates(fromLonLat([longitude, latitude]));
     }, error => {
       console.log(`Error reading location: ${error.message}`);
     }, {
@@ -517,11 +518,11 @@ export default class SightingForm extends LitElement {
   }
 
   private placeObserver() {
-    this.placePoint(this.#observerPoint);
+    this.placePoint(this.#observerFeature.getGeometry()!);
   }
 
   private placeSubject() {
-    this.placePoint(this.#subjectPoint);
+    this.placePoint(this.#subjectFeature.getGeometry()!);
   }
 
   private placePoint(point: Point) {
@@ -544,9 +545,9 @@ export default class SightingForm extends LitElement {
     const input = e.target as HTMLInputElement;
     try {
       const {decimalLatitude, decimalLongitude} = parseCoords(input.value, 4);
-      this.#observerPoint.setCoordinates(fromLonLat([decimalLongitude, decimalLatitude]));
+      this.#observerFeature.getGeometry()!.setCoordinates(fromLonLat([decimalLongitude, decimalLatitude]));
     } catch (e) {
-      this.#observerPoint.setCoordinates([]);
+      this.#observerFeature.getGeometry()!.setCoordinates([]);
     }
   }
 
@@ -554,15 +555,15 @@ export default class SightingForm extends LitElement {
     const input = e.target as HTMLInputElement;
     try {
       const {decimalLatitude, decimalLongitude} = parseCoords(input.value, 4);
-      this.#subjectPoint.setCoordinates(fromLonLat([decimalLongitude, decimalLatitude]));
+      this.#subjectFeature.getGeometry()!.setCoordinates(fromLonLat([decimalLongitude, decimalLatitude]));
     } catch (e) {
-      this.#subjectPoint.setCoordinates([]);
+      this.#subjectFeature.getGeometry()!.setCoordinates([]);
     }
   }
 
   private onCoordinatesChanged() {
-    const observerCoordinates = toLonLat(this.#observerPoint.getCoordinates());
-    const subjectCoordinates = toLonLat(this.#subjectPoint.getCoordinates());
+    const observerCoordinates = toLonLat(this.#observerFeature.getGeometry()!.getCoordinates());
+    const subjectCoordinates = toLonLat(this.#subjectFeature.getGeometry()!.getCoordinates());
     let observerCoordinateStr = observerCoordinates.map(v => v.toFixed(4)).reverse().join(', ');
     let subjectCoordinateStr = subjectCoordinates.map(v => v.toFixed(4)).reverse().join(', ');
     if (this.observerLocationInput && this.subjectLocationInput) {
@@ -581,7 +582,10 @@ export default class SightingForm extends LitElement {
       if (bearing < 0)
         bearing += 360;
       const distance = getDistance(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
-      this.#bearingFeature.getGeometry()!.setCoordinates([this.#observerPoint.getCoordinates(), this.#subjectPoint.getCoordinates()]);
+      this.#bearingFeature.getGeometry()!.setCoordinates([
+        this.#observerFeature.getGeometry()!.getCoordinates(),
+        this.#subjectFeature.getGeometry()!.getCoordinates()
+      ]);
       this.#bearingFeature.setProperties({bearing, distance});
     } else {
       this.#bearingFeature.getGeometry()!.setCoordinates([]);
@@ -594,27 +598,37 @@ export default class SightingForm extends LitElement {
       this.#form.api.setFieldValue(field as keyof typeof this.initialValues, value);
     }
 
+    this.#form.api.baseStore.subscribe(this.updateSubjectProps.bind(this));
+
     const sightingProperties: SightingStyleProperties = {
       direction: null,
       individuals: [],
       kind: 'Sighting',
-      symbol: 'O',
+      symbol: '?',
     }
-    const observerFeature = new Feature(this.#observerPoint);
-    observerFeature.setId(`${this.sightingId}/observer`);
-    observerFeature.setProperties({individuals: [], kind: 'Sighter', symbol: undefined});
-    observerFeature.setStyle(sighterStyle);
+    this.#observerFeature.setId(`salishsea:${this.sightingId}/observer`);
+    this.#observerFeature.setProperties({individuals: [], kind: 'Sighter', symbol: undefined});
+    this.#observerFeature.setStyle(sighterStyle);
 
-    const subjectFeature = new Feature(this.#subjectPoint);
-    subjectFeature.setId(`${this.sightingId}/subject`);
-    subjectFeature.setProperties(sightingProperties);
-    subjectFeature.setStyle(featureStyle);
+    this.#subjectFeature.setId(`salishsea:${this.sightingId}`);
+    this.#subjectFeature.setProperties(sightingProperties);
+    this.#subjectFeature.setStyle(featureStyle);
+    this.updateSubjectProps();
 
     this.#bearingFeature.setStyle(feature => bearingStyle(feature as Feature<LineString>));
 
-    this.drawingSource!.addFeatures([observerFeature, subjectFeature, this.#bearingFeature]);
-    this.#observerPoint.on('change', this.onCoordinatesChanged.bind(this));
-    this.#subjectPoint.on('change', this.onCoordinatesChanged.bind(this));
+    this.drawingSource!.addFeatures([this.#observerFeature, this.#subjectFeature, this.#bearingFeature]);
+    this.#observerFeature.getGeometry()!.on('change', this.onCoordinatesChanged.bind(this));
+    this.#subjectFeature.getGeometry()!.on('change', this.onCoordinatesChanged.bind(this));
+  }
+
+  updateSubjectProps() {
+    const values = this.#form.api.baseStore.state.values;
+    this.#subjectFeature.setProperties({
+      direction: values.travel_direction,
+      individuals: detectIndividuals(values.body),
+      symbol: symbolFor({body: values.body, scientific_name: values.taxon, vernacular_name: null}) || '?',
+    });
   }
 
   cancel() {
