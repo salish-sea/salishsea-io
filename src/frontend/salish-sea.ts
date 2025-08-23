@@ -19,6 +19,7 @@ import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import { SightingLoader } from "./sighting-loader.ts";
 import type { FeatureCollection } from 'geojson';
 import * as Sentry from "@sentry/browser";
+import type { CloneSightingEvent } from "./obs-summary.ts";
 
 Sentry.init({
   dsn: "https://56ce99ce80994bab79dab62d06078c97@o4509634382331904.ingest.us.sentry.io/4509634387509248",
@@ -189,11 +190,10 @@ export default class SalishSea extends LitElement {
       const id = (evt as CustomEvent<string>).detail;
       this.focusedSightingId = id;
     });
-    // TODO
-    // this.addEventListener('clone-sighting', async (evt) => {
-    //   const sighting = (evt as CustomEvent<Feature<Point>>).detail;
-    //   await this.shadowRoot!.querySelector('obs-panel')!.editSighting(sighting.getProperties());
-    // });
+    this.addEventListener('clone-sighting', async (evt) => {
+      const sighting = (evt as CloneSightingEvent).detail;
+      await this.shadowRoot!.querySelector('obs-panel')!.editSighting(sighting);
+    });
   }
 
   protected render(): unknown {

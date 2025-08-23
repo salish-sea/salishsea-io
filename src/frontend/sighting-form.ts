@@ -387,8 +387,9 @@ export default class SightingForm extends LitElement {
           <label>
             <span class="label">Observer location</span>
             <input type="text" name="${field.name}" size="14" placeholder="lat, lon" .value=${field.state.value} @change=${(e: InputEvent) => {
-              field.handleChange((e.target as HTMLInputElement).value);
-              this.onObserverInputChange(e);
+              const value = (e.target as HTMLInputElement).value;
+              field.handleChange(value);
+              this.onObserverInputChange(value);
             }}>
             <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
             <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
@@ -402,8 +403,9 @@ export default class SightingForm extends LitElement {
           <label>
             <span class="label">Subject location</span>
             <input type="text" name="${field.name}" size="14" placeholder="lat, lon" required .value=${field.state.value} @change=${(e: InputEvent) => {
-              field.handleChange((e.target as HTMLInputElement).value);
-              this.onSubjectInputChange(e);
+              const value = (e.target as HTMLInputElement).value;
+              field.handleChange(value)
+              this.onSubjectInputChange(value);
             }}>
             <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
           </label>
@@ -547,20 +549,18 @@ export default class SightingForm extends LitElement {
     }
   }
 
-  private onObserverInputChange(e: Event) {
-    const input = e.target as HTMLInputElement;
+  private onObserverInputChange(value: string) {
     try {
-      const {decimalLatitude, decimalLongitude} = parseCoords(input.value, 4);
+      const {decimalLatitude, decimalLongitude} = parseCoords(value, 4);
       this.#observerFeature.getGeometry()!.setCoordinates(fromLonLat([decimalLongitude, decimalLatitude]));
     } catch (e) {
       this.#observerFeature.getGeometry()!.setCoordinates([]);
     }
   }
 
-  private onSubjectInputChange(e: Event) {
-    const input = e.target as HTMLInputElement;
+  private onSubjectInputChange(value: string) {
     try {
-      const {decimalLatitude, decimalLongitude} = parseCoords(input.value, 4);
+      const {decimalLatitude, decimalLongitude} = parseCoords(value, 4);
       this.#subjectFeature.getGeometry()!.setCoordinates(fromLonLat([decimalLongitude, decimalLatitude]));
     } catch (e) {
       this.#subjectFeature.getGeometry()!.setCoordinates([]);
@@ -603,6 +603,7 @@ export default class SightingForm extends LitElement {
     for (const [field, value] of Object.entries(this.initialValues)) {
       this.#form.api.setFieldValue(field as keyof typeof this.initialValues, value);
     }
+    this.onSubjectInputChange(this.initialValues.subject_location || '');
 
     this.#form.api.baseStore.subscribe(this.updateSubjectProps.bind(this));
 
@@ -626,6 +627,10 @@ export default class SightingForm extends LitElement {
     this.drawingSource!.addFeatures([this.#observerFeature, this.#subjectFeature, this.#bearingFeature]);
     this.#observerFeature.getGeometry()!.on('change', this.onCoordinatesChanged.bind(this));
     this.#subjectFeature.getGeometry()!.on('change', this.onCoordinatesChanged.bind(this));
+  }
+
+  disconnectedCallback(): void {
+    this.drawingSource!.removeFeatures([this.#observerFeature, this.#subjectFeature, this.#bearingFeature]);
   }
 
   updateSubjectProps() {
