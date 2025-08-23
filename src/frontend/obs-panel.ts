@@ -10,6 +10,7 @@ import { doLogInContext, tokenContext } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
 import { newSighting } from "./sighting-form.ts";
 import { v7 } from "uuid";
+import type { SightingProperties } from "../types.ts";
 
 const today = Temporal.Now.plainDateISO().toString();
 
@@ -80,10 +81,11 @@ export class ObsPanel extends LitElement {
   @consume({context: doLogInContext})
   private logIn!: () => Promise<boolean>;
 
-  #sightingForForm = {...newSighting(), id: v7()};
+  @property({attribute: false})
+  private sightingForForm = {...newSighting(), id: v7()};
 
   protected render() {
-    const {id, ...sighting} = this.#sightingForForm;
+    const {id, ...sighting} = this.sightingForForm;
     return html`
       <header>
         <h2>Marine Mammal Observations</h2>
@@ -93,7 +95,7 @@ export class ObsPanel extends LitElement {
           <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" .value=${live(this.date)}>
         </form>
       </header>
-      ${keyed(this.#sightingForForm, html`
+      ${keyed(id, html`
         <sighting-form
           class=${classMap({"full-bleed": true, hide: !this.showForm})}
           @cancel-edit=${this.onCancelEdit}
@@ -111,14 +113,26 @@ export class ObsPanel extends LitElement {
     `;
   }
 
+  async editSighting(props: SightingProperties) {
+    await this.doShowForm();
+    const observed_time = new Date(props.timestamp * 1000);
+    this.sightingForForm = {...newSighting({
+      count: props.count || undefined,
+      observed_time: `${observed_time.getHours()}:${observed_time.getMinutes()}:${observed_time.getSeconds()}`,
+      subject_location: `${props.latitude.toFixed(4)}, ${props.longitude.toFixed(4)}`,
+      taxon: props.species,
+      travel_direction: props.direction || undefined,
+    }), id: v7()};
+  }
+
   private onCancelEdit() {
     this.showForm = false;
-    this.#sightingForForm = {...newSighting(), id: v7()};
+    this.sightingForForm = {...newSighting(), id: v7()};
   }
 
   private onSightingSaved() {
     this.showForm = false;
-    this.#sightingForForm = {...newSighting(), id: v7()};
+    this.sightingForForm = {...newSighting(), id: v7()};
   }
 
   private onGotoYesterday() {

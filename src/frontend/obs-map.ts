@@ -195,7 +195,8 @@ export class ObsMap extends LitElement {
       const pixel = this.map.getEventPixel(evt);
       const sighting = this.map.getFeaturesAtPixel(pixel).filter(f => f.get('kind') === 'Sighting')[0];
       if (sighting) {
-        const event = new CustomEvent('clone-sighting', {bubbles: true, composed: true, detail: sighting});
+        const props = sighting.getProperties();
+        const event = new CustomEvent('clone-sighting', {bubbles: true, composed: true, detail: props});
         this.dispatchEvent(event);
       }
     });

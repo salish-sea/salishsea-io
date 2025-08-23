@@ -68,6 +68,14 @@ export class ObsSummary extends LitElement {
       margin: 0.5rem 0 0 0;
       padding: 0;
     }
+    ul.actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      list-style: none;
+      margin: 0.5rem 0 0 0;
+      padding: 0;
+    }
   `;
 
   @consume({context: userContext, subscribe: true})
@@ -95,7 +103,12 @@ export class ObsSummary extends LitElement {
           )
         }</ul>`
       : undefined}
-      ${when(canEdit, () => html`<p><button type="button" @click=${this.onDelete}>Delete</button></p>`)}
+      <ul class="actions">
+        <li><a href="#" @click=${this.onClone}>Clone</a></li>
+        ${when(canEdit, () => html`
+          <li><a href="#" @click=${this.onDelete}>Delete</a></li>
+        `)}
+      </ul>
     `
   }
 
@@ -110,7 +123,13 @@ export class ObsSummary extends LitElement {
       this.scrollIntoView({block: 'center'});
   }
 
-  private async onDelete() {
+  private async onClone(e: Event) {
+    e.preventDefault();
+    this.dispatchEvent(new CustomEvent('clone-sighting', {bubbles: true, composed: true, detail: this.sighting}));
+  }
+
+  private async onDelete(e: Event) {
+    e.preventDefault();
     const response = await fetch(this.sighting.path!, {headers: {Authorization: `Bearer ${this.authToken}`}, method: 'DELETE'});
     if (response.ok) {
       const evt = new CustomEvent('database-changed', {bubbles: true, composed: true});
@@ -121,6 +140,7 @@ export class ObsSummary extends LitElement {
   }
 }
 
+export type CloneSightingEvent = CustomEvent<SightingProperties>;
 
 declare global {
   interface HTMLElementTagNameMap {
