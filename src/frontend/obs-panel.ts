@@ -115,14 +115,20 @@ export class ObsPanel extends LitElement {
 
   async editSighting(props: SightingProperties) {
     await this.doShowForm();
-    const observed_time = new Date(props.timestamp * 1000);
-    this.sightingForForm = {...newSighting({
-      count: props.count || undefined,
-      observed_time: `${observed_time.getHours()}:${observed_time.getMinutes()}:${observed_time.getSeconds()}`,
-      subject_location: `${props.latitude.toFixed(4)}, ${props.longitude.toFixed(4)}`,
-      taxon: props.species,
-      travel_direction: props.direction || undefined,
-    }), id: v7()};
+    // Prefer PST8PDT for consistency with sighting-form validation
+    const zdt = Temporal.Instant.fromEpochSeconds(props.timestamp)
+      .toZonedDateTimeISO('PST8PDT');
+    const observed_time = zdt.toPlainTime().toString({ smallestUnit: 'second' });
+    this.sightingForForm = {
+      ...newSighting({
+        count: props.count ?? undefined,
+        observed_time,
+        subject_location: `${props.latitude.toFixed(4)}, ${props.longitude.toFixed(4)}`,
+        taxon: props.species,
+        travel_direction: props.direction ?? '',
+      }),
+      id: v7()
+    };
   }
 
   private onCancelEdit() {
