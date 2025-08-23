@@ -136,7 +136,7 @@ export default class SalishSea extends LitElement {
   }
   #focusedSightingId: string | undefined
 
-  // add-sighting needs access to the map to add and remove interactions
+  // SightingForm needs access to the map to add and remove interactions
   @query('obs-map', true)
   map!: ObsMap;
 
@@ -184,6 +184,10 @@ export default class SalishSea extends LitElement {
     this.addEventListener('map-move', (evt) => {
       const {center: [x, y], zoom} = (evt as CustomEvent<MapMoveDetail>).detail;
       setQueryParams({x: x.toFixed(), y: y.toFixed(), z: zoom.toFixed()});
+    });
+    this.addEventListener('sighting-saved', (evt) => {
+      const id = (evt as CustomEvent<string>).detail;
+      this.focusedSightingId = id;
     });
     // TODO
     // this.addEventListener('clone-sighting', async (evt) => {
