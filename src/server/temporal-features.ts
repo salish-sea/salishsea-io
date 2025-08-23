@@ -1,7 +1,6 @@
 import { db } from "./database.ts";
 import type { Feature, Geometry, Point } from "geojson";
 import { Temporal } from "temporal-polyfill";
-import { detectIndividuals, symbolFor } from "./taxon.ts";
 import '@formatjs/intl-datetimeformat/polyfill.js';
 import '@formatjs/intl-datetimeformat/locale-data/en.js';
 import { marked } from 'marked';
@@ -11,6 +10,7 @@ import { imputeTravelLines } from "./travel.ts";
 import { JSDOM } from 'jsdom';
 import createDOMPurify from 'dompurify';
 import './marked-mentions.ts';
+import { detectIndividuals, symbolFor } from "../identifiers.ts";
 
 const domPurify = createDOMPurify(new JSDOM('').window as any);
 

@@ -1,5 +1,5 @@
-import {detectIndividuals, detectPod} from './taxon.ts';
 import { expect, test } from 'vitest';
+import { detectIndividuals, detectPod } from './identifiers.ts';
 
 test('finds individual identifiers', () => {
   const table: [string, string[]][] = [
