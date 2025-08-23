@@ -22,7 +22,7 @@ function assertPod(name: string): asserts name is Pod {
   throw `${name} is not a pod`;
 }
 
-const podCleanerRE = /\s*(\+|,|&|and|-)\\s*/gi;
+const podCleanerRE = /\s*(\+|,|&|and|-)\s*/gi;
 const podRE = /\b([jklt]+)\s?(pod|\d)/gi;
 export const detectPod = (text: Readonly<string>) => {
   for (const [, pods] of text.replaceAll(podCleanerRE, '').matchAll(podRE)) {
