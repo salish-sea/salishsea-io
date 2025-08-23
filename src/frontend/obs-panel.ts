@@ -116,7 +116,7 @@ export class ObsPanel extends LitElement {
   async editSighting(props: SightingProperties) {
     await this.doShowForm();
     // Prefer PST8PDT for consistency with sighting-form validation
-    const zdt = Temporal.Instant.fromEpochSeconds(props.timestamp)
+    const zdt = Temporal.Instant.fromEpochMilliseconds(props.timestamp * 1000)
       .toZonedDateTimeISO('PST8PDT');
     const observed_time = zdt.toPlainTime().toString({ smallestUnit: 'second' });
     this.sightingForForm = {
