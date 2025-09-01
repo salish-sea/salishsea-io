@@ -3,10 +3,15 @@ CREATE TABLE ferry_locations (vessel_id INT NOT NULL, "timestamp" int not null, 
 CREATE INDEX ferry_location_timestamp ON ferry_locations (timestamp);
 CREATE TABLE maplify_sightings (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id int not null, trip_id int not null, name text not null, scientific_name text not null, latitude real not null, longitude real not null, number_sighted integer not null, created number not null, photo_url text, comments text, in_ocean int not null, count_check int not null, moderated int not null, trusted int not null, is_test int not null, source text not null, usernm text, icon text, taxon_id int);
 CREATE INDEX maplify_sightings_created ON maplify_sightings (created);
-CREATE TABLE taxa(id integer primary key, parent_id integer, scientific_name text not null, taxon_rank text not null, updated_at int not null, vernacular_name text, species_id int);
+CREATE TABLE taxa(id INTEGER PRIMARY KEY, parent_id integer, scientific_name text not null, taxon_rank text not null, updated_at int not null, vernacular_name text, species_id int);
 CREATE INDEX taxa_scientific_name on taxa(scientific_name );
-CREATE TABLE inaturalist_observations (id int not null primary key, description text, longitude real not null, latitude real not null, taxon_id integer not null, observed_at int not null, license_code varchar, photos_json json, url string not null, username string not null);
+CREATE TABLE inaturalist_observations (id INTEGER PRIMARY KEY, description text, longitude real not null, latitude real not null, taxon_id integer not null, observed_at int not null, license_code varchar, photos_json json, url string not null, username string not null);
 CREATE INDEX inaturalist_observations_observed_at on inaturalist_observations (observed_at);
+CREATE TABLE happywhale_species (id INTEGER PRIMARY KEY, "key" VARCHAR NOT NULL UNIQUE, scientific_name VARCHAR NOT NULL UNIQUE, taxon_id INTEGER NOT NULL UNIQUE);
+CREATE TABLE happywhale_individuals (id INTEGER PRIMARY KEY, identifier VARCHAR NOT NULL UNIQUE, sex char, species_key VARCHAR NOT NULL);
+CREATE TABLE happywhale_users (id INTEGER PRIMARY KEY, display_name VARCHAR);
+CREATE TABLE happywhale_encounter_media (id INTEGER PRIMARY KEY, encounter_id INTEGER NOT NULL, thumb_url VARCHAR NOT NULL, url VARCHAR NOT NULL, attribution VARCHAR, license_level VARCHAR NOT NULL, mimetype VARCHAR NOT NULL);
+CREATE TABLE happywhale_encounters (id INTEGER PRIMARY KEY, longitude REAL NOT NULL, latitude REAL NOT NULL, "timestamp" INTEGER NOT NULL, species_key VARCHAR NOT NULL, min_count INTEGER, max_count INTEGER, individual_id INTEGER, contributor_id INTEGER NOT NULL);
 CREATE TABLE sightings (id text primary key not null, created_at integer not null, updated_at integer not null, user text not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real, observer_latitude real, taxon_id int not null, body text, count int, individuals text, url text, direction text);
 CREATE TABLE sighting_photos (id integer primary key not null, sighting_id text not null REFERENCES sightings (id) ON DELETE CASCADE, idx integer not null, href text not null, license_code text not null, unique(id, idx));
 CREATE INDEX sighting_photos_by_sighting_id ON sighting_photos (sighting_id);
@@ -19,6 +24,27 @@ SELECT
   t.scientific_name,
   t.vernacular_name
 FROM (
+  SELECT
+    'happywhale:' || id AS id,
+    '' AS body,
+    min_count AS count,
+    null AS direction,
+    latitude,
+    longitude,
+    "timestamp",
+    (SELECT json_group_array(json_object('url', thumb_url, 'attribution', attribution)) FROM sighting_photos WHERE sighting_id = s.id) AS photos_json,
+    'happywhale' AS source,
+    'https://happywhale.com' AS url,
+    null AS path,
+    u.display_name AS userName,
+    null AS userSub,
+    s.taxon_id AS taxon_id
+  FROM happywhale_encounters e
+  JOIN happywhale_users u ON e.contributor_id = u.id
+  JOIN happywhale_species s ON e.species_key = s.species_key
+
+  UNION ALL
+
   SELECT
     'maplify:' || id AS id,
     comments AS body,
