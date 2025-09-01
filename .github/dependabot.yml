@@ -24,33 +24,7 @@ updates:
       time: "05:00"
       timezone: America/Los_Angeles
     open-pull-requests-limit: 3
-    # Group into fewer PRs
     groups:
-      frameworks:
-        patterns:
-          - "lit"
-          - "vite"
-          - "vite-express"
-          - "express"
-          - "express-validator"
-          - "@types/express"
-      map:
-        patterns:
-          - "ol"
-          - "@turf/*"
-          - "@types/geojson"
-      db:
-        patterns:
-          - "better-sqlite3"
-          - "@types/better-sqlite3k"
-      misc:
+      all:
         patterns:
           - "*"
-    ignore:
-      # Ignore until nextjs adds eslint 9 support https://github.com/vercel/next.js/issues/64409
-      - dependency-name: "eslint"
-        versions: ["9.0 - 9.12"]
-      - dependency-name: "eslint-plugin-unused-imports"
-        versions: ["4.0 - 4.1"]
-      - dependency-name: "@typescript-eslint/eslint-plugin"
-        versions: ["8.0 - 8.9"]
