@@ -7,7 +7,7 @@ CREATE TABLE taxa(id INTEGER PRIMARY KEY, parent_id integer, scientific_name tex
 CREATE INDEX taxa_scientific_name on taxa(scientific_name );
 CREATE TABLE inaturalist_observations (id INTEGER PRIMARY KEY, description text, longitude real not null, latitude real not null, taxon_id integer not null, observed_at int not null, license_code varchar, photos_json json, url string not null, username string not null);
 CREATE INDEX inaturalist_observations_observed_at on inaturalist_observations (observed_at);
-CREATE TABLE happywhale_species (id INTEGER PRIMARY KEY, "key" VARCHAR NOT NULL UNIQUE, scientific_name VARCHAR NOT NULL UNIQUE, taxon_id INTEGER NOT NULL UNIQUE);
+CREATE TABLE happywhale_species (id INTEGER PRIMARY KEY, code VARCHAR NOT NULL UNIQUE, scientific_name VARCHAR NOT NULL UNIQUE);
 CREATE TABLE happywhale_individuals (id INTEGER PRIMARY KEY, identifier VARCHAR NOT NULL UNIQUE, sex char, species_key VARCHAR NOT NULL);
 CREATE TABLE happywhale_users (id INTEGER PRIMARY KEY, display_name VARCHAR);
 CREATE TABLE happywhale_encounter_media (id INTEGER PRIMARY KEY, encounter_id INTEGER NOT NULL, thumb_url VARCHAR NOT NULL, url VARCHAR NOT NULL, attribution VARCHAR, license_level VARCHAR NOT NULL, mimetype VARCHAR NOT NULL);
