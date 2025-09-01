@@ -25,14 +25,14 @@ SELECT
   t.vernacular_name
 FROM (
   SELECT
-    'happywhale:' || id AS id,
+    'happywhale:' || e.id AS id,
     '' AS body,
     min_count AS count,
     null AS direction,
     latitude,
     longitude,
     "timestamp",
-    (SELECT json_group_array(json_object('url', thumb_url, 'attribution', attribution)) FROM sighting_photos WHERE sighting_id = s.id) AS photos_json,
+    (SELECT json_group_array(json_object('url', thumb_url, 'attribution', attribution)) FROM happywhale_encounter_media WHERE encounter_id = e.id) AS photos_json,
     'happywhale' AS source,
     'https://happywhale.com' AS url,
     null AS path,
@@ -41,7 +41,7 @@ FROM (
     s.taxon_id AS taxon_id
   FROM happywhale_encounters e
   JOIN happywhale_users u ON e.contributor_id = u.id
-  JOIN happywhale_species s ON e.species_key = s.species_key
+  JOIN happywhale_species s ON e.species_key = s.key
 
   UNION ALL
 
