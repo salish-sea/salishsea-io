@@ -7,11 +7,10 @@ CREATE TABLE taxa(id INTEGER PRIMARY KEY, parent_id integer, scientific_name tex
 CREATE INDEX taxa_scientific_name on taxa(scientific_name );
 CREATE TABLE inaturalist_observations (id INTEGER PRIMARY KEY, description text, longitude real not null, latitude real not null, taxon_id integer not null, observed_at int not null, license_code varchar, photos_json json, url string not null, username string not null);
 CREATE INDEX inaturalist_observations_observed_at on inaturalist_observations (observed_at);
-CREATE TABLE happywhale_species (id INTEGER PRIMARY KEY, code VARCHAR NOT NULL UNIQUE, scientific_name VARCHAR NOT NULL UNIQUE);
+CREATE TABLE happywhale_species (id INTEGER PRIMARY KEY, code VARCHAR NOT NULL UNIQUE, scientific_name VARCHAR NOT NULL);
 CREATE TABLE happywhale_individuals (id INTEGER PRIMARY KEY, identifier VARCHAR NOT NULL UNIQUE, sex char, species_key VARCHAR NOT NULL);
-CREATE TABLE happywhale_users (id INTEGER PRIMARY KEY, display_name VARCHAR);
 CREATE TABLE happywhale_encounter_media (id INTEGER PRIMARY KEY, encounter_id INTEGER NOT NULL, thumb_url VARCHAR NOT NULL, url VARCHAR NOT NULL, attribution VARCHAR, license_level VARCHAR NOT NULL, mimetype VARCHAR NOT NULL);
-CREATE TABLE happywhale_encounters (id INTEGER PRIMARY KEY, longitude REAL NOT NULL, latitude REAL NOT NULL, "timestamp" INTEGER NOT NULL, species_key VARCHAR NOT NULL, min_count INTEGER, max_count INTEGER, individual_id INTEGER, contributor_id INTEGER NOT NULL);
+CREATE TABLE happywhale_encounters (id INTEGER PRIMARY KEY, longitude REAL NOT NULL, latitude REAL NOT NULL, "timestamp" INTEGER NOT NULL, species_key VARCHAR NOT NULL, min_count INTEGER, max_count INTEGER, individual_id INTEGER);
 CREATE TABLE sightings (id text primary key not null, created_at integer not null, updated_at integer not null, user text not null, observed_at int not null, longitude real not null, latitude real not null, observer_longitude real, observer_latitude real, taxon_id int not null, body text, count int, individuals text, url text, direction text);
 CREATE TABLE sighting_photos (id integer primary key not null, sighting_id text not null REFERENCES sightings (id) ON DELETE CASCADE, idx integer not null, href text not null, license_code text not null, unique(id, idx));
 CREATE INDEX sighting_photos_by_sighting_id ON sighting_photos (sighting_id);
@@ -36,12 +35,12 @@ FROM (
     'happywhale' AS source,
     'https://happywhale.com' AS url,
     null AS path,
-    u.display_name AS userName,
+    null AS userName,
     null AS userSub,
-    s.taxon_id AS taxon_id
+    t.id AS taxon_id
   FROM happywhale_encounters e
-  JOIN happywhale_users u ON e.contributor_id = u.id
-  JOIN happywhale_species s ON e.species_key = s.key
+  JOIN happywhale_species s ON e.species_key = s.code
+  JOIN taxa t ON s.scientific_name = t.scientific_name
 
   UNION ALL
 

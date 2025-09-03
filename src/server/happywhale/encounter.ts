@@ -1,43 +1,14 @@
 import z from "zod";
 import { individualSchema } from "./individual.ts";
+import { userSchema } from "./user.ts";
+import { mediaSchema } from "./media.ts";
+import { Temporal } from "temporal-polyfill";
 
-const userSchema = z.object({
-  id: z.int32(),
-  // uuid
-  // hexId
-  displayName: z.string(),
-  // avatar
-  // geoloc
-});
-const mediaSchema = z.object({
-  id: z.int32().positive(),
-  thumbUrl: z.string(),
-  url: z.string(),
-  // timestamp -- from exif??
-  // timezone
-  // type -- e.g. "IMAGE"
-  // latlng
-  // tags
-  user: userSchema,
-  // orgId
-  // submittedOn
-  licenseLevel: z.string(), // e.g. "PUBLIC_DOMAIN"
-  // parentId
-  // rootId
-  // latlngSrc
-  // attrs
-    // idq -- 2
-    // idt -- tail_ventral
-  // systemAttrs
-  // origFilename
-  mimetype: z.string(),
-  public: z.boolean(),
-});
 const encounterFullSchema = z.object({
   encounter: z.object({
     id: z.int32().positive(),
     dateRange: z.object({
-      startDate: z.date(),
+      startDate: z.string(),
       startTime: z.string().nullable(),
       endDate: z.date().nullable(),
       endTime: z.string().nullable(),
@@ -59,6 +30,8 @@ const encounterFullSchema = z.object({
     maxCount: z.int().positive().nullable(),
     comments: z.string().nullable(),
     displayImage: mediaSchema.nullable(),
+    user: userSchema.nullable(),
+    // org
     public: z.boolean(),
   }),
   media: z.array(z.object({
@@ -73,6 +46,7 @@ const encounterFullSchema = z.object({
   // externalIds
   // editable
 });
+type Encounter = z.infer<typeof encounterFullSchema>;
 
 export const fetchEncounter = async (id: number) => {
   const url = `https://happywhale.com/app/cs/encounter/full/${id}`;
@@ -89,5 +63,30 @@ export const fetchEncounter = async (id: number) => {
 }
 
 type EncounterRow = {
+  id: number;
+  longitude: number;
+  latitude: number;
+  timestamp: number;
+  species_key: string;
+  min_count: number | null;
+  max_count: number | null;
+  individual_id: number | null;
+}
 
+export function ingestEncounter({encounter, media, contributors}: Encounter) {
+  const time = Temporal.PlainTime.from(encounter.dateRange.startTime ?? '12:00:00');
+  const encounterTimestamp = Temporal.PlainDate.from(encounter.dateRange.startDate).toZonedDateTime({
+    plainTime: time,
+    timeZone: encounter.dateRange.timezone,
+  });
+  return {
+    id: encounter.id,
+    longitude: encounter.location.latLng.lng,
+    latitude: encounter.location.latLng.lat,
+    timestamp: encounterTimestamp.toInstant().epochMilliseconds,
+    species_key: encounter.species,
+    min_count: encounter.minCount,
+    max_count: encounter.maxCount,
+    individual_id: encounter.individual.id,
+  }
 }
