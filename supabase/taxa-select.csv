@@ -1,0 +1,506 @@
+id,parent_id,scientific_name,vernacular_name,rank
+41479,1317261,Delphinidae,Oceanic Dolphins,family
+41567,424321,Balaenidae,Bowhead and Right Whales,family
+41568,41567,Eubalaena,Right Whales,genus
+41513,1317265,Cephalorhynchus,Blunt-nosed dolphins,genus
+41515,41513,Cephalorhynchus hectori,Hector's Dolphin,species
+41463,846055,Kogia,Dwarf and Pygmy Sperm Whales,genus
+41464,41463,Kogia breviceps,Pygmy Sperm Whale,species
+41534,41533,Feresa attenuata,Pygmy Killer Whale,species
+41533,1317266,Feresa,,genus
+41569,41568,Eubalaena japonica,North Pacific Right Whale,species
+1317261,424322,Delphinoidea,Oceanic Dolphins and Porpoises,superfamily
+1317266,41479,Globicephalinae,Pilot Whales and allies,subfamily
+1317265,41479,Lissodelphininae,Right Whale Dolphins and allies,subfamily
+1317258,424322,Physeteroidea,Sperm Whales,superfamily
+1317256,424322,Ziphioidea,Beaked Whales,superfamily
+1052880,41515,Cephalorhynchus hectori hectori,Hector's Dolphin (Hector's),subspecies
+1272846,46307,Hydrodamalinae,Steller's Sea Cows,subfamily
+848317,40151,Theria,Therians,subclass
+848320,848317,Placentalia,Placental Mammals,infraclass
+848324,848320,Laurasiatheria,"Ungulates, Carnivorans, and Allies",superorder
+372843,41573,Phocoidea,Pinnipeds,superfamily
+925158,152870,Whippomorpha,Cetaceans and Hippopotamuses,suborder
+424322,152871,Odontoceti,Toothed Whales,parvorder
+848321,848320,Afrotheria,Afromammals,superorder
+424321,152871,Mysticeti,Baleen Whales,parvorder
+846236,46307,Dugonginae,Dugongs,subfamily
+846055,1317258,Kogiidae,Dwarf and Pygmy Sperm Whales,family
+41573,848324,Carnivora,Carnivorans,order
+41687,372843,Phocidae,Earless Seals,family
+41736,372843,Otariidae,Eared Seals,family
+41741,41736,Arctocephalus,Southern Fur Seals,genus
+41727,41687,Mirounga,Elephant Seals,genus
+46306,848321,Sirenia,Sirenians,order
+41728,41727,Mirounga angustirostris,Northern Elephant Seal,species
+41751,41741,Arctocephalus gazella,Antarctic Fur Seal,species
+41730,41687,Leptonychotes,Weddell Seals,genus
+41731,41730,Leptonychotes weddellii,Weddell Seal,species
+1,48460,Animalia,Animals,kingdom
+2,1,Chordata,Chordates,phylum
+40151,355675,Mammalia,Mammals,class
+41457,1317261,Monodontidae,Narwhals and Belugas,family
+41401,1317256,Ziphiidae,Beaked Whales,family
+41419,41401,Hyperoodon,Bottlenose Whales,genus
+41421,41419,Hyperoodon ampullatus,North Atlantic Bottlenose Whale,species
+41458,41457,Monodon,Narwhals,genus
+41459,41458,Monodon monoceros,Narwhal,species
+48460,,Life,life,stateofmatter
+355675,2,Vertebrata,Vertebrates,subphylum
+152870,848324,Artiodactyla,Even-toed Ungulates and Cetaceans,order
+152871,925158,Cetacea,Cetaceans,infraorder
+46307,46306,Dugongidae,Dugongs,family
+46310,846236,Dugong,,genus
+46311,46310,Dugong dugon,Dugong,species
+46308,1272846,Hydrodamalis,Sea Cows,genus
+46309,46308,Hydrodamalis gigas,Steller's Sea Cow,species
+147579,41515,Cephalorhynchus hectori maui,Maui's Dolphin,subspecies
+3,355675,Aves,Birds,class
+2114,3,Coraciiformes,"Kingfishers, Bee-eaters, Rollers And Allies",order
+2314,2114,Alcedinidae,Kingfishers,family
+1623,3,Cuculiformes,Cuckoos,order
+1627,1623,Cuculidae,Cuckoos,family
+1628,1541352,Centropus,Coucals,genus
+2422,1542375,Actenoides,Wood Kingfishers,genus
+2427,2422,Actenoides monachus,Green-backed Kingfisher,species
+1653,1628,Centropus monachus,Blue-headed Coucal,species
+5067,71261,Accipitridae,"Hawks, Eagles, and Kites",family
+4262,71268,Phalacrocoracidae,Cormorants and Shags,family
+3806,67564,Spheniscidae,Penguins,family
+5380,1541533,Aegypius,,genus
+3807,3806,Pygoscelis,Brush-tailed Penguins,genus
+3808,3807,Pygoscelis papua,Gentoo Penguin,species
+3819,3806,Aptenodytes,Great Penguins,genus
+3821,3819,Aptenodytes patagonicus,King Penguin,species
+3810,3807,Pygoscelis adeliae,Adelie Penguin,species
+3820,3819,Aptenodytes forsteri,Emperor Penguin,species
+7251,3,Passeriformes,Perching Birds,order
+16768,980017,Tyrannus,Kingbirds,genus
+12160,7251,Meliphagidae,Honeyeaters,family
+8073,71296,Artamus,Woodswallows,genus
+12319,12160,Philemon,Typical Friarbirds,genus
+5382,5380,Aegypius monachus,Cinereous Vulture,species
+12329,12319,Philemon corniculatus,Noisy Friarbird,species
+5425,1541533,Necrosyrtes,,genus
+5426,5425,Necrosyrtes monachus,Hooded Vulture,species
+8074,8073,Artamus monachus,Ivory-backed Woodswallow,species
+26036,355675,Reptilia,Reptiles,class
+26172,26036,Squamata,Snakes and Lizards,order
+18874,3,Psittaciformes,Parrots,order
+18875,18874,Psittacidae,New World and African Parrots,family
+30403,85553,Elapidae,Elapid Snakes,family
+19348,18875,Myiopsitta,Monk Parakeets,genus
+19349,19348,Myiopsitta monachus,Monk Parakeet,species
+32805,1567778,Chamaeleonidae,Chameleons,family
+32806,32805,Chamaeleo,Typical Chameleons,genus
+16793,16768,Tyrannus savana,Fork-tailed Flycatcher,species
+39532,26036,Testudines,Turtles and Tortoises,order
+33177,371057,Gekkonidae,Typical Geckos,family
+39657,372234,Cheloniidae,Typical Sea Turtles,family
+39658,1366913,Chelonia,Green Sea Turtles,genus
+39659,39658,Chelonia mydas,Green Sea Turtle,species
+34591,33177,Gekko,Calling Geckos,genus
+39664,797541,Caretta,Loggerhead sea turtles,genus
+34610,34591,Gekko monarchus,Double-spotted Gecko,species
+35099,492346,Suta,,genus
+32832,32806,Chamaeleo monachus,Socotran Chameleon,species
+39665,39664,Caretta caretta,Loggerhead Sea Turtle,species
+39671,797541,Eretmochelys,Hawksbill Sea Turtles,genus
+39672,39671,Eretmochelys imbricata,Hawksbill Sea Turtle,species
+39669,797541,Lepidochelys,Ridley Sea Turtles,genus
+39670,39669,Lepidochelys olivacea,Olive Ridley Sea Turtle,species
+39675,372234,Dermochelyidae,Leatherback Sea Turtles,family
+39676,39675,Dermochelys,Leatherback Sea Turtles,genus
+39677,39676,Dermochelys coriacea,Leatherback Sea Turtle,species
+41402,41401,Mesoplodon,Mesoplodont Beaked Whales,genus
+41405,41402,Mesoplodon grayi,Gray's Beaked Whale,species
+41424,41401,Berardius,Giant Beaked Whales,genus
+41413,41402,Mesoplodon bidens,North Atlantic Beaked Whale,species
+41407,41402,Mesoplodon europaeus,Gulf Stream Beaked Whale,species
+41408,41402,Mesoplodon densirostris,Dense-beaked Whale,species
+41420,41419,Hyperoodon planifrons,Southern Bottlenose Whale,species
+41426,41424,Berardius bairdii,Baird's Beaked Whale,species
+41409,41402,Mesoplodon layardii,Strap-toothed Beaked Whale,species
+41425,41424,Berardius arnuxii,Arnoux's Beaked Whale,species
+41417,41401,Indopacetus,Indo-Pacific Beaked Whales,genus
+41418,41417,Indopacetus pacificus,Indo-Pacific Beaked Whale,species
+41437,1317261,Phocoenidae,Porpoises,family
+41438,41437,Phocoena,Typical Porpoises,genus
+41440,41438,Phocoena phocoena,Harbor Porpoise,species
+41434,1317258,Physeteridae,True Sperm Whales,family
+41435,41434,Physeter,True Sperm Whales,genus
+41427,41401,Ziphius,Goose-beaked Whales,genus
+41428,41427,Ziphius cavirostris,Cuvier's Beaked Whale,species
+41439,41438,Phocoena spinipinnis,Burmeister's Porpoise,species
+41443,41438,Phocoena sinus,Vaquita,species
+41444,41438,Phocoena dioptrica,Spectacled Porpoise,species
+41460,41457,Delphinapterus,Belugas,genus
+41461,41460,Delphinapterus leucas,Beluga,species
+41466,1317260,Iniidae,South American River Dolphins,family
+41471,41466,Inia,,genus
+41472,41471,Inia geoffrensis,Boto,species
+41445,41437,Phocoenoides,,genus
+41446,41445,Phocoenoides dalli,Dall's Porpoise,species
+41469,846059,Pontoporia,Franciscanas,genus
+41470,41469,Pontoporia blainvillei,Franciscana,species
+41465,41463,Kogia sima,Dwarf Sperm Whale,species
+41480,1317267,Tursiops,Bottlenose Dolphins,genus
+41482,41480,Tursiops truncatus,Common Bottlenose Dolphin,species
+41493,1317267,Stenella,Side-striped Dolphins,genus
+41476,424321,Eschrichtiidae,Grey Whales,family
+41477,41476,Eschrichtius,Grey whales,genus
+41478,41477,Eschrichtius robustus,Gray Whale,species
+41481,41480,Tursiops aduncus,Indo-Pacific Bottlenose Dolphin,species
+41485,1317267,Sousa,Humpback Dolphins,genus
+41489,1317267,Sotalia,Estuarine Dolphins,genus
+41487,41485,Sousa teuszii,Atlantic Humpback Dolphin,species
+41496,41493,Stenella longirostris,Spinner Dolphin,species
+41503,41493,Stenella frontalis,Atlantic Spotted Dolphin,species
+41500,41493,Stenella attenuata,Pantropical Spotted Dolphin,species
+41494,41493,Stenella coeruleoalba,Striped Dolphin,species
+41504,41479,Lagenorhynchus,,genus
+41505,41504,Lagenorhynchus albirostris,White-beaked Dolphin,species
+41514,41513,Cephalorhynchus commersonii,Commerson's Dolphin,species
+41517,41513,Cephalorhynchus heavisidii,Heaviside's Dolphin,species
+41516,41513,Cephalorhynchus eutropia,Chilean Dolphin,species
+41495,41493,Stenella clymene,Clymene Dolphin,species
+41524,1317267,Delphinus,Common Dolphins,genus
+41526,41524,Delphinus delphis,Common Dolphin,species
+41520,41479,Orcinus,,genus
+41521,41520,Orcinus orca,Orca,species
+41528,1317266,Globicephala,Pilot Whales,genus
+41529,41528,Globicephala melas,Long-finned Pilot Whale,species
+41518,1317266,Orcaella,Snubfin Dolphins,genus
+41519,41518,Orcaella brevirostris,Irrawaddy Dolphin,species
+41522,1317267,Lagenodelphis,,genus
+41523,41522,Lagenodelphis hosei,Fraser's Dolphin,species
+41540,1317266,Grampus,,genus
+41541,41540,Grampus griseus,Risso's Dolphin,species
+41532,41528,Globicephala macrorhynchus,Short-finned Pilot Whale,species
+41538,1317266,Pseudorca,,genus
+41539,41538,Pseudorca crassidens,False Killer Whale,species
+41535,1317265,Lissodelphis,Right Whale Dolphins,genus
+41537,41535,Lissodelphis borealis,Northern Right Whale Dolphin,species
+41543,41542,Peponocephala electra,Melon-headed Whale,species
+41542,1317266,Peponocephala,,genus
+41536,41535,Lissodelphis peronii,Southern Right Whale Dolphin,species
+41546,424321,Balaenopteridae,Rorquals,family
+41565,41546,Megaptera,Humpback Whales,genus
+41547,41546,Balaenoptera,,genus
+41562,41547,Balaenoptera physalus,Fin Whale,species
+41550,41547,Balaenoptera acutorostrata,Common Minke Whale,species
+41553,41547,Balaenoptera musculus,Blue Whale,species
+41559,41547,Balaenoptera borealis,Sei Whale,species
+41544,1317266,Steno,,genus
+41545,41544,Steno bredanensis,Rough-toothed Dolphin,species
+41558,41547,Balaenoptera edeni,Eden's Whale,species
+41636,41573,Ursidae,Bears,family
+41637,846255,Ursus,Holarctic Bears,genus
+41566,41565,Megaptera novaeangliae,Humpback Whale,species
+41641,41637,Ursus arctos,Brown Bear,species
+41644,41637,Ursus maritimus,Polar Bear,species
+41571,41568,Eubalaena australis,Southern Right Whale,species
+41688,41687,Pusa,Ringed Seal and allies,genus
+41691,41688,Pusa hispida,Ringed Seal,species
+41570,41568,Eubalaena glacialis,North Atlantic Right Whale,species
+41572,41567,Balaena,Bowhead Whales,genus
+41707,41687,Phoca,common seals,genus
+41708,41707,Phoca vitulina,Harbor Seal,species
+41699,41687,Lobodon,Crabeater Seals,genus
+41700,41699,Lobodon carcinophaga,Crabeater Seal,species
+41701,41687,Pagophilus,Harp Seals,genus
+41702,41701,Pagophilus groenlandicus,Harp Seal,species
+41714,41707,Phoca largha,Spotted Seal,species
+41715,41687,Monachus,Mediterranean Monk Seals,genus
+41705,41687,Cystophora,Hooded Seals,genus
+41706,41705,Cystophora cristata,Hooded Seal,species
+41732,41687,Halichoerus,Grey Seals,genus
+41733,41732,Halichoerus grypus,Gray Seal,species
+41729,41727,Mirounga leonina,Southern Elephant Seal,species
+41723,41687,Hydrurga,Leopard Seals,genus
+41724,41723,Hydrurga leptonyx,Leopard Seal,species
+41719,41687,Erignathus,Bearded Seals,genus
+41720,41719,Erignathus barbatus,Bearded Seal,species
+41716,41715,Monachus monachus,Mediterranean Monk Seal,species
+41726,41725,Ommatophoca rossii,Ross Seal,species
+41725,41687,Ommatophoca,Ross Seals,genus
+41737,41736,Zalophus,"California, Galápagos, and Japanese Sea Lions",genus
+41740,41737,Zalophus californianus,California Sea Lion,species
+41752,41741,Arctocephalus forsteri,Long-nosed Fur Seal,species
+41754,41736,Eumetopias,Steller Sea Lions,genus
+41755,41754,Eumetopias jubatus,Steller Sea Lion,species
+41738,41737,Zalophus wollebaeki,Galápagos Sea Lion,species
+41748,41741,Arctocephalus australis,South American Fur Seal,species
+41756,41736,Callorhinus,Northern Fur Seals,genus
+41747,41741,Arctocephalus galapagoensis,Galápagos Fur Seal,species
+41739,41737,Zalophus japonicus,Japanese Sea Lion,species
+41770,41573,Mustelidae,Mustelids,family
+41859,526556,Enhydra,sea otters,genus
+41760,41736,Otaria,South American Sea Lions,genus
+41761,41760,Otaria flavescens,South American Sea Lion,species
+41764,372843,Odobenidae,Walruses,family
+41765,41764,Odobenus,,genus
+41766,41765,Odobenus rosmarus,Walrus,species
+41758,41736,Neophoca,Australasian Sea Lions,genus
+41759,41758,Neophoca cinerea,Australian Sea Lion,species
+41757,41756,Callorhinus ursinus,Northern Fur Seal,species
+47120,1,Arthropoda,Arthropods,phylum
+47157,184884,Lepidoptera,Butterflies and Moths,order
+47119,245097,Arachnida,Arachnids,class
+47118,47119,Araneae,Spiders,order
+47115,1,Mollusca,Mollusks,phylum
+47114,47115,Gastropoda,Gastropods,class
+43367,848323,Primates,Primates,order
+41860,41859,Enhydra lutris,Sea Otter,species
+43642,554251,Pitheciidae,"Sakis, Titis, and Uakaris",family
+43643,846203,Pithecia,Sakis,genus
+47158,372739,Insecta,Insects,class
+47224,47157,Papilionoidea,Butterflies,superfamily
+47208,184884,Coleoptera,Beetles,order
+47201,184884,Hymenoptera,"Ants, Bees, Wasps, and Sawflies",order
+47922,47224,Nymphalidae,Brush-footed Butterflies,family
+48202,702480,Scarabaeoidea,"Scarabs, Stag Beetles, and Allies",superfamily
+47866,367176,Thomisidae,Crab Spiders,family
+48289,246139,Neogastropoda,,order
+47273,196614,Elasmobranchii,Sharks and Rays,subclass
+47459,47115,Cephalopoda,Cephalopods,class
+49682,47157,Pyraloidea,Pyralid and Crambid Snout Moths,superfamily
+52002,49682,Crambidae,Crambid Snout Moths,family
+48736,60473,Curculionidae,True Weevils,family
+52029,47157,Zygaenoidea,"Flannel, Slug Caterpillar, Leaf Skeletonizer, and Allied Moths",superfamily
+49068,1040842,Balanomorpha,Symmetrical Sessile Barnacles,order
+53635,49068,Coronuloidea,,superfamily
+50870,551308,Lamniformes,Mackerel Sharks,order
+50874,50870,Lamnidae,Mackerel Sharks,family
+50875,50874,Carcharodon,White Sharks,genus
+50873,50875,Carcharodon carcharias,Great White Shark,species
+71130,47208,Polyphaga,"Water, Rove, Scarab, Long-horned, Leaf, and Snout Beetles",suborder
+58597,47922,Satyrinae,"Satyrs, Morphos, and Allies",subfamily
+58598,58597,Satyrini,"Alpines, Arctics, Nymphs and Satyrs",tribe
+60473,372852,Curculionoidea,Snout and Bark Beetles,superfamily
+54028,1269342,Pompilidae,Spider Wasps,family
+67564,3,Sphenisciformes,Penguins,order
+55743,480704,Conidae,Cone Snails,family
+56715,55743,Conus,,genus
+53657,1472440,Tmarus,Octopus Spiders,genus
+54549,3807,Pygoscelis antarcticus,Chinstrap Penguin,species
+71261,3,Accipitriformes,"Hawks, Eagles, Kites, and Allies",order
+71268,3,Suliformes,"Gannets, Cormorants, and Allies",order
+84165,52029,Limacodidae,Slug Caterpillar Moths,family
+71296,7251,Artamidae,"Woodswallows, Butcherbirds, and Currawongs",family
+83796,246139,Architaenioglossa,"apple snails, river snails, and allies",order
+84112,776180,Ampullariidae,Apple Snails,family
+84111,1300249,Pomacea,Common Apple Snails,genus
+74890,41435,Physeter macrocephalus,Sperm Whale,species
+74103,41572,Balaena mysticetus,Bowhead Whale,species
+74104,41547,Balaenoptera omurai,Omura's Whale,species
+120474,47118,Araneomorphae,Typical Spiders,suborder
+85552,26172,Sauria,Lizards,suborder
+85553,26172,Serpentes,Snakes,suborder
+85493,47120,Crustacea,Crustaceans,subphylum
+122486,52002,Spilomelinae,Pearl Moths,subfamily
+117766,41708,Phoca vitulina richardii,Pacific Harbor Seal,subspecies
+117520,41860,Enhydra lutris nereis,Southern Sea Otter,subspecies
+122635,48202,Trogidae,Keratin Beetles,family
+122636,122635,Omorgus,Carcass Beetles,genus
+112853,41489,Sotalia guianensis,Guyana Dolphin,species
+124417,47201,Apocrita,"Narrow-waisted Wasps, Ants, and Bees",suborder
+144117,1091452,Thecostraca,Barnacles and Allies,subclass
+132781,54028,Pepsinae,,subfamily
+127352,372759,Decapodiformes,Squids and Cuttlefishes,superorder
+130839,372854,Byrrhoidea,"Pill, Water and Toe-winged Beetles",superfamily
+131236,48460,Viruses,viruses,kingdom
+126985,1637735,Priocnemis,,genus
+133061,41860,Enhydra lutris kenyoni,Northern Sea Otter,subspecies
+147154,41641,Ursus arctos arctos,Eurasian Brown Bear,subspecies
+133060,41860,Enhydra lutris lutris,Western Sea Otter,subspecies
+184884,47158,Pterygota,Winged and Once-winged Insects,subclass
+196614,355675,Chondrichthyes,Cartilaginous Fishes,class
+202077,58598,Pronophilina,,subtribe
+173240,130839,Ptilodactylidae,Toe-winged Beetles,family
+209460,41550,Balaenoptera acutorostrata acutorostrata,North Atlantic Minke Whale,subspecies
+147882,41482,Tursiops truncatus ponticus,Black Sea Bottlenose Dolphin,subspecies
+147641,41526,Delphinus delphis ponticus,Black Sea Common Dolphin,subspecies
+147550,41553,Balaenoptera musculus brevicauda,Pygmy Blue Whale,subspecies
+147551,41553,Balaenoptera musculus intermedia,Antarctic Blue Whale,subspecies
+147845,41496,Stenella longirostris orientalis,Eastern Spinner Dolphin,subspecies
+245097,47120,Chelicerata,Chelicerates,subphylum
+246139,47114,Caenogastropoda,Caenogastropods,subclass
+210289,144117,Cirripedia,Barnacles,infraclass
+246134,127352,Oegopsida,Pelagic Squids,order
+245417,53635,Chelonibiidae,,family
+237465,41766,Odobenus rosmarus rosmarus,Atlantic Walrus,subspecies
+245313,1366569,Architeuthidae,Giant Squids,family
+246411,245313,Architeuthis,,genus
+209461,41550,Balaenoptera acutorostrata scammoni,North Pacific Minke Whale,subspecies
+237878,41708,Phoca vitulina mellonae,Ungava Seal,subspecies
+326777,124417,Aculeata,"Ants, Bees, and Stinging Wasps",infraorder
+342614,120474,Entelegynae,Entelegyne Spiders,infraorder
+367176,342614,Thomisoidea,Thomisoidea Spiders,superfamily
+318988,928021,Samea,,genus
+248842,1067386,Chelonibia,,genus
+253938,84111,Pomacea flagellata,Chivita Snail,species
+361550,572894,Araeopidius,,genus
+361543,361550,Araeopidius monachus,,species
+253698,246411,Architeuthis dux,Giant Squid,species
+306921,122636,Omorgus monachus,,species
+372739,47120,Hexapoda,Hexapods,subphylum
+372852,71130,Cucujiformia,Cucujiform Beetles,infraorder
+372854,71130,Elateriformia,Elateriform Beetles,infraorder
+371057,85552,Gekkota,Geckos,infraorder
+372759,47459,Coleoidea,"Octopuses, Squids, and Cuttlefishes",subclass
+372234,39532,Chelonioidea,Sea Turtles,superfamily
+367389,48736,Dryophthorinae,,subfamily
+446611,41553,Balaenoptera musculus musculus,Northern Blue Whale,subspecies
+432094,56715,Conus monachus,Monastic Cone,species
+413524,3808,Pygoscelis papua papua,Northern Gentoo Penguin,subspecies
+473790,85493,Multicrustacea,Typical Crustaceans,superclass
+464038,210289,Thoracica,Normal Barnacles,subterclass
+480704,48289,Conoidea,Cone Snails and Allies,superfamily
+446639,41687,Neomonachus,Hawaiian Monk Seals,genus
+446640,446639,Neomonachus schauinslandi,Hawaiian Monk Seal,species
+474974,1633604,Dalcerides,,genus
+469961,41485,Sousa plumbea,Indian Humpback Dolphin,species
+446644,41440,Phocoena phocoena relicta,Black Sea Porpoise,subspecies
+446614,41755,Eumetopias jubatus monteriensis,Eastern Steller Sea Lion,subspecies
+446615,41755,Eumetopias jubatus jubatus,Western Steller Sea Lion,subspecies
+526556,41770,Lutrinae,Otters,subfamily
+508027,367389,Rhynchophorini,,tribe
+492346,30403,Hydrophiinae,Australian Elapids (inc. Sea Snakes),subfamily
+483035,126985,Priocnemis monachus,Large black hunting wasp,species
+500655,43643,Pithecia milleri,Miller's Saki,species
+508823,41472,Inia geoffrensis boliviensis,Bolivian River Dolphin,subspecies
+533484,41691,Pusa hispida ladogensis,Lake Ladoga Seal,subspecies
+531609,41691,Pusa hispida saimensis,Saimaa Ringed Seal,subspecies
+520333,19349,Myiopsitta monachus luchsi,Cliff Parakeet,subspecies
+508529,19349,Myiopsitta monachus cotorra,Paraguayan Monk Parakeet,subspecies
+554251,936377,Platyrrhini,New World Monkeys,parvorder
+551307,47273,Selachii,Sharks,infraclass
+551308,551307,Galeomorphi,Galean Sharks,superorder
+566601,41708,Phoca vitulina vitulina,Atlantic Harbor Seal,subspecies
+551436,246139,Campaniloidea,,superfamily
+572894,173240,Araeopidiinae,,subfamily
+541892,474974,Dalcerides alba,,species
+555603,16793,Tyrannus savana monachus,,subspecies
+533493,41691,Pusa hispida botnica,Baltic Ringed Seal,subspecies
+533494,41691,Pusa hispida ochotensis,Okhotsk Ringed Seal,subspecies
+702480,71130,Scarabaeiformia,Scarabaeiform Beetles,infraorder
+623433,41440,Phocoena phocoena phocoena,Atlantic Harbor Porpoise,subspecies
+623441,41440,Phocoena phocoena vomerina,Pacific Harbour Porpoise,subspecies
+575103,41485,Sousa sahulensis,Australian Humpback Dolphin,species
+702570,41472,Inia geoffrensis geoffrensis,Amazon River Dolphin,subspecies
+626289,202077,Quilaphoetosus,,genus
+698251,41529,Globicephala melas edwardii,Southern Long-finned Pilot Whale,subspecies
+698783,41496,Stenella longirostris longirostris,Gray’s Spinner Dolphin,subspecies
+629551,2427,Actenoides monachus monachus,Blue-headed Kingfisher,subspecies
+656915,248842,Chelonibia caretta,,species
+705331,41566,Megaptera novaeangliae australis,Southern Humpback Whale,subspecies
+705330,41566,Megaptera novaeangliae novaeangliae,North Atlantic Humpback Whale,subspecies
+705329,41566,Megaptera novaeangliae kuzira,North Pacific Humpback Whale,subspecies
+705323,41482,Tursiops truncatus truncatus,Common Bottlenose Dolphin,subspecies
+711288,41733,Halichoerus grypus grypus,Baltic Grey Seal,subspecies
+705318,41482,Tursiops truncatus gephyreus,Lahille's Bottlenose Dolphin,subspecies
+711285,41720,Erignathus barbatus barbatus,Atlantic Bearded Seal,subspecies
+709337,3808,Pygoscelis papua ellsworthi,Southern Gentoo Penguin,subspecies
+711286,41720,Erignathus barbatus nauticus,Pacific Bearded Seal,subspecies
+705324,41553,Balaenoptera musculus indica,Northern Indian Blue Whale,subspecies
+776180,83796,Ampullarioidea,apple snails,superfamily
+711289,41733,Halichoerus grypus atlantica,Atlantic Grey Seal,subspecies
+726681,19349,Myiopsitta monachus monachus,South American Monk Parakeet,subspecies
+746264,1134336,Papillomaviridae,Warts,family
+777417,41500,Stenella attenuata graffmani,Coastal Spotted Dolphin,subspecies
+778491,41562,Balaenoptera physalus physalus,Northern Fin Whale,subspecies
+728236,12329,Philemon corniculatus monachus,Southern Noisy Friarbird,subspecies
+711292,41691,Pusa hispida hispida,Arctic Ringed Seal,subspecies
+777415,41500,Stenella attenuata attenuata,offshore pantropical spotted dolphin,subspecies
+778490,41559,Balaenoptera borealis schlegelii,Southern Sei Whale,subspecies
+786045,43367,Haplorhini,"Monkeys, Apes, and Tarsiers",suborder
+797541,39657,Carettinae,"Hawksbill, Loggerhead, and Ridley Sea Turtles",subfamily
+783080,746264,Firstpapillomavirinae,Terrestrial Vertebrate Papillomaviruses,subfamily
+801536,551436,Plesiotrochidae,,family
+778492,41526,Delphinus delphis delphis,,subspecies
+785322,1100884,Eugnoristus,,genus
+785321,785322,Eugnoristus monachus,,species
+780509,41562,Balaenoptera physalus quoyi,Southern Fin Whale,subspecies
+781408,41559,Balaenoptera borealis borealis,Northern Sei Whale,subspecies
+783107,783080,Dyozetapapillomavirus,ζ2 Testudine Papillomaviruses,genus
+848323,848320,Euarchontoglires,"Primates, Rodents, and Allies",superorder
+936377,786045,Simiiformes,Monkeys and Apes,infraorder
+928021,122486,Nomophilini,,tribe
+846255,41636,Ursinae,Typical Bears,subfamily
+846203,43642,Pitheciinae,Sakis and Uakaris,subfamily
+846059,1317260,Pontoporiidae,Estuarine River Dolphins,family
+963168,41529,Globicephala melas melas,Northern Long-finned Pilot Whale,subspecies
+852369,43643,Pithecia monachus,Monk Saki,species
+825120,53657,Tmarus caretta,,species
+850967,41402,Mesoplodon hotaula,Deraniyagala's Beaked Whale,species
+980017,7251,Tyrannidae,Tyrant Flycatchers,family
+1091452,473790,Hexanauplia,Barnacles and Copepods,class
+1040842,464038,Thoracicalcarea,Thoracican Barnacles,superorder
+980192,7251,Leiothrichidae,Laughingthrushes and Allies,family
+1100884,508027,Litosomina,,subtribe
+1067386,245417,Chelonibiinae,,subfamily
+970572,41766,Odobenus rosmarus divergens,Pacific Walrus,subspecies
+1118474,801536,Plesiotrochus,,genus
+1045501,626289,Quilaphoetosus monachus,,species
+1063781,318988,Samea carettalis,,species
+1269342,326777,Pompiloidea,"Spider Wasps, Velvet Ants, and Allies",superfamily
+1289299,980192,Pterorhinus,,genus
+1289331,4262,Leucocarbo,Blue-eyed Shags and allies,genus
+1289402,1289299,Pterorhinus chinensis,Black-throated Laughingthrush,species
+1134331,131236,Cossaviricota,,phylum
+1134333,1134331,Papovaviricetes,,class
+1134336,1134333,Zurhausenvirales,,order
+1149437,1118474,Plesiotrochus monachus,,species
+1127950,35099,Suta monachus,Inland Hooded Snake,species
+1155858,41424,Berardius minimus,Least Beaked Whale,species
+1317267,41479,Delphininae,Long-nosed Dolphins,subfamily
+1300249,84112,Pomaceinae,,subfamily
+1317295,1317265,Sagmatias,,genus
+1317260,424322,Inioidea,American River Dolphins,superfamily
+1289590,1289331,Leucocarbo bransfieldensis,Antarctic Shag,species
+1306016,41446,Phocoenoides dalli dalli,Dall's Porpoise,subspecies
+1365377,3808,Pygoscelis papua taeniata,eastern gentoo penguin,subspecies
+1289817,1289402,Pterorhinus chinensis monachus,Black-throated Laughingthrush (Hainan),subspecies
+1365378,3808,Pygoscelis papua poncetii,South Georgian Gentoo Penguin,subspecies
+1306017,41446,Phocoenoides dalli truei,True's Porpoise,subspecies
+1366913,39657,Cheloniinae,Green and Flatback Sea Turtles,subfamily
+1368491,1317295,Sagmatias obliquidens,Pacific White-sided Dolphin,species
+1368492,1317295,Sagmatias obscurus,Dusky Dolphin,species
+1368482,41479,Leucopleurus,,genus
+1368483,1368482,Leucopleurus acutus,Atlantic White-sided Dolphin,species
+1368489,1317295,Sagmatias australis,Peale's Dolphin,species
+1408504,41526,Delphinus delphis bairdii,Eastern Pacific Long-beaked Common Dolphin,subspecies
+1368490,1317295,Sagmatias cruciger,Hourglass Dolphin,species
+1366569,246134,Architeuthoidea,Giant Squids and Neosquids,superfamily
+1408503,41526,Delphinus delphis tropicalis,Indo-Pacific Common Dolphin,subspecies
+1472437,47866,Thomisinae,,subfamily
+1541533,5067,Aegypiinae,Typical Old World Vultures,subfamily
+1541352,1627,Centropodinae,Coucals,subfamily
+1472440,1472437,Tmarini,,tribe
+1453916,41547,Balaenoptera brydei,Bryde's Whale,species
+1435993,41496,Stenella longirostris centroamericana,Central American Spinner Dolphin,subspecies
+1500452,41547,Balaenoptera musculus × physalus,Blue × Fin Whale,hybrid
+1471381,1471382,Dyozetapapillomavirus one cmpv-i,Green Sea Turtle Papillomavirus 1,subspecies
+1471382,783107,Dyozetapapillomavirus one,,species
+1471380,1471382,Dyozetapapillomavirus one ccpv-i,Loggerhead Sea Turtle Papillomavirus 1,subspecies
+1563907,85552,Iguania,,infraorder
+1567778,1563907,Acrodonta,,parvorder
+1542375,2314,Halcyoninae,Tree Kingfishers,subfamily
+1633602,84165,Dalcerinae,Jewel Caterpillar Moths,subfamily
+1633604,1633602,Acragini,,tribe
+1602533,41521,Orcinus orca rectipinnus,Bigg's Killer Whale,subspecies
+1602531,41521,Orcinus orca ater,Resident Killer Whale,subspecies
+1621825,41514,Cephalorhynchus commersonii commersonii,,subspecies
+1621824,41514,Cephalorhynchus commersonii kerguelenensis,Kerguelen Dolphin,subspecies
+1602532,41521,Orcinus orca orca,Common Killer Whale,subspecies
+1637735,132781,Priocnemini,,tribe
+41775,526556,Lontra,New World River Otters,genus
+41777,41775,Lontra canadensis,North American River Otter,species
+236798,41777,Lontra canadensis pacifica,Western River Otter,subspecies
+201557,41777,Lontra canadensis lataxina,Southeastern River Otter,subspecies
+939769,41777,Lontra canadensis periclyzomae,Haida Gwaii River Otter,subspecies
+1248936,41777,Lontra canadensis canadensis,Northeastern River Otter,subspecies
+236795,41777,Lontra canadensis kodiacensis,Kodiak Island River Otter,subspecies
+236797,41777,Lontra canadensis mira,Prince of Wales River Otter,subspecies
+211197,41777,Lontra canadensis sonora,Southwestern River Otter,subspecies
