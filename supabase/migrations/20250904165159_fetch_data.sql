@@ -393,7 +393,7 @@ CREATE FUNCTION inaturalist.upsert_observation_page (
       license_code,
       uri,
       o.user->>'login' AS username,
-      ti.id AS taxon_id,
+      taxon.id AS taxon_id,
       current_timestamp
     FROM observations AS o,
       jsonb_to_record(geojson) AS geojson (coordinates double precision[]),
@@ -412,14 +412,14 @@ CREATE FUNCTION inaturalist.upsert_observation_page (
   SELECT
     photo.id,
     o.id,
-    observation_photo.pos,
+    observation_photo.position,
     photo.attribution,
     photo.hidden,
     photo.license_code,
     dims::public.dimensions::public.dimensions,
     photo.url
   FROM observations AS o JOIN observation_insertions AS oi ON o.id=oi.id,
-    jsonb_to_record(observation_photos) AS observation_photo (id bigint, pos smallint, photo jsonb),
+    jsonb_to_recordset(observation_photos) AS observation_photo (id bigint, position smallint, photo jsonb),
     jsonb_to_record(observation_photo.photo) AS photo (id bigint, attribution varchar, hidden boolean, license_code inaturalist.license, original_dimensions jsonb, url varchar),
     jsonb_to_record(photo.original_dimensions) AS dims (height int, width int)
   ON CONFLICT (id) DO UPDATE SET
