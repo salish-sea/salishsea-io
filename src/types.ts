@@ -14,11 +14,3 @@ export type Extent = [number, number, number, number];
 export type UpsertSightingResponse = {
   id: string;
 }
-
-export type TemporalFeaturesResponse = FeatureCollection<Geometry, FeatureProperties> & {
-  params: {date: string};
-}
-
-export function isSighting(feature: Feature): feature is Feature<Point, SightingProperties> {
-  return feature.properties?.kind === 'Sighting';
-}

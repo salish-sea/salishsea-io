@@ -1,0 +1,338 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  public: {
+    Tables: {
+      sighting_photos: {
+        Row: {
+          href: string
+          id: number
+          license_code: string
+          seq: number
+          sighting_id: string
+        }
+        Insert: {
+          href: string
+          id?: never
+          license_code: string
+          seq: number
+          sighting_id: string
+        }
+        Update: {
+          href?: string
+          id?: never
+          license_code?: string
+          seq?: number
+          sighting_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sighting_photos_sighting_id_fkey"
+            columns: ["sighting_id"]
+            isOneToOne: false
+            referencedRelation: "sightings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sightings: {
+        Row: {
+          body: string | null
+          count: number | null
+          created_at: string
+          direction: Database["public"]["Enums"]["travel_direction"] | null
+          id: string
+          observed_at: string
+          observer_location: unknown | null
+          subject_location: unknown
+          taxon_id: number
+          updated_at: string
+          url: string | null
+          user_id: number | null
+        }
+        Insert: {
+          body?: string | null
+          count?: number | null
+          created_at: string
+          direction?: Database["public"]["Enums"]["travel_direction"] | null
+          id: string
+          observed_at: string
+          observer_location?: unknown | null
+          subject_location: unknown
+          taxon_id: number
+          updated_at: string
+          url?: string | null
+          user_id?: number | null
+        }
+        Update: {
+          body?: string | null
+          count?: number | null
+          created_at?: string
+          direction?: Database["public"]["Enums"]["travel_direction"] | null
+          id?: string
+          observed_at?: string
+          observer_location?: unknown | null
+          subject_location?: unknown
+          taxon_id?: number
+          updated_at?: string
+          url?: string | null
+          user_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sightings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          email: string
+          id: number
+          name: string | null
+          nickname: string | null
+          sub: string
+          updated_at: string
+        }
+        Insert: {
+          email: string
+          id?: never
+          name?: string | null
+          nickname?: string | null
+          sub: string
+          updated_at: string
+        }
+        Update: {
+          email?: string
+          id?: never
+          name?: string | null
+          nickname?: string | null
+          sub?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      presence: {
+        Row: {
+          accuracy: number | null
+          attribution: string | null
+          body: string | null
+          count: number | null
+          direction: Database["public"]["Enums"]["travel_direction"] | null
+          id: string | null
+          individuals: string[] | null
+          latitude: number | null
+          longitude: number | null
+          observed_at: string | null
+          photos:
+            | Database["public"]["CompositeTypes"]["presence_photo"][]
+            | null
+          symbol: string | null
+          taxon: Database["public"]["CompositeTypes"]["taxon"] | null
+        }
+        Relationships: []
+      }
+    }
+    Functions: {
+      presence_on_date: {
+        Args: { date: string }
+        Returns: {
+          accuracy: number | null
+          attribution: string | null
+          body: string | null
+          count: number | null
+          direction: Database["public"]["Enums"]["travel_direction"] | null
+          id: string | null
+          individuals: string[] | null
+          latitude: number | null
+          longitude: number | null
+          observed_at: string | null
+          photos:
+            | Database["public"]["CompositeTypes"]["presence_photo"][]
+            | null
+          symbol: string | null
+          taxon: Database["public"]["CompositeTypes"]["taxon"] | null
+        }[]
+      }
+    }
+    Enums: {
+      sex: "male" | "female"
+      travel_direction:
+        | "north"
+        | "northeast"
+        | "east"
+        | "southeast"
+        | "south"
+        | "southwest"
+        | "west"
+        | "northwest"
+    }
+    CompositeTypes: {
+      dimensions: {
+        height: number | null
+        width: number | null
+      }
+      lat_lng: {
+        lat: number | null
+        lng: number | null
+      }
+      presence_photo: {
+        attribution: string | null
+        mimetype: string | null
+        src: string | null
+        thumb: string | null
+      }
+      taxon: {
+        scientific_name: string | null
+        vernacular_name: string | null
+      }
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      sex: ["male", "female"],
+      travel_direction: [
+        "north",
+        "northeast",
+        "east",
+        "southeast",
+        "south",
+        "southwest",
+        "west",
+        "northwest",
+      ],
+    },
+  },
+} as const
+

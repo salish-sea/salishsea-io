@@ -7,7 +7,6 @@ import { doLogIn, doLogInContext, doLogOut, doLogOutContext, getTokenSilently, g
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
 import type Point from "ol/geom/Point.js";
-import { isSighting } from "../types.ts";
 import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
 import type Feature from "ol/Feature.js";
@@ -17,7 +16,7 @@ import type OpenLayersMap from "ol/Map.js";
 import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import { SightingLoader } from "./sighting-loader.ts";
-import type { FeatureCollection } from 'geojson';
+import { sighting2feature, type Sighting } from "./sighting.ts";
 import * as Sentry from "@sentry/browser";
 import type { CloneSightingEvent } from "./obs-summary.ts";
 
@@ -119,8 +118,6 @@ export default class SalishSea extends LitElement {
     }
   `;
 
-  private sightingLoader = new SightingLoader(this, initialDate);
-
   @provide({context: mapContext})
   olmap: OpenLayersMap | undefined
 
@@ -158,8 +155,19 @@ export default class SalishSea extends LitElement {
   @provide({context: doLogOutContext})
   _doLogOut: () => Promise<void>
 
+  #date: string = initialDate
   @property({type: String, reflect: true})
-  date = initialDate
+  get date() { return this.#date }
+  set date(d: string) {
+    this.#date = d;
+    this.#sightingLoader.setDate(d);
+    setQueryParams({d});
+  }
+
+  @property({attribute: false})
+  private sightings: Sighting[] = []
+
+  #sightingLoader = new SightingLoader(this);
 
   constructor() {
     super();
@@ -176,11 +184,6 @@ export default class SalishSea extends LitElement {
       if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
         throw "oh no";
       this.date = evt.detail;
-      setQueryParams({d: this.date});
-      this.sightingLoader.dateChanged(this.date);
-    });
-    this.addEventListener('database-changed', () => {
-      this.sightingLoader.fetch();
     });
     this.addEventListener('map-move', (evt) => {
       const {center: [x, y], zoom} = (evt as CustomEvent<MapMoveDetail>).detail;
@@ -194,12 +197,10 @@ export default class SalishSea extends LitElement {
       const sighting = (evt as CloneSightingEvent).detail;
       await this.shadowRoot!.querySelector('obs-panel')!.editSighting(sighting);
     });
+    this.#sightingLoader.setDate(this.date);
   }
 
   protected render(): unknown {
-    const sightings = this.sightingLoader.features
-      .filter(isSighting)
-      .toSorted((a, b) => b.properties.timestamp - a.properties.timestamp)
     return html`
       <header>
         <h1>SalishSea.io <a @click=${this.onAboutClicked} class="about-link" href="#" title="About SalishSea.io">&#9432;</a></h1>
@@ -222,20 +223,16 @@ export default class SalishSea extends LitElement {
         </dialog>
         <obs-map centerX=${initialX} centerY=${initialY} zoom=${initialZ}></obs-map>
         <obs-panel date=${this.date}>
-          ${repeat(sightings, sighting => sighting.id, feature => {
-            const id = feature.properties.id;
+          ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
+            const id = sighting.id;
             const classes = {focused: id === this.focusedSightingId};
             return html`
-              <obs-summary class=${classMap(classes)} ?focused=${id === this.focusedSightingId} id=${id} .sighting=${feature.properties} />
+              <obs-summary class=${classMap(classes)} ?focused=${id === this.focusedSightingId} .sighting=${sighting} />
             `;
           })}
         </obs-panel>
       </main>
     `;
-  }
-
-  setFeatures(collection: FeatureCollection) {
-    this.map.setFeatures(collection);
   }
 
   async updateAuth() {
@@ -262,10 +259,18 @@ export default class SalishSea extends LitElement {
     this.drawingSource = this.map.drawingSource;
   }
 
+  receiveSightings(sightings: Sighting[], forDate: string) {
+    if (forDate !== this.date)
+      return;
+    this.sightings = sightings;
+    const features = sightings.map(sighting2feature);
+    this.map.setFeatures(features);
+  }
+
   focusSighting(id: string | undefined) {
     if (!id)
       return;
-    const feature = this.map.temporalSource.getFeatureById(id) as Feature<Point> | null;
+    const feature = this.map.presenceSource.getFeatureById(id) as Feature<Point> | null;
     if (!feature)
       return;
     this.map.selectFeature(feature);

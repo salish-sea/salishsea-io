@@ -19,6 +19,26 @@ CREATE TYPE public.lat_lng AS (
   lng double precision
 );
 
+CREATE TYPE public.travel_direction AS ENUM (
+  'north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'
+);
+CREATE FUNCTION public.extract_travel_direction(body text) RETURNS public.travel_direction LANGUAGE SQL IMMUTABLE STRICT SET search_path='' AS $$
+  SELECT substring(body FROM '\m((north(east|west|))|(south(east|west|)))([\s-]?bound)?\M')::public.travel_direction;
+$$;
+
+CREATE TYPE public.taxon AS (
+  scientific_name varchar,
+  vernacular_name varchar
+);
+
+CREATE TYPE public.presence_photo AS (
+  attribution varchar,
+  mimetype varchar,
+  src varchar,
+  thumb varchar
+);
+
+
 CREATE TABLE public.users (
   id integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
   sub varchar(100) NOT NULL UNIQUE,
@@ -158,7 +178,8 @@ CREATE TABLE inaturalist.observations (
   uri varchar(200) NOT NULL,
   username varchar,
   taxon_id integer NOT NULL REFERENCES inaturalist.taxa (id),
-  fetched_at timestamp NOT NULL
+  fetched_at timestamp NOT NULL,
+  public_positional_accuracy integer
 );
 CREATE INDEX inaturalist_observations_observed_at ON inaturalist.observations USING btree (observed_at);
 
@@ -208,7 +229,7 @@ CREATE TABLE public.sightings (
   url character varying(2000),
   created_at timestamp without time zone NOT NULL,
   updated_at timestamp without time zone NOT NULL,
-  direction character varying(10),
+  direction public.travel_direction,
   taxon_id INTEGER NOT NULL REFERENCES inaturalist.taxa (id)
 );
 CREATE INDEX sightings_observed_at ON public.sightings USING btree (observed_at);
@@ -224,99 +245,3 @@ CREATE TABLE public.sighting_photos (
 );
 CREATE INDEX sighting_photos_sighting_id ON public.sighting_photos (sighting_id);
 ALTER TABLE public.sighting_photos ENABLE ROW LEVEL SECURITY;
-
-
-CREATE VIEW presence AS
-SELECT
-  s.*,
-  coalesce(vernacular_name, scientific_name) AS name,
-  scientific_name,
-  vernacular_name
-FROM (
-  SELECT
-    'maplify:' || s.id AS id,
-    comments AS body,
-    CASE WHEN number_sighted BETWEEN 1 AND 1000 THEN number_sighted ELSE null END AS count,
-    null AS direction,
-    gis.ST_AsGeoJSON(location) AS location,
-    s.created_at AT TIME ZONE 'PST8PDT' AS timestamp,
-    CASE WHEN photo_url IS NULL THEN jsonb_build_array() ELSE jsonb_build_array(jsonb_build_object('url', photo_url)) END AS photos_json,
-    source,
-    null AS url,
-    null AS path,
-    null AS userName,
-    null AS userSub,
-    t.id AS taxon_id
-  FROM maplify.sightings s
-  JOIN inaturalist.taxa t ON s.scientific_name = t.scientific_name
-  WHERE NOT is_test
-
-  UNION ALL
-
-  SELECT
-    'inaturalist:' || id AS id,
-    description AS body,
-    null AS count,
-    null AS direction,
-    gis.ST_AsGeoJSON(location) AS location,
-    observed_at AS "timestamp",
-    (SELECT
-      jsonb_agg(jsonb_build_object('url', url, 'attribution', attribution) ORDER BY seq ASC)
-      FROM inaturalist.observation_photos
-      WHERE observation_id = id AND NOT hidden
-    ) AS photos_json,
-    'iNaturalist' AS source,
-    uri AS url,
-    null AS path,
-    username AS userName,
-    null AS userSub,
-    taxon_id
-  FROM inaturalist.observations
-
-  UNION ALL
-
-  SELECT
-    'happywhale:' || e.id AS id,
-    comments AS body,
-    null AS count,
-    null AS direction,
-    gis.ST_AsGeoJSON(location) AS location,
-    (start_date + coalesce(start_time, '12:00:00'::time)) AT TIME ZONE timezone AS "timestamp",
-    (SELECT
-      jsonb_agg(jsonb_build_object('url', url, 'attribution', u.display_name) ORDER BY m.id ASC)
-      FROM happywhale.media m
-      JOIN happywhale.users u ON m.user_id = u.id
-      WHERE public AND encounter_id = e.id
-    ) AS photos_json,
-    'happywhale' AS source,
-    'https://happywhale.com/individual/' || i.id || ';enc=' || e.id AS url,
-    null AS path,
-    u.display_name AS userName,
-    null AS userSub,
-    t.id
-  FROM happywhale.encounters AS e
-  JOIN happywhale.individuals AS i ON e.individual_id = i.id
-  JOIN happywhale.users AS u ON e.user_id = u.id
-  JOIN happywhale.species AS s ON e.species_id = s.id
-  LEFT JOIN inaturalist.taxa AS t ON s.scientific = t.scientific_name
-
-  UNION ALL
-
-  SELECT
-    'salishsea:' || s.id AS id,
-    body,
-    count,
-    direction,
-    gis.ST_AsGeoJSON(subject_location) AS location,
-    observed_at AS "timestamp",
-    (SELECT jsonb_agg(jsonb_build_object('url', href) ORDER BY seq ASC) FROM sighting_photos WHERE sighting_id = s.id) AS photos_json,
-    'salishsea',
-    url,
-    '/api/sightings/' || s.id AS path,
-    coalesce(u.name, u.nickname, 'someone') AS userName,
-    u.sub AS userSub,
-    taxon_id
-  FROM sightings AS s
-  LEFT JOIN users AS u ON s.user_id = u.id
-) AS s
-JOIN inaturalist.taxa AS t ON s.taxon_id = t.id

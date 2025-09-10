@@ -1,6 +1,5 @@
 import { Temporal } from "temporal-polyfill";
 import { queryStringAppend } from "../frontend/util.ts";
-import { db } from "./database.ts";
 import type { Extent } from "../types.ts";
 import { z } from 'zod';
 import { withTimeout } from "../utils.ts";

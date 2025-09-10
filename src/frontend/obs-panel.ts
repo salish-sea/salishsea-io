@@ -10,7 +10,7 @@ import { doLogInContext, tokenContext } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
 import { newSighting } from "./sighting-form.ts";
 import { v7 } from "uuid";
-import type { SightingProperties } from "../types.ts";
+import type { Sighting } from "../sighting.ts";
 
 const today = Temporal.Now.plainDateISO().toString();
 
@@ -113,19 +113,18 @@ export class ObsPanel extends LitElement {
     `;
   }
 
-  async editSighting(props: SightingProperties) {
+  async editSighting({count, direction, latitude, longitude, taxon: {scientific_name}, observed_at}: Sighting) {
     await this.doShowForm();
     // Prefer PST8PDT for consistency with sighting-form validation
-    const zdt = Temporal.Instant.fromEpochMilliseconds(props.timestamp * 1000)
-      .toZonedDateTimeISO('PST8PDT');
+    const zdt = Temporal.ZonedDateTime.from(observed_at);
     const observed_time = zdt.toPlainTime().toString({ smallestUnit: 'second' });
     this.sightingForForm = {
       ...newSighting({
-        count: props.count ?? undefined,
+        count: count ?? undefined,
         observed_time,
-        subject_location: `${props.latitude.toFixed(4)}, ${props.longitude.toFixed(4)}`,
-        taxon: props.species,
-        travel_direction: props.direction ?? '',
+        subject_location: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+        taxon: scientific_name,
+        travel_direction: direction ?? '',
       }),
       id: v7()
     };

@@ -186,6 +186,7 @@ CREATE FUNCTION maplify.fetch_date_range (
   WHERE status = 200 AND source != 'rwsas';
 $$ LANGUAGE SQL STABLE STRICT;
 
+-- TODO: use MERGE
 CREATE FUNCTION maplify.update_sightings (
   start_date date = current_date,
   end_date date = current_date
@@ -285,14 +286,14 @@ $$ LANGUAGE SQL VOLATILE STRICT;
 CREATE FUNCTION inaturalist.ensure_taxon (scientific_name varchar) RETURNS integer AS $$
 SELECT count(*) AS new_taxa
   FROM inaturalist.query_taxa(scientific_name) AS named_taxon,
-     inaturalist.ensure_taxa(ancestor_ids) AS ensured;
+       inaturalist.ensure_taxa(ancestor_ids) AS ensured;
 $$ VOLATILE LANGUAGE SQL;
 
 CREATE FUNCTION happywhale.ensure_inat_taxa () RETURNS varchar AS $$
 WITH missing (scientific_name) AS (
   SELECT DISTINCT scientific
   FROM happywhale.species AS hw
-         LEFT JOIN inaturalist.taxa AS inat ON hw.scientific = inat.scientific_name
+       LEFT JOIN inaturalist.taxa AS inat ON hw.scientific = inat.scientific_name
   WHERE inat.scientific_name IS NULL AND position(' ' in hw.scientific) != 0
 ), queried (ancestor_id) AS (
   SELECT DISTINCT unnest(ancestor_ids) AS ancestor_id
@@ -341,7 +342,7 @@ CREATE FUNCTION inaturalist.fetch_observation_page (
       'taxon_geoprivacy', 'open',
       'per_page', per_page,
       'page', page_no,
-      'fields', '(id:!t,description:!t,geojson:!t,license_code:!t,time_observed_at:!t,uri:!t,' ||
+      'fields', '(id:!t,description:!t,geojson:!t,license_code:!t,time_observed_at:!t,uri:!t,public_positional_accuracy:!t' ||
         'observation_photos:(position:!t,photo:(id:!t,attribution:!t,hidden:!t,license_code:!t,original_dimensions:(height:!t,width:!t),url:!t)),' ||
         'taxon:(id:!t,ancestor_ids:!t),' ||
         'user:(id:!t,login:!t,name:!t))'
@@ -363,7 +364,8 @@ CREATE FUNCTION inaturalist.upsert_observation_page (
       license_code inaturalist.license,
       uri varchar,
       "user" jsonb,
-      observation_photos jsonb
+      observation_photos jsonb,
+      public_positional_accuracy integer
     )
   ), taxa AS (
     SELECT jsonb_array_elements(taxon->'ancestor_ids')::integer AS id
@@ -383,7 +385,7 @@ CREATE FUNCTION inaturalist.upsert_observation_page (
       inaturalist.fetch_taxa(ids)
   ), observation_insertions AS (
     INSERT INTO inaturalist.observations (
-      id, description, location, observed_at, license_code, uri, username, taxon_id, fetched_at
+      id, description, location, observed_at, license_code, uri, username, taxon_id, fetched_at, public_positional_accuracy
     )
     SELECT
       o.id,
@@ -394,7 +396,8 @@ CREATE FUNCTION inaturalist.upsert_observation_page (
       uri,
       o.user->>'login' AS username,
       taxon.id AS taxon_id,
-      current_timestamp
+      current_timestamp,
+      public_positional_accuracy
     FROM observations AS o,
       jsonb_to_record(geojson) AS geojson (coordinates double precision[]),
       jsonb_to_record(taxon) AS taxon (id integer) LEFT JOIN taxon_insertions AS ti ON taxon.id = ti.id

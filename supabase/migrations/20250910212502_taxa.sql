@@ -1,3 +1,4 @@
+BEGIN;
 INSERT INTO inaturalist.taxa (id, parent_id, scientific_name, vernacular_name, rank) VALUES (48460, NULL, 'Life', 'life', 'stateofmatter');
 INSERT INTO inaturalist.taxa (id, parent_id, scientific_name, vernacular_name, rank) VALUES (1, 48460, 'Animalia', 'Animals', 'kingdom');
 INSERT INTO inaturalist.taxa (id, parent_id, scientific_name, vernacular_name, rank) VALUES (2, 1, 'Chordata', 'Chordates', 'phylum');
@@ -501,3 +502,4 @@ INSERT INTO inaturalist.taxa (id, parent_id, scientific_name, vernacular_name, r
 INSERT INTO inaturalist.taxa (id, parent_id, scientific_name, vernacular_name, rank) VALUES (1621824, 41514, 'Cephalorhynchus commersonii kerguelenensis', 'Kerguelen Dolphin', 'subspecies');
 INSERT INTO inaturalist.taxa (id, parent_id, scientific_name, vernacular_name, rank) VALUES (1602532, 41521, 'Orcinus orca orca', 'Common Killer Whale', 'subspecies');
 INSERT INTO inaturalist.taxa (id, parent_id, scientific_name, vernacular_name, rank) VALUES (1637735, 132781, 'Priocnemini', NULL, 'tribe');
+COMMIT;

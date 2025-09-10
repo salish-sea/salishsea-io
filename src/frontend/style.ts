@@ -3,22 +3,20 @@ import Circle from 'ol/style/Circle.js';
 import Fill from 'ol/style/Fill.js';
 import Stroke from 'ol/style/Stroke.js';
 import Text from 'ol/style/Text.js';
-import type {FeatureProperties, SightingProperties} from '../types.ts';
 import type { FeatureLike } from 'ol/Feature.js';
-import TextStyle from 'ol/style/Text.js';
 import { LineString, Point } from 'ol/geom.js';
 import type Feature from 'ol/Feature.js';
 import Icon from 'ol/style/Icon.js';
 import arrowPNG from '../assets/arrow.png';
 import hydrophoneIcon from '../assets/hydrophone-default.svg?url';
 import { directionToRads } from '../direction.ts';
+import type { Sighting } from '../sighting.ts';
+import { symbolFor } from '../identifiers.ts';
 
 const black = '#000000';
 const yellow = '#ffff00';
 const transparentWhite = 'rgba(255, 255, 255, 0.4)';
 const solidBlue = '#3399CC';
-
-export type SightingStyleProperties = Pick<SightingProperties, 'direction' | 'individuals' | 'kind' | 'symbol'>;
 
 export const sighterStyle = new Style({
   text: new Text({
@@ -53,8 +51,8 @@ export const bearingStyle = (feature: Feature<LineString>) => {
   return styles;
 };
 
-const observationStyle2 = (feature: FeatureLike, isSelected: boolean) => {
-  const {direction, individuals, symbol}: SightingStyleProperties = feature.getProperties() as SightingStyleProperties;
+export const observationStyle = (sighting: Sighting, isSelected = false) => {
+  const {direction, individuals} = sighting;
   let fill: Fill;
   let stroke: Stroke;
   if (isSelected) {
@@ -80,7 +78,7 @@ const observationStyle2 = (feature: FeatureLike, isSelected: boolean) => {
         fill: new Fill({color: black}),
         font: '10px monospace',
         offsetY: 1.5,
-        text: symbol,
+        text: symbolFor(sighting),
         textBaseline: 'middle',
       }),
     }),
@@ -110,21 +108,10 @@ const observationStyle2 = (feature: FeatureLike, isSelected: boolean) => {
   return styles;
 }
 
-const observationStyle = (feature: FeatureLike) => {
-  return observationStyle2(feature, false);
-};
-
 export const selectedObservationStyle = (observation: FeatureLike) => {
-  return observationStyle2(observation, true);
+  const sighting = observation.getProperties() as Sighting;
+  return observationStyle(sighting, true);
 };
-
-
-const ferryStyle = (feature: FeatureLike) => {
-  const symbol = feature.get('symbol') as string;
-  return new Style({
-    text: new TextStyle({text: symbol}),
-  });
-}
 
 export const travelStyle = (feature: Feature<LineString>, resolution: number) => {
   if (resolution > 100)
@@ -159,17 +146,6 @@ export const travelStyle = (feature: Feature<LineString>, resolution: number) =>
     );
   });
   return styles;
-}
-
-export const featureStyle = (feature: FeatureLike, resolution: number) => {
-  const kind = feature.get('kind') as FeatureProperties['kind'];
-  if (kind === 'Ferry') {
-    return ferryStyle(feature);
-  } else if (kind === 'TravelLine') {
-    return travelStyle(feature as Feature<LineString>, resolution);
-  } else {
-    return observationStyle(feature);
-  }
 }
 
 export const editStyle = (feature: FeatureLike) => {

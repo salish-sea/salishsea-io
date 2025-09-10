@@ -8,7 +8,7 @@ import Point from "ol/geom/Point.js";
 import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
-import { bearingStyle, featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
+import { bearingStyle, sighterStyle } from "./style.ts";
 import { type UpsertSightingResponse } from "../types.ts";
 import { licenseCodes, salishSeaExtent } from '../constants.ts';
 import { Temporal } from "temporal-polyfill";

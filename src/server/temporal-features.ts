@@ -55,7 +55,7 @@ SELECT * FROM combined_observations
 WHERE timestamp BETWEEN @earliest AND @latest
 ORDER BY timestamp ASC;
 `);
-export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.Instant) => {
+const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.Instant) => {
   const features: Feature<Point, SightingProperties>[] = sightingsBetweenQuery
     .all({earliest: earliest.epochMilliseconds / 1000, latest: latest.epochMilliseconds / 1000})
     .map(row => {
@@ -70,7 +70,7 @@ export const sightingsBetween = (earliest: Temporal.Instant, latest: Temporal.In
           type: 'Point',
           coordinates: [row.longitude, row.latitude],
         },
-        properties: {
+          properties: {
           ...row,
           body,
           date,

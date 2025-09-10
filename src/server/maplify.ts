@@ -1,6 +1,5 @@
 import { Temporal } from "temporal-polyfill";
 import { queryStringAppend } from "../frontend/util.ts";
-import { db } from "./database.ts";
 import type { Extent } from "../types.ts";
 
 type Source = 'CINMS' | 'ocean_alert' | 'rwsas' | 'FARPB' | 'whale_alert';
