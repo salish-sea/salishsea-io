@@ -1,4 +1,7 @@
-CREATE VIEW public.presence (
+DROP VIEW public.presence CASCADE;
+ALTER TYPE presence_photo RENAME TO occurrence_photo;
+
+CREATE OR REPLACE VIEW public.occurrences (
   id,
   attribution,
   body,
@@ -21,12 +24,12 @@ CREATE VIEW public.presence (
     gis.ST_Y(location::gis.geometry) AS latitude,
     null AS accuracy,
     gis.ST_X(location::gis.geometry) AS longitude,
-    CASE WHEN photo_url IS NOT NULL THEN array[row(null, null, photo_url, null)::public.presence_photo] END,
-    s.created_at AT TIME ZONE 'PST8PDT' AS observed_at,
+    CASE WHEN photo_url IS NOT NULL THEN array[row(null, null, photo_url, null)::public.occurrence_photo] ELSE '{}'::occurrence_photo[] END,
+    s.created_at AT TIME ZONE 'GMT' AS observed_at,
     row(coalesce(t.scientific_name, s.scientific_name), t.vernacular_name)::public.taxon,
     array[]::varchar[] AS individuals
   FROM maplify.sightings s
-  LEFT JOIN inaturalist.taxa t ON s.scientific_name = t.scientific_name
+  JOIN inaturalist.taxa t ON s.scientific_name = t.scientific_name
   WHERE NOT is_test
 
   UNION ALL
@@ -41,7 +44,7 @@ CREATE VIEW public.presence (
     public_positional_accuracy AS accuracy,
     gis.ST_X(location::gis.geometry) AS longitude,
     (SELECT
-      array_agg(row(attribution, null, url, null)::presence_photo ORDER BY seq ASC)
+      array_agg(row(attribution, null, url, null)::occurrence_photo ORDER BY seq ASC)
       FROM inaturalist.observation_photos
       WHERE observation_id = id AND NOT hidden
     ) AS photos,
@@ -63,7 +66,7 @@ CREATE VIEW public.presence (
     CASE accuracy WHEN 'GENERAL' THEN 161 WHEN 'APPROX' THEN 16 ELSE 2 END,
     gis.ST_X(location::gis.geometry),
     (SELECT
-      array_agg(row(u.display_name, mimetype, url, thumb_url)::presence_photo ORDER BY m.id ASC)
+      array_agg(row(u.display_name, mimetype, url, thumb_url)::occurrence_photo ORDER BY m.id ASC)
       FROM happywhale.media m
       LEFT JOIN happywhale.users u ON m.user_id = u.id
       WHERE public AND encounter_id = e.id
@@ -87,7 +90,7 @@ CREATE VIEW public.presence (
     gis.ST_Y(subject_location::gis.geometry),
     null,
     gis.ST_X(subject_location::gis.geometry),
-    (SELECT array_agg(row(u.name, null, href, null)::presence_photo ORDER BY seq ASC) FROM sighting_photos WHERE sighting_id = s.id),
+    (SELECT array_agg(row(u.name, null, href, null)::occurrence_photo ORDER BY seq ASC) FROM sighting_photos WHERE sighting_id = s.id),
     observed_at,
     row(t.scientific_name, t.vernacular_name)::public.taxon,
     array[]::varchar[] AS individuals
@@ -95,6 +98,12 @@ CREATE VIEW public.presence (
   LEFT JOIN users AS u ON s.user_id = u.id
   JOIN inaturalist.taxa t ON t.id = s.taxon_id;
 
-CREATE FUNCTION public.presence_on_date(date date) RETURNS SETOF public.presence LANGUAGE SQL STABLE STRICT SECURITY DEFINER SET search_path='' AS $$
-SELECT * FROM public.presence WHERE date(observed_at at time zone 'PST8PDT') = "date";
+CREATE OR REPLACE FUNCTION public.extract_travel_direction(body text) RETURNS public.travel_direction LANGUAGE SQL IMMUTABLE STRICT SET search_path='' AS $$
+  SELECT regexp_replace(lower(substring(body FROM '(?i)\m(north(\W*(east|west)|)|(south(\W*(east|west)|))|west|east)(\W*bound)?\M')), '\W', '')::public.travel_direction;
+$$;
+
+CREATE OR REPLACE FUNCTION public.occurrences_on_date(date date) RETURNS SETOF public.occurrences LANGUAGE SQL STABLE STRICT SECURITY DEFINER SET search_path='' AS $$
+  SELECT * FROM public.occurrences
+  WHERE date(observed_at at time zone 'PST8PDT') = "date"
+  ORDER BY observed_at ASC;
 $$;

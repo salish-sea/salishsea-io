@@ -8,8 +8,7 @@ import Point from "ol/geom/Point.js";
 import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
-import { bearingStyle, sighterStyle } from "./style.ts";
-import { type UpsertSightingResponse } from "../types.ts";
+import { bearingStyle, presenceStyle, sighterStyle } from "./style.ts";
 import { licenseCodes, salishSeaExtent } from '../constants.ts';
 import { Temporal } from "temporal-polyfill";
 import { tokenContext } from "./identity.ts";
@@ -26,6 +25,7 @@ import { type SightingPayload } from "../api.ts";
 import { TanStackFormController } from '@tanstack/lit-form';
 import { convert as parseCoords } from 'geo-coordinates-parser';
 import { detectIndividuals, symbolFor } from "../identifiers.ts";
+import { type Occurrence } from "../occurrence.ts";
 
 const TAXON_OPTIONS = {
   "Seals and sea lions": {
@@ -83,12 +83,12 @@ export type SightingFormData = {
   taxon: string;
   travel_direction: string;
   url: string;
-}
-export function newSighting(initial?: Partial<SightingFormData> | undefined): SightingFormData {
+};
+export function newSighting(): SightingFormData {
   return {
     body: '',
     count: NaN,
-    observed_time: '',
+    observed_time: new Date().toISOString(),
     observer_location: '',
     photo_license: localStorage.getItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY) || 'cc-by',
     photo_urls: [],
@@ -96,7 +96,6 @@ export function newSighting(initial?: Partial<SightingFormData> | undefined): Si
     taxon: localStorage.getItem(TAXON_CHOICE_STORAGE_KEY) || 'Orcinus orca',
     travel_direction: '',
     url: '',
-    ...initial,
   };
 }
 
@@ -121,7 +120,7 @@ export default class SightingForm extends LitElement {
     autoRun: false,
     task: async([request]: [Request]) => {
       const response = await fetch(request);
-      const data: UpsertSightingResponse = await response.json();
+      const data = await response.json();
       if (response.ok) {
         this.dispatchEvent(new CustomEvent('database-changed', {bubbles: true, composed: true}));
         this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: data.id}));
@@ -559,6 +558,10 @@ export default class SightingForm extends LitElement {
   }
 
   private onSubjectInputChange(value: string) {
+    if (value.trim() === '') {
+      this.#subjectFeature.getGeometry()!.setCoordinates([]);
+      return;
+    }
     try {
       const {decimalLatitude, decimalLongitude} = parseCoords(value, 4);
       this.#subjectFeature.getGeometry()!.setCoordinates(fromLonLat([decimalLongitude, decimalLatitude]));
@@ -601,25 +604,28 @@ export default class SightingForm extends LitElement {
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
     for (const [field, value] of Object.entries(this.initialValues)) {
-      this.#form.api.setFieldValue(field as keyof typeof this.initialValues, value);
+      const typedField = field as keyof typeof this.initialValues;
+      if (typedField === 'photo_urls') {
+        // TODO: rainhead
+        // const typedValue = value as SightingFormData[typeof typedField];
+        // typedValue.forEach((photo_url, index) => this.#form.api.setFieldValue(`photo_urls[${index}]`, photo_url);
+      } else {
+        const typedValue = value as SightingFormData[typeof typedField];
+        this.#form.api.setFieldValue(typedField, typedValue);
+      }
     }
     this.onSubjectInputChange(this.initialValues.subject_location || '');
 
     this.#form.api.baseStore.subscribe(this.updateSubjectProps.bind(this));
 
-    const sightingProperties: SightingStyleProperties = {
-      direction: null,
-      individuals: [],
-      kind: 'Sighting',
-      symbol: '?',
-    }
-    this.#observerFeature.setId(`salishsea:${this.sightingId}/observer`);
-    this.#observerFeature.setProperties({individuals: [], kind: 'Sighter', symbol: undefined});
+    const sightingProperties = newSighting();
+    this.#observerFeature.setId(`${this.sightingId}/observer`);
+    this.#observerFeature.setProperties({individuals: [], kind: 'Sighter'});
     this.#observerFeature.setStyle(sighterStyle);
 
-    this.#subjectFeature.setId(`salishsea:${this.sightingId}`);
+    this.#subjectFeature.setId(this.sightingId);
     this.#subjectFeature.setProperties(sightingProperties);
-    this.#subjectFeature.setStyle(featureStyle);
+    this.#subjectFeature.setStyle((f) => presenceStyle(f.getProperties() as Occurrence, false));
     this.updateSubjectProps();
 
     this.#bearingFeature.setStyle(feature => bearingStyle(feature as Feature<LineString>));
@@ -638,7 +644,7 @@ export default class SightingForm extends LitElement {
     this.#subjectFeature.setProperties({
       direction: values.travel_direction,
       individuals: detectIndividuals(values.body),
-      symbol: symbolFor({body: values.body, scientific_name: values.taxon, vernacular_name: null}) || '?',
+      symbol: symbolFor({body: values.body, taxon: {scientific_name: values.taxon, vernacular_name: null}}) || '?',
     });
   }
 

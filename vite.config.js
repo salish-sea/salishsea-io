@@ -17,12 +17,14 @@ export default defineConfig({
     sourcemap: true
   },
 
-  plugins: [sentryVitePlugin({
-    org: "beam-reach",
-    project: "salishsea-io"
-  })],
+  // plugins: [sentryVitePlugin({
+  //   org: "beam-reach",
+  //   project: "salishsea-io"
+  // })],
 
   server: {
     allowedHosts: ['peters-macbook-air.local'],
+    port: 3131,
+    strictPort: true,
   },
 });

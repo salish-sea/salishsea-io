@@ -123,7 +123,7 @@ export type Database = {
       }
     }
     Views: {
-      presence: {
+      occurrences: {
         Row: {
           accuracy: number | null
           attribution: string | null
@@ -138,14 +138,17 @@ export type Database = {
           photos:
             | Database["public"]["CompositeTypes"]["presence_photo"][]
             | null
-          symbol: string | null
           taxon: Database["public"]["CompositeTypes"]["taxon"] | null
         }
         Relationships: []
       }
     }
     Functions: {
-      presence_on_date: {
+      extract_travel_direction: {
+        Args: { body: string }
+        Returns: Database["public"]["Enums"]["travel_direction"]
+      }
+      occurrences_on_date: {
         Args: { date: string }
         Returns: {
           accuracy: number | null
@@ -161,9 +164,23 @@ export type Database = {
           photos:
             | Database["public"]["CompositeTypes"]["presence_photo"][]
             | null
-          symbol: string | null
           taxon: Database["public"]["CompositeTypes"]["taxon"] | null
         }[]
+      }
+      upsert_sighting: {
+        Args: {
+          count: number
+          direction: Database["public"]["Enums"]["travel_direction"]
+          observed_at: string
+          observer_location: number[]
+          photo_license: string
+          photos: string[]
+          subject_location: number[]
+          taxon: string
+          up_id: string
+          url: string
+        }
+        Returns: string
       }
     }
     Enums: {

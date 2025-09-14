@@ -1,4 +1,5 @@
-import type { Extent } from "./types.ts";
+// [minx, miny, maxx, maxy]
+export type Extent = [number, number, number, number];
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
 export const acartiaExtent: Extent = [-136, 36, -120, 54];

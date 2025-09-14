@@ -1,4 +1,4 @@
-import type { Sighting } from "./sighting.ts";
+import type { Occurrence } from "./occurrence.ts";
 
 const pods = ['J', 'K', 'L', 'T'] as const;
 export type Pod = typeof pods[number];
@@ -58,7 +58,7 @@ export const detectIndividuals = (text: Readonly<string>) => {
   return [...matches].sort();
 }
 
-export function symbolFor({body, taxon: {scientific_name, vernacular_name}}: Sighting): string {
+export function symbolFor({body, taxon: {scientific_name, vernacular_name}}: Pick<Occurrence, 'body' | 'taxon'>): string {
   if (scientific_name.startsWith('Orcinus orca')) {
     const pod = detectPod(body || '');
     if (pod)

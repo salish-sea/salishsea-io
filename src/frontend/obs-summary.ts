@@ -1,17 +1,23 @@
 import { css, LitElement, type PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { html } from "lit/static-html.js";
-import { tokenContext, userContext } from "./identity.ts";
+import { html, unsafeStatic } from "lit/static-html.js";
+import { tokenContext, userContext, type User } from "./identity.ts";
 import { consume } from "@lit/context";
-import type { User } from "@auth0/auth0-spa-js";
 import { when } from "lit/directives/when.js";
-import type { Sighting } from "../sighting.ts";
+import type { Occurrence } from "../occurrence.ts";
 import { repeat } from "lit/directives/repeat.js";
+import { symbolFor } from "../identifiers.ts";
+import { marked } from 'marked';
+import createDOMPurify from 'dompurify';
+import { guard } from "lit/directives/guard.js";
+import { Temporal } from "temporal-polyfill";
+
+const domPurify = createDOMPurify(window as any);
 
 @customElement('obs-summary')
 export class ObsSummary extends LitElement {
   @property({attribute: false})
-  private sighting!: Sighting
+  private sighting!: Occurrence
 
   @property({type: Boolean, reflect: true})
   private focused = false
@@ -87,22 +93,28 @@ export class ObsSummary extends LitElement {
 
   public render() {
     const {
-      attribution, body, count, id, observed_at, photos, symbol, taxon: {scientific_name, vernacular_name}
+      attribution, body, count, id, observed_at, photos, taxon: {scientific_name, vernacular_name}
     } = this.sighting;
+    const symbol = symbolFor(this.sighting);
     // const body = this.sighting.body ? unsafeStatic(this.sighting.body): undefined;
-    const canEdit = id.startsWith('/');
+    const canEdit = id.startsWith('/') && this.user;
     const url = id.startsWith('http') ? id : undefined;
     const name = vernacular_name || scientific_name;
+
     return html`
       <header>
         <a class="focus-sighting" @click="${this.focusSighting}" href="#">${symbol}</a>
         <b>${name}</b>${when(
           count && count > 0,
-          () => html`<span class="count">x${this.sighting.count}</span>`)
-          }<time><a @click="${this.focusSighting}" href="#">${observed_at}</a></time>
+          () => html` <span class="count">x${this.sighting.count}</span>`)
+          }<time><a @click="${this.focusSighting}" href="#${id}">${guard([observed_at], () => html`${
+            Temporal.Instant.from(observed_at).toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
+          }`)}</a></time>
       </header>
       <cite>via ${url ? html`<a target="_new" href=${url}>${attribution}</a>` : attribution}</cite>
-      ${body}
+      ${guard([body], () => html`${
+        unsafeStatic(domPurify.sanitize(marked.parse(body?.replace(/^(<br>)+/, '') || '', {async: false})))
+      }`)}
       ${photos.length ?
         html`<ul class="photos">${
           repeat(photos, photo => photo.src, ({attribution, src, thumb}) => html`
@@ -111,7 +123,9 @@ export class ObsSummary extends LitElement {
         }</ul>`
       : undefined}
       <ul class="actions">
-        <li><a href="#" @click=${this.onClone}>Clone</a></li>
+        ${when(this.user, () => html`
+          <li><a href="#" @click=${this.onClone}>Clone</a></li>
+        `)}
         ${when(canEdit, () => html`
           <li><a href="#" @click=${this.onDelete}>Delete</a></li>
         `)}
@@ -147,7 +161,7 @@ export class ObsSummary extends LitElement {
   }
 }
 
-export type CloneSightingEvent = CustomEvent<Sighting>;
+export type CloneSightingEvent = CustomEvent<Occurrence>;
 
 declare global {
   interface HTMLElementTagNameMap {

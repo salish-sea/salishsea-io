@@ -1,8 +1,7 @@
 import { css, html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
-import { doLogInContext, doLogOutContext, userContext } from "./identity.ts";
+import { doLogInContext, doLogOutContext, userContext, type User } from "./identity.ts";
 import { consume } from "@lit/context";
-import type { User } from "@auth0/auth0-spa-js";
 
 
 @customElement('login-button')

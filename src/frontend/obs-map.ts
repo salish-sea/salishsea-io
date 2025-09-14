@@ -14,7 +14,7 @@ import hydrophonesURL from '../assets/orcasound-hydrophones.geojson?url';
 import VectorLayer from 'ol/layer/Vector.js';
 import TileLayer from 'ol/layer/Tile.js';
 import XYZ from 'ol/source/XYZ.js';
-import { editStyle, hydrophoneStyle, observationStyle, selectedObservationStyle, sighterStyle, viewingLocationStyle} from './style.ts';
+import { editStyle, hydrophoneStyle, presenceStyle, selectedObservationStyle, sighterStyle, viewingLocationStyle} from './style.ts';
 import type Point from 'ol/geom/Point.js';
 import VectorSource from 'ol/source/Vector.js';
 import type Feature from 'ol/Feature.js';
@@ -26,7 +26,7 @@ import { containsCoordinate } from 'ol/extent.js';
 import type { Coordinate } from 'ol/coordinate.js';
 import type MapBrowserEvent from 'ol/MapBrowserEvent.js';
 import olCSS from 'ol/ol.css?url';
-import type { Sighting } from '../sighting.ts';
+import type { Occurrence } from '../occurrence.ts';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -46,7 +46,7 @@ export class ObsMap extends LitElement {
   });
   private presenceLayer = new VectorLayer({
     source: this.presenceSource,
-    style: (feature) => observationStyle(feature.getProperties() as Sighting, false),
+    style: (feature) => presenceStyle(feature.getProperties() as Occurrence, false),
   })
   private viewingLocationsLayer = new VectorLayer({
     minZoom: 12,
@@ -119,7 +119,7 @@ export class ObsMap extends LitElement {
       this.hydrophoneLayer,
       new VectorLayer({
         source: this.drawingSource,
-        style: (f) => f.get('kind') === 'Sighter' ? sighterStyle : observationStyle(f.getProperties() as Sighting),
+        style: (f) => f.get('kind') === 'Sighter' ? sighterStyle : presenceStyle(f.getProperties() as Occurrence),
       }),
     ],
     view: this.view,

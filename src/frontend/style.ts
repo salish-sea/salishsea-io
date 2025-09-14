@@ -10,7 +10,7 @@ import Icon from 'ol/style/Icon.js';
 import arrowPNG from '../assets/arrow.png';
 import hydrophoneIcon from '../assets/hydrophone-default.svg?url';
 import { directionToRads } from '../direction.ts';
-import type { Sighting } from '../sighting.ts';
+import type { Occurrence } from '../occurrence.ts';
 import { symbolFor } from '../identifiers.ts';
 
 const black = '#000000';
@@ -51,7 +51,7 @@ export const bearingStyle = (feature: Feature<LineString>) => {
   return styles;
 };
 
-export const observationStyle = (sighting: Sighting, isSelected = false) => {
+export const presenceStyle = (sighting: Occurrence, isSelected = false) => {
   const {direction, individuals} = sighting;
   let fill: Fill;
   let stroke: Stroke;
@@ -109,8 +109,8 @@ export const observationStyle = (sighting: Sighting, isSelected = false) => {
 }
 
 export const selectedObservationStyle = (observation: FeatureLike) => {
-  const sighting = observation.getProperties() as Sighting;
-  return observationStyle(sighting, true);
+  const sighting = observation.getProperties() as Occurrence;
+  return presenceStyle(sighting, true);
 };
 
 export const travelStyle = (feature: Feature<LineString>, resolution: number) => {

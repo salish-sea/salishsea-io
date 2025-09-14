@@ -1,10 +1,11 @@
 import type { ReactiveController } from "lit";
 import type SalishSea from "./salish-sea.ts";
-import { supabase } from "../database.ts";
+import { supabase } from "./supabase.ts";
+import type { Occurrence } from "../occurrence.ts";
 
 export class SightingLoader implements ReactiveController {
   host: SalishSea;
-  #abortController = new AbortController();
+  date: string | undefined;
 
   constructor(host: SalishSea) {
     (this.host = host).addController(this);
@@ -14,17 +15,20 @@ export class SightingLoader implements ReactiveController {
   }
 
   setDate(date: string) {
-    this.#abortController.abort();
+    console.debug(`Fetching presence for ${date}`);
+    this.date = date;
     this.fetch(date);
   }
 
   private async fetch (date: string) {
-    const {data, error} = await supabase.rpc('presence_on_date', {date}).abortSignal(this.#abortController.signal);
+    const {data, error} = await supabase.rpc('occurrences_on_date', {date});
+    if (date !== this.date)
+      return;
     if (error)
       return Promise.reject(error);
     if (!data)
       return Promise.reject(new Error("Got empty response from presence_on_date"));
 
-    this.host.receiveSightings(data, date);
+    this.host.receiveSightings(data as Occurrence[], date);
   }
 }

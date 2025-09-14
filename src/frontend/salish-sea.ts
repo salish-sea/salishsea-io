@@ -2,8 +2,7 @@ import { css, html, LitElement, type PropertyValues} from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import './obs-map.ts';
 import './login-button.ts';
-import { type User } from "@auth0/auth0-spa-js";
-import { doLogIn, doLogInContext, doLogOut, doLogOutContext, getTokenSilently, getUser, tokenContext, userContext } from "./identity.ts";
+import { doLogIn, doLogInContext, doLogOut, doLogOutContext, getTokenSilently, getUser, tokenContext, userContext, type User } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
 import type Point from "ol/geom/Point.js";
@@ -15,26 +14,26 @@ import type VectorSource from "ol/source/Vector.js";
 import type OpenLayersMap from "ol/Map.js";
 import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
-import { SightingLoader } from "./sighting-loader.ts";
-import { sighting2feature, type Sighting } from "./sighting.ts";
-import * as Sentry from "@sentry/browser";
+// import * as Sentry from "@sentry/browser";
 import type { CloneSightingEvent } from "./obs-summary.ts";
+import { occurrence2feature, type Occurrence } from "../occurrence.ts";
+import { supabase } from "./supabase.ts";
 
-Sentry.init({
-  dsn: "https://56ce99ce80994bab79dab62d06078c97@o4509634382331904.ingest.us.sentry.io/4509634387509248",
-  // Setting this option to true will send default PII data to Sentry.
-  // For example, automatic IP address collection on events
-  sendDefaultPii: true,
-  integrations: [
-    Sentry.feedbackIntegration({
-      colorScheme: "system",
-      formTitle: "Report a Bug or Give Feedback",
-      isNameRequired: true,
-      successMessageText: "Thank you for taking the time to let us know.",
-      triggerLabel: "Report Bug or Give Feedback",
-    }),
-  ]
-});
+// Sentry.init({
+//   dsn: "https://56ce99ce80994bab79dab62d06078c97@o4509634382331904.ingest.us.sentry.io/4509634387509248",
+//   // Setting this option to true will send default PII data to Sentry.
+//   // For example, automatic IP address collection on events
+//   sendDefaultPii: true,
+//   integrations: [
+//     Sentry.feedbackIntegration({
+//       colorScheme: "system",
+//       formTitle: "Report a Bug or Give Feedback",
+//       isNameRequired: true,
+//       successMessageText: "Thank you for taking the time to let us know.",
+//       triggerLabel: "Report Bug or Give Feedback",
+//     }),
+//   ]
+// });
 
 const dateRE = /^(\d\d\d\d-\d\d-\d\d)$/;
 const initialSearchParams = new URLSearchParams(document.location.search);
@@ -159,15 +158,15 @@ export default class SalishSea extends LitElement {
   @property({type: String, reflect: true})
   get date() { return this.#date }
   set date(d: string) {
+    if (d === this.#date)
+      return;
     this.#date = d;
-    this.#sightingLoader.setDate(d);
+    this.fetchOccurrences(d);
     setQueryParams({d});
   }
 
   @property({attribute: false})
-  private sightings: Sighting[] = []
-
-  #sightingLoader = new SightingLoader(this);
+  private sightings: Occurrence[] = []
 
   constructor() {
     super();
@@ -197,7 +196,7 @@ export default class SalishSea extends LitElement {
       const sighting = (evt as CloneSightingEvent).detail;
       await this.shadowRoot!.querySelector('obs-panel')!.editSighting(sighting);
     });
-    this.#sightingLoader.setDate(this.date);
+    this.fetchOccurrences(this.date);
   }
 
   protected render(): unknown {
@@ -227,7 +226,7 @@ export default class SalishSea extends LitElement {
             const id = sighting.id;
             const classes = {focused: id === this.focusedSightingId};
             return html`
-              <obs-summary class=${classMap(classes)} ?focused=${id === this.focusedSightingId} .sighting=${sighting} />
+              <obs-summary class=${classMap(classes)} id=${`summary-${id}`} ?focused=${id === this.focusedSightingId} .sighting=${sighting} />
             `;
           })}
         </obs-panel>
@@ -238,9 +237,9 @@ export default class SalishSea extends LitElement {
   async updateAuth() {
     this.user = await getUser();
     this.token = this.user ? await getTokenSilently() : undefined;
-    if (this.user) {
-      Sentry.setUser({email: this.user.email, name: this.user.name});
-    }
+    // if (this.user) {
+    //   Sentry.setUser({email: this.user.email, name: this.user.name});
+    // }
   }
 
   async doLogIn() {
@@ -259,11 +258,11 @@ export default class SalishSea extends LitElement {
     this.drawingSource = this.map.drawingSource;
   }
 
-  receiveSightings(sightings: Sighting[], forDate: string) {
+  receiveSightings(sightings: Occurrence[], forDate: string) {
     if (forDate !== this.date)
       return;
     this.sightings = sightings;
-    const features = sightings.map(sighting2feature);
+    const features = sightings.map(occurrence2feature);
     this.map.setFeatures(features);
   }
 
@@ -285,6 +284,16 @@ export default class SalishSea extends LitElement {
   onCloseModal(e: Event) {
     e.preventDefault();
     this.aboutDialog.close();
+  }
+
+  async fetchOccurrences(date: string) {
+    const {data, error} = await supabase.rpc('occurrences_on_date', {date: this.date});
+    if (error)
+      return Promise.reject(error);
+    if (!data)
+      return Promise.reject(new Error("Got empty response from presence_on_date"));
+
+    this.receiveSightings(data as Occurrence[], date);
   }
 }
 
