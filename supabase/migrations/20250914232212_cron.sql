@@ -4,20 +4,22 @@ ALTER TABLE inaturalist.observations ALTER COLUMN updated_at SET NOT NULL;
 
 DROP FUNCTION inaturalist.upsert_observation_page CASCADE;
 
-CREATE FUNCTION inaturalist.ensure_taxa(taxon_ids integer[]) RETURNS void LANGUAGE SQL VOLATILE STRICT
+DROP FUNCTION IF EXISTS inaturalist.ensure_taxa;
+CREATE FUNCTION inaturalist.ensure_taxa(taxon_ids integer[]) RETURNS void LANGUAGE SQL VOLATILE STRICT AS $$
   WITH taxa_to_fetch AS (
-    SELECT DISTINCT needed.id, dense_rank() over (order by needed.id) / 10 AS chunk
+    SELECT DISTINCT needed, dense_rank() over (order by needed) / 10 AS chunk
     FROM unnest(taxon_ids) AS needed
-    LEFT JOIN inaturalist.taxa AS existing ON needed.id = existing.id
+    LEFT JOIN inaturalist.taxa AS existing ON needed = existing.id
     WHERE existing.id IS NULL
   ), taxon_chunks_to_fetch AS (
-    SELECT array_agg(id) AS ids
+    SELECT array_agg(needed) AS ids
     FROM taxa_to_fetch
     GROUP BY chunk
-  ), taxon_insertions AS (
-    SELECT inaturalist.upsert_taxon(id, parent_id, name, preferred_common_name, rank) id
-    FROM taxon_chunks_to_fetch,
-      inaturalist.fetch_taxa(ids);
+  )
+  SELECT inaturalist.upsert_taxon(id, parent_id, name, preferred_common_name, rank) id
+  FROM taxon_chunks_to_fetch,
+    inaturalist.fetch_taxa(ids);
+$$;
 
 CREATE OR REPLACE FUNCTION inaturalist.upsert_observation_page (
   page jsonb
