@@ -115,7 +115,7 @@ export class ObsSummary extends LitElement {
       ${guard([body], () => html`${
         unsafeStatic(domPurify.sanitize(marked.parse(body?.replace(/^(<br>)+/, '') || '', {async: false})))
       }`)}
-      ${photos.length ?
+      ${photos?.length ?
         html`<ul class="photos">${
           repeat(photos, photo => photo.src, ({attribution, src, thumb}) => html`
             <li><a target="_new" href=${url || src}><img alt=${attribution || 'photo of subject'} height="75" src=${thumb || src}></a></li>

@@ -16,7 +16,7 @@ const authorizationParams = {
   scope: scopes,
 };
 
-export const auth0promise = createAuth0Client({
+const auth0promise = createAuth0Client({
   domain: import.meta.env.VITE_AUTH0_DOMAIN,
   cacheLocation: 'localstorage',
   clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,

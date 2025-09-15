@@ -3,7 +3,7 @@ import { type Database } from '../../database.types.ts';
 import type { MergeDeep } from 'type-fest';
 import type { Occurrence } from '../occurrence.ts';
 
-export type TravelDirection = Database['public']['Enums']['travel_direction'];
+type TravelDirection = Database['public']['Enums']['travel_direction'];
 type PatchedDatabase = MergeDeep<Database, {
   public: {
     Functions: {
@@ -13,7 +13,7 @@ type PatchedDatabase = MergeDeep<Database, {
       upsert_sighting: {
         Args: {
           count: number | null;
-          direction: Database["public"]["Enums"]["travel_direction"] | null;
+          direction: TravelDirection | null;
           observer_location: [number, number] | null;
           subject_location: [number, number];
           url: string | null;
