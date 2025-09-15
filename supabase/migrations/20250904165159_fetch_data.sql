@@ -186,7 +186,6 @@ CREATE FUNCTION maplify.fetch_date_range (
   WHERE status = 200 AND source != 'rwsas';
 $$ LANGUAGE SQL STABLE STRICT;
 
--- TODO: use MERGE
 CREATE FUNCTION maplify.update_sightings (
   start_date date = current_date,
   end_date date = current_date

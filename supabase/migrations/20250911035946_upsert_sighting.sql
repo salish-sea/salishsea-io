@@ -40,7 +40,7 @@ BEGIN ATOMIC
   USING v
     ON ordinality = seq AND p.sighting_id=up_id
   WHEN MATCHED THEN UPDATE SET href=photo_url, license_code=photo_license
-  WHEN NOT MATCHED BY SOURCE THEN DELETE
+  WHEN NOT MATCHED BY SOURCE AND p.sighting_id = up_id THEN DELETE
   WHEN NOT MATCHED BY TARGET THEN
     INSERT (sighting_id, seq, href, license_code)
     VALUES (up_id, ordinality, photo_url, photo_license);
