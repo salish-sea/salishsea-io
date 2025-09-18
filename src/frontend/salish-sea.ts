@@ -184,6 +184,9 @@ export default class SalishSea extends LitElement {
       const sighting = (evt as CloneSightingEvent).detail;
       await this.shadowRoot!.querySelector('obs-panel')!.editSighting(sighting);
     });
+    this.addEventListener('database-changed', async () => {
+      await this.fetchOccurrences(this.date);
+    });
   }
 
   protected render(): unknown {
@@ -280,7 +283,7 @@ export default class SalishSea extends LitElement {
   }
 
   async fetchOccurrences(date: string) {
-    const {data, error} = await supabase.rpc('occurrences_on_date', {date: this.date});
+    const {data, error} = await supabase.from('occurrences').select().eq('local_date', this.date);
     if (error)
       return Promise.reject(error);
     if (!data)

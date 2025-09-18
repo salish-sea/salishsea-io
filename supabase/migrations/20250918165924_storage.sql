@@ -1,5 +1,13 @@
 ALTER TABLE taxa SET SCHEMA inaturalist;
 
+CREATE POLICY "Give users access to own folder 1ps738_0" ON storage.objects FOR SELECT USING (((bucket_id = 'media'::text) AND (( SELECT (auth.uid())::text AS uid) = (storage.foldername(name))[1])));
+
+CREATE POLICY "Give users access to own folder 1ps738_1" ON storage.objects FOR INSERT WITH CHECK (((bucket_id = 'media'::text) AND (( SELECT (auth.uid())::text AS uid) = (storage.foldername(name))[1])));
+
+CREATE POLICY "Give users access to own folder 1ps738_2" ON storage.objects FOR UPDATE USING (((bucket_id = 'media'::text) AND (( SELECT (auth.uid())::text AS uid) = (storage.foldername(name))[1])));
+
+CREATE POLICY "Give users access to own folder 1ps738_3" ON storage.objects FOR DELETE USING (((bucket_id = 'media'::text) AND (( SELECT (auth.uid())::text AS uid) = (storage.foldername(name))[1])));
+
 CREATE OR REPLACE VIEW public.occurrences (
   id,
   url,
@@ -107,26 +115,5 @@ CREATE OR REPLACE VIEW public.occurrences (
   JOIN auth.users AS u ON u.id = user_id
   JOIN inaturalist.taxa t ON t.id = o.taxon_id;
 
-
-INSERT INTO STORAGE.buckets (id, NAME, public, file_size_limit, allowed_mime_types)
-  VALUES ('media', 'media', TRUE, 8388608, '{image/jpeg,image/jp2}');
-
-CREATE POLICY "Users may upload their own images."
-ON STORAGE.objects FOR INSERT
-TO authenticated WITH CHECK (
-  bucket_id = 'media' AND
-  (STORAGE.foldername("name"))[1] = (SELECT auth.uid()::TEXT)
-);
-DROP POLICY "Users may upload their own images."
-ON STORAGE.objects;
-
-CREATE POLICY "temp" ON STORAGE.objects FOR all TO authenticated WITH CHECK (TRUE);
-
-CREATE POLICY "Users may delete their own images."
-ON STORAGE.objects FOR DELETE
-TO authenticated USING (
-  bucket_id = 'media' AND
-  ((SELECT auth.uid()) = owner_id::uuid)
-);
 
 GRANT SELECT ON inaturalist.taxa TO authenticated;

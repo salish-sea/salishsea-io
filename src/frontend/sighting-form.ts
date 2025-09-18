@@ -98,19 +98,6 @@ export function newSighting(): SightingFormData {
   };
 }
 
-// function form2occurrence(form: SightingFormData, date: string): Occurrence {
-//   const observed_at = Temporal.PlainDate.from(date)
-//     .toPlainDateTime(form.observed_time)
-//     .toZonedDateTime('PST8PDT')
-//     .toInstant()
-//     .toString();
-//   return {
-//     body: form.body,
-//     count: form.count,
-//     observed_at,
-//   }
-// }
-
 function latLonInBoundsValidator(value: string) {
   if (value.indexOf(',') === -1)
     return "Expects coordinates like '47.6845, -122.3037'";
