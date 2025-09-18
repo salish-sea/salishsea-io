@@ -11,7 +11,6 @@ import VectorSource from "ol/source/Vector.js";
 import { bearingStyle, presenceStyle, sighterStyle } from "./style.ts";
 import { licenseCodes, salishSeaExtent } from '../constants.ts';
 import { Temporal } from "temporal-polyfill";
-import { tokenContext } from "./identity.ts";
 import drawingSourceContext from "./drawing-context.ts";
 import mapContext from './map-context.ts';
 import { LineString } from "ol/geom.js";
@@ -21,11 +20,11 @@ import { repeat } from "lit/directives/repeat.js";
 import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
 import {Task} from '@lit/task';
 import './photo-uploader.ts';
-import { type SightingPayload } from "../api.ts";
 import { TanStackFormController } from '@tanstack/lit-form';
 import { convert as parseCoords } from 'geo-coordinates-parser';
-import { detectIndividuals, symbolFor } from "../identifiers.ts";
-import { type Occurrence } from "../occurrence.ts";
+import { detectIndividuals } from "../identifiers.ts";
+import { type License, type Occurrence, type TravelDirection, type UpsertObservationArgs } from "./supabase.ts";
+import { supabase } from "./supabase.ts";
 
 const TAXON_OPTIONS = {
   "Seals and sea lions": {
@@ -77,11 +76,11 @@ export type SightingFormData = {
   count: number;
   observed_time: string;
   observer_location: string;
-  photo_license: string;
+  photo_license: License;
   photo_urls: string[];
   subject_location: string;
   taxon: string;
-  travel_direction: string;
+  travel_direction: TravelDirection | '';
   url: string;
 };
 export function newSighting(): SightingFormData {
@@ -90,7 +89,7 @@ export function newSighting(): SightingFormData {
     count: NaN,
     observed_time: new Date().toISOString(),
     observer_location: '',
-    photo_license: localStorage.getItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY) || 'cc-by',
+    photo_license: localStorage.getItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY) as (License | null) || 'cc-by',
     photo_urls: [],
     subject_location: '',
     taxon: localStorage.getItem(TAXON_CHOICE_STORAGE_KEY) || 'Orcinus orca',
@@ -98,6 +97,19 @@ export function newSighting(): SightingFormData {
     url: '',
   };
 }
+
+// function form2occurrence(form: SightingFormData, date: string): Occurrence {
+//   const observed_at = Temporal.PlainDate.from(date)
+//     .toPlainDateTime(form.observed_time)
+//     .toZonedDateTime('PST8PDT')
+//     .toInstant()
+//     .toString();
+//   return {
+//     body: form.body,
+//     count: form.count,
+//     observed_at,
+//   }
+// }
 
 function latLonInBoundsValidator(value: string) {
   if (value.indexOf(',') === -1)
@@ -118,16 +130,14 @@ function latLonInBoundsValidator(value: string) {
 export default class SightingForm extends LitElement {
   private _saveTask = new Task(this, {
     autoRun: false,
-    task: async([request]: [Request]) => {
-      const response = await fetch(request);
-      const data = await response.json();
-      if (response.ok) {
-        this.dispatchEvent(new CustomEvent('database-changed', {bubbles: true, composed: true}));
-        this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: data.id}));
-        return data;
-      } else {
-        throw response.statusText;
+    task: async([occurrence]: [UpsertObservationArgs]) => {
+      const {data, error} = await supabase.rpc('upsert_observation', occurrence);
+      if (error) {
+        throw new Error(`Error saving observation: ${error}`);
       }
+      this.dispatchEvent(new CustomEvent('database-changed', {bubbles: true, composed: true}));
+      this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: occurrence.id}));
+      return data;
     }
   });
 
@@ -159,9 +169,6 @@ export default class SightingForm extends LitElement {
   #observerFeature = new Feature(new Point([]));
   #subjectFeature = new Feature(new Point([]));
   #bearingFeature = new Feature(new LineString([]));
-
-  @consume({context: tokenContext, subscribe: true})
-  private token: string | undefined;
 
   private place: PlacePoint | undefined
 
@@ -248,33 +255,25 @@ export default class SightingForm extends LitElement {
     defaultValues: newSighting(),
     onSubmit: ({value}) => {
       const observedAt = Temporal.PlainDate.from(this.date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: value.observed_time});
-      const observerCoords = toLonLat(this.#observerFeature.getGeometry()!.getCoordinates())
-      const subjectCoords = this.#subjectFeature.getGeometry()!.getCoordinates();
-      if (subjectCoords.length !== 2)
+      const [observerX, observerY] = toLonLat(this.#observerFeature.getGeometry()!.getCoordinates())
+      const [subjectX, subjectY] = toLonLat(this.#subjectFeature.getGeometry()!.getCoordinates());
+      if (!subjectX || !subjectY)
         throw new Error("Subject coordinates not set");
 
-      const payload: SightingPayload = {
+      const payload = {
+        up_id: this.sightingId,
         body: value.body,
         count: isNaN(value.count) ? null : value.count,
-        direction: value.travel_direction,
+        direction: value.travel_direction ? value.travel_direction : null,
         observed_at: observedAt.toInstant().toString(),
-        observer_location: observerCoords.length === 2 ? observerCoords as [number, number] : null,
-        photo_license: value.photo_license,
-        photos: value.photo_urls,
-        subject_location: toLonLat(subjectCoords) as [number, number],
-        taxon: value.taxon,
+        observed_from: (observerX && observerY) ? {lon: observerX, lat: observerY} : null,
+        photos: value.photo_urls.map(src => ({attribution: null, src, license: value.photo_license, mimetype: null, thumb: null})),
+        location: {lon: subjectX, lat: subjectY},
+        accuracy: null,
+        taxon: {scientific_name: value.taxon, vernacular_name: null},
         url: value.url,
       };
-      const endpoint = `/api/sightings/${this.sightingId}`;
-      const request = new Request(endpoint, {
-        body: JSON.stringify(payload),
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-        method: 'PUT',
-      });
-      this._saveTask.run([request]);
+      this._saveTask.run([payload]);
       localStorage.setItem('lastTaxon', value.taxon);
     },
   })
@@ -625,6 +624,7 @@ export default class SightingForm extends LitElement {
 
     this.#subjectFeature.setId(this.sightingId);
     this.#subjectFeature.setProperties(sightingProperties);
+    this.updateSubjectProps();
     this.#subjectFeature.setStyle((f) => presenceStyle(f.getProperties() as Occurrence, false));
     this.updateSubjectProps();
 
@@ -644,7 +644,8 @@ export default class SightingForm extends LitElement {
     this.#subjectFeature.setProperties({
       direction: values.travel_direction,
       individuals: detectIndividuals(values.body),
-      symbol: symbolFor({body: values.body, taxon: {scientific_name: values.taxon, vernacular_name: null}}) || '?',
+      // symbol: symbolFor({body: values.body, }) || '?',
+      taxon: {scientific_name: values.taxon, vernacular_name: null},
     });
   }
 

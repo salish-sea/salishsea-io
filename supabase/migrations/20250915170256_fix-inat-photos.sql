@@ -1,6 +1,3 @@
-DROP VIEW public.presence CASCADE;
-ALTER TYPE presence_photo RENAME TO occurrence_photo;
-
 CREATE OR REPLACE VIEW public.occurrences (
   id,
   attribution,
@@ -97,13 +94,3 @@ CREATE OR REPLACE VIEW public.occurrences (
   FROM sightings AS s
   LEFT JOIN users AS u ON s.user_id = u.id
   JOIN inaturalist.taxa t ON t.id = s.taxon_id;
-
-CREATE OR REPLACE FUNCTION public.extract_travel_direction(body text) RETURNS public.travel_direction LANGUAGE SQL IMMUTABLE STRICT SET search_path='' AS $$
-  SELECT regexp_replace(lower(substring(body FROM '(?i)\m(north(\W*(east|west)|)|(south(\W*(east|west)|))|west|east)(\W*bound)?\M')), '\W', '')::public.travel_direction;
-$$;
-
-CREATE OR REPLACE FUNCTION public.occurrences_on_date(date date) RETURNS SETOF public.occurrences LANGUAGE SQL STABLE STRICT SECURITY DEFINER SET search_path='' AS $$
-  SELECT * FROM public.occurrences
-  WHERE date(observed_at at time zone 'PST8PDT') = "date"
-  ORDER BY observed_at ASC;
-$$;

@@ -6,8 +6,24 @@
     <title>SalishSea.io</title>
     <link rel="stylesheet" href="src/frontend/index.css" />
     <script type="module" src="src/frontend/salish-sea.ts"></script>
+    <script src="https://accounts.google.com/gsi/client" async></script>
   </head>
   <body>
+
     <salish-sea></salish-sea>
+    <script>
+      const salishSea = document.querySelector('salish-sea');
+      window.handleSignInWithGoogle = (response) => {
+        salishSea.receiveIdToken(response.credential);
+      }
+    </script>
+    <div id="g_id_onload"
+     data-client_id="129212631591-b6ba75aevcbifjpea2cap2vja91a6te8.apps.googleusercontent.com"
+     data-context="use"
+     data-ux_mode="popup"
+     data-callback="handleSignInWithGoogle"
+     data-auto_prompt="false">
+</div>
+
   </body>
 </html>

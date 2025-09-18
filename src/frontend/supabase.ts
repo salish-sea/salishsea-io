@@ -1,26 +1,43 @@
 import { createClient } from '@supabase/supabase-js';
 import { type Database } from '../../database.types.ts';
-import type { MergeDeep } from 'type-fest';
-import type { Occurrence } from '../occurrence.ts';
+import type { Merge, MergeDeep, OverrideProperties, SetNonNullable, SetNonNullableDeep } from 'type-fest';
 
-type TravelDirection = Database['public']['Enums']['travel_direction'];
+export type TravelDirection = Database['public']['Enums']['travel_direction'];
+type DBOccurrence = Database['public']['Functions']['occurrences_on_date']['Returns'][number];
+type OccurrenceTaxon = SetNonNullable<Database['public']['CompositeTypes']['taxon'], 'scientific_name'>;
+type RequiredPresence = SetNonNullableDeep<
+  DBOccurrence,
+  'id' | 'individuals' | 'location' | 'location.lat' | 'location.lon' | 'observed_at' | 'photos' | 'taxon'
+>;
+type OccurrencePhoto = SetNonNullable<RequiredPresence['photos'][number], 'src'>;
+export type Occurrence = OverrideProperties<RequiredPresence, {photos: OccurrencePhoto[], taxon: OccurrenceTaxon}> & {
+  kind?: 'Sighter'
+};
+export type UpsertObservationArgs = Merge<Database['public']['Functions']['upsert_observation']['Args'], {
+  count: number | null;
+  direction: TravelDirection | null;
+  observed_from: Database['public']['CompositeTypes']['lon_lat'] | null;
+  photos: OccurrencePhoto[],
+  url: string | null;
+}>;
+export type License = Database['public']['Enums']['license'];
 type PatchedDatabase = MergeDeep<Database, {
   public: {
     Functions: {
       occurrences_on_date: {
         Return: Occurrence[];
       };
-      upsert_sighting: {
-        Args: {
-          count: number | null;
-          direction: TravelDirection | null;
-          observer_location: [number, number] | null;
-          subject_location: [number, number];
-          url: string | null;
-        }
-      }
-    }
-  }
+      upsert_observation: {
+        Args: UpsertObservationArgs;
+      };
+    };
+    CompositeTypes: {
+      lon_lat: {
+        lon: number;
+        lat: number;
+      };
+    };
+  };
 }>;
 
 const publishableKey = import.meta.env.VITE_SUPABASE_KEY;
@@ -34,14 +51,4 @@ if (!supabaseUrl)
 export const supabase = createClient<PatchedDatabase, 'public'>(
   supabaseUrl,
   publishableKey,
-  // {
-  //   accessToken: async () => {
-  //     console.debug("Requesting access token for supabase.");
-  //     const auth0 = await auth0promise;
-  //     const claims = await auth0.getIdTokenClaims();
-  //     if (!claims)
-  //       return null;
-  //     return claims.__raw;
-  //   },
-  // }
 );

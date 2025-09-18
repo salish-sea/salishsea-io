@@ -1,4 +1,4 @@
-import type { TravelDirection } from "./database.ts";
+import type { TravelDirection } from "./frontend/supabase.ts";
 
 function degToRad(degrees: number) {
   return degrees * (Math.PI / 180);

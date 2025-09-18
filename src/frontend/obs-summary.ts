@@ -1,16 +1,16 @@
 import { css, LitElement, type PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { html, unsafeStatic } from "lit/static-html.js";
-import { tokenContext, userContext, type User } from "./identity.ts";
+import { userContext, type User } from "./identity.ts";
 import { consume } from "@lit/context";
 import { when } from "lit/directives/when.js";
-import type { Occurrence } from "../occurrence.ts";
 import { repeat } from "lit/directives/repeat.js";
 import { symbolFor } from "../identifiers.ts";
 import { marked } from 'marked';
 import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
 import { Temporal } from "temporal-polyfill";
+import { supabase, type Occurrence } from "./supabase.ts";
 
 const domPurify = createDOMPurify(window as any);
 
@@ -88,17 +88,11 @@ export class ObsSummary extends LitElement {
   @consume({context: userContext, subscribe: true})
   private user: User | undefined;
 
-  @consume({context: tokenContext, subscribe: true})
-  private authToken: string | undefined;
-
   public render() {
-    const {
-      attribution, body, count, id, observed_at, photos, taxon: {scientific_name, vernacular_name}
+      const {
+      attribution, body, count, id, observed_at, photos, taxon: {scientific_name, vernacular_name}, url, is_own_observation
     } = this.sighting;
     const symbol = symbolFor(this.sighting);
-    // const body = this.sighting.body ? unsafeStatic(this.sighting.body): undefined;
-    const canEdit = id.startsWith('/') && this.user;
-    const url = id.startsWith('http') ? id : undefined;
     const name = vernacular_name || scientific_name;
 
     return html`
@@ -126,7 +120,7 @@ export class ObsSummary extends LitElement {
         ${when(this.user, () => html`
           <li><a href="#" @click=${this.onClone}>Clone</a></li>
         `)}
-        ${when(canEdit, () => html`
+        ${when(is_own_observation, () => html`
           <li><a href="#" @click=${this.onDelete}>Delete</a></li>
         `)}
       </ul>
@@ -151,13 +145,11 @@ export class ObsSummary extends LitElement {
 
   private async onDelete(e: Event) {
     e.preventDefault();
-    const response = await fetch(this.sighting.id, {headers: {Authorization: `Bearer ${this.authToken}`}, method: 'DELETE'});
-    if (response.ok) {
-      const evt = new CustomEvent('database-changed', {bubbles: true, composed: true});
-      this.dispatchEvent(evt);
-    } else {
-      alert(response.statusText);
-    }
+    const {error} = await supabase.from('observations').delete().eq('id', this.sighting.id);
+    if (error)
+      throw new Error(`Error deleting observation: ${error}`);
+    const evt = new CustomEvent('database-changed', {bubbles: true, composed: true});
+    this.dispatchEvent(evt);
   }
 }
 

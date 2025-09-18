@@ -9,40 +9,41 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      sighting_photos: {
+      observation_photos: {
         Row: {
           href: string
           id: number
           license_code: string
+          observation_id: string
           seq: number
-          sighting_id: string
         }
         Insert: {
           href: string
           id?: never
           license_code: string
+          observation_id: string
           seq: number
-          sighting_id: string
         }
         Update: {
           href?: string
           id?: never
           license_code?: string
+          observation_id?: string
           seq?: number
-          sighting_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "sighting_photos_sighting_id_fkey"
-            columns: ["sighting_id"]
+            columns: ["observation_id"]
             isOneToOne: false
-            referencedRelation: "sightings"
+            referencedRelation: "observations"
             referencedColumns: ["id"]
           },
         ]
       }
-      sightings: {
+      observations: {
         Row: {
+          accuracy: number | null
           body: string | null
           count: number | null
           created_at: string
@@ -54,9 +55,10 @@ export type Database = {
           taxon_id: number
           updated_at: string
           url: string | null
-          user_id: number | null
+          user_id: string
         }
         Insert: {
+          accuracy?: number | null
           body?: string | null
           count?: number | null
           created_at: string
@@ -68,9 +70,10 @@ export type Database = {
           taxon_id: number
           updated_at: string
           url?: string | null
-          user_id?: number | null
+          user_id: string
         }
         Update: {
+          accuracy?: number | null
           body?: string | null
           count?: number | null
           created_at?: string
@@ -82,44 +85,190 @@ export type Database = {
           taxon_id?: number
           updated_at?: string
           url?: string | null
-          user_id?: number | null
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "sightings_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "sightings_taxon_id_fkey"
+            columns: ["taxon_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "taxa"
             referencedColumns: ["id"]
           },
         ]
       }
-      users: {
+      profiles: {
         Row: {
           email: string
+          family_name: string | null
+          given_name: string | null
+          iat: string
           id: number
           name: string | null
-          nickname: string | null
+          nickname: string
+          picture: string | null
           sub: string
-          updated_at: string
         }
         Insert: {
           email: string
+          family_name?: string | null
+          given_name?: string | null
+          iat: string
           id?: never
           name?: string | null
-          nickname?: string | null
+          nickname: string
+          picture?: string | null
           sub: string
-          updated_at: string
         }
         Update: {
           email?: string
+          family_name?: string | null
+          given_name?: string | null
+          iat?: string
           id?: never
           name?: string | null
-          nickname?: string | null
+          nickname?: string
+          picture?: string | null
           sub?: string
-          updated_at?: string
         }
         Relationships: []
+      }
+      taxa: {
+        Row: {
+          id: number
+          parent_id: number | null
+          rank:
+            | "infrahybrid"
+            | "form"
+            | "variety"
+            | "subspecies"
+            | "hybrid"
+            | "species"
+            | "complex"
+            | "subsection"
+            | "section"
+            | "subgenus"
+            | "genushybrid"
+            | "genus"
+            | "subtribe"
+            | "tribe"
+            | "supertribe"
+            | "subfamily"
+            | "family"
+            | "epifamily"
+            | "superfamily"
+            | "zoosubsection"
+            | "zoosection"
+            | "parvorder"
+            | "infraorder"
+            | "suborder"
+            | "order"
+            | "superorder"
+            | "subterclass"
+            | "infraclass"
+            | "subclass"
+            | "class"
+            | "superclass"
+            | "subphylum"
+            | "phylum"
+            | "kingdom"
+            | "stateofmatter"
+          scientific_name: string
+          vernacular_name: string | null
+        }
+        Insert: {
+          id: number
+          parent_id?: number | null
+          rank:
+            | "infrahybrid"
+            | "form"
+            | "variety"
+            | "subspecies"
+            | "hybrid"
+            | "species"
+            | "complex"
+            | "subsection"
+            | "section"
+            | "subgenus"
+            | "genushybrid"
+            | "genus"
+            | "subtribe"
+            | "tribe"
+            | "supertribe"
+            | "subfamily"
+            | "family"
+            | "epifamily"
+            | "superfamily"
+            | "zoosubsection"
+            | "zoosection"
+            | "parvorder"
+            | "infraorder"
+            | "suborder"
+            | "order"
+            | "superorder"
+            | "subterclass"
+            | "infraclass"
+            | "subclass"
+            | "class"
+            | "superclass"
+            | "subphylum"
+            | "phylum"
+            | "kingdom"
+            | "stateofmatter"
+          scientific_name: string
+          vernacular_name?: string | null
+        }
+        Update: {
+          id?: number
+          parent_id?: number | null
+          rank?:
+            | "infrahybrid"
+            | "form"
+            | "variety"
+            | "subspecies"
+            | "hybrid"
+            | "species"
+            | "complex"
+            | "subsection"
+            | "section"
+            | "subgenus"
+            | "genushybrid"
+            | "genus"
+            | "subtribe"
+            | "tribe"
+            | "supertribe"
+            | "subfamily"
+            | "family"
+            | "epifamily"
+            | "superfamily"
+            | "zoosubsection"
+            | "zoosection"
+            | "parvorder"
+            | "infraorder"
+            | "suborder"
+            | "order"
+            | "superorder"
+            | "subterclass"
+            | "infraclass"
+            | "subclass"
+            | "class"
+            | "superclass"
+            | "subphylum"
+            | "phylum"
+            | "kingdom"
+            | "stateofmatter"
+          scientific_name?: string
+          vernacular_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taxa_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "taxa"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -132,13 +281,15 @@ export type Database = {
           direction: Database["public"]["Enums"]["travel_direction"] | null
           id: string | null
           individuals: string[] | null
-          latitude: number | null
-          longitude: number | null
+          is_own_observation: boolean | null
+          location: Database["public"]["CompositeTypes"]["lon_lat"] | null
           observed_at: string | null
+          observed_from: Database["public"]["CompositeTypes"]["lon_lat"] | null
           photos:
-            | Database["public"]["CompositeTypes"]["presence_photo"][]
+            | Database["public"]["CompositeTypes"]["occurrence_photo"][]
             | null
           taxon: Database["public"]["CompositeTypes"]["taxon"] | null
+          url: string | null
         }
         Relationships: []
       }
@@ -158,25 +309,28 @@ export type Database = {
           direction: Database["public"]["Enums"]["travel_direction"] | null
           id: string | null
           individuals: string[] | null
-          latitude: number | null
-          longitude: number | null
+          is_own_observation: boolean | null
+          location: Database["public"]["CompositeTypes"]["lon_lat"] | null
           observed_at: string | null
+          observed_from: Database["public"]["CompositeTypes"]["lon_lat"] | null
           photos:
-            | Database["public"]["CompositeTypes"]["presence_photo"][]
+            | Database["public"]["CompositeTypes"]["occurrence_photo"][]
             | null
           taxon: Database["public"]["CompositeTypes"]["taxon"] | null
+          url: string | null
         }[]
       }
-      upsert_sighting: {
+      upsert_observation: {
         Args: {
+          accuracy: number
+          body: string
           count: number
           direction: Database["public"]["Enums"]["travel_direction"]
+          location: Database["public"]["CompositeTypes"]["lon_lat"]
           observed_at: string
-          observer_location: number[]
-          photo_license: string
-          photos: string[]
-          subject_location: number[]
-          taxon: string
+          observed_from: Database["public"]["CompositeTypes"]["lon_lat"]
+          photos: Database["public"]["CompositeTypes"]["occurrence_photo"][]
+          taxon: Database["public"]["CompositeTypes"]["taxon"]
           up_id: string
           url: string
         }
@@ -184,6 +338,15 @@ export type Database = {
       }
     }
     Enums: {
+      license:
+        | "cc0"
+        | "cc-by"
+        | "cc-by-nc"
+        | "cc-by-sa"
+        | "cc-by-nd"
+        | "cc-by-nc-sa"
+        | "cc-by-nc-nd"
+        | "none"
       sex: "male" | "female"
       travel_direction:
         | "north"
@@ -204,11 +367,16 @@ export type Database = {
         lat: number | null
         lng: number | null
       }
-      presence_photo: {
+      lon_lat: {
+        lon: number | null
+        lat: number | null
+      }
+      occurrence_photo: {
         attribution: string | null
         mimetype: string | null
         src: string | null
         thumb: string | null
+        license: Database["public"]["Enums"]["license"] | null
       }
       taxon: {
         scientific_name: string | null
@@ -338,6 +506,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      license: [
+        "cc0",
+        "cc-by",
+        "cc-by-nc",
+        "cc-by-sa",
+        "cc-by-nd",
+        "cc-by-nc-sa",
+        "cc-by-nc-nd",
+        "none",
+      ],
       sex: ["male", "female"],
       travel_direction: [
         "north",

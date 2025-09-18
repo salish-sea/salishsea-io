@@ -2,7 +2,7 @@ import { css, html, LitElement, type PropertyValues} from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import './obs-map.ts';
 import './login-button.ts';
-import { doLogIn, doLogInContext, doLogOut, doLogOutContext, getTokenSilently, getUser, tokenContext, userContext, type User } from "./identity.ts";
+import { userContext, type User } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
 import type Point from "ol/geom/Point.js";
@@ -16,8 +16,8 @@ import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 // import * as Sentry from "@sentry/browser";
 import type { CloneSightingEvent } from "./obs-summary.ts";
-import { occurrence2feature, type Occurrence } from "../occurrence.ts";
-import { supabase } from "./supabase.ts";
+import { occurrence2feature } from "../occurrence.ts";
+import { supabase, type Occurrence } from "./supabase.ts";
 
 // Sentry.init({
 //   dsn: "https://56ce99ce80994bab79dab62d06078c97@o4509634382331904.ingest.us.sentry.io/4509634387509248",
@@ -142,17 +142,7 @@ export default class SalishSea extends LitElement {
 
   @provide({context: userContext})
   @state()
-  protected user: User | undefined;
-
-  @provide({context: tokenContext})
-  @state()
-  protected token: string | undefined;
-
-  @provide({context: doLogInContext})
-  _doLogIn: () => Promise<boolean>
-
-  @provide({context: doLogOutContext})
-  _doLogOut: () => Promise<void>
+  protected user: User | null = null;
 
   #date: string = initialDate
   @property({type: String, reflect: true})
@@ -170,9 +160,7 @@ export default class SalishSea extends LitElement {
 
   constructor() {
     super();
-    this._doLogIn = this.doLogIn.bind(this);
-    this._doLogOut = this.doLogOut.bind(this);
-    this.updateAuth();
+    this.updateUser();
     this.addEventListener('log-in', this.doLogIn.bind(this));
     this.addEventListener('log-out', this.doLogOut.bind(this));
     this.addEventListener('focus-sighting', evt => {
@@ -196,7 +184,6 @@ export default class SalishSea extends LitElement {
       const sighting = (evt as CloneSightingEvent).detail;
       await this.shadowRoot!.querySelector('obs-panel')!.editSighting(sighting);
     });
-    this.fetchOccurrences(this.date);
   }
 
   protected render(): unknown {
@@ -234,23 +221,29 @@ export default class SalishSea extends LitElement {
     `;
   }
 
-  async updateAuth() {
-    this.user = await getUser();
-    this.token = this.user ? await getTokenSilently() : undefined;
-    // if (this.user) {
-    //   Sentry.setUser({email: this.user.email, name: this.user.name});
-    // }
-  }
-
-  async doLogIn() {
-    await doLogIn();
-    await this.updateAuth();
-    return !!this.user;
+  doLogIn() {
+    google.accounts.id.prompt();
   }
 
   async doLogOut() {
-    await doLogOut();
-    await this.updateAuth();
+    supabase.auth.signOut();
+    this.user = null;
+    await this.fetchOccurrences(this.date);
+  }
+
+  public async receiveIdToken(token: string) {
+    await supabase.auth.signInWithIdToken({'provider': 'google', token});
+    await this.updateUser();
+  }
+
+  private async updateUser() {
+    const {data, error} = await supabase.auth.getUser();
+    if (error) {
+      console.error(error);
+    } else {
+      this.user = data.user;
+      await this.fetchOccurrences(this.date);
+    }
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {

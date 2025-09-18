@@ -26,7 +26,7 @@ import { containsCoordinate } from 'ol/extent.js';
 import type { Coordinate } from 'ol/coordinate.js';
 import type MapBrowserEvent from 'ol/MapBrowserEvent.js';
 import olCSS from 'ol/ol.css?url';
-import type { Occurrence } from '../occurrence.ts';
+import type { Occurrence } from './supabase.ts';
 
 const sphericalMercator = 'EPSG:3857';
 

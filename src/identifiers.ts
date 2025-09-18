@@ -1,4 +1,4 @@
-import type { Occurrence } from "./occurrence.ts";
+import type { Occurrence } from "./frontend/supabase.ts";
 
 const pods = ['J', 'K', 'L', 'T'] as const;
 export type Pod = typeof pods[number];
@@ -24,13 +24,13 @@ function assertPod(name: string): asserts name is Pod {
   throw `${name} is not a pod`;
 }
 
-const podCleanerRE = /\s*(\+|,|&|and|-)\s*/gi;
-const podRE = /\b([jklt]+)\s?(pod|\d)/gi;
+const podCleanerRE = /\s*(\+|,|&|and|-)\s*/g;
+const podRE = /\b([jklt]+)\s?(pod|\d)/g;
 export const detectPod = (text: Readonly<string>) => {
-  for (const [, pods] of text.replaceAll(podCleanerRE, '').matchAll(podRE)) {
+  for (const [, pods] of text.toUpperCase().replaceAll(podCleanerRE, '').matchAll(podRE)) {
     for (const pod of [...pods!]) {
       assertPod(pod);
-      return pod.toUpperCase();
+      return pod;
     }
   }
   if (detectEcotype(text) === 'Biggs')
