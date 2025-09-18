@@ -11,23 +11,26 @@ export type Database = {
     Tables: {
       observation_photos: {
         Row: {
-          href: string
+          href: string | null
           id: number
           license_code: string
+          object_id: string | null
           observation_id: string
           seq: number
         }
         Insert: {
-          href: string
+          href?: string | null
           id?: never
           license_code: string
+          object_id?: string | null
           observation_id: string
           seq: number
         }
         Update: {
-          href?: string
+          href?: string | null
           id?: never
           license_code?: string
+          object_id?: string | null
           observation_id?: string
           seq?: number
         }
@@ -377,6 +380,7 @@ export type Database = {
         src: string | null
         thumb: string | null
         license: Database["public"]["Enums"]["license"] | null
+        object_id: string | null
       }
       taxon: {
         scientific_name: string | null

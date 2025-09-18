@@ -87,7 +87,7 @@ export function newSighting(): SightingFormData {
   return {
     body: '',
     count: NaN,
-    observed_time: new Date().toISOString(),
+    observed_time: '',
     observer_location: '',
     photo_license: localStorage.getItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY) as (License | null) || 'cc-by',
     photo_urls: [],

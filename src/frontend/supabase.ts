@@ -14,6 +14,7 @@ export type Occurrence = OverrideProperties<RequiredPresence, {photos: Occurrenc
   kind?: 'Sighter'
 };
 export type UpsertObservationArgs = Merge<Database['public']['Functions']['upsert_observation']['Args'], {
+  accuracy: number | null;
   count: number | null;
   direction: TravelDirection | null;
   observed_from: Database['public']['CompositeTypes']['lon_lat'] | null;

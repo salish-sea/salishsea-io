@@ -113,6 +113,11 @@ file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
 
+[storage.buckets.media]
+public = true
+file_size_limit = '8MiB'
+allowed_mime_types = ['image/jpeg', 'image/jp2']
+
 [auth]
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
