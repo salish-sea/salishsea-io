@@ -118,12 +118,12 @@ export default class SightingForm extends LitElement {
   private _saveTask = new Task(this, {
     autoRun: false,
     task: async([occurrence]: [UpsertObservationArgs]) => {
-      const {data, error} = await supabase.rpc('upsert_observation', occurrence);
+      const {data, error} = await supabase.rpc('upsert_observation', occurrence as any);
       if (error) {
         throw new Error(`Error saving observation: ${error}`);
       }
       this.dispatchEvent(new CustomEvent('database-changed', {bubbles: true, composed: true}));
-      this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: occurrence.id}));
+      this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: occurrence.up_id}));
       return data;
     }
   });
@@ -399,7 +399,7 @@ export default class SightingForm extends LitElement {
         ${this.#form.field({name: 'travel_direction'}, field => html`
           <label>
             <span class="label">Travel direction</span>
-            <select name="${field.name}" @change=${(e: Event) => field.handleChange((e.target as HTMLSelectElement).value)}>
+            <select name="${field.name}" @change=${(e: Event) => field.handleChange((e.target as HTMLSelectElement).value as TravelDirection)}>
               ${repeat(Object.entries(DIRECTION_OPTIONS), ([key]) => key, ([key, label]) => html`
                 <option value=${key} ?selected=${key === field.state.value}>${label}</option>
               `)}
@@ -436,7 +436,7 @@ export default class SightingForm extends LitElement {
             <span class="label">Photo license</span>
             <select name="${field.name}" ?required=${this.photos.length > 0} @change=${(e: Event) => {
               const licenseCode = (e.target as HTMLSelectElement).value;
-              field.handleChange(licenseCode);
+              field.handleChange(licenseCode as License);
               localStorage.setItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY, licenseCode);
             }}>
               ${Object.entries(licenseCodes).map(([code, description]) => html`

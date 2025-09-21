@@ -3,14 +3,14 @@ import { type Database } from '../../database.types.ts';
 import type { Merge, MergeDeep, OverrideProperties, SetNonNullable, SetNonNullableDeep } from 'type-fest';
 
 export type TravelDirection = Database['public']['Enums']['travel_direction'];
-type DBOccurrence = Database['public']['Functions']['occurrences_on_date']['Returns'][number];
+type DBOccurrence = Database['public']['Views']['occurrences']['Row'];
 type OccurrenceTaxon = SetNonNullable<Database['public']['CompositeTypes']['taxon'], 'scientific_name'>;
-type RequiredPresence = SetNonNullableDeep<
+type PatchedOccurrence = SetNonNullableDeep<
   DBOccurrence,
   'id' | 'individuals' | 'location' | 'location.lat' | 'location.lon' | 'observed_at' | 'photos' | 'taxon'
 >;
-type OccurrencePhoto = SetNonNullable<RequiredPresence['photos'][number], 'src'>;
-export type Occurrence = OverrideProperties<RequiredPresence, {photos: OccurrencePhoto[], taxon: OccurrenceTaxon}> & {
+type OccurrencePhoto = SetNonNullable<PatchedOccurrence['photos'][number], 'src'>;
+export type Occurrence = OverrideProperties<PatchedOccurrence, {photos: OccurrencePhoto[], taxon: OccurrenceTaxon}> & {
   kind?: 'Sighter'
 };
 export type UpsertObservationArgs = Merge<Database['public']['Functions']['upsert_observation']['Args'], {
