@@ -11,26 +11,23 @@ export type Database = {
     Tables: {
       observation_photos: {
         Row: {
-          href: string | null
+          href: string
           id: number
           license_code: string
-          object_id: string | null
           observation_id: string
           seq: number
         }
         Insert: {
-          href?: string | null
+          href: string
           id?: never
           license_code: string
-          object_id?: string | null
           observation_id: string
           seq: number
         }
         Update: {
-          href?: string | null
+          href?: string
           id?: never
           license_code?: string
-          object_id?: string | null
           observation_id?: string
           seq?: number
         }
@@ -90,15 +87,7 @@ export type Database = {
           url?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "sightings_taxon_id_fkey"
-            columns: ["taxon_id"]
-            isOneToOne: false
-            referencedRelation: "taxa"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -136,143 +125,6 @@ export type Database = {
         }
         Relationships: []
       }
-      taxa: {
-        Row: {
-          id: number
-          parent_id: number | null
-          rank:
-            | "infrahybrid"
-            | "form"
-            | "variety"
-            | "subspecies"
-            | "hybrid"
-            | "species"
-            | "complex"
-            | "subsection"
-            | "section"
-            | "subgenus"
-            | "genushybrid"
-            | "genus"
-            | "subtribe"
-            | "tribe"
-            | "supertribe"
-            | "subfamily"
-            | "family"
-            | "epifamily"
-            | "superfamily"
-            | "zoosubsection"
-            | "zoosection"
-            | "parvorder"
-            | "infraorder"
-            | "suborder"
-            | "order"
-            | "superorder"
-            | "subterclass"
-            | "infraclass"
-            | "subclass"
-            | "class"
-            | "superclass"
-            | "subphylum"
-            | "phylum"
-            | "kingdom"
-            | "stateofmatter"
-          scientific_name: string
-          vernacular_name: string | null
-        }
-        Insert: {
-          id: number
-          parent_id?: number | null
-          rank:
-            | "infrahybrid"
-            | "form"
-            | "variety"
-            | "subspecies"
-            | "hybrid"
-            | "species"
-            | "complex"
-            | "subsection"
-            | "section"
-            | "subgenus"
-            | "genushybrid"
-            | "genus"
-            | "subtribe"
-            | "tribe"
-            | "supertribe"
-            | "subfamily"
-            | "family"
-            | "epifamily"
-            | "superfamily"
-            | "zoosubsection"
-            | "zoosection"
-            | "parvorder"
-            | "infraorder"
-            | "suborder"
-            | "order"
-            | "superorder"
-            | "subterclass"
-            | "infraclass"
-            | "subclass"
-            | "class"
-            | "superclass"
-            | "subphylum"
-            | "phylum"
-            | "kingdom"
-            | "stateofmatter"
-          scientific_name: string
-          vernacular_name?: string | null
-        }
-        Update: {
-          id?: number
-          parent_id?: number | null
-          rank?:
-            | "infrahybrid"
-            | "form"
-            | "variety"
-            | "subspecies"
-            | "hybrid"
-            | "species"
-            | "complex"
-            | "subsection"
-            | "section"
-            | "subgenus"
-            | "genushybrid"
-            | "genus"
-            | "subtribe"
-            | "tribe"
-            | "supertribe"
-            | "subfamily"
-            | "family"
-            | "epifamily"
-            | "superfamily"
-            | "zoosubsection"
-            | "zoosection"
-            | "parvorder"
-            | "infraorder"
-            | "suborder"
-            | "order"
-            | "superorder"
-            | "subterclass"
-            | "infraclass"
-            | "subclass"
-            | "class"
-            | "superclass"
-            | "subphylum"
-            | "phylum"
-            | "kingdom"
-            | "stateofmatter"
-          scientific_name?: string
-          vernacular_name?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "taxa_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "taxa"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       occurrences: {
@@ -302,26 +154,9 @@ export type Database = {
         Args: { body: string }
         Returns: Database["public"]["Enums"]["travel_direction"]
       }
-      occurrences_on_date: {
-        Args: { date: string }
-        Returns: {
-          accuracy: number | null
-          attribution: string | null
-          body: string | null
-          count: number | null
-          direction: Database["public"]["Enums"]["travel_direction"] | null
-          id: string | null
-          individuals: string[] | null
-          is_own_observation: boolean | null
-          location: Database["public"]["CompositeTypes"]["lon_lat"] | null
-          observed_at: string | null
-          observed_from: Database["public"]["CompositeTypes"]["lon_lat"] | null
-          photos:
-            | Database["public"]["CompositeTypes"]["occurrence_photo"][]
-            | null
-          taxon: Database["public"]["CompositeTypes"]["taxon"] | null
-          url: string | null
-        }[]
+      local_date: {
+        Args: { occurrence: unknown }
+        Returns: string
       }
       upsert_observation: {
         Args: {
@@ -380,7 +215,6 @@ export type Database = {
         src: string | null
         thumb: string | null
         license: Database["public"]["Enums"]["license"] | null
-        object_id: string | null
       }
       taxon: {
         scientific_name: string | null
