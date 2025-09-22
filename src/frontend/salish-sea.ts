@@ -14,26 +14,26 @@ import type VectorSource from "ol/source/Vector.js";
 import type OpenLayersMap from "ol/Map.js";
 import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
-// import * as Sentry from "@sentry/browser";
+import * as Sentry from "@sentry/browser";
 import type { CloneSightingEvent } from "./obs-summary.ts";
 import { occurrence2feature } from "../occurrence.ts";
 import { supabase, type Occurrence } from "./supabase.ts";
 
-// Sentry.init({
-//   dsn: "https://56ce99ce80994bab79dab62d06078c97@o4509634382331904.ingest.us.sentry.io/4509634387509248",
-//   // Setting this option to true will send default PII data to Sentry.
-//   // For example, automatic IP address collection on events
-//   sendDefaultPii: true,
-//   integrations: [
-//     Sentry.feedbackIntegration({
-//       colorScheme: "system",
-//       formTitle: "Report a Bug or Give Feedback",
-//       isNameRequired: true,
-//       successMessageText: "Thank you for taking the time to let us know.",
-//       triggerLabel: "Report Bug or Give Feedback",
-//     }),
-//   ]
-// });
+Sentry.init({
+  dsn: "https://56ce99ce80994bab79dab62d06078c97@o4509634382331904.ingest.us.sentry.io/4509634387509248",
+  // Setting this option to true will send default PII data to Sentry.
+  // For example, automatic IP address collection on events
+  sendDefaultPii: true,
+  integrations: [
+    Sentry.feedbackIntegration({
+      colorScheme: "system",
+      formTitle: "Report a Bug or Give Feedback",
+      isNameRequired: true,
+      successMessageText: "Thank you for taking the time to let us know.",
+      triggerLabel: "Report Bug or Give Feedback",
+    }),
+  ]
+});
 
 const dateRE = /^(\d\d\d\d-\d\d-\d\d)$/;
 const initialSearchParams = new URLSearchParams(document.location.search);
