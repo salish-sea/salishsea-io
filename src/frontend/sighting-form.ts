@@ -8,7 +8,7 @@ import Point from "ol/geom/Point.js";
 import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
-import { bearingStyle, presenceStyle, sighterStyle } from "./style.ts";
+import { bearingStyle, occurrenceStyle, sighterStyle } from "./style.ts";
 import { licenseCodes, salishSeaExtent } from '../constants.ts';
 import { Temporal } from "temporal-polyfill";
 import drawingSourceContext from "./drawing-context.ts";
@@ -257,7 +257,7 @@ export default class SightingForm extends LitElement {
         photos: value.photo_urls.map(src => ({attribution: null, src, license: value.photo_license, mimetype: null, thumb: null})),
         location: {lon: subjectX, lat: subjectY},
         accuracy: null,
-        taxon: {scientific_name: value.taxon, vernacular_name: null},
+        taxon: {scientific_name: value.taxon, species_id: null, vernacular_name: null},
         url: value.url,
       };
       this._saveTask.run([payload]);
@@ -612,7 +612,7 @@ export default class SightingForm extends LitElement {
     this.#subjectFeature.setId(this.sightingId);
     this.#subjectFeature.setProperties(sightingProperties);
     this.updateSubjectProps();
-    this.#subjectFeature.setStyle((f) => presenceStyle(f.getProperties() as Occurrence, false));
+    this.#subjectFeature.setStyle((f) => occurrenceStyle(f.getProperties() as Occurrence, false));
     this.updateSubjectProps();
 
     this.#bearingFeature.setStyle(feature => bearingStyle(feature as Feature<LineString>));

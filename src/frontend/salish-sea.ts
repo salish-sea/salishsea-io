@@ -259,13 +259,13 @@ export default class SalishSea extends LitElement {
       return;
     this.sightings = sightings;
     const features = sightings.map(occurrence2feature);
-    this.map.setFeatures(features);
+    this.map.setOccurrences(features);
   }
 
   focusSighting(id: string | undefined) {
     if (!id)
       return;
-    const feature = this.map.presenceSource.getFeatureById(id) as Feature<Point> | null;
+    const feature = this.map.ocurrenceSource.getFeatureById(id) as Feature<Point> | null;
     if (!feature)
       return;
     this.map.selectFeature(feature);
@@ -283,7 +283,7 @@ export default class SalishSea extends LitElement {
   }
 
   async fetchOccurrences(date: string) {
-    const {data, error} = await supabase.from('occurrences').select().eq('local_date', this.date);
+    const {data, error} = await supabase.from('occurrences').select().eq('local_date', this.date).order('observed_at', {ascending: true});
     if (error)
       return Promise.reject(error);
     if (!data)

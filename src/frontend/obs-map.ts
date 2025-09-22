@@ -14,7 +14,7 @@ import hydrophonesURL from '../assets/orcasound-hydrophones.geojson?url';
 import VectorLayer from 'ol/layer/Vector.js';
 import TileLayer from 'ol/layer/Tile.js';
 import XYZ from 'ol/source/XYZ.js';
-import { editStyle, hydrophoneStyle, presenceStyle, selectedObservationStyle, sighterStyle, viewingLocationStyle} from './style.ts';
+import { editStyle, hydrophoneStyle, occurrenceStyle, selectedObservationStyle, sighterStyle, travelStyle, viewingLocationStyle} from './style.ts';
 import type Point from 'ol/geom/Point.js';
 import VectorSource from 'ol/source/Vector.js';
 import type Feature from 'ol/Feature.js';
@@ -27,6 +27,8 @@ import type { Coordinate } from 'ol/coordinate.js';
 import type MapBrowserEvent from 'ol/MapBrowserEvent.js';
 import olCSS from 'ol/ol.css?url';
 import type { Occurrence } from './supabase.ts';
+import { LineString } from 'ol/geom.js';
+import { imputeTravelLines } from './travel-lines.ts';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -40,13 +42,21 @@ export type MapMoveDetail = {
 @customElement('obs-map')
 export class ObsMap extends LitElement {
   public drawingSource = new VectorSource();
-  public presenceSource = new VectorSource<Feature<Point>>({
+  public ocurrenceSource = new VectorSource<Feature<Point>>({
     features: [],
     strategy: all,
   });
-  private presenceLayer = new VectorLayer({
-    source: this.presenceSource,
-    style: (feature) => presenceStyle(feature.getProperties() as Occurrence, false),
+  private occurrenceLayer = new VectorLayer({
+    source: this.ocurrenceSource,
+    style: (feature) => occurrenceStyle(feature.getProperties() as Occurrence, false),
+  });
+  private travelSource = new VectorSource<Feature<LineString>>({
+    features: [],
+    strategy: all,
+  });
+  private travelLayer = new VectorLayer({
+    source: this.travelSource,
+    style: (line, res) => travelStyle(line as Feature<LineString>, res),
   })
   private viewingLocationsLayer = new VectorLayer({
     minZoom: 12,
@@ -77,7 +87,7 @@ export class ObsMap extends LitElement {
     style: editStyle,
   });
   #select = new Select({
-    layers: [this.presenceLayer],
+    layers: [this.occurrenceLayer],
     multi: false,
     style: selectedObservationStyle,
   });
@@ -114,12 +124,13 @@ export class ObsMap extends LitElement {
           url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
         }),
       }),
-      this.presenceLayer,
+      this.occurrenceLayer,
+      this.travelLayer,
       this.viewingLocationsLayer,
       this.hydrophoneLayer,
       new VectorLayer({
         source: this.drawingSource,
-        style: (f) => f.get('kind') === 'Sighter' ? sighterStyle : presenceStyle(f.getProperties() as Occurrence),
+        style: (f) => f.get('kind') === 'Sighter' ? sighterStyle : occurrenceStyle(f.getProperties() as Occurrence),
       }),
     ],
     view: this.view,
@@ -197,9 +208,11 @@ export class ObsMap extends LitElement {
     });
   }
 
-  public setFeatures(features: Feature<Point>[]) {
-    this.presenceSource.clear()
-    this.presenceSource.addFeatures(features);
+  public setOccurrences(features: Feature<Point>[]) {
+    this.ocurrenceSource.clear()
+    this.ocurrenceSource.addFeatures(features);
+    this.travelSource.clear()
+    this.travelSource.addFeatures(imputeTravelLines(features));
   }
 
   public selectFeature(feature: Feature) {
@@ -210,7 +223,7 @@ export class ObsMap extends LitElement {
 
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('focusedSightingId') && this.focusedSightingId) {
-      const feature = this.presenceSource.getFeatureById(this.focusedSightingId) as Feature<Point>;
+      const feature = this.ocurrenceSource.getFeatureById(this.focusedSightingId) as Feature<Point>;
       const coords = feature.getGeometry()!.getCoordinates();
       this.ensureCoordsInViewport(coords);
     }

@@ -51,8 +51,8 @@ export const bearingStyle = (feature: Feature<LineString>) => {
   return styles;
 };
 
-export const presenceStyle = (sighting: Occurrence, isSelected = false) => {
-  const {direction, individuals} = sighting;
+export const occurrenceStyle = (occurrence: Occurrence, isSelected = false) => {
+  const {direction, individuals} = occurrence;
   let fill: Fill;
   let stroke: Stroke;
   if (isSelected) {
@@ -78,11 +78,12 @@ export const presenceStyle = (sighting: Occurrence, isSelected = false) => {
         fill: new Fill({color: black}),
         font: '10px monospace',
         offsetY: 1.5,
-        text: symbolFor(sighting),
+        text: symbolFor(occurrence),
         textBaseline: 'middle',
       }),
     }),
   ];
+  // TODO: Add sighting time
   if (individuals.length) {
     styles.push(new Style({
       text: new Text({
@@ -110,7 +111,7 @@ export const presenceStyle = (sighting: Occurrence, isSelected = false) => {
 
 export const selectedObservationStyle = (observation: FeatureLike) => {
   const sighting = observation.getProperties() as Occurrence;
-  return presenceStyle(sighting, true);
+  return occurrenceStyle(sighting, true);
 };
 
 export const travelStyle = (feature: Feature<LineString>, resolution: number) => {

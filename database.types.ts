@@ -219,6 +219,7 @@ export type Database = {
       taxon: {
         scientific_name: string | null
         vernacular_name: string | null
+        species_id: number | null
       }
     }
   }

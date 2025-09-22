@@ -24,8 +24,8 @@ function assertPod(name: string): asserts name is Pod {
   throw `${name} is not a pod`;
 }
 
-const podCleanerRE = /\s*(\+|,|&|and|-)\s*/g;
-const podRE = /\b([jklt]+)\s?(pod|\d)/g;
+const podCleanerRE = /\s*(\+|,|&|AND|-)\s*/g;
+const podRE = /\b([JKLT]+)\s?(POD|\d)/g;
 export const detectPod = (text: Readonly<string>) => {
   for (const [, pods] of text.toUpperCase().replaceAll(podCleanerRE, '').matchAll(podRE)) {
     for (const pod of [...pods!]) {
