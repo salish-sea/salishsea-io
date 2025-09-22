@@ -52,4 +52,11 @@ if (!supabaseUrl)
 export const supabase = createClient<PatchedDatabase, 'public'>(
   supabaseUrl,
   publishableKey,
+  {
+    global: {
+      headers: {
+        Handling: 'handling=struct, max-affected=10, missing=default',
+      },
+    },
+  },
 );
