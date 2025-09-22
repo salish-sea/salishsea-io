@@ -81,7 +81,7 @@ CREATE OR REPLACE FUNCTION maplify.update_sightings (
       v.comments, v.in_ocean, v.moderated, v.trusted, v.is_test, v.source, v.usernm, v.name, v.taxon_id
     )
   WHEN NOT MATCHED BY SOURCE
-    AND created_at BETWEEN start_date::TIMESTAMP AND (end_date + 1)::TIMESTAMP
+    AND s.created_at BETWEEN $1::TIMESTAMP AND ($2 + 1)::TIMESTAMP
     THEN DELETE
   RETURNING s.id, MERGE_ACTION();
 $$;
