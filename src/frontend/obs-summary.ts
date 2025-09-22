@@ -1,6 +1,7 @@
 import { css, LitElement, type PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { html, unsafeStatic } from "lit/static-html.js";
+import { html } from "lit/static-html.js";
+import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import { userContext, type User } from "./identity.ts";
 import { consume } from "@lit/context";
 import { when } from "lit/directives/when.js";
@@ -107,7 +108,7 @@ export class ObsSummary extends LitElement {
       </header>
       <cite>via ${url ? html`<a target="_new" href=${url}>${attribution}</a>` : attribution}</cite>
       ${guard([body], () => html`${
-        unsafeStatic(domPurify.sanitize(marked.parse(body?.replace(/^(<br>)+/, '') || '', {async: false})))
+        unsafeHTML(domPurify.sanitize(marked.parse(body?.replace(/^(<br>)+/, '') || '', {async: false})))
       }`)}
       ${photos?.length ?
         html`<ul class="photos">${
