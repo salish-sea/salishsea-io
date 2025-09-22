@@ -8,7 +8,6 @@
     "build": "tsc && vite build",
     "dev": "vite dev",
     "preview": "vite preview",
-    "serve": "node --env-file=.env ./src/server/main.ts",
     "test": "vitest"
   },
   "dependencies": {
