@@ -73,7 +73,10 @@ CREATE OR REPLACE FUNCTION maplify.update_sightings (
     usernm = v.usernm,
     taxon_id = v.taxon_id
   WHEN NOT MATCHED BY TARGET
-    THEN INSERT VALUES (
+    THEN INSERT (
+      id, project_id, trip_id, scientific_name, location, number_sighted, created_at, photo_url,
+      "comments", in_ocean, moderated, trusted, is_test, "source", usernm, "name", taxon_id
+    ) VALUES (
       v.id, v.project_id, v.trip_id, v.scientific_name, v.location, v.number_sighted, v.created, v.photo_url,
       v.comments, v.in_ocean, v.moderated, v.trusted, v.is_test, v.source, v.usernm, v.name, v.taxon_id
     )
