@@ -39,8 +39,8 @@ export default class PhotoUploader extends LitElement {
       if (!this.user)
         throw new Error("Tried to upload photo before we were signed in!");
       const { id: uid } = this.user;
-      const filename = (file.name || v7()).replace(/[^-a-z0_-]/gi, '_').toLowerCase();
-      const path = `/${uid}/${this.sightingId}/${filename}`;
+      const filename = (file.name || v7()).replace(/[^-a-z0-9\._]/gi, '_').toLowerCase();
+      const path = `${uid}/${this.sightingId}/${filename}`;
       const {data, error} = await supabase.storage.from('media').upload(path, file, {
         cacheControl: 'max-age=259200',
         upsert: true,
