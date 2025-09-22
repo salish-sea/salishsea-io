@@ -6,11 +6,11 @@ import { Temporal } from "temporal-polyfill";
 import './sighting-form.ts';
 import { cameraAddIcon } from "./icons.ts";
 import { consume } from "@lit/context";
-import { doLogInContext, tokenContext } from "./identity.ts";
+import { userContext, type User } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
 import { newSighting } from "./sighting-form.ts";
 import { v7 } from "uuid";
-import type { SightingProperties } from "../types.ts";
+import type { Occurrence } from "./supabase.ts";
 
 const today = Temporal.Now.plainDateISO().toString();
 
@@ -75,11 +75,8 @@ export class ObsPanel extends LitElement {
   @property({type: String, reflect: true})
   private date!: string;
 
-  @consume({context: tokenContext, subscribe: true})
-  private token: string | undefined;
-
-  @consume({context: doLogInContext})
-  private logIn!: () => Promise<boolean>;
+  @consume({context: userContext, subscribe: true})
+  private user: User | undefined;
 
   @property({attribute: false})
   private sightingForForm = {...newSighting(), id: v7()};
@@ -113,20 +110,18 @@ export class ObsPanel extends LitElement {
     `;
   }
 
-  async editSighting(props: SightingProperties) {
+  async editSighting({count, direction, location: {lat, lon}, taxon: {scientific_name}, observed_at}: Occurrence) {
     await this.doShowForm();
     // Prefer PST8PDT for consistency with sighting-form validation
-    const zdt = Temporal.Instant.fromEpochMilliseconds(props.timestamp * 1000)
-      .toZonedDateTimeISO('PST8PDT');
+    const zdt = Temporal.ZonedDateTime.from(observed_at);
     const observed_time = zdt.toPlainTime().toString({ smallestUnit: 'second' });
     this.sightingForForm = {
-      ...newSighting({
-        count: props.count ?? undefined,
-        observed_time,
-        subject_location: `${props.latitude.toFixed(4)}, ${props.longitude.toFixed(4)}`,
-        taxon: props.species,
-        travel_direction: props.direction ?? '',
-      }),
+      ...newSighting(),
+      count: count ?? NaN,
+      observed_time,
+      subject_location: `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+      taxon: scientific_name,
+      travel_direction: direction ?? '',
       id: v7()
     };
   }
@@ -162,14 +157,11 @@ export class ObsPanel extends LitElement {
   }
 
   private async doShowForm() {
-    if (!this.token) {
-      const success = await this.logIn();
-      if (!success)
-        return;
-      // Allow context subscription a microtask to propagate the token.
-      await Promise.resolve();
+    if (!this.user) {
+      this.dispatchEvent(new Event('log-in', {bubbles: true, composed: true}));
+      return;
     }
-    if (!this.token)
+    if (!this.user)
       throw new Error("Login succeeded but token was not available");
 
     this.showForm = true;

@@ -24,5 +24,7 @@ export default defineConfig({
 
   server: {
     allowedHosts: ['peters-macbook-air.local'],
+    port: 3131,
+    strictPort: true,
   },
 });

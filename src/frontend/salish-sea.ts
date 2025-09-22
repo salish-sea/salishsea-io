@@ -2,12 +2,10 @@ import { css, html, LitElement, type PropertyValues} from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import './obs-map.ts';
 import './login-button.ts';
-import { type User } from "@auth0/auth0-spa-js";
-import { doLogIn, doLogInContext, doLogOut, doLogOutContext, getTokenSilently, getUser, tokenContext, userContext } from "./identity.ts";
+import { userContext, type User } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
 import type Point from "ol/geom/Point.js";
-import { isSighting } from "../types.ts";
 import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
 import type Feature from "ol/Feature.js";
@@ -16,10 +14,10 @@ import type VectorSource from "ol/source/Vector.js";
 import type OpenLayersMap from "ol/Map.js";
 import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
-import { SightingLoader } from "./sighting-loader.ts";
-import type { FeatureCollection } from 'geojson';
 import * as Sentry from "@sentry/browser";
 import type { CloneSightingEvent } from "./obs-summary.ts";
+import { occurrence2feature } from "../occurrence.ts";
+import { supabase, type Occurrence } from "./supabase.ts";
 
 Sentry.init({
   dsn: "https://56ce99ce80994bab79dab62d06078c97@o4509634382331904.ingest.us.sentry.io/4509634387509248",
@@ -119,8 +117,6 @@ export default class SalishSea extends LitElement {
     }
   `;
 
-  private sightingLoader = new SightingLoader(this, initialDate);
-
   @provide({context: mapContext})
   olmap: OpenLayersMap | undefined
 
@@ -146,26 +142,25 @@ export default class SalishSea extends LitElement {
 
   @provide({context: userContext})
   @state()
-  protected user: User | undefined;
+  protected user: User | null = null;
 
-  @provide({context: tokenContext})
-  @state()
-  protected token: string | undefined;
-
-  @provide({context: doLogInContext})
-  _doLogIn: () => Promise<boolean>
-
-  @provide({context: doLogOutContext})
-  _doLogOut: () => Promise<void>
-
+  #date: string = initialDate
   @property({type: String, reflect: true})
-  date = initialDate
+  get date() { return this.#date }
+  set date(d: string) {
+    if (d === this.#date)
+      return;
+    this.#date = d;
+    this.fetchOccurrences(d);
+    setQueryParams({d});
+  }
+
+  @property({attribute: false})
+  private sightings: Occurrence[] = []
 
   constructor() {
     super();
-    this._doLogIn = this.doLogIn.bind(this);
-    this._doLogOut = this.doLogOut.bind(this);
-    this.updateAuth();
+    this.updateUser();
     this.addEventListener('log-in', this.doLogIn.bind(this));
     this.addEventListener('log-out', this.doLogOut.bind(this));
     this.addEventListener('focus-sighting', evt => {
@@ -176,11 +171,6 @@ export default class SalishSea extends LitElement {
       if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
         throw "oh no";
       this.date = evt.detail;
-      setQueryParams({d: this.date});
-      this.sightingLoader.dateChanged(this.date);
-    });
-    this.addEventListener('database-changed', () => {
-      this.sightingLoader.fetch();
     });
     this.addEventListener('map-move', (evt) => {
       const {center: [x, y], zoom} = (evt as CustomEvent<MapMoveDetail>).detail;
@@ -194,12 +184,12 @@ export default class SalishSea extends LitElement {
       const sighting = (evt as CloneSightingEvent).detail;
       await this.shadowRoot!.querySelector('obs-panel')!.editSighting(sighting);
     });
+    this.addEventListener('database-changed', async () => {
+      await this.fetchOccurrences(this.date);
+    });
   }
 
   protected render(): unknown {
-    const sightings = this.sightingLoader.features
-      .filter(isSighting)
-      .toSorted((a, b) => b.properties.timestamp - a.properties.timestamp)
     return html`
       <header>
         <h1>SalishSea.io <a @click=${this.onAboutClicked} class="about-link" href="#" title="About SalishSea.io">&#9432;</a></h1>
@@ -222,11 +212,11 @@ export default class SalishSea extends LitElement {
         </dialog>
         <obs-map centerX=${initialX} centerY=${initialY} zoom=${initialZ}></obs-map>
         <obs-panel date=${this.date}>
-          ${repeat(sightings, sighting => sighting.id, feature => {
-            const id = feature.properties.id;
+          ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
+            const id = sighting.id;
             const classes = {focused: id === this.focusedSightingId};
             return html`
-              <obs-summary class=${classMap(classes)} ?focused=${id === this.focusedSightingId} id=${id} .sighting=${feature.properties} />
+              <obs-summary class=${classMap(classes)} id=${`summary-${id}`} ?focused=${id === this.focusedSightingId} .sighting=${sighting} />
             `;
           })}
         </obs-panel>
@@ -234,27 +224,29 @@ export default class SalishSea extends LitElement {
     `;
   }
 
-  setFeatures(collection: FeatureCollection) {
-    this.map.setFeatures(collection);
-  }
-
-  async updateAuth() {
-    this.user = await getUser();
-    this.token = this.user ? await getTokenSilently() : undefined;
-    if (this.user) {
-      Sentry.setUser({email: this.user.email, name: this.user.name});
-    }
-  }
-
-  async doLogIn() {
-    await doLogIn();
-    await this.updateAuth();
-    return !!this.user;
+  doLogIn() {
+    google.accounts.id.prompt();
   }
 
   async doLogOut() {
-    await doLogOut();
-    await this.updateAuth();
+    supabase.auth.signOut();
+    this.user = null;
+    await this.fetchOccurrences(this.date);
+  }
+
+  public async receiveIdToken(token: string) {
+    await supabase.auth.signInWithIdToken({'provider': 'google', token});
+    await this.updateUser();
+  }
+
+  private async updateUser() {
+    const {data, error} = await supabase.auth.getUser();
+    if (error) {
+      console.error(error);
+    } else {
+      this.user = data.user;
+      await this.fetchOccurrences(this.date);
+    }
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
@@ -262,10 +254,18 @@ export default class SalishSea extends LitElement {
     this.drawingSource = this.map.drawingSource;
   }
 
+  receiveSightings(sightings: Occurrence[], forDate: string) {
+    if (forDate !== this.date)
+      return;
+    this.sightings = sightings;
+    const features = sightings.map(occurrence2feature);
+    this.map.setOccurrences(features);
+  }
+
   focusSighting(id: string | undefined) {
     if (!id)
       return;
-    const feature = this.map.temporalSource.getFeatureById(id) as Feature<Point> | null;
+    const feature = this.map.ocurrenceSource.getFeatureById(id) as Feature<Point> | null;
     if (!feature)
       return;
     this.map.selectFeature(feature);
@@ -280,6 +280,16 @@ export default class SalishSea extends LitElement {
   onCloseModal(e: Event) {
     e.preventDefault();
     this.aboutDialog.close();
+  }
+
+  async fetchOccurrences(date: string) {
+    const {data, error} = await supabase.from('occurrences').select().eq('local_date', this.date).order('observed_at', {ascending: true});
+    if (error)
+      return Promise.reject(error);
+    if (!data)
+      return Promise.reject(new Error("Got empty response from presence_on_date"));
+
+    this.receiveSightings(data as Occurrence[], date);
   }
 }
 

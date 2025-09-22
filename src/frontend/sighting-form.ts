@@ -8,11 +8,9 @@ import Point from "ol/geom/Point.js";
 import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
-import { bearingStyle, featureStyle, sighterStyle, type SightingStyleProperties } from "./style.ts";
-import { type UpsertSightingResponse } from "../types.ts";
+import { bearingStyle, occurrenceStyle, sighterStyle } from "./style.ts";
 import { licenseCodes, salishSeaExtent } from '../constants.ts';
 import { Temporal } from "temporal-polyfill";
-import { tokenContext } from "./identity.ts";
 import drawingSourceContext from "./drawing-context.ts";
 import mapContext from './map-context.ts';
 import { LineString } from "ol/geom.js";
@@ -22,10 +20,11 @@ import { repeat } from "lit/directives/repeat.js";
 import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
 import {Task} from '@lit/task';
 import './photo-uploader.ts';
-import { type SightingPayload } from "../api.ts";
 import { TanStackFormController } from '@tanstack/lit-form';
 import { convert as parseCoords } from 'geo-coordinates-parser';
-import { detectIndividuals, symbolFor } from "../identifiers.ts";
+import { detectIndividuals } from "../identifiers.ts";
+import { type License, type Occurrence, type TravelDirection, type UpsertObservationArgs } from "./supabase.ts";
+import { supabase } from "./supabase.ts";
 
 const TAXON_OPTIONS = {
   "Seals and sea lions": {
@@ -77,26 +76,25 @@ export type SightingFormData = {
   count: number;
   observed_time: string;
   observer_location: string;
-  photo_license: string;
+  photo_license: License;
   photo_urls: string[];
   subject_location: string;
   taxon: string;
-  travel_direction: string;
+  travel_direction: TravelDirection | '';
   url: string;
-}
-export function newSighting(initial?: Partial<SightingFormData> | undefined): SightingFormData {
+};
+export function newSighting(): SightingFormData {
   return {
     body: '',
     count: NaN,
     observed_time: '',
     observer_location: '',
-    photo_license: localStorage.getItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY) || 'cc-by',
+    photo_license: localStorage.getItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY) as (License | null) || 'cc-by',
     photo_urls: [],
     subject_location: '',
     taxon: localStorage.getItem(TAXON_CHOICE_STORAGE_KEY) || 'Orcinus orca',
     travel_direction: '',
     url: '',
-    ...initial,
   };
 }
 
@@ -119,16 +117,14 @@ function latLonInBoundsValidator(value: string) {
 export default class SightingForm extends LitElement {
   private _saveTask = new Task(this, {
     autoRun: false,
-    task: async([request]: [Request]) => {
-      const response = await fetch(request);
-      const data: UpsertSightingResponse = await response.json();
-      if (response.ok) {
-        this.dispatchEvent(new CustomEvent('database-changed', {bubbles: true, composed: true}));
-        this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: data.id}));
-        return data;
-      } else {
-        throw response.statusText;
+    task: async([occurrence]: [UpsertObservationArgs]) => {
+      const {data, error} = await supabase.rpc('upsert_observation', occurrence as any);
+      if (error) {
+        throw new Error(`Error saving observation: ${error}`);
       }
+      this.dispatchEvent(new CustomEvent('database-changed', {bubbles: true, composed: true}));
+      this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: occurrence.up_id}));
+      return data;
     }
   });
 
@@ -160,9 +156,6 @@ export default class SightingForm extends LitElement {
   #observerFeature = new Feature(new Point([]));
   #subjectFeature = new Feature(new Point([]));
   #bearingFeature = new Feature(new LineString([]));
-
-  @consume({context: tokenContext, subscribe: true})
-  private token: string | undefined;
 
   private place: PlacePoint | undefined
 
@@ -249,33 +242,25 @@ export default class SightingForm extends LitElement {
     defaultValues: newSighting(),
     onSubmit: ({value}) => {
       const observedAt = Temporal.PlainDate.from(this.date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: value.observed_time});
-      const observerCoords = toLonLat(this.#observerFeature.getGeometry()!.getCoordinates())
-      const subjectCoords = this.#subjectFeature.getGeometry()!.getCoordinates();
-      if (subjectCoords.length !== 2)
+      const [observerX, observerY] = toLonLat(this.#observerFeature.getGeometry()!.getCoordinates())
+      const [subjectX, subjectY] = toLonLat(this.#subjectFeature.getGeometry()!.getCoordinates());
+      if (!subjectX || !subjectY)
         throw new Error("Subject coordinates not set");
 
-      const payload: SightingPayload = {
+      const payload = {
+        up_id: this.sightingId,
         body: value.body,
         count: isNaN(value.count) ? null : value.count,
-        direction: value.travel_direction,
+        direction: value.travel_direction ? value.travel_direction : null,
         observed_at: observedAt.toInstant().toString(),
-        observer_location: observerCoords.length === 2 ? observerCoords as [number, number] : null,
-        photo_license: value.photo_license,
-        photos: value.photo_urls,
-        subject_location: toLonLat(subjectCoords) as [number, number],
-        taxon: value.taxon,
+        observed_from: (observerX && observerY) ? {lon: observerX, lat: observerY} : null,
+        photos: value.photo_urls.map(src => ({attribution: null, src, license: value.photo_license, mimetype: null, thumb: null})),
+        location: {lon: subjectX, lat: subjectY},
+        accuracy: null,
+        taxon: {scientific_name: value.taxon, species_id: null, vernacular_name: null},
         url: value.url,
       };
-      const endpoint = `/api/sightings/${this.sightingId}`;
-      const request = new Request(endpoint, {
-        body: JSON.stringify(payload),
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-        method: 'PUT',
-      });
-      this._saveTask.run([request]);
+      this._saveTask.run([payload]);
       localStorage.setItem('lastTaxon', value.taxon);
     },
   })
@@ -414,7 +399,7 @@ export default class SightingForm extends LitElement {
         ${this.#form.field({name: 'travel_direction'}, field => html`
           <label>
             <span class="label">Travel direction</span>
-            <select name="${field.name}" @change=${(e: Event) => field.handleChange((e.target as HTMLSelectElement).value)}>
+            <select name="${field.name}" @change=${(e: Event) => field.handleChange((e.target as HTMLSelectElement).value as TravelDirection)}>
               ${repeat(Object.entries(DIRECTION_OPTIONS), ([key]) => key, ([key, label]) => html`
                 <option value=${key} ?selected=${key === field.state.value}>${label}</option>
               `)}
@@ -451,7 +436,7 @@ export default class SightingForm extends LitElement {
             <span class="label">Photo license</span>
             <select name="${field.name}" ?required=${this.photos.length > 0} @change=${(e: Event) => {
               const licenseCode = (e.target as HTMLSelectElement).value;
-              field.handleChange(licenseCode);
+              field.handleChange(licenseCode as License);
               localStorage.setItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY, licenseCode);
             }}>
               ${Object.entries(licenseCodes).map(([code, description]) => html`
@@ -559,6 +544,10 @@ export default class SightingForm extends LitElement {
   }
 
   private onSubjectInputChange(value: string) {
+    if (value.trim() === '') {
+      this.#subjectFeature.getGeometry()!.setCoordinates([]);
+      return;
+    }
     try {
       const {decimalLatitude, decimalLongitude} = parseCoords(value, 4);
       this.#subjectFeature.getGeometry()!.setCoordinates(fromLonLat([decimalLongitude, decimalLatitude]));
@@ -601,25 +590,29 @@ export default class SightingForm extends LitElement {
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
     for (const [field, value] of Object.entries(this.initialValues)) {
-      this.#form.api.setFieldValue(field as keyof typeof this.initialValues, value);
+      const typedField = field as keyof typeof this.initialValues;
+      if (typedField === 'photo_urls') {
+        // TODO: rainhead
+        // const typedValue = value as SightingFormData[typeof typedField];
+        // typedValue.forEach((photo_url, index) => this.#form.api.setFieldValue(`photo_urls[${index}]`, photo_url);
+      } else {
+        const typedValue = value as SightingFormData[typeof typedField];
+        this.#form.api.setFieldValue(typedField, typedValue);
+      }
     }
     this.onSubjectInputChange(this.initialValues.subject_location || '');
 
     this.#form.api.baseStore.subscribe(this.updateSubjectProps.bind(this));
 
-    const sightingProperties: SightingStyleProperties = {
-      direction: null,
-      individuals: [],
-      kind: 'Sighting',
-      symbol: '?',
-    }
-    this.#observerFeature.setId(`salishsea:${this.sightingId}/observer`);
-    this.#observerFeature.setProperties({individuals: [], kind: 'Sighter', symbol: undefined});
+    const sightingProperties = newSighting();
+    this.#observerFeature.setId(`${this.sightingId}/observer`);
+    this.#observerFeature.setProperties({individuals: [], kind: 'Sighter'});
     this.#observerFeature.setStyle(sighterStyle);
 
-    this.#subjectFeature.setId(`salishsea:${this.sightingId}`);
+    this.#subjectFeature.setId(this.sightingId);
     this.#subjectFeature.setProperties(sightingProperties);
-    this.#subjectFeature.setStyle(featureStyle);
+    this.updateSubjectProps();
+    this.#subjectFeature.setStyle((f) => occurrenceStyle(f.getProperties() as Occurrence, false));
     this.updateSubjectProps();
 
     this.#bearingFeature.setStyle(feature => bearingStyle(feature as Feature<LineString>));
@@ -638,7 +631,8 @@ export default class SightingForm extends LitElement {
     this.#subjectFeature.setProperties({
       direction: values.travel_direction,
       individuals: detectIndividuals(values.body),
-      symbol: symbolFor({body: values.body, scientific_name: values.taxon, vernacular_name: null}) || '?',
+      // symbol: symbolFor({body: values.body, }) || '?',
+      taxon: {scientific_name: values.taxon, vernacular_name: null},
     });
   }
 

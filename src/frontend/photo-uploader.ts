@@ -1,11 +1,12 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
 import { customElement, property, query, queryAssignedElements } from "lit/decorators.js";
 import { fromLonLat } from "ol/proj.js";
-import { queryStringAppend } from "./util.ts";
 import { Task } from "@lit/task";
 import { classMap } from "lit/directives/class-map.js";
+import { supabase } from "./supabase.ts";
 import { consume } from "@lit/context";
-import { tokenContext } from "./identity.ts";
+import { userContext, type User } from "./identity.ts";
+import { v7 } from "uuid";
 
 
 @customElement('photo-uploader')
@@ -27,48 +28,33 @@ export default class PhotoUploader extends LitElement {
     }
   `;
 
-  @consume({context: tokenContext})
-  private token: string | undefined;
+  @consume({context: userContext, subscribe: true})
+  user: User | undefined;
 
   #uploadTask = new Task(this, {
     args: () => [this.file],
     task: async ([file]) => {
       if (!file)
         return;
-      const endpoint = queryStringAppend(`/api/sightings/${this.sightingId}/uploadUrl`, {
-        contentLength: file.size,
-        contentType: file.type,
-        fileName: file.name,
+      if (!this.user)
+        throw new Error("Tried to upload photo before we were signed in!");
+      const { id: uid } = this.user;
+      const filename = (file.name || v7()).replace(/[^-a-z0-9\._]/gi, '_').toLowerCase();
+      const path = `${uid}/${this.sightingId}/${filename}`;
+      const {data, error} = await supabase.storage.from('media').upload(path, file, {
+        cacheControl: 'max-age=259200',
+        upsert: true,
       });
-      if (!this.token)
-        throw new Error('Not authenticated, cannot upload photo.');
-      const request = new Request(endpoint, {
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-        },
-        method: 'GET',
-      });
-      const resp = await fetch(request)
-      if (resp.status !== 200)
-        throw `Error authorizing upload: ${resp.statusText}`;
-      const signedUrl = new URL(await resp.text());
-      const signedRequest = new Request(signedUrl, {
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-        },
-        method: 'PUT',
-      });
-      const uploadResponse = await fetch(signedRequest);
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+      if (error) {
+        throw new Error(`Upload failed: ${error.message}`);
       }
+      const {data: {publicUrl}} = supabase.storage.from('media').getPublicUrl(data.path);
       for (const input of this.inputs) {
-        input.value = signedUrl.pathname;
+        input.value = publicUrl;
         input.dispatchEvent(new Event('input', { bubbles: true }));
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      return signedUrl.pathname;
+      return publicUrl;
     },
   })
 

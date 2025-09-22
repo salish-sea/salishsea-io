@@ -1,3 +1,5 @@
+import type { Occurrence } from "./frontend/supabase.ts";
+
 const pods = ['J', 'K', 'L', 'T'] as const;
 export type Pod = typeof pods[number];
 export type IndividualOrca = `${typeof pods[number]}${number}` | `${typeof pods[number]}${number}${string}`;
@@ -22,13 +24,13 @@ function assertPod(name: string): asserts name is Pod {
   throw `${name} is not a pod`;
 }
 
-const podCleanerRE = /\s*(\+|,|&|and|-)\s*/gi;
-const podRE = /\b([jklt]+)\s?(pod|\d)/gi;
+const podCleanerRE = /\s*(\+|,|&|AND|-)\s*/g;
+const podRE = /\b([JKLT]+)\s?(POD|\d)/g;
 export const detectPod = (text: Readonly<string>) => {
-  for (const [, pods] of text.replaceAll(podCleanerRE, '').matchAll(podRE)) {
+  for (const [, pods] of text.toUpperCase().replaceAll(podCleanerRE, '').matchAll(podRE)) {
     for (const pod of [...pods!]) {
       assertPod(pod);
-      return pod.toUpperCase();
+      return pod;
     }
   }
   if (detectEcotype(text) === 'Biggs')
@@ -37,7 +39,7 @@ export const detectPod = (text: Readonly<string>) => {
 }
 
 const normalizeIndividual = (name: string) => {
-  return name.replace(/^(J|K|L|T|CRC)0+/, '$1');
+  return name.replace(/^(J|K|L|T|CRC)-?0+/, '$1');
 }
 
 // return an array of identifiers like 'Biggs', 'Transient', 'J', 'K37', etc.
@@ -56,22 +58,22 @@ export const detectIndividuals = (text: Readonly<string>) => {
   return [...matches].sort();
 }
 
-export function symbolFor(
-  {body, scientific_name, vernacular_name}:
-    {body: string | null; scientific_name: string; vernacular_name: string | null}
-): string | undefined {
-  let label = vernacular_name || scientific_name;
+export function symbolFor({body, taxon: {scientific_name, vernacular_name}}: Pick<Occurrence, 'body' | 'taxon'>): string {
   if (scientific_name.startsWith('Orcinus orca')) {
-    label = 'O';
-    if (scientific_name === 'Orcinus orca rectipinnus') {
-      label = 'T';
-    }
-    if (body) {
-      label = detectPod(body) || detectEcotype(body) || label;
-    }
+    const pod = detectPod(body || '');
+    if (pod)
+      return pod;
+    if (scientific_name === 'Orcinus orca rectipinnus')
+      return 'T';
+    const ecotype = detectEcotype(body || '');
+    if (ecotype)
+      return ecotype[0]!;
+    return 'O';
   } else if (scientific_name.startsWith('Phoca vitulina')) {
-    label = 'H';
+    return 'H';
+  } else if (vernacular_name) {
+    return vernacular_name[0]!;
+  } else {
+    return scientific_name[0]!;
   }
-
-  return label[0];
 }
