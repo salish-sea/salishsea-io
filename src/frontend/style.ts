@@ -52,7 +52,7 @@ export const bearingStyle = (feature: Feature<LineString>) => {
 };
 
 export const occurrenceStyle = (occurrence: Occurrence, isSelected = false) => {
-  const {direction, individuals} = occurrence;
+  const {direction, identifiers} = occurrence;
   let fill: Fill;
   let stroke: Stroke;
   if (isSelected) {
@@ -84,14 +84,14 @@ export const occurrenceStyle = (occurrence: Occurrence, isSelected = false) => {
     }),
   ];
   // TODO: Add sighting time
-  if (individuals.length) {
+  if (identifiers && identifiers.length) {
     styles.push(new Style({
       text: new Text({
         backgroundFill: new Fill({color: 'rgba(255, 255, 255, 0.8)'}),
         declutterMode: 'obstacle',
         offsetX: 10,
         padding: [1, 1, 0, 1],
-        text: individuals.join(', '),
+        text: identifiers.join(', '),
         textAlign: 'left',
       }),
     }));

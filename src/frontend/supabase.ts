@@ -7,12 +7,10 @@ type DBOccurrence = Database['public']['Views']['occurrences']['Row'];
 type OccurrenceTaxon = SetNonNullable<Database['public']['CompositeTypes']['taxon'], 'scientific_name'>;
 type PatchedOccurrence = SetNonNullableDeep<
   DBOccurrence,
-  'id' | 'individuals' | 'location' | 'location.lat' | 'location.lon' | 'observed_at' | 'photos' | 'taxon'
+  'id' | 'identifiers' | 'location' | 'location.lat' | 'location.lon' | 'observed_at' | 'photos' | 'taxon'
 >;
 type OccurrencePhoto = SetNonNullable<PatchedOccurrence['photos'][number], 'src'>;
-export type Occurrence = OverrideProperties<PatchedOccurrence, {photos: OccurrencePhoto[], taxon: OccurrenceTaxon}> & {
-  kind?: 'Sighter'
-};
+export type Occurrence = OverrideProperties<PatchedOccurrence, {photos: OccurrencePhoto[], taxon: OccurrenceTaxon}>;
 export type UpsertObservationArgs = Merge<Database['public']['Functions']['upsert_observation']['Args'], {
   accuracy: number | null;
   count: number | null;
