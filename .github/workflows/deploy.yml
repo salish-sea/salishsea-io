@@ -37,6 +37,7 @@ jobs:
     name: Deploy
     needs: build
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
