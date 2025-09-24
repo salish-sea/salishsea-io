@@ -135,7 +135,7 @@ export type Database = {
           count: number | null
           direction: Database["public"]["Enums"]["travel_direction"] | null
           id: string | null
-          individuals: string[] | null
+          identifiers: string[] | null
           is_own_observation: boolean | null
           location: Database["public"]["CompositeTypes"]["lon_lat"] | null
           observed_at: string | null
@@ -150,6 +150,10 @@ export type Database = {
       }
     }
     Functions: {
+      extract_identifiers: {
+        Args: { body: string }
+        Returns: string[]
+      }
       extract_travel_direction: {
         Args: { body: string }
         Returns: Database["public"]["Enums"]["travel_direction"]

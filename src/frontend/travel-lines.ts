@@ -38,7 +38,6 @@ export function imputeTravelLines(occurrences: Feature<Point>[]) {
     if (points.length > 1) {
       const feature = new Feature(new LineString(points.map(point => fromLonLat(point.geometry.coordinates))));
       feature.setId(`line-from-${occurrence.id}`);
-      console.debug(`Adding line ${feature.getId()}`);
       lines.push(feature);
     }
   }
