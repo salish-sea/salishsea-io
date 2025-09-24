@@ -4,6 +4,8 @@ on:
     branches:
       - main
 permissions:
+  contents: read
+  actions: write
   id-token: write
 jobs:
   build:
@@ -15,7 +17,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
 
       - name: Install Dependencies
         uses: bahmutov/npm-install@v1
@@ -46,5 +50,5 @@ jobs:
           aws-region: us-west-2
       - name: Deploy to S3 and invalidate CloudFront
         run: |
-          aws sync dist "s3://${{ vars.S3_BUCKET }}/site"
+          aws s3 sync dist "s3://${{ vars.S3_BUCKET }}/site"
           aws cloudfront create-invalidation --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" --paths /
