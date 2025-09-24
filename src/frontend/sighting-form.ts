@@ -606,7 +606,7 @@ export default class SightingForm extends LitElement {
 
     const sightingProperties = newSighting();
     this.#observerFeature.setId(`${this.sightingId}/observer`);
-    this.#observerFeature.setProperties({individuals: [], kind: 'Sighter'});
+    this.#observerFeature.setProperties({identifiers: [], kind: 'Sighter'});
     this.#observerFeature.setStyle(sighterStyle);
 
     this.#subjectFeature.setId(this.sightingId);
@@ -630,7 +630,7 @@ export default class SightingForm extends LitElement {
     const values = this.#form.api.baseStore.state.values;
     this.#subjectFeature.setProperties({
       direction: values.travel_direction,
-      individuals: detectIndividuals(values.body),
+      identifiers: detectIndividuals(values.body),
       // symbol: symbolFor({body: values.body, }) || '?',
       taxon: {scientific_name: values.taxon, vernacular_name: null},
     });
