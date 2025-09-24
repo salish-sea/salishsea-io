@@ -5,9 +5,9 @@ CREATE OR REPLACE FUNCTION public.extract_identifiers (body text)
   SET search_path = ''
   AS $$
   SELECT
-    coalesce(array_agg(upper(m[1]) || m[2] || lower(m[3])), ARRAY[]::text[])
+    array_agg(upper(m[1]) || m[2] || lower(m[3]) ORDER BY ORDINALITY ASC)
   FROM
-    regexp_matches(body, E'\\m(j|k|l|t|crc)[- ]?0*(\\d[\\da-f]+)(s?)\\M', 'gi') AS m;
+    regexp_matches(body, E'\\m(j|k|l|t|crc)[- ]?0*(\\d[\\da-f]+)(s?)\\M', 'gi') WITH ORDINALITY AS m;
 
 $$;
 
