@@ -1,0 +1,54 @@
+name: Deploy
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+  actions: write
+  id-token: write
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Dependencies
+        uses: bahmutov/npm-install@v1
+
+      - name: Build project
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: ./dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts
+          path: ./dist
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v5 # Or a specific version
+        with:
+          role-to-assume: arn:aws:iam::648183724555:role/salishsea-deploy-action
+          aws-region: us-west-2
+      - name: Deploy to S3 and invalidate CloudFront
+        run: |
+          aws s3 sync dist "s3://${{ vars.S3_BUCKET }}/site"
+          aws cloudfront create-invalidation --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" --paths /

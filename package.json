@@ -9,7 +9,7 @@
     "dev": "vite dev",
     "preview": "vite preview",
     "test": "vitest",
-    "upload": "npm run build && aws --profile salishsea s3 sync dist s3://salishsea-io-dev/site"
+    "upload": "aws-vault exec salishsea -- aws s3 sync dist s3://salishsea-io-dev/site"
   },
   "dependencies": {
     "@formatjs/intl-datetimeformat": "^6.17.3",
