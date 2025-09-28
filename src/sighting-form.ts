@@ -9,7 +9,7 @@ import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
 import { bearingStyle, occurrenceStyle, sighterStyle } from "./style.ts";
-import { licenseCodes, salishSeaExtent } from '../constants.ts';
+import { licenseCodes, salishSeaExtent } from './constants.ts';
 import { Temporal } from "temporal-polyfill";
 import drawingSourceContext from "./drawing-context.ts";
 import mapContext from './map-context.ts';
@@ -22,7 +22,7 @@ import {Task} from '@lit/task';
 import './photo-uploader.ts';
 import { TanStackFormController } from '@tanstack/lit-form';
 import { convert as parseCoords } from 'geo-coordinates-parser';
-import { detectIndividuals } from "../identifiers.ts";
+import { detectIndividuals } from "./identifiers.ts";
 import { type License, type Occurrence, type TravelDirection, type UpsertObservationArgs } from "./supabase.ts";
 import { supabase } from "./supabase.ts";
 

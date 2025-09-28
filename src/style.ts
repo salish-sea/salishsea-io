@@ -7,11 +7,11 @@ import type { FeatureLike } from 'ol/Feature.js';
 import { LineString, Point } from 'ol/geom.js';
 import type Feature from 'ol/Feature.js';
 import Icon from 'ol/style/Icon.js';
-import arrowPNG from '../assets/arrow.png';
-import hydrophoneIcon from '../assets/hydrophone-default.svg?url';
-import { directionToRads } from '../direction.ts';
+import arrowPNG from './assets/arrow.png';
+import hydrophoneIcon from './assets/hydrophone-default.svg?url';
+import { directionToRads } from './direction.ts';
 import type { Occurrence } from './supabase.ts';
-import { symbolFor } from '../identifiers.ts';
+import { symbolFor } from './identifiers.ts';
 
 const black = '#000000';
 const yellow = '#ffff00';

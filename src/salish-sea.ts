@@ -16,7 +16,7 @@ import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import * as Sentry from "@sentry/browser";
 import type { CloneSightingEvent } from "./obs-summary.ts";
-import { occurrence2feature } from "../occurrence.ts";
+import { occurrence2feature } from "./occurrence.ts";
 import { supabase, type Occurrence } from "./supabase.ts";
 
 Sentry.init({

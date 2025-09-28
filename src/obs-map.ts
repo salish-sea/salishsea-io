@@ -7,8 +7,8 @@ import Select, { SelectEvent } from 'ol/interaction/Select.js';
 import {defaults as defaultInteractions} from 'ol/interaction/defaults.js';
 import './obs-panel.ts';
 import './obs-summary.ts';
-import viewingLocationURL from '../assets/orcanetwork-viewing-locations.geojson?url';
-import hydrophonesURL from '../assets/orcasound-hydrophones.geojson?url';
+import viewingLocationURL from './assets/orcanetwork-viewing-locations.geojson?url';
+import hydrophonesURL from './assets/orcasound-hydrophones.geojson?url';
 
 // imports below these lines smell like they support functionality that should be factored out
 import VectorLayer from 'ol/layer/Vector.js';
