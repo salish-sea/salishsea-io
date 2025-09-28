@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "engines": {"node": ">=24.8,<25"},
+  "engines": {
+    "node": "^24.8"
+  },
   "scripts": {
     "build": "tsc && vite build",
     "dev": "vite dev",
@@ -20,6 +22,7 @@
     "@sentry/node": "^10.13.0",
     "@sentry/vite-plugin": "^4.3.0",
     "@supabase/auth-js": "^2.71.1",
+    "@supabase/sentry-js-integration": "^0.3.0",
     "@supabase/supabase-js": "^2.57.4",
     "@tanstack/lit-form": "^1.23.0",
     "@turf/bearing": "^7.2.0",

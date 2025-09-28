@@ -18,8 +18,15 @@ export default defineConfig({
   },
 
   plugins: [sentryVitePlugin({
+    bundleSizeOptimizations: {
+      excludeReplayShadowDom: true,
+      excludeDebugStatements: true,
+      excludeReplayIframe: true,
+      excludeReplayWorker: true,
+    },
     org: "beam-reach",
-    project: "salishsea-io"
+    project: "salishsea-io",
+    sendDefaultPii: true,
   })],
 
   server: {
