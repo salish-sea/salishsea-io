@@ -52,6 +52,8 @@ function imputeLineFrom(start: Candidate, candidates: Candidate[]) {
     const delta_ms = candidate.properties.epoch_ms - last_point.properties.epoch_ms;
     if (delta_ms > 12 * hour_in_ms)
       continue;
+    if (delta_ms < 0)
+      throw new Error("Input occurrences out of order when imputing travel lines");
     const delta_meters = distance(candidate, last_point, {units: 'meters'});
     if (delta_meters > 20000)
       continue;
