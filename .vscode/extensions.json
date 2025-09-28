@@ -1,6 +1,5 @@
 {
   "recommendations": [
-    "editorconfig.editorconfig",
-    "mtxr.sqltools"
+    "editorconfig.editorconfig"
   ]
 }

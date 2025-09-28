@@ -7,32 +7,30 @@ import type { Merge } from 'type-fest';
 
 const hour_in_ms = 60 * 60 * 1000;
 
-export type TravelLineProperties = {
-  bearing: number;
-  kind: 'TravelLine';
-}
-
 type Candidate = Merge<GeoJSON.Feature<GeoJSON.Point, {
   epoch_ms: number;
   species_id: number;
 }>, {id: Occurrence['id']}>;
 
+// Precondition: occurrences are in chronological order.
 export function imputeTravelLines(occurrences: Feature<Point>[]) {
-  const candidates: Candidate[] = occurrences.map(occurrence => ({
-    type: 'Feature' as const,
-    id: occurrence.getId() as Occurrence['id'],
-    geometry: {type: 'Point' as const, coordinates: toLonLat(occurrence.getGeometry()!.getCoordinates()!)},
-    properties: {
-      epoch_ms: Date.parse(occurrence.get('observed_at')),
-      species_id: occurrence.get('taxon').species_id as number, // fib
-    },
-  })).filter(candidate => candidate.properties.species_id);
+  const candidates: Candidate[] = occurrences
+    .map(occurrence => ({
+      type: 'Feature' as const,
+      id: occurrence.getId() as Occurrence['id'],
+      geometry: {type: 'Point' as const, coordinates: toLonLat(occurrence.getGeometry()!.getCoordinates()!)},
+      properties: {
+        epoch_ms: Date.parse(occurrence.get('observed_at')),
+        species_id: occurrence.get('taxon').species_id as number, // fib
+      },
+    }))
+    .filter(candidate => candidate.properties.species_id);
   const placed: Set<Occurrence['id']> = new Set();
   const lines: Feature<LineString>[] = [];
-  for (const occurrence of candidates) {
+  for (const [idx, occurrence] of candidates.entries()) {
     if (placed.has(occurrence.id))
       continue;
-    const points = imputeLineFrom(occurrence, candidates.filter(candidate => !placed.has(candidate.id)));
+    const points = imputeLineFrom(occurrence, candidates.slice(idx + 1).filter(candidate => !placed.has(candidate.id)));
     for (const point of points)
       placed.add(point.id);
     if (points.length > 1) {
@@ -44,6 +42,7 @@ export function imputeTravelLines(occurrences: Feature<Point>[]) {
   return lines;
 }
 
+// Precondition: candidates all occur after start.
 function imputeLineFrom(start: Candidate, candidates: Candidate[]) {
   const points = [start];
   let last_point = start;
@@ -51,8 +50,10 @@ function imputeLineFrom(start: Candidate, candidates: Candidate[]) {
     if (start.properties.species_id !== candidate.properties.species_id)
       continue;
     const delta_ms = candidate.properties.epoch_ms - last_point.properties.epoch_ms;
-    if (delta_ms <= 0 || delta_ms > 12 * hour_in_ms)
+    if (delta_ms > 12 * hour_in_ms)
       continue;
+    if (delta_ms < 0)
+      throw new Error("Input occurrences out of order when imputing travel lines");
     const delta_meters = distance(candidate, last_point, {units: 'meters'});
     if (delta_meters > 20000)
       continue;

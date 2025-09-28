@@ -1,7 +1,7 @@
 import Point from "ol/geom/Point.js";
 import { fromLonLat } from "ol/proj.js";
 import Feature from "ol/Feature.js";
-import type { Occurrence } from "./frontend/supabase.ts";
+import type { Occurrence } from "./supabase.ts";
 
 
 export function occurrence2feature(occurrence: Occurrence): Feature<Point> {

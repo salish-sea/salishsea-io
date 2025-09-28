@@ -6,7 +6,7 @@ import { userContext, type User } from "./identity.ts";
 import { consume } from "@lit/context";
 import { when } from "lit/directives/when.js";
 import { repeat } from "lit/directives/repeat.js";
-import { symbolFor } from "../identifiers.ts";
+import { symbolFor } from "./identifiers.ts";
 import { marked } from 'marked';
 import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";

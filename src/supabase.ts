@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { type Database } from '../../database.types.ts';
+import { type Database } from '../database.types.ts';
 import type { Merge, MergeDeep, OverrideProperties, SetNonNullable, SetNonNullableDeep } from 'type-fest';
 
 export type TravelDirection = Database['public']['Enums']['travel_direction'];
