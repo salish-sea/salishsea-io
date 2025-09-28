@@ -26,7 +26,6 @@ export default defineConfig({
     },
     org: "beam-reach",
     project: "salishsea-io",
-    sendDefaultPii: true,
   })],
 
   server: {
