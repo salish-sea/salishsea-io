@@ -1,12 +1,7 @@
 import type { Occurrence } from "./frontend/supabase.ts";
 
-const pods = ['J', 'K', 'L', 'T'] as const;
-export type Pod = typeof pods[number];
-export type IndividualOrca = `${typeof pods[number]}${number}` | `${typeof pods[number]}${number}${string}`;
-export type Matriline = `${IndividualOrca}s`;
-
 const ecotypeRE = /\b(srkw|southern resident|transient|biggs)\b/gi;
-export const detectEcotype = (text: Readonly<string>) => {
+const detectEcotype = (text: Readonly<string>) => {
   for (const [, ecotype] of text.matchAll(ecotypeRE)) {
     switch (ecotype!.toLowerCase()) {
       case 'biggs': return 'Biggs';
@@ -18,18 +13,11 @@ export const detectEcotype = (text: Readonly<string>) => {
   return null;
 }
 
-function assertPod(name: string): asserts name is Pod {
-  if (name.match(/^([JKLT]|CRC)$/))
-    return;
-  throw `${name} is not a pod`;
-}
-
 const podCleanerRE = /\s*(\+|,|&|AND|-)\s*/g;
 const podRE = /\b([JKLT]+)\s?(POD|\d)/g;
 export const detectPod = (text: Readonly<string>) => {
   for (const [, pods] of text.toUpperCase().replaceAll(podCleanerRE, '').matchAll(podRE)) {
     for (const pod of [...pods!]) {
-      assertPod(pod);
       return pod;
     }
   }
@@ -50,7 +38,7 @@ export const detectIndividuals = (text: Readonly<string>) => {
     pod = pod!.toUpperCase();
     const id = normalizeIndividual(`${pod}${individual!.toUpperCase()}`);
     if (matriline) {
-      matches.add(`${id}s` as Matriline);
+      matches.add(`${id}s`);
     } else {
       matches.add(id);
     }

@@ -1,12 +1,12 @@
 // [minx, miny, maxx, maxy]
-export type Extent = [number, number, number, number];
+type Extent = [number, number, number, number];
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
-export const acartiaExtent: Extent = [-136, 36, -120, 54];
-export const srkwExtent: Extent = [-125.5, 36, -122, 54];
+// export const acartiaExtent: Extent = [-136, 36, -120, 54];
+// export const srkwExtent: Extent = [-125.5, 36, -122, 54];
 export const salishSeaExtent: Extent = [-126, 47, -122, 50.5];
-export const salishSRKWExtent: Extent = [-124, 47, -122, 49.5];
-export const licenseCodes = {
+// export const salishSRKWExtent: Extent = [-124, 47, -122, 49.5];
+export const licenseCodes = Object.freeze({
   "none": "None (all rights reserved)",
   "cc0": "CC0 (public domain)",
   "cc-by": "CC-BY (attribution)",
@@ -15,4 +15,4 @@ export const licenseCodes = {
   "cc-by-nc-nd": "CC-BY-NC-ND (attribution, non-commercial, no derivatives)",
   "cc-by-nd": "CC-BY-ND (attribution, no derivatives)",
   "cc-by-sa": "CC-BY-SA (attribution, share-alike)",
-};
+});

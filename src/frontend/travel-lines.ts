@@ -7,16 +7,12 @@ import type { Merge } from 'type-fest';
 
 const hour_in_ms = 60 * 60 * 1000;
 
-export type TravelLineProperties = {
-  bearing: number;
-  kind: 'TravelLine';
-}
-
 type Candidate = Merge<GeoJSON.Feature<GeoJSON.Point, {
   epoch_ms: number;
   species_id: number;
 }>, {id: Occurrence['id']}>;
 
+// Precondition: occurrences are in chronological order.
 export function imputeTravelLines(occurrences: Feature<Point>[]) {
   const candidates: Candidate[] = occurrences
     .map(occurrence => ({
@@ -47,13 +43,14 @@ export function imputeTravelLines(occurrences: Feature<Point>[]) {
   return lines;
 }
 
+// Precondition: candidates all occur after start.
 function imputeLineFrom(start: Candidate, candidates: Candidate[]) {
   const points = [start];
   let last_point = start;
   for (const candidate of candidates) {
     if (start.properties.species_id !== candidate.properties.species_id)
       continue;
-    const delta_ms = Math.abs(candidate.properties.epoch_ms - last_point.properties.epoch_ms);
+    const delta_ms = candidate.properties.epoch_ms - last_point.properties.epoch_ms;
     if (delta_ms > 12 * hour_in_ms)
       continue;
     const delta_meters = distance(candidate, last_point, {units: 'meters'});
