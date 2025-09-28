@@ -24,8 +24,7 @@ export function imputeTravelLines(occurrences: Feature<Point>[]) {
         species_id: occurrence.get('taxon').species_id as number, // fib
       },
     }))
-    .filter(candidate => candidate.properties.species_id)
-    .reverse();
+    .filter(candidate => candidate.properties.species_id);
   const placed: Set<Occurrence['id']> = new Set();
   const lines: Feature<LineString>[] = [];
   for (const [idx, occurrence] of candidates.entries()) {

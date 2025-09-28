@@ -212,7 +212,7 @@ export class ObsMap extends LitElement {
     this.ocurrenceSource.clear()
     this.ocurrenceSource.addFeatures(features);
     this.travelSource.clear()
-    this.travelSource.addFeatures(imputeTravelLines(features));
+    this.travelSource.addFeatures(imputeTravelLines(features.toReversed()));
   }
 
   public selectFeature(feature: Feature) {
