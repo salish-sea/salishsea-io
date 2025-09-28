@@ -18,26 +18,30 @@ type Candidate = Merge<GeoJSON.Feature<GeoJSON.Point, {
 }>, {id: Occurrence['id']}>;
 
 export function imputeTravelLines(occurrences: Feature<Point>[]) {
-  const candidates: Candidate[] = occurrences.map(occurrence => ({
-    type: 'Feature' as const,
-    id: occurrence.getId() as Occurrence['id'],
-    geometry: {type: 'Point' as const, coordinates: toLonLat(occurrence.getGeometry()!.getCoordinates()!)},
-    properties: {
-      epoch_ms: Date.parse(occurrence.get('observed_at')),
-      species_id: occurrence.get('taxon').species_id as number, // fib
-    },
-  })).filter(candidate => candidate.properties.species_id);
+  const candidates: Candidate[] = occurrences
+    .map(occurrence => ({
+      type: 'Feature' as const,
+      id: occurrence.getId() as Occurrence['id'],
+      geometry: {type: 'Point' as const, coordinates: toLonLat(occurrence.getGeometry()!.getCoordinates()!)},
+      properties: {
+        epoch_ms: Date.parse(occurrence.get('observed_at')),
+        species_id: occurrence.get('taxon').species_id as number, // fib
+      },
+    }))
+    .filter(candidate => candidate.properties.species_id)
+    .reverse();
   const placed: Set<Occurrence['id']> = new Set();
   const lines: Feature<LineString>[] = [];
-  for (const occurrence of candidates) {
+  for (const [idx, occurrence] of candidates.entries()) {
     if (placed.has(occurrence.id))
       continue;
-    const points = imputeLineFrom(occurrence, candidates.filter(candidate => !placed.has(candidate.id)));
+    const points = imputeLineFrom(occurrence, candidates.slice(idx + 1).filter(candidate => !placed.has(candidate.id)));
     for (const point of points)
       placed.add(point.id);
     if (points.length > 1) {
       const feature = new Feature(new LineString(points.map(point => fromLonLat(point.geometry.coordinates))));
       feature.setId(`line-from-${occurrence.id}`);
+      console.debug(`Adding travel line ${feature.getId()}`);
       lines.push(feature);
     }
   }
@@ -50,8 +54,8 @@ function imputeLineFrom(start: Candidate, candidates: Candidate[]) {
   for (const candidate of candidates) {
     if (start.properties.species_id !== candidate.properties.species_id)
       continue;
-    const delta_ms = candidate.properties.epoch_ms - last_point.properties.epoch_ms;
-    if (delta_ms <= 0 || delta_ms > 12 * hour_in_ms)
+    const delta_ms = Math.abs(candidate.properties.epoch_ms - last_point.properties.epoch_ms);
+    if (delta_ms > 12 * hour_in_ms)
       continue;
     const delta_meters = distance(candidate, last_point, {units: 'meters'});
     if (delta_meters > 20000)

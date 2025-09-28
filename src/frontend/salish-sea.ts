@@ -283,7 +283,7 @@ export default class SalishSea extends LitElement {
   }
 
   async fetchOccurrences(date: string) {
-    const {data, error} = await supabase.from('occurrences').select().eq('local_date', this.date).order('observed_at', {ascending: true});
+    const {data, error} = await supabase.from('occurrences').select().eq('local_date', this.date).order('observed_at', {ascending: false});
     if (error)
       return Promise.reject(error);
     if (!data)
