@@ -186,7 +186,7 @@ export default class SalishSea extends LitElement {
       <main>
         <dialog>
           <h3>About SalishSea.io <a @click=${this.onCloseModal} class="close-dialog" href="#">x</a></h3>
-          <p>Communities throughout the Salish Sea are working to monitory and protect the diversity of life it supports. This site serves as a portal into their efforts.</p>
+          <p>Communities throughout the Salish Sea are working to monitor and protect the diversity of life it supports. This site serves as a portal into their efforts.</p>
           <p>We currently show:</p>
           <ul>
             <li><a href="https://www.inaturalist.org/">iNaturalist</a> observations of cetaceans and pinnipeds</li>
