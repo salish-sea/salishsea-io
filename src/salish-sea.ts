@@ -186,15 +186,15 @@ export default class SalishSea extends LitElement {
       <main>
         <dialog>
           <h3>About SalishSea.io <a @click=${this.onCloseModal} class="close-dialog" href="#">x</a></h3>
-          <p>A project of <a href="https://beamreach.blue/">Beam Reach</a>.</p>
-          <p>Communities throughout the Salish Sea are working to protect the diversity of life it supports. This site serves as a portal into their efforts.</p>
+          <p>Communities throughout the Salish Sea are working to monitory and protect the diversity of life it supports. This site serves as a portal into their efforts.</p>
           <p>We currently show:</p>
           <ul>
-            <li><a href="https://www.inaturalist.org/">iNaturalist</a> observations of cetaceans and seals</li>
-            <li>Sightings submitted to the <a href="https://www.whalealert.org/">Whale Alert</a> app by the public</li>
-            <li>Sightings by the <a href="https://www.orcanetwork.org/">Orca Network</a> community</li>
+            <li><a href="https://www.inaturalist.org/">iNaturalist</a> observations of cetaceans and pinnipeds</li>
+            <li>Sightings submitted to the <a href="https://www.whalealert.org/">Whale Alert</a> mobile app by the public</li>
+            <li>Sightings from the <a href="https://www.orcanetwork.org/">Orca Network</a> community</li>
+            <li>Observations of humpbacks within the Salish Sea from <a href="https://happywhale.com">HappyWhale</a> (open data, 2012-April,2025)</li>
           </ul>
-          <p>If you have any feedback, tap the Feedback button in the top-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a></p>
+          <p>If you have any feedback, tap the Feedback button in the bottom-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a> This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen and is funded in 2025-26 by <a href="https://beamreach.blue/">Beam Reach</a>.</p>
         </dialog>
         <obs-map centerX=${initialX} centerY=${initialY} zoom=${initialZ}></obs-map>
         <obs-panel date=${this.date}>
