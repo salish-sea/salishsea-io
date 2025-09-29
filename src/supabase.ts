@@ -45,7 +45,7 @@ if (!publishableKey)
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 if (!supabaseUrl)
-  throw new Error("Please set VITE_SUPABSAE_URL");
+  throw new Error("Please set VITE_SUPABASE_URL");
 
 export const supabase = createClient<PatchedDatabase, 'public'>(
   supabaseUrl,
