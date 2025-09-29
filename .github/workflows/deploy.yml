@@ -30,7 +30,6 @@ jobs:
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           VITE_BASE_URL: ${{ vars.VITE_BASE_URL }}
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
           VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
 
@@ -58,5 +57,5 @@ jobs:
           aws-region: us-west-2
       - name: Deploy to S3 and invalidate CloudFront
         run: |
-          aws s3 sync dist "s3://${{ vars.S3_BUCKET }}/site"
+          aws s3 sync --no-progress dist "s3://${{ vars.S3_BUCKET }}/site"
           aws cloudfront create-invalidation --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" --paths /
