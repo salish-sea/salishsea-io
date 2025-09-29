@@ -192,7 +192,8 @@ export class ObsMap extends LitElement {
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
-    this.view.setCenter([this.centerX, this.centerY, this.zoom]);
+    this.view.setCenter([this.centerX, this.centerY]);
+    this.view.setZoom(this.zoom);
     this.map.setTarget(this.mapElement);
     this.mapElement.addEventListener('pointerdown', evt => {
       if (! evt.altKey)
