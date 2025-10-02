@@ -385,7 +385,7 @@ export default class SightingForm extends LitElement {
         `)}
         ${this.#form.field({
           name: 'subject_location',
-          validators: {onBlur: ({value}) => {
+          validators: {onChange: ({value}) => {
             const latLon = value.trim();
             if (latLon.length > 0)
               return latLonInBoundsValidator(latLon);
