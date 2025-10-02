@@ -1,5 +1,5 @@
 import { css, html, LitElement} from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, query } from "lit/decorators.js";
 import { live } from 'lit/directives/live.js';
 import { keyed } from 'lit/directives/keyed.js';
 import { Temporal } from "temporal-polyfill";
@@ -8,7 +8,7 @@ import { cameraAddIcon } from "./icons.ts";
 import { consume } from "@lit/context";
 import { userContext, type User } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
-import { newSighting } from "./sighting-form.ts";
+import SightingForm, { newSighting } from "./sighting-form.ts";
 import { v7 } from "uuid";
 import type { Occurrence } from "./supabase.ts";
 
@@ -81,6 +81,9 @@ export class ObsPanel extends LitElement {
   @property({attribute: false})
   private sightingForForm = {...newSighting(), id: v7()};
 
+  @query('sighting-form', false)
+  sightingForm!: SightingForm
+
   protected render() {
     const {id, ...sighting} = this.sightingForForm;
     return html`
@@ -124,6 +127,7 @@ export class ObsPanel extends LitElement {
       travel_direction: direction ?? '',
       id: v7()
     };
+    this.sightingForm.scrollIntoView();
   }
 
   private onCancelEdit() {
