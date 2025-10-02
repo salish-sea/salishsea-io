@@ -150,7 +150,13 @@ CREATE OR REPLACE VIEW public.occurrences (
   	'happywhale:' || e.id AS id,
     'https://happywhale.com/individual/' || individual_id || ';enc=' || e.id AS url,
     coalesce(u.display_name, 'a user') || ' on HappyWhale',
-    concat_ws(E'\n\n', verbatim_location, "comments"),
+    concat_ws(
+      E'\n\n',
+      '[' || i.primary_id || '](' || 'https://happywhale.com/individual/' || individual_id || ')' ||
+        CASE i.sex WHEN 'male' THEN '♂' WHEN 'female' THEN '♀' ELSE '' END,
+      '📍 ' || verbatim_location,
+      "comments"
+    ),
     min_count AS count,
     public.extract_travel_direction(comments) AS direction,
     row(gis.ST_X(location::gis.geometry), gis.ST_Y(location::gis.geometry))::lon_lat AS location,
@@ -159,7 +165,7 @@ CREATE OR REPLACE VIEW public.occurrences (
       array_agg(row(u.display_name, mimetype, url, thumb_url, null)::occurrence_photo ORDER BY m.id ASC)
       FROM happywhale.media m
       LEFT JOIN happywhale.users u ON m.user_id = u.id
-      WHERE public AND encounter_id = e.id
+      WHERE public AND encounter_id = e.id AND (license_level LIKE 'CC_%' OR license_level = 'PUBLIC_DOMAIN')
     ),
     (start_date + coalesce(start_time, '12:00:00'::time)) AT TIME ZONE timezone,
     null::lon_lat AS observed_from,
@@ -168,8 +174,10 @@ CREATE OR REPLACE VIEW public.occurrences (
     false AS is_own_observation
   FROM happywhale.encounters AS e
   LEFT JOIN happywhale.users AS u ON e.user_id = u.id
+  JOIN happywhale.individuals AS i ON e.individual_id = i.id
   JOIN happywhale.species AS s ON e.species_id = s.id
   LEFT JOIN inaturalist.taxa AS t ON s.scientific = t.scientific_name
+  WHERE e.public
 
   UNION ALL
 
