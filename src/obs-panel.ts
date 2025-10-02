@@ -113,13 +113,14 @@ export class ObsPanel extends LitElement {
     `;
   }
 
-  async editSighting({count, direction, location: {lat, lon}, taxon: {scientific_name}, observed_at}: Occurrence) {
+  async editSighting({body, count, direction, location: {lat, lon}, taxon: {scientific_name}, observed_at}: Occurrence) {
     await this.doShowForm();
     // Prefer PST8PDT for consistency with sighting-form validation
     const zdt = Temporal.Instant.from(observed_at);
     const observed_time = zdt.toZonedDateTimeISO('PST8PDT').toPlainTime().toString({ smallestUnit: 'second' });
     this.sightingForForm = {
       ...newSighting(),
+      body: body || '',
       count: count ?? NaN,
       observed_time,
       subject_location: `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
