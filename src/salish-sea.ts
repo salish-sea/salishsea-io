@@ -27,9 +27,9 @@ const dateRE = /^(\d\d\d\d-\d\d-\d\d)$/;
 const initialSearchParams = new URLSearchParams(document.location.search);
 const initialQueryDate = initialSearchParams.get('d');
 const initialDate = dateRE.test(initialQueryDate || '') && initialQueryDate || Temporal.Now.plainDateISO('PST8PDT').toString();
-const initialX = parseFloat(initialSearchParams.get('x') || '') || viewInitiallySmall ? -13880076 : -13732579;
-const initialY = parseFloat(initialSearchParams.get('y') || '') || viewInitiallySmall ? 6211076 : 6095660;
-const initialZ = parseFloat(initialSearchParams.get('z') || '') || viewInitiallySmall ? 7 : 8;
+const initialX = parseFloat(initialSearchParams.get('x') || '') || (viewInitiallySmall ? -13880076 : -13732579);
+const initialY = parseFloat(initialSearchParams.get('y') || '') || (viewInitiallySmall ? 6211076 : 6095660);
+const initialZ = parseFloat(initialSearchParams.get('z') || '') || (viewInitiallySmall ? 7 : 8);
 
 @customElement('salish-sea')
 export default class SalishSea extends LitElement {
