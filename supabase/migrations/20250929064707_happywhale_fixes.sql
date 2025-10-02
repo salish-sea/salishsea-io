@@ -3,7 +3,7 @@ CREATE OR REPLACE FUNCTION public.extract_travel_direction(body text) RETURNS pu
 $$;
 
 DROP VIEW public.occurrences cascade;
-
+DROP FUNCTION IF EXISTS happywhale.upsert_encounter;
 ALTER TABLE happywhale.encounters ALTER COLUMN verbatim_location TYPE VARCHAR(2000);
 
 
@@ -115,8 +115,6 @@ CREATE OR REPLACE VIEW public.occurrences (
   JOIN inaturalist.taxa t ON t.id = o.taxon_id;
 
 DROP FUNCTION happywhale.fetch_encounter;
-DROP FUNCTION happywhale.upsert_encounter;
-
 
 CREATE FUNCTION happywhale.fetch_encounter (IN id integer, OUT encounter jsonb, OUT media jsonb) STRICT
 LANGUAGE SQL
@@ -142,7 +140,7 @@ CREATE OR REPLACE FUNCTION happywhale.upsert_encounter (
   encounter jsonb, media jsonb
 ) RETURNS integer 
 LANGUAGE SQL VOLATILE set search_path=''
-BEGIN ATOMIC
+AS $$
   INSERT INTO happywhale.encounters (
     id, start_date, start_time, end_date, end_time, timezone, verbatim_location, location,
     accuracy, precision_source, individual_id, species_id, min_count, max_count, comments,
@@ -222,7 +220,8 @@ BEGIN ATOMIC
     "public"=EXCLUDED.public;
   
   SELECT (encounter->'id')::integer;
-END;
+$$;
+
 CREATE FUNCTION local_date (occurrence occurrences)
   RETURNS date
   LANGUAGE SQL
