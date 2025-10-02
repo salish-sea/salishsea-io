@@ -99,6 +99,8 @@ export function newSighting(): SightingFormData {
 }
 
 function latLonInBoundsValidator(value: string) {
+  if (value.trim().length === 0)
+    return;
   if (value.indexOf(',') === -1)
     return "Expects coordinates like '47.6845, -122.3037'";
   try {
@@ -383,7 +385,11 @@ export default class SightingForm extends LitElement {
         `)}
         ${this.#form.field({
           name: 'subject_location',
-          validators: {onChange: ({value}) => latLonInBoundsValidator(value)},
+          validators: {onChange: ({value}) => {
+            const latLon = value.trim();
+            if (latLon.length > 0)
+              return latLonInBoundsValidator(latLon);
+          }},
         }, field => html`
           <label>
             <span class="label">Subject location</span>

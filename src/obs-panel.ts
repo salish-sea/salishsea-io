@@ -1,5 +1,5 @@
 import { css, html, LitElement} from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, query } from "lit/decorators.js";
 import { live } from 'lit/directives/live.js';
 import { keyed } from 'lit/directives/keyed.js';
 import { Temporal } from "temporal-polyfill";
@@ -8,7 +8,7 @@ import { cameraAddIcon } from "./icons.ts";
 import { consume } from "@lit/context";
 import { userContext, type User } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
-import { newSighting } from "./sighting-form.ts";
+import SightingForm, { newSighting } from "./sighting-form.ts";
 import { v7 } from "uuid";
 import type { Occurrence } from "./supabase.ts";
 
@@ -81,6 +81,9 @@ export class ObsPanel extends LitElement {
   @property({attribute: false})
   private sightingForForm = {...newSighting(), id: v7()};
 
+  @query('sighting-form', false)
+  sightingForm!: SightingForm
+
   protected render() {
     const {id, ...sighting} = this.sightingForForm;
     return html`
@@ -110,13 +113,14 @@ export class ObsPanel extends LitElement {
     `;
   }
 
-  async editSighting({count, direction, location: {lat, lon}, taxon: {scientific_name}, observed_at}: Occurrence) {
+  async editSighting({body, count, direction, location: {lat, lon}, taxon: {scientific_name}, observed_at}: Occurrence) {
     await this.doShowForm();
     // Prefer PST8PDT for consistency with sighting-form validation
-    const zdt = Temporal.ZonedDateTime.from(observed_at);
-    const observed_time = zdt.toPlainTime().toString({ smallestUnit: 'second' });
+    const zdt = Temporal.Instant.from(observed_at);
+    const observed_time = zdt.toZonedDateTimeISO('PST8PDT').toPlainTime().toString({ smallestUnit: 'second' });
     this.sightingForForm = {
       ...newSighting(),
+      body: body || '',
       count: count ?? NaN,
       observed_time,
       subject_location: `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
@@ -124,6 +128,7 @@ export class ObsPanel extends LitElement {
       travel_direction: direction ?? '',
       id: v7()
     };
+    this.sightingForm.scrollIntoView();
   }
 
   private onCancelEdit() {
