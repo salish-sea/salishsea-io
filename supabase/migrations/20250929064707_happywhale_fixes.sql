@@ -2,6 +2,11 @@ CREATE OR REPLACE FUNCTION public.extract_travel_direction(body text) RETURNS pu
   SELECT regexp_replace(lower(substring(body FROM '(?i)\m(north(\W*(east|west)|)|(south(\W*(east|west)|))|west|east)(\W*bound)?\M')), '\W', '', 'g')::public.travel_direction;
 $$;
 
+DROP VIEW public.occurrences cascade;
+
+ALTER TABLE happywhale.encounters ALTER COLUMN verbatim_location TYPE VARCHAR(2000);
+
+
 CREATE OR REPLACE VIEW public.occurrences (
   id,
   url,
@@ -112,7 +117,6 @@ CREATE OR REPLACE VIEW public.occurrences (
 DROP FUNCTION happywhale.fetch_encounter;
 DROP FUNCTION happywhale.upsert_encounter;
 
-ALTER TABLE happywhale.encounters ALTER COLUMN verbatim_location TYPE VARCHAR(2000);
 
 CREATE FUNCTION happywhale.fetch_encounter (IN id integer, OUT encounter jsonb, OUT media jsonb) STRICT
 LANGUAGE SQL
@@ -219,3 +223,11 @@ BEGIN ATOMIC
   
   SELECT (encounter->'id')::integer;
 END;
+CREATE FUNCTION local_date (occurrence occurrences)
+  RETURNS date
+  LANGUAGE SQL
+  STABLE STRICT
+  AS $$
+  SELECT
+    date($1.observed_at at time zone 'PST8PDT')
+$$;
