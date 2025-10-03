@@ -28,7 +28,7 @@ const initialSearchParams = new URLSearchParams(document.location.search);
 const initialQueryDate = initialSearchParams.get('d');
 const initialDate = dateRE.test(initialQueryDate || '') && initialQueryDate || Temporal.Now.plainDateISO('PST8PDT').toString();
 const initialX = parseFloat(initialSearchParams.get('x') || '') || (viewInitiallySmall ? -13732579 : -13880076 );
-const initialY = parseFloat(initialSearchParams.get('y') || '') || (viewInitiallySmall ? 6211076 : 6095660);
+const initialY = parseFloat(initialSearchParams.get('y') || '') || (viewInitiallySmall ? 6095660 : 6211076 );
 const initialZ = parseFloat(initialSearchParams.get('z') || '') || (viewInitiallySmall ? 7 : 8);
 
 @customElement('salish-sea')
