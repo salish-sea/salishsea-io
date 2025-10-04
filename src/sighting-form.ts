@@ -1,4 +1,4 @@
-import { css, html, LitElement, type PropertyValues } from "lit";
+import { css, html, LitElement, unsafeCSS, type PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import { fromLonLat, toLonLat } from "ol/proj.js";
 import { bearing as getBearing } from "@turf/bearing";
@@ -17,14 +17,21 @@ import { LineString } from "ol/geom.js";
 import type Map from "ol/Map.js";
 import PlacePoint from "./place-point.ts";
 import { repeat } from "lit/directives/repeat.js";
-import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
-import {Task} from '@lit/task';
+import {Task, TaskStatus} from '@lit/task';
 import './photo-uploader.ts';
 import { TanStackFormController } from '@tanstack/lit-form';
 import { convert as parseCoords } from 'geo-coordinates-parser';
 import { detectIndividuals } from "./identifiers.ts";
 import { type License, type Occurrence, type TravelDirection, type UpsertObservationArgs } from "./supabase.ts";
 import { supabase } from "./supabase.ts";
+import '@awesome.me/webawesome/dist/components/button/button.js';
+import '@awesome.me/webawesome/dist/components/button-group/button-group.js';
+import '@awesome.me/webawesome/dist/components/divider/divider.js';
+import '@awesome.me/webawesome/dist/components/input/input.js';
+import '@awesome.me/webawesome/dist/components/select/select.js';
+import '@awesome.me/webawesome/dist/components/textarea/textarea.js';
+import gapCss from '@awesome.me/webawesome/dist/styles/utilities/gap.css?raw';
+import layoutCss from '@awesome.me/webawesome/dist/styles/utilities/layout.css?raw';
 
 const TAXON_OPTIONS = {
   "Seals and sea lions": {
@@ -162,47 +169,17 @@ export default class SightingForm extends LitElement {
   private place: PlacePoint | undefined
 
   static styles = css`
+    ${unsafeCSS(layoutCss)}
+    ${unsafeCSS(gapCss)}
     :host {
       display: block;
       font-family: Mukta,Helvetica,Arial,sans-serif;
     }
     form {
-      line-height: 2;
       padding: 0.5rem;
-    }
-    button {
-      align-items: center;
-      cursor: pointer;
-      display: inline-flex;
-      gap: 0.5rem;
-      vertical-align: middle;
-    }
-    label {
-      display: block;
-    }
-    label > span {
-      display: inline-block;
-      vertical-align: top;
-      width: 10em;
-    }
-    label:has(input[required]) .label::after {
-      content: ' *';
-    }
-    .inline-icon {
-      height: 1rem;
-      vertical-align: middle;
-      width: 1rem;
     }
     input[name=photos] {
       display: none;
-    }
-    .thumbnails {
-      display: inline-flex;
-      gap: 0.5rem;
-      width: 10em;
-    }
-    select {
-      max-width: 12rem;
     }
     .field-error {
       color: red;
@@ -210,9 +187,6 @@ export default class SightingForm extends LitElement {
     }
     photo-uploader {
       height: 4rem;
-    }
-    .upload-photo {
-      width: 4rem;
     }
     .actions {
       text-align: right;
@@ -298,6 +272,7 @@ export default class SightingForm extends LitElement {
     return html`
       <input @change=${this.onFilesChanged} type="file" name="photos" accept="image/jpeg" multiple>
       <form
+        class="wa-stack"
         @submit=${(e: Event) => {
           e.preventDefault();
           this.#form.api.handleSubmit();
@@ -313,32 +288,46 @@ export default class SightingForm extends LitElement {
           if (!url)
             return "Should start with https://";
         }}}, field => html`
-          <label>
-            <span class="label">URL</span>
-            <input type="url" name="${field.name}" .value=${field.state.value} @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).value)}>
-          </label>
+          <wa-input
+            type="url"
+            placeholder="Link to URL"
+            name=${field.name}
+            .value=${field.state.value}
+            @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).value)}>
+          </wa-input>
           ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({name: 'taxon'}, field => html`
-          <label>
-            <span class="label">Species</span>
-            <select name="${field.name}" @change=${(e: Event) => {
+          <wa-select
+            placeholder="What did you see?"
+            name=${field.name}
+            .value=${field.state.value}
+            @change=${(e: Event) => {
               const scientificName = (e.target as HTMLSelectElement).value;
               field.handleChange(scientificName);
               localStorage.setItem(TAXON_CHOICE_STORAGE_KEY, scientificName);
             }}>
-              ${Object.entries(TAXON_OPTIONS).map(([group, taxa]) => html`
-                <optgroup label=${group}>${Object.entries(taxa).map(([taxon, label]) => html`
-                  <option value=${taxon} ?selected=${taxon === field.state.value}>${label}</option>
-                `)}</optgroup>
-              `)}
-            </select>
-          </label>
+            ${Object.entries(TAXON_OPTIONS)
+              .map(([group, taxa]) => html`
+                <small>${group}</small>
+                ${Object.entries(taxa)
+                  .map(([taxon, label]) => html`
+                    <wa-option value=${taxon}>${label}</wa-option>
+                `)}
+              `)
+            }
+          </wa-select>
         `)}
-        ${this.#form.field({ name: 'count', }, field => html` <label>
-            <span class="label">Count</span>
-            <input type="number" name="${field.name}" .value=${field.state.value} min="1" max="100" @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).valueAsNumber)}>
-          </label>
+        ${this.#form.field({ name: 'count', }, field => html`
+          <wa-input
+            placeholder="How many?"
+            type="number"
+            name="${field.name}"
+            .value=${field.state.value}
+            min="1"
+            max="100"
+            @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).valueAsNumber)}>
+          </wa-input>
         `)}
         ${this.#form.field({
           name: 'observed_time',
@@ -357,10 +346,14 @@ export default class SightingForm extends LitElement {
             }
           }},
         }, field => html`
-          <label>
-            <span class="label">Time</span>
-            <input type="time" name="${field.name}" step="1" required .value=${field.state.value} @change=${(e: InputEvent) => field.handleChange((e.target as HTMLInputElement).value)}>
-          </label>
+          <wa-input
+            type="time"
+            name="${field.name}"
+            step="1"
+            required
+            .value=${field.state.value}
+            @change=${(e: InputEvent) => field.handleChange((e.target as HTMLInputElement).value)}>
+          </wa-input
           ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({
@@ -371,16 +364,23 @@ export default class SightingForm extends LitElement {
               return latLonInBoundsValidator(latLon);
           }},
         }, field => html`
-          <label>
-            <span class="label">Observer location</span>
-            <input type="text" name="${field.name}" size="14" placeholder="lat, lon" .value=${field.state.value} @change=${(e: InputEvent) => {
+          <wa-input
+            placeholder="Observer location"
+            name="${field.name}"
+            .value=${field.state.value} @change=${(e: InputEvent) => {
               const value = (e.target as HTMLInputElement).value;
               field.handleChange(value);
               this.onObserverInputChange(value);
             }}>
-            <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
-            <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
-          </label>
+            <wa-button-group slot="end">
+              <wa-button size="small" appearance="plain" @click=${this.placeObserver}>
+                <wa-icon label="Place on map" name="location-dot"></wa-icon>
+              </wa-button>
+              <wa-button size="small" appearance="plain" @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)}>
+                <wa-icon label="My location" name="location-arrow"></wa-icon>
+              </wa-button>
+            </wa-button-group>
+          </wa-input>
           ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({
@@ -391,90 +391,85 @@ export default class SightingForm extends LitElement {
               return latLonInBoundsValidator(latLon);
           }},
         }, field => html`
-          <label>
-            <span class="label">Subject location</span>
-            <input type="text" name="${field.name}" size="14" placeholder="lat, lon" required .value=${field.state.value} @change=${(e: InputEvent) => {
+          <wa-input
+            placeholder="Subject location"
+            name=${field.name}
+            size="14"
+            required
+            .value=${field.state.value}
+            @change=${(e: InputEvent) => {
               const value = (e.target as HTMLInputElement).value;
               field.handleChange(value)
               this.onSubjectInputChange(value);
             }}>
-            <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
-          </label>
+            <wa-button-group slot="end">
+              <wa-button size="small" appearance="plain" @click=${this.placeSubject}>
+                <wa-icon label="Locate on map" name="location-dot"></wa-icon>
+              </wa-button>
+            </wa-button-group>
+          </wa-input>
           ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({name: 'travel_direction'}, field => html`
-          <label>
-            <span class="label">Travel direction</span>
-            <select name="${field.name}" @change=${(e: Event) => field.handleChange((e.target as HTMLSelectElement).value as TravelDirection)}>
-              ${repeat(Object.entries(DIRECTION_OPTIONS), ([key]) => key, ([key, label]) => html`
-                <option value=${key} ?selected=${key === field.state.value}>${label}</option>
-              `)}
-            </select>
-          </label>
+          <wa-select
+            name="${field.name}"
+            label="Which way were they headed?"
+            @change=${(e: Event) => field.handleChange((e.target as HTMLSelectElement).value as TravelDirection)}>
+            ${repeat(Object.entries(DIRECTION_OPTIONS), ([key]) => key, ([key, label]) => html`
+              <wa-option value=${key} ?selected=${key === field.state.value}>${label}</wa-option>
+            `)}
+          </wa-select>
         `)}
         ${this.#form.field({name: 'body'}, field => html`
-          <label>
-            <span class="label">Notes</span>
-            <textarea name="${field.name}" rows="3" cols="21" .value=${field.state.value} @change=${(e: Event) => field.handleChange((e.target as HTMLTextAreaElement).value)}></textarea>
-          </label>
+          <wa-textarea
+            placeholder="Notes"
+            name=${field.name}
+            rows="3"
+            .value=${field.state.value}
+            @change=${(e: Event) => field.handleChange((e.target as HTMLTextAreaElement).value)}>
+          </wa-textarea>
         `)}
-        <label>
-          <span>Photos</span>
-          <div class="thumbnails">
-            ${repeat(this.photos, photo => photo, (photo, index) => html`
-              <photo-uploader expected-date=${this.date} sightingId=${this.sightingId} .file=${photo}>
-                ${this.#form.field({name: `photo_urls[${index}]`}, field => html`
-                  <input slot="input" type="hidden" name=${field.name} required @change=${(e: Event) => {
-                    const url = (e.target as HTMLInputElement).value;
-                    field.handleChange(url);
-                  }}>
-                `)}
-              </photo-uploader>
-            `)}
-            <button @click=${this.onUploadClicked} class="upload-photo" type="button">
-              <svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${cameraAddIcon}</svg>
-              <span>Add</span>
-            </button>
-          </div>
-        </label>
+        <div class="wa-cluster wa-gap-2xs">
+          ${repeat(this.photos, photo => photo, (photo, index) => html`
+            <photo-uploader expected-date=${this.date} sightingId=${this.sightingId} .file=${photo}>
+              ${this.#form.field({name: `photo_urls[${index}]`}, field => html`
+                <input slot="input" type="hidden" name=${field.name} required @change=${(e: Event) => {
+                  const url = (e.target as HTMLInputElement).value;
+                  field.handleChange(url);
+                }}>
+              `)}
+            </photo-uploader>
+          `)}
+        </div>
+        <wa-button @click=${this.onUploadClicked} style="align-self: start">
+          <wa-icon name="camera" slot="start"></wa-icon>
+          Add photo
+        </wa-button>
         ${this.#form.field({name: 'photo_license'}, field => html`
-          <label>
-            <span class="label">Photo license</span>
-            <select name="${field.name}" ?required=${this.photos.length > 0} @change=${(e: Event) => {
+          <wa-select
+            label="Photo license"
+            name="${field.name}"
+            ?required=${this.photos.length > 0}
+            @change=${(e: Event) => {
               const licenseCode = (e.target as HTMLSelectElement).value;
               field.handleChange(licenseCode as License);
               localStorage.setItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY, licenseCode);
             }}>
-              ${Object.entries(licenseCodes).map(([code, description]) => html`
-                <option value=${code} ?selected=${code === field.state.value}>${description}</option>
-              `)}
-            </select>
-          </label>
+            ${Object.entries(licenseCodes).map(([code, description]) => html`
+              <wa-option value=${code} ?selected=${code === field.state.value}>${description}</wa-option>
+            `)}
+          </wa-select>
         `)}
-        <div class="actions">
-          ${this._saveTask.render({
-            initial: () => html`
-              <output>${this.#form.api.state.errorMap.onChange || html`&nbsp;`}</output>
-              <button type="button" @click=${this.cancel}>Cancel</button>
-              <button type="submit">Save</button>
-            `,
-            pending: () => html`
-              <output>Saving…</output>
-              <button type="button" @click=${this.cancel}>Cancel</button>
-              <button type="submit" disabled>Save</button>
-            `,
-            complete: () => html`
-              <output class="success">Sighting created.</output>
-              <button type="button" @click=${this.cancel}>Cancel</button>
-              <button type="submit">Save</button>
-            `,
-            error: (error: unknown) => html`
-              <output class="error">${error}</output>
-              <button type="button" @click=${this.cancel}>Cancel</button>
-              <button type="submit">Save</button>
-            `
-          })}
-        </div>
+        <output>${this._saveTask.render({
+          initial: () => html`&nbsp;`,
+          pending: () => html`Saving…`,
+          complete: () => html`Sighting saved`,
+          error: (error: unknown) => html`${error}`,
+        })}</output>
+        <wa-button-group style="align-self: end">
+          <wa-button type="button" @click=${this.cancel}>Cancel</wa-button>
+          <wa-button type="submit" ?disabled=${this._saveTask.status === TaskStatus.PENDING}>Save</wa-button>
+        </wa-button-group>
       </form>
     `;
   }

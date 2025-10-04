@@ -4,13 +4,13 @@ import { live } from 'lit/directives/live.js';
 import { keyed } from 'lit/directives/keyed.js';
 import { Temporal } from "temporal-polyfill";
 import './sighting-form.ts';
-import { cameraAddIcon } from "./icons.ts";
 import { consume } from "@lit/context";
 import { userContext, type User } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
 import SightingForm, { newSighting } from "./sighting-form.ts";
 import { v7 } from "uuid";
 import type { Occurrence } from "./supabase.ts";
+import '@awesome.me/webawesome/dist/components/button/button.js';
 
 const today = Temporal.Now.plainDateISO().toString();
 
@@ -43,26 +43,9 @@ export class ObsPanel extends LitElement {
     input[type=date] {
       -webkit-min-logical-width: 5rem;
     }
-    button {
-      align-items: center;
+    wa-button {
       align-self: flex-start;
-      cursor: pointer;
       display: inline-flex;
-      gap: 0.5rem;
-      vertical-align: middle;
-    }
-    button[name=show] {
-      background-color: rgb(27, 43, 123);
-      border: none;
-      border-radius: 4px;
-      color: white;
-      fill: white;
-      font-weight: 500;
-      padding: 1rem;
-      text-transform: uppercase;
-    }
-    sighting-form {
-      background-color: rgba(128, 128, 128, 0.1);
     }
     .hide {
       display: none;
@@ -105,10 +88,10 @@ export class ObsPanel extends LitElement {
           date=${this.date}
         ></sighting-form>
       `)}
-      <button class=${classMap({hide: this.showForm})} @click=${this.doShowForm} type="button" name="show">
-        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px">${cameraAddIcon}</svg>
-        <span>Add a Sighting</span>
-      </button>
+      <wa-button class=${classMap({hide: this.showForm})} @click=${this.doShowForm} variant="brand" name="show">
+        <wa-icon slot="start" name="camera"></wa-icon>
+        Add a sighting
+      </wa-button>
       <slot></slot>
     `;
   }
