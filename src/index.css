@@ -1,3 +1,6 @@
+@import '@awesome.me/webawesome/dist/styles/themes/default.css';
+@import '@awesome.me/webawesome/dist/styles/utilities/layout.css';
+
 :root {
   font-family: Mukta,Helvetica,Arial,sans-serif;
   line-height: 1.5;

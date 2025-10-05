@@ -12,6 +12,9 @@ import { v7 } from "uuid";
 @customElement('photo-uploader')
 export default class PhotoUploader extends LitElement {
   static styles = css`
+    :host {
+      display: block;
+    }
     div {
       border: 1px solid yellow;
       box-sizing: border-box;
@@ -41,6 +44,7 @@ export default class PhotoUploader extends LitElement {
       const { id: uid } = this.user;
       const filename = (file.name || v7()).replace(/[^-a-z0-9\._]/gi, '_').toLowerCase();
       const path = `${uid}/${this.sightingId}/${filename}`;
+      return path;
       const {data, error} = await supabase.storage.from('media').upload(path, file, {
         cacheControl: 'max-age=259200',
         upsert: true,
