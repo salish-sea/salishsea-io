@@ -1,43 +1,42 @@
 import { createClient } from '@supabase/supabase-js';
 import { type Database } from '../database.types.ts';
-import type { Merge, MergeDeep, OverrideProperties, SetNonNullable, SetNonNullableDeep } from 'type-fest';
+import type { OverrideProperties, SetNonNullable, SetNonNullableDeep } from 'type-fest';
 
-export type TravelDirection = Database['public']['Enums']['travel_direction'];
-type DBOccurrence = Database['public']['Views']['occurrences']['Row'];
-type OccurrenceTaxon = SetNonNullable<Database['public']['CompositeTypes']['taxon'], 'scientific_name'>;
-type PatchedOccurrence = SetNonNullableDeep<
-  DBOccurrence,
-  'id' | 'identifiers' | 'location' | 'location.lat' | 'location.lon' | 'observed_at' | 'photos' | 'taxon'
->;
-type OccurrencePhoto = SetNonNullable<PatchedOccurrence['photos'][number], 'src'>;
-export type Occurrence = OverrideProperties<PatchedOccurrence, {photos: OccurrencePhoto[], taxon: OccurrenceTaxon}>;
-export type UpsertObservationArgs = Merge<Database['public']['Functions']['upsert_observation']['Args'], {
-  accuracy: number | null;
-  count: number | null;
-  direction: TravelDirection | null;
-  observed_from: Database['public']['CompositeTypes']['lon_lat'] | null;
-  photos: OccurrencePhoto[],
-  url: string | null;
-}>;
 export type License = Database['public']['Enums']['license'];
-type PatchedDatabase = MergeDeep<Database, {
-  public: {
-    Functions: {
-      occurrences_on_date: {
-        Return: Occurrence[];
-      };
-      upsert_observation: {
-        Args: UpsertObservationArgs;
-      };
-    };
-    CompositeTypes: {
-      lon_lat: {
-        lon: number;
-        lat: number;
-      };
-    };
-  };
+export type TravelDirection = Database['public']['Enums']['travel_direction'];
+
+type PatchedDatabase = SetNonNullableDeep<
+  Database,
+  'public.CompositeTypes.lat_lng.lat' | 'public.CompositeTypes.lat_lng.lng' |
+  'public.CompositeTypes.lon_lat.lat' | 'public.CompositeTypes.lon_lat.lon' |
+  'public.CompositeTypes.taxon.scientific_name' |
+  'public.Views.occurrences.Row.photos'
+>;
+type LonLat = {lat: number; lon: number;};
+type DBOccurrence = PatchedDatabase['public']['Views']['occurrences']['Row'];
+type Occurrence1 = SetNonNullable<
+  DBOccurrence,
+  'id' | 'location' | 'observed_at' | 'photos' | 'taxon'
+>;
+type Taxon = SetNonNullable<Database['public']['CompositeTypes']['taxon'], 'scientific_name'>;
+export type OccurrencePhoto = SetNonNullable<Occurrence1['photos'][number], 'src'>;
+export type Occurrence = OverrideProperties<Occurrence1, {
+  location: LonLat;
+  photos: OccurrencePhoto[];
+  taxon: Taxon;
 }>;
+
+
+type DBUpsertObservationArgs = PatchedDatabase['public']['Functions']['upsert_observation']['Args'];
+export type UpsertObservationArgs = OverrideProperties<
+  DBUpsertObservationArgs,
+  {
+    accuracy: DBUpsertObservationArgs['accuracy'] | null;
+    count: DBUpsertObservationArgs['count'] | null;
+    direction: DBUpsertObservationArgs['direction'] | null;
+    observed_from: DBUpsertObservationArgs['observed_from'] | null;
+  }
+>;
 
 const publishableKey = import.meta.env.VITE_SUPABASE_KEY;
 if (!publishableKey)

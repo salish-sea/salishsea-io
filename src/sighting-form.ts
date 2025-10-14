@@ -125,7 +125,7 @@ export default class SightingForm extends LitElement {
         throw new Error(`Error saving observation: ${error}`);
       }
       this.dispatchEvent(new CustomEvent('database-changed', {bubbles: true, composed: true}));
-      this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: occurrence.up_id}));
+      this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: occurrence.id}));
       return data;
     }
   });
@@ -250,7 +250,7 @@ export default class SightingForm extends LitElement {
         throw new Error("Subject coordinates not set");
 
       const payload = {
-        up_id: this.sightingId,
+        id: this.sightingId,
         body: value.body,
         count: isNaN(value.count) ? null : value.count,
         direction: value.travel_direction ? value.travel_direction : null,
@@ -259,7 +259,7 @@ export default class SightingForm extends LitElement {
         photos: value.photo_urls.map(src => ({attribution: null, src, license: value.photo_license, mimetype: null, thumb: null})),
         location: {lon: subjectX, lat: subjectY},
         accuracy: null,
-        taxon: {scientific_name: value.taxon, species_id: null, vernacular_name: null},
+        taxon: value.taxon,
         url: value.url,
       };
       this._saveTask.run([payload]);

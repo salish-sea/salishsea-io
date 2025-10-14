@@ -123,6 +123,7 @@ export class ObsSummary extends LitElement {
         `)}
         ${when(is_own_observation, () => html`
           <li><a href="#" @click=${this.onDelete}>Delete</a></li>
+          <li><a href="#" @click=${this.onEdit}>Edit</a></li>
         `)}
       </ul>
     `
@@ -152,9 +153,15 @@ export class ObsSummary extends LitElement {
     const evt = new CustomEvent('database-changed', {bubbles: true, composed: true});
     this.dispatchEvent(evt);
   }
+
+  private async onEdit(e: Event) {
+    e.preventDefault();
+    this.dispatchEvent(new CustomEvent('edit-sighting', {bubbles: true, composed: true, detail: this.sighting}));
+  }
 }
 
 export type CloneSightingEvent = CustomEvent<Occurrence>;
+export type EditSightingEvent = CustomEvent<Occurrence>;
 
 declare global {
   interface HTMLElementTagNameMap {
