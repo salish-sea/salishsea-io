@@ -45,7 +45,7 @@ export async function uploadPhoto(file: File, sightingId: string): Promise<strin
     throw new Error(`Error identifying user during photo upload: ${authError}`);
   const {id: uid} = authData.user;
 
-  const filename = (file.name || v7()).replace(/[^-a-z0-9\._]/gi, '_').toLowerCase();
+  const filename = (file.name?.trim() || v7()).replace(/[^-a-z0-9\._]/gi, '_').toLowerCase();
   const path = `${uid}/${sightingId}/${filename}`;
 
   const {data, error} = await supabase.storage.from('media').upload(path, file, {
@@ -95,9 +95,10 @@ export default class PhotoAttachment extends LitElement {
   photo!: Readonly<Photo>
 
   protected render(): TemplateResult {
+    const thumb = this.photo.thumb || "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
     return html`
       <button type="button" class="remove" aria-label="Remove this image" @click=${this.onRemove}><span aria-hidden="true">❌</span></button>
-      <img src=${this.photo.thumb}>
+      <img src=${thumb} alt="Photo evidence of subject">
     `;
   }
 
