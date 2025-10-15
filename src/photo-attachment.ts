@@ -6,7 +6,7 @@ import { supabase } from './supabase.ts';
 import { v7 } from 'uuid';
 
 export type UploadingPhoto = {state: 'uploading'; file: File; thumb: string};
-export type FailedUploadPhoto = {state: 'failed'; file: File; thumb: string; error: string};
+export type FailedUploadPhoto = {state: 'failed'; file: File; thumb: string; error: unknown};
 export type UploadedPhoto = {state: 'uploaded'; thumb: string; url: string};
 export type AttachedPhoto = {state: 'attached'; thumb: string | null; url: string};
 export type RemovedPhoto = {state: 'removed'; thumb: string | null};
