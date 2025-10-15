@@ -162,18 +162,34 @@ export type Database = {
         Args: { occurrence: unknown }
         Returns: string
       }
+      postgres_fdw_disconnect: {
+        Args: { "": string }
+        Returns: boolean
+      }
+      postgres_fdw_disconnect_all: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      postgres_fdw_get_connections: {
+        Args: Record<PropertyKey, never>
+        Returns: Record<string, unknown>[]
+      }
+      postgres_fdw_handler: {
+        Args: Record<PropertyKey, never>
+        Returns: unknown
+      }
       upsert_observation: {
         Args: {
           accuracy: number
           body: string
           count: number
           direction: Database["public"]["Enums"]["travel_direction"]
+          id: string
           location: Database["public"]["CompositeTypes"]["lon_lat"]
           observed_at: string
           observed_from: Database["public"]["CompositeTypes"]["lon_lat"]
           photos: Database["public"]["CompositeTypes"]["occurrence_photo"][]
-          taxon: Database["public"]["CompositeTypes"]["taxon"]
-          up_id: string
+          taxon: string
           url: string
         }
         Returns: string
