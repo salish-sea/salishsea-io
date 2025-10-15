@@ -3,6 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 import type { Coordinate } from 'ol/coordinate.js';
 import { fromLonLat } from 'ol/proj.js';
 import { supabase } from './supabase.ts';
+import { v7 } from 'uuid';
 
 export type UploadingPhoto = {state: 'uploading'; file: File; thumb: string};
 export type FailedUploadPhoto = {state: 'failed'; file: File; thumb: string; error: string};
