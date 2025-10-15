@@ -149,7 +149,14 @@ export default class SalishSea extends LitElement {
 
   constructor() {
     super();
-    this.updateUser();
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        this.user = session?.user || null;
+      } else if (event === 'SIGNED_OUT') {
+        this.user = null;
+      }
+      this.fetchOccurrences(this.date).catch(err => console.error(err));
+    });
     this.addEventListener('log-in', this.doLogIn.bind(this));
     this.addEventListener('log-out', this.doLogOut.bind(this));
     this.addEventListener('focus-sighting', evt => {
@@ -224,23 +231,11 @@ export default class SalishSea extends LitElement {
 
   async doLogOut() {
     supabase.auth.signOut();
-    this.user = null;
     await this.fetchOccurrences(this.date);
   }
 
   public async receiveIdToken(token: string) {
     await supabase.auth.signInWithIdToken({'provider': 'google', token});
-    await this.updateUser();
-  }
-
-  private async updateUser() {
-    const {data, error} = await supabase.auth.getUser();
-    if (error) {
-      console.error(error);
-    } else {
-      this.user = data.user;
-      await this.fetchOccurrences(this.date);
-    }
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
