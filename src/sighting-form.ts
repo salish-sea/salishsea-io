@@ -17,14 +17,18 @@ import { LineString } from "ol/geom.js";
 import type Map from "ol/Map.js";
 import PlacePoint from "./place-point.ts";
 import { repeat } from "lit/directives/repeat.js";
+import {createRef, ref} from 'lit/directives/ref.js';
 import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
 import {Task} from '@lit/task';
-import './photo-uploader.ts';
+import './photo-attachment.ts';
 import { TanStackFormController } from '@tanstack/lit-form';
 import { convert as parseCoords } from 'geo-coordinates-parser';
 import { detectIndividuals } from "./identifiers.ts";
 import { type License, type Occurrence, type TravelDirection, type UpsertObservationArgs } from "./supabase.ts";
 import { supabase } from "./supabase.ts";
+import PhotoAttachment, { photoThumbnail, readExif, uploadPhoto, type FailedUploadPhoto, type Photo, type UploadedPhoto } from "./photo-attachment.ts";
+import type { Coordinate } from "ol/coordinate.js";
+
 
 const TAXON_OPTIONS = {
   "Seals and sea lions": {
@@ -34,7 +38,7 @@ const TAXON_OPTIONS = {
     "Mirounga angustirostris": "Elephant seal",
   },
   "Dolphins and porpoises": {
-    "Phoca vitulina richardii": "Harbor porpoise",
+    "Phocoena phocoena": "Harbor porpoise",
     "Phocoenoides dalli": "Dall's porpoise",
     "Sagmatias obliquidens": "Pacific white-sided dolphin",
   },
@@ -77,25 +81,44 @@ export type SightingFormData = {
   observed_time: string;
   observer_location: string;
   photo_license: License;
-  photo_urls: string[];
+  photos: Photo[];
   subject_location: string;
   taxon: string;
   travel_direction: TravelDirection | '';
   url: string;
 };
+function getPhotoLicense() {
+  return localStorage.getItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY) as (License | null) || 'cc-by';
+}
 export function newSighting(): SightingFormData {
   return {
     body: '',
     count: NaN,
     observed_time: '',
     observer_location: '',
-    photo_license: localStorage.getItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY) as (License | null) || 'cc-by',
-    photo_urls: [],
+    photo_license: getPhotoLicense(),
+    photos: [],
     subject_location: '',
     taxon: localStorage.getItem(TAXON_CHOICE_STORAGE_KEY) || 'Orcinus orca',
     travel_direction: '',
     url: '',
   };
+}
+export function observationToFormData(observation: Occurrence): SightingFormData & {id: string} {
+  const observedAt = Temporal.Instant.from(observation.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDateTime();
+  return {
+    body: observation.body || '',
+    count: observation.count || NaN,
+    id: observation.id,
+    observed_time: observedAt.toPlainTime().toString(),
+    observer_location: observation.observed_from ? `${observation.observed_from.lat.toFixed(4)}, ${observation.observed_from.lon.toFixed(4)}` : '',
+    photo_license: observation.photos[0]?.license || getPhotoLicense(),
+    photos: observation.photos.map(photo => ({state: 'attached' as const, thumb: photo.thumb || photo.src, url: photo.src})),
+    subject_location: `${observation.location.lat.toFixed(4)}, ${observation.location.lon.toFixed(4)}`,
+    taxon: observation.taxon.scientific_name,
+    travel_direction: observation.direction || '',
+    url: observation.url || '',
+  }
 }
 
 function latLonInBoundsValidator(value: string) {
@@ -134,7 +157,7 @@ export default class SightingForm extends LitElement {
   sightingId!: string
 
   @property()
-  private photos: File[] = []
+  private photos: Photo[] = []
 
   #date = '';
   @property({type: String, reflect: true})
@@ -199,7 +222,6 @@ export default class SightingForm extends LitElement {
     .thumbnails {
       display: inline-flex;
       gap: 0.5rem;
-      width: 10em;
     }
     select {
       max-width: 12rem;
@@ -208,7 +230,7 @@ export default class SightingForm extends LitElement {
       color: red;
       text-align: right;
     }
-    photo-uploader {
+    photo-attachment {
       height: 4rem;
     }
     .upload-photo {
@@ -237,8 +259,7 @@ export default class SightingForm extends LitElement {
   @query('input[name=subject_location]', true)
   private subjectLocationInput: HTMLInputElement | undefined
 
-  @query('input[name=photos]', true)
-  private photosInput: HTMLInputElement | undefined
+  private photosInputRef = createRef<HTMLInputElement>()
 
   #form = new TanStackFormController(this, {
     defaultValues: newSighting(),
@@ -249,6 +270,16 @@ export default class SightingForm extends LitElement {
       if (!subjectX || !subjectY)
         throw new Error("Subject coordinates not set");
 
+      const photos = this.photos
+        .filter(photo => photo.state === 'attached' || photo.state === 'uploaded')
+        .map(photo => ({
+          attribution: null,
+          src: photo.url,
+          license: value.photo_license,
+          mimetype: null,
+          thumb: photo.thumb,
+        }));
+
       const payload = {
         id: this.sightingId,
         body: value.body,
@@ -256,7 +287,7 @@ export default class SightingForm extends LitElement {
         direction: value.travel_direction ? value.travel_direction : null,
         observed_at: observedAt.toInstant().toString(),
         observed_from: (observerX && observerY) ? {lon: observerX, lat: observerY} : null,
-        photos: value.photo_urls.map(src => ({attribution: null, src, license: value.photo_license, mimetype: null, thumb: null})),
+        photos,
         location: {lon: subjectX, lat: subjectY},
         accuracy: null,
         taxon: value.taxon,
@@ -269,34 +300,18 @@ export default class SightingForm extends LitElement {
 
   constructor() {
     super();
-
-    this.addEventListener('coordinates-detected', (e) => {
-      if (!(e instanceof CustomEvent) || !Array.isArray(e.detail))
-        throw "Bad coordinates-detected event";
-
-      if (this.#observerFeature.getGeometry()!.getCoordinates().length === 0)
-        this.#observerFeature.getGeometry()!.setCoordinates(e.detail);
+    this.addEventListener('remove-photo', e => {
+      const photo = (e.target as PhotoAttachment).photo;
+      this.removePhoto(photo);
     });
-
-    this.addEventListener('datetime-detected', (e) => {
-      if (!(e instanceof CustomEvent) || typeof e.detail !== 'string')
-        throw "Bad datetime-detected event";
-
-      const [date, time] = e.detail.split(' ');
-      if (time && this.timeInput!.value === '') {
-        this.timeInput!.value = time;
-        this.timeInput!.dispatchEvent(new Event('change'));
-      }
-      if (date !== this.date) {
-        const dateSelected = new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date});
-        this.dispatchEvent(dateSelected);
-      }
-    })
   }
 
   protected render() {
+    const {canSubmit, isPristine, isValid} = this.#form.api.state;
+    const enableSubmit = canSubmit && isValid && !isPristine
+      && this.photos.filter(photo => photo.state === 'failed' || photo.state === 'uploading').length === 0;
     return html`
-      <input @change=${this.onFilesChanged} type="file" name="photos" accept="image/jpeg" multiple>
+      <input ${ref(this.photosInputRef)} @change=${this.onFilesChanged} type="file" name="photos" accept="image/jpeg" multiple>
       <form
         @submit=${(e: Event) => {
           e.preventDefault();
@@ -421,15 +436,9 @@ export default class SightingForm extends LitElement {
         <label>
           <span>Photos</span>
           <div class="thumbnails">
-            ${repeat(this.photos, photo => photo, (photo, index) => html`
-              <photo-uploader expected-date=${this.date} sightingId=${this.sightingId} .file=${photo}>
-                ${this.#form.field({name: `photo_urls[${index}]`}, field => html`
-                  <input slot="input" type="hidden" name=${field.name} required @change=${(e: Event) => {
-                    const url = (e.target as HTMLInputElement).value;
-                    field.handleChange(url);
-                  }}>
-                `)}
-              </photo-uploader>
+            ${repeat(this.photos.filter(photo => photo.state !== 'removed'), photo => photo, photo => html`
+              <photo-attachment class=${photo.state} .photo=${photo}>
+              </photo-attachment>
             `)}
             <button @click=${this.onUploadClicked} class="upload-photo" type="button">
               <svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${cameraAddIcon}</svg>
@@ -440,7 +449,7 @@ export default class SightingForm extends LitElement {
         ${this.#form.field({name: 'photo_license'}, field => html`
           <label>
             <span class="label">Photo license</span>
-            <select name="${field.name}" ?required=${this.photos.length > 0} @change=${(e: Event) => {
+            <select name="${field.name}" ?required=${this.photos.filter(photo => photo.state !== 'removed').length > 0} @change=${(e: Event) => {
               const licenseCode = (e.target as HTMLSelectElement).value;
               field.handleChange(licenseCode as License);
               localStorage.setItem(PHOTO_LICENSE_CHOICE_STORAGE_KEY, licenseCode);
@@ -456,7 +465,7 @@ export default class SightingForm extends LitElement {
             initial: () => html`
               <output>${this.#form.api.state.errorMap.onChange || html`&nbsp;`}</output>
               <button type="button" @click=${this.cancel}>Cancel</button>
-              <button type="submit">Save</button>
+              <button type="submit" ?disabled=${!enableSubmit}>Save</button>
             `,
             pending: () => html`
               <output>Saving…</output>
@@ -466,17 +475,22 @@ export default class SightingForm extends LitElement {
             complete: () => html`
               <output class="success">Sighting created.</output>
               <button type="button" @click=${this.cancel}>Cancel</button>
-              <button type="submit">Save</button>
+              <button type="submit" ?disabled=${!enableSubmit}>Save</button>
             `,
             error: (error: unknown) => html`
               <output class="error">${error}</output>
               <button type="button" @click=${this.cancel}>Cancel</button>
-              <button type="submit">Save</button>
+              <button type="submit" ?disabled=${!enableSubmit}>Save</button>
             `
           })}
         </div>
       </form>
     `;
+  }
+
+  removePhoto(photo: Photo) {
+    const index = this.photos.indexOf(photo);
+    this.photos = this.photos.toSpliced(index, 1, {...photo, state: 'removed'});
   }
 
   private locateMe() {
@@ -496,24 +510,74 @@ export default class SightingForm extends LitElement {
     e.preventDefault();
   }
 
-  private onDrop(e: DragEvent) {
+  private async onDrop(e: DragEvent) {
     const transfer = e.dataTransfer;
     if (!transfer?.files.length)
       return;
     e.preventDefault();
 
-    this.photos = [...this.photos, ...transfer.files];
+    await this.appendPhotos([...transfer.files]);
   }
 
-  private onFilesChanged() {
-    if (!this.photosInput?.files)
+  private async onFilesChanged() {
+    const files = this.photosInputRef.value?.files;
+    if (!files)
       return;
-    this.photos = [...this.photos, ...this.photosInput.files];
-    this.photosInput.value = '';
+    await this.appendPhotos([...files])
+    this.photosInputRef.value!.value = '';
+  }
+
+  private async appendPhotos(files: File[]) {
+    const photos = [...this.photos];
+    for (const file of files) {
+      const index = photos.length;
+      const thumb = await photoThumbnail(file);
+      photos.push({state: 'uploading' as const, file, thumb});
+
+      const {coordinates, date, time} = await readExif(file);
+      if (coordinates)
+        this.receiveCoordinatesFromUpload(coordinates);
+      if (date)
+        this.receiveDateFromUpload(date);
+      if (time)
+        this.receiveTimeFromUpload(time);
+
+      uploadPhoto(file, this.sightingId).then(url => {
+        if (this.photos[index]?.state === 'removed')
+          return;
+        const uploaded: UploadedPhoto = {state: 'uploaded', thumb, url};
+        this.photos = this.photos.toSpliced(index, 1, uploaded);
+      }).catch(error => {
+        if (this.photos[index]?.state === 'removed')
+          return;
+        const errored: FailedUploadPhoto = {state: 'failed', file, thumb, error};
+        this.photos = this.photos.toSpliced(index, 1, errored);
+      });
+    }
+    this.photos = photos;
+  }
+
+  private receiveDateFromUpload(date: string) {
+    if (date !== this.date) {
+      const dateSelected = new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date});
+      this.dispatchEvent(dateSelected);
+    }
+  }
+
+  private receiveTimeFromUpload(time: string) {
+    if (this.timeInput!.value === '') {
+      this.timeInput!.value = time;
+      this.timeInput!.dispatchEvent(new Event('change'));
+    }
+  }
+
+  private receiveCoordinatesFromUpload(coords: Coordinate) {
+    if (this.#observerFeature.getGeometry()!.getCoordinates().length === 0)
+      this.#observerFeature.getGeometry()!.setCoordinates(coords);
   }
 
   private onUploadClicked() {
-    this.photosInput!.click();
+    this.photosInputRef.value!.click();
   }
 
   private placeObserver() {
@@ -597,10 +661,8 @@ export default class SightingForm extends LitElement {
   protected firstUpdated(_changedProperties: PropertyValues): void {
     for (const [field, value] of Object.entries(this.initialValues)) {
       const typedField = field as keyof typeof this.initialValues;
-      if (typedField === 'photo_urls') {
-        // TODO: rainhead
-        // const typedValue = value as SightingFormData[typeof typedField];
-        // typedValue.forEach((photo_url, index) => this.#form.api.setFieldValue(`photo_urls[${index}]`, photo_url);
+      if (typedField === 'photos') {
+        this.photos = value as SightingFormData[typeof typedField];
       } else {
         const typedValue = value as SightingFormData[typeof typedField];
         this.#form.api.setFieldValue(typedField, typedValue);

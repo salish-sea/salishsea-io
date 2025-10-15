@@ -8,7 +8,7 @@ import { cameraAddIcon } from "./icons.ts";
 import { consume } from "@lit/context";
 import { userContext, type User } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
-import SightingForm, { newSighting } from "./sighting-form.ts";
+import SightingForm, { newSighting, observationToFormData } from "./sighting-form.ts";
 import { v7 } from "uuid";
 import type { Occurrence } from "./supabase.ts";
 
@@ -113,21 +113,10 @@ export class ObsPanel extends LitElement {
     `;
   }
 
-  async editSighting({body, count, direction, location: {lat, lon}, taxon: {scientific_name}, observed_at}: Occurrence) {
+  async editObservation(observation: Occurrence) {
     await this.doShowForm();
     // Prefer PST8PDT for consistency with sighting-form validation
-    const zdt = Temporal.Instant.from(observed_at);
-    const observed_time = zdt.toZonedDateTimeISO('PST8PDT').toPlainTime().toString({ smallestUnit: 'second' });
-    this.sightingForForm = {
-      ...newSighting(),
-      body: body || '',
-      count: count ?? NaN,
-      observed_time,
-      subject_location: `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
-      taxon: scientific_name,
-      travel_direction: direction ?? '',
-      id: v7()
-    };
+    this.sightingForForm = observationToFormData(observation);
     this.sightingForm.scrollIntoView();
   }
 

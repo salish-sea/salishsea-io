@@ -156,7 +156,7 @@ export class ObsSummary extends LitElement {
 
   private async onEdit(e: Event) {
     e.preventDefault();
-    this.dispatchEvent(new CustomEvent('edit-sighting', {bubbles: true, composed: true, detail: this.sighting}));
+    this.dispatchEvent(new CustomEvent('edit-observation', {bubbles: true, composed: true, detail: this.sighting}));
   }
 }
 

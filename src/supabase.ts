@@ -22,6 +22,7 @@ type Taxon = SetNonNullable<Database['public']['CompositeTypes']['taxon'], 'scie
 export type OccurrencePhoto = SetNonNullable<Occurrence1['photos'][number], 'src'>;
 export type Occurrence = OverrideProperties<Occurrence1, {
   location: LonLat;
+  observed_from: LonLat | null;
   photos: OccurrencePhoto[];
   taxon: Taxon;
 }>;

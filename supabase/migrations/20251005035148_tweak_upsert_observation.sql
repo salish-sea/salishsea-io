@@ -1,3 +1,5 @@
+GRANT usage ON SCHEMA gis TO authenticated;
+
 DROP FUNCTION public.upsert_observation;
 CREATE OR REPLACE FUNCTION public.upsert_observation(
   id observations.id%TYPE,

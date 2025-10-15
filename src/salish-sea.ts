@@ -18,6 +18,7 @@ import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { occurrence2feature } from "./occurrence.ts";
 import { supabase, type Occurrence } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
+import { v7 } from "uuid";
 
 sentryClient.init();
 
@@ -170,11 +171,12 @@ export default class SalishSea extends LitElement {
     });
     this.addEventListener('clone-sighting', async (evt) => {
       const sighting = (evt as CloneSightingEvent).detail;
-      await this.shadowRoot!.querySelector('obs-panel')!.editSighting(sighting);
+      const clone = {...sighting, id: v7()};
+      await this.shadowRoot!.querySelector('obs-panel')!.editObservation(clone);
     });
-    this.addEventListener('edit-sighting', async (evt) => {
+    this.addEventListener('edit-observation', async (evt) => {
       const sighting = (evt as EditSightingEvent).detail;
-      await this.shadowRoot!.querySelector('obs-panel')!.editSighting(sighting);
+      await this.shadowRoot!.querySelector('obs-panel')!.editObservation(sighting);
     });
     this.addEventListener('database-changed', async () => {
       await this.fetchOccurrences(this.date);
