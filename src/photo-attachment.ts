@@ -13,8 +13,8 @@ export type RemovedPhoto = {state: 'removed'; thumb: string | null};
 export type Photo = UploadingPhoto | FailedUploadPhoto | UploadedPhoto | AttachedPhoto | RemovedPhoto;
 
 export async function readExif(file: File) {
-  const ExifReader = await import('exifreader');
-  const {exif, gps} = await ExifReader.load(file, {async: true, expanded: true});
+  const {load} = await import('exifreader');
+  const {exif, gps} = await load(file, {async: true, expanded: true});
   let coordinates: Coordinate | undefined;
 
   // signed decimals
