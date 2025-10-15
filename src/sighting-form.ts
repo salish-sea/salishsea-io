@@ -324,8 +324,7 @@ export default class SightingForm extends LitElement {
           const trimmed = value.trim();
           if (trimmed.length === 0)
             return;
-          const url = URL.parse(value);
-          if (!url)
+          if (!URL.canParse(value))
             return "Should start with https://";
         }}}, field => html`
           <label>
