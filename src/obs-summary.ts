@@ -55,7 +55,7 @@ export class ObsSummary extends LitElement {
     .count {
       font-size: 0.8rem;
     }
-    .focus-sighting {
+    .focus-occurrence {
       border: 1px solid #3399CC;
       border-radius: 50%;
       color: inherit;
@@ -98,7 +98,7 @@ export class ObsSummary extends LitElement {
 
     return html`
       <header>
-        <a class="focus-sighting" @click="${this.focusSighting}" href="#">${symbol}</a>
+        <a class="focus-occurrence" @click="${this.focusSighting}" href="#">${symbol}</a>
         <b>${name}</b>${when(
           count && count > 0,
           () => html` <span class="count">x${this.sighting.count}</span>`)
@@ -131,11 +131,11 @@ export class ObsSummary extends LitElement {
 
   private focusSighting(interaction: Event) {
     interaction.preventDefault();
-    const focusSighting = new CustomEvent('focus-sighting', {bubbles: true, composed: true, detail: this.sighting.id});
+    const focusSighting = new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: this.sighting});
     this.dispatchEvent(focusSighting)
   }
 
-  protected willUpdate(changedProperties: PropertyValues): void {
+  protected updated(changedProperties: PropertyValues): void {
     if (changedProperties.has('focused') && this.focused)
       this.scrollIntoView({block: 'center'});
   }

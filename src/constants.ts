@@ -1,11 +1,23 @@
-// [minx, miny, maxx, maxy]
+/**
+ *  [minx, miny, maxx, maxy]
+ */
 type Extent = [number, number, number, number];
+
+export function isExtent(input: number[]): input is Extent {
+  const [minx, miny, maxx, maxy] = input;
+  return input.length === 4 && minx && miny && maxx && maxy &&
+    minx < maxx && miny < maxy &&
+    minx >= -180 && minx <= 180 && maxx >= 180 && maxx <= 180 &&
+    miny >= -90 && miny <= 90 && maxy >= -90 && maxy <= 90 ||
+    false;
+}
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
 // export const acartiaExtent: Extent = [-136, 36, -120, 54];
-// export const srkwExtent: Extent = [-125.5, 36, -122, 54];
+export const sanJuansExtent: Extent = [-123.25, 48.4, -122.73, 48.79];
+export const srkwExtent: Extent = [-125.5, 36, -122, 54];
 export const salishSeaExtent: Extent = [-126, 47, -122, 50.5];
-// export const salishSRKWExtent: Extent = [-124, 47, -122, 49.5];
+export const salishSRKWExtent: Extent = [-124, 47, -122, 49.5];
 export const licenseCodes = Object.freeze({
   "none": "None (all rights reserved)",
   "cc0": "CC0 (public domain)",

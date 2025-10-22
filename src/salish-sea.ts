@@ -19,6 +19,8 @@ import { occurrence2feature } from "./occurrence.ts";
 import { supabase, type Occurrence } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
+import type { Extent } from "ol/extent.js";
+import { isExtent } from "./constants.ts";
 
 sentryClient.init();
 
@@ -112,15 +114,16 @@ export default class SalishSea extends LitElement {
   @provide({context: drawingSourceContext})
   drawingSource: VectorSource | undefined
 
-  @property({attribute: 'focused-feature', type: String, reflect: true})
-  set focusedSightingId(id: string | undefined) {
-    this.#focusedSightingId = id;
-    this.focusSighting(id)
+  @property({attribute: false})
+  set focusedOccurrence(value: Occurrence | null) {
+    this.#focusedOccurrence = value;
+    if (value)
+      this.focusOccurrence(value)
   }
-  get focusedSightingId() {
-    return this.#focusedSightingId;
+  get focusedOccurrence() {
+    return this.#focusedOccurrence;
   }
-  #focusedSightingId: string | undefined
+  #focusedOccurrence: Occurrence | null = null;
 
   // SightingForm needs access to the map to add and remove interactions
   @query('obs-map', true)
@@ -159,22 +162,28 @@ export default class SalishSea extends LitElement {
     });
     this.addEventListener('log-in', this.doLogIn.bind(this));
     this.addEventListener('log-out', this.doLogOut.bind(this));
-    this.addEventListener('focus-sighting', evt => {
-      const e = evt as CustomEvent<string | undefined>;
-      this.focusedSightingId = e.detail;
+    this.addEventListener('focus-occurrence', evt => {
+      const occurrence = (evt as CustomEvent<Occurrence | null>).detail;
+      this.focusedOccurrence = occurrence;
     });
     this.addEventListener('date-selected', (evt) => {
       if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
         throw "oh no";
       this.date = evt.detail;
     });
+    this.addEventListener('go-to-extent', (evt) => {
+      const extent = (evt as CustomEvent<Extent>).detail;
+      if (!isExtent(extent))
+        throw new Error(`Invalid extent: ${extent}`);
+      this.map.zoomToExtent(extent);
+    });
     this.addEventListener('map-move', (evt) => {
       const {center: [x, y], zoom} = (evt as CustomEvent<MapMoveDetail>).detail;
       setQueryParams({x: x.toFixed(), y: y.toFixed(), z: zoom.toFixed()});
     });
     this.addEventListener('sighting-saved', (evt) => {
-      const id = (evt as CustomEvent<string>).detail;
-      this.focusedSightingId = id;
+      const occurrence = (evt as CustomEvent<Occurrence>).detail;
+      this.focusedOccurrence = occurrence;
     });
     this.addEventListener('clone-sighting', async (evt) => {
       const sighting = (evt as CloneSightingEvent).detail;
@@ -215,9 +224,9 @@ export default class SalishSea extends LitElement {
         <obs-panel date=${this.date}>
           ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
             const id = sighting.id;
-            const classes = {focused: id === this.focusedSightingId};
+            const classes = {focused: id === this.focusedOccurrence?.id};
             return html`
-              <obs-summary class=${classMap(classes)} id=${`summary-${id}`} ?focused=${id === this.focusedSightingId} .sighting=${sighting} />
+              <obs-summary class=${classMap(classes)} id=${`summary-${id}`} ?focused=${classes.focused} .sighting=${sighting} />
             `;
           })}
         </obs-panel>
@@ -251,10 +260,9 @@ export default class SalishSea extends LitElement {
     this.map.setOccurrences(features);
   }
 
-  focusSighting(id: string | undefined) {
-    if (!id)
-      return;
-    const feature = this.map.ocurrenceSource.getFeatureById(id) as Feature<Point> | null;
+  focusOccurrence(occurrence: Occurrence) {
+    this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDate().toString();
+    const feature = this.map.ocurrenceSource.getFeatureById(occurrence.id) as Feature<Point> | null;
     if (!feature)
       return;
     this.map.selectFeature(feature);
