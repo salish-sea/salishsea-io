@@ -28,7 +28,6 @@ import type MapBrowserEvent from 'ol/MapBrowserEvent.js';
 import olCSS from 'ol/ol.css?url';
 import type { Occurrence } from './supabase.ts';
 import { LineString } from 'ol/geom.js';
-import {fromExtent as polygonFromExtent} from 'ol/geom/Polygon.js';
 import { imputeTravelLines } from './travel-lines.ts';
 import { transformExtent } from 'ol/proj.js';
 
@@ -244,7 +243,7 @@ export class ObsMap extends LitElement {
   public zoomToExtent(extent: Extent) {
     const view = this.map.getView();
     const transformedExtent = transformExtent(extent, 'EPSG:4326', view.getProjection());
-    view.fitInternal(polygonFromExtent(transformedExtent));
+    view.fit(transformedExtent);
   }
 }
 

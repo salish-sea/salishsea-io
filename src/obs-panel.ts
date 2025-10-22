@@ -189,17 +189,20 @@ export class ObsPanel extends LitElement {
   }
 
   protected updated(changedProperties: PropertyValues) {
-    if (changedProperties.has('user'))
+    if (changedProperties.has('user') && this.user)
       this.fetchLastOccurrence();
   }
 
   async fetchLastOccurrence() {
-    const {data: occurrence} = await supabase
+    const {data: occurrence, error} = await supabase
       .from('occurrences')
       .select('*')
+      .eq('is_own_observation', true)
       .order('observed_at', {ascending: false})
       .limit(1)
       .maybeSingle();
+    if (error)
+      throw new Error(`Couldn't fetch last occurrence: ${error}`);
     this.lastOwnOccurrence = occurrence as Occurrence | null;
   }
 }

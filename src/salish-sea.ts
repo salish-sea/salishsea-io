@@ -20,6 +20,7 @@ import { supabase, type Occurrence } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
+import { isExtent } from "./constants.ts";
 
 sentryClient.init();
 
@@ -113,7 +114,7 @@ export default class SalishSea extends LitElement {
   @provide({context: drawingSourceContext})
   drawingSource: VectorSource | undefined
 
-  @property({attribute: 'focused-feature', type: String, reflect: true})
+  @property({attribute: false})
   set focusedOccurrence(value: Occurrence | null) {
     this.#focusedOccurrence = value;
     if (value)
@@ -172,6 +173,8 @@ export default class SalishSea extends LitElement {
     });
     this.addEventListener('go-to-extent', (evt) => {
       const extent = (evt as CustomEvent<Extent>).detail;
+      if (!isExtent(extent))
+        throw new Error(`Invalid extent: ${extent}`);
       this.map.zoomToExtent(extent);
     });
     this.addEventListener('map-move', (evt) => {
