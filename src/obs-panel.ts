@@ -11,7 +11,7 @@ import { classMap } from "lit/directives/class-map.js";
 import SightingForm, { newSighting, observationToFormData } from "./sighting-form.ts";
 import { v7 } from "uuid";
 import { supabase, type Occurrence } from "./supabase.ts";
-import { salishSRKWExtent, srkwExtent } from "./constants.ts";
+import { salishSRKWExtent, sanJuansExtent, srkwExtent } from "./constants.ts";
 
 const today = Temporal.Now.plainDateISO().toString();
 
@@ -101,6 +101,7 @@ export class ObsPanel extends LitElement {
           <select @change=${this.onGoTo} name="go-to">
             <option value='' selected disabled>Go to…</option>
             <option value=${salishSRKWExtent.join(',')}>Salish Sea</option>
+            <option value=${sanJuansExtent.join(',')}>San Juans</option>
             <option value=${srkwExtent.join(',')}>SRKW Range</option>
             <option value="my-last-occurrence" ?disabled=${!this.lastOwnOccurrence}>My last observation</option>
           </select>
