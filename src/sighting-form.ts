@@ -148,7 +148,7 @@ export default class SightingForm extends LitElement {
         throw new Error(`Error saving observation: ${error}`);
       }
       this.dispatchEvent(new CustomEvent('database-changed', {bubbles: true, composed: true}));
-      this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: occurrence.id}));
+      this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: occurrence}));
       return data;
     }
   });

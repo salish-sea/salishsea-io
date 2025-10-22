@@ -22,13 +22,15 @@ import Modify from 'ol/interaction/Modify.js';
 import GeoJSON from 'ol/format/GeoJSON.js';
 import { all } from 'ol/loadingstrategy.js';
 import { never } from 'ol/events/condition.js';
-import { containsCoordinate } from 'ol/extent.js';
+import { containsCoordinate, type Extent } from 'ol/extent.js';
 import type { Coordinate } from 'ol/coordinate.js';
 import type MapBrowserEvent from 'ol/MapBrowserEvent.js';
 import olCSS from 'ol/ol.css?url';
 import type { Occurrence } from './supabase.ts';
 import { LineString } from 'ol/geom.js';
+import {fromExtent as polygonFromExtent} from 'ol/geom/Polygon.js';
 import { imputeTravelLines } from './travel-lines.ts';
+import { transformExtent } from 'ol/proj.js';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -155,8 +157,8 @@ export class ObsMap extends LitElement {
   constructor() {
     super();
     this.#select.on('select', (e: SelectEvent) => {
-      const id = e.selected[0]?.getId() as string | undefined;
-      const evt = new CustomEvent('focus-sighting', {bubbles: true, composed: true, detail: id});
+      const occurrence = e.selected[0]?.getProperties() || null;
+      const evt = new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: occurrence});
       this.dispatchEvent(evt);
     });
     this.map.on('singleclick', this.onClick.bind(this));
@@ -237,6 +239,12 @@ export class ObsMap extends LitElement {
       view.animate({zoom: 12});
       view.animate({center: coords});
     }
+  }
+
+  public zoomToExtent(extent: Extent) {
+    const view = this.map.getView();
+    const transformedExtent = transformExtent(extent, 'EPSG:4326', view.getProjection());
+    view.fitInternal(polygonFromExtent(transformedExtent));
   }
 }
 

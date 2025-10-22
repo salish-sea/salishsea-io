@@ -10,7 +10,8 @@ type PatchedDatabase = SetNonNullableDeep<
   'public.CompositeTypes.lat_lng.lat' | 'public.CompositeTypes.lat_lng.lng' |
   'public.CompositeTypes.lon_lat.lat' | 'public.CompositeTypes.lon_lat.lon' |
   'public.CompositeTypes.taxon.scientific_name' |
-  'public.Views.occurrences.Row.photos'
+  'public.Views.occurrences.Row.photos' |
+  'public.Views.occurrences.Row.observed_at'
 >;
 type LonLat = {lat: number; lon: number;};
 type DBOccurrence = PatchedDatabase['public']['Views']['occurrences']['Row'];
@@ -22,6 +23,7 @@ type Taxon = SetNonNullable<Database['public']['CompositeTypes']['taxon'], 'scie
 export type OccurrencePhoto = SetNonNullable<Occurrence1['photos'][number], 'src'>;
 export type Occurrence = OverrideProperties<Occurrence1, {
   location: LonLat;
+  observed_at: string;
   observed_from: LonLat | null;
   photos: OccurrencePhoto[];
   taxon: Taxon;

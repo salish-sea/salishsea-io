@@ -1,5 +1,5 @@
-import { css, html, LitElement} from "lit";
-import { customElement, property, query } from "lit/decorators.js";
+import { css, html, LitElement, type PropertyValues} from "lit";
+import { customElement, property, query, state } from "lit/decorators.js";
 import { live } from 'lit/directives/live.js';
 import { keyed } from 'lit/directives/keyed.js';
 import { Temporal } from "temporal-polyfill";
@@ -10,7 +10,9 @@ import { userContext, type User } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
 import SightingForm, { newSighting, observationToFormData } from "./sighting-form.ts";
 import { v7 } from "uuid";
-import type { Occurrence } from "./supabase.ts";
+import { supabase, type Occurrence } from "./supabase.ts";
+import { salishSRKWExtent, srkwExtent } from "./constants.ts";
+import { when } from "lit/directives/when.js";
 
 const today = Temporal.Now.plainDateISO().toString();
 
@@ -76,6 +78,7 @@ export class ObsPanel extends LitElement {
   private date!: string;
 
   @consume({context: userContext, subscribe: true})
+  @state()
   private user: User | undefined;
 
   @property({attribute: false})
@@ -83,6 +86,9 @@ export class ObsPanel extends LitElement {
 
   @query('sighting-form', false)
   sightingForm!: SightingForm
+
+  @state()
+  private lastOwnOccurrence: Occurrence | null = null
 
   protected render() {
     const {id, ...sighting} = this.sightingForForm;
@@ -93,6 +99,12 @@ export class ObsPanel extends LitElement {
           <input @click=${this.onGotoYesterday} type="button" name="yesterday" value="◀">
           <input @click=${this.onGotoTomorrow}  type="button" name="tomorrow" value="▶" ?disabled=${this.date === today}>
           <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" .value=${live(this.date)}>
+          <select @change=${this.onGoTo} name="go-to">
+            <option value='' selected disabled>Go to…</option>
+            <option value=${salishSRKWExtent.join(',')}>Salish Sea</option>
+            <option value=${srkwExtent.join(',')}>SRKW Range</option>
+            <option value="my-last-occurrence" ?disabled=${!this.lastOwnOccurrence}>My last observation</option>
+          </select>
         </form>
       </header>
       ${keyed(id, html`
@@ -150,6 +162,21 @@ export class ObsPanel extends LitElement {
     }
   }
 
+  private async onGoTo(e: InputEvent) {
+    e.preventDefault();
+    const input = e.target as HTMLInputElement;
+    if (input.value === 'my-last-occurrence') {
+      const occurrence = this.lastOwnOccurrence!;
+      this.dispatchEvent(new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: occurrence}))
+    } else {
+      const extent = input.value.split(',').map(parseFloat);
+      this.dispatchEvent(new CustomEvent('go-to-extent', {bubbles: true, composed: true, detail: extent}));
+    }
+    setTimeout(() => {
+      input.value = '';
+    }, 0);
+  }
+
   private async doShowForm() {
     if (!this.user) {
       this.dispatchEvent(new Event('log-in', {bubbles: true, composed: true}));
@@ -159,6 +186,21 @@ export class ObsPanel extends LitElement {
       throw new Error("Login succeeded but token was not available");
 
     this.showForm = true;
+  }
+
+  protected updated(changedProperties: PropertyValues) {
+    if (changedProperties.has('user'))
+      this.fetchLastOccurrence();
+  }
+
+  async fetchLastOccurrence() {
+    const {data: occurrence} = await supabase
+      .from('occurrences')
+      .select('*')
+      .order('observed_at', {ascending: false})
+      .limit(1)
+      .maybeSingle();
+    this.lastOwnOccurrence = occurrence as Occurrence | null;
   }
 }
 
