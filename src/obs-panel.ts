@@ -12,7 +12,6 @@ import SightingForm, { newSighting, observationToFormData } from "./sighting-for
 import { v7 } from "uuid";
 import { supabase, type Occurrence } from "./supabase.ts";
 import { salishSRKWExtent, srkwExtent } from "./constants.ts";
-import { when } from "lit/directives/when.js";
 
 const today = Temporal.Now.plainDateISO().toString();
 
