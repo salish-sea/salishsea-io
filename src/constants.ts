@@ -7,7 +7,7 @@ export function isExtent(input: number[]): input is Extent {
   const [minx, miny, maxx, maxy] = input;
   return input.length === 4 && minx && miny && maxx && maxy &&
     minx < maxx && miny < maxy &&
-    minx >= -180 && minx <= 180 && maxx >= 180 && maxx <= 180 &&
+    minx >= -180 && minx <= 180 && maxx >= -180 && maxx <= 180 &&
     miny >= -90 && miny <= 90 && maxy >= -90 && maxy <= 90 ||
     false;
 }
