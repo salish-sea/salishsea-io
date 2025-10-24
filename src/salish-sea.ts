@@ -15,7 +15,7 @@ import type OpenLayersMap from "ol/Map.js";
 import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
-import { occurrence2feature } from "./occurrence.ts";
+import { fetchLastOwnOccurrence, occurrence2feature } from "./occurrence.ts";
 import { supabase, type Occurrence } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
@@ -132,6 +132,9 @@ export default class SalishSea extends LitElement {
   private mapRef = createRef<ObsMap>();
   private panelRef = createRef<ObsPanel>();
 
+  @state()
+  private lastOwnOccurrence: Occurrence | null = null;
+
   @provide({context: userContext})
   @state()
   protected user: User | null = null;
@@ -159,6 +162,10 @@ export default class SalishSea extends LitElement {
         this.user = null;
       }
       this.fetchOccurrences(this.date).catch(err => console.error(err));
+      if (this.user)
+        fetchLastOwnOccurrence().then(occurrence => this.lastOwnOccurrence = occurrence);
+      else
+        this.lastOwnOccurrence = null;
     });
     this.addEventListener('log-in', this.doLogIn.bind(this));
     this.addEventListener('log-out', this.doLogOut.bind(this));
@@ -195,8 +202,8 @@ export default class SalishSea extends LitElement {
       await this.panelRef.value!.editObservation(sighting);
     });
     this.addEventListener('database-changed', async () => {
-      this.panelRef.value!.fetchLastOccurrence();
       await this.fetchOccurrences(this.date);
+      this.lastOwnOccurrence = this.user && await fetchLastOwnOccurrence();
     });
   }
 
@@ -222,7 +229,7 @@ export default class SalishSea extends LitElement {
           <p>If you have any feedback, tap the Feedback button in the bottom-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>. This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen and is funded in 2025-26 by <a href="https://beamreach.blue/">Beam Reach</a>.</p>
         </dialog>
         <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ}></obs-map>
-        <obs-panel ${ref(this.panelRef)} date=${this.date}>
+        <obs-panel ${ref(this.panelRef)} date=${this.date} .lastOwnOccurrence=${this.lastOwnOccurrence}>
           ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
             const id = sighting.id;
             const classes = {focused: id === this.focusedOccurrence?.id};
