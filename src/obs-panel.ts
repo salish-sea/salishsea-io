@@ -86,8 +86,8 @@ export class ObsPanel extends LitElement {
 
   private formRef = createRef<SightingForm>();
 
-  @state()
-  private lastOwnOccurrence: Occurrence | null = null
+  @property({attribute: false})
+  lastOwnOccurrence: Occurrence | null = null
 
   protected render() {
     const {id, ...sighting} = this.sightingForForm;
@@ -187,28 +187,6 @@ export class ObsPanel extends LitElement {
       throw new Error("Login succeeded but token was not available");
 
     this.showForm = true;
-  }
-
-  protected updated(changedProperties: PropertyValues) {
-    if (changedProperties.has('user'))
-      this.fetchLastOccurrence();
-  }
-
-  async fetchLastOccurrence() {
-    if (!this.user) {
-      this.lastOwnOccurrence = null;
-      return;
-    }
-    const {data: occurrence, error} = await supabase
-      .from('occurrences')
-      .select('*')
-      .eq('is_own_observation', true)
-      .order('observed_at', {ascending: false})
-      .limit(1)
-      .maybeSingle();
-    if (error)
-      throw new Error(`Couldn't fetch last occurrence: ${error}`);
-    this.lastOwnOccurrence = occurrence as Occurrence | null;
   }
 }
 
