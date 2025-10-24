@@ -1,6 +1,6 @@
 import { LitElement, css, html } from 'lit'
 import type { PropertyValues } from 'lit';
-import { customElement, property, query} from 'lit/decorators.js'
+import { customElement, property } from 'lit/decorators.js'
 import OpenLayersMap from "ol/Map.js";
 import View from "ol/View.js";
 import Select, { SelectEvent } from 'ol/interaction/Select.js';
@@ -30,6 +30,7 @@ import type { Occurrence } from './supabase.ts';
 import { LineString } from 'ol/geom.js';
 import { imputeTravelLines } from './travel-lines.ts';
 import { transformExtent } from 'ol/proj.js';
+import { createRef, ref } from 'lit/directives/ref.js';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -137,8 +138,7 @@ export class ObsMap extends LitElement {
     view: this.view,
   });
 
-  @query('#map', true)
-  public mapElement!: HTMLDivElement
+  mapRef = createRef<HTMLDivElement>();
 
   static styles = css`
 :host {
@@ -167,7 +167,7 @@ export class ObsMap extends LitElement {
   public render() {
     return html`
       <link rel="stylesheet" href="${olCSS}" type="text/css" />
-      <div id="map"></div>
+      <div ${ref(this.mapRef)} id="map"></div>
     `;
   }
 
@@ -195,8 +195,8 @@ export class ObsMap extends LitElement {
   public firstUpdated(_changedProperties: PropertyValues): void {
     this.view.setCenter([this.centerX, this.centerY]);
     this.view.setZoom(this.zoom);
-    this.map.setTarget(this.mapElement);
-    this.mapElement.addEventListener('pointerdown', evt => {
+    this.map.setTarget(this.mapRef.value!);
+    this.mapRef.value!.addEventListener('pointerdown', evt => {
       if (! evt.altKey)
         return;
 

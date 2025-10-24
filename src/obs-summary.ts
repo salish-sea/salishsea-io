@@ -31,9 +31,6 @@ export class ObsSummary extends LitElement {
     :host(.focused) {
       background-color: #ffff5530;
     }
-    header {
-      overflow: auto;
-    }
     time {
       float: right;
       font-size: 0.8rem;

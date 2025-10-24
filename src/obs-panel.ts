@@ -1,5 +1,5 @@
 import { css, html, LitElement, type PropertyValues} from "lit";
-import { customElement, property, query, state } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import { live } from 'lit/directives/live.js';
 import { keyed } from 'lit/directives/keyed.js';
 import { Temporal } from "temporal-polyfill";
@@ -12,6 +12,7 @@ import SightingForm, { newSighting, observationToFormData } from "./sighting-for
 import { v7 } from "uuid";
 import { supabase, type Occurrence } from "./supabase.ts";
 import { salishSRKWExtent, sanJuansExtent, srkwExtent } from "./constants.ts";
+import { createRef, ref } from "lit/directives/ref.js";
 
 const today = Temporal.Now.plainDateISO().toString();
 
@@ -83,8 +84,7 @@ export class ObsPanel extends LitElement {
   @property({attribute: false})
   private sightingForForm = {...newSighting(), id: v7()};
 
-  @query('sighting-form', false)
-  sightingForm!: SightingForm
+  private formRef = createRef<SightingForm>();
 
   @state()
   private lastOwnOccurrence: Occurrence | null = null
@@ -109,6 +109,7 @@ export class ObsPanel extends LitElement {
       </header>
       ${keyed(id, html`
         <sighting-form
+          ${ref(this.formRef)}
           class=${classMap({"full-bleed": true, hide: !this.showForm})}
           @cancel-edit=${this.onCancelEdit}
           @sighting-saved=${this.onSightingSaved}
@@ -129,7 +130,7 @@ export class ObsPanel extends LitElement {
     await this.doShowForm();
     // Prefer PST8PDT for consistency with sighting-form validation
     this.sightingForForm = observationToFormData(observation);
-    this.sightingForm.scrollIntoView();
+    this.formRef.value!.scrollIntoView();
   }
 
   private onCancelEdit() {
@@ -189,11 +190,15 @@ export class ObsPanel extends LitElement {
   }
 
   protected updated(changedProperties: PropertyValues) {
-    if (changedProperties.has('user') && this.user)
+    if (changedProperties.has('user'))
       this.fetchLastOccurrence();
   }
 
   async fetchLastOccurrence() {
+    if (!this.user) {
+      this.lastOwnOccurrence = null;
+      return;
+    }
     const {data: occurrence, error} = await supabase
       .from('occurrences')
       .select('*')

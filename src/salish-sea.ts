@@ -1,5 +1,5 @@
 import { css, html, LitElement, type PropertyValues} from "lit";
-import { customElement, property, query, state } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import './obs-map.ts';
 import './login-button.ts';
 import { userContext, type User } from "./identity.ts";
@@ -21,8 +21,11 @@ import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
 import { isExtent } from "./constants.ts";
+import { ObsPanel } from "./obs-panel.ts";
+import { createRef, ref } from "lit/directives/ref.js";
 
-sentryClient.init();
+if (import.meta.env.PROD)
+  sentryClient.init();
 
 const viewInitiallySmall = window.innerWidth < 800;
 
@@ -125,12 +128,9 @@ export default class SalishSea extends LitElement {
   }
   #focusedOccurrence: Occurrence | null = null;
 
-  // SightingForm needs access to the map to add and remove interactions
-  @query('obs-map', true)
-  map!: ObsMap;
-
-  @query('dialog', true)
-  aboutDialog!: HTMLDialogElement;
+  private dialogRef = createRef<HTMLDialogElement>();
+  private mapRef = createRef<ObsMap>();
+  private panelRef = createRef<ObsPanel>();
 
   @provide({context: userContext})
   @state()
@@ -175,7 +175,7 @@ export default class SalishSea extends LitElement {
       const extent = (evt as CustomEvent<Extent>).detail;
       if (!isExtent(extent))
         throw new Error(`Invalid extent: ${extent}`);
-      this.map.zoomToExtent(extent);
+      this.mapRef.value!.zoomToExtent(extent);
     });
     this.addEventListener('map-move', (evt) => {
       const {center: [x, y], zoom} = (evt as CustomEvent<MapMoveDetail>).detail;
@@ -188,13 +188,14 @@ export default class SalishSea extends LitElement {
     this.addEventListener('clone-sighting', async (evt) => {
       const sighting = (evt as CloneSightingEvent).detail;
       const clone = {...sighting, id: v7()};
-      await this.shadowRoot!.querySelector('obs-panel')!.editObservation(clone);
+      await this.panelRef.value!.editObservation(clone);
     });
     this.addEventListener('edit-observation', async (evt) => {
       const sighting = (evt as EditSightingEvent).detail;
-      await this.shadowRoot!.querySelector('obs-panel')!.editObservation(sighting);
+      await this.panelRef.value!.editObservation(sighting);
     });
     this.addEventListener('database-changed', async () => {
+      this.panelRef.value!.fetchLastOccurrence();
       await this.fetchOccurrences(this.date);
     });
   }
@@ -208,7 +209,7 @@ export default class SalishSea extends LitElement {
         </div>
       </header>
       <main>
-        <dialog>
+        <dialog ${ref(this.dialogRef)}>
           <h3>About SalishSea.io <a @click=${this.onCloseModal} class="close-dialog" href="#">x</a></h3>
           <p>Communities throughout the Salish Sea are working to monitor and protect the diversity of life it supports. This site serves as a portal into their efforts.</p>
           <p>We currently show:</p>
@@ -220,8 +221,8 @@ export default class SalishSea extends LitElement {
           </ul>
           <p>If you have any feedback, tap the Feedback button in the bottom-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>. This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen and is funded in 2025-26 by <a href="https://beamreach.blue/">Beam Reach</a>.</p>
         </dialog>
-        <obs-map centerX=${initialX} centerY=${initialY} zoom=${initialZ}></obs-map>
-        <obs-panel date=${this.date}>
+        <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ}></obs-map>
+        <obs-panel ${ref(this.panelRef)} date=${this.date}>
           ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
             const id = sighting.id;
             const classes = {focused: id === this.focusedOccurrence?.id};
@@ -248,8 +249,8 @@ export default class SalishSea extends LitElement {
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
-    this.olmap = this.map.map;
-    this.drawingSource = this.map.drawingSource;
+    this.olmap = this.mapRef.value!.map;
+    this.drawingSource = this.mapRef.value!.drawingSource;
   }
 
   receiveSightings(sightings: Occurrence[], forDate: string) {
@@ -257,26 +258,27 @@ export default class SalishSea extends LitElement {
       return;
     this.sightings = sightings;
     const features = sightings.map(occurrence2feature);
-    this.map.setOccurrences(features);
+    this.mapRef.value!.setOccurrences(features);
   }
 
   focusOccurrence(occurrence: Occurrence) {
+    const map = this.mapRef.value!;
     this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDate().toString();
-    const feature = this.map.ocurrenceSource.getFeatureById(occurrence.id) as Feature<Point> | null;
+    const feature = map.ocurrenceSource.getFeatureById(occurrence.id) as Feature<Point> | null;
     if (!feature)
       return;
-    this.map.selectFeature(feature);
-    this.map.ensureCoordsInViewport(feature.getGeometry()!.getCoordinates());
+    map.selectFeature(feature);
+    map.ensureCoordsInViewport(feature.getGeometry()!.getCoordinates());
   }
 
   onAboutClicked(e: Event) {
     e.preventDefault();
-    this.aboutDialog.showModal();
+    this.dialogRef.value!.showModal();
   }
 
   onCloseModal(e: Event) {
     e.preventDefault();
-    this.aboutDialog.close();
+    this.dialogRef.value!.close();
   }
 
   async fetchOccurrences(date: string) {
