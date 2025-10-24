@@ -1,4 +1,4 @@
-import { css, html, LitElement, type PropertyValues} from "lit";
+import { css, html, LitElement } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { live } from 'lit/directives/live.js';
 import { keyed } from 'lit/directives/keyed.js';
@@ -10,7 +10,7 @@ import { userContext, type User } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
 import SightingForm, { newSighting, observationToFormData } from "./sighting-form.ts";
 import { v7 } from "uuid";
-import { supabase, type Occurrence } from "./supabase.ts";
+import { type Occurrence } from "./supabase.ts";
 import { salishSRKWExtent, sanJuansExtent, srkwExtent } from "./constants.ts";
 import { createRef, ref } from "lit/directives/ref.js";
 
@@ -167,8 +167,9 @@ export class ObsPanel extends LitElement {
     e.preventDefault();
     const input = e.target as HTMLInputElement;
     if (input.value === 'my-last-occurrence') {
-      const occurrence = this.lastOwnOccurrence!;
-      this.dispatchEvent(new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: occurrence}))
+      if (!this.lastOwnOccurrence)
+        throw new Error("No lastOwnOccurrence to focus")
+      this.dispatchEvent(new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: this.lastOwnOccurrence}))
     } else {
       const extent = input.value.split(',').map(parseFloat);
       this.dispatchEvent(new CustomEvent('go-to-extent', {bubbles: true, composed: true, detail: extent}));
