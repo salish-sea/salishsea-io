@@ -22,7 +22,8 @@ import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
 import { isExtent } from "./constants.ts";
 
-sentryClient.init();
+if (import.meta.env.PROD)
+  sentryClient.init();
 
 const viewInitiallySmall = window.innerWidth < 800;
 
