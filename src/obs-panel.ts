@@ -12,7 +12,7 @@ import SightingForm, { newSighting, observationToFormData } from "./sighting-for
 import { v7 } from "uuid";
 import { supabase, type Occurrence } from "./supabase.ts";
 import { salishSRKWExtent, sanJuansExtent, srkwExtent } from "./constants.ts";
-import { createRef } from "lit/directives/ref.js";
+import { createRef, ref } from "lit/directives/ref.js";
 
 const today = Temporal.Now.plainDateISO().toString();
 
@@ -109,6 +109,7 @@ export class ObsPanel extends LitElement {
       </header>
       ${keyed(id, html`
         <sighting-form
+          ${ref(this.formRef)}
           class=${classMap({"full-bleed": true, hide: !this.showForm})}
           @cancel-edit=${this.onCancelEdit}
           @sighting-saved=${this.onSightingSaved}
