@@ -229,7 +229,7 @@ export default class SalishSea extends LitElement {
           <p>If you have any feedback, tap the Feedback button in the bottom-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>. This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen and is funded in 2025-26 by <a href="https://beamreach.blue/">Beam Reach</a>.</p>
         </dialog>
         <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ}></obs-map>
-        <obs-panel ${ref(this.panelRef)} date=${this.date} lastOwnOccurrence=${this.lastOwnOccurrence}>
+        <obs-panel ${ref(this.panelRef)} date=${this.date} .lastOwnOccurrence=${this.lastOwnOccurrence}>
           ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
             const id = sighting.id;
             const classes = {focused: id === this.focusedOccurrence?.id};
