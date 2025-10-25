@@ -18,12 +18,10 @@ jobs:
 
       - uses: actions/checkout@v5
 
-      - uses: supabase/setup-cli@v1
-
       - name: Install dependencies
         run: npm ci
 
-      - run: supabase db start
+      - run: npx supabase db start
       - name: Verify generated types match Postgres schema
         run: |
           supabase gen types typescript --local > database.types.ts
