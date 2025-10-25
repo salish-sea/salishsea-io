@@ -57,5 +57,5 @@ Temporal coordinates are UNIX Epoch time—integer seconds since midnight, Janua
 
 The production environment consists of:
 - A [Supabase project](https://supabase.com/dashboard/project/grztmjpzamcxlzecmqca)
-- A [Cloudfront distribution](https://648183724555-rvfskklb.us-east-1.console.aws.amazon.com/cloudfront/v4/home?region=us-east-1#/distributions/EQ0KYC2Y6IUYU)
-- An [S3 bucket](https://648183724555-rvfskklb.us-west-2.console.aws.amazon.com/s3/buckets/salishsea-io?region=us-west-2&bucketType=general) for assets
+- A Cloudfront distribution `EQ0KYC2Y6IUYU`
+- An S3 bucket `salishsea-io` in `us-west-2` for assets
