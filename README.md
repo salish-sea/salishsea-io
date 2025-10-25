@@ -33,9 +33,9 @@ $ npm ci
 
 Control the Supabase local stack with e.g.: `npx supabase start`.
 
-For development mode, run `node run dev`.
+For development mode, run `npm run dev`.
 
-Before committing, try building with `node run build`.
+Before committing, try building with `npm run build`.
 
 ## Data sources
 
