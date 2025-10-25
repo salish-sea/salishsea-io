@@ -18,12 +18,12 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
 
-      - name: Install Dependencies
-        uses: bahmutov/npm-install@v1
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build project
         run: npm run build
@@ -34,7 +34,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: artifacts
           path: ./dist
@@ -46,12 +46,12 @@ jobs:
     environment: production
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: artifacts
           path: ./dist
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v5 # Or a specific version
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: arn:aws:iam::648183724555:role/salishsea-deploy-action
           aws-region: us-west-2
