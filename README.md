@@ -5,10 +5,8 @@ Welcome! This is a new project, started in 2025, to gather sightings and informa
 
 This codebase was started by Peter Abrahamsen. My goals for the codebase are to keep it relatively light, nimble, and maintainable, minimizing the number of abstractions or volatile third-party dependencies. Right now, I'm using:
 - [typescript](https://www.typescriptlang.org/) for better refactoring and quality control than vanilla JS
-- [sqlite](https://www.sqlite.org/) for storing and projecting data
-- [better-sqlite](https://github.com/WiseLibs/better-sqlite3/) for accessing sqlite from JS
+- [supabase](https://supabase.com/) for storing and projecting data
 - [vite](https://vite.dev/) for building out assets
-- [express](https://expressjs.com/) for serving assets and the API
 - [lit](https://lit.dev/) for templating and scoped styles
 - [openlayers](https://openlayers.org/) for drawing and interacting with a map in the browser
 - [temporal-polyfill](https://www.npmjs.com/package/temporal-polyfill) for early access to the sane date/time manipulation interface [Temporal](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal)
@@ -22,15 +20,9 @@ Most project planning currently happens on Zulip. You are welcome to join us the
 
 Prerequisites:
 - `nvm` (or install the version of node from `.nvmrc` yourself)
-- `sqlite` (only needed for command line use)
+- `docker`
 
-Suggested: for better output from sqlite, make a file `~/.sqliterc` with these lines:
-```
-.headers on
-.mode column
-```
-
-Prep the environment:
+Prep the nvironment:
 ```
 $ nvm install
 $ nvm use
