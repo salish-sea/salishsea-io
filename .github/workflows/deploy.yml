@@ -55,6 +55,9 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::648183724555:role/salishsea-deploy-action
           aws-region: us-west-2
+      - uses: supabase/setup-cli@v1
+      - run: supabase link --project-ref ${{ vars.SUPABASE_PROJECT_ID }}
+      - run: supabase db push
       - name: Deploy to S3 and invalidate CloudFront
         run: |
           aws s3 sync --no-progress dist "s3://${{ vars.S3_BUCKET }}/site"
