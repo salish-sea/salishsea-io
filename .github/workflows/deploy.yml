@@ -52,11 +52,6 @@ jobs:
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v6
-        with:
-          name: artifacts
-          path: |
-           ./dist
-           ./supabase
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
