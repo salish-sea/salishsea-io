@@ -7,6 +7,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       observation_photos: {
@@ -50,7 +75,7 @@ export type Database = {
           direction: Database["public"]["Enums"]["travel_direction"] | null
           id: string
           observed_at: string
-          observer_location: unknown | null
+          observer_location: unknown
           subject_location: unknown
           taxon_id: number
           updated_at: string
@@ -65,7 +90,7 @@ export type Database = {
           direction?: Database["public"]["Enums"]["travel_direction"] | null
           id: string
           observed_at: string
-          observer_location?: unknown | null
+          observer_location?: unknown
           subject_location: unknown
           taxon_id: number
           updated_at: string
@@ -80,7 +105,7 @@ export type Database = {
           direction?: Database["public"]["Enums"]["travel_direction"] | null
           id?: string
           observed_at?: string
-          observer_location?: unknown | null
+          observer_location?: unknown
           subject_location?: unknown
           taxon_id?: number
           updated_at?: string
@@ -150,33 +175,14 @@ export type Database = {
       }
     }
     Functions: {
-      extract_identifiers: {
-        Args: { body: string }
-        Returns: string[]
-      }
+      extract_identifiers: { Args: { body: string }; Returns: string[] }
       extract_travel_direction: {
         Args: { body: string }
         Returns: Database["public"]["Enums"]["travel_direction"]
       }
       local_date: {
-        Args: { occurrence: unknown }
+        Args: { occurrence: Database["public"]["Views"]["occurrences"]["Row"] }
         Returns: string
-      }
-      postgres_fdw_disconnect: {
-        Args: { "": string }
-        Returns: boolean
-      }
-      postgres_fdw_disconnect_all: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      postgres_fdw_get_connections: {
-        Args: Record<PropertyKey, never>
-        Returns: Record<string, unknown>[]
-      }
-      postgres_fdw_handler: {
-        Args: Record<PropertyKey, never>
-        Returns: unknown
       }
       upsert_observation: {
         Args: {
@@ -363,6 +369,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       license: [
