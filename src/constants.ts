@@ -14,6 +14,7 @@ export function isExtent(input: number[]): input is Extent {
 
 // https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
 // export const acartiaExtent: Extent = [-136, 36, -120, 54];
+export const pugetSoundExtent: Extent = [-123.15, 47.04, -122.20, 48.16];
 export const sanJuansExtent: Extent = [-123.25, 48.4, -122.73, 48.79];
 export const srkwExtent: Extent = [-125.5, 36, -122, 54];
 export const salishSeaExtent: Extent = [-126, 47, -122, 50.5];

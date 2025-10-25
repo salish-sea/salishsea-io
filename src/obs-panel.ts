@@ -11,7 +11,7 @@ import { classMap } from "lit/directives/class-map.js";
 import SightingForm, { newSighting, observationToFormData } from "./sighting-form.ts";
 import { v7 } from "uuid";
 import { type Occurrence } from "./supabase.ts";
-import { salishSRKWExtent, sanJuansExtent, srkwExtent } from "./constants.ts";
+import { pugetSoundExtent, salishSRKWExtent, sanJuansExtent, srkwExtent } from "./constants.ts";
 import { createRef, ref } from "lit/directives/ref.js";
 
 const today = Temporal.Now.plainDateISO().toString();
@@ -100,6 +100,7 @@ export class ObsPanel extends LitElement {
           <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" .value=${live(this.date)}>
           <select @change=${this.onGoTo} name="go-to">
             <option value='' selected disabled>Go to…</option>
+            <option value=${pugetSoundExtent.join(',')}>Puget Sound</option>
             <option value=${salishSRKWExtent.join(',')}>Salish Sea</option>
             <option value=${sanJuansExtent.join(',')}>San Juans</option>
             <option value=${srkwExtent.join(',')}>SRKW Range</option>
