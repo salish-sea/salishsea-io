@@ -22,7 +22,7 @@ Prerequisites:
 - `nvm` (or install the version of node from `.nvmrc` yourself)
 - `docker`
 
-Prep the nvironment:
+Prep the environment:
 ```
 $ nvm install
 $ nvm use
