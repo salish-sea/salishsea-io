@@ -35,7 +35,9 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: artifacts
-          path: ./dist
+          path: |
+            ./dist
+            ./supabase
 
   deploy:
     name: Deploy
@@ -50,7 +52,9 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           name: artifacts
-          path: ./dist
+          path: |
+           ./dist
+           ./supabase
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
