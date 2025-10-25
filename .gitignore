@@ -34,7 +34,4 @@ dist-ssr
 
 # Sentry Config File
 .env.sentry-build-plugin
-taxa.csv
-inaturalist-taxonomy.dwca.zip
-VernacularNames-english.csv
 *.sqbpro
