@@ -5,10 +5,8 @@ Welcome! This is a new project, started in 2025, to gather sightings and informa
 
 This codebase was started by Peter Abrahamsen. My goals for the codebase are to keep it relatively light, nimble, and maintainable, minimizing the number of abstractions or volatile third-party dependencies. Right now, I'm using:
 - [typescript](https://www.typescriptlang.org/) for better refactoring and quality control than vanilla JS
-- [sqlite](https://www.sqlite.org/) for storing and projecting data
-- [better-sqlite](https://github.com/WiseLibs/better-sqlite3/) for accessing sqlite from JS
+- [supabase](https://supabase.com/) for storing and projecting data, and storing and serving user-uploaded photos
 - [vite](https://vite.dev/) for building out assets
-- [express](https://expressjs.com/) for serving assets and the API
 - [lit](https://lit.dev/) for templating and scoped styles
 - [openlayers](https://openlayers.org/) for drawing and interacting with a map in the browser
 - [temporal-polyfill](https://www.npmjs.com/package/temporal-polyfill) for early access to the sane date/time manipulation interface [Temporal](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal)
@@ -22,37 +20,28 @@ Most project planning currently happens on Zulip. You are welcome to join us the
 
 Prerequisites:
 - `nvm` (or install the version of node from `.nvmrc` yourself)
-- `sqlite` (only needed for command line use)
-
-Suggested: for better output from sqlite, make a file `~/.sqliterc` with these lines:
-```
-.headers on
-.mode column
-```
+- `docker`
 
 Prep the environment:
 ```
 $ nvm install
 $ nvm use
-$ npm install
-$ wget https://www.inaturalist.org/taxa/inaturalist-taxonomy.dwca.zip
-$ unzip inaturalist-taxonomy.dwca.zip taxa.csv VernacularNames-english.csv
-$ node src/setup.ts
-```
-
-Get an access code for the Washington State Ferries API [here](https://www.wsdot.wa.gov/traffic/api/). Put it in a file called `.env` like so:
-```
-WSF_ACCESS_CODE=my-access-code
+$ npm ci
 ```
 
 ## Running
 
-For development mode, run `node run dev`.
+Control the Supabase local stack with e.g.: `npx supabase start`.
+
+For development mode, run `npm run dev`.
+
+Before committing, try building with `npm run build`.
 
 ## Data sources
 
 - [iNaturalist](https://www.inaturalist.org/) observations and taxonomy
 - [Conserve](https://conserve.io) aggregates sightings from various places, including Orca Network's [Facebook group](https://www.facebook.com/groups/564701038927716)
+- [Happywhale](https://happywhale.com) seems particularly tapped into the community, who add observations of various cetaceans
 - ESRI provides a nice but unmaintained base map with coarse ocean depth
 - Viewing locations are defined by [Orca Network](https://www.orcanetwork.org/)
 
@@ -66,4 +55,7 @@ Temporal coordinates are UNIX Epoch time—integer seconds since midnight, Janua
 
 ## Production deployment
 
-For now, the instance of the application at https://salishsea.io/ is hosted on a virtual server I (Peter) run.
+The production environment consists of:
+- A [Supabase project](https://supabase.com/dashboard/project/grztmjpzamcxlzecmqca)
+- A Cloudfront distribution `EQ0KYC2Y6IUYU`
+- An S3 bucket `salishsea-io` in `us-west-2` for assets

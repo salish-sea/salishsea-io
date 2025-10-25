@@ -12,16 +12,29 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [23.x]
     steps:
       - uses: actions/checkout@v5
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-      - run: npm ci
+          node-version-file: package.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.53.6
+      - run: supabase db start
+      - name: Verify generated types match Postgres schema
+        run: |
+          npm run gen-types
+          if ! git diff --ignore-space-at-eol --exit-code --quiet database.types.ts; then
+            echo "Detected uncommitted changes after build. See status below:"
+            git diff
+            exit 1
+          fi
+
       - run: npm run build
       - run: npm test
