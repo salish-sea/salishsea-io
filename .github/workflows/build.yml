@@ -15,14 +15,14 @@ jobs:
     steps:
       - name: Setup Node
         uses: actions/setup-node@v6
+
       - uses: actions/checkout@v5
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+
       - uses: supabase/setup-cli@v1
-      - run: npm ci
+
+      - name: Install dependencies
+        run: npm ci
+
       - run: supabase init
       - run: supabase db start
       - name: Verify generated types match Postgres schema
@@ -33,5 +33,6 @@ jobs:
             git diff
             exit 1
           fi
+
       - run: npm run build
       - run: npm test
