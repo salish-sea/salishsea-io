@@ -11,9 +11,7 @@
     "dev": "vite dev",
     "gen-types": "supabase gen types --local --schema public --schema graphql_public > database.types.ts",
     "preview": "vite preview",
-    "test": "vitest",
-    "upload": "aws-vault exec salishsea -- aws s3 sync dist s3://salishsea-io-dev/site",
-    "invalidate": "aws-vault exec salishsea -- aws cloudfront create-invalidation --distribution-id E23CQ9Y2X59JYD --paths /"
+    "test": "vitest"
   },
   "dependencies": {
     "@formatjs/intl-datetimeformat": "^6.18.2",
