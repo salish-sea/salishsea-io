@@ -43,7 +43,7 @@ BEGIN ATOMIC
       observed_at = v.observed_at,
       license_code = v.license_code,
       username = v.username,
-      taxon_Id = v.taxon_id,
+      taxon_id = v.taxon_id,
       fetched_at = v.fetched_at,
       public_positional_accuracy = v.public_positional_accuracy,
       updated_at = v.updated_at
