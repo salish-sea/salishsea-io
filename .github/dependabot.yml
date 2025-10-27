@@ -10,6 +10,8 @@ updates:
       interval: monthly
       time: "05:00"
       timezone: America/Los_Angeles
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns:
@@ -23,6 +25,8 @@ updates:
       interval: weekly
       time: "05:00"
       timezone: America/Los_Angeles
+    cooldown:
+      default-days: 10
     open-pull-requests-limit: 3
     groups:
       all:
