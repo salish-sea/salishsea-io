@@ -69,7 +69,7 @@ jobs:
       - name: Deploy to S3 and invalidate CloudFront
         env:
           DESTINATION_URL: s3://${{ vars.S3_BUCKET }}/site
-          DISTRIBUTIION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+          DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
         run: |
           aws s3 sync --no-progress dist "${DESTINATION_URL}"
           aws cloudfront create-invalidation --distribution-id "${DISTRIBUTION_ID}" --paths /
