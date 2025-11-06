@@ -10,9 +10,9 @@ import { argv } from 'node:process';
 
 const [,,htmlPath] = argv;
 
-if (!htmlPath.endsWith('.html')) {
+if (!htmlPath || !htmlPath.endsWith('.html')) {
   console.error(`Syntax: bin/verify-csp-inline-hash.mjs dist/index.html`);
-  exit(1);
+  process.exit(1);
 }
 
 function fail(msg) {
