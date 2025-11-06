@@ -205,8 +205,11 @@ export class ObsMap extends LitElement {
 
   private async loadViewingLocations() {
     try {
-      const geojson = await import('./assets/orcanetwork-viewing-locations.geojson');
-      const features = new GeoJSON().readFeatures(geojson.default);
+      const { default: geojsonText } = await import('./assets/orcanetwork-viewing-locations.geojson?raw');
+      const features = new GeoJSON().readFeatures(geojsonText, {
+        dataProjection: 'EPSG:4326',
+        featureProjection: 'EPSG:3857'
+      });
       this.viewingLocationsLayer.getSource()!.addFeatures(features);
       this.viewingLocationsLayer.getSource()!.set('attributions', 
         'Sighting Viewpoints by Thorsten Lisker and Alisa Lemire Brooks of Orca Network.');
@@ -217,8 +220,11 @@ export class ObsMap extends LitElement {
 
   private async loadHydrophones() {
     try {
-      const geojson = await import('./assets/orcasound-hydrophones.geojson');
-      const features = new GeoJSON().readFeatures(geojson.default);
+      const { default: geojsonText } = await import('./assets/orcasound-hydrophones.geojson?raw');
+      const features = new GeoJSON().readFeatures(geojsonText, {
+        dataProjection: 'EPSG:4326',
+        featureProjection: 'EPSG:3857'
+      });
       this.hydrophoneLayer.getSource()!.addFeatures(features);
     } catch (err) {
       console.error('Failed to load hydrophones:', err);
