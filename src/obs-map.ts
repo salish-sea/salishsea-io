@@ -7,8 +7,6 @@ import Select, { SelectEvent } from 'ol/interaction/Select.js';
 import {defaults as defaultInteractions} from 'ol/interaction/defaults.js';
 import './obs-panel.ts';
 import './obs-summary.ts';
-import viewingLocationURL from './assets/orcanetwork-viewing-locations.geojson?url';
-import hydrophonesURL from './assets/orcasound-hydrophones.geojson?url';
 
 // imports below these lines smell like they support functionality that should be factored out
 import VectorLayer from 'ol/layer/Vector.js';
@@ -62,20 +60,11 @@ export class ObsMap extends LitElement {
   })
   private viewingLocationsLayer = new VectorLayer({
     minZoom: 12,
-    source: new VectorSource({
-      attributions: 'Sighting Viewpoints by Thorsten Lisker and Alisa Lemire Brooks of Orca Network.',
-      format: new GeoJSON<Feature<Point>>(),
-      strategy: all,
-      url: viewingLocationURL,
-    }),
+    source: new VectorSource(),
     style: viewingLocationStyle,
   });
   private hydrophoneLayer = new VectorLayer({
-    source: new VectorSource({
-      format: new GeoJSON<Feature<Point>>(),
-      strategy: all,
-      url: hydrophonesURL,
-    }),
+    source: new VectorSource(),
     style: hydrophoneStyle,
   })
 
@@ -208,6 +197,32 @@ export class ObsMap extends LitElement {
         this.dispatchEvent(event);
       }
     });
+
+    // Load GeoJSON layers asynchronously
+    this.loadViewingLocations();
+    this.loadHydrophones();
+  }
+
+  private async loadViewingLocations() {
+    try {
+      const geojson = await import('./assets/orcanetwork-viewing-locations.geojson');
+      const features = new GeoJSON().readFeatures(geojson.default);
+      this.viewingLocationsLayer.getSource()!.addFeatures(features);
+      this.viewingLocationsLayer.getSource()!.set('attributions', 
+        'Sighting Viewpoints by Thorsten Lisker and Alisa Lemire Brooks of Orca Network.');
+    } catch (err) {
+      console.error('Failed to load viewing locations:', err);
+    }
+  }
+
+  private async loadHydrophones() {
+    try {
+      const geojson = await import('./assets/orcasound-hydrophones.geojson');
+      const features = new GeoJSON().readFeatures(geojson.default);
+      this.hydrophoneLayer.getSource()!.addFeatures(features);
+    } catch (err) {
+      console.error('Failed to load hydrophones:', err);
+    }
   }
 
   public setOccurrences(features: Feature<Point>[]) {

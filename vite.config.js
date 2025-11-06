@@ -6,6 +6,8 @@ import { defineConfig } from 'vite';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  assetsInclude: ['**/*.geojson'],
+
   build: {
     rollupOptions: {
       input: {
