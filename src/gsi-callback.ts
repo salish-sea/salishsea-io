@@ -3,12 +3,12 @@
 // It queues credentials until <salish-sea> is upgraded and ready.
 (function(){
   const GLOBAL = window;
-  GLOBAL.handleSignInWithGoogle = (response: {credential: string}) => {
+  GLOBAL.handleSignInWithGoogle = async (response: {credential: string}) => {
     GLOBAL.__pendingGSIResponses = GLOBAL.__pendingGSIResponses || [];
     const el = document.querySelector('salish-sea');
     if (el && el.isConnected) {
       try {
-        return el.receiveIdToken(response.credential);
+        return await el.receiveIdToken(response.credential);
       } catch (e) {
         GLOBAL.__pendingGSIResponses.push(response.credential);
         throw e;
