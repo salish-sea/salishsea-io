@@ -9,7 +9,7 @@
       style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/;
       img-src 'self' https: data:;
       font-src 'self';
-      connect-src 'self' http://127.0.0.1:54321 %VITE_SUPABASE_URL% https://accounts.google.com https://o4509634382331904.ingest.us.sentry.io;
+      connect-src 'self' %VITE_SUPABASE_URL% https://accounts.google.com https://o4509634382331904.ingest.us.sentry.io;
       frame-src https://accounts.google.com/;
       object-src 'none';
       media-src 'self';
