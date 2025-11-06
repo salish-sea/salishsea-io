@@ -37,4 +37,6 @@ jobs:
           fi
 
       - run: npm run build
+      - name: Verify CSP inline script hash
+        run: npm run verify-csp
       - run: npm test
