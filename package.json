@@ -46,6 +46,8 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@types/jsdom": "^27.0.0",
+    "jsdom": "^27.1.0",
     "supabase": "^2.53.6"
   }
 }
