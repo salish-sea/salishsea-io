@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' https://accounts.google.com/gsi/ 'sha256-73iWiJqYuSoxIiga1jcjOtuNv340dw8J6ctBzJAxH18=';
+      script-src 'self' https://accounts.google.com/gsi/ 'sha256-JBeP94Wi8ME+cFO3hGJPqUEy87Eo0pyquAwUg5ZtWs8=';
       style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/;
       img-src 'self' https: data:;
       font-src 'self';
@@ -22,7 +22,7 @@
     <link href="src/assets/favicon.ico" rel="icon" type="image/x-icon">
     <link rel="stylesheet" href="src/index.css" />
     <!-- The hash in the CSP must be updated when this code is updated. Run `npm run verify-csp` to check or find out the new hash. -->
-    <script id="gsi-init">window.handleSignInWithGoogle=function(r){const e=document.querySelector('salish-sea');if(e&&typeof e.receiveIdToken==='function'){e.receiveIdToken(r.credential)}else{window.__pendingGSIResponses=window.__pendingGSIResponses||[];window.__pendingGSIResponses.push(r.credential)}};</script>
+    <script id="gsi-init">!function(){const e=window;e.handleSignInWithGoogle=async({credential:n})=>{const s=e.__pendingGSIResponses=e.__pendingGSIResponses||[],o=document.querySelector("salish-sea");if(o&&o.isConnected)try{return await o.receiveIdToken(n)}catch(e){throw s.push(n),e}else s.push(n)}}()</script>
     <script type="module" src="src/salish-sea.ts"></script>
     <script src="https://accounts.google.com/gsi/client" async></script>
   </head>

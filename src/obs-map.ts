@@ -211,8 +211,9 @@ export class ObsMap extends LitElement {
         featureProjection: 'EPSG:3857'
       });
       this.viewingLocationsLayer.getSource()!.addFeatures(features);
-      this.viewingLocationsLayer.getSource()!.set('attributions', 
-        'Sighting Viewpoints by Thorsten Lisker and Alisa Lemire Brooks of Orca Network.');
+      this.viewingLocationsLayer.getSource()!.setAttributions(
+        'Sighting Viewpoints by Thorsten Lisker and Alisa Lemire Brooks of Orca Network.'
+      );
     } catch (err) {
       console.error('Failed to load viewing locations:', err);
     }
