@@ -3,21 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' https://accounts.google.com/gsi/;
+      style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/;
+      img-src 'self' https: data:;
+      font-src 'self';
+      connect-src 'self' %VITE_SUPABASE_URL% https://accounts.google.com https://o4509634382331904.ingest.us.sentry.io;
+      frame-src https://accounts.google.com/;
+      object-src 'none';
+      media-src 'self';
+      worker-src 'self';
+      base-uri 'self';
+      form-action 'self';
+      frame-ancestors 'none';
+      upgrade-insecure-requests;
+    ">
     <title>SalishSea.io</title>
     <link href="src/assets/favicon.ico" rel="icon" type="image/x-icon">
     <link rel="stylesheet" href="src/index.css" />
+    <script src="src/gsi-callback.ts"></script>
     <script type="module" src="src/salish-sea.ts"></script>
     <script src="https://accounts.google.com/gsi/client" async></script>
   </head>
   <body>
 
     <salish-sea></salish-sea>
-    <script>
-      const salishSea = document.querySelector('salish-sea');
-      window.handleSignInWithGoogle = (response) => {
-        salishSea.receiveIdToken(response.credential);
-      }
-    </script>
     <div id="g_id_onload"
      data-client_id="129212631591-b6ba75aevcbifjpea2cap2vja91a6te8.apps.googleusercontent.com"
      data-context="use"

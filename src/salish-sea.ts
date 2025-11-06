@@ -207,6 +207,15 @@ export default class SalishSea extends LitElement {
     });
   }
 
+  async connectedCallback(): Promise<void> {
+    super.connectedCallback();
+    // If any credentials arrived before the component was defined, process them now.
+    let token: string | undefined;
+    while (token = window.__pendingGSIResponses?.shift()) {
+      await this.receiveIdToken(token);
+    }
+  }
+
   protected render(): unknown {
     return html`
       <header>
@@ -311,5 +320,8 @@ function setQueryParams(params: {[k: string]: string}) {
 declare global {
   interface HTMLElementTagNameMap {
     "salish-sea": SalishSea;
+  }
+  interface Window {
+    __pendingGSIResponses?: string[];
   }
 }
