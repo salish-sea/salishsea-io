@@ -11,7 +11,8 @@
     "dev": "vite dev",
     "gen-types": "supabase gen types --local --schema public --schema graphql_public > database.types.ts",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "verify-csp": "node bin/verify-csp-inline-hash.mjs"
   },
   "dependencies": {
     "@formatjs/intl-datetimeformat": "^6.18.2",
