@@ -8,7 +8,7 @@
     const el = document.querySelector('salish-sea');
     if (el && el.isConnected) {
       try {
-        el.receiveIdToken(response.credential);
+        return el.receiveIdToken(response.credential);
       } catch (e) {
         GLOBAL.__pendingGSIResponses.push(response.credential);
         throw e;
