@@ -12,7 +12,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        auth_redirect: resolve(__dirname, 'auth_redirect.html'),
       }
     },
 

@@ -7,12 +7,11 @@
     "node": "^24.10"
   },
   "scripts": {
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && npx html-validate dist/**/*.html && node bin/verify-csp-inline-hash.mjs dist/index.html",
     "dev": "vite dev",
     "gen-types": "supabase gen types --local --schema public --schema graphql_public > database.types.ts",
     "preview": "vite preview",
-    "test": "vitest",
-    "verify-csp": "node bin/verify-csp-inline-hash.mjs"
+    "test": "vitest"
   },
   "dependencies": {
     "@formatjs/intl-datetimeformat": "^6.18.2",
@@ -47,6 +46,7 @@
   },
   "devDependencies": {
     "@types/jsdom": "^27.0.0",
+    "html-validate": "^10.3.0",
     "jsdom": "^27.1.0",
     "supabase": "^2.55.7"
   }

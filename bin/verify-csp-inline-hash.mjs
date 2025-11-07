@@ -6,13 +6,20 @@
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { JSDOM } from 'jsdom';
+import { argv } from 'node:process';
+
+const [,,htmlPath] = argv;
+
+if (!htmlPath || !htmlPath.endsWith('.html')) {
+  console.error(`Syntax: bin/verify-csp-inline-hash.mjs dist/index.html`);
+  process.exit(1);
+}
 
 function fail(msg) {
   console.error('\n[CSP HASH VERIFY] ' + msg + '\n');
   process.exit(1);
 }
 
-const htmlPath = new URL('../index.html', import.meta.url);
 const html = await readFile(htmlPath, 'utf8');
 
 // Extract inline script defining window.handleSignInWithGoogle (first occurrence)
