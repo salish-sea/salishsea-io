@@ -52,6 +52,15 @@ features.push({
   },
   type: 'Feature',
 });
+features.push({
+  id: `raincoast:marygordonlisteningstation`,
+  geometry: {type: 'Point', coordinates: [-124, 48.525]},
+  properties: {
+    kind: 'Hydrophone',
+    url: 'https://www.youtube.com/live/U8mgGY9KOdw',
+  },
+  type: 'Feature',
+});
 const collection: FeatureCollection = {
   type: 'FeatureCollection',
   features,
