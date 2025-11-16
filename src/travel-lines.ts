@@ -17,17 +17,20 @@ type Candidate = Merge<GeoJSON.Feature<GeoJSON.Point, {
 // Precondition: occurrences are in chronological order.
 export function imputeTravelLines(occurrences: Feature<Point>[]) {
   const candidates: Candidate[] = occurrences
-    .map(occurrence => ({
-      type: 'Feature' as const,
-      id: occurrence.getId() as Occurrence['id'],
-      geometry: {type: 'Point' as const, coordinates: toLonLat(occurrence.getGeometry()!.getCoordinates()!)},
-      properties: {
-        epoch_ms: Date.parse(occurrence.get('observed_at')),
-        species_id: (occurrence.get('taxon') as Occurrence['taxon']).species_id!,
-        scientific_name: (occurrence.get('taxon') as Occurrence['taxon']).scientific_name,
-      },
-    }))
-    .filter(candidate => candidate.properties.species_id);
+    .flatMap(occurrence => {
+      const taxon = occurrence.get('taxon') as Occurrence['taxon'];
+      if (!taxon.species_id) return [];
+      return [{
+        type: 'Feature' as const,
+        id: occurrence.getId() as Occurrence['id'],
+        geometry: {type: 'Point' as const, coordinates: toLonLat(occurrence.getGeometry()!.getCoordinates()!)},
+        properties: {
+          epoch_ms: Date.parse(occurrence.get('observed_at')),
+          species_id: taxon.species_id,
+          scientific_name: taxon.scientific_name,
+        },
+      }];
+    });
   const placed: Set<Occurrence['id']> = new Set();
   const lines: Feature<LineString>[] = [];
   for (const [idx, occurrence] of candidates.entries()) {
