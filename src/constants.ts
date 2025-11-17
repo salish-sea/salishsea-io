@@ -29,3 +29,13 @@ export const licenseCodes = Object.freeze({
   "cc-by-nd": "CC-BY-ND (attribution, no derivatives)",
   "cc-by-sa": "CC-BY-SA (attribution, share-alike)",
 });
+
+/// species scientifica name -> mean speed in km/h
+export const travelSpeedKmH: {[k: string]: number} = {
+  "Balaenoptera acutorostrata": 3.0,
+  "Eschrichtius robustus": 4.0,
+  "Megaptera novaeangliae": 5.0,
+  "Orcinus orca": 6.8,
+  "Orcinus orca ater": 6.6,
+  "Orcinus orca rectipinnus": 6.8,
+};

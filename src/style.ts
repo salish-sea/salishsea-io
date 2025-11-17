@@ -1,10 +1,10 @@
 import Style from 'ol/style/Style.js';
-import Circle from 'ol/style/Circle.js';
+import CircleStyle from 'ol/style/Circle.js';
 import Fill from 'ol/style/Fill.js';
 import Stroke from 'ol/style/Stroke.js';
 import Text from 'ol/style/Text.js';
 import type { FeatureLike } from 'ol/Feature.js';
-import { LineString, Point } from 'ol/geom.js';
+import { Circle, LineString, Point } from 'ol/geom.js';
 import type Feature from 'ol/Feature.js';
 import Icon from 'ol/style/Icon.js';
 import arrowPNG from './assets/arrow.png';
@@ -17,6 +17,7 @@ const black = '#000000';
 const yellow = '#ffff00';
 const transparentWhite = 'rgba(255, 255, 255, 0.4)';
 const solidBlue = '#3399CC';
+const hour_in_ms = 60 * 60 * 1000;
 
 export const sighterStyle = new Style({
   text: new Text({
@@ -64,7 +65,7 @@ export const occurrenceStyle = (occurrence: Occurrence, isSelected = false) => {
   }
   const styles = [
     new Style({
-      image: new Circle({
+      image: new CircleStyle({
         radius: 6,
         fill,
         stroke,
@@ -117,17 +118,17 @@ export const selectedObservationStyle = (observation: FeatureLike) => {
 export const travelStyle = (feature: Feature<LineString>, resolution: number) => {
   if (resolution > 100)
     return;
+  const lineString = feature.getGeometry()!;
+  const styles: Style[] = [];
 
-  const styles = [
-    // linestring
-    new Style({
+  if (lineString.getLength() > 1)
+    styles.push(new Style({
       stroke: new Stroke({
         color: '#ffcc33',
         width: 2,
       }),
-    }),
-  ];
-  feature.getGeometry()!.forEachSegment(function (a, b) {
+    }));
+  lineString.forEachSegment(function (a, b) {
     const start = a as [number, number];
     const end = b as [number, number];
     const dx = end[0] - start[0];
@@ -146,6 +147,23 @@ export const travelStyle = (feature: Feature<LineString>, resolution: number) =>
       }),
     );
   });
+  const meanTravelSpeed = feature.get('mean_travel_speed') as number | undefined;
+  if (meanTravelSpeed) {
+    const lastCoordinate = lineString.getLastCoordinate();
+    const lastEpochMs = feature.get('last_epoch_ms');
+    const ageHours = (new Date().valueOf() - lastEpochMs) / hour_in_ms;
+    if (ageHours < 6) {
+      const imputedDistanceM = ageHours * meanTravelSpeed * 1000;
+      const opacity = (3 / (3 + 4 * ageHours * ageHours)).toFixed(2);
+      styles.push(new Style({
+        geometry: new Circle(lastCoordinate, imputedDistanceM, 'XY'),
+        stroke: new Stroke({
+          color: `rgba(200, 0, 0, ${opacity})`,
+          width: 1,
+        }),
+      }));
+    }
+  }
   return styles;
 }
 
@@ -163,7 +181,7 @@ export const viewingLocationStyle = (location: FeatureLike) => {
   const text = location.get('name');
   return [
     new Style({
-      image: new Circle({radius: 4, fill, stroke}),
+      image: new CircleStyle({radius: 4, fill, stroke}),
       fill,
       stroke,
     }),
