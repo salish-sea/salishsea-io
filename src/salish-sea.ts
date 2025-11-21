@@ -5,10 +5,8 @@ import './login-button.ts';
 import { userContext, type User } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
-import type Point from "ol/geom/Point.js";
 import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
-import type Feature from "ol/Feature.js";
 import drawingSourceContext from "./drawing-context.ts";
 import type VectorSource from "ol/source/Vector.js";
 import type OpenLayersMap from "ol/Map.js";
@@ -145,15 +143,7 @@ export default class SalishSea extends LitElement {
   #mapMoveDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
   @property({attribute: false})
-  set focusedOccurrence(value: Occurrence | null) {
-    this.#focusedOccurrence = value;
-    if (value)
-      this.focusOccurrence(value)
-  }
-  get focusedOccurrence() {
-    return this.#focusedOccurrence;
-  }
-  #focusedOccurrence: Occurrence | null = null;
+  private focusedOccurrenceId: string | null = null;
 
   private dialogRef = createRef<HTMLDialogElement>();
   private mapRef = createRef<ObsMap>();
@@ -220,7 +210,7 @@ export default class SalishSea extends LitElement {
     this.addEventListener('log-out', this.doLogOut.bind(this));
     this.addEventListener('focus-occurrence', evt => {
       const occurrence = (evt as CustomEvent<Occurrence | null>).detail;
-      this.focusedOccurrence = occurrence;
+      this.focusOccurrence(occurrence);
     });
     this.addEventListener('date-selected', (evt) => {
       if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
@@ -250,7 +240,7 @@ export default class SalishSea extends LitElement {
     });
     this.addEventListener('sighting-saved', (evt) => {
       const occurrence = (evt as CustomEvent<Occurrence>).detail;
-      this.focusedOccurrence = occurrence;
+      this.focusOccurrence(occurrence);
     });
     this.addEventListener('clone-sighting', async (evt) => {
       const sighting = (evt as CloneSightingEvent).detail;
@@ -306,11 +296,11 @@ export default class SalishSea extends LitElement {
           </ul>
           <p>If you have any feedback, tap the Feedback button in the bottom-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>. This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen and is funded in 2025-26 by <a href="https://beamreach.blue/">Beam Reach</a>.</p>
         </dialog>
-        <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ}></obs-map>
+        <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId}></obs-map>
         <obs-panel ${ref(this.panelRef)} date=${this.date} .lastOwnOccurrence=${this.lastOwnOccurrence}>
           ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
             const id = sighting.id;
-            const classes = {focused: id === this.focusedOccurrence?.id};
+            const classes = {focused: id === this.focusedOccurrenceId};
             return html`
               <obs-summary class=${classMap(classes)} id=${`summary-${id}`} ?focused=${classes.focused} .sighting=${sighting} />
             `;
@@ -346,14 +336,10 @@ export default class SalishSea extends LitElement {
     this.mapRef.value!.setOccurrences(features);
   }
 
-  focusOccurrence(occurrence: Occurrence) {
-    const map = this.mapRef.value!;
-    this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDate().toString();
-    const feature = map.ocurrenceSource.getFeatureById(occurrence.id) as Feature<Point> | null;
-    if (!feature)
-      return;
-    map.selectFeature(feature);
-    map.ensureCoordsInViewport(feature.getGeometry()!.getCoordinates());
+  focusOccurrence(occurrence: Occurrence | null) {
+    this.focusedOccurrenceId = occurrence?.id || null;
+    if (occurrence)
+      this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDate().toString();
   }
 
   onAboutClicked(e: Event) {

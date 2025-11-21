@@ -69,7 +69,7 @@ export class ObsMap extends LitElement {
   })
 
   @property({type: String, reflect: true})
-  private focusedSightingId: string | undefined
+  public focusedOccurrenceId: string | undefined
 
   #modify = new Modify({
     deleteCondition: never,
@@ -268,10 +268,13 @@ export class ObsMap extends LitElement {
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {
-    if (changedProperties.has('focusedSightingId') && this.focusedSightingId) {
-      const feature = this.ocurrenceSource.getFeatureById(this.focusedSightingId) as Feature<Point>;
-      const coords = feature.getGeometry()!.getCoordinates();
-      this.ensureCoordsInViewport(coords);
+    if (changedProperties.has('focusedOccurrenceId') && this.focusedOccurrenceId) {
+      const feature = this.ocurrenceSource.getFeatureById(this.focusedOccurrenceId) as Feature<Point>;
+      if (feature) {
+        this.selectFeature(feature);
+        const coords = feature.getGeometry()!.getCoordinates();
+        this.ensureCoordsInViewport(coords);
+      }
     }
   }
 
