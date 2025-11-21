@@ -343,11 +343,11 @@ export default class SalishSea extends LitElement {
     this.drawingSource = this.mapRef.value!.drawingSource;
   }
 
-  receiveSightings(sightings: Occurrence[], forDate: string) {
+  receiveOccurrences(occurrences: Occurrence[], forDate: string) {
     if (forDate !== this.date)
       return;
-    this.sightings = sightings;
-    const features = sightings.map(occurrence2feature);
+    this.sightings = occurrences;
+    const features = occurrences.map(occurrence2feature);
     this.mapRef.value!.setOccurrences(features);
   }
 
@@ -382,7 +382,7 @@ export default class SalishSea extends LitElement {
     if (!data)
       return Promise.reject(new Error("Got empty response from presence_on_date"));
 
-    this.receiveSightings(data as Occurrence[], date);
+    this.receiveOccurrences(data as Occurrence[], date);
   }
 }
 
