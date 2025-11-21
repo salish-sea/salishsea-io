@@ -178,6 +178,10 @@ export default class SalishSea extends LitElement {
 
   #handlePopState = () => {
     this.#isRestoringFromHistory = true;
+    if (this.#mapMoveDebounceTimer) {
+      clearTimeout(this.#mapMoveDebounceTimer);
+      this.#mapMoveDebounceTimer = null;
+    }
     try {
       const params = parseUrlParams(new URLSearchParams(window.location.search));
 
