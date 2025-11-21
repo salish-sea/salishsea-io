@@ -10,6 +10,8 @@ const hour_in_ms = 60 * 60 * 1000;
 
 type Candidate = Merge<GeoJSON.Feature<GeoJSON.Point, {
   epoch_ms: number;
+  is_first?: true;
+  is_last?: true;
   scientific_name: string;
   species_id: number;
 }>, {id: Occurrence['id']}>;
@@ -41,7 +43,9 @@ export function imputeTravelLines(occurrences: Feature<Point>[]) {
       placed.add(point.id);
     const feature = new Feature(new LineString(points.map(point => fromLonLat(point.geometry.coordinates))));
     feature.setId(`line-from-${occurrence.id}`);
+    points[0]!.properties.is_first = true;
     const lastPoint = points[points.length - 1]!;
+    lastPoint.properties.is_last = true;
     const meanTravelSpeed = travelSpeedKmH[occurrence.properties.scientific_name];
     if (meanTravelSpeed) {
       feature.set('last_epoch_ms', lastPoint.properties.epoch_ms);
