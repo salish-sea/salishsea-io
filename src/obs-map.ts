@@ -69,7 +69,7 @@ export class ObsMap extends LitElement {
   })
 
   @property({type: String, reflect: true})
-  private focusedSightingId: string | undefined
+  public focusedOccurrenceId: string | undefined
 
   #modify = new Modify({
     deleteCondition: never,
@@ -172,13 +172,35 @@ export class ObsMap extends LitElement {
     window.open(feature.get('url'), '_blank')
   }
 
+  #skipNextMoveEvent = false;
+
   protected onMoveEnd() {
+    if (this.#skipNextMoveEvent) {
+      this.#skipNextMoveEvent = false;
+      return;
+    }
     const detail: MapMoveDetail = {
       center: this.view.getCenter() as [number, number],
       zoom: this.view.getZoom()!
     };
     const evt = new CustomEvent('map-move', {bubbles: true, composed: true, detail});
     this.dispatchEvent(evt);
+  }
+
+  /**
+   * Programmatically set the map view (center and zoom)
+   * @param x - X coordinate in map projection (EPSG:3857)
+   * @param y - Y coordinate in map projection (EPSG:3857)
+   * @param zoom - Zoom level
+   * @param options - Optional configuration
+   * @param options.skipEvent - If true, suppresses the 'map-move' event
+   */
+  public setView(x: number, y: number, zoom: number, options: {skipEvent?: boolean} = {}) {
+    if (options.skipEvent) {
+      this.#skipNextMoveEvent = true;
+    }
+    this.view.setCenter([x, y]);
+    this.view.setZoom(zoom);
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
@@ -246,10 +268,13 @@ export class ObsMap extends LitElement {
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {
-    if (changedProperties.has('focusedSightingId') && this.focusedSightingId) {
-      const feature = this.ocurrenceSource.getFeatureById(this.focusedSightingId) as Feature<Point>;
-      const coords = feature.getGeometry()!.getCoordinates();
-      this.ensureCoordsInViewport(coords);
+    if (changedProperties.has('focusedOccurrenceId') && this.focusedOccurrenceId) {
+      const feature = this.ocurrenceSource.getFeatureById(this.focusedOccurrenceId) as Feature<Point>;
+      if (feature) {
+        this.selectFeature(feature);
+        const coords = feature.getGeometry()!.getCoordinates();
+        this.ensureCoordsInViewport(coords);
+      }
     }
   }
 

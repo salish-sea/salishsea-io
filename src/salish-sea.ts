@@ -5,10 +5,8 @@ import './login-button.ts';
 import { userContext, type User } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
-import type Point from "ol/geom/Point.js";
 import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
-import type Feature from "ol/Feature.js";
 import drawingSourceContext from "./drawing-context.ts";
 import type VectorSource from "ol/source/Vector.js";
 import type OpenLayersMap from "ol/Map.js";
@@ -30,12 +28,40 @@ if (import.meta.env.PROD)
 const viewInitiallySmall = window.innerWidth < 800;
 
 const dateRE = /^(\d\d\d\d-\d\d-\d\d)$/;
-const initialSearchParams = new URLSearchParams(document.location.search);
-const initialQueryDate = initialSearchParams.get('d');
-const initialDate = dateRE.test(initialQueryDate || '') && initialQueryDate || Temporal.Now.plainDateISO('PST8PDT').toString();
-const initialX = parseFloat(initialSearchParams.get('x') || '') || (viewInitiallySmall ? -13732579 : -13880076 );
-const initialY = parseFloat(initialSearchParams.get('y') || '') || (viewInitiallySmall ? 6095660 : 6211076 );
-const initialZ = parseFloat(initialSearchParams.get('z') || '') || (viewInitiallySmall ? 7 : 8);
+
+function parseUrlParams(searchParams: URLSearchParams) {
+  const dateParam = searchParams.get('d');
+  const date = dateParam && dateRE.test(dateParam)
+    ? dateParam
+    : Temporal.Now.plainDateISO('PST8PDT').toString();
+
+  const x = parseFloat(searchParams.get('x') || '');
+  const y = parseFloat(searchParams.get('y') || '');
+  const z = parseFloat(searchParams.get('z') || '');
+
+  const hasValidMapPosition = !isNaN(x) && !isNaN(y) && !isNaN(z);
+
+  const occurrenceId = searchParams.get('o') || null;
+
+  return {
+    date,
+    occurrenceId,
+    mapPosition: hasValidMapPosition
+      ? { x, y, z }
+      : {
+          x: viewInitiallySmall ? -13732579 : -13880076,
+          y: viewInitiallySmall ? 6095660 : 6211076,
+          z: viewInitiallySmall ? 7 : 8
+        }
+  };
+}
+
+const initialParams = parseUrlParams(new URLSearchParams(document.location.search));
+const initialDate = initialParams.date;
+const initialOccurrenceId = initialParams.occurrenceId;
+const initialX = initialParams.mapPosition.x;
+const initialY = initialParams.mapPosition.y;
+const initialZ = initialParams.mapPosition.z;
 
 @customElement('salish-sea')
 export default class SalishSea extends LitElement {
@@ -117,16 +143,11 @@ export default class SalishSea extends LitElement {
   @provide({context: drawingSourceContext})
   drawingSource: VectorSource | undefined
 
+  #isRestoringFromHistory = false
+  #mapMoveDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
   @property({attribute: false})
-  set focusedOccurrence(value: Occurrence | null) {
-    this.#focusedOccurrence = value;
-    if (value)
-      this.focusOccurrence(value)
-  }
-  get focusedOccurrence() {
-    return this.#focusedOccurrence;
-  }
-  #focusedOccurrence: Occurrence | null = null;
+  private focusedOccurrenceId: string | null = initialOccurrenceId;
 
   private dialogRef = createRef<HTMLDialogElement>();
   private mapRef = createRef<ObsMap>();
@@ -147,11 +168,40 @@ export default class SalishSea extends LitElement {
       return;
     this.#date = d;
     this.fetchOccurrences(d);
-    setQueryParams({d});
+    if (!this.#isRestoringFromHistory) {
+      setQueryParams({d});
+    }
   }
 
   @property({attribute: false})
   private sightings: Occurrence[] = []
+
+  #handlePopState = () => {
+    this.#isRestoringFromHistory = true;
+    if (this.#mapMoveDebounceTimer) {
+      clearTimeout(this.#mapMoveDebounceTimer);
+      this.#mapMoveDebounceTimer = null;
+    }
+    try {
+      const params = parseUrlParams(new URLSearchParams(window.location.search));
+
+      // Update date
+      this.date = params.date;
+
+      // Update focused occurrence
+      this.focusedOccurrenceId = params.occurrenceId;
+
+      // Update map position
+      this.mapRef.value?.setView(
+        params.mapPosition.x,
+        params.mapPosition.y,
+        params.mapPosition.z,
+        {skipEvent: true}
+      );
+    } finally {
+      this.#isRestoringFromHistory = false;
+    }
+  };
 
   constructor() {
     super();
@@ -171,7 +221,7 @@ export default class SalishSea extends LitElement {
     this.addEventListener('log-out', this.doLogOut.bind(this));
     this.addEventListener('focus-occurrence', evt => {
       const occurrence = (evt as CustomEvent<Occurrence | null>).detail;
-      this.focusedOccurrence = occurrence;
+      this.focusOccurrence(occurrence);
     });
     this.addEventListener('date-selected', (evt) => {
       if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
@@ -185,12 +235,23 @@ export default class SalishSea extends LitElement {
       this.mapRef.value!.zoomToExtent(extent);
     });
     this.addEventListener('map-move', (evt) => {
+      if (this.#isRestoringFromHistory)
+        return;
+
       const {center: [x, y], zoom} = (evt as CustomEvent<MapMoveDetail>).detail;
-      setQueryParams({x: x.toFixed(), y: y.toFixed(), z: zoom.toFixed()});
+
+      // Debounce map updates to avoid spamming history
+      if (this.#mapMoveDebounceTimer)
+        clearTimeout(this.#mapMoveDebounceTimer);
+
+      this.#mapMoveDebounceTimer = setTimeout(() => {
+        setQueryParams({x: x.toFixed(), y: y.toFixed(), z: zoom.toFixed()}, {replace: true});
+        this.#mapMoveDebounceTimer = null;
+      }, 500);
     });
     this.addEventListener('sighting-saved', (evt) => {
       const occurrence = (evt as CustomEvent<Occurrence>).detail;
-      this.focusedOccurrence = occurrence;
+      this.focusOccurrence(occurrence);
     });
     this.addEventListener('clone-sighting', async (evt) => {
       const sighting = (evt as CloneSightingEvent).detail;
@@ -209,10 +270,19 @@ export default class SalishSea extends LitElement {
 
   async connectedCallback(): Promise<void> {
     super.connectedCallback();
+    window.addEventListener('popstate', this.#handlePopState);
     // If any credentials arrived before the component was defined, process them now.
     let token: string | undefined;
     while (token = window.__pendingGSIResponses?.shift()) {
       await this.receiveIdToken(token);
+    }
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    window.removeEventListener('popstate', this.#handlePopState);
+    if (this.#mapMoveDebounceTimer) {
+      clearTimeout(this.#mapMoveDebounceTimer);
     }
   }
 
@@ -237,11 +307,11 @@ export default class SalishSea extends LitElement {
           </ul>
           <p>If you have any feedback, tap the Feedback button in the bottom-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>. This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen and is funded in 2025-26 by <a href="https://beamreach.blue/">Beam Reach</a>.</p>
         </dialog>
-        <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ}></obs-map>
+        <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId}></obs-map>
         <obs-panel ${ref(this.panelRef)} date=${this.date} .lastOwnOccurrence=${this.lastOwnOccurrence}>
           ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
             const id = sighting.id;
-            const classes = {focused: id === this.focusedOccurrence?.id};
+            const classes = {focused: id === this.focusedOccurrenceId};
             return html`
               <obs-summary class=${classMap(classes)} id=${`summary-${id}`} ?focused=${classes.focused} .sighting=${sighting} />
             `;
@@ -277,14 +347,18 @@ export default class SalishSea extends LitElement {
     this.mapRef.value!.setOccurrences(features);
   }
 
-  focusOccurrence(occurrence: Occurrence) {
-    const map = this.mapRef.value!;
-    this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDate().toString();
-    const feature = map.ocurrenceSource.getFeatureById(occurrence.id) as Feature<Point> | null;
-    if (!feature)
-      return;
-    map.selectFeature(feature);
-    map.ensureCoordsInViewport(feature.getGeometry()!.getCoordinates());
+  focusOccurrence(occurrence: Occurrence | null) {
+    this.focusedOccurrenceId = occurrence?.id || null;
+    if (occurrence)
+      this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDate().toString();
+
+    if (!this.#isRestoringFromHistory) {
+      if (this.focusedOccurrenceId) {
+        setQueryParams({o: this.focusedOccurrenceId});
+      } else {
+        removeQueryParam('o');
+      }
+    }
   }
 
   onAboutClicked(e: Event) {
@@ -308,11 +382,21 @@ export default class SalishSea extends LitElement {
   }
 }
 
-function setQueryParams(params: {[k: string]: string}) {
+function setQueryParams(params: {[k: string]: string}, options: {replace?: boolean} = {}) {
     const url = new URL(window.location.href);
     for (const [k, v] of Object.entries(params)) {
       url.searchParams.set(k, v);
     }
+    if (options.replace) {
+      window.history.replaceState({}, '', url.toString());
+    } else {
+      window.history.pushState({}, '', url.toString());
+    }
+}
+
+function removeQueryParam(key: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(key);
     window.history.pushState({}, '', url.toString());
 }
 
