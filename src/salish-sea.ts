@@ -41,8 +41,11 @@ function parseUrlParams(searchParams: URLSearchParams) {
 
   const hasValidMapPosition = !isNaN(x) && !isNaN(y) && !isNaN(z);
 
+  const occurrenceId = searchParams.get('o') || null;
+
   return {
     date,
+    occurrenceId,
     mapPosition: hasValidMapPosition
       ? { x, y, z }
       : {
@@ -55,6 +58,7 @@ function parseUrlParams(searchParams: URLSearchParams) {
 
 const initialParams = parseUrlParams(new URLSearchParams(document.location.search));
 const initialDate = initialParams.date;
+const initialOccurrenceId = initialParams.occurrenceId;
 const initialX = initialParams.mapPosition.x;
 const initialY = initialParams.mapPosition.y;
 const initialZ = initialParams.mapPosition.z;
@@ -143,7 +147,7 @@ export default class SalishSea extends LitElement {
   #mapMoveDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
   @property({attribute: false})
-  private focusedOccurrenceId: string | null = null;
+  private focusedOccurrenceId: string | null = initialOccurrenceId;
 
   private dialogRef = createRef<HTMLDialogElement>();
   private mapRef = createRef<ObsMap>();
@@ -179,6 +183,9 @@ export default class SalishSea extends LitElement {
 
       // Update date
       this.date = params.date;
+
+      // Update focused occurrence
+      this.focusedOccurrenceId = params.occurrenceId;
 
       // Update map position
       this.mapRef.value?.setView(
@@ -340,6 +347,14 @@ export default class SalishSea extends LitElement {
     this.focusedOccurrenceId = occurrence?.id || null;
     if (occurrence)
       this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDate().toString();
+
+    if (!this.#isRestoringFromHistory) {
+      if (this.focusedOccurrenceId) {
+        setQueryParams({o: this.focusedOccurrenceId});
+      } else {
+        removeQueryParam('o');
+      }
+    }
   }
 
   onAboutClicked(e: Event) {
@@ -373,6 +388,12 @@ function setQueryParams(params: {[k: string]: string}, options: {replace?: boole
     } else {
       window.history.pushState({}, '', url.toString());
     }
+}
+
+function removeQueryParam(key: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(key);
+    window.history.pushState({}, '', url.toString());
 }
 
 
