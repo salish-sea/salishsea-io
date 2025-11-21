@@ -30,12 +30,36 @@ if (import.meta.env.PROD)
 const viewInitiallySmall = window.innerWidth < 800;
 
 const dateRE = /^(\d\d\d\d-\d\d-\d\d)$/;
-const initialSearchParams = new URLSearchParams(document.location.search);
-const initialQueryDate = initialSearchParams.get('d');
-const initialDate = dateRE.test(initialQueryDate || '') && initialQueryDate || Temporal.Now.plainDateISO('PST8PDT').toString();
-const initialX = parseFloat(initialSearchParams.get('x') || '') || (viewInitiallySmall ? -13732579 : -13880076 );
-const initialY = parseFloat(initialSearchParams.get('y') || '') || (viewInitiallySmall ? 6095660 : 6211076 );
-const initialZ = parseFloat(initialSearchParams.get('z') || '') || (viewInitiallySmall ? 7 : 8);
+
+function parseUrlParams(searchParams: URLSearchParams) {
+  const dateParam = searchParams.get('d');
+  const date = dateParam && dateRE.test(dateParam)
+    ? dateParam
+    : Temporal.Now.plainDateISO('PST8PDT').toString();
+
+  const x = parseFloat(searchParams.get('x') || '');
+  const y = parseFloat(searchParams.get('y') || '');
+  const z = parseFloat(searchParams.get('z') || '');
+
+  const hasValidMapPosition = !isNaN(x) && !isNaN(y) && !isNaN(z);
+
+  return {
+    date,
+    mapPosition: hasValidMapPosition
+      ? { x, y, z }
+      : {
+          x: viewInitiallySmall ? -13732579 : -13880076,
+          y: viewInitiallySmall ? 6095660 : 6211076,
+          z: viewInitiallySmall ? 7 : 8
+        }
+  };
+}
+
+const initialParams = parseUrlParams(new URLSearchParams(document.location.search));
+const initialDate = initialParams.date;
+const initialX = initialParams.mapPosition.x;
+const initialY = initialParams.mapPosition.y;
+const initialZ = initialParams.mapPosition.z;
 
 @customElement('salish-sea')
 export default class SalishSea extends LitElement {
@@ -117,6 +141,9 @@ export default class SalishSea extends LitElement {
   @provide({context: drawingSourceContext})
   drawingSource: VectorSource | undefined
 
+  #isRestoringFromHistory = false
+  #mapMoveDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
   @property({attribute: false})
   set focusedOccurrence(value: Occurrence | null) {
     this.#focusedOccurrence = value;
@@ -147,11 +174,33 @@ export default class SalishSea extends LitElement {
       return;
     this.#date = d;
     this.fetchOccurrences(d);
-    setQueryParams({d});
+    if (!this.#isRestoringFromHistory) {
+      setQueryParams({d});
+    }
   }
 
   @property({attribute: false})
   private sightings: Occurrence[] = []
+
+  #handlePopState = () => {
+    this.#isRestoringFromHistory = true;
+    try {
+      const params = parseUrlParams(new URLSearchParams(window.location.search));
+
+      // Update date
+      this.date = params.date;
+
+      // Update map position
+      this.mapRef.value?.setView(
+        params.mapPosition.x,
+        params.mapPosition.y,
+        params.mapPosition.z,
+        {skipEvent: true}
+      );
+    } finally {
+      this.#isRestoringFromHistory = false;
+    }
+  };
 
   constructor() {
     super();
@@ -185,8 +234,19 @@ export default class SalishSea extends LitElement {
       this.mapRef.value!.zoomToExtent(extent);
     });
     this.addEventListener('map-move', (evt) => {
+      if (this.#isRestoringFromHistory)
+        return;
+
       const {center: [x, y], zoom} = (evt as CustomEvent<MapMoveDetail>).detail;
-      setQueryParams({x: x.toFixed(), y: y.toFixed(), z: zoom.toFixed()});
+
+      // Debounce map updates to avoid spamming history
+      if (this.#mapMoveDebounceTimer)
+        clearTimeout(this.#mapMoveDebounceTimer);
+
+      this.#mapMoveDebounceTimer = setTimeout(() => {
+        setQueryParams({x: x.toFixed(), y: y.toFixed(), z: zoom.toFixed()}, {replace: true});
+        this.#mapMoveDebounceTimer = null;
+      }, 500);
     });
     this.addEventListener('sighting-saved', (evt) => {
       const occurrence = (evt as CustomEvent<Occurrence>).detail;
@@ -209,10 +269,19 @@ export default class SalishSea extends LitElement {
 
   async connectedCallback(): Promise<void> {
     super.connectedCallback();
+    window.addEventListener('popstate', this.#handlePopState);
     // If any credentials arrived before the component was defined, process them now.
     let token: string | undefined;
     while (token = window.__pendingGSIResponses?.shift()) {
       await this.receiveIdToken(token);
+    }
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    window.removeEventListener('popstate', this.#handlePopState);
+    if (this.#mapMoveDebounceTimer) {
+      clearTimeout(this.#mapMoveDebounceTimer);
     }
   }
 
@@ -308,12 +377,16 @@ export default class SalishSea extends LitElement {
   }
 }
 
-function setQueryParams(params: {[k: string]: string}) {
+function setQueryParams(params: {[k: string]: string}, options: {replace?: boolean} = {}) {
     const url = new URL(window.location.href);
     for (const [k, v] of Object.entries(params)) {
       url.searchParams.set(k, v);
     }
-    window.history.pushState({}, '', url.toString());
+    if (options.replace) {
+      window.history.replaceState({}, '', url.toString());
+    } else {
+      window.history.pushState({}, '', url.toString());
+    }
 }
 
 
