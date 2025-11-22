@@ -11,7 +11,10 @@ export function occurrence2feature(occurrence: Occurrence): Feature<Point> {
   const point = new Point(fromLonLat([lon, lat]));
   const feature = new Feature(point);
   feature.setId(occurrence.id);
-  feature.setProperties(occurrence);
+  feature.setProperties({
+    ...occurrence,
+    observed_at_ms: Date.parse(occurrence.observed_at),
+  });
 
   return feature;
 }

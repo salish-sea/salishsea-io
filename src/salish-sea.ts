@@ -13,7 +13,7 @@ import type OpenLayersMap from "ol/Map.js";
 import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
-import { fetchLastOwnOccurrence, occurrence2feature } from "./occurrence.ts";
+import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase, type Occurrence } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
@@ -305,7 +305,11 @@ export default class SalishSea extends LitElement {
             <li>Sightings from the <a href="https://www.orcanetwork.org/">Orca Network</a> community</li>
             <li>Observations of humpbacks within the Salish Sea from <a href="https://happywhale.com">HappyWhale</a> (open data, 2012-April,2025)</li>
           </ul>
-          <p>If you have any feedback, tap the Feedback button in the bottom-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>. This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen and is funded in 2025-26 by <a href="https://beamreach.blue/">Beam Reach</a>.</p>
+          <p>
+            If you have any feedback, tap the Feedback button in the bottom-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>.
+            This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen
+            and is funded in 2025-26 by <a href="https://beamreach.blue/">Beam Reach</a>.
+          </p>
         </dialog>
         <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId}></obs-map>
         <obs-panel ${ref(this.panelRef)} date=${this.date} .lastOwnOccurrence=${this.lastOwnOccurrence}>
@@ -339,12 +343,11 @@ export default class SalishSea extends LitElement {
     this.drawingSource = this.mapRef.value!.drawingSource;
   }
 
-  receiveSightings(sightings: Occurrence[], forDate: string) {
+  receiveOccurrences(occurrences: Occurrence[], forDate: string) {
     if (forDate !== this.date)
       return;
-    this.sightings = sightings;
-    const features = sightings.map(occurrence2feature);
-    this.mapRef.value!.setOccurrences(features);
+    this.sightings = occurrences;
+    this.mapRef.value!.setOccurrences(occurrences);
   }
 
   focusOccurrence(occurrence: Occurrence | null) {
@@ -372,13 +375,17 @@ export default class SalishSea extends LitElement {
   }
 
   async fetchOccurrences(date: string) {
-    const {data, error} = await supabase.from('occurrences').select().eq('local_date', this.date).order('observed_at', {ascending: false});
+    const {data, error} = await supabase
+      .from('occurrences')
+      .select()
+      .eq('local_date', this.date)
+      .order('observed_at', {ascending: false});
     if (error)
       return Promise.reject(error);
     if (!data)
       return Promise.reject(new Error("Got empty response from presence_on_date"));
 
-    this.receiveSightings(data as Occurrence[], date);
+    this.receiveOccurrences(data as Occurrence[], date);
   }
 }
 

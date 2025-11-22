@@ -17,6 +17,7 @@ const black = '#000000';
 const yellow = '#ffff00';
 const transparentWhite = 'rgba(255, 255, 255, 0.4)';
 const solidBlue = '#3399CC';
+const reddish = 'rgb(220, 0, 0)';
 const hour_in_ms = 60 * 60 * 1000;
 
 export const sighterStyle = new Style({
@@ -53,12 +54,15 @@ export const bearingStyle = (feature: Feature<LineString>) => {
 };
 
 export const occurrenceStyle = (occurrence: Occurrence, isSelected = false) => {
-  const {direction, identifiers} = occurrence;
+  const {direction, identifiers, isFirst, isLast} = occurrence;
   let fill: Fill;
   let stroke: Stroke;
   if (isSelected) {
     fill = new Fill({color: yellow});
     stroke = new Stroke({color: yellow, width: 3});
+  } else if (isLast && !isFirst) {
+    fill = new Fill({color: transparentWhite});
+    stroke = new Stroke({color: reddish, width: 1.25});
   } else {
     fill = new Fill({color: transparentWhite});
     stroke = new Stroke({color: solidBlue, width: 1.25});
@@ -99,9 +103,11 @@ export const occurrenceStyle = (occurrence: Occurrence, isSelected = false) => {
   }
   if (direction) {
     styles.push(new Style({
+      stroke,
       text: new Text({
         font: '14px monospace',
         rotation: directionToRads(direction),
+        stroke,
         text: ' ⇢',
         textAlign: 'left',
       }),
