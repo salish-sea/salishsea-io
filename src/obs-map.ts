@@ -26,9 +26,10 @@ import type MapBrowserEvent from 'ol/MapBrowserEvent.js';
 import olCSS from 'ol/ol.css?url';
 import type { Occurrence } from './supabase.ts';
 import { LineString } from 'ol/geom.js';
-import { imputeTravelLines } from './travel-lines.ts';
+import { occurrences2segments, segment2features, segment2travelLine } from './segments.ts';
 import { transformExtent } from 'ol/proj.js';
 import { createRef, ref } from 'lit/directives/ref.js';
+import { compactMap } from './utils.ts';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -254,11 +255,15 @@ export class ObsMap extends LitElement {
     }
   }
 
-  public setOccurrences(features: Feature<Point>[]) {
+  public setOccurrences(occurrences: Occurrence[]) {
+    const segments = occurrences2segments(occurrences);
+    const features = segments.flatMap(segment2features);
     this.ocurrenceSource.clear()
     this.ocurrenceSource.addFeatures(features);
+
+    const travelLines = compactMap(segments, segment2travelLine);
     this.travelSource.clear()
-    this.travelSource.addFeatures(imputeTravelLines(features.toReversed()));
+    this.travelSource.addFeatures(travelLines);
   }
 
   public selectFeature(feature: Feature) {

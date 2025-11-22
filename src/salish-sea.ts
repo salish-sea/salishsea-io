@@ -13,7 +13,7 @@ import type OpenLayersMap from "ol/Map.js";
 import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
-import { fetchLastOwnOccurrence, occurrence2feature } from "./occurrence.ts";
+import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase, type Occurrence } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
@@ -347,8 +347,7 @@ export default class SalishSea extends LitElement {
     if (forDate !== this.date)
       return;
     this.sightings = occurrences;
-    const features = occurrences.map(occurrence2feature);
-    this.mapRef.value!.setOccurrences(features);
+    this.mapRef.value!.setOccurrences(occurrences);
   }
 
   focusOccurrence(occurrence: Occurrence | null) {
@@ -376,7 +375,11 @@ export default class SalishSea extends LitElement {
   }
 
   async fetchOccurrences(date: string) {
-    const {data, error} = await supabase.from('occurrences').select().eq('local_date', this.date).order('observed_at', {ascending: false});
+    const {data, error} = await supabase
+      .from('occurrences')
+      .select()
+      .eq('local_date', this.date)
+      .order('observed_at', {ascending: false});
     if (error)
       return Promise.reject(error);
     if (!data)

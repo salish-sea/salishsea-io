@@ -27,7 +27,11 @@ export type Occurrence = OverrideProperties<Occurrence1, {
   observed_from: LonLat | null;
   photos: OccurrencePhoto[];
   taxon: Taxon;
-}>;
+}> & {
+  isFirst?: true;
+  isLast?: true;
+  observed_at_ms: number;
+};
 
 
 type DBUpsertObservationArgs = PatchedDatabase['public']['Functions']['upsert_observation']['Args'];
