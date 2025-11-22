@@ -31,6 +31,8 @@ export function occurrences2segments(occurrences: Occurrence[]) {
 }
 
 export function segment2features(segment: Segment): Feature<Point>[] {
+  if (segment.occurrences.length === 0)
+    throw new Error("Segment had no occurrences");
   const features = segment.occurrences.map(occurrence2feature);
   features[0]!.set('isFirst', true);
   features[features.length - 1]!.set('isLast', true);
