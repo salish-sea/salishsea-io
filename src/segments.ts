@@ -18,7 +18,7 @@ export type Segment = {
 export function occurrences2segments(occurrences: Occurrence[]) {
   const placed: Set<Occurrence['id']> = new Set();
   const segments: Segment[] = [];
-  const sorted = occurrences.toSorted((a, b) => a.observed_at_ms < b.observed_at_ms ? -1 : 1);
+  const sorted = occurrences.toSorted((a, b) => a.observed_at_ms - b.observed_at_ms);
   for (const [idx, occurrence] of sorted.entries()) {
     if (placed.has(occurrence.id))
       continue;
