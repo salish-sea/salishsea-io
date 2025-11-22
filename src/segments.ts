@@ -65,7 +65,7 @@ function imputeSegmentFrom(start: Occurrence, candidates: Occurrence[]): Segment
       if (delta_meters > 20000)
         continue;
       const meters_per_hour = Math.max(0, (delta_meters - 3000)) / (delta_ms / hour_in_ms);
-      if (meters_per_hour > 1.5 * (meters_per_hour / 1000))
+      if (meters_per_hour > 1.5 * (meanTravelSpeed * 1000))
         continue;
       occurrences.push(candidate);
       last_point = candidate;
