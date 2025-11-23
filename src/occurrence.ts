@@ -18,7 +18,7 @@ export function occurrence2feature(occurrence: Occurrence): Feature<Point> {
 }
 
 export async function fetchLastOwnOccurrence(): Promise<Occurrence | null> {
-  const {data: occurrence, error} = await supabase
+  const {data: occurrence, error} = await supabase()
     .from('occurrences')
     .select('*')
     .eq('is_own_observation', true)

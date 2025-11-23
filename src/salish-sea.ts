@@ -206,7 +206,7 @@ export default class SalishSea extends LitElement {
 
   constructor() {
     super();
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabase().auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         this.user = session?.user || null;
       } else if (event === 'SIGNED_OUT') {
@@ -331,12 +331,12 @@ export default class SalishSea extends LitElement {
   }
 
   async doLogOut() {
-    supabase.auth.signOut();
+    supabase().auth.signOut();
     await this.fetchOccurrences(this.date);
   }
 
   public async receiveIdToken(token: string) {
-    await supabase.auth.signInWithIdToken({'provider': 'google', token});
+    await supabase().auth.signInWithIdToken({'provider': 'google', token});
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
@@ -376,7 +376,7 @@ export default class SalishSea extends LitElement {
   }
 
   async fetchOccurrences(date: string) {
-    const {data, error} = await supabase
+    const {data, error} = await supabase()
       .from('occurrences')
       .select()
       .eq('local_date', this.date)

@@ -143,7 +143,7 @@ export default class SightingForm extends LitElement {
   private _saveTask = new Task(this, {
     autoRun: false,
     task: async([occurrence]: [UpsertObservationArgs]) => {
-      const {data, error} = await supabase.rpc('upsert_observation', occurrence as any);
+      const {data, error} = await supabase().rpc('upsert_observation', occurrence as any);
       if (error) {
         throw new Error(`Error saving observation: ${error}`);
       }

@@ -145,7 +145,7 @@ export class ObsSummary extends LitElement {
 
   private async onDelete(e: Event) {
     e.preventDefault();
-    const {error} = await supabase.from('observations').delete().eq('id', this.sighting.id);
+    const {error} = await supabase().from('observations').delete().eq('id', this.sighting.id);
     if (error)
       throw new Error(`Error deleting observation: ${error}`);
     const evt = new CustomEvent('database-changed', {bubbles: true, composed: true});
