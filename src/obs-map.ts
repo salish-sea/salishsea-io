@@ -24,7 +24,7 @@ import { containsCoordinate, type Extent } from 'ol/extent.js';
 import type { Coordinate } from 'ol/coordinate.js';
 import type MapBrowserEvent from 'ol/MapBrowserEvent.js';
 import olCSS from 'ol/ol.css?url';
-import type { Occurrence } from './supabase.ts';
+import type { Occurrence } from './types.ts';
 import { LineString } from 'ol/geom.js';
 import { occurrences2segments, segment2features, segment2travelLine } from './segments.ts';
 import { transformExtent } from 'ol/proj.js';

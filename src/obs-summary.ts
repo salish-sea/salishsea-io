@@ -11,7 +11,8 @@ import { marked } from 'marked';
 import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
 import { Temporal } from "temporal-polyfill";
-import { supabase, type Occurrence } from "./supabase.ts";
+import { supabase } from "./supabase.ts";
+import type { Occurrence } from "./types.ts";
 
 const domPurify = createDOMPurify(window as any);
 
@@ -144,7 +145,7 @@ export class ObsSummary extends LitElement {
 
   private async onDelete(e: Event) {
     e.preventDefault();
-    const {error} = await supabase.from('observations').delete().eq('id', this.sighting.id);
+    const {error} = await supabase().from('observations').delete().eq('id', this.sighting.id);
     if (error)
       throw new Error(`Error deleting observation: ${error}`);
     const evt = new CustomEvent('database-changed', {bubbles: true, composed: true});

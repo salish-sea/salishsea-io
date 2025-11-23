@@ -24,7 +24,7 @@ import './photo-attachment.ts';
 import { TanStackFormController } from '@tanstack/lit-form';
 import { convert as parseCoords } from 'geo-coordinates-parser';
 import { detectIndividuals } from "./identifiers.ts";
-import { type License, type Occurrence, type TravelDirection, type UpsertObservationArgs } from "./supabase.ts";
+import { type License, type Occurrence, type TravelDirection, type UpsertObservationArgs } from "./types.ts";
 import { supabase } from "./supabase.ts";
 import PhotoAttachment, { photoThumbnail, readExif, uploadPhoto, type FailedUploadPhoto, type Photo, type UploadedPhoto } from "./photo-attachment.ts";
 import type { Coordinate } from "ol/coordinate.js";
@@ -143,7 +143,7 @@ export default class SightingForm extends LitElement {
   private _saveTask = new Task(this, {
     autoRun: false,
     task: async([occurrence]: [UpsertObservationArgs]) => {
-      const {data, error} = await supabase.rpc('upsert_observation', occurrence as any);
+      const {data, error} = await supabase().rpc('upsert_observation', occurrence as any);
       if (error) {
         throw new Error(`Error saving observation: ${error}`);
       }

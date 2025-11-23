@@ -24,7 +24,7 @@ export const sentryClient = new BrowserClient({
     globalHandlersIntegration(),
     linkedErrorsIntegration(),
     dedupeIntegration(),
-    supabaseIntegration(supabase, {startInactiveSpan, captureException, addBreadcrumb}, {
+    supabaseIntegration(supabase(), {startInactiveSpan, captureException, addBreadcrumb}, {
       tracing: true,
       breadcrumbs: true,
       errors: true,

@@ -14,13 +14,14 @@ import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
-import { supabase, type Occurrence } from "./supabase.ts";
+import { supabase } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
 import { isExtent } from "./constants.ts";
 import { ObsPanel } from "./obs-panel.ts";
 import { createRef, ref } from "lit/directives/ref.js";
+import type { Occurrence } from "./types.ts";
 
 if (import.meta.env.PROD)
   sentryClient.init();
@@ -205,7 +206,7 @@ export default class SalishSea extends LitElement {
 
   constructor() {
     super();
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabase().auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         this.user = session?.user || null;
       } else if (event === 'SIGNED_OUT') {
@@ -330,12 +331,12 @@ export default class SalishSea extends LitElement {
   }
 
   async doLogOut() {
-    supabase.auth.signOut();
+    supabase().auth.signOut();
     await this.fetchOccurrences(this.date);
   }
 
   public async receiveIdToken(token: string) {
-    await supabase.auth.signInWithIdToken({'provider': 'google', token});
+    await supabase().auth.signInWithIdToken({'provider': 'google', token});
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
@@ -375,7 +376,7 @@ export default class SalishSea extends LitElement {
   }
 
   async fetchOccurrences(date: string) {
-    const {data, error} = await supabase
+    const {data, error} = await supabase()
       .from('occurrences')
       .select()
       .eq('local_date', this.date)
@@ -385,7 +386,12 @@ export default class SalishSea extends LitElement {
     if (!data)
       return Promise.reject(new Error("Got empty response from presence_on_date"));
 
-    this.receiveOccurrences(data as Occurrence[], date);
+    const occurrences = data.map(record => ({
+      observed_at_ms: Date.parse(record.observed_at),
+      ...record,
+    }));
+
+    this.receiveOccurrences(occurrences as Occurrence[], date);
   }
 }
 

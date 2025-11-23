@@ -2,7 +2,7 @@ import { distance } from '@turf/distance';
 import { LineString, Point } from 'ol/geom.js';
 import Feature from 'ol/Feature.js';
 import { fromLonLat } from 'ol/proj.js';
-import type { Occurrence } from './supabase.ts';
+import type { Occurrence } from './types.ts';
 import { travelSpeedKmH } from './constants.ts';
 import { occurrence2feature } from './occurrence.ts';
 

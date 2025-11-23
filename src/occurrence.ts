@@ -1,7 +1,8 @@
 import Point from "ol/geom/Point.js";
 import { fromLonLat } from "ol/proj.js";
 import Feature from "ol/Feature.js";
-import { supabase, type Occurrence } from "./supabase.ts";
+import { supabase } from "./supabase.ts";
+import type { Occurrence } from "./types.ts";
 
 
 export function occurrence2feature(occurrence: Occurrence): Feature<Point> {
@@ -11,16 +12,13 @@ export function occurrence2feature(occurrence: Occurrence): Feature<Point> {
   const point = new Point(fromLonLat([lon, lat]));
   const feature = new Feature(point);
   feature.setId(occurrence.id);
-  feature.setProperties({
-    ...occurrence,
-    observed_at_ms: Date.parse(occurrence.observed_at),
-  });
+  feature.setProperties(occurrence);
 
   return feature;
 }
 
 export async function fetchLastOwnOccurrence(): Promise<Occurrence | null> {
-  const {data: occurrence, error} = await supabase
+  const {data: occurrence, error} = await supabase()
     .from('occurrences')
     .select('*')
     .eq('is_own_observation', true)
@@ -28,6 +26,6 @@ export async function fetchLastOwnOccurrence(): Promise<Occurrence | null> {
     .limit(1)
     .maybeSingle<Occurrence>();
   if (error)
-    throw new Error(`Couldn't fetch last occurrence: ${error.message || JSON.stringify(error)}}`);
+    throw new Error(`Couldn't fetch last occurrence: ${error.message || JSON.stringify(error)}`);
   return occurrence;
 }
