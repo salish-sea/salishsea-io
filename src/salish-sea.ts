@@ -385,7 +385,12 @@ export default class SalishSea extends LitElement {
     if (!data)
       return Promise.reject(new Error("Got empty response from presence_on_date"));
 
-    this.receiveOccurrences(data as Occurrence[], date);
+    const occurrences = data.map(record => ({
+      observed_at_ms: Date.parse(record.observed_at),
+      ...record,
+    }));
+
+    this.receiveOccurrences(occurrences as Occurrence[], date);
   }
 }
 
