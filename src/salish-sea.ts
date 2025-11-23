@@ -14,13 +14,14 @@ import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
-import { supabase, type Occurrence } from "./supabase.ts";
+import { supabase } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
 import { isExtent } from "./constants.ts";
 import { ObsPanel } from "./obs-panel.ts";
 import { createRef, ref } from "lit/directives/ref.js";
+import type { Occurrence } from "./types.ts";
 
 if (import.meta.env.PROD)
   sentryClient.init();

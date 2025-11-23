@@ -11,7 +11,8 @@ import { marked } from 'marked';
 import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
 import { Temporal } from "temporal-polyfill";
-import { supabase, type Occurrence } from "./supabase.ts";
+import { supabase } from "./supabase.ts";
+import type { Occurrence } from "./types.ts";
 
 const domPurify = createDOMPurify(window as any);
 

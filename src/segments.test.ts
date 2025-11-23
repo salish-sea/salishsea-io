@@ -2,7 +2,7 @@ import { test, expect, describe } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { occurrences2segments, segment2features, segment2travelLine } from './segments.ts';
-import type { Occurrence } from './supabase.ts';
+import type { Occurrence } from './types.ts';
 
 function loadOccurrences(): Occurrence[] {
   const filePath = path.resolve(process.cwd(), 'test/occurrences.json');

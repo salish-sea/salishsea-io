@@ -1,4 +1,4 @@
-import type { Occurrence } from "./supabase.ts";
+import type { Occurrence } from "./types.ts";
 
 const ecotypeRE = /\b(srkw|southern resident|transient|biggs)\b/gi;
 const detectEcotype = (text: Readonly<string>) => {

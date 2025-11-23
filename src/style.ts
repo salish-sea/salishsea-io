@@ -10,7 +10,7 @@ import Icon from 'ol/style/Icon.js';
 import arrowPNG from './assets/arrow.png';
 import hydrophoneIcon from './assets/hydrophone-default.svg?url';
 import { directionToRads } from './direction.ts';
-import type { Occurrence } from './supabase.ts';
+import type { Occurrence } from './types.ts';
 import { symbolFor } from './identifiers.ts';
 
 const black = '#000000';

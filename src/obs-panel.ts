@@ -10,7 +10,7 @@ import { userContext, type User } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
 import SightingForm, { newSighting, observationToFormData } from "./sighting-form.ts";
 import { v7 } from "uuid";
-import { type Occurrence } from "./supabase.ts";
+import { type Occurrence } from "./types.ts";
 import { pugetSoundExtent, salishSRKWExtent, sanJuansExtent, srkwExtent } from "./constants.ts";
 import { createRef, ref } from "lit/directives/ref.js";
 
