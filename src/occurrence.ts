@@ -26,6 +26,6 @@ export async function fetchLastOwnOccurrence(): Promise<Occurrence | null> {
     .limit(1)
     .maybeSingle<Occurrence>();
   if (error)
-    throw new Error(`Couldn't fetch last occurrence: ${error.message || JSON.stringify(error)}}`);
+    throw new Error(`Couldn't fetch last occurrence: ${error.message || JSON.stringify(error)}`);
   return occurrence;
 }

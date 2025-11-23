@@ -185,8 +185,6 @@ export class ObsPanel extends LitElement {
       this.dispatchEvent(new Event('log-in', {bubbles: true, composed: true}));
       return;
     }
-    if (!this.user)
-      throw new Error("Login succeeded but token was not available");
 
     this.showForm = true;
   }
