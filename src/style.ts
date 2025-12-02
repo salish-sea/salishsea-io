@@ -176,8 +176,8 @@ export const travelStyle = (feature: Feature<LineString>, resolution: number) =>
   const meanTravelSpeed = feature.get('expectedTravelSpeedKmph') as number | undefined;
   if (meanTravelSpeed) {
     const lastCoordinate = lineString.getLastCoordinate();
-    const lastEpochMs = feature.get('lastOccurrenceAt') as Date;
-    const ageHours = (now().valueOf() - lastEpochMs.valueOf()) / hour_in_ms;
+    const lastOccurrenceAt = feature.get('lastOccurrenceAt') as Date;
+    const ageHours = (now().valueOf() - lastOccurrenceAt.valueOf()) / hour_in_ms;
     if (ageHours < 6) {
       for (const delayHours of [ageHours, ageHours + 0.5]) {
         const imputedDistanceM = delayHours * meanTravelSpeed * 1000;
@@ -189,12 +189,6 @@ export const travelStyle = (feature: Feature<LineString>, resolution: number) =>
         styles.push(new Style({
           geometry: new Circle(lastCoordinate, imputedDistanceM, 'XY'),
           stroke,
-          text: new Text({
-            font: '14px monospace',
-            placement: 'line',
-            text: 'hi there!',
-            textAlign: 'left',
-          }),
         }));
       }
     }
