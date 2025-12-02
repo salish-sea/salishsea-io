@@ -58,11 +58,6 @@ function parseUrlParams(searchParams: URLSearchParams) {
 }
 
 const initialParams = parseUrlParams(new URLSearchParams(document.location.search));
-const initialDate = initialParams.date;
-const initialOccurrenceId = initialParams.occurrenceId;
-const initialX = initialParams.mapPosition.x;
-const initialY = initialParams.mapPosition.y;
-const initialZ = initialParams.mapPosition.z;
 
 @customElement('salish-sea')
 export default class SalishSea extends LitElement {
@@ -148,7 +143,7 @@ export default class SalishSea extends LitElement {
   #mapMoveDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
   @property({attribute: false})
-  private focusedOccurrenceId: string | null = initialOccurrenceId;
+  private focusedOccurrenceId: string | null = initialParams.occurrenceId;
 
   private dialogRef = createRef<HTMLDialogElement>();
   private mapRef = createRef<ObsMap>();
@@ -161,7 +156,7 @@ export default class SalishSea extends LitElement {
   @state()
   protected user: User | null = null;
 
-  #date: string = initialDate
+  #date: string = initialParams.date;
   @property({type: String, reflect: true})
   get date() { return this.#date }
   set date(d: string) {
@@ -185,14 +180,8 @@ export default class SalishSea extends LitElement {
     }
     try {
       const params = parseUrlParams(new URLSearchParams(window.location.search));
-
-      // Update date
       this.date = params.date;
-
-      // Update focused occurrence
       this.focusedOccurrenceId = params.occurrenceId;
-
-      // Update map position
       this.mapRef.value?.setView(
         params.mapPosition.x,
         params.mapPosition.y,
@@ -288,6 +277,8 @@ export default class SalishSea extends LitElement {
   }
 
   protected render(): unknown {
+    const {x: initialX, y: initialY, z: initialZ} = initialParams.mapPosition;
+
     return html`
       <header>
         <h1>SalishSea.io <a @click=${this.onAboutClicked} class="about-link" href="#" title="About SalishSea.io">&#9432;</a></h1>
