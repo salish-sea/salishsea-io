@@ -190,6 +190,13 @@ export const travelStyle = (feature: Feature<LineString>, resolution: number) =>
           geometry: new Circle(lastCoordinate, imputedDistanceM, 'XY'),
           stroke,
         }));
+        styles.push(new Style({
+          geometry: new Point([lastCoordinate[0]!, lastCoordinate[1]! + imputedDistanceM]),
+          text: new Text({
+            backgroundFill: new Fill({color: transparentWhite}),
+            text: ageHours === delayHours ? `now at ${meanTravelSpeed}km/h` : `in 30min`,
+          }),
+        }));
       }
     }
   }
