@@ -12,6 +12,7 @@ import hydrophoneIcon from './assets/hydrophone-default.svg?url';
 import { directionToRads } from './direction.ts';
 import type { Occurrence } from './types.ts';
 import { symbolFor } from './identifiers.ts';
+import { Temporal } from 'temporal-polyfill';
 
 const black = '#000000';
 const yellow = '#ffff00';
@@ -19,6 +20,23 @@ const transparentWhite = 'rgba(255, 255, 255, 0.4)';
 const solidBlue = '#3399CC';
 const reddish = 'rgb(220, 0, 0)';
 const hour_in_ms = 60 * 60 * 1000;
+
+function now() {
+  const params = new URLSearchParams(document.location.search);
+  const d = params.get('d');
+  const t = params.get('t');
+  if (d && t) {
+    try {
+      const dateTime = Temporal.PlainDate.from(d).toZonedDateTime({timeZone: 'PST8PDT', plainTime: t});
+      return new Date(dateTime.epochMilliseconds);
+    } catch (e) {
+      console.error(e);
+      return new Date();
+    }
+  } else {
+    return new Date();
+  }
+}
 
 export const sighterStyle = new Style({
   text: new Text({
@@ -153,21 +171,30 @@ export const travelStyle = (feature: Feature<LineString>, resolution: number) =>
       }),
     );
   });
-  const meanTravelSpeed = feature.get('mean_travel_speed') as number | undefined;
+  const meanTravelSpeed = feature.get('expectedTravelSpeedKmph') as number | undefined;
   if (meanTravelSpeed) {
     const lastCoordinate = lineString.getLastCoordinate();
-    const lastEpochMs = feature.get('last_epoch_ms');
-    const ageHours = (new Date().valueOf() - lastEpochMs) / hour_in_ms;
+    const lastEpochMs = feature.get('lastOccurrenceAt') as Date;
+    const ageHours = (now().valueOf() - lastEpochMs.valueOf()) / hour_in_ms;
     if (ageHours < 6) {
-      const imputedDistanceM = ageHours * meanTravelSpeed * 1000;
-      const opacity = (3 / (3 + 4 * ageHours * ageHours)).toFixed(2);
-      styles.push(new Style({
-        geometry: new Circle(lastCoordinate, imputedDistanceM, 'XY'),
-        stroke: new Stroke({
+      for (const delayHours of [ageHours, ageHours + 0.5]) {
+        const imputedDistanceM = delayHours * meanTravelSpeed * 1000;
+        const opacity = (3 / (3 + 4 * delayHours * ageHours)).toFixed(2);
+        const stroke = new Stroke({
           color: `rgba(200, 0, 0, ${opacity})`,
           width: 1,
-        }),
-      }));
+        });
+        styles.push(new Style({
+          geometry: new Circle(lastCoordinate, imputedDistanceM, 'XY'),
+          stroke,
+          text: new Text({
+            font: '14px monospace',
+            placement: 'line',
+            text: 'hi there!',
+            textAlign: 'left',
+          }),
+        }));
+      }
     }
   }
   return styles;
