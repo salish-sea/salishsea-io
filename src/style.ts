@@ -21,21 +21,23 @@ const solidBlue = '#3399CC';
 const reddish = 'rgb(220, 0, 0)';
 const hour_in_ms = 60 * 60 * 1000;
 
-function now() {
+let nowOverride: Date | null = null;
+(() => {
   const params = new URLSearchParams(document.location.search);
   const d = params.get('d');
   const t = params.get('t');
   if (d && t) {
     try {
       const dateTime = Temporal.PlainDate.from(d).toZonedDateTime({timeZone: 'PST8PDT', plainTime: t});
-      return new Date(dateTime.epochMilliseconds);
+      nowOverride = new Date(dateTime.epochMilliseconds);
     } catch (e) {
       console.error(e);
-      return new Date();
     }
-  } else {
-    return new Date();
   }
+})();
+
+function now() {
+  return nowOverride || new Date();
 }
 
 export const sighterStyle = new Style({
