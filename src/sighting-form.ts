@@ -328,8 +328,12 @@ export default class SightingForm extends LitElement {
             return "Should start with https://";
         }}}, field => html`
           <label>
-            <span class="label">URL</span>
-            <input type="url" name="${field.name}" .value=${field.state.value} @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).value)}>
+            <span class="label">Original observation</span>
+            <input type="url"
+                   name="${field.name}"
+                   placeholder="https://www.facebook.com/..."
+                   .value=${field.state.value}
+                   @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).value)}>
           </label>
           ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
