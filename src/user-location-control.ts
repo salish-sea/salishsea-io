@@ -38,6 +38,7 @@ export default class UserLocationControl extends Control {
           console.error(`Failed to get user location: ${error.message}`);
           navigator.geolocation.clearWatch(watchID);
           state = element.stateObject = {state: 'error', error: error.message};
+          onLocationInactive();
         });
         state = element.stateObject = {state: 'active', watchID};
       }
