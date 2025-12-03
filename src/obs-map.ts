@@ -12,10 +12,10 @@ import './obs-summary.ts';
 import VectorLayer from 'ol/layer/Vector.js';
 import TileLayer from 'ol/layer/Tile.js';
 import XYZ from 'ol/source/XYZ.js';
-import { editStyle, hydrophoneStyle, occurrenceStyle, selectedObservationStyle, sighterStyle, travelStyle, viewingLocationStyle} from './style.ts';
-import type Point from 'ol/geom/Point.js';
+import { editStyle, hydrophoneStyle, occurrenceStyle, selectedObservationStyle, sighterStyle, travelStyle, userLocationStyle, viewingLocationStyle} from './style.ts';
+import Point from 'ol/geom/Point.js';
 import VectorSource from 'ol/source/Vector.js';
-import type Feature from 'ol/Feature.js';
+import Feature from 'ol/Feature.js';
 import Modify from 'ol/interaction/Modify.js';
 import GeoJSON from 'ol/format/GeoJSON.js';
 import { all } from 'ol/loadingstrategy.js';
@@ -27,9 +27,10 @@ import olCSS from 'ol/ol.css?url';
 import type { Occurrence } from './types.ts';
 import { LineString } from 'ol/geom.js';
 import { occurrences2segments, segment2features, segment2travelLine } from './segments.ts';
-import { transformExtent } from 'ol/proj.js';
+import { fromLonLat, transformExtent } from 'ol/proj.js';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { compactMap } from './utils.ts';
+import UserLocationControl from './user-location-control.ts';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -68,6 +69,11 @@ export class ObsMap extends LitElement {
     source: new VectorSource(),
     style: hydrophoneStyle,
   })
+  private userLocationFeature = new Feature<Point>(new Point([]));
+  private userLocationLayer = new VectorLayer({
+    source: new VectorSource({features: [this.userLocationFeature]}),
+    style: userLocationStyle,
+  });
 
   @property({type: String, reflect: true})
   public focusedOccurrenceId: string | undefined
@@ -120,6 +126,7 @@ export class ObsMap extends LitElement {
       this.travelLayer,
       this.viewingLocationsLayer,
       this.hydrophoneLayer,
+      this.userLocationLayer,
       new VectorLayer({
         source: this.drawingSource,
         style: (f) => f.get('kind') === 'Sighter' ? sighterStyle : occurrenceStyle(f.getProperties() as Occurrence),
@@ -141,10 +148,20 @@ export class ObsMap extends LitElement {
 #map {
   flex-grow: 1;
 }
+user-location-control {
+  position: absolute;
+  left: 0.5em;
+  top: 4em;
+}
   `
 
   constructor() {
     super();
+    if ('geolocation' in navigator)
+      this.map.addControl(new UserLocationControl({
+        onLocationUpdated: this.onLocationUpdated.bind(this),
+        onLocationInactive: this.onLocationInactive.bind(this),
+      }));
     this.#select.on('select', (e: SelectEvent) => {
       const occurrence = e.selected[0]?.getProperties() || null;
       const evt = new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: occurrence});
@@ -296,6 +313,19 @@ export class ObsMap extends LitElement {
     const view = this.map.getView();
     const transformedExtent = transformExtent(extent, 'EPSG:4326', view.getProjection());
     view.fit(transformedExtent);
+  }
+
+  public onLocationUpdated({longitude, latitude}: {longitude: number; latitude: number}) {
+    const coordinate = fromLonLat([longitude, latitude]);
+    const geometry = this.userLocationFeature.getGeometry()!;
+    if (geometry.getCoordinates().length === 0)
+      this.ensureCoordsInViewport(coordinate);
+    this.userLocationFeature.getGeometry()!.setCoordinates(coordinate);
+  }
+
+  public onLocationInactive() {
+    const geometry = this.userLocationFeature.getGeometry()!;
+    geometry.setCoordinates([]);
   }
 }
 
