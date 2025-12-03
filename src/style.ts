@@ -236,6 +236,17 @@ export const viewingLocationStyle = (location: FeatureLike) => {
   ];
 }
 
+export const userLocationStyle = new Style({
+  image: new CircleStyle({
+    radius: 8,
+    fill: new Fill({color: 'rgba(51, 153, 255, 0.8)'}),
+    stroke: new Stroke({
+      color: '#ffffff',
+      width: 2,
+    }),
+  }),
+});
+
 export const hydrophoneStyle = (_hydrophone: FeatureLike) => {
   return new Style({
     image: new Icon({
