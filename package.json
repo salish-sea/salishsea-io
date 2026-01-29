@@ -14,20 +14,20 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@formatjs/intl-datetimeformat": "^7.1.2",
+    "@formatjs/intl-datetimeformat": "^7.2.0",
     "@lit/context": "^1.1.6",
     "@lit/task": "1.0.3",
-    "@sentry/browser": "^10.32.1",
-    "@sentry/vite-plugin": "^4.6.1",
+    "@sentry/browser": "^10.35.0",
+    "@sentry/vite-plugin": "^4.7.0",
     "@supabase/auth-js": "^2.90.1",
     "@supabase/sentry-js-integration": "^0.3.0",
     "@supabase/supabase-js": "^2.90.1",
     "@tanstack/lit-form": "^1.23.19",
-    "@turf/bearing": "^7.3.1",
-    "@turf/distance": "^7.3.1",
+    "@turf/bearing": "^7.3.2",
+    "@turf/distance": "^7.3.2",
     "@turf/helpers": "^7.2.0",
     "dompurify": "^3.3.1",
-    "exifreader": "^4.34.0",
+    "exifreader": "^4.36.0",
     "fast-xml-parser": "5.3.3",
     "geo-coordinates-parser": "^1.7.4",
     "lit": "^3.3.2",
@@ -42,12 +42,12 @@
     "@types/geojson": "^7946.0.16",
     "@types/google.accounts": "^0.0.18",
     "@types/jsdom": "^27.0.0",
-    "html-validate": "^10.5.0",
+    "html-validate": "^10.6.0",
     "jsdom": "^27.4.0",
     "supabase": "^2.72.9",
     "supertest": "^7.2.2",
-    "type-fest": "^5.3.1",
+    "type-fest": "^5.4.1",
     "typescript": "~5.9.3",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.17"
   }
 }
