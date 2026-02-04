@@ -12,8 +12,8 @@ CREATE TABLE contributors (
 ALTER TABLE public.contributors ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE contributor_email_addresses (
-  contributor_id INTEGER NOT NULL REFERENCES public.contributors (id),
-  email_address public.email NOT NULL UNIQUE
+  email_address public.email PRIMARY KEY,
+  contributor_id INTEGER NOT NULL REFERENCES public.contributors (id) ON DELETE CASCADE
 );
 ALTER TABLE public.contributor_email_addresses ENABLE ROW LEVEL SECURITY;
 
@@ -39,7 +39,7 @@ BEGIN
       RETURNING id INTO v_contributor_id;
     IF NEW.email_confirmed_at IS NOT NULL THEN
       INSERT INTO public.contributor_email_addresses (contributor_id, email_address)
-        VALUES (v_contributor_id, NEW.raw_user_meta_data->>'email');
+        VALUES (v_contributor_id, NEW.email);
     END IF;
   END IF;
   INSERT INTO public.user_contributor (user_uuid, contributor_id)
@@ -72,4 +72,4 @@ BEGIN
 END;
 $$;
 
-DROP TABLE profiles;
+DROP TABLE IF EXISTS profiles;
