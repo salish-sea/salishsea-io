@@ -34,6 +34,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      contributor_email_addresses: {
+        Row: {
+          contributor_id: number
+          email_address: string
+        }
+        Insert: {
+          contributor_id: number
+          email_address: string
+        }
+        Update: {
+          contributor_id?: number
+          email_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contributor_email_addresses_contributor_id_fkey"
+            columns: ["contributor_id"]
+            isOneToOne: false
+            referencedRelation: "contributors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contributors: {
+        Row: {
+          entity_id: string
+          id: number
+          name: string
+          picture: string | null
+        }
+        Insert: {
+          entity_id?: string
+          id?: number
+          name: string
+          picture?: string | null
+        }
+        Update: {
+          entity_id?: string
+          id?: number
+          name?: string
+          picture?: string | null
+        }
+        Relationships: []
+      }
       observation_photos: {
         Row: {
           href: string
@@ -114,41 +158,28 @@ export type Database = {
         }
         Relationships: []
       }
-      profiles: {
+      user_contributor: {
         Row: {
-          email: string
-          family_name: string | null
-          given_name: string | null
-          iat: string
-          id: number
-          name: string | null
-          nickname: string
-          picture: string | null
-          sub: string
+          contributor_id: number
+          user_uuid: string
         }
         Insert: {
-          email: string
-          family_name?: string | null
-          given_name?: string | null
-          iat: string
-          id?: never
-          name?: string | null
-          nickname: string
-          picture?: string | null
-          sub: string
+          contributor_id: number
+          user_uuid: string
         }
         Update: {
-          email?: string
-          family_name?: string | null
-          given_name?: string | null
-          iat?: string
-          id?: never
-          name?: string | null
-          nickname?: string
-          picture?: string | null
-          sub?: string
+          contributor_id?: number
+          user_uuid?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_contributor_contributor_id_fkey"
+            columns: ["contributor_id"]
+            isOneToOne: false
+            referencedRelation: "contributors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
