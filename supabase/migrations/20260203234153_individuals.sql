@@ -29,7 +29,7 @@ DECLARE
 BEGIN
   SELECT contributor_id INTO v_contributor_id
     FROM public.contributor_email_addresses
-    WHERE email_address=NEW.email AND NEW.email_verified_at;
+    WHERE email_address=NEW.email AND NEW.email_confirmed_at IS NOT NULL;
   IF NOT FOUND THEN
     INSERT INTO public.contributors ("name", "picture")
       VALUES (
@@ -37,7 +37,7 @@ BEGIN
         NEW.raw_user_meta_data->>'picture'
       )
       RETURNING id INTO v_contributor_id;
-    IF NEW.email_verified_at THEN
+    IF NEW.email_verified_at IS NOT NULL THEN
       INSERT INTO public.contributor_email_addresses (contributor_id, email_address)
         VALUES (v_contributor_id, NEW.raw_user_meta_data->>'email');
     END IF;
@@ -64,7 +64,7 @@ BEGIN
       RETURNING id INTO v_contributor_id;
     INSERT INTO public.user_contributor (user_uuid, contributor_id)
       VALUES (r.id, v_contributor_id);
-    IF r.email_verified_at THEN
+    IF r.email_verified_at IS NOT NULL THEN
       INSERT INTO public.contributor_email_addresses (contributor_id, email_address)
         VALUES (v_contributor_id, r.email);
     END IF;
