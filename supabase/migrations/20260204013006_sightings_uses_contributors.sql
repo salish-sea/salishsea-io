@@ -139,8 +139,7 @@ CREATE OR REPLACE VIEW public.occurrences (
     CASE WHEN observer_location IS NOT NULL THEN row(gis.ST_X(observer_location::gis.geometry), gis.ST_Y(observer_location::gis.geometry))::lon_lat END AS observed_from,
     row(t.scientific_name, t.vernacular_name, inaturalist.species_id(t))::public.taxon,
     COALESCE(extract_identifiers("body"), ARRAY[]::VARCHAR[]) AS identifiers,
-    uc.user_uuid = auth.uid() AS is_own_observation
+    contributor_id IN (SELECT contributor_id FROM public.user_contributor WHERE user_uuid = auth.uid()) AS is_own_observation
   FROM public.observations AS o
   JOIN public.contributors AS con ON con.id = contributor_id
-  JOIN public.user_contributor AS uc ON uc.contributor_id = o.contributor_id
   JOIN inaturalist.taxa t ON t.id = o.taxon_id;
