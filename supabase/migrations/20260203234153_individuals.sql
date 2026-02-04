@@ -37,7 +37,7 @@ BEGIN
         NEW.raw_user_meta_data->>'picture'
       )
       RETURNING id INTO v_contributor_id;
-    IF NEW.email_verified_at IS NOT NULL THEN
+    IF NEW.email_confirmed_at IS NOT NULL THEN
       INSERT INTO public.contributor_email_addresses (contributor_id, email_address)
         VALUES (v_contributor_id, NEW.raw_user_meta_data->>'email');
     END IF;
@@ -58,13 +58,13 @@ DECLARE
   r record;
   v_contributor_id integer;
 BEGIN
-  FOR r IN SELECT id, email, email_verified_at, raw_user_meta_data AS md FROM auth.users LOOP
+  FOR r IN SELECT id, email, email_confirmed_at, raw_user_meta_data AS md FROM auth.users LOOP
     INSERT INTO public.contributors ("name", "picture")
       VALUES (COALESCE(r.md->>'name', r.md->>'user_name', 'Anonymous'), r.md->>'picture')
       RETURNING id INTO v_contributor_id;
     INSERT INTO public.user_contributor (user_uuid, contributor_id)
       VALUES (r.id, v_contributor_id);
-    IF r.email_verified_at IS NOT NULL THEN
+    IF r.email_confirmed_at IS NOT NULL THEN
       INSERT INTO public.contributor_email_addresses (contributor_id, email_address)
         VALUES (v_contributor_id, r.email);
     END IF;
