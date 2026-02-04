@@ -33,7 +33,7 @@ BEGIN
   IF NOT FOUND THEN
     INSERT INTO public.contributors ("name", "picture")
       VALUES (
-        COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'user_name'),
+        COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'user_name', 'Anonymous'),
         NEW.raw_user_meta_data->>'picture'
       )
       RETURNING id INTO v_contributor_id;
@@ -60,7 +60,7 @@ DECLARE
 BEGIN
   FOR r IN SELECT id, raw_user_meta_data AS md FROM auth.users LOOP
     INSERT INTO public.contributors ("name", "picture")
-      VALUES (COALESCE(r.md->>'name', r.md->>'user_name'), r.md->>'picture')
+      VALUES (COALESCE(r.md->>'name', r.md->>'user_name', 'Anonymous'), r.md->>'picture')
       RETURNING id INTO v_contributor_id;
     INSERT INTO public.user_contributor (user_uuid, contributor_id)
       VALUES (r.id, v_contributor_id);
