@@ -367,10 +367,13 @@ export default class SalishSea extends LitElement {
   }
 
   async fetchOccurrences(date: string) {
+    const startOfDay = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
+    const endOfDay = startOfDay.add({days: 1});
     const {data, error} = await supabase()
       .from('occurrences')
       .select()
-      .eq('local_date', this.date)
+      .gte('observed_at', startOfDay.toInstant())
+      .lt('observed_at', endOfDay.toInstant())
       .order('observed_at', {ascending: false});
     if (error)
       return Promise.reject(error);
