@@ -114,6 +114,7 @@ export type Database = {
         Row: {
           accuracy: number | null
           body: string | null
+          contributor_id: number
           count: number | null
           created_at: string
           direction: Database["public"]["Enums"]["travel_direction"] | null
@@ -124,11 +125,11 @@ export type Database = {
           taxon_id: number
           updated_at: string
           url: string | null
-          user_id: string
         }
         Insert: {
           accuracy?: number | null
           body?: string | null
+          contributor_id: number
           count?: number | null
           created_at: string
           direction?: Database["public"]["Enums"]["travel_direction"] | null
@@ -139,11 +140,11 @@ export type Database = {
           taxon_id: number
           updated_at: string
           url?: string | null
-          user_id: string
         }
         Update: {
           accuracy?: number | null
           body?: string | null
+          contributor_id?: number
           count?: number | null
           created_at?: string
           direction?: Database["public"]["Enums"]["travel_direction"] | null
@@ -154,9 +155,16 @@ export type Database = {
           taxon_id?: number
           updated_at?: string
           url?: string | null
-          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "observations_contributor_id_fkey"
+            columns: ["contributor_id"]
+            isOneToOne: false
+            referencedRelation: "contributors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_contributor: {
         Row: {
@@ -210,10 +218,6 @@ export type Database = {
       extract_travel_direction: {
         Args: { body: string }
         Returns: Database["public"]["Enums"]["travel_direction"]
-      }
-      local_date: {
-        Args: { occurrence: Database["public"]["Views"]["occurrences"]["Row"] }
-        Returns: string
       }
       upsert_observation: {
         Args: {
