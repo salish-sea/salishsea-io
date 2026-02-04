@@ -19,14 +19,14 @@ TO authenticated USING (
     SELECT TRUE
     FROM public.observations AS o
     WHERE o.id = observation_id
-      AND o.contributor_id = (SELECT uc.contributor_id FROM user_contributor AS uc WHERE user_id = (SELECT auth.uid()))
+      AND o.contributor_id = (SELECT uc.contributor_id FROM user_contributor AS uc WHERE user_uuid = (SELECT auth.uid()))
   )
 );
 
 CREATE POLICY "Authenticated users may manage their own observations."
 ON public.observations FOR ALL
 TO authenticated USING (
-  contributor_id = (SELECT uc.contributor_id FROM user_contributor AS uc WHERE user_id = (SELECT auth.uid()))
+  contributor_id = (SELECT uc.contributor_id FROM user_contributor AS uc WHERE user_uuid = (SELECT auth.uid()))
 );
 
 CREATE OR REPLACE VIEW public.occurrences (
