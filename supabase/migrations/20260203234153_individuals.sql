@@ -21,6 +21,7 @@ CREATE TABLE user_contributor (
   user_uuid uuid PRIMARY KEY REFERENCES auth.users (id) ON DELETE CASCADE,
   contributor_id INTEGER NOT NULL REFERENCES public.contributors (id) ON DELETE CASCADE
 );
+ALTER TABLE public.user_contributor ENABLE ROW LEVEL SECURITY;
 
 CREATE FUNCTION public.create_contributor_on_sign_in() RETURNS TRIGGER AS $$
 DECLARE
@@ -33,12 +34,13 @@ BEGIN
     INSERT INTO public.contributors ("name", "picture")
       VALUES (
         COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'user_name'),
-        NEW.raw_user_meta_data->>'picture',
-        id
+        NEW.raw_user_meta_data->>'picture'
       )
       RETURNING id INTO v_contributor_id;
-    INSERT INTO public.contributor_email_addresses (contributor_id, email_address)
-    VALUES (v_contributor_id, NEW.raw_user_meta_data->>'email');
+    IF NEW.raw_user_meta_data->'email_verified' = 'true' THEN
+      INSERT INTO public.contributor_email_addresses (contributor_id, email_address)
+        VALUES (v_contributor_id, NEW.raw_user_meta_data->>'email');
+    END IF;
   END IF;
   INSERT INTO public.user_contributor (user_uuid, contributor_id)
     VALUES (NEW.id, v_contributor_id);
