@@ -200,7 +200,6 @@ export default class SalishSea extends LitElement {
   constructor() {
     super();
     const supabaseClient = supabase();
-    window.supabaseC=supabaseClient;
     supabaseClient.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         this.user = session?.user;

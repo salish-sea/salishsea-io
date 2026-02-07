@@ -93,7 +93,7 @@ export class ObsSummary extends LitElement {
 
   public render() {
     const {
-      attribution, body, count, id, observed_at, photos, taxon: {scientific_name, vernacular_name}, url, contributor_id
+      attribution, body, count, id, observed_at, photos, taxon: {scientific_name, vernacular_name}, url
     } = this.sighting;
     const symbol = symbolFor(this.sighting);
     const name = vernacular_name || scientific_name;
