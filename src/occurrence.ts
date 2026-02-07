@@ -1,8 +1,8 @@
 import Point from "ol/geom/Point.js";
 import { fromLonLat } from "ol/proj.js";
 import Feature from "ol/Feature.js";
-import { supabase } from "./supabase.ts";
-import type { Occurrence } from "./types.ts";
+import type { Contributor, Occurrence, PatchedDatabase } from "./types.ts";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 
 export function occurrence2feature(occurrence: Occurrence): Feature<Point> {
@@ -17,15 +17,23 @@ export function occurrence2feature(occurrence: Occurrence): Feature<Point> {
   return feature;
 }
 
-export async function fetchLastOwnOccurrence(): Promise<Occurrence | null> {
-  const {data: occurrence, error} = await supabase()
+export async function fetchLastOwnOccurrence(contributor: Contributor, supabase: SupabaseClient<PatchedDatabase>): Promise<Occurrence | null> {
+  const {data: occurrence, error} = await supabase
     .from('occurrences')
     .select('*')
-    .eq('is_own_observation', true)
+    .eq('contributor_id', contributor.id)
     .order('observed_at', {ascending: false})
     .limit(1)
     .maybeSingle<Occurrence>();
   if (error)
     throw new Error(`Couldn't fetch last occurrence: ${error.message || JSON.stringify(error)}`);
   return occurrence;
+}
+
+export function canEdit(occurrence: Occurrence, contributor: Contributor): boolean {
+  if (occurrence.contributor_id === contributor.id)
+    return true;
+  if (contributor.editor)
+    return true;
+  return false;
 }

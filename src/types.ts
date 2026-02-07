@@ -1,6 +1,7 @@
 import { type Database } from '../database.types.ts';
 import type { OverrideProperties, SetNonNullable, SetNonNullableDeep } from 'type-fest';
 
+export type Contributor = Database['public']['Tables']['contributors']['Row'];
 export type License = Database['public']['Enums']['license'];
 export type TravelDirection = Database['public']['Enums']['travel_direction'];
 

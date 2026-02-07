@@ -59,18 +59,21 @@ export type Database = {
       }
       contributors: {
         Row: {
+          editor: boolean
           entity_id: string
           id: number
           name: string
           picture: string | null
         }
         Insert: {
+          editor?: boolean
           entity_id?: string
           id?: number
           name: string
           picture?: string | null
         }
         Update: {
+          editor?: boolean
           entity_id?: string
           id?: number
           name?: string
@@ -125,6 +128,7 @@ export type Database = {
           taxon_id: number
           updated_at: string
           url: string | null
+          user_uuid: string
         }
         Insert: {
           accuracy?: number | null
@@ -140,6 +144,7 @@ export type Database = {
           taxon_id: number
           updated_at: string
           url?: string | null
+          user_uuid: string
         }
         Update: {
           accuracy?: number | null
@@ -155,6 +160,7 @@ export type Database = {
           taxon_id?: number
           updated_at?: string
           url?: string | null
+          user_uuid?: string
         }
         Relationships: [
           {
@@ -196,11 +202,11 @@ export type Database = {
           accuracy: number | null
           attribution: string | null
           body: string | null
+          contributor_id: number | null
           count: number | null
           direction: Database["public"]["Enums"]["travel_direction"] | null
           id: string | null
           identifiers: string[] | null
-          is_own_observation: boolean | null
           location: Database["public"]["CompositeTypes"]["lon_lat"] | null
           observed_at: string | null
           observed_from: Database["public"]["CompositeTypes"]["lon_lat"] | null

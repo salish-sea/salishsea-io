@@ -2,7 +2,7 @@ import { css, LitElement, type PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { html } from "lit/static-html.js";
 import {unsafeHTML} from 'lit/directives/unsafe-html.js';
-import { userContext, type User } from "./identity.ts";
+import { contributorContext, userContext, type User } from "./identity.ts";
 import { consume } from "@lit/context";
 import { when } from "lit/directives/when.js";
 import { repeat } from "lit/directives/repeat.js";
@@ -12,7 +12,8 @@ import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
 import { Temporal } from "temporal-polyfill";
 import { supabase } from "./supabase.ts";
-import type { Occurrence } from "./types.ts";
+import type { Contributor, Occurrence } from "./types.ts";
+import { canEdit } from "./occurrence.ts";
 
 const domPurify = createDOMPurify(window as any);
 
@@ -87,12 +88,16 @@ export class ObsSummary extends LitElement {
   @consume({context: userContext, subscribe: true})
   private user: User | undefined;
 
+  @consume({context: contributorContext, subscribe: true})
+  private contributor: Contributor | undefined;
+
   public render() {
     const {
-      attribution, body, count, id, observed_at, photos, taxon: {scientific_name, vernacular_name}, url, is_own_observation
+      attribution, body, count, id, observed_at, photos, taxon: {scientific_name, vernacular_name}, url
     } = this.sighting;
     const symbol = symbolFor(this.sighting);
     const name = vernacular_name || scientific_name;
+    const editable = this.contributor && canEdit(this.sighting, this.contributor) || false;
 
     return html`
       <header>
@@ -119,7 +124,7 @@ export class ObsSummary extends LitElement {
         ${when(this.user, () => html`
           <li><a href="#" @click=${this.onClone}>Clone</a></li>
         `)}
-        ${when(is_own_observation, () => html`
+        ${when(editable, () => html`
           <li><a href="#" @click=${this.onDelete}>Delete</a></li>
           <li><a href="#" @click=${this.onEdit}>Edit</a></li>
         `)}
