@@ -2,7 +2,7 @@ import { css, html, LitElement, type PropertyValues} from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import './obs-map.ts';
 import './login-button.ts';
-import { userContext, type User } from "./identity.ts";
+import { contributorContext, getContributor, userContext, type User } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
 import { repeat } from "lit/directives/repeat.js";
@@ -21,7 +21,7 @@ import type { Extent } from "ol/extent.js";
 import { isExtent } from "./constants.ts";
 import { ObsPanel } from "./obs-panel.ts";
 import { createRef, ref } from "lit/directives/ref.js";
-import type { Occurrence } from "./types.ts";
+import type { Contributor, Occurrence } from "./types.ts";
 
 if (import.meta.env.PROD)
   sentryClient.init();
@@ -154,7 +154,11 @@ export default class SalishSea extends LitElement {
 
   @provide({context: userContext})
   @state()
-  protected user: User | null = null;
+  protected user: User | undefined;
+
+  @provide({context: contributorContext})
+  @state()
+  protected contributor: Contributor | undefined;
 
   #date: string = initialParams.date;
   @property({type: String, reflect: true})
@@ -195,17 +199,24 @@ export default class SalishSea extends LitElement {
 
   constructor() {
     super();
-    supabase().auth.onAuthStateChange((event, session) => {
+    const supabaseClient = supabase();
+    window.supabaseC=supabaseClient;
+    supabaseClient.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-        this.user = session?.user || null;
+        this.user = session?.user;
       } else if (event === 'SIGNED_OUT') {
-        this.user = null;
+        this.user = undefined;
       }
       this.fetchOccurrences(this.date).catch(err => console.error(err));
-      if (this.user)
-        fetchLastOwnOccurrence().then(occurrence => this.lastOwnOccurrence = occurrence);
-      else
+      if (this.user) {
+        getContributor(this.user.id, supabaseClient)
+          .then(contributor => this.contributor = contributor)
+          .then(contributor => fetchLastOwnOccurrence(contributor, supabaseClient))
+          .then(occurrence => this.lastOwnOccurrence = occurrence);
+      } else {
+        this.contributor = undefined;
         this.lastOwnOccurrence = null;
+      }
     });
     this.addEventListener('log-in', this.doLogIn.bind(this));
     this.addEventListener('log-out', this.doLogOut.bind(this));
@@ -251,10 +262,6 @@ export default class SalishSea extends LitElement {
     this.addEventListener('edit-observation', async (evt) => {
       const sighting = (evt as EditSightingEvent).detail;
       await this.panelRef.value!.editObservation(sighting);
-    });
-    this.addEventListener('database-changed', async () => {
-      await this.fetchOccurrences(this.date);
-      this.lastOwnOccurrence = this.user && await fetchLastOwnOccurrence();
     });
   }
 
