@@ -2,6 +2,7 @@ ALTER TABLE public.observations ADD COLUMN user_uuid uuid REFERENCES auth.users 
 UPDATE public.observations
 SET user_uuid = uc.user_uuid
 FROM public.user_contributor AS uc WHERE uc.contributor_id = observations.contributor_id;
+ALTER TABLE public.observations ALTER COLUMN user_uuid SET NOT NULL;
 
 DROP POLICY "Authenticated users may manage their own observations." ON public.observations;
 DROP POLICY "Authenticated users may manage their own observation photos." ON public.observation_photos;

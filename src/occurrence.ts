@@ -31,7 +31,7 @@ export async function fetchLastOwnOccurrence(contributor: Contributor, supabase:
 }
 
 export function canEdit(occurrence: Occurrence, contributor: Contributor): boolean {
-  if (occurrence.contributor_id == contributor.id)
+  if (occurrence.contributor_id === contributor.id)
     return true;
   if (contributor.editor)
     return true;
