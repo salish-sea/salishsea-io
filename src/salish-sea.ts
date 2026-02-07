@@ -262,6 +262,9 @@ export default class SalishSea extends LitElement {
       const sighting = (evt as EditSightingEvent).detail;
       await this.panelRef.value!.editObservation(sighting);
     });
+    this.addEventListener('database-changed', async () => {
+      await this.fetchOccurrences(this.date);
+    });
   }
 
   async connectedCallback(): Promise<void> {
