@@ -128,7 +128,7 @@ export type Database = {
           taxon_id: number
           updated_at: string
           url: string | null
-          user_uuid: string | null
+          user_uuid: string
         }
         Insert: {
           accuracy?: number | null
@@ -144,7 +144,7 @@ export type Database = {
           taxon_id: number
           updated_at: string
           url?: string | null
-          user_uuid?: string | null
+          user_uuid: string
         }
         Update: {
           accuracy?: number | null
@@ -160,7 +160,7 @@ export type Database = {
           taxon_id?: number
           updated_at?: string
           url?: string | null
-          user_uuid?: string | null
+          user_uuid?: string
         }
         Relationships: [
           {
