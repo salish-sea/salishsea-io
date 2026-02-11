@@ -201,7 +201,7 @@ export default class SightingForm extends LitElement {
       min-height: 1.5rem;
       padding: 0.25rem 0.5rem;
       vertical-align: middle;
-      border: 1px solid #ccc;
+      border: 1px solid var(--slate-300);
       border-radius: 4px;
       background: white;
       font-size: 0.75rem;
@@ -238,7 +238,7 @@ export default class SightingForm extends LitElement {
       box-sizing: border-box;
       max-width: 100%;
       padding: 0.375rem 0.5rem;
-      border: 1px solid #ccc;
+      border: 1px solid var(--slate-300);
       border-radius: 4px;
       font-family: inherit;
       font-size: 0.8125rem;
@@ -320,8 +320,8 @@ export default class SightingForm extends LitElement {
       background: #1565c0;
     }
     .actions button[type="submit"]:disabled {
-      background: #ccc;
-      border-color: #ccc;
+      background: var(--slate-300);
+      border-color: var(--slate-300);
     }
     output {
       display: block;
