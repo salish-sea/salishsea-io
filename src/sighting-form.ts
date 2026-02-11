@@ -190,26 +190,73 @@ export default class SightingForm extends LitElement {
       font-family: Mukta,Helvetica,Arial,sans-serif;
     }
     form {
-      line-height: 2;
+      line-height: 1.4;
       padding: 0.5rem;
     }
     button {
       align-items: center;
       cursor: pointer;
       display: inline-flex;
-      gap: 0.5rem;
+      gap: 0.25rem;
+      min-height: 1.5rem;
+      padding: 0.25rem 0.5rem;
       vertical-align: middle;
+      border: 1px solid var(--slate-300);
+      border-radius: 4px;
+      background: white;
+      font-size: 0.75rem;
+    }
+    button:hover:not(:disabled) {
+      background: #f5f5f5;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
     label {
-      display: block;
+      display: grid;
+      grid-template-columns: 7em 1fr;
+      gap: 0.5rem;
+      align-items: start;
+      margin-bottom: 0.5rem;
     }
     label > span {
-      display: inline-block;
-      vertical-align: top;
-      width: 10em;
+      font-weight: 500;
+      font-size: 0.8125rem;
+      padding-top: 0.375rem;
     }
     label:has(input[required]) .label::after {
       content: ' *';
+      color: #d32f2f;
+    }
+    input[type="text"],
+    input[type="url"],
+    input[type="time"],
+    input[type="number"],
+    select,
+    textarea {
+      box-sizing: border-box;
+      max-width: 100%;
+      padding: 0.375rem 0.5rem;
+      border: 1px solid var(--slate-300);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.8125rem;
+    }
+    input[type="number"] {
+      width: 5em;
+    }
+    input[type="text"],
+    input[type="url"],
+    input[type="time"],
+    select {
+      width: 100%;
+    }
+    textarea {
+      width: 100%;
+      resize: vertical;
+      min-height: 3rem;
+      grid-column: 1 / -1;
     }
     .inline-icon {
       height: 1rem;
@@ -219,34 +266,73 @@ export default class SightingForm extends LitElement {
     input[name=photos] {
       display: none;
     }
+    .input-with-buttons {
+      display: flex;
+      gap: 0.25rem;
+      align-items: center;
+    }
+    .input-with-buttons input {
+      flex: 1;
+      min-width: 0;
+    }
+    .input-with-buttons button {
+      flex-shrink: 0;
+    }
     .thumbnails {
-      display: inline-flex;
+      display: flex;
+      flex-wrap: wrap;
       gap: 0.5rem;
+      grid-column: 2;
     }
     select {
-      max-width: 12rem;
+      max-width: 100%;
     }
     .field-error {
-      color: red;
-      text-align: right;
+      color: #d32f2f;
+      font-size: 0.6875rem;
+      margin-top: 0.25rem;
     }
     photo-attachment {
       height: 4rem;
     }
     .upload-photo {
-      width: 4rem;
+      min-height: 1.5rem;
+      width: 1.5rem;
+      padding: 0.25rem;
+      justify-content: center;
     }
     .actions {
       text-align: right;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid #eee;
+    }
+    .actions button {
+      font-size: 0.875rem;
+      padding: 0.5rem 1rem;
+    }
+    .actions button[type="submit"] {
+      background: #1976d2;
+      color: white;
+      border-color: #1976d2;
+    }
+    .actions button[type="submit"]:hover:not(:disabled) {
+      background: #1565c0;
+    }
+    .actions button[type="submit"]:disabled {
+      background: var(--slate-300);
+      border-color: var(--slate-300);
     }
     output {
       display: block;
+      font-size: 0.8125rem;
+      margin-bottom: 0.5rem;
     }
     output.error {
-      color: red;
+      color: #d32f2f;
     }
     output.success {
-      color: green;
+      color: #2e7d32;
     }
   `;
 
@@ -328,14 +414,16 @@ export default class SightingForm extends LitElement {
             return "Should start with https://";
         }}}, field => html`
           <label>
-            <span class="label">Original observation</span>
-            <input type="url"
-                   name="${field.name}"
-                   placeholder="https://www.facebook.com/..."
-                   .value=${field.state.value}
-                   @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).value)}>
+            <span class="label">Source URL</span>
+            <div>
+              <input type="url"
+                     name="${field.name}"
+                     placeholder="https://www.facebook.com/..."
+                     .value=${field.state.value}
+                     @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).value)}>
+              ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
+            </div>
           </label>
-          ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({name: 'taxon'}, field => html`
           <label>
@@ -377,9 +465,11 @@ export default class SightingForm extends LitElement {
         }, field => html`
           <label>
             <span class="label">Time</span>
-            <input type="time" name="${field.name}" step="1" required .value=${field.state.value} @change=${(e: InputEvent) => field.handleChange((e.target as HTMLInputElement).value)}>
+            <div>
+              <input type="time" name="${field.name}" step="1" required .value=${field.state.value} @change=${(e: InputEvent) => field.handleChange((e.target as HTMLInputElement).value)}>
+              ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
+            </div>
           </label>
-          ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({
           name: 'observer_location',
@@ -391,15 +481,19 @@ export default class SightingForm extends LitElement {
         }, field => html`
           <label>
             <span class="label">Observer location</span>
-            <input type="text" name="${field.name}" size="14" placeholder="lat, lon" .value=${field.state.value} @change=${(e: InputEvent) => {
-              const value = (e.target as HTMLInputElement).value;
-              field.handleChange(value);
-              this.onObserverInputChange(value);
-            }}>
-            <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
-            <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
+            <div>
+              <div class="input-with-buttons">
+                <input type="text" name="${field.name}" placeholder="lat, lon" .value=${field.state.value} @change=${(e: InputEvent) => {
+                  const value = (e.target as HTMLInputElement).value;
+                  field.handleChange(value);
+                  this.onObserverInputChange(value);
+                }}>
+                <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
+                <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
+              </div>
+              ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
+            </div>
           </label>
-          ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({
           name: 'subject_location',
@@ -411,14 +505,18 @@ export default class SightingForm extends LitElement {
         }, field => html`
           <label>
             <span class="label">Subject location</span>
-            <input type="text" name="${field.name}" size="14" placeholder="lat, lon" required .value=${field.state.value} @change=${(e: InputEvent) => {
-              const value = (e.target as HTMLInputElement).value;
-              field.handleChange(value)
-              this.onSubjectInputChange(value);
-            }}>
-            <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
+            <div>
+              <div class="input-with-buttons">
+                <input type="text" name="${field.name}" placeholder="lat, lon" required .value=${field.state.value} @change=${(e: InputEvent) => {
+                  const value = (e.target as HTMLInputElement).value;
+                  field.handleChange(value)
+                  this.onSubjectInputChange(value);
+                }}>
+                <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
+              </div>
+              ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
+            </div>
           </label>
-          ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({name: 'travel_direction'}, field => html`
           <label>
@@ -433,7 +531,7 @@ export default class SightingForm extends LitElement {
         ${this.#form.field({name: 'body'}, field => html`
           <label>
             <span class="label">Notes</span>
-            <textarea name="${field.name}" rows="3" cols="21" .value=${field.state.value} @change=${(e: Event) => field.handleChange((e.target as HTMLTextAreaElement).value)}></textarea>
+            <textarea name="${field.name}" rows="3" .value=${field.state.value} @change=${(e: Event) => field.handleChange((e.target as HTMLTextAreaElement).value)}></textarea>
           </label>
         `)}
         <label>
@@ -443,9 +541,8 @@ export default class SightingForm extends LitElement {
               <photo-attachment class=${photo.state} .photo=${photo}>
               </photo-attachment>
             `)}
-            <button @click=${this.onUploadClicked} class="upload-photo" type="button">
+            <button @click=${this.onUploadClicked} class="upload-photo" type="button" title="Add photo">
               <svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${cameraAddIcon}</svg>
-              <span>Add</span>
             </button>
           </div>
         </label>

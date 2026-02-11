@@ -42,8 +42,34 @@ export class ObsPanel extends LitElement {
       margin-bottom: 0;
       margin-top: 1rem;
     }
+    input[type=date],
+    input[type=button],
+    select {
+      box-sizing: border-box;
+      padding: 0.375rem 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.8125rem;
+      background: white;
+    }
     input[type=date] {
       -webkit-min-logical-width: 5rem;
+    }
+    input[type=button] {
+      cursor: pointer;
+      min-height: 1.5rem;
+    }
+    input[type=button]:hover:not(:disabled) {
+      background: #f5f5f5;
+    }
+    input[type=button]:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    select {
+      max-width: 100%;
+      cursor: pointer;
     }
     button {
       align-items: center;
@@ -54,14 +80,17 @@ export class ObsPanel extends LitElement {
       vertical-align: middle;
     }
     button[name=show] {
-      background-color: rgb(27, 43, 123);
-      border: none;
+      background: #1976d2;
+      border: 1px solid #1976d2;
       border-radius: 4px;
       color: white;
       fill: white;
-      font-weight: 500;
-      padding: 1rem;
-      text-transform: uppercase;
+      font-size: 0.875rem;
+      padding: 0.5rem 1rem;
+    }
+    button[name=show]:hover {
+      background: #1565c0;
+      border-color: #1565c0;
     }
     sighting-form {
       background-color: rgba(128, 128, 128, 0.1);

@@ -1,4 +1,4 @@
-import { html, LitElement } from "lit";
+import { css, html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
 import { userContext, type User } from "./identity.ts";
 import { consume } from "@lit/context";
@@ -6,6 +6,26 @@ import { consume } from "@lit/context";
 
 @customElement('login-button')
 export default class LoginButton extends LitElement {
+  static styles = css`
+    button {
+      align-items: center;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 0.25rem;
+      min-height: 1.5rem;
+      padding: 0.375rem 0.5rem;
+      vertical-align: middle;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: white;
+      font-family: Mukta, Helvetica, Arial, sans-serif;
+      font-size: 0.8125rem;
+    }
+    button:hover {
+      background: #f5f5f5;
+    }
+  `;
+
   @consume({context: userContext, subscribe: true})
   user: User | undefined;
 

@@ -281,6 +281,14 @@ user-location-control {
     const travelLines = compactMap(segments, segment2travelLine);
     this.travelSource.clear()
     this.travelSource.addFeatures(travelLines);
+
+    // Select the focused occurrence if one is set
+    if (this.focusedOccurrenceId) {
+      const feature = this.ocurrenceSource.getFeatureById(this.focusedOccurrenceId) as Feature<Point>;
+      if (feature) {
+        this.selectFeature(feature);
+      }
+    }
   }
 
   public selectFeature(feature: Feature) {
