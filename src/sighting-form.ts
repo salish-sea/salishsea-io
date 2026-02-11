@@ -290,9 +290,7 @@ export default class SightingForm extends LitElement {
     .field-error {
       color: #d32f2f;
       font-size: 0.6875rem;
-      grid-column: 2;
-      margin-top: -0.25rem;
-      margin-bottom: 0.25rem;
+      margin-top: 0.25rem;
     }
     photo-attachment {
       height: 4rem;
@@ -417,13 +415,15 @@ export default class SightingForm extends LitElement {
         }}}, field => html`
           <label>
             <span class="label">Source URL</span>
-            <input type="url"
-                   name="${field.name}"
-                   placeholder="https://www.facebook.com/..."
-                   .value=${field.state.value}
-                   @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).value)}>
+            <div>
+              <input type="url"
+                     name="${field.name}"
+                     placeholder="https://www.facebook.com/..."
+                     .value=${field.state.value}
+                     @change=${(e: Event) => field.handleChange((e.target as HTMLInputElement).value)}>
+              ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
+            </div>
           </label>
-          ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({name: 'taxon'}, field => html`
           <label>
@@ -465,9 +465,11 @@ export default class SightingForm extends LitElement {
         }, field => html`
           <label>
             <span class="label">Time</span>
-            <input type="time" name="${field.name}" step="1" required .value=${field.state.value} @change=${(e: InputEvent) => field.handleChange((e.target as HTMLInputElement).value)}>
+            <div>
+              <input type="time" name="${field.name}" step="1" required .value=${field.state.value} @change=${(e: InputEvent) => field.handleChange((e.target as HTMLInputElement).value)}>
+              ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
+            </div>
           </label>
-          ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({
           name: 'observer_location',
@@ -479,17 +481,19 @@ export default class SightingForm extends LitElement {
         }, field => html`
           <label>
             <span class="label">Observer location</span>
-            <div class="input-with-buttons">
-              <input type="text" name="${field.name}" placeholder="lat, lon" .value=${field.state.value} @change=${(e: InputEvent) => {
-                const value = (e.target as HTMLInputElement).value;
-                field.handleChange(value);
-                this.onObserverInputChange(value);
-              }}>
-              <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
-              <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
+            <div>
+              <div class="input-with-buttons">
+                <input type="text" name="${field.name}" placeholder="lat, lon" .value=${field.state.value} @change=${(e: InputEvent) => {
+                  const value = (e.target as HTMLInputElement).value;
+                  field.handleChange(value);
+                  this.onObserverInputChange(value);
+                }}>
+                <button @click=${this.placeObserver} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
+                <button @click=${this.locateMe} ?disabled=${!('geolocation' in navigator)} title="My location" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg></button>
+              </div>
+              ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
             </div>
           </label>
-          ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({
           name: 'subject_location',
@@ -501,16 +505,18 @@ export default class SightingForm extends LitElement {
         }, field => html`
           <label>
             <span class="label">Subject location</span>
-            <div class="input-with-buttons">
-              <input type="text" name="${field.name}" placeholder="lat, lon" required .value=${field.state.value} @change=${(e: InputEvent) => {
-                const value = (e.target as HTMLInputElement).value;
-                field.handleChange(value)
-                this.onSubjectInputChange(value);
-              }}>
-              <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
+            <div>
+              <div class="input-with-buttons">
+                <input type="text" name="${field.name}" placeholder="lat, lon" required .value=${field.state.value} @change=${(e: InputEvent) => {
+                  const value = (e.target as HTMLInputElement).value;
+                  field.handleChange(value)
+                  this.onSubjectInputChange(value);
+                }}>
+                <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
+              </div>
+              ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
             </div>
           </label>
-          ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
         `)}
         ${this.#form.field({name: 'travel_direction'}, field => html`
           <label>
