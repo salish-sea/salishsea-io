@@ -25,8 +25,8 @@ export class ObsSummary extends LitElement {
   @property({type: Boolean, reflect: true})
   private focused = false
 
-  @property({type: Boolean, reflect: true, attribute: 'data-own-observation'})
-  private ownObservation = false
+  @property({type: Boolean, reflect: true, attribute: 'own-observation'})
+  protected ownObservation = false
 
   static styles = css`
     :host {
@@ -41,7 +41,7 @@ export class ObsSummary extends LitElement {
       background-color: #e3f2fd;
       border-left-color: #1976d2;
     }
-    :host([data-own-observation]) {
+    :host([own-observation]) {
       background-color: rgba(128, 128, 128, 0.1);
     }
     header {
