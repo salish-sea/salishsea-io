@@ -174,7 +174,7 @@ export class ObsSummary extends LitElement {
       </header>
       <cite>via ${url ? html`<a target="_new" href=${url}>${attribution}</a>` : attribution}</cite>
       ${guard([body], () => html`${
-        unsafeHTML(domPurify.sanitize(marked.parse(body?.replace(/(<br>\s*)+/, '\n\n') || '', {async: false})))
+        unsafeHTML(domPurify.sanitize(marked.parse(body?.replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n') || '', {async: false})))
       }`)}
       ${photos?.length ?
         html`<ul class="photos">${
