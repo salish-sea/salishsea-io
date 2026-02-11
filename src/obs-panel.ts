@@ -42,8 +42,34 @@ export class ObsPanel extends LitElement {
       margin-bottom: 0;
       margin-top: 1rem;
     }
+    input[type=date],
+    input[type=button],
+    select {
+      box-sizing: border-box;
+      padding: 0.375rem 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.8125rem;
+      background: white;
+    }
     input[type=date] {
       -webkit-min-logical-width: 5rem;
+    }
+    input[type=button] {
+      cursor: pointer;
+      min-height: 1.5rem;
+    }
+    input[type=button]:hover:not(:disabled) {
+      background: #f5f5f5;
+    }
+    input[type=button]:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    select {
+      max-width: 100%;
+      cursor: pointer;
     }
     button {
       align-items: center;
