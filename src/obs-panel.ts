@@ -80,14 +80,17 @@ export class ObsPanel extends LitElement {
       vertical-align: middle;
     }
     button[name=show] {
-      background-color: rgb(27, 43, 123);
-      border: none;
+      background: #1976d2;
+      border: 1px solid #1976d2;
       border-radius: 4px;
       color: white;
       fill: white;
-      font-weight: 500;
-      padding: 1rem;
-      text-transform: uppercase;
+      font-size: 0.875rem;
+      padding: 0.5rem 1rem;
+    }
+    button[name=show]:hover {
+      background: #1565c0;
+      border-color: #1565c0;
     }
     sighting-form {
       background-color: rgba(128, 128, 128, 0.1);
