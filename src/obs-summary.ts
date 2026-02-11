@@ -25,6 +25,9 @@ export class ObsSummary extends LitElement {
   @property({type: Boolean, reflect: true})
   private focused = false
 
+  @property({type: Boolean, reflect: true, attribute: 'data-own-observation'})
+  private ownObservation = false
+
   static styles = css`
     :host {
       border-left: 3px solid #cbd5e1;
@@ -144,6 +147,12 @@ export class ObsSummary extends LitElement {
   @consume({context: contributorContext, subscribe: true})
   private contributor: Contributor | undefined;
 
+  protected willUpdate(changedProperties: PropertyValues): void {
+    if (changedProperties.has('contributor') || changedProperties.has('sighting')) {
+      this.ownObservation = !!(this.contributor && this.sighting.contributor_id === this.contributor.id);
+    }
+  }
+
   public render() {
     const {
       attribution, body, count, id, observed_at, photos, taxon: {scientific_name, vernacular_name}, url
@@ -151,14 +160,6 @@ export class ObsSummary extends LitElement {
     const symbol = symbolFor(this.sighting);
     const name = vernacular_name || scientific_name;
     const editable = this.contributor && canEdit(this.sighting, this.contributor) || false;
-    const isOwnObservation = this.contributor && this.sighting.contributor_id === this.contributor.id;
-
-    // Set attribute for styling user's own observations
-    if (isOwnObservation) {
-      this.setAttribute('data-own-observation', '');
-    } else {
-      this.removeAttribute('data-own-observation');
-    }
 
     return html`
       <header>
