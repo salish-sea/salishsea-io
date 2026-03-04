@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: "Checkpoint: Task 3 human verification of deep-link hydration (01-02)"
-last_updated: "2026-03-04T21:00:07.957Z"
+stopped_at: "Completed 01-02-PLAN.md — Phase 1 (Occurrence Links) fully complete"
+last_updated: "2026-03-04T23:30:00.000Z"
 last_activity: 2026-03-04 — Roadmap created for link shareability milestone
 progress:
   total_phases: 2
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -64,6 +64,8 @@ Recent decisions affecting current work:
 - [Phase 01-occurrence-links]: Bypass date setter during hydration (use this.#date + fetchOccurrences) to avoid writing ?d= to browser history
 - [Phase 01-occurrence-links]: Use setView with skipEvent:true to prevent map-move from writing ?x=/?y=/?z= to history on deep-link load
 - [Phase 01-occurrence-links]: Silent fallback on unknown occurrence ID: if !occurrence return without error
+- [Phase 01-occurrence-links]: URL encodes only ?o=<id> built from origin+pathname (not href) to strip existing query params
+- [Phase 01-occurrence-links]: Copy-link button placed outside when(this.user || editable) gate — visible to all visitors per LINK-01
 
 ### Pending Todos
 
@@ -75,6 +77,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T21:00:07.954Z
-Stopped at: Checkpoint: Task 3 human verification of deep-link hydration (01-02)
+Last session: 2026-03-04T23:30:00.000Z
+Stopped at: Completed 01-02-PLAN.md — Phase 1 (Occurrence Links) fully complete
 Resume file: None

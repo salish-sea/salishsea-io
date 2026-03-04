@@ -56,7 +56,7 @@ completed: 2026-03-04
 - **Duration:** ~15 min
 - **Started:** 2026-03-04T22:57:00Z
 - **Completed:** 2026-03-04T23:12:00Z
-- **Tasks:** 2 of 3 auto tasks complete (Task 3 awaiting human verification)
+- **Tasks:** 3 of 3 complete (human verification approved)
 - **Files modified:** 2
 
 ## Accomplishments
@@ -72,7 +72,7 @@ Each task was committed atomically:
 
 1. **Task 1: Extract dateFromObservedAt helper and write unit test** - `134b08b` (test)
 2. **Task 2: Implement hydrateFromOccurrenceId and wire into firstUpdated** - `0d4741f` (feat)
-3. **Task 3: Verify deep-link hydration in browser** - PENDING human verification
+3. **Task 3: Verify deep-link hydration in browser** - human-verify checkpoint (approved — all 7 checks passed)
 
 ## Files Created/Modified
 - `src/salish-sea.test.ts` - Vitest unit tests for dateFromObservedAt (3 tests, jsdom environment)
@@ -115,9 +115,9 @@ None beyond the auto-fixed deviations above.
 None - no external service configuration required.
 
 ## Next Phase Readiness
-- After human verification of browser behavior (Task 3), LINK-03 and LINK-04 are satisfied
-- Deep-link hydration is complete; ?o=<id> URLs load correct date and map position
-- Phase 2 (rich previews / OG meta tags) can begin after Phase 1 is fully verified
+- LINK-03 and LINK-04 are satisfied — human verification approved all 7 checks
+- Phase 1 (Occurrence Links) is fully complete: copy-link button (01-01) + deep-link hydration (01-02) both working in browser
+- Phase 2 (Rich Previews) is blocked pending infrastructure decision: static S3/CloudFront deployment can't serve dynamic meta tags without Lambda@Edge or CloudFront Functions — approach must be resolved before Phase 2 can be planned
 
 ## Self-Check: PASSED
 

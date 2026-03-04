@@ -12,7 +12,7 @@ This milestone makes whale sighting observations shareable. Phase 1 delivers pur
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Occurrence Links** - Copy link button + deep-link hydration from occurrence ID
+- [x] **Phase 1: Occurrence Links** - Copy link button + deep-link hydration from occurrence ID
 - [ ] **Phase 2: Rich Previews** - Server-side meta tag injection for rich link previews in messaging apps
 
 ## Phase Details
@@ -28,8 +28,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Opening a copied occurrence link in a fresh browser tab centers the map on that occurrence's location at an appropriate zoom level
 **Plans**: 2 plans
 Plans:
-- [ ] 01-01-PLAN.md — Add copy-link button to obs-summary with linkIcon, buildShareUrl helper, and transient copied state
-- [ ] 01-02-PLAN.md — Add deep-link hydration (hydrateFromOccurrenceId) to salish-sea.ts for date and map centering
+- [x] 01-01-PLAN.md — Add copy-link button to obs-summary with linkIcon, buildShareUrl helper, and transient copied state
+- [x] 01-02-PLAN.md — Add deep-link hydration (hydrateFromOccurrenceId) to salish-sea.ts for date and map centering
 
 ### Phase 2: Rich Previews
 **Goal**: Links shared in messaging apps show rich preview cards with species, date, and location context
@@ -48,5 +48,5 @@ Phases execute in numeric order: 1 → 2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Occurrence Links | 1/2 | In Progress|  |
+| 1. Occurrence Links | 2/2 | Complete | 2026-03-04 |
 | 2. Rich Previews | 0/? | Not started | - |
