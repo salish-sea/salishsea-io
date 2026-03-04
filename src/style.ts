@@ -108,7 +108,6 @@ export const occurrenceStyle = (occurrence: Occurrence, isSelected = false) => {
       }),
     }),
   ];
-  // TODO: Add sighting time
   if (identifiers && identifiers.length) {
     styles.push(new Style({
       text: new Text({
