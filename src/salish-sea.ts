@@ -18,6 +18,7 @@ import { supabase } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
+import { fromLonLat } from 'ol/proj.js';
 import { isExtent } from "./constants.ts";
 import { ObsPanel } from "./obs-panel.ts";
 import { createRef, ref } from "lit/directives/ref.js";
@@ -345,9 +346,12 @@ export default class SalishSea extends LitElement {
     await supabase().auth.signInWithIdToken({'provider': 'google', token});
   }
 
-  protected firstUpdated(_changedProperties: PropertyValues): void {
+  protected async firstUpdated(_changedProperties: PropertyValues): Promise<void> {
     this.olmap = this.mapRef.value!.map;
     this.drawingSource = this.mapRef.value!.drawingSource;
+    if (initialParams.occurrenceId) {
+      await this.hydrateFromOccurrenceId(initialParams.occurrenceId);
+    }
   }
 
   receiveOccurrences(occurrences: Occurrence[], forDate: string) {
@@ -398,6 +402,26 @@ export default class SalishSea extends LitElement {
     }));
 
     this.receiveOccurrences(occurrences as Occurrence[], date);
+  }
+
+  private async hydrateFromOccurrenceId(id: string): Promise<void> {
+    const {data: occurrence} = await supabase()
+      .from('occurrences')
+      .select()
+      .eq('id', id)
+      .maybeSingle<Occurrence>();
+    if (!occurrence) return; // not found — silent fallback per decisions
+
+    const date = dateFromObservedAt(occurrence.observed_at);
+    // Bypass the date setter to avoid writing ?d= to history
+    this.#date = date;
+    await this.fetchOccurrences(date);
+
+    // Center map on occurrence location
+    const {lon, lat} = occurrence.location as {lon: number; lat: number};
+    const coord = fromLonLat([lon, lat]);
+    this.mapRef.value!.setView(coord[0]!, coord[1]!, 12, {skipEvent: true});
+    this.focusedOccurrenceId = id;
   }
 }
 
