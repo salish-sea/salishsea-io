@@ -401,6 +401,13 @@ export default class SalishSea extends LitElement {
   }
 }
 
+export function dateFromObservedAt(observedAt: string): string {
+  return Temporal.Instant.from(observedAt)
+    .toZonedDateTimeISO('PST8PDT')
+    .toPlainDate()
+    .toString();
+}
+
 function setQueryParams(params: {[k: string]: string}, options: {replace?: boolean} = {}) {
     const url = new URL(window.location.href);
     for (const [k, v] of Object.entries(params)) {
