@@ -5,8 +5,7 @@
 ## Naming Patterns
 
 **Files:**
-- Kebab case for component/module files: `user-location-control.ts`, `sighting-form.ts`, `photo-attachment.ts`, `drawing-context.ts`
-- Camel case for utility/function files: `identifiers.ts`, `segments.ts`, `occurrence.ts`, `constants.ts`
+- Kebab case for typescript files: `user-location-control.ts`, `sighting-form.ts`, `photo-attachment.ts`, `drawing-context.ts`
 - Test files use `.test.ts` suffix: `identifiers.test.ts`, `segments.test.ts`, `constants.test.ts`
 
 **Functions:**

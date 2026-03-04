@@ -4,12 +4,6 @@
 
 ## Tech Debt
 
-**Missing sighting timestamp display:**
-- Issue: TODO comment indicates feature not yet implemented
-- Files: `src/style.ts` (line 111)
-- Impact: Occurrence markers on map do not display the sighting time, reducing information density and user context
-- Fix approach: Add time text rendering to `occurrenceStyle()` function - extract time from occurrence object and display in Style configuration
-
 **Large form component needing refactoring:**
 - Issue: `sighting-form.ts` is 816 lines, handling form state, photo uploads, coordinate parsing, field validation, and Supabase operations all in one component
 - Files: `src/sighting-form.ts`
@@ -44,12 +38,6 @@
 - Workaround: Current code throws `"oh no"` - will still propagate but less informative than Error instance
 
 ## Security Considerations
-
-**XSS vulnerability in user-generated content:**
-- Risk: User body content rendered via `marked.parse()` - markdown could contain malicious HTML if DOMPurify sanitization fails
-- Files: `src/obs-summary.ts` (lines 177-178)
-- Current mitigation: DOMPurify sanitization is applied; `unsafeHTML` directive is sandboxed by Lit
-- Recommendations: Add Content Security Policy headers; consider using safer markdown renderer with built-in XSS protection; add automated security scanning for markdown rendering
 
 **Unvalidated coordinate input:**
 - Risk: User-provided coordinates parsed via `geo-coordinates-parser` library without bounds validation before sending to database
@@ -144,11 +132,6 @@
 - Risk: Temporal API is not yet standardized; polyfill may have breaking changes or maintenance gaps
 - Impact: Date/time handling throughout codebase depends on unstable library; major version bump could break date parsing
 - Migration plan: Pin version strictly; create abstraction layer for date operations; monitor Temporal proposal status; plan migration to native Temporal when standardized
-
-**fast-xml-parser v5.3.5 (pinned version):**
-- Risk: Pinned to specific version without ^ or ~; dependency chain may have security vulnerabilities
-- Impact: Security patches won't auto-install; dependency management is brittle
-- Migration plan: Use semver ranges; implement automated security scanning (dependabot); review for CVEs before unpinning
 
 **@tanstack/lit-form v1 with early adoption:**
 - Risk: TanStack Form Lit integration is relatively new; may have undiscovered bugs or API changes
