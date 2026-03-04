@@ -226,6 +226,10 @@ export class ObsSummary extends LitElement {
   }
 }
 
+export function buildShareUrl(occurrenceId: string): string {
+  return `${window.location.origin}${window.location.pathname}?o=${occurrenceId}`;
+}
+
 export type CloneSightingEvent = CustomEvent<Occurrence>;
 export type EditSightingEvent = CustomEvent<Occurrence>;
 
