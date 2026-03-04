@@ -21,6 +21,7 @@ import type { Extent } from "ol/extent.js";
 import { isExtent } from "./constants.ts";
 import { ObsPanel } from "./obs-panel.ts";
 import { createRef, ref } from "lit/directives/ref.js";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Contributor, Occurrence } from "./types.ts";
 
 if (import.meta.env.PROD)
@@ -141,6 +142,7 @@ export default class SalishSea extends LitElement {
 
   #isRestoringFromHistory = false
   #mapMoveDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  #realtimeChannel: RealtimeChannel | undefined
 
   @property({attribute: false})
   private focusedOccurrenceId: string | null = initialParams.occurrenceId;
@@ -262,9 +264,12 @@ export default class SalishSea extends LitElement {
       const sighting = (evt as EditSightingEvent).detail;
       await this.panelRef.value!.editObservation(sighting);
     });
-    this.addEventListener('database-changed', async () => {
-      await this.fetchOccurrences(this.date);
-    });
+    this.#realtimeChannel = supabaseClient
+      .channel('occurrences')
+      .on('postgres_changes', {event: '*', schema: 'public', table: 'occurrences'}, () => {
+        this.fetchOccurrences(this.date);
+      })
+      .subscribe();
   }
 
   async connectedCallback(): Promise<void> {
@@ -283,6 +288,7 @@ export default class SalishSea extends LitElement {
     if (this.#mapMoveDebounceTimer) {
       clearTimeout(this.#mapMoveDebounceTimer);
     }
+    this.#realtimeChannel?.unsubscribe();
   }
 
   protected render(): unknown {
