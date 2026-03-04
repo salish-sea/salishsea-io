@@ -7,7 +7,6 @@ import { consume } from "@lit/context";
 import { when } from "lit/directives/when.js";
 import { repeat } from "lit/directives/repeat.js";
 import { symbolFor } from "./identifiers.ts";
-import { linkIcon } from "./icons.ts";
 import { marked } from 'marked';
 import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
@@ -63,9 +62,6 @@ export class ObsSummary extends LitElement {
       color: #64748b;
       font-size: 0.75rem;
       white-space: nowrap;
-    }
-    time a {
-      color: inherit;
     }
     a {
       color: #1976d2;
@@ -142,22 +138,6 @@ export class ObsSummary extends LitElement {
       background: #f1f5f9;
       color: #1e293b;
     }
-    .copy-link {
-      background: none;
-      border: 1px solid #cbd5e1;
-      border-radius: 4px;
-      color: #64748b;
-      cursor: pointer;
-      flex-shrink: 0;
-      font-size: 0.75rem;
-      line-height: 1;
-      padding: 0.1rem 0.25rem;
-    }
-    .copy-link:hover {
-      background: #f1f5f9;
-      border-color: #94a3b8;
-      color: #334155;
-    }
   `;
 
   @consume({context: userContext, subscribe: true})
@@ -174,7 +154,7 @@ export class ObsSummary extends LitElement {
 
   public render() {
     const {
-      attribution, body, count, id, observed_at, photos, taxon: {scientific_name, vernacular_name}, url
+      attribution, body, count, observed_at, photos, taxon: {scientific_name, vernacular_name}, url
     } = this.sighting;
     const symbol = symbolFor(this.sighting);
     const name = vernacular_name || scientific_name;
@@ -187,14 +167,9 @@ export class ObsSummary extends LitElement {
           <b>${name}</b>
           ${when(count && count > 0, () => html`<span class="count">×${count}</span>`)}
         </div>
-        <time><a @click="${this.focusSighting}" href="#${id}">${guard([observed_at], () => html`${
+        <time>${guard([observed_at], () => html`${
           Temporal.Instant.from(observed_at).toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
-        }`)}</a></time>
-        <button class="copy-link" @click=${this.onCopyLink} title="Copy link to this sighting">
-          ${this.copied
-            ? html`&#x2713;`
-            : html`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" height="1em" width="1em" fill="currentColor">${linkIcon}</svg>`}
-        </button>
+        }`)}</time>
       </header>
       <cite>via ${url ? html`<a target="_new" href=${url}>${attribution}</a>` : attribution}</cite>
       ${guard([body], () => html`${
@@ -207,17 +182,16 @@ export class ObsSummary extends LitElement {
           `)
         }</ul>`
       : undefined}
-      ${when(this.user || editable, () => html`
-        <ul class="actions">
-          ${when(this.user, () => html`
-            <li><a href="#" @click=${this.onClone}>Clone</a></li>
-          `)}
-          ${when(editable, () => html`
-            <li><a href="#" @click=${this.onEdit}>Edit</a></li>
-            <li><a href="#" @click=${this.onDelete}>Delete</a></li>
-          `)}
-        </ul>
-      `)}
+      <ul class="actions">
+        <li><a href="#" @click=${this.onCopyLink}>${this.copied ? 'Copied!' : 'Copy link'}</a></li>
+        ${when(this.user, () => html`
+          <li><a href="#" @click=${this.onClone}>Clone</a></li>
+        `)}
+        ${when(editable, () => html`
+          <li><a href="#" @click=${this.onEdit}>Edit</a></li>
+          <li><a href="#" @click=${this.onDelete}>Delete</a></li>
+        `)}
+      </ul>
     `
   }
 
