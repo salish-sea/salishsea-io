@@ -9,8 +9,8 @@ Requirements for the link shareability milestone.
 
 ### Occurrence Links
 
-- [ ] **LINK-01**: User can copy a shareable link to a specific occurrence from its summary card in the sidebar
-- [ ] **LINK-02**: Shareable occurrence link encodes only the occurrence ID (e.g. `?o=<id>`)
+- [x] **LINK-01**: User can copy a shareable link to a specific occurrence from its summary card in the sidebar
+- [x] **LINK-02**: Shareable occurrence link encodes only the occurrence ID (e.g. `?o=<id>`)
 - [x] **LINK-03**: Following an occurrence link sets the date from that occurrence's observed_at timestamp
 - [x] **LINK-04**: Following an occurrence link sets the map center and zoom to that occurrence's location
 
@@ -62,8 +62,8 @@ Which phases cover which requirements. Confirmed during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LINK-01 | Phase 1 | Pending |
-| LINK-02 | Phase 1 | Pending |
+| LINK-01 | Phase 1 | Complete |
+| LINK-02 | Phase 1 | Complete |
 | LINK-03 | Phase 1 | Complete |
 | LINK-04 | Phase 1 | Complete |
 | PREV-01 | Phase 2 | Pending |
