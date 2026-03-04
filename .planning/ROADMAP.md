@@ -48,5 +48,5 @@ Phases execute in numeric order: 1 → 2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Occurrence Links | 0/2 | Not started | - |
+| 1. Occurrence Links | 1/2 | In Progress|  |
 | 2. Rich Previews | 0/? | Not started | - |
