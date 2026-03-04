@@ -1,5 +1,5 @@
 import { css, LitElement, type PropertyValues } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import { html } from "lit/static-html.js";
 import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import { contributorContext, userContext, type User } from "./identity.ts";
@@ -7,6 +7,7 @@ import { consume } from "@lit/context";
 import { when } from "lit/directives/when.js";
 import { repeat } from "lit/directives/repeat.js";
 import { symbolFor } from "./identifiers.ts";
+import { linkIcon } from "./icons.ts";
 import { marked } from 'marked';
 import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
@@ -27,6 +28,8 @@ export class ObsSummary extends LitElement {
 
   @property({type: Boolean, reflect: true, attribute: 'own-observation'})
   protected ownObservation = false
+
+  @state() private copied = false;
 
   static styles = css`
     :host {
@@ -139,6 +142,22 @@ export class ObsSummary extends LitElement {
       background: #f1f5f9;
       color: #1e293b;
     }
+    .copy-link {
+      background: none;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      color: #64748b;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      line-height: 1;
+      padding: 0.1rem 0.25rem;
+    }
+    .copy-link:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+      color: #334155;
+    }
   `;
 
   @consume({context: userContext, subscribe: true})
@@ -171,6 +190,11 @@ export class ObsSummary extends LitElement {
         <time><a @click="${this.focusSighting}" href="#${id}">${guard([observed_at], () => html`${
           Temporal.Instant.from(observed_at).toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
         }`)}</a></time>
+        <button class="copy-link" @click=${this.onCopyLink} title="Copy link to this sighting">
+          ${this.copied
+            ? html`&#x2713;`
+            : html`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" height="1em" width="1em" fill="currentColor">${linkIcon}</svg>`}
+        </button>
       </header>
       <cite>via ${url ? html`<a target="_new" href=${url}>${attribution}</a>` : attribution}</cite>
       ${guard([body], () => html`${
@@ -195,6 +219,14 @@ export class ObsSummary extends LitElement {
         </ul>
       `)}
     `
+  }
+
+  private async onCopyLink(e: Event): Promise<void> {
+    e.preventDefault();
+    const url = buildShareUrl(this.sighting.id);
+    await navigator.clipboard.writeText(url);
+    this.copied = true;
+    setTimeout(() => { this.copied = false; }, 2000);
   }
 
   private focusSighting(interaction: Event) {

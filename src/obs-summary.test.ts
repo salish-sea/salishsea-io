@@ -3,8 +3,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { buildShareUrl } from './obs-summary.ts';
 
 describe('buildShareUrl', () => {
-  let originalLocation: Location;
-
   beforeEach(() => {
     // jsdom provides window.location but we need to stub it for tests
     Object.defineProperty(window, 'location', {
