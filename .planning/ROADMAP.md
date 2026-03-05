@@ -39,7 +39,13 @@ Plans:
   1. Pasting any app URL into RCS, Facebook, or Bluesky renders a preview card with title, description, and image
   2. Pasting an occurrence-specific URL renders a preview that includes the species name, sighting date, and location
   3. The preview infrastructure runs within the existing S3/CloudFront deployment (e.g. via CloudFront Function or Lambda@Edge) without requiring a separate server
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 02-01-PLAN.md — Create test scaffolds (RED): edge handler unit tests + CDK assertion stubs
+- [ ] 02-02-PLAN.md — Implement Lambda@Edge handler: bot detection, OG tag generation, Supabase fetch
+- [ ] 02-03-PLAN.md — Create static branded fallback preview image (1200x630px) and upload to S3
+- [ ] 02-04-PLAN.md — Wire CDK stack: CloudFront Distribution + EdgeFunction + SSM params + IAM
+- [ ] 02-05-PLAN.md — Deploy: bootstrap us-east-1, add GitHub Actions secret, update deploy workflow, verify
 
 ## Progress
 
@@ -49,4 +55,4 @@ Phases execute in numeric order: 1 → 2
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Occurrence Links | 2/2 | Complete | 2026-03-04 |
-| 2. Rich Previews | 0/? | Not started | - |
+| 2. Rich Previews | 0/5 | Not started | - |
