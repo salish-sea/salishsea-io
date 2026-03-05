@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-04T23:57:51.815Z"
+stopped_at: Completed 02-rich-previews 02-01-PLAN.md (test scaffolds in RED state)
+last_updated: "2026-03-05T02:31:19.163Z"
 last_activity: 2026-03-04 — Roadmap created for link shareability milestone
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 7
+  completed_plans: 3
   percent: 0
 ---
 
@@ -51,6 +51,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01-occurrence-links P02 | 15 | 2 tasks | 2 files |
+| Phase 02-rich-previews P01 | 15 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,9 @@ Recent decisions affecting current work:
 - [Phase 01-occurrence-links]: Silent fallback on unknown occurrence ID: if !occurrence return without error
 - [Phase 01-occurrence-links]: URL encodes only ?o=<id> built from origin+pathname (not href) to strip existing query params
 - [Phase 01-occurrence-links]: Copy-link button placed outside when(this.user || editable) gate — visible to all visitors per LINK-01
+- [Phase 02-rich-previews]: jest.config.js updated to include lib/ in roots so edge-handler tests discovered alongside implementation
+- [Phase 02-rich-previews]: Open license photos: only cc0 and cc-by are open; all others fall back to branded image
+- [Phase 02-rich-previews]: Fail-open: Lambda@Edge handler returns pass-through request (not 500) on any Supabase or SSM error
 
 ### Pending Todos
 
@@ -77,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T23:57:51.807Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-rich-previews/02-CONTEXT.md
+Last session: 2026-03-05T02:31:19.161Z
+Stopped at: Completed 02-rich-previews 02-01-PLAN.md (test scaffolds in RED state)
+Resume file: None

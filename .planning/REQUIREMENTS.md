@@ -16,9 +16,9 @@ Requirements for the link shareability milestone.
 
 ### Rich Previews
 
-- [ ] **PREV-01**: A link to the app shared in RCS, Facebook, or Bluesky shows a rich preview (title, description, image)
-- [ ] **PREV-02**: Rich preview for an occurrence-specific link includes species, date, and location context
-- [ ] **PREV-03**: Rich preview infrastructure works with the existing static S3/CloudFront deployment
+- [x] **PREV-01**: A link to the app shared in RCS, Facebook, or Bluesky shows a rich preview (title, description, image)
+- [x] **PREV-02**: Rich preview for an occurrence-specific link includes species, date, and location context
+- [x] **PREV-03**: Rich preview infrastructure works with the existing static S3/CloudFront deployment
 
 ## v2 Requirements
 
@@ -66,9 +66,9 @@ Which phases cover which requirements. Confirmed during roadmap creation.
 | LINK-02 | Phase 1 | Complete |
 | LINK-03 | Phase 1 | Complete |
 | LINK-04 | Phase 1 | Complete |
-| PREV-01 | Phase 2 | Pending |
-| PREV-02 | Phase 2 | Pending |
-| PREV-03 | Phase 2 | Pending |
+| PREV-01 | Phase 2 | Complete |
+| PREV-02 | Phase 2 | Complete |
+| PREV-03 | Phase 2 | Complete |
 
 **Coverage:**
 - v1 requirements: 7 total
