@@ -1,4 +1,4 @@
-import { handler } from './index';
+import { handler, _clearCredentialCache } from './index';
 
 // Mock @aws-sdk/client-ssm before any imports
 jest.mock('@aws-sdk/client-ssm', () => {
@@ -55,7 +55,7 @@ const sampleOccurrence = {
 describe('Lambda@Edge OG meta handler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset module-level credential cache by re-requiring (handled via jest isolation)
+    _clearCredentialCache();
     jest.spyOn(global, 'fetch').mockReset();
     mockSsmCredentials();
   });

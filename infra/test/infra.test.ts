@@ -7,7 +7,7 @@ describe('InfraStack', () => {
   beforeAll(() => {
     const app = new cdk.App();
     const stack = new InfraStack(app, 'TestStack', {
-      env: { account: '648183724555', region: 'us-west-2' },
+      env: { account: '648183724555', region: 'us-east-1' },
     });
     template = Template.fromStack(stack);
   });

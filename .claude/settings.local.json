@@ -12,7 +12,9 @@
       "Bash(git:*)",
       "Bash(npx vitest:*)",
       "Skill(gsd:plan-phase)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(cd:*)",
+      "Bash(npm test:*)"
     ]
   }
 }

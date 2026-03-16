@@ -1,0 +1,137 @@
+---
+Metadata:
+  AWSToolsMetrics:
+    IaC_Generator: "arn:aws:cloudformation:us-west-2:648183724555:generatedTemplate/e185d619-6ae9-4ee1-9590-49d568966759"
+Resources:
+  Route53HostedZone:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::Route53::HostedZone"
+    DeletionPolicy: "Delete"
+    Properties:
+      VPCs: []
+      HostedZoneConfig:
+        Comment: "SalishSea.io"
+      Name: "salishsea.io."
+  CloudFrontDistribution:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::CloudFront::Distribution"
+    DeletionPolicy: "Delete"
+    Properties:
+      DistributionConfig:
+        Logging:
+          IncludeCookies: false
+          Bucket: ""
+          Prefix: ""
+        Comment: ""
+        DefaultRootObject: "index.html"
+        Origins:
+        - ConnectionTimeout: 10
+          OriginAccessControlId: "EKU351HBDSMHW"
+          ConnectionAttempts: 3
+          OriginCustomHeaders: []
+          DomainName:
+            Fn::GetAtt:
+            - "S3BucketSalishseaio"
+            - "RegionalDomainName"
+          OriginShield:
+            Enabled: false
+          S3OriginConfig:
+            OriginReadTimeout: 30
+            OriginAccessIdentity: ""
+          OriginPath: "/site"
+          Id: "salishsea-io.s3.us-west-2.amazonaws.com-mfhgk5vybxv"
+        ViewerCertificate:
+          MinimumProtocolVersion: "TLSv1.2_2021"
+          SslSupportMethod: "sni-only"
+          CloudFrontDefaultCertificate: false
+          AcmCertificateArn: "arn:aws:acm:us-east-1:648183724555:certificate/8cfdef8d-648b-42ba-a525-045f7b1a7762"
+        PriceClass: "PriceClass_All"
+        DefaultCacheBehavior:
+          Compress: true
+          FunctionAssociations: []
+          LambdaFunctionAssociations: []
+          TargetOriginId: "salishsea-io.s3.us-west-2.amazonaws.com-mfhgk5vybxv"
+          ViewerProtocolPolicy: "redirect-to-https"
+          GrpcConfig:
+            Enabled: false
+          TrustedSigners: []
+          FieldLevelEncryptionId: ""
+          TrustedKeyGroups: []
+          AllowedMethods:
+          - "HEAD"
+          - "GET"
+          CachedMethods:
+          - "HEAD"
+          - "GET"
+          SmoothStreaming: false
+          CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6"
+        Staging: false
+        CustomErrorResponses: []
+        ContinuousDeploymentPolicyId: ""
+        OriginGroups:
+          Quantity: 0
+          Items: []
+        Enabled: true
+        Aliases:
+        - "salishsea.io"
+        IPV6Enabled: true
+        WebACLId: ""
+        HttpVersion: "http2and3"
+        Restrictions:
+          GeoRestriction:
+            Locations: []
+            RestrictionType: "none"
+        CacheBehaviors: []
+  S3BucketPolicySalishseaio:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::S3::BucketPolicy"
+    DeletionPolicy: "Delete"
+    Properties:
+      Bucket:
+        Ref: "S3BucketSalishseaio"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Resource: "arn:aws:s3:::salishsea-io/*"
+          Action: "s3:GetObject"
+          Effect: "Allow"
+          Principal: "*"
+        - Condition:
+            ArnLike:
+              AWS:SourceArn: "arn:aws:cloudfront::648183724555:distribution/EQ0KYC2Y6IUYU"
+          Resource: "arn:aws:s3:::salishsea-io/*"
+          Action: "s3:GetObject"
+          Effect: "Allow"
+          Principal:
+            Service: "cloudfront.amazonaws.com"
+          Sid: "AllowCloudFrontServicePrincipal"
+  S3BucketSalishseaio:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::S3::Bucket"
+    DeletionPolicy: "Retain"
+    Properties:
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: false
+        IgnorePublicAcls: false
+        BlockPublicPolicy: false
+        BlockPublicAcls: false
+      BucketName: "salishsea-io"
+      CorsConfiguration:
+        CorsRules:
+        - AllowedHeaders:
+          - "Content-Type"
+          - "Content-Length"
+          AllowedMethods:
+          - "GET"
+          - "PUT"
+          - "POST"
+          AllowedOrigins:
+          - "https://salishsea.io"
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: "BucketOwnerEnforced"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - BucketKeyEnabled: true
+          ServerSideEncryptionByDefault:
+            SSEAlgorithm: "AES256"
