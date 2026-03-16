@@ -10,7 +10,9 @@
       "Bash(git add:*)",
       "Skill(gsd:execute-phase)",
       "Bash(git:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Skill(gsd:plan-phase)",
+      "WebSearch"
     ]
   }
 }
