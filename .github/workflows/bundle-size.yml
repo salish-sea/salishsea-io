@@ -1,0 +1,32 @@
+name: Bundle Size
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  size:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      VITE_BASE_URL: ""
+      VITE_SUPABASE_KEY: ""
+      VITE_SUPABASE_URL: ""
+      VITE_SUPABASE_WS_URL: ""
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+
+      - uses: andresz1/size-limit-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          script: build:size
