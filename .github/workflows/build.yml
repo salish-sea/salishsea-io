@@ -38,3 +38,11 @@ jobs:
 
       - run: npm run build
       - run: npm test
+
+      - name: Install infra dependencies
+        run: npm ci
+        working-directory: infra
+
+      - name: Run infra tests
+        run: npm test
+        working-directory: infra
