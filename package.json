@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc && vite build && npx html-validate dist/**/*.html && node bin/verify-csp-inline-hash.mjs dist/index.html",
+    "build:size": "vite build",
     "dev": "vite dev",
     "gen-types": "supabase gen types --local --schema public --schema graphql_public > database.types.ts",
     "preview": "vite preview",
@@ -38,6 +39,10 @@
     "vite": "^7.3.1",
     "zod": "^4.3.6"
   },
+  "size-limit": [
+    { "name": "JS", "path": "dist/assets/*.js" },
+    { "name": "CSS", "path": "dist/assets/*.css" }
+  ],
   "devDependencies": {
     "@types/geojson": "^7946.0.16",
     "@types/google.accounts": "^0.0.18",
@@ -48,6 +53,8 @@
     "supertest": "^7.2.2",
     "type-fest": "^5.4.2",
     "typescript": "~5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "@size-limit/file": "^11.1.6",
+    "size-limit": "^11.1.6"
   }
 }
