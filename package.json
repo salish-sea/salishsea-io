@@ -40,21 +40,28 @@
     "zod": "^4.3.6"
   },
   "size-limit": [
-    { "name": "JS", "path": "dist/assets/*.js" },
-    { "name": "CSS", "path": "dist/assets/*.css" }
+    {
+      "name": "JS",
+      "path": "dist/assets/*.js"
+    },
+    {
+      "name": "CSS",
+      "path": "dist/assets/*.css"
+    }
   ],
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@size-limit/file": "^12.0.1",
     "@types/geojson": "^7946.0.16",
     "@types/google.accounts": "^0.0.18",
     "@types/jsdom": "^28.0.0",
     "html-validate": "^10.11.1",
     "jsdom": "^28.1.0",
+    "size-limit": "^12.0.1",
     "supabase": "^2.81.3",
     "supertest": "^7.2.2",
     "type-fest": "^5.4.2",
     "typescript": "~5.9.3",
-    "vitest": "^4.1.0",
-    "@size-limit/file": "^12.0.1",
-    "size-limit": "^12.0.1"
+    "vitest": "^4.1.0"
   }
 }

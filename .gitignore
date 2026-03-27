@@ -34,3 +34,6 @@ dist-ssr
 # Sentry Config File
 .env.sentry-build-plugin
 *.sqbpro
+test-results
+playwright-report
+e2e/screenshots

@@ -5,6 +5,6 @@ export default defineConfig(({ mode }) => ({
     test: {
         // mode defines what ".env.{mode}" file to choose if exists
         env: loadEnv(mode, process.cwd(), ''),
-        exclude: ['infra/**', 'node_modules/**'],
+        exclude: ['e2e/**', 'infra/**', 'node_modules/**'],
     },
 }));
