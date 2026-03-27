@@ -78,13 +78,13 @@ export class ObsMap extends LitElement {
   @property({type: String, reflect: true})
   public focusedOccurrenceId: string | undefined
 
-  #modify = new Modify({
+  private modify = new Modify({
     deleteCondition: never,
     insertVertexCondition: never,
     source: this.drawingSource,
     style: editStyle,
   });
-  #select = new Select({
+  private select = new Select({
     layers: [this.occurrenceLayer],
     multi: false,
     style: selectedObservationStyle,
@@ -105,7 +105,7 @@ export class ObsMap extends LitElement {
   })
 
   public map = new OpenLayersMap({
-    interactions: defaultInteractions().extend([this.#modify, this.#select]),
+    interactions: defaultInteractions().extend([this.modify, this.select]),
     layers: [
       new TileLayer({
         source: new XYZ({
@@ -162,7 +162,7 @@ user-location-control {
         onLocationUpdated: this.onLocationUpdated.bind(this),
         onLocationInactive: this.onLocationInactive.bind(this),
       }));
-    this.#select.on('select', (e: SelectEvent) => {
+    this.select.on('select', (e: SelectEvent) => {
       const occurrence = e.selected[0]?.getProperties() || null;
       const evt = new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: occurrence});
       this.dispatchEvent(evt);
@@ -190,11 +190,11 @@ user-location-control {
     window.open(feature.get('url'), '_blank')
   }
 
-  #skipNextMoveEvent = false;
+  private skipNextMoveEvent = false;
 
   protected onMoveEnd() {
-    if (this.#skipNextMoveEvent) {
-      this.#skipNextMoveEvent = false;
+    if (this.skipNextMoveEvent) {
+      this.skipNextMoveEvent = false;
       return;
     }
     const detail: MapMoveDetail = {
@@ -215,7 +215,7 @@ user-location-control {
    */
   public setView(x: number, y: number, zoom: number, options: {skipEvent?: boolean} = {}) {
     if (options.skipEvent) {
-      this.#skipNextMoveEvent = true;
+      this.skipNextMoveEvent = true;
     }
     this.view.setCenter([x, y]);
     this.view.setZoom(zoom);
@@ -292,7 +292,7 @@ user-location-control {
   }
 
   public selectFeature(feature: Feature) {
-    const selection = this.#select.getFeatures();
+    const selection = this.select.getFeatures();
     selection.clear();
     selection.push(feature);
   }
