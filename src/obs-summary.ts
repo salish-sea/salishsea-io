@@ -39,12 +39,12 @@ export class ObsSummary extends LitElement {
       margin-right: -0.5rem;
       padding: 1rem 0.5rem 1rem calc(0.5rem - 3px);
     }
+    :host([own-observation]) {
+      background-color: rgba(128, 128, 128, 0.1);
+    }
     :host(.focused) {
       background-color: #e3f2fd;
       border-left-color: #1976d2;
-    }
-    :host([own-observation]) {
-      background-color: rgba(128, 128, 128, 0.1);
     }
     header {
       align-items: baseline;
