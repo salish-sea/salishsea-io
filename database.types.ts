@@ -207,7 +207,6 @@ export type Database = {
           direction: Database["public"]["Enums"]["travel_direction"] | null
           id: string | null
           identifiers: string[] | null
-          is_own_observation: boolean | null
           location: Database["public"]["CompositeTypes"]["lon_lat"] | null
           observed_at: string | null
           observed_from: Database["public"]["CompositeTypes"]["lon_lat"] | null
