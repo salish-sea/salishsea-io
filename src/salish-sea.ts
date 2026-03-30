@@ -255,6 +255,9 @@ export default class SalishSea extends LitElement {
     this.addEventListener('sighting-saved', (evt) => {
       const occurrence = (evt as CustomEvent<Occurrence>).detail;
       this.focusOccurrence(occurrence);
+      // focusOccurrence only triggers fetchOccurrences when the date changes.
+      // Explicitly refresh so a newly saved sighting for the current date appears immediately.
+      this.fetchOccurrences(this.date);
     });
     this.addEventListener('clone-sighting', async (evt) => {
       const sighting = (evt as CloneSightingEvent).detail;
@@ -267,7 +270,7 @@ export default class SalishSea extends LitElement {
     });
     this.#realtimeChannel = supabaseClient
       .channel('occurrences')
-      .on('postgres_changes', {event: '*', schema: 'public', table: 'occurrences'}, () => {
+      .on('broadcast', {event: 'occurrences_changed'}, () => {
         this.fetchOccurrences(this.date);
       })
       .subscribe();
