@@ -80,3 +80,53 @@ describe('segment2travelLine', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Regression: a pod observation ~7.9 km away in 18 minutes was excluded from
+// the track because the greedy algorithm rejected it before accepting a later
+// observation that implied a slower speed.  The fix relaxes the speed
+// multiplier from 1.5× to 3.0×, reflecting that orcas transit considerably
+// faster than their mean travel speed during short windows.
+//
+// Data sourced from J-pod observations on 2026-03-29 (Scott Veirs).
+// ---------------------------------------------------------------------------
+function makeOrca(id: string, isoUtc: string, lon: number, lat: number): Occurrence {
+  return {
+    id,
+    url: null,
+    attribution: 'Scott Veirs on SalishSea.io',
+    body: null,
+    count: null,
+    direction: null,
+    location: {lon, lat},
+    accuracy: null,
+    photos: [],
+    observed_at: isoUtc,
+    observed_at_ms: Date.parse(isoUtc),
+    observed_from: null,
+    taxon: {scientific_name: 'Orcinus orca ater', vernacular_name: 'Resident Killer Whale', species_id: 41521},
+    identifiers: [],
+    contributor_id: 7,
+    is_own_observation: false,
+  };
+}
+
+describe('orca short-window transit regression', () => {
+  // Three consecutive J-pod observations on 2026-03-29:
+  //   prev  019d3d0b  01:12 UTC  Andrews Bay hydrophones     (-123.2363, 48.6177)
+  //   gap   019d3d1d  01:30 UTC  Lime Kiln / Land Bank       (-123.2285, 48.5466)  ← was excluded
+  //   next  019d3d12  02:33 UTC  LK webcam                   (-123.2374, 48.5226)
+  //
+  // The "gap" point is 7.9 km south of "prev" reached in 18 minutes (~26 km/h
+  // straight-line), which exceeds the old 1.5× mean-speed threshold (9.9 km/h)
+  // but is well within the new 3.0× threshold (19.8 km/h effective).
+  const prev = makeOrca('019d3d0b', '2026-03-30T01:12:00Z', -123.2363, 48.6177);
+  const gap  = makeOrca('019d3d1d', '2026-03-30T01:30:00Z', -123.2285, 48.5466);
+  const next = makeOrca('019d3d12', '2026-03-30T02:33:00Z', -123.2374, 48.5226);
+
+  test('all three points form a single segment', () => {
+    const segs = occurrences2segments([prev, gap, next]);
+    expect(segs).toHaveLength(1);
+    expect(segs[0]!.occurrences.map(o => o.id)).toEqual(['019d3d0b', '019d3d1d', '019d3d12']);
+  });
+});
