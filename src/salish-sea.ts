@@ -270,7 +270,7 @@ export default class SalishSea extends LitElement {
     });
     this.#realtimeChannel = supabaseClient
       .channel('occurrences')
-      .on('postgres_changes', {event: '*', schema: 'public', table: 'occurrences'}, () => {
+      .on('broadcast', {event: 'occurrences_changed'}, () => {
         this.fetchOccurrences(this.date);
       })
       .subscribe();
