@@ -61,6 +61,19 @@ function parseUrlParams(searchParams: URLSearchParams) {
 
 const initialParams = parseUrlParams(new URLSearchParams(document.location.search));
 
+let gsiReady: Promise<void> | null = null;
+function loadGSI(): Promise<void> {
+  if (!gsiReady) {
+    gsiReady = new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.onload = () => resolve();
+      document.head.appendChild(script);
+    });
+  }
+  return gsiReady;
+}
+
 @customElement('salish-sea')
 export default class SalishSea extends LitElement {
   static styles = css`
@@ -337,14 +350,7 @@ export default class SalishSea extends LitElement {
   }
 
   doLogIn() {
-    if (window.google?.accounts?.id) {
-      google.accounts.id.prompt();
-    } else {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.onload = () => google.accounts.id.prompt();
-      document.head.appendChild(script);
-    }
+    loadGSI().then(() => google.accounts.id.prompt());
   }
 
   async doLogOut() {
