@@ -337,7 +337,14 @@ export default class SalishSea extends LitElement {
   }
 
   doLogIn() {
-    google.accounts.id.prompt();
+    if (window.google?.accounts?.id) {
+      google.accounts.id.prompt();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.onload = () => google.accounts.id.prompt();
+      document.head.appendChild(script);
+    }
   }
 
   async doLogOut() {
