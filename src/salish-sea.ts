@@ -1,3 +1,4 @@
+/// <reference types="google.accounts" />
 import { css, html, LitElement, type PropertyValues} from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import './obs-map.ts';
