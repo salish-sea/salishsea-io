@@ -9,7 +9,7 @@ import { consume } from "@lit/context";
 import Feature from "ol/Feature.js";
 import VectorSource from "ol/source/Vector.js";
 import { bearingStyle, occurrenceStyle, sighterStyle } from "./style.ts";
-import { licenseCodes, salishSeaExtent } from './constants.ts';
+import { licenseCodes, srkwExtent } from './constants.ts';
 import { Temporal } from "temporal-polyfill";
 import drawingSourceContext from "./drawing-context.ts";
 import mapContext from './map-context.ts';
@@ -128,7 +128,7 @@ function latLonInBoundsValidator(value: string) {
     return "Expects coordinates like '47.6845, -122.3037'";
   try {
     const {decimalLatitude, decimalLongitude} = parseCoords(value, 4);
-    const [minx, miny, maxx, maxy] = salishSeaExtent;
+    const [minx, miny, maxx, maxy] = srkwExtent;
     if (decimalLatitude < miny || decimalLatitude > maxy)
       return `Expected a latitude between ${miny} and ${maxy}`;
     if (decimalLongitude < minx || decimalLongitude > maxx)
