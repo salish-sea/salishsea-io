@@ -27,11 +27,13 @@ export class InfraStack extends cdk.Stack {
       stringValue: 'https://grztmjpzamcxlzecmqca.supabase.co',
     });
 
-    // Anon key: value provided at deploy time via CDK context, or set manually post-deploy
-    new ssm.StringParameter(this, 'SupabaseAnonKey', {
-      parameterName: '/salishsea/supabase-anon-key',
-      stringValue: this.node.tryGetContext('supabaseAnonKey') ?? 'placeholder-set-in-aws-console',
-    });
+    // Anon key: imported by name so CDK never writes/overwrites the value.
+    // Set the SecureString in AWS Console or via CLI before first deploy:
+    //   aws ssm put-parameter --name /salishsea/supabase-anon-key --type SecureString --value <key>
+    const anonKeyParam = ssm.StringParameter.fromSecureStringParameterAttributes(
+      this, 'SupabaseAnonKey',
+      { parameterName: '/salishsea/supabase-anon-key' },
+    );
 
     // IAM: grant Lambda@Edge read access to SSM parameters in us-east-1
     ogFunction.addToRolePolicy(new iam.PolicyStatement({
