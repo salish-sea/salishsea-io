@@ -83,4 +83,4 @@ jobs:
         run: |
           npm ci
           npm run build
-          npx cdk deploy --require-approval never --context supabaseAnonKey=${{ secrets.VITE_SUPABASE_KEY }}
+          npx cdk deploy --all --require-approval never --context supabaseAnonKey=${{ secrets.VITE_SUPABASE_KEY }}
