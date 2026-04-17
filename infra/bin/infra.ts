@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+// Deploy with: cdk deploy --context supabaseAnonKey=<SUPABASE_ANON_KEY>
+// Or set the SSM parameter manually in AWS Console after first deploy:
+//   Parameter name: /salishsea/supabase-anon-key
+//   Type: SecureString
+// us-east-1 bootstrap required before first deploy:
+//   cdk bootstrap aws://648183724555/us-east-1
 import * as cdk from 'aws-cdk-lib';
 import { InfraStack } from '../lib/infra-stack';
 
