@@ -80,7 +80,10 @@ jobs:
           node-version-file: package.json
       - name: Deploy CDK infra (CloudFront + Lambda@Edge)
         working-directory: infra
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
         run: |
           npm ci
           npm run build
-          npx cdk deploy --all --require-approval never --context supabaseAnonKey=${{ secrets.VITE_SUPABASE_KEY }}
+          npx cdk deploy --all --require-approval never \
+            --context "supabaseAnonKey=${SUPABASE_ANON_KEY}"
