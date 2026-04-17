@@ -18,13 +18,13 @@ The most convenient place to share and discover whale sightings in the Salish Se
 - ✓ App preserves map position, selected date, and focused occurrence in URL — existing
 - ✓ User can edit their own sightings — existing
 
+### Validated
+
+- ✓ User can copy a shareable link to a specific occurrence from its summary card — Phase 01
+- ✓ Following an occurrence link sets the date and map view from that occurrence (not defaults) — Phase 01
+- ✓ Shared links generate rich previews when pasted into RCS, Facebook, or Bluesky — Phase 02
+
 ### Active
-
-<!-- Current scope: Link shareability milestone -->
-
-- [ ] User can copy a shareable link to a specific occurrence from its summary card
-- [ ] Following an occurrence link sets the date and map view from that occurrence (not defaults)
-- [ ] Shared links generate rich previews when pasted into RCS, Facebook, or Bluesky
 
 <!-- Future milestones -->
 
@@ -61,10 +61,11 @@ The most convenient place to share and discover whale sightings in the Salish Se
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Static SPA on S3/CloudFront | Low ops overhead, fast global CDN | ⚠️ Revisit — complicates rich link previews |
+| Static SPA on S3/CloudFront | Low ops overhead, fast global CDN | Lambda@Edge handles bot detection for rich previews |
 | Google Sign-In only | Simple auth, target audience uses Google | — Pending evaluation |
-| Occurrence link encodes only occurrence ID | Cleaner URLs; date/position derived from occurrence on load | — Pending |
-| Rich preview infrastructure approach | Static SPA can't serve dynamic meta tags without help | — Pending research |
+| Occurrence link encodes only occurrence ID | Cleaner URLs; date/position derived from occurrence on load | Validated — Phase 01 |
+| Lambda@Edge for rich previews | CloudFront Functions lacks fetch(); Lambda@Edge enables Supabase lookup per request | Validated — Phase 02 |
+| SSM credentials managed outside CDK | CDK can't create SecureString; Lambda reads from SSM with module-scope cache | Validated — Phase 02 |
 
 ---
-*Last updated: 2026-03-04 after initialization*
+*Last updated: 2026-04-17 after Phase 02*
