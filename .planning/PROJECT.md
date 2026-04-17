@@ -17,12 +17,9 @@ The most convenient place to share and discover whale sightings in the Salish Se
 - ✓ User can sign in with Google to submit and edit sightings — existing
 - ✓ App preserves map position, selected date, and focused occurrence in URL — existing
 - ✓ User can edit their own sightings — existing
-
-### Validated
-
-- ✓ User can copy a shareable link to a specific occurrence from its summary card — Phase 01
-- ✓ Following an occurrence link sets the date and map view from that occurrence (not defaults) — Phase 01
-- ✓ Shared links generate rich previews when pasted into RCS, Facebook, or Bluesky — Phase 02
+- ✓ User can copy a shareable link to a specific occurrence from its summary card — v1.0
+- ✓ Following an occurrence link sets the date and map view from that occurrence (not defaults) — v1.0
+- ✓ Shared links generate rich previews when pasted into RCS, Facebook, or Bluesky — v1.0
 
 ### Active
 
@@ -68,4 +65,4 @@ The most convenient place to share and discover whale sightings in the Salish Se
 | SSM credentials managed outside CDK | CDK can't create SecureString; Lambda reads from SSM with module-scope cache | Validated — Phase 02 |
 
 ---
-*Last updated: 2026-04-17 after Phase 02*
+*Last updated: 2026-04-17 after v1.0 milestone*
