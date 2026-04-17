@@ -137,13 +137,17 @@ export const handler = async (event: any): Promise<any> => {
     const species = occ.taxon?.vernacular_name ?? 'Whale sighting';
 
     // Title: "{species} · {date}" — e.g. "Orca · June 3, 2025"
+    // Normalize observed_at: append 'Z' if no timezone indicator so Node treats it as UTC
+    const observedAt = occ.observed_at.endsWith('Z') || occ.observed_at.includes('+')
+      ? occ.observed_at
+      : occ.observed_at + 'Z';
     const date = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      .format(new Date(occ.observed_at));
+      .format(new Date(observedAt));
     const title = `${species} · ${date}`;
 
     // Description: "{count} {species}s · {time}" — e.g. "3 Orcas · 2:32 PM"
     const time = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
-      .format(new Date(occ.observed_at));
+      .format(new Date(observedAt));
     const count = occ.count ?? 1;
     const description = `${count} ${species}s · ${time}`;
 
