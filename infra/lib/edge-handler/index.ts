@@ -116,6 +116,13 @@ export const handler = async (event: any): Promise<any> => {
     const res = await fetch(apiUrl, {
       headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
     });
+    if (!res.ok) {
+      return {
+        status: '200',
+        headers: { 'content-type': [{ key: 'Content-Type', value: 'text/html; charset=utf-8' }] },
+        body: buildOgHtml(genericPreviewTags()),
+      };
+    }
     const occurrences = await res.json() as Occurrence[];
     const occ = occurrences[0];
 
