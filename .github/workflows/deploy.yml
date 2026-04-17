@@ -51,7 +51,12 @@ jobs:
       SUPABASE_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
     permissions:
       id-token: write
+      contents: read
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Download artifacts
         uses: actions/download-artifact@v8
       - name: Configure AWS Credentials
@@ -74,3 +79,13 @@ jobs:
         run: |
           aws s3 sync --no-progress dist "${DESTINATION_URL}"
           aws cloudfront create-invalidation --distribution-id "${DISTRIBUTION_ID}" --paths /
+      - name: Setup Node for CDK
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+      - name: Deploy CDK infra (CloudFront + Lambda@Edge)
+        working-directory: infra
+        run: |
+          npm ci
+          npm run build
+          npx cdk deploy --require-approval never --context supabaseAnonKey=${{ secrets.VITE_SUPABASE_KEY }}
