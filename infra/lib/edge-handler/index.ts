@@ -9,7 +9,7 @@ const BOT_AGENTS = [
   'whatsapp',
   'telegrambot',
   'baiduspider',
-  'bsky',
+  'bsky.social',
   'bluesky',
   'google-snippet',
 ];
