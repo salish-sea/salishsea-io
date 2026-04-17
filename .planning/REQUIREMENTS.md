@@ -32,4 +32,11 @@
 
 ## Traceability
 
-<!-- Filled by roadmapper -->
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| PARTNER-01 | Phase 3 | Pending |
+| PARTNER-02 | Phase 3 | Pending |
+| PARTNER-03 | Phase 3 | Pending |
+| PARTNER-04 | Phase 3 | Pending |
+| PARTNER-05 | Phase 3 | Pending |
+| PARTNER-06 | Phase 3 | Pending |
