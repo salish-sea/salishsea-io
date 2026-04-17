@@ -9,6 +9,8 @@ import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import { Construct } from 'constructs';
 import * as path from 'path';
 
+const ACCOUNT_ID = '648183724555';
+
 export class InfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -38,7 +40,7 @@ export class InfraStack extends cdk.Stack {
     // IAM: grant Lambda@Edge read access to SSM parameters in us-east-1
     ogFunction.addToRolePolicy(new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
-      resources: [`arn:aws:ssm:us-east-1:${this.account}:parameter/salishsea/*`],
+      resources: [`arn:aws:ssm:us-east-1:${ACCOUNT_ID}:parameter/salishsea/*`],
     }));
 
     // S3 origin — bucket already exists in production; import by name
@@ -55,7 +57,7 @@ export class InfraStack extends cdk.Stack {
       domainNames: ['salishsea.io'],
       certificate: acm.Certificate.fromCertificateArn(
         this, 'Cert',
-        'arn:aws:acm:us-east-1:648183724555:certificate/8cfdef8d-648b-42ba-a525-045f7b1a7762',
+        `arn:aws:acm:us-east-1:${ACCOUNT_ID}:certificate/8cfdef8d-648b-42ba-a525-045f7b1a7762`,
       ),
       defaultBehavior: {
         origin: s3Origin,
