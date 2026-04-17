@@ -41,11 +41,11 @@ Plans:
   3. The preview infrastructure runs within the existing S3/CloudFront deployment (e.g. via CloudFront Function or Lambda@Edge) without requiring a separate server
 **Plans**: 5 plans
 Plans:
-- [ ] 02-01-PLAN.md — Create test scaffolds (RED): edge handler unit tests + CDK assertion stubs
-- [ ] 02-02-PLAN.md — Implement Lambda@Edge handler: bot detection, OG tag generation, Supabase fetch
-- [ ] 02-03-PLAN.md — Create static branded fallback preview image (1200x630px) and upload to S3
-- [ ] 02-04-PLAN.md — Wire CDK stack: CloudFront Distribution + EdgeFunction + SSM params + IAM
-- [ ] 02-05-PLAN.md — Deploy: bootstrap us-east-1, add GitHub Actions secret, update deploy workflow, verify
+- [x] 02-01-PLAN.md — Create test scaffolds (RED): edge handler unit tests + CDK assertion stubs
+- [x] 02-02-PLAN.md — Implement Lambda@Edge handler: bot detection, OG tag generation, Supabase fetch
+- [x] 02-03-PLAN.md — Create static branded fallback preview image (1200x630px) and upload to S3
+- [x] 02-04-PLAN.md — Wire CDK stack: CloudFront Distribution + EdgeFunction + SSM params + IAM
+- [x] 02-05-PLAN.md — Deploy: bootstrap us-east-1, add GitHub Actions secret, update deploy workflow, verify
 
 ## Progress
 
