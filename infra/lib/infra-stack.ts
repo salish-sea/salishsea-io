@@ -21,6 +21,8 @@ export class InfraStack extends cdk.Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, 'edge-handler')),
       // DO NOT set environment — Lambda@Edge does not support environment variables
+      // 5s is the maximum for viewer-request; needed for cross-region SSM + Supabase fetch
+      timeout: cdk.Duration.seconds(5),
     });
 
     // SSM parameters for Supabase credentials
@@ -29,13 +31,14 @@ export class InfraStack extends cdk.Stack {
       stringValue: 'https://grztmjpzamcxlzecmqca.supabase.co',
     });
 
-    // Anon key: imported by name so CDK never writes/overwrites the value.
-    // Set the SecureString in AWS Console or via CLI before first deploy:
-    //   aws ssm put-parameter --name /salishsea/supabase-anon-key --type SecureString --value <key>
-    const anonKeyParam = ssm.StringParameter.fromSecureStringParameterAttributes(
-      this, 'SupabaseAnonKey',
-      { parameterName: '/salishsea/supabase-anon-key' },
-    );
+    // Anon key: written from CDK context on each deploy, retained on stack deletion so
+    // the value is never lost. CFN only supports String type; the Lambda reads it fine.
+    // To deploy: pass --context supabaseAnonKey=<value> (done by deploy.yml via SUPABASE_ANON_KEY env).
+    const anonKeyParam = new ssm.StringParameter(this, 'SupabaseAnonKey', {
+      parameterName: '/salishsea/supabase-anon-key',
+      stringValue: this.node.tryGetContext('supabaseAnonKey') ?? 'placeholder-set-in-aws-console',
+    });
+    anonKeyParam.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
     // IAM: grant Lambda@Edge read access to SSM parameters in us-east-1
     ogFunction.addToRolePolicy(new iam.PolicyStatement({
