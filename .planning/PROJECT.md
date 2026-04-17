@@ -8,6 +8,16 @@ SalishSea.io is a whale sighting platform for the Salish Sea area serving two di
 
 The most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative cetacean data.
 
+## Current Milestone: v1.1 Partner Org Links
+
+**Goal:** Partner organization names appearing in occurrence body text are automatically hyperlinked to their websites.
+
+**Target features:**
+- CSV file (name, url columns) listing partner orgs, editable by non-technical contributors
+- At render time, body text is scanned for org name matches (case-insensitive) and wrapped in markdown links before the existing marked.parse step
+- Links open in a new tab (rel="noopener noreferrer")
+- Already-linked text is not double-linked
+
 ## Requirements
 
 ### Validated
@@ -22,6 +32,8 @@ The most convenient place to share and discover whale sightings in the Salish Se
 - ✓ Shared links generate rich previews when pasted into RCS, Facebook, or Bluesky — v1.0
 
 ### Active
+
+- [ ] Partner organization names in occurrence body text are automatically hyperlinked to their websites — v1.1
 
 <!-- Future milestones -->
 
@@ -65,4 +77,22 @@ The most convenient place to share and discover whale sightings in the Salish Se
 | SSM credentials managed outside CDK | CDK can't create SecureString; Lambda reads from SSM with module-scope cache | Validated — Phase 02 |
 
 ---
-*Last updated: 2026-04-17 after v1.0 milestone*
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
+---
+*Last updated: 2026-04-17 — milestone v1.1 started*
