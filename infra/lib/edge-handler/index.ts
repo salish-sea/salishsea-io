@@ -116,7 +116,7 @@ export const handler = async (event: any): Promise<any> => {
     const res = await fetch(apiUrl, {
       headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
     });
-    const occurrences: Occurrence[] = await res.json();
+    const occurrences = await res.json() as Occurrence[];
     const occ = occurrences[0];
 
     if (!occ) {
