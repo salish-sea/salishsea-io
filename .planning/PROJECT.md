@@ -33,7 +33,7 @@ The most convenient place to share and discover whale sightings in the Salish Se
 
 ### Active
 
-- [ ] Partner organization names in occurrence body text are automatically hyperlinked to their websites — v1.1
+- [x] Partner organization names in occurrence body text are automatically hyperlinked to their websites — v1.1 (Validated in Phase 03: partner-org-hyperlinking)
 
 <!-- Future milestones -->
 
@@ -95,4 +95,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 — milestone v1.1 started*
+*Last updated: 2026-04-17 — Phase 03 complete (partner-org-hyperlinking)*
