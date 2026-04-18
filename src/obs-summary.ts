@@ -233,8 +233,11 @@ export class ObsSummary extends LitElement {
   private async onDelete(e: Event) {
     e.preventDefault();
     const {error} = await supabase().from('observations').delete().eq('id', this.sighting.id);
-    if (error)
-      throw new Error(`Error deleting observation: ${error}`);
+    if (error) {
+      console.error('Error deleting observation:', error);
+      // TODO: surface to user via a toast/state property
+      return;
+    }
   }
 
   private async onEdit(e: Event) {
