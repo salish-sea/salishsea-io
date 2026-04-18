@@ -176,7 +176,7 @@ export class ObsSummary extends LitElement {
           Temporal.Instant.from(observed_at).toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
         }`)}</time>
       </header>
-      <cite>via ${url ? html`<a target="_new" href=${url}>${attribution}</a>` : attribution}</cite>
+      <cite>via ${url ? html`<a target="_blank" href=${url}>${attribution}</a>` : attribution}</cite>
       ${guard([body], () => html`${
         unsafeHTML(domPurify.sanitize(
           marked.parse(
@@ -189,7 +189,7 @@ export class ObsSummary extends LitElement {
       ${photos?.length ?
         html`<ul class="photos">${
           repeat(photos, photo => photo.src, ({attribution, src, thumb}) => html`
-            <li><a target="_new" href=${url || src}><img alt=${attribution || 'photo of subject'} height="75" src=${thumb || src}></a></li>
+            <li><a target="_blank" href=${url || src}><img alt=${attribution || 'photo of subject'} height="75" src=${thumb || src}></a></li>
           `)
         }</ul>`
       : undefined}
