@@ -42,4 +42,23 @@ describe('injectPartnerLinks', () => {
     const input = 'No partner orgs mentioned here';
     expect(injectPartnerLinks(input)).toBe(input);
   });
+
+  it('preserves target and rel attributes through marked + DOMPurify pipeline', async () => {
+    const { marked, Renderer } = await import('marked');
+    const createDOMPurify = (await import('dompurify')).default;
+    const domPurify = createDOMPurify(window as any);
+
+    const renderer = new Renderer();
+    renderer.link = ({ href, text }: { href: string; text: string }) =>
+      `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+
+    const body = 'Report from Orca Network';
+    const processed = injectPartnerLinks(body);
+    const html = marked.parse(processed, { async: false, renderer }) as string;
+    const sanitized = domPurify.sanitize(html, { ADD_ATTR: ['target', 'rel'] });
+
+    expect(sanitized).toContain('target="_blank"');
+    expect(sanitized).toContain('rel="noopener noreferrer"');
+    expect(sanitized).toContain('href="https://orcanetwork.org"');
+  });
 });

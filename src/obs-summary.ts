@@ -7,15 +7,20 @@ import { consume } from "@lit/context";
 import { when } from "lit/directives/when.js";
 import { repeat } from "lit/directives/repeat.js";
 import { symbolFor } from "./identifiers.ts";
-import { marked } from 'marked';
+import { marked, Renderer } from 'marked';
 import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
 import { Temporal } from "temporal-polyfill";
 import { supabase } from "./supabase.ts";
 import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit } from "./occurrence.ts";
+import { injectPartnerLinks } from './partner-links.ts';
 
 const domPurify = createDOMPurify(window as any);
+
+const markedRenderer = new Renderer();
+markedRenderer.link = ({ href, text }: { href: string; text: string }) =>
+  `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 
 @customElement('obs-summary')
 export class ObsSummary extends LitElement {
@@ -173,7 +178,13 @@ export class ObsSummary extends LitElement {
       </header>
       <cite>via ${url ? html`<a target="_new" href=${url}>${attribution}</a>` : attribution}</cite>
       ${guard([body], () => html`${
-        unsafeHTML(domPurify.sanitize(marked.parse(body?.replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n') || '', {async: false})))
+        unsafeHTML(domPurify.sanitize(
+          marked.parse(
+            injectPartnerLinks(body?.replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n') || ''),
+            { async: false, renderer: markedRenderer }
+          ),
+          { ADD_ATTR: ['target', 'rel'] }
+        ))
       }`)}
       ${photos?.length ?
         html`<ul class="photos">${
