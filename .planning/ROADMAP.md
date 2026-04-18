@@ -37,7 +37,7 @@
 
 Plans:
 - [x] 03-01-PLAN.md — TDD: Partner link injection module (CSV parsing, link injection utility, unit tests)
-- [ ] 03-02-PLAN.md — Integration into obs-summary.ts rendering pipeline + visual verification
+- [x] 03-02-PLAN.md — Integration into obs-summary.ts rendering pipeline + visual verification
 
 **UI hint**: yes
 
