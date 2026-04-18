@@ -8,15 +8,11 @@ SalishSea.io is a whale sighting platform for the Salish Sea area serving two di
 
 The most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative cetacean data.
 
-## Current Milestone: v1.1 Partner Org Links
+## Current State
 
-**Goal:** Partner organization names appearing in occurrence body text are automatically hyperlinked to their websites.
+Two milestones shipped. v1.0 added shareable occurrence links with rich social previews. v1.1 added partner org hyperlinking — occurrence body text now auto-links known partner org names via a CSV-driven lookup editable without code changes.
 
-**Target features:**
-- CSV file (name, url columns) listing partner orgs, editable by non-technical contributors
-- At render time, body text is scanned for org name matches (case-insensitive) and wrapped in markdown links before the existing marked.parse step
-- Links open in a new tab (rel="noopener noreferrer")
-- Already-linked text is not double-linked
+Ready to define next milestone via `/gsd-new-milestone`.
 
 ## Requirements
 
@@ -30,10 +26,12 @@ The most convenient place to share and discover whale sightings in the Salish Se
 - ✓ User can copy a shareable link to a specific occurrence from its summary card — v1.0
 - ✓ Following an occurrence link sets the date and map view from that occurrence (not defaults) — v1.0
 - ✓ Shared links generate rich previews when pasted into RCS, Facebook, or Bluesky — v1.0
+- ✓ Partner organization names in occurrence body text are automatically hyperlinked to their websites — v1.1
 
 ### Active
 
-- [x] Partner organization names in occurrence body text are automatically hyperlinked to their websites — v1.1 (Validated in Phase 03: partner-org-hyperlinking)
+<!-- Next milestone requirements go here -->
+- [ ] (define next milestone goals via /gsd-new-milestone)
 
 <!-- Future milestones -->
 
@@ -95,4 +93,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 — Phase 03 complete (partner-org-hyperlinking)*
+*Last updated: 2026-04-18 after v1.1 milestone*

@@ -44,6 +44,44 @@
 
 ---
 
+## Milestone: v1.1 — Partner Org Links
+
+**Shipped:** 2026-04-18
+**Phases:** 1 | **Plans:** 2 | **Tasks:** 4
+
+### What Was Built
+- `src/partners.csv` — plain CSV (name, url columns) editable by non-technical contributors; Vite `?raw` import bundles it at build time with no runtime fetch
+- `src/partner-links.ts` — pure `injectPartnerLinks()` utility with case-insensitive matching, `[Org Name]` bracket handling, double-link prevention, longest-name-first ordering, and URL-safe regex (splits on existing links to avoid matching names inside URLs)
+- `src/partner-links.test.ts` — 7 + 1 unit tests covering all behaviors including full marked + DOMPurify pipeline (PARTNER-04)
+- `src/obs-summary.ts` integration — `injectPartnerLinks()` pre-processes body before `marked.parse`, custom link renderer adds `target="_blank" rel="noopener noreferrer"`, DOMPurify `ADD_ATTR` preserves attributes; also fixed pre-existing `target="_new"` bug and `onDelete` unhandled rejection
+
+### What Worked
+- TDD discipline (RED → GREEN) caught implementation gaps before integration — failing tests were a clear signal the module was ready to implement
+- Planning a pure function with no DOM dependency made it fully testable in Node/jsdom without a browser
+- Code review caught 3 pre-existing bugs (WR-01, WR-02) and one new edge case (WR-03, URL-safe regex) that automated tests hadn't caught
+
+### What Was Inefficient
+- REQUIREMENTS.md traceability table wasn't auto-updated by gsd-tools `phase complete` — required manual correction at milestone close
+- `audit-open` gsd-tools command crashed with a ReferenceError — had to skip and verify artifacts manually
+
+### Patterns Established
+- `?raw` CSV import pattern: `import data from './file.csv?raw'` works without any Vite config changes; `vite-env.d.ts` provides TS types via `/// <reference types="vite/client" />`
+- Single-pass combined regex for safe text injection: bracket + plain-name patterns in one regex avoids re-matching already-transformed text
+- URL-safe substitution: split body on existing `[text](url)` patterns, only transform odd-indexed (non-link) segments
+- Longest-name-first sort prevents short names (NOAA) matching inside longer names (NOAA Fisheries)
+
+### Key Lessons
+1. Pure functions with no DOM dependency are easy to test and compose — keep link injection pure, apply it at the call site in the component
+2. Code review auto-fix is worth running after every phase — caught a pre-existing `target="_new"` bug unrelated to phase work that would have been a silent UX issue
+3. Manual CSV editing as a non-technical interface works when the file is committed — no admin UI needed for a small, infrequently-updated lookup table
+
+### Cost Observations
+- Model mix: ~100% sonnet
+- Sessions: 1 focused session (planning was done in prior sessions)
+- Notable: Phase was planned across 2-3 prior context sessions (discuss → plan) and executed in one session end-to-end including code review fix and milestone close
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -51,14 +89,18 @@
 | Milestone | Sessions | Phases | Key Change |
 |-----------|----------|--------|------------|
 | v1.0 | ~6 | 2 | First milestone — baseline established |
+| v1.1 | ~1 execution + 2-3 planning | 1 | Tight pure-function scope; code review fixed pre-existing bugs |
 
 ### Cumulative Quality
 
 | Milestone | Tests | Coverage | Zero-Dep Additions |
 |-----------|-------|----------|-------------------|
 | v1.0 | 15 unit + 2 E2E smoke | partial | 0 |
+| v1.1 | 25 unit + 2 E2E smoke | partner-links fully covered | 0 |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. TDD Wave 0 scaffolds (RED before implementation) surface behavior specification gaps before any code is written
-2. Fail-open error handling in infrastructure handlers prevents production outages during rollout
+1. TDD (RED before implementation) surfaces behavior specification gaps before any code is written — confirmed in v1.0 and v1.1
+2. Fail-open error handling in infrastructure handlers prevents production outages during rollout — v1.0
+3. Pure functions with no DOM dependency are easy to compose and test — keep transformation logic separate from rendering — v1.1
+4. Code review auto-fix catches pre-existing bugs unrelated to phase scope — run it every phase — v1.1

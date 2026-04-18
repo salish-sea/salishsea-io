@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Partner Org Links
-status: executing
-stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-04-18T05:16:15.470Z"
+status: complete
+stopped_at: Milestone v1.1 shipped
+last_updated: "2026-04-18T00:00:00.000Z"
 last_activity: 2026-04-18
 progress:
   total_phases: 1
@@ -18,19 +18,16 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-17)
+See: .planning/PROJECT.md (updated 2026-04-18)
 
 **Core value:** The most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative cetacean data.
-**Current focus:** Phase 03 — partner-org-hyperlinking
+**Current focus:** Planning next milestone — run `/gsd-new-milestone` to begin
 
 ## Current Position
 
-Phase: 03
-Plan: Not started
-Status: Executing Phase 03
-Last activity: 2026-04-18
+Milestone v1.1 complete. All 3 phases (1-3) shipped across v1.0 and v1.1.
 
-Progress: [__________] 0%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 

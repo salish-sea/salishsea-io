@@ -1,5 +1,16 @@
 # Milestones
 
+## v1.1 Partner Org Links (Shipped: 2026-04-18)
+
+**Phases completed:** 1 phases, 2 plans, 3 tasks
+
+**Key accomplishments:**
+
+- Pure CSV-driven link injection utility using Vite ?raw import and single-pass combined regex with case-insensitive matching, bracket handling, and double-link prevention
+- Rendering pipeline integration: injectPartnerLinks pre-processes body text, marked Renderer adds target/rel to all links, DOMPurify ADD_ATTR config preserves those attributes through sanitization
+
+---
+
 ## v1.0 Link Shareability (Shipped: 2026-04-17)
 
 **Phases completed:** 2 phases, 7 plans, 12 tasks
