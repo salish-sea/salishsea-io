@@ -33,7 +33,12 @@
   3. Org name matching works regardless of capitalization in the body text
   4. The bracketed pattern `[Org Name]` converts to a link without producing malformed `[[Org Name](url)]` output
   5. Body text already containing a markdown hyperlink for an org is not double-linked
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [x] 03-01-PLAN.md — TDD: Partner link injection module (CSV parsing, link injection utility, unit tests)
+- [ ] 03-02-PLAN.md — Integration into obs-summary.ts rendering pipeline + visual verification
+
 **UI hint**: yes
 
 ## Progress
@@ -42,4 +47,4 @@
 |-------|-----------|----------------|--------|-----------|
 | 1. Occurrence Links | v1.0 | 2/2 | Complete | 2026-03-04 |
 | 2. Rich Previews | v1.0 | 5/5 | Complete | 2026-04-17 |
-| 3. Partner Org Hyperlinking | v1.1 | 0/? | Not started | - |
+| 3. Partner Org Hyperlinking | v1.1 | 0/2 | Not started | - |
