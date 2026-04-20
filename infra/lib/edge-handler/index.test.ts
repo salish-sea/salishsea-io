@@ -69,6 +69,7 @@ describe('Lambda@Edge OG meta handler', () => {
 
   it('returns OG HTML response for known bot user-agent facebookexternalhit/1.1', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
       json: async () => [],
     } as Response);
     const event = makeEvent('facebookexternalhit/1.1');
@@ -80,6 +81,7 @@ describe('Lambda@Edge OG meta handler', () => {
 
   it('returns generic preview with og:title "SalishSea.io" when no ?o= param present', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
       json: async () => [],
     } as Response);
     const event = makeEvent('facebookexternalhit/1.1', '');
@@ -93,6 +95,7 @@ describe('Lambda@Edge OG meta handler', () => {
 
   it('returns occurrence-specific OG tags with correct title, description, and image for cc0 photo', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
       json: async () => [sampleOccurrence],
     } as Response);
     const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
@@ -112,6 +115,7 @@ describe('Lambda@Edge OG meta handler', () => {
       photos: [{ src: 'https://example.com/restricted.jpg', license: 'cc-by-nc' }],
     };
     jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
       json: async () => [occurrence],
     } as Response);
     const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
@@ -124,6 +128,7 @@ describe('Lambda@Edge OG meta handler', () => {
   it('uses branded fallback image when photos array is empty', async () => {
     const occurrence = { ...sampleOccurrence, photos: [] };
     jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
       json: async () => [occurrence],
     } as Response);
     const event = makeEvent('twitterbot/1.0', 'o=abc123');
@@ -142,6 +147,7 @@ describe('Lambda@Edge OG meta handler', () => {
       ],
     };
     jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
       json: async () => [occurrence],
     } as Response);
     const event = makeEvent('discordbot/1.0', 'o=abc123');
@@ -152,9 +158,10 @@ describe('Lambda@Edge OG meta handler', () => {
 
   it('returns generic preview with og:title "SalishSea.io" when occurrence is not found', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
       json: async () => [],
     } as Response);
-    const event = makeEvent('bsky/1.0', 'o=nonexistent-id');
+    const event = makeEvent('facebookexternalhit/1.1', 'o=nonexistent-id');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
     expect(result.body).toContain('SalishSea.io');
@@ -171,6 +178,7 @@ describe('Lambda@Edge OG meta handler', () => {
 
   it('calls SSM once and caches credentials for subsequent invocations', async () => {
     const mockFetch = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
       json: async () => [sampleOccurrence],
     } as Response);
 
