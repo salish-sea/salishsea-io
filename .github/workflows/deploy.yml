@@ -17,7 +17,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.3.0
         with:
           node-version-file: package.json
 
@@ -65,7 +65,7 @@ jobs:
           role-to-assume: arn:aws:iam::648183724555:role/salishsea-deploy-action
           aws-region: us-west-2
       - run: ls
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v1.6.0
         with:
           version: 2.53.6
       - run: supabase link --project-ref "${PROJECT_REF}"
@@ -75,7 +75,7 @@ jobs:
       - name: Deploy to S3
         run: aws s3 sync --no-progress dist s3://${{ vars.S3_BUCKET }}/site
       - name: Setup Node for CDK
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.3.0
         with:
           node-version-file: package.json
       - name: Deploy CDK infra (CloudFront + Lambda@Edge)
