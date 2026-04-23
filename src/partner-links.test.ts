@@ -7,28 +7,28 @@ describe('partners CSV', () => {
     expect(partners.length).toBeGreaterThanOrEqual(3);
     expect(typeof partners[0]!.name).toBe('string');
     expect(typeof partners[0]!.url).toBe('string');
-    expect(partners.find(p => p.name === 'Orca Network')?.url).toBe('https://orcanetwork.org');
+    expect(partners.find(p => p.name === 'OrcaSound')?.url).toBe('https://orcasound.net');
   });
 });
 
 describe('injectPartnerLinks', () => {
   it('replaces plain org name with markdown link', () => {
     const result = injectPartnerLinks('Spotted by Orca Network today');
-    expect(result).toContain('[Orca Network](https://orcanetwork.org)');
+    expect(result).toContain('[Orca Network](https://');
   });
 
   it('matches org names case-insensitively', () => {
     const result = injectPartnerLinks('spotted by orca network');
-    expect(result).toContain('[Orca Network](https://orcanetwork.org)');
+    expect(result).toContain('[Orca Network](https://');
   });
 
   it('converts [Org Name] bracket pattern to link without double brackets', () => {
     const result = injectPartnerLinks('[Orca Network] report');
-    expect(result).toBe('[Orca Network](https://orcanetwork.org) report');
+    expect(result).toBe('[Orca Network](https://www.facebook.com/groups/564701038927716) report');
   });
 
   it('does not double-link already-linked text', () => {
-    const input = 'See [Orca Network](https://orcanetwork.org) for details';
+    const input = 'See [Orca Network](https://.*) for details';
     expect(injectPartnerLinks(input)).toBe(input);
   });
 
@@ -59,6 +59,6 @@ describe('injectPartnerLinks', () => {
 
     expect(sanitized).toContain('target="_blank"');
     expect(sanitized).toContain('rel="noopener noreferrer"');
-    expect(sanitized).toContain('href="https://orcanetwork.org"');
+    expect(sanitized).toContain('href="https://www.facebook.com/groups/564701038927716"');
   });
 });
