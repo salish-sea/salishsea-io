@@ -3,6 +3,7 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
@@ -23,6 +24,7 @@ export class InfraStack extends cdk.Stack {
       // DO NOT set environment — Lambda@Edge does not support environment variables
       // 5s is the maximum for viewer-request; needed for cross-region SSM + Supabase fetch
       timeout: cdk.Duration.seconds(5),
+      logRetention: logs.RetentionDays.THREE_MONTHS,
     });
 
     // SSM parameters for Supabase credentials
@@ -46,6 +48,13 @@ export class InfraStack extends cdk.Stack {
       resources: [`arn:aws:ssm:us-east-1:${ACCOUNT_ID}:parameter/salishsea/*`],
     }));
 
+    // S3 bucket for CloudFront access logs
+    const logBucket = new s3.Bucket(this, 'LogBucket', {
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,
+      lifecycleRules: [{ expiration: cdk.Duration.days(90) }],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
     // S3 origin — bucket already exists in production; import by name
     const siteBucket = s3.Bucket.fromBucketName(this, 'SiteBucket', 'salishsea-io');
     const s3Origin = origins.S3BucketOrigin.withOriginAccessControl(siteBucket, {
@@ -54,6 +63,8 @@ export class InfraStack extends cdk.Stack {
 
     // CloudFront Distribution — reconstructed to match production config
     new cloudfront.Distribution(this, 'SalishSeaDist', {
+      logBucket,
+      logFilePrefix: 'cloudfront/',
       defaultRootObject: 'index.html',
       priceClass: cloudfront.PriceClass.PRICE_CLASS_ALL,
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
