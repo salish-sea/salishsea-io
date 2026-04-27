@@ -60,7 +60,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@a89a83ec143615402a01f672b6e172b7b1875000 # v6
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6
         with:
           role-to-assume: arn:aws:iam::648183724555:role/salishsea-deploy-action
           aws-region: us-west-2
