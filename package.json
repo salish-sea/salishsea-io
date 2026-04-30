@@ -32,7 +32,7 @@
     "fast-xml-parser": "5.7.0",
     "geo-coordinates-parser": "^1.7.4",
     "lit": "^3.3.2",
-    "marked": "18.0.0",
+    "marked": "18.0.2",
     "ol": "^10.7.0",
     "temporal-polyfill": "^0.3",
     "uuid": "^14.0.0",
