@@ -16,6 +16,12 @@ export class InfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // Log group for the Lambda@Edge function — must live in us-east-1 alongside the function
+    const ogLogGroup = new logs.LogGroup(this, 'OgMetaFunctionLogGroup', {
+      retention: logs.RetentionDays.THREE_MONTHS,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     // Lambda@Edge function — automatically provisioned in us-east-1 regardless of stack region
     const ogFunction = new cloudfront.experimental.EdgeFunction(this, 'OgMetaFunction', {
       runtime: lambda.Runtime.NODEJS_22_X,
@@ -24,7 +30,7 @@ export class InfraStack extends cdk.Stack {
       // DO NOT set environment — Lambda@Edge does not support environment variables
       // 5s is the maximum for viewer-request; needed for cross-region SSM + Supabase fetch
       timeout: cdk.Duration.seconds(5),
-      logRetention: logs.RetentionDays.THREE_MONTHS,
+      logGroup: ogLogGroup,
     });
 
     // SSM parameters for Supabase credentials
