@@ -18,6 +18,7 @@ export class InfraStack extends cdk.Stack {
 
     // Log group for the Lambda@Edge function — must live in us-east-1 alongside the function
     const ogLogGroup = new logs.LogGroup(this, 'OgMetaFunctionLogGroup', {
+      logGroupName: cdk.PhysicalName.GENERATE_IF_NEEDED,
       retention: logs.RetentionDays.THREE_MONTHS,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
