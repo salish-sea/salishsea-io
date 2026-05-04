@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - uses: supabase/setup-cli@b60b5899c73b63a2d2d651b1e90db8d4c9392f51 # v1
+      - uses: supabase/setup-cli@df56b21da46c98abb12a9804e4fb1f657773e333 # v1
         with:
           version: 2.53.6
       - run: supabase db start
