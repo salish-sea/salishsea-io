@@ -178,7 +178,7 @@ user-location-control {
     `;
   }
 
-  protected onClick(evt: MapBrowserEvent<PointerEvent>) {
+  protected onClick(evt: MapBrowserEvent) {
     if (evt.originalEvent.altKey) {
       // Prevent the Select from getting this click.
       return false;
