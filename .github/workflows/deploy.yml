@@ -72,8 +72,13 @@ jobs:
         env:
           PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
       - run: supabase db push
-      - name: Deploy to S3
-        run: aws s3 sync --no-progress dist s3://${{ vars.S3_BUCKET }}/site
+      - name: Deploy to S3 and invalidate CloudFront
+        env:
+          DESTINATION_URL: s3://${{ vars.S3_BUCKET }}/site
+          DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          aws s3 sync --no-progress dist "${DESTINATION_URL}"
+          aws cloudfront create-invalidation --distribution-id "${DISTRIBUTION_ID}" --paths /
       - name: Setup Node for CDK
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
