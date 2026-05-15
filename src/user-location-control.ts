@@ -77,7 +77,7 @@ class UserLocationControlElement extends LitElement {
     .active svg { color: rgb(51, 153, 255); }
     .inactive svg { color: var(--ol-subtle-foreground-color) }
     @media (pointer: coarse) {
-      button { width: 38px !important; height: 38px !important; }
+      button { width: 33px !important; height: 33px !important; padding: 0 !important; }
     }
   `;
 }
