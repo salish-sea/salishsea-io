@@ -153,6 +153,10 @@ user-location-control {
   left: 0.5em;
   top: 4em;
 }
+user-location-control svg { fill: currentColor; }
+user-location-control.active svg { color: rgb(51, 153, 255); }
+user-location-control.error svg { color: red; }
+user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
 @media (pointer: coarse) {
   user-location-control {
     top: 5.3em;

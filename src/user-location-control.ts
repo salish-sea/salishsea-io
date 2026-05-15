@@ -1,8 +1,7 @@
 import Control from "ol/control/Control.js";
 import { locateMeIcon } from "./icons.ts";
-import { css, html, LitElement } from "lit";
+import { html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import olCSS from 'ol/ol.css?url';
 
 type SuperOptions = ConstructorParameters<typeof Control>[0];
 type Options = SuperOptions & {
@@ -57,29 +56,19 @@ class UserLocationControlElement extends LitElement {
   set stateObject(value: State) {
     this.state = value.state;
     this.error = value.state === 'error' ? value.error : undefined;
+    this.className = `ol-unselectable ol-control ${value.state}`;
   }
+
+  protected override createRenderRoot() { return this; }
 
   protected render() {
     const title = this.error ?? 'Show my location';
     return html`
-      <link rel="stylesheet" href="${olCSS}" type="text/css" />
-      <div class="user-location-control ol-unselectable ol-control ${this.state}">
-        <button title=${title} type="button">
-          <svg class="inline-icon" stroke="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg>
-        </button>
-      </div>
+      <button title=${title} type="button">
+        <svg class="inline-icon" stroke="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${locateMeIcon}</svg>
+      </button>
     `;
   }
-
-  static styles = css`
-    svg { fill: currentColor; }
-    .error svg { color: red; }
-    .active svg { color: rgb(51, 153, 255); }
-    .inactive svg { color: var(--ol-subtle-foreground-color) }
-    @media (pointer: coarse) {
-      button { width: 33px !important; height: 33px !important; padding: 0 !important; }
-    }
-  `;
 }
 
 declare global {
