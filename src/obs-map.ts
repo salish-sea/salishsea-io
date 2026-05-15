@@ -153,6 +153,11 @@ user-location-control {
   left: 0.5em;
   top: 4em;
 }
+@media (pointer: coarse) {
+  user-location-control {
+    top: 5.5em;
+  }
+}
   `
 
   constructor() {

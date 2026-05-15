@@ -76,6 +76,9 @@ class UserLocationControlElement extends LitElement {
     .error svg { color: red; }
     .active svg { color: rgb(51, 153, 255); }
     .inactive svg { color: var(--ol-subtle-foreground-color) }
+    @media (pointer: coarse) {
+      button { font-size: 1.5em; }
+    }
   `;
 }
 
