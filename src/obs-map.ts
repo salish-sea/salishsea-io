@@ -155,7 +155,8 @@ user-location-control {
 }
 @media (pointer: coarse) {
   user-location-control {
-    top: 5.5em;
+    top: 3.67em;
+    left: 0.33em;
   }
 }
   `
