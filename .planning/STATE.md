@@ -5,7 +5,7 @@ milestone_name: Partner Org Links
 status: complete
 stopped_at: Milestone v1.1 shipped
 last_updated: "2026-04-18T00:00:00.000Z"
-last_activity: 2026-04-18
+last_activity: 2026-05-27
 progress:
   total_phases: 1
   completed_phases: 1
@@ -46,6 +46,12 @@ None yet.
 ### Blockers/Concerns
 
 None.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260526-scf | Add taxon id 526556 Lutrinae to iNaturalist observations query migration | 2026-05-27 | 370c786 | [260526-scf-add-taxon-id-526556-lutrinae-to-inatural](./quick/260526-scf-add-taxon-id-526556-lutrinae-to-inatural/) |
 
 ## Session Continuity
 
