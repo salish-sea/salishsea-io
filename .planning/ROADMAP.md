@@ -46,7 +46,9 @@
   2. The occurrence-record license is recorded as CC-BY-NC 4.0 expressed as a resolvable CC URI, with the native-record / contributor-consent stance documented (the license itself is already decided — this phase documents and operationalizes it, not re-decides it).
   3. The attribution/provenance model is specified: which fields carry `recordedBy`, `rightsHolder`, and dataset/record provenance for Whale Alert and its nested Orca Network / Cascadia sources.
   4. A decision is recorded on Whale Alert / Maplify redistribution terms — either confirmed permission to redistribute, or an explicit fallback (native-only first cut) — so generation cannot proceed on an unresolved rights question.
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 04-01-PLAN.md — Author the single authoritative `04-POLICY.md` (license & rights, attribution/provenance, data-model gaps, third-party redistribution status + conferral questions)
 **Research flag**: Likely needs light phase-level research — Whale Alert / Maplify redistribution terms are an external legal/ToS question not answerable from the codebase, and the outcome can rescope the milestone (native-only fallback). Sequence this gate first.
 
 ### Phase 5: DB Projection (`dwc` schema)
@@ -56,7 +58,7 @@
 **Success Criteria** (what must be TRUE):
   1. Querying `dwc.occurrences` against local Supabase returns DarwinCore-aligned rows built from source tables (`public.observations`, `maplify.sightings`, photo tables) — never from the UI-shaped `public.occurrences` view — filtered to native + Maplify/Whale Alert only.
   2. Every projected occurrence carries the four GBIF-required terms (`occurrenceID`, `basisOfRecord`, `scientificName`, `eventDate`), with `occurrenceID` stable and deterministic across runs (source-prefixed surrogate keys).
-  3. A recursive `dwc.classification()` over the `taxa` parent hierarchy fills `taxonRank` + `kingdom`…`genus`, correctly handling higher-rank-only identifications (genus/family rows carry the right `taxonRank` and no fabricated binomial).
+  3. A recursive `dwc.classification()` over the `taxa` parent hierarchy fills `taxonRank` + `kingdom`…`genus` (genus/family rows carry the right `taxonRank` and no fabricated binomial).
   4. Spatial terms emit `decimalLatitude`/`decimalLongitude` with correct axis and sign (a known Salish Sea point lands at ~48°N / ~-123°W), a constant WGS84 `geodeticDatum`, and `coordinateUncertaintyInMeters` omitted when unknown (never 0).
   5. Temporal terms emit ISO-8601 `eventDate` at honest per-source precision — Maplify report-time is emitted at date precision (or flagged), never as a false second-level sighting time.
 **Plans**: TBD
@@ -112,7 +114,7 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 1. Occurrence Links | v1.0 | 2/2 | Complete | 2026-03-04 |
 | 2. Rich Previews | v1.0 | 5/5 | Complete | 2026-04-17 |
 | 3. Partner Org Hyperlinking | v1.1 | 2/2 | Complete | 2026-04-18 |
-| 4. Rights & Data-Model Policy | v1.2 | 0/TBD | Not started | - |
+| 4. Rights & Data-Model Policy | v1.2 | 0/1 | Planned | - |
 | 5. DB Projection (`dwc` schema) | v1.2 | 0/TBD | Not started | - |
 | 6. Archive Generation | v1.2 | 0/TBD | Not started | - |
 | 7. Nightly Workflow & Hosting | v1.2 | 0/TBD | Not started | - |
