@@ -84,32 +84,39 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ALIGN-01 | — | Pending |
-| ALIGN-02 | — | Pending |
-| ALIGN-03 | — | Pending |
-| ALIGN-04 | — | Pending |
-| ALIGN-05 | — | Pending |
-| ALIGN-06 | — | Pending |
-| GAP-01 | — | Pending |
-| GAP-02 | — | Pending |
-| GAP-03 | — | Pending |
-| GAP-04 | — | Pending |
-| DWCA-01 | — | Pending |
-| DWCA-02 | — | Pending |
-| DWCA-03 | — | Pending |
-| DWCA-04 | — | Pending |
-| DWCA-05 | — | Pending |
-| EXPORT-01 | — | Pending |
-| EXPORT-02 | — | Pending |
-| EXPORT-03 | — | Pending |
-| EXPORT-04 | — | Pending |
-| DOWNLOAD-01 | — | Pending |
+| ALIGN-01 | Phase 5 | Pending |
+| ALIGN-02 | Phase 5 | Pending |
+| ALIGN-03 | Phase 5 | Pending |
+| ALIGN-04 | Phase 5 | Pending |
+| ALIGN-05 | Phase 5 | Pending |
+| ALIGN-06 | Phase 5 | Pending |
+| GAP-01 | Phase 4 | Pending |
+| GAP-02 | Phase 4 | Pending |
+| GAP-03 | Phase 4 | Pending |
+| GAP-04 | Phase 4 | Pending |
+| DWCA-01 | Phase 6 | Pending |
+| DWCA-02 | Phase 6 | Pending |
+| DWCA-03 | Phase 6 | Pending |
+| DWCA-04 | Phase 6 | Pending |
+| DWCA-05 | Phase 6 | Pending |
+| EXPORT-01 | Phase 7 | Pending |
+| EXPORT-02 | Phase 7 | Pending |
+| EXPORT-03 | Phase 7 | Pending |
+| EXPORT-04 | Phase 7 | Pending |
+| DOWNLOAD-01 | Phase 8 | Pending |
 
 **Coverage:**
 - v1 requirements: 20 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 20 ⚠️
+- Mapped to phases: 20 ✓
+- Unmapped: 0
+
+**Phase distribution:**
+- Phase 4 (Rights & Data-Model Policy): GAP-01..04 (4)
+- Phase 5 (DB Projection): ALIGN-01..06 (6)
+- Phase 6 (Archive Generation): DWCA-01..05 (5)
+- Phase 7 (Nightly Workflow & Hosting): EXPORT-01..04 (4)
+- Phase 8 (Frontend Download Link): DOWNLOAD-01 (1)
 
 ---
 *Requirements defined: 2026-06-09*
-*Last updated: 2026-06-09 after initial definition*
+*Last updated: 2026-06-10 — roadmap created, traceability mapped (Phases 4–8)*
