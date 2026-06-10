@@ -13,6 +13,12 @@ jobs:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Run in Playwright's official image: browsers and system deps are pre-baked,
+    # so there is no `playwright install` step to download/extract (it hangs
+    # reproducibly at 100% for some Chrome builds). Keep this tag in sync with the
+    # @playwright/test version in package.json -- browser builds are version-locked.
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
     environment: production
     permissions:
       contents: read
@@ -27,21 +33,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      # `playwright install` intermittently hangs at 100% on the post-download
-      # extraction (upstream flake). Cap each attempt and retry so a stuck
-      # download can't ride the job to GitHub's 6h ceiling.
-      - name: Install Playwright browser
-        timeout-minutes: 8
-        run: |
-          for attempt in 1 2 3; do
-            echo "::group::playwright install (attempt $attempt)"
-            timeout -k 30s 4m npx playwright install chromium --with-deps && { echo "::endgroup::"; exit 0; }
-            echo "::endgroup::"
-            echo "Attempt $attempt timed out or failed; retrying..."
-          done
-          echo "playwright install failed after 3 attempts" >&2
-          exit 1
 
       - name: Run smoke test
         timeout-minutes: 4
