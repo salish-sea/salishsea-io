@@ -12,7 +12,22 @@ The most convenient place to share and discover whale sightings in the Salish Se
 
 Two milestones shipped. v1.0 added shareable occurrence links with rich social previews. v1.1 added partner org hyperlinking — occurrence body text now auto-links known partner org names via a CSV-driven lookup editable without code changes.
 
-Ready to define next milestone via `/gsd-new-milestone`.
+v1.2 (in progress) exports occurrence records as a nightly DarwinCore Archive, downloadable from the site.
+
+## Current Milestone: v1.2 Export to DarwinCore Archive
+
+**Goal:** Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurrence records, downloadable from the site.
+
+**Target features:**
+- Align the occurrence data model with DarwinCore terms — nomenclature, taxonomy classification (walk the `taxa` hierarchy to kingdom→genus), spatial/temporal/licensing fields
+- Audit and document data/datatype gaps against DwC requirements; fill them where feasible
+- Generate a valid DwC-A zip — `meta.xml` + EML + Occurrence core + Multimedia extension (+ possible ResourceRelationship for travel segments)
+- Run the export nightly and host the archive for download
+
+**Scope decisions:**
+- Includes native SalishSea.io observations + Maplify/Whale Alert records only; excludes iNaturalist & Happywhale (already published to GBIF by their canonical sources)
+- File download now; GBIF/OBIS registration deferred but kept reachable by design
+- Individual-animal `organismID` linkage deferred to a later milestone (model exists but isn't linked to occurrences yet)
 
 ## Requirements
 
@@ -30,15 +45,15 @@ Ready to define next milestone via `/gsd-new-milestone`.
 
 ### Active
 
-<!-- Next milestone requirements go here -->
-- [ ] (define next milestone goals via /gsd-new-milestone)
+<!-- v1.2 requirements defined in REQUIREMENTS.md -->
+- [ ] Data consumers can download occurrence records as a DarwinCore Archive (v1.2 — see REQUIREMENTS.md)
 
 <!-- Future milestones -->
 
 - [ ] Sighter sees contextual data enriching their sighting (nearby historical sightings, salmon run data, tides, individual whale biographical info)
 - [ ] Sightings from Facebook community groups are surfaced on the platform (cold start / lock-in mitigation)
 - [ ] Platform hosts a comprehensive catalog of individual Salish Sea cetaceans (all species)
-- [ ] Data consumers can download occurrence records in standard formats
+- [ ] Occurrence records carry individual-animal identity (organismID) and are registered with GBIF/OBIS
 - [ ] Platform links to existing external cetacean resources and databases
 
 ### Out of Scope
@@ -93,4 +108,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-18 after v1.1 milestone*
+*Last updated: 2026-06-09 — v1.2 Export to DarwinCore Archive milestone started*
