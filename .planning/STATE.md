@@ -3,8 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Export to DarwinCore Archive
 status: planning
-last_updated: "2026-06-10T02:10:00.000Z"
-last_activity: 2026-06-10
+stopped_at: Phase 4 context gathered
+last_updated: "2026-06-10T17:41:32.136Z"
+last_activity: 2026-06-10 — v1.2 roadmap created (Phases 4–8), 20/20 requirements mapped
 progress:
   total_phases: 5
   completed_phases: 0
@@ -62,6 +63,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-10T02:10:00.000Z
-Stopped at: v1.2 roadmap created (ROADMAP.md, REQUIREMENTS.md traceability); ready to plan Phase 4
-Resume file: None
+Last session: 2026-06-10T17:41:32.126Z
+Stopped at: Phase 4 context gathered
+Resume file: .planning/phases/04-rights-data-model-policy-gate/04-CONTEXT.md
