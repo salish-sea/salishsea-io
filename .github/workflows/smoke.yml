@@ -19,7 +19,6 @@ jobs:
     # @playwright/test version in package.json -- browser builds are version-locked.
     container:
       image: mcr.microsoft.com/playwright:v1.60.0-noble
-    environment: production
     permissions:
       contents: read
     steps:
@@ -38,7 +37,10 @@ jobs:
         timeout-minutes: 4
         run: npx playwright test
         env:
-          BASE_URL: ${{ vars.VITE_BASE_URL }}
+          # Public production URL. Set as a literal rather than reading
+          # vars.VITE_BASE_URL, which would require binding the job to the
+          # `production` environment and record a spurious deployment per run.
+          BASE_URL: https://salishsea.io
 
       - name: Upload screenshot
         if: always()
