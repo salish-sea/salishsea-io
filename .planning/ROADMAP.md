@@ -29,7 +29,7 @@
 
 **Dependency order (honored from research):** rights/gap policy → DB projection → archive generation → nightly workflow → frontend link. Phases 5–6 are fully offline-validatable (local Supabase + local zip) before any prod-touching workflow exists.
 
-- [ ] **Phase 4: Rights & Data-Model Policy (gate)** - Document/encode rights + resolve the data-model gaps as explicit findings before any code
+- [x] **Phase 4: Rights & Data-Model Policy (gate)** - Document/encode rights + resolve the data-model gaps as explicit findings before any code (completed 2026-06-10)
 - [ ] **Phase 5: DB Projection (`dwc` schema)** - Read-only `dwc` schema projecting in-scope occurrences into DarwinCore-aligned columns over source tables
 - [ ] **Phase 6: Archive Generation** - Produce a valid DwC-A zip (`meta.xml` + EML + Occurrence core + Multimedia extension) that passes the GBIF validator, plus a GeoParquet sidecar from the same projection
 - [ ] **Phase 7: Nightly Workflow & Hosting** - Scheduled GitHub Actions workflow publishes the archive atomically to existing S3/CloudFront with a checksum
@@ -48,7 +48,7 @@
   4. A decision is recorded on Whale Alert / Maplify redistribution terms — either confirmed permission to redistribute, or an explicit fallback (native-only first cut) — so generation cannot proceed on an unresolved rights question.
 **Plans**: 1 plan
 Plans:
-- [ ] 04-01-PLAN.md — Author the single authoritative `04-POLICY.md` (license & rights, attribution/provenance, data-model gaps, third-party redistribution status + conferral questions)
+- [x] 04-01-PLAN.md — Author the single authoritative `04-POLICY.md` (license & rights, attribution/provenance, data-model gaps, third-party redistribution status + conferral questions)
 **Research flag**: Likely needs light phase-level research — Whale Alert / Maplify redistribution terms are an external legal/ToS question not answerable from the codebase, and the outcome can rescope the milestone (native-only fallback). Sequence this gate first.
 
 ### Phase 5: DB Projection (`dwc` schema)
@@ -114,7 +114,7 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 1. Occurrence Links | v1.0 | 2/2 | Complete | 2026-03-04 |
 | 2. Rich Previews | v1.0 | 5/5 | Complete | 2026-04-17 |
 | 3. Partner Org Hyperlinking | v1.1 | 2/2 | Complete | 2026-04-18 |
-| 4. Rights & Data-Model Policy | v1.2 | 0/1 | Planned | - |
+| 4. Rights & Data-Model Policy | v1.2 | 1/1 | Complete   | 2026-06-10 |
 | 5. DB Projection (`dwc` schema) | v1.2 | 0/TBD | Not started | - |
 | 6. Archive Generation | v1.2 | 0/TBD | Not started | - |
 | 7. Nightly Workflow & Hosting | v1.2 | 0/TBD | Not started | - |

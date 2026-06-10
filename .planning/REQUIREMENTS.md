@@ -29,10 +29,10 @@ Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurre
 
 ### Data Gaps & Licensing (GAP)
 
-- [ ] **GAP-01**: Data and datatype gaps between the existing model and DarwinCore are audited and documented as explicit findings (not silently fudged)
-- [ ] **GAP-02**: Occurrence records carry a `license` (CC-BY-NC 4.0) and `rightsHolder` as resolvable URIs; per-photo license codes are mapped to canonical CC URIs via one shared converter
-- [ ] **GAP-03**: Source attribution and provenance are carried into the archive (`recordedBy`, and dataset/record provenance for Whale Alert and nested sources)
-- [ ] **GAP-04**: Records and fields lacking a usable value are handled per documented policy — omit-when-unknown, exclude license-less photos, exclude unvalidated whale identifiers from identity terms
+- [x] **GAP-01**: Data and datatype gaps between the existing model and DarwinCore are audited and documented as explicit findings (not silently fudged)
+- [x] **GAP-02**: Occurrence records carry a `license` (CC-BY-NC 4.0) and `rightsHolder` as resolvable URIs; per-photo license codes are mapped to canonical CC URIs via one shared converter
+- [x] **GAP-03**: Source attribution and provenance are carried into the archive (`recordedBy`, and dataset/record provenance for Whale Alert and nested sources)
+- [x] **GAP-04**: Records and fields lacking a usable value are handled per documented policy — omit-when-unknown, exclude license-less photos, exclude unvalidated whale identifiers from identity terms
 
 ### Archive Generation (DWCA)
 
@@ -93,10 +93,10 @@ Which phases cover which requirements. Populated during roadmap creation.
 | ALIGN-04 | Phase 5 | Pending |
 | ALIGN-05 | Phase 5 | Pending |
 | ALIGN-06 | Phase 5 | Pending |
-| GAP-01 | Phase 4 | Pending |
-| GAP-02 | Phase 4 | Pending |
-| GAP-03 | Phase 4 | Pending |
-| GAP-04 | Phase 4 | Pending |
+| GAP-01 | Phase 4 | Complete |
+| GAP-02 | Phase 4 | Complete |
+| GAP-03 | Phase 4 | Complete |
+| GAP-04 | Phase 4 | Complete |
 | DWCA-01 | Phase 6 | Pending |
 | DWCA-02 | Phase 6 | Pending |
 | DWCA-03 | Phase 6 | Pending |
