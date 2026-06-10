@@ -14,6 +14,7 @@ Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurre
 - `coordinateUncertaintyInMeters`: emit real meters when known, **omit when unknown — never 0**.
 - `geodeticDatum` = WGS84 (EPSG:4326) constant.
 - `travelDirection` → `dynamicProperties` (no core term). Regex-extracted whale identifiers (e.g. `T065S`) are **not** emitted as identity terms.
+- Output formats: the text DwC-A is the canonical/interoperable artifact; a **GeoParquet** sidecar is published alongside it from the same `dwc.occurrences` projection. Spike-validated 2026-06-09 — GeoParquet 1.0.0 (WKB Point, default CRS84/WGS84), ~4.3× smaller than CSV, opens directly in DuckDB/QGIS/geopandas. Retain `decimalLatitude`/`decimalLongitude` columns alongside the geometry so non-spatial consumers still get coordinates. Mirrors GBIF's own dual CSV/Parquet offering.
 
 ## v1 Requirements (this milestone)
 
@@ -40,6 +41,7 @@ Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurre
 - [ ] **DWCA-03**: Multimedia rows join to Occurrence core rows via a byte-stable `coreId` with no orphaned media (anti-join is empty)
 - [ ] **DWCA-04**: Data files are correctly serialized — UTF-8 without BOM, proper quoting/escaping of freeform body text, HTML stripped
 - [ ] **DWCA-05**: The produced archive passes the GBIF DwC-A validator with no blocking (structural) errors
+- [ ] **DWCA-06**: A GeoParquet sidecar is produced from the same `dwc.occurrences` projection — GeoParquet 1.0.0 with a WKB Point geometry column (WGS84/CRS84) and `decimalLatitude`/`decimalLongitude` retained as columns — round-trippable in DuckDB/QGIS/geopandas
 
 ### Nightly Export & Hosting (EXPORT)
 
@@ -47,6 +49,7 @@ Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurre
 - [ ] **EXPORT-02**: The archive is published to the existing S3/CloudFront site and reachable at a stable public URL (`/dwca/…`), reusing existing infrastructure (no new AWS infra)
 - [ ] **EXPORT-03**: Publication is atomic (write-then-swap), guards against overwriting with an empty result, and invalidates the CloudFront cache
 - [ ] **EXPORT-04**: A checksum is published alongside the archive for integrity verification
+- [ ] **EXPORT-05**: The GeoParquet sidecar is regenerated and published alongside the DwC-A by the same nightly job (same atomic-publish, empty-result guard, cache-invalidation, and checksum treatment)
 
 ### Download Access (DOWNLOAD)
 
@@ -99,24 +102,26 @@ Which phases cover which requirements. Populated during roadmap creation.
 | DWCA-03 | Phase 6 | Pending |
 | DWCA-04 | Phase 6 | Pending |
 | DWCA-05 | Phase 6 | Pending |
+| DWCA-06 | Phase 6 | Pending |
 | EXPORT-01 | Phase 7 | Pending |
 | EXPORT-02 | Phase 7 | Pending |
 | EXPORT-03 | Phase 7 | Pending |
 | EXPORT-04 | Phase 7 | Pending |
+| EXPORT-05 | Phase 7 | Pending |
 | DOWNLOAD-01 | Phase 8 | Pending |
 
 **Coverage:**
-- v1 requirements: 20 total
-- Mapped to phases: 20 ✓
+- v1 requirements: 22 total
+- Mapped to phases: 22 ✓
 - Unmapped: 0
 
 **Phase distribution:**
 - Phase 4 (Rights & Data-Model Policy): GAP-01..04 (4)
 - Phase 5 (DB Projection): ALIGN-01..06 (6)
-- Phase 6 (Archive Generation): DWCA-01..05 (5)
-- Phase 7 (Nightly Workflow & Hosting): EXPORT-01..04 (4)
+- Phase 6 (Archive Generation): DWCA-01..06 (6)
+- Phase 7 (Nightly Workflow & Hosting): EXPORT-01..05 (5)
 - Phase 8 (Frontend Download Link): DOWNLOAD-01 (1)
 
 ---
 *Requirements defined: 2026-06-09*
-*Last updated: 2026-06-10 — roadmap created, traceability mapped (Phases 4–8)*
+*Last updated: 2026-06-09 — added GeoParquet sidecar (DWCA-06, EXPORT-05) after format spike*

@@ -25,13 +25,13 @@
 
 ### 🚧 v1.2 Export to DarwinCore Archive (In Progress)
 
-**Milestone Goal:** Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurrence records — native observations + Maplify/Whale Alert only — downloadable from the site. Additive and read-only; the existing app runtime and source tables are untouched. Download-only this milestone; GBIF/OBIS registration deferred but kept reachable by emitting valid `meta.xml` + EML.
+**Milestone Goal:** Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurrence records — native observations + Maplify/Whale Alert only — downloadable from the site, with a GeoParquet sidecar alongside it. Additive and read-only; the existing app runtime and source tables are untouched. Download-only this milestone; GBIF/OBIS registration deferred but kept reachable by emitting valid `meta.xml` + EML.
 
 **Dependency order (honored from research):** rights/gap policy → DB projection → archive generation → nightly workflow → frontend link. Phases 5–6 are fully offline-validatable (local Supabase + local zip) before any prod-touching workflow exists.
 
 - [ ] **Phase 4: Rights & Data-Model Policy (gate)** - Document/encode rights + resolve the data-model gaps as explicit findings before any code
 - [ ] **Phase 5: DB Projection (`dwc` schema)** - Read-only `dwc` schema projecting in-scope occurrences into DarwinCore-aligned columns over source tables
-- [ ] **Phase 6: Archive Generation** - Produce a valid DwC-A zip (`meta.xml` + EML + Occurrence core + Multimedia extension) that passes the GBIF validator
+- [ ] **Phase 6: Archive Generation** - Produce a valid DwC-A zip (`meta.xml` + EML + Occurrence core + Multimedia extension) that passes the GBIF validator, plus a GeoParquet sidecar from the same projection
 - [ ] **Phase 7: Nightly Workflow & Hosting** - Scheduled GitHub Actions workflow publishes the archive atomically to existing S3/CloudFront with a checksum
 - [ ] **Phase 8: Frontend Download Link** - A site visitor can discover and download the archive from the site
 
@@ -65,25 +65,28 @@
 ### Phase 6: Archive Generation
 **Goal**: A thin serializer reads the `dwc` views and produces a valid DwC-A zip — `meta.xml` + `eml.xml` + Occurrence core + Simple Multimedia extension — that passes the GBIF validator, with descriptor and serializer driven from one ordered field list so indices cannot drift.
 **Depends on**: Phase 5 (consumes the view column contract)
-**Requirements**: DWCA-01, DWCA-02, DWCA-03, DWCA-04, DWCA-05
+**Requirements**: DWCA-01, DWCA-02, DWCA-03, DWCA-04, DWCA-05, DWCA-06
 **Success Criteria** (what must be TRUE):
   1. Running the export locally produces a `.zip` containing `meta.xml`, `eml.xml`, an Occurrence core file, and a Simple Multimedia extension file for photos.
   2. `meta.xml` and the data files are generated from a single ordered field list, and a round-trip parse of a known record confirms each value maps to the expected DwC term (no index drift).
   3. Every Multimedia row joins to an Occurrence core row via a byte-stable `coreId` — the anti-join is empty, with no orphaned media and the same source filter applied to both files.
   4. Data files are serialized as UTF-8 without BOM, with freeform body text correctly quoted/escaped, HTML stripped, and accents/emoji round-tripping intact.
   5. The produced archive passes the GBIF DwC-A validator with no blocking (structural) errors.
+  6. A GeoParquet sidecar is produced from the same `dwc.occurrences` projection — GeoParquet 1.0.0, WKB Point geometry (WGS84/CRS84), with `decimalLatitude`/`decimalLongitude` retained — and round-trips in DuckDB (valid `geo` metadata, all rows geocoded).
 **Plans**: TBD
+**Planning note**: A 2026-06-09 spike confirmed DuckDB can `ATTACH` Postgres, unpack the composite types, and emit CSV/Parquet/GeoParquet from one `COPY` — GeoParquet 1.0.0 came out spec-valid and ~4.3× smaller than CSV. This raises a tooling choice for planning: **DuckDB-driven export** (one engine for all three formats; GeoParquet in JS is painful) vs the Node serializer (`archiver`/`postgres`/`csv-stringify`) the research assumed. Decide during `/gsd-plan-phase 6`.
 **UI hint**: no
 
 ### Phase 7: Nightly Workflow & Hosting
 **Goal**: A scheduled GitHub Actions workflow regenerates and publishes the archive nightly to the existing S3/CloudFront site, reusing the existing AWS OIDC role and bucket, with an atomic write-then-swap, an empty-result guard, a CloudFront invalidation, and a published checksum. This is the only prod-touching, secret-requiring surface.
 **Depends on**: Phase 6 (wraps the working export script)
-**Requirements**: EXPORT-01, EXPORT-02, EXPORT-03, EXPORT-04
+**Requirements**: EXPORT-01, EXPORT-02, EXPORT-03, EXPORT-04, EXPORT-05
 **Success Criteria** (what must be TRUE):
   1. A scheduled workflow (with `workflow_dispatch` for manual runs) regenerates the archive automatically every night at a defined time and timezone.
   2. After a run, the archive is reachable at a stable public URL under `https://salishsea.io/dwca/…`, served by the existing CloudFront distribution from the existing bucket with no new AWS infrastructure.
   3. Publication is atomic (write-then-swap), refuses to overwrite a good archive with an empty/under-threshold result, and invalidates the CloudFront cache so the new archive is served promptly.
   4. A sha256 checksum is published alongside the archive and verifies against the downloaded file.
+  5. The GeoParquet sidecar is regenerated and published by the same nightly run, under `/dwca/…`, with the same atomic-publish, empty-result guard, cache invalidation, and checksum treatment as the archive.
 **Plans**: TBD
 **Research flag**: Likely needs light phase-level research — confirm the CloudFront behavior passes `/dwca/*` straight through to S3 rather than rewriting to the SPA `index.html` (verify against the Lambda@Edge / behavior config).
 **Secret flag**: Introduces a possible NEW `production` GitHub environment secret (Supabase service-role / DB connection string). Per deployment memory, surface this to the user and await confirmation before the first workflow run.

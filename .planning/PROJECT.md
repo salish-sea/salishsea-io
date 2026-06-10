@@ -22,7 +22,8 @@ v1.2 (in progress) exports occurrence records as a nightly DarwinCore Archive, d
 - Align the occurrence data model with DarwinCore terms — nomenclature, taxonomy classification (walk the `taxa` hierarchy to kingdom→genus), spatial/temporal/licensing fields
 - Audit and document data/datatype gaps against DwC requirements; fill them where feasible
 - Generate a valid DwC-A zip — `meta.xml` + EML + Occurrence core + Multimedia extension (+ possible ResourceRelationship for travel segments)
-- Run the export nightly and host the archive for download
+- Emit a GeoParquet sidecar from the same projection (analysis-ready, geometry embedded; mirrors GBIF's CSV/Parquet dual offering)
+- Run the export nightly and host the archive + sidecar for download
 
 **Scope decisions:**
 - Includes native SalishSea.io observations + Maplify/Whale Alert records only; excludes iNaturalist & Happywhale (already published to GBIF by their canonical sources)
