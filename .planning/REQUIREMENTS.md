@@ -22,7 +22,7 @@ Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurre
 
 - [ ] **ALIGN-01**: A dedicated read-only `dwc` Postgres schema projects in-scope occurrences into DarwinCore-aligned columns, built directly from source tables (not the UI-shaped `public.occurrences` view), filtered to native + Maplify/Whale Alert only
 - [ ] **ALIGN-02**: Each occurrence record carries the four GBIF-required terms — `occurrenceID`, `basisOfRecord`, `scientificName`, `eventDate`
-- [ ] **ALIGN-03**: Taxonomy is expanded to `taxonRank` + `kingdom`…`genus` by walking the `taxa` parent hierarchy, with higher-rank-only identifications (genus/family) handled correctly (no false binomials, correct `taxonRank`)
+- [x] **ALIGN-03**: Taxonomy is expanded to `taxonRank` + `kingdom`…`genus` by walking the `taxa` parent hierarchy, with higher-rank-only identifications (genus/family) handled correctly (no false binomials, correct `taxonRank`) — Phase 5 Plan 01 (`dwc.taxa_classification`)
 - [ ] **ALIGN-04**: Spatial terms emit `decimalLatitude`/`decimalLongitude` with correct axis and sign, a constant `geodeticDatum`, and `coordinateUncertaintyInMeters` (omitted when unknown, never 0)
 - [ ] **ALIGN-05**: Temporal terms emit ISO-8601 `eventDate` at honest per-source precision — Maplify report-time is emitted at date precision (or flagged), never as a false second-level sighting time
 - [ ] **ALIGN-06**: `occurrenceID` is stable and deterministic across nightly runs (source-prefixed surrogate keys)
@@ -89,7 +89,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 |-------------|-------|--------|
 | ALIGN-01 | Phase 5 | Pending |
 | ALIGN-02 | Phase 5 | Pending |
-| ALIGN-03 | Phase 5 | Pending |
+| ALIGN-03 | Phase 5 | Complete (05-01) |
 | ALIGN-04 | Phase 5 | Pending |
 | ALIGN-05 | Phase 5 | Pending |
 | ALIGN-06 | Phase 5 | Pending |
