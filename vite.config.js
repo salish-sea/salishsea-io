@@ -18,16 +18,25 @@ export default defineConfig({
     sourcemap: true
   },
 
-  plugins: [sentryVitePlugin({
-    bundleSizeOptimizations: {
-      excludeReplayShadowDom: true,
-      excludeDebugStatements: true,
-      excludeReplayIframe: true,
-      excludeReplayWorker: true,
+  plugins: [
+    {
+      name: 'strip-csp-upgrade-insecure-requests-in-dev',
+      apply: 'serve',
+      transformIndexHtml(html) {
+        return html.replace(/\s*upgrade-insecure-requests;?/g, '');
+      },
     },
-    org: "beam-reach",
-    project: "salishsea-io",
-  })],
+    sentryVitePlugin({
+      bundleSizeOptimizations: {
+        excludeReplayShadowDom: true,
+        excludeDebugStatements: true,
+        excludeReplayIframe: true,
+        excludeReplayWorker: true,
+      },
+      org: "beam-reach",
+      project: "salishsea-io",
+    }),
+  ],
 
   server: {
     allowedHosts: ['peters-macbook-air.local'],
