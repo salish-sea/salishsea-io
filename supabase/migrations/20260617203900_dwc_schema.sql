@@ -306,5 +306,172 @@ JOIN dwc.taxa_classification tc  ON tc.taxon_id = o.taxon_id;
 
 COMMENT ON VIEW dwc._native_occurrences IS 'Encodes 04-POLICY §3.1 (native gap table). Internal — Phase 6 reads dwc.occurrences (the UNION), never this branch directly.';
 
--- (continued: dwc.datasets, dwc._maplify_occurrences, dwc.occurrences, dwc.multimedia — appended by plans 05-03..05-04)
+-- ---------------------------------------------------------------------
+-- dwc._maplify_occurrences — projection of maplify.sightings
+-- ---------------------------------------------------------------------
+--
+-- Plan 05-03 deliverable. One row per in-scope maplify.sightings row,
+-- joined to dwc.taxa_classification (scientificName + Linnaean ranks)
+-- and to a CROSS JOIN LATERAL that materializes the source→display-name
+-- CASE exactly once per row (the canonical `dn.display_name` pattern
+-- from RESEARCH §"Source mapping via CROSS JOIN LATERAL"). The LATERAL
+-- value is reused in `rightsHolder`, `datasetName`, and (after Task 3)
+-- `dynamicProperties` so the per-row source identity is a single source
+-- of truth. Encodes 04-POLICY §3.2 (Maplify gap table) + §2.2 (D-10,
+-- D-11 source mapping) + §5.3 (rwsas defensive filter) + §1.1 D-20
+-- (Maplify CC-BY 4.0 via Acartia upstream).
+--
+-- Column contract mirror: this view emits the EXACT same 25 columns in
+-- the EXACT same order with the EXACT same names and types as
+-- dwc._native_occurrences above. UNION-ALL type drift is the canonical
+-- view failure mode (RESEARCH Pitfall 4); every scalar carries an
+-- explicit cast.
+--
+-- ALIGN requirement coverage from this view:
+--   * ALIGN-01 — Maplify projection lives in dwc schema, sourced
+--     directly from maplify.sightings (not the public.occurrences UI
+--     matview).
+--   * ALIGN-02 — occurrenceID, basisOfRecord, scientificName, eventDate
+--     are all NOT NULL by construction.
+--   * ALIGN-04 — ST_Y for lat, ST_X for lon, geodeticDatum = 'WGS84',
+--     coordinateUncertaintyInMeters = NULL (no source column on
+--     maplify.sightings — never fabricate; POLICY §3.2 gap).
+--   * ALIGN-05 — eventDate is date-precision only (`YYYY-MM-DD`, no `T`
+--     separator) per POLICY §3.2: `created_at` is report-receipt time
+--     and emitting second precision would falsely imply sighting-time
+--     precision.
+--   * ALIGN-06 — occurrenceID = 'maplify:' || s.id::text; cannot
+--     collide with the native branch's 'salishsea:' prefix.
+--
+-- Source→display CASE arms (Task 1 audit checkpoint):
+--   The audit pause for `SELECT DISTINCT source FROM maplify.sightings`
+--   was checkpoint-approved with POLICY-default arms (orca_network →
+--   "Orca Network", cascadia → "Cascadia Research Collective", fallback
+--   "Whale Alert / Maplify"). Plan 05-04's assertion suite + the user's
+--   local-DB run will catch any drift if unknown source values appear
+--   in production data — the `ELSE` fallback prevents data loss in the
+--   meantime (POLICY §2.2 D-11 default).
+--
+-- D-03 source-drop lever (POLICY §4.1): the per-`maplify.source` drop is
+-- "ready, not active" in v1.2 — the lever lives as a commented-out
+-- predicate inside the WHERE block (see below).
+--
+-- `rwsas` defensive filter (POLICY §5.3 / RESEARCH Open Question 2
+-- default): always include `AND s.source != 'rwsas'`, regardless of
+-- whether ingest already filters — it is a free correctness guard.
+
+CREATE VIEW dwc._maplify_occurrences AS
+SELECT
+  -- 1. occurrenceID (ALIGN-02, ALIGN-06)
+  ('maplify:' || s.id::text)::text                                              AS "occurrenceID",
+  -- 2. basisOfRecord (ALIGN-02 / POLICY §3.2)
+  'HumanObservation'::text                                                      AS "basisOfRecord",
+  -- 3. eventDate (ALIGN-02, ALIGN-05) — date-precision ONLY (no `T`
+  -- separator) per POLICY §3.2: `created_at` is report-receipt time, not
+  -- sighting time. `AT TIME ZONE 'GMT'` interprets the naive timestamp
+  -- as UTC before extracting the date (RESEARCH Pitfall 7).
+  ((s.created_at AT TIME ZONE 'GMT')::date)::text                               AS "eventDate",
+  -- 4. scientificName (ALIGN-02, ALIGN-03) — leaf taxon name from the
+  -- helper view. NEVER reconstruct a binomial; the helper already
+  -- enforces M-05's higher-rank-only contract.
+  tc.scientific_name::text                                                      AS "scientificName",
+  -- 5. taxonRank (ALIGN-03)
+  tc.taxon_rank::text                                                           AS "taxonRank",
+  -- 6-11. kingdom..genus (ALIGN-03) — all from the helper. genus is
+  -- NULL when the leaf taxon's own rank is family or higher.
+  tc.kingdom::text                                                              AS "kingdom",
+  tc.phylum::text                                                               AS "phylum",
+  tc.class::text                                                                AS "class",
+  tc.order_::text                                                               AS "order",
+  tc.family::text                                                               AS "family",
+  tc.genus::text                                                                AS "genus",
+  -- 12. decimalLatitude (ALIGN-04) — ST_Y returns Y axis = latitude.
+  -- Cast geography→geometry before ST_X/ST_Y (mirrors native branch).
+  gis.ST_Y(s.location::gis.geometry)::double precision                          AS "decimalLatitude",
+  -- 13. decimalLongitude (ALIGN-04) — ST_X returns X axis = longitude.
+  gis.ST_X(s.location::gis.geometry)::double precision                          AS "decimalLongitude",
+  -- 14. geodeticDatum (ALIGN-04) — constant per POLICY §3.2.
+  'WGS84'::text                                                                 AS "geodeticDatum",
+  -- 15. coordinateUncertaintyInMeters (POLICY §3.2 gap) — no source
+  -- column on maplify.sightings. Emit NULL; never fabricate.
+  NULL::integer                                                                 AS "coordinateUncertaintyInMeters",
+  -- 16. individualCount (D-13 / POLICY §3.5) — the WHERE clause's
+  -- `BETWEEN 1 AND 1000` filter already bounds this; `number_sighted`
+  -- is `integer NOT NULL` on the source table (UNION-ALL parity with
+  -- the native branch's widened smallint→integer cast — Pitfall 4).
+  s.number_sighted::integer                                                     AS "individualCount",
+  -- 17. occurrenceStatus (D-12 / POLICY §3.4) — constant.
+  'present'::text                                                               AS "occurrenceStatus",
+  -- 18. occurrenceRemarks (POLICY §3.2) — strip HTML tags from comments,
+  -- then NULL out empty / whitespace-only results so the column is
+  -- honestly NULL when there's no remark.
+  NULLIF(TRIM(regexp_replace(s.comments, '<[^>]+>', '', 'g')), '')::text         AS "occurrenceRemarks",
+  -- 19. recordedBy (D-10 / POLICY §2.2) — Maplify usernm passes through
+  -- NULL per D-10 (anonymous Whale Alert submissions exist).
+  s.usernm::text                                                                AS "recordedBy",
+  -- 20. rightsHolder (D-11 / POLICY §2.2) — per-source display name from
+  -- the LATERAL CASE below. SINGLE SOURCE OF TRUTH per row: same value
+  -- as `datasetName` (col 21) and `dynamicProperties.aggregatorSource`
+  -- (col 24, set in Task 3).
+  dn.display_name::text                                                         AS "rightsHolder",
+  -- 21. datasetName (D-10 / POLICY §2.2) — for Maplify, this is the
+  -- SUB-SOURCE name (e.g. "Orca Network"), NOT the parent dataset
+  -- title (which is `datasetID`'s parent URI). This is the deliberate
+  -- difference from the native branch, where `datasetName` carries the
+  -- parent title.
+  dn.display_name::text                                                         AS "datasetName",
+  -- 22. datasetID (D-17 / POLICY §6.3) — same parent dataset URI as
+  -- native branch; per-record `datasetID` matches the
+  -- `dwc.datasets.dataset_id` constant on every row even though
+  -- `datasetName` is sub-source-named (RESEARCH: "the join collapses
+  -- to a single constant URI on every row").
+  'https://salishsea.io/datasets/occurrences-v1'::text                          AS "datasetID",
+  -- 23. license (D-20 / POLICY §1.1) — CC-BY 4.0 canonical /legalcode
+  -- URI, constant for the Maplify branch (Acartia cooperative
+  -- assertion).
+  'https://creativecommons.org/licenses/by/4.0/legalcode'::text                 AS "license",
+  -- 24. dynamicProperties — Task 2 emits NULL::text placeholder; Task 3
+  -- replaces with the four-key jsonb_strip_nulls expression
+  -- (travelDirection, aggregatorSource, aggregatorChain,
+  -- unvalidatedIdentifiers — POLICY §2.3). NO `countIsMinimum`: D-14
+  -- is a no-op for v1.2 (POLICY §5.2: `min_count` does not exist on
+  -- maplify.sightings).
+  NULL::text                                                                    AS "dynamicProperties",
+  -- 25. informationWithheld (POLICY §2.4) — optional, NULL in v1.2.
+  NULL::text                                                                    AS "informationWithheld"
+FROM maplify.sightings s
+JOIN dwc.taxa_classification tc ON tc.taxon_id = s.taxon_id
+-- The source→display-name CASE is materialized exactly ONCE per row by
+-- the LATERAL. Reused in columns 20 (rightsHolder), 21 (datasetName),
+-- and (in Task 3) 24 (dynamicProperties.aggregatorSource /
+-- aggregatorChain). D-10/D-11 single source of truth per row.
+--
+-- Task 1 audit was checkpoint-approved with policy-default arms (POLICY
+-- §2.2 D-10/D-11 baseline + D-11 fallback). The plan 05-04 assertion
+-- suite + the user's local-DB run will catch any source-value drift if
+-- unknown codes appear; the `ELSE` arm prevents data loss meantime.
+CROSS JOIN LATERAL (
+  SELECT
+    CASE s.source
+      WHEN 'orca_network' THEN 'Orca Network'::text
+      WHEN 'cascadia'     THEN 'Cascadia Research Collective'::text
+      ELSE                     'Whale Alert / Maplify'::text
+    END AS display_name
+) AS dn
+-- Filter discipline (RESEARCH §"System Architecture Diagram"):
+--   * NOT s.is_test — existing maplify hygiene.
+--   * s.number_sighted BETWEEN 1 AND 1000 — D-13; mirrors the existing
+--     public.occurrences UI view filter.
+--   * s.source != 'rwsas' — POLICY §5.3 defensive; included
+--     unconditionally per RESEARCH Open Question 2 default.
+WHERE NOT s.is_test
+  AND s.number_sighted BETWEEN 1 AND 1000
+  AND s.source != 'rwsas'
+  /* D-03 source-drop lever (POLICY §4.1): activate by uncommenting and listing sources to exclude */
+  /* AND s.source NOT IN ('') */
+;
+
+COMMENT ON VIEW dwc._maplify_occurrences IS 'Encodes 04-POLICY §3.2 (Maplify gap table) + §2.2 (D-10/D-11 source mapping) + §5.3 (rwsas defensive filter). Internal — Phase 6 reads dwc.occurrences (the UNION), never this branch directly.';
+
+-- (continued: dwc.datasets, dwc.occurrences, dwc.multimedia — appended by plan 05-04)
 
