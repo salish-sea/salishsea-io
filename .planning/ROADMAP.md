@@ -106,7 +106,7 @@ Plans:
 Plans:
 **Wave 0**
 
-- [ ] 06-01-PLAN.md — Setup: install `@duckdb/node-api@1.5.4-r.1` + `yazl@3.3.1` + `tsx`; extend tsconfig `include` to cover `scripts/`; wire `npm run build:dwca` script; placeholder `scripts/dwca/fields.ts` + scaffolded `scripts/dwca/fields.test.ts`
+- [x] 06-01-PLAN.md — Setup: install `@duckdb/node-api@1.5.4-r.1` + `yazl@3.3.1` + `tsx`; extend tsconfig `include` to cover `scripts/`; wire `npm run build:dwca` script; placeholder `scripts/dwca/fields.ts` + scaffolded `scripts/dwca/fields.test.ts`
 
 **Wave 1** *(blocked on Wave 0)*
 
@@ -171,6 +171,6 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 3. Partner Org Hyperlinking | v1.1 | 2/2 | Complete | 2026-04-18 |
 | 4. Rights & Data-Model Policy | v1.2 | 1/1 | Complete   | 2026-06-10 |
 | 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
-| 6. Archive Generation | v1.2 | 0/6 | Not started | - |
+| 6. Archive Generation | v1.2 | 1/6 | In Progress|  |
 | 7. Nightly Workflow & Hosting | v1.2 | 0/TBD | Not started | - |
 | 8. Frontend Download Link | v1.2 | 0/TBD | Not started | - |

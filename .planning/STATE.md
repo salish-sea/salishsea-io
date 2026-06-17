@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Export to DarwinCore Archive
-status: SQL closer + assertion harness committed; live-DB validation DEFERRED to user (Tasks 3, 4 blocked on Docker daemon)
+status: executing
 stopped_at: Phase 6 context gathered
-last_updated: "2026-06-17T23:04:13.066Z"
-last_activity: 2026-06-17
+last_updated: "2026-06-17T23:43:40.104Z"
+last_activity: 2026-06-17 -- Phase 06 execution started
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 5
+  total_plans: 11
   completed_plans: 5
   percent: 40
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** The most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative cetacean data.
-**Current focus:** Phase 5 — DB Projection (`dwc` schema)
+**Current focus:** Phase 06 — archive-generation
 
 ## Current Position
 
-Phase: 6
-Plan: Not started
-Status: SQL closer + assertion harness committed; live-DB validation DEFERRED to user (Tasks 3, 4 blocked on Docker daemon)
-Last activity: 2026-06-17
+Phase: 06 (archive-generation) — EXECUTING
+Plan: 1 of 6
+Status: Executing Phase 06
+Last activity: 2026-06-17 -- Phase 06 execution started
 
 Progress: [████      ] 40%
 
