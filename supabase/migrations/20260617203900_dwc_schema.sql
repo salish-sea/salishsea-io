@@ -1,0 +1,55 @@
+-- =====================================================================
+-- Phase 5 — DwC projection schema (encodes 04-POLICY §3.1 and §3.2)
+-- =====================================================================
+--
+-- This migration introduces a read-only `dwc` Postgres schema that
+-- projects in-scope occurrence records into DarwinCore-aligned columns.
+-- It is consumed offline by the Phase 7 nightly job (DuckDB ATTACH +
+-- COPY to CSV / GeoParquet); it is NOT exposed via PostgREST.
+--
+-- Artifact inventory (full set assembled by the time plans 05-01..05-04
+-- have all committed against this same file):
+--
+--   * schema  dwc
+--   * view    dwc.taxa_classification    (recursive Linnaean walk)
+--   * view    dwc._native_occurrences    (internal; public.observations)
+--   * view    dwc._maplify_occurrences   (internal; maplify.sightings)
+--   * view    dwc.occurrences            (UNION ALL of the two branches)
+--   * view    dwc.multimedia             (Multimedia extension, native-only)
+--   * view    dwc.datasets               (view over a VALUES list)
+--
+-- This plan (05-01) seeds the file with the schema header, USAGE grant,
+-- and the helper view dwc.taxa_classification. Plans 05-02, 05-03, and
+-- 05-04 APPEND to this same file (see placeholder at end).
+--
+-- Discrepancy 1 — table renames (RESEARCH §"CRITICAL Schema Discrepancies"):
+--   Source tables are `public.observations` and `public.observation_photos`
+--   (renamed from `public.sightings` / `public.sighting_photos` on
+--   2025-09-15, migration `20250915171505_sighting_policies.sql`).
+--   CONTEXT.md and 04-POLICY.md §3.1/§3.3 still use the old names; this
+--   migration uses the current names.
+--
+-- Discrepancy 2 — D-19 NULL branch unreachable today
+-- (RESEARCH §"CRITICAL Schema Discrepancies"):
+--   POLICY §1.2/§1.4 specify a two-branch CASE for `license_code = 'none'`
+--   vs `license_code IS NULL`. The `DROP NOT NULL` migration was applied
+--   to `inaturalist.observation_photos.license`, NOT to
+--   `public.observation_photos.license_code` (which remains
+--   `varchar(20) NOT NULL`). The NULL arm in `dwc.multimedia` is encoded
+--   for forward-compat with a future `DROP NOT NULL`; today it matches
+--   zero rows.
+--
+-- API exposure: `dwc` is intentionally NOT added to
+-- `supabase/config.toml:api.schemas` (RESEARCH Pitfall 5 / Note on
+-- Supabase API exposure). Consumers must fully-qualify (`dwc.occurrences`).
+-- The service-role inherits USAGE via Supabase defaults; we grant
+-- USAGE explicitly only to `anon` and `authenticated`.
+--
+-- Local verification: `supabase db reset && psql … -f supabase/snippets/05_dwc_assertions.sql`.
+-- =====================================================================
+
+CREATE SCHEMA dwc;
+
+GRANT USAGE ON SCHEMA dwc TO anon, authenticated;
+
+-- (continued: dwc.taxa_classification, etc.)
