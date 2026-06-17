@@ -62,7 +62,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- [database]: Model embedded dataset attributions as first-class sources — bracket tags (`[Orca Network]` ×2,239 + ~17 others) and trailing "Submitted by … Trusted Observer" lines (Cascadia, Whale Alert Global/Alaska, TMMC) in `maplify.sightings.comments` should become real source/contributor refs so `dwc.occurrences` can populate `datasetName`/`institutionCode` properly. See `.planning/todos/pending/2026-06-17-model-embedded-dataset-attributions-as-first-class-sources.md`.
 
 ### Blockers/Concerns
 
