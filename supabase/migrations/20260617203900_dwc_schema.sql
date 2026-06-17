@@ -496,5 +496,222 @@ WHERE NOT s.is_test
 
 COMMENT ON VIEW dwc._maplify_occurrences IS 'Encodes 04-POLICY §3.2 (Maplify gap table) + §2.2 (D-10/D-11 source mapping) + §5.3 (rwsas defensive filter). Internal — Phase 6 reads dwc.occurrences (the UNION), never this branch directly.';
 
--- (continued: dwc.datasets, dwc.occurrences, dwc.multimedia — appended by plan 05-04)
+-- ---------------------------------------------------------------------
+-- dwc.occurrences — UNION ALL of the two branch views (M-02)
+-- ---------------------------------------------------------------------
+--
+-- Plan 05-04 deliverable. Phase 6's DuckDB ATTACH + COPY pipeline reads
+-- this view directly; the two leading-underscore branches are internal
+-- and must not be consumed by downstream code.
+--
+-- UNION-ALL discipline (RESEARCH Pitfall 4): Postgres enforces column
+-- count, name, and type parity at view-creation time. The two branch
+-- views each emit the same 25 columns in the same order with explicit
+-- per-column casts; if either branch drifts in a future migration, this
+-- CREATE VIEW raises and the migration fails loudly. This is exactly the
+-- desired semantic — no silent type coercion across the source boundary.
+--
+-- ALIGN-01 closure: rows in dwc.occurrences come from EXACTLY two
+-- sources (native + Maplify); iNaturalist and HappyWhale are excluded
+-- by construction (POLICY §5.1) — they are simply not in the UNION.
+CREATE VIEW dwc.occurrences AS
+SELECT * FROM dwc._native_occurrences
+UNION ALL
+SELECT * FROM dwc._maplify_occurrences;
+
+COMMENT ON VIEW dwc.occurrences IS 'Encodes 04-POLICY §3.1 (native) and §3.2 (Maplify) via M-02 UNION ALL of dwc._native_occurrences and dwc._maplify_occurrences. Read by Phase 6 (DuckDB ATTACH + COPY to CSV/GeoParquet).';
+
+-- ---------------------------------------------------------------------
+-- dwc.datasets — single-row dataset reification (M-03 / D-15..D-18)
+-- ---------------------------------------------------------------------
+--
+-- Plan 05-04 deliverable. Encodes 04-POLICY §6.2 (dataset schema) +
+-- D-15 (view-over-VALUES form) + D-16 (single row in v1.2) + D-17
+-- (datasetID URI scheme) + D-18 (publisher org + individual contact).
+--
+-- Form (M-03): a view over a literal VALUES list. Every metadata edit
+-- becomes a migration — version-controlled, reviewable, and surviving
+-- `supabase db reset` without a separate seed step. The 19-column shape
+-- is sized for future per-constituent rows (POLICY §6.2) but ships with
+-- exactly one row in v1.2.
+--
+-- Field-by-field provenance:
+--   * dataset_id            — D-17 / POLICY §6.3 ("not load-bearing"); the
+--                             `occurrences-v1` slug anticipates a v2 archive.
+--   * parent_dataset_id     — NULL: no parent in v1.2 (D-16).
+--   * title                 — must match the constant emitted by
+--                             dwc._native_occurrences."datasetName" verbatim.
+--   * abstract              — placeholder per POLICY §6.7 "Phase 6 authors";
+--                             Phase 6 may overwrite in a follow-up migration.
+--   * pub_date              — CURRENT_DATE at the time `supabase db reset`
+--                             runs; Phase 6 may pin a constant date later.
+--   * language              — 'en'.
+--   * intellectual_rights   — CC-BY-NC 4.0 /legalcode URI (POLICY §1.1
+--                             native default for the single v1.2 row).
+--                             Maplify per-row CC-BY URI joins by §6.6
+--                             reconciliation when a Maplify constituent
+--                             row is added in the future.
+--   * creator_*             — D-18: organizational publisher
+--                             ("SalishSea.io", role "originator").
+--   * metadata_provider_*   — same org, role "metadataProvider".
+--   * contact_*             — D-18: individual point of contact (Peter
+--                             Abrahamsen, rainhead@gmail.com), role
+--                             "pointOfContact"; M-04 commits the email
+--                             verbatim because supabase/migrations/ is
+--                             application code (not .planning/).
+--   * geographic_coverage   — POLICY §6.7: Phase 6 authors. Placeholder
+--                             NULL here.
+--   * temporal_coverage     — POLICY §6.5: Phase 6 computes at generation
+--                             time. NULL here.
+--   * taxonomic_coverage    — POLICY §6.5: "Cetacea (Order)" stated.
+--   * methods               — POLICY §6.7: Phase 6 authors. NULL here.
+CREATE VIEW dwc.datasets AS
+SELECT * FROM (
+  VALUES (
+    'https://salishsea.io/datasets/occurrences-v1'::text,           -- dataset_id (D-17)
+    NULL::text,                                                     -- parent_dataset_id (D-16)
+    'SalishSea.io Cetacean Occurrences (v1.2)'::text,               -- title (must equal native datasetName constant)
+    'Native and Maplify/Whale Alert cetacean sighting records from the Salish Sea region. Authored from observation tables in the SalishSea.io database, expressed as DarwinCore-aligned columns.'::text,  -- abstract (placeholder; Phase 6 authors — POLICY §6.7)
+    CURRENT_DATE::text,                                             -- pub_date (Phase 6 may pin a constant)
+    'en'::text,                                                     -- language
+    'https://creativecommons.org/licenses/by-nc/4.0/legalcode'::text, -- intellectual_rights (POLICY §1.1 native default; §6.6 reconciles Maplify per-row)
+    'SalishSea.io'::text,                                           -- creator_name (D-18 organizational publisher)
+    'rainhead@gmail.com'::text,                                     -- creator_email (M-04)
+    'originator'::text,                                             -- creator_role
+    'SalishSea.io'::text,                                           -- metadata_provider_name
+    'rainhead@gmail.com'::text,                                     -- metadata_provider_email (M-04)
+    'Peter Abrahamsen'::text,                                       -- contact_name (D-18 individual)
+    'rainhead@gmail.com'::text,                                     -- contact_email (M-04, D-18)
+    'pointOfContact'::text,                                         -- contact_role
+    NULL::text,                                                     -- geographic_coverage (Phase 6 authors — POLICY §6.7)
+    NULL::text,                                                     -- temporal_coverage (Phase 6 computes at gen time — POLICY §6.5)
+    'Cetacea (Order)'::text,                                        -- taxonomic_coverage (POLICY §6.5 stated)
+    NULL::text                                                      -- methods (Phase 6 authors — POLICY §6.7)
+  )
+) AS d (
+  dataset_id,
+  parent_dataset_id,
+  title,
+  abstract,
+  pub_date,
+  language,
+  intellectual_rights,
+  creator_name,
+  creator_email,
+  creator_role,
+  metadata_provider_name,
+  metadata_provider_email,
+  contact_name,
+  contact_email,
+  contact_role,
+  geographic_coverage,
+  temporal_coverage,
+  taxonomic_coverage,
+  methods
+);
+
+COMMENT ON VIEW dwc.datasets IS 'M-03 single-row dataset reification (D-15..D-18). Phase 6 reads this for EML. Future per-constituent rows added by extension migration (POLICY §6.2 sized for this).';
+
+-- ---------------------------------------------------------------------
+-- dwc.multimedia — GBIF Simple Multimedia extension (native-only)
+-- ---------------------------------------------------------------------
+--
+-- Plan 05-04 deliverable. Encodes 04-POLICY §3.3 (multimedia gap table)
+-- + §1.2 (per-photo license CASE) + §1.4 (none/NULL license exclusion).
+--
+-- Shape: 1-to-N per occurrence (each observation can have multiple
+-- photos). The DwC-A two-file structure encodes this as a separate
+-- `multimedia.csv` joined to `occurrence.csv` on coreId (DWCA-03).
+-- Phase 6 will `COPY dwc.multimedia TO 'multimedia.csv'` as a one-liner.
+--
+-- coreId join: `'salishsea:' || op.observation_id::text` matches the
+-- `occurrenceID` emitted by dwc._native_occurrences (col 1), so every
+-- multimedia row has a corresponding occurrence row. The assertion suite
+-- enforces this (DWCA-03 readiness).
+--
+-- Native-only (POLICY §1.4 / §3.2): Maplify photos lack a license column
+-- on `maplify.sightings.photo_url`; A3 says no implied license, so all
+-- Maplify photos are excluded entirely. This view does not reference
+-- maplify.sightings at all.
+--
+-- License CASE (POLICY §1.2 + D-19):
+--   * The seven CC enum members map to their canonical `/legalcode`
+--     URIs.
+--   * D-19 distinguishes two semantically distinct "no URI" branches:
+--     - `WHEN 'none' THEN NULL` — terminal: "no redistributable
+--       license" (contributor or ingest classified the photo unlicensed).
+--     - `ELSE NULL` — catches IS NULL ("license unknown / unclassified",
+--       non-terminal — a future classification workflow may resolve).
+--   * Both branches are excluded by the WHERE clause in v1.2, but the
+--     distinction is preserved in the CASE for forward-compatibility
+--     (Discrepancy 2 in migration header: the IS NULL arm is currently
+--     unreachable on public.observation_photos.license_code because the
+--     NOT NULL constraint was preserved from the initial schema; the
+--     branch is encoded for a future `DROP NOT NULL`).
+--
+-- Filter placement (POLICY §1.4): exclude both `'none'` and IS NULL in
+-- the view body (`WHERE op.license_code IS NOT NULL AND op.license_code <> 'none'`).
+-- The CASE stays pure (every license code in → URI or NULL out), and the
+-- filter is inspectable separately (delta between public.observation_photos
+-- count and dwc.multimedia count is directly readable).
+--
+-- Column set: per GBIF Simple Multimedia extension. v1.2 emits the six
+-- columns we have honest data for: coreId, type, identifier, license,
+-- rightsHolder, creator. Optional columns (format, references, title,
+-- description, created, contributor, publisher, audience) are omitted
+-- entirely rather than emitted as NULL.
+CREATE VIEW dwc.multimedia AS
+SELECT
+  -- coreId — join key to dwc.occurrences."occurrenceID" (DWCA-03).
+  ('salishsea:' || op.observation_id::text)::text                            AS "coreId",
+  -- type — POLICY §3.3: all native photos are still images.
+  'StillImage'::text                                                          AS "type",
+  -- identifier — the photo URL.
+  op.href::text                                                               AS "identifier",
+  -- license — POLICY §1.2 CASE + D-19 two distinct NULL branches.
+  CASE op.license_code
+    WHEN 'cc0'         THEN 'https://creativecommons.org/publicdomain/zero/1.0/legalcode'
+    WHEN 'cc-by'       THEN 'https://creativecommons.org/licenses/by/4.0/legalcode'
+    WHEN 'cc-by-nc'    THEN 'https://creativecommons.org/licenses/by-nc/4.0/legalcode'
+    WHEN 'cc-by-sa'    THEN 'https://creativecommons.org/licenses/by-sa/4.0/legalcode'
+    WHEN 'cc-by-nd'    THEN 'https://creativecommons.org/licenses/by-nd/4.0/legalcode'
+    WHEN 'cc-by-nc-sa' THEN 'https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode'
+    WHEN 'cc-by-nc-nd' THEN 'https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode'
+    /* D-19 / POLICY §1.2: NULL ('unknown') and 'none' ('no license') are semantically distinct; both excluded in v1.2 by the WHERE clause. NULL arm currently unreachable on public.observation_photos.license_code (NOT NULL constraint preserved); encoded for forward-compat with a future DROP NOT NULL — see Discrepancy 2 in 05-RESEARCH. */
+    WHEN 'none'        THEN NULL  -- terminal: "no redistributable license"
+    ELSE NULL                      -- catches IS NULL: "unknown / unclassified", non-terminal
+  END::text                                                                   AS "license",
+  -- rightsHolder — inherit from observation's contributor (D-09 mirror).
+  c.name::text                                                                AS "rightsHolder",
+  -- creator — same as rightsHolder for native photos.
+  c.name::text                                                                AS "creator"
+FROM public.observation_photos op
+JOIN public.observations  o ON o.id = op.observation_id
+JOIN public.contributors  c ON c.id = o.contributor_id
+-- POLICY §1.4: exclude both 'none' (terminal) and NULL (unknown). The
+-- NULL exclusion is forward-compat (Discrepancy 2: license_code is
+-- currently NOT NULL on public.observation_photos so the predicate is
+-- a no-op today; preserved for a future DROP NOT NULL).
+WHERE op.license_code IS NOT NULL
+  AND op.license_code <> 'none'
+ORDER BY op.observation_id, op.seq;
+
+COMMENT ON VIEW dwc.multimedia IS 'GBIF Simple Multimedia extension; encodes 04-POLICY §3.3 + §1.2 (license CASE) + §1.4 (none/NULL exclusion). Native photos only; Maplify photo_url is license-less per POLICY §1.4 and excluded. Phase 6 reads this for the Multimedia extension CSV.';
+
+-- ---------------------------------------------------------------------
+-- Broad SELECT grant — every view in schema dwc (Pitfall 5)
+-- ---------------------------------------------------------------------
+--
+-- Deferred from plan 05-01 so it covers every view in one statement.
+-- "ALL TABLES" includes views in Postgres. Service-role inherits via
+-- Supabase defaults; we grant SELECT explicitly only to anon and
+-- authenticated. The schema-level USAGE grant from plan 05-01 makes the
+-- views queryable; the SELECT grants here make their rows readable.
+--
+-- API exposure remains intentionally restricted: dwc is NOT in
+-- supabase/config.toml:api.schemas, so PostgREST will not expose these
+-- views even with SELECT granted. The grant is for the Phase 7 DuckDB
+-- connection (postgres role inherits) and any future direct-psql
+-- consumer.
+GRANT SELECT ON ALL TABLES IN SCHEMA dwc TO anon, authenticated;
 
