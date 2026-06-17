@@ -305,6 +305,99 @@ The `rwsas` source is excluded at the Maplify ingest function level (`WHERE sour
 
 ---
 
+## 6. Dataset Identity & EML Content
+
+*Specifies the archive as a dataset: how SalishSea.io identifies itself in EML, what `eml.xml` carries, and the SQL surface (`dwc.datasets`) Phase 6 reads from. Resolves the gap that ROADMAP.md commits Phase 6 to producing `eml.xml` without prior planning ever specifying its content or identity model.*
+
+### 6.1 Reification: `dwc.datasets` (D-15)
+
+Dataset-level metadata is reified as a SQL relation `dwc.datasets` rather than encoded inside the Phase 6 serializer (**D-15**). The serializer reads from this relation and emits `eml.xml`; the relation is the single source of truth.
+
+**Rationale:**
+- One source of truth for dataset identity, license, contacts, and coverage. Phase 6 does not duplicate these as string constants.
+- Edits are SQL operations — version-controlled, reviewable, reversible.
+- Per-record `datasetName` / `datasetID` in `dwc.occurrences` derive via join, eliminating string duplication between record-level attribution and dataset-level EML.
+
+**Form (table vs view):** Decided in Phase 5. A table fits if dataset metadata may be edited without a schema deploy. A view (e.g., over a `VALUES` list or a config-backed source) fits if dataset metadata is treated as source code. Phase 5's planner picks one with a written rationale.
+
+### 6.2 Shape: One Row Now, Many-Row Schema (D-16)
+
+The archive ships as a single GBIF dataset for v1.2, matching the single-dataset pattern used by comparable aggregators (iNaturalist, eBird publish one dataset and distinguish sub-sources per-record) (**D-16**). `dwc.datasets` contains exactly one row in v1.2.
+
+The schema must be sized for future per-source constituents (native, Maplify aggregator, Orca Network, Cascadia Research) so that adding them is a SQL insert plus a Phase 6 EML extension — not a schema migration. Required columns:
+
+- `dataset_id` — primary identifier (URI; see §6.3)
+- `parent_dataset_id` — nullable self-FK; NULL for v1.2's single row
+- `title`, `abstract`, `pub_date`, `language`
+- `intellectual_rights` — license URI per dataset (the single v1.2 row carries the CC-BY-NC 4.0 URI from §1.1)
+- `creator_name`, `creator_email`, `creator_role`
+- `metadata_provider_name`, `metadata_provider_email`
+- `contact_name`, `contact_email`, `contact_role`
+- `geographic_coverage`, `temporal_coverage`, `taxonomic_coverage` — see §6.5
+- `methods` — free text
+
+Per-record `datasetName` and `datasetID` in `dwc.occurrences` continue to distinguish sub-sources (per §2.2) without requiring multiple `dwc.datasets` rows. The two layers are independent: per-record attribution works with one dataset row; constituent rows can be added later if and when GBIF registration warrants it.
+
+### 6.3 `datasetID` URI Scheme (D-17)
+
+Dataset identifiers use the URI pattern `https://salishsea.io/datasets/{slug}` (**D-17**).
+
+- v1.2 single row: slug chosen in Phase 5 (e.g., `occurrences-v1` — the specific slug is not load-bearing on this document).
+- Future constituents would use slugs like `/datasets/native`, `/datasets/orca-network`, `/datasets/cascadia`, `/datasets/maplify`.
+- The URI does not need to resolve in v1.2 — it is a stable opaque identifier. A landing page can be added in a later milestone without changing the identifier.
+
+**Per-record `datasetID`:** `dwc.occurrences.datasetID` is populated by joining to `dwc.datasets` — in v1.2 the join collapses to a single constant URI on every row. When constituents are reified, the join key shifts to a sub-source → `dwc.datasets.dataset_id` mapping (the same mapping that already produces `datasetName` per §2.2).
+
+### 6.4 Publisher Identity (D-18)
+
+| EML Role | Value |
+|----------|-------|
+| `creator` (publisher) | SalishSea.io (organizational) |
+| `metadataProvider` | SalishSea.io (organizational) |
+| `contact` | Peter Abrahamsen (individual) |
+
+(**D-18**) Hybrid pattern: organizational publisher with a working individual contact. Survives a maintainer handoff without re-issuing the identifier, while keeping the contact actually reachable.
+
+**Email handling:** `contact_email` is populated in `dwc.datasets` (one row in v1.2). The address is **not committed to this policy document** — the planning directory may be open-sourced in the future and the address should not be redacted from history. Phase 5 seeds the value at projection time.
+
+### 6.5 Coverage Fields — Derived vs. Stated
+
+EML coverage fields in v1.2 are populated as follows:
+
+| Field | Source | Notes |
+|-------|--------|-------|
+| Geographic coverage | Stated bbox for the Salish Sea region | Authored in Phase 6 against a chosen reference (e.g., the Salish Sea Marine Ecoregion bbox). Not derived — dataset *scope* is regional even when realized data omits edges. |
+| Temporal coverage | Derived at generation time | `MIN(eventDate)` to `MAX(eventDate)` from `dwc.occurrences`. Phase 6 computes this from the projection; not stored in `dwc.datasets`. |
+| Taxonomic coverage | Stated as Cetacea (Order) | Intentional taxonomic scope. The realized `DISTINCT scientificName` list may be appended as a secondary block if useful, but the primary coverage is intentional, not realized. |
+| Methods | Free text in `dwc.datasets.methods` | Describes data acquisition (native submissions via SalishSea.io app + Maplify/Whale Alert WASEAK feed). Specific wording authored in Phase 6 against the schema. |
+
+### 6.6 Per-Record vs. Dataset-Level License Reconciliation
+
+§1.1 fixes per-record `license` as a constant CC-BY-NC 4.0 URI. §6.2's `intellectual_rights` column carries the same URI on the single v1.2 row. The redundancy is harmless in v1.2 (one row, one URI, two surfaces).
+
+When constituents are added later and may carry distinct licenses (cf. the Acartia/CC-BY note from the v1.2 UAT against §1.1), the two surfaces diverge:
+- Per-record `license` becomes per-constituent (joined from `dwc.datasets.intellectual_rights`).
+- §1.1's "constant CC-BY-NC 4.0" becomes "default for native; joined per-constituent for third-party."
+
+This is a future-work note, not a v1.2 action. The schema in §6.2 already supports the future shape; only §1.1's wording and Phase 5's projection logic would need to evolve.
+
+### 6.7 Open Items Owned by Phase 6
+
+Phase 6 picks up these authoring tasks against the §6.2 schema:
+
+- Title, abstract, methods free text
+- Geographic bbox values (against a chosen reference)
+- Slug for the v1.2 row's `dataset_id`
+- Email address for `contact_email` (populated in `dwc.datasets`, not in code)
+- Author the EML serializer to read `dwc.datasets` (one row) and compute derived temporal coverage from `dwc.occurrences`
+
+Phase 5 owns:
+- Deciding table vs view (§6.1)
+- Seeding the single v1.2 row
+- Wiring `dwc.occurrences.datasetID` to join `dwc.datasets`
+
+---
+
 ## Decision Index
 
 All D-numbers are cited in the sections above. For reference:
@@ -325,9 +418,14 @@ All D-numbers are cited in the sections above. For reference:
 | D-12 | 3.4 | `occurrenceStatus = present` constant on all in-scope records |
 | D-13 | 3.5 | `individualCount` emitted only when a real count exists; sparse column |
 | D-14 | 5.2 | Min-count flagging applies to HappyWhale `min_count` only; no-op for v1.2 (HappyWhale excluded); CONTEXT.md D-14 wording corrected |
+| D-15 | 6.1 | Dataset metadata reified in `dwc.datasets`; Phase 6 serializer reads from it (no string constants in code) |
+| D-16 | 6.2 | One row in `dwc.datasets` for v1.2; schema sized for future parent + constituents (no migration needed to add) |
+| D-17 | 6.3 | `datasetID` URI scheme: `https://salishsea.io/datasets/{slug}` |
+| D-18 | 6.4 | Publisher = SalishSea.io (organizational); Contact = Peter Abrahamsen (individual); contact email lives in `dwc.datasets`, not this document |
 
 ---
 
 *Policy authored: 2026-06-10*
+*§6 (Dataset Identity & EML Content) added: 2026-06-17*
 *Phase: 04-rights-data-model-policy-gate*
 *Document home: `.planning/phases/04-rights-data-model-policy-gate/04-POLICY.md`*
