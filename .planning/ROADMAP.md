@@ -102,8 +102,30 @@ Plans:
   5. The produced archive passes the GBIF DwC-A validator with no blocking (structural) errors.
   6. A GeoParquet sidecar is produced from the same `dwc.occurrences` projection — GeoParquet 1.0.0, WKB Point geometry (WGS84/CRS84), with `decimalLatitude`/`decimalLongitude` retained — and round-trips in DuckDB (valid `geo` metadata, all rows geocoded).
 
-**Plans**: TBD
-**Planning note**: A 2026-06-09 spike confirmed DuckDB can `ATTACH` Postgres, unpack the composite types, and emit CSV/Parquet/GeoParquet from one `COPY` — GeoParquet 1.0.0 came out spec-valid and ~4.3× smaller than CSV. This raises a tooling choice for planning: **DuckDB-driven export** (one engine for all three formats; GeoParquet in JS is painful) vs the Node serializer (`archiver`/`postgres`/`csv-stringify`) the research assumed. Decide during `/gsd-plan-phase 6`.
+**Plans**: 6 plans
+Plans:
+**Wave 0**
+
+- [ ] 06-01-PLAN.md — Setup: install `@duckdb/node-api@1.5.4-r.1` + `yazl@3.3.1` + `tsx`; extend tsconfig `include` to cover `scripts/`; wire `npm run build:dwca` script; placeholder `scripts/dwca/fields.ts` + scaffolded `scripts/dwca/fields.test.ts`
+
+**Wave 1** *(blocked on Wave 0)*
+
+- [ ] 06-02-PLAN.md — Populate `OCCURRENCE_FIELDS` (25 entries) + `MULTIMEDIA_FIELDS` (6 entries) in `scripts/dwca/fields.ts`; unskip the DWCA-02 unit tests in `fields.test.ts`
+
+**Wave 2** *(blocked on Wave 1; Plans 06-03 and 06-04 run in parallel)*
+
+- [ ] 06-03-PLAN.md — Pure generators: `scripts/dwca/meta-xml.ts` (`buildMetaXml`) + `scripts/dwca/eml.ts` (`buildEml`, `DatasetsRow`, `EmlInput`) + unit tests
+- [ ] 06-04-PLAN.md — Utility modules: `scripts/dwca/assertions.ts` (F-02 `assertFieldAlignment` + zero-result guards) + `scripts/dwca/zip.ts` (deterministic yazl wrapper) + unit tests
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 06-05-PLAN.md — `scripts/dwca/build.ts` orchestrator: DSN guard → DuckDB ATTACH → F-02 assertions → CSV + GeoParquet COPYs (R1 empirical `ST_Point` verification) → `buildMetaXml` + `buildEml` → `writeZip`; live-DB checkpoint
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 06-06-PLAN.md — `scripts/dwca/build.test.ts` integration tests (DWCA-01/02/03/04/06) + manual GBIF DwC-A validator upload checkpoint (DWCA-05)
+
+**Planning note**: A 2026-06-09 spike confirmed DuckDB can `ATTACH` Postgres, unpack the composite types, and emit CSV/Parquet/GeoParquet from one `COPY` — GeoParquet 1.0.0 came out spec-valid and ~4.3× smaller than CSV. Resolved during `/gsd-discuss-phase 6` as T-01 hybrid orchestration: TS owns EML/meta.xml/zip; DuckDB owns CSV + GeoParquet COPYs.
 **UI hint**: no
 
 ### Phase 7: Nightly Workflow & Hosting
@@ -149,6 +171,6 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 3. Partner Org Hyperlinking | v1.1 | 2/2 | Complete | 2026-04-18 |
 | 4. Rights & Data-Model Policy | v1.2 | 1/1 | Complete   | 2026-06-10 |
 | 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
-| 6. Archive Generation | v1.2 | 0/TBD | Not started | - |
+| 6. Archive Generation | v1.2 | 0/6 | Not started | - |
 | 7. Nightly Workflow & Hosting | v1.2 | 0/TBD | Not started | - |
 | 8. Frontend Download Link | v1.2 | 0/TBD | Not started | - |
