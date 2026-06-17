@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Export to DarwinCore Archive
 status: SQL closer + assertion harness committed; live-DB validation DEFERRED to user (Tasks 3, 4 blocked on Docker daemon)
-stopped_at: 05-04-PLAN.md SQL closer + assertion harness committed; live-DB run deferred (Docker down)
-last_updated: "2026-06-17T22:37:16.386Z"
+stopped_at: Phase 6 context gathered
+last_updated: "2026-06-17T23:04:13.066Z"
 last_activity: 2026-06-17
 progress:
   total_phases: 5
@@ -78,9 +78,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-17T21:45:00.000Z
-Stopped at: 05-04-PLAN.md SQL closer + assertion harness committed; live-DB run deferred (Docker down)
-Resume file: User runs `supabase db reset` + `psql -f supabase/snippets/05_dwc_assertions.sql` to close out Tasks 3 + 4, then flip `nyquist_compliant: true` in 05-VALIDATION.md.
+Last session: 2026-06-17T23:04:13.059Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-archive-generation/06-CONTEXT.md
 
 ## Performance Metrics
 
