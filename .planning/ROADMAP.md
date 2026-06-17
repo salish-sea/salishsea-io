@@ -61,7 +61,12 @@ Plans:
   3. A recursive `dwc.classification()` over the `taxa` parent hierarchy fills `taxonRank` + `kingdom`…`genus` (genus/family rows carry the right `taxonRank` and no fabricated binomial).
   4. Spatial terms emit `decimalLatitude`/`decimalLongitude` with correct axis and sign (a known Salish Sea point lands at ~48°N / ~-123°W), a constant WGS84 `geodeticDatum`, and `coordinateUncertaintyInMeters` omitted when unknown (never 0).
   5. Temporal terms emit ISO-8601 `eventDate` at honest per-source precision — Maplify report-time is emitted at date precision (or flagged), never as a false second-level sighting time.
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 05-01-PLAN.md — Schema scaffolding + recursive helper view `dwc.taxa_classification` (Wave 1)
+- [ ] 05-02-PLAN.md — Native branch view `dwc._native_occurrences` (Wave 2)
+- [ ] 05-03-PLAN.md — Maplify branch view `dwc._maplify_occurrences` + DISTINCT source audit (Wave 2)
+- [ ] 05-04-PLAN.md — Union `dwc.occurrences` + `dwc.datasets` + `dwc.multimedia` + db reset + assertion suite (Wave 3)
 **UI hint**: no
 
 ### Phase 6: Archive Generation
