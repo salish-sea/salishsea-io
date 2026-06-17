@@ -84,7 +84,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 05-04-PLAN.md — Union `dwc.occurrences` + `dwc.datasets` + `dwc.multimedia` + db reset + assertion suite (Wave 3)
+- [~] 05-04-PLAN.md — Union `dwc.occurrences` + `dwc.datasets` + `dwc.multimedia` + db reset + assertion suite (Wave 4) — SQL + assertion harness committed 2026-06-17; live-DB run deferred (Docker not running locally)
 
 **UI hint**: no
 

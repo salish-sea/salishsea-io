@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Export to DarwinCore Archive
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-06-17T21:31:10.329Z"
-last_activity: 2026-06-17 -- Phase 5 Plan 02 completed (dwc._native_occurrences branch view, 25-column contract frozen)
+stopped_at: 05-04-PLAN.md SQL + assertion harness committed; live-DB run DEFERRED (Docker daemon not running locally)
+last_updated: "2026-06-17T21:45:00.000Z"
+last_activity: 2026-06-17 -- Phase 5 Plan 04 closer — UNION + datasets + multimedia + assertion harness committed; supabase db reset + psql -f deferred to user (Docker down)
 progress:
   total_phases: 5
   completed_phases: 1
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 Phase: 5 (DB Projection (`dwc` schema)) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
-Last activity: 2026-06-17 -- Phase 5 Plan 02 completed (dwc._native_occurrences branch view, 25-column contract frozen)
+Status: SQL closer + assertion harness committed; live-DB validation DEFERRED to user (Tasks 3, 4 blocked on Docker daemon)
+Last activity: 2026-06-17 -- Phase 5 Plan 04 closer plan — UNION + datasets + multimedia + assertion harness committed
 
-Progress: [███▊      ] 38%
+Progress: [████      ] 40%
 
 ## Accumulated Context
 
@@ -39,6 +39,10 @@ Progress: [███▊      ] 38%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 5 Plan 04]: `dwc.occurrences` is a bare `SELECT * UNION ALL` of the two branch views (no explicit column projection) — Postgres enforces 25-column / type parity at `CREATE VIEW` time, so any future branch drift fails the migration loudly (RESEARCH §"Pattern 1: View-as-export-contract"). An explicit projection list would have to be maintained in lockstep with both branches.
+- [Phase 5 Plan 04]: `dwc.datasets` is a view-over-VALUES (M-03 / D-15) with 19 columns sized for future per-constituent rows but shipping with exactly one row in v1.2 (D-16). M-04 commits `rainhead@gmail.com` verbatim in 3 places (creator_email / metadata_provider_email / contact_email) because `supabase/migrations/` is application code, not `.planning/`.
+- [Phase 5 Plan 04]: `dwc.multimedia` is native-only — `maplify.sightings.photo_url` has no license column (POLICY §1.4 / assumption A3), so all Maplify photos are excluded. D-19 distinct CASE branches (`WHEN 'none' THEN NULL` terminal + `ELSE NULL` for IS NULL non-terminal) are encoded for forward-compat even though both currently map to NULL — a future "classify unknowns" workflow can swap `ELSE NULL` for a real URI without touching the `'none'` arm.
+- [Phase 5 Plan 04]: Live-DB assertion run DEFERRED — Docker daemon not running, port 54322 closed, `supabase` CLI not on PATH. Per `<blocking_task_handling>` protocol, did NOT invent a passing verification. SQL + assertion harness committed; `05-VALIDATION.md` stays `nyquist_compliant: false` until the user runs `supabase db reset` + `psql -f supabase/snippets/05_dwc_assertions.sql` and the suite exits 0.
 - [Phase 5 Plan 02]: `dwc._native_occurrences` freezes the 25-column UNION-ALL interface contract — every output column carries an explicit cast (`::text` / `::double precision` / `::integer`) so plan 05-03's Maplify branch must mirror exactly; cross-branch type drift would otherwise be Postgres's canonical UNION-ALL view failure mode (RESEARCH Pitfall 4).
 - [Phase 5 Plan 02]: `dynamicProperties` lets NULL propagate through `jsonb_strip_nulls(jsonb_build_object(...))` rather than `COALESCE`-ing `extract_identifiers` to an empty array — opposite of the established `public.occurrences` pattern, because here we WANT the key dropped when there's no data (POLICY §2.3 omit-when-null).
 - [Phase 5 Plan 02]: Per-row DwC constants (`datasetID`, `datasetName`, `license`, `basisOfRecord`, `occurrenceStatus`, `geodeticDatum`) are inlined as text literals rather than joined from `dwc.datasets` — they're identical on every native row and the join would buy nothing. Plan 05-04's `dwc.datasets` view is the source-of-truth for EML emission in Phase 6.
@@ -62,6 +66,7 @@ None yet.
 
 ### Blockers/Concerns
 
+- [Phase 5 Plan 04]: Live-DB assertion run deferred — `supabase db reset` + `psql -v ON_ERROR_STOP=1 -f supabase/snippets/05_dwc_assertions.sql` must be run by the user against a local Postgres on 127.0.0.1:54322 (Docker daemon was down at execution time). On exit 0, flip `nyquist_compliant: true` + `wave_0_complete: true` in `.planning/phases/05-db-projection-dwc-schema/05-VALIDATION.md`. Phase 5 verification cannot complete until this is done.
 - [Phase 4]: Whale Alert / Maplify redistribution terms are an external legal/ToS question — may need light phase-level research and could rescope to a native-only first cut. Sequenced first as a gate.
 - [Phase 7]: Confirm the CloudFront behavior passes `/dwca/*` straight through to S3 rather than rewriting to the SPA `index.html` (verify against Lambda@Edge / behavior config).
 - [Phase 7]: Introduces a possible NEW `production` GitHub environment secret (Supabase service-role / DB connection string). Per deployment memory, confirm with the user before the first workflow run.
@@ -74,12 +79,13 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-17T21:30:38.022Z
-Stopped at: Completed 05-02-PLAN.md
-Resume file: .planning/phases/05-db-projection-dwc-schema/05-03-PLAN.md
+Last session: 2026-06-17T21:45:00.000Z
+Stopped at: 05-04-PLAN.md SQL closer + assertion harness committed; live-DB run deferred (Docker down)
+Resume file: User runs `supabase db reset` + `psql -f supabase/snippets/05_dwc_assertions.sql` to close out Tasks 3 + 4, then flip `nyquist_compliant: true` in 05-VALIDATION.md.
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Notes |
 |-------|------|----------|-------|
 | Phase 5 P3 | 3min | 3 tasks | 1 files |
+| Phase 5 P4 | 12min | 3 tasks committed (T1 SQL, T2 harness, T5 validation fill-in); T3+T4 deferred to user (Docker daemon down at execution time) | 2 created (snippets/05_dwc_assertions.sql, 05-04-SUMMARY.md), 2 modified (migration file, 05-VALIDATION.md) |
