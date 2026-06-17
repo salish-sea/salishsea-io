@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Export to DarwinCore Archive
 status: verifying
-stopped_at: Phase 4 context gathered
-last_updated: "2026-06-10T18:13:03.932Z"
+stopped_at: Phase 5 context gathered
+last_updated: "2026-06-17T20:35:26.241Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 5
@@ -63,6 +63,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-10T18:13:03.922Z
-Stopped at: Phase 4 context gathered
-Resume file: None
+Last session: 2026-06-17T20:35:26.237Z
+Stopped at: Phase 5 context gathered
+Resume file: .planning/phases/05-db-projection-dwc-schema/05-CONTEXT.md
