@@ -20,12 +20,12 @@ Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurre
 
 ### Data-Model Alignment (ALIGN)
 
-- [ ] **ALIGN-01**: A dedicated read-only `dwc` Postgres schema projects in-scope occurrences into DarwinCore-aligned columns, built directly from source tables (not the UI-shaped `public.occurrences` view), filtered to native + Maplify/Whale Alert only
-- [ ] **ALIGN-02**: Each occurrence record carries the four GBIF-required terms — `occurrenceID`, `basisOfRecord`, `scientificName`, `eventDate`
+- [x] **ALIGN-01**: A dedicated read-only `dwc` Postgres schema projects in-scope occurrences into DarwinCore-aligned columns, built directly from source tables (not the UI-shaped `public.occurrences` view), filtered to native + Maplify/Whale Alert only — Phase 5 Plan 02 (native branch via `dwc._native_occurrences`; Maplify branch lands in Plan 03)
+- [x] **ALIGN-02**: Each occurrence record carries the four GBIF-required terms — `occurrenceID`, `basisOfRecord`, `scientificName`, `eventDate` — Phase 5 Plan 02 (native branch: all four non-null by construction)
 - [x] **ALIGN-03**: Taxonomy is expanded to `taxonRank` + `kingdom`…`genus` by walking the `taxa` parent hierarchy, with higher-rank-only identifications (genus/family) handled correctly (no false binomials, correct `taxonRank`) — Phase 5 Plan 01 (`dwc.taxa_classification`)
-- [ ] **ALIGN-04**: Spatial terms emit `decimalLatitude`/`decimalLongitude` with correct axis and sign, a constant `geodeticDatum`, and `coordinateUncertaintyInMeters` (omitted when unknown, never 0)
-- [ ] **ALIGN-05**: Temporal terms emit ISO-8601 `eventDate` at honest per-source precision — Maplify report-time is emitted at date precision (or flagged), never as a false second-level sighting time
-- [ ] **ALIGN-06**: `occurrenceID` is stable and deterministic across nightly runs (source-prefixed surrogate keys)
+- [x] **ALIGN-04**: Spatial terms emit `decimalLatitude`/`decimalLongitude` with correct axis and sign, a constant `geodeticDatum`, and `coordinateUncertaintyInMeters` (omitted when unknown, never 0) — Phase 5 Plan 02 (native: `ST_Y`/`ST_X` correct axes, `'WGS84'` constant, `NULLIF(accuracy, 0)`)
+- [x] **ALIGN-05**: Temporal terms emit ISO-8601 `eventDate` at honest per-source precision — Maplify report-time is emitted at date precision (or flagged), never as a false second-level sighting time — Phase 5 Plan 02 (native: Z-suffixed full-precision UTC via `to_char`)
+- [x] **ALIGN-06**: `occurrenceID` is stable and deterministic across nightly runs (source-prefixed surrogate keys) — Phase 5 Plan 02 (`'salishsea:' || o.id::text`; `'maplify:'` prefix on integer IDs in Plan 03)
 
 ### Data Gaps & Licensing (GAP)
 
@@ -87,12 +87,12 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ALIGN-01 | Phase 5 | Pending |
-| ALIGN-02 | Phase 5 | Pending |
+| ALIGN-01 | Phase 5 | Complete (05-02, native branch) |
+| ALIGN-02 | Phase 5 | Complete (05-02, native branch) |
 | ALIGN-03 | Phase 5 | Complete (05-01) |
-| ALIGN-04 | Phase 5 | Pending |
-| ALIGN-05 | Phase 5 | Pending |
-| ALIGN-06 | Phase 5 | Pending |
+| ALIGN-04 | Phase 5 | Complete (05-02, native branch) |
+| ALIGN-05 | Phase 5 | Complete (05-02, native branch) |
+| ALIGN-06 | Phase 5 | Complete (05-02, native branch) |
 | GAP-01 | Phase 4 | Complete |
 | GAP-02 | Phase 4 | Complete |
 | GAP-03 | Phase 4 | Complete |

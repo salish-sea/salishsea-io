@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Export to DarwinCore Archive
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-06-17T21:12:18Z"
-last_activity: 2026-06-17 -- Phase 5 Plan 01 completed (dwc schema + taxa_classification helper)
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-06-17T21:24:00Z"
+last_activity: 2026-06-17 -- Phase 5 Plan 02 completed (dwc._native_occurrences branch view, 25-column contract frozen)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 8
-  completed_plans: 2
-  percent: 25
+  completed_plans: 3
+  percent: 38
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 5 (DB Projection (`dwc` schema)) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Executing Phase 5
-Last activity: 2026-06-17 -- Phase 5 Plan 01 completed (dwc schema + taxa_classification helper)
+Last activity: 2026-06-17 -- Phase 5 Plan 02 completed (dwc._native_occurrences branch view, 25-column contract frozen)
 
-Progress: [██▌       ] 25%
+Progress: [███▊      ] 38%
 
 ## Accumulated Context
 
@@ -39,6 +39,9 @@ Progress: [██▌       ] 25%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 5 Plan 02]: `dwc._native_occurrences` freezes the 25-column UNION-ALL interface contract — every output column carries an explicit cast (`::text` / `::double precision` / `::integer`) so plan 05-03's Maplify branch must mirror exactly; cross-branch type drift would otherwise be Postgres's canonical UNION-ALL view failure mode (RESEARCH Pitfall 4).
+- [Phase 5 Plan 02]: `dynamicProperties` lets NULL propagate through `jsonb_strip_nulls(jsonb_build_object(...))` rather than `COALESCE`-ing `extract_identifiers` to an empty array — opposite of the established `public.occurrences` pattern, because here we WANT the key dropped when there's no data (POLICY §2.3 omit-when-null).
+- [Phase 5 Plan 02]: Per-row DwC constants (`datasetID`, `datasetName`, `license`, `basisOfRecord`, `occurrenceStatus`, `geodeticDatum`) are inlined as text literals rather than joined from `dwc.datasets` — they're identical on every native row and the join would buy nothing. Plan 05-04's `dwc.datasets` view is the source-of-truth for EML emission in Phase 6.
 - [Phase 5 Plan 01]: M-05 higher-rank-only contract encoded in `dwc.taxa_classification` via explicit 12-rank IN list (genus/genushybrid/subgenus/species/complex/section/subsection/hybrid/subspecies/variety/form/infrahybrid) — survives any future inaturalist.rank enum reordering, where a positional `t.rank <= 'genus'` comparison would silently break.
 - [Phase 5 Plan 01]: `inaturalist.rank::text` is cast directly to DwC `taxonRank` (no remapping CASE) — values match by construction for every in-scope rank per RESEARCH §rank-vocabulary-mapping.
 - [Phase 5 Plan 01]: All four DwC views will live in a single migration (20260617203900_dwc_schema.sql); plans 05-02..05-04 append to it so the policy-to-SQL diff is reviewable in one file.
@@ -67,6 +70,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-17T21:12:18Z
-Stopped at: Completed 05-01-PLAN.md
-Resume file: .planning/phases/05-db-projection-dwc-schema/05-02-PLAN.md
+Last session: 2026-06-17T21:24:00Z
+Stopped at: Completed 05-02-PLAN.md
+Resume file: .planning/phases/05-db-projection-dwc-schema/05-03-PLAN.md
