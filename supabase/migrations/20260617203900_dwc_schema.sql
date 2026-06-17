@@ -280,7 +280,7 @@ SELECT
   -- exactly two keys: travelDirection (from o.direction enum cast to
   -- text) and unvalidatedIdentifiers (from public.extract_identifiers
   -- on the HTML body). Maplify-only keys (aggregatorSource,
-  -- aggregatorChain, countIsMinimum) MUST NOT appear here.
+  -- aggregatorChain, count-is-minimum) MUST NOT appear here.
   --
   -- Construction:
   --   * jsonb_build_object builds the object with both keys.
@@ -430,13 +430,36 @@ SELECT
   -- URI, constant for the Maplify branch (Acartia cooperative
   -- assertion).
   'https://creativecommons.org/licenses/by/4.0/legalcode'::text                 AS "license",
-  -- 24. dynamicProperties — Task 2 emits NULL::text placeholder; Task 3
-  -- replaces with the four-key jsonb_strip_nulls expression
-  -- (travelDirection, aggregatorSource, aggregatorChain,
-  -- unvalidatedIdentifiers — POLICY §2.3). NO `countIsMinimum`: D-14
-  -- is a no-op for v1.2 (POLICY §5.2: `min_count` does not exist on
-  -- maplify.sightings).
-  NULL::text                                                                    AS "dynamicProperties",
+  -- 24. dynamicProperties (POLICY §2.3) — Maplify key set is exactly
+  -- FOUR keys:
+  --   * travelDirection: public.extract_travel_direction(s.comments) cast
+  --     to text; NULL when no direction parsed → jsonb_strip_nulls drops
+  --     the key.
+  --   * aggregatorSource: dn.display_name from the LATERAL CASE; always
+  --     non-null by construction (the CASE has an ELSE arm) so this key
+  --     is always emitted (POLICY §2.3 "All Maplify records").
+  --   * aggregatorChain: structured provenance string per POLICY §2.3
+  --     example: 'Whale Alert / Maplify (WASEAK) > ' || dn.display_name.
+  --     Always emitted (same reasoning).
+  --   * unvalidatedIdentifiers: public.extract_identifiers(s.comments)
+  --     wrapped in NULLIF(..., ARRAY[]::varchar[]) so an empty array
+  --     collapses to NULL and jsonb_strip_nulls drops the key.
+  --
+  -- The Maplify-only "count-is-minimum" key is intentionally absent:
+  -- D-14 is a no-op for v1.2 — `min_count` does not exist on
+  -- maplify.sightings (POLICY §5.2 correction).
+  --
+  -- Construction mirrors the native branch's pattern: jsonb_build_object
+  -- → jsonb_strip_nulls → ::text cast for UNION-ALL type discipline →
+  -- outer NULLIF(..., '{}') for the (mostly belt-and-suspenders, since
+  -- aggregatorSource/aggregatorChain always present) collapse of an
+  -- all-null object to NULL.
+  NULLIF(jsonb_strip_nulls(jsonb_build_object(
+    'travelDirection',        public.extract_travel_direction(s.comments)::text,
+    'aggregatorSource',       dn.display_name,
+    'aggregatorChain',        'Whale Alert / Maplify (WASEAK) > ' || dn.display_name,
+    'unvalidatedIdentifiers', NULLIF(public.extract_identifiers(s.comments), ARRAY[]::varchar[])
+  ))::text, '{}'::text)                                                         AS "dynamicProperties",
   -- 25. informationWithheld (POLICY §2.4) — optional, NULL in v1.2.
   NULL::text                                                                    AS "informationWithheld"
 FROM maplify.sightings s
@@ -454,8 +477,8 @@ CROSS JOIN LATERAL (
   SELECT
     CASE s.source
       WHEN 'orca_network' THEN 'Orca Network'::text
-      WHEN 'cascadia'     THEN 'Cascadia Research Collective'::text
-      ELSE                     'Whale Alert / Maplify'::text
+      WHEN 'cascadia' THEN 'Cascadia Research Collective'::text
+      ELSE 'Whale Alert / Maplify'::text
     END AS display_name
 ) AS dn
 -- Filter discipline (RESEARCH §"System Architecture Diagram"):
