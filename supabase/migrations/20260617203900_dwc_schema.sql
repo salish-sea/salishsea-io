@@ -276,10 +276,28 @@ SELECT
   -- 23. license (D-20 / POLICY §1.1) — CC-BY-NC 4.0 canonical /legalcode
   -- URI, constant for the native branch.
   'https://creativecommons.org/licenses/by-nc/4.0/legalcode'::text              AS "license",
-  -- 24. dynamicProperties — Task 1 placeholder. Task 2 of plan 05-02
-  -- replaces with the jsonb_strip_nulls(jsonb_build_object(...))::text
-  -- expression (POLICY §2.3 + §2.4 native key set).
-  NULL::text                                                                    AS "dynamicProperties",
+  -- 24. dynamicProperties (POLICY §2.3 + §2.4) — native key set is
+  -- exactly two keys: travelDirection (from o.direction enum cast to
+  -- text) and unvalidatedIdentifiers (from public.extract_identifiers
+  -- on the HTML body). Maplify-only keys (aggregatorSource,
+  -- aggregatorChain, countIsMinimum) MUST NOT appear here.
+  --
+  -- Construction:
+  --   * jsonb_build_object builds the object with both keys.
+  --   * extract_identifiers already returns NULL (not '{}') on no
+  --     match — exactly what we want. The outer NULLIF(..., '{}'::varchar[])
+  --     is belt-and-suspenders against a future regex change that
+  --     returns an empty array instead of NULL (Pitfall 6: do NOT wrap
+  --     in COALESCE — we WANT NULL to propagate so jsonb_strip_nulls
+  --     drops the key).
+  --   * jsonb_strip_nulls drops keys whose value is JSON null.
+  --   * Cast jsonb → text because Phase 6 treats this term as opaque
+  --     text (POLICY §5.4) and to satisfy UNION-ALL type discipline
+  --     with the Maplify branch (Pitfall 4).
+  --   * Outer NULLIF(..., '{}') collapses an entirely-empty object to
+  --     NULL so the column reads as NULL (not literal '{}') when a row
+  --     has no dynamic properties at all.
+  NULLIF(jsonb_strip_nulls(jsonb_build_object('travelDirection', o.direction::text, 'unvalidatedIdentifiers', NULLIF(public.extract_identifiers(o.body), ARRAY[]::varchar[])))::text, '{}'::text) AS "dynamicProperties",
   -- 25. informationWithheld (POLICY §2.4) — optional, NULL in v1.2.
   NULL::text                                                                    AS "informationWithheld"
 FROM public.observations o
