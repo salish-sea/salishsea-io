@@ -80,7 +80,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-03-PLAN.md — Maplify branch view `dwc._maplify_occurrences` + DISTINCT source audit (Wave 2)
+- [x] 05-03-PLAN.md — Maplify branch view `dwc._maplify_occurrences` + DISTINCT source audit (Wave 2)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -148,7 +148,7 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 2. Rich Previews | v1.0 | 5/5 | Complete | 2026-04-17 |
 | 3. Partner Org Hyperlinking | v1.1 | 2/2 | Complete | 2026-04-18 |
 | 4. Rights & Data-Model Policy | v1.2 | 1/1 | Complete   | 2026-06-10 |
-| 5. DB Projection (`dwc` schema) | v1.2 | 2/4 | In progress | - |
+| 5. DB Projection (`dwc` schema) | v1.2 | 3/4 | In Progress|  |
 | 6. Archive Generation | v1.2 | 0/TBD | Not started | - |
 | 7. Nightly Workflow & Hosting | v1.2 | 0/TBD | Not started | - |
 | 8. Frontend Download Link | v1.2 | 0/TBD | Not started | - |

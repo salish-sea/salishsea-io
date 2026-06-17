@@ -4,14 +4,14 @@ milestone: v1.2
 milestone_name: Export to DarwinCore Archive
 status: executing
 stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-06-17T21:24:00Z"
+last_updated: "2026-06-17T21:31:10.329Z"
 last_activity: 2026-06-17 -- Phase 5 Plan 02 completed (dwc._native_occurrences branch view, 25-column contract frozen)
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 8
-  completed_plans: 3
-  percent: 38
+  total_plans: 5
+  completed_plans: 4
+  percent: 20
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 5 (DB Projection (`dwc` schema)) — EXECUTING
-Plan: 3 of 4
-Status: Executing Phase 5
+Plan: 4 of 4
+Status: Ready to execute
 Last activity: 2026-06-17 -- Phase 5 Plan 02 completed (dwc._native_occurrences branch view, 25-column contract frozen)
 
 Progress: [███▊      ] 38%
@@ -51,6 +51,10 @@ Recent decisions affecting current work:
 - [v1.2 Architecture]: DwC contract lives in a dedicated read-only `dwc` Postgres schema over source tables (not app-code mapping over `public.occurrences`); export script is a thin serializer; nightly via scheduled GitHub Actions reusing the existing AWS OIDC role + S3/CloudFront (no new AWS infra).
 - [v1.0 Phase 02]: Lambda@Edge for rich previews; SSM credentials managed outside CDK
 - [v1.1 Roadmap]: Pre-process body text before marked.parse to inject markdown links; CSV in src/ (bundled by Vite)
+- [Phase ?]: [Phase 5 Plan 03]: Maplify branch source→display-name CASE materialized once per row via CROSS JOIN LATERAL — dn.display_name reused in rightsHolder, datasetName, dynamicProperties.aggregatorSource, and dynamicProperties.aggregatorChain. Single source of truth per row prevents drift across the four downstream columns (D-10/D-11).
+- [Phase ?]: [Phase 5 Plan 03]: Task 1 audit checkpoint resolved with policy-default mapping via auto-mode (orca_network/cascadia + ELSE 'Whale Alert / Maplify'); defensive ELSE arm prevents data loss for unaudited source codes; plan 05-04 assertion suite catches any production drift.
+- [Phase ?]: [Phase 5 Plan 03]: rwsas defensive filter (POLICY §5.3) included unconditionally in Maplify WHERE clause per RESEARCH Open Question 2 default — belt-and-suspenders against the ingest-time filter in 20250919034327_fix_maplify_taxon_mapping.sql.
+- [Phase ?]: [Phase 5 Plan 03]: Maplify datasetName carries the per-record SUB-SOURCE name (e.g. 'Orca Network'), NOT the parent dataset title — deliberate divergence from the native branch; per-record datasetID still resolves to the parent URI on every row (POLICY §6.3).
 
 ### Pending Todos
 
@@ -70,6 +74,12 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-17T21:24:00Z
+Last session: 2026-06-17T21:30:38.022Z
 Stopped at: Completed 05-02-PLAN.md
 Resume file: .planning/phases/05-db-projection-dwc-schema/05-03-PLAN.md
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Notes |
+|-------|------|----------|-------|
+| Phase 5 P3 | 3min | 3 tasks | 1 files |
