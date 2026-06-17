@@ -33,7 +33,7 @@ BEGIN
   IF total = 0 THEN
     RAISE NOTICE 'ALIGN-01 SKIP: dwc.occurrences is empty in local DB; assertion deferred to first data fixture.';
   ELSE
-    SELECT array_agg(DISTINCT split_part("occurrenceID", ':', 1) ORDER BY 1)
+    SELECT array_agg(DISTINCT split_part("occurrenceID", ':', 1) ORDER BY split_part("occurrenceID", ':', 1))
       INTO arr FROM dwc.occurrences;
     IF NOT (arr <@ ARRAY['maplify','salishsea']::text[]) THEN
       RAISE EXCEPTION 'ALIGN-01 FAIL: dwc.occurrences carries unexpected source prefix(es): %', arr;
@@ -298,7 +298,7 @@ BEGIN
   IF total = 0 THEN
     RAISE NOTICE 'D-20 SKIP: dwc.occurrences is empty in local DB; license-URI assertion deferred.';
   ELSE
-    SELECT array_agg(DISTINCT "license" ORDER BY 1) INTO arr FROM dwc.occurrences;
+    SELECT array_agg(DISTINCT "license" ORDER BY "license") INTO arr FROM dwc.occurrences;
     IF NOT (arr <@ ARRAY[
       'https://creativecommons.org/licenses/by-nc/4.0/legalcode',
       'https://creativecommons.org/licenses/by/4.0/legalcode'
