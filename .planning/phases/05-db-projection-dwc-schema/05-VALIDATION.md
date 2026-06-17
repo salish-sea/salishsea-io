@@ -2,8 +2,8 @@
 phase: 5
 slug: db-projection-dwc-schema
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-17
 ---
 
@@ -91,17 +91,6 @@ The assertion script uses `\set ON_ERROR_STOP on` + `DO $$ BEGIN IF (assertion f
 - [x] Wave 0 covers the assertion-script scaffold (committed in plan 05-04 task 2)
 - [x] No watch-mode flags (`psql -f` is single-shot)
 - [x] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter after the planner fills task IDs — **pending DB run**
+- [x] `nyquist_compliant: true` set in frontmatter — assertion suite exited 0 on 2026-06-17 after fix `2fbeb01` (`array_agg(DISTINCT … ORDER BY 1)` → explicit expression in ORDER BY for PG14+ compatibility).
 
-**Approval:** task IDs filled by plan 05-04 task 5 on 2026-06-17. **Assertion run deferred** — local Supabase DB unavailable at execution time (Docker daemon not running; port 54322 closed). `nyquist_compliant` stays `false` until the assertion suite has actually exited 0 against a populated local DB.
-
-**To complete validation (user-runnable):**
-
-```bash
-supabase db reset                                       # apply all migrations + seed
-psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
-     -v ON_ERROR_STOP=1 -f supabase/snippets/05_dwc_assertions.sql
-echo "exit code: $?"                                    # expect 0
-```
-
-On exit 0, edit this file's frontmatter to `nyquist_compliant: true` + `wave_0_complete: true` and update **Approval** to `auto-approved by plan 05-04 task 4 — psql exit 0 on YYYY-MM-DD`.
+**Approval:** user-confirmed pass on 2026-06-17. Assertion suite at `supabase/snippets/05_dwc_assertions.sql` exited 0 against the local DB at `127.0.0.1:54322` covering all 17 assertions across ALIGN-01..06 + M-05 + POLICY §1.4 + DWCA-03 readiness + D-15/D-16 wiring + D-20.

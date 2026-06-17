@@ -30,7 +30,7 @@
 **Dependency order (honored from research):** rights/gap policy → DB projection → archive generation → nightly workflow → frontend link. Phases 5–6 are fully offline-validatable (local Supabase + local zip) before any prod-touching workflow exists.
 
 - [x] **Phase 4: Rights & Data-Model Policy (gate)** - Document/encode rights + resolve the data-model gaps as explicit findings before any code (completed 2026-06-10)
-- [ ] **Phase 5: DB Projection (`dwc` schema)** - Read-only `dwc` schema projecting in-scope occurrences into DarwinCore-aligned columns over source tables
+- [x] **Phase 5: DB Projection (`dwc` schema)** - Read-only `dwc` schema projecting in-scope occurrences into DarwinCore-aligned columns over source tables (completed 2026-06-17)
 - [ ] **Phase 6: Archive Generation** - Produce a valid DwC-A zip (`meta.xml` + EML + Occurrence core + Multimedia extension) that passes the GBIF validator, plus a GeoParquet sidecar from the same projection
 - [ ] **Phase 7: Nightly Workflow & Hosting** - Scheduled GitHub Actions workflow publishes the archive atomically to existing S3/CloudFront with a checksum
 - [ ] **Phase 8: Frontend Download Link** - A site visitor can discover and download the archive from the site
@@ -84,7 +84,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [~] 05-04-PLAN.md — Union `dwc.occurrences` + `dwc.datasets` + `dwc.multimedia` + db reset + assertion suite (Wave 4) — SQL + assertion harness committed 2026-06-17; live-DB run deferred (Docker not running locally)
+- [x] 05-04-PLAN.md — Union `dwc.occurrences` + `dwc.datasets` + `dwc.multimedia` + db reset + assertion suite (Wave 4)
 
 **UI hint**: no
 
@@ -148,7 +148,7 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 2. Rich Previews | v1.0 | 5/5 | Complete | 2026-04-17 |
 | 3. Partner Org Hyperlinking | v1.1 | 2/2 | Complete | 2026-04-18 |
 | 4. Rights & Data-Model Policy | v1.2 | 1/1 | Complete   | 2026-06-10 |
-| 5. DB Projection (`dwc` schema) | v1.2 | 3/4 | In Progress|  |
+| 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
 | 6. Archive Generation | v1.2 | 0/TBD | Not started | - |
 | 7. Nightly Workflow & Hosting | v1.2 | 0/TBD | Not started | - |
 | 8. Frontend Download Link | v1.2 | 0/TBD | Not started | - |

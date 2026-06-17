@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Export to DarwinCore Archive
-status: executing
-stopped_at: 05-04-PLAN.md SQL + assertion harness committed; live-DB run DEFERRED (Docker daemon not running locally)
-last_updated: "2026-06-17T21:45:00.000Z"
-last_activity: 2026-06-17 -- Phase 5 Plan 04 closer — UNION + datasets + multimedia + assertion harness committed; supabase db reset + psql -f deferred to user (Docker down)
+status: SQL closer + assertion harness committed; live-DB validation DEFERRED to user (Tasks 3, 4 blocked on Docker daemon)
+stopped_at: 05-04-PLAN.md SQL closer + assertion harness committed; live-DB run deferred (Docker down)
+last_updated: "2026-06-17T22:37:16.386Z"
+last_activity: 2026-06-17
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
-  percent: 20
+  completed_plans: 5
+  percent: 40
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: 5 (DB Projection (`dwc` schema)) — EXECUTING
-Plan: 4 of 4
+Phase: 6
+Plan: Not started
 Status: SQL closer + assertion harness committed; live-DB validation DEFERRED to user (Tasks 3, 4 blocked on Docker daemon)
-Last activity: 2026-06-17 -- Phase 5 Plan 04 closer plan — UNION + datasets + multimedia + assertion harness committed
+Last activity: 2026-06-17
 
 Progress: [████      ] 40%
 
@@ -66,7 +66,6 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 5 Plan 04]: Live-DB assertion run deferred — `supabase db reset` + `psql -v ON_ERROR_STOP=1 -f supabase/snippets/05_dwc_assertions.sql` must be run by the user against a local Postgres on 127.0.0.1:54322 (Docker daemon was down at execution time). On exit 0, flip `nyquist_compliant: true` + `wave_0_complete: true` in `.planning/phases/05-db-projection-dwc-schema/05-VALIDATION.md`. Phase 5 verification cannot complete until this is done.
 - [Phase 4]: Whale Alert / Maplify redistribution terms are an external legal/ToS question — may need light phase-level research and could rescope to a native-only first cut. Sequenced first as a gate.
 - [Phase 7]: Confirm the CloudFront behavior passes `/dwca/*` straight through to S3 rather than rewriting to the SPA `index.html` (verify against Lambda@Edge / behavior config).
 - [Phase 7]: Introduces a possible NEW `production` GitHub environment secret (Supabase service-role / DB connection string). Per deployment memory, confirm with the user before the first workflow run.
