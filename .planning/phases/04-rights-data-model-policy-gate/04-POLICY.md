@@ -13,17 +13,22 @@ This document is the single authoritative source for every rights, licensing, at
 
 *Closes GAP-02. Operationalizes the upstream decision recorded in REQUIREMENTS.md policy block.*
 
-### 1.1 Occurrence-Record License URI
+### 1.1 Occurrence-Record License URI (per-source) (D-20)
 
-Every in-scope occurrence record carries the following constant `license` field value:
+The `license` field is **per-source**, not a single constant across the archive (**D-20**). Phase 5's `dwc.occurrences` projection emits one of two canonical `/legalcode` URIs depending on record provenance:
 
-```
-https://creativecommons.org/licenses/by-nc/4.0/legalcode
-```
+| Source | License URI | Basis |
+|--------|-------------|-------|
+| Native (`public.observations` via contributors) | `https://creativecommons.org/licenses/by-nc/4.0/legalcode` | REQUIREMENTS.md upstream decision + native contributor consent basis (§1.3, D-08). |
+| Maplify / Whale Alert (`maplify.sightings`) | `https://creativecommons.org/licenses/by/4.0/legalcode` | All Maplify records reach SalishSea.io via the Acartia data cooperative (Conserve.IO operates the WASEAK API on Acartia's stack). Contributors to Acartia assert CC-BY at registration (acartia.io/register). The CC-BY assertion is upstream of SalishSea.io and applies transitively to records republished here. |
 
-This is the canonical `/legalcode` URI required by GBIF's occurrence license parser (not the human-readable deed URL `/4.0/`). It applies as a constant column on all records emitted by the `dwc.occurrences` view in Phase 5 and serialized verbatim by the archive generator in Phase 6.
+Both URIs are the canonical `/legalcode` form required by GBIF's occurrence license parser (not the human-readable deed URL `/4.0/`).
 
-This URI is the operationalization of the upstream decision "occurrence-record license = CC-BY-NC 4.0" recorded in REQUIREMENTS.md. It is not re-decided here.
+**Note on scope of the Acartia CC-BY assertion (Maplify branch):** The CC-BY claim is asserted by *contributors* to Acartia (Whale Alert/Conserve.IO operates the platform; Orca Network, Cascadia Research, and others are sub-source contributors whose records flow through it). Because the assertion is made at contribution time and applies cooperative-wide, it covers all `maplify.sightings` records SalishSea.io fetches from WASEAK — regardless of the `source` value on a given record. This is why §4.2/§4.3/§4.4 conferral shifts from rights-gating to courtesy notification + attribution preference (see §4.1, reframed).
+
+**Reconciliation with §6.6:** §6.2's `dwc.datasets` schema carries `intellectual_rights` per row. In v1.2 there is one row with the native (CC-BY-NC) URI, and per-record `license` diverges for Maplify rows via the lookup in this section. When (if) Maplify is reified as a separate constituent row in `dwc.datasets`, the per-record `license` for Maplify rows joins from the constituent's `intellectual_rights` and this section's table collapses to a description of that join.
+
+**Upstream-decision provenance:** The CC-BY-NC 4.0 native default is the operationalization of REQUIREMENTS.md's "occurrence-record license = CC-BY-NC 4.0" — that decision predates the Acartia finding and applies to native records. The Maplify CC-BY URI is **not** a re-decision; it is the operationalization of the upstream Acartia-cooperative license, recorded here for the first time because the Acartia pathway was not characterized in earlier planning.
 
 ### 1.2 Per-Photo License Converter
 
@@ -42,7 +47,12 @@ Native `public.sighting_photos.license_code` values are mapped to canonical CC U
 
 **Assumption A1 (explicit):** No version number is stored with enum values in the database. All per-photo licenses are pinned at version 4.0 for all CC variants (except `cc0`, which is version 1.0 by definition). If a photo was submitted under an earlier version, it will be mapped to the 4.0 URI. This is generally a safe default (4.0 has broader licensor protections), but it is a known approximation.
 
-**Note on NULL license:** The `ALTER COLUMN license DROP NOT NULL` migration allows `NULL` values in `public.sighting_photos.license_code`. NULL license is treated identically to `none` — the photo is excluded from the Multimedia extension. Cross-reference Section 3 (gap table row for `observation_photos`) and Section 1.4.
+**NULL vs `none` semantics (D-19):** The `ALTER COLUMN license DROP NOT NULL` migration allows `NULL` values in `public.observation_photos.license_code`. NULL and `none` are **semantically distinct**, not aliases:
+
+- **`license_code = 'none'`** means **"no redistributable license"** — the contributor (or ingest path) classified the photo as unlicensed. Terminal: no future workflow will change this without contributor action.
+- **`license_code = NULL`** means **"license unknown / unclassified"** — the photo has not yet been assigned a license code. Non-terminal: a future workflow (UI prompt to the contributor, an admin classifier, or an ingest backfill) may resolve it to a real code, `cc0`, or `none`.
+
+Both states **exclude the photo from the Multimedia extension** in v1.2 (per §1.4). The distinction matters because it leaves an explicit hook for a future "classify your unclassified photos" workflow without overloading `none` to mean both "no license" and "didn't get around to choosing." Phase 5's CASE expression must therefore emit two separate `WHEN` branches for `none` and `IS NULL` — not a compound predicate — so the encoded distinction is preserved in the projection.
 
 ### 1.3 Native Contributor Consent Basis (D-08)
 
@@ -54,11 +64,11 @@ The consent basis for publishing native SalishSea.io contributions under CC-BY-N
 
 ### 1.4 License-Less Photo Exclusion (GAP-04 intersection)
 
-Photos lacking a redistributable license are excluded from the Multimedia extension:
+Photos without a redistributable license are excluded from the Multimedia extension. Per §1.2's D-19 distinction, exclusions fall into three semantically distinct cases:
 
-- **Native photos with `license_code = 'none'`** (the enum value): excluded.
-- **Native photos with `license_code = NULL`**: excluded (same treatment as `none`).
-- **Maplify `photo_url`**: the `maplify.sightings` table stores a photo URL but no license code. Per assumption A3 (no implied license for Maplify photos), all Maplify photos are excluded from the Multimedia extension until conferral with Conserve.IO explicitly grants a redistributable license.
+- **Native photos with `license_code = 'none'`** — classified as "no redistributable license." **Excluded.** Terminal state; only a contributor reclassification would change it.
+- **Native photos with `license_code IS NULL`** — "license unknown / unclassified." **Excluded** in v1.2. Distinct from `none`: a future classification workflow could resolve these to a real license code and unblock them. Phase 5 emits this as a separate CASE branch from `none` so the distinction is preserved (per §1.2).
+- **Maplify `photo_url`** — the `maplify.sightings` table stores a photo URL but no license column. Per assumption A3 (no implied license for Maplify photos), all Maplify photos are excluded from the Multimedia extension until conferral with Conserve.IO explicitly grants a redistributable license. (Semantically closest to "unknown" — but at the source level, not the record level — and resolution depends on conferral, not contributor action.)
 
 This exclusion is a gap resolution for GAP-04. Cross-reference Section 3 (gap table: `maplify.sightings.photo_url`) and Section 2.4 (unvalidated identifier exclusion).
 
@@ -84,6 +94,7 @@ For records from `maplify.sightings` (Whale Alert / Maplify via the WASEAK feed)
 - **`recordedBy`** = `maplify.sightings.usernm` (the original observer's username), when non-NULL per **D-10**. Omitted when NULL.
 - **`datasetName`** = a human-readable sub-source name derived from the `maplify.sightings.source` column per **D-10**. This is a mapping table from source code to display name (e.g., `orca_network` → "Orca Network"). The exact mapping is built in Phase 5 against `SELECT DISTINCT source FROM maplify.sightings` (see Assumption A2). Known values include `orca_network` and `cascadia`; `rwsas` is excluded at ingest and will not appear.
 - **`rightsHolder`** = the originating sub-source organization (e.g., "Orca Network", "Cascadia Research Collective") when known from the `source` column mapping, falling back to `"Whale Alert / Maplify"` when the source is unrecognized per **D-11**.
+- **`license`** = `https://creativecommons.org/licenses/by/4.0/legalcode` (CC-BY 4.0) for all Maplify records, per §1.1 (D-20). The license is asserted upstream at Acartia (contributor registration) and applies to all records reaching SalishSea.io via the WASEAK feed.
 
 The Whale Alert → sub-source aggregation chain is carried in `dynamicProperties` (see Section 2.3).
 
@@ -149,7 +160,7 @@ This is a GAP-04 resolution. Cross-reference Section 1.4 (license-less photo exc
 | `scientificName` etc. | `taxon_id` (FK) | Hierarchy walk needed | Resolved by walking `inaturalist.taxa` parent hierarchy (Phase 5). |
 | `basisOfRecord` | (none) | Not stored | Constant: `HumanObservation` (locked upstream). |
 | `occurrenceStatus` | (none) | Not stored | Constant: `present` (D-12). All in-scope records are positive sightings. |
-| `license` | (none) | Not stored | Constant: `https://creativecommons.org/licenses/by-nc/4.0/legalcode` (GAP-02, Section 1.1). |
+| `license` | (none) | Not stored | Constant for native branch: `https://creativecommons.org/licenses/by-nc/4.0/legalcode` (CC-BY-NC 4.0, GAP-02, §1.1, D-20). |
 | `geodeticDatum` | (none) | Not stored | Constant: `WGS84` (locked upstream). |
 
 ### 3.2 Gap Table: `maplify.sightings` (Whale Alert / Maplify Records)
@@ -169,15 +180,15 @@ This is a GAP-04 resolution. Cross-reference Section 1.4 (license-less photo exc
 | Multimedia `identifier` | `photo_url` (varchar, nullable) | **Gap: no license stored for Maplify photos** | **Exclude all Maplify photos from Multimedia extension** (GAP-04, Section 1.4). |
 | `basisOfRecord` | (none) | Not stored | Constant: `HumanObservation`. |
 | `occurrenceStatus` | (none) | Not stored | Constant: `present` (D-12). |
-| `license` | (none) | Not stored | Constant: `https://creativecommons.org/licenses/by-nc/4.0/legalcode` (GAP-02, Section 1.1). |
+| `license` | (none — license is upstream at Acartia) | Asserted at Acartia contributor registration, not on the record | Constant for Maplify branch: `https://creativecommons.org/licenses/by/4.0/legalcode` (CC-BY 4.0, D-20, §1.1). |
 | `geodeticDatum` | (none) | Not stored | Constant: `WGS84`. |
 
-### 3.3 Gap Table: `public.sighting_photos` (Native Photos — Multimedia Extension)
+### 3.3 Gap Table: `public.observation_photos` (Native Photos — Multimedia Extension)
 
 | DwC Term | Source Column | Gap | Resolution |
 |----------|--------------|-----|------------|
 | `identifier` | `href` (varchar) | None | Photo URL. Emit verbatim. |
-| `license` (Multimedia) | `license_code` (varchar NOT NULL) | Short code; needs URI mapping; `none` and NULL excluded | Apply per-photo converter (Section 1.2). Exclude `none` and NULL. |
+| `license` (Multimedia) | `license_code` (`license` enum, **nullable** since the `DROP NOT NULL` migration) | Short code; needs URI mapping; `none` and NULL excluded with distinct semantics (D-19) | Apply per-photo converter (Section 1.2). Exclude `none` ("no license", terminal) and NULL ("unknown", non-terminal) as separate CASE branches per §1.4. |
 | `type` | (none) | Not stored | Constant: `StillImage`. |
 | `rightsHolder` | (via sighting → contributor) | Not stored per-photo | Inherit record-level `rightsHolder` (contributor display name). |
 | Multimedia `index` | `seq` (smallint) | None | Emit `seq` for ordering. |
@@ -200,25 +211,29 @@ The column is sparse: omitting it means "count unknown," not "count = 0." This i
 
 ## 4. Third-Party Redistribution Status
 
-*Closes GAP-04 (redistribution policy component). Per D-04, this section frames conferral questions — it does not assert permission where none exists.*
+*Closes GAP-04 (redistribution policy component). Reframed 2026-06-17: per D-20 (§1.1), the rights basis for Maplify records is now resolved upstream via the Acartia data cooperative's CC-BY assertion. The hold-but-unlinked posture (D-05) is preserved but its rationale shifts from rights-gating to data-QA-gating-with-courtesy-notification.*
 
-### 4.1 Holding Rule (D-01, D-02, D-05, D-06)
+### 4.1 Holding Rule (D-01, D-02, D-03, D-05, D-06) — Reframed
 
-**Build stance (D-01):** The `dwc` schema (Phase 5), archive generator (Phase 6), and nightly job (Phase 7) are built at full scope — native + Maplify/Whale Alert records. Engineering does not wait on the rights questions.
+**Rights basis (D-20, §1.1):** All `maplify.sightings` records reach SalishSea.io via the Acartia cooperative; contributors to Acartia assert CC-BY 4.0 at registration (acartia.io/register). This resolves the redistribution rights question for the entire Maplify branch. The sections below are *not* gated on rights anymore — they're gated on data QA and courtesy.
 
-**Default for archive contents (D-02):** The technical default is **include-and-attribute**. Maplify/Whale Alert records are included in the archive with structured attribution and provenance (Sections 2.2–2.3). Retreat from a source only on:
-- Explicit prohibition found in publicly stated terms, **or**
-- A "no" response received during direct conferral with the source organization.
+**Build stance (D-01):** Unchanged. The `dwc` schema (Phase 5), archive generator (Phase 6), and nightly job (Phase 7) are built at full scope — native + Maplify/Whale Alert records. Reinforced by D-20: rights are not a blocker.
 
-**Per-source drop granularity (D-03):** If a nested sub-source (identified by `maplify.sightings.source`) declines or has prohibitive terms, only that sub-source's records are dropped — not the entire Maplify/Whale Alert feed. The `dwc` projection in Phase 5 must support filtering by `maplify.source` to enable this.
+**Default for archive contents (D-02), reframed:** Include-and-attribute remains the technical default. The retreat conditions are now narrower:
+- Per-source drop activated by a *requested* removal from a sub-source organization (rare; CC-BY does not require pre-clearance, but a source could still ask), **or**
+- Per-source drop activated by data QA finding that a sub-source has structural problems (e.g., systematic bad coordinates, incompatible identifier semantics).
 
-**Hosted-but-unlinked hold (D-05):** During the pre-conferral period:
-- The nightly job (Phase 7) **publishes** the archive to the stable `/dwca/` URL as designed. The archive is reachable at the URL if you know it.
-- Only the **frontend download link** (Phase 8) is suppressed. State = "unlisted," not private. No new access-control infrastructure is created (consistent with the v1.2 "no new AWS infra" constraint).
+**Per-source drop granularity (D-03):** Unchanged mechanism. The `dwc` projection must still support `WHERE maplify.source != …` filtering, now for QA/courtesy use rather than rights use.
 
-**Native-only public eligibility (D-06):** Native SalishSea.io records may be publicly linked — via the frontend download link — independently of third-party conferral, subject to the D-08 consent notice (Section 1.3) being in place. The third-party-inclusive public download link waits until conferral clears.
+**Hosted-but-unlinked hold (D-05), reframed as data-QA gate:** The gate is preserved but its rationale changes:
+- **New primary rationale:** A QA pass on the projected Maplify records before public surfacing. The data was fetched for situational awareness (per WASEAK terms-of-use); republishing it as a research-grade archive raises the quality bar. The hold gives time to verify schema mapping, coordinate sanity, identifier handling, and absence of systematic data issues against `dwc.occurrences` output.
+- **Secondary rationale:** Courtesy notification to Whale Alert/Conserve.IO, Orca Network, and Cascadia Research — informing them that SalishSea.io will republish their Acartia-licensed records, gathering attribution preferences, surfacing concerns.
+- **Mechanism:** Nightly job (Phase 7) publishes the archive to the stable `/dwca/` URL as designed. Only the frontend link (Phase 8) is suppressed. State = "unlisted," not private.
+- **Exit criteria:** Both (a) QA pass on Maplify records, and (b) courtesy notifications sent (acknowledgment not required for the secondary rationale — sent + reasonable response window is sufficient).
 
-**Open question — D-07 (flagged for Phase 7/8 planner):** D-06 implies a possible native-only public archive variant distinct from the held full archive. The implementation question — one held archive plus one native-only variant, a build-time filter flag, or another mechanism — is NOT resolved here. This is an open implementation decision for the Phase 7/8 planner. The policy records only that the native-only-eligible-for-public-linking principle (D-06) implies this downstream implementation choice needs to be made.
+**Native-only public eligibility (D-06):** Native records may be publicly linked independently of the Maplify QA gate, subject to the D-08 consent notice (§1.3) being in place. Unchanged by D-20.
+
+**Open question — D-07 (flagged for Phase 7/8 planner):** Unchanged. D-06 still implies a possible native-only archive variant; the implementation choice (separate archive vs. build-time filter) is for the Phase 7/8 planner.
 
 ### 4.2 Whale Alert / Conserve.IO (Maplify data platform operator)
 
@@ -226,43 +241,54 @@ The column is sparse: omitting it means "count unknown," not "count = 0." This i
 - **`whale-alert.io` / `developer.whale-alert.io`** — a cryptocurrency blockchain transaction tracking service. Its prohibitive Terms & Conditions belong to this crypto service and are **irrelevant to this project**. Do not use these ToS when assessing redistribution rights.
 - **`whalealert.org` / Conserve.IO** — the marine mammal whale sighting app operated by Conserve.IO (partnered with IFAW, NOAA). This is the entity that operates the WASEAK API from which SalishSea.io fetches `maplify.sightings` data.
 
-**What is publicly stated:** Conserve.IO's privacy policy states that "non-personal data associated with marine mammal sightings — such as species, number observed, animal status, and sighting date, time, and location — are generally retained for scientific and conservation purposes." This describes internal retention policy, not a redistribution grant. The Maplify WASEAK registration requires users to use data "solely for situational awareness and avoiding whales" and not share credentials — no data licensing or redistribution terms are stated.
+**Rights basis (resolved):** Per D-20 / §1.1, Conserve.IO operates the WASEAK API on the Acartia data cooperative stack (acartia.io). Contributors to Acartia (including Conserve.IO-managed feeds and the sub-sources flowing through them) assert CC-BY 4.0 at registration. The rights question is resolved upstream — Conserve.IO does not need to grant additional permission, and SalishSea.io does not need to ask.
 
-**What is NOT stated:** Whether downstream redistribution of Maplify sighting records as part of a DarwinCore Archive is permitted, prohibited, or subject to conditions. Absence of prohibition is not permission (avoiding Pitfall 6 per D-04).
+**Earlier framing, corrected:** Prior drafts of this section noted Conserve.IO's privacy policy (which describes internal retention) and the WASEAK API ToS (which restricts user behavior to "situational awareness") and concluded no redistribution license was stated. That conclusion was wrong — it missed the Acartia layer. The Acartia CC-BY assertion sits upstream of both the privacy policy and the API ToS and grants the redistribution license those documents don't address.
 
 **Contact surface:** `info@whalealert.org` (Conserve.IO / Whale Alert marine mammal app). Identified via IFAW as the contact for scientific data requests.
 
-**Conferral question:** "SalishSea.io fetches whale sighting records from your WASEAK API (maplify.com/waseak) as part of our citizen science platform. We plan to publish these records in a DarwinCore Archive under CC-BY-NC 4.0, with attribution to the originating source (e.g., `datasetName = 'Orca Network'` for records tagged with that source). Do you grant permission for this redistribution? Are there specific attribution requirements or conditions we should follow?"
+**Notification (no longer a "conferral question"):**
 
-**Current status:** No redistribution policy found. **Hold applies** (D-05): archive built and hosted but third-party-inclusive public link suppressed pending this conferral.
+> "SalishSea.io fetches whale sighting records from your WASEAK API (maplify.com/waseak) as part of our citizen science platform. We are preparing to republish these records in a DarwinCore Archive under the CC-BY 4.0 terms asserted upstream at Acartia (acartia.io/register), with structured attribution to each sub-source. As a courtesy: we want to flag this before our public link goes live, share attribution language we plan to use (e.g., `datasetName` and `rightsHolder` set to the originating sub-source), and ask whether you have preferences on attribution wording or contact-of-record for the Conserve.IO-managed aggregator surface."
+
+**Current status:** Rights resolved (Acartia CC-BY). **Hold remains** under D-05's reframed rationale — primary gate is now Maplify data QA, secondary is this courtesy notification window.
 
 ### 4.3 Orca Network
 
-**What is publicly stated:** Orca Network collects cetacean sighting reports from a PNW volunteer network. Their site notes that "collated sightings data provides invaluable and ongoing insight" and that data is shared "with researchers and natural resource managers." Orca Network is a named sub-source in `maplify.sightings.source` and a partner in the Whale Alert ecosystem. No formal data use policy, data sharing license, API documentation, or redistribution terms were found on the Orca Network website.
+**Status:** As a contributor to Acartia (via the Conserve.IO / Whale Alert ecosystem), Orca Network's records reach SalishSea.io carrying the cooperative-wide CC-BY assertion. Rights resolved.
 
-**What is NOT stated:** Whether sighting records attributed to Orca Network (submitted to Whale Alert / Maplify and appearing with `source = 'orca_network'` or equivalent) may be redistributed by third parties as part of a DwC-A archive.
+**What is publicly stated:** Orca Network collects cetacean sighting reports from a PNW volunteer network. Their site notes that "collated sightings data provides invaluable and ongoing insight" and that data is shared "with researchers and natural resource managers." Orca Network is a named sub-source in `maplify.sightings.source` and a partner in the Whale Alert/Conserve.IO/Acartia ecosystem.
 
 **Contact surface:** `orcanetwork.org` — no direct data-use contact found. The organization is a small PNW-based nonprofit; direct inquiry may require a general contact form.
 
-**Conferral question:** "SalishSea.io receives sighting records attributed to Orca Network via the Maplify/Whale Alert WASEAK feed. We plan to republish these records in a public DarwinCore Archive (CC-BY-NC 4.0) with `datasetName = 'Orca Network'` and `rightsHolder = 'Orca Network'`. Do you grant permission? Are there conditions or preferred attribution language we should follow?"
+**Notification (no longer a "conferral question"):**
 
-**Current status:** No redistribution policy found. **Hold applies** (D-05).
+> "SalishSea.io receives sighting records attributed to Orca Network via the Maplify/Whale Alert WASEAK feed, which is part of the Acartia data cooperative. We are preparing to republish these records in a public DarwinCore Archive under the CC-BY 4.0 terms asserted at Acartia, with `datasetName = 'Orca Network'` and `rightsHolder = 'Orca Network'`. As a courtesy notification: do you have preferred attribution language, a different rightsHolder string, or a contact-of-record we should cite?"
+
+**Current status:** Rights resolved (Acartia CC-BY). **Hold remains** under D-05's reframed rationale.
 
 ### 4.4 Cascadia Research Collective
 
-**What is publicly stated:** Cascadia Research is a Washington-state nonprofit focused on cetacean and marine mammal research. Their publicly available Hawaii OASIS dataset on OBIS-SEAMAP is published under **CC-BY-NC 4.0** — demonstrating awareness of and willingness to use open data licensing. This is a positive signal for conferral. Their main website (`cascadiaresearch.org`) has no publicly stated data sharing, redistribution, or API policy specifically for sightings reported through Whale Alert.
+**Status:** As a contributor to Acartia (via Whale Alert/Conserve.IO submissions), Cascadia Research's records carry the cooperative-wide CC-BY assertion. Rights resolved. (This is also consistent with Cascadia's own Hawaii OASIS dataset on OBIS-SEAMAP, which is published openly — they are demonstrably comfortable with open licensing.)
 
-**What is NOT stated:** Whether sighting records attributed to Cascadia Research (appearing in `maplify.sightings` with `source = 'cascadia'` or equivalent) may be redistributed in a DwC-A archive.
+**What is publicly stated:** Cascadia Research is a Washington-state nonprofit focused on cetacean and marine mammal research. Their publicly available Hawaii OASIS dataset on OBIS-SEAMAP is published under CC-BY-NC 4.0.
 
 **Contact surface:** `strandings@cascadiaresearch.org`; phone 360-943-7325.
 
-**Conferral question:** "We receive sightings attributed to Cascadia Research via the Maplify/Whale Alert WASEAK feed. We plan to republish them in a public DarwinCore Archive under CC-BY-NC 4.0, with `datasetName = 'Cascadia Research Collective'` and `rightsHolder = 'Cascadia Research Collective'`. Given that Cascadia's own published datasets (e.g., the OBIS-SEAMAP Hawaii OASIS dataset) use CC-BY-NC 4.0, do you grant permission for this downstream use? Are there conditions we should meet?"
+**Notification (no longer a "conferral question"):**
 
-**Current status:** No explicit redistribution policy found; own datasets use matching license (positive signal). **Hold applies** (D-05) until explicit conferral response received.
+> "We receive sightings attributed to Cascadia Research via the Maplify/Whale Alert WASEAK feed, which is part of the Acartia data cooperative. We are preparing to republish these records in a public DarwinCore Archive under the CC-BY 4.0 terms asserted at Acartia, with `datasetName = 'Cascadia Research Collective'` and `rightsHolder = 'Cascadia Research Collective'`. As a courtesy: do you have a preferred attribution string, a citable contact-of-record, or any concerns about this republication?"
 
-### 4.5 Organizational Conferral as an Out-of-Band Gate
+**Current status:** Rights resolved (Acartia CC-BY). **Hold remains** under D-05's reframed rationale.
 
-Organizational conferral — contacting Whale Alert (Conserve.IO), Orca Network, and Cascadia Research with the questions above — is an **out-of-band, non-engineering task**. It is not a code phase; it is not planned as a GitHub issue or task in this roadmap. It is tracked here as the gate that un-hides third-party records from the public download link. When conferral produces a "yes" for an organization, Phase 8 (or a follow-up) can update the frontend link to include that source's records. When conferral produces a "no" for an organization, Phase 5's per-source filter (D-03) is activated to drop that sub-source.
+### 4.5 Hold Exit — Data QA + Courtesy Window
+
+The hold-but-unlinked posture (D-05, reframed) exits when both conditions are met:
+
+1. **Data QA pass:** A reviewer has examined `dwc.occurrences` output for Maplify records and confirmed it does not have systematic issues that would embarrass a downstream researcher (e.g., bad coordinates, malformed identifiers, schema-mapping errors). Specific QA criteria are out of scope for this policy doc — defined per the Phase 5/6 verification workflow. This is the primary gate.
+2. **Courtesy notification window:** Notifications per §4.2/4.3/4.4 have been sent and a reasonable response window has elapsed (defined informally — typically 2–4 weeks). Acknowledgment is welcomed but not required. This is the secondary gate.
+
+Both gates are out-of-band, non-engineering tasks — tracked here, not in the roadmap as code phases. When both clear, the frontend link (Phase 8) is updated to include third-party records. If a sub-source asks to be excluded during the courtesy window, Phase 5's per-source filter (D-03) is activated for that sub-source.
 
 ---
 
@@ -405,10 +431,10 @@ All D-numbers are cited in the sections above. For reference:
 | Decision | Section(s) | Summary |
 |----------|-----------|---------|
 | D-01 | 4.1 | Build at full scope; engineering does not wait on rights questions |
-| D-02 | 4.1 | Include-and-attribute default; retreat only on explicit prohibition or conferral "no" |
-| D-03 | 4.1 | Per-`maplify.source` drop granularity |
-| D-04 | 4.2, 4.3, 4.4 | Frame conferral questions; do not assert permission |
-| D-05 | 4.1 | Hosted-but-unlinked hold; suppress only the frontend link |
+| D-02 | 4.1 | Include-and-attribute default; retreat only on requested removal or QA finding (reframed by D-20 — was: explicit prohibition or conferral "no") |
+| D-03 | 4.1 | Per-`maplify.source` drop granularity (now a QA/courtesy switch, not a rights switch, post-D-20) |
+| D-04 | 4.2, 4.3, 4.4 | Originally: frame conferral questions, do not assert permission. Reframed by D-20: §4.2–4.4 now contain courtesy notifications, not conferral questions; D-04's "do not assert permission absent" caution no longer binds since CC-BY is asserted upstream. |
+| D-05 | 4.1, 4.5 | Hosted-but-unlinked hold preserved; rationale reframed by D-20 from rights-gating to data-QA-gating (primary) + courtesy notification (secondary). Exit: QA pass + notification window. |
 | D-06 | 4.1 | Native records may be publicly linked independently of third-party conferral |
 | D-07 | 4.1 | OPEN: native-only archive variant question for Phase 7/8 planner |
 | D-08 | 1.3 | Native consent basis: platform policy + submission-form notice going forward |
@@ -422,10 +448,13 @@ All D-numbers are cited in the sections above. For reference:
 | D-16 | 6.2 | One row in `dwc.datasets` for v1.2; schema sized for future parent + constituents (no migration needed to add) |
 | D-17 | 6.3 | `datasetID` URI scheme: `https://salishsea.io/datasets/{slug}` |
 | D-18 | 6.4 | Publisher = SalishSea.io (organizational); Contact = Peter Abrahamsen (individual); contact email lives in `dwc.datasets`, not this document |
+| D-19 | 1.2, 1.4 | `license_code = 'none'` and `IS NULL` are semantically distinct (`none` = "no license" terminal; NULL = "unknown" non-terminal); both excluded in v1.2; Phase 5 emits separate CASE branches |
+| D-20 | 1.1, 2.2, 3.2, 4.1–4.5 | Per-record `license` is per-source: native = CC-BY-NC 4.0; Maplify = CC-BY 4.0 (asserted upstream at Acartia cooperative). Resolves the rights gate for the Maplify branch; reframes §4 conferral as courtesy + reframes D-05 hold as data-QA gate. |
 
 ---
 
 *Policy authored: 2026-06-10*
 *§6 (Dataset Identity & EML Content) added: 2026-06-17*
+*D-19 (NULL ≠ none semantics) and D-20 (per-source license, Acartia CC-BY for Maplify) added: 2026-06-17*
 *Phase: 04-rights-data-model-policy-gate*
 *Document home: `.planning/phases/04-rights-data-model-policy-gate/04-POLICY.md`*
