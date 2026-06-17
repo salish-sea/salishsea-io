@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc && vite build && npx html-validate dist/**/*.html && node bin/verify-csp-inline-hash.mjs dist/index.html",
+    "build:dwca": "tsx scripts/dwca/build.ts",
     "build:size": "vite build",
     "dev": "vite dev",
     "gen-types": "supabase gen types --local --schema public --schema graphql_public > database.types.ts",
@@ -50,6 +51,7 @@
     }
   ],
   "devDependencies": {
+    "@duckdb/node-api": "1.5.4-r.1",
     "@playwright/test": "^1.60.0",
     "@size-limit/file": "^12.1.0",
     "@types/geojson": "^7946.0.16",
@@ -60,8 +62,10 @@
     "size-limit": "^12.0.1",
     "supabase": "^2.101.0",
     "supertest": "^7.2.2",
+    "tsx": "^4.22.4",
     "type-fest": "^5.6.0",
     "typescript": "~6.0.3",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.7",
+    "yazl": "3.3.1"
   }
 }
