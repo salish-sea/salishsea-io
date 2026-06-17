@@ -143,7 +143,7 @@ export class ObsMap extends LitElement {
   display: flex;
   flex-direction: row;
   flex-grow: 1;
-  overflow: auto;
+  overflow: hidden;
 }
 #map {
   flex-grow: 1;

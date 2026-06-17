@@ -81,7 +81,9 @@ export default class SalishSea extends LitElement {
     :host {
       display: flex;
       flex-direction: column;
-      height: 100dvh;
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
     }
     a {
       text-decoration: none;
@@ -111,7 +113,8 @@ export default class SalishSea extends LitElement {
       display: flex;
       flex-direction: row;
       flex-grow: 1;
-      overflow: auto;
+      min-height: 0;
+      overflow: hidden;
     }
     dialog {
       max-width: 30rem;

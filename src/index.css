@@ -21,7 +21,9 @@ a:hover {
   color: #1565c0;
 }
 
-body {
-  height: 100vh;
+html, body {
+  height: 100lvh;
   margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
