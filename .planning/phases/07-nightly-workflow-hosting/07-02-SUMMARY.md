@@ -28,13 +28,14 @@ key-decisions:
   - "L-01 uses `request.uri.startsWith('/dwca/')` (not regex, not includes) — path is fully under our control (CONTEXT specifics). Trailing slash ensures /dwca (sans slash) continues to the OG-meta branch (documented inline)."
   - "3-line braced if-block with blank line separators per existing file style — not a 1-line ternary."
   - "makeEvent helper extended with optional uri parameter (default '') so all 10 existing call sites are unchanged."
-  - "Task 2 human-verify curl output (confirming carve-out live on prod CloudFront) pending — plan paused at checkpoint."
+  - "Task 2 (deploy verify) RESOLVED 2026-06-18 17:18 UTC: deploy.yml run 27776050313 completed success (10m33s); curl -A 'facebookexternalhit/1.1' https://salishsea.io/dwca/probe-l01 returns HTTP/2 403 application/xml (S3 NoSuchKey) — confirming the request now reaches S3 instead of being intercepted by Lambda@Edge. Regression curl on / still returns OG-meta HTML."
+  - "Post-merge: stale compiled .js / .d.ts artifacts in infra/lib/edge-handler/ were winning module resolution over .ts source (May-4 leftovers), causing the L-01 tests to fail until removed. Files are gitignored — not tracked — but executor should remove on entry. Filed mentally as a future-fix to the executor's pre-flight (or to add moduleFileExtensions ordering to jest.config.js)."
 
 patterns-established:
   - "All Lambda@Edge path-specific bypasses go at the very top of handler() before any header reads — prevents accidental side-effects from UA-sniff or SSM fetch paths."
 
 requirements-completed:
-  - "EXPORT-02 (partial — Lambda@Edge prerequisite shipped; full close requires Plan 07-03 to publish + smoke-check the stable URL)"
+  - "EXPORT-02 (Lambda@Edge prerequisite shipped + verified live; full close still requires Plan 07-03 to publish + smoke-check the stable URL)"
 ---
 
 # Phase 7 Plan 02: L-01 Lambda@Edge `/dwca/*` Carve-Out Summary
@@ -65,8 +66,13 @@ All 15 tests pass (10 pre-existing + 5 new). TypeScript compiles clean.
 
 ## Status
 
-**Task 1:** COMPLETE — committed `0fbec49`
-**Task 2:** PAUSED at checkpoint — awaiting human verification that `deploy.yml` ran successfully and the new Lambda@Edge version has replicated to production CloudFront.
+**Task 1:** COMPLETE — committed `0fbec49` (rebased to `05bf832`).
+**Task 2:** COMPLETE — L-01 carve-out verified live on production CloudFront 2026-06-18 17:18 UTC.
+
+### Task 2 verification evidence
+- `gh run list --workflow=deploy.yml`: run `27776050313` `completed success` (10m33s)
+- `curl -sI -A 'facebookexternalhit/1.1' https://salishsea.io/dwca/probe-l01` → `HTTP/2 403`, `content-type: application/xml`, `x-cache: Error from cloudfront` (S3 NoSuchKey — request reached S3 origin, NOT intercepted by Lambda@Edge OG-meta interceptor)
+- Regression: `curl -s -A 'facebookexternalhit/1.1' https://salishsea.io/?o=test` still returns `<!DOCTYPE html><html><head>\n  <meta property="og:site_name"…` — non-/dwca paths still get OG-meta as designed.
 
 ## Commits
 
