@@ -42,17 +42,32 @@ jobs:
                   role-to-assume: arn:aws:iam::648183724555:role/salishsea-deploy-action
                   aws-region: us-west-2
 
-            # SUPABASE_DB_URL points at the Supabase **session pooler** (port 5432) at
-            # `aws-1-us-west-1.pooler.supabase.com`, NOT the direct connection at
-            # `db.<ref>.supabase.co`. Direct connections went IPv6-only in 2024 and
-            # GitHub Actions runners are IPv4-only, so they cannot reach the direct
-            # endpoint. The session pooler routes via IPv4 and preserves session-level
-            # features (prepared statements) that DuckDB's `postgres` ATTACH needs;
-            # the transaction pooler (port 6543) on the same host does NOT.
-            # Username includes the project_ref (`postgres.<ref>`) for pooler routing.
-            - name: Build DwC-A
+            # Assemble SUPABASE_DB_URL once for the whole job.
+            #
+            # Why: the raw DB_PASSWORD contains characters (`@`, possibly `:`/`/`) that
+            # have meaning in the userinfo section of a URL. Direct YAML interpolation
+            # (`${{ secrets.DB_PASSWORD }}@host`) lets the URL parser see the password's
+            # literal `@` as the userinfo terminator, so DuckDB ATTACH ends up trying
+            # to resolve `<password-tail>@<real-host>` as a DNS name and fails.
+            # Fix: URL-encode the password via Node, register the encoded value with
+            # `::add-mask::` so it can't leak in any subsequent step, then export the
+            # assembled URL via `$GITHUB_ENV` so Build + Guard see it automatically.
+            #
+            # Host is the Supabase **session pooler** (port 5432) — direct connections
+            # at `db.<ref>.supabase.co` are IPv6-only and GHA runners are IPv4. The
+            # transaction pooler (port 6543, same host) does NOT preserve session
+            # features (prepared statements) that DuckDB's `postgres` ATTACH needs.
+            - name: Prepare Postgres DSN
               env:
-                  SUPABASE_DB_URL: postgres://postgres.${{ vars.SUPABASE_PROJECT_ID }}:${{ secrets.DB_PASSWORD }}@aws-1-us-west-1.pooler.supabase.com:5432/postgres
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+              run: |
+                  ENCODED_PW=$(node -e 'process.stdout.write(encodeURIComponent(process.env.DB_PASSWORD))')
+                  echo "::add-mask::${ENCODED_PW}"
+                  printf 'SUPABASE_DB_URL=postgres://postgres.%s:%s@aws-1-us-west-1.pooler.supabase.com:5432/postgres\n' \
+                    "${SUPABASE_PROJECT_ID}" "${ENCODED_PW}" >> "${GITHUB_ENV}"
+
+            - name: Build DwC-A
               run: npm run build:dwca
 
             - name: Compute checksums
@@ -61,9 +76,8 @@ jobs:
                   sha256sum salishsea-occurrences-v1.zip     > salishsea-occurrences-v1.zip.sha256
                   sha256sum salishsea-occurrences-v1.parquet > salishsea-occurrences-v1.parquet.sha256
 
+            # SUPABASE_DB_URL inherited from the "Prepare Postgres DSN" step via $GITHUB_ENV.
             - name: Guard (G-01..G-04)
-              env:
-                  SUPABASE_DB_URL: postgres://postgres.${{ vars.SUPABASE_PROJECT_ID }}:${{ secrets.DB_PASSWORD }}@aws-1-us-west-1.pooler.supabase.com:5432/postgres
               run: npx tsx scripts/dwca/guard.ts
 
             - name: Publish to S3 (checksum-LAST order, P-02)
