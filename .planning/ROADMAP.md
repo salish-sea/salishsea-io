@@ -33,7 +33,7 @@
 - [x] **Phase 5: DB Projection (`dwc` schema)** - Read-only `dwc` schema projecting in-scope occurrences into DarwinCore-aligned columns over source tables (completed 2026-06-17)
 - [x] **Phase 6: Archive Generation** - Produce a valid DwC-A zip (`meta.xml` + EML + Occurrence core + Multimedia extension) that passes the GBIF validator, plus a GeoParquet sidecar from the same projection (completed 2026-06-18)
 - [x] **Phase 7: Nightly Workflow & Hosting** - Scheduled GitHub Actions workflow publishes the archive atomically to existing S3/CloudFront with a checksum (completed 2026-06-18)
-- [ ] **Phase 8: Frontend Download Link** - A site visitor can discover and download the archive from the site
+- [x] **Phase 8: Frontend Download Link** - A site visitor can discover and download the archive from the site (completed 2026-06-18)
 
 ## Phase Details
 
@@ -174,7 +174,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 08-02-PLAN.md — Wire `@state` field + augmented `onAboutClicked` + `renderDownloadSection()` + four CSS rules into `src/salish-sea.ts`; append DOM/spy tests to `src/salish-sea.test.ts`; blocking post-deploy human-verify on production
+- [x] 08-02-PLAN.md — Wire `@state` field + augmented `onAboutClicked` + `renderDownloadSection()` + four CSS rules into `src/salish-sea.ts`; append DOM/spy tests to `src/salish-sea.test.ts`; blocking post-deploy human-verify on production
 
 **UI hint**: yes
 
@@ -192,5 +192,5 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
 | 6. Archive Generation | v1.2 | 6/6 | Complete   | 2026-06-18 |
 | 7. Nightly Workflow & Hosting | v1.2 | 3/3 | Complete    | 2026-06-18 |
-| 8. Frontend Download Link | v1.2 | 1/2 | In Progress|  |
+| 8. Frontend Download Link | v1.2 | 2/2 | Complete   | 2026-06-18 |
 </content>
