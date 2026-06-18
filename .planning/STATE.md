@@ -4,13 +4,13 @@ milestone: v1.2
 milestone_name: Export to DarwinCore Archive
 status: executing
 stopped_at: Phase 8 context gathered
-last_updated: "2026-06-18T19:21:57.623Z"
-last_activity: 2026-06-18 -- Phase 08 planning complete
+last_updated: "2026-06-18T19:28:43.146Z"
+last_activity: 2026-06-18 -- Phase 08 execution started
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 16
+  completed_plans: 15
   percent: 80
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** The most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative cetacean data.
-**Current focus:** Phase 07 — nightly-workflow-hosting
+**Current focus:** Phase 08 — frontend-download-link
 
 ## Current Position
 
-Phase: 8
-Plan: Not started
+Phase: 08 (frontend-download-link) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-18 -- Phase 08 planning complete
+Last activity: 2026-06-18 -- Phase 08 execution started
 
 Progress: [████      ] 40%
 
@@ -78,7 +78,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-06-18T18:40:30.224Z
+Last session: 2026-06-18T19:28:43.142Z
 Stopped at: Phase 8 context gathered
 Resume file: .planning/phases/08-frontend-download-link/08-CONTEXT.md
 

@@ -170,7 +170,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 08-01-PLAN.md — Pure helpers + tests in `src/download-info.ts` + `src/download-info.test.ts` (`formatBytes`, `formatRelativeTime`, `fetchArchiveMetadata`, `DownloadInfo` type)
+- [x] 08-01-PLAN.md — Pure helpers + tests in `src/download-info.ts` + `src/download-info.test.ts` (`formatBytes`, `formatRelativeTime`, `fetchArchiveMetadata`, `DownloadInfo` type)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -192,5 +192,5 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
 | 6. Archive Generation | v1.2 | 6/6 | Complete   | 2026-06-18 |
 | 7. Nightly Workflow & Hosting | v1.2 | 3/3 | Complete    | 2026-06-18 |
-| 8. Frontend Download Link | v1.2 | 0/2 | Not started | - |
+| 8. Frontend Download Link | v1.2 | 1/2 | In Progress|  |
 </content>

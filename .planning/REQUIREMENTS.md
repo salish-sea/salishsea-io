@@ -54,7 +54,7 @@ Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurre
 
 ### Download Access (DOWNLOAD)
 
-- [ ] **DOWNLOAD-01**: A site visitor can discover and download the DarwinCore Archive from the site
+- [x] **DOWNLOAD-01**: A site visitor can discover and download the DarwinCore Archive from the site
 
 ## v2 Requirements (deferred)
 
@@ -109,7 +109,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | EXPORT-03 | Phase 7 | Complete |
 | EXPORT-04 | Phase 7 | Complete |
 | EXPORT-05 | Phase 7 | Complete |
-| DOWNLOAD-01 | Phase 8 | Pending |
+| DOWNLOAD-01 | Phase 8 | Complete |
 
 **Coverage:**
 
