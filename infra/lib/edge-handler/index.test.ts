@@ -13,7 +13,7 @@ jest.mock('@aws-sdk/client-ssm', () => {
 });
 
 // Helper to build a CloudFront viewer-request event
-function makeEvent(userAgent: string, querystring: string = '') {
+function makeEvent(userAgent: string, querystring: string = '', uri: string = '') {
   return {
     Records: [
       {
@@ -23,6 +23,7 @@ function makeEvent(userAgent: string, querystring: string = '') {
               'user-agent': [{ value: userAgent }],
             },
             querystring,
+            uri,
           },
         },
       },
@@ -197,5 +198,59 @@ describe('Lambda@Edge OG meta handler', () => {
 
     expect(mockSend).toHaveBeenCalledTimes(2); // 2 params fetched once, not 4
     expect(mockFetch).toHaveBeenCalledTimes(2); // Supabase called each time
+  });
+});
+
+describe('L-01 carve-out: /dwca/* path-gate', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    _clearCredentialCache();
+    jest.spyOn(global, 'fetch').mockReset();
+    mockSsmCredentials();
+  });
+
+  it('passes through /dwca/* request unmodified for bot UA', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    const event = makeEvent('facebookexternalhit/1.1', '', '/dwca/salishsea-occurrences-v1.zip');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('passes through /dwca/* request unmodified for non-bot UA', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    const event = makeEvent('Mozilla/5.0', '', '/dwca/salishsea-occurrences-v1.zip');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('passes through /dwca/* request with querystring unmodified', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    const event = makeEvent('twitterbot/1.0', 'foo=bar', '/dwca/salishsea-occurrences-v1.zip');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('passes through /dwca/sub/path.parquet — prefix is /dwca/ not a hardcoded filename', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    const event = makeEvent('slackbot/1.0', '', '/dwca/salishsea-occurrences-v1.parquet');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('does NOT pass through paths that contain but do not start with /dwca/', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+    const event = makeEvent('facebookexternalhit/1.1', 'o=abc', '/observation/dwca/x');
+    const result = await handler(event) as { status: string; body: string };
+    // The bot-UA branch should run, returning OG-meta HTML — NOT a pass-through
+    expect(result).not.toBe(event.Records[0].cf.request);
+    expect(result.status).toBe('200');
+    expect(result.body).toContain('og:title');
   });
 });

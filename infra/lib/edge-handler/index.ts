@@ -93,6 +93,15 @@ const FALLBACK_IMAGE = 'https://salishsea.io/preview.jpg';
 
 export const handler = async (event: any): Promise<any> => {
   const request = event.Records[0].cf.request;
+
+  // L-01: bypass OG-meta interception for /dwca/* binary downloads (DwC-A archive +
+  // GeoParquet sidecar). Path-prefix gate runs BEFORE the bot-UA branch so crawlers
+  // (Slackbot, Facebook, etc.) receive the binary, not synthesized HTML.
+  // Ref: .planning/phases/07-nightly-workflow-hosting/07-CONTEXT.md §L-01
+  if (request.uri.startsWith('/dwca/')) {
+    return request;
+  }
+
   const ua = request.headers['user-agent']?.[0]?.value ?? '';
 
   if (!isBot(ua)) {
