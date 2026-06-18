@@ -4,12 +4,12 @@ milestone: v1.2
 milestone_name: Export to DarwinCore Archive
 status: executing
 stopped_at: Phase 7 context gathered
-last_updated: "2026-06-18T16:41:47.799Z"
-last_activity: 2026-06-17 -- Phase 06 execution started
+last_updated: "2026-06-18T16:46:33.226Z"
+last_activity: 2026-06-18 -- Phase 07 execution started
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 11
+  total_plans: 14
   completed_plans: 11
   percent: 60
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** The most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative cetacean data.
-**Current focus:** Phase 06 — archive-generation
+**Current focus:** Phase 07 — nightly-workflow-hosting
 
 ## Current Position
 
-Phase: 06 (archive-generation) — EXECUTING
-Plan: 1 of 6
-Status: Ready to execute
-Last activity: 2026-06-17 -- Phase 06 execution started
+Phase: 07 (nightly-workflow-hosting) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 07
+Last activity: 2026-06-18 -- Phase 07 execution started
 
 Progress: [████      ] 40%
 
