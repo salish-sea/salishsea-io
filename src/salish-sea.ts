@@ -15,6 +15,7 @@ import mapContext from "./map-context.ts";
 import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
+import { fetchArchiveMetadata, formatBytes, formatRelativeTime, type DownloadInfo } from "./download-info.ts";
 import { supabase } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
@@ -150,6 +151,24 @@ export default class SalishSea extends LitElement {
         width: 100%;
       }
     }
+
+    .downloads {
+      margin-top: 0.25rem;
+      padding-left: 1.25rem;
+    }
+    .downloads li {
+      margin-bottom: 0.25rem;
+    }
+    .sha-link {
+      font-size: 0.75rem;
+      margin-left: 0.5rem;
+      opacity: 0.65;
+    }
+    .freshness {
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+      opacity: 0.8;
+    }
   `;
 
   @provide({context: mapContext})
@@ -171,6 +190,9 @@ export default class SalishSea extends LitElement {
 
   @state()
   private lastOwnOccurrence: Occurrence | null = null;
+
+  @state()
+  private downloadInfo: DownloadInfo | null = null;
 
   @provide({context: userContext})
   @state()
@@ -333,6 +355,7 @@ export default class SalishSea extends LitElement {
             <li>Sightings from the <a href="https://www.orcanetwork.org/">Orca Network</a> community</li>
             <li>Observations of humpbacks within the Salish Sea from <a href="https://happywhale.com">HappyWhale</a> (open data, 2012-April,2025)</li>
           </ul>
+          ${this.renderDownloadSection()}
           <p>
             If you have any feedback, tap the Feedback button in the bottom-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>.
             This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen
@@ -398,11 +421,57 @@ export default class SalishSea extends LitElement {
   onAboutClicked(e: Event) {
     e.preventDefault();
     this.dialogRef.value!.showModal();
+    if (this.downloadInfo === null) {
+      fetchArchiveMetadata().then(info => { this.downloadInfo = info; });
+    }
   }
 
   onCloseModal(e: Event) {
     e.preventDefault();
     this.dialogRef.value!.close();
+  }
+
+  private renderDownloadSection(): unknown {
+    const info = this.downloadInfo;
+
+    const zipSize = info?.ok && info.zipBytes != null
+      ? html` <small>${formatBytes(info.zipBytes)}</small>`
+      : '';
+    const parquetSize = info?.ok && info.parquetBytes != null
+      ? html` <small>${formatBytes(info.parquetBytes)}</small>`
+      : '';
+
+    let freshness: string;
+    if (info === null) {
+      freshness = '';
+    } else if (info.ok && info.lastModified != null) {
+      freshness = formatRelativeTime(info.lastModified);
+    } else {
+      freshness = 'Updated nightly at 09:00 UTC.';
+    }
+
+    return html`
+      <h4>Data download</h4>
+      <p>
+        The full observation dataset is published nightly as a
+        <a href="https://dwc.tdwg.org/" target="_blank" rel="noopener noreferrer">Darwin Core Archive</a>, with a GeoParquet sidecar for
+        spatial tools. Native SalishSea.io observations and Maplify / Whale Alert sightings
+        (including Orca Network and Cascadia) are included; iNaturalist and Happywhale are
+        excluded — those are already published to GBIF by their canonical sources. Licensed
+        <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC 4.0</a>.
+      </p>
+      <ul class="downloads">
+        <li>
+          <a href="/dwca/salishsea-occurrences-v1.zip" download>salishsea-occurrences-v1.zip</a>${zipSize}
+          <a href="/dwca/salishsea-occurrences-v1.zip.sha256" class="sha-link" download>sha256</a>
+        </li>
+        <li>
+          <a href="/dwca/salishsea-occurrences-v1.parquet" download>salishsea-occurrences-v1.parquet</a>${parquetSize}
+          <a href="/dwca/salishsea-occurrences-v1.parquet.sha256" class="sha-link" download>sha256</a>
+        </li>
+      </ul>
+      <p class="freshness">${freshness}</p>
+    `;
   }
 
   async fetchOccurrences(date: string) {
