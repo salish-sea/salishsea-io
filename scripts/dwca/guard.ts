@@ -45,12 +45,19 @@ const ROW_FLOOR = BigInt(process.env['ROW_FLOOR'] ?? 1000);
 // ---------------------------------------------------------------------------
 
 /**
- * Return `'<redacted>'` if the input string contains a URI scheme separator
- * (`://`), otherwise return the input. Prevents DSN leakage in error messages.
+ * Mask the password portion of any `scheme://user:password@host…` substrings
+ * found in `s`, leaving the rest of the message intact so the underlying error
+ * stays actionable. Falls back to a hard `<redacted>` if no structured DSN is
+ * found but `://` is still present. Mirrors scripts/dwca/build.ts.
  *
- * T-7-01 mitigation: scrub `://` substring before logging.
+ * T-7-01 mitigation: scrub password before logging.
  */
 function maskDsn(s: string): string {
+    const masked = s.replace(
+        /\b(postgres(?:ql)?:\/\/[^:\s/@]+:)[^@\s]+(@)/gi,
+        '$1***$2',
+    );
+    if (masked !== s) return masked;
     return s.includes('://') ? '<redacted>' : s;
 }
 

@@ -107,11 +107,19 @@ function describeViewToPgColumns(
 }
 
 /**
- * Return `'<redacted>'` if the input string contains a URI scheme separator
- * (`://`), otherwise return the input. Used to scrub potential DSNs from
- * error messages before logging.
+ * Mask the password portion of any `scheme://user:password@host…` substrings
+ * found in `s`, leaving the rest of the message intact so the underlying error
+ * is still actionable. The previous all-or-nothing implementation collapsed
+ * the entire message to `<redacted>` whenever it contained `://`, which made
+ * production connection failures undiagnosable. Falls back to a hard redaction
+ * if the regex can't find a structured DSN but `://` is still present.
  */
 function maskDsn(s: string): string {
+    const masked = s.replace(
+        /\b(postgres(?:ql)?:\/\/[^:\s/@]+:)[^@\s]+(@)/gi,
+        '$1***$2',
+    );
+    if (masked !== s) return masked;
     return s.includes('://') ? '<redacted>' : s;
 }
 
