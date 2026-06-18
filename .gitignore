@@ -37,3 +37,6 @@ dist-ssr
 test-results
 playwright-report
 e2e/screenshots
+
+# Claude Code worktrees (transient isolation for parallel executors)
+.claude/worktrees/
