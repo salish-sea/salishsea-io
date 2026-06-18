@@ -4,7 +4,7 @@ milestone: v1.2
 milestone_name: Export to DarwinCore Archive
 status: executing
 stopped_at: Phase 7 context gathered
-last_updated: "2026-06-18T16:11:41.749Z"
+last_updated: "2026-06-18T16:41:47.799Z"
 last_activity: 2026-06-17 -- Phase 06 execution started
 progress:
   total_phases: 5
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 Phase: 06 (archive-generation) — EXECUTING
 Plan: 1 of 6
-Status: Executing Phase 06
+Status: Ready to execute
 Last activity: 2026-06-17 -- Phase 06 execution started
 
 Progress: [████      ] 40%

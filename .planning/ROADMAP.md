@@ -141,8 +141,18 @@ Plans:
   4. A sha256 checksum is published alongside the archive and verifies against the downloaded file.
   5. The GeoParquet sidecar is regenerated and published by the same nightly run, under `/dwca/…`, with the same atomic-publish, empty-result guard, cache invalidation, and checksum treatment as the archive.
 
-**Plans**: TBD
-**Research flag**: Likely needs light phase-level research — confirm the CloudFront behavior passes `/dwca/*` straight through to S3 rather than rewriting to the SPA `index.html` (verify against the Lambda@Edge / behavior config).
+**Plans**: 3 plans
+Plans:
+**Wave 1** *(parallel — Plans 07-01 and 07-02 have zero file overlap)*
+
+- [ ] 07-01-PLAN.md — Land `scripts/dwca/guard.ts` (G-01..G-04 hard-floor empty-result guard) + `scripts/dwca/verify-publish.ts` (V-01 post-publish sha256 smoke verifier) with vitest unit tests; no AWS / no workflow / no Lambda touches
+- [ ] 07-02-PLAN.md — Add the L-01 Lambda@Edge `/dwca/*` carve-out in `infra/lib/edge-handler/index.ts` + extend Jest tests; one push to `main` triggers `deploy.yml` to ship the new edge version; ends with a blocking human-verify that the carve-out is live on production CloudFront
+
+**Wave 2** *(blocked on 07-01 and 07-02 completion)*
+
+- [ ] 07-03-PLAN.md — Land `.github/workflows/dwca-nightly.yml` (scheduled `0 9 * * *` UTC + `workflow_dispatch`); gated by checkpoints for peter-evans/create-issue-from-file SHA verify, `SUPABASE_DB_URL` secret in GH `production` env, and first `workflow_dispatch` smoke run review
+
+**Research flag**: RESOLVED affirmatively — `infra/lib/infra-stack.ts` confirms single `defaultBehavior` with no SPA fallback; `/dwca/*` passes through to S3 once Plan 07-02 ships the L-01 carve-out so the Lambda@Edge OG-meta interceptor no longer intercepts binary archives.
 **Secret flag**: Introduces a possible NEW `production` GitHub environment secret (Supabase service-role / DB connection string). Per deployment memory, surface this to the user and await confirmation before the first workflow run.
 **UI hint**: no
 
@@ -172,5 +182,5 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 4. Rights & Data-Model Policy | v1.2 | 1/1 | Complete   | 2026-06-10 |
 | 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
 | 6. Archive Generation | v1.2 | 6/6 | Complete   | 2026-06-18 |
-| 7. Nightly Workflow & Hosting | v1.2 | 0/TBD | Not started | - |
+| 7. Nightly Workflow & Hosting | v1.2 | 0/3 | Not started | - |
 | 8. Frontend Download Link | v1.2 | 0/TBD | Not started | - |
