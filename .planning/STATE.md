@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Export to DarwinCore Archive
-status: executing
+status: Awaiting next milestone
 stopped_at: Phase 8 context gathered
-last_updated: "2026-06-18T19:28:43.146Z"
-last_activity: 2026-06-18 -- Phase 08 execution started
+last_updated: "2026-06-18T22:48:49.638Z"
+last_activity: 2026-06-18 — Milestone v1.2 completed and archived
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 16
-  completed_plans: 15
-  percent: 80
+  completed_plans: 16
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: 08 (frontend-download-link) — EXECUTING
-Plan: 2 of 2
-Status: Ready to execute
-Last activity: 2026-06-18 -- Phase 08 execution started
-
-Progress: [████      ] 40%
+Phase: Milestone v1.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-18 — Milestone v1.2 completed and archived
 
 ## Accumulated Context
 
@@ -70,6 +68,17 @@ Recent decisions affecting current work:
 - [Phase 7]: Confirm the CloudFront behavior passes `/dwca/*` straight through to S3 rather than rewriting to the SPA `index.html` (verify against Lambda@Edge / behavior config).
 - [Phase 7]: Introduces a possible NEW `production` GitHub environment secret (Supabase service-role / DB connection string). Per deployment memory, confirm with the user before the first workflow run.
 
+## Deferred Items
+
+Items acknowledged and deferred at v1.2 milestone close on 2026-06-18:
+
+| Category | Item | Status / Notes |
+|----------|------|----------------|
+| verification | Phase 04 04-VERIFICATION.md | human_needed — three policy-doc human-review advisories (Sections 1-2 completeness, Section 4 conferral framing, Section 3 gap coverage). All auto checks green. |
+| quick_task | 260526-scf-add-taxon-id-526556-lutrinae-to-inatural | unknown — shipped in commit 370c786 per existing Quick Tasks Completed table; status flag remains stale. |
+| todo (database) | 2026-06-17-model-embedded-dataset-attributions-as-first-class-sources.md | pending — bracket tags + trailing attributions in maplify.sightings.comments should become first-class source/contributor refs. Carries to next milestone. |
+| todo (phase-06-followup) | 2026-06-18-retry-gbif-validator-for-dwca-05.md | pending — re-upload deterministic zip to gbif.org/tools/data-validator when service returns; flip REQUIREMENTS row Pending → Complete. |
+
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
@@ -88,3 +97,7 @@ Resume file: .planning/phases/08-frontend-download-link/08-CONTEXT.md
 |-------|------|----------|-------|
 | Phase 5 P3 | 3min | 3 tasks | 1 files |
 | Phase 5 P4 | 12min | 3 tasks committed (T1 SQL, T2 harness, T5 validation fill-in); T3+T4 deferred to user (Docker daemon down at execution time) | 2 created (snippets/05_dwc_assertions.sql, 05-04-SUMMARY.md), 2 modified (migration file, 05-VALIDATION.md) |
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

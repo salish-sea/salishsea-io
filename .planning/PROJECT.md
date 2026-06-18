@@ -10,25 +10,19 @@ The most convenient place to share and discover whale sightings in the Salish Se
 
 ## Current State
 
-Two milestones shipped. v1.0 added shareable occurrence links with rich social previews. v1.1 added partner org hyperlinking — occurrence body text now auto-links known partner org names via a CSV-driven lookup editable without code changes.
+Three milestones shipped. v1.0 added shareable occurrence links with rich social previews. v1.1 added partner org hyperlinking — occurrence body text now auto-links known partner org names via a CSV-driven lookup editable without code changes. v1.2 shipped a nightly-regenerated DarwinCore Archive (DwC-A) + GeoParquet sidecar at `https://salishsea.io/dwca/…`, downloadable from the About modal.
 
-v1.2 (in progress) exports occurrence records as a nightly DarwinCore Archive, downloadable from the site.
+**Next milestone:** to be defined. Likely directions in `### Active` below.
 
-## Current Milestone: v1.2 Export to DarwinCore Archive
+## Last Milestone: v1.2 Export to DarwinCore Archive — SHIPPED 2026-06-18
 
-**Goal:** Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurrence records, downloadable from the site.
+**Delivered:** A nightly GitHub Actions workflow regenerates a DarwinCore Archive (zip + GeoParquet sidecar + sha256 sidecars) from a dedicated read-only `dwc` Postgres schema and publishes it atomically to S3/CloudFront. The About modal links the artifacts with live size + freshness, using a Lambda@Edge carve-out so binary downloads bypass the OG-meta interceptor.
 
-**Target features:**
-- Align the occurrence data model with DarwinCore terms — nomenclature, taxonomy classification (walk the `taxa` hierarchy to kingdom→genus), spatial/temporal/licensing fields
-- Audit and document data/datatype gaps against DwC requirements; fill them where feasible
-- Generate a valid DwC-A zip — `meta.xml` + EML + Occurrence core + Multimedia extension (+ possible ResourceRelationship for travel segments)
-- Emit a GeoParquet sidecar from the same projection (analysis-ready, geometry embedded; mirrors GBIF's CSV/Parquet dual offering)
-- Run the export nightly and host the archive + sidecar for download
-
-**Scope decisions:**
-- Includes native SalishSea.io observations + Maplify/Whale Alert records only; excludes iNaturalist & Happywhale (already published to GBIF by their canonical sources)
-- File download now; GBIF/OBIS registration deferred but kept reachable by design
-- Individual-animal `organismID` linkage deferred to a later milestone (model exists but isn't linked to occurrences yet)
+**Outcomes:**
+- 21/22 v1 requirements satisfied; DWCA-05 (GBIF validator pass) deferred — validator service was offline 2026-06-18; deterministic zip preserved for re-upload
+- Cross-phase wiring verified end-to-end; no orphaned or missing contracts
+- Audit status: tech_debt (one deferral + minor follow-ups)
+- See `.planning/milestones/v1.2-MILESTONE-AUDIT.md` for full audit
 
 ## Requirements
 
@@ -43,11 +37,13 @@ v1.2 (in progress) exports occurrence records as a nightly DarwinCore Archive, d
 - ✓ Following an occurrence link sets the date and map view from that occurrence (not defaults) — v1.0
 - ✓ Shared links generate rich previews when pasted into RCS, Facebook, or Bluesky — v1.0
 - ✓ Partner organization names in occurrence body text are automatically hyperlinked to their websites — v1.1
+- ✓ Data consumers can download occurrence records as a DarwinCore Archive (DwC-A) + GeoParquet sidecar, regenerated nightly, with sha256 verification — v1.2
 
 ### Active
 
-<!-- v1.2 requirements defined in REQUIREMENTS.md -->
-- [ ] Data consumers can download occurrence records as a DarwinCore Archive (v1.2 — see REQUIREMENTS.md)
+<!-- v1.2 follow-ups -->
+- [ ] DWCA-05: re-upload deterministic zip to GBIF DwC-A validator when gbif.org/tools/data-validator returns online; flip REQUIREMENTS Pending → Complete
+- [ ] Model embedded dataset attributions (bracket tags + "Submitted by …" lines in `maplify.sightings.comments`) as first-class sources so `dwc.occurrences` `datasetName`/`institutionCode` resolve from real refs
 
 <!-- Future milestones -->
 
@@ -89,6 +85,12 @@ v1.2 (in progress) exports occurrence records as a nightly DarwinCore Archive, d
 | Occurrence link encodes only occurrence ID | Cleaner URLs; date/position derived from occurrence on load | Validated — Phase 01 |
 | Lambda@Edge for rich previews | CloudFront Functions lacks fetch(); Lambda@Edge enables Supabase lookup per request | Validated — Phase 02 |
 | SSM credentials managed outside CDK | CDK can't create SecureString; Lambda reads from SSM with module-scope cache | Validated — Phase 02 |
+| DwC contract in read-only `dwc` Postgres schema (not app-code mapping over `public.occurrences`) | Auditable SQL, view-as-contract enforces column parity at CREATE VIEW time | ✓ Validated — Phase 5 (v1.2) |
+| Hybrid TS + DuckDB pipeline (TS owns EML/meta.xml/zip; DuckDB owns CSV + GeoParquet COPYs) | One ordered field list drives both descriptor and projection; DuckDB ATTACH Postgres + `ST_Point` auto-emits GeoParquet 1.0.0 metadata | ✓ Validated — Phase 6 (v1.2) |
+| Nightly GHA reuses existing OIDC role + S3 bucket (no new AWS infra) | Path carve-out via Lambda@Edge keeps `/dwca/*` raw past the OG-meta interceptor | ✓ Validated — Phase 7 (v1.2) |
+| Checksum-LAST upload order (parquet, zip, parquet.sha256, zip.sha256) | Atomicity: clients cannot fetch a sha256 newer than its artifact | ✓ Validated — Phase 7 (v1.2) |
+| Frontend HEAD-on-open with per-session cache (no preflight on initial page load) | Avoids cost on every page view; About-modal opens trigger fetch once per session | ✓ Validated — Phase 8 (v1.2) |
+| Occurrence-record license = CC-BY-NC 4.0 (resolvable URI); rights/gaps documented in single POLICY.md gate before any SQL | Policy-first gate prevents silently fudging gaps in encoding | ✓ Validated — Phase 4 (v1.2) |
 
 ---
 ## Evolution
@@ -109,4 +111,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-09 — v1.2 Export to DarwinCore Archive milestone started*
+*Last updated: 2026-06-18 — after v1.2 Export to DarwinCore Archive milestone*
