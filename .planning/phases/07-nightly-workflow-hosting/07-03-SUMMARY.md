@@ -2,7 +2,7 @@
 phase: 07-nightly-workflow-hosting
 plan: "03"
 subsystem: github-actions-workflow
-status: partial — stopped at Task 2 checkpoint (peter-evans SHA human-verify)
+status: complete — all 4 tasks verified end-to-end; smoke run 27778836650 succeeded after three diagnostic iterations
 tags: [phase-07, dwca, nightly, github-actions, oidc, s3, cloudfront, sha-pin]
 
 requires:
@@ -10,29 +10,40 @@ requires:
   - 07-02-PLAN
 
 provides:
-  - "dwca-nightly.yml drafted and committed (awaiting human-verify gate + push to main)"
+  - ".github/workflows/dwca-nightly.yml on main (scheduled + workflow_dispatch) — verified green via 2 successful workflow_dispatch runs (27778665159, 27778836650)"
+  - "https://salishsea.io/dwca/salishsea-occurrences-v1.{zip,parquet,zip.sha256,parquet.sha256} reachable; sha256sum -c round-trip green"
 
 affects:
-  - "Phase 8 (DOWNLOAD-01) — unblocked once Task 3 push lands"
+  - "Phase 8 (DOWNLOAD-01) — unblocked; stable URL is live"
+  - "scripts/dwca/build.ts + guard.ts — maskDsn upgraded to preserve error body while masking password substring"
 
 tech-stack:
   added:
-    - "peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 (v6.0.0) — AWAITING human-verify at Task 2"
-    - "actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b (v7.1.0)"
+    - "peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 (v6.0.0) — SHA verified via gh api"
+    - "actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 (v9.0.0)"
+    - "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 (v7.0.0)"
+    - "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e (v6.4.0)"
+    - "aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b (v6.2.0)"
   patterns:
     - "Checksum-LAST upload order for object-store atomicity (parquet, zip, parquet.sha256, zip.sha256)"
     - "CloudFront invalidation + waiter (continue-on-error: true per Pitfall 6) + smoke check post-publish"
     - "Two-step failure-issue dedupe via github-script (listForRepo by label) + peter-evans/create-issue-from-file"
-    - "DSN assembled inline from DB_PASSWORD + SUPABASE_PROJECT_ID (no new secret, eliminates rotation drift)"
+    - "DSN assembled at runtime in a dedicated step that URL-encodes DB_PASSWORD (handles @ : / in raw secret), masks the encoded value with ::add-mask::, and exports via $GITHUB_ENV — Build + Guard inherit SUPABASE_DB_URL with no inline env: blocks"
+    - "Supabase session pooler (port 5432, aws-1-us-west-1.pooler.supabase.com) for IPv4 reachability — direct connection at db.<ref>.supabase.co is IPv6-only and GHA runners are IPv4"
+    - "Default failure-issue body pre-seeded at dist/dwca/guard-diff.txt right after npm ci so peter-evans/create-issue-from-file has a valid content-filepath even for pre-guard failures"
 
 key-files:
   created:
     - .github/workflows/dwca-nightly.yml
 
 key-decisions:
-  - "actions/github-script pinned at f28e40c7f34bde8b3046d885e986cb6290c5673b (v7.1.0 — latest v7 tag at plan time 2026-06-18); first-party action, no legitimacy checkpoint required"
+  - "Action SHAs bumped to current majors after user feedback ('don't use deprecated actions'): checkout v6→v7.0.0, configure-aws-credentials v6.0→v6.2.0, github-script v7→v9.0.0. setup-node already at v6.4.0; peter-evans/create-issue-from-file at v6.0.0 (latest). Memory saved: always verify latest release before copying SHAs from sibling workflows."
   - "S3 cp destination uses ${DEST}/ (trailing slash) so S3 appends the source filename — avoids repeating salishsea-occurrences-v1 in destination arg, which would break the plan's awk-based upload-order acceptance test (greedy .* in sub)"
-  - "SUPABASE_DB_URL assembled inline (not a pre-stored secret) from existing secrets.DB_PASSWORD + vars.SUPABASE_PROJECT_ID — matches CONTEXT C-01 revision; no new secret; port 5432 (direct, not 6543 pooler) per Pitfall 4"
+  - "SUPABASE_DB_URL assembled at runtime (not a pre-stored secret) from existing secrets.DB_PASSWORD + vars.SUPABASE_PROJECT_ID — matches CONTEXT C-01 revision; no new secret"
+  - "Supabase **session pooler** (port 5432 at aws-1-us-west-1.pooler.supabase.com) instead of direct connection. Direct connection at db.<ref>.supabase.co is IPv6-only and GHA runners are IPv4-only. The plan's original Pitfall 4 (DuckDB can't use port 6543 transaction pooler) is correct — but the SESSION pooler at port 5432 on the same hostname works because PgBouncer in session mode preserves prepared statements and other session features that DuckDB ATTACH needs. Discovered after run 27778227950 failed (db.<ref>.supabase.co IPv6-only)."
+  - "DB_PASSWORD URL-encoded before substitution into the DSN — raw password contains `@` (and possibly `:`/`/`), which broke the URL parser when interpolated directly (run 27778446122 failed with `could not translate host name ETR@aws-1-...` — the `ETR` was a tail of the password split by the literal `@`). Fix: a dedicated 'Prepare Postgres DSN' step encodes via Node's encodeURIComponent, registers the encoded value with ::add-mask::, and exports the assembled URL via $GITHUB_ENV."
+  - "maskDsn (in scripts/dwca/build.ts + guard.ts) upgraded from all-or-nothing `<redacted>` to regex-based password-only masking. The original implementation collapsed the entire error message whenever it contained `://`, making the production connection failures undiagnosable. New behavior preserves the rest of the message and falls back to hard redaction if no structured DSN is found."
+  - "Default failure-issue body pre-seeded at dist/dwca/guard-diff.txt immediately after npm ci. Without this, peter-evans/create-issue-from-file silently no-ops on early-stage failures (it logs 'File not found' and exits 0). Discovered after the first 3 failed runs filed zero failure issues despite the on: failure() steps reporting success."
   - "continue-on-error: true on Wait for invalidation step per RESEARCH Pitfall 6 — CloudFront waiter timeout is non-fatal; V-01 smoke check provides its own pass/fail gate"
   - "concurrency: dwca-nightly, cancel-in-progress: false — manual dispatch queues behind in-flight cron (W-03)"
 
@@ -48,15 +59,16 @@ requirements-completed:
   - EXPORT-05
 
 metrics:
-  duration: ~15 minutes (Task 1 only)
-  completed: 2026-06-18 (partial)
-  tasks_completed: 1
+  duration: "~90 min total — Task 1 draft (~15 min) + 4 fix-iterations + final smoke (~30 min)"
+  completed: 2026-06-18
+  tasks_completed: 4
   tasks_total: 4
   files_created: 1
-  files_modified: 0
+  files_modified: 3  # scripts/dwca/build.ts, scripts/dwca/guard.ts (maskDsn fix), .github/workflows/dwca-nightly.yml (3 fixes)
+  smoke_runs_succeeded: 2  # 27778665159, 27778836650
 ---
 
-# Phase 7 Plan 03: DwC-A Nightly Workflow Summary (Partial)
+# Phase 7 Plan 03: DwC-A Nightly Workflow Summary
 
 **One-liner:** GitHub Actions workflow `dwca-nightly.yml` drafted with cron schedule, OIDC-authenticated S3 publish in checksum-LAST order, CloudFront invalidation, V-01 smoke check, and dedup'd failure-issue creation — stopped at Task 2 (peter-evans SHA human-verify gate).
 

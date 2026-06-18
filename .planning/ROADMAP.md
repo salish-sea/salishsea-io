@@ -32,7 +32,7 @@
 - [x] **Phase 4: Rights & Data-Model Policy (gate)** - Document/encode rights + resolve the data-model gaps as explicit findings before any code (completed 2026-06-10)
 - [x] **Phase 5: DB Projection (`dwc` schema)** - Read-only `dwc` schema projecting in-scope occurrences into DarwinCore-aligned columns over source tables (completed 2026-06-17)
 - [x] **Phase 6: Archive Generation** - Produce a valid DwC-A zip (`meta.xml` + EML + Occurrence core + Multimedia extension) that passes the GBIF validator, plus a GeoParquet sidecar from the same projection (completed 2026-06-18)
-- [ ] **Phase 7: Nightly Workflow & Hosting** - Scheduled GitHub Actions workflow publishes the archive atomically to existing S3/CloudFront with a checksum
+- [x] **Phase 7: Nightly Workflow & Hosting** - Scheduled GitHub Actions workflow publishes the archive atomically to existing S3/CloudFront with a checksum (completed 2026-06-18)
 - [ ] **Phase 8: Frontend Download Link** - A site visitor can discover and download the archive from the site
 
 ## Phase Details
@@ -150,7 +150,7 @@ Plans:
 
 **Wave 2** *(blocked on 07-01 and 07-02 completion)*
 
-- [ ] 07-03-PLAN.md — Land `.github/workflows/dwca-nightly.yml` (scheduled `0 9 * * *` UTC + `workflow_dispatch`); gated by checkpoints for peter-evans/create-issue-from-file SHA verify, `SUPABASE_DB_URL` secret in GH `production` env, and first `workflow_dispatch` smoke run review
+- [x] 07-03-PLAN.md — Land `.github/workflows/dwca-nightly.yml` (scheduled `0 9 * * *` UTC + `workflow_dispatch`); gated by checkpoints for peter-evans/create-issue-from-file SHA verify, `SUPABASE_DB_URL` secret in GH `production` env, and first `workflow_dispatch` smoke run review
 
 **Research flag**: RESOLVED affirmatively — `infra/lib/infra-stack.ts` confirms single `defaultBehavior` with no SPA fallback; `/dwca/*` passes through to S3 once Plan 07-02 ships the L-01 carve-out so the Lambda@Edge OG-meta interceptor no longer intercepts binary archives.
 **Secret flag**: Introduces a possible NEW `production` GitHub environment secret (Supabase service-role / DB connection string). Per deployment memory, surface this to the user and await confirmation before the first workflow run.
@@ -182,5 +182,5 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 4. Rights & Data-Model Policy | v1.2 | 1/1 | Complete   | 2026-06-10 |
 | 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
 | 6. Archive Generation | v1.2 | 6/6 | Complete   | 2026-06-18 |
-| 7. Nightly Workflow & Hosting | v1.2 | 2/3 | In Progress|  |
+| 7. Nightly Workflow & Hosting | v1.2 | 3/3 | Complete   | 2026-06-18 |
 | 8. Frontend Download Link | v1.2 | 0/TBD | Not started | - |
