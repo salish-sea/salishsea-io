@@ -216,7 +216,7 @@ export async function main(): Promise<void> {
         // parquet file's `geo` kv-metadata and assert the GeoParquet 1.0.0
         // shape. If absent, fail loudly — do NOT silently fall back.
         const geoReader = await conn.runAndReadAll(
-            `SELECT key::text AS k, value::text AS v FROM parquet_kv_metadata('${OUT_PARQUET}') WHERE key = 'geo'::blob`,
+            `SELECT decode(key) AS k, decode(value) AS v FROM parquet_kv_metadata('${OUT_PARQUET}') WHERE key = 'geo'::blob`,
         );
         const geoRows = geoReader.getRowObjects();
         if (geoRows.length === 0) {
