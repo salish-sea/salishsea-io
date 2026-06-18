@@ -1,0 +1,113 @@
+name: DwC-A Nightly
+
+on:
+    schedule:
+        - cron: '0 9 * * *'  # 09:00 UTC = 02:00 PT (PDT) / 01:00 PT (PST)
+    workflow_dispatch:
+
+concurrency:
+    group: dwca-nightly
+    cancel-in-progress: false
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        environment: production
+        permissions:
+            id-token: write
+            contents: read
+            issues: write  # for O-01 failure issue
+        env:
+            ZIP_FLOOR_BYTES: '51200'       # G-02: 50 KB
+            PARQUET_FLOOR_BYTES: '10240'   # G-02: 10 KB
+            ROW_FLOOR: '1000'              # G-02: 1 000 occurrences
+
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              with:
+                  persist-credentials: false
+
+            - name: Setup Node
+              uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+              with:
+                  node-version-file: package.json
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Configure AWS Credentials
+              uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5 # v6
+              with:
+                  role-to-assume: arn:aws:iam::648183724555:role/salishsea-deploy-action
+                  aws-region: us-west-2
+
+            - name: Build DwC-A
+              env:
+                  SUPABASE_DB_URL: postgres://postgres:${{ secrets.DB_PASSWORD }}@db.${{ vars.SUPABASE_PROJECT_ID }}.supabase.co:5432/postgres
+              run: npm run build:dwca
+
+            - name: Compute checksums
+              working-directory: dist/dwca
+              run: |
+                  sha256sum salishsea-occurrences-v1.zip     > salishsea-occurrences-v1.zip.sha256
+                  sha256sum salishsea-occurrences-v1.parquet > salishsea-occurrences-v1.parquet.sha256
+
+            - name: Guard (G-01..G-04)
+              env:
+                  SUPABASE_DB_URL: postgres://postgres:${{ secrets.DB_PASSWORD }}@db.${{ vars.SUPABASE_PROJECT_ID }}.supabase.co:5432/postgres
+              run: npx tsx scripts/dwca/guard.ts
+
+            - name: Publish to S3 (checksum-LAST order, P-02)
+              env:
+                  DEST: s3://${{ vars.S3_BUCKET }}/site/dwca
+              working-directory: dist/dwca
+              run: |
+                  aws s3 cp salishsea-occurrences-v1.parquet        "${DEST}/"
+                  aws s3 cp salishsea-occurrences-v1.zip            "${DEST}/"
+                  aws s3 cp salishsea-occurrences-v1.parquet.sha256 "${DEST}/"
+                  aws s3 cp salishsea-occurrences-v1.zip.sha256     "${DEST}/"
+
+            - name: Invalidate CloudFront /dwca/*
+              id: invalidate
+              env:
+                  DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+              run: |
+                  INVALIDATION_ID=$(aws cloudfront create-invalidation --distribution-id "${DISTRIBUTION_ID}" --paths '/dwca/*' --query 'Invalidation.Id' --output text)
+                  echo "id=${INVALIDATION_ID}" >> "$GITHUB_OUTPUT"
+
+            - name: Wait for invalidation
+              continue-on-error: true
+              env:
+                  DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+              run: |
+                  aws cloudfront wait invalidation-completed \
+                    --distribution-id "${DISTRIBUTION_ID}" \
+                    --id "${{ steps.invalidate.outputs.id }}"
+
+            - name: Smoke verify (V-01)
+              run: npx tsx scripts/dwca/verify-publish.ts
+
+            - name: Find existing failure issue
+              id: find-issue
+              if: failure()
+              uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+              with:
+                  script: |
+                      const issues = await github.rest.issues.listForRepo({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        state: 'open',
+                        labels: 'dwca-nightly-failed',
+                        per_page: 1,
+                      });
+                      core.setOutput('issue-number', issues.data[0]?.number ?? '');
+
+            - name: Open or update failure issue
+              if: failure()
+              uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6.0.0
+              with:
+                  title: "DwC-A nightly publish failed (run ${{ github.run_id }})"
+                  content-filepath: ./dist/dwca/guard-diff.txt
+                  labels: dwca-nightly-failed
+                  issue-number: ${{ steps.find-issue.outputs.issue-number }}
