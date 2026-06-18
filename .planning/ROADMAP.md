@@ -110,7 +110,7 @@ Plans:
 
 **Wave 1** *(blocked on Wave 0)*
 
-- [ ] 06-02-PLAN.md — Populate `OCCURRENCE_FIELDS` (25 entries) + `MULTIMEDIA_FIELDS` (6 entries) in `scripts/dwca/fields.ts`; unskip the DWCA-02 unit tests in `fields.test.ts`
+- [x] 06-02-PLAN.md — Populate `OCCURRENCE_FIELDS` (25 entries) + `MULTIMEDIA_FIELDS` (6 entries) in `scripts/dwca/fields.ts`; unskip the DWCA-02 unit tests in `fields.test.ts`
 
 **Wave 2** *(blocked on Wave 1; Plans 06-03 and 06-04 run in parallel)*
 
@@ -171,6 +171,6 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 3. Partner Org Hyperlinking | v1.1 | 2/2 | Complete | 2026-04-18 |
 | 4. Rights & Data-Model Policy | v1.2 | 1/1 | Complete   | 2026-06-10 |
 | 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
-| 6. Archive Generation | v1.2 | 1/6 | In Progress|  |
+| 6. Archive Generation | v1.2 | 2/6 | In Progress|  |
 | 7. Nightly Workflow & Hosting | v1.2 | 0/TBD | Not started | - |
 | 8. Frontend Download Link | v1.2 | 0/TBD | Not started | - |
