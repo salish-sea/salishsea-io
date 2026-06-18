@@ -46,11 +46,11 @@ Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurre
 
 ### Nightly Export & Hosting (EXPORT)
 
-- [ ] **EXPORT-01**: A scheduled job regenerates the archive automatically every night at a defined time/timezone
-- [ ] **EXPORT-02**: The archive is published to the existing S3/CloudFront site and reachable at a stable public URL (`/dwca/…`), reusing existing infrastructure (no new AWS infra)
-- [ ] **EXPORT-03**: Publication is atomic (write-then-swap), guards against overwriting with an empty result, and invalidates the CloudFront cache
-- [ ] **EXPORT-04**: A checksum is published alongside the archive for integrity verification
-- [ ] **EXPORT-05**: The GeoParquet sidecar is regenerated and published alongside the DwC-A by the same nightly job (same atomic-publish, empty-result guard, cache-invalidation, and checksum treatment)
+- [x] **EXPORT-01**: A scheduled job regenerates the archive automatically every night at a defined time/timezone
+- [x] **EXPORT-02**: The archive is published to the existing S3/CloudFront site and reachable at a stable public URL (`/dwca/…`), reusing existing infrastructure (no new AWS infra)
+- [x] **EXPORT-03**: Publication is atomic (write-then-swap), guards against overwriting with an empty result, and invalidates the CloudFront cache
+- [x] **EXPORT-04**: A checksum is published alongside the archive for integrity verification
+- [x] **EXPORT-05**: The GeoParquet sidecar is regenerated and published alongside the DwC-A by the same nightly job (same atomic-publish, empty-result guard, cache-invalidation, and checksum treatment)
 
 ### Download Access (DOWNLOAD)
 
@@ -104,11 +104,11 @@ Which phases cover which requirements. Populated during roadmap creation.
 | DWCA-04 | Phase 6 | Complete |
 | DWCA-05 | Phase 6 | Pending |
 | DWCA-06 | Phase 6 | Complete |
-| EXPORT-01 | Phase 7 | Pending |
-| EXPORT-02 | Phase 7 | Pending |
-| EXPORT-03 | Phase 7 | Pending |
-| EXPORT-04 | Phase 7 | Pending |
-| EXPORT-05 | Phase 7 | Pending |
+| EXPORT-01 | Phase 7 | Complete |
+| EXPORT-02 | Phase 7 | Complete |
+| EXPORT-03 | Phase 7 | Complete |
+| EXPORT-04 | Phase 7 | Complete |
+| EXPORT-05 | Phase 7 | Complete |
 | DOWNLOAD-01 | Phase 8 | Pending |
 
 **Coverage:**

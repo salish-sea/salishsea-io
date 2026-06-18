@@ -182,5 +182,5 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 4. Rights & Data-Model Policy | v1.2 | 1/1 | Complete   | 2026-06-10 |
 | 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
 | 6. Archive Generation | v1.2 | 6/6 | Complete   | 2026-06-18 |
-| 7. Nightly Workflow & Hosting | v1.2 | 3/3 | Complete   | 2026-06-18 |
+| 7. Nightly Workflow & Hosting | v1.2 | 3/3 | Complete    | 2026-06-18 |
 | 8. Frontend Download Link | v1.2 | 0/TBD | Not started | - |
