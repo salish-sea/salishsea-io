@@ -166,7 +166,16 @@ Plans:
   1. A site visitor can find a clearly labeled "Data download / DwC-A" link on the site.
   2. Following the link downloads the current archive from the stable `https://salishsea.io/dwca/…` URL.
 
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+**Wave 1**
+
+- [ ] 08-01-PLAN.md — Pure helpers + tests in `src/download-info.ts` + `src/download-info.test.ts` (`formatBytes`, `formatRelativeTime`, `fetchArchiveMetadata`, `DownloadInfo` type)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 08-02-PLAN.md — Wire `@state` field + augmented `onAboutClicked` + `renderDownloadSection()` + four CSS rules into `src/salish-sea.ts`; append DOM/spy tests to `src/salish-sea.test.ts`; blocking post-deploy human-verify on production
+
 **UI hint**: yes
 
 ## Progress
@@ -183,4 +192,5 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
 | 6. Archive Generation | v1.2 | 6/6 | Complete   | 2026-06-18 |
 | 7. Nightly Workflow & Hosting | v1.2 | 3/3 | Complete    | 2026-06-18 |
-| 8. Frontend Download Link | v1.2 | 0/TBD | Not started | - |
+| 8. Frontend Download Link | v1.2 | 0/2 | Not started | - |
+</content>
