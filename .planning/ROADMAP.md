@@ -145,8 +145,8 @@ Plans:
 Plans:
 **Wave 1** *(parallel — Plans 07-01 and 07-02 have zero file overlap)*
 
-- [ ] 07-01-PLAN.md — Land `scripts/dwca/guard.ts` (G-01..G-04 hard-floor empty-result guard) + `scripts/dwca/verify-publish.ts` (V-01 post-publish sha256 smoke verifier) with vitest unit tests; no AWS / no workflow / no Lambda touches
-- [ ] 07-02-PLAN.md — Add the L-01 Lambda@Edge `/dwca/*` carve-out in `infra/lib/edge-handler/index.ts` + extend Jest tests; one push to `main` triggers `deploy.yml` to ship the new edge version; ends with a blocking human-verify that the carve-out is live on production CloudFront
+- [x] 07-01-PLAN.md — Land `scripts/dwca/guard.ts` (G-01..G-04 hard-floor empty-result guard) + `scripts/dwca/verify-publish.ts` (V-01 post-publish sha256 smoke verifier) with vitest unit tests; no AWS / no workflow / no Lambda touches
+- [x] 07-02-PLAN.md — Add the L-01 Lambda@Edge `/dwca/*` carve-out in `infra/lib/edge-handler/index.ts` + extend Jest tests; one push to `main` triggers `deploy.yml` to ship the new edge version; ends with a blocking human-verify that the carve-out is live on production CloudFront
 
 **Wave 2** *(blocked on 07-01 and 07-02 completion)*
 
@@ -182,5 +182,5 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 4. Rights & Data-Model Policy | v1.2 | 1/1 | Complete   | 2026-06-10 |
 | 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
 | 6. Archive Generation | v1.2 | 6/6 | Complete   | 2026-06-18 |
-| 7. Nightly Workflow & Hosting | v1.2 | 0/3 | Not started | - |
+| 7. Nightly Workflow & Hosting | v1.2 | 2/3 | In Progress|  |
 | 8. Frontend Download Link | v1.2 | 0/TBD | Not started | - |
