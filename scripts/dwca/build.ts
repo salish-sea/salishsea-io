@@ -187,7 +187,7 @@ export async function main(): Promise<void> {
         );
         await conn.run(
             `COPY (SELECT ${occSelectList} FROM pgdb.dwc.occurrences) ` +
-                `TO '${OUT_OCCURRENCE}' (FORMAT csv, DELIMITER '\t', HEADER true, QUOTE '', ESCAPE '', NULLSTR '', ENCODING 'UTF-8')`,
+                `TO '${OUT_OCCURRENCE}' (FORMAT csv, DELIMITER '\t', HEADER true, QUOTE '', ESCAPE '', NULLSTR '')`,
         );
 
         // Step 10: COPY multimedia.txt — same convention.
@@ -197,7 +197,7 @@ export async function main(): Promise<void> {
         );
         await conn.run(
             `COPY (SELECT ${mmSelectList} FROM pgdb.dwc.multimedia) ` +
-                `TO '${OUT_MULTIMEDIA}' (FORMAT csv, DELIMITER '\t', HEADER true, QUOTE '', ESCAPE '', NULLSTR '', ENCODING 'UTF-8')`,
+                `TO '${OUT_MULTIMEDIA}' (FORMAT csv, DELIMITER '\t', HEADER true, QUOTE '', ESCAPE '', NULLSTR '')`,
         );
 
         // Step 11: COPY parquet. Use ST_Point GEOMETRY column (NOT ST_AsWKB
