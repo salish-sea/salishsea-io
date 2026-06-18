@@ -31,7 +31,7 @@
 
 - [x] **Phase 4: Rights & Data-Model Policy (gate)** - Document/encode rights + resolve the data-model gaps as explicit findings before any code (completed 2026-06-10)
 - [x] **Phase 5: DB Projection (`dwc` schema)** - Read-only `dwc` schema projecting in-scope occurrences into DarwinCore-aligned columns over source tables (completed 2026-06-17)
-- [ ] **Phase 6: Archive Generation** - Produce a valid DwC-A zip (`meta.xml` + EML + Occurrence core + Multimedia extension) that passes the GBIF validator, plus a GeoParquet sidecar from the same projection
+- [x] **Phase 6: Archive Generation** - Produce a valid DwC-A zip (`meta.xml` + EML + Occurrence core + Multimedia extension) that passes the GBIF validator, plus a GeoParquet sidecar from the same projection (completed 2026-06-18)
 - [ ] **Phase 7: Nightly Workflow & Hosting** - Scheduled GitHub Actions workflow publishes the archive atomically to existing S3/CloudFront with a checksum
 - [ ] **Phase 8: Frontend Download Link** - A site visitor can discover and download the archive from the site
 
@@ -123,7 +123,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 06-06-PLAN.md — `scripts/dwca/build.test.ts` integration tests (DWCA-01/02/03/04/06) + manual GBIF DwC-A validator upload checkpoint (DWCA-05)
+- [x] 06-06-PLAN.md — `scripts/dwca/build.test.ts` integration tests (DWCA-01/02/03/04/06) + manual GBIF DwC-A validator upload checkpoint (DWCA-05)
 
 **Planning note**: A 2026-06-09 spike confirmed DuckDB can `ATTACH` Postgres, unpack the composite types, and emit CSV/Parquet/GeoParquet from one `COPY` — GeoParquet 1.0.0 came out spec-valid and ~4.3× smaller than CSV. Resolved during `/gsd-discuss-phase 6` as T-01 hybrid orchestration: TS owns EML/meta.xml/zip; DuckDB owns CSV + GeoParquet COPYs.
 **UI hint**: no
@@ -171,6 +171,6 @@ Phases execute in numeric order: 4 → 5 → 6 → 7 → 8
 | 3. Partner Org Hyperlinking | v1.1 | 2/2 | Complete | 2026-04-18 |
 | 4. Rights & Data-Model Policy | v1.2 | 1/1 | Complete   | 2026-06-10 |
 | 5. DB Projection (`dwc` schema) | v1.2 | 4/4 | Complete    | 2026-06-17 |
-| 6. Archive Generation | v1.2 | 5/6 | In Progress|  |
+| 6. Archive Generation | v1.2 | 6/6 | Complete   | 2026-06-18 |
 | 7. Nightly Workflow & Hosting | v1.2 | 0/TBD | Not started | - |
 | 8. Frontend Download Link | v1.2 | 0/TBD | Not started | - |

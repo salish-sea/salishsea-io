@@ -8,6 +8,7 @@
 Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurrence records, downloadable from the site. Covers **native SalishSea.io observations + Maplify/Whale Alert records only** (iNaturalist & Happywhale excluded — already published to GBIF by their canonical sources). Download-only this milestone; GBIF/OBIS registration deferred but kept reachable by emitting valid `meta.xml` + EML. Additive and read-only — the existing app runtime and source tables are untouched.
 
 **Policy decisions (from research gaps):**
+
 - Occurrence-record license: **CC-BY-NC 4.0** (emitted as a resolvable CC URI).
 - Rights handling: assert the chosen license on all exported records and carry structured attribution/provenance (incl. Whale Alert and nested Orca Network / Cascadia sources). Keeps full native + Whale Alert scope.
 - `basisOfRecord` = `HumanObservation` for all in-scope sources.
@@ -36,12 +37,12 @@ Publish a nightly-regenerated DarwinCore Archive (DwC-A) of SalishSea.io occurre
 
 ### Archive Generation (DWCA)
 
-- [ ] **DWCA-01**: A valid DwC-A zip is produced containing `meta.xml`, `eml.xml`, an Occurrence core file, and a Simple Multimedia extension file for photos
-- [ ] **DWCA-02**: `meta.xml` and the data files are generated from a single ordered field list so descriptor indices and column order cannot drift
-- [ ] **DWCA-03**: Multimedia rows join to Occurrence core rows via a byte-stable `coreId` with no orphaned media (anti-join is empty)
-- [ ] **DWCA-04**: Data files are correctly serialized — UTF-8 without BOM, proper quoting/escaping of freeform body text, HTML stripped
+- [x] **DWCA-01**: A valid DwC-A zip is produced containing `meta.xml`, `eml.xml`, an Occurrence core file, and a Simple Multimedia extension file for photos
+- [x] **DWCA-02**: `meta.xml` and the data files are generated from a single ordered field list so descriptor indices and column order cannot drift
+- [x] **DWCA-03**: Multimedia rows join to Occurrence core rows via a byte-stable `coreId` with no orphaned media (anti-join is empty)
+- [x] **DWCA-04**: Data files are correctly serialized — UTF-8 without BOM, proper quoting/escaping of freeform body text, HTML stripped
 - [ ] **DWCA-05**: The produced archive passes the GBIF DwC-A validator with no blocking (structural) errors
-- [ ] **DWCA-06**: A GeoParquet sidecar is produced from the same `dwc.occurrences` projection — GeoParquet 1.0.0 with a WKB Point geometry column (WGS84/CRS84) and `decimalLatitude`/`decimalLongitude` retained as columns — round-trippable in DuckDB/QGIS/geopandas
+- [x] **DWCA-06**: A GeoParquet sidecar is produced from the same `dwc.occurrences` projection — GeoParquet 1.0.0 with a WKB Point geometry column (WGS84/CRS84) and `decimalLatitude`/`decimalLongitude` retained as columns — round-trippable in DuckDB/QGIS/geopandas
 
 ### Nightly Export & Hosting (EXPORT)
 
@@ -97,12 +98,12 @@ Which phases cover which requirements. Populated during roadmap creation.
 | GAP-02 | Phase 4 | Complete |
 | GAP-03 | Phase 4 | Complete |
 | GAP-04 | Phase 4 | Complete |
-| DWCA-01 | Phase 6 | Pending |
-| DWCA-02 | Phase 6 | Pending |
-| DWCA-03 | Phase 6 | Pending |
-| DWCA-04 | Phase 6 | Pending |
+| DWCA-01 | Phase 6 | Complete |
+| DWCA-02 | Phase 6 | Complete |
+| DWCA-03 | Phase 6 | Complete |
+| DWCA-04 | Phase 6 | Complete |
 | DWCA-05 | Phase 6 | Pending |
-| DWCA-06 | Phase 6 | Pending |
+| DWCA-06 | Phase 6 | Complete |
 | EXPORT-01 | Phase 7 | Pending |
 | EXPORT-02 | Phase 7 | Pending |
 | EXPORT-03 | Phase 7 | Pending |
@@ -111,11 +112,13 @@ Which phases cover which requirements. Populated during roadmap creation.
 | DOWNLOAD-01 | Phase 8 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 22 total
 - Mapped to phases: 22 ✓
 - Unmapped: 0
 
 **Phase distribution:**
+
 - Phase 4 (Rights & Data-Model Policy): GAP-01..04 (4)
 - Phase 5 (DB Projection): ALIGN-01..06 (6)
 - Phase 6 (Archive Generation): DWCA-01..06 (6)
