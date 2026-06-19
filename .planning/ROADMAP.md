@@ -65,7 +65,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
 | 8. Frontend Download Link | v1.2 | 2/2 | Complete | 2026-06-18 |
 | 9. Reference Table Foundation | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 10. Source Table FK Columns | v1.3 | 1/1 | Complete    | 2026-06-19 |
-| 11. Resolution & Backfill | v1.3 | 0/TBD | Not started | - |
+| 11. Resolution & Backfill | v1.3 | 1/4 | In Progress|  |
 | 12. DwC View Rebuild | v1.3 | 0/TBD | Not started | - |
 | 13. Verification & GBIF Re-validation | v1.3 | 0/TBD | Not started | - |
 
@@ -117,7 +117,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
 **Plans**: 4 plans
 **Wave 1**
 
-- [ ] 11-01-PLAN.md — Pure TS URL-pattern resolver `scripts/ingest/resolve-provider.ts` + vitest (RESOLVE-01)
+- [x] 11-01-PLAN.md — Pure TS URL-pattern resolver `scripts/ingest/resolve-provider.ts` + vitest (RESOLVE-01)
 - [ ] 11-02-PLAN.md — Read-only prod bracket-tag/attribution/source census + [BLOCKING] human-verify of acronym expansions (RESOLVE-03 precondition)
 
 **Wave 2** *(blocked on Wave 1 completion)*
