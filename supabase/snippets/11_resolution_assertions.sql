@@ -212,6 +212,78 @@ BEGIN
 END $$;
 
 -- =====================================================================
+-- SC#5 (structural/plan 11-04): update_sightings calls resolve_collection;
+--   iNat MERGE mints contributor in NOT MATCHED INSERT only (D-16/Pitfall 6).
+--
+-- These assertions verify the ingest function edits from plan 11-04
+-- (20260620000200_resolution_ingest.sql) without hitting live HTTP endpoints.
+-- Structural check via pg_get_functiondef: confirms the functions were replaced
+-- correctly by inspecting the stored function body.
+--
+-- NOTE: running maplify.update_sightings() against the live Maplify HTTP API
+-- is not suitable for local CI (requires external HTTP; may be unavailable).
+-- The structural assertion is the correct local verification mode (RESEARCH Pitfall 7).
+-- =====================================================================
+\echo SC#5a: update_sightings function body contains maplify.resolve_collection
+DO $$
+DECLARE
+  fn_body TEXT;
+BEGIN
+  SELECT pg_get_functiondef(p.oid) INTO fn_body
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'maplify'
+     AND p.proname = 'update_sightings';
+  IF fn_body IS NULL THEN
+    RAISE EXCEPTION 'SC#5a FAIL: maplify.update_sightings function does not exist';
+  END IF;
+  IF fn_body NOT LIKE '%maplify.resolve_collection%' THEN
+    RAISE EXCEPTION 'SC#5a FAIL: maplify.update_sightings body does not contain maplify.resolve_collection (wildcard INSERT not yet replaced)';
+  END IF;
+  -- Also verify wras filter is present (operator decision 2026-06-19)
+  IF fn_body NOT LIKE '%wras%' THEN
+    RAISE EXCEPTION 'SC#5a FAIL: maplify.update_sightings body does not contain wras filter';
+  END IF;
+END $$;
+
+\echo SC#5b: upsert_observation_page MERGE INSERT mints contributor; MATCHED UPDATE does not overwrite it
+DO $$
+DECLARE
+  fn_body TEXT;
+  -- Find the WHEN MATCHED UPDATE section by extracting between "WHEN MATCHED" and "WHEN NOT MATCHED"
+  matched_update_section TEXT;
+BEGIN
+  SELECT pg_get_functiondef(p.oid) INTO fn_body
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'inaturalist'
+     AND p.proname = 'upsert_observation_page';
+  IF fn_body IS NULL THEN
+    RAISE EXCEPTION 'SC#5b FAIL: inaturalist.upsert_observation_page function does not exist';
+  END IF;
+  -- Assert mint_contributor is present (wires contributor_id in NOT MATCHED INSERT)
+  IF fn_body NOT LIKE '%inaturalist.mint_contributor%' THEN
+    RAISE EXCEPTION 'SC#5b FAIL: upsert_observation_page body does not contain inaturalist.mint_contributor (D-16 wiring missing)';
+  END IF;
+  -- Assert the WHEN MATCHED UPDATE (observations merge) does NOT set contributor_id.
+  -- Strategy: extract the observations MERGE MATCHED UPDATE SET clause and assert
+  -- contributor_id is absent. The observations MATCHED UPDATE is the first WHEN MATCHED
+  -- block in the body (before the observation_photos MERGE).
+  -- We check by taking the substring from "THEN UPDATE SET" to "WHEN NOT MATCHED"
+  -- (which immediately follows the MATCHED UPDATE in the observations MERGE).
+  matched_update_section := substring(
+    fn_body
+    FROM 'THEN UPDATE SET.+?WHEN NOT MATCHED'
+  );
+  IF matched_update_section IS NULL THEN
+    RAISE EXCEPTION 'SC#5b FAIL: could not extract MATCHED UPDATE section from upsert_observation_page body';
+  END IF;
+  IF matched_update_section LIKE '%contributor_id%' THEN
+    RAISE EXCEPTION 'SC#5b FAIL: WHEN MATCHED UPDATE includes contributor_id — Pitfall 6 violated (existing rows must keep their backfilled contributor_id)';
+  END IF;
+END $$;
+
+-- =====================================================================
 -- PROD-ONLY: diff-gate assertion (D-08)
 -- Run manually against prod before phase 11 sign-off (Pitfall 7):
 --   psql "postgresql://postgres:${DB_PASSWORD}@aws-1-us-west-1.pooler.supabase.com:5432/postgres" \
