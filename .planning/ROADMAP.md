@@ -51,6 +51,15 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
 
 *(Backlog item 999.1 Collections and Contributors promoted into v1.3 Phases 9-13.)*
 
+### Phase 999.2: ingest in-region Orca sightings from GBIF (BACKLOG)
+
+**Goal:** [Captured for future planning] — pull occurrence records for Salish Sea cetaceans that already live in GBIF (e.g. from datasets we don't otherwise ingest) and surface the in-region ones on the platform. Note v1.3 context: iNaturalist + HappyWhale are deliberately export-*excluded* from our DwC-A because they self-publish to GBIF — an inbound GBIF ingest is the mirror-image idea and must avoid re-importing our own contributed records (provenance/dedup against provider+source_url).
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
