@@ -4,14 +4,14 @@ milestone: v1.3
 milestone_name: — Providers, Collections & Contributors
 status: executing
 stopped_at: Phase 11 context gathered
-last_updated: "2026-06-19T22:33:30.503Z"
-last_activity: 2026-06-19 -- Phase 11 planning complete
+last_updated: "2026-06-19T22:34:19.048Z"
+last_activity: 2026-06-19 -- Phase 11 execution started
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 2
+  total_plans: 6
   completed_plans: 2
-  percent: 40
+  percent: 33
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19)
 
 **Core value:** The most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative cetacean data.
-**Current focus:** Phase 10 — Source Table FK Columns
+**Current focus:** Phase 11 — resolution-backfill
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-19 -- Phase 11 planning complete
+Phase: 11 (resolution-backfill) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 11
+Last activity: 2026-06-19 -- Phase 11 execution started
 
 Progress: `░░░░░░░░░░` 0% (0/5 phases complete)
 
