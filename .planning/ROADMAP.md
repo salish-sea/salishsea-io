@@ -41,6 +41,12 @@ Full milestone details: [.planning/milestones/v1.2-ROADMAP.md](milestones/v1.2-R
 
 No phases defined yet. Run `/gsd-new-milestone` to define the next milestone scope and phases.
 
+## Backlog
+
+Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-backlog`.
+
+- **999.1 Collections and Contributors** — model channels (FB groups, OrcaSound, HappyWhale, etc.) and their parent organizations as first-class entities; fix DwC attribution debt from v1.2. See [.planning/phases/999.1-collections-and-contributors/CONTEXT.md](phases/999.1-collections-and-contributors/CONTEXT.md). Candidate for v1.3.
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
