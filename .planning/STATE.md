@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Export to DarwinCore Archive
-status: Awaiting next milestone
-stopped_at: Phase 8 context gathered
-last_updated: "2026-06-18T22:48:49.638Z"
-last_activity: 2026-06-18 — Milestone v1.2 completed and archived
+milestone: v1.3
+milestone_name: Providers, Collections & Contributors
+status: planning
+last_updated: "2026-06-19T17:31:16.200Z"
+last_activity: 2026-06-19
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: Milestone v1.2 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-18 — Milestone v1.2 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-19 — Milestone v1.3 started
 
 ## Accumulated Context
 

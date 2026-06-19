@@ -12,7 +12,25 @@ The most convenient place to share and discover whale sightings in the Salish Se
 
 Three milestones shipped. v1.0 added shareable occurrence links with rich social previews. v1.1 added partner org hyperlinking — occurrence body text now auto-links known partner org names via a CSV-driven lookup editable without code changes. v1.2 shipped a nightly-regenerated DarwinCore Archive (DwC-A) + GeoParquet sidecar at `https://salishsea.io/dwca/…`, downloadable from the About modal.
 
-**Next milestone:** to be defined. Likely directions in `### Active` below.
+**Next milestone:** v1.3 Providers, Collections & Contributors (in planning) — see below.
+
+## Current Milestone: v1.3 Providers, Collections & Contributors
+
+**Goal:** Formalize the provenance graph behind every sighting — *how* it reached us (**provider**), *what channel* it came through (**collection**), *who* observed it (**contributor**), and *what institution* backs the channel (**organization**) — across all four current ingest APIs, so attribution is correct internally and in the DwC-A export instead of being lumped under a single "Whale Alert / Maplify" bucket.
+
+**Target features:**
+- New `providers`, `organizations`, `collections` tables; contributors unified across providers (extends existing `public.contributors`)
+- Per-sighting linkage (`provider_id`, `collection_id`, `contributor_id`, `source_url`) wired across the native / Maplify / iNaturalist / HappyWhale schemas — `source_url` first-class (populated from `inaturalist.observations.uri`, `public.observations.url`, etc.)
+- **URL-pattern resolver**: derive provider + collection from `source_url` (domain/path → provider/collection registry). Preferred resolution signal where a URL exists. Resolution order: `source_url` pattern → bracket tag → trailing attribution → structured `source` code → NULL
+- `dwc.occurrences` projection → aggregator pattern (`institutionCode="SalishSea"`, `rightsHolder="SalishSea.io"`, per-collection `datasetName`, `recordedBy`) for the exported sources (native + Maplify)
+- Backfill: Maplify collection resolution (bracket tag + trailing "Submitted by …" attribution + structured `source` code; human-eyeballed exact-match dictionary) + map existing structured provider/observer/URL fields for iNat / HappyWhale / native
+- Seed data: providers + ~15 canonical collections + parent organizations
+
+**Locked decisions:** provider is per-record provenance, not a collection property (a channel is stable if re-sourced); SalishSea.io is the GBIF institution (aggregator pattern); exact-match resolution (no alias table, no fuzzy match); `source_url` is a first-class resolution signal (Layer 1), preferred over comment parsing where present. **Export scope unchanged (SRC-01):** iNaturalist + HappyWhale are modeled internally but stay out of the DwC-A (they self-publish to GBIF).
+
+**Out of scope (seeded for later):** deriving a *whole occurrence* from a pasted `source_url` (the URL→record importer, Layer 2 — a new ingest path); direct partner *write* ingest (OrcaSound); retiring Maplify; trust-tier/quality scoring.
+
+**Detail:** see `.planning/v1.3-EXECUTIVE-SUMMARY.md` (terminology, prod instances, what enters the archive).
 
 ## Last Milestone: v1.2 Export to DarwinCore Archive — SHIPPED 2026-06-18
 
@@ -113,4 +131,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-18 — after v1.2 Export to DarwinCore Archive milestone*
+*Last updated: 2026-06-19 — started v1.3 Providers, Collections & Contributors milestone*
