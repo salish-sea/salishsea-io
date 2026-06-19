@@ -16,9 +16,9 @@ This is a backend / data-model / export milestone — no app UI surfaces (deferr
 
 ### Per-Sighting Linkage
 
-- [ ] **LINK-01**: Each source schema's records (native `public.observations`, `maplify.sightings`, `inaturalist.observations`, `happywhale.encounters`) carry nullable `provider_id`, `collection_id`, `contributor_id`, and `source_url` columns; `collection_id` is indexed
-- [ ] **LINK-02**: Records inserted after deploy resolve a `collection_id`; the not-null/required constraint is applied only after the one-time backfill completes (nullable → backfill → constrain)
-- [ ] **LINK-03**: `source_url` is populated from each provider's existing record URL where available (iNaturalist `uri`, native `public.observations.url`)
+- [x] **LINK-01**: Each source schema's records (native `public.observations`, `maplify.sightings`, `inaturalist.observations`, `happywhale.encounters`) carry nullable `provider_id`, `collection_id`, `contributor_id`, and `source_url` columns; `collection_id` is indexed
+- [x] **LINK-02**: Records inserted after deploy resolve a `collection_id`; the not-null/required constraint is applied only after the one-time backfill completes (nullable → backfill → constrain)
+- [x] **LINK-03**: `source_url` is populated from each provider's existing record URL where available (iNaturalist `uri`, native `public.observations.url`)
 
 ### Resolution & Backfill
 
@@ -66,9 +66,9 @@ Which phases cover which requirements. Populated during roadmap creation.
 | COLL-01 | Phase 9 | Complete |
 | CONTRIB-01 | Phase 9 | Complete |
 | CONTRIB-02 | Phase 9 | Complete |
-| LINK-01 | Phase 10 | Pending |
-| LINK-02 | Phase 10 | Pending |
-| LINK-03 | Phase 10 | Pending |
+| LINK-01 | Phase 10 | Complete |
+| LINK-02 | Phase 10 | Complete |
+| LINK-03 | Phase 10 | Complete |
 | RESOLVE-01 | Phase 11 | Pending |
 | RESOLVE-02 | Phase 11 | Pending |
 | RESOLVE-03 | Phase 11 | Pending |
