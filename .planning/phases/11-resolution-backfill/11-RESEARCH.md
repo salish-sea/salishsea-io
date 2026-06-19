@@ -698,19 +698,19 @@ However, note the **live ingest state** that must be considered:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Acronym expansions for D-10**
+1. **Acronym expansions for D-10** — RESOLVED: handled by the 11-02 `checkpoint:human-verify` gate (blocking-human) that confirms every census expansion before the 11-03 `collection_rule` seed.
    - What we know: 11 stubs seeded in Phase 9 with slugs psws/mcw/cww/wssji/hiws/sbw/wa/ssch/sa/psww/bremerton-fb; prod census shows row counts (31, 12, 10, 5, 3, 2, 2, 1, 1, 1, 1)
    - What's unclear: the actual organization names behind PSWS, MCW, CWW, HIWS, SBW, WA, SSCH, SA, PSWW — these are Salish Sea community-specific
    - Recommendation: **Block plan execution on this** — run the prod census first, then user reviews the bracket tags and confirms expansions before `collection_rule` seed is written. Include a task "Human confirms acronym expansions" as a `checkpoint:human-verify` before the migration that seeds `collection_rule`.
 
-2. **`resolve_collection` function stability classification**
+2. **`resolve_collection` function stability classification** — RESOLVED: `STABLE` (reads table, no writes; callable in INSERT...SELECT), implemented in 11-03/T1.
    - What we know: function reads from `maplify.collection_rule` (a base table)
    - What's unclear: whether to mark it `STABLE` (safe for planner to assume no side effects, can be called in parallel) or `VOLATILE`
    - Recommendation: `STABLE` is correct (reads table, no writes); Postgres allows calling `STABLE` functions in INSERT...SELECT contexts inside a VOLATILE outer function.
 
-3. **Census regex precision for attribution extraction**
+3. **Census regex precision for attribution extraction** — RESOLVED: use the full attribution phrase as `match_value` (e.g. `'Cascadia Trusted Observer'`) matched via `comments ~ match_value` in 11-03/T1, avoiding org-name parsing.
    - What we know: the attribution pattern is "Submitted by a [ORG] Trusted Observer" (some rows: "Submitted by an TMMC Trusted Observer")
    - What's unclear: exact regex for extracting the org name component from the attribution line (some use "a" vs "an")
    - Recommendation: use `'Trusted Observer'` as the attribution `match_value` per attribution type (entire pattern match, not just org name) — e.g., `match_kind='attribution', match_value='Cascadia Trusted Observer'` matching against `comments ~ match_value`. This avoids parsing the attribution line in the resolver.

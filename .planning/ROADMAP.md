@@ -115,10 +115,17 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
   5. Unmatched bracket tags resolve to NULL (no auto-create, no fuzzy match); ongoing ingest path for new records uses the resolver at ingest time
 
 **Plans**: 4 plans
+**Wave 1**
 
 - [ ] 11-01-PLAN.md — Pure TS URL-pattern resolver `scripts/ingest/resolve-provider.ts` + vitest (RESOLVE-01)
 - [ ] 11-02-PLAN.md — Read-only prod bracket-tag/attribution/source census + [BLOCKING] human-verify of acronym expansions (RESOLVE-03 precondition)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 11-03-PLAN.md — Resolution schema migration: collection_rule table + resolve_collection fn + collection_id DEFAULTs + inat_login + mint_contributor (SECURITY DEFINER) + acronym backfill + assertion snippet (RESOLVE-02/04)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 11-04-PLAN.md — Idempotent backfill UPDATEs (all four providers + iNat contributor) + live ingest-function edits (update_sightings, iNat MERGE) + [BLOCKING] supabase db push + prod diff-gate (RESOLVE-03/04)
 
 ### Phase 12: DwC View Rebuild
