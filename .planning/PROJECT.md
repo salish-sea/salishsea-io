@@ -32,7 +32,7 @@ Three milestones shipped. v1.0 added shareable occurrence links with rich social
 
 **Detail:** see `.planning/v1.3-EXECUTIVE-SUMMARY.md` (terminology, prod instances, what enters the archive).
 
-**Progress:** Phase 9 (Reference Table Foundation) complete 2026-06-19 — `public.providers` (4), `public.organizations` (5), `public.collections` (21: 10 named + 11 acronym stubs) seeded with RLS read policies, plus a nullable `orcid` column on `public.contributors`. Reference tables and FK targets now exist; unblocks Phase 10 (source-table FK columns).
+**Progress:** Phase 9 (Reference Table Foundation) complete 2026-06-19 — `public.providers` (4), `public.organizations` (5), `public.collections` (21: 10 named + 11 acronym stubs) seeded with RLS read policies, plus a nullable `orcid` column on `public.contributors`. Phase 10 (Source Table FK Columns) complete 2026-06-19 — all four source tables (`public.observations`, `maplify.sightings`, `inaturalist.observations`, `happywhale.encounters`) now carry `provider_id` (NOT NULL, slug-backfilled per table with a migration-resolved DEFAULT), `collection_id` (nullable, partial-indexed on the two exported tables), `contributor_id` (nullable; native's prior NOT NULL relaxed), and `source_url` (GENERATED from `url`/`uri` on native/iNat; HappyWhale generated in the repo-canonical `individual/{id};enc={id}` form; Maplify left NULL for Phase 11). Ingest RPCs untouched. SC#1–SC#4 verified against the live DB. Unblocks Phase 11 (Resolution & Backfill).
 
 ## Last Milestone: v1.2 Export to DarwinCore Archive — SHIPPED 2026-06-18
 
