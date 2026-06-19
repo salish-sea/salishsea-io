@@ -1,0 +1,56 @@
+# Maplify provenance census — Phase 11 / plan 11-02 (RESOLVE-02/03, D-08)
+# Date: 2026-06-19
+# Source: PROD (project ref grztmjpzamcxlzecmqca) via IPv4 pooler aws-1-us-west-1.pooler.supabase.com:5432, session mode
+#   (direct host db.<ref>.supabase.co is IPv6-only — no route from this host; pooler used instead)
+# READ-ONLY guarantee: a single SELECT, no INSERT/UPDATE/DELETE/DDL. maplify.sightings.comments NOT mutated (SC#2).
+# Total maplify.sightings rows at census time: 6832 (cf. EXEC-SUMMARY §3 ~6827 — minor expected drift).
+#
+# Precedence note: each row is assigned to its HIGHEST-PRECEDENCE signal (bracket -> attribution -> source-only),
+#   matching the locked resolution order. So a row tagged "[Orca Network] ... Submitted by a Cascadia Trusted Observer"
+#   counts under bracket 'Orca Network', NOT attribution 'Cascadia'. This is why attribution counts here are far lower
+#   than EXEC-SUMMARY §3 (which counted signals independently): e.g. Cascadia=52 here vs ~2014 there. CONFIRM this is
+#   the intended resolution before sign-off.
+#
+# Exact query (also at /tmp/maplify_census.sql):
+#   SELECT match_kind, match_value, count(*) FROM (
+#     SELECT
+#       CASE WHEN comments ~ '^\[([^\]]+)\]' THEN 'bracket'
+#            WHEN comments ~ 'Trusted Observer' THEN 'attribution'
+#            ELSE 'source-only' END AS match_kind,
+#       CASE WHEN comments ~ '^\[([^\]]+)\]' THEN (regexp_match(comments,'^\[([^\]]+)\]'))[1]
+#            WHEN comments ~ 'Trusted Observer' THEN regexp_replace(comments,'.*Submitted by an? (.+) Trusted Observer.*','\1','g')
+#            ELSE source END AS match_value
+#     FROM maplify.sightings) t
+#   GROUP BY 1,2 ORDER BY 1, 3 DESC;
+#
+# proposed_slug = deterministic mapping to an EXISTING public.collections slug (Phase 9 seed). Confidence:
+#   HIGH  = exact slug match (bracket stub / named / attribution org).
+#   HUMAN = no obvious collection; needs your decision (D-11 source-code curation) — fill target_collection_slug or STAY_NULL.
+# target_collection_slug = LEFT BLANK — fill during 11-02 Task 2 sign-off (or write STAY_NULL).
+#
+match_kind	match_value	n	proposed_slug	confidence	target_collection_slug
+bracket	Orca Network	2254	orca-network	HIGH
+bracket	 Orca Network	1	orca-network	HIGH (leading-space typo)
+bracket	Orca Networ	1	orca-network	HIGH (typo)
+bracket	Orca Networks	1	orca-network	HIGH (typo)
+bracket	Orca Neteork	1	orca-network	HIGH (typo)
+bracket	PSWS	31	psws	HIGH (slug); expansion LOW
+bracket	MCW	12	mcw	HIGH (slug); expansion LOW
+bracket	CWW	10	cww	HIGH (slug); expansion LOW
+bracket	WSSJI	5	wssji	HIGH (slug); expansion LOW
+bracket	HIWS	3	hiws	HIGH (slug); expansion LOW
+bracket	Orcasound	3	orcasound	HIGH
+bracket	WA	2	wa	HIGH (slug); expansion LOW
+bracket	MBARI	2	mbari	HIGH
+bracket	SBW	2	sbw	HIGH (slug); expansion LOW
+bracket	PSWW	1	psww	HIGH (slug); expansion LOW
+bracket	SA	1	sa	HIGH (slug); expansion LOW
+bracket	SSCH	1	ssch	HIGH (slug); expansion LOW
+bracket	Bremerton FB group	1	bremerton-fb	HIGH
+attribution	Whale Alert Global	803	whale-alert-global	HIGH
+attribution	Whale Alert Alaska	624	whale-alert-alaska	HIGH
+attribution	TMMC	103	tmmc	HIGH
+attribution	Cascadia	52	cascadia	HIGH
+source-only	whale_alert	2484	?	HUMAN (D-11: whale-alert-global? or STAY_NULL?)
+source-only	FARPB	384	?	HUMAN (D-11: expansion unknown — STAY_NULL?)
+source-only	wras	50	?	HUMAN (D-11: expansion unknown — STAY_NULL?)
