@@ -224,7 +224,7 @@ BEGIN
    WHERE source_url IS NULL
       OR source_url NOT LIKE 'https://happywhale.com/individual/%;enc=%';
   IF n > 0 THEN
-    RAISE EXCEPTION 'B&S FAIL: % HappyWhale row(s) have NULL or malformed source_url (expected individual/%;enc=% shape)', n;
+    RAISE EXCEPTION 'B&S FAIL: % HappyWhale row(s) have NULL or malformed source_url (expected individual/%%enc=%% shape)', n;
   END IF;
 END $$;
 
