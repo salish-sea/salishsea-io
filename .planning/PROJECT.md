@@ -32,6 +32,8 @@ Three milestones shipped. v1.0 added shareable occurrence links with rich social
 
 **Detail:** see `.planning/v1.3-EXECUTIVE-SUMMARY.md` (terminology, prod instances, what enters the archive).
 
+**Progress:** Phase 9 (Reference Table Foundation) complete 2026-06-19 — `public.providers` (4), `public.organizations` (5), `public.collections` (21: 10 named + 11 acronym stubs) seeded with RLS read policies, plus a nullable `orcid` column on `public.contributors`. Reference tables and FK targets now exist; unblocks Phase 10 (source-table FK columns).
+
 ## Last Milestone: v1.2 Export to DarwinCore Archive — SHIPPED 2026-06-18
 
 **Delivered:** A nightly GitHub Actions workflow regenerates a DarwinCore Archive (zip + GeoParquet sidecar + sha256 sidecars) from a dedicated read-only `dwc` Postgres schema and publishes it atomically to S3/CloudFront. The About modal links the artifacts with live size + freshness, using a Lambda@Edge carve-out so binary downloads bypass the OG-meta interceptor.
