@@ -40,7 +40,7 @@ Full milestone details: [.planning/milestones/v1.2-ROADMAP.md](milestones/v1.2-R
 ### 📋 v1.3 — Providers, Collections & Contributors
 
 - [x] **Phase 9: Reference Table Foundation** — Create `providers`, `organizations`, `collections` tables with seed data and RLS read policies (completed 2026-06-19)
-- [ ] **Phase 10: Source Table FK Columns** — Add nullable `provider_id`, `collection_id`, `contributor_id`, `source_url` to all four source tables
+- [x] **Phase 10: Source Table FK Columns** — Add nullable `provider_id`, `collection_id`, `contributor_id`, `source_url` to all four source tables (completed 2026-06-19)
 - [ ] **Phase 11: Resolution & Backfill** — URL-pattern resolver + Maplify bracket-tag/attribution backfill + all-provider FK population
 - [ ] **Phase 12: DwC View Rebuild** — 26-column coordinated change: branch views + UNION + fields.ts + meta.xml + EML + row-count gate
 - [ ] **Phase 13: Verification & GBIF Re-validation** — End-to-end "Looks Done But Isn't" checklist + GBIF validator re-run
@@ -64,7 +64,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
 | 7. Nightly Workflow & Hosting | v1.2 | 3/3 | Complete | 2026-06-18 |
 | 8. Frontend Download Link | v1.2 | 2/2 | Complete | 2026-06-18 |
 | 9. Reference Table Foundation | v1.3 | 1/1 | Complete    | 2026-06-19 |
-| 10. Source Table FK Columns | v1.3 | 0/1 | Planned | - |
+| 10. Source Table FK Columns | v1.3 | 1/1 | Complete   | 2026-06-19 |
 | 11. Resolution & Backfill | v1.3 | 0/TBD | Not started | - |
 | 12. DwC View Rebuild | v1.3 | 0/TBD | Not started | - |
 | 13. Verification & GBIF Re-validation | v1.3 | 0/TBD | Not started | - |
@@ -99,7 +99,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
 
 **Plans**: 1 plan
 
-- [ ] 10-01-PLAN.md — Additive FK-column migration (provider_id/collection_id/contributor_id/source_url on all four source tables, partial collection_id index on the two exported tables, slug-resolved provider_id default, generated source_url incl. repo-canonical HappyWhale URL) and the 10_fk_columns_assertions.sql SC#1-SC#4 gate
+- [x] 10-01-PLAN.md — Additive FK-column migration (provider_id/collection_id/contributor_id/source_url on all four source tables, partial collection_id index on the two exported tables, slug-resolved provider_id default, generated source_url incl. repo-canonical HappyWhale URL) and the 10_fk_columns_assertions.sql SC#1-SC#4 gate
 
 ### Phase 11: Resolution & Backfill
 
