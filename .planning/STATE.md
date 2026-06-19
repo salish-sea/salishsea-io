@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Providers, Collections & Contributors
-status: planning
-last_updated: "2026-06-19T17:31:16.200Z"
+status: roadmapped
+last_updated: "2026-06-19"
 last_activity: 2026-06-19
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-09)
+See: .planning/PROJECT.md (updated 2026-06-19)
 
 **Core value:** The most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative cetacean data.
-**Current focus:** Phase 08 — frontend-download-link
+**Current focus:** Phase 09 — reference-table-foundation (next to start)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Not started (roadmap defined; ready to plan Phase 9)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-19 — Milestone v1.3 started
+Status: Roadmapped — 5 phases defined, 17/17 requirements mapped
+Last activity: 2026-06-19 — v1.3 roadmap created (Phases 9-13)
+
+Progress: `░░░░░░░░░░` 0% (0/5 phases complete)
 
 ## Accumulated Context
 
@@ -36,47 +38,50 @@ Last activity: 2026-06-19 — Milestone v1.3 started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Phase 5 Plan 04]: `dwc.occurrences` is a bare `SELECT * UNION ALL` of the two branch views (no explicit column projection) — Postgres enforces 25-column / type parity at `CREATE VIEW` time, so any future branch drift fails the migration loudly (RESEARCH §"Pattern 1: View-as-export-contract"). An explicit projection list would have to be maintained in lockstep with both branches.
-- [Phase 5 Plan 04]: `dwc.datasets` is a view-over-VALUES (M-03 / D-15) with 19 columns sized for future per-constituent rows but shipping with exactly one row in v1.2 (D-16). M-04 commits `rainhead@gmail.com` verbatim in 3 places (creator_email / metadata_provider_email / contact_email) because `supabase/migrations/` is application code, not `.planning/`.
-- [Phase 5 Plan 04]: `dwc.multimedia` is native-only — `maplify.sightings.photo_url` has no license column (POLICY §1.4 / assumption A3), so all Maplify photos are excluded. D-19 distinct CASE branches (`WHEN 'none' THEN NULL` terminal + `ELSE NULL` for IS NULL non-terminal) are encoded for forward-compat even though both currently map to NULL — a future "classify unknowns" workflow can swap `ELSE NULL` for a real URI without touching the `'none'` arm.
-- [Phase 5 Plan 04]: Live-DB assertion run DEFERRED — Docker daemon not running, port 54322 closed, `supabase` CLI not on PATH. Per `<blocking_task_handling>` protocol, did NOT invent a passing verification. SQL + assertion harness committed; `05-VALIDATION.md` stays `nyquist_compliant: false` until the user runs `supabase db reset` + `psql -f supabase/snippets/05_dwc_assertions.sql` and the suite exits 0.
-- [Phase 5 Plan 02]: `dwc._native_occurrences` freezes the 25-column UNION-ALL interface contract — every output column carries an explicit cast (`::text` / `::double precision` / `::integer`) so plan 05-03's Maplify branch must mirror exactly; cross-branch type drift would otherwise be Postgres's canonical UNION-ALL view failure mode (RESEARCH Pitfall 4).
-- [Phase 5 Plan 02]: `dynamicProperties` lets NULL propagate through `jsonb_strip_nulls(jsonb_build_object(...))` rather than `COALESCE`-ing `extract_identifiers` to an empty array — opposite of the established `public.occurrences` pattern, because here we WANT the key dropped when there's no data (POLICY §2.3 omit-when-null).
-- [Phase 5 Plan 02]: Per-row DwC constants (`datasetID`, `datasetName`, `license`, `basisOfRecord`, `occurrenceStatus`, `geodeticDatum`) are inlined as text literals rather than joined from `dwc.datasets` — they're identical on every native row and the join would buy nothing. Plan 05-04's `dwc.datasets` view is the source-of-truth for EML emission in Phase 6.
-- [Phase 5 Plan 01]: M-05 higher-rank-only contract encoded in `dwc.taxa_classification` via explicit 12-rank IN list (genus/genushybrid/subgenus/species/complex/section/subsection/hybrid/subspecies/variety/form/infrahybrid) — survives any future inaturalist.rank enum reordering, where a positional `t.rank <= 'genus'` comparison would silently break.
-- [Phase 5 Plan 01]: `inaturalist.rank::text` is cast directly to DwC `taxonRank` (no remapping CASE) — values match by construction for every in-scope rank per RESEARCH §rank-vocabulary-mapping.
-- [Phase 5 Plan 01]: All four DwC views will live in a single migration (20260617203900_dwc_schema.sql); plans 05-02..05-04 append to it so the policy-to-SQL diff is reviewable in one file.
-- [Phase 5 Plan 01]: `dwc` is intentionally NOT in `supabase/config.toml:api.schemas` (RESEARCH Pitfall 5) — it is a Phase 7 DuckDB consumer surface, not a PostgREST API surface; broad `GRANT SELECT` is deferred to plan 05-04.
-- [v1.2 Roadmap]: Phase order honors the strict dependency chain from research — rights/gap policy (4) → DB projection (5) → archive generation (6) → nightly workflow (7) → frontend link (8). Phases 5–6 are offline-validatable before any prod-touching workflow exists.
-- [v1.2 Scope]: Occurrence-record license = CC-BY-NC 4.0; assert license + document provenance, keep full native + Whale Alert scope (Phase 4 documents/encodes this policy rather than re-deciding it).
-- [v1.2 Architecture]: DwC contract lives in a dedicated read-only `dwc` Postgres schema over source tables (not app-code mapping over `public.occurrences`); export script is a thin serializer; nightly via scheduled GitHub Actions reusing the existing AWS OIDC role + S3/CloudFront (no new AWS infra).
-- [v1.0 Phase 02]: Lambda@Edge for rich previews; SSM credentials managed outside CDK
-- [v1.1 Roadmap]: Pre-process body text before marked.parse to inject markdown links; CSV in src/ (bundled by Vite)
-- [Phase ?]: [Phase 5 Plan 03]: Maplify branch source→display-name CASE materialized once per row via CROSS JOIN LATERAL — dn.display_name reused in rightsHolder, datasetName, dynamicProperties.aggregatorSource, and dynamicProperties.aggregatorChain. Single source of truth per row prevents drift across the four downstream columns (D-10/D-11).
-- [Phase ?]: [Phase 5 Plan 03]: Task 1 audit checkpoint resolved with policy-default mapping via auto-mode (orca_network/cascadia + ELSE 'Whale Alert / Maplify'); defensive ELSE arm prevents data loss for unaudited source codes; plan 05-04 assertion suite catches any production drift.
-- [Phase ?]: [Phase 5 Plan 03]: rwsas defensive filter (POLICY §5.3) included unconditionally in Maplify WHERE clause per RESEARCH Open Question 2 default — belt-and-suspenders against the ingest-time filter in 20250919034327_fix_maplify_taxon_mapping.sql.
-- [Phase ?]: [Phase 5 Plan 03]: Maplify datasetName carries the per-record SUB-SOURCE name (e.g. 'Orca Network'), NOT the parent dataset title — deliberate divergence from the native branch; per-record datasetID still resolves to the parent URI on every row (POLICY §6.3).
+- [v1.3 Roadmap]: Provider ≠ collection — Maplify is the provider, Orca Network FB Group is the collection. A channel is stable if re-sourced; provider is per-record provenance on the sighting, never a property of the collection. `aggregator_ingest` dropped from `collection_kind` enum by construction.
+- [v1.3 Roadmap]: FK columns go directly on each source table (Option A) — established by the existing `public.observations.contributor_id` and `maplify.sightings.taxon_id REFERENCES inaturalist.taxa(id)` cross-schema FK precedent.
+- [v1.3 Roadmap]: SalishSea.io is the GBIF aggregator — `institutionCode="SalishSea"`, `rightsHolder="SalishSea.io"` fixed on every exported row. Upstream org credit goes in EML `associatedParty`, never `institutionCode`.
+- [v1.3 Roadmap]: One collection per external platform for iNat and HappyWhale (not per project). Per-project granularity adds complexity with no GBIF payoff.
+- [v1.3 Roadmap]: URL-pattern resolver is ingest-time TypeScript (pure function, ~20 lines in `scripts/ingest/resolve-provider.ts`), not a DB function. Results stored as FKs; views read pre-resolved FKs.
+- [v1.3 Roadmap]: Exact-match backfill dictionary only — no alias table, no fuzzy match. Typo variants (e.g. "Orca Neteork") go in the VALUES dictionary. Full `SELECT DISTINCT` bracket-tag census against prod required before any UPDATE.
+- [v1.3 Roadmap]: `collection_id` is nullable at column-creation time; NOT NULL constraint (if applied at all) only after backfill completeness verified. Some Maplify rows will permanently have collection_id = NULL.
+- [v1.3 Roadmap]: `comments` column is immutable during backfill — bracket tags and trailing attributions are the audit trail. Strip at view/read time only, never as an UPDATE.
+- [v1.3 Roadmap]: Trailing "Submitted by … Trusted Observer" lines yield collection/org only, never contributor. Using them for `contributor_id` is a category error that silently corrupts ~2,740 rows.
+- [v1.3 Roadmap]: DwC view rebuild is the highest-risk phase — 26-column coordinated change across `dwc._native_occurrences`, `dwc._maplify_occurrences`, `dwc.occurrences`, `scripts/dwca/fields.ts`, `scripts/dwca/fields.test.ts`, and `meta.xml` output. Must be a single PR with `npm test` gate before merge.
+- [v1.3 Roadmap]: SRC-01 export exclusion of iNat/HappyWhale preserved by construction (UNION of exactly two branches), not by WHERE filter. Row-count gate in the nightly job is the runtime guard.
+- [v1.3 Roadmap]: SELECT grants on new reference tables (`providers`, `organizations`, `collections`) must be included in the table-creation migration — not a follow-up. Supabase RLS defaults can silently zero-out DwC JOINs.
+- [v1.3 Roadmap]: `contributor.orcid` nullable column added in Phase 9 (CONTRIB-02); population requires manual curation of the 28 native contributors and is deferred.
+- [v1.3 Roadmap]: Cross-provider contributor unification deferred (`jmaughn` iNat ≈ James Maughn native is a known probable match, not a confirmed identity). A `contributor_links` table is the future extension point; no shared FK across providers this milestone.
+- [v1.2 Phase 5 Plan 04]: `dwc.occurrences` is a bare `SELECT * UNION ALL` of the two branch views — Postgres enforces 25-column / type parity at `CREATE VIEW` time, so any future branch drift fails the migration loudly.
+- [v1.2 Phase 5 Plan 04]: `dwc.datasets` is a view-over-VALUES (M-03 / D-15) with 19 columns sized for future per-constituent rows but shipping with exactly one row in v1.2 (D-16).
+- [v1.2 Phase 5 Plan 04]: `dwc.multimedia` is native-only — `maplify.sightings.photo_url` has no license column (POLICY §1.4 / assumption A3), so all Maplify photos are excluded.
+- [v1.2 Phase 5 Plan 02]: `dwc._native_occurrences` freezes the 25-column UNION-ALL interface contract — every output column carries an explicit cast so plan 05-03's Maplify branch must mirror exactly.
+- [v1.0 Phase 02]: Lambda@Edge for rich previews; SSM credentials managed outside CDK.
+- [v1.1 Roadmap]: Pre-process body text before marked.parse to inject markdown links; CSV in src/ (bundled by Vite).
 
 ### Pending Todos
 
-- [database]: Model embedded dataset attributions as first-class sources — bracket tags (`[Orca Network]` ×2,239 + ~17 others) and trailing "Submitted by … Trusted Observer" lines (Cascadia, Whale Alert Global/Alaska, TMMC) in `maplify.sightings.comments` should become real source/contributor refs so `dwc.occurrences` can populate `datasetName`/`institutionCode` properly. See `.planning/todos/pending/2026-06-17-model-embedded-dataset-attributions-as-first-class-sources.md`.
+- [database]: Model embedded dataset attributions as first-class sources — THIS IS THE v1.3 MILESTONE. The v1.2 todo (bracket tags + trailing "Submitted by …" lines becoming real source refs) is the core work of Phases 9-13. Mark resolved when Phase 13 passes.
+- [verification]: Retry GBIF DwC-A validator for DWCA-05 — the v1.2 validator run was blocked by the gbif.org service being offline (2026-06-19). Re-upload the existing zip to gbif.org/tools/data-validator when the service returns; this is pre-v1.3 work independent of the milestone. (See `.planning/todos/pending/2026-06-18-retry-gbif-validator-for-dwca-05.md`)
 
 ### Blockers/Concerns
 
-- [Phase 4]: Whale Alert / Maplify redistribution terms are an external legal/ToS question — may need light phase-level research and could rescope to a native-only first cut. Sequenced first as a gate.
-- [Phase 7]: Confirm the CloudFront behavior passes `/dwca/*` straight through to S3 rather than rewriting to the SPA `index.html` (verify against Lambda@Edge / behavior config).
-- [Phase 7]: Introduces a possible NEW `production` GitHub environment secret (Supabase service-role / DB connection string). Per deployment memory, confirm with the user before the first workflow run.
+None at roadmap time. Phase 11 (Backfill) requires a full `SELECT DISTINCT` bracket-tag census against prod as its first action — do not skip this step.
 
 ## Deferred Items
 
-Items acknowledged and deferred at v1.2 milestone close on 2026-06-18:
+Items acknowledged and deferred at v1.3 roadmap creation (2026-06-19):
 
 | Category | Item | Status / Notes |
 |----------|------|----------------|
-| verification | Phase 04 04-VERIFICATION.md | human_needed — three policy-doc human-review advisories (Sections 1-2 completeness, Section 4 conferral framing, Section 3 gap coverage). All auto checks green. |
-| quick_task | 260526-scf-add-taxon-id-526556-lutrinae-to-inatural | unknown — shipped in commit 370c786 per existing Quick Tasks Completed table; status flag remains stale. |
-| todo (database) | 2026-06-17-model-embedded-dataset-attributions-as-first-class-sources.md | pending — bracket tags + trailing attributions in maplify.sightings.comments should become first-class source/contributor refs. Carries to next milestone. |
-| todo (phase-06-followup) | 2026-06-18-retry-gbif-validator-for-dwca-05.md | pending — re-upload deterministic zip to gbif.org/tools/data-validator when service returns; flip REQUIREMENTS row Pending → Complete. |
+| verification | Phase 04 04-VERIFICATION.md (v1.2) | human_needed — three policy-doc human-review advisories (Sections 1-2 completeness, Section 4 conferral framing, Section 3 gap coverage). All auto checks green. |
+| quick_task | 260526-scf-add-taxon-id-526556-lutrinae-to-inatural | unknown — shipped in commit 370c786; status flag remains stale. |
+| todo (database) | 2026-06-17-model-embedded-dataset-attributions-as-first-class-sources.md | PROMOTED to v1.3 milestone (Phases 9-13). |
+| todo (phase-06-followup) | 2026-06-18-retry-gbif-validator-for-dwca-05.md | pending — re-upload deterministic zip when gbif.org validator service returns. Independent of v1.3 work. |
+| future | Cross-provider contributor unification (jmaughn case) | Deferred — `contributor_links` table is the extension point; no shared FK this milestone. |
+| future | URL → whole-occurrence importer (source_url Layer 2) | Deferred — seeded at seeds/url-to-occurrence-importer.md. |
+| future | Populate contributor ORCIDs for native contributors | Deferred — CONTRIB-02 ships the column; data entry is later. |
+| future | App UI org/collection browse pages | Deferred to a later frontend phase. |
 
 ### Quick Tasks Completed
 
@@ -86,9 +91,9 @@ Items acknowledged and deferred at v1.2 milestone close on 2026-06-18:
 
 ## Session Continuity
 
-Last session: 2026-06-18T19:28:43.142Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-frontend-download-link/08-CONTEXT.md
+Last session: 2026-06-19 (roadmap creation)
+Stopped at: v1.3 roadmap defined — 5 phases, 17 requirements mapped
+Resume: `/gsd-plan-phase 9` to begin Phase 9 (Reference Table Foundation)
 
 ## Performance Metrics
 
@@ -99,4 +104,4 @@ Resume file: .planning/phases/08-frontend-download-link/08-CONTEXT.md
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `/gsd-plan-phase 9` to begin Phase 9: Reference Table Foundation

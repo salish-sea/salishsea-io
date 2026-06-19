@@ -61,20 +61,20 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROV-01 | — | Pending |
-| ORG-01 | — | Pending |
-| COLL-01 | — | Pending |
-| CONTRIB-01 | — | Pending |
-| CONTRIB-02 | — | Pending |
-| LINK-01 | — | Pending |
-| LINK-02 | — | Pending |
-| LINK-03 | — | Pending |
-| RESOLVE-01 | — | Pending |
-| RESOLVE-02 | — | Pending |
-| RESOLVE-03 | — | Pending |
-| RESOLVE-04 | — | Pending |
-| ATTR-01 | — | Pending |
-| ATTR-02 | — | Pending |
-| ATTR-03 | — | Pending |
-| ATTR-04 | — | Pending |
-| ATTR-05 | — | Pending |
+| PROV-01 | Phase 9 | Pending |
+| ORG-01 | Phase 9 | Pending |
+| COLL-01 | Phase 9 | Pending |
+| CONTRIB-01 | Phase 9 | Pending |
+| CONTRIB-02 | Phase 9 | Pending |
+| LINK-01 | Phase 10 | Pending |
+| LINK-02 | Phase 10 | Pending |
+| LINK-03 | Phase 10 | Pending |
+| RESOLVE-01 | Phase 11 | Pending |
+| RESOLVE-02 | Phase 11 | Pending |
+| RESOLVE-03 | Phase 11 | Pending |
+| RESOLVE-04 | Phase 11 | Pending |
+| ATTR-01 | Phase 12 | Pending |
+| ATTR-02 | Phase 12 | Pending |
+| ATTR-03 | Phase 12 | Pending |
+| ATTR-04 | Phase 12 | Pending |
+| ATTR-05 | Phase 13 | Pending |
