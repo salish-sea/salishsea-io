@@ -98,6 +98,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
   4. New Maplify ingest with no matching collection inserts successfully (collection_id nullable — no NOT NULL constraint applied yet); existing row counts are unchanged
 
 **Plans**: 1 plan
+
 - [ ] 10-01-PLAN.md — Additive FK-column migration (provider_id/collection_id/contributor_id/source_url on all four source tables, partial collection_id index on the two exported tables, slug-resolved provider_id default, generated source_url incl. repo-canonical HappyWhale URL) and the 10_fk_columns_assertions.sql SC#1-SC#4 gate
 
 ### Phase 11: Resolution & Backfill
