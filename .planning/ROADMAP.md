@@ -64,7 +64,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
 | 7. Nightly Workflow & Hosting | v1.2 | 3/3 | Complete | 2026-06-18 |
 | 8. Frontend Download Link | v1.2 | 2/2 | Complete | 2026-06-18 |
 | 9. Reference Table Foundation | v1.3 | 1/1 | Complete    | 2026-06-19 |
-| 10. Source Table FK Columns | v1.3 | 0/TBD | Not started | - |
+| 10. Source Table FK Columns | v1.3 | 0/1 | Planned | - |
 | 11. Resolution & Backfill | v1.3 | 0/TBD | Not started | - |
 | 12. DwC View Rebuild | v1.3 | 0/TBD | Not started | - |
 | 13. Verification & GBIF Re-validation | v1.3 | 0/TBD | Not started | - |
@@ -97,7 +97,8 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
   3. `public.observations.source_url` is populated from `public.observations.url` for rows where `url IS NOT NULL`; `inaturalist.observations.source_url` is populated from `inaturalist.observations.uri` for all rows
   4. New Maplify ingest with no matching collection inserts successfully (collection_id nullable — no NOT NULL constraint applied yet); existing row counts are unchanged
 
-**Plans**: TBD
+**Plans**: 1 plan
+- [ ] 10-01-PLAN.md — Additive FK-column migration (provider_id/collection_id/contributor_id/source_url on all four source tables, partial collection_id index on the two exported tables, slug-resolved provider_id default, generated source_url incl. repo-canonical HappyWhale URL) and the 10_fk_columns_assertions.sql SC#1-SC#4 gate
 
 ### Phase 11: Resolution & Backfill
 
