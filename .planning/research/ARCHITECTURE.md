@@ -1,247 +1,401 @@
-# Architecture Research
+# Architecture Research — v1.3 Providers, Collections & Contributors
 
-**Domain:** DarwinCore Archive (DwC-A) export integrated into an existing static-SPA + Supabase system
-**Researched:** 2026-06-09
-**Confidence:** HIGH (existing architecture read directly from migrations/workflows; DwC-A structure verified against GBIF/OBIS docs)
-
-## Scope of This Research
-
-This is a **subsequent-milestone integration question**, not a greenfield design. The app (Lit SPA, Supabase Postgres, S3/CloudFront, CDK, GitHub Actions) already exists and must stay **untouched at runtime**. The DwC export is purely **additive and read-only**: it reads occurrence data, projects it into DwC terms, zips an archive, and hosts it for download.
-
-The six questions posed reduce to one architectural decision with five consequences: **where does the DwC projection live?** The answer drives source-filtering, the taxonomy walk, the component set, the build order, and the alignment strategy. Recommendation below: **a dedicated read-only DB layer (`dwc` schema: one filtered base view + one classification function) feeds a thin Node export script run nightly by GitHub Actions, writing the zip to the existing S3 site bucket; the frontend gains only a static download link.**
+**Domain:** Provenance/attribution graph integration into an existing multi-schema Supabase/Postgres system with a read-only DwC export pipeline
+**Researched:** 2026-06-19
+**Confidence:** HIGH — grounded directly in the migration files and field lists listed below
 
 ---
 
-## Standard Architecture
+## 1. Per-Sighting FK Placement: Where Do `provider_id`, `collection_id`, `contributor_id`, `source_url` Live?
 
-### System Overview
+### The problem
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                     EXISTING RUNTIME (untouched)                       │
-│  ┌──────────────┐   reads    ┌───────────────────────────────────┐    │
-│  │  Lit SPA     │──────────▶ │  public.occurrences (4-source view)│   │
-│  │ (browser)    │            │  + inaturalist.taxa (hierarchy)    │    │
-│  └──────────────┘            └───────────────────────────────────┘    │
-│         │ NEW: static <a download> link                                │
-└─────────┼──────────────────────────────────────────────────────────────┘
-          │
-┌─────────▼──────────────────────────────────────────────────────────────┐
-│                    NEW: DwC EXPORT PIPELINE (additive)                   │
-│                                                                          │
-│  ┌────────────────────────────────────────────────────────────────┐    │
-│  │  DB projection layer  (migrations → `supabase db push`)         │    │
-│  │  ┌──────────────────────────┐  ┌────────────────────────────┐   │    │
-│  │  │ dwc.occurrences (VIEW)   │  │ dwc.classification(taxon_id)│  │    │
-│  │  │ native + maplify ONLY,   │  │ recursive CTE over          │  │    │
-│  │  │ DwC-aligned columns      │  │ inaturalist.taxa.parent_id  │  │    │
-│  │  └──────────────────────────┘  └────────────────────────────┘   │    │
-│  │  ┌──────────────────────────┐                                   │    │
-│  │  │ dwc.multimedia (VIEW)    │  one row per photo (coreid = id)  │    │
-│  │  └──────────────────────────┘                                   │    │
-│  └────────────────────────────────────────────────────────────────┘    │
-│                       │ SELECT (service-role, read-only)                │
-│  ┌────────────────────▼───────────────────────────────────────────┐    │
-│  │  Export script (Node/TS, bin/export-dwca.ts)                    │    │
-│  │  • query views → stream CSV (occurrence.txt, multimedia.txt)    │    │
-│  │  • emit static meta.xml + templated eml.xml                     │    │
-│  │  • zip → dwca-salishsea.zip                                     │    │
-│  └────────────────────┬───────────────────────────────────────────┘    │
-│                       │ aws s3 cp                                       │
-│  ┌────────────────────▼───────────────────────────────────────────┐    │
-│  │  GitHub Actions workflow (export-dwca.yml, nightly cron)        │    │
-│  │  → s3://salishsea-io/site/dwca/salishsea-dwca.zip               │    │
-│  │  → CloudFront invalidation of /dwca/*                           │    │
-│  └────────────────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+Source rows live in four separate Postgres schemas, each with a distinct table shape and primary-key type:
 
-### Component Responsibilities
+| Schema | Table | PK type | Rows (~) | In DwC-A? |
+|--------|-------|---------|----------|-----------|
+| `public` | `observations` | `uuid` | 436 | yes |
+| `maplify` | `sightings` | `integer` | 6,827 | yes |
+| `inaturalist` | `observations` | `bigint` | 8,759 | no (SRC-01) |
+| `happywhale` | `encounters` | `integer` | 5,601 | no (SRC-01) |
 
-| Component | Responsibility | New / Modified | Implementation |
-|-----------|----------------|----------------|----------------|
-| `dwc.occurrences` view | DwC-aligned column projection over native + Maplify rows only | **NEW** (migration) | SQL view, `security_invoker` off / owned by postgres |
-| `dwc.classification(taxon_id)` fn | Walk `inaturalist.taxa.parent_id` → kingdom..genus columns | **NEW** (migration) | SQL recursive CTE function, `STABLE` |
-| `dwc.multimedia` view | One row per photo, `coreid` = occurrence id, DwC AC terms | **NEW** (migration) | SQL view |
-| `bin/export-dwca.ts` | Query views, stream CSVs, emit meta.xml + eml.xml, zip | **NEW** (script) | Node/TS, `@supabase/supabase-js` or `pg`, `archiver` |
-| `meta.xml` / `eml.xml` template | Static DwC-A descriptor + dataset metadata | **NEW** (committed asset / template) | Static file (+ minimal templating for date/recordCount) |
-| `.github/workflows/export-dwca.yml` | Nightly cron: run script, upload zip, invalidate CDN | **NEW** (workflow) | Mirrors `deploy.yml` AWS-OIDC pattern |
-| Frontend download link | Static `<a href="/dwca/salishsea-dwca.zip" download>` + page copy | **NEW** (small) | One Lit template addition or a static page |
-| `public.occurrences` view | — | **UNCHANGED** | Do not touch |
-| Lit runtime, app queries | — | **UNCHANGED** | Do not touch |
+Three options:
+
+**Option (a) — Add FK columns directly to each source table.**
+Add `provider_id`, `collection_id`, `contributor_id`, `source_url` columns to `public.observations`, `maplify.sightings`, `inaturalist.observations`, and `happywhale.encounters`.
+
+**Option (b) — Introduce a new unifying table (e.g. `public.occurrence_provenance`).**
+A single cross-schema provenance table with a polymorphic or compound key mapping (schema_name, pk) → FK columns.
+
+**Option (c) — Introduce per-source join/mapping tables.**
+One lightweight table per source schema, e.g. `maplify.provenance(sighting_id integer PK → provider_id, collection_id, contributor_id, source_url)`.
+
+### Recommendation: Option (a) — add columns directly to each source table
+
+**Rationale:**
+
+1. **`public.observations` already has `contributor_id` (migration `20260204013006_sightings_uses_contributors.sql`).** The pattern is established and proven; v1.3 extends it with `provider_id`, `collection_id`, `source_url`. Zero new indirection.
+
+2. **FK integrity is enforced at the table level without joins.** With option (b), a query like `SELECT * FROM maplify.sightings WHERE collection_id = X` requires a JOIN to the polymorphic table. With option (a), it's a WHERE clause on the source table itself.
+
+3. **The `dwc` views already JOIN source tables directly** (`FROM public.observations o JOIN public.contributors c ON c.id = o.contributor_id`). They gain access to `provider_id`, `collection_id`, `source_url` simply by referencing `o.provider_id`, `o.collection_id` — no extra JOIN needed.
+
+4. **Option (b)'s polymorphic key is bad Postgres.** A `(schema_name text, pk text)` pair is unenforceable with FK constraints; PKs are integer/bigint/uuid per table. You'd need separate FK-enforcing bridges per source anyway, which collapses option (b) into option (c).
+
+5. **Option (c) (per-source join tables) adds a JOIN and two tables for no gain over option (a).** The only case for option (c) would be if you couldn't add columns to the source tables (e.g. they are owned by an external system and receive verbatim-copied data). Maplify is ingested into our own schema; there is no such constraint.
+
+**Migration impact per source table:**
+
+- `public.observations`: add `provider_id integer REFERENCES public.providers(id)`, `collection_id integer REFERENCES public.collections(id)`, `source_url text` (nullable). `contributor_id` already exists; no change there.
+- `maplify.sightings`: add same three columns. `contributor_id integer REFERENCES public.contributors(id)` must also be added here — Maplify does not have it yet.
+- `inaturalist.observations`: add same four columns (provider_id, collection_id, contributor_id, source_url). Modeled internally; not exported.
+- `happywhale.encounters`: add same four columns. `user_id` already identifies the HappyWhale user; `contributor_id` maps to the unified `public.contributors` table. Modeled internally; not exported.
+
+All FKs to `public.providers`, `public.collections`, `public.contributors` are cross-schema FK references — valid in Postgres. All columns are `NULLABLE` (backfill is incremental, not transactional). The `source_url` column is `text` not `varchar(n)` — URLs can exceed 2000 chars in some providers.
+
+**Existing `public.observations.url`:** This column already exists (initial schema) and holds a user-entered URL for a sighting. It is NOT the same as `source_url` (which is the record's upstream permalink used for provenance resolution). They serve different purposes. Keep both; `source_url` is new.
 
 ---
 
-## The Core Decision: Dedicated DB Projection vs. App-Code Mapping
+## 2. New Tables: `providers`, `organizations`, `collections`
 
-**Recommendation: a dedicated read-only DB layer (`dwc.occurrences` view + `dwc.classification` function), NOT application-code mapping over `public.occurrences`.** HIGH confidence.
+### Schema placement: `public`
 
-### Why a DB view/function, not app mapping
+Rationale: these are first-party reference data backing the application's domain model. They follow the pattern of `public.contributors` (also reference data, also in `public`). A new schema (e.g. `provenance`) would add indirection without benefit at this scale.
 
-1. **`public.occurrences` is the wrong shape and the wrong source set.** It mixes all four sources and packs data into composite types (`lon_lat`, `taxon`, `occurrence_photo[]`) tuned for the *map UI*, not for DwC. Reusing it would force the export script to (a) filter out two of four sources in app code, (b) unpack composites, and (c) re-derive DwC fields. That pushes domain logic into a throwaway script.
-2. **The taxonomy walk is inherently a SQL recursion problem.** `inaturalist.taxa` is a self-referential `parent_id` hierarchy. A recursive CTE is the natural, set-based, indexed way to climb it; doing it in app code means N round-trips or loading the whole taxa table into memory and walking it manually. SQL wins decisively.
-3. **Source filtering is trivial and clean in SQL** (`FROM public.observations` UNION `FROM maplify.sightings`) and messy in app code (string-prefix matching `id LIKE 'maplify:%'` / `not like 'inaturalist:%'` against an already-unioned view).
-4. **Stable, testable contract.** A DB view is a named, versioned, migration-tracked artifact that ships via the existing `supabase db push` step. Field alignment lives in one auditable place. The export script becomes a dumb serializer: SELECT → CSV → zip. This matches the codebase's existing strong preference for SQL-side logic (the whole `public.occurrences` view, `extract_travel_direction`, `species_id`, `extract_identifiers`, `inaturalist.species_id` are all in SQL).
-5. **No runtime coupling.** A new `dwc` schema is strictly additive. The app never reads it; the export script never reads `public.occurrences`. The two paths are independent, satisfying "keep the existing app untouched."
-
-### Why a *new base view* rather than building atop `public.occurrences`
-
-Do **not** layer `dwc.occurrences` on top of `public.occurrences` and filter. Build it directly from the source tables (`public.observations`, `maplify.sightings`) for these reasons:
-- The DwC view needs **raw** fields the unified view discards or transforms (e.g. `public_positional_accuracy` semantics, `license_code` per photo, observer vs subject location, `observed_at` precision, contributor name for `recordedBy`/`rightsHolder`). Re-deriving from composites is lossy and brittle.
-- It avoids inheriting the all-four-sources union you then have to subtract from.
-- It decouples the DwC contract from UI-driven changes to `public.occurrences` (the view has already been rewritten several times — migrations `point_handling`, `sightings_uses_contributors`, `taxon_species_id`). Building on it would make every UI tweak a potential silent break of GBIF output.
-
-**Trade-off accepted:** some column logic (location extraction, identifier regex) is duplicated between `public.occurrences` and `dwc.occurrences`. This is the right trade — duplication of a few `ST_X/ST_Y` projections is cheaper than coupling the export contract to the UI view's churn. Where helpers already exist as functions (`extract_identifiers`, `species_id`), reuse them.
-
----
-
-## Where Each Concern Lives (answering Q1–Q6)
-
-| Concern | Placement | Rationale |
-|---------|-----------|-----------|
-| **(Q1) Data-access shape** | New `dwc.occurrences` SQL view over source tables | DB-side projection; script is a serializer (see above) |
-| **(Q2) Source filtering** | In the view's `FROM` clause: only `public.observations` + `maplify.sightings`, UNION ALL | Clean at source; never relies on id-prefix string matching |
-| **(Q3) Taxonomy walk** | SQL recursive CTE in `dwc.classification(taxon_id integer)` returning kingdom/phylum/class/order/family/genus + scientificName/taxonRank | Set-based recursion over `parent_id`; one call per occurrence via `LATERAL` join or scalar columns |
-| **(Q4) New components** | DB migrations → export script → workflow → frontend link (see build order) | Each is additive; dependency-ordered below |
-| **(Q5) Alignment work** | In the `dwc.occurrences` view (computed columns), NOT new physical columns on source tables, NOT export-time JS mapping | Keeps source tables untouched; alignment is one auditable SQL artifact; no app/runtime impact |
-| **(Q6) Stable occurrenceID** | `occurrenceID` = the source-prefixed id (`'maplify:'||s.id`, native `o.id::text` — prefix natives too, e.g. `'salishsea:'||o.id`) | **Confirmed stable.** ids derive from immutable primary keys; nightly runs reproduce identical values. Recommend prefixing native rows for global uniqueness/namespacing. |
-
-### Q3 detail — the classification function
-
-`inaturalist.taxa(id, parent_id, scientific_name, vernacular_name, rank)` with `rank` an ordered enum (`...genus < ... < kingdom`). A recursive CTE climbs from the occurrence's `taxon_id` to the root, then pivots ranks into DwC columns:
+### `public.providers`
 
 ```sql
-CREATE FUNCTION dwc.classification(leaf_id integer)
-RETURNS TABLE (kingdom text, phylum text, class text, "order" text,
-               family text, genus text, scientific_name text, taxon_rank text)
-LANGUAGE sql STABLE AS $$
-  WITH RECURSIVE walk AS (
-    SELECT id, parent_id, scientific_name, rank FROM inaturalist.taxa WHERE id = leaf_id
-    UNION ALL
-    SELECT t.id, t.parent_id, t.scientific_name, t.rank
-    FROM inaturalist.taxa t JOIN walk w ON t.id = w.parent_id
-  )
-  SELECT
-    max(scientific_name) FILTER (WHERE rank = 'kingdom'),
-    max(scientific_name) FILTER (WHERE rank = 'phylum'),
-    max(scientific_name) FILTER (WHERE rank = 'class'),
-    max(scientific_name) FILTER (WHERE rank = 'order'),
-    max(scientific_name) FILTER (WHERE rank = 'family'),
-    max(scientific_name) FILTER (WHERE rank = 'genus'),
-    (SELECT scientific_name FROM walk WHERE id = leaf_id),
-    (SELECT rank::text FROM walk WHERE id = leaf_id)
-  FROM walk;
-$$;
+CREATE TABLE public.providers (
+  id          integer PRIMARY KEY GENERATED BY DEFAULT AS IDENTITY,
+  name        text NOT NULL,           -- "iNaturalist", "Maplify / conserve.io", "HappyWhale", "SalishSea.io Direct"
+  url         text,                    -- canonical provider homepage / API endpoint
+  source_url_pattern text              -- regex or glob pattern for URL-resolver (see §5)
+);
 ```
 
-Used from the view via `LEFT JOIN LATERAL dwc.classification(o.taxon_id) c ON true`. The enum ordering and existing `species_id` function confirm rank comparison is already idiomatic here.
+Purpose: records *how* a sighting reached us (the ingest API/pipeline). One seed row per current ingest source (four rows at launch). No DwC-A field maps directly to provider — it is internal provenance only.
 
-### Q6 detail — occurrenceID stability (confirmed)
+### `public.organizations`
 
-The existing view already constructs `'maplify:' || s.id` and `o.id::text`. Both derive from immutable surrogate primary keys (`maplify.sightings.id integer PK`, `public.observations.id`). Nightly regeneration is **deterministic**: same row → same id, forever. This is exactly the GBIF stability requirement (occurrenceID must be globally unique and persistent across republications). **Recommendation:** namespace native rows too (`'salishsea:'||o.id`) so the archive's ids are self-describing and collision-free, and consider a `datasetID`/UUID prefix if GBIF registration is later pursued. No new persistence needed.
+```sql
+CREATE TABLE public.organizations (
+  id                  integer PRIMARY KEY GENERATED BY DEFAULT AS IDENTITY,
+  name                text NOT NULL,    -- "Orca Network", "Cascadia Research Collective", etc.
+  url                 text,             -- org homepage
+  dwc_institution_code text             -- informational, not emitted as institutionCode (we are the aggregator)
+);
+```
+
+Purpose: the institution backing a collection channel. Nullable via collection; standalone FB groups have no parent org. Never maps to `institutionCode` in the DwC-A (SalishSea.io is the aggregator — that is always `"SalishSea"`). Surfaces in EML supplementary metadata only.
+
+### `public.collections`
+
+```sql
+CREATE TABLE public.collections (
+  id              integer PRIMARY KEY GENERATED BY DEFAULT AS IDENTITY,
+  name            text NOT NULL,        -- canonical name; exact-match ingest target
+  url             text,                 -- FB group URL, dataset URL, etc.
+  kind            public.collection_kind NOT NULL,
+  organization_id integer REFERENCES public.organizations(id)  -- nullable
+);
+
+CREATE TYPE public.collection_kind AS ENUM (
+  'facebook_group',
+  'research_dataset',
+  'acoustic_feed',
+  'detector',
+  'direct_app'
+);
+```
+
+**`aggregator_ingest` is dropped from the enum.** The v1.3 executive summary (`v1.3-EXECUTIVE-SUMMARY.md` §1) establishes that provider ≠ collection: Maplify is the *provider*, the Facebook group is the *collection*. When a Maplify-ingested sighting comes from the Orca Network FB group, the collection is `facebook_group`, not `aggregator_ingest`. The `aggregator_ingest` value was a design artifact from before this distinction was made and has no valid meaning post-correction.
+
+**Seed data:** ~15 canonical collections — Orca Network, Cascadia Research Collective, Whale Alert (Global), Whale Alert (Alaska), TMMC, PSWS, MCW, CWW, WSSJI, Orcasound, HIWS, SBW, MBARI, SalishSea.io direct, iNaturalist, HappyWhale.
+
+### Cross-schema FK feasibility
+
+Postgres allows cross-schema FKs with fully-qualified references: `REFERENCES public.providers(id)` works from `maplify.sightings`. Verified against the existing pattern: `maplify.sightings.taxon_id REFERENCES inaturalist.taxa(id)` has existed since migration `20250919034327_fix_maplify_taxon_mapping.sql`. This is well-established.
 
 ---
 
-## Recommended Project Structure (additions only)
+## 3. DwC View Changes and the 25-Column Parity Contract
 
-```
-salishsea-io/
-├── supabase/migrations/
-│   └── 2026MMDDHHMMSS_dwc_export.sql   # NEW: dwc schema, occurrences view,
-│                                       #      classification fn, multimedia view
-├── bin/
-│   └── export-dwca.ts                  # NEW: query → CSV → meta/eml → zip
-├── dwc/                                # NEW: static archive scaffolding
-│   ├── meta.xml                        #   DwC-A descriptor (mostly static)
-│   └── eml.xml.template                #   dataset metadata (date/count templated)
-├── .github/workflows/
-│   └── export-dwca.yml                 # NEW: nightly cron, run script, s3 cp, invalidate
-└── src/                                # MINIMAL: add download link/page
-    └── (one template/route addition)
-```
+### What changes in `dwc._native_occurrences` and `dwc._maplify_occurrences`
 
-### Structure Rationale
+The current views (migration `20260617203900_dwc_schema.sql`) need the following column value changes:
 
-- **`dwc` Postgres schema (not `public`):** namespaces the export contract away from app-facing objects; makes "what is the app vs. the export" obvious; lets you grant read-only and reason about it independently.
-- **`bin/export-dwca.ts`:** matches the existing convention of build/utility scripts in `bin/` (`verify-csp-inline-hash.mjs`). The script is intentionally thin.
-- **`dwc/` for static descriptors:** `meta.xml` is essentially constant (it maps CSV columns → DwC term URIs); committing it as a reviewed artifact is better than generating XML in code. `eml.xml` needs only the pubDate and recordCount templated.
-- **Separate workflow, not a step in `deploy.yml`:** the export is **time-driven (nightly), not push-driven**. Coupling it to deploys would either under-run (only on push) or require deploy-on-cron. A dedicated `export-dwca.yml` with `schedule:` cron mirrors the existing `smoke.yml` precedent (which already uses `schedule:` + `workflow_dispatch:`).
+**`rightsHolder`** (column 20):
+- Native: currently `c.name::text` (the contributor). After v1.3: `'SalishSea.io'::text` (fixed aggregator).
+- Maplify: currently `dn.display_name::text` (the source bucket). After v1.3: `'SalishSea.io'::text` (fixed aggregator).
 
----
+**`recordedBy`** (column 19):
+- Native: currently `c.name::text`. After v1.3: same — but now driven by the `contributor_id` FK on `public.observations` joining to `public.contributors.name`. This is already how it works; no functional change.
+- Maplify: currently `s.usernm::text`. After v1.3: `c.name::text` where `c` is joined via the new `maplify.sightings.contributor_id`. The `usernm` opaque codes (`whalealertoa`, `cascadiaWebMap`, `farallon`) are replaced with real contributor names where known, falling back to `s.usernm` for unresolved rows.
 
-## Architectural Patterns
+**`datasetName`** (column 21):
+- Native: currently `'SalishSea.io Cetacean Occurrences (v1.2)'::text` (one constant). After v1.3: `'SalishSea.io — ' || col.name::text` where `col` is joined via `o.collection_id → public.collections`. Default for unresolved: `'SalishSea.io — Direct'::text`.
+- Maplify: currently `dn.display_name::text` (source bucket name). After v1.3: `'SalishSea.io — ' || col.name::text`. Default for unresolved: `'SalishSea.io — Whale Alert / Maplify'::text` (fallback preserves current behavior during backfill).
 
-### Pattern 1: DB-side projection, app-side serialization
+**New field: `institutionCode`**:
+- Value: `'SalishSea'::text` (fixed on every row, both branches).
+- This field does NOT currently exist in the 25-column contract.
 
-**What:** All DwC field alignment, source filtering, and taxonomy resolution live in SQL (`dwc` schema). The Node script only paginates SELECTs and writes bytes.
-**When to use:** When the transformation is relational (joins, recursion, filtering) and must be a stable, auditable contract — exactly this case.
-**Trade-offs:** (+) one source of truth, testable in SQL, ships via existing migration pipeline, zero app coupling. (−) some projection logic duplicated with `public.occurrences`; mitigated by reusing shared functions.
+### Does adding `institutionCode` break the 25-column parity contract?
 
-### Pattern 2: Nightly batch via scheduled GitHub Actions (not pg_cron, not edge function)
+**Yes — adding `institutionCode` changes the column count and requires coordinated changes to both views, the `dwc.occurrences` UNION, and `scripts/dwca/fields.ts`.**
 
-**What:** A `schedule:`-cron workflow runs the export on a clean runner with AWS OIDC + Supabase service-role creds, then `aws s3 cp` + CloudFront invalidation.
-**When to use:** Periodic artifact generation that produces files for CDN hosting.
-**Why not pg_cron:** pg_cron (already used for ingestion/vacuum) runs *inside* Postgres and cannot zip files or write to S3. It's the wrong tool for artifact assembly. **Why not a Supabase Edge Function:** none exist in this repo today, and adding the Deno/edge toolchain + scheduling for a once-nightly batch is more surface area than reusing the established Actions+AWS-OIDC pattern the team already operates (`deploy.yml`). The export needs AWS creds and a zip step — both native to the Actions runner. (MEDIUM confidence that Actions beats Edge here; both work, Actions is the lower-friction fit given existing infra and `smoke.yml` precedent.)
-**Trade-offs:** (+) reuses existing AWS-OIDC role pattern, no new runtime in prod, easy `workflow_dispatch` manual trigger. (−) export logic runs outside Supabase; needs service-role key in the workflow's `production` environment secrets (flag for the user — see deployment note).
+The existing contract (`scripts/dwca/fields.ts` `OCCURRENCE_FIELDS` array) is a 25-entry ordered array. `build.ts` step 6–7 runs `assertFieldAlignment` which compares the live `DESCRIBE pgdb.dwc.occurrences` column list against `OCCURRENCE_FIELDS` by name and ordinal. If `institutionCode` is added to the SQL views but not to `OCCURRENCE_FIELDS`, the assertion fails. If it's added to `OCCURRENCE_FIELDS` but not the views, the assertion also fails.
 
-### Pattern 3: Host the archive on the existing CDN, same bucket/prefix
+**Required coordinated change:**
+1. Add `institutionCode` to `dwc._native_occurrences` (new column, `'SalishSea'::text`).
+2. Add `institutionCode` to `dwc._maplify_occurrences` (same, same position).
+3. `dwc.occurrences` is a `SELECT * FROM ... UNION ALL SELECT * FROM ...` — Postgres enforces column count parity at `CREATE VIEW` time, so the UNION will reject mismatched column counts. Both branch views must have the column added before `dwc.occurrences` can be recreated.
+4. Add `{ name: 'institutionCode', termUri: 'http://rs.tdwg.org/dwc/terms/institutionCode' }` to `OCCURRENCE_FIELDS` at a consistent ordinal position.
+5. The `TAB_COLLAPSE_COLS` set in `build.ts` does not need `institutionCode` (it's a fixed constant — never contains tabs).
 
-**What:** Write the zip to `s3://salishsea-io/site/dwca/salishsea-dwca.zip`; it's served by the existing CloudFront distribution (origin path `/site`) at `https://salishsea.io/dwca/salishsea-dwca.zip`. Frontend links to it directly.
-**When to use:** When a static CDN already fronts the same bucket — no new infra needed.
-**Trade-offs:** (+) zero new AWS resources, instant global download, no CDK change required. (−) must add a CloudFront invalidation for `/dwca/*` after each upload (cheap); ensure the path isn't caught by SPA index.html rewrite rules (verify the Lambda@Edge / behavior config passes `/dwca/*` through to S3 — likely fine since it's a real object, but confirm during build).
+**Recommended column position for `institutionCode`:** Insert after column 20 (`rightsHolder`) so the logical DwC grouping of rights/attribution fields is contiguous. This makes `institutionCode` column 21, shifting `datasetName` to 22, `datasetID` to 23, `license` to 24, `dynamicProperties` to 25, `informationWithheld` to 26. Total: 26 columns.
+
+The F-03 invariant in `fields.ts` states: "The array index is load-bearing: it is both the column ordinal in the generated TSV/CSV AND the field index emitted into `meta.xml`. Reordering an entry without a matching migration edit silently corrupts the archive." This means any insertion must be accompanied by a migration that recreates both branch views and the UNION view with the new column in the same ordinal position.
+
+**Migration strategy:** The branch views are `CREATE VIEW`, not `CREATE OR REPLACE VIEW` in the v1.2 migration. v1.3 must `CREATE OR REPLACE VIEW` for both `dwc._native_occurrences` and `dwc._maplify_occurrences`, then `CREATE OR REPLACE VIEW dwc.occurrences`. (In Postgres, `CREATE OR REPLACE VIEW` can add columns but not remove them or reorder existing ones — adding a new column at the end is safe; inserting in the middle requires `DROP VIEW ... CASCADE` then `CREATE VIEW`. Since v1.3 also changes column *values* not just count, dropping and recreating is cleaner.)
+
+**Drop order:** `DROP VIEW dwc.occurrences CASCADE` → `DROP VIEW dwc._maplify_occurrences` → `DROP VIEW dwc._native_occurrences` → recreate all three with new column set. The LATERAL `dn` cross-join in `_maplify_occurrences` can be removed since `datasetName` and `rightsHolder` now come from JOINs to `public.collections` and a fixed constant respectively.
 
 ---
 
-## Data Flow
+## 4. DwC Aggregator Pattern — GBIF Specifics
 
-### Nightly export flow
+### `institutionCode` and `rightsHolder`
+
+- `institutionCode = 'SalishSea'` — fixed on every exported row. This is the GBIF aggregator pattern: SalishSea.io is the publisher/institution, regardless of upstream origin. (Reference: Happywhale on OBIS-SEAMAP, iNaturalist Research-grade Observations on GBIF — both use the aggregator's code, not the community contributor's.)
+- `rightsHolder = 'SalishSea.io'` — fixed on every exported row, replacing the current pattern where native rows use the contributor name and Maplify rows use the source bucket name.
+
+### `datasetName` and `datasetID` conventions
+
+- `datasetName` = `'SalishSea.io — {collection.name}'` per row. Each collection becomes its own logical dataset within the archive. Examples: `"SalishSea.io — Orca Network"`, `"SalishSea.io — Cascadia Research Collective"`, `"SalishSea.io — Direct"`.
+- `datasetID` = `'https://salishsea.io/datasets/occurrences-v1'` — unchanged. The single-dataset URI stays constant. GBIF treats the archive as one dataset; `datasetName` per row is supplementary metadata within that dataset.
+
+### `parentCollectionIdentifier` — relevance assessment
+
+GBIF's `parentCollectionIdentifier` is a DwC term used in collection descriptors (GBIF Collection Registry, not occurrence records). It appears in Happywhale's OBIS-SEAMAP IPT registration because OBIS-SEAMAP hosts multiple sub-collections under a parent registry entry. SalishSea.io is registering as a single dataset publisher with per-collection `datasetName` rows — there is no parent collection hierarchy to express. `parentCollectionIdentifier` is NOT relevant to our DwC-A occurrence export and should not be added to the field list. Confidence: MEDIUM (based on GBIF documentation review; the executive summary §5 already documents this as an open question resolved here).
+
+### EML encoding of upstream organizations
+
+Organizations (Orca Network, Cascadia RC, etc.) do NOT map to `institutionCode` in the archive. They surface in EML as supplementary metadata only:
+
+- `samplingProtocol` element: can reference the upstream community or collection method. Example: `"Community whale sighting reports submitted via Orca Network Facebook Group"`.
+- `bibliographicCitation` element: can cite the upstream organization with its URL.
+
+The `dwc.datasets` view (currently a one-row VALUES list) will need to expand to support per-collection rows in a future milestone. For v1.3, the EML remains a single-dataset document. The upstream organizations can be added to `eml.xml` as `associatedParty` elements (GBIF IPT convention for contributor/stakeholder parties), generated from `public.organizations` rows at build time in `scripts/dwca/eml.ts`.
+
+### `dynamicProperties` — the `aggregatorChain` key
+
+Currently `dwc._maplify_occurrences` emits `dynamicProperties` with `aggregatorSource = dn.display_name` and `aggregatorChain = 'Whale Alert / Maplify (WASEAK) > ' || dn.display_name`. After v1.3, these should update to reference the collection and provider respectively:
+- `aggregatorSource` → `col.name` (the collection name)
+- `aggregatorChain` → `prov.name || ' > ' || col.name` (e.g. `"Maplify / conserve.io > Orca Network"`)
+
+This is a value change within an existing key, not a schema change — the `dynamicProperties` column stays at the same ordinal.
+
+---
+
+## 5. URL-Pattern Resolver
+
+### Where it lives: ingest-time TS function, not a DB function
+
+The resolver maps `source_url` → `(provider_id, collection_id)`. It should live as an ingest-time TypeScript function, not a DB stored procedure. Rationale:
+
+1. **Regex evaluation in Postgres is possible but not idiomatic for a registry lookup.** The resolver is essentially a pattern-matching table scan, better expressed in TS where the patterns are readable, testable, and version-controlled alongside the ingest scripts.
+2. **The resolver runs once at ingest/backfill time, not at query time.** Results are stored as `provider_id` / `collection_id` FKs on the source rows. The DB views read the pre-resolved FKs; they never call the resolver.
+3. **Ingest scripts are already TypeScript.** The pattern registry co-locates with the code that uses it.
+
+A DB function (`resolve_url(source_url text) RETURNS TABLE(provider_id integer, collection_id integer)`) would be needed only if you wanted to resolve URLs at view-query time (option (b) from §1, which was rejected). With FKs stored on source rows, the DB only stores the results, not the resolution logic.
+
+### Registry shape
+
+```typescript
+type UrlPattern = {
+  pattern: RegExp;          // matches against source_url
+  provider_name: string;    // must match providers.name exactly
+  collection_name: string;  // must match collections.name exactly; null if not resolvable from URL alone
+};
+
+const URL_PATTERNS: UrlPattern[] = [
+  {
+    pattern: /^https?:\/\/(www\.)?inaturalist\.org\/observations\//,
+    provider_name: 'iNaturalist',
+    collection_name: 'iNaturalist',
+  },
+  {
+    pattern: /^https?:\/\/(www\.)?happywhale\.com\//,
+    provider_name: 'HappyWhale',
+    collection_name: 'HappyWhale',
+  },
+  {
+    pattern: /^https?:\/\/(www\.)?facebook\.com\/groups\/([^/]+)\//,
+    provider_name: null,      // FB group provider depends on how the record arrived
+    collection_name: null,    // requires slug → collection lookup
+  },
+  {
+    pattern: /^https?:\/\/(www\.)?salishsea\.io\//,
+    provider_name: 'SalishSea.io Direct',
+    collection_name: 'SalishSea.io Direct',
+  },
+];
+```
+
+### Resolution order (four layers)
+
+For a Maplify sighting (`maplify.sightings` row), the resolver tries in order:
+
+1. **`source_url` pattern** — preferred; if `source_url` matches a registered pattern, use it. For iNat/native/HappyWhale rows, `source_url` resolves immediately. For Maplify rows, `source_url` is currently absent (Maplify does not supply record permalinks — noted in executive summary §3 "Reality check").
+
+2. **Leading bracket tag** in `comments` — extract `[Tag]` from `s.comments`, match against `collections.name` (exact, case-insensitive, trimmed). The backfill dictionary maps known typo variants (e.g. `"Orca Networ"` → `"Orca Network"`) to canonical names. This is a one-time human-verified exact-match dictionary; no alias table in the DB.
+
+3. **Trailing "Submitted by … Trusted Observer" line** — extract the org-name portion (e.g. `"Cascadia Trusted Observer"` → `"Cascadia Research Collective"`). This is the *only* collection signal for ~2,740 Cascadia/Whale Alert/TMMC rows; it yields a collection and organization reference but NO contributor (the trailing line names an org, not a person).
+
+4. **Structured `maplify.sightings.source` code** — the `source` column values (`orca_network`, `cascadia`, etc.) map to collections via the existing CASE logic in `dwc._maplify_occurrences`. This is the current fallback used by the v1.2 view.
+
+5. **NULL** — if no signal resolves, `collection_id` and `provider_id` stay NULL. The sighting is still exported with the DwC fallback `datasetName = 'SalishSea.io — Whale Alert / Maplify'`.
+
+The `source_url` column on `maplify.sightings` will be populated by the resolver for future ingests where Maplify supplies a URL (not currently, but architecturally ready). For existing rows, layers 2–4 drive collection resolution.
+
+---
+
+## 6. Component Map: New vs Modified
+
+### New components (migrations)
+
+| Component | Schema | Type | Purpose |
+|-----------|--------|------|---------|
+| `public.providers` | public | table | Provider registry; 4 seed rows |
+| `public.organizations` | public | table | Organization registry; ~15 seed rows |
+| `public.collections` | public | table | Collection registry; ~15 seed rows |
+| `public.collection_kind` | public | enum | `facebook_group`, `research_dataset`, `acoustic_feed`, `detector`, `direct_app` |
+
+### Modified source tables (migrations)
+
+| Table | Schema | Change | Migration notes |
+|-------|--------|--------|-----------------|
+| `public.observations` | public | add `provider_id`, `collection_id`, `source_url` nullable | `contributor_id` already present |
+| `maplify.sightings` | maplify | add `provider_id`, `collection_id`, `contributor_id`, `source_url` nullable | all new |
+| `inaturalist.observations` | inaturalist | add `provider_id`, `collection_id`, `contributor_id`, `source_url` nullable | internal only |
+| `happywhale.encounters` | happywhale | add `provider_id`, `collection_id`, `contributor_id`, `source_url` nullable | internal only; `user_id` remains |
+
+### Modified DwC views (migrations — must drop and recreate)
+
+| View | Change |
+|------|--------|
+| `dwc._native_occurrences` | Add `institutionCode` column (position 21); change `rightsHolder` to fixed `'SalishSea.io'`; change `datasetName` to `'SalishSea.io — ' || col.name` via JOIN on `o.collection_id`; `recordedBy` stays `c.name` |
+| `dwc._maplify_occurrences` | Add `institutionCode` column (position 21); change `rightsHolder` to fixed `'SalishSea.io'`; change `datasetName` via JOIN on `s.collection_id`; change `recordedBy` via JOIN on `s.contributor_id → public.contributors.name` (fallback to `s.usernm`); remove LATERAL `dn` CROSS JOIN |
+| `dwc.occurrences` | Recreated as UNION ALL of updated branch views (column count now 26) |
+
+### Modified TS pipeline
+
+| File | Change |
+|------|--------|
+| `scripts/dwca/fields.ts` | Add `institutionCode` entry at index 20 (after `rightsHolder`); shift subsequent indices; update comment about 25-column count to 26 |
+| `scripts/dwca/build.ts` | `TAB_COLLAPSE_COLS` — no change needed for `institutionCode` (constant value); potentially add `institutionCode` tab-collapse if paranoid, but it's `'SalishSea'` — no whitespace risk |
+| `scripts/dwca/eml.ts` (if it exists) | Add `associatedParty` elements from `public.organizations` to the generated EML |
+
+### New TS components
+
+| File | Purpose |
+|------|---------|
+| `scripts/backfill/resolve-maplify-collections.ts` | One-time: apply bracket-tag + trailing-attribution + source-code dictionary to `maplify.sightings`, write `collection_id` FKs |
+| `scripts/backfill/seed-providers-collections-orgs.ts` | Seed the three new reference tables |
+
+---
+
+## 7. System Overview After v1.3
 
 ```
-GitHub Actions cron (schedule)
-    ↓
-checkout → setup node → npm ci
-    ↓
-node bin/export-dwca.ts   (SUPABASE_URL + service_role key)
-    ↓                       ↓ SELECT * FROM dwc.occurrences (paginated)
-  stream occurrence.txt ◀──┤ SELECT * FROM dwc.multimedia
-  stream multimedia.txt ◀──┘
-    ↓
-render eml.xml (pubDate, recordCount) + copy static meta.xml
-    ↓
-archiver → salishsea-dwca.zip
-    ↓
-configure-aws-credentials (OIDC, same role as deploy)
-    ↓
-aws s3 cp salishsea-dwca.zip s3://$BUCKET/site/dwca/
-aws cloudfront create-invalidation --paths '/dwca/*'
-    ↓
-available at https://salishsea.io/dwca/salishsea-dwca.zip
-```
+┌───────────────────────────────────────────────────────────────────────┐
+│              PROVENANCE GRAPH (public schema — new in v1.3)            │
+│  providers     organizations     collections                           │
+│  (4 rows)      (~15 rows)        (~15 rows, kind enum)                │
+│       │              │ ←─────── organization_id (nullable)             │
+│       │              └──────────────────────────────────┐             │
+│       │                                                 ▼             │
+│  FK: provider_id, collection_id, contributor_id, source_url           │
+│  on all four source tables (columns added in v1.3 migrations)         │
+└───────────────────────────────────────────────────────────────────────┘
+          │                    │                   │                │
+          ▼                    ▼                   ▼                ▼
+  public.observations  maplify.sightings  inaturalist.obs  happywhale.enc
+  (contributor_id      (contributor_id    (all FKs new)    (all FKs new)
+  already existed)     new)
 
-### Read flow (DB projection)
-
-```
-dwc.occurrences (VIEW)
-   ├── FROM public.observations  → DwC terms (occurrenceID='salishsea:'||id, recordedBy=contributor, license, coords, eventDate)
-   └── FROM maplify.sightings    → DwC terms (occurrenceID='maplify:'||id, recordedBy=usernm/source, coords, eventDate)
-        each row LEFT JOIN LATERAL dwc.classification(taxon_id)  → kingdom..genus, scientificName, taxonRank
-dwc.multimedia (VIEW)
-   └── one row per photo, coreid = parent occurrenceID, accessURI + license  (DwC Audubon Core)
+          │                    │
+          └──────────┬─────────┘
+                     ▼
+         dwc schema (export only — v1.3 modifies)
+         ┌──────────────────────────────────────┐
+         │  dwc._native_occurrences  (26 cols)  │
+         │    + institutionCode='SalishSea'      │
+         │    + rightsHolder='SalishSea.io'      │
+         │    + datasetName='SalishSea.io — '   │
+         │      || collections.name              │
+         │  dwc._maplify_occurrences (26 cols)  │
+         │    (same; contributor via FK join)    │
+         │  dwc.occurrences (UNION ALL)          │
+         └────────────────┬─────────────────────┘
+                          │ DuckDB ATTACH (nightly)
+                          ▼
+              scripts/dwca/build.ts
+              (fields.ts: 26-entry OCCURRENCE_FIELDS)
+              occurrence.txt + GeoParquet + zip
 ```
 
 ---
 
-## Build Order (dependency-respecting)
+## 8. Dependency-Aware Build Order
 
-The quality gate requires: **DB projection → export script → workflow → frontend link.** Concretely:
+**Hard rule:** the new reference tables (`providers`, `organizations`, `collections`) must exist before the FK columns can be added to source tables, which must be populated before the DwC views can JOIN on them, which must exist before `fields.ts` update + alignment test passes, which must pass before the nightly job works correctly.
 
-1. **DB migration (`dwc` schema).** Create `dwc.classification()` first (leaf dependency), then `dwc.occurrences` and `dwc.multimedia` views that use it. Validate by querying in a local Supabase (`http://127.0.0.1:54321`) and spot-checking DwC correctness against `REQUIREMENTS.md`'s field audit. *Ships via existing `supabase db push` on next deploy — independent of the workflow.* **Blocks everything below.**
-2. **`meta.xml` + `eml.xml` template.** Author the descriptor mapping the view's columns → DwC term URIs (occurrence core + multimedia extension; coreid linkage). Static, reviewable. Depends only on the view's column contract from step 1.
-3. **Export script (`bin/export-dwca.ts`).** Query the views, stream CSVs, emit meta/eml, zip. Run locally end-to-end against local or prod-read Supabase; validate the zip with GBIF's DwC-A validator. Depends on steps 1–2.
-4. **Workflow (`export-dwca.yml`).** Wrap the script: nightly `schedule:` + `workflow_dispatch:`, AWS OIDC (reuse `salishsea-deploy-action` role), Supabase service-role secret, `s3 cp` + invalidation. Depends on step 3. Confirm/add the service-role secret to the **production** GitHub environment before first run (deployment-memory rule: tell the user, await confirmation).
-5. **Frontend download link/page.** Add a static `<a href="/dwca/salishsea-dwca.zip" download>` plus a short "Data download / DwC-A" explanation. Depends on step 4 producing the object at a stable URL. Lowest-risk, last.
+### Phase ordering
 
-Steps 1–3 can be developed and validated **entirely offline** (local Supabase + local zip), de-risking before any prod-touching workflow exists.
+**Phase A — Reference table foundation**
+1. Migration: create `public.collection_kind` enum.
+2. Migration: create `public.providers`, `public.organizations`, `public.collections` with correct column shapes.
+3. Migration: seed rows for all four providers + ~15 canonical collections + organizations.
+   - Dependency: must precede all FK additions.
+
+**Phase B — Source table FK columns**
+4. Migration: add `provider_id`, `collection_id`, `source_url` to `public.observations` (nullable; `contributor_id` already exists).
+5. Migration: add `provider_id`, `collection_id`, `contributor_id`, `source_url` to `maplify.sightings` (all nullable).
+6. Migration: add same four columns to `inaturalist.observations` and `happywhale.encounters` (nullable).
+   - Dependency: all FK targets (Phase A) must exist.
+   - Can deploy 4–6 in one migration or separately; they are independent of each other.
+
+**Phase C — Backfill**
+7. Script: `seed-providers-collections-orgs.ts` (if not done in Phase A migration seed).
+8. Script: `resolve-maplify-collections.ts` — read `maplify.sightings.comments`, apply bracket-tag + trailing-attribution + source-code dictionary, write `collection_id` FKs. Human review of the ~15-row dictionary before running.
+9. Script/migration: wire `provider_id = (SELECT id FROM public.providers WHERE name = 'Maplify / conserve.io')` for all `maplify.sightings` rows (all came via the same provider).
+10. Script/migration: wire `provider_id`, `collection_id`, `source_url` for `public.observations` (SalishSea.io Direct provider; `source_url` from `o.url`).
+11. Script/migration: wire `provider_id`, `collection_id` for `inaturalist.observations` (iNaturalist provider/collection); `source_url` from `inaturalist.observations.uri` (already populated).
+12. Script/migration: wire `provider_id`, `collection_id` for `happywhale.encounters` (HappyWhale provider/collection); `source_url` constructable from encounter `id`.
+    - Dependency: Phase B FK columns must exist.
+    - Dependency: Phase A seed data must be present.
+
+**Phase D — DwC view update**
+13. Migration: `DROP VIEW dwc.occurrences CASCADE; DROP VIEW dwc._maplify_occurrences; DROP VIEW dwc._native_occurrences;`.
+14. Migration (continued): `CREATE VIEW dwc._native_occurrences` with 26 columns (add `institutionCode` at position 21; update `rightsHolder`, `datasetName`).
+15. Migration (continued): `CREATE VIEW dwc._maplify_occurrences` with 26 columns (same additions; update `recordedBy` to use `contributor_id` JOIN with fallback; remove LATERAL `dn`).
+16. Migration (continued): `CREATE VIEW dwc.occurrences AS SELECT * FROM ... UNION ALL SELECT * FROM ...`.
+    - Dependency: Phase B FK columns must exist (views JOIN on them).
+    - Dependency: Phase A reference tables must exist.
+
+**Phase E — TS pipeline update**
+17. Edit `scripts/dwca/fields.ts`: add `institutionCode` at index 20, update count comment to 26.
+18. Verify `assertFieldAlignment` passes against updated `dwc.occurrences` (run locally against local Supabase after Phase D migration).
+19. Run nightly build locally; confirm `institutionCode` column appears in generated `occurrence.txt`.
+    - Dependency: Phase D views must be live in local Supabase.
+
+**Can be developed in parallel (independent of Phases B–E):**
+- EML enhancements: `associatedParty` elements from `public.organizations` (read-only query; doesn't touch occurrence column list).
+- `dwc.datasets` view update: change title from `'SalishSea.io Cetacean Occurrences (v1.2)'` to `'SalishSea.io Cetacean Occurrences (v1.3)'` (or similar) in a separate migration.
+- URL-pattern resolver TS module: pure function, testable independently.
 
 ---
 
@@ -249,52 +403,46 @@ Steps 1–3 can be developed and validated **entirely offline** (local Supabase 
 
 | Anti-pattern | Why bad | Instead |
 |--------------|---------|---------|
-| Map DwC fields in the export script from `public.occurrences` | Couples export to UI view churn; forces composite-unpacking + id-prefix source filtering in JS | Dedicated `dwc.occurrences` view over source tables |
-| Filter sources via `id LIKE 'maplify:%'` on the unified view | Fragile string matching; still scans iNat/HappyWhale rows | Filter at `FROM` (only native + maplify tables) |
-| Walk taxonomy in app code (N queries or in-memory tree) | Round-trips or full-table load; reinvents recursion | SQL recursive CTE (`dwc.classification`) |
-| Add DwC columns to `public.observations` / `maplify.sightings` | Mutates source tables; risks app; alignment scattered | Computed columns in the `dwc` view only |
-| Put the export in pg_cron | pg_cron can't zip or write S3 | Scheduled GitHub Actions workflow |
-| Bolt the export onto `deploy.yml` | Push-driven, not time-driven; under/over-runs | Separate cron workflow (mirror `smoke.yml`) |
-| Generate a new occurrenceID per run (e.g. random UUID) | Breaks GBIF republication identity | Use immutable source-prefixed PK id |
-| Stand up a new S3 bucket / CDN for the archive | Needless infra; CDK change | Reuse `salishsea-io` bucket `/site/dwca/` behind existing CloudFront |
+| Polymorphic provenance table `(schema_name text, pk text)` | No FK enforcement across heterogeneous PKs; any typed-FK solution collapses to per-source columns anyway | Add FK columns to each source table (option a) |
+| Resolving `source_url` → provider/collection at view query time (DB function in SELECT) | Runs regex for every row on every export; provenance is static once ingested | Store resolved `provider_id`/`collection_id` FKs at ingest time; views read pre-computed FKs |
+| Adding `institutionCode` to `fields.ts` without matching migration (or vice versa) | `assertFieldAlignment` fails at build time; archive generation breaks | Coordinate `fields.ts` update with migration in same PR/phase |
+| Inserting `institutionCode` mid-list without DROP + RECREATE of views | `CREATE OR REPLACE VIEW` cannot reorder columns in Postgres; silently shifts subsequent ordinals | `DROP VIEW dwc.occurrences CASCADE; DROP VIEW dwc._maplify_occurrences; DROP VIEW dwc._native_occurrences;` then recreate all three |
+| Setting `institutionCode` per-collection rather than fixed `'SalishSea'` | Violates the aggregator pattern; GBIF treats us as the publisher, not the upstream org | Fixed `'SalishSea'::text` on every exported row |
+| Using `aggregator_ingest` in `collection_kind` enum | Conflates provider and collection; the kind should describe the channel's nature, not its ingest path | Drop `aggregator_ingest`; a Maplify-ingested FB group is `facebook_group`; Maplify is the provider |
+| Fuzzy matching or `pg_trgm` for collection resolution | Alias drift, false positives, unbounded ops cost | Exact-match dictionary; no alias table; human eyeballs the ~15 canonical tags |
 
 ---
 
-## Scalability Considerations
+## Integration Points
 
-Occurrence volume here is modest (native sightings + Maplify in the Salish Sea — thousands to low tens of thousands of rows), so a single nightly full-rebuild of the archive is the right simplicity/correctness trade.
+### DB boundary
 
-| Concern | Now (full nightly rebuild) | If it grows large |
-|---------|----------------------------|-------------------|
-| Export runtime | Single SELECT + stream; seconds | Paginate/`COPY`-stream CSV; already streaming |
-| Taxonomy walk cost | One recursive CTE per row; taxa table small | Materialize `dwc.classification` as a cached table refreshed on taxa change |
-| Archive size | One zip, served from CDN | Same; CDN scales reads infinitely |
-| Determinism across runs | PK-derived ids guarantee stability | Unchanged |
+- `dwc` schema reads `public.observations`, `maplify.sightings`, `public.contributors`, `public.collections` (new). The app reads `public.occurrences` (unchanged) and does not read `dwc`.
+- The `public.occurrences` UI view references all four source tables. It will NOT be modified in v1.3 (the attribution display in the UI is a separate concern from the DwC export).
 
-No incremental-export complexity is warranted at current scale.
+### Export pipeline boundary
 
----
+- `scripts/dwca/fields.ts` is the single source of truth for column ordinals. Any migration that changes `dwc.occurrences` column count or order requires a coordinated `fields.ts` update.
+- `build.ts` `assertFieldAlignment` is the runtime guard — it fires on every nightly build and would catch a drift introduced by a partial update.
 
-## Integration Points Summary (for the roadmapper)
+### Backfill boundary
 
-- **Read boundary:** new `dwc` schema reads `public.observations`, `maplify.sightings`, `inaturalist.taxa`, `public.observation_photos`, `contributors`. It reads **nothing the app writes to in a coupling way** and the app reads nothing from `dwc`.
-- **Ships through existing pipeline for DB:** migrations deploy via the already-present `supabase db push` step in `deploy.yml` — no new DB deploy mechanism.
-- **New independent pipeline for the artifact:** `export-dwca.yml` (cron) reuses the existing AWS OIDC role and the existing S3 bucket + CloudFront distribution. **New secret required:** Supabase service-role key in the `production` GitHub environment — surface to the user and await confirmation before first run.
-- **Frontend touch is minimal and static:** one download link/page; no change to data fetching, map, or auth.
-- **Quality gate satisfied:** integration points identified; new vs. modified components explicit (table above); build order respects DB→script→workflow→link; taxonomy walk placed in SQL recursive function with rationale; source filtering placed at view `FROM` with rationale; stable occurrenceID confirmed (PK-derived, deterministic).
+- Backfill scripts are one-time, idempotent (`ON CONFLICT DO NOTHING` or `WHERE collection_id IS NULL` guards). They write to the source tables; the DwC views read the results. Backfill is not part of the nightly job.
 
 ---
-
-## Confidence & Gaps
-
-- **HIGH:** existing infra facts (S3 bucket `salishsea-io`, `/site` origin path, OIDC role, `supabase db push` in deploy, pg_cron present, `smoke.yml` cron precedent, taxa `parent_id` + ordered rank enum, source-prefixed ids) — all read directly from the repo.
-- **MEDIUM:** Actions-vs-Edge-Function choice (both viable; Actions recommended for lower friction with existing AWS-OIDC pattern). CloudFront behavior must be confirmed to pass `/dwca/*` straight to S3 rather than rewriting to `index.html` — verify during build (step 4).
-- **Deferred to REQUIREMENTS/field-audit (not architecture):** the exact DwC term-by-term mapping, datatype gaps, and whether ResourceRelationship (travel segments) is in-scope. Architecture above accommodates a Multimedia extension and is extensible to ResourceRelationship without restructuring (add another `dwc` view + extension file in meta.xml).
 
 ## Sources
 
-- [Darwin Core Archives How-to Guide — GBIF IPT User Manual](https://ipt.gbif.org/manual/en/ipt/latest/dwca-guide)
-- [OBIS Manual — Darwin Core Archive format](https://manual.obis.org/data_format.html)
-- [Darwin Core Archive Requirements (iDigBio)](https://github.com/iDigBio/Biospex/wiki/Darwin-Core-Archive-Requirements)
-- [Darwin Core Archive — Wikipedia](https://en.wikipedia.org/wiki/Darwin_Core_Archive)
-- Repo (HIGH): `supabase/migrations/20260204013006_sightings_uses_contributors.sql`, `20250903172708_initial_schema.sql` (taxa, rank enum, maplify.sightings), `20250914232212_cron.sql`, `20250922000622_taxon_species_id.sql`, `.github/workflows/deploy.yml`, `.github/workflows/smoke.yml`, `infra/lib/infra-stack.ts`
+- Repo migration (HIGH): `supabase/migrations/20260617203900_dwc_schema.sql` — current 25-column view contract, UNION ALL structure, `_native_occurrences` and `_maplify_occurrences` branch views
+- Repo migration (HIGH): `supabase/migrations/20250903172708_initial_schema.sql` — `maplify.sightings` table shape, `inaturalist.observations`, `happywhale.encounters`
+- Repo migration (HIGH): `supabase/migrations/20260203234153_individuals.sql` — `public.contributors`, `public.user_contributor` table shapes
+- Repo migration (HIGH): `supabase/migrations/20260204013006_sightings_uses_contributors.sql` — `public.observations.contributor_id` FK, proof of cross-schema FK pattern
+- Repo migration (HIGH): `supabase/migrations/20250919034327_fix_maplify_taxon_mapping.sql` — `maplify.sightings.taxon_id REFERENCES inaturalist.taxa(id)` cross-schema FK precedent
+- Repo source (HIGH): `scripts/dwca/fields.ts` — 25-entry `OCCURRENCE_FIELDS`, F-03 ordinal-stability invariant, `TAB_COLLAPSE_COLS`
+- Repo source (HIGH): `scripts/dwca/build.ts` — `assertFieldAlignment`, 22-step pipeline, alignment guard at steps 6–7
+- Planning docs (HIGH): `.planning/v1.3-EXECUTIVE-SUMMARY.md` — terminology, resolution order, prod counts, SRC-01 export scope
+- Planning docs (HIGH): `.planning/notes/collections-and-contributors-model.md` — graph model rationale, `aggregator_ingest` drop rationale
+
+---
+*Architecture research for: v1.3 Providers, Collections & Contributors integration*
+*Researched: 2026-06-19*

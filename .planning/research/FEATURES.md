@@ -1,189 +1,194 @@
 # Feature Research
 
-**Domain:** Biodiversity data publishing — DarwinCore Archive (DwC-A) export for a cetacean occurrence platform
-**Researched:** 2026-06-09
-**Confidence:** HIGH (DwC-A structure, GBIF required terms, Multimedia extension verified against TDWG/GBIF docs; ResourceRelationship indexing status MEDIUM)
+**Domain:** Biodiversity data aggregation — provenance/attribution model for a multi-source cetacean occurrence platform
+**Researched:** 2026-06-19
+**Confidence:** HIGH for DwC-A attribution fields (verified against TDWG/GBIF/OBIS documentation and live aggregator datasets); MEDIUM for collection-granularity conventions (inferred from eBird/iNaturalist/Happywhale patterns, no explicit GBIF policy document found); LOW for community-channel-specific attribution (Facebook groups are not modeled in any biodiversity standard)
 
-## How a DwC-A Works as a Deliverable
+---
 
-A DarwinCore Archive is a **single ZIP (or tar.gz)** bundling a small set of files. It is a self-describing, star-schema dataset: one **core** table plus zero or more **extension** tables that join to the core by a shared record key. For this milestone the core is an **Occurrence** core. The archive contains:
+## Context: What the Ecosystem Actually Does
 
-| File | Required? | Role |
-|------|-----------|------|
-| `meta.xml` | Yes (when extensions or non-standard column names are present) | The descriptor. Maps every column position in each data file to a DwC term URI; declares the core `rowType`, field delimiter, line terminator, encoding, header-row count, and the `id`/`coreId` join between core and extensions. |
-| `occurrence.txt` (name is free) | Yes | The core data file. Tab- or comma-delimited, one occurrence per line, UTF-8. First column is the record id used as the join key. |
-| `multimedia.txt` (name is free) | Optional | Extension data file. One row per photo; each row carries the `coreId` pointing back to its occurrence (many rows per occurrence). |
-| `eml.xml` | Strongly expected | GBIF-profile EML (Ecological Metadata Language). Dataset-level metadata: title, abstract, creators/contacts, license, citation, methods, geographic/temporal coverage. Referenced from `meta.xml` via the `metadata=` attribute. |
+Research examined five real aggregators to calibrate "table stakes" vs "differentiators":
 
-"Good" = a consumer can unzip it, read `meta.xml`, and load every file with no out-of-band knowledge. The archive validates against the GBIF DwC-A validator, every mapped column resolves to a real DwC term URI, the join keys are intact, and `eml.xml` carries a machine-readable license and citation. A download-only first cut does **not** need a DOI, an IPT, or GBIF registration — but emitting valid `meta.xml` + EML keeps that path open for free later.
+**eBird (Cornell Lab → GBIF):** One monolithic dataset per publisher. Fixed `institutionCode=CLO` on every record. `recordedBy` = observer name. Per-checklist provenance is internal, not per-collection in DwC. No per-subchannel `datasetName`.
+
+**iNaturalist (→ GBIF, dataset key `50c9509d`):** One monolithic dataset for all research-grade observations. `institutionCode=iNaturalist`. `recordedBy` = profile display name (not username). `recordedByID` = ORCID when user has one linked. Monolithic is fine at their scale because they register as a direct publisher.
+
+**Happywhale (→ OBIS-SEAMAP → GBIF):** Publishes dozens of separate datasets, one per species/ocean-basin combination. Each is a distinct GBIF dataset with its own EML, not a single archive with per-row `datasetName`. Contributors are listed in EML (up to 12,642 names in one dataset). `recordedBy` is populated from contributor names.
+
+**GBIF per-record `datasetName` (released ~2024):** GBIF now supports different `datasetName` values on different rows within a single registered dataset, enabling search within aggregated datasets. This was a GBIF-side enhancement specifically to support aggregators publishing multiple sub-sources in one archive. **This validates SalishSea.io's approach.**
+
+**DFO Maritimes Cetacean Sightings (OBIS-SEAMAP):** Aggregates from diverse sources (NGOs, fisheries observers, private consultants, whale-watchers). No per-record observer attribution — dataset-level provenance only. Records are anonymous. This is the "minimum viable" attribution bar.
+
+**Key conclusion:** The SalishSea.io model (one archive, per-row `datasetName = "SalishSea.io — {collection}"`, fixed `institutionCode="SalishSea"`, nullable `recordedBy`) is at the upper end of what real aggregators do. No aggregator we found credits individual community channels (Facebook groups) in DwC — they're either lumped or published as separate datasets. SalishSea.io's per-collection `datasetName` is genuinely differentiating.
+
+---
 
 ## Feature Landscape
 
-### Table Stakes (A Consumer Expects These)
+### Table Stakes (Users and Data Consumers Expect These)
 
-These are the GBIF-required-or-strongly-recommended Occurrence terms. Missing the required four makes the archive unpublishable and effectively useless to a researcher. Each row notes the **existing `public.occurrences` field it maps from**.
+| Feature | Why Expected | Complexity | DwC Export Dependency |
+|---------|--------------|------------|----------------------|
+| `providers` table: four rows (iNat, Maplify, HappyWhale, Native) | Internal provenance record; required for correct backfill routing and future ingest correctness. Does NOT enter DwC. | LOW | None — internal only. |
+| `collections` table: ~15 canonical rows with names, URLs, `kind` enum | Every record needs a collection assignment for per-collection `datasetName` in the export. Without this, the DwC improvement is impossible. | LOW-MEDIUM | **Direct dependency:** `dwc._maplify_occurrences` and `dwc._native_occurrences` must JOIN to collections to emit `datasetName = 'SalishSea.io — {collection.name}'`. The current hardcoded LATERAL CASE arms (`orca_network → "Orca Network"`, etc.) are replaced by this JOIN. |
+| `organizations` table: nullable parent institution | Required for UI credit and EML supplementary metadata. Does not emit to `institutionCode` in DwC (that stays fixed `"SalishSea"`). | LOW | Indirect: EML `samplingProtocol` or `bibliographicCitation` at dataset level (not per-row). |
+| `collection_id` FK on sightings (Maplify + native) | Required to drive per-collection `datasetName`. Without this FK, the JOIN above cannot work. | MEDIUM | **Direct dependency** on the DwC view rebuild. |
+| `contributor_id` FK on sightings (all four providers) | Required to emit `recordedBy` correctly and replace the current opaque `usernm` (Maplify) and `rightsHolder = person name` (native, currently wrong). | MEDIUM | **Direct dependency on native branch:** `dwc._native_occurrences` currently emits `rightsHolder = contributor.name` — this must change to `rightsHolder = "SalishSea.io"`, `recordedBy = contributor.name`. |
+| `source_url` first-class on sighting record | Required as preferred resolution signal for provider + collection. Also becomes `references` in DwC export for iNat/native records where available. | LOW-MEDIUM | Potential enhancement to `dwc._native_occurrences."references"` (currently uses `o.url`). |
+| Maplify backfill: bracket tag + trailing attribution → `collection_id` | Without this, the ~5,500 Maplify records stay in a single opaque bucket. This is the primary fix the milestone exists to deliver. | MEDIUM | **Critical path** for export improvement. The LATERAL CASE arms in `dwc._maplify_occurrences` must be replaced. |
+| URL-pattern registry (domain/path → provider + collection) | Required for iNat and native records where `source_url` is present. Enables future FB ingest to resolve automatically. | LOW | Indirect: drives FK population that feeds the DwC JOIN. |
+| `institutionCode = "SalishSea"` on every exported row | GBIF strongly recommends `institutionCode`. Currently absent from native branch (emitting person name as rightsHolder instead) and from Maplify branch. Fixes the most embarrassing attribution error. | LOW | **Direct change to both branch views.** Native branch currently has `c.name` in `rightsHolder` and no `institutionCode`. Maplify branch has `dn.display_name` as `rightsHolder`. Both must be updated. |
+| `rightsHolder = "SalishSea.io"` (fixed, not person name) | Aggregator pattern: SalishSea.io holds the rights to the dataset as publisher, not individual observers. Current native branch is wrong on this. | LOW | Same view change as above. |
+| `recordedBy` = contributor name (correct term for observer) | Currently native branch uses `c.name` for both `rightsHolder` and `recordedBy` (wrong for `rightsHolder`). Maplify uses `usernm` (opaque code, not a name). After v1.3 both use real contributor names. | LOW | View change plus contributor data quality for Maplify. |
+| Seed data: 4 provider rows + ~15 collection rows + associated organizations | Backfill cannot run without seed data in place. Collections are the reference dictionary for exact-match resolution. | LOW | Prerequisite for all backfill. |
 
-| DwC Term | Maps From (existing field) | Why Expected | Complexity | Notes / Gaps |
-|----------|---------------------------|--------------|------------|--------------|
-| `occurrenceID` | source-prefixed `id` (e.g. `salishsea:1234`) | **GBIF-required.** Stable global key; must never change for a given occurrence. | LOW | Existing prefixed id is ideal. Document the URI scheme. |
-| `basisOfRecord` | derived per source | **GBIF-required.** Controlled vocab. | LOW | Native + Maplify/Whale Alert sightings = `HumanObservation`. Use `MachineObservation` only for automated/sensor detections — Whale Alert app reports are human, so `HumanObservation` is almost always correct. **Gap: needs a per-source mapping decision.** |
-| `scientificName` | `taxon.scientific_name` | **GBIF-required.** Lowest-rank name available, authorship optional. | LOW | iNaturalist-derived taxa give clean binomials. |
-| `eventDate` | `observed_at` (timestamptz) | **GBIF-required.** ISO 8601-1:2019. | LOW | Emit as ISO 8601 with offset, e.g. `2026-03-30T18:25:47-07:00`. Keep timezone — researchers need local diel timing. |
-| `decimalLatitude` / `decimalLongitude` | `location` (lon/lat) | Strongly recommended; the whole point of a sightings dataset. | LOW | Already WGS84. |
-| `geodeticDatum` | constant `WGS84` (or EPSG:4326) | Strongly recommended; coordinates are meaningless without it. | LOW | Constant literal. |
-| `coordinateUncertaintyInMeters` | `positional_accuracy` (meters) | Strongly recommended. **Zero is invalid per GBIF.** | LOW | Map null → omit, 0 → omit (not 0). **Gap: Maplify/Whale Alert may lack accuracy — leave blank rather than guess.** |
-| `taxonRank` | `taxon.rank` | Strongly recommended; disambiguates `scientificName`. | LOW | Direct map (species/genus/etc.). |
-| `kingdom`, `phylum`, `class`, `order`, `family`, `genus` | walk `taxa` parent hierarchy | Strongly recommended; powers taxonomic matching, prevents homonym ambiguity. | MEDIUM | Requires recursive walk of the `taxa` parent chain to fill each Linnaean rank column. `kingdom` (Animalia) is the highest-value one for GBIF matching. **Gap: walk logic + handling missing intermediate ranks.** |
-| `individualCount` | `count` | Expected for sightings; how many animals seen. | LOW | Null → omit. |
-| `occurrenceStatus` | constant `present` | Expected. Controlled vocab `present`/`absent`. | LOW | All sightings are `present` (this is presence-only data, no absence records). Constant literal. |
-| `recordedBy` | `attribution` ("username on source") | Expected; who observed it. | LOW | Existing attribution string works; consider stripping " on source" or keeping as-is. |
-| `license` | per-occurrence or dataset default | Expected; consumers must know reuse terms. | LOW–MEDIUM | Must be a **license URI** (e.g. `http://creativecommons.org/licenses/by/4.0/`), not a code. Photos carry per-item licenses; the **occurrence record** itself needs a license too. **Gap: decide the occurrence-record license (often CC-BY 4.0 or CC0) vs. inheriting from photos.** |
-| `associatedMedia` | `photos[].src` | Lightweight media linkage when not using the Multimedia extension. | LOW | Redundant if the Multimedia extension is included; pick one (extension preferred). |
-
-### Differentiators (Raise the Dataset's Quality / Reach)
+### Differentiators (Above the Aggregator Norm)
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Simple Multimedia extension** (`gbif/1.0/multimedia`) | First-class, structured photo metadata with per-image license/attribution — far richer than a delimited `associatedMedia` string. The natural home for your `photos[]` array. | MEDIUM | One extension row per photo, joined by `coreId`. Field mapping below. **Strongly recommended over `associatedMedia`** for an image-rich whale dataset. |
-| `rightsHolder` | Names the entity owning rights (per photo and/or dataset). | LOW | Photo `attribution` → `rightsHolder`; dataset-level holder in EML. |
-| `references` (occurrence) | Direct link back to the SalishSea.io occurrence page (your `url`). | LOW | Drives traffic and lets researchers verify provenance. High value, near-zero cost. |
-| `behavior` / `dynamicProperties` | Travel direction doesn't have a clean core term; `dynamicProperties` (JSON) or `behavior` can carry it. | LOW | Map `travel direction` → `dynamicProperties` as `{"travelDirection":"..."}` or to `behavior`. Avoids data loss. |
-| Rich **EML** (methods, coverage, citation, contacts) | Turns a file dump into a citable dataset; prerequisite for later DOI/GBIF. | MEDIUM | Write once, regenerate nightly with updated record counts/date range. |
-| `countryCode` | GBIF-required *for GBIF publishing*; cheap to add. | LOW | Salish Sea spans US/CA — derive from coordinates or omit until registration. Not needed for download-only. |
+| Per-collection `datasetName` within one archive | No other cetacean aggregator of this size does this. Orca Network, Cascadia Research, TMMC, Whale Alert Global, Whale Alert Alaska each become distinct discoverable channels in GBIF search — this gives each community credit it currently lacks. GBIF added per-record `datasetName` search specifically to support this pattern. | MEDIUM | Requires collection FK + view rebuild. High payoff. |
+| `collection.url` in EML `samplingProtocol` or `bibliographicCitation` | Links the exported dataset to the source community (e.g. Orca Network FB group URL, Cascadia website). Most aggregators provide this at most at dataset level, not per channel. | LOW-MEDIUM | Dataset-level EML would need to describe all channels. Per-row `bibliographicCitation` is technically possible but GBIF community discourages "different citations per record" as noisy. Recommendation: list channel URLs in EML abstract/methods rather than per-row. |
+| Modeling Facebook groups as first-class collections (not "community channel" catch-all) | No DwC standard exists for this. SalishSea.io being explicit about which FB group a record came from is more attribution than any comparable aggregator provides for informal community channels. | LOW | Internal model. Not visible in DwC beyond `datasetName`. The `collections.kind = 'facebook_group'` enum value is the differentiator. |
+| `source_url` as the preferred resolution signal (URL-pattern registry) | Positions the platform for automatic attribution on future ingest paths (FB post URLs, direct API imports). No backfill system currently has this architectural foundation. | MEDIUM | Pays off mainly for future ingests; Maplify rows have no source URL today so bracket parsing still required. |
+| Cross-provider contributor modeling (per-provider, unification deferred) | HappyWhale has 515 contributors; iNaturalist has many hundreds. Modeling them internally even though their records don't export enables future UI credit (contributor pages, occurrence filtering by observer). Most aggregators don't do this at all for 3rd-party sources. | MEDIUM | No DwC impact this milestone. Value is internal + future. |
+| `recordedByID` with ORCID/Wikidata URI | GBIF supports ORCID/Wikidata URIs in `recordedByID` for linking to Bionomia profiles. Enables automated attribution credit for researchers. | LOW-MEDIUM | Only applicable where contributor has an ORCID. For native contributors: check if any have ORCIDs. For HappyWhale/iNat: not needed (self-publish). Recommend: add `contributor.orcid` nullable column and populate manually for the 28 native contributors as a P2 differentiator. Do NOT block the milestone on this. |
 
-### Anti-Features (Over-Engineering for a Download-Only First Cut)
+### Anti-Features (Avoid These)
 
-| Feature | Why Requested | Why Problematic Now | Alternative |
-|---------|---------------|---------------------|-------------|
-| **ResourceRelationship extension for travel segments** | DwC's "correct" way to link occurrences into a same-individual/same-group track; matches the app's travel-segment concept. | GBIF **does not yet index or cluster on** ResourceRelationship or `associatedOccurrences` — it's defined and "future-expected" but inert in current pipelines. The extension generates verbose, complex rows and the milestone explicitly **defers individual linkage**. High effort, ~zero consumer payoff today. | Defer. If segment linkage is wanted cheaply, stuff a group/segment id into `dynamicProperties` or `associatedOccurrences` as a flat string. Revisit ResourceRelationship when `organismID` linkage lands. |
-| **organismID / Organism core or relationships** | Individual whale IDs (T065S) are regex-extractable now. | Milestone explicitly defers formal individual linkage; emitting half-linked `organismID`s creates a data-integrity liability. | Optionally surface the raw extracted identifier in `dynamicProperties` (e.g. `{"catalogID":"T065S"}`) as a non-authoritative hint, clearly not an `organismID`. |
-| **GBIF/OBIS registration, DOI, IPT hosting** | "Real" datasets are registered. | Scope says download-only; registration adds org accounts, endorsement, DwC validator gating, and a deployment surface. | Emit valid `meta.xml` + EML so registration is a later config step, not a rebuild. "Reachable by design," per PROJECT.md. |
-| **Audubon Core full media-description extension** | More media fields than Simple Multimedia. | Overkill; the 14-field Simple Multimedia extension already covers URL + attribution + license + type cleanly and is the GBIF-indexed one. | Use Simple Multimedia. |
-| **Sampling-event core / `eventID` structure** | Models survey effort. | This is opportunistic presence-only sighting data, not structured sampling — an Occurrence core is correct. | Occurrence core, no event structure. |
-| **Synthesizing missing `coordinateUncertaintyInMeters`** | Fill blanks so every row looks complete. | Fabricated precision misleads researchers; `0` is explicitly invalid in GBIF. | Leave blank when unknown. Honest nulls beat invented numbers. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| `institutionCode` = upstream org (e.g. "OrcaNetwork", "Cascadia") per record | "Correct" institutional attribution — Cascadia records should say Cascadia. | **Wrong for the aggregator pattern.** `institutionCode` means "the institution with custody of this record." SalishSea.io has custody. Putting the upstream org here would confuse GBIF's identifier triplet and imply those orgs are GBIF publishers. The DFO dataset, OBIS-SEAMAP datasets, and every other aggregator use a fixed `institutionCode` for the aggregator. | Credit upstream orgs via `datasetName`, EML metadata, and `organization.url`. |
+| Publishing iNat + HappyWhale records in the DwC-A | Completeness — all 21,000+ records in one export. | SRC-01: both self-publish to GBIF and would be duplicates. GBIF deduplication is imperfect; duplicate records reduce data quality globally. | Model internally for UI credit; exclude from export. SRC-01 unchanged. |
+| Fuzzy or alias-based collection matching at ingest time | Robustness against tag variations. | Creates a maintenance burden (alias dictionary grows forever) and risks false positives (similar-sounding community names). The exec summary's one-time exact-match backfill + human eyeball for typos is the correct approach. | Exact-match on `collections.name` after one-time backfill. New tags handled manually by ops. |
+| `collectionCode` per collection as an additional DwC field | Some aggregators use `collectionCode` for sub-source tracking alongside `datasetName`. | GBIF uses `{institutionCode, collectionCode, catalogNumber}` as a fallback triplet when `occurrenceID` is absent. SalishSea.io already has stable prefixed `occurrenceID` (`salishsea:`, `maplify:`). Adding `collectionCode` per channel risks triplet-based duplicate detection confusion and adds a column with no consumer value when `occurrenceID` is already stable. | Use only `datasetName` for collection attribution. Leave `collectionCode` absent or constant. |
+| Per-row `bibliographicCitation` with channel URL | Gives explicit URL credit to each source channel in the exported record. | GBIF community explicitly discourages "different citations per record" as noisy. `bibliographicCitation` at dataset level is the standard. Per-row use is possible but would generate ~5,968 slightly different citation strings, complicating citation aggregation for researchers. | Put channel URLs in EML `methods`/`abstract`/`samplingDescription`. |
+| Cross-provider contributor deduplication (e.g. unifying `jmaughn` iNat with James Maughn native) | True observer credit across all platforms. | Identity resolution across platforms requires manual curation or probabilistic matching. Open question in exec summary. Deduplication logic is complex, error-prone, and not needed for any DwC term this milestone. | Defer to a future milestone. Model per-provider this milestone; add a `canonical_contributor_id` FK later if unification is pursued. |
+| Auto-creating collections on unknown bracket tags | Keeps `collection_id` fully populated without manual ops. | Creates junk collection rows for one-off tags, typos, and test data. The ~8 empty brackets and various one-offs in the Maplify data would generate noise rows. | Leave `collection_id = NULL` for unmatched tags. Ops reviews periodically and adds legitimate new collections manually. |
+| Contributor pages / organization pages in the UI | Community credit surfaces as browsable pages. | Scope question: the exec summary marks UI surfaces as an open question (Q4). Adding frontend pages is a significant additional phase. The backfill + DwC export improvement is the core v1.3 work. | Seed the data model correctly; defer UI surfaces to a later phase or bundle if cheap. |
 
-## Simple Multimedia Extension — Field Mapping
-
-`rowType: http://rs.gbif.org/terms/1.0/Multimedia`. One row per photo, joined to the occurrence by `coreId`. Your `photos[]` items (src/thumb URL, attribution, mimetype, license code) map as:
-
-| Multimedia term | Maps From | Notes |
-|-----------------|-----------|-------|
-| `type` | constant `StillImage` | Controlled (`StillImage`/`Sound`/`MovingImage`). All photos = `StillImage`. |
-| `format` | photo `mimetype` | IANA media type, e.g. `image/jpeg`. |
-| `identifier` | photo `src` | **Direct URL to the image file**, not the webpage. |
-| `references` | occurrence `url` (or thumb landing) | The HTML page showing the image/metadata, for attribution. |
-| `title` | optional | Hyperlink text; can be omitted or derived. |
-| `license` | photo `license` code → **license URI** | Convert `cc0`→`https://creativecommons.org/publicdomain/zero/1.0/`, `cc-by`→`.../licenses/by/4.0/`, etc. **Gap: code→URI mapping table needed.** |
-| `rightsHolder` | photo `attribution` | Owner of the image. |
-| `creator` | photo `attribution` | Person who took it (may equal rightsHolder). |
-| `created` | `observed_at` (fallback) | True capture time if available, else observation time. |
-| `publisher` | constant `SalishSea.io` | Entity making the image available. |
-
-`thumb` URL has no dedicated DwC term — omit, or note in `description`. Don't invent terms for it.
-
-## Controlled Vocabularies That Matter
-
-- **`basisOfRecord`**: `HumanObservation` (sightings — almost all records), `MachineObservation` (automated sensor detections only). Other values (`PreservedSpecimen`, `FossilSpecimen`, `LivingSpecimen`, `MaterialEntity`) are irrelevant here.
-- **`occurrenceStatus`**: `present` | `absent`. This dataset is presence-only → constant `present`.
-- **`type` (Multimedia)**: `StillImage` | `Sound` | `MovingImage` → constant `StillImage`.
-- **`license`**: must be a **resolvable URI**, not a short code. Use Creative Commons URIs (`CC0 1.0`, `CC-BY 4.0`, etc.). GBIF only fully accepts `CC0`, `CC-BY`, and `CC-BY-NC` at the **dataset** level; per-item photo licenses can be any CC URI. **Gap: map your `cc0/cc-by/...` codes to canonical CC URIs.**
-- **`geodeticDatum`**: `WGS84` (or `EPSG:4326`) — constant.
-- **`taxonRank`**: lowercase DwC convention (`species`, `genus`, …) — verify your `taxa.rank` values match.
+---
 
 ## Feature Dependencies
 
 ```
-Valid DwC-A ZIP
-    └──requires──> meta.xml descriptor (maps columns → DwC term URIs, declares joins)
-                       └──requires──> Occurrence core file (the 4 required terms + id key)
-    └──requires──> eml.xml (dataset metadata + license + citation)
+providers/collections/organizations tables (seed data)
+    └──required by──> Maplify backfill (bracket tag → collection_id)
+    └──required by──> iNat/HappyWhale/native FK population
+    └──required by──> URL-pattern registry (maps domain → provider_id + collection_id)
 
-Multimedia extension
-    └──requires──> coreId join key shared with Occurrence core
-    └──requires──> license code → CC URI mapping table
-    └──requires──> per-photo data already in photos[]  ✓ exists
+collection_id FK on sightings
+    └──required by──> dwc._maplify_occurrences datasetName JOIN (replaces LATERAL CASE)
+    └──required by──> dwc._native_occurrences datasetName JOIN
 
-kingdom..genus columns
-    └──requires──> recursive walk of taxa parent hierarchy
+contributor_id FK on sightings
+    └──required by──> dwc._native_occurrences recordedBy + corrected rightsHolder
+    └──required by──> dwc._maplify_occurrences recordedBy (replaces opaque usernm)
 
-license (occurrence + photo) ──requires──> code→URI mapping
-travelDirection / catalogID ──enhances──> dynamicProperties (lossless carry-through)
+institutionCode/rightsHolder fix
+    └──required by──> both branch views: schema change + new columns
 
-ResourceRelationship (travel segments) ──conflicts──> "defer individual linkage" scope + not GBIF-indexed
+Maplify backfill (bracket tag + trailing attribution parsing)
+    └──depends on──> collections seed data (exact-match dictionary)
+    └──required by──> production collection_id population (~5,500 rows)
+
+source_url on sightings
+    └──enhances──> URL-pattern registry (preferred resolution signal)
+    └──enhances──> dwc._native_occurrences "references" (if populated from iNat URI)
+
+recordedByID (ORCID)
+    └──optional enhancement──> contributor.orcid nullable column
+    └──no DwC view change needed until column exists
 ```
 
 ### Dependency Notes
 
-- **meta.xml is the linchpin:** every other file's columns are meaningless without it. Build it from a single declarative column→term mapping so the core writer and descriptor never drift.
-- **kingdom..genus depends on the taxa walk:** this is the one MEDIUM-complexity data task; everything else is near-direct field mapping. Flag it as the most likely place for bugs (missing ranks, broken parent chains).
-- **License appears twice:** once on the occurrence record, once per photo. Both need the same code→URI converter. Centralize it.
-- **ResourceRelationship conflicts with milestone scope:** it presupposes the deferred individual/segment linkage and yields no GBIF benefit today.
+- **Seed data is the critical prerequisite.** Nothing else can be backfilled or exported correctly until `providers`, `collections`, and `organizations` rows exist. This should be the first phase.
+- **DwC view rebuild touches both branch views.** `dwc._maplify_occurrences` and `dwc._native_occurrences` both need changes: the LATERAL CASE arms go away, `institutionCode` is added as a new column, `rightsHolder` is fixed. This adds a 26th column to the UNION ALL — both branches must change in lockstep (the existing UNION ALL type-parity contract will catch any drift at migration time).
+- **Column count change in dwc.occurrences.** Adding `institutionCode` (and potentially `collectionCode` if chosen) means `dwc.occurrences` gains a column. The Phase 6 DuckDB COPY pipeline reads `dwc.occurrences` by column position — `meta.xml` must be updated in sync. This is the primary DwC export dependency risk.
+- **Maplify backfill is one-time, not runtime.** The backfill sets `collection_id` and `contributor_id` on existing `maplify.sightings` rows. New ingest uses the URL-pattern registry + exact-match going forward. The two flows are independent.
+- **iNat + HappyWhale get FKs but do not affect the export.** Their contributor/collection/provider FKs are wired for internal UI use and future-proofing. SRC-01 exclusion means no DwC view changes for those branches.
+
+---
 
 ## MVP Definition
 
-### Launch With (v1.2)
+### v1.3 Core (Required for Attribution Goals)
 
-- [ ] Occurrence core with the 4 GBIF-required terms — `occurrenceID`, `basisOfRecord`, `scientificName`, `eventDate` — non-negotiable.
-- [ ] Spatial block — `decimalLatitude`, `decimalLongitude`, `geodeticDatum`, `coordinateUncertaintyInMeters` (blank when unknown).
-- [ ] Taxonomy block — `taxonRank`, `kingdom`, `phylum`, `class`, `order`, `family`, `genus` via taxa-hierarchy walk.
-- [ ] `individualCount`, `occurrenceStatus=present`, `recordedBy`, `references` (occurrence url).
-- [ ] `license` (occurrence) + `rightsHolder` as proper CC URIs.
-- [ ] Valid `meta.xml` descriptor and GBIF-profile `eml.xml`.
-- [ ] Simple Multimedia extension for photos (preferred over `associatedMedia`).
-- [ ] Nightly regeneration + hosted download.
+- [ ] `providers`, `collections`, `organizations` tables created with seed data (~4 providers, ~15 collections, ~8 orgs)
+- [ ] `provider_id`, `collection_id`, `contributor_id`, `source_url` FKs/columns added to all four source schemas
+- [ ] URL-pattern registry implemented (domain/path → provider + collection mapping)
+- [ ] Maplify backfill: bracket-tag + trailing-attribution → `collection_id` (one-time, human-eyeballed dictionary)
+- [ ] `dwc._native_occurrences` updated: `institutionCode="SalishSea"`, `rightsHolder="SalishSea.io"`, `recordedBy=contributor.name`, `datasetName='SalishSea.io — Direct'`
+- [ ] `dwc._maplify_occurrences` updated: LATERAL CASE replaced by collection JOIN, `institutionCode="SalishSea"`, `rightsHolder="SalishSea.io"`, `datasetName='SalishSea.io — {collection.name}'`
+- [ ] `meta.xml` updated for the new `institutionCode` column
+- [ ] EML updated to describe collection channels in methods/abstract
 
-### Add After Validation (later)
+### Add After Core (v1.3 if Scope Allows)
 
-- [ ] `travelDirection` / extracted `catalogID` via `dynamicProperties` — lossless, low cost, can slip to launch if cheap.
-- [ ] `countryCode` — add when GBIF registration is on the table.
-- [ ] DwC-A validator run in CI against the nightly output.
+- [ ] `source_url` populated on native observations from `public.observations.url`
+- [ ] `source_url` populated on iNat observations from `inaturalist.observations.uri`
+- [ ] Contributor resolution for Maplify: "Submitted by [name]" extraction → `contributor_id` (where a real name is present, not just an org name)
+- [ ] UI: collection name visible on occurrence card (low-cost label, not a full collection page)
 
-### Future Consideration (v2+ / other milestones)
+### Defer (Future Milestone)
 
-- [ ] `organismID` + individual-animal linkage (separate milestone).
-- [ ] ResourceRelationship for travel segments — only after individual linkage exists AND GBIF begins indexing it.
-- [ ] GBIF/OBIS registration + DOI.
+- [ ] `recordedByID` with ORCID URIs (requires `contributor.orcid` column + manual curation)
+- [ ] Cross-provider contributor unification (`jmaughn` iNat = James Maughn native)
+- [ ] Organization/collection detail pages in the UI
+- [ ] SRC-01 reconsideration: iNat/HappyWhale in the archive
 
-## Feature Prioritization Matrix
+---
 
-| Feature | Consumer Value | Implementation Cost | Priority |
-|---------|----------------|---------------------|----------|
-| 4 required terms + valid meta.xml/EML | HIGH | LOW–MEDIUM | P1 |
-| Spatial block (lat/lon/datum/uncertainty) | HIGH | LOW | P1 |
-| Taxonomy block (kingdom..genus walk) | HIGH | MEDIUM | P1 |
-| Simple Multimedia extension | HIGH | MEDIUM | P1 |
-| license/rightsHolder as CC URIs | HIGH | LOW–MEDIUM | P1 |
-| references / recordedBy / individualCount / occurrenceStatus | MEDIUM | LOW | P1 |
-| travelDirection + catalogID via dynamicProperties | MEDIUM | LOW | P2 |
-| countryCode | LOW (download-only) | LOW | P3 |
-| DwC-A validator in CI | MEDIUM | LOW | P2 |
-| ResourceRelationship (travel segments) | LOW (not indexed) | HIGH | P3 |
-| GBIF/OBIS registration + DOI | MEDIUM (later) | HIGH | P3 |
+## DwC Export Impact Summary
 
-## Gaps Flagged for Requirements Author
+The v1.3 attribution changes require these concrete changes to the existing `dwc` schema:
 
-Where the existing model has no clean source for a table-stakes term — each becomes a requirement:
+| Change | Affected Object | Risk |
+|--------|----------------|------|
+| Add `institutionCode` column | Both branch views + `dwc.occurrences` UNION | MEDIUM — adds 26th column; `meta.xml` and DuckDB COPY must update in sync |
+| Fix `rightsHolder` from person name → "SalishSea.io" | `dwc._native_occurrences` | LOW — column already exists, value changes |
+| Replace LATERAL CASE with collection JOIN for `datasetName` | `dwc._maplify_occurrences` | MEDIUM — JOIN requires `collection_id` FK to be populated; NULL-safe (COALESCE to "SalishSea.io — Unattributed") |
+| Fix `recordedBy` from `usernm` to `contributor.name` | `dwc._maplify_occurrences` | LOW-MEDIUM — requires contributor FK population on Maplify rows |
+| Change `datasetName` from single title to per-collection value | `dwc._native_occurrences` (was single title) | LOW — constant → JOIN |
+| Update `dwc.datasets` row title to match new `datasetName` pattern | `dwc.datasets` view | LOW — metadata only |
 
-1. **`basisOfRecord` per source** — no field exists; needs an explicit source→value map (native/Maplify/Whale Alert all likely `HumanObservation`; confirm none are sensor-derived).
-2. **`coordinateUncertaintyInMeters` for Maplify/Whale Alert** — may be absent; rule: emit blank, never `0`, never invented.
-3. **`kingdom..genus` walk** — recursive traversal of `taxa.parent`; handle missing intermediate ranks and ensure DwC-spelled rank values.
-4. **`license` code → CC URI mapping** — both occurrence-record license and per-photo `cc0/cc-by/...` codes; one shared converter.
-5. **Occurrence-record license decision** — distinct from photo licenses; pick dataset default (CC-BY 4.0 or CC0).
-6. **`travelDirection` has no core term** — decide `dynamicProperties` vs `behavior` to avoid data loss.
-7. **`attribution` formatting for `recordedBy`/`creator`** — keep "username on source" or normalize.
-8. **`thumb` URL** — no DwC home; confirm it's acceptable to drop.
+**NULL safety requirement:** Records with no resolved collection (unmatched bracket tags, new ingests before collection is created) should fall back to `datasetName = 'SalishSea.io — Unattributed'` rather than NULL. NULL `datasetName` is legal in DwC but loses per-channel credit.
+
+---
+
+## Gaps in the Exec Summary Model — Research Findings
+
+The exec summary's model is sound. Research surfaces two gaps not explicitly addressed:
+
+**Gap 1: `collectionCode` vs `datasetName` — resolved in favor of `datasetName` only.**
+The exec summary uses `datasetName` for collection attribution. This is correct. `collectionCode` is used by GBIF's legacy triplet-based identifier as a fallback when `occurrenceID` is absent — since SalishSea.io uses stable prefixed `occurrenceID`, adding `collectionCode` would be noise. Do not add it.
+
+**Gap 2: `recordedByID` is a differentiator, not a table stake.**
+The exec summary mentions `recordedByID` where stable. Research confirms: for community reporters (Maplify, Facebook groups), no stable identifier exists and ORCID/Wikidata URIs are the only accepted format. This is a P2 enhancement for named contributors with ORCIDs, not a v1.3 blocker. Recommend adding `contributor.orcid` (nullable) to the schema in v1.3 but populating it separately.
+
+**Gap 3: EML update scope.**
+The exec summary notes organization as supplementary EML metadata. Research confirms: channel URLs (FB group links, Cascadia website, Orca Network website) should appear in EML `methods` or `abstract`, not per-row in DwC. The existing EML in `dwc.datasets` has a single row — after v1.3, the abstract and methods sections should describe the ~10 collection channels. This is a low-complexity update but must be scheduled as part of the DwC export phase.
+
+**Gap 4: iNaturalist granularity question (exec summary open question 2).**
+Research finding: iNaturalist publishes to GBIF as one monolithic dataset — they do not expose per-project datasets. SalishSea.io therefore needs only one `collection` row for iNaturalist ("iNaturalist"), not per-project rows. Same for HappyWhale: one collection row ("HappyWhale"). Finer granularity would require per-project API queries and adds complexity with no GBIF payoff. **Recommendation: one collection per external platform (iNat, HappyWhale), not per project.**
+
+---
 
 ## Sources
 
-- [Darwin Core Archives – How-to Guide (GBIF IPT Manual)](https://ipt.gbif.org/manual/en/ipt/latest/dwca-guide) — HIGH (DwC-A structure)
-- [Darwin Core Quick Reference Guide (TDWG)](https://dwc.tdwg.org/terms/) — HIGH (term definitions, controlled vocabs)
-- [GBIF Simple Multimedia extension schema](https://rs.gbif.org/extension/gbif/1.0/multimedia.xml) — HIGH (14 multimedia fields)
-- [GBIF Data quality recommendations (techdocs)](https://techdocs.gbif.org/en/data-publishing/data-quality-recommendations) — HIGH (required vs recommended terms)
-- [GBIF IPT Manual — Occurrence Data](https://ipt.gbif.org/manual/en/ipt/latest/occurrence-data) — HIGH
-- [GBIF Registered Extensions](https://rs.gbif.org/extensions.html) — HIGH (extension catalog)
-- [GBIF Occurrence clustering / ResourceRelationship status](https://techdocs.gbif.org/en/data-processing/clustering-occurrences) — MEDIUM (ResourceRelationship/associatedOccurrences not yet indexed)
-- [Vector data publishing guide (ResourceRelationship use cases)](https://docs.gbif.org/vector-guide-to-data-publishing/en/) — MEDIUM
+- [GBIF Data Quality Requirements — Occurrence Datasets](https://www.gbif.org/data-quality-requirements-occurrences) — HIGH (required/recommended terms)
+- [Darwin Core Quick Reference Guide (TDWG)](https://dwc.tdwg.org/terms/) — HIGH (term definitions including recordedBy, recordedByID, datasetName, institutionCode)
+- [GBIF Release Notes — per-record datasetName search](https://www.gbif.org/release-notes) — HIGH (GBIF added per-record datasetName search to support aggregated datasets)
+- [GBIF Community Forum — identifying iNaturalist observations in GBIF](https://discourse.gbif.org/t/how-is-inaturalist-data-identified/4240) — MEDIUM (six publishers use institutionCode=iNaturalist; eight separate datasetName values)
+- [GBIF Community Forum — iNaturalist author attribution in downloads](https://discourse.gbif.org/t/identifying-authors-of-inaturalist-observations-within-gbif-download-data/4258) — MEDIUM (recordedBy = profile display name, not username; rightsHolder most reliable field)
+- [TDWG People in Biodiversity Data — recordedByID](https://www.tdwg.org/community/attribution/people/) — HIGH (ORCID + Wikidata URI format; pipe-separated; no order semantics; Agent Actions extension in development)
+- [GBIF Community Forum — bibliographicCitation usage](https://discourse.gbif.org/t/confused-about-bibliographiccitation-youre-not-alone/3945) — HIGH (per-row different citations discouraged; dataset-level citation preferred)
+- [GBIF — Happywhale North Pacific right whale dataset](https://www.gbif.org/dataset/25da6d17-16b7-42d8-974c-dcae5cf038b1) — MEDIUM (Happywhale publishes per species/basin, not one archive; contributors listed in EML)
+- [OBIS-SEAMAP — DFO Maritimes Region Cetacean Sightings](https://seamap.env.duke.edu/dataset/1144/html) — MEDIUM (aggregated multi-source dataset; no per-record observer attribution; dataset-level provenance only)
+- [OBIS Darwin Core Manual](https://manual.obis.org/darwin_core.html) — MEDIUM (recordedBy: list of names; institutionCode: custodian institute acronym)
+- [eBird on GBIF — institutionCode=CLO](https://www.gbif.org/news/82357/ebird-update-pushes-records-in-gbif-over-500-million) — HIGH (fixed institutionCode for aggregator, recordedBy = observer name, one monolithic dataset)
 
 ---
-*Feature research for: DarwinCore Archive export (cetacean occurrence data)*
-*Researched: 2026-06-09*
+*Feature research for: v1.3 Providers, Collections & Contributors attribution model*
+*Researched: 2026-06-19*

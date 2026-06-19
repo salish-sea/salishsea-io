@@ -1,146 +1,225 @@
-# Stack Research
+# Stack Research — v1.3 Providers, Collections & Contributors
 
-**Domain:** Nightly DarwinCore Archive (DwC-A) export + hosting for an existing static-SPA whale-sighting platform
-**Researched:** 2026-06-09
-**Confidence:** HIGH
+**Project:** SalishSea.io v1.3
+**Researched:** 2026-06-19
+**Confidence:** HIGH (all claims grounded in existing codebase; no external verification required for the primary verdict)
 
-## TL;DR Recommendation
+---
 
-**Generate the DwC-A in a scheduled GitHub Actions workflow (Node/TypeScript), upload the zip to the existing S3 site bucket under a public path, and invalidate CloudFront — reusing the exact mechanisms the `deploy.yml` workflow already uses.**
+## Verdict: No new stack
 
-This is **option (b)** from the question. It wins decisively because every integration point it needs already exists and is proven in production:
+v1.3 is a data-modeling and backfill milestone. Every capability it requires is
+already present. Do not add any library.
 
-- The `deploy` job in `.github/workflows/deploy.yml` already assumes the AWS IAM role `arn:aws:iam::648183724555:role/salishsea-deploy-action` via OIDC and runs `aws s3 sync … s3://${S3_BUCKET}/site` + `aws cloudfront create-invalidation`. The export job does the same two AWS calls with zero new infra.
-- `.github/workflows/smoke.yml` already demonstrates the exact scheduling pattern we need: `schedule: cron` + `workflow_dispatch` + a `production` environment binding. We copy it.
-- The CloudFront distribution (`infra/lib/infra-stack.ts`) serves the `salishsea-io` bucket with `originPath: '/site'`. A file written to `s3://salishsea-io/site/dwca/occurrences.zip` is therefore publicly downloadable at **`https://salishsea.io/dwca/occurrences.zip`** with no behavior/origin changes.
-- The frontend already holds a Supabase client and key; the workflow already has `VITE_SUPABASE_URL` + `VITE_SUPABASE_KEY` available in the `production` environment.
+The three specific capability questions asked — URL-pattern resolution, DwC/EML
+encoding, and Postgres migration patterns — are all satisfied by existing tools.
+What follows is the justification for each, then the explicit "do not add" list.
 
-No new AWS infra, no new IAM role, no Edge Function runtime to learn, no Postgres-side file I/O. The build is plain Node/TS, which matches the entire codebase (TS 5.9, Node 24).
+---
 
-## Why NOT the other two options
+## (a) URL-Pattern Matching: No New Library
 
-**(a) pg_cron → Supabase Edge Function (Deno) building the zip:** Workable, but adds a whole second runtime (Deno) and deployment surface the project doesn't currently use (`supabase/functions/` does not exist yet). Edge Functions have CPU/memory/time limits (wall-clock and memory caps) that make assembling a multi-file zip with potentially large CSVs riskier than a 7-minute GitHub runner with gigabytes of RAM. Getting the zip to the public S3 site still requires AWS credentials inside the function (storing an AWS access key in Supabase secrets) OR a second hop through Supabase Storage with a different public URL/domain than `salishsea.io`. More moving parts, more secrets, a new runtime — for no benefit here.
+**Verdict: use the built-in `URL` constructor + plain string comparison.**
 
-**(c) Postgres-side generation (pg_cron + plpgsql/COPY + zip):** Postgres can `COPY` a query to CSV, but server-side `COPY TO '/file'` is **not available on Supabase's managed Postgres** (no superuser filesystem access), and Postgres has no native zip facility. You'd be bolting on `plpython`/external extensions that Supabase doesn't grant, then still need to get the bytes out to S3. This fights the platform. Reject.
+The URL-pattern resolver maps `source_url` → `(provider, collection)`. From the
+executive summary, the production pattern set at v1.3 scope is:
 
-The decisive factor: **the public download must live at `https://salishsea.io/…` (the existing CloudFront/S3 site), and the workflow that already writes to that exact bucket+CDN is GitHub Actions.** Option (b) is the path of least new infrastructure.
+| URL pattern | Signal strength |
+|-------------|----------------|
+| `inaturalist.org/observations/*` | matches `inaturalist.observations.uri` — already fully structured |
+| `happywhale.com/*` | derivable from encounter id |
+| SalishSea.io permalink | matches `public.observations.url` |
+| `facebook.com/groups/{slug}/*` | future FB ingests — out of scope today |
 
-## Recommended Stack
+This is a tiny, static, fully-enumerated lookup table — approximately four
+entries at v1.3 ship. The resolution logic is:
 
-### Core Technologies
+1. Parse the URL with `new URL(source_url)`.
+2. Switch on `hostname` + an optional prefix check of `pathname`.
+3. Return a `(providerId, collectionId)` pair from a hardcoded lookup object, or
+   `null` for no match.
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| GitHub Actions (scheduled workflow) | n/a | Nightly trigger + compute to build and publish the archive | Already the deploy/CI substrate; `smoke.yml` proves the `schedule`+`workflow_dispatch`+`production`-env pattern; has the AWS OIDC role and Supabase env vars already wired |
-| Node.js | 24.x (per `.nvmrc` / `package.json`) | Runtime for the export script | Matches the codebase; `actions/setup-node` with `node-version-file` already used everywhere |
-| TypeScript | 5.9.3 (repo current) | Author the export script type-safely against the DB schema | Whole codebase is strict TS; can reuse `database.types.ts` types for the `occurrences` view |
-| AWS CLI (preinstalled on `ubuntu-latest`) | n/a | `aws s3 cp` the zip + `aws cloudfront create-invalidation` | Identical to the publish step already in `deploy.yml`; no SDK dependency needed |
-| CloudFront + S3 (existing) | existing distribution | Hosts the zip at `https://salishsea.io/dwca/...` | `originPath: '/site'` means `/site/dwca/occurrences.zip` → public URL with no infra change |
+That is ~20 lines of TypeScript with zero library surface. There is nothing
+to install.
 
-### Supporting Libraries
+**Why not a URL-pattern library (e.g. `path-to-regexp`, `URLPattern`):**
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `archiver` | **8.0.0** (published 2026-05-08) | Stream-write the `.zip` (meta.xml, eml.xml, occurrence.txt, multimedia.txt, …) | Primary zip builder. Streaming API keeps memory flat even for large cores; battle-tested, actively maintained |
-| `postgres` (porsager) | **3.4.9** | Direct Postgres connection to run the occurrence query / read the `public.occurrences` view | Preferred over the JS REST client for a bulk export: streams rows, no 1000-row `max_rows` API cap, server-side filtering. Connect via the Supabase pooler connection string |
-| `csv-stringify` (from `csv` package family) | **6.7.0** | Emit DwC tab/CSV files (`occurrence.txt`, `multimedia.txt`) with correct quoting/escaping | Stream transform that pairs cleanly with `archiver`; DwC text files are simple delimited text, this handles edge cases (embedded delimiters/newlines in free-text fields) |
-| (XML: hand-written template strings) | n/a | `meta.xml` and `eml.xml` are small, fixed-shape XML documents | Generate with template literals + a tiny escape helper. Do **not** pull a heavy XML builder; these files are static-structure with a handful of interpolated values. `fast-xml-parser` (already a dep, 5.3.5) can be used for its builder if a dependency-free approach is preferred, but plain templates are clearest |
+- `path-to-regexp` is a route-matching library for parameterized URL templates.
+  It is warranted when you have many routes with named parameters and need to
+  extract them at runtime (i.e., an HTTP router). Four static hostname/prefix
+  comparisons do not qualify.
+- The Web Platform `URLPattern` API exists (available in Node 22+ and Chrome
+  95+) but adds no value over a switch statement for four patterns. It would be
+  appropriate if the pattern set were dynamic (loaded from the DB at runtime) or
+  if caller sites needed typed parameter extraction. Neither is true here.
+- The resolution order (source_url → bracket tag → trailing attribution → source
+  code → NULL) already has the resolver as layer 1; it runs against a handful of
+  fully-qualified URLs from three known providers. Premature complexity.
 
-**Alternative to `postgres` + `csv-stringify`:** `@supabase/supabase-js` (2.108.1) is already a project dependency and could page through the `occurrences` view via PostgREST. Acceptable for small datasets, but the `[api] max_rows = 1000` cap in `supabase/config.toml` forces explicit pagination and the REST round-trips are slower for a full export. Use the direct `postgres` connection unless the dataset is trivially small.
+**Implementation note:** The resolver should be a pure function in a module
+(e.g. `scripts/ingest/resolve-provider.ts`) — it will be called both from the
+backfill migration script and from future ingest paths. Keep it independent of
+any specific provider schema.
 
-### Development Tools
+---
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| GBIF DwC-A validator (https://www.gbif.org/tools/data-validator) | Validate the produced archive end-to-end | Not in the nightly pipeline; run manually during development. Confirms `meta.xml` ↔ file/column alignment before shipping |
-| `unzip -l` + a local run script | Smoke-check the zip locally | Add an `npm run` script that builds the archive against local Supabase (`http://127.0.0.1:54321`) for iteration |
+## (b) DwC/EML Encoding: No New Library
 
-## Installation
+**Verdict: extend the existing `scripts/dwca/` pipeline in place.**
 
-```bash
-# Export-script runtime deps (add to root package.json, used only by the workflow script)
-npm install archiver postgres csv-stringify
+The existing pipeline (`eml.ts`, `meta-xml.ts`, `fields.ts`, `build.ts`) already
+handles all DwC-A encoding. It is:
 
-# Types for archiver (csv-stringify and postgres ship their own types)
-npm install -D @types/archiver
+- Pure TypeScript with a hand-written `xmlEsc` helper for XML escaping.
+- Driven by `OCCURRENCE_FIELDS` and `MULTIMEDIA_FIELDS` constant arrays in
+  `fields.ts` — the source of truth for column order and DwC term URIs.
+- Backed by `dwc.occurrences` and `dwc.datasets` Postgres views that encode
+  the DwC projection in SQL (auditable, view-as-contract discipline).
+
+v1.3 DwC changes are:
+
+| Change | Where it lives |
+|--------|---------------|
+| `datasetName` → per-collection value (`"SalishSea.io — {collection}"`) | `dwc._maplify_occurrences` view — replace the `dn.display_name` CASE with a JOIN to the new `collections` table |
+| `recordedBy` → contributor name where known (native already has it; Maplify gains it) | `dwc._native_occurrences` already correct; `dwc._maplify_occurrences` gains contributor FK lookup |
+| `rightsHolder` → `"SalishSea.io"` (fixed aggregator value) for all rows | Both branch views updated |
+| `institutionCode` → `"SalishSea"` (new column) | Add to both branch views + `OCCURRENCE_FIELDS` |
+| EML contact enrichment (GBIF validator flag) | `eml.ts` template string update + `dwc.datasets` migration |
+
+All of this is SQL view edits + column additions to the existing `fields.ts`
+array. The `buildEml` template string function gains at most a contact block
+update. No new encoding library is warranted.
+
+**Why not a DwC-specific library:**
+
+No mature, well-maintained TypeScript DwC-A builder library exists that would
+add value over the current approach. The GBIF IPT is Java. `dwca-reader` (Node)
+is a reader, not a writer. The hand-built pipeline already passes the GBIF
+validator (DWCA-05, 2026-06-19).
+
+**Why not a general XML library (e.g. `xmlbuilder2`, `fast-xml-parser` builder):**
+
+`fast-xml-parser` is already a project dependency (v5.8.0, in `dependencies`)
+and its builder could be used if the EML or meta.xml templates ever become
+unwieldy. At v1.3 scope the template is a ~200-line string with `xmlEsc` calls
+that tests already cover. Introducing a builder would add AST overhead for no
+DX gain. If a future milestone adds per-constituent EML rows (multi-dataset
+EML), revisit.
+
+---
+
+## (c) Postgres Migration Patterns: No New Library
+
+**Verdict: plain SQL migrations via the existing `supabase migrations` workflow.**
+
+The new schema objects are:
+
+```
+providers    (id, name, slug, source_schema)
+organizations (id, name, url)
+collections  (id, name, slug, kind, organization_id FK → organizations)
 ```
 
-No AWS SDK needed — the workflow shells out to the preinstalled `aws` CLI exactly as `deploy.yml` does.
+Plus FK columns (`provider_id`, `collection_id`, `contributor_id`, `source_url`)
+on the four per-schema source tables (`maplify.sightings`, `inaturalist.observations`,
+`happywhale.encounters`, `public.observations`).
 
-## The Exact Data Path (DB query → public URL)
+The `collections.kind` enum (`facebook_group`, `research_dataset`, `acoustic_feed`,
+`detector`, `direct_app`) is a standard Postgres `CREATE TYPE … AS ENUM`. The
+project already uses enums (e.g. `public.travel_direction`, `public.sex`,
+`happywhale.accuracy`, `inaturalist.rank`) in exactly this style — no migration
+library is needed.
 
-1. **Trigger:** `schedule: cron: '0 11 * * *'` (UTC) in a new `.github/workflows/export-dwca.yml`, plus `workflow_dispatch` for manual runs. (Note: the existing `nightly-vacuum` pg_cron job runs at `0 11 * * *` UTC = 4am PT; pick a non-conflicting hour for the export, e.g. `0 12 * * *`.)
-2. **Auth to data:** Job binds to the `production` GitHub environment → gets `VITE_SUPABASE_URL`/`VITE_SUPABASE_KEY` (and, if using a direct connection, a `SUPABASE_DB_URL`/`DB_PASSWORD` — `DB_PASSWORD` already exists as a secret in `deploy.yml`).
-3. **Query:** Node script connects (porsager `postgres` via pooler, or `supabase-js`) and `SELECT`s from `public.occurrences`, filtered to native SalishSea.io + Maplify/Whale Alert sources (exclude iNaturalist & Happywhale). For the Multimedia extension, join occurrence photos. Walk the `taxa` hierarchy for DwC classification fields.
-4. **Assemble:** `archiver` opens a zip stream; pipe `csv-stringify` output into `occurrence.txt` and `multimedia.txt` entries; append `meta.xml` and `eml.xml` (template strings). Finalize to a local file, e.g. `./out/occurrences.zip`.
-5. **Auth to AWS:** `aws-actions/configure-aws-credentials@v6` assumes `role/salishsea-deploy-action` (same role/region `us-west-2` as `deploy.yml`). `id-token: write` permission required on the job.
-6. **Publish:** `aws s3 cp ./out/occurrences.zip s3://${S3_BUCKET}/site/dwca/occurrences.zip --content-type application/zip` then `aws cloudfront create-invalidation --distribution-id ${CLOUDFRONT_DISTRIBUTION_ID} --paths '/dwca/*'`.
-7. **Download:** Publicly available at `https://salishsea.io/dwca/occurrences.zip`. The frontend adds a static link/button to that URL.
+Backfill is a one-time DML pass in a migration file:
 
-## DwC-A file contract (what the script must emit)
+```sql
+-- Example structure (not final)
+UPDATE maplify.sightings s
+SET collection_id = c.id
+FROM collections c
+WHERE ... -- exact-match on bracket tag or trailing attribution
+```
 
-A valid archive is a zip containing:
-- `meta.xml` — descriptor mapping core + extension files to DwC term URIs, field indices, delimiters, and the core/extension relationship (star schema, one core → many extension rows linked by `coreid`/`id`).
-- `eml.xml` — dataset metadata (title, creator, license, abstract, geographic/temporal coverage).
-- `occurrence.txt` — **Occurrence core**, one row per occurrence record.
-- `multimedia.txt` — **Simple Multimedia extension** (term URI `http://rs.gbif.org/terms/1.0/Multimedia`), zero-or-more rows per occurrence, linked by core id.
-- (Optional, deferred) `resourcerelationship.txt` — ResourceRelationship extension for travel segments; kept reachable by design but not required this milestone.
+The human-eyeballed exact-match dictionary (see §3 of the executive summary)
+lives as a `VALUES` list inside the migration, not in application code. This is
+the same pattern used for `dwc.datasets` (VALUES list in a view inside a
+migration).
 
-Confidence HIGH on file set/structure (GBIF/TDWG/OBIS docs agree); exact term mappings are a requirements/data-modeling task for the roadmap, not a stack choice.
+**Why not an ORM or migration library (e.g. Drizzle, Prisma, Knex):**
 
-## Secrets & Credentials Handling
+The project has no ORM. All schema management is `supabase migrations` (raw
+SQL). Introducing a migration library for a self-contained one-time backfill
+would add a foreign dependency with no ongoing benefit and would deviate from
+the established pattern.
 
-| Secret/Var | Where it lives now | Used by export for |
-|------------|--------------------|--------------------|
-| AWS access | OIDC role `salishsea-deploy-action` (no static keys) | S3 write + CloudFront invalidation — **already granted to this role** |
-| `S3_BUCKET` | `production` env var (`vars.S3_BUCKET`) | Destination bucket (`salishsea-io`) |
-| `CLOUDFRONT_DISTRIBUTION_ID` | `production` env var | Cache invalidation |
-| `VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` | `production` env (var + secret) | Reading `occurrences` via PostgREST (if using `supabase-js`) |
-| `DB_PASSWORD` (+ a `SUPABASE_DB_URL` to add) | `DB_PASSWORD` secret already exists in `production`; pooler host is public | Direct Postgres connection (if using `postgres`/porsager) |
+**Why not `pg_trgm` or fuzzy-matching extensions for backfill:**
 
-**No new AWS credential or IAM role is required.** The only potential new secret is a Supabase DB connection string if you choose the direct-connection path; if you stick with `supabase-js`, **zero new secrets**. (Per project memory: any genuinely new env var must be confirmed with the user before pushing — flag the `SUPABASE_DB_URL` addition if the direct-connection path is chosen.)
+Explicitly ruled out by the design: "exact-match only; no alias table; no
+`pg_trgm` runtime fuzzy matching." The ~4 Orca Network misspellings are handled
+via explicit entries in the VALUES dictionary, not by fuzzy code.
 
-## What NOT to Use / NOT to Add
+---
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| A new Supabase Edge Function (Deno) for this | Adds a second runtime + deploy surface the repo doesn't use; Edge Function CPU/memory/time limits risk large-core builds; still needs AWS creds or a non-`salishsea.io` Storage URL | GitHub Actions Node script |
-| Postgres-side `COPY TO file` / zipping in plpgsql | Managed Supabase Postgres has no superuser filesystem access and no native zip; needs ungranted extensions | Build the zip in the Node job |
-| Storing the archive in Supabase Storage `media` bucket | Public URL would be on the Supabase domain, not `salishsea.io`; splits hosting across two systems; needs CORS/cache config separately | Write to existing S3 `/site/dwca/` → served by existing CloudFront |
-| A new AWS Lambda / Step Function / EventBridge schedule | New infra + IAM + CDK changes for a once-nightly batch job that a cron workflow does trivially | GitHub Actions `schedule` |
-| `adm-zip` | Loads entire archive in memory (not streaming); fine for tiny zips but worse for a growing occurrence core | `archiver` (streaming) |
-| Heavy XML libraries for meta.xml/eml.xml | These are small fixed-shape documents | Template literals + an escape helper (or the already-present `fast-xml-parser` builder) |
+## What NOT to Add
 
-## Alternatives Considered
+| Do not add | Reason |
+|------------|--------|
+| `path-to-regexp` or any URL-pattern matching library | Four static patterns; 20 lines of TS with `new URL()` is sufficient |
+| `URLPattern` (Web API) | Available natively if needed, but a switch statement is more readable for a static registry |
+| `xmlbuilder2`, `@xmldom/xmldom`, or any XML builder | `fast-xml-parser` is already present; EML template is small and tested |
+| Drizzle, Prisma, Knex, or any ORM/migration tool | Project uses raw SQL migrations; no ORM precedent; adding one for a 3-table addition is disproportionate |
+| `pg_trgm` extension | Fuzzy matching explicitly ruled out by design decision; typo variants go in the exact-match VALUES dictionary |
+| A contributor identity-resolution library | Cross-provider identity unification (`jmaughn` = James Maughn) is explicitly deferred to a future milestone; v1.3 models contributors per-provider only |
+| Any new `dependencies` entry in `package.json` | All v1.3 work is Postgres migrations + TypeScript that exercises existing tools |
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| GitHub Actions Node job (b) | Supabase Edge Function (a) | If you ever need on-demand/per-request generation, or want to drop the GitHub Actions dependency entirely and serve the zip from Supabase Storage on a Supabase domain |
-| `postgres` (direct connection) | `@supabase/supabase-js` REST | If dataset stays small and you want zero new secrets / connection management; accept the `max_rows=1000` pagination |
-| `archiver` (streaming zip) | `fflate` (0.8.3) / `yazl` (3.3.1) | `fflate` if you want a tiny zero-dep zipper and build everything in memory; `yazl` for low-level control. `archiver` is the most ergonomic for "stream several named entries into a zip" |
+---
 
-## Version Compatibility
+## Integration Notes for the Roadmap
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `archiver@8.0.0` | Node 24 | Requires Node ≥ 18; fine on the repo's Node 24 |
-| `postgres@3.4.9` | Node 24, Supabase Postgres 17 | Connect via Supabase pooler; use SSL. Honors `major_version = 17` in config.toml |
-| `csv-stringify@6.7.0` | Node 24, `archiver` streams | Stream API pipes directly into archiver entries |
-| `aws-actions/configure-aws-credentials@v6` | `salishsea-deploy-action` role | Same action/role/region already used by `deploy.yml`; needs `permissions: id-token: write` |
+- **`dwc.occurrences` view update:** adding `institutionCode` as a new 26th
+  column requires a coordinated update to `OCCURRENCE_FIELDS` in `fields.ts`
+  and to the `assertFieldAlignment` guard in `assertions.ts`. The field list is
+  the source of truth; the migration and the TS array must stay in sync. This is
+  not a stack change but a load-bearing integration point the planner should
+  call out explicitly.
+
+- **Backfill migration ordering:** the VALUES dictionary migration (exact-match
+  bracket-tag/trailing-attribution → collection_id) must run _after_ the
+  `collections` seed migration. Migration filenames (timestamp-prefixed) enforce
+  this automatically in Supabase.
+
+- **`source_url` as first-class column:** the resolver runs at ingest time
+  (going forward) and also as part of the backfill for `inaturalist.observations`
+  and `public.observations` (which already carry URIs). Maplify records with no
+  URL fall through to the bracket-tag/attribution resolver. No library needed
+  for either path.
+
+- **EML contact enrichment:** the GBIF validator flagged
+  `RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE`. The fix is a template string
+  update to `eml.ts` and possibly a new column in `dwc.datasets`. Confirmed
+  doable in-place with the existing pipeline.
+
+---
 
 ## Sources
 
-- Repo `.github/workflows/deploy.yml` — verified existing OIDC AWS role, `aws s3 sync s3://${S3_BUCKET}/site`, CloudFront invalidation, `production` env secrets/vars (HIGH)
-- Repo `.github/workflows/smoke.yml` — verified existing `schedule` + `workflow_dispatch` nightly pattern (HIGH)
-- Repo `infra/lib/infra-stack.ts` — verified `salishsea-io` bucket, `originPath: '/site'`, CloudFront distribution for `salishsea.io` (HIGH)
-- Repo `supabase/config.toml` — verified `max_rows = 1000` API cap, Postgres `major_version = 17` (HIGH)
-- Repo `supabase/migrations/20250914232212_cron.sql` — verified existing pg_cron jobs incl. `nightly-vacuum` at `0 11 * * *` UTC (HIGH)
-- npm registry (`npm view`) — current versions verified 2026-06-09: archiver 8.0.0 (2026-05-08), postgres 3.4.9, csv-stringify 6.7.0, fflate 0.8.3, yazl 3.3.1, @supabase/supabase-js 2.108.1 (HIGH)
-- [GBIF IPT DwC-A How-to Guide](https://ipt.gbif.org/manual/en/ipt/latest/dwca-guide) — meta.xml/eml.xml + core/extension star schema (HIGH)
-- [OBIS Manual §7 Darwin Core Archive](https://manual.obis.org/data_format.html) — required files, occurrence core + multimedia extension (HIGH)
-- [Darwin Core text guide (TDWG)](https://dwc.tdwg.org/text/) — meta.xml descriptor semantics (HIGH)
-- [Supabase Scheduling Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions) / [pg_net](https://supabase.com/docs/guides/database/extensions/pg_net) — confirmed pg_cron+pg_net path for option (a) tradeoff analysis (MEDIUM)
+All findings are grounded in the existing codebase (HIGH confidence — no external
+lookup required for the verdict):
+
+- `scripts/dwca/eml.ts` — existing EML template + `xmlEsc` helper
+- `scripts/dwca/fields.ts` — `OCCURRENCE_FIELDS` / `MULTIMEDIA_FIELDS` arrays
+- `scripts/dwca/build.ts` — full pipeline; `assertFieldAlignment` guard
+- `supabase/migrations/20260617203900_dwc_schema.sql` — existing `dwc` schema,
+  both branch views, `dwc.datasets`, `dwc.multimedia`
+- `supabase/migrations/20260203234153_individuals.sql` — existing enum pattern
+  (`public.sex`), existing `public.contributors` table shape
+- `supabase/migrations/20250903172708_initial_schema.sql` — `happywhale.accuracy`
+  enum, `public.travel_direction` enum — confirming established pattern
+- `.planning/v1.3-EXECUTIVE-SUMMARY.md` — URL-pattern registry (§3), resolution
+  order, Maplify backfill strategy, DwC export changes (§5)
+- `package.json` — confirms `fast-xml-parser@5.8.0` already present; confirms
+  no ORM/migration-library precedent
 
 ---
-*Stack research for: nightly DwC-A export + hosting on existing S3/CloudFront + Supabase + GitHub Actions stack*
-*Researched: 2026-06-09*
+*Stack research for: v1.3 Providers, Collections & Contributors on SalishSea.io*
+*Researched: 2026-06-19*
