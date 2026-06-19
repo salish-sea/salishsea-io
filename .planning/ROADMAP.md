@@ -63,7 +63,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
 | 6. Archive Generation | v1.2 | 6/6 | Complete | 2026-06-18 |
 | 7. Nightly Workflow & Hosting | v1.2 | 3/3 | Complete | 2026-06-18 |
 | 8. Frontend Download Link | v1.2 | 2/2 | Complete | 2026-06-18 |
-| 9. Reference Table Foundation | v1.3 | 1/1 | Complete   | 2026-06-19 |
+| 9. Reference Table Foundation | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 10. Source Table FK Columns | v1.3 | 0/TBD | Not started | - |
 | 11. Resolution & Backfill | v1.3 | 0/TBD | Not started | - |
 | 12. DwC View Rebuild | v1.3 | 0/TBD | Not started | - |
