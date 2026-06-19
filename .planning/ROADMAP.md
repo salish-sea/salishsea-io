@@ -65,7 +65,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
 | 8. Frontend Download Link | v1.2 | 2/2 | Complete | 2026-06-18 |
 | 9. Reference Table Foundation | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 10. Source Table FK Columns | v1.3 | 1/1 | Complete    | 2026-06-19 |
-| 11. Resolution & Backfill | v1.3 | 2/4 | In Progress|  |
+| 11. Resolution & Backfill | v1.3 | 3/4 | In Progress|  |
 | 12. DwC View Rebuild | v1.3 | 0/TBD | Not started | - |
 | 13. Verification & GBIF Re-validation | v1.3 | 0/TBD | Not started | - |
 
@@ -122,7 +122,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 11-03-PLAN.md — Resolution schema migration: collection_rule table + resolve_collection fn + collection_id DEFAULTs + inat_login + mint_contributor (SECURITY DEFINER) + acronym backfill + assertion snippet (RESOLVE-02/04)
+- [x] 11-03-PLAN.md — Resolution schema migration: collection_rule table + resolve_collection fn + collection_id DEFAULTs + inat_login + mint_contributor (SECURITY DEFINER) + acronym backfill + assertion snippet (RESOLVE-02/04)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
