@@ -3,6 +3,7 @@ created: 2026-06-17T23:57:49.429Z
 updated: 2026-06-18T23:00:00.000Z
 title: Model collections and contributors as first-class attribution
 area: database
+resolves_phase: 11
 files:
   - supabase/migrations/20260617203900_dwc_schema.sql
   - supabase/migrations/20260204013006_sightings_uses_contributors.sql
