@@ -8,11 +8,11 @@ This is a backend / data-model / export milestone — no app UI surfaces (deferr
 
 ### Provenance Model (reference tables + seed)
 
-- [ ] **PROV-01**: A `providers` reference table exists, seeded with the four ingest providers (Direct, Maplify, iNaturalist, HappyWhale), with explicit SELECT grants
-- [ ] **ORG-01**: An `organizations` reference table exists (name, url, rights-holder text), seeded with the parent institutions behind known channels (e.g. Orca Network, Cascadia Research Collective, The Marine Mammal Center)
-- [ ] **COLL-01**: A `collections` reference table exists with a `kind` enum (`facebook_group`, `research_dataset`, `acoustic_feed`, `detector`, `direct_app` — no `aggregator_ingest`) and a nullable `organization_id` FK, seeded with the ~15 canonical collections
-- [ ] **CONTRIB-01**: Contributors are modeled on the existing `public.contributors` table and referenceable from every provider's records (per-provider; no cross-provider merge this milestone)
-- [ ] **CONTRIB-02**: `public.contributors` has a nullable `orcid` column, and the export emits `recordedByID` when an ORCID is present (values populated later)
+- [x] **PROV-01**: A `providers` reference table exists, seeded with the four ingest providers (Direct, Maplify, iNaturalist, HappyWhale), with explicit SELECT grants
+- [x] **ORG-01**: An `organizations` reference table exists (name, url, rights-holder text), seeded with the parent institutions behind known channels (e.g. Orca Network, Cascadia Research Collective, The Marine Mammal Center)
+- [x] **COLL-01**: A `collections` reference table exists with a `kind` enum (`facebook_group`, `research_dataset`, `acoustic_feed`, `detector`, `direct_app` — no `aggregator_ingest`) and a nullable `organization_id` FK, seeded with the ~15 canonical collections
+- [x] **CONTRIB-01**: Contributors are modeled on the existing `public.contributors` table and referenceable from every provider's records (per-provider; no cross-provider merge this milestone)
+- [x] **CONTRIB-02**: `public.contributors` has a nullable `orcid` column, and the export emits `recordedByID` when an ORCID is present (values populated later)
 
 ### Per-Sighting Linkage
 
@@ -61,11 +61,11 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROV-01 | Phase 9 | Pending |
-| ORG-01 | Phase 9 | Pending |
-| COLL-01 | Phase 9 | Pending |
-| CONTRIB-01 | Phase 9 | Pending |
-| CONTRIB-02 | Phase 9 | Pending |
+| PROV-01 | Phase 9 | Complete |
+| ORG-01 | Phase 9 | Complete |
+| COLL-01 | Phase 9 | Complete |
+| CONTRIB-01 | Phase 9 | Complete |
+| CONTRIB-02 | Phase 9 | Complete |
 | LINK-01 | Phase 10 | Pending |
 | LINK-02 | Phase 10 | Pending |
 | LINK-03 | Phase 10 | Pending |

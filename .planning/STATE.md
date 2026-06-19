@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: — Providers, Collections & Contributors
-status: Roadmapped — 5 phases defined, 17/17 requirements mapped
-stopped_at: Phase 9 context gathered
-last_updated: "2026-06-19T18:50:11.937Z"
-last_activity: 2026-06-19 — v1.3 roadmap created (Phases 9-13)
+status: verifying
+stopped_at: Completed 09-01-PLAN.md — all 3 tasks done, assertions passed
+last_updated: "2026-06-19T18:58:25.071Z"
+last_activity: 2026-06-19 -- Phase 9 execution started
 progress:
   total_phases: 5
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
+  percent: 20
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19)
 
 **Core value:** The most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative cetacean data.
-**Current focus:** Phase 09 — reference-table-foundation (next to start)
+**Current focus:** Phase 9 — Reference Table Foundation
 
 ## Current Position
 
-Phase: Not started (roadmap defined; ready to plan Phase 9)
-Plan: —
-Status: Roadmapped — 5 phases defined, 17/17 requirements mapped
-Last activity: 2026-06-19 — v1.3 roadmap created (Phases 9-13)
+Phase: 9 (Reference Table Foundation) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-06-19 -- Phase 9 execution started
 
 Progress: `░░░░░░░░░░` 0% (0/5 phases complete)
 
@@ -59,6 +59,8 @@ Recent decisions affecting current work:
 - [v1.2 Phase 5 Plan 02]: `dwc._native_occurrences` freezes the 25-column UNION-ALL interface contract — every output column carries an explicit cast so plan 05-03's Maplify branch must mirror exactly.
 - [v1.0 Phase 02]: Lambda@Edge for rich previews; SSM credentials managed outside CDK.
 - [v1.1 Roadmap]: Pre-process body text before marked.parse to inject markdown links; CSV in src/ (bundled by Vite).
+- [Phase ?]: [Phase 9 Plan 01]: aggregator_ingest excluded from collection_kind enum by construction; SC-3 assertion verifies via failed cast (D-09)
+- [Phase ?]: [Phase 9 Plan 01]: rights_holder_text column added to public.organizations for EML associatedParty display in Phase 12 (A1 assumption confirmed)
 
 ### Pending Todos
 
@@ -92,8 +94,8 @@ Items acknowledged and deferred at v1.3 roadmap creation (2026-06-19):
 
 ## Session Continuity
 
-Last session: 2026-06-19T18:30:54.411Z
-Stopped at: Phase 9 context gathered
+Last session: 2026-06-19T18:58:25.067Z
+Stopped at: Completed 09-01-PLAN.md — all 3 tasks done, assertions passed
 Resume: `/gsd-plan-phase 9` to begin Phase 9 (Reference Table Foundation)
 
 ## Performance Metrics
@@ -102,6 +104,7 @@ Resume: `/gsd-plan-phase 9` to begin Phase 9 (Reference Table Foundation)
 |-------|------|----------|-------|
 | Phase 5 P3 | 3min | 3 tasks | 1 files |
 | Phase 5 P4 | 12min | 3 tasks committed (T1 SQL, T2 harness, T5 validation fill-in); T3+T4 deferred to user (Docker daemon down at execution time) | 2 created (snippets/05_dwc_assertions.sql, 05-04-SUMMARY.md), 2 modified (migration file, 05-VALIDATION.md) |
+| Phase 09-reference-table-foundation P01 | 10min | 3 tasks | 2 files |
 
 ## Operator Next Steps
 

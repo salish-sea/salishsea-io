@@ -39,7 +39,7 @@ Full milestone details: [.planning/milestones/v1.2-ROADMAP.md](milestones/v1.2-R
 
 ### 📋 v1.3 — Providers, Collections & Contributors
 
-- [ ] **Phase 9: Reference Table Foundation** — Create `providers`, `organizations`, `collections` tables with seed data and RLS read policies
+- [x] **Phase 9: Reference Table Foundation** — Create `providers`, `organizations`, `collections` tables with seed data and RLS read policies (completed 2026-06-19)
 - [ ] **Phase 10: Source Table FK Columns** — Add nullable `provider_id`, `collection_id`, `contributor_id`, `source_url` to all four source tables
 - [ ] **Phase 11: Resolution & Backfill** — URL-pattern resolver + Maplify bracket-tag/attribution backfill + all-provider FK population
 - [ ] **Phase 12: DwC View Rebuild** — 26-column coordinated change: branch views + UNION + fields.ts + meta.xml + EML + row-count gate
@@ -63,7 +63,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
 | 6. Archive Generation | v1.2 | 6/6 | Complete | 2026-06-18 |
 | 7. Nightly Workflow & Hosting | v1.2 | 3/3 | Complete | 2026-06-18 |
 | 8. Frontend Download Link | v1.2 | 2/2 | Complete | 2026-06-18 |
-| 9. Reference Table Foundation | v1.3 | 0/1 | Planned | - |
+| 9. Reference Table Foundation | v1.3 | 1/1 | Complete   | 2026-06-19 |
 | 10. Source Table FK Columns | v1.3 | 0/TBD | Not started | - |
 | 11. Resolution & Backfill | v1.3 | 0/TBD | Not started | - |
 | 12. DwC View Rebuild | v1.3 | 0/TBD | Not started | - |
@@ -83,7 +83,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
   3. `SELECT * FROM collections` returns ~15 canonical collections with correct `kind` enum values; `aggregator_ingest` is absent from the enum by construction; same anon-role smoke test passes
   4. `SELECT column_name FROM information_schema.columns WHERE table_name = 'contributors' AND column_name = 'orcid'` returns one row (nullable `orcid` column exists on `public.contributors`)
   5. `public.contributors` rows are referenced from all four source schemas without a cross-provider merge (per-provider model intact; no shared contributor_id across providers)**Plans**: 1 plan
-- [ ] 09-01-PLAN.md — Reference-tables migration (collection_kind enum + providers/organizations/collections + RLS SELECT policies + nullable contributors.orcid + idempotent seed) and the 09_reference_assertions.sql gate
+- [x] 09-01-PLAN.md — Reference-tables migration (collection_kind enum + providers/organizations/collections + RLS SELECT policies + nullable contributors.orcid + idempotent seed) and the 09_reference_assertions.sql gate
 
 ### Phase 10: Source Table FK Columns
 
