@@ -114,7 +114,12 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
   4. `scripts/ingest/resolve-provider.ts` URL-pattern resolver exists as a pure function; `inaturalist.observations` and `public.observations` rows with valid URLs have `provider_id` and `collection_id` set; HappyWhale encounter rows have `provider_id` set
   5. Unmatched bracket tags resolve to NULL (no auto-create, no fuzzy match); ongoing ingest path for new records uses the resolver at ingest time
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+- [ ] 11-01-PLAN.md — Pure TS URL-pattern resolver `scripts/ingest/resolve-provider.ts` + vitest (RESOLVE-01)
+- [ ] 11-02-PLAN.md — Read-only prod bracket-tag/attribution/source census + [BLOCKING] human-verify of acronym expansions (RESOLVE-03 precondition)
+- [ ] 11-03-PLAN.md — Resolution schema migration: collection_rule table + resolve_collection fn + collection_id DEFAULTs + inat_login + mint_contributor (SECURITY DEFINER) + acronym backfill + assertion snippet (RESOLVE-02/04)
+- [ ] 11-04-PLAN.md — Idempotent backfill UPDATEs (all four providers + iNat contributor) + live ingest-function edits (update_sightings, iNat MERGE) + [BLOCKING] supabase db push + prod diff-gate (RESOLVE-03/04)
 
 ### Phase 12: DwC View Rebuild
 
