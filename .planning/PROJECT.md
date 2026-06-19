@@ -19,7 +19,7 @@ Three milestones shipped. v1.0 added shareable occurrence links with rich social
 **Delivered:** A nightly GitHub Actions workflow regenerates a DarwinCore Archive (zip + GeoParquet sidecar + sha256 sidecars) from a dedicated read-only `dwc` Postgres schema and publishes it atomically to S3/CloudFront. The About modal links the artifacts with live size + freshness, using a Lambda@Edge carve-out so binary downloads bypass the OG-meta interceptor.
 
 **Outcomes:**
-- 21/22 v1 requirements satisfied; DWCA-05 (GBIF validator pass) deferred — validator service was offline 2026-06-18; deterministic zip preserved for re-upload
+- 22/22 v1 requirements satisfied — DWCA-05 (GBIF validator pass) closed 2026-06-19: "can be indexed by GBIF", zero blocking errors (was deferred at ship while the validator service was offline)
 - Cross-phase wiring verified end-to-end; no orphaned or missing contracts
 - Audit status: tech_debt (one deferral + minor follow-ups)
 - See `.planning/milestones/v1.2-MILESTONE-AUDIT.md` for full audit
@@ -42,7 +42,9 @@ Three milestones shipped. v1.0 added shareable occurrence links with rich social
 ### Active
 
 <!-- v1.2 follow-ups -->
-- [ ] DWCA-05: re-upload deterministic zip to GBIF DwC-A validator when gbif.org/tools/data-validator returns online; flip REQUIREMENTS Pending → Complete
+- ✓ DWCA-05: archive passes the GBIF DwC-A validator ("can be indexed by GBIF") — validated 2026-06-19; warnings logged as v2 follow-ups below
+- [ ] Emit `coordinateUncertaintyInMeters` on occurrence records (GBIF validator flagged its absence 2026-06-19)
+- [ ] Enrich `eml.xml` resource contacts (GBIF validator: `RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE`, 2026-06-19)
 - [ ] Model embedded dataset attributions (bracket tags + "Submitted by …" lines in `maplify.sightings.comments`) as first-class sources so `dwc.occurrences` `datasetName`/`institutionCode` resolve from real refs
 
 <!-- Future milestones -->

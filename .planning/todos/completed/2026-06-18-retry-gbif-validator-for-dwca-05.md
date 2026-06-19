@@ -53,3 +53,25 @@ Warnings are acceptable but should be recorded in the SUMMARY for v2 follow-up.
   replicate the full server-side validator's biodiversity-specific rules
   (controlled vocab terms, taxonomy backbone checks). Use only as a fallback
   if GBIF stays down for >3 months.
+
+---
+
+## RESOLVED — 2026-06-19
+
+GBIF validator came back online. User worked around a GBIF login issue, rebuilt
+the archive locally (`npm run build:dwca`, 382-row local sample, identical
+pipeline to nightly prod), and uploaded `dist/dwca/salishsea-occurrences-v1.zip`.
+
+**Verdict: PASS — "can be indexed by GBIF", zero blocking/structural errors.**
+Occurrence core recognized.
+
+Updated:
+- `.planning/milestones/v1.2-REQUIREMENTS.md` — DWCA-05 → Complete
+- `.planning/milestones/v1.2-phases/06-archive-generation/06-06-SUMMARY.md` — Verification Update section + closeout table/footer
+- `.planning/PROJECT.md` — 22/22 requirements; Active follow-ups updated
+
+Warnings recorded as v2 follow-ups (non-blocking):
+- `eml.xml`: `RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE`
+- occurrence: no `coordinateUncertaintyInMeters` (→ new todo 2026-06-19-emit-coordinate-uncertainty.md)
+- occurrence: `country`/`continent` GBIF-derived from coords (informational)
+- occurrence: many coordinates rounded by GBIF (informational)

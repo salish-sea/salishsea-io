@@ -140,9 +140,30 @@ The multimedia.txt being header-only (no data rows) means the DWCA-03 anti-join 
 2. **Task 2: SUMMARY for plan close** — this commit (`docs(06-06): integration test passes; GBIF validator step deferred (upstream offline 2026-06-18)`)
 3. **Planning state update (if separate commit)** — see `git log main..HEAD` in this worktree branch (`worktree-agent-3d0241c8e38f6a05`)
 
-## Accepted Warnings
+## Verification Update — DWCA-05 CLOSED (2026-06-19)
 
-None observed. (The local integration tests surfaced no warnings; the GBIF validator was unreachable so we have no validator-side yellow flags to track. If/when DWCA-05 is closed and the validator surfaces optional-element warnings, they should be appended here.)
+The GBIF data validator came back online. After working around a GBIF login
+issue, the user rebuilt the archive locally and uploaded
+`dist/dwca/salishsea-occurrences-v1.zip` (this run: 382 occurrence rows, the
+local-DB sample; identical pipeline as the nightly production build).
+
+**Verdict: PASS — "can be indexed by GBIF", zero blocking/structural errors.**
+Occurrence core recognized. DWCA-05 is now Complete in `v1.2-REQUIREMENTS.md`.
+
+### Warnings recorded (non-blocking; v2 follow-ups)
+
+| Source | Warning | Disposition |
+|--------|---------|-------------|
+| `eml.xml` | `RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE` — GBIF wants a fuller resource contact in the EML (the current EML commits only `rainhead@gmail.com` with no individual/organization name structure GBIF recognizes as complete). | v2 follow-up — enrich EML `contact`/`creator`/`metadataProvider` blocks. Affects the nightly published EML, so worth a small `scripts/dwca` build fix. |
+| `occurrence.txt` | `country`/`continent` were **derived by GBIF from coordinates** — we do not emit them. | Informational. Acceptable; GBIF interpretation is correct for the Salish Sea. Could emit `countryCode`/`country` explicitly in v2 to suppress the flag. |
+| `occurrence.txt` | Many records had their **coordinates rounded** by GBIF. | Informational (GBIF precision normalization). No action required. |
+| `occurrence.txt` | **No records carry `coordinateUncertaintyInMeters`.** | v2 follow-up — user wants to address this. Captured as a pending todo. |
+
+### Accepted Warnings (original Phase 6 note)
+
+The local integration tests surfaced no warnings; at Phase 6 close the GBIF
+validator was unreachable so no validator-side flags were tracked. The
+validator-side warnings above are now captured (2026-06-19).
 
 ## Deviations from Plan
 
@@ -196,7 +217,7 @@ Phase 6 is now structurally complete:
 | DWCA-02 | Complete (06-06) | Tests 3+4+9: meta.xml descriptor indices round-trip against canonical TS arrays end-to-end |
 | DWCA-03 | Complete (06-06) | Test 5: every multimedia.coreId ∈ occurrence.occurrenceID set |
 | DWCA-04 | Complete (06-06) | Tests 6+7+8: no BOM on either CSV; every row splits into exactly 25 columns |
-| DWCA-05 | **Deferred** | GBIF validator service offline 2026-06-18; deterministic zip in hand and ready to re-upload |
+| DWCA-05 | **Complete (2026-06-19)** | GBIF validator: "can be indexed by GBIF", zero blocking/structural errors; warnings recorded above |
 | DWCA-06 | Complete (06-06) | Test 10: GeoParquet 1.0.0 metadata + 26 cols + row-count parity + ST_AsText round-trip |
 
 **Phase 7 can proceed.** The integration test is the regression net that Phase 7's nightly publish workflow needs: any view drift, BOM regression, descriptor-index drift, or GeoParquet metadata loss will surface immediately in CI as a non-zero exit. The deterministic zip + parquet enable Phase 7's "no upstream change ⇒ skip republish" dedupe pattern. The one open follow-up — re-upload the zip to the GBIF validator when it returns — is independent of Phase 7's hosting/scheduling work.
@@ -204,4 +225,4 @@ Phase 6 is now structurally complete:
 ---
 *Phase: 06-archive-generation*
 *Completed (structural): 2026-06-18*
-*Follow-up: re-run DWCA-05 against gbif.org/tools/data-validator when the service returns*
+*DWCA-05 closed 2026-06-19 — GBIF validator pass ("can be indexed by GBIF"); warnings logged as v2 follow-ups*
