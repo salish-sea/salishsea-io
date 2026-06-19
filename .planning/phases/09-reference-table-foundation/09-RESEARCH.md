@@ -715,7 +715,7 @@ END $$;
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`rights_holder_text` column name on `organizations`**
    - What we know: ORG-01 requires "name, url, rights-holder text"
