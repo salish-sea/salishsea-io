@@ -49,7 +49,8 @@ and cross-provider contributor unification.
   records. Finer sub-collections (per iNat project, per HappyWhale org) are
   deferred: iNat + HappyWhale are not exported (SRC-01), so finer granularity
   adds seed/backfill work with zero archive payoff this milestone.
-- **D-04:** **Native (`public.observations`) records are often reposts** of
+- **D-04 [informational]:** (Phase 10/11 forward-note — not a Phase 9 build item)
+  **Native (`public.observations`) records are often reposts** of
   content also entered into Maplify/conserve.io — frequently tagged the same way
   and by the same person. Such a native repost resolves to the **same** shared
   collection (e.g. `Orca Network`), with `provider_id = Direct`. The
@@ -73,13 +74,14 @@ and cross-provider contributor unification.
   lowercased acronym, `name` = the acronym, `organization_id` = NULL,
   `kind` = NULL. Phase 11 fills in name/org/kind once decoded. This means the
   collections seed is ~15 *named* + the acronym stubs (≈25 rows total).
-- **D-07:** Seeding stubs **does not conflict with RESOLVE-04's "no auto-create"
+- **D-07 [informational]:** (Phase 11 framing note — not a Phase 9 build item)
+  Seeding stubs **does not conflict with RESOLVE-04's "no auto-create"
   rule.** That rule governs the *ongoing ingest resolver* (unmatched tags at
   ingest time → NULL, never auto-insert). Pre-seeding stubs from a
   human-reviewed census is a deliberate one-time act, the opposite of automated
   fuzzy creation. Capture this distinction explicitly so Phase 11 does not read
   it as a contradiction.
-- **D-08:** Phase 9 seeds the acronym/collection set **from the point-in-time
+- **D-08 [informational]:** (provenance/sourcing note for the seed — the buildable seed action is covered by D-06) Phase 9 seeds the acronym/collection set **from the point-in-time
   census already documented in `v1.3-EXECUTIVE-SUMMARY.md §3`.** The
   authoritative `SELECT DISTINCT` re-census happens in Phase 11 (RESOLVE-03) and
   may surface a few additional tags; those resolve to NULL until a human adds
