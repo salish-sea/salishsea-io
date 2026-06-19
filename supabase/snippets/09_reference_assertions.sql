@@ -66,8 +66,20 @@ DO $$
 DECLARE n INTEGER;
 BEGIN
   SELECT COUNT(*) INTO n FROM public.organizations;
-  IF n = 0 THEN
-    RAISE EXCEPTION 'SC-2 FAIL: organizations is empty — seed did not run';
+  -- IN-02: assert the parent-institution seed actually landed (5 canonical orgs:
+  -- orca-network, cascadia, tmmc, mbari, orcasound), not merely "> 0".
+  IF n < 5 THEN
+    RAISE EXCEPTION 'SC-2 FAIL: organizations has only % rows (expected >= 5 canonical parent institutions)', n;
+  END IF;
+END $$;
+
+-- IN-02: ORG-01 requires rights-holder text on every organization.
+DO $$
+DECLARE n INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO n FROM public.organizations WHERE rights_holder_text IS NULL;
+  IF n > 0 THEN
+    RAISE EXCEPTION 'SC-2 FAIL: % organization(s) have NULL rights_holder_text (ORG-01 requires rights-holder text)', n;
   END IF;
 END $$;
 
@@ -92,8 +104,10 @@ DO $$
 DECLARE n INTEGER;
 BEGIN
   SELECT COUNT(*) INTO n FROM public.collections;
-  IF n < 10 THEN
-    RAISE EXCEPTION 'SC-3 FAIL: collections has only % rows (expected at least 10)', n;
+  -- Seed is 10 named + 11 acronym stubs = 21 (WR-03: guard reflects the real
+  -- seed size, not the stale "~10" header; losing ~half the seed must fail).
+  IF n < 20 THEN
+    RAISE EXCEPTION 'SC-3 FAIL: collections has only % rows (expected >= 20: 10 named + ~11 stubs)', n;
   END IF;
 END $$;
 
@@ -120,6 +134,45 @@ BEGIN
      AND kind IS NULL;
   IF n > 0 THEN
     RAISE EXCEPTION 'SC-3 FAIL: % named collection(s) have NULL kind (only stubs should have NULL kind)', n;
+  END IF;
+END $$;
+
+-- IN-01: acronym stubs must carry NULL kind (D-06/D-09). Assert the stub side
+-- explicitly so a regression that back-fills a guessed kind onto stubs fails.
+DO $$
+DECLARE n INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO n FROM public.collections WHERE kind IS NULL;
+  IF n < 10 THEN
+    RAISE EXCEPTION 'SC-3 FAIL: only % stub collection(s) with NULL kind (expected ~11 acronym stubs)', n;
+  END IF;
+END $$;
+
+-- WR-02: collection -> organization FK subqueries must have RESOLVED. A mistyped
+-- org slug in the seed silently yields NULL organization_id with no error, which
+-- would defeat the FK and the Phase 12 EML join. The five org-backed collections
+-- (orca-network, cascadia, tmmc, mbari, orcasound) must each carry a non-null FK.
+DO $$
+DECLARE n INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO n FROM public.collections
+   WHERE slug IN ('orca-network', 'cascadia', 'tmmc', 'mbari', 'orcasound')
+     AND organization_id IS NULL;
+  IF n > 0 THEN
+    RAISE EXCEPTION 'SC-3 FAIL: % org-backed collection(s) have NULL organization_id — FK subquery did not resolve (check org slug spelling in seed)', n;
+  END IF;
+END $$;
+
+-- WR-02 (cont.): every collection.organization_id that IS set must point at a
+-- real organizations row (no dangling FK values).
+DO $$
+DECLARE n INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO n FROM public.collections c
+   WHERE c.organization_id IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM public.organizations o WHERE o.id = c.organization_id);
+  IF n > 0 THEN
+    RAISE EXCEPTION 'SC-3 FAIL: % collection(s) reference a non-existent organization_id', n;
   END IF;
 END $$;
 
@@ -201,19 +254,56 @@ END $$;
 -- T-09-01 mitigation: RLS write-closed check
 -- anon can SELECT but cannot INSERT/UPDATE/DELETE on reference tables
 -- =====================================================================
-\echo T-09-01: RLS write-closed — anon INSERT on providers must be rejected
+\echo T-09-01: RLS write-closed — anon INSERT/UPDATE/DELETE on all reference tables must not mutate
 
+-- WR-01: the title claims "write-closed" but only INSERT was tested. INSERT under
+-- a no-policy RLS table raises insufficient_privilege, but UPDATE/DELETE do NOT
+-- raise — they silently match zero rows (the RLS USING clause filters every row).
+-- So UPDATE/DELETE must be asserted via affected-row count, and all three
+-- reference tables must be covered (a permissive write policy on any of them is
+-- a privilege-escalation regression this block now catches).
 SET ROLE anon;
+
+-- INSERT must be rejected on every reference table.
 DO $$
+DECLARE tbl TEXT; cols TEXT; vals TEXT;
 BEGIN
-  BEGIN
-    INSERT INTO public.providers (slug, name) VALUES ('x-evil', 'x');
-    -- If we reach here the INSERT succeeded — this is a FAIL
-    RAISE EXCEPTION 'T-09-01 FAIL: anon role was able to INSERT into public.providers — RLS write-closed policy is missing or misconfigured';
-  EXCEPTION
-    WHEN insufficient_privilege THEN
-      RAISE NOTICE 'T-09-01 PASS: anon INSERT into providers correctly rejected with insufficient_privilege';
-  END;
+  FOR tbl, cols, vals IN
+    SELECT * FROM (VALUES
+      ('providers',     '(slug, name)',                  $i$('x-evil', 'x')$i$),
+      ('organizations', '(slug, name, url, rights_holder_text)', $i$('x-evil', 'x', 'https://x', 'x')$i$),
+      ('collections',   '(slug, name)',                  $i$('x-evil', 'x')$i$)
+    ) AS t(tbl, cols, vals)
+  LOOP
+    BEGIN
+      EXECUTE format('INSERT INTO public.%I %s VALUES %s', tbl, cols, vals);
+      RAISE EXCEPTION 'T-09-01 FAIL: anon INSERT into public.% succeeded — RLS write-closed policy missing/misconfigured', tbl;
+    EXCEPTION
+      WHEN insufficient_privilege THEN
+        RAISE NOTICE 'T-09-01 PASS: anon INSERT into % rejected with insufficient_privilege', tbl;
+    END;
+  END LOOP;
+END $$;
+
+-- UPDATE/DELETE must affect zero rows (silently filtered by RLS, not raised).
+DO $$
+DECLARE tbl TEXT; affected INTEGER;
+BEGIN
+  FOR tbl IN SELECT unnest(ARRAY['providers', 'organizations', 'collections'])
+  LOOP
+    EXECUTE format('UPDATE public.%I SET slug = slug', tbl);
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    IF affected <> 0 THEN
+      RAISE EXCEPTION 'T-09-01 FAIL: anon UPDATE on public.% affected % row(s) — expected 0 (RLS write-closed)', tbl, affected;
+    END IF;
+
+    EXECUTE format('DELETE FROM public.%I', tbl);
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    IF affected <> 0 THEN
+      RAISE EXCEPTION 'T-09-01 FAIL: anon DELETE on public.% affected % row(s) — expected 0 (RLS write-closed)', tbl, affected;
+    END IF;
+  END LOOP;
+  RAISE NOTICE 'T-09-01 PASS: anon UPDATE/DELETE affected 0 rows on all reference tables';
 END $$;
 RESET ROLE;
 
