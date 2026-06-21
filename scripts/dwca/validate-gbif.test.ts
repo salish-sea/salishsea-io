@@ -26,88 +26,100 @@ import type { GbifValidationResult } from './validate-gbif.ts';
  * Expected: passes, returns the METADATA_CONTENT issue as a warning.
  */
 const FIXTURE_INDEXEABLE_WITH_WARNINGS: GbifValidationResult = {
-    indexeable: true,
-    fileName: 'salishsea-occurrences-v1.zip',
-    fileFormat: 'dwca',
-    validationProfile: 'GBIF_INDEXING_PROFILE',
-    results: [
-        {
-            fileType: 'CORE',
-            rowType: 'http://rs.tdwg.org/dwc/terms/Occurrence',
-            numberOfLines: 4413,
-            issues: [
-                {
-                    issue: 'COORDINATE_UNCERTAINTY_METERS_INVALID',
-                    issueCategory: 'OCC_INTERPRETATION_BASED',
-                    count: 4442,
-                },
-            ],
-        },
-        {
-            fileType: 'METADATA',
-            issues: [
-                {
-                    issue: 'RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE',
-                    issueCategory: 'METADATA_CONTENT',
-                },
-            ],
-        },
-    ],
+    key: '242af032-b1fc-4225-ba4b-ca85023d8786',
+    fileFormat: 'DWCA',
+    status: 'FINISHED',
+    metrics: {
+        indexeable: true,
+        files: [
+            {
+                fileType: 'METADATA',
+                rowType: null,
+                fileName: 'eml.xml',
+                issues: [
+                    {
+                        issue: 'RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE',
+                        issueCategory: 'METADATA_CONTENT',
+                        samples: [],
+                    },
+                ],
+            },
+            {
+                fileType: 'CORE',
+                rowType: 'http://rs.tdwg.org/dwc/terms/Occurrence',
+                fileName: 'occurrence.txt',
+                count: 4413,
+                indexedCount: 4413,
+                issues: [
+                    {
+                        issue: 'COORDINATE_ROUNDED',
+                        issueCategory: 'OCC_INTERPRETATION_BASED',
+                        count: 734,
+                    },
+                ],
+            },
+        ],
+    },
 };
 
 /**
- * Fixture B: indexeable:false (blocking structural problem).
+ * Fixture B: metrics.indexeable:false (blocking structural problem).
  * Expected: assertIndexeable throws "GBIF validator: not indexeable".
  */
 const FIXTURE_NOT_INDEXEABLE: GbifValidationResult = {
-    indexeable: false,
-    fileName: 'salishsea-occurrences-v1.zip',
-    fileFormat: 'dwca',
-    validationProfile: 'GBIF_INDEXING_PROFILE',
-    results: [
-        {
-            fileType: 'CORE',
-            issues: [
-                {
-                    issue: 'REQUIRED_TERM_MISSING',
-                    issueCategory: 'RESOURCE_STRUCTURE',
-                    count: 1,
-                },
-            ],
-        },
-    ],
+    fileFormat: 'DWCA',
+    status: 'FINISHED',
+    metrics: {
+        indexeable: false,
+        files: [
+            {
+                fileType: 'CORE',
+                fileName: 'occurrence.txt',
+                issues: [
+                    {
+                        issue: 'REQUIRED_TERM_MISSING',
+                        issueCategory: 'RESOURCE_STRUCTURE',
+                        count: 1,
+                    },
+                ],
+            },
+        ],
+    },
 };
 
 /**
- * Fixture C: indexeable:true but a RESOURCE_STRUCTURE issue is present.
+ * Fixture C: metrics.indexeable:true but a RESOURCE_STRUCTURE issue is present.
  * Expected: assertIndexeable throws listing the blocking issue.
  */
 const FIXTURE_BLOCKING_ISSUE: GbifValidationResult = {
-    indexeable: true,
-    fileName: 'salishsea-occurrences-v1.zip',
-    fileFormat: 'dwca',
-    validationProfile: 'GBIF_INDEXING_PROFILE',
-    results: [
-        {
-            fileType: 'METADATA',
-            issues: [
-                {
-                    issue: 'RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE',
-                    issueCategory: 'METADATA_CONTENT',
-                },
-            ],
-        },
-        {
-            fileType: 'CORE',
-            issues: [
-                {
-                    issue: 'REQUIRED_TERM_MISSING',
-                    issueCategory: 'RESOURCE_STRUCTURE',
-                    count: 1,
-                },
-            ],
-        },
-    ],
+    fileFormat: 'DWCA',
+    status: 'FINISHED',
+    metrics: {
+        indexeable: true,
+        files: [
+            {
+                fileType: 'METADATA',
+                fileName: 'eml.xml',
+                issues: [
+                    {
+                        issue: 'RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE',
+                        issueCategory: 'METADATA_CONTENT',
+                    },
+                ],
+            },
+            {
+                fileType: 'CORE',
+                fileName: 'occurrence.txt',
+                issues: [
+                    {
+                        issue: 'REQUIRED_TERM_MISSING',
+                        issueCategory: 'RESOURCE_STRUCTURE',
+                        count: 1,
+                    },
+                ],
+            },
+        ],
+    },
 };
 
 // ---------------------------------------------------------------------------
@@ -133,7 +145,7 @@ describe('assertIndexeable', () => {
         expect(metadataWarning?.issueCategory).toBe('METADATA_CONTENT');
         // The OCC_INTERPRETATION_BASED issue should also be in warnings
         const occWarning = result.warnings.find(
-            w => w.issue === 'COORDINATE_UNCERTAINTY_METERS_INVALID',
+            w => w.issue === 'COORDINATE_ROUNDED',
         );
         expect(occWarning).toBeDefined();
         expect(occWarning?.issueCategory).toBe('OCC_INTERPRETATION_BASED');

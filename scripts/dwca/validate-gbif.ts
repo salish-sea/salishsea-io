@@ -47,7 +47,7 @@ const POLL_INTERVAL_MS = 7_000;
 const POLL_TIMEOUT_MS = 300_000;
 
 /** States that indicate validation is still in progress. */
-const IN_PROGRESS_STATES = new Set(['RUNNING', 'QUEUED']);
+const IN_PROGRESS_STATES = new Set(['SUBMITTED', 'RUNNING', 'QUEUED', 'CRAWLING']);
 
 /** Manual fallback URL when the API is unavailable. */
 const MANUAL_FALLBACK_URL = 'https://www.gbif.org/tools/data-validator';
@@ -61,31 +61,42 @@ export interface GbifIssue {
     issue: string;
     issueCategory: string;
     count?: number;
+    samples?: unknown[];
 }
 
-/** One file section in the validation result. */
+/** One file section in the validation result (`metrics.files[]`). */
 export interface GbifValidationResultSection {
     fileType: string;
-    rowType?: string;
-    numberOfLines?: number;
-    issues: GbifIssue[];
+    rowType?: string | null;
+    fileName?: string;
+    count?: number | null;
+    indexedCount?: number | null;
+    issues?: GbifIssue[];
+}
+
+/**
+ * The `metrics` sub-object of a finished validation. `indexeable` is the
+ * SC#1 gate (NB: GBIF's spelling), and `files[]` carries the per-file issues.
+ */
+export interface GbifValidationMetrics {
+    /** Primary SC#1 gate: true iff GBIF can index this archive. */
+    indexeable?: boolean;
+    files?: GbifValidationResultSection[];
+    stepTypes?: unknown[];
 }
 
 /**
  * The top-level validation result object returned by
- * GET https://api.gbif.org/v1/validation/{key}.
+ * GET https://api.gbif.org/v1/validation/{key}. The indexeable flag and the
+ * issue list live under `metrics` — not at the top level.
  */
 export interface GbifValidationResult {
     /** UUID key for this validation run. May be absent on submit response. */
     key?: string;
-    /** Primary SC#1 gate: true iff GBIF can index this archive. */
-    indexeable: boolean;
-    fileName?: string;
     fileFormat?: string;
-    validationProfile?: string;
-    /** Validation state (present during polling): RUNNING | QUEUED | FINISHED | etc. */
-    state?: string;
-    results: GbifValidationResultSection[];
+    /** Run status (top-level): SUBMITTED | RUNNING | QUEUED | FINISHED | ABORTED | FAILED. */
+    status?: string;
+    metrics?: GbifValidationMetrics;
 }
 
 /** Credentials for GBIF Basic auth. */
@@ -122,15 +133,16 @@ export interface AssertIndexeableResult {
  * @throws {Error} If not indexeable or blocking issues found.
  */
 export function assertIndexeable(result: GbifValidationResult): AssertIndexeableResult {
-    // SC#1 primary gate: strict boolean equality (T-13-02-VAL)
-    if (result.indexeable !== true) {
+    // SC#1 primary gate: strict boolean equality (T-13-02-VAL).
+    // NB: GBIF nests this under `metrics` — `metrics.indexeable`, not top-level.
+    if (result.metrics?.indexeable !== true) {
         throw new Error('GBIF validator: not indexeable');
     }
 
     const blockingIssues: GbifIssue[] = [];
     const warnings: GbifIssue[] = [];
 
-    for (const section of result.results) {
+    for (const section of result.metrics.files ?? []) {
         for (const issue of section.issues ?? []) {
             if (BLOCKING_CATEGORIES.has(issue.issueCategory)) {
                 blockingIssues.push(issue);
@@ -256,13 +268,13 @@ export async function pollValidation(
 
         const result = (await res.json()) as GbifValidationResult;
 
-        if (result.state && IN_PROGRESS_STATES.has(result.state)) {
+        if (result.status && IN_PROGRESS_STATES.has(result.status)) {
             // Still running — wait and poll again
             await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
             continue;
         }
 
-        // Validation is complete (state is FINISHED, absent, or anything other than RUNNING/QUEUED)
+        // Validation is complete (status is FINISHED, ABORTED, FAILED, or absent)
         return result;
     }
 }
@@ -324,7 +336,10 @@ export async function main(): Promise<void> {
         process.exit(1);
     }
 
-    console.log(`Validation complete. indexeable=${result.indexeable}`);
+    console.log(
+        `Validation complete (status=${result.status ?? 'unknown'}). ` +
+        `indexeable=${result.metrics?.indexeable}`,
+    );
 
     try {
         const { warnings } = assertIndexeable(result);
