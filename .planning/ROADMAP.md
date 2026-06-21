@@ -76,7 +76,7 @@ Plans:
 | 9. Reference Table Foundation | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 10. Source Table FK Columns | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 11. Resolution & Backfill | v1.3 | 4/4 | Complete   | 2026-06-21 |
-| 12. DwC View Rebuild | v1.3 | 0/TBD | Not started | - |
+| 12. DwC View Rebuild | v1.3 | 0/3 | Not started | - |
 | 13. Verification & GBIF Re-validation | v1.3 | 0/TBD | Not started | - |
 
 ## Phase Details
@@ -151,7 +151,11 @@ Plans:
   4. `npm test` (including `fields.test.ts`) passes green: `OCCURRENCE_FIELDS.length === 26`, `assertFieldAlignment` confirms view column order matches the TS array; `meta.xml` output declares 26 fields in correct ordinal order
   5. `SELECT COUNT(*) FROM dwc.occurrences` does not exceed the sum of `public.observations` + filtered `maplify.sightings` row counts (SRC-01 row-count gate passes; iNat and HappyWhale rows absent by construction); the nightly job guard enforces this gate
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+- [ ] 12-01-PLAN.md — D-03 prod census of trusted Maplify comment parentheticals; grounds the recordedBy regex (Wave 1)
+- [ ] 12-02-PLAN.md — 26-column view rebuild (institutionCode/rightsHolder/datasetName/recordedBy/trusted), fields.ts + meta.xml parity, SC assertions, [BLOCKING] schema push (Wave 2)
+- [ ] 12-03-PLAN.md — EML associatedParty (data-driven, contentProvider) + build.ts wiring + row-count guard verification (Wave 3)
 
 ### Phase 13: Verification & GBIF Re-validation
 
