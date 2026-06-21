@@ -152,10 +152,21 @@ Plans:
   5. `SELECT COUNT(*) FROM dwc.occurrences` does not exceed the sum of `public.observations` + filtered `maplify.sightings` row counts (SRC-01 row-count gate passes; iNat and HappyWhale rows absent by construction); the nightly job guard enforces this gate
 
 **Plans**: 3 plans
+**Wave 1**
 
 - [ ] 12-01-PLAN.md — D-03 prod census of trusted Maplify comment parentheticals; grounds the recordedBy regex (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 12-02-PLAN.md — 26-column view rebuild (institutionCode/rightsHolder/datasetName/recordedBy/trusted), fields.ts + meta.xml parity, SC assertions, [BLOCKING] schema push (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 12-03-PLAN.md — EML associatedParty (data-driven, contentProvider) + build.ts wiring + row-count guard verification (Wave 3)
+
+**Cross-cutting constraints:**
+
+- npm test passes green
 
 ### Phase 13: Verification & GBIF Re-validation
 
