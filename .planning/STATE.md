@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: — Providers, Collections & Contributors
-status: executing
-stopped_at: Phase 12 context gathered
-last_updated: "2026-06-21T19:54:45.320Z"
+status: verifying
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-06-21T20:00:44.216Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 9
-  completed_plans: 8
-  percent: 50
+  completed_plans: 9
+  percent: 67
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-19)
 
 Phase: 12 (DwC View Rebuild) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-21
 
 Progress: [████████░░] 78%
@@ -62,6 +62,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 9 Plan 01]: aggregator_ingest excluded from collection_kind enum by construction; SC-3 assertion verifies via failed cast (D-09)
 - [Phase ?]: [Phase 9 Plan 01]: rights_holder_text column added to public.organizations for EML associatedParty display in Phase 12 (A1 assumption confirmed)
 - [Phase ?]: recordedBy regex validated against full prod corpus (4477 trusted Maplify rows) — no Wave 2 extension needed; 1900 kept, 2151 NULL, 353 comma-NULLed, 82 ID-NULLed
+- [Phase ?]: D-08: only orgs with exported rows credited in EML associatedParty
+- [Phase ?]: Pitfall 7 EML placement: associatedParty after metadataProvider and before pubDate per GBIF EML 2.1.1
+- [Phase ?]: guard.ts ROW_FLOOR=1000 unchanged — trusted-only dwc.occurrences exceeds floor; ROW_FLOOR env var available for override if needed
 
 ### Pending Todos
 
@@ -95,8 +98,8 @@ Items acknowledged and deferred at v1.3 roadmap creation (2026-06-19):
 
 ## Session Continuity
 
-Last session: 2026-06-21T19:54:45.317Z
-Stopped at: Phase 12 context gathered
+Last session: 2026-06-21T20:00:44.212Z
+Stopped at: Completed 12-03-PLAN.md
 Resume: `/gsd-plan-phase 9` to begin Phase 9 (Reference Table Foundation)
 
 ## Performance Metrics
@@ -107,6 +110,7 @@ Resume: `/gsd-plan-phase 9` to begin Phase 9 (Reference Table Foundation)
 | Phase 5 P4 | 12min | 3 tasks committed (T1 SQL, T2 harness, T5 validation fill-in); T3+T4 deferred to user (Docker daemon down at execution time) | 2 created (snippets/05_dwc_assertions.sql, 05-04-SUMMARY.md), 2 modified (migration file, 05-VALIDATION.md) |
 | Phase 09-reference-table-foundation P01 | 10min | 3 tasks | 2 files |
 | Phase 12-dwc-view-rebuild P01 | 15min | 2 tasks | 2 files |
+| Phase 12-dwc-view-rebuild P03 | 2 | 3 tasks | 3 files |
 
 ## Operator Next Steps
 
