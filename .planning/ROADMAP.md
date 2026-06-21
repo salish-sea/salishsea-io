@@ -76,7 +76,7 @@ Plans:
 | 9. Reference Table Foundation | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 10. Source Table FK Columns | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 11. Resolution & Backfill | v1.3 | 4/4 | Complete   | 2026-06-21 |
-| 12. DwC View Rebuild | v1.3 | 3/3 | Complete   | 2026-06-21 |
+| 12. DwC View Rebuild | v1.3 | 3/3 | Complete    | 2026-06-21 |
 | 13. Verification & GBIF Re-validation | v1.3 | 0/TBD | Not started | - |
 
 ## Phase Details

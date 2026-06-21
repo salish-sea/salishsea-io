@@ -4,7 +4,7 @@ milestone: v1.3
 milestone_name: — Providers, Collections & Contributors
 status: verifying
 stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-06-21T20:00:44.216Z"
+last_updated: "2026-06-21T20:07:28.477Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 6
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-06-19)
 
 ## Current Position
 
-Phase: 12 (DwC View Rebuild) — EXECUTING
-Plan: 3 of 3
+Phase: 999.2
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-06-21
 
