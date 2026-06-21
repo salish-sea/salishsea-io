@@ -58,7 +58,7 @@ export function symbolFor({body, taxon: {scientific_name, vernacular_name}}: Pic
       return ecotype[0]!;
     return 'O';
   } else if (scientific_name.startsWith('Phoca vitulina')) {
-    return 'H';
+    return 'S';
   } else if (vernacular_name) {
     return vernacular_name[0]!;
   } else {
