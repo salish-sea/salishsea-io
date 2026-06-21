@@ -77,7 +77,7 @@ Plans:
 | 10. Source Table FK Columns | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 11. Resolution & Backfill | v1.3 | 4/4 | Complete   | 2026-06-21 |
 | 12. DwC View Rebuild | v1.3 | 3/3 | Complete    | 2026-06-21 |
-| 13. Verification & GBIF Re-validation | v1.3 | 0/3 | Planned | - |
+| 13. Verification & GBIF Re-validation | v1.3 | 2/3 | In Progress|  |
 
 ## Phase Details
 
@@ -184,8 +184,8 @@ Plans:
 
 **Wave 1** *(parallel — no file overlap)*
 
-- [ ] 13-01-PLAN.md — verify-artifact.ts (artifact-level SC#2/SC#3/SC#4 assertions) + the 5 read-only prod-DB checklist queries recorded in 13-CHECKLIST.md
-- [ ] 13-02-PLAN.md — validate-gbif.ts (GBIF validator REST submit + poll + indexeable/blocking-category gate for SC#1)
+- [x] 13-01-PLAN.md — verify-artifact.ts (artifact-level SC#2/SC#3/SC#4 assertions) + the 5 read-only prod-DB checklist queries recorded in 13-CHECKLIST.md
+- [x] 13-02-PLAN.md — validate-gbif.ts (GBIF validator REST submit + poll + indexeable/blocking-category gate for SC#1)
 
 **Wave 2** *(blocked on Wave 1)*
 

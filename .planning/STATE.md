@@ -4,12 +4,12 @@ milestone: v1.3
 milestone_name: — Providers, Collections & Contributors
 status: executing
 stopped_at: Phase 13 context gathered
-last_updated: "2026-06-21T21:49:25.034Z"
-last_activity: 2026-06-21 -- Phase 13 planning complete
+last_updated: "2026-06-21T21:50:15.586Z"
+last_activity: 2026-06-21 -- Phase 13 execution started
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 9
+  total_plans: 12
   completed_plans: 9
   percent: 67
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19)
 
 **Core value:** The most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative cetacean data.
-**Current focus:** Phase 12 — DwC View Rebuild
+**Current focus:** Phase 13 — verification-gbif-re-validation
 
 ## Current Position
 
-Phase: 999.2
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-21 -- Phase 13 planning complete
+Phase: 13 (verification-gbif-re-validation) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 13
+Last activity: 2026-06-21 -- Phase 13 execution started
 
 Progress: [████████░░] 78%
 
