@@ -41,7 +41,7 @@ Full milestone details: [.planning/milestones/v1.2-ROADMAP.md](milestones/v1.2-R
 
 - [x] **Phase 9: Reference Table Foundation** — Create `providers`, `organizations`, `collections` tables with seed data and RLS read policies (completed 2026-06-19)
 - [x] **Phase 10: Source Table FK Columns** — Add nullable `provider_id`, `collection_id`, `contributor_id`, `source_url` to all four source tables (completed 2026-06-19)
-- [ ] **Phase 11: Resolution & Backfill** — URL-pattern resolver + Maplify bracket-tag/attribution backfill + all-provider FK population
+- [x] **Phase 11: Resolution & Backfill** — URL-pattern resolver + Maplify bracket-tag/attribution backfill + all-provider FK population (completed 2026-06-21)
 - [ ] **Phase 12: DwC View Rebuild** — 26-column coordinated change: branch views + UNION + fields.ts + meta.xml + EML + row-count gate
 - [ ] **Phase 13: Verification & GBIF Re-validation** — End-to-end "Looks Done But Isn't" checklist + GBIF validator re-run
 
@@ -58,6 +58,7 @@ Candidate phases not yet assigned to a milestone. Promote with `/gsd-review-back
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ## Progress
@@ -74,7 +75,7 @@ Plans:
 | 8. Frontend Download Link | v1.2 | 2/2 | Complete | 2026-06-18 |
 | 9. Reference Table Foundation | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 10. Source Table FK Columns | v1.3 | 1/1 | Complete    | 2026-06-19 |
-| 11. Resolution & Backfill | v1.3 | 3/4 | In Progress|  |
+| 11. Resolution & Backfill | v1.3 | 4/4 | Complete   | 2026-06-21 |
 | 12. DwC View Rebuild | v1.3 | 0/TBD | Not started | - |
 | 13. Verification & GBIF Re-validation | v1.3 | 0/TBD | Not started | - |
 
@@ -135,7 +136,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 11-04-PLAN.md — Idempotent backfill UPDATEs (all four providers + iNat contributor) + live ingest-function edits (update_sightings, iNat MERGE) + [BLOCKING] supabase db push + prod diff-gate (RESOLVE-03/04)
+- [x] 11-04-PLAN.md — Idempotent backfill UPDATEs (all four providers + iNat contributor) + live ingest-function edits (update_sightings, iNat MERGE) + [BLOCKING] supabase db push + prod diff-gate (RESOLVE-03/04)
 
 ### Phase 12: DwC View Rebuild
 

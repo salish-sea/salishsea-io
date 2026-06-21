@@ -124,8 +124,25 @@ Note: `supabase db reset` exits 1 due to a pre-existing container restart error 
 - **Commit:** daa853e
 
 **4. [Task omission per orchestrator] Task 3 (prod push) not executed**
-- **Per explicit orchestrator instruction:** "DO NOT execute Task 3 (the [BLOCKING] `supabase db push`). DO NOT run `supabase db push`. DO NOT connect to prod."
-- **Status:** DEFERRED — pending human-reviewed prod push of complete 9+10+11 bundle
+- **Status:** ✅ COMPLETE — operator approved the prod push (2026-06-21). `git push origin main` triggered `deploy.yml`, whose `supabase db push` applied the 9+10+11 bundle (5 migrations) to prod, followed by S3/CloudFront + CDK deploy. GitHub Actions run 27894570253 succeeded.
+
+## Task 3 — prod verification (read-only, post-deploy)
+
+All success criteria confirmed against prod (project `grztmjpzamcxlzecmqca`):
+- All 5 migrations present in `schema_migrations`; `public.collections` = 22 (incl. new `whale-alert`).
+- SC#1: bracket-tagged rows with NULL `collection_id` = **0**.
+- D-08 diff-gate: uncovered bracket tags = **0**.
+- SC#3: Trusted-Observer rows with `contributor_id` = **0**.
+- SC#2: bracket tags still verbatim in `comments` (spot-checked).
+- `wras` rows = **0** (one-time DELETE applied; ongoing ingest filter live).
+- Maplify `collection_id`: 6444/6845 resolved; 401 NULL = documented STAY_NULL set (FARPB 384 + a few no-signal rows).
+- iNat `contributor_id`: 8847 rows linked; 3059 contributors minted via the SECURITY DEFINER helper.
+- Ongoing ingest verified: post-deploy cron rows resolved via the edited `update_sightings` MERGE.
+
+## Correction to upstream research (recorded for the project)
+
+- The D-01 "rolling DELETE+INSERT wipes collection_id" landmine was a research error: `maplify.update_sightings` was rewritten to a **MERGE** in `20250919–20250922` migrations (research only read the original `fetch_data.sql`). A MERGE preserves existing rows; the implemented design (resolve in NOT-MATCHED INSERT, backfill existing, MATCHED never touches `collection_id`) is correct regardless.
+- The executor also targeted the *latest* live definitions (`20250922194148` maplify MERGE; `20251027062024_fix_blank_license` iNat MERGE), not the stale ones research cited.
 
 ## Known Stubs
 
