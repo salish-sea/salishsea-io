@@ -33,6 +33,7 @@ const EXPECTED_OCCURRENCE_NAMES = [
     'occurrenceStatus',
     'occurrenceRemarks',
     'recordedBy',
+    'institutionCode',
     'rightsHolder',
     'datasetName',
     'datasetID',
@@ -58,8 +59,8 @@ describe('fields module wiring (smoke)', () => {
 });
 
 describe('OCCURRENCE_FIELDS', () => {
-    test('contains exactly 25 entries matching RESEARCH §T4 occurrence table', () => {
-        expect(OCCURRENCE_FIELDS.length).toBe(25);
+    test('contains exactly 26 entries matching RESEARCH §T4 occurrence table', () => {
+        expect(OCCURRENCE_FIELDS.length).toBe(26);
     });
 
     test('every entry has a non-empty name and termUri', () => {
@@ -74,16 +75,21 @@ describe('OCCURRENCE_FIELDS', () => {
         expect(OCCURRENCE_FIELDS[0]?.termUri).toBe('http://rs.tdwg.org/dwc/terms/occurrenceID');
     });
 
-    test('positions 19 and 22 are the dcterms pair (rightsHolder, license)', () => {
-        expect(OCCURRENCE_FIELDS[19]?.name).toBe('rightsHolder');
-        expect(OCCURRENCE_FIELDS[19]?.termUri).toBe('http://purl.org/dc/terms/rightsHolder');
-        expect(OCCURRENCE_FIELDS[22]?.name).toBe('license');
-        expect(OCCURRENCE_FIELDS[22]?.termUri).toBe('http://purl.org/dc/terms/license');
+    test('index 19 is institutionCode with dwc/terms URI', () => {
+        expect(OCCURRENCE_FIELDS[19]?.name).toBe('institutionCode');
+        expect(OCCURRENCE_FIELDS[19]?.termUri).toBe('http://rs.tdwg.org/dwc/terms/institutionCode');
     });
 
-    test('every non-dcterms index (i.e. i ∉ {19, 22}) carries a dwc/terms URI', () => {
+    test('positions 20 and 23 are the dcterms pair (rightsHolder, license)', () => {
+        expect(OCCURRENCE_FIELDS[20]?.name).toBe('rightsHolder');
+        expect(OCCURRENCE_FIELDS[20]?.termUri).toBe('http://purl.org/dc/terms/rightsHolder');
+        expect(OCCURRENCE_FIELDS[23]?.name).toBe('license');
+        expect(OCCURRENCE_FIELDS[23]?.termUri).toBe('http://purl.org/dc/terms/license');
+    });
+
+    test('every non-dcterms index (i.e. i ∉ {20, 23}) carries a dwc/terms URI', () => {
         OCCURRENCE_FIELDS.forEach((field, i) => {
-            if (i === 19 || i === 22) return;
+            if (i === 20 || i === 23) return;
             expect(
                 field.termUri.startsWith('http://rs.tdwg.org/dwc/terms/'),
                 `index ${i} (${field.name}) should use dwc/terms but is "${field.termUri}"`,
@@ -96,7 +102,7 @@ describe('OCCURRENCE_FIELDS', () => {
         expect(new Set(names).size).toBe(names.length);
     });
 
-    test('column-name order matches the canonical 25-name list (DWCA-02 primary guardrail)', () => {
+    test('column-name order matches the canonical 26-name list (DWCA-02 primary guardrail)', () => {
         expect(OCCURRENCE_FIELDS.map((f) => f.name)).toEqual([...EXPECTED_OCCURRENCE_NAMES]);
     });
 });

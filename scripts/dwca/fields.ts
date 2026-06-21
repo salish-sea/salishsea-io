@@ -36,14 +36,14 @@ export type MultimediaField = {
 };
 
 /**
- * Canonical 25-entry occurrence field list. Order MUST match the column
+ * Canonical 26-entry occurrence field list. Order MUST match the column
  * order of `dwc._native_occurrences` (and, by UNION ALL inheritance,
  * `dwc.occurrences`) in `supabase/migrations/20260617203900_dwc_schema.sql`.
  *
  * Namespace divergence (F-03 — URIs are data, not derived):
- *   - index 19 (`rightsHolder`) → `http://purl.org/dc/terms/` (Dublin Core)
- *   - index 22 (`license`)      → `http://purl.org/dc/terms/` (Dublin Core)
- *   - all other 23 entries      → `http://rs.tdwg.org/dwc/terms/` (Darwin Core)
+ *   - index 20 (`rightsHolder`) → `http://purl.org/dc/terms/` (Dublin Core)
+ *   - index 23 (`license`)      → `http://purl.org/dc/terms/` (Dublin Core)
+ *   - all other 24 entries      → `http://rs.tdwg.org/dwc/terms/` (Darwin Core)
  */
 export const OCCURRENCE_FIELDS = [
     { name: 'occurrenceID', termUri: 'http://rs.tdwg.org/dwc/terms/occurrenceID' },
@@ -64,15 +64,16 @@ export const OCCURRENCE_FIELDS = [
     { name: 'individualCount', termUri: 'http://rs.tdwg.org/dwc/terms/individualCount' },
     { name: 'occurrenceStatus', termUri: 'http://rs.tdwg.org/dwc/terms/occurrenceStatus' },
     { name: 'occurrenceRemarks', termUri: 'http://rs.tdwg.org/dwc/terms/occurrenceRemarks' },
-    { name: 'recordedBy', termUri: 'http://rs.tdwg.org/dwc/terms/recordedBy' },
+    { name: 'recordedBy',            termUri: 'http://rs.tdwg.org/dwc/terms/recordedBy' },            // 18
+    { name: 'institutionCode',       termUri: 'http://rs.tdwg.org/dwc/terms/institutionCode' },       // 19 NEW
     // dcterms — NOT dwc/terms; per F-03 the URI is carried literally per entry.
-    { name: 'rightsHolder', termUri: 'http://purl.org/dc/terms/rightsHolder' },
-    { name: 'datasetName', termUri: 'http://rs.tdwg.org/dwc/terms/datasetName' },
-    { name: 'datasetID', termUri: 'http://rs.tdwg.org/dwc/terms/datasetID' },
+    { name: 'rightsHolder',          termUri: 'http://purl.org/dc/terms/rightsHolder' },              // 20 (was 19)
+    { name: 'datasetName',           termUri: 'http://rs.tdwg.org/dwc/terms/datasetName' },           // 21 (was 20)
+    { name: 'datasetID',             termUri: 'http://rs.tdwg.org/dwc/terms/datasetID' },             // 22 (was 21)
     // dcterms — NOT dwc/terms; per F-03 the URI is carried literally per entry.
-    { name: 'license', termUri: 'http://purl.org/dc/terms/license' },
-    { name: 'dynamicProperties', termUri: 'http://rs.tdwg.org/dwc/terms/dynamicProperties' },
-    { name: 'informationWithheld', termUri: 'http://rs.tdwg.org/dwc/terms/informationWithheld' },
+    { name: 'license',               termUri: 'http://purl.org/dc/terms/license' },                   // 23 (was 22)
+    { name: 'dynamicProperties',     termUri: 'http://rs.tdwg.org/dwc/terms/dynamicProperties' },     // 24 (was 23)
+    { name: 'informationWithheld',   termUri: 'http://rs.tdwg.org/dwc/terms/informationWithheld' },   // 25 (was 24)
 ] as const satisfies readonly OccurrenceField[];
 
 /**

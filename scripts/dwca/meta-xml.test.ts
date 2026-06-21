@@ -63,11 +63,11 @@ describe('buildMetaXml — smoke', () => {
 });
 
 describe('buildMetaXml — field count', () => {
-    test('total `<field index="…"` count equals OCCURRENCE_FIELDS.length + MULTIMEDIA_FIELDS.length (= 31)', () => {
+    test('total `<field index="…"` count equals OCCURRENCE_FIELDS.length + MULTIMEDIA_FIELDS.length (= 32)', () => {
         const xml = buildMetaXml(OCCURRENCE_FIELDS, MULTIMEDIA_FIELDS);
         const count = (xml.match(/<field index="/g) ?? []).length;
         expect(count).toBe(OCCURRENCE_FIELDS.length + MULTIMEDIA_FIELDS.length);
-        expect(count).toBe(31);
+        expect(count).toBe(32);
     });
 });
 
@@ -90,18 +90,25 @@ describe('buildMetaXml — ordinal alignment', () => {
 });
 
 describe('buildMetaXml — dcterms / GBIF extension invariants', () => {
-    test('core index 19 is dcterms rightsHolder', () => {
+    test('core index 19 is dwc/terms institutionCode', () => {
         const xml = buildMetaXml(OCCURRENCE_FIELDS, MULTIMEDIA_FIELDS);
         const coreBlock = sliceBetween(xml, /<core\b[^>]*>/, '</core>');
         const pairs = extractFields(coreBlock);
-        expect(pairs[19]).toEqual(['19', 'http://purl.org/dc/terms/rightsHolder']);
+        expect(pairs[19]).toEqual(['19', 'http://rs.tdwg.org/dwc/terms/institutionCode']);
     });
 
-    test('core index 22 is dcterms license', () => {
+    test('core index 20 is dcterms rightsHolder', () => {
         const xml = buildMetaXml(OCCURRENCE_FIELDS, MULTIMEDIA_FIELDS);
         const coreBlock = sliceBetween(xml, /<core\b[^>]*>/, '</core>');
         const pairs = extractFields(coreBlock);
-        expect(pairs[22]).toEqual(['22', 'http://purl.org/dc/terms/license']);
+        expect(pairs[20]).toEqual(['20', 'http://purl.org/dc/terms/rightsHolder']);
+    });
+
+    test('core index 23 is dcterms license', () => {
+        const xml = buildMetaXml(OCCURRENCE_FIELDS, MULTIMEDIA_FIELDS);
+        const coreBlock = sliceBetween(xml, /<core\b[^>]*>/, '</core>');
+        const pairs = extractFields(coreBlock);
+        expect(pairs[23]).toEqual(['23', 'http://purl.org/dc/terms/license']);
     });
 
     test('extension index 0 is the GBIF coreid term URI', () => {
