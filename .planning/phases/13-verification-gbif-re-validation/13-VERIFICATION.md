@@ -1,3 +1,12 @@
+---
+phase: 13
+slug: verification-gbif-re-validation
+status: passed
+requirements: [ATTR-05]
+verified: 2026-06-21
+method: inline (operator-run GBIF validator + fresh prod build; credentialed external ops a subagent cannot reproduce)
+---
+
 # Phase 13 — Verification & GBIF Re-validation
 
 **Status:** PASSED (ATTR-05 satisfied)
