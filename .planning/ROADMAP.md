@@ -76,7 +76,7 @@ Plans:
 | 9. Reference Table Foundation | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 10. Source Table FK Columns | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 11. Resolution & Backfill | v1.3 | 4/4 | Complete   | 2026-06-21 |
-| 12. DwC View Rebuild | v1.3 | 0/3 | Not started | - |
+| 12. DwC View Rebuild | v1.3 | 1/3 | In Progress|  |
 | 13. Verification & GBIF Re-validation | v1.3 | 0/TBD | Not started | - |
 
 ## Phase Details
@@ -154,7 +154,7 @@ Plans:
 **Plans**: 3 plans
 **Wave 1**
 
-- [ ] 12-01-PLAN.md — D-03 prod census of trusted Maplify comment parentheticals; grounds the recordedBy regex (Wave 1)
+- [x] 12-01-PLAN.md — D-03 prod census of trusted Maplify comment parentheticals; grounds the recordedBy regex (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 

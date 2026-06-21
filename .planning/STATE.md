@@ -4,13 +4,13 @@ milestone: v1.3
 milestone_name: — Providers, Collections & Contributors
 status: executing
 stopped_at: Phase 12 context gathered
-last_updated: "2026-06-21T19:28:47.736Z"
-last_activity: 2026-06-21 -- Phase 12 execution started
+last_updated: "2026-06-21T19:40:27.666Z"
+last_activity: 2026-06-21
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 7
   percent: 50
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-19)
 ## Current Position
 
 Phase: 12 (DwC View Rebuild) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 12
-Last activity: 2026-06-21 -- Phase 12 execution started
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-06-21
 
-Progress: `░░░░░░░░░░` 0% (0/5 phases complete)
+Progress: [████████░░] 78%
 
 ## Accumulated Context
 
@@ -61,6 +61,7 @@ Recent decisions affecting current work:
 - [v1.1 Roadmap]: Pre-process body text before marked.parse to inject markdown links; CSV in src/ (bundled by Vite).
 - [Phase ?]: [Phase 9 Plan 01]: aggregator_ingest excluded from collection_kind enum by construction; SC-3 assertion verifies via failed cast (D-09)
 - [Phase ?]: [Phase 9 Plan 01]: rights_holder_text column added to public.organizations for EML associatedParty display in Phase 12 (A1 assumption confirmed)
+- [Phase ?]: recordedBy regex validated against full prod corpus (4477 trusted Maplify rows) — no Wave 2 extension needed; 1900 kept, 2151 NULL, 353 comma-NULLed, 82 ID-NULLed
 
 ### Pending Todos
 
@@ -94,7 +95,7 @@ Items acknowledged and deferred at v1.3 roadmap creation (2026-06-19):
 
 ## Session Continuity
 
-Last session: 2026-06-21T18:49:17.663Z
+Last session: 2026-06-21T19:40:24.118Z
 Stopped at: Phase 12 context gathered
 Resume: `/gsd-plan-phase 9` to begin Phase 9 (Reference Table Foundation)
 
@@ -105,6 +106,7 @@ Resume: `/gsd-plan-phase 9` to begin Phase 9 (Reference Table Foundation)
 | Phase 5 P3 | 3min | 3 tasks | 1 files |
 | Phase 5 P4 | 12min | 3 tasks committed (T1 SQL, T2 harness, T5 validation fill-in); T3+T4 deferred to user (Docker daemon down at execution time) | 2 created (snippets/05_dwc_assertions.sql, 05-04-SUMMARY.md), 2 modified (migration file, 05-VALIDATION.md) |
 | Phase 09-reference-table-foundation P01 | 10min | 3 tasks | 2 files |
+| Phase 12-dwc-view-rebuild P01 | 15min | 2 tasks | 2 files |
 
 ## Operator Next Steps
 
