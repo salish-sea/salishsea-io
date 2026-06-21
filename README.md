@@ -53,6 +53,8 @@ Geographic coordinates are decimal longitudes and latitudes with respect to WGS8
 
 Temporal coordinates are UNIX Epoch time—integer seconds since midnight, January 1, 1970, GMT. This format is widely supported, and allows for cheap calculation of intervals in SQL queries.
 
+Occurrence records are published nightly as a [DarwinCore Archive](https://salishsea.io/dwca/) (with a GeoParquet sidecar and sha256 checksums). For how a sighting's provenance is tracked and how attribution appears in that archive — providers, collections, organizations, contributors, and what is included vs. excluded — see [docs/data-provenance.md](docs/data-provenance.md).
+
 ## Production deployment
 
 The production environment consists of:
