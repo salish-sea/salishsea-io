@@ -33,7 +33,7 @@ This is a backend / data-model / export milestone — no app UI surfaces (deferr
 - [x] **ATTR-02**: `datasetName` is per-collection (`"SalishSea.io — {collection}"`) for exported records, replacing the single "Whale Alert / Maplify" bucket
 - [x] **ATTR-03**: iNaturalist and HappyWhale remain excluded from the archive **by construction** (SRC-01); a row-count gate in the nightly job fails if exported rows exceed the native + Maplify baseline
 - [x] **ATTR-04**: Upstream organizations surface in the archive's EML as `associatedParty` — never as `institutionCode`
-- [ ] **ATTR-05**: The regenerated archive passes the GBIF DwC-A validator with no blocking/structural errors and no attribution regressions (field-list ↔ view ↔ `meta.xml` parity intact, `npm test` green)
+- [x] **ATTR-05**: The regenerated archive passes the GBIF DwC-A validator with no blocking/structural errors and no attribution regressions (field-list ↔ view ↔ `meta.xml` parity intact, `npm test` green) — validated 2026-06-21 (Phase 13): GBIF `indexeable=true`, zero RESOURCE_INTEGRITY/RESOURCE_STRUCTURE; SC#1–SC#4 confirmed in the built artifact; 12-item checklist green
 
 ## Future Requirements (deferred)
 
@@ -77,4 +77,4 @@ Which phases cover which requirements. Populated during roadmap creation.
 | ATTR-02 | Phase 12 | Complete |
 | ATTR-03 | Phase 12 | Complete |
 | ATTR-04 | Phase 12 | Complete |
-| ATTR-05 | Phase 13 | Pending |
+| ATTR-05 | Phase 13 | Validated |

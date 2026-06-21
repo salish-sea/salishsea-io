@@ -43,7 +43,7 @@ Full milestone details: [.planning/milestones/v1.2-ROADMAP.md](milestones/v1.2-R
 - [x] **Phase 10: Source Table FK Columns** — Add nullable `provider_id`, `collection_id`, `contributor_id`, `source_url` to all four source tables (completed 2026-06-19)
 - [x] **Phase 11: Resolution & Backfill** — URL-pattern resolver + Maplify bracket-tag/attribution backfill + all-provider FK population (completed 2026-06-21)
 - [x] **Phase 12: DwC View Rebuild** — 26-column coordinated change: branch views + UNION + fields.ts + meta.xml + EML + row-count gate (completed 2026-06-21)
-- [ ] **Phase 13: Verification & GBIF Re-validation** — End-to-end "Looks Done But Isn't" checklist + GBIF validator re-run
+- [x] **Phase 13: Verification & GBIF Re-validation** — End-to-end "Looks Done But Isn't" checklist + GBIF validator re-run (completed 2026-06-21)
 
 ## Backlog
 
@@ -77,7 +77,7 @@ Plans:
 | 10. Source Table FK Columns | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 11. Resolution & Backfill | v1.3 | 4/4 | Complete   | 2026-06-21 |
 | 12. DwC View Rebuild | v1.3 | 3/3 | Complete    | 2026-06-21 |
-| 13. Verification & GBIF Re-validation | v1.3 | 2/3 | In Progress|  |
+| 13. Verification & GBIF Re-validation | v1.3 | 3/3 | Complete   | 2026-06-21 |
 
 ## Phase Details
 
@@ -189,4 +189,4 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 13-03-PLAN.md — fresh local build (D-02) + run artifact verifier + GBIF validator; [human-verify] result review; conditional inline remediation (EML contact D-03 / optional Maplify coordinateUncertainty D-04) gated on validator output
+- [x] 13-03-PLAN.md — fresh local build (D-02) + run artifact verifier + GBIF validator; [human-verify] result review; conditional inline remediation (EML contact D-03 / optional Maplify coordinateUncertainty D-04) gated on validator output
