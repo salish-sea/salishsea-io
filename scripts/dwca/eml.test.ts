@@ -23,7 +23,7 @@ import type { DatasetsRow, EmlInput } from './eml.ts';
 const mockDatasets: DatasetsRow = {
     dataset_id: 'https://salishsea.io/datasets/occurrences-v1',
     parent_dataset_id: null,
-    title: 'SalishSea.io Cetacean Occurrences (v1.2)',
+    title: 'SalishSea.io Cetacean Occurrences (v1.3)',
     abstract:
         'Native and Maplify/Whale Alert cetacean sighting records from the Salish Sea region. ' +
         'Authored from observation tables in the SalishSea.io database, expressed as ' +
@@ -48,6 +48,10 @@ const mockDatasets: DatasetsRow = {
 const mockInput: EmlInput = {
     datasets: mockDatasets,
     temporalCoverage: { begin: '2020-01-01', end: '2026-06-17' },
+    associatedParties: [
+        { name: 'Orca Network', url: 'https://orcanetwork.org', role: 'contentProvider' },
+        { name: 'Cascadia Research Collective', url: 'https://cascadiaresearch.org', role: 'contentProvider' },
+    ],
 };
 
 describe('buildEml — required elements present', () => {
@@ -75,7 +79,7 @@ describe('buildEml — required elements present', () => {
 
     test('title, language, pubDate are present with mock values', () => {
         const xml = buildEml(mockInput);
-        expect(xml).toContain('<title>SalishSea.io Cetacean Occurrences (v1.2)</title>');
+        expect(xml).toContain('<title>SalishSea.io Cetacean Occurrences (v1.3)</title>');
         expect(xml).toContain('<language>en</language>');
         expect(xml).toContain('<pubDate>2026-06-17</pubDate>');
     });
@@ -178,7 +182,7 @@ describe('buildEml — XML escaping (T-06-03-XML threat mitigation)', () => {
             ...mockDatasets,
             title: 'SalishSea.io & cetaceans <whales> "quoted"',
         };
-        const xml = buildEml({ datasets: evil, temporalCoverage: mockInput.temporalCoverage });
+        const xml = buildEml({ datasets: evil, temporalCoverage: mockInput.temporalCoverage, associatedParties: mockInput.associatedParties });
 
         // Title block carries entity-encoded characters.
         expect(xml).toContain(
@@ -210,7 +214,7 @@ describe('buildEml — determinism and parameter routing', () => {
     test('pubDate is sourced from datasets.pub_date — changing it changes the output', () => {
         const a = buildEml(mockInput);
         const otherPubDate: DatasetsRow = { ...mockDatasets, pub_date: '2027-01-15' };
-        const b = buildEml({ datasets: otherPubDate, temporalCoverage: mockInput.temporalCoverage });
+        const b = buildEml({ datasets: otherPubDate, temporalCoverage: mockInput.temporalCoverage, associatedParties: mockInput.associatedParties });
         expect(b).toContain('<pubDate>2027-01-15</pubDate>');
         expect(b).not.toBe(a);
     });
@@ -226,9 +230,53 @@ describe('buildEml — determinism and parameter routing', () => {
         const altered = buildEml({
             datasets: mockDatasets,
             temporalCoverage: { begin: '2021-03-01', end: '2025-12-31' },
+            associatedParties: mockInput.associatedParties,
         });
         expect(altered).toContain('<calendarDate>2021-03-01</calendarDate>');
         expect(altered).toContain('<calendarDate>2025-12-31</calendarDate>');
         expect(altered).not.toContain('<calendarDate>2020-01-01</calendarDate>');
+    });
+});
+
+describe('buildEml — associatedParty (ATTR-04)', () => {
+    test('associatedParty block is present for each party in the input', () => {
+        const xml = buildEml(mockInput);
+        expect(xml).toContain('<associatedParty>');
+        expect(xml).toContain('<organizationName>Orca Network</organizationName>');
+        expect(xml).toContain('<onlineUrl>https://orcanetwork.org</onlineUrl>');
+        expect(xml).toContain('<organizationName>Cascadia Research Collective</organizationName>');
+        expect(xml).toContain('<onlineUrl>https://cascadiaresearch.org</onlineUrl>');
+        expect(xml).toContain('<role>contentProvider</role>');
+    });
+
+    test('associatedParty is placed after <metadataProvider> and before <pubDate>', () => {
+        const xml = buildEml(mockInput);
+        const mpIdx = xml.indexOf('</metadataProvider>');
+        const apIdx = xml.indexOf('<associatedParty>');
+        const pdIdx = xml.indexOf('<pubDate>');
+        expect(apIdx).toBeGreaterThan(mpIdx);
+        expect(apIdx).toBeLessThan(pdIdx);
+    });
+
+    test('associatedParty is placed before <coverage> in the document', () => {
+        const xml = buildEml(mockInput);
+        const apIdx = xml.indexOf('<associatedParty>');
+        const covIdx = xml.indexOf('<coverage>');
+        expect(apIdx).toBeGreaterThan(0);
+        expect(apIdx).toBeLessThan(covIdx);
+    });
+
+    test('empty associatedParties produces no <associatedParty> element', () => {
+        const xml = buildEml({ ...mockInput, associatedParties: [] });
+        expect(xml).not.toContain('<associatedParty>');
+    });
+
+    test('org name/URL in associatedParty are XML-escaped (T-12-03-XML)', () => {
+        const xml = buildEml({
+            ...mockInput,
+            associatedParties: [{ name: 'Org & Co', url: 'https://example.com/?a=1&b=2', role: 'contentProvider' }],
+        });
+        expect(xml).toContain('<organizationName>Org &amp; Co</organizationName>');
+        expect(xml).toContain('<onlineUrl>https://example.com/?a=1&amp;b=2</onlineUrl>');
     });
 });

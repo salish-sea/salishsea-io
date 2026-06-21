@@ -68,9 +68,26 @@ export interface DatasetsRow {
 }
 
 /**
+ * Represents an upstream organization credited as a data provider in the
+ * EML `<associatedParty>` element (ATTR-04 / D-07/D-09). Orgs appear here
+ * only when they have exported rows (D-08 — data-driven, not all seeded orgs).
+ * They are NEVER credited via `institutionCode` (which stays 'SalishSea').
+ *
+ * Threat model (T-12-03-XML): both `name` and `url` are passed through
+ * `xmlEsc` before interpolation.
+ */
+export interface AssociatedParty {
+    readonly name: string;
+    readonly url: string;
+    readonly role: 'contentProvider';
+}
+
+/**
  * Input envelope for `buildEml`. `datasets` is a single row from the view;
  * `temporalCoverage.begin` / `.end` are ISO date strings computed at gen
  * time from `dwc.occurrences` (eventDate MIN / MAX), passed in by `build.ts`.
+ * `associatedParties` is a data-driven list of upstream organizations with
+ * exported rows (empty list → no `<associatedParty>` element emitted).
  */
 export interface EmlInput {
     readonly datasets: DatasetsRow;
@@ -78,6 +95,7 @@ export interface EmlInput {
         readonly begin: string;
         readonly end: string;
     };
+    readonly associatedParties: readonly AssociatedParty[];
 }
 
 /**
@@ -108,6 +126,22 @@ const xmlEsc = (s: string | null | undefined): string => {
 export function buildEml(input: EmlInput): string {
     const d = input.datasets;
     const tc = input.temporalCoverage;
+
+    // ATTR-04: Build the associatedParty XML block from the data-driven list.
+    // Empty list → empty string → no element emitted (D-08: only orgs with
+    // exported rows are credited). Placement: after <metadataProvider>, before
+    // <pubDate> per GBIF EML 2.1.1 schema sequence (Pitfall 7).
+    // T-12-03-XML: xmlEsc applied to both name and url.
+    const associatedPartyXml = input.associatedParties
+        .map(
+            (p) =>
+                `    <associatedParty>\n` +
+                `      <organizationName>${xmlEsc(p.name)}</organizationName>\n` +
+                `      <onlineUrl>${xmlEsc(p.url)}</onlineUrl>\n` +
+                `      <role>contentProvider</role>\n` +
+                `    </associatedParty>`,
+        )
+        .join('\n');
 
     // E-02 geographic coverage prose (verbatim from CONTEXT.md / RESEARCH §T5).
     // The geographic scope is inherited from the upstream Acartia data
@@ -158,7 +192,7 @@ export function buildEml(input: EmlInput): string {
     <metadataProvider>
       <organizationName>${xmlEsc(d.metadata_provider_name)}</organizationName>
       <electronicMailAddress>${xmlEsc(d.metadata_provider_email)}</electronicMailAddress>
-    </metadataProvider>
+    </metadataProvider>${associatedPartyXml ? '\n' + associatedPartyXml : ''}
     <pubDate>${xmlEsc(d.pub_date)}</pubDate>
     <language>${xmlEsc(d.language)}</language>
     <abstract>
