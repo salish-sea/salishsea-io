@@ -336,20 +336,23 @@ export async function main(): Promise<void> {
         // Maplify branch (mirrors the view's WHERE clause) UNION the native branch.
         // ORDER BY name for deterministic/alphabetical output per Q3.
         // T-12-03-CREDIT: only orgs with exported rows are credited (not all seeded orgs).
+        // Tables are read through the DuckDB ATTACH alias `pgdb` (Step 5), so
+        // every Postgres relation MUST be pgdb-qualified — bare `maplify.sightings`
+        // resolves against DuckDB's own catalog and fails (no such schema).
         const partiesReader = await conn.runAndReadAll(`
             SELECT DISTINCT org.name, org.url
-            FROM maplify.sightings s
-            JOIN public.collections c ON c.id = s.collection_id
-            JOIN public.organizations org ON org.id = c.organization_id
+            FROM pgdb.maplify.sightings s
+            JOIN pgdb.public.collections c ON c.id = s.collection_id
+            JOIN pgdb.public.organizations org ON org.id = c.organization_id
             WHERE s.trusted = TRUE
               AND NOT s.is_test
               AND s.number_sighted BETWEEN 1 AND 1000
               AND s.source != 'rwsas'
             UNION
             SELECT DISTINCT org.name, org.url
-            FROM public.observations o
-            JOIN public.collections c ON c.id = o.collection_id
-            JOIN public.organizations org ON org.id = c.organization_id
+            FROM pgdb.public.observations o
+            JOIN pgdb.public.collections c ON c.id = o.collection_id
+            JOIN pgdb.public.organizations org ON org.id = c.organization_id
             ORDER BY name
         `);
         const associatedParties: AssociatedParty[] = partiesReader.getRowObjects().map((row) => ({
