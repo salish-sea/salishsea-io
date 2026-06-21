@@ -238,7 +238,14 @@ export function buildEml(input: EmlInput): string {
         <surName>${contactSurName}</surName>
       </individualName>
       <organizationName>SalishSea.io</organizationName>
+      <positionName>Project lead</positionName>
+      <address>
+        <city>Seattle</city>
+        <administrativeArea>WA</administrativeArea>
+        <country>US</country>
+      </address>
       <electronicMailAddress>${xmlEsc(d.contact_email)}</electronicMailAddress>
+      <onlineUrl>https://salishsea.io</onlineUrl>
     </contact>
     <methods>
       <methodStep>

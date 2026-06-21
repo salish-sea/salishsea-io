@@ -93,6 +93,23 @@ describe('buildEml — required elements present', () => {
         expect(xml).toContain('<surName>Abrahamsen</surName>');
     });
 
+    test('contact is complete for GBIF (D-03 — clears RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE)', () => {
+        const xml = buildEml(mockInput);
+        // The resource <contact> carries positionName, a postal address with
+        // country, and an onlineUrl so GBIF does not flag it as incomplete.
+        const contact = xml.slice(xml.indexOf('<contact>'), xml.indexOf('</contact>'));
+        expect(contact).toContain('<positionName>Project lead</positionName>');
+        expect(contact).toContain('<city>Seattle</city>');
+        expect(contact).toContain('<administrativeArea>WA</administrativeArea>');
+        expect(contact).toContain('<country>US</country>');
+        expect(contact).toContain('<onlineUrl>https://salishsea.io</onlineUrl>');
+        // Element order: organizationName → positionName → address → email → onlineUrl
+        expect(contact.indexOf('<positionName>')).toBeGreaterThan(contact.indexOf('<organizationName>'));
+        expect(contact.indexOf('<address>')).toBeGreaterThan(contact.indexOf('<positionName>'));
+        expect(contact.indexOf('<electronicMailAddress>')).toBeGreaterThan(contact.indexOf('</address>'));
+        expect(contact.indexOf('<onlineUrl>')).toBeGreaterThan(contact.indexOf('<electronicMailAddress>'));
+    });
+
     test('abstract uses the migration-authored text wrapped in <para>', () => {
         const xml = buildEml(mockInput);
         expect(xml).toContain('<abstract>');
