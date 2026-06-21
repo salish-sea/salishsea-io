@@ -759,22 +759,25 @@ export const OCCURRENCE_FIELDS = [
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **D-03 prod census — exact trusted row count and full parenthetical shape inventory**
    - What we know: 169-row sample shows the dominant pattern clearly; ~6,800 total prod rows; `AND s.trusted` will filter out untrusted rows
    - What's unclear: Exact count of trusted rows; any edge-case parenthetical shapes not in the sample; whether any trusted row has `comments IS NULL`
    - Recommendation: Wave 1 task: read-only prod census query against `maplify.sightings WHERE trusted = TRUE`, capturing `DISTINCT regexp_match(split_part(comments, '<br>', 1), '^\[[^\]]+\]\s+.+?\(([^()]+)\)')` results; commit as `maplify_trusted_comments_census.tsv`
+   - RESOLVED: Plan 12-01 Wave-1 read-only census (`supabase/snippets/12_comments_census.sql`) grounds the regex before it ships; the exact trusted row count is discovered at execution time, and the `guard.ts` floor is adjusted in Plan 12-03 if the trusted count is below the existing guard floor (ROW_FLOOR = 1,000).
 
 2. **`dwc.associated_parties` as a SQL view vs build-time query**
    - What we know: D-08 requires data-driven org list; `dwc.datasets` is a view-over-VALUES precedent; build.ts already queries multiple views
    - What's unclear: Whether a Postgres view that JOINs `dwc.occurrences` has acceptable performance (view has no indexes; full scan at each `buildEml` invocation is once-per-nightly-build)
    - Recommendation: Build-time query in `build.ts` is simpler and avoids adding another view to the `dwc` schema. The query runs once per build, not per view-consumer.
+   - RESOLVED: Build-time query in `build.ts` feeding `EmlInput.associatedParties` — it mirrors the export-view filters and adds no new DB object (per Plan 12-03). No `dwc.associated_parties` view is created.
 
 3. **`EmlInput.associatedParties` ordering**
    - What we know: D-08 says "distinct org_id across collections with exported rows"; multiple orgs possible
    - What's unclear: Desired sort order for the XML output (alphabetical by name? by row count?)
    - Recommendation: Sort alphabetically by org name for determinism. `ORDER BY org.name` in the query.
+   - RESOLVED: `ORDER BY org.name` — alphabetical by organization name for deterministic EML output (per Plan 12-03).
 
 ---
 
