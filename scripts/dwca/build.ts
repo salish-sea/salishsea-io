@@ -36,7 +36,7 @@ import {
     type PgColumn,
 } from './assertions.ts';
 import { buildMetaXml } from './meta-xml.ts';
-import { buildEml, type DatasetsRow } from './eml.ts';
+import { buildEml, type DatasetsRow, type AssociatedParty } from './eml.ts';
 import { writeZip } from './zip.ts';
 
 // ---------------------------------------------------------------------------
@@ -331,6 +331,33 @@ export async function main(): Promise<void> {
             end: String(tempEndRaw).slice(0, 10),
         };
 
+        // Step 15.5: Query associated parties (D-08 — data-driven, trusted rows only).
+        // Selects DISTINCT orgs via collections whose rows appear in the trusted-only
+        // Maplify branch (mirrors the view's WHERE clause) UNION the native branch.
+        // ORDER BY name for deterministic/alphabetical output per Q3.
+        // T-12-03-CREDIT: only orgs with exported rows are credited (not all seeded orgs).
+        const partiesReader = await conn.runAndReadAll(`
+            SELECT DISTINCT org.name, org.url
+            FROM maplify.sightings s
+            JOIN public.collections c ON c.id = s.collection_id
+            JOIN public.organizations org ON org.id = c.organization_id
+            WHERE s.trusted = TRUE
+              AND NOT s.is_test
+              AND s.number_sighted BETWEEN 1 AND 1000
+              AND s.source != 'rwsas'
+            UNION
+            SELECT DISTINCT org.name, org.url
+            FROM public.observations o
+            JOIN public.collections c ON c.id = o.collection_id
+            JOIN public.organizations org ON org.id = c.organization_id
+            ORDER BY name
+        `);
+        const associatedParties: AssociatedParty[] = partiesReader.getRowObjects().map((row) => ({
+            name: String(row['name']),
+            url: String(row['url']),
+            role: 'contentProvider' as const,
+        }));
+
         // Step 16: Read dwc.datasets (exactly 1 row in v1.2 per POLICY §6.2).
         const datasetsReader = await conn.runAndReadAll(
             'SELECT * FROM pgdb.dwc.datasets LIMIT 1',
@@ -345,7 +372,7 @@ export async function main(): Promise<void> {
 
         // Step 17: Build the two XML strings via the pure Plan 03 generators.
         const metaXml = buildMetaXml(OCCURRENCE_FIELDS, MULTIMEDIA_FIELDS);
-        const emlXml = buildEml({ datasets: datasetsRow, temporalCoverage });
+        const emlXml = buildEml({ datasets: datasetsRow, temporalCoverage, associatedParties });
 
         // Step 18: Read the two .txt files back into buffers.
         const occBuf = await readFile(OUT_OCCURRENCE);
