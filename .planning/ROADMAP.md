@@ -77,7 +77,7 @@ Plans:
 | 10. Source Table FK Columns | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 11. Resolution & Backfill | v1.3 | 4/4 | Complete   | 2026-06-21 |
 | 12. DwC View Rebuild | v1.3 | 3/3 | Complete    | 2026-06-21 |
-| 13. Verification & GBIF Re-validation | v1.3 | 0/TBD | Not started | - |
+| 13. Verification & GBIF Re-validation | v1.3 | 0/3 | Planned | - |
 
 ## Phase Details
 
@@ -180,4 +180,13 @@ Plans:
   3. A spot-check of exported rows shows Maplify records carry `datasetName = "SalishSea.io — Orca Network"` (or the correct per-collection name), `institutionCode = "SalishSea"`, `rightsHolder = "SalishSea.io"`, and `recordedBy` as a human name — replacing the previous opaque bucket and per-contributor rightsHolder
   4. EML lists upstream organizations as `associatedParty` elements (never as `institutionCode`); EML `<title>` reflects the v1.3 archive version
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+**Wave 1** *(parallel — no file overlap)*
+
+- [ ] 13-01-PLAN.md — verify-artifact.ts (artifact-level SC#2/SC#3/SC#4 assertions) + the 5 read-only prod-DB checklist queries recorded in 13-CHECKLIST.md
+- [ ] 13-02-PLAN.md — validate-gbif.ts (GBIF validator REST submit + poll + indexeable/blocking-category gate for SC#1)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 13-03-PLAN.md — fresh local build (D-02) + run artifact verifier + GBIF validator; [human-verify] result review; conditional inline remediation (EML contact D-03 / optional Maplify coordinateUncertainty D-04) gated on validator output
