@@ -76,7 +76,7 @@ Plans:
 | 9. Reference Table Foundation | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 10. Source Table FK Columns | v1.3 | 1/1 | Complete    | 2026-06-19 |
 | 11. Resolution & Backfill | v1.3 | 4/4 | Complete   | 2026-06-21 |
-| 12. DwC View Rebuild | v1.3 | 1/3 | In Progress|  |
+| 12. DwC View Rebuild | v1.3 | 2/3 | In Progress|  |
 | 13. Verification & GBIF Re-validation | v1.3 | 0/TBD | Not started | - |
 
 ## Phase Details
@@ -158,7 +158,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 12-02-PLAN.md — 26-column view rebuild (institutionCode/rightsHolder/datasetName/recordedBy/trusted), fields.ts + meta.xml parity, SC assertions, [BLOCKING] schema push (Wave 2)
+- [x] 12-02-PLAN.md — 26-column view rebuild (institutionCode/rightsHolder/datasetName/recordedBy/trusted), fields.ts + meta.xml parity, SC assertions, [BLOCKING] schema push (Wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 

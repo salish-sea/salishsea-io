@@ -30,8 +30,8 @@ This is a backend / data-model / export milestone — no app UI surfaces (deferr
 ### DwC Attribution Export
 
 - [x] **ATTR-01**: Exported occurrence records (native + Maplify) carry `institutionCode="SalishSea"`, `rightsHolder="SalishSea.io"`, and `recordedBy` from the contributor — replacing today's per-person `rightsHolder` and opaque source codes
-- [ ] **ATTR-02**: `datasetName` is per-collection (`"SalishSea.io — {collection}"`) for exported records, replacing the single "Whale Alert / Maplify" bucket
-- [ ] **ATTR-03**: iNaturalist and HappyWhale remain excluded from the archive **by construction** (SRC-01); a row-count gate in the nightly job fails if exported rows exceed the native + Maplify baseline
+- [x] **ATTR-02**: `datasetName` is per-collection (`"SalishSea.io — {collection}"`) for exported records, replacing the single "Whale Alert / Maplify" bucket
+- [x] **ATTR-03**: iNaturalist and HappyWhale remain excluded from the archive **by construction** (SRC-01); a row-count gate in the nightly job fails if exported rows exceed the native + Maplify baseline
 - [ ] **ATTR-04**: Upstream organizations surface in the archive's EML as `associatedParty` — never as `institutionCode`
 - [ ] **ATTR-05**: The regenerated archive passes the GBIF DwC-A validator with no blocking/structural errors and no attribution regressions (field-list ↔ view ↔ `meta.xml` parity intact, `npm test` green)
 
@@ -74,7 +74,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | RESOLVE-03 | Phase 11 | Pending |
 | RESOLVE-04 | Phase 11 | Pending |
 | ATTR-01 | Phase 12 | Complete |
-| ATTR-02 | Phase 12 | Pending |
-| ATTR-03 | Phase 12 | Pending |
+| ATTR-02 | Phase 12 | Complete |
+| ATTR-03 | Phase 12 | Complete |
 | ATTR-04 | Phase 12 | Pending |
 | ATTR-05 | Phase 13 | Pending |
