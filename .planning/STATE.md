@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: — Providers, Collections & Contributors
 status: executing
-stopped_at: Phase 13 context gathered
-last_updated: "2026-06-21T21:50:15.586Z"
+stopped_at: Phase 13 Wave 1 complete (13-01/13-02 merged+verified, 127 dwca tests green); Wave 2 (13-03) PAUSED at human-action gate — needs GBIF creds + SUPABASE_DB_URL for fresh build + validator run
+last_updated: "2026-06-21T22:01:04.903Z"
 last_activity: 2026-06-21 -- Phase 13 execution started
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 11
   percent: 67
 ---
 
@@ -98,8 +98,8 @@ Items acknowledged and deferred at v1.3 roadmap creation (2026-06-19):
 
 ## Session Continuity
 
-Last session: 2026-06-21T21:16:10.486Z
-Stopped at: Phase 13 context gathered
+Last session: 2026-06-21T22:01:04.900Z
+Stopped at: Phase 13 Wave 1 complete (13-01/13-02 merged+verified, 127 dwca tests green); Wave 2 (13-03) PAUSED at human-action gate — needs GBIF creds + SUPABASE_DB_URL for fresh build + validator run
 Resume: `/gsd-plan-phase 9` to begin Phase 9 (Reference Table Foundation)
 
 ## Performance Metrics
