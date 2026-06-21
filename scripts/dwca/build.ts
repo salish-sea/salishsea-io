@@ -25,7 +25,7 @@
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { OCCURRENCE_FIELDS, MULTIMEDIA_FIELDS } from './fields.ts';
@@ -48,6 +48,8 @@ const OUT_ZIP = path.join(OUT_DIR, 'salishsea-occurrences-v1.zip');
 const OUT_PARQUET = path.join(OUT_DIR, 'salishsea-occurrences-v1.parquet');
 const OUT_OCCURRENCE = path.join(OUT_DIR, 'occurrence.txt');
 const OUT_MULTIMEDIA = path.join(OUT_DIR, 'multimedia.txt');
+const OUT_META = path.join(OUT_DIR, 'meta.xml');
+const OUT_EML = path.join(OUT_DIR, 'eml.xml');
 
 /**
  * RESEARCH §R5: the user-content occurrence columns whose values may carry
@@ -389,6 +391,15 @@ export async function main(): Promise<void> {
                 'BOM detected in DuckDB output — expected UTF-8 no BOM',
             );
         }
+
+        // Step 19.5: Also emit meta.xml + eml.xml loose alongside
+        // occurrence.txt / multimedia.txt (which DuckDB COPY already wrote
+        // loose). Same in-memory strings that go into the zip, so the loose
+        // files are byte-identical to the archived members — this lets the
+        // artifact verifier (scripts/dwca/verify-artifact.ts) read eml.xml
+        // without unzipping.
+        await writeFile(OUT_META, metaXml, 'utf8');
+        await writeFile(OUT_EML, emlXml, 'utf8');
 
         // Step 20: Assemble zip — meta.xml → eml.xml → occurrence.txt →
         // multimedia.txt (DwC-A convention).
