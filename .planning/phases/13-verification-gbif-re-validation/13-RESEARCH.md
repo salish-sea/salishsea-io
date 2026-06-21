@@ -572,21 +572,21 @@ Nyquist validation is ENABLED (config.json `workflow.nyquist_validation: true`).
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does D-04 require a SQL migration?**
    - What we know: `coordinateUncertaintyInMeters` column is already in the view (Phase 12), emitting NULL for both channels. `o.accuracy` is NULL for all native prod rows. Maplify has no accuracy column.
    - What's unclear: Whether the planner chooses to add decimal-place derivation to the Maplify branch view, or accept NULL for all rows.
-   - Recommendation: Run the validator first. If `COORDINATE_UNCERTAINTY_METERS_INVALID` is present but non-blocking, the planner can defer the derivation (it's already deferred per CONTEXT.md's deferred list). If the user wants partial credit, add the SQL migration to the Maplify branch with a prod census to verify trailing-zero behavior first.
+   - **RESOLVED (per D-03/D-04/D-06):** Run the validator FIRST and gate the optional Maplify derivation on actual validator output. NULL is the honest default (D-04: derive honestly where possible, NULL elsewhere; the GBIF coordinate-uncertainty warning is non-blocking and may only partially clear — accepted). The decimal-place derivation is DEFERRED by default (CONTEXT.md deferred list) and is only opted into in Plan 13-03 Task 3 — gated-last, after a prod trailing-zero census — if the operator chooses partial credit at the Task 2 human-verify checkpoint (D-06 inline remediation). No redundant field-contract task is created: the field already shipped Phase 12 at index 14.
 
 2. **What exactly does the validator flag for `RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE`?**
    - What we know: The current EML contact has individual name + org + email — appears to meet minimum GBIF requirements.
    - What's unclear: Whether the validator flags this on the Phase 12 archive at all.
-   - Recommendation: Run the validator first (before making EML changes). If the warning appears, inspect the issue sample in the result JSON to see which sub-element is missing.
+   - **RESOLVED (per D-03/D-06):** Do NOT speculatively edit the EML contact. Plan 13-03 Task 1 runs the validator on the un-remediated archive and captures the actual warning set; the Task 2 human-verify checkpoint reviews it; only if `RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE` actually fires does Task 3 add the single named sub-element to `eml.ts` + a matching `eml.test.ts` assertion (D-03 metadata-only fix, D-06 inline remediation). If the warning is absent, the contact already meets GBIF minimums and no edit is made.
 
 3. **Is a GBIF account already registered for SalishSea.io?**
    - What we know: The validator requires Basic Auth with a GBIF account. No GBIF credentials are in any project env file.
-   - Recommendation: The planner should add a task: "Confirm GBIF account credentials available as GBIF_USER / GBIF_PASS env vars (or document browser fallback)."
+   - **RESOLVED (per D-01):** Captured as `user_setup` in Plans 13-02 and 13-03 — `GBIF_USER` / `GBIF_PASS` env vars sourced from a free GBIF.org account (gbif.org/user/profile). The documented fallback (D-01) is manual browser upload at gbif.org/tools/data-validator if the API is unworkable/offline; `validate-gbif.ts` `main()` prints this fallback when credentials are absent or the API returns non-2xx after retries. No separate "confirm credentials" task is needed — execute-plan surfaces the `user_setup` block.
 
 ---
 
