@@ -189,8 +189,14 @@ describe('guard', () => {
             // so the real row count (from the live DB) trips the floor.
             vi.mocked(fsPromises.stat).mockImplementation(makeStatMock(204_800, 51_200));
 
-            // Restore real DuckDB for this DSN-gated test.
-            vi.mocked(duckdbModule.DuckDBInstance.create).mockRestore();
+            // Wire real DuckDB for this DSN-gated test. mockRestore() only works on
+            // vi.spyOn() mocks; this module uses vi.fn(), so we importActual and
+            // delegate via mockImplementation instead.
+            const { DuckDBInstance: RealDuckDBInstance } =
+                await vi.importActual<typeof import('@duckdb/node-api')>('@duckdb/node-api');
+            vi.mocked(duckdbModule.DuckDBInstance.create).mockImplementation(
+                RealDuckDBInstance.create.bind(RealDuckDBInstance),
+            );
 
             const origFloor = process.env['ROW_FLOOR'];
             process.env['ROW_FLOOR'] = '9999999999'; // above any real row count
