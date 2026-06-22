@@ -78,3 +78,10 @@ Which phases cover which requirements. Populated during roadmap creation.
 | ATTR-03 | Phase 12 | Complete |
 | ATTR-04 | Phase 12 | Complete |
 | ATTR-05 | Phase 13 | Validated |
+| DWCA-GATE-01 | Phase 14 | Complete |
+| DWCA-GATE-02 | Phase 14 | Complete |
+| DWCA-GATE-03 | Phase 14 | Complete |
+| DWCA-GATE-04 | Phase 14 | Complete |
+| DWCA-GATE-05 | Phase 14 | Complete |
+| DWCA-GATE-06 | Phase 14 | Complete |
+| DWCA-GATE-07 | Phase 14 | Complete |

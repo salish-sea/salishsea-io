@@ -1,9 +1,13 @@
 ---
 created: 2026-06-21T20:40:00.000Z
-updated: 2026-06-21T20:40:00.000Z
+updated: 2026-06-22T03:31:00.000Z
 title: Make the DwC-A build query a real pre-prod gate (seeded local DB)
 area: phase-13-followup
 resolves_phase: 13
+promoted_to: phase-14
+status: CLOSED
+closed_by: Phase 14 Plans 01+02 — completed 2026-06-22
+promotion_note: "Promoted to v1.3 Phase 14 during v1.3 milestone-close (resolve-first). CI approach locked to Supabase local stack. Close this todo when Phase 14 completes."
 files:
   - scripts/dwca/build.test.ts
   - scripts/dwca/build.ts

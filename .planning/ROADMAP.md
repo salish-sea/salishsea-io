@@ -5,7 +5,7 @@
 - ✅ **v1.0 Link Shareability** — Phases 1-2 (shipped 2026-04-17)
 - ✅ **v1.1 Partner Org Links** — Phase 3 (shipped 2026-04-18)
 - ✅ **v1.2 Export to DarwinCore Archive** — Phases 4-8 (shipped 2026-06-18) — see [.planning/milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md)
-- 📋 **v1.3 Providers, Collections & Contributors** — Phases 9-13 (in planning)
+- 📋 **v1.3 Providers, Collections & Contributors** — Phases 9-14 (in planning)
 
 ## Phases
 
@@ -44,6 +44,7 @@ Full milestone details: [.planning/milestones/v1.2-ROADMAP.md](milestones/v1.2-R
 - [x] **Phase 11: Resolution & Backfill** — URL-pattern resolver + Maplify bracket-tag/attribution backfill + all-provider FK population (completed 2026-06-21)
 - [x] **Phase 12: DwC View Rebuild** — 26-column coordinated change: branch views + UNION + fields.ts + meta.xml + EML + row-count gate (completed 2026-06-21)
 - [x] **Phase 13: Verification & GBIF Re-validation** — End-to-end "Looks Done But Isn't" checklist + GBIF validator re-run (completed 2026-06-21)
+- [x] **Phase 14: DwC-A Build Pre-Prod Gate (Seeded Local DB)** — Make `build.test.ts` a true pre-merge CI gate against a seeded local Postgres, so build-time query/wiring bugs are caught before the nightly post-deploy run (promoted from todo 2026-06-21-seeded-local-db-gate-for-dwca-build) (completed 2026-06-22)
 
 ## Backlog
 
@@ -78,6 +79,7 @@ Plans:
 | 11. Resolution & Backfill | v1.3 | 4/4 | Complete   | 2026-06-21 |
 | 12. DwC View Rebuild | v1.3 | 3/3 | Complete    | 2026-06-21 |
 | 13. Verification & GBIF Re-validation | v1.3 | 3/3 | Complete   | 2026-06-21 |
+| 14. DwC-A Build Pre-Prod Gate (Seeded Local DB) | v1.3 | 2/2 | Complete    | 2026-06-22 |
 
 ## Phase Details
 
@@ -190,3 +192,33 @@ Plans:
 **Wave 2** *(blocked on Wave 1)*
 
 - [x] 13-03-PLAN.md — fresh local build (D-02) + run artifact verifier + GBIF validator; [human-verify] result review; conditional inline remediation (EML contact D-03 / optional Maplify coordinateUncertainty D-04) gated on validator output
+
+### Phase 14: DwC-A Build Pre-Prod Gate (Seeded Local DB)
+
+**Goal**: The DwC-A build (`npm run build:dwca` / `build.test.ts`) runs end-to-end against a seeded local Postgres in CI on every PR — turning the currently `describe.skip`'d, `SUPABASE_DB_URL`-gated integration suite into a true pre-merge gate, so build-time SQL/query/wiring bugs are caught before the nightly post-deploy run rather than after deploy.
+**Depends on**: Phase 13 (verification infra — `verify-artifact.ts`, `build-queries.test.ts` static guard already shipped as the cheap floor); Phase 12 (the rebuilt views + Step 15.5 associated-parties query this gate exercises)
+**Requirements**: DWCA-GATE-01, DWCA-GATE-02, DWCA-GATE-03, DWCA-GATE-04, DWCA-GATE-05, DWCA-GATE-06, DWCA-GATE-07
+**Origin**: Promoted from todo `2026-06-21-seeded-local-db-gate-for-dwca-build` ("Looks Done But Isn't", surfaced Phase 12; bare-schema-ref bug fixed in `aad63dd` only surfaced in the nightly post-deploy because no DB is wired into `build.test.ts`).
+
+**Locked decision (from milestone-close discussion):** CI uses the **Supabase local stack** (`supabase start` / `db reset`) — it ships PostGIS (`gis.ST_*`), `pg_net`, `http`, `pg_cron` and applies migrations automatically. A bare Postgres service container is rejected: the `dwc.occurrences` view chain depends on those extensions.
+
+**Success Criteria (draft — refine in plan):**
+
+  1. A representative fixture in `supabase/seed.sql` (or a CI-only seed) populates the full view chain — `maplify.sightings` → `public.collections` → `public.organizations`, plus `public.observations` → `collections`/`contributors`/`taxa` — with FK integrity and a mix of trusted/untrusted + bracket-tagged/untagged comments, so `dwc.occurrences` and `dwc.multimedia` are non-empty and exercise the trust-filtering + recordedBy logic
+  2. The build's row-floor guard passes locally for the seed via `ROW_FLOOR` env override (`guard.ts:41` already supports it) — no need to fabricate 1000+ rows
+  3. A CI job stands up the Supabase local stack, applies migrations, seeds, exports `SUPABASE_DB_URL`, and runs `build.test.ts` so the DWCA-01..04/06 integration assertions execute (suite no longer `describe.skip`'d) on every PR
+  4. The gate fails the PR when a build-time query regression is introduced (e.g. a bare un-`pgdb.`-qualified schema ref like the one fixed in `aad63dd`) — verified by a deliberate red-test check during plan/execute
+
+**Cross-cutting constraints:**
+
+- `npm test` stays green on a fresh checkout *without* a DB (the no-DSN path must still skip cleanly, preserving the existing fast unit-test contract)
+
+**Plans**: 2 plans
+
+**Wave 1**
+
+- [x] 14-01-PLAN.md — author `supabase/ci-seed.sql` (branch-covering minimal source-row fixture) + verify `supabase db reset` applies the full migration chain cleanly (A3) + prove the seeded `build.test.ts` suite is green end-to-end
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [x] 14-02-PLAN.md — extend `build.yml` to apply the fixture + export a step-scoped `SUPABASE_DB_URL` (suite un-skips on every PR) + prove the no-DSN skip path is preserved + [human-verify] manual red-test that a bare-schema-ref regression turns the gate red
