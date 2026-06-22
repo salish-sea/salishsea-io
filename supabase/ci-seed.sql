@@ -1,8 +1,11 @@
 -- =====================================================================
 -- CI-only static fixture for DwC-A build pre-prod gate (Phase 14).
 --
--- Applied via:
---   supabase db query --local --file supabase/ci-seed.sql
+-- Applied via psql (CI and local). NOTE: `supabase db query --file` cannot run
+-- this file — it has multiple top-level statements and that command sends the
+-- file as a single prepared statement (fails with SQLSTATE 42601). Use:
+--   psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+--     -v ON_ERROR_STOP=1 -f supabase/ci-seed.sql
 -- AFTER migrations have been applied (supabase db start or supabase db reset).
 --
 -- This file is NOT in supabase/config.toml [db.seed].sql_paths and is NOT
@@ -65,9 +68,13 @@ BEGIN
         contributor_id,
         user_uuid,
         created_at,
-        updated_at
+        updated_at,
+        -- collection_id resolved by slug, NOT the surrogate id: collections.id
+        -- is GENERATED AS IDENTITY (insertion-order artifact), so the migration
+        -- says key on the slug (Pitfall 4). The native view INNER-JOINs
+        -- collections, so this must resolve to a real row.
+        collection_id
         -- provider_id defaults to 1 (direct)
-        -- collection_id defaults to 10 (salishsea-direct, satisfies INNER JOIN)
     ) VALUES (
         v_obs_id,
         NOW() - INTERVAL '1 day',
@@ -77,7 +84,8 @@ BEGIN
         v_contrib_id,
         '00000000-0000-0000-0000-000000000001',
         NOW(),
-        NOW()
+        NOW(),
+        (SELECT id FROM public.collections WHERE slug = 'salishsea-direct')
     );
 
     -- One photo so dwc.multimedia is non-empty (DWCA-03 coverage).
@@ -103,8 +111,10 @@ END $$;
 -- provider_id omitted → DEFAULT 2 (maplify).
 
 -- Row A: trusted=TRUE, bracket-tagged comment → recordedBy='Jane Smith'.
---   collection_id=1 (orca-network, organization_id=1) → Row A appears in
---   Step 15.5 associated-parties result ('Orca Network').
+--   collection_id resolved by slug 'orca-network' (org 'Orca Network') → Row A
+--   appears in the Step 15.5 associated-parties result. Resolved by slug, not a
+--   hardcoded surrogate id, because collections.id is GENERATED AS IDENTITY
+--   (Pitfall 4 — see the reference-tables migration).
 INSERT INTO maplify.sightings (
     id, project_id, trip_id, scientific_name,
     location, number_sighted, created_at,
@@ -118,7 +128,7 @@ INSERT INTO maplify.sightings (
     'whale_alert',
     '[Orca Network] 3 orcas heading north (Jane Smith)<br>All adults.',
     41521,  -- Orcinus orca
-    1       -- orca-network collection (organization_id=1)
+    (SELECT id FROM public.collections WHERE slug = 'orca-network')
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Row B: trusted=FALSE → EXCLUDED from dwc.occurrences by WHERE s.trusted.
