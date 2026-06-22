@@ -34,6 +34,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      collections: {
+        Row: {
+          id: number
+          kind: Database["public"]["Enums"]["collection_kind"] | null
+          name: string
+          organization_id: number | null
+          slug: string
+        }
+        Insert: {
+          id?: number
+          kind?: Database["public"]["Enums"]["collection_kind"] | null
+          name: string
+          organization_id?: number | null
+          slug: string
+        }
+        Update: {
+          id?: number
+          kind?: Database["public"]["Enums"]["collection_kind"] | null
+          name?: string
+          organization_id?: number | null
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contributor_email_addresses: {
         Row: {
           contributor_id: number
@@ -62,21 +94,27 @@ export type Database = {
           editor: boolean
           entity_id: string
           id: number
+          inat_login: string | null
           name: string
+          orcid: string | null
           picture: string | null
         }
         Insert: {
           editor?: boolean
           entity_id?: string
           id?: number
+          inat_login?: string | null
           name: string
+          orcid?: string | null
           picture?: string | null
         }
         Update: {
           editor?: boolean
           entity_id?: string
           id?: number
+          inat_login?: string | null
           name?: string
+          orcid?: string | null
           picture?: string | null
         }
         Relationships: []
@@ -117,13 +155,16 @@ export type Database = {
         Row: {
           accuracy: number | null
           body: string | null
-          contributor_id: number
+          collection_id: number | null
+          contributor_id: number | null
           count: number | null
           created_at: string
           direction: Database["public"]["Enums"]["travel_direction"] | null
           id: string
           observed_at: string
           observer_location: unknown
+          provider_id: number
+          source_url: string | null
           subject_location: unknown
           taxon_id: number
           updated_at: string
@@ -133,13 +174,16 @@ export type Database = {
         Insert: {
           accuracy?: number | null
           body?: string | null
-          contributor_id: number
+          collection_id?: number | null
+          contributor_id?: number | null
           count?: number | null
           created_at: string
           direction?: Database["public"]["Enums"]["travel_direction"] | null
           id: string
           observed_at: string
           observer_location?: unknown
+          provider_id?: number
+          source_url?: string | null
           subject_location: unknown
           taxon_id: number
           updated_at: string
@@ -149,13 +193,16 @@ export type Database = {
         Update: {
           accuracy?: number | null
           body?: string | null
-          contributor_id?: number
+          collection_id?: number | null
+          contributor_id?: number | null
           count?: number | null
           created_at?: string
           direction?: Database["public"]["Enums"]["travel_direction"] | null
           id?: string
           observed_at?: string
           observer_location?: unknown
+          provider_id?: number
+          source_url?: string | null
           subject_location?: unknown
           taxon_id?: number
           updated_at?: string
@@ -164,13 +211,69 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "observations_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "observations_contributor_id_fkey"
             columns: ["contributor_id"]
             isOneToOne: false
             referencedRelation: "contributors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "observations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "providers"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      organizations: {
+        Row: {
+          id: number
+          name: string
+          rights_holder_text: string
+          slug: string
+          url: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          rights_holder_text: string
+          slug: string
+          url: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          rights_holder_text?: string
+          slug?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      providers: {
+        Row: {
+          id: number
+          name: string
+          slug: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          slug: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          slug?: string
+        }
+        Relationships: []
       }
       user_contributor: {
         Row: {
@@ -243,6 +346,12 @@ export type Database = {
       }
     }
     Enums: {
+      collection_kind:
+        | "facebook_group"
+        | "research_dataset"
+        | "acoustic_feed"
+        | "detector"
+        | "direct_app"
       license:
         | "cc0"
         | "cc-by"
@@ -415,6 +524,13 @@ export const Constants = {
   },
   public: {
     Enums: {
+      collection_kind: [
+        "facebook_group",
+        "research_dataset",
+        "acoustic_feed",
+        "detector",
+        "direct_app",
+      ],
       license: [
         "cc0",
         "cc-by",
