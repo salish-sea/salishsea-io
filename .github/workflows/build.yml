@@ -27,6 +27,8 @@ jobs:
         with:
           version: 2.53.6
       - run: supabase db start
+      - name: Apply CI seed fixture
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/ci-seed.sql
       - name: Verify generated types match Postgres schema
         run: |
           npm run gen-types
@@ -37,7 +39,10 @@ jobs:
           fi
 
       - run: npm run build
-      - run: npm test
+      - name: Run tests
+        run: npm test
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
       - name: Install infra dependencies
         run: npm ci
