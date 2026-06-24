@@ -89,7 +89,7 @@ export class ObsSummary extends LitElement {
       color: #475569;
     }
     .provider {
-      color: #94a3b8;
+      color: #64748b;
       display: block;
       font-size: 0.75rem;
       font-style: normal;
@@ -230,19 +230,21 @@ export class ObsSummary extends LitElement {
     // links to the record's source_url where one was supplied.
     if (provider_slug === 'direct') {
       const who = observer || 'a contributor';
-      return html`<cite>Observed by ${source_url
-        ? html`<span class="observer"><a target="_blank" href=${source_url}>${who}</a></span>`
+      const observerHref = safeExternalHref(source_url);
+      return html`<cite>Observed by ${observerHref
+        ? html`<span class="observer"><a target="_blank" rel="noopener noreferrer" href=${observerHref}>${who}</a></span>`
         : html`<span class="observer">${who}</span>`}</cite>`;
     }
     const channel = collection || provider;
     if (!channel) {
       // Legacy fallback — provider is NOT NULL in the view, so this is unreachable
       // for current data, but keeps old/odd rows from rendering an empty line.
-      return html`<cite>via ${url ? html`<a target="_blank" href=${url}>${attribution}</a>` : attribution}</cite>`;
+      const legacyHref = safeExternalHref(url);
+      return html`<cite>via ${legacyHref ? html`<a target="_blank" rel="noopener noreferrer" href=${legacyHref}>${attribution}</a>` : attribution}</cite>`;
     }
-    const channelHref = source_url || organization_url || null;
+    const channelHref = safeExternalHref(source_url) ?? safeExternalHref(organization_url);
     const channelLabel = channelHref
-      ? html`<a target="_blank" href=${channelHref}>${channel}</a>`
+      ? html`<a target="_blank" rel="noopener noreferrer" href=${channelHref}>${channel}</a>`
       : channel;
     // The provider line only adds information when it differs from the channel —
     // i.e. Maplify behind an Orca Network sighting, not "via iNaturalist / iNaturalist".
@@ -290,6 +292,19 @@ export class ObsSummary extends LitElement {
   private async onEdit(e: Event) {
     e.preventDefault();
     this.dispatchEvent(new CustomEvent('edit-observation', {bubbles: true, composed: true, detail: this.sighting}));
+  }
+}
+
+// Only http(s) URLs are safe to bind into an href. Provenance URLs are persisted
+// record data, so a `javascript:` / `data:` scheme would otherwise become a
+// clickable XSS sink; reject anything else and render plain text instead.
+function safeExternalHref(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw, window.location.href);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
+  } catch {
+    return null;
   }
 }
 

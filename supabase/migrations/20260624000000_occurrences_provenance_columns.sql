@@ -129,9 +129,9 @@ CREATE OR REPLACE VIEW public.occurrences (
     row(gis.ST_X(location::gis.geometry), gis.ST_Y(location::gis.geometry))::lon_lat AS location,
     CASE accuracy WHEN 'GENERAL' THEN 161 WHEN 'APPROX' THEN 16 ELSE 2 END,
     COALESCE((SELECT
-      array_agg(row(u.display_name, mimetype, url, thumb_url, null)::occurrence_photo ORDER BY m.id ASC)
+      array_agg(row(media_user.display_name, mimetype, url, thumb_url, null)::occurrence_photo ORDER BY m.id ASC)
       FROM happywhale.media m
-      LEFT JOIN happywhale.users u ON m.user_id = u.id
+      LEFT JOIN happywhale.users media_user ON m.user_id = media_user.id
       WHERE public AND encounter_id = e.id AND (license_level LIKE 'CC_%' OR license_level = 'PUBLIC_DOMAIN')
     ), ARRAY[]::occurrence_photo[]),
     (start_date + coalesce(start_time, '12:00:00'::time)) AT TIME ZONE timezone,
