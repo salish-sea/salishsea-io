@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { buildShareUrl } from './obs-summary.ts';
+import { buildShareUrl, stripResolvedProvenance } from './obs-summary.ts';
 
 describe('buildShareUrl', () => {
   beforeEach(() => {
@@ -62,5 +62,35 @@ describe('buildShareUrl', () => {
     expect(result).toBe(`https://example.com/app?o=${uuid}`);
     // Verify no double-encoding occurs for standard UUID characters
     expect(result).toContain(uuid);
+  });
+});
+
+describe('stripResolvedProvenance', () => {
+  // Patterns mirror real maplify.sightings.comments resolved by
+  // maplify.resolve_collection (leading bracket tag + trailing attribution).
+
+  it('drops a row whose body is only the trailing attribution line', () => {
+    const body = '\n\nSubmitted by a Whale Alert Alaska Trusted Observer Via Webmap';
+    expect(stripResolvedProvenance(body, 'maplify')).toBe('');
+  });
+
+  it('strips the leading bracket tag but keeps the real sighting content', () => {
+    const body = '[Orca Network] Biggs T65As northbound (Charvet Drucker)\n\nSubmitted by a Cascadia Trusted Observer Via Webmap';
+    expect(stripResolvedProvenance(body, 'maplify')).toBe('Biggs T65As northbound (Charvet Drucker)');
+  });
+
+  it('handles "an" and other org names in the trailing line', () => {
+    const body = 'Two orcas\n\nSubmitted by an MMC Trusted Observer Via App';
+    expect(stripResolvedProvenance(body, 'maplify')).toBe('Two orcas');
+  });
+
+  it('is a no-op for non-Maplify sources (preserves HappyWhale markdown links)', () => {
+    const body = '[CRC-1234](https://happywhale.com/individual/1234)\n\n📍 Salish Sea';
+    expect(stripResolvedProvenance(body, 'happywhale')).toBe(body);
+  });
+
+  it('leaves Maplify content without resolver artifacts untouched', () => {
+    const body = 'Gray whale southbound near Alki';
+    expect(stripResolvedProvenance(body, 'maplify')).toBe(body);
   });
 });
