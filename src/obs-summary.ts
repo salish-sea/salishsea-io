@@ -246,7 +246,13 @@ export class ObsSummary extends LitElement {
       const legacyHref = safeExternalHref(url);
       return html`<cite>via ${legacyHref ? html`<a target="_blank" rel="noopener noreferrer" href=${legacyHref}>${attribution}</a>` : attribution}</cite>`;
     }
-    const channelHref = safeExternalHref(source_url) ?? safeExternalHref(organization_url);
+    // The Whale Alert family (Global / Alaska / generic) has no org row and no
+    // per-record source_url, but every Whale Alert record originates from
+    // conserve.io's app — so link the channel there regardless of region.
+    const isWhaleAlert = !!collection?.startsWith('Whale Alert');
+    const channelHref = isWhaleAlert
+      ? 'https://conserve.io/'
+      : safeExternalHref(source_url) ?? safeExternalHref(organization_url);
     const channelLabel = channelHref
       ? html`<a target="_blank" rel="noopener noreferrer" href=${channelHref}>${channel}</a>`
       : channel;
@@ -255,7 +261,6 @@ export class ObsSummary extends LitElement {
     // iNaturalist". Also suppressed for the Whale Alert family: those collections
     // ARE the conserve.io/Maplify product, so "via Whale Alert (Alaska)" and
     // "Added via Maplify / conserve.io" say the same thing.
-    const isWhaleAlert = !!collection?.startsWith('Whale Alert');
     const showProvider = !!provider && !!collection && provider !== collection && !isWhaleAlert;
     return html`
       <cite>${observer ? html`Observed by <span class="observer">${observer}</span> · ` : nothing}via ${channelLabel}</cite>
