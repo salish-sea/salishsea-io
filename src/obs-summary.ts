@@ -169,7 +169,7 @@ export class ObsSummary extends LitElement {
 
   public render() {
     const {
-      body, count, observed_at, photos, taxon: {scientific_name, vernacular_name}, url
+      body, count, observed_at, photos, provider_slug, taxon: {scientific_name, vernacular_name}, url
     } = this.sighting;
     const symbol = symbolFor(this.sighting);
     const name = vernacular_name || scientific_name;
@@ -190,7 +190,7 @@ export class ObsSummary extends LitElement {
       ${guard([body], () => html`${
         unsafeHTML(domPurify.sanitize(
           marked.parse(
-            injectPartnerLinks(body?.replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n') || ''),
+            injectPartnerLinks(stripResolvedProvenance((body || '').replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n'), provider_slug)),
             { async: false, renderer: markedRenderer }
           ),
           { ADD_ATTR: ['target', 'rel'] }
@@ -293,6 +293,20 @@ export class ObsSummary extends LitElement {
     e.preventDefault();
     this.dispatchEvent(new CustomEvent('edit-observation', {bubbles: true, composed: true, detail: this.sighting}));
   }
+}
+
+// Maplify comments embed the same provenance signals the resolver parses into
+// the structured collection (see maplify.resolve_collection): a leading
+// [bracket tag] and/or a trailing "Submitted by a <ORG> Trusted Observer …"
+// line. Now that the sidebar renders the collection explicitly, strip both so
+// the same fact isn't repeated as raw body text. Scoped to Maplify — other
+// sources legitimately lead with a [label](url) markdown link.
+export function stripResolvedProvenance(body: string, providerSlug: string | null): string {
+  if (providerSlug !== 'maplify') return body;
+  return body
+    .replace(/^\s*\[[^\]]+\]\s*/, '')                            // leading bracket tag
+    .replace(/\s*Submitted by an? .*?Trusted Observer.*$/is, '') // trailing attribution line
+    .trim();
 }
 
 // Only http(s) URLs are safe to bind into an href. Provenance URLs are persisted
