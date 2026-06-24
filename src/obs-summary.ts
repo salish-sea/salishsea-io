@@ -84,6 +84,10 @@ export class ObsSummary extends LitElement {
     }
     cite a {
       color: inherit;
+      text-decoration: underline;
+    }
+    cite a:hover {
+      color: #1976d2;
     }
     cite .observer {
       color: #475569;
