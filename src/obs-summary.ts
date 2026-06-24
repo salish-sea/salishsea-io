@@ -1,4 +1,4 @@
-import { css, LitElement, type PropertyValues } from "lit";
+import { css, LitElement, nothing, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { html } from "lit/static-html.js";
 import {unsafeHTML} from 'lit/directives/unsafe-html.js';
@@ -85,6 +85,16 @@ export class ObsSummary extends LitElement {
     cite a {
       color: inherit;
     }
+    cite .observer {
+      color: #475569;
+    }
+    .provider {
+      color: #64748b;
+      display: block;
+      font-size: 0.75rem;
+      font-style: normal;
+      margin-top: 0.125rem;
+    }
     p {
       margin: 0.5rem 0 0;
     }
@@ -159,7 +169,7 @@ export class ObsSummary extends LitElement {
 
   public render() {
     const {
-      attribution, body, count, observed_at, photos, taxon: {scientific_name, vernacular_name}, url
+      body, count, observed_at, photos, taxon: {scientific_name, vernacular_name}, url
     } = this.sighting;
     const symbol = symbolFor(this.sighting);
     const name = vernacular_name || scientific_name;
@@ -176,7 +186,7 @@ export class ObsSummary extends LitElement {
           Temporal.Instant.from(observed_at).toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
         }`)}</time>
       </header>
-      <cite>via ${url ? html`<a target="_blank" href=${url}>${attribution}</a>` : attribution}</cite>
+      ${this.renderProvenance()}
       ${guard([body], () => html`${
         unsafeHTML(domPurify.sanitize(
           marked.parse(
@@ -204,6 +214,45 @@ export class ObsSummary extends LitElement {
         `)}
       </ul>
     `
+  }
+
+  // Renders the provenance line(s) from the v1.3 provenance graph:
+  //   "Observed by {observer} · via {collection}"  +  a muted "Added via {provider}"
+  // Observer is suppressed where the source carries no real name (e.g. Maplify,
+  // whose usernm is always an opaque app/API code). The collection links to the
+  // record's source_url, falling back to the backing organization's homepage.
+  private renderProvenance() {
+    const {
+      observer, collection, source_url, organization_url, provider, provider_slug, url, attribution,
+    } = this.sighting;
+    // Directly-entered sightings: drop the awkward "via SalishSea.io Direct" and
+    // the redundant provider line — the contributor is the whole story. The name
+    // links to the record's source_url where one was supplied.
+    if (provider_slug === 'direct') {
+      const who = observer || 'a contributor';
+      const observerHref = safeExternalHref(source_url);
+      return html`<cite>Observed by ${observerHref
+        ? html`<span class="observer"><a target="_blank" rel="noopener noreferrer" href=${observerHref}>${who}</a></span>`
+        : html`<span class="observer">${who}</span>`}</cite>`;
+    }
+    const channel = collection || provider;
+    if (!channel) {
+      // Legacy fallback — provider is NOT NULL in the view, so this is unreachable
+      // for current data, but keeps old/odd rows from rendering an empty line.
+      const legacyHref = safeExternalHref(url);
+      return html`<cite>via ${legacyHref ? html`<a target="_blank" rel="noopener noreferrer" href=${legacyHref}>${attribution}</a>` : attribution}</cite>`;
+    }
+    const channelHref = safeExternalHref(source_url) ?? safeExternalHref(organization_url);
+    const channelLabel = channelHref
+      ? html`<a target="_blank" rel="noopener noreferrer" href=${channelHref}>${channel}</a>`
+      : channel;
+    // The provider line only adds information when it differs from the channel —
+    // i.e. Maplify behind an Orca Network sighting, not "via iNaturalist / iNaturalist".
+    const showProvider = provider && collection && provider !== collection;
+    return html`
+      <cite>${observer ? html`Observed by <span class="observer">${observer}</span> · ` : nothing}via ${channelLabel}</cite>
+      ${showProvider ? html`<small class="provider">Added via ${provider}</small>` : nothing}
+    `;
   }
 
   private async onCopyLink(e: Event): Promise<void> {
@@ -243,6 +292,19 @@ export class ObsSummary extends LitElement {
   private async onEdit(e: Event) {
     e.preventDefault();
     this.dispatchEvent(new CustomEvent('edit-observation', {bubbles: true, composed: true, detail: this.sighting}));
+  }
+}
+
+// Only http(s) URLs are safe to bind into an href. Provenance URLs are persisted
+// record data, so a `javascript:` / `data:` scheme would otherwise become a
+// clickable XSS sink; reject anything else and render plain text instead.
+function safeExternalHref(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw, window.location.href);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
+  } catch {
+    return null;
   }
 }
 

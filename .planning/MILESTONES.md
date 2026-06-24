@@ -1,5 +1,22 @@
 # Milestones
 
+## v1.3 Providers, Collections & Contributors (Shipped: 2026-06-24)
+
+**Phases completed:** 6 phases (9–14), 14 plans, 23 tasks
+**Requirements:** 24/24 shipped (PROV/ORG/COLL/CONTRIB/LINK/RESOLVE/ATTR/DWCA-GATE)
+**Git range:** `feat(09-01)` → `feat(14-02)` (2026-06-19 → 2026-06-22); 103 files changed, +19,046 / −104
+
+**Key accomplishments:**
+
+- **Phase 9 — Reference tables:** `providers` (4), `organizations` (5), `collections` (21, `collection_kind` enum, no `aggregator_ingest`) seeded with RLS read policies + nullable `contributors.orcid`, unblocking all downstream FKs.
+- **Phase 10 — Source FK columns:** added nullable `provider_id`/`collection_id`/`contributor_id`/`source_url` across all four source schemas (native / Maplify / iNaturalist / HappyWhale), `collection_id` indexed on the two exported tables, `source_url` generated from existing `url`/`uri`.
+- **Phase 11 — Resolution & backfill:** pure-TS URL-pattern resolver + human-curated exact-match dictionary (UNION ALL precedence), `mint_contributor` (SECURITY DEFINER), and idempotent backfill UPDATEs + MERGE-based ingest wiring — RESOLVE-01–04.
+- **Phase 12 — DwC view rebuild:** rebuilt `dwc.occurrences` from 25→26 columns to the aggregator pattern (`institutionCode="SalishSea"`, `rightsHolder="SalishSea.io"`, per-collection `datasetName`, regex `recordedBy`, EML `associatedParty`) — validated read-only against ~4,411 prod rows.
+- **Phase 13 — GBIF re-validation:** artifact-level SC verifier (`verify-artifact.ts`, 32 fixture tests) + GBIF validator REST client with strict `indexeable`/blocking gate; archive re-validated `indexeable=true`, zero structural errors, 12-item checklist green.
+- **Phase 14 — Pre-prod build gate:** seeded local-DB CI fixture (`supabase/ci-seed.sql`) + `build.yml` psql seed step makes `build.test.ts` a true pre-merge gate; red-test confirmed it catches bare-schema-ref regressions (non-zero exit) — first real-runner PR (#278) green end-to-end.
+
+---
+
 ## v1.2 Export to DarwinCore Archive (Shipped: 2026-06-18)
 
 **Phases completed:** 5 phases, 16 plans, 31 tasks

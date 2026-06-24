@@ -305,6 +305,7 @@ export type Database = {
           accuracy: number | null
           attribution: string | null
           body: string | null
+          collection: string | null
           contributor_id: number | null
           count: number | null
           direction: Database["public"]["Enums"]["travel_direction"] | null
@@ -313,9 +314,15 @@ export type Database = {
           location: Database["public"]["CompositeTypes"]["lon_lat"] | null
           observed_at: string | null
           observed_from: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observer: string | null
+          organization: string | null
+          organization_url: string | null
           photos:
             | Database["public"]["CompositeTypes"]["occurrence_photo"][]
             | null
+          provider: string | null
+          provider_slug: string | null
+          source_url: string | null
           taxon: Database["public"]["CompositeTypes"]["taxon"] | null
           url: string | null
         }

@@ -136,6 +136,46 @@
 
 ---
 
+## Milestone: v1.3 — Providers, Collections & Contributors
+
+**Shipped:** 2026-06-24
+**Phases:** 6 (9–14) | **Plans:** 14 | **Tasks:** 23
+
+### What Was Built
+- Provenance reference tables (`providers`, `organizations`, `collections` + `collection_kind` enum) seeded with RLS read policies, plus a nullable `contributors.orcid` column
+- Nullable `provider_id`/`collection_id`/`contributor_id`/`source_url` FKs across all four source schemas (native / Maplify / iNaturalist / HappyWhale), `source_url` generated from existing `url`/`uri`
+- Pure-TS URL-pattern resolver + human-curated exact-match dictionary (UNION ALL precedence) + idempotent backfill + MERGE-based ingest wiring (RESOLVE-01–04)
+- `dwc.occurrences` rebuilt 25→26 cols to the aggregator pattern (constant `institutionCode`/`rightsHolder`, per-collection `datasetName`, regex `recordedBy`, EML `associatedParty`)
+- Artifact-level + GBIF-REST verifiers; archive re-validated `indexeable=true`, zero structural errors
+- Seeded local-DB CI gate turning `build.test.ts` into a true pre-merge gate
+
+### What Worked
+- **Resolve-first todo promotion:** the Phase 14 CI gate was promoted from a "Looks Done But Isn't" todo surfaced during Phase 12 (a bare-schema-ref bug that only failed in the nightly post-deploy) — turning a near-miss into a permanent gate
+- **nullable → backfill → constrain** sequencing kept each migration additive and reversible
+- Read-only validation of the rebuilt views against thousands of real prod rows before relying on them
+- A single static SQL fixture engineered to exercise every trust/tag branch made the CI gate meaningful without fabricating bulk data
+
+### What Was Inefficient
+- A stale `database.types.ts` (schema drift from phases 9–10, never regenerated) blocked the gen-types step on the first real CI run of the new gate — caught at the worst time, on PR #278
+- REQUIREMENTS.md traceability checkboxes for RESOLVE-01–04 were never flipped after Phase 11 shipped them; the drift only surfaced during this milestone-close requirements audit
+- Recurring storage-api `500` noise on `supabase db reset` (pre-existing, unrelated) added friction to local verification
+
+### Patterns Established
+- **Aggregator attribution** for DwC export (institution = the platform; per-collection datasetName; upstream orgs as EML associatedParty)
+- **Exact-match human-curated resolution dictionary** (no alias table, no fuzzy match; unmatched → NULL)
+- **Seeded-local-stack CI gate** for any build that reads Postgres through a DuckDB `ATTACH` alias
+
+### Key Lessons
+- A build that reads Postgres via DuckDB `ATTACH ... AS pgdb` must qualify *every* relation; only a seeded-DB integration gate catches a bare ref — unit tests and static guards don't
+- Regenerate committed derived artifacts (`database.types.ts`) at each schema migration, or CI will surface the drift later, off-context
+- Flip REQUIREMENTS.md checkboxes at phase close, not milestone close — stale bookkeeping reads as a coverage gap during the close audit
+
+### Cost Observations
+- Model mix (config): planner=opus, executor=sonnet
+- A backend/data-model milestone with no UI phases — heavier on SQL/migration review than on iteration
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
