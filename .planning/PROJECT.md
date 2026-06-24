@@ -10,39 +10,27 @@ The most convenient place to share and discover whale sightings in the Salish Se
 
 ## Current State
 
-Three milestones shipped. v1.0 added shareable occurrence links with rich social previews. v1.1 added partner org hyperlinking — occurrence body text now auto-links known partner org names via a CSV-driven lookup editable without code changes. v1.2 shipped a nightly-regenerated DarwinCore Archive (DwC-A) + GeoParquet sidecar at `https://salishsea.io/dwca/…`, downloadable from the About modal.
+Four milestones shipped. v1.0 added shareable occurrence links with rich social previews. v1.1 added partner org hyperlinking — occurrence body text auto-links known partner org names via a CSV-driven lookup editable without code changes. v1.2 shipped a nightly-regenerated DarwinCore Archive (DwC-A) + GeoParquet sidecar at `https://salishsea.io/dwca/…`, downloadable from the About modal. v1.3 formalized the provenance graph (provider · collection · organization · contributor) behind every sighting, so the DwC-A now attributes records under the SalishSea.io aggregator pattern with per-collection `datasetName` and real `recordedBy` instead of an opaque "Whale Alert / Maplify" bucket.
 
-**Next milestone:** v1.3 Providers, Collections & Contributors (in planning) — see below.
+**Next milestone:** none planned yet — see Backlog (`Phase 999.2: ingest in-region Orca sightings from GBIF`). Start with `/gsd-new-milestone`.
 
-## Current Milestone: v1.3 Providers, Collections & Contributors
+## Last Milestone: v1.3 Providers, Collections & Contributors — SHIPPED 2026-06-24
 
-**Goal:** Formalize the provenance graph behind every sighting — *how* it reached us (**provider**), *what channel* it came through (**collection**), *who* observed it (**contributor**), and *what institution* backs the channel (**organization**) — across all four current ingest APIs, so attribution is correct internally and in the DwC-A export instead of being lumped under a single "Whale Alert / Maplify" bucket.
-
-**Target features:**
-- New `providers`, `organizations`, `collections` tables; contributors unified across providers (extends existing `public.contributors`)
-- Per-sighting linkage (`provider_id`, `collection_id`, `contributor_id`, `source_url`) wired across the native / Maplify / iNaturalist / HappyWhale schemas — `source_url` first-class (populated from `inaturalist.observations.uri`, `public.observations.url`, etc.)
-- **URL-pattern resolver**: derive provider + collection from `source_url` (domain/path → provider/collection registry). Preferred resolution signal where a URL exists. Resolution order: `source_url` pattern → bracket tag → trailing attribution → structured `source` code → NULL
-- `dwc.occurrences` projection → aggregator pattern (`institutionCode="SalishSea"`, `rightsHolder="SalishSea.io"`, per-collection `datasetName`, `recordedBy`) for the exported sources (native + Maplify)
-- Backfill: Maplify collection resolution (bracket tag + trailing "Submitted by …" attribution + structured `source` code; human-eyeballed exact-match dictionary) + map existing structured provider/observer/URL fields for iNat / HappyWhale / native
-- Seed data: providers + ~15 canonical collections + parent organizations
-
-**Locked decisions:** provider is per-record provenance, not a collection property (a channel is stable if re-sourced); SalishSea.io is the GBIF institution (aggregator pattern); exact-match resolution (no alias table, no fuzzy match); `source_url` is a first-class resolution signal (Layer 1), preferred over comment parsing where present. **Export scope unchanged (SRC-01):** iNaturalist + HappyWhale are modeled internally but stay out of the DwC-A (they self-publish to GBIF).
-
-**Out of scope (seeded for later):** deriving a *whole occurrence* from a pasted `source_url` (the URL→record importer, Layer 2 — a new ingest path); direct partner *write* ingest (OrcaSound); retiring Maplify; trust-tier/quality scoring.
-
-**Detail:** see `.planning/v1.3-EXECUTIVE-SUMMARY.md` (terminology, prod instances, what enters the archive).
-
-**Progress:** Phase 9 (Reference Table Foundation) complete 2026-06-19 — `public.providers` (4), `public.organizations` (5), `public.collections` (21: 10 named + 11 acronym stubs) seeded with RLS read policies, plus a nullable `orcid` column on `public.contributors`. Phase 10 (Source Table FK Columns) complete 2026-06-19 — all four source tables (`public.observations`, `maplify.sightings`, `inaturalist.observations`, `happywhale.encounters`) now carry `provider_id` (NOT NULL, slug-backfilled per table with a migration-resolved DEFAULT), `collection_id` (nullable, partial-indexed on the two exported tables), `contributor_id` (nullable; native's prior NOT NULL relaxed), and `source_url` (GENERATED from `url`/`uri` on native/iNat; HappyWhale generated in the repo-canonical `individual/{id};enc={id}` form; Maplify left NULL for Phase 11). Ingest RPCs untouched. SC#1–SC#4 verified against the live DB. Unblocks Phase 11 (Resolution & Backfill).
-
-## Last Milestone: v1.2 Export to DarwinCore Archive — SHIPPED 2026-06-18
-
-**Delivered:** A nightly GitHub Actions workflow regenerates a DarwinCore Archive (zip + GeoParquet sidecar + sha256 sidecars) from a dedicated read-only `dwc` Postgres schema and publishes it atomically to S3/CloudFront. The About modal links the artifacts with live size + freshness, using a Lambda@Edge carve-out so binary downloads bypass the OG-meta interceptor.
+**Delivered:** A provenance graph — `providers`/`organizations`/`collections` reference tables + per-sighting `provider_id`/`collection_id`/`contributor_id`/`source_url` FKs across all four source schemas — resolved by a URL-pattern + human-curated exact-match dictionary and populated by a one-time idempotent backfill. The `dwc.occurrences` view was rebuilt (26 cols) to the aggregator pattern (`institutionCode="SalishSea"`, `rightsHolder="SalishSea.io"`, per-collection `datasetName`, regex `recordedBy`, EML `associatedParty`), and `build.test.ts` became a real seeded-local-DB pre-merge CI gate.
 
 **Outcomes:**
-- 22/22 v1 requirements satisfied — DWCA-05 (GBIF validator pass) closed 2026-06-19: "can be indexed by GBIF", zero blocking errors (was deferred at ship while the validator service was offline)
-- Cross-phase wiring verified end-to-end; no orphaned or missing contracts
-- Audit status: tech_debt (one deferral + minor follow-ups)
-- See `.planning/milestones/v1.2-MILESTONE-AUDIT.md` for full audit
+- 24/24 v1.3 requirements satisfied (PROV / ORG / COLL / CONTRIB / LINK / RESOLVE / ATTR / DWCA-GATE)
+- Backend / data-model / export milestone — no app UI surfaces (deferred by design)
+- GBIF re-validation green: `indexeable=true`, zero structural errors; 12-item "Looks Done But Isn't" checklist green
+- No formal milestone audit run (each phase carried its own VERIFICATION + Phase 14 human-UAT passed)
+- See `.planning/milestones/v1.3-ROADMAP.md` and `.planning/milestones/v1.3-REQUIREMENTS.md`
+
+<details>
+<summary>v1.2 Export to DarwinCore Archive — SHIPPED 2026-06-18</summary>
+
+A nightly GitHub Actions workflow regenerates a DarwinCore Archive (zip + GeoParquet sidecar + sha256 sidecars) from a dedicated read-only `dwc` Postgres schema and publishes it atomically to S3/CloudFront. 22/22 v1.2 requirements satisfied (DWCA-05 GBIF validator pass closed 2026-06-19). See `.planning/milestones/v1.2-MILESTONE-AUDIT.md`.
+
+</details>
 
 ## Requirements
 
@@ -58,14 +46,16 @@ Three milestones shipped. v1.0 added shareable occurrence links with rich social
 - ✓ Shared links generate rich previews when pasted into RCS, Facebook, or Bluesky — v1.0
 - ✓ Partner organization names in occurrence body text are automatically hyperlinked to their websites — v1.1
 - ✓ Data consumers can download occurrence records as a DarwinCore Archive (DwC-A) + GeoParquet sidecar, regenerated nightly, with sha256 verification — v1.2
+- ✓ Exported occurrence records are correctly attributed under the SalishSea.io aggregator pattern (per-collection `datasetName`, real `recordedBy`, EML `associatedParty`) via a formal provider/collection/organization/contributor provenance graph — v1.3
 
 ### Active
 
 <!-- v1.2 follow-ups -->
 - ✓ DWCA-05: archive passes the GBIF DwC-A validator ("can be indexed by GBIF") — validated 2026-06-19; warnings logged as v2 follow-ups below
+- ✓ Model embedded dataset attributions (bracket tags + "Submitted by …" lines in `maplify.sightings.comments`) as first-class sources so `dwc.occurrences` `datasetName`/`institutionCode` resolve from real refs — v1.3 (provenance graph + exact-match resolver)
 - [ ] Emit `coordinateUncertaintyInMeters` on occurrence records (GBIF validator flagged its absence 2026-06-19)
-- [ ] Enrich `eml.xml` resource contacts (GBIF validator: `RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE`, 2026-06-19)
-- [ ] Model embedded dataset attributions (bracket tags + "Submitted by …" lines in `maplify.sightings.comments`) as first-class sources so `dwc.occurrences` `datasetName`/`institutionCode` resolve from real refs
+- [ ] Enrich `eml.xml` resource contacts (GBIF validator: `RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE`, 2026-06-19; Phase 13 D-03 added a resource contact — re-check against validator)
+- [ ] Populate contributor ORCIDs for native contributors (v1.3 shipped the `contributors.orcid` column + `recordedByID` emit; data entry is later)
 
 <!-- Future milestones -->
 
@@ -113,6 +103,11 @@ Three milestones shipped. v1.0 added shareable occurrence links with rich social
 | Checksum-LAST upload order (parquet, zip, parquet.sha256, zip.sha256) | Atomicity: clients cannot fetch a sha256 newer than its artifact | ✓ Validated — Phase 7 (v1.2) |
 | Frontend HEAD-on-open with per-session cache (no preflight on initial page load) | Avoids cost on every page view; About-modal opens trigger fetch once per session | ✓ Validated — Phase 8 (v1.2) |
 | Occurrence-record license = CC-BY-NC 4.0 (resolvable URI); rights/gaps documented in single POLICY.md gate before any SQL | Policy-first gate prevents silently fudging gaps in encoding | ✓ Validated — Phase 4 (v1.2) |
+| Provider is per-record provenance, not a collection property | A channel stays stable even if re-sourced through a different provider | ✓ Validated — Phase 9-11 (v1.3) |
+| SalishSea.io is the GBIF institution (aggregator pattern: constant `institutionCode`/`rightsHolder`, per-collection `datasetName`) | Replaces opaque per-person `rightsHolder` + "Whale Alert / Maplify" bucket with auditable attribution | ✓ Validated — Phase 12-13 (v1.3) |
+| `source_url` is a first-class resolution signal (Layer 1), preferred over comment parsing | A URL is unambiguous where present; comment bracket-tags are the fallback | ✓ Validated — Phase 11 (v1.3) |
+| Exact-match resolution only (human-curated dictionary; no alias table, no fuzzy match) | Avoids a perpetual alias-maintenance surface; unmatched → NULL | ✓ Validated — Phase 11 (v1.3) |
+| Seeded local-DB CI gate for the DwC-A build (Supabase local stack, not bare Postgres) | The `dwc` view chain needs PostGIS/`pg_net`/`pg_cron`; gate catches build-time SQL regressions pre-merge | ✓ Validated — Phase 14 (v1.3) |
 
 ---
 ## Evolution
@@ -133,4 +128,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-19 — started v1.3 Providers, Collections & Contributors milestone*
+*Last updated: 2026-06-24 — after v1.3 Providers, Collections & Contributors milestone*
