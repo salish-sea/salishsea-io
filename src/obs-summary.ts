@@ -247,8 +247,12 @@ export class ObsSummary extends LitElement {
       ? html`<a target="_blank" rel="noopener noreferrer" href=${channelHref}>${channel}</a>`
       : channel;
     // The provider line only adds information when it differs from the channel —
-    // i.e. Maplify behind an Orca Network sighting, not "via iNaturalist / iNaturalist".
-    const showProvider = provider && collection && provider !== collection;
+    // i.e. Maplify behind an Orca Network FB sighting, not "via iNaturalist /
+    // iNaturalist". Also suppressed for the Whale Alert family: those collections
+    // ARE the conserve.io/Maplify product, so "via Whale Alert (Alaska)" and
+    // "Added via Maplify / conserve.io" say the same thing.
+    const isWhaleAlert = !!collection?.startsWith('Whale Alert');
+    const showProvider = !!provider && !!collection && provider !== collection && !isWhaleAlert;
     return html`
       <cite>${observer ? html`Observed by <span class="observer">${observer}</span> · ` : nothing}via ${channelLabel}</cite>
       ${showProvider ? html`<small class="provider">Added via ${provider}</small>` : nothing}
