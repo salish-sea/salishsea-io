@@ -89,9 +89,11 @@ describe('Lambda@Edge OG meta handler', () => {
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
     expect(result.body).toContain('SalishSea.io');
-    // Generic preview must NOT have og:description or og:image
-    expect(result.body).not.toContain('og:description');
-    expect(result.body).not.toContain('og:image');
+    // Generic homepage preview now carries a description, fallback image, and a real <title>
+    expect(result.body).toContain('og:description');
+    expect(result.body).toContain('og:image');
+    expect(result.body).toContain('https://salishsea.io/preview.jpg');
+    expect(result.body).toContain('<title>');
   });
 
   it('returns occurrence-specific OG tags with correct title, description, and image for cc0 photo', async () => {
@@ -166,7 +168,8 @@ describe('Lambda@Edge OG meta handler', () => {
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
     expect(result.body).toContain('SalishSea.io');
-    expect(result.body).not.toContain('og:description');
+    // Falls back to the generic homepage preview, which now includes a description
+    expect(result.body).toContain('og:description');
   });
 
   it('returns request (fail-open) when Supabase fetch throws an error', async () => {

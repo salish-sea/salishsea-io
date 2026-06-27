@@ -62,15 +62,29 @@ function buildOgHtml(tags: OgTags): string {
       return `  <meta property="${prop}" content="${escapeHtml(content)}">`;
     })
     .join('\n');
-  return `<!DOCTYPE html><html><head>\n${metaTags}\n</head><body></body></html>`;
+  // Mirror og:title/og:description into a real <title> and meta description so the
+  // synthesized page is also useful to search snippet crawlers, not just social cards.
+  const titleTag = tags['og:title'] ? `  <title>${escapeHtml(tags['og:title'])}</title>\n` : '';
+  const descTag = tags['og:description']
+    ? `  <meta name="description" content="${escapeHtml(tags['og:description'])}">\n`
+    : '';
+  return `<!DOCTYPE html><html><head>\n${titleTag}${descTag}${metaTags}\n</head><body></body></html>`;
 }
+
+const SITE_TITLE = 'Salish Sea — Whale & Orca Sightings Map';
+const SITE_DESCRIPTION =
+  'An interactive map of whale and marine-mammal sightings across the Salish Sea, ' +
+  'gathered from community sources like Whale Alert, Orca Network, and HappyWhale.';
 
 function genericPreviewTags(): OgTags {
   return {
     'og:site_name': 'SalishSea.io',
     'og:type': 'website',
     'og:url': 'https://salishsea.io/',
-    'og:title': 'SalishSea.io',
+    'og:title': SITE_TITLE,
+    'og:description': SITE_DESCRIPTION,
+    'og:image': FALLBACK_IMAGE,
+    'twitter:card': 'summary_large_image',
   };
 }
 
