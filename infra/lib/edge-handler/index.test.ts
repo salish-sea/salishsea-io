@@ -94,6 +94,8 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result.body).toContain('og:image');
     expect(result.body).toContain('https://salishsea.io/preview.jpg');
     expect(result.body).toContain('<title>');
+    // ...and a real <meta name="description"> for search snippets, not just og:*
+    expect(result.body).toContain('<meta name="description"');
   });
 
   it('returns occurrence-specific OG tags with correct title, description, and image for cc0 photo', async () => {
@@ -106,8 +108,9 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result.status).toBe('200');
     // Title: "Orca · June 3, 2025"
     expect(result.body).toContain('Orca · June 3, 2025');
-    // Description contains "3 Orca"
+    // Description contains "3 Orca", in both og:description and the real meta description
     expect(result.body).toContain('3 Orca');
+    expect(result.body).toContain('<meta name="description" content="3 Orca');
     // Image is the photo src
     expect(result.body).toContain('https://example.com/orca.jpg');
   });
@@ -170,6 +173,7 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result.body).toContain('SalishSea.io');
     // Falls back to the generic homepage preview, which now includes a description
     expect(result.body).toContain('og:description');
+    expect(result.body).toContain('<meta name="description"');
   });
 
   it('returns request (fail-open) when Supabase fetch throws an error', async () => {
