@@ -26,6 +26,30 @@ export default defineConfig({
         return html.replace(/\s*upgrade-insecure-requests;?/g, '');
       },
     },
+    {
+      // Inline the tiny global stylesheet into <style> so it isn't a render-blocking
+      // request. CSP allows it (style-src has 'unsafe-inline'). Only touches CSS that
+      // has a <link> in index.html (main.css); JS-loaded CSS like OpenLayers' is untouched.
+      name: 'inline-critical-css',
+      apply: 'build',
+      enforce: 'post',
+      transformIndexHtml(html, ctx) {
+        if (!ctx?.bundle) return html;
+        let out = html;
+        for (const [fileName, asset] of Object.entries(ctx.bundle)) {
+          if (asset.type !== 'asset' || !fileName.endsWith('.css')) continue;
+          const escaped = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const linkRE = new RegExp(`<link[^>]*href="[^"]*${escaped}"[^>]*>`);
+          if (!linkRE.test(out)) continue;
+          const css = typeof asset.source === 'string'
+            ? asset.source
+            : Buffer.from(asset.source).toString('utf8');
+          out = out.replace(linkRE, `<style>${css}</style>`);
+          delete ctx.bundle[fileName];
+        }
+        return out;
+      },
+    },
     sentryVitePlugin({
       bundleSizeOptimizations: {
         excludeReplayShadowDom: true,
