@@ -127,10 +127,10 @@ export class ObsPanel extends LitElement {
       <header>
         <h2>Marine Mammal Observations</h2>
         <form>
-          <input @click=${this.onGotoYesterday} type="button" name="yesterday" value="◀">
-          <input @click=${this.onGotoTomorrow}  type="button" name="tomorrow" value="▶" ?disabled=${this.date === today}>
-          <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" .value=${live(this.date)}>
-          <select @change=${this.onGoTo} name="go-to">
+          <input @click=${this.onGotoYesterday} type="button" name="yesterday" value="◀" aria-label="Previous day">
+          <input @click=${this.onGotoTomorrow}  type="button" name="tomorrow" value="▶" ?disabled=${this.date === today} aria-label="Next day">
+          <input @change=${this.onDateChange} max=${today} min="2000-01-01" type="date" .value=${live(this.date)} aria-label="Observation date">
+          <select @change=${this.onGoTo} name="go-to" aria-label="Go to a place">
             <option value='' selected disabled>Go to…</option>
             <option value=${pugetSoundExtent.join(',')}>Puget Sound</option>
             <option value=${salishSRKWExtent.join(',')}>Salish Sea</option>
