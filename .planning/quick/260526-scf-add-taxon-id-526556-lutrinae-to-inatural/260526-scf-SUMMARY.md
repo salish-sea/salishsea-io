@@ -1,6 +1,7 @@
 ---
 phase: quick-260526-scf-add-taxon-id-526556-lutrinae-to-inatural
 plan: "01"
+status: complete
 subsystem: supabase/inaturalist
 tags: [migration, inaturalist, lutrinae, otters]
 dependency_graph:
