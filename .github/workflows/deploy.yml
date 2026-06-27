@@ -3,6 +3,13 @@ on:
   push:
     branches:
       - main
+# Serialize production deploys. Several PRs merging in quick succession otherwise
+# run overlapping `cdk deploy`s against the same CloudFormation stacks, which fails
+# with "stack ... in UPDATE_COMPLETE_CLEANUP_IN_PROGRESS". Queue instead of cancel:
+# never interrupt an in-flight deploy mid `supabase db push` / `cdk deploy`.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 jobs:
   build:
     name: Build
