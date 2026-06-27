@@ -179,6 +179,7 @@ export default class SalishSea extends LitElement {
   drawingSource: VectorSource | undefined
 
   #isRestoringFromHistory = false
+  #isFocusingOccurrence = false
   #mapMoveDebounceTimer: ReturnType<typeof setTimeout> | null = null
   #realtimeChannel: RealtimeChannel | undefined
 
@@ -212,7 +213,14 @@ export default class SalishSea extends LitElement {
     this.#date = d;
     this.fetchOccurrences(d);
     if (!this.#isRestoringFromHistory) {
-      setQueryParams({d});
+      if (this.#isFocusingOccurrence) {
+        setQueryParams({d});
+      } else {
+        // A user-initiated day change clears any selected observation — it belongs to
+        // another day — including its ?o= in the URL (single history entry).
+        this.focusedOccurrenceId = null;
+        setQueryParams({d}, {remove: ['o']});
+      }
     }
   }
 
@@ -412,8 +420,16 @@ export default class SalishSea extends LitElement {
 
   focusOccurrence(occurrence: Occurrence | null) {
     this.focusedOccurrenceId = occurrence?.id || null;
-    if (occurrence)
-      this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDate().toString();
+    if (occurrence) {
+      // Focusing may change the date; flag it so the date setter doesn't treat this as a
+      // user day-change and clear the focus we just set.
+      this.#isFocusingOccurrence = true;
+      try {
+        this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDate().toString();
+      } finally {
+        this.#isFocusingOccurrence = false;
+      }
+    }
 
     if (!this.#isRestoringFromHistory) {
       if (this.focusedOccurrenceId) {
@@ -527,10 +543,13 @@ export function dateFromObservedAt(observedAt: string): string {
     .toString();
 }
 
-function setQueryParams(params: {[k: string]: string}, options: {replace?: boolean} = {}) {
+function setQueryParams(params: {[k: string]: string}, options: {replace?: boolean, remove?: string[]} = {}) {
     const url = new URL(window.location.href);
     for (const [k, v] of Object.entries(params)) {
       url.searchParams.set(k, v);
+    }
+    for (const k of options.remove ?? []) {
+      url.searchParams.delete(k);
     }
     if (options.replace) {
       window.history.replaceState({}, '', url.toString());
