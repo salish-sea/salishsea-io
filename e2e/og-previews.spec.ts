@@ -10,9 +10,9 @@ test('bot UA on homepage receives OG meta tags', async ({ request }) => {
   expect(body).toContain('og:title');
   expect(body).toContain('SalishSea.io');
   expect(body).toContain('og:type');
-  // Homepage should not include og:image or og:description
-  expect(body).not.toContain('og:image');
-  expect(body).not.toContain('og:description');
+  // Homepage card now carries a description and a fallback image
+  expect(body).toContain('og:description');
+  expect(body).toContain('og:image');
 });
 
 test('regular browser UA on homepage receives SPA', async ({ request }) => {
@@ -22,5 +22,7 @@ test('regular browser UA on homepage receives SPA', async ({ request }) => {
 
   expect(response.status()).toBe(200);
   const body = await response.text();
-  expect(body).not.toContain('og:title');
+  // Regular browsers get the real SPA shell (with the <salish-sea> root element),
+  // not the synthesized, empty-body bot preview page.
+  expect(body).toContain('<salish-sea>');
 });
