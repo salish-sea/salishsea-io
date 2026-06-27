@@ -62,6 +62,7 @@ function parseUrlParams(searchParams: URLSearchParams) {
 }
 
 const initialParams = parseUrlParams(new URLSearchParams(document.location.search));
+const hadDateParam = new URLSearchParams(document.location.search).has('d');
 
 let gsiReady: Promise<void> | null = null;
 function loadGSI(): Promise<void> {
@@ -318,6 +319,11 @@ export default class SalishSea extends LitElement {
   async connectedCallback(): Promise<void> {
     super.connectedCallback();
     window.addEventListener('popstate', this.#handlePopState);
+    // Reflect the resolved date in the URL so a link shared while viewing the default
+    // (today) is a permalink to that day, the way map coordinates already are. replaceState
+    // adds no history entry; skip when an occurrence permalink (?o=) already pins context.
+    if (!hadDateParam && !initialParams.occurrenceId)
+      setQueryParams({d: this.#date}, {replace: true});
     // If any credentials arrived before the component was defined, process them now.
     let token: string | undefined;
     while (token = window.__pendingGSIResponses?.shift()) {
