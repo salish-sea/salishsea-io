@@ -95,7 +95,7 @@ export class AboutPage extends LitElement {
       </ul>
       <p class="freshness">${freshness}</p>
       <p>
-        If you have any feedback, tap the Feedback button in the bottom-right of the page, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>.
+        If you have any feedback, use the Feedback button on the map, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>.
         This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen
         and is funded in 2025-26 by <a href="https://beamreach.blue/">Beam Reach</a>.
       </p>
