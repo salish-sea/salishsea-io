@@ -1,135 +1,150 @@
 ---
 type: quick
 slug: 260629-ggu
-title: Break the About popover out into its own page (route/URL of its own)
+title: Break the About popover out into its own /about.html page (Vite multi-page build)
 autonomous: false
 files_modified:
-  - src/about-page.ts          # new component
-  - src/about-page.test.ts     # new tests (migrated from salish-sea.test.ts)
-  - src/salish-sea.ts          # ?about routing, remove the <dialog> modal
-  - src/salish-sea.test.ts     # trim moved tests, add routing assertions
+  - about.html                 # new — second HTML entry, served at /about.html
+  - vite.config.js             # add `about` entry to build.rollupOptions.input
+  - src/about-page.ts          # new <about-page> component (lifted from the dialog body)
+  - src/about-page.test.ts     # new tests (migrated from salish-sea.test.ts, retargeted)
+  - src/salish-sea.ts          # the i control becomes <a href="/about.html">, remove the <dialog> + dead code
+  - src/salish-sea.test.ts     # drop the four download/HEAD tests, add a link/no-dialog assertion
 
 must_haves:
   truths:
-    - "Visiting /?about by direct load or refresh shows the About page, not the map+panel."
-    - "The About page preserves ALL prior modal content: intro, the four data-source bullets, the DwC-A download block (4 links + sizes + freshness + CC BY-NC), and the feedback/funding paragraph."
-    - "The DwC-A archive HEAD request fires once per session when the About page is first shown, populating sizes and freshness; it does NOT refire on subsequent visits."
-    - "The About page has a single page-level h1 and a 'Back to map' link/control that returns to the map; the map keeps its position."
-    - "Browser Back/Forward toggles the About page (it is a real history entry)."
+    - "Visiting /about.html by direct load, refresh, or share renders a real static About page (its own HTML object), not the SPA."
+    - "about.html preserves ALL prior modal content verbatim: intro paragraph, the four data-source bullets, the DwC-A download block (4 /dwca links + sizes + freshness + DwC + CC BY-NC), and the feedback/funding paragraph."
+    - "The DwC-A archive HEAD pair (.zip + .parquet) fires once on page load to populate sizes + freshness; on failure the freshness line reads 'Updated nightly at 09:00 UTC.' with no size text."
+    - "about.html has a single page-level h1, an h2 'Data download' subsection (correct heading order), and a visible, keyboard-focusable 'Back to the map' link to /."
+    - "The app header info control is a plain anchor href='/about.html'; the <dialog> modal and its open/close/keyboard logic are gone from salish-sea.ts."
+    - "`npm run build` succeeds and emits dist/about.html (tsc + vite build + html-validate + CSP inline-hash gate all pass)."
   artifacts:
+    - path: "about.html"
+      provides: "Static About page shell: own title + description + Open Graph, equivalent CSP meta, inlined baseline style, mounts <about-page>"
+      contains: "about-page"
+    - path: "vite.config.js"
+      provides: "Second build entry about: resolve(__dirname, 'about.html') in build.rollupOptions.input"
+      contains: "about.html"
     - path: "src/about-page.ts"
-      provides: "<about-page> full-viewport About view + DwC-A download section + per-session HEAD fetch"
-      exports: ["AboutPage", "_clearDownloadCache"]
+      provides: "<about-page> full-page About view + DwC-A download section + on-load HEAD fetch + 'Back to the map' link"
+      exports: ["AboutPage"]
     - path: "src/about-page.test.ts"
-      provides: "Download-section DOM + per-session HEAD-fetch tests targeting <about-page>"
+      provides: "Download-section DOM + on-load HEAD-fetch + fallback tests targeting <about-page>"
     - path: "src/salish-sea.ts"
-      provides: "?about query-param route: parse, state, popstate sync, conditional render, inert"
+      provides: "Header info control as <a href='/about.html'>; <dialog>, dialogRef, onAboutClicked, onCloseModal, renderDownloadSection, downloadInfo @state, and dialog styles all removed"
   key_links:
-    - from: "src/salish-sea.ts header ⓘ link"
-      to: "?about query param"
-      via: "onAboutClicked -> setQueryParams({about}) + showAbout=true"
+    - from: "about.html"
+      to: "src/about-page.ts"
+      via: "<script type=module src=src/about-page.ts> + <about-page> in body"
+      pattern: "about-page"
+    - from: "about.html"
+      to: "build.rollupOptions.input.about"
+      via: "Vite multi-page input emits dist/about.html as a real S3/CloudFront object"
     - from: "src/about-page.ts"
       to: "fetchArchiveMetadata (download-info.ts)"
-      via: "mount-time fetch guarded by module-level per-session cache"
-    - from: "src/about-page.ts 'Back to map'"
-      to: "src/salish-sea.ts"
-      via: "close-about CustomEvent -> removeQueryParam('about') + showAbout=false"
+      via: "firstUpdated calls fetchArchiveMetadata() once per page load"
+      pattern: "fetchArchiveMetadata"
+    - from: "src/salish-sea.ts header info link"
+      to: "/about.html"
+      via: "plain anchor href (real navigation, no JS handler)"
+      pattern: "about.html"
 ---
 
 <objective>
-Replace the in-app About `<dialog>` modal with a real, shareable About page that lives at its own URL, while preserving every piece of existing content and the DwC-A "HEAD-on-open, once-per-session" availability check.
+Replace the in-app About `<dialog>` modal with a **real, physically separate page served at `/about.html`**, built as a **Vite multi-page entry** — with ZERO infrastructure change (no CloudFront, CDK, or Lambda@Edge edits). Every piece of the existing About content moves to the new page, including the DwC-A download block and its HEAD-driven sizes/freshness.
 
-**Chosen approach (matches the existing idiom — no router, no infra change):**
-- The About "page" is represented by a **query param: `/?about`**, exactly like the existing `o` (focused occurrence) view-toggle param. Reading uses `searchParams.has('about')`; writing uses the existing `setQueryParams`/`removeQueryParam` helpers (pushState, so Back/Forward and sharing work).
-- **Direct load / refresh / share works with ZERO infra change** because the path stays `/`. CloudFront's `defaultRootObject: 'index.html'` serves the SPA for `/`, and the Lambda@Edge handler passes the request through; the app then reads `?about` on boot. (A path route like `/about` would 404 on direct load — there is no 404→index.html fallback in the distribution — which is exactly why the query-param idiom is used. Bots requesting `/?about` carry no `o` param, so the edge handler returns the existing generic site preview; no edge-handler change needed.)
-- The About content moves into a dedicated `<about-page>` Lit component (matching the project's small-component convention), rendered full-viewport over the map. The map stays mounted (no OpenLayers re-init); `<header>`/`<main>` get `inert` while About is shown so the page is a clean single-h1 accessible view with a clear "Back to map" affordance.
+**Chosen approach (locked decision — do not revisit):**
+- Add a new `about.html` HTML entry at the project root, registered via `build.rollupOptions.input.about` in `vite.config.js` alongside the existing `index.html`. `vite build` emits it to `dist/about.html` — a real static object served directly by S3/CloudFront. Direct load / refresh / share all work because `/about.html` is a genuine object key (not a 404-to-index fallback). `npm run dev` serves it at `http://localhost:3131/about.html` automatically (Vite serves any root-level HTML entry).
+- The About body becomes a small `<about-page>` Lit component (matching the project's small-component convention), lifted verbatim out of the `<dialog>` in `salish-sea.ts`. The section heading is promoted to a single page-level `<h1>`, the "Data download" sub-heading to `<h2>` (correct heading order), and a "Back to the map" link (anchor to `/`) is added.
+- The DwC-A availability check simplifies: a standalone page loads fresh and mounts exactly one `<about-page>`, so the v1.2 Phase 8 "once-per-session" module cache is **unnecessary and intentionally dropped** — the component fires one HEAD pair in `firstUpdated` per page load. User-facing behavior is preserved: the four download links always render; sizes + a relative-time freshness line appear when the HEAD pair succeeds; on failure the freshness line reads "Updated nightly at 09:00 UTC." with no size text.
+- The app's header info control becomes a plain semantic `<a href="/about.html">` (a real, shareable navigation), and the `<dialog>` plus all its open/close/keyboard logic and styles are deleted.
 
-Purpose: a bookmarkable/shareable About page instead of a transient modal, with no new dependency, no routing framework, and no CloudFront work.
-Output: `<about-page>` component + `?about` routing in `<salish-sea>`; the `<dialog>` is removed.
+**Lambda@Edge interceptor — confirmed, no edge change required (one non-blocking caveat flagged):**
+`infra/lib/edge-handler/index.ts` runs for every request. For a `/about.html` request it (a) does NOT match the `/dwca/` bypass, then (b) for any **non-bot** user-agent returns `request` untouched, so CloudFront serves the real `dist/about.html`. Humans (direct load, refresh, share-and-open) and non-listed crawlers (Googlebot is not in `BOT_AGENTS`) get the real page with its own `<title>`/OG tags. **CAVEAT (non-blocking):** a request from a *listed social-card bot* (facebookexternalhit, slackbot, twitterbot, etc.) to `/about.html` carries no `?o=`, so the handler returns the existing **generic** site-preview HTML instead of about.html's own OG tags. This is cosmetic (social cards for the About page show the generic site card), requires zero infra to ship, and does NOT affect page function. It is FLAGGED, not silently fixed — an optional future edge early-return for `/about.html` is explicitly out of scope per the zero-infra decision.
+
+Purpose: a bookmarkable, shareable, real About page with its own static metadata — a win the SPA modal couldn't have — and no new dependency, router, or infra work.
+Output: `about.html` + `<about-page>` component + a second Vite entry; the `<dialog>` is removed from `salish-sea.ts`.
 </objective>
 
+<execution_context>
+@$HOME/.claude/get-shit-done/workflows/execute-plan.md
+</execution_context>
+
 <context>
-@.planning/STATE.md
 @src/salish-sea.ts
 @src/salish-sea.test.ts
 @src/download-info.ts
-@src/partner-links.ts
 @index.html
+@vite.config.js
 @infra/lib/edge-handler/index.ts
 </context>
 
 <constraints>
-- Do NOT add a routing library/framework. Use the existing query-param + `pushState`/`popstate` idiom already present in `salish-sea.ts`.
-- Preserve ALL existing About content verbatim (intro paragraph, the four `<li>` data-source bullets, the entire `renderDownloadSection` block incl. the four `/dwca/salishsea-occurrences-v1.*` links + `.sha256` links + size `<small>`s + freshness line + DwC + CC BY-NC outbound links with `rel="noopener noreferrer"`, and the feedback/funding paragraph).
-- Preserve the DwC-A behavior from v1.2 Phase 8: a single HEAD pair (`.zip` + `.parquet`) fired when the About page is shown, cached **once per session**, with the `{ ok:false }` fallback rendering "Updated nightly at 09:00 UTC." and no size text. Keep using the existing `fetchArchiveMetadata`, `formatBytes`, `formatRelativeTime` from `download-info.ts` unchanged.
-- No CSP / `index.html` change: the About page introduces no new origins or inline scripts (the `/dwca` HEAD is same-origin `'self'`; all outbound links already existed in the modal).
-- Accessibility: exactly one page-level `h1` in the accessible tree at a time; a visible, keyboard-focusable "Back to map" control; move focus into the About page when it opens.
+- **Zero infrastructure change.** Do NOT edit CloudFront, CDK, or `infra/lib/edge-handler/index.ts`. If anything seems to require an edge change, STOP and surface it — do not plan it silently. (The interceptor has already been verified to leave `/about.html` untouched for real users; see the flagged social-bot caveat in the objective.)
+- **No new routing library or framework.** This is a static multi-page build (`build.rollupOptions.input`), not client-side routing.
+- **Preserve ALL existing About content verbatim.** Lift the dialog body (salish-sea.ts lines 364-377) and the entire `renderDownloadSection` (lines 456-497): the intro paragraph, the four data-source list items, the DwC/CC paragraph, the `ul.downloads` with the four `/dwca/salishsea-occurrences-v1.*` anchors (.zip, .zip.sha256, .parquet, .parquet.sha256) plus size `small`s and sha-links, the `.freshness` line, and the feedback/funding paragraph (mailto, GitHub, Beam Reach links). Keep `rel="noopener noreferrer"` on the DwC (`https://dwc.tdwg.org/`) and CC BY-NC (`https://creativecommons.org/licenses/by-nc/4.0/`) outbound links.
+- **Reuse existing helpers unchanged:** import `fetchArchiveMetadata`, `formatBytes`, `formatRelativeTime`, `type DownloadInfo` from `./download-info.ts` (do not modify that file).
+- **CSP / styling parity:** about.html carries its own CSP meta. Because the page only loads same-origin JS, an inline baseline style, and fires a same-origin HEAD to `/dwca/`, its CSP is a tightened subset of index.html's (no Google/Sentry/Supabase origins, no inline-script hash needed). Use these directives: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests. CONFIRMED: Vite applies `%VITE_*%` HTML env substitution to every HTML entry, so the index.html `%VITE_*%` pattern would also work here — but about.html needs no external origins, so it uses no substitutions and gains no env-var coupling. (The dev-only `strip-csp-upgrade-insecure-requests-in-dev` plugin and `%VITE_*%` substitution both run for all entries, so about.html behaves consistently in dev and build.)
+- **Styling approach:** match the project's recently-adopted "no render-blocking stylesheet request" intent by inlining a tiny baseline `<style>` in about.html's head (font-family + color + body reset, mirroring `src/index.css`) rather than linking `src/index.css`. This deliberately keeps about.html out of the `inline-critical-css` build plugin path (that plugin inlines then DELETES a linked CSS asset from the bundle; sharing that asset across two entries would leave the second entry's link dangling). All About-specific styling lives in `<about-page>`'s `static styles`. Net: deterministic build, no shared-asset fragility.
+- **Accessibility:** exactly one page-level `<h1>`; `<h2>` for "Data download"; a visible, keyboard-focusable "Back to the map" link to `/`. Keep the project's recent a11y-labeling standard (accessible names on interactive controls).
+- **Do not break the build/test gate:** `npm run build` (tsc + vite build + html-validate on `dist/**/*.html` + verify-csp-inline-hash on dist/index.html) must pass. about.html must be valid HTML under html-validate's default config (mirror index.html's head structure).
 </constraints>
 
 <tasks>
 
 <task type="auto" tdd="true">
-  <name>Task 1: Create the &lt;about-page&gt; component and migrate the download/HEAD tests</name>
+  <name>Task 1: Create the about-page Lit component and migrate its tests</name>
   <files>src/about-page.ts, src/about-page.test.ts</files>
   <behavior>
-    - Mounting &lt;about-page&gt; renders: a single top-level `<h1>About SalishSea.io</h1>`; the intro paragraph; the four data-source `<li>`s; an `<h2>Data download</h2>` section containing the four `/dwca/salishsea-occurrences-v1.*` anchors (.zip, .zip.sha256, .parquet, .parquet.sha256) plus the DwC (`https://dwc.tdwg.org/`) and CC BY-NC (`https://creativecommons.org/licenses/by-nc/4.0/`) outbound links, both carrying `rel="noopener noreferrer"`; the feedback/funding paragraph; and a "Back to map" link as the first focusable element.
-    - On first render the component fires exactly TWO HEAD requests (one ending `.zip`, one `.parquet`) via `fetchArchiveMetadata`, then renders sizes + freshness from the result.
-    - The HEAD pair is cached at MODULE scope (per-session): mounting a second &lt;about-page&gt; instance (after unmount) does NOT refire — total HEAD calls stay at 2.
-    - On HEAD failure (`{ ok:false }`) the `.freshness` line reads exactly "Updated nightly at 09:00 UTC." and there are zero `.downloads li small` size elements.
-    - Activating "Back to map" dispatches a `close-about` CustomEvent (bubbles, composed); it does NOT itself mutate the URL (the parent owns routing).
+    - Mounting about-page renders, in order: a "Back to the map" link (anchor to `/`) as the first focusable element; a single `<h1>About SalishSea.io</h1>`; the intro paragraph; the "We currently show:" paragraph; the four data-source list items (iNaturalist, Whale Alert, Orca Network, HappyWhale); an `<h2>Data download</h2>` section containing the DwC/CC paragraph (both outbound links carry rel="noopener noreferrer"), the ul.downloads with the four `/dwca/salishsea-occurrences-v1.*` anchors (.zip, .zip.sha256, .parquet, .parquet.sha256), and the .freshness line; and the feedback/funding paragraph (mailto + GitHub + Beam Reach links).
+    - On first render the component fires exactly TWO HEAD requests (one URL ending .zip, one ending .parquet) via fetchArchiveMetadata, then renders small sizes (when ok) plus the freshness line from the result.
+    - On HEAD failure (ok:false) the .freshness line reads exactly "Updated nightly at 09:00 UTC." and there are zero `.downloads li small` size elements.
+    - Heading structure is exactly one h1 and one h2 (no skipped levels), and the "Back to the map" anchor resolves to `/`.
   </behavior>
   <action>
-    Create `src/about-page.ts` as a Lit element `@customElement('about-page')` exporting class `AboutPage`. Lift the About body markup out of `salish-sea.ts`'s `<dialog>` (the intro `<p>`, the `<ul>` of four sources, the full `renderDownloadSection()` output, and the feedback/funding `<p>`) into this component's `render()`. Promote the section heading to a page-level `<h1>About SalishSea.io</h1>` (sub-heading "Data download" becomes `<h2>`). Add a "Back to map" anchor as the first child: real `href="/"`, class `back`, whose `@click` calls `e.preventDefault()` then `this.dispatchEvent(new CustomEvent('close-about', { bubbles: true, composed: true }))`.
+    Create `src/about-page.ts` as a Lit element decorated `@customElement('about-page')` exporting `class AboutPage extends LitElement`. Lift the About body verbatim from salish-sea.ts's dialog (the intro paragraph, the "We currently show:" paragraph, and the ul of four list-item sources at lines 366-371) and the entire renderDownloadSection output (lines 456-497) into this component's render(). Promote the dialog's `<h3>About SalishSea.io ...</h3>` to a page-level `<h1>About SalishSea.io</h1>` (drop the modal close-link), and promote the download section's `<h4>Data download</h4>` to `<h2>Data download</h2>`. Add a "Back to the map" anchor as the first child of the template: a real anchor with class back, href="/", and visible text (for example a left-arrow plus "Back to the map") — a plain navigation link, no click handler.
 
-    Move the download styles (`.downloads`, `.downloads li`, `.sha-link`, `.freshness`) into this component's `static styles`; add `:host { position: fixed; inset: 0; overflow: auto; background: white; z-index: 10; padding: 1rem; }` and a `.back` style so it reads as a page, not a modal. Do NOT carry over the `dialog`/`::backdrop`/`.close-dialog` styles.
+    Own `@state() private downloadInfo: DownloadInfo | null = null` and import fetchArchiveMetadata, formatBytes, formatRelativeTime, and the DownloadInfo type from ./download-info.ts (unchanged). In firstUpdated, call fetchArchiveMetadata() once and assign the resolved value to this.downloadInfo. Do NOT add a module-level or per-session cache — a standalone page mounts exactly one instance per load, so the v1.2 "once-per-session" guard is unnecessary; one HEAD pair per page load is the correct, simpler behavior. Keep the size/freshness formatting logic identical to the current renderDownloadSection: downloadInfo === null gives freshness empty-string; ok with a non-null lastModified gives formatRelativeTime(lastModified); otherwise "Updated nightly at 09:00 UTC."; render a size small element only when ok and the relevant Bytes value is non-null, via formatBytes.
 
-    Own `@state() private downloadInfo: DownloadInfo | null = null` and import `fetchArchiveMetadata, formatBytes, formatRelativeTime, type DownloadInfo` from `./download-info.ts` (unchanged). Add a module-level `let sessionDownloadInfo: DownloadInfo | null = null` and an exported `_clearDownloadCache()` that resets it (mirror the `_clearCredentialCache` precedent in `infra/lib/edge-handler/index.ts`) for test isolation. In `firstUpdated`: if `sessionDownloadInfo` is non-null, adopt it into `this.downloadInfo`; otherwise call `fetchArchiveMetadata()` once, store the result into BOTH `sessionDownloadInfo` and `this.downloadInfo`. This preserves the v1.2 Phase 8 "HEAD-on-open, once-per-session" behavior across the open→close→reopen lifecycle (the component unmounts on close). Reuse the existing `renderDownloadSection` logic for size/freshness formatting (null → '', ok+lastModified → `formatRelativeTime`, else → 'Updated nightly at 09:00 UTC.').
+    Move the download styles (.downloads, .downloads li, .sha-link, .freshness) from salish-sea.ts into this component's static styles. Add page-level layout instead of modal styling: a :host rule with display block, max-width about 40rem, margin 0 auto, padding 1rem; an a rule with color #1976d2 (so links match the site palette inside shadow DOM); and a .back rule. Do NOT carry over any dialog, ::backdrop, or .close-dialog styles.
 
-    For accessibility, in `firstUpdated` move focus to the "Back to map" link (query it from `this.renderRoot` and call `.focus()`), so keyboard/screen-reader users land on the new page.
+    Register the element via the standard declare-global block adding "about-page": AboutPage to HTMLElementTagNameMap.
 
-    Register the element in `HTMLElementTagNameMap` via the standard `declare global` block.
-
-    Create `src/about-page.test.ts` (`// @vitest-environment jsdom`) by migrating the four download/HEAD tests from `salish-sea.test.ts`, retargeted to `<about-page>`: (1) "download section renders four hrefs + dwc + cc links" — mount, mock fetch ok, await `updateComplete`, assert against `el.shadowRoot`; (2) "HEAD fires on mount: two requests, .zip and .parquet"; (3) "HEAD does not refire across remount (per-session cache)" — mount, await, remove, mount a second instance, await, assert total HEAD calls === 2; (4) "fallback on HEAD failure" — assert `.freshness` text and zero `.downloads li small`. Call `_clearDownloadCache()` in `beforeEach` AND `afterEach` so module-level cache never leaks between tests; keep the existing fetch-spy and fixture pattern (`okZip`/`okParquet`/`bad503`). No `ResizeObserver`/`showModal` stubs are needed here (no map, no dialog).
+    Create `src/about-page.test.ts` with a jsdom environment directive at the top of the file, migrating the download/HEAD tests from salish-sea.test.ts retargeted to about-page, reusing the shared fixtures (okZip, okParquet, bad503, lastModifiedHeader, a fetchSpy via vi.spyOn on globalThis.fetch, and an afterEach that restores mocks and removes any about-page from the DOM): (1) "renders four /dwca hrefs + dwc + cc links with rel" — mock fetch ok, create the element via document.createElement('about-page'), append, await el.updateComplete, settle the fetch with a zero-delay timeout promise then await el.updateComplete again, and assert four anchors matching `/dwca/salishsea-occurrences-v1(.zip|.parquet)(.sha256)?` plus the dwc and cc anchors each carrying rel="noopener noreferrer", queried from el.shadowRoot; (2) "HEAD fires on mount: two requests, .zip and .parquet" — assert exactly two HEAD calls, one URL ending .zip and one ending .parquet; (3) "fallback on HEAD failure" — mock one rejection plus one 503, assert the .freshness text equals "Updated nightly at 09:00 UTC." and there are zero `.downloads li small` elements. No per-session or remount test is needed (no module cache). No ResizeObserver or showModal stubs are needed (no map, no dialog).
   </action>
   <verify>
     <automated>cd /Users/rainhead/dev/salishsea-io && npx vitest run src/about-page.test.ts && npx tsc --noEmit</automated>
   </verify>
-  <done>about-page.test.ts passes (4 tests green), tsc clean, and `<about-page>` renders all migrated content with a single h1 and a working "Back to map" control that emits `close-about`.</done>
+  <done>about-page.test.ts passes (3 tests green), tsc clean, and about-page renders all migrated content with a single h1, an h2 "Data download", and a "Back to the map" link to /.</done>
 </task>
 
 <task type="auto">
-  <name>Task 2: Route ?about in &lt;salish-sea&gt;, remove the dialog, and trim its tests</name>
-  <files>src/salish-sea.ts, src/salish-sea.test.ts</files>
+  <name>Task 2: Wire the Vite about entry + about.html shell, convert the trigger to a link, remove the dialog</name>
+  <files>vite.config.js, about.html, src/salish-sea.ts, src/salish-sea.test.ts</files>
   <action>
-    In `src/salish-sea.ts`: add a side-effect import `import './about-page.ts';`. Remove the now-unused imports `fetchArchiveMetadata, formatBytes, formatRelativeTime, type DownloadInfo` (they moved into about-page).
+    vite.config.js: in build.rollupOptions.input, add a second entry alongside main: about set to resolve(__dirname, 'about.html'). Leave everything else (plugins, dev server, sourcemap) untouched.
 
-    Routing (mirror the existing `o`-param idiom exactly):
-    - In `parseUrlParams`, add `showAbout: searchParams.has('about')` to the returned object.
-    - Add `@state() private showAbout = initialParams.showAbout;`.
-    - In `#handlePopState`, add `this.showAbout = params.showAbout;` so Back/Forward toggle the page.
-    - Replace the body of `onAboutClicked(e)` with: `e.preventDefault(); setQueryParams({about: '1'}); this.showAbout = true;` (pushState → a real history entry; the HEAD fetch now happens inside about-page on mount, so drop the `downloadInfo`/`fetchArchiveMetadata` call here).
-    - Add `private onCloseAbout = () => { removeQueryParam('about'); this.showAbout = false; };`.
+    about.html (new, project root): create a valid HTML5 document mirroring index.html's head structure so it passes html-validate's default config. The head includes: a UTF-8 charset meta; the same viewport meta as index.html; a Content-Security-Policy http-equiv meta whose content is exactly the tightened directive set named in the constraints (default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests); a static title "About SalishSea.io"; a description meta for the About page; Open Graph tags (og:site_name SalishSea.io, og:type website, og:url https://salishsea.io/about.html, og:title, og:description, og:image https://salishsea.io/preview.jpg, twitter:card summary_large_image); the favicon link to src/assets/favicon.ico; and an inline style block mirroring src/index.css's :root, html/body, and a rules (font-family Mukta/Helvetica/Arial/sans-serif, color #213547, background #fff, body margin 0). The body contains an about-page element followed by a module script with src src/about-page.ts. Do NOT add a stylesheet link element (keeps about.html out of the inline-critical-css plugin path) and do NOT add the GSI script or the g_id_onload div (no login on this page).
 
-    Remove the modal: delete the entire `<dialog ${ref(this.dialogRef)}>…</dialog>` block, the `dialogRef` field, `onCloseModal`, `renderDownloadSection`, the `downloadInfo` `@state`, and the `dialog`/`dialog::backdrop`/`.close-dialog`/`.downloads`/`.sha-link`/`.freshness` style rules. Keep the `.about-link` style and the header ⓘ anchor, but set its `href="?about"` (a real, shareable target) while keeping `@click=${this.onAboutClicked}`.
+    src/salish-sea.ts: convert the header info control to a plain link and delete the modal. Replace the header anchor so it reads class about-link, href "/about.html", title "About SalishSea.io", text the info glyph — and REMOVE the @click handler binding (it is now real navigation). Delete: the entire dialog block (lines 362-378); the dialogRef field; onAboutClicked; onCloseModal; renderDownloadSection; the downloadInfo @state field; and the now-dead style rules dialog, dialog::backdrop, .close-dialog, .downloads, .downloads li, .sha-link, .freshness. Keep the .about-link style and the `a { text-decoration: none }` rule. Remove the now-unused import of fetchArchiveMetadata, formatBytes, formatRelativeTime, and the DownloadInfo type from ./download-info.ts. Keep the createRef/ref import (still used by mapRef and panelRef). tsc will catch any surviving reference to dialogRef, downloadInfo, or renderDownloadSection.
 
-    Render: add `?inert=${this.showAbout}` to both `<header>` and `<main>`. After `</main>` (still inside the host template), conditionally render `${this.showAbout ? html\`<about-page @close-about=${this.onCloseAbout}></about-page>\` : ''}`. The map (`obs-map`) stays mounted under the inert main, so position/state are preserved when returning.
-
-    In `src/salish-sea.test.ts`: delete the four migrated download/HEAD tests and the `makeEl` `showModal` stub plumbing (no dialog anymore). Keep the three `dateFromObservedAt` tests and the `ResizeObserver` stub (still needed because instantiating `<salish-sea>` mounts `obs-map`). Add one focused routing test: create `<salish-sea>`, call `onAboutClicked(new Event('click'))`, await `updateComplete`, assert `new URLSearchParams(location.search).has('about')` is true, `(el as any).showAbout` is true, and an `<about-page>` exists in `el.shadowRoot`; then call the close handler (or dispatch `close-about`) and assert the param and element are gone. Reset `history`/`location` search in `afterEach` to avoid leaking `?about` between tests.
+    src/salish-sea.test.ts: delete the four download/HEAD tests, the makeEl helper and its showModal stub, the okZip/okParquet/bad503 fixtures, the fetchSpy and its beforeEach plus the fetch-related afterEach plumbing, and the DownloadInfo type import. KEEP the three dateFromObservedAt tests and the ResizeObserver global stub (instantiating salish-sea still mounts obs-map). ADD one focused test: create a salish-sea element, append it, await el.updateComplete, then assert el.shadowRoot.querySelector('a.about-link') has getAttribute('href') equal to "/about.html", and assert el.shadowRoot.querySelector('dialog') is null (modal removed). Keep an afterEach that removes any salish-sea element from the DOM.
   </action>
   <verify>
-    <automated>cd /Users/rainhead/dev/salishsea-io && npx vitest run src/salish-sea.test.ts && grep -q "about-page" src/salish-sea.ts && ! grep -q "<dialog" src/salish-sea.ts && npx tsc --noEmit</automated>
+    <automated>cd /Users/rainhead/dev/salishsea-io && npx vitest run src/salish-sea.test.ts && grep -q 'about.html' src/salish-sea.ts && ! grep -q '<dialog' src/salish-sea.ts && grep -q 'about.html' vite.config.js && npm run build && test -f dist/about.html</automated>
   </verify>
-  <done>salish-sea.test.ts passes, the `<dialog>` is gone, `<about-page>` is wired behind `?about`, tsc is clean, and `npm run build` succeeds.</done>
+  <done>salish-sea.test.ts passes, the dialog is gone, the header info control is a plain anchor to /about.html, the about entry is in vite.config.js, npm run build succeeds, and dist/about.html exists.</done>
 </task>
 
 <task type="checkpoint:human-verify" gate="blocking">
-  <what-built>The About modal is now a full-page view at `/?about`, driven by the existing query-param/history idiom, with the map preserved underneath and the DwC-A HEAD check firing once per session on open.</what-built>
+  <what-built>The About modal is now a real, standalone page at /about.html, produced by a Vite multi-page build (second rollupOptions.input entry) with ZERO infrastructure change. The app's header info control is a plain link to it. The DwC-A HEAD check runs once on page load.</what-built>
   <how-to-verify>
-    1. Run `npm run dev` and open `http://localhost:5173/`. Click the header ⓘ — the About page covers the viewport, shows the intro, the four data sources, the Data download block, and the feedback/funding paragraph; the DwC-A sizes + freshness line populate after a moment (Network tab shows exactly two HEAD requests to `/dwca/salishsea-occurrences-v1.zip` and `.parquet`).
-    2. Click "Back to map" — you return to the map at its prior position. Open About again — NO new HEAD requests fire (per-session cache).
-    3. **Direct-load test (the key requirement):** open a fresh tab at `http://localhost:5173/?about` and also hit Refresh while on it — the About page loads directly both times (path is `/`, so the SPA boots and reads `?about`). Copy/share that URL and confirm it opens to About.
-    4. Press the browser Back button from the About page — it returns to the map; Forward reopens About.
-    5. Accessibility: Tab order starts at "Back to map"; the page heading is an `<h1>`; with the About page open the map/header are not reachable by Tab (inert).
+    1. Run `npm run dev` and open http://localhost:3131/. Click the header info control — the browser NAVIGATES to http://localhost:3131/about.html (a real page load, URL bar changes; not an in-app overlay). The page shows the intro, the four data sources, the Data download block, and the feedback/funding paragraph. The DwC-A sizes + freshness line populate after a moment (Network tab shows exactly two HEAD requests to /dwca/salishsea-occurrences-v1.zip and .parquet; in dev these may 404 and the page should then show "Updated nightly at 09:00 UTC." with no sizes — that is the correct fallback).
+    2. Direct-load + refresh + share (the key requirement): open a fresh tab directly at http://localhost:3131/about.html and press Refresh — the About page loads both times (it is a real entry, not SPA routing). Copy/share that URL and confirm it opens to About.
+    3. Click "Back to the map" — the browser navigates to http://localhost:3131/ and the map loads.
+    4. Accessibility: Tab order reaches the "Back to the map" link; the page has exactly one h1 ("About SalishSea.io") and the download subsection is an h2; outbound DwC and CC links open with rel="noopener noreferrer".
+    5. Build parity: `npm run build` completes and `dist/about.html` exists; open `npx vite preview` and load /about.html to confirm the built page renders with its inline baseline styles and CSP meta intact.
   </how-to-verify>
   <resume-signal>Type "approved" or describe issues.</resume-signal>
 </task>
@@ -137,21 +152,23 @@ Output: `<about-page>` component + `?about` routing in `<salish-sea>`; the `<dia
 </tasks>
 
 <verification>
-- `npx vitest run` — all unit tests pass (about-page.test.ts + salish-sea.test.ts + unchanged suites).
-- `npx tsc --noEmit` — no type errors.
-- `npm run build` — tsc + vite build + html-validate + CSP inline-hash check all pass (CSP unchanged; no new origins).
-- `grep -q "about-page" src/salish-sea.ts && ! grep -q "<dialog" src/salish-sea.ts` — modal removed, page wired.
+- `npx vitest run` — all unit tests pass (about-page.test.ts + the trimmed salish-sea.test.ts + unchanged suites).
+- `npx tsc --noEmit` — no type errors (catches any dangling reference to the removed dialogRef/downloadInfo/renderDownloadSection).
+- `npm run build` — tsc + vite build (two HTML entries) + html-validate on dist/index.html AND dist/about.html + verify-csp-inline-hash on dist/index.html all pass.
+- `test -f dist/about.html` — the second entry is emitted as a real static object.
+- `grep -q 'about.html' src/salish-sea.ts && ! grep -q '<dialog' src/salish-sea.ts` — trigger is a link, modal removed.
 </verification>
 
 <success_criteria>
-- The About content is reachable at its own shareable URL `/?about`, works on direct load and refresh (no CloudFront/edge change), and Back/Forward toggle it.
-- 100% of the prior modal content is preserved, including all four `/dwca/` links, sizes, freshness, and outbound DwC/CC links with `rel="noopener noreferrer"`.
-- The DwC-A HEAD pair fires once per session on first open and never refires.
-- The page has a single `h1`, a focusable "Back to map" control, and renders the underlying app inert while shown.
-- The `<dialog>` modal and its dead code/styles are removed from `salish-sea.ts`.
+- The About content is reachable at its own real, shareable URL `/about.html`, working on direct load, refresh, and share with ZERO CloudFront/CDK/edge change.
+- 100% of the prior modal content is preserved verbatim, including all four /dwca links, sizes, freshness, and the outbound DwC/CC links with rel="noopener noreferrer".
+- The DwC-A HEAD pair fires once on page load; on failure the page shows "Updated nightly at 09:00 UTC." with no sizes.
+- The page has a single h1, an h2 download subsection, and a focusable "Back to the map" link to /.
+- The header info control is a plain `<a href="/about.html">`; the `<dialog>` modal and its dead code/styles are removed from salish-sea.ts.
+- The Lambda@Edge interceptor is unchanged and leaves /about.html untouched for all real users; the social-bot generic-card caveat is documented and accepted as out of scope.
 </success_criteria>
 
 <output>
 Quick task — no SUMMARY required. Commit on approval:
-`feat(about): break the About popover out into its own /?about page`
+`feat(about): break the About popover out into its own /about.html page`
 </output>
