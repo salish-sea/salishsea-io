@@ -261,3 +261,50 @@ describe('L-01 carve-out: /dwca/* path-gate', () => {
     expect(result.body).toContain('og:title');
   });
 });
+
+describe('SEO carve-out: /sitemap.xml and /robots.txt path-gate', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    _clearCredentialCache();
+    jest.spyOn(global, 'fetch').mockReset();
+    mockSsmCredentials();
+  });
+
+  // baiduspider and google-snippet ARE in BOT_AGENTS — without the carve-out they
+  // would receive synthesized OG HTML instead of the raw sitemap/robots file.
+  it('passes through /sitemap.xml unmodified for a listed crawler (baiduspider)', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    const event = makeEvent('Mozilla/5.0 (compatible; Baiduspider/2.0)', '', '/sitemap.xml');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('passes through /robots.txt unmodified for a listed crawler (google-snippet)', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    const event = makeEvent('Google-Snippet', '', '/robots.txt');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('passes through /sitemap.xml unmodified for non-bot UA', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    const event = makeEvent('Mozilla/5.0', '', '/sitemap.xml');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('exact-match only — /sitemap.xml.bak is NOT carved out', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+    const event = makeEvent('facebookexternalhit/1.1', '', '/sitemap.xml.bak');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result).not.toBe(event.Records[0].cf.request);
+    expect(result.status).toBe('200');
+    expect(result.body).toContain('og:title');
+  });
+});

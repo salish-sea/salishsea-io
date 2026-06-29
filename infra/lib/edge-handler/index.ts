@@ -112,7 +112,15 @@ export const handler = async (event: any): Promise<any> => {
   // GeoParquet sidecar). Path-prefix gate runs BEFORE the bot-UA branch so crawlers
   // (Slackbot, Facebook, etc.) receive the binary, not synthesized HTML.
   // Ref: .planning/phases/07-nightly-workflow-hosting/07-CONTEXT.md §L-01
-  if (request.uri.startsWith('/dwca/')) {
+  //
+  // Same rationale for /sitemap.xml and /robots.txt: search crawlers that ARE in
+  // BOT_AGENTS (baiduspider, google-snippet) must receive the raw file, never
+  // synthesized HTML, or the sitemap/robots directives are unreadable.
+  if (
+    request.uri.startsWith('/dwca/') ||
+    request.uri === '/sitemap.xml' ||
+    request.uri === '/robots.txt'
+  ) {
     return request;
   }
 
