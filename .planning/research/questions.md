@@ -59,6 +59,16 @@ Orca Network already feeds Acartia (our own org) → WRAS → Conserve.io. What
 exactly flows, at what granularity/latency, and what does it *not* capture that a
 community-facing surface would? Avoid rebuilding what Acartia already does.
 
+### Does the research-impact story land — and do they even know it's happening?
+
+Hypothesis: Orca Network is probably unaware their sightings already reach
+GBIF/research (the Acartia → WRAS plumbing is invisible). Would making that
+impact *visible and felt* — "the observations from your organization and your
+community are feeding science" — be meaningful recognition they'd value, and
+would it motivate their members? This tests whether storytelling/legibility (not
+data routing, which is solved) is a primary partnership hook. See the strategy
+note's "offer reframe."
+
 ### What would make them say no?
 
 Threat perception (competitor vs. amplifier), data ownership/control concerns,

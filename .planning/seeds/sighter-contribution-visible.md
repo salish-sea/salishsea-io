@@ -29,14 +29,23 @@ contribution is *already real and attributable*. What's missing is only the
 **thin UI layer that makes it legible to the person who logged it** — there's no
 new pipeline to build.
 
-## Why it's a reinforcer, not the lead
+## Two audiences, one storytelling muscle
 
-Per the uptake strategy note, #4 (contribution visibility) and #2 (data credit)
-*reinforce* the lead offer (#1 delete-the-chore + #3 better tool); they don't
-carry adoption on their own. So this seed is a **layer on top of** the
-partnership play, best shipped once the map is populated (otherwise a lone
-contribution feels lonely). Sequence it after the Orca Network direction is
-confirmed.
+This is half of a single capability: **make the research impact of community
+observations legible.** Point it at two audiences:
+
+- **The individual sighter** (#4) — "your sighting is now part of the record /
+  feeds research."
+- **The org and community** (#2) — "the observations from *this organization and
+  these people* are feeding science." Critically, partners like Orca Network are
+  probably **completely unaware** their sightings ever reach GBIF/research today
+  (the Acartia → WRAS plumbing is invisible). Telling that story is unsolved and
+  differentiated — see the strategy note's "offer reframe."
+
+So this is **not merely a reinforcer** — for the partnership it may be a primary
+hook, because it gives an org real, felt recognition for decades of work nobody
+has surfaced. Sequence after the map is populated (a lone contribution feels
+lonely) and after the Orca Network direction is confirmed.
 
 ## Open design questions
 

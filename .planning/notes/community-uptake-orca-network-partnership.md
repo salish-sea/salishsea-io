@@ -53,24 +53,40 @@ site.
 
 Initial instinct was that the strongest offer to Orca Network was **#2 — credit
 their data** (their sightings become a named, attributed dataset in GBIF/OBIS
-via the v1.3 provenance graph). The research pass corrected this:
+via the v1.3 provenance graph). The research pass *and a user correction*
+sharpened this into a crucial distinction:
 
-- **Acartia is our own org** (github.com/salish-sea/acartia). Orca Network
-  *already* feeds sightings into Acartia → Ocean Wise's WRAS → Conserve.io.
-  >75% of WA sightings into WRAS (April 2024) came from Orca Network via
-  Acartia. So this is a **warm** relationship, not a cold start — and Orca
-  Network is a proven, culturally pro-open-data cooperative member.
-- Therefore **#2 (data credit) is mostly already solved** — open data isn't
-  their pain, and our DwC-A deliberately *excludes* self-publishing sources.
+- **Data *routing* is solved; data *story* is not.** Acartia is our own org
+  (github.com/salish-sea/acartia), and Orca Network *already* feeds sightings
+  into Acartia → Ocean Wise's WRAS → Conserve.io (>75% of WA sightings into WRAS
+  in April 2024 came from Orca Network via Acartia). So this is a **warm**
+  relationship, not a cold start. **But the plumbing is invisible** — Orca
+  Network is probably completely unaware their sightings ever reach GBIF or feed
+  research. The data moves; nobody *knows or feels* that it does.
+- Therefore **#2 is not "already solved" — it was mis-framed.** The unsolved,
+  differentiated thing is **telling the story**: making the research impact of
+  community/org observations *legible* — "these records, from these people and
+  this organization, are feeding science." That is a narrative/recognition
+  product surface, not a data-pipeline feature, and **nobody else does it.**
+  (Our DwC-A deliberately *excludes* self-publishing sources, so this is about
+  visibility/recognition, not adding another export path.)
+- The same insight collapses **#2 (story to the org/community) and #4 (story to
+  the individual sighter)** into one capability — the same storytelling muscle,
+  pointed at two audiences. This is the "it counts for something" thread the
+  user flagged at the start as one of the two strongest pulls; earlier framing
+  underweighted it.
 - The research **independently named our exact niche as the unfilled one:** "a
   modern, map-first, community-facing sightings UX that **reduces curation
   labor** and surfaces real-time shore sightings — distinct from mariner-alert
   (WRAS/Whale Alert) and photo-ID (Happywhale/iNaturalist) tools."
 
-**Conclusion:** the strongest offer is **#1 (delete their chore — kill the
-manual Facebook-to-report transcription) + #3 (a better field/coordination
-tool).** The data-credit (#2) and contribution-visibility (#4) become
-*reinforcing* benefits layered on top, not the lead.
+**Conclusion:** two distinct, real offers, not one lead + reinforcers:
+- For the shore regular's **moment**: **#1 (delete their chore — kill the manual
+  Facebook-to-report transcription) + #3 (a better field/coordination tool).**
+- For the org and community's **sense of meaning**: **the story** — make it
+  visible and felt that their observations feed real research (#2 to the org/
+  community, #4 to the individual sighter). Not a someday-promise; it leverages
+  the v1.2/v1.3 pipeline that already makes the contribution real.
 
 ## The prize (why it's worth it)
 
