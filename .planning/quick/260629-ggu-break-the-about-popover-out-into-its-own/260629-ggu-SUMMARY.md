@@ -83,6 +83,28 @@ user per their choice ("Fix copy + I'll verify"). Worktree merged back to
 `clear-observation-on-day-change` via `worktree.cleanup-wave` (merge commit
 `c8ddad5`).
 
+## Follow-up: static-HTML inlining for crawlability (commit `cf2f3d1`)
+
+After the initial extraction, the page body was rendered by the Lit
+`<about-page>` component into **shadow DOM** — meaning the served HTML contained
+only `<about-page></about-page>` and the actual prose/links were JS-rendered into
+a shadow root, which search engines do not reliably index. Since SEO/indexability
+was a stated goal of making this a real page, the content was inlined:
+
+- `about.html` now carries the full About content as **static light-DOM HTML**
+  (intro, data-source list, download section, CC notice, funding line) — present
+  in the served source, fully crawlable with JavaScript disabled. Built
+  `dist/about.html` grew from ~2 KB (shell) to ~5 KB (content).
+- `src/about-page.ts` (+ its test) was **retired**. The only dynamic behavior —
+  DwC-A file sizes + relative "updated" timestamp — became a small progressive
+  enhancement, `src/about.ts` (`enhanceAboutDownloads()`), that upgrades the
+  static fallbacks via the same `download-info.ts` HEAD pair. With JS off, the
+  page shows file names and "Updated nightly at 09:00 UTC." (no sizes) — correct.
+- `src/about.test.ts` (3 tests) replaces the component tests: two HEAD requests,
+  sizes+timestamp filled on success, static fallbacks untouched on failure.
+- Head meta (`<title>`, description, OG/twitter) was already static and indexable;
+  this change brings the body to parity. `npm run build` green; CSP-hash OK.
+
 ## Known Caveats
 
 - **Social-bot OG cards (confirmed non-blocking, per plan):** The Lambda@Edge interceptor returns the generic site-preview HTML for listed social bots (`/about.html` carries no `?o=`). Human direct load, refresh, and share all get the real page. Flagged and accepted as out of scope per the zero-infra decision documented in the plan objective.
