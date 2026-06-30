@@ -5,7 +5,7 @@ milestone_name: — Providers, Collections & Contributors
 status: Awaiting next milestone
 stopped_at: Phase 14 context gathered
 last_updated: "2026-06-24T19:44:29.961Z"
-last_activity: 2026-06-24 — Milestone v1.3 completed and archived
+last_activity: 2026-06-29 — Completed quick task 260629-ggu: About page extraction
 progress:
   total_phases: 7
   completed_phases: 6
@@ -93,6 +93,7 @@ Items acknowledged and deferred at v1.3 roadmap creation (2026-06-19):
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260526-scf | Add taxon id 526556 Lutrinae to iNaturalist observations query migration | 2026-05-27 | 370c786 | [260526-scf-add-taxon-id-526556-lutrinae-to-inatural](./quick/260526-scf-add-taxon-id-526556-lutrinae-to-inatural/) |
+| 260629-ggu | Break the About popover out into its own /about.html page (Vite multi-page; dialog removed; static-HTML content for SEO; zero infra change) | 2026-06-29 | cf2f3d1 | [260629-ggu-break-the-about-popover-out-into-its-own](./quick/260629-ggu-break-the-about-popover-out-into-its-own/) |
 
 ## Session Continuity
 

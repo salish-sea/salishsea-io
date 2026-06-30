@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
+    <title>About SalishSea.io</title>
+    <meta name="description" content="About SalishSea.io — an interactive map of whale and marine-mammal sightings across the Salish Sea, with open data downloads.">
+    <meta property="og:site_name" content="SalishSea.io">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://salishsea.io/about.html">
+    <meta property="og:title" content="About SalishSea.io">
+    <meta property="og:description" content="About SalishSea.io — an interactive map of whale and marine-mammal sightings across the Salish Sea, with open data downloads.">
+    <meta property="og:image" content="https://salishsea.io/preview.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <link href="src/assets/favicon.ico" rel="icon" type="image/x-icon">
+    <style>
+      :root {
+        font-family: Mukta,Helvetica,Arial,sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        color: #213547;
+        background-color: #ffffff;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      a {
+        font-weight: 500;
+        color: #1976d2;
+        text-decoration: inherit;
+      }
+      a:hover {
+        color: #1565c0;
+      }
+      body {
+        margin: 0;
+      }
+      main.about {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 1rem;
+      }
+      .back {
+        display: inline-block;
+        margin-bottom: 1rem;
+      }
+      .downloads {
+        margin-top: 0.25rem;
+        padding-left: 1.25rem;
+      }
+      .downloads li {
+        margin-bottom: 0.25rem;
+      }
+      .sha-link {
+        font-size: 0.75rem;
+        margin-left: 0.5rem;
+        opacity: 0.65;
+      }
+      .freshness {
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+        opacity: 0.8;
+      }
+    </style>
+    <script type="module" src="src/about.ts"></script>
+  </head>
+  <body>
+    <main class="about">
+      <a class="back" href="/">&#8592; Back to the map</a>
+      <h1>About SalishSea.io</h1>
+      <p>Communities throughout the Salish Sea are working to monitor and protect the diversity of life it supports. This site serves as a portal into their efforts.</p>
+      <p>We currently show:</p>
+      <ul>
+        <li><a href="https://www.inaturalist.org/">iNaturalist</a> observations of cetaceans and pinnipeds</li>
+        <li>Sightings submitted to the <a href="https://www.whalealert.org/">Whale Alert</a> mobile app by the public</li>
+        <li>Sightings from the <a href="https://www.orcanetwork.org/">Orca Network</a> community</li>
+        <li>Observations of humpbacks within the Salish Sea from <a href="https://happywhale.com">HappyWhale</a> (open data, 2012-April,2025)</li>
+      </ul>
+      <h2>Data download</h2>
+      <p>
+        The full observation dataset is published nightly as a
+        <a href="https://dwc.tdwg.org/" target="_blank" rel="noopener noreferrer">Darwin Core Archive</a>, with a GeoParquet sidecar for
+        spatial tools. Native SalishSea.io observations and Maplify / Whale Alert sightings
+        (including Orca Network and Cascadia) are included; iNaturalist and Happywhale are
+        excluded — those are already published to GBIF by their canonical sources. Licensed
+        <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC 4.0</a>.
+      </p>
+      <ul class="downloads">
+        <li>
+          <a href="/dwca/salishsea-occurrences-v1.zip" download>salishsea-occurrences-v1.zip</a><small data-size="zip"></small>
+          <a href="/dwca/salishsea-occurrences-v1.zip.sha256" class="sha-link" download>sha256</a>
+        </li>
+        <li>
+          <a href="/dwca/salishsea-occurrences-v1.parquet" download>salishsea-occurrences-v1.parquet</a><small data-size="parquet"></small>
+          <a href="/dwca/salishsea-occurrences-v1.parquet.sha256" class="sha-link" download>sha256</a>
+        </li>
+      </ul>
+      <p class="freshness">Updated nightly at 09:00 UTC.</p>
+      <p>
+        If you have any feedback, use the Feedback button on the map, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>.
+        This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen
+        and is funded in 2025-26 by <a href="https://beamreach.blue/">Beam Reach</a>.
+      </p>
+    </main>
+  </body>
+</html>
