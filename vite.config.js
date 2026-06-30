@@ -28,6 +28,36 @@ export default defineConfig({
       },
     },
     {
+      // Emit sitemap.xml at build time so <lastmod> tracks the deploy date instead
+      // of a hand-maintained constant that silently goes stale. The site rebuilds
+      // and redeploys on every push to main, so the build date is an honest
+      // freshness signal for the (otherwise static) index.html and about.html shells.
+      name: 'generate-sitemap',
+      apply: 'build',
+      generateBundle() {
+        const lastmod = new Date().toISOString().slice(0, 10);
+        const pages = [
+          { loc: 'https://salishsea.io/', changefreq: 'daily', priority: '1.0' },
+          { loc: 'https://salishsea.io/about.html', changefreq: 'monthly', priority: '0.5' },
+        ];
+        const urls = pages.map(p => `  <url>
+    <loc>${p.loc}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`).join('\n');
+        this.emitFile({
+          type: 'asset',
+          fileName: 'sitemap.xml',
+          source: `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>
+`,
+        });
+      },
+    },
+    {
       // Inline the tiny global stylesheet into <style> so it isn't a render-blocking
       // request. CSP allows it (style-src has 'unsafe-inline'). Only touches CSS that
       // has a <link> in index.html (main.css); JS-loaded CSS like OpenLayers' is untouched.
