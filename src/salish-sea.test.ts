@@ -38,6 +38,8 @@ test('header info control is a plain anchor to /about.html with no dialog', asyn
   const aboutLink = el.shadowRoot!.querySelector('a.about-link') as HTMLAnchorElement | null;
   expect(aboutLink).not.toBeNull();
   expect(aboutLink!.getAttribute('href')).toBe('/about.html');
+  // Icon-only control needs an explicit accessible name for screen readers / voice control
+  expect(aboutLink!.getAttribute('aria-label')).toBe('About SalishSea.io');
 
   const dialog = el.shadowRoot!.querySelector('dialog');
   expect(dialog).toBeNull();

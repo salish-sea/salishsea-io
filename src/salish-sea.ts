@@ -321,7 +321,7 @@ export default class SalishSea extends LitElement {
 
     return html`
       <header>
-        <h1>SalishSea.io <a class="about-link" href="/about.html" title="About SalishSea.io">&#9432;</a></h1>
+        <h1>SalishSea.io <a class="about-link" href="/about.html" title="About SalishSea.io" aria-label="About SalishSea.io">&#9432;</a></h1>
         <div>
           <login-button></login-button>
         </div>
