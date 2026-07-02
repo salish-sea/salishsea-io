@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "salishsea_io",
+  "project_id": "df8d97a4-e808-4941-aaff-d2a1bbf679d5"
+}
