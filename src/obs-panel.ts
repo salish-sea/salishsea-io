@@ -99,13 +99,21 @@ export class ObsPanel extends LitElement {
       background-color: rgba(128, 128, 128, 0.1);
     }
     .contribute-pitch {
-      color: #444;
-      font-size: 0.875rem;
-      line-height: 1.4;
+      background: rgba(25, 118, 210, 0.08);
+      border-left: 3px solid #1976d2;
+      border-radius: 4px;
+      color: #1f2d3d;
+      font-size: 0.9375rem;
+      line-height: 1.45;
       margin: 0;
+      padding: 0.625rem 0.75rem;
+    }
+    .contribute-pitch strong {
+      font-weight: 600;
     }
     .contribute-pitch a {
       color: #1976d2;
+      font-weight: 600;
       white-space: nowrap;
     }
     .hide {
@@ -163,7 +171,7 @@ export class ObsPanel extends LitElement {
       `)}
       ${!this.user && !this.showForm ? html`
         <p class="contribute-pitch">
-          The public is our best source of data on how whales use these waters — add what you see.
+          The public is our <strong>best source of data on how whales use these waters</strong> — add what you see.
           <a href="/about.html">Learn more.</a>
         </p>
       ` : ''}
