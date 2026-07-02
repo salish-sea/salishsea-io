@@ -19,6 +19,10 @@ function isBot(userAgent: string): boolean {
   return BOT_AGENTS.some(bot => ua.includes(bot));
 }
 
+// Image assets a crawler may fetch directly (e.g. og:image = /preview.jpg). These
+// must pass through to origin as raw bytes, never be intercepted for OG-meta HTML.
+const STATIC_ASSET_RE = /\.(jpe?g|png|gif|svg|webp|ico|avif)$/i;
+
 // Module-scoped credential cache — survives warm Lambda invocations
 let supabaseUrl: string | undefined;
 let supabaseKey: string | undefined;
@@ -116,10 +120,17 @@ export const handler = async (event: any): Promise<any> => {
   // Same rationale for /sitemap.xml and /robots.txt: search crawlers that ARE in
   // BOT_AGENTS (baiduspider, google-snippet) must receive the raw file, never
   // synthesized HTML, or the sitemap/robots directives are unreadable.
+  //
+  // Same rationale for static image assets: og:image points at /preview.jpg, which
+  // the very same crawlers (facebookexternalhit, twitterbot, …) fetch to render the
+  // card. Without this carve-out the handler answers that image request with OG-meta
+  // HTML — an HTML body served as the image — and the preview breaks. Any path with
+  // an image extension must pass through to origin as raw bytes.
   if (
     request.uri.startsWith('/dwca/') ||
     request.uri === '/sitemap.xml' ||
-    request.uri === '/robots.txt'
+    request.uri === '/robots.txt' ||
+    STATIC_ASSET_RE.test(request.uri)
   ) {
     return request;
   }
