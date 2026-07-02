@@ -40,3 +40,8 @@ e2e/screenshots
 
 # Claude Code worktrees (transient isolation for parallel executors)
 .claude/worktrees/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
