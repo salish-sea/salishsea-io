@@ -98,6 +98,16 @@ export class ObsPanel extends LitElement {
     sighting-form {
       background-color: rgba(128, 128, 128, 0.1);
     }
+    .contribute-pitch {
+      color: #444;
+      font-size: 0.875rem;
+      line-height: 1.4;
+      margin: 0;
+    }
+    .contribute-pitch a {
+      color: #1976d2;
+      white-space: nowrap;
+    }
     .hide {
       display: none;
     }
@@ -151,6 +161,12 @@ export class ObsPanel extends LitElement {
           date=${this.date}
         ></sighting-form>
       `)}
+      ${!this.user && !this.showForm ? html`
+        <p class="contribute-pitch">
+          The public is our best source of data on how whales use these waters — add what you see.
+          <a href="/about.html">Learn more.</a>
+        </p>
+      ` : ''}
       <button class=${classMap({hide: this.showForm})} @click=${this.doShowForm} type="button" name="show">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px">${cameraAddIcon}</svg>
         <span>Add a Sighting</span>
