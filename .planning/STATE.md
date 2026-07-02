@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-19)
 Phase: Milestone v1.3 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-06-24 — Milestone v1.3 completed and archived
+Last activity: 2026-07-02 — Completed quick task 260702-i4d: sidebar contribution pitch
 
 ## Accumulated Context
 
@@ -94,6 +94,7 @@ Items acknowledged and deferred at v1.3 roadmap creation (2026-06-19):
 |---|-------------|------|--------|-----------|
 | 260526-scf | Add taxon id 526556 Lutrinae to iNaturalist observations query migration | 2026-05-27 | 370c786 | [260526-scf-add-taxon-id-526556-lutrinae-to-inatural](./quick/260526-scf-add-taxon-id-526556-lutrinae-to-inatural/) |
 | 260629-ggu | Break the About popover out into its own /about.html page (Vite multi-page; dialog removed; static-HTML content for SEO; zero infra change) | 2026-06-29 | cf2f3d1 | [260629-ggu-break-the-about-popover-out-into-its-own](./quick/260629-ggu-break-the-about-popover-out-into-its-own/) |
+| 260702-i4d | Add sidebar value-proposition line ("the public is our best source of data on how whales use these waters") above Add-a-Sighting, shown to logged-out visitors only | 2026-07-02 | f014316 | [260702-i4d-add-sidebar-value-proposition-line-encou](./quick/260702-i4d-add-sidebar-value-proposition-line-encou/) |
 
 ## Session Continuity
 
