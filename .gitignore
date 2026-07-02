@@ -45,3 +45,9 @@ e2e/screenshots
 .dolt/
 *.db
 .beads-credential-key
+
+# Beads kept local-only: issues live in the Dolt DB, not git.
+# Auto-exported JSONL churns on every bd mutation, so it's not tracked.
+# (git hooks disabled via: git config --unset core.hooksPath)
+.beads/issues.jsonl
+.beads/interactions.jsonl
