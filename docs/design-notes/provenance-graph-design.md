@@ -117,8 +117,8 @@ truth. No `pg_trgm` runtime fuzzy matching.
 
 ## Related artifacts
 
-- Todo: `.planning/todos/pending/2026-06-17-model-embedded-dataset-attributions-as-first-class-sources.md`
-- Seed: `.planning/seeds/orcasound-happywhale-direct-ingest.md`
-- Backlog phase: `.planning/phases/999.1-collections-and-contributors/`
-- Phase 6 v1.2 artifacts (current `dwc.occurrences` projection that this
-  refines): `.planning/milestones/v1.2-phases/`
+- The attribution-modeling todo and backlog phase 999.1 were promoted into the
+  v1.3 milestone and shipped 2026-06-24 — this document is their design history
+- Direct partner ingest (OrcaSound/HappyWhale): bd issue `salishsea-io-v5s`
+- Pre-migration planning artifacts (v1.2 phase files, seeds, todos): git history
+  under `.planning/`, removed in the 2026-07 GSD migration

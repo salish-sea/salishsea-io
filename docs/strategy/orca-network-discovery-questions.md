@@ -29,7 +29,7 @@ needs to be final.
 ## Community uptake / Orca Network partnership
 
 **Surfaced:** 2026-06-29 (`/gsd-explore` session on community uptake — see
-`.planning/notes/community-uptake-orca-network-partnership.md`)
+[community-uptake.md](community-uptake.md))
 
 **Why these matter:** the whole uptake strategy (win the shore regular by making
 SalishSea.io the tool Orca Network uses) rests on a partner we don't yet

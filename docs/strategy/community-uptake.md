@@ -3,9 +3,9 @@ title: Community uptake — win the shore regular via an Orca Network partnershi
 date: 2026-06-29
 context: /gsd-explore session on improving uptake by the whale-sighting community
 related:
-  - .planning/PROJECT.md
-  - .planning/research/questions.md
-  - .planning/seeds/sighter-contribution-visible.md
+  - PRODUCT.md
+  - docs/strategy/orca-network-discovery-questions.md
+  - bd issue salishsea-io-i1a.2 (make the sighter's contribution visible)
 ---
 
 # Community uptake: win the shore regular via an Orca Network partnership

@@ -2,6 +2,8 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+*Milestones v1.0–v1.3 ran under the GSD workflow, retired 2026-07 — tooling references below (gsd-tools, phase/plan structure) are historical.*
+
 ## Milestone: v1.0 — Link Shareability
 
 **Shipped:** 2026-04-17

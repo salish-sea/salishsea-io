@@ -457,4 +457,4 @@ All D-numbers are cited in the sections above. For reference:
 *§6 (Dataset Identity & EML Content) added: 2026-06-17*
 *D-19 (NULL ≠ none semantics) and D-20 (per-source license, Acartia CC-BY for Maplify) added: 2026-06-17*
 *Phase: 04-rights-data-model-policy-gate*
-*Document home: `.planning/phases/04-rights-data-model-policy-gate/04-POLICY.md`*
+*Document home: `docs/rights-policy.md` (authored as `.planning/phases/04-rights-data-model-policy-gate/04-POLICY.md` in the v1.2 policy-gate phase; moved here in the 2026-07 GSD migration)*

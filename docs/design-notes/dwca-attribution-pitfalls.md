@@ -353,9 +353,9 @@ All "Whale Alert Alaska" rows (which should resolve to `collection = 'Whale Aler
 - Production schema: `supabase/migrations/20250903172708_initial_schema.sql` (maplify.sightings definition)
 - DwC projection: `supabase/migrations/20260617203900_dwc_schema.sql` (25-column contract, UNION ALL, LATERAL CASE)
 - TS field list: `scripts/dwca/fields.ts` (OCCURRENCE_FIELDS ordinal contract)
-- v1.3 Executive Summary: `.planning/v1.3-EXECUTIVE-SUMMARY.md` (prod counts, signal inventory, resolution order)
-- Design note: `.planning/notes/collections-and-contributors-model.md` (graph model, Maplify-bias note)
-- v1.2 Requirements: `.planning/milestones/v1.2-REQUIREMENTS.md` (SRC-01 definition, ALIGN requirements)
+- v1.3 Executive Summary (prod counts, signal inventory, resolution order): pre-migration git history at `.planning/v1.3-EXECUTIVE-SUMMARY.md`
+- Design note: [provenance-graph-design.md](provenance-graph-design.md) (graph model, Maplify-bias note)
+- v1.2 Requirements: SRC-01 is now documented in [docs/decisions/005](../decisions/005-export-exclusion-src-01.md); the full requirements table is in pre-migration git history
 - GBIF occurrence issues: https://techdocs.gbif.org/en/data-use/occurrence-issues-and-flags
 - GBIF aggregator pattern: confirmed via Happywhale→OBIS-SEAMAP (zd_1764) and iNaturalist Research-grade Observations on GBIF (cited in design note)
 
