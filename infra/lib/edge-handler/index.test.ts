@@ -308,3 +308,66 @@ describe('SEO carve-out: /sitemap.xml and /robots.txt path-gate', () => {
     expect(result.body).toContain('og:title');
   });
 });
+
+describe('Image-asset carve-out: og:image must serve bytes, not OG HTML', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    _clearCredentialCache();
+    jest.spyOn(global, 'fetch').mockReset();
+    mockSsmCredentials();
+  });
+
+  // Regression for the broken-Facebook-preview bug: the generic and fallback OG cards
+  // set og:image = https://salishsea.io/preview.jpg. A crawler then fetches that image
+  // URL with the SAME bot UA; without this carve-out the handler returned OG-meta HTML
+  // as the image body, so the card broke. /preview.jpg must pass through to origin.
+  it('passes through /preview.jpg unmodified for the crawler that reads og:image', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    const event = makeEvent('facebookexternalhit/1.1', '', '/preview.jpg');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    '/preview.jpg',
+    '/img/whale.jpeg',
+    '/icons/logo.png',
+    '/photo.GIF',
+    '/marker.svg',
+    '/hero.webp',
+    '/favicon.ico',
+    '/next-gen.avif',
+  ])('passes through image asset %s for a bot UA', async (uri) => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    const event = makeEvent('twitterbot/1.0', '', uri);
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('still intercepts an HTML page request with a bot UA (not an asset extension)', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+    const event = makeEvent('facebookexternalhit/1.1', 'o=abc123', '/observation.html');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result).not.toBe(event.Records[0].cf.request);
+    expect(result.status).toBe('200');
+    expect(result.body).toContain('og:title');
+  });
+
+  it('does not treat a query-string image extension as an asset path (?o=inaturalist:...)', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+    // uri is '/', extension-like tokens live only in the querystring — must still intercept
+    const event = makeEvent('facebookexternalhit/1.1', 'o=inaturalist:377539157', '/');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result).not.toBe(event.Records[0].cf.request);
+    expect(result.status).toBe('200');
+    expect(result.body).toContain('og:title');
+  });
+});
