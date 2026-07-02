@@ -96,6 +96,8 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result.body).toContain('<title>');
     // ...and a real <meta name="description"> for search snippets, not just og:*
     expect(result.body).toContain('<meta name="description"');
+    // fb:app_id enables Facebook Domain Insights and clears the debugger warning
+    expect(result.body).toContain('<meta property="fb:app_id" content="678644427974059">');
   });
 
   it('returns occurrence-specific OG tags with correct title, description, and image for cc0 photo', async () => {
@@ -113,6 +115,8 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result.body).toContain('<meta name="description" content="3 Orca');
     // Image is the photo src
     expect(result.body).toContain('https://example.com/orca.jpg');
+    // fb:app_id present on occurrence cards too
+    expect(result.body).toContain('<meta property="fb:app_id" content="678644427974059">');
   });
 
   it('uses branded fallback image when photo has cc-by-nc license', async () => {

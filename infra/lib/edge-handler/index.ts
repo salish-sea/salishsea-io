@@ -89,6 +89,7 @@ function genericPreviewTags(): OgTags {
     'og:description': SITE_DESCRIPTION,
     'og:image': FALLBACK_IMAGE,
     'twitter:card': 'summary_large_image',
+    'fb:app_id': FB_APP_ID,
   };
 }
 
@@ -108,6 +109,9 @@ interface Occurrence {
 // Only cc0 and cc-by are unambiguously open for re-use
 const OPEN_LICENSES = ['cc0', 'cc-by'];
 const FALLBACK_IMAGE = 'https://salishsea.io/preview.jpg';
+// Public Facebook App ID — links shared content to our FB app for Domain Insights.
+// Not a secret; it appears in page meta by design.
+const FB_APP_ID = '678644427974059';
 
 export const handler = async (event: any): Promise<any> => {
   const request = event.Records[0].cf.request;
@@ -205,6 +209,7 @@ export const handler = async (event: any): Promise<any> => {
       'og:description': description,
       'og:image': imageUrl,
       'twitter:card': 'summary_large_image',
+      'fb:app_id': FB_APP_ID,
     };
 
     return {
