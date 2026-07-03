@@ -4,14 +4,13 @@
 
 ## Decision
 
-The **target** taxonomic scope is that of **PSEMP's Marine Mammal Working Group** (Puget Sound Ecosystem Monitoring Program) — Salish Sea **marine mammals** broadly (cetaceans, pinnipeds, mustelids), not cetaceans only. Which animals are in scope is a property of the *site's coverage*, not of the definition of an occurrence.
+The taxonomic scope is that of **PSEMP's Marine Mammal Working Group** (Puget Sound Ecosystem Monitoring Program) — Salish Sea **marine mammals** broadly (cetaceans, pinnipeds, mustelids), not cetaceans only. Which animals are in scope is a property of the *site's coverage*, not of the definition of an occurrence.
 
-This is the *target*; **current** ingest is narrower.
+## Ingest coverage
 
-## Current vs. target
+The live iNaturalist query already fetches the full marine-mammal scope — taxa `[152871 (Cetacea), 372843 (Phocoidea — all pinnipeds: seals, sea lions, walrus), 526556 (Lutrinae — otters)]` (`inaturalist.update_observations`). No downstream taxonomic filter narrows this. Prod carries thousands of pinniped records (e.g. ~2,150 California sea lions, ~1,800 harbor seals, ~530 Steller sea lions as of 2026-07-03), so pinnipeds are **ingested and surfaced today**, not a gap.
 
-- **Current ingest:** cetaceans + Lutrinae (otters). The live iNaturalist query fetches taxa `[152871 (Cetacea), 372843, 526556 (Lutrinae)]`.
-- **Target:** the full PSEMP Marine Mammal Working Group scope. **Pinnipeds** (seals, sea lions) are in scope but **not yet ingested** — a known gap tracked as work items (iNaturalist and GBIF ingestion paths).
+Remaining coverage work is about *completeness across sources* (e.g. inbound GBIF), not a taxonomic hole.
 
 ## Rationale
 
@@ -25,5 +24,5 @@ This is the *target*; **current** ingest is narrower.
 
 ## Consequences
 
-- PRODUCT.md states target-vs-current scope; [CONTEXT.md](../../CONTEXT.md) defines **Taxonomic scope** and no longer calls Lutrinae an exception.
-- Extending ingest toward pinnipeds is planned work, not a scope question.
+- PRODUCT.md and [CONTEXT.md](../../CONTEXT.md) define **Taxonomic scope** as the marine-mammal remit and no longer call Lutrinae an exception.
+- Cetaceans, pinnipeds, and mustelids are all ingested via iNaturalist today; there is no pinniped ingestion gap to close.

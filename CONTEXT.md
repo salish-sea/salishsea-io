@@ -5,12 +5,12 @@ Shared vocabulary for SalishSea.io. Use these terms as defined here, in code and
 ## Region & Mission
 
 - **Salish Sea** — the marine region the platform covers. Spatial scope matches **Acartia**'s boundaries: the full range of Southern Resident Killer Whales.
-- **Taxonomic scope** — for the time being, the taxonomic scope of **PSEMP's Marine Mammal Working Group** (Puget Sound Ecosystem Monitoring Program) — Salish Sea marine mammals broadly, not just cetaceans. Which animals are in scope is a property of the *site's coverage*, not of the definition of an occurrence. (This supersedes the older "cetaceans only, with a Lutrinae exception" framing — otters are marine mammals, not an exception.)
+- **Taxonomic scope** — for the time being, the taxonomic scope of **PSEMP's Marine Mammal Working Group** (Puget Sound Ecosystem Monitoring Program) — Salish Sea marine mammals broadly, not just cetaceans. All three groups are ingested via iNaturalist today: Cetacea, Phocoidea (pinnipeds), Lutrinae (otters). Which animals are in scope is a property of the *site's coverage*, not of the definition of an occurrence. (This supersedes the older "cetaceans only, with a Lutrinae exception" framing — otters and seals are marine mammals, not an exception.)
 - **Shore regular** — the primary uptake persona: a mission-driven sighter who lives on the water and is already in the Orca Network Facebook orbit.
 
 ## Observations
 
-- **Occurrence** — any record of an organism at a place and time (the DarwinCore-aligned term). The general concept; a *sighting* and an *acoustic detection* are two kinds of occurrence. Records land across four *upstream mirror* schemas internally before resolving into our domain.
+- **Occurrence** — any record of an organism at a place and time (the DarwinCore-aligned term). The general concept; a *sighting* and an *acoustic detection* are two kinds of occurrence. Records live across four source schemas internally — three **Upstream mirror** schemas (`maplify`, `inaturalist`, `happywhale`) plus the native `public` schema — resolved into our domain by the `public.occurrences` view.
 - **Sighting** — an occurrence recorded by a *person*: their report of what they saw, plus any photographic evidence. The kind of occurrence the site handles today.
 - **Acoustic detection** — an occurrence derived from sensor data rather than a human report (e.g. a planned Orcasound hydrophone integration, hoped for 2026). Not yet built.
 - **Segment** — chronologically related observations of the same species grouped into a travel chain; imputed client-side from time/distance heuristics and per-species travel speeds.

@@ -44,13 +44,12 @@ Tracked as bd issues; the durable statements:
 - Comprehensive catalog of individual Salish Sea cetaceans; occurrence records carry `organismID`; registration with GBIF/OBIS
 - **Computer-vision individual identification via Flukebook** (Wildbook) — automatically match a photographed sighting to known individuals, turning every photo into a candidate identification. A strategic differentiator; builds on the individuals catalog and identification model.
 - Inbound ingest of in-region GBIF records (mirror-image of SRC-01; must not re-import our own contributions)
-- **Pinniped (and fuller mustelid) ingestion** — extend coverage toward the full PSEMP Marine Mammal Working Group scope. iNaturalist and GBIF are the candidate sources; the iNaturalist path is likely a taxon-id addition to the existing ingest query, the GBIF path overlaps with inbound GBIF ingest above.
 
 ### Out of Scope
 
 - **Native mobile app** — web-first; mobile web is sufficient for in-the-moment sighting
 - **Real-time push notifications** — not needed for current use cases
-- **Marine species outside the PSEMP Marine Mammal Working Group scope** — no fish, seabirds, or invertebrates. The *target* taxonomic scope is Salish Sea marine mammals (cetaceans, pinnipeds, mustelids); *current* ingest is cetaceans + Lutrinae (otters) only — pinnipeds are in-scope-but-not-yet-ingested (see Future directions).
+- **Marine species outside the PSEMP Marine Mammal Working Group scope** — no fish, seabirds, or invertebrates. Taxonomic scope is Salish Sea marine mammals (cetaceans, pinnipeds, mustelids), all of which are already ingested via iNaturalist.
 
 ## Constraints
 
@@ -59,7 +58,7 @@ Tracked as bd issues; the durable statements:
 - **Deployment:** static SPA on S3/CloudFront, AWS CDK infra, GitHub Actions deploy on push to `main`; server-side behavior requires edge functions
 - **Auth:** Google Sign-In only
 - **Spatial scope:** matches Acartia's boundaries — the full range of Southern Resident Killer Whales
-- **Taxonomic scope (target):** that of PSEMP's Marine Mammal Working Group (Puget Sound Ecosystem Monitoring Program) — Salish Sea marine mammals broadly. Current ingest covers cetaceans + otters; pinnipeds are a known gap.
+- **Taxonomic scope:** that of PSEMP's Marine Mammal Working Group (Puget Sound Ecosystem Monitoring Program) — Salish Sea marine mammals broadly (cetaceans, pinnipeds, mustelids). All are ingested via iNaturalist today (taxa Cetacea / Phocoidea / Lutrinae). See [decision 009](docs/decisions/009-taxonomic-scope-marine-mammals.md).
 
 ## Decisions
 
