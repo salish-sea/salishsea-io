@@ -51,3 +51,6 @@ e2e/screenshots
 # (git hooks disabled via: git config --unset core.hooksPath)
 .beads/issues.jsonl
 .beads/interactions.jsonl
+
+# Private strategy notes — the honest version of the uptake stall; not for the public repo.
+docs/strategy/private-notes.md
