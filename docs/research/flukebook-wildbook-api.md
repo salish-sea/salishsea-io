@@ -70,6 +70,29 @@ The Springer paper's headline figure (open-access abstract): **7 automatic ID al
 
 ---
 
+## 6. Model / weights availability (for the self-host / architecture-B question)
+
+Researched 2026-07-02. Bottom line up top: **a downloadable, orca-capable trained model does exist today** — the multispecies **MiewID** feature extractor on HuggingFace, whose published evaluation *explicitly includes orca* — so architecture B is **viable for orca with public models**, with two real caveats: (i) the MiewID **weights carry no stated license**, and (ii) the fin-specific matchers (CurvRank v2, PIE, Kaggle7) are distributed as runtime downloads from Wild Me's public Azure CDN rather than clearly-licensed release artifacts.
+
+Distinguish **code open-source** (nearly all of it is: Apache-2.0 / MIT / AGPL) from **usable trained weights available to download** — the table below is about the *weights*.
+
+| Algorithm | Trained weights downloadable? | Where | Covers orca? | Weights license |
+|---|---|---|---|---|
+| **MiewID msv2 / msv3** | **Yes** | HuggingFace `conservationxlabs/miewid-msv2` (54 sp), `conservationxlabs/miewid-msv3` (64 sp) — `model.safetensors`, 51.4M params | **Yes** — msv3 eval lists `orca` mAP 77.7 / rank-1 86.0; humpback 70.5; greywhale 84.0. Paper: orca = 4,045 annots / 1,208 individuals, 85.1% top-1 multispecies | **Unstated** — no `license` field on the HF card or API metadata (`tags: []`) |
+| **PIE / PIE v2** | Partial / unclear | Code Apache-2.0 (`WildMeOrg/wbia-plugin-pie-v2`); pretrained weights pulled by WBIA at runtime from the Azure CDN (below). A `whale_shark` example ships; a standalone downloadable **orca** PIE model is **not documented** | Humpback PIE runs on Flukebook's backend; orca PIE weight as a public download: **not documented** | Code Apache-2.0; weights license unstated |
+| **CurvRank / CurvRank v2** | Yes, via CDN | `WildMeOrg/wbia-plugin-curvrank` + `wbia-tpl-curvrank-v2` (wraps `hjweide/dolphin-identification`); weights/test DBs fetched from `wildbookiarepository.azureedge.net` (e.g. `.../databases/testdb_curvrank.zip`) | v2 was retrained on ~5,000 multi-species dorsal fins incl. orca (per Wild Me); no clean per-species model card | Weights license unstated |
+| **HotSpotter** | N/A (no learned weights) | In WBIA core; SIFT features + LNBNN, no trained CNN. Runs fully offline | Species-agnostic pattern/texture matcher (usable for saddle-patch/texture) | Code AGPL (WBIA) |
+| **finFindR** | Yes (in Docker image) | Separate container `wildme/wbia-plugin-finfindr` (wraps `haimeh/finFindR`); weights baked into the image | Dorsal-fin edges; tuned for dolphins — orca applicability undocumented | See `haimeh/finFindR` repo; weights license unstated |
+| **Deepsense / Kaggle7** | Via CDN (not standalone) | Kaggle humpback-fluke competition winners integrated into WBIA; weights fetched from the Azure CDN at runtime; **no standalone HF release** | No — **humpback-fluke only** | Unstated; original Kaggle competition terms may apply |
+
+**Runtime model download / phone-home:** WBIA does **not** bundle most model files. It **downloads them on first run** from Wild Me's public CDN **`https://wildbookiarepository.azureedge.net/…`** (model/database `.zip`s, e.g. `testdb_curvrank.zip`, `wd_peter2.zip`), then **caches them in a mounted `/models` volume; after that the pipeline runs offline** — the docker docs state caching "eliminates Azure dependencies after initial download." So: a one-time fetch from a **public, unauthenticated CDN**, not a per-request phone-home, and no live dependency on a Wild Me match endpoint once cached. (MiewID is the exception — pulled from HuggingFace via `AutoModel.from_pretrained(...)`, also cacheable/offline after first pull.)
+
+**Training-data provenance / restrictions:** MiewID's training set is "a combination of data from Wildbook platforms (multiple users), Happywhale Kaggle competition multispecies dataset, and multiple publicly available datasets"; the paper says data was "either publicly available or directly contributed to Wild Me via our hosted Wildbook platforms," where contributors retain permissions. A **subset** is published at lila.science. The full training data is **not** redistributable, and the **Happywhale Kaggle** portion carries competition-use terms — relevant if you retrain, less so if you only run inference. The **weights' own license is unstated**, which is the material legal gap for production use.
+
+**Verdict on architecture B for ORCA:** *Technically viable today with public models.* You can self-host WBIA and run **MiewID msv3** (orca included, ~77–85% depending on metric) — a genuinely downloadable orca model — plus fetch **CurvRank v2** orca dorsal-fin weights from the public CDN, all runnable offline after first download. The blocker is **not** availability; it's **licensing clarity**: the trained weights ship with **no stated license**, so a production/commercial deployment needs written confirmation from Wild Me on weight-reuse terms before relying on them.
+
+---
+
 ## Decision-relevant flags
 
 - **No turnkey public match API on flukebook.org.** The clean "POST photo → poll for individual match" model only exists if you **self-host WBIA**. Against hosted Flukebook, integration = contributor account + bulk/submit import + read-only login API + a data-sharing conversation with Wild Me. Budget for that conversation; don't design around an API that isn't published.
@@ -103,3 +126,13 @@ The Springer paper's headline figure (open-access abstract): **7 automatic ID al
 - <https://news.mongabay.com/2024/01/conservation-x-labs-announces-merger-with-ai-nonprofit-wild-me/> — independent confirmation of the merger.
 - <https://wildbook.docs.wildme.org/data/search.html> — Wildbook search is documented as a **UI** feature (Encounter/Individual/Sighting search + export tab); no public REST/JSON search API documented there.
 - <https://happywhale.com/> — Happywhale (separate platform; own CV photo-ID; own catalog/identity space).
+- <https://huggingface.co/conservationxlabs/miewid-msv3> — MiewID msv3 model card: 64 species incl. `orca` (mAP 77.7 / rank-1 86.0), humpback, greywhale; `model.safetensors` (51.4M params); training data = Wildbook + Happywhale Kaggle + public datasets.
+- <https://huggingface.co/api/models/conservationxlabs/miewid-msv3> — HF API metadata: **no `license` field** (weights license unstated); siblings include `model.safetensors`.
+- <https://huggingface.co/conservationxlabs/miewid-msv2> — MiewID msv2 (54 species) predecessor.
+- <https://arxiv.org/html/2412.05602v1> — MiewID multispecies paper: orca = 4,045 annotations / 1,208 individuals; orca+fin_dorsal 5,781/1,494; 85.1% top-1 multispecies vs 74.9% single-species; data "publicly available or contributed to Wild Me."
+- <https://github.com/WildMeOrg/wbia-plugin-miew-id> — MiewID WBIA plugin; loads `conservationxlabs/miewid-msv*` via `AutoModel.from_pretrained`. (Zenodo 1.0.1: <https://zenodo.org/records/13647526>.)
+- <https://github.com/WildMeOrg/wbia-plugin-pie-v2> — PIE v2 plugin, code Apache-2.0; ships a whale_shark example; no documented standalone orca weight.
+- <https://github.com/WildMeOrg/wbia-plugin-curvrank> and <https://github.com/WildMeOrg/wbia-tpl-curvrank-v2> — CurvRank/CurvRank v2 plugins (wrap `hjweide/dolphin-identification`); weights fetched from the Azure CDN.
+- <https://github.com/WildMeOrg/wbia-plugin-finfindr> — finFindR plugin: separate Docker container `wildme/wbia-plugin-finfindr` wrapping `haimeh/finFindR`; weights in the image.
+- `wildbookiarepository.azureedge.net` (public Wild Me CDN) — WBIA downloads model/database `.zip`s on first run (e.g. `databases/testdb_curvrank.zip`, `databases/wd_peter2.zip`), cached in `/models`; docker docs note this "eliminates Azure dependencies after initial download" → offline after first fetch. Referenced from `WildMeOrg/wildbook-ia` and plugin constants.
+- <https://lila.science/datasets> — hosts a published **subset** of the MiewID training data (full set not redistributable).
