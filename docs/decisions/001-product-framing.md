@@ -1,6 +1,6 @@
 # 001 — Product framing: two audiences, web-first, cetaceans only
 
-**Status:** accepted · **Decided:** ~2026-03 (v1.0 project inception), reaffirmed through v1.3
+**Status:** accepted; **taxonomic-scope portion superseded by [009](009-taxonomic-scope-marine-mammals.md)** · **Decided:** ~2026-03 (v1.0 project inception), reaffirmed through v1.3
 
 ## Decision
 
@@ -10,7 +10,7 @@ SalishSea.io serves two audiences with meaningfully different needs — **sighte
 
 - The same person is often both audiences in different modes; splitting products would fragment the data that makes each side valuable.
 - **Web-first, no native app:** mobile web is sufficient for in-the-moment sighting; a native app is ongoing cost with no capability we need.
-- **Cetaceans only:** focus keeps curation, taxonomy, and community identity coherent. One recorded exception: Lutrinae (otters) added to the iNaturalist ingest query (2026-05-27, commit 370c786).
+- **Cetaceans only:** focus keeps curation, taxonomy, and community identity coherent. One recorded exception: Lutrinae (otters) added to the iNaturalist ingest query (2026-05-27, commit 370c786). *(Superseded by [009](009-taxonomic-scope-marine-mammals.md): scope is now Salish Sea marine mammals broadly, and otters are in scope rather than an exception.)*
 - **Google Sign-In only:** simple auth; target audience uses Google. Flagged "pending evaluation" — revisit if partnership work surfaces users without Google accounts.
 
 ## Rejected
