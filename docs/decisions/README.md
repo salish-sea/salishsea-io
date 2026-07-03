@@ -13,3 +13,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [007](007-community-uptake-strategy.md) | Community uptake: partnership-first with Orca Network | proposed |
 | [008](008-source-schemas-are-upstream-mirrors.md) | Source schemas are verbatim upstream mirrors (anti-corruption layer) | accepted |
 | [009](009-taxonomic-scope-marine-mammals.md) | Taxonomic scope: PSEMP Marine Mammal Working Group (supersedes 001 scope) | accepted |
+| [010](010-fresh-codebase-vs-acartia.md) | SalishSea.io is a fresh codebase, not an extension of acartia.io | accepted |
