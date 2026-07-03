@@ -42,6 +42,7 @@ Tracked as bd issues; the durable statements:
 - Sighter sees contextual data enriching their sighting (nearby historical sightings, salmon runs, tides, individual-whale biography)
 - Sightings from Facebook community groups surfaced on the platform (cold-start / lock-in mitigation)
 - Comprehensive catalog of individual Salish Sea cetaceans; occurrence records carry `organismID`; registration with GBIF/OBIS
+- **Computer-vision individual identification via Flukebook** (Wildbook) — automatically match a photographed sighting to known individuals, turning every photo into a candidate identification. A strategic differentiator; builds on the individuals catalog and identification model.
 - Inbound ingest of in-region GBIF records (mirror-image of SRC-01; must not re-import our own contributions)
 - **Pinniped (and fuller mustelid) ingestion** — extend coverage toward the full PSEMP Marine Mammal Working Group scope. iNaturalist and GBIF are the candidate sources; the iNaturalist path is likely a taxon-id addition to the existing ingest query, the GBIF path overlaps with inbound GBIF ingest above.
 

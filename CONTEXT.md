@@ -19,7 +19,7 @@ Shared vocabulary for SalishSea.io. Use these terms as defined here, in code and
 ## Individuals
 
 - **Individual** *(planned)* — a specific animal in **our own authoritative catalog** (designation e.g. `T065A`, aliases, species, matriline/pod). Distinct from the `happywhale.individuals` **Upstream mirror** and from **candidate identifiers** — both are *inputs*, never the source of truth (decision 008).
-- **Identification** *(planned)* — a link between an occurrence and an Individual. Can arise from a native tag or from resolving an upstream record; its trust level (validated vs candidate) is a separate concern still being modeled.
+- **Identification** *(planned)* — a link between an occurrence and an Individual. Can arise from a native tag, from resolving an upstream record, or from a **CV match** (see Flukebook); its trust level (validated vs candidate) is a separate concern still being modeled.
 - **Candidate identifier** — a whale-ID code (`T065S`, J/K/L pods, `CRC…`) regex-extracted from free text by `public.extract_identifiers`; surfaced as the occurrence `identifiers` column and exported as `unvalidatedIdentifiers`. **Unvalidated** — never emitted as `organismID` (see [docs/rights-policy.md](docs/rights-policy.md)).
 - **`organismID`** — the DarwinCore term for a *validated* individual identity. Out of scope until the validation model exists; unvalidated codes never qualify.
 
@@ -49,7 +49,8 @@ Shared vocabulary for SalishSea.io. Use these terms as defined here, in code and
 - **Acartia** — the data cooperative (github.com/salish-sea/acartia) Maplify records flow through; contributors assert CC-BY 4.0 at registration. Feeds Ocean Wise's WRAS → Conserve.io. This chain is invisible to sighters today — making it visible is a strategic opportunity.
 - **Orca Network** — PNW nonprofit (Howard Garrett & Susan Berta); ~140k-follower Facebook group with a real-time sighting-coordination feed and ~15k-subscriber email list. A named Maplify sub-source and the key partnership target.
 - **`rwsas` / `wras`** — two Maplify source codes excluded from ingest, for different reasons. `rwsas` is filtered at ingest (`WHERE source != 'rwsas'`). `wras` is both filtered (`source IS DISTINCT FROM 'wras'`) and one-time-deleted — an operator decision (2026-06-19): those ~50 rows "should not exist" per the Maplify census. The underlying rationale for `wras` is not recorded; it was a handed-down requirement.
-- **HappyWhale individuals** — HappyWhale tracks individual *whales* (`organismID` territory), distinct from contributors. Out of scope for now (INDIV-01).
+- **HappyWhale individuals** — HappyWhale tracks individual *whales* (`organismID` territory), distinct from contributors. Mirrored in `happywhale.individuals` (an **Upstream mirror**, not our catalog).
+- **Flukebook** *(planned integration)* — the Wildbook-based computer-vision photo-ID platform for cetaceans. A source of automated **candidate identifications**: submit occurrence photos, receive ranked individual matches with confidence scores. Flukebook individual IDs map to our catalog as an external-catalog link, alongside HappyWhale.
 
 ## Conventions
 
