@@ -61,6 +61,22 @@ Durable knowledge lives in three places. Keep them current — this is not optio
 
 Division of labor with beads: decisions and their *why* go in docs (permanent, searchable); bd issues track work in flight and *reference* decisions by filename. Don't bury rationale in issue notes.
 
+## Agent skills
+
+Config the engineering skills (`triage`, `to-issues`, `to-prd`, `grill-with-docs`, `improve-codebase-architecture`, …) read from.
+
+### Issue tracker
+
+GitHub Issues (`gh`) for customer-facing feature communication; beads (`bd`) for implementation and in-flight work. See [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
+
+### Triage labels
+
+Five canonical triage roles mapped to GitHub labels (`needs-info` → `question`, the rest 1:1). See [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/decisions/` at the repo root. See [docs/agents/domain.md](docs/agents/domain.md).
+
 ## Build & Test
 
 ```bash
