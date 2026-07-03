@@ -16,6 +16,13 @@ Shared vocabulary for SalishSea.io. Use these terms as defined here, in code and
 - **Segment** — chronologically related observations of the same species grouped into a travel chain; imputed client-side from time/distance heuristics and per-species travel speeds.
 - **occurrenceID prefixing** — exported IDs are `{source}:{id}` (e.g. `salishsea:…`, `maplify:…`); the prefix encodes the source.
 
+## Individuals
+
+- **Individual** *(planned)* — a specific animal in **our own authoritative catalog** (designation e.g. `T065A`, aliases, species, matriline/pod). Distinct from the `happywhale.individuals` **Upstream mirror** and from **candidate identifiers** — both are *inputs*, never the source of truth (decision 008).
+- **Identification** *(planned)* — a link between an occurrence and an Individual. Can arise from a native tag or from resolving an upstream record; its trust level (validated vs candidate) is a separate concern still being modeled.
+- **Candidate identifier** — a whale-ID code (`T065S`, J/K/L pods, `CRC…`) regex-extracted from free text by `public.extract_identifiers`; surfaced as the occurrence `identifiers` column and exported as `unvalidatedIdentifiers`. **Unvalidated** — never emitted as `organismID` (see [docs/rights-policy.md](docs/rights-policy.md)).
+- **`organismID`** — the DarwinCore term for a *validated* individual identity. Out of scope until the validation model exists; unvalidated codes never qualify.
+
 ## Provenance (four independent concepts — do not conflate)
 
 - **Provider** — *how a record reached us* (ingest API/pipeline). One per sighting; internal only, never exported. Instances: iNaturalist, Maplify/conserve.io, HappyWhale, SalishSea.io Direct.
