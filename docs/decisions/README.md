@@ -14,3 +14,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [008](008-source-schemas-are-upstream-mirrors.md) | Source schemas are verbatim upstream mirrors (anti-corruption layer) | accepted |
 | [009](009-taxonomic-scope-marine-mammals.md) | Taxonomic scope: PSEMP Marine Mammal Working Group (supersedes 001 scope) | accepted |
 | [010](010-fresh-codebase-vs-acartia.md) | SalishSea.io is a fresh codebase, not an extension of acartia.io | accepted |
+| [011](011-ingest-imperative-shell.md) | Network ingest as a TypeScript imperative shell over a functional core | accepted |
