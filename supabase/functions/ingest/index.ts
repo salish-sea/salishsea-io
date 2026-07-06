@@ -17,8 +17,8 @@
  * (salishsea-io-89d.3).
  */
 
-import postgres, { type Sql } from 'postgres';
 import * as Sentry from '@sentry/deno';
+import postgres, { type Sql } from 'postgres';
 import { z } from 'zod';
 import { parseMaplifyResponse, isIngestable, reconcile } from '../../../scripts/ingest/maplify.ts';
 import { reconcile as reconcileInat } from '../../../scripts/ingest/inaturalist.ts';

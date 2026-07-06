@@ -2,6 +2,6 @@
   "imports": {
     "zod": "npm:zod@^4.4.3",
     "postgres": "npm:postgres@^3.4.9",
-    "@sentry/deno": "npm:@sentry/deno@^10.59.0"
+    "@sentry/deno": "npm:@sentry/deno@10.59.0"
   }
 }
