@@ -89,6 +89,17 @@ describe.skipIf(!DSN)('persistMaplify (local Supabase)', () => {
         expect(survivors.map((r) => r['id'])).toEqual([900202]);
     });
 
+    test('persists a record with a blank scientific_name (NOT NULL mirror column, taxon null)', async () => {
+        // Real Maplify data includes records with scientific_name '' (e.g. "Blue Whale").
+        const res = await persistMaplify(sql, plan({
+            upsert: [sighting({ id: 900105, scientificName: '', name: 'Blue Whale' })],
+        }), WINDOW);
+        expect(res.upserted).toBe(1);
+        const [row] = await sql`select scientific_name, taxon_id from maplify.sightings where id = 900105`;
+        expect(row?.['scientific_name']).toBe(''); // stored verbatim, no NOT NULL violation
+        expect(row?.['taxon_id']).toBeNull();       // 'Blue Whale' not in the fallback map
+    });
+
     test('dry run reports would-be counts but writes nothing', async () => {
         const res = await persistMaplify(sql, plan({ upsert: [sighting({ id: 900301 })] }), WINDOW, { dryRun: true });
         expect(res.upserted).toBe(1);
