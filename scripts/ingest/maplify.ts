@@ -108,8 +108,13 @@ export type NormalizedSighting = {
     readonly projectId: number;
     readonly tripId: number;
     readonly name: string | null;
-    /** Blank upstream scientific_name is normalized to null. */
-    readonly scientificName: string | null;
+    /**
+     * Stored verbatim (may be '') — maplify.sightings is an upstream mirror
+     * (decision 008) and its scientific_name column is NOT NULL. Taxon resolution
+     * uses resolveScientificName, which trims and falls back; it does not depend
+     * on this being nulled.
+     */
+    readonly scientificName: string;
     readonly lon: number;
     readonly lat: number;
     readonly numberSighted: number;
@@ -136,7 +141,7 @@ export function normalizeRecord(r: z.infer<typeof MaplifyRecordSchema>): Normali
         projectId: r.project_id,
         tripId: r.trip_id,
         name: blankToNull(r.name),
-        scientificName: blankToNull(r.scientific_name),
+        scientificName: r.scientific_name, // verbatim (mirror column, NOT NULL)
         lon: r.longitude,
         lat: r.latitude,
         numberSighted: r.number_sighted,
@@ -162,7 +167,8 @@ export function isIngestable(s: NormalizedSighting): boolean {
  * common-name fallback, or null. The taxon_id lookup itself is persist-time.
  */
 export function resolveScientificName(s: NormalizedSighting): string | null {
-    if (s.scientificName) return s.scientificName;
+    const trimmed = s.scientificName.trim();
+    if (trimmed) return trimmed;
     if (s.name) return NAME_TO_SCIENTIFIC.get(s.name) ?? null;
     return null;
 }

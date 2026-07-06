@@ -22,6 +22,11 @@ const MAPLIFY_URL = 'https://maplify.com/waseak/php/search-all-sightings.php';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+// Deno's fetch has no built-in timeout; without one a hung Maplify connection
+// would block an attempt (and the whole edge invocation) indefinitely. Bound
+// each attempt so a hang becomes a retryable AbortError instead.
+const FETCH_TIMEOUT_MS = 15_000;
+
 export type Logger = (msg: string, extra?: Record<string, unknown>) => void;
 
 export async function fetchMaplify(window: IngestWindow, log: Logger): Promise<unknown> {
@@ -30,16 +35,20 @@ export async function fetchMaplify(window: IngestWindow, log: Logger): Promise<u
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         let res: Response;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
         try {
-            res = await fetch(url, { headers: { accept: 'application/json' } });
+            res = await fetch(url, { headers: { accept: 'application/json' }, signal: controller.signal });
         } catch (e) {
-            // network-level failure — retry with backoff
+            // network-level failure or timeout abort — retry with backoff
             lastError = e;
             if (attempt === MAX_ATTEMPTS) break;
             const delay = retryDelayMs(attempt);
             log('maplify fetch error, retrying', { attempt, delayMs: delay, error: String(e) });
             await sleep(delay);
             continue;
+        } finally {
+            clearTimeout(timeout);
         }
 
         if (res.ok) return await res.json();

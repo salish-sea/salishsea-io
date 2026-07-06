@@ -61,12 +61,12 @@ describe('parseMaplifyResponse', () => {
         expect(r.sightings).toHaveLength(fixture.results.length);
     });
 
-    test('normalizes blank scientific_name and photo_url to null; 0/1 to boolean', () => {
+    test('keeps blank scientific_name verbatim (mirror column); nulls blank photo_url; 0/1 to boolean', () => {
         const r = parseMaplifyResponse(fixture);
         expect(r.ok).toBe(true);
         if (!r.ok) return;
         const blankSci = r.sightings.find((s) => s.id === 252129);
-        expect(blankSci?.scientificName).toBeNull();
+        expect(blankSci?.scientificName).toBe(''); // verbatim, not null — column is NOT NULL
         for (const s of r.sightings) {
             expect(typeof s.inOcean).toBe('boolean');
             expect(s.photoUrl === null || s.photoUrl.length > 0).toBe(true);
@@ -144,13 +144,18 @@ describe('resolveScientificName', () => {
     });
 
     test('falls back to the common-name map when scientific name is blank', () => {
-        expect(resolveScientificName(norm({ scientificName: null, name: 'California Sea Lion' })))
+        expect(resolveScientificName(norm({ scientificName: '', name: 'California Sea Lion' })))
+            .toBe('Zalophus californianus');
+    });
+
+    test('trims a whitespace-only scientific name before falling back', () => {
+        expect(resolveScientificName(norm({ scientificName: '   ', name: 'California Sea Lion' })))
             .toBe('Zalophus californianus');
     });
 
     test('returns null when neither resolves', () => {
-        expect(resolveScientificName(norm({ scientificName: null, name: 'Blue Whale' }))).toBeNull();
-        expect(resolveScientificName(norm({ scientificName: null, name: null }))).toBeNull();
+        expect(resolveScientificName(norm({ scientificName: '', name: 'Blue Whale' }))).toBeNull();
+        expect(resolveScientificName(norm({ scientificName: '', name: null }))).toBeNull();
     });
 });
 

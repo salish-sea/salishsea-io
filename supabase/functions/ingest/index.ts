@@ -70,14 +70,20 @@ Deno.serve(async (req) => {
     const parsed = RequestSchema.safeParse(rawBody ?? {});
     if (!parsed.success) return jsonResponse({ error: z.prettifyError(parsed.error) }, 400);
 
-    const { source, dry_run: dryRun = false, trigger = 'manual' } = parsed.data;
+    const { source, start, end, dry_run: dryRun = false, trigger = 'manual' } = parsed.data;
     if (source !== 'maplify') {
         return jsonResponse({ error: `source '${source}' not yet implemented (salishsea-io-89d.2)` }, 405);
     }
-    const window: IngestWindow =
-        parsed.data.start && parsed.data.end
-            ? { start: parsed.data.start, end: parsed.data.end }
-            : defaultWindow();
+    // A custom window needs BOTH bounds; a single bound is almost certainly a
+    // mistake, and silently falling back to the default range would ignore the
+    // curator's intent. Reject partial windows and inverted ranges.
+    if ((start == null) !== (end == null)) {
+        return jsonResponse({ error: 'provide both start and end, or neither' }, 400);
+    }
+    if (start != null && end != null && start > end) {
+        return jsonResponse({ error: 'start must be on or before end' }, 400);
+    }
+    const window: IngestWindow = start != null && end != null ? { start, end } : defaultWindow();
 
     const sql = postgres(DB_URL, { prepare: false, max: 2 });
     let runId: number | undefined;
