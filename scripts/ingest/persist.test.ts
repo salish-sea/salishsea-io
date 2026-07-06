@@ -218,6 +218,21 @@ describe.skipIf(!DSN)('persistInaturalist (local Supabase)', () => {
         expect(bPhotos.count).toBe(1);
     });
 
+    test('collapses a photo id shared across two observations in one batch (last-wins, no ON CONFLICT crash)', async () => {
+        // iNaturalist attaches the same photo id to more than one observation; a
+        // single bulk upsert must dedupe or Postgres raises "ON CONFLICT DO UPDATE
+        // command cannot affect row a second time" (found in a live 2026 run).
+        const res = await persistInaturalist(sql, { taxa: testTaxa, plan: iplan({ upsert: [
+            observation({ id: 9000000070, photos: [photo({ id: 9100000070 })] }),
+            observation({ id: 9000000071, photos: [photo({ id: 9100000070 })] }), // same photo id
+        ] }), window: WINDOW });
+        expect(res.photosUpserted).toBe(1); // collapsed to a single row
+
+        const rows = await sql`select observation_id from inaturalist.observation_photos where id = 9100000070`;
+        expect(rows.count).toBe(1);
+        expect(Number(rows[0]?.['observation_id'])).toBe(9000000071); // last occurrence wins
+    });
+
     test('reconcile observation DELETE is window-bounded — an out-of-window id is NOT deleted', async () => {
         await persistInaturalist(sql, { taxa: testTaxa, plan: iplan({ upsert: [
             observation({ id: 9000000030, observedAt: '2026-07-03T10:00:00-07:00' }), // in window

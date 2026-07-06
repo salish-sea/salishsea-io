@@ -275,17 +275,30 @@ function toObservationPayload(observations: readonly NormalizedObservation[]): O
     }));
 }
 
+/**
+ * Flatten observations → photo rows, deduped by photo id (last occurrence wins).
+ *
+ * observation_photos.id is the PK, but iNaturalist attaches the SAME underlying
+ * photo id to more than one observation (verified against live data 2026-07-05:
+ * ~5 collisions in an 8 200-observation window). Feeding both to a single bulk
+ * `INSERT ... ON CONFLICT (id) DO UPDATE` fails with "command cannot affect row a
+ * second time". The legacy path never hit this because it upserted page-by-page;
+ * the consolidated bulk upsert must collapse the duplicate itself. A photo can be
+ * stored under exactly one observation, so last-wins is the only representable
+ * outcome — and it also keeps fetchedPhotoIds (derived from this payload) free of
+ * duplicates for the per-observation reconcile anti-join.
+ */
 function toPhotoPayload(observations: readonly NormalizedObservation[]): PhotoPayloadRow[] {
-    const rows: PhotoPayloadRow[] = [];
+    const byId = new Map<number, PhotoPayloadRow>();
     for (const o of observations) {
         for (const p of o.photos) {
-            rows.push({
+            byId.set(p.id, {
                 id: p.id, observation_id: o.id, seq: p.seq, attribution: p.attribution,
                 hidden: p.hidden, license: p.license, height: p.height, width: p.width, url: p.url,
             });
         }
     }
-    return rows;
+    return [...byId.values()];
 }
 
 /**
