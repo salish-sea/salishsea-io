@@ -1,0 +1,14 @@
+-- Enable pg_net (async HTTP from Postgres), required by the ingest cutover
+-- (20260706000000): the pg_cron jobs call net.http_post to invoke the ingest
+-- Edge Function.
+--
+-- The local Supabase CLI stack ships pg_net pre-enabled, so the cutover migration
+-- validated locally — but the production project did NOT have it, and the cron
+-- jobs failed at runtime with `schema "net" does not exist`. This migration makes
+-- pg_net an explicit, tracked prerequisite rather than an assumed-present
+-- extension. It is idempotent (no-op where pg_net already exists) and was applied
+-- out-of-band to prod to restore ingest; this codifies that state.
+--
+-- pg_net installs its functions into the `net` schema, which the cutover cron
+-- commands reference (net.http_post).
+CREATE EXTENSION IF NOT EXISTS pg_net;
