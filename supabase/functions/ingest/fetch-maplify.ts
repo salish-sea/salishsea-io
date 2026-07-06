@@ -34,32 +34,36 @@ export async function fetchMaplify(window: IngestWindow, log: Logger): Promise<u
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        let res: Response;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+        let res: Response;
         try {
             res = await fetch(url, { headers: { accept: 'application/json' }, signal: controller.signal });
+            if (res.ok) {
+                // Read the body under the SAME timeout: a server can send headers
+                // and then stall, and res.json() would otherwise hang past the
+                // deadline. Clear the timer only once the body is fully consumed.
+                const data = await res.json();
+                clearTimeout(timeout);
+                return data;
+            }
         } catch (e) {
-            // network-level failure or timeout abort — retry with backoff
+            // fetch-level failure, abort (timeout), or a stalled/aborted body read
+            clearTimeout(timeout);
             lastError = e;
             if (attempt === MAX_ATTEMPTS) break;
             const delay = retryDelayMs(attempt);
             log('maplify fetch error, retrying', { attempt, delayMs: delay, error: String(e) });
             await sleep(delay);
             continue;
-        } finally {
-            clearTimeout(timeout);
         }
 
-        if (res.ok) return await res.json();
-
+        // Non-2xx: res is defined and not ok.
+        clearTimeout(timeout);
         lastError = new Error(`Maplify HTTP ${res.status}`);
-        if (!isRetryableStatus(res.status) || attempt === MAX_ATTEMPTS) {
-            // drain the body so the connection can be reused/closed cleanly
-            await res.body?.cancel();
-            break;
-        }
+        // drain the body so the connection can be reused/closed cleanly
         await res.body?.cancel();
+        if (!isRetryableStatus(res.status) || attempt === MAX_ATTEMPTS) break;
         const delay = retryDelayMs(attempt, parseRetryAfter(res.headers.get('retry-after')));
         log('maplify non-2xx, retrying', { attempt, status: res.status, delayMs: delay });
         await sleep(delay);
