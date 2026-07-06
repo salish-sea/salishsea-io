@@ -1,0 +1,101 @@
+name: Ingest Heartbeat
+
+# External observer for the 5-minute pg_cron → Edge Function ingest
+# (salishsea-io-89d.4 / decision 012). pg_cron can't watch itself die — the
+# 2026-07-06 pg_net gap failed prod ingest silently — so this runs OUTSIDE the
+# database: a scheduled check of ingest.runs that files a GitHub issue when no
+# successful run is fresh enough, or a run is stuck mid-flight. GitHub's cron
+# is best-effort (often 10-30 min late); that lateness only delays detection,
+# never falsifies it, because staleness is measured against the DB clock.
+
+on:
+    schedule:
+        - cron: '*/30 * * * *'
+    workflow_dispatch:
+
+concurrency:
+    group: ingest-heartbeat
+    cancel-in-progress: false
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        environment: production
+        permissions:
+            contents: read
+            issues: write  # failure issue, dwca-nightly pattern
+        env:
+            FRESHNESS_MINUTES: '30'  # ingest cron fires every 5 min → 6 misses
+            STUCK_MINUTES: '15'      # Edge Function wall clock is minutes at most
+
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  persist-credentials: false
+
+            - name: Setup Node
+              uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+              with:
+                  node-version-file: package.json
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            # Pre-seed the failure-issue body so content-filepath always exists even
+            # when the job dies before heartbeat.ts runs (DSN/secret issue, npm error,
+            # DB unreachable). heartbeat.ts overwrites it with real findings on trip.
+            # Same pattern and rationale as dwca-nightly.yml.
+            - name: Seed default failure-issue body
+              run: |
+                  mkdir -p dist/ingest
+                  cat > dist/ingest/heartbeat-report.txt <<EOF
+                  Heartbeat workflow failed before scripts/ingest/heartbeat.ts could evaluate.
+
+                  Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+                  Triggered: ${{ github.event_name }} on ${{ github.sha }} at $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+                  Check the failing step's logs. Common causes: DSN/secret issue, npm
+                  dependency error, or the database being unreachable — the last of which
+                  is itself an ingest outage, so treat this issue as a real alert.
+                  EOF
+
+            # Same DSN assembly as dwca-nightly.yml (see the rationale there): URL-encode
+            # the password, mask it, connect via the IPv4 session pooler on port 5432.
+            - name: Prepare Postgres DSN
+              env:
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+              run: |
+                  ENCODED_PW=$(node -e 'process.stdout.write(encodeURIComponent(process.env.DB_PASSWORD))')
+                  echo "::add-mask::${ENCODED_PW}"
+                  printf 'SUPABASE_DB_URL=postgres://postgres.%s:%s@aws-1-us-west-1.pooler.supabase.com:5432/postgres\n' \
+                    "${SUPABASE_PROJECT_ID}" "${ENCODED_PW}" >> "${GITHUB_ENV}"
+
+            - name: Check ingest heartbeat
+              run: npx tsx scripts/ingest/heartbeat.ts
+
+            - name: Find existing failure issue
+              id: find-issue
+              if: failure()
+              uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+              with:
+                  script: |
+                      const issues = await github.rest.issues.listForRepo({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        state: 'open',
+                        labels: 'ingest-heartbeat-failed',
+                        per_page: 1,
+                      });
+                      core.setOutput('issue-number', issues.data[0]?.number ?? '');
+
+            - name: Open or update failure issue
+              if: failure()
+              uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6.0.0
+              with:
+                  title: "Ingest heartbeat failed (run ${{ github.run_id }})"
+                  content-filepath: ./dist/ingest/heartbeat-report.txt
+                  labels: ingest-heartbeat-failed
+                  issue-number: ${{ steps.find-issue.outputs.issue-number }}
