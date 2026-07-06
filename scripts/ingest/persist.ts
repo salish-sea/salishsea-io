@@ -36,6 +36,19 @@ export type PersistResult = {
 };
 
 /**
+ * The ids currently stored in a window — fed to reconcile() to compute the delete
+ * set. Uses the SAME bound as the reconcile DELETE ([start, end+1)) so the read
+ * and the write agree on window membership.
+ */
+export async function fetchWindowIds(sql: Sql, window: IngestWindow): Promise<number[]> {
+    const rows = await sql<{ id: number }[]>`
+        SELECT id FROM maplify.sightings
+        WHERE created_at >= ${window.start}::timestamp
+          AND created_at < (${window.end}::date + 1)::timestamp`;
+    return rows.map((r) => r.id);
+}
+
+/**
  * Row shape handed to jsonb_to_recordset — snake_case keys that match the
  * recordset column names exactly (jsonb_to_recordset maps by key name).
  * resolved_name feeds only the taxon join, not a stored column.

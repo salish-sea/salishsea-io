@@ -74,8 +74,14 @@ describe('parseMaplifyResponse', () => {
     });
 
     test('accepts a successful-but-empty result set (authoritative empty)', () => {
-        const r = parseMaplifyResponse({ count: 0, results: [] });
+        const r = parseMaplifyResponse({ count: '0', results: [] });
         expect(r).toEqual({ ok: true, sightings: [] });
+    });
+
+    test('tolerates the live API string-typed `count` field (regression)', () => {
+        // Maplify returns count as a string, e.g. "99"; we ignore it and must not fail.
+        const r = parseMaplifyResponse({ count: '99', results: [rawRecord] });
+        expect(r.ok).toBe(true);
     });
 
     test('rejects a malformed envelope (results not an array)', () => {

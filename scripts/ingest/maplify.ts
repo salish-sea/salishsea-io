@@ -97,7 +97,8 @@ export const MaplifyRecordSchema = z.object({
 });
 
 export const MaplifyResponseSchema = z.object({
-    count: z.number().int().optional(),
+    // NB: the live API returns `count` as a STRING ('99'); we don't use it, so it
+    // is intentionally omitted here (unknown keys are ignored) rather than typed.
     results: z.array(MaplifyRecordSchema),
 });
 
