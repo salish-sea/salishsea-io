@@ -78,6 +78,13 @@ jobs:
       - run: supabase link --project-ref "${PROJECT_REF}"
         env:
           PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
+      # Deploy the ingest Edge Function BEFORE `db push`. The cutover migration
+      # (20260706000000) repoints pg_cron at this function via pg_net; deploying
+      # first means a bundling/deploy failure aborts the run before the cron
+      # switch lands, leaving the old SQL ingest in place (fail-safe ordering).
+      - run: supabase functions deploy ingest --project-ref "${PROJECT_REF}"
+        env:
+          PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
       - run: supabase db push
       - name: Deploy to S3 and invalidate CloudFront
         env:
