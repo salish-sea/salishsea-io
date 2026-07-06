@@ -48,7 +48,27 @@ const intBool = z
     .transform((v) => Boolean(v));
 
 /** `'YYYY-MM-DD HH:MM:SS'` as returned by Maplify (timestamp without time zone). */
-const MAPLIFY_TIMESTAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+const MAPLIFY_TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
+
+/**
+ * Validate both the shape AND the calendar validity of a Maplify timestamp, so a
+ * value like '2026-13-99 25:99:99' or '2026-02-30 …' fails here (fail-fast, per
+ * parseMaplifyResponse's contract) rather than surviving to blow up at the
+ * `created_at::timestamp` cast inside the persist transaction. Uses a UTC
+ * round-trip to reject non-existent dates (e.g. Feb 30 rolling into March).
+ */
+export function isValidMaplifyTimestamp(s: string): boolean {
+    const m = MAPLIFY_TIMESTAMP.exec(s);
+    if (!m) return false;
+    const [year, month, day, hour, min, sec] = [m[1]!, m[2]!, m[3]!, m[4]!, m[5]!, m[6]!].map(Number);
+    if (month! < 1 || month! > 12 || day! < 1 || day! > 31) return false;
+    if (hour! > 23 || min! > 59 || sec! > 59) return false;
+    const dt = new Date(Date.UTC(year!, month! - 1, day!, hour!, min!, sec!));
+    return (
+        dt.getUTCFullYear() === year && dt.getUTCMonth() === month! - 1 && dt.getUTCDate() === day &&
+        dt.getUTCHours() === hour && dt.getUTCMinutes() === min && dt.getUTCSeconds() === sec
+    );
+}
 
 /**
  * Schema for one upstream Maplify sighting. Strict enough that a malformed
@@ -65,7 +85,7 @@ export const MaplifyRecordSchema = z.object({
     latitude: z.number(),
     longitude: z.number(),
     number_sighted: z.number().int(),
-    created: z.string().regex(MAPLIFY_TIMESTAMP),
+    created: z.string().refine(isValidMaplifyTimestamp, 'invalid Maplify timestamp'),
     photo_url: z.string().nullish(),
     comments: z.string().nullish(),
     in_ocean: intBool,

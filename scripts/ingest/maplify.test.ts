@@ -94,6 +94,14 @@ describe('parseMaplifyResponse', () => {
         expect(parseMaplifyResponse(bad).ok).toBe(false);
     });
 
+    test('rejects a well-shaped but non-existent calendar date (fail-fast, not at persist)', () => {
+        for (const created of ['2026-13-99 25:99:99', '2026-02-30 10:00:00', '2026-00-10 10:00:00']) {
+            expect(parseMaplifyResponse({ results: [{ ...rawRecord, created }] }).ok).toBe(false);
+        }
+        // a real leap-day date is accepted
+        expect(parseMaplifyResponse({ results: [{ ...rawRecord, created: '2024-02-29 10:00:00' }] }).ok).toBe(true);
+    });
+
     test('non-object input does not throw', () => {
         expect(parseMaplifyResponse(null).ok).toBe(false);
         expect(parseMaplifyResponse('nonsense').ok).toBe(false);

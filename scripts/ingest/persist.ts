@@ -102,6 +102,13 @@ export async function persistMaplify(
                     source text, usernm text, resolved_name text
                 )
                 LEFT JOIN inaturalist.taxa AS t ON t.scientific_name = v.resolved_name
+                -- On conflict we refresh upstream-mirror fields (incl. in_ocean, a
+                -- Maplify-derived flag that tracks the updated location) and taxon_id
+                -- (a pure function of the refreshed scientific_name). We deliberately
+                -- do NOT refresh collection_id: it is our resolved/curatable domain
+                -- value, not a mirror field — re-running resolve_collection here would
+                -- clobber a one-time backfill and any curator correction on existing
+                -- rows (decision D-07). New rows still get it via the INSERT above.
                 ON CONFLICT (id) DO UPDATE SET
                     name = EXCLUDED.name,
                     scientific_name = EXCLUDED.scientific_name,
@@ -109,6 +116,7 @@ export async function persistMaplify(
                     number_sighted = EXCLUDED.number_sighted,
                     photo_url = EXCLUDED.photo_url,
                     comments = EXCLUDED.comments,
+                    in_ocean = EXCLUDED.in_ocean,
                     moderated = EXCLUDED.moderated,
                     trusted = EXCLUDED.trusted,
                     is_test = EXCLUDED.is_test,

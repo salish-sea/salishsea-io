@@ -60,6 +60,21 @@ describe.skipIf(!DSN)('persistMaplify (local Supabase)', () => {
         expect(rows[0]?.['number_sighted']).toBe(9);
     });
 
+    test('on re-ingest, refreshes upstream in_ocean but preserves resolved collection_id (D-07)', async () => {
+        // first ingest: [Orca Network] bracket → collection 1, in_ocean true
+        await persistMaplify(sql, plan({
+            upsert: [sighting({ id: 900104, comments: '[Orca Network] pod', inOcean: true })],
+        }), WINDOW);
+        // re-ingest same id with a comment that would resolve to a DIFFERENT collection,
+        // and a flipped in_ocean.
+        await persistMaplify(sql, plan({
+            upsert: [sighting({ id: 900104, comments: 'Submitted by a Whale Alert Global Trusted Observer', inOcean: false })],
+        }), WINDOW);
+        const [row] = await sql`select collection_id, in_ocean from maplify.sightings where id = 900104`;
+        expect(row?.['collection_id']).toBe(1);    // preserved — NOT re-resolved to 6
+        expect(row?.['in_ocean']).toBe(false);     // refreshed from the new fetch
+    });
+
     test('reconcile DELETE is window-bounded — an out-of-window id is NOT deleted', async () => {
         // 900201 in window; 900202 a month before the window
         await sql`insert into maplify.sightings (id, project_id, trip_id, scientific_name, location, number_sighted, created_at, in_ocean, moderated, trusted, is_test, source)

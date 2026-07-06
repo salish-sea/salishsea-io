@@ -37,7 +37,8 @@ CREATE TABLE ingest.runs (
     -- a successful run records no error; a failed run must say why
     CONSTRAINT runs_error_matches_outcome
       CHECK (
-        outcome IS DISTINCT FROM 'success' OR error IS NULL
+        (outcome IS DISTINCT FROM 'success' OR error IS NULL)
+        AND (outcome IS DISTINCT FROM 'failed' OR error IS NOT NULL)
       )
 );
 
