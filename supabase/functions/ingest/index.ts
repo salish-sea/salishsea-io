@@ -18,6 +18,7 @@
  */
 
 import postgres, { type Sql } from 'postgres';
+import * as Sentry from '@sentry/deno';
 import { z } from 'zod';
 import { parseMaplifyResponse, isIngestable, reconcile } from '../../../scripts/ingest/maplify.ts';
 import { reconcile as reconcileInat } from '../../../scripts/ingest/inaturalist.ts';
@@ -32,6 +33,15 @@ import { fetchMaplify } from './fetch-maplify.ts';
 import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
 
 const TRIGGER_SECRET = Deno.env.get('INGEST_TRIGGER_SECRET') ?? '';
+// Server-side Sentry surface (decision 011 / salishsea-io-vif). No DSN (local
+// dev) → the SDK disables itself and every Sentry.* call below is a no-op.
+// Complements the heartbeat: it catches silent stops; this explains loud
+// failures. A failed run is already recorded in ingest.runs either way.
+Sentry.init({
+    dsn: Deno.env.get('INGEST_SENTRY_DSN'),
+    environment: Deno.env.get('SENTRY_ENVIRONMENT') ?? 'production',
+    initialScope: { tags: { service: 'ingest-edge-function', runtime: 'deno' } },
+});
 // Prefer a dedicated privileged ingest role (INGEST_DB_URL); fall back to the
 // platform-provided connection. The dedicated role + grants land in a follow-up.
 const DB_URL = Deno.env.get('INGEST_DB_URL') ?? Deno.env.get('SUPABASE_DB_URL') ?? '';
@@ -47,8 +57,12 @@ const RequestSchema = z.object({
 const jsonResponse = (data: unknown, status: number) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
 
-const log = (msg: string, extra?: Record<string, unknown>) =>
+const log = (msg: string, extra?: Record<string, unknown>) => {
     console.log(JSON.stringify({ level: 'info', fn: 'ingest', msg, ...extra }));
+    // Ride the structured log as Sentry breadcrumbs so a captured failure
+    // carries the run's fetch/persist trail (decision 011: breadcrumbs per run).
+    Sentry.addBreadcrumb({ category: 'ingest', message: msg, data: extra });
+};
 
 /** Length-independent constant-time string compare. */
 function secretsMatch(a: string, b: string): boolean {
@@ -169,6 +183,14 @@ Deno.serve(async (req) => {
     } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         log('ingest failed', { source, window, error: message });
+        Sentry.withScope((scope) => {
+            scope.setTags({ source, trigger, dry_run: String(dryRun) });
+            scope.setContext('ingest_run', { runId, window, dryRun });
+            Sentry.captureException(e);
+        });
+        // Flush before responding — the isolate may be frozen/killed right after
+        // the Response returns, losing any event still in the buffer.
+        await Sentry.flush(2000).catch(() => { /* fail-open: never mask ingest */ });
         if (runId != null) {
             await sql`UPDATE ingest.runs SET finished_at = now(), outcome = 'failed', error = ${message} WHERE id = ${runId}`
                 .catch(() => { /* best-effort; do not mask the original error */ });
