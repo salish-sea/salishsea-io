@@ -13,15 +13,23 @@
  *   - The ingest.runs `started` row is written OUTSIDE the data transaction, so a
  *     crash leaves a visible orphan (outcome NULL).
  *
- * Scope: Maplify only in this slice; source:'inaturalist' is rejected (405) until
- * salishsea-io-89d.2. Wiring pg_cron→pg_net is the cutover (salishsea-io-89d.3).
+ * Scope: Maplify and iNaturalist. Wiring pg_cron→pg_net is the cutover
+ * (salishsea-io-89d.3).
  */
 
-import postgres from 'postgres';
+import postgres, { type Sql } from 'postgres';
 import { z } from 'zod';
 import { parseMaplifyResponse, isIngestable, reconcile } from '../../../scripts/ingest/maplify.ts';
-import { persistMaplify, fetchWindowIds, type IngestWindow } from '../../../scripts/ingest/persist.ts';
+import { reconcile as reconcileInat } from '../../../scripts/ingest/inaturalist.ts';
+import {
+    persistMaplify,
+    persistInaturalist,
+    fetchWindowIds,
+    fetchObservationWindowIds,
+    type IngestWindow,
+} from '../../../scripts/ingest/persist.ts';
 import { fetchMaplify } from './fetch-maplify.ts';
+import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
 
 const TRIGGER_SECRET = Deno.env.get('INGEST_TRIGGER_SECRET') ?? '';
 // Prefer a dedicated privileged ingest role (INGEST_DB_URL); fall back to the
@@ -59,6 +67,56 @@ function defaultWindow(): IngestWindow {
     return { start: startDate.toISOString().slice(0, 10), end };
 }
 
+/** Common per-run outcome recorded to ingest.runs and returned to the caller. */
+type IngestOutcome = {
+    readonly upserted: number;
+    readonly deleted: number;
+    readonly pagesFetched: number;
+    readonly totalResults: number;
+};
+
+/** Maplify: single-page fetch → parse → reconcile → persist (one atomic txn). */
+async function ingestMaplify(sql: Sql, window: IngestWindow, dryRun: boolean): Promise<IngestOutcome> {
+    const raw = await fetchMaplify(window, log);
+    const result = parseMaplifyResponse(raw);
+    if (!result.ok) throw new Error(`maplify parse failed: ${result.error}`);
+
+    const ingestable = result.sightings.filter(isIngestable);
+    const existing = await fetchWindowIds(sql, window);
+    const plan = reconcile(ingestable, existing);
+    const { upserted, deleted } = await persistMaplify(sql, plan, window, { dryRun });
+    return { upserted, deleted, pagesFetched: 1, totalResults: result.sightings.length };
+}
+
+/**
+ * iNaturalist: paginate to completeness → resolve the full taxon closure (all
+ * BEFORE the persist txn) → reconcile → persist observations + photos + taxa in
+ * one atomic txn. Any partial page or unresolved taxon threw before this returns.
+ */
+async function ingestInaturalist(
+    sql: Sql,
+    window: IngestWindow,
+    dryRun: boolean,
+    logger: typeof log,
+): Promise<IngestOutcome> {
+    const { pages, observations, totalResults } = await fetchAllObservationPages(window, logger);
+    const taxa = await resolveTaxonClosure(sql, observations, logger);
+
+    const existing = await fetchObservationWindowIds(sql, window);
+    const plan = reconcileInat(observations, existing);
+    const result = await persistInaturalist(sql, { taxa, plan, window }, { dryRun });
+
+    // rows_upserted / rows_deleted track the observations (the window's unit of
+    // reconcile); taxa and photo counts ride along in the structured log.
+    logger('inat persist detail', { ...result });
+    return {
+        upserted: result.observationsUpserted,
+        deleted: result.observationsDeleted,
+        pagesFetched: pages.length,
+        totalResults,
+    };
+}
+
 Deno.serve(async (req) => {
     const provided = req.headers.get('x-ingest-secret') ?? '';
     if (!secretsMatch(provided, TRIGGER_SECRET)) {
@@ -71,9 +129,6 @@ Deno.serve(async (req) => {
     if (!parsed.success) return jsonResponse({ error: z.prettifyError(parsed.error) }, 400);
 
     const { source, start, end, dry_run: dryRun = false, trigger = 'manual' } = parsed.data;
-    if (source !== 'maplify') {
-        return jsonResponse({ error: `source '${source}' not yet implemented (salishsea-io-89d.2)` }, 405);
-    }
     // A custom window needs BOTH bounds; a single bound is almost certainly a
     // mistake, and silently falling back to the default range would ignore the
     // curator's intent. Reject partial windows and inverted ranges.
@@ -95,24 +150,22 @@ Deno.serve(async (req) => {
             RETURNING id`;
         runId = started[0]!.id;
 
-        const raw = await fetchMaplify(window, log);
-        const result = parseMaplifyResponse(raw);
-        if (!result.ok) throw new Error(`maplify parse failed: ${result.error}`);
-
-        const ingestable = result.sightings.filter(isIngestable);
-        const existing = await fetchWindowIds(sql, window);
-        const plan = reconcile(ingestable, existing);
-        const { upserted, deleted } = await persistMaplify(sql, plan, window, { dryRun });
+        // Each branch performs a PROVABLY COMPLETE fetch (any partial/failed
+        // fetch throws before persist) and returns a common outcome shape.
+        const outcome = source === 'maplify'
+            ? await ingestMaplify(sql, window, dryRun)
+            : await ingestInaturalist(sql, window, dryRun, log);
 
         await sql`
             UPDATE ingest.runs SET
-                finished_at = now(), outcome = 'success', pages_fetched = 1,
-                total_results = ${result.sightings.length},
-                rows_upserted = ${upserted}, rows_deleted = ${deleted}
+                finished_at = now(), outcome = 'success',
+                pages_fetched = ${outcome.pagesFetched},
+                total_results = ${outcome.totalResults},
+                rows_upserted = ${outcome.upserted}, rows_deleted = ${outcome.deleted}
             WHERE id = ${runId}`;
 
-        log('ingest ok', { source, window, dryRun, upserted, deleted });
-        return jsonResponse({ ok: true, runId, source, window, dryRun, upserted, deleted }, 200);
+        log('ingest ok', { source, window, dryRun, ...outcome });
+        return jsonResponse({ ok: true, runId, source, window, dryRun, ...outcome }, 200);
     } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         log('ingest failed', { source, window, error: message });
