@@ -1,0 +1,108 @@
+{
+  "total_results": 5,
+  "page": 1,
+  "per_page": 30,
+  "results": [
+    {
+      "id": 48460,
+      "ancestor_ids": [
+        48460
+      ],
+      "parent_id": null,
+      "rank": "stateofmatter",
+      "name": "Life",
+      "preferred_common_name": "life"
+    },
+    {
+      "id": 41708,
+      "ancestor_ids": [
+        48460,
+        1,
+        2,
+        355675,
+        40151,
+        848317,
+        848320,
+        848324,
+        41573,
+        372843,
+        41687,
+        41707,
+        41708
+      ],
+      "parent_id": 41707,
+      "rank": "species",
+      "name": "Phoca vitulina",
+      "preferred_common_name": "Harbor Seal"
+    },
+    {
+      "id": 41740,
+      "ancestor_ids": [
+        48460,
+        1,
+        2,
+        355675,
+        40151,
+        848317,
+        848320,
+        848324,
+        41573,
+        372843,
+        41736,
+        41737,
+        41740
+      ],
+      "parent_id": 41737,
+      "rank": "species",
+      "name": "Zalophus californianus",
+      "preferred_common_name": "California Sea Lion"
+    },
+    {
+      "id": 117766,
+      "ancestor_ids": [
+        48460,
+        1,
+        2,
+        355675,
+        40151,
+        848317,
+        848320,
+        848324,
+        41573,
+        372843,
+        41687,
+        41707,
+        41708,
+        117766
+      ],
+      "parent_id": 41708,
+      "rank": "subspecies",
+      "name": "Phoca vitulina richardii",
+      "preferred_common_name": "Pacific Harbor Seal"
+    },
+    {
+      "id": 41553,
+      "ancestor_ids": [
+        48460,
+        1,
+        2,
+        355675,
+        40151,
+        848317,
+        848320,
+        848324,
+        152870,
+        925158,
+        152871,
+        424321,
+        41546,
+        41547,
+        41553
+      ],
+      "parent_id": 41547,
+      "rank": "species",
+      "name": "Balaenoptera musculus",
+      "preferred_common_name": "Blue Whale"
+    }
+  ]
+}
