@@ -403,7 +403,7 @@ export class IndividualPage extends LitElement {
               ${when(located, () => html`<individual-map .links=${links}></individual-map>`)}
               <p class="sightings-note">
                 Last reported <a href=${mapUrl(latest)}>${observedDate(latest.observed_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}
-                · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} a dot above; the most recent is solid. Click one to see that day on the map.`)}
+                · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} a dot above; the newest located report is solid. Click one to see that day on the map.`)}
               </p>
             `;
           },
