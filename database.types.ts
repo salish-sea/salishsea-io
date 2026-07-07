@@ -222,6 +222,79 @@ export type Database = {
           },
         ]
       }
+      identifications: {
+        Row: {
+          asserted_by_party_id: number | null
+          code: string | null
+          confidence: number | null
+          created_at: string
+          evidence:
+            | Database["public"]["Enums"]["identification_evidence"]
+            | null
+          id: number
+          individual_id: number | null
+          is_present: boolean
+          method: Database["public"]["Enums"]["identification_method"]
+          occurrence_id: string
+          social_group_id: number | null
+          status: Database["public"]["Enums"]["identification_status"]
+        }
+        Insert: {
+          asserted_by_party_id?: number | null
+          code?: string | null
+          confidence?: number | null
+          created_at?: string
+          evidence?:
+            | Database["public"]["Enums"]["identification_evidence"]
+            | null
+          id?: number
+          individual_id?: number | null
+          is_present?: boolean
+          method: Database["public"]["Enums"]["identification_method"]
+          occurrence_id: string
+          social_group_id?: number | null
+          status?: Database["public"]["Enums"]["identification_status"]
+        }
+        Update: {
+          asserted_by_party_id?: number | null
+          code?: string | null
+          confidence?: number | null
+          created_at?: string
+          evidence?:
+            | Database["public"]["Enums"]["identification_evidence"]
+            | null
+          id?: number
+          individual_id?: number | null
+          is_present?: boolean
+          method?: Database["public"]["Enums"]["identification_method"]
+          occurrence_id?: string
+          social_group_id?: number | null
+          status?: Database["public"]["Enums"]["identification_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identifications_asserted_by_party_id_fkey"
+            columns: ["asserted_by_party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identifications_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identifications_social_group_id_fkey"
+            columns: ["social_group_id"]
+            isOneToOne: false
+            referencedRelation: "social_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       individuals: {
         Row: {
           born_earliest: number | null
@@ -590,6 +663,32 @@ export type Database = {
       }
     }
     Views: {
+      occurrence_identifications: {
+        Row: {
+          asserted_by_party_id: number | null
+          code: string | null
+          confidence: number | null
+          created_at: string | null
+          evidence:
+            | Database["public"]["Enums"]["identification_evidence"]
+            | null
+          id: number | null
+          individual_id: number | null
+          is_present: boolean | null
+          method: Database["public"]["Enums"]["identification_method"] | null
+          occurrence_id: string | null
+          social_group_id: number | null
+          status: Database["public"]["Enums"]["identification_status"] | null
+        }
+        Relationships: []
+      }
+      occurrence_unresolved_codes: {
+        Row: {
+          code: string | null
+          occurrence_id: string | null
+        }
+        Relationships: []
+      }
       occurrences: {
         Row: {
           accuracy: number | null
@@ -625,6 +724,7 @@ export type Database = {
         Args: { body: string }
         Returns: Database["public"]["Enums"]["travel_direction"]
       }
+      normalize_designation: { Args: { code: string }; Returns: string }
       upsert_observation: {
         Args: {
           accuracy: number
@@ -651,6 +751,17 @@ export type Database = {
         | "direct_app"
       designation_scheme: "bc_wa" | "alaska" | "california" | "other"
       designation_status: "active" | "superseded" | "uncertain"
+      identification_evidence:
+        | "text_mention"
+        | "photograph"
+        | "cv_match"
+        | "field_observation"
+      identification_method:
+        | "text_extraction"
+        | "manual"
+        | "cv"
+        | "upstream_import"
+      identification_status: "candidate" | "validated" | "rejected"
       license:
         | "cc0"
         | "cc-by"
@@ -853,6 +964,19 @@ export const Constants = {
       ],
       designation_scheme: ["bc_wa", "alaska", "california", "other"],
       designation_status: ["active", "superseded", "uncertain"],
+      identification_evidence: [
+        "text_mention",
+        "photograph",
+        "cv_match",
+        "field_observation",
+      ],
+      identification_method: [
+        "text_extraction",
+        "manual",
+        "cv",
+        "upstream_import",
+      ],
+      identification_status: ["candidate", "validated", "rejected"],
       license: [
         "cc0",
         "cc-by",

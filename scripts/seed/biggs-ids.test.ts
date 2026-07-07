@@ -164,17 +164,26 @@ describe('parseBiggsIds', () => {
         expect(old).toMatchObject({ status: 'superseded', superseded_by_code: 'T122', individual_designation: 'T122' });
     });
 
-    test('scaffolds matriline groups, an ecotype parent, and maternal memberships', () => {
+    test('scaffolds per-mother descent groups nested by anchor lineage', () => {
         const cat = parseBiggsIds(tsv(
-            row('', 'T065', '', 'F', '<1968'),
-            row('', 'T065A', '', 'F', '1986'),
-            row('', 'T065A5', '', 'M', '2014'),
+            row('', 'T065', '', 'F', '<1968'),   // mother of T065A
+            row('', 'T065A', '', 'F', '1986'),   // mother of T065A5
+            row('', 'T065A5', '', 'M', '2014'),  // a leaf (no offspring here)
         ));
         expect(cat.socialGroups.find((g) => g.designation === 'Biggs')?.kind).toBe('ecotype');
-        const matriline = cat.socialGroups.find((g) => g.designation === 'T065')!;
-        expect(matriline).toMatchObject({ kind: 'matriline', anchor_designation: 'T065', parent_designation: 'Biggs' });
-        const members = cat.memberships.filter((m) => m.group_designation === 'T065');
-        expect(members.map((m) => m.individual_designation).sort()).toEqual(['T065', 'T065A', 'T065A5']);
-        expect(members.every((m) => m.is_current !== undefined)).toBe(true);
+        // one matriline per mother, nested by ancestry
+        expect(cat.socialGroups.find((g) => g.designation === 'T065')).toMatchObject({
+            kind: 'matriline', anchor_designation: 'T065', parent_designation: 'Biggs',
+        });
+        expect(cat.socialGroups.find((g) => g.designation === 'T065A')).toMatchObject({
+            kind: 'matriline', anchor_designation: 'T065A', parent_designation: 'T065',
+        });
+        // T065A5 is not a mother -> no group named for her
+        expect(cat.socialGroups.some((g) => g.designation === 'T065A5')).toBe(false);
+        // membership is direct: child -> its mother's group
+        expect(cat.memberships.filter((m) => m.group_designation === 'T065')
+            .map((m) => m.individual_designation)).toEqual(['T065A']);
+        expect(cat.memberships.filter((m) => m.group_designation === 'T065A')
+            .map((m) => m.individual_designation)).toEqual(['T065A5']);
     });
 });

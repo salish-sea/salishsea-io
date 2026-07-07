@@ -114,10 +114,6 @@ export function motherDesignation(code: string): string | null {
     return base + runs.join('');
 }
 
-/** Matriline base T-number, e.g. T065A5 -> T065. */
-function matrilineBase(code: string): string | null {
-    return code.match(/^T\d+/)?.[0] ?? null;
-}
 
 export function parseSex(raw: string | undefined): { sex: Sex | null; uncertain: boolean } {
     const v = (raw ?? '').trim();
@@ -329,18 +325,7 @@ export function parseBiggsIds(tsv: string): ParsedCatalog {
             }
         }
 
-        // matriline group + membership
-        const base = matrilineBase(designation);
-        if (base) {
-            ensureGroup({
-                designation: base, kind: 'matriline',
-                anchor_designation: base, parent_designation: ECOTYPE_DESIGNATION, notes: null,
-            });
-            cat.memberships.push({
-                group_designation: base, individual_designation: designation,
-                is_current: parseLifeStatus(flag) === 'alive', joined_year: latest,
-            });
-        }
+        // (matriline groups are derived per-mother in a post-loop pass below)
 
         // nicknames — names, stories, namers positionally aligned on '/'
         const names = blank(nickCell) ? [] : nickCell.split('/').map((s) => s.trim()).filter(Boolean);
@@ -364,6 +349,37 @@ export function parseBiggsIds(tsv: string): ParsedCatalog {
                 theme: null, status: nicknameStatus(name, notesCell),
             });
         });
+    }
+
+    // ---- per-mother matrilineal descent groups (matches the identifications
+    // migration, which derives the same set from individuals.mother_id). A group
+    // exists for every individual who is another catalog individual's mother; it
+    // is NAMED FOR its anchor (not "matriarch"). Parent = the anchor's own
+    // mother's group, else the Biggs ecotype. Membership is DIRECT (each
+    // individual → its mother's group); transitive membership is derived later
+    // via mother_id recursion, not materialized here. ----
+    const known = new Set(cat.individuals.map((i) => i.primary_designation));
+    const byDesignation = new Map(cat.individuals.map((i) => [i.primary_designation, i]));
+    const motherDesignations = new Set<string>();
+    for (const i of cat.individuals) {
+        if (i.mother_designation && known.has(i.mother_designation)) motherDesignations.add(i.mother_designation);
+    }
+    for (const md of motherDesignations) {
+        const grandmother = byDesignation.get(md)?.mother_designation;
+        const parent = grandmother && motherDesignations.has(grandmother) ? grandmother : ECOTYPE_DESIGNATION;
+        ensureGroup({
+            designation: md, kind: 'matriline',
+            anchor_designation: md, parent_designation: parent, notes: null,
+        });
+    }
+    for (const i of cat.individuals) {
+        const md = i.mother_designation;
+        if (md && motherDesignations.has(md)) {
+            cat.memberships.push({
+                group_designation: md, individual_designation: i.primary_designation,
+                is_current: i.life_status === 'alive', joined_year: i.born_latest,
+            });
+        }
     }
 
     return cat;
