@@ -424,6 +424,25 @@ Phase 5 owns:
 
 ---
 
+## 7. Reference & Catalog Source Rights
+
+*Governs rights for external **reference/catalog** sources mirrored as ingest inputs — distinct from the occurrence-record redistribution question in §4. Added 2026-07-07.*
+
+### 7.1 Bigg's Killer Whale Designation & Nickname Sheet (D-21)
+
+**Source.** The community-maintained Google Sheet "Bigg's Orca/Killer Whale Nick Names" (maintainer `vitalocean@gmail.com`, the curator behind the "Transient/Bigg's Orca Nick Naming Page"). Mirrored at [`data/biggs-ids.tsv`](../data/biggs-ids.tsv); provenance and refresh notes in [`data/README.md`](../data/README.md).
+
+**Determination (D-21).** The **factual** content is not subject to copyright (facts are uncopyrightable — *Feist v. Rural*) and is what we use: local (BC/WA) and regional (Alaska/California) designations, genealogy (matriline / mother), birth years, sex, deceased status, the naming authority, and the *etymological facts* recorded in the story column (e.g. an animal "named for Pedder Bay, where the T2s were held captive in 1970"). These may be mirrored, stored in the individuals/subjects catalog, and surfaced in the app.
+
+**Two carve-outs preserved:**
+
+1. **Creative prose.** A minority of story cells contain original expression (short essays, personal narrative) that carries a thin copyright as authored text. Where we surface such an entry, we **state the underlying fact in our own words** rather than reproduce the passage verbatim.
+2. **Compilation.** The selection and arrangement of the sheet is the maintainer's compilation. We do not republish the sheet wholesale as a product; the mirror is an internal baseline for change-detection and seeding. The maintainer / naming page is **credited** as the source of nickname provenance wherever nickname or story facts are surfaced — this credit rides on the naming-authority (`parties`) in the catalog model.
+
+**Scope note.** This is an **ingest-side reference source**, not an occurrence-record redistribution question. If catalog/individual data derived from it is ever *exported* (e.g. a validated `organismID` to GBIF/OBIS), that export gets its own rights pass at that time — §7 authorizes internal use and in-app surfacing, not third-party redistribution of the compilation.
+
+---
+
 ## Decision Index
 
 All D-numbers are cited in the sections above. For reference:
@@ -450,11 +469,13 @@ All D-numbers are cited in the sections above. For reference:
 | D-18 | 6.4 | Publisher = SalishSea.io (organizational); Contact = Peter Abrahamsen (individual); contact email lives in `dwc.datasets`, not this document |
 | D-19 | 1.2, 1.4 | `license_code = 'none'` and `IS NULL` are semantically distinct (`none` = "no license" terminal; NULL = "unknown" non-terminal); both excluded in v1.2; Phase 5 emits separate CASE branches |
 | D-20 | 1.1, 2.2, 3.2, 4.1–4.5 | Per-record `license` is per-source: native = CC-BY-NC 4.0; Maplify = CC-BY 4.0 (asserted upstream at Acartia cooperative). Resolves the rights gate for the Maplify branch; reframes §4 conferral as courtesy + reframes D-05 hold as data-QA gate. |
+| D-21 | 7.1 | Bigg's reference sheet: factual content (designations, genealogy, nickname etymology) is uncopyrightable and used freely; creative story prose stated as fact, not reproduced; compilation credited, not republished; ingest-side reference — any future export gets its own rights pass. |
 
 ---
 
 *Policy authored: 2026-06-10*
 *§6 (Dataset Identity & EML Content) added: 2026-06-17*
 *D-19 (NULL ≠ none semantics) and D-20 (per-source license, Acartia CC-BY for Maplify) added: 2026-06-17*
+*§7 (Reference & Catalog Source Rights) and D-21 (Bigg's reference sheet) added: 2026-07-07*
 *Phase: 04-rights-data-model-policy-gate*
 *Document home: `docs/rights-policy.md` (authored as `.planning/phases/04-rights-data-model-policy-gate/04-POLICY.md` in the v1.2 policy-gate phase; moved here in the 2026-07 GSD migration)*
