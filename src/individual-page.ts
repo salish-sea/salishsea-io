@@ -21,6 +21,11 @@ const RECENT_LIMIT = 10;
 const PRESENCE_YEARS = 4;
 const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
+// iNaturalist taxon ids the catalog actually uses (all rows are 41521 today).
+const TAXON_LABELS: Record<number, string> = {
+  41521: 'Killer whale',
+};
+
 const SCHEME_LABELS: Record<string, string> = {
   bc_wa: 'BC/WA',
   alaska: 'Alaska',
@@ -327,13 +332,16 @@ export class IndividualPage extends LitElement {
       lifeStatusPhrase(profile.life_status),
     ].filter(Boolean).join(' · ');
     const chain = matriline ? groupChain(matriline.id, groups) : [];
-    const isBiggs = chain.some(g => g.kind === 'ecotype' && g.designation === 'Biggs');
+    // Prefer the ecotype proven by the group chain; fall back to the taxon.
+    const species = chain.some(g => g.kind === 'ecotype' && g.designation === 'Biggs')
+      ? "Bigg's killer whale"
+      : TAXON_LABELS[profile.taxon_id] ?? null;
 
     return html`
       <header class="masthead">
-        <div class="designation-kicker">${name ? profile.primary_designation : (isBiggs ? "Bigg's killer whale" : nothing)}</div>
+        <div class="designation-kicker">${name ? profile.primary_designation : species ?? nothing}</div>
         <h1>${name ?? profile.primary_designation}</h1>
-        ${vitals ? html`<p class="vitals">${when(name && isBiggs, () => html`Bigg&#8217;s killer whale · `)}${vitals}</p>` : nothing}
+        ${vitals || (name && species) ? html`<p class="vitals">${when(name && species, () => html`${species} · `)}${vitals}</p>` : nothing}
         ${chain.length ? html`<p class="lineage">${this.renderChain(chain, profile.primary_designation)}</p>` : nothing}
       </header>
       ${this.renderNaming(profile)}
