@@ -109,7 +109,7 @@ export function groupChain(groupId: number, groupsById: Map<number, SocialGroup>
 const INDIVIDUAL_SELECT = `
   *,
   designations (code, scheme, is_primary, status, in_catalog, authority:parties (name, url)),
-  nicknames (name, story, theme, status, named_year, namer:parties (name, url)),
+  nicknames (name, theme, status, named_year, namer:parties (name, url)),
   memberships:group_memberships!individual_id (
     is_current, joined_year, left_year, basis,
     group:social_groups (id, kind, designation, parent_group_id, anchor_individual_id, notes)

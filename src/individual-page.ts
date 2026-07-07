@@ -237,14 +237,6 @@ export class IndividualPage extends LitElement {
     .nickname-line b {
       font-weight: 600;
     }
-    .story {
-      color: #475569;
-      margin: 0.25rem 0 0;
-    }
-    .notes {
-      color: #475569;
-      white-space: pre-line;
-    }
     table.presence {
       border-collapse: collapse;
       font-variant-numeric: tabular-nums;
@@ -345,12 +337,6 @@ export class IndividualPage extends LitElement {
         ${chain.length ? html`<p class="lineage">${this.renderChain(chain, profile.primary_designation)}</p>` : nothing}
       </header>
       ${this.renderNaming(profile)}
-      ${when(profile.notes, () => html`
-        <section>
-          <h2>Notes</h2>
-          <p class="notes">${profile.notes}</p>
-        </section>
-      `)}
       ${this.renderFamily(profile, mother, father, offspring)}
       ${when(matriline && members.length > 1, () => this.renderMatriline(matriline!, members, profile.id))}
       ${this.renderSightings(profile.primary_designation)}
@@ -385,7 +371,6 @@ export class IndividualPage extends LitElement {
               ${n.status !== 'official' ? html`<span class="muted">(${n.status.replace('_', ' ')})</span>` : nothing}
               ${n.named_year || n.namer ? html`<span class="muted"> — named${n.named_year ? ` in ${n.named_year}` : ''}${n.namer ? html` by ${n.namer.url ? html`<a target="_blank" rel="noopener noreferrer" href=${n.namer.url}>${n.namer.name}</a>` : n.namer.name}` : ''}</span>` : nothing}
             </p>
-            ${when(n.story, () => html`<p class="story">${n.story}</p>`)}
           </article>
         `)}
         ${when(aliases.length, () => html`
