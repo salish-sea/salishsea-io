@@ -92,12 +92,12 @@ Node version is pinned in `.nvmrc`. The DwC-A build's CI gate needs the Supabase
 
 ## Architecture Overview
 
-Static SPA (Lit web components + Vite + TypeScript, OpenLayers maps) on AWS S3/CloudFront, Supabase backend (Postgres + auth + storage), AWS CDK infra in `infra/`, deployed by GitHub Actions on push to `main`. A Lambda@Edge function serves OG meta tags to crawlers for rich link previews (fail-open; `/dwca/*` carved out). A nightly workflow regenerates the DarwinCore Archive from the read-only `dwc` Postgres schema. Details: [docs/decisions/](docs/decisions/), [docs/data-provenance.md](docs/data-provenance.md).
+Static SPA (Lit web components + Vite + TypeScript, OpenLayers maps) on AWS S3/CloudFront, Supabase backend (Postgres + auth + storage), AWS CDK infra in `infra/`, deployed by GitHub Actions on push to `main`. A Lambda@Edge function serves OG meta tags to crawlers for rich link previews and rewrites `/individuals/<designation>` profile-page paths to the `individual.html` shell (fail-open; `/dwca/*` carved out; decision 015). A nightly workflow regenerates the DarwinCore Archive from the read-only `dwc` Postgres schema. Details: [docs/decisions/](docs/decisions/), [docs/data-provenance.md](docs/data-provenance.md).
 
 ## Conventions & Patterns
 
 - Coordinates: decimal lon/lat WGS84, map projection EPSG:3857. Time: UNIX epoch seconds.
-- URL state: `d` (date), `x/y/z` (map), `o` (occurrence).
+- URL state: `d` (date), `x/y/z` (map), `o` (occurrence); `/individuals/<designation>` for profile pages.
 - Migrations: SELECT grants ship in the same migration that creates a table (Supabase RLS defaults silently zero out joins otherwise).
 - `maplify.sightings.comments` is immutable — parse at read time, never UPDATE it.
 - Keep the project "light, nimble, and maintainable, minimizing abstractions and volatile dependencies" (README).

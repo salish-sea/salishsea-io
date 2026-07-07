@@ -19,7 +19,7 @@ Shared vocabulary for SalishSea.io. Use these terms as defined here, in code and
 
 ## Individuals
 
-- **Individual** *(planned)* — a specific animal in **our own authoritative catalog** (designation e.g. `T065A`, aliases, species, matriline/pod). Distinct from the `happywhale.individuals` **Upstream mirror** and from **candidate identifiers** — both are *inputs*, never the source of truth (decision 008).
+- **Individual** — a specific animal in **our own authoritative catalog** (`public.individuals`: designation e.g. `T065A`, aliases, species, matriline/pod). Distinct from the `happywhale.individuals` **Upstream mirror** and from **candidate identifiers** — both are *inputs*, never the source of truth (decision 008). Each has a profile page at `/individuals/<designation>` (decision [015](docs/decisions/015-individual-profile-pages.md)).
 - **Identification** — a *claim* linking an occurrence to an Individual (or group), each with decomposed provenance: subject, presence/absence, **evidence** (text mention / photo / CV match / field obs), **method** (how we captured it), **status** (candidate / validated / rejected), and asserting authority. Lives in `public.identifications`; regex hits enter as `candidate`/`text_mention` and are one input among curated/CV claims. Trust is governed by decision [014](docs/decisions/014-trust-and-curation-model.md).
 - **Status** (of a claim) — its trust level: `candidate` (unvalidated, e.g. a regex mention), `validated`, or `rejected`. Set by a curator; a stored claim overrides the raw candidate for the same occurrence+subject. Vocabulary may grow (decision 014).
 - **Reputation** *(planned)* — a party's standing that weights how much their claims are trusted. Not yet modeled (decision 014).

@@ -106,12 +106,74 @@ interface Occurrence {
   photos: Photo[];
 }
 
+interface Individual {
+  primary_designation: string;
+  sex: 'female' | 'male' | null;
+  born_earliest: number | null;
+  born_latest: number | null;
+  life_status: string;
+  nicknames: { name: string; status: string }[];
+}
+
+// /individuals/<designation> — an individual-animal profile page, rendered
+// client-side from the individual.html shell (see src/individual-page.ts).
+const INDIVIDUAL_PATH_RE = /^\/individuals\/([^/]+)\/?$/;
+
+function individualPreviewTags(individual: Individual): OgTags {
+  const name = individual.nicknames.find(n => n.status === 'official')?.name
+    ?? individual.nicknames.find(n => n.status !== 'deprecated')?.name;
+  const designation = individual.primary_designation;
+  const title = name ? `${name} (${designation})` : designation;
+  const vitals = [
+    individual.sex === 'female' ? 'Female' : individual.sex === 'male' ? 'Male' : null,
+    individual.born_earliest !== null && individual.born_latest !== null
+      ? (individual.born_earliest === individual.born_latest
+        ? `born ${individual.born_earliest}`
+        : `born ${individual.born_earliest}–${individual.born_latest}`)
+      : individual.born_latest !== null ? `born by ${individual.born_latest}`
+      : individual.born_earliest !== null ? `born after ${individual.born_earliest}` : null,
+  ].filter(Boolean).join(', ');
+  const description = `${vitals ? `${vitals} · ` : ''}Names, family, and sighting history of ${title} in the Salish Sea.`;
+  return {
+    'og:site_name': 'SalishSea.io',
+    'og:type': 'profile',
+    'og:url': `https://salishsea.io/individuals/${encodeURIComponent(designation)}`,
+    'og:title': title,
+    'og:description': description,
+    'og:image': FALLBACK_IMAGE,
+    'twitter:card': 'summary_large_image',
+    'fb:app_id': FB_APP_ID,
+  };
+}
+
 // Only cc0 and cc-by are unambiguously open for re-use
 const OPEN_LICENSES = ['cc0', 'cc-by'];
 const FALLBACK_IMAGE = 'https://salishsea.io/preview.jpg';
 // Public Facebook App ID — links shared content to our FB app for Domain Insights.
 // Not a secret; it appears in page meta by design.
 const FB_APP_ID = '678644427974059';
+
+// OG-meta response for a bot fetching an individual's profile page. Unknown
+// designations fall back to the generic site card — same contract as ?o=.
+async function individualPreview(designation: string): Promise<any> {
+  const htmlResponse = (tags: OgTags) => ({
+    status: '200',
+    headers: { 'content-type': [{ key: 'Content-Type', value: 'text/html; charset=utf-8' }] },
+    body: buildOgHtml(tags),
+  });
+
+  const { url, key } = await getCredentials();
+  const apiUrl = `${url}/rest/v1/individuals?primary_designation=eq.${encodeURIComponent(designation)}`
+    + '&select=primary_designation,sex,born_earliest,born_latest,life_status,nicknames(name,status)&limit=1';
+  const res = await fetch(apiUrl, {
+    headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
+  });
+  if (!res.ok) return htmlResponse(genericPreviewTags());
+  const individuals = await res.json() as Individual[];
+  const individual = individuals[0];
+  if (!individual) return htmlResponse(genericPreviewTags());
+  return htmlResponse(individualPreviewTags(individual));
+}
 
 export const handler = async (event: any): Promise<any> => {
   const request = event.Records[0].cf.request;
@@ -140,12 +202,22 @@ export const handler = async (event: any): Promise<any> => {
   }
 
   const ua = request.headers['user-agent']?.[0]?.value ?? '';
+  const individualMatch = request.uri.match(INDIVIDUAL_PATH_RE);
 
   if (!isBot(ua)) {
+    // Humans get the SPA shell; the page reads the designation from the path.
+    // S3 has no object at /individuals/*, so without this rewrite the path 404s.
+    if (individualMatch) {
+      request.uri = '/individual.html';
+    }
     return request;
   }
 
   try {
+    if (individualMatch) {
+      return await individualPreview(decodeURIComponent(individualMatch[1]!));
+    }
+
     const qs = new URLSearchParams(request.querystring ?? '');
     const occurrenceId = qs.get('o');
 
@@ -218,7 +290,12 @@ export const handler = async (event: any): Promise<any> => {
       body: buildOgHtml(tags),
     };
   } catch {
-    // Fail-open: return the original request so CloudFront serves index.html normally
+    // Fail-open: return the original request so CloudFront serves index.html
+    // normally — except individual paths, which have no S3 object and must
+    // still be rewritten to the page shell.
+    if (individualMatch) {
+      request.uri = '/individual.html';
+    }
     return request;
   }
 };

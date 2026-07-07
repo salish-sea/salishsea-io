@@ -663,6 +663,22 @@ export type Database = {
       }
     }
     Views: {
+      individual_occurrences: {
+        Row: {
+          code: string | null
+          evidence:
+            | Database["public"]["Enums"]["identification_evidence"]
+            | null
+          individual_id: number | null
+          is_present: boolean | null
+          location: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observed_at: string | null
+          occurrence_id: string | null
+          status: Database["public"]["Enums"]["identification_status"] | null
+          via_group: string | null
+        }
+        Relationships: []
+      }
       occurrence_identifications: {
         Row: {
           asserted_by_party_id: number | null
