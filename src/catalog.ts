@@ -1,7 +1,6 @@
 import { supabase } from './supabase.ts';
 import { Temporal } from 'temporal-polyfill';
 import type { Database } from '../database.types.ts';
-import type { Occurrence } from './types.ts';
 
 type PublicSchema = Database['public'];
 export type Individual = PublicSchema['Tables']['individuals']['Row'];
@@ -13,9 +12,19 @@ export type IndividualOccurrence = PublicSchema['Views']['individual_occurrences
 export interface OccurrenceLink {
   occurrence_id: string;
   observed_at: string;
+  location: { lon: number; lat: number } | null;
   is_present: boolean;
   status: PublicSchema['Enums']['identification_status'];
   via_group: string | null;
+}
+
+export function observedDate(observedAt: string): Temporal.PlainDate {
+  return Temporal.Instant.from(observedAt).toZonedDateTimeISO('PST8PDT').toPlainDate();
+}
+
+// The main map, opened on the link's day and focused on its occurrence.
+export function mapUrl(link: Pick<OccurrenceLink, 'observed_at' | 'occurrence_id'>): string {
+  return `/?d=${observedDate(link.observed_at).toString()}&o=${encodeURIComponent(link.occurrence_id)}`;
 }
 
 export function individualPath(designation: string): string {
@@ -51,7 +60,7 @@ export function normalizeDesignation(code: string): string {
 export function dedupeOccurrenceLinks(rows: IndividualOccurrence[]): OccurrenceLink[] {
   const byOccurrence = new Map<string, OccurrenceLink>();
   for (const row of rows) {
-    const { occurrence_id, observed_at, is_present, status, via_group } = row;
+    const { occurrence_id, observed_at, location, is_present, status, via_group } = row;
     if (!occurrence_id || !observed_at || !status) continue;
     if (is_present === false || status === 'rejected') continue;
     const existing = byOccurrence.get(occurrence_id);
@@ -59,6 +68,9 @@ export function dedupeOccurrenceLinks(rows: IndividualOccurrence[]): OccurrenceL
     byOccurrence.set(occurrence_id, {
       occurrence_id,
       observed_at,
+      location: location?.lon != null && location.lat != null
+        ? { lon: location.lon, lat: location.lat }
+        : null,
       is_present: is_present ?? true,
       status,
       via_group: via_group ?? null,
@@ -180,20 +192,6 @@ export async function fetchOccurrenceLinks(individualId: number): Promise<Occurr
     .eq('individual_id', individualId)
     .throwOnError();
   return dedupeOccurrenceLinks(data);
-}
-
-export async function fetchOccurrencesByIds(ids: string[]): Promise<Occurrence[]> {
-  if (ids.length === 0) return [];
-  const { data } = await supabase()
-    .from('occurrences')
-    .select()
-    .in('id', ids)
-    .order('observed_at', { ascending: false })
-    .throwOnError();
-  return data.map(record => ({
-    observed_at_ms: Date.parse(record.observed_at),
-    ...record,
-  })) as Occurrence[];
 }
 
 // The official nickname if there is one, else the first non-deprecated one.

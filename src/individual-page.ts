@@ -6,18 +6,15 @@ import { repeat } from 'lit/directives/repeat.js';
 import { Temporal } from 'temporal-polyfill';
 import {
   displayName, fetchAllGroups, fetchGroupMembers, fetchIndividual, fetchOccurrenceLinks,
-  fetchOccurrencesByIds, fetchOffspring, fetchParents, groupChain, individualPath, monthlyPresence,
-  parseIndividualPath,
+  fetchOffspring, fetchParents, groupChain, individualPath, mapUrl, monthlyPresence,
+  observedDate, parseIndividualPath,
   type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent, type SocialGroup,
 } from './catalog.ts';
-import { loadCatalogCodes } from './individual-links.ts';
-import type { Occurrence } from './types.ts';
 import { sentryClient } from './sentry.ts';
-import './obs-summary.ts';
+import './individual-map.ts';
 
 sentryClient.init();
 
-const RECENT_LIMIT = 10;
 const PRESENCE_YEARS = 4;
 const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
@@ -32,18 +29,6 @@ const SCHEME_LABELS: Record<string, string> = {
   california: 'California',
   other: '',
 };
-
-const STATUS_LABELS: Record<OccurrenceLink['status'], string> = {
-  candidate: 'unverified mention',
-  validated: 'verified',
-  rejected: 'rejected', // filtered out upstream; label kept for exhaustiveness
-};
-
-interface Sightings {
-  links: OccurrenceLink[];
-  linksByOccurrence: Map<string, OccurrenceLink>;
-  recent: Occurrence[];
-}
 
 interface Profile {
   profile: IndividualProfile;
@@ -74,14 +59,6 @@ function lifeStatusPhrase(status: IndividualProfile['life_status']): string | nu
   }
 }
 
-function observedDate(observedAt: string): Temporal.PlainDate {
-  return Temporal.Instant.from(observedAt).toZonedDateTimeISO('PST8PDT').toPlainDate();
-}
-
-function mapUrl(link: OccurrenceLink): string {
-  return `/?d=${observedDate(link.observed_at).toString()}&o=${encodeURIComponent(link.occurrence_id)}`;
-}
-
 @customElement('individual-page')
 export class IndividualPage extends LitElement {
   @state() private designation = parseIndividualPath(window.location.pathname);
@@ -110,27 +87,9 @@ export class IndividualPage extends LitElement {
   // server-side (~2s). Runs after the profile so the masthead paints first.
   #sightings = new Task(this, {
     args: () => [this.#profile.value?.profile.id] as const,
-    task: async ([individualId]): Promise<Sightings | null> => {
-      if (!individualId) return null;
-      const links = await fetchOccurrenceLinks(individualId);
-      const recent = await fetchOccurrencesByIds(links.slice(0, RECENT_LIMIT).map(l => l.occurrence_id));
-      return {
-        links,
-        linksByOccurrence: new Map(links.map(l => [l.occurrence_id, l])),
-        recent,
-      };
-    },
+    task: async ([individualId]): Promise<OccurrenceLink[] | null> =>
+      individualId ? fetchOccurrenceLinks(individualId) : null,
   });
-
-  connectedCallback(): void {
-    super.connectedCallback();
-    void loadCatalogCodes().catch(() => { /* links in sighting text just stay plain */ });
-    this.addEventListener('focus-occurrence', evt => {
-      const occurrence = (evt as CustomEvent<Occurrence>).detail;
-      const link = this.#sightings.value?.linksByOccurrence.get(occurrence.id);
-      if (link) window.location.href = mapUrl(link);
-    });
-  }
 
   static styles = css`
     :host {
@@ -270,22 +229,9 @@ export class IndividualPage extends LitElement {
       font-size: 0.875rem;
       margin: 0.75rem 0 0;
     }
-    article.sighting {
+    individual-map {
+      display: block;
       margin-top: 1.5rem;
-    }
-    .sighting-context {
-      color: #64748b;
-      font-size: 0.8125rem;
-      margin-bottom: 0.125rem;
-    }
-    .status {
-      background: #f1f5f9;
-      border-radius: 3px;
-      padding: 0.0625rem 0.375rem;
-    }
-    .status.validated {
-      background: #e8f5e9;
-      color: #2e7d32;
     }
     .placeholder {
       color: #64748b;
@@ -447,15 +393,18 @@ export class IndividualPage extends LitElement {
         ${this.#sightings.render({
           pending: () => html`<p class="placeholder">Searching sighting reports&hellip; this takes a few seconds.</p>`,
           error: () => html`<p class="error">Couldn't load sightings just now.</p>`,
-          complete: sightings => {
-            if (!sightings || !sightings.links.length)
+          complete: links => {
+            if (!links?.length)
               return html`<p class="placeholder">No sighting reports mention ${designation} yet.</p>`;
+            const latest = links[0]!;
+            const located = links.filter(l => l.location).length;
             return html`
-              ${this.renderPresence(sightings.links)}
-              ${repeat(sightings.recent, occ => occ.id, occ => this.renderSighting(occ, sightings.linksByOccurrence.get(occ.id)))}
-              ${when(sightings.links.length > sightings.recent.length, () => html`
-                <p class="sightings-note">Showing the ${sightings.recent.length} most recent of ${sightings.links.length} reports.</p>
-              `)}
+              ${this.renderPresence(links)}
+              ${when(located, () => html`<individual-map .links=${links}></individual-map>`)}
+              <p class="sightings-note">
+                Last reported <a href=${mapUrl(latest)}>${observedDate(latest.observed_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}
+                · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} a dot above; the most recent is solid. Click one to see that day on the map.`)}
+              </p>
             `;
           },
         })}
@@ -491,19 +440,6 @@ export class IndividualPage extends LitElement {
     `;
   }
 
-  private renderSighting(occurrence: Occurrence, link: OccurrenceLink | undefined) {
-    const date = observedDate(occurrence.observed_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    return html`
-      <article class="sighting">
-        <div class="sighting-context">
-          ${link ? html`<a href=${mapUrl(link)}>${date}</a>` : date}
-          ${link?.via_group ? html` · mentioned as ${link.via_group}` : nothing}
-          ${link ? html` · <span class="status ${link.status}">${STATUS_LABELS[link.status]}</span>` : nothing}
-        </div>
-        <obs-summary .sighting=${occurrence}></obs-summary>
-      </article>
-    `;
-  }
 }
 
 declare global {

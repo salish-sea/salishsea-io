@@ -130,7 +130,8 @@ function individualPreviewTags(individual: Individual): OgTags {
       ? (individual.born_earliest === individual.born_latest
         ? `born ${individual.born_earliest}`
         : `born ${individual.born_earliest}–${individual.born_latest}`)
-      : individual.born_latest !== null ? `born by ${individual.born_latest}` : null,
+      : individual.born_latest !== null ? `born by ${individual.born_latest}`
+      : individual.born_earliest !== null ? `born after ${individual.born_earliest}` : null,
   ].filter(Boolean).join(', ');
   const description = `${vitals ? `${vitals} · ` : ''}Names, family, and sighting history of ${title} in the Salish Sea.`;
   return {

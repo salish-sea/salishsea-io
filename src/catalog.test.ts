@@ -38,6 +38,7 @@ const link = (over: Partial<IndividualOccurrence>): IndividualOccurrence => ({
   individual_id: 1,
   occurrence_id: 'maplify:1',
   observed_at: '2026-06-14T17:36:00+00:00',
+  location: { lon: -123.07, lat: 48.6 },
   is_present: true,
   status: 'candidate',
   evidence: 'text_mention',
@@ -76,12 +77,14 @@ test('sorts deduped links newest first', () => {
 });
 
 test('aggregates presence by PST8PDT calendar month', () => {
+  const at = (occurrence_id: string, observed_at: string): OccurrenceLink =>
+    ({ occurrence_id, observed_at, location: null, is_present: true, status: 'candidate', via_group: null });
   const links: OccurrenceLink[] = [
     // 2026-01-01T02:00Z is still 2025-12-31 in PST8PDT
-    { occurrence_id: 'a', observed_at: '2026-01-01T02:00:00+00:00', is_present: true, status: 'candidate', via_group: null },
-    { occurrence_id: 'b', observed_at: '2026-06-14T17:36:00+00:00', is_present: true, status: 'candidate', via_group: null },
-    { occurrence_id: 'c', observed_at: '2026-06-20T17:36:00+00:00', is_present: true, status: 'candidate', via_group: null },
-    { occurrence_id: 'd', observed_at: '2020-06-20T17:36:00+00:00', is_present: true, status: 'candidate', via_group: null },
+    at('a', '2026-01-01T02:00:00+00:00'),
+    at('b', '2026-06-14T17:36:00+00:00'),
+    at('c', '2026-06-20T17:36:00+00:00'),
+    at('d', '2020-06-20T17:36:00+00:00'),
   ];
   const grid = monthlyPresence(links, 2, 2026);
   expect(grid).toHaveLength(2);

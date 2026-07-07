@@ -21,6 +21,7 @@ SELECT
   COALESCE(oi.individual_id, gm.individual_id) AS individual_id,
   oi.occurrence_id,
   o.observed_at,
+  o.location,
   oi.is_present,
   oi.status,
   oi.evidence,

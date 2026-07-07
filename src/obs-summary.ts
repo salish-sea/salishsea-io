@@ -22,8 +22,10 @@ const domPurify = createDOMPurify(window as any);
 const markedRenderer = new Renderer();
 // Site-internal links (injected individual-profile links) stay in this tab;
 // everything else — external partner/source links — opens in a new one.
+// `//host/...` is protocol-relative, i.e. external: bodies are third-party
+// text, and such a link must not masquerade as internal.
 markedRenderer.link = ({ href, text }: { href: string; text: string }) =>
-  href.startsWith('/')
+  href.startsWith('/') && !href.startsWith('//')
     ? `<a href="${href}">${text}</a>`
     : `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 

@@ -434,6 +434,18 @@ describe('/individuals/<designation> profile pages', () => {
     expect(apiUrl).toContain('/rest/v1/individuals?primary_designation=eq.T065A');
   });
 
+  it('includes "born after" vitals when only born_earliest is known', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [{ ...sampleIndividual, born_earliest: 1990, born_latest: null }],
+    } as Response);
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+    const result = await handler(event) as { body: string };
+    expect(result.body).toContain('born after 1990');
+  });
+
   it('falls back to designation-only title when there is no usable nickname', async () => {
     mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockResolvedValue({

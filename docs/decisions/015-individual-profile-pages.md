@@ -25,23 +25,34 @@ weaker for sharing/SEO — the whole point of the page is to be a reason to visi
 ### Read path: one view, live resolution
 
 A new `public.individual_occurrences` view flattens `occurrence_identifications`
-to one row per (individual, occurrence), reaching every **current member** of a
-group named in a group claim (`via_group` labels the weaker inference). One
-PostgREST filter on `individual_id` powers both the recent-sightings list and
-the presence-by-month grid. Resolution stays **live** (regex over sighting text
-at read time, ~2s/query on prod) — acceptable for an async page section today;
-indexing candidates ahead of time is deliberately deferred until the live path
-actually hurts (bd `salishsea-io-*`, see follow-ups).
+to one row per (individual, occurrence, location), reaching every **current
+member** of a group named in a group claim (`via_group` labels the weaker
+inference). One PostgREST filter on `individual_id` powers the whole sightings
+section: a presence-by-month grid plus a **static map** of everywhere the
+animal has been reported (most recent emphasized; dots click through to the
+main map on that day). Re-rendering `<obs-summary>` rows was tried and
+rejected — a wall of borrowed sighting cards read poorly on a profile.
+Resolution stays **live** (regex over sighting text at read time, ~2s/query on
+prod) — acceptable for an async page section today; indexing candidates ahead
+of time is deliberately deferred until the live path actually hurts (bd
+`salishsea-io-be4`).
 
 ### Honesty invariant carried to the UI
 
-Per decisions 008/014 and the rights policy, regex-derived links are presented
-as **"unverified mention"** (with "mentioned as `<group>`" for via-group rows);
-only `validated` claims render as verified. Absence claims and `rejected`
-identifications are excluded from the page. Identifier codes in sighting text
-site-wide become links to profile pages (`injectIndividualLinks`) — a
-navigation aid, never an identification claim; matriline (`…s`) and
-non-catalog codes stay plain text.
+Per decisions 008/014 and the rights policy, the sightings section states that
+its counts are mostly **unverified mentions** in sighting text (with "as
+`<group>`" when the latest link is a via-group inference). Absence claims and
+`rejected` identifications are excluded from the page. Identifier codes in
+sighting text site-wide become links to profile pages
+(`injectIndividualLinks`) — a navigation aid, never an identification claim;
+matriline (`…s`) and non-catalog codes stay plain text.
+
+Per **D-21** (rights-policy §7.1), nickname *stories* and `individuals.notes`
+are verbatim Bigg's-sheet cells, a minority of which are creative prose — they
+are **not rendered**, and the `nicknames.story` column is revoked from the
+anon/authenticated API roles (column-level GRANT). Naming *facts* (name,
+namer, year, theme, status) remain public. Restoring stories requires either
+restating them as facts or securing permission.
 
 ## Consequences / follow-ups
 
