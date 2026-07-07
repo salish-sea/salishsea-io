@@ -88,8 +88,26 @@ DELETE FROM public.group_memberships gm
   USING public.social_groups sg
   WHERE gm.group_id = sg.id AND sg.kind = 'matriline';
 
--- 2. detach any matriline parent pointer (re-derived below) to free deletes
-UPDATE public.social_groups SET parent_group_id = NULL WHERE kind = 'matriline';
+-- 2. clear inbound references to the matriline groups about to be deleted, so
+--    RESTRICT FKs cannot block the delete: null any group's parent pointer at a
+--    doomed matriline, and drop any nickname attached to one. (identifications
+--    also references social_groups, but it is created empty earlier in THIS
+--    migration and has no writer yet, so it cannot reference these rows.)
+UPDATE public.social_groups SET parent_group_id = NULL
+  WHERE parent_group_id IN (
+    SELECT id FROM public.social_groups
+    WHERE kind = 'matriline'
+      AND designation NOT IN (
+        SELECT DISTINCT m.primary_designation
+        FROM public.individuals child JOIN public.individuals m ON m.id = child.mother_id));
+
+DELETE FROM public.nicknames
+  WHERE social_group_id IN (
+    SELECT id FROM public.social_groups
+    WHERE kind = 'matriline'
+      AND designation NOT IN (
+        SELECT DISTINCT m.primary_designation
+        FROM public.individuals child JOIN public.individuals m ON m.id = child.mother_id));
 
 -- 3. delete matriline groups whose designation is not a per-mother anchor
 --    (a per-mother anchor = an individual who is some individual's mother)
