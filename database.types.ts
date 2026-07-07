@@ -526,7 +526,7 @@ export type Database = {
       social_groups: {
         Row: {
           anchor_individual_id: number | null
-          designation: string | null
+          designation: string
           id: number
           kind: Database["public"]["Enums"]["social_group_kind"]
           notes: string | null
@@ -534,7 +534,7 @@ export type Database = {
         }
         Insert: {
           anchor_individual_id?: number | null
-          designation?: string | null
+          designation: string
           id?: number
           kind: Database["public"]["Enums"]["social_group_kind"]
           notes?: string | null
@@ -542,7 +542,7 @@ export type Database = {
         }
         Update: {
           anchor_individual_id?: number | null
-          designation?: string | null
+          designation?: string
           id?: number
           kind?: Database["public"]["Enums"]["social_group_kind"]
           notes?: string | null
