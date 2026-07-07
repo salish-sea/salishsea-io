@@ -94,7 +94,9 @@ async function main(): Promise<void> {
                     group_designation text, individual_designation text, is_current bool, joined_year int)
                 JOIN public.social_groups g ON g.designation = v.group_designation
                 JOIN public.individuals i ON i.primary_designation = v.individual_designation
-                ON CONFLICT (group_id, individual_id) DO NOTHING
+                ON CONFLICT (group_id, individual_id) DO UPDATE SET
+                    is_current = EXCLUDED.is_current, joined_year = EXCLUDED.joined_year,
+                    basis = EXCLUDED.basis
                 RETURNING id`).count;
 
             const nickIndividual = (await tx`
@@ -111,50 +113,52 @@ async function main(): Promise<void> {
                 RETURNING id`).count;
 
             const nickGroup = (await tx`
-                INSERT INTO public.nicknames (social_group_id, name, story, theme, status)
-                SELECT g.id, v.name, v.story, v.theme, v.status::public.nickname_status
+                INSERT INTO public.nicknames (social_group_id, name, story, namer_id, theme, status)
+                SELECT g.id, v.name, v.story, p.id, v.theme, v.status::public.nickname_status
                 FROM jsonb_to_recordset(${tx.json(nnGroup as never)}) AS v(
-                    group_designation text, name text, story text, theme text, status text)
+                    group_designation text, name text, story text, namer_name text,
+                    theme text, status text)
                 JOIN public.social_groups g ON g.designation = v.group_designation
+                LEFT JOIN public.parties p ON p.name = v.namer_name
                 ON CONFLICT (social_group_id, name) DO UPDATE SET
-                    story = EXCLUDED.story, theme = EXCLUDED.theme, status = EXCLUDED.status
+                    story = EXCLUDED.story, namer_id = EXCLUDED.namer_id,
+                    theme = EXCLUDED.theme, status = EXCLUDED.status
                 RETURNING id`).count;
 
             // ---- pass 2: resolve self-referential FKs ----
+            // Feed the FULL source set and LEFT JOIN the target, so a link that the
+            // TSV removes or that no longer resolves is explicitly cleared to NULL on
+            // a refresh — an inner join over a filtered set would leave it stale.
             const mothers = cat.individuals
-                .filter((i) => i.mother_designation)
                 .map((i) => ({ child: i.primary_designation, mother: i.mother_designation }));
             const motherUpd = (await tx`
                 UPDATE public.individuals child SET mother_id = mother.id
                 FROM jsonb_to_recordset(${tx.json(mothers as never)}) AS v(child text, mother text)
-                JOIN public.individuals mother ON mother.primary_designation = v.mother
+                LEFT JOIN public.individuals mother ON mother.primary_designation = v.mother
                 WHERE child.primary_designation = v.child`).count;
 
             const anchors = cat.socialGroups
-                .filter((g) => g.anchor_designation)
                 .map((g) => ({ group_designation: g.designation, anchor: g.anchor_designation }));
             await tx`
                 UPDATE public.social_groups g SET anchor_individual_id = i.id
                 FROM jsonb_to_recordset(${tx.json(anchors as never)}) AS v(group_designation text, anchor text)
-                JOIN public.individuals i ON i.primary_designation = v.anchor
+                LEFT JOIN public.individuals i ON i.primary_designation = v.anchor
                 WHERE g.designation = v.group_designation`;
 
             const parents = cat.socialGroups
-                .filter((g) => g.parent_designation)
                 .map((g) => ({ group_designation: g.designation, parent: g.parent_designation }));
             await tx`
                 UPDATE public.social_groups g SET parent_group_id = parent.id
                 FROM jsonb_to_recordset(${tx.json(parents as never)}) AS v(group_designation text, parent text)
-                JOIN public.social_groups parent ON parent.designation = v.parent
+                LEFT JOIN public.social_groups parent ON parent.designation = v.parent
                 WHERE g.designation = v.group_designation`;
 
             const supersessions = cat.designations
-                .filter((d) => d.superseded_by_code)
                 .map((d) => ({ code: d.code, target: d.superseded_by_code }));
             await tx`
                 UPDATE public.designations d SET superseded_by = target.id
                 FROM jsonb_to_recordset(${tx.json(supersessions as never)}) AS v(code text, target text)
-                JOIN public.designations target ON target.code = v.target
+                LEFT JOIN public.designations target ON target.code = v.target
                 WHERE d.code = v.code`;
 
             return {

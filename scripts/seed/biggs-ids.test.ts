@@ -88,7 +88,7 @@ describe('pure helpers', () => {
 
 describe('parseBiggsIds', () => {
     test('skips the header and blank spacer rows', () => {
-        const cat = parseBiggsIds(tsv('', row('', 'T010', 'F', '', ''), ''));
+        const cat = parseBiggsIds(tsv('', row('', 'T010', '', 'F', ''), ''));
         expect(cat.individuals.map((i) => i.primary_designation)).toEqual(['T010']);
     });
 
