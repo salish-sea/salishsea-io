@@ -15,12 +15,17 @@ import { supabase } from "./supabase.ts";
 import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
+import { catalogCodes, injectIndividualLinks, loadCatalogCodes } from './individual-links.ts';
 
 const domPurify = createDOMPurify(window as any);
 
 const markedRenderer = new Renderer();
+// Site-internal links (injected individual-profile links) stay in this tab;
+// everything else — external partner/source links — opens in a new one.
 markedRenderer.link = ({ href, text }: { href: string; text: string }) =>
-  `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  href.startsWith('/')
+    ? `<a href="${href}">${text}</a>`
+    : `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 
 @customElement('obs-summary')
 export class ObsSummary extends LitElement {
@@ -34,6 +39,10 @@ export class ObsSummary extends LitElement {
   protected ownObservation = false
 
   @state() private copied = false;
+
+  // Flips once the catalog code lookup arrives so guarded bodies re-render
+  // with individual-profile links; until then codes show as plain text.
+  @state() private catalogLoaded = catalogCodes() !== null;
 
   static styles = css`
     :host {
@@ -165,6 +174,12 @@ export class ObsSummary extends LitElement {
   @consume({context: contributorContext, subscribe: true})
   private contributor: Contributor | undefined;
 
+  connectedCallback(): void {
+    super.connectedCallback();
+    if (!this.catalogLoaded)
+      loadCatalogCodes().then(() => { this.catalogLoaded = true; }, () => { /* codes stay plain text */ });
+  }
+
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('contributor') || changedProperties.has('sighting')) {
       this.ownObservation = !!(this.contributor && this.sighting.contributor_id === this.contributor.id);
@@ -191,10 +206,13 @@ export class ObsSummary extends LitElement {
         }`)}</time>
       </header>
       ${this.renderProvenance()}
-      ${guard([body], () => html`${
+      ${guard([body, this.catalogLoaded], () => html`${
         unsafeHTML(domPurify.sanitize(
           marked.parse(
-            injectPartnerLinks(stripResolvedProvenance((body || '').replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n'), provider_slug)),
+            injectIndividualLinks(
+              injectPartnerLinks(stripResolvedProvenance((body || '').replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n'), provider_slug)),
+              catalogCodes() ?? new Map()
+            ),
             { async: false, renderer: markedRenderer }
           ),
           { ADD_ATTR: ['target', 'rel'] }
@@ -330,8 +348,10 @@ function safeExternalHref(raw: string | null | undefined): string | null {
   }
 }
 
+// Share links always point at the map, regardless of which page (map or
+// individual profile) hosts the summary.
 export function buildShareUrl(occurrenceId: string): string {
-  return `${window.location.origin}${window.location.pathname}?o=${occurrenceId}`;
+  return `${window.location.origin}/?o=${occurrenceId}`;
 }
 
 export type CloneSightingEvent = CustomEvent<Occurrence>;

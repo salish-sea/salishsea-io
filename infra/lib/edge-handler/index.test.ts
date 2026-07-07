@@ -375,3 +375,115 @@ describe('Image-asset carve-out: og:image must serve bytes, not OG HTML', () => 
     expect(result.body).toContain('og:title');
   });
 });
+
+describe('/individuals/<designation> profile pages', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    _clearCredentialCache();
+    jest.spyOn(global, 'fetch').mockReset();
+  });
+
+  const sampleIndividual = {
+    primary_designation: 'T065A',
+    sex: 'female',
+    born_earliest: 1986,
+    born_latest: 1986,
+    life_status: 'alive',
+    nicknames: [
+      { name: 'Old Name', status: 'deprecated' },
+      { name: 'Artemis', status: 'official' },
+    ],
+  };
+
+  it('rewrites the URI to /individual.html for a human user-agent', async () => {
+    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/individuals/T065A');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(result.uri).toBe('/individual.html');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('leaves non-individual paths alone for a human user-agent', async () => {
+    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/about.html');
+    const result = await handler(event);
+    expect(result.uri).toBe('/about.html');
+  });
+
+  it('does not rewrite deeper paths under /individuals/', async () => {
+    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/individuals/T065A/photos');
+    const result = await handler(event);
+    expect(result.uri).toBe('/individuals/T065A/photos');
+  });
+
+  it('returns individual-specific OG tags for a bot', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [sampleIndividual],
+    } as Response);
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result.status).toBe('200');
+    expect(result.body).toContain('content="Artemis (T065A)"');
+    expect(result.body).toContain('born 1986');
+    expect(result.body).toContain('content="https://salishsea.io/individuals/T065A"');
+    expect(result.body).toContain('content="profile"');
+
+    const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(apiUrl).toContain('/rest/v1/individuals?primary_designation=eq.T065A');
+  });
+
+  it('falls back to designation-only title when there is no usable nickname', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [{ ...sampleIndividual, nicknames: [] }],
+    } as Response);
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+    const result = await handler(event) as { body: string };
+    expect(result.body).toContain('<title>T065A</title>');
+    expect(result.body).not.toContain('Artemis');
+  });
+
+  it('returns the generic preview for an unknown designation', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/NOPE');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result.status).toBe('200');
+    expect(result.body).toContain('Salish Sea');
+    expect(result.body).not.toContain('NOPE');
+  });
+
+  it('fail-open for a bot still rewrites to the page shell when fetch throws', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(result.uri).toBe('/individual.html');
+  });
+
+  it('escapes HTML in OG tag content built from catalog data', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [{
+        ...sampleIndividual,
+        nicknames: [{ name: '<script>alert(1)</script>', status: 'official' }],
+      }],
+    } as Response);
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+    const result = await handler(event) as { body: string };
+    expect(result.body).not.toContain('<script>alert(1)</script>');
+    expect(result.body).toContain('&lt;script&gt;');
+  });
+});

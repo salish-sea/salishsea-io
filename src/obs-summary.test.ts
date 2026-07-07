@@ -31,9 +31,9 @@ describe('buildShareUrl', () => {
     });
   });
 
-  it('Test 1: builds a URL from origin + pathname + ?o=id', () => {
+  it('Test 1: builds a URL from origin + map root + ?o=id, whatever page hosts the summary', () => {
     const result = buildShareUrl('abc123');
-    expect(result).toBe('https://example.com/app?o=abc123');
+    expect(result).toBe('https://example.com/?o=abc123');
   });
 
   it('Test 2: never includes other query params regardless of window.location.search', () => {
@@ -53,13 +53,13 @@ describe('buildShareUrl', () => {
     expect(result).not.toContain('?x=');
     expect(result).not.toContain('?y=');
     expect(result).not.toContain('?z=');
-    expect(result).toBe('https://example.com/app?o=xyz');
+    expect(result).toBe('https://example.com/?o=xyz');
   });
 
   it('Test 3: UUID-style id round-trips cleanly', () => {
     const uuid = '550e8400-e29b-41d4-a716-446655440000';
     const result = buildShareUrl(uuid);
-    expect(result).toBe(`https://example.com/app?o=${uuid}`);
+    expect(result).toBe(`https://example.com/?o=${uuid}`);
     // Verify no double-encoding occurs for standard UUID characters
     expect(result).toContain(uuid);
   });
