@@ -119,6 +119,233 @@ export type Database = {
         }
         Relationships: []
       }
+      designations: {
+        Row: {
+          authority_id: number | null
+          code: string
+          id: number
+          in_catalog: boolean
+          individual_id: number
+          is_primary: boolean
+          scheme: Database["public"]["Enums"]["designation_scheme"]
+          status: Database["public"]["Enums"]["designation_status"]
+          superseded_by: number | null
+        }
+        Insert: {
+          authority_id?: number | null
+          code: string
+          id?: number
+          in_catalog?: boolean
+          individual_id: number
+          is_primary?: boolean
+          scheme: Database["public"]["Enums"]["designation_scheme"]
+          status?: Database["public"]["Enums"]["designation_status"]
+          superseded_by?: number | null
+        }
+        Update: {
+          authority_id?: number | null
+          code?: string
+          id?: number
+          in_catalog?: boolean
+          individual_id?: number
+          is_primary?: boolean
+          scheme?: Database["public"]["Enums"]["designation_scheme"]
+          status?: Database["public"]["Enums"]["designation_status"]
+          superseded_by?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "designations_authority_id_fkey"
+            columns: ["authority_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designations_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designations_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "designations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_memberships: {
+        Row: {
+          basis: Database["public"]["Enums"]["membership_basis"]
+          group_id: number
+          id: number
+          individual_id: number
+          is_current: boolean
+          joined_year: number | null
+          left_year: number | null
+        }
+        Insert: {
+          basis?: Database["public"]["Enums"]["membership_basis"]
+          group_id: number
+          id?: number
+          individual_id: number
+          is_current?: boolean
+          joined_year?: number | null
+          left_year?: number | null
+        }
+        Update: {
+          basis?: Database["public"]["Enums"]["membership_basis"]
+          group_id?: number
+          id?: number
+          individual_id?: number
+          is_current?: boolean
+          joined_year?: number | null
+          left_year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_memberships_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "social_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_memberships_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      individuals: {
+        Row: {
+          born_earliest: number | null
+          born_latest: number | null
+          father_id: number | null
+          id: number
+          life_status: Database["public"]["Enums"]["life_status"]
+          maternity_certainty: Database["public"]["Enums"]["parentage_certainty"]
+          mother_id: number | null
+          notes: string | null
+          paternity_certainty:
+            | Database["public"]["Enums"]["parentage_certainty"]
+            | null
+          primary_designation: string
+          sex: Database["public"]["Enums"]["sex"] | null
+          taxon_id: number
+        }
+        Insert: {
+          born_earliest?: number | null
+          born_latest?: number | null
+          father_id?: number | null
+          id?: number
+          life_status?: Database["public"]["Enums"]["life_status"]
+          maternity_certainty?: Database["public"]["Enums"]["parentage_certainty"]
+          mother_id?: number | null
+          notes?: string | null
+          paternity_certainty?:
+            | Database["public"]["Enums"]["parentage_certainty"]
+            | null
+          primary_designation: string
+          sex?: Database["public"]["Enums"]["sex"] | null
+          taxon_id?: number
+        }
+        Update: {
+          born_earliest?: number | null
+          born_latest?: number | null
+          father_id?: number | null
+          id?: number
+          life_status?: Database["public"]["Enums"]["life_status"]
+          maternity_certainty?: Database["public"]["Enums"]["parentage_certainty"]
+          mother_id?: number | null
+          notes?: string | null
+          paternity_certainty?:
+            | Database["public"]["Enums"]["parentage_certainty"]
+            | null
+          primary_designation?: string
+          sex?: Database["public"]["Enums"]["sex"] | null
+          taxon_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "individuals_father_id_fkey"
+            columns: ["father_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "individuals_mother_id_fkey"
+            columns: ["mother_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nicknames: {
+        Row: {
+          id: number
+          individual_id: number | null
+          name: string
+          named_year: number | null
+          namer_id: number | null
+          social_group_id: number | null
+          status: Database["public"]["Enums"]["nickname_status"]
+          story: string | null
+          theme: string | null
+        }
+        Insert: {
+          id?: number
+          individual_id?: number | null
+          name: string
+          named_year?: number | null
+          namer_id?: number | null
+          social_group_id?: number | null
+          status?: Database["public"]["Enums"]["nickname_status"]
+          story?: string | null
+          theme?: string | null
+        }
+        Update: {
+          id?: number
+          individual_id?: number | null
+          name?: string
+          named_year?: number | null
+          namer_id?: number | null
+          social_group_id?: number | null
+          status?: Database["public"]["Enums"]["nickname_status"]
+          story?: string | null
+          theme?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nicknames_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nicknames_namer_id_fkey"
+            columns: ["namer_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nicknames_social_group_id_fkey"
+            columns: ["social_group_id"]
+            isOneToOne: false
+            referencedRelation: "social_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       observation_photos: {
         Row: {
           href: string
@@ -257,6 +484,27 @@ export type Database = {
         }
         Relationships: []
       }
+      parties: {
+        Row: {
+          id: number
+          kind: Database["public"]["Enums"]["party_kind"] | null
+          name: string
+          url: string | null
+        }
+        Insert: {
+          id?: number
+          kind?: Database["public"]["Enums"]["party_kind"] | null
+          name: string
+          url?: string | null
+        }
+        Update: {
+          id?: number
+          kind?: Database["public"]["Enums"]["party_kind"] | null
+          name?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       providers: {
         Row: {
           id: number
@@ -274,6 +522,48 @@ export type Database = {
           slug?: string
         }
         Relationships: []
+      }
+      social_groups: {
+        Row: {
+          anchor_individual_id: number | null
+          designation: string
+          id: number
+          kind: Database["public"]["Enums"]["social_group_kind"]
+          notes: string | null
+          parent_group_id: number | null
+        }
+        Insert: {
+          anchor_individual_id?: number | null
+          designation: string
+          id?: number
+          kind: Database["public"]["Enums"]["social_group_kind"]
+          notes?: string | null
+          parent_group_id?: number | null
+        }
+        Update: {
+          anchor_individual_id?: number | null
+          designation?: string
+          id?: number
+          kind?: Database["public"]["Enums"]["social_group_kind"]
+          notes?: string | null
+          parent_group_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_groups_anchor_individual_id_fkey"
+            columns: ["anchor_individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_groups_parent_group_id_fkey"
+            columns: ["parent_group_id"]
+            isOneToOne: false
+            referencedRelation: "social_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_contributor: {
         Row: {
@@ -359,6 +649,8 @@ export type Database = {
         | "acoustic_feed"
         | "detector"
         | "direct_app"
+      designation_scheme: "bc_wa" | "alaska" | "california" | "other"
+      designation_status: "active" | "superseded" | "uncertain"
       license:
         | "cc0"
         | "cc-by"
@@ -368,7 +660,28 @@ export type Database = {
         | "cc-by-nc-sa"
         | "cc-by-nc-nd"
         | "none"
+      life_status: "alive" | "deceased" | "presumed_deceased" | "unknown"
+      membership_basis: "maternal" | "association" | "curated"
+      nickname_status:
+        | "official"
+        | "provisional"
+        | "proposed"
+        | "deprecated"
+        | "awaiting_decision"
+      parentage_certainty: "confirmed" | "presumed" | "hypothesized"
+      party_kind:
+        | "researcher"
+        | "organization"
+        | "agency"
+        | "community_project"
+        | "first_nation"
       sex: "male" | "female"
+      social_group_kind:
+        | "ecotype"
+        | "clan"
+        | "pod"
+        | "matriline"
+        | "named_group"
       travel_direction:
         | "north"
         | "northeast"
@@ -538,6 +851,8 @@ export const Constants = {
         "detector",
         "direct_app",
       ],
+      designation_scheme: ["bc_wa", "alaska", "california", "other"],
+      designation_status: ["active", "superseded", "uncertain"],
       license: [
         "cc0",
         "cc-by",
@@ -548,7 +863,25 @@ export const Constants = {
         "cc-by-nc-nd",
         "none",
       ],
+      life_status: ["alive", "deceased", "presumed_deceased", "unknown"],
+      membership_basis: ["maternal", "association", "curated"],
+      nickname_status: [
+        "official",
+        "provisional",
+        "proposed",
+        "deprecated",
+        "awaiting_decision",
+      ],
+      parentage_certainty: ["confirmed", "presumed", "hypothesized"],
+      party_kind: [
+        "researcher",
+        "organization",
+        "agency",
+        "community_project",
+        "first_nation",
+      ],
       sex: ["male", "female"],
+      social_group_kind: ["ecotype", "clan", "pod", "matriline", "named_group"],
       travel_direction: [
         "north",
         "northeast",
