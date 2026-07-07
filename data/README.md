@@ -29,7 +29,7 @@ Pedder Bay, where the T2s were held captive in 1970"). A minority of story cells
 contain genuinely creative prose; where we surface those, we state the fact rather
 than reproduce the passage verbatim. The compilation's selection/arrangement
 belongs to its maintainer and is credited, not claimed. Policy of record:
-[../docs/rights-policy.md](../docs/rights-policy.md).
+[../docs/rights-policy.md](../docs/rights-policy.md) §7.1 (decision D-21).
 
 ### Refreshing
 
