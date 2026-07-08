@@ -210,6 +210,13 @@ export type Database = {
             foreignKeyName: "group_memberships_group_id_fkey"
             columns: ["group_id"]
             isOneToOne: false
+            referencedRelation: "occurrence_identifier_candidates"
+            referencedColumns: ["social_group_id"]
+          },
+          {
+            foreignKeyName: "group_memberships_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
             referencedRelation: "social_groups"
             referencedColumns: ["id"]
           },
@@ -285,6 +292,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "individuals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identifications_social_group_id_fkey"
+            columns: ["social_group_id"]
+            isOneToOne: false
+            referencedRelation: "occurrence_identifier_candidates"
+            referencedColumns: ["social_group_id"]
           },
           {
             foreignKeyName: "identifications_social_group_id_fkey"
@@ -409,6 +423,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "parties"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nicknames_social_group_id_fkey"
+            columns: ["social_group_id"]
+            isOneToOne: false
+            referencedRelation: "occurrence_identifier_candidates"
+            referencedColumns: ["social_group_id"]
           },
           {
             foreignKeyName: "nicknames_social_group_id_fkey"
@@ -633,6 +654,13 @@ export type Database = {
             foreignKeyName: "social_groups_parent_group_id_fkey"
             columns: ["parent_group_id"]
             isOneToOne: false
+            referencedRelation: "occurrence_identifier_candidates"
+            referencedColumns: ["social_group_id"]
+          },
+          {
+            foreignKeyName: "social_groups_parent_group_id_fkey"
+            columns: ["parent_group_id"]
+            isOneToOne: false
             referencedRelation: "social_groups"
             referencedColumns: ["id"]
           },
@@ -697,6 +725,25 @@ export type Database = {
           status: Database["public"]["Enums"]["identification_status"] | null
         }
         Relationships: []
+      }
+      occurrence_identifier_candidates: {
+        Row: {
+          code: string | null
+          individual_id: number | null
+          location: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observed_at: string | null
+          occurrence_id: string | null
+          social_group_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "designations_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       occurrence_unresolved_codes: {
         Row: {

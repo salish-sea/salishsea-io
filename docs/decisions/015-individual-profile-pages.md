@@ -32,10 +32,13 @@ section: a presence-by-month grid plus a **static map** of everywhere the
 animal has been reported (most recent emphasized; dots click through to the
 main map on that day). Re-rendering `<obs-summary>` rows was tried and
 rejected — a wall of borrowed sighting cards read poorly on a profile.
-Resolution stays **live** (regex over sighting text at read time, ~2s/query on
-prod) — acceptable for an async page section today; indexing candidates ahead
-of time is deliberately deferred until the live path actually hurts (bd
-`salishsea-io-be4`).
+Resolution was initially **live** (regex over sighting text at read time,
+~2s/query on prod). Migration `20260708000104` (bd `salishsea-io-be4`) moved
+extraction + resolution into the `occurrence_identifier_candidates`
+materialized view, refreshed by pg_cron a minute after each 5-minute ingest
+tick and by the catalog seed script; per-individual reads dropped to
+milliseconds. Stored claims (curation) still read live so a curator's edit
+takes effect immediately; candidates lag ingest by ≤6 minutes.
 
 ### Honesty invariant carried to the UI
 
