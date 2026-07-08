@@ -771,6 +771,14 @@ export type Database = {
           },
         ]
       }
+      occurrence_index: {
+        Row: {
+          id: string | null
+          location: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observed_at: string | null
+        }
+        Relationships: []
+      }
       occurrence_unresolved_codes: {
         Row: {
           code: string | null
