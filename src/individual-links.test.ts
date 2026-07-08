@@ -50,3 +50,19 @@ test('normalizes case and separators', () => {
   expect(injectIndividualLinks('t-65a5 with T 65A', codes))
     .toBe('[t-65a5](/individuals/T065A5) with [T 65A](/individuals/T065A)');
 });
+
+test('links ecotype names in prose to the ecotype page', () => {
+  expect(injectIndividualLinks('Biggs T46Bs southbound', codes, matrilines))
+    .toBe('[Biggs](/ecotypes/Biggs) [T46Bs](/matrilines/T046B) southbound');
+  // apostrophe variants and "transient(s)" all resolve to the same ecotype
+  expect(injectIndividualLinks("Bigg's transients milling", codes))
+    .toBe("[Bigg's](/ecotypes/Biggs) [transients](/ecotypes/Biggs) milling");
+  // curly apostrophe
+  expect(injectIndividualLinks('Bigg’s northbound', codes))
+    .toBe('[Bigg’s](/ecotypes/Biggs) northbound');
+});
+
+test('does not link ecotype names inside existing markdown links', () => {
+  const linked = 'see [Biggs report](https://example.com/biggs) for details';
+  expect(injectIndividualLinks(linked, codes)).toBe(linked);
+});

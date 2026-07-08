@@ -54,8 +54,11 @@ is named).
   not rendered from `social_groups.notes` (notes/story prose are never shown).
 - **Honesty invariant (015):** the sightings copy states the grid pools all
   members' reports, mostly unverified mentions.
-- Not in `sitemap.xml`. The only inbound links are the ecotype labels in the
-  individual and matriline lineage chains, now linked to this page.
+- Not in `sitemap.xml`. Inbound links: the ecotype labels in the individual and
+  matriline lineage chains, plus ecotype names written out in sighting prose
+  ("Biggs", "Bigg's", "transients") — `injectIndividualLinks` links these
+  fixed terms in code (there is no catalog designation for a prose word),
+  alongside the codes it already links.
 
 ## Consequences / follow-ups
 

@@ -1,5 +1,5 @@
 import { supabase } from './supabase.ts';
-import { individualPath, matrilinePath, normalizeDesignation } from './catalog.ts';
+import { ecotypePath, individualPath, matrilinePath, normalizeDesignation } from './catalog.ts';
 
 // Same shape as public.extract_identifiers (20250924160210_detect_individuals.sql):
 // pod/catalog prefix, optional separator, leading zeros, digit + hex block, and a
@@ -8,17 +8,31 @@ import { individualPath, matrilinePath, normalizeDesignation } from './catalog.t
 // as the embedded individual code.
 const CODE_RE = /\b(j|k|l|t|crc)[- ]?0*(\d[\da-f]+)(s?)\b/gi;
 
+// Ecotype names written out in sighting prose ("Biggs T46Bs southbound"). Unlike
+// codes these aren't in the catalog as designations, so the small set of known
+// terms maps to an ecotype designation in code (mirrors ECOTYPE_LABELS in
+// ecotype-page.ts / the edge handler). Straight and curly apostrophes both.
+const ECOTYPE_TERM_RE = /\b(bigg['’]?s|transients?)\b/gi;
+
+function ecotypeForTerm(term: string): string | null {
+  const t = term.toLowerCase().replace(/[’]/g, "'");
+  if (t === 'biggs' || t === "bigg's" || t === 'transient' || t === 'transients') return 'Biggs';
+  return null;
+}
+
 // Splits body into alternating segments: [plain text, existing-link, plain text, ...]
 // Odd-indexed segments are existing markdown links — leave them untouched.
 const EXISTING_LINK_RE = /(\[.*?\]\(.*?\))/g;
 
 // Turn catalog-resolvable identifier codes in a markdown body into links to the
-// individual's profile page, and matriline codes ("T65As") into links to the
-// matriline's page. `codes` maps a normalized designation (e.g. 'T065A5') to
-// the individual's primary designation; `matrilines` maps a normalized
-// matriarch designation (e.g. 'T065A') to the matriline's designation. Codes
-// that resolve to nothing (SRKW, CRC, uncataloged) pass through as plain text —
-// linking is a navigation aid, never an identification claim.
+// individual's profile page, matriline codes ("T65As") into links to the
+// matriline's page, and ecotype names in prose ("Biggs", "transients") into
+// links to the ecotype page. `codes` maps a normalized designation (e.g.
+// 'T065A5') to the individual's primary designation; `matrilines` maps a
+// normalized matriarch designation (e.g. 'T065A') to the matriline's
+// designation. Codes that resolve to nothing (SRKW, CRC, uncataloged) pass
+// through as plain text — linking is a navigation aid, never an identification
+// claim.
 export function injectIndividualLinks(
   body: string,
   codes: Map<string, string>,
@@ -28,7 +42,7 @@ export function injectIndividualLinks(
     .split(EXISTING_LINK_RE)
     .map((segment, i) => {
       if (i % 2 === 1) return segment;
-      return segment.replace(CODE_RE, (match, prefix: string, block: string, matriline: string) => {
+      const linked = segment.replace(CODE_RE, (match, prefix: string, block: string, matriline: string) => {
         const normalized = normalizeDesignation(`${prefix}${block}`.toUpperCase());
         if (matriline) {
           const designation = matrilines.get(normalized);
@@ -36,6 +50,12 @@ export function injectIndividualLinks(
         }
         const designation = codes.get(normalized);
         return designation ? `[${match}](${individualPath(designation)})` : match;
+      });
+      // Codes never contain an ecotype word and ecotype links never contain a
+      // code, so this second pass can't collide with the one above.
+      return linked.replace(ECOTYPE_TERM_RE, match => {
+        const designation = ecotypeForTerm(match);
+        return designation ? `[${match}](${ecotypePath(designation)})` : match;
       });
     })
     .join('');
