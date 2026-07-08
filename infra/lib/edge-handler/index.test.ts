@@ -499,3 +499,86 @@ describe('/individuals/<designation> profile pages', () => {
     expect(result.body).toContain('&lt;script&gt;');
   });
 });
+
+describe('/matrilines/<designation> profile pages', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    _clearCredentialCache();
+    jest.spyOn(global, 'fetch').mockReset();
+  });
+
+  const sampleGroup = {
+    designation: 'T065A',
+    nicknames: [{ name: 'Artemis family', status: 'official' }],
+  };
+
+  it('rewrites the URI to /matriline.html for a human user-agent', async () => {
+    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/matrilines/T065A');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(result.uri).toBe('/matriline.html');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not rewrite deeper paths under /matrilines/', async () => {
+    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/matrilines/T065A/photos');
+    const result = await handler(event);
+    expect(result.uri).toBe('/matrilines/T065A/photos');
+  });
+
+  it('returns matriline-specific OG tags for a bot', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [sampleGroup],
+    } as Response);
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/matrilines/T065A');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result.status).toBe('200');
+    expect(result.body).toContain('content="Artemis family (T065A matriline)"');
+    expect(result.body).toContain('content="https://salishsea.io/matrilines/T065A"');
+    expect(result.body).toContain('content="profile"');
+
+    const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(apiUrl).toContain('/rest/v1/social_groups?designation=eq.T065A');
+    expect(apiUrl).toContain('kind=eq.matriline');
+  });
+
+  it('falls back to a designation-only title when there is no usable nickname', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [{ ...sampleGroup, nicknames: [] }],
+    } as Response);
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/matrilines/T065A');
+    const result = await handler(event) as { body: string };
+    expect(result.body).toContain('<title>The T065A matriline</title>');
+    expect(result.body).not.toContain('Artemis');
+  });
+
+  it('returns the generic preview for an unknown designation', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/matrilines/NOPE');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result.status).toBe('200');
+    expect(result.body).toContain('Salish Sea');
+    expect(result.body).not.toContain('NOPE');
+  });
+
+  it('fail-open for a bot still rewrites to the page shell when fetch throws', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/matrilines/T065A');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(result.uri).toBe('/matriline.html');
+  });
+});

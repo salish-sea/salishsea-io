@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import {
-  dedupeOccurrenceLinks, displayName, groupChain, individualPath, monthlyPresence,
-  normalizeDesignation, parseIndividualPath,
+  dedupeOccurrenceLinks, displayName, groupChain, individualPath, matrilinePath, monthlyPresence,
+  normalizeDesignation, parseIndividualPath, parseMatrilinePath,
   type IndividualOccurrence, type OccurrenceLink, type SocialGroup,
 } from './catalog.ts';
 
@@ -18,6 +18,21 @@ test('parses /individuals/<designation> paths', () => {
 test('individualPath round-trips through parseIndividualPath', () => {
   for (const designation of ['T065A', 'CA20', 'AM25 X']) {
     expect(parseIndividualPath(individualPath(designation))).toBe(designation);
+  }
+});
+
+test('parses /matrilines/<designation> paths', () => {
+  expect(parseMatrilinePath('/matrilines/T065A')).toBe('T065A');
+  expect(parseMatrilinePath('/matrilines/T065A/')).toBe('T065A');
+  expect(parseMatrilinePath('/matrilines/')).toBeNull();
+  expect(parseMatrilinePath('/matrilines/T065A/photos')).toBeNull();
+  expect(parseMatrilinePath('/individuals/T065A')).toBeNull();
+  expect(parseIndividualPath('/matrilines/T065A')).toBeNull();
+});
+
+test('matrilinePath round-trips through parseMatrilinePath', () => {
+  for (const designation of ['T065A', 'T046B', 'AM25 X']) {
+    expect(parseMatrilinePath(matrilinePath(designation))).toBe(designation);
   }
 });
 
@@ -66,6 +81,13 @@ test('drops absence claims and rejected identifications', () => {
     link({ occurrence_id: 'c' }),
   ];
   expect(dedupeOccurrenceLinks(rows).map(l => l.occurrence_id)).toEqual(['c']);
+});
+
+test('dedupes group_occurrences-shaped rows, which carry no via_group', () => {
+  const { via_group: _elide, ...groupRow } = link({ occurrence_id: 'a' });
+  const deduped = dedupeOccurrenceLinks([groupRow, { ...groupRow, occurrence_id: 'b' }]);
+  expect(deduped).toHaveLength(2);
+  expect(deduped.every(l => l.via_group === null)).toBe(true);
 });
 
 test('sorts deduped links newest first', () => {

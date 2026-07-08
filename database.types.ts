@@ -691,6 +691,21 @@ export type Database = {
       }
     }
     Views: {
+      group_occurrences: {
+        Row: {
+          code: string | null
+          evidence:
+            | Database["public"]["Enums"]["identification_evidence"]
+            | null
+          is_present: boolean | null
+          location: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observed_at: string | null
+          occurrence_id: string | null
+          social_group_id: number | null
+          status: Database["public"]["Enums"]["identification_status"] | null
+        }
+        Relationships: []
+      }
       individual_occurrences: {
         Row: {
           code: string | null
