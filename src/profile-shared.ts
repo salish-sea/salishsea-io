@@ -162,11 +162,12 @@ export function renderDagger(lifeStatus: string) {
     : nothing;
 }
 
-// A matriline's member roster, oldest first. `selfId` bolds the page's own
-// individual instead of linking it (individual pages only).
+// A matriline's member roster, oldest first (unknown birth years last).
+// `selfId` bolds the page's own individual instead of linking it (individual
+// pages only).
 export function renderMemberList(members: GroupMember[], selfId?: number) {
   const sorted = [...members].sort((a, b) =>
-    (a.individual?.born_earliest ?? -Infinity) - (b.individual?.born_earliest ?? -Infinity));
+    (a.individual?.born_earliest ?? Infinity) - (b.individual?.born_earliest ?? Infinity));
   return html`
     <ul class="people">
       ${repeat(sorted, m => m.individual!.id, m => html`
