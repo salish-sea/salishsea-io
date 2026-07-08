@@ -115,9 +115,10 @@ interface Individual {
   nicknames: { name: string; status: string }[];
 }
 
-// /individuals/<designation> — an individual-animal profile page, rendered
-// client-side from the individual.html shell (see src/individual-page.ts).
-const INDIVIDUAL_PATH_RE = /^\/individuals\/([^/]+)\/?$/;
+interface SocialGroup {
+  designation: string;
+  nicknames: { name: string; status: string }[];
+}
 
 function individualPreviewTags(individual: Individual): OgTags {
   const name = individual.nicknames.find(n => n.status === 'official')?.name
@@ -153,15 +154,15 @@ const FALLBACK_IMAGE = 'https://salishsea.io/preview.jpg';
 // Not a secret; it appears in page meta by design.
 const FB_APP_ID = '678644427974059';
 
+const htmlResponse = (tags: OgTags) => ({
+  status: '200',
+  headers: { 'content-type': [{ key: 'Content-Type', value: 'text/html; charset=utf-8' }] },
+  body: buildOgHtml(tags),
+});
+
 // OG-meta response for a bot fetching an individual's profile page. Unknown
 // designations fall back to the generic site card — same contract as ?o=.
 async function individualPreview(designation: string): Promise<any> {
-  const htmlResponse = (tags: OgTags) => ({
-    status: '200',
-    headers: { 'content-type': [{ key: 'Content-Type', value: 'text/html; charset=utf-8' }] },
-    body: buildOgHtml(tags),
-  });
-
   const { url, key } = await getCredentials();
   const apiUrl = `${url}/rest/v1/individuals?primary_designation=eq.${encodeURIComponent(designation)}`
     + '&select=primary_designation,sex,born_earliest,born_latest,life_status,nicknames(name,status)&limit=1';
@@ -173,6 +174,56 @@ async function individualPreview(designation: string): Promise<any> {
   const individual = individuals[0];
   if (!individual) return htmlResponse(genericPreviewTags());
   return htmlResponse(individualPreviewTags(individual));
+}
+
+function matrilinePreviewTags(group: SocialGroup): OgTags {
+  const name = group.nicknames.find(n => n.status === 'official')?.name
+    ?? group.nicknames.find(n => n.status !== 'deprecated')?.name;
+  const designation = group.designation;
+  const title = name ? `${name} (${designation} matriline)` : `The ${designation} matriline`;
+  const description =
+    `Members, naming, and sighting history of the ${designation} matriline of Bigg's killer whales in the Salish Sea.`;
+  return {
+    'og:site_name': 'SalishSea.io',
+    'og:type': 'profile',
+    'og:url': `https://salishsea.io/matrilines/${encodeURIComponent(designation)}`,
+    'og:title': title,
+    'og:description': description,
+    'og:image': FALLBACK_IMAGE,
+    'twitter:card': 'summary_large_image',
+    'fb:app_id': FB_APP_ID,
+  };
+}
+
+// OG-meta response for a bot fetching a matriline's profile page.
+async function matrilinePreview(designation: string): Promise<any> {
+  const { url, key } = await getCredentials();
+  const apiUrl = `${url}/rest/v1/social_groups?designation=eq.${encodeURIComponent(designation)}`
+    + '&kind=eq.matriline&select=designation,nicknames(name,status)&limit=1';
+  const res = await fetch(apiUrl, {
+    headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
+  });
+  if (!res.ok) return htmlResponse(genericPreviewTags());
+  const groups = await res.json() as SocialGroup[];
+  const group = groups[0];
+  if (!group) return htmlResponse(genericPreviewTags());
+  return htmlResponse(matrilinePreviewTags(group));
+}
+
+// Profile pages rendered client-side from a static shell (decision 015/016):
+// humans get the shell rewrite, bots get synthesized OG meta. S3 has no object
+// at these paths, so even the fail-open branch must rewrite to the shell.
+const PROFILE_ROUTES = [
+  { re: /^\/individuals\/([^/]+)\/?$/, shell: '/individual.html', preview: individualPreview },
+  { re: /^\/matrilines\/([^/]+)\/?$/, shell: '/matriline.html', preview: matrilinePreview },
+];
+
+function matchProfileRoute(uri: string): { shell: string; preview: (designation: string) => Promise<any>; designation: string } | null {
+  for (const { re, shell, preview } of PROFILE_ROUTES) {
+    const match = uri.match(re);
+    if (match) return { shell, preview, designation: match[1]! };
+  }
+  return null;
 }
 
 export const handler = async (event: any): Promise<any> => {
@@ -202,20 +253,21 @@ export const handler = async (event: any): Promise<any> => {
   }
 
   const ua = request.headers['user-agent']?.[0]?.value ?? '';
-  const individualMatch = request.uri.match(INDIVIDUAL_PATH_RE);
+  const profileRoute = matchProfileRoute(request.uri);
 
   if (!isBot(ua)) {
-    // Humans get the SPA shell; the page reads the designation from the path.
-    // S3 has no object at /individuals/*, so without this rewrite the path 404s.
-    if (individualMatch) {
-      request.uri = '/individual.html';
+    // Humans get the page shell; the page reads the designation from the path.
+    // S3 has no object at /individuals/* or /matrilines/*, so without this
+    // rewrite the path 404s.
+    if (profileRoute) {
+      request.uri = profileRoute.shell;
     }
     return request;
   }
 
   try {
-    if (individualMatch) {
-      return await individualPreview(decodeURIComponent(individualMatch[1]!));
+    if (profileRoute) {
+      return await profileRoute.preview(decodeURIComponent(profileRoute.designation));
     }
 
     const qs = new URLSearchParams(request.querystring ?? '');
@@ -291,10 +343,10 @@ export const handler = async (event: any): Promise<any> => {
     };
   } catch {
     // Fail-open: return the original request so CloudFront serves index.html
-    // normally — except individual paths, which have no S3 object and must
-    // still be rewritten to the page shell.
-    if (individualMatch) {
-      request.uri = '/individual.html';
+    // normally — except profile paths, which have no S3 object and must
+    // still be rewritten to their page shell.
+    if (profileRoute) {
+      request.uri = profileRoute.shell;
     }
     return request;
   }

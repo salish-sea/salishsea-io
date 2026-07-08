@@ -3,20 +3,17 @@ import { customElement, state } from 'lit/decorators.js';
 import { Task } from '@lit/task';
 import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
-import { Temporal } from 'temporal-polyfill';
 import {
   displayName, fetchAllGroups, fetchGroupMembers, fetchIndividual, fetchOccurrenceLinks,
-  fetchOffspring, fetchParents, groupChain, individualPath, mapUrl, monthlyPresence,
+  fetchOffspring, fetchParents, groupChain, individualPath, mapUrl, matrilinePath,
   observedDate, parseIndividualPath,
   type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent, type SocialGroup,
 } from './catalog.ts';
+import { profileStyles, renderDagger, renderMemberList, renderPresenceTable, renderRelative } from './profile-shared.ts';
 import { sentryClient } from './sentry.ts';
 import './individual-map.ts';
 
 sentryClient.init();
-
-const PRESENCE_YEARS = 4;
-const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
 // iNaturalist taxon ids the catalog actually uses (all rows are 41521 today).
 const TAXON_LABELS: Record<number, string> = {
@@ -91,68 +88,7 @@ export class IndividualPage extends LitElement {
       individualId ? fetchOccurrenceLinks(individualId) : null,
   });
 
-  static styles = css`
-    :host {
-      display: block;
-    }
-    main {
-      margin: 0 auto;
-      max-width: 44rem;
-      padding: 1rem 1rem 4rem;
-    }
-    a {
-      color: #1976d2;
-      font-weight: 500;
-      text-decoration: none;
-    }
-    a:hover {
-      color: #1565c0;
-    }
-    .back {
-      display: inline-block;
-      margin-bottom: 2.5rem;
-    }
-    header.masthead {
-      margin-bottom: 2.5rem;
-    }
-    .designation-kicker {
-      color: #64748b;
-      font-size: 0.9375rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    h1 {
-      font-size: clamp(2.25rem, 6vw, 3.25rem);
-      font-weight: 600;
-      line-height: 1.1;
-      margin: 0.25rem 0 0.5rem;
-    }
-    .vitals {
-      color: #475569;
-      font-size: 1.0625rem;
-      margin: 0;
-    }
-    .lineage {
-      color: #64748b;
-      font-size: 0.9375rem;
-      margin: 0.5rem 0 0;
-    }
-    .lineage b {
-      color: #475569;
-      font-weight: 600;
-    }
-    section {
-      margin-top: 2.5rem;
-    }
-    h2 {
-      border-bottom: 1px solid #e2e8f0;
-      font-size: 0.9375rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      margin: 0 0 1rem;
-      padding-bottom: 0.375rem;
-      text-transform: uppercase;
-    }
+  static styles = [profileStyles, css`
     dl.family {
       display: grid;
       gap: 0.375rem 1.5rem;
@@ -165,81 +101,13 @@ export class IndividualPage extends LitElement {
     dl.family dd {
       margin: 0;
     }
-    ul.people {
-      display: inline;
-      list-style: none;
-      margin: 0;
-      padding: 0;
+    h2 a {
+      color: inherit;
     }
-    ul.people li {
-      display: inline;
+    h2 a:hover {
+      color: #1976d2;
     }
-    ul.people li:not(:last-child)::after {
-      content: " · ";
-      color: #94a3b8;
-    }
-    .muted {
-      color: #64748b;
-    }
-    .self {
-      font-weight: 600;
-    }
-    article.nickname {
-      margin-bottom: 1.25rem;
-    }
-    article.nickname:last-child {
-      margin-bottom: 0;
-    }
-    .nickname-line {
-      margin: 0;
-    }
-    .nickname-line b {
-      font-weight: 600;
-    }
-    table.presence {
-      border-collapse: collapse;
-      font-variant-numeric: tabular-nums;
-    }
-    table.presence th {
-      color: #94a3b8;
-      font-size: 0.75rem;
-      font-weight: 500;
-      padding: 0.125rem;
-      text-align: center;
-    }
-    table.presence th[scope="row"] {
-      color: #64748b;
-      padding-right: 0.625rem;
-      text-align: right;
-    }
-    table.presence td {
-      border: 1px solid #f1f5f9;
-      color: #1e3a5f;
-      font-size: 0.8125rem;
-      height: 1.75rem;
-      min-width: 1.75rem;
-      padding: 0;
-      text-align: center;
-    }
-    table.presence td.p1 { background: #e3f2fd; }
-    table.presence td.p2 { background: #bbdefb; }
-    table.presence td.p3 { background: #90caf9; }
-    .presence-note, .sightings-note {
-      color: #64748b;
-      font-size: 0.875rem;
-      margin: 0.75rem 0 0;
-    }
-    individual-map {
-      display: block;
-      margin-top: 1.5rem;
-    }
-    .placeholder {
-      color: #64748b;
-    }
-    .error {
-      color: #b71c1c;
-    }
-  `;
+  `];
 
   render() {
     return html`
@@ -335,18 +203,18 @@ export class IndividualPage extends LitElement {
         <dl class="family">
           ${when(mother, () => html`
             <dt>Mother</dt>
-            <dd>${this.renderRelative(mother!)}${certainty !== 'confirmed' ? html` <span class="muted">(${certainty})</span>` : nothing}</dd>
+            <dd>${renderRelative(mother!)}${certainty !== 'confirmed' ? html` <span class="muted">(${certainty})</span>` : nothing}</dd>
           `)}
           ${when(father, () => html`
             <dt>Father</dt>
-            <dd>${this.renderRelative(father!)}${profile.paternity_certainty && profile.paternity_certainty !== 'confirmed' ? html` <span class="muted">(${profile.paternity_certainty})</span>` : nothing}</dd>
+            <dd>${renderRelative(father!)}${profile.paternity_certainty && profile.paternity_certainty !== 'confirmed' ? html` <span class="muted">(${profile.paternity_certainty})</span>` : nothing}</dd>
           `)}
           ${when(offspring.length, () => html`
             <dt>Offspring</dt>
             <dd>
               <ul class="people">
                 ${repeat(offspring, calf => calf.id, calf => html`
-                  <li>${this.renderRelative(calf)}${calf.born_earliest ? html` <span class="muted">b.&thinsp;${calf.born_earliest}</span>` : nothing}${this.renderDagger(calf.life_status)}</li>
+                  <li>${renderRelative(calf)}${calf.born_earliest ? html` <span class="muted">b.&thinsp;${calf.born_earliest}</span>` : nothing}${renderDagger(calf.life_status)}</li>
                 `)}
               </ul>
             </dd>
@@ -356,32 +224,11 @@ export class IndividualPage extends LitElement {
     `;
   }
 
-  private renderRelative(relative: { primary_designation: string; nicknames?: { name: string; status: string | null }[] }) {
-    const name = relative.nicknames ? displayName(relative.nicknames) : null;
-    return html`<a href=${individualPath(relative.primary_designation)}>${relative.primary_designation}${name ? ` ${name}` : ''}</a>`;
-  }
-
-  private renderDagger(lifeStatus: string) {
-    return lifeStatus === 'deceased' || lifeStatus === 'presumed_deceased'
-      ? html`<span class="muted" title=${lifeStatus === 'deceased' ? 'deceased' : 'presumed deceased'}>&dagger;</span>`
-      : nothing;
-  }
-
   private renderMatriline(matriline: SocialGroup, members: GroupMember[], selfId: number) {
-    const sorted = [...members].sort((a, b) =>
-      (a.individual?.born_earliest ?? -Infinity) - (b.individual?.born_earliest ?? -Infinity));
     return html`
       <section>
-        <h2>${matriline.designation} matriline</h2>
-        <ul class="people">
-          ${repeat(sorted, m => m.individual!.id, m => html`
-            <li class=${m.individual!.id === selfId ? 'self' : ''}>
-              ${m.individual!.id === selfId
-                ? html`${m.individual!.primary_designation}`
-                : this.renderRelative(m.individual!)}${m.individual!.born_earliest ? html` <span class="muted">b.&thinsp;${m.individual!.born_earliest}</span>` : nothing}${this.renderDagger(m.individual!.life_status)}${!m.is_current ? html` <span class="muted">(former)</span>` : nothing}
-            </li>
-          `)}
-        </ul>
+        <h2><a href=${matrilinePath(matriline.designation)}>${matriline.designation} matriline</a></h2>
+        ${renderMemberList(members, selfId)}
       </section>
     `;
   }
@@ -399,7 +246,7 @@ export class IndividualPage extends LitElement {
             const latest = links[0]!;
             const located = links.filter(l => l.location).length;
             return html`
-              ${this.renderPresence(links)}
+              ${renderPresenceTable(links)}
               ${when(located, () => html`<individual-map .links=${links}></individual-map>`)}
               <p class="sightings-note">
                 Last reported <a href=${mapUrl(latest)}>${observedDate(latest.observed_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}
@@ -409,34 +256,6 @@ export class IndividualPage extends LitElement {
           },
         })}
       </section>
-    `;
-  }
-
-  private renderPresence(links: OccurrenceLink[]) {
-    const currentYear = Temporal.Now.zonedDateTimeISO('PST8PDT').year;
-    const grid = monthlyPresence(links, PRESENCE_YEARS, currentYear);
-    if (grid.every(row => row.months.every(count => count === 0))) return nothing;
-    return html`
-      <table class="presence">
-        <thead>
-          <tr>
-            <td></td>
-            ${MONTH_INITIALS.map((initial, i) => html`<th scope="col" title=${Temporal.PlainDate.from({year: 2000, month: i + 1, day: 1}).toLocaleString('en-US', {month: 'long'})}>${initial}</th>`)}
-          </tr>
-        </thead>
-        <tbody>
-          ${grid.map(({ year, months }) => html`
-            <tr>
-              <th scope="row">${year}</th>
-              ${months.map((count, i) => html`
-                <td class=${count >= 4 ? 'p3' : count >= 2 ? 'p2' : count === 1 ? 'p1' : ''}
-                    title="${count} report${count === 1 ? '' : 's'} in ${Temporal.PlainDate.from({year, month: i + 1, day: 1}).toLocaleString('en-US', {month: 'long', year: 'numeric'})}">${count || nothing}</td>
-              `)}
-            </tr>
-          `)}
-        </tbody>
-      </table>
-      <p class="presence-note">Reports per month. Most are unverified mentions in sighting text, not confirmed identifications.</p>
     `;
   }
 

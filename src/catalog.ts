@@ -31,15 +31,28 @@ export function individualPath(designation: string): string {
   return `/individuals/${encodeURIComponent(designation)}`;
 }
 
-// Extract the designation from an /individuals/<designation> path.
-export function parseIndividualPath(pathname: string): string | null {
-  const match = pathname.match(/^\/individuals\/([^/]+)\/?$/);
+export function matrilinePath(designation: string): string {
+  return `/matrilines/${encodeURIComponent(designation)}`;
+}
+
+function parseProfilePath(pathname: string, re: RegExp): string | null {
+  const match = pathname.match(re);
   if (!match) return null;
   try {
     return decodeURIComponent(match[1]!);
   } catch {
     return null;
   }
+}
+
+// Extract the designation from an /individuals/<designation> path.
+export function parseIndividualPath(pathname: string): string | null {
+  return parseProfilePath(pathname, /^\/individuals\/([^/]+)\/?$/);
+}
+
+// Extract the designation from a /matrilines/<designation> path.
+export function parseMatrilinePath(pathname: string): string | null {
+  return parseProfilePath(pathname, /^\/matrilines\/([^/]+)\/?$/);
 }
 
 // TS port of public.normalize_designation (20260707220211_identifications.sql):
@@ -53,11 +66,17 @@ export function normalizeDesignation(code: string): string {
   return 'T' + m[1]!.padStart(3, '0').slice(0, 3) + m[2]!;
 }
 
+// The shared shape of individual_occurrences and group_occurrences rows;
+// group rows carry no via_group (a group claim is always direct).
+type OccurrenceRow =
+  Pick<IndividualOccurrence, 'occurrence_id' | 'observed_at' | 'location' | 'is_present' | 'status'>
+  & { via_group?: string | null };
+
 // Collapse view rows to at most one link per occurrence, preferring a direct
 // claim over a via-group inference, and dropping absence claims and rejected
 // identifications — the page lists where the animal was reported, not where a
 // curator ruled it out.
-export function dedupeOccurrenceLinks(rows: IndividualOccurrence[]): OccurrenceLink[] {
+export function dedupeOccurrenceLinks(rows: OccurrenceRow[]): OccurrenceLink[] {
   const byOccurrence = new Map<string, OccurrenceLink>();
   for (const row of rows) {
     const { occurrence_id, observed_at, location, is_present, status, via_group } = row;
@@ -190,6 +209,36 @@ export async function fetchOccurrenceLinks(individualId: number): Promise<Occurr
     .from('individual_occurrences')
     .select()
     .eq('individual_id', individualId)
+    .throwOnError();
+  return dedupeOccurrenceLinks(data);
+}
+
+// The !anchor_individual_id hint disambiguates the embed: social_groups
+// reaches individuals both through the anchor FK and through
+// group_memberships. Nickname facts only — story is access-restricted (D-21).
+const MATRILINE_SELECT = `
+  *,
+  nicknames (name, theme, status, named_year, namer:parties (name, url)),
+  anchor:individuals!anchor_individual_id (id, primary_designation, life_status, nicknames (name, status))
+` as const;
+
+export async function fetchMatriline(designation: string) {
+  const { data } = await supabase()
+    .from('social_groups')
+    .select(MATRILINE_SELECT)
+    .eq('designation', designation)
+    .eq('kind', 'matriline')
+    .maybeSingle()
+    .throwOnError();
+  return data;
+}
+export type MatrilineProfile = NonNullable<Awaited<ReturnType<typeof fetchMatriline>>>;
+
+export async function fetchGroupOccurrenceLinks(groupId: number): Promise<OccurrenceLink[]> {
+  const { data } = await supabase()
+    .from('group_occurrences')
+    .select()
+    .eq('social_group_id', groupId)
     .throwOnError();
   return dedupeOccurrenceLinks(data);
 }

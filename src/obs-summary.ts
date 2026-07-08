@@ -15,7 +15,7 @@ import { supabase } from "./supabase.ts";
 import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
-import { catalogCodes, injectIndividualLinks, loadCatalogCodes } from './individual-links.ts';
+import { catalogCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes } from './individual-links.ts';
 
 const domPurify = createDOMPurify(window as any);
 
@@ -213,7 +213,8 @@ export class ObsSummary extends LitElement {
           marked.parse(
             injectIndividualLinks(
               injectPartnerLinks(stripResolvedProvenance((body || '').replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n'), provider_slug)),
-              catalogCodes() ?? new Map()
+              catalogCodes() ?? new Map(),
+              matrilineCodes() ?? new Map()
             ),
             { async: false, renderer: markedRenderer }
           ),

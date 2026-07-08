@@ -5,10 +5,16 @@ import { defineConfig } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Exactly one path segment after /individuals/ — the page's own module/asset
+// Exactly one path segment after the prefix — the page's own module/asset
 // requests resolve elsewhere and must not be swallowed by the rewrite.
-function individualsRewrite(req, _res, next) {
-  if (/^\/individuals\/[^/]+\/?(\?.*)?$/.test(req.url ?? '')) req.url = '/individual.html';
+const PROFILE_REWRITES = [
+  [/^\/individuals\/[^/]+\/?(\?.*)?$/, '/individual.html'],
+  [/^\/matrilines\/[^/]+\/?(\?.*)?$/, '/matriline.html'],
+];
+
+function profilePagesRewrite(req, _res, next) {
+  const rewrite = PROFILE_REWRITES.find(([re]) => re.test(req.url ?? ''));
+  if (rewrite) req.url = rewrite[1];
   next();
 }
 
@@ -21,6 +27,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         about: resolve(__dirname, 'about.html'),
         individual: resolve(__dirname, 'individual.html'),
+        matriline: resolve(__dirname, 'matriline.html'),
       }
     },
 
@@ -29,15 +36,16 @@ export default defineConfig({
 
   plugins: [
     {
-      // In production this rewrite lives in the CloudFront viewer-request
-      // Lambda@Edge (infra/lib/edge-handler): /individuals/<designation> is a
-      // client-rendered page served from the individual.html shell.
-      name: 'individuals-rewrite',
+      // In production these rewrites live in the CloudFront viewer-request
+      // Lambda@Edge (infra/lib/edge-handler): /individuals/<designation> and
+      // /matrilines/<designation> are client-rendered pages served from their
+      // HTML shells.
+      name: 'profile-pages-rewrite',
       configureServer(server) {
-        server.middlewares.use(individualsRewrite);
+        server.middlewares.use(profilePagesRewrite);
       },
       configurePreviewServer(server) {
-        server.middlewares.use(individualsRewrite);
+        server.middlewares.use(profilePagesRewrite);
       },
     },
     {
