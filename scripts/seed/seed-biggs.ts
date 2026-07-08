@@ -168,6 +168,16 @@ async function main(): Promise<void> {
         });
 
         console.log('Bigg\'s catalog seeded:', counts);
+
+        // A reseed changes what sighting codes resolve to; the candidate cache
+        // (20260708000104) otherwise only refreshes on the ingest cadence.
+        const [cache] = await sql`
+            SELECT to_regclass('public.occurrence_identifier_candidates') IS NOT NULL AS exists`;
+        if (cache?.['exists']) {
+            await sql`REFRESH MATERIALIZED VIEW public.occurrence_identifier_candidates`;
+            console.log('Refreshed occurrence_identifier_candidates');
+        }
+
         if (unresolvedMothers.length) {
             console.warn(
                 `${unresolvedMothers.length} mother designation(s) not present as their own row (mother_id left NULL): ` +
