@@ -6,7 +6,6 @@ type PublicSchema = Database['public'];
 export type Individual = PublicSchema['Tables']['individuals']['Row'];
 export type SocialGroup = PublicSchema['Tables']['social_groups']['Row'];
 export type IndividualOccurrence = PublicSchema['Views']['individual_occurrences']['Row'];
-export type EcotypeOccurrence = PublicSchema['Views']['ecotype_occurrences']['Row'];
 
 // One (occurrence, individual) link from the individual_occurrences view, with
 // the fields the profile page needs guaranteed present.
@@ -214,13 +213,27 @@ export async function fetchGroupMembers(groupId: number) {
 }
 export type GroupMember = Awaited<ReturnType<typeof fetchGroupMembers>>[number];
 
+// PostgREST caps a single response at max_rows (1000). Page through so a subject
+// with more reports than the cap (a busy matriline, or the whole ecotype) isn't
+// silently truncated. `build` makes a fresh filtered query per page — a
+// PostgREST builder is single-use — and is fully type-checked at each call site.
+async function pageOccurrences(build: () => any): Promise<OccurrenceRow[]> {
+  const PAGE = 1000;
+  const rows: OccurrenceRow[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data } = await build().range(from, from + PAGE - 1).throwOnError();
+    rows.push(...(data as OccurrenceRow[]));
+    if (data.length < PAGE) break;
+  }
+  return rows;
+}
+
 export async function fetchOccurrenceLinks(individualId: number): Promise<OccurrenceLink[]> {
-  const { data } = await supabase()
+  return dedupeOccurrenceLinks(await pageOccurrences(() => supabase()
     .from('individual_occurrences')
     .select()
     .eq('individual_id', individualId)
-    .throwOnError();
-  return dedupeOccurrenceLinks(data);
+    .order('occurrence_id', { ascending: true })));
 }
 
 // The !anchor_individual_id hint disambiguates the embed: social_groups
@@ -245,12 +258,11 @@ export async function fetchMatriline(designation: string) {
 export type MatrilineProfile = NonNullable<Awaited<ReturnType<typeof fetchMatriline>>>;
 
 export async function fetchGroupOccurrenceLinks(groupId: number): Promise<OccurrenceLink[]> {
-  const { data } = await supabase()
+  return dedupeOccurrenceLinks(await pageOccurrences(() => supabase()
     .from('group_occurrences')
     .select()
     .eq('social_group_id', groupId)
-    .throwOnError();
-  return dedupeOccurrenceLinks(data);
+    .order('occurrence_id', { ascending: true })));
 }
 
 // An ecotype has no anchor individual and no group nicknames today, but the
@@ -274,24 +286,12 @@ export type EcotypeProfile = NonNullable<Awaited<ReturnType<typeof fetchEcotype>
 
 // The ecotype's sighting record is the union of every descendant's reports
 // (see docs/decisions/017); one filter on ecotype_id, deduped per occurrence.
-// Paginated: an ecotype aggregates thousands of reports and PostgREST caps a
-// single response at max_rows (1000), which would silently truncate the map and
-// the "N reports in all" count.
 export async function fetchEcotypeOccurrenceLinks(ecotypeId: number): Promise<OccurrenceLink[]> {
-  const PAGE = 1000;
-  const rows: EcotypeOccurrence[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data } = await supabase()
-      .from('ecotype_occurrences')
-      .select()
-      .eq('ecotype_id', ecotypeId)
-      .order('occurrence_id', { ascending: true }) // stable paging order
-      .range(from, from + PAGE - 1)
-      .throwOnError();
-    rows.push(...data);
-    if (data.length < PAGE) break;
-  }
-  return dedupeOccurrenceLinks(rows);
+  return dedupeOccurrenceLinks(await pageOccurrences(() => supabase()
+    .from('ecotype_occurrences')
+    .select()
+    .eq('ecotype_id', ecotypeId)
+    .order('occurrence_id', { ascending: true })));
 }
 
 // The matrilines that descend from an ecotype, sorted A–Z — for the ecotype
