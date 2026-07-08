@@ -36,17 +36,34 @@ the opposite of the matriline page's rule (decision 016):
   presence record the catalog can produce. (Locally, 17 distinct occurrences
   resolve to Bigg's, a real subset of the 56 raw orca occurrences.)
 
-The new `public.ecotype_occurrences` view (migration `20260708031133`) computes
-this with a recursive CTE that walks `social_groups.parent_group_id` to each
-subject's `kind='ecotype'` root, unioning `group_occurrences` (branch A) and
-`individual_occurrences` joined through maternal `group_memberships` (branch B).
+The `public.ecotype_occurrences` view computes this with a recursive CTE that
+walks `social_groups.parent_group_id` to each subject's `kind='ecotype'` root.
 It is **tree-scoped, not "all individuals"**, so when SRKW lands as a second
-ecotype each subject partitions cleanly by `ecotype_id`. One PostgREST filter
-(`ecotype_id`) powers the page; the client (`dedupeOccurrenceLinks`) collapses
-the two branches to one row per occurrence. Individuals with no maternal
-membership row are excluded from branch B (a no-op today — all cataloged
-individuals have one — and they still surface via branch A if their matriline
-is named).
+ecotype each subject partitions cleanly by `ecotype_id`. Branch A maps
+group-named reports (via `group_to_ecotype`); branch B maps individual-named
+reports (via `individual_to_ecotype`, an individual's maternal matriline — a
+birthright, so `is_current` is deliberately not required). One PostgREST filter
+(`ecotype_id`) powers the page.
+
+**Read path — candidates only (perf, migration `20260708040216`).** The first
+cut (`20260708031133`) reached the data through `group_occurrences` /
+`individual_occurrences`, both of which join the `public.occurrences` view (a
+4-way UNION with no usable index on its computed id) in their stored-claims
+branch. Filtered by one subject that branch's outer is empty and never built;
+but an ecotype-wide aggregate is *unfiltered*, so the planner materialized the
+whole occurrences union — ~62s on prod, past PostgREST's statement timeout, a
+production 500. The fix reads **only** the cached
+`occurrence_identifier_candidates` matview (which already carries
+`observed_at`/`location`) plus the small group tables, never touching
+`occurrences`: ~25ms. Consequences: (1) stored curator claims are not reflected
+in the ecotype aggregate yet — a no-op while curation volume is zero; the
+durable fix is a cheap indexed occurrence-timestamp source for the stored branch
+(bd `salishsea-io-8uz`, a prerequisite for the curation UI `salishsea-io-ek3`),
+which the per-subject views will also need before curation makes *their* stored
+branch non-empty. (2) `UNION` (not `UNION ALL`) collapses to one row per
+(ecotype, occurrence) at the database, so the unpaginated fetch stays under
+PostgREST's `max_rows`; the deduped count (869 on prod) is approaching that cap,
+tracked for pagination (bd `salishsea-io-236`).
 
 ### Invariants carried over
 
@@ -67,3 +84,6 @@ is named).
 - `ecotype_occurrences` is the first read view that fans out through the group
   tree; a future pod page (an intermediate node) would reuse the same recursive
   descendants shape scoped to the pod rather than the ecotype root.
+- Individuals mentioned in sightings but lacking any maternal `group_memberships`
+  row are invisible to the ecotype aggregate (23 occurrences on prod at launch).
+  This is a catalog data gap, not a query bug — tracked separately.
