@@ -213,16 +213,24 @@ export async function fetchGroupMembers(groupId: number) {
 }
 export type GroupMember = Awaited<ReturnType<typeof fetchGroupMembers>>[number];
 
+// The occurrence-view slice every page yields; the three views are all
+// structurally OccurrenceRow (group/ecotype rows just omit via_group).
+type OccurrencePage = {
+  range(from: number, to: number): {
+    throwOnError(): PromiseLike<{ data: OccurrenceRow[] }>;
+  };
+};
+
 // PostgREST caps a single response at max_rows (1000). Page through so a subject
 // with more reports than the cap (a busy matriline, or the whole ecotype) isn't
 // silently truncated. `build` makes a fresh filtered query per page — a
 // PostgREST builder is single-use — and is fully type-checked at each call site.
-async function pageOccurrences(build: () => any): Promise<OccurrenceRow[]> {
+async function pageOccurrences(build: () => OccurrencePage): Promise<OccurrenceRow[]> {
   const PAGE = 1000;
   const rows: OccurrenceRow[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data } = await build().range(from, from + PAGE - 1).throwOnError();
-    rows.push(...(data as OccurrenceRow[]));
+    rows.push(...data);
     if (data.length < PAGE) break;
   }
   return rows;
