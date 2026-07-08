@@ -210,12 +210,50 @@ async function matrilinePreview(designation: string): Promise<any> {
   return htmlResponse(matrilinePreviewTags(group));
 }
 
-// Profile pages rendered client-side from a static shell (decision 015/016):
+// Well-known killer whale ecotype descriptors. notes on the social_groups row
+// carries this too, but notes are never rendered (D-21), so it lives in code.
+const ECOTYPE_LABELS: Record<string, string> = {
+  Biggs: "Bigg's (transient) killer whales",
+};
+
+function ecotypePreviewTags(group: SocialGroup): OgTags {
+  const designation = group.designation;
+  const label = ECOTYPE_LABELS[designation] ?? `The ${designation} ecotype`;
+  const description = `The matrilines and aggregated sighting history of ${label} in the Salish Sea.`;
+  return {
+    'og:site_name': 'SalishSea.io',
+    'og:type': 'profile',
+    'og:url': `https://salishsea.io/ecotypes/${encodeURIComponent(designation)}`,
+    'og:title': label,
+    'og:description': description,
+    'og:image': FALLBACK_IMAGE,
+    'twitter:card': 'summary_large_image',
+    'fb:app_id': FB_APP_ID,
+  };
+}
+
+// OG-meta response for a bot fetching an ecotype's profile page.
+async function ecotypePreview(designation: string): Promise<any> {
+  const { url, key } = await getCredentials();
+  const apiUrl = `${url}/rest/v1/social_groups?designation=eq.${encodeURIComponent(designation)}`
+    + '&kind=eq.ecotype&select=designation,nicknames(name,status)&limit=1';
+  const res = await fetch(apiUrl, {
+    headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
+  });
+  if (!res.ok) return htmlResponse(genericPreviewTags());
+  const groups = await res.json() as SocialGroup[];
+  const group = groups[0];
+  if (!group) return htmlResponse(genericPreviewTags());
+  return htmlResponse(ecotypePreviewTags(group));
+}
+
+// Profile pages rendered client-side from a static shell (decision 015/016/017):
 // humans get the shell rewrite, bots get synthesized OG meta. S3 has no object
 // at these paths, so even the fail-open branch must rewrite to the shell.
 const PROFILE_ROUTES = [
   { re: /^\/individuals\/([^/]+)\/?$/, shell: '/individual.html', preview: individualPreview },
   { re: /^\/matrilines\/([^/]+)\/?$/, shell: '/matriline.html', preview: matrilinePreview },
+  { re: /^\/ecotypes\/([^/]+)\/?$/, shell: '/ecotype.html', preview: ecotypePreview },
 ];
 
 function matchProfileRoute(uri: string): { shell: string; preview: (designation: string) => Promise<any>; designation: string } | null {

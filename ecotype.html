@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self';
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' https: data:;
+      font-src 'self';
+      connect-src 'self' %VITE_SUPABASE_URL% %VITE_SUPABASE_WS_URL% https://o4509634382331904.ingest.us.sentry.io;
+      object-src 'none';
+      media-src 'self';
+      worker-src 'self';
+      base-uri 'self';
+      form-action 'none';
+      upgrade-insecure-requests;
+    ">
+    <title>Ecotype — SalishSea.io</title>
+    <meta name="description" content="Profile of a killer whale ecotype in the Salish Sea: its matrilines and aggregated sighting history.">
+    <meta property="og:site_name" content="SalishSea.io">
+    <meta property="og:type" content="profile">
+    <meta property="og:title" content="Ecotype — SalishSea.io">
+    <meta property="og:description" content="Profile of a killer whale ecotype in the Salish Sea: its matrilines and aggregated sighting history.">
+    <meta property="og:image" content="https://salishsea.io/preview.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <!-- Root-absolute URLs: this shell is served at /ecotypes/<designation>,
+         so relative paths would resolve under /ecotypes/. -->
+    <link href="/src/assets/favicon.ico" rel="icon" type="image/x-icon">
+    <style>
+      :root {
+        font-family: Mukta,Helvetica,Arial,sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        color: #213547;
+        background-color: #ffffff;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      body {
+        margin: 0;
+      }
+    </style>
+    <script type="module" src="/src/ecotype-page.ts"></script>
+  </head>
+  <body>
+    <ecotype-page></ecotype-page>
+  </body>
+</html>

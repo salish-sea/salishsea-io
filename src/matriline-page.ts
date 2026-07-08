@@ -5,7 +5,7 @@ import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
   displayName, fetchAllGroups, fetchGroupMembers, fetchGroupOccurrenceLinks, fetchMatriline,
-  groupChain, mapUrl, matrilinePath, observedDate, parseMatrilinePath,
+  ecotypePath, groupChain, mapUrl, matrilinePath, observedDate, parseMatrilinePath,
   type GroupMember, type MatrilineProfile, type OccurrenceLink, type SocialGroup,
 } from './catalog.ts';
 import { profileStyles, renderDagger, renderMemberList, renderPresenceTable, renderRelative } from './profile-shared.ts';
@@ -103,7 +103,7 @@ export class MatrilinePage extends LitElement {
     return html`${parents.map((g, i) => html`${i ? ' · ' : ''}Within ${g.kind === 'matriline'
         ? html`<a href=${matrilinePath(g.designation)}>${g.designation}</a>`
         : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
-      }${ecotype ? html`${parents.length ? ' · ' : ''}${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}` : nothing}`;
+      }${ecotype ? html`${parents.length ? ' · ' : ''}<a href=${ecotypePath(ecotype.designation)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}`;
   }
 
   // Naming facts only (name, status, year, namer) — no story prose (D-21).

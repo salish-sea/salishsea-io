@@ -582,3 +582,70 @@ describe('/matrilines/<designation> profile pages', () => {
     expect(result.uri).toBe('/matriline.html');
   });
 });
+
+describe('/ecotypes/<designation> profile pages', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    _clearCredentialCache();
+    jest.spyOn(global, 'fetch').mockReset();
+  });
+
+  const sampleEcotype = { designation: 'Biggs', nicknames: [] };
+
+  it('rewrites the URI to /ecotype.html for a human user-agent', async () => {
+    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/ecotypes/Biggs');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(result.uri).toBe('/ecotype.html');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not rewrite deeper paths under /ecotypes/', async () => {
+    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/ecotypes/Biggs/members');
+    const result = await handler(event);
+    expect(result.uri).toBe('/ecotypes/Biggs/members');
+  });
+
+  it('returns ecotype-specific OG tags for a bot', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [sampleEcotype],
+    } as Response);
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/ecotypes/Biggs');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result.status).toBe('200');
+    expect(result.body).toContain(`content="Bigg's (transient) killer whales"`);
+    expect(result.body).toContain('content="https://salishsea.io/ecotypes/Biggs"');
+    expect(result.body).toContain('content="profile"');
+
+    const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(apiUrl).toContain('/rest/v1/social_groups?designation=eq.Biggs');
+    expect(apiUrl).toContain('kind=eq.ecotype');
+  });
+
+  it('returns the generic preview for an unknown designation', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/ecotypes/NOPE');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result.status).toBe('200');
+    expect(result.body).toContain('Salish Sea');
+    expect(result.body).not.toContain('NOPE');
+  });
+
+  it('fail-open for a bot still rewrites to the page shell when fetch throws', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/ecotypes/Biggs');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(result.uri).toBe('/ecotype.html');
+  });
+});

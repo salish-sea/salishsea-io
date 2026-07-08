@@ -35,6 +35,10 @@ export function matrilinePath(designation: string): string {
   return `/matrilines/${encodeURIComponent(designation)}`;
 }
 
+export function ecotypePath(designation: string): string {
+  return `/ecotypes/${encodeURIComponent(designation)}`;
+}
+
 function parseProfilePath(pathname: string, re: RegExp): string | null {
   const match = pathname.match(re);
   if (!match) return null;
@@ -53,6 +57,11 @@ export function parseIndividualPath(pathname: string): string | null {
 // Extract the designation from a /matrilines/<designation> path.
 export function parseMatrilinePath(pathname: string): string | null {
   return parseProfilePath(pathname, /^\/matrilines\/([^/]+)\/?$/);
+}
+
+// Extract the designation from an /ecotypes/<designation> path.
+export function parseEcotypePath(pathname: string): string | null {
+  return parseProfilePath(pathname, /^\/ecotypes\/([^/]+)\/?$/);
 }
 
 // TS port of public.normalize_designation (20260707220211_identifications.sql):
@@ -241,6 +250,45 @@ export async function fetchGroupOccurrenceLinks(groupId: number): Promise<Occurr
     .eq('social_group_id', groupId)
     .throwOnError();
   return dedupeOccurrenceLinks(data);
+}
+
+// An ecotype has no anchor individual and no group nicknames today, but the
+// select mirrors the matriline shape so the masthead can grow. Facts only (D-21).
+const ECOTYPE_SELECT = `
+  *,
+  nicknames (name, theme, status, named_year, namer:parties (name, url))
+` as const;
+
+export async function fetchEcotype(designation: string) {
+  const { data } = await supabase()
+    .from('social_groups')
+    .select(ECOTYPE_SELECT)
+    .eq('designation', designation)
+    .eq('kind', 'ecotype')
+    .maybeSingle()
+    .throwOnError();
+  return data;
+}
+export type EcotypeProfile = NonNullable<Awaited<ReturnType<typeof fetchEcotype>>>;
+
+// The ecotype's sighting record is the union of every descendant's reports
+// (see docs/decisions/017); one filter on ecotype_id, deduped per occurrence.
+export async function fetchEcotypeOccurrenceLinks(ecotypeId: number): Promise<OccurrenceLink[]> {
+  const { data } = await supabase()
+    .from('ecotype_occurrences')
+    .select()
+    .eq('ecotype_id', ecotypeId)
+    .throwOnError();
+  return dedupeOccurrenceLinks(data);
+}
+
+// The matrilines that descend from an ecotype, sorted A–Z — for the ecotype
+// page's directory. Tree-scoped (via groupChain), so a future second ecotype
+// only lists its own matrilines.
+export function descendantMatrilines(ecotypeId: number, groupsById: Map<number, SocialGroup>): SocialGroup[] {
+  return [...groupsById.values()]
+    .filter(g => g.kind === 'matriline' && groupChain(g.id, groupsById).some(a => a.id === ecotypeId))
+    .sort((a, b) => a.designation.localeCompare(b.designation));
 }
 
 // The official nickname if there is one, else the first non-deprecated one.
