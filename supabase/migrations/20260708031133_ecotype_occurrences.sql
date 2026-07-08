@@ -16,13 +16,17 @@
 CREATE VIEW public.ecotype_occurrences AS
 WITH RECURSIVE group_ecotype AS (
   -- Seed: every group, carrying itself as the current walk node.
-  SELECT id AS group_id, id AS node_id, parent_group_id, kind
+  SELECT id AS group_id, id AS node_id, parent_group_id, kind, ARRAY[id] AS visited
   FROM public.social_groups
   UNION ALL
-  -- Walk one hop up parent_group_id.
-  SELECT ge.group_id, p.id, p.parent_group_id, p.kind
+  -- Walk one hop up parent_group_id. parent_group_id is a plain self-FK with no
+  -- schema-level cycle prevention, so track visited ids and stop on a repeat —
+  -- otherwise a bad loop would hang every read (Postgres has no built-in cycle
+  -- detection). Mirrors the guard in groupChain() (src/catalog.ts).
+  SELECT ge.group_id, p.id, p.parent_group_id, p.kind, ge.visited || p.id
   FROM group_ecotype ge
   JOIN public.social_groups p ON p.id = ge.parent_group_id
+  WHERE NOT p.id = ANY(ge.visited)
 ),
 group_to_ecotype AS (
   -- Each group mapped to the ecotype root at the top of its chain.
