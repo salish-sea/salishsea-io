@@ -5,7 +5,7 @@ import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
   displayName, fetchAllGroups, fetchGroupMembers, fetchIndividual, fetchOccurrenceLinks,
-  fetchOffspring, fetchParents, groupChain, individualPath, mapUrl, matrilinePath,
+  ecotypePath, fetchOffspring, fetchParents, groupChain, individualPath, mapUrl, matrilinePath,
   observedDate, parseIndividualPath,
   type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent, type SocialGroup,
 } from './catalog.ts';
@@ -167,7 +167,7 @@ export class IndividualPage extends LitElement {
         parents.map(g => html` · within ${g.anchor_individual_id && g.designation !== selfDesignation
           ? html`<a href=${individualPath(g.designation)}>${g.designation}</a>`
           : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
-      }${ecotype ? html` · ${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}` : nothing}
+      }${ecotype ? html` · <a href=${ecotypePath(ecotype.designation)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}
     `;
   }
 

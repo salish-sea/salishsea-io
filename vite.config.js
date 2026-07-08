@@ -10,6 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROFILE_REWRITES = [
   [/^\/individuals\/[^/]+\/?(\?.*)?$/, '/individual.html'],
   [/^\/matrilines\/[^/]+\/?(\?.*)?$/, '/matriline.html'],
+  [/^\/ecotypes\/[^/]+\/?(\?.*)?$/, '/ecotype.html'],
 ];
 
 function profilePagesRewrite(req, _res, next) {
@@ -28,6 +29,7 @@ export default defineConfig({
         about: resolve(__dirname, 'about.html'),
         individual: resolve(__dirname, 'individual.html'),
         matriline: resolve(__dirname, 'matriline.html'),
+        ecotype: resolve(__dirname, 'ecotype.html'),
       }
     },
 

@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import {
-  dedupeOccurrenceLinks, displayName, groupChain, individualPath, matrilinePath, monthlyPresence,
-  normalizeDesignation, parseIndividualPath, parseMatrilinePath,
+  dedupeOccurrenceLinks, displayName, ecotypePath, groupChain, individualPath, matrilinePath, monthlyPresence,
+  normalizeDesignation, parseEcotypePath, parseIndividualPath, parseMatrilinePath,
   type IndividualOccurrence, type OccurrenceLink, type SocialGroup,
 } from './catalog.ts';
 
@@ -33,6 +33,21 @@ test('parses /matrilines/<designation> paths', () => {
 test('matrilinePath round-trips through parseMatrilinePath', () => {
   for (const designation of ['T065A', 'T046B', 'AM25 X']) {
     expect(parseMatrilinePath(matrilinePath(designation))).toBe(designation);
+  }
+});
+
+test('parses /ecotypes/<designation> paths', () => {
+  expect(parseEcotypePath('/ecotypes/Biggs')).toBe('Biggs');
+  expect(parseEcotypePath('/ecotypes/Biggs/')).toBe('Biggs');
+  expect(parseEcotypePath('/ecotypes/')).toBeNull();
+  expect(parseEcotypePath('/ecotypes/Biggs/members')).toBeNull();
+  expect(parseEcotypePath('/matrilines/Biggs')).toBeNull();
+  expect(parseMatrilinePath('/ecotypes/Biggs')).toBeNull();
+});
+
+test('ecotypePath round-trips through parseEcotypePath', () => {
+  for (const designation of ['Biggs', 'Southern Residents']) {
+    expect(parseEcotypePath(ecotypePath(designation))).toBe(designation);
   }
 });
 

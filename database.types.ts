@@ -691,6 +691,17 @@ export type Database = {
       }
     }
     Views: {
+      ecotype_occurrences: {
+        Row: {
+          ecotype_id: number | null
+          is_present: boolean | null
+          location: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observed_at: string | null
+          occurrence_id: string | null
+          status: Database["public"]["Enums"]["identification_status"] | null
+        }
+        Relationships: []
+      }
       group_occurrences: {
         Row: {
           code: string | null
