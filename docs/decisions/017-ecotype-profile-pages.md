@@ -60,7 +60,14 @@ in the ecotype aggregate yet — a no-op while curation volume is zero; the
 durable fix is a cheap indexed occurrence-timestamp source for the stored branch
 (bd `salishsea-io-8uz`, a prerequisite for the curation UI `salishsea-io-ek3`),
 which the per-subject views will also need before curation makes *their* stored
-branch non-empty. (2) `UNION` (not `UNION ALL`) collapses to one row per
+branch non-empty. **Resolved** (migration `20260708052333`): the
+`occurrence_index` matview (id, observed_at, location; unique-indexed on id;
+refreshed on the same cron tick as the candidates cache) is that source. The
+per-subject views' stored branches join it instead of `occurrences`, and
+`ecotype_occurrences` regained stored-claims branches through it — curator
+verdicts (validated/rejected/absence) now reach the ecotype aggregate, shadowing
+the cached candidate for the same (occurrence, subject).
+(2) `UNION` (not `UNION ALL`) collapses to one row per
 (ecotype, occurrence) at the database, so the unpaginated fetch stays under
 PostgREST's `max_rows`; the deduped count (869 on prod) is approaching that cap,
 tracked for pagination (bd `salishsea-io-236`).
