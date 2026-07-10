@@ -22,6 +22,13 @@ const MAPLIFY_URL = 'https://maplify.com/waseak/php/search-all-sightings.php';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** Collapse a response body to a single-line snippet for error messages. */
+function bodySnippet(text: string, max = 200): string {
+    const oneLine = text.replace(/\s+/g, ' ').trim();
+    if (oneLine.length === 0) return '(empty body)';
+    return oneLine.length > max ? `${oneLine.slice(0, max)}…` : oneLine;
+}
+
 // Deno's fetch has no built-in timeout; without one a hung Maplify connection
 // would block an attempt (and the whole edge invocation) indefinitely. Bound
 // each attempt so a hang becomes a retryable AbortError instead.
@@ -41,11 +48,25 @@ export async function fetchMaplify(window: IngestWindow, log: Logger): Promise<u
             res = await fetch(url, { headers: { accept: 'application/json' }, signal: controller.signal });
             if (res.ok) {
                 // Read the body under the SAME timeout: a server can send headers
-                // and then stall, and res.json() would otherwise hang past the
+                // and then stall, and reading it would otherwise hang past the
                 // deadline. Clear the timer only once the body is fully consumed.
-                const data = await res.json();
+                const text = await res.text();
                 clearTimeout(timeout);
-                return data;
+                try {
+                    return JSON.parse(text) as unknown;
+                } catch {
+                    // Maplify serves a 200 with a NON-JSON body on its own
+                    // server-side failures — a transient "Unable to connect to
+                    // the database" DB error, or an HTML PHP fatal-error page.
+                    // Throw a snippet of what it actually returned: this message
+                    // is what index.ts hands the operator (and Sentry), so an
+                    // opaque JSON-parse position would hide the real cause. Still
+                    // retried (transient DB blips recover); a persistent failure
+                    // surfaces the snippet after MAX_ATTEMPTS.
+                    throw new Error(
+                        `Maplify returned a non-JSON 200 body (${text.length} bytes): ${bodySnippet(text)}`,
+                    );
+                }
             }
         } catch (e) {
             // fetch-level failure, abort (timeout), or a stalled/aborted body read

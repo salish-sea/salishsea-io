@@ -45,7 +45,8 @@ function stubFetch(bodies: unknown[]) {
     vi.stubGlobal('fetch', () => {
         const body = bodies[i++];
         if (body === undefined) throw new Error(`unexpected fetch #${i}`);
-        return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
+        // The shell reads res.text() then JSON.parse()s it; return the serialized body.
+        return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(body)) });
     });
 }
 
