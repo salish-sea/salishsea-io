@@ -60,6 +60,14 @@ const MAX_PAGE = Math.floor(10_000 / PER_PAGE);
 // iNat caps the `/taxa` `id` param at ~30 ids per request.
 const TAXA_ID_CHUNK = 30;
 
+// iNat page-based pagination is NOT atomic over a live window: `window.end` is
+// "today", so an observation created/edited/deleted between two sequential page
+// requests drifts `total_results` or the per-page counts, and the accumulated
+// pages fail `isPaginationComplete`. That is transient and self-heals on a fresh
+// pass, so re-page the whole window this many times before treating the
+// incompleteness as real (a genuine, persistent failure the next cron retries).
+const PAGINATION_ATTEMPTS = 3;
+
 // v2 `/observations` field selection. Extends the legacy SQL path's set with the
 // fields the functional core now requires: `updated_at` (drives the
 // newer-wins upsert), the observation_photo `id`, and `user.orcid` (minted into
@@ -170,13 +178,13 @@ export type ObservationFetchResult = {
 };
 
 /**
- * Loop A. Fetch every page of the window through `total_results`, accumulating
+ * Fetch every page of the window through `total_results` ONCE, accumulating
  * FetchedPage metadata and normalized observations. Throws on any parse/HTTP
- * failure, on a window that exceeds iNat's 10 000-record pagination cap, or if
- * the accumulated pages are not provably complete. Returns only on a complete
- * fetch — the precondition reconcile() and persist require.
+ * failure or on a window that exceeds iNat's 10 000-record pagination cap. Does
+ * NOT assert completeness — the caller checks `isPaginationComplete` and re-pages
+ * if the live window drifted mid-fetch.
  */
-export async function fetchAllObservationPages(
+async function collectObservationPages(
     window: IngestWindow,
     log: Logger,
 ): Promise<ObservationFetchResult> {
@@ -207,14 +215,49 @@ export async function fetchAllObservationPages(
         if (page >= expected) break;
     }
 
-    if (!isPaginationComplete(pages, PER_PAGE)) {
-        throw new Error(
-            `iNaturalist pagination incomplete: fetched ${pages.length} page(s) for ` +
-                `total_results=${totalResults}`,
-        );
+    return { pages, observations, totalResults };
+}
+
+/**
+ * Loop A. Fetch every page of the window through `total_results` and return only
+ * a PROVABLY COMPLETE snapshot (decision 011) — the precondition reconcile() and
+ * persist require.
+ *
+ * iNat's page-based pagination is not atomic over a live window (see
+ * PAGINATION_ATTEMPTS): a mutation between two sequential page requests drifts
+ * `total_results` or the per-page counts and fails `isPaginationComplete`. That
+ * is transient, so re-page the whole window up to PAGINATION_ATTEMPTS times
+ * before giving up. Still throws on parse/HTTP failure, on a window over iNat's
+ * 10 000-record cap, or if every attempt drifted — a genuine (persistent)
+ * incompleteness the next 5-minute cron will retry.
+ */
+export async function fetchAllObservationPages(
+    window: IngestWindow,
+    log: Logger,
+): Promise<ObservationFetchResult> {
+    let last: ObservationFetchResult | null = null;
+
+    for (let attempt = 1; attempt <= PAGINATION_ATTEMPTS; attempt++) {
+        const result = await collectObservationPages(window, log);
+        if (isPaginationComplete(result.pages, PER_PAGE)) return result;
+
+        last = result;
+        if (attempt < PAGINATION_ATTEMPTS) {
+            const delay = retryDelayMs(attempt);
+            log('inat pagination incomplete (live window drifted mid-fetch), re-paging', {
+                attempt,
+                pages: result.pages.length,
+                totalResults: result.totalResults,
+                delayMs: delay,
+            });
+            await sleep(delay);
+        }
     }
 
-    return { pages, observations, totalResults };
+    throw new Error(
+        `iNaturalist pagination incomplete after ${PAGINATION_ATTEMPTS} attempts: ` +
+            `fetched ${last!.pages.length} page(s) for total_results=${last!.totalResults}`,
+    );
 }
 
 /**
