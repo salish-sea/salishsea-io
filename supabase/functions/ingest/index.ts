@@ -113,7 +113,7 @@ async function ingestInaturalist(
     dryRun: boolean,
     logger: typeof log,
 ): Promise<IngestOutcome> {
-    const { pages, observations, totalResults } = await fetchAllObservationPages(window, logger);
+    const { pages, observations, recordCount } = await fetchAllObservationPages(window, logger);
     const taxa = await resolveTaxonClosure(sql, observations, logger);
 
     const existing = await fetchObservationWindowIds(sql, window);
@@ -127,7 +127,9 @@ async function ingestInaturalist(
         upserted: result.observationsUpserted,
         deleted: result.observationsDeleted,
         pagesFetched: pages.length,
-        totalResults,
+        // ingest.runs.total_results now records raw records fetched across the
+        // id-keyset sweep (decision 018); iNat's drifting total is no longer used.
+        totalResults: recordCount,
     };
 }
 

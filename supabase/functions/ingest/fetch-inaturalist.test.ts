@@ -1,11 +1,13 @@
 /**
- * Shell test for fetchAllObservationPages' bounded re-page loop (salishsea-io-h79
- * / Sentry SALISHSEA-IO-2D). iNat page-based pagination is not atomic over a live
- * window; a mutation between two page requests drifts total_results so the
- * accumulated pages fail isPaginationComplete. The shell must re-page the whole
- * window a bounded number of times before surfacing that as a real failure.
+ * Shell test for fetchAllObservationPages' id-keyset sweep (salishsea-io-7up /
+ * decision 018, durable fix for Sentry SALISHSEA-IO-2D). The shell walks the
+ * window by ASCENDING observation id (id_above=<lastId>) until a page returns
+ * fewer than per_page rows. Because the cursor is an immutable id, a mutation
+ * mid-sweep no longer drifts a completeness sum — the class of failure PR #327's
+ * bounded re-page only retried around.
  *
- * We stub global fetch (no network) to script drift-then-consistent responses.
+ * We stub global fetch (no network) to script keyset pages and assert both the
+ * accumulated snapshot and that the id_above cursor advances by each page's max id.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchAllObservationPages } from './fetch-inaturalist.ts';
@@ -29,67 +31,114 @@ function record(id: number) {
     };
 }
 
-/** A page body: `total_results` reported plus `count` real records (from startId). */
-function pageBody(page: number, totalResults: number, count: number, startId: number) {
+/**
+ * A keyset page: `count` records with ascending ids from `startId`. `totalResults`
+ * is deliberately variable to prove the sweep ignores it (it is no longer
+ * load-bearing under id-keyset pagination).
+ */
+function pageBody(count: number, startId: number, totalResults = 9999) {
     return {
         total_results: totalResults,
-        page,
+        page: 1,
         per_page: 200,
         results: Array.from({ length: count }, (_, i) => record(startId + i)),
     };
 }
 
-/** Stub global fetch to return each queued body once, in order. */
-function stubFetch(bodies: unknown[]) {
+/** Stub global fetch to return each queued body once, in order; returns the URLs seen. */
+function stubFetch(bodies: unknown[]): string[] {
+    const urls: string[] = [];
     let i = 0;
-    vi.stubGlobal('fetch', () => {
+    vi.stubGlobal('fetch', (url: string) => {
+        urls.push(String(url));
         const body = bodies[i++];
         if (body === undefined) throw new Error(`unexpected fetch #${i}`);
         // The shell reads res.text() then JSON.parse()s it; return the serialized body.
         return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(body)) });
     });
+    return urls;
 }
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('fetchAllObservationPages re-pages on live-window drift', () => {
-    it('returns the snapshot on the first consistent pass (no drift)', async () => {
-        // total 250 → 2 pages (200 + 50), totals stable → complete on attempt 1.
-        stubFetch([pageBody(1, 250, 200, 1), pageBody(2, 250, 50, 201)]);
+describe('fetchAllObservationPages sweeps the window by ascending id', () => {
+    it('completes on a single short first page (one request, id_above=0)', async () => {
+        const urls = stubFetch([pageBody(50, 1)]);
 
         const result = await fetchAllObservationPages(WINDOW, noopLog);
 
-        expect(result.totalResults).toBe(250);
-        expect(result.pages.map((p) => p.recordCount)).toEqual([200, 50]);
-        expect(result.observations).toHaveLength(250);
+        expect(result.recordCount).toBe(50);
+        expect(result.observations).toHaveLength(50);
+        expect(result.pages.map((p) => p.recordCount)).toEqual([50]);
+        expect(urls).toHaveLength(1);
+        expect(urls[0]).toContain('id_above=0');
     });
 
-    it('retries the whole window and succeeds once the dataset settles', async () => {
-        // Attempt 1: page 2 reports a drifted total (251) → incomplete.
-        // Attempt 2: totals agree (250) → complete.
-        stubFetch([
-            pageBody(1, 250, 200, 1),
-            pageBody(2, 251, 51, 201),
-            pageBody(1, 250, 200, 1),
-            pageBody(2, 250, 50, 201),
+    it('advances the id_above cursor by each page\'s max id, ending on a terminal short page', async () => {
+        const urls = stubFetch([
+            pageBody(200, 1),   // ids 1..200   → cursor 200
+            pageBody(200, 201), // ids 201..400 → cursor 400
+            pageBody(50, 401),  // ids 401..450 → terminal (< 200)
         ]);
 
         const result = await fetchAllObservationPages(WINDOW, noopLog);
 
-        expect(result.totalResults).toBe(250);
-        expect(result.pages.map((p) => p.recordCount)).toEqual([200, 50]);
+        expect(result.recordCount).toBe(450);
+        expect(result.observations).toHaveLength(450);
+        expect(result.pages.map((p) => p.recordCount)).toEqual([200, 200, 50]);
+        expect(urls[0]).toContain('id_above=0');
+        expect(urls[1]).toContain('id_above=200');
+        expect(urls[2]).toContain('id_above=400');
     });
 
-    it('throws after exhausting attempts when the window never settles', async () => {
-        // Every attempt drifts (page 2 total ≠ page 1 total): 3 attempts × 2 pages.
-        stubFetch([
-            pageBody(1, 250, 200, 1), pageBody(2, 251, 51, 201),
-            pageBody(1, 250, 200, 1), pageBody(2, 251, 51, 201),
-            pageBody(1, 250, 200, 1), pageBody(2, 251, 51, 201),
+    it('treats a drifting total_results as noise (immune to live-window mutation)', async () => {
+        // Wildly inconsistent total_results across pages — the OLD total-sum check
+        // would have failed this; the id-keyset sweep completes on the short page.
+        const urls = stubFetch([
+            pageBody(200, 1, 9999),
+            pageBody(200, 201, 5),
+            pageBody(10, 401, 123456),
         ]);
+
+        const result = await fetchAllObservationPages(WINDOW, noopLog);
+
+        expect(result.recordCount).toBe(410);
+        expect(result.pages.map((p) => p.recordCount)).toEqual([200, 200, 10]);
+        expect(urls).toHaveLength(3);
+    });
+
+    it('follows an exactly-full window with a terminal empty page', async () => {
+        // total is a multiple of per_page: the last full page yields a 0-row page.
+        const urls = stubFetch([pageBody(200, 1), pageBody(0, 201)]);
+
+        const result = await fetchAllObservationPages(WINDOW, noopLog);
+
+        expect(result.recordCount).toBe(200);
+        expect(result.observations).toHaveLength(200);
+        expect(urls[1]).toContain('id_above=200');
+    });
+
+    it('completes on an authoritative empty window (first page has no records)', async () => {
+        stubFetch([pageBody(0, 1)]);
+
+        const result = await fetchAllObservationPages(WINDOW, noopLog);
+
+        expect(result.recordCount).toBe(0);
+        expect(result.observations).toHaveLength(0);
+    });
+
+    it('throws when the sweep never terminates (runaway bound)', async () => {
+        // Always return a full page with advancing ids: the cursor keeps moving but
+        // no terminal page ever arrives, so the sweep must hit MAX_KEYSET_PAGES.
+        let startId = 1;
+        vi.stubGlobal('fetch', () => {
+            const body = pageBody(200, startId);
+            startId += 200;
+            return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(body)) });
+        });
 
         await expect(fetchAllObservationPages(WINDOW, noopLog)).rejects.toThrow(
-            /pagination incomplete after 3 attempts/,
+            /keyset sweep exceeded 1000 pages/,
         );
     });
 });

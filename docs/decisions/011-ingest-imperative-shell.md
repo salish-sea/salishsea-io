@@ -1,6 +1,6 @@
 # 011 — Network ingest as a TypeScript imperative shell over a functional core
 
-**Status:** accepted · **Decided:** 2026-07-05
+**Status:** accepted · **Decided:** 2026-07-05 · **Amended by:** [018](018-inat-id-keyset-pagination.md) (iNaturalist completeness proof is now an id-keyset terminal-page sweep, not a `total_results` page-count sum)
 
 ## Context
 
