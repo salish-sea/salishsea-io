@@ -7,9 +7,14 @@
  * completeness invariant: they either produce a PROVABLY COMPLETE fetch or they
  * throw — and a throw makes index.ts write nothing.
  *
- *   A. fetchAllObservationPages — page 1..N through `total_results`; every page
- *      must parse; `isPaginationComplete` must hold; else throw. An empty first
- *      page (total_results = 0) is complete and authoritative.
+ *   A. fetchAllObservationPages — sweep the window by ASCENDING observation id
+ *      (id-keyset/cursor pagination, decision 018): fetch `id_above=<lastId>`
+ *      pages until one returns fewer than `per_page` rows (the terminal page).
+ *      Every page must parse; else throw. An empty first page is terminal — an
+ *      authoritative empty window. Immutable ids give a consistent forward
+ *      snapshot, so a mutation mid-sweep no longer drifts completeness (the class
+ *      of failure PR #327's bounded re-page only retried around), and iNat's
+ *      page*per_page ≤ 10 000 cap no longer applies.
  *
  *   B. resolveTaxonClosure — resolve the FULL taxon-ancestor closure before the
  *      caller opens the persist transaction (no HTTP inside the DB write). Fetch
@@ -37,7 +42,7 @@ import {
     referencedTaxonIds,
     referencedTaxonIdsFromTaxa,
     missingTaxonIds,
-    expectedPageCount,
+    isTerminalPage,
     isPaginationComplete,
     type FetchedPage,
     type NormalizedObservation,
@@ -54,19 +59,15 @@ const TAXA_URL = 'https://api.inaturalist.org/v2/taxa';
 // becomes a retryable AbortError instead of blocking the invocation.
 const FETCH_TIMEOUT_MS = 20_000;
 
-// iNat page-based pagination caps at page * per_page <= 10 000 records.
-const MAX_PAGE = Math.floor(10_000 / PER_PAGE);
-
 // iNat caps the `/taxa` `id` param at ~30 ids per request.
 const TAXA_ID_CHUNK = 30;
 
-// iNat page-based pagination is NOT atomic over a live window: `window.end` is
-// "today", so an observation created/edited/deleted between two sequential page
-// requests drifts `total_results` or the per-page counts, and the accumulated
-// pages fail `isPaginationComplete`. That is transient and self-heals on a fresh
-// pass, so re-page the whole window this many times before treating the
-// incompleteness as real (a genuine, persistent failure the next cron retries).
-const PAGINATION_ATTEMPTS = 3;
+// id-keyset pagination has no page*per_page cap and no live-window drift, but a
+// pathological window (or a cursor bug) could otherwise loop unbounded and hang
+// the edge invocation. Bound the sweep so a runaway fails loudly instead. The
+// 10-day rolling window realistically holds hundreds of records; 1000 pages
+// (200 000 records) is a generous backstop, not an expected limit.
+const MAX_KEYSET_PAGES = 1000;
 
 // v2 `/observations` field selection. Extends the legacy SQL path's set with the
 // fields the functional core now requires: `updated_at` (drives the
@@ -159,7 +160,10 @@ async function fetchJsonWithRetry(url: string, label: string, log: Logger): Prom
     throw lastError ?? new Error(`iNaturalist ${label} fetch failed`);
 }
 
-function observationsUrl(window: IngestWindow, page: number): string {
+// id-keyset page: ascending id, records with id strictly greater than `idAbove`
+// (0 → from the smallest id). No `page` param — the cursor, not an offset, walks
+// the window, which is what makes the sweep immune to live-window drift.
+function observationsUrl(window: IngestWindow, idAbove: number): string {
     const params = new URLSearchParams({
         d1: window.start,
         d2: window.end,
@@ -171,8 +175,10 @@ function observationsUrl(window: IngestWindow, page: number): string {
         taxon_id: INAT_ROOT_TAXON_IDS.join(','),
         geoprivacy: 'open',
         taxon_geoprivacy: 'open',
+        order_by: 'id',
+        order: 'asc',
+        id_above: String(idAbove),
         per_page: String(PER_PAGE),
-        page: String(page),
         fields: OBSERVATION_FIELDS,
     });
     return `${OBSERVATIONS_URL}?${params.toString()}`;
@@ -191,90 +197,75 @@ function taxaUrl(ids: readonly number[]): string {
 export type ObservationFetchResult = {
     readonly pages: readonly FetchedPage[];
     readonly observations: readonly NormalizedObservation[];
-    readonly totalResults: number;
+    /** Raw records fetched across the window (sum of per-page counts). */
+    readonly recordCount: number;
 };
 
 /**
- * Fetch every page of the window through `total_results` ONCE, accumulating
- * FetchedPage metadata and normalized observations. Throws on any parse/HTTP
- * failure or on a window that exceeds iNat's 10 000-record pagination cap. Does
- * NOT assert completeness — the caller checks `isPaginationComplete` and re-pages
- * if the live window drifted mid-fetch.
- */
-async function collectObservationPages(
-    window: IngestWindow,
-    log: Logger,
-): Promise<ObservationFetchResult> {
-    const pages: FetchedPage[] = [];
-    const observations: NormalizedObservation[] = [];
-    let totalResults = 0;
-
-    for (let page = 1; ; page++) {
-        const raw = await fetchJsonWithRetry(observationsUrl(window, page), 'observations', log);
-        const result = parseInatResponse(raw);
-        if (!result.ok) {
-            throw new Error(`iNaturalist observations parse failed (page ${page}): ${result.error}`);
-        }
-        pages.push({ page, totalResults: result.totalResults, recordCount: result.recordCount });
-        observations.push(...result.observations);
-        totalResults = result.totalResults;
-
-        const expected = expectedPageCount(totalResults, PER_PAGE);
-        if (expected > MAX_PAGE) {
-            throw new Error(
-                `window exceeds iNaturalist pagination cap: total_results=${totalResults} ` +
-                    `needs ${expected} pages (max ${MAX_PAGE}); narrow the window`,
-            );
-        }
-        log('inat observations page', {
-            page, totalResults, recordCount: result.recordCount, expected,
-        });
-        if (page >= expected) break;
-    }
-
-    return { pages, observations, totalResults };
-}
-
-/**
- * Loop A. Fetch every page of the window through `total_results` and return only
- * a PROVABLY COMPLETE snapshot (decision 011) — the precondition reconcile() and
- * persist require.
+ * Loop A. Sweep the window by ASCENDING observation id (id-keyset pagination,
+ * decision 018) and return only a PROVABLY COMPLETE snapshot (decision 011) — the
+ * precondition reconcile() and persist require.
  *
- * iNat's page-based pagination is not atomic over a live window (see
- * PAGINATION_ATTEMPTS): a mutation between two sequential page requests drifts
- * `total_results` or the per-page counts and fails `isPaginationComplete`. That
- * is transient, so re-page the whole window up to PAGINATION_ATTEMPTS times
- * before giving up. Still throws on parse/HTTP failure, on a window over iNat's
- * 10 000-record cap, or if every attempt drifted — a genuine (persistent)
- * incompleteness the next 5-minute cron will retry.
+ * Each request asks for the next `id_above=<lastId>` page; the sweep ends at the
+ * TERMINAL page (fewer than `per_page` rows), which under ascending-id ordering
+ * cannot be followed by more. Because the cursor is an immutable id, an
+ * observation created/edited/deleted between two requests no longer drifts a
+ * completeness sum — the class of transient failure PR #327's bounded re-page
+ * only retried around. Still throws on parse/HTTP failure, or if the sweep
+ * exceeds MAX_KEYSET_PAGES (a runaway) — a genuine failure the next cron retries.
  */
 export async function fetchAllObservationPages(
     window: IngestWindow,
     log: Logger,
 ): Promise<ObservationFetchResult> {
-    let last: ObservationFetchResult | null = null;
+    const pages: FetchedPage[] = [];
+    const observations: NormalizedObservation[] = [];
+    let cursor = 0; // id_above=0 → start from the smallest id
 
-    for (let attempt = 1; attempt <= PAGINATION_ATTEMPTS; attempt++) {
-        const result = await collectObservationPages(window, log);
-        if (isPaginationComplete(result.pages, PER_PAGE)) return result;
-
-        last = result;
-        if (attempt < PAGINATION_ATTEMPTS) {
-            const delay = retryDelayMs(attempt);
-            log('inat pagination incomplete (live window drifted mid-fetch), re-paging', {
-                attempt,
-                pages: result.pages.length,
-                totalResults: result.totalResults,
-                delayMs: delay,
-            });
-            await sleep(delay);
+    for (let pageNum = 1; ; pageNum++) {
+        if (pageNum > MAX_KEYSET_PAGES) {
+            throw new Error(
+                `iNaturalist keyset sweep exceeded ${MAX_KEYSET_PAGES} pages ` +
+                    `(cursor id_above=${cursor}); window implausibly large or a cursor bug`,
+            );
         }
+
+        const raw = await fetchJsonWithRetry(observationsUrl(window, cursor), 'observations', log);
+        const result = parseInatResponse(raw);
+        if (!result.ok) {
+            throw new Error(
+                `iNaturalist observations parse failed (id_above ${cursor}): ${result.error}`,
+            );
+        }
+        pages.push({ recordCount: result.recordCount, maxId: result.maxId });
+        observations.push(...result.observations);
+        log('inat observations page', {
+            page: pageNum, idAbove: cursor, recordCount: result.recordCount, maxId: result.maxId,
+        });
+
+        if (isTerminalPage(result.recordCount, PER_PAGE)) break;
+
+        // A full page must carry a max id to advance the cursor past; recordCount
+        // === PER_PAGE implies maxId != null, but guard rather than loop forever.
+        if (result.maxId == null) {
+            throw new Error(
+                `iNaturalist keyset cursor stuck: full page with no max id at id_above=${cursor}`,
+            );
+        }
+        cursor = result.maxId;
     }
 
-    throw new Error(
-        `iNaturalist pagination incomplete after ${PAGINATION_ATTEMPTS} attempts: ` +
-            `fetched ${last!.pages.length} page(s) for total_results=${last!.totalResults}`,
-    );
+    // The terminal-page exit structurally proves completeness; assert decision
+    // 011's invariant defensively before the caller reconciles/persists.
+    if (!isPaginationComplete(pages, PER_PAGE)) {
+        throw new Error(
+            `iNaturalist keyset pagination did not converge to a complete snapshot ` +
+                `(${pages.length} page(s))`,
+        );
+    }
+
+    const recordCount = pages.reduce((n, p) => n + p.recordCount, 0);
+    return { pages, observations, recordCount };
 }
 
 /**

@@ -18,3 +18,7 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [012](012-ingest-heartbeat.md) | Ingest heartbeat: external observer via scheduled GitHub Action | accepted |
 | [013](013-orcasound-acoustic-occurrences.md) | OrcaSound acoustic occurrences from curated biophony bouts, identified by upstream tags | accepted (our side); pending upstream adoption |
 | [014](014-trust-and-curation-model.md) | Trust & curation: claims have status, people have reputation, curators assert both | proposed (direction) |
+| [015](015-individual-profile-pages.md) | Individual profile pages at `/individuals/<designation>` | accepted |
+| [016](016-matriline-profile-pages.md) | Matriline profile pages | accepted |
+| [017](017-ecotype-profile-pages.md) | Ecotype profile pages | accepted |
+| [018](018-inat-id-keyset-pagination.md) | iNaturalist ingest paginates by id-keyset, not page number (amends 011) | accepted |

@@ -14,12 +14,16 @@
  * The two hard parts of iNat ingest (decision 011) both reduce to pure helpers
  * this module owns; the loops/effects around them are the shell's job:
  *
- *   1. Pagination completeness — `isPaginationComplete` decides whether the shell
- *      has accumulated every page through `total_results`. A fetch is COMPLETE
- *      only if page 1..N (N = ceil(total/per_page)) each returned 200 with a
- *      well-formed body and the record counts sum to `total_results`. An empty
- *      first page (`total_results = 0`) is complete and authoritative. Any missing
- *      or failed page → not complete → the shell writes nothing.
+ *   1. Pagination completeness — the shell sweeps the window by ASCENDING id
+ *      (id-keyset/cursor pagination, decision 018), not by page number. A fetch is
+ *      COMPLETE once a TERMINAL page returns fewer than `per_page` rows: iNat
+ *      returns exactly `per_page` rows for every page but the last, so a short (or
+ *      empty) page cannot be followed by more. `isTerminalPage` is that stop
+ *      signal; `isPaginationComplete` is the post-hoc invariant (every page but the
+ *      last full, the last terminal). An empty first page is terminal — an
+ *      authoritative empty window. `total_results` is no longer load-bearing:
+ *      immutable ids give a consistent forward snapshot even as the live window
+ *      mutates mid-sweep. Any missing/failed page → not complete → write nothing.
  *
  *   2. Taxon-ancestor closure — `referencedTaxonIds` extracts the taxon ids an
  *      observation batch needs (self + ancestors); `missingTaxonIds` diffs that
@@ -256,10 +260,16 @@ export type InatParseResult =
     | {
           readonly ok: true;
           readonly observations: readonly NormalizedObservation[];
+          /** iNat's reported total; informational only under id-keyset pagination (decision 018). */
           readonly totalResults: number;
-          /** Raw page result count BEFORE null-time skipping — feeds the completeness sum. */
+          /** Raw page result count BEFORE null-time skipping — drives terminal-page detection. */
           readonly recordCount: number;
-          readonly page: number | null;
+          /**
+           * Max raw observation id on the page (the next `id_above` cursor), or null
+           * for an empty page. Computed over RAW results so the cursor still advances
+           * past out-of-scope null-time records the shell skips.
+           */
+          readonly maxId: number | null;
       }
     | { readonly ok: false; readonly error: string };
 
@@ -285,12 +295,16 @@ export function parseInatResponse(raw: unknown): InatParseResult {
         if (observedAt == null) continue; // out of scope; skip (mirrors live SQL)
         observations.push(normalizeObservation(r, observedAt));
     }
+    const maxId = parsed.data.results.reduce<number | null>(
+        (m, r) => (m == null || r.id > m ? r.id : m),
+        null,
+    );
     return {
         ok: true,
         observations,
         totalResults: parsed.data.total_results,
         recordCount: parsed.data.results.length,
-        page: parsed.data.page ?? null,
+        maxId,
     };
 }
 
@@ -356,56 +370,48 @@ export function missingTaxonIds(
 }
 
 // --------------------------------------------------------------------------
-// Pagination completeness (the core safety predicate).
+// Pagination completeness (the core safety predicate), id-keyset variant.
+// See decision 018: the shell sweeps the window by ascending observation id
+// (order_by=id&order=asc&id_above=<cursor>) rather than by page number, so
+// live-window mutation no longer drifts a total_results-based completeness sum
+// and iNat's page*per_page ≤ 10 000 cap no longer applies.
 // --------------------------------------------------------------------------
 
-/** Metadata the shell records for each page it successfully fetched & parsed. */
+/** Metadata the shell records for each keyset page it successfully fetched & parsed. */
 export type FetchedPage = {
-    readonly page: number;
-    readonly totalResults: number;
     /** Raw result count for this page (before null-time skipping). */
     readonly recordCount: number;
+    /** Max raw observation id on the page (the cursor for the next fetch); null if empty. */
+    readonly maxId: number | null;
 };
 
 /**
- * Number of pages that must be fetched to cover `totalResults` at `perPage`.
- * `totalResults === 0` still requires the ONE page (page 1) that authoritatively
- * reported the empty result. NB: iNat caps page-based pagination at 10 000
- * records, so a window with total > 10 000 cannot be completed by this route —
- * `isPaginationComplete` will (honestly) never return true for it, and the shell
- * aborts rather than persist a truncated view.
+ * Whether a keyset page is the TERMINAL page — the stop signal the shell's sweep
+ * loop watches for. iNat returns exactly `perPage` rows for every page except the
+ * last, so a page with fewer rows (including zero) cannot be followed by more and
+ * ends the ascending-id sweep. This replaces the old total_results cross-check.
  */
-export function expectedPageCount(totalResults: number, perPage: number): number {
-    if (perPage <= 0) return 0;
-    if (totalResults <= 0) return 1;
-    return Math.ceil(totalResults / perPage);
+export function isTerminalPage(recordCount: number, perPage: number): boolean {
+    return recordCount < perPage;
 }
 
 /**
- * Whether the accumulated pages constitute a PROVABLY COMPLETE fetch (decision
- * 011's central invariant). Complete iff:
- *   - at least page 1 was fetched;
- *   - every page reports the same total_results (no shifting ground);
- *   - the fetched page numbers are exactly 1..N with no gap or duplicate,
- *     where N = expectedPageCount(total, perPage);
- *   - the per-page record counts sum to total_results.
- * Any hole, an extra/short page, or a mid-pagination failure (which leaves a page
- * un-accumulated) → false → the shell writes nothing.
+ * Whether the accumulated keyset pages constitute a PROVABLY COMPLETE fetch
+ * (decision 011's central invariant, revised for id-cursor pagination in 018).
+ * Complete iff:
+ *   - at least one page was fetched;
+ *   - every page but the last returned a FULL `perPage` rows (no short page mid-sweep);
+ *   - the last page is terminal (fewer than `perPage` rows).
+ * An empty first page (recordCount 0) is itself terminal — an authoritative empty
+ * window. The shell asserts this after its loop as a defensive invariant; the
+ * loop's terminal-page exit already guarantees it.
  */
 export function isPaginationComplete(pages: readonly FetchedPage[], perPage: number): boolean {
     if (pages.length === 0) return false;
-    const total = pages[0]!.totalResults;
-    if (pages.some((p) => p.totalResults !== total)) return false;
-
-    const expected = expectedPageCount(total, perPage);
-    if (pages.length !== expected) return false;
-
-    const nums = new Set(pages.map((p) => p.page));
-    if (nums.size !== expected) return false;
-    for (let i = 1; i <= expected; i++) if (!nums.has(i)) return false;
-
-    const sum = pages.reduce((n, p) => n + p.recordCount, 0);
-    return sum === total;
+    for (let i = 0; i < pages.length - 1; i++) {
+        if (pages[i]!.recordCount !== perPage) return false;
+    }
+    return isTerminalPage(pages[pages.length - 1]!.recordCount, perPage);
 }
 
 // --------------------------------------------------------------------------

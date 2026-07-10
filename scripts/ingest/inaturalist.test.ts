@@ -20,7 +20,7 @@ import {
     referencedTaxonIds,
     referencedTaxonIdsFromTaxa,
     missingTaxonIds,
-    expectedPageCount,
+    isTerminalPage,
     isPaginationComplete,
     reconcile,
     InatObservationSchema,
@@ -106,7 +106,23 @@ describe('parseInatResponse', () => {
 
     test('accepts an authoritative empty result set (total_results=0)', () => {
         const r = parseInatResponse({ total_results: 0, page: 1, per_page: 200, results: [] });
-        expect(r).toMatchObject({ ok: true, observations: [], totalResults: 0, recordCount: 0 });
+        expect(r).toMatchObject({ ok: true, observations: [], totalResults: 0, recordCount: 0, maxId: null });
+    });
+
+    test('reports the max raw id as the keyset cursor (incl. a skipped null-time record)', () => {
+        const r = parseInatResponse({
+            total_results: 3,
+            results: [
+                { ...rawObs, id: 10 },
+                { ...rawObs, id: 30, time_observed_at: null }, // out of scope: skipped but still the max id
+                { ...rawObs, id: 20 },
+            ],
+        });
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        expect(r.observations.map((o) => o.id)).toEqual([10, 20]); // null-time record skipped
+        expect(r.recordCount).toBe(3); // but counted (drives terminal detection)
+        expect(r.maxId).toBe(30); // cursor advances past the skipped record
     });
 
     test('blank description → null; blank orcid → null; blank photo license → null', () => {
@@ -226,72 +242,41 @@ describe('taxon closure diffs', () => {
     });
 });
 
-describe('pagination completeness', () => {
-    test('expectedPageCount: empty total needs the one reporting page', () => {
-        expect(expectedPageCount(0, 200)).toBe(1);
-    });
-    test('expectedPageCount: ceil(total/perPage)', () => {
-        expect(expectedPageCount(200, 200)).toBe(1);
-        expect(expectedPageCount(201, 200)).toBe(2);
-        expect(expectedPageCount(1826, 200)).toBe(10);
+describe('pagination completeness (id-keyset)', () => {
+    test('isTerminalPage: a short (or empty) page ends the sweep; a full page does not', () => {
+        expect(isTerminalPage(0, 200)).toBe(true);
+        expect(isTerminalPage(50, 200)).toBe(true);
+        expect(isTerminalPage(199, 200)).toBe(true);
+        expect(isTerminalPage(200, 200)).toBe(false); // full page → more may follow
     });
 
-    const page = (over: Partial<FetchedPage> & { page: number }): FetchedPage => ({
-        totalResults: 0, recordCount: 0, ...over,
+    const page = (recordCount: number, maxId: number | null = recordCount): FetchedPage => ({
+        recordCount, maxId,
     });
 
-    test('a single empty page (total=0) is complete and authoritative', () => {
-        expect(isPaginationComplete([page({ page: 1, totalResults: 0, recordCount: 0 })], 200)).toBe(true);
+    test('a single empty page is complete and authoritative', () => {
+        expect(isPaginationComplete([page(0, null)], 200)).toBe(true);
     });
 
-    test('all pages present with counts summing to total → complete', () => {
-        const pages = [
-            page({ page: 1, totalResults: 450, recordCount: 200 }),
-            page({ page: 2, totalResults: 450, recordCount: 200 }),
-            page({ page: 3, totalResults: 450, recordCount: 50 }),
-        ];
-        expect(isPaginationComplete(pages, 200)).toBe(true);
+    test('a single short first page is complete (fits in one page)', () => {
+        expect(isPaginationComplete([page(50)], 200)).toBe(true);
     });
 
-    test('a missing final page → incomplete', () => {
-        const pages = [
-            page({ page: 1, totalResults: 450, recordCount: 200 }),
-            page({ page: 2, totalResults: 450, recordCount: 200 }),
-        ];
-        expect(isPaginationComplete(pages, 200)).toBe(false);
+    test('full pages followed by a terminal short page → complete', () => {
+        expect(isPaginationComplete([page(200), page(200), page(50)], 200)).toBe(true);
     });
 
-    test('a gap in page numbers → incomplete', () => {
-        const pages = [
-            page({ page: 1, totalResults: 450, recordCount: 200 }),
-            page({ page: 3, totalResults: 450, recordCount: 250 }),
-        ];
-        expect(isPaginationComplete(pages, 200)).toBe(false);
+    test('an exactly-full window then a terminal empty page → complete', () => {
+        // total is a multiple of per_page: the last full page is followed by a 0-row page.
+        expect(isPaginationComplete([page(200), page(200), page(0, null)], 200)).toBe(true);
     });
 
-    test('a duplicated page number → incomplete', () => {
-        const pages = [
-            page({ page: 1, totalResults: 400, recordCount: 200 }),
-            page({ page: 1, totalResults: 400, recordCount: 200 }),
-        ];
-        expect(isPaginationComplete(pages, 200)).toBe(false);
+    test('a full last page (no terminal short page) → incomplete', () => {
+        expect(isPaginationComplete([page(200), page(200)], 200)).toBe(false);
     });
 
-    test('inconsistent total_results across pages → incomplete', () => {
-        const pages = [
-            page({ page: 1, totalResults: 400, recordCount: 200 }),
-            page({ page: 2, totalResults: 401, recordCount: 200 }),
-        ];
-        expect(isPaginationComplete(pages, 200)).toBe(false);
-    });
-
-    test('record counts that do not sum to total → incomplete', () => {
-        const pages = [
-            page({ page: 1, totalResults: 450, recordCount: 200 }),
-            page({ page: 2, totalResults: 450, recordCount: 200 }),
-            page({ page: 3, totalResults: 450, recordCount: 40 }), // 440 != 450
-        ];
-        expect(isPaginationComplete(pages, 200)).toBe(false);
+    test('a short page BEFORE the last (mid-sweep truncation) → incomplete', () => {
+        expect(isPaginationComplete([page(200), page(150), page(50)], 200)).toBe(false);
     });
 
     test('no pages fetched at all → incomplete', () => {
