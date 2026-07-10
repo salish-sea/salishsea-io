@@ -86,6 +86,13 @@ const TAXA_FIELDS = '(id:!t,ancestor_ids:!t,parent_id:!t,rank:!t,name:!t,preferr
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** Collapse a response body to a single-line snippet for error messages. */
+function bodySnippet(text: string, max = 200): string {
+    const oneLine = text.replace(/\s+/g, ' ').trim();
+    if (oneLine.length === 0) return '(empty body)';
+    return oneLine.length > max ? `${oneLine.slice(0, max)}…` : oneLine;
+}
+
 function chunk<T>(items: readonly T[], size: number): T[][] {
     const out: T[][] = [];
     for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
@@ -112,11 +119,21 @@ async function fetchJsonWithRetry(url: string, label: string, log: Logger): Prom
             });
             if (res.ok) {
                 // Read the body under the SAME timeout: a server can send headers
-                // and then stall, and res.json() would otherwise hang past the
+                // and then stall, and reading it would otherwise hang past the
                 // deadline. Clear the timer only once the body is fully consumed.
-                const data = await res.json();
+                const text = await res.text();
                 clearTimeout(timeout);
-                return data;
+                try {
+                    return JSON.parse(text) as unknown;
+                } catch {
+                    // A 200 with a non-JSON body (upstream error page/proxy blip).
+                    // Throw a snippet of what was actually returned rather than an
+                    // opaque JSON-parse position; still retried like any transient.
+                    throw new Error(
+                        `iNaturalist ${label} returned a non-JSON ${res.status} body ` +
+                            `(${text.length} chars): ${bodySnippet(text)}`,
+                    );
+                }
             }
         } catch (e) {
             // fetch-level failure, abort (timeout), or a stalled/aborted body read
