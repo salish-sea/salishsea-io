@@ -46,7 +46,7 @@ function stubFetch(bodies: unknown[]) {
         const body = bodies[i++];
         if (body === undefined) throw new Error(`unexpected fetch #${i}`);
         // The shell reads res.text() then JSON.parse()s it; return the serialized body.
-        return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(body)) });
+        return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(body)) });
     });
 }
 

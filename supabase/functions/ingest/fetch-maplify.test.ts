@@ -20,7 +20,7 @@ function stubFetch(bodies: string[]) {
     vi.stubGlobal('fetch', () => {
         const body = bodies[i++];
         if (body === undefined) throw new Error(`unexpected fetch #${i}`);
-        return Promise.resolve({ ok: true, text: () => Promise.resolve(body) });
+        return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(body) });
     });
 }
 
@@ -37,7 +37,7 @@ describe('fetchMaplify parses JSON and diagnoses non-JSON 200s', () => {
         const dbError = 'Unable to connect to the database';
         stubFetch([dbError, dbError, dbError]);
         await expect(fetchMaplify(WINDOW, noopLog)).rejects.toThrow(
-            /Maplify returned a non-JSON 200 body \(\d+ bytes\): Unable to connect to the database/,
+            /Maplify returned a non-JSON 200 body \(\d+ chars\): Unable to connect to the database/,
         );
     });
 
@@ -54,7 +54,7 @@ describe('fetchMaplify parses JSON and diagnoses non-JSON 200s', () => {
     it('reports an empty 200 body distinctly', async () => {
         stubFetch(['', '', '']);
         await expect(fetchMaplify(WINDOW, noopLog)).rejects.toThrow(
-            /non-JSON 200 body \(0 bytes\): \(empty body\)/,
+            /non-JSON 200 body \(0 chars\): \(empty body\)/,
         );
     });
 });

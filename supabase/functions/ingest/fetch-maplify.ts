@@ -64,7 +64,8 @@ export async function fetchMaplify(window: IngestWindow, log: Logger): Promise<u
                     // retried (transient DB blips recover); a persistent failure
                     // surfaces the snippet after MAX_ATTEMPTS.
                     throw new Error(
-                        `Maplify returned a non-JSON 200 body (${text.length} bytes): ${bodySnippet(text)}`,
+                        `Maplify returned a non-JSON ${res.status} body ` +
+                            `(${text.length} chars): ${bodySnippet(text)}`,
                     );
                 }
             }

@@ -130,8 +130,8 @@ async function fetchJsonWithRetry(url: string, label: string, log: Logger): Prom
                     // Throw a snippet of what was actually returned rather than an
                     // opaque JSON-parse position; still retried like any transient.
                     throw new Error(
-                        `iNaturalist ${label} returned a non-JSON 200 body ` +
-                            `(${text.length} bytes): ${bodySnippet(text)}`,
+                        `iNaturalist ${label} returned a non-JSON ${res.status} body ` +
+                            `(${text.length} chars): ${bodySnippet(text)}`,
                     );
                 }
             }
