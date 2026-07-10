@@ -23,7 +23,7 @@ that still cannot express a window larger than iNat's `page * per_page ≤ 10 00
 
 Sweep the window by **ascending observation id** (id-keyset / cursor pagination):
 
-```
+```text
 order_by=id & order=asc & id_above=<lastMaxId> & per_page=200   (id_above=0 to start)
 ```
 
