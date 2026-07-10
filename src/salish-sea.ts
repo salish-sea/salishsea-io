@@ -333,7 +333,7 @@ export default class SalishSea extends LitElement {
             const id = sighting.id;
             const classes = {focused: id === this.focusedOccurrenceId};
             return html`
-              <obs-summary class=${classMap(classes)} id=${`summary-${id}`} ?focused=${classes.focused} .sighting=${sighting} />
+              <obs-summary class=${classMap(classes)} id=${`summary-${id}`} ?focused=${classes.focused} .sighting=${sighting}></obs-summary>
             `;
           })}
         </obs-panel>

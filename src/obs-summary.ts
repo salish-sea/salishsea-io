@@ -184,11 +184,14 @@ export class ObsSummary extends LitElement {
 
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('contributor') || changedProperties.has('sighting')) {
-      this.ownObservation = !!(this.contributor && this.sighting.contributor_id === this.contributor.id);
+      this.ownObservation = !!(this.contributor && this.sighting?.contributor_id === this.contributor.id);
     }
   }
 
   public render() {
+    // `sighting` is a required property, but a reactive update (e.g. a context
+    // change) can fire before it is assigned; render nothing rather than throw.
+    if (!this.sighting) return nothing;
     const {
       body, count, observed_at, photos, provider_slug, taxon: {scientific_name, vernacular_name}, url
     } = this.sighting;
