@@ -218,7 +218,8 @@ describe('Lambda@Edge OG meta handler', () => {
   });
 
   it('returns request (fail-open) when the SSM credential call times out', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch');
+    const fetchSpy = jest.spyOn(global, 'fetch')
+      .mockRejectedValue(new Error('unexpected network call'));
     const { SSMClient } = jest.requireMock('@aws-sdk/client-ssm') as { SSMClient: jest.Mock };
     SSMClient.mockImplementation(() => ({
       send: jest.fn().mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError')),
