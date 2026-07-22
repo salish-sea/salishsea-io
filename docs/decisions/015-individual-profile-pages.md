@@ -16,6 +16,11 @@ CloudFront/S3 has no object at `/individuals/*`, so the existing viewer-request
 Lambda@Edge (`infra/lib/edge-handler`) rewrites those paths to `/individual.html`
 for humans and synthesizes catalog-driven OG meta for crawler user-agents (same
 fail-open contract as `?o=`; unknown designations get the generic site card).
+Fail-open only works if the handler's code sees the failure: the viewer-request
+Lambda is hard-killed at 5s and CloudFront then serves a 503 (observed on the
+2026-07-22 smoke run, bd `salishsea-io-g9e`), so every SSM and Supabase call in
+the handler carries an `AbortSignal` deadline sized to keep the worst-case cold
+chain under the kill — slowness degrades to the shell, never a 503.
 The Vite dev/preview servers mirror the rewrite via a small middleware in
 `vite.config.js`.
 
