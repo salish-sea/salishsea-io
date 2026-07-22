@@ -188,6 +188,59 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result).toBe(event.Records[0].cf.request);
   });
 
+  // salishsea-io-g9e: the viewer-request Lambda is killed at 5s and CloudFront
+  // serves a 503 — every network call must carry its own deadline so slowness
+  // surfaces as a catchable error inside the fail-open try/catch instead.
+  it('bounds the Supabase fetch with an AbortSignal deadline', async () => {
+    const mockFetch = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [sampleOccurrence],
+    } as Response);
+    await handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
+    const options = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('bounds the SSM credential calls with an AbortSignal deadline', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [sampleOccurrence],
+    } as Response);
+    const { SSMClient } = jest.requireMock('@aws-sdk/client-ssm') as { SSMClient: jest.Mock };
+    const mockSend = jest.fn().mockResolvedValue({ Parameter: { Value: 'mock-value' } });
+    SSMClient.mockImplementation(() => ({ send: mockSend }));
+
+    await handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
+    for (const call of mockSend.mock.calls) {
+      expect((call[1] as { abortSignal: unknown }).abortSignal).toBeInstanceOf(AbortSignal);
+    }
+    expect(mockSend).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns request (fail-open) when the SSM credential call times out', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    const { SSMClient } = jest.requireMock('@aws-sdk/client-ssm') as { SSMClient: jest.Mock };
+    SSMClient.mockImplementation(() => ({
+      send: jest.fn().mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError')),
+    }));
+
+    const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('fail-open when the Supabase fetch aborts on its deadline still rewrites profile paths', async () => {
+    mockSsmCredentials();
+    jest.spyOn(global, 'fetch')
+      .mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError'));
+
+    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(result.uri).toBe('/individual.html');
+  });
+
   it('calls SSM once and caches credentials for subsequent invocations', async () => {
     const mockFetch = jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,

@@ -23,6 +23,13 @@ function isBot(userAgent: string): boolean {
 // must pass through to origin as raw bytes, never be intercepted for OG-meta HTML.
 const STATIC_ASSET_RE = /\.(jpe?g|png|gif|svg|webp|ico|avif)$/i;
 
+// Network deadlines: the viewer-request Lambda is hard-killed at 5s, and a kill
+// bypasses the fail-open catch — CloudFront serves a 503 (salishsea-io-g9e).
+// Budgets must leave the worst-case cold chain (SSM + one data fetch) comfortably
+// under 5s so a slow dependency degrades to the shell instead.
+const SSM_TIMEOUT_MS = 1500;
+const FETCH_TIMEOUT_MS = 2000;
+
 // Module-scoped credential cache — survives warm Lambda invocations
 let supabaseUrl: string | undefined;
 let supabaseKey: string | undefined;
@@ -36,9 +43,10 @@ export function _clearCredentialCache(): void {
 async function getCredentials(): Promise<{ url: string; key: string }> {
   if (supabaseUrl && supabaseKey) return { url: supabaseUrl, key: supabaseKey };
   const ssm = new SSMClient({ region: 'us-east-1' });
+  const abortSignal = AbortSignal.timeout(SSM_TIMEOUT_MS);
   const [urlParam, keyParam] = await Promise.all([
-    ssm.send(new GetParameterCommand({ Name: '/salishsea/supabase-url' })),
-    ssm.send(new GetParameterCommand({ Name: '/salishsea/supabase-anon-key', WithDecryption: true })),
+    ssm.send(new GetParameterCommand({ Name: '/salishsea/supabase-url' }), { abortSignal }),
+    ssm.send(new GetParameterCommand({ Name: '/salishsea/supabase-anon-key', WithDecryption: true }), { abortSignal }),
   ]);
   supabaseUrl = urlParam.Parameter!.Value!;
   supabaseKey = keyParam.Parameter!.Value!;
@@ -168,6 +176,7 @@ async function individualPreview(designation: string): Promise<any> {
     + '&select=primary_designation,sex,born_earliest,born_latest,life_status,nicknames(name,status)&limit=1';
   const res = await fetch(apiUrl, {
     headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok) return htmlResponse(genericPreviewTags());
   const individuals = await res.json() as Individual[];
@@ -202,6 +211,7 @@ async function matrilinePreview(designation: string): Promise<any> {
     + '&kind=eq.matriline&select=designation,nicknames(name,status)&limit=1';
   const res = await fetch(apiUrl, {
     headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok) return htmlResponse(genericPreviewTags());
   const groups = await res.json() as SocialGroup[];
@@ -239,6 +249,7 @@ async function ecotypePreview(designation: string): Promise<any> {
     + '&kind=eq.ecotype&select=designation,nicknames(name,status)&limit=1';
   const res = await fetch(apiUrl, {
     headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok) return htmlResponse(genericPreviewTags());
   const groups = await res.json() as SocialGroup[];
@@ -323,6 +334,7 @@ export const handler = async (event: any): Promise<any> => {
     const apiUrl = `${url}/rest/v1/occurrences?id=eq.${encodeURIComponent(occurrenceId)}&select=id,taxon,observed_at,count,photos&limit=1`;
     const res = await fetch(apiUrl, {
       headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!res.ok) {
       return {
