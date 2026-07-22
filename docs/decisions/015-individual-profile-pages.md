@@ -18,9 +18,11 @@ for humans and synthesizes catalog-driven OG meta for crawler user-agents (same
 fail-open contract as `?o=`; unknown designations get the generic site card).
 Fail-open only works if the handler's code sees the failure: the viewer-request
 Lambda is hard-killed at 5s and CloudFront then serves a 503 (observed on the
-2026-07-22 smoke run, bd `salishsea-io-g9e`), so every SSM and Supabase call in
-the handler carries an `AbortSignal` deadline sized to keep the worst-case cold
-chain under the kill — slowness degrades to the shell, never a 503.
+2026-07-22 smoke run, bd `salishsea-io-g9e`), so every Supabase call in the
+handler carries an `AbortSignal` deadline sized to keep the worst-case cold
+chain under the kill — slowness degrades to the shell, never a 503. (Supabase
+config is baked in at synth — see decision 002 — so the cold chain is just
+init plus one fetch.)
 The Vite dev/preview servers mirror the rewrite via a small middleware in
 `vite.config.js`.
 

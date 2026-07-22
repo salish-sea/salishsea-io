@@ -12,7 +12,8 @@ The app is a static SPA (Lit + Vite) on S3 + CloudFront with a Supabase backend.
 - Crawler bots don't execute JavaScript, so rich previews require server-side rendering of meta tags. **Lambda@Edge, not CloudFront Functions:** CloudFront Functions lack `fetch()`; Lambda@Edge can look up the occurrence in Supabase per request.
 - **Fail-open:** the edge function passes requests through on any error — never serve a 500 for a preview optimization.
 - **`/dwca/*` carve-out at handler line 1:** binary archive downloads bypass the OG-meta interceptor.
-- **SSM credentials managed outside CDK:** CDK can't create SecureStrings; the Lambda reads SSM with a module-scope cache (one call per cold start).
+- ~~**SSM credentials managed outside CDK:** CDK can't create SecureStrings; the Lambda reads SSM with a module-scope cache (one call per cold start).~~ *Superseded 2026-07-22 by the bullet below.*
+- **Supabase config baked into the edge bundle at synth** (2026-07-22, bd `salishsea-io-srg`; supersedes the SSM-parameter approach above): Lambda@Edge forbids env vars, but neither value is secret — the anon key ships in every browser bundle — and the deploy already passes it via `--context supabaseAnonKey`. Baking removes the SSM client, IAM grant, and a cross-region call from the 5s viewer-request cold-start budget. A synth without the context bakes empty values and the handler fails open.
 - **Occurrence links encode only the occurrence ID** (`?o=<id>`); date and map position derive from the occurrence on load — cleaner URLs, one source of truth.
 
 ## Rejected

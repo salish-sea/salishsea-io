@@ -1,15 +1,18 @@
-import { handler, _clearCredentialCache } from './index';
+// Stand in for the values infra-stack.ts bakes into config.js at synth.
+// Getters read overridable globals so a test can simulate a bundle whose
+// config was never baked (index.ts references the exports live, not by copy).
+jest.mock('./config', () => ({
+  get SUPABASE_URL() { return (globalThis as any).__testSupabaseUrl ?? 'https://test.supabase.co'; },
+  get SUPABASE_ANON_KEY() { return (globalThis as any).__testSupabaseKey ?? 'test-key'; },
+}));
 
-// Mock @aws-sdk/client-ssm before any imports
-jest.mock('@aws-sdk/client-ssm', () => {
-  const mockSend = jest.fn().mockResolvedValue({
-    Parameter: { Value: 'mock-value' },
-  });
-  return {
-    SSMClient: jest.fn().mockImplementation(() => ({ send: mockSend })),
-    GetParameterCommand: jest.fn(),
-    __mockSend: mockSend,
-  };
+import { handler } from './index';
+
+// The handler emits structured JSON log lines (og-fetch, og-fail-open, …);
+// keep test output clean while leaving the spies available for assertions.
+beforeEach(() => {
+  jest.spyOn(console, 'log').mockImplementation(() => {});
+  jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 // Helper to build a CloudFront viewer-request event
@@ -31,19 +34,6 @@ function makeEvent(userAgent: string, querystring: string = '', uri: string = ''
   };
 }
 
-// Mock SSM to return fake Supabase credentials
-function mockSsmCredentials() {
-  const { SSMClient } = jest.requireMock('@aws-sdk/client-ssm') as {
-    SSMClient: jest.Mock;
-    __mockSend: jest.Mock;
-  };
-  SSMClient.mockImplementation(() => ({
-    send: jest.fn()
-      .mockResolvedValueOnce({ Parameter: { Value: 'https://test.supabase.co' } })
-      .mockResolvedValueOnce({ Parameter: { Value: 'test-key' } }),
-  }));
-}
-
 // Sample occurrence data matching the locked format decisions
 const sampleOccurrence = {
   id: 'abc123',
@@ -56,9 +46,7 @@ const sampleOccurrence = {
 describe('Lambda@Edge OG meta handler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    _clearCredentialCache();
     jest.spyOn(global, 'fetch').mockReset();
-    mockSsmCredentials();
   });
 
   it('passes through non-bot user-agents (Mozilla/5.0) unmodified', async () => {
@@ -201,38 +189,7 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(options.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it('bounds the SSM credential calls with an AbortSignal deadline', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [sampleOccurrence],
-    } as Response);
-    const { SSMClient } = jest.requireMock('@aws-sdk/client-ssm') as { SSMClient: jest.Mock };
-    const mockSend = jest.fn().mockResolvedValue({ Parameter: { Value: 'mock-value' } });
-    SSMClient.mockImplementation(() => ({ send: mockSend }));
-
-    await handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
-    for (const call of mockSend.mock.calls) {
-      expect((call[1] as { abortSignal: unknown }).abortSignal).toBeInstanceOf(AbortSignal);
-    }
-    expect(mockSend).toHaveBeenCalledTimes(2);
-  });
-
-  it('returns request (fail-open) when the SSM credential call times out', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch')
-      .mockRejectedValue(new Error('unexpected network call'));
-    const { SSMClient } = jest.requireMock('@aws-sdk/client-ssm') as { SSMClient: jest.Mock };
-    SSMClient.mockImplementation(() => ({
-      send: jest.fn().mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError')),
-    }));
-
-    const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
-    const result = await handler(event);
-    expect(result).toBe(event.Records[0].cf.request);
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
   it('fail-open when the Supabase fetch aborts on its deadline still rewrites profile paths', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch')
       .mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError'));
 
@@ -242,36 +199,50 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result.uri).toBe('/individual.html');
   });
 
-  it('calls SSM once and caches credentials for subsequent invocations', async () => {
-    const mockFetch = jest.spyOn(global, 'fetch').mockResolvedValue({
+  it('logs an og-fail-open line naming the uri and error when failing open', async () => {
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('Network timeout'));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await handler(makeEvent('facebookexternalhit/1.1', 'o=abc123', '/'));
+    const line = errorSpy.mock.calls.map(c => String(c[0])).find(m => m.includes('og-fail-open'));
+    expect(line).toBeDefined();
+    expect(JSON.parse(line!)).toMatchObject({ msg: 'og-fail-open', uri: '/', error: expect.stringContaining('Network timeout') });
+  });
+
+  it('logs og-fetch timing and status for a successful Supabase read', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
+      status: 200,
       json: async () => [sampleOccurrence],
     } as Response);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
+    const line = logSpy.mock.calls.map(c => String(c[0])).find(m => m.includes('"og-fetch"'));
+    expect(line).toBeDefined();
+    expect(JSON.parse(line!)).toMatchObject({ msg: 'og-fetch', kind: 'occurrence', status: 200 });
+  });
 
-    const { SSMClient } = jest.requireMock('@aws-sdk/client-ssm') as { SSMClient: jest.Mock };
-    const mockSend = jest.fn()
-      .mockResolvedValueOnce({ Parameter: { Value: 'https://test.supabase.co' } })
-      .mockResolvedValueOnce({ Parameter: { Value: 'test-key' } });
-    SSMClient.mockImplementation(() => ({ send: mockSend }));
-
-    const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
-
-    // First invocation — SSM should be called
-    await handler(event);
-    // Second invocation — SSM should NOT be called again (cached)
-    await handler(event);
-
-    expect(mockSend).toHaveBeenCalledTimes(2); // 2 params fetched once, not 4
-    expect(mockFetch).toHaveBeenCalledTimes(2); // Supabase called each time
+  it('fails open (with the shell rewrite) when build-time config was not baked', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch')
+      .mockRejectedValue(new Error('unexpected network call'));
+    (globalThis as any).__testSupabaseUrl = '';
+    (globalThis as any).__testSupabaseKey = '';
+    try {
+      const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+      const result = await handler(event);
+      expect(result).toBe(event.Records[0].cf.request);
+      expect(result.uri).toBe('/individual.html');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      delete (globalThis as any).__testSupabaseUrl;
+      delete (globalThis as any).__testSupabaseKey;
+    }
   });
 });
 
 describe('L-01 carve-out: /dwca/* path-gate', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    _clearCredentialCache();
     jest.spyOn(global, 'fetch').mockReset();
-    mockSsmCredentials();
   });
 
   it('passes through /dwca/* request unmodified for bot UA', async () => {
@@ -323,9 +294,7 @@ describe('L-01 carve-out: /dwca/* path-gate', () => {
 describe('SEO carve-out: /sitemap.xml and /robots.txt path-gate', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    _clearCredentialCache();
     jest.spyOn(global, 'fetch').mockReset();
-    mockSsmCredentials();
   });
 
   // baiduspider and google-snippet ARE in BOT_AGENTS — without the carve-out they
@@ -370,9 +339,7 @@ describe('SEO carve-out: /sitemap.xml and /robots.txt path-gate', () => {
 describe('Image-asset carve-out: og:image must serve bytes, not OG HTML', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    _clearCredentialCache();
     jest.spyOn(global, 'fetch').mockReset();
-    mockSsmCredentials();
   });
 
   // Regression for the broken-Facebook-preview bug: the generic and fallback OG cards
@@ -433,7 +400,6 @@ describe('Image-asset carve-out: og:image must serve bytes, not OG HTML', () => 
 describe('/individuals/<designation> profile pages', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    _clearCredentialCache();
     jest.spyOn(global, 'fetch').mockReset();
   });
 
@@ -470,7 +436,6 @@ describe('/individuals/<designation> profile pages', () => {
   });
 
   it('returns individual-specific OG tags for a bot', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [sampleIndividual],
@@ -489,7 +454,6 @@ describe('/individuals/<designation> profile pages', () => {
   });
 
   it('includes "born after" vitals when only born_earliest is known', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [{ ...sampleIndividual, born_earliest: 1990, born_latest: null }],
@@ -501,7 +465,6 @@ describe('/individuals/<designation> profile pages', () => {
   });
 
   it('falls back to designation-only title when there is no usable nickname', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [{ ...sampleIndividual, nicknames: [] }],
@@ -514,7 +477,6 @@ describe('/individuals/<designation> profile pages', () => {
   });
 
   it('returns the generic preview for an unknown designation', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [],
@@ -528,7 +490,6 @@ describe('/individuals/<designation> profile pages', () => {
   });
 
   it('fail-open for a bot still rewrites to the page shell when fetch throws', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
 
     const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
@@ -538,7 +499,6 @@ describe('/individuals/<designation> profile pages', () => {
   });
 
   it('escapes HTML in OG tag content built from catalog data', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [{
@@ -557,7 +517,6 @@ describe('/individuals/<designation> profile pages', () => {
 describe('/matrilines/<designation> profile pages', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    _clearCredentialCache();
     jest.spyOn(global, 'fetch').mockReset();
   });
 
@@ -581,7 +540,6 @@ describe('/matrilines/<designation> profile pages', () => {
   });
 
   it('returns matriline-specific OG tags for a bot', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [sampleGroup],
@@ -600,7 +558,6 @@ describe('/matrilines/<designation> profile pages', () => {
   });
 
   it('falls back to a designation-only title when there is no usable nickname', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [{ ...sampleGroup, nicknames: [] }],
@@ -613,7 +570,6 @@ describe('/matrilines/<designation> profile pages', () => {
   });
 
   it('returns the generic preview for an unknown designation', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [],
@@ -627,7 +583,6 @@ describe('/matrilines/<designation> profile pages', () => {
   });
 
   it('fail-open for a bot still rewrites to the page shell when fetch throws', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
 
     const event = makeEvent('facebookexternalhit/1.1', '', '/matrilines/T065A');
@@ -640,7 +595,6 @@ describe('/matrilines/<designation> profile pages', () => {
 describe('/ecotypes/<designation> profile pages', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    _clearCredentialCache();
     jest.spyOn(global, 'fetch').mockReset();
   });
 
@@ -661,7 +615,6 @@ describe('/ecotypes/<designation> profile pages', () => {
   });
 
   it('returns ecotype-specific OG tags for a bot', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [sampleEcotype],
@@ -680,7 +633,6 @@ describe('/ecotypes/<designation> profile pages', () => {
   });
 
   it('returns the generic preview for an unknown designation', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [],
@@ -694,7 +646,6 @@ describe('/ecotypes/<designation> profile pages', () => {
   });
 
   it('fail-open for a bot still rewrites to the page shell when fetch throws', async () => {
-    mockSsmCredentials();
     jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
 
     const event = makeEvent('facebookexternalhit/1.1', '', '/ecotypes/Biggs');
