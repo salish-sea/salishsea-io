@@ -1,4 +1,12 @@
-import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+
+// One line per container init: confirms which config the replica is running.
+// Edge logs land in a log group of the SAME NAME in the region that served the
+// request, not (only) us-east-1 — see the logGroup comment in infra-stack.ts.
+console.log(JSON.stringify({
+  msg: 'og-edge-init',
+  hasConfig: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY),
+}));
 
 const BOT_AGENTS = [
   'facebookexternalhit',
@@ -23,34 +31,37 @@ function isBot(userAgent: string): boolean {
 // must pass through to origin as raw bytes, never be intercepted for OG-meta HTML.
 const STATIC_ASSET_RE = /\.(jpe?g|png|gif|svg|webp|ico|avif)$/i;
 
-// Network deadlines: the viewer-request Lambda is hard-killed at 5s, and a kill
+// Network deadline: the viewer-request Lambda is hard-killed at 5s, and a kill
 // bypasses the fail-open catch — CloudFront serves a 503 (salishsea-io-g9e).
-// Budgets must leave the worst-case cold chain (SSM + one data fetch) comfortably
-// under 5s so a slow dependency degrades to the shell instead.
-const SSM_TIMEOUT_MS = 1500;
-const FETCH_TIMEOUT_MS = 2000;
+// With config baked in at synth the cold chain is init (~0.3s) + one Supabase
+// fetch, so 3s leaves ample room to degrade to the shell instead.
+const FETCH_TIMEOUT_MS = 3000;
 
-// Module-scoped credential cache — survives warm Lambda invocations
-let supabaseUrl: string | undefined;
-let supabaseKey: string | undefined;
-
-/** Exported for test teardown only — clears module-level credential cache */
-export function _clearCredentialCache(): void {
-  supabaseUrl = undefined;
-  supabaseKey = undefined;
+function getCredentials(): { url: string; key: string } {
+  // Values are baked in at synth (see infra-stack.ts). Empty means a synth
+  // without --context supabaseAnonKey reached production — fail open, loudly.
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('edge config missing: SUPABASE_URL / SUPABASE_ANON_KEY not baked at synth');
+  }
+  return { url: SUPABASE_URL, key: SUPABASE_ANON_KEY };
 }
 
-async function getCredentials(): Promise<{ url: string; key: string }> {
-  if (supabaseUrl && supabaseKey) return { url: supabaseUrl, key: supabaseKey };
-  const ssm = new SSMClient({ region: 'us-east-1' });
-  const abortSignal = AbortSignal.timeout(SSM_TIMEOUT_MS);
-  const [urlParam, keyParam] = await Promise.all([
-    ssm.send(new GetParameterCommand({ Name: '/salishsea/supabase-url' }), { abortSignal }),
-    ssm.send(new GetParameterCommand({ Name: '/salishsea/supabase-anon-key', WithDecryption: true }), { abortSignal }),
-  ]);
-  supabaseUrl = urlParam.Parameter!.Value!;
-  supabaseKey = keyParam.Parameter!.Value!;
-  return { url: supabaseUrl, key: supabaseKey };
+// All Supabase reads go through here: one deadline, one timing/status log line.
+// `kind` names the lookup (individual/matriline/ecotype/occurrence) so a slow or
+// failing step is attributable straight from the log.
+async function timedFetch(kind: string, apiUrl: string, key: string): Promise<Response> {
+  const started = Date.now();
+  try {
+    const res = await fetch(apiUrl, {
+      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    console.log(JSON.stringify({ msg: 'og-fetch', kind, ms: Date.now() - started, status: res.status }));
+    return res;
+  } catch (err) {
+    console.error(JSON.stringify({ msg: 'og-fetch-error', kind, ms: Date.now() - started, error: String(err) }));
+    throw err;
+  }
 }
 
 /** Escape & " < > for safe interpolation into HTML attribute values */
@@ -171,17 +182,17 @@ const htmlResponse = (tags: OgTags) => ({
 // OG-meta response for a bot fetching an individual's profile page. Unknown
 // designations fall back to the generic site card — same contract as ?o=.
 async function individualPreview(designation: string): Promise<any> {
-  const { url, key } = await getCredentials();
+  const { url, key } = getCredentials();
   const apiUrl = `${url}/rest/v1/individuals?primary_designation=eq.${encodeURIComponent(designation)}`
     + '&select=primary_designation,sex,born_earliest,born_latest,life_status,nicknames(name,status)&limit=1';
-  const res = await fetch(apiUrl, {
-    headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
+  const res = await timedFetch('individual', apiUrl, key);
   if (!res.ok) return htmlResponse(genericPreviewTags());
   const individuals = await res.json() as Individual[];
   const individual = individuals[0];
-  if (!individual) return htmlResponse(genericPreviewTags());
+  if (!individual) {
+    console.log(JSON.stringify({ msg: 'og-unknown', kind: 'individual', designation }));
+    return htmlResponse(genericPreviewTags());
+  }
   return htmlResponse(individualPreviewTags(individual));
 }
 
@@ -206,17 +217,17 @@ function matrilinePreviewTags(group: SocialGroup): OgTags {
 
 // OG-meta response for a bot fetching a matriline's profile page.
 async function matrilinePreview(designation: string): Promise<any> {
-  const { url, key } = await getCredentials();
+  const { url, key } = getCredentials();
   const apiUrl = `${url}/rest/v1/social_groups?designation=eq.${encodeURIComponent(designation)}`
     + '&kind=eq.matriline&select=designation,nicknames(name,status)&limit=1';
-  const res = await fetch(apiUrl, {
-    headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
+  const res = await timedFetch('matriline', apiUrl, key);
   if (!res.ok) return htmlResponse(genericPreviewTags());
   const groups = await res.json() as SocialGroup[];
   const group = groups[0];
-  if (!group) return htmlResponse(genericPreviewTags());
+  if (!group) {
+    console.log(JSON.stringify({ msg: 'og-unknown', kind: 'matriline', designation }));
+    return htmlResponse(genericPreviewTags());
+  }
   return htmlResponse(matrilinePreviewTags(group));
 }
 
@@ -244,17 +255,17 @@ function ecotypePreviewTags(group: SocialGroup): OgTags {
 
 // OG-meta response for a bot fetching an ecotype's profile page.
 async function ecotypePreview(designation: string): Promise<any> {
-  const { url, key } = await getCredentials();
+  const { url, key } = getCredentials();
   const apiUrl = `${url}/rest/v1/social_groups?designation=eq.${encodeURIComponent(designation)}`
     + '&kind=eq.ecotype&select=designation,nicknames(name,status)&limit=1';
-  const res = await fetch(apiUrl, {
-    headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
+  const res = await timedFetch('ecotype', apiUrl, key);
   if (!res.ok) return htmlResponse(genericPreviewTags());
   const groups = await res.json() as SocialGroup[];
   const group = groups[0];
-  if (!group) return htmlResponse(genericPreviewTags());
+  if (!group) {
+    console.log(JSON.stringify({ msg: 'og-unknown', kind: 'ecotype', designation }));
+    return htmlResponse(genericPreviewTags());
+  }
   return htmlResponse(ecotypePreviewTags(group));
 }
 
@@ -330,12 +341,9 @@ export const handler = async (event: any): Promise<any> => {
       };
     }
 
-    const { url, key } = await getCredentials();
+    const { url, key } = getCredentials();
     const apiUrl = `${url}/rest/v1/occurrences?id=eq.${encodeURIComponent(occurrenceId)}&select=id,taxon,observed_at,count,photos&limit=1`;
-    const res = await fetch(apiUrl, {
-      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    const res = await timedFetch('occurrence', apiUrl, key);
     if (!res.ok) {
       return {
         status: '200',
@@ -347,6 +355,7 @@ export const handler = async (event: any): Promise<any> => {
     const occ = occurrences[0];
 
     if (!occ) {
+      console.log(JSON.stringify({ msg: 'og-unknown', kind: 'occurrence', designation: occurrenceId }));
       return {
         status: '200',
         headers: { 'content-type': [{ key: 'Content-Type', value: 'text/html; charset=utf-8' }] },
@@ -391,10 +400,11 @@ export const handler = async (event: any): Promise<any> => {
       headers: { 'content-type': [{ key: 'Content-Type', value: 'text/html; charset=utf-8' }] },
       body: buildOgHtml(tags),
     };
-  } catch {
+  } catch (err) {
     // Fail-open: return the original request so CloudFront serves index.html
     // normally — except profile paths, which have no S3 object and must
     // still be rewritten to their page shell.
+    console.error(JSON.stringify({ msg: 'og-fail-open', uri: request.uri, error: String(err) }));
     if (profileRoute) {
       request.uri = profileRoute.shell;
     }

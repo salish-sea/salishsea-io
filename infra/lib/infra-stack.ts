@@ -4,8 +4,6 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
-import * as ssm from 'aws-cdk-lib/aws-ssm';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as glue from 'aws-cdk-lib/aws-glue';
 import * as athena from 'aws-cdk-lib/aws-athena';
@@ -14,49 +12,53 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 const ACCOUNT_ID = '648183724555';
+// Baked into the edge bundle at synth (not read at runtime from anywhere)
+const SUPABASE_URL = 'https://grztmjpzamcxlzecmqca.supabase.co';
 
 export class InfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Log group for the Lambda@Edge function — must live in us-east-1 alongside the function
+    // Log group for the Lambda@Edge function. The named group below is the
+    // CFN-managed one, but Lambda@Edge REPLICAS auto-create a group with this
+    // same NAME in whichever region executed the request (us-east-2 for an ORD
+    // hit, etc.) — to read edge logs, search for this name in the region
+    // nearest the POP, not (only) here. Auto-created twins default to
+    // never-expire retention; the setting below governs only this group.
     const ogLogGroup = new logs.LogGroup(this, 'OgMetaFunctionLogGroup', {
-      logGroupName: cdk.PhysicalName.GENERATE_IF_NEEDED,
+      logGroupName: '/salishsea/edge-og-meta',
       retention: logs.RetentionDays.THREE_MONTHS,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
+
+    // Bake Supabase config into the edge bundle at synth time. Lambda@Edge
+    // forbids environment variables, and neither value is secret — the anon key
+    // ships in every browser bundle. Overwrites the tsc-compiled config.js
+    // placeholder; a synth without --context supabaseAnonKey (unit tests) bakes
+    // an empty key, which the handler treats as fail-open.
+    const supabaseAnonKey = this.node.tryGetContext('supabaseAnonKey') ?? '';
+    fs.writeFileSync(
+      path.join(__dirname, 'edge-handler', 'config.js'),
+      '// Generated at synth by infra-stack.ts — do not edit.\n' +
+      `module.exports = { SUPABASE_URL: ${JSON.stringify(SUPABASE_URL)}, ` +
+      `SUPABASE_ANON_KEY: ${JSON.stringify(supabaseAnonKey)} };\n`,
+    );
 
     // Lambda@Edge function — automatically provisioned in us-east-1 regardless of stack region
     const ogFunction = new cloudfront.experimental.EdgeFunction(this, 'OgMetaFunction', {
       runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, 'edge-handler')),
+      // Ship only the runtime .js — a test-file edit must not republish the
+      // edge function (each publish is a CloudFront distribution update).
+      code: lambda.Code.fromAsset(path.join(__dirname, 'edge-handler'), {
+        exclude: ['*.ts', '*.test.*'],
+      }),
       // DO NOT set environment — Lambda@Edge does not support environment variables
-      // 5s is the maximum for viewer-request; needed for cross-region SSM + Supabase fetch
+      // 5s is the maximum for viewer-request; the handler's own fetch deadline
+      // (FETCH_TIMEOUT_MS) must stay comfortably below it (salishsea-io-g9e)
       timeout: cdk.Duration.seconds(5),
       logGroup: ogLogGroup,
     });
-
-    // SSM parameters for Supabase credentials
-    new ssm.StringParameter(this, 'SupabaseUrl', {
-      parameterName: '/salishsea/supabase-url',
-      stringValue: 'https://grztmjpzamcxlzecmqca.supabase.co',
-    });
-
-    // Anon key: written from CDK context on each deploy, retained on stack deletion so
-    // the value is never lost. CFN only supports String type; the Lambda reads it fine.
-    // To deploy: pass --context supabaseAnonKey=<value> (done by deploy.yml via SUPABASE_ANON_KEY env).
-    const anonKeyParam = new ssm.StringParameter(this, 'SupabaseAnonKey', {
-      parameterName: '/salishsea/supabase-anon-key',
-      stringValue: this.node.tryGetContext('supabaseAnonKey') ?? 'placeholder-set-in-aws-console',
-    });
-    anonKeyParam.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
-
-    // IAM: grant Lambda@Edge read access to SSM parameters in us-east-1
-    ogFunction.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['ssm:GetParameter'],
-      resources: [`arn:aws:ssm:us-east-1:${ACCOUNT_ID}:parameter/salishsea/*`],
-    }));
 
     // S3 bucket for CloudFront access logs
     const logBucket = new s3.Bucket(this, 'LogBucket', {
