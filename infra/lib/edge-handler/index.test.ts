@@ -221,6 +221,34 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(JSON.parse(line!)).toMatchObject({ msg: 'og-fetch', kind: 'occurrence', status: 200 });
   });
 
+  it('warms the Supabase connection at module init when running in Lambda', () => {
+    const fetchSpy = jest.spyOn(global, 'fetch')
+      .mockResolvedValue({ ok: true, status: 200 } as Response);
+    process.env.AWS_LAMBDA_FUNCTION_NAME = 'test-fn';
+    try {
+      jest.isolateModules(() => {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        require('./index');
+      });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [url, options] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://test.supabase.co/auth/v1/health');
+      expect(options.signal).toBeInstanceOf(AbortSignal);
+    } finally {
+      delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+    }
+  });
+
+  it('does not touch the network at import time outside Lambda (no env guard)', () => {
+    const fetchSpy = jest.spyOn(global, 'fetch')
+      .mockRejectedValue(new Error('unexpected network call'));
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require('./index');
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('fails open (with the shell rewrite) when build-time config was not baked', async () => {
     const fetchSpy = jest.spyOn(global, 'fetch')
       .mockRejectedValue(new Error('unexpected network call'));

@@ -37,6 +37,23 @@ const STATIC_ASSET_RE = /\.(jpe?g|png|gif|svg|webp|ico|avif)$/i;
 // fetch, so 3s leaves ample room to degrade to the shell instead.
 const FETCH_TIMEOUT_MS = 3000;
 
+// Warm the fetch stack during init. The init phase runs at full CPU while the
+// handler runs at the ~1/13 vCPU a 128MB viewer-request Lambda is capped at, so
+// without this the first fetch per container pays ~2.5s (measured, og-fetch)
+// for lazy undici load + DNS + TLS; later fetches run ~150-275ms. Calling
+// fetch() here does the expensive stack load synchronously at full speed, and
+// the handshake to the same origin proceeds so the handler's real fetch can
+// reuse it. Fire-and-forget: never awaited, and a failure is irrelevant — the
+// real fetch has its own deadline and fail-open. The env-var guard keeps
+// imports outside Lambda (unit tests) from touching the network.
+if (SUPABASE_URL && process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  const warmupStarted = Date.now();
+  fetch(`${SUPABASE_URL}/auth/v1/health`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).then(
+    res => console.log(JSON.stringify({ msg: 'og-warmup', ms: Date.now() - warmupStarted, status: res.status })),
+    err => console.log(JSON.stringify({ msg: 'og-warmup', ms: Date.now() - warmupStarted, error: String(err) })),
+  );
+}
+
 function getCredentials(): { url: string; key: string } {
   // Values are baked in at synth (see infra-stack.ts). Empty means a synth
   // without --context supabaseAnonKey reached production — fail open, loudly.
