@@ -48,10 +48,14 @@ const FETCH_TIMEOUT_MS = 3000;
 // imports outside Lambda (unit tests) from touching the network.
 if (SUPABASE_URL && process.env.AWS_LAMBDA_FUNCTION_NAME) {
   const warmupStarted = Date.now();
-  fetch(`${SUPABASE_URL}/auth/v1/health`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).then(
-    res => console.log(JSON.stringify({ msg: 'og-warmup', ms: Date.now() - warmupStarted, status: res.status })),
-    err => console.log(JSON.stringify({ msg: 'og-warmup', ms: Date.now() - warmupStarted, error: String(err) })),
-  );
+  fetch(`${SUPABASE_URL}/auth/v1/health`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+    .then(async res => {
+      // Drain: undici returns the socket to its per-origin pool only once the
+      // body is consumed — and reuse is half the point of warming.
+      await res.arrayBuffer();
+      console.log(JSON.stringify({ msg: 'og-warmup', ms: Date.now() - warmupStarted, status: res.status }));
+    })
+    .catch(err => console.log(JSON.stringify({ msg: 'og-warmup', ms: Date.now() - warmupStarted, error: String(err) })));
 }
 
 function getCredentials(): { url: string; key: string } {
