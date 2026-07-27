@@ -237,6 +237,26 @@ function individualPreviewTags(individual: Individual): OgTags {
 
 // Only cc0 and cc-by are unambiguously open for re-use
 const OPEN_LICENSES = ['cc0', 'cc-by'];
+
+// iNaturalist photos are ingested as the 75×75 `square` thumbnail — the right
+// size for the map UI, and far below what the social platforms accept: Facebook
+// drops og:image under 200×200 and Twitter's summary_large_image wants at least
+// 300×157. So the one card type that DOES carry an image was very likely still
+// rendering without one (salishsea-io-uum). The same path serves `large`
+// (1024px, ~150-800KB), so swap that single segment when building the card.
+//
+// The hosts are matched exactly, not by substring: `src` is ingested data, and a
+// lookalike authority (evil-inaturalist.example, or …amazonaws.com.evil.example)
+// must not talk us into rewriting a URL whose `large` sibling we know nothing
+// about. Everything else — HappyWhale, Spotter, our own uploads — has no variant
+// segment to match and passes through untouched.
+const INAT_SQUARE_RE =
+  /^(https:\/\/(?:inaturalist-open-data\.s3\.amazonaws\.com|static\.inaturalist\.org)\/photos\/\d+\/)square(\.[a-z]+)$/i;
+
+/** Full-size variant of a photo URL, for use as og:image. */
+function cardImageUrl(src: string): string {
+  return src.replace(INAT_SQUARE_RE, '$1large$2');
+}
 // Public Facebook App ID — links shared content to our FB app for Domain Insights.
 // Not a secret; it appears in page meta by design.
 const FB_APP_ID = '678644427974059';
@@ -457,7 +477,7 @@ export const handler = async (event: any): Promise<any> => {
       'og:url': `https://salishsea.io/?o=${encodeURIComponent(occurrenceId)}`,
       'og:title': title,
       'og:description': description,
-      ...(photo ? { 'og:image': photo.src } : {}),
+      ...(photo ? { 'og:image': cardImageUrl(photo.src) } : {}),
       'twitter:card': photo ? 'summary_large_image' : 'summary',
       'fb:app_id': FB_APP_ID,
     };

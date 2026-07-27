@@ -468,6 +468,62 @@ describe('SEO carve-out: /sitemap.xml and /robots.txt path-gate', () => {
   });
 });
 
+// A 75×75 thumbnail is below Facebook's 200×200 og:image floor, so declaring one
+// is as good as declaring nothing. iNat serves `large` (1024px) off the same path.
+describe('og:image uses a card-sized photo, not the 75×75 iNat thumbnail', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(global, 'fetch').mockReset();
+  });
+
+  const withPhoto = (src: string) => ({ ...sampleOccurrence, photos: [{ src, license: 'cc0' }] });
+
+  const cardFor = async (src: string) => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [withPhoto(src)],
+    } as Response);
+    const result = await handler(makeEvent('facebookexternalhit/1.1', 'o=abc123')) as { body: string };
+    return result.body.match(/<meta property="og:image" content="([^"]*)">/)?.[1];
+  };
+
+  it('rewrites the iNaturalist square variant to large', async () => {
+    expect(await cardFor('https://inaturalist-open-data.s3.amazonaws.com/photos/705787369/square.jpg'))
+      .toBe('https://inaturalist-open-data.s3.amazonaws.com/photos/705787369/large.jpg');
+  });
+
+  it('preserves the original extension', async () => {
+    expect(await cardFor('https://inaturalist-open-data.s3.amazonaws.com/photos/1/square.jpeg'))
+      .toBe('https://inaturalist-open-data.s3.amazonaws.com/photos/1/large.jpeg');
+  });
+
+  it('rewrites photos served from static.inaturalist.org too', async () => {
+    expect(await cardFor('https://static.inaturalist.org/photos/42/square.png'))
+      .toBe('https://static.inaturalist.org/photos/42/large.png');
+  });
+
+  it.each([
+    // HappyWhale and Spotter URLs carry no size variant — nothing to rewrite.
+    'https://au-hw-media-m.happywhale.com/49f1c4f4-1f5b-4c6f-9c7a-000000000000.jpg',
+    'https://spotter-production.s3.amazonaws.com/images/photo.jpg',
+    // Our own uploads are already full-size.
+    'https://salishsea-io.s3.us-west-2.amazonaws.com/Js-susan.jpg',
+    // A `square` segment on a non-iNat host is left alone — we can't assume
+    // some other provider serves a `large` sibling.
+    'https://example.com/photos/7/square.jpg',
+    // Lookalike authorities must not satisfy the host check: `src` is ingested
+    // data, so a substring match on "inaturalist" would be enough to redirect
+    // a card's image at an attacker-chosen origin.
+    'https://evil-inaturalist.example/photos/7/square.jpg',
+    'https://static.inaturalist.org.evil.example/photos/7/square.jpg',
+    'https://inaturalist-open-data.s3.amazonaws.com.evil.example/photos/7/square.jpg',
+    // Already large: not double-rewritten.
+    'https://inaturalist-open-data.s3.amazonaws.com/photos/705787369/large.jpg',
+  ])('passes through %s unchanged', async (src) => {
+    expect(await cardFor(src)).toBe(src);
+  });
+});
+
 describe('Image-asset carve-out: og:image must serve bytes, not OG HTML', () => {
   beforeEach(() => {
     jest.clearAllMocks();

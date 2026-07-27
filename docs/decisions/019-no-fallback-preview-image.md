@@ -25,6 +25,13 @@ deleted** — the deploy's `s3 sync` runs without `--delete` — so
 `https://salishsea.io/preview.jpg` stays reachable and previously-scraped cards
 don't start 404ing on their image. Nothing references it.
 
+**Amendment (2026-07-27).** An image only counts if the platforms will actually
+render it — Facebook drops `og:image` below 200×200. iNaturalist photos are
+ingested as the 75×75 `square` thumbnail, so the card references the `large`
+(1024px) variant of the same photo instead; see `cardImageUrl` in the edge
+handler (bd `salishsea-io-uum`). Declaring a thumbnail is functionally the same
+as declaring nothing, and this decision is about not pretending otherwise.
+
 ### Why no image beats a generic one
 
 A link preview is read as a picture *of the post*. A months-old map screenshot
