@@ -1,6 +1,21 @@
 import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { InfraStack, cardRendererSource } from '../lib/infra-stack';
+import { InfraStack, cardRendererSource, stubAllowedFromContext } from '../lib/infra-stack';
+
+describe('stubAllowedFromContext', () => {
+  it('accepts the string a CLI --context flag actually produces', () => {
+    // `cdk synth --context allowStubCardRenderer=true` yields "true", not true.
+    expect(stubAllowedFromContext('true')).toBe(true);
+  });
+
+  it('accepts the boolean a test App passes directly', () => {
+    expect(stubAllowedFromContext(true)).toBe(true);
+  });
+
+  it.each([undefined, false, 'false', 'yes', '1', null, ''])('rejects %p', (value) => {
+    expect(stubAllowedFromContext(value)).toBe(false);
+  });
+});
 
 describe('cardRendererSource', () => {
   it('uses the built bundle when there is one', () => {

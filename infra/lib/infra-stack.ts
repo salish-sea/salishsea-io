@@ -23,6 +23,17 @@ const SUPABASE_URL = 'https://grztmjpzamcxlzecmqca.supabase.co';
  * crawler, and the only symptom would be silently imageless previews. Unit tests
  * synthesize without building and opt into the stub explicitly; a deploy may not.
  */
+/**
+ * Read the stub opt-in from CDK context.
+ *
+ * `--context allowStubCardRenderer=true` arrives as the STRING "true", while a
+ * test constructing `new cdk.App({ context: { ... } })` passes a real boolean.
+ * Accepting only one of those makes the documented escape hatch a lie.
+ */
+export function stubAllowedFromContext(value: unknown): boolean {
+  return value === true || value === 'true';
+}
+
 export function cardRendererSource(bundleExists: boolean, stubAllowed: boolean): 'bundle' | 'stub' {
   if (bundleExists) return 'bundle';
   if (stubAllowed) return 'stub';
@@ -90,7 +101,7 @@ export class InfraStack extends cdk.Stack {
     const cardRendererCode =
       cardRendererSource(
         fs.existsSync(cardBundle),
-        this.node.tryGetContext('allowStubCardRenderer') === true,
+        stubAllowedFromContext(this.node.tryGetContext('allowStubCardRenderer')),
       ) === 'bundle'
         ? lambda.Code.fromAsset(cardBundle)
         : lambda.Code.fromInline('exports.handler = async () => ({ statusCode: 503 });');
