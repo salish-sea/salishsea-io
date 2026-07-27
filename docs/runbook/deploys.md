@@ -56,9 +56,16 @@ The churn is inherent to `cloudfront.experimental.EdgeFunction` (a new version p
 
 **Why.** A re-run checks out its **original** `head_sha`, not the current tip. Deploys are also serialized (`concurrency: deploy-production`, `cancel-in-progress: false`), so the re-run waits its turn and can land *after* a newer commit has already deployed — overwriting it. This happened on 2026-07-27: a re-run of `007b738` finished ten minutes after `7a66891` and reverted it (bd `salishsea-io-i74`).
 
-**What now happens.** The Deploy job's first step compares `github.sha` against the current tip of `main` and fails with `Refusing to deploy <sha>: main is now <sha>` if they differ. A superseded run can't reach S3 or CDK.
+**What now happens.** The Deploy job compares `github.sha` against the current tip of `main` and fails with `Refusing to deploy <sha> …: main is now <sha>` if they differ ([`require-current-tip`](../../.github/actions/require-current-tip/action.yml)). It runs twice: after checkout, and again immediately before the first remote change.
 
 **Is it fatal?** No — it means *this* run shipped nothing. If a newer Deploy is green, production is already correct and the red run is safe to ignore. To actually re-deploy, re-run the Deploy for the current tip of `main` (or push).
+
+**What it does not cover.** It is a check, not a lease, and it has two known holes:
+
+- **`main` can advance during the deploy itself.** The second check narrows this to the window between it and `cdk deploy`, but a merge landing inside that window still ships stale content. The serialized queue means the newer run deploys right after and corrects it — *provided that run succeeds*. Watch it if you merge twice in quick succession.
+- **Runs created before this guard existed are not protected.** A re-run replays the workflow file *as of its own commit*, so re-running any Deploy from before this merged skips the check entirely. Don't re-run old deploys; push instead. (Deliberately not fixed by deleting run history — that history is the audit trail.)
+
+The post-deploy smoke test remains the backstop for both: it runs `main`'s specs against production and fails when what's live doesn't match.
 
 ## Caching notes
 

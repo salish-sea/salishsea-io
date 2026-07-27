@@ -1,0 +1,34 @@
+name: Require current tip
+description: >
+  Fail unless the commit this run is holding is still the tip of its branch.
+  Guards production against deploying a superseded tree — see gotcha 3 in
+  docs/runbook/deploys.md and bd salishsea-io-i74.
+inputs:
+  token:
+    description: Token used to read the branch head (github.token is enough).
+    required: true
+  phase:
+    description: Where in the deploy this check runs; shown in the failure message.
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PHASE: ${{ inputs.phase }}
+      run: |
+        head_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" --jq .sha)
+        if [ "${head_sha}" != "${GITHUB_SHA}" ]; then
+          echo "::error::Refusing to deploy ${GITHUB_SHA} (${PHASE}): ${GITHUB_REF_NAME} is now ${head_sha}."
+          {
+            echo "### Deploy stopped — superseded commit"
+            echo ""
+            echo "Checked ${PHASE}. This run holds \`${GITHUB_SHA}\`, but \`${GITHUB_REF_NAME}\`"
+            echo "is now \`${head_sha}\`. Deploying would move production backwards."
+            echo ""
+            echo "Re-run the Deploy for \`${head_sha}\`, or push, to actually deploy."
+          } >> "${GITHUB_STEP_SUMMARY}"
+          exit 1
+        fi
+        echo "${GITHUB_SHA} is the tip of ${GITHUB_REF_NAME} (${PHASE})."
