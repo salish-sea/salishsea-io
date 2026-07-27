@@ -46,7 +46,7 @@ export class InfraStack extends cdk.Stack {
 
     // Lambda@Edge function — automatically provisioned in us-east-1 regardless of stack region
     const ogFunction = new cloudfront.experimental.EdgeFunction(this, 'OgMetaFunction', {
-      runtime: lambda.Runtime.NODEJS_22_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: 'index.handler',
       // Ship only the runtime .js — a test-file edit must not republish the
       // edge function (each publish is a CloudFront distribution update).
