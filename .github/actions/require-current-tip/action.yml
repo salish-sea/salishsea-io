@@ -27,7 +27,9 @@ runs:
             echo "Checked ${PHASE}. This run holds \`${GITHUB_SHA}\`, but \`${GITHUB_REF_NAME}\`"
             echo "is now \`${head_sha}\`. Deploying would move production backwards."
             echo ""
-            echo "Re-run the Deploy for \`${head_sha}\`, or push, to actually deploy."
+            echo "**Re-running _this_ run will not help** — it would hold \`${GITHUB_SHA}\` again"
+            echo "and stop here again. To deploy the current tip, re-run the Deploy whose"
+            echo "commit is \`${head_sha}\`, or push a new commit to trigger a fresh run."
           } >> "${GITHUB_STEP_SUMMARY}"
           exit 1
         fi

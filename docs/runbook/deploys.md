@@ -58,7 +58,9 @@ The churn is inherent to `cloudfront.experimental.EdgeFunction` (a new version p
 
 **What now happens.** The Deploy job compares `github.sha` against the current tip of `main` and fails with `Refusing to deploy <sha> …: main is now <sha>` if they differ ([`require-current-tip`](../../.github/actions/require-current-tip/action.yml)). It runs twice: after checkout, and again immediately before the first remote change.
 
-**Is it fatal?** No — it means *this* run shipped nothing. If a newer Deploy is green, production is already correct and the red run is safe to ignore. To actually re-deploy, re-run the Deploy for the current tip of `main` (or push).
+**Is it fatal?** No — it means *this* run shipped nothing. If a newer Deploy is green, production is already correct and the red run is safe to ignore.
+
+**If production really is behind**, re-running the run that just failed the check won't help: it holds the same commit and will stop at the same place. Either re-run the Deploy **whose commit is the current tip of `main`** (this is the recovery that worked on 2026-07-27, when the tip's own deploy had been overwritten), or push a commit to trigger a fresh run.
 
 **What it does not cover.** It is a check, not a lease, and it has two known holes:
 
