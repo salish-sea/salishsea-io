@@ -60,10 +60,33 @@ jobs:
       id-token: write
       contents: read
     steps:
+      # A workflow re-run always checks out its ORIGINAL commit. Re-running an
+      # older, failed deploy therefore rebuilds and ships a superseded tree —
+      # a silent production rollback. That happened on 2026-07-27: a transient
+      # credentials failure was re-run after a newer commit had already
+      # deployed, and it reverted the newer one (bd salishsea-io-i74).
+      #
+      # Deploys are also serialized (see the concurrency block), so a queued run
+      # can be overtaken by a later merge before it ever starts.
+      #
+      # Either way the commit in hand is no longer what main says to ship, so
+      # refuse rather than deploy backwards. Loud on purpose: this should be rare,
+      # and a green "nothing happened" is how the rollback went unnoticed the
+      # first time. If a newer deploy is green, this failure is safe to ignore.
+      #
+      # Checked twice: once here (cheap, catches the stale re-run immediately) and
+      # again immediately before the first remote mutation, so a merge landing
+      # mid-run has seconds rather than minutes to slip past. Neither is a lock —
+      # see the runbook for what this does and doesn't cover.
       - name: Checkout repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
         with:
           persist-credentials: false
+      - name: Refuse to deploy a superseded commit
+        uses: ./.github/actions/require-current-tip
+        with:
+          token: ${{ github.token }}
+          phase: before setup
       - name: Download artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
       - name: Configure AWS Credentials
@@ -78,6 +101,13 @@ jobs:
       - run: supabase link --project-ref "${PROJECT_REF}"
         env:
           PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
+      # Last check before anything leaves this runner: everything above is local
+      # setup, everything below mutates production.
+      - name: Re-check the tip before mutating anything
+        uses: ./.github/actions/require-current-tip
+        with:
+          token: ${{ github.token }}
+          phase: before the first remote change
       # Deploy the ingest Edge Function BEFORE `db push`. The cutover migration
       # (20260706000000) repoints pg_cron at this function via pg_net; deploying
       # first means a bundling/deploy failure aborts the run before the cron
