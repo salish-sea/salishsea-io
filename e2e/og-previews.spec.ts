@@ -10,9 +10,11 @@ test('bot UA on homepage receives OG meta tags', async ({ request }) => {
   expect(body).toContain('og:title');
   expect(body).toContain('SalishSea.io');
   expect(body).toContain('og:type');
-  // Homepage card now carries a description and a fallback image
+  // Homepage card carries a description but deliberately no image — there is no
+  // site-wide fallback image (decision 019), so it is a text-only summary card.
   expect(body).toContain('og:description');
-  expect(body).toContain('og:image');
+  expect(body).not.toContain('og:image');
+  expect(body).toContain('<meta name="twitter:card" content="summary">');
 });
 
 test('regular browser UA on homepage receives SPA', async ({ request }) => {
