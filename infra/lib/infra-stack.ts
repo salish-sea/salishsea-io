@@ -60,6 +60,49 @@ export class InfraStack extends cdk.Stack {
       logGroup: ogLogGroup,
     });
 
+    // --- Card renderer: map images for link previews (decision 020) ---
+    // A regional Lambda, not another edge function: it needs sharp, ~18 tile
+    // fetches and a second of CPU, none of which fit the 128MB/5s viewer-request
+    // budget. The edge handler only names the URL; this renders it.
+    const cardBundle = path.join(__dirname, 'card-renderer', 'bundle');
+    const cardRendererCode = fs.existsSync(cardBundle)
+      // Built by `npm run build` (scripts/bundle-card-renderer.mjs), which pins
+      // sharp's native binary to linux/x64/glibc to match `architecture` below.
+      ? lambda.Code.fromAsset(cardBundle)
+      // A synth without a bundle is a unit test, not a deploy — same spirit as
+      // the empty anon key above. The function synthesizes; it would not run.
+      : lambda.Code.fromInline('exports.handler = async () => ({ statusCode: 503 });');
+
+    const cardRenderer = new lambda.Function(this, 'CardRenderer', {
+      runtime: lambda.Runtime.NODEJS_24_X,
+      architecture: lambda.Architecture.X86_64,
+      handler: 'handler.handler',
+      code: cardRendererCode,
+      // Lambda scales CPU with memory; sharp is CPU-bound, and 1 GB is where
+      // compositing a 1200x630 card stops being the slow part.
+      memorySize: 1024,
+      // Generous next to the ~1s observed locally: a cold start plus a slow tile
+      // host should still produce a card rather than a 500.
+      timeout: cdk.Duration.seconds(15),
+      environment: {
+        SUPABASE_URL,
+        // Same value the browser bundle ships; not a secret.
+        SUPABASE_ANON_KEY: supabaseAnonKey,
+      },
+      logGroup: new logs.LogGroup(this, 'CardRendererLogGroup', {
+        logGroupName: '/salishsea/card-renderer',
+        retention: logs.RetentionDays.THREE_MONTHS,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      }),
+    });
+
+    // AWS_IAM + OAC so the function is reachable only through CloudFront —
+    // otherwise the raw URL is an uncached, unthrottled render endpoint.
+    const cardRendererUrl = cardRenderer.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.AWS_IAM,
+    });
+    const cardOrigin = origins.FunctionUrlOrigin.withOriginAccessControl(cardRendererUrl);
+
     // S3 bucket for CloudFront access logs
     const logBucket = new s3.Bucket(this, 'LogBucket', {
       objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,
@@ -98,6 +141,33 @@ export class InfraStack extends cdk.Stack {
             eventType: cloudfront.LambdaEdgeEventType.VIEWER_REQUEST,
           },
         ],
+      },
+      additionalBehaviors: {
+        // Preview card images. No edge function here: the OG handler's whole job
+        // is to name these URLs, and letting it intercept its own images is the
+        // bug that broke previews once already (STATIC_ASSET_RE in the handler).
+        '/cards/*': {
+          origin: cardOrigin,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          // JPEG is already compressed; re-compressing costs CPU for nothing.
+          compress: false,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          // The path is the entire cache key — no query strings, cookies or
+          // headers vary a card. TTLs come from the renderer's Cache-Control,
+          // which distinguishes an immutable past card from today's.
+          cachePolicy: new cloudfront.CachePolicy(this, 'CardCachePolicy', {
+            cachePolicyName: 'salishsea-cards',
+            comment: 'Preview card images; keyed on path alone, TTL from origin',
+            defaultTtl: cdk.Duration.days(30),
+            minTtl: cdk.Duration.seconds(0),
+            maxTtl: cdk.Duration.days(365),
+            queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
+            cookieBehavior: cloudfront.CacheCookieBehavior.none(),
+            headerBehavior: cloudfront.CacheHeaderBehavior.none(),
+            enableAcceptEncodingGzip: false,
+            enableAcceptEncodingBrotli: false,
+          }),
+        },
       },
     });
 
