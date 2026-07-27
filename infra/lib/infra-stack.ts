@@ -121,6 +121,11 @@ export class InfraStack extends cdk.Stack {
         SUPABASE_URL,
         // Same value the browser bundle ships; not a secret.
         SUPABASE_ANON_KEY: supabaseAnonKey,
+        // The Lambda image ships no fonts, so librsvg draws every glyph as a
+        // .notdef box while still returning a valid JPEG — invisible to any
+        // check that doesn't look at the picture. Point fontconfig at the fonts
+        // bundled beside the handler (/var/task is the deployment root).
+        FONTCONFIG_PATH: '/var/task/fonts',
       },
       logGroup: new logs.LogGroup(this, 'CardRendererLogGroup', {
         logGroupName: '/salishsea/card-renderer',

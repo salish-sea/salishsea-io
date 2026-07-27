@@ -9,7 +9,11 @@ export const CARD_HEIGHT = 630;
 // Matches the marker the app draws for an occurrence (src/individual-map.ts).
 const MARKER_BLUE = '#1565c0';
 
-const FONT_STACK = 'Helvetica Neue, Helvetica, Arial, sans-serif';
+// DejaVu Sans is bundled with the Lambda (see fonts/fonts.conf) because the
+// runtime image has no fonts and every glyph renders as a .notdef box without
+// one. Named first so a card looks the same locally as in production; the rest
+// are fallbacks for a developer machine rendering outside the bundle.
+const FONT_STACK = 'DejaVu Sans, Helvetica Neue, Helvetica, Arial, sans-serif';
 
 /**
  * Escape the four characters that would otherwise break out of SVG text or an
