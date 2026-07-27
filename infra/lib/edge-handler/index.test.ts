@@ -77,10 +77,12 @@ describe('Lambda@Edge OG meta handler', () => {
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
     expect(result.body).toContain('SalishSea.io');
-    // Generic homepage preview now carries a description, fallback image, and a real <title>
+    // Generic homepage preview carries a description and a real <title>, and NO
+    // image: there is no site-wide fallback (decision 019), so the card is
+    // text-only and declares twitter:card=summary rather than promising a picture.
     expect(result.body).toContain('og:description');
-    expect(result.body).toContain('og:image');
-    expect(result.body).toContain('https://salishsea.io/preview.jpg');
+    expect(result.body).not.toContain('og:image');
+    expect(result.body).toContain('<meta name="twitter:card" content="summary">');
     expect(result.body).toContain('<title>');
     // ...and a real <meta name="description"> for search snippets, not just og:*
     expect(result.body).toContain('<meta name="description"');
@@ -101,13 +103,15 @@ describe('Lambda@Edge OG meta handler', () => {
     // Description contains "3 Orca", in both og:description and the real meta description
     expect(result.body).toContain('3 Orca');
     expect(result.body).toContain('<meta name="description" content="3 Orca');
-    // Image is the photo src
+    // Image is the photo src — an actual picture of the thing shared, so the card
+    // may promise a large image
     expect(result.body).toContain('https://example.com/orca.jpg');
+    expect(result.body).toContain('<meta name="twitter:card" content="summary_large_image">');
     // fb:app_id present on occurrence cards too
     expect(result.body).toContain('<meta property="fb:app_id" content="678644427974059">');
   });
 
-  it('uses branded fallback image when photo has cc-by-nc license', async () => {
+  it('omits og:image when photo has cc-by-nc license', async () => {
     const occurrence = {
       ...sampleOccurrence,
       photos: [{ src: 'https://example.com/restricted.jpg', license: 'cc-by-nc' }],
@@ -120,10 +124,11 @@ describe('Lambda@Edge OG meta handler', () => {
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
     expect(result.body).not.toContain('https://example.com/restricted.jpg');
-    expect(result.body).toContain('https://salishsea.io/preview.jpg');
+    expect(result.body).not.toContain('og:image');
+    expect(result.body).toContain('<meta name="twitter:card" content="summary">');
   });
 
-  it('uses branded fallback image when photos array is empty', async () => {
+  it('omits og:image when photos array is empty', async () => {
     const occurrence = { ...sampleOccurrence, photos: [] };
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
@@ -132,10 +137,11 @@ describe('Lambda@Edge OG meta handler', () => {
     const event = makeEvent('twitterbot/1.0', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
-    expect(result.body).toContain('https://salishsea.io/preview.jpg');
+    expect(result.body).not.toContain('og:image');
+    expect(result.body).toContain('<meta name="twitter:card" content="summary">');
   });
 
-  it('uses branded fallback image when all photos have non-open licenses', async () => {
+  it('omits og:image when all photos have non-open licenses', async () => {
     const occurrence = {
       ...sampleOccurrence,
       photos: [
@@ -151,7 +157,8 @@ describe('Lambda@Edge OG meta handler', () => {
     const event = makeEvent('discordbot/1.0', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
-    expect(result.body).toContain('https://salishsea.io/preview.jpg');
+    expect(result.body).not.toContain('og:image');
+    expect(result.body).toContain('<meta name="twitter:card" content="summary">');
   });
 
   it('returns generic preview with og:title "SalishSea.io" when occurrence is not found', async () => {
@@ -467,11 +474,12 @@ describe('Image-asset carve-out: og:image must serve bytes, not OG HTML', () => 
     jest.spyOn(global, 'fetch').mockReset();
   });
 
-  // Regression for the broken-Facebook-preview bug: the generic and fallback OG cards
-  // set og:image = https://salishsea.io/preview.jpg. A crawler then fetches that image
-  // URL with the SAME bot UA; without this carve-out the handler returned OG-meta HTML
-  // as the image body, so the card broke. /preview.jpg must pass through to origin.
-  it('passes through /preview.jpg unmodified for the crawler that reads og:image', async () => {
+  // Regression for the broken-Facebook-preview bug: when a card's og:image lives on
+  // our own origin, the crawler fetches that image URL with the SAME bot UA; without
+  // this carve-out the handler returned OG-meta HTML as the image body, so the card
+  // broke. Today's cards only reference off-origin photos, but any image path must
+  // still pass through to origin as bytes.
+  it('passes through an on-origin image path unmodified for a crawler', async () => {
     const fetchSpy = jest.spyOn(global, 'fetch');
     const event = makeEvent('facebookexternalhit/1.1', '', '/preview.jpg');
     const result = await handler(event);

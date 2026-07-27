@@ -52,8 +52,8 @@ The churn is inherent to `cloudfront.experimental.EdgeFunction` (a new version p
 
 ## Caching notes
 
-- **Viewer-request Lambda responses are never cached by CloudFront** — each request re-runs the current function version, so once the distribution shows `Deployed`, the new behaviour is live everywhere. (Contrast: static assets passed through to S3 *are* cached per-POP; `aws cloudfront create-invalidation --paths '/preview.jpg'` clears them.)
-- **Facebook caches `og:image` verdicts separately and stickily.** After fixing an image, "Scrape Again" in the [Sharing Debugger](https://developers.facebook.com/tools/debug/) refreshes the page scrape but may keep an old image verdict for hours. If it won't clear, cache-bust the image URL (e.g. `preview.jpg?v=2`).
+- **Viewer-request Lambda responses are never cached by CloudFront** — each request re-runs the current function version, so once the distribution shows `Deployed`, the new behaviour is live everywhere. (Contrast: static assets passed through to S3 *are* cached per-POP; `aws cloudfront create-invalidation --paths '/some-asset.jpg'` clears them.)
+- **Facebook caches `og:image` verdicts separately and stickily.** After changing a card's image, "Scrape Again" in the [Sharing Debugger](https://developers.facebook.com/tools/debug/) refreshes the page scrape but may keep an old image verdict for hours — including a since-removed image on cards that no longer declare one (see [decision 019](../decisions/019-no-fallback-preview-image.md)). If it won't clear, cache-bust the image URL (e.g. `photo.jpg?v=2`).
 
 ## Post-deploy verification
 
@@ -61,8 +61,10 @@ The churn is inherent to `cloudfront.experimental.EdgeFunction` (a new version p
 # distribution finished propagating
 aws cloudfront list-distributions --profile <profile> \
   --query "DistributionList.Items[?contains(Aliases.Items,'salishsea.io')].[Id,Status]" --output text
-# preview image serves bytes to crawlers (not OG HTML)
-curl -sS -A "facebookexternalhit/1.1" -o /dev/null -w "%{content_type}\n" https://salishsea.io/preview.jpg
+# on-origin image assets serve bytes to crawlers, not OG HTML
+# (hashed path — read the current one out of the deployed index.html)
+curl -sS -A "facebookexternalhit/1.1" -o /dev/null -w "%{content_type}\n" \
+  "https://salishsea.io$(curl -sS https://salishsea.io/ | grep -o '/assets/favicon-[^"]*\.ico')"
 # occurrence page still gets OG tags
 curl -sS -A "facebookexternalhit/1.1" "https://salishsea.io/?o=<id>" | grep -o '<title>[^<]*</title>'
 ```

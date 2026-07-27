@@ -27,8 +27,9 @@ function isBot(userAgent: string): boolean {
   return BOT_AGENTS.some(bot => ua.includes(bot));
 }
 
-// Image assets a crawler may fetch directly (e.g. og:image = /preview.jpg). These
-// must pass through to origin as raw bytes, never be intercepted for OG-meta HTML.
+// Image assets a crawler may fetch directly (icons, and any og:image we ever serve
+// from our own origin). These must pass through to origin as raw bytes, never be
+// intercepted for OG-meta HTML.
 const STATIC_ASSET_RE = /\.(jpe?g|png|gif|svg|webp|ico|avif)$/i;
 
 // Network deadline: the viewer-request Lambda is hard-killed at 5s, and a kill
@@ -163,6 +164,12 @@ const SITE_DESCRIPTION =
   'An interactive map of whale and marine-mammal sightings across the Salish Sea, ' +
   'gathered from community sources like Whale Alert, Orca Network, and HappyWhale.';
 
+// A card carries og:image only when we hold an image OF THE THING SHARED — today
+// that means an open-licensed photo on the occurrence itself. There is deliberately
+// no site-wide fallback image (decision 019): the old one was a months-stale map
+// screenshot that illustrated nothing the sharer posted, which reads as misleading
+// rather than merely empty. With no image, `summary` is the honest Twitter card
+// type — `summary_large_image` promises a picture and renders blank without one.
 function genericPreviewTags(): OgTags {
   return {
     'og:site_name': 'SalishSea.io',
@@ -170,8 +177,7 @@ function genericPreviewTags(): OgTags {
     'og:url': 'https://salishsea.io/',
     'og:title': SITE_TITLE,
     'og:description': SITE_DESCRIPTION,
-    'og:image': FALLBACK_IMAGE,
-    'twitter:card': 'summary_large_image',
+    'twitter:card': 'summary',
     'fb:app_id': FB_APP_ID,
   };
 }
@@ -224,15 +230,13 @@ function individualPreviewTags(individual: Individual): OgTags {
     'og:url': `https://salishsea.io/individuals/${encodeURIComponent(designation)}`,
     'og:title': title,
     'og:description': description,
-    'og:image': FALLBACK_IMAGE,
-    'twitter:card': 'summary_large_image',
+    'twitter:card': 'summary',
     'fb:app_id': FB_APP_ID,
   };
 }
 
 // Only cc0 and cc-by are unambiguously open for re-use
 const OPEN_LICENSES = ['cc0', 'cc-by'];
-const FALLBACK_IMAGE = 'https://salishsea.io/preview.jpg';
 // Public Facebook App ID — links shared content to our FB app for Domain Insights.
 // Not a secret; it appears in page meta by design.
 const FB_APP_ID = '678644427974059';
@@ -273,8 +277,7 @@ function matrilinePreviewTags(group: SocialGroup): OgTags {
     'og:url': `https://salishsea.io/matrilines/${encodeURIComponent(designation)}`,
     'og:title': title,
     'og:description': description,
-    'og:image': FALLBACK_IMAGE,
-    'twitter:card': 'summary_large_image',
+    'twitter:card': 'summary',
     'fb:app_id': FB_APP_ID,
   };
 }
@@ -311,8 +314,7 @@ function ecotypePreviewTags(group: SocialGroup): OgTags {
     'og:url': `https://salishsea.io/ecotypes/${encodeURIComponent(designation)}`,
     'og:title': label,
     'og:description': description,
-    'og:image': FALLBACK_IMAGE,
-    'twitter:card': 'summary_large_image',
+    'twitter:card': 'summary',
     'fb:app_id': FB_APP_ID,
   };
 }
@@ -362,11 +364,12 @@ export const handler = async (event: any): Promise<any> => {
   // BOT_AGENTS (baiduspider, google-snippet) must receive the raw file, never
   // synthesized HTML, or the sitemap/robots directives are unreadable.
   //
-  // Same rationale for static image assets: og:image points at /preview.jpg, which
-  // the very same crawlers (facebookexternalhit, twitterbot, …) fetch to render the
-  // card. Without this carve-out the handler answers that image request with OG-meta
-  // HTML — an HTML body served as the image — and the preview breaks. Any path with
-  // an image extension must pass through to origin as raw bytes.
+  // Same rationale for static image assets: whenever a card points at an image on
+  // our own origin, the very same crawlers (facebookexternalhit, twitterbot, …)
+  // fetch that URL with their bot UA to render it. Without this carve-out the
+  // handler answers the image request with OG-meta HTML — an HTML body served as
+  // the image — and the preview breaks (it did, with the old /preview.jpg fallback).
+  // Any path with an image extension must pass through to origin as raw bytes.
   if (
     request.uri.startsWith('/dwca/') ||
     request.uri === '/sitemap.xml' ||
@@ -444,9 +447,9 @@ export const handler = async (event: any): Promise<any> => {
     const count = occ.count ?? 1;
     const description = `${count} ${species}s · ${time}`;
 
-    // Image: first photo with cc0 or cc-by license only
+    // Image: first photo with cc0 or cc-by license only. A sighting without one
+    // gets a text-only card rather than a stand-in picture — see genericPreviewTags.
     const photo = (occ.photos ?? []).find((p: Photo) => OPEN_LICENSES.includes(p.license ?? ''));
-    const imageUrl = photo?.src ?? FALLBACK_IMAGE;
 
     const tags: OgTags = {
       'og:site_name': 'SalishSea.io',
@@ -454,8 +457,8 @@ export const handler = async (event: any): Promise<any> => {
       'og:url': `https://salishsea.io/?o=${encodeURIComponent(occurrenceId)}`,
       'og:title': title,
       'og:description': description,
-      'og:image': imageUrl,
-      'twitter:card': 'summary_large_image',
+      ...(photo ? { 'og:image': photo.src } : {}),
+      'twitter:card': photo ? 'summary_large_image' : 'summary',
       'fb:app_id': FB_APP_ID,
     };
 
