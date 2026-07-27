@@ -1,6 +1,6 @@
 # Runbook: Deploys & CloudFront/Lambda@Edge gotchas
 
-How production deploys work, and the two recurring surprises they produce. Audience: anyone (human or agent) running or debugging a deploy.
+How production deploys work, and the recurring surprises they produce. Audience: anyone (human or agent) running or debugging a deploy.
 
 ## How it deploys
 
