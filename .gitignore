@@ -49,7 +49,10 @@ e2e/screenshots
 # Beads kept local-only: issues live in the Dolt DB, not git.
 # Auto-exported JSONL churns on every bd mutation, so it's not tracked.
 # (git hooks disabled via: git config --unset core.hooksPath)
-.beads/issues.jsonl
+# .beads/issues.jsonl is deliberately TRACKED: it is bd's passive export and
+# the repo's only durable copy of the issue database. Ignoring it silently
+# broke bd's auto-backup (its `git add` failed on every flush), leaving beads
+# local-only until a stray rm -rf took it out on 2026-07-27.
 .beads/interactions.jsonl
 
 # Private strategy notes — the honest version of the uptake stall; not for the public repo.
