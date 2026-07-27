@@ -9,7 +9,7 @@ fires SQL functions every 5 minutes that use the `http` extension to fetch upstr
 and `MERGE` it into the mirror schemas. This braids network I/O, control flow, taxon
 mapping, dedup, and destructive writes into an environment with no exception handling, no
 structured logging, no retry/backoff, and no test harness. Two data-loss defects followed
-directly from that shape (`salishsea-io-t4v` blind-delete, `salishsea-io-biz` page-1
+directly from that shape (`salish-t4v` blind-delete, `salish-biz` page-1
 truncation). This record fixes the architecture; the two bugs are patched in place first as
 urgent stopgaps and then superseded by this migration.
 
@@ -120,12 +120,12 @@ becomes a store, not an HTTP client.
   recorded with would-have counts.
 - A **heartbeat/freshness alert** ("no successful run in N minutes") is a follow-on, cheap
   once `ingest_runs` exists — it closes the silent-stop gap that Sentry alone can't
-  (`salishsea-io-ior`).
+  (`salish-ior`).
 - Sentry gains a server-side (Deno) surface for ingest exceptions.
 
 ## Reference
 
-Epic: `salishsea-io-89d`. In-place stopgaps: `salishsea-io-t4v`, `salishsea-io-biz`.
+Epic: `salish-89d`. In-place stopgaps: `salish-t4v`, `salish-biz`.
 Upstream-mirror model: [008](008-source-schemas-are-upstream-mirrors.md). Taxonomic scope:
 [009](009-taxonomic-scope-marine-mammals.md). Export/test-harness precedent:
 [003](003-dwc-export-pipeline.md).

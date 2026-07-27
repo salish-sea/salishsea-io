@@ -60,5 +60,5 @@ governance answer: a candidate is promoted, doubted, or rejected by a *privilege
 human acting for the dataset — not by the loudest asserter or by the system silently. Recording
 the primitives now keeps ek3/#52/CV converging on one model instead of inventing three.
 
-[anx]: bd salishsea-io-anx
-[ek3]: bd salishsea-io-ek3
+[anx]: bd salish-anx
+[ek3]: bd salish-ek3

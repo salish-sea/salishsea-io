@@ -64,7 +64,7 @@ jobs:
       # older, failed deploy therefore rebuilds and ships a superseded tree —
       # a silent production rollback. That happened on 2026-07-27: a transient
       # credentials failure was re-run after a newer commit had already
-      # deployed, and it reverted the newer one (bd salishsea-io-i74).
+      # deployed, and it reverted the newer one (bd salish-i74).
       #
       # Deploys are also serialized (see the concurrency block), so a queued run
       # can be overtaken by a later merge before it ever starts.

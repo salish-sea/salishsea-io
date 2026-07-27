@@ -1,7 +1,7 @@
 # 016 — Matriline profile pages
 
 **Status:** accepted (2026-07-07)
-**Context:** bd `salishsea-io-w2d`; builds on individual profile pages
+**Context:** bd `salish-w2d`; builds on individual profile pages
 (decision 015). Most Bigg's sighting reports name the matriline ("T65As"),
 not individuals — the richest identification signal we have — but those codes
 were deliberately left unlinked because there was nowhere to send them.

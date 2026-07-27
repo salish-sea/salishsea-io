@@ -54,7 +54,7 @@ The churn is inherent to `cloudfront.experimental.EdgeFunction` (a new version p
 
 **Symptom.** A Deploy run fails on something transient (`Configure AWS Credentials` is the one we've seen). You hit *Re-run jobs*. Production silently reverts to whatever the tree looked like at that run's commit.
 
-**Why.** A re-run checks out its **original** `head_sha`, not the current tip. Deploys are also serialized (`concurrency: deploy-production`, `cancel-in-progress: false`), so the re-run waits its turn and can land *after* a newer commit has already deployed — overwriting it. This happened on 2026-07-27: a re-run of `007b738` finished ten minutes after `7a66891` and reverted it (bd `salishsea-io-i74`).
+**Why.** A re-run checks out its **original** `head_sha`, not the current tip. Deploys are also serialized (`concurrency: deploy-production`, `cancel-in-progress: false`), so the re-run waits its turn and can land *after* a newer commit has already deployed — overwriting it. This happened on 2026-07-27: a re-run of `007b738` finished ten minutes after `7a66891` and reverted it (bd `salish-i74`).
 
 **What now happens.** The Deploy job compares `github.sha` against the current tip of `main` and fails with `Refusing to deploy <sha> …: main is now <sha>` if they differ ([`require-current-tip`](../../.github/actions/require-current-tip/action.yml)). It runs twice: after checkout, and again immediately before the first remote change.
 
@@ -108,4 +108,4 @@ curl -sS -A "facebookexternalhit/1.1" "https://salishsea.io/?o=<id>" | grep -o '
 
 ## Worked example — 2026-07-02 preview-image fix (PR #299)
 
-Deploy hit both gotchas. `edge-lambda-stack` logged `DELETE_FAILED` on version 8 but still reached `UPDATE_COMPLETE`; the imported-bucket warning printed as usual. The fix (crawlers now get `image/jpeg` for `/preview.jpg`) was live once the distribution showed `Deployed`. A CloudFront invalidation was run but was a no-op for the HTML path (viewer-request → nothing cached); the residual broken Facebook preview was FB's own image cache. See closed bd `salishsea-io-i5u` and follow-up `salishsea-io-gnh`.
+Deploy hit both gotchas. `edge-lambda-stack` logged `DELETE_FAILED` on version 8 but still reached `UPDATE_COMPLETE`; the imported-bucket warning printed as usual. The fix (crawlers now get `image/jpeg` for `/preview.jpg`) was live once the distribution showed `Deployed`. A CloudFront invalidation was run but was a no-op for the HTML path (viewer-request → nothing cached); the residual broken Facebook preview was FB's own image cache. See closed bd `salish-i5u` and follow-up `salish-gnh`.

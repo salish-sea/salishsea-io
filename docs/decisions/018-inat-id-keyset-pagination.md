@@ -78,6 +78,6 @@ cannot be followed by more, so it *is* the completeness proof.
 
 ## Reference
 
-Issue: `salishsea-io-7up` (durable fix for `salishsea-io-2f`/Sentry SALISHSEA-IO-2D). Amends the
+Issue: `salish-7up` (durable fix for `salish-2f`/Sentry SALISHSEA-IO-2D). Amends the
 completeness invariant of [011](011-ingest-imperative-shell.md). Prior mitigation: PR #327
 (bounded re-page). Upstream-mirror boundary: [008](008-source-schemas-are-upstream-mirrors.md).
