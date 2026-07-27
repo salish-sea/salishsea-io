@@ -50,6 +50,16 @@ The churn is inherent to `cloudfront.experimental.EdgeFunction` (a new version p
 }
 ```
 
+## Gotcha 3 — re-running an old deploy rolls production back
+
+**Symptom.** A Deploy run fails on something transient (`Configure AWS Credentials` is the one we've seen). You hit *Re-run jobs*. Production silently reverts to whatever the tree looked like at that run's commit.
+
+**Why.** A re-run checks out its **original** `head_sha`, not the current tip. Deploys are also serialized (`concurrency: deploy-production`, `cancel-in-progress: false`), so the re-run waits its turn and can land *after* a newer commit has already deployed — overwriting it. This happened on 2026-07-27: a re-run of `007b738` finished ten minutes after `7a66891` and reverted it (bd `salishsea-io-i74`).
+
+**What now happens.** The Deploy job's first step compares `github.sha` against the current tip of `main` and fails with `Refusing to deploy <sha>: main is now <sha>` if they differ. A superseded run can't reach S3 or CDK.
+
+**Is it fatal?** No — it means *this* run shipped nothing. If a newer Deploy is green, production is already correct and the red run is safe to ignore. To actually re-deploy, re-run the Deploy for the current tip of `main` (or push).
+
 ## Caching notes
 
 - **Viewer-request Lambda responses are never cached by CloudFront** — each request re-runs the current function version, so once the distribution shows `Deployed`, the new behaviour is live everywhere. (Contrast: static assets passed through to S3 *are* cached per-POP; `aws cloudfront create-invalidation --paths '/some-asset.jpg'` clears them.)

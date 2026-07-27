@@ -60,6 +60,35 @@ jobs:
       id-token: write
       contents: read
     steps:
+      # A workflow re-run always checks out its ORIGINAL commit. Re-running an
+      # older, failed deploy therefore rebuilds and ships a superseded tree —
+      # a silent production rollback. That happened on 2026-07-27: a transient
+      # credentials failure was re-run after a newer commit had already
+      # deployed, and it reverted the newer one (bd salishsea-io-i74).
+      #
+      # Deploys are also serialized (see the concurrency block), so a queued run
+      # can be overtaken by a later merge before it ever starts.
+      #
+      # Either way the commit in hand is no longer what main says to ship, so
+      # refuse rather than deploy backwards. Loud on purpose: this should be rare,
+      # and a green "nothing happened" is how the rollback went unnoticed the
+      # first time. If a newer deploy is green, this failure is safe to ignore.
+      - name: Refuse to deploy a superseded commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" --jq .sha)
+          if [ "${head_sha}" != "${GITHUB_SHA}" ]; then
+            echo "::error::Refusing to deploy ${GITHUB_SHA}: ${GITHUB_REF_NAME} is now ${head_sha}."
+            {
+              echo "### Deploy skipped — superseded commit"
+              echo ""
+              echo "This run holds \`${GITHUB_SHA}\`, but \`${GITHUB_REF_NAME}\` is now \`${head_sha}\`."
+              echo "Deploying would roll production back. Re-run the Deploy for \`${head_sha}\` instead."
+            } >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
+          echo "Deploying ${GITHUB_SHA} (tip of ${GITHUB_REF_NAME})."
       - name: Checkout repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
         with:
