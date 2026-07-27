@@ -16,14 +16,6 @@ const ACCOUNT_ID = '648183724555';
 const SUPABASE_URL = 'https://grztmjpzamcxlzecmqca.supabase.co';
 
 /**
- * Whether to deploy the real card-renderer bundle or a stub.
- *
- * Extracted so the rule is testable without filesystem games: deploying the stub
- * would leave `/cards/*` live in front of a function that answers 503 to every
- * crawler, and the only symptom would be silently imageless previews. Unit tests
- * synthesize without building and opt into the stub explicitly; a deploy may not.
- */
-/**
  * Read the stub opt-in from CDK context.
  *
  * `--context allowStubCardRenderer=true` arrives as the STRING "true", while a
@@ -34,6 +26,14 @@ export function stubAllowedFromContext(value: unknown): boolean {
   return value === true || value === 'true';
 }
 
+/**
+ * Whether to deploy the real card-renderer bundle or a stub.
+ *
+ * Extracted so the rule is testable without filesystem games: deploying the stub
+ * would leave `/cards/*` live in front of a function that answers 503 to every
+ * crawler, and the only symptom would be silently imageless previews. Unit tests
+ * synthesize without building and opt into the stub explicitly; a deploy may not.
+ */
 export function cardRendererSource(bundleExists: boolean, stubAllowed: boolean): 'bundle' | 'stub' {
   if (bundleExists) return 'bundle';
   if (stubAllowed) return 'stub';
