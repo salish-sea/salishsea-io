@@ -7,8 +7,16 @@ Two trackers, routed by audience:
   feature requests, inbound bug reports, and triage of those reports.
 - **beads** (`bd`) — everything else. Internal implementation work: breaking
   features into build tasks, in-flight work, bugs found while building,
-  discovered/follow-up work, sequencing. Beads is local-only (issues live in a
-  Dolt DB and do not travel with git).
+  discovered/follow-up work, sequencing. Issues live in a local Dolt DB, but
+  `.beads/issues.jsonl` — bd's export — **is tracked in git**, so the database is
+  reviewable in diffs and rebuildable with `bd import`. It must stay tracked:
+  while it was gitignored, bd's auto-export failed silently on every write and
+  beads existed nowhere but one laptop.
+
+**Issue ids are `salish-<suffix>`** (e.g. `salish-g9e`). They were
+`salishsea-io-<suffix>` until 2026-07-27; the suffix never changed, so an old id
+in a commit message or an archived PR maps to the current one by swapping the
+prefix. Commit history and merged PRs still carry the old form.
 
 The rule: **if it's communicating with the customer about a feature, it's GitHub;
 if it's how we build and track the work, it's beads.**
@@ -39,4 +47,4 @@ if it's how we build and track the work, it's beads.**
 ## When a skill says "fetch the relevant ticket"
 
 - A GitHub number (e.g. #250) → `gh issue view <number> --comments`.
-- A beads id (e.g. `salishsea-io-i5u`) → `bd show <id>`.
+- A beads id (e.g. `salish-i5u`) → `bd show <id>`.

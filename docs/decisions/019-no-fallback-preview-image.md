@@ -2,7 +2,7 @@
 
 **Status:** accepted (2026-07-26)
 **Context:** GitHub issue [#38](https://github.com/salish-sea/salishsea-io/issues/38)
-(link previews); bd `salishsea-io-adx`. Builds on the OG-meta edge handler
+(link previews); bd `salish-adx`. Builds on the OG-meta edge handler
 (decision 002, 015–017).
 
 Every card the edge handler synthesized — the homepage, individual, matriline
@@ -29,7 +29,7 @@ don't start 404ing on their image. Nothing references it.
 render it — Facebook drops `og:image` below 200×200. iNaturalist photos are
 ingested as the 75×75 `square` thumbnail, so the card references the `large`
 (1024px) variant of the same photo instead; see `cardImageUrl` in the edge
-handler (bd `salishsea-io-uum`). Declaring a thumbnail is functionally the same
+handler (bd `salish-uum`). Declaring a thumbnail is functionally the same
 as declaring nothing, and this decision is about not pretending otherwise.
 
 ### Why no image beats a generic one

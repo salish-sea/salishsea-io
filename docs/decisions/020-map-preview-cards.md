@@ -2,7 +2,7 @@
 
 **Status:** accepted (2026-07-27)
 **Context:** GitHub issue [#38](https://github.com/salish-sea/salishsea-io/issues/38);
-bd `salishsea-io-bym`. Amends [decision 019](019-no-fallback-preview-image.md).
+bd `salish-bym`. Amends [decision 019](019-no-fallback-preview-image.md).
 
 Decision 019 removed a misleading site-wide preview image and left most shared
 links with a text-only card. That was the honest state, not the desired one:

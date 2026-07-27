@@ -33,7 +33,7 @@ function isBot(userAgent: string): boolean {
 const STATIC_ASSET_RE = /\.(jpe?g|png|gif|svg|webp|ico|avif)$/i;
 
 // Network deadline: the viewer-request Lambda is hard-killed at 5s, and a kill
-// bypasses the fail-open catch — CloudFront serves a 503 (salishsea-io-g9e).
+// bypasses the fail-open catch — CloudFront serves a 503 (salish-g9e).
 // With config baked in at synth the cold chain is init (~0.3s) + one Supabase
 // fetch, so 3s leaves ample room to degrade to the shell instead.
 const FETCH_TIMEOUT_MS = 3000;
@@ -64,7 +64,7 @@ let pendingWarmup: Promise<void> | null = null;
 // for it: an invocation arriving while the warmup is still in flight used to
 // open a SECOND connection, and two TLS handshakes competing for 1/13 vCPU is
 // how a cold container blew the 3s deadline and served the bare shell
-// (salishsea-io-cwd). Ending in .catch means awaiting it can only delay the
+// (salish-cwd). Ending in .catch means awaiting it can only delay the
 // handler, never throw into it.
 if (SUPABASE_URL && process.env.AWS_LAMBDA_FUNCTION_NAME) {
   const warmupStarted = Date.now();
@@ -112,7 +112,7 @@ async function timedFetch(kind: string, apiUrl: string, key: string): Promise<Re
   const warmupMs = Date.now() - waitStarted;
 
   // Whatever the wait consumed comes off this fetch's own deadline, so a cold
-  // invocation still degrades to the shell inside the total 3s (salishsea-io-g9e).
+  // invocation still degrades to the shell inside the total 3s (salish-g9e).
   const budgetMs = Math.max(FETCH_TIMEOUT_MS - warmupMs, MIN_FETCH_BUDGET_MS);
 
   const started = Date.now();
@@ -246,7 +246,7 @@ const OPEN_LICENSES = ['cc0', 'cc-by'];
 // size for the map UI, and far below what the social platforms accept: Facebook
 // drops og:image under 200×200 and Twitter's summary_large_image wants at least
 // 300×157. So the one card type that DOES carry an image was very likely still
-// rendering without one (salishsea-io-uum). The same path serves `large`
+// rendering without one (salish-uum). The same path serves `large`
 // (1024px, ~150-800KB), so swap that single segment when building the card.
 //
 // The hosts are matched exactly, not by substring: `src` is ingested data, and a

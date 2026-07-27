@@ -185,7 +185,7 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result).toBe(event.Records[0].cf.request);
   });
 
-  // salishsea-io-g9e: the viewer-request Lambda is killed at 5s and CloudFront
+  // salish-g9e: the viewer-request Lambda is killed at 5s and CloudFront
   // serves a 503 — every network call must carry its own deadline so slowness
   // surfaces as a catchable error inside the fail-open try/catch instead.
   it('bounds the Supabase fetch with an AbortSignal deadline', async () => {
@@ -250,7 +250,7 @@ describe('Lambda@Edge OG meta handler', () => {
     }
   });
 
-  // salishsea-io-cwd: the first real fetch must reuse the warmup's connection
+  // salish-cwd: the first real fetch must reuse the warmup's connection
   // rather than race it, but must never be held hostage by a stalled warmup.
   describe('init warmup handoff', () => {
     // Load a fresh copy of the module with the Lambda env guard satisfied, so

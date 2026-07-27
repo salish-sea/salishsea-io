@@ -2,7 +2,7 @@ name: Require current tip
 description: >
   Fail unless the commit this run is holding is still the tip of its branch.
   Guards production against deploying a superseded tree — see gotcha 3 in
-  docs/runbook/deploys.md and bd salishsea-io-i74.
+  docs/runbook/deploys.md and bd salish-i74.
 inputs:
   token:
     description: Token used to read the branch head (github.token is enough).
