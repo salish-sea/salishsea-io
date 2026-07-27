@@ -511,6 +511,12 @@ describe('og:image uses a card-sized photo, not the 75×75 iNat thumbnail', () =
     // A `square` segment on a non-iNat host is left alone — we can't assume
     // some other provider serves a `large` sibling.
     'https://example.com/photos/7/square.jpg',
+    // Lookalike authorities must not satisfy the host check: `src` is ingested
+    // data, so a substring match on "inaturalist" would be enough to redirect
+    // a card's image at an attacker-chosen origin.
+    'https://evil-inaturalist.example/photos/7/square.jpg',
+    'https://static.inaturalist.org.evil.example/photos/7/square.jpg',
+    'https://inaturalist-open-data.s3.amazonaws.com.evil.example/photos/7/square.jpg',
     // Already large: not double-rewritten.
     'https://inaturalist-open-data.s3.amazonaws.com/photos/705787369/large.jpg',
   ])('passes through %s unchanged', async (src) => {

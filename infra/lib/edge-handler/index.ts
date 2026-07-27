@@ -245,10 +245,13 @@ const OPEN_LICENSES = ['cc0', 'cc-by'];
 // rendering without one (salishsea-io-uum). The same path serves `large`
 // (1024px, ~150-800KB), so swap that single segment when building the card.
 //
-// Keyed on the variant segment, not a host allowlist: every iNat photo we hold
-// is `square` and no other provider uses these variant names, so this is a no-op
-// for HappyWhale, Spotter and our own uploads (which are already full-size).
-const INAT_SQUARE_RE = /^(https:\/\/[^/]*inaturalist[^/]*\/photos\/\d+\/)square(\.[a-z]+)$/i;
+// The hosts are matched exactly, not by substring: `src` is ingested data, and a
+// lookalike authority (evil-inaturalist.example, or …amazonaws.com.evil.example)
+// must not talk us into rewriting a URL whose `large` sibling we know nothing
+// about. Everything else — HappyWhale, Spotter, our own uploads — has no variant
+// segment to match and passes through untouched.
+const INAT_SQUARE_RE =
+  /^(https:\/\/(?:inaturalist-open-data\.s3\.amazonaws\.com|static\.inaturalist\.org)\/photos\/\d+\/)square(\.[a-z]+)$/i;
 
 /** Full-size variant of a photo URL, for use as og:image. */
 function cardImageUrl(src: string): string {
