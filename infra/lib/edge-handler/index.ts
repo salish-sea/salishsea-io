@@ -37,18 +37,37 @@ const STATIC_ASSET_RE = /\.(jpe?g|png|gif|svg|webp|ico|avif)$/i;
 // fetch, so 3s leaves ample room to degrade to the shell instead.
 const FETCH_TIMEOUT_MS = 3000;
 
+// How long the first real fetch will wait for the init warmup before giving up
+// and opening its own connection. Spent FROM the deadline above, never added to
+// it (see timedFetch) — the total network budget stays 3s.
+const WARMUP_WAIT_MS = 1000;
+
+// Floor on what's left for the fetch after waiting. A near-zero deadline would
+// abort instantly and fail open, which is worse than slightly overrunning the
+// budget; 1s + the 1s cap above still lands well inside the 5s kill.
+const MIN_FETCH_BUDGET_MS = 1000;
+
+// The in-flight init warmup, or null once someone has waited on it.
+let pendingWarmup: Promise<void> | null = null;
+
 // Warm the fetch stack during init. The init phase runs at full CPU while the
 // handler runs at the ~1/13 vCPU a 128MB viewer-request Lambda is capped at, so
 // without this the first fetch per container pays ~2.5s (measured, og-fetch)
 // for lazy undici load + DNS + TLS; later fetches run ~150-275ms. Calling
 // fetch() here does the expensive stack load synchronously at full speed, and
 // the handshake to the same origin proceeds so the handler's real fetch can
-// reuse it. Fire-and-forget: never awaited, and a failure is irrelevant — the
-// real fetch has its own deadline and fail-open. The env-var guard keeps
-// imports outside Lambda (unit tests) from touching the network.
+// reuse it. The env-var guard keeps imports outside Lambda (unit tests) from
+// touching the network.
+//
+// The promise is kept (not fire-and-forget) so the first real fetch can wait
+// for it: an invocation arriving while the warmup is still in flight used to
+// open a SECOND connection, and two TLS handshakes competing for 1/13 vCPU is
+// how a cold container blew the 3s deadline and served the bare shell
+// (salishsea-io-cwd). Ending in .catch means awaiting it can only delay the
+// handler, never throw into it.
 if (SUPABASE_URL && process.env.AWS_LAMBDA_FUNCTION_NAME) {
   const warmupStarted = Date.now();
-  fetch(`${SUPABASE_URL}/auth/v1/health`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+  pendingWarmup = fetch(`${SUPABASE_URL}/auth/v1/health`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
     .then(async res => {
       // Drain: undici returns the socket to its per-origin pool only once the
       // body is consumed — and reuse is half the point of warming.
@@ -56,6 +75,22 @@ if (SUPABASE_URL && process.env.AWS_LAMBDA_FUNCTION_NAME) {
       console.log(JSON.stringify({ msg: 'og-warmup', ms: Date.now() - warmupStarted, status: res.status }));
     })
     .catch(err => console.log(JSON.stringify({ msg: 'og-warmup', ms: Date.now() - warmupStarted, error: String(err) })));
+}
+
+// Wait out the init warmup, but never longer than `budgetMs`. A warmup slower
+// than that is abandoned rather than awaited — it keeps running, and whatever
+// connection it opens is still there for the next invocation. Only the first
+// caller ever waits; after that the container has a live socket either way.
+async function awaitWarmup(budgetMs: number): Promise<void> {
+  const warmup = pendingWarmup;
+  if (!warmup) return;
+  pendingWarmup = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    warmup,
+    new Promise<void>(resolve => { timer = setTimeout(resolve, budgetMs); }),
+  ]);
+  clearTimeout(timer);
 }
 
 function getCredentials(): { url: string; key: string } {
@@ -71,16 +106,24 @@ function getCredentials(): { url: string; key: string } {
 // `kind` names the lookup (individual/matriline/ecotype/occurrence) so a slow or
 // failing step is attributable straight from the log.
 async function timedFetch(kind: string, apiUrl: string, key: string): Promise<Response> {
+  const waitStarted = Date.now();
+  await awaitWarmup(WARMUP_WAIT_MS);
+  const warmupMs = Date.now() - waitStarted;
+
+  // Whatever the wait consumed comes off this fetch's own deadline, so a cold
+  // invocation still degrades to the shell inside the total 3s (salishsea-io-g9e).
+  const budgetMs = Math.max(FETCH_TIMEOUT_MS - warmupMs, MIN_FETCH_BUDGET_MS);
+
   const started = Date.now();
   try {
     const res = await fetch(apiUrl, {
       headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      signal: AbortSignal.timeout(budgetMs),
     });
-    console.log(JSON.stringify({ msg: 'og-fetch', kind, ms: Date.now() - started, status: res.status }));
+    console.log(JSON.stringify({ msg: 'og-fetch', kind, ms: Date.now() - started, warmupMs, status: res.status }));
     return res;
   } catch (err) {
-    console.error(JSON.stringify({ msg: 'og-fetch-error', kind, ms: Date.now() - started, error: String(err) }));
+    console.error(JSON.stringify({ msg: 'og-fetch-error', kind, ms: Date.now() - started, warmupMs, error: String(err) }));
     throw err;
   }
 }

@@ -241,6 +241,95 @@ describe('Lambda@Edge OG meta handler', () => {
     }
   });
 
+  // salishsea-io-cwd: the first real fetch must reuse the warmup's connection
+  // rather than race it, but must never be held hostage by a stalled warmup.
+  describe('init warmup handoff', () => {
+    // Load a fresh copy of the module with the Lambda env guard satisfied, so
+    // the warmup runs and its promise is live for the handler to wait on.
+    function loadInLambda(warmupFetch: () => Promise<Response>) {
+      const fetchSpy = jest.spyOn(global, 'fetch').mockImplementationOnce(warmupFetch);
+      const prevEnv = process.env.AWS_LAMBDA_FUNCTION_NAME;
+      process.env.AWS_LAMBDA_FUNCTION_NAME = 'test-fn';
+      let mod: typeof import('./index');
+      try {
+        jest.isolateModules(() => {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          mod = require('./index');
+        });
+      } finally {
+        if (prevEnv === undefined) delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+        else process.env.AWS_LAMBDA_FUNCTION_NAME = prevEnv;
+      }
+      return { mod: mod!, fetchSpy };
+    }
+
+    const occurrenceResponse = {
+      ok: true,
+      status: 200,
+      json: async () => [sampleOccurrence],
+    } as Response;
+
+    it('waits for an in-flight warmup before issuing the first Supabase fetch', async () => {
+      let releaseWarmup: () => void;
+      const warmupDone = new Promise<void>(resolve => { releaseWarmup = resolve; });
+      const { mod, fetchSpy } = loadInLambda(async () => {
+        await warmupDone;
+        return { ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(0) } as Response;
+      });
+
+      let realFetchIssued = false;
+      fetchSpy.mockImplementation(async () => { realFetchIssued = true; return occurrenceResponse; });
+
+      const pending = mod.handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
+      await Promise.resolve();
+      expect(realFetchIssued).toBe(false); // still waiting on the warmup
+
+      releaseWarmup!();
+      await pending;
+      expect(realFetchIssued).toBe(true);
+    });
+
+    it('gives up on a stalled warmup and fetches anyway, on a reduced deadline', async () => {
+      jest.useFakeTimers();
+      try {
+        // A warmup that never settles — the handler must not hang on it.
+        const { mod, fetchSpy } = loadInLambda(() => new Promise<Response>(() => {}));
+        fetchSpy.mockResolvedValue(occurrenceResponse);
+
+        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const pending = mod.handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
+        await jest.advanceTimersByTimeAsync(1000); // WARMUP_WAIT_MS
+        const result = await pending;
+
+        expect(result.status).toBe('200');
+        // Warmup call is mockImplementationOnce; the real read is the next one.
+        const options = fetchSpy.mock.calls[1]?.[1] as RequestInit;
+        expect(options.signal).toBeInstanceOf(AbortSignal);
+        // Waited the full cap and no longer — and that time came out of the
+        // fetch's own deadline rather than extending the total budget.
+        const line = logSpy.mock.calls.map(c => String(c[0])).find(m => m.includes('"og-fetch"'));
+        expect(JSON.parse(line!)).toMatchObject({ msg: 'og-fetch', warmupMs: 1000 });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('does not wait again once a fetch has already waited out the warmup', async () => {
+      const { mod, fetchSpy } = loadInLambda(
+        async () => ({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(0) } as Response),
+      );
+      fetchSpy.mockResolvedValue(occurrenceResponse);
+
+      await mod.handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
+
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      await mod.handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
+
+      const line = logSpy.mock.calls.map(c => String(c[0])).find(m => m.includes('"og-fetch"'));
+      expect(JSON.parse(line!)).toMatchObject({ msg: 'og-fetch', warmupMs: 0 });
+    });
+  });
+
   it('does not touch the network at import time outside Lambda (no env guard)', () => {
     const fetchSpy = jest.spyOn(global, 'fetch')
       .mockRejectedValue(new Error('unexpected network call'));
