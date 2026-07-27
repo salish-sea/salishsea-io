@@ -1,11 +1,30 @@
 import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { InfraStack } from '../lib/infra-stack';
+import { InfraStack, cardRendererSource } from '../lib/infra-stack';
+
+describe('cardRendererSource', () => {
+  it('uses the built bundle when there is one', () => {
+    expect(cardRendererSource(true, false)).toBe('bundle');
+    expect(cardRendererSource(true, true)).toBe('bundle');
+  });
+
+  it('lets a test opt into the stub', () => {
+    expect(cardRendererSource(false, true)).toBe('stub');
+  });
+
+  it('refuses to deploy a stub behind a live /cards/* behavior', () => {
+    // `cdk deploy` from a clean checkout would otherwise ship a function that
+    // 503s at every crawler, and the only symptom would be imageless previews.
+    expect(() => cardRendererSource(false, false)).toThrow(/npm run build/);
+  });
+});
 
 describe('InfraStack', () => {
   let template: Template;
   beforeAll(() => {
-    const app = new cdk.App();
+    // Tests synthesize without building the card-renderer bundle; a deploy may
+    // not (see the guard in infra-stack.ts).
+    const app = new cdk.App({ context: { allowStubCardRenderer: true } });
     const stack = new InfraStack(app, 'TestStack', {
       env: { account: '648183724555', region: 'us-east-1' },
     });

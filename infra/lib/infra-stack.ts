@@ -15,6 +15,24 @@ const ACCOUNT_ID = '648183724555';
 // Baked into the edge bundle at synth (not read at runtime from anywhere)
 const SUPABASE_URL = 'https://grztmjpzamcxlzecmqca.supabase.co';
 
+/**
+ * Whether to deploy the real card-renderer bundle or a stub.
+ *
+ * Extracted so the rule is testable without filesystem games: deploying the stub
+ * would leave `/cards/*` live in front of a function that answers 503 to every
+ * crawler, and the only symptom would be silently imageless previews. Unit tests
+ * synthesize without building and opt into the stub explicitly; a deploy may not.
+ */
+export function cardRendererSource(bundleExists: boolean, stubAllowed: boolean): 'bundle' | 'stub' {
+  if (bundleExists) return 'bundle';
+  if (stubAllowed) return 'stub';
+  throw new Error(
+    'card renderer bundle missing. Run `npm run build` in infra/ before deploying ' +
+    '(the CDK deploy step in .github/workflows/deploy.yml does this). Only unit tests ' +
+    'may synthesize without it, via --context allowStubCardRenderer=true.',
+  );
+}
+
 export class InfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -64,14 +82,18 @@ export class InfraStack extends cdk.Stack {
     // A regional Lambda, not another edge function: it needs sharp, ~18 tile
     // fetches and a second of CPU, none of which fit the 128MB/5s viewer-request
     // budget. The edge handler only names the URL; this renders it.
+    // Built by `npm run build` (scripts/bundle-card-renderer.mjs), which pins
+    // sharp's native binary to linux/x64/glibc to match `architecture` below.
+    // The bundle is gitignored, so a clean checkout has none until that runs.
     const cardBundle = path.join(__dirname, 'card-renderer', 'bundle');
-    const cardRendererCode = fs.existsSync(cardBundle)
-      // Built by `npm run build` (scripts/bundle-card-renderer.mjs), which pins
-      // sharp's native binary to linux/x64/glibc to match `architecture` below.
-      ? lambda.Code.fromAsset(cardBundle)
-      // A synth without a bundle is a unit test, not a deploy — same spirit as
-      // the empty anon key above. The function synthesizes; it would not run.
-      : lambda.Code.fromInline('exports.handler = async () => ({ statusCode: 503 });');
+
+    const cardRendererCode =
+      cardRendererSource(
+        fs.existsSync(cardBundle),
+        this.node.tryGetContext('allowStubCardRenderer') === true,
+      ) === 'bundle'
+        ? lambda.Code.fromAsset(cardBundle)
+        : lambda.Code.fromInline('exports.handler = async () => ({ statusCode: 503 });');
 
     const cardRenderer = new lambda.Function(this, 'CardRenderer', {
       runtime: lambda.Runtime.NODEJS_24_X,

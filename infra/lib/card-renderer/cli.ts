@@ -18,9 +18,18 @@ async function main(): Promise<number> {
   if (mode === 'point') {
     const [lon, lat, out] = rest;
     if (!lon || !lat || !out) throw new Error('usage: point <lon> <lat> <out.jpg>');
+    // Number('north') is NaN and Number('1e999') is Infinity; either reaches the
+    // projection and fails somewhere far less legible than here.
+    const [lonNum, latNum] = [Number(lon), Number(lat)];
+    if (!Number.isFinite(lonNum) || !Number.isFinite(latNum)) {
+      throw new Error(`lon/lat must be finite numbers, got "${lon}" "${lat}"`);
+    }
+    if (Math.abs(lonNum) > 180 || Math.abs(latNum) > 90) {
+      throw new Error(`lon/lat out of range: ${lonNum}, ${latNum}`);
+    }
     const synthetic: Occurrence = {
       id: 'synthetic',
-      location: { lon: Number(lon), lat: Number(lat) },
+      location: { lon: lonNum, lat: latNum },
       observedAt: new Date().toISOString(),
       species: 'Orca',
       count: 3,

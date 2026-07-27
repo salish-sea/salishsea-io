@@ -193,6 +193,10 @@ interface Occurrence {
   observed_at: string;
   count: number | null;
   photos: Photo[];
+  // Nullable in the schema. Every occurrence has coordinates today, but a map
+  // card for one that doesn't would be a URL that can never render — see where
+  // this is read below.
+  location: { lon: number; lat: number } | null;
 }
 
 interface Individual {
@@ -484,7 +488,7 @@ export const handler = async (event: any): Promise<any> => {
     }
 
     const { url, key } = getCredentials();
-    const apiUrl = `${url}/rest/v1/occurrences?id=eq.${encodeURIComponent(occurrenceId)}&select=id,taxon,observed_at,count,photos&limit=1`;
+    const apiUrl = `${url}/rest/v1/occurrences?id=eq.${encodeURIComponent(occurrenceId)}&select=id,taxon,observed_at,count,photos,location&limit=1`;
     const res = await timedFetch('occurrence', apiUrl, key);
     if (!res.ok) {
       return {
@@ -526,8 +530,16 @@ export const handler = async (event: any): Promise<any> => {
     // rendered map of where it was seen. A photo of the actual whale beats a map
     // of its position; the map card fills the ~90% of sightings that have no
     // re-usable photo and were text-only until now (decision 020).
+    //
+    // A map card is only offered when there is somewhere to put the marker. The
+    // renderer 404s on an occurrence with no coordinates, and a card URL that can
+    // never resolve is worse than no card URL — it sits broken inside a post,
+    // whereas omitting og:image degrades to the text-only card by design. No
+    // occurrence lacks a location today; the column allows it, so the code does too.
     const photo = (occ.photos ?? []).find((p: Photo) => OPEN_LICENSES.includes(p.license ?? ''));
-    const image = photo ? cardImageUrl(photo.src) : occurrenceCardUrl(occurrenceId);
+    const image = photo ? cardImageUrl(photo.src)
+      : occ.location ? occurrenceCardUrl(occurrenceId)
+      : null;
 
     const tags: OgTags = {
       'og:site_name': 'SalishSea.io',
@@ -535,8 +547,8 @@ export const handler = async (event: any): Promise<any> => {
       'og:url': `https://salishsea.io/?o=${encodeURIComponent(occurrenceId)}`,
       'og:title': title,
       'og:description': description,
-      'og:image': image,
-      'twitter:card': 'summary_large_image',
+      ...(image ? { 'og:image': image } : {}),
+      'twitter:card': image ? 'summary_large_image' : 'summary',
       'fb:app_id': FB_APP_ID,
     };
 

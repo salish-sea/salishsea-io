@@ -6,7 +6,7 @@ bd `salishsea-io-bym`. Amends [decision 019](019-no-fallback-preview-image.md).
 
 Decision 019 removed a misleading site-wide preview image and left most shared
 links with a text-only card. That was the honest state, not the desired one:
-#38 has always asked for a rendered map of the sighting. This is that.
+Issue #38 has always asked for a rendered map of the sighting. This is that.
 
 ## Decision
 

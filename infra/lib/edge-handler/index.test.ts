@@ -41,6 +41,7 @@ const sampleOccurrence = {
   observed_at: '2025-06-03T14:32:00Z',
   count: 3,
   photos: [{ src: 'https://example.com/orca.jpg', license: 'cc0' }],
+  location: { lon: -123.0882, lat: 48.6132 },
 };
 
 describe('Lambda@Edge OG meta handler', () => {
@@ -491,6 +492,25 @@ describe('map cards', () => {
       ...sampleOccurrence, id: 'inaturalist:375544838', photos: [],
     });
     expect(body).toContain('https://salishsea.io/cards/o/inaturalist%3A375544838.jpg');
+  });
+
+  it('offers no image for a photoless occurrence with no coordinates', async () => {
+    // The renderer 404s without a location, so a card URL here would sit broken
+    // inside a post. Omitting og:image degrades to the text-only card instead.
+    const body = await bodyFor('o=abc123', {
+      ...sampleOccurrence, photos: [], location: null,
+    });
+    expect(body).not.toContain('/cards/o/');
+    expect(body).not.toContain('og:image');
+    expect(body).toContain('<meta name="twitter:card" content="summary">');
+    // The rest of the card still works — it is only the picture that is missing.
+    expect(body).toContain('Orca · June 3, 2025');
+  });
+
+  it('still uses an open-licensed photo when the occurrence has no coordinates', async () => {
+    const body = await bodyFor('o=abc123', { ...sampleOccurrence, location: null });
+    expect(body).toContain('https://example.com/orca.jpg');
+    expect(body).toContain('<meta name="twitter:card" content="summary_large_image">');
   });
 
   it('names a day card for a shared date', async () => {

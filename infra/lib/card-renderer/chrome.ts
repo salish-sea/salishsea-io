@@ -11,7 +11,12 @@ const MARKER_BLUE = '#1565c0';
 
 const FONT_STACK = 'Helvetica Neue, Helvetica, Arial, sans-serif';
 
-/** & &lt; &gt; " for safe interpolation into SVG text and attributes. */
+/**
+ * Escape the four characters that would otherwise break out of SVG text or an
+ * attribute value: ampersand, less-than, greater-than and double quote. Species
+ * names and dates reach this from the database, so it is the boundary that keeps
+ * ingested text from becoming markup.
+ */
 function escapeXml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
