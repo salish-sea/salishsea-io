@@ -257,6 +257,55 @@ const INAT_SQUARE_RE =
 function cardImageUrl(src: string): string {
   return src.replace(INAT_SQUARE_RE, '$1large$2');
 }
+
+// Rendered map cards (decision 020). This handler only NAMES these URLs — the
+// image is rendered by the /cards/* Lambda, which does its own data fetch. That
+// keeps this function inside its 128MB/5s budget and keeps a card URL cacheable
+// by id alone.
+//
+// Note the paths end in .jpg, which STATIC_ASSET_RE above deliberately passes
+// through: a crawler fetching the image it was just told about must get bytes,
+// not another OG document.
+function occurrenceCardUrl(id: string): string {
+  return `https://salishsea.io/cards/o/${encodeURIComponent(id)}.jpg`;
+}
+
+function dayCardUrl(date: string): string {
+  return `https://salishsea.io/cards/day/${date}.jpg`;
+}
+
+// A `d=` parameter names a Pacific calendar date. Only the shape is checked here
+// — the renderer owns the day's real boundaries — but a bogus value must not
+// become a card URL that 404s inside somebody's post.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isCalendarDate(value: string): boolean {
+  if (!DATE_RE.test(value)) return false;
+  const [y, m, d] = value.split('-').map(Number) as [number, number, number];
+  const probe = new Date(Date.UTC(y, m - 1, d));
+  return probe.getUTCFullYear() === y && probe.getUTCMonth() === m - 1 && probe.getUTCDate() === d;
+}
+
+/** "July 27, 2026" for a bare calendar date, read in Pacific time. */
+function formatCalendarDate(date: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles',
+  }).format(new Date(`${date}T12:00:00Z`));
+}
+
+function dayPreviewTags(date: string): OgTags {
+  return {
+    'og:site_name': 'SalishSea.io',
+    'og:type': 'website',
+    'og:url': `https://salishsea.io/?d=${encodeURIComponent(date)}`,
+    'og:title': `Sightings · ${formatCalendarDate(date)}`,
+    'og:description':
+      `Whale and marine-mammal sightings reported across the Salish Sea on ${formatCalendarDate(date)}.`,
+    'og:image': dayCardUrl(date),
+    'twitter:card': 'summary_large_image',
+    'fb:app_id': FB_APP_ID,
+  };
+}
 // Public Facebook App ID — links shared content to our FB app for Domain Insights.
 // Not a secret; it appears in page meta by design.
 const FB_APP_ID = '678644427974059';
@@ -421,6 +470,12 @@ export const handler = async (event: any): Promise<any> => {
     const occurrenceId = qs.get('o');
 
     if (!occurrenceId) {
+      // A link shared from a particular day gets that day's map. No lookup here:
+      // the renderer counts and plots the sightings, so this branch costs nothing.
+      const date = qs.get('d');
+      if (date && isCalendarDate(date)) {
+        return htmlResponse(dayPreviewTags(date));
+      }
       return {
         status: '200',
         headers: { 'content-type': [{ key: 'Content-Type', value: 'text/html; charset=utf-8' }] },
@@ -467,9 +522,12 @@ export const handler = async (event: any): Promise<any> => {
     const count = occ.count ?? 1;
     const description = `${count} ${species}s · ${time}`;
 
-    // Image: first photo with cc0 or cc-by license only. A sighting without one
-    // gets a text-only card rather than a stand-in picture — see genericPreviewTags.
+    // Image: an open-licensed photo of the animal if there is one, otherwise a
+    // rendered map of where it was seen. A photo of the actual whale beats a map
+    // of its position; the map card fills the ~90% of sightings that have no
+    // re-usable photo and were text-only until now (decision 020).
     const photo = (occ.photos ?? []).find((p: Photo) => OPEN_LICENSES.includes(p.license ?? ''));
+    const image = photo ? cardImageUrl(photo.src) : occurrenceCardUrl(occurrenceId);
 
     const tags: OgTags = {
       'og:site_name': 'SalishSea.io',
@@ -477,8 +535,8 @@ export const handler = async (event: any): Promise<any> => {
       'og:url': `https://salishsea.io/?o=${encodeURIComponent(occurrenceId)}`,
       'og:title': title,
       'og:description': description,
-      ...(photo ? { 'og:image': cardImageUrl(photo.src) } : {}),
-      'twitter:card': photo ? 'summary_large_image' : 'summary',
+      'og:image': image,
+      'twitter:card': 'summary_large_image',
       'fb:app_id': FB_APP_ID,
     };
 

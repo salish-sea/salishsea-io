@@ -69,6 +69,12 @@ The churn is inherent to `cloudfront.experimental.EdgeFunction` (a new version p
 
 The post-deploy smoke test remains the backstop for both: it runs `main`'s specs against production and fails when what's live doesn't match.
 
+## `/cards/*` is not S3
+
+Preview card images come from a **regional Lambda behind a Function URL**, not from the site bucket ([decision 020](../decisions/020-map-preview-cards.md)). A 5xx there is a Lambda problem: logs are in `/salishsea/card-renderer` in **us-west-2**, not in the edge log group, and not in S3 access logs. The function is reachable only through CloudFront (IAM auth + OAC), so it cannot be curled directly to test — go through `https://salishsea.io/cards/...`.
+
+To render a card locally without deploying: `cd infra && npm run build && node lib/card-renderer/cli.js point <lon> <lat> out.jpg` (no credentials needed), or `occurrence <id>` / `day <YYYY-MM-DD>` with `SUPABASE_URL` and `SUPABASE_ANON_KEY` set.
+
 ## Caching notes
 
 - **Viewer-request Lambda responses are never cached by CloudFront** — each request re-runs the current function version, so once the distribution shows `Deployed`, the new behaviour is live everywhere. (Contrast: static assets passed through to S3 *are* cached per-POP; `aws cloudfront create-invalidation --paths '/some-asset.jpg'` clears them.)

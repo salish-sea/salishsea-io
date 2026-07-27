@@ -111,7 +111,7 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result.body).toContain('<meta property="fb:app_id" content="678644427974059">');
   });
 
-  it('omits og:image when photo has cc-by-nc license', async () => {
+  it('falls back to the map card when the photo is cc-by-nc', async () => {
     const occurrence = {
       ...sampleOccurrence,
       photos: [{ src: 'https://example.com/restricted.jpg', license: 'cc-by-nc' }],
@@ -124,11 +124,11 @@ describe('Lambda@Edge OG meta handler', () => {
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
     expect(result.body).not.toContain('https://example.com/restricted.jpg');
-    expect(result.body).not.toContain('og:image');
-    expect(result.body).toContain('<meta name="twitter:card" content="summary">');
+    expect(result.body).toContain('https://salishsea.io/cards/o/abc123.jpg');
+    expect(result.body).toContain('<meta name="twitter:card" content="summary_large_image">');
   });
 
-  it('omits og:image when photos array is empty', async () => {
+  it('falls back to the map card when the photos array is empty', async () => {
     const occurrence = { ...sampleOccurrence, photos: [] };
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
@@ -137,11 +137,11 @@ describe('Lambda@Edge OG meta handler', () => {
     const event = makeEvent('twitterbot/1.0', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
-    expect(result.body).not.toContain('og:image');
-    expect(result.body).toContain('<meta name="twitter:card" content="summary">');
+    expect(result.body).toContain('https://salishsea.io/cards/o/abc123.jpg');
+    expect(result.body).toContain('<meta name="twitter:card" content="summary_large_image">');
   });
 
-  it('omits og:image when all photos have non-open licenses', async () => {
+  it('falls back to the map card when every photo is non-open', async () => {
     const occurrence = {
       ...sampleOccurrence,
       photos: [
@@ -157,8 +157,9 @@ describe('Lambda@Edge OG meta handler', () => {
     const event = makeEvent('discordbot/1.0', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
-    expect(result.body).not.toContain('og:image');
-    expect(result.body).toContain('<meta name="twitter:card" content="summary">');
+    expect(result.body).not.toContain('https://example.com/photo1.jpg');
+    expect(result.body).toContain('https://salishsea.io/cards/o/abc123.jpg');
+    expect(result.body).toContain('<meta name="twitter:card" content="summary_large_image">');
   });
 
   it('returns generic preview with og:title "SalishSea.io" when occurrence is not found', async () => {
@@ -465,6 +466,60 @@ describe('SEO carve-out: /sitemap.xml and /robots.txt path-gate', () => {
     expect(result).not.toBe(event.Records[0].cf.request);
     expect(result.status).toBe('200');
     expect(result.body).toContain('og:title');
+  });
+});
+
+describe('map cards', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(global, 'fetch').mockReset();
+  });
+
+  const bodyFor = async (querystring: string, occurrence?: unknown) => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => (occurrence ? [occurrence] : []),
+    } as Response);
+    const result = await handler(makeEvent('facebookexternalhit/1.1', querystring)) as { body: string };
+    return result.body;
+  };
+
+  it('percent-encodes the colon in a provider-prefixed occurrence id', async () => {
+    // Ids look like `inaturalist:375544838`; a raw colon in a path segment is
+    // legal but needlessly ambiguous to intermediaries.
+    const body = await bodyFor('o=inaturalist:375544838', {
+      ...sampleOccurrence, id: 'inaturalist:375544838', photos: [],
+    });
+    expect(body).toContain('https://salishsea.io/cards/o/inaturalist%3A375544838.jpg');
+  });
+
+  it('names a day card for a shared date', async () => {
+    const body = await bodyFor('d=2026-07-27');
+    expect(body).toContain('<meta property="og:image" content="https://salishsea.io/cards/day/2026-07-27.jpg">');
+    expect(body).toContain('Sightings · July 27, 2026');
+    expect(body).toContain('<meta name="twitter:card" content="summary_large_image">');
+    // The og:url points back at the day the sharer was looking at.
+    expect(body).toContain('https://salishsea.io/?d=2026-07-27');
+  });
+
+  it('prefers the occurrence card when both o and d are present', async () => {
+    const body = await bodyFor('d=2026-07-27&o=abc123', { ...sampleOccurrence, photos: [] });
+    expect(body).toContain('/cards/o/abc123.jpg');
+    expect(body).not.toContain('/cards/day/');
+  });
+
+  it.each([
+    ['2026-02-31', 'a date that does not exist'],
+    ['2026-13-01', 'a month that does not exist'],
+    ['2026-7-27', 'an unpadded date'],
+    ['yesterday', 'a word'],
+    ['', 'an empty value'],
+  ])('falls back to the site card for %s (%s)', async (date) => {
+    // A malformed date must never become a card URL that 404s inside a post.
+    const body = await bodyFor(`d=${date}`);
+    expect(body).not.toContain('/cards/day/');
+    expect(body).not.toContain('og:image');
+    expect(body).toContain('Salish Sea');
   });
 });
 
