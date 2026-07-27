@@ -10,15 +10,11 @@
 
 import { renderDayCard, renderOccurrenceCard } from './cards.js';
 import { configFromEnv, fetchOccurrence, fetchOccurrencesBetween } from './data.js';
-import { currentPacificDate, isValidDate, pacificDayRange } from './pacific-day.js';
+import { MISS as MISS_CACHE, cacheControlForDate, cacheControlForInstant } from './cache-control.js';
+import { isValidDate, pacificDayRange } from './pacific-day.js';
 
-// A past sighting never moves, so its card is immutable. Today's day card still
-// gains sightings as they arrive, so it gets a short life instead.
-const IMMUTABLE = 'public, max-age=31536000, immutable';
-const VOLATILE = 'public, max-age=900';
-// Long enough that a crawler storm over one bad id doesn't reach Supabase
-// repeatedly; short enough that a genuinely new occurrence isn't 404-locked.
-const MISS = 'public, max-age=300';
+// Cache lifetimes are keyed on how recent the card's subject is — see
+// cache-control.ts for why, and for the window.
 
 const OCCURRENCE_PATH = /^\/cards\/o\/(.+)\.jpg$/;
 const DAY_PATH = /^\/cards\/day\/([0-9]{4}-[0-9]{2}-[0-9]{2})\.jpg$/;
@@ -44,7 +40,7 @@ const image = (jpeg: Buffer, cacheControl: string): Result => ({
 
 const miss = (reason: string): Result => ({
   statusCode: 404,
-  headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': MISS },
+  headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': MISS_CACHE },
   body: reason,
 });
 
@@ -65,7 +61,7 @@ export const handler = async (event: FunctionUrlEvent): Promise<Result> => {
       console.log(JSON.stringify({
         msg: 'card', kind: 'occurrence', id, ms: Date.now() - started, bytes: jpeg.length,
       }));
-      return image(jpeg, IMMUTABLE);
+      return image(jpeg, cacheControlForInstant(occ.observedAt));
     }
 
     const dayMatch = path.match(DAY_PATH);
@@ -79,7 +75,7 @@ export const handler = async (event: FunctionUrlEvent): Promise<Result> => {
         msg: 'card', kind: 'day', date, fetched: occurrences.length,
         ms: Date.now() - started, bytes: jpeg.length,
       }));
-      return image(jpeg, date === currentPacificDate() ? VOLATILE : IMMUTABLE);
+      return image(jpeg, cacheControlForDate(date, endIso));
     }
 
     return miss('unrecognized card path');

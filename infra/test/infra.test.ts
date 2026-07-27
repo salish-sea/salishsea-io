@@ -99,6 +99,20 @@ describe('InfraStack', () => {
       });
     });
 
+    it('caps how long a card can be cached, whatever the origin asks for', () => {
+      // A year-long cache over cards that turned out to be broken is what made
+      // the fontless deploy need a manual invalidation to undo.
+      template.hasResourceProperties('AWS::CloudFront::CachePolicy', {
+        CachePolicyConfig: Match.objectLike({
+          Name: 'salishsea-cards',
+          MaxTTL: 30 * 24 * 3600,
+          // Applies only if the renderer sends no Cache-Control at all.
+          DefaultTTL: 300,
+          MinTTL: 0,
+        }),
+      });
+    });
+
     it('caches cards on the path alone', () => {
       template.hasResourceProperties('AWS::CloudFront::CachePolicy', {
         CachePolicyConfig: Match.objectLike({

@@ -87,6 +87,21 @@ docker run --rm --platform linux/amd64 \
 
 Dropping `-e FONTCONFIG_PATH` reproduces the boxes, which is the check that the check works.
 
+### Cached cards after a rendering change
+
+Cards are cached by how recent their subject is ([decision 020](../decisions/020-map-preview-cards.md)): a sighting or day within four days revalidates every five minutes, anything older is cached for 30 days. So a change to how cards *look* reaches recent cards within minutes and older ones over a month.
+
+**A deploy does not clear them** — the deploy step invalidates only `/` and `/index.html`. If a rendering change needs to take effect everywhere at once (or a bad card shipped), invalidate explicitly:
+
+```sh
+aws cloudfront create-invalidation --profile <profile> \
+  --distribution-id "$(aws cloudfront list-distributions --profile <profile> \
+    --query "DistributionList.Items[?contains(Aliases.Items,'salishsea.io')].Id" --output text)" \
+  --paths '/cards/*'
+```
+
+This is not in the deploy workflow on purpose: most deploys don't touch the renderer, and invalidating every card on every deploy would discard the cache for no reason. The first 1,000 invalidation paths a month are free.
+
 ## Caching notes
 
 - **Viewer-request Lambda responses are never cached by CloudFront** — each request re-runs the current function version, so once the distribution shows `Deployed`, the new behaviour is live everywhere. (Contrast: static assets passed through to S3 *are* cached per-POP; `aws cloudfront create-invalidation --paths '/some-asset.jpg'` clears them.)
