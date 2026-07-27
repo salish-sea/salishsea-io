@@ -15,6 +15,35 @@ const ACCOUNT_ID = '648183724555';
 // Baked into the edge bundle at synth (not read at runtime from anywhere)
 const SUPABASE_URL = 'https://grztmjpzamcxlzecmqca.supabase.co';
 
+/**
+ * Read the stub opt-in from CDK context.
+ *
+ * `--context allowStubCardRenderer=true` arrives as the STRING "true", while a
+ * test constructing `new cdk.App({ context: { ... } })` passes a real boolean.
+ * Accepting only one of those makes the documented escape hatch a lie.
+ */
+export function stubAllowedFromContext(value: unknown): boolean {
+  return value === true || value === 'true';
+}
+
+/**
+ * Whether to deploy the real card-renderer bundle or a stub.
+ *
+ * Extracted so the rule is testable without filesystem games: deploying the stub
+ * would leave `/cards/*` live in front of a function that answers 503 to every
+ * crawler, and the only symptom would be silently imageless previews. Unit tests
+ * synthesize without building and opt into the stub explicitly; a deploy may not.
+ */
+export function cardRendererSource(bundleExists: boolean, stubAllowed: boolean): 'bundle' | 'stub' {
+  if (bundleExists) return 'bundle';
+  if (stubAllowed) return 'stub';
+  throw new Error(
+    'card renderer bundle missing. Run `npm run build` in infra/ before deploying ' +
+    '(the CDK deploy step in .github/workflows/deploy.yml does this). Only unit tests ' +
+    'may synthesize without it, via --context allowStubCardRenderer=true.',
+  );
+}
+
 export class InfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -60,6 +89,53 @@ export class InfraStack extends cdk.Stack {
       logGroup: ogLogGroup,
     });
 
+    // --- Card renderer: map images for link previews (decision 020) ---
+    // A regional Lambda, not another edge function: it needs sharp, ~18 tile
+    // fetches and a second of CPU, none of which fit the 128MB/5s viewer-request
+    // budget. The edge handler only names the URL; this renders it.
+    // Built by `npm run build` (scripts/bundle-card-renderer.mjs), which pins
+    // sharp's native binary to linux/x64/glibc to match `architecture` below.
+    // The bundle is gitignored, so a clean checkout has none until that runs.
+    const cardBundle = path.join(__dirname, 'card-renderer', 'bundle');
+
+    const cardRendererCode =
+      cardRendererSource(
+        fs.existsSync(cardBundle),
+        stubAllowedFromContext(this.node.tryGetContext('allowStubCardRenderer')),
+      ) === 'bundle'
+        ? lambda.Code.fromAsset(cardBundle)
+        : lambda.Code.fromInline('exports.handler = async () => ({ statusCode: 503 });');
+
+    const cardRenderer = new lambda.Function(this, 'CardRenderer', {
+      runtime: lambda.Runtime.NODEJS_24_X,
+      architecture: lambda.Architecture.X86_64,
+      handler: 'handler.handler',
+      code: cardRendererCode,
+      // Lambda scales CPU with memory; sharp is CPU-bound, and 1 GB is where
+      // compositing a 1200x630 card stops being the slow part.
+      memorySize: 1024,
+      // Generous next to the ~1s observed locally: a cold start plus a slow tile
+      // host should still produce a card rather than a 500.
+      timeout: cdk.Duration.seconds(15),
+      environment: {
+        SUPABASE_URL,
+        // Same value the browser bundle ships; not a secret.
+        SUPABASE_ANON_KEY: supabaseAnonKey,
+      },
+      logGroup: new logs.LogGroup(this, 'CardRendererLogGroup', {
+        logGroupName: '/salishsea/card-renderer',
+        retention: logs.RetentionDays.THREE_MONTHS,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      }),
+    });
+
+    // AWS_IAM + OAC so the function is reachable only through CloudFront —
+    // otherwise the raw URL is an uncached, unthrottled render endpoint.
+    const cardRendererUrl = cardRenderer.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.AWS_IAM,
+    });
+    const cardOrigin = origins.FunctionUrlOrigin.withOriginAccessControl(cardRendererUrl);
+
     // S3 bucket for CloudFront access logs
     const logBucket = new s3.Bucket(this, 'LogBucket', {
       objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,
@@ -98,6 +174,33 @@ export class InfraStack extends cdk.Stack {
             eventType: cloudfront.LambdaEdgeEventType.VIEWER_REQUEST,
           },
         ],
+      },
+      additionalBehaviors: {
+        // Preview card images. No edge function here: the OG handler's whole job
+        // is to name these URLs, and letting it intercept its own images is the
+        // bug that broke previews once already (STATIC_ASSET_RE in the handler).
+        '/cards/*': {
+          origin: cardOrigin,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          // JPEG is already compressed; re-compressing costs CPU for nothing.
+          compress: false,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          // The path is the entire cache key — no query strings, cookies or
+          // headers vary a card. TTLs come from the renderer's Cache-Control,
+          // which distinguishes an immutable past card from today's.
+          cachePolicy: new cloudfront.CachePolicy(this, 'CardCachePolicy', {
+            cachePolicyName: 'salishsea-cards',
+            comment: 'Preview card images; keyed on path alone, TTL from origin',
+            defaultTtl: cdk.Duration.days(30),
+            minTtl: cdk.Duration.seconds(0),
+            maxTtl: cdk.Duration.days(365),
+            queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
+            cookieBehavior: cloudfront.CacheCookieBehavior.none(),
+            headerBehavior: cloudfront.CacheHeaderBehavior.none(),
+            enableAcceptEncodingGzip: false,
+            enableAcceptEncodingBrotli: false,
+          }),
+        },
       },
     });
 

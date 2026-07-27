@@ -17,6 +17,30 @@ test('bot UA on homepage receives OG meta tags', async ({ request }) => {
   expect(body).toContain('<meta name="twitter:card" content="summary">');
 });
 
+test('bot UA on a dated link receives a day card', async ({ request }) => {
+  const response = await request.get('/?d=2026-07-26', {
+    headers: { 'User-Agent': 'facebookexternalhit/1.1' },
+  });
+
+  expect(response.status()).toBe(200);
+  const body = await response.text();
+  expect(body).toContain('https://salishsea.io/cards/day/2026-07-26.jpg');
+  expect(body).toContain('July 26, 2026');
+});
+
+// A fixed past date rather than an occurrence id: the card must exist forever,
+// and a day card renders whether or not anything was seen that day.
+test('card images serve bytes, not OG HTML, to the crawler that reads og:image', async ({ request }) => {
+  const response = await request.get('/cards/day/2026-07-26.jpg', {
+    headers: { 'User-Agent': 'facebookexternalhit/1.1' },
+  });
+
+  expect(response.status()).toBe(200);
+  expect(response.headers()['content-type']).toBe('image/jpeg');
+  // Above Facebook's 200x200 floor in every sense — a real rendered map.
+  expect((await response.body()).byteLength).toBeGreaterThan(20_000);
+});
+
 test('regular browser UA on homepage receives SPA', async ({ request }) => {
   const response = await request.get('/', {
     headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
