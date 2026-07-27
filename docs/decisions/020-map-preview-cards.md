@@ -41,27 +41,40 @@ the last 90 days' sightings fall outside the Salish Sea** (3,620 of 6,656).
 Whale Alert and iNaturalist cover the whole coast, so any baked-in regional
 asset is wrong for the majority of the data.
 
-### Licensing: a knowing exception, not an oversight
+### Basemap sourcing and terms
 
-The ArcGIS item for the layer we render
-(`1e126e7520f9466c9ca28b8f28b5e500`) states: *"This layer is not intended to be
-used to export tiles for offline."* Compositing its tiles into images we cache
-and serve is arguably that. Esri publishes a sanctioned twin for this use —
-**World Ocean Base (for Export)**, item `5d85d897aee241f884158aa514954443` —
-which requires an ArcGIS Location Platform or Developer account plus app
-credentials and reportedly consumes no credits.
+**What the renderer does.** For each card it requests tiles from the same public
+Esri endpoints the app's own maps use, composites them into a single image,
+renders Esri's required attribution into that image, and serves it over our CDN.
+Tiles are not redistributed as tiles, and nothing is packaged for offline use.
 
-**We are shipping on the non-export layer anyway.** This is the project owner's
-call, made with the above on the table, and it is recorded here rather than
-buried so it stays reviewable.
+**Attribution.** *"Esri, Garmin, GEBCO, NOAA NGDC, and other contributors"* —
+the service's own `copyrightText` — appears on every card, as the basemap's terms
+require.
 
-The mitigation is a hard requirement, not a nicety: the tile source lives in a
-single constant (`TILE_HOSTS` in `infra/lib/card-renderer/basemap.ts`) with this
-tradeoff documented at the definition. Moving to the sanctioned layer must remain
-a config change plus a credential. Revisit if the cards attract real traffic.
+**The provision we considered.** The ArcGIS item for this layer
+(`1e126e7520f9466c9ca28b8f28b5e500`) says: *"This layer is not intended to be used
+to export tiles for offline. If you would like to export imagery for offline use
+in ArcGIS applications, you may use the World Ocean Base (for Export) layer."*
+That companion layer (item `5d85d897aee241f884158aa514954443`) requires an ArcGIS
+Location Platform or Developer account and app credentials.
 
-Attribution — *"Esri, Garmin, GEBCO, NOAA NGDC, and other contributors"* — is
-rendered into every card, as the basemap's terms require.
+Read in context, that restriction addresses **exporting tile caches for offline
+use in ArcGIS applications**, which is not what this renderer does: it fetches on
+demand and serves attributed images online. On that reading the standard layer is
+the appropriate one, and it is the layer the site already uses for its live maps.
+
+**This is our own reading, not advice and not a ruling.** No legal review has been
+done and Esri has not been asked. The honest summary is that the provision is
+directed at a different activity and we believe our use is outside it — with the
+residual uncertainty that comes from interpreting someone else's terms.
+
+**What that buys us, practically.** The tile source is one constant
+(`TILE_HOSTS` in `infra/lib/card-renderer/basemap.ts`). Moving to the companion
+layer, or to a different basemap entirely, is a config change plus a credential.
+If the cards attract meaningful traffic, or if a cheap answer from Esri is
+available, take the account and remove the question rather than continue reasoning
+about it.
 
 ### Day cards frame the region and count only what they show
 

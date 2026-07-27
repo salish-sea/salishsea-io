@@ -10,17 +10,19 @@ import { TILE, type Viewport, tilesFor } from './mercator.js';
  * prototype showed its muted bathymetric styling reads far better at card size
  * than a coastline we draw ourselves (decision 020).
  *
- * Note the position we are knowingly taking: the ArcGIS item for this layer
- * (`1e126e7520f9466c9ca28b8f28b5e500`) says *"This layer is not intended to be
- * used to export tiles for offline"*, and compositing tiles into images we cache
- * and serve is arguably that. Esri publishes a sanctioned twin for exactly this
- * use — **World Ocean Base (for Export)**, item `5d85d897aee241f884158aa514954443`
- * — which reportedly consumes no credits but requires an ArcGIS Location Platform
- * or Developer account plus app credentials.
+ * What we do here: fetch tiles over HTTPS per request, composite them into one
+ * image, render Esri's required attribution into it, and serve it online through
+ * our CDN. We do not redistribute tiles, and nothing is packaged for offline use.
  *
- * Switching must therefore stay cheap: change the template below and add a token
- * to the request in `fetchTile`. Nothing else in the renderer knows where tiles
- * come from.
+ * Esri also publishes **World Ocean Base (for Export)**
+ * (item `5d85d897aee241f884158aa514954443`), described as intended for exporting
+ * imagery for *offline use in ArcGIS applications*; it requires an ArcGIS
+ * Location Platform or Developer account and app credentials.
+ *
+ * Keeping the source in one constant is what makes moving to that layer — or any
+ * other basemap — a config change plus a token in `fetchTile`, rather than a
+ * rewrite. Nothing else in the renderer knows where tiles come from. See
+ * decision 020 for the reasoning and its limits.
  *
  * Path order is Esri's: /{z}/{y}/{x}, not the usual /{z}/{x}/{y}.
  */
