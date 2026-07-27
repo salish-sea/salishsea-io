@@ -103,24 +103,30 @@ better than a broken image.
 
 ## Consequences
 
-- **Cache lifetime follows how recent the card's subject is, not the card type**
-  (`card-renderer/cache-control.ts`). A sighting's *record* keeps changing for a
-  few days after the sighting: reports arrive late, ingest runs on a schedule,
-  counts are revised, species re-identified, photos appear. So a subject within
-  **four days** gets `max-age=300, must-revalidate`, and anything older gets 30
+- **Cache lifetime.** *As originally accepted:* occurrence cards were
+  `immutable` with a one-year `max-age` — a past sighting never moves — and a
+  day card was volatile (15 minutes) only on the day itself, `immutable`
+  thereafter. CloudFront allowed up to a year.
+
+  **Amendment (2026-07-27, superseding the paragraph above).** That had the
+  priority backwards, and is replaced by: **lifetime follows how recent the
+  card's *subject* is, not the card type** (`card-renderer/cache-control.ts`).
+
+  A sighting's *record* keeps changing for a few days after the sighting itself
+  — reports arrive late, ingest runs on a schedule, counts are revised, a
+  species is re-identified, photos appear. Under the original rule the card most
+  likely to be wrong soon was the one cached hardest, and a day went immutable
+  at midnight while its sightings were still arriving. So a subject within
+  **four days** now gets `max-age=300, must-revalidate`; anything older gets 30
   days. Four days covers ingest lag plus the tail of late community reports.
 
-  The first cut had this backwards — occurrence cards were unconditionally
-  `immutable` for a year, so the card most likely to be wrong soon was the one
-  cached hardest, and a day went immutable at midnight while its sightings were
-  still arriving.
-
-  Nothing is `immutable` any more. Curation can revise an old record
-  (decision 014), and `immutable` tells caches never to revalidate even on a
-  manual reload, which makes every correction depend on someone remembering to
-  run a CloudFront invalidation. A month of caching is nearly all the benefit
-  with an automatic way out. CloudFront's `maxTtl` caps the origin at 30 days
-  regardless, so no future change can re-create a year-long cache of a bad card.
+  **Nothing is `immutable`.** Curation can revise an old record (decision 014),
+  and `immutable` tells caches never to revalidate even on a manual reload,
+  which makes every correction depend on someone remembering to run a CloudFront
+  invalidation. A month of caching is nearly all the benefit with an automatic
+  way out. CloudFront's `maxTtl` now caps the origin at 30 days regardless, so
+  no future change can re-create a year-long cache of a bad card — which is
+  exactly what the fontless deploy needed a manual invalidation to undo.
 - The `/cards/*` behaviour has no edge function attached. Letting the OG handler
   intercept the images it just advertised is precisely the bug that once served
   an HTML body as an image; there is a test asserting it stays off.
