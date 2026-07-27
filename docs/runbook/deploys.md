@@ -16,14 +16,14 @@ Push to `main` → GitHub Actions Build + Deploy → CDK (`infra/`, synthed via 
 
 **Is it fatal?** Usually no. The delete fails during the post-update *cleanup* phase, after the new version is already live, so the stack still reaches `UPDATE_COMPLETE` — the old version just lingers, orphaned and harmless. Confirm with:
 
-```
+```sh
 aws cloudformation describe-stacks --stack-name <edge-lambda-stack-…> \
   --query 'Stacks[0].StackStatus' --profile <profile> --region us-east-1
 ```
 
 **If it *did* wedge a rollback** (`UPDATE_ROLLBACK_FAILED`, because the rollback also can't delete the replica): continue the rollback while skipping the stuck version, then re-deploy a few hours later once replicas have drained:
 
-```
+```sh
 aws cloudformation continue-update-rollback --stack-name <edge-lambda-stack-…> \
   --resources-to-skip <OgMetaFunctionCurrentVersion…> --region us-east-1
 ```
@@ -57,7 +57,7 @@ The churn is inherent to `cloudfront.experimental.EdgeFunction` (a new version p
 
 ## Post-deploy verification
 
-```
+```sh
 # distribution finished propagating
 aws cloudfront list-distributions --profile <profile> \
   --query "DistributionList.Items[?contains(Aliases.Items,'salishsea.io')].[Id,Status]" --output text

@@ -19,7 +19,11 @@ shared.** Today that is exactly one case: an occurrence whose photos include a
 re-use). Everything else is a text-only card: title, description, URL,
 `fb:app_id`, and `twitter:card=summary`.
 
-The fallback image and the `/preview.jpg` asset are removed.
+The fallback is removed from the edge handler and from the static shells, and
+`public/preview.jpg` is deleted from the repo. The **object already in S3 is not
+deleted** — the deploy's `s3 sync` runs without `--delete` — so
+`https://salishsea.io/preview.jpg` stays reachable and previously-scraped cards
+don't start 404ing on their image. Nothing references it.
 
 ### Why no image beats a generic one
 
