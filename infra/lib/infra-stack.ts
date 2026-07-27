@@ -196,9 +196,20 @@ export class InfraStack extends cdk.Stack {
           cachePolicy: new cloudfront.CachePolicy(this, 'CardCachePolicy', {
             cachePolicyName: 'salishsea-cards',
             comment: 'Preview card images; keyed on path alone, TTL from origin',
-            defaultTtl: cdk.Duration.days(30),
+            // These bound whatever the renderer asks for, and exist as a
+            // backstop rather than a policy: the renderer sets Cache-Control
+            // per card (see card-renderer/cache-control.ts).
+            //
+            // defaultTtl applies only if the renderer ever sends no header at
+            // all — five minutes, so a header regression costs minutes rather
+            // than the month it would otherwise inherit.
+            defaultTtl: cdk.Duration.minutes(5),
             minTtl: cdk.Duration.seconds(0),
-            maxTtl: cdk.Duration.days(365),
+            // maxTtl caps the origin's own max-age. A year of caching over a
+            // card that turned out to be broken is exactly what happened on
+            // 2026-07-27 (fontless cards, cached immutable); this makes the
+            // worst case a month even if a future change asks for longer.
+            maxTtl: cdk.Duration.days(30),
             queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
             cookieBehavior: cloudfront.CacheCookieBehavior.none(),
             headerBehavior: cloudfront.CacheHeaderBehavior.none(),
