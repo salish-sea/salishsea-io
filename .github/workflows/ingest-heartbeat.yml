@@ -1,7 +1,7 @@
 name: Ingest Heartbeat
 
 # External observer for the 5-minute pg_cron → Edge Function ingest
-# (salishsea-io-89d.4 / decision 012). pg_cron can't watch itself die — the
+# (salish-89d.4 / decision 012). pg_cron can't watch itself die — the
 # 2026-07-06 pg_net gap failed prod ingest silently — so this runs OUTSIDE the
 # database: a scheduled check of ingest.runs that files a GitHub issue when no
 # successful run is fresh enough, or a run is stuck mid-flight. GitHub's cron

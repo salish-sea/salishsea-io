@@ -61,6 +61,6 @@ session pooler and **fails loudly by filing/updating a labeled GitHub issue**
 
 ## Reference
 
-Issue: `salishsea-io-89d.4`. Substrate: `ingest.runs`
+Issue: `salish-89d.4`. Substrate: `ingest.runs`
 ([20260705130000_ingest_runs.sql](../../supabase/migrations/20260705130000_ingest_runs.sql)).
 Alert-channel precedent: [003](003-dwc-export-pipeline.md) (DwC-A nightly failure issue).

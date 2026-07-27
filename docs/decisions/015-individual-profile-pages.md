@@ -18,7 +18,7 @@ for humans and synthesizes catalog-driven OG meta for crawler user-agents (same
 fail-open contract as `?o=`; unknown designations get the generic site card).
 Fail-open only works if the handler's code sees the failure: the viewer-request
 Lambda is hard-killed at 5s and CloudFront then serves a 503 (observed on the
-2026-07-22 smoke run, bd `salishsea-io-g9e`), so every Supabase call in the
+2026-07-22 smoke run, bd `salish-g9e`), so every Supabase call in the
 handler carries an `AbortSignal` deadline sized to keep the worst-case cold
 chain under the kill — slowness degrades to the shell, never a 503. (Supabase
 config is baked in at synth — see decision 002 — so the cold chain is just
@@ -40,7 +40,7 @@ animal has been reported (most recent emphasized; dots click through to the
 main map on that day). Re-rendering `<obs-summary>` rows was tried and
 rejected — a wall of borrowed sighting cards read poorly on a profile.
 Resolution was initially **live** (regex over sighting text at read time,
-~2s/query on prod). Migration `20260708000104` (bd `salishsea-io-be4`) moved
+~2s/query on prod). Migration `20260708000104` (bd `salish-be4`) moved
 extraction + resolution into the `occurrence_identifier_candidates`
 materialized view, refreshed by pg_cron a minute after each 5-minute ingest
 tick and by the catalog seed script; per-individual reads dropped to
@@ -71,6 +71,6 @@ restating them as facts or securing permission.
 - Individual pages are not in `sitemap.xml` (it's built statically at deploy
   time; the catalog lives in the DB).
 - Only Bigg's individuals are seeded; SRKW pages await the J/K/L catalog
-  ingest (bd `salishsea-io-lzi`).
+  ingest (bd `salish-lzi`).
 - Life events (births, deaths, notable sightings) have no schema — the page
   shows `life_status` and birth-year ranges only.

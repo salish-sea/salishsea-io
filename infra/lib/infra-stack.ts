@@ -84,7 +84,7 @@ export class InfraStack extends cdk.Stack {
       }),
       // DO NOT set environment — Lambda@Edge does not support environment variables
       // 5s is the maximum for viewer-request; the handler's own fetch deadline
-      // (FETCH_TIMEOUT_MS) must stay comfortably below it (salishsea-io-g9e)
+      // (FETCH_TIMEOUT_MS) must stay comfortably below it (salish-g9e)
       timeout: cdk.Duration.seconds(5),
       logGroup: ogLogGroup,
     });

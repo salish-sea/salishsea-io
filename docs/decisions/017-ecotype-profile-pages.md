@@ -1,7 +1,7 @@
 # 017 — Ecotype profile pages
 
 **Status:** accepted (2026-07-07)
-**Context:** bd `salishsea-io-zw6`; builds on matriline pages (decision 016).
+**Context:** bd `salish-zw6`; builds on matriline pages (decision 016).
 The ecotype is the root of the social-group hierarchy — one `social_groups`
 row (`kind='ecotype'`, `designation='Biggs'`, no anchor, no parent), parent of
 all 65 top-level → 132 total matrilines, and every cataloged Bigg's
@@ -58,7 +58,7 @@ production 500. The fix reads **only** the cached
 `occurrences`: ~25ms. Consequences: (1) stored curator claims are not reflected
 in the ecotype aggregate yet — a no-op while curation volume is zero; the
 durable fix is a cheap indexed occurrence-timestamp source for the stored branch
-(bd `salishsea-io-8uz`, a prerequisite for the curation UI `salishsea-io-ek3`),
+(bd `salish-8uz`, a prerequisite for the curation UI `salish-ek3`),
 which the per-subject views will also need before curation makes *their* stored
 branch non-empty. **Resolved** (migration `20260708052333`): the
 `occurrence_index` matview (id, observed_at, location; unique-indexed on id;
@@ -70,7 +70,7 @@ the cached candidate for the same (occurrence, subject).
 (2) `UNION` (not `UNION ALL`) collapses to one row per
 (ecotype, occurrence) at the database, so the unpaginated fetch stays under
 PostgREST's `max_rows`; the deduped count (869 on prod) is approaching that cap,
-tracked for pagination (bd `salishsea-io-236`).
+tracked for pagination (bd `salish-236`).
 
 ### Invariants carried over
 

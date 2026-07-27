@@ -5,7 +5,7 @@ context: /gsd-explore session on improving uptake by the whale-sighting communit
 related:
   - PRODUCT.md
   - docs/strategy/orca-network-discovery-questions.md
-  - bd issue salishsea-io-i1a.2 (make the sighter's contribution visible)
+  - bd issue salish-i1a.2 (make the sighter's contribution visible)
 ---
 
 # Community uptake: win the shore regular via an Orca Network partnership
