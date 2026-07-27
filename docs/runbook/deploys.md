@@ -75,6 +75,18 @@ Preview card images come from a **regional Lambda behind a Function URL**, not f
 
 To render a card locally without deploying: `cd infra && npm run build && node lib/card-renderer/cli.js point <lon> <lat> out.jpg` (no credentials needed), or `occurrence <id>` / `day <YYYY-MM-DD>` with `SUPABASE_URL` and `SUPABASE_ANON_KEY` set.
 
+**After changing the renderer, look at a card — do not just check the response.** A card whose text is entirely missing-glyph boxes is still a valid JPEG of normal size, so status, `content-type` and byte-count assertions all pass. That is how a fontless build reached production on 2026-07-27. A local render proves nothing here either: macOS supplies system fonts the Lambda does not have. To reproduce the Lambda's environment, render from the built bundle in a bare Linux container:
+
+```sh
+docker run --rm --platform linux/amd64 \
+  -v "$PWD/lib/card-renderer/bundle:/bundle:ro" -v /tmp:/out \
+  -e FONTCONFIG_PATH=/bundle/fonts -w /bundle node:24-slim \
+  node -e 'import("/bundle/cards.js").then(async m => require("fs").writeFileSync("/out/card.jpg",
+    await m.renderOccurrenceCard({id:"t",location:{lon:-123.09,lat:48.61},observedAt:"2026-07-26T18:00:00Z",species:"Orca",count:3})))'
+```
+
+Dropping `-e FONTCONFIG_PATH` reproduces the boxes, which is the check that the check works.
+
 ## Caching notes
 
 - **Viewer-request Lambda responses are never cached by CloudFront** — each request re-runs the current function version, so once the distribution shows `Deployed`, the new behaviour is live everywhere. (Contrast: static assets passed through to S3 *are* cached per-POP; `aws cloudfront create-invalidation --paths '/some-asset.jpg'` clears them.)

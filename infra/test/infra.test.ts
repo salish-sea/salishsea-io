@@ -112,6 +112,17 @@ describe('InfraStack', () => {
       });
     });
 
+    it('points fontconfig at the bundled fonts', () => {
+      // The Lambda image has no fonts. Without this, librsvg draws every glyph
+      // as a .notdef box and still returns a valid JPEG of plausible size — so
+      // status, content-type and byte-count checks all pass while the card is
+      // unreadable. That reached production on 2026-07-27.
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Handler: 'handler.handler',
+        Environment: { Variables: Match.objectLike({ FONTCONFIG_PATH: '/var/task/fonts' }) },
+      });
+    });
+
     it('gives the renderer the Supabase config it reads at runtime', () => {
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'handler.handler',

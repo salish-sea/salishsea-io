@@ -41,6 +41,16 @@ if (runtime.length === 0) {
 }
 for (const file of runtime) cpSync(join(source, file), join(bundle, file));
 
+// Fonts must ship with the function: the Lambda image has none, and without
+// them every glyph on a card renders as a .notdef box while the response stays
+// a perfectly valid JPEG. FONTCONFIG_PATH points here (see infra-stack.ts).
+cpSync(join(source, 'fonts'), join(bundle, 'fonts'), { recursive: true });
+for (const required of ['DejaVuSans.ttf', 'DejaVuSans-Bold.ttf', 'fonts.conf']) {
+  if (!existsSync(join(bundle, 'fonts', required))) {
+    throw new Error(`font bundle incomplete: ${required} missing — cards would render as boxes`);
+  }
+}
+
 // sharp's version tracks infra's own dependency so the bundle can't drift from
 // what the tests ran against.
 const { dependencies } = JSON.parse(
