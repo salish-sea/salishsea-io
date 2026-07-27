@@ -1,0 +1,29 @@
+[
+  {
+    "slug": "haro-strait",
+    "species": "Humpback Whale",
+    "date": "Jul 26, 2026",
+    "count": null,
+    "lon": -123.0882071197,
+    "lat": 48.6132391603,
+    "zooms": [9, 11]
+  },
+  {
+    "slug": "juan-de-fuca",
+    "species": "Humpback Whale",
+    "date": "Jul 27, 2026",
+    "count": 3,
+    "lon": -123.75967,
+    "lat": 48.27162,
+    "zooms": [9, 11]
+  },
+  {
+    "slug": "monterey-outlier",
+    "species": "Harbor Seal",
+    "date": "Jul 26, 2026",
+    "count": null,
+    "lon": -121.8944033333,
+    "lat": 36.60593,
+    "zooms": [9]
+  }
+]
