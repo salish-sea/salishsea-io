@@ -24,14 +24,10 @@ const FULL_VOLUME_DIAMETER = 72;
 
 type Counts = Map<string, number>;
 
-/**
- * A month calendar for picking the observation date, where each day carries a
- * circle sized by that day's sighting volume — so the shape of the season is
- * visible while choosing, and quiet days are obvious before they're clicked.
- *
- * Emits `date-selected` (bubbling, composed) with an ISO date string, the same
- * event the day-stepping buttons and the sighting form use.
- */
+/** Wraps a step arrow's path in the icon set's shared viewBox. */
+export const stepIcon = (path: unknown) =>
+  html`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" aria-hidden="true">${path}</svg>`;
+
 /**
  * The date picker's arrow buttons — month steppers here, day steppers in
  * obs-panel. Lit styles are scoped per component, so the rule lives here as a
@@ -41,10 +37,6 @@ type Counts = Map<string, number>;
  * step the label between them, so boxing them like the "Go to…" select would
  * overstate them and give the picker three competing button treatments.
  */
-/** Wraps a step arrow's path in the icon set's shared viewBox. */
-export const stepIcon = (path: unknown) =>
-  html`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" aria-hidden="true">${path}</svg>`;
-
 export const stepButtonStyles = css`
   .step {
     align-items: center;
@@ -80,6 +72,14 @@ export const stepButtonStyles = css`
   }
 `;
 
+/**
+ * A month calendar for picking the observation date, where each day carries a
+ * circle sized by that day's sighting volume — so the shape of the season is
+ * visible while choosing, and quiet days are obvious before they're clicked.
+ *
+ * Emits `date-selected` (bubbling, composed) with an ISO date string, the same
+ * event the day-stepping buttons and the sighting form use.
+ */
 @customElement('date-calendar')
 export class DateCalendar extends LitElement {
   static styles = [stepButtonStyles, css`
@@ -219,6 +219,14 @@ export class DateCalendar extends LitElement {
   /** Months already requested, so paging back and forth doesn't refetch. */
   #fetched = new Set<string>();
 
+  /**
+   * Bumped by {@link refresh}. A request that was in flight when the counts were
+   * invalidated carries the old generation and is dropped on arrival — without
+   * this it would resolve after the refetch it raced and write its stale counts
+   * back over the fresh ones.
+   */
+  #generation = 0;
+
   /** Day an arrow key moved to, awaiting focus once it has been rendered. */
   #pendingFocus: string | null = null;
 
@@ -252,6 +260,7 @@ export class DateCalendar extends LitElement {
 
   /** Drop cached counts and refetch, e.g. after the user saves a sighting. */
   refresh(): void {
+    this.#generation++;
     this.#fetched.clear();
     this.counts = new Map();
     this.fetchCounts(this.month);
@@ -352,6 +361,7 @@ export class DateCalendar extends LitElement {
   }
 
   private async fetchCounts(month: Temporal.PlainYearMonth) {
+    const generation = this.#generation;
     const key = month.toString();
     if (this.#fetched.has(key))
       return;
@@ -368,6 +378,12 @@ export class DateCalendar extends LitElement {
       .select()
       .gte('day', from)
       .lte('day', to);
+
+    // Superseded by a refresh while in flight. Bail before the error branch too:
+    // this request's key was cleared by refresh() and re-added by the request
+    // that replaced it, so deleting it here would evict a live entry.
+    if (generation !== this.#generation)
+      return;
 
     if (error) {
       // A calendar without circles is still a usable date picker; leave it bare.
