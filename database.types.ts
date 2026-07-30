@@ -733,6 +733,13 @@ export type Database = {
         }
         Relationships: []
       }
+      occurrence_days: {
+        Row: {
+          day: string | null
+          occurrence_count: number | null
+        }
+        Relationships: []
+      }
       occurrence_identifications: {
         Row: {
           asserted_by_party_id: number | null
