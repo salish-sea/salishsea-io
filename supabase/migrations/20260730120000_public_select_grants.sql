@@ -2,7 +2,8 @@
 --
 -- These 17 relations carry SELECT for anon/authenticated in production, but no
 -- migration ever granted them. Production has 48 such grants; a database built
--- from migrations alone had 15, and its REST API answered
+-- from migrations alone had 14 -- the 34 below (17 relations x 2 roles) were
+-- missing entirely -- and its REST API answered
 --
 --   permission denied for view occurrences
 --
