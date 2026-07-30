@@ -6,8 +6,8 @@ import { Temporal } from "temporal-polyfill";
 import { supabase } from "./supabase.ts";
 import { chevronLeftIcon, chevronRightIcon } from "./icons.ts";
 import { monthGrid, volumeScale, WEEKDAY_INITIALS } from "./calendar.ts";
+import { observationToday } from "./constants.ts";
 
-const today = Temporal.Now.plainDateISO('PST8PDT');
 /** Matches the old date input's `min`; nothing in the corpus predates it by much. */
 const earliest = Temporal.PlainDate.from('2000-01-01');
 
@@ -210,7 +210,7 @@ export class DateCalendar extends LitElement {
 
   /** The month on screen. Follows `date` unless the user has paged away from it. */
   @state()
-  private month: Temporal.PlainYearMonth = today.toPlainYearMonth();
+  private month: Temporal.PlainYearMonth = observationToday().toPlainYearMonth();
 
   /** Day (`YYYY-MM-DD`) → sighting count, for every month fetched so far. */
   @state()
@@ -267,6 +267,9 @@ export class DateCalendar extends LitElement {
   }
 
   protected render() {
+    // Read once per render, not once per module load, so a tab open across
+    // local midnight starts offering the new day.
+    const today = observationToday();
     const selected = this.date ? Temporal.PlainDate.from(this.date) : null;
     const days = monthGrid(this.month);
     const firstOfMonth = this.month.toPlainDate({day: 1});
@@ -287,12 +290,17 @@ export class DateCalendar extends LitElement {
         ${WEEKDAY_INITIALS.map(d => html`<span>${d}</span>`)}
       </div>
       <div class="grid" role="group" aria-label="Observation date" @keydown=${this.onKeydown}>
-        ${days.map(day => this.renderDay(day, selected, tabbable))}
+        ${days.map(day => this.renderDay(day, selected, tabbable, today))}
       </div>
     `;
   }
 
-  private renderDay(day: Temporal.PlainDate, selected: Temporal.PlainDate | null, tabbable: Temporal.PlainDate) {
+  private renderDay(
+    day: Temporal.PlainDate,
+    selected: Temporal.PlainDate | null,
+    tabbable: Temporal.PlainDate,
+    today: Temporal.PlainDate,
+  ) {
     const iso = day.toString();
     const count = this.counts.get(iso) ?? 0;
     const disabled = Temporal.PlainDate.compare(day, today) > 0
@@ -353,7 +361,8 @@ export class DateCalendar extends LitElement {
     if (!from)
       return;
     const target = Temporal.PlainDate.from(from).add({days: step});
-    if (Temporal.PlainDate.compare(target, today) > 0 || Temporal.PlainDate.compare(target, earliest) < 0)
+    if (Temporal.PlainDate.compare(target, observationToday()) > 0
+      || Temporal.PlainDate.compare(target, earliest) < 0)
       return;
     e.preventDefault();
     this.#pendingFocus = target.toString();

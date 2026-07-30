@@ -1,3 +1,24 @@
+import { Temporal } from "temporal-polyfill";
+
+/**
+ * Every calendar date this app shows is a *local* date in the Salish Sea, not in
+ * the viewer's zone: `?d=`, the occurrences query's day boundaries, the DwC
+ * export, and `occurrence_days`. A viewer in Tokyo asking for July 30 means the
+ * region's July 30.
+ */
+export const OBSERVATION_TIME_ZONE = 'PST8PDT';
+
+/**
+ * Today, in the zone above.
+ *
+ * Call this — don't hoist it into a module constant. A module constant is
+ * evaluated once at load, and this is a long-lived SPA: a tab left open across
+ * local midnight would keep offering yesterday as the latest day there is.
+ */
+export function observationToday(): Temporal.PlainDate {
+  return Temporal.Now.plainDateISO(OBSERVATION_TIME_ZONE);
+}
+
 /**
  *  [minx, miny, maxx, maxy]
  */
