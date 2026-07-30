@@ -16,9 +16,19 @@
 # Why the exclusions below exist
 #
 #   cron.job, cron.job_run_details
-#       Prod schedules ingest-maplify and ingest-inaturalist every 5 minutes,
-#       each doing net.http_post to a secret URL. Mirroring them would make a
-#       laptop start hammering that endpoint on a timer.
+#       Prod's job rows and their run history. Note this exclusion alone does
+#       NOT stop the ingest jobs locally: migration 20260706000000 schedules
+#       ingest-maplify and ingest-inaturalist itself, so `db reset` recreates
+#       them every time. What actually keeps a laptop from calling the
+#       production ingest endpoint every 5 minutes is that both job bodies are
+#       guarded by
+#           WHERE EXISTS (SELECT 1 FROM vault.decrypted_secrets
+#                         WHERE name = 'ingest_function_url')
+#       and the CLI excludes `vault` from dumps, so the local vault stays
+#       empty and net.http_post never runs. That is one guard deep. This
+#       script unschedules the two ingest jobs after the reset as well, so
+#       populating the local vault for some unrelated reason cannot silently
+#       turn a dev box into a fifth ingest worker.
 #
 #   net.http_request_queue, net._http_response
 #       Transient pg_net plumbing for the jobs above.
@@ -63,8 +73,16 @@
 
 set -euo pipefail
 
+# The dump contains production auth rows and contributor records. Keep it in a
+# private directory, mode 0700, and delete it on the way out however we exit --
+# a predictable path in a shared /tmp, left behind after the run, is the sort of
+# thing nobody notices until it matters.
+umask 077
+DUMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/salishsea-prod-data.XXXXXX")"
+trap 'rm -rf "$DUMP_DIR"' EXIT
+
 LOCAL_DB="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
-DUMP="${TMPDIR:-/tmp}/salishsea-prod-data.sql"
+DUMP="$DUMP_DIR/data.sql"
 
 EXCLUDES=(
   -x gis.spatial_ref_sys
@@ -85,6 +103,13 @@ echo "    $(du -h "$DUMP" | cut -f1) -> $DUMP"
 echo "==> Resetting local database (applying migrations, no seed)"
 npx supabase db reset --no-seed >/dev/null
 
+# Only the two ingest jobs. The matview refresh jobs and nightly-vacuum are
+# useful locally and harmless -- they touch nothing outside this database.
+echo "==> Unscheduling local ingest cron jobs"
+psql "$LOCAL_DB" -q -v ON_ERROR_STOP=1 -c "
+SELECT cron.unschedule(jobid) FROM cron.job
+WHERE jobname IN ('ingest-maplify', 'ingest-inaturalist');" >/dev/null
+
 echo "==> Applying local drift workaround"
 psql "$LOCAL_DB" -q -v ON_ERROR_STOP=1 \
   -c "ALTER TABLE happywhale.individuals ALTER COLUMN nickname TYPE varchar(100);"
@@ -94,7 +119,16 @@ psql "$LOCAL_DB" -q -v ON_ERROR_STOP=1 \
 # organizations, collections) and the `media` storage bucket. Clear exactly the
 # tables the dump will load, or those primary keys collide.
 echo "==> Clearing migration-seeded rows"
-TABLES=$(grep -oE '^COPY "[^"]+"\."[^"]+"' "$DUMP" | sed 's/^COPY //; s/"//g' | sort -u)
+# The CLI currently passes --quote-all-identifier, so every COPY header is
+# fully quoted -- but do not depend on a flag we do not control. Accept quoted
+# and bare identifiers on either side of the dot, and fail loudly if the parse
+# yields nothing rather than building a malformed TRUNCATE.
+TABLES=$(grep -oE '^COPY (")?[A-Za-z_][A-Za-z0-9_]*(")?\.(")?[A-Za-z_][A-Za-z0-9_]*(")?' "$DUMP" \
+  | sed 's/^COPY //; s/"//g' | sort -u)
+if [ -z "$TABLES" ]; then
+  echo "ERROR: could not parse any COPY headers from $DUMP -- the dump format changed." >&2
+  exit 1
+fi
 TRUNCATE_LIST=$(echo "$TABLES" | grep -v '^storage\.' | paste -sd, -)
 psql "$LOCAL_DB" -q -v ON_ERROR_STOP=1 \
   -c "SET session_replication_role = replica; TRUNCATE TABLE $TRUNCATE_LIST CASCADE;"
@@ -105,6 +139,28 @@ psql "$LOCAL_DB" -q -v ON_ERROR_STOP=1 \
 
 echo "==> Loading production data"
 psql "$LOCAL_DB" -v ON_ERROR_STOP=1 -q -f "$DUMP"
+
+# auth.users arrives with encrypted_password intact. GoTrue verifies that bcrypt
+# hash directly against a submitted password -- it does not involve the JWT
+# signing secret -- so without this step anyone with the local stack could log in
+# as a real production user using that user's real production password. The
+# differing local JWT secret only invalidates already-issued tokens, which is a
+# much weaker property than it sounds like.
+#
+# The rows stay (contributors reference them); only the credentials go.
+echo "==> Stripping credentials from imported auth rows"
+psql "$LOCAL_DB" -q -v ON_ERROR_STOP=1 <<'SQL' >/dev/null
+UPDATE auth.users SET
+  encrypted_password         = NULL,
+  confirmation_token         = NULL,
+  recovery_token             = NULL,
+  email_change_token_new     = NULL,
+  email_change_token_current = NULL,
+  phone_change_token         = NULL,
+  reauthentication_token     = NULL;
+DELETE FROM auth.sessions;
+DELETE FROM auth.refresh_tokens;
+SQL
 
 # Prod carries ~33 SELECT grants to anon/authenticated that NO migration
 # reproduces (see "Known drift" #3 below). Without them the local REST API
@@ -144,7 +200,12 @@ UNION ALL SELECT 'auth.users',                  count(*) FROM auth.users;"
 cat <<'EOF'
 
 NOTE: this is real production data, including auth.users and contributor
-records. It is on your laptop now. The local stack signs its own JWTs with a
-different secret, so prod sessions and passwords do not carry over, but the
-rows themselves are real.
+records. It is on your laptop now, and the contributor rows carry real email
+addresses.
+
+Credentials have been stripped: password hashes and pending email/phone/
+recovery tokens are nulled, and sessions and refresh tokens deleted, so nobody
+can log in locally as a production user. That is the only thing neutralised —
+the data itself is real. Treat this database accordingly, and do not point
+anything public at it.
 EOF
