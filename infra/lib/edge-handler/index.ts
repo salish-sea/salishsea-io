@@ -41,7 +41,8 @@ const FETCH_TIMEOUT_MS = 3000;
 // How long the first real fetch will wait for the init warmup before giving up
 // and opening its own connection. Spent FROM the deadline above, never added to
 // it (see timedFetch) — the total network budget stays 3s.
-const WARMUP_WAIT_MS = 1000;
+// Exported so the tests assert against the real budget instead of restating it.
+export const WARMUP_WAIT_MS = 1000;
 
 // Floor on what's left for the fetch after waiting. A near-zero deadline would
 // abort instantly and fail open, which is worse than slightly overrunning the

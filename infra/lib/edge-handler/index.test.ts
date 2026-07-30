@@ -6,7 +6,7 @@ jest.mock('./config', () => ({
   get SUPABASE_ANON_KEY() { return (globalThis as any).__testSupabaseKey ?? 'test-key'; },
 }));
 
-import { handler } from './index';
+import { handler, WARMUP_WAIT_MS } from './index';
 
 // The handler emits structured JSON log lines (og-fetch, og-fail-open, …);
 // keep test output clean while leaving the spies available for assertions.
@@ -307,7 +307,7 @@ describe('Lambda@Edge OG meta handler', () => {
 
         const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
         const pending = mod.handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
-        await jest.advanceTimersByTimeAsync(1000); // WARMUP_WAIT_MS
+        await jest.advanceTimersByTimeAsync(WARMUP_WAIT_MS);
         const result = await pending;
 
         expect(result.status).toBe('200');
@@ -317,25 +317,52 @@ describe('Lambda@Edge OG meta handler', () => {
         // Waited the full cap and no longer — and that time came out of the
         // fetch's own deadline rather than extending the total budget.
         const line = logSpy.mock.calls.map(c => String(c[0])).find(m => m.includes('"og-fetch"'));
-        expect(JSON.parse(line!)).toMatchObject({ msg: 'og-fetch', warmupMs: 1000 });
+        expect(JSON.parse(line!)).toMatchObject({ msg: 'og-fetch', warmupMs: WARMUP_WAIT_MS });
       } finally {
         jest.useRealTimers();
       }
     });
 
     it('does not wait again once a fetch has already waited out the warmup', async () => {
-      const { mod, fetchSpy } = loadInLambda(
-        async () => ({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(0) } as Response),
-      );
-      fetchSpy.mockResolvedValue(occurrenceResponse);
+      jest.useFakeTimers();
+      try {
+        // The warmup must NOT settle on its own. With one that resolves
+        // immediately, waiting again is indistinguishable from not waiting —
+        // both cost ~0ms — so the only thing an elapsed-time assertion measures
+        // is clock granularity. (It measured 1ms on a loaded runner and failed a
+        // build on #352.) Stalled, the timer is the sole escape from
+        // awaitWarmup, so "didn't wait" becomes something a test can observe:
+        // the second call has to settle without any timer advancing at all.
+        const { mod, fetchSpy } = loadInLambda(() => new Promise<Response>(() => {}));
+        fetchSpy.mockResolvedValue(occurrenceResponse);
 
-      await mod.handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
+        // First invocation: pays the full cap, and consumes pendingWarmup.
+        const first = mod.handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
+        await jest.advanceTimersByTimeAsync(WARMUP_WAIT_MS);
+        await first;
 
-      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-      await mod.handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
+        // console.log is already spied in beforeEach, and spyOn hands back that
+        // same mock — so its calls still hold the first invocation's og-fetch
+        // (warmupMs 1000). Clear it, or `find` below reads the wrong line.
+        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        logSpy.mockClear();
+        let settled = false;
+        const second = mod.handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'))
+          .then((r: unknown) => { settled = true; return r; });
 
-      const line = logSpy.mock.calls.map(c => String(c[0])).find(m => m.includes('"og-fetch"'));
-      expect(JSON.parse(line!)).toMatchObject({ msg: 'og-fetch', warmupMs: 0 });
+        // Drain the microtask queue without touching the clock. Enough hops to
+        // clear the handler's await chain; a handler that waited on the warmup
+        // again is still parked on a 1000ms timer that nothing has advanced.
+        for (let i = 0; i < 20; i++) await Promise.resolve();
+        expect(settled).toBe(true);
+
+        await second;
+        const line = logSpy.mock.calls.map(c => String(c[0])).find(m => m.includes('"og-fetch"'));
+        // Exact under fake timers: the clock is frozen, so this can't flake.
+        expect(JSON.parse(line!)).toMatchObject({ msg: 'og-fetch', warmupMs: 0 });
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 
