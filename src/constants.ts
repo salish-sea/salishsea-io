@@ -1,7 +1,7 @@
 /**
  *  [minx, miny, maxx, maxy]
  */
-type Extent = [number, number, number, number];
+export type Extent = [number, number, number, number];
 
 export function isExtent(input: number[]): input is Extent {
   const [minx, miny, maxx, maxy] = input;
