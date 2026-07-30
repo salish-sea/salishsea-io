@@ -20,6 +20,17 @@ export function observationToday(): Temporal.PlainDate {
 }
 
 /**
+ * The oldest day the date controls will navigate to — inherited from the `min`
+ * on the date input the calendar replaced. Nothing in the corpus predates it by
+ * much (earliest occurrence: 2012).
+ *
+ * Every control that moves the day shares this bound and {@link observationToday}
+ * as its other end. Miss one and it walks the selection outside the range the
+ * calendar will render, which is how the day steppers ended up able to leave it.
+ */
+export const EARLIEST_OBSERVATION_DATE = Temporal.PlainDate.from('2000-01-01');
+
+/**
  *  [minx, miny, maxx, maxy]
  */
 export type Extent = [number, number, number, number];

@@ -6,10 +6,7 @@ import { Temporal } from "temporal-polyfill";
 import { supabase } from "./supabase.ts";
 import { chevronLeftIcon, chevronRightIcon } from "./icons.ts";
 import { monthGrid, volumeScale, WEEKDAY_INITIALS } from "./calendar.ts";
-import { observationToday } from "./constants.ts";
-
-/** Matches the old date input's `min`; nothing in the corpus predates it by much. */
-const earliest = Temporal.PlainDate.from('2000-01-01');
+import { EARLIEST_OBSERVATION_DATE, observationToday } from "./constants.ts";
 
 const MONTH_LABEL = {month: 'long', year: 'numeric'} as const;
 const DAY_LABEL = {weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'} as const;
@@ -273,7 +270,7 @@ export class DateCalendar extends LitElement {
     const selected = this.date ? Temporal.PlainDate.from(this.date) : null;
     const days = monthGrid(this.month);
     const firstOfMonth = this.month.toPlainDate({day: 1});
-    const prevDisabled = Temporal.PlainYearMonth.compare(this.month, earliest.toPlainYearMonth()) <= 0;
+    const prevDisabled = Temporal.PlainYearMonth.compare(this.month, EARLIEST_OBSERVATION_DATE.toPlainYearMonth()) <= 0;
     const nextDisabled = Temporal.PlainYearMonth.compare(this.month, today.toPlainYearMonth()) >= 0;
     // Roving tabindex: one tab stop for the whole grid, on the selected day. If
     // the user has paged away from it, the 1st of the month takes the stop —
@@ -304,7 +301,7 @@ export class DateCalendar extends LitElement {
     const iso = day.toString();
     const count = this.counts.get(iso) ?? 0;
     const disabled = Temporal.PlainDate.compare(day, today) > 0
-      || Temporal.PlainDate.compare(day, earliest) < 0;
+      || Temporal.PlainDate.compare(day, EARLIEST_OBSERVATION_DATE) < 0;
 
     const written = day.toLocaleString(undefined, DAY_LABEL);
     const label = disabled
@@ -362,7 +359,7 @@ export class DateCalendar extends LitElement {
       return;
     const target = Temporal.PlainDate.from(from).add({days: step});
     if (Temporal.PlainDate.compare(target, observationToday()) > 0
-      || Temporal.PlainDate.compare(target, earliest) < 0)
+      || Temporal.PlainDate.compare(target, EARLIEST_OBSERVATION_DATE) < 0)
       return;
     e.preventDefault();
     this.#pendingFocus = target.toString();

@@ -12,7 +12,7 @@ import { classMap } from "lit/directives/class-map.js";
 import SightingForm, { newSighting, observationToFormData } from "./sighting-form.ts";
 import { v7 } from "uuid";
 import { type Occurrence } from "./types.ts";
-import { observationToday, pugetSoundExtent, salishSRKWExtent, sanJuansExtent, srkwExtent, type Extent } from "./constants.ts";
+import { EARLIEST_OBSERVATION_DATE, observationToday, pugetSoundExtent, salishSRKWExtent, sanJuansExtent, srkwExtent, type Extent } from "./constants.ts";
 import { createRef, ref } from "lit/directives/ref.js";
 
 /** The date the calendar has selected, spelled out for the day-stepping row. */
@@ -186,15 +186,17 @@ export class ObsPanel extends LitElement {
 
   protected render() {
     const {id, ...sighting} = this.sightingForForm;
-    // The same Pacific today the calendar disables its future cells against, so
-    // the stepper and the grid agree on where "today" ends.
-    const atToday = this.date === observationToday().toString();
+    // The same bounds the calendar disables its cells against, so the steppers
+    // and the grid agree on where the navigable range ends.
+    const selected = Temporal.PlainDate.from(this.date);
+    const atToday = Temporal.PlainDate.compare(selected, observationToday()) >= 0;
+    const atEarliest = Temporal.PlainDate.compare(selected, EARLIEST_OBSERVATION_DATE) <= 0;
     return html`
       <header>
         <h2>Marine Mammal Observations</h2>
         <date-calendar ${ref(this.calendarRef)} date=${this.date}></date-calendar>
         <div class="day-nav">
-          <button class="step" @click=${this.onGotoYesterday} type="button" name="yesterday" aria-label="Previous day">${stepIcon(chevronLeftIcon)}</button>
+          <button class="step" @click=${this.onGotoYesterday} type="button" name="yesterday" ?disabled=${atEarliest} aria-label="Previous day">${stepIcon(chevronLeftIcon)}</button>
           <span class="selected-date">${Temporal.PlainDate.from(this.date).toLocaleString(undefined, SELECTED_DATE_LABEL)}</span>
           <button class="step" @click=${this.onGotoTomorrow} type="button" name="tomorrow" ?disabled=${atToday} aria-label="Next day">${stepIcon(chevronRightIcon)}</button>
         </div>
@@ -256,21 +258,23 @@ export class ObsPanel extends LitElement {
     this.calendarRef.value?.refresh();
   }
 
+  // Both steppers guard as well as disable. The upper bound moves while the page
+  // is open (a tab left running past local midnight), and a guard here is the
+  // only thing standing between a stray step and a date the calendar won't
+  // render — it disables every cell outside the range, so the selection lands
+  // somewhere the grid can't show and the occurrences query returns nothing for.
   private onGotoYesterday() {
     const date = Temporal.PlainDate.from(this.date).subtract({days: 1});
-    const dateSelected = new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date.toString()})
-    this.dispatchEvent(dateSelected);
+    if (Temporal.PlainDate.compare(date, EARLIEST_OBSERVATION_DATE) < 0)
+      return;
+    this.dispatchEvent(new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date.toString()}));
   }
 
   private onGotoTomorrow() {
     const date = Temporal.PlainDate.from(this.date).add({days: 1});
-    // Guard as well as disable: `today` moves while the page is open, so a tab
-    // left running past local midnight-minus-one-day could otherwise step into
-    // a day the calendar greys out and the occurrences query returns nothing for.
     if (Temporal.PlainDate.compare(date, observationToday()) > 0)
       return;
-    const dateSelected = new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date.toString()})
-    this.dispatchEvent(dateSelected);
+    this.dispatchEvent(new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date.toString()}));
   }
 
   private goToExtent(extent: Extent) {
