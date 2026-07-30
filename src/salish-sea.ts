@@ -20,7 +20,7 @@ import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
 import { fromLonLat } from 'ol/proj.js';
-import { isExtent } from "./constants.ts";
+import { isExtent, observationToday } from "./constants.ts";
 import { ObsPanel } from "./obs-panel.ts";
 import { createRef, ref } from "lit/directives/ref.js";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -37,7 +37,7 @@ function parseUrlParams(searchParams: URLSearchParams) {
   const dateParam = searchParams.get('d');
   const date = dateParam && dateRE.test(dateParam)
     ? dateParam
-    : Temporal.Now.plainDateISO('PST8PDT').toString();
+    : observationToday().toString();
 
   const x = parseFloat(searchParams.get('x') || '');
   const y = parseFloat(searchParams.get('y') || '');

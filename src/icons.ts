@@ -5,3 +5,10 @@ export const cameraAddIcon = svg`<path d="M440-440ZM120-120q-33 0-56.5-23.5T40-2
 export const clickTargetIcon = svg`<path d="M468-240q-96-5-162-74t-66-166q0-100 70-170t170-70q97 0 166 66t74 162l-84-25q-13-54-56-88.5T480-640q-66 0-113 47t-47 113q0 57 34.5 100t88.5 56l25 84Zm48 158q-9 2-18 2h-18q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480v18q0 9-2 18l-78-24v-12q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93h12l24 78Zm305 22L650-231 600-80 480-480l400 120-151 50 171 171-79 79Z"/>`;
 export const locateMeIcon = svg`<path d="M440-42v-80q-125-14-214.5-103.5T122-440H42v-80h80q14-125 103.5-214.5T440-838v-80h80v80q125 14 214.5 103.5T838-520h80v80h-80q-14 125-103.5 214.5T520-122v80h-80Zm40-158q116 0 198-82t82-198q0-116-82-198t-198-82q-116 0-198 82t-82 198q0 116 82 198t198 82Zm0-120q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T560-480q0-33-23.5-56.5T480-560q-33 0-56.5 23.5T400-480q0 33 23.5 56.5T480-400Zm0-80Z"/>`;
 export const linkIcon = svg`<path d="M440-280H280q-83 0-141.5-58.5T80-480q0-83 58.5-141.5T280-680h160v80H280q-50 0-85 35t-35 85q0 50 35 85t85 35h160v80ZM320-440v-80h320v80H320Zm200 160v-80h160q50 0 85-35t35-85q0-50-35-85t-85-35H520v-80h160q83 0 141.5 58.5T880-480q0 83-58.5 141.5T680-280H520Z"/>`;
+// Stepper arrows for the date picker. Drawn rather than set as ◀/▶ (U+25C0 /
+// U+25B6): neither Mukta nor Helvetica carries those glyphs, so each fell
+// through to a per-glyph font fallback that differs by machine and gave the two
+// arrows different advance widths (12px vs 10.56px at 12px in Chromium). These
+// are exact mirrors of each other on every platform.
+export const chevronLeftIcon = svg`<path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/>`;
+export const chevronRightIcon = svg`<path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/>`;

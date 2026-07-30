@@ -1,7 +1,39 @@
+import { Temporal } from "temporal-polyfill";
+
+/**
+ * Every calendar date this app shows is a *local* date in the Salish Sea, not in
+ * the viewer's zone: `?d=`, the occurrences query's day boundaries, the DwC
+ * export, and `occurrence_days`. A viewer in Tokyo asking for July 30 means the
+ * region's July 30.
+ */
+export const OBSERVATION_TIME_ZONE = 'PST8PDT';
+
+/**
+ * Today, in the zone above.
+ *
+ * Call this — don't hoist it into a module constant. A module constant is
+ * evaluated once at load, and this is a long-lived SPA: a tab left open across
+ * local midnight would keep offering yesterday as the latest day there is.
+ */
+export function observationToday(): Temporal.PlainDate {
+  return Temporal.Now.plainDateISO(OBSERVATION_TIME_ZONE);
+}
+
+/**
+ * The oldest day the date controls will navigate to — inherited from the `min`
+ * on the date input the calendar replaced. Nothing in the corpus predates it by
+ * much (earliest occurrence: 2012).
+ *
+ * Every control that moves the day shares this bound and {@link observationToday}
+ * as its other end. Miss one and it walks the selection outside the range the
+ * calendar will render, which is how the day steppers ended up able to leave it.
+ */
+export const EARLIEST_OBSERVATION_DATE = Temporal.PlainDate.from('2000-01-01');
+
 /**
  *  [minx, miny, maxx, maxy]
  */
-type Extent = [number, number, number, number];
+export type Extent = [number, number, number, number];
 
 export function isExtent(input: number[]): input is Extent {
   const [minx, miny, maxx, maxy] = input;

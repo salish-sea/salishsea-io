@@ -24,3 +24,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [018](018-inat-id-keyset-pagination.md) | iNaturalist ingest paginates by id-keyset, not page number (amends 011) | accepted |
 | [019](019-no-fallback-preview-image.md) | No fallback link-preview image: `og:image` only for a photo of the thing shared | accepted |
 | [020](020-map-preview-cards.md) | Map-rendered link preview cards; Esri basemap, day cards, basemap sourcing | accepted |
+| [021](021-calendar-date-picker.md) | Calendar date picker; day circles sized by sighting volume, live `occurrence_days` view | accepted |
