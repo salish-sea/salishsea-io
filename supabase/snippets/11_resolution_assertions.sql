@@ -215,6 +215,14 @@ END $$;
 -- SC#5 (structural/plan 11-04): update_sightings calls resolve_collection;
 --   iNat MERGE mints contributor in NOT MATCHED INSERT only (D-16/Pitfall 6).
 --
+-- ⚠️ OBSOLETE as of migration 20260731120000. maplify.update_sightings and the
+-- iNaturalist ingest functions no longer exist — ingest moved into the Edge
+-- Function (decision 011) and the in-database HTTP path was retired. The SC#5
+-- blocks below will fail with "function does not exist" against any current
+-- database. They are left in place because this file documents the Phase 11
+-- verification as it was performed; the resolution behaviour they asserted now
+-- lives in supabase/functions/ingest and is covered by its own tests.
+--
 -- These assertions verify the ingest function edits from plan 11-04
 -- (20260620000200_resolution_ingest.sql) without hitting live HTTP endpoints.
 -- Structural check via pg_get_functiondef: confirms the functions were replaced
@@ -224,7 +232,22 @@ END $$;
 -- is not suitable for local CI (requires external HTTP; may be unavailable).
 -- The structural assertion is the correct local verification mode (RESEARCH Pitfall 7).
 -- =====================================================================
-\echo SC#5a: update_sightings function body contains maplify.resolve_collection
+/* ---------------------------------------------------------------------
+   SC#5a and SC#5b are COMMENTED OUT, not merely annotated.
+
+   They inspect the bodies of maplify.update_sightings and
+   inaturalist.upsert_observation_page, which migration 20260731120000
+   dropped. Left executable they raise on any current database, and because
+   this file sets ON_ERROR_STOP the script would abort here — taking the
+   still-valid assertions after it down too.
+
+   Kept verbatim below as the record of what Phase 11 verified. The
+   behaviour they asserted (collection resolution, and minting a
+   contributor on insert without overwriting it on update) now lives in
+   supabase/functions/ingest and is covered by its own tests.
+   --------------------------------------------------------------------- */
+-- \echo SC#5a: update_sightings function body contains maplify.resolve_collection
+/*
 DO $$
 DECLARE
   fn_body TEXT;
@@ -246,7 +269,7 @@ BEGIN
   END IF;
 END $$;
 
-\echo SC#5b: upsert_observation_page MERGE INSERT mints contributor; MATCHED UPDATE does not overwrite it
+-- \echo SC#5b: upsert_observation_page MERGE INSERT mints contributor; MATCHED UPDATE does not overwrite it
 DO $$
 DECLARE
   fn_body TEXT;
@@ -282,6 +305,8 @@ BEGIN
     RAISE EXCEPTION 'SC#5b FAIL: WHEN MATCHED UPDATE includes contributor_id — Pitfall 6 violated (existing rows must keep their backfilled contributor_id)';
   END IF;
 END $$;
+*/
+-- end of the commented-out SC#5a / SC#5b blocks
 
 -- =====================================================================
 -- PROD-ONLY: diff-gate assertion (D-08)

@@ -1,15 +1,29 @@
-INSERT INTO happywhale.species (code, name, plural, scientific)
-SELECT code, name, plural, scientific FROM happywhale.fetch_species_config();
-
-select *
-FROM inaturalist.fetch_observation_page(
-  current_date - 30,
-  current_date,
-  gis.ST_MakeBox2D(gis.ST_Point(-136, 36), gis.ST_Point(-120, 54)),
-  array[152871, 372843],
-  1,
-  1),
-inaturalist.upsert_observation_page(results) ups;
-
-
-SELECT * FROM maplify.update_sightings(current_date - 10, current_date);
+-- Intentionally empty.
+--
+-- This file used to bootstrap a freshly reset database by calling
+-- maplify.update_sightings, inaturalist.fetch_observation_page and
+-- happywhale.fetch_species_config — in-database functions that made live HTTP
+-- requests to the Maplify, iNaturalist and HappyWhale APIs.
+--
+-- Two things were wrong with that. The Maplify and iNaturalist ones no longer
+-- exist: ingest moved into the Edge Function (decision 011) and the dead
+-- in-database path was retired in migration 20260731120000. And `supabase db
+-- start` runs this file, so every CI build was making live calls to three
+-- third-party APIs to populate a database that build.yml then seeds properly
+-- from supabase/ci-seed.sql anyway — slow, and a source of flakiness entirely
+-- outside our control.
+--
+-- To get data into a local database, pick whichever fits:
+--
+--   ./scripts/pull-prod-db.sh
+--       A full mirror of production, ~45 seconds. What you want when the shape
+--       of real data matters. Auth credentials are stripped on the way in.
+--
+--   psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+--        -v ON_ERROR_STOP=1 -f supabase/ci-seed.sql
+--       The small synthetic fixture CI uses. Deterministic, no network, no real
+--       people in it. What you want for tests.
+--
+--   supabase functions serve, then invoke the ingest function
+--       Exercises the real ingest path against the live APIs — deliberately,
+--       when that is the thing being tested.
