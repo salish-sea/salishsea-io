@@ -57,18 +57,19 @@
 #      out at 28. This script widens `nickname` locally so the load succeeds.
 #      `primary_id` is left alone — public.occurrences depends on it, so
 #      altering it would mean dropping and recreating the view.
-#   3. Prod grants SELECT on ~33 public relations to anon/authenticated that no
-#      migration reproduces — including public.occurrences itself. A database
-#      built from migrations alone has 15 such grants where prod has 48, and
-#      its REST API answers "permission denied for view occurrences". Prod
-#      works because the grants were applied out of band and CREATE OR REPLACE
-#      VIEW preserves existing grants, so no later migration disturbed them.
-#      This script replays prod's grants after loading (see below).
+#   3. FIXED. Prod granted SELECT on 17 public relations to anon/authenticated
+#      that no migration reproduced — 34 role-grants, including
+#      public.occurrences itself. A database built from migrations alone had 14
+#      where prod has 48, and its REST API answered "permission denied for view
+#      occurrences". Migration 20260730120000 (salish-0ew, PR #356) now ships
+#      them, so a fresh reset matches prod exactly. The grant-replay step below
+#      is therefore redundant and is kept only as a guard: if someone applies
+#      another grant to prod out of band, the mirror still works and the next
+#      person to diff prod against migrations finds the gap.
 #
-# All three are unreconciled: prod has changes that migrations do not
-# reproduce, so a rebuild of prod from migrations would NOT match prod — and in
-# the case of #3 would not serve traffic. Fixing that properly means a
-# migration, which is tracked separately.
+# 1 and 2 remain unreconciled: prod has changes that migrations do not
+# reproduce, so a rebuild of prod from migrations would still not match prod
+# byte for byte. Tracked in salish-0ew.
 # ---------------------------------------------------------------------------
 
 set -euo pipefail
@@ -162,11 +163,11 @@ DELETE FROM auth.sessions;
 DELETE FROM auth.refresh_tokens;
 SQL
 
-# Prod carries ~33 SELECT grants to anon/authenticated that NO migration
-# reproduces (see "Known drift" #3 below). Without them the local REST API
-# returns "permission denied for view occurrences" and the app is dead in the
-# water, so replay prod's grants to make the mirror actually usable.
-echo "==> Replaying production grants"
+# Redundant since migration 20260730120000 shipped prod's grants (drift #3
+# above). Kept as a guard against the same thing happening again: any grant
+# applied to prod out of band still lands in the mirror, so local keeps working
+# and the divergence is recoverable rather than a mystery.
+echo "==> Replaying production grants (redundant guard, see drift #3)"
 npx supabase db query --linked "
 SELECT format('GRANT %s ON %I.%I TO %I;', privilege_type, table_schema, table_name, grantee) AS stmt
 FROM information_schema.role_table_grants
