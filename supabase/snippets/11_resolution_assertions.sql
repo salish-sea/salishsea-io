@@ -232,7 +232,22 @@ END $$;
 -- is not suitable for local CI (requires external HTTP; may be unavailable).
 -- The structural assertion is the correct local verification mode (RESEARCH Pitfall 7).
 -- =====================================================================
-\echo SC#5a: update_sightings function body contains maplify.resolve_collection
+/* ---------------------------------------------------------------------
+   SC#5a and SC#5b are COMMENTED OUT, not merely annotated.
+
+   They inspect the bodies of maplify.update_sightings and
+   inaturalist.upsert_observation_page, which migration 20260731120000
+   dropped. Left executable they raise on any current database, and because
+   this file sets ON_ERROR_STOP the script would abort here — taking the
+   still-valid assertions after it down too.
+
+   Kept verbatim below as the record of what Phase 11 verified. The
+   behaviour they asserted (collection resolution, and minting a
+   contributor on insert without overwriting it on update) now lives in
+   supabase/functions/ingest and is covered by its own tests.
+   --------------------------------------------------------------------- */
+-- \echo SC#5a: update_sightings function body contains maplify.resolve_collection
+/*
 DO $$
 DECLARE
   fn_body TEXT;
@@ -254,7 +269,7 @@ BEGIN
   END IF;
 END $$;
 
-\echo SC#5b: upsert_observation_page MERGE INSERT mints contributor; MATCHED UPDATE does not overwrite it
+-- \echo SC#5b: upsert_observation_page MERGE INSERT mints contributor; MATCHED UPDATE does not overwrite it
 DO $$
 DECLARE
   fn_body TEXT;
@@ -290,6 +305,8 @@ BEGIN
     RAISE EXCEPTION 'SC#5b FAIL: WHEN MATCHED UPDATE includes contributor_id — Pitfall 6 violated (existing rows must keep their backfilled contributor_id)';
   END IF;
 END $$;
+*/
+-- end of the commented-out SC#5a / SC#5b blocks
 
 -- =====================================================================
 -- PROD-ONLY: diff-gate assertion (D-08)
