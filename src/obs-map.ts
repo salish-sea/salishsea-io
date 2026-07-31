@@ -394,7 +394,11 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
    * render when that is the case.
    */
   public frameExtentWhenReady(extent: Extent) {
-    if (this.map.getSize())
+    // `getSize()` returns an array — truthy even when it is [0, 0], which is
+    // what you get between setTarget and layout. Fitting to a zero-width
+    // viewport is the same silent no-op as fitting with no size at all.
+    const size = this.map.getSize();
+    if (size && size[0]! > 0 && size[1]! > 0)
       this.zoomToExtent(extent);
     else
       this.map.once('rendercomplete', () => this.zoomToExtent(extent));

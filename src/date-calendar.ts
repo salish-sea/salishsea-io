@@ -241,6 +241,17 @@ export class DateCalendar extends LitElement {
   }
 
   protected willUpdate(changed: PropertyValues<this>): void {
+    // Counts are scoped to the region, so a region change invalidates every
+    // month cached under the old one.
+    //
+    // This has to happen HERE, driven by the property actually arriving, rather
+    // than by the app calling refresh() when it changes the region. That call
+    // lands before Lit has propagated the new slug, so the refetch it triggers
+    // would run against the old region, cache it under this month, and then
+    // #fetched would suppress the correct request when the slug finally showed
+    // up — leaving circles quietly scoped to the region you just left.
+    if (changed.has('regionSlug') && changed.get('regionSlug') !== undefined)
+      this.refresh();
     // Follow the selection when it lands outside the month on screen — a day
     // step across a boundary, or a jump to an occurrence from another season.
     if (changed.has('date') && this.date) {

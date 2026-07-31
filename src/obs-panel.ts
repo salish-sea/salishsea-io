@@ -97,23 +97,29 @@ export class ObsPanel extends LitElement {
       padding: 0.1875rem 0.625rem;
       white-space: nowrap;
     }
+    .bubble:hover:not(:disabled) {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+      color: #1e293b;
+    }
     /* The selected region is the one piece of state in this row: it says what
        the map, the list and the calendar are all scoped to. Filled rather than
-       merely outlined so it reads at a glance which one is active. */
+       merely outlined so it reads at a glance which one is active.
+
+       These must come AFTER the hover rule. The hover selector has the same
+       specificity as the selected-hover one — :not() contributes its argument's
+       specificity — so on equal terms the later rule wins, and put first these
+       would lose the fill exactly while the pointer is on them. */
     .bubble.selected {
       background: #0369a1;
       border-color: #0369a1;
       color: white;
       font-weight: 600;
     }
-    .bubble.selected:hover {
+    .bubble.selected:hover:not(:disabled) {
       background: #075985;
       border-color: #075985;
-    }
-    .bubble:hover:not(:disabled) {
-      background: #f1f5f9;
-      border-color: #94a3b8;
-      color: #1e293b;
+      color: white;
     }
     .bubble:disabled {
       border-color: #e2e8f0;
@@ -296,11 +302,6 @@ export class ObsPanel extends LitElement {
    */
   private selectRegion(slug: string) {
     this.dispatchEvent(new CustomEvent('region-selected', {bubbles: true, composed: true, detail: slug}));
-  }
-
-  /** Drops the calendar's cached day counts — they are scoped to the region. */
-  public refreshCalendar() {
-    this.calendarRef.value?.refresh();
   }
 
   private goToLastOwnOccurrence() {

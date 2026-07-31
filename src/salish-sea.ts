@@ -212,9 +212,9 @@ export default class SalishSea extends LitElement {
     this.#region = r;
     this.requestUpdate();
     this.fetchOccurrences(this.date);
-    // The calendar's day counts are scoped to the region too, so its cache is
-    // stale the moment this changes.
-    this.panelRef.value?.refreshCalendar();
+    // The calendar invalidates its own counts when the new slug reaches it —
+    // doing it from here would race the property propagation and cache the
+    // region we just left. See date-calendar's willUpdate.
     if (!this.#isRestoringFromHistory) {
       if (r.slug === DEFAULT_REGION_SLUG)
         setQueryParams({}, {remove: ['r']});
@@ -417,11 +417,39 @@ export default class SalishSea extends LitElement {
     }
   }
 
-  receiveOccurrences(occurrences: Occurrence[], forDate: string) {
-    if (forDate !== this.date)
+  /**
+   * An occurrence named by `?o=` that the active region excludes.
+   *
+   * A permalink has to keep working whatever region the recipient lands in, so
+   * this one is merged back into the region-filtered results — otherwise the
+   * map centres on a point it has not drawn and the sidebar has nothing to
+   * select. It stays outside the mask's clear window, which is the honest
+   * picture: this sighting is real, and it is outside what you are looking at.
+   *
+   * Guarded on {@link focusedOccurrenceId} rather than cleared by hand, so it
+   * stops applying the moment focus moves or the day changes.
+   */
+  #permalinkOccurrence: Occurrence | null = null;
+
+  receiveOccurrences(occurrences: Occurrence[], forDate: string, forRegion: string) {
+    // Both guards matter, and for different reasons. The date catches a day
+    // change; the region catches a region change, which re-queries the SAME
+    // date — so without it a slow in-flight request for the region you just
+    // left can land last and repaint the map with out-of-region sightings that
+    // the mask then shades over.
+    if (forDate !== this.date || forRegion !== this.#region.slug)
       return;
-    this.sightings = occurrences;
-    this.mapRef.value!.setOccurrences(occurrences);
+
+    const pinned = this.#permalinkOccurrence;
+    const merged = pinned
+      && pinned.id === this.focusedOccurrenceId
+      && dateFromObservedAt(pinned.observed_at) === forDate
+      && !occurrences.some(o => o.id === pinned.id)
+      ? [...occurrences, pinned].sort((a, b) => b.observed_at_ms - a.observed_at_ms)
+      : occurrences;
+
+    this.sightings = merged;
+    this.mapRef.value!.setOccurrences(merged);
   }
 
   focusOccurrence(occurrence: Occurrence | null) {
@@ -447,6 +475,9 @@ export default class SalishSea extends LitElement {
   }
 
   async fetchOccurrences(date: string) {
+    // Captured up front: `this.#region` can change while this is in flight, and
+    // the response has to be judged against the region that asked for it.
+    const region = this.#region;
     const startOfDay = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
     const endOfDay = startOfDay.add({days: 1});
     let query = supabase()
@@ -459,7 +490,7 @@ export default class SalishSea extends LitElement {
     // addresses its fields with `->`. Use `->` and NOT `->>`: the text form
     // compares lexically, so numeric bounds silently match nothing — zero rows,
     // no error, no clue.
-    const extent = this.#region.extent;
+    const extent = region.extent;
     if (extent) {
       const [minx, miny, maxx, maxy] = extent;
       query = query
@@ -476,7 +507,7 @@ export default class SalishSea extends LitElement {
       ...record,
     }));
 
-    this.receiveOccurrences(occurrences as Occurrence[], date);
+    this.receiveOccurrences(occurrences as Occurrence[], date, region.slug);
   }
 
   private async hydrateFromOccurrenceId(id: string): Promise<void> {
@@ -488,6 +519,12 @@ export default class SalishSea extends LitElement {
     if (!occurrence) return; // not found — silent fallback per decisions
 
     const date = dateFromObservedAt(occurrence.observed_at);
+    // Set before fetching: the fetch's own response is the first one that has
+    // to carry this occurrence, since the region may well exclude it.
+    this.#permalinkOccurrence = {
+      ...occurrence,
+      observed_at_ms: Date.parse(occurrence.observed_at),
+    };
     // Bypass the date setter to avoid writing ?d= to history
     this.#date = date;
     await this.fetchOccurrences(date);
