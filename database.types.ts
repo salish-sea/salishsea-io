@@ -733,13 +733,6 @@ export type Database = {
         }
         Relationships: []
       }
-      occurrence_days: {
-        Row: {
-          day: string | null
-          occurrence_count: number | null
-        }
-        Relationships: []
-      }
       occurrence_identifications: {
         Row: {
           asserted_by_party_id: number | null
@@ -829,6 +822,20 @@ export type Database = {
         Returns: Database["public"]["Enums"]["travel_direction"]
       }
       normalize_designation: { Args: { code: string }; Returns: string }
+      occurrence_days: {
+        Args: {
+          from_day: string
+          max_lat?: number
+          max_lon?: number
+          min_lat?: number
+          min_lon?: number
+          to_day: string
+        }
+        Returns: {
+          day: string
+          occurrence_count: number
+        }[]
+      }
       upsert_observation: {
         Args: {
           accuracy: number

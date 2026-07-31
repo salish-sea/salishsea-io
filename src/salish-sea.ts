@@ -20,7 +20,7 @@ import { sentryClient } from "./sentry.ts";
 import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
 import { fromLonLat } from 'ol/proj.js';
-import { isExtent, observationToday } from "./constants.ts";
+import { DEFAULT_REGION_SLUG, isExtent, observationToday, regionBySlug, type Region } from "./constants.ts";
 import { ObsPanel } from "./obs-panel.ts";
 import { createRef, ref } from "lit/directives/ref.js";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -47,9 +47,14 @@ function parseUrlParams(searchParams: URLSearchParams) {
 
   const occurrenceId = searchParams.get('o') || null;
 
+  // An unknown or absent slug falls back to the default rather than erroring —
+  // a stale link should still show the map, just not the region it asked for.
+  const region = regionBySlug(searchParams.get('r'));
+
   return {
     date,
     occurrenceId,
+    region,
     mapPosition: hasValidMapPosition
       ? { x, y, z }
       : {
@@ -62,6 +67,8 @@ function parseUrlParams(searchParams: URLSearchParams) {
 
 const initialParams = parseUrlParams(new URLSearchParams(document.location.search));
 const hadDateParam = new URLSearchParams(document.location.search).has('d');
+const rawRegionParam = new URLSearchParams(document.location.search).get('r');
+const hadMapPosition = ['x', 'y', 'z'].every(k => new URLSearchParams(document.location.search).has(k));
 
 let gsiReady: Promise<void> | null = null;
 function loadGSI(): Promise<void> {
@@ -192,6 +199,30 @@ export default class SalishSea extends LitElement {
     }
   }
 
+  #region: Region = initialParams.region;
+  /**
+   * The scope of every occurrence query, independent of the viewport. Panning
+   * away from a region does not widen it — that is what makes this a filter and
+   * not the "Go to" it grew out of.
+   */
+  get region() { return this.#region }
+  set region(r: Region) {
+    if (r.slug === this.#region.slug)
+      return;
+    this.#region = r;
+    this.requestUpdate();
+    this.fetchOccurrences(this.date);
+    // The calendar's day counts are scoped to the region too, so its cache is
+    // stale the moment this changes.
+    this.panelRef.value?.refreshCalendar();
+    if (!this.#isRestoringFromHistory) {
+      if (r.slug === DEFAULT_REGION_SLUG)
+        setQueryParams({}, {remove: ['r']});
+      else
+        setQueryParams({r: r.slug});
+    }
+  }
+
   @property({attribute: false})
   private sightings: Occurrence[] = []
 
@@ -203,6 +234,7 @@ export default class SalishSea extends LitElement {
     }
     try {
       const params = parseUrlParams(new URLSearchParams(window.location.search));
+      this.region = params.region;
       this.date = params.date;
       this.focusedOccurrenceId = params.occurrenceId;
       this.mapRef.value?.setView(
@@ -253,6 +285,15 @@ export default class SalishSea extends LitElement {
         throw new Error(`Invalid extent: ${extent}`);
       this.mapRef.value!.zoomToExtent(extent);
     });
+    this.addEventListener('region-selected', (evt) => {
+      const slug = (evt as CustomEvent<string>).detail;
+      const region = regionBySlug(slug);
+      // Selecting a region still moves the map, as the Go-to bubbles did before
+      // they became filters. Do this unconditionally — re-picking the current
+      // region after panning away is a reasonable way to ask to go back.
+      this.mapRef.value!.zoomToExtent([...region.zoomExtent]);
+      this.region = region;
+    });
     this.addEventListener('map-move', (evt) => {
       if (this.#isRestoringFromHistory)
         return;
@@ -300,6 +341,15 @@ export default class SalishSea extends LitElement {
     // adds no history entry; skip when an occurrence permalink (?o=) already pins context.
     if (!hadDateParam && !initialParams.occurrenceId)
       setQueryParams({d: this.#date}, {replace: true});
+    // Normalise the region the same way. A slug we don't recognise resolved to
+    // the default above, so leaving it in the URL would keep advertising a
+    // region that isn't the one on screen.
+    if (rawRegionParam !== null && rawRegionParam !== this.#region.slug) {
+      if (this.#region.slug === DEFAULT_REGION_SLUG)
+        setQueryParams({}, {replace: true, remove: ['r']});
+      else
+        setQueryParams({r: this.#region.slug}, {replace: true});
+    }
     // If any credentials arrived before the component was defined, process them now.
     let token: string | undefined;
     while (token = window.__pendingGSIResponses?.shift()) {
@@ -327,8 +377,8 @@ export default class SalishSea extends LitElement {
         </div>
       </header>
       <main>
-        <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId}></obs-map>
-        <obs-panel ${ref(this.panelRef)} date=${this.date} .lastOwnOccurrence=${this.lastOwnOccurrence}>
+        <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId} .maskExtent=${this.region.extent}></obs-map>
+        <obs-panel ${ref(this.panelRef)} date=${this.date} regionSlug=${this.region.slug} .lastOwnOccurrence=${this.lastOwnOccurrence}>
           ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
             const id = sighting.id;
             const classes = {focused: id === this.focusedOccurrenceId};
@@ -357,6 +407,11 @@ export default class SalishSea extends LitElement {
   protected async firstUpdated(_changedProperties: PropertyValues): Promise<void> {
     this.olmap = this.mapRef.value!.map;
     this.drawingSource = this.mapRef.value!.drawingSource;
+    // A link that names a region but no viewport should frame that region —
+    // clicking the bubble does, so opening the link it produces should too.
+    // An explicit x/y/z wins, as does ?o=, which pins the map to an occurrence.
+    if (rawRegionParam && !hadMapPosition && !initialParams.occurrenceId)
+      this.mapRef.value!.frameExtentWhenReady([...this.#region.zoomExtent]);
     if (initialParams.occurrenceId) {
       await this.hydrateFromOccurrenceId(initialParams.occurrenceId);
     }
@@ -394,11 +449,25 @@ export default class SalishSea extends LitElement {
   async fetchOccurrences(date: string) {
     const startOfDay = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
     const endOfDay = startOfDay.add({days: 1});
-    const {data} = await supabase()
+    let query = supabase()
       .from('occurrences')
       .select()
       .gte('observed_at', startOfDay.toInstant())
-      .lt('observed_at', endOfDay.toInstant())
+      .lt('observed_at', endOfDay.toInstant());
+
+    // `location` is a composite (lon_lat), not jsonb, but PostgREST still
+    // addresses its fields with `->`. Use `->` and NOT `->>`: the text form
+    // compares lexically, so numeric bounds silently match nothing — zero rows,
+    // no error, no clue.
+    const extent = this.#region.extent;
+    if (extent) {
+      const [minx, miny, maxx, maxy] = extent;
+      query = query
+        .gte('location->lon', minx).lte('location->lon', maxx)
+        .gte('location->lat', miny).lte('location->lat', maxy);
+    }
+
+    const {data} = await query
       .order('observed_at', {ascending: false})
       .throwOnError();
 

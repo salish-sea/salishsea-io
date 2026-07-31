@@ -253,3 +253,17 @@ export const hydrophoneStyle = (_hydrophone: FeatureLike) => {
     }),
   })
 }
+
+/**
+ * Shading for the map outside the active region.
+ *
+ * Deliberately a wash rather than a heavy scrim: it has to say "we are not
+ * showing you data here" while leaving the coastline legible, because the
+ * shaded area is still the map you use to decide where to go next. The border
+ * marks where the filter actually cuts — without it the wash has no edge and
+ * reads as a rendering artifact rather than a boundary.
+ */
+export const outsideRegionStyle = new Style({
+  fill: new Fill({color: 'rgba(15, 23, 42, 0.28)'}),
+  stroke: new Stroke({color: 'rgba(15, 23, 42, 0.45)', width: 1}),
+});

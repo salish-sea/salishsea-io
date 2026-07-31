@@ -12,23 +12,14 @@ import { classMap } from "lit/directives/class-map.js";
 import SightingForm, { newSighting, observationToFormData } from "./sighting-form.ts";
 import { v7 } from "uuid";
 import { type Occurrence } from "./types.ts";
-import { EARLIEST_OBSERVATION_DATE, observationToday, pugetSoundExtent, salishSRKWExtent, sanJuansExtent, srkwExtent, type Extent } from "./constants.ts";
+import { DEFAULT_REGION_SLUG, EARLIEST_OBSERVATION_DATE, observationToday, REGIONS } from "./constants.ts";
 import { createRef, ref } from "lit/directives/ref.js";
 
 /** The date the calendar has selected, spelled out for the day-stepping row. */
 const SELECTED_DATE_LABEL = {weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'} as const;
 
-/**
- * Map destinations, in the order they were offered by the select this replaced.
- * "Salish Sea" deliberately uses the SRKW-clipped extent rather than
- * salishSeaExtent — it frames the water the sightings are actually in.
- */
-const PLACES: {label: string; extent: Extent}[] = [
-  {label: 'Puget Sound', extent: pugetSoundExtent},
-  {label: 'Salish Sea', extent: salishSRKWExtent},
-  {label: 'San Juans', extent: sanJuansExtent},
-  {label: 'SRKW Range', extent: srkwExtent},
-];
+// Regions live in constants.ts — they are the scope of the query now, not a
+// list of places to look at, so the map and the occurrence fetch need them too.
 
 @customElement('obs-panel')
 export class ObsPanel extends LitElement {
@@ -106,6 +97,19 @@ export class ObsPanel extends LitElement {
       padding: 0.1875rem 0.625rem;
       white-space: nowrap;
     }
+    /* The selected region is the one piece of state in this row: it says what
+       the map, the list and the calendar are all scoped to. Filled rather than
+       merely outlined so it reads at a glance which one is active. */
+    .bubble.selected {
+      background: #0369a1;
+      border-color: #0369a1;
+      color: white;
+      font-weight: 600;
+    }
+    .bubble.selected:hover {
+      background: #075985;
+      border-color: #075985;
+    }
     .bubble:hover:not(:disabled) {
       background: #f1f5f9;
       border-color: #94a3b8;
@@ -171,6 +175,9 @@ export class ObsPanel extends LitElement {
   @property({type: String, reflect: true})
   private date!: string;
 
+  @property({type: String, reflect: true})
+  public regionSlug: string = DEFAULT_REGION_SLUG;
+
   @consume({context: userContext, subscribe: true})
   @state()
   private user: User | undefined;
@@ -194,16 +201,21 @@ export class ObsPanel extends LitElement {
     return html`
       <header>
         <h2>Marine Mammal Observations</h2>
-        <date-calendar ${ref(this.calendarRef)} date=${this.date}></date-calendar>
+        <date-calendar ${ref(this.calendarRef)} date=${this.date} regionSlug=${this.regionSlug}></date-calendar>
         <div class="day-nav">
           <button class="step" @click=${this.onGotoYesterday} type="button" name="yesterday" ?disabled=${atEarliest} aria-label="Previous day">${stepIcon(chevronLeftIcon)}</button>
           <span class="selected-date">${Temporal.PlainDate.from(this.date).toLocaleString(undefined, SELECTED_DATE_LABEL)}</span>
           <button class="step" @click=${this.onGotoTomorrow} type="button" name="tomorrow" ?disabled=${atToday} aria-label="Next day">${stepIcon(chevronRightIcon)}</button>
         </div>
         <div class="go-to" role="group" aria-labelledby="go-to-label">
-          <span id="go-to-label">Go to:</span>
-          ${PLACES.map(({label, extent}) => html`
-            <button class="bubble" type="button" @click=${() => this.goToExtent(extent)}>${label}</button>
+          <span id="go-to-label">Showing:</span>
+          ${REGIONS.map(({slug, label}) => html`
+            <button
+              class=${classMap({bubble: true, selected: slug === this.regionSlug})}
+              type="button"
+              aria-pressed=${slug === this.regionSlug ? 'true' : 'false'}
+              @click=${() => this.selectRegion(slug)}
+            >${label}</button>
           `)}
           <button
             class="bubble"
@@ -277,10 +289,18 @@ export class ObsPanel extends LitElement {
     this.dispatchEvent(new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date.toString()}));
   }
 
-  private goToExtent(extent: Extent) {
-    // A copy: the listener hands this straight to OpenLayers, and the shared
-    // module-level constant must not be mutable from there.
-    this.dispatchEvent(new CustomEvent('go-to-extent', {bubbles: true, composed: true, detail: [...extent]}));
+  /**
+   * Selecting a region changes what the map, this list and the calendar are
+   * scoped to — it is not just a camera move. salish-sea.ts owns that state and
+   * also does the zoom, so the slug is all that travels.
+   */
+  private selectRegion(slug: string) {
+    this.dispatchEvent(new CustomEvent('region-selected', {bubbles: true, composed: true, detail: slug}));
+  }
+
+  /** Drops the calendar's cached day counts — they are scoped to the region. */
+  public refreshCalendar() {
+    this.calendarRef.value?.refresh();
   }
 
   private goToLastOwnOccurrence() {

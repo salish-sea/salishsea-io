@@ -25,3 +25,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [019](019-no-fallback-preview-image.md) | No fallback link-preview image: `og:image` only for a photo of the thing shared | accepted |
 | [020](020-map-preview-cards.md) | Map-rendered link preview cards; Esri basemap, day cards, basemap sourcing | accepted |
 | [021](021-calendar-date-picker.md) | Calendar date picker; day circles sized by sighting volume, live `occurrence_days` view | accepted |
+| [022](022-regions-filter-data.md) | Regions filter the data (map, list, calendar); map outside the active region is shaded | accepted |
