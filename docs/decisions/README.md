@@ -26,3 +26,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [020](020-map-preview-cards.md) | Map-rendered link preview cards; Esri basemap, day cards, basemap sourcing | accepted |
 | [021](021-calendar-date-picker.md) | Calendar date picker; day circles sized by sighting volume, live `occurrence_days` view | accepted |
 | [022](022-regions-filter-data.md) | Regions filter the data (map, list, calendar); map outside the active region is shaded | accepted |
+| [023](023-region-framing-vs-filtering.md) | A region's framing is not its filter; frame the region on load (supersedes part of 022) | accepted |

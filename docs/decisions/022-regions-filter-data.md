@@ -57,6 +57,8 @@ The bubble previously used `salishSRKWExtent` = `[-124, 47, -122, 49.5]`, chosen
 
 Filter bounds and zoom bounds are the same value for every region, and a test enforces it. If they diverged, a sighting could pass the filter and be counted by the calendar while sitting outside the viewport its own bubble moves you to.
 
+> **The paragraph above is superseded by [023](023-region-framing-vs-filtering.md).** Collapsing the two values is what widened every Salish Sea framing by half a zoom level. The rest of decision 5 — that the *filter* uses `salishSeaExtent` — still stands; only the claim that framing must equal it does not.
+
 ### 6. There is an "Everywhere" escape hatch
 
 Without it the widest region is the SRKW range `[-125.5, 36, -122, 54]` while ingest reaches `acartiaExtent` `[-136, 36, -120, 54]`, leaving real data permanently unreachable. "Everywhere" drops the filter and draws no mask. This is not hypothetical: on a single July day it surfaces 52 occurrences against the Salish Sea default's 28, from Haida Gwaii to San Francisco.

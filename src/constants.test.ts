@@ -66,12 +66,20 @@ describe('regions', () => {
     expect(salishSea.extent).not.toEqual(salishSRKWExtent);
   });
 
-  test('filter bounds and zoom bounds agree for every filtered region', () => {
-    // If they diverged, a sighting could pass the filter and be counted by the
-    // calendar while sitting outside the viewport the bubble moves you to.
+  test('framing never reaches outside the filter', () => {
+    // The two may differ, but only in one direction: the viewport must sit
+    // inside the region, never outside it.
+    //
+    // Framing tighter than the filter just means you start well within what is
+    // being shown, and pan outward through clear water before meeting the mask.
+    // Framing WIDER would land you looking at shaded area on load — the map
+    // reading as mostly disabled before you have touched anything, which is
+    // what fitting Salish Sea to its own filter bounds actually did.
     for (const region of REGIONS) {
-      if (region.extent)
-        expect(region.zoomExtent, region.slug).toEqual(region.extent);
+      if (!region.extent) continue;
+      const [fx0, fy0, fx1, fy1] = region.extent;
+      const [zx0, zy0, zx1, zy1] = region.zoomExtent;
+      expect(zx0 >= fx0 && zy0 >= fy0 && zx1 <= fx1 && zy1 <= fy1, region.slug).toBe(true);
     }
   });
 
