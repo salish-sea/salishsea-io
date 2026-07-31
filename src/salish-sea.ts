@@ -407,10 +407,20 @@ export default class SalishSea extends LitElement {
   protected async firstUpdated(_changedProperties: PropertyValues): Promise<void> {
     this.olmap = this.mapRef.value!.map;
     this.drawingSource = this.mapRef.value!.drawingSource;
-    // A link that names a region but no viewport should frame that region —
-    // clicking the bubble does, so opening the link it produces should too.
-    // An explicit x/y/z wins, as does ?o=, which pins the map to an occurrence.
-    if (rawRegionParam && !hadMapPosition && !initialParams.occurrenceId)
+    // Frame the active region whenever the URL does not say otherwise —
+    // including the default one, with no ?r= at all.
+    //
+    // The viewport and the region are the same statement about what you are
+    // looking at, so they should not be able to disagree. They did: the old
+    // hardcoded default centre/zoom was tuned long before regions existed and
+    // is wider than the Salish Sea box, which nothing revealed until the mask
+    // started drawing the difference. On a phone (default zoom 7, wider still)
+    // that left roughly half the map shaded on first load, which reads as
+    // "zoomed out and mostly disabled" rather than "here is the Salish Sea".
+    //
+    // An explicit x/y/z still wins, as does ?o=, which pins the map to an
+    // occurrence.
+    if (!hadMapPosition && !initialParams.occurrenceId)
       this.mapRef.value!.frameExtentWhenReady([...this.#region.zoomExtent]);
     if (initialParams.occurrenceId) {
       await this.hydrateFromOccurrenceId(initialParams.occurrenceId);

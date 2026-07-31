@@ -59,11 +59,21 @@ export const salishSRKWExtent: Extent = [-124, 47, -122, 49.5];
  * as "we are not showing you anything here" rather than "nothing was seen
  * here". That distinction is the whole point — see GH #16.
  *
- * `extent` serves double duty as the filter bounds AND the viewport the map
- * moves to. Those were deliberately collapsed into one value: if the filter
- * admitted data the viewport could not show, a sighting would be counted by the
- * calendar and drawn on a map you have to pan to find. The mask edge and the
- * screen edge should agree.
+ * `extent` is the filter — what we will show you. `zoomExtent` is the framing —
+ * where the map goes. They are usually the same, and only differ where the
+ * honest filter bounds make a poor viewport.
+ *
+ * Salish Sea is that case. Filtering on the narrow SRKW-clipped box would drop
+ * real data (the Strait of Georgia north of 49.5, the western Strait of Juan de
+ * Fuca), so the filter is wide. But fitting the map to that wide box pulls the
+ * view half a zoom level further out than the framing #352 chose deliberately —
+ * "the water the sightings are actually in" — and leaves most of a large screen
+ * outside the region, and therefore shaded.
+ *
+ * Framing tighter than the filter is safe in a way the reverse is not. The
+ * viewport is not a promise about what exists; the mask is. Landing inside the
+ * region means no shading on load, and panning outward reveals more clear water
+ * before it reveals the boundary — which is the right order to meet them in.
  */
 export type RegionSlug = 'salish-sea' | 'puget-sound' | 'san-juans' | 'srkw-range' | 'everywhere';
 
@@ -90,7 +100,8 @@ export type Region = {
  */
 export const REGIONS: readonly Region[] = Object.freeze([
   {slug: 'puget-sound', label: 'Puget Sound', extent: pugetSoundExtent, zoomExtent: pugetSoundExtent},
-  {slug: 'salish-sea',  label: 'Salish Sea',  extent: salishSeaExtent,  zoomExtent: salishSeaExtent},
+  // The one region whose framing and filter differ — see the note above.
+  {slug: 'salish-sea',  label: 'Salish Sea',  extent: salishSeaExtent,  zoomExtent: salishSRKWExtent},
   {slug: 'san-juans',   label: 'San Juans',   extent: sanJuansExtent,   zoomExtent: sanJuansExtent},
   {slug: 'srkw-range',  label: 'SRKW Range',  extent: srkwExtent,       zoomExtent: srkwExtent},
   // Without this, everything between the SRKW range and where ingest actually

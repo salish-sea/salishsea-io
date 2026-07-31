@@ -55,7 +55,15 @@ One control, one meaning. Picking San Juans hides a sighting off Victoria twenty
 
 The bubble previously used `salishSRKWExtent` = `[-124, 47, -122, 49.5]`, chosen in #352 to frame "the water the sightings are actually in". Right for a viewport, wrong for a filter: as the **default** it silently drops the Strait of Georgia north of 49.5 and the whole western Strait of Juan de Fuca. A default that hides real data without saying so is the bug this feature exists to fix. The filter uses `salishSeaExtent` = `[-126, 47, -122, 50.5]`.
 
-Filter bounds and zoom bounds are the same value for every region, and a test enforces it. If they diverged, a sighting could pass the filter and be counted by the calendar while sitting outside the viewport its own bubble moves you to.
+**Amended 2026-07-31, after shipping.** Filter and framing are *not* the same value for Salish Sea, and collapsing them was a mistake.
+
+The filter had to widen. The framing did not — and the Salish Sea bubble is also what the map fits to, so widening it pulled every Salish Sea view exactly half a zoom level further out than the framing #352 chose deliberately. Measured against a checkout of the pre-release code: clicking the bubble went from 8.32 → 7.82 at 1440×900, 8.6 → 8.1 at 1920×1080, 9.03 → 8.53 at 2560×1440.
+
+Because the initial zoom is a hardcoded `z=8` at any screen size, that also left load and click disagreeing: on a large monitor the fitted region was *tighter* than the landing view, so clicking the already-selected bubble zoomed in. And with the mask now drawing the difference, **76.6% of a 2560×1440 screen was shaded on first load** — the map reading as mostly disabled before the user touched anything.
+
+So `zoomExtent` is now `salishSRKWExtent` while `extent` stays `salishSeaExtent`, and the app frames the active region on load rather than only when `?r=` is present. Framing restored to pre-release values exactly; shading on load falls to ~30%, and what remains is inland land east of -122, not water.
+
+A test enforces the safe direction: framing may be tighter than the filter, never wider. Tighter means you start well inside what is being shown and pan outward through clear water before meeting the boundary. Wider means you land looking at shaded area. The viewport is not a promise about what exists — the mask is — so only one of those is honest.
 
 ### 6. There is an "Everywhere" escape hatch
 
