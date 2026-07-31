@@ -150,6 +150,12 @@ psql "$LOCAL_DB" -v ON_ERROR_STOP=1 -q -f "$DUMP"
 #
 # The rows stay (contributors reference them); only the credentials go.
 echo "==> Stripping credentials from imported auth rows"
+#
+# The one_time_tokens and MFA tables are empty in prod today, but this script
+# runs on demand: a user requesting a magic link minutes before a dump would put
+# live OTP material in it. Cheap to clear unconditionally rather than depend on
+# prod happening to be quiet. They are guarded by to_regclass because the local
+# Auth image does not always carry the same tables as prod.
 psql "$LOCAL_DB" -q -v ON_ERROR_STOP=1 <<'SQL' >/dev/null
 UPDATE auth.users SET
   encrypted_password         = NULL,
@@ -161,7 +167,28 @@ UPDATE auth.users SET
   reauthentication_token     = NULL;
 DELETE FROM auth.sessions;
 DELETE FROM auth.refresh_tokens;
+
+DO $$
+BEGIN
+  -- Dependency order: challenges reference factors.
+  IF to_regclass('auth.mfa_challenges')  IS NOT NULL THEN DELETE FROM auth.mfa_challenges;  END IF;
+  IF to_regclass('auth.mfa_factors')     IS NOT NULL THEN DELETE FROM auth.mfa_factors;     END IF;
+  IF to_regclass('auth.one_time_tokens') IS NOT NULL THEN DELETE FROM auth.one_time_tokens; END IF;
+END $$;
 SQL
+
+# Deliberately NOT setting banned_until = 'infinity' on imported users.
+#
+# It was suggested, and it is the strongest option, but it would make it
+# impossible to sign in as any real contributor locally — which is one of the
+# reasons to mirror prod at all, e.g. reproducing a bug that depends on that
+# person's data. With password hashes, OTP material and MFA factors all gone,
+# and local OAuth unconfigured (GOOGLE_CLIENT_ID/SECRET are unset), there is no
+# production credential left to replay; issuing a fresh local magic link is
+# something only someone who already has this database can do.
+#
+# If this database ever stops being laptop-local, revisit — banning every
+# imported user is the right call the moment it is reachable by anyone else.
 
 # Redundant since migration 20260730120000 shipped prod's grants (drift #3
 # above). Kept as a guard against the same thing happening again: any grant
