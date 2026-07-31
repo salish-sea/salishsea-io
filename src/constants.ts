@@ -51,6 +51,60 @@ export const sanJuansExtent: Extent = [-123.25, 48.4, -122.73, 48.79];
 export const srkwExtent: Extent = [-125.5, 36, -122, 54];
 export const salishSeaExtent: Extent = [-126, 47, -122, 50.5];
 export const salishSRKWExtent: Extent = [-124, 47, -122, 49.5];
+/**
+ * A region is the scope of the query, not just a place to look at.
+ *
+ * Selecting one filters the occurrences the map draws, the list shows and the
+ * calendar counts, and shades the map outside itself so that empty water reads
+ * as "we are not showing you anything here" rather than "nothing was seen
+ * here". That distinction is the whole point — see GH #16.
+ *
+ * `extent` serves double duty as the filter bounds AND the viewport the map
+ * moves to. Those were deliberately collapsed into one value: if the filter
+ * admitted data the viewport could not show, a sighting would be counted by the
+ * calendar and drawn on a map you have to pan to find. The mask edge and the
+ * screen edge should agree.
+ */
+export type RegionSlug = 'salish-sea' | 'puget-sound' | 'san-juans' | 'srkw-range' | 'everywhere';
+
+export type Region = {
+  slug: RegionSlug;
+  label: string;
+  /** `null` means no filter and no mask — every occurrence we hold. */
+  extent: Extent | null;
+  /** Where the map goes on selection. Equals `extent` unless that is null. */
+  zoomExtent: Extent;
+};
+
+/**
+ * In the order the bubbles are drawn, which is the order the select they
+ * replaced offered.
+ *
+ * Note "Salish Sea" filters on {@link salishSeaExtent}, NOT the tighter
+ * {@link salishSRKWExtent} the Go-to bubble used before it became a filter.
+ * The clipped extent frames the water sightings are usually in, which is right
+ * for a viewport and wrong for a filter: as the default it would silently drop
+ * the Strait of Georgia north of 49.5 and the western Strait of Juan de Fuca.
+ * A default that hides real data without saying so is the bug this feature
+ * exists to fix.
+ */
+export const REGIONS: readonly Region[] = Object.freeze([
+  {slug: 'puget-sound', label: 'Puget Sound', extent: pugetSoundExtent, zoomExtent: pugetSoundExtent},
+  {slug: 'salish-sea',  label: 'Salish Sea',  extent: salishSeaExtent,  zoomExtent: salishSeaExtent},
+  {slug: 'san-juans',   label: 'San Juans',   extent: sanJuansExtent,   zoomExtent: sanJuansExtent},
+  {slug: 'srkw-range',  label: 'SRKW Range',  extent: srkwExtent,       zoomExtent: srkwExtent},
+  // Without this, everything between the SRKW range and where ingest actually
+  // reaches (acartiaExtent) would be permanently unreachable from the UI.
+  {slug: 'everywhere',  label: 'Everywhere',  extent: null,             zoomExtent: acartiaExtent},
+]);
+
+export const DEFAULT_REGION_SLUG: RegionSlug = 'salish-sea';
+
+export function regionBySlug(slug: string | null | undefined): Region {
+  return REGIONS.find(r => r.slug === slug)
+    ?? REGIONS.find(r => r.slug === DEFAULT_REGION_SLUG)!;
+}
+
 export const licenseCodes = Object.freeze({
   "none": "None (all rights reserved)",
   "cc0": "CC0 (public domain)",

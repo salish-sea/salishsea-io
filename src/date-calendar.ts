@@ -6,7 +6,7 @@ import { Temporal } from "temporal-polyfill";
 import { supabase } from "./supabase.ts";
 import { chevronLeftIcon, chevronRightIcon } from "./icons.ts";
 import { monthGrid, volumeScale, WEEKDAY_INITIALS } from "./calendar.ts";
-import { EARLIEST_OBSERVATION_DATE, observationToday } from "./constants.ts";
+import { DEFAULT_REGION_SLUG, EARLIEST_OBSERVATION_DATE, observationToday, regionBySlug } from "./constants.ts";
 
 const MONTH_LABEL = {month: 'long', year: 'numeric'} as const;
 const DAY_LABEL = {weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'} as const;
@@ -205,6 +205,13 @@ export class DateCalendar extends LitElement {
   @property({type: String})
   date!: string;
 
+  /**
+   * The active region. Day counts are scoped to it, so that a day's circle
+   * counts exactly the sightings the map will draw when you click it.
+   */
+  @property({type: String})
+  regionSlug: string = DEFAULT_REGION_SLUG;
+
   /** The month on screen. Follows `date` unless the user has paged away from it. */
   @state()
   private month: Temporal.PlainYearMonth = observationToday().toPlainYearMonth();
@@ -234,6 +241,17 @@ export class DateCalendar extends LitElement {
   }
 
   protected willUpdate(changed: PropertyValues<this>): void {
+    // Counts are scoped to the region, so a region change invalidates every
+    // month cached under the old one.
+    //
+    // This has to happen HERE, driven by the property actually arriving, rather
+    // than by the app calling refresh() when it changes the region. That call
+    // lands before Lit has propagated the new slug, so the refetch it triggers
+    // would run against the old region, cache it under this month, and then
+    // #fetched would suppress the correct request when the slug finally showed
+    // up — leaving circles quietly scoped to the region you just left.
+    if (changed.has('regionSlug') && changed.get('regionSlug') !== undefined)
+      this.refresh();
     // Follow the selection when it lands outside the month on screen — a day
     // step across a boundary, or a jump to an occurrence from another season.
     if (changed.has('date') && this.date) {
@@ -379,11 +397,22 @@ export class DateCalendar extends LitElement {
     const from = days[0]!.toString();
     const to = days[days.length - 1]!.toString();
 
+    // An RPC rather than a filtered view: the bbox has to apply before the
+    // GROUP BY, and the view exposed only `day` and `occurrence_count`, so
+    // there was nothing for a client-side predicate to bite on.
+    const extent = regionBySlug(this.regionSlug).extent;
+    // Everywhere omits the bounds entirely; the function defaults them to NULL,
+    // which COALESCEs to whole-world limits.
+    const [minLon, minLat, maxLon, maxLat] = extent ?? [undefined, undefined, undefined, undefined];
     const {data, error} = await supabase()
-      .from('occurrence_days')
-      .select()
-      .gte('day', from)
-      .lte('day', to);
+      .rpc('occurrence_days', {
+        from_day: from,
+        to_day: to,
+        min_lon: minLon,
+        min_lat: minLat,
+        max_lon: maxLon,
+        max_lat: maxLat,
+      });
 
     // Superseded by a refresh while in flight. Bail before the error branch too:
     // this request's key was cleared by refresh() and re-added by the request

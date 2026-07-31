@@ -23,6 +23,13 @@ without a DOM.
 
 ### Counts come from a live view, not the matview
 
+> **Amended by [022](022-regions-filter-data.md).** `occurrence_days` is no
+> longer a view. Regions filter the calendar's counts too, and the bounding box
+> has to apply before the `GROUP BY`, so it is now a function taking a required
+> date range and optional lon/lat bounds. Everything below about *why* the
+> counts are read live rather than off the matview still holds; only the shape
+> of the object changed.
+
 `public.occurrence_days` groups `public.occurrences` by the PST8PDT calendar
 day — the same day boundary as `?d=`, `fetchOccurrences`, and
 `dateFromObservedAt`, so a day's circle counts exactly the records the map draws

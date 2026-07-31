@@ -12,8 +12,9 @@ import './obs-summary.ts';
 import VectorLayer from 'ol/layer/Vector.js';
 import TileLayer from 'ol/layer/Tile.js';
 import XYZ from 'ol/source/XYZ.js';
-import { editStyle, hydrophoneStyle, occurrenceStyle, selectedObservationStyle, sighterStyle, travelStyle, userLocationStyle, viewingLocationStyle} from './style.ts';
+import { editStyle, hydrophoneStyle, occurrenceStyle, outsideRegionStyle, selectedObservationStyle, sighterStyle, travelStyle, userLocationStyle, viewingLocationStyle} from './style.ts';
 import Point from 'ol/geom/Point.js';
+import Polygon from 'ol/geom/Polygon.js';
 import VectorSource from 'ol/source/Vector.js';
 import Feature from 'ol/Feature.js';
 import Modify from 'ol/interaction/Modify.js';
@@ -30,6 +31,7 @@ import { occurrences2segments, segment2features, segment2travelLine } from './se
 import { fromLonLat, transformExtent } from 'ol/proj.js';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { compactMap } from './utils.ts';
+import type { Extent as RegionExtent } from './constants.ts';
 import UserLocationControl from './user-location-control.ts';
 
 const sphericalMercator = 'EPSG:3857';
@@ -78,6 +80,26 @@ export class ObsMap extends LitElement {
   @property({type: String, reflect: true})
   public focusedOccurrenceId: string | undefined
 
+  /**
+   * Lon/lat bounds of the active region, or `null` for "Everywhere".
+   *
+   * Everything outside is shaded. The point is GH #16: without it, panning past
+   * the filter shows empty water that reads as "no whales were seen here" when
+   * it means "we are not showing you this". The mask says which.
+   */
+  @property({attribute: false})
+  public maskExtent: RegionExtent | null = null;
+
+  private maskSource = new VectorSource<Feature<Polygon>>();
+  private maskLayer = new VectorLayer({
+    source: this.maskSource,
+    style: outsideRegionStyle,
+    // Above the basemap, below the occurrences: a sighting that sits just
+    // outside the region (a stale ?o= permalink) must stay visible and
+    // clickable rather than being greyed into the background.
+    zIndex: 1,
+  });
+
   private modify = new Modify({
     deleteCondition: never,
     insertVertexCondition: never,
@@ -122,6 +144,7 @@ export class ObsMap extends LitElement {
           url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
         }),
       }),
+      this.maskLayer,
       this.occurrenceLayer,
       this.travelLayer,
       this.viewingLocationsLayer,
@@ -307,6 +330,8 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {
+    if (changedProperties.has('maskExtent'))
+      this.renderMask();
     if (changedProperties.has('focusedOccurrenceId') && this.focusedOccurrenceId) {
       const feature = this.ocurrenceSource.getFeatureById(this.focusedOccurrenceId) as Feature<Point>;
       if (feature) {
@@ -315,6 +340,34 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
         this.ensureCoordsInViewport(coords);
       }
     }
+  }
+
+  /**
+   * Shade the world outside the active region: one polygon covering everything,
+   * with the region punched out as a hole.
+   *
+   * A rectangle in lon/lat is still a rectangle in EPSG:3857 — it is a
+   * cylindrical projection, so constant longitude stays constant x and constant
+   * latitude stays constant y — which is why the corners can simply be
+   * transformed rather than densified along the edges.
+   */
+  private renderMask() {
+    this.maskSource.clear();
+    if (!this.maskExtent)
+      return;
+
+    const [minLon, minLat, maxLon, maxLat] = this.maskExtent;
+    // ±85 rather than ±90: the Mercator projection is undefined at the poles.
+    const outer = [
+      fromLonLat([-180, -85]), fromLonLat([180, -85]),
+      fromLonLat([180, 85]), fromLonLat([-180, 85]), fromLonLat([-180, -85]),
+    ];
+    // Wound opposite to the outer ring, per the GeoJSON convention for holes.
+    const hole = [
+      fromLonLat([minLon, minLat]), fromLonLat([minLon, maxLat]),
+      fromLonLat([maxLon, maxLat]), fromLonLat([maxLon, minLat]), fromLonLat([minLon, minLat]),
+    ];
+    this.maskSource.addFeature(new Feature(new Polygon([outer, hole])));
   }
 
   public ensureCoordsInViewport(coords: Coordinate) {
@@ -330,6 +383,25 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
     const view = this.map.getView();
     const transformedExtent = transformExtent(extent, 'EPSG:4326', view.getProjection());
     view.fit(transformedExtent);
+  }
+
+  /**
+   * Like {@link zoomToExtent}, but safe to call before the map is on screen.
+   *
+   * `view.fit` sizes the viewport against `map.getSize()`, which is undefined
+   * until the target element has been laid out and rendered — so a fit issued
+   * from a parent's `firstUpdated` silently does nothing. Defer to the first
+   * render when that is the case.
+   */
+  public frameExtentWhenReady(extent: Extent) {
+    // `getSize()` returns an array — truthy even when it is [0, 0], which is
+    // what you get between setTarget and layout. Fitting to a zero-width
+    // viewport is the same silent no-op as fitting with no size at all.
+    const size = this.map.getSize();
+    if (size && size[0]! > 0 && size[1]! > 0)
+      this.zoomToExtent(extent);
+    else
+      this.map.once('rendercomplete', () => this.zoomToExtent(extent));
   }
 
   public onLocationUpdated({longitude, latitude}: {longitude: number; latitude: number}) {
