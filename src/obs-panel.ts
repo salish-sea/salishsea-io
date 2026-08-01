@@ -62,13 +62,51 @@ export class ObsPanel extends LitElement {
       max-width: 21rem;
       padding-top: 0.25rem;
     }
+    /* The readout doubles as the way to seek a distant date: the calendar pages
+       a month at a time, and the corpus reaches back to 2012. Editing is behind
+       a click so the resting state stays a readout, not a form control. */
     .day-nav .selected-date {
+      background: none;
+      border: 0;
+      border-radius: 4px;
       color: #475569;
+      cursor: pointer;
       flex-grow: 1;
+      font-family: inherit;
       font-size: 0.8125rem;
       font-variant-numeric: tabular-nums;
+      padding: 0.125rem 0.25rem;
       text-align: center;
       white-space: nowrap;
+    }
+    .day-nav .selected-date:hover {
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+    .day-nav .selected-date:focus-visible {
+      outline: 2px solid #1976d2;
+      outline-offset: 1px;
+    }
+    /* Occupies the readout's slot so swapping between them doesn't shift the
+       arrows either side. */
+    .day-nav input[type=date] {
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      box-sizing: border-box;
+      color: #1e293b;
+      flex-grow: 1;
+      font-family: inherit;
+      font-size: 0.8125rem;
+      font-variant-numeric: tabular-nums;
+      min-width: 0;
+      padding: 0.0625rem 0.25rem;
+      text-align: center;
+    }
+    .day-nav input[type=date]:focus-visible {
+      border-color: #1976d2;
+      outline: 2px solid #1976d2;
+      outline-offset: 1px;
     }
     /* The destinations are laid out rather than hidden behind a select: there
        are only five, and seeing them is most of the value. */
@@ -193,6 +231,18 @@ export class ObsPanel extends LitElement {
 
   private formRef = createRef<SightingForm>();
   private calendarRef = createRef<DateCalendar>();
+  private seekInputRef = createRef<HTMLInputElement>();
+
+  /** Whether the date readout has been swapped for the seek input. */
+  @state()
+  private seekingDate = false;
+
+  /**
+   * Set when the seek editor is dismissed from the keyboard — by Escape, or by
+   * committing a typed date. Removing the input drops focus to the body, which
+   * strands a keyboard user; blur is excluded because they moved focus on purpose.
+   */
+  #returnFocusToReadout = false;
 
   @property({attribute: false})
   lastOwnOccurrence: Occurrence | null = null
@@ -210,7 +260,26 @@ export class ObsPanel extends LitElement {
         <date-calendar ${ref(this.calendarRef)} date=${this.date} regionSlug=${this.regionSlug}></date-calendar>
         <div class="day-nav">
           <button class="step" @click=${this.onGotoYesterday} type="button" name="yesterday" ?disabled=${atEarliest} aria-label="Previous day">${stepIcon(chevronLeftIcon)}</button>
-          <span class="selected-date">${Temporal.PlainDate.from(this.date).toLocaleString(undefined, SELECTED_DATE_LABEL)}</span>
+          ${this.seekingDate ? html`
+            <input
+              ${ref(this.seekInputRef)}
+              type="date"
+              .value=${this.date}
+              min=${EARLIEST_OBSERVATION_DATE.toString()}
+              max=${observationToday().toString()}
+              aria-label="Jump to a date"
+              @change=${this.onSeekDate}
+              @keydown=${this.onSeekKeydown}
+              @blur=${this.stopSeekingDate}
+            >
+          ` : html`
+            <button
+              class="selected-date"
+              type="button"
+              title="Jump to a date"
+              @click=${this.startSeekingDate}
+            >${Temporal.PlainDate.from(this.date).toLocaleString(undefined, SELECTED_DATE_LABEL)}</button>
+          `}
           <button class="step" @click=${this.onGotoTomorrow} type="button" name="tomorrow" ?disabled=${atToday} aria-label="Next day">${stepIcon(chevronRightIcon)}</button>
         </div>
         <div class="go-to" role="group" aria-labelledby="go-to-label">
@@ -293,6 +362,53 @@ export class ObsPanel extends LitElement {
     if (Temporal.PlainDate.compare(date, observationToday()) > 0)
       return;
     this.dispatchEvent(new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date.toString()}));
+  }
+
+  private startSeekingDate() {
+    this.seekingDate = true;
+    // Focus once the input exists, so typing can start straight away. The native
+    // picker is left to its own indicator rather than opened from here: it would
+    // cover our calendar with a second one, and typing a distant date is the
+    // affordance a month-at-a-time grid is missing.
+    this.updateComplete.then(() => this.seekInputRef.value?.focus());
+  }
+
+  private stopSeekingDate() {
+    this.seekingDate = false;
+  }
+
+  private onSeekDate(e: Event) {
+    const {value} = e.target as HTMLInputElement;
+    this.seekingDate = false;
+    this.#returnFocusToReadout = true;
+    // `min`/`max` only style an out-of-range value, they don't stop one being
+    // entered — and a cleared or half-typed field fires change on some browsers.
+    // Same bounds the steppers and the grid enforce, so none of them can disagree.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value))
+      return;
+    const date = Temporal.PlainDate.from(value);
+    if (Temporal.PlainDate.compare(date, EARLIEST_OBSERVATION_DATE) < 0
+      || Temporal.PlainDate.compare(date, observationToday()) > 0)
+      return;
+    this.dispatchEvent(new CustomEvent('date-selected', {bubbles: true, composed: true, detail: value}));
+  }
+
+  private onSeekKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      // Don't let it bubble to anything that treats Escape as a broader dismiss.
+      e.stopPropagation();
+      this.#returnFocusToReadout = true;
+      this.stopSeekingDate();
+    }
+  }
+
+  protected updated(): void {
+    // The readout only exists once the input has been rendered away, so this
+    // has to wait for the update rather than run in the handler.
+    if (this.#returnFocusToReadout && !this.seekingDate) {
+      this.#returnFocusToReadout = false;
+      this.renderRoot.querySelector<HTMLButtonElement>('.selected-date')?.focus();
+    }
   }
 
   /**
