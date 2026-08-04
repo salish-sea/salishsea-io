@@ -11,6 +11,19 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 jobs:
+  # The gate. Nothing here is production-specific — it is the same suite PRs run
+  # (see build.yml), pointed at the commit actually being deployed. PR checks are
+  # not enough on their own: they run against the PR head rather than the merge
+  # result, and no ruleset requires them, so a push landing on `main` by any other
+  # route would otherwise reach production untested.
+  #
+  # It costs a few minutes on the front of every deploy. That is the price of the
+  # deploy sequence below being unrepeatable: `supabase db push` is forward-only,
+  # so a bad migration cannot be taken back, only rolled forward.
+  test:
+    name: Test
+    uses: ./.github/workflows/build.yml
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -19,12 +32,12 @@ jobs:
       contents: read
     steps:
       - name: Checkout repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: package.json
 
@@ -41,7 +54,7 @@ jobs:
           VITE_SUPABASE_WS_URL: ${{ vars.VITE_SUPABASE_WS_URL }}
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: artifacts
           path: |
@@ -50,7 +63,7 @@ jobs:
 
   deploy:
     name: Deploy
-    needs: build
+    needs: [test, build]
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -59,6 +72,11 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    # Read by the alert job to decide whether silence is safe. Set by a step, so
+    # it survives this job failing: everything after that step can leave
+    # production changed.
+    outputs:
+      mutation_started: ${{ steps.mutation.outputs.started }}
     steps:
       # A workflow re-run always checks out its ORIGINAL commit. Re-running an
       # older, failed deploy therefore rebuilds and ships a superseded tree —
@@ -79,7 +97,7 @@ jobs:
       # mid-run has seconds rather than minutes to slip past. Neither is a lock —
       # see the runbook for what this does and doesn't cover.
       - name: Checkout repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Refuse to deploy a superseded commit
@@ -88,14 +106,14 @@ jobs:
           token: ${{ github.token }}
           phase: before setup
       - name: Download artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           role-to-assume: arn:aws:iam::648183724555:role/salishsea-deploy-action
           aws-region: us-west-2
       - run: ls
-      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v1
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
         with:
           version: 2.53.6
       - run: supabase link --project-ref "${PROJECT_REF}"
@@ -108,6 +126,11 @@ jobs:
         with:
           token: ${{ github.token }}
           phase: before the first remote change
+      # The point of no return. Every step below can leave production changed,
+      # which is what decides whether a failure is safe to stay quiet about.
+      - name: Mark the start of production mutation
+        id: mutation
+        run: echo "started=true" >> "${GITHUB_OUTPUT}"
       # Deploy the ingest Edge Function BEFORE `db push`. The cutover migration
       # (20260706000000) repoints pg_cron at this function via pg_net; deploying
       # first means a bundling/deploy failure aborts the run before the cron
@@ -133,7 +156,7 @@ jobs:
             --cache-control "public, max-age=0, must-revalidate"
           aws cloudfront create-invalidation --distribution-id "${DISTRIBUTION_ID}" --paths "/" "/index.html"
       - name: Setup Node for CDK
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: package.json
       - name: Deploy CDK infra (CloudFront + Lambda@Edge)
@@ -145,3 +168,177 @@ jobs:
           npm run build
           npx cdk deploy --all --require-approval never \
             --context "supabaseAnonKey=${SUPABASE_ANON_KEY}"
+
+  # Post-deploy verification, inside the deploy run rather than trailing it: a
+  # deploy whose steps all reported success but left production not answering
+  # correctly still ends red, and — because it is *this* run that fails — the
+  # alert below sees it. The specs are the deployed commit's own, so this asks
+  # "does what we just shipped work?", not "is production current?"; the latter is
+  # what the scheduled smoke run and the require-current-tip guard are for.
+  smoke:
+    name: Smoke
+    needs: deploy
+    uses: ./.github/workflows/smoke.yml
+
+  # A red run in the Actions tab is only a signal if someone is looking at the
+  # Actions tab. File an issue instead, reusing dwca-nightly.yml's approach: one
+  # open issue per failure mode, updated rather than duplicated, closed again by
+  # the next green deploy.
+  alert:
+    name: Alert on failure
+    needs: [test, build, deploy, smoke]
+    # `!cancelled()` is what lets this run at all — a job whose `needs` were
+    # skipped is otherwise skipped itself, which is precisely the case when an
+    # early job failed and took the rest of the graph with it.
+    if: ${{ !cancelled() && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      # Two deploys merging in quick succession make the older one fail the
+      # superseded-commit guard by design (gotcha 3 in the runbook). That failure
+      # is expected and self-correcting — the newer run deploys right behind it —
+      # so filing an issue for it would train everyone to ignore these issues.
+      #
+      # But only while the run changed nothing. Once the deploy job is past its
+      # point of no return, a failure has left production in some half-updated
+      # state that no newer run is guaranteed to fix, and "someone else will
+      # deal with it" is exactly the assumption that loses an outage. Being
+      # superseded buys silence only for runs that never touched anything.
+      - name: Decide whether silence is safe
+        id: tip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MUTATION_STARTED: ${{ needs.deploy.outputs.mutation_started }}
+        run: |
+          head_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" --jq .sha)
+          if [ "${head_sha}" = "${GITHUB_SHA}" ]; then
+            superseded=false
+            alert=true
+          elif [ "${MUTATION_STARTED}" = "true" ]; then
+            superseded=true
+            alert=true
+            echo "::warning::${GITHUB_SHA} is superseded (${GITHUB_REF_NAME} is now ${head_sha}), but this run had already begun changing production. Alerting."
+          else
+            superseded=true
+            alert=false
+            echo "::notice::${GITHUB_SHA} is no longer the tip of ${GITHUB_REF_NAME} (now ${head_sha}) and nothing was changed; not alerting."
+          fi
+          {
+            echo "superseded=${superseded}"
+            echo "alert=${alert}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Compose failure report
+        if: steps.tip.outputs.alert == 'true'
+        env:
+          RESULT_TEST: ${{ needs.test.result }}
+          RESULT_BUILD: ${{ needs.build.result }}
+          RESULT_DEPLOY: ${{ needs.deploy.result }}
+          RESULT_SMOKE: ${{ needs.smoke.result }}
+          MUTATION_STARTED: ${{ needs.deploy.outputs.mutation_started }}
+          SUPERSEDED: ${{ steps.tip.outputs.superseded }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          mkdir -p dist
+          {
+            echo "Deploy of \`${GITHUB_SHA}\` failed."
+            echo
+            echo "| Job | Result |"
+            echo "| --- | --- |"
+            echo "| Test (build.yml suite) | ${RESULT_TEST} |"
+            echo "| Build (production artifacts) | ${RESULT_BUILD} |"
+            echo "| Deploy | ${RESULT_DEPLOY} |"
+            echo "| Smoke (production specs) | ${RESULT_SMOKE} |"
+            echo
+            echo "Run: ${RUN_URL}"
+            echo
+            if [ "${SUPERSEDED}" = "true" ]; then
+              echo "> This run's commit is no longer the tip of \`main\`, but it had already"
+              echo "> begun changing production when it failed, so the newer run behind it"
+              echo "> cannot be assumed to have cleaned up after it."
+              echo
+            fi
+            if [ "${MUTATION_STARTED}" != "true" ]; then
+              echo "**Production was not touched.** The run failed before the deploy job's first"
+              echo "remote change, which is the gate working. Fix forward on \`main\`."
+            else
+              echo "**Production may be partially updated.** The deploy job mutates production"
+              echo "in sequence with no atomicity: Edge Function → \`supabase db push\` → S3 sync"
+              echo "→ CloudFront invalidation → \`cdk deploy\`. Whichever step failed, everything"
+              echo "before it already landed. Read the run log to find how far it got."
+              echo
+              echo "There is no automatic rollback, deliberately: \`supabase db push\` is"
+              echo "forward-only, so reverting the frontend alone would point old code at a"
+              echo "migrated schema. Recover by fixing forward."
+            fi
+            echo
+            echo "Runbook: [docs/runbook/deploys.md](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/main/docs/runbook/deploys.md)"
+          } > dist/deploy-failure.md
+
+      - name: Find existing failure issue
+        id: find-issue
+        if: steps.tip.outputs.alert == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            // listForRepo returns pull requests as well as issues, and a PR
+            // carrying this label would otherwise be "updated" — i.e. have its
+            // title and body overwritten with a deploy failure report.
+            const items = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'deploy-failed',
+              per_page: 100,
+            });
+            const issue = items.find((item) => !item.pull_request);
+            core.setOutput('issue-number', issue?.number ?? '');
+
+      - name: Open or update failure issue
+        if: steps.tip.outputs.alert == 'true'
+        uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6.0.0
+        with:
+          title: "Deploy to production failed (run ${{ github.run_id }})"
+          content-filepath: ./dist/deploy-failure.md
+          labels: deploy-failed
+          issue-number: ${{ steps.find-issue.outputs.issue-number }}
+
+  # Close the loop, so an open `deploy-failed` issue always means "production is
+  # still broken" rather than "something broke here once".
+  resolve:
+    name: Resolve failure issue
+    needs: [test, build, deploy, smoke]
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const items = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'deploy-failed',
+              per_page: 100,
+            });
+            // Never close a pull request that happens to carry the label.
+            const issues = items.filter((item) => !item.pull_request);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            for (const issue of issues) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Deploy of ${context.sha} succeeded and passed smoke: ${runUrl}. Closing.`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+              });
+            }
