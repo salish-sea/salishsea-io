@@ -5,3 +5,18 @@
 # and `pnpm install` here reports "Already up to date" having installed nothing.
 # That fails silently — the CDK deploy would only discover it at `cdk deploy`.
 # See docs/decisions/025.
+#
+# THIS FILE MUST CONTAIN AT LEAST ONE KEY. A comments-only YAML document parses to
+# `null`, not an empty mapping, and Dependabot's npm_and_yarn file fetcher does
+# `parsed_pnpm_workspace_yaml["packages"]` unguarded — so a comments-only file
+# crashes it with `NoMethodError: undefined method '[]' for nil` before it fetches
+# anything. Every `/infra` update job failed that way on 2026-08-04 until this key
+# was added, while the root project (whose file has real keys) updated fine. pnpm
+# is happy either way, so no local check catches it.
+#
+# `allowBuilds` rather than `packages: []` because the root file has exactly this
+# shape — a mapping with no `packages` key — and its update jobs are known to
+# succeed. The empty mapping is also the honest value: nothing in this project's
+# tree ships an install script, and nothing here is permitted to run one. If that
+# changes, add the entry here rather than to the root file.
+allowBuilds: {}

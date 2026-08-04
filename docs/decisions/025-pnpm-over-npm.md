@@ -44,7 +44,10 @@ Specifics:
   major, a CDK-only graph, and its own deploy step. pnpm finds a workspace root by walking up
   for `pnpm-workspace.yaml`, so `infra/` needs one of its own — without it the root file claims
   the directory and `pnpm install` there reports "Already up to date" having installed nothing,
-  which surfaces only at `cdk deploy`.
+  which surfaces only at `cdk deploy`. That file must declare at least one key: a comments-only
+  YAML document parses to `null` rather than an empty mapping, and Dependabot's npm_and_yarn
+  file fetcher indexes it unguarded, so every `/infra` update job died with `NoMethodError`
+  until a key was added. pnpm accepts either, so no local check catches it.
 - **Install scripts are allowlisted** in `pnpm-workspace.yaml` (`allowBuilds`). pnpm refuses to
   run a dependency's install script unless it is named, so a compromised transitive package
   cannot execute code merely by entering the tree. Two are allowed, each with its reason in the
