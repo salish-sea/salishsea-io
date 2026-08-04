@@ -28,3 +28,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [022](022-regions-filter-data.md) | Regions filter the data (map, list, calendar); map outside the active region is shaded | accepted |
 | [023](023-region-framing-vs-filtering.md) | A region's framing is not its filter; frame the region on load (supersedes part of 022) | accepted |
 | [024](024-deploy-gating-and-alerting.md) | Deploys gate on the full test suite, verify themselves, and alert by labeled issue | accepted |
+| [025](025-pnpm-over-npm.md) | pnpm replaces npm; `infra/` is a separate pnpm project | accepted |

@@ -20,22 +20,24 @@ Most project planning currently happens on Zulip. You are welcome to join us the
 
 Prerequisites:
 - `nvm` (or install the version of node from `.nvmrc` yourself)
+- `pnpm` — the package manager for this repo, npm is not usable here
+  ([decision 025](docs/decisions/025-pnpm-over-npm.md))
 - `docker`
 
 Prep the environment:
 ```
 $ nvm install
 $ nvm use
-$ npm ci
+$ pnpm install
 ```
 
 ## Running
 
-Control the Supabase local stack with e.g.: `npx supabase start`.
+Control the Supabase local stack with e.g.: `pnpm exec supabase start`.
 
-For development mode, run `npm run dev`.
+For development mode, run `pnpm dev`.
 
-Before committing, try building with `npm run build`.
+Before committing, try building with `pnpm build`.
 
 ## Data sources
 

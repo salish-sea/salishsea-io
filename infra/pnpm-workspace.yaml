@@ -1,0 +1,7 @@
+# `infra/` is its own pnpm project, not a member of the root workspace: it has a
+# different TypeScript major, a CDK-only dependency graph, and is built by a
+# separate deploy step. pnpm resolves the workspace root by walking up until it
+# finds a pnpm-workspace.yaml, so without this file the root one claims `infra`
+# and `pnpm install` here reports "Already up to date" having installed nothing.
+# That fails silently — the CDK deploy would only discover it at `cdk deploy`.
+# See docs/decisions/025.

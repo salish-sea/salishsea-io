@@ -23,13 +23,19 @@ jobs:
         with:
           persist-credentials: false
 
+      # Before setup-node, which needs pnpm on PATH to locate the store for
+      # `cache: pnpm`. The version comes from package.json's `packageManager`.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: package.json
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
         with:
@@ -39,23 +45,25 @@ jobs:
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/ci-seed.sql
       - name: Verify generated types match Postgres schema
         run: |
-          npm run gen-types
+          pnpm run gen-types
           if ! git diff --ignore-space-at-eol --exit-code --quiet database.types.ts; then
             echo "Detected uncommitted changes after build. See status below:"
             git diff
             exit 1
           fi
 
-      - run: npm run build
+      - run: pnpm run build
       - name: Run tests
-        run: npm test
+        run: pnpm test
         env:
           SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
+      # `infra/` is a separate pnpm project with its own lockfile, so it needs
+      # its own install — the root one does not reach it.
       - name: Install infra dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
         working-directory: infra
 
       - name: Run infra tests
-        run: npm test
+        run: pnpm test
         working-directory: infra

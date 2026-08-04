@@ -18,7 +18,13 @@ updates:
           - "*"
     open-pull-requests-limit: 3
 
-  # Updates JavaScript dependencies
+  # Updates JavaScript dependencies. `npm` is also Dependabot's name for the pnpm
+  # and yarn ecosystems; what it needs from us is a lockfile format it groks, and
+  # pnpm 11 writes lockfileVersion 9 (see the top of pnpm-lock.yaml), which it
+  # supports. Its handling of the pnpm 11 *CLI* is newer ground, so if updates go
+  # quiet after the pnpm migration (decision 025), check Insights → Dependency
+  # graph → Dependabot for a failing run rather than assuming there is nothing to
+  # update. Covers the root only — infra/ has its own lockfile, untracked here.
   - package-ecosystem: npm
     directory: /
     schedule:
