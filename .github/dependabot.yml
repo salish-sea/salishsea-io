@@ -47,6 +47,12 @@ updates:
   # A second entry rather than `directories: ["/", "/infra"]` so the two projects
   # get independent PR limits: sharing one limit of 3 would let a busy month at the
   # root starve infra of updates entirely, which is the failure being fixed here.
+  #
+  # Keep infra/pnpm-workspace.yaml non-empty. Dependabot indexes that file without
+  # a nil guard, and a comments-only YAML document parses to `null`, so stripping
+  # it back to comments crashes every job under this entry before it fetches
+  # anything (`NoMethodError: undefined method '[]' for nil`). pnpm does not care,
+  # so nothing local catches it — the symptom is only ever a red Dependabot run.
   - package-ecosystem: npm
     directory: /infra
     schedule:
