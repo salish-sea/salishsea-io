@@ -18,9 +18,37 @@ updates:
           - "*"
     open-pull-requests-limit: 3
 
-  # Updates JavaScript dependencies
+  # Updates JavaScript dependencies. `npm` is also Dependabot's name for the pnpm
+  # and yarn ecosystems; what it needs from us is a lockfile format it groks, and
+  # pnpm 11 writes lockfileVersion 9 (see the top of pnpm-lock.yaml), which it
+  # supports. Its handling of the pnpm 11 *CLI* is newer ground, so if updates go
+  # quiet after the pnpm migration (decision 025), check Insights → Dependency
+  # graph → Dependabot for a failing run rather than assuming there is nothing to
+  # update.
   - package-ecosystem: npm
     directory: /
+    schedule:
+      interval: monthly
+      time: "05:00"
+      timezone: America/Los_Angeles
+    cooldown:
+      default-days: 10
+    open-pull-requests-limit: 3
+    groups:
+      all:
+        patterns:
+          - "*"
+
+  # `infra/` is a separate pnpm project (decision 025), and Dependabot resolves one
+  # manifest per entry — a `directory: /` entry does not reach it. Until this was
+  # added it never did, which is why seven of the repository's nine open Dependabot
+  # alerts were against infra/package-lock.json while the root got monthly updates.
+  #
+  # A second entry rather than `directories: ["/", "/infra"]` so the two projects
+  # get independent PR limits: sharing one limit of 3 would let a busy month at the
+  # root starve infra of updates entirely, which is the failure being fixed here.
+  - package-ecosystem: npm
+    directory: /infra
     schedule:
       interval: monthly
       time: "05:00"

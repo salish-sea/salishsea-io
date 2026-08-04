@@ -36,16 +36,22 @@ jobs:
         with:
           persist-credentials: false
 
+      # Before setup-node, which needs pnpm on PATH to locate the store for
+      # `cache: pnpm`. The version comes from package.json's `packageManager`.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: package.json
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build project
-        run: npm run build
+        run: pnpm run build
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           VITE_BASE_URL: ${{ vars.VITE_BASE_URL }}
@@ -155,18 +161,22 @@ jobs:
             --exclude "assets/*" \
             --cache-control "public, max-age=0, must-revalidate"
           aws cloudfront create-invalidation --distribution-id "${DISTRIBUTION_ID}" --paths "/" "/index.html"
+      - name: Setup pnpm for CDK
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - name: Setup Node for CDK
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: package.json
+      # `infra/` is its own pnpm project (own lockfile, own pnpm-workspace.yaml),
+      # so this installs from infra/pnpm-lock.yaml, not the root one.
       - name: Deploy CDK infra (CloudFront + Lambda@Edge)
         working-directory: infra
         env:
           SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
         run: |
-          npm ci
-          npm run build
-          npx cdk deploy --all --require-approval never \
+          pnpm install --frozen-lockfile
+          pnpm run build
+          pnpm exec cdk deploy --all --require-approval never \
             --context "supabaseAnonKey=${SUPABASE_ANON_KEY}"
 
   # Post-deploy verification, inside the deploy run rather than trailing it: a

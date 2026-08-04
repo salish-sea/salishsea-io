@@ -80,12 +80,13 @@ Single-context: `CONTEXT.md` + `docs/decisions/` at the repo root. See [docs/age
 ## Build & Test
 
 ```bash
-npm run dev          # vite dev server
-npm test             # vitest
-npm run build        # tsc + vite build + html-validate + CSP hash check
-npm run build:dwca   # build the DarwinCore Archive locally (tsx scripts/dwca/build.ts)
-npm run gen-types    # regenerate database.types.ts from local Supabase
-npx playwright test  # e2e
+pnpm install         # install deps (NOT npm — see decision 025)
+pnpm dev             # vite dev server
+pnpm test            # vitest
+pnpm build           # tsc + vite build + html-validate + CSP hash check
+pnpm build:dwca      # build the DarwinCore Archive locally (tsx scripts/dwca/build.ts)
+pnpm gen-types       # regenerate database.types.ts from local Supabase
+pnpm exec playwright test  # e2e
 ```
 
 Node version is pinned in `.nvmrc`. The DwC-A build's CI gate needs the Supabase local stack (not bare Postgres) — see [decision 003](docs/decisions/003-dwc-export-pipeline.md).

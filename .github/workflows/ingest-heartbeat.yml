@@ -34,17 +34,20 @@ jobs:
               with:
                   persist-credentials: false
 
+            - name: Setup pnpm
+              uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
             - name: Setup Node
               uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
               with:
                   node-version-file: package.json
-                  cache: npm
+                  cache: pnpm
 
             - name: Install dependencies
-              run: npm ci
+              run: pnpm install --frozen-lockfile
 
             # Pre-seed the failure-issue body so content-filepath always exists even
-            # when the job dies before heartbeat.ts runs (DSN/secret issue, npm error,
+            # when the job dies before heartbeat.ts runs (DSN/secret issue, install error,
             # DB unreachable). heartbeat.ts overwrites it with real findings on trip.
             # Same pattern and rationale as dwca-nightly.yml.
             - name: Seed default failure-issue body
@@ -56,8 +59,8 @@ jobs:
                   Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
                   Triggered: ${{ github.event_name }} on ${{ github.sha }} at $(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-                  Check the failing step's logs. Common causes: DSN/secret issue, npm
-                  dependency error, or the database being unreachable — the last of which
+                  Check the failing step's logs. Common causes: DSN/secret issue, a
+                  dependency install error, or the database being unreachable — the last of which
                   is itself an ingest outage, so treat this issue as a real alert.
                   EOF
 
@@ -74,7 +77,7 @@ jobs:
                     "${SUPABASE_PROJECT_ID}" "${ENCODED_PW}" >> "${GITHUB_ENV}"
 
             - name: Check ingest heartbeat
-              run: npx tsx scripts/ingest/heartbeat.ts
+              run: pnpm exec tsx scripts/ingest/heartbeat.ts
 
             - name: Find existing failure issue
               id: find-issue

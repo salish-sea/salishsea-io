@@ -17,16 +17,31 @@ jobs:
       VITE_SUPABASE_URL: ""
       VITE_SUPABASE_WS_URL: ""
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # size-limit-action shells out to a package manager itself but does not
+      # install one, so pnpm has to be on PATH before it runs.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
       - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: package.json
+          cache: pnpm
 
       - uses: andresz1/size-limit-action@94bc357df29c36c8f8d50ea497c3e225c3c95d1d # v1.8.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           build_script: build:size
+          # Its auto-detection only distinguishes yarn from npm by looking for a
+          # yarn.lock, so a pnpm project is silently treated as npm — which fails,
+          # there being no package-lock.json. Name it explicitly.
+          package_manager: pnpm
+          # Default is `npx size-limit --json`; npx would try to fetch size-limit
+          # from the registry rather than use the installed one. `-s` is load-bearing:
+          # the action JSON.parses this script's stdout, and pnpm otherwise prefixes
+          # it with its own "Already up to date / Done in 241ms" preamble.
+          script: pnpm -s exec size-limit --json

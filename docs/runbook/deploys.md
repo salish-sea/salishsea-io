@@ -90,7 +90,7 @@ The smoke job is a partial backstop for both. It now runs inside the deploy run 
 
 Preview card images come from a **regional Lambda behind a Function URL**, not from the site bucket ([decision 020](../decisions/020-map-preview-cards.md)). A 5xx there is a Lambda problem: logs are in `/salishsea/card-renderer` in **us-west-2**, not in the edge log group, and not in S3 access logs. The function is reachable only through CloudFront (IAM auth + OAC), so it cannot be curled directly to test — go through `https://salishsea.io/cards/...`.
 
-To render a card locally without deploying: `cd infra && npm run build && node lib/card-renderer/cli.js point <lon> <lat> out.jpg` (no credentials needed), or `occurrence <id>` / `day <YYYY-MM-DD>` with `SUPABASE_URL` and `SUPABASE_ANON_KEY` set.
+To render a card locally without deploying: `cd infra && pnpm install && pnpm build && node lib/card-renderer/cli.js point <lon> <lat> out.jpg` (no credentials needed), or `occurrence <id>` / `day <YYYY-MM-DD>` with `SUPABASE_URL` and `SUPABASE_ANON_KEY` set.
 
 **After changing the renderer, look at a card — do not just check the response.** A card whose text is entirely missing-glyph boxes is still a valid JPEG of normal size, so status, `content-type` and byte-count assertions all pass. That is how a fontless build reached production on 2026-07-27. A local render proves nothing here either: macOS supplies system fonts the Lambda does not have. To reproduce the Lambda's environment, render from the built bundle in a bare Linux container:
 

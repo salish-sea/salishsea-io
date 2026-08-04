@@ -7,5 +7,5 @@ node_modules
 .cdk.staging
 cdk.out
 
-# card renderer deployment package (built by npm run build)
+# card renderer deployment package (built by pnpm run build)
 lib/card-renderer/bundle/

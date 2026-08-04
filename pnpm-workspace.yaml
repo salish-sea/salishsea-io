@@ -1,0 +1,22 @@
+# pnpm reads its settings from this file; the `pnpm` key in package.json is no
+# longer honoured as of pnpm 11. There is deliberately no `packages:` list —
+# `infra/` is a separate project with its own lockfile and its own
+# pnpm-workspace.yaml, not a member of this one. See docs/decisions/025.
+
+# pnpm will not run a dependency's install script unless it is named here, so a
+# compromised transitive package cannot execute code at install time merely by
+# being pulled into the tree. Every entry needs a reason to be on the list.
+allowBuilds:
+  # Downloads the platform-native esbuild binary. Without it, vite cannot build.
+  esbuild: true
+  # Fetches the sentry-cli binary that @sentry/vite-plugin shells out to when it
+  # uploads source maps during the production build.
+  '@sentry/cli': true
+  # Denied rather than omitted, and the distinction is load-bearing. Its postinstall
+  # is `build.js --only-with-config`, which no-ops unless package.json carries an
+  # `exifreader` key — it does not, so granting it nothing costs nothing. But pnpm
+  # treats an unadjudicated build script as ERR_PNPM_IGNORED_BUILDS and exits 1, so
+  # dropping this line does not merely add noise: it fails `pnpm install
+  # --frozen-lockfile` in every workflow. Every package with a build script must
+  # appear here as either true or false. Flip to true if a config is ever added.
+  exifreader: false

@@ -92,7 +92,7 @@
 ### What Was Built
 - `04-POLICY.md` — single authoritative rights & data-model policy gate: CC-BY-NC 4.0 URI, per-photo CC converter, native vs third-party attribution model, per-source gap resolutions, include-and-attribute hold rule with per-org conferral questions
 - `dwc` Postgres schema (six views: `taxa_classification`, `_native_occurrences`, `_maplify_occurrences`, `occurrences`, `datasets`, `multimedia`) projecting source tables into DwC-aligned columns; 17-block psql assertion harness
-- `scripts/dwca/` pipeline (`npm run build:dwca`): DuckDB ATTACH Postgres → field-alignment assert → deterministic DwC-A zip (`meta.xml` + `eml.xml` + Occurrence core + Multimedia) + GeoParquet 1.0.0 sidecar (WKB Point, CRS84)
+- `scripts/dwca/` pipeline (`pnpm build:dwca`): DuckDB ATTACH Postgres → field-alignment assert → deterministic DwC-A zip (`meta.xml` + `eml.xml` + Occurrence core + Multimedia) + GeoParquet 1.0.0 sidecar (WKB Point, CRS84)
 - `.github/workflows/dwca-nightly.yml`: cron `0 9 * * *`, OIDC publish to existing S3 bucket, CloudFront `/dwca/*` invalidation, checksum-LAST upload order, dedup'd failure-issue creation
 - L-01 Lambda@Edge carve-out (`if (request.uri.startsWith('/dwca/')) return request;`) so binary downloads bypass the OG-meta interceptor
 - About-modal "Data download" section: HEAD-on-open fetches `.zip` + `.parquet` metadata once per session; renders sizes + "updated X ago"; sha256 verify links

@@ -1,12 +1,22 @@
 // Stage the card renderer as a Lambda deployment package.
 //
 // sharp ships prebuilt native binaries as platform-specific optional
-// dependencies, so a plain `npm install` on a laptop stages macOS binaries that
-// fail on Lambda. `--os` / `--cpu` pin the selection explicitly, which keeps a
-// deploy from a developer machine byte-identical to one from CI instead of
-// silently platform-dependent.
+// dependencies, so a plain install on a laptop stages macOS binaries that fail
+// on Lambda. `--os` / `--cpu` pin the selection explicitly, which keeps a deploy
+// from a developer machine byte-identical to one from CI instead of silently
+// platform-dependent.
 //
-// Run by `npm run build`, so `cdk deploy` always has a fresh bundle.
+// This shells out to `npm` on purpose, even though the project itself uses pnpm
+// (decision 025). Two reasons, both about the bundle rather than the project:
+// Lambda unzips a deployment package and resolves modules from it directly, so
+// it needs the real, flat node_modules npm produces — pnpm's symlinks into a
+// content-addressed store would dangle. And npm takes the target platform as
+// CLI flags, where pnpm wants `supportedArchitectures` in a config file that a
+// throwaway staging directory has no business carrying. Nothing here touches the
+// project's own dependency resolution: it installs one package into an ignored
+// scratch directory from a package.json this script just wrote.
+//
+// Run by `pnpm run build`, so `cdk deploy` always has a fresh bundle.
 
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
