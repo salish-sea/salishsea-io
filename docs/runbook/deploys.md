@@ -4,7 +4,24 @@ How production deploys work, and the recurring surprises they produce. Audience:
 
 ## How it deploys
 
-Push to `main` → GitHub Actions Build + Deploy → CDK (`infra/`, synthed via `ts-node`) updates the stack. The rich-preview handler is a Lambda@Edge **viewer-request** function on the CloudFront distribution, defined in [`infra/lib/infra-stack.ts`](../../infra/lib/infra-stack.ts). Its code and behaviour live in [`infra/lib/edge-handler/index.ts`](../../infra/lib/edge-handler/index.ts) — see [decision 002](../decisions/002-static-spa-edge-architecture.md).
+Push to `main` → GitHub Actions [`deploy.yml`](../../.github/workflows/deploy.yml) → CDK (`infra/`, synthed via `ts-node`) updates the stack. The rich-preview handler is a Lambda@Edge **viewer-request** function on the CloudFront distribution, defined in [`infra/lib/infra-stack.ts`](../../infra/lib/infra-stack.ts). Its code and behaviour live in [`infra/lib/edge-handler/index.ts`](../../infra/lib/edge-handler/index.ts) — see [decision 002](../decisions/002-static-spa-edge-architecture.md).
+
+The run is five jobs ([decision 024](../decisions/024-deploy-gating-and-alerting.md)):
+
+| Job | What it does |
+|---|---|
+| **Test** | Calls [`build.yml`](../../.github/workflows/build.yml) — the same suite PRs run (type drift, build, unit tests, infra tests) against the commit being deployed. Nothing reaches production without it. |
+| **Build** | Builds the production bundle with the `production` environment's vars/secrets; uploads `dist` + `supabase` as artifacts. Runs alongside Test. |
+| **Deploy** | Edge Function → `supabase db push` → S3 sync → CloudFront invalidation → `cdk deploy`. Not atomic; see below. |
+| **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`. A production that doesn't answer correctly fails the deploy run. |
+| **Alert / Resolve** | On failure, opens or updates the single `deploy-failed` issue; on a fully green run, closes it. |
+
+Two things to know when reading a red run:
+
+- **A red Deploy does not imply production changed.** If *Test* or *Build* failed, the deploy job never ran and production was untouched — that is the gate working. The failure issue says which case it is.
+- **There is no automatic rollback, on purpose.** `supabase db push` is forward-only, so reverting the frontend alone would point old code at a migrated schema. If the deploy job failed partway, everything before the failing step already landed; read the log to see how far it got, and fix forward.
+
+An open `deploy-failed` issue means a run failed and has not been followed by a green one. **Read its first bold line before assuming production is broken** — the issue states whether the run got past the deploy job's point of no return (`Production may be partially updated`) or failed before it (`Production was not touched`). Either way the next green deploy closes it, so it should not need manual triage-and-close.
 
 ## Gotcha 1 — `DELETE_FAILED` on an old Lambda@Edge version
 
@@ -67,7 +84,7 @@ The churn is inherent to `cloudfront.experimental.EdgeFunction` (a new version p
 - **`main` can advance during the deploy itself.** The second check narrows this to the window between it and `cdk deploy`, but a merge landing inside that window still ships stale content. The serialized queue means the newer run deploys right after and corrects it — *provided that run succeeds*. Watch it if you merge twice in quick succession.
 - **Runs created before this guard existed are not protected.** A re-run replays the workflow file *as of its own commit*, so re-running any Deploy from before this merged skips the check entirely. Don't re-run old deploys; push instead. (Deliberately not fixed by deleting run history — that history is the audit trail.)
 
-The post-deploy smoke test remains the backstop for both: it runs `main`'s specs against production and fails when what's live doesn't match.
+The smoke job is a partial backstop for both. It now runs inside the deploy run and checks out **the commit being deployed**, so it verifies that what this run shipped works — it will not notice that what this run shipped was already stale. What covers that is the queued newer run deploying right behind it, plus the daily scheduled smoke run, which checks out `main` and so does compare production against the current tree.
 
 ## `/cards/*` is not S3
 
