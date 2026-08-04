@@ -72,12 +72,23 @@ repo did; the full suite (356 root tests, 155 infra tests), a production build, 
 bundle all pass unchanged. Future breakage of this kind is a real missing dependency, and the
 fix is to declare it.
 
-Dependabot needs no configuration change: its `npm` ecosystem covers pnpm, and the lockfile
-format it reads is version 9, which is what pnpm 11 writes. Its support for the pnpm 11 CLI
-itself is newer, so the first update cycle after this lands is worth confirming — a Dependabot
-that cannot resolve the project goes quiet rather than failing loudly, and quiet is
-indistinguishable from "nothing to update". As before, it covers the root only; `infra/` is not
-tracked by Dependabot.
+Dependabot keeps working: its `npm` ecosystem covers pnpm, and the lockfile format it reads is
+version 9, which is what pnpm 11 writes. Its support for the pnpm 11 CLI itself is newer, so the
+first update cycle after this lands is worth confirming — a Dependabot that cannot resolve the
+project goes quiet rather than failing loudly, and quiet is indistinguishable from "nothing to
+update".
+
+Auditing that turned up a gap that predates this decision: `infra/` was never covered at all.
+Dependabot resolves one manifest per `updates` entry, and the only npm entry pointed at `/`, so
+the CDK project had gone unupdated since it was created — seven of the repository's nine open
+alerts were against `infra/package-lock.json` while the root received monthly grouped PRs. A
+second entry for `/infra` is added here, with its own PR limit rather than a shared
+`directories:` list, so a busy month at the root cannot starve `infra/` of updates.
+
+That gap is an argument for making `infra/` a workspace member, and it was the strongest one —
+a single root manifest would have been covered by the entry that already existed. It is not a
+sufficient one: four lines of Dependabot config buy the same coverage without coupling two
+projects that share no code.
 
 Contributors must have pnpm; `npm install` in this repo is now a mistake rather than a slower
 path to the same place. The README states it as a prerequisite.
@@ -98,6 +109,15 @@ to the CI surface for a dependency-resolution problem, which cuts against the pr
 constraint of staying "light, nimble, and maintainable, minimizing abstractions and volatile
 dependencies."
 
-**Make `infra/` a workspace package.** Tempting — one lockfile, one install. It would put the
-CDK graph into the deploy job's root install and couple two projects that are deployed by
-different steps and share no code, for no benefit beyond tidiness.
+**Make `infra/` a workspace package.** The one substantive argument for it is dependency
+coverage: a single root manifest is automatically reached by tooling — Dependabot, audits — that
+otherwise has to be pointed at each project by hand, and `infra/` had in fact gone unwatched for
+exactly that reason (see Consequences). Against it: `pnpm install` at a workspace root installs
+every member by default, so the four workflows that need only the frontend graph would start
+pulling `aws-cdk-lib`, and the deploy job's CDK step would pull vite and OpenLayers to build a
+Lambda — avoidable only with `--filter` in all six. The usual disk argument does not apply either,
+because pnpm's content-addressed store is global and already shares copies across both projects.
+What remains is coupling with nothing to couple: no imports cross the boundary in either
+direction, and the single shared dependency name, `typescript`, is deliberately on different
+majors. Revisit if the edge handler or card renderer ever needs code from the app — that is the
+coupling a workspace exists to manage.
