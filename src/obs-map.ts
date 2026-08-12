@@ -12,7 +12,7 @@ import './obs-summary.ts';
 import VectorLayer from 'ol/layer/Vector.js';
 import TileLayer from 'ol/layer/Tile.js';
 import XYZ from 'ol/source/XYZ.js';
-import { editStyle, hydrophoneStyle, occurrenceStyle, outsideRegionStyle, selectedObservationStyle, sighterStyle, travelStyle, userLocationStyle, viewingLocationStyle} from './style.ts';
+import { editStyle, hydrophoneStyle, occurrenceStyle, outsideRegionStyle, salmonCountingSiteStyle, selectedObservationStyle, sighterStyle, travelStyle, userLocationStyle, viewingLocationStyle} from './style.ts';
 import Point from 'ol/geom/Point.js';
 import Polygon from 'ol/geom/Polygon.js';
 import VectorSource from 'ol/source/Vector.js';
@@ -72,6 +72,10 @@ export class ObsMap extends LitElement {
   private hydrophoneLayer = new VectorLayer({
     source: new VectorSource(),
     style: hydrophoneStyle,
+  })
+  private salmonCountingSiteLayer = new VectorLayer({
+    source: new VectorSource(),
+    style: salmonCountingSiteStyle,
   })
   private userLocationFeature = new Feature<Point>(new Point([]));
   private userLocationLayer = new VectorLayer({
@@ -151,6 +155,7 @@ export class ObsMap extends LitElement {
       this.travelLayer,
       this.viewingLocationsLayer,
       this.hydrophoneLayer,
+      this.salmonCountingSiteLayer,
       this.userLocationLayer,
       new VectorLayer({
         source: this.drawingSource,
@@ -218,7 +223,8 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
       return false;
     }
 
-    const feature = this.map.getFeaturesAtPixel(evt.pixel).filter(f => f.get('kind') === 'Hydrophone')[0];
+    const feature = this.map.getFeaturesAtPixel(evt.pixel)
+      .filter(f => f.get('kind') === 'Hydrophone' || f.get('kind') === 'SalmonCountingSite')[0];
     if (!feature)
       return;
     window.open(feature.get('url'), '_blank')
@@ -275,6 +281,7 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
     // Load GeoJSON layers asynchronously
     this.loadViewingLocations();
     this.loadHydrophones();
+    this.loadSalmonCountingSites();
   }
 
   private async loadViewingLocations() {
@@ -303,6 +310,19 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
       this.hydrophoneLayer.getSource()!.addFeatures(features);
     } catch (err) {
       console.error('Failed to load hydrophones:', err);
+    }
+  }
+
+  private async loadSalmonCountingSites() {
+    try {
+      const { default: geojsonText } = await import('./assets/orcasalmon-counting-sites.geojson?raw');
+      const features = new GeoJSON().readFeatures(geojsonText, {
+        dataProjection: 'EPSG:4326',
+        featureProjection: 'EPSG:3857'
+      });
+      this.salmonCountingSiteLayer.getSource()!.addFeatures(features);
+    } catch (err) {
+      console.error('Failed to load salmon counting sites:', err);
     }
   }
 

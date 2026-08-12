@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 255 255" width="16" height="16">
+    <defs>
+        <style>
+            .background {
+                fill: #fff
+            }
+
+            .line {
+                fill: none;
+                stroke: #1e2b76;
+            }
+
+            .cls-1 {
+                stroke-miterlimit: 10;
+                stroke-width: 15px;
+            }
+
+            .cls-2 {
+                stroke-linecap: round;
+                stroke-linejoin: round;
+                stroke-width: 12px;
+            }
+
+            .dot {
+                fill: #1e2b76
+            }
+        </style>
+    </defs>
+    <g id="Layer_1" data-name="Layer 1">
+        <circle class="background" cx="127.5" cy="127.5" r="120" />
+        <circle class="line cls-1" cx="127.5" cy="127.5" r="120" />
+        <path class="line cls-2" d="M45,127.5 C82,84 148,84 172,127.5 C148,171 82,171 45,127.5 Z" />
+        <path class="line cls-2" d="M172,127.5 L207,99 L207,156 Z" />
+        <circle class="dot" cx="78" cy="115" r="9" />
+    </g>
+</svg>

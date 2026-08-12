@@ -1,0 +1,4 @@
+{"type":"FeatureCollection","features":[
+{"id":"orcasalmon:albion","type":"Feature","geometry":{"type":"Point","coordinates":[-122.562,49.183]},"properties":{"kind":"SalmonCountingSite","name":"Albion Test Fishery","url":"https://salmonorca.fly.dev/"}},
+{"id":"orcasalmon:bonneville","type":"Feature","geometry":{"type":"Point","coordinates":[-121.9408,45.6442]},"properties":{"kind":"SalmonCountingSite","name":"Bonneville Dam","url":"https://salmonorca.fly.dev/"}}
+]}

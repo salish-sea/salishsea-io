@@ -9,6 +9,7 @@ import type Feature from 'ol/Feature.js';
 import Icon from 'ol/style/Icon.js';
 import arrowPNG from './assets/arrow.png';
 import hydrophoneIcon from './assets/hydrophone-default.svg?url';
+import salmonCountingSiteIcon from './assets/salmon-counting-site.svg?url';
 import viewingLocationIcon from './assets/viewing-location.svg?url';
 import { directionToRads } from './direction.ts';
 import type { Occurrence } from './types.ts';
@@ -258,6 +259,12 @@ export const hydrophoneStyle = (_hydrophone: FeatureLike) => {
     }),
   })
 }
+
+export const salmonCountingSiteStyle = new Style({
+  image: new Icon({
+    src: salmonCountingSiteIcon,
+  }),
+});
 
 /**
  * Shading for the map outside the active region.
