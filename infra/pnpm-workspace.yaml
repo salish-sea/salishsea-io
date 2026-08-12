@@ -19,7 +19,16 @@
 # succeed. The empty mapping is also the honest value: nothing in this project's
 # tree ships an install script, and nothing here is permitted to run one. If that
 # changes, add the entry here rather than to the root file.
-allowBuilds: {}
+# Denied, and deliberately so (same convention as the root file's exifreader
+# entry): unrs-resolver's postinstall runs `napi-postinstall … check`, a safety
+# net that fixes up the native binding when the platform-specific optional
+# dependency (@unrs/resolver-binding-*) failed to install. pnpm resolves those
+# optional deps natively, so the script no-ops here — but an unadjudicated
+# build script is ERR_PNPM_IGNORED_BUILDS and exit 1, which is exactly how
+# Dependabot's jest-toolchain bump broke `pnpm install --frozen-lockfile` on
+# 2026-08-12. If jest ever fails to load its resolver binding, flip to true.
+allowBuilds:
+  unrs-resolver: false
 
 # Force patched versions of jest-toolchain transitives past their dependents'
 # stale ranges (Dependabot alerts 148, 149, 150, 155 — all dev-scope):
