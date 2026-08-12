@@ -9,6 +9,7 @@ import type Feature from 'ol/Feature.js';
 import Icon from 'ol/style/Icon.js';
 import arrowPNG from './assets/arrow.png';
 import hydrophoneIcon from './assets/hydrophone-default.svg?url';
+import viewingLocationIcon from './assets/viewing-location.svg?url';
 import { directionToRads } from './direction.ts';
 import type { Occurrence } from './types.ts';
 import { symbolFor } from './identifiers.ts';
@@ -210,29 +211,33 @@ export const editStyle = (feature: FeatureLike) => {
     return selectedObservationStyle(feature);
 }
 
-export const viewingLocationStyle = (location: FeatureLike) => {
-  const fill = new Fill({color: transparentWhite});
-  const stroke = new Stroke({color: solidBlue, width: 1.25});
-  const text = location.get('name');
-  return [
+// It's the labels, not the markers, that clutter the map at low zoom: keep
+// them behind the old zoom-12 gate while the layer itself (obs-map.ts) now
+// shows markers a level earlier. Resolution at integer zoom z in EPSG:3857 is
+// 156543.03392804097 / 2^z; "zoom > 12" is "resolution below zoom 12's".
+const VIEWING_LABEL_MAX_RESOLUTION = 156543.03392804097 / 2 ** 12;
+
+export const viewingLocationStyle = (location: FeatureLike, resolution: number) => {
+  const styles = [
     new Style({
-      image: new CircleStyle({radius: 4, fill, stroke}),
-      fill,
-      stroke,
+      image: new Icon({src: viewingLocationIcon}),
     }),
-    new Style({
+  ];
+  if (resolution < VIEWING_LABEL_MAX_RESOLUTION) {
+    styles.push(new Style({
       text: new Text({
         declutterMode: 'obstacle',
         fill: new Fill({color: black}),
         font: '10px monospace',
         offsetX: 10,
         padding: [1, 1, 0, 1],
-        text,
+        text: location.get('name'),
         textAlign: 'left',
         textBaseline: 'middle',
       }),
-    }),
-  ];
+    }));
+  }
+  return styles;
 }
 
 export const userLocationStyle = new Style({

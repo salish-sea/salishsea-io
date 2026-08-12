@@ -63,7 +63,9 @@ export class ObsMap extends LitElement {
     style: (line, res) => travelStyle(line as Feature<LineString>, res),
   })
   private viewingLocationsLayer = new VectorLayer({
-    minZoom: 12,
+    // Markers appear a level earlier than before; the labels — the actual
+    // clutter — stay gated behind zoom 12 in viewingLocationStyle.
+    minZoom: 11,
     source: new VectorSource(),
     style: viewingLocationStyle,
   });
