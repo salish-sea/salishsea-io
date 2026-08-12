@@ -33,6 +33,10 @@ export class ObsPanel extends LitElement {
       overflow-x: hidden;
       overflow-y: auto;
       overscroll-behavior: contain;
+      /* Reserve the scrollbar's width even when the day's list doesn't
+         overflow, so stepping between full and empty days doesn't shift the
+         header/calendar/region selector horizontally. */
+      scrollbar-gutter: stable;
       scroll-behavior: smooth;
       touch-action: pan-y;
     }
