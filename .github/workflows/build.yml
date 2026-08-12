@@ -18,6 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      # Both `db start` and `gen types` pull Supabase docker images; ghcr.io
+      # avoids public.ecr.aws's 1-pull/sec anonymous rate limit. This used to
+      # arrive as a setup-cli side effect (supabase/cli#5785).
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,10 +42,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
-        with:
-          version: 2.53.6
-      - run: supabase db start
+      # The CLI is the `supabase` devDependency, so the database is started by
+      # the exact version that generates types below, traceable to package.json.
+      - run: pnpm exec supabase db start
       - name: Apply CI seed fixture
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/ci-seed.sql
       - name: Verify generated types match Postgres schema
