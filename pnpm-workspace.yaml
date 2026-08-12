@@ -20,3 +20,13 @@ allowBuilds:
   # --frozen-lockfile` in every workflow. Every package with a build script must
   # appear here as either true or false. Flip to true if a config is ever added.
   exifreader: false
+minimumReleaseAgeExclude:
+  - '@supabase/cli-darwin-arm64@2.114.0'
+  - '@supabase/cli-darwin-x64@2.114.0'
+  - '@supabase/cli-linux-arm64-musl@2.114.0'
+  - '@supabase/cli-linux-arm64@2.114.0'
+  - '@supabase/cli-linux-x64-musl@2.114.0'
+  - '@supabase/cli-linux-x64@2.114.0'
+  - '@supabase/cli-windows-arm64@2.114.0'
+  - '@supabase/cli-windows-x64@2.114.0'
+  - supabase@2.114.0

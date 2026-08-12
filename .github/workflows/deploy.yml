@@ -119,9 +119,12 @@ jobs:
           role-to-assume: arn:aws:iam::648183724555:role/salishsea-deploy-action
           aws-region: us-west-2
       - run: ls
+      # This job never installs the root node_modules, so the CLI comes from
+      # setup-cli rather than the `supabase` devDependency. With `version`
+      # omitted, the action installs the version declared in pnpm-lock.yaml
+      # (verifying npm integrity metadata), so prod (`db push`) and CI
+      # (build.yml) run the same CLI, pinned in one place.
       - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
-        with:
-          version: 2.53.6
       - run: supabase link --project-ref "${PROJECT_REF}"
         env:
           PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
