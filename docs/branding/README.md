@@ -54,7 +54,7 @@ not assets.
 
 The repository is the brand's other front door, and its two branded surfaces
 reach GitHub by different routes. The README header renders straight from the
-checked-in PNGs above, so pushing the branch ships it.
+checked-in PNGs above, so merging to the default branch ships it.
 
 The social preview does not. `github-social-preview.png` is a checked-in
 artifact like any other row in the table — but the preview GitHub *serves* is a
