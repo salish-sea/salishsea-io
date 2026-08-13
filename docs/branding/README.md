@@ -53,11 +53,20 @@ not assets.
 ## The GitHub repository
 
 The repository is the brand's other front door, and its two branded surfaces
-are set in different places. The README header is checked in and renders from
-the table above. The **social preview is not**: GitHub exposes no REST or
-GraphQL endpoint for it, so `github-social-preview.png` has to be uploaded by
-hand at
+reach GitHub by different routes. The README header renders straight from the
+checked-in PNGs above, so pushing the branch ships it.
+
+The social preview does not. `github-social-preview.png` is a checked-in
+artifact like any other row in the table — but the preview GitHub *serves* is a
+separate copy stored against the repository's settings, and nothing in git
+updates it. The API is read-only here (`openGraphImageUrl` and
+`usesCustomOpenGraphImage` can be read; no REST endpoint or GraphQL mutation
+writes them), so the file has to be uploaded by hand at
 [Settings → General → Social preview](https://github.com/salish-sea/salishsea-io/settings).
-Re-run the build script after a brand change and the file is regenerated, but
-someone still has to re-upload it — GitHub keeps serving the last upload
-otherwise. GitHub's own limits: PNG/JPG/GIF under 1 MB, 1280×640 preferred.
+That makes re-upload a step in every brand change: the build script regenerates
+the file, and GitHub goes on serving the last upload until someone repeats it.
+GitHub's own limits: PNG/JPG/GIF under 1 MB, 1280×640 preferred.
+
+The repository description and topics are likewise set through the API rather
+than from the tree — description per the whale-forward positioning of
+[decision 027](../decisions/027-marine-mammal-scope-whale-centric-identity.md).
