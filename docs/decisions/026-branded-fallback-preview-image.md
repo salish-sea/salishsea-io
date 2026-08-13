@@ -14,8 +14,9 @@ post is misleading. Cards without a real image became text-only summaries.
 
 **With a real brand identity in hand, cards that lack an image of the thing
 shared carry the branded card instead of no image.** The 1200×630 card —
-the two-herring mark and wordmark over a muted basemap of the Salish Sea
-(`public/social-card.jpg`) — is identity-shaped, not content-shaped: it says
+the designer's own composition of the two-herring mark, the wordmark, and the
+herring pattern (`public/social-card.jpg`) — is identity-shaped, not
+content-shaped: it says
 "this is SalishSea.io", which is true of every link, rather than pretending to
 depict the post.
 
@@ -42,8 +43,9 @@ What 019 got right and this record keeps:
 ## Consequences
 
 - Every shared link renders a rich card; none degrade to bare text.
-- The card must stay current with the brand. It is generated (mark + wordmark
-  over the day-card basemap frame with Esri attribution), so a brand change
-  regenerates it rather than orphaning a screenshot.
+- The card must stay current with the brand. It is a brand asset rather than a
+  screenshot, and it is built from a checked-in source
+  ([docs/branding](../branding/README.md)), so a brand change regenerates it
+  rather than orphaning it.
 - Facebook's sticky image-verdict caching (019's runbook note) applies to the
   transition in reverse: text-only-scraped links may lag in picking up the card.
