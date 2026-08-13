@@ -22,8 +22,11 @@ depict the post.
 
 Rolled out in two steps, both shipped:
 
-1. **Static shells (PR #381):** `index.html` declares the card and
-   `twitter:card=summary_large_image`, reaching non-bot scrapes.
+1. **Static shells (PRs #381, #383):** every shell — `index.html`, `about.html`,
+   and the `individual`/`matriline`/`ecotype` profile shells — declares the card
+   and `twitter:card=summary_large_image`. This reaches non-bot scrapes, the
+   pages the edge handler never intercepts (`about.html`), and, importantly, any
+   crawler served the raw shell because the handler failed open.
 2. **Edge handler (PR #383):** the synthesized cards that had no image — bare
    homepage, individual/matriline/ecotype profiles, and an occurrence with
    neither an open-licensed photo nor coordinates to render a map from —
@@ -46,7 +49,9 @@ What 019 got right and this record keeps:
 
 ## Consequences
 
-- Every shared link renders a rich card; none degrade to bare text.
+- Every shared link renders a rich card; none degrade to bare text. That holds
+  on the handler's failure paths too, because the shell it falls open to
+  declares the same card.
 - The card must stay current with the brand. It is a brand asset rather than a
   screenshot, and it is built from a checked-in source
   ([docs/branding](../branding/README.md)), so a brand change regenerates it

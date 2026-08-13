@@ -77,6 +77,11 @@ test('bot UA on an individual page receives profile OG meta tags', async ({ requ
   expect(body).toContain('og:title');
   expect(body).toContain('content="profile"');
   expect(body).toContain('https://salishsea.io/individuals/T065A');
+  // A profile has no image of its own, so it carries the brand card. Asserted
+  // per route: the shared fallback is easy to restore to text-only for one
+  // path without noticing (decision 026).
+  expect(body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
+  expect(body).toContain('<meta name="twitter:card" content="summary_large_image">');
 });
 
 test('regular browser UA on an individual page receives the page shell', async ({ request }) => {
@@ -102,6 +107,11 @@ test('bot UA on a matriline page receives profile OG meta tags', async ({ reques
   expect(body).toContain('og:title');
   expect(body).toContain('content="profile"');
   expect(body).toContain('https://salishsea.io/matrilines/T065A');
+  // A profile has no image of its own, so it carries the brand card. Asserted
+  // per route: the shared fallback is easy to restore to text-only for one
+  // path without noticing (decision 026).
+  expect(body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
+  expect(body).toContain('<meta name="twitter:card" content="summary_large_image">');
 });
 
 test('regular browser UA on a matriline page receives the page shell', async ({ request }) => {
@@ -126,6 +136,11 @@ test('bot UA on an ecotype page receives profile OG meta tags', async ({ request
   expect(body).toContain('og:title');
   expect(body).toContain('content="profile"');
   expect(body).toContain('https://salishsea.io/ecotypes/Biggs');
+  // A profile has no image of its own, so it carries the brand card. Asserted
+  // per route: the shared fallback is easy to restore to text-only for one
+  // path without noticing (decision 026).
+  expect(body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
+  expect(body).toContain('<meta name="twitter:card" content="summary_large_image">');
 });
 
 test('regular browser UA on an ecotype page receives the page shell', async ({ request }) => {
