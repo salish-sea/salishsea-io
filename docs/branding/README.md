@@ -38,10 +38,26 @@ edit a source file and re-run it rather than editing the outputs:
 | `public/apple-touch-icon.png` | `icon-diamond-light.svg` | iOS fills transparency with black |
 | `public/social-card.jpg` | `social-preview.png` | The `og:image`, resized to exactly 1200×630 ([decision 026](../decisions/026-branded-fallback-preview-image.md)) |
 | `src/assets/lockup-dark.svg` | `lockup-horizontal-teal-white.svg` | The app header |
+| `github-social-preview.png` | `social-preview.png` | The GitHub repository's social preview, center-cropped to GitHub's 1280×640 |
+| `lockup-readme-light.png`, `lockup-readme-dark.png` | `lockup-horizontal-blue-teal.svg`, `lockup-horizontal-teal-white.svg` | The repository README header, one per GitHub theme |
 
 `source/` holds the colorways the site uses plus the near neighbors a future
 change is likely to reach for. The complete set — every colorway, PNG exports
 at several sizes, the large-format patterns — lives in the designer's
 [Drive folder](https://drive.google.com/drive/folders/1u0ZjMRqpR5YhSUV0NyR9GNQY4UlzvbTt).
 
-The PNGs in this directory are review screenshots from PR #381, not assets.
+The remaining PNGs in this directory — `app-with-lockup.png`,
+`favicon-tabs.png`, `header-lockup.png` — are review screenshots from PR #381,
+not assets.
+
+## The GitHub repository
+
+The repository is the brand's other front door, and its two branded surfaces
+are set in different places. The README header is checked in and renders from
+the table above. The **social preview is not**: GitHub exposes no REST or
+GraphQL endpoint for it, so `github-social-preview.png` has to be uploaded by
+hand at
+[Settings → General → Social preview](https://github.com/salish-sea/salishsea-io/settings).
+Re-run the build script after a brand change and the file is regenerated, but
+someone still has to re-upload it — GitHub keeps serving the last upload
+otherwise. GitHub's own limits: PNG/JPG/GIF under 1 MB, 1280×640 preferred.

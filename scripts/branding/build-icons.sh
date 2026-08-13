@@ -42,4 +42,16 @@ rsvg-convert -w 180 -h 180 "$src/icon-diamond-light.svg" -o public/apple-touch-i
 magick "$src/social-preview.png" -resize 1200x630! \
   -background white -alpha remove -alpha off -quality 92 public/social-card.jpg
 
+# The same card at GitHub's preferred 2:1. Scale to cover, then center-crop the
+# ~16px of white margin off top and bottom — the composition is centered and the
+# pattern sits in the corners, so nothing meaningful is lost. Distorting to 2:1
+# the way the og:image does would visibly stretch the wordmark.
+magick "$src/social-preview.png" -resize 1280x640^ -gravity center -extent 1280x640 \
+  -background white -alpha remove -alpha off docs/branding/github-social-preview.png
+
+# GitHub renders README images but its sanitizer strips the <style> block these
+# lockups color themselves with, so the README gets PNGs, not the SVGs.
+rsvg-convert -w 840 "$src/lockup-horizontal-blue-teal.svg" -o docs/branding/lockup-readme-light.png
+rsvg-convert -w 840 "$src/lockup-horizontal-teal-white.svg" -o docs/branding/lockup-readme-dark.png
+
 cp "$src/lockup-horizontal-teal-white.svg" src/assets/lockup-dark.svg
