@@ -40,7 +40,7 @@ Because a widened block over-claims against a 99.9%-cetacean archive, the explan
 
 ### Published taxon names
 
-The names in `taxonomicClassification` are chosen for **GBIF backbone matchability**, verified 2026-08-13:
+The names in `taxonomicClassification` are chosen for **GBIF backbone matchability wherever a match exists**, with `Lutrinae` published as a deliberate exception. Verified 2026-08-13:
 
 | Name | GBIF backbone | Published? |
 |---|---|---|
@@ -71,7 +71,7 @@ The reason is not that seals haul out. It is that they are **too numerous and to
 
 ## Consequences
 
-- [docs/rights-policy.md](../rights-policy.md) §6.5 states the marine-mammal remit and requires the SRC-01 explanation; the `dwc` metadata view follows the policy it cites, and `verify-artifact`'s **SC#4c** gates the built archive on that requirement so the prose cannot quietly drop out of a future migration.
+- [docs/rights-policy.md](../rights-policy.md) §6.5 states the marine-mammal remit and requires the SRC-01 explanation; the `dwc` metadata view follows the policy it cites, and `verify-artifact`'s **SC#4c** gates the built archive on that requirement so the prose cannot quietly drop out of a future migration. Wiring that in exposed a gap: `verify-artifact.ts` existed but ran nowhere, so none of its assertions — SC#2, SC#3a–d, SC#4a–b included — gated the nightly. It now runs after the build and before publish, so a failing archive is never uploaded.
 - `scripts/dwca/eml.ts` publishes four `taxonomicClassification` blocks (Cetacea, Phocidae, Otariidae, Lutrinae) and marine-mammal keywords.
 - PRODUCT.md, `about.html`, and in-app copy widen factual claims and keep whale-forward positioning.
 - [CONTEXT.md](../../CONTEXT.md) records the segment species-gate so the empty table entries read as intent.
