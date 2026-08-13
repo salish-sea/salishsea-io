@@ -26,31 +26,79 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- 1. ORCID format constraint
+-- 1. ORCID validity: shape AND check digit
 --
 -- Canonical form is the full https URI — what the iNat v2 API returns and
--- what DwC recordedByID publishes. The final character may be 'X': ORCIDs
--- carry an ISO 7064 MOD 11-2 check digit, and 10 is written X. The checksum
--- itself is not verified; a regex cannot, and a plpgsql CHECK is more
--- machinery than a curator-entry path warrants.
+-- what DwC recordedByID publishes.
+--
+-- Shape alone is not enough, and the reason is specific to how this column
+-- gets filled. Where a contributor has no iNaturalist profile to source from,
+-- a curator types the identifier by hand, and the characteristic hand-entry
+-- error is a transposition. A transposed ORCID is still perfectly shaped —
+-- it simply designates a DIFFERENT PERSON, or nobody. Published in an archive
+-- as recordedByID, that is a misattribution no downstream consumer can
+-- detect, which is strictly worse than the malformed value a regex catches.
+--
+-- So the check digit is verified. ORCIDs carry an ISO 7064 MOD 11-2 checksum
+-- as their final character, written X when it is 10, and it catches every
+-- single-digit error and every adjacent transposition. https://orcid.org/
+-- 0000-0000-0000-0000 is well-shaped and invalid; the function rejects it.
+--
+-- Cost accepted: a CHECK that calls a function is a documented pg_dump
+-- ordering hazard (the function must exist before rows restore). It is
+-- IMMUTABLE, schema-qualified, and depends on nothing but built-ins, which
+-- is the shape that keeps that hazard theoretical.
 --
 -- NOT VALID deliberately: it enforces every future write while leaving the
 -- ~3,000 existing iNat-sourced rows unaudited. They arrive pre-formatted
 -- from the API and should all pass, but "should" is not "did", and a failed
 -- constraint would fail the deploy that carries it (the deploy job runs
 -- supabase db push before the frontend flips). Validating them is separate,
--- reversible work — tracked in beads.
+-- reversible work — tracked in beads as salish-ce6.
 -- ---------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.is_valid_orcid(uri text)
+RETURNS boolean
+LANGUAGE plpgsql
+IMMUTABLE STRICT PARALLEL SAFE
+SET search_path = ''
+AS $$
+DECLARE
+  digits    text;
+  total     integer := 0;
+  i         integer;
+  computed  integer;
+BEGIN
+  -- Shape first: the full https URI, 16 characters in 4-digit groups, where
+  -- only the last may be X.
+  IF uri !~ '^https://orcid\.org/[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$' THEN
+    RETURN false;
+  END IF;
+
+  -- ISO 7064 MOD 11-2 over the first 15 digits; the 16th is the check digit.
+  digits := replace(right(uri, 19), '-', '');
+  FOR i IN 1..15 LOOP
+    total := (total + substr(digits, i, 1)::integer) * 2;
+  END LOOP;
+  computed := (12 - (total % 11)) % 11;
+
+  RETURN substr(digits, 16, 1) =
+         CASE WHEN computed = 10 THEN 'X' ELSE computed::text END;
+END;
+$$;
+
+COMMENT ON FUNCTION public.is_valid_orcid(text) IS
+  'True when the argument is a full https://orcid.org/XXXX-XXXX-XXXX-XXXX URI whose ISO 7064 MOD 11-2 check digit (X for 10) is correct. Shape alone would accept a transposed ORCID, which designates a different person rather than an obviously broken value.';
+
 ALTER TABLE public.contributors
   DROP CONSTRAINT IF EXISTS contributors_orcid_is_canonical_uri;
 
 ALTER TABLE public.contributors
   ADD CONSTRAINT contributors_orcid_is_canonical_uri
-  CHECK (orcid IS NULL OR orcid ~ '^https://orcid\.org/[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$')
+  CHECK (orcid IS NULL OR public.is_valid_orcid(orcid))
   NOT VALID;
 
 COMMENT ON CONSTRAINT contributors_orcid_is_canonical_uri ON public.contributors IS
-  'ORCID stored as the full https://orcid.org/XXXX-XXXX-XXXX-XXXX URI - the form the iNat v2 API returns and the form DwC recordedByID publishes. Trailing X is the ISO 7064 MOD 11-2 check digit written as 10. NOT VALID: enforces new writes only; pre-existing rows unaudited.';
+  'ORCID stored as the full https://orcid.org/XXXX-XXXX-XXXX-XXXX URI - the form the iNat v2 API returns and the form DwC recordedByID publishes - with a verified ISO 7064 MOD 11-2 check digit. NOT VALID: enforces new writes only; pre-existing rows unaudited (salish-ce6).';
 
 -- ---------------------------------------------------------------------
 -- 2a. dwc._native_occurrences - append recordedByID.

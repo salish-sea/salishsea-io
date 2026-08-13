@@ -56,8 +56,9 @@ data are defined in
 
 This is the consumer-facing contract. The exact column list and term URIs live in
 [`scripts/dwca/fields.ts`](../scripts/dwca/fields.ts); the projection that fills
-them is the `dwc.occurrences` view in
-[`supabase/migrations/20260621000000_dwc_view_rebuild.sql`](../supabase/migrations/20260621000000_dwc_view_rebuild.sql);
+them is the `dwc.occurrences` view, defined by whichever migration touched it
+most recently — currently
+[`supabase/migrations/20260813200000_dwc_recorded_by_id.sql`](../supabase/migrations/20260813200000_dwc_recorded_by_id.sql);
 the dataset-level metadata (`eml.xml`) is built by
 [`scripts/dwca/eml.ts`](../scripts/dwca/eml.ts).
 
@@ -67,6 +68,7 @@ the dataset-level metadata (`eml.xml`) is built by
 | `rightsHolder` | `SalishSea.io` (constant) | Rights holder for the aggregated record — **not** the observer. |
 | `datasetName` | `SalishSea.io — {collection}` | The channel the observation came through (e.g. `SalishSea.io — Orca Network`). Records with a known-trusted channel but no resolved collection fall back to a generic Whale Alert label. |
 | `recordedBy` | observer's **name** (a human-readable string) | Who observed it. For aggregated records this is parsed from the source text where a name is present, and is **empty when no observer name is available** — it is never an opaque source code. |
+| `recordedByID` | observer's **ORCID** as a full `https://orcid.org/…` URI | The same observer as `recordedBy`, as a resolvable identifier rather than a name. Empty unless we hold an ORCID for that contributor, which today is almost never — an identifier is never inferred from a name. |
 | `occurrenceID` | `{source}:{id}` (e.g. `salishsea:…`, `maplify:…`) | Stable per-record identifier; its prefix also encodes which source the row came from. |
 | `license` | per record | Native records: **CC-BY-NC 4.0**. Maplify / Whale Alert records: **CC-BY 4.0** via the Acartia data cooperative. The dataset-level license in `eml.xml` is CC-BY-NC 4.0; the per-record `license` column is authoritative. |
 | `coordinateUncertaintyInMeters` | present, often empty | Emitted where a defensible value is known; **left empty (NULL) rather than guessed** when it isn't. Most current records have no captured accuracy, so this is frequently empty by design. |
