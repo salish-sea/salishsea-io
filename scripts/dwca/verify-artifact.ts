@@ -311,18 +311,27 @@ export function assertEmlTaxonomicCoverage(xml: string): void {
     }
     const prose = xml.slice(open, close);
 
+    const PLATFORM = /iNaturalist|HappyWhale/i;
+    const EXCLUSION = /exclud|omitt|not included|left out|withheld/i;
+
     const required: readonly (readonly [string, RegExp])[] = [
         ['the marine-mammal scope', /marine mammal/i],
         ['the excluded platforms (SRC-01)', /iNaturalist/i],
         ['the excluded platforms (SRC-01)', /HappyWhale/i],
-        // Exclusion language is required separately from the rationale: naming
-        // the platforms and mentioning GBIF is also satisfied by prose asserting
-        // the opposite ("included because they publish to GBIF"), which would
-        // describe an archive we do not ship.
-        ['that those records are excluded', /exclud|omitt|not included|left out|withheld/i],
         ['why they are excluded', /publish(?:es|ed)? to GBIF|self-publish/i],
     ];
     const missing = required.filter(([, re]) => !re.test(prose)).map(([label]) => label);
+
+    // Exclusion must be asserted *of the named platforms*, within one clause.
+    // Checking the whole block for an exclusion word somewhere is not enough:
+    // prose saying those platforms are included, alongside an unrelated clause
+    // about something else being excluded, would satisfy a document-wide test
+    // while describing an archive we do not ship.
+    const clauses = prose.split(/(?<=[.;:])\s+/);
+    if (!clauses.some((c) => PLATFORM.test(c) && EXCLUSION.test(c))) {
+        missing.push('that those platforms are excluded (claim must name them, not sit in a separate clause)');
+    }
+
     if (missing.length > 0) {
         throw new Error(
             `SC#4c FAIL: <generalTaxonomicCoverage> does not state ${[...new Set(missing)].join(', ')}. ` +

@@ -381,7 +381,19 @@ describe('assertEmlTaxonomicCoverage (SC#4c)', () => {
             'Salish Sea marine mammal occurrences, including records sourced from iNaturalist and ' +
             'HappyWhale, both of which publish to GBIF themselves.';
         expect(() => assertEmlTaxonomicCoverage(emlWithCoverage(inverted)))
-            .toThrowError(/that those records are excluded/);
+            .toThrowError(/that those platforms are excluded/);
+    });
+
+    test('throws when exclusion language sits in a clause unrelated to the platforms', () => {
+        // The contradiction a document-wide presence check cannot catch: the
+        // platforms are said to be INCLUDED, while a separate clause excludes
+        // something else. Every individual term is present; the claim is not.
+        const contradictory =
+            'Salish Sea marine mammal occurrences, including records sourced from iNaturalist and ' +
+            'HappyWhale, both of which publish to GBIF themselves. ' +
+            'Records without coordinates are excluded from this export.';
+        expect(() => assertEmlTaxonomicCoverage(emlWithCoverage(contradictory)))
+            .toThrowError(/that those platforms are excluded/);
     });
 
     test('accepts reworded prose that still carries the claims', () => {
