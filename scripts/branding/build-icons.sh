@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Regenerate the site's icon assets from the brand sources in docs/branding/source.
-# Requires rsvg-convert and ImageMagick (brew install librsvg imagemagick).
+# Requires python3, rsvg-convert, and ImageMagick
+# (brew install python librsvg imagemagick).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 

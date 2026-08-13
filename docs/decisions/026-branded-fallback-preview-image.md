@@ -42,7 +42,9 @@ What 019 got right and this record keeps:
 
 ## Consequences
 
-- Every shared link renders a rich card; none degrade to bare text.
+- Once both rollout steps land, every shared link renders a rich card; none
+  degrade to bare text. Until the edge handler follows, that holds for scrapes
+  that read the static shell, and crawler-served cards stay text-only.
 - The card must stay current with the brand. It is a brand asset rather than a
   screenshot, and it is built from a checked-in source
   ([docs/branding](../branding/README.md)), so a brand change regenerates it
