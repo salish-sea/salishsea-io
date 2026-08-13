@@ -85,7 +85,7 @@ function makeRow(overrides: Partial<Record<string, string>> = {}): string {
 const VALID_EML = `<?xml version="1.0" encoding="UTF-8"?>
 <eml:eml xmlns:eml="eml://ecoinformatics.org/eml-2.1.1">
   <dataset>
-    <title>SalishSea.io Cetacean Occurrences (v1.3)</title>
+    <title>SalishSea.io Marine Mammal Occurrences (v1.3)</title>
     <creator>
       <organizationName>SalishSea.io</organizationName>
     </creator>
@@ -110,7 +110,7 @@ const VALID_EML = `<?xml version="1.0" encoding="UTF-8"?>
 const EML_WRONG_TITLE = `<?xml version="1.0" encoding="UTF-8"?>
 <eml:eml xmlns:eml="eml://ecoinformatics.org/eml-2.1.1">
   <dataset>
-    <title>SalishSea.io Cetacean Occurrences (v1.2)</title>
+    <title>SalishSea.io Marine Mammal Occurrences (v1.2)</title>
     <associatedParty>
       <organizationName>Orca Network</organizationName>
       <onlineUrl>https://orcanetwork.org</onlineUrl>
@@ -124,7 +124,7 @@ const EML_WRONG_TITLE = `<?xml version="1.0" encoding="UTF-8"?>
 const EML_NO_ASSOCIATED_PARTIES = `<?xml version="1.0" encoding="UTF-8"?>
 <eml:eml xmlns:eml="eml://ecoinformatics.org/eml-2.1.1">
   <dataset>
-    <title>SalishSea.io Cetacean Occurrences (v1.3)</title>
+    <title>SalishSea.io Marine Mammal Occurrences (v1.3)</title>
     <creator>
       <organizationName>SalishSea.io</organizationName>
     </creator>
@@ -140,7 +140,7 @@ const EML_NO_ASSOCIATED_PARTIES = `<?xml version="1.0" encoding="UTF-8"?>
 const EML_ORG_IN_INSTITUTION_CODE = `<?xml version="1.0" encoding="UTF-8"?>
 <eml:eml xmlns:eml="eml://ecoinformatics.org/eml-2.1.1">
   <dataset>
-    <title>SalishSea.io Cetacean Occurrences (v1.3)</title>
+    <title>SalishSea.io Marine Mammal Occurrences (v1.3)</title>
     <associatedParty>
       <organizationName>Orca Network</organizationName>
       <onlineUrl>https://orcanetwork.org</onlineUrl>
@@ -323,7 +323,7 @@ describe('assertEmlTitle (SC#4b)', () => {
 
     test('error message includes the expected title literal', () => {
         expect(() => assertEmlTitle(EML_WRONG_TITLE))
-            .toThrowError(/Cetacean Occurrences \(v1\.3\)/);
+            .toThrowError(/Marine Mammal Occurrences \(v1\.3\)/);
     });
 
     test('throws for EML with no title element at all', () => {

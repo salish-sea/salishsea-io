@@ -23,9 +23,9 @@ import type { DatasetsRow, EmlInput } from './eml.ts';
 const mockDatasets: DatasetsRow = {
     dataset_id: 'https://salishsea.io/datasets/occurrences-v1',
     parent_dataset_id: null,
-    title: 'SalishSea.io Cetacean Occurrences (v1.3)',
+    title: 'SalishSea.io Marine Mammal Occurrences (v1.3)',
     abstract:
-        'Native and Maplify/Whale Alert cetacean sighting records from the Salish Sea region. ' +
+        'Native and Maplify/Whale Alert marine mammal sighting records from the Salish Sea region. ' +
         'Authored from observation tables in the SalishSea.io database, expressed as ' +
         'DarwinCore-aligned columns.',
     pub_date: '2026-06-17',
@@ -41,7 +41,10 @@ const mockDatasets: DatasetsRow = {
     contact_role: 'pointOfContact',
     geographic_coverage: null,
     temporal_coverage: null,
-    taxonomic_coverage: 'Cetacea (Order)',
+    taxonomic_coverage:
+        'Salish Sea marine mammals, following the remit of the PSEMP Marine Mammal Working Group: ' +
+        'Cetacea, Pinnipedia, and Lutrinae. Records sourced from iNaturalist and HappyWhale are ' +
+        'excluded from this export because those platforms publish to GBIF themselves.',
     methods: null,
 };
 
@@ -79,7 +82,7 @@ describe('buildEml — required elements present', () => {
 
     test('title, language, pubDate are present with mock values', () => {
         const xml = buildEml(mockInput);
-        expect(xml).toContain('<title>SalishSea.io Cetacean Occurrences (v1.3)</title>');
+        expect(xml).toContain('<title>SalishSea.io Marine Mammal Occurrences (v1.3)</title>');
         expect(xml).toContain('<language>en</language>');
         expect(xml).toContain('<pubDate>2026-06-17</pubDate>');
     });
@@ -113,7 +116,7 @@ describe('buildEml — required elements present', () => {
     test('abstract uses the migration-authored text wrapped in <para>', () => {
         const xml = buildEml(mockInput);
         expect(xml).toContain('<abstract>');
-        expect(xml).toContain('Native and Maplify/Whale Alert cetacean sighting records');
+        expect(xml).toContain('Native and Maplify/Whale Alert marine mammal sighting records');
         expect(xml).toContain('</abstract>');
         // <para> must wrap the abstract body per GBIF EML profile.
         const abstractBlock = xml.slice(xml.indexOf('<abstract>'), xml.indexOf('</abstract>'));
@@ -163,11 +166,26 @@ describe('buildEml — coverage', () => {
         expect(xml).toContain('<rangeOfDates>');
     });
 
-    test('taxonomic coverage mentions Cetacea at Order rank', () => {
+    test('taxonomic coverage names all three marine-mammal groups (decision 027)', () => {
         const xml = buildEml(mockInput);
-        expect(xml).toContain('<generalTaxonomicCoverage>Cetacea (Order)</generalTaxonomicCoverage>');
-        expect(xml).toContain('<taxonRankName>Order</taxonRankName>');
         expect(xml).toContain('<taxonRankValue>Cetacea</taxonRankValue>');
+        expect(xml).toContain('<taxonRankValue>Lutrinae</taxonRankValue>');
+        expect(xml).toContain('<taxonRankName>Order</taxonRankName>');
+        // Pinnipeds are published as accepted GBIF families, never as
+        // Pinnipedia (a synonym) or Phocoidea (absent from the backbone).
+        expect(xml).toContain('<taxonRankValue>Phocidae</taxonRankValue>');
+        expect(xml).toContain('<taxonRankValue>Otariidae</taxonRankValue>');
+        expect(xml).not.toContain('<taxonRankValue>Pinnipedia</taxonRankValue>');
+        expect(xml).not.toContain('<taxonRankValue>Phocoidea</taxonRankValue>');
+    });
+
+    test('generalTaxonomicCoverage passes through the stated prose, SRC-01 gap included', () => {
+        const xml = buildEml(mockInput);
+        expect(xml).toContain('<generalTaxonomicCoverage>');
+        expect(xml).toContain('PSEMP Marine Mammal Working Group');
+        // POLICY §6.5 requires the prose to explain why the realized archive is
+        // overwhelmingly cetacean despite the widened coverage statement.
+        expect(xml).toContain('publish to GBIF themselves');
     });
 });
 

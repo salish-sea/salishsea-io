@@ -39,8 +39,12 @@ import { OCCURRENCE_FIELDS } from './fields.ts';
 const DEFAULT_OCCURRENCE_PATH = 'dist/dwca/occurrence.txt';
 const DEFAULT_EML_PATH = 'dist/dwca/eml.xml';
 
-/** v1.3 archive title that must appear verbatim in eml.xml (SC#4b). */
-const EML_V13_TITLE = 'SalishSea.io Cetacean Occurrences (v1.3)';
+/**
+ * v1.3 archive title that must appear verbatim in eml.xml (SC#4b).
+ * Renamed Cetacean → Marine Mammal by decision 027; the version string is
+ * unchanged because the export contract did not move, only its description.
+ */
+const EML_V13_TITLE = 'SalishSea.io Marine Mammal Occurrences (v1.3)';
 
 /** Known opaque source codes that must NOT appear as recordedBy values (SC#3d). */
 const OPAQUE_SOURCE_CODES = ['whalealertoa', 'whalealertak', 'rwsas'] as const;
