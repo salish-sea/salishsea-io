@@ -63,11 +63,11 @@ describe('buildMetaXml — smoke', () => {
 });
 
 describe('buildMetaXml — field count', () => {
-    test('total `<field index="…"` count equals OCCURRENCE_FIELDS.length + MULTIMEDIA_FIELDS.length (= 32)', () => {
+    test('total `<field index="…"` count equals OCCURRENCE_FIELDS.length + MULTIMEDIA_FIELDS.length (= 33)', () => {
         const xml = buildMetaXml(OCCURRENCE_FIELDS, MULTIMEDIA_FIELDS);
         const count = (xml.match(/<field index="/g) ?? []).length;
         expect(count).toBe(OCCURRENCE_FIELDS.length + MULTIMEDIA_FIELDS.length);
-        expect(count).toBe(32);
+        expect(count).toBe(33);
     });
 });
 

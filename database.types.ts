@@ -821,6 +821,7 @@ export type Database = {
         Args: { body: string }
         Returns: Database["public"]["Enums"]["travel_direction"]
       }
+      is_valid_orcid: { Args: { uri: string }; Returns: boolean }
       normalize_designation: { Args: { code: string }; Returns: string }
       occurrence_days: {
         Args: {

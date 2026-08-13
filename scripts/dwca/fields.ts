@@ -36,7 +36,7 @@ export type MultimediaField = {
 };
 
 /**
- * Canonical 26-entry occurrence field list. Order MUST match the column
+ * Canonical 27-entry occurrence field list. Order MUST match the column
  * order of `dwc._native_occurrences` (and, by UNION ALL inheritance,
  * `dwc.occurrences`) in `supabase/migrations/20260617203900_dwc_schema.sql`.
  *
@@ -74,6 +74,7 @@ export const OCCURRENCE_FIELDS = [
     { name: 'license',               termUri: 'http://purl.org/dc/terms/license' },                   // 23 (was 22)
     { name: 'dynamicProperties',     termUri: 'http://rs.tdwg.org/dwc/terms/dynamicProperties' },     // 24 (was 23)
     { name: 'informationWithheld',   termUri: 'http://rs.tdwg.org/dwc/terms/informationWithheld' },   // 25 (was 24)
+    { name: 'recordedByID',          termUri: 'http://rs.tdwg.org/dwc/terms/recordedByID' },          // 26 APPENDED
 ] as const satisfies readonly OccurrenceField[];
 
 /**

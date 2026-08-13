@@ -20,7 +20,7 @@
  *     verify, not assume), §R5 for the freetext tab-collapse columns.
  *   - 06-CONTEXT.md F-02 (alignment guard), F-05 (UTF-8 no BOM),
  *     F-06 (constants as columns), G-01 (overridden per §R1: ST_Point not
- *     ST_AsWKB), G-02 (26 columns total), G-03 (CRS84 implied), G-04
+ *     ST_AsWKB), G-02 (all dwc columns + geometry), G-03 (CRS84 implied), G-04
  *     (geometry appended).
  */
 
