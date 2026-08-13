@@ -10,11 +10,24 @@ test('bot UA on homepage receives OG meta tags', async ({ request }) => {
   expect(body).toContain('og:title');
   expect(body).toContain('SalishSea.io');
   expect(body).toContain('og:type');
-  // Homepage card carries a description but deliberately no image — there is no
-  // site-wide fallback image (decision 019), so it is a text-only summary card.
+  // The homepage has no image of a thing shared, so it carries the brand card
+  // (decision 026, superseding 019) — identity-shaped, true of every link.
   expect(body).toContain('og:description');
-  expect(body).not.toContain('og:image');
-  expect(body).toContain('<meta name="twitter:card" content="summary">');
+  expect(body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
+  expect(body).toContain('<meta name="twitter:card" content="summary_large_image">');
+});
+
+// The card only counts if the crawler that follows og:image gets bytes back.
+// A brand card intercepted into OG HTML is the 019-era broken-preview bug.
+test('the brand card serves image bytes to the crawler that reads og:image', async ({ request }) => {
+  const response = await request.get('/social-card.jpg', {
+    headers: { 'User-Agent': 'facebookexternalhit/1.1' },
+  });
+
+  expect(response.status()).toBe(200);
+  expect(response.headers()['content-type']).toBe('image/jpeg');
+  // Above Facebook's 200x200 floor in every sense — the real 1200x630 card.
+  expect((await response.body()).byteLength).toBeGreaterThan(20_000);
 });
 
 test('bot UA on a dated link receives a day card', async ({ request }) => {
@@ -64,6 +77,11 @@ test('bot UA on an individual page receives profile OG meta tags', async ({ requ
   expect(body).toContain('og:title');
   expect(body).toContain('content="profile"');
   expect(body).toContain('https://salishsea.io/individuals/T065A');
+  // A profile has no image of its own, so it carries the brand card. Asserted
+  // per route: the shared fallback is easy to restore to text-only for one
+  // path without noticing (decision 026).
+  expect(body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
+  expect(body).toContain('<meta name="twitter:card" content="summary_large_image">');
 });
 
 test('regular browser UA on an individual page receives the page shell', async ({ request }) => {
@@ -89,6 +107,11 @@ test('bot UA on a matriline page receives profile OG meta tags', async ({ reques
   expect(body).toContain('og:title');
   expect(body).toContain('content="profile"');
   expect(body).toContain('https://salishsea.io/matrilines/T065A');
+  // A profile has no image of its own, so it carries the brand card. Asserted
+  // per route: the shared fallback is easy to restore to text-only for one
+  // path without noticing (decision 026).
+  expect(body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
+  expect(body).toContain('<meta name="twitter:card" content="summary_large_image">');
 });
 
 test('regular browser UA on a matriline page receives the page shell', async ({ request }) => {
@@ -113,6 +136,11 @@ test('bot UA on an ecotype page receives profile OG meta tags', async ({ request
   expect(body).toContain('og:title');
   expect(body).toContain('content="profile"');
   expect(body).toContain('https://salishsea.io/ecotypes/Biggs');
+  // A profile has no image of its own, so it carries the brand card. Asserted
+  // per route: the shared fallback is easy to restore to text-only for one
+  // path without noticing (decision 026).
+  expect(body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
+  expect(body).toContain('<meta name="twitter:card" content="summary_large_image">');
 });
 
 test('regular browser UA on an ecotype page receives the page shell', async ({ request }) => {

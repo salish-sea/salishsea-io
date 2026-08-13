@@ -165,12 +165,21 @@ const SITE_DESCRIPTION =
   'An interactive map of whale and marine-mammal sightings across the Salish Sea, ' +
   'gathered from community sources like Whale Alert, Orca Network, and HappyWhale.';
 
-// A card carries og:image only when we hold an image OF THE THING SHARED — today
-// that means an open-licensed photo on the occurrence itself. There is deliberately
-// no site-wide fallback image (decision 019): the old one was a months-stale map
-// screenshot that illustrated nothing the sharer posted, which reads as misleading
-// rather than merely empty. With no image, `summary` is the honest Twitter card
-// type — `summary_large_image` promises a picture and renders blank without one.
+// What a card shows, in order of preference: an image OF THE THING SHARED (an
+// open-licensed photo, else a rendered map of where it was seen), and failing
+// that the brand card — the mark and wordmark, which say "this is SalishSea.io"
+// (decision 026, superseding 019). The card 019 rejected was a months-stale map
+// screenshot: content-shaped, so it read as a picture of the post and misled.
+// An identity-shaped card claims nothing about the post, so it is honest on
+// every link, and `summary_large_image` is honest with it because there is now
+// always a picture to render.
+const BRAND_CARD_TAGS = {
+  'og:image': 'https://salishsea.io/social-card.jpg',
+  'og:image:width': '1200',
+  'og:image:height': '630',
+  'twitter:card': 'summary_large_image',
+} as const;
+
 function genericPreviewTags(): OgTags {
   return {
     'og:site_name': 'SalishSea.io',
@@ -178,7 +187,7 @@ function genericPreviewTags(): OgTags {
     'og:url': 'https://salishsea.io/',
     'og:title': SITE_TITLE,
     'og:description': SITE_DESCRIPTION,
-    'twitter:card': 'summary',
+    ...BRAND_CARD_TAGS,
     'fb:app_id': FB_APP_ID,
   };
 }
@@ -235,7 +244,7 @@ function individualPreviewTags(individual: Individual): OgTags {
     'og:url': `https://salishsea.io/individuals/${encodeURIComponent(designation)}`,
     'og:title': title,
     'og:description': description,
-    'twitter:card': 'summary',
+    ...BRAND_CARD_TAGS,
     'fb:app_id': FB_APP_ID,
   };
 }
@@ -351,7 +360,7 @@ function matrilinePreviewTags(group: SocialGroup): OgTags {
     'og:url': `https://salishsea.io/matrilines/${encodeURIComponent(designation)}`,
     'og:title': title,
     'og:description': description,
-    'twitter:card': 'summary',
+    ...BRAND_CARD_TAGS,
     'fb:app_id': FB_APP_ID,
   };
 }
@@ -388,7 +397,7 @@ function ecotypePreviewTags(group: SocialGroup): OgTags {
     'og:url': `https://salishsea.io/ecotypes/${encodeURIComponent(designation)}`,
     'og:title': label,
     'og:description': description,
-    'twitter:card': 'summary',
+    ...BRAND_CARD_TAGS,
     'fb:app_id': FB_APP_ID,
   };
 }
@@ -534,9 +543,9 @@ export const handler = async (event: any): Promise<any> => {
     //
     // A map card is only offered when there is somewhere to put the marker. The
     // renderer 404s on an occurrence with no coordinates, and a card URL that can
-    // never resolve is worse than no card URL — it sits broken inside a post,
-    // whereas omitting og:image degrades to the text-only card by design. No
-    // occurrence lacks a location today; the column allows it, so the code does too.
+    // never resolve is worse than no card URL — it sits broken inside a post. That
+    // case falls through to the brand card, which always resolves. No occurrence
+    // lacks a location today; the column allows it, so the code does too.
     const photo = (occ.photos ?? []).find((p: Photo) => OPEN_LICENSES.includes(p.license ?? ''));
     const image = photo ? cardImageUrl(photo.src)
       : occ.location ? occurrenceCardUrl(occurrenceId)
@@ -548,8 +557,9 @@ export const handler = async (event: any): Promise<any> => {
       'og:url': `https://salishsea.io/?o=${encodeURIComponent(occurrenceId)}`,
       'og:title': title,
       'og:description': description,
-      ...(image ? { 'og:image': image } : {}),
-      'twitter:card': image ? 'summary_large_image' : 'summary',
+      ...(image
+        ? { 'og:image': image, 'twitter:card': 'summary_large_image' }
+        : BRAND_CARD_TAGS),
       'fb:app_id': FB_APP_ID,
     };
 

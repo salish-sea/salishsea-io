@@ -78,12 +78,12 @@ describe('Lambda@Edge OG meta handler', () => {
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
     expect(result.body).toContain('SalishSea.io');
-    // Generic homepage preview carries a description and a real <title>, and NO
-    // image: there is no site-wide fallback (decision 019), so the card is
-    // text-only and declares twitter:card=summary rather than promising a picture.
+    // Generic homepage preview carries a description, a real <title>, and the
+    // brand card — there is no image of a *thing shared* on the bare homepage,
+    // so the identity-shaped card stands in (decision 026, superseding 019).
     expect(result.body).toContain('og:description');
-    expect(result.body).not.toContain('og:image');
-    expect(result.body).toContain('<meta name="twitter:card" content="summary">');
+    expect(result.body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
+    expect(result.body).toContain('<meta name="twitter:card" content="summary_large_image">');
     expect(result.body).toContain('<title>');
     // ...and a real <meta name="description"> for search snippets, not just og:*
     expect(result.body).toContain('<meta name="description"');
@@ -521,15 +521,15 @@ describe('map cards', () => {
     expect(body).toContain('https://salishsea.io/cards/o/inaturalist%3A375544838.jpg');
   });
 
-  it('offers no image for a photoless occurrence with no coordinates', async () => {
-    // The renderer 404s without a location, so a card URL here would sit broken
-    // inside a post. Omitting og:image degrades to the text-only card instead.
+  it('falls back to the brand card for a photoless occurrence with no coordinates', async () => {
+    // The renderer 404s without a location, so a map card URL here would sit
+    // broken inside a post. The brand card always resolves (decision 026).
     const body = await bodyFor('o=abc123', {
       ...sampleOccurrence, photos: [], location: null,
     });
     expect(body).not.toContain('/cards/o/');
-    expect(body).not.toContain('og:image');
-    expect(body).toContain('<meta name="twitter:card" content="summary">');
+    expect(body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
+    expect(body).toContain('<meta name="twitter:card" content="summary_large_image">');
     // The rest of the card still works — it is only the picture that is missing.
     expect(body).toContain('Orca · June 3, 2025');
   });
@@ -562,10 +562,11 @@ describe('map cards', () => {
     ['yesterday', 'a word'],
     ['', 'an empty value'],
   ])('falls back to the site card for %s (%s)', async (date) => {
-    // A malformed date must never become a card URL that 404s inside a post.
+    // A malformed date must never become a card URL that 404s inside a post;
+    // the site card it falls back to carries the brand card, which resolves.
     const body = await bodyFor(`d=${date}`);
     expect(body).not.toContain('/cards/day/');
-    expect(body).not.toContain('og:image');
+    expect(body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
     expect(body).toContain('Salish Sea');
   });
 });
