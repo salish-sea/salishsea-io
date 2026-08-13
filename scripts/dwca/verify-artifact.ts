@@ -10,6 +10,8 @@
  *   SC#3c — Every row's datasetName starts with 'SalishSea.io — '
  *   SC#3d — recordedBy spot-check: none of the known opaque source codes
  *   SC#4b — eml.xml contains the v1.3 title literal
+ *   SC#4c — <generalTaxonomicCoverage> states the marine-mammal scope and the
+ *            SRC-01 gap (POLICY §6.5, decision 027)
  *   SC#4a — eml.xml contains >=1 <associatedParty> crediting an upstream org
  *            AND no upstream org name appears in any institutionCode element
  *
@@ -284,6 +286,47 @@ export function assertEmlTitle(xml: string): void {
 }
 
 /**
+ * Assert SC#4c: `<generalTaxonomicCoverage>` states the SRC-01 gap.
+ *
+ * POLICY §6.5 requires the coverage prose to explain why an archive declaring
+ * marine-mammal scope is in practice almost entirely cetacean — iNaturalist and
+ * HappyWhale are excluded per SRC-01 and carry nearly every pinniped and otter
+ * record we hold. Without that sentence the widened coverage over-claims: a
+ * consumer filtering GBIF for Salish Sea pinnipeds would match this dataset and
+ * find 31 records.
+ *
+ * The prose itself lives in `dwc.datasets.taxonomic_coverage` and is authored by
+ * migration, so this gate is what keeps the database value honest. It checks for
+ * the load-bearing claims rather than an exact string, so the wording can be
+ * edited without a false failure.
+ *
+ * @param xml — Full eml.xml content as a string.
+ * @throws Error if the coverage block is missing or does not state the gap.
+ */
+export function assertEmlTaxonomicCoverage(xml: string): void {
+    const open = xml.indexOf('<generalTaxonomicCoverage>');
+    const close = xml.indexOf('</generalTaxonomicCoverage>');
+    if (open === -1 || close === -1) {
+        throw new Error('SC#4c FAIL: eml.xml has no <generalTaxonomicCoverage> element.');
+    }
+    const prose = xml.slice(open, close);
+
+    const required: readonly (readonly [string, RegExp])[] = [
+        ['the marine-mammal scope', /marine mammal/i],
+        ['the excluded platforms (SRC-01)', /iNaturalist/i],
+        ['the excluded platforms (SRC-01)', /HappyWhale/i],
+        ['why they are excluded', /publish(?:es|ed)? to GBIF|self-publish/i],
+    ];
+    const missing = required.filter(([, re]) => !re.test(prose)).map(([label]) => label);
+    if (missing.length > 0) {
+        throw new Error(
+            `SC#4c FAIL: <generalTaxonomicCoverage> does not state ${[...new Set(missing)].join(', ')}. ` +
+            `POLICY §6.5 requires the coverage prose to explain the SRC-01 exclusion.`,
+        );
+    }
+}
+
+/**
  * Extract organization names from `<associatedParty>` blocks in the EML XML.
  *
  * Each block has the shape:
@@ -426,6 +469,9 @@ export async function verifyArtifact(opts: {
     // Run EML assertions.
     assertEmlTitle(emlXml);
     console.log(`SC#4b OK: eml.xml contains the v1.3 title`);
+
+    assertEmlTaxonomicCoverage(emlXml);
+    console.log(`SC#4c OK: <generalTaxonomicCoverage> states the marine-mammal scope and the SRC-01 gap`);
 
     assertEmlAssociatedParties(emlXml);
     console.log(`SC#4a OK: eml.xml contains >=1 <associatedParty> and no upstream org in institutionCode`);

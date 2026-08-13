@@ -41,10 +41,17 @@ const mockDatasets: DatasetsRow = {
     contact_role: 'pointOfContact',
     geographic_coverage: null,
     temporal_coverage: null,
+    // Verbatim from 20260813000000_dwc_marine_mammal_coverage.sql. Kept in sync
+    // deliberately: an abbreviated paraphrase here would let the fixture drift
+    // from the value production actually seeds.
     taxonomic_coverage:
         'Salish Sea marine mammals, following the remit of the PSEMP Marine Mammal Working Group: ' +
-        'Cetacea, Pinnipedia, and Lutrinae. Records sourced from iNaturalist and HappyWhale are ' +
-        'excluded from this export because those platforms publish to GBIF themselves.',
+        'Cetacea (whales, dolphins, porpoises), Pinnipedia (seals and sea lions), and Lutrinae ' +
+        '(otters). The realized archive is overwhelmingly cetacean. Records sourced from ' +
+        'iNaturalist and HappyWhale are excluded from this export because those platforms publish ' +
+        'to GBIF themselves and re-export would duplicate them; they carry nearly all of the ' +
+        'pinniped and otter observations SalishSea.io holds. Consumers seeking Salish Sea pinniped ' +
+        'or otter records should consult those publishers directly.',
     methods: null,
 };
 
@@ -179,13 +186,24 @@ describe('buildEml — coverage', () => {
         expect(xml).not.toContain('<taxonRankValue>Phocoidea</taxonRankValue>');
     });
 
-    test('generalTaxonomicCoverage passes through the stated prose, SRC-01 gap included', () => {
+    test('generalTaxonomicCoverage passes the stated prose through verbatim', () => {
         const xml = buildEml(mockInput);
-        expect(xml).toContain('<generalTaxonomicCoverage>');
-        expect(xml).toContain('PSEMP Marine Mammal Working Group');
+        expect(xml).toContain(
+            `<generalTaxonomicCoverage>${mockDatasets.taxonomic_coverage}</generalTaxonomicCoverage>`,
+        );
+    });
+
+    test('coverage prose carries the full §6.5 contract', () => {
+        const xml = buildEml(mockInput);
         // POLICY §6.5 requires the prose to explain why the realized archive is
-        // overwhelmingly cetacean despite the widened coverage statement.
+        // overwhelmingly cetacean despite the widened coverage statement, and to
+        // point consumers at the publishers that do hold those records.
+        // assertEmlTaxonomicCoverage (verify-artifact.ts, SC#4c) gates the built
+        // artifact on the same contract.
+        expect(xml).toContain('PSEMP Marine Mammal Working Group');
+        expect(xml).toContain('The realized archive is overwhelmingly cetacean');
         expect(xml).toContain('publish to GBIF themselves');
+        expect(xml).toContain('should consult those publishers directly');
     });
 });
 
