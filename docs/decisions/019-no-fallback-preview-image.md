@@ -1,6 +1,6 @@
 # 019 — No fallback link-preview image
 
-**Status:** accepted (2026-07-26)
+**Status:** superseded by [026](026-branded-fallback-preview-image.md) (2026-08-12)
 **Context:** GitHub issue [#38](https://github.com/salish-sea/salishsea-io/issues/38)
 (link previews); bd `salish-adx`. Builds on the OG-meta edge handler
 (decision 002, 015–017).

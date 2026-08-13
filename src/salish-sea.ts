@@ -25,6 +25,7 @@ import { ObsPanel } from "./obs-panel.ts";
 import { createRef, ref } from "lit/directives/ref.js";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Contributor, Occurrence } from "./types.ts";
+import lockupUrl from "./assets/lockup-dark.svg?url";
 
 if (import.meta.env.PROD)
   sentryClient.init();
@@ -102,7 +103,7 @@ export default class SalishSea extends LitElement {
     }
 
     header {
-      align-items: baseline;
+      align-items: center;
       background-color: rgb(8, 13, 38);
       box-sizing: border-box;
       color: white;
@@ -113,8 +114,15 @@ export default class SalishSea extends LitElement {
     }
 
     h1 {
+      align-items: center;
+      display: flex;
       font-size: 1.2rem;
+      gap: 0.5rem;
       margin: 0;
+    }
+    h1 img {
+      display: block;
+      height: 1.75rem;
     }
 
     main {
@@ -371,7 +379,7 @@ export default class SalishSea extends LitElement {
 
     return html`
       <header>
-        <h1>SalishSea.io <a class="about-link" href="/about.html" title="About SalishSea.io" aria-label="About SalishSea.io">&#9432;</a></h1>
+        <h1><img src=${lockupUrl} alt="SalishSea.io"> <a class="about-link" href="/about.html" title="About SalishSea.io" aria-label="About SalishSea.io">&#9432;</a></h1>
         <div>
           <login-button></login-button>
         </div>

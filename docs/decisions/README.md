@@ -22,10 +22,11 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [016](016-matriline-profile-pages.md) | Matriline profile pages | accepted |
 | [017](017-ecotype-profile-pages.md) | Ecotype profile pages | accepted |
 | [018](018-inat-id-keyset-pagination.md) | iNaturalist ingest paginates by id-keyset, not page number (amends 011) | accepted |
-| [019](019-no-fallback-preview-image.md) | No fallback link-preview image: `og:image` only for a photo of the thing shared | accepted |
+| [019](019-no-fallback-preview-image.md) | No fallback link-preview image: `og:image` only for a photo of the thing shared | superseded by 026 |
 | [020](020-map-preview-cards.md) | Map-rendered link preview cards; Esri basemap, day cards, basemap sourcing | accepted |
 | [021](021-calendar-date-picker.md) | Calendar date picker; day circles sized by sighting volume, live `occurrence_days` view | accepted |
 | [022](022-regions-filter-data.md) | Regions filter the data (map, list, calendar); map outside the active region is shaded | accepted |
 | [023](023-region-framing-vs-filtering.md) | A region's framing is not its filter; frame the region on load (supersedes part of 022) | accepted |
 | [024](024-deploy-gating-and-alerting.md) | Deploys gate on the full test suite, verify themselves, and alert by labeled issue | accepted |
 | [025](025-pnpm-over-npm.md) | pnpm replaces npm; `infra/` is a separate pnpm project | accepted |
+| [026](026-branded-fallback-preview-image.md) | Branded fallback link-preview image: the brand card where no image of the thing shared exists | accepted |
