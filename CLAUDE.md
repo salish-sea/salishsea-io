@@ -91,6 +91,20 @@ pnpm exec playwright test  # e2e
 
 Node version is pinned in `.nvmrc`. The DwC-A build's CI gate needs the Supabase local stack (not bare Postgres) — see [decision 003](docs/decisions/003-dwc-export-pipeline.md).
 
+## Parallel agents
+
+**More than one agent at a time means one worktree each.** Sharing a working directory is how uncommitted work gets swept into someone else's commit — on 2026-08-13 a decision record's index row and forward pointer landed in an unrelated PR while the record itself, being untracked, stayed behind, leaving two dangling links on `main`.
+
+Use `bd worktree create <name>`, not `git worktree add` — it shares the main repo's beads database via git's common directory, so the issue tracker stays single. Then, before working:
+
+- **Copy `.env` and `.env.test` in.** Both are gitignored, so a fresh worktree has neither, and the resulting failures look like code problems.
+- **`pnpm install` in the worktree, and again in `infra/`** — a separate pnpm project with its own lockfile. Cheap: pnpm's global store hardlinks rather than copies.
+
+Two rules that survive the isolation, because worktrees separate files and nothing else:
+
+- **The local Supabase stack is a singleton** on port 54321. Only one worktree at a time runs anything that touches it (`pnpm build:dwca`, `pnpm gen-types`, `scripts/dwca/build.test.ts`).
+- **Commit a new file as soon as it exists**, even as a stub. A tracked file's edits can be swept up by another agent's `git add -A`; an untracked file cannot — which is precisely how the two halves of a change get separated.
+
 ## Architecture Overview
 
 Static SPA (Lit web components + Vite + TypeScript, OpenLayers maps) on AWS S3/CloudFront, Supabase backend (Postgres + auth + storage), AWS CDK infra in `infra/`, deployed by GitHub Actions on push to `main`. A Lambda@Edge function serves OG meta tags to crawlers for rich link previews and rewrites `/individuals/<designation>` profile-page paths to the `individual.html` shell (fail-open; `/dwca/*` carved out; decision 015). A nightly workflow regenerates the DarwinCore Archive from the read-only `dwc` Postgres schema. Details: [docs/decisions/](docs/decisions/), [docs/data-provenance.md](docs/data-provenance.md).
