@@ -40,6 +40,7 @@ const EXPECTED_OCCURRENCE_NAMES = [
     'license',
     'dynamicProperties',
     'informationWithheld',
+    'recordedByID',
 ] as const;
 
 const EXPECTED_MULTIMEDIA_NAMES = [
@@ -59,8 +60,8 @@ describe('fields module wiring (smoke)', () => {
 });
 
 describe('OCCURRENCE_FIELDS', () => {
-    test('contains exactly 26 entries matching RESEARCH §T4 occurrence table', () => {
-        expect(OCCURRENCE_FIELDS.length).toBe(26);
+    test('contains exactly 27 entries: the RESEARCH §T4 table plus appended recordedByID', () => {
+        expect(OCCURRENCE_FIELDS.length).toBe(27);
     });
 
     test('every entry has a non-empty name and termUri', () => {
@@ -102,7 +103,7 @@ describe('OCCURRENCE_FIELDS', () => {
         expect(new Set(names).size).toBe(names.length);
     });
 
-    test('column-name order matches the canonical 26-name list (DWCA-02 primary guardrail)', () => {
+    test('column-name order matches the canonical 27-name list (DWCA-02 primary guardrail)', () => {
         expect(OCCURRENCE_FIELDS.map((f) => f.name)).toEqual([...EXPECTED_OCCURRENCE_NAMES]);
     });
 });

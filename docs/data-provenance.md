@@ -119,8 +119,12 @@ is [`scripts/ingest/resolve-provider.ts`](../scripts/ingest/resolve-provider.ts)
 - **Cross-provider contributor identity is not unified.** The same person
   observing through two sources may appear as two contributors; we do not yet
   assert a shared identity across providers.
-- **`recordedByID` / ORCID** are not yet populated; observer identifiers are a
-  future enhancement.
+- **`recordedByID` / ORCID is emitted but sparse.** The column carries an
+  observer's ORCID as a full `https://orcid.org/…` URI when we hold one, and is
+  empty otherwise — an identifier we do not have is absent, never inferred from a
+  name. Expect it empty on nearly every record today: Maplify records have no
+  contributor row to draw one from, and the ORCIDs we do hold came from
+  iNaturalist profiles, whose records are excluded from this archive (SRC-01).
 - **Individual-animal identity (`organismID`)** is out of scope — these are
   occurrence records, not a cetacean catalog.
 

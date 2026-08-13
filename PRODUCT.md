@@ -34,7 +34,7 @@ Tracked as bd issues; the durable statements:
 
 - Emit `coordinateUncertaintyInMeters` on occurrence records (GBIF validator flagged absence, 2026-06-19)
 - Enrich `eml.xml` resource contacts (GBIF `RESOURCE_CONTACTS_MISSING_OR_INCOMPLETE`; re-check after Phase 13 fix)
-- Populate contributor ORCIDs for the 28 native contributors (column and `recordedByID` emit shipped in v1.3)
+- Populate contributor ORCIDs for the 28 native contributors. The `contributors.orcid` column shipped in v1.3; the `recordedByID` emit did not, despite an earlier version of this line saying so, and landed later as occurrence column 26. Sourced from iNaturalist where a contributor has linked an ORCID there, and curated by hand otherwise — the two contributor records are not yet linked, so that sourcing is a curation practice rather than machinery
 
 ### Future directions (unscheduled)
 

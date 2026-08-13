@@ -12,7 +12,7 @@
  *   - DWCA-04: neither CSV starts with the UTF-8 BOM bytes EF BB BF; every
  *     occurrence row splits into exactly 25 fields (no embedded tab leakage).
  *   - DWCA-06: parquet `geo` kv-metadata is GeoParquet 1.0.0 / primary_column=
- *     geometry / encoding=WKB; column count is 26 (25 dwc + geometry); row
+ *     geometry / encoding=WKB; column count is OCCURRENCE_FIELDS + 1 (dwc columns + geometry); row
  *     count matches the source view; ST_AsText round-trips POINT.
  *
  * DWCA-05 is the GBIF validator manual upload — handled by Task 2's checkpoint.
@@ -247,7 +247,7 @@ d('build:dwca integration (DWCA-01..04/06; requires SUPABASE_DB_URL)', () => {
                 expect(hasPoint).toBe(true);
             }
 
-            // (2) Column count = 25 dwc + 1 geometry = 26.
+            // (2) Column count = every dwc column + 1 geometry.
             const descReader = await conn.runAndReadAll(
                 `DESCRIBE SELECT * FROM read_parquet('${PARQUET}')`,
             );
