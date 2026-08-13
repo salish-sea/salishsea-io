@@ -103,7 +103,7 @@ Use `bd worktree create <name>`, not `git worktree add` — it shares the main r
 Two rules that survive the isolation, because worktrees separate files and nothing else:
 
 - **The local Supabase stack is a singleton** on port 54321. Only one worktree at a time runs anything that touches it (`pnpm build:dwca`, `pnpm gen-types`, `scripts/dwca/build.test.ts`).
-- **Commit a new file as soon as it exists**, even as a stub. A tracked file's edits can be swept up by another agent's `git add -A`; an untracked file cannot — which is precisely how the two halves of a change get separated.
+- **Commit a new file as soon as it exists**, even as a stub. In a shared directory, a tracked file's edits get swept up by another agent's `git add -A` while an untracked file doesn't, which is precisely how the two halves of a change separate. In a worktree the risk inverts rather than disappears: nothing else can touch your files, and uncommitted work is discarded outright when the worktree is cleaned up.
 
 ## Architecture Overview
 

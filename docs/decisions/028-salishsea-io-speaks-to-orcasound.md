@@ -67,8 +67,14 @@ OrcaSound to adjudicate.
 
 - **orcasound/orcasite#1001 is this repository's issue to carry**, including the corrected
   cost estimate — it currently understates the ask as "only slug conventions and a
-  moderator habit", where the register's uncertainty requirement implies a schema change
-  (a `certainty` column on `item_tags`). Reposting it is tracked as `salish-8vr.2`.
+  moderator habit". Preserving a moderator's uncertainty ("J123?", "+L?") is a requirement
+  *this* repository makes as the owner of annotation, and it implies a schema change rather
+  than a convention. The register makes no such demand: ADR-0018 grants it exactly two
+  claims on an annotation — cite an identifier, and record the edition behind a derived
+  fact — and ADR-0009's five-column sketch is explicitly illustrative. Where the field
+  lands is ours to propose and OrcaSound's to decide; naming one here as though the
+  register mandated it would re-create the confusion this record exists to end. Reposting
+  is tracked as `salish-8vr.2`.
 - **The recommendation cannot be posted before the shape is settled here.** Q18's
   substance — the confidence/verification split, and allowing a signal recorded with no
   animal named (an occurrence with zero identifications) — has to land as an amendment to
