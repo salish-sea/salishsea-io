@@ -317,7 +317,7 @@ export class ObsPanel extends LitElement {
       `)}
       ${!this.user && !this.showForm ? html`
         <p class="contribute-pitch">
-          The public is our <strong>best source of data on how whales use these waters</strong> — add what you see.
+          The public is our <strong>best source of data on how marine mammals use these waters</strong> — add what you see.
           <a href="/about.html">Learn more.</a>
         </p>
       ` : ''}

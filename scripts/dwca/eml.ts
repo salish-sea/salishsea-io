@@ -199,7 +199,9 @@ export function buildEml(input: EmlInput): string {
       <para>${xmlEsc(d.abstract)}</para>
     </abstract>
     <keywordSet>
+      <keyword>marine mammals</keyword>
       <keyword>cetaceans</keyword>
+      <keyword>pinnipeds</keyword>
       <keyword>Salish Sea</keyword>
       <keyword>whale sightings</keyword>
       <keyword>occurrence</keyword>
@@ -229,6 +231,25 @@ export function buildEml(input: EmlInput): string {
         <taxonomicClassification>
           <taxonRankName>Order</taxonRankName>
           <taxonRankValue>Cetacea</taxonRankValue>
+        </taxonomicClassification>
+        <!--
+          Pinnipeds are declared as the two accepted families we actually hold
+          rather than as Pinnipedia: GBIF's backbone carries Pinnipedia only as
+          a FAMILY-rank synonym, and knows neither Phocoidea (iNaturalist's
+          name for taxon 372843) nor Lutrinae. Phocidae + Otariidae are
+          accepted and matchable. See decision 027.
+        -->
+        <taxonomicClassification>
+          <taxonRankName>Family</taxonRankName>
+          <taxonRankValue>Phocidae</taxonRankValue>
+        </taxonomicClassification>
+        <taxonomicClassification>
+          <taxonRankName>Family</taxonRankName>
+          <taxonRankValue>Otariidae</taxonRankValue>
+        </taxonomicClassification>
+        <taxonomicClassification>
+          <taxonRankName>Subfamily</taxonRankName>
+          <taxonRankValue>Lutrinae</taxonRankValue>
         </taxonomicClassification>
       </taxonomicCoverage>
     </coverage>

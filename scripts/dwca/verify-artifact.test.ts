@@ -21,6 +21,7 @@ import {
     assertRightsHolder,
     assertDatasetNamePrefix,
     assertEmlTitle,
+    assertEmlTaxonomicCoverage,
     assertEmlAssociatedParties,
 } from './verify-artifact.ts';
 import { OCCURRENCE_FIELDS } from './fields.ts';
@@ -85,7 +86,7 @@ function makeRow(overrides: Partial<Record<string, string>> = {}): string {
 const VALID_EML = `<?xml version="1.0" encoding="UTF-8"?>
 <eml:eml xmlns:eml="eml://ecoinformatics.org/eml-2.1.1">
   <dataset>
-    <title>SalishSea.io Cetacean Occurrences (v1.3)</title>
+    <title>SalishSea.io Marine Mammal Occurrences (v1.3)</title>
     <creator>
       <organizationName>SalishSea.io</organizationName>
     </creator>
@@ -110,7 +111,7 @@ const VALID_EML = `<?xml version="1.0" encoding="UTF-8"?>
 const EML_WRONG_TITLE = `<?xml version="1.0" encoding="UTF-8"?>
 <eml:eml xmlns:eml="eml://ecoinformatics.org/eml-2.1.1">
   <dataset>
-    <title>SalishSea.io Cetacean Occurrences (v1.2)</title>
+    <title>SalishSea.io Marine Mammal Occurrences (v1.2)</title>
     <associatedParty>
       <organizationName>Orca Network</organizationName>
       <onlineUrl>https://orcanetwork.org</onlineUrl>
@@ -124,7 +125,7 @@ const EML_WRONG_TITLE = `<?xml version="1.0" encoding="UTF-8"?>
 const EML_NO_ASSOCIATED_PARTIES = `<?xml version="1.0" encoding="UTF-8"?>
 <eml:eml xmlns:eml="eml://ecoinformatics.org/eml-2.1.1">
   <dataset>
-    <title>SalishSea.io Cetacean Occurrences (v1.3)</title>
+    <title>SalishSea.io Marine Mammal Occurrences (v1.3)</title>
     <creator>
       <organizationName>SalishSea.io</organizationName>
     </creator>
@@ -140,7 +141,7 @@ const EML_NO_ASSOCIATED_PARTIES = `<?xml version="1.0" encoding="UTF-8"?>
 const EML_ORG_IN_INSTITUTION_CODE = `<?xml version="1.0" encoding="UTF-8"?>
 <eml:eml xmlns:eml="eml://ecoinformatics.org/eml-2.1.1">
   <dataset>
-    <title>SalishSea.io Cetacean Occurrences (v1.3)</title>
+    <title>SalishSea.io Marine Mammal Occurrences (v1.3)</title>
     <associatedParty>
       <organizationName>Orca Network</organizationName>
       <onlineUrl>https://orcanetwork.org</onlineUrl>
@@ -323,12 +324,96 @@ describe('assertEmlTitle (SC#4b)', () => {
 
     test('error message includes the expected title literal', () => {
         expect(() => assertEmlTitle(EML_WRONG_TITLE))
-            .toThrowError(/Cetacean Occurrences \(v1\.3\)/);
+            .toThrowError(/Marine Mammal Occurrences \(v1\.3\)/);
     });
 
     test('throws for EML with no title element at all', () => {
         const noTitle = '<eml:eml><dataset><pubDate>2026-01-01</pubDate></dataset></eml:eml>';
         expect(() => assertEmlTitle(noTitle)).toThrowError(/SC#4b FAIL/);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// SC#4c — assertEmlTaxonomicCoverage (POLICY §6.5, decision 027)
+// ---------------------------------------------------------------------------
+
+/** Wrap coverage prose in the minimum EML shape the assertion reads. */
+const emlWithCoverage = (prose: string) =>
+    `<eml:eml><dataset><coverage><taxonomicCoverage>` +
+    `<generalTaxonomicCoverage>${prose}</generalTaxonomicCoverage>` +
+    `</taxonomicCoverage></coverage></dataset></eml:eml>`;
+
+/** Prose satisfying §6.5: marine-mammal scope plus the SRC-01 explanation. */
+const COVERAGE_COMPLIANT =
+    'Salish Sea marine mammals, following the remit of the PSEMP Marine Mammal Working Group. ' +
+    'Records sourced from iNaturalist and HappyWhale are excluded from this export because those ' +
+    'platforms publish to GBIF themselves.';
+
+describe('assertEmlTaxonomicCoverage (SC#4c)', () => {
+    test('passes for prose stating the scope and the SRC-01 gap', () => {
+        expect(() => assertEmlTaxonomicCoverage(emlWithCoverage(COVERAGE_COMPLIANT))).not.toThrow();
+    });
+
+    test('throws when the coverage element is absent entirely', () => {
+        expect(() => assertEmlTaxonomicCoverage('<eml:eml><dataset/></eml:eml>'))
+            .toThrowError(/SC#4c FAIL/);
+    });
+
+    test('throws when the scope is stated but the SRC-01 gap is not — the §6.5 regression', () => {
+        // This is the shape the policy exists to prevent: a widened coverage
+        // claim with nothing explaining why the archive is 99.9% cetacean.
+        const bare = 'Salish Sea marine mammals: Cetacea, Phocidae, Otariidae, Lutrinae.';
+        expect(() => assertEmlTaxonomicCoverage(emlWithCoverage(bare)))
+            .toThrowError(/SC#4c FAIL/);
+    });
+
+    test('names which part of the contract is missing', () => {
+        const noReason =
+            'Salish Sea marine mammals. Records from iNaturalist and HappyWhale are not included.';
+        expect(() => assertEmlTaxonomicCoverage(emlWithCoverage(noReason)))
+            .toThrowError(/why they are excluded/);
+    });
+
+    test('throws for prose asserting the opposite — inclusion, not exclusion', () => {
+        // Names both platforms and cites the GBIF rationale, but describes an
+        // archive we do not ship. Presence checks alone would pass this.
+        const inverted =
+            'Salish Sea marine mammal occurrences, including records sourced from iNaturalist and ' +
+            'HappyWhale, both of which publish to GBIF themselves.';
+        expect(() => assertEmlTaxonomicCoverage(emlWithCoverage(inverted)))
+            .toThrowError(/that those platforms are excluded/);
+    });
+
+    test('throws when exclusion language sits in a clause unrelated to the platforms', () => {
+        // The contradiction a document-wide presence check cannot catch: the
+        // platforms are said to be INCLUDED, while a separate clause excludes
+        // something else. Every individual term is present; the claim is not.
+        const contradictory =
+            'Salish Sea marine mammal occurrences, including records sourced from iNaturalist and ' +
+            'HappyWhale, both of which publish to GBIF themselves. ' +
+            'Records without coordinates are excluded from this export.';
+        expect(() => assertEmlTaxonomicCoverage(emlWithCoverage(contradictory)))
+            .toThrowError(/that those platforms are excluded/);
+    });
+
+    test('accepts reworded prose that still carries the claims', () => {
+        const reworded =
+            'Coverage is Salish Sea marine mammal occurrences. iNaturalist and HappyWhale records ' +
+            'are omitted because both self-publish to GBIF.';
+        expect(() => assertEmlTaxonomicCoverage(emlWithCoverage(reworded))).not.toThrow();
+    });
+
+    test('does not read coverage claims from elsewhere in the document', () => {
+        // The abstract mentioning the exclusion must not satisfy the gate — the
+        // requirement is on the coverage element specifically.
+        const misplaced =
+            `<eml:eml><dataset>` +
+            `<abstract><para>iNaturalist and HappyWhale publish to GBIF themselves.</para></abstract>` +
+            `<coverage><taxonomicCoverage><generalTaxonomicCoverage>` +
+            `Salish Sea marine mammals.` +
+            `</generalTaxonomicCoverage></taxonomicCoverage></coverage>` +
+            `</dataset></eml:eml>`;
+        expect(() => assertEmlTaxonomicCoverage(misplaced)).toThrowError(/SC#4c FAIL/);
     });
 });
 

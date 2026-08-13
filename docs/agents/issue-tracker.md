@@ -7,11 +7,20 @@ Two trackers, routed by audience:
   feature requests, inbound bug reports, and triage of those reports.
 - **beads** (`bd`) — everything else. Internal implementation work: breaking
   features into build tasks, in-flight work, bugs found while building,
-  discovered/follow-up work, sequencing. Issues live in a local Dolt DB, but
-  `.beads/issues.jsonl` — bd's export — **is tracked in git**, so the database is
-  reviewable in diffs and rebuildable with `bd import`. It must stay tracked:
-  while it was gitignored, bd's auto-export failed silently on every write and
-  beads existed nowhere but one laptop.
+  discovered/follow-up work, sequencing. Issues live in a **local Dolt database**
+  (`.beads/embeddeddolt/`, gitignored) and travel over the git remote under a
+  dedicated ref, `refs/dolt/data` — *not* as files in the working tree. Only bd's
+  config and hooks are tracked as ordinary files; see
+  [.beads/.gitignore](../../.beads/.gitignore) for what is deliberately excluded.
+
+  The consequence that bites: **nothing reaches anyone else until `bd dolt push`
+  runs.** A `git push` does not carry issues, and a session that closes without
+  the bd push leaves them on one laptop. This has happened before, under the
+  older JSONL-export layout, for the same underlying reason.
+
+  If you are looking for `.beads/issues.jsonl`, it is gone. JSONL is now a
+  local-only backup (`.beads/backup/`, gitignored), not the interchange format —
+  so do not expect issues to show up in a diff or a code review.
 
 **Issue ids are `salish-<suffix>`** (e.g. `salish-g9e`). They were
 `salishsea-io-<suffix>` until 2026-07-27; the suffix never changed, so an old id
@@ -38,6 +47,8 @@ if it's how we build and track the work, it's beads.**
 - Frontier: `bd ready` · Show: `bd show <id>` · List: `bd list --status open --json`
 - Update/close: `bd update <id> --status <state>` · `bd close <id> --reason "..."`
 - Link/provenance: `bd dep add <blocked> <blocker>` · `--deps discovered-from:<id>`
+- Sync: `bd dolt push` · `bd dolt pull` — publish/fetch via `refs/dolt/data` on
+  the git remote. Required before a session ends; `git push` does not carry issues.
 
 ## When a skill says "publish to the issue tracker"
 

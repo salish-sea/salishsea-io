@@ -2,9 +2,9 @@
 
 ## What This Is
 
-SalishSea.io is a whale sighting platform for the Salish Sea serving two distinct audiences: **sighters** who want to share observations in the moment, and **researchers** (often the same people in a different mode) who want a reliable, comprehensive historical record of cetacean observations. The app presents an interactive map of dated sightings, lets authenticated users log observations with photos and location, and links observations into travel segments by species.
+SalishSea.io is a whale sighting platform for the Salish Sea serving two distinct audiences: **sighters** who want to share observations in the moment, and **researchers** (often the same people in a different mode) who want a reliable, comprehensive historical record of marine mammal observations. The app presents an interactive map of dated sightings, lets authenticated users log observations with photos and location, and links observations into travel segments by species.
 
-**Core value:** the most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative cetacean data.
+**Core value:** the most convenient place to share and discover whale sightings in the Salish Sea — combining real-time community reporting with curated, authoritative marine mammal data.
 
 **Mission:** a place for people who live in the region to connect, deepen their understanding of the ecology, and fight to protect it.
 
@@ -58,7 +58,8 @@ Tracked as bd issues; the durable statements:
 - **Deployment:** static SPA on S3/CloudFront, AWS CDK infra, GitHub Actions deploy on push to `main`; server-side behavior requires edge functions
 - **Auth:** Google Sign-In only
 - **Spatial scope:** matches Acartia's boundaries — the full range of Southern Resident Killer Whales
-- **Taxonomic scope:** that of PSEMP's Marine Mammal Working Group (Puget Sound Ecosystem Monitoring Program) — Salish Sea marine mammals broadly (cetaceans, pinnipeds, mustelids). All are ingested via iNaturalist today (taxa Cetacea / Phocoidea / Lutrinae). See [decision 009](docs/decisions/009-taxonomic-scope-marine-mammals.md).
+- **Taxonomic scope:** that of PSEMP's Marine Mammal Working Group (Puget Sound Ecosystem Monitoring Program) — Salish Sea marine mammals broadly (cetaceans, pinnipeds, mustelids). All are ingested via iNaturalist today (taxa Cetacea / Phocoidea / Lutrinae). PSEMP defines the *boundary*; we do not ingest PSEMP's own datasets. See decisions [009](docs/decisions/009-taxonomic-scope-marine-mammals.md) and [027](docs/decisions/027-marine-mammal-scope-whale-centric-identity.md).
+- **Whale-centric positioning, marine-mammal record:** statements about what the data contains are marine-mammal-wide and must be true; statements about what the product is for stay whale-forward. The deep investment — individual catalogs, matrilines, ecotypes, photo-ID — is cetacean by design ([decision 027](docs/decisions/027-marine-mammal-scope-whale-centric-identity.md)).
 
 ## Decisions
 

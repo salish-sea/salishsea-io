@@ -93,6 +93,12 @@ jobs:
             - name: Build DwC-A
               run: pnpm run build:dwca
 
+            # Artifact-level assertions (SC#2, SC#3a-d, SC#4a-c) over the files
+            # just written to dist/dwca. Runs before publish so a bad archive is
+            # never uploaded. SC#4c enforces the POLICY §6.5 coverage contract.
+            - name: Verify artifact (SC#2, SC#3a-d, SC#4a-c)
+              run: pnpm exec tsx scripts/dwca/verify-artifact.ts
+
             - name: Compute checksums
               working-directory: dist/dwca
               run: |

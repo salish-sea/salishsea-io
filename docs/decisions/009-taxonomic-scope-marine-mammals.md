@@ -1,6 +1,6 @@
 # 009 — Taxonomic scope: PSEMP Marine Mammal Working Group
 
-**Status:** accepted · **Decided:** 2026-07-02 · **Supersedes:** the "cetaceans only" scope of [001](001-product-framing.md)
+**Status:** accepted · **Decided:** 2026-07-02 · **Supersedes:** the "cetaceans only" scope of [001](001-product-framing.md) · **Extended by:** [027](027-marine-mammal-scope-whale-centric-identity.md) (PSEMP is a boundary, not a data source; whale-centric identity; export coverage; segment species-gate)
 
 ## Decision
 

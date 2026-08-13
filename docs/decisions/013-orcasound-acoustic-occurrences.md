@@ -82,7 +82,9 @@ within the imperative-shell ingest architecture (decision
 ## Reference
 
 Tracking issue: [#178](https://github.com/salish-sea/salishsea-io/issues/178). Upstream
-proposal: [orcasound/orcasite#1001](https://github.com/orcasound/orcasite/issues/1001).
+proposal: [orcasound/orcasite#1001](https://github.com/orcasound/orcasite/issues/1001) —
+this repository, not the animal register, is the voice that carries it
+([028](028-salishsea-io-speaks-to-orcasound.md)).
 Provenance model: [006](006-provenance-graph.md). Anti-corruption layer:
 [008](008-source-schemas-are-upstream-mirrors.md). Ingest architecture:
 [011](011-ingest-imperative-shell.md).
