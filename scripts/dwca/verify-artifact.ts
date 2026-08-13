@@ -315,6 +315,11 @@ export function assertEmlTaxonomicCoverage(xml: string): void {
         ['the marine-mammal scope', /marine mammal/i],
         ['the excluded platforms (SRC-01)', /iNaturalist/i],
         ['the excluded platforms (SRC-01)', /HappyWhale/i],
+        // Exclusion language is required separately from the rationale: naming
+        // the platforms and mentioning GBIF is also satisfied by prose asserting
+        // the opposite ("included because they publish to GBIF"), which would
+        // describe an archive we do not ship.
+        ['that those records are excluded', /exclud|omitt|not included|left out|withheld/i],
         ['why they are excluded', /publish(?:es|ed)? to GBIF|self-publish/i],
     ];
     const missing = required.filter(([, re]) => !re.test(prose)).map(([label]) => label);

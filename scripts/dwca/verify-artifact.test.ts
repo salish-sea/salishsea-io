@@ -374,6 +374,16 @@ describe('assertEmlTaxonomicCoverage (SC#4c)', () => {
             .toThrowError(/why they are excluded/);
     });
 
+    test('throws for prose asserting the opposite — inclusion, not exclusion', () => {
+        // Names both platforms and cites the GBIF rationale, but describes an
+        // archive we do not ship. Presence checks alone would pass this.
+        const inverted =
+            'Salish Sea marine mammal occurrences, including records sourced from iNaturalist and ' +
+            'HappyWhale, both of which publish to GBIF themselves.';
+        expect(() => assertEmlTaxonomicCoverage(emlWithCoverage(inverted)))
+            .toThrowError(/that those records are excluded/);
+    });
+
     test('accepts reworded prose that still carries the claims', () => {
         const reworded =
             'Coverage is Salish Sea marine mammal occurrences. iNaturalist and HappyWhale records ' +

@@ -11,9 +11,9 @@ Four related calls, resolved together:
 3. **The export states marine-mammal coverage**, with prose that explains why the realized archive is almost entirely cetacean.
 4. **Travel segments stay species-gated** to the taxa in the travel-speed table. Absence from that table is intent, not an oversight.
 
-## PSEMP publishes no ingestable data
+## PSEMP publishes no occurrence data to ingest
 
-The [MMWG hub](https://psemp-marinemammalsworkgroup-wa-psp.hub.arcgis.com/) is a workgroup landing page, not a data portal (verified 2026-08-13): its DCAT feed is empty, its site catalog group is private, and the whole `wa-psp` ArcGIS org has two public items matching marine-mammal terms — the hub site itself and a Chinook contaminants map image. What the site actually offers is the `mmwg-psemp.net` mailing list, Box folders of meeting documents, and links to Vital Signs dashboards carrying population-trend rollups rather than occurrence records.
+The [MMWG hub](https://psemp-marinemammalsworkgroup-wa-psp.hub.arcgis.com/) is a workgroup landing page, not a data portal (verified 2026-08-13). It publishes plenty — just nothing occurrence-shaped: its DCAT feed is empty, its site catalog group is private, and the whole `wa-psp` ArcGIS org has two public items matching marine-mammal terms — the hub site itself and a Chinook contaminants map image. What the site actually offers is the `mmwg-psemp.net` mailing list, Box folders of meeting documents, and links to Vital Signs dashboards carrying population-trend rollups rather than occurrence records.
 
 So "don't ingest PSEMP" forgoes nothing. It also moots the CC-BY-NC-SA/ShareAlike concern raised against the CC-BY-NC export contract in [docs/rights-policy.md](../rights-policy.md): with no PSEMP records ingested, there is nothing to redistribute.
 
