@@ -1,5 +1,16 @@
-# salishsea-io
-Salish Sea Data Explorer
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/branding/lockup-readme-dark.png">
+    <img src="docs/branding/lockup-readme-light.png" alt="salishsea.io" width="420">
+  </picture>
+</p>
+
+<p align="center">
+  Whale sightings across the Salish Sea — an interactive map, a curated
+  marine-mammal record, and a nightly DarwinCore Archive.
+  <br>
+  <a href="https://salishsea.io/">salishsea.io</a>
+</p>
 
 Welcome! This is a new project, started in 2025, to gather sightings and information about whales in the Salish Sea. There is a ton of useful and interesting information about this ecosystem that would reach a greater audience if it were all in one place and cross-referenced. Over time, we hope the site can develop into a place for the people who live in the region to come connect, deepen their understanding of the ecology, and fight to protect it.
 
@@ -15,6 +26,8 @@ This codebase was started by Peter Abrahamsen. My goals for the codebase are to 
 They are (mostly) simple, fast, well-understood, long-lived, and easily-replaced projects appropriate to take as dependencies.
 
 Most project planning currently happens on Zulip. You are welcome to join us there: https://orcasound.zulipchat.com/#narrow/channel/494032-salishsea-io
+
+The visual identity above — the two-herring mark, the wordmark, and the pattern — was contributed by [Liam Reese](https://github.com/liamreese). Its sources and the script that derives every shipped asset from them live in [docs/branding](docs/branding/README.md).
 
 ## Setup
 

@@ -38,10 +38,35 @@ edit a source file and re-run it rather than editing the outputs:
 | `public/apple-touch-icon.png` | `icon-diamond-light.svg` | iOS fills transparency with black |
 | `public/social-card.jpg` | `social-preview.png` | The `og:image`, resized to exactly 1200×630 ([decision 026](../decisions/026-branded-fallback-preview-image.md)) |
 | `src/assets/lockup-dark.svg` | `lockup-horizontal-teal-white.svg` | The app header |
+| `github-social-preview.png` | `social-preview.png` | The GitHub repository's social preview, center-cropped to GitHub's 1280×640 |
+| `lockup-readme-light.png`, `lockup-readme-dark.png` | `lockup-horizontal-blue-teal.svg`, `lockup-horizontal-teal-white.svg` | The repository README header, one per GitHub theme |
 
 `source/` holds the colorways the site uses plus the near neighbors a future
 change is likely to reach for. The complete set — every colorway, PNG exports
 at several sizes, the large-format patterns — lives in the designer's
 [Drive folder](https://drive.google.com/drive/folders/1u0ZjMRqpR5YhSUV0NyR9GNQY4UlzvbTt).
 
-The PNGs in this directory are review screenshots from PR #381, not assets.
+The remaining PNGs in this directory — `app-with-lockup.png`,
+`favicon-tabs.png`, `header-lockup.png` — are review screenshots from PR #381,
+not assets.
+
+## The GitHub repository
+
+The repository is the brand's other front door, and its two branded surfaces
+reach GitHub by different routes. The README header renders straight from the
+checked-in PNGs above, so merging to the default branch ships it.
+
+The social preview does not. `github-social-preview.png` is a checked-in
+artifact like any other row in the table — but the preview GitHub *serves* is a
+separate copy stored against the repository's settings, and nothing in git
+updates it. The API is read-only here (`openGraphImageUrl` and
+`usesCustomOpenGraphImage` can be read; no REST endpoint or GraphQL mutation
+writes them), so the file has to be uploaded by hand at
+[Settings → General → Social preview](https://github.com/salish-sea/salishsea-io/settings).
+That makes re-upload a step in every brand change: the build script regenerates
+the file, and GitHub goes on serving the last upload until someone repeats it.
+GitHub's own limits: PNG/JPG/GIF under 1 MB, 1280×640 preferred.
+
+The repository description and topics are likewise set through the API rather
+than from the tree — description per the whale-forward positioning of
+[decision 027](../decisions/027-marine-mammal-scope-whale-centric-identity.md).
