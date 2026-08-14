@@ -74,11 +74,19 @@ the tags carried identifiers — see the [Amendment](#amendment-2026-08-14).
 
 ## Consequences
 
-- **Blocked on upstream.** The integration's value depends on OrcaSound adopting the tag
-  vocabulary (orcasound/orcasite#1001). #178 is parked at `needs-info` pending that response,
-  which may not come. This ADR records *our* side of the decision; the upstream contract is not
-  yet ratified. *(Still true 2026-08-14, but no longer one all-or-nothing answer — the ask is
-  now six issues that can be accepted separately. See the Amendment.)*
+- **Blocked on upstream, but no longer on one answer.** The integration depends on OrcaSound
+  adopting the changes that let a tag carry identity, certainty and machine classification —
+  now six issues that can each be accepted separately, listed under
+  [Upstream status](#upstream-status) in the Amendment. orcasound/orcasite#1001 is retained as
+  the narrative that links them, not as the ask itself. #178 stays parked at `needs-info`. This
+  ADR records *our* side; the upstream contract is not ratified, and OrcaSound may adopt some,
+  all, or none of it.
+
+  > ~~The integration's value depends on OrcaSound adopting the tag vocabulary
+  > (orcasound/orcasite#1001). #178 is parked at `needs-info` pending that response, which may
+  > not come.~~ *Superseded 2026-08-14: the vocabulary already exists and was never the ask —
+  > see the Amendment. Kept because "waiting for one response" is what this record wrongly told
+  > a reader to do for five weeks.*
 - Acoustic occurrences carry a **time range, not an instant** — new for our model, which is
   otherwise point-in-time. Segment/travel-chain heuristics and any DwC mapping must account for
   a bout's duration.
