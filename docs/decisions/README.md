@@ -16,7 +16,7 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [010](010-fresh-codebase-vs-acartia.md) | SalishSea.io is a fresh codebase, not an extension of acartia.io | accepted |
 | [011](011-ingest-imperative-shell.md) | Network ingest as a TypeScript imperative shell over a functional core | accepted |
 | [012](012-ingest-heartbeat.md) | Ingest heartbeat: external observer via scheduled GitHub Action | accepted |
-| [013](013-orcasound-acoustic-occurrences.md) | OrcaSound acoustic occurrences from curated biophony bouts, identified by upstream tags | accepted (our side); pending upstream adoption |
+| [013](013-orcasound-acoustic-occurrences.md) | OrcaSound acoustic occurrences from curated biophony bouts, identified by upstream tags (amended 2026-08-14: identifications arrive typed) | accepted (our side); pending upstream adoption |
 | [014](014-trust-and-curation-model.md) | Trust & curation: claims have status, people have reputation, curators assert both | proposed (direction) |
 | [015](015-individual-profile-pages.md) | Individual profile pages at `/individuals/<designation>` | accepted |
 | [016](016-matriline-profile-pages.md) | Matriline profile pages | accepted |
