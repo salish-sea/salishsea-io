@@ -235,6 +235,24 @@ async function main(): Promise<void> {
             inCycle.forEach((id) => pointerAfter.set(id, null));
         }
 
+        // Persist wherever the desired end state differs from what is stored — NOT merely
+        // where upstream changed. A cycle already present in the database that upstream
+        // still agrees with produces no upstream-driven change at all, so a plan built
+        // from `changed` would write nothing, leave the cycle in place, and let the
+        // repoint loop swap rows until it exhausted the hop bound and rolled back every
+        // unrelated update. That is the failure the cycle guard exists to prevent, so the
+        // guard has to be able to write.
+        const desiredActive = (t: { id: number; is_active: boolean }) =>
+            upstream.get(t.id)?.is_active ?? t.is_active;
+        const toWrite = mirrored.filter(
+            (t) => desiredActive(t) !== t.is_active
+                || (pointerAfter.get(t.id) ?? null) !== t.current_taxon_id,
+        );
+        if (toWrite.length !== changed.length) {
+            console.log(`\n${toWrite.length - changed.length} further taxa need their stored `
+                + 'pointer corrected (cycle members, or a pointer left by an earlier run).');
+        }
+
         const willRepoint = [...pointerAfter.entries()]
             .filter(([, target]) => target !== null)
             .map(([id]) => id);
@@ -251,14 +269,14 @@ async function main(): Promise<void> {
             return;
         }
 
-        const ids = changed.map((t) => t.id);
-        const actives = changed.map((t) => upstream.get(t.id)!.is_active);
+        const ids = toWrite.map((t) => t.id);
+        const actives = toWrite.map((t) => desiredActive(t));
         // Straight from the same map the count used, so the two cannot diverge. A taxon
         // in a cycle is still recorded retired; only its pointer is withheld.
-        const currents = changed.map((t) => pointerAfter.get(t.id) ?? null);
+        const currents = toWrite.map((t) => pointerAfter.get(t.id) ?? null);
 
         await sql.begin(async (tx) => {
-            if (changed.length) {
+            if (toWrite.length) {
                 // Status first. The CHECK constraint requires a replacement to imply
                 // inactive, so both columns must move in one statement.
                 await tx`
@@ -324,7 +342,7 @@ async function main(): Promise<void> {
                     );
             }
         });
-        console.log(`\nupdated ${changed.length} taxa`);
+        console.log(`\nupdated ${toWrite.length} taxa`);
     } finally {
         await sql.end();
     }
