@@ -1,3 +1,13 @@
+<!--
+  Infrastructure marker: a fixed place you could listen from, not an animal
+  somebody saw.
+
+  The plate is a rounded square on purpose. Occurrences are round dots, and
+  these icons used to be round badges of the same weight and near the same
+  size, so on the live map a hydrophone read as a sighting (salish-fll.3).
+  Shape is the one distinction that survives whatever colours decision 029's
+  taxon palette lands on; colour alone would not.
+-->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 255 255" width="16" height="16">
     <defs>
         <style>
@@ -23,8 +33,8 @@
         </style>
     </defs>
     <g id="Layer_1" data-name="Layer 1">
-        <circle class="background" cx="127.5" cy="127.5" r="120" />
-        <circle class="line cls-1" cx="127.5" cy="127.5" r="120" />
+        <rect class="background" x="7.5" y="7.5" width="240" height="240" rx="40" />
+        <rect class="line cls-1" x="7.5" y="7.5" width="240" height="240" rx="40" />
         <line class="line cls-1" x1="127.5" y1="7.5" x2="127.5" y2="107.5" />
         <circle class="line cls-1" cx="127.5" cy="127.5" r="21.67" />
         <path class="line cls-2" d="M162.86,92.14a50,50,0,0,1,0,70.72" />
