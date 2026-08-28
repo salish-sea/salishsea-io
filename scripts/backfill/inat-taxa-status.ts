@@ -171,10 +171,6 @@ async function main(): Promise<void> {
             console.log(`  ${t.id}  ${u.name}  ->  ${note}`);
         }
 
-        // What the repointing would move. Counted before writing so a dry run says
-        // exactly what an --apply would do.
-        const repointable = retired.filter((t) => targetFor(t.id) !== null).map((t) => t.id);
-
         // A retired taxon we cannot repoint, that something still references, is the one
         // case needing a human: the records point at a dead concept and we hold nothing
         // to move them to.
@@ -205,28 +201,23 @@ async function main(): Promise<void> {
         if (orphanParents!.n > 0)
             console.log(`\nNOTE: ${orphanParents!.n} taxa sit under a retired parent. `
                 + 'Ancestry is left to the ingest; inaturalist.species_id() walks parent_id.');
-        // The repoint below moves any row pointing at ANY taxon carrying a replacement,
-        // not only the ones retired on this run — a pointer set by an earlier run whose
-        // repoint did not finish is still live work. Count against that same set, or the
-        // dry run understates what --apply does.
-        const alreadyPointed = mirrored.filter((t) => t.current_taxon_id !== null).map((t) => t.id);
-        const willRepoint = [...new Set([...alreadyPointed, ...repointable])];
-        if (willRepoint.length) {
-            const rows = await countReferencing(sql, willRepoint);
-            const total = rows.reduce((a, r) => a + r.n, 0);
-            console.log(`\nrecords to repoint: ${total}`);
-            for (const r of rows.filter((r) => r.n > 0)) console.log(`    ${r.n}  ${r.table}`);
-            if (total === 0) console.log('  (nothing to repoint)');
-        }
+        // What the repoint will actually see: the pointer each taxon carries AFTER the
+        // status update. Counting from the CURRENT column instead over-reports, because
+        // a taxon upstream has reactivated still has a stored pointer that this run is
+        // about to clear — its rows will not move. Under-reporting is the mirror error:
+        // a pointer left by an earlier run whose repoint did not finish is still live
+        // work even though nothing changed this time. Taxa absent from the upstream
+        // response keep whatever they hold, since nothing touches them.
+        const changedIds = new Set(changed.map((t) => t.id));
+        const pointerAfter = new Map<number, number | null>(
+            mirrored.map((t) => [t.id, changedIds.has(t.id) ? targetFor(t.id) : t.current_taxon_id]),
+        );
 
         // A mutual pair (A->B, B->A) is possible across two upstream swaps and no CHECK
         // forbids it — only self-pointing. The repoint would then swap rows every hop and
-        // never settle, hit MAX_HOPS, and roll back the whole transaction including every
-        // unrelated status flag. Detect it here and drop just the offending pair, so one
-        // bad pair costs its own rows instead of the entire run.
-        const pointerAfter = new Map<number, number | null>(
-            mirrored.map((t) => [t.id, changed.includes(t) ? targetFor(t.id) : t.current_taxon_id]),
-        );
+        // never settle, exhaust the hop bound, and roll back the whole transaction
+        // including every unrelated status flag. Detect it here and withhold just the
+        // offending pointers, so one bad pair costs its own rows instead of the run.
         const inCycle = new Set<number>();
         for (const start of pointerAfter.keys()) {
             const seen = new Set<number>([start]);
@@ -241,6 +232,18 @@ async function main(): Promise<void> {
             console.log(`\nWARNING: ${inCycle.size} taxa form a replacement cycle upstream `
                 + `(${[...inCycle].join(', ')}). Their pointers are left unset; nothing else `
                 + 'is affected. A human should decide which taxon wins.');
+            inCycle.forEach((id) => pointerAfter.set(id, null));
+        }
+
+        const willRepoint = [...pointerAfter.entries()]
+            .filter(([, target]) => target !== null)
+            .map(([id]) => id);
+        if (willRepoint.length) {
+            const rows = await countReferencing(sql, willRepoint);
+            const total = rows.reduce((a, r) => a + r.n, 0);
+            console.log(`\nrecords to repoint: ${total}`);
+            for (const r of rows.filter((r) => r.n > 0)) console.log(`    ${r.n}  ${r.table}`);
+            if (total === 0) console.log('  (nothing to repoint)');
         }
 
         if (!apply) {
@@ -250,8 +253,9 @@ async function main(): Promise<void> {
 
         const ids = changed.map((t) => t.id);
         const actives = changed.map((t) => upstream.get(t.id)!.is_active);
-        // A taxon in a cycle is still recorded retired; only its pointer is withheld.
-        const currents = changed.map((t) => (inCycle.has(t.id) ? null : targetFor(t.id)));
+        // Straight from the same map the count used, so the two cannot diverge. A taxon
+        // in a cycle is still recorded retired; only its pointer is withheld.
+        const currents = changed.map((t) => pointerAfter.get(t.id) ?? null);
 
         await sql.begin(async (tx) => {
             if (changed.length) {
@@ -290,14 +294,14 @@ async function main(): Promise<void> {
             // retire B, so a chain needs repeating until nothing moves — bounded, because
             // a pointer cycle would otherwise spin forever. Ten is far above any real
             // chain; hitting it means the data is malformed and a human should look.
+            // A chain of N links needs N passes that move plus one that moves nothing to
+            // prove it is finished, so the bound is checked AFTER a pass and only when
+            // that pass still moved rows. Checking before the pass would cap chains at
+            // MAX_HOPS - 1 and throw on a legitimate one.
             const MAX_HOPS = 10;
             let hop = 0;
             for (;;) {
-                if (++hop > MAX_HOPS)
-                    throw new Error(
-                        `taxon replacement chain still moving after ${MAX_HOPS} hops — `
-                        + 'suspect a cycle in inaturalist.taxa.current_taxon_id',
-                    );
+                hop++;
                 let movedThisHop = 0;
                 for (const [table, column] of TAXON_COLUMNS) {
                     const moved = await tx.unsafe(
@@ -313,6 +317,11 @@ async function main(): Promise<void> {
                     }
                 }
                 if (movedThisHop === 0) break;
+                if (hop > MAX_HOPS)
+                    throw new Error(
+                        `taxon replacement chain still moving after ${MAX_HOPS} hops — `
+                        + 'suspect a cycle in inaturalist.taxa.current_taxon_id',
+                    );
             }
         });
         console.log(`\nupdated ${changed.length} taxa`);
