@@ -34,6 +34,14 @@ describe('taxonGroup', () => {
     expect(taxonGroup('Phocidae')).toBe('seal');
   });
 
+  test('a longer prefix rescues an animal the shorter one would misname', () => {
+    // Delphinapterus is the beluga — a monodontid. 'Delphin' would have made it
+    // a dolphin by colour and, with no vernacular, by name too.
+    expect(taxonGroup('Delphinapterus leucas')).toBe('toothed');
+    expect(taxonGroup('Delphinus delphis')).toBe('dolphin');
+    expect(taxonGroup('Delphinidae')).toBe('dolphin');
+  });
+
   test("iNaturalist's mislabelled Phocoidea is not guessed at", () => {
     // Decision 027: upstream calls it "Pinnipeds", but it is strictly the
     // true-seal superfamily. Neither seal nor sea lion is honest.

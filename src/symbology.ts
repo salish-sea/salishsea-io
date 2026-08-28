@@ -60,6 +60,12 @@ const GROUP_PREFIXES: [string, GroupKey][] = [
   ['Physeter', 'toothed'], ['Kogia', 'toothed'], ['Berardius', 'toothed'],
   ['Hyperoodon', 'toothed'], ['Ziphius', 'toothed'], ['Odontoceti', 'toothed'],
   ['Delphin', 'dolphin'], ['Grampus', 'dolphin'], ['Sagmatias', 'dolphin'],
+  // Longer than 'Delphin', and it has to be: Delphinapterus is the beluga, a
+  // monodontid, and the shorter prefix would have coloured it as a dolphin and
+  // called it one. Monodon and Mesoplodon are here for the same reason before
+  // they arrive — a wrong bucket is worse than `unknown`, which at least says
+  // "marine mammal" and means it.
+  ['Delphinapterus', 'toothed'], ['Monodon', 'toothed'], ['Mesoplodon', 'toothed'],
   ['Aethalodelphis', 'dolphin'], ['Lissodelphi', 'dolphin'], ['Tursiops', 'dolphin'],
   ['Stenella', 'dolphin'], ['Globicephal', 'dolphin'],
   ['Phocoena', 'porpoise'], ['Phocoenoides', 'porpoise'], ['Phocoenidae', 'porpoise'],

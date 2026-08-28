@@ -24,6 +24,9 @@ The trigger was "N" for a river otter. The scheme's real failure is that it cann
 
 ## Decision
 
+![Taxon-group palette, segment head and tail, and the two-line label](images/029-symbology-legend.png)
+
+
 **Colour carries the taxon group. The label carries the specifics. The track is supporting, not the subject.**
 
 1. **Every occurrence is a uniform dot**, filled by taxon group from a colourblind-safe palette. No letters.
@@ -111,13 +114,19 @@ This does **not** solve cross-layer collision: decluttering is per-layer, so an 
 
 - `symbolFor()` in `src/identifiers.ts` is retired for everything except the killer-whale pod branch, which moves into the label composition — including in the observation list, whose badge becomes the same coloured dot as the marker.
 - A taxon-group palette appears (in `src/symbology.ts`, see below) and `src/style.ts` loses the per-marker letter `Text`.
-- The occurrence layer takes `declutter: true`; the hand-tuned `offsetX`/`declutterMode: 'obstacle'` positioning goes away.
-- Travel lines get a casing stroke. [#271](https://github.com/salish-sea/salishsea-io/issues/271) reports them as faint; part of that is that `travelStyle` returns early above resolution 100, so they do not draw at all at the default zoom — absent rather than faint.
+- The occurrence layer takes `declutter: true`; ~~the hand-tuned `offsetX`/`declutterMode: 'obstacle'` positioning goes away.~~ **Amended after building it:** `declutterMode: 'obstacle'` went away, but a fixed `offsetX` remains and has to — see the implementation note on obstacles below.
+- Travel lines get a casing stroke. [#271](https://github.com/salish-sea/salishsea-io/issues/271) reports them as faint; part of that is that `travelStyle` returned early above resolution 100, so they did not draw at all at the default zoom — absent rather than faint. **Both fixed in #401** (`salish-fll.4`): the line has no resolution gate, only its annotations do.
 - A defect surfaced while measuring: `Megaptera novaeangliae kuzira` (319 records) is missing from `travelSpeedKmH`, so North Pacific Humpbacks silently never seed a segment though `Megaptera novaeangliae` does. Unlike the empty entries [027](027-marine-mammal-scope-whale-centric-identity.md) records as intentional, this one is an accident of exact-string matching.
 
 ## Implementation notes
 
 Added after building it (`salish-ayb.6`); the decision above is unchanged.
+
+![The map at 112 occurrences — synthetic data shaped like 2026-06-15, the busiest day measured above](images/029-symbology-map.png)
+
+A synthetic day, not a real one: the taxa, register names and `SSA:` identifiers are real, the
+positions are generated, and it over-produces multi-point tracks compared with the 10 that
+2026-06-15 actually had. It is here to show density and decluttering, not to report a day.
 
 - **The palette lives in `src/symbology.ts`, not `src/style.ts`.** Two things that
   look alike live there and are not alike: the *group* is ours outright, a rendering
@@ -148,6 +157,13 @@ Added after building it (`salish-ayb.6`); the decision above is unchanged.
   means *selected*. The track is the one thing on the map drawn in no hue at all — which
   is what "supporting, not the subject" turns out to mean once the palette exists. The
   direction arrows moved with it.
+
+- **The label keeps a fixed `offsetX`, and that is not the hand-tuning the decision
+  retired.** What went away is `declutterMode: 'obstacle'` — labels negotiating space by
+  always drawing and blocking each other, which is why two overprinted near Victoria. The
+  11 px offset is not collision avoidance; it is the anchor that stops a label sitting on
+  the marker it belongs to. Decluttering cannot supply it, because OpenLayers drops a
+  colliding label rather than moving it.
 
 - **The dots do not declutter, and must not be obstacles.** `declutterMode: 'obstacle'`
   is the reading that looks right and is not: an obstacle reserves its own footprint, and
