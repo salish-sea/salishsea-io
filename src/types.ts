@@ -50,6 +50,8 @@ export type SegmentPlacement = {
   segmentLength?: number;
   /** Identifiers pooled across the whole segment, deduplicated and sorted. */
   segmentIdentifiers?: string[];
+  /** The identity line for the whole track — see `labelForSegment`. */
+  segmentIdentity?: string;
   /** First sighting to last, in hours. 0 for a singleton. */
   segmentSpanHours?: number;
 };

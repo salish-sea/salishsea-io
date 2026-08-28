@@ -131,7 +131,7 @@ function labelStyle(text: string, color: string, secondLine?: string): Style {
  * labels.
  */
 export const occurrenceStyle = (occurrence: Occurrence, isSelected = false) => {
-  const {direction, isLast, segmentIdentifiers, segmentLength, segmentSpanHours} = occurrence;
+  const {direction, isLast, segmentIdentifiers, segmentIdentity, segmentLength, segmentSpanHours} = occurrence;
   const {color} = GROUPS[taxonGroup(occurrence.taxon.scientific_name)];
   const isHead = !!isLast;
 
@@ -161,9 +161,10 @@ export const occurrenceStyle = (occurrence: Occurrence, isSelected = false) => {
     // reported with the matriline on the first sighting and not the second
     // still names it.
     const identifiers = segmentIdentifiers ?? occurrence.identifiers;
-    const identity = identifiers?.length
-      ? `${labelFor(occurrence)} · ${identifiers.join(', ')}`
-      : labelFor(occurrence);
+    // segmentIdentity is absent on the drawing layer's in-progress sighting,
+    // which belongs to no segment; there the occurrence speaks for itself.
+    const name = segmentIdentity ?? labelFor(occurrence);
+    const identity = identifiers?.length ? `${name} · ${identifiers.join(', ')}` : name;
     const points = segmentLength ?? 1;
     styles.push(labelStyle(
       identity,

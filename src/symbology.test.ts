@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { GROUPS, displayNameFor, labelFor, taxonGroup, trackSummary } from './symbology.ts';
+import { GROUPS, displayNameFor, labelFor, labelForSegment, taxonGroup, trackSummary } from './symbology.ts';
 import type { Occurrence } from './types.ts';
 
 const taxon = (
@@ -139,5 +139,41 @@ describe('trackSummary', () => {
 
   test('a sub-hour track says so rather than rounding to 0h', () => {
     expect(trackSummary(2, 0.4)).toBe('Seen 2× in under an hour');
+  });
+});
+
+describe('labelForSegment', () => {
+  const orca = (body: string, scientific_name = 'Orcinus orca') =>
+    ({body, taxon: taxon(scientific_name, 'Killer whale', 'SSA:0000900')});
+
+  test('a pod named in any sighting labels the whole track', () => {
+    // The head is the LAST point, and a pod is named in prose that belongs to
+    // one sighting — usually not the last one. Labelling the head from the head
+    // alone said "Killer whale" over a track that plainly was J pod.
+    expect(labelForSegment([orca('J pod northbound past Lime Kiln'), orca('three orca')]))
+      .toBe('J pod');
+  });
+
+  test('a pod anywhere beats an ecotype anywhere', () => {
+    // "J pod" is a more specific claim than "residents", wherever each was said.
+    expect(labelForSegment([orca('southern residents'), orca('J17 and calf')]))
+      .toBe('J pod');
+  });
+
+  test('the subspecies is the weakest evidence, not the first consulted', () => {
+    // A report naming the pod outranks a taxon that only says "some resident".
+    expect(labelForSegment([orca('', 'Orcinus orca ater'), orca('K pod inbound')]))
+      .toBe('K pod');
+    expect(labelForSegment([orca(''), orca('', 'Orcinus orca ater')]))
+      .toBe('SRKW');
+  });
+
+  test('a non-orca track is named from its head, prose ignored', () => {
+    const seal = (body: string) => ({body, taxon: taxon('Phoca vitulina', 'Harbour seal', 'SSA:0000904')});
+    expect(labelForSegment([seal('J pod was here earlier'), seal('')])).toBe('Harbour seal');
+  });
+
+  test('labelFor is a segment of one', () => {
+    expect(labelFor(orca('J pod'))).toBe(labelForSegment([orca('J pod')]));
   });
 });

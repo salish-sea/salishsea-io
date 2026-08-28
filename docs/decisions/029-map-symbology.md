@@ -156,6 +156,13 @@ Added after building it (`salish-ayb.6`); the decision above is unchanged.
   neighbouring marker, so the label background is near-opaque — at 88% the marker beneath
   showed through as a smudge that read as a rendering fault.
 
+- **The identity is pooled across the segment, like the identifiers.** A pod is
+  reported in prose, and prose belongs to one sighting. The head is the *last* point, so
+  an encounter posted as "J pod northbound" at 09:00 and "three orca" at 11:00 labelled
+  itself `Killer whale`. Pod anywhere beats ecotype anywhere beats the subspecies, which
+  is the weakest evidence: a report naming J pod is more specific than a taxon saying
+  "some resident".
+
 - **The ecotype regex missed the plural.** `\b(...|transient|biggs)\b` refuses
   "transients" and "southern residents", which is how people actually write it. Invisible
   while the ecotype only chose a letter; the label made it obvious.

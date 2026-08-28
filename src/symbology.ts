@@ -147,36 +147,54 @@ export function displayNameFor(taxon: Occurrence['taxon']): string {
 }
 
 /**
- * The identity line of a marker's label.
+ * The identity line of a track's label.
+ *
+ * Takes the whole segment, not just the head, because a pod is reported in
+ * PROSE and prose belongs to one sighting. An encounter posted as "J pod
+ * northbound" at 09:00 and "three orca" at 11:00 is one track whose head — the
+ * later point, and the one that carries the label — says nothing on its own.
+ * The identifiers are pooled across the segment for the same reason; this is
+ * the other half of that.
  *
  * Killer whales keep their pod letter. That part of the old scheme was never
  * broken — a J/K/L or a Biggs is the distinction this audience actually draws,
- * and decision 029 keeps it while retiring the rest of `symbolFor()`. It reads
- * from the sighting's prose, which is where a pod is reported.
+ * and decision 029 keeps it while retiring the rest of `symbolFor()`.
  *
  * The two orca subspecies carry the ecotype themselves, so they answer even when
- * the prose does not: migration 20260828120000 deliberately exempts them from
- * the subspecies roll-up for exactly this reason.
+ * no prose does: migration 20260828120000 deliberately exempts them from the
+ * subspecies roll-up for exactly this reason. They are the weakest evidence and
+ * come last, because a report naming J pod is more specific than a taxon saying
+ * "some resident".
  */
-export function labelFor(occurrence: Pick<Occurrence, 'body' | 'taxon'>): string {
-  const {taxon} = occurrence;
-  if (taxonGroup(taxon.scientific_name) === 'orca') {
-    const body = occurrence.body || '';
-    const pod = detectPod(body);
-    if (pod)
-      return pod === 'T' ? 'Biggs' : `${pod} pod`;
+export function labelForSegment(occurrences: readonly Pick<Occurrence, 'body' | 'taxon'>[]): string {
+  const head = occurrences[occurrences.length - 1]!;
+  if (taxonGroup(head.taxon.scientific_name) === 'orca') {
+    for (const {body} of occurrences) {
+      const pod = detectPod(body || '');
+      if (pod)
+        return pod === 'T' ? 'Biggs' : `${pod} pod`;
+    }
     // A report that says "southern residents" without naming a matriline still
     // said which whales it saw. detectPod only answers this for Biggs, via the
     // T that was their old pod letter, so the ecotype is asked separately.
-    const ecotype = detectEcotype(body);
-    if (ecotype)
-      return ecotype;
-    if (taxon.scientific_name === 'Orcinus orca rectipinnus')
-      return 'Biggs';
-    if (taxon.scientific_name === 'Orcinus orca ater')
-      return 'SRKW';
+    for (const {body} of occurrences) {
+      const ecotype = detectEcotype(body || '');
+      if (ecotype)
+        return ecotype;
+    }
+    for (const {taxon} of occurrences) {
+      if (taxon.scientific_name === 'Orcinus orca rectipinnus')
+        return 'Biggs';
+      if (taxon.scientific_name === 'Orcinus orca ater')
+        return 'SRKW';
+    }
   }
-  return displayNameFor(taxon);
+  return displayNameFor(head.taxon);
+}
+
+/** A lone occurrence is a segment of one. */
+export function labelFor(occurrence: Pick<Occurrence, 'body' | 'taxon'>): string {
+  return labelForSegment([occurrence]);
 }
 
 /**

@@ -168,6 +168,13 @@ describe('segment2features head metadata', () => {
     expect(pooled).toEqual(expected);
   });
 
+  test('the head carries an identity pooled from the whole track', () => {
+    const features = segment2features(multiPoint);
+    const head = features[features.length - 1]!;
+    expect(typeof head.get('segmentIdentity')).toBe('string');
+    expect((head.get('segmentIdentity') as string).length).toBeGreaterThan(0);
+  });
+
   test('a singleton is a segment of one, and is its own head', () => {
     const singleton = segments.find(s => s.occurrences.length === 1)!;
     const [only] = segment2features(singleton);

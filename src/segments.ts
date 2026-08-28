@@ -5,6 +5,7 @@ import { fromLonLat } from 'ol/proj.js';
 import type { Occurrence } from './types.ts';
 import { travelSpeedFor } from './constants.ts';
 import { occurrence2feature } from './occurrence.ts';
+import { labelForSegment } from './symbology.ts';
 
 const hour_in_ms = 60 * 60 * 1000;
 
@@ -55,6 +56,9 @@ export function segment2features(segment: Segment): Feature<Point>[] {
 
   const identifiers = new Set(occurrences.flatMap(occurrence => occurrence.identifiers ?? []));
   head.setProperties({
+    // Pooled, not read off the head: the pod is usually named in one sighting's
+    // prose, and it is rarely the last one.
+    segmentIdentity: labelForSegment(occurrences),
     segmentLength: occurrences.length,
     segmentIdentifiers: [...identifiers].sort(),
     segmentSpanHours:
