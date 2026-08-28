@@ -4,20 +4,38 @@
 -- inaturalist.taxa — including the branches for Maplify and for our own native
 -- submissions, neither of which iNaturalist has anything to do with. Decision 008
 -- forbids exactly that: a mirror's vocabulary must not surface in the UI as if it were
--- ours. It is why the map says "North American River Otter".
+-- ours. It is why the map said "North American River Otter".
 --
 -- The register says "River otter", and animals ADR-0012 makes it authoritative for
 -- animal identity here. This joins the crosswalk and prefers its common name, falling
 -- back to iNaturalist's where the register has no exact match.
 --
--- MATCHING IS BY EXACT iNaturalist TAXON ID, which covers 85.2% of occurrences. The
--- remainder is almost entirely subspecies (Orcinus orca ater, Phoca vitulina richardii),
--- where the register holds a related entity but not an exactMatch — its ecotypes are
--- deliberately skos:broadMatch to their species. Resolving those through a broader match
--- would put a wider claim on the map than the data supports, so they keep iNaturalist's
--- name and are tracked separately. No occurrence loses a name it had.
+-- MATCHING IS BY EXACT iNaturalist TAXON ID, which covers 84.9% of occurrences (52,499
+-- of 61,832, measured against edition 2026.08.1). The remainder is almost entirely
+-- subspecies — Orcinus orca ater, Phoca vitulina richardii — where the register holds a
+-- related entity but not an exactMatch: its ecotypes are deliberately skos:broadMatch to
+-- their species. Resolving through a broader match would put a wider claim on the map
+-- than the data supports, so those keep iNaturalist's name. Tracked as salish-0gb. No
+-- occurrence loses a name it had; COALESCE only ever adds one.
 --
--- Column list and types are unchanged, so CREATE OR REPLACE is legal and the two
+-- The join goes through COALESCE(t.current_taxon_id, t.id) so a record still sitting on
+-- a taxon iNaturalist has retired resolves via its replacement (migration
+-- 20260828000000). Without that, precisely the records the deactivation work exists to
+-- rescue would miss the register name.
+--
+-- SAFETY. Column list and types are unchanged, so CREATE OR REPLACE is legal — it
+-- replaces the definition without dropping, which is what keeps the dependency chain
+-- intact. That chain is three levels deep, not one: occurrence_index and
+-- occurrence_identifier_candidates read this view, and group_occurrences and
+-- ecotype_occurrences read those. None of the four references taxon, so none needs a
+-- refresh. (A DROP ... CASCADE here takes all four out — verified by doing it locally by
+-- accident, which is why this is a replace.)
+--
+-- SCOPE. The DwC-A export emits no vernacularName and nothing in `dwc` reads this view,
+-- so the archive is unaffected. It is not quite "the app only", though: the Lambda@Edge
+-- OG card renderer (infra/lib/card-renderer/data.ts) reads taxon.vernacular_name, so
+-- link-preview cards change too, and cached cards will show the old names until their
+-- TTL expires.
 CREATE OR REPLACE VIEW public.occurrences AS
  SELECT 'maplify:'::text || s.id AS id,
     NULL::character varying AS url,
@@ -48,7 +66,7 @@ CREATE OR REPLACE VIEW public.occurrences AS
     prov.slug AS provider_slug
    FROM maplify.sightings s
      JOIN inaturalist.taxa t ON s.taxon_id = t.id
-     LEFT JOIN register.inaturalist_taxon_name reg ON reg.inat_taxon_id = t.id
+     LEFT JOIN register.inaturalist_taxon_name reg ON reg.inat_taxon_id = COALESCE(t.current_taxon_id, t.id)
      LEFT JOIN providers prov ON prov.id = s.provider_id
      LEFT JOIN collections col ON col.id = s.collection_id
      LEFT JOIN organizations org ON org.id = col.organization_id
@@ -79,7 +97,7 @@ UNION ALL
     prov.slug AS provider_slug
    FROM inaturalist.observations
      JOIN inaturalist.taxa t ON observations.taxon_id = t.id
-     LEFT JOIN register.inaturalist_taxon_name reg ON reg.inat_taxon_id = t.id
+     LEFT JOIN register.inaturalist_taxon_name reg ON reg.inat_taxon_id = COALESCE(t.current_taxon_id, t.id)
      LEFT JOIN providers prov ON prov.id = observations.provider_id
      LEFT JOIN collections col ON col.id = observations.collection_id
      LEFT JOIN organizations org ON org.id = col.organization_id
@@ -124,7 +142,7 @@ UNION ALL
      JOIN happywhale.individuals i ON e.individual_id = i.id
      JOIN happywhale.species s ON e.species_id = s.id
      LEFT JOIN inaturalist.taxa t ON s.scientific::text = t.scientific_name::text
-     LEFT JOIN register.inaturalist_taxon_name reg ON reg.inat_taxon_id = t.id
+     LEFT JOIN register.inaturalist_taxon_name reg ON reg.inat_taxon_id = COALESCE(t.current_taxon_id, t.id)
      LEFT JOIN providers prov ON prov.id = e.provider_id
      LEFT JOIN collections col ON col.id = e.collection_id
      LEFT JOIN organizations org ON org.id = col.organization_id
@@ -159,7 +177,7 @@ UNION ALL
    FROM observations o
      JOIN contributors con ON con.id = o.contributor_id
      JOIN inaturalist.taxa t ON t.id = o.taxon_id
-     LEFT JOIN register.inaturalist_taxon_name reg ON reg.inat_taxon_id = t.id
+     LEFT JOIN register.inaturalist_taxon_name reg ON reg.inat_taxon_id = COALESCE(t.current_taxon_id, t.id)
      LEFT JOIN providers prov ON prov.id = o.provider_id
      LEFT JOIN collections col ON col.id = o.collection_id
      LEFT JOIN organizations org ON org.id = col.organization_id;

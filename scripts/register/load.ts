@@ -43,6 +43,14 @@ const TABLES = [
         'mapping_justification', 'confidence', 'source_id', 'note']],
 ] as const;
 
+/**
+ * A SQL string literal, or NULL.
+ *
+ * Doubling the quote is sufficient because `standard_conforming_strings` is on — the
+ * server default, and not overridden here — so a backslash in a name is data rather than
+ * an escape. Values reaching this are register names and notes; a tab would already have
+ * been rejected as a ragged row.
+ */
 function lit(v: string | null): string {
     return v === null ? 'NULL' : `'${v.replace(/'/g, "''")}'`;
 }
@@ -66,7 +74,11 @@ function parseTsv(text: string, columns: readonly string[]): (string | null)[][]
 }
 
 async function download(url: string): Promise<Buffer> {
-    const res = await fetch(url, { headers: { 'User-Agent': 'salishsea.io register loader' } });
+    // Bounded: a stalled connection should fail the load, not hang it indefinitely.
+    const res = await fetch(url, {
+        headers: { 'User-Agent': 'salishsea.io register loader' },
+        signal: AbortSignal.timeout(60_000),
+    });
     if (!res.ok) throw new Error(`${res.status} fetching ${url}`);
     return Buffer.from(await res.arrayBuffer());
 }
@@ -103,20 +115,21 @@ async function main(): Promise<void> {
         throw new Error(`digest mismatch for register-tsv.tar.gz: got ${digest}, published ${expected}`);
     say(`  digest ok: ${digest.slice(0, 16)}…`);
 
-    // The db digest is what a consumer is asked to record alongside the tag, so store it
-    // even though the TSVs are what we load. No fallback: recording the tarball's digest
-    // under the name of register.db's would make register.edition.sha256 a number that
-    // verifies nothing, which is worse than refusing to load.
-    const dbDigest = sums.split('\n')
-        .map((l) => l.trim().split(/\s+/))
-        .find(([, name]) => name === 'register.db')?.[0];
-    if (!dbDigest) throw new Error('SHA256SUMS does not list register.db');
+    // Store the digest of the artefact we actually downloaded and verified. Recording
+    // register.db's instead would look more canonical and attest nothing: that file is
+    // never fetched here, so if a release's TSVs and database ever diverged, the stored
+    // digest would describe content this schema does not contain.
 
     const dir = mkdtempSync(path.join(tmpdir(), 'register-'));
     try {
         const untar = spawnSync('tar', ['xzf', '-', '-C', dir], { input: tarball });
+        // spawnSync reports a failure to launch in `error` and a non-zero exit in
+        // `status`; an empty stderr is a string, not nullish, so `??` would swallow both.
+        if (untar.error) throw new Error(`tar could not run: ${untar.error.message}`);
         if (untar.status !== 0)
-            throw new Error(`tar failed: ${untar.stderr?.toString() ?? untar.status}`);
+            throw new Error(
+                `tar exited ${untar.status}: ${untar.stderr?.toString().trim() || '(no output)'}`,
+            );
 
         const parsed = TABLES.map(([name, columns]) => {
             const rows = parseTsv(readFileSync(path.join(dir, 'data', `${name}.tsv`), 'utf8'), columns);
@@ -141,7 +154,7 @@ async function main(): Promise<void> {
             }
         statements.push(
             'INSERT INTO register.edition (singleton, tag, sha256, loaded_at) '
-            + `VALUES (true, ${lit(tag)}, ${lit(dbDigest!)}, now()) `
+            + `VALUES (true, ${lit(tag)}, ${lit(digest)}, now()) `
             + 'ON CONFLICT (singleton) DO UPDATE SET tag = EXCLUDED.tag, '
             + 'sha256 = EXCLUDED.sha256, loaded_at = EXCLUDED.loaded_at;',
         );

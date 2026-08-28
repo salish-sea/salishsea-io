@@ -32,12 +32,18 @@ CREATE TABLE register.edition (
 );
 
 COMMENT ON TABLE register.edition IS
-  'One row. The release tag and register.db digest this schema was loaded from — the '
-  '`register_edition` a consumer is expected to record (animals ADR-0006/0013).';
+  'One row. The release tag and the SHA-256 of register-tsv.tar.gz — the artefact these '
+  'rows were actually loaded from, and the one the loader verified. Together they are the '
+  '`register_edition` a consumer is expected to record (animals ADR-0006/0013). Note the '
+  'digest attests provenance within a release, not authenticity: SHA256SUMS ships from '
+  'the same release, so it detects corruption, not tampering.';
 
 -- Columns mirror the published TSVs. Text, because the register''s own types are text:
 -- an SSA identifier is opaque (ADR-0002) and a rank is an open vocabulary (ADR-0004).
 CREATE TABLE register.entities (
+  -- Mirrors the register's own constraint (its schema.sql), so a shape it would not
+  -- publish cannot be loaded here either. Deliberately not looser: ADR-0002 makes the
+  -- identifier opaque, and an opaque identifier with a stated format is still checkable.
   entity_id  text PRIMARY KEY CHECK (entity_id ~ '^SSA:[0-9]{7}$'),
   kind       text NOT NULL,
   rank       text,
@@ -58,8 +64,14 @@ CREATE TABLE register.names (
   note       text
 );
 CREATE INDEX names_entity_idx ON register.names (entity_id);
--- A name is looked up by what someone typed, so the search direction is indexed too.
-CREATE INDEX names_name_idx ON register.names (lower(name));
+
+-- A duplicate row is a corrupt load, not data, so refuse it. NOT a unique constraint on
+-- (entity_id) WHERE type='common', which would be the obvious way to guarantee the
+-- crosswalk view returns one row per taxon: the register legitimately gives an entity
+-- several common names — 38 do in edition 2026.08.1, individuals with two nicknames — so
+-- that constraint would reject a valid edition outright. Uniqueness for display is the
+-- view's job (see DISTINCT ON below); this only stops the same row loading twice.
+ALTER TABLE register.names ADD CONSTRAINT names_unique UNIQUE (entity_id, name, type);
 
 COMMENT ON COLUMN register.names.type IS
   'preferred | common | historical | hidden. A `hidden` name MATCHES but must never be '
@@ -77,6 +89,8 @@ CREATE TABLE register.mappings (
   note                   text
 );
 CREATE INDEX mappings_object_idx ON register.mappings (object_id);
+ALTER TABLE register.mappings ADD CONSTRAINT mappings_unique
+  UNIQUE (subject_id, predicate_id, object_id);
 
 -- ---------------------------------------------------------------------------
 -- The crosswalk our occurrences actually travel.
@@ -100,7 +114,10 @@ JOIN register.entities e ON e.entity_id = m.subject_id
 JOIN register.names    n ON n.entity_id = e.entity_id AND n.type = 'common'
 WHERE m.predicate_id = 'skos:exactMatch'
   AND m.object_id LIKE 'inaturalist.taxon:%'
-  AND split_part(m.object_id, ':', 2) ~ '^[0-9]+$'
+  -- Length-bounded, not just numeric: an unbounded digit string passes ~ '^[0-9]+$' and
+  -- then overflows the ::integer cast at query time, which would break every read of
+  -- public.occurrences rather than skipping one bad mapping.
+  AND split_part(m.object_id, ':', 2) ~ '^[0-9]{1,9}$'
 -- DISTINCT ON is load-bearing, not tidiness. public.occurrences LEFT JOINs this view, so
 -- two rows for one taxon id would DUPLICATE every occurrence of that animal on the map —
 -- silently, and only for the taxa that happened to acquire a second name.
@@ -128,7 +145,15 @@ COMMENT ON VIEW register.inaturalist_taxon_name IS
   'iNaturalist taxon id -> the register''s common name for that animal. Exact matches '
   'only; see the view definition for why broadMatch is excluded.';
 
--- SELECT grants ship with the tables that need them (CLAUDE.md): without these the
--- occurrences view''s join silently returns nothing for anon, which is the whole app.
+-- SELECT grants ship with the tables that need them (CLAUDE.md). Note what they do NOT
+-- do: public.occurrences is a plain view owned by postgres with no security_invoker, so
+-- its join to this schema runs with definer rights and works for anon with or without
+-- these. And `register` is not in PostgREST's exposed schemas (supabase/config.toml), so
+-- the API cannot reach these tables directly either. The grants are here so that a future
+-- security_invoker view, or an exposed schema, does not fail silently — not because
+-- anything today depends on them.
+--
+-- ALL TABLES is one-shot: it covers what exists now, including the view below. A table
+-- added by a later migration needs its own grant.
 GRANT USAGE ON SCHEMA register TO anon, authenticated;
 GRANT SELECT ON ALL TABLES IN SCHEMA register TO anon, authenticated;
