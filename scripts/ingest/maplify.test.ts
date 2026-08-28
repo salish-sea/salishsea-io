@@ -154,8 +154,112 @@ describe('resolveScientificName', () => {
     });
 
     test('returns null when neither resolves', () => {
-        expect(resolveScientificName(norm({ scientificName: '', name: 'Blue Whale' }))).toBeNull();
+        expect(resolveScientificName(norm({ scientificName: '', name: 'Fictional Whale' }))).toBeNull();
         expect(resolveScientificName(norm({ scientificName: '', name: null }))).toBeNull();
+    });
+
+    // salish-7jl. Upstream moderators correct a species by editing `name` and the
+    // comment; `scientific_name` keeps the superseded identification. Resolving toward
+    // the stale field discards exactly the records a human took the trouble to fix.
+    describe('a disagreement resolves toward the corrected name (salish-7jl)', () => {
+        // Real records, by upstream id, with the comment that proves the direction.
+        test.each([
+            // 188375: "reported as humpback but was gray whale - Alisa"
+            ['Gray Whale', 'Megaptera novaeangliae', 'Eschrichtius robustus'],
+            // 158632: "Edit, reported as grays but were the two humpbacks."
+            ['Humpback', 'Eschrichtius robustus', 'Megaptera novaeangliae'],
+            // 195928: "[Orca Network] Humpback, low surfacing, northbound"
+            ['Humpback', 'Orcinus orca', 'Megaptera novaeangliae'],
+            // 144659: "Photo confirms minke, corrected species - alb"
+            ['Minke Whale', 'Megaptera novaeangliae', 'Balaenoptera acutorostrata'],
+            // 152658: "Edit to confirm these were orcas, J pod (Orca Network)"
+            ['Southern Resident Killer Whale', 'Balaenoptera acutorostrata', 'Orcinus orca ater'],
+        ])('%s reported as %s resolves to %s', (name, stale, corrected) => {
+            expect(resolveScientificName(norm({ scientificName: stale, name }))).toBe(corrected);
+        });
+
+        test('agreement is left alone', () => {
+            expect(resolveScientificName(norm({
+                scientificName: 'Megaptera novaeangliae', name: 'Humpback',
+            }))).toBe('Megaptera novaeangliae');
+        });
+
+        test('an unmapped name never overrides a scientific name', () => {
+            expect(resolveScientificName(norm({
+                scientificName: 'Orcinus orca', name: 'Something Nobody Has Mapped',
+            }))).toBe('Orcinus orca');
+        });
+    });
+
+    // 'N/A' is non-blank, so the old resolver returned it as if it were a name. It
+    // joins nothing, so 128 records lost their taxon while `name` said what they were.
+    describe("upstream placeholders are not scientific names", () => {
+        test.each(['N/A', 'n/a', 'NA', 'unknown', 'Unspecified'])('%s is treated as absent', (placeholder) => {
+            expect(resolveScientificName(norm({ scientificName: placeholder, name: 'Gray Whale' })))
+                .toBe('Eschrichtius robustus');
+        });
+
+        test('a placeholder with no usable name resolves to null', () => {
+            expect(resolveScientificName(norm({ scientificName: 'N/A', name: 'Unspecified' }))).toBeNull();
+        });
+    });
+
+    // A name asserting no identification must not suppress a good scientific name:
+    // 'Unspecified' with scientific_name 'Orcinus orca' is an orca.
+    test('an unidentified name keeps a usable scientific name', () => {
+        expect(resolveScientificName(norm({ scientificName: 'Orcinus orca', name: 'Unspecified' })))
+            .toBe('Orcinus orca');
+    });
+
+    test("'Gray' resolves, not only 'Grey'", () => {
+        // The map carried 'Grey' but not 'Gray', so 174 records went unresolved over
+        // one letter.
+        expect(resolveScientificName(norm({ scientificName: '', name: 'Gray' })))
+            .toBe('Eschrichtius robustus');
+        expect(resolveScientificName(norm({ scientificName: '', name: 'Grey' })))
+            .toBe('Eschrichtius robustus');
+    });
+
+    test('retired genus names resolve to the name iNaturalist carries', () => {
+        // Our taxa mirror holds the active Aethalodelphis row; Lagenorhynchus and
+        // Sagmatias join nothing.
+        expect(resolveScientificName(norm({
+            scientificName: 'Lagenorhynchus obliquidens', name: 'Pacific White-sided Dolphin',
+        }))).toBe('Aethalodelphis obliquidens');
+        expect(resolveScientificName(norm({ scientificName: '', name: 'Pacific White-sided Dolphin' })))
+            .toBe('Aethalodelphis obliquidens');
+    });
+
+    test('names are matched case- and spacing-insensitively', () => {
+        expect(resolveScientificName(norm({ scientificName: '', name: 'pacific white-sided dolphin' })))
+            .toBe('Aethalodelphis obliquidens');
+        expect(resolveScientificName(norm({ scientificName: '', name: '  Gray   Whale ' })))
+            .toBe('Eschrichtius robustus');
+    });
+
+    // A genus-level upstream category must stay at genus. Whale Alert offers no finer
+    // term for these, so narrowing them would be our invention, not the reporter's.
+    test.each([
+        ['Common Dolphin', 'Delphinus'],
+        ['Right Whale', 'Eubalaena'],
+        ['Bottlenose Whale', 'Hyperoodon'],
+    ])('%s stays at the genus upstream supplied', (name, genus) => {
+        expect(resolveScientificName(norm({ scientificName: genus, name }))).toBe(genus);
+    });
+
+    test('non-English and mis-decoded names resolve', () => {
+        expect(resolveScientificName(norm({ scientificName: '', name: 'Ballena jorobada' })))
+            .toBe('Megaptera novaeangliae');
+        expect(resolveScientificName(norm({ scientificName: '', name: 'Baleine grise' })))
+            .toBe('Eschrichtius robustus');
+        // Upstream sends UTF-8 decoded as Latin-1, so U+2019's three bytes arrive as
+        // three characters. All three spellings of the apostrophe must land together.
+        expect(resolveScientificName(norm({ scientificName: '', name: "Risso's dolphin" })))
+            .toBe('Grampus griseus');
+        expect(resolveScientificName(norm({ scientificName: '', name: 'Risso\u2019s dolphin' })))
+            .toBe('Grampus griseus');
+        expect(resolveScientificName(norm({ scientificName: '', name: 'Risso\u00e2\u0080\u0099s dolphin' })))
+            .toBe('Grampus griseus');
     });
 });
 

@@ -25,21 +25,110 @@ import { z } from 'zod';
 export const EXCLUDED_SOURCES: ReadonlySet<string> = new Set(['rwsas', 'wras']);
 
 /**
- * Common-name → scientific-name fallback, used only when a record's
- * `scientific_name` is blank. Mirrors the CASE in maplify.update_sightings.
+ * Upstream values that occupy `scientific_name` without being a scientific name.
  *
- * NOTE (surfaced from live data 2026-07-05): real records carry names like
- * 'Blue Whale', 'Fin Whale', 'Orca', 'Killer whale (Ecotype Unknown)' that this
- * map does not cover, and several mapped keys ('Killer Whale (Orca)') do not
- * appear in live data — so this fallback rarely fires today. Preserved verbatim
- * to keep ingest behavior identical; revisit as its own issue, not silently here.
+ * `'N/A'` is not blank, so the previous resolver returned it verbatim; it joins nothing,
+ * and 128 records lost their taxon while `name` said plainly what they were (salish-7jl).
+ */
+const SCIENTIFIC_NAME_PLACEHOLDERS: ReadonlySet<string> = new Set([
+    '', 'n/a', 'na', 'none', 'null', 'unknown', 'unspecified',
+]);
+
+/**
+ * The comparison form of an upstream common name: case, spacing and the apostrophe
+ * folded away.
+ *
+ * The apostrophe needs folding because some records arrive with UTF-8 mis-decoded as
+ * Latin-1 — "Risso’s" becomes "Risso\u00e2\u0080\u0099s", the three bytes of U+2019 read
+ * as three characters. That is almost certainly upstream (we decode as UTF-8 at fetch),
+ * but it has not been confirmed against the live API; if it turns out to be ours, fixing
+ * the decode is better than folding here.
+ */
+export function foldUpstreamName(name: string): string {
+    return name
+        .replace(/\u00e2\u0080\u0099|\u00e2\u0080\u0098|[\u2018\u2019\u02bc`]/g, "'")
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/**
+ * Common name → scientific name, keyed by `foldUpstreamName`.
+ *
+ * Two jobs, and the second one is new (salish-7jl): supplying a scientific name when the
+ * record has none, and *overriding* one when the two disagree. Upstream moderators
+ * correct a species by editing `name` and leaving a comment — "reported as humpback but
+ * was gray whale" — while `scientific_name` keeps the superseded identification. So a
+ * disagreement means the name is the correction, and resolving toward `scientific_name`
+ * discarded exactly the records a human had already fixed.
+ *
+ * That makes a wrong entry here expensive: it silently overrides good upstream data at
+ * scale. Every key below was read off the live corpus, and names that assert no
+ * identification ('Unspecified', 'Other', 'Unknown', 'Unidentified Whale', 'Autre',
+ * 'No especificado') are deliberately ABSENT rather than mapped to null — an absent name
+ * leaves a usable `scientific_name` alone, which is what makes 'Unspecified' + 'Orcinus
+ * orca' still an orca.
  */
 export const NAME_TO_SCIENTIFIC: ReadonlyMap<string, string> = new Map([
-    ['Killer Whale (Orca)', 'Orcinus orca'],
-    ['Southern Resident Killer Whale', 'Orcinus orca ater'],
-    ['Grey', 'Eschrichtius robustus'],
-    ['California Sea Lion', 'Zalophus californianus'],
-    ['Pacific White-sided Dolphin', 'Sagmatias obliquidens'],
+    // Killer whales. 'Southern Resident' is the subspecies; the plain forms are not.
+    ['killer whale (orca)', 'Orcinus orca'],
+    ['killer whale', 'Orcinus orca'],
+    ['orca', 'Orcinus orca'],
+    ['orca (ballena asesina)', 'Orcinus orca'],
+    ['southern resident killer whale', 'Orcinus orca ater'],
+    // Baleen whales. 'Gray' was missing while 'Grey' was present, which is the whole
+    // reason 174 records went unresolved.
+    ['gray', 'Eschrichtius robustus'],
+    ['grey', 'Eschrichtius robustus'],
+    ['gray whale', 'Eschrichtius robustus'],
+    ['grey whale', 'Eschrichtius robustus'],
+    ['baleine grise', 'Eschrichtius robustus'],
+    ['humpback', 'Megaptera novaeangliae'],
+    ['humpback whale', 'Megaptera novaeangliae'],
+    ['ballena jorobada', 'Megaptera novaeangliae'],
+    ['minke whale', 'Balaenoptera acutorostrata'],
+    ['fin whale', 'Balaenoptera physalus'],
+    ['finback whale', 'Balaenoptera physalus'],
+    ['blue whale', 'Balaenoptera musculus'],
+    ['ballena azul', 'Balaenoptera musculus'],
+    ['sei whale', 'Balaenoptera borealis'],
+    // Toothed whales.
+    ['sperm whale', 'Physeter macrocephalus'],
+    ["baird's beaked whale", 'Berardius bairdii'],
+    ['short finned pilot whale', 'Globicephala macrorhynchus'],
+    // Dolphins and porpoises. iNaturalist carries the white-sided dolphin under
+    // Aethalodelphis; Lagenorhynchus and Sagmatias join nothing in our taxa mirror.
+    ['pacific white-sided dolphin', 'Aethalodelphis obliquidens'],
+    ["risso's dolphin", 'Grampus griseus'],
+    ['bottlenose dolphin', 'Tursiops truncatus'],
+    // NOT 'common dolphin'. Whale Alert's category is genus-level by design and the
+    // feed supplies the bare genus `Delphinus`; mapping it to a species would invent a
+    // determination the reporter was never offered. The same holds for its 'Right Whale'
+    // (Eubalaena) and 'Bottlenose Whale' (Hyperoodon) categories, likewise unmapped.
+    // 'Long-beaked' is different: the name itself makes the narrower claim.
+    ['long-beaked common dolphin', 'Delphinus delphis bairdii'],
+    ['striped dolphin', 'Stenella coeruleoalba'],
+    ['northern right whale dolphin', 'Lissodelphis borealis'],
+    ['northern right-whale dolphin', 'Lissodelphis borealis'],
+    ['harbor porpoise', 'Phocoena phocoena'],
+    ['harbour porpoise', 'Phocoena phocoena'],
+    ['marsouin commun', 'Phocoena phocoena'],
+    ["dall's porpoise", 'Phocoenoides dalli'],
+    // Pinnipeds.
+    ['california sea lion', 'Zalophus californianus'],
+]);
+
+/**
+ * Scientific names upstream still uses that our taxa mirror does not carry, mapped to
+ * the name iNaturalist currently uses. Without this a valid identification resolves to
+ * nothing: 43 Pacific white-sided dolphins arrive as `Lagenorhynchus obliquidens`.
+ */
+const SCIENTIFIC_SYNONYMS: ReadonlyMap<string, string> = new Map([
+    ['lagenorhynchus obliquidens', 'Aethalodelphis obliquidens'],
+    // iNaturalist deactivated Sagmatias obliquidens in favour of Aethalodelphis
+    // (taxon 1368491 -> 1664971); see salish-ayb.4.
+    ['sagmatias obliquidens', 'Aethalodelphis obliquidens'],
+    ['delphinus capensis', 'Delphinus delphis bairdii'],
 ]);
 
 /** Upstream ints (0/1) or genuine booleans → boolean. Maplify returns 0/1 today. */
@@ -163,14 +252,28 @@ export function isIngestable(s: NormalizedSighting): boolean {
 }
 
 /**
- * The scientific name to resolve a taxon from: the record's own, or the
- * common-name fallback, or null. The taxon_id lookup itself is persist-time.
+ * The scientific name to resolve a taxon from. The taxon_id lookup itself is
+ * persist-time.
+ *
+ * Three rules, in order (salish-7jl):
+ *   1. A placeholder in `scientific_name` ('N/A' and friends) counts as absent.
+ *   2. If the common name maps and DISAGREES with the scientific name, the common name
+ *      wins — upstream corrections land in `name`, not `scientific_name`.
+ *   3. Otherwise the scientific name stands, passed through the synonym map so a retired
+ *      genus still resolves.
  */
 export function resolveScientificName(s: NormalizedSighting): string | null {
-    const trimmed = s.scientificName.trim();
-    if (trimmed) return trimmed;
-    if (s.name) return NAME_TO_SCIENTIFIC.get(s.name) ?? null;
-    return null;
+    const raw = s.scientificName.trim();
+    const sci = SCIENTIFIC_NAME_PLACEHOLDERS.has(raw.toLowerCase())
+        ? null
+        : SCIENTIFIC_SYNONYMS.get(raw.toLowerCase()) ?? raw;
+    const fromName = s.name
+        ? NAME_TO_SCIENTIFIC.get(foldUpstreamName(s.name)) ?? null
+        : null;
+
+    if (!sci) return fromName;
+    if (fromName && fromName !== sci) return fromName;
+    return sci;
 }
 
 export type ParseResult =
