@@ -33,8 +33,14 @@ import { createRef, ref } from 'lit/directives/ref.js';
 import { compactMap } from './utils.ts';
 import type { Extent as RegionExtent } from './constants.ts';
 import UserLocationControl from './user-location-control.ts';
+// PROTOTYPE — remove with src/prototype-symbology.ts. See that file's header.
+import './prototype-switcher.ts';
+import { activeVariant, setReferenceTime, variantOccurrenceStyle, variantTravelStyle } from './prototype-symbology.ts';
 
 const sphericalMercator = 'EPSG:3857';
+
+// PROTOTYPE — null in normal use, which leaves every style path below untouched.
+const protoVariant = activeVariant();
 
 export type MapMoveDetail = {
   center: [number, number];
@@ -52,7 +58,12 @@ export class ObsMap extends LitElement {
   });
   private occurrenceLayer = new VectorLayer({
     source: this.ocurrenceSource,
-    style: (feature) => occurrenceStyle(feature.getProperties() as Occurrence, false),
+    // PROTOTYPE: layer-level declutter is what lets variant labels negotiate
+    // space instead of overprinting each other, as they do today near Victoria.
+    declutter: !!protoVariant,
+    style: protoVariant
+      ? (feature) => variantOccurrenceStyle(protoVariant)(feature.getProperties() as Occurrence, false)
+      : (feature) => occurrenceStyle(feature.getProperties() as Occurrence, false),
   });
   private travelSource = new VectorSource<Feature<LineString>>({
     features: [],
@@ -60,7 +71,9 @@ export class ObsMap extends LitElement {
   });
   private travelLayer = new VectorLayer({
     source: this.travelSource,
-    style: (line, res) => travelStyle(line as Feature<LineString>, res),
+    style: protoVariant
+      ? (line, res) => variantTravelStyle(protoVariant)(line as Feature<LineString>, res)
+      : (line, res) => travelStyle(line as Feature<LineString>, res),
   })
   private viewingLocationsLayer = new VectorLayer({
     // Markers appear a level earlier than before; the labels — the actual
@@ -115,7 +128,9 @@ export class ObsMap extends LitElement {
   private select = new Select({
     layers: [this.occurrenceLayer],
     multi: false,
-    style: selectedObservationStyle,
+    style: protoVariant
+      ? (feature) => variantOccurrenceStyle(protoVariant)(feature.getProperties() as Occurrence, true)
+      : selectedObservationStyle,
   });
 
   @property({type: Number, reflect: true})
@@ -214,6 +229,7 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
     return html`
       <link rel="stylesheet" href="${olCSS}" type="text/css" />
       <div ${ref(this.mapRef)} id="map"></div>
+      <prototype-switcher></prototype-switcher>
     `;
   }
 
@@ -329,6 +345,33 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
   public setOccurrences(occurrences: Occurrence[]) {
     const segments = occurrences2segments(occurrences);
     const features = segments.flatMap(segment2features);
+
+    // PROTOTYPE: a segment head has to speak for its whole track, so hang the
+    // track's size, span, and pooled identifiers on the head feature. Also pin
+    // "now" to the newest point of the loaded day, so the age encoding means
+    // something on a historical date.
+    if (protoVariant) {
+      setReferenceTime(Math.max(0, ...occurrences.map(o => o.observed_at_ms)));
+      for (const segment of segments) {
+        const head = segment.occurrences[segment.occurrences.length - 1]!;
+        const feature = features.find(f => f.getId() === head.id);
+        if (!feature)
+          continue;
+        const ids = new Set(segment.occurrences.flatMap(o => o.identifiers ?? []));
+        const spanMs = head.observed_at_ms - segment.occurrences[0]!.observed_at_ms;
+        feature.setProperties({
+          segmentLength: segment.occurrences.length,
+          segmentIdentifiers: [...ids].sort(),
+          segmentSpanHours: spanMs / (60 * 60 * 1000),
+        });
+        // Variant D needs to recognise a mid-track point, which carries no
+        // segment metadata of its own.
+        if (segment.occurrences.length > 1)
+          for (const tail of segment.occurrences.slice(0, -1))
+            features.find(f => f.getId() === tail.id)?.set('trackTail', true);
+      }
+    }
+
     this.ocurrenceSource.clear()
     this.ocurrenceSource.addFeatures(features);
 
