@@ -104,7 +104,7 @@ function makeOrca(id: string, isoUtc: string, lon: number, lat: number): Occurre
     observed_at: isoUtc,
     observed_at_ms: Date.parse(isoUtc),
     observed_from: null,
-    taxon: {scientific_name: 'Orcinus orca ater', vernacular_name: 'Resident Killer Whale', species_id: 41521},
+    taxon: {scientific_name: 'Orcinus orca ater', vernacular_name: 'Resident Killer Whale', species_id: 41521, entity_id: null},
     identifiers: [],
     contributor_id: 7,
     observer: 'Scott Veirs',
@@ -134,5 +134,46 @@ describe('orca short-window transit regression', () => {
     const segs = occurrences2segments([prev, gap, next]);
     expect(segs).toHaveLength(1);
     expect(segs[0]!.occurrences.map(o => o.id)).toEqual(['019d3d0b', '019d3d1d', '019d3d12']);
+  });
+});
+
+describe('segment2features head metadata', () => {
+  // Decision 029 puts one label on each segment head and lets it speak for the
+  // whole track, so the head has to carry what the track knows.
+  const multiPoint = segments.find(s => s.occurrences.length > 1)!;
+
+  test('the head is the last point, not the first', () => {
+    const features = segment2features(multiPoint);
+    expect(features[features.length - 1]!.get('isLast')).toBe(true);
+    expect(features[0]!.get('isFirst')).toBe(true);
+    expect(features[0]!.get('isLast')).toBeUndefined();
+  });
+
+  test('the head knows the size and span of its track', () => {
+    const features = segment2features(multiPoint);
+    const head = features[features.length - 1]!;
+    const occurrences = multiPoint.occurrences;
+    expect(head.get('segmentLength')).toBe(occurrences.length);
+    expect(head.get('segmentSpanHours')).toBeCloseTo(
+      (occurrences[occurrences.length - 1]!.observed_at_ms - occurrences[0]!.observed_at_ms) / 3600000,
+    );
+  });
+
+  test('identifiers are pooled over the track, deduplicated and sorted', () => {
+    // A pod reported on one sighting of an encounter and not the next still
+    // names the whole track.
+    const features = segment2features(multiPoint);
+    const pooled = features[features.length - 1]!.get('segmentIdentifiers') as string[];
+    const expected = [...new Set(multiPoint.occurrences.flatMap(o => o.identifiers ?? []))].sort();
+    expect(pooled).toEqual(expected);
+  });
+
+  test('a singleton is a segment of one, and is its own head', () => {
+    const singleton = segments.find(s => s.occurrences.length === 1)!;
+    const [only] = segment2features(singleton);
+    expect(only!.get('isFirst')).toBe(true);
+    expect(only!.get('isLast')).toBe(true);
+    expect(only!.get('segmentLength')).toBe(1);
+    expect(only!.get('segmentSpanHours')).toBe(0);
   });
 });

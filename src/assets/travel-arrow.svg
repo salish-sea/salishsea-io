@@ -1,0 +1,14 @@
+<!--
+  Direction of travel, drawn at the midpoint of each hop in a track.
+
+  Slate, matching the line it sits on. It replaced a yellow chevron when
+  decision 029 gave colour a job: once a hue means a taxon group, the loudest
+  mark on the map cannot be a hue that means nothing — the old arrow read as a
+  category, and sat between the seal orange and the yellow that means selected.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 15" width="18" height="15">
+    <path d="M4 2.5 L12.5 7.5 L4 12.5" fill="none" stroke="#ffffff" stroke-width="4"
+          stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.9" />
+    <path d="M4 2.5 L12.5 7.5 L4 12.5" fill="none" stroke="#475569" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.85" />
+</svg>

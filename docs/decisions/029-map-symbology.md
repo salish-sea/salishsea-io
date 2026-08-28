@@ -109,11 +109,56 @@ This does **not** solve cross-layer collision: decluttering is per-layer, so an 
 
 ## Consequences
 
-- `symbolFor()` in `src/identifiers.ts` is retired for everything except the killer-whale pod branch, which moves into the label composition.
-- `src/style.ts` gains a taxon-group palette and loses the per-marker letter `Text`.
+- `symbolFor()` in `src/identifiers.ts` is retired for everything except the killer-whale pod branch, which moves into the label composition — including in the observation list, whose badge becomes the same coloured dot as the marker.
+- A taxon-group palette appears (in `src/symbology.ts`, see below) and `src/style.ts` loses the per-marker letter `Text`.
 - The occurrence layer takes `declutter: true`; the hand-tuned `offsetX`/`declutterMode: 'obstacle'` positioning goes away.
 - Travel lines get a casing stroke. [#271](https://github.com/salish-sea/salishsea-io/issues/271) reports them as faint; part of that is that `travelStyle` returns early above resolution 100, so they do not draw at all at the default zoom — absent rather than faint.
 - A defect surfaced while measuring: `Megaptera novaeangliae kuzira` (319 records) is missing from `travelSpeedKmH`, so North Pacific Humpbacks silently never seed a segment though `Megaptera novaeangliae` does. Unlike the empty entries [027](027-marine-mammal-scope-whale-centric-identity.md) records as intentional, this one is an accident of exact-string matching.
+
+## Implementation notes
+
+Added after building it (`salish-ayb.6`); the decision above is unchanged.
+
+- **The palette lives in `src/symbology.ts`, not `src/style.ts`.** Two things that
+  look alike live there and are not alike: the *group* is ours outright, a rendering
+  bucket invented so a whale is distinguishable from a porpoise; the *name* is the
+  register's, and we only ever compose a shorter form of what it asserts. `style.ts`
+  stayed about OpenLayers.
+
+- **Short forms are truncations, never substitutions — and never lifted from a
+  `hidden` name.** The register turns out to carry `orca`, `humpback`, `elephant seal`,
+  `bottlenose dolphin` and `right whale dolphin` as `hidden` rows: evidence those
+  strings are in use, explicitly *not* names it offers for display. So an unattributed
+  killer whale reads `Killer whale`, not `Orca`, though `Orca` is the commoner word —
+  composing our way to a string the register declined to offer would route around its
+  judgement. Dropping a qualifier that separates our records from nothing is a different
+  act, and is the one ADR-0011 delegates.
+
+  Only five entries were needed. The clutter this record set out to fix was
+  "North American River Otter", and adopting the register (`salish-ayb.5`) fixed that on
+  its own; most of its names are already the right length for a map pin.
+
+- **Keyed on `SSA:` via a new `taxon.entity_id`** (migration `20260829000000`). Keying on
+  the register's *name* would drop the override the moment the name is revised; keying on
+  `scientific_name` would drop it when iNaturalist reclassifies an animal, which
+  `20260828000000` exists because they do.
+
+- **Travel lines are slate, not `#ffcc33`.** Once colour carries the taxon, yellow is no
+  longer neutral: it sits between the seal and sea-lion oranges and beside the yellow that
+  means *selected*. The track is the one thing on the map drawn in no hue at all — which
+  is what "supporting, not the subject" turns out to mean once the palette exists. The
+  direction arrows moved with it.
+
+- **The dots do not declutter, and must not be obstacles.** `declutterMode: 'obstacle'`
+  is the reading that looks right and is not: an obstacle reserves its own footprint, and
+  a label is anchored to the marker it belongs to, so every label collided with its own
+  dot and the map lost all of them at once. With `'none'` a label can land on a
+  neighbouring marker, so the label background is near-opaque — at 88% the marker beneath
+  showed through as a smudge that read as a rendering fault.
+
+- **The ecotype regex missed the plural.** `\b(...|transient|biggs)\b` refuses
+  "transients" and "southern residents", which is how people actually write it. Invisible
+  while the ecotype only chose a letter; the label made it obvious.
 
 ## Open
 

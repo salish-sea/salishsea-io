@@ -30,12 +30,36 @@ export function occurrences2segments(occurrences: Occurrence[]) {
   return segments;
 }
 
+/**
+ * The segment's points as map features, with the head told what it stands for.
+ *
+ * Decision 029 puts one label on each segment head and lets it speak for the
+ * whole track — "Humpback / Seen 3× over 10h" — so the head needs the track's
+ * size, span and pooled identifiers. They are attached here rather than in the
+ * map component because this is where a segment is still an object; by the time
+ * obs-map has a flat list of features, recovering which ones belonged together
+ * means matching ids back up.
+ *
+ * The head is the LAST occurrence. That is the most recent position, which is
+ * both what a reader wants and the point the old red `isLast` ring already
+ * emphasised.
+ */
 export function segment2features(segment: Segment): Feature<Point>[] {
-  if (segment.occurrences.length === 0)
+  const {occurrences} = segment;
+  if (occurrences.length === 0)
     throw new Error("Segment had no occurrences");
-  const features = segment.occurrences.map(occurrence2feature);
+  const features = occurrences.map(occurrence2feature);
+  const head = features[features.length - 1]!;
   features[0]!.set('isFirst', true);
-  features[features.length - 1]!.set('isLast', true);
+  head.set('isLast', true);
+
+  const identifiers = new Set(occurrences.flatMap(occurrence => occurrence.identifiers ?? []));
+  head.setProperties({
+    segmentLength: occurrences.length,
+    segmentIdentifiers: [...identifiers].sort(),
+    segmentSpanHours:
+      (occurrences[occurrences.length - 1]!.observed_at_ms - occurrences[0]!.observed_at_ms) / hour_in_ms,
+  });
   return features;
 }
 

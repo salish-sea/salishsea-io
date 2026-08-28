@@ -28,9 +28,30 @@ export type Occurrence = OverrideProperties<Occurrence1, {
   photos: OccurrencePhoto[];
   taxon: Taxon;
 }> & {
+  observed_at_ms: number;
+} & SegmentPlacement;
+
+/**
+ * Where an occurrence sits in its travel segment, hung on the map feature by
+ * {@link segment2features} and read back out by the style.
+ *
+ * It is not part of the record. A sighting has no intrinsic "last": the same
+ * occurrence is a segment head on a day's map and a mid-track point once the
+ * next sighting arrives. It lives on the Occurrence because the style receives
+ * `feature.getProperties()`, and OpenLayers gives it no other channel.
+ *
+ * The head is the LAST point, not the first — the most recent place the animal
+ * was, which is what a reader is looking for and what the label speaks for.
+ */
+export type SegmentPlacement = {
   isFirst?: true;
   isLast?: true;
-  observed_at_ms: number;
+  /** Occurrences in the segment. 1 for a singleton, which is a segment of one. */
+  segmentLength?: number;
+  /** Identifiers pooled across the whole segment, deduplicated and sorted. */
+  segmentIdentifiers?: string[];
+  /** First sighting to last, in hours. 0 for a singleton. */
+  segmentSpanHours?: number;
 };
 
 

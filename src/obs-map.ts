@@ -51,6 +51,13 @@ export class ObsMap extends LitElement {
     strategy: all,
   });
   private occurrenceLayer = new VectorLayer({
+    // Layer-level decluttering is what lets the labels negotiate space, and it
+    // replaces the hand-tuned pixel offsets that still let two identifier
+    // labels overprint near Victoria on an ordinary day (decision 029). It is
+    // per-layer, so it does NOT stop an occurrence label colliding with a
+    // hydrophone; that is a separate problem, and the reason infrastructure now
+    // draws underneath.
+    declutter: true,
     source: this.ocurrenceSource,
     style: (feature) => occurrenceStyle(feature.getProperties() as Occurrence, false),
   });

@@ -1,7 +1,9 @@
-import type { Occurrence } from "./types.ts";
-
-const ecotypeRE = /\b(srkw|southern resident|transient|biggs)\b/gi;
-const detectEcotype = (text: Readonly<string>) => {
+// The plural is the ordinary form — "transients in Haro Strait", "southern
+// residents foraging" — and \b after the singular refuses it, because there is
+// no word boundary between 'transient' and its 's'. Missed silently until
+// decision 029 put the ecotype on the map label rather than behind a letter.
+const ecotypeRE = /\b(srkw|southern resident|transient|biggs)s?\b/gi;
+export const detectEcotype = (text: Readonly<string>) => {
   for (const [, ecotype] of text.matchAll(ecotypeRE)) {
     switch (ecotype!.toLowerCase()) {
       case 'biggs': return 'Biggs';
@@ -44,24 +46,4 @@ export const detectIndividuals = (text: Readonly<string>) => {
     }
   }
   return [...matches].sort();
-}
-
-export function symbolFor({body, taxon: {scientific_name, vernacular_name}}: Pick<Occurrence, 'body' | 'taxon'>): string {
-  if (scientific_name.startsWith('Orcinus orca')) {
-    const pod = detectPod(body || '');
-    if (pod)
-      return pod;
-    if (scientific_name === 'Orcinus orca rectipinnus')
-      return 'T';
-    const ecotype = detectEcotype(body || '');
-    if (ecotype)
-      return ecotype[0]!;
-    return 'O';
-  } else if (scientific_name.startsWith('Phoca vitulina')) {
-    return 'S';
-  } else if (vernacular_name) {
-    return vernacular_name[0]!;
-  } else {
-    return scientific_name[0]!;
-  }
 }
