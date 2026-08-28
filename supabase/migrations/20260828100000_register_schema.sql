@@ -113,11 +113,15 @@ FROM register.mappings m
 JOIN register.entities e ON e.entity_id = m.subject_id
 JOIN register.names    n ON n.entity_id = e.entity_id AND n.type = 'common'
 WHERE m.predicate_id = 'skos:exactMatch'
-  AND m.object_id LIKE 'inaturalist.taxon:%'
-  -- Length-bounded, not just numeric: an unbounded digit string passes ~ '^[0-9]+$' and
-  -- then overflows the ::integer cast at query time, which would break every read of
-  -- public.occurrences rather than skipping one bad mapping.
-  AND split_part(m.object_id, ':', 2) ~ '^[0-9]{1,9}$'
+  -- The WHOLE identifier is matched, not a prefix plus one field. A prefix test with
+  -- split_part accepts 'inaturalist.taxon:41777:legacy' — split_part returns 41777 and
+  -- the trailing segment is never examined — so a malformed mapping would silently
+  -- crosswalk as if it were the canonical one.
+  --
+  -- Length-bounded too: an unbounded digit string is still numeric and would overflow the
+  -- ::integer cast at query time, breaking every read of public.occurrences rather than
+  -- skipping one bad row.
+  AND m.object_id ~ '^inaturalist\.taxon:[0-9]{1,9}$'
 -- DISTINCT ON is load-bearing, not tidiness. public.occurrences LEFT JOINs this view, so
 -- two rows for one taxon id would DUPLICATE every occurrence of that animal on the map —
 -- silently, and only for the taxa that happened to acquire a second name.
