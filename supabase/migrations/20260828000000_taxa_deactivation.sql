@@ -41,10 +41,10 @@ CREATE INDEX IF NOT EXISTS taxa_current_taxon_id_idx
   WHERE current_taxon_id IS NOT NULL;
 
 COMMENT ON COLUMN inaturalist.taxa.is_active IS
-  'Mirror of iNaturalist is_active. NOTE: the v2 /taxa endpoint the ingest uses omits '
-  'inactive taxa from its results entirely rather than returning them flagged, so v2 '
-  'cannot maintain this column. Only v1 /taxa/{ids} reports deactivation, which is why '
-  'scripts/backfill/inat-taxa-status.ts uses v1.';
+  'Mirror of iNaturalist is_active. NOTE: on /taxa the id= QUERY PARAM filters retired '
+  'taxa out — it reports total_results 0 for one — while the /taxa/{ids} PATH form '
+  'returns it flagged, with current_synonymous_taxon_ids. The difference is the route, '
+  'not the API version. The ingest builds ?id=, so it cannot see a retirement.';
 
 COMMENT ON COLUMN inaturalist.taxa.current_taxon_id IS
   'The taxon that supersedes this one, from iNaturalist current_synonymous_taxon_ids. '

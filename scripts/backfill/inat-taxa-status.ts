@@ -5,18 +5,23 @@
  * mirror had nowhere to record either, and the ingest wrote taxa with
  * ON CONFLICT DO NOTHING, so a row was never revisited once written.
  *
- * WHY THIS USES THE v1 API WHEN THE INGEST USES v2
+ * WHY THE ROUTE MATTERS MORE THAN THE API VERSION
  *
- * The ingest fetches its taxon closure from `/v2/taxa`, which supports an `is_active`
- * field — and cannot be used for this, because **v2 omits inactive taxa from its
- * results entirely** rather than returning them flagged. Asking v2 for two ids where
- * one is retired returns one result and `total_results: 1`, with nothing to say the
- * other exists. `/v1/taxa/{ids}` returns it, flagged, with
- * `current_synonymous_taxon_ids` naming the replacement. Verified 2026-08-28 against
- * taxon 1368491 (Sagmatias obliquidens, retired in favour of 1664971).
+ * On `/taxa`, the `id=` QUERY PARAM filters to active taxa: asking for a retired id
+ * returns `total_results: 0`, with nothing to say it ever existed. The `/taxa/{ids}`
+ * PATH form returns the same taxon flagged `is_active: false` with
+ * `current_synonymous_taxon_ids` naming its replacement. Both v1 and v2 behave this
+ * way; the difference is the route, not the version.
  *
- * So deactivation is invisible to the path that maintains the mirror, which is exactly
- * why the drift went unnoticed for as long as it did.
+ * The ingest builds `?id=` (see taxaUrl in fetch-inaturalist.ts), so a retirement is
+ * invisible to the code that maintains the mirror — which is exactly why this drift
+ * went unnoticed. Worse, resolveTaxonClosure treats "requested but not returned" as a
+ * hard failure, so a referenced taxon retired since the last run aborts the whole
+ * ingest. Filed separately.
+ *
+ * This script uses v1's path form. v2's path form would serve equally well; v1 is
+ * chosen only because it returns both fields without a field selection.
+ * Verified 2026-08-28 against taxon 1368491 (Sagmatias obliquidens -> 1664971).
  *
  * WHAT IT DOES
  *
@@ -141,57 +146,97 @@ async function main(): Promise<void> {
                 console.log(`\nWARNING: ${n!.total} records reference a retired taxon with no `
                     + `mirrored replacement. They keep pointing at a dead concept.`);
         }
-        if (repointable.length) {
+        // The repoint below moves any row pointing at ANY taxon carrying a replacement,
+        // not only the ones retired on this run — a pointer set by an earlier run whose
+        // repoint did not finish is still live work. Count against that same set, or the
+        // dry run understates what --apply does.
+        const alreadyPointed = mirrored.filter((t) => t.current_taxon_id !== null).map((t) => t.id);
+        const willRepoint = [...new Set([...alreadyPointed, ...repointable])];
+        if (willRepoint.length) {
             const [counts] = await sql<{ inat: number; maplify: number; direct: number }[]>`
                 SELECT
-                    (SELECT count(*)::int FROM inaturalist.observations WHERE taxon_id = ANY(${repointable})) AS inat,
-                    (SELECT count(*)::int FROM maplify.sightings      WHERE taxon_id = ANY(${repointable})) AS maplify,
-                    (SELECT count(*)::int FROM public.observations    WHERE taxon_id = ANY(${repointable})) AS direct`;
+                    (SELECT count(*)::int FROM inaturalist.observations WHERE taxon_id = ANY(${willRepoint})) AS inat,
+                    (SELECT count(*)::int FROM maplify.sightings      WHERE taxon_id = ANY(${willRepoint})) AS maplify,
+                    (SELECT count(*)::int FROM public.observations    WHERE taxon_id = ANY(${willRepoint})) AS direct`;
+            const total = counts!.inat + counts!.maplify + counts!.direct;
             console.log(`\nrecords pointing at a retired taxon: `
                 + `${counts!.inat} iNaturalist, ${counts!.maplify} Maplify, ${counts!.direct} native`);
+            if (total === 0) console.log('  (nothing to repoint)');
         }
 
         if (!apply) {
             console.log('\nDry run. Pass --apply to write.');
             return;
         }
-        if (!changed.length) {
-            console.log('nothing to do');
-            return;
-        }
 
         const ids = changed.map((t) => t.id);
-        const actives = changed.map((t) => String(upstream.get(t.id)!.is_active));
+        const actives = changed.map((t) => upstream.get(t.id)!.is_active);
         const currents = changed.map((t) => targetFor(t.id));
 
         await sql.begin(async (tx) => {
-            // Status first. The CHECK constraint requires a replacement to imply
-            // inactive, so both columns must move in one statement.
-            await tx`
-                UPDATE inaturalist.taxa t
-                SET is_active = plan.is_active, current_taxon_id = plan.current_taxon_id
-                FROM (
-                    -- postgres.js infers text[] and int[] from JS arrays but sends a
-                    -- boolean[] as a scalar, so the flags go over as text and cast here.
-                    SELECT * FROM unnest(${ids}::int[], ${actives}::bool[], ${currents}::int[])
-                    AS u(id, is_active, current_taxon_id)
-                ) AS plan
-                WHERE t.id = plan.id`;
+            if (changed.length) {
+                // Status first. The CHECK constraint requires a replacement to imply
+                // inactive, so both columns must move in one statement.
+                await tx`
+                    UPDATE inaturalist.taxa t
+                    SET is_active = plan.is_active, current_taxon_id = plan.current_taxon_id
+                    FROM (
+                        -- sql.array(), not a bare interpolated JS array: postgres.js
+                        -- expands a bare array into a comma-separated VALUE LIST rather
+                        -- than an array literal. It happens to infer array context for
+                        -- the text and int cases here, but not for booleans — an
+                        -- interpolated [true, false] cast to bool[] silently yields
+                        -- {false, false}, so every taxon was written inactive regardless
+                        -- of what upstream said. Casting the flags to text first does not
+                        -- help: text[] -> bool[] misreads them the same way. sql.array()
+                        -- is unambiguous for all three.
+                        SELECT * FROM unnest(
+                            ${sql.array(ids)}::int[],
+                            ${sql.array(actives)}::bool[],
+                            ${sql.array(currents)}::int[]
+                        ) AS u(id, is_active, current_taxon_id)
+                    ) AS plan
+                    WHERE t.id = plan.id`;
+            }
 
-            // Then follow the pointer. Repointing at write time keeps the resolution out
+            // Then follow the pointers. Repointing at write time keeps the resolution out
             // of public.occurrences, which stays a plain projection of the mirrors.
-            for (const [table, column] of [
-                ['inaturalist.observations', 'taxon_id'],
-                ['maplify.sightings', 'taxon_id'],
-                ['public.observations', 'taxon_id'],
-            ] as const) {
-                const moved = await tx.unsafe(
-                    `UPDATE ${table} r SET ${column} = t.current_taxon_id
-                     FROM inaturalist.taxa t
-                     WHERE r.${column} = t.id AND t.current_taxon_id IS NOT NULL
-                     RETURNING 1`,
-                );
-                if (moved.length) console.log(`repointed ${moved.length} rows in ${table}`);
+            //
+            // This runs whether or not a status changed: a pointer written by an earlier
+            // run whose repoint did not finish still has rows to move, and skipping the
+            // repoint because "nothing changed upstream" would leave them stranded.
+            //
+            // One pass moves one hop. iNaturalist can retire A in favour of B and later
+            // retire B, so a chain needs repeating until nothing moves — bounded, because
+            // a pointer cycle would otherwise spin forever. Ten is far above any real
+            // chain; hitting it means the data is malformed and a human should look.
+            const MAX_HOPS = 10;
+            let hop = 0;
+            for (;;) {
+                if (++hop > MAX_HOPS)
+                    throw new Error(
+                        `taxon replacement chain still moving after ${MAX_HOPS} hops — `
+                        + 'suspect a cycle in inaturalist.taxa.current_taxon_id',
+                    );
+                let movedThisHop = 0;
+                for (const [table, column] of [
+                    ['inaturalist.observations', 'taxon_id'],
+                    ['maplify.sightings', 'taxon_id'],
+                    ['public.observations', 'taxon_id'],
+                ] as const) {
+                    const moved = await tx.unsafe(
+                        `UPDATE ${table} r SET ${column} = t.current_taxon_id
+                         FROM inaturalist.taxa t
+                         WHERE r.${column} = t.id AND t.current_taxon_id IS NOT NULL
+                         RETURNING 1`,
+                    );
+                    if (moved.length) {
+                        movedThisHop += moved.length;
+                        console.log(`repointed ${moved.length} rows in ${table}`
+                            + (hop > 1 ? ` (hop ${hop})` : ''));
+                    }
+                }
+                if (movedThisHop === 0) break;
             }
         });
         console.log(`\nupdated ${changed.length} taxa`);
