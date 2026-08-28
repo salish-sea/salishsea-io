@@ -101,15 +101,29 @@ describe.skipIf(!DSN)('persistMaplify (local Supabase)', () => {
         expect(survivors.map((r) => r['id'])).toEqual([900202]);
     });
 
-    test('persists a record with a blank scientific_name (NOT NULL mirror column, taxon null)', async () => {
+    test('persists a record with a blank scientific_name and resolves its taxon from the name', async () => {
         // Real Maplify data includes records with scientific_name '' (e.g. "Blue Whale").
+        // The blank must round-trip verbatim — the mirror column is NOT NULL — while the
+        // taxon still resolves from the common name (salish-7jl).
         const res = await persistMaplify(sql, plan({
             upsert: [sighting({ id: 900105, scientificName: '', name: 'Blue Whale' })],
         }), WINDOW);
         expect(res.upserted).toBe(1);
         const [row] = await sql`select scientific_name, taxon_id from maplify.sightings where id = 900105`;
         expect(row?.['scientific_name']).toBe(''); // stored verbatim, no NOT NULL violation
-        expect(row?.['taxon_id']).toBeNull();       // 'Blue Whale' not in the fallback map
+        const [blue] = await sql`select id from inaturalist.taxa where scientific_name = 'Balaenoptera musculus'`;
+        expect(row?.['taxon_id']).toBe(blue?.['id']);
+    });
+
+    test('leaves taxon null when the name asserts no identification', async () => {
+        // The counterpart to the test above: 'Unspecified' is deliberately absent from
+        // the name map, so nothing is guessed at.
+        await persistMaplify(sql, plan({
+            upsert: [sighting({ id: 900106, scientificName: 'N/A', name: 'Unspecified' })],
+        }), WINDOW);
+        const [row] = await sql`select scientific_name, taxon_id from maplify.sightings where id = 900106`;
+        expect(row?.['scientific_name']).toBe('N/A'); // upstream placeholder, mirrored verbatim
+        expect(row?.['taxon_id']).toBeNull();
     });
 
     test('dry run reports would-be counts but writes nothing', async () => {
