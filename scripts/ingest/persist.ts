@@ -342,9 +342,9 @@ export async function persistInaturalist(
         //    while looking like a fix.
         //
         //    Refreshing the mirror is therefore a separate job that re-asks upstream:
-        //    scripts/backfill/inat-taxa-status.ts, which must use the v1 API because v2
-        //    omits inactive taxa from its results entirely. Whatever runs it must not
-        //    clobber is_active/current_taxon_id, which v2 cannot see.
+        //    scripts/backfill/inat-taxa-status.ts. It must ask via the /taxa/{ids} PATH
+        //    form, because the ?id= query param this ingest uses filters retired taxa out
+        //    of the result — on both v1 and v2. That is the route, not the version.
         let taxaUpserted = 0;
         if (taxonPayload.length > 0) {
             const rows = await tx`

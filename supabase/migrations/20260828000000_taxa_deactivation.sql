@@ -23,8 +23,11 @@ ALTER TABLE inaturalist.taxa
   ADD COLUMN is_active boolean NOT NULL DEFAULT true,
   -- iNaturalist's `current_synonymous_taxon_ids`. Nullable twice over: an active
   -- taxon has no replacement, and a retired one is not always given one.
-  ADD COLUMN current_taxon_id integer REFERENCES inaturalist.taxa (id)
-    DEFERRABLE INITIALLY DEFERRED;
+  -- Not DEFERRABLE, unlike parent_id: a replacement always already exists in the
+  -- mirror (the refresh only records one it holds), so there is no intra-batch
+  -- ordering to tolerate, and an immediate check reports the offending statement
+  -- rather than surfacing at COMMIT far from the cause.
+  ADD COLUMN current_taxon_id integer REFERENCES inaturalist.taxa (id);
 
 -- A replacement only means something for a taxon that has been retired. Stating it as
 -- a constraint keeps "active" and "superseded by" from disagreeing, which is the shape
@@ -35,11 +38,6 @@ ALTER TABLE inaturalist.taxa
   ADD CONSTRAINT taxa_replacement_is_another_taxon
     CHECK (current_taxon_id IS DISTINCT FROM id);
 
--- Resolution reads this on every ingest; the table is small but the lookup is hot.
-CREATE INDEX IF NOT EXISTS taxa_current_taxon_id_idx
-  ON inaturalist.taxa (current_taxon_id)
-  WHERE current_taxon_id IS NOT NULL;
-
 COMMENT ON COLUMN inaturalist.taxa.is_active IS
   'Mirror of iNaturalist is_active. NOTE: on /taxa the id= QUERY PARAM filters retired '
   'taxa out — it reports total_results 0 for one — while the /taxa/{ids} PATH form '
@@ -48,8 +46,9 @@ COMMENT ON COLUMN inaturalist.taxa.is_active IS
 
 COMMENT ON COLUMN inaturalist.taxa.current_taxon_id IS
   'The taxon that supersedes this one, from iNaturalist current_synonymous_taxon_ids. '
-  'Records referencing an inactive taxon are repointed here at write time rather than '
-  'followed at read time, so public.occurrences carries no resolution logic.';
+  'Nothing reads this yet: scripts/backfill/inat-taxa-status.ts uses it to repoint '
+  'referencing rows when it runs, and no ingest or view consults it. Resolution is '
+  'therefore a batch repair, not a read-time or write-time rule — see salish-4hq.';
 
 -- SELECT grants ship with the columns that need them (CLAUDE.md): the table is already
 -- granted to anon/authenticated, and column-level grants are not in use here, so the

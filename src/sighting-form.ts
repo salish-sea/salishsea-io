@@ -40,7 +40,10 @@ const TAXON_OPTIONS = {
   "Dolphins and porpoises": {
     "Phocoena phocoena": "Harbor porpoise",
     "Phocoenoides dalli": "Dall's porpoise",
-    "Sagmatias obliquidens": "Pacific white-sided dolphin",
+    // Aethalodelphis, not Sagmatias: iNaturalist retired 1368491 in favour of
+    // 1664971. upsert_observation resolves this key by scientific name, so the
+    // old one minted a row on a dead taxon with every submission (salish-ayb.4).
+    "Aethalodelphis obliquidens": "Pacific white-sided dolphin",
   },
   "Killer whales": {
     "Orcinus orca": "Killer whale (unknown ecotype)",
