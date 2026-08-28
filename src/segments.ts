@@ -3,7 +3,7 @@ import { LineString, Point } from 'ol/geom.js';
 import Feature from 'ol/Feature.js';
 import { fromLonLat } from 'ol/proj.js';
 import type { Occurrence } from './types.ts';
-import { travelSpeedKmH } from './constants.ts';
+import { travelSpeedFor } from './constants.ts';
 import { occurrence2feature } from './occurrence.ts';
 
 const hour_in_ms = 60 * 60 * 1000;
@@ -52,7 +52,7 @@ export function segment2travelLine({occurrences, ...segment}: Segment): Feature<
 // Precondition: candidates all occur after start.
 function imputeSegmentFrom(start: Occurrence, candidates: Occurrence[]): Segment {
   const occurrences = [start];
-  const meanTravelSpeed = travelSpeedKmH[start.taxon.scientific_name];
+  const meanTravelSpeed = travelSpeedFor(start.taxon.scientific_name);
   let last_point = start;
   if (start.taxon.species_id && meanTravelSpeed) {
     for (const candidate of candidates) {

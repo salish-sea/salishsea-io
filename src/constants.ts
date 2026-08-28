@@ -127,7 +127,17 @@ export const licenseCodes = Object.freeze({
   "cc-by-sa": "CC-BY-SA (attribution, share-alike)",
 });
 
-/// species scientifica name -> mean speed in km/h
+/**
+ * Scientific name -> mean travel speed in km/h.
+ *
+ * Absence is load-bearing. A taxon with no entry can never seed a travel
+ * segment, which is how [027](../docs/decisions/027-marine-mammal-scope-whale-centric-identity.md)
+ * keeps pinnipeds and otters off the travel lines: they are sighted, not
+ * tracked. Adding a key here is a decision that the animal's movement between
+ * two sightings is a claim we are willing to draw.
+ *
+ * Read it through {@link travelSpeedFor}, never by direct subscript.
+ */
 export const travelSpeedKmH: {[k: string]: number} = {
   "Balaenoptera acutorostrata": 3.0,
   "Eschrichtius robustus": 4.0,
@@ -136,3 +146,29 @@ export const travelSpeedKmH: {[k: string]: number} = {
   "Orcinus orca ater": 6.6,
   "Orcinus orca rectipinnus": 6.8,
 };
+
+/**
+ * The mean travel speed for a taxon, or `undefined` if it does not travel on
+ * this map.
+ *
+ * Falls back from a trinomial to its binomial, because the table is keyed by
+ * name while iNaturalist reports some sightings at subspecies rank. Without
+ * that fallback `Megaptera novaeangliae kuzira` (342 occurrences) could never
+ * START a segment though `Megaptera novaeangliae` could, so North Pacific
+ * Humpbacks silently drew no travel lines at all — an accident of exact-string
+ * matching, not the deliberate omission above (salish-fll.2).
+ *
+ * The fallback only reaches species that are already listed, so it inherits the
+ * intent rather than widening it: `Phoca vitulina richardii` still finds
+ * nothing. Where a subspecies' speed is genuinely different — the two orca
+ * ecotypes — an explicit key still wins over the binomial.
+ */
+export function travelSpeedFor(scientificName: string): number | undefined {
+  const exact = travelSpeedKmH[scientificName];
+  if (exact !== undefined)
+    return exact;
+  const [genus, species, ...rest] = scientificName.split(' ');
+  if (!genus || !species || rest.length === 0)
+    return undefined;
+  return travelSpeedKmH[`${genus} ${species}`];
+}

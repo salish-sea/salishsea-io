@@ -151,11 +151,14 @@ export class ObsMap extends LitElement {
         }),
       }),
       this.maskLayer,
-      this.occurrenceLayer,
-      this.travelLayer,
+      // Infrastructure under the data. These are places that are always there —
+      // context for reading the map, not things anybody saw today — and drawing
+      // them last let a hydrophone cover a sighting (salish-fll.3).
       this.viewingLocationsLayer,
       this.hydrophoneLayer,
       this.salmonCountingSiteLayer,
+      this.travelLayer,
+      this.occurrenceLayer,
       this.userLocationLayer,
       new VectorLayer({
         source: this.drawingSource,

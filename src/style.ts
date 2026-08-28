@@ -142,40 +142,69 @@ export const selectedObservationStyle = (observation: FeatureLike) => {
   return occurrenceStyle(sighting, true);
 };
 
+/**
+ * Coarser than this, a travel line is drawn but not annotated: no direction
+ * arrows, no imputed present position.
+ *
+ * The line itself has no gate any more. It used to — `resolution > 100`
+ * returned early for the whole style — and the default view of the Salish Sea
+ * sits near 500 m/px, so travel lines did not draw at all until you zoomed in
+ * past ~11. [#271](https://github.com/salish-sea/salishsea-io/issues/271) reads
+ * as "you can hardly see them"; half of it was that they were absent rather
+ * than faint (salish-fll.4).
+ *
+ * The annotations keep the threshold. They are fixed-size marks on a line whose
+ * length shrinks with zoom: at the default view a whole segment is a few dozen
+ * pixels, so a midpoint arrow covers the hop it annotates, and the "now at
+ * 6.8km/h" circle is a claim about the next half hour that belongs at the zoom
+ * where you would act on it.
+ */
+const TRAVEL_DETAIL_MAX_RESOLUTION = 100;
+
 export const travelStyle = (feature: Feature<LineString>, resolution: number) => {
-  if (resolution > 100)
-    return;
   const lineString = feature.getGeometry()!;
   const styles: Style[] = [];
 
-  if (lineString.getLength() > 1)
+  if (lineString.getLength() > 1) {
+    // A casing under the line, not a heavier line. 2px of #ffcc33 alone
+    // disappears into the Esri basemap's coastline, which is the other half of
+    // #271; a white halo separates the track from whatever it crosses without
+    // making it louder. Decision 029: the track is supporting, not the subject.
+    styles.push(new Style({
+      stroke: new Stroke({
+        color: 'rgba(255, 255, 255, 0.9)',
+        width: 4,
+      }),
+    }));
     styles.push(new Style({
       stroke: new Stroke({
         color: '#ffcc33',
         width: 2,
       }),
     }));
-  lineString.forEachSegment(function (a, b) {
-    const start = a as [number, number];
-    const end = b as [number, number];
-    const dx = end[0] - start[0];
-    const dy = end[1] - start[1];
-    const rotation = Math.atan2(dy, dx);
-    // arrows
-    styles.push(
-      new Style({
-        geometry: new Point([(end[0] + start[0]) / 2, (end[1] + start[1]) / 2]),
-        image: new Icon({
-          src: arrowPNG,
-          anchor: [0.75, 0.5],
-          rotateWithView: true,
-          rotation: -rotation,
+  }
+  if (resolution <= TRAVEL_DETAIL_MAX_RESOLUTION) {
+    lineString.forEachSegment(function (a, b) {
+      const start = a as [number, number];
+      const end = b as [number, number];
+      const dx = end[0] - start[0];
+      const dy = end[1] - start[1];
+      const rotation = Math.atan2(dy, dx);
+      styles.push(
+        new Style({
+          geometry: new Point([(end[0] + start[0]) / 2, (end[1] + start[1]) / 2]),
+          image: new Icon({
+            src: arrowPNG,
+            anchor: [0.75, 0.5],
+            rotateWithView: true,
+            rotation: -rotation,
+          }),
         }),
-      }),
-    );
-  });
+      );
+    });
+  }
   const meanTravelSpeed = feature.get('expectedTravelSpeedKmph') as number | undefined;
-  if (meanTravelSpeed) {
+  if (meanTravelSpeed && resolution <= TRAVEL_DETAIL_MAX_RESOLUTION) {
     const lastCoordinate = lineString.getLastCoordinate();
     const lastOccurrenceAt = feature.get('lastOccurrenceAt') as Date;
     const ageHours = (now().valueOf() - lastOccurrenceAt.valueOf()) / hour_in_ms;
