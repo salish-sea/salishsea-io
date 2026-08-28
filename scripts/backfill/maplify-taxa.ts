@@ -21,10 +21,22 @@
  * Maplify, so rewriting it does not violate decision 008. The upstream columns, and
  * `comments` in particular, are never touched.
  *
- * Usage:
+ * Usage, against a database you can reach directly (the local stack):
  *   SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
  *     npx tsx scripts/backfill/maplify-taxa.ts            # dry run, prints the plan
  *   ... npx tsx scripts/backfill/maplify-taxa.ts --apply  # writes
+ *
+ * Usage against production, which has no direct route from a laptop — the IPv4 pooler
+ * needs DB_PASSWORD, and the Management API (`supabase db query --linked`) runs SQL but
+ * cannot run TypeScript. So the plan is computed here and the statement applied there:
+ *
+ *   npx supabase db query --linked "SELECT ... FROM maplify.sightings GROUP BY 1,2,3" \
+ *     | ... > /tmp/domain.json
+ *   npx tsx scripts/backfill/maplify-taxa.ts --plan-from /tmp/domain.json --emit-sql \
+ *     > /tmp/backfill.sql
+ *   npx supabase db query --linked "$(cat /tmp/backfill.sql)"
+ *
+ * The domain is a few dozen rows either way, so nothing large crosses the boundary.
  */
 
 import postgres from 'postgres';
@@ -33,25 +45,45 @@ import { resolveScientificName, type NormalizedSighting } from '../ingest/maplif
 type Pair = { name: string | null; scientific_name: string; n: number };
 type Row = { name: string | null; scientific_name: string; taxon_id: number | null; n: number };
 
+/** A SQL string literal, or NULL. Names carry apostrophes and mis-decoded bytes. */
+function lit(value: string | null): string {
+    return value === null ? 'NULL' : `'${value.replace(/'/g, "''")}'`;
+}
+
 async function main(): Promise<void> {
+    const argv = process.argv;
+    const apply = argv.includes('--apply');
+    const emitSql = argv.includes('--emit-sql');
+    const planFrom = argv[argv.indexOf('--plan-from') + 1];
+    const usePlanFile = argv.includes('--plan-from');
+
     const dsn = process.env['SUPABASE_DB_URL'];
-    if (!dsn) {
-        console.error('SUPABASE_DB_URL is not set');
+    if (!usePlanFile && !dsn) {
+        console.error('SUPABASE_DB_URL is not set (or pass --plan-from <file>)');
         process.exit(1);
     }
-    const apply = process.argv.includes('--apply');
-    const sql = postgres(dsn);
+    // Reading the plan from a file means no database connection at all, which is what
+    // makes the production route work without a credential.
+    const sql = usePlanFile ? null : postgres(dsn!);
 
     try {
-        // The domain: every distinct combination the resolver could see, with the
-        // taxon each currently carries.
-        const current = await sql<Row[]>`
-            SELECT name, scientific_name, taxon_id, count(*)::int AS n
-            FROM maplify.sightings
-            GROUP BY 1, 2, 3`;
-
-        const taxa = await sql<{ id: number; scientific_name: string }[]>`
-            SELECT id, scientific_name FROM inaturalist.taxa`;
+        let current: Row[];
+        let taxa: { id: number; scientific_name: string }[];
+        if (usePlanFile) {
+            const { readFileSync } = await import('node:fs');
+            const doc = JSON.parse(readFileSync(planFrom!, 'utf8'));
+            current = doc.current;
+            taxa = doc.taxa;
+        } else {
+            // The domain: every distinct combination the resolver could see, with the
+            // taxon each currently carries.
+            current = await sql!<Row[]>`
+                SELECT name, scientific_name, taxon_id, count(*)::int AS n
+                FROM maplify.sightings
+                GROUP BY 1, 2, 3`;
+            taxa = await sql!<{ id: number; scientific_name: string }[]>`
+                SELECT id, scientific_name FROM inaturalist.taxa`;
+        }
         const taxonByName = new Map(taxa.map((t) => [t.scientific_name, t.id]));
 
         // Rows whose resolution has changed. A pair may appear more than once here when
@@ -83,6 +115,24 @@ async function main(): Promise<void> {
         const gained = changes.filter((c) => c.from === null).reduce((a, c) => a + c.n, 0);
         const moved = changes.filter((c) => c.from !== null).reduce((a, c) => a + c.n, 0);
 
+        if (emitSql) {
+            if (!changes.length) { console.error('nothing to do'); return; }
+            const q = (f: (c: typeof changes[number]) => string) =>
+                changes.map(f).join(', ');
+            process.stdout.write(
+                'UPDATE maplify.sightings s SET taxon_id = plan.taxon_id FROM (SELECT * FROM unnest('
+                + `ARRAY[${q((c) => lit(c.pair.name))}]::text[], `
+                + `ARRAY[${q((c) => lit(c.pair.scientific_name))}]::text[], `
+                + `ARRAY[${q((c) => (c.to === null ? 'NULL' : String(c.to)))}]::int[]`
+                + ') AS t(name, scientific_name, taxon_id)) AS plan'
+                + ' WHERE s.name IS NOT DISTINCT FROM plan.name'
+                + ' AND s.scientific_name = plan.scientific_name'
+                + ' AND s.taxon_id IS DISTINCT FROM plan.taxon_id',
+            );
+            console.error(`-- ${changes.length} combinations, ${gained} gained, ${moved} reassigned`);
+            return;
+        }
+
         console.log(`${changes.length} (name, scientific_name) combinations change resolution`);
         console.log(`${gained} rows gain a taxon, ${moved} rows are reassigned, 0 lose one\n`);
         for (const c of [...changes].sort((a, b) => b.n - a.n))
@@ -104,7 +154,7 @@ async function main(): Promise<void> {
         const names = changes.map((c) => c.pair.name);
         const scientificNames = changes.map((c) => c.pair.scientific_name);
         const taxonIds = changes.map((c) => c.to);
-        const updated = await sql`
+        const updated = await sql!`
             UPDATE maplify.sightings s
             SET taxon_id = plan.taxon_id
             FROM (
@@ -117,10 +167,11 @@ async function main(): Promise<void> {
               AND s.taxon_id IS DISTINCT FROM plan.taxon_id
             RETURNING 1`;
         console.log(`\nupdated ${updated.length} rows`);
-        console.log('NOTE: public.occurrence_index is a materialized view over these rows;');
-        console.log('refresh it if anything downstream reads stale taxa.');
+        // No materialized view needs refreshing: public.occurrences is a plain view, so
+        // the map and the export see this immediately, and neither occurrence_index nor
+        // occurrence_identifier_candidates references taxon (checked in prod 2026-08-28).
     } finally {
-        await sql.end();
+        await sql?.end();
     }
 }
 
