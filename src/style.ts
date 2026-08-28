@@ -276,6 +276,6 @@ export const salmonCountingSiteStyle = new Style({
  * reads as a rendering artifact rather than a boundary.
  */
 export const outsideRegionStyle = new Style({
-  fill: new Fill({color: 'rgba(15, 23, 42, 0.28)'}),
+  fill: new Fill({color: 'rgba(15, 23, 42, 0.14)'}),
   stroke: new Stroke({color: 'rgba(15, 23, 42, 0.45)', width: 1}),
 });
