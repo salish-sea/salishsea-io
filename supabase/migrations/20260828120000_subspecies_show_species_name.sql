@@ -26,11 +26,22 @@
 -- carry entities for those two subspecies; the moment it does, the exact-id match wins and
 -- this clause stops applying to them on its own.
 --
--- Judgement call worth surfacing: Delphinus delphis bairdii ("Eastern Pacific Long-beaked
--- Common Dolphin", 42 records) rolls up to "Common dolphin", which does lose a real
--- distinction — long-beaked versus short-beaked is a genuine difference, not a regional
--- label. It is rolled up for consistency and because the register holds no entity for it;
--- if that reads wrong on the map it belongs in the same conversation as salish-0gb.
+-- COMMON DOLPHINS ARE EXCLUDED TOO, for the same reason stated differently. The test is
+-- not "is this a subspecies" but "does the qualifier separate our records from anything".
+-- For a harbour seal it does not: P. v. richardii is the only form here, so "Pacific"
+-- distinguishes nothing. For common dolphins it does — Maplify's own vocabulary carries
+-- 'Long-beaked Common Dolphin' and 'Common Short-Beaked Dolphin' as separate categories,
+-- and both appear in the feed, so the qualifier is an upstream claim rather than a
+-- regional label.
+--
+-- Checked against the source rather than assumed: the live Maplify feed for our bbox
+-- holds 15 long-beaked, 7 short-beaked and 14 genus-only common dolphin records
+-- (2026-08-28). The long-beaked ones are almost all Californian, which the ingest bbox
+-- reaches deliberately — it extends to 36N to cover the southern end of the SRKW range.
+--
+-- So the rule is: roll a subspecies up when it is the only form present, and keep it when
+-- more than one form occurs. Orcinus and Delphinus are the two genera where more than one
+-- does.
 CREATE OR REPLACE VIEW public.occurrences AS
  SELECT 'maplify:'::text || s.id AS id,
     NULL::character varying AS url,
@@ -65,6 +76,7 @@ CREATE OR REPLACE VIEW public.occurrences AS
      LEFT JOIN register.inaturalist_taxon_name par ON par.inat_taxon_id = t.parent_id
        AND t.rank = 'subspecies'::inaturalist.rank
        AND t.scientific_name::text !~~ 'Orcinus orca %'::text
+       AND t.scientific_name::text !~~ 'Delphinus delphis %'::text
      LEFT JOIN providers prov ON prov.id = s.provider_id
      LEFT JOIN collections col ON col.id = s.collection_id
      LEFT JOIN organizations org ON org.id = col.organization_id
@@ -99,6 +111,7 @@ UNION ALL
      LEFT JOIN register.inaturalist_taxon_name par ON par.inat_taxon_id = t.parent_id
        AND t.rank = 'subspecies'::inaturalist.rank
        AND t.scientific_name::text !~~ 'Orcinus orca %'::text
+       AND t.scientific_name::text !~~ 'Delphinus delphis %'::text
      LEFT JOIN providers prov ON prov.id = observations.provider_id
      LEFT JOIN collections col ON col.id = observations.collection_id
      LEFT JOIN organizations org ON org.id = col.organization_id
@@ -147,6 +160,7 @@ UNION ALL
      LEFT JOIN register.inaturalist_taxon_name par ON par.inat_taxon_id = t.parent_id
        AND t.rank = 'subspecies'::inaturalist.rank
        AND t.scientific_name::text !~~ 'Orcinus orca %'::text
+       AND t.scientific_name::text !~~ 'Delphinus delphis %'::text
      LEFT JOIN providers prov ON prov.id = e.provider_id
      LEFT JOIN collections col ON col.id = e.collection_id
      LEFT JOIN organizations org ON org.id = col.organization_id
@@ -185,6 +199,7 @@ UNION ALL
      LEFT JOIN register.inaturalist_taxon_name par ON par.inat_taxon_id = t.parent_id
        AND t.rank = 'subspecies'::inaturalist.rank
        AND t.scientific_name::text !~~ 'Orcinus orca %'::text
+       AND t.scientific_name::text !~~ 'Delphinus delphis %'::text
      LEFT JOIN providers prov ON prov.id = o.provider_id
      LEFT JOIN collections col ON col.id = o.collection_id
      LEFT JOIN organizations org ON org.id = col.organization_id;
