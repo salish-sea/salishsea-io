@@ -8,7 +8,7 @@
 
 ## Problem
 
-`symbolFor()` renders each occurrence as a single letter inside a bubble. Outside killer whales it fails, and not merely by being opaque — it is **ambiguous**. Across 61,411 occurrences the scheme collapses to 18 glyphs:
+`symbolFor()` renders each occurrence as a single letter inside a bubble. Outside killer whales it fails, and not merely by being opaque — it is **ambiguous**. Across 61,411 occurrences the scheme collapses to 18 glyphs. The five carrying the most records:
 
 | Glyph | Occurrences | Distinct taxa | Worst collision |
 |---|---|---|---|
@@ -36,13 +36,18 @@ The trigger was "N" for a river otter. The scheme's real failure is that it cann
 
 The obvious economy — label the segment, not its points — was measured and does almost nothing, because **a singleton is a segment of one**:
 
-| Day | Occurrences | Segments | Multi-point tracks | Singletons |
-|---|---|---|---|---|
-| 2026-07-20 | 55 | 52 | 3 | 49 |
-| 2026-07-22 | 77 | 59 | 6 | 53 |
-| 2026-07-25 | 83 | 73 | 6 | 67 |
-| 2026-07-26 | 61 | 56 | 3 | 53 |
-| 2026-06-15 | 106 | 74 | 10 | 64 |
+| Day | Occurrences | Segments | Multi-point tracks | Singletons | Ineligible for a track |
+|---|---|---|---|---|---|
+| 2026-07-20 | 55 | 52 | 3 | 49 | 37 (67%) |
+| 2026-07-22 | 77 | 59 | 6 | 53 | 48 (62%) |
+| 2026-07-25 | 83 | 73 | 6 | 67 | 54 (65%) |
+| 2026-07-26 | 61 | 56 | 3 | 53 | 37 (61%) |
+| 2026-06-15 | 106 | 74 | 10 | 64 | 53 (50%) |
+
+"Ineligible" is a taxon outside the six species in `travelSpeedKmH`, which can never chain
+however it is sighted ([027](027-marine-mammal-scope-whale-centric-identity.md)). It is a
+larger group than the singletons it overlaps: an eligible animal seen once is also a
+singleton.
 
 Hoisting labels to segment heads turns 83 labels into 73. On 2026-07-25 exactly **one** segment carries an identifier at all.
 
@@ -62,7 +67,7 @@ Shortening is not a general rule: `Humpback whale` → `Humpback` works because 
 
 ## The label
 
-```
+```text
 Gray whale · CRC53
 Seen 3× over 10h
 ```
@@ -90,7 +95,7 @@ This does **not** solve cross-layer collision: decluttering is per-layer, so an 
   | happywhale | 5,601 | 5,601 | three discrete values: 2, 16, 161 m |
   | inaturalist | 20,581 | 16,410 | p50 **31 m**, p90 2.9 km, p99 28.7 km, max **7,313 km** |
 
-  57% of the corpus has no value; HappyWhale's three buckets are coordinate-precision artefacts, not uncertainty estimates. At zoom 10 (~100 m/px at 48°N) the median iNaturalist circle is 0.3 px while the p99 is a 287 px disc — no transfer function serves both.
+  **64% of records carry no value at all** (39,400 of 61,411): every Maplify and native record, since those two providers store none, plus the 4,171 iNaturalist records that have none. HappyWhale's three buckets are coordinate-precision artefacts, not uncertainty estimates. At zoom 10 (~100 m/px at 48°N) the median iNaturalist circle is 0.3 px while the p99 is a 287 px disc — no transfer function serves both.
 
   The deeper objection is that **`accuracy` describes where the reporter was, not where the animal was.** For shore-based whale sighting the dominant error is range-to-animal, which we capture in `observed_from` — populated on 100 records, all native submissions. A 31 m circle drawn around an orca reported from Lime Kiln would be a confident, precise, wrong claim. Worse than the letter it replaced.
 
@@ -98,7 +103,7 @@ This does **not** solve cross-layer collision: decluttering is per-layer, so an 
 
 - **Species icons instead of colour** ([#79](https://github.com/salish-sea/salishsea-io/issues/79)). Not rejected, deferred: two-letter group codes proved legible and unambiguous at 22 px in the prototype, which demotes the icon library from blocker to polish. The concern raised on #79 — that icons stop working at density — is unaddressed and remains the open question.
 
-- **Labelling only multi-point tracks.** Built and measured; unnecessary once names were short, and it silences the ~50% of a typical day's map that can never form a track. [027](027-marine-mammal-scope-whale-centric-identity.md) gates segments to six cetacean species, so every pinniped and otter sighting is a singleton by construction.
+- **Labelling only multi-point tracks.** Built and measured; unnecessary once names were short, and it silences the 50–67% of a typical day's map that can never form a track. [027](027-marine-mammal-scope-whale-centric-identity.md) gates segments to six cetacean species, so every pinniped and otter sighting is a singleton by construction.
 
 - **A local override table for display names.** The first proposal, and wrong: it would mint a second opinion about animal names, which animals ADR-0012 exists to prevent. Recorded so it is not proposed again.
 
