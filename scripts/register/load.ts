@@ -104,10 +104,13 @@ async function main(): Promise<void> {
     say(`  digest ok: ${digest.slice(0, 16)}…`);
 
     // The db digest is what a consumer is asked to record alongside the tag, so store it
-    // even though the TSVs are what we load.
+    // even though the TSVs are what we load. No fallback: recording the tarball's digest
+    // under the name of register.db's would make register.edition.sha256 a number that
+    // verifies nothing, which is worse than refusing to load.
     const dbDigest = sums.split('\n')
         .map((l) => l.trim().split(/\s+/))
-        .find(([, name]) => name === 'register.db')?.[0] ?? digest;
+        .find(([, name]) => name === 'register.db')?.[0];
+    if (!dbDigest) throw new Error('SHA256SUMS does not list register.db');
 
     const dir = mkdtempSync(path.join(tmpdir(), 'register-'));
     try {
@@ -138,7 +141,7 @@ async function main(): Promise<void> {
             }
         statements.push(
             'INSERT INTO register.edition (singleton, tag, sha256, loaded_at) '
-            + `VALUES (true, ${lit(tag)}, ${lit(dbDigest)}, now()) `
+            + `VALUES (true, ${lit(tag)}, ${lit(dbDigest!)}, now()) `
             + 'ON CONFLICT (singleton) DO UPDATE SET tag = EXCLUDED.tag, '
             + 'sha256 = EXCLUDED.sha256, loaded_at = EXCLUDED.loaded_at;',
         );

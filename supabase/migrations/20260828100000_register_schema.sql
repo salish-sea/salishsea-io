@@ -90,7 +90,7 @@ CREATE INDEX mappings_object_idx ON register.mappings (object_id);
 -- than English ('J17s'); `hidden` must never be displayed. See the column comment above.
 -- ---------------------------------------------------------------------------
 CREATE VIEW register.inaturalist_taxon_name AS
-SELECT
+SELECT DISTINCT ON (split_part(m.object_id, ':', 2)::integer)
   split_part(m.object_id, ':', 2)::integer AS inat_taxon_id,
   e.entity_id,
   e.label   AS entity_label,
@@ -100,7 +100,29 @@ JOIN register.entities e ON e.entity_id = m.subject_id
 JOIN register.names    n ON n.entity_id = e.entity_id AND n.type = 'common'
 WHERE m.predicate_id = 'skos:exactMatch'
   AND m.object_id LIKE 'inaturalist.taxon:%'
-  AND split_part(m.object_id, ':', 2) ~ '^[0-9]+$';
+  AND split_part(m.object_id, ':', 2) ~ '^[0-9]+$'
+-- DISTINCT ON is load-bearing, not tidiness. public.occurrences LEFT JOINs this view, so
+-- two rows for one taxon id would DUPLICATE every occurrence of that animal on the map —
+-- silently, and only for the taxa that happened to acquire a second name.
+--
+-- Nothing upstream forbids it. 38 entities in edition 2026.08.1 already carry more than
+-- one `common` row; they are individuals with two nicknames (Helena/Lucy) and none are
+-- crosswalked, so the view is currently unique by luck rather than by design. An edition
+-- that typed both 'Harbour seal' and 'Harbor seal' as common on one taxon would break the
+-- map, and the register has no rule against doing so.
+--
+-- The tie-break is English first, then the shorter string, then alphabetical: stable
+-- across reloads, and biased toward what a map label wants. It is a fallback, not an
+-- editorial choice — a taxon with two common names is a question for the register, and
+-- the short forms that actually belong to us live in salish-ayb.6 (animals ADR-0011).
+--
+-- It also masks a genuine upstream error: two entities claiming exactMatch to one iNat
+-- taxon would be silently reduced to one here. That is the animals crosswalk check's job
+-- to catch, not this view's — better a stable map than a duplicated one.
+ORDER BY split_part(m.object_id, ':', 2)::integer,
+         (n.language = 'en') DESC NULLS LAST,
+         length(n.name),
+         n.name;
 
 COMMENT ON VIEW register.inaturalist_taxon_name IS
   'iNaturalist taxon id -> the register''s common name for that animal. Exact matches '
