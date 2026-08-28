@@ -32,3 +32,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [026](026-branded-fallback-preview-image.md) | Branded fallback link-preview image: the brand card where no image of the thing shared exists | accepted |
 | [027](027-marine-mammal-scope-whale-centric-identity.md) | Marine-mammal scope, whale-centric identity; PSEMP is a boundary, not a data source (extends 009) | accepted |
 | [028](028-salishsea-io-speaks-to-orcasound.md) | SalishSea.io is the single voice recommending an identification schema to OrcaSound | accepted |
+| [029](029-map-symbology.md) | Map symbology: colour carries the taxon, labels carry the specifics; uncertainty not encoded | accepted |
