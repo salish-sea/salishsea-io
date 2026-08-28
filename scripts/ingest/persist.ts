@@ -332,8 +332,19 @@ export async function persistInaturalist(
     const run = async (tx: TransactionSql): Promise<InatPersistResult> => {
         // 1. Taxa first — observations.taxon_id (NOT NULL) references them. The
         //    self-referential parent_id FK is DEFERRABLE, so a single batch with
-        //    intra-batch parents resolves at commit. DO NOTHING: taxa are stable
-        //    reference data (matches the live upsert_taxon).
+        //    intra-batch parents resolves at commit.
+        //
+        //    DO NOTHING, and NOT because taxa are stable reference data — they are not.
+        //    iNaturalist retires and renames them (salish-ayb.4). It is because
+        //    resolveTaxonClosure only fetches taxa we do NOT already hold, so an
+        //    existing row is never offered here a second time and the conflict action
+        //    is unreachable for it. Turning this into DO UPDATE would change nothing
+        //    while looking like a fix.
+        //
+        //    Refreshing the mirror is therefore a separate job that re-asks upstream:
+        //    scripts/backfill/inat-taxa-status.ts. It must ask via the /taxa/{ids} PATH
+        //    form, because the ?id= query param this ingest uses filters retired taxa out
+        //    of the result — on both v1 and v2. That is the route, not the version.
         let taxaUpserted = 0;
         if (taxonPayload.length > 0) {
             const rows = await tx`
