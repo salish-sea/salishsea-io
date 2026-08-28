@@ -68,6 +68,24 @@ const TAXON_COLUMNS = [
     ['public.individuals', 'taxon_id'],
 ] as const;
 
+/**
+ * Move every row on a retired taxon to its replacement, for one column.
+ *
+ * One definition, used by both the direct-connection loop and the --emit-sql output, so
+ * the statement an operator runs against production is the statement this script runs —
+ * not a second rendering of the same idea that can drift from it.
+ */
+function repointSql(table: string, column: string): string {
+    return `UPDATE ${table} r SET ${column} = t.current_taxon_id`
+        + ' FROM inaturalist.taxa t'
+        + ` WHERE r.${column} = t.id AND t.current_taxon_id IS NOT NULL`;
+}
+
+/** A SQL string literal, or NULL. */
+function lit(v: string | number | boolean | null): string {
+    return v === null ? 'NULL' : typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : String(v);
+}
+
 /** `count(*)` per taxon-holding column, for the given taxon ids. */
 async function countReferencing(
     sql: postgres.Sql,
@@ -116,23 +134,46 @@ async function fetchStatus(ids: number[]): Promise<Map<number, Upstream>> {
 }
 
 async function main(): Promise<void> {
+    const argv = process.argv;
+    const emitSql = argv.includes('--emit-sql');
+    const usePlanFile = argv.includes('--plan-from');
+    const planFrom = argv[argv.indexOf('--plan-from') + 1];
+    if (argv.includes('--apply') && emitSql) {
+        console.error('--apply and --emit-sql are mutually exclusive: one writes, the other prints.');
+        process.exit(2);
+    }
+    if (argv.includes('--apply') && usePlanFile) {
+        console.error('--apply needs a database. Use --plan-from with --emit-sql and apply the SQL yourself.');
+        process.exit(2);
+    }
+    if (usePlanFile && (!planFrom || planFrom.startsWith('--'))) {
+        console.error('--plan-from needs a file path.');
+        process.exit(2);
+    }
+
     const dsn = process.env['SUPABASE_DB_URL'];
-    if (!dsn) {
-        console.error('SUPABASE_DB_URL is not set');
+    if (!usePlanFile && !dsn) {
+        console.error('SUPABASE_DB_URL is not set (or pass --plan-from <file>)');
         process.exit(1);
     }
-    const apply = process.argv.includes('--apply');
-    const sql = postgres(dsn);
+    const apply = argv.includes('--apply');
+    // With --emit-sql, stdout carries the statements and nothing else; progress and the
+    // plan narration go to stderr so `... > file.sql` is directly runnable.
+    const say = emitSql ? console.error : console.log;
+    const sql = usePlanFile ? null : postgres(dsn!);
 
     try {
-        const mirrored = await sql<{ id: number; is_active: boolean; current_taxon_id: number | null }[]>`
-            SELECT id, is_active, current_taxon_id FROM inaturalist.taxa ORDER BY id`;
-        console.log(`asking iNaturalist about ${mirrored.length} mirrored taxa (v1, ${BATCH} per request)…`);
+        type Mirrored = { id: number; is_active: boolean; current_taxon_id: number | null };
+        const mirrored: Mirrored[] = usePlanFile
+            ? JSON.parse((await import('node:fs')).readFileSync(planFrom!, 'utf8'))
+            : await sql!<Mirrored[]>`
+                SELECT id, is_active, current_taxon_id FROM inaturalist.taxa ORDER BY id`;
+        say(`asking iNaturalist about ${mirrored.length} mirrored taxa (v1, ${BATCH} per request)…`);
         const upstream = await fetchStatus(mirrored.map((t) => t.id));
 
         const missing = mirrored.filter((t) => !upstream.has(t.id));
         if (missing.length)
-            console.log(`\n${missing.length} taxa the API did not return — left untouched: `
+            say(`\n${missing.length} taxa the API did not return — left untouched: `
                 + missing.map((t) => t.id).join(', '));
 
         // current_taxon_id is a foreign key, and the mirror holds only taxa we actually
@@ -157,18 +198,18 @@ async function main(): Promise<void> {
         });
 
         const retired = changed.filter((t) => !upstream.get(t.id)!.is_active);
-        console.log(`\n${changed.length} taxa change status; ${retired.length} are retired upstream`);
+        say(`\n${changed.length} taxa change status; ${retired.length} are retired upstream`);
         // Reactivations are rarer and more surprising than retirements, so name them.
         // A bare "1 taxa change status" with no id is what made a write bug here opaque.
         for (const t of changed.filter((c) => upstream.get(c.id)!.is_active))
-            console.log(`  ${t.id}  ${upstream.get(t.id)!.name}  ->  active again`);
+            say(`  ${t.id}  ${upstream.get(t.id)!.name}  ->  active again`);
         for (const t of retired) {
             const u = upstream.get(t.id)!;
             const target = targetFor(t.id);
             const note = target !== null ? String(target)
                 : u.current !== null ? `${u.current} — not mirrored, recorded as retired only`
                 : '(no replacement offered)';
-            console.log(`  ${t.id}  ${u.name}  ->  ${note}`);
+            say(`  ${t.id}  ${u.name}  ->  ${note}`);
         }
 
         // A retired taxon we cannot repoint, that something still references, is the one
@@ -185,21 +226,23 @@ async function main(): Promise<void> {
             .filter((t) => !(upstream.get(t.id)?.is_active ?? true))
             .map((t) => t.id);
         const stranded = allRetired.filter((id) => targetFor(id) === null);
-        if (stranded.length) {
+        if (stranded.length && sql) {
             const rows = await countReferencing(sql, stranded);
             const total = rows.reduce((a, r) => a + r.n, 0);
             if (total > 0) {
-                console.log(`\nWARNING: ${total} records reference a retired taxon with no `
+                say(`\nWARNING: ${total} records reference a retired taxon with no `
                     + 'mirrored replacement. They keep pointing at a dead concept:');
-                for (const r of rows.filter((r) => r.n > 0)) console.log(`    ${r.n}  ${r.table}`);
+                for (const r of rows.filter((r) => r.n > 0)) say(`    ${r.n}  ${r.table}`);
             }
         }
         // Ancestry is not repointed (see TAXON_COLUMNS). Say so when it is actually dirty.
-        const [orphanParents] = await sql<{ n: number }[]>`
-            SELECT count(*)::int AS n FROM inaturalist.taxa c
-            JOIN inaturalist.taxa p ON p.id = c.parent_id WHERE NOT p.is_active`;
+        const [orphanParents] = sql
+            ? await sql<{ n: number }[]>`
+                SELECT count(*)::int AS n FROM inaturalist.taxa c
+                JOIN inaturalist.taxa p ON p.id = c.parent_id WHERE NOT p.is_active`
+            : [{ n: 0 }];
         if (orphanParents!.n > 0)
-            console.log(`\nNOTE: ${orphanParents!.n} taxa sit under a retired parent. `
+            say(`\nNOTE: ${orphanParents!.n} taxa sit under a retired parent. `
                 + 'Ancestry is left to the ingest; inaturalist.species_id() walks parent_id.');
         // What the repoint will actually see: the pointer each taxon carries AFTER the
         // status update. Counting from the CURRENT column instead over-reports, because
@@ -229,7 +272,7 @@ async function main(): Promise<void> {
             if (at !== null) seen.forEach((id) => inCycle.add(id));
         }
         if (inCycle.size) {
-            console.log(`\nWARNING: ${inCycle.size} taxa form a replacement cycle upstream `
+            say(`\nWARNING: ${inCycle.size} taxa form a replacement cycle upstream `
                 + `(${[...inCycle].join(', ')}). Their pointers are left unset; nothing else `
                 + 'is affected. A human should decide which taxon wins.');
             inCycle.forEach((id) => pointerAfter.set(id, null));
@@ -249,23 +292,47 @@ async function main(): Promise<void> {
                 || (pointerAfter.get(t.id) ?? null) !== t.current_taxon_id,
         );
         if (toWrite.length !== changed.length) {
-            console.log(`\n${toWrite.length - changed.length} further taxa need their stored `
+            say(`\n${toWrite.length - changed.length} further taxa need their stored `
                 + 'pointer corrected (cycle members, or a pointer left by an earlier run).');
         }
 
         const willRepoint = [...pointerAfter.entries()]
             .filter(([, target]) => target !== null)
             .map(([id]) => id);
-        if (willRepoint.length) {
+        if (willRepoint.length && sql) {
             const rows = await countReferencing(sql, willRepoint);
             const total = rows.reduce((a, r) => a + r.n, 0);
-            console.log(`\nrecords to repoint: ${total}`);
-            for (const r of rows.filter((r) => r.n > 0)) console.log(`    ${r.n}  ${r.table}`);
-            if (total === 0) console.log('  (nothing to repoint)');
+            say(`\nrecords to repoint: ${total}`);
+            for (const r of rows.filter((r) => r.n > 0)) say(`    ${r.n}  ${r.table}`);
+            if (total === 0) say('  (nothing to repoint)');
+        }
+
+        if (emitSql) {
+            if (!toWrite.length) { console.error('-- no status changes'); }
+            else {
+                const col = (f: (t: typeof toWrite[number]) => string | number | boolean | null) =>
+                    toWrite.map((t) => lit(f(t))).join(', ');
+                process.stdout.write(
+                    'UPDATE inaturalist.taxa t SET is_active = plan.is_active,'
+                    + ' current_taxon_id = plan.current_taxon_id FROM (SELECT * FROM unnest('
+                    + `ARRAY[${col((t) => t.id)}]::int[], `
+                    + `ARRAY[${col((t) => desiredActive(t))}]::bool[], `
+                    + `ARRAY[${col((t) => pointerAfter.get(t.id) ?? null)}]::int[]`
+                    + ') AS u(id, is_active, current_taxon_id)) AS plan WHERE t.id = plan.id;\n',
+                );
+            }
+            // The repoint statements, verbatim from repointSql — the same text the direct
+            // path runs. They are idempotent and each moves one hop, so an operator runs
+            // the set repeatedly until every one reports zero rows. The loop lives in the
+            // runbook rather than being rewritten in SQL, which would put the chain rule
+            // in two places.
+            for (const [table, column] of TAXON_COLUMNS)
+                process.stdout.write(`${repointSql(table, column)};\n`);
+            return;
         }
 
         if (!apply) {
-            console.log('\nDry run. Pass --apply to write.');
+            say('\nDry run. Pass --apply to write.');
             return;
         }
 
@@ -275,6 +342,8 @@ async function main(): Promise<void> {
         // in a cycle is still recorded retired; only its pointer is withheld.
         const currents = toWrite.map((t) => pointerAfter.get(t.id) ?? null);
 
+        // Unreachable without a connection: --apply with --plan-from exits at parse.
+        if (!sql) throw new Error('--apply requires SUPABASE_DB_URL');
         await sql.begin(async (tx) => {
             if (toWrite.length) {
                 // Status first. The CHECK constraint requires a replacement to imply
@@ -322,15 +391,10 @@ async function main(): Promise<void> {
                 hop++;
                 let movedThisHop = 0;
                 for (const [table, column] of TAXON_COLUMNS) {
-                    const moved = await tx.unsafe(
-                        `UPDATE ${table} r SET ${column} = t.current_taxon_id
-                         FROM inaturalist.taxa t
-                         WHERE r.${column} = t.id AND t.current_taxon_id IS NOT NULL
-                         RETURNING 1`,
-                    );
+                    const moved = await tx.unsafe(`${repointSql(table, column)} RETURNING 1`);
                     if (moved.length) {
                         movedThisHop += moved.length;
-                        console.log(`repointed ${moved.length} rows in ${table}`
+                        say(`repointed ${moved.length} rows in ${table}`
                             + (hop > 1 ? ` (hop ${hop})` : ''));
                     }
                 }
@@ -342,9 +406,9 @@ async function main(): Promise<void> {
                     );
             }
         });
-        console.log(`\nupdated ${toWrite.length} taxa`);
+        say(`\nupdated ${toWrite.length} taxa`);
     } finally {
-        await sql.end();
+        await sql?.end();
     }
 }
 
