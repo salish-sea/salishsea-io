@@ -9,6 +9,7 @@ import {
   salishSRKWExtent,
   sanJuansExtent,
   srkwExtent,
+  travelSpeedFor,
 } from './constants.ts';
 
 test('validates a reasonable extent', () => {
@@ -95,5 +96,45 @@ describe('regions', () => {
       const inner = regionBySlug(slug).extent!;
       expect(contains(salishSea, inner) || contains(srkw, inner), slug).toBe(true);
     }
+  });
+});
+
+describe('travelSpeedFor', () => {
+  test('finds a listed species by its exact name', () => {
+    expect(travelSpeedFor('Megaptera novaeangliae')).toBe(5.0);
+  });
+
+  test('a subspecies inherits its species speed', () => {
+    // salish-fll.2: 342 North Pacific Humpback occurrences could never seed a
+    // travel segment, because the table is keyed by name and iNaturalist
+    // reports them at subspecies rank.
+    expect(travelSpeedFor('Megaptera novaeangliae kuzira')).toBe(5.0);
+    expect(travelSpeedFor('Balaenoptera acutorostrata scammoni')).toBe(3.0);
+  });
+
+  test('an explicit subspecies entry beats the binomial fallback', () => {
+    // Biggs and residents travel at measurably different speeds; the fallback
+    // must not flatten them back onto Orcinus orca.
+    expect(travelSpeedFor('Orcinus orca ater')).toBe(6.6);
+    expect(travelSpeedFor('Orcinus orca')).toBe(6.8);
+  });
+
+  test('deliberate omissions stay omitted, at every rank', () => {
+    // Decision 027 excludes pinnipeds and otters on purpose. The fallback
+    // reaches species that are already listed, so it must not widen that.
+    for (const name of [
+      'Phoca vitulina',
+      'Phoca vitulina richardii',
+      'Phocoena phocoena vomerina',
+      'Lontra canadensis',
+      'Enhydra lutris kenyoni',
+    ]) {
+      expect(travelSpeedFor(name), name).toBeUndefined();
+    }
+  });
+
+  test('a bare genus finds nothing', () => {
+    expect(travelSpeedFor('Megaptera')).toBeUndefined();
+    expect(travelSpeedFor('')).toBeUndefined();
   });
 });
