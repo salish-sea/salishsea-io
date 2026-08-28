@@ -57,6 +57,25 @@ async function main(): Promise<void> {
     const planFrom = argv[argv.indexOf('--plan-from') + 1];
     const usePlanFile = argv.includes('--plan-from');
 
+    // Reject incompatible combinations before doing anything. The dangerous one is
+    // --apply --emit-sql: emitting returns early, so the operator asks to write, sees
+    // SQL and a zero exit, and believes the backfill ran when nothing was touched. A
+    // silent no-op that looks like success is the worst outcome for a script like this.
+    if (apply && emitSql) {
+        console.error('--apply and --emit-sql are mutually exclusive: one writes, the other prints.');
+        process.exit(2);
+    }
+    // --plan-from means there is no connection to write through.
+    if (apply && usePlanFile) {
+        console.error('--apply needs a database. Pass SUPABASE_DB_URL without --plan-from,');
+        console.error('or use --plan-from with --emit-sql and apply the statement yourself.');
+        process.exit(2);
+    }
+    if (usePlanFile && (!planFrom || planFrom.startsWith('--'))) {
+        console.error('--plan-from needs a file path.');
+        process.exit(2);
+    }
+
     const dsn = process.env['SUPABASE_DB_URL'];
     if (!usePlanFile && !dsn) {
         console.error('SUPABASE_DB_URL is not set (or pass --plan-from <file>)');
