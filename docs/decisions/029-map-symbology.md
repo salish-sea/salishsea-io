@@ -158,6 +158,29 @@ positions are generated, and it over-produces multi-point tracks compared with t
   is what "supporting, not the subject" turns out to mean once the palette exists. The
   direction arrows moved with it.
 
+- **Similar colours mean coarse kinship, and that is worth protecting — but it is not
+  systematic.** Measured with CIEDE2000 over the nine group colours, the two closest pairs
+  are seal / sea lion (ΔE 22.2, the orange pair) and baleen whale / dolphin (ΔE 22.3, the
+  blue pair). Both pair animals that really are related: Phocidae with Otariidae, and two
+  cetaceans. That reads as a scheme and mostly is not one — the prototype chose Okabe–Ito
+  for separation, and only orca's near-black was reasoned about ("that is what an orca
+  looks like").
+
+  The proximity of `#0072B2` and `#56B4E9` is **structural in Okabe–Ito** and cannot be
+  permuted away; all a reassignment does is choose which two groups are allowed to look
+  related. Swapping the sky blue onto otter was tried and measured: it leaves the minimum
+  separation identical (22.2 normal, 12.1 worst-case dichromacy) while putting a mustelid
+  in a whale's hue family. So the current assignment is the best available use of that
+  pair, and swapping it is a regression that looks like a tidy-up.
+
+  Where the property does *not* hold: porpoise is green though it is the dolphin's sister
+  family, and orca is black though it is a dolphin. Both are deliberate — the whole point
+  is that a 1.5 m porpoise must not read as a whale, and orcas are the map's main subject.
+  Kinship is a happy secondary reading, never the encoding.
+
+  No pair collapses under simulated deuteranopia or protanopia (minimum ΔE 12.1), which is
+  Okabe–Ito doing the job it was chosen for.
+
 - **The label keeps a fixed `offsetX`, and that is not the hand-tuning the decision
   retired.** What went away is `declutterMode: 'obstacle'` — labels negotiating space by
   always drawing and blocking each other, which is why two overprinted near Victoria. The
