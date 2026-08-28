@@ -24,6 +24,9 @@ The trigger was "N" for a river otter. The scheme's real failure is that it cann
 
 ## Decision
 
+![Taxon-group palette, segment head and tail, and the two-line label](images/029-symbology-legend.png)
+
+
 **Colour carries the taxon group. The label carries the specifics. The track is supporting, not the subject.**
 
 1. **Every occurrence is a uniform dot**, filled by taxon group from a colourblind-safe palette. No letters.
@@ -109,11 +112,99 @@ This does **not** solve cross-layer collision: decluttering is per-layer, so an 
 
 ## Consequences
 
-- `symbolFor()` in `src/identifiers.ts` is retired for everything except the killer-whale pod branch, which moves into the label composition.
-- `src/style.ts` gains a taxon-group palette and loses the per-marker letter `Text`.
-- The occurrence layer takes `declutter: true`; the hand-tuned `offsetX`/`declutterMode: 'obstacle'` positioning goes away.
-- Travel lines get a casing stroke. [#271](https://github.com/salish-sea/salishsea-io/issues/271) reports them as faint; part of that is that `travelStyle` returns early above resolution 100, so they do not draw at all at the default zoom — absent rather than faint.
+- `symbolFor()` in `src/identifiers.ts` is retired for everything except the killer-whale pod branch, which moves into the label composition — including in the observation list, whose badge becomes the same coloured dot as the marker.
+- A taxon-group palette appears (in `src/symbology.ts`, see below) and `src/style.ts` loses the per-marker letter `Text`.
+- The occurrence layer takes `declutter: true`; ~~the hand-tuned `offsetX`/`declutterMode: 'obstacle'` positioning goes away.~~ **Amended after building it:** `declutterMode: 'obstacle'` went away, but a fixed `offsetX` remains and has to — see the implementation note on obstacles below.
+- Travel lines get a casing stroke. [#271](https://github.com/salish-sea/salishsea-io/issues/271) reports them as faint; part of that is that `travelStyle` returned early above resolution 100, so they did not draw at all at the default zoom — absent rather than faint. **Both fixed in #401** (`salish-fll.4`): the line has no resolution gate, only its annotations do.
 - A defect surfaced while measuring: `Megaptera novaeangliae kuzira` (319 records) is missing from `travelSpeedKmH`, so North Pacific Humpbacks silently never seed a segment though `Megaptera novaeangliae` does. Unlike the empty entries [027](027-marine-mammal-scope-whale-centric-identity.md) records as intentional, this one is an accident of exact-string matching.
+
+## Implementation notes
+
+Added after building it (`salish-ayb.6`); the decision above is unchanged.
+
+![The map at 112 occurrences — synthetic data shaped like 2026-06-15, the busiest day measured above](images/029-symbology-map.png)
+
+A synthetic day, not a real one: the taxa, register names and `SSA:` identifiers are real, the
+positions are generated, and it over-produces multi-point tracks compared with the 10 that
+2026-06-15 actually had. It is here to show density and decluttering, not to report a day.
+
+- **The palette lives in `src/symbology.ts`, not `src/style.ts`.** Two things that
+  look alike live there and are not alike: the *group* is ours outright, a rendering
+  bucket invented so a whale is distinguishable from a porpoise; the *name* is the
+  register's, and we only ever compose a shorter form of what it asserts. `style.ts`
+  stayed about OpenLayers.
+
+- **Short forms are truncations, never substitutions — and never lifted from a
+  `hidden` name.** The register turns out to carry `orca`, `humpback`, `elephant seal`,
+  `bottlenose dolphin` and `right whale dolphin` as `hidden` rows: evidence those
+  strings are in use, explicitly *not* names it offers for display. So an unattributed
+  killer whale reads `Killer whale`, not `Orca`, though `Orca` is the commoner word —
+  composing our way to a string the register declined to offer would route around its
+  judgement. Dropping a qualifier that separates our records from nothing is a different
+  act, and is the one ADR-0011 delegates.
+
+  Only five entries were needed. The clutter this record set out to fix was
+  "North American River Otter", and adopting the register (`salish-ayb.5`) fixed that on
+  its own; most of its names are already the right length for a map pin.
+
+- **Keyed on `SSA:` via a new `taxon.entity_id`** (migration `20260829000000`). Keying on
+  the register's *name* would drop the override the moment the name is revised; keying on
+  `scientific_name` would drop it when iNaturalist reclassifies an animal, which
+  `20260828000000` exists because they do.
+
+- **Travel lines are slate, not `#ffcc33`.** Once colour carries the taxon, yellow is no
+  longer neutral: it sits between the seal and sea-lion oranges and beside the yellow that
+  means *selected*. The track is the one thing on the map drawn in no hue at all — which
+  is what "supporting, not the subject" turns out to mean once the palette exists. The
+  direction arrows moved with it.
+
+- **Similar colours mean coarse kinship, and that is worth protecting — but it is not
+  systematic.** Measured with CIEDE2000 over the nine group colours, the two closest pairs
+  are seal / sea lion (ΔE 22.2, the orange pair) and baleen whale / dolphin (ΔE 22.3, the
+  blue pair). Both pair animals that really are related: Phocidae with Otariidae, and two
+  cetaceans. That reads as a scheme and mostly is not one — the prototype chose Okabe–Ito
+  for separation, and only orca's near-black was reasoned about ("that is what an orca
+  looks like").
+
+  The proximity of `#0072B2` and `#56B4E9` is **structural in Okabe–Ito** and cannot be
+  permuted away; all a reassignment does is choose which two groups are allowed to look
+  related. Swapping the sky blue onto otter was tried and measured: it leaves the minimum
+  separation identical (22.2 normal, 12.1 worst-case dichromacy) while putting a mustelid
+  in a whale's hue family. So the current assignment is the best available use of that
+  pair, and swapping it is a regression that looks like a tidy-up.
+
+  Where the property does *not* hold: porpoise is green though it is the dolphin's sister
+  family, and orca is black though it is a dolphin. Both are deliberate — the whole point
+  is that a 1.5 m porpoise must not read as a whale, and orcas are the map's main subject.
+  Kinship is a happy secondary reading, never the encoding.
+
+  No pair collapses under simulated deuteranopia or protanopia (minimum ΔE 12.1), which is
+  Okabe–Ito doing the job it was chosen for.
+
+- **The label keeps a fixed `offsetX`, and that is not the hand-tuning the decision
+  retired.** What went away is `declutterMode: 'obstacle'` — labels negotiating space by
+  always drawing and blocking each other, which is why two overprinted near Victoria. The
+  11 px offset is not collision avoidance; it is the anchor that stops a label sitting on
+  the marker it belongs to. Decluttering cannot supply it, because OpenLayers drops a
+  colliding label rather than moving it.
+
+- **The dots do not declutter, and must not be obstacles.** `declutterMode: 'obstacle'`
+  is the reading that looks right and is not: an obstacle reserves its own footprint, and
+  a label is anchored to the marker it belongs to, so every label collided with its own
+  dot and the map lost all of them at once. With `'none'` a label can land on a
+  neighbouring marker, so the label background is near-opaque — at 88% the marker beneath
+  showed through as a smudge that read as a rendering fault.
+
+- **The identity is pooled across the segment, like the identifiers.** A pod is
+  reported in prose, and prose belongs to one sighting. The head is the *last* point, so
+  an encounter posted as "J pod northbound" at 09:00 and "three orca" at 11:00 labelled
+  itself `Killer whale`. Pod anywhere beats ecotype anywhere beats the subspecies, which
+  is the weakest evidence: a report naming J pod is more specific than a taxon saying
+  "some resident".
+
+- **The ecotype regex missed the plural.** `\b(...|transient|biggs)\b` refuses
+  "transients" and "southern residents", which is how people actually write it. Invisible
+  while the ecotype only chose a letter; the label made it obvious.
 
 ## Open
 

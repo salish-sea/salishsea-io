@@ -939,6 +939,7 @@ export type Database = {
         scientific_name: string | null
         vernacular_name: string | null
         species_id: number | null
+        entity_id: string | null
       }
     }
   }

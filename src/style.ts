@@ -7,20 +7,18 @@ import type { FeatureLike } from 'ol/Feature.js';
 import { Circle, LineString, Point } from 'ol/geom.js';
 import type Feature from 'ol/Feature.js';
 import Icon from 'ol/style/Icon.js';
-import arrowPNG from './assets/arrow.png';
+import travelArrowIcon from './assets/travel-arrow.svg?url';
 import hydrophoneIcon from './assets/hydrophone-default.svg?url';
 import salmonCountingSiteIcon from './assets/salmon-counting-site.svg?url';
 import viewingLocationIcon from './assets/viewing-location.svg?url';
 import { directionToRads } from './direction.ts';
 import type { Occurrence } from './types.ts';
-import { symbolFor } from './identifiers.ts';
+import { GROUPS, labelFor, taxonGroup, trackSummary } from './symbology.ts';
 import { Temporal } from 'temporal-polyfill';
 
 const black = '#000000';
 const yellow = '#ffff00';
 const transparentWhite = 'rgba(255, 255, 255, 0.4)';
-const solidBlue = '#3399CC';
-const reddish = 'rgb(220, 0, 0)';
 const hour_in_ms = 60 * 60 * 1000;
 
 let nowOverride: Date | null = null;
@@ -75,60 +73,113 @@ export const bearingStyle = (feature: Feature<LineString>) => {
   return styles;
 };
 
+/**
+ * `#RRGGBB` at a given alpha. The palette is authored as hex because that is how
+ * Okabe–Ito is published; the map needs it translucent.
+ */
+function rgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+/**
+ * The label a segment head carries, over one or two lines.
+ *
+ * ONE `Text`, not two stacked styles, and a plain string rather than
+ * OpenLayers' rich-text form. The rich-text form — an array of alternating text
+ * and font — does NOT honour `\n`; it lays every chunk out inline, which
+ * rendered "Humpback Seen 2× in under an hour" on a single line. A plain string
+ * breaks correctly, at the cost of a per-line font. One `Text` also keeps the
+ * label a single declutter unit with a single background box, so the two lines
+ * cannot be separated or half-hidden from each other.
+ */
+function labelStyle(text: string, color: string, secondLine?: string): Style {
+  return new Style({
+    text: new Text({
+      // Near-opaque. At 88% a marker underneath showed through as a pale
+      // smudge, which reads as a rendering fault; a label that lands on a
+      // neighbour should look like a label, and the marker is still there when
+      // its own label is the one that survives decluttering.
+      backgroundFill: new Fill({color: 'rgba(255, 255, 255, 0.96)'}),
+      backgroundStroke: new Stroke({color: rgba(color, 0.5), width: 1}),
+      declutterMode: 'declutter',
+      fill: new Fill({color: '#111827'}),
+      font: '600 11px system-ui, sans-serif',
+      offsetX: 11,
+      padding: [2, 4, 1, 4],
+      text: secondLine ? `${text}\n${secondLine}` : text,
+      textAlign: 'left',
+      textBaseline: 'middle',
+    }),
+  });
+}
+
+/**
+ * Decision [029](../docs/decisions/029-map-symbology.md): colour carries the
+ * taxon group, the label carries the specifics, the track is supporting.
+ *
+ * Every occurrence is a dot filled by group. The SEGMENT HEAD — the most recent
+ * point of a track, and for a singleton the only point — is larger, ringed in
+ * white, and carries one label speaking for the whole track. That is what
+ * replaces the old red ring for `isLast`: the last observation is still the
+ * emphasised one (GH #123), by size and by being the thing that gets to say
+ * something, rather than by a second colour competing with the taxon palette.
+ *
+ * Labelling every head is affordable, which is the finding 029 most wants
+ * preserved: hoisting labels to heads saves almost nothing, because a singleton
+ * is a segment of one. What made the map readable was shorter names, not fewer
+ * labels.
+ */
 export const occurrenceStyle = (occurrence: Occurrence, isSelected = false) => {
-  const {direction, identifiers, isFirst, isLast} = occurrence;
-  let fill: Fill;
-  let stroke: Stroke;
-  if (isSelected) {
-    fill = new Fill({color: yellow});
-    stroke = new Stroke({color: yellow, width: 3});
-  } else if (isLast && !isFirst) {
-    fill = new Fill({color: transparentWhite});
-    stroke = new Stroke({color: reddish, width: 1.25});
-  } else {
-    fill = new Fill({color: transparentWhite});
-    stroke = new Stroke({color: solidBlue, width: 1.25});
-  }
+  const {direction, isLast, segmentIdentifiers, segmentIdentity, segmentLength, segmentSpanHours} = occurrence;
+  const {color} = GROUPS[taxonGroup(occurrence.taxon.scientific_name)];
+  const isHead = !!isLast;
+
   const styles = [
     new Style({
       image: new CircleStyle({
-        radius: 6,
-        fill,
-        stroke,
-      }),
-      fill,
-      stroke,
-    }),
-    new Style({
-      text: new Text({
+        // The dot never declutters. Hiding a marker would hide a sighting;
+        // hiding its label only costs you the name, and the panel still has it.
+        //
+        // NOT 'obstacle', which is the reading that looks right and is not: an
+        // obstacle reserves its own footprint, and the label is anchored to the
+        // dot it belongs to, so every label collided with its own marker and
+        // the map lost all of them at once.
         declutterMode: 'none',
-        fill: new Fill({color: black}),
-        font: '10px monospace',
-        offsetY: 1.5,
-        text: symbolFor(occurrence),
-        textBaseline: 'middle',
+        radius: isSelected ? 9 : isHead ? 7 : 4.5,
+        fill: new Fill({color: isSelected ? 'rgba(255, 255, 0, 0.5)' : rgba(color, isHead ? 0.95 : 0.75)}),
+        stroke: new Stroke({
+          color: isSelected ? yellow : isHead ? '#ffffff' : rgba(color, 0.9),
+          width: isSelected ? 3 : isHead ? 2 : 1,
+        }),
       }),
     }),
   ];
-  if (identifiers && identifiers.length) {
-    styles.push(new Style({
-      text: new Text({
-        backgroundFill: new Fill({color: 'rgba(255, 255, 255, 0.8)'}),
-        declutterMode: 'obstacle',
-        offsetX: 10,
-        padding: [1, 1, 0, 1],
-        text: identifiers.join(', '),
-        textAlign: 'left',
-      }),
-    }));
+
+  if (isHead) {
+    // Pooled over the track, not taken from the head alone: a J-pod encounter
+    // reported with the matriline on the first sighting and not the second
+    // still names it.
+    const identifiers = segmentIdentifiers ?? occurrence.identifiers;
+    // segmentIdentity is absent on the drawing layer's in-progress sighting,
+    // which belongs to no segment; there the occurrence speaks for itself.
+    const name = segmentIdentity ?? labelFor(occurrence);
+    const identity = identifiers?.length ? `${name} · ${identifiers.join(', ')}` : name;
+    const points = segmentLength ?? 1;
+    styles.push(labelStyle(
+      identity,
+      color,
+      points > 1 ? trackSummary(points, segmentSpanHours ?? 0) : undefined,
+    ));
   }
+
   if (direction) {
     styles.push(new Style({
-      stroke,
       text: new Text({
-        font: '14px monospace',
+        declutterMode: 'none',
+        fill: new Fill({color}),
+        font: '15px monospace',
         rotation: directionToRads(direction),
-        stroke,
         text: ' ⇢',
         textAlign: 'left',
       }),
@@ -166,10 +217,16 @@ export const travelStyle = (feature: Feature<LineString>, resolution: number) =>
   const styles: Style[] = [];
 
   if (lineString.getLength() > 1) {
-    // A casing under the line, not a heavier line. 2px of #ffcc33 alone
-    // disappears into the Esri basemap's coastline, which is the other half of
-    // #271; a white halo separates the track from whatever it crosses without
-    // making it louder. Decision 029: the track is supporting, not the subject.
+    // A casing under the line, not a heavier line. 2px alone disappears into
+    // the Esri basemap's coastline, which is the other half of #271; a white
+    // halo separates the track from whatever it crosses without making it
+    // louder. Decision 029: the track is supporting, not the subject.
+    //
+    // Slate, not the #ffcc33 it was. Once colour carries the taxon, a yellow
+    // line is no longer neutral — it sits between the seal and sea-lion
+    // oranges, and beside the yellow that means "selected". A track has to be
+    // legible without claiming to be one of the categories, so it is the one
+    // thing on the map drawn in no hue at all.
     styles.push(new Style({
       stroke: new Stroke({
         color: 'rgba(255, 255, 255, 0.9)',
@@ -178,7 +235,7 @@ export const travelStyle = (feature: Feature<LineString>, resolution: number) =>
     }));
     styles.push(new Style({
       stroke: new Stroke({
-        color: '#ffcc33',
+        color: 'rgba(71, 85, 105, 0.85)',
         width: 2,
       }),
     }));
@@ -194,7 +251,7 @@ export const travelStyle = (feature: Feature<LineString>, resolution: number) =>
         new Style({
           geometry: new Point([(end[0] + start[0]) / 2, (end[1] + start[1]) / 2]),
           image: new Icon({
-            src: arrowPNG,
+            src: travelArrowIcon,
             anchor: [0.75, 0.5],
             rotateWithView: true,
             rotation: -rotation,

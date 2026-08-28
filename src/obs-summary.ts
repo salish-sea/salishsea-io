@@ -6,7 +6,7 @@ import { contributorContext, userContext, type User } from "./identity.ts";
 import { consume } from "@lit/context";
 import { when } from "lit/directives/when.js";
 import { repeat } from "lit/directives/repeat.js";
-import { symbolFor } from "./identifiers.ts";
+import { GROUPS, displayNameFor, taxonGroup } from "./symbology.ts";
 import { marked, Renderer } from 'marked';
 import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
@@ -121,23 +121,20 @@ export class ObsSummary extends LitElement {
       font-size: 0.8125rem;
     }
     .focus-occurrence {
-      border: 1px solid #1976d2;
+      /* The taxon colour is set inline, per occurrence. The white ring is what
+         keeps a near-black orca dot from reading as a hole in the panel. */
+      border: 2px solid #ffffff;
       border-radius: 50%;
-      color: #1976d2;
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.25);
       display: inline-block;
       flex-shrink: 0;
-      font-family: monospace;
-      font-weight: bold;
-      height: 1rem;
-      line-height: 1rem;
-      text-align: center;
+      height: 0.75rem;
+      align-self: center;
       text-decoration: none;
-      width: 1rem;
+      width: 0.75rem;
     }
     .focus-occurrence:hover {
-      background-color: #e3f2fd;
-      border-color: #1565c0;
-      color: #1565c0;
+      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.55);
     }
     ul.photos {
       display: flex;
@@ -193,16 +190,21 @@ export class ObsSummary extends LitElement {
     // change) can fire before it is assigned; render nothing rather than throw.
     if (!this.sighting) return nothing;
     const {
-      body, count, observed_at, photos, provider_slug, taxon: {scientific_name, vernacular_name}, url
+      body, count, observed_at, photos, provider_slug, taxon, url
     } = this.sighting;
-    const symbol = symbolFor(this.sighting);
-    const name = vernacular_name || scientific_name;
+    // The same dot, in the same colour, as the marker on the map — which is the
+    // whole point of decision 029's palette. It used to be a letter, and the
+    // letter was ambiguous: `H` was both humpback and harbour porpoise.
+    const group = GROUPS[taxonGroup(taxon.scientific_name)];
+    const name = displayNameFor(taxon);
     const editable = this.contributor && canEdit(this.sighting, this.contributor) || false;
 
     return html`
       <header>
         <div class="species-info">
-          <a class="focus-occurrence" @click="${this.focusSighting}" href="#" title="Focus on map">${symbol}</a>
+          <a class="focus-occurrence" @click="${this.focusSighting}" href="#"
+             aria-label="Focus this ${group.label.toLowerCase()} on the map"
+             title="Focus on map" style="background-color: ${group.color}"></a>
           <b>${name}</b>
           ${when(count && count > 0, () => html`<span class="count">×${count}</span>`)}
         </div>

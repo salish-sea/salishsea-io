@@ -801,7 +801,6 @@ export default class SightingForm extends LitElement {
     this.#subjectFeature.setProperties({
       direction: values.travel_direction,
       identifiers: detectIndividuals(values.body),
-      // symbol: symbolFor({body: values.body, }) || '?',
       taxon: {scientific_name: values.taxon, vernacular_name: null},
     });
   }
