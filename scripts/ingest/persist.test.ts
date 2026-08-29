@@ -220,8 +220,8 @@ describe.skipIf(!DSN)('persistInaturalist (local Supabase)', () => {
         expect(t?.['is_active']).toBe(false);
         expect(Number(t?.['current_taxon_id'])).toBe(2000000003);
 
-        // The observation still sits on the retired taxon: the ingest records the
-        // retirement, repointing records is a batch repair (salish-4hq).
+        // The observation still sits on the retired taxon. The ingest records the
+        // retirement; public.occurrences resolves it on read (decision 032).
         const [o] = await sql`select taxon_id from inaturalist.observations where id = 9000000003`;
         expect(Number(o?.['taxon_id'])).toBe(2000000002);
     });

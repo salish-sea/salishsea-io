@@ -1,0 +1,123 @@
+name: Taxa Refresh
+
+# Weekly refresh of the iNaturalist taxa mirror (salish-4hq).
+#
+# The ingest closure fetches only taxa we do not already hold, and the upsert is
+# ON CONFLICT DO NOTHING, so a taxon row is written once and never revisited. Every
+# mirrored field then freezes: scientific name, common name, rank, parent, and whether
+# the taxon still exists upstream. Nothing else asks. This does.
+#
+# Weekly is plenty. Nine retirements accumulated over the mirror's whole lifetime, and
+# a common-name revision is not urgent. A run costs about 18 requests (512 taxa, 30 per
+# request) plus a courtesy second between them.
+#
+# Safe to run unattended because of decision 032: the script writes to inaturalist.taxa
+# and nothing else. It cannot move an observation from one animal to another.
+
+on:
+    schedule:
+        - cron: '0 10 * * 1'  # Mondays 10:00 UTC = 03:00 PT (PDT) / 02:00 PT (PST)
+    workflow_dispatch:
+
+concurrency:
+    group: taxa-refresh
+    cancel-in-progress: false
+
+jobs:
+    refresh:
+        runs-on: ubuntu-latest
+        environment: production
+        permissions:
+            contents: read
+            issues: write  # failure issue, dwca-nightly pattern
+
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+            - name: Setup Node
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version-file: package.json
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # Pre-seed the failure-issue body so content-filepath always exists even when
+            # the job dies before the script runs. Same pattern and rationale as
+            # dwca-nightly.yml and ingest-heartbeat.yml.
+            - name: Seed default failure-issue body
+              run: |
+                  mkdir -p dist/taxa
+                  cat > dist/taxa/refresh.log <<EOF
+                  Taxa refresh failed before the script could run.
+
+                  Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+                  Triggered: ${{ github.event_name }} on ${{ github.sha }} at $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+                  Check the failing step's logs. Common causes: a DSN or secret problem, a
+                  dependency install error, an unreachable database, or iNaturalist returning
+                  a shape the ingest's parser refuses. The mirror is unchanged either way:
+                  the script writes in one transaction, after every upstream request.
+                  EOF
+
+            # Same DSN assembly as dwca-nightly.yml (see the rationale there): URL-encode
+            # the password, mask it, connect via the IPv4 session pooler on port 5432.
+            - name: Prepare Postgres DSN
+              env:
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+              run: |
+                  ENCODED_PW=$(node -e 'process.stdout.write(encodeURIComponent(process.env.DB_PASSWORD))')
+                  echo "::add-mask::${ENCODED_PW}"
+                  printf 'SUPABASE_DB_URL=postgres://postgres.%s:%s@aws-1-us-west-1.pooler.supabase.com:5432/postgres\n' \
+                    "${SUPABASE_PROJECT_ID}" "${ENCODED_PW}" >> "${GITHUB_ENV}"
+
+            # `tee` keeps the log for the failure issue while it still streams to the job.
+            # pipefail matters: without it the exit status would be tee's, and a failed
+            # refresh would report success.
+            - name: Refresh the taxa mirror
+              run: |
+                  set -o pipefail
+                  pnpm exec tsx scripts/backfill/inat-taxa-status.ts --apply \
+                    2>&1 | tee dist/taxa/refresh.log
+
+            # What changed is the reason to look at this run at all, so put it where it is
+            # readable without opening the logs.
+            - name: Summarize the run
+              if: always()
+              run: |
+                  echo '### Taxa refresh' >> "${GITHUB_STEP_SUMMARY}"
+                  echo '```' >> "${GITHUB_STEP_SUMMARY}"
+                  tail -c 60000 dist/taxa/refresh.log >> "${GITHUB_STEP_SUMMARY}"
+                  echo '```' >> "${GITHUB_STEP_SUMMARY}"
+
+            - name: Find existing failure issue
+              id: find-issue
+              if: failure()
+              uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+              with:
+                  script: |
+                      const issues = await github.rest.issues.listForRepo({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        state: 'open',
+                        labels: 'taxa-refresh-failed',
+                        per_page: 1,
+                      });
+                      core.setOutput('issue-number', issues.data[0]?.number ?? '');
+
+            - name: Open or update failure issue
+              if: failure()
+              uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6.0.0
+              with:
+                  title: "Taxa refresh failed (run ${{ github.run_id }})"
+                  content-filepath: ./dist/taxa/refresh.log
+                  labels: taxa-refresh-failed
+                  issue-number: ${{ steps.find-issue.outputs.issue-number }}
