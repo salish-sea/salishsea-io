@@ -257,13 +257,19 @@ async function main(): Promise<void> {
         // pointers, so one bad pair costs its own rows instead of the run.
         const inCycle = new Set<number>();
         for (const start of planned.keys()) {
+            // Keep the path, not just the set. A taxon can point INTO a cycle without
+            // being in one (A->B, B->C, C->B), and marking everything visited would clear
+            // A's perfectly good pointer and name it in the warning. Only the ids from the
+            // re-entry point onward are members.
+            const path: number[] = [start];
             const seen = new Set<number>([start]);
             let at = planned.get(start)?.row.current_taxon_id ?? null;
             while (at !== null && !seen.has(at)) {
+                path.push(at);
                 seen.add(at);
                 at = planned.get(at)?.row.current_taxon_id ?? null;
             }
-            if (at !== null) seen.forEach((id) => inCycle.add(id));
+            if (at !== null) for (const id of path.slice(path.indexOf(at))) inCycle.add(id);
         }
         if (inCycle.size) {
             say(`\nWARNING: ${inCycle.size} taxa form a replacement cycle upstream `

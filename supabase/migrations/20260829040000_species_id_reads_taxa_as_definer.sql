@@ -20,6 +20,12 @@
 -- inaturalist TO anon, is a wider change: it would make every already-granted object in
 -- the mirror schema reachable, to fix one function.
 --
+-- Both branches resolve, so the answer does not depend on what the caller hands in. The
+-- species branch cannot fire through public.occurrences, which resolves the leaf before
+-- calling and so passes a live row whose current_taxon_id is NULL. It matters for the next
+-- caller: a function that resolved the parent but trusted its argument would hand back a
+-- mixed answer, and this is the shape of thing nobody re-reads before reusing.
+--
 -- SET search_path = '' because a SECURITY DEFINER function without one resolves unqualified
 -- names through the caller's search_path, which the caller controls. Everything inside is
 -- schema-qualified. The bare 'species' literal is not a name lookup; Postgres types it
@@ -30,7 +36,7 @@ SELECT CASE
   WHEN taxon.rank < 'species'
     THEN (SELECT COALESCE(p.current_taxon_id, p.id) FROM inaturalist.taxa p
            WHERE p.id = taxon.parent_id)
-  WHEN taxon.rank = 'species' THEN taxon.id
+  WHEN taxon.rank = 'species' THEN COALESCE(taxon.current_taxon_id, taxon.id)
   ELSE NULL
 END;
 $$;
