@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' https://accounts.google.com/gsi/ 'sha256-JBeP94Wi8ME+cFO3hGJPqUEy87Eo0pyquAwUg5ZtWs8=';
+      script-src 'self' https://accounts.google.com/gsi/;
       style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/;
       img-src 'self' https: data:;
       font-src 'self';
@@ -33,20 +33,11 @@
     <link href="/favicon.ico" rel="icon" sizes="48x48">
     <link href="/apple-touch-icon.png" rel="apple-touch-icon">
     <link rel="stylesheet" href="src/index.css" />
-    <!-- The hash in the CSP must be updated when this code is updated. Run `npm run verify-csp` to check or find out the new hash. -->
-    <script id="gsi-init">!function(){const e=window;e.handleSignInWithGoogle=async({credential:n})=>{const s=e.__pendingGSIResponses=e.__pendingGSIResponses||[],o=document.querySelector("salish-sea");if(o&&o.isConnected)try{return await o.receiveIdToken(n)}catch(e){throw s.push(n),e}else s.push(n)}}()</script>
     <script type="module" src="src/salish-sea.ts"></script>
   </head>
   <body>
 
     <salish-sea></salish-sea>
-    <div id="g_id_onload"
-     data-client_id="129212631591-b6ba75aevcbifjpea2cap2vja91a6te8.apps.googleusercontent.com"
-     data-context="use"
-     data-ux_mode="popup"
-     data-callback="handleSignInWithGoogle"
-     data-auto_prompt="false">
-</div>
 
   </body>
 </html>

@@ -33,3 +33,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [027](027-marine-mammal-scope-whale-centric-identity.md) | Marine-mammal scope, whale-centric identity; PSEMP is a boundary, not a data source (extends 009) | accepted |
 | [028](028-salishsea-io-speaks-to-orcasound.md) | SalishSea.io is the single voice recommending an identification schema to OrcaSound | accepted |
 | [029](029-map-symbology.md) | Map symbology: colour carries the taxon, labels carry the specifics; uncertainty not encoded | accepted |
+| [030](030-google-signin-nonce.md) | Google sign-in carries a real nonce; GSI configured in code, not markup | accepted |
