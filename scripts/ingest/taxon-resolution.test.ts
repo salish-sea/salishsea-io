@@ -108,6 +108,21 @@ describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () =>
         expect(o?.['scientific_name']).toBe('Testessa obsoleta');
     });
 
+    // species_id reports a subspecies' PARENT, read straight off the row, so resolving
+    // only the leaf would leave a live subspecies chaining onto a dead species id.
+    test("a live subspecies under a retired species chains onto the live species", async () => {
+        await seedRetirement();
+        const subspecies = 2000001005;
+        await sql`
+            insert into inaturalist.taxa (id, parent_id, scientific_name, vernacular_name, rank)
+            values (${subspecies}, ${RETIRED}, 'Testessa obsoleta minor', null, 'subspecies')`;
+        await seedSighting(subspecies);
+
+        const [o] = await sql`
+            select (taxon).species_id from public.occurrences where id = ${'maplify:' + SIGHTING}`;
+        expect(Number(o?.['species_id'])).toBe(REPLACEMENT);
+    });
+
     test('the DwC classification answers for the id as recorded, with live names', async () => {
         await seedRetirement();
 

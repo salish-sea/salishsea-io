@@ -33,7 +33,13 @@
 -- intermediate, so a chain in the mirror is a stale row for the weekly refresh to fix,
 -- not a depth for this view to walk.
 --
--- The `par` join (a subspecies displaying its species' name) is deliberately NOT hopped.
+-- inaturalist.species_id() gets the same treatment, one level up. For a subspecies it
+-- returns the PARENT's id, read straight off the row, so a live subspecies under a
+-- retired species would keep chaining onto the dead id and split the track this view
+-- resolves the leaf to prevent. The hop belongs in the function rather than in four
+-- copies of a CASE expression in the view.
+--
+-- The `par` join (a subspecies displaying its species' NAME) is deliberately NOT hopped.
 -- It looks into register.inaturalist_taxon_name, which is ours and curated: a live
 -- subspecies under a retired species would need a register edit regardless, and that is
 -- where the fix belongs.
@@ -52,6 +58,20 @@
 -- rows do change (the two retired taxa that name a mirrored replacement); they are the
 -- keys nobody joins on today, and answering for them is the whole point. This ships as a
 -- safety net, not a correction.
+
+-- species_id chains sightings of one species into a track. For a subspecies it reports
+-- the parent species, so the parent needs resolving too; for a species it reports itself,
+-- and the view has already resolved that row. One hop, as everywhere else here.
+CREATE OR REPLACE FUNCTION inaturalist.species_id(taxon inaturalist.taxa)
+RETURNS INTEGER LANGUAGE SQL STABLE AS $$
+SELECT CASE
+  WHEN taxon.rank < 'species'
+    THEN (SELECT COALESCE(p.current_taxon_id, p.id) FROM inaturalist.taxa p
+           WHERE p.id = taxon.parent_id)
+  WHEN taxon.rank = 'species' THEN taxon.id
+  ELSE NULL
+END;
+$$;
 
 CREATE OR REPLACE VIEW public.occurrences AS
  SELECT 'maplify:'::text || s.id AS id,
