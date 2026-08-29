@@ -16,7 +16,7 @@ Every branch of `public.occurrences` read `vernacular_name` from `inaturalist.ta
 
 The register already held the answer, curated and crosswalked to the exact iNaturalist id our mirror keys on:
 
-```
+```text
 SSA:0000906  taxon  Lontra canadensis  NCBITaxon:76717
 SSA:0000906  River otter  common  en
 SSA:0000906  skos:exactMatch  inaturalist.taxon:41777
