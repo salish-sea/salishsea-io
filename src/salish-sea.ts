@@ -17,6 +17,8 @@ import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
+import { captureException } from "@sentry/browser";
+import { generateNonce } from "./google-nonce.ts";
 import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
 import { fromLonLat } from 'ol/proj.js';
@@ -70,6 +72,11 @@ const initialParams = parseUrlParams(new URLSearchParams(document.location.searc
 const hadDateParam = new URLSearchParams(document.location.search).has('d');
 const rawRegionParam = new URLSearchParams(document.location.search).get('r');
 const hadMapPosition = ['x', 'y', 'z'].every(k => new URLSearchParams(document.location.search).has(k));
+
+// Public identifier, and deliberately the only copy: it used to also live in
+// index.html's `g_id_onload` attributes, which is what let the declarative
+// config and the code drift apart.
+const GOOGLE_CLIENT_ID = '129212631591-b6ba75aevcbifjpea2cap2vja91a6te8.apps.googleusercontent.com';
 
 let gsiReady: Promise<void> | null = null;
 function loadGSI(): Promise<void> {
@@ -341,7 +348,7 @@ export default class SalishSea extends LitElement {
       .subscribe();
   }
 
-  async connectedCallback(): Promise<void> {
+  connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener('popstate', this.#handlePopState);
     // Reflect the resolved date in the URL so a link shared while viewing the default
@@ -357,11 +364,6 @@ export default class SalishSea extends LitElement {
         setQueryParams({}, {replace: true, remove: ['r']});
       else
         setQueryParams({r: this.#region.slug}, {replace: true});
-    }
-    // If any credentials arrived before the component was defined, process them now.
-    let token: string | undefined;
-    while (token = window.__pendingGSIResponses?.shift()) {
-      await this.receiveIdToken(token);
     }
   }
 
@@ -399,8 +401,23 @@ export default class SalishSea extends LitElement {
     `;
   }
 
-  doLogIn() {
-    loadGSI().then(() => google.accounts.id.prompt());
+  async doLogIn() {
+    await loadGSI();
+    // A nonce per attempt, configured here rather than declaratively in the
+    // markup, because it has to be generated fresh and its raw form handed to
+    // Supabase from the same closure that gave Google the digest.
+    const nonce = await generateNonce();
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      context: 'use',
+      ux_mode: 'popup',
+      auto_select: false,
+      nonce: nonce.hashed,
+      callback: ({credential}) => {
+        this.receiveIdToken(credential, nonce.raw).catch(err => console.error(err));
+      },
+    });
+    google.accounts.id.prompt();
   }
 
   async doLogOut() {
@@ -408,8 +425,16 @@ export default class SalishSea extends LitElement {
     await this.fetchOccurrences(this.date);
   }
 
-  public async receiveIdToken(token: string) {
-    await supabase().auth.signInWithIdToken({'provider': 'google', token});
+  public async receiveIdToken(token: string, nonce: string) {
+    const {error} = await supabase().auth.signInWithIdToken({'provider': 'google', token, nonce});
+    // Supabase returns auth failures in the result instead of throwing, and the
+    // Supabase Sentry integration only wraps PostgREST — so an unchecked error
+    // here is invisible twice over: nothing reported, and a Log in button that
+    // silently does nothing. That is how the nonce mismatch went unnoticed.
+    if (error) {
+      captureException(error);
+      throw error;
+    }
   }
 
   protected async firstUpdated(_changedProperties: PropertyValues): Promise<void> {
@@ -587,8 +612,5 @@ function removeQueryParam(key: string) {
 declare global {
   interface HTMLElementTagNameMap {
     "salish-sea": SalishSea;
-  }
-  interface Window {
-    __pendingGSIResponses?: string[];
   }
 }
