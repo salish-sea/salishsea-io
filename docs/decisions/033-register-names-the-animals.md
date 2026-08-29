@@ -8,7 +8,9 @@ The [salish-sea/animals](https://github.com/salish-sea/animals) register is the 
 
 We compose the **display** from that name. Capitalisation, truncation, sort order and disambiguation are ours — animals [ADR-0011](https://github.com/salish-sea/animals/blob/main/decisions/0011-label-is-a-preferred-name.md) makes the register's label "input to display, not display", and names truncation as a consumer concern by name.
 
-Neither side does the other's job. We do not mint a name the register has not asserted, and the register does not supply a string for a map pin.
+Neither side does the other's job. Where the register has asserted a name, we do not mint or substitute a different one, and the register does not supply a string for a map pin.
+
+**The fallback is a knowing exception, not a second source.** Where the register has no exact match — 8.5% of occurrences today — the map still shows iNaturalist's vernacular, which is a mirror's vocabulary surfacing in UI and therefore exactly what [008](008-source-schemas-are-upstream-mirrors.md) forbids. It is tolerated because the alternative is a blank label, and because every remaining case is a known one that the register can close by asserting a name (salish-0gb). The exception shrinks as the register grows; it is not a standing licence to read names from the mirror, and no new code may depend on it.
 
 ## Why
 
