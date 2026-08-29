@@ -123,6 +123,24 @@ describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () =>
         expect(Number(o?.['species_id'])).toBe(REPLACEMENT);
     });
 
+    // The regression lock for a production incident on 2026-08-29. A view checks the
+    // objects it references against its OWNER, but a FUNCTION BODY is checked against the
+    // CALLER, and anon has no USAGE on the inaturalist schema. Teaching species_id to read
+    // the taxa table therefore broke every anonymous read of the view, which testing as
+    // superuser cannot show. SET LOCAL ROLE keeps the role change inside the transaction.
+    test('anon can still read the view (the role the site uses)', async () => {
+        await seedRetirement();
+        await seedSighting(RETIRED);
+
+        const [o] = await sql.begin(async (tx) => {
+            await tx`set local role anon`;
+            return tx`select (taxon).species_id from public.occurrences
+                       where id = ${'maplify:' + SIGHTING}`;
+        }) as unknown as [{ species_id: number }];
+
+        expect(Number(o?.species_id)).toBe(REPLACEMENT);
+    });
+
     test('the DwC classification answers for the id as recorded, with live names', async () => {
         await seedRetirement();
 
