@@ -74,9 +74,19 @@ describe('displayNameFor', () => {
       .toBe('Gray whale');
   });
 
-  test('no register entity falls back to the vernacular we do have', () => {
+  test('the two orca subspecies are composed, not read from iNaturalist', () => {
+    // The register cannot hold these (animals ADR-0008: no NCBI concept to
+    // reference), so the composition is ours — and iNaturalist's Title Case
+    // must not sit beside the register's sentence case on one screen.
     expect(displayNameFor(taxon('Orcinus orca ater', 'Resident Killer Whale')))
-      .toBe('Resident Killer Whale');
+      .toBe('Resident killer whale');
+    expect(displayNameFor(taxon('Orcinus orca rectipinnus', "Bigg's Killer Whale")))
+      .toBe("Bigg's killer whale");
+  });
+
+  test('any other missing register entity still falls back to the vernacular', () => {
+    expect(displayNameFor(taxon('Eumetopias jubatus', 'Steller Sea Lions')))
+      .toBe('Steller Sea Lions');
   });
 
   test('no name anywhere falls back to the group, not the scientific name', () => {
@@ -123,8 +133,15 @@ describe('labelFor', () => {
   });
 
   test('the subspecies carries the ecotype when the prose does not', () => {
-    expect(labelFor(orca('', 'Orcinus orca ater'))).toBe('SRKW');
     expect(labelFor(orca('', 'Orcinus orca rectipinnus'))).toBe('Biggs');
+  });
+
+  test('a resident subspecies is not narrowed to Southern Resident', () => {
+    // salish-frk. `ater` covers Northern and Alaskan residents too, so the
+    // taxon alone cannot say SRKW — only prose that named them can.
+    expect(labelFor(orca('', 'Orcinus orca ater'))).toBe('Resident');
+    expect(labelFor(orca('southern residents inbound', 'Orcinus orca ater')))
+      .toBe('SRKW');
   });
 
   test('an unattributed killer whale is not renamed to Orca', () => {
@@ -173,7 +190,7 @@ describe('labelForSegment', () => {
     expect(labelForSegment([orca('', 'Orcinus orca ater'), orca('K pod inbound')]))
       .toBe('K pod');
     expect(labelForSegment([orca(''), orca('', 'Orcinus orca ater')]))
-      .toBe('SRKW');
+      .toBe('Resident');
   });
 
   test('a non-orca track is named from its head, prose ignored', () => {
