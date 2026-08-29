@@ -35,3 +35,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [029](029-map-symbology.md) | Map symbology: colour carries the taxon, labels carry the specifics; uncertainty not encoded | accepted |
 | [030](030-google-signin-nonce.md) | Google sign-in carries a real nonce; GSI configured in code, not markup | accepted |
 | [031](031-surfacing-failures.md) | Failures reach the user through one toast, and Sentry through the same call | accepted |
+| [032](032-retired-taxa-resolved-on-read.md) | A retired taxon is resolved on read, not rewritten on write (applies 008) | accepted |
