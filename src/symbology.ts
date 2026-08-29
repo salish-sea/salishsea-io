@@ -135,6 +135,44 @@ const SHORT_MAP_FORMS: Record<string, string> = {
   'SSA:0000929': 'Right whale dolphin',  // Northern right whale dolphin
 };
 
+// ---------------------------------------------------------------------------
+// The two killer whale subspecies, which no register entity covers
+//
+// KEYED ON THE SCIENTIFIC NAME, and it is the only table here that is, because
+// these two animals have no `SSA:` identifier to key on. That is not an
+// oversight upstream: animals ADR-0008 requires a `kind = taxon` entity to
+// reference an external authority, and neither NCBI (which holds no child of
+// `Orcinus orca` at all) nor WoRMS (which holds none either) has a concept to
+// point at. ADR-0008 also refuses the other route in as many words — an ecotype
+// "is not a taxonomic rank ... not a subspecies and not making any claim about
+// formal taxonomy" — so SSA:0000001 and SSA:0000002 cannot be crosswalked here
+// either. Hence the register is silent, correctly, and this is ours to compose
+// (ADR-0011). Tracked as salish-0gb, where ITIS and Catalogue of Life turn out
+// to carry both at SPECIES rank and may reopen the question.
+//
+// WHY THESE TWO AND NOT THE OTHER FALLBACKS. Migration 20260828120000 rolls a
+// subspecies up to its species' register name wherever the qualifier adds
+// nothing, and deliberately exempts these two because their qualifier is the
+// ecotype the map most wants to show. Exempting them left them reading
+// iNaturalist's Title Case — "Resident Killer Whale" beside the register's
+// "Killer whale" on one screen, which is the very complaint salish-0gb opens
+// with. The remaining fallbacks are genus and family stubs whose iNaturalist
+// vernacular is a plural or a clade description ("Humpback Whales", "Pilot
+// Whales and allies"); they need a different answer and are not fixed here.
+//
+// NEITHER IS A NEW NAME. "Bigg's killer whale" composes two register
+// assertions — SSA:0000002's label `Bigg's` and SSA:0000900's `Killer whale`.
+// "Resident killer whale" is iNaturalist's own string under our capitalisation,
+// which ADR-0011 hands us explicitly; the register has no `Resident` ecotype to
+// source it from, holding only `Southern Resident`, and that is exactly the
+// narrowing labelForSegment must not perform.
+// ---------------------------------------------------------------------------
+
+const SUBSPECIES_FORMS: Record<string, string> = {
+  'Orcinus orca ater': 'Resident killer whale',
+  'Orcinus orca rectipinnus': "Bigg's killer whale",
+};
+
 /**
  * The name to show for a taxon, shortest honest form first.
  *
@@ -144,9 +182,16 @@ const SHORT_MAP_FORMS: Record<string, string> = {
  * simply read a register table. Where even that is absent — a genus stub with no
  * vernacular anywhere — the group's category label claims less than the
  * scientific name would and is more use to a reader.
+ *
+ * The two killer whale subspecies are the one case with no register entity that
+ * we still compose for, because the register cannot hold them; see
+ * SUBSPECIES_FORMS. They are consulted only when `entity_id` is absent, so a
+ * register name can never be overridden by one.
  */
 export function displayNameFor(taxon: Occurrence['taxon']): string {
-  const short = taxon.entity_id ? SHORT_MAP_FORMS[taxon.entity_id] : undefined;
+  const short = taxon.entity_id
+    ? SHORT_MAP_FORMS[taxon.entity_id]
+    : SUBSPECIES_FORMS[taxon.scientific_name];
   return short
     ?? taxon.vernacular_name
     ?? GROUPS[taxonGroup(taxon.scientific_name)].label;
@@ -191,8 +236,20 @@ export function labelForSegment(occurrences: readonly Pick<Occurrence, 'body' | 
     for (const {taxon} of occurrences) {
       if (taxon.scientific_name === 'Orcinus orca rectipinnus')
         return 'Biggs';
+      // NOT 'SRKW'. `ater` is the resident subspecies generally — Southern,
+      // Northern and Alaskan residents alike — and SRKW is one population
+      // within it, so calling every `ater` record Southern Resident is a
+      // narrowing the record does not support (salish-frk, salish-0gb). The
+      // argument is taxonomic, not geographic, but the geography agrees: 31 of
+      // the 4,377 `ater` occurrences already fall outside `salishSeaExtent`
+      // ([-126, 47, -122, 50.5]) — 27 south of it, 3 north — and salish-a4y
+      // scopes ingest to killer whales range-wide, so the error grows by
+      // design. A report that actually says "southern residents" is caught by
+      // detectEcotype above, which runs first — that path still reads SRKW,
+      // because there someone said so.
+      // `rectipinnus` above narrows nothing: it and Bigg's are one population.
       if (taxon.scientific_name === 'Orcinus orca ater')
-        return 'SRKW';
+        return 'Resident';
     }
   }
   return displayNameFor(head.taxon);
