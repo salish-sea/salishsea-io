@@ -210,6 +210,12 @@ async function main(): Promise<void> {
         // checks uniqueness per row rather than at end of statement. Withhold the
         // colliding name, report it, and write every other field on the row.
         const nameHolder = new Map(mirrored.map((t) => [t.scientific_name, t.id]));
+        // Names this run has already promised to another row. Upstream can hand the same
+        // name to two mirrored taxa (it merges taxa as readily as it retires them), and
+        // checking only against stored names would let both through: the one UPDATE then
+        // writes the value twice, violates the UNIQUE index, and rolls back the whole
+        // transaction, losing the retirements it had computed correctly.
+        const claimed = new Map<string, number>();
 
         const planned = new Map<number, Planned>();
         let unmirroredParents = 0;
@@ -218,10 +224,10 @@ async function main(): Promise<void> {
             if (!u) { planned.set(m.id, { row: m, notes: [] }); continue; }
             const notes: string[] = [];
 
-            const collidesWith = nameHolder.get(u.scientificName);
-            const renameable = collidesWith === undefined || collidesWith === m.id;
-            if (!renameable)
-                notes.push(`rename to "${u.scientificName}" withheld: taxon ${collidesWith} holds that name`);
+            const holder = nameHolder.get(u.scientificName) ?? claimed.get(u.scientificName);
+            const renameable = holder === undefined || holder === m.id;
+            if (renameable) claimed.set(u.scientificName, m.id);
+            else notes.push(`rename to "${u.scientificName}" withheld: taxon ${holder} holds that name`);
             const parentUnreachable =
                 u.parentId !== null && heldOrNull(u.parentId) === null && u.parentId !== m.parent_id;
             if (parentUnreachable) unmirroredParents++;
