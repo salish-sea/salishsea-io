@@ -98,6 +98,36 @@ async function countReferencing(
     return sql.unsafe(union, [ids as number[]]) as unknown as Promise<{ table: string; n: number }[]>;
 }
 
+/** One row of the mirror: what we currently believe about a taxon. */
+type Mirrored = { id: number; is_active: boolean; current_taxon_id: number | null };
+
+/**
+ * Read a plan file, refusing anything that is not the shape this script reasons about.
+ *
+ * The plan arrives from `supabase db query --linked`, so its JSON is not this script's to
+ * trust. The dangerous shape is a numeric id serialized as a string: it survives the URL
+ * join, iNaturalist answers keyed by the NUMBER, and `upstream.has(t.id)` then misses —
+ * so the taxon is reported as one the API did not return and quietly left alone. That is
+ * a silent under-repoint, the exact failure this script exists to find. Refuse the file
+ * instead, before a single upstream request or a line of emitted SQL.
+ */
+function parsePlan(text: string): Mirrored[] {
+    const doc: unknown = JSON.parse(text);
+    if (!Array.isArray(doc))
+        throw new Error('--plan-from expects a JSON array of {id, is_active, current_taxon_id}');
+    return doc.map((row: unknown, i) => {
+        const r = row as Record<string, unknown> | null;
+        const reject = (what: string) =>
+            new Error(`--plan-from row ${i}: ${what} — ${JSON.stringify(row).slice(0, 120)}`);
+        if (typeof r?.['id'] !== 'number') throw reject('id must be a number');
+        if (typeof r['is_active'] !== 'boolean') throw reject('is_active must be a boolean');
+        const current = r['current_taxon_id'] ?? null;
+        if (current !== null && typeof current !== 'number')
+            throw reject('current_taxon_id must be a number or null');
+        return { id: r['id'], is_active: r['is_active'], current_taxon_id: current };
+    });
+}
+
 type Upstream = { id: number; is_active: boolean; current: number | null; name: string };
 
 async function fetchStatus(ids: number[]): Promise<Map<number, Upstream>> {
@@ -163,9 +193,8 @@ async function main(): Promise<void> {
     const sql = usePlanFile ? null : postgres(dsn!);
 
     try {
-        type Mirrored = { id: number; is_active: boolean; current_taxon_id: number | null };
         const mirrored: Mirrored[] = usePlanFile
-            ? JSON.parse((await import('node:fs')).readFileSync(planFrom!, 'utf8'))
+            ? parsePlan((await import('node:fs')).readFileSync(planFrom!, 'utf8'))
             : await sql!<Mirrored[]>`
                 SELECT id, is_active, current_taxon_id FROM inaturalist.taxa ORDER BY id`;
         say(`asking iNaturalist about ${mirrored.length} mirrored taxa (v1, ${BATCH} per request)…`);
