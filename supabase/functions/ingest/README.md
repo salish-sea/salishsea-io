@@ -81,14 +81,19 @@ REFRESH MATERIALIZED VIEW CONCURRENTLY public.occurrence_identifier_candidates;
 
 ## Practical notes
 
-- **A retired taxon is recorded, not resolved.** iNaturalist retires a taxon by
-  marking it inactive and naming a replacement. The closure asks by the
+- **A retired taxon is recorded here and resolved on read.** iNaturalist retires a
+  taxon by marking it inactive and naming a replacement. The closure asks by the
   `/taxa/{ids}` path form, so a retirement arrives flagged and is mirrored into
-  `is_active` / `current_taxon_id` (the `?id=` query form filters retired taxa out
-  entirely, and used to abort the whole run — salish-5ds). Records still sit on the
-  retired taxon: repointing them is a batch repair
-  ([`inat-taxa-status.ts`](../../../scripts/backfill/inat-taxa-status.ts)), and so is
-  refreshing a taxon already in the mirror, which the ingest never re-asks about.
+  `is_active` / `current_taxon_id`. The `?id=` query form filters retired taxa out
+  entirely and used to abort the whole run (salish-5ds). Records keep pointing at the
+  taxon they were filed under; `public.occurrences` and `dwc.taxa_classification` hop
+  through `current_taxon_id` when they read it
+  ([decision 032](../../../docs/decisions/032-retired-taxa-resolved-on-read.md)).
+- **The ingest never re-asks about a taxon it already holds.** The closure fetches only
+  the missing ones, and the upsert is `ON CONFLICT DO NOTHING`, so names, rank, parent
+  and status freeze at first sighting. A weekly workflow refreshes them
+  ([`inat-taxa-status.ts`](../../../scripts/backfill/inat-taxa-status.ts),
+  `.github/workflows/taxa-refresh.yml`).
 - **Chunk by month.** Maplify fetches a whole window in one request and
   iNaturalist paginates + resolves a taxon closure; month-sized windows keep
   each transaction bounded and give one legible `ingest.runs` row per month.

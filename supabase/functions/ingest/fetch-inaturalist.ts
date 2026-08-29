@@ -206,8 +206,12 @@ function observationsUrl(window: IngestWindow, idAbove: number): string {
  * requested-but-unreturned id as an unresolvable closure and throws, so under the
  * query form a single referenced taxon retired since the last run aborted the entire
  * ingest — every observation in the window, not just that one.
+ *
+ * Exported for scripts/backfill/inat-taxa-status.ts, which refreshes the taxa this
+ * closure will never re-ask about. Sharing the URL is the point: the refresh and the
+ * ingest cannot drift into asking upstream two different questions.
  */
-function taxaUrl(ids: readonly number[]): string {
+export function taxaUrl(ids: readonly number[]): string {
     const params = new URLSearchParams({
         fields: TAXA_FIELDS,
         preferred_place_id: '1',
@@ -301,10 +305,10 @@ export async function fetchAllObservationPages(
  * A RETIRED taxon resolves like any other, because taxaUrl asks by the path form:
  * it arrives flagged inactive, naming its replacement, and the replacement joins the
  * referenced set (referencedTaxonIdsFromTaxa) so the closure covers it too. The
- * ingest RECORDS a retirement; it does not act on one — repointing the records that
- * sit on a retired taxon is a batch repair (scripts/backfill/inat-taxa-status.ts,
- * salish-4hq), not a write-time rule. The throw below therefore now means what it
- * says: an id upstream genuinely does not know, not merely one it has retired.
+ * ingest RECORDS a retirement; it does not act on one. Records keep pointing at the
+ * taxon they were filed under, and public.occurrences resolves the retirement when it
+ * reads them (decision 032). The throw below therefore now means what it says: an id
+ * upstream genuinely does not know, not merely one it has retired.
  */
 export async function resolveTaxonClosure(
     sql: Sql,
