@@ -117,6 +117,9 @@ export default class SalishSea extends LitElement {
 
     main {
       display: flex;
+      /* The toast hangs from this corner, so it clears the header without
+         anyone having to hardcode the header's height. */
+      position: relative;
       flex-direction: row;
       flex-grow: 1;
       min-height: 0;
@@ -385,14 +388,15 @@ export default class SalishSea extends LitElement {
             `;
           })}
         </obs-panel>
+        <error-toast ${ref(this.errorToastRef)}></error-toast>
       </main>
-      <error-toast ${ref(this.errorToastRef)}></error-toast>
     `;
   }
 
   doLogIn() {
     promptGoogleSignIn((token, nonce) => {
-      this.receiveIdToken(token, nonce).catch(err => console.error(err));
+      this.receiveIdToken(token, nonce).catch(err =>
+        reportError(this, "Couldn't sign you in with Google. Please try again.", {cause: err}));
     }).catch(err => reportError(this, "Couldn't reach Google to sign in. An ad blocker may be blocking it.", {cause: err}));
   }
 
@@ -521,9 +525,14 @@ export default class SalishSea extends LitElement {
         .order('observed_at', {ascending: false})
         .throwOnError());
     } catch (err) {
+      // Same staleness guard as receiveOccurrences, for the same reasons: a
+      // slow request for the day or region you just left must not speak for
+      // the one you are looking at now, and here it would claim the current,
+      // complete list is incomplete.
       // Persist: an empty list is indistinguishable from a quiet day, so a
       // message that times out would leave the map lying about the water.
-      reportError(this, "Couldn't load sightings. The list may be incomplete.", {cause: err, persist: true});
+      if (date === this.date && region.slug === this.#region.slug)
+        reportError(this, "Couldn't load sightings. The list may be incomplete.", {cause: err, persist: true});
       return;
     }
 

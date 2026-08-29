@@ -23,11 +23,18 @@ weeks, until someone mentioned in passing that they could not sign in.
 
 ## Decision
 
-**One toast, owned by `<salish-sea>`.** [`error-toast.ts`](../../src/error-toast.ts) sits over
-the bottom-left of the map — clear of `user-location-control` above it and Sentry's feedback
-button opposite — and out of the layout, so nothing reflows when a failure appears. The newest
-failure replaces the current one rather than stacking: a pile of toasts over the map is worse
-than the latest fact about what is broken.
+**One toast, owned by `<salish-sea>`.** [`error-toast.ts`](../../src/error-toast.ts) hangs from
+the top-right of the content area, directly under the Log in button and over the top of the
+sightings panel — the two places a person is when an action of theirs fails. It is positioned
+against `main` rather than the page, so it clears the header without anyone hardcoding the
+header's height, and it stays out of the layout, so nothing reflows when a failure appears.
+The newest failure replaces the current one rather than stacking: a pile of toasts over the map
+is worse than the latest fact about what is broken.
+
+It first went bottom-left, over open water, which is the calmest place to put it and the wrong
+one. Feedback that far from the control that produced it is feedback nobody reads: the Log in
+button is in the opposite corner, and a person who clicks it and sees nothing change has
+already concluded the button is broken before their eye reaches the message.
 
 **One call reports to both audiences.** [`reportError(source, message, {cause, persist})`](../../src/report-error.ts)
 captures to Sentry *and* dispatches a `report-error` event that bubbles composed to
@@ -47,7 +54,7 @@ that never loaded is the case that forced the distinction.
 |---|---|---|
 | Surface | `rgb(8, 13, 38)` | The header's navy, so a failure reads as chrome rather than map content |
 | Accent | `rgb(229, 115, 115)` | Left rule and ⚠ glyph; the only colour this pattern introduces |
-| Anchor | bottom `1rem`, left `1rem` | Clear of `user-location-control` (top-left) and the feedback button (bottom-right) |
+| Anchor | top `1rem`, right `1rem` of `main` | Under the Log in button; clear of `user-location-control` (top-left) and the feedback button (bottom-right) |
 
 ## Rejected alternatives
 
@@ -63,6 +70,12 @@ on screen and would have produced three unrelated treatments of the same idea.
 
 **Letting `reportError` do only the user-facing half.** Tidier separation, and it would have
 left the Sentry call at each site where someone can forget it. The coupling is the point.
+
+**Stale failures stay quiet.** A failed occurrence load reports only if its date and region
+still match what is on screen, the same guard `receiveOccurrences` applies to a successful one
+and for the same reason — a slow request for the day you just left must not speak for the day
+you are looking at. Without it, a late failure would claim a current, complete list was
+incomplete.
 
 ## Consequences
 

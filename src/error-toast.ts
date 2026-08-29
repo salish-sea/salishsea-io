@@ -5,19 +5,26 @@ import { customElement, state } from 'lit/decorators.js';
 export const DISMISS_AFTER_MS = 8_000;
 
 /**
- * The app's one way of telling someone that something failed. It sits over the
- * bottom-left of the map: clear of `user-location-control` (top-left) and of
- * Sentry's feedback button (bottom-right), and out of the layout, so nothing
- * reflows when a failure appears.
+ * The app's one way of telling someone that something failed.
+ *
+ * It hangs from the top-right of the content area, directly under the Log in
+ * button and over the top of the sightings panel — the two places a person is
+ * when an action of theirs fails. Feedback far from the control that produced
+ * it is feedback nobody reads. It is positioned against `main` rather than the
+ * page so it clears the header without anyone hardcoding the header's height,
+ * and it stays out of the layout, so nothing reflows when a failure appears.
+ *
+ * Top-left holds `user-location-control` and bottom-right holds Sentry's
+ * feedback button; this corner is free in both layouts.
  */
 @customElement('error-toast')
 export default class ErrorToast extends LitElement {
   static styles = css`
     :host {
-      bottom: 1rem;
-      left: 1rem;
       pointer-events: none;
       position: absolute;
+      right: 1rem;
+      top: 1rem;
       z-index: 2;
     }
     .toast {
