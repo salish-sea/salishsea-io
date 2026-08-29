@@ -21,7 +21,9 @@ The app never sent a nonce. `signInWithIdToken({provider, token})` passed no `no
 supplies its own nonce in some flows, and the resulting id_token then carries a `nonce` claim
 the request cannot match. GoTrue requires both-or-neither
 ([`token_oidc.go`](https://github.com/supabase/auth/blob/master/internal/api/token_oidc.go)),
-and this project has `external_google_skip_nonce_check: false`. So the failure is not
+and this project's production auth config reports `external_google_skip_nonce_check: false`
+(read from the Management API — `supabase/config.toml` sets no such key for Google, and GoTrue
+defaults it to false). So the failure is not
 account-specific and has nothing to do with being a new user — it depends on which flow
 Google chooses for that browser, which is why it broke for some people and not others.
 
@@ -37,16 +39,24 @@ The visible symptom was therefore a Log in button that did nothing at all.
 
 ## Decision
 
-**Generate a nonce per sign-in attempt and give each side the form it expects.** GoTrue
+**Generate a nonce per page and give each side the form it expects.** GoTrue
 compares `sha256(params.Nonce)` as lowercase hex against the id_token's `nonce` claim, so
 Google receives the hex digest and Supabase receives the raw string. Both come from one
 `generateNonce()` call in [`src/google-nonce.ts`](../../src/google-nonce.ts), so they cannot
 drift.
 
-**Configure GSI imperatively in `doLogIn()`, not declaratively in `index.html`.** A nonce must
-be fresh per attempt and its raw form must survive into the callback; neither is expressible
-in static markup. `google.accounts.id.initialize({client_id, nonce, callback, …})` now holds
-the whole configuration, and the client ID lives in `salish-sea.ts` as its only copy.
+**Configure GSI imperatively, not declaratively in `index.html`.** The digest cannot be
+computed in markup (`crypto.subtle` is async) and the raw half must survive into the callback.
+[`src/google-signin.ts`](../../src/google-signin.ts) now owns the whole configuration and the
+client ID, as its only copy.
+
+**Configure once per page, not once per click.** Google's reference says `initialize` is called
+once, and GSI warns at runtime that "only the last initialized instance will be used". A second
+click would swap the nonce and callback underneath a prompt already outstanding, so a sign-in
+completed against the old nonce would come back as GoTrue's *other* rejection, "Nonces mismatch"
+— the same silent 400 in a new costume. One nonce and one callback for the life of the page
+still binds a token to this page's sign-in, which is what the nonce is for. Verified: three
+rapid clicks now yield three credential requests carrying one nonce and no GSI warning.
 
 **Check the `{error}` from `signInWithIdToken`** — report it to Sentry explicitly and rethrow.
 Auth is outside the Supabase integration's reach, so this call site has to report itself.

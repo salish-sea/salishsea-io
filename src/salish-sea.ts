@@ -1,4 +1,3 @@
-/// <reference types="google.accounts" />
 import { css, html, LitElement, type PropertyValues} from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import './obs-map.ts';
@@ -18,7 +17,7 @@ import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
 import { captureException } from "@sentry/browser";
-import { generateNonce } from "./google-nonce.ts";
+import { promptGoogleSignIn } from "./google-signin.ts";
 import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
 import { fromLonLat } from 'ol/proj.js';
@@ -72,24 +71,6 @@ const initialParams = parseUrlParams(new URLSearchParams(document.location.searc
 const hadDateParam = new URLSearchParams(document.location.search).has('d');
 const rawRegionParam = new URLSearchParams(document.location.search).get('r');
 const hadMapPosition = ['x', 'y', 'z'].every(k => new URLSearchParams(document.location.search).has(k));
-
-// Public identifier, and deliberately the only copy: it used to also live in
-// index.html's `g_id_onload` attributes, which is what let the declarative
-// config and the code drift apart.
-const GOOGLE_CLIENT_ID = '129212631591-b6ba75aevcbifjpea2cap2vja91a6te8.apps.googleusercontent.com';
-
-let gsiReady: Promise<void> | null = null;
-function loadGSI(): Promise<void> {
-  if (!gsiReady) {
-    gsiReady = new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.onload = () => resolve();
-      document.head.appendChild(script);
-    });
-  }
-  return gsiReady;
-}
 
 @customElement('salish-sea')
 export default class SalishSea extends LitElement {
@@ -401,23 +382,10 @@ export default class SalishSea extends LitElement {
     `;
   }
 
-  async doLogIn() {
-    await loadGSI();
-    // A nonce per attempt, configured here rather than declaratively in the
-    // markup, because it has to be generated fresh and its raw form handed to
-    // Supabase from the same closure that gave Google the digest.
-    const nonce = await generateNonce();
-    google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      context: 'use',
-      ux_mode: 'popup',
-      auto_select: false,
-      nonce: nonce.hashed,
-      callback: ({credential}) => {
-        this.receiveIdToken(credential, nonce.raw).catch(err => console.error(err));
-      },
-    });
-    google.accounts.id.prompt();
+  doLogIn() {
+    promptGoogleSignIn((token, nonce) => {
+      this.receiveIdToken(token, nonce).catch(err => console.error(err));
+    }).catch(err => console.error(err));
   }
 
   async doLogOut() {
