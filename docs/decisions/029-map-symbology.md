@@ -3,7 +3,7 @@
 **Status:** accepted
 **Date:** 2026-08-27
 **Issue:** bd `salish-fll` (epic), `salish-fll.1` (findings)
-**Depends on:** bd `salish-ayb` — adopting the [animals register](https://github.com/salish-sea/animals). See "Sequencing" below; this record cannot be implemented well before it lands.
+**Depends on:** bd `salish-ayb` — adopting the [animals register](https://github.com/salish-sea/animals). See "Sequencing" below; this record cannot be implemented well before it lands. That adoption is now its own record: [033](033-register-names-the-animals.md).
 **Prototype:** branch `prototype/map-symbology` (four variants behind `?variant=`), retained as the primary source.
 
 ## Problem
