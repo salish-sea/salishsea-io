@@ -60,10 +60,10 @@ That is the finding this record most wants to preserve: *the fix for a cluttered
 
 ## Sequencing: this depends on the register
 
-> **The two paragraphs below are satisfied as of 2026-08-29, and are kept as the state at decision time.** Register adoption landed in #398, and its reasoning is now [033](033-register-names-the-animals.md). Display names come from the register wherever it has an exact iNaturalist crosswalk — 91.5% of occurrences against edition 2026.08.1 — and from `inaturalist.taxa` only for the remainder, which is almost entirely killer-whale subspecies (`salish-0gb`). The prerequisite was met before this record was implemented, which is what the sequencing asked for.
-
+> **The two paragraphs below are satisfied as of 2026-08-29, and are kept as the state at decision time.** Register adoption landed in #398, and its reasoning is now [033](033-register-names-the-animals.md). Display names come from the register wherever it has an exact iNaturalist crosswalk — 58,669 of 64,097 occurrences, 91.5%, against edition 2026.08.1 — and from `inaturalist.taxa` only for the remainder, which is almost entirely killer-whale subspecies (`salish-0gb`). The prerequisite was met before this record was implemented, which is what the sequencing asked for.
+>
 > ~~The short names are not ours to invent. `River otter` is `SSA:0000906`'s `common` row in the [animals register](https://github.com/salish-sea/animals), and today every display name on our map comes from `inaturalist.taxa` — an upstream mirror, which [008](008-source-schemas-are-upstream-mirrors.md) forbids surfacing in UI.~~
-
+>
 > ~~So **`salish-ayb` (register adoption) is a prerequisite, not a parallel track.** Implementing this record against iNaturalist's vernaculars would reproduce the clutter it exists to remove.~~
 
 The division of labour follows animals ADR-0011: the register asserts the canonical name; **we compose the presentation.** ADR-0011 names truncation and capitalisation as consumer concerns in as many words. So `Humpback` rather than `Humpback whale` is legitimately ours, and it is a *different* change from adopting `River otter` over `North American River Otter` — the latter fixes a wrong name, the former composes a short form. Short forms live here, keyed by `SSA:` identifier, and are never written back to the register.

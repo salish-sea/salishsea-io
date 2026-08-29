@@ -10,7 +10,7 @@ We compose the **display** from that name. Capitalisation, truncation, sort orde
 
 Neither side does the other's job. Where the register has asserted a name, we do not mint or substitute a different one, and the register does not supply a string for a map pin.
 
-**The fallback is a knowing exception, not a second source.** Where the register has no exact match — 8.5% of occurrences today — the map still shows iNaturalist's vernacular, which is a mirror's vocabulary surfacing in UI and therefore exactly what [008](008-source-schemas-are-upstream-mirrors.md) forbids. It is tolerated because the alternative is a blank label, and because every remaining case is a known one that the register can close by asserting a name (salish-0gb). The exception shrinks as the register grows; it is not a standing licence to read names from the mirror, and no new code may depend on it.
+**The fallback is a knowing exception, not a second source.** Where the register has no exact match — 5,428 of 64,097 occurrences, 8.5%, measured in production on 2026-08-29 against edition 2026.08.1 — the map still shows iNaturalist's vernacular, which is a mirror's vocabulary surfacing in UI and therefore exactly what [008](008-source-schemas-are-upstream-mirrors.md) forbids. It is tolerated because the alternative is a blank label, and because every remaining case is a known one that the register can close by asserting a name (salish-0gb). The exception shrinks as the register grows; it is not a standing licence to read names from the mirror, and no new code may depend on it.
 
 ## Why
 
@@ -26,7 +26,7 @@ SSA:0000906  skos:exactMatch  inaturalist.taxon:41777
 
 Adopting it is not a new coupling. Animals [ADR-0012](https://github.com/salish-sea/animals/blob/main/decisions/0012-relationship-to-the-salishsea-io-catalogue.md) already decides that this repository "stops holding independent identity and becomes a materialization of it". This record is that decision reaching the display layer, which is the smallest slice of it that stands alone.
 
-**Matching is by exact iNaturalist taxon id, and only exact.** The register's ecotypes are deliberately `skos:broadMatch` to their species; resolving through a broader match would put a wider claim on the map than the data supports. In production today that resolves 91.5% of occurrences (58,669 of 64,097, edition 2026.08.1). The residue is almost entirely killer-whale subspecies, whose qualifier is the ecotype the map most wants to show and which get their label from the pod branch instead — salish-0gb.
+**Matching is by exact iNaturalist taxon id, and only exact.** The register's ecotypes are deliberately `skos:broadMatch` to their species; resolving through a broader match would put a wider claim on the map than the data supports. Measured in production on 2026-08-29, that resolves 91.5% of occurrences (58,669 of 64,097, edition 2026.08.1). The residue is almost entirely killer-whale subspecies, whose qualifier is the ecotype the map most wants to show and which get their label from the pod branch instead — salish-0gb.
 
 ### Decision 008 does not govern the register
 
