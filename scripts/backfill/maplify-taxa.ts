@@ -95,17 +95,30 @@ function parsePlan(text: string): Plan {
         return [v as Record<string, unknown>, reject] as const;
     };
 
+    // The direct path groups by all three columns, so it cannot repeat a tuple; a file
+    // can. A repeat is counted twice in the gained/moved totals while the SQL targets the
+    // same rows once — the report again describing something the statement will not do.
+    // The PAIR may legitimately repeat with a different taxon_id (rows that currently
+    // disagree, which is what this backfill exists to settle), so the key is all three.
+    const tuples = new Set<string>();
     const current = doc['current'].map((v: unknown, i): Row => {
         const [r, reject] = row('current', i, v);
-        const name = r['name'] ?? null;
+        // Read the raw value rather than `?? null`: an absent key is not the same claim
+        // as an explicit null, and defaulting it would let a file that never mentions
+        // `name` target every sighting whose name IS null.
+        const name = r['name'];
         if (name !== null && typeof name !== 'string') throw reject('name must be a string or null');
         if (typeof r['scientific_name'] !== 'string') throw reject('scientific_name must be a string');
-        const taxonId = r['taxon_id'] ?? null;
+        const taxonId = r['taxon_id'];
         if (taxonId !== null && !isInt4(taxonId))
             throw reject('taxon_id must be a 32-bit integer or null');
         // n is only ever displayed, but it is displayed as a sum — so a string here does
         // not throw, it prints a concatenation the operator reads as a row count.
         if (!isInt4(r['n']) || r['n'] < 0) throw reject('n must be a non-negative integer');
+        const key = JSON.stringify([name, r['scientific_name'], taxonId]);
+        if (tuples.has(key))
+            throw reject('(name, scientific_name, taxon_id) appears more than once');
+        tuples.add(key);
         return { name, scientific_name: r['scientific_name'], taxon_id: taxonId, n: r['n'] };
     });
 
