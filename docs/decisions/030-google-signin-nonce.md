@@ -95,6 +95,23 @@ it looks like verification while proving only that we can read a value we were j
 page, and the digest cannot be computed there anyway (`crypto.subtle` is async). This is what
 forced the move to imperative configuration rather than a smaller edit.
 
+Two nonce lifecycles were tried and abandoned during review of the change itself. Both look
+like simplifications of what shipped, so they are recorded here rather than left to be
+rediscovered by whoever next reads `google-signin.ts` and finds the retirement logic fussy.
+
+**A fresh nonce per click, reconfiguring GSI each time.** The obvious reading of "once only",
+and wrong. Google's reference says `initialize` is called once and GSI warns at runtime that
+"only the last initialized instance will be used": a second click swaps the nonce underneath
+the prompt already on screen, so completing that prompt presents a token minted against the
+previous nonce and GoTrue answers "Nonces mismatch". Two components dispatch `log-in`
+([`login-button.ts`](../../src/login-button.ts), [`obs-panel.ts`](../../src/obs-panel.ts)) and
+One Tap appears in a screen corner, which is precisely the shape that invites a second click.
+
+**One nonce for the life of the page, configuring GSI once.** Fixes the above and fails the
+other way. GoTrue never consumes a nonce — it only compares `sha256(nonce)` to the claim — so
+nothing retires a page-lifetime value, and one nonce ends up covering every sign-in on that
+page. A nonce that can be presented twice is not a nonce.
+
 ## Consequences
 
 Auth failures now surface in Sentry, which they never did before — expect this issue class to
