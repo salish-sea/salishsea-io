@@ -112,18 +112,31 @@ type Mirrored = { id: number; is_active: boolean; current_taxon_id: number | nul
  * instead, before a single upstream request or a line of emitted SQL.
  */
 function parsePlan(text: string): Mirrored[] {
+    // What inaturalist.taxa.id actually is. A JSON number that is not an int4 — 1.5,
+    // 2147483648 — would survive a bare typeof check and fail only at ::int[], after
+    // every upstream request had already been spent.
+    const isInt4 = (v: unknown): v is number =>
+        typeof v === 'number' && Number.isInteger(v) && v >= -2147483648 && v <= 2147483647;
+
     const doc: unknown = JSON.parse(text);
     if (!Array.isArray(doc))
         throw new Error('--plan-from expects a JSON array of {id, is_active, current_taxon_id}');
+    const seen = new Set<number>();
     return doc.map((row: unknown, i) => {
         const r = row as Record<string, unknown> | null;
         const reject = (what: string) =>
             new Error(`--plan-from row ${i}: ${what} — ${JSON.stringify(row).slice(0, 120)}`);
-        if (typeof r?.['id'] !== 'number') throw reject('id must be a number');
+        if (!isInt4(r?.['id'])) throw reject('id must be a 32-bit integer');
         if (typeof r['is_active'] !== 'boolean') throw reject('is_active must be a boolean');
         const current = r['current_taxon_id'] ?? null;
-        if (current !== null && typeof current !== 'number')
-            throw reject('current_taxon_id must be a number or null');
+        if (current !== null && !isInt4(current))
+            throw reject('current_taxon_id must be a 32-bit integer or null');
+        // The mirror has id as its primary key, so the SQL path cannot produce a
+        // duplicate and a plan file should not either. Two rows for one taxon give unnest
+        // two source rows for the same t.id, and Postgres then picks one of them for the
+        // UPDATE without saying which.
+        if (seen.has(r['id'])) throw reject(`id ${r['id']} appears more than once`);
+        seen.add(r['id']);
         return { id: r['id'], is_active: r['is_active'], current_taxon_id: current };
     });
 }
