@@ -337,6 +337,16 @@ async function main(): Promise<void> {
         }
 
         if (emitSql) {
+            // The direct path writes inside sql.begin(); the emitted file gets the same
+            // guarantee in the only way it can — in the text itself. The documented route
+            // does not need it: `supabase db query --linked` sends the whole file as one
+            // simple query, which Postgres runs in an implicit transaction block (verified
+            // 2026-08-29 — a SET LOCAL in the first statement was still in force in the
+            // second). But an operator running the file through `psql -f` gets autocommit
+            // per statement, and a repoint failing after the status update would leave
+            // taxa flagged retired with rows still pointing at them. Explicit costs
+            // nothing on either route.
+            process.stdout.write('BEGIN;\n');
             if (!toWrite.length) { console.error('-- no status changes'); }
             else {
                 const col = (f: (t: typeof toWrite[number]) => string | number | boolean | null) =>
@@ -357,6 +367,7 @@ async function main(): Promise<void> {
             // in two places.
             for (const [table, column] of TAXON_COLUMNS)
                 process.stdout.write(`${repointSql(table, column)};\n`);
+            process.stdout.write('COMMIT;\n');
             return;
         }
 
