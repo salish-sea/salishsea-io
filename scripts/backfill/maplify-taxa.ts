@@ -30,11 +30,24 @@
  * needs DB_PASSWORD, and the Management API (`supabase db query --linked`) runs SQL but
  * cannot run TypeScript. So the plan is computed here and the statement applied there:
  *
- *   npx supabase db query --linked "SELECT ... FROM maplify.sightings GROUP BY 1,2,3" \
- *     | ... > /tmp/domain.json
+ *   npx supabase db query --linked "$(cat <<'SQL'
+ *   SELECT json_build_object(
+ *     'current', COALESCE((SELECT json_agg(x) FROM (
+ *       SELECT name, scientific_name, taxon_id, count(*)::int AS n
+ *       FROM maplify.sightings GROUP BY 1, 2, 3) x), '[]'::json),
+ *     'taxa', COALESCE((SELECT json_agg(y) FROM (
+ *       SELECT id, scientific_name FROM inaturalist.taxa) y), '[]'::json))
+ *   SQL
+ *   )" | jq '.rows[0].json_build_object' > /tmp/domain.json
  *   npx tsx scripts/backfill/maplify-taxa.ts --plan-from /tmp/domain.json --emit-sql \
  *     > /tmp/backfill.sql
  *   npx supabase db query --linked "$(cat /tmp/backfill.sql)"
+ *
+ * Those two SELECTs are the plan file's contract, and parsePlan below enforces it: the
+ * same columns the direct path reads, so the two routes see the same domain. The COALESCE
+ * is not decoration — json_agg over zero rows is NULL, not [], so an empty table would
+ * otherwise write "current": null and be rejected as a malformed plan rather than read as
+ * the empty domain the direct path sees.
  *
  * The domain is a few dozen rows either way, so nothing large crosses the boundary.
  */
@@ -44,6 +57,88 @@ import { resolveScientificName, type NormalizedSighting } from '../ingest/maplif
 
 type Pair = { name: string | null; scientific_name: string; n: number };
 type Row = { name: string | null; scientific_name: string; taxon_id: number | null; n: number };
+
+type Plan = { current: Row[]; taxa: { id: number; scientific_name: string }[] };
+
+/**
+ * Read a plan file, refusing anything that is not the shape this script reasons about.
+ *
+ * The plan arrives from `supabase db query --linked`, so its JSON is not this script's to
+ * trust — the same reasoning as the sibling backfill's parsePlan (inat-taxa-status.ts).
+ * What goes wrong here is quieter than a bad write. The emitted UPDATE guards itself with
+ * IS DISTINCT FROM, so a spurious plan row is a no-op; the damage is to the REPORT the
+ * operator reads before applying. A taxon_id arriving as the string "123" makes
+ * `to !== row.taxon_id` true for a row that has not changed, and a string `n` makes the
+ * row counts concatenate instead of summing. The numbers then describe a plan the
+ * statement will not carry out.
+ *
+ * Duplicates are the exception that can change the outcome. inaturalist.taxa has id as
+ * its primary key and scientific_name UNIQUE, so the SQL path cannot produce either; a
+ * hand-assembled file can. Two taxa rows sharing a scientific_name leave taxonByName
+ * holding whichever came last, silently deciding which taxon every sighting with that
+ * name resolves to.
+ */
+function parsePlan(text: string): Plan {
+    // What inaturalist.taxa.id and maplify.sightings.taxon_id actually are. A JSON number
+    // that is not an int4 would survive a bare typeof check and fail only at ::int[].
+    const isInt4 = (v: unknown): v is number =>
+        typeof v === 'number' && Number.isInteger(v) && v >= -2147483648 && v <= 2147483647;
+
+    const doc = JSON.parse(text) as Record<string, unknown> | null;
+    if (!Array.isArray(doc?.['current']) || !Array.isArray(doc['taxa']))
+        throw new Error('--plan-from expects {"current": [...], "taxa": [...]}');
+
+    const row = (where: string, i: number, v: unknown) => {
+        const reject = (what: string) =>
+            new Error(`--plan-from ${where}[${i}]: ${what} — ${JSON.stringify(v).slice(0, 120)}`);
+        if (v === null || typeof v !== 'object' || Array.isArray(v)) throw reject('must be an object');
+        return [v as Record<string, unknown>, reject] as const;
+    };
+
+    // The direct path groups by all three columns, so it cannot repeat a tuple; a file
+    // can. A repeat is counted twice in the gained/moved totals while the SQL targets the
+    // same rows once — the report again describing something the statement will not do.
+    // The PAIR may legitimately repeat with a different taxon_id (rows that currently
+    // disagree, which is what this backfill exists to settle), so the key is all three.
+    const tuples = new Set<string>();
+    const current = doc['current'].map((v: unknown, i): Row => {
+        const [r, reject] = row('current', i, v);
+        // Read the raw value rather than `?? null`: an absent key is not the same claim
+        // as an explicit null, and defaulting it would let a file that never mentions
+        // `name` target every sighting whose name IS null.
+        const name = r['name'];
+        if (name !== null && typeof name !== 'string') throw reject('name must be a string or null');
+        if (typeof r['scientific_name'] !== 'string') throw reject('scientific_name must be a string');
+        const taxonId = r['taxon_id'];
+        if (taxonId !== null && !isInt4(taxonId))
+            throw reject('taxon_id must be a 32-bit integer or null');
+        // n is only ever displayed, but it is displayed as a sum — so a string here does
+        // not throw, it prints a concatenation the operator reads as a row count.
+        if (!isInt4(r['n']) || r['n'] < 0) throw reject('n must be a non-negative integer');
+        const key = JSON.stringify([name, r['scientific_name'], taxonId]);
+        if (tuples.has(key))
+            throw reject('(name, scientific_name, taxon_id) appears more than once');
+        tuples.add(key);
+        return { name, scientific_name: r['scientific_name'], taxon_id: taxonId, n: r['n'] };
+    });
+
+    const ids = new Set<number>();
+    const names = new Set<string>();
+    const taxa = doc['taxa'].map((v: unknown, i) => {
+        const [r, reject] = row('taxa', i, v);
+        if (!isInt4(r['id'])) throw reject('id must be a 32-bit integer');
+        if (typeof r['scientific_name'] !== 'string')
+            throw reject('scientific_name must be a string');
+        if (ids.has(r['id'])) throw reject(`id ${r['id']} appears more than once`);
+        if (names.has(r['scientific_name']))
+            throw reject(`scientific_name ${r['scientific_name']} appears more than once`);
+        ids.add(r['id']);
+        names.add(r['scientific_name']);
+        return { id: r['id'], scientific_name: r['scientific_name'] };
+    });
+
+    return { current, taxa };
+}
 
 /** A SQL string literal, or NULL. Names carry apostrophes and mis-decoded bytes. */
 function lit(value: string | null): string {
@@ -90,9 +185,7 @@ async function main(): Promise<void> {
         let taxa: { id: number; scientific_name: string }[];
         if (usePlanFile) {
             const { readFileSync } = await import('node:fs');
-            const doc = JSON.parse(readFileSync(planFrom!, 'utf8'));
-            current = doc.current;
-            taxa = doc.taxa;
+            ({ current, taxa } = parsePlan(readFileSync(planFrom!, 'utf8')));
         } else {
             // The domain: every distinct combination the resolver could see, with the
             // taxon each currently carries.
