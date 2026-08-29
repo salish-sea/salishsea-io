@@ -59,7 +59,9 @@ const TAXA_URL = 'https://api.inaturalist.org/v2/taxa';
 // becomes a retryable AbortError instead of blocking the invocation.
 const FETCH_TIMEOUT_MS = 20_000;
 
-// iNat caps the `/taxa` `id` param at ~30 ids per request.
+// iNat caps a `/taxa` id list at ~30 per request, and the path form's default
+// per_page is 30 — so a full chunk still comes back in one page (verified with 30
+// live ids 2026-08-29). Raising this would need pagination, not just a bigger number.
 const TAXA_ID_CHUNK = 30;
 
 // id-keyset pagination has no page*per_page cap and no live-window drift, but a
@@ -83,7 +85,13 @@ const OBSERVATION_FIELDS =
 
 // v2 `/taxa` field selection (copied from inaturalist.fetch_taxa in migration
 // 20250904165159_fetch_data.sql; matches parseInatTaxa's schema).
-const TAXA_FIELDS = '(id:!t,ancestor_ids:!t,parent_id:!t,rank:!t,name:!t,preferred_common_name:!t)';
+// v2 `/taxa` field selection. `is_active` and `current_synonymous_taxon_ids` are
+// what make a retired taxon legible: without them the path form below would return
+// one indistinguishable from a live taxon, and the mirror would record a
+// deactivation as business as usual.
+const TAXA_FIELDS =
+    '(id:!t,ancestor_ids:!t,parent_id:!t,rank:!t,name:!t,preferred_common_name:!t,' +
+    'is_active:!t,current_synonymous_taxon_ids:!t)';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -184,14 +192,28 @@ function observationsUrl(window: IngestWindow, idAbove: number): string {
     return `${OBSERVATIONS_URL}?${params.toString()}`;
 }
 
+/**
+ * Ask for taxa by the `/taxa/{ids}` PATH form, never `/taxa?id=`.
+ *
+ * The two routes are not equivalent. `id=` as a QUERY PARAM filters to ACTIVE taxa:
+ * a retired id comes back as `total_results: 0`, with nothing to say it ever
+ * existed. The path form takes the same comma-separated list and returns the taxon
+ * flagged `is_active: false` with `current_synonymous_taxon_ids`. Both v1 and v2
+ * behave this way — it is the route, not the version (salish-5ds; verified against
+ * taxon 1368491, Sagmatias obliquidens → 1664971).
+ *
+ * That distinction is load-bearing here, not cosmetic: resolveTaxonClosure treats a
+ * requested-but-unreturned id as an unresolvable closure and throws, so under the
+ * query form a single referenced taxon retired since the last run aborted the entire
+ * ingest — every observation in the window, not just that one.
+ */
 function taxaUrl(ids: readonly number[]): string {
     const params = new URLSearchParams({
-        id: ids.join(','),
         fields: TAXA_FIELDS,
         preferred_place_id: '1',
         preferred_locale: 'en',
     });
-    return `${TAXA_URL}?${params.toString()}`;
+    return `${TAXA_URL}/${ids.join(',')}?${params.toString()}`;
 }
 
 export type ObservationFetchResult = {
@@ -275,6 +297,14 @@ export async function fetchAllObservationPages(
  * recompute still-missing until the set is empty. Returns the taxa newly fetched
  * (to be upserted). Throws if a requested taxon cannot be resolved (a taxa-API
  * failure or an id the API won't return) — that counts against completeness.
+ *
+ * A RETIRED taxon resolves like any other, because taxaUrl asks by the path form:
+ * it arrives flagged inactive, naming its replacement, and the replacement joins the
+ * referenced set (referencedTaxonIdsFromTaxa) so the closure covers it too. The
+ * ingest RECORDS a retirement; it does not act on one — repointing the records that
+ * sit on a retired taxon is a batch repair (scripts/backfill/inat-taxa-status.ts,
+ * salish-4hq), not a write-time rule. The throw below therefore now means what it
+ * says: an id upstream genuinely does not know, not merely one it has retired.
  */
 export async function resolveTaxonClosure(
     sql: Sql,

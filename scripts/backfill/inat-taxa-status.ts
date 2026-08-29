@@ -13,11 +13,16 @@
  * `current_synonymous_taxon_ids` naming its replacement. Both v1 and v2 behave this
  * way; the difference is the route, not the version.
  *
- * The ingest builds `?id=` (see taxaUrl in fetch-inaturalist.ts), so a retirement is
- * invisible to the code that maintains the mirror — which is exactly why this drift
- * went unnoticed. Worse, resolveTaxonClosure treats "requested but not returned" as a
- * hard failure, so a referenced taxon retired since the last run aborts the whole
- * ingest. Filed separately.
+ * The ingest built `?id=` until salish-5ds, so a retirement was invisible to the code
+ * that maintains the mirror — which is exactly why this drift went unnoticed, and why
+ * a taxon retired since the last run aborted the whole ingest (resolveTaxonClosure
+ * treats "requested but not returned" as a hard failure). It now asks by the path
+ * form, so a taxon ENTERING the mirror carries its true status.
+ *
+ * That does not retire this script. The closure only fetches ids we do not already
+ * hold, and the upsert is ON CONFLICT DO NOTHING, so a taxon already stored is never
+ * re-asked: the nine retirements measured on 2026-08-28 are all on rows the ingest
+ * will not revisit (salish-4hq).
  *
  * This script uses v1's path form. v2's path form would serve equally well; v1 is
  * chosen only because it returns both fields without a field selection.

@@ -10,8 +10,10 @@
  * accumulated snapshot and that the id_above cursor advances by each page's max id.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchAllObservationPages } from './fetch-inaturalist.ts';
+import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
 import type { IngestWindow } from '../../../scripts/ingest/persist.ts';
+import type { Sql } from 'postgres';
+import type { NormalizedObservation } from '../../../scripts/ingest/inaturalist.ts';
 
 const WINDOW: IngestWindow = { start: '2026-06-29', end: '2026-07-09' };
 const noopLog = () => {};
@@ -140,5 +142,112 @@ describe('fetchAllObservationPages sweeps the window by ascending id', () => {
         await expect(fetchAllObservationPages(WINDOW, noopLog)).rejects.toThrow(
             /keyset sweep exceeded 1000 pages/,
         );
+    });
+});
+
+/**
+ * Shell test for the taxon closure over a RETIRED taxon (salish-5ds).
+ *
+ * The closure used to ask `/taxa?id=<list>`, where the id QUERY PARAM filters to
+ * active taxa: a retired id came back as `total_results: 0` — indistinguishable from
+ * an id that never existed — and resolveTaxonClosure throws on an id it requested but
+ * did not get back. One taxon retired upstream since the last run therefore aborted
+ * the whole ingest and wrote nothing. The `/taxa/{ids}` PATH form returns it flagged
+ * instead, which is what these tests pin.
+ *
+ * Fetch is stubbed to answer from a fixed table of taxa, keyed by the ids in the
+ * request PATH, so a test that regressed to the query form would find no ids there
+ * and fail rather than quietly pass.
+ */
+describe('resolveTaxonClosure over a retired taxon', () => {
+    /** Only what fetchExistingTaxonIds does: SELECT ids already stored. */
+    const storedSql = (ids: number[]) =>
+        (() => Promise.resolve(ids.map((id) => ({ id })))) as unknown as Sql;
+
+    /** One minimal valid v2 /taxa record (passes InatTaxonSchema). */
+    function taxonRecord(
+        id: number,
+        over: Partial<{ ancestor_ids: number[]; parent_id: number | null;
+                        is_active: boolean; current_synonymous_taxon_ids: number[] | null }> = {},
+    ) {
+        return {
+            id, ancestor_ids: [id], parent_id: null, rank: 'species',
+            name: `Testus ${id}`, preferred_common_name: null,
+            is_active: true, current_synonymous_taxon_ids: null, ...over,
+        };
+    }
+
+    /**
+     * Serve taxa by the ids in the request path — the path form's actual contract.
+     * Ids absent from `table` are simply not returned, which is how upstream answers
+     * for a genuinely unknown id.
+     */
+    function stubTaxaFetch(table: Record<number, unknown>): string[] {
+        const urls: string[] = [];
+        vi.stubGlobal('fetch', (url: string) => {
+            urls.push(String(url));
+            const path = new URL(String(url)).pathname.split('/').pop() ?? '';
+            const ids = path.split(',').map(Number).filter((n) => Number.isFinite(n));
+            const results = ids.map((id) => table[id]).filter((t) => t !== undefined);
+            return Promise.resolve({
+                ok: true, status: 200,
+                text: () => Promise.resolve(JSON.stringify({ total_results: results.length, results })),
+            });
+        });
+        return urls;
+    }
+
+    const observation = (taxonId: number, ancestorIds: number[]): NormalizedObservation => ({
+        id: 1, description: null, lon: -123, lat: 48, observedAt: '2026-07-04T13:08:00-07:00',
+        licenseCode: 'cc-by-nc', uri: 'https://inat/1', login: 'u', orcid: null,
+        taxonId, ancestorIds, publicPositionalAccuracy: null,
+        updatedAt: '2026-07-05T20:08:06-07:00', photos: [],
+    });
+
+    it('asks by the path form, not the retired-taxon-hiding id= query param', async () => {
+        const urls = stubTaxaFetch({ 5: taxonRecord(5) });
+
+        await resolveTaxonClosure(storedSql([]), [observation(5, [5])], noopLog);
+
+        expect(urls[0]).toContain('/v2/taxa/5?');
+        expect(urls[0]).not.toContain('id=5');
+    });
+
+    it('resolves a retired taxon instead of aborting the run', async () => {
+        const urls = stubTaxaFetch({
+            10: taxonRecord(10, { ancestor_ids: [5, 10], parent_id: 5, is_active: false,
+                                  current_synonymous_taxon_ids: [20] }),
+            20: taxonRecord(20, { ancestor_ids: [5, 20], parent_id: 5 }),
+            5: taxonRecord(5),
+        });
+
+        const taxa = await resolveTaxonClosure(storedSql([]), [observation(10, [5, 10])], noopLog);
+
+        const retired = taxa.find((t) => t.id === 10);
+        expect(retired?.isActive).toBe(false);
+        expect(retired?.currentTaxonId).toBe(20);
+        // The replacement is fetched too: current_taxon_id is a NOT DEFERRABLE FK, so
+        // recording the retirement without it would fail the persist.
+        expect(taxa.map((t) => t.id).sort((a, b) => a - b)).toEqual([5, 10, 20]);
+        expect(urls).toHaveLength(2); // first the referenced pair, then the replacement
+    });
+
+    it('still throws for an id upstream genuinely does not know', async () => {
+        stubTaxaFetch({ 5: taxonRecord(5) }); // 10 is absent entirely
+
+        await expect(
+            resolveTaxonClosure(storedSql([]), [observation(10, [5, 10])], noopLog),
+        ).rejects.toThrow(/taxon closure unresolved/);
+    });
+
+    it('does not re-ask for a replacement already in the mirror', async () => {
+        const urls = stubTaxaFetch({
+            10: taxonRecord(10, { is_active: false, current_synonymous_taxon_ids: [20] }),
+        });
+
+        const taxa = await resolveTaxonClosure(storedSql([20]), [observation(10, [10])], noopLog);
+
+        expect(taxa.map((t) => t.id)).toEqual([10]);
+        expect(urls).toHaveLength(1);
     });
 });

@@ -81,6 +81,14 @@ REFRESH MATERIALIZED VIEW CONCURRENTLY public.occurrence_identifier_candidates;
 
 ## Practical notes
 
+- **A retired taxon is recorded, not resolved.** iNaturalist retires a taxon by
+  marking it inactive and naming a replacement. The closure asks by the
+  `/taxa/{ids}` path form, so a retirement arrives flagged and is mirrored into
+  `is_active` / `current_taxon_id` (the `?id=` query form filters retired taxa out
+  entirely, and used to abort the whole run — salish-5ds). Records still sit on the
+  retired taxon: repointing them is a batch repair
+  ([`inat-taxa-status.ts`](../../../scripts/backfill/inat-taxa-status.ts)), and so is
+  refreshing a taxon already in the mirror, which the ingest never re-asks about.
 - **Chunk by month.** Maplify fetches a whole window in one request and
   iNaturalist paginates + resolves a taxon closure; month-sized windows keep
   each transaction bounded and give one legible `ingest.runs` row per month.
