@@ -1,3 +1,4 @@
+import { reportError } from './report-error.ts';
 import { css, LitElement, nothing, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { html } from "lit/static-html.js";
@@ -317,8 +318,7 @@ export class ObsSummary extends LitElement {
     e.preventDefault();
     const {error} = await supabase().from('observations').delete().eq('id', this.sighting.id);
     if (error) {
-      console.error('Error deleting observation:', error);
-      // TODO: surface to user via a toast/state property
+      reportError(this, "Couldn't delete that sighting. Please try again.", {cause: error});
       return;
     }
   }

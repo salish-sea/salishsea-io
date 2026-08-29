@@ -16,8 +16,10 @@ import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
 import { sentryClient } from "./sentry.ts";
-import { captureException } from "@sentry/browser";
 import { promptGoogleSignIn } from "./google-signin.ts";
+import './error-toast.ts';
+import type ErrorToast from './error-toast.ts';
+import { reportError, type ErrorReport } from './report-error.ts';
 import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
 import { fromLonLat } from 'ol/proj.js';
@@ -163,6 +165,7 @@ export default class SalishSea extends LitElement {
 
   private mapRef = createRef<ObsMap>();
   private panelRef = createRef<ObsPanel>();
+  private errorToastRef = createRef<ErrorToast>();
 
   @state()
   private lastOwnOccurrence: Occurrence | null = null;
@@ -263,6 +266,10 @@ export default class SalishSea extends LitElement {
         this.contributor = undefined;
         this.lastOwnOccurrence = null;
       }
+    });
+    this.addEventListener('report-error', evt => {
+      const {message, persist} = (evt as CustomEvent<ErrorReport>).detail;
+      this.errorToastRef.value?.show(message, {persist});
     });
     this.addEventListener('log-in', this.doLogIn.bind(this));
     this.addEventListener('log-out', this.doLogOut.bind(this));
@@ -379,13 +386,14 @@ export default class SalishSea extends LitElement {
           })}
         </obs-panel>
       </main>
+      <error-toast ${ref(this.errorToastRef)}></error-toast>
     `;
   }
 
   doLogIn() {
     promptGoogleSignIn((token, nonce) => {
       this.receiveIdToken(token, nonce).catch(err => console.error(err));
-    }).catch(err => console.error(err));
+    }).catch(err => reportError(this, "Couldn't reach Google to sign in. An ad blocker may be blocking it.", {cause: err}));
   }
 
   async doLogOut() {
@@ -399,10 +407,8 @@ export default class SalishSea extends LitElement {
     // Supabase Sentry integration only wraps PostgREST — so an unchecked error
     // here is invisible twice over: nothing reported, and a Log in button that
     // silently does nothing. That is how the nonce mismatch went unnoticed.
-    if (error) {
-      captureException(error);
-      throw error;
-    }
+    if (error)
+      reportError(this, "Couldn't sign you in with Google. Please try again.", {cause: error});
   }
 
   protected async firstUpdated(_changedProperties: PropertyValues): Promise<void> {
@@ -509,9 +515,17 @@ export default class SalishSea extends LitElement {
         .gte('location->lat', miny).lte('location->lat', maxy);
     }
 
-    const {data} = await query
-      .order('observed_at', {ascending: false})
-      .throwOnError();
+    let data;
+    try {
+      ({data} = await query
+        .order('observed_at', {ascending: false})
+        .throwOnError());
+    } catch (err) {
+      // Persist: an empty list is indistinguishable from a quiet day, so a
+      // message that times out would leave the map lying about the water.
+      reportError(this, "Couldn't load sightings. The list may be incomplete.", {cause: err, persist: true});
+      return;
+    }
 
     const occurrences = data.map(record => ({
       observed_at_ms: Date.parse(record.observed_at),
