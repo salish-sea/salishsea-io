@@ -6,8 +6,9 @@
  * (covering: multiple photos, a photo with null license_code, null
  * public_positional_accuracy, a non-default record license, a record with NO
  * photos, and one crafted record with time_observed_at=null to exercise
- * skipping). `fixtures/inaturalist-taxa.json` is real /taxa records (incl.
- * "Life", parent_id=null).
+ * skipping). `fixtures/inaturalist-taxa.json` is real /taxa records fetched by the
+ * `/taxa/{ids}` path form on 2026-08-29 (incl. "Life", parent_id=null, and the
+ * retired Sagmatias obliquidens 1368491 with its replacement 1664971 — salish-5ds).
  */
 
 import { describe, test, expect } from 'vitest';
@@ -26,6 +27,7 @@ import {
     InatObservationSchema,
     InatTaxonSchema,
     type NormalizedObservation,
+    type NormalizedTaxon,
     type FetchedPage,
 } from './inaturalist.ts';
 
@@ -69,6 +71,19 @@ const obs = (over: Partial<NormalizedObservation> = {}): NormalizedObservation =
     licenseCode: 'cc-by-nc', uri: 'https://inat/1', login: 'u', orcid: null, taxonId: 41553,
     ancestorIds: [48460, 1, 41553], publicPositionalAccuracy: null,
     updatedAt: '2026-07-05T20:08:06-07:00', photos: [], ...over,
+});
+
+/** A minimal valid upstream taxon, for targeted mutation. */
+const rawTaxon = (over: Record<string, unknown> = {}) => ({
+    id: 1, ancestor_ids: [1], parent_id: null, rank: 'species', name: 'Testus specificus',
+    preferred_common_name: 'Test Whale', is_active: true, current_synonymous_taxon_ids: null,
+    ...over,
+});
+
+/** A minimal normalized taxon, for the closure diffs. */
+const taxon = (over: Partial<NormalizedTaxon> = {}): NormalizedTaxon => ({
+    id: 1, parentId: null, scientificName: 'Testus specificus', vernacularName: null,
+    rank: 'species', ancestorIds: [1], isActive: true, currentTaxonId: null, ...over,
 });
 
 describe('parseInatResponse', () => {
@@ -209,8 +224,48 @@ describe('parseInatTaxa / normalizeTaxon', () => {
     });
 
     test('rejects a taxon with an unknown rank', () => {
-        const bad = { total_results: 1, results: [{ id: 1, ancestor_ids: [1], parent_id: null, rank: 'genusoid', name: 'X' }] };
-        expect(parseInatTaxa(bad).ok).toBe(false);
+        expect(parseInatTaxa({ total_results: 1, results: [rawTaxon({ rank: 'genusoid' })] }).ok).toBe(false);
+    });
+
+    // salish-5ds. The `?id=` query form hid retirements entirely; now that the shell
+    // asks by the path form, a retired taxon arrives and has to be recorded as one.
+    test('flags a retired taxon and records its replacement', () => {
+        const retired = taxaFixture.results.find((t: { id: number }) => t.id === 1368491);
+        const n = normalizeTaxon(InatTaxonSchema.parse(retired));
+        expect(n.isActive).toBe(false);
+        expect(n.currentTaxonId).toBe(1664971);
+    });
+
+    test('an active taxon is active with no replacement', () => {
+        const n = normalizeTaxon(InatTaxonSchema.parse(
+            taxaFixture.results.find((t: { id: number }) => t.id === 1664971),
+        ));
+        expect(n.isActive).toBe(true);
+        expect(n.currentTaxonId).toBeNull();
+    });
+
+    // A split names several successors; picking one would guess which animal was
+    // seen. Same rule as scripts/backfill/inat-taxa-status.ts.
+    test('a split taxon is inactive with NO replacement', () => {
+        const n = normalizeTaxon(InatTaxonSchema.parse(
+            rawTaxon({ is_active: false, current_synonymous_taxon_ids: [2, 3] }),
+        ));
+        expect(n.isActive).toBe(false);
+        expect(n.currentTaxonId).toBeNull();
+    });
+
+    // taxa_replacement_implies_inactive would otherwise abort the persist.
+    test('an active taxon naming a synonym still records no replacement', () => {
+        const n = normalizeTaxon(InatTaxonSchema.parse(
+            rawTaxon({ is_active: true, current_synonymous_taxon_ids: [2] }),
+        ));
+        expect(n.currentTaxonId).toBeNull();
+    });
+
+    // Defaulting a missing is_active to `true` would write "active" on no evidence.
+    test('rejects a taxon with no is_active rather than assuming it is active', () => {
+        const { is_active: _drop, ...noFlag } = rawTaxon();
+        expect(parseInatTaxa({ total_results: 1, results: [noFlag] }).ok).toBe(false);
     });
 });
 
@@ -231,6 +286,15 @@ describe('taxon closure diffs', () => {
         // includes a parent_id that is not itself in the fixture results
         expect(ids).toContain(41707); // parent of Phoca vitulina (41708)
         expect(ids).toContain(48460);
+    });
+
+    // current_taxon_id is a NOT DEFERRABLE FK back into the mirror, so a retirement
+    // cannot be stored without its replacement (salish-5ds).
+    test('referencedTaxonIdsFromTaxa pulls in a retired taxon\'s replacement', () => {
+        const ids = referencedTaxonIdsFromTaxa([
+            taxon({ id: 10, isActive: false, currentTaxonId: 77 }),
+        ]);
+        expect(ids).toContain(77);
     });
 
     test('missingTaxonIds returns referenced-not-present, sorted', () => {

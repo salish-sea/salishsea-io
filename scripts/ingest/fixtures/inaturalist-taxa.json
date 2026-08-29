@@ -1,17 +1,17 @@
 {
-  "total_results": 5,
+  "total_results": 7,
   "page": 1,
   "per_page": 30,
   "results": [
     {
       "id": 48460,
-      "ancestor_ids": [
-        48460
-      ],
+      "ancestor_ids": [],
       "parent_id": null,
       "rank": "stateofmatter",
       "name": "Life",
-      "preferred_common_name": "life"
+      "preferred_common_name": "life",
+      "is_active": true,
+      "current_synonymous_taxon_ids": null
     },
     {
       "id": 41708,
@@ -27,13 +27,16 @@
         41573,
         372843,
         41687,
-        41707,
-        41708
+        1691817,
+        1691820,
+        41707
       ],
       "parent_id": 41707,
       "rank": "species",
       "name": "Phoca vitulina",
-      "preferred_common_name": "Harbor Seal"
+      "preferred_common_name": "Harbor Seal",
+      "is_active": true,
+      "current_synonymous_taxon_ids": null
     },
     {
       "id": 41740,
@@ -49,13 +52,14 @@
         41573,
         372843,
         41736,
-        41737,
-        41740
+        41737
       ],
       "parent_id": 41737,
       "rank": "species",
       "name": "Zalophus californianus",
-      "preferred_common_name": "California Sea Lion"
+      "preferred_common_name": "California Sea Lion",
+      "is_active": true,
+      "current_synonymous_taxon_ids": null
     },
     {
       "id": 117766,
@@ -71,14 +75,17 @@
         41573,
         372843,
         41687,
+        1691817,
+        1691820,
         41707,
-        41708,
-        117766
+        41708
       ],
       "parent_id": 41708,
       "rank": "subspecies",
       "name": "Phoca vitulina richardii",
-      "preferred_common_name": "Pacific Harbor Seal"
+      "preferred_common_name": "Pacific Harbor Seal",
+      "is_active": true,
+      "current_synonymous_taxon_ids": null
     },
     {
       "id": 41553,
@@ -96,13 +103,70 @@
         152871,
         424321,
         41546,
-        41547,
-        41553
+        41547
       ],
       "parent_id": 41547,
       "rank": "species",
       "name": "Balaenoptera musculus",
-      "preferred_common_name": "Blue Whale"
+      "preferred_common_name": "Blue Whale",
+      "is_active": true,
+      "current_synonymous_taxon_ids": null
+    },
+    {
+      "id": 1368491,
+      "ancestor_ids": [
+        48460,
+        1,
+        2,
+        355675,
+        40151,
+        848317,
+        848320,
+        848324,
+        152870,
+        925158,
+        152871,
+        424322,
+        1317261,
+        41479,
+        1317265,
+        1317295
+      ],
+      "parent_id": 1317295,
+      "rank": "species",
+      "name": "Sagmatias obliquidens",
+      "preferred_common_name": "Pacific White-sided Dolphin",
+      "is_active": false,
+      "current_synonymous_taxon_ids": [
+        1664971
+      ]
+    },
+    {
+      "id": 1664971,
+      "ancestor_ids": [
+        48460,
+        1,
+        2,
+        355675,
+        40151,
+        848317,
+        848320,
+        848324,
+        152870,
+        925158,
+        152871,
+        424322,
+        1317261,
+        41479,
+        1317265,
+        1664970
+      ],
+      "parent_id": 1664970,
+      "rank": "species",
+      "name": "Aethalodelphis obliquidens",
+      "preferred_common_name": "Pacific White-sided Dolphin",
+      "is_active": true,
+      "current_synonymous_taxon_ids": null
     }
   ]
 }

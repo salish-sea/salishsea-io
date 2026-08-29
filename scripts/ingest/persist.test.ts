@@ -157,8 +157,8 @@ describe.skipIf(!DSN)('persistInaturalist (local Supabase)', () => {
     });
 
     const testTaxa: NormalizedTaxon[] = [
-        { id: 2000000001, parentId: null, scientificName: 'Testessa radix', vernacularName: null, rank: 'stateofmatter', ancestorIds: [2000000001] },
-        { id: 2000000002, parentId: 2000000001, scientificName: 'Testus specificus', vernacularName: 'Test Whale', rank: 'species', ancestorIds: [2000000001, 2000000002] },
+        { id: 2000000001, parentId: null, scientificName: 'Testessa radix', vernacularName: null, rank: 'stateofmatter', ancestorIds: [2000000001], isActive: true, currentTaxonId: null },
+        { id: 2000000002, parentId: 2000000001, scientificName: 'Testus specificus', vernacularName: 'Test Whale', rank: 'species', ancestorIds: [2000000001, 2000000002], isActive: true, currentTaxonId: null },
     ];
 
     const photo = (over: Partial<NormalizedPhoto> & { id: number }): NormalizedPhoto => ({
@@ -196,6 +196,34 @@ describe.skipIf(!DSN)('persistInaturalist (local Supabase)', () => {
 
         const photos = await sql`select id from inaturalist.observation_photos where observation_id = 9000000001`;
         expect(photos.count).toBe(2);
+    });
+
+    // salish-5ds. A retired taxon and its replacement arrive in one batch, and
+    // current_taxon_id's FK is NOT DEFERRABLE (unlike parent_id's) — so this also pins
+    // that an immediate FK is satisfied by a row inserted in the SAME statement.
+    test('records a retired taxon flagged and repointed, alongside its replacement', async () => {
+        const replacement: NormalizedTaxon = {
+            id: 2000000003, parentId: 2000000001, scientificName: 'Testus renamed',
+            vernacularName: 'Test Whale', rank: 'species',
+            ancestorIds: [2000000001, 2000000003], isActive: true, currentTaxonId: null,
+        };
+        const retired: NormalizedTaxon = { ...testTaxa[1]!, isActive: false, currentTaxonId: 2000000003 };
+
+        const res = await persistInaturalist(sql, {
+            taxa: [testTaxa[0]!, retired, replacement],
+            plan: iplan({ upsert: [observation({ id: 9000000003 })] }),
+            window: WINDOW,
+        });
+        expect(res.taxaUpserted).toBe(3);
+
+        const [t] = await sql`select is_active, current_taxon_id from inaturalist.taxa where id = 2000000002`;
+        expect(t?.['is_active']).toBe(false);
+        expect(Number(t?.['current_taxon_id'])).toBe(2000000003);
+
+        // The observation still sits on the retired taxon: the ingest records the
+        // retirement, repointing records is a batch repair (salish-4hq).
+        const [o] = await sql`select taxon_id from inaturalist.observations where id = 9000000003`;
+        expect(Number(o?.['taxon_id'])).toBe(2000000002);
     });
 
     test('is idempotent and honors the updated_at freshness guard', async () => {

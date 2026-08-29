@@ -245,6 +245,7 @@ export async function fetchObservationWindowIds(sql: Sql, window: IngestWindow):
 type TaxonPayloadRow = {
     id: number; parent_id: number | null; scientific_name: string;
     vernacular_name: string | null; rank: string;
+    is_active: boolean; current_taxon_id: number | null;
 };
 
 type ObservationPayloadRow = {
@@ -263,6 +264,7 @@ function toTaxonPayload(taxa: readonly NormalizedTaxon[]): TaxonPayloadRow[] {
     return taxa.map((t) => ({
         id: t.id, parent_id: t.parentId, scientific_name: t.scientificName,
         vernacular_name: t.vernacularName, rank: t.rank,
+        is_active: t.isActive, current_taxon_id: t.currentTaxonId,
     }));
 }
 
@@ -341,17 +343,28 @@ export async function persistInaturalist(
         //    is unreachable for it. Turning this into DO UPDATE would change nothing
         //    while looking like a fix.
         //
-        //    Refreshing the mirror is therefore a separate job that re-asks upstream:
-        //    scripts/backfill/inat-taxa-status.ts. It must ask via the /taxa/{ids} PATH
-        //    form, because the ?id= query param this ingest uses filters retired taxa out
-        //    of the result — on both v1 and v2. That is the route, not the version.
+        //    So is_active/current_taxon_id are recorded for a taxon ENTERING the mirror
+        //    (the shell now asks by the /taxa/{ids} path form, which returns retired
+        //    taxa flagged — salish-5ds), and a taxon already held is still never
+        //    re-asked. Refreshing those rows remains a separate job that goes back
+        //    upstream: scripts/backfill/inat-taxa-status.ts (salish-4hq).
+        //
+        //    current_taxon_id's FK is NOT DEFERRABLE, unlike parent_id's. It resolves
+        //    anyway when a retirement and its replacement arrive in the same batch:
+        //    an immediate FK is checked by an AFTER ROW trigger at END OF STATEMENT,
+        //    and this is one statement. resolveTaxonClosure guarantees the replacement
+        //    is in that statement or already stored.
         let taxaUpserted = 0;
         if (taxonPayload.length > 0) {
             const rows = await tx`
-                INSERT INTO inaturalist.taxa (id, parent_id, scientific_name, vernacular_name, rank)
-                SELECT v.id, v.parent_id, v.scientific_name, v.vernacular_name, v.rank::inaturalist.rank
+                INSERT INTO inaturalist.taxa (
+                    id, parent_id, scientific_name, vernacular_name, rank, is_active, current_taxon_id
+                )
+                SELECT v.id, v.parent_id, v.scientific_name, v.vernacular_name, v.rank::inaturalist.rank,
+                       v.is_active, v.current_taxon_id
                 FROM jsonb_to_recordset(${tx.json(taxonPayload as never)}) AS v(
-                    id int, parent_id int, scientific_name text, vernacular_name text, rank text
+                    id int, parent_id int, scientific_name text, vernacular_name text, rank text,
+                    is_active boolean, current_taxon_id int
                 )
                 ON CONFLICT (id) DO NOTHING
                 RETURNING id`;

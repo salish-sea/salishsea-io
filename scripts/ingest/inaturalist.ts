@@ -154,6 +154,14 @@ export const InatTaxonSchema = z.object({
     rank: z.enum(TAXON_RANKS),
     name: z.string(),
     preferred_common_name: z.string().nullish(),
+    // REQUIRED, not defaulted. The shell asks for is_active explicitly and every
+    // taxon carries it (verified against 30 live records 2026-08-29), so its
+    // absence means the field selection drifted — and defaulting to `true` would
+    // write "active" into the mirror on no evidence, the silent drift migration
+    // 20260828000000 exists to end. A parse failure is loud and the next cron retries.
+    is_active: z.boolean(),
+    // Null for an active taxon; an array (usually of one) for a retired one.
+    current_synonymous_taxon_ids: z.array(z.number().int()).nullish(),
 });
 
 export const InatTaxaResponseSchema = z.object({
@@ -206,6 +214,14 @@ export type NormalizedTaxon = {
     readonly rank: (typeof TAXON_RANKS)[number];
     /** Full root→self ancestor chain; lets the shell expand the closure. */
     readonly ancestorIds: readonly number[];
+    /** iNaturalist `is_active`: false once the taxon has been retired. */
+    readonly isActive: boolean;
+    /**
+     * The taxon that supersedes a retired one, or null. Never set for an active
+     * taxon (`inaturalist.taxa` CHECKs that), and null when iNaturalist named
+     * several — see normalizeTaxon.
+     */
+    readonly currentTaxonId: number | null;
 };
 
 function normalizePhoto(p: z.infer<typeof InatObservationPhotoSchema>): NormalizedPhoto {
@@ -244,8 +260,17 @@ export function normalizeObservation(
     };
 }
 
-/** Normalize one validated taxon. Pure. */
+/**
+ * Normalize one validated taxon. Pure.
+ *
+ * A replacement is recorded only when iNaturalist named exactly one. Several means
+ * it SPLIT the taxon, and choosing among them would be a guess about which animal
+ * was seen; the row stays inactive with no replacement, visible to anyone looking
+ * for retirements nobody could repoint. Same rule as
+ * scripts/backfill/inat-taxa-status.ts, which repairs rows this ingest never revisits.
+ */
 export function normalizeTaxon(t: z.infer<typeof InatTaxonSchema>): NormalizedTaxon {
+    const replacements = t.current_synonymous_taxon_ids ?? [];
     return {
         id: t.id,
         parentId: t.parent_id ?? null,
@@ -253,6 +278,12 @@ export function normalizeTaxon(t: z.infer<typeof InatTaxonSchema>): NormalizedTa
         vernacularName: blankToNull(t.preferred_common_name),
         rank: t.rank,
         ancestorIds: t.ancestor_ids,
+        isActive: t.is_active,
+        // Guarded on is_active as well as on the list, because
+        // `taxa_replacement_implies_inactive` rejects a replacement on an active
+        // taxon: an upstream row that is active AND names a synonym would otherwise
+        // abort the whole persist transaction rather than just being ignored.
+        currentTaxonId: !t.is_active && replacements.length === 1 ? replacements[0]! : null,
     };
 }
 
@@ -340,15 +371,22 @@ export function referencedTaxonIds(observations: readonly NormalizedObservation[
 }
 
 /**
- * Every taxon id a batch of *fetched taxa* references — self, ancestors, and
- * parent. Used by the shell to expand the closure after each `/taxa` fetch and
- * recompute what's still missing.
+ * Every taxon id a batch of *fetched taxa* references — self, ancestors, parent,
+ * and a retired taxon's replacement. Used by the shell to expand the closure after
+ * each `/taxa` fetch and recompute what's still missing.
+ *
+ * The replacement is a reference in the same sense the parent is: `current_taxon_id`
+ * is a NOT DEFERRABLE foreign key back into the mirror, so recording a retirement
+ * without its successor would fail the persist. Following it can cascade (the
+ * successor drags in its own ancestors, and may itself be retired), which is bounded
+ * the same way parents are — the shell only fetches ids it does not already hold.
  */
 export function referencedTaxonIdsFromTaxa(taxa: readonly NormalizedTaxon[]): number[] {
     const s = new Set<number>();
     for (const t of taxa) {
         s.add(t.id);
         if (t.parentId != null) s.add(t.parentId);
+        if (t.currentTaxonId != null) s.add(t.currentTaxonId);
         for (const a of t.ancestorIds) s.add(a);
     }
     return [...s].sort((a, b) => a - b);
