@@ -39,7 +39,7 @@ The visible symptom was therefore a Log in button that did nothing at all.
 
 ## Decision
 
-**Generate a nonce per page and give each side the form it expects.** GoTrue
+**Generate a nonce per sign-in attempt and give each side the form it expects.** GoTrue
 compares `sha256(params.Nonce)` as lowercase hex against the id_token's `nonce` claim, so
 Google receives the hex digest and Supabase receives the raw string. Both come from one
 `generateNonce()` call in [`src/google-nonce.ts`](../../src/google-nonce.ts), so they cannot
@@ -50,13 +50,22 @@ computed in markup (`crypto.subtle` is async) and the raw half must survive into
 [`src/google-signin.ts`](../../src/google-signin.ts) now owns the whole configuration and the
 client ID, as its only copy.
 
-**Configure once per page, not once per click.** Google's reference says `initialize` is called
-once, and GSI warns at runtime that "only the last initialized instance will be used". A second
-click would swap the nonce and callback underneath a prompt already outstanding, so a sign-in
-completed against the old nonce would come back as GoTrue's *other* rejection, "Nonces mismatch"
-— the same silent 400 in a new costume. One nonce and one callback for the life of the page
-still binds a token to this page's sign-in, which is what the nonce is for. Verified: three
-rapid clicks now yield three credential requests carrying one nonce and no GSI warning.
+**Retire the nonce when a credential is delivered against it — not per click, and not per
+page.** Two constraints pull opposite ways and both are real.
+
+`initialize` must not run while a prompt is outstanding: GSI warns that "only the last
+initialized instance will be used", so a second click would swap the nonce underneath the
+prompt already on screen, and the completed sign-in would present a token minted against the
+previous nonce — GoTrue's *other* rejection, "Nonces mismatch", the same silent 400 in a new
+costume. But a nonce must not cover two sign-ins either: GoTrue never consumes it, it only
+compares `sha256(nonce)` to the claim, so a nonce held for the life of the page stops being a
+once-only value.
+
+Both hold if the nonce is retired exactly when a credential arrives. Repeat clicks before then
+re-prompt against the configured nonce; the next attempt after a delivery mints a fresh one, at
+a moment when no prompt can be outstanding because the credential just resolved it. Verified in
+the built app — three rapid clicks yield three credential requests carrying one nonce and no GSI
+warning — and pinned by tests that fail if either half is removed.
 
 **Check the `{error}` from `signInWithIdToken`** — report it to Sentry explicitly and rethrow.
 Auth is outside the Supabase integration's reach, so this call site has to report itself.

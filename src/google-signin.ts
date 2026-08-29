@@ -43,29 +43,51 @@ function loadGSI(): Promise<void> {
   return gsiReady;
 }
 
-let configured: Promise<void> | null = null;
+/** The slice of `google.accounts.id` this module drives; narrowed so tests can fake it. */
+export interface GsiApi {
+  initialize(config: google.accounts.id.IdConfiguration): void;
+  prompt(): void;
+}
 
 /**
- * Google's reference is explicit that `initialize` is called once per page, and
- * GSI warns at runtime that "only the last initialized instance will be used".
- * Calling it per click would replace the callback and nonce underneath a prompt
- * that is already outstanding — the completed sign-in would then present a
- * token minted against the previous nonce and GoTrue would reject it with
+ * Two constraints pull in opposite directions, and both are real.
+ *
+ * `initialize` must not be called while a prompt is outstanding: GSI warns that
+ * "only the last initialized instance will be used", so a second click would
+ * swap the nonce underneath the prompt already on screen, and the completed
+ * sign-in would present a token minted against the previous nonce — GoTrue's
  * "Nonces mismatch", the sibling of the bug this module exists to fix.
  *
- * So one nonce and one callback for the life of the page. That still binds a
- * token to this page's sign-in, which is what the nonce is for.
+ * But a nonce must not cover two sign-ins either. GoTrue does not consume it;
+ * it only compares sha256(nonce) to the claim. A nonce left live for the life
+ * of the page is a nonce that stops being a once-only value.
+ *
+ * Both hold if the nonce is retired exactly when a credential is delivered
+ * against it. Repeat clicks before then reuse the configured nonce and merely
+ * re-prompt; the next attempt after a delivery mints a fresh one, at a moment
+ * when no prompt can be outstanding because the credential just resolved it.
  */
-function configureGoogleSignIn(onCredential: CredentialHandler): Promise<void> {
-  configured ??= loadGSI()
-    .then(generateNonce)
-    .then(nonce => { google.accounts.id.initialize(idConfiguration(nonce, onCredential)); })
-    .catch(err => { configured = null; throw err; });
-  return configured;
+export function createGoogleSignIn(gsi: () => GsiApi, mintNonce: () => Promise<Nonce> = generateNonce) {
+  // Non-null while a nonce is configured and has not yet had a credential delivered against it.
+  let session: Promise<void> | null = null;
+
+  return async function promptSignIn(onCredential: CredentialHandler): Promise<void> {
+    session ??= (async () => {
+      const nonce = await mintNonce();
+      gsi().initialize(idConfiguration(nonce, (token, raw) => {
+        session = null;
+        onCredential(token, raw);
+      }));
+    })().catch(err => { session = null; throw err; });
+    await session;
+    gsi().prompt();
+  };
 }
+
+const promptSignIn = createGoogleSignIn(() => google.accounts.id);
 
 /** Show Google's One Tap prompt, configuring GSI on first use. */
 export async function promptGoogleSignIn(onCredential: CredentialHandler): Promise<void> {
-  await configureGoogleSignIn(onCredential);
-  google.accounts.id.prompt();
+  await loadGSI();
+  await promptSignIn(onCredential);
 }
