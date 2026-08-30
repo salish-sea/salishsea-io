@@ -32,6 +32,12 @@ Two trackers, routed by audience:
   hand, `bd export` writes to **stdout** — it must be `bd export -o
   .beads/issues.jsonl`, or the file silently stays stale.
 
+  One edge the hook cannot cover: a commit whose *only* content would be beads
+  changes. The export has not run yet, so the tree still looks clean and git
+  short-circuits before the hook fires. Either let the change ride along with
+  the next real commit — `bd dolt push` has already shared it, so nothing is
+  lost — or run the export by hand first to make the commit non-empty.
+
 **Issue ids are `salish-<suffix>`** (e.g. `salish-g9e`). They were
 `salishsea-io-<suffix>` until 2026-07-27; the suffix never changed, so an old id
 in a commit message or an archived PR maps to the current one by swapping the

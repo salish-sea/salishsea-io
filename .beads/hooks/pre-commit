@@ -58,6 +58,11 @@ fi
 # So: export explicitly with -o, and stage it only if it actually changed. A
 # failure here WARNS but never blocks the commit — a stale backup must not stop
 # work — but it warns loudly, because silence was the whole bug.
+#
+# Known gap: this cannot bootstrap a commit whose only content would be beads
+# changes. The export has not run yet, so the tree looks clean and git
+# short-circuits before the hook does. Such a change rides the next real
+# commit — `bd dolt push` has already shared it — or you export by hand.
 if command -v bd >/dev/null 2>&1 && [ -d .beads ]; then
   if bd export -o .beads/issues.jsonl >/dev/null 2>&1; then
     if ! git diff --quiet -- .beads/issues.jsonl 2>/dev/null; then
