@@ -6,7 +6,7 @@
 
 A profile URL keys on the register's `entity_id`. The designation stays in the URL as a slug that is composed by us, shown to people, and **ignored on read**.
 
-```
+```text
 /individuals/0010193/T065A       SSA:0010193
 /ecotypes/0000002/Biggs          SSA:0000002
 /matrilines/0002039/T073s        SSA:0002039  — not yet, see "Sequencing"
@@ -16,13 +16,15 @@ The first segment after the family is the seven-digit local part of the identifi
 
 **Designation paths keep working and redirect.** `/individuals/T065A`, `/individuals/T046A` and `/individuals/CA172` each `301` to the canonical form. A designation is what a person types, searches for and reads in a Facebook post; it stops being what the site keys on.
 
+**A missing or stale slug redirects rather than 404s.** `/individuals/0010193` and `/individuals/0010193/T065A9` both `301` to `/individuals/0010193/T065A`, because the slug is never read and the canonical form is always derivable from the key. The bare identifier is therefore a working address without being the canonical one.
+
 **The slug carries the conventional written form** — `T065A2`, not `t065a2`. Resolution is case-insensitive, so a typed lowercase path still redirects; only the canonical form we emit is cased. Where the register's label is not URL-clean, the slug is ours to compose: the register labels the ecotype `Bigg's` and the slug is `Biggs`.
 
 ## Why
 
 **This is already broken in production, not a purity problem waiting to happen.**
 
-```
+```text
 /individuals/T046A  →  the generic site card
 /individuals/T122   →  "Centeki (T122)"
 ```
@@ -55,7 +57,7 @@ The viewer-request Lambda@Edge already intercepts these paths ([015](015-individ
 
 - **`public.designations` does not dissolve into the register.** `T046A` appears in no register `label` and no `names` row — verified against edition 2026.08.1 on 2026-08-30 — because the register carries current names and this one was retired before it existed. Historical codes we hold and the register does not publish stay ours, and they are the input to the `301`. The same is true of `AO10` and `CA20` while [Q23](https://github.com/salish-sea/animals/issues/14) is open.
 - **The slug is free to change, and changing it costs nothing.** Q13 can relabel all 134 matrilines and no URL moves; the old slug still resolves because it was never read. This is the whole point of the shape.
-- **We become the de facto resolver for `SSA:` identifiers.** [ADR-0014](https://github.com/salish-sea/animals/blob/main/decisions/0014-a-publication-not-a-service.md) makes the register a publication and not a service, and ADR-0021 registered the prefix with no URI format and no provider. `https://salishsea.io/individuals/0010193` is the first resolvable address these identifiers have had. That is a commitment: [ADR-0010](https://github.com/salish-sea/animals/blob/main/decisions/0010-identifiers-are-never-reused.md) promises identifiers are never reused, so the address can be permanent in a way a designation URL never was — and OrcaSound is about to store the same identifiers on bout tags ([orcasite#1001](https://github.com/orcasound/orcasite/issues/1001), [028](028-salishsea-io-speaks-to-orcasound.md)), where a tag can now link straight to a profile.
+- **We become the de facto resolver for `SSA:` identifiers.** [ADR-0014](https://github.com/salish-sea/animals/blob/main/decisions/0014-a-publication-not-a-service.md) makes the register a publication and not a service, and ADR-0021 registered the prefix with no URI format and no provider. `https://salishsea.io/individuals/0010193` — which redirects to the slugged canonical form, per the rule above — is the first resolvable address these identifiers have had. That is a commitment: [ADR-0010](https://github.com/salish-sea/animals/blob/main/decisions/0010-identifiers-are-never-reused.md) promises identifiers are never reused, so the address can be permanent in a way a designation URL never was — and OrcaSound is about to store the same identifiers on bout tags ([orcasite#1001](https://github.com/orcasound/orcasite/issues/1001), [028](028-salishsea-io-speaks-to-orcasound.md)), where a tag can now link straight to a profile.
 - **Two URLs address one page, so the shell carries a `<link rel="canonical">`** pointing at the identifier form. Without it the `301` fixes crawlers and the client-side fallback does not.
 - **The prose linker is unaffected for readers.** [`injectIndividualLinks`](../../src/individual-links.ts) turns codes found in sighting text into profile links from a designation→individual map; it gains the identifier and emits the canonical path. A code that resolves to nothing still passes through as plain text — linking is a navigation aid, never an identification claim.
 - **[`e2e/og-previews.spec.ts`](../../e2e/og-previews.spec.ts) asserts against production** and must assert both the canonical `og:url` and the `301`, or the smoke run will keep passing while the scheme is half-migrated.

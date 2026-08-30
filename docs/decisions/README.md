@@ -18,9 +18,9 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [012](012-ingest-heartbeat.md) | Ingest heartbeat: external observer via scheduled GitHub Action | accepted |
 | [013](013-orcasound-acoustic-occurrences.md) | OrcaSound acoustic occurrences from curated biophony bouts, identified by upstream tags (amended 2026-08-14: identifications arrive typed) | accepted (our side); pending upstream adoption |
 | [014](014-trust-and-curation-model.md) | Trust & curation: claims have status, people have reputation, curators assert both | proposed (direction) |
-| [015](015-individual-profile-pages.md) | Individual profile pages at `/individuals/<designation>` | accepted |
-| [016](016-matriline-profile-pages.md) | Matriline profile pages | accepted |
-| [017](017-ecotype-profile-pages.md) | Ecotype profile pages | accepted |
+| [015](015-individual-profile-pages.md) | Individual profile pages at `/individuals/<designation>` | accepted (amended by 034) |
+| [016](016-matriline-profile-pages.md) | Matriline profile pages | accepted (amended by 034) |
+| [017](017-ecotype-profile-pages.md) | Ecotype profile pages | accepted (amended by 034) |
 | [018](018-inat-id-keyset-pagination.md) | iNaturalist ingest paginates by id-keyset, not page number (amends 011) | accepted |
 | [019](019-no-fallback-preview-image.md) | No fallback link-preview image: `og:image` only for a photo of the thing shared | superseded by 026 |
 | [020](020-map-preview-cards.md) | Map-rendered link preview cards; Esri basemap, day cards, basemap sourcing | accepted |
