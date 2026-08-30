@@ -403,9 +403,19 @@ function tally<T>(rows: T[], key: (r: T) => string): Map<string, number> {
     return new Map([...out].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])));
 }
 
+/**
+ * One Markdown cell. Same reasoning as escaping the TSV: the values are curator nicknames
+ * and register labels, so a `|` or a newline in one is data we were handed rather than
+ * something we can promise is absent — and either would break the whole table's rendering
+ * for the section it appears in.
+ *
+ * `<br>` survives, which the collisions table relies on to stack two claimants in a cell.
+ */
+const cell = (v: string) => v.replace(/[\r\n]+/g, ' ').replace(/\|/g, '\\|');
+
 function table(header: string[], rows: string[][]): string {
-    return [`| ${header.join(' | ')} |`, `|${header.map(() => '---').join('|')}|`,
-        ...rows.map((r) => `| ${r.join(' | ')} |`)].join('\n');
+    return [`| ${header.map(cell).join(' | ')} |`, `|${header.map(() => '---').join('|')}|`,
+        ...rows.map((r) => `| ${r.map(cell).join(' | ')} |`)].join('\n');
 }
 
 function markdown(edition: Edition, cat: Catalogue, findings: Finding[]): string {
@@ -571,6 +581,15 @@ async function main(): Promise<void> {
     const linked = argv.includes('--linked');
     const write = argv.includes('--write');
     const tagArg = argv.includes('--tag') ? argv[argv.indexOf('--tag') + 1] : undefined;
+    // Checked before anything is read. `--tag` with nothing after it must not silently
+    // become "whatever is loaded" — the one time someone passes it is when they mean a
+    // DIFFERENT edition, and reporting on production's instead would answer the wrong
+    // question convincingly. Rejecting it here also means a typo does not query the whole
+    // catalogue, or hit the Management API under --linked, before exiting.
+    if (argv.includes('--tag') && (!tagArg || tagArg.startsWith('--'))) {
+        console.error('--tag needs an edition, e.g. --tag 2026.08.1');
+        process.exit(2);
+    }
     const say = console.error.bind(console);
 
     let close: (() => Promise<void>) | undefined;
@@ -593,13 +612,6 @@ async function main(): Promise<void> {
             + `${cat.designations.length} designations, ${cat.memberships.length} memberships, `
             + `${cat.nicknames.length} nicknames`);
 
-        // `--tag` with nothing after it must not silently become "whatever is loaded":
-        // the one time someone passes it is when they mean a DIFFERENT edition, and
-        // reporting on production's instead would answer the wrong question convincingly.
-        if (argv.includes('--tag') && (!tagArg || tagArg.startsWith('--'))) {
-            console.error('--tag needs an edition, e.g. --tag 2026.08.1');
-            process.exit(2);
-        }
         const tag = tagArg ?? cat.loadedEdition;
         if (!tag) {
             console.error('no --tag given and register.edition is empty: nothing to reconcile against');
