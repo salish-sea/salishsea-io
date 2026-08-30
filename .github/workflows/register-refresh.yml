@@ -1,0 +1,176 @@
+name: Register Refresh
+
+# Load the newest published edition of the animals register into production, and prove
+# it arrived (salish-1g8).
+#
+# WHY A JOB AT ALL. Decision 033 makes the register the source of animal names, and
+# migration 20260828110000 LEFT JOINs it — so an empty `register.*` is not an error. Every
+# name quietly falls back to iNaturalist's and the map renders as it did before the
+# register existed. That fallback is deliberate: a failed load must not blank the map. It
+# is also what makes the failure invisible, and until this workflow the only thing keeping
+# production loaded was someone remembering to run the loader by hand.
+#
+# WHY DAILY. The register is cut on demand, sometimes several times a day (animals
+# ADR-0013/0014), so drift is the normal state rather than an incident, and a weekly
+# cadence would mean names lag a curator's fix by up to a week. The run is cheap: one
+# tarball, a digest check, ~700 rows in one transaction.
+#
+# WHY LATEST RATHER THAN A PINNED TAG. The artefact is still pinned — a digest-verified
+# release, never a working tree — and which edition is loaded is recorded in
+# `register.edition` for exactly this reason. Pass `tag` to workflow_dispatch to hold at
+# or roll back to a specific edition.
+#
+# SAFE TO RUN UNATTENDED. The loader writes to `register.*` and nothing else, in one
+# transaction, after verifying the published SHA256. A failure therefore leaves the
+# previous edition in place rather than an empty schema.
+
+on:
+    schedule:
+        - cron: '0 11 * * *'  # daily 11:00 UTC = 04:00 PT (PDT) / 03:00 PT (PST)
+    # Called by Deploy after `supabase db push`. That is the one step that can empty the
+    # register without anyone touching the register — a migration recreating `register.*`,
+    # or replacing `public.occurrences` with a definition that no longer joins it. Running
+    # the loader there REPAIRS that rather than only reporting it, and the verify step
+    # then turns the deploy red if it did not work.
+    workflow_call:
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: 'Release to load (default: the newest published release)'
+                required: false
+                type: string
+
+concurrency:
+    group: register-refresh
+    cancel-in-progress: false
+
+jobs:
+    refresh:
+        runs-on: ubuntu-latest
+        environment: production
+        permissions:
+            contents: read
+            issues: write  # failure issue, taxa-refresh pattern
+
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+            - name: Setup Node
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version-file: package.json
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # Pre-seed the failure-issue body so content-filepath always exists even when
+            # the job dies before the scripts run. Same pattern as taxa-refresh.yml.
+            - name: Seed default failure-issue body
+              run: |
+                  mkdir -p dist/register
+                  cat > dist/register/refresh.log <<EOF
+                  Register refresh failed before the loader could run.
+
+                  Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+                  Triggered: ${{ github.event_name }} at $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+                  Production is unchanged: the loader writes in one transaction after
+                  verifying the release digest, so a failure leaves the previous edition
+                  in place. The map keeps the names it already had.
+                  EOF
+
+            # Same DSN assembly as taxa-refresh.yml and dwca-nightly.yml (see the
+            # rationale there): URL-encode the password, mask it, connect via the IPv4
+            # session pooler on port 5432.
+            - name: Prepare Postgres DSN
+              env:
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+              run: |
+                  ENCODED_PW=$(node -e 'process.stdout.write(encodeURIComponent(process.env.DB_PASSWORD))')
+                  echo "::add-mask::${ENCODED_PW}"
+                  printf 'SUPABASE_DB_URL=postgres://postgres.%s:%s@aws-1-us-west-1.pooler.supabase.com:5432/postgres\n' \
+                    "${SUPABASE_PROJECT_ID}" "${ENCODED_PW}" >> "${GITHUB_ENV}"
+
+            # Resolved here rather than inside the loader, which takes an explicit --tag on
+            # purpose: a script that silently follows `latest` cannot be used to pin or to
+            # roll back, and the release is the thing being trusted.
+            - name: Resolve the edition to load
+              env:
+                  REQUESTED: ${{ inputs.tag }}
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+                  if [ -n "${REQUESTED}" ]; then
+                      TAG="${REQUESTED}"
+                      echo "using the requested edition ${TAG}"
+                  else
+                      TAG=$(gh api repos/salish-sea/animals/releases/latest --jq .tag_name)
+                      echo "newest published edition is ${TAG}"
+                  fi
+                  [ -n "${TAG}" ] || { echo "could not resolve a release tag"; exit 1; }
+                  echo "REGISTER_TAG=${TAG}" >> "${GITHUB_ENV}"
+
+            # `tee` keeps the log for the failure issue while it still streams to the job.
+            # pipefail matters: without it the exit status would be tee's, and a failed
+            # load would report success — which is the exact class of silent failure this
+            # workflow exists to end.
+            - name: Load the register
+              run: |
+                  set -o pipefail
+                  pnpm exec tsx scripts/register/load.ts --tag "${REGISTER_TAG}" --apply \
+                    2>&1 | tee dist/register/refresh.log
+
+            # The load reporting success is not the same as the register being usable: the
+            # crosswalk view can be broken, or public.occurrences replaced by a definition
+            # that no longer reads it. This is the check that would notice.
+            - name: Verify the register reached the application
+              run: |
+                  set -o pipefail
+                  pnpm exec tsx scripts/register/verify.ts 2>&1 | tee -a dist/register/refresh.log
+
+            - name: Summarize the run
+              if: always()
+              run: |
+                  {
+                      echo '### Register refresh'
+                      echo '```'
+                      tail -c 60000 dist/register/refresh.log
+                      echo '```'
+                  } >> "${GITHUB_STEP_SUMMARY}"
+
+            - name: Find existing failure issue
+              id: find-issue
+              if: failure()
+              uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+              with:
+                  script: |
+                      // listForRepo returns pull requests as well as issues, and a PR
+                      // carrying this label would otherwise be "updated" — i.e. have its
+                      // title and body overwritten with this report. Same guard, and same
+                      // reason, as deploy.yml's.
+                      const items = await github.paginate(github.rest.issues.listForRepo, {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        state: 'open',
+                        labels: 'register-refresh-failed',
+                        per_page: 100,
+                      });
+                      const issue = items.find((item) => !item.pull_request);
+                      core.setOutput('issue-number', issue?.number ?? '');
+
+            - name: Open or update failure issue
+              if: failure()
+              uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6.0.0
+              with:
+                  title: "Register refresh failed (run ${{ github.run_id }})"
+                  content-filepath: ./dist/register/refresh.log
+                  labels: register-refresh-failed
+                  issue-number: ${{ steps.find-issue.outputs.issue-number }}
