@@ -172,11 +172,24 @@ async function main(): Promise<void> {
             // docs/reference/register-reconciliation.md — see data/README.md.)
             const entityRows = entityPairs.map(([primary_designation, entity_id]) =>
                 ({ primary_designation, entity_id }));
+            const malformed = entityRows.filter((r) => !r.primary_designation || !r.entity_id?.startsWith('SSA:'));
+            if (malformed.length) {
+                throw new Error(`${malformed.length} malformed row(s) in data/individual-entities.tsv`);
+            }
             const entityUpd = (await tx`
                 UPDATE public.individuals i SET entity_id = v.entity_id
                 FROM jsonb_to_recordset(${tx.json(entityRows as never)}) AS v(primary_designation text, entity_id text)
                 WHERE i.primary_designation = v.primary_designation
                 RETURNING i.id`).count;
+            // The same refusal migration 20260830130000 makes: an individual the mapping
+            // misses must fail the seed, not quietly disagree with production.
+            const [unmapped] = await tx`
+                SELECT count(*)::int AS n FROM public.individuals WHERE entity_id IS NULL`;
+            if (unmapped?.['n']) {
+                throw new Error(
+                    `${unmapped['n']} individual(s) with no register identifier — regenerate data/individual-entities.tsv from a fresh reconciliation run`,
+                );
+            }
             await tx`
                 UPDATE public.social_groups SET entity_id = 'SSA:0000002'
                 WHERE kind = 'ecotype' AND designation = 'Biggs'`;
