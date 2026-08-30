@@ -66,7 +66,16 @@ async function latestRelease(): Promise<string | null> {
 }
 
 async function main(): Promise<void> {
-    const minCoverage = Number(arg('--min-coverage') ?? '1');
+    // Rejecting a flag with no value matters more here than usual: silently falling back
+    // to the default is the same shape of failure this whole check exists to end — an
+    // instruction that appears to have been followed and was not. Same guard as
+    // load.ts's --tag, including the "value that is really the next flag" case.
+    const raw = arg('--min-coverage');
+    if (process.argv.includes('--min-coverage') && (!raw || raw.startsWith('--'))) {
+        console.error('--min-coverage needs a percentage, e.g. --min-coverage 50');
+        process.exit(2);
+    }
+    const minCoverage = Number(raw ?? '1');
     if (!Number.isFinite(minCoverage) || minCoverage < 0 || minCoverage > 100) {
         console.error('--min-coverage takes a percentage between 0 and 100');
         process.exit(2);
