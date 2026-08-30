@@ -1,0 +1,2098 @@
+table	row_id	subject	folded	verdict	entity_ids	detail
+individuals	1	T002B	t2b	one	SSA:0010000	primary_designation
+individuals	2	T002C	t2c	one	SSA:0010001	primary_designation
+individuals	3	T002C1	t2c1	one	SSA:0010002	primary_designation
+individuals	4	T002C2	t2c2	one	SSA:0010003	primary_designation
+individuals	5	T002C3	t2c3	one	SSA:0010004	primary_designation
+individuals	6	T002C4	t2c4	one	SSA:0010005	primary_designation
+individuals	7	T002C5	t2c5	one	SSA:0010006	primary_designation
+individuals	8	T002C6	t2c6	one	SSA:0010007	primary_designation
+individuals	9	T007	t7	one	SSA:0010008	primary_designation
+individuals	10	T007A	t7a	one	SSA:0010009	primary_designation
+individuals	11	T007B	t7b	one	SSA:0010010	primary_designation
+individuals	12	T007B3	t7b3	one	SSA:0010011	primary_designation
+individuals	13	T007B4	t7b4	one	SSA:0010012	primary_designation
+individuals	14	T007B6	t7b6	one	SSA:0010013	primary_designation
+individuals	15	T007B7	t7b7	one	SSA:0010014	primary_designation
+individuals	16	T010	t10	one	SSA:0010015	primary_designation
+individuals	17	T010B	t10b	one	SSA:0010016	primary_designation
+individuals	18	T010C	t10c	one	SSA:0010017	primary_designation
+individuals	19	T011	t11	one	SSA:0010018	primary_designation
+individuals	20	T011A	t11a	one	SSA:0010019	primary_designation
+individuals	21	T012A	t12a	one	SSA:0010020	primary_designation
+individuals	22	T018	t18	one	SSA:0010021	primary_designation
+individuals	23	T019	t19	one	SSA:0010022	primary_designation
+individuals	24	T019B	t19b	one	SSA:0010023	primary_designation
+individuals	25	T019C	t19c	one	SSA:0010024	primary_designation
+individuals	26	T021	t21	one	SSA:0010026	primary_designation
+individuals	27	T020	t20	one	SSA:0010025	primary_designation
+individuals	28	T023	t23	one	SSA:0010027	primary_designation
+individuals	29	T023D	t23d	one	SSA:0010033	primary_designation
+individuals	30	T023D3	t23d3	one	SSA:0010034	primary_designation
+individuals	31	T023D4	t23d4	one	SSA:0010035	primary_designation
+individuals	32	T023D5	t23d5	one	SSA:0010036	primary_designation
+individuals	33	T023C	t23c	one	SSA:0010028	primary_designation
+individuals	34	T023C3	t23c3	one	SSA:0010029	primary_designation
+individuals	35	T023C4	t23c4	one	SSA:0010030	primary_designation
+individuals	36	T023C5	t23c5	one	SSA:0010031	primary_designation
+individuals	37	T023C6	t23c6	one	SSA:0010032	primary_designation
+individuals	38	T026	t26	one	SSA:0010037	primary_designation
+individuals	39	T026A	t26a	one	SSA:0010038	primary_designation
+individuals	40	T028	t28	one	SSA:0010039	primary_designation
+individuals	41	T028C	t28c	one	SSA:0010047	primary_designation
+individuals	42	T028D	t28d	one	SSA:0010048	primary_designation
+individuals	43	T028E	t28e	one	SSA:0010049	primary_designation
+individuals	44	T028A	t28a	one	SSA:0010040	primary_designation
+individuals	45	T028A1	t28a1	one	SSA:0010041	primary_designation
+individuals	46	T028A2	t28a2	one	SSA:0010042	primary_designation
+individuals	47	T028A3	t28a3	one	SSA:0010043	primary_designation
+individuals	48	T028B	t28b	one	SSA:0010044	primary_designation
+individuals	49	T028B1	t28b1	one	SSA:0010045	primary_designation
+individuals	50	T028B2	t28b2	one	SSA:0010046	primary_designation
+individuals	51	T030	t30	one	SSA:0010050	primary_designation
+individuals	52	T030A	t30a	one	SSA:0010051	primary_designation
+individuals	53	T030C	t30c	one	SSA:0010056	primary_designation
+individuals	54	T030B	t30b	one	SSA:0010052	primary_designation
+individuals	55	T030B1	t30b1	one	SSA:0010053	primary_designation
+individuals	56	T030B2	t30b2	one	SSA:0010054	primary_designation
+individuals	57	T030B3	t30b3	one	SSA:0010055	primary_designation
+individuals	58	T031	t31	one	SSA:0010057	primary_designation
+individuals	59	T034	t34	one	SSA:0010058	primary_designation
+individuals	60	T034A	t34a	one	SSA:0010059	primary_designation
+individuals	61	T034A1	t34a1	one	SSA:0010060	primary_designation
+individuals	62	T034A2	t34a2	one	SSA:0010061	primary_designation
+individuals	63	T034B	t34b	one	SSA:0010062	primary_designation
+individuals	64	T035	t35	one	SSA:0010063	primary_designation
+individuals	65	T035A	t35a	one	SSA:0010064	primary_designation
+individuals	66	T035A1	t35a1	one	SSA:0010065	primary_designation
+individuals	67	T035A2	t35a2	one	SSA:0010066	primary_designation
+individuals	68	T035A3	t35a3	one	SSA:0010067	primary_designation
+individuals	69	T035A4	t35a4	one	SSA:0010068	primary_designation
+individuals	70	T036	t36	one	SSA:0010069	primary_designation
+individuals	71	T036B	t36b	one	SSA:0010076	primary_designation
+individuals	72	T036B1	t36b1	one	SSA:0010077	primary_designation
+individuals	73	T036B1A	t36b1a	one	SSA:0010078	primary_designation
+individuals	74	T036B2	t36b2	one	SSA:0010079	primary_designation
+individuals	75	T036B3	t36b3	one	SSA:0010080	primary_designation
+individuals	76	T036B4	t36b4	one	SSA:0010081	primary_designation
+individuals	77	T036A	t36a	one	SSA:0010070	primary_designation
+individuals	78	T036A1	t36a1	one	SSA:0010071	primary_designation
+individuals	79	T036A1A	t36a1a	one	SSA:0010072	primary_designation
+individuals	80	T036A2	t36a2	one	SSA:0010073	primary_designation
+individuals	81	T036A3	t36a3	one	SSA:0010074	primary_designation
+individuals	82	T036A5	t36a5	one	SSA:0010075	primary_designation
+individuals	83	T037	t37	one	SSA:0010082	primary_designation
+individuals	84	T037B	t37b	one	SSA:0010089	primary_designation
+individuals	85	T037B1	t37b1	one	SSA:0010090	primary_designation
+individuals	86	T037B2	t37b2	one	SSA:0010091	primary_designation
+individuals	87	T037B3	t37b3	one	SSA:0010092	primary_designation
+individuals	88	T037A	t37a	one	SSA:0010083	primary_designation
+individuals	89	T037A1	t37a1	one	SSA:0010084	primary_designation
+individuals	90	T037A2	t37a2	one	SSA:0010085	primary_designation
+individuals	91	T037A3	t37a3	one	SSA:0010086	primary_designation
+individuals	92	T037A4	t37a4	one	SSA:0010087	primary_designation
+individuals	93	T037A5	t37a5	one	SSA:0010088	primary_designation
+individuals	94	T038	t38	one	SSA:0010093	primary_designation
+individuals	95	T038B	t38b	one	SSA:0010098	primary_designation
+individuals	96	T038B1	t38b1	one	SSA:0010099	primary_designation
+individuals	97	T038B2	t38b2	one	SSA:0010100	primary_designation
+individuals	98	T038C	t38c	one	SSA:0010101	primary_designation
+individuals	99	T038D	t38d	one	SSA:0010102	primary_designation
+individuals	100	T038E	t38e	one	SSA:0010103	primary_designation
+individuals	101	T038F	t38f	one	SSA:0010104	primary_designation
+individuals	102	T038A	t38a	one	SSA:0010094	primary_designation
+individuals	103	T038A1	t38a1	one	SSA:0010095	primary_designation
+individuals	104	T038A2	t38a2	one	SSA:0010096	primary_designation
+individuals	105	T038A3	t38a3	one	SSA:0010097	primary_designation
+individuals	106	T040	t40	one	SSA:0010105	primary_designation
+individuals	107	T041	t41	one	SSA:0010106	primary_designation
+individuals	108	T041A	t41a	one	SSA:0010107	primary_designation
+individuals	109	T041A1	t41a1	one	SSA:0010108	primary_designation
+individuals	110	T041A2	t41a2	one	SSA:0010109	primary_designation
+individuals	111	T041A3	t41a3	one	SSA:0010110	primary_designation
+individuals	112	T046	t46	one	SSA:0010111	primary_designation
+individuals	113	T046D	t46d	one	SSA:0010132	primary_designation
+individuals	114	T046E	t46e	one	SSA:0010133	primary_designation
+individuals	115	T046F	t46f	one	SSA:0010134	primary_designation
+individuals	116	T122	t122	one	SSA:0010368	primary_designation
+individuals	117	T046B	t46b	one	SSA:0010112	primary_designation
+individuals	118	T046B1	t46b1	one	SSA:0010113	primary_designation
+individuals	119	T046B1A	t46b1a	one	SSA:0010114	primary_designation
+individuals	120	T046B1B	t46b1b	one	SSA:0010115	primary_designation
+individuals	121	T046B1C	t46b1c	one	SSA:0010116	primary_designation
+individuals	122	T046B2	t46b2	one	SSA:0010117	primary_designation
+individuals	123	T046B2A	t46b2a	one	SSA:0010118	primary_designation
+individuals	124	T046B2B	t46b2b	one	SSA:0010119	primary_designation
+individuals	125	T046B3	t46b3	one	SSA:0010120	primary_designation
+individuals	126	T046B3A	t46b3a	one	SSA:0010121	primary_designation
+individuals	127	T046B4	t46b4	one	SSA:0010122	primary_designation
+individuals	128	T046B5	t46b5	one	SSA:0010123	primary_designation
+individuals	129	T046B6	t46b6	one	SSA:0010124	primary_designation
+individuals	130	T046B7	t46b7	one	SSA:0010125	primary_designation
+individuals	131	T046C	t46c	one	SSA:0010126	primary_designation
+individuals	132	T046C1	t46c1	one	SSA:0010127	primary_designation
+individuals	133	T046C2	t46c2	one	SSA:0010128	primary_designation
+individuals	134	T046C3	t46c3	one	SSA:0010129	primary_designation
+individuals	135	T046C4	t46c4	one	SSA:0010130	primary_designation
+individuals	136	T046C5	t46c5	one	SSA:0010131	primary_designation
+individuals	137	T049A	t49a	one	SSA:0010135	primary_designation
+individuals	138	T049A1	t49a1	one	SSA:0010136	primary_designation
+individuals	139	T049A2	t49a2	one	SSA:0010137	primary_designation
+individuals	140	T049A3	t49a3	one	SSA:0010138	primary_designation
+individuals	141	T049A4	t49a4	one	SSA:0010139	primary_designation
+individuals	142	T049A5	t49a5	one	SSA:0010140	primary_designation
+individuals	143	T049A6	t49a6	one	SSA:0010141	primary_designation
+individuals	144	T049B	t49b	one	SSA:0010142	primary_designation
+individuals	145	T049B1	t49b1	one	SSA:0010143	primary_designation
+individuals	146	T049B2	t49b2	one	SSA:0010144	primary_designation
+individuals	147	T049B3	t49b3	one	SSA:0010145	primary_designation
+individuals	148	T049B4	t49b4	one	SSA:0010146	primary_designation
+individuals	149	T049B5	t49b5	one	SSA:0010147	primary_designation
+individuals	150	T049C	t49c	one	SSA:0010148	primary_designation
+individuals	151	T050	t50	one	SSA:0010149	primary_designation
+individuals	152	T050A	t50a	one	SSA:0010150	primary_designation
+individuals	153	T050B	t50b	one	SSA:0010151	primary_designation
+individuals	154	T050B1	t50b1	one	SSA:0010152	primary_designation
+individuals	155	T050B2	t50b2	one	SSA:0010153	primary_designation
+individuals	156	T050C	t50c	one	SSA:0010154	primary_designation
+individuals	157	T050D	t50d	one	SSA:0010155	primary_designation
+individuals	158	T050E	t50e	one	SSA:0010156	primary_designation
+individuals	159	T051	t51	one	SSA:0010157	primary_designation
+individuals	160	T054	t54	one	SSA:0010158	primary_designation
+individuals	161	T055	t55	one	SSA:0010159	primary_designation
+individuals	162	T055A	t55a	one	SSA:0010160	primary_designation
+individuals	163	T055B	t55b	one	SSA:0010161	primary_designation
+individuals	164	T055B1	t55b1	one	SSA:0010162	primary_designation
+individuals	165	T055C	t55c	one	SSA:0010163	primary_designation
+individuals	166	T057	t57	one	SSA:0010164	primary_designation
+individuals	167	T057A	t57a	one	SSA:0010165	primary_designation
+individuals	168	T058	t58	one	SSA:0010166	primary_designation
+individuals	169	T059	t59	one	SSA:0010167	primary_designation
+individuals	170	T059A	t59a	one	SSA:0010168	primary_designation
+individuals	171	T059A1	t59a1	one	SSA:0010169	primary_designation
+individuals	172	T059A1A	t59a1a	one	SSA:0010170	primary_designation
+individuals	173	T059A2	t59a2	one	SSA:0010171	primary_designation
+individuals	174	T059A3	t59a3	one	SSA:0010172	primary_designation
+individuals	175	T059A4	t59a4	one	SSA:0010173	primary_designation
+individuals	176	T059A5	t59a5	one	SSA:0010174	primary_designation
+individuals	177	T060	t60	one	SSA:0010175	primary_designation
+individuals	178	T060C	t60c	one	SSA:0010176	primary_designation
+individuals	179	T060D	t60d	one	SSA:0010177	primary_designation
+individuals	180	T060E	t60e	one	SSA:0010178	primary_designation
+individuals	181	T060F	t60f	one	SSA:0010179	primary_designation
+individuals	182	T060G	t60g	one	SSA:0010180	primary_designation
+individuals	183	T064	t64	one	SSA:0010182	primary_designation
+individuals	184	T064A	t64a	one	SSA:0010183	primary_designation
+individuals	185	T064A2	t64a2	one	SSA:0010184	primary_designation
+individuals	186	T064A3	t64a3	one	SSA:0010185	primary_designation
+individuals	187	T064A4	t64a4	one	SSA:0010186	primary_designation
+individuals	188	T064A5	t64a5	one	SSA:0010187	primary_designation
+individuals	189	T064B	t64b	one	SSA:0010188	primary_designation
+individuals	190	T064B1	t64b1	one	SSA:0010189	primary_designation
+individuals	191	T064B1A	t64b1a	one	SSA:0010190	primary_designation
+individuals	192	T064B2	t64b2	one	SSA:0010191	primary_designation
+individuals	193	T065	t65	one	SSA:0010192	primary_designation
+individuals	194	T063	t63	one	SSA:0010181	primary_designation
+individuals	195	T065A	t65a	one	SSA:0010193	primary_designation
+individuals	196	T065A2	t65a2	one	SSA:0010194	primary_designation
+individuals	197	T065A3	t65a3	one	SSA:0010195	primary_designation
+individuals	198	T065A4	t65a4	one	SSA:0010196	primary_designation
+individuals	199	T065A5	t65a5	one	SSA:0010197	primary_designation
+individuals	200	T065A6	t65a6	one	SSA:0010198	primary_designation
+individuals	201	T065B	t65b	one	SSA:0010199	primary_designation
+individuals	202	T065B1	t65b1	one	SSA:0010200	primary_designation
+individuals	203	T065B2	t65b2	one	SSA:0010201	primary_designation
+individuals	204	T065B3	t65b3	one	SSA:0010202	primary_designation
+individuals	205	T068	t68	one	SSA:0010203	primary_designation
+individuals	206	T068A	t68a	one	SSA:0010204	primary_designation
+individuals	207	T068B	t68b	one	SSA:0010205	primary_designation
+individuals	208	T068B1	t68b1	one	SSA:0010206	primary_designation
+individuals	209	T068B1A	t68b1a	one	SSA:0010207	primary_designation
+individuals	210	T068B1C	t68b1c	one	SSA:0010208	primary_designation
+individuals	211	T068B1D	t68b1d	one	SSA:0010209	primary_designation
+individuals	212	T068B2	t68b2	one	SSA:0010210	primary_designation
+individuals	213	T068B3	t68b3	one	SSA:0010211	primary_designation
+individuals	214	T068B4	t68b4	one	SSA:0010212	primary_designation
+individuals	215	T068B5	t68b5	one	SSA:0010213	primary_designation
+individuals	216	T068C	t68c	one	SSA:0010214	primary_designation
+individuals	217	T068C1	t68c1	one	SSA:0010215	primary_designation
+individuals	218	T068C3	t68c3	one	SSA:0010216	primary_designation
+individuals	219	T068C3A	t68c3a	one	SSA:0010217	primary_designation
+individuals	220	T068C4	t68c4	one	SSA:0010218	primary_designation
+individuals	221	T068C5	t68c5	one	SSA:0010219	primary_designation
+individuals	222	T068C6	t68c6	one	SSA:0010220	primary_designation
+individuals	223	T069	t69	one	SSA:0010221	primary_designation
+individuals	224	T069C	t69c	one	SSA:0010228	primary_designation
+individuals	225	T069E	t69e	one	SSA:0010234	primary_designation
+individuals	226	T069F	t69f	one	SSA:0010235	primary_designation
+individuals	227	T069A	t69a	one	SSA:0010222	primary_designation
+individuals	228	T069A2	t69a2	one	SSA:0010223	primary_designation
+individuals	229	T069A3	t69a3	one	SSA:0010224	primary_designation
+individuals	230	T069A4	t69a4	one	SSA:0010225	primary_designation
+individuals	231	T069A5	t69a5	one	SSA:0010226	primary_designation
+individuals	232	T069A6	t69a6	one	SSA:0010227	primary_designation
+individuals	233	T069D	t69d	one	SSA:0010229	primary_designation
+individuals	234	T069D1	t69d1	one	SSA:0010230	primary_designation
+individuals	235	T069D2	t69d2	one	SSA:0010231	primary_designation
+individuals	236	T069D3	t69d3	one	SSA:0010232	primary_designation
+individuals	237	T069D4	t69d4	one	SSA:0010233	primary_designation
+individuals	238	T071	t71	one	SSA:0010237	primary_designation
+individuals	239	T071A	t71a	one	SSA:0010238	primary_designation
+individuals	240	T071C	t71c	one	SSA:0010243	primary_designation
+individuals	241	T071D	t71d	one	SSA:0010244	primary_designation
+individuals	242	T071E	t71e	one	SSA:0010245	primary_designation
+individuals	243	T071B	t71b	one	SSA:0010239	primary_designation
+individuals	244	T071B1	t71b1	one	SSA:0010240	primary_designation
+individuals	245	T071B2	t71b2	one	SSA:0010241	primary_designation
+individuals	246	T071B3	t71b3	one	SSA:0010242	primary_designation
+individuals	247	T072	t72	one	SSA:0010246	primary_designation
+individuals	248	T073	t73	one	SSA:0010247	primary_designation
+individuals	249	T074	t74	one	SSA:0010257	primary_designation
+individuals	250	T073D	t73d	one	SSA:0010256	primary_designation
+individuals	251	T073A	t73a	one	SSA:0010248	primary_designation
+individuals	252	T073A1	t73a1	one	SSA:0010249	primary_designation
+individuals	253	T073A2	t73a2	one	SSA:0010250	primary_designation
+individuals	254	T073A3	t73a3	one	SSA:0010251	primary_designation
+individuals	255	T073B	t73b	one	SSA:0010252	primary_designation
+individuals	256	T073C	t73c	one	SSA:0010253	primary_designation
+individuals	257	T073C1	t73c1	one	SSA:0010254	primary_designation
+individuals	258	T073C2	t73c2	one	SSA:0010255	primary_designation
+individuals	259	T075	t75	one	SSA:0010258	primary_designation
+individuals	260	T075A	t75a	one	SSA:0010259	primary_designation
+individuals	261	T075B	t75b	one	SSA:0010260	primary_designation
+individuals	262	T075B1	t75b1	one	SSA:0010261	primary_designation
+individuals	263	T075B2	t75b2	one	SSA:0010262	primary_designation
+individuals	264	T075B3	t75b3	one	SSA:0010263	primary_designation
+individuals	265	T075B4	t75b4	one	SSA:0010264	primary_designation
+individuals	266	T075C	t75c	one	SSA:0010265	primary_designation
+individuals	267	T075C1	t75c1	one	SSA:0010266	primary_designation
+individuals	268	T075C2	t75c2	one	SSA:0010267	primary_designation
+individuals	269	T075C3	t75c3	one	SSA:0010268	primary_designation
+individuals	270	T075C4	t75c4	one	SSA:0010269	primary_designation
+individuals	271	T077	t77	one	SSA:0010270	primary_designation
+individuals	272	T077A	t77a	one	SSA:0010271	primary_designation
+individuals	273	T077B	t77b	one	SSA:0010272	primary_designation
+individuals	274	T077C	t77c	one	SSA:0010273	primary_designation
+individuals	275	T077D	t77d	one	SSA:0010274	primary_designation
+individuals	276	T077E	t77e	one	SSA:0010275	primary_designation
+individuals	277	T085	t85	one	SSA:0010276	primary_designation
+individuals	278	T085A	t85a	one	SSA:0010277	primary_designation
+individuals	279	T085B	t85b	one	SSA:0010278	primary_designation
+individuals	280	T085C	t85c	one	SSA:0010279	primary_designation
+individuals	281	T085D	t85d	one	SSA:0010280	primary_designation
+individuals	282	T086A	t86a	one	SSA:0010281	primary_designation
+individuals	283	T086A1	t86a1	one	SSA:0010282	primary_designation
+individuals	284	T086A1A	t86a1a	one	SSA:0010283	primary_designation
+individuals	285	T086A1B	t86a1b	one	SSA:0010284	primary_designation
+individuals	286	T086A3	t86a3	one	SSA:0010285	primary_designation
+individuals	287	T086A3A	t86a3a	one	SSA:0010286	primary_designation
+individuals	288	T086A4	t86a4	one	SSA:0010287	primary_designation
+individuals	289	T086A5	t86a5	one	SSA:0010288	primary_designation
+individuals	290	T087	t87	one	SSA:0010289	primary_designation
+individuals	291	T090	t90	one	SSA:0010290	primary_designation
+individuals	292	T090B	t90b	one	SSA:0010291	primary_designation
+individuals	293	T090C	t90c	one	SSA:0010292	primary_designation
+individuals	294	T090D	t90d	one	SSA:0010293	primary_designation
+individuals	295	T091	t91	one	SSA:0010294	primary_designation
+individuals	296	T093	t93	one	SSA:0010295	primary_designation
+individuals	297	T097	t97	one	SSA:0010296	primary_designation
+individuals	298	T099	t99	one	SSA:0010297	primary_designation
+individuals	299	T099A	t99a	one	SSA:0010298	primary_designation
+individuals	300	T099B	t99b	one	SSA:0010299	primary_designation
+individuals	301	T099B1	t99b1	one	SSA:0010300	primary_designation
+individuals	302	T099C	t99c	one	SSA:0010301	primary_designation
+individuals	303	T099D	t99d	one	SSA:0010302	primary_designation
+individuals	304	T099E	t99e	one	SSA:0010303	primary_designation
+individuals	305	T100	t100	one	SSA:0010304	primary_designation
+individuals	306	T100C	t100c	one	SSA:0010309	primary_designation
+individuals	307	T100E	t100e	one	SSA:0010310	primary_designation
+individuals	308	T100F	t100f	one	SSA:0010311	primary_designation
+individuals	309	T100B	t100b	one	SSA:0010305	primary_designation
+individuals	310	T100B1	t100b1	one	SSA:0010306	primary_designation
+individuals	311	T100B2	t100b2	one	SSA:0010307	primary_designation
+individuals	312	T100B3	t100b3	one	SSA:0010308	primary_designation
+individuals	313	T101	t101	one	SSA:0010312	primary_designation
+individuals	314	T102	t102	one	SSA:0010315	primary_designation
+individuals	315	T101A	t101a	one	SSA:0010313	primary_designation
+individuals	316	T101B	t101b	one	SSA:0010314	primary_designation
+individuals	317	T103	t103	one	SSA:0010316	primary_designation
+individuals	318	T109	t109	one	SSA:0010317	primary_designation
+individuals	319	T109D	t109d	one	SSA:0010340	primary_designation
+individuals	320	T109D1	t109d1	one	SSA:0010341	primary_designation
+individuals	321	T109D2	t109d2	one	SSA:0010342	primary_designation
+individuals	322	T109E	t109e	one	SSA:0010343	primary_designation
+individuals	323	T109A	t109a	one	SSA:0010318	primary_designation
+individuals	324	T109A3	t109a3	one	SSA:0010324	primary_designation
+individuals	325	T109A3A	t109a3a	one	SSA:0010325	primary_designation
+individuals	326	T109A4	t109a4	one	SSA:0010326	primary_designation
+individuals	327	T109A5	t109a5	one	SSA:0010327	primary_designation
+individuals	328	T109A6	t109a6	one	SSA:0010328	primary_designation
+individuals	329	T109A7	t109a7	one	SSA:0010329	primary_designation
+individuals	330	T109A8	t109a8	one	SSA:0010330	primary_designation
+individuals	331	T109A2	t109a2	one	SSA:0010319	primary_designation
+individuals	332	T109A2A	t109a2a	one	SSA:0010320	primary_designation
+individuals	333	T109A2B	t109a2b	one	SSA:0010321	primary_designation
+individuals	334	T109A2C	t109a2c	one	SSA:0010322	primary_designation
+individuals	335	T109A2D	t109a2d	one	SSA:0010323	primary_designation
+individuals	336	T109B	t109b	one	SSA:0010331	primary_designation
+individuals	337	T109B3	t109b3	one	SSA:0010332	primary_designation
+individuals	338	T109B4	t109b4	one	SSA:0010333	primary_designation
+individuals	339	T109B5	t109b5	one	SSA:0010334	primary_designation
+individuals	340	T109B6	t109b6	one	SSA:0010335	primary_designation
+individuals	341	T109C	t109c	one	SSA:0010336	primary_designation
+individuals	342	T109C1	t109c1	one	SSA:0010337	primary_designation
+individuals	343	T109C2	t109c2	one	SSA:0010338	primary_designation
+individuals	344	T109C3	t109c3	one	SSA:0010339	primary_designation
+individuals	345	T112	t112	one	SSA:0010351	primary_designation
+individuals	346	T114	t114	one	SSA:0010353	primary_designation
+individuals	347	T111	t111	one	SSA:0010344	primary_designation
+individuals	348	T111A	t111a	one	SSA:0010345	primary_designation
+individuals	349	T111A1	t111a1	one	SSA:0010346	primary_designation
+individuals	350	T111B	t111b	one	SSA:0010347	primary_designation
+individuals	351	T111B2	t111b2	one	SSA:0010348	primary_designation
+individuals	352	T111B3	t111b3	one	SSA:0010349	primary_designation
+individuals	353	T111C	t111c	one	SSA:0010350	primary_designation
+individuals	354	T115	t115	one	SSA:0010354	primary_designation
+individuals	355	T113	t113	one	SSA:0010352	primary_designation
+individuals	356	T116	t116	one	SSA:0010355	primary_designation
+individuals	357	T116A	t116a	one	SSA:0010356	primary_designation
+individuals	358	T116B	t116b	one	SSA:0010357	primary_designation
+individuals	359	T117	t117	one	SSA:0010358	primary_designation
+individuals	360	T120	t120	one	SSA:0010363	primary_designation
+individuals	361	T117A	t117a	one	SSA:0010359	primary_designation
+individuals	362	T117B	t117b	one	SSA:0010360	primary_designation
+individuals	363	T117B1	t117b1	one	SSA:0010361	primary_designation
+individuals	364	T118	t118	one	SSA:0010362	primary_designation
+individuals	365	T070	t70	one	SSA:0010236	primary_designation
+individuals	366	T121A	t121a	one	SSA:0010364	primary_designation
+individuals	367	T121A1	t121a1	one	SSA:0010365	primary_designation
+individuals	368	T121A2	t121a2	one	SSA:0010366	primary_designation
+individuals	369	T121A3	t121a3	one	SSA:0010367	primary_designation
+individuals	370	T123	t123	one	SSA:0010369	primary_designation
+individuals	371	T123A	t123a	one	SSA:0010370	primary_designation
+individuals	372	T123C	t123c	one	SSA:0010371	primary_designation
+individuals	373	T123D	t123d	one	SSA:0010372	primary_designation
+individuals	374	T124	t124	one	SSA:0010373	primary_designation
+individuals	375	T124C	t124c	one	SSA:0010386	primary_designation
+individuals	376	T124A	t124a	one	SSA:0010374	primary_designation
+individuals	377	T124A3	t124a3	one	SSA:0010380	primary_designation
+individuals	378	T124A3A	t124a3a	one	SSA:0010381	primary_designation
+individuals	379	T124A4	t124a4	one	SSA:0010382	primary_designation
+individuals	380	T124A4A	t124a4a	one	SSA:0010383	primary_designation
+individuals	381	T124A6	t124a6	one	SSA:0010384	primary_designation
+individuals	382	T124A7	t124a7	one	SSA:0010385	primary_designation
+individuals	383	T124A1	t124a1	one	SSA:0010375	primary_designation
+individuals	384	T124A1A	t124a1a	one	SSA:0010376	primary_designation
+individuals	385	T124A2	t124a2	one	SSA:0010377	primary_designation
+individuals	386	T124A2A	t124a2a	one	SSA:0010378	primary_designation
+individuals	387	T124A2B	t124a2b	one	SSA:0010379	primary_designation
+individuals	388	T124D	t124d	one	SSA:0010387	primary_designation
+individuals	389	T124D1	t124d1	one	SSA:0010388	primary_designation
+individuals	390	T124D2	t124d2	one	SSA:0010389	primary_designation
+individuals	391	T124D3	t124d3	one	SSA:0010390	primary_designation
+individuals	392	T124D4	t124d4	one	SSA:0010391	primary_designation
+individuals	393	T124E	t124e	one	SSA:0010392	primary_designation
+individuals	394	T125	t125	one	SSA:0010393	primary_designation
+individuals	395	T127	t127	one	SSA:0010395	primary_designation
+individuals	396	T128	t128	one	SSA:0010396	primary_designation
+individuals	397	T125A	t125a	one	SSA:0010394	primary_designation
+individuals	398	T131	t131	one	SSA:0010399	primary_designation
+individuals	399	T129	t129	one	SSA:0010397	primary_designation
+individuals	400	T130	t130	one	SSA:0010398	primary_designation
+individuals	401	T132	t132	one	SSA:0010400	primary_designation
+individuals	402	T133	t133	one	SSA:0010401	primary_designation
+individuals	403	T134	t134	one	SSA:0010402	primary_designation
+individuals	404	T135	t135	one	SSA:0010403	primary_designation
+individuals	405	T137	t137	one	SSA:0010404	primary_designation
+individuals	406	T137A	t137a	one	SSA:0010405	primary_designation
+individuals	407	T137B	t137b	one	SSA:0010406	primary_designation
+individuals	408	T137D	t137d	one	SSA:0010407	primary_designation
+individuals	409	T139	t139	one	SSA:0010408	primary_designation
+individuals	410	T141	t141	one	SSA:0010412	primary_designation
+individuals	411	T141A	t141a	one	SSA:0010413	primary_designation
+individuals	412	T141B	t141b	one	SSA:0010414	primary_designation
+individuals	413	T141C	t141c	one	SSA:0010415	primary_designation
+individuals	414	T140	t140	one	SSA:0010409	primary_designation
+individuals	415	T140B	t140b	one	SSA:0010410	primary_designation
+individuals	416	T140C	t140c	one	SSA:0010411	primary_designation
+individuals	417	T143	t143	one	SSA:0010417	primary_designation
+individuals	418	T142	t142	one	SSA:0010416	primary_designation
+individuals	419	T146	t146	one	SSA:0010418	primary_designation
+individuals	420	T146A	t146a	one	SSA:0010419	primary_designation
+individuals	421	T146A1	t146a1	one	SSA:0010420	primary_designation
+individuals	422	T146A2	t146a2	one	SSA:0010421	primary_designation
+individuals	423	T146B	t146b	one	SSA:0010422	primary_designation
+individuals	424	T146C	t146c	one	SSA:0010423	primary_designation
+individuals	425	T146C1	t146c1	one	SSA:0010424	primary_designation
+individuals	426	T146D	t146d	one	SSA:0010425	primary_designation
+individuals	427	T146E	t146e	one	SSA:0010426	primary_designation
+individuals	428	T147	t147	one	SSA:0010427	primary_designation
+individuals	429	T148	t148	one	SSA:0010428	primary_designation
+individuals	430	T149	t149	one	SSA:0010429	primary_designation
+individuals	431	T151	t151	one	SSA:0010431	primary_designation
+individuals	432	T150	t150	one	SSA:0010430	primary_designation
+individuals	433	T151A	t151a	one	SSA:0010432	primary_designation
+individuals	434	T151A1	t151a1	one	SSA:0010433	primary_designation
+individuals	435	T151B	t151b	one	SSA:0010434	primary_designation
+individuals	436	T151C	t151c	one	SSA:0010435	primary_designation
+individuals	437	T151D	t151d	one	SSA:0010436	primary_designation
+individuals	438	T152	t152	one	SSA:0010437	primary_designation
+individuals	439	T152A	t152a	one	SSA:0010438	primary_designation
+individuals	440	T152B	t152b	one	SSA:0010439	primary_designation
+individuals	441	T152C	t152c	one	SSA:0010440	primary_designation
+individuals	442	T157	t157	one	SSA:0010441	primary_designation
+individuals	443	T160	t160	one	SSA:0010442	primary_designation
+individuals	444	T161	t161	one	SSA:0010443	primary_designation
+individuals	445	T162	t162	one	SSA:0010444	primary_designation
+individuals	446	T166	t166	one	SSA:0010446	primary_designation
+individuals	447	T165	t165	one	SSA:0010445	primary_designation
+individuals	448	T166A	t166a	one	SSA:0010447	primary_designation
+individuals	449	T166A1	t166a1	one	SSA:0010448	primary_designation
+individuals	450	T167	t167	one	SSA:0010449	primary_designation
+individuals	451	T167A	t167a	one	SSA:0010450	primary_designation
+individuals	452	T167B	t167b	one	SSA:0010451	primary_designation
+individuals	453	T167C	t167c	one	SSA:0010452	primary_designation
+individuals	454	T168A	t168a	one	SSA:0010453	primary_designation
+individuals	455	T168A1	t168a1	one	SSA:0010454	primary_designation
+individuals	456	T168A2	t168a2	one	SSA:0010455	primary_designation
+individuals	457	T169	t169	one	SSA:0010456	primary_designation
+individuals	458	T170	t170	one	SSA:0010457	primary_designation
+individuals	459	T171	t171	one	SSA:0010458	primary_designation
+individuals	460	T172	t172	one	SSA:0010459	primary_designation
+individuals	461	T173	t173	one	SSA:0010460	primary_designation
+individuals	462	T175	t175	one	SSA:0010468	primary_designation
+individuals	463	T174	t174	one	SSA:0010461	primary_designation
+individuals	464	T174A	t174a	one	SSA:0010462	primary_designation
+individuals	465	T174A1	t174a1	one	SSA:0010463	primary_designation
+individuals	466	T174A2	t174a2	one	SSA:0010464	primary_designation
+individuals	467	T174B	t174b	one	SSA:0010465	primary_designation
+individuals	468	T174B1	t174b1	one	SSA:0010466	primary_designation
+individuals	469	T174C	t174c	one	SSA:0010467	primary_designation
+individuals	470	T176	t176	one	SSA:0010469	primary_designation
+individuals	471	T176A	t176a	one	SSA:0010470	primary_designation
+individuals	472	T176B	t176b	one	SSA:0010471	primary_designation
+individuals	473	T177	t177	one	SSA:0010472	primary_designation
+individuals	474	T178	t178	one	SSA:0010473	primary_designation
+individuals	475	T179	t179	one	SSA:0010474	primary_designation
+individuals	476	T179A	t179a	one	SSA:0010475	primary_designation
+individuals	477	T179B	t179b	one	SSA:0010476	primary_designation
+individuals	478	T180	t180	one	SSA:0010477	primary_designation
+individuals	479	T181	t181	one	SSA:0010478	primary_designation
+individuals	480	T181A	t181a	one	SSA:0010479	primary_designation
+individuals	481	T182	t182	one	SSA:0010480	primary_designation
+individuals	482	T183	t183	one	SSA:0010481	primary_designation
+individuals	483	T183A	t183a	one	SSA:0010482	primary_designation
+individuals	484	T184	t184	one	SSA:0010483	primary_designation
+individuals	485	T185	t185	one	SSA:0010484	primary_designation
+individuals	486	T186	t186	one	SSA:0010486	primary_designation
+individuals	487	T187	t187	one	SSA:0010487	primary_designation
+individuals	488	T185A	t185a	one	SSA:0010485	primary_designation
+individuals	489	T188	t188	one	SSA:0010488	primary_designation
+individuals	490	T188A	t188a	one	SSA:0010489	primary_designation
+individuals	491	T196	t196	one	SSA:0010490	primary_designation
+individuals	492	T197	t197	one	SSA:0010491	primary_designation
+individuals	493	T199	t199	one	SSA:0010492	primary_designation
+individuals	494	T199A	t199a	one	SSA:0010493	primary_designation
+individuals	495	T199B	t199b	one	SSA:0010494	primary_designation
+individuals	496	T199C	t199c	one	SSA:0010495	primary_designation
+individuals	497	T221B	t221b	one	SSA:0010496	primary_designation
+individuals	498	T223	t223	one	SSA:0010497	primary_designation
+individuals	499	T224	t224	one	SSA:0010498	primary_designation
+individuals	500	T224A	t224a	one	SSA:0010499	primary_designation
+individuals	501	T224B	t224b	one	SSA:0010500	primary_designation
+individuals	502	T225	t225	one	SSA:0010501	primary_designation
+individuals	503	T227	t227	one	SSA:0010502	primary_designation
+individuals	504	T252	t252	one	SSA:0010507	primary_designation
+individuals	505	T251	t251	one	SSA:0010506	primary_designation
+individuals	506	T250	t250	one	SSA:0010503	primary_designation
+individuals	507	T250C	t250c	one	SSA:0010504	primary_designation
+individuals	508	T250D	t250d	one	SSA:0010505	primary_designation
+individuals	509	T253	t253	one	SSA:0010508	primary_designation
+individuals	510	T253A	t253a	one	SSA:0010509	primary_designation
+social_groups	1	Biggs	biggs	one	SSA:0000002	kind=ecotype
+social_groups	3	Secret Agents	secret agents	one	SSA:0002001	kind=named_group
+social_groups	4	T007	t7	one	SSA:0002001	kind=matriline
+social_groups	5	T010	t10	one	SSA:0002002	kind=matriline
+social_groups	6	T011	t11	one	SSA:0002003	kind=matriline
+social_groups	9	T019	t19	one	SSA:0002006	kind=matriline
+social_groups	12	Motley Crew	motley crew	one	SSA:0002009	kind=named_group
+social_groups	13	T023	t23	one	SSA:0002009	kind=matriline
+social_groups	14	T026	t26	one	SSA:0002010	kind=matriline
+social_groups	15	T028	t28	one	SSA:0002011	kind=matriline
+social_groups	16	T030	t30	one	SSA:0002012	kind=matriline
+social_groups	18	T034	t34	one	SSA:0002014	kind=matriline
+social_groups	19	T035	t35	one	SSA:0002015	kind=matriline
+social_groups	20	T036	t36	one	SSA:0002016	kind=matriline
+social_groups	21	T037	t37	one	SSA:0002017	kind=matriline
+social_groups	22	T038	t38	one	SSA:0002018	kind=matriline
+social_groups	24	Ted's Gang	teds gang	one	SSA:0002020	kind=named_group
+social_groups	25	T041	t41	one	SSA:0002020	kind=matriline
+social_groups	26	T046	t46	one	SSA:0002021	kind=matriline
+social_groups	29	T050	t50	one	SSA:0002023	kind=matriline
+social_groups	32	T055	t55	one	SSA:0002026	kind=matriline
+social_groups	33	T057	t57	one	SSA:0002027	kind=matriline
+social_groups	35	T059	t59	one	SSA:0002029	kind=matriline
+social_groups	36	T060	t60	one	SSA:0002030	kind=matriline
+social_groups	37	T064	t64	one	SSA:0002032	kind=matriline
+social_groups	38	T065	t65	one	SSA:0002033	kind=matriline
+social_groups	40	T068	t68	one	SSA:0002034	kind=matriline
+social_groups	41	T069	t69	one	SSA:0002035	kind=matriline
+social_groups	42	T071	t71	one	SSA:0002037	kind=matriline
+social_groups	44	T073	t73	one	SSA:0002039	kind=matriline
+social_groups	46	Sea Monster Family	sea monster family	one	SSA:0002039	kind=named_group
+social_groups	47	T075	t75	one	SSA:0002041	kind=matriline
+social_groups	48	T077	t77	one	SSA:0002042	kind=matriline
+social_groups	49	T085	t85	one	SSA:0002043	kind=matriline
+social_groups	52	T090	t90	one	SSA:0000040	kind=matriline
+social_groups	56	Gretzky's	gretzkys	one	SSA:0002049	kind=named_group
+social_groups	57	T099	t99	one	SSA:0002049	kind=matriline
+social_groups	58	T100	t100	one	SSA:0002050	kind=matriline
+social_groups	59	T101	t101	one	SSA:0002051	kind=matriline
+social_groups	62	T109	t109	one	SSA:0002054	kind=matriline
+social_groups	63	Runaway's	runaways	one	SSA:0002054	kind=named_group
+social_groups	66	T111	t111	one	SSA:0002055	kind=matriline
+social_groups	69	T116	t116	one	SSA:0002060	kind=matriline
+social_groups	70	T117	t117	one	SSA:0002061	kind=matriline
+social_groups	75	T123	t123	one	SSA:0002066	kind=matriline
+social_groups	76	T124	t124	one	SSA:0002067	kind=matriline
+social_groups	77	T125	t125	one	SSA:0002068	kind=matriline
+social_groups	87	T137	t137	one	SSA:0002078	kind=matriline
+social_groups	89	T141	t141	one	SSA:0002081	kind=matriline
+social_groups	90	T140	t140	one	SSA:0002080	kind=matriline
+social_groups	93	T146	t146	one	SSA:0002084	kind=matriline
+social_groups	97	T151	t151	one	SSA:0002089	kind=matriline
+social_groups	99	T152	t152	one	SSA:0002090	kind=matriline
+social_groups	104	T166	t166	one	SSA:0002096	kind=matriline
+social_groups	106	T167	t167	one	SSA:0002097	kind=matriline
+social_groups	114	T174	t174	one	SSA:0002104	kind=matriline
+social_groups	115	T176	t176	one	SSA:0002106	kind=matriline
+social_groups	118	T179	t179	one	SSA:0002109	kind=matriline
+social_groups	120	T181	t181	one	SSA:0002111	kind=matriline
+social_groups	122	T183	t183	one	SSA:0002113	kind=matriline
+social_groups	124	T185	t185	one	SSA:0002115	kind=matriline
+social_groups	127	T188	t188	one	SSA:0002118	kind=matriline
+social_groups	130	T199	t199	one	SSA:0002121	kind=matriline
+social_groups	133	T224	t224	one	SSA:0002124	kind=matriline
+social_groups	138	T250	t250	one	SSA:0002127	kind=matriline
+social_groups	139	T253	t253	one	SSA:0002130	kind=matriline
+social_groups	140	T073A	t73a	wrong-kind-only		kind=matriline — SSA:0010248 T073A (individual)
+social_groups	141	T109C	t109c	wrong-kind-only		kind=matriline — SSA:0010336 T109C (individual)
+social_groups	142	T064B1	t64b1	wrong-kind-only		kind=matriline — SSA:0010189 T064B1 (individual)
+social_groups	143	T038B	t38b	wrong-kind-only		kind=matriline — SSA:0010098 T038B (individual)
+social_groups	144	T174A	t174a	wrong-kind-only		kind=matriline — SSA:0010462 T174A (individual)
+social_groups	146	T146A	t146a	wrong-kind-only		kind=matriline — SSA:0010419 T146A (individual)
+social_groups	148	T068C	t68c	wrong-kind-only		kind=matriline — SSA:0010214 T068C (individual)
+social_groups	149	T068B1	t68b1	wrong-kind-only		kind=matriline — SSA:0010206 T068B1 (individual)
+social_groups	150	T037B	t37b	wrong-kind-only		kind=matriline — SSA:0010089 T037B (individual)
+social_groups	151	T041A	t41a	wrong-kind-only		kind=matriline — SSA:0010107 T041A (individual)
+social_groups	152	T111A	t111a	wrong-kind-only		kind=matriline — SSA:0010345 T111A (individual)
+social_groups	155	T099B	t99b	wrong-kind-only		kind=matriline — SSA:0010299 T099B (individual)
+social_groups	156	T124A4	t124a4	wrong-kind-only		kind=matriline — SSA:0010382 T124A4 (individual)
+social_groups	157	T037A	t37a	wrong-kind-only		kind=matriline — SSA:0010083 T037A (individual)
+social_groups	158	T034A	t34a	wrong-kind-only		kind=matriline — SSA:0010059 T034A (individual)
+social_groups	159	T086A3	t86a3	wrong-kind-only		kind=matriline — SSA:0010285 T086A3 (individual)
+social_groups	164	T117B	t117b	wrong-kind-only		kind=matriline — SSA:0010360 T117B (individual)
+social_groups	165	T174B	t174b	wrong-kind-only		kind=matriline — SSA:0010465 T174B (individual)
+social_groups	168	T023C	t23c	wrong-kind-only		kind=matriline — SSA:0010028 T023C (individual)
+social_groups	170	T036A1	t36a1	wrong-kind-only		kind=matriline — SSA:0010071 T036A1 (individual)
+social_groups	171	T046B1	t46b1	wrong-kind-only		kind=matriline — SSA:0010113 T046B1 (individual)
+social_groups	175	T065B	t65b	wrong-kind-only		kind=matriline — SSA:0010199 T065B (individual)
+social_groups	176	T124A1	t124a1	wrong-kind-only		kind=matriline — SSA:0010375 T124A1 (individual)
+social_groups	177	T046B	t46b	wrong-kind-only		kind=matriline — SSA:0010112 T046B (individual)
+social_groups	178	T069A	t69a	wrong-kind-only		kind=matriline — SSA:0010222 T069A (individual)
+social_groups	180	T055B	t55b	wrong-kind-only		kind=matriline — SSA:0010161 T055B (individual)
+social_groups	181	T068B	t68b	wrong-kind-only		kind=matriline — SSA:0010205 T068B (individual)
+social_groups	188	T109A	t109a	wrong-kind-only		kind=matriline — SSA:0010318 T109A (individual)
+social_groups	191	T086A1	t86a1	wrong-kind-only		kind=matriline — SSA:0010282 T086A1 (individual)
+social_groups	192	T035A	t35a	wrong-kind-only		kind=matriline — SSA:0010064 T035A (individual)
+social_groups	194	T049A	t49a	wrong-kind-only		kind=matriline — SSA:0010135 T049A (individual)
+social_groups	197	T124A	t124a	wrong-kind-only		kind=matriline — SSA:0010374 T124A (individual)
+social_groups	198	T100B	t100b	wrong-kind-only		kind=matriline — SSA:0010305 T100B (individual)
+social_groups	202	T038A	t38a	wrong-kind-only		kind=matriline — SSA:0010094 T038A (individual)
+social_groups	203	T049B	t49b	wrong-kind-only		kind=matriline — SSA:0010142 T049B (individual)
+social_groups	205	T109B	t109b	wrong-kind-only		kind=matriline — SSA:0010331 T109B (individual)
+social_groups	208	T111B	t111b	wrong-kind-only		kind=matriline — SSA:0010347 T111B (individual)
+social_groups	209	T086A	t86a	wrong-kind-only		kind=matriline — SSA:0010281 T086A (individual)
+social_groups	210	T050B	t50b	wrong-kind-only		kind=matriline — SSA:0010151 T050B (individual)
+social_groups	211	T064A	t64a	wrong-kind-only		kind=matriline — SSA:0010183 T064A (individual)
+social_groups	212	T036B1	t36b1	wrong-kind-only		kind=matriline — SSA:0010077 T036B1 (individual)
+social_groups	217	T036A	t36a	wrong-kind-only		kind=matriline — SSA:0010070 T036A (individual)
+social_groups	220	T030B	t30b	wrong-kind-only		kind=matriline — SSA:0010052 T030B (individual)
+social_groups	224	T109A3	t109a3	wrong-kind-only		kind=matriline — SSA:0010324 T109A3 (individual)
+social_groups	225	T069D	t69d	wrong-kind-only		kind=matriline — SSA:0010229 T069D (individual)
+social_groups	226	T075B	t75b	wrong-kind-only		kind=matriline — SSA:0010260 T075B (individual)
+social_groups	229	T068C3	t68c3	wrong-kind-only		kind=matriline — SSA:0010216 T068C3 (individual)
+social_groups	231	T071B	t71b	wrong-kind-only		kind=matriline — SSA:0010239 T071B (individual)
+social_groups	234	T109D	t109d	wrong-kind-only		kind=matriline — SSA:0010340 T109D (individual)
+social_groups	236	T046B3	t46b3	wrong-kind-only		kind=matriline — SSA:0010120 T046B3 (individual)
+social_groups	238	T073C	t73c	wrong-kind-only		kind=matriline — SSA:0010253 T073C (individual)
+social_groups	239	T059A1	t59a1	wrong-kind-only		kind=matriline — SSA:0010169 T059A1 (individual)
+social_groups	241	T166A	t166a	wrong-kind-only		kind=matriline — SSA:0010447 T166A (individual)
+social_groups	242	T023D	t23d	wrong-kind-only		kind=matriline — SSA:0010033 T023D (individual)
+social_groups	243	T151A	t151a	wrong-kind-only		kind=matriline — SSA:0010432 T151A (individual)
+social_groups	244	T168A	t168a	wrong-kind-only		kind=matriline — SSA:0010453 T168A (individual)
+social_groups	245	T121A	t121a	wrong-kind-only		kind=matriline — SSA:0010364 T121A (individual)
+social_groups	246	T036B	t36b	wrong-kind-only		kind=matriline — SSA:0010076 T036B (individual)
+social_groups	249	T109A2	t109a2	wrong-kind-only		kind=matriline — SSA:0010319 T109A2 (individual)
+social_groups	250	T007B	t7b	wrong-kind-only		kind=matriline — SSA:0010010 T007B (individual)
+social_groups	251	T146C	t146c	wrong-kind-only		kind=matriline — SSA:0010423 T146C (individual)
+social_groups	252	T064B	t64b	wrong-kind-only		kind=matriline — SSA:0010188 T064B (individual)
+social_groups	253	T028A	t28a	wrong-kind-only		kind=matriline — SSA:0010040 T028A (individual)
+social_groups	254	T124D	t124d	wrong-kind-only		kind=matriline — SSA:0010387 T124D (individual)
+social_groups	256	T065A	t65a	wrong-kind-only		kind=matriline — SSA:0010193 T065A (individual)
+social_groups	257	T124A3	t124a3	wrong-kind-only		kind=matriline — SSA:0010380 T124A3 (individual)
+social_groups	259	T002C	t2c	wrong-kind-only		kind=matriline — SSA:0010001 T002C (individual)
+social_groups	262	T075C	t75c	wrong-kind-only		kind=matriline — SSA:0010265 T075C (individual)
+social_groups	263	T046B2	t46b2	wrong-kind-only		kind=matriline — SSA:0010117 T046B2 (individual)
+social_groups	264	T028B	t28b	wrong-kind-only		kind=matriline — SSA:0010044 T028B (individual)
+social_groups	267	T059A	t59a	wrong-kind-only		kind=matriline — SSA:0010168 T059A (individual)
+social_groups	269	T124A2	t124a2	wrong-kind-only		kind=matriline — SSA:0010377 T124A2 (individual)
+social_groups	271	T046C	t46c	wrong-kind-only		kind=matriline — SSA:0010126 T046C (individual)
+designations	1	AM3	am3	one	SSA:0010000	scheme=alaska
+designations	2	T002B	t2b	one	SSA:0010000	scheme=bc_wa primary
+designations	3	AM5	am5	one	SSA:0010001	scheme=alaska
+designations	4	T002C	t2c	one	SSA:0010001	scheme=bc_wa primary
+designations	5	T002C1	t2c1	one	SSA:0010002	scheme=bc_wa primary
+designations	6	T002C2	t2c2	one	SSA:0010003	scheme=bc_wa primary
+designations	7	T002C3	t2c3	one	SSA:0010004	scheme=bc_wa primary
+designations	8	T002C4	t2c4	one	SSA:0010005	scheme=bc_wa primary
+designations	9	T002C5	t2c5	one	SSA:0010006	scheme=bc_wa primary
+designations	10	T002C6	t2c6	one	SSA:0010007	scheme=bc_wa primary
+designations	11	T007	t7	one	SSA:0010008	scheme=bc_wa primary
+designations	12	T007A	t7a	one	SSA:0010009	scheme=bc_wa primary
+designations	13	T007B	t7b	one	SSA:0010010	scheme=bc_wa primary
+designations	14	T007B3	t7b3	one	SSA:0010011	scheme=bc_wa primary
+designations	15	T007B4	t7b4	one	SSA:0010012	scheme=bc_wa primary
+designations	16	T007B6	t7b6	one	SSA:0010013	scheme=bc_wa primary
+designations	17	T007B7	t7b7	one	SSA:0010014	scheme=bc_wa primary
+designations	18	T010	t10	one	SSA:0010015	scheme=bc_wa primary
+designations	19	T010B	t10b	one	SSA:0010016	scheme=bc_wa primary
+designations	20	T010C	t10c	one	SSA:0010017	scheme=bc_wa primary
+designations	21	T011	t11	one	SSA:0010018	scheme=bc_wa primary
+designations	22	T011A	t11a	one	SSA:0010019	scheme=bc_wa primary
+designations	23	T012A	t12a	one	SSA:0010020	scheme=bc_wa primary
+designations	24	T018	t18	one	SSA:0010021	scheme=bc_wa primary
+designations	25	T019	t19	one	SSA:0010022	scheme=bc_wa primary
+designations	26	T019B	t19b	one	SSA:0010023	scheme=bc_wa primary
+designations	27	T019C	t19c	one	SSA:0010024	scheme=bc_wa primary
+designations	28	T021	t21	one	SSA:0010026	scheme=bc_wa primary
+designations	29	T020	t20	one	SSA:0010025	scheme=bc_wa primary
+designations	30	T023	t23	one	SSA:0010027	scheme=bc_wa primary
+designations	31	T023D	t23d	one	SSA:0010033	scheme=bc_wa primary
+designations	32	T023D3	t23d3	one	SSA:0010034	scheme=bc_wa primary
+designations	33	T023D4	t23d4	one	SSA:0010035	scheme=bc_wa primary
+designations	34	T023D5	t23d5	one	SSA:0010036	scheme=bc_wa primary
+designations	35	T023C	t23c	one	SSA:0010028	scheme=bc_wa primary
+designations	36	T023C3	t23c3	one	SSA:0010029	scheme=bc_wa primary
+designations	37	T023C4	t23c4	one	SSA:0010030	scheme=bc_wa primary
+designations	38	T023C5	t23c5	one	SSA:0010031	scheme=bc_wa primary
+designations	39	T023C6	t23c6	one	SSA:0010032	scheme=bc_wa primary
+designations	40	T026	t26	one	SSA:0010037	scheme=bc_wa primary
+designations	41	T026A	t26a	one	SSA:0010038	scheme=bc_wa primary
+designations	42	T028	t28	one	SSA:0010039	scheme=bc_wa primary
+designations	43	T028C	t28c	one	SSA:0010047	scheme=bc_wa primary
+designations	44	T028D	t28d	one	SSA:0010048	scheme=bc_wa primary
+designations	45	T028E	t28e	one	SSA:0010049	scheme=bc_wa primary
+designations	46	T028A	t28a	one	SSA:0010040	scheme=bc_wa primary
+designations	47	T028A1	t28a1	one	SSA:0010041	scheme=bc_wa primary
+designations	48	T028A2	t28a2	one	SSA:0010042	scheme=bc_wa primary
+designations	49	T028A3	t28a3	one	SSA:0010043	scheme=bc_wa primary
+designations	50	T028B	t28b	one	SSA:0010044	scheme=bc_wa primary
+designations	51	T028B1	t28b1	one	SSA:0010045	scheme=bc_wa primary
+designations	52	T028B2	t28b2	one	SSA:0010046	scheme=bc_wa primary
+designations	53	T030	t30	one	SSA:0010050	scheme=bc_wa primary
+designations	54	T030A	t30a	one	SSA:0010051	scheme=bc_wa primary
+designations	55	T030C	t30c	one	SSA:0010056	scheme=bc_wa primary
+designations	56	T030B	t30b	one	SSA:0010052	scheme=bc_wa primary
+designations	57	T030B1	t30b1	one	SSA:0010053	scheme=bc_wa primary
+designations	58	T030B2	t30b2	one	SSA:0010054	scheme=bc_wa primary
+designations	59	T030B3	t30b3	one	SSA:0010055	scheme=bc_wa primary
+designations	60	T031	t31	one	SSA:0010057	scheme=bc_wa primary
+designations	61	T034	t34	one	SSA:0010058	scheme=bc_wa primary
+designations	62	T034A	t34a	one	SSA:0010059	scheme=bc_wa primary
+designations	63	T034A1	t34a1	one	SSA:0010060	scheme=bc_wa primary
+designations	64	T034A2	t34a2	one	SSA:0010061	scheme=bc_wa primary
+designations	65	T034B	t34b	one	SSA:0010062	scheme=bc_wa primary
+designations	66	T035	t35	one	SSA:0010063	scheme=bc_wa primary
+designations	67	T035A	t35a	one	SSA:0010064	scheme=bc_wa primary
+designations	68	T035A1	t35a1	one	SSA:0010065	scheme=bc_wa primary
+designations	69	T035A2	t35a2	one	SSA:0010066	scheme=bc_wa primary
+designations	70	T035A3	t35a3	one	SSA:0010067	scheme=bc_wa primary
+designations	71	T035A4	t35a4	one	SSA:0010068	scheme=bc_wa primary
+designations	72	AB31	ab31	one	SSA:0010069	scheme=alaska
+designations	73	T036	t36	one	SSA:0010069	scheme=bc_wa primary
+designations	74	T036B	t36b	one	SSA:0010076	scheme=bc_wa primary
+designations	75	T036B1	t36b1	one	SSA:0010077	scheme=bc_wa primary
+designations	76	T036B1A	t36b1a	one	SSA:0010078	scheme=bc_wa primary
+designations	77	T036B2	t36b2	one	SSA:0010079	scheme=bc_wa primary
+designations	78	T036B3	t36b3	one	SSA:0010080	scheme=bc_wa primary
+designations	79	T036B4	t36b4	one	SSA:0010081	scheme=bc_wa primary
+designations	80	AM35	am35	one	SSA:0010070	scheme=alaska
+designations	81	T036A	t36a	one	SSA:0010070	scheme=bc_wa primary
+designations	82	T036A1	t36a1	one	SSA:0010071	scheme=bc_wa primary
+designations	83	T036A1A	t36a1a	one	SSA:0010072	scheme=bc_wa primary
+designations	84	T036A2	t36a2	one	SSA:0010073	scheme=bc_wa primary
+designations	85	T036A3	t36a3	one	SSA:0010074	scheme=bc_wa primary
+designations	86	T036A5	t36a5	one	SSA:0010075	scheme=bc_wa primary
+designations	87	T037	t37	one	SSA:0010082	scheme=bc_wa primary
+designations	88	T037B	t37b	one	SSA:0010089	scheme=bc_wa primary
+designations	89	T037B1	t37b1	one	SSA:0010090	scheme=bc_wa primary
+designations	90	T037B2	t37b2	one	SSA:0010091	scheme=bc_wa primary
+designations	91	T037B3	t37b3	one	SSA:0010092	scheme=bc_wa primary
+designations	92	T037A	t37a	one	SSA:0010083	scheme=bc_wa primary
+designations	93	T037A1	t37a1	one	SSA:0010084	scheme=bc_wa primary
+designations	94	T037A2	t37a2	one	SSA:0010085	scheme=bc_wa primary
+designations	95	T037A3	t37a3	one	SSA:0010086	scheme=bc_wa primary
+designations	96	T037A4	t37a4	one	SSA:0010087	scheme=bc_wa primary
+designations	97	T037A5	t37a5	one	SSA:0010088	scheme=bc_wa primary
+designations	98	T038	t38	one	SSA:0010093	scheme=bc_wa primary
+designations	99	T038B	t38b	one	SSA:0010098	scheme=bc_wa primary
+designations	100	T038B1	t38b1	one	SSA:0010099	scheme=bc_wa primary
+designations	101	T038B2	t38b2	one	SSA:0010100	scheme=bc_wa primary
+designations	102	T038C	t38c	one	SSA:0010101	scheme=bc_wa primary
+designations	103	T038D	t38d	one	SSA:0010102	scheme=bc_wa primary
+designations	104	T038E	t38e	one	SSA:0010103	scheme=bc_wa primary
+designations	105	T038F	t38f	one	SSA:0010104	scheme=bc_wa primary
+designations	106	T038A	t38a	one	SSA:0010094	scheme=bc_wa primary
+designations	107	T038A1	t38a1	one	SSA:0010095	scheme=bc_wa primary
+designations	108	T038A2	t38a2	one	SSA:0010096	scheme=bc_wa primary
+designations	109	T038A3	t38a3	one	SSA:0010097	scheme=bc_wa primary
+designations	110	AL40	al40	one	SSA:0010105	scheme=alaska
+designations	111	T040	t40	one	SSA:0010105	scheme=bc_wa primary
+designations	112	T041	t41	one	SSA:0010106	scheme=bc_wa primary
+designations	113	T041A	t41a	one	SSA:0010107	scheme=bc_wa primary
+designations	114	T041A1	t41a1	one	SSA:0010108	scheme=bc_wa primary
+designations	115	T041A2	t41a2	one	SSA:0010109	scheme=bc_wa primary
+designations	116	T041A3	t41a3	one	SSA:0010110	scheme=bc_wa primary
+designations	117	T046	t46	one	SSA:0010111	scheme=bc_wa primary
+designations	118	T046D	t46d	one	SSA:0010132	scheme=bc_wa primary
+designations	119	T046E	t46e	one	SSA:0010133	scheme=bc_wa primary
+designations	120	T046F	t46f	one	SSA:0010134	scheme=bc_wa primary
+designations	121	T046A	t46a	none		scheme=bc_wa
+designations	122	T122	t122	one	SSA:0010368	scheme=bc_wa primary
+designations	123	T046B	t46b	one	SSA:0010112	scheme=bc_wa primary
+designations	124	T046B1	t46b1	one	SSA:0010113	scheme=bc_wa primary
+designations	125	T046B1A	t46b1a	one	SSA:0010114	scheme=bc_wa primary
+designations	126	T046B1B	t46b1b	one	SSA:0010115	scheme=bc_wa primary
+designations	127	T046B1C	t46b1c	one	SSA:0010116	scheme=bc_wa primary
+designations	128	T046B2	t46b2	one	SSA:0010117	scheme=bc_wa primary
+designations	129	T046B2A	t46b2a	one	SSA:0010118	scheme=bc_wa primary
+designations	130	T046B2B	t46b2b	one	SSA:0010119	scheme=bc_wa primary
+designations	131	T046B3	t46b3	one	SSA:0010120	scheme=bc_wa primary
+designations	132	T046B3A	t46b3a	one	SSA:0010121	scheme=bc_wa primary
+designations	133	T046B4	t46b4	one	SSA:0010122	scheme=bc_wa primary
+designations	134	T046B5	t46b5	one	SSA:0010123	scheme=bc_wa primary
+designations	135	T046B6	t46b6	one	SSA:0010124	scheme=bc_wa primary
+designations	136	T046B7	t46b7	one	SSA:0010125	scheme=bc_wa primary
+designations	137	T046C	t46c	one	SSA:0010126	scheme=bc_wa primary
+designations	138	T046C1	t46c1	one	SSA:0010127	scheme=bc_wa primary
+designations	139	T046C2	t46c2	one	SSA:0010128	scheme=bc_wa primary
+designations	140	T046C3	t46c3	one	SSA:0010129	scheme=bc_wa primary
+designations	141	T046C4	t46c4	one	SSA:0010130	scheme=bc_wa primary
+designations	142	T046C5	t46c5	one	SSA:0010131	scheme=bc_wa primary
+designations	143	AL12	al12	one	SSA:0010135	scheme=alaska
+designations	144	T049A	t49a	one	SSA:0010135	scheme=bc_wa primary
+designations	145	T049A1	t49a1	one	SSA:0010136	scheme=bc_wa primary
+designations	146	T049A2	t49a2	one	SSA:0010137	scheme=bc_wa primary
+designations	147	T049A3	t49a3	one	SSA:0010138	scheme=bc_wa primary
+designations	148	T049A4	t49a4	one	SSA:0010139	scheme=bc_wa primary
+designations	149	T049A5	t49a5	one	SSA:0010140	scheme=bc_wa primary
+designations	150	T049A6	t49a6	one	SSA:0010141	scheme=bc_wa primary
+designations	151	AL20	al20	one	SSA:0010142	scheme=alaska
+designations	152	T049B	t49b	one	SSA:0010142	scheme=bc_wa primary
+designations	153	T049B1	t49b1	one	SSA:0010143	scheme=bc_wa primary
+designations	154	T049B2	t49b2	one	SSA:0010144	scheme=bc_wa primary
+designations	155	T049B3	t49b3	one	SSA:0010145	scheme=bc_wa primary
+designations	156	T049B4	t49b4	one	SSA:0010146	scheme=bc_wa primary
+designations	157	T049B5	t49b5	one	SSA:0010147	scheme=bc_wa primary
+designations	158	T049C	t49c	one	SSA:0010148	scheme=bc_wa primary
+designations	159	AL8	al8	one	SSA:0010149	scheme=alaska
+designations	160	T050	t50	one	SSA:0010149	scheme=bc_wa primary
+designations	161	T050A	t50a	one	SSA:0010150	scheme=bc_wa primary
+designations	162	T050B	t50b	one	SSA:0010151	scheme=bc_wa primary
+designations	163	T050B1	t50b1	one	SSA:0010152	scheme=bc_wa primary
+designations	164	T050B2	t50b2	one	SSA:0010153	scheme=bc_wa primary
+designations	165	T050C	t50c	one	SSA:0010154	scheme=bc_wa primary
+designations	166	T050D	t50d	one	SSA:0010155	scheme=bc_wa primary
+designations	167	T050E	t50e	one	SSA:0010156	scheme=bc_wa primary
+designations	168	AL9	al9	one	SSA:0010157	scheme=alaska
+designations	169	T051	t51	one	SSA:0010157	scheme=bc_wa primary
+designations	170	T054	t54	one	SSA:0010158	scheme=bc_wa primary
+designations	171	T055	t55	one	SSA:0010159	scheme=bc_wa primary
+designations	172	T055A	t55a	one	SSA:0010160	scheme=bc_wa primary
+designations	173	T055B	t55b	one	SSA:0010161	scheme=bc_wa primary
+designations	174	T055B1	t55b1	one	SSA:0010162	scheme=bc_wa primary
+designations	175	T055C	t55c	one	SSA:0010163	scheme=bc_wa primary
+designations	176	T057	t57	one	SSA:0010164	scheme=bc_wa primary
+designations	177	T057A	t57a	one	SSA:0010165	scheme=bc_wa primary
+designations	178	T058	t58	one	SSA:0010166	scheme=bc_wa primary
+designations	179	T059	t59	one	SSA:0010167	scheme=bc_wa primary
+designations	180	T059A	t59a	one	SSA:0010168	scheme=bc_wa primary
+designations	181	T059A1	t59a1	one	SSA:0010169	scheme=bc_wa primary
+designations	182	T059A1A	t59a1a	one	SSA:0010170	scheme=bc_wa primary
+designations	183	T059A2	t59a2	one	SSA:0010171	scheme=bc_wa primary
+designations	184	T059A3	t59a3	one	SSA:0010172	scheme=bc_wa primary
+designations	185	T059A4	t59a4	one	SSA:0010173	scheme=bc_wa primary
+designations	186	T059A5	t59a5	one	SSA:0010174	scheme=bc_wa primary
+designations	187	T060	t60	one	SSA:0010175	scheme=bc_wa primary
+designations	188	T060C	t60c	one	SSA:0010176	scheme=bc_wa primary
+designations	189	T060D	t60d	one	SSA:0010177	scheme=bc_wa primary
+designations	190	T060E	t60e	one	SSA:0010178	scheme=bc_wa primary
+designations	191	T060F	t60f	one	SSA:0010179	scheme=bc_wa primary
+designations	192	T060G	t60g	one	SSA:0010180	scheme=bc_wa primary
+designations	193	AM21	am21	one	SSA:0010182	scheme=alaska
+designations	194	T064	t64	one	SSA:0010182	scheme=bc_wa primary
+designations	195	AM27	am27	one	SSA:0010183	scheme=alaska
+designations	196	T064A	t64a	one	SSA:0010183	scheme=bc_wa primary
+designations	197	T064A2	t64a2	one	SSA:0010184	scheme=bc_wa primary
+designations	198	T064A3	t64a3	one	SSA:0010185	scheme=bc_wa primary
+designations	199	T064A4	t64a4	one	SSA:0010186	scheme=bc_wa primary
+designations	200	T064A5	t64a5	one	SSA:0010187	scheme=bc_wa primary
+designations	201	T064B	t64b	one	SSA:0010188	scheme=bc_wa primary
+designations	202	T064B1	t64b1	one	SSA:0010189	scheme=bc_wa primary
+designations	203	T064B1A	t64b1a	one	SSA:0010190	scheme=bc_wa primary
+designations	204	T064B2	t64b2	one	SSA:0010191	scheme=bc_wa primary
+designations	205	AM22	am22	one	SSA:0010192	scheme=alaska
+designations	206	T065	t65	one	SSA:0010192	scheme=bc_wa primary
+designations	207	AM20	am20	one	SSA:0010181	scheme=alaska
+designations	208	T063	t63	one	SSA:0010181	scheme=bc_wa primary
+designations	209	AM25	am25	one	SSA:0010193	scheme=alaska
+designations	210	T065A	t65a	one	SSA:0010193	scheme=bc_wa primary
+designations	211	T065A2	t65a2	one	SSA:0010194	scheme=bc_wa primary
+designations	212	T065A3	t65a3	one	SSA:0010195	scheme=bc_wa primary
+designations	213	T065A4	t65a4	one	SSA:0010196	scheme=bc_wa primary
+designations	214	T065A5	t65a5	one	SSA:0010197	scheme=bc_wa primary
+designations	215	T065A6	t65a6	one	SSA:0010198	scheme=bc_wa primary
+designations	216	AM26	am26	one	SSA:0010199	scheme=alaska
+designations	217	T065B	t65b	one	SSA:0010199	scheme=bc_wa primary
+designations	218	T065B1	t65b1	one	SSA:0010200	scheme=bc_wa primary
+designations	219	T065B2	t65b2	one	SSA:0010201	scheme=bc_wa primary
+designations	220	T065B3	t65b3	one	SSA:0010202	scheme=bc_wa primary
+designations	221	AQ10	aq10	one	SSA:0010203	scheme=alaska
+designations	222	T068	t68	one	SSA:0010203	scheme=bc_wa primary
+designations	223	AQ11	aq11	one	SSA:0010204	scheme=alaska
+designations	224	T068A	t68a	one	SSA:0010204	scheme=bc_wa primary
+designations	225	AQ12	aq12	one	SSA:0010205	scheme=alaska
+designations	226	T068B	t68b	one	SSA:0010205	scheme=bc_wa primary
+designations	227	T068B1	t68b1	one	SSA:0010206	scheme=bc_wa primary
+designations	228	T068B1A	t68b1a	one	SSA:0010207	scheme=bc_wa primary
+designations	229	T068B1C	t68b1c	one	SSA:0010208	scheme=bc_wa primary
+designations	230	T068B1D	t68b1d	one	SSA:0010209	scheme=bc_wa primary
+designations	231	T068B2	t68b2	one	SSA:0010210	scheme=bc_wa primary
+designations	232	T068B3	t68b3	one	SSA:0010211	scheme=bc_wa primary
+designations	233	T068B4	t68b4	one	SSA:0010212	scheme=bc_wa primary
+designations	234	T068B5	t68b5	one	SSA:0010213	scheme=bc_wa primary
+designations	235	AQ14	aq14	one	SSA:0010214	scheme=alaska
+designations	236	T068C	t68c	one	SSA:0010214	scheme=bc_wa primary
+designations	237	T068C1	t68c1	one	SSA:0010215	scheme=bc_wa primary
+designations	238	T068C3	t68c3	one	SSA:0010216	scheme=bc_wa primary
+designations	239	T068C3A	t68c3a	one	SSA:0010217	scheme=bc_wa primary
+designations	240	T068C4	t68c4	one	SSA:0010218	scheme=bc_wa primary
+designations	241	T068C5	t68c5	one	SSA:0010219	scheme=bc_wa primary
+designations	242	T068C6	t68c6	one	SSA:0010220	scheme=bc_wa primary
+designations	243	T069	t69	one	SSA:0010221	scheme=bc_wa primary
+designations	244	T069C	t69c	one	SSA:0010228	scheme=bc_wa primary
+designations	245	T069E	t69e	one	SSA:0010234	scheme=bc_wa primary
+designations	246	T069F	t69f	one	SSA:0010235	scheme=bc_wa primary
+designations	247	T069A	t69a	one	SSA:0010222	scheme=bc_wa primary
+designations	248	T069A2	t69a2	one	SSA:0010223	scheme=bc_wa primary
+designations	249	T069A3	t69a3	one	SSA:0010224	scheme=bc_wa primary
+designations	250	T069A4	t69a4	one	SSA:0010225	scheme=bc_wa primary
+designations	251	T069A5	t69a5	one	SSA:0010226	scheme=bc_wa primary
+designations	252	T069A6	t69a6	one	SSA:0010227	scheme=bc_wa primary
+designations	253	T069D	t69d	one	SSA:0010229	scheme=bc_wa primary
+designations	254	T069D1	t69d1	one	SSA:0010230	scheme=bc_wa primary
+designations	255	T069D2	t69d2	one	SSA:0010231	scheme=bc_wa primary
+designations	256	T069D3	t69d3	one	SSA:0010232	scheme=bc_wa primary
+designations	257	T069D4	t69d4	one	SSA:0010233	scheme=bc_wa primary
+designations	258	T071	t71	one	SSA:0010237	scheme=bc_wa primary
+designations	259	T071A	t71a	one	SSA:0010238	scheme=bc_wa primary
+designations	260	T071C	t71c	one	SSA:0010243	scheme=bc_wa primary
+designations	261	T071D	t71d	one	SSA:0010244	scheme=bc_wa primary
+designations	262	T071E	t71e	one	SSA:0010245	scheme=bc_wa primary
+designations	263	T071B	t71b	one	SSA:0010239	scheme=bc_wa primary
+designations	264	T071B1	t71b1	one	SSA:0010240	scheme=bc_wa primary
+designations	265	T071B2	t71b2	one	SSA:0010241	scheme=bc_wa primary
+designations	266	T071B3	t71b3	one	SSA:0010242	scheme=bc_wa primary
+designations	267	AQ2	aq2	one	SSA:0010246	scheme=alaska
+designations	268	T072	t72	one	SSA:0010246	scheme=bc_wa primary
+designations	269	T073	t73	one	SSA:0010247	scheme=bc_wa primary
+designations	270	AQ32	aq32	one	SSA:0010257	scheme=alaska
+designations	271	T074	t74	one	SSA:0010257	scheme=bc_wa primary
+designations	272	T073D	t73d	one	SSA:0010256	scheme=bc_wa primary
+designations	273	T073A	t73a	one	SSA:0010248	scheme=bc_wa primary
+designations	274	T073A1	t73a1	one	SSA:0010249	scheme=bc_wa primary
+designations	275	T073A2	t73a2	one	SSA:0010250	scheme=bc_wa primary
+designations	276	T073A3	t73a3	one	SSA:0010251	scheme=bc_wa primary
+designations	277	AQ35	aq35	one	SSA:0010252	scheme=alaska
+designations	278	T073B	t73b	one	SSA:0010252	scheme=bc_wa primary
+designations	279	T073C	t73c	one	SSA:0010253	scheme=bc_wa primary
+designations	280	T073C1	t73c1	one	SSA:0010254	scheme=bc_wa primary
+designations	281	T073C2	t73c2	one	SSA:0010255	scheme=bc_wa primary
+designations	282	AQ3	aq3	one	SSA:0010258	scheme=alaska
+designations	283	T075	t75	one	SSA:0010258	scheme=bc_wa primary
+designations	284	AQ9	aq9	one	SSA:0010259	scheme=alaska
+designations	285	T075A	t75a	one	SSA:0010259	scheme=bc_wa primary
+designations	286	AQ15	aq15	one	SSA:0010260	scheme=alaska
+designations	287	T075B	t75b	one	SSA:0010260	scheme=bc_wa primary
+designations	288	T075B1	t75b1	one	SSA:0010261	scheme=bc_wa primary
+designations	289	T075B2	t75b2	one	SSA:0010262	scheme=bc_wa primary
+designations	290	T075B3	t75b3	one	SSA:0010263	scheme=bc_wa primary
+designations	291	T075B4	t75b4	one	SSA:0010264	scheme=bc_wa primary
+designations	292	T075C	t75c	one	SSA:0010265	scheme=bc_wa primary
+designations	293	T075C1	t75c1	one	SSA:0010266	scheme=bc_wa primary
+designations	294	T075C2	t75c2	one	SSA:0010267	scheme=bc_wa primary
+designations	295	T075C3	t75c3	one	SSA:0010268	scheme=bc_wa primary
+designations	296	T075C4	t75c4	one	SSA:0010269	scheme=bc_wa primary
+designations	297	AQ7	aq7	one	SSA:0010270	scheme=alaska
+designations	298	T077	t77	one	SSA:0010270	scheme=bc_wa primary
+designations	299	T077A	t77a	one	SSA:0010271	scheme=bc_wa primary
+designations	300	T077B	t77b	one	SSA:0010272	scheme=bc_wa primary
+designations	301	T077C	t77c	one	SSA:0010273	scheme=bc_wa primary
+designations	302	T077D	t77d	one	SSA:0010274	scheme=bc_wa primary
+designations	303	T077E	t77e	one	SSA:0010275	scheme=bc_wa primary
+designations	304	T085	t85	one	SSA:0010276	scheme=bc_wa primary
+designations	305	T085A	t85a	one	SSA:0010277	scheme=bc_wa primary
+designations	306	T085B	t85b	one	SSA:0010278	scheme=bc_wa primary
+designations	307	T085C	t85c	one	SSA:0010279	scheme=bc_wa primary
+designations	308	T085D	t85d	one	SSA:0010280	scheme=bc_wa primary
+designations	309	AL15	al15	one	SSA:0010281	scheme=alaska
+designations	310	T086A	t86a	one	SSA:0010281	scheme=bc_wa primary
+designations	311	T086A1	t86a1	one	SSA:0010282	scheme=bc_wa primary
+designations	312	T086A1A	t86a1a	one	SSA:0010283	scheme=bc_wa primary
+designations	313	T086A1B	t86a1b	one	SSA:0010284	scheme=bc_wa primary
+designations	314	T086A3	t86a3	one	SSA:0010285	scheme=bc_wa primary
+designations	315	T086A3A	t86a3a	one	SSA:0010286	scheme=bc_wa primary
+designations	316	T086A4	t86a4	one	SSA:0010287	scheme=bc_wa primary
+designations	317	T086A5	t86a5	one	SSA:0010288	scheme=bc_wa primary
+designations	318	AO1	ao1	one	SSA:0010289	scheme=alaska
+designations	319	T087	t87	one	SSA:0010289	scheme=bc_wa primary
+designations	320	AO4	ao4	one	SSA:0010290	scheme=alaska
+designations	321	T090	t90	one	SSA:0010290	scheme=bc_wa primary
+designations	322	T090B	t90b	one	SSA:0010291	scheme=bc_wa primary
+designations	323	T090C	t90c	one	SSA:0010292	scheme=bc_wa primary
+designations	324	T090D	t90d	one	SSA:0010293	scheme=bc_wa primary
+designations	325	T091	t91	one	SSA:0010294	scheme=bc_wa primary
+designations	326	AH1	ah1	one	SSA:0010295	scheme=alaska
+designations	327	T093	t93	one	SSA:0010295	scheme=bc_wa primary
+designations	328	AH5	ah5	one	SSA:0010296	scheme=alaska
+designations	329	T097	t97	one	SSA:0010296	scheme=bc_wa primary
+designations	330	AM34	am34	one	SSA:0010297	scheme=alaska
+designations	331	T099	t99	one	SSA:0010297	scheme=bc_wa primary
+designations	332	T099A	t99a	one	SSA:0010298	scheme=bc_wa primary
+designations	333	T099B	t99b	one	SSA:0010299	scheme=bc_wa primary
+designations	334	T099B1	t99b1	one	SSA:0010300	scheme=bc_wa primary
+designations	335	T099C	t99c	one	SSA:0010301	scheme=bc_wa primary
+designations	336	T099D	t99d	one	SSA:0010302	scheme=bc_wa primary
+designations	337	T099E	t99e	one	SSA:0010303	scheme=bc_wa primary
+designations	338	AL41	al41	one	SSA:0010304	scheme=alaska
+designations	339	T100	t100	one	SSA:0010304	scheme=bc_wa primary
+designations	340	T100C	t100c	one	SSA:0010309	scheme=bc_wa primary
+designations	341	T100E	t100e	one	SSA:0010310	scheme=bc_wa primary
+designations	342	T100F	t100f	one	SSA:0010311	scheme=bc_wa primary
+designations	343	T100B	t100b	one	SSA:0010305	scheme=bc_wa primary
+designations	344	T100B1	t100b1	one	SSA:0010306	scheme=bc_wa primary
+designations	345	T100B2	t100b2	one	SSA:0010307	scheme=bc_wa primary
+designations	346	T100B3	t100b3	one	SSA:0010308	scheme=bc_wa primary
+designations	347	AL42	al42	one	SSA:0010312	scheme=alaska
+designations	348	T101	t101	one	SSA:0010312	scheme=bc_wa primary
+designations	349	T102	t102	one	SSA:0010315	scheme=bc_wa primary
+designations	350	AL45	al45	one	SSA:0010313	scheme=alaska
+designations	351	T101A	t101a	one	SSA:0010313	scheme=bc_wa primary
+designations	352	T101B	t101b	one	SSA:0010314	scheme=bc_wa primary
+designations	353	AM23	am23	one	SSA:0010316	scheme=alaska
+designations	354	T103	t103	one	SSA:0010316	scheme=bc_wa primary
+designations	355	T109	t109	one	SSA:0010317	scheme=bc_wa primary
+designations	356	T109D	t109d	one	SSA:0010340	scheme=bc_wa primary
+designations	357	T109D1	t109d1	one	SSA:0010341	scheme=bc_wa primary
+designations	358	T109D2	t109d2	one	SSA:0010342	scheme=bc_wa primary
+designations	359	T109E	t109e	one	SSA:0010343	scheme=bc_wa primary
+designations	360	T109A	t109a	one	SSA:0010318	scheme=bc_wa primary
+designations	361	T109A3	t109a3	one	SSA:0010324	scheme=bc_wa primary
+designations	362	T109A3A	t109a3a	one	SSA:0010325	scheme=bc_wa primary
+designations	363	T109A4	t109a4	one	SSA:0010326	scheme=bc_wa primary
+designations	364	T109A5	t109a5	one	SSA:0010327	scheme=bc_wa primary
+designations	365	T109A6	t109a6	one	SSA:0010328	scheme=bc_wa primary
+designations	366	T109A7	t109a7	one	SSA:0010329	scheme=bc_wa primary
+designations	367	T109A8	t109a8	one	SSA:0010330	scheme=bc_wa primary
+designations	368	T109A2	t109a2	one	SSA:0010319	scheme=bc_wa primary
+designations	369	T109A2A	t109a2a	one	SSA:0010320	scheme=bc_wa primary
+designations	370	T109A2B	t109a2b	one	SSA:0010321	scheme=bc_wa primary
+designations	371	T109A2C	t109a2c	one	SSA:0010322	scheme=bc_wa primary
+designations	372	T109A2D	t109a2d	one	SSA:0010323	scheme=bc_wa primary
+designations	373	T109B	t109b	one	SSA:0010331	scheme=bc_wa primary
+designations	374	T109B3	t109b3	one	SSA:0010332	scheme=bc_wa primary
+designations	375	T109B4	t109b4	one	SSA:0010333	scheme=bc_wa primary
+designations	376	T109B5	t109b5	one	SSA:0010334	scheme=bc_wa primary
+designations	377	T109B6	t109b6	one	SSA:0010335	scheme=bc_wa primary
+designations	378	T109C	t109c	one	SSA:0010336	scheme=bc_wa primary
+designations	379	T109C1	t109c1	one	SSA:0010337	scheme=bc_wa primary
+designations	380	T109C2	t109c2	one	SSA:0010338	scheme=bc_wa primary
+designations	381	T109C3	t109c3	one	SSA:0010339	scheme=bc_wa primary
+designations	382	T112	t112	one	SSA:0010351	scheme=bc_wa primary
+designations	383	T114	t114	one	SSA:0010353	scheme=bc_wa primary
+designations	384	T111	t111	one	SSA:0010344	scheme=bc_wa primary
+designations	385	T111A	t111a	one	SSA:0010345	scheme=bc_wa primary
+designations	386	T111A1	t111a1	one	SSA:0010346	scheme=bc_wa primary
+designations	387	T111B	t111b	one	SSA:0010347	scheme=bc_wa primary
+designations	388	T111B2	t111b2	one	SSA:0010348	scheme=bc_wa primary
+designations	389	T111B3	t111b3	one	SSA:0010349	scheme=bc_wa primary
+designations	390	T111C	t111c	one	SSA:0010350	scheme=bc_wa primary
+designations	391	T115	t115	one	SSA:0010354	scheme=bc_wa primary
+designations	392	T113	t113	one	SSA:0010352	scheme=bc_wa primary
+designations	393	T116	t116	one	SSA:0010355	scheme=bc_wa primary
+designations	394	T116A	t116a	one	SSA:0010356	scheme=bc_wa primary
+designations	395	T116B	t116b	one	SSA:0010357	scheme=bc_wa primary
+designations	396	T117	t117	one	SSA:0010358	scheme=bc_wa primary
+designations	397	T120	t120	one	SSA:0010363	scheme=bc_wa primary
+designations	398	T117A	t117a	one	SSA:0010359	scheme=bc_wa primary
+designations	399	T117B	t117b	one	SSA:0010360	scheme=bc_wa primary
+designations	400	T117B1	t117b1	one	SSA:0010361	scheme=bc_wa primary
+designations	401	T118	t118	one	SSA:0010362	scheme=bc_wa primary
+designations	402	T070	t70	one	SSA:0010236	scheme=bc_wa primary
+designations	403	T121A	t121a	one	SSA:0010364	scheme=bc_wa primary
+designations	404	T121A1	t121a1	one	SSA:0010365	scheme=bc_wa primary
+designations	405	T121A2	t121a2	one	SSA:0010366	scheme=bc_wa primary
+designations	406	T121A3	t121a3	one	SSA:0010367	scheme=bc_wa primary
+designations	407	T123	t123	one	SSA:0010369	scheme=bc_wa primary
+designations	408	T123A	t123a	one	SSA:0010370	scheme=bc_wa primary
+designations	409	T123C	t123c	one	SSA:0010371	scheme=bc_wa primary
+designations	410	T123D	t123d	one	SSA:0010372	scheme=bc_wa primary
+designations	411	T124	t124	one	SSA:0010373	scheme=bc_wa primary
+designations	412	AL18	al18	one	SSA:0010386	scheme=alaska
+designations	413	T124C	t124c	one	SSA:0010386	scheme=bc_wa primary
+designations	414	T124A	t124a	one	SSA:0010374	scheme=bc_wa primary
+designations	415	T124A3	t124a3	one	SSA:0010380	scheme=bc_wa primary
+designations	416	T124A3A	t124a3a	one	SSA:0010381	scheme=bc_wa primary
+designations	417	T124A4	t124a4	one	SSA:0010382	scheme=bc_wa primary
+designations	418	T124A4A	t124a4a	one	SSA:0010383	scheme=bc_wa primary
+designations	419	T124A6	t124a6	one	SSA:0010384	scheme=bc_wa primary
+designations	420	T124A7	t124a7	one	SSA:0010385	scheme=bc_wa primary
+designations	421	T124A1	t124a1	one	SSA:0010375	scheme=bc_wa primary
+designations	422	T124A1A	t124a1a	one	SSA:0010376	scheme=bc_wa primary
+designations	423	T124A2	t124a2	one	SSA:0010377	scheme=bc_wa primary
+designations	424	T124A2A	t124a2a	one	SSA:0010378	scheme=bc_wa primary
+designations	425	T124A2B	t124a2b	one	SSA:0010379	scheme=bc_wa primary
+designations	426	T124D	t124d	one	SSA:0010387	scheme=bc_wa primary
+designations	427	T124D1	t124d1	one	SSA:0010388	scheme=bc_wa primary
+designations	428	T124D2	t124d2	one	SSA:0010389	scheme=bc_wa primary
+designations	429	T124D3	t124d3	one	SSA:0010390	scheme=bc_wa primary
+designations	430	T124D4	t124d4	one	SSA:0010391	scheme=bc_wa primary
+designations	431	T124E	t124e	one	SSA:0010392	scheme=bc_wa primary
+designations	432	AV52	av52	one	SSA:0010393	scheme=alaska
+designations	433	T125	t125	one	SSA:0010393	scheme=bc_wa primary
+designations	434	AV53	av53	one	SSA:0010395	scheme=alaska
+designations	435	T127	t127	one	SSA:0010395	scheme=bc_wa primary
+designations	436	AV51	av51	one	SSA:0010396	scheme=alaska
+designations	437	T128	t128	one	SSA:0010396	scheme=bc_wa primary
+designations	438	T125A	t125a	one	SSA:0010394	scheme=bc_wa primary
+designations	439	T131	t131	one	SSA:0010399	scheme=bc_wa primary
+designations	440	CA52	ca52	one	SSA:0010397	scheme=california
+designations	441	T129	t129	one	SSA:0010397	scheme=bc_wa primary
+designations	442	CA59	ca59	one	SSA:0010398	scheme=california
+designations	443	T130	t130	one	SSA:0010398	scheme=bc_wa primary
+designations	444	CA20	ca20	none		scheme=california
+designations	445	AO10	ao10	none		scheme=alaska
+designations	446	T132	t132	one	SSA:0010400	scheme=bc_wa primary
+designations	447	CA18	ca18	one	SSA:0010401	scheme=california
+designations	448	T133	t133	one	SSA:0010401	scheme=bc_wa primary
+designations	449	CA54	ca54	one	SSA:0010402	scheme=california
+designations	450	T134	t134	one	SSA:0010402	scheme=bc_wa primary
+designations	451	CA27	ca27	one	SSA:0010403	scheme=california
+designations	452	T135	t135	one	SSA:0010403	scheme=bc_wa primary
+designations	453	T137	t137	one	SSA:0010404	scheme=bc_wa primary
+designations	454	T137A	t137a	one	SSA:0010405	scheme=bc_wa primary
+designations	455	T137B	t137b	one	SSA:0010406	scheme=bc_wa primary
+designations	456	T137D	t137d	one	SSA:0010407	scheme=bc_wa primary
+designations	457	T139	t139	one	SSA:0010408	scheme=bc_wa primary
+designations	458	T141	t141	one	SSA:0010412	scheme=bc_wa primary
+designations	459	T141A	t141a	one	SSA:0010413	scheme=bc_wa primary
+designations	460	T141B	t141b	one	SSA:0010414	scheme=bc_wa primary
+designations	461	T141C	t141c	one	SSA:0010415	scheme=bc_wa primary
+designations	462	T140	t140	one	SSA:0010409	scheme=bc_wa primary
+designations	463	T140B	t140b	one	SSA:0010410	scheme=bc_wa primary
+designations	464	T140C	t140c	one	SSA:0010411	scheme=bc_wa primary
+designations	465	T143	t143	one	SSA:0010417	scheme=bc_wa primary
+designations	466	T142	t142	one	SSA:0010416	scheme=bc_wa primary
+designations	467	T146	t146	one	SSA:0010418	scheme=bc_wa primary
+designations	468	T146A	t146a	one	SSA:0010419	scheme=bc_wa primary
+designations	469	T146A1	t146a1	one	SSA:0010420	scheme=bc_wa primary
+designations	470	T146A2	t146a2	one	SSA:0010421	scheme=bc_wa primary
+designations	471	T146B	t146b	one	SSA:0010422	scheme=bc_wa primary
+designations	472	T146C	t146c	one	SSA:0010423	scheme=bc_wa primary
+designations	473	T146C1	t146c1	one	SSA:0010424	scheme=bc_wa primary
+designations	474	T146D	t146d	one	SSA:0010425	scheme=bc_wa primary
+designations	475	T146E	t146e	one	SSA:0010426	scheme=bc_wa primary
+designations	476	T147	t147	one	SSA:0010427	scheme=bc_wa primary
+designations	477	T148	t148	one	SSA:0010428	scheme=bc_wa primary
+designations	478	T149	t149	one	SSA:0010429	scheme=bc_wa primary
+designations	479	T151	t151	one	SSA:0010431	scheme=bc_wa primary
+designations	480	T150	t150	one	SSA:0010430	scheme=bc_wa primary
+designations	481	T151A	t151a	one	SSA:0010432	scheme=bc_wa primary
+designations	482	T151A1	t151a1	one	SSA:0010433	scheme=bc_wa primary
+designations	483	T151B	t151b	one	SSA:0010434	scheme=bc_wa primary
+designations	484	T151C	t151c	one	SSA:0010435	scheme=bc_wa primary
+designations	485	T151D	t151d	one	SSA:0010436	scheme=bc_wa primary
+designations	486	T152	t152	one	SSA:0010437	scheme=bc_wa primary
+designations	487	T152A	t152a	one	SSA:0010438	scheme=bc_wa primary
+designations	488	T152B	t152b	one	SSA:0010439	scheme=bc_wa primary
+designations	489	T152C	t152c	one	SSA:0010440	scheme=bc_wa primary
+designations	490	T157	t157	one	SSA:0010441	scheme=bc_wa primary
+designations	491	CA28	ca28	one	SSA:0010442	scheme=california
+designations	492	T160	t160	one	SSA:0010442	scheme=bc_wa primary
+designations	493	CA38	ca38	one	SSA:0010443	scheme=california
+designations	494	T161	t161	one	SSA:0010443	scheme=bc_wa primary
+designations	495	T162	t162	one	SSA:0010444	scheme=bc_wa primary
+designations	496	T166	t166	one	SSA:0010446	scheme=bc_wa primary
+designations	497	T165	t165	one	SSA:0010445	scheme=bc_wa primary
+designations	498	T166A	t166a	one	SSA:0010447	scheme=bc_wa primary
+designations	499	T166A1	t166a1	one	SSA:0010448	scheme=bc_wa primary
+designations	500	T167	t167	one	SSA:0010449	scheme=bc_wa primary
+designations	501	T167A	t167a	one	SSA:0010450	scheme=bc_wa primary
+designations	502	T167B	t167b	one	SSA:0010451	scheme=bc_wa primary
+designations	503	T167C	t167c	one	SSA:0010452	scheme=bc_wa primary
+designations	504	T168A	t168a	one	SSA:0010453	scheme=bc_wa primary
+designations	505	T168A1	t168a1	one	SSA:0010454	scheme=bc_wa primary
+designations	506	T168A2	t168a2	one	SSA:0010455	scheme=bc_wa primary
+designations	507	T169	t169	one	SSA:0010456	scheme=bc_wa primary
+designations	508	T170	t170	one	SSA:0010457	scheme=bc_wa primary
+designations	509	T171	t171	one	SSA:0010458	scheme=bc_wa primary
+designations	510	T172	t172	one	SSA:0010459	scheme=bc_wa primary
+designations	511	T173	t173	one	SSA:0010460	scheme=bc_wa primary
+designations	512	T175	t175	one	SSA:0010468	scheme=bc_wa primary
+designations	513	T174	t174	one	SSA:0010461	scheme=bc_wa primary
+designations	514	T174A	t174a	one	SSA:0010462	scheme=bc_wa primary
+designations	515	T174A1	t174a1	one	SSA:0010463	scheme=bc_wa primary
+designations	516	T174A2	t174a2	one	SSA:0010464	scheme=bc_wa primary
+designations	517	T174B	t174b	one	SSA:0010465	scheme=bc_wa primary
+designations	518	T174B1	t174b1	one	SSA:0010466	scheme=bc_wa primary
+designations	519	T174C	t174c	one	SSA:0010467	scheme=bc_wa primary
+designations	520	T176	t176	one	SSA:0010469	scheme=bc_wa primary
+designations	521	T176A	t176a	one	SSA:0010470	scheme=bc_wa primary
+designations	522	T176B	t176b	one	SSA:0010471	scheme=bc_wa primary
+designations	523	AT30	at30	one	SSA:0010472	scheme=alaska
+designations	524	T177	t177	one	SSA:0010472	scheme=bc_wa primary
+designations	525	AT32	at32	one	SSA:0010473	scheme=alaska
+designations	526	T178	t178	one	SSA:0010473	scheme=bc_wa primary
+designations	527	AT74	at74	one	SSA:0010474	scheme=alaska
+designations	528	T179	t179	one	SSA:0010474	scheme=bc_wa primary
+designations	529	AT74A	at74a	one	SSA:0010475	scheme=alaska
+designations	530	T179A	t179a	one	SSA:0010475	scheme=bc_wa primary
+designations	531	T179B	t179b	one	SSA:0010476	scheme=bc_wa primary
+designations	532	U41	u41	one	SSA:0010477	scheme=alaska
+designations	533	T180	t180	one	SSA:0010477	scheme=bc_wa primary
+designations	534	T181	t181	one	SSA:0010478	scheme=bc_wa primary
+designations	535	T181A	t181a	one	SSA:0010479	scheme=bc_wa primary
+designations	536	T182	t182	one	SSA:0010480	scheme=bc_wa primary
+designations	537	T183	t183	one	SSA:0010481	scheme=bc_wa primary
+designations	538	T183A	t183a	one	SSA:0010482	scheme=bc_wa primary
+designations	539	T184	t184	one	SSA:0010483	scheme=bc_wa primary
+designations	540	T185	t185	one	SSA:0010484	scheme=bc_wa primary
+designations	541	T186	t186	one	SSA:0010486	scheme=bc_wa primary
+designations	542	T187	t187	one	SSA:0010487	scheme=bc_wa primary
+designations	543	T185A	t185a	one	SSA:0010485	scheme=bc_wa primary
+designations	544	U47	u47	one	SSA:0010488	scheme=alaska
+designations	545	T188	t188	one	SSA:0010488	scheme=bc_wa primary
+designations	546	U48	u48	one	SSA:0010489	scheme=alaska
+designations	547	T188A	t188a	one	SSA:0010489	scheme=bc_wa primary
+designations	548	CA154	ca154	one	SSA:0010490	scheme=california
+designations	549	T196	t196	one	SSA:0010490	scheme=bc_wa primary
+designations	550	CA079	ca79	one	SSA:0010491	scheme=california
+designations	551	T197	t197	one	SSA:0010491	scheme=bc_wa primary
+designations	552	T199	t199	one	SSA:0010492	scheme=bc_wa primary
+designations	553	T199A	t199a	one	SSA:0010493	scheme=bc_wa primary
+designations	554	T199B	t199b	one	SSA:0010494	scheme=bc_wa primary
+designations	555	T199C	t199c	one	SSA:0010495	scheme=bc_wa primary
+designations	556	CA171B	ca171b	one	SSA:0010496	scheme=california
+designations	557	T221B	t221b	one	SSA:0010496	scheme=bc_wa primary
+designations	558	T223	t223	one	SSA:0010497	scheme=bc_wa primary
+designations	559	T224	t224	one	SSA:0010498	scheme=bc_wa primary
+designations	560	T224A	t224a	one	SSA:0010499	scheme=bc_wa primary
+designations	561	T224B	t224b	one	SSA:0010500	scheme=bc_wa primary
+designations	562	T225	t225	one	SSA:0010501	scheme=bc_wa primary
+designations	563	T227	t227	one	SSA:0010502	scheme=bc_wa primary
+designations	564	CA173	ca173	one	SSA:0010507	scheme=california
+designations	565	T252	t252	one	SSA:0010507	scheme=bc_wa primary
+designations	566	CA166	ca166	one	SSA:0010506	scheme=california
+designations	567	T251	t251	one	SSA:0010506	scheme=bc_wa primary
+designations	568	CA172	ca172	one	SSA:0010503	scheme=california
+designations	569	T250	t250	one	SSA:0010503	scheme=bc_wa primary
+designations	570	CA172C	ca172c	one	SSA:0010504	scheme=california
+designations	571	T250C	t250c	one	SSA:0010504	scheme=bc_wa primary
+designations	572	CA172D	ca172d	one	SSA:0010505	scheme=california
+designations	573	T250D	t250d	one	SSA:0010505	scheme=bc_wa primary
+designations	574	T253	t253	one	SSA:0010508	scheme=bc_wa primary
+designations	575	T253A	t253a	one	SSA:0010509	scheme=bc_wa primary
+group_memberships	511	T002C <- T002C6		individual-only		basis=maternal
+group_memberships	512	T002C <- T002C5		individual-only		basis=maternal
+group_memberships	513	T002C <- T002C4		individual-only		basis=maternal
+group_memberships	514	T002C <- T002C3		individual-only		basis=maternal
+group_memberships	515	T002C <- T002C2		individual-only		basis=maternal
+group_memberships	516	T002C <- T002C1		individual-only		basis=maternal
+group_memberships	517	T007 <- T007B		both		basis=maternal
+group_memberships	518	T007 <- T007A		both		basis=maternal
+group_memberships	519	T007B <- T007B7		individual-only		basis=maternal
+group_memberships	520	T007B <- T007B6		individual-only		basis=maternal
+group_memberships	521	T007B <- T007B4		individual-only		basis=maternal
+group_memberships	522	T007B <- T007B3		individual-only		basis=maternal
+group_memberships	523	T010 <- T010C		both		basis=maternal
+group_memberships	524	T010 <- T010B		both		basis=maternal
+group_memberships	525	T011 <- T011A		both		basis=maternal
+group_memberships	526	T019 <- T019C		both		basis=maternal
+group_memberships	527	T019 <- T019B		both		basis=maternal
+group_memberships	528	T023 <- T023C		both		basis=maternal
+group_memberships	529	T023 <- T023D		both		basis=maternal
+group_memberships	530	T023D <- T023D5		individual-only		basis=maternal
+group_memberships	531	T023D <- T023D4		individual-only		basis=maternal
+group_memberships	532	T023D <- T023D3		individual-only		basis=maternal
+group_memberships	533	T023C <- T023C6		individual-only		basis=maternal
+group_memberships	534	T023C <- T023C5		individual-only		basis=maternal
+group_memberships	535	T023C <- T023C4		individual-only		basis=maternal
+group_memberships	536	T023C <- T023C3		individual-only		basis=maternal
+group_memberships	537	T026 <- T026A		both		basis=maternal
+group_memberships	538	T028 <- T028B		both		basis=maternal
+group_memberships	539	T028 <- T028A		both		basis=maternal
+group_memberships	540	T028 <- T028E		both		basis=maternal
+group_memberships	541	T028 <- T028D		both		basis=maternal
+group_memberships	542	T028 <- T028C		both		basis=maternal
+group_memberships	543	T028A <- T028A3		individual-only		basis=maternal
+group_memberships	544	T028A <- T028A2		individual-only		basis=maternal
+group_memberships	545	T028A <- T028A1		individual-only		basis=maternal
+group_memberships	546	T028B <- T028B2		individual-only		basis=maternal
+group_memberships	547	T028B <- T028B1		individual-only		basis=maternal
+group_memberships	548	T030 <- T030B		both		basis=maternal
+group_memberships	549	T030 <- T030C		both		basis=maternal
+group_memberships	550	T030 <- T030A		both		basis=maternal
+group_memberships	551	T030B <- T030B3		individual-only		basis=maternal
+group_memberships	552	T030B <- T030B2		individual-only		basis=maternal
+group_memberships	553	T030B <- T030B1		individual-only		basis=maternal
+group_memberships	554	T034 <- T034B		both		basis=maternal
+group_memberships	555	T034 <- T034A		both		basis=maternal
+group_memberships	556	T034A <- T034A2		individual-only		basis=maternal
+group_memberships	557	T034A <- T034A1		individual-only		basis=maternal
+group_memberships	558	T035 <- T035A		both		basis=maternal
+group_memberships	559	T035A <- T035A4		individual-only		basis=maternal
+group_memberships	560	T035A <- T035A3		individual-only		basis=maternal
+group_memberships	561	T035A <- T035A2		individual-only		basis=maternal
+group_memberships	562	T035A <- T035A1		individual-only		basis=maternal
+group_memberships	563	T036 <- T036A		both		basis=maternal
+group_memberships	564	T036 <- T036B		both		basis=maternal
+group_memberships	565	T036B <- T036B4		individual-only		basis=maternal
+group_memberships	566	T036B <- T036B3		individual-only		basis=maternal
+group_memberships	567	T036B <- T036B2		individual-only		basis=maternal
+group_memberships	568	T036B <- T036B1		individual-only		basis=maternal
+group_memberships	569	T036B1 <- T036B1A		individual-only		basis=maternal
+group_memberships	570	T036A <- T036A5		individual-only		basis=maternal
+group_memberships	571	T036A <- T036A3		individual-only		basis=maternal
+group_memberships	572	T036A <- T036A2		individual-only		basis=maternal
+group_memberships	573	T036A <- T036A1		individual-only		basis=maternal
+group_memberships	574	T036A1 <- T036A1A		individual-only		basis=maternal
+group_memberships	575	T037 <- T037A		both		basis=maternal
+group_memberships	576	T037 <- T037B		both		basis=maternal
+group_memberships	577	T037B <- T037B3		individual-only		basis=maternal
+group_memberships	578	T037B <- T037B2		individual-only		basis=maternal
+group_memberships	579	T037B <- T037B1		individual-only		basis=maternal
+group_memberships	580	T037A <- T037A5		individual-only		basis=maternal
+group_memberships	581	T037A <- T037A4		individual-only		basis=maternal
+group_memberships	582	T037A <- T037A3		individual-only		basis=maternal
+group_memberships	583	T037A <- T037A2		individual-only		basis=maternal
+group_memberships	584	T037A <- T037A1		individual-only		basis=maternal
+group_memberships	585	T038 <- T038A		both		basis=maternal
+group_memberships	586	T038 <- T038F		both		basis=maternal
+group_memberships	587	T038 <- T038E		both		basis=maternal
+group_memberships	588	T038 <- T038D		both		basis=maternal
+group_memberships	589	T038 <- T038C		both		basis=maternal
+group_memberships	590	T038 <- T038B		both		basis=maternal
+group_memberships	591	T038B <- T038B2		individual-only		basis=maternal
+group_memberships	592	T038B <- T038B1		individual-only		basis=maternal
+group_memberships	593	T038A <- T038A3		individual-only		basis=maternal
+group_memberships	594	T038A <- T038A2		individual-only		basis=maternal
+group_memberships	595	T038A <- T038A1		individual-only		basis=maternal
+group_memberships	596	T041 <- T041A		both		basis=maternal
+group_memberships	597	T041A <- T041A3		individual-only		basis=maternal
+group_memberships	598	T041A <- T041A2		individual-only		basis=maternal
+group_memberships	599	T041A <- T041A1		individual-only		basis=maternal
+group_memberships	600	T046 <- T046C		both		basis=maternal
+group_memberships	601	T046 <- T046B		both		basis=maternal
+group_memberships	602	T046 <- T046F		both		basis=maternal
+group_memberships	603	T046 <- T046E		both		basis=maternal
+group_memberships	604	T046 <- T046D		both		basis=maternal
+group_memberships	605	T046B <- T046B7		individual-only		basis=maternal
+group_memberships	606	T046B <- T046B6		individual-only		basis=maternal
+group_memberships	607	T046B <- T046B5		individual-only		basis=maternal
+group_memberships	608	T046B <- T046B4		individual-only		basis=maternal
+group_memberships	609	T046B <- T046B3		individual-only		basis=maternal
+group_memberships	610	T046B <- T046B2		individual-only		basis=maternal
+group_memberships	611	T046B <- T046B1		individual-only		basis=maternal
+group_memberships	612	T046B1 <- T046B1C		individual-only		basis=maternal
+group_memberships	613	T046B1 <- T046B1B		individual-only		basis=maternal
+group_memberships	614	T046B1 <- T046B1A		individual-only		basis=maternal
+group_memberships	615	T046B2 <- T046B2B		individual-only		basis=maternal
+group_memberships	616	T046B2 <- T046B2A		individual-only		basis=maternal
+group_memberships	617	T046B3 <- T046B3A		individual-only		basis=maternal
+group_memberships	618	T046C <- T046C5		individual-only		basis=maternal
+group_memberships	619	T046C <- T046C4		individual-only		basis=maternal
+group_memberships	620	T046C <- T046C3		individual-only		basis=maternal
+group_memberships	621	T046C <- T046C2		individual-only		basis=maternal
+group_memberships	622	T046C <- T046C1		individual-only		basis=maternal
+group_memberships	623	T049A <- T049A6		individual-only		basis=maternal
+group_memberships	624	T049A <- T049A5		individual-only		basis=maternal
+group_memberships	625	T049A <- T049A4		individual-only		basis=maternal
+group_memberships	626	T049A <- T049A3		individual-only		basis=maternal
+group_memberships	627	T049A <- T049A2		individual-only		basis=maternal
+group_memberships	628	T049A <- T049A1		individual-only		basis=maternal
+group_memberships	629	T049B <- T049B5		individual-only		basis=maternal
+group_memberships	630	T049B <- T049B4		individual-only		basis=maternal
+group_memberships	631	T049B <- T049B3		individual-only		basis=maternal
+group_memberships	632	T049B <- T049B2		individual-only		basis=maternal
+group_memberships	633	T049B <- T049B1		individual-only		basis=maternal
+group_memberships	634	T050 <- T050E		both		basis=maternal
+group_memberships	635	T050 <- T050D		both		basis=maternal
+group_memberships	636	T050 <- T050C		both		basis=maternal
+group_memberships	637	T050 <- T050B		both		basis=maternal
+group_memberships	638	T050 <- T050A		both		basis=maternal
+group_memberships	639	T050B <- T050B2		individual-only		basis=maternal
+group_memberships	640	T050B <- T050B1		individual-only		basis=maternal
+group_memberships	641	T055 <- T055C		both		basis=maternal
+group_memberships	642	T055 <- T055B		both		basis=maternal
+group_memberships	643	T055 <- T055A		both		basis=maternal
+group_memberships	644	T055B <- T055B1		individual-only		basis=maternal
+group_memberships	645	T057 <- T057A		both		basis=maternal
+group_memberships	646	T059 <- T059A		both		basis=maternal
+group_memberships	647	T059A <- T059A5		individual-only		basis=maternal
+group_memberships	648	T059A <- T059A4		individual-only		basis=maternal
+group_memberships	649	T059A <- T059A3		individual-only		basis=maternal
+group_memberships	650	T059A <- T059A2		individual-only		basis=maternal
+group_memberships	651	T059A <- T059A1		individual-only		basis=maternal
+group_memberships	652	T059A1 <- T059A1A		individual-only		basis=maternal
+group_memberships	653	T060 <- T060G		both		basis=maternal
+group_memberships	654	T060 <- T060F		both		basis=maternal
+group_memberships	655	T060 <- T060E		both		basis=maternal
+group_memberships	656	T060 <- T060D		both		basis=maternal
+group_memberships	657	T060 <- T060C		both		basis=maternal
+group_memberships	658	T064 <- T064B		both		basis=maternal
+group_memberships	659	T064 <- T064A		both		basis=maternal
+group_memberships	660	T064A <- T064A5		individual-only		basis=maternal
+group_memberships	661	T064A <- T064A4		individual-only		basis=maternal
+group_memberships	662	T064A <- T064A3		individual-only		basis=maternal
+group_memberships	663	T064A <- T064A2		individual-only		basis=maternal
+group_memberships	664	T064B <- T064B2		individual-only		basis=maternal
+group_memberships	665	T064B <- T064B1		individual-only		basis=maternal
+group_memberships	666	T064B1 <- T064B1A		individual-only		basis=maternal
+group_memberships	667	T065 <- T065B		both		basis=maternal
+group_memberships	668	T065 <- T065A		both		basis=maternal
+group_memberships	669	T065A <- T065A6		individual-only		basis=maternal
+group_memberships	670	T065A <- T065A5		individual-only		basis=maternal
+group_memberships	671	T065A <- T065A4		individual-only		basis=maternal
+group_memberships	672	T065A <- T065A3		individual-only		basis=maternal
+group_memberships	673	T065A <- T065A2		individual-only		basis=maternal
+group_memberships	674	T065B <- T065B3		individual-only		basis=maternal
+group_memberships	675	T065B <- T065B2		individual-only		basis=maternal
+group_memberships	676	T065B <- T065B1		individual-only		basis=maternal
+group_memberships	677	T068 <- T068C		both		basis=maternal
+group_memberships	678	T068 <- T068B		both		basis=maternal
+group_memberships	679	T068 <- T068A		both		basis=maternal
+group_memberships	680	T068B <- T068B5		individual-only		basis=maternal
+group_memberships	681	T068B <- T068B4		individual-only		basis=maternal
+group_memberships	682	T068B <- T068B3		individual-only		basis=maternal
+group_memberships	683	T068B <- T068B2		individual-only		basis=maternal
+group_memberships	684	T068B <- T068B1		individual-only		basis=maternal
+group_memberships	685	T068B1 <- T068B1D		individual-only		basis=maternal
+group_memberships	686	T068B1 <- T068B1C		individual-only		basis=maternal
+group_memberships	687	T068B1 <- T068B1A		individual-only		basis=maternal
+group_memberships	688	T068C <- T068C6		individual-only		basis=maternal
+group_memberships	689	T068C <- T068C5		individual-only		basis=maternal
+group_memberships	690	T068C <- T068C4		individual-only		basis=maternal
+group_memberships	691	T068C <- T068C3		individual-only		basis=maternal
+group_memberships	692	T068C <- T068C1		individual-only		basis=maternal
+group_memberships	693	T068C3 <- T068C3A		individual-only		basis=maternal
+group_memberships	694	T069 <- T069D		both		basis=maternal
+group_memberships	695	T069 <- T069A		both		basis=maternal
+group_memberships	696	T069 <- T069F		both		basis=maternal
+group_memberships	697	T069 <- T069E		both		basis=maternal
+group_memberships	698	T069 <- T069C		both		basis=maternal
+group_memberships	699	T069A <- T069A6		individual-only		basis=maternal
+group_memberships	700	T069A <- T069A5		individual-only		basis=maternal
+group_memberships	701	T069A <- T069A4		individual-only		basis=maternal
+group_memberships	702	T069A <- T069A3		individual-only		basis=maternal
+group_memberships	703	T069A <- T069A2		individual-only		basis=maternal
+group_memberships	704	T069D <- T069D4		individual-only		basis=maternal
+group_memberships	705	T069D <- T069D3		individual-only		basis=maternal
+group_memberships	706	T069D <- T069D2		individual-only		basis=maternal
+group_memberships	707	T069D <- T069D1		individual-only		basis=maternal
+group_memberships	708	T071 <- T071B		both		basis=maternal
+group_memberships	709	T071 <- T071E		both		basis=maternal
+group_memberships	710	T071 <- T071D		both		basis=maternal
+group_memberships	711	T071 <- T071C		both		basis=maternal
+group_memberships	712	T071 <- T071A		both		basis=maternal
+group_memberships	713	T071B <- T071B3		individual-only		basis=maternal
+group_memberships	714	T071B <- T071B2		individual-only		basis=maternal
+group_memberships	715	T071B <- T071B1		individual-only		basis=maternal
+group_memberships	716	T073 <- T073C		both		basis=maternal
+group_memberships	717	T073 <- T073B		both		basis=maternal
+group_memberships	718	T073 <- T073A		both		basis=maternal
+group_memberships	719	T073 <- T073D		both		basis=maternal
+group_memberships	720	T073A <- T073A3		individual-only		basis=maternal
+group_memberships	721	T073A <- T073A2		individual-only		basis=maternal
+group_memberships	722	T073A <- T073A1		individual-only		basis=maternal
+group_memberships	723	T073C <- T073C2		individual-only		basis=maternal
+group_memberships	724	T073C <- T073C1		individual-only		basis=maternal
+group_memberships	725	T075 <- T075C		both		basis=maternal
+group_memberships	726	T075 <- T075B		both		basis=maternal
+group_memberships	727	T075 <- T075A		both		basis=maternal
+group_memberships	728	T075B <- T075B4		individual-only		basis=maternal
+group_memberships	729	T075B <- T075B3		individual-only		basis=maternal
+group_memberships	730	T075B <- T075B2		individual-only		basis=maternal
+group_memberships	731	T075B <- T075B1		individual-only		basis=maternal
+group_memberships	732	T075C <- T075C4		individual-only		basis=maternal
+group_memberships	733	T075C <- T075C3		individual-only		basis=maternal
+group_memberships	734	T075C <- T075C2		individual-only		basis=maternal
+group_memberships	735	T075C <- T075C1		individual-only		basis=maternal
+group_memberships	736	T077 <- T077E		both		basis=maternal
+group_memberships	737	T077 <- T077D		both		basis=maternal
+group_memberships	738	T077 <- T077C		both		basis=maternal
+group_memberships	739	T077 <- T077B		both		basis=maternal
+group_memberships	740	T077 <- T077A		both		basis=maternal
+group_memberships	741	T085 <- T085D		both		basis=maternal
+group_memberships	742	T085 <- T085C		both		basis=maternal
+group_memberships	743	T085 <- T085B		both		basis=maternal
+group_memberships	744	T085 <- T085A		both		basis=maternal
+group_memberships	745	T086A <- T086A5		individual-only		basis=maternal
+group_memberships	746	T086A <- T086A4		individual-only		basis=maternal
+group_memberships	747	T086A <- T086A3		individual-only		basis=maternal
+group_memberships	748	T086A <- T086A1		individual-only		basis=maternal
+group_memberships	749	T086A1 <- T086A1B		individual-only		basis=maternal
+group_memberships	750	T086A1 <- T086A1A		individual-only		basis=maternal
+group_memberships	751	T086A3 <- T086A3A		individual-only		basis=maternal
+group_memberships	752	T090 <- T090D		both		basis=maternal
+group_memberships	753	T090 <- T090C		both		basis=maternal
+group_memberships	754	T090 <- T090B		both		basis=maternal
+group_memberships	755	T099 <- T099E		both		basis=maternal
+group_memberships	756	T099 <- T099D		both		basis=maternal
+group_memberships	757	T099 <- T099C		both		basis=maternal
+group_memberships	758	T099 <- T099B		both		basis=maternal
+group_memberships	759	T099 <- T099A		both		basis=maternal
+group_memberships	760	T099B <- T099B1		individual-only		basis=maternal
+group_memberships	761	T100 <- T100B		both		basis=maternal
+group_memberships	762	T100 <- T100F		both		basis=maternal
+group_memberships	763	T100 <- T100E		both		basis=maternal
+group_memberships	764	T100 <- T100C		both		basis=maternal
+group_memberships	765	T100B <- T100B3		individual-only		basis=maternal
+group_memberships	766	T100B <- T100B2		individual-only		basis=maternal
+group_memberships	767	T100B <- T100B1		individual-only		basis=maternal
+group_memberships	768	T101 <- T101B		both		basis=maternal
+group_memberships	769	T101 <- T101A		both		basis=maternal
+group_memberships	770	T109 <- T109C		both		basis=maternal
+group_memberships	771	T109 <- T109B		both		basis=maternal
+group_memberships	772	T109 <- T109A		both		basis=maternal
+group_memberships	773	T109 <- T109E		both		basis=maternal
+group_memberships	774	T109 <- T109D		both		basis=maternal
+group_memberships	775	T109D <- T109D2		individual-only		basis=maternal
+group_memberships	776	T109D <- T109D1		individual-only		basis=maternal
+group_memberships	777	T109A <- T109A2		individual-only		basis=maternal
+group_memberships	778	T109A <- T109A8		individual-only		basis=maternal
+group_memberships	779	T109A <- T109A7		individual-only		basis=maternal
+group_memberships	780	T109A <- T109A6		individual-only		basis=maternal
+group_memberships	781	T109A <- T109A5		individual-only		basis=maternal
+group_memberships	782	T109A <- T109A4		individual-only		basis=maternal
+group_memberships	783	T109A <- T109A3		individual-only		basis=maternal
+group_memberships	784	T109A3 <- T109A3A		individual-only		basis=maternal
+group_memberships	785	T109A2 <- T109A2D		individual-only		basis=maternal
+group_memberships	786	T109A2 <- T109A2C		individual-only		basis=maternal
+group_memberships	787	T109A2 <- T109A2B		individual-only		basis=maternal
+group_memberships	788	T109A2 <- T109A2A		individual-only		basis=maternal
+group_memberships	789	T109B <- T109B6		individual-only		basis=maternal
+group_memberships	790	T109B <- T109B5		individual-only		basis=maternal
+group_memberships	791	T109B <- T109B4		individual-only		basis=maternal
+group_memberships	792	T109B <- T109B3		individual-only		basis=maternal
+group_memberships	793	T109C <- T109C3		individual-only		basis=maternal
+group_memberships	794	T109C <- T109C2		individual-only		basis=maternal
+group_memberships	795	T109C <- T109C1		individual-only		basis=maternal
+group_memberships	796	T111 <- T111C		both		basis=maternal
+group_memberships	797	T111 <- T111B		both		basis=maternal
+group_memberships	798	T111 <- T111A		both		basis=maternal
+group_memberships	799	T111A <- T111A1		individual-only		basis=maternal
+group_memberships	800	T111B <- T111B3		individual-only		basis=maternal
+group_memberships	801	T111B <- T111B2		individual-only		basis=maternal
+group_memberships	802	T116 <- T116B		both		basis=maternal
+group_memberships	803	T116 <- T116A		both		basis=maternal
+group_memberships	804	T117 <- T117B		both		basis=maternal
+group_memberships	805	T117 <- T117A		both		basis=maternal
+group_memberships	806	T117B <- T117B1		individual-only		basis=maternal
+group_memberships	807	T121A <- T121A3		individual-only		basis=maternal
+group_memberships	808	T121A <- T121A2		individual-only		basis=maternal
+group_memberships	809	T121A <- T121A1		individual-only		basis=maternal
+group_memberships	810	T123 <- T123D		both		basis=maternal
+group_memberships	811	T123 <- T123C		both		basis=maternal
+group_memberships	812	T123 <- T123A		both		basis=maternal
+group_memberships	813	T124 <- T124E		both		basis=maternal
+group_memberships	814	T124 <- T124D		both		basis=maternal
+group_memberships	815	T124 <- T124A		both		basis=maternal
+group_memberships	816	T124 <- T124C		both		basis=maternal
+group_memberships	817	T124A <- T124A2		individual-only		basis=maternal
+group_memberships	818	T124A <- T124A1		individual-only		basis=maternal
+group_memberships	819	T124A <- T124A7		individual-only		basis=maternal
+group_memberships	820	T124A <- T124A6		individual-only		basis=maternal
+group_memberships	821	T124A <- T124A4		individual-only		basis=maternal
+group_memberships	822	T124A <- T124A3		individual-only		basis=maternal
+group_memberships	823	T124A3 <- T124A3A		individual-only		basis=maternal
+group_memberships	824	T124A4 <- T124A4A		individual-only		basis=maternal
+group_memberships	825	T124A1 <- T124A1A		individual-only		basis=maternal
+group_memberships	826	T124A2 <- T124A2B		individual-only		basis=maternal
+group_memberships	827	T124A2 <- T124A2A		individual-only		basis=maternal
+group_memberships	828	T124D <- T124D4		individual-only		basis=maternal
+group_memberships	829	T124D <- T124D3		individual-only		basis=maternal
+group_memberships	830	T124D <- T124D2		individual-only		basis=maternal
+group_memberships	831	T124D <- T124D1		individual-only		basis=maternal
+group_memberships	832	T125 <- T125A		both		basis=maternal
+group_memberships	833	T137 <- T137D		both		basis=maternal
+group_memberships	834	T137 <- T137B		both		basis=maternal
+group_memberships	835	T137 <- T137A		both		basis=maternal
+group_memberships	836	T141 <- T141C		both		basis=maternal
+group_memberships	837	T141 <- T141B		both		basis=maternal
+group_memberships	838	T141 <- T141A		both		basis=maternal
+group_memberships	839	T140 <- T140C		both		basis=maternal
+group_memberships	840	T140 <- T140B		both		basis=maternal
+group_memberships	841	T146 <- T146E		both		basis=maternal
+group_memberships	842	T146 <- T146D		both		basis=maternal
+group_memberships	843	T146 <- T146C		both		basis=maternal
+group_memberships	844	T146 <- T146B		both		basis=maternal
+group_memberships	845	T146 <- T146A		both		basis=maternal
+group_memberships	846	T146A <- T146A2		individual-only		basis=maternal
+group_memberships	847	T146A <- T146A1		individual-only		basis=maternal
+group_memberships	848	T146C <- T146C1		individual-only		basis=maternal
+group_memberships	849	T151 <- T151D		both		basis=maternal
+group_memberships	850	T151 <- T151C		both		basis=maternal
+group_memberships	851	T151 <- T151B		both		basis=maternal
+group_memberships	852	T151 <- T151A		both		basis=maternal
+group_memberships	853	T151A <- T151A1		individual-only		basis=maternal
+group_memberships	854	T152 <- T152C		both		basis=maternal
+group_memberships	855	T152 <- T152B		both		basis=maternal
+group_memberships	856	T152 <- T152A		both		basis=maternal
+group_memberships	857	T166 <- T166A		both		basis=maternal
+group_memberships	858	T166A <- T166A1		individual-only		basis=maternal
+group_memberships	859	T167 <- T167C		both		basis=maternal
+group_memberships	860	T167 <- T167B		both		basis=maternal
+group_memberships	861	T167 <- T167A		both		basis=maternal
+group_memberships	862	T168A <- T168A2		individual-only		basis=maternal
+group_memberships	863	T168A <- T168A1		individual-only		basis=maternal
+group_memberships	864	T174 <- T174C		both		basis=maternal
+group_memberships	865	T174 <- T174B		both		basis=maternal
+group_memberships	866	T174 <- T174A		both		basis=maternal
+group_memberships	867	T174A <- T174A2		individual-only		basis=maternal
+group_memberships	868	T174A <- T174A1		individual-only		basis=maternal
+group_memberships	869	T174B <- T174B1		individual-only		basis=maternal
+group_memberships	870	T176 <- T176B		both		basis=maternal
+group_memberships	871	T176 <- T176A		both		basis=maternal
+group_memberships	872	T179 <- T179B		both		basis=maternal
+group_memberships	873	T179 <- T179A		both		basis=maternal
+group_memberships	874	T181 <- T181A		both		basis=maternal
+group_memberships	875	T183 <- T183A		both		basis=maternal
+group_memberships	876	T185 <- T185A		both		basis=maternal
+group_memberships	877	T188 <- T188A		both		basis=maternal
+group_memberships	878	T199 <- T199C		both		basis=maternal
+group_memberships	879	T199 <- T199B		both		basis=maternal
+group_memberships	880	T199 <- T199A		both		basis=maternal
+group_memberships	881	T224 <- T224B		both		basis=maternal
+group_memberships	882	T224 <- T224A		both		basis=maternal
+group_memberships	883	T250 <- T250D		both		basis=maternal
+group_memberships	884	T250 <- T250C		both		basis=maternal
+group_memberships	885	T253 <- T253A		both		basis=maternal
+nicknames	1	D'Arcy	darcy	carried	SSA:0010372	target=T123D (individual)
+nicknames	2	Lucky	lucky	carried	SSA:0010371	target=T123C (individual)
+nicknames	3	Stanley	stanley	carried	SSA:0010370	target=T123A (individual)
+nicknames	4	Sidney	sidney	carried	SSA:0010369	target=T123 (individual)
+nicknames	5	Spouter	spouter	carried	SSA:0010024	target=T019C (individual)
+nicknames	6	Galiano	galiano	carried	SSA:0010023	target=T019B (individual)
+nicknames	7	Bones	bones	carried	SSA:0010017	target=T010C (individual)
+nicknames	8	Siwash	siwash	carried	SSA:0010016	target=T010B (individual)
+nicknames	9	Langara	langara	carried	SSA:0010015	target=T010 (individual)
+nicknames	10	Kano	kano	carried	SSA:0010005	target=T002C4 (individual)
+nicknames	11	Lucy	lucy	carried	SSA:0010004	target=T002C3 (individual)
+nicknames	12	Tumbo	tumbo	carried	SSA:0010003	target=T002C2 (individual)
+nicknames	13	Rocky	rocky	carried	SSA:0010002	target=T002C1 (individual)
+nicknames	14	Tasu	tasu	carried	SSA:0010001	target=T002C (individual)
+nicknames	15	Pedder	pedder	carried	SSA:0010000	target=T002B (individual)
+nicknames	16	Craig	craig	carried	SSA:0010489	target=T188A (individual)
+nicknames	17	Dorothy	dorothy	carried	SSA:0010488	target=T188 (individual)
+nicknames	18	Biorka	biorka	carried	SSA:0010483	target=T184 (individual)
+nicknames	19	Oceania	oceania	carried	SSA:0010482	target=T183A (individual)
+nicknames	20	Spencer	spencer	carried	SSA:0010481	target=T183 (individual)
+nicknames	21	Alexandra	alexandra	carried	SSA:0010480	target=T182 (individual)
+nicknames	22	Tasman	tasman	carried	SSA:0010479	target=T181A (individual)
+nicknames	23	Pacific	pacific	carried	SSA:0010478	target=T181 (individual)
+nicknames	24	Cecil	cecil	carried	SSA:0010477	target=T180 (individual)
+nicknames	25	Islet	islet	carried	SSA:0010475	target=T179A (individual)
+nicknames	26	Kimshan	kimshan	carried	SSA:0010474	target=T179 (individual)
+nicknames	27	Heavy Rain	heavy rain	carried	SSA:0010473	target=T178 (individual)
+nicknames	28	Chubby Rain	chubby rain	carried	SSA:0010472	target=T177 (individual)
+nicknames	29	Jitterbug John	jitterbug john	carried	SSA:0010465	target=T174B (individual)
+nicknames	30	Solita	solita	carried	SSA:0010462	target=T174A (individual)
+nicknames	31	Dixon	dixon	carried	SSA:0010461	target=T174 (individual)
+nicknames	32	Chacon	chacon	carried	SSA:0010456	target=T169 (individual)
+nicknames	33	Bean	bean	carried	SSA:0010453	target=T168A (individual)
+nicknames	34	Valcroze	valcroze	not-carried	SSA:0010451	target=T167B (individual)
+nicknames	35	Doniol	doniol	not-carried	SSA:0010450	target=T167A (individual)
+nicknames	36	Walpole	walpole	not-carried	SSA:0010449	target=T167 (individual)
+nicknames	37	Gusty	gusty	not-carried	SSA:0010447	target=T166A (individual)
+nicknames	38	Thatcher	thatcher	not-carried	SSA:0010445	target=T165 (individual)
+nicknames	39	Hobart	hobart	not-carried	SSA:0010446	target=T166 (individual)
+nicknames	40	Sitka	sitka	carried	SSA:0010444	target=T162 (individual)
+nicknames	41	Pelagia	pelagia	carried	SSA:0010434	target=T151B (individual)
+nicknames	42	Batalla	batalla	carried	SSA:0010432	target=T151A (individual)
+nicknames	43	Mardy	mardy	carried	SSA:0010430	target=T150 (individual)
+nicknames	44	Capricho	capricho	carried	SSA:0010431	target=T151 (individual)
+nicknames	45	Basho	basho	carried	SSA:0010426	target=T146E (individual)
+nicknames	46	Leah	leah	carried	SSA:0010425	target=T146D (individual)
+nicknames	47	Svaha!	svaha!	carried	SSA:0010423	target=T146C (individual)
+nicknames	48	Chiloe	chiloe	carried	SSA:0010422	target=T146B (individual)
+nicknames	49	Oma	oma	carried	SSA:0010419	target=T146A (individual)
+nicknames	50	Oamaru	oamaru	carried	SSA:0010418	target=T146 (individual)
+nicknames	51	Ty	ty	carried	SSA:0010416	target=T142 (individual)
+nicknames	52	Tyeen	tyeen	carried	SSA:0010416	target=T142 (individual)
+nicknames	53	Ian	ian	carried	SSA:0010417	target=T143 (individual)
+nicknames	54	Wright	wright	carried	SSA:0010407	target=T137D (individual)
+nicknames	55	Tempest	tempest	carried	SSA:0010406	target=T137B (individual)
+nicknames	56	Barb	barb	carried	SSA:0010405	target=T137A (individual)
+nicknames	57	Loon	loon	carried	SSA:0010404	target=T137 (individual)
+nicknames	58	Dawn	dawn	carried	SSA:0010403	target=T135 (individual)
+nicknames	59	Jan	jan	carried	SSA:0010402	target=T134 (individual)
+nicknames	60	Finn	finn	carried	SSA:0010401	target=T133 (individual)
+nicknames	61	Scott	scott	carried	SSA:0010400	target=T132 (individual)
+nicknames	62	Murk	murk	carried	SSA:0010392	target=T124E (individual)
+nicknames	63	Seretse	seretse	carried	SSA:0010389	target=T124D2 (individual)
+nicknames	64	Salish II	salish ii	carried	SSA:0010388	target=T124D1 (individual)
+nicknames	65	Field	field	carried	SSA:0010387	target=T124D (individual)
+nicknames	66	Litton	litton	carried	SSA:0010379	target=T124A2B (individual)
+nicknames	67	Agafia	agafia	carried	SSA:0010378	target=T124A2A (individual)
+nicknames	68	Elkugu	elkugu	carried	SSA:0010377	target=T124A2 (individual)
+nicknames	69	Bonapartes	bonapartes	carried	SSA:0010375	target=T124A1 (individual)
+nicknames	70	Kasuun	kasuun	carried	SSA:0010384	target=T124A6 (individual)
+nicknames	71	Sabio	sabio	carried	SSA:0010382	target=T124A4 (individual)
+nicknames	72	Alethia	alethia	not-carried	SSA:0010381	target=T124A3A (individual)
+nicknames	73	Wasini	wasini	carried	SSA:0010380	target=T124A3 (individual)
+nicknames	74	Kittiwake	kittiwake	carried	SSA:0010374	target=T124A (individual)
+nicknames	75	Cooper	cooper	carried	SSA:0010386	target=T124C (individual)
+nicknames	76	Myrtle (Fertile Myrtle)	myrtle (fertile myrtle)	carried	SSA:0010373	target=T124 (individual)
+nicknames	77	Garforth	garforth	carried	SSA:0010357	target=T116B (individual)
+nicknames	78	Sturgess	sturgess	carried	SSA:0010356	target=T116A (individual)
+nicknames	79	Sandy	sandy	carried	SSA:0010355	target=T116 (individual)
+nicknames	80	Boca	boca	carried	SSA:0010336	target=T109C (individual)
+nicknames	81	Sem	sem	carried	SSA:0010331	target=T109B (individual)
+nicknames	82	Fuser	fuser	carried	SSA:0010319	target=T109A2 (individual)
+nicknames	83	Garrett	garrett	carried	SSA:0010326	target=T109A4 (individual)
+nicknames	84	Spong	spong	carried	SSA:0010324	target=T109A3 (individual)
+nicknames	85	Frio	frio	carried	SSA:0010318	target=T109A (individual)
+nicknames	86	Yoda	yoda	carried	SSA:0010343	target=T109E (individual)
+nicknames	87	Tazzie	tazzie	carried	SSA:0010341	target=T109D1 (individual)
+nicknames	88	Eivin	eivin	carried	SSA:0010340	target=T109D (individual)
+nicknames	89	Noyes	noyes	carried	SSA:0010317	target=T109 (individual)
+nicknames	90	Stephens	stephens	carried	SSA:0010316	target=T103 (individual)
+nicknames	91	Lagoon	lagoon	carried	SSA:0010314	target=T101B (individual)
+nicknames	92	Rush	rush	carried	SSA:0010313	target=T101A (individual)
+nicknames	93	Beardslee	beardslee	carried	SSA:0010315	target=T102 (individual)
+nicknames	94	Reef	reef	carried	SSA:0010312	target=T101 (individual)
+nicknames	95	Potnia	potnia	carried	SSA:0010307	target=T100B2 (individual)
+nicknames	96	Freya	freya	carried	SSA:0010305	target=T100B (individual)
+nicknames	97	Estrella	estrella	carried	SSA:0010311	target=T100F (individual)
+nicknames	98	Tharaya	tharaya	carried	SSA:0010310	target=T100E (individual)
+nicknames	99	Laurel	laurel	carried	SSA:0010309	target=T100C (individual)
+nicknames	100	Hutchins	hutchins	carried	SSA:0010304	target=T100 (individual)
+nicknames	101	Barakat	barakat	carried	SSA:0010301	target=T099C (individual)
+nicknames	102	Holly	holly	carried	SSA:0010299	target=T099B (individual)
+nicknames	103	Kirk	kirk	carried	SSA:0010298	target=T099A (individual)
+nicknames	104	Bella	bella	carried	SSA:0010297	target=T099 (individual)
+nicknames	105	Gull	gull	carried	SSA:0010296	target=T097 (individual)
+nicknames	106	Joanna	joanna	carried	SSA:0010295	target=T093 (individual)
+nicknames	107	Sebree	sebree	carried	SSA:0010294	target=T091 (individual)
+nicknames	108	Kanga	kanga	carried	SSA:0010293	target=T090D (individual)
+nicknames	109	Tigger	tigger	carried	SSA:0010292	target=T090C (individual)
+nicknames	110	Piglet	piglet	carried	SSA:0010291	target=T090B (individual)
+nicknames	111	Eagle	eagle	carried	SSA:0010290	target=T090 (individual)
+nicknames	112	Harbeson	harbeson	carried	SSA:0010289	target=T087 (individual)
+nicknames	113	Akia	akia	carried	SSA:0010287	target=T086A4 (individual)
+nicknames	114	Tyndall	tyndall	carried	SSA:0010285	target=T086A3 (individual)
+nicknames	115	Nahanni	nahanni	carried	SSA:0010282	target=T086A1 (individual)
+nicknames	116	Eider	eider	carried	SSA:0010281	target=T086A (individual)
+nicknames	117	Farenorth	farenorth	carried	SSA:0010280	target=T085D (individual)
+nicknames	118	*Findlay Farenorth	*findlay farenorth	carried	SSA:0010280	target=T085D (individual)
+nicknames	119	Jasmine	jasmine	carried	SSA:0010279	target=T085C (individual)
+nicknames	120	Alison	alison	carried	SSA:0010278	target=T085B (individual)
+nicknames	121	Ali	ali	carried	SSA:0010278	target=T085B (individual)
+nicknames	122	Zoe	zoe	carried	SSA:0010277	target=T085A (individual)
+nicknames	123	Eve	eve	carried	SSA:0010276	target=T085 (individual)
+nicknames	124	Misneach	misneach	carried	SSA:0010275	target=T077E (individual)
+nicknames	125	Alcyon	alcyon	carried	SSA:0010274	target=T077D (individual)
+nicknames	126	Neftali	neftali	carried	SSA:0010273	target=T077C (individual)
+nicknames	127	The Chuch	the chuch	carried	SSA:0010272	target=T077B (individual)
+nicknames	128	Eva	eva	carried	SSA:0010271	target=T077A (individual)
+nicknames	129	Asja	asja	carried	SSA:0010270	target=T077 (individual)
+nicknames	130	Gavin	gavin	not-carried	SSA:0010267	target=T075C2 (individual)
+nicknames	131	Carlos	carlos	not-carried	SSA:0010266	target=T075C1 (individual)
+nicknames	132	Bam-Bam	bambam	carried	SSA:0010265	target=T075C (individual)
+nicknames	133	Kasnikyu	kasnikyu	not-carried	SSA:0010263	target=T075B3 (individual)
+nicknames	134	Fifi	fifi	carried	SSA:0010262	target=T075B2 (individual)
+nicknames	135	Scars	scars	carried	SSA:0010261	target=T075B1 (individual)
+nicknames	136	Pebbles	pebbles	carried	SSA:0010260	target=T075B (individual)
+nicknames	137	Stone	stone	carried	SSA:0010259	target=T075A (individual)
+nicknames	138	Kidney	kidney	carried	SSA:0010258	target=T075 (individual)
+nicknames	139	Guba	guba	carried	SSA:0010254	target=T073C1 (individual)
+nicknames	140	Vicky	vicky	carried	SSA:0010253	target=T073C (individual)
+nicknames	141	Blur	blur	carried	SSA:0010252	target=T073B (individual)
+nicknames	142	Jessica	jessica	not-carried	SSA:0010251	target=T073A3 (individual)
+nicknames	143	Trites	trites	carried	SSA:0010250	target=T073A2 (individual)
+nicknames	144	Paws	paws	carried	SSA:0010249	target=T073A1 (individual)
+nicknames	145	Greg	greg	carried	SSA:0010248	target=T073A (individual)
+nicknames	146	Steve	steve	carried	SSA:0010256	target=T073D (individual)
+nicknames	147	Andy Bigg	andy bigg	carried	SSA:0010257	target=T074 (individual)
+nicknames	148	Doris	doris	carried	SSA:0010247	target=T073 (individual)
+nicknames	149	Young	young	carried	SSA:0010246	target=T072 (individual)
+nicknames	150	Tasli	tasli	carried	SSA:0010241	target=T071B2 (individual)
+nicknames	151	Zengo	zengo	carried	SSA:0010240	target=T071B1 (individual)
+nicknames	152	Hood	hood	carried	SSA:0010239	target=T071B (individual)
+nicknames	153	Sutton	sutton	carried	SSA:0010245	target=T071E (individual)
+nicknames	154	Heise	heise	carried	SSA:0010244	target=T071D (individual)
+nicknames	155	Jared	jared	carried	SSA:0010243	target=T071C (individual)
+nicknames	156	Hopkins	hopkins	carried	SSA:0010238	target=T071A (individual)
+nicknames	157	Bonkers	bonkers	carried	SSA:0010237	target=T071 (individual)
+nicknames	158	Rich	rich	not-carried	SSA:0010218	target=T068C4 (individual)
+nicknames	159	Jacobsen	jacobsen	carried	SSA:0010216	target=T068C3 (individual)
+nicknames	160	Sila	sila	carried	SSA:0010215	target=T068C1 (individual)
+nicknames	161	Bazan	bazan	carried	SSA:0010214	target=T068C (individual)
+nicknames	162	Venture	venture	not-carried	SSA:0010213	target=T068B5 (individual)
+nicknames	163	Chiak	chiak	carried	SSA:0010212	target=T068B4 (individual)
+nicknames	164	Wilder	wilder	carried	SSA:0010211	target=T068B3 (individual)
+nicknames	165	Quartz	quartz	carried	SSA:0010210	target=T068B2 (individual)
+nicknames	166	Fern	fern	not-carried	SSA:0010207	target=T068B1A (individual)
+nicknames	167	Obsidian	obsidian	carried	SSA:0010206	target=T068B1 (individual)
+nicknames	168	Phylly	phylly	carried	SSA:0010205	target=T068B (individual)
+nicknames	169	Ken	ken	carried	SSA:0010204	target=T068A (individual)
+nicknames	170	Yakataga	yakataga	carried	SSA:0010203	target=T068 (individual)
+nicknames	171	Nettle	nettle	carried	SSA:0010201	target=T065B2 (individual)
+nicknames	172	Birdsall	birdsall	carried	SSA:0010200	target=T065B1 (individual)
+nicknames	173	Chunk	chunk	carried	SSA:0010199	target=T065B (individual)
+nicknames	174	Butterbean	butterbean	not-carried	SSA:0010198	target=T065A6 (individual)
+nicknames	175	Elsie	elsie	carried	SSA:0010197	target=T065A5 (individual)
+nicknames	176	Ellifrit	ellifrit	carried	SSA:0010196	target=T065A4 (individual)
+nicknames	177	Ooxjaa	ooxjaa	carried	SSA:0010194	target=T065A2 (individual)
+nicknames	178	Fingers	fingers	carried	SSA:0010193	target=T065A (individual)
+nicknames	179	Zorro	zorro	carried	SSA:0010181	target=T063 (individual)
+nicknames	180	Whidbey II	whidbey ii	carried	SSA:0010192	target=T065 (individual)
+nicknames	181	Pelosi	pelosi	not-carried	SSA:0010191	target=T064B2 (individual)
+nicknames	182	Peaches	peaches	not-carried	SSA:0010189	target=T064B1 (individual)
+nicknames	183	Amabilidad	amabilidad	carried	SSA:0010188	target=T064B (individual)
+nicknames	184	Nova	nova	not-carried	SSA:0010186	target=T064A4 (individual)
+nicknames	185	Sparrow	sparrow	carried	SSA:0010185	target=T064A3 (individual)
+nicknames	186	Sparrow Rose	sparrow rose	not-carried	SSA:0010185	target=T064A3 (individual)
+nicknames	187	Tonsai	tonsai	carried	SSA:0010184	target=T064A2 (individual)
+nicknames	188	Minke	minke	carried	SSA:0010183	target=T064A (individual)
+nicknames	189	Keku	keku	carried	SSA:0010182	target=T064 (individual)
+nicknames	190	Loner	loner	carried	SSA:0010157	target=T051 (individual)
+nicknames	191	Grandmama	grandmama	not-carried	SSA:0010156	target=T050E (individual)
+nicknames	192	Lyrical	lyrical	not-carried	SSA:0010155	target=T050D (individual)
+nicknames	193	Passage	passage	carried	SSA:0010154	target=T050C (individual)
+nicknames	194	Blakeslee	blakeslee	carried	SSA:0010152	target=T050B1 (individual)
+nicknames	195	Sita	sita	carried	SSA:0010151	target=T050B (individual)
+nicknames	196	Bolder	bolder	carried	SSA:0010150	target=T050A (individual)
+nicknames	197	Boulder	boulder	carried	SSA:0010149	target=T050 (individual)
+nicknames	198	Neilson	neilson	carried	SSA:0010148	target=T049C (individual)
+nicknames	199	Janet	janet	carried	SSA:0010148	target=T049C (individual)
+nicknames	200	CharChar	charchar	carried	SSA:0010145	target=T049B3 (individual)
+nicknames	201	Skyler	skyler	carried	SSA:0010144	target=T049B2 (individual)
+nicknames	202	Voyageur	voyageur	carried	SSA:0010143	target=T049B1 (individual)
+nicknames	203	Van	van	carried	SSA:0010142	target=T049B (individual)
+nicknames	204	Nat	nat	carried	SSA:0010138	target=T049A3 (individual)
+nicknames	205	Judy	judy	carried	SSA:0010137	target=T049A2 (individual)
+nicknames	206	Jude	jude	carried	SSA:0010137	target=T049A2 (individual)
+nicknames	207	Noah	noah	carried	SSA:0010136	target=T049A1 (individual)
+nicknames	208	Nan	nan	carried	SSA:0010135	target=T049A (individual)
+nicknames	209	Palm	palm	carried	SSA:0010108	target=T041A1 (individual)
+nicknames	210	Jemison	jemison	carried	SSA:0010107	target=T041A (individual)
+nicknames	211	Lawrie	lawrie	carried	SSA:0010106	target=T041 (individual)
+nicknames	212	Dana	dana	carried	SSA:0010094	target=T038A (individual)
+nicknames	213	Hocker	hocker	not-carried	SSA:0010103	target=T038E (individual)
+nicknames	214	Falconer	falconer	carried	SSA:0010102	target=T038D (individual)
+nicknames	215	Borrowman	borrowman	carried	SSA:0010101	target=T038C (individual)
+nicknames	216	Cook	cook	not-carried	SSA:0010099	target=T038B1 (individual)
+nicknames	217	Jane	jane	carried	SSA:0010098	target=T038B (individual)
+nicknames	218	Graeme	graeme	carried	SSA:0010093	target=T038 (individual)
+nicknames	219	Inky	inky	carried	SSA:0010085	target=T037A2 (individual)
+nicknames	220	Inyo	inyo	carried	SSA:0010084	target=T037A1 (individual)
+nicknames	221	Volker	volker	carried	SSA:0010083	target=T037A (individual)
+nicknames	222	Lance	lance	carried	SSA:0010090	target=T037B1 (individual)
+nicknames	223	Harald	harald	carried	SSA:0010089	target=T037B (individual)
+nicknames	224	Pizza Fin	pizza fin	carried	SSA:0010082	target=T037 (individual)
+nicknames	225	Rocky III	rocky iii	carried	SSA:0010082	target=T037 (individual)
+nicknames	226	Mike III	mike iii	carried	SSA:0010074	target=T036A3 (individual)
+nicknames	227	Kailas	kailas	carried	SSA:0010073	target=T036A2 (individual)
+nicknames	228	Tierna	tierna	carried	SSA:0010071	target=T036A1 (individual)
+nicknames	229	Leland	leland	carried	SSA:0010070	target=T036A (individual)
+nicknames	230	Greenfelder	greenfelder	carried	SSA:0010079	target=T036B2 (individual)
+nicknames	231	Bhotia	bhotia	carried	SSA:0010077	target=T036B1 (individual)
+nicknames	232	Tattertip	tattertip	carried	SSA:0010076	target=T036B (individual)
+nicknames	233	Flapjack	flapjack	carried	SSA:0010069	target=T036 (individual)
+nicknames	234	Opal	opal	carried	SSA:0010065	target=T035A1 (individual)
+nicknames	235	Pearl	pearl	carried	SSA:0010064	target=T035A (individual)
+nicknames	236	Ruby Roo	ruby roo	carried	SSA:0010063	target=T035 (individual)
+nicknames	237	Pachamama	pachamama	carried	SSA:0010059	target=T034A (individual)
+nicknames	238	Grace	grace	carried	SSA:0010058	target=T034 (individual)
+nicknames	239	Drake	drake	carried	SSA:0010057	target=T031 (individual)
+nicknames	240	Lydonia	lydonia	carried	SSA:0010044	target=T028B (individual)
+nicknames	241	Slocum	slocum	carried	SSA:0010040	target=T028A (individual)
+nicknames	242	Gwaii	gwaii	carried	SSA:0010048	target=T028D (individual)
+nicknames	243	Lluvia	lluvia	carried	SSA:0010047	target=T028C (individual)
+nicknames	244	Khaz	khaz	carried	SSA:0010039	target=T028 (individual)
+nicknames	245	Bunzie	bunzie	carried	SSA:0010030	target=T023C4 (individual)
+nicknames	246	Durban	durban	carried	SSA:0010029	target=T023C3 (individual)
+nicknames	247	Freshwater	freshwater	carried	SSA:0010028	target=T023C (individual)
+nicknames	248	Robin	robin	carried	SSA:0010034	target=T023D3 (individual)
+nicknames	249	Brighty	brighty	carried	SSA:0010033	target=T023D (individual)
+nicknames	250	Warmsprings	warmsprings	carried	SSA:0010027	target=T023 (individual)
+nicknames	251	Kosatka	kosatka	carried	SSA:0010023	target=T019B (individual)
+nicknames	252	Helena	helena	carried	SSA:0010004	target=T002C3 (individual)
+nicknames	253	Barabbas	barabbas	carried	SSA:0010003	target=T002C2 (individual)
+nicknames	254	Nitinat	nitinat	carried	SSA:0010020	target=T012A (individual)
+nicknames	255	Rainy	rainy	carried	SSA:0010019	target=T011A (individual)
+nicknames	256	Wakana	wakana	carried	SSA:0010018	target=T011 (individual)
+nicknames	257	Spiller	spiller	carried	SSA:0010010	target=T007B (individual)
+nicknames	258	Arrow	arrow	carried	SSA:0010009	target=T007A (individual)
+nicknames	259	Innis	innis	carried	SSA:0010008	target=T007 (individual)
+nicknames	260	Kwénis	kwénis	carried	SSA:0010252	target=T073B (individual)
+nicknames	261	Onca	onca	carried	SSA:0010177	target=T060D (individual)
+nicknames	262	Hobi	hobi	carried	SSA:0010130	target=T046C4 (individual)
+nicknames	263	Akela	akela	carried	SSA:0010117	target=T046B2 (individual)
+nicknames	264	Domino	domino	carried	SSA:0010013	target=T007B6 (individual)
+nicknames	265	Knox	knox	carried	SSA:0010011	target=T007B3 (individual)
+nicknames	266	Indy	indy	carried	SSA:0010197	target=T065A5 (individual)
+nicknames	267	Tread	tread	carried	SSA:0010113	target=T046B1 (individual)
+nicknames	268	Moonraker	moonraker	carried	SSA:0010012	target=T007B4 (individual)
+nicknames	269	Spectre	spectre	carried	SSA:0010014	target=T007B7 (individual)
+nicknames	270	Fortune	fortune	carried	SSA:0010365	target=T121A1 (individual)
+nicknames	271	Runaway	runaway	carried	SSA:0010318	target=T109A (individual)
+nicknames	272	Big Momma	big momma	carried	SSA:0010317	target=T109 (individual)
+nicknames	273	Tree	tree	carried	SSA:0010109	target=T041A2 (individual)
+nicknames	274	Yankee One	yankee one	carried	SSA:0010057	target=T031 (individual)
+nicknames	275	Cindy	cindy	carried	SSA:0010028	target=T023C (individual)
+nicknames	276	Axle	axle	carried	SSA:0010033	target=T023D (individual)
+nicknames	277	Janice	janice	carried	SSA:0010027	target=T023 (individual)
+nicknames	278	Nootka	nootka	carried	SSA:0010022	target=T019 (individual)
+nicknames	279	Mooyah	mooyah	carried	SSA:0010022	target=T019 (individual)
+nicknames	280	Esperanza	esperanza	carried	SSA:0010021	target=T018 (individual)
+nicknames	281	Bubba	bubba	carried	SSA:0010017	target=T010C (individual)
+nicknames	282	Kwatsi	kwatsi	carried	SSA:0010025	target=T020 (individual)
+nicknames	283	Pandora	pandora	carried	SSA:0010026	target=T021 (individual)
+nicknames	284	Lynx	lynx	carried	SSA:0010178	target=T060E (individual)
+nicknames	285	Yelnats	yelnats	carried	SSA:0010176	target=T060C (individual)
+nicknames	286	Sixx	sixx	carried	SSA:0010035	target=T023D4 (individual)
+nicknames	287	Wildside	wildside	carried	SSA:0010036	target=T023D5 (individual)
+nicknames	288	Cascade	cascade	carried	SSA:0010032	target=T023C6 (individual)
+nicknames	289	Katmai	katmai	carried	SSA:0010459	target=T172 (individual)
+nicknames	290	Cordova	cordova	carried	SSA:0010323	target=T109A2D (individual)
+nicknames	291	Keeha	keeha	carried	SSA:0010322	target=T109A2C (individual)
+nicknames	292	Macoah	macoah	carried	SSA:0010321	target=T109A2B (individual)
+nicknames	293	Seekah	seekah	carried	SSA:0010320	target=T109A2A (individual)
+nicknames	294	Argyle	argyle	carried	SSA:0010327	target=T109A5 (individual)
+nicknames	295	Hartley	hartley	carried	SSA:0010223	target=T069A2 (individual)
+nicknames	296	Razor	razor	carried	SSA:0010129	target=T046C3 (individual)
+nicknames	297	Carmanah	carmanah	carried	SSA:0010126	target=T046C (individual)
+nicknames	298	Tsakani	tsakani	carried	SSA:0010114	target=T046B1A (individual)
+nicknames	299	Raksha	raksha	carried	SSA:0010112	target=T046B (individual)
+nicknames	300	Garnet	garnet	carried	SSA:0010067	target=T035A3 (individual)
+nicknames	301	Topaz	topaz	carried	SSA:0010066	target=T035A2 (individual)
+nicknames	302	Saoirse	saoirse	carried	SSA:0010037	target=T026 (individual)
+nicknames	303	Ursula	ursula	carried	SSA:0010038	target=T026A (individual)
+nicknames	304	Panthera	panthera	carried	SSA:0010175	target=T060 (individual)
+nicknames	305	Storm	storm	carried	SSA:0010074	target=T036A3 (individual)
+nicknames	306	Elwha	elwha	carried	SSA:0010050	target=T030 (individual)
+nicknames	307	Weiss	weiss	carried	SSA:0010330	target=T109A8 (individual)
+nicknames	308	Tsunami	tsunami	carried	SSA:0010127	target=T046C1 (individual)
+nicknames	309	Sol	sol	carried	SSA:0010124	target=T046B6 (individual)
+nicknames	310	Centeki	centeki	carried	SSA:0010368	target=T122 (individual)
+nicknames	311	Jib	jib	carried	SSA:0010088	target=T037A5 (individual)
+nicknames	312	Slice	slice	carried	SSA:0010092	target=T037B3 (individual)
+nicknames	313	Trident	trident	carried	SSA:0010091	target=T037B2 (individual)
+nicknames	314	Salix	salix	carried	SSA:0010056	target=T030C (individual)
+nicknames	315	Sequoia	sequoia	carried	SSA:0010051	target=T030A (individual)
+nicknames	316	Sedna	sedna	carried	SSA:0010120	target=T046B3 (individual)
+nicknames	317	Capella	capella	carried	SSA:0010054	target=T030B2 (individual)
+nicknames	318	Vega	vega	carried	SSA:0010053	target=T030B1 (individual)
+nicknames	319	Lyra	lyra	carried	SSA:0010052	target=T030B (individual)
+nicknames	320	Strix	strix	carried	SSA:0010383	target=T124A4A (individual)
+nicknames	321	Squall	squall	carried	SSA:0010075	target=T036A5 (individual)
+nicknames	322	Sonder	sonder	carried	SSA:0010062	target=T034B (individual)
+nicknames	323	Amaru	amaru	carried	SSA:0010061	target=T034A2 (individual)
+nicknames	324	Vesper	vesper	carried	SSA:0010055	target=T030B3 (individual)
+nicknames	325	Capilano	capilano	carried	SSA:0010457	target=T170 (individual)
+nicknames	326	Agate	agate	carried	SSA:0010068	target=T035A4 (individual)
+nicknames	327	Lester	lester	carried	SSA:0010064	target=T035A (individual)
+nicknames	328	Tide	tide	carried	SSA:0010116	target=T046B1C (individual)
+nicknames	329	Maple	maple	carried	SSA:0010078	target=T036B1A (individual)
+nicknames	330	Chip	chip	carried	SSA:0010080	target=T036B3 (individual)
+nicknames	331	Auk	auk	carried	SSA:0010081	target=T036B4 (individual)
+nicknames	332	Siku	siku	carried	SSA:0010288	target=T086A5 (individual)
+nicknames	333	Flint	flint	carried	SSA:0010268	target=T075C3 (individual)
+nicknames	334	Drift	drift	carried	SSA:0010072	target=T036A1A (individual)
+nicknames	335	Spindrift	spindrift	carried	SSA:0010381	target=T124A3A (individual)
+nicknames	336	Roswell	roswell	carried	SSA:0010157	target=T051 (individual)
+nicknames	337	Nebula	nebula	carried	SSA:0010140	target=T049A5 (individual)
+nicknames	338	Quiver	quiver	carried	SSA:0010122	target=T046B4 (individual)
+nicknames	339	Thor	thor	carried	SSA:0010133	target=T046E (individual)
+nicknames	340	Wake	wake	carried	SSA:0010111	target=T046 (individual)
+nicknames	341	Spinnaker	spinnaker	carried	SSA:0010086	target=T037A3 (individual)
+nicknames	342	Crinkle	crinkle	carried	SSA:0010087	target=T037A4 (individual)
+nicknames	343	Loki	loki	carried	SSA:0010134	target=T046F (individual)
+nicknames	344	Strider	strider	carried	SSA:0010132	target=T046D (individual)
+nicknames	345	Jack	jack	carried	SSA:0010405	target=T137A (individual)
+nicknames	346	Tl'uk	tluk	carried	SSA:0010115	target=T046B1B (individual)
+nicknames	347	Takaya	takaya	carried	SSA:0010119	target=T046B2B (individual)
+nicknames	348	Munro	munro	carried	SSA:0010121	target=T046B3A (individual)
+nicknames	349	Tala	tala	carried	SSA:0010125	target=T046B7 (individual)
+nicknames	350	Sam	sam	carried	SSA:0010128	target=T046C2 (individual)
+nicknames	351	Seidr	seidr	carried	SSA:0010306	target=T100B1 (individual)
+nicknames	352	Corvus	corvus	carried	SSA:0010201	target=T065B2 (individual)
+nicknames	353	Neptune	neptune	carried	SSA:0010139	target=T049A4 (individual)
+nicknames	354	Charlie II	charlie ii	carried	SSA:0010141	target=T049A6 (individual)
+nicknames	355	Seaforth	seaforth	carried	SSA:0010158	target=T054 (individual)
+nicknames	356	Tigris	tigris	carried	SSA:0010179	target=T060F (individual)
+nicknames	357	Tenakee	tenakee	carried	SSA:0010286	target=T086A3A (individual)
+nicknames	358	Kismet	kismet	carried	SSA:0010226	target=T069A5 (individual)
+nicknames	359	Uncia	uncia	carried	SSA:0010180	target=T060G (individual)
+nicknames	360	Chainsaw	chainsaw	carried	SSA:0010181	target=T063 (individual)
+nicknames	361	Artemis	artemis	carried	SSA:0010193	target=T065A (individual)
+nicknames	362	Amir	amir	carried	SSA:0010195	target=T065A3 (individual)
+nicknames	363	Amira	amira	carried	SSA:0010195	target=T065A3 (individual)
+nicknames	364	Callisto	callisto	carried	SSA:0010198	target=T065A6 (individual)
+nicknames	365	Rook	rook	carried	SSA:0010202	target=T065B3 (individual)
+nicknames	366	Penumbra	penumbra	carried	SSA:0010212	target=T068B4 (individual)
+nicknames	367	Kitimat	kitimat	carried	SSA:0010222	target=T069A (individual)
+nicknames	368	Kin	kin	carried	SSA:0010235	target=T069F (individual)
+nicknames	369	Kodiak	kodiak	carried	SSA:0010234	target=T069E (individual)
+nicknames	370	Kye	kye	carried	SSA:0010228	target=T069C (individual)
+nicknames	371	Komox	komox	carried	SSA:0010221	target=T069 (individual)
+nicknames	372	Našuk	našuk	carried	SSA:0010225	target=T069A4 (individual)
+nicknames	373	Kʷiisahii	kʷiisahii	carried	SSA:0010224	target=T069A3 (individual)
+nicknames	374	Champ	champ	carried	SSA:0010251	target=T073A3 (individual)
+nicknames	375	Ogopogo	ogopogo	carried	SSA:0010250	target=T073A2 (individual)
+nicknames	376	Caddy	caddy	carried	SSA:0010249	target=T073A1 (individual)
+nicknames	377	Nessie	nessie	carried	SSA:0010248	target=T073A (individual)
+nicknames	378	Jasper	jasper	carried	SSA:0010262	target=T075B2 (individual)
+nicknames	379	Rubble	rubble	carried	SSA:0010263	target=T075B3 (individual)
+nicknames	380	Petra	petra	carried	SSA:0010264	target=T075B4 (individual)
+nicknames	381	Slate	slate	carried	SSA:0010269	target=T075C4 (individual)
+nicknames	382	Saulitis	saulitis	carried	SSA:0010271	target=T077A (individual)
+nicknames	383	Denali	denali	carried	SSA:0010284	target=T086A1B (individual)
+nicknames	384	Puck	puck	carried	SSA:0010302	target=T099D (individual)
+nicknames	385	Qwiin qwiin oo qwii la	qwiin qwiin oo qwii la	carried	SSA:0010303	target=T099E (individual)
+nicknames	386	Selkie	selkie	carried	SSA:0010308	target=T100B3 (individual)
+nicknames	387	Kʷiisaḥiʔis	kʷiisaḥiʔis	carried	SSA:0010325	target=T109A3A (individual)
+nicknames	388	Riley	riley	carried	SSA:0010328	target=T109A6 (individual)
+nicknames	389	Wieland	wieland	carried	SSA:0010329	target=T109A7 (individual)
+nicknames	390	Dune	dune	carried	SSA:0010391	target=T124D4 (individual)
+nicknames	391	Kite	kite	carried	SSA:0010385	target=T124A7 (individual)
+nicknames	392	Sabine	sabine	carried	SSA:0010376	target=T124A1A (individual)
+nicknames	393	Lupine	lupine	carried	SSA:0010390	target=T124D3 (individual)
+nicknames	394	Jetsam	jetsam	carried	SSA:0010394	target=T125A (individual)
+nicknames	395	Flotsam	flotsam	carried	SSA:0010396	target=T128 (individual)
+nicknames	396	Captian Hook	captian hook	carried	SSA:0010105	target=T040 (individual)
+nicknames	397	Grym	grym	carried	SSA:0010031	target=T023C5 (individual)
+nicknames	398	Runaway's	runaways	carried	SSA:0002054	target=Runaway's (group)
+nicknames	399	Gretzky's	gretzkys	carried	SSA:0002049	target=Gretzky's (group)
+nicknames	400	Sea Monster Family	sea monster family	carried	SSA:0002039	target=Sea Monster Family (group)
+nicknames	401	Ted's Gang	teds gang	carried	SSA:0002020	target=Ted's Gang (group)
+nicknames	402	Motley Crew	motley crew	carried	SSA:0002009	target=Motley Crew (group)
+nicknames	403	Secret Agents	secret agents	carried	SSA:0002001	target=Secret Agents (group)
+collision	SSA:0002001	T007s		many-catalogue-things	SSA:0002001	group/matriline — claimed by social_groups#3 Secret Agents; social_groups#4 T007
+collision	SSA:0002009	T023s		many-catalogue-things	SSA:0002009	group/matriline — claimed by social_groups#12 Motley Crew; social_groups#13 T023
+collision	SSA:0002020	T041s		many-catalogue-things	SSA:0002020	group/matriline — claimed by social_groups#24 Ted's Gang; social_groups#25 T041
+collision	SSA:0002039	T073s		many-catalogue-things	SSA:0002039	group/matriline — claimed by social_groups#44 T073; social_groups#46 Sea Monster Family
+collision	SSA:0002049	T099s		many-catalogue-things	SSA:0002049	group/matriline — claimed by social_groups#56 Gretzky's; social_groups#57 T099
+collision	SSA:0002054	T109s		many-catalogue-things	SSA:0002054	group/matriline — claimed by social_groups#62 T109; social_groups#63 Runaway's
+register	SSA:0000001	Southern Resident	southern resident	no-catalogue-row	SSA:0000001	group/ecotype
+register	SSA:0000010	Southern Resident community	southern resident community	no-catalogue-row	SSA:0000010	group/community
+register	SSA:0000011	J clan	j clan	no-catalogue-row	SSA:0000011	group/clan
+register	SSA:0000020	J pod	j pod	no-catalogue-row	SSA:0000020	group/pod
+register	SSA:0000021	K pod	k pod	no-catalogue-row	SSA:0000021	group/pod
+register	SSA:0000022	L pod	l pod	no-catalogue-row	SSA:0000022	group/pod
+register	SSA:0000030	J17s	j17s	no-catalogue-row	SSA:0000030	group/matriline
+register	SSA:0000031	L32s	l32s	no-catalogue-row	SSA:0000031	group/matriline
+register	SSA:0000101	J35	j35	no-catalogue-row	SSA:0000101	individual
+register	SSA:0000102	J57	j57	no-catalogue-row	SSA:0000102	individual
+register	SSA:0000103	J50	j50	no-catalogue-row	SSA:0000103	individual
+register	SSA:0000104	L87	l87	no-catalogue-row	SSA:0000104	individual
+register	SSA:0000105	J17	j17	no-catalogue-row	SSA:0000105	individual
+register	SSA:0002000	T002s	t2s	no-catalogue-row	SSA:0002000	group/matriline
+register	SSA:0002004	T012s	t12s	no-catalogue-row	SSA:0002004	group/matriline
+register	SSA:0002005	T018s	t18s	no-catalogue-row	SSA:0002005	group/matriline
+register	SSA:0002007	T020s	t20s	no-catalogue-row	SSA:0002007	group/matriline
+register	SSA:0002008	T021s	t21s	no-catalogue-row	SSA:0002008	group/matriline
+register	SSA:0002013	T031s	t31s	no-catalogue-row	SSA:0002013	group/matriline
+register	SSA:0002019	T040s	t40s	no-catalogue-row	SSA:0002019	group/matriline
+register	SSA:0002022	T049s	t49s	no-catalogue-row	SSA:0002022	group/matriline
+register	SSA:0002024	T051s	t51s	no-catalogue-row	SSA:0002024	group/matriline
+register	SSA:0002025	T054s	t54s	no-catalogue-row	SSA:0002025	group/matriline
+register	SSA:0002028	T058s	t58s	no-catalogue-row	SSA:0002028	group/matriline
+register	SSA:0002031	T063s	t63s	no-catalogue-row	SSA:0002031	group/matriline
+register	SSA:0002036	T070s	t70s	no-catalogue-row	SSA:0002036	group/matriline
+register	SSA:0002038	T072s	t72s	no-catalogue-row	SSA:0002038	group/matriline
+register	SSA:0002040	T074s	t74s	no-catalogue-row	SSA:0002040	group/matriline
+register	SSA:0002044	T086s	t86s	no-catalogue-row	SSA:0002044	group/matriline
+register	SSA:0002045	T087s	t87s	no-catalogue-row	SSA:0002045	group/matriline
+register	SSA:0002046	T091s	t91s	no-catalogue-row	SSA:0002046	group/matriline
+register	SSA:0002047	T093s	t93s	no-catalogue-row	SSA:0002047	group/matriline
+register	SSA:0002048	T097s	t97s	no-catalogue-row	SSA:0002048	group/matriline
+register	SSA:0002052	T102s	t102s	no-catalogue-row	SSA:0002052	group/matriline
+register	SSA:0002053	T103s	t103s	no-catalogue-row	SSA:0002053	group/matriline
+register	SSA:0002056	T112s	t112s	no-catalogue-row	SSA:0002056	group/matriline
+register	SSA:0002057	T113s	t113s	no-catalogue-row	SSA:0002057	group/matriline
+register	SSA:0002058	T114s	t114s	no-catalogue-row	SSA:0002058	group/matriline
+register	SSA:0002059	T115s	t115s	no-catalogue-row	SSA:0002059	group/matriline
+register	SSA:0002062	T118s	t118s	no-catalogue-row	SSA:0002062	group/matriline
+register	SSA:0002063	T120s	t120s	no-catalogue-row	SSA:0002063	group/matriline
+register	SSA:0002064	T121s	t121s	no-catalogue-row	SSA:0002064	group/matriline
+register	SSA:0002065	T122s	t122s	no-catalogue-row	SSA:0002065	group/matriline
+register	SSA:0002069	T127s	t127s	no-catalogue-row	SSA:0002069	group/matriline
+register	SSA:0002070	T128s	t128s	no-catalogue-row	SSA:0002070	group/matriline
+register	SSA:0002071	T129s	t129s	no-catalogue-row	SSA:0002071	group/matriline
+register	SSA:0002072	T130s	t130s	no-catalogue-row	SSA:0002072	group/matriline
+register	SSA:0002073	T131s	t131s	no-catalogue-row	SSA:0002073	group/matriline
+register	SSA:0002074	T132s	t132s	no-catalogue-row	SSA:0002074	group/matriline
+register	SSA:0002075	T133s	t133s	no-catalogue-row	SSA:0002075	group/matriline
+register	SSA:0002076	T134s	t134s	no-catalogue-row	SSA:0002076	group/matriline
+register	SSA:0002077	T135s	t135s	no-catalogue-row	SSA:0002077	group/matriline
+register	SSA:0002079	T139s	t139s	no-catalogue-row	SSA:0002079	group/matriline
+register	SSA:0002082	T142s	t142s	no-catalogue-row	SSA:0002082	group/matriline
+register	SSA:0002083	T143s	t143s	no-catalogue-row	SSA:0002083	group/matriline
+register	SSA:0002085	T147s	t147s	no-catalogue-row	SSA:0002085	group/matriline
+register	SSA:0002086	T148s	t148s	no-catalogue-row	SSA:0002086	group/matriline
+register	SSA:0002087	T149s	t149s	no-catalogue-row	SSA:0002087	group/matriline
+register	SSA:0002088	T150s	t150s	no-catalogue-row	SSA:0002088	group/matriline
+register	SSA:0002091	T157s	t157s	no-catalogue-row	SSA:0002091	group/matriline
+register	SSA:0002092	T160s	t160s	no-catalogue-row	SSA:0002092	group/matriline
+register	SSA:0002093	T161s	t161s	no-catalogue-row	SSA:0002093	group/matriline
+register	SSA:0002094	T162s	t162s	no-catalogue-row	SSA:0002094	group/matriline
+register	SSA:0002095	T165s	t165s	no-catalogue-row	SSA:0002095	group/matriline
+register	SSA:0002098	T168s	t168s	no-catalogue-row	SSA:0002098	group/matriline
+register	SSA:0002099	T169s	t169s	no-catalogue-row	SSA:0002099	group/matriline
+register	SSA:0002100	T170s	t170s	no-catalogue-row	SSA:0002100	group/matriline
+register	SSA:0002101	T171s	t171s	no-catalogue-row	SSA:0002101	group/matriline
+register	SSA:0002102	T172s	t172s	no-catalogue-row	SSA:0002102	group/matriline
+register	SSA:0002103	T173s	t173s	no-catalogue-row	SSA:0002103	group/matriline
+register	SSA:0002105	T175s	t175s	no-catalogue-row	SSA:0002105	group/matriline
+register	SSA:0002107	T177s	t177s	no-catalogue-row	SSA:0002107	group/matriline
+register	SSA:0002108	T178s	t178s	no-catalogue-row	SSA:0002108	group/matriline
+register	SSA:0002110	T180s	t180s	no-catalogue-row	SSA:0002110	group/matriline
+register	SSA:0002112	T182s	t182s	no-catalogue-row	SSA:0002112	group/matriline
+register	SSA:0002114	T184s	t184s	no-catalogue-row	SSA:0002114	group/matriline
+register	SSA:0002116	T186s	t186s	no-catalogue-row	SSA:0002116	group/matriline
+register	SSA:0002117	T187s	t187s	no-catalogue-row	SSA:0002117	group/matriline
+register	SSA:0002119	T196s	t196s	no-catalogue-row	SSA:0002119	group/matriline
+register	SSA:0002120	T197s	t197s	no-catalogue-row	SSA:0002120	group/matriline
+register	SSA:0002122	T221s	t221s	no-catalogue-row	SSA:0002122	group/matriline
+register	SSA:0002123	T223s	t223s	no-catalogue-row	SSA:0002123	group/matriline
+register	SSA:0002125	T225s	t225s	no-catalogue-row	SSA:0002125	group/matriline
+register	SSA:0002126	T227s	t227s	no-catalogue-row	SSA:0002126	group/matriline
+register	SSA:0002128	T251s	t251s	no-catalogue-row	SSA:0002128	group/matriline
+register	SSA:0002129	T252s	t252s	no-catalogue-row	SSA:0002129	group/matriline
+register	SSA:0010510	T419	t419	no-catalogue-row	SSA:0010510	individual
+register	SSA:0010511	T420	t420	no-catalogue-row	SSA:0010511	individual
+register	SSA:0010512	T421	t421	no-catalogue-row	SSA:0010512	individual
