@@ -145,13 +145,32 @@ describe('parseBiggsIds', () => {
         expect(cat.individuals.find((i) => i.primary_designation === 'T046B5')!.sex).toBeNull();
     });
 
-    test('routes a collective-label row to a named group + themed nickname', () => {
-        const cat = parseBiggsIds(tsv(row('', 'Known as the Secret Agents', '', '', '', '', 'for the #007 same as James Bond')));
-        expect(cat.individuals).toHaveLength(0);
-        const g = cat.socialGroups.find((x) => x.kind === 'named_group')!;
-        expect(g.designation).toBe('Secret Agents');
-        const nn = cat.nicknames.find((n) => n.group_designation === 'Secret Agents')!;
+    test('routes a collective-label row to a nickname on the lineage it heads', () => {
+        const cat = parseBiggsIds(tsv(
+            row('', 'Known as the Secret Agents', '', '', '', '', 'for the #007 same as James Bond'),
+            row('', 'T007', '', 'F', '<1980'),
+            row('', 'T007A', '', 'F', '1990'),
+        ));
+        // No group is minted for the label: the name describes the matriline, and a
+        // group holding only a name duplicated the lineage it named (salish-ox2.3).
+        expect(cat.socialGroups.every((x) => x.kind !== 'named_group' as string)).toBe(true);
+        const nn = cat.nicknames.find((n) => n.name === 'Secret Agents')!;
+        expect(nn.group_designation).toBe('T007');
         expect(nn.theme).toBe('James Bond');
+    });
+
+    test('a label heading a sub-lineage block names the lineage root', () => {
+        const cat = parseBiggsIds(tsv(
+            row('', 'Known as the Sea Monster Family'),
+            row('', 'T073A', '', 'F', '1996'), // the block starts mid-lineage, as T073's does
+        ));
+        expect(cat.nicknames.find((n) => n.name === 'Sea Monster Family')!.group_designation).toBe('T073');
+    });
+
+    test('a trailing label with no block after it names nothing', () => {
+        const cat = parseBiggsIds(tsv(row('', 'Known as the Ghosts')));
+        expect(cat.nicknames).toHaveLength(0);
+        expect(cat.socialGroups.filter((g) => g.kind === 'matriline')).toHaveLength(0);
     });
 
     test('synthesizes a superseded designation from a rename note', () => {

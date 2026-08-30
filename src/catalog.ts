@@ -152,7 +152,7 @@ const INDIVIDUAL_SELECT = `
   nicknames (name, theme, status, named_year, namer:parties (name, url)),
   memberships:group_memberships!individual_id (
     is_current, joined_year, left_year, basis,
-    group:social_groups (id, kind, designation, parent_group_id, anchor_individual_id, notes)
+    group:social_groups (id, kind, designation, entity_id, parent_group_id, anchor_individual_id, notes)
   )
 ` as const;
 

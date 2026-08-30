@@ -131,7 +131,7 @@ test('aggregates presence by PST8PDT calendar month', () => {
 });
 
 const group = (id: number, designation: string, parent: number | null): SocialGroup => ({
-  id, designation, parent_group_id: parent, kind: 'matriline', anchor_individual_id: null, notes: null,
+  id, designation, parent_group_id: parent, kind: 'matriline', anchor_individual_id: null, notes: null, entity_id: null,
 });
 
 test('walks the group chain to the root and survives cycles', () => {

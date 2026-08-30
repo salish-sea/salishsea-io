@@ -55,7 +55,7 @@ export type ParsedParty = { name: string; kind: PartyKind | null; url: string | 
 
 export type ParsedSocialGroup = {
     designation: string; // natural key: T-base for matrilines, 'Biggs' ecotype, label for named groups
-    kind: 'ecotype' | 'matriline' | 'named_group';
+    kind: 'ecotype' | 'matriline'; // named_group retired: a "Known as" label is a matriline nickname
     anchor_designation: string | null;
     parent_designation: string | null;
     notes: string | null;
@@ -256,17 +256,24 @@ export function parseBiggsIds(tsv: string): ParsedCatalog {
         if (cells.every(blank)) continue; // spacer
         if (i === 0 || /^D if Deceased/i.test(flag)) continue; // legend header
 
-        // collective-label row: a name in the Local-ID column that isn't a T-code
+        // collective-label row: a name in the Local-ID column that isn't a T-code.
+        // The sheet places each "Known as ..." heading immediately above its lineage's
+        // block, so the name belongs to the NEXT animal row's lineage root as a
+        // nickname — not to a group of its own. (The six groups this branch used to
+        // create were name-only shells duplicating the matriline they named; retired
+        // by migration 20260830120000, salish-ox2.3.)
         if (!/^T\d/i.test(localId)) {
             const label = localId.replace(/^known as( the)?\s+/i, '').replace(/^the\s+/i, '').trim();
             if (!label) continue;
-            ensureGroup({
-                designation: label, kind: 'named_group',
-                anchor_designation: null, parent_designation: null,
-                notes: 'Members not assigned in the Phase 1 seed (fuzzy in the source).',
-            });
+            let root: string | null = null;
+            for (let j = i + 1; j < lines.length; j++) {
+                const nextId = ((lines[j] ?? '').split('\t')[1] ?? '').trim();
+                const m = nextId.match(/^T(\d+)/i);
+                if (m) { root = padDesignation(`T${m[1]}`); break; }
+            }
+            if (!root) continue; // a label heading nothing labels nothing
             cat.nicknames.push({
-                individual_designation: null, group_designation: label, name: label,
+                individual_designation: null, group_designation: root, name: label,
                 story: blank(storyCell) ? null : storyCell, namer_name: null,
                 theme: themeFor(blank(storyCell) ? null : storyCell), status: 'official',
             });

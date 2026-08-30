@@ -313,6 +313,7 @@ export type Database = {
         Row: {
           born_earliest: number | null
           born_latest: number | null
+          entity_id: string | null
           father_id: number | null
           id: number
           life_status: Database["public"]["Enums"]["life_status"]
@@ -329,6 +330,7 @@ export type Database = {
         Insert: {
           born_earliest?: number | null
           born_latest?: number | null
+          entity_id?: string | null
           father_id?: number | null
           id?: number
           life_status?: Database["public"]["Enums"]["life_status"]
@@ -345,6 +347,7 @@ export type Database = {
         Update: {
           born_earliest?: number | null
           born_latest?: number | null
+          entity_id?: string | null
           father_id?: number | null
           id?: number
           life_status?: Database["public"]["Enums"]["life_status"]
@@ -621,6 +624,7 @@ export type Database = {
         Row: {
           anchor_individual_id: number | null
           designation: string
+          entity_id: string | null
           id: number
           kind: Database["public"]["Enums"]["social_group_kind"]
           notes: string | null
@@ -629,6 +633,7 @@ export type Database = {
         Insert: {
           anchor_individual_id?: number | null
           designation: string
+          entity_id?: string | null
           id?: number
           kind: Database["public"]["Enums"]["social_group_kind"]
           notes?: string | null
@@ -637,6 +642,7 @@ export type Database = {
         Update: {
           anchor_individual_id?: number | null
           designation?: string
+          entity_id?: string | null
           id?: number
           kind?: Database["public"]["Enums"]["social_group_kind"]
           notes?: string | null

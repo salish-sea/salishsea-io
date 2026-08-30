@@ -30,6 +30,10 @@ async function main(): Promise<void> {
     const tsv = readFileSync(new URL('../../data/biggs-ids.tsv', import.meta.url), 'utf8');
     const cat = parseBiggsIds(tsv);
 
+    const entityPairs = readFileSync(new URL('../../data/individual-entities.tsv', import.meta.url), 'utf8')
+        .split(/\r?\n/).slice(1).filter((l) => l.trim())
+        .map((l) => l.split('\t') as [string, string]);
+
     const known = new Set(cat.individuals.map((i) => i.primary_designation));
     const unresolvedMothers = cat.individuals
         .filter((i) => i.mother_designation && !known.has(i.mother_designation))
@@ -161,9 +165,25 @@ async function main(): Promise<void> {
                 LEFT JOIN public.designations target ON target.code = v.target
                 WHERE d.code = v.code`;
 
+            // ---- pass 3: register identifiers ----
+            // Migration 20260830130000 writes these into production; a freshly seeded
+            // database applies the same pairs from the same file so the two agree.
+            // (data/individual-entities.tsv is the measured mapping from
+            // docs/reference/register-reconciliation.md — see data/README.md.)
+            const entityRows = entityPairs.map(([primary_designation, entity_id]) =>
+                ({ primary_designation, entity_id }));
+            const entityUpd = (await tx`
+                UPDATE public.individuals i SET entity_id = v.entity_id
+                FROM jsonb_to_recordset(${tx.json(entityRows as never)}) AS v(primary_designation text, entity_id text)
+                WHERE i.primary_designation = v.primary_designation
+                RETURNING i.id`).count;
+            await tx`
+                UPDATE public.social_groups SET entity_id = 'SSA:0000002'
+                WHERE kind = 'ecotype' AND designation = 'Biggs'`;
+
             return {
                 parties, individuals, groups, designations, memberships,
-                nicknames: nickIndividual + nickGroup, motherUpd,
+                nicknames: nickIndividual + nickGroup, motherUpd, entityUpd,
             };
         });
 
