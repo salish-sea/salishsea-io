@@ -112,6 +112,47 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result.body).toContain('<meta property="fb:app_id" content="678644427974059">');
   });
 
+  // The sample above is 14:32 UTC — the same calendar day in either zone, so it
+  // cannot catch a missing timeZone. This one is an evening Pacific sighting that
+  // has already rolled over in UTC, which is how the bug reached production: the
+  // preview for a 6:38 PM sighting on Aug 29 read "August 30 · 1:38 AM".
+  it('renders date and time in Pacific for an evening sighting that is next-day in UTC', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [{ ...sampleOccurrence, observed_at: '2026-08-30T01:38:00Z', count: 5 }],
+    } as Response);
+    const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result.body).toContain('Orca · August 29, 2026');
+    expect(result.body).toContain('6:38 PM');
+    expect(result.body).not.toContain('August 30, 2026');
+    expect(result.body).not.toContain('1:38 AM');
+  });
+
+  // Postgres can hand back a bare timestamp with no zone designator; it is UTC.
+  it('reads a zone-less observed_at as UTC, then renders it in Pacific', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [{ ...sampleOccurrence, observed_at: '2026-08-30 01:38:00' }],
+    } as Response);
+    const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result.body).toContain('Orca · August 29, 2026');
+    expect(result.body).toContain('6:38 PM');
+  });
+
+  // An explicit negative offset must be left alone, not have 'Z' appended onto it.
+  it('preserves an explicit negative UTC offset on observed_at', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [{ ...sampleOccurrence, observed_at: '2026-08-29T18:38:00-07:00' }],
+    } as Response);
+    const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result.body).toContain('Orca · August 29, 2026');
+    expect(result.body).toContain('6:38 PM');
+  });
+
   it('falls back to the map card when the photo is cc-by-nc', async () => {
     const occurrence = {
       ...sampleOccurrence,
