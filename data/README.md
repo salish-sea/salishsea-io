@@ -37,3 +37,16 @@ belongs to its maintainer and is credited, not claimed. Policy of record:
 # Re-export the sheet as CSV and diff against this baseline (columns only, delimiter-agnostic).
 # Auth via the Drive integration or a shared export link; compare cell-by-cell keyed on Local ID.
 ```
+
+## `individual-entities.tsv` — catalogue individuals to register entities
+
+- **Source:** generated from [`docs/reference/register-reconciliation.md`](../docs/reference/register-reconciliation.md)'s
+  per-row TSV — the measured, one-to-one mapping of every catalogue individual to its
+  [salish-sea/animals](https://github.com/salish-sea/animals) register entity
+  (edition 2026.08.1, all 510 `verdict=one`).
+- **Read by:** the migration that writes `individuals.entity_id`, and
+  [`scripts/seed/seed-biggs.ts`](../scripts/seed/seed-biggs.ts), which applies the same
+  pairs so a locally seeded database matches production.
+- **Regenerate** by re-running `scripts/register/reconcile.ts` against the loaded edition
+  and re-extracting the `individuals` rows; identifiers are permanent (animals ADR-0010),
+  so existing pairs never change — a regeneration can only add rows.

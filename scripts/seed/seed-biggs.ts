@@ -30,6 +30,10 @@ async function main(): Promise<void> {
     const tsv = readFileSync(new URL('../../data/biggs-ids.tsv', import.meta.url), 'utf8');
     const cat = parseBiggsIds(tsv);
 
+    const entityPairs = readFileSync(new URL('../../data/individual-entities.tsv', import.meta.url), 'utf8')
+        .split(/\r?\n/).slice(1).filter((l) => l.trim())
+        .map((l) => l.split('\t') as [string, string]);
+
     const known = new Set(cat.individuals.map((i) => i.primary_designation));
     const unresolvedMothers = cat.individuals
         .filter((i) => i.mother_designation && !known.has(i.mother_designation))
@@ -37,6 +41,19 @@ async function main(): Promise<void> {
 
     const nnIndividual = cat.nicknames.filter((n) => n.individual_designation);
     const nnGroup = cat.nicknames.filter((n) => n.group_designation);
+
+    // A group nickname whose designation resolves to no group would be dropped by the
+    // INNER JOIN in pass 1 — silently, story and theme included. A "Known as" label
+    // heading a block whose lineage root is never a mother produces exactly that, so
+    // refuse it here where the label is still visible.
+    const groupDesignations = new Set(cat.socialGroups.map((g) => g.designation));
+    const unresolvableLabels = nnGroup.filter((n) => !groupDesignations.has(n.group_designation!));
+    if (unresolvableLabels.length) {
+        throw new Error(
+            'group nickname(s) naming no group: ' +
+            unresolvableLabels.map((n) => `${n.name}→${n.group_designation}`).join(', '),
+        );
+    }
 
     const sql = postgres(dsn, { prepare: false, max: 1 });
     try {
@@ -161,9 +178,42 @@ async function main(): Promise<void> {
                 LEFT JOIN public.designations target ON target.code = v.target
                 WHERE d.code = v.code`;
 
+            // ---- pass 3: register identifiers ----
+            // Migration 20260830130000 writes these into production; a freshly seeded
+            // database applies the same pairs from the same file so the two agree.
+            // (data/individual-entities.tsv is the measured mapping from
+            // docs/reference/register-reconciliation.md — see data/README.md.)
+            const entityRows = entityPairs.map(([primary_designation, entity_id]) =>
+                ({ primary_designation, entity_id }));
+            const malformed = entityRows.filter((r) => !r.primary_designation || !r.entity_id?.startsWith('SSA:'));
+            if (malformed.length) {
+                throw new Error(`${malformed.length} malformed row(s) in data/individual-entities.tsv`);
+            }
+            const entityUpd = (await tx`
+                UPDATE public.individuals i SET entity_id = v.entity_id
+                FROM jsonb_to_recordset(${tx.json(entityRows as never)}) AS v(primary_designation text, entity_id text)
+                WHERE i.primary_designation = v.primary_designation
+                RETURNING i.id`).count;
+            // The same refusal migration 20260830130000 makes: an individual the mapping
+            // misses must fail the seed, not quietly disagree with production.
+            const [unmapped] = await tx`
+                SELECT count(*)::int AS n FROM public.individuals WHERE entity_id IS NULL`;
+            if (unmapped?.['n']) {
+                throw new Error(
+                    `${unmapped['n']} individual(s) with no register identifier — regenerate data/individual-entities.tsv from a fresh reconciliation run`,
+                );
+            }
+            const ecotypeUpd = (await tx`
+                UPDATE public.social_groups SET entity_id = 'SSA:0000002'
+                WHERE kind = 'ecotype' AND designation = 'Biggs'
+                RETURNING id`).count;
+            if (ecotypeUpd !== 1) {
+                throw new Error(`expected exactly one Biggs ecotype row, updated ${ecotypeUpd}`);
+            }
+
             return {
                 parties, individuals, groups, designations, memberships,
-                nicknames: nickIndividual + nickGroup, motherUpd,
+                nicknames: nickIndividual + nickGroup, motherUpd, entityUpd,
             };
         });
 
