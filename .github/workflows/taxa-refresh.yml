@@ -93,10 +93,12 @@ jobs:
             - name: Summarize the run
               if: always()
               run: |
-                  echo '### Taxa refresh' >> "${GITHUB_STEP_SUMMARY}"
-                  echo '```' >> "${GITHUB_STEP_SUMMARY}"
-                  tail -c 60000 dist/taxa/refresh.log >> "${GITHUB_STEP_SUMMARY}"
-                  echo '```' >> "${GITHUB_STEP_SUMMARY}"
+                  {
+                      echo '### Taxa refresh'
+                      echo '```'
+                      tail -c 60000 dist/taxa/refresh.log
+                      echo '```'
+                  } >> "${GITHUB_STEP_SUMMARY}"
 
             - name: Find existing failure issue
               id: find-issue

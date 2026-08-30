@@ -193,13 +193,31 @@ jobs:
     needs: deploy
     uses: ./.github/workflows/smoke.yml
 
+  # Reload the register against the database this deploy just migrated, and prove it
+  # arrived (salish-1g8). Deliberately a reload rather than a bare assertion: the failure
+  # this guards against is a migration recreating `register.*` empty, and the repair for
+  # that is exactly what the loader does. Idempotent, so re-running a deploy is free.
+  #
+  # Parallel with smoke rather than before it: both are post-deploy gates, neither
+  # depends on the other, and a register that failed to load does not break the page
+  # smoke is checking — it only changes the names on it, which is the whole problem.
+  #
+  # Costs one extra production deployment record per run, because the loader needs
+  # DB_PASSWORD and that means binding to the environment. smoke.yml declines the same
+  # binding for a var it can hardcode; here the secret is unavoidable.
+  register:
+    name: Register
+    needs: deploy
+    uses: ./.github/workflows/register-refresh.yml
+    secrets: inherit
+
   # A red run in the Actions tab is only a signal if someone is looking at the
   # Actions tab. File an issue instead, reusing dwca-nightly.yml's approach: one
   # open issue per failure mode, updated rather than duplicated, closed again by
   # the next green deploy.
   alert:
     name: Alert on failure
-    needs: [test, build, deploy, smoke]
+    needs: [test, build, deploy, smoke, register]
     # `!cancelled()` is what lets this run at all — a job whose `needs` were
     # skipped is otherwise skipped itself, which is precisely the case when an
     # early job failed and took the rest of the graph with it.
@@ -250,6 +268,7 @@ jobs:
           RESULT_BUILD: ${{ needs.build.result }}
           RESULT_DEPLOY: ${{ needs.deploy.result }}
           RESULT_SMOKE: ${{ needs.smoke.result }}
+          RESULT_REGISTER: ${{ needs.register.result }}
           MUTATION_STARTED: ${{ needs.deploy.outputs.mutation_started }}
           SUPERSEDED: ${{ steps.tip.outputs.superseded }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -264,6 +283,7 @@ jobs:
             echo "| Build (production artifacts) | ${RESULT_BUILD} |"
             echo "| Deploy | ${RESULT_DEPLOY} |"
             echo "| Smoke (production specs) | ${RESULT_SMOKE} |"
+            echo "| Register (reload + verify) | ${RESULT_REGISTER} |"
             echo
             echo "Run: ${RUN_URL}"
             echo
@@ -322,7 +342,7 @@ jobs:
   # still broken" rather than "something broke here once".
   resolve:
     name: Resolve failure issue
-    needs: [test, build, deploy, smoke]
+    needs: [test, build, deploy, smoke, register]
     if: ${{ success() }}
     runs-on: ubuntu-latest
     permissions:
