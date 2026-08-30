@@ -255,12 +255,26 @@ function reconcile(edition: Edition, cat: Catalogue) {
      */
     const claimed = new Map<string, Map<string, string[]>>();
 
+    /**
+     * Entities some row could plausibly be, claim or not.
+     *
+     * Kept apart from `claimed` because the two answer different questions. A collision
+     * must count only rows that actually assert a correspondence — a `many` row asserts
+     * the opposite, and letting it claim both candidates would manufacture a collision out
+     * of a refusal to decide. But the reverse pass asks whether an entity is unaccounted
+     * for, and one that is a live candidate for some row is not: reporting it as having no
+     * catalogue row would be the same guess in the other direction.
+     */
+    const considered = new Set<string>();
+
     const record = (
         table: string, rowId: number, subject: string, kind: 'individual' | 'group',
         thing: string, detail: string,
     ) => {
         const { all, live, ofKind, retiredOfKind } = candidates(edition, subject, kind);
-        for (const id of ofKind) {
+        for (const id of ofKind) considered.add(id);
+        if (ofKind.length === 1) {
+            const id = ofKind[0]!;
             if (!claimed.has(id)) claimed.set(id, new Map());
             const things = claimed.get(id)!;
             things.set(thing, [...(things.get(thing) ?? []), `${table}#${rowId} ${subject}`]);
@@ -364,7 +378,7 @@ function reconcile(edition: Edition, cat: Catalogue) {
         // A retired entity is SUPPOSED to be unclaimed, so reporting it as a gap would
         // train the reader to ignore the list that catches real ones. Same reasoning the
         // register's own validator uses for its unreachable check.
-        if (e.kind === 'taxon' || claimed.has(id) || edition.retired.has(id)) continue;
+        if (e.kind === 'taxon' || considered.has(id) || edition.retired.has(id)) continue;
         findings.push({
             table: 'register',
             row_id: id,
