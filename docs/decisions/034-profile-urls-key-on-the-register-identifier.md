@@ -1,6 +1,6 @@
 # 034 — A profile URL keys on the register identifier; the designation is a slug
 
-**Status:** accepted · **Decided:** 2026-08-30 · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md)
+**Status:** accepted, not yet implemented · **Decided:** 2026-08-30 · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md)
 
 ## Decision
 
@@ -39,6 +39,8 @@ Animals [ADR-0011](https://github.com/salish-sea/animals/blob/main/decisions/001
 
 ## Sequencing: individuals and ecotypes now, matrilines when Q22 answers
 
+Nothing here is deployed yet. Production still serves the designation-keyed routes that [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md) and [017](017-ecotype-profile-pages.md) describe, and those records stay accurate about the running system until this one lands. What follows is the order it lands in.
+
 This record can be implemented for two of the three families immediately, and the epic's issue graph did not reflect that.
 
 The [reconciliation](../reference/register-reconciliation.md) resolves **510 of 510 individuals** to exactly one register entity, and the one ecotype. Groups are the exception: 73 of our 132 matriline rows are letter-suffixed sub-lineages the register has no group for, which is open upstream as [Q22](https://github.com/salish-sea/animals/issues/13) and tracked as `salish-ox2.6`. Until Q22 answers, a `/matrilines/` URL has no stable identifier to key on for 73 of 132 pages.
@@ -56,7 +58,7 @@ The viewer-request Lambda@Edge already intercepts these paths ([015](015-individ
 ## Consequences
 
 - **`public.designations` does not dissolve into the register.** `T046A` appears in no register `label` and no `names` row — verified against edition 2026.08.1 on 2026-08-30 — because the register carries current names and this one was retired before it existed. Historical codes we hold and the register does not publish stay ours, and they are the input to the `301`. The same is true of `AO10` and `CA20` while [Q23](https://github.com/salish-sea/animals/issues/14) is open.
-- **The slug is free to change, and changing it costs nothing.** Q13 can relabel all 134 matrilines and no URL moves; the old slug still resolves because it was never read. This is the whole point of the shape.
+- **The slug can change without stranding a link.** Q13 can relabel all 134 matrilines: the canonical URL moves with the slug, and every URL already published still resolves, because the redirect is derivable from the key alone. A designation-keyed scheme needs a redirect too — but it has to remember every label the entity ever had to build one, which is the table `superseded_by` is and the reason `T046A` is dead today. This is the whole point of the shape.
 - **We become the de facto resolver for `SSA:` identifiers.** [ADR-0014](https://github.com/salish-sea/animals/blob/main/decisions/0014-a-publication-not-a-service.md) makes the register a publication and not a service, and ADR-0021 registered the prefix with no URI format and no provider. `https://salishsea.io/individuals/0010193` — which redirects to the slugged canonical form, per the rule above — is the first resolvable address these identifiers have had. That is a commitment: [ADR-0010](https://github.com/salish-sea/animals/blob/main/decisions/0010-identifiers-are-never-reused.md) promises identifiers are never reused, so the address can be permanent in a way a designation URL never was — and OrcaSound is about to store the same identifiers on bout tags ([orcasite#1001](https://github.com/orcasound/orcasite/issues/1001), [028](028-salishsea-io-speaks-to-orcasound.md)), where a tag can now link straight to a profile.
 - **Two URLs address one page, so the shell carries a `<link rel="canonical">`** pointing at the identifier form. Without it the `301` fixes crawlers and the client-side fallback does not.
 - **The prose linker is unaffected for readers.** [`injectIndividualLinks`](../../src/individual-links.ts) turns codes found in sighting text into profile links from a designation→individual map; it gains the identifier and emits the canonical path. A code that resolves to nothing still passes through as plain text — linking is a navigation aid, never an identification claim.

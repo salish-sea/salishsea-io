@@ -7,7 +7,7 @@ row (`kind='ecotype'`, `designation='Biggs'`, no anchor, no parent), parent of
 all 65 top-level → 132 total matrilines, and every cataloged Bigg's
 individual descends from it.
 
-**Amended by [034](034-profile-urls-key-on-the-register-identifier.md) (2026-08-30):** `/ecotypes/<designation>` will key on the register `entity_id` with the designation as an ignored slug.
+**Amended by [034](034-profile-urls-key-on-the-register-identifier.md) (2026-08-30):** the route below is what is deployed today. 034 decides that `/ecotypes/<designation>` will key on the register `entity_id` with the designation as an ignored slug.
 
 ## Decision
 

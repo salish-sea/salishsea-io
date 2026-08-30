@@ -37,4 +37,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [031](031-surfacing-failures.md) | Failures reach the user through one toast, and Sentry through the same call | accepted |
 | [032](032-retired-taxa-resolved-on-read.md) | A retired taxon is resolved on read, not rewritten on write (applies 008) | accepted |
 | [033](033-register-names-the-animals.md) | The register names the animals, we compose the display (applies 008, extends 029) | accepted |
-| [034](034-profile-urls-key-on-the-register-identifier.md) | A profile URL keys on the register identifier; the designation is a slug (amends 015, 016, 017) | accepted |
+| [034](034-profile-urls-key-on-the-register-identifier.md) | A profile URL keys on the register identifier; the designation is a slug (amends 015, 016, 017) | accepted, not yet implemented |

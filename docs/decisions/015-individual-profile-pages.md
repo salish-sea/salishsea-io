@@ -3,7 +3,7 @@
 **Status:** accepted (2026-07-07)
 **Context:** GitHub [#49](https://github.com/salish-sea/salishsea-io/issues/49); builds on the catalog (decision 014, migrations `20260707200852` / `20260707220211`).
 
-**Amended by [034](034-profile-urls-key-on-the-register-identifier.md) (2026-08-30):** the URL scheme below keys on `primary_designation`, which animals ADR-0011 forbids. The path shape decided here — resolved at the edge, rewritten to `individual.html`, fail-open under a deadline — stands; the *key* becomes the register `entity_id` and the designation becomes an ignored slug that redirects.
+**Amended by [034](034-profile-urls-key-on-the-register-identifier.md) (2026-08-30):** the URL scheme below is what is deployed today, and it keys on `primary_designation`, which animals ADR-0011 forbids. 034 replaces the key with the register `entity_id` when it is implemented; until then this record describes the running system and 034 describes the target. The path shape decided here — resolved at the edge, rewritten to `individual.html`, fail-open under a deadline — stands; the *key* becomes the register `entity_id` and the designation becomes an ignored slug that redirects.
 
 ## Decision
 
