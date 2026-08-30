@@ -46,6 +46,9 @@ import path from 'node:path';
 import postgres from 'postgres';
 
 import { fold } from './fold.ts';
+import {
+    candidates, describeCandidates, substitutionFor, verdictFor, type Edition,
+} from './match.ts';
 
 const REPO = 'salish-sea/animals';
 const RELEASE = (tag: string, asset: string) =>
@@ -87,14 +90,6 @@ function parseTsv(text: string, required: readonly string[]): Record<string, str
             throw new Error(`ragged row (${cells.length} of ${header.length}): ${line.slice(0, 120)}`);
         return Object.fromEntries(header.map((h, i) => [h, cells[i]!]));
     });
-}
-
-interface Edition {
-    tag: string;
-    digest: string;
-    /** folded name -> entity ids that answer to it */
-    byFold: Map<string, Set<string>>;
-    entities: Map<string, { label: string; kind: string; rank: string }>;
 }
 
 async function readEdition(tag: string, say: (s: string) => void): Promise<Edition> {
@@ -141,6 +136,12 @@ async function readEdition(tag: string, say: (s: string) => void): Promise<Editi
 
         const byFold = new Map<string, Set<string>>();
         const entities = new Map<string, { label: string; kind: string; rank: string }>();
+        // A retired identifier KEEPS ITS NAMES upstream — the tombstone still answers to
+        // the string it always did — so without this a catalogue row would resolve onto an
+        // identifier the register has withdrawn, and this migration would then write it
+        // into our schema. Read where published and ignored where not, so an older edition
+        // reconciles exactly as it did.
+        const retired = new Map<string, string | null>();
         for (const r of rows) {
             const id = r['entity_id']!;
             const key = fold(r['name']!);
@@ -149,9 +150,11 @@ async function readEdition(tag: string, say: (s: string) => void): Promise<Editi
             entities.set(id, {
                 label: r['entity_label']!, kind: r['entity_kind']!, rank: r['entity_rank']!,
             });
+            if (r['retired'] === '1') retired.set(id, r['replaced_by'] || null);
         }
-        say(`  ${entities.size} entities, ${rows.length} searchable names`);
-        return { tag, digest, byFold, entities };
+        say(`  ${entities.size} entities, ${rows.length} searchable names`
+            + (retired.size ? `, ${retired.size} retired` : ''));
+        return { tag, digest, byFold, entities, retired };
     } finally {
         rmSync(dir, { recursive: true, force: true });
     }
@@ -237,34 +240,6 @@ interface Finding {
     detail: string;
 }
 
-/**
- * Candidates for a catalogue string, and the subset that is the kind of thing the row
- * claims to be.
- *
- * The kind filter is not a tie-break dressed up as a rule. A `designations` row names an
- * animal; the matriline that folds to the same string is a different entity that happens
- * to share a designation, which is ADR-0019's stated reason for publishing the fold at
- * all. Both counts are reported, so the filter's effect is visible rather than assumed.
- */
-function candidates(edition: Edition, subject: string, kind: 'individual' | 'group') {
-    const all = [...(edition.byFold.get(fold(subject)) ?? [])].sort();
-    const ofKind = all.filter((id) => edition.entities.get(id)?.kind === kind);
-    return { all, ofKind };
-}
-
-function describe(edition: Edition, ids: string[]): string {
-    return ids.map((id) => {
-        const e = edition.entities.get(id);
-        return e ? `${id} ${e.label} (${e.kind}${e.rank ? `/${e.rank}` : ''})` : id;
-    }).join('; ');
-}
-
-function verdictFor(ofKind: string[], all: string[]): string {
-    if (ofKind.length === 1) return 'one';
-    if (ofKind.length === 0) return all.length ? 'wrong-kind-only' : 'none';
-    return 'many';
-}
-
 function reconcile(edition: Edition, cat: Catalogue) {
     const findings: Finding[] = [];
 
@@ -284,21 +259,25 @@ function reconcile(edition: Edition, cat: Catalogue) {
         table: string, rowId: number, subject: string, kind: 'individual' | 'group',
         thing: string, detail: string,
     ) => {
-        const { all, ofKind } = candidates(edition, subject, kind);
+        const { all, live, ofKind, retiredOfKind } = candidates(edition, subject, kind);
         for (const id of ofKind) {
             if (!claimed.has(id)) claimed.set(id, new Map());
             const things = claimed.get(id)!;
             things.set(thing, [...(things.get(thing) ?? []), `${table}#${rowId} ${subject}`]);
         }
+        const substitution = substitutionFor(edition, retiredOfKind);
         findings.push({
             table,
             row_id: String(rowId),
             subject,
             folded: fold(subject),
-            verdict: verdictFor(ofKind, all),
+            verdict: verdictFor(ofKind, live, retiredOfKind),
             entity_ids: ofKind.join(' '),
-            detail: [detail, ofKind.length === 1 ? '' : describe(edition, all)]
-                .filter(Boolean).join(' — '),
+            detail: [
+                detail,
+                ofKind.length === 1 ? '' : describeCandidates(edition, all),
+                substitution ? `retired: ${substitution}` : '',
+            ].filter(Boolean).join(' — '),
         });
     };
 
@@ -355,7 +334,7 @@ function reconcile(edition: Edition, cat: Catalogue) {
             entity_ids: ofKind.join(' '),
             detail: `target=${target ?? `#${n.individual_id ?? n.social_group_id}`} (${kind})`
                 + (verdict === 'not-carried' && carriers.length
-                    ? ` — the register gives this name to ${describe(edition, carriers)}` : ''),
+                    ? ` — the register gives this name to ${describeCandidates(edition, carriers)}` : ''),
         });
     }
 
@@ -382,7 +361,10 @@ function reconcile(edition: Edition, cat: Catalogue) {
     // The reverse direction. Only individuals and groups: a register `taxon` entity is a
     // species stand-in and has no catalogue counterpart by design (ADR-0003).
     for (const [id, e] of [...edition.entities].sort()) {
-        if (e.kind === 'taxon' || claimed.has(id)) continue;
+        // A retired entity is SUPPOSED to be unclaimed, so reporting it as a gap would
+        // train the reader to ignore the list that catches real ones. Same reasoning the
+        // register's own validator uses for its unreachable check.
+        if (e.kind === 'taxon' || claimed.has(id) || edition.retired.has(id)) continue;
         findings.push({
             table: 'register',
             row_id: id,
@@ -490,7 +472,9 @@ This is measurement for the catalogue-adoption epic (\`salish-ox2\`), whose requ
 
 ## Verdicts
 
-Matching a row to an entity — \`one\` exactly one register entity of the expected kind · \`none\` no candidate under any spelling · \`many\` more than one, not to be guessed · \`wrong-kind-only\` a candidate exists but is the other kind, which is a modelling mismatch rather than a missing row
+Matching a row to an entity — \`one\` exactly one register entity of the expected kind · \`none\` no candidate under any spelling · \`many\` more than one, not to be guessed · \`wrong-kind-only\` a candidate exists but is the other kind, which is a modelling mismatch rather than a missing row · \`retired-only\` the only candidate is an identifier the register has withdrawn, so follow its replacement rather than adopting it
+
+Retired identifiers are never matched. A tombstone keeps its names upstream, so a row would otherwise resolve onto an identifier the register has withdrawn and this migration would write it into our schema; the \`detail\` column names the replacement instead.
 
 Nicknames, which are names upstream rather than entities — \`carried\` the register already gives this name to the same animal · \`not-carried\` it does not, so this is a name the migration would lose · \`target-unresolved\` the animal itself did not resolve, so the name could not be checked
 

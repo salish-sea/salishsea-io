@@ -11,7 +11,9 @@ This is measurement for the catalogue-adoption epic (`salish-ox2`), whose requir
 
 ## Verdicts
 
-Matching a row to an entity — `one` exactly one register entity of the expected kind · `none` no candidate under any spelling · `many` more than one, not to be guessed · `wrong-kind-only` a candidate exists but is the other kind, which is a modelling mismatch rather than a missing row
+Matching a row to an entity — `one` exactly one register entity of the expected kind · `none` no candidate under any spelling · `many` more than one, not to be guessed · `wrong-kind-only` a candidate exists but is the other kind, which is a modelling mismatch rather than a missing row · `retired-only` the only candidate is an identifier the register has withdrawn, so follow its replacement rather than adopting it
+
+Retired identifiers are never matched. A tombstone keeps its names upstream, so a row would otherwise resolve onto an identifier the register has withdrawn and this migration would write it into our schema; the `detail` column names the replacement instead.
 
 Nicknames, which are names upstream rather than entities — `carried` the register already gives this name to the same animal · `not-carried` it does not, so this is a name the migration would lose · `target-unresolved` the animal itself did not resolve, so the name could not be checked
 
