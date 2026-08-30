@@ -33,7 +33,11 @@ BEGIN
     AND (EXISTS (SELECT 1 FROM public.group_memberships m WHERE m.group_id = g.id)
       OR EXISTS (SELECT 1 FROM public.identifications i WHERE i.social_group_id = g.id)
       OR EXISTS (SELECT 1 FROM public.social_groups c WHERE c.parent_group_id = g.id)
-      OR g.anchor_individual_id IS NOT NULL);
+      OR g.anchor_individual_id IS NOT NULL
+      -- notes too: all six carry only the seed's own boilerplate (verified in
+      -- production 2026-08-30); anything else is curator text the DELETE would destroy.
+      OR (g.notes IS NOT NULL
+          AND g.notes <> 'Members not assigned in the Phase 1 seed (fuzzy in the source).'));
   IF bad > 0 THEN
     RAISE EXCEPTION 'named_group row(s) with attached data: % — not shells any more, re-measure before retiring', bad;
   END IF;

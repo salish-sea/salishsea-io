@@ -42,6 +42,19 @@ async function main(): Promise<void> {
     const nnIndividual = cat.nicknames.filter((n) => n.individual_designation);
     const nnGroup = cat.nicknames.filter((n) => n.group_designation);
 
+    // A group nickname whose designation resolves to no group would be dropped by the
+    // INNER JOIN in pass 1 — silently, story and theme included. A "Known as" label
+    // heading a block whose lineage root is never a mother produces exactly that, so
+    // refuse it here where the label is still visible.
+    const groupDesignations = new Set(cat.socialGroups.map((g) => g.designation));
+    const unresolvableLabels = nnGroup.filter((n) => !groupDesignations.has(n.group_designation!));
+    if (unresolvableLabels.length) {
+        throw new Error(
+            'group nickname(s) naming no group: ' +
+            unresolvableLabels.map((n) => `${n.name}→${n.group_designation}`).join(', '),
+        );
+    }
+
     const sql = postgres(dsn, { prepare: false, max: 1 });
     try {
         const counts = await sql.begin(async (tx) => {
@@ -190,9 +203,13 @@ async function main(): Promise<void> {
                     `${unmapped['n']} individual(s) with no register identifier — regenerate data/individual-entities.tsv from a fresh reconciliation run`,
                 );
             }
-            await tx`
+            const ecotypeUpd = (await tx`
                 UPDATE public.social_groups SET entity_id = 'SSA:0000002'
-                WHERE kind = 'ecotype' AND designation = 'Biggs'`;
+                WHERE kind = 'ecotype' AND designation = 'Biggs'
+                RETURNING id`).count;
+            if (ecotypeUpd !== 1) {
+                throw new Error(`expected exactly one Biggs ecotype row, updated ${ecotypeUpd}`);
+            }
 
             return {
                 parties, individuals, groups, designations, memberships,

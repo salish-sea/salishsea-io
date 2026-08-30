@@ -572,4 +572,13 @@ BEGIN
   IF unmapped > 0 THEN
     RAISE EXCEPTION '% individual(s) with no register identifier — regenerate data/individual-entities.tsv from a fresh reconciliation run', unmapped;
   END IF;
+
+  -- The ecotype UPDATE above matches on kind + designation; a renamed row would leave it
+  -- affecting nothing while this migration still reported success. A populated catalogue
+  -- must have exactly one identified ecotype; an empty one (fresh database, seeded later)
+  -- has nothing to check.
+  IF EXISTS (SELECT 1 FROM public.social_groups)
+     AND NOT EXISTS (SELECT 1 FROM public.social_groups WHERE kind = 'ecotype' AND entity_id IS NOT NULL) THEN
+    RAISE EXCEPTION 'no ecotype row received its register identifier — the Biggs row is missing or renamed';
+  END IF;
 END $$;
