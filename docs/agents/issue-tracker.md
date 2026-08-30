@@ -18,9 +18,19 @@ Two trackers, routed by audience:
   the bd push leaves them on one laptop. This has happened before, under the
   older JSONL-export layout, for the same underlying reason.
 
-  If you are looking for `.beads/issues.jsonl`, it is gone. JSONL is now a
-  local-only backup (`.beads/backup/`, gitignored), not the interchange format —
-  so do not expect issues to show up in a diff or a code review.
+  JSONL is not the interchange format — so do not expect an issue to reach
+  anyone through a diff or a code review. Two JSONL artefacts exist, and they
+  are not the same thing: `.beads/backup/` holds bd's own `.darc` snapshots and
+  is gitignored, while `.beads/issues.jsonl` **is tracked**, deliberately, as
+  the recovery floor beneath the Dolt DB. `bd import` rebuilds the issues from
+  it; Dolt's history does not survive that round trip.
+
+  It is kept current by an export step in
+  [`.beads/hooks/pre-commit`](../../.beads/hooks/pre-commit), added below bd's
+  managed markers after bd's own auto-export was found to have stopped on
+  2026-08-04 and gone unnoticed for three weeks (salish-ck8). If you export by
+  hand, `bd export` writes to **stdout** — it must be `bd export -o
+  .beads/issues.jsonl`, or the file silently stays stale.
 
 **Issue ids are `salish-<suffix>`** (e.g. `salish-g9e`). They were
 `salishsea-io-<suffix>` until 2026-07-27; the suffix never changed, so an old id

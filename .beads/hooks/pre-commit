@@ -38,3 +38,33 @@ if command -v bd >/dev/null 2>&1; then
   if [ $_bd_exit -ne 0 ]; then exit $_bd_exit; fi
 fi
 # --- END BEADS INTEGRATION v1.1.2 ---
+
+# --- salishsea-io: keep the tracked JSONL export current (salish-ck8) ---
+#
+# Deliberately OUTSIDE the beads markers above, so `bd hooks install` cannot
+# clobber it.
+#
+# Why this exists. `.beads/issues.jsonl` is tracked on purpose — see the comment
+# in .gitignore — as the recovery floor beneath the Dolt DB. But nothing was
+# keeping it current: bd's own auto-export last ran 2026-08-04 at 98 issues
+# (.beads/export-state.json), and `bd hooks run pre-commit` on bd 1.2.2 does not
+# export at all. Verified by running it: exit 0, no write, no staged change.
+#
+# The failure mode is what makes it worth automating rather than documenting. A
+# bare `bd export` writes to STDOUT, so every `bd export | ...` or
+# `bd export >/dev/null` leaves the file untouched while looking like it worked.
+# That is silent, and it is how the export drifted for three weeks.
+#
+# So: export explicitly with -o, and stage it only if it actually changed. A
+# failure here WARNS but never blocks the commit — a stale backup must not stop
+# work — but it warns loudly, because silence was the whole bug.
+if command -v bd >/dev/null 2>&1 && [ -d .beads ]; then
+  if bd export -o .beads/issues.jsonl >/dev/null 2>&1; then
+    if ! git diff --quiet -- .beads/issues.jsonl 2>/dev/null; then
+      git add .beads/issues.jsonl && \
+        echo >&2 "beads: refreshed .beads/issues.jsonl and staged it"
+    fi
+  else
+    echo >&2 "beads: WARNING — 'bd export -o .beads/issues.jsonl' failed; the tracked export is now STALE. Fix it before relying on it for recovery (salish-ck8)."
+  fi
+fi
