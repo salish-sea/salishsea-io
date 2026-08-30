@@ -612,8 +612,10 @@ async function main(): Promise<void> {
         const tsv = ['table\trow_id\tsubject\tfolded\tverdict\tentity_ids\tdetail',
             ...findings.map((f) =>
                 [f.table, f.row_id, f.subject, f.folded, f.verdict, f.entity_ids, f.detail]
-                    // A tab in a subject or detail would shift every field after it.
-                    .map((v) => v.replace(/\t/g, ' ')).join('\t'))].join('\n') + '\n';
+                    // A tab in a subject or detail would shift every field after it, and a
+                    // newline would split the record in two — silently, since both halves
+                    // still parse. Names and notes come from upstream and from a curator.
+                    .map((v) => v.replace(/[\t\r\n]+/g, ' ')).join('\t'))].join('\n') + '\n';
         const md = markdown(edition, cat, findings);
 
         if (write) {
