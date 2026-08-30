@@ -300,11 +300,27 @@ function isCalendarDate(value: string): boolean {
   return probe.getUTCFullYear() === y && probe.getUTCMonth() === m - 1 && probe.getUTCDate() === d;
 }
 
+// The site is organised around Pacific calendar days, so every date and time a
+// preview shows must be rendered in that zone. Lambda@Edge runs in UTC, so an
+// Intl formatter with no timeZone silently reports UTC: a 6:38 PM Pacific
+// sighting became "August 30, 2026 · 1:38 AM" in the card while the site, the
+// `d=` parameter, and the map card all said August 29.
+const PACIFIC = 'America/Los_Angeles';
+
 /** "July 27, 2026" for a bare calendar date, read in Pacific time. */
 function formatCalendarDate(date: string): string {
   return new Intl.DateTimeFormat('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles',
+    month: 'long', day: 'numeric', year: 'numeric', timeZone: PACIFIC,
   }).format(new Date(`${date}T12:00:00Z`));
+}
+
+/**
+ * Postgres hands back timestamps without a zone designator; JS would read those
+ * as local time and silently shift the date. Treat a bare timestamp as UTC, which
+ * is what it is. (Mirrors normalizeInstant in the card renderer.)
+ */
+function normalizeInstant(iso: string): string {
+  return /(?:Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`;
 }
 
 function dayPreviewTags(date: string): OgTags {
@@ -521,18 +537,17 @@ export const handler = async (event: any): Promise<any> => {
 
     const species = occ.taxon?.vernacular_name ?? 'Whale sighting';
 
-    // Title: "{species} · {date}" — e.g. "Orca · June 3, 2025"
-    // Normalize observed_at: append 'Z' if no timezone indicator so Node treats it as UTC
-    const observedAt = occ.observed_at.endsWith('Z') || occ.observed_at.includes('+')
-      ? occ.observed_at
-      : occ.observed_at + 'Z';
-    const date = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      .format(new Date(observedAt));
+    // Title: "{species} · {date}" — e.g. "Orca · June 3, 2025", in Pacific time
+    const observedAt = new Date(normalizeInstant(occ.observed_at));
+    const date = new Intl.DateTimeFormat('en-US', {
+      month: 'long', day: 'numeric', year: 'numeric', timeZone: PACIFIC,
+    }).format(observedAt);
     const title = `${species} · ${date}`;
 
     // Description: "{count} {species}s · {time}" — e.g. "3 Orcas · 2:32 PM"
-    const time = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
-      .format(new Date(observedAt));
+    const time = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric', minute: '2-digit', timeZone: PACIFIC,
+    }).format(observedAt);
     const count = occ.count ?? 1;
     const description = `${count} ${species}s · ${time}`;
 
