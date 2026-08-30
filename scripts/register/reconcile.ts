@@ -410,13 +410,17 @@ function markdown(edition: Edition, cat: Catalogue, findings: Finding[]): string
             '',
             ...(note ? [note, ''] : []),
             problems.length
+                // The blank line after the lead-in is load-bearing, not spacing: a GFM
+                // table may not interrupt a paragraph, so without it every one of these
+                // renders as literal pipes. `filter(Boolean)` used to eat it.
                 ? [`Every row that is not \`${good}\`:`, '',
                     table(['id', 'subject', 'verdict', 'detail'],
                         problems.slice(0, 40).map((f) =>
                             [f.row_id, `\`${f.subject}\``, `\`${f.verdict}\``, f.detail || '—'])),
-                    problems.length > 40
-                        ? `\n…and ${problems.length - 40} more, in the TSV beside this file.` : '',
-                ].filter(Boolean).join('\n')
+                    ...(problems.length > 40
+                        ? ['', `…and ${problems.length - 40} more, in the TSV beside this file.`]
+                        : []),
+                ].join('\n')
                 : `Every row is \`${good}\`.`,
             '',
         ].filter((l) => l !== null).join('\n');
@@ -575,7 +579,14 @@ async function main(): Promise<void> {
             + `${cat.designations.length} designations, ${cat.memberships.length} memberships, `
             + `${cat.nicknames.length} nicknames`);
 
-        const tag = tagArg && !tagArg.startsWith('--') ? tagArg : cat.loadedEdition;
+        // `--tag` with nothing after it must not silently become "whatever is loaded":
+        // the one time someone passes it is when they mean a DIFFERENT edition, and
+        // reporting on production's instead would answer the wrong question convincingly.
+        if (argv.includes('--tag') && (!tagArg || tagArg.startsWith('--'))) {
+            console.error('--tag needs an edition, e.g. --tag 2026.08.1');
+            process.exit(2);
+        }
+        const tag = tagArg ?? cat.loadedEdition;
         if (!tag) {
             console.error('no --tag given and register.edition is empty: nothing to reconcile against');
             process.exit(1);

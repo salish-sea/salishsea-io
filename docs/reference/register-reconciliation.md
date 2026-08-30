@@ -47,6 +47,7 @@ The register holds 134 matriline entities against our 132. A `wrong-kind-only` m
 A `named_group` resolving to `one` is not the clean result it looks like: every one of them lands on the matriline it names, which the collisions section below sets out.
 
 Every row that is not `one`:
+
 | id | subject | verdict | detail |
 |---|---|---|---|
 | 140 | `T073A` | `wrong-kind-only` | kind=matriline — SSA:0010248 T073A (individual) |
@@ -100,6 +101,7 @@ Every row that is not `one`:
 | `none` | 3 | 0.5% |
 
 Every row that is not `one`:
+
 | id | subject | verdict | detail |
 |---|---|---|---|
 | 121 | `T046A` | `none` | scheme=bc_wa |
@@ -114,6 +116,7 @@ Every row that is not `one`:
 | `not-carried` | 23 | 5.7% |
 
 Every row that is not `carried`:
+
 | id | subject | verdict | detail |
 |---|---|---|---|
 | 34 | `Valcroze` | `not-carried` | target=T167B (individual) |
