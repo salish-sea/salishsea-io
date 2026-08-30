@@ -25,10 +25,10 @@ So "identifiers that later change" is not the real hazard — the identifiers wo
 The gate is on *writing tags in production*, not on building. All of `salish-8vr`'s schema and vocabulary work is register-shaped without writing any `SSA:` row against a bout:
 
 - [orcasite#1013](https://github.com/orcasound/orcasite/issues/1013) (`kind` + `iri` on tags) — shape only; safe and wanted early.
-- [orcasite#1015](https://github.com/orcasound/orcasite/issues/1015) (register-aware tag picker) — can be built and reviewed; it goes live after the migration.
+- [orcasite#1015](https://github.com/orcasound/orcasite/issues/1015) (register-aware tag picker) — can be built and reviewed; going live is its own issue (`salish-8vr.24`) and waits.
 - Classifying the existing 94-tag vocabulary, machine-class mapping, curator verification (`salish-8vr.15`, `.10`, `.3`) — none writes identifiers to bouts.
 
-Recorded in the graph as `salish-8vr.9` blocked-by `salish-ox2.5`, so both epics see the ordering where they plan.
+Recorded in the graph as `salish-8vr.24` — the activation moment, blocked by both `salish-ox2.5` and the picker build `salish-8vr.9` — so both epics see the ordering where they plan without the build itself reading as blocked.
 
 ## Consequences
 
