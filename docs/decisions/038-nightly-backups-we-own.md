@@ -124,9 +124,17 @@ image, and the restore has to create roles and drop the platform's own schemas.
 Every step that must tolerate an error names exactly which errors, via
 [`only-already-exists.sh`](../../scripts/only-already-exists.sh), and fails on anything else.
 Most tolerate only "already exists"; the first `auth-storage` pass also tolerates a missing
-*function* specifically, because the `public` functions its triggers call are not there yet —
-which is the whole reason there is a second pass, and the second pass does not get that
-exception. A missing table, schema or role is never tolerated, at any pass. Blanket
+*function* specifically, because the `public` functions its triggers call are not there yet.
+The second pass re-runs the whole file, so it additionally tolerates "multiple primary keys",
+which is what `ALTER TABLE ... ADD CONSTRAINT ... PRIMARY KEY` says when it has already been
+done — but it does *not* get the missing-function exception, because a dependency that has not
+resolved by then is the failure the second pass exists to catch. A missing table, schema or
+role is never tolerated, at any pass.
+
+Error patterns only say that nothing failed, which is not the same as saying the right thing
+happened, so a final step asserts that `auth.users` actually carries the
+`create_contributor_on_sign_in` trigger — the one the first pass could not create, and
+therefore the one that proves the second pass did its job. Blanket
 tolerance is how "restore the backup" quietly becomes "run it and see".
 
 ## Rejected alternatives
