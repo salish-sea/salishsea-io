@@ -72,6 +72,9 @@ const IRREPLACEABLE = [
   'storage.objects',
 ] as const;
 
+/** `COPY schema.table (cols) FROM stdin;`, with either part quoted or bare. */
+const COPY_HEADER = /^COPY (?:"([^"]+)"|([^\s".]+))\.(?:"([^"]+)"|([^\s".(]+))\s*\(.*\) FROM stdin;$/;
+
 /** Below this the file is not a dump, whatever it is. */
 const FLOOR_BYTES = 1_000_000;
 
@@ -85,6 +88,13 @@ const FLOOR_BYTES = 1_000_000;
  * data cannot contain a bare newline: pg_dump escapes them as `\n` within a
  * field. A future switch to `INSERT` form (drop `--use-copy`) breaks this, which
  * is why the workflow pins the flag and this comment says so.
+ *
+ * Identifiers are matched quoted or bare. Real dumps from this pipeline quote
+ * both parts, but the CLI passes no `--quote-all-identifiers`, so that is
+ * pg_dump's own habit rather than anything we control. Depending on it would
+ * mean a pg_dump that changed its mind produced a file where nothing matched —
+ * a loud failure, since every table would then read as absent, but a thoroughly
+ * misleading one.
  */
 export async function countDumpedRows(path: string): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
@@ -93,9 +103,11 @@ export async function countDumpedRows(path: string): Promise<Map<string, number>
   let n = 0;
   for await (const line of lines) {
     if (current === null) {
-      const match = /^COPY "([^"]+)"\."([^"]+)" .* FROM stdin;$/.exec(line);
+      const match = COPY_HEADER.exec(line);
       if (match) {
-        current = `${match[1]}.${match[2]}`;
+        const schema = match[1] ?? match[2];
+        const table = match[3] ?? match[4];
+        current = `${schema}.${table}`;
         n = 0;
       }
       continue;

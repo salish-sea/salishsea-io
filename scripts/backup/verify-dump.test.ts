@@ -121,3 +121,28 @@ describe('judgeCount', () => {
     expect(judgeCount(0, 0, 0)).toBe(ok);
   });
 });
+
+describe('countDumpedRows identifier quoting', () => {
+  const write = (body: string) => {
+    const path = join(mkdtempSync(join(tmpdir(), 'dump-q-')), 'data.sql');
+    writeFileSync(path, body);
+    return path;
+  };
+
+  it('counts bare, quoted and mixed identifiers alike', async () => {
+    // The pipeline's dumps quote both parts, but nothing we control guarantees
+    // that — the CLI passes no --quote-all-identifiers, so it is pg_dump's own
+    // habit. Depending on it would mean a pg_dump that changed its mind produced
+    // a file in which every table read as absent.
+    const path = write(
+      'COPY public.observations (id) FROM stdin;\n1\n\\.\n' +
+      'COPY "auth"."users" (id) FROM stdin;\nu1\nu2\n\\.\n' +
+      'COPY storage."objects" (id) FROM stdin;\no1\n\\.\n'
+    );
+    expect(await countDumpedRows(path)).toEqual(new Map([
+      ['public.observations', 1],
+      ['auth.users', 2],
+      ['storage.objects', 1],
+    ]));
+  });
+});
