@@ -15,8 +15,8 @@
 -- The box literal is salishSeaExtent from src/extents.ts — [-126, 47, -122,
 -- 50.5], inclusive of its edges, as extentContains is. The live rule has one
 -- definition (TypeScript); this is a one-shot copy of it, not a second one.
--- The killer-whale test mirrors isKillerWhale: a trimmed Orcinus scientific
--- name, or a common name with "orca" / "killer whale" in it (which covers the
+-- The killer-whale test mirrors isKillerWhale: a trimmed scientific name whose
+-- first word is Orcinus (word-bounded, as the TypeScript is), or a common name with "orca" / "killer whale" in it (which covers the
 -- five orca keys of NAME_TO_SCIENTIFIC and the ecotype variants upstream coins).
 -- `name` is nullable, hence the coalesce — a NULL would otherwise make the
 -- whole predicate NULL and quietly keep the row. The SQL is deliberately the
@@ -35,7 +35,7 @@ BEGIN
       AND gis.ST_Y(location::gis.geometry) BETWEEN 47 AND 50.5
     )
     AND NOT (
-      btrim(scientific_name) ILIKE 'orcinus%'
+      btrim(scientific_name) ~* '^orcinus\y'
       OR coalesce(name, '') ~* '\y(orca|killer whale)\y'
     )
     RETURNING 1

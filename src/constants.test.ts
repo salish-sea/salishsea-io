@@ -138,3 +138,16 @@ describe('travelSpeedFor', () => {
     expect(travelSpeedFor('')).toBeUndefined();
   });
 });
+
+describe('isExtent', () => {
+  test('a zero boundary is a boundary, not a missing one', () => {
+    expect(isExtent([0, 47, 1, 48])).toBe(true);
+    expect(isExtent([-1, 0, 1, 1])).toBe(true);
+  });
+  test('rejects NaN, wrong arity, inverted and out-of-range boxes', () => {
+    expect(isExtent([NaN, 47, 1, 48])).toBe(false);
+    expect(isExtent([0, 47, 1])).toBe(false);
+    expect(isExtent([1, 47, 0, 48])).toBe(false);
+    expect(isExtent([-181, 47, 1, 48])).toBe(false);
+  });
+});

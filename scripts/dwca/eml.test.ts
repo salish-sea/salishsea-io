@@ -163,7 +163,9 @@ describe('buildEml — coverage', () => {
         const xml = buildEml(mockInput);
         expect(xml).toContain('<geographicDescription>');
         expect(xml).toContain('Salish Sea');
+        expect(xml).toContain('The Salish Sea and the Strait of Juan de Fuca');
         expect(xml).toContain('killer whales (Orcinus orca) throughout the bounding box');
+        expect(xml).toContain('Maplify/Whale Alert records of other species outside the Salish Sea and the Strait of Juan de Fuca are not held');
         expect(xml).toContain('Acartia data');
     });
 

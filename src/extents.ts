@@ -9,13 +9,17 @@
  */
 export type Extent = [number, number, number, number];
 
+// A finite number, not a truthy one: 0 is a valid boundary (the equator, the
+// prime meridian), and NaN/undefined from a malformed URL are not.
+const finite = (n: number | undefined): n is number => n !== undefined && Number.isFinite(n);
+
 export function isExtent(input: number[]): input is Extent {
+  if (input.length !== 4) return false;
   const [minx, miny, maxx, maxy] = input;
-  return input.length === 4 && minx && miny && maxx && maxy &&
-    minx < maxx && miny < maxy &&
+  if (!(finite(minx) && finite(miny) && finite(maxx) && finite(maxy))) return false;
+  return minx < maxx && miny < maxy &&
     minx >= -180 && minx <= 180 && maxx >= -180 && maxx <= 180 &&
-    miny >= -90 && miny <= 90 && maxy >= -90 && maxy <= 90 ||
-    false;
+    miny >= -90 && miny <= 90 && maxy >= -90 && maxy <= 90;
 }
 
 /** Whether a lon/lat point lies inside (or on the edge of) an extent. */

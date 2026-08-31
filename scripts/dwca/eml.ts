@@ -151,14 +151,16 @@ export function buildEml(input: EmlInput): string {
     // TODO: link Acartia cooperative boundary doc once published URL is confirmed
     // The bounding box is the Acartia fetch extent because killer whales are
     // held across all of it; every other taxon is held only inside the Salish
-    // Sea, so the prose has to say which is which (decision 036).
+    // Sea + Strait of Juan de Fuca, so the prose has to say which is which. The
+    // rule is stated for Maplify/Whale Alert, the source it is applied to
+    // (decision 036); native records are Salish Sea submissions by nature.
     const geographicDescription =
         'The Salish Sea and the Strait of Juan de Fuca (approximately 47-50.5N, ' +
         '122-126W) for all taxa, plus killer whales (Orcinus orca) throughout the ' +
         'bounding box - the Southern Resident range, inherited from the Acartia data ' +
-        "cooperative's boundaries, the upstream aggregator for Maplify/Whale Alert " +
-        'records included in this archive. Records of other species outside the ' +
-        'Salish Sea are not held.';
+        "cooperative's boundaries, the upstream aggregator for the Maplify/Whale Alert " +
+        'records included in this archive. Maplify/Whale Alert records of other ' +
+        'species outside the Salish Sea and the Strait of Juan de Fuca are not held.';
 
     // E-03 methods two-paragraph factual draft — reproduced verbatim from
     // RESEARCH §T5 lines 532..549. The two-paragraph shape is asserted by
