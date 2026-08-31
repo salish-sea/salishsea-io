@@ -102,3 +102,7 @@ REFRESH MATERIALIZED VIEW CONCURRENTLY public.occurrence_identifier_candidates;
   2025-09-01; earlier history is only present where it has been manually
   backfilled. The upstream APIs still serve it — the Maplify window is just
   `search-all-sightings.php?start=&end=&BBOX=` (see [`fetch-maplify.ts`](fetch-maplify.ts)).
+- **Scope (2026-08-30):** the Maplify BBOX is the Southern Resident range, but
+  `isIngestable` keeps only killer whales from it; everything else must lie
+  inside the Salish Sea ([decision 036](../../../docs/decisions/036-ingest-scope-killer-whales-range-wide.md)).
+  Backfilling a window applies the same rule.

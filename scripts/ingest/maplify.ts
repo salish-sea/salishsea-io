@@ -20,6 +20,7 @@
  */
 
 import { z } from 'zod';
+import { extentContains, salishSeaExtent } from '../../src/extents.ts';
 
 /** Maplify source codes excluded from ingest (CONTEXT.md: rwsas filtered, wras filtered + purged). */
 export const EXCLUDED_SOURCES: ReadonlySet<string> = new Set(['rwsas', 'wras']);
@@ -246,9 +247,37 @@ export function normalizeRecord(r: z.infer<typeof MaplifyRecordSchema>): Normali
     };
 }
 
-/** Whether a sighting is in ingest scope (source not excluded). Pure. */
+/**
+ * Whether the record is a killer whale of any kind, as far as the record itself can
+ * say. Pure.
+ *
+ * Works from the resolved scientific name so it survives a subspecies (`Orcinus orca
+ * ater`, `O. o. rectipinnus`), the genus-only stub (`Orcinus`), a placeholder
+ * `scientific_name` with an orca common name, and an upstream correction in `name`
+ * that overrides `scientific_name` (all of which `resolveScientificName` already
+ * handles). It cannot consult the taxonomy — the core sees names, not taxon ids.
+ */
+export function isKillerWhale(s: NormalizedSighting): boolean {
+    return /^orcinus\b/i.test(resolveScientificName(s) ?? '');
+}
+
+/**
+ * Whether a sighting is in ingest scope. Pure.
+ *
+ * Two rules (decision 036):
+ *   1. Source not excluded (rwsas, wras).
+ *   2. Killer whales are kept from the whole fetch bbox — the Southern Resident range,
+ *      which is why the bbox reaches central California — and everything else only
+ *      inside the Salish Sea + Strait of Juan de Fuca. Southern Residents cannot be told
+ *      apart at ingest (almost no report names an ecotype), so the rule is necessarily
+ *      "killer whales", and a Californian orca is kept whether or not it is a Resident.
+ *
+ * Filtering here means reconcile never sees an out-of-scope record: within the window
+ * it is a delete, and the corpus stays consistent with what the rule says.
+ */
 export function isIngestable(s: NormalizedSighting): boolean {
-    return !EXCLUDED_SOURCES.has(s.source);
+    if (EXCLUDED_SOURCES.has(s.source)) return false;
+    return extentContains(salishSeaExtent, s.lon, s.lat) || isKillerWhale(s);
 }
 
 /**
@@ -288,8 +317,9 @@ export type ParseResult =
  * reconciling against a partially-trusted response. This upholds decision 011's
  * invariant: reconcile only against a fully-valid, complete fetch.
  *
- * Excluded-source records (rwsas/wras) are NOT dropped here — filtering is the
- * caller's job via isIngestable, kept separate so validation stays total.
+ * Out-of-scope records (excluded sources, non-orcas outside the Salish Sea) are NOT
+ * dropped here — filtering is the caller's job via isIngestable, kept separate so
+ * validation stays total.
  */
 export function parseMaplifyResponse(raw: unknown): ParseResult {
     const parsed = MaplifyResponseSchema.safeParse(raw);

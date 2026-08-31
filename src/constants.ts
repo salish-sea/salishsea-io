@@ -1,4 +1,5 @@
 import { Temporal } from "temporal-polyfill";
+import { type Extent, acartiaExtent, pugetSoundExtent, sanJuansExtent, srkwExtent, salishSeaExtent, salishSRKWExtent } from './extents.ts';
 
 /**
  * Every calendar date this app shows is a *local* date in the Salish Sea, not in
@@ -30,27 +31,13 @@ export function observationToday(): Temporal.PlainDate {
  */
 export const EARLIEST_OBSERVATION_DATE = Temporal.PlainDate.from('2000-01-01');
 
-/**
- *  [minx, miny, maxx, maxy]
- */
-export type Extent = [number, number, number, number];
+// The extents live in a dependency-free module so the ingest core can share
+// them under Deno; re-exported here so callers keep one import.
+export {
+  type Extent, isExtent,
+  acartiaExtent, pugetSoundExtent, sanJuansExtent, srkwExtent, salishSeaExtent, salishSRKWExtent,
+} from './extents.ts';
 
-export function isExtent(input: number[]): input is Extent {
-  const [minx, miny, maxx, maxy] = input;
-  return input.length === 4 && minx && miny && maxx && maxy &&
-    minx < maxx && miny < maxy &&
-    minx >= -180 && minx <= 180 && maxx >= -180 && maxx <= 180 &&
-    miny >= -90 && miny <= 90 && maxy >= -90 && maxy <= 90 ||
-    false;
-}
-
-// https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia
-export const acartiaExtent: Extent = [-136, 36, -120, 54];
-export const pugetSoundExtent: Extent = [-123.15, 47.04, -122.20, 48.16];
-export const sanJuansExtent: Extent = [-123.25, 48.4, -122.73, 48.79];
-export const srkwExtent: Extent = [-125.5, 36, -122, 54];
-export const salishSeaExtent: Extent = [-126, 47, -122, 50.5];
-export const salishSRKWExtent: Extent = [-124, 47, -122, 49.5];
 /**
  * A region is the scope of the query, not just a place to look at.
  *

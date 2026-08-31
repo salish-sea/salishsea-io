@@ -39,3 +39,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [033](033-register-names-the-animals.md) | The register names the animals, we compose the display (applies 008, extends 029) | accepted |
 | [034](034-profile-urls-key-on-the-register-identifier.md) | A profile URL keys on the register identifier; the designation is a slug (amends 015, 016, 017) | accepted, not yet implemented |
 | [035](035-catalogue-migrates-before-tagging.md) | The catalogue migrates before the first OrcaSound bout is tagged (answers ADR-0012's open question) | accepted |
+| [036](036-ingest-scope-killer-whales-range-wide.md) | Ingest scope: killer whales range-wide, everything else the Salish Sea; enforced in `isIngestable`, existing rows purged | accepted |

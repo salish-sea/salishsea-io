@@ -57,7 +57,7 @@ Tracked as bd issues; the durable statements:
 - **Backend:** Supabase (PostgreSQL + auth + storage) — existing schema
 - **Deployment:** static SPA on S3/CloudFront, AWS CDK infra, GitHub Actions deploy on push to `main`; server-side behavior requires edge functions
 - **Auth:** Google Sign-In only
-- **Spatial scope:** matches Acartia's boundaries — the full range of Southern Resident Killer Whales
+- **Spatial scope:** killer whales across their full range — Acartia's boundaries, central California to northern BC, which is where the Southern Residents go — and every other species only in the Salish Sea and the Strait of Juan de Fuca. Southern Residents cannot be told from other killer whales at ingest, so the rule is the species ([decision 036](docs/decisions/036-ingest-scope-killer-whales-range-wide.md)).
 - **Taxonomic scope:** that of PSEMP's Marine Mammal Working Group (Puget Sound Ecosystem Monitoring Program) — Salish Sea marine mammals broadly (cetaceans, pinnipeds, mustelids). All are ingested via iNaturalist today (taxa Cetacea / Phocoidea / Lutrinae). PSEMP defines the *boundary*; we do not ingest PSEMP's own datasets. See decisions [009](docs/decisions/009-taxonomic-scope-marine-mammals.md) and [027](docs/decisions/027-marine-mammal-scope-whale-centric-identity.md).
 - **Whale-centric positioning, marine-mammal record:** statements about what the data contains are marine-mammal-wide and must be true; statements about what the product is for stay whale-forward. The deep investment — individual catalogs, matrilines, ecotypes, photo-ID — is cetacean by design ([decision 027](docs/decisions/027-marine-mammal-scope-whale-centric-identity.md)).
 
