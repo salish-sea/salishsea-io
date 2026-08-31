@@ -82,8 +82,12 @@ written once and never edited, so the steady state is nearly zero.
 
 The objects come over plain HTTPS from the bucket's public URL rather than through
 `supabase storage cp`, which refuses to run without `--experimental` — not a flag to build a
-backup on. Each download is checked against the ETag the database recorded, which is the MD5 of
-the content, so the manifest written afterwards describes bytes that actually arrived intact.
+backup on. Each download is checked against what the database recorded, and what can be checked depends on
+how the object was stored: Supabase keeps a plain MD5 for a single-part upload and a
+digest-of-digests with a `-N` suffix for a multipart one — 8 of the 95 objects, all between 5.6
+and 7.6 MB. A whole-file MD5 can never equal the second kind, so those are verified on length,
+which is the shape a truncated download takes anyway. Either way the manifest written afterwards
+describes bytes that actually arrived.
 This depends on the `media` bucket being public, as it is today; were it made private the step
 would start returning 403 and fail, which is the right way round.
 

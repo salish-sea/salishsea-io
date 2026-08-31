@@ -199,11 +199,16 @@ jobs:
             # need no credential at all; if it is ever made private this step
             # starts returning 403 and fails, which is the right way round.
             #
-            # Every download is checked against the ETag the database recorded.
-            # Supabase's ETag is the MD5 of the content (verified against a real
-            # object), so this proves the bytes arrived intact — and it is what
-            # makes the manifest written afterwards mean something, since the
-            # manifest is only ever as true as the fetch it describes.
+            # Every download is checked against what the database recorded, and
+            # what can be checked depends on how the object was stored. Supabase
+            # keeps a plain MD5 for a single-part upload and a digest-of-digests
+            # with a `-N` suffix for a multipart one — 8 of the 95 objects here,
+            # all between 5.6 and 7.6 MB. A whole-file MD5 can never equal the
+            # second kind, so those are verified on length alone, which is the
+            # shape a truncated download takes anyway.
+            #
+            # This is what makes the manifest written afterwards mean something:
+            # it is only ever as true as the fetch it describes.
             - name: Fetch changed media
               env:
                   STORAGE_BASE: ${{ vars.VITE_SUPABASE_URL }}/storage/v1/object/public/media
@@ -223,10 +228,20 @@ jobs:
                   for o in json.load(open("backup/media-plan.json"))["fetch"]:
                       quoted = urllib.parse.quote(o["name"])
                       etag = (o["etag"] or "").strip('"')
-                      print(f'{o["name"]}\t{etag}\t{quoted}')
+                      # A `-N` suffix marks a multipart ETag, which is a digest of
+                      # part digests and never the whole file's MD5, so there is
+                      # nothing here for md5sum to be compared against.
+                      #
+                      # The sentinel is `-` and NOT an empty field. Tab is IFS
+                      # whitespace, so bash's `read` collapses two adjacent tabs
+                      # into one delimiter: an empty ETag would shift size and URL
+                      # one field left, and every multipart object would be
+                      # requested from a truncated URL. Which is exactly what
+                      # happened the first time this was written.
+                      print(f'{o["name"]}\t{etag or "-"}\t{o["size"]}\t{quoted}')
                   PYEOF
                   FAILED=0
-                  while IFS=$'\t' read -r NAME ETAG QUOTED; do
+                  while IFS=$'\t' read -r NAME ETAG SIZE QUOTED; do
                       mkdir -p "backup/media/$(dirname "${NAME}")"
                       if ! curl -sfL --retry 3 --retry-delay 2 -o "backup/media/${NAME}" \
                               "${STORAGE_BASE}/${QUOTED}"; then
@@ -234,11 +249,20 @@ jobs:
                           FAILED=1
                           continue
                       fi
-                      GOT=$(md5sum "backup/media/${NAME}" | cut -d' ' -f1)
-                      if [ -n "${ETAG}" ] && [ "${GOT}" != "${ETAG}" ]; then
-                          echo "::error::${NAME} arrived corrupt: md5 ${GOT}, expected ${ETAG}"
+                      GOT_SIZE=$(wc -c < "backup/media/${NAME}" | tr -d ' ')
+                      if [ -n "${SIZE}" ] && [ "${SIZE}" != "0" ] && [ "${GOT_SIZE}" != "${SIZE}" ]; then
+                          echo "::error::${NAME} is ${GOT_SIZE} bytes, expected ${SIZE}"
                           rm -f "backup/media/${NAME}"
                           FAILED=1
+                          continue
+                      fi
+                      if [ "${ETAG}" != "-" ]; then
+                          GOT=$(md5sum "backup/media/${NAME}" | cut -d' ' -f1)
+                          if [ "${GOT}" != "${ETAG}" ]; then
+                              echo "::error::${NAME} arrived corrupt: md5 ${GOT}, expected ${ETAG}"
+                              rm -f "backup/media/${NAME}"
+                              FAILED=1
+                          fi
                       fi
                   done < backup/fetch.tsv
                   echo "Fetched $(find backup/media -type f | wc -l) of ${COUNT} objects." | tee -a backup/report.txt
