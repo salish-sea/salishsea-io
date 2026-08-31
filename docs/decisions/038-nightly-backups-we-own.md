@@ -51,7 +51,7 @@ the policy carries no prefix condition — so the backup goes to a separate buck
 `BLOCK_ALL`, SSE, enforced TLS, versioning, and `RETAIN` so a stack teardown cannot take the
 backups with it.
 
-**Three plain-SQL files, not one custom-format archive.** The manual backup taken on
+**Four plain-SQL files, not one custom-format archive.** The manual backup taken on
 2026-08-30 used the Supabase CLI's `db dump` and its restore steps are known to work; matching
 it means the automated path and the procedure a human would follow under pressure are the same
 path. The CLI also knows which platform schemas to exclude, which a hand-rolled `pg_dump`
