@@ -107,10 +107,15 @@ jobs:
                   echo "prefix=${PREFIX}" >> "$GITHUB_OUTPUT"
                   echo "Restoring ${PREFIX}"
 
+            # PREFIX comes through env, never interpolated into the script: it
+            # originates in a workflow_dispatch input, and `${{ }}` splices its
+            # value into the shell source before bash ever sees it.
             - name: Download and check integrity
               working-directory: /tmp
+              env:
+                  PREFIX: ${{ steps.choose.outputs.prefix }}
               run: |
-                  aws s3 cp "s3://${BACKUP_BUCKET}/${{ steps.choose.outputs.prefix }}/" . --recursive
+                  aws s3 cp "s3://${BACKUP_BUCKET}/${PREFIX}/" . --recursive
                   # Before anything is trusted enough to load: the checksums the
                   # backup job recorded at the moment of writing.
                   sha256sum -c SHA256SUMS
@@ -126,12 +131,17 @@ jobs:
             # catch.
             - name: Restore roles
               working-directory: /tmp
-              run: psql -v ON_ERROR_STOP=0 -f roles.sql 2>&1 | tail -20
+              run: |
+                  set -o pipefail
+                  psql -v ON_ERROR_STOP=0 -f roles.sql 2>&1 | tail -20
 
             - name: Restore schema
               working-directory: /tmp
               run: psql -v ON_ERROR_STOP=1 -f schema.sql > /dev/null
 
+            # No --disable-triggers needed: the CLI's data dump opens with
+            # `SET session_replication_role = replica;` itself (verified against a
+            # real dump), so foreign keys do not fight the load order.
             - name: Restore data
               working-directory: /tmp
               run: psql -v ON_ERROR_STOP=1 -f data.sql > /dev/null
@@ -146,11 +156,13 @@ jobs:
               run: pnpm --dir "${GITHUB_WORKSPACE}" exec tsx "${GITHUB_WORKSPACE}/scripts/backup/verify-dump.ts" data.sql
 
             - name: Summarise
+              env:
+                  PREFIX: ${{ steps.choose.outputs.prefix }}
               run: |
                   {
                     echo "### Restore verified"
                     echo
-                    echo "Backup: \`${{ steps.choose.outputs.prefix }}\`"
+                    echo "Backup: \`${PREFIX}\`"
                     echo
                     echo "Roles, schema and data loaded into \`supabase/postgres:17.6.1.005\`, and every"
                     echo "irreplaceable table holds the row count the dump recorded."

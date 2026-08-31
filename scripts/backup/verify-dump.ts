@@ -27,19 +27,29 @@
  *      an error page, a dump that died before the data section) with a message
  *      that names the actual problem rather than a confusing count mismatch.
  *
- * A COUNT DRIFTING UP IS NOT A FAILURE. Ingest writes while the dump runs, so
- * live > dumped is expected for `maplify.sightings` and
- * `inaturalist.observations`. Live < dumped would mean rows disappeared between
- * the two, which is worth saying out loud but is not this script's business.
- * Only the irreplaceable tables are held to an exact match, and they are the
- * ones nothing writes to unattended.
+ * WHY THE COMPARISON IS A RANGE AND NOT AN EQUALITY. The database is live while
+ * the dump runs. Someone submits a sighting, ingest mints a contributor, a
+ * photo lands — every one of the "irreplaceable" tables can gain a row mid-dump,
+ * so a count taken afterwards will legitimately exceed what the file holds.
+ * Requiring equality would fail good backups on ordinary traffic and raise an
+ * alarm that says the opposite of the truth, which is how a check earns the
+ * right to be ignored.
+ *
+ * So the caller brackets the dump: counts taken *before* it starts, this script
+ * takes counts *after* it finishes, and the dump's own count has to land in
+ * between. Anything outside that range is not timing — it is a short dump.
+ *
+ * With no bracket the comparison is exact, which is right for the case that has
+ * no traffic: verifying a restored copy, where the database is static and any
+ * difference at all is a defect in the restore.
  *
  * Usage:
- *   SUPABASE_DB_URL=... npx tsx scripts/backup/verify-dump.ts <data.sql>
+ *   SUPABASE_DB_URL=... npx tsx scripts/backup/verify-dump.ts --snapshot <counts.json>
+ *   SUPABASE_DB_URL=... npx tsx scripts/backup/verify-dump.ts <data.sql> [before-counts.json]
  */
 
-import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { createReadStream, readFileSync } from 'node:fs';
+import { stat, writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import postgres from 'postgres';
 
@@ -102,16 +112,77 @@ export async function countDumpedRows(path: string): Promise<Map<string, number>
   return counts;
 }
 
-export async function main() {
-  const path = process.argv[2];
-  if (!path) {
-    console.error('Usage: SUPABASE_DB_URL=... npx tsx scripts/backup/verify-dump.ts <data.sql>');
-    process.exit(USAGE);
+/**
+ * Decides whether a dumped count is consistent with the database.
+ *
+ * `before` is the count taken before the dump began; without one the bounds
+ * collapse to a single number and the check is an equality.
+ */
+export function judgeCount(
+  dumped: number | undefined,
+  live: number,
+  before: number | undefined,
+): string | null {
+  if (dumped === undefined)
+    return `absent from the dump (${live} rows live). Nothing else has these rows.`;
+  const low = before === undefined ? live : Math.min(before, live);
+  const high = before === undefined ? live : Math.max(before, live);
+  if (dumped < low)
+    return `${dumped} rows dumped, but the table held at least ${low} throughout — the dump is short.`;
+  if (dumped > high)
+    return `${dumped} rows dumped, more than the ${high} the table ever held — rows were deleted after the dump.`;
+  return null;
+}
+
+async function liveCounts(dbUrl: string): Promise<Record<string, number>> {
+  const sql = postgres(dbUrl, {prepare: false});
+  try {
+    const counts: Record<string, number> = {};
+    for (const qualified of IRREPLACEABLE) {
+      const [schema, table] = qualified.split('.') as [string, string];
+      const [row] = await sql`SELECT count(*)::int AS n FROM ${sql(schema)}.${sql(table)}`;
+      counts[qualified] = row!.n as number;
+    }
+    return counts;
+  } finally {
+    await sql.end();
   }
+}
+
+export async function main() {
   const dbUrl = process.env.SUPABASE_DB_URL;
   if (!dbUrl) {
     console.error('SUPABASE_DB_URL is required.');
     process.exit(USAGE);
+  }
+
+  if (process.argv[2] === '--snapshot') {
+    const out = process.argv[3];
+    if (!out) {
+      console.error('Usage: SUPABASE_DB_URL=... npx tsx scripts/backup/verify-dump.ts --snapshot <counts.json>');
+      process.exit(USAGE);
+    }
+    const counts = await liveCounts(dbUrl);
+    await writeFile(out, JSON.stringify(counts, null, 2));
+    console.log(`Counts before the dump: ${JSON.stringify(counts)}`);
+    return;
+  }
+
+  const path = process.argv[2];
+  if (!path) {
+    console.error('Usage: SUPABASE_DB_URL=... npx tsx scripts/backup/verify-dump.ts <data.sql> [before-counts.json]');
+    process.exit(USAGE);
+  }
+  let before: Record<string, number> | undefined;
+  if (process.argv[3]) {
+    try {
+      before = JSON.parse(readFileSync(process.argv[3], 'utf-8')) as Record<string, number>;
+    } catch (err) {
+      // Not survivable: without the lower bound the check silently becomes an
+      // equality against a moving database, and starts failing good backups.
+      console.error(`Could not read the pre-dump counts at ${process.argv[3]}: ${String(err)}`);
+      process.exit(USAGE);
+    }
   }
 
   const problems: string[] = [];
@@ -124,24 +195,12 @@ export async function main() {
   if (dumped.size === 0)
     problems.push(`${path} contains no COPY blocks at all — no table data was dumped.`);
 
-  const sql = postgres(dbUrl, {prepare: false});
-  try {
-    for (const qualified of IRREPLACEABLE) {
-      const [schema, table] = qualified.split('.') as [string, string];
-      const [row] = await sql`
-        SELECT count(*)::int AS n FROM ${sql(schema)}.${sql(table)}
-      `;
-      const live = row!.n as number;
-      const inDump = dumped.get(qualified);
-      if (inDump === undefined)
-        problems.push(`${qualified}: absent from the dump (${live} rows live). Nothing else has these rows.`);
-      else if (inDump !== live)
-        problems.push(`${qualified}: ${inDump} rows dumped, ${live} live.`);
-      else
-        console.log(`  ${qualified}: ${inDump} rows`);
-    }
-  } finally {
-    await sql.end();
+  const live = await liveCounts(dbUrl);
+  for (const qualified of IRREPLACEABLE) {
+    const inDump = dumped.get(qualified);
+    const problem = judgeCount(inDump, live[qualified]!, before?.[qualified]);
+    if (problem) problems.push(`${qualified}: ${problem}`);
+    else console.log(`  ${qualified}: ${inDump} rows`);
   }
 
   const total = [...dumped.values()].reduce((a, b) => a + b, 0);

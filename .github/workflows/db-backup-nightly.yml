@@ -95,6 +95,13 @@ jobs:
             # --use-copy is load-bearing beyond speed: verify-dump.ts counts rows
             # by reading COPY blocks, and the INSERT form it would otherwise emit
             # has no block to count.
+            # Counts taken now bracket the dump with the ones verify-dump takes
+            # afterwards. Without the lower bound the check is an equality against
+            # a live database, and a sighting submitted while the dump runs fails
+            # a backup that is perfectly good.
+            - name: Count rows before dumping
+              run: pnpm exec tsx scripts/backup/verify-dump.ts --snapshot backup/counts-before.json
+
             - name: Dump roles
               run: pnpm exec supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f backup/roles.sql
 
@@ -108,7 +115,7 @@ jobs:
             # per-table row counts against the live database for the tables no
             # upstream can give back, and fails before anything is uploaded.
             - name: Verify the dump carries the rows
-              run: pnpm exec tsx scripts/backup/verify-dump.ts backup/data.sql | tee -a backup/report.txt
+              run: pnpm exec tsx scripts/backup/verify-dump.ts backup/data.sql backup/counts-before.json | tee -a backup/report.txt
 
             - name: Compress and checksum
               working-directory: backup
@@ -172,21 +179,21 @@ jobs:
                             "ss:///media/${NAME}" "backup/media/${NAME}"
                       done
 
-            # --size-only, not the default modified-time comparison: every file
-            # this runner fetched carries today's mtime, so the default would
-            # re-upload each one on a later run that happened to fetch it again.
+            # `cp --recursive`, not `sync`. The planner has already decided what
+            # belongs here, so everything in this directory must be uploaded —
+            # and every `sync` comparison is wrong for that: the default compares
+            # mtimes, which are all today's, and `--size-only` would skip a photo
+            # replaced by a different one of the same length.
             #
-            # NO --delete, and this is deliberate rather than an omission. The
-            # local directory holds only the objects this run fetched, so
-            # --delete would read the other 90-odd as "removed" and destroy the
-            # mirror in a single step. It is also the wrong instinct for a
-            # backup: an object deleted upstream is exactly what you want to
-            # still have. The mirror is append-and-update, and the bucket's
-            # lifecycle rule ages out superseded versions rather than content.
+            # No `--delete` anywhere, which is deliberate rather than forgotten.
+            # This directory holds only what this run fetched, so a delete sweep
+            # would read the other ninety-odd objects as removed and destroy the
+            # mirror in one step. It is also the wrong instinct for a backup: an
+            # object deleted upstream is exactly the one you want to still have.
             - name: Sweep the media mirror
               run: |
                   if [ -d backup/media ]; then
-                      aws s3 sync backup/media "s3://${BACKUP_BUCKET}/media/" --size-only
+                      aws s3 cp backup/media "s3://${BACKUP_BUCKET}/media/" --recursive
                   fi
                   aws s3 ls "s3://${BACKUP_BUCKET}/media/" --recursive --summarize \
                     | tail -2 | tee -a backup/report.txt

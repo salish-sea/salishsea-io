@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { countDumpedRows } from './verify-dump.ts';
+import { countDumpedRows, judgeCount } from './verify-dump.ts';
 
 const write = (body: string) => {
   const path = join(mkdtempSync(join(tmpdir(), 'dump-')), 'data.sql');
@@ -66,5 +66,58 @@ describe('countDumpedRows', () => {
     // would report a shortfall as if the table were simply smaller.
     const path = write('COPY "public"."observations" ("id") FROM stdin;\n1\n2\n');
     await expect(countDumpedRows(path)).rejects.toThrow(/truncated/);
+  });
+});
+
+describe('judgeCount', () => {
+  const ok = null;
+
+  it('accepts a dump whose count sits between the before and after readings', () => {
+    // Two sightings arrived while the dump ran. The dump is fine.
+    expect(judgeCount(501, 503, 501)).toBe(ok);
+    expect(judgeCount(502, 503, 501)).toBe(ok);
+    expect(judgeCount(503, 503, 501)).toBe(ok);
+  });
+
+  it('does not fail a good backup because the site was in use', () => {
+    // The regression this guards: an exact match would have failed here and
+    // filed an alarm saying the backup was short when it was complete. A check
+    // that cries wolf on ordinary traffic is one nobody reads.
+    expect(judgeCount(6719, 6740, 6719)).toBe(ok);
+  });
+
+  it('fails a dump holding fewer rows than the table ever held', () => {
+    expect(judgeCount(400, 503, 501)).toMatch(/the dump is short/);
+  });
+
+  it('reports a dump holding more rows than the table ever held', () => {
+    // Not a dump defect — rows went away after it was taken — but worth saying.
+    expect(judgeCount(510, 505, 501)).toMatch(/deleted after the dump/);
+  });
+
+  it('fails a table missing from the dump entirely', () => {
+    expect(judgeCount(undefined, 501, 501)).toMatch(/absent from the dump/);
+  });
+
+  it('fails an empty table that the database says has rows', () => {
+    expect(judgeCount(0, 501, 501)).toMatch(/the dump is short/);
+  });
+
+  it('compares exactly when there is no before reading', () => {
+    // Verifying a restored copy: nothing is writing, so any difference is a
+    // defect in the restore rather than timing.
+    expect(judgeCount(501, 501, undefined)).toBe(ok);
+    expect(judgeCount(500, 501, undefined)).toMatch(/the dump is short/);
+    expect(judgeCount(502, 501, undefined)).toMatch(/deleted after the dump/);
+  });
+
+  it('handles a before reading higher than the after one', () => {
+    // Rows deleted during the dump. The range is the two readings whichever way
+    // round they came, so a dump anywhere between them is still consistent.
+    expect(judgeCount(500, 499, 501)).toBe(ok);
+  });
+
+  it('accepts a genuinely empty table', () => {
+    expect(judgeCount(0, 0, 0)).toBe(ok);
   });
 });

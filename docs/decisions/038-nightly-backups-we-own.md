@@ -52,10 +52,19 @@ would have to learn and then keep learning.
 
 **The dump is checked against the database before it is kept.**
 [`verify-dump.ts`](../../scripts/backup/verify-dump.ts) counts the rows in each `COPY` block
-and compares them, table by table, with live counts for the seven irreplaceable tables above.
-`pg_dump` exiting 0 means the process finished, not that the file is worth keeping — and a
-size floor is nearly useless here: a dump missing `public.observations` entirely is within 1%
-of the right size, because 501 sightings are a rounding error beside 40,792 Maplify rows.
+and compares them, table by table, against the seven irreplaceable tables above. `pg_dump`
+exiting 0 means the process finished, not that the file is worth keeping — and a size floor is
+nearly useless here: a dump missing `public.observations` entirely is within 1% of the right
+size, because 501 sightings are a rounding error beside 40,792 Maplify rows.
+
+The comparison is a *range*, not an equality, and that distinction is the difference between a
+check people trust and one they learn to re-run. The database is live while the dump runs:
+someone submits a sighting, ingest mints a contributor, a photo lands. A count taken afterwards
+will legitimately exceed the file, so an equality would fail good backups on ordinary traffic
+and raise an alarm saying the opposite of the truth. The workflow therefore brackets the dump —
+counts before, counts after — and the dump's own count has to land between them. Anything
+outside that range is not timing, it is a short dump. With no bracket the check is exact, which
+is right for the one case with no traffic: verifying a restored copy.
 
 **Photos are mirrored incrementally, and separately.** `pg_dump` captures `storage.objects` and
 not one byte of the objects. Copying the whole ~104 MB bucket nightly would spend roughly 3 GB
