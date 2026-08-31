@@ -104,8 +104,25 @@ jobs:
               env:
                   REQUESTED: ${{ inputs.key_prefix }}
               run: |
+                  # A backup is usable by this workflow only if its checksum
+                  # list mentions auth-storage.sql.gz. Backups taken before that
+                  # artifact existed are complete by their own lights and cannot
+                  # be restored here; saying so beats failing later in gunzip
+                  # with a message about a missing file.
+                  usable() {
+                      aws s3 cp "s3://${BACKUP_BUCKET}/$1/SHA256SUMS" - 2>/dev/null \
+                        | grep -q 'auth-storage\.sql\.gz'
+                  }
+
                   if [ -n "${REQUESTED}" ]; then
-                      PREFIX="${REQUESTED}"
+                      # Held to the same bar as one we picked ourselves. A hand-typed
+                      # prefix is the likeliest to name an old backup.
+                      if usable "${REQUESTED}"; then
+                          PREFIX="${REQUESTED}"
+                      else
+                          echo "${REQUESTED} has no SHA256SUMS naming auth-storage.sql.gz — it is missing, incomplete, or predates that artifact." >&2
+                          exit 1
+                      fi
                   else
                       # Only prefixes holding a SHA256SUMS, which the backup job
                       # uploads last: a run that died partway leaves its files
@@ -114,11 +131,8 @@ jobs:
                       # Keys are db/YYYY/MM/DD/HHMMSS/..., so lexical order is
                       # chronological.
                       #
-                      # Then, newest first, the first one that also carries
-                      # auth-storage.sql.gz. Backups taken before that artifact
-                      # existed are complete by their own lights and cannot be
-                      # restored by this workflow; skipping them beats failing in
-                      # gunzip with a message about a missing file.
+                      # Then, newest first, the first usable one.
+                      #
                       # awk rather than grep|sed: grep exits non-zero when it
                       # matches nothing, which under `set -e` would end the step
                       # on an empty bucket instead of reaching the diagnosis below.
@@ -130,8 +144,7 @@ jobs:
                       # iteration or four depending on the shell.
                       while IFS= read -r CANDIDATE; do
                           [ -n "${CANDIDATE}" ] || continue
-                          if aws s3 cp "s3://${BACKUP_BUCKET}/${CANDIDATE}/SHA256SUMS" - 2>/dev/null \
-                             | grep -q 'auth-storage\.sql\.gz'; then
+                          if usable "${CANDIDATE}"; then
                               PREFIX="${CANDIDATE}"
                               break
                           fi
