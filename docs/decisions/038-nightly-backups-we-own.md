@@ -123,9 +123,10 @@ image, and the restore has to create roles and drop the platform's own schemas.
 
 Every step that must tolerate an error names exactly which errors, via
 [`only-already-exists.sh`](../../scripts/only-already-exists.sh), and fails on anything else.
-Most tolerate only "already exists"; the first `auth-storage` pass also tolerates "does not
-exist", because the `public` functions its triggers call are not there yet — which is the whole
-reason there is a second pass, and the second pass does not get that exception. Blanket
+Most tolerate only "already exists"; the first `auth-storage` pass also tolerates a missing
+*function* specifically, because the `public` functions its triggers call are not there yet —
+which is the whole reason there is a second pass, and the second pass does not get that
+exception. A missing table, schema or role is never tolerated, at any pass. Blanket
 tolerance is how "restore the backup" quietly becomes "run it and see".
 
 ## Rejected alternatives

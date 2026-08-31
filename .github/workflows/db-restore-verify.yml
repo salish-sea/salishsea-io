@@ -119,9 +119,12 @@ jobs:
                       # existed are complete by their own lights and cannot be
                       # restored by this workflow; skipping them beats failing in
                       # gunzip with a message about a missing file.
+                      # awk rather than grep|sed: grep exits non-zero when it
+                      # matches nothing, which under `set -e` would end the step
+                      # on an empty bucket instead of reaching the diagnosis below.
                       CANDIDATES=$(aws s3 ls "s3://${BACKUP_BUCKET}/db/" --recursive \
-                        | awk '{print $4}' | grep '/SHA256SUMS$' \
-                        | sed 's|/SHA256SUMS$||' | sort -r)
+                        | awk '$4 ~ /\/SHA256SUMS$/ { sub(/\/SHA256SUMS$/, "", $4); print $4 }' \
+                        | sort -r)
                       # A here-string and `read`, not `for X in ${LIST}`: the
                       # latter depends on word splitting, so it reads as one
                       # iteration or four depending on the shell.
@@ -198,8 +201,11 @@ jobs:
                   # of the image.
                   psql -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS auth CASCADE; DROP SCHEMA IF EXISTS storage CASCADE;'
                   psql -v ON_ERROR_STOP=0 -f auth-storage.sql > auth1.log 2>&1
+                  # Only the missing-function diagnostics, not any "does not
+                  # exist": a missing table, schema or role at this point is a
+                  # real failure and must not be waved through.
                   "${GITHUB_WORKSPACE}/scripts/only-already-exists.sh" auth1.log 'auth-storage.sql (first pass)' \
-                      'does not exist'
+                      'function [^ ]+ does not exist'
 
             - name: Restore schema
               working-directory: /tmp
