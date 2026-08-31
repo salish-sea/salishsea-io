@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const read = (relative: string) => readFileSync(join(process.cwd(), relative), 'utf-8');
@@ -10,13 +10,30 @@ describe('the backup bucket is named once', () => {
   // does not exist fails the run, but `aws s3 ls` on the media prefix is
   // tolerated, so a renamed bucket could produce a run that looks partly fine
   // while backing nothing up. Pin them together instead.
-  it('agrees between infra/lib/infra-stack.ts and the nightly workflow', () => {
-    const cdk = /export const BACKUP_BUCKET_NAME = '([^']+)'/.exec(read('infra/lib/infra-stack.ts'));
-    const workflow = /^ +BACKUP_BUCKET: (\S+)$/m.exec(read('.github/workflows/db-backup-nightly.yml'));
+  const WORKFLOWS = [
+    '.github/workflows/db-backup-nightly.yml',
+    '.github/workflows/db-restore-verify.yml',
+  ];
 
+  it('agrees between infra/lib/infra-stack.ts and every workflow that names it', () => {
+    const cdk = /export const BACKUP_BUCKET_NAME = '([^']+)'/.exec(read('infra/lib/infra-stack.ts'));
     expect(cdk, 'BACKUP_BUCKET_NAME not found in infra/lib/infra-stack.ts').not.toBeNull();
-    expect(workflow, 'BACKUP_BUCKET not found in db-backup-nightly.yml').not.toBeNull();
-    expect(workflow![1]).toBe(cdk![1]);
+
+    for (const path of WORKFLOWS) {
+      const workflow = /^ +BACKUP_BUCKET: (\S+)$/m.exec(read(path));
+      expect(workflow, `BACKUP_BUCKET not found in ${path}`).not.toBeNull();
+      expect(workflow![1], `${path} names a different bucket`).toBe(cdk![1]);
+    }
+  });
+
+  it('names every workflow that mentions the bucket', () => {
+    // The test above is only as good as its list. A third workflow writing to
+    // the backup bucket without being listed here would drift unnoticed, which
+    // is the failure this whole pair of tests exists to prevent.
+    const all = readdirSync(join(process.cwd(), '.github/workflows'))
+      .map(file => join('.github/workflows', file))
+      .filter(path => read(path).includes('BACKUP_BUCKET'));
+    expect(all.sort()).toEqual(WORKFLOWS.sort());
   });
 
   it('is not the public site bucket', () => {

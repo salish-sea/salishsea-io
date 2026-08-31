@@ -155,17 +155,37 @@ jobs:
             # a 5 GB monthly egress allowance re-fetching bytes we already hold.
             # Two views of the mirror, because neither alone is trustworthy: the
             # manifest says what was meant to be there, the listing says what is.
-            # `|| true` on both — on the first run neither exists yet, and the
-            # planner reads "nothing mirrored" as "fetch everything", which is
-            # the right answer then.
+            #
+            # Only a manifest that is genuinely absent is tolerated, and only on
+            # the reported error code. A blanket `|| true` here would turn a
+            # transient IAM or network failure into "nothing is mirrored", and the
+            # planner would dutifully re-fetch all ~104 MB and upload it again —
+            # the egress blowout this whole design exists to avoid, reached
+            # silently, and looking like an ordinary night's work.
             - name: Read the media mirror's current state
               run: |
-                  aws s3 cp "s3://${BACKUP_BUCKET}/media-manifest.json" backup/media-manifest.json || true
+                  set +e
+                  ERR=$(aws s3api get-object --bucket "${BACKUP_BUCKET}" \
+                    --key media-manifest.json backup/media-manifest.json 2>&1 >/dev/null)
+                  STATUS=$?
+                  set -e
+                  if [ "${STATUS}" -ne 0 ]; then
+                      case "${ERR}" in
+                          *NoSuchKey*|*"Not Found"*|*404*)
+                              echo "No media manifest yet — treating the mirror as empty." ;;
+                          *)
+                              echo "::error::Could not read the media manifest: ${ERR}"
+                              exit 1 ;;
+                      esac
+                  fi
+                  # Unguarded on purpose: if this cannot list, the run must stop.
                   aws s3api list-objects-v2 --bucket "${BACKUP_BUCKET}" --prefix 'media/' \
-                    --query 'Contents[].Key' --output text 2>/dev/null \
-                    | tr '\t' '\n' | sed 's|^media/||' > backup/mirrored-keys.txt || true
-                  echo "manifest: $([ -f backup/media-manifest.json ] && echo present || echo absent), \
-                    keys listed: $(wc -l < backup/mirrored-keys.txt 2>/dev/null || echo 0)"
+                    --query 'Contents[].Key' --output text > backup/raw-keys.txt
+                  # `None` is what --output text prints for an empty result, and an
+                  # empty mirror is not an error, so only this grep is tolerant.
+                  tr '\t' '\n' < backup/raw-keys.txt | sed 's|^media/||' \
+                    | { grep -v '^None$' || true; } > backup/mirrored-keys.txt
+                  echo "manifest: $([ -s backup/media-manifest.json ] && echo present || echo absent), keys listed: $(wc -l < backup/mirrored-keys.txt)"
 
             - name: Plan the media sync
               run: |
