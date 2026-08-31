@@ -33,23 +33,14 @@ const sentryClient = new BrowserClient({
 });
 
 /**
- * Bind the client and install its integrations. Every entry point calls this
- * and nothing else, so the four of them cannot disagree about Sentry — which
- * they did: `salish-sea` gated `init()` on PROD and the three profile pages
- * called it unconditionally, so a dev session on a profile page reported to the
- * production DSN.
+ * Bind the client and install its integrations — the one call every entry point
+ * makes, so the four of them cannot disagree about Sentry.
  *
- * Nothing is transmitted outside production. Binding the client to the scope is
- * what makes `captureException` send, so the gate has to sit here rather than
- * on `init()` alone — `init()` only installs integrations, and a direct
- * `captureException` (which [decision 031](../docs/decisions/031-surfacing-failures.md)
- * put behind every user-visible failure, so there are now many) transmitted in
- * dev whether or not it had run. Unbound, `captureException` is a no-op.
- *
- * The alternative was to keep sending and filter on the `environment` tag in
- * Sentry. Rejected: a dev session's errors are already in the console in front
- * of you, and the ones a developer causes on purpose would spend quota and
- * raise alerts to be sorted out afterwards.
+ * Nothing is transmitted outside production, and the gate is on the *binding*
+ * rather than on `init()`: binding the client to the scope is what makes
+ * `captureException` send, while `init()` only installs integrations. Reasoning
+ * and the rejected alternatives are in
+ * [decision 037](../docs/decisions/037-sentry-transmits-from-production-only.md).
  */
 export function initSentry(): void {
   if (!import.meta.env.PROD) return;
