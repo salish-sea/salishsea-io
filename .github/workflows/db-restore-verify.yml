@@ -35,6 +35,14 @@ jobs:
     restore:
         runs-on: ubuntu-latest
         environment: production
+        # `shell: bash` is `bash -eo pipefail`, where the bare default is only
+        # `bash -e`. Without pipefail a step like `verify-dump.ts | tee report`
+        # exits with tee's status, so a dump that failed verification would have
+        # been uploaded anyway — the check would run, print its complaint, and
+        # change nothing.
+        defaults:
+            run:
+                shell: bash
         permissions:
             id-token: write
             contents: read
@@ -129,11 +137,22 @@ jobs:
             # platform roles, so re-creating them errors harmlessly. Schema and
             # data are strict — an error there is the failure this job exists to
             # catch.
+            # Roles are the one permissive step, because the image already has
+            # the platform roles and re-creating them errors harmlessly. That
+            # tolerance is spelled out rather than blanket: anything that is not
+            # an "already exists" complaint fails the job. A custom role that
+            # failed to create would otherwise surface only as a confusing GRANT
+            # error in the next step.
             - name: Restore roles
               working-directory: /tmp
               run: |
-                  set -o pipefail
-                  psql -v ON_ERROR_STOP=0 -f roles.sql 2>&1 | tail -20
+                  psql -v ON_ERROR_STOP=0 -f roles.sql > roles.log 2>&1 || true
+                  tail -20 roles.log
+                  if grep '^ERROR:' roles.log | grep -qv 'already exists'; then
+                      echo "::error::roles.sql failed for a reason other than a role that already exists"
+                      grep '^ERROR:' roles.log | grep -v 'already exists'
+                      exit 1
+                  fi
 
             - name: Restore schema
               working-directory: /tmp

@@ -17,6 +17,14 @@ jobs:
     backup:
         runs-on: ubuntu-latest
         environment: production
+        # `shell: bash` is `bash -eo pipefail`, where the bare default is only
+        # `bash -e`. Without pipefail a step like `verify-dump.ts | tee report`
+        # exits with tee's status, so a dump that failed verification would have
+        # been uploaded anyway — the check would run, print its complaint, and
+        # change nothing.
+        defaults:
+            run:
+                shell: bash
         permissions:
             id-token: write
             contents: read
