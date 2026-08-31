@@ -1,0 +1,268 @@
+name: Database Backup Nightly
+
+# The project is on Supabase's free plan: no daily backups, no PITR, nothing to
+# restore from if the database is lost (salish-5xy). This is the only copy of
+# the sightings people typed in themselves, the catalogue, the accounts, and the
+# photos. See decision 038.
+on:
+    schedule:
+        - cron: '0 7 * * *'  # 07:00 UTC — clear of the DwC-A build at 09:00
+    workflow_dispatch:
+
+concurrency:
+    group: db-backup-nightly
+    cancel-in-progress: false
+
+jobs:
+    backup:
+        runs-on: ubuntu-latest
+        environment: production
+        # `shell: bash` is `bash -eo pipefail`, where the bare default is only
+        # `bash -e`. Without pipefail a step like `verify-dump.ts | tee report`
+        # exits with tee's status, so a dump that failed verification would have
+        # been uploaded anyway — the check would run, print its complaint, and
+        # change nothing.
+        defaults:
+            run:
+                shell: bash
+        permissions:
+            id-token: write
+            contents: read
+            issues: write  # failure issue, same pattern as dwca-nightly
+        env:
+            # Also declared in infra/lib/infra-stack.ts as BACKUP_BUCKET_NAME;
+            # scripts/backup/backup-bucket-name.test.ts fails if they diverge.
+            BACKUP_BUCKET: salishsea-io-backups
+
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+            - name: Setup Node
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version-file: package.json
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # Same reason as dwca-nightly's: create-issue-from-file exits 0 with
+            # no issue filed when its content file is missing, so a failure
+            # before the backup steps would be silent — which for a backup is
+            # the worst failure mode there is.
+            - name: Seed default failure-issue body
+              run: |
+                  mkdir -p backup
+                  cat > backup/report.txt <<EOF
+                  The nightly database backup failed before it could report why.
+
+                  Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+                  Triggered: ${{ github.event_name }} at $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+                  Until this run succeeds there is no backup from today. The most
+                  recent good one is the newest object under
+                  s3://${BACKUP_BUCKET}/db/ — check its date before assuming
+                  recent data is covered.
+                  EOF
+
+            - name: Configure AWS Credentials
+              uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+              with:
+                  role-to-assume: arn:aws:iam::648183724555:role/salishsea-deploy-action
+                  aws-region: us-west-2
+
+            # Assembled and masked exactly as dwca-nightly does, and for the same
+            # reason: the raw password contains characters with meaning in a URL's
+            # userinfo section. Host is the session pooler (5432) — the direct host
+            # is IPv6-only and runners are IPv4.
+            #
+            # NOTE the CLI is given --db-url rather than --linked. --linked mints a
+            # temporary login role through the Management API and prints its
+            # credentials in some modes; this path uses the DSN we already mask.
+            - name: Prepare Postgres DSN
+              env:
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+              run: |
+                  ENCODED_PW=$(node -e 'process.stdout.write(encodeURIComponent(process.env.DB_PASSWORD))')
+                  echo "::add-mask::${ENCODED_PW}"
+                  printf 'SUPABASE_DB_URL=postgres://postgres.%s:%s@aws-1-us-west-1.pooler.supabase.com:5432/postgres\n' \
+                    "${SUPABASE_PROJECT_ID}" "${ENCODED_PW}" >> "${GITHUB_ENV}"
+
+            # Three files, matching the manual backup of 2026-08-30 whose restore
+            # steps are known to work: roles must be created before the schema
+            # that grants to them, and the schema before the data. Restore order
+            # is roles, schema, data.
+            #
+            # --use-copy is load-bearing beyond speed: verify-dump.ts counts rows
+            # by reading COPY blocks, and the INSERT form it would otherwise emit
+            # has no block to count.
+            # Counts taken now bracket the dump with the ones verify-dump takes
+            # afterwards. Without the lower bound the check is an equality against
+            # a live database, and a sighting submitted while the dump runs fails
+            # a backup that is perfectly good.
+            - name: Count rows before dumping
+              run: pnpm exec tsx scripts/backup/verify-dump.ts --snapshot backup/counts-before.json
+
+            - name: Dump roles
+              run: pnpm exec supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f backup/roles.sql
+
+            - name: Dump schema
+              run: pnpm exec supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+
+            - name: Dump data
+              run: pnpm exec supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f backup/data.sql
+
+            # A dump that exited 0 is not yet a dump worth keeping. This compares
+            # per-table row counts against the live database for the tables no
+            # upstream can give back, and fails before anything is uploaded.
+            - name: Verify the dump carries the rows
+              run: pnpm exec tsx scripts/backup/verify-dump.ts backup/data.sql backup/counts-before.json | tee -a backup/report.txt
+
+            - name: Compress and checksum
+              working-directory: backup
+              run: |
+                  gzip -9 roles.sql schema.sql data.sql
+                  sha256sum roles.sql.gz schema.sql.gz data.sql.gz > SHA256SUMS
+                  cat SHA256SUMS
+
+            # Keyed to the second, not the day: a re-run after a failure would
+            # otherwise write over the morning's objects, and a re-run that itself
+            # died partway would leave one prefix holding some new files, some old
+            # ones, and a checksum list describing neither. Versioning would keep
+            # the originals, but only for someone who knew to go looking.
+            #
+            # SHA256SUMS goes last and is therefore the marker of a complete
+            # backup — the restore picker chooses among prefixes that have one.
+            - name: Upload dump to S3
+              run: |
+                  DEST="s3://${BACKUP_BUCKET}/db/$(date -u +'%Y/%m/%d/%H%M%S')"
+                  aws s3 cp backup/roles.sql.gz  "${DEST}/"
+                  aws s3 cp backup/schema.sql.gz "${DEST}/"
+                  aws s3 cp backup/data.sql.gz   "${DEST}/"
+                  aws s3 cp backup/SHA256SUMS    "${DEST}/"
+                  echo "Uploaded to ${DEST}" | tee -a backup/report.txt
+
+            # pg_dump captures storage.objects — the rows describing the photos —
+            # and none of the photos. They are mirrored separately, and
+            # incrementally: re-downloading ~104 MB nightly would spend ~3 GB of
+            # a 5 GB monthly egress allowance re-fetching bytes we already hold.
+            # Two views of the mirror, because neither alone is trustworthy: the
+            # manifest says what was meant to be there, the listing says what is.
+            #
+            # Only a manifest that is genuinely absent is tolerated, and only on
+            # the reported error code. A blanket `|| true` here would turn a
+            # transient IAM or network failure into "nothing is mirrored", and the
+            # planner would dutifully re-fetch all ~104 MB and upload it again —
+            # the egress blowout this whole design exists to avoid, reached
+            # silently, and looking like an ordinary night's work.
+            - name: Read the media mirror's current state
+              run: |
+                  set +e
+                  ERR=$(aws s3api get-object --bucket "${BACKUP_BUCKET}" \
+                    --key media-manifest.json backup/media-manifest.json 2>&1 >/dev/null)
+                  STATUS=$?
+                  set -e
+                  if [ "${STATUS}" -ne 0 ]; then
+                      case "${ERR}" in
+                          *NoSuchKey*|*"Not Found"*|*404*)
+                              echo "No media manifest yet — treating the mirror as empty." ;;
+                          *)
+                              echo "::error::Could not read the media manifest: ${ERR}"
+                              exit 1 ;;
+                      esac
+                  fi
+                  # Unguarded on purpose: if this cannot list, the run must stop.
+                  aws s3api list-objects-v2 --bucket "${BACKUP_BUCKET}" --prefix 'media/' \
+                    --query 'Contents[].Key' --output text > backup/raw-keys.txt
+                  # `None` is what --output text prints for an empty result, and an
+                  # empty mirror is not an error, so only this grep is tolerant.
+                  tr '\t' '\n' < backup/raw-keys.txt | sed 's|^media/||' \
+                    | { grep -v '^None$' || true; } > backup/mirrored-keys.txt
+                  echo "manifest: $([ -s backup/media-manifest.json ] && echo present || echo absent), keys listed: $(wc -l < backup/mirrored-keys.txt)"
+
+            - name: Plan the media sync
+              run: |
+                  pnpm exec tsx scripts/backup/plan-media-sync.ts \
+                    backup/media-plan.json backup/media-manifest.json backup/mirrored-keys.txt \
+                    | tee -a backup/report.txt
+
+            # The Storage API, not the database, so this step needs the access
+            # token rather than the DSN.
+            - name: Fetch changed media
+              env:
+                  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+                  PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
+              run: |
+                  COUNT=$(python3 -c 'import json,sys; print(len(json.load(open("backup/media-plan.json"))["fetch"]))')
+                  if [ "${COUNT}" -eq 0 ]; then
+                      echo "No media changed; mirror is current."
+                      exit 0
+                  fi
+                  mkdir -p backup/media
+                  python3 -c 'import json; [print(o["name"]) for o in json.load(open("backup/media-plan.json"))["fetch"]]' \
+                    | while IFS= read -r NAME; do
+                          mkdir -p "backup/media/$(dirname "${NAME}")"
+                          pnpm exec supabase storage cp --project-ref "${PROJECT_REF}" \
+                            "ss:///media/${NAME}" "backup/media/${NAME}"
+                      done
+
+            # `cp --recursive`, not `sync`. The planner has already decided what
+            # belongs here, so everything in this directory must be uploaded —
+            # and every `sync` comparison is wrong for that: the default compares
+            # mtimes, which are all today's, and `--size-only` would skip a photo
+            # replaced by a different one of the same length.
+            #
+            # No `--delete` anywhere, which is deliberate rather than forgotten.
+            # This directory holds only what this run fetched, so a delete sweep
+            # would read the other ninety-odd objects as removed and destroy the
+            # mirror in one step. It is also the wrong instinct for a backup: an
+            # object deleted upstream is exactly the one you want to still have.
+            - name: Sweep the media mirror
+              run: |
+                  if [ -d backup/media ]; then
+                      aws s3 cp backup/media "s3://${BACKUP_BUCKET}/media/" --recursive
+                  fi
+                  aws s3 ls "s3://${BACKUP_BUCKET}/media/" --recursive --summarize \
+                    | tail -2 | tee -a backup/report.txt
+
+            # Last, and only on success: the manifest must never claim more than
+            # the bucket holds, so it is written after the objects are in place.
+            # A failed sweep leaves the previous manifest, and the next run
+            # re-fetches whatever did not land.
+            - name: Record what the mirror now holds
+              run: aws s3 cp backup/media-plan.json.manifest "s3://${BACKUP_BUCKET}/media-manifest.json"
+
+            - name: Find existing failure issue
+              id: find-issue
+              if: failure()
+              uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+              with:
+                  script: |
+                      // listForRepo returns pull requests too, and a PR carrying
+                      // this label would have its title and body overwritten.
+                      // Same guard, same reason, as dwca-nightly's.
+                      const items = await github.paginate(github.rest.issues.listForRepo, {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        state: 'open',
+                        labels: 'db-backup-failed',
+                        per_page: 100,
+                      });
+                      const issue = items.find((item) => !item.pull_request);
+                      core.setOutput('issue-number', issue?.number ?? '');
+
+            - name: Open or update failure issue
+              if: failure()
+              uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6.0.0
+              with:
+                  title: "Nightly database backup failed (run ${{ github.run_id }})"
+                  content-filepath: ./backup/report.txt
+                  labels: db-backup-failed
+                  issue-number: ${{ steps.find-issue.outputs.issue-number }}

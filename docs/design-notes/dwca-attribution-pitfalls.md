@@ -318,12 +318,21 @@ All "Whale Alert Alaska" rows (which should resolve to `collection = 'Whale Aler
 
 ## Recovery Strategies
 
+> **There is no Supabase PITR on this project, and there never was.** This table
+> named it as a recovery route until 2026-08-31; the project is on the free plan, which
+> takes no backups at all (`pitr_enabled: false`, `backups: []`). Recovery now means the
+> nightly dump in `s3://salishsea-io-backups/db/` — see
+> [decision 038](../decisions/038-nightly-backups-we-own.md) — which restores to the
+> previous 07:00 UTC, not to an arbitrary moment. A destructive backfill run just before
+> the next nightly is therefore recoverable; one run just after it costs a day.
+
+
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
 | SRC-01 violated — iNat/HappyWhale in export | HIGH — GBIF dedup is imperfect; must notify GBIF | Immediately take down archive, fix UNION branches, regenerate, republish; contact GBIF to flag the bad dataset publication |
 | institutionCode published with wrong org code | MEDIUM — reputational; requires archive re-issue | Fix view, regenerate archive, re-issue; update EML; if GBIF-registered, update dataset metadata there |
 | Backfill dictionary missing variants → collection_id NULL | LOW (if caught pre-prod) / MEDIUM (if in prod) | Add missing aliases to dictionary, re-run UPDATE for affected rows only; verify with completeness query |
-| comments column modified by backfill | HIGH — audit trail gone | Restore from pre-backfill snapshot (Supabase PITR); rewrite backfill to be comments-read-only; re-run |
+| comments column modified by backfill | HIGH — audit trail gone | Restore `maplify.sightings` from the most recent nightly dump ([decision 038](../decisions/038-nightly-backups-we-own.md)); rewrite backfill to be comments-read-only; re-run |
 | False contributor identity unification | MEDIUM — requires correcting FK assignments | Add `contributor_links` table for cross-provider claims; unset the incorrect shared FK; re-run DwC export |
 | fields.ts + SQL column count mismatch published | MEDIUM — archive consumers get wrong columns | Rollback fields.ts to 25 entries, regenerate archive immediately; then fix in coordinated PR |
 | collection_id NOT NULL added before backfill | LOW (migration rejected) / MEDIUM (if on prod) | New migration to drop NOT NULL; apply backfill; re-add constraint |

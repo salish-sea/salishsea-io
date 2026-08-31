@@ -44,6 +44,9 @@ export function cardRendererSource(bundleExists: boolean, stubAllowed: boolean):
   );
 }
 
+/** Kept in step with `.github/workflows/db-backup-nightly.yml` by a test. */
+export const BACKUP_BUCKET_NAME = 'salishsea-io-backups';
+
 export class InfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -146,6 +149,56 @@ export class InfraStack extends cdk.Stack {
       objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,
       lifecycleRules: [{ expiration: cdk.Duration.days(90) }],
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    // Where the nightly database dump and the media mirror land (decision 038).
+    //
+    // Its own bucket, and not a prefix in the site bucket, for one reason that
+    // is not a matter of taste: `salishsea-io` carries a bucket policy granting
+    // `s3:GetObject` to `Principal: "*"` on `/*`, with public access block off.
+    // Every object in it is world-readable to anyone who knows the key, and a
+    // dump of this database contains `auth.users`. A prefix would not have
+    // helped — the policy has no prefix condition.
+    //
+    // Versioned because a backup that can be overwritten can be destroyed by
+    // the same accident it exists to survive; RETAIN because a stack teardown
+    // must not take the backups with it.
+    const backupBucket = new s3.Bucket(this, 'BackupBucket', {
+      // Named explicitly, and not left to CloudFormation, so the workflow that
+      // writes here does not need a generated name plumbed through a repository
+      // variable — which would have to be set by hand after the first deploy,
+      // i.e. exactly when nobody is watching. `backup-bucket-name.test.ts`
+      // fails if this and the workflow's literal drift apart.
+      bucketName: BACKUP_BUCKET_NAME,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      versioned: true,
+      lifecycleRules: [
+        {
+          // Dated dumps: a quarter of daily history, then gone. At ~35 MB
+          // compressed that is under 4 GB standing.
+          id: 'expire-dumps',
+          prefix: 'db/',
+          expiration: cdk.Duration.days(90),
+          noncurrentVersionExpiration: cdk.Duration.days(30),
+          abortIncompleteMultipartUploadAfter: cdk.Duration.days(7),
+        },
+        {
+          // Nothing deletes from the mirror, so this rule only ages out versions
+          // superseded by a re-upload under the same name. Current objects stay
+          // for good, which for a photo backup is the point.
+          id: 'retire-media-versions',
+          prefix: 'media/',
+          noncurrentVersionExpiration: cdk.Duration.days(365),
+          abortIncompleteMultipartUploadAfter: cdk.Duration.days(7),
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    new cdk.CfnOutput(this, 'BackupBucketName', {
+      value: backupBucket.bucketName,
+      description: 'Nightly database dump and media mirror (decision 038)',
     });
 
     // S3 origin — bucket already exists in production; import by name
