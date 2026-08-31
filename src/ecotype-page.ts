@@ -9,10 +9,10 @@ import {
   type EcotypeProfile, type OccurrenceLink, type SocialGroup,
 } from './catalog.ts';
 import { profileStyles, renderPresenceTable } from './profile-shared.ts';
-import { sentryClient } from './sentry.ts';
+import { initSentry } from './sentry.ts';
 import './individual-map.ts';
 
-sentryClient.init();
+initSentry();
 
 // The catalog's one ecotype today; its notes column carries this descriptor but
 // notes are never rendered (D-21), so the display label is set in code.

@@ -10,10 +10,10 @@ import {
   type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent, type SocialGroup,
 } from './catalog.ts';
 import { profileStyles, renderDagger, renderMemberList, renderPresenceTable, renderRelative } from './profile-shared.ts';
-import { sentryClient } from './sentry.ts';
+import { initSentry } from './sentry.ts';
 import './individual-map.ts';
 
-sentryClient.init();
+initSentry();
 
 // iNaturalist taxon ids the catalog actually uses (all rows are 41521 today).
 const TAXON_LABELS: Record<number, string> = {

@@ -15,7 +15,7 @@ import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
-import { sentryClient } from "./sentry.ts";
+import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
 import './error-toast.ts';
 import type ErrorToast from './error-toast.ts';
@@ -30,8 +30,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Contributor, Occurrence } from "./types.ts";
 import lockupUrl from "./assets/lockup-dark.svg?url";
 
-if (import.meta.env.PROD)
-  sentryClient.init();
+initSentry();
 
 const viewInitiallySmall = window.innerWidth < 800;
 
