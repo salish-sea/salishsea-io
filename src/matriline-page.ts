@@ -9,10 +9,10 @@ import {
   type GroupMember, type MatrilineProfile, type OccurrenceLink, type SocialGroup,
 } from './catalog.ts';
 import { profileStyles, renderDagger, renderMemberList, renderPresenceTable, renderRelative } from './profile-shared.ts';
-import { sentryClient } from './sentry.ts';
+import { initSentry } from './sentry.ts';
 import './individual-map.ts';
 
-sentryClient.init();
+initSentry();
 
 interface Profile {
   group: MatrilineProfile;
