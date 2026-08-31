@@ -116,6 +116,16 @@ jobs:
             - name: Dump schema
               run: pnpm exec supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
 
+            # The dump above excludes the platform's own schemas, so it defines
+            # none of `auth`'s or `storage`'s 31 tables — while the data dump
+            # below happily copies into 22 of them. A backup holding rows for
+            # tables it cannot create is only restorable onto a database that
+            # already has exactly the right ones, which the restore verification
+            # discovered by failing: `column "ip_address" of relation
+            # "audit_log_entries" does not exist`.
+            - name: Dump the auth and storage schemas
+              run: pnpm exec supabase db dump --db-url "$SUPABASE_DB_URL" --schema auth,storage -f backup/auth-storage.sql
+
             - name: Dump data
               run: pnpm exec supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f backup/data.sql
 
@@ -128,8 +138,8 @@ jobs:
             - name: Compress and checksum
               working-directory: backup
               run: |
-                  gzip -9 roles.sql schema.sql data.sql
-                  sha256sum roles.sql.gz schema.sql.gz data.sql.gz > SHA256SUMS
+                  gzip -9 roles.sql schema.sql auth-storage.sql data.sql
+                  sha256sum roles.sql.gz schema.sql.gz auth-storage.sql.gz data.sql.gz > SHA256SUMS
                   cat SHA256SUMS
 
             # Keyed to the second, not the day: a re-run after a failure would
@@ -145,6 +155,7 @@ jobs:
                   DEST="s3://${BACKUP_BUCKET}/db/$(date -u +'%Y/%m/%d/%H%M%S')"
                   aws s3 cp backup/roles.sql.gz  "${DEST}/"
                   aws s3 cp backup/schema.sql.gz "${DEST}/"
+                  aws s3 cp backup/auth-storage.sql.gz "${DEST}/"
                   aws s3 cp backup/data.sql.gz   "${DEST}/"
                   aws s3 cp backup/SHA256SUMS    "${DEST}/"
                   echo "Uploaded to ${DEST}" | tee -a backup/report.txt
