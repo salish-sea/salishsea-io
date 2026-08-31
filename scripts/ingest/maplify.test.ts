@@ -14,6 +14,7 @@ import {
     parseMaplifyResponse,
     normalizeRecord,
     isIngestable,
+    isKillerWhale,
     resolveScientificName,
     reconcile,
     MaplifyRecordSchema,
@@ -128,12 +129,75 @@ describe('normalizeRecord', () => {
     });
 });
 
+describe('isKillerWhale', () => {
+    test('species, subspecies and the genus-only stub', () => {
+        expect(isKillerWhale(norm({ scientificName: 'Orcinus orca' }))).toBe(true);
+        expect(isKillerWhale(norm({ scientificName: 'Orcinus orca ater' }))).toBe(true);
+        expect(isKillerWhale(norm({ scientificName: 'Orcinus orca rectipinnus' }))).toBe(true);
+        expect(isKillerWhale(norm({ scientificName: 'Orcinus' }))).toBe(true);
+        expect(isKillerWhale(norm({ scientificName: 'orcinus orca' }))).toBe(true);
+    });
+
+    test('an orca common name over a placeholder or blank scientific name', () => {
+        expect(isKillerWhale(norm({ name: 'Killer Whale', scientificName: 'N/A' }))).toBe(true);
+        expect(isKillerWhale(norm({ name: 'Southern Resident Killer Whale', scientificName: '' }))).toBe(true);
+        expect(isKillerWhale(norm({ name: 'Orca (ballena asesina)', scientificName: '' }))).toBe(true);
+    });
+
+    test('an orca-shaped common name NAME_TO_SCIENTIFIC does not know, with nothing else to go on', () => {
+        // The live fixture's shape (there under the excluded wras source).
+        expect(isKillerWhale(norm({ name: 'Killer whale (Ecotype Unknown)', scientificName: '' }))).toBe(true);
+        expect(isKillerWhale(norm({ name: "Bigg's Killer Whale", scientificName: 'N/A' }))).toBe(true);
+        expect(isKillerWhale(norm({ name: 'Transient Orca', scientificName: '' }))).toBe(true);
+        // ...but not over a scientific name that resolves to something else.
+        expect(isKillerWhale(norm({ name: 'Transient Orca', scientificName: 'Megaptera novaeangliae' }))).toBe(false);
+        // and a null name with nothing resolvable is not an orca.
+        expect(isKillerWhale(norm({ name: null, scientificName: '' }))).toBe(false);
+        expect(isKillerWhale(norm({ name: null, scientificName: 'Orcinus orca' }))).toBe(true);
+    });
+
+    test('an upstream correction in name wins over an orca scientific name, and vice versa', () => {
+        expect(isKillerWhale(norm({ name: 'Humpback', scientificName: 'Orcinus orca' }))).toBe(false);
+        expect(isKillerWhale(norm({ name: 'Orca', scientificName: 'Megaptera novaeangliae' }))).toBe(true);
+    });
+
+    test('not an orca: other taxa, no identification, or a genus that merely starts with orc', () => {
+        expect(isKillerWhale(norm({ name: 'Humpback', scientificName: 'Megaptera novaeangliae' }))).toBe(false);
+        expect(isKillerWhale(norm({ name: 'Unspecified', scientificName: 'N/A' }))).toBe(false);
+        expect(isKillerWhale(norm({ name: '', scientificName: '' }))).toBe(false);
+        expect(isKillerWhale(norm({ name: 'Unspecified', scientificName: 'Orcinusfake orca' }))).toBe(false);
+    });
+});
+
 describe('isIngestable', () => {
-    test('excludes rwsas and wras, includes everything else', () => {
-        expect(isIngestable(norm({ source: 'rwsas' }))).toBe(false);
-        expect(isIngestable(norm({ source: 'wras' }))).toBe(false);
-        expect(isIngestable(norm({ source: 'whale_alert' }))).toBe(true);
-        expect(isIngestable(norm({ source: 'FARPB' }))).toBe(true);
+    // Inside the Salish Sea box [-126, 47, -122, 50.5]; outside it (Monterey Bay).
+    const inside = { lat: 48.5, lon: -123.0 };
+    const outside = { lat: 36.8, lon: -121.9 };
+    const humpback = { name: 'Humpback', scientificName: 'Megaptera novaeangliae' };
+
+    test('excludes rwsas and wras regardless of place or taxon', () => {
+        expect(isIngestable(norm({ source: 'rwsas', ...inside }))).toBe(false);
+        expect(isIngestable(norm({ source: 'wras', ...inside }))).toBe(false);
+    });
+
+    test('inside the Salish Sea, every taxon is in scope', () => {
+        expect(isIngestable(norm({ source: 'whale_alert', ...inside }))).toBe(true);
+        expect(isIngestable(norm({ source: 'FARPB', ...inside, ...humpback }))).toBe(true);
+        expect(isIngestable(norm({ ...inside, name: 'Unspecified', scientificName: 'N/A' }))).toBe(true);
+    });
+
+    test('outside the Salish Sea, only killer whales are in scope', () => {
+        expect(isIngestable(norm({ ...outside }))).toBe(true); // rawRecord is an Orca
+        expect(isIngestable(norm({ ...outside, scientificName: 'Orcinus orca ater' }))).toBe(true);
+        expect(isIngestable(norm({ ...outside, ...humpback }))).toBe(false);
+        expect(isIngestable(norm({ ...outside, name: 'Unspecified', scientificName: 'N/A' }))).toBe(false);
+    });
+
+    test('the Salish Sea box is inclusive of its edges', () => {
+        expect(isIngestable(norm({ ...humpback, lon: -126, lat: 47 }))).toBe(true);
+        expect(isIngestable(norm({ ...humpback, lon: -122, lat: 50.5 }))).toBe(true);
+        expect(isIngestable(norm({ ...humpback, lon: -121.99, lat: 48 }))).toBe(false);
+        expect(isIngestable(norm({ ...humpback, lon: -124, lat: 46.99 }))).toBe(false);
     });
 });
 

@@ -44,7 +44,12 @@
 
 import { z } from 'zod';
 
-/** Salish Sea bounding box (decision 009); the shell passes it to the query. */
+/**
+ * The fetch bbox — the Acartia box, NOT the Salish Sea despite the name: central
+ * California to northern BC, the same extent the Maplify fetch uses. Decision 036
+ * scopes Maplify to killer-whales-range-wide / everything-else-Salish-Sea; whether
+ * iNaturalist gets the same rule is open (salish-a4y.4). The shell passes it to the query.
+ */
 export const SALISH_SEA_BBOX = { swLng: -136, swLat: 36, neLng: -120, neLat: 54 } as const;
 
 /** In-scope root taxa: Cetacea, Phocoidea (pinnipeds), Lutrinae (otters). */

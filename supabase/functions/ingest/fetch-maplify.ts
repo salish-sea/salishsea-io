@@ -15,9 +15,12 @@ import {
     isRetryableStatus,
 } from '../../../scripts/ingest/retry.ts';
 import type { IngestWindow } from '../../../scripts/ingest/persist.ts';
+import { acartiaExtent } from '../../../src/extents.ts';
 
-// Salish Sea bounding box (CONTEXT.md: Acartia / SRKW range), lon/lat WGS84.
-const BBOX = '-136,36,-120,54';
+// The fetch reaches the whole Southern Resident range (Acartia's boundaries),
+// not just the Salish Sea: killer whales are consumed range-wide, everything
+// else is kept only inside the Salish Sea by isIngestable (decision 036).
+const BBOX = acartiaExtent.join(',');
 const MAPLIFY_URL = 'https://maplify.com/waseak/php/search-all-sightings.php';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));

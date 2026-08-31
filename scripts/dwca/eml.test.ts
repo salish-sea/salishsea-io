@@ -159,10 +159,13 @@ describe('buildEml — coverage', () => {
         expect(xml).toContain('<southBoundingCoordinate>36</southBoundingCoordinate>');
     });
 
-    test('geographicDescription mentions Salish Sea and Acartia cooperative', () => {
+    test('geographicDescription states the two-part scope: killer whales range-wide, else Salish Sea (decision 036)', () => {
         const xml = buildEml(mockInput);
         expect(xml).toContain('<geographicDescription>');
         expect(xml).toContain('Salish Sea');
+        expect(xml).toContain('The Salish Sea and the Strait of Juan de Fuca');
+        expect(xml).toContain('killer whales (Orcinus orca) throughout the bounding box');
+        expect(xml).toContain('Maplify/Whale Alert records of other species outside the Salish Sea and the Strait of Juan de Fuca are not held');
         expect(xml).toContain('Acartia data');
     });
 
