@@ -1,11 +1,11 @@
 import { type Database } from '../database.types.ts';
-import type { OverrideProperties, SetNonNullable, SetNonNullableDeep } from 'type-fest';
+import type { MergeDeep, OverrideProperties, SetNonNullable, SetNonNullableDeep } from 'type-fest';
 
 export type Contributor = Database['public']['Tables']['contributors']['Row'];
 export type License = Database['public']['Enums']['license'];
 export type TravelDirection = Database['public']['Enums']['travel_direction'];
 
-export type PatchedDatabase = SetNonNullableDeep<
+type NonNullablePatched = SetNonNullableDeep<
   Database,
   'public.CompositeTypes.lat_lng.lat' | 'public.CompositeTypes.lat_lng.lng' |
   'public.CompositeTypes.lon_lat.lat' | 'public.CompositeTypes.lon_lat.lon' |
@@ -13,6 +13,25 @@ export type PatchedDatabase = SetNonNullableDeep<
   'public.Views.occurrences.Row.photos' |
   'public.Views.occurrences.Row.observed_at'
 >;
+
+/**
+ * The generator emits every function parameter as non-nullable. Postgres
+ * function parameters are nullable unless the body makes them otherwise, and
+ * `public.upsert_observation` (migration
+ * [20260207000253](../supabase/migrations/20260207000253_fix_upsert_observation.sql))
+ * takes null for all four of these: `accuracy` it accepts and does not store at
+ * all, and the other three reach nullable columns — `observed_from` through an
+ * `ST_Point` that yields NULL for a NULL input. The report form has always sent
+ * null for each of them, so the generated type was the thing that was wrong.
+ */
+export type PatchedDatabase = MergeDeep<NonNullablePatched, {
+  public: {Functions: {upsert_observation: {Args: {
+    accuracy: number | null;
+    count: number | null;
+    direction: Database['public']['Enums']['travel_direction'] | null;
+    observed_from: Database['public']['CompositeTypes']['lon_lat'] | null;
+  }}}};
+}>;
 type LonLat = {lat: number; lon: number;};
 type DBOccurrence = PatchedDatabase['public']['Views']['occurrences']['Row'];
 type Occurrence1 = SetNonNullable<
@@ -57,13 +76,9 @@ export type SegmentPlacement = {
 };
 
 
-type DBUpsertObservationArgs = PatchedDatabase['public']['Functions']['upsert_observation']['Args'];
-export type UpsertObservationArgs = OverrideProperties<
-  DBUpsertObservationArgs,
-  {
-    accuracy: DBUpsertObservationArgs['accuracy'] | null;
-    count: DBUpsertObservationArgs['count'] | null;
-    direction: DBUpsertObservationArgs['direction'] | null;
-    observed_from: DBUpsertObservationArgs['observed_from'] | null;
-  }
->;
+/**
+ * What `upsert_observation` accepts — the one write path the app has. It is the
+ * client's own argument type, not a parallel shape that happens to resemble it,
+ * so a payload the compiler accepts here is a payload PostgREST will accept.
+ */
+export type UpsertObservationArgs = PatchedDatabase['public']['Functions']['upsert_observation']['Args'];

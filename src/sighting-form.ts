@@ -126,7 +126,12 @@ export function observationToFormData(observation: Occurrence): SightingFormData
   }
 }
 
-function latLonInBoundsValidator(value: string) {
+/**
+ * Validates the "lat, lon" text a person types into either coordinate field.
+ * Exported for tests: the message is the whole product of this function, and
+ * naming the wrong axis in it sends someone to check a number that is fine.
+ */
+export function latLonInBoundsValidator(value: string) {
   if (value.trim().length === 0)
     return;
   if (value.indexOf(',') === -1)
@@ -137,7 +142,7 @@ function latLonInBoundsValidator(value: string) {
     if (decimalLatitude < miny || decimalLatitude > maxy)
       return `Expected a latitude between ${miny} and ${maxy}`;
     if (decimalLongitude < minx || decimalLongitude > maxx)
-      return `Expected a latitude between ${minx} and ${maxx}`;
+      return `Expected a longitude between ${minx} and ${maxx}`;
   } catch (e) {
     return "Couldn't interpret value as coordinates";
   }
@@ -148,7 +153,7 @@ export default class SightingForm extends LitElement {
   private _saveTask = new Task(this, {
     autoRun: false,
     task: async([occurrence]: [UpsertObservationArgs]) => {
-      const {data, error} = await supabase().rpc('upsert_observation', occurrence as any);
+      const {data, error} = await supabase().rpc('upsert_observation', occurrence);
       if (error) {
         throw new Error(`Error saving observation: ${error}`);
       }
@@ -370,7 +375,7 @@ export default class SightingForm extends LitElement {
           thumb: photo.thumb,
         }));
 
-      const payload = {
+      const payload: UpsertObservationArgs = {
         id: this.sightingId,
         body: value.body,
         count: isNaN(value.count) ? null : value.count,
