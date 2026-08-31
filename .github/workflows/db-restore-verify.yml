@@ -228,9 +228,32 @@ jobs:
               working-directory: /tmp
               run: |
                   psql -v ON_ERROR_STOP=0 -f auth-storage.sql > auth2.log 2>&1
-                  # Now that public exists, nothing may fail except re-creating
-                  # what the first pass already made.
-                  "${GITHUB_WORKSPACE}/scripts/only-already-exists.sh" auth2.log 'auth-storage.sql (second pass)'
+                  # The second pass re-runs the whole file, so most of it fails
+                  # for the boring reason that the first pass already did it.
+                  # `ALTER TABLE ... ADD CONSTRAINT ... PRIMARY KEY` reports that
+                  # as "multiple primary keys", not "already exists", which is why
+                  # it is named here.
+                  #
+                  # What must NOT appear is "does not exist": that is the failure
+                  # the second pass exists to clear, so if one survives it, the
+                  # circular dependency did not resolve and the restore is not
+                  # complete.
+                  "${GITHUB_WORKSPACE}/scripts/only-already-exists.sh" auth2.log 'auth-storage.sql (second pass)' \
+                      'multiple primary keys for table .* are not allowed'
+
+            # The error-pattern checks above say nothing failed; this says the
+            # thing that should exist does. It is the trigger that could not be
+            # created on the first pass, so it is the one that proves the second
+            # pass did its job.
+            - name: Assert the circular dependency actually resolved
+              working-directory: /tmp
+              run: |
+                  FOUND=$(psql -Atc "SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'auth' AND c.relname = 'users' AND t.tgname = 'create_contributor_on_sign_in'")
+                  if [ "${FOUND}" != "1" ]; then
+                      echo "::error::auth.users has no create_contributor_on_sign_in trigger — the second pass did not restore it"
+                      exit 1
+                  fi
+                  echo "auth.users carries its create_contributor_on_sign_in trigger."
 
             # No --disable-triggers needed: the CLI's data dump opens with
             # `SET session_replication_role = replica;` itself (verified against a

@@ -68,6 +68,33 @@ describe('only-already-exists.sh', () => {
     expect((await check(log, ['function [^ ]+ does not exist'])).code).toBe(0);
   });
 
+  it("tolerates a re-added primary key, which psql does not call 'already exists'", async () => {
+    // The second auth pass re-runs the whole file. `ALTER TABLE ... ADD
+    // CONSTRAINT ... PRIMARY KEY` reports the repeat as "multiple primary keys",
+    // so it has to be named separately from the 73 plain "already exists".
+    const log = err(1955, 'multiple primary keys for table "users" are not allowed');
+    expect((await check(log)).code).toBe(1);
+    expect((await check(log, ['multiple primary keys for table .* are not allowed'])).code).toBe(0);
+  });
+
+  it('still fails the second pass on a dependency that never resolved', async () => {
+    // The whole point of a second pass: if a trigger still cannot find its
+    // function, the circular dependency did not clear and the restore is
+    // incomplete, however many idempotency errors surround it.
+    const log =
+      err(1955, 'multiple primary keys for table "users" are not allowed') +
+      err(2270, 'function public.create_contributor_on_sign_in() does not exist');
+    expect((await check(log, ['multiple primary keys for table .* are not allowed'])).code).toBe(1);
+  });
+
+  it('only judges psql\'s own errors, not the database server log', async () => {
+    // A container's stderr reaches the same file and uses a different shape:
+    // `[224] supabase_admin@postgres ERROR:  ...`. Judging those would fail
+    // restores on errors psql itself already handled.
+    const serverLog = ' 172.18.0.1 2026-08-31 [224] supabase_admin@postgres ERROR:  function public.f() does not exist\n';
+    expect((await check(serverLog)).code).toBe(0);
+  });
+
   it('does not let a missing table through the missing-function exception', async () => {
     // The exception is for functions specifically. A missing table at that point
     // is a real failure, and a broad "does not exist" would have waved it past.
