@@ -33,6 +33,7 @@ import { createRef, ref } from 'lit/directives/ref.js';
 import { compactMap } from './utils.ts';
 import type { Extent as RegionExtent } from './constants.ts';
 import UserLocationControl from './user-location-control.ts';
+import { reportError } from './report-error.ts';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -210,6 +211,7 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
       this.map.addControl(new UserLocationControl({
         onLocationUpdated: this.onLocationUpdated.bind(this),
         onLocationInactive: this.onLocationInactive.bind(this),
+        onLocationError: (message, error) => reportError(this, message, {cause: error}),
       }));
     this.select.on('select', (e: SelectEvent) => {
       const occurrence = e.selected[0]?.getProperties() || null;

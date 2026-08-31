@@ -188,7 +188,7 @@ export default class SalishSea extends LitElement {
     if (d === this.#date)
       return;
     this.#date = d;
-    this.fetchOccurrences(d);
+    this.refetchOccurrences(d);
     if (!this.#isRestoringFromHistory) {
       if (this.#isFocusingOccurrence) {
         setQueryParams({d});
@@ -213,7 +213,7 @@ export default class SalishSea extends LitElement {
       return;
     this.#region = r;
     this.requestUpdate();
-    this.fetchOccurrences(this.date);
+    this.refetchOccurrences(this.date);
     // The calendar invalidates its own counts when the new slug reaches it —
     // doing it from here would race the property propagation and cache the
     // region we just left. See date-calendar's willUpdate.
@@ -259,12 +259,15 @@ export default class SalishSea extends LitElement {
       } else if (event === 'SIGNED_OUT') {
         this.user = undefined;
       }
-      this.fetchOccurrences(this.date).catch(err => console.error(err));
+      this.refetchOccurrences(this.date);
       if (this.user) {
         getContributor(this.user.id, supabaseClient)
           .then(contributor => this.contributor = contributor)
           .then(contributor => fetchLastOwnOccurrence(contributor, supabaseClient))
-          .then(occurrence => this.lastOwnOccurrence = occurrence);
+          .then(occurrence => this.lastOwnOccurrence = occurrence)
+          // Without this the Report button stays hidden and the form has no
+          // contributor to save against, with nothing on screen saying why.
+          .catch(err => reportError(this, "Couldn't load your account. You may not be able to report a sighting.", {cause: err}));
       } else {
         this.contributor = undefined;
         this.lastOwnOccurrence = null;
@@ -281,9 +284,10 @@ export default class SalishSea extends LitElement {
       this.focusOccurrence(occurrence);
     });
     this.addEventListener('date-selected', (evt) => {
-      if (!(evt instanceof CustomEvent) || typeof evt.detail !== 'string')
-        throw "oh no";
-      this.date = evt.detail;
+      const detail: unknown = evt instanceof CustomEvent ? evt.detail : undefined;
+      if (typeof detail !== 'string')
+        throw new Error(`date-selected carried ${typeof detail}, expected a YYYY-MM-DD date string`);
+      this.date = detail;
     });
     this.addEventListener('go-to-extent', (evt) => {
       const extent = (evt as CustomEvent<Extent>).detail;
@@ -320,21 +324,37 @@ export default class SalishSea extends LitElement {
       this.focusOccurrence(occurrence);
       // focusOccurrence only triggers fetchOccurrences when the date changes.
       // Explicitly refresh so a newly saved sighting for the current date appears immediately.
-      this.fetchOccurrences(this.date);
+      this.refetchOccurrences(this.date);
     });
-    this.addEventListener('clone-sighting', async (evt) => {
+    this.addEventListener('sighting-deleted', (evt) => {
+      const id = (evt as CustomEvent<string>).detail;
+      // Drop the row now rather than waiting on the realtime broadcast that
+      // usually removes it: a missed broadcast otherwise leaves a sighting on
+      // screen that the server has already deleted, and clicking it again is
+      // the only way to find out. The refetch behind it reconciles the rest of
+      // the list; this just makes the row's disappearance a consequence of the
+      // click that asked for it.
+      this.sightings = this.sightings.filter(sighting => sighting.id !== id);
+      this.mapRef.value?.setOccurrences(this.sightings);
+      if (this.focusedOccurrenceId === id)
+        this.focusOccurrence(null);
+      this.refetchOccurrences(this.date);
+    });
+    this.addEventListener('clone-sighting', (evt) => {
       const sighting = (evt as CloneSightingEvent).detail;
       const clone = {...sighting, id: v7()};
-      await this.panelRef.value!.editObservation(clone);
+      this.panelRef.value!.editObservation(clone)
+        .catch(err => reportError(this, "Couldn't open a copy of that sighting. Please try again.", {cause: err}));
     });
-    this.addEventListener('edit-observation', async (evt) => {
+    this.addEventListener('edit-observation', (evt) => {
       const sighting = (evt as EditSightingEvent).detail;
-      await this.panelRef.value!.editObservation(sighting);
+      this.panelRef.value!.editObservation(sighting)
+        .catch(err => reportError(this, "Couldn't open that sighting for editing. Please try again.", {cause: err}));
     });
     this.#realtimeChannel = supabaseClient
       .channel('occurrences')
       .on('broadcast', {event: 'occurrences_changed'}, () => {
-        this.fetchOccurrences(this.date);
+        this.refetchOccurrences(this.date);
       })
       .subscribe();
   }
@@ -401,8 +421,17 @@ export default class SalishSea extends LitElement {
   }
 
   async doLogOut() {
-    supabase().auth.signOut();
-    await this.fetchOccurrences(this.date);
+    try {
+      // Supabase returns auth failures in the result rather than throwing (see
+      // receiveIdToken below) — unchecked, a failed sign-out leaves the Log out
+      // button apparently doing nothing. A transport failure still throws, so
+      // both shapes have to be handled to cover the one button.
+      const {error} = await supabase().auth.signOut();
+      if (error) throw error;
+    } catch (err) {
+      reportError(this, "Couldn't sign you out. Please try again.", {cause: err});
+    }
+    await this.refetchOccurrences(this.date);
   }
 
   public async receiveIdToken(token: string, nonce: string) {
@@ -434,7 +463,11 @@ export default class SalishSea extends LitElement {
     if (!hadMapPosition && !initialParams.occurrenceId)
       this.mapRef.value!.frameExtentWhenReady([...this.#region.zoomExtent]);
     if (initialParams.occurrenceId) {
-      await this.hydrateFromOccurrenceId(initialParams.occurrenceId);
+      // Lit doesn't await firstUpdated's promise, so a rejection here is an
+      // unhandled one. The link named a sighting; failing to reach it is worth
+      // saying, because the map otherwise just sits on the default view.
+      await this.hydrateFromOccurrenceId(initialParams.occurrenceId)
+        .catch(err => reportError(this, "Couldn't open the sighting this link points to.", {cause: err}));
     }
   }
 
@@ -493,6 +526,23 @@ export default class SalishSea extends LitElement {
         removeQueryParam('o');
       }
     }
+  }
+
+  /**
+   * Fire-and-forget {@link fetchOccurrences}, for the callers that have no
+   * `await` to hang a failure from — property setters, event listeners, the
+   * realtime subscription.
+   *
+   * A failed *query* already reports itself from inside `fetchOccurrences`,
+   * with the staleness guard that decides whether it is still worth saying.
+   * This catches what is left: a rejection from the surrounding work, which
+   * would otherwise be an unhandled promise rejection and, since these callers
+   * are exactly the ones that repaint the list, a sighting list silently
+   * frozen on the previous day.
+   */
+  private refetchOccurrences(date: string): Promise<void> {
+    return this.fetchOccurrences(date)
+      .catch(err => reportError(this, "Couldn't refresh sightings. The list may be out of date.", {cause: err, persist: true}));
   }
 
   async fetchOccurrences(date: string) {

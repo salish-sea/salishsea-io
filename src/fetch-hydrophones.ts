@@ -8,7 +8,7 @@ const endpoint = 'https://live.orcasound.net/api/json/feeds';
 console.debug(`Fetching map from ${endpoint}`);
 const response = await fetch(endpoint);
 if (response.status !== 200)
-  throw `Error fetching endpoints: ${response.statusText}`;
+  throw new Error(`Error fetching endpoints: ${response.status} ${response.statusText}`);
 const body: Payload = await response.json();
 
 const features: Feature[] = body.data

@@ -316,11 +316,16 @@ export class ObsSummary extends LitElement {
 
   private async onDelete(e: Event) {
     e.preventDefault();
-    const {error} = await supabase().from('observations').delete().eq('id', this.sighting.id);
-    if (error) {
+    try {
+      const {error} = await supabase().from('observations').delete().eq('id', this.sighting.id);
+      if (error) throw error;
+    } catch (error) {
       reportError(this, "Couldn't delete that sighting. Please try again.", {cause: error});
       return;
     }
+    // The row's removal must not depend on the realtime broadcast arriving.
+    // <salish-sea> drops it from the list and refetches; see its handler.
+    this.dispatchEvent(new CustomEvent('sighting-deleted', {bubbles: true, composed: true, detail: this.sighting.id}));
   }
 
   private async onEdit(e: Event) {
@@ -364,6 +369,8 @@ export function buildShareUrl(occurrenceId: string): string {
 
 export type CloneSightingEvent = CustomEvent<Occurrence>;
 export type EditSightingEvent = CustomEvent<Occurrence>;
+/** The id of a sighting the server has confirmed deleted. */
+export type SightingDeletedEvent = CustomEvent<string>;
 
 declare global {
   interface HTMLElementTagNameMap {
