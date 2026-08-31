@@ -132,11 +132,17 @@ jobs:
                   sha256sum roles.sql.gz schema.sql.gz data.sql.gz > SHA256SUMS
                   cat SHA256SUMS
 
-            # Dated key, so nothing overwrites anything; the bucket is versioned
-            # as well, which covers a same-day re-run.
+            # Keyed to the second, not the day: a re-run after a failure would
+            # otherwise write over the morning's objects, and a re-run that itself
+            # died partway would leave one prefix holding some new files, some old
+            # ones, and a checksum list describing neither. Versioning would keep
+            # the originals, but only for someone who knew to go looking.
+            #
+            # SHA256SUMS goes last and is therefore the marker of a complete
+            # backup — the restore picker chooses among prefixes that have one.
             - name: Upload dump to S3
               run: |
-                  DEST="s3://${BACKUP_BUCKET}/db/$(date -u +'%Y/%m/%d')"
+                  DEST="s3://${BACKUP_BUCKET}/db/$(date -u +'%Y/%m/%d/%H%M%S')"
                   aws s3 cp backup/roles.sql.gz  "${DEST}/"
                   aws s3 cp backup/schema.sql.gz "${DEST}/"
                   aws s3 cp backup/data.sql.gz   "${DEST}/"

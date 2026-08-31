@@ -34,7 +34,14 @@ back from anywhere:
 **A nightly dump, into a bucket this account owns.**
 [`db-backup-nightly.yml`](../../.github/workflows/db-backup-nightly.yml) runs at 07:00 UTC,
 clear of the DwC-A build at 09:00, and writes `roles.sql.gz`, `schema.sql.gz`, `data.sql.gz`
-and `SHA256SUMS` to a dated key under `s3://salishsea-io-backups/db/YYYY/MM/DD/`.
+and `SHA256SUMS` under `s3://salishsea-io-backups/db/YYYY/MM/DD/HHMMSS/`.
+
+Keyed to the second rather than the day, so a re-run after a failure cannot write over the
+morning's objects — and, more to the point, so a re-run that itself dies partway cannot leave
+one prefix holding some new files, some old ones, and a checksum list describing neither.
+`SHA256SUMS` is uploaded last and is therefore the marker of a complete backup: the restore
+picker chooses only among prefixes that have one, so a half-finished run is skipped rather
+than selected and then failed for a reason that says nothing about whether backups work.
 
 **Its own bucket, and this is not a matter of tidiness.** `salishsea-io`, the site bucket,
 carries a policy granting `s3:GetObject` to `Principal: "*"` on `arn:aws:s3:::salishsea-io/*`,

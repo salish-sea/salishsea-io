@@ -23,7 +23,7 @@ on:
     workflow_dispatch:
         inputs:
             key_prefix:
-                description: 'Backup to restore, as db/YYYY/MM/DD. Default: the most recent.'
+                description: 'Backup to restore, as db/YYYY/MM/DD/HHMMSS. Default: the most recent complete one.'
                 required: false
                 type: string
 
@@ -104,12 +104,18 @@ jobs:
                   if [ -n "${REQUESTED}" ]; then
                       PREFIX="${REQUESTED}"
                   else
-                      # Keys are db/YYYY/MM/DD/..., so lexical order is chronological.
+                      # Only prefixes holding a SHA256SUMS, which the backup job
+                      # uploads last: a run that died partway leaves its files
+                      # behind, and picking that one would fail the restore for a
+                      # reason that has nothing to do with whether backups work.
+                      # Keys are db/YYYY/MM/DD/HHMMSS/..., so lexical order is
+                      # chronological and the last one is the newest complete backup.
                       PREFIX=$(aws s3 ls "s3://${BACKUP_BUCKET}/db/" --recursive \
-                        | awk '{print $4}' | sed -E 's|/[^/]+$||' | sort -u | tail -1)
+                        | awk '{print $4}' | grep '/SHA256SUMS$' \
+                        | sed 's|/SHA256SUMS$||' | sort | tail -1)
                   fi
                   if [ -z "${PREFIX}" ]; then
-                      echo "No backups found under s3://${BACKUP_BUCKET}/db/ — there is nothing to verify." >&2
+                      echo "No complete backup found under s3://${BACKUP_BUCKET}/db/ — nothing to verify." >&2
                       exit 1
                   fi
                   echo "prefix=${PREFIX}" >> "$GITHUB_OUTPUT"
