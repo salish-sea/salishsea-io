@@ -10,16 +10,19 @@
 -- Measured against production on 2026-08-30: 40,792 rows, 14,146 of them
 -- out of scope (mostly Californian humpbacks and gray whales); 242 killer
 -- whales outside the box are kept. No public.identifications row referenced
--- any of the doomed rows (0 of 0).
+-- any of the doomed rows (the table was empty in production).
 --
 -- The box literal is salishSeaExtent from src/extents.ts — [-126, 47, -122,
 -- 50.5], inclusive of its edges, as extentContains is. The live rule has one
 -- definition (TypeScript); this is a one-shot copy of it, not a second one.
--- The killer-whale test mirrors isKillerWhale: an Orcinus scientific name, or
--- one of the orca common names NAME_TO_SCIENTIFIC maps. The two can differ
--- when a correcting `name` overrides an orca `scientific_name` (isKillerWhale
--- drops it, this keeps it); no out-of-box row in production had that shape
--- on 2026-08-30, so the two readings delete the same rows.
+-- The killer-whale test mirrors isKillerWhale: a trimmed Orcinus scientific
+-- name, or a common name with "orca" / "killer whale" in it (which covers the
+-- five orca keys of NAME_TO_SCIENTIFIC and the ecotype variants upstream coins).
+-- `name` is nullable, hence the coalesce — a NULL would otherwise make the
+-- whole predicate NULL and quietly keep the row. The SQL is deliberately the
+-- more permissive reading: isKillerWhale lets a correcting `name` override an
+-- orca `scientific_name` and drops the row, this keeps it. No out-of-box row
+-- in production had that shape on 2026-08-30, so both delete the same rows.
 
 DO $$
 DECLARE
@@ -32,11 +35,8 @@ BEGIN
       AND gis.ST_Y(location::gis.geometry) BETWEEN 47 AND 50.5
     )
     AND NOT (
-      scientific_name ILIKE 'orcinus%'
-      OR lower(name) IN (
-        'killer whale (orca)', 'killer whale', 'orca', 'orca (ballena asesina)',
-        'southern resident killer whale'
-      )
+      btrim(scientific_name) ILIKE 'orcinus%'
+      OR coalesce(name, '') ~* '\y(orca|killer whale)\y'
     )
     RETURNING 1
   )

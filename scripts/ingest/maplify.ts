@@ -255,10 +255,18 @@ export function normalizeRecord(r: z.infer<typeof MaplifyRecordSchema>): Normali
  * ater`, `O. o. rectipinnus`), the genus-only stub (`Orcinus`), a placeholder
  * `scientific_name` with an orca common name, and an upstream correction in `name`
  * that overrides `scientific_name` (all of which `resolveScientificName` already
- * handles). It cannot consult the taxonomy — the core sees names, not taxon ids.
+ * handles); when nothing resolves, an orca-shaped common name is enough. It cannot
+ * consult the taxonomy — the core sees names, not taxon ids.
  */
 export function isKillerWhale(s: NormalizedSighting): boolean {
-    return /^orcinus\b/i.test(resolveScientificName(s) ?? '');
+    const resolved = resolveScientificName(s);
+    if (resolved) return /^orcinus\b/i.test(resolved);
+    // Nothing resolved: no usable scientific name and a common name NAME_TO_SCIENTIFIC
+    // does not know. Upstream coins orca names freely — the live fixture has "Killer
+    // whale (Ecotype Unknown)" with a blank scientific_name — and outside the box an
+    // unrecognised orca is not a lost taxon_id but a lost record, so read the shape of
+    // the name rather than demand an exact key.
+    return s.name !== null && /\b(orca|killer whale)\b/.test(foldUpstreamName(s.name));
 }
 
 /**

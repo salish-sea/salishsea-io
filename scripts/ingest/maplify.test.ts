@@ -144,6 +144,18 @@ describe('isKillerWhale', () => {
         expect(isKillerWhale(norm({ name: 'Orca (ballena asesina)', scientificName: '' }))).toBe(true);
     });
 
+    test('an orca-shaped common name NAME_TO_SCIENTIFIC does not know, with nothing else to go on', () => {
+        // The live fixture's shape (there under the excluded wras source).
+        expect(isKillerWhale(norm({ name: 'Killer whale (Ecotype Unknown)', scientificName: '' }))).toBe(true);
+        expect(isKillerWhale(norm({ name: "Bigg's Killer Whale", scientificName: 'N/A' }))).toBe(true);
+        expect(isKillerWhale(norm({ name: 'Transient Orca', scientificName: '' }))).toBe(true);
+        // ...but not over a scientific name that resolves to something else.
+        expect(isKillerWhale(norm({ name: 'Transient Orca', scientificName: 'Megaptera novaeangliae' }))).toBe(false);
+        // and a null name with nothing resolvable is not an orca.
+        expect(isKillerWhale(norm({ name: null, scientificName: '' }))).toBe(false);
+        expect(isKillerWhale(norm({ name: null, scientificName: 'Orcinus orca' }))).toBe(true);
+    });
+
     test('an upstream correction in name wins over an orca scientific name, and vice versa', () => {
         expect(isKillerWhale(norm({ name: 'Humpback', scientificName: 'Orcinus orca' }))).toBe(false);
         expect(isKillerWhale(norm({ name: 'Orca', scientificName: 'Megaptera novaeangliae' }))).toBe(true);
