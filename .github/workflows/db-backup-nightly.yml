@@ -193,25 +193,58 @@ jobs:
                     backup/media-plan.json backup/media-manifest.json backup/mirrored-keys.txt \
                     | tee -a backup/report.txt
 
-            # The Storage API, not the database, so this step needs the access
-            # token rather than the DSN.
+            # Straight over HTTPS, not through `supabase storage cp` — that
+            # command refuses to run without --experimental, which is not a thing
+            # to build a backup on. The `media` bucket is public, so its objects
+            # need no credential at all; if it is ever made private this step
+            # starts returning 403 and fails, which is the right way round.
+            #
+            # Every download is checked against the ETag the database recorded.
+            # Supabase's ETag is the MD5 of the content (verified against a real
+            # object), so this proves the bytes arrived intact — and it is what
+            # makes the manifest written afterwards mean something, since the
+            # manifest is only ever as true as the fetch it describes.
             - name: Fetch changed media
               env:
-                  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-                  PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
+                  STORAGE_BASE: ${{ vars.VITE_SUPABASE_URL }}/storage/v1/object/public/media
               run: |
-                  COUNT=$(python3 -c 'import json,sys; print(len(json.load(open("backup/media-plan.json"))["fetch"]))')
+                  COUNT=$(python3 -c 'import json; print(len(json.load(open("backup/media-plan.json"))["fetch"]))')
                   if [ "${COUNT}" -eq 0 ]; then
                       echo "No media changed; mirror is current."
                       exit 0
                   fi
                   mkdir -p backup/media
-                  python3 -c 'import json; [print(o["name"]) for o in json.load(open("backup/media-plan.json"))["fetch"]]' \
-                    | while IFS= read -r NAME; do
-                          mkdir -p "backup/media/$(dirname "${NAME}")"
-                          pnpm exec supabase storage cp --project-ref "${PROJECT_REF}" \
-                            "ss:///media/${NAME}" "backup/media/${NAME}"
-                      done
+                  # Names are `<uuid>/<uuid>/<filename>` and the filename is the
+                  # contributor's, so it is percent-encoded rather than trusted
+                  # to be URL-safe. Tab-separated because a filename may contain
+                  # spaces; it cannot contain a tab or a newline.
+                  python3 - <<'PYEOF' > backup/fetch.tsv
+                  import json, urllib.parse
+                  for o in json.load(open("backup/media-plan.json"))["fetch"]:
+                      quoted = urllib.parse.quote(o["name"])
+                      etag = (o["etag"] or "").strip('"')
+                      print(f'{o["name"]}\t{etag}\t{quoted}')
+                  PYEOF
+                  FAILED=0
+                  while IFS=$'\t' read -r NAME ETAG QUOTED; do
+                      mkdir -p "backup/media/$(dirname "${NAME}")"
+                      if ! curl -sfL --retry 3 --retry-delay 2 -o "backup/media/${NAME}" \
+                              "${STORAGE_BASE}/${QUOTED}"; then
+                          echo "::error::Could not download ${NAME}"
+                          FAILED=1
+                          continue
+                      fi
+                      GOT=$(md5sum "backup/media/${NAME}" | cut -d' ' -f1)
+                      if [ -n "${ETAG}" ] && [ "${GOT}" != "${ETAG}" ]; then
+                          echo "::error::${NAME} arrived corrupt: md5 ${GOT}, expected ${ETAG}"
+                          rm -f "backup/media/${NAME}"
+                          FAILED=1
+                      fi
+                  done < backup/fetch.tsv
+                  echo "Fetched $(find backup/media -type f | wc -l) of ${COUNT} objects." | tee -a backup/report.txt
+                  # Stop before the manifest is written: a manifest listing an
+                  # object that never arrived would mark it backed up for good.
+                  [ "${FAILED}" -eq 0 ]
 
             # `cp --recursive`, not `sync`. The planner has already decided what
             # belongs here, so everything in this directory must be uploaded —
