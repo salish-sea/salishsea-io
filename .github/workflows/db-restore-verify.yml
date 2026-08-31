@@ -51,7 +51,10 @@ jobs:
             BACKUP_BUCKET: salishsea-io-backups
             PGHOST: localhost
             PGPORT: '5432'
-            PGUSER: postgres
+            # supabase_admin, not postgres: only it is a superuser in this image,
+            # and the restore has to create roles and drop the platform's own
+            # auth/storage schemas. Same password as postgres in this image.
+            PGUSER: supabase_admin
             PGPASSWORD: postgres
             PGDATABASE: postgres
 
@@ -133,7 +136,7 @@ jobs:
                   # Before anything is trusted enough to load: the checksums the
                   # backup job recorded at the moment of writing.
                   sha256sum -c SHA256SUMS
-                  gunzip -f roles.sql.gz schema.sql.gz data.sql.gz
+                  gunzip -f roles.sql.gz schema.sql.gz auth-storage.sql.gz data.sql.gz
 
             # Restore order matters and is the same as the manual procedure:
             # roles exist before the schema grants to them, and the schema exists
@@ -143,33 +146,54 @@ jobs:
             # platform roles, so re-creating them errors harmlessly. Schema and
             # data are strict — an error there is the failure this job exists to
             # catch.
-            # Roles are the one permissive step, because the image already has
-            # the platform roles and re-creating them errors harmlessly. That
-            # tolerance is spelled out rather than blanket: anything that is not
-            # an "already exists" complaint fails the job. A custom role that
-            # failed to create would otherwise surface only as a confusing GRANT
-            # error in the next step.
+            # A note on the shape of what follows, because it is not obvious.
+            #
+            # `auth` and `storage` are restored, then `public`, then `auth` and
+            # `storage` AGAIN. The dependency is genuinely circular: public
+            # tables carry foreign keys into auth.users, and auth's triggers call
+            # functions that live in public. One pass in either order fails. The
+            # first pass creates the tables, the second picks up the triggers it
+            # could not create the first time.
+            #
+            # Every step that must tolerate an error tolerates exactly one kind —
+            # something that already exists — and fails on anything else. That is
+            # what keeps "restore the backup" from quietly meaning "run it and
+            # see". The data load, which is the thing being proved, is strict.
             - name: Restore roles
               working-directory: /tmp
               run: |
                   # No `|| true`: with ON_ERROR_STOP=0 psql exits 0 for SQL errors
-                  # (which the grep below judges) and non-zero only for the ones
+                  # (which the check below judges) and non-zero only for the ones
                   # no grep would find — a server it cannot reach, a file it
                   # cannot read. Those should fail here.
                   psql -v ON_ERROR_STOP=0 -f roles.sql > roles.log 2>&1
                   tail -20 roles.log
-                  # psql prefixes each error with `psql:<file>:<line>: `, so an
-                  # anchored `^ERROR:` matches nothing at all and the guard below
-                  # would pass whatever happened. Verified against psql 17 output.
-                  if grep -E '(^|:[0-9]+: )ERROR:' roles.log | grep -qv 'already exists'; then
-                      echo "::error::roles.sql failed for a reason other than a role that already exists"
-                      grep -E '(^|:[0-9]+: )ERROR:' roles.log | grep -v 'already exists'
-                      exit 1
-                  fi
+                  "${GITHUB_WORKSPACE}/scripts/only-already-exists.sh" roles.log 'roles.sql'
+
+            - name: Restore auth and storage, first pass
+              working-directory: /tmp
+              run: |
+                  # The image ships its own auth and storage at whatever version
+                  # its baseline was cut — that is how the very first run of this
+                  # workflow failed, on a column production has and the image did
+                  # not. Dropping them makes this a test of the backup rather than
+                  # of the image.
+                  psql -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS auth CASCADE; DROP SCHEMA IF EXISTS storage CASCADE;'
+                  psql -v ON_ERROR_STOP=0 -f auth-storage.sql > auth1.log 2>&1
+                  "${GITHUB_WORKSPACE}/scripts/only-already-exists.sh" auth1.log 'auth-storage.sql (first pass)' \
+                      'does not exist'
 
             - name: Restore schema
               working-directory: /tmp
               run: psql -v ON_ERROR_STOP=1 -f schema.sql > /dev/null
+
+            - name: Restore auth and storage, second pass
+              working-directory: /tmp
+              run: |
+                  psql -v ON_ERROR_STOP=0 -f auth-storage.sql > auth2.log 2>&1
+                  # Now that public exists, nothing may fail except re-creating
+                  # what the first pass already made.
+                  "${GITHUB_WORKSPACE}/scripts/only-already-exists.sh" auth2.log 'auth-storage.sql (second pass)'
 
             # No --disable-triggers needed: the CLI's data dump opens with
             # `SET session_replication_role = replica;` itself (verified against a
@@ -183,7 +207,7 @@ jobs:
             # database must hold N rows.
             - name: Verify the restored database matches the dump
               env:
-                  SUPABASE_DB_URL: postgres://postgres:postgres@localhost:5432/postgres
+                  SUPABASE_DB_URL: postgres://supabase_admin:postgres@localhost:5432/postgres
               working-directory: /tmp
               run: pnpm --dir "${GITHUB_WORKSPACE}" exec tsx "${GITHUB_WORKSPACE}/scripts/backup/verify-dump.ts" data.sql
 

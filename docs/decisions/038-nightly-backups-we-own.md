@@ -33,8 +33,8 @@ back from anywhere:
 
 **A nightly dump, into a bucket this account owns.**
 [`db-backup-nightly.yml`](../../.github/workflows/db-backup-nightly.yml) runs at 07:00 UTC,
-clear of the DwC-A build at 09:00, and writes `roles.sql.gz`, `schema.sql.gz`, `data.sql.gz`
-and `SHA256SUMS` under `s3://salishsea-io-backups/db/YYYY/MM/DD/HHMMSS/`.
+clear of the DwC-A build at 09:00, and writes `roles.sql.gz`, `schema.sql.gz`,
+`auth-storage.sql.gz`, `data.sql.gz` and `SHA256SUMS` under `s3://salishsea-io-backups/db/YYYY/MM/DD/HHMMSS/`.
 
 Keyed to the second rather than the day, so a re-run after a failure cannot write over the
 morning's objects — and, more to the point, so a re-run that itself dies partway cannot leave
@@ -96,12 +96,34 @@ only the objects a given run fetched, so a `--delete` sweep would read the other
 removed and destroy the mirror in one step. It is also the wrong instinct for a backup — an
 object deleted upstream is precisely the one you want to still have.
 
+**The auth and storage schemas are dumped separately, because otherwise they are not dumped at
+all.** The CLI's schema dump excludes the platform's own schemas: it defines none of `auth`'s
+or `storage`'s 31 tables, while the data dump copies happily into 22 of them. A backup holding
+rows for tables it cannot create is restorable only onto a database that already has exactly
+the right ones — which is a bet on a version you do not control.
+
+We did not reason our way to that. The restore verification found it, by failing:
+`column "ip_address" of relation "audit_log_entries" does not exist`. Production's `auth` had a
+column the container's did not, and nothing in the backup could have created the right table.
+
 **A restore is verified by restoring.**
 [`db-restore-verify.yml`](../../.github/workflows/db-restore-verify.yml) loads the most recent
-backup into `supabase/postgres` and re-runs the same row comparison against the restored copy.
-It is manual: restoring 166 MB nightly to assert something that changes only when the schema
-changes is not worth the minutes. Run it after a migration that changes the shape of the
-database.
+complete backup into `supabase/postgres` and re-runs the same row comparison against the
+restored copy. It is manual: restoring 166 MB nightly to assert something that changes only
+when the schema changes is not worth the minutes. Run it after a migration that changes the
+shape of the database.
+
+Its restore order is worth knowing, because it is not the obvious one. `auth` and `storage`
+are restored, then `public`, then `auth` and `storage` **again**. The dependency is genuinely
+circular — public tables carry foreign keys into `auth.users`, and `auth`'s triggers call
+functions that live in `public` — so a single pass in either direction fails. The first pass
+creates the tables, the second picks up the triggers it could not create the first time. It
+also connects as `supabase_admin` rather than `postgres`: only that role is a superuser in the
+image, and the restore has to create roles and drop the platform's own schemas.
+
+Every step that must tolerate an error tolerates exactly one kind, via
+[`only-already-exists.sh`](../../scripts/only-already-exists.sh), and fails on anything else.
+Blanket tolerance is how "restore the backup" quietly becomes "run it and see".
 
 ## Rejected alternatives
 
