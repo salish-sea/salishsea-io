@@ -5,7 +5,12 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 // auth and to the realtime channel and whose first render fetches a day of
 // sightings. Stub the client so none of that reaches the network, and so a
 // query failure is something a test can ask for.
-const occurrenceQuery = vi.hoisted(() => ({rows: [] as unknown[] | null, error: null as unknown}));
+const occurrenceQuery = vi.hoisted(() => ({
+  rows: [] as unknown[] | null,
+  error: null as unknown,
+  /** Set to hold a response open, so a test can decide when it lands. */
+  gate: null as Promise<void> | null,
+}));
 vi.mock('@sentry/browser', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@sentry/browser')>()),
   captureException: () => {},
@@ -14,9 +19,15 @@ vi.mock('./supabase.ts', () => {
   const query: Record<string, unknown> = {};
   for (const chained of ['select', 'gte', 'lt', 'lte', 'eq', 'order'])
     query[chained] = () => query;
-  query.throwOnError = async () => {
-    if (occurrenceQuery.error) throw occurrenceQuery.error;
-    return {data: occurrenceQuery.rows};
+  query.throwOnError = () => {
+    // Captured when the request is issued, not when it lands: a test that holds
+    // a response open is modelling a server whose answer is already decided.
+    const {rows, error, gate} = occurrenceQuery;
+    return (async () => {
+      if (gate) await gate;
+      if (error) throw error;
+      return {data: rows};
+    })();
   };
   query.maybeSingle = async () => ({data: null});
   const channel: Record<string, unknown> = {};
@@ -63,6 +74,7 @@ if (!globalThis.ResizeObserver) {
 beforeEach(() => {
   occurrenceQuery.rows = [];
   occurrenceQuery.error = null;
+  occurrenceQuery.gate = null;
 });
 
 afterEach(() => {
@@ -189,4 +201,40 @@ test('a fire-and-forget refetch that fails outright surfaces instead of rejectin
 
   expect(await toastText(el)).toBe("Couldn't refresh sightings. The list may be out of date.");
   expect(unhandled).toEqual([]);
+});
+
+test('a response already in flight when a sighting is deleted does not put the row back', async () => {
+  const aaa = occurrenceFixture('aaa', '2024-07-15T18:23:00Z');
+  const bbb = occurrenceFixture('bbb', '2024-07-15T19:23:00Z');
+  // Two responses held open independently, so the test can land them in the
+  // order that exposes the race: the one issued *before* the delete arrives
+  // last, and would have the final word.
+  let landStale!: () => void;
+  let landFresh!: () => void;
+  occurrenceQuery.rows = [aaa, bbb];
+  occurrenceQuery.gate = new Promise<void>(resolve => { landStale = resolve; });
+
+  const el = await mountWithSightings(aaa, bbb);
+  const stale = el.fetchOccurrences(el.date);
+
+  // The delete commits. Its own refetch sees the shorter list; the outstanding
+  // request above still answers with both, and it asked for the same day and
+  // the same region, so neither existing staleness guard knows it is out of
+  // date — only that it predates the delete.
+  occurrenceQuery.rows = [bbb];
+  occurrenceQuery.gate = new Promise<void>(resolve => { landFresh = resolve; });
+  el.dispatchEvent(new CustomEvent('sighting-deleted', {detail: 'aaa'}));
+  await el.updateComplete;
+  expect(summaryIds(el)).toEqual(['summary-bbb']);
+
+  landFresh();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await el.updateComplete;
+  expect(summaryIds(el)).toEqual(['summary-bbb']);
+
+  landStale();
+  await stale;
+  await el.updateComplete;
+
+  expect(summaryIds(el)).toEqual(['summary-bbb']);
 });

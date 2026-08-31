@@ -92,6 +92,13 @@ has confirmed it; `<salish-sea>` drops the row and re-fetches behind it. Rejecte
 *optimistic* removal, i.e. dropping the row before the server answers. It reads faster and it
 lies — the failure case then has to put a row back, which is worse than the wait.
 
+Editing the list locally needed a third staleness guard. This record's *"stale failures stay
+quiet"* pairs a response with the date and region that asked for it, and a request issued a
+moment before the delete matches on both — same day, same region — so it lands afterwards and
+repaints the row that was just removed. What is wrong with it is not where it was pointed but
+when it left, so `fetchOccurrences` now also carries a `#listRevision` the delete bumps, and a
+response from before the bump is dropped rather than drawn.
+
 The other paths needed no new decision, only the existing one applied: geolocation failures
 (both the map's locate control and the report form's "My location" button) now name which of
 the three ways they failed, via [`geolocation-message.ts`](../../src/geolocation-message.ts) —

@@ -334,6 +334,7 @@ export default class SalishSea extends LitElement {
       // the only way to find out. The refetch behind it reconciles the rest of
       // the list; this just makes the row's disappearance a consequence of the
       // click that asked for it.
+      this.#listRevision++;
       this.sightings = this.sightings.filter(sighting => sighting.id !== id);
       this.mapRef.value?.setOccurrences(this.sightings);
       if (this.focusedOccurrenceId === id)
@@ -545,10 +546,21 @@ export default class SalishSea extends LitElement {
       .catch(err => reportError(this, "Couldn't refresh sightings. The list may be out of date.", {cause: err, persist: true}));
   }
 
+  /**
+   * Bumped whenever the list is edited locally ahead of the server — today only
+   * a confirmed delete. Date and region are not enough to date a response: a
+   * request issued *before* the delete asks for the same day and the same
+   * region, so both guards pass and it repaints the row we just removed. It
+   * simply predates the edit, and this is what says so.
+   */
+  #listRevision = 0;
+
   async fetchOccurrences(date: string) {
     // Captured up front: `this.#region` can change while this is in flight, and
-    // the response has to be judged against the region that asked for it.
+    // the response has to be judged against the region that asked for it. Same
+    // for the revision — see #listRevision.
     const region = this.#region;
+    const revision = this.#listRevision;
     const startOfDay = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
     const endOfDay = startOfDay.add({days: 1});
     let query = supabase()
@@ -581,7 +593,7 @@ export default class SalishSea extends LitElement {
       // complete list is incomplete.
       // Persist: an empty list is indistinguishable from a quiet day, so a
       // message that times out would leave the map lying about the water.
-      if (date === this.date && region.slug === this.#region.slug)
+      if (date === this.date && region.slug === this.#region.slug && revision === this.#listRevision)
         reportError(this, "Couldn't load sightings. The list may be incomplete.", {cause: err, persist: true});
       return;
     }
@@ -591,6 +603,8 @@ export default class SalishSea extends LitElement {
       ...record,
     }));
 
+    if (revision !== this.#listRevision)
+      return;
     this.receiveOccurrences(occurrences as Occurrence[], date, region.slug);
   }
 
