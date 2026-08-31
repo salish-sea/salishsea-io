@@ -608,12 +608,29 @@ export default class SalishSea extends LitElement {
     this.receiveOccurrences(occurrences as Occurrence[], date, region.slug);
   }
 
+  /**
+   * Open the app on the sighting a `?o=` link names: fetch it, move the day and
+   * the map to it, and focus it. It runs before the first occurrence fetch so
+   * that fetch is the first response that has to carry the sighting — the
+   * active region may well exclude it, which is what {@link #permalinkOccurrence}
+   * is for.
+   *
+   * Rejects when the lookup fails; resolves, having done nothing, when the id
+   * names no sighting we have.
+   */
   private async hydrateFromOccurrenceId(id: string): Promise<void> {
-    const {data: occurrence} = await supabase()
+    const {data: occurrence, error} = await supabase()
       .from('occurrences')
       .select()
       .eq('id', id)
       .maybeSingle<Occurrence>();
+    // A failed lookup and a `?o=` that names a sighting we don't have both
+    // arrive as a null `data`, and they are not the same thing: the second is a
+    // deliberate silent fallback, the first is a link that would work if we
+    // could reach the server. Throwing separates them — firstUpdated's catch
+    // says so. (maybeSingle reports zero rows as data: null with no error, so
+    // this does not swallow the fallback.)
+    if (error) throw error;
     if (!occurrence) return; // not found — silent fallback per decisions
 
     const date = dateFromObservedAt(occurrence.observed_at);

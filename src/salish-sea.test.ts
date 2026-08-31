@@ -10,6 +10,8 @@ const occurrenceQuery = vi.hoisted(() => ({
   error: null as unknown,
   /** Set to hold a response open, so a test can decide when it lands. */
   gate: null as Promise<void> | null,
+  /** What a `?o=` permalink lookup finds. */
+  single: {data: null as unknown, error: null as unknown},
 }));
 vi.mock('@sentry/browser', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@sentry/browser')>()),
@@ -29,7 +31,7 @@ vi.mock('./supabase.ts', () => {
       return {data: rows};
     })();
   };
-  query.maybeSingle = async () => ({data: null});
+  query.maybeSingle = async () => occurrenceQuery.single;
   const channel: Record<string, unknown> = {};
   channel.on = () => channel;
   channel.subscribe = () => channel;
@@ -75,6 +77,7 @@ beforeEach(() => {
   occurrenceQuery.rows = [];
   occurrenceQuery.error = null;
   occurrenceQuery.gate = null;
+  occurrenceQuery.single = {data: null, error: null};
 });
 
 afterEach(() => {
@@ -237,4 +240,30 @@ test('a response already in flight when a sighting is deleted does not put the r
   await el.updateComplete;
 
   expect(summaryIds(el)).toEqual(['summary-bbb']);
+});
+
+test('a permalink lookup that fails is not reported as a sighting that does not exist', async () => {
+  const failure = {code: '57014', message: 'canceling statement due to statement timeout'};
+  occurrenceQuery.single = {data: null, error: failure};
+  const el = document.createElement('salish-sea') as SalishSea;
+  document.body.appendChild(el);
+  await el.updateComplete;
+
+  // Supabase hands a failed lookup back as a null `data` alongside an error —
+  // the same null a `?o=` for a sighting we don't have produces. Reaching
+  // firstUpdated's toast depends on the two being told apart here.
+  await expect(
+    (el as unknown as {hydrateFromOccurrenceId(id: string): Promise<void>}).hydrateFromOccurrenceId('abc'),
+  ).rejects.toBe(failure);
+});
+
+test('a permalink for a sighting we do not have stays quiet, as it always has', async () => {
+  occurrenceQuery.single = {data: null, error: null};
+  const el = document.createElement('salish-sea') as SalishSea;
+  document.body.appendChild(el);
+  await el.updateComplete;
+
+  await (el as unknown as {hydrateFromOccurrenceId(id: string): Promise<void>}).hydrateFromOccurrenceId('abc');
+
+  expect(await toastText(el)).toBeNull();
 });
