@@ -23,10 +23,22 @@ for extra in "$@"; do
     PATTERN="${PATTERN}|${extra}"
 done
 
-UNEXPECTED=$(grep -E '(^|:[0-9]+: )ERROR:' "${LOG}" | { grep -Ev "${PATTERN}" || true; })
+# Both greps are guarded, and the first one is the reason this matters: grep
+# exits 1 when it matches nothing, and a log with no errors at all matches
+# nothing. Under `set -o pipefail` that failure propagates out of the pipeline
+# and out of the assignment, so an unguarded version fails hardest on a restore
+# that went perfectly. Which is exactly how it first failed.
+ERRORS=$({ grep -E '(^|:[0-9]+: )ERROR:' "${LOG}" || true; })
+UNEXPECTED=$(printf '%s' "${ERRORS}" | { grep -Ev "${PATTERN}" || true; })
+
 if [ -n "${UNEXPECTED}" ]; then
     echo "::error::${LABEL} failed for a reason other than: ${PATTERN}"
     echo "${UNEXPECTED}"
     exit 1
 fi
-echo "${LABEL}: $(grep -cE '(^|:[0-9]+: )ERROR:' "${LOG}" || true) tolerated error(s), none unexpected."
+
+if [ -z "${ERRORS}" ]; then
+    echo "${LABEL}: no errors."
+else
+    echo "${LABEL}: $(printf '%s\n' "${ERRORS}" | wc -l | tr -d ' ') tolerated error(s), none unexpected."
+fi
