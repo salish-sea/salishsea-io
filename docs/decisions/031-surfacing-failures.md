@@ -124,12 +124,11 @@ The three profile-page entry points (`individual`, `matriline`, `ecotype`) have 
 components and do not yet listen for `report-error`; a `reportError` call from one of them
 reaches Sentry but shows nothing. Nothing calls it there today.
 
-Sentry transmits from production only. All four entry points call a single `initSentry()` in
-[`sentry.ts`](../../src/sentry.ts), which binds the client only in production, and
-`sentryClient` is not exported, so no page can initialise it another way. The gate sits on the
-binding rather than on `init()`, because binding is what makes `captureException` transmit —
-and this record put a `captureException` behind every user-visible failure, so dev traffic
-would only have grown.
+Sentry transmits from production only ([037](037-sentry-transmits-from-production-only.md)).
+The `captureException` this record put behind every user-visible failure is the reason that
+decision gates the *scope binding* rather than `init()`: binding is what makes a direct
+capture transmit, so the old PROD guard on `init()` would have let all of them through from a
+development session.
 
 *Amended 2026-08-31 (`salish-280`).* This section previously ended with the note below, which
 described the state that fix replaced:
