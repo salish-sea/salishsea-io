@@ -124,12 +124,15 @@ The three profile-page entry points (`individual`, `matriline`, `ecotype`) have 
 components and do not yet listen for `report-error`; a `reportError` call from one of them
 reaches Sentry but shows nothing. Nothing calls it there today.
 
-~~Note also `salish-280`: Sentry init is PROD-gated in `salish-sea.ts` but unconditional on
-those three pages, so their dev sessions already report to the production DSN.~~
+Sentry transmits from production only. All four entry points call a single `initSentry()` in
+[`sentry.ts`](../../src/sentry.ts), which binds the client only in production, and
+`sentryClient` is not exported, so no page can initialise it another way. The gate sits on the
+binding rather than on `init()`, because binding is what makes `captureException` transmit —
+and this record put a `captureException` behind every user-visible failure, so dev traffic
+would only have grown.
 
-*Struck 2026-08-31, fixed in `salish-280`:* all four entry points now call a single
-`initSentry()` in [`sentry.ts`](../../src/sentry.ts), which binds the client only in
-production, and `sentryClient` is no longer exported for a page to initialise another way.
-The gate had to move to the binding rather than sit on `init()`, because binding is what makes
-`captureException` transmit — and this record put a `captureException` behind every
-user-visible failure, so dev traffic would only have grown.
+*Amended 2026-08-31 (`salish-280`).* This section previously ended with the note below, which
+described the state that fix replaced:
+
+> ~~Note also `salish-280`: Sentry init is PROD-gated in `salish-sea.ts` but unconditional on
+> those three pages, so their dev sessions already report to the production DSN.~~
