@@ -268,8 +268,14 @@ jobs:
             - name: Verify the restored database matches the dump
               env:
                   SUPABASE_DB_URL: postgres://supabase_admin:postgres@localhost:5432/postgres
-              working-directory: /tmp
-              run: pnpm --dir "${GITHUB_WORKSPACE}" exec tsx "${GITHUB_WORKSPACE}/scripts/backup/verify-dump.ts" data.sql
+              # An absolute path, because `pnpm --dir` runs from the workspace
+              # rather than from `working-directory` — a relative `data.sql`
+              # resolves against the repo and is not there.
+              #
+              # No pre-dump counts are passed: nothing is writing to this
+              # database, so the comparison is an exact one and any difference at
+              # all is a defect in the restore rather than a live table moving.
+              run: pnpm --dir "${GITHUB_WORKSPACE}" exec tsx "${GITHUB_WORKSPACE}/scripts/backup/verify-dump.ts" /tmp/data.sql
 
             - name: Summarise
               env:
