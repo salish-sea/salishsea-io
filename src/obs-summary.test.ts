@@ -1,6 +1,23 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { buildShareUrl, stripResolvedProvenance } from './obs-summary.ts';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+const deleteResult = vi.hoisted(() => ({error: null as unknown}));
+vi.mock('@sentry/browser', () => ({captureException: () => {}}));
+vi.mock('./supabase.ts', () => ({
+  supabase: () => ({
+    from: () => ({delete: () => ({eq: async () => ({error: deleteResult.error})})}),
+    // obs-summary's connectedCallback warms the catalog-code lookup; an empty
+    // result leaves designations as plain text, which these tests don't assert on.
+    // (`select` is the only other entry point it reaches.)
+  }),
+}));
+vi.mock('./individual-links.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./individual-links.ts')>()),
+  loadCatalogCodes: async () => new Map<string, string>(),
+}));
+
+import { buildShareUrl, stripResolvedProvenance, ObsSummary } from './obs-summary.ts';
+import type { Occurrence } from './types.ts';
 
 describe('buildShareUrl', () => {
   beforeEach(() => {
@@ -92,5 +109,45 @@ describe('stripResolvedProvenance', () => {
   it('leaves Maplify content without resolver artifacts untouched', () => {
     const body = 'Gray whale southbound near Alki';
     expect(stripResolvedProvenance(body, 'maplify')).toBe(body);
+  });
+});
+
+describe('deleting a sighting', () => {
+  // The element is driven directly rather than rendered: the point under test is
+  // what onDelete does with the result, and a full render would need a whole
+  // Occurrence fixture to say nothing extra.
+  const summaryFor = (id: string) => {
+    const el = document.createElement('obs-summary') as ObsSummary;
+    (el as unknown as {sighting: Partial<Occurrence>}).sighting = {id};
+    return el;
+  };
+  const clickDelete = (el: ObsSummary) =>
+    (el as unknown as {onDelete(e: Event): Promise<void>}).onDelete(new Event('click'));
+
+  beforeEach(() => { deleteResult.error = null; });
+
+  it('announces the deletion so the list can drop the row without waiting on a broadcast', async () => {
+    const el = summaryFor('abc-123');
+    const deleted: string[] = [];
+    el.addEventListener('sighting-deleted', e => deleted.push((e as CustomEvent<string>).detail));
+
+    await clickDelete(el);
+
+    expect(deleted).toEqual(['abc-123']);
+  });
+
+  it('reports a failed delete and does not announce a deletion that did not happen', async () => {
+    deleteResult.error = {message: 'permission denied for table observations'};
+    const el = summaryFor('abc-123');
+    const deleted: string[] = [];
+    const reported: string[] = [];
+    el.addEventListener('sighting-deleted', e => deleted.push((e as CustomEvent<string>).detail));
+    el.addEventListener('report-error', e => reported.push((e as CustomEvent<{message: string}>).detail.message));
+
+    await clickDelete(el);
+
+    expect(reported).toEqual(["Couldn't delete that sighting. Please try again."]);
+    // Announcing here would remove the row for a sighting that is still there.
+    expect(deleted).toEqual([]);
   });
 });

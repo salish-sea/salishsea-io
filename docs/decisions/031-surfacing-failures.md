@@ -77,6 +77,44 @@ and for the same reason — a slow request for the day you just left must not sp
 you are looking at. Without it, a late failure would claim a current, complete list was
 incomplete.
 
+## Follow-through — 2026-08-30 (bd `salish-rot`)
+
+The pattern above landed at three call sites and left the rest of the app as it found it.
+`salish-rot` brought the remainder onto it, and settled one thing the original decision did
+not have to:
+
+**A confirmed delete removes the row; the broadcast only reconciles.** Deleting a sighting used
+to remove nothing locally — the row left the list when the `occurrences_changed` realtime
+broadcast came back and re-fetched. That makes a websocket the mechanism by which a button
+works, so a dropped or missed broadcast leaves a sighting on screen that the server deleted,
+and nothing on screen says so. `obs-summary` now announces `sighting-deleted` once the server
+has confirmed it; `<salish-sea>` drops the row and re-fetches behind it. Rejected: an
+*optimistic* removal, i.e. dropping the row before the server answers. It reads faster and it
+lies — the failure case then has to put a row back, which is worse than the wait.
+
+Editing the list locally needed a third staleness guard. This record's *"stale failures stay
+quiet"* pairs a response with the date and region that asked for it, and a request issued a
+moment before the delete matches on both — same day, same region — so it lands afterwards and
+repaints the row that was just removed. What is wrong with it is not where it was pointed but
+when it left, so `fetchOccurrences` now also carries a `#listRevision` the delete bumps, and a
+response from before the bump is dropped rather than drawn.
+
+The other paths needed no new decision, only the existing one applied: geolocation failures
+(both the map's locate control and the report form's "My location" button) now name which of
+the three ways they failed, via [`geolocation-message.ts`](../../src/geolocation-message.ts) —
+a browser refusing, a device with no fix, and a timeout are three different things for the
+person holding the phone, and only one of them is worth retrying. The map's locate control
+keeps its own red state and its tooltip, now carrying the same sentence rather than the
+browser's raw `error.message`.
+
+![The locate control reddened, and the toast it produced](../images/031-geolocation-denied.png)
+
+Sign-out, contributor
+loading, opening a sighting for edit, and a `?o=` permalink that won't resolve all report.
+Fire-and-forget re-fetches go through `refetchOccurrences`, which exists so that the callers
+with no `await` to hang a failure from — property setters, event listeners, the realtime
+subscription — cannot reject into nothing.
+
 ## Consequences
 
 Sentry now hears about the delete and occurrence-load failures it never saw, so expect those
