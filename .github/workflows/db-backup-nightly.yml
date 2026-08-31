@@ -228,16 +228,17 @@ jobs:
                   for o in json.load(open("backup/media-plan.json"))["fetch"]:
                       quoted = urllib.parse.quote(o["name"])
                       etag = (o["etag"] or "").strip('"')
-                      # A `-N` suffix marks a multipart ETag, which is a digest of
-                      # part digests and never the whole file's MD5, so there is
-                      # nothing here for md5sum to be compared against.
-                      #
-                      # The sentinel is `-` and NOT an empty field. Tab is IFS
-                      # whitespace, so bash's `read` collapses two adjacent tabs
-                      # into one delimiter: an empty ETag would shift size and URL
-                      # one field left, and every multipart object would be
-                      # requested from a truncated URL. Which is exactly what
-                      # happened the first time this was written.
+                      # A `-N` suffix marks a multipart ETag: a digest of part
+                      # digests, never the whole file's MD5. There is nothing there
+                      # for md5sum to be compared against, so it is replaced with
+                      # the sentinel and the object is verified on length instead.
+                      if "-" in etag:
+                          etag = "-"
+                      # A sentinel and NOT an empty field. Tab is IFS whitespace,
+                      # so bash's `read` collapses two adjacent tabs into one
+                      # delimiter: an empty ETag would shift size and URL a field
+                      # left, and every multipart object would be requested from a
+                      # truncated URL.
                       print(f'{o["name"]}\t{etag or "-"}\t{o["size"]}\t{quoted}')
                   PYEOF
                   FAILED=0
