@@ -125,13 +125,27 @@ export async function listUpstream(dbUrl: string): Promise<StorageObject[]> {
   }
 }
 
-function readJson(path: string | undefined): Record<string, string> {
+/**
+ * The mirror's manifest, or an empty one.
+ *
+ * Anything unexpected — missing, unparseable, not an object, a value that is not
+ * a string — becomes "nothing is mirrored", which fetches everything. That is
+ * the safe direction, and it is the only one available: a half-trusted manifest
+ * would have this script compare an ETag against a number and decide something
+ * about a photo on the strength of it.
+ */
+export function readManifest(path: string | undefined): Record<string, string> {
   if (!path) return {};
+  let parsed: unknown;
   try {
-    return JSON.parse(readFileSync(path, 'utf-8')) as Record<string, string>;
+    parsed = JSON.parse(readFileSync(path, 'utf-8'));
   } catch {
     return {};
   }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
+  const entries = Object.entries(parsed as Record<string, unknown>);
+  if (!entries.every(([, value]) => typeof value === 'string')) return {};
+  return Object.fromEntries(entries) as Record<string, string>;
 }
 
 function readLines(path: string): string[] {
@@ -158,7 +172,7 @@ export async function main() {
   // credentials of its own and stays testable without them. A missing or
   // unreadable manifest means "mirror nothing yet", which fetches everything —
   // the safe direction on the first run and after any loss of the manifest.
-  const held = new Map<string, string>(Object.entries(readJson(process.argv[3])));
+  const held = new Map<string, string>(Object.entries(readManifest(process.argv[3])));
   const present = new Set<string>(
     (process.argv[4] ? readLines(process.argv[4]) : []).filter(Boolean)
   );

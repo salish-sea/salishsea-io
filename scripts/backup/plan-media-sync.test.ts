@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { planSync, type StorageObject } from './plan-media-sync.ts';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { planSync, readManifest, type StorageObject } from './plan-media-sync.ts';
 
 const object = (name: string, etag: string | null, size = 1_000): StorageObject =>
   ({name, etag, size});
@@ -72,5 +75,33 @@ describe('planSync', () => {
     const plan = planSync([object('a.jpg', 'abc')], held, present);
     expect(plan.fetch).toEqual([]);
     expect(plan.expected.map(o => o.name)).toEqual(['a.jpg']);
+  });
+});
+
+describe('readManifest', () => {
+  const write = (body: string) => {
+    const path = join(mkdtempSync(join(tmpdir(), 'manifest-')), 'm.json');
+    writeFileSync(path, body);
+    return path;
+  };
+
+  it('reads a manifest of name to ETag', () => {
+    expect(readManifest(write('{"a.jpg":"abc"}'))).toEqual({'a.jpg': 'abc'});
+  });
+
+  it('treats no path, a missing file, or unparseable JSON as an empty mirror', () => {
+    expect(readManifest(undefined)).toEqual({});
+    expect(readManifest('/nowhere/at/all.json')).toEqual({});
+    expect(readManifest(write('{not json'))).toEqual({});
+  });
+
+  it('refuses a manifest that is not an object of strings', () => {
+    // A number where an ETag belongs would reach unquote() as a number and
+    // decide something about a photo on the strength of it. Fetch everything
+    // instead — the only safe reading of a manifest we cannot trust.
+    expect(readManifest(write('null'))).toEqual({});
+    expect(readManifest(write('["a.jpg"]'))).toEqual({});
+    expect(readManifest(write('{"a.jpg":123}'))).toEqual({});
+    expect(readManifest(write('{"a.jpg":null}'))).toEqual({});
   });
 });
