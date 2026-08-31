@@ -80,6 +80,13 @@ grow to breach it. So [`plan-media-sync.ts`](../../scripts/backup/plan-media-syn
 upstream names and ETags against the mirror and names only the difference; sighting photos are
 written once and never edited, so the steady state is nearly zero.
 
+The objects come over plain HTTPS from the bucket's public URL rather than through
+`supabase storage cp`, which refuses to run without `--experimental` — not a flag to build a
+backup on. Each download is checked against the ETag the database recorded, which is the MD5 of
+the content, so the manifest written afterwards describes bytes that actually arrived intact.
+This depends on the `media` bucket being public, as it is today; were it made private the step
+would start returning 403 and fail, which is the right way round.
+
 The mirror never deletes. That is not an oversight to tidy up later: the local directory holds
 only the objects a given run fetched, so a `--delete` sweep would read the other ninety-odd as
 removed and destroy the mirror in one step. It is also the wrong instinct for a backup — an
