@@ -112,13 +112,31 @@ jobs:
                       # behind, and picking that one would fail the restore for a
                       # reason that has nothing to do with whether backups work.
                       # Keys are db/YYYY/MM/DD/HHMMSS/..., so lexical order is
-                      # chronological and the last one is the newest complete backup.
-                      PREFIX=$(aws s3 ls "s3://${BACKUP_BUCKET}/db/" --recursive \
+                      # chronological.
+                      #
+                      # Then, newest first, the first one that also carries
+                      # auth-storage.sql.gz. Backups taken before that artifact
+                      # existed are complete by their own lights and cannot be
+                      # restored by this workflow; skipping them beats failing in
+                      # gunzip with a message about a missing file.
+                      CANDIDATES=$(aws s3 ls "s3://${BACKUP_BUCKET}/db/" --recursive \
                         | awk '{print $4}' | grep '/SHA256SUMS$' \
-                        | sed 's|/SHA256SUMS$||' | sort | tail -1)
+                        | sed 's|/SHA256SUMS$||' | sort -r)
+                      # A here-string and `read`, not `for X in ${LIST}`: the
+                      # latter depends on word splitting, so it reads as one
+                      # iteration or four depending on the shell.
+                      while IFS= read -r CANDIDATE; do
+                          [ -n "${CANDIDATE}" ] || continue
+                          if aws s3 cp "s3://${BACKUP_BUCKET}/${CANDIDATE}/SHA256SUMS" - 2>/dev/null \
+                             | grep -q 'auth-storage\.sql\.gz'; then
+                              PREFIX="${CANDIDATE}"
+                              break
+                          fi
+                          echo "Skipping ${CANDIDATE}: predates auth-storage.sql.gz."
+                      done <<< "${CANDIDATES}"
                   fi
                   if [ -z "${PREFIX}" ]; then
-                      echo "No complete backup found under s3://${BACKUP_BUCKET}/db/ — nothing to verify." >&2
+                      echo "No backup under s3://${BACKUP_BUCKET}/db/ carries auth-storage.sql.gz, so none can be restored by this workflow. Run the nightly backup first." >&2
                       exit 1
                   fi
                   echo "prefix=${PREFIX}" >> "$GITHUB_OUTPUT"

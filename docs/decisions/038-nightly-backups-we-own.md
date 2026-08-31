@@ -121,9 +121,12 @@ creates the tables, the second picks up the triggers it could not create the fir
 also connects as `supabase_admin` rather than `postgres`: only that role is a superuser in the
 image, and the restore has to create roles and drop the platform's own schemas.
 
-Every step that must tolerate an error tolerates exactly one kind, via
+Every step that must tolerate an error names exactly which errors, via
 [`only-already-exists.sh`](../../scripts/only-already-exists.sh), and fails on anything else.
-Blanket tolerance is how "restore the backup" quietly becomes "run it and see".
+Most tolerate only "already exists"; the first `auth-storage` pass also tolerates "does not
+exist", because the `public` functions its triggers call are not there yet — which is the whole
+reason there is a second pass, and the second pass does not get that exception. Blanket
+tolerance is how "restore the backup" quietly becomes "run it and see".
 
 ## Rejected alternatives
 
