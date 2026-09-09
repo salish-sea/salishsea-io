@@ -49,9 +49,13 @@ tick and by the catalog seed script; per-individual reads dropped to
 milliseconds. Stored claims (curation) still read live so a curator's edit
 takes effect immediately; candidates lag ingest by ≤8 minutes.
 
-*Amended 2026-09-09 (bd `salish-xfo`).* That bound was ≤6 minutes until the
-candidates refresh moved from the `:01` slot to `:03`
-(`20260909120000_stagger_matview_refreshes.sql`). It shared the `:01` tick with
+*Amended 2026-09-09 (bd `salish-xfo`).* That sentence previously read:
+
+> ~~Stored claims (curation) still read live so a curator's edit takes effect
+> immediately; candidates lag ingest by ≤6 minutes.~~
+
+The bound moved to ≤8 minutes when the candidates refresh left the `:01` slot
+for `:03` (`20260909120000_stagger_matview_refreshes.sql`). It shared the `:01` tick with
 `occurrence_index`, and the two are caches of the same view — so both were
 scanning `public.occurrences` at once, roughly 2.3s of work each turning into
 8s apiece, and 33.7s on the worst tick observed. A visitor's map query that
