@@ -122,7 +122,12 @@ describe.skipIf(!DSN)('materialized-view refresh schedules (local Supabase)', ()
     });
 
     test('no two matview refreshes ever fire on the same minute', () => {
-        const expanded = jobs.map((j) => ({ ...j, minutes: firingMinutes(j.schedule) }));
+        // Inactive jobs never fire, so a disabled schedule sitting on top of a
+        // live one is not a collision. That the two caches are active at all is
+        // the sibling test's job, not this one's.
+        const expanded = jobs
+            .filter((j) => j.active)
+            .map((j) => ({ ...j, minutes: firingMinutes(j.schedule) }));
 
         const collisions: string[] = [];
         for (let i = 0; i < expanded.length; i++) {
