@@ -14,6 +14,8 @@ const uploads = vi.hoisted(() => ({
   behaviour: new Map<string, () => Promise<string>>(),
   /** Milliseconds readExif takes per file — the window the race needs. */
   exifDelayMs: 0,
+  /** Every file uploadPhoto was actually asked to send. */
+  attempted: [] as string[],
 }));
 
 vi.mock('./supabase.ts', () => ({
@@ -38,6 +40,7 @@ vi.mock('./photo-attachment.ts', async (importOriginal) => {
       return {};
     },
     uploadPhoto: async (file: File) => {
+      uploads.attempted.push(file.name);
       const behaviour = uploads.behaviour.get(file.name);
       return behaviour ? behaviour() : `https://cdn.example/${file.name}`;
     },
@@ -68,6 +71,7 @@ let el: Form;
 beforeEach(async () => {
   uploads.behaviour.clear();
   uploads.exifDelayMs = 0;
+  uploads.attempted = [];
   vi.mocked(captureException).mockClear();
   el = document.createElement('sighting-form') as unknown as Form;
   el.sightingId = 'sighting-under-test';
@@ -110,6 +114,22 @@ describe('adding photos (salish-8q9)', () => {
     // enableSubmit refuses while any photo is 'uploading' or 'failed'; a photo
     // stranded in 'uploading' made the whole sighting unsaveable.
     expect(el.photos.filter((p) => p.state === 'uploading' || p.state === 'failed')).toEqual([]);
+  });
+
+  test('a photo removed while its EXIF is being read is not uploaded at all', async () => {
+    // Publishing the photo before its upload starts is what fixes the race, and
+    // it also makes the photo removable earlier than it used to be. Nothing
+    // downstream may act on a photo the person has since discarded: its EXIF
+    // would move their observer marker, and the upload would spend their data.
+    uploads.exifDelayMs = 20;
+    const adding = el.appendPhotos([jpeg('changed-my-mind.jpg')]);
+    await new Promise((r) => setTimeout(r, 5));   // mid-readExif
+    el.removePhoto(el.photos[0]!);
+    await adding;
+    await settle();
+
+    expect(uploads.attempted).toEqual([]);
+    expect(el.photos.map((p) => p.state)).toEqual(['removed']);
   });
 
   test('a photo removed mid-upload stays removed', async () => {

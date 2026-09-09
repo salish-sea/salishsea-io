@@ -690,6 +690,17 @@ export default class SightingForm extends LitElement {
       this.photos = [...this.photos, {id, state: 'uploading', file, thumb}];
 
       const {coordinates, date, time} = await readExif(file);
+
+      // Publishing the photo before its upload (above) also makes it removable
+      // during this read, which the previous arrangement did not — so check
+      // before acting on it. Everything below is something the person has just
+      // said they do not want: EXIF from a discarded photo would move their
+      // observer marker and change the sighting's time, and the upload would
+      // spend a phone's data on a file destined for nothing. #settlePhoto
+      // guards the landing, but by then both have already happened.
+      if (this.photos.find(photo => photo.id === id)?.state !== 'uploading')
+        continue;
+
       if (coordinates)
         this.receiveCoordinatesFromUpload(coordinates);
       if (date)
