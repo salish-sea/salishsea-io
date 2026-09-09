@@ -28,7 +28,7 @@ import { type License, type Occurrence, type TravelDirection, type UpsertObserva
 import { supabase } from "./supabase.ts";
 import { reportError } from "./report-error.ts";
 import { geolocationMessage } from "./geolocation-message.ts";
-import PhotoAttachment, { photoThumbnail, readExif, uploadPhoto, type FailedUploadPhoto, type Photo, type UploadedPhoto } from "./photo-attachment.ts";
+import PhotoAttachment, { newPhotoId, photoThumbnail, readExif, uploadPhoto, type FailedUploadPhoto, type Photo, type UploadedPhoto } from "./photo-attachment.ts";
 import type { Coordinate } from "ol/coordinate.js";
 
 
@@ -118,7 +118,7 @@ export function observationToFormData(observation: Occurrence): SightingFormData
     observed_time: observedAt.toPlainTime().toString(),
     observer_location: observation.observed_from ? `${observation.observed_from.lat.toFixed(4)}, ${observation.observed_from.lon.toFixed(4)}` : '',
     photo_license: observation.photos[0]?.license || getPhotoLicense(),
-    photos: observation.photos.map(photo => ({state: 'attached' as const, thumb: photo.thumb || photo.src, url: photo.src})),
+    photos: observation.photos.map(photo => ({id: newPhotoId(), state: 'attached' as const, thumb: photo.thumb || photo.src, url: photo.src})),
     subject_location: `${observation.location.lat.toFixed(4)}, ${observation.location.lon.toFixed(4)}`,
     taxon: observation.taxon.scientific_name,
     travel_direction: observation.direction || '',
@@ -546,7 +546,7 @@ export default class SightingForm extends LitElement {
         <label>
           <span>Photos</span>
           <div class="thumbnails">
-            ${repeat(this.photos.filter(photo => photo.state !== 'removed'), photo => photo, photo => html`
+            ${repeat(this.photos.filter(photo => photo.state !== 'removed'), photo => photo.id, photo => html`
               <photo-attachment class=${photo.state} .photo=${photo}>
               </photo-attachment>
             `)}
@@ -598,8 +598,16 @@ export default class SightingForm extends LitElement {
   }
 
   removePhoto(photo: Photo) {
-    const index = this.photos.indexOf(photo);
-    this.photos = this.photos.toSpliced(index, 1, {...photo, state: 'removed'});
+    // By id, and guarded. `indexOf` on the object reference the rendered
+    // <photo-attachment> is holding returns -1 as soon as the list has been
+    // rebuilt underneath it, and `toSpliced(-1, 1, …)` does not fail — it
+    // replaces the LAST element. So a stale reference used to delete a photo
+    // the person never touched while leaving the one they clicked in place
+    // (bd salish-jo5). A removal we cannot place is a no-op.
+    const index = this.photos.findIndex(candidate => candidate.id === photo.id);
+    if (index === -1)
+      return;
+    this.photos = this.photos.toSpliced(index, 1, {...this.photos[index]!, state: 'removed'});
   }
 
   private locateMe() {
@@ -639,12 +647,47 @@ export default class SightingForm extends LitElement {
     this.photosInputRef.value!.value = '';
   }
 
-  private async appendPhotos(files: File[]) {
-    const photos = [...this.photos];
+  /**
+   * Settle the photo carrying `id` into `next` — the one way an upload reports
+   * back.
+   *
+   * By id, and against `this.photos` as it is *now*, because everything else
+   * has moved on by the time an upload lands: the person may have added more
+   * photos, removed this one, or left. Returns whether it applied, so a caller
+   * can stay quiet about a photo nobody is waiting for any more.
+   */
+  #settlePhoto(id: string, next: Photo): boolean {
+    const index = this.photos.findIndex(photo => photo.id === id);
+    // Gone entirely (the form was reloaded from an observation), or the person
+    // removed it while the upload was in flight and does not want it back.
+    if (index === -1 || this.photos[index]!.state === 'removed')
+      return false;
+    this.photos = this.photos.toSpliced(index, 1, next);
+    return true;
+  }
+
+  /**
+   * Public alongside {@link removePhoto} — the two halves of one job, and the
+   * pair a test needs to drive the timing that broke this (bd salish-8q9).
+   */
+  async appendPhotos(files: File[]) {
     for (const file of files) {
-      const index = photos.length;
+      const id = newPhotoId();
       const thumb = await photoThumbnail(file);
-      photos.push({state: 'uploading' as const, file, thumb});
+
+      // Publish the photo BEFORE its upload starts, and one at a time rather
+      // than batching the whole selection at the end. This is the fix for bd
+      // salish-8q9: the previous version filled a local copy of the array and
+      // assigned it after the loop, while holding an index into it that the
+      // upload callbacks used against `this.photos`. Reading EXIF off a phone
+      // photo is slow enough that an early upload routinely landed while a
+      // later file was still being read, when the two arrays were still
+      // different lengths — so the callback wrote past the end of `this.photos`
+      // (which appends rather than replaces), and the assignment after the loop
+      // then threw that result away. The photo stayed 'uploading' forever, and
+      // `enableSubmit` refuses to enable Save while anything is, so the whole
+      // sighting became unsaveable with nothing on screen to explain why.
+      this.photos = [...this.photos, {id, state: 'uploading', file, thumb}];
 
       const {coordinates, date, time} = await readExif(file);
       if (coordinates)
@@ -655,18 +698,18 @@ export default class SightingForm extends LitElement {
         this.receiveTimeFromUpload(time);
 
       uploadPhoto(file, this.sightingId).then(url => {
-        if (this.photos[index]?.state === 'removed')
-          return;
-        const uploaded: UploadedPhoto = {state: 'uploaded', thumb, url};
-        this.photos = this.photos.toSpliced(index, 1, uploaded);
-      }).catch(error => {
-        if (this.photos[index]?.state === 'removed')
-          return;
-        const errored: FailedUploadPhoto = {state: 'failed', file, thumb, error};
-        this.photos = this.photos.toSpliced(index, 1, errored);
+        const uploaded: UploadedPhoto = {id, state: 'uploaded', thumb, url};
+        this.#settlePhoto(id, uploaded);
+      }).catch((error: unknown) => {
+        const errored: FailedUploadPhoto = {id, state: 'failed', file, thumb, error};
+        // Say so, to both audiences (decision 031). The failed thumbnail alone
+        // left the person to guess what a red border meant and left us with
+        // nothing at all — bd salish-16b, which is why we cannot say what went
+        // wrong for the report that prompted this.
+        if (this.#settlePhoto(id, errored))
+          reportError(this, `Couldn't upload ${file.name || 'that photo'}. Remove it and try again.`, {cause: error});
       });
     }
-    this.photos = photos;
   }
 
   private receiveDateFromUpload(date: string) {

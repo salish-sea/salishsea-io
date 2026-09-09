@@ -5,12 +5,30 @@ import { fromLonLat } from 'ol/proj.js';
 import { supabase } from './supabase.ts';
 import { v7 } from 'uuid';
 
-export type UploadingPhoto = {state: 'uploading'; file: File; thumb: string};
-export type FailedUploadPhoto = {state: 'failed'; file: File; thumb: string; error: unknown};
-export type UploadedPhoto = {state: 'uploaded'; thumb: string; url: string};
-export type AttachedPhoto = {state: 'attached'; thumb: string | null; url: string};
-export type RemovedPhoto = {state: 'removed'; thumb: string | null};
+/**
+ * Every photo carries an `id` minted when it joins the list, and it is the only
+ * safe way to refer to one.
+ *
+ * A photo's *identity* survives what happens to it; its position and its object
+ * do not. An upload settles into a new object, a removal replaces it with
+ * another, and the array is rebuilt from scratch whenever the form is loaded
+ * from an observation — so an index captured before an `await`, or an object
+ * reference held by a rendered `<photo-attachment>`, can both be pointing at
+ * nothing by the time they are used. Both went wrong (bd salish-8q9,
+ * salish-jo5), and both failed silently, because `toSpliced` treats a missing
+ * index as an instruction rather than a mistake: past the end it appends, and
+ * -1 replaces the last element.
+ */
+type PhotoIdentity = {id: string};
+export type UploadingPhoto = PhotoIdentity & {state: 'uploading'; file: File; thumb: string};
+export type FailedUploadPhoto = PhotoIdentity & {state: 'failed'; file: File; thumb: string; error: unknown};
+export type UploadedPhoto = PhotoIdentity & {state: 'uploaded'; thumb: string; url: string};
+export type AttachedPhoto = PhotoIdentity & {state: 'attached'; thumb: string | null; url: string};
+export type RemovedPhoto = PhotoIdentity & {state: 'removed'; thumb: string | null};
 export type Photo = UploadingPhoto | FailedUploadPhoto | UploadedPhoto | AttachedPhoto | RemovedPhoto;
+
+/** A fresh photo id. Time-ordered, so the list keeps the order they were added. */
+export const newPhotoId = (): string => v7();
 
 export async function readExif(file: File) {
   const {load} = await import('exifreader');
