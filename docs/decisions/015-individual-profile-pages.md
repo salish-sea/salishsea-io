@@ -44,10 +44,28 @@ rejected — a wall of borrowed sighting cards read poorly on a profile.
 Resolution was initially **live** (regex over sighting text at read time,
 ~2s/query on prod). Migration `20260708000104` (bd `salish-be4`) moved
 extraction + resolution into the `occurrence_identifier_candidates`
-materialized view, refreshed by pg_cron a minute after each 5-minute ingest
-tick and by the catalog seed script; per-individual reads dropped to
+materialized view, refreshed by pg_cron three minutes after each 5-minute
+ingest tick and by the catalog seed script; per-individual reads dropped to
 milliseconds. Stored claims (curation) still read live so a curator's edit
-takes effect immediately; candidates lag ingest by ≤6 minutes.
+takes effect immediately; candidates lag ingest by ≤8 minutes.
+
+*Amended 2026-09-09 (bd `salish-xfo`).* That passage previously read:
+
+> ~~materialized view, refreshed by pg_cron **a minute** after each 5-minute
+> ingest tick and by the catalog seed script; per-individual reads dropped to
+> milliseconds. Stored claims (curation) still read live so a curator's edit
+> takes effect immediately; candidates lag ingest by **≤6 minutes**.~~
+
+The bound moved to ≤8 minutes when the candidates refresh left the `:01` slot
+for `:03` (`20260909120000_stagger_matview_refreshes.sql`). It shared the `:01`
+tick with `occurrence_index`, and the two are caches of the same view — so both
+were
+scanning `public.occurrences` at once, roughly 2.3s of work each turning into
+8s apiece, and 33.7s on the worst tick observed. A visitor's map query that
+started inside that window was killed at the 3s `anon` `statement_timeout`
+(SALISHSEA-IO-3G); the same query costs 50ms against a quiet database. The two
+extra minutes of lag carry the same argument the original six did: a curator
+claims against occurrences that are already ingested.
 
 ### Honesty invariant carried to the UI
 
