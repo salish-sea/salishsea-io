@@ -59,7 +59,7 @@ describe('alreadyFiled', () => {
         const requested = fakeGitHub({
             1: [{body: `ours\n<!-- feedback-row:41 -->`, created_at: day(28), user: {login: bot}}],
         });
-        expect(await alreadyFiled('o/r', 't', new Date(day(1)))).toEqual(new Set([41]));
+        expect(await alreadyFiled('o/r', 't', new Date(day(1)))).toEqual(new Set(['41']));
         expect(requested).toEqual([1]);
     });
 
@@ -75,9 +75,9 @@ describe('alreadyFiled', () => {
         const ids = await alreadyFiled('o/r', 't', new Date(day(19)));
 
         expect(requested).toEqual([1, 2]);
-        expect(ids.has(900)).toBe(true);
-        expect(ids.has(400)).toBe(true);
-        expect(ids.has(1)).toBe(false);
+        expect(ids.has('900')).toBe(true);
+        expect(ids.has('400')).toBe(true);
+        expect(ids.has('1')).toBe(false);
     });
 
     test('ignores markers in issues the workflow did not write', async () => {
@@ -91,7 +91,7 @@ describe('alreadyFiled', () => {
                 {body: `theirs\n<!-- feedback-row:77 -->`, created_at: day(20), user: {login: 'a-human'}},
             ],
         });
-        expect(await alreadyFiled('o/r', 't', new Date(day(19)))).toEqual(new Set([41]));
+        expect(await alreadyFiled('o/r', 't', new Date(day(19)))).toEqual(new Set(['41']));
     });
 
     test('stops on an empty page rather than counting to the limit', async () => {
@@ -143,29 +143,29 @@ describe.skipIf(!DSN)('stamping rows (local Supabase)', () => {
     test('stamps the rows it is given and leaves the rest alone', async () => {
         await rolledBack(async (tx) => {
             await tx`DELETE FROM public.feedback`;
-            const rows = await tx<{id: number}[]>`
+            const rows = await tx<{id: string}[]>`
                 INSERT INTO public.feedback (name, message) VALUES ('a','one'), ('b','two')
                 RETURNING id`;
-            const [first, second] = rows.map((r) => Number(r.id));
+            const [first, second] = rows.map((r) => String(r.id));
 
             await stamp(tx, [first!], 512);
 
-            const after = await tx<{id: number; notified_at: string | null; github_issue: number | null}[]>`
+            const after = await tx<{id: string; notified_at: string | null; github_issue: number | null}[]>`
                 SELECT id, notified_at, github_issue FROM public.feedback ORDER BY id`;
-            expect(after.find((r) => Number(r.id) === first)!.notified_at).not.toBeNull();
-            expect(after.find((r) => Number(r.id) === first)!.github_issue).toBe(512);
-            expect(after.find((r) => Number(r.id) === second)!.notified_at).toBeNull();
+            expect(after.find((r) => String(r.id) === first)!.notified_at).not.toBeNull();
+            expect(after.find((r) => String(r.id) === first)!.github_issue).toBe(512);
+            expect(after.find((r) => String(r.id) === second)!.notified_at).toBeNull();
         });
     });
 
     test('a stamped row stops being unnotified', async () => {
         await rolledBack(async (tx) => {
             await tx`DELETE FROM public.feedback`;
-            const [row] = await tx<{id: number}[]>`
+            const [row] = await tx<{id: string}[]>`
                 INSERT INTO public.feedback (name, message) VALUES ('a','one') RETURNING id`;
             expect(await unnotified(tx, 10)).toHaveLength(1);
 
-            await stamp(tx, [Number(row!.id)], null);
+            await stamp(tx, [String(row!.id)], null);
 
             // github_issue stays null when an earlier run filed it; the row must
             // still leave the queue, or it is looked at forever.
@@ -173,22 +173,30 @@ describe.skipIf(!DSN)('stamping rows (local Supabase)', () => {
         });
     });
 
-    test('returns id as a NUMBER, so a Set<number> can recognise it', async () => {
-        // postgres.js hands back bigint as a string, and TypeScript believes the
-        // declared type either way. The one place it matters is
-        // `filed.has(row.id)`, which silently answers no for a string and files
-        // every already-filed report a second time — which is what happened to
-        // the first real report this channel ever received.
+    test('ids stay strings, exactly as the driver returns them', async () => {
+        // They were declared `number` while postgres.js returned strings, so
+        // `filed.has(row.id)` asked a Set<number> about a string and always got
+        // no — filing every already-filed report a second time. Converting is
+        // not the fix either: Number() aliases distinct bigints above 2^53, so
+        // a marker for one row would exclude another and lose a report. The id
+        // is a name, not a quantity; it keeps the shape the database gave it.
         await rolledBack(async (tx) => {
             await tx`DELETE FROM public.feedback`;
             await tx`INSERT INTO public.feedback (name, message) VALUES ('a','one')`;
             const [row] = await unnotified(tx, 10);
-
-            expect(typeof row!.id).toBe('number');
-            // The actual failure, stated as the behaviour rather than the type.
-            expect(new Set([row!.id]).has(row!.id)).toBe(true);
-            expect(new Set<number>([Number(row!.id)]).has(row!.id)).toBe(true);
+            expect(typeof row!.id).toBe('string');
         });
+    });
+
+    test('two ids that Number() would collapse stay distinct', async () => {
+        // 9007199254740993 and 9007199254740992 are both 9007199254740992 as a
+        // JS number. As strings they are two different reports, which is what
+        // they are.
+        const a = '9007199254740992';
+        const b = '9007199254740993';
+        expect(Number(a) === Number(b)).toBe(true);
+        expect(filedRowIds([`x\n${rowMarker(a)}`]).has(b)).toBe(false);
+        expect(filedRowIds([`x\n${rowMarker(a)}`]).has(a)).toBe(true);
     });
 
     test('a row whose issue already exists is recognised as filed', async () => {
@@ -214,10 +222,10 @@ describe.skipIf(!DSN)('stamping rows (local Supabase)', () => {
     test('stamps many rows in one statement', async () => {
         await rolledBack(async (tx) => {
             await tx`DELETE FROM public.feedback`;
-            const rows = await tx<{id: number}[]>`
+            const rows = await tx<{id: string}[]>`
                 INSERT INTO public.feedback (name, message)
                 VALUES ('a','1'), ('b','2'), ('c','3') RETURNING id`;
-            await stamp(tx, rows.map((r) => Number(r.id)), 900);
+            await stamp(tx, rows.map((r) => String(r.id)), 900);
             expect(await unnotified(tx, 10)).toHaveLength(0);
         });
     });

@@ -78,15 +78,13 @@ function maskDsn(error: unknown): string {
 /**
  * The reports waiting to be filed, oldest first.
  *
- * `id` is coerced to a number here, at the boundary, because postgres.js hands
- * back a `bigint` column as a **string** — JS numbers cannot hold the full
- * range, so it declines to guess. Everything downstream then looks right and
- * behaves wrongly in one place: `filed.has(row.id)` asks a `Set<number>` about
- * a string and is always told no, so every already-filed report is filed again.
- * That is not a type error — `FeedbackRow.id` is declared `number` and
- * TypeScript believes the driver — and it survived a green suite into
- * production, where it duplicated the first real report it ever saw
- * (issues #440 and #442 on 2026-09-10).
+ * Ids stay strings, all the way through — see `FeedbackRow.id`. They were
+ * declared `number` while postgres.js was handing back strings, so
+ * `filed.has(row.id)` asked a `Set<number>` about a string and was always told
+ * no; every already-filed report was filed again. TypeScript could not see it,
+ * because the declaration lied about what the driver returns, and it survived a
+ * green suite into production, where it duplicated the first real report this
+ * channel ever received (issues #440 and #442 on 2026-09-10).
  */
 export async function unnotified(sql: Sql, limit: number): Promise<FeedbackRow[]> {
     const rows = await sql<FeedbackRow[]>`
@@ -96,7 +94,7 @@ export async function unnotified(sql: Sql, limit: number): Promise<FeedbackRow[]
         WHERE notified_at IS NULL
         ORDER BY created_at
         LIMIT ${limit}`;
-    return rows.map((row) => ({...row, id: Number(row.id)}));
+    return rows;
 }
 
 /**
@@ -106,8 +104,8 @@ export async function unnotified(sql: Sql, limit: number): Promise<FeedbackRow[]
  * minutes, and the window this closes is a re-run moments after a crash —
  * exactly when search would still be blind.
  */
-export async function alreadyFiled(repo: string, token: string, oldestRow: Date): Promise<Set<number>> {
-    const ids = new Set<number>();
+export async function alreadyFiled(repo: string, token: string, oldestRow: Date): Promise<Set<string>> {
+    const ids = new Set<string>();
 
     // Walk back only as far as the oldest row we are about to consider.
     //
@@ -225,11 +223,11 @@ export function digestFor(rows: readonly FeedbackRow[]): {title: string; body: s
  * Postgres; the end-to-end run caught it, after the issue had been filed and
  * before the row was stamped.
  */
-export async function stamp(sql: Sql, ids: readonly number[], issue: number | null): Promise<void> {
+export async function stamp(sql: Sql, ids: readonly string[], issue: number | null): Promise<void> {
     await sql`
         UPDATE public.feedback
         SET notified_at = now(), github_issue = ${issue}
-        WHERE id = ANY(${sql.array(ids as number[])}::bigint[])`;
+        WHERE id = ANY(${sql.array(ids as string[])}::bigint[])`;
 }
 
 async function main(): Promise<void> {
