@@ -23,6 +23,12 @@ CREATE OR REPLACE FUNCTION public.notify_occurrences_changed()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $$
 BEGIN
+  -- An UPDATE that sets every column to what it already was still fires a
+  -- row trigger. The ingest upserts guard against that themselves, but this
+  -- is the place every writer passes through, so it is the place to be sure.
+  IF TG_OP = 'UPDATE' AND OLD IS NOT DISTINCT FROM NEW THEN
+    RETURN NULL;
+  END IF;
   -- set_config(..., is_local => true) scopes the flag to this transaction, so
   -- the first changed row broadcasts and the rest of the transaction is quiet.
   -- Outside an explicit transaction that is the statement, which is the same

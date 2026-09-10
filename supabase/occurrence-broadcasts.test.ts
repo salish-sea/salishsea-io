@@ -88,6 +88,25 @@ describe.skipIf(!DSN)('occurrences_changed broadcast (local Supabase)', () => {
         expect(n).toBe(0);
     });
 
+    test('an update that leaves every column as it was broadcasts nothing', async () => {
+        // A row trigger fires for such an update all the same; the function has
+        // to notice. Against a seeded row, rolled back, so nothing depends on
+        // the fixture ids above.
+        const n = await rolledBack(sql, async (tx) => {
+            await tx`update maplify.sightings set number_sighted = number_sighted
+                     where id = (select min(id) from maplify.sightings)`;
+            return broadcastsSoFar(tx);
+        });
+        expect(n).toBe(0);
+
+        const changed = await rolledBack(sql, async (tx) => {
+            await tx`update maplify.sightings set number_sighted = number_sighted + 1
+                     where id = (select min(id) from maplify.sightings)`;
+            return broadcastsSoFar(tx);
+        });
+        expect(changed).toBe(1);
+    });
+
     test('the once-only flag is scoped to the transaction', async () => {
         // Two transactions on one connection: the second must broadcast again.
         const first = await rolledBack(sql, async (tx) => {
