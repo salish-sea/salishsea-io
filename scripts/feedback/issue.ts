@@ -9,7 +9,16 @@
 
 /** The columns the notifier reads. `name` and `email` are deliberately absent. */
 export type FeedbackRow = {
-    id: number;
+    /**
+     * The row id, as a string.
+     *
+     * postgres.js hands back a `bigint` as a string because JS numbers cannot
+     * hold the range, and converting would alias distinct ids above 2^53 — two
+     * different reports collapsing onto one, so a marker for either would
+     * exclude the other and lose a report. Nothing here does arithmetic on it;
+     * it is a name, so it stays the shape the database gave us.
+     */
+    id: string;
     /** postgres.js hands back a Date; a fixture may hand back a string. */
     created_at: Date | string;
     message: string;
@@ -88,7 +97,7 @@ export function titleFor(row: FeedbackRow): string {
  * them leaves a filed issue on an unstamped row, and the next run would file it
  * again. Cheaper to recognise our own work than to make the two atomic.
  */
-export const rowMarker = (id: number): string => `<!-- feedback-row:${id} -->`;
+export const rowMarker = (id: string): string => `<!-- feedback-row:${id} -->`;
 
 /**
  * Row ids already filed, read back out of existing issue bodies.
@@ -101,15 +110,15 @@ export const rowMarker = (id: number): string => `<!-- feedback-row:${id} -->`;
  * prevent. The fence stops the marker rendering; it does not stop a regex
  * finding it.
  */
-export function filedRowIds(bodies: readonly (string | null | undefined)[]): Set<number> {
-    const ids = new Set<number>();
+export function filedRowIds(bodies: readonly (string | null | undefined)[]): Set<string> {
+    const ids = new Set<string>();
     for (const body of bodies) {
         // Walk back from the end, taking marker lines until anything else.
         const lines = (body ?? '').trimEnd().split('\n');
         for (let i = lines.length - 1; i >= 0; i--) {
             const match = /^<!-- feedback-row:(\d+) -->$/.exec(lines[i]!.trim());
             if (!match) break;
-            ids.add(Number(match[1]));
+            ids.add(match[1]!);
         }
     }
     return ids;

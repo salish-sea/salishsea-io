@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { fenceFor, filedRowIds, issueForFeedback, rowMarker, submittedAt, titleFor, type FeedbackRow } from './issue.ts';
 
 const row = (over: Partial<FeedbackRow> = {}): FeedbackRow => ({
-    id: 41,
+    id: '41',
     created_at: '2026-09-08T22:11:00Z',
     message: 'Trouble uploading pix for Jpod.',
     page_url: 'https://salishsea.io/',
@@ -73,12 +73,12 @@ describe('what reaches a public issue', () => {
 
 describe('recognising what we already filed', () => {
     test('every issue carries an invisible row marker', () => {
-        expect(issueForFeedback(row({id: 41})).body).toContain('<!-- feedback-row:41 -->');
+        expect(issueForFeedback(row({id: '41'})).body).toContain('<!-- feedback-row:41 -->');
     });
 
     test('markers are read back so a crash between POST and stamp cannot duplicate', () => {
-        const bodies = [issueForFeedback(row({id: 41})).body, issueForFeedback(row({id: 43})).body, null, undefined];
-        expect(filedRowIds(bodies)).toEqual(new Set([41, 43]));
+        const bodies = [issueForFeedback(row({id: '41'})).body, issueForFeedback(row({id: '43'})).body, null, undefined];
+        expect(filedRowIds(bodies)).toEqual(new Set(['41', '43']));
     });
 
     test('a body someone else wrote contributes nothing', () => {
@@ -89,13 +89,13 @@ describe('recognising what we already filed', () => {
         // Otherwise a message containing row 999's marker would make 999 look
         // filed, and the notifier would stamp it without creating its issue —
         // silently losing a real person's report. Only the trailing run counts.
-        const body = issueForFeedback(row({id: 7, message: rowMarker(999)})).body;
-        expect(filedRowIds([body])).toEqual(new Set([7]));
+        const body = issueForFeedback(row({id: '7', message: rowMarker('999')})).body;
+        expect(filedRowIds([body])).toEqual(new Set(['7']));
     });
 
     test('the digest claims every row it covers', () => {
-        const body = ['some digest', rowMarker(1), rowMarker(2), rowMarker(3)].join('\n');
-        expect(filedRowIds([body])).toEqual(new Set([1, 2, 3]));
+        const body = ['some digest', rowMarker('1'), rowMarker('2'), rowMarker('3')].join('\n');
+        expect(filedRowIds([body])).toEqual(new Set(['1', '2', '3']));
     });
 });
 
