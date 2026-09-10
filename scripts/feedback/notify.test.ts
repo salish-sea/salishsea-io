@@ -7,8 +7,10 @@
  * down is how much of that history it has to read — the answer being "back to
  * the oldest report in hand, and no further".
  */
-import { afterEach, describe, expect, test, vi } from 'vitest';
-import { alreadyFiled } from './notify.ts';
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
+import postgres from 'postgres';
+import type { Sql } from 'postgres';
+import { alreadyFiled, stamp, unnotified } from './notify.ts';
 
 const day = (n: number) => new Date(Date.UTC(2026, 0, n)).toISOString();
 const bot = 'github-actions[bot]';
@@ -111,5 +113,73 @@ describe('alreadyFiled', () => {
         const requested = fakeGitHub(endless as Record<number, Issue[]>);
         await alreadyFiled('o/r', 't', new Date(day(1)));
         expect(requested).toHaveLength(20);
+    });
+});
+
+/**
+ * The database half, which mocking `fetch` cannot reach.
+ *
+ * `stamp` shipped broken: `sql.array()` sends a JS number array as `text[]`, so
+ * `id = ANY($1)` against a `bigint` column fails with "operator does not exist:
+ * bigint = text". TypeScript cannot see it, and every test in this file stubbed
+ * the network and never opened a connection — so it reached production, where
+ * it filed a GitHub issue and then failed before stamping the row. These run
+ * the real statements against Postgres, always rolled back.
+ */
+const DSN = process.env['SUPABASE_DB_URL'];
+
+describe.skipIf(!DSN)('stamping rows (local Supabase)', () => {
+    let sql: Sql;
+    beforeAll(() => { sql = postgres(DSN as string, {prepare: false, max: 1}); });
+    afterAll(async () => { await sql.end(); });
+
+    class Rollback extends Error {}
+    const rolledBack = async (fn: (tx: Sql) => Promise<void>) => {
+        await sql.begin(async (tx) => { await fn(tx as unknown as Sql); throw new Rollback(); })
+            .catch((error: unknown) => { if (!(error instanceof Rollback)) throw error; });
+    };
+
+    test('stamps the rows it is given and leaves the rest alone', async () => {
+        await rolledBack(async (tx) => {
+            await tx`DELETE FROM public.feedback`;
+            const rows = await tx<{id: number}[]>`
+                INSERT INTO public.feedback (name, message) VALUES ('a','one'), ('b','two')
+                RETURNING id`;
+            const [first, second] = rows.map((r) => Number(r.id));
+
+            await stamp(tx, [first!], 512);
+
+            const after = await tx<{id: number; notified_at: string | null; github_issue: number | null}[]>`
+                SELECT id, notified_at, github_issue FROM public.feedback ORDER BY id`;
+            expect(after.find((r) => Number(r.id) === first)!.notified_at).not.toBeNull();
+            expect(after.find((r) => Number(r.id) === first)!.github_issue).toBe(512);
+            expect(after.find((r) => Number(r.id) === second)!.notified_at).toBeNull();
+        });
+    });
+
+    test('a stamped row stops being unnotified', async () => {
+        await rolledBack(async (tx) => {
+            await tx`DELETE FROM public.feedback`;
+            const [row] = await tx<{id: number}[]>`
+                INSERT INTO public.feedback (name, message) VALUES ('a','one') RETURNING id`;
+            expect(await unnotified(tx, 10)).toHaveLength(1);
+
+            await stamp(tx, [Number(row!.id)], null);
+
+            // github_issue stays null when an earlier run filed it; the row must
+            // still leave the queue, or it is looked at forever.
+            expect(await unnotified(tx, 10)).toHaveLength(0);
+        });
+    });
+
+    test('stamps many rows in one statement', async () => {
+        await rolledBack(async (tx) => {
+            await tx`DELETE FROM public.feedback`;
+            const rows = await tx<{id: number}[]>`
+                INSERT INTO public.feedback (name, message)
+                VALUES ('a','1'), ('b','2'), ('c','3') RETURNING id`;
+            await stamp(tx, rows.map((r) => Number(r.id)), 900);
+            expect(await unnotified(tx, 10)).toHaveLength(0);
+        });
     });
 });
