@@ -126,6 +126,17 @@ describe('readDraft', () => {
     expect(storage.removed).toEqual(['feedback-draft']);
   });
 
+  test('a future or non-finite timestamp is treated as expired, not as forever', () => {
+    // now - savedAt is negative or NaN for these, and neither is greater than
+    // the TTL — so without the check the draft would be kept indefinitely,
+    // which is the opposite of what the limit is for.
+    for (const savedAt of [Infinity, Number.NaN, 9e15]) {
+      const storage = stubStorage(() => JSON.stringify({message: 'sneaky', savedAt}));
+      expect(draftIsEmpty(readDraft(storage, 1_000))).toBe(true);
+      expect(storage.removed).toEqual(['feedback-draft']);
+    }
+  });
+
   test('a live draft is left where it is', () => {
     const storage = stubStorage(() => JSON.stringify({message: 'recent', savedAt: 1_000}));
     readDraft(storage, 1_000);

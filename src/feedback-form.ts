@@ -43,7 +43,17 @@ export function readDraft(storage: Pick<Storage, 'getItem' | 'removeItem'>, now:
     // that returning it is a privacy cost with no benefit. Delete it rather than
     // merely declining to restore it — a retention limit that leaves the name,
     // the email and the text sitting in localStorage forever is not one.
-    if (typeof savedAt !== 'number' || now - savedAt > DRAFT_TTL_MS) {
+    // Finite, and not in the future. `Infinity` or a future stamp would make
+    // `now - savedAt` negative or NaN, neither of which is greater than the TTL
+    // — so a draft carrying one would be kept forever, which is the opposite of
+    // what the limit is for. A device whose clock jumped forward may lose a
+    // legitimate draft this way; deleting contact details we said we would not
+    // keep is the better error of the two.
+    const stale = typeof savedAt !== 'number'
+        || !Number.isFinite(savedAt)
+        || savedAt > now
+        || now - savedAt > DRAFT_TTL_MS;
+    if (stale) {
         try {
             storage.removeItem(DRAFT_STORAGE_KEY);
         } catch { /* nothing more we can do about it */ }

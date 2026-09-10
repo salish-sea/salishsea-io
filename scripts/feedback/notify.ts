@@ -81,8 +81,19 @@ export async function unnotified(sql: Sql, limit: number): Promise<FeedbackRow[]
  * exactly when search would still be blind.
  */
 async function alreadyFiled(repo: string, token: string): Promise<Set<number>> {
+    // Newest first, explicitly, and one page.
+    //
+    // The only issues this needs to recognise are the ones a *previous run of
+    // this script* filed moments before it died — and those are, by
+    // construction, the newest feedback issues there are. Paginating the whole
+    // history would grow without bound for no benefit, so the sort is pinned
+    // rather than left to GitHub's default. The single case that could outrun
+    // one page is 100 feedback issues created between a crash and the retry
+    // fifteen minutes later, and that cannot happen: past DIGEST_THRESHOLD a
+    // run files one issue, not a hundred.
     const response = await fetch(
-        `https://api.github.com/repos/${repo}/issues?labels=feedback&state=all&per_page=100`,
+        `https://api.github.com/repos/${repo}/issues`
+            + `?labels=feedback&state=all&per_page=100&sort=created&direction=desc`,
         {headers: githubHeaders(token), signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS)},
     );
     if (!response.ok) {
