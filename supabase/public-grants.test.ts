@@ -45,53 +45,69 @@ describe.skipIf(!DSN)('public write grants (local Supabase)', () => {
         ORDER BY table_name, privilege_type`;
 
     /**
-     * Which tables a role can write *any* column of.
+     * What a role can *effectively* do — the only question that matters.
      *
-     * `column_privileges` rather than `table_privileges`, because the latter
-     * does not report a column-level grant at all — so `GRANT UPDATE (x) ON
-     * some_table TO anon` is invisible to it while being exactly the kind of
-     * thing this file exists to catch. A table-level grant shows up here too,
-     * as one row per column, so grouping by table gives one comparable answer
-     * for both shapes.
+     * `has_table_privilege` / `has_column_privilege` answer it the way Postgres
+     * does at query time: they account for a grant to PUBLIC, for privileges
+     * inherited through role membership, and for a column-level grant standing
+     * in for a table-level one. The catalogue views do none of that.
+     * `information_schema.table_privileges` misses column grants entirely, and
+     * both it and `column_privileges` record a grant to PUBLIC under the
+     * grantee 'PUBLIC' — so a `GRANT UPDATE ON t TO PUBLIC` is invisible to a
+     * query filtering on 'anon' while being fully effective for anon.
      */
-    const writableTables = async (role: string) => {
-        const rows = await sql<{table_name: string}[]>`
-            SELECT DISTINCT table_name FROM information_schema.column_privileges
-            WHERE table_schema = 'public' AND grantee = ${role}
-              AND privilege_type IN ('INSERT', 'UPDATE', 'DELETE', 'REFERENCES')
-            ORDER BY table_name`;
-        return rows.map((r) => r.table_name);
+    const effectiveTableWrites = async (role: string) => {
+        const rows = await sql<{relname: string; priv: string}[]>`
+            SELECT c.relname, p.priv
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+            CROSS JOIN unnest(ARRAY['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) AS p(priv)
+            WHERE c.relkind IN ('r','p','v','m')
+              AND has_table_privilege(${role}, c.oid, p.priv)
+            ORDER BY c.relname, p.priv`;
+        return rows.map((r) => `${r.relname} ${r.priv}`);
     };
 
-    test('anon may write no table but feedback, and only its seven columns', async () => {
-        expect(await writableTables('anon')).toEqual(['feedback']);
+    /** Tables a role can write at least one column of, however the grant was made. */
+    const effectivelyWritableTables = async (role: string) => {
+        const rows = await sql<{relname: string}[]>`
+            SELECT DISTINCT c.relname
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+            JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+            CROSS JOIN unnest(ARRAY['INSERT','UPDATE','REFERENCES']) AS p(priv)
+            WHERE c.relkind IN ('r','p','v','m')
+              AND has_column_privilege(${role}, c.oid, a.attnum, p.priv)
+            ORDER BY c.relname`;
+        return rows.map((r) => r.relname);
+    };
 
-        const columns = await sql<{column_name: string}[]>`
-            SELECT column_name FROM information_schema.column_privileges
-            WHERE table_schema = 'public' AND table_name = 'feedback' AND grantee = 'anon'
-            ORDER BY column_name`;
+    test('anon holds no table-level write on anything', async () => {
+        expect(await effectiveTableWrites('anon')).toEqual([]);
+    });
+
+    test('anon can write columns of feedback and nothing else', async () => {
+        expect(await effectivelyWritableTables('anon')).toEqual(['feedback']);
+
+        const rows = await sql<{attname: string}[]>`
+            SELECT a.attname FROM pg_attribute a
+            WHERE a.attrelid = 'public.feedback'::regclass AND a.attnum > 0 AND NOT a.attisdropped
+              AND has_column_privilege('anon', a.attrelid, a.attnum, 'INSERT')
+            ORDER BY a.attname`;
         // Not notified_at, and not github_issue: a client that can write either
-        // can file a report that the notifier will never look at.
-        expect(columns.map((c) => c.column_name)).toEqual(FEEDBACK_COLUMNS);
+        // can file a report the notifier will never look at.
+        expect(rows.map((r) => r.attname)).toEqual(FEEDBACK_COLUMNS);
     });
 
-    test('authenticated may write no table but feedback and the two sighting tables', async () => {
-        expect(await writableTables('authenticated'))
-            .toEqual(['feedback', ...WRITABLE_BY_CONTRIBUTORS].sort());
-    });
-
-    test('anon may not write anything, anywhere', async () => {
-        // `feedback` is the one thing anon writes, and it does so through a
-        // COLUMN-level grant, which is deliberately not a table privilege — so
-        // this list being empty is the whole truth, not a near-miss.
-        expect(await writeGrants('anon')).toEqual([]);
-    });
-
-    test('authenticated may write only the two tables the sighting form touches', async () => {
-        const rows = await writeGrants('authenticated');
+    test('authenticated holds table-level writes on the two sighting tables only', async () => {
         const expected = WRITABLE_BY_CONTRIBUTORS.flatMap((table) =>
-            CONTRIBUTOR_WRITES.map((privilege) => `${table} ${privilege}`));
-        expect(rows.map((r) => `${r.table_name} ${r.privilege_type}`)).toEqual(expected);
+            CONTRIBUTOR_WRITES.map((privilege) => `${table} ${privilege}`)).sort();
+        expect(await effectiveTableWrites('authenticated')).toEqual(expected);
+    });
+
+    test('authenticated can write columns of those two and feedback, nothing else', async () => {
+        expect(await effectivelyWritableTables('authenticated'))
+            .toEqual(['feedback', ...WRITABLE_BY_CONTRIBUTORS].sort());
     });
 
     test('a signed-in contributor can create, edit and delete a sighting, photos and all', async () => {
@@ -146,13 +162,14 @@ describe.skipIf(!DSN)('public write grants (local Supabase)', () => {
     });
 
     test('contributor_email_addresses is readable by nobody, by any grant shape', async () => {
-        // Column-level too: a `GRANT SELECT (address)` would not appear in
-        // table_privileges, and one column of an email list is the whole point
-        // of the list.
-        const rows = await sql`
-            SELECT privilege_type FROM information_schema.column_privileges
-            WHERE table_schema = 'public' AND table_name = 'contributor_email_addresses'
-              AND grantee IN ('anon', 'authenticated')`;
-        expect(rows).toEqual([]);
+        for (const role of ['anon', 'authenticated']) {
+            const rows = await sql<{attname: string}[]>`
+                SELECT a.attname FROM pg_attribute a
+                WHERE a.attrelid = 'public.contributor_email_addresses'::regclass
+                  AND a.attnum > 0 AND NOT a.attisdropped
+                  AND has_column_privilege(${role}, a.attrelid, a.attnum, 'SELECT')
+                ORDER BY a.attname`;
+            expect(rows.map((r) => r.attname), `${role} can read a column of it`).toEqual([]);
+        }
     });
 });
