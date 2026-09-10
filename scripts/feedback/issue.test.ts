@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { fenceFor, issueForFeedback, submittedAt, titleFor, type FeedbackRow } from './issue.ts';
+import { fenceFor, filedRowIds, issueForFeedback, rowMarker, submittedAt, titleFor, type FeedbackRow } from './issue.ts';
 
 const row = (over: Partial<FeedbackRow> = {}): FeedbackRow => ({
     id: 41,
@@ -47,16 +47,52 @@ describe('what reaches a public issue', () => {
         expect(issueForFeedback(row({signed_in: false})).body).toContain('was not signed in');
     });
 
+    test('fences what the browser reported too, not just the message', () => {
+        // page_url, user_agent and release are arguments to a public RPC, so
+        // they are exactly as untrusted as the message. Rendered as bullets, a
+        // crafted user_agent could mention people or embed an image.
+        const {body} = issueForFeedback(row({user_agent: 'Mozilla/5.0 @octocat ![x](http://e/y.png)'}));
+        const fenced = body.slice(body.indexOf('Reported by their browser:'));
+        expect(fenced).toMatch(/```[\s\S]*Browser: Mozilla\/5\.0 @octocat !\[x\]\(http:\/\/e\/y\.png\)[\s\S]*```/);
+        // Not a markdown bullet, which would have rendered both.
+        expect(body).not.toContain('- Browser:');
+    });
+
     test('carries the context nobody could be asked for', () => {
         const {body} = issueForFeedback(row());
         expect(body).toContain('iPhone OS 18_6');
-        expect(body).toContain('- Release: dfcb299');
+        expect(body).toContain('Release: dfcb299');
     });
 
     test('omits context lines it does not have, rather than printing null', () => {
         const {body} = issueForFeedback(row({page_url: null, user_agent: null, release: null}));
         expect(body).not.toContain('null');
         expect(body).not.toContain('- Page:');
+    });
+});
+
+describe('recognising what we already filed', () => {
+    test('every issue carries an invisible row marker', () => {
+        expect(issueForFeedback(row({id: 41})).body).toContain('<!-- feedback-row:41 -->');
+    });
+
+    test('markers are read back so a crash between POST and stamp cannot duplicate', () => {
+        const bodies = [issueForFeedback(row({id: 41})).body, issueForFeedback(row({id: 43})).body, null, undefined];
+        expect(filedRowIds(bodies)).toEqual(new Set([41, 43]));
+    });
+
+    test('a body someone else wrote contributes nothing', () => {
+        expect(filedRowIds(['just a normal issue', ''])).toEqual(new Set());
+    });
+
+    test('a report that quotes a marker cannot forge one, because it is fenced', () => {
+        // The marker is real markup only outside the fence; inside, it is text.
+        const body = issueForFeedback(row({id: 7, message: rowMarker(999)})).body;
+        expect(filedRowIds([body])).toEqual(new Set([999, 7]));
+        // Both are found by a plain regex, so the notifier must not treat a
+        // match as proof on its own — it only ever skips rows it is looking at,
+        // and the worst case is one report needing a manual look. Pinned here
+        // so the limitation is on the record rather than a surprise.
     });
 });
 

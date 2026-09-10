@@ -14,12 +14,15 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const rpc = vi.hoisted(() => ({
   calls: [] as {fn: string; args: Record<string, unknown>}[],
   error: null as unknown,
+  /** Set to hold a request open, so a test decides when it lands. */
+  gate: null as Promise<void> | null,
 }));
 
 vi.mock('./supabase.ts', () => ({
   supabase: () => ({
     rpc: async (fn: string, args: Record<string, unknown>) => {
       rpc.calls.push({fn, args});
+      if (rpc.gate) await rpc.gate;
       return {data: null, error: rpc.error};
     },
   }),
@@ -61,6 +64,7 @@ let el: Form;
 beforeEach(async () => {
   rpc.calls = [];
   rpc.error = null;
+  rpc.gate = null;
   localStorage.clear();
   el = document.createElement('feedback-form') as unknown as Form;
   document.body.appendChild(el);
@@ -171,6 +175,32 @@ describe('sending', () => {
 
     expect(rpc.calls).toHaveLength(2);
     expect(draftIsEmpty(readDraft(localStorage))).toBe(true);
+  });
+
+  test('keeps words typed while the send was in flight', async () => {
+    // The fields stay editable during a slow request, which is the case this
+    // component is built for. Clearing on success would delete additions that
+    // were never sent — the same loss, in a quieter disguise.
+    let land!: () => void;
+    rpc.gate = new Promise<void>((resolve) => { land = resolve; });
+
+    el.open();
+    await typeInto(el, 'input', 'Scott');
+    await typeInto(el, 'textarea', 'first half');
+    (el.shadowRoot.querySelector('.send') as HTMLButtonElement).click();
+    await el.updateComplete;
+
+    await typeInto(el, 'textarea', 'first half and second half');
+    land();
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+
+    expect(readDraft(localStorage).message).toBe('first half and second half');
+    expect((el.shadowRoot.querySelector('textarea') as HTMLTextAreaElement).value)
+      .toBe('first half and second half');
+    // And it did not claim to be sent, because what they can see is not what
+    // arrived.
+    expect(el.shadowRoot.textContent).not.toContain('that reached us');
   });
 
   test('refuses to send an empty report', async () => {

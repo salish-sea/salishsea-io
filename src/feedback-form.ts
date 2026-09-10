@@ -227,10 +227,14 @@ export default class FeedbackForm extends LitElement {
   private async send(): Promise<void> {
     if (!this.canSend) return;
     this.status = 'sending';
+    // What we are actually sending. The fields stay editable while the request
+    // is in flight, and on a slow connection — the case this whole component is
+    // built for — someone will carry on typing.
+    const sent = this.draft;
     const {error} = await supabase().rpc('submit_feedback', {
-      name: this.draft.name,
-      email: this.draft.email,
-      message: this.draft.message,
+      name: sent.name,
+      email: sent.email,
+      message: sent.message,
       page_url: location.href,
       user_agent: navigator.userAgent,
       release: __RELEASE__,
@@ -240,6 +244,13 @@ export default class FeedbackForm extends LitElement {
       // Keep the draft. The report is the valuable thing here, and the whole
       // reason this component exists is that the last one was thrown away.
       this.status = 'failed';
+      return;
+    }
+    if (this.draft !== sent) {
+      // They kept writing while that was in flight. What arrived is the older
+      // version, so clearing now would delete words never sent — the same loss
+      // in a quieter disguise. Keep the newer draft and let them send it.
+      this.status = 'editing';
       return;
     }
     this.#clearDraft();

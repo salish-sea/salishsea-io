@@ -46,6 +46,12 @@ The second is the one that matters, and the one the old widget got wrong: the se
 
 **Keep a copy-to-clipboard escape on failure.** Considered and deferred. Worth revisiting if sends still fail once they no longer depend on a blockable host; until then it is UI for a case that should now be rare.
 
+**Everything the client sent is fenced, not just the message.** `page_url`, `user_agent` and `release` are arguments to the same public RPC, so they are exactly as untrusted as the message is; rendered as markdown bullets, a crafted `user_agent` could mention people or embed an image just as well as a crafted message could.
+
+**A flood becomes one issue, not hundreds.** The submit endpoint is open to anonymous callers by design — asking someone to sign in before they can say the site is broken defeats the point — so nothing stops a script filling the table. Above eight unnotified rows in a run the notifier files a single digest naming the row ids and quoting none of them, and stamps them all. That bounds an attack at one issue per run, and it is also the better outcome for an honest burst: when a bad deploy makes twenty people write in, one issue listing twenty reports is what you want to read. Nothing is discarded either way; every report is in the table in full.
+
+**Each issue carries an invisible row marker**, and the notifier reads existing issues back before filing. The GitHub POST and the `notified_at` stamp are two operations, so a runner killed between them would otherwise leave a filed issue on an unstamped row and duplicate it on the next run. Listing by label rather than searching, because GitHub's search index lags by minutes — exactly the window this closes.
+
 ## Consequences
 
 A person who types their own email address *into the message* will see it published, since only the `email` column is withheld. The form's note is the disclosure; redacting address-shaped strings from the body was considered and left alone rather than guessing at what is safe to mangle.

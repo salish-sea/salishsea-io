@@ -79,16 +79,48 @@ export function titleFor(row: FeedbackRow): string {
  * client can read; the row id is here so they can be looked up by someone with
  * database access when a reply is warranted.
  */
+/**
+ * The marker that says which row an issue came from.
+ *
+ * An HTML comment, so it renders as nothing, and machine-readable, so the
+ * notifier can tell what it has already filed. That matters because the GitHub
+ * POST and the `notified_at` stamp are two operations: a runner killed between
+ * them leaves a filed issue on an unstamped row, and the next run would file it
+ * again. Cheaper to recognise our own work than to make the two atomic.
+ */
+export const rowMarker = (id: number): string => `<!-- feedback-row:${id} -->`;
+
+/** Row ids already filed, read back out of existing issue bodies. */
+export function filedRowIds(bodies: readonly (string | null | undefined)[]): Set<number> {
+    const ids = new Set<number>();
+    for (const body of bodies) {
+        for (const [, id] of (body ?? '').matchAll(/<!-- feedback-row:(\d+) -->/g))
+            ids.add(Number(id));
+    }
+    return ids;
+}
+
 export function issueForFeedback(row: FeedbackRow): Issue {
     const fence = fenceFor(row.message);
-    const context = [
+
+    // Everything the client sent goes inside a fence, not just the message.
+    // page_url, user_agent and release are all arguments to a public RPC, so
+    // they are exactly as untrusted as the message is — rendered as markdown
+    // bullets, a crafted user_agent could mention people or embed an image just
+    // as well as a crafted message could.
+    const reported = [
+        row.page_url ? `Page:    ${row.page_url}` : null,
+        row.user_agent ? `Browser: ${row.user_agent}` : null,
+        row.release ? `Release: ${row.release}` : null,
+    ].filter((line): line is string => line !== null).join('\n');
+    const reportedFence = fenceFor(reported);
+
+    // Ours, and safe to render: we wrote every character of these.
+    const ours = [
         `- Submitted: ${submittedAt(row.created_at)}`,
         `- From: ${row.signed_in ? 'a signed-in contributor' : 'a visitor who was not signed in'}`,
-        row.page_url ? `- Page: ${row.page_url}` : null,
-        row.user_agent ? `- Browser: ${row.user_agent}` : null,
-        row.release ? `- Release: ${row.release}` : null,
         `- Contact details: \`feedback\` row ${row.id} (not published here)`,
-    ].filter((line): line is string => line !== null);
+    ];
 
     return {
         title: titleFor(row),
@@ -99,9 +131,11 @@ export function issueForFeedback(row: FeedbackRow): Issue {
             row.message,
             `${fence}`,
             '',
-            ...context,
+            ...ours,
+            ...(reported ? ['', 'Reported by their browser:', reportedFence, reported, reportedFence] : []),
             '',
             'Their name and email address are in the database, not in this issue. 🤖',
+            rowMarker(row.id),
         ].join('\n'),
     };
 }
