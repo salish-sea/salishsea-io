@@ -50,6 +50,24 @@ describe('reportError', () => {
     expect(captureException.mock.calls[0]![0]).toBeInstanceOf(Error);
   });
 
+  it('wraps a cause that is not an Error, so Sentry shows the sentence rather than [object Foo]', () => {
+    const el = document.createElement('div');
+    const cause = {code: 2, message: 'Position unavailable'};
+    reportError(el, "Couldn't place your marker", {cause});
+    const captured = captureException.mock.calls[0]![0] as Error;
+    expect(captured).toBeInstanceOf(Error);
+    expect(captured.message).toBe("Couldn't place your marker");
+    expect(captured.cause).toBe(cause);
+  });
+
+  it('with capture off, tells the user and not Sentry', () => {
+    const el = document.createElement('div');
+    const seen = listenOn(el);
+    reportError(el, "Couldn't show your location", {cause: {code: 1}, capture: false});
+    expect(seen).toEqual([{message: "Couldn't show your location", persist: false}]);
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
   it('passes persist through for conditions that outlive the toast', () => {
     const el = document.createElement('div');
     const seen = listenOn(el);

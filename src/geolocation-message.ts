@@ -12,6 +12,21 @@
  * `action` completes "Couldn't …" — a verb phrase naming what the click was
  * going to do, e.g. `'show your location'`.
  */
+/**
+ * Whether a geolocation failure is ours to count.
+ *
+ * PERMISSION_DENIED is a choice the visitor is entitled to make: the browser
+ * asked, they said no, and the toast tells them so. That is the feature
+ * working, and a Sentry issue about it is one nobody can act on (it was
+ * SALISHSEA-IO-3H, bd salish-ogb). POSITION_UNAVAILABLE and TIMEOUT are the
+ * device failing — not defects either, but a device with no fix, or the 5s
+ * timeout the report form chose, can point at something real, so they stay
+ * counted. Decision 031 records the exception.
+ */
+export function geolocationErrorIsReportable(error: {code: number}): boolean {
+  return error.code !== 1;
+}
+
 export function geolocationMessage(error: {code: number}, action: string): string {
   // Spelled out rather than read off the `GeolocationPositionError` global:
   // jsdom doesn't implement the Geolocation API, so the global isn't there to
