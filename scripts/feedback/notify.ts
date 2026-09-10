@@ -49,6 +49,15 @@ const ADVISORY_LOCK_KEY = 8_390_217_004_113_705;
  */
 const GITHUB_TIMEOUT_MS = 30_000;
 
+/**
+ * Who files these issues — `secrets.GITHUB_TOKEN` posts as this.
+ *
+ * If the workflow ever authenticates as something else, alreadyFiled() stops
+ * recognising its own work and the worst case is a duplicated issue, never a
+ * swallowed report. That is the right way round for this to break.
+ */
+const WORKFLOW_AUTHOR = 'github-actions[bot]';
+
 function maskDsn(error: unknown): string {
     const text = error instanceof Error ? error.message : String(error);
     return text.replace(/postgres(?:ql)?:\/\/[^\s]*/gi, 'postgres://<redacted>');
@@ -82,8 +91,15 @@ async function alreadyFiled(repo: string, token: string): Promise<Set<number>> {
         // next run try: the rows stay unstamped and nothing is lost.
         throw new Error(`Could not list existing feedback issues: ${response.status}`);
     }
-    const issues = await response.json() as {body: string | null}[];
-    return filedRowIds(issues.map((issue) => issue.body));
+    const issues = await response.json() as {body: string | null; user: {login: string} | null}[];
+    // Only markers in issues WE wrote count. The label is applied by hand as
+    // often as by us — a maintainer triaging a user's issue as `feedback` is
+    // the ordinary case — and a body ending in a marker would then let that
+    // issue claim a row, so the row would be stamped with nothing filed for it.
+    // Getting this wrong in the other direction merely risks a duplicate, which
+    // is the failure worth having.
+    const ours = issues.filter((issue) => issue.user?.login === WORKFLOW_AUTHOR);
+    return filedRowIds(ours.map((issue) => issue.body));
 }
 
 function githubHeaders(token: string): Record<string, string> {

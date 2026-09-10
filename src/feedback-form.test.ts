@@ -75,27 +75,33 @@ afterEach(() => {
   document.body.querySelectorAll('feedback-form').forEach((node) => node.remove());
 });
 
+/** A storage stub that records what was deleted. */
+const stubStorage = (getItem: () => string | null) => {
+  const removed: string[] = [];
+  return {removed, getItem, removeItem: (key: string) => { removed.push(key); }};
+};
+
 describe('readDraft', () => {
   test('an absent draft is empty, not a crash', () => {
-    expect(draftIsEmpty(readDraft({getItem: () => null}))).toBe(true);
+    expect(draftIsEmpty(readDraft(stubStorage(() => null)))).toBe(true);
   });
 
   test('a storage that throws is empty, not a crash', () => {
     // Safari in private mode. A person cannot be stopped from typing because
     // we could not read a draft that was never there.
-    expect(draftIsEmpty(readDraft({getItem: () => { throw new Error('denied'); }}))).toBe(true);
+    expect(draftIsEmpty(readDraft(stubStorage(() => { throw new Error('denied'); })))).toBe(true);
   });
 
   test('junk in localStorage is empty, not a crash', () => {
-    expect(draftIsEmpty(readDraft({getItem: () => 'not json'}))).toBe(true);
-    expect(draftIsEmpty(readDraft({getItem: () => '"a string"'}))).toBe(true);
-    expect(draftIsEmpty(readDraft({getItem: () => 'null'}))).toBe(true);
-    expect(readDraft({getItem: () => '{"message": 42}'}).message).toBe('');
+    expect(draftIsEmpty(readDraft(stubStorage(() => 'not json')))).toBe(true);
+    expect(draftIsEmpty(readDraft(stubStorage(() => '"a string"')))).toBe(true);
+    expect(draftIsEmpty(readDraft(stubStorage(() => 'null')))).toBe(true);
+    expect(readDraft(stubStorage(() => '{"message": 42}')).message).toBe('');
   });
 
   test('a partial draft keeps what it has', () => {
     const fresh = JSON.stringify({message: 'half a thought', savedAt: 1_000});
-    expect(readDraft({getItem: () => fresh}, 1_000))
+    expect(readDraft(stubStorage(() => fresh), 1_000))
       .toEqual({name: '', email: '', message: 'half a thought'});
   });
 
@@ -104,12 +110,26 @@ describe('readDraft', () => {
     // device that may be shared. A forgotten half-sentence should not outlive
     // anyone's interest in it.
     const old = JSON.stringify({message: 'from ages ago', savedAt: 0});
-    expect(draftIsEmpty(readDraft({getItem: () => old}, DRAFT_TTL_MS + 1))).toBe(true);
-    expect(readDraft({getItem: () => old}, DRAFT_TTL_MS - 1).message).toBe('from ages ago');
+    expect(draftIsEmpty(readDraft(stubStorage(() => old), DRAFT_TTL_MS + 1))).toBe(true);
+    expect(readDraft(stubStorage(() => old), DRAFT_TTL_MS - 1).message).toBe('from ages ago');
   });
 
   test('a draft with no timestamp is dropped rather than kept forever', () => {
-    expect(draftIsEmpty(readDraft({getItem: () => '{"message":"unstamped"}'}))).toBe(true);
+    expect(draftIsEmpty(readDraft(stubStorage(() => '{"message":"unstamped"}')))).toBe(true);
+  });
+
+  test('an expired draft is DELETED, not merely ignored', () => {
+    // A retention limit that leaves the name, the email and the text sitting in
+    // localStorage forever is not a retention limit.
+    const storage = stubStorage(() => JSON.stringify({message: 'from ages ago', savedAt: 0}));
+    readDraft(storage, DRAFT_TTL_MS + 1);
+    expect(storage.removed).toEqual(['feedback-draft']);
+  });
+
+  test('a live draft is left where it is', () => {
+    const storage = stubStorage(() => JSON.stringify({message: 'recent', savedAt: 1_000}));
+    readDraft(storage, 1_000);
+    expect(storage.removed).toEqual([]);
   });
 });
 
@@ -175,6 +195,27 @@ describe('sending', () => {
     expect(el.shadowRoot.querySelector('.failed')?.textContent).toContain('saved on this device');
     // Still on screen and still editable — a retry costs nothing.
     expect((el.shadowRoot.querySelector('textarea') as HTMLTextAreaElement).value).toBe('Trouble uploading pix');
+  });
+
+  test('does not promise the words are saved when the browser refused to save them', async () => {
+    // Private mode and a full disk both throw on setItem. Telling someone their
+    // draft is safe at the exact moment they are deciding whether they can
+    // close the tab is the worst possible time to be wrong.
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); };
+    try {
+      rpc.error = {message: 'Failed to fetch'};
+      el.open();
+      await typeInto(el, 'input', 'Scott');
+      await typeInto(el, 'textarea', 'something broke');
+      await send(el);
+
+      const failed = el.shadowRoot.querySelector('.failed')!.textContent!;
+      expect(failed).toContain("won't let us save a draft");
+      expect(failed).not.toContain('saved on this device');
+    } finally {
+      Storage.prototype.setItem = setItem;
+    }
   });
 
   test('a retry after a failure succeeds and clears the draft', async () => {

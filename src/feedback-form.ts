@@ -27,7 +27,7 @@ export const DRAFT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
  * can edit it — so treat whatever comes back as untrusted and fall back to an
  * empty draft rather than throwing on the way to rendering a form.
  */
-export function readDraft(storage: Pick<Storage, 'getItem'>, now: number = Date.now()): Draft {
+export function readDraft(storage: Pick<Storage, 'getItem' | 'removeItem'>, now: number = Date.now()): Draft {
   let raw: string | null;
   try {
     raw = storage.getItem(DRAFT_STORAGE_KEY);
@@ -40,8 +40,15 @@ export function readDraft(storage: Pick<Storage, 'getItem'>, now: number = Date.
     if (typeof parsed !== 'object' || parsed === null) return EMPTY;
     const {name, email, message, savedAt} = parsed as Partial<Draft> & {savedAt?: unknown};
     // Expired, or from a version that did not stamp one: either way, old enough
-    // that returning it is a privacy cost with no benefit.
-    if (typeof savedAt !== 'number' || now - savedAt > DRAFT_TTL_MS) return EMPTY;
+    // that returning it is a privacy cost with no benefit. Delete it rather than
+    // merely declining to restore it — a retention limit that leaves the name,
+    // the email and the text sitting in localStorage forever is not one.
+    if (typeof savedAt !== 'number' || now - savedAt > DRAFT_TTL_MS) {
+        try {
+            storage.removeItem(DRAFT_STORAGE_KEY);
+        } catch { /* nothing more we can do about it */ }
+        return EMPTY;
+    }
     return {
       name: typeof name === 'string' ? name : '',
       email: typeof email === 'string' ? email : '',
@@ -192,6 +199,14 @@ export default class FeedbackForm extends LitElement {
 
   @state() private draft: Draft = EMPTY;
   @state() private status: 'editing' | 'sending' | 'failed' | 'sent' = 'editing';
+  /**
+   * Whether the last save actually stuck.
+   *
+   * Private mode and a full disk both throw, and in that case the reassurance
+   * below — "your words are saved on this device" — is a lie told at the exact
+   * moment someone is deciding whether it is safe to close the tab.
+   */
+  @state() private draftIsDurable = true;
 
   #dialogRef: Ref<HTMLDialogElement> = createRef();
 
@@ -213,7 +228,10 @@ export default class FeedbackForm extends LitElement {
     // A full disk, or Safari's private mode, must not stop someone typing.
     try {
       localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({...this.draft, savedAt: Date.now()}));
-    } catch { /* the draft simply is not durable here */ }
+      this.draftIsDurable = true;
+    } catch {
+      this.draftIsDurable = false;
+    }
     if (this.status === 'failed') this.status = 'editing';
   }
 
@@ -302,11 +320,14 @@ export default class FeedbackForm extends LitElement {
     return html`
       ${this.status === 'failed' ? html`
         <p class="failed" role="alert">
-          That didn't send — you may be offline. Your words are saved on this device,
-          so you can close this and try again later without retyping them.
+          ${this.draftIsDurable
+            ? html`That didn't send — you may be offline. Your words are saved on this device,
+                   so you can close this and try again later without retyping them.`
+            : html`That didn't send, and this browser won't let us save a draft — so keep this
+                   open, or copy your words somewhere, before you try again.`}
         </p>
       ` : nothing}
-      ${this.status === 'failed' ? nothing : html`
+      ${this.status === 'failed' || !this.draftIsDurable ? nothing : html`
         <p class="note">
           What you type is kept on this device until it sends, so you can finish it later.
         </p>
