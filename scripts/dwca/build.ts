@@ -30,9 +30,12 @@ import * as path from 'node:path';
 
 import { OCCURRENCE_FIELDS, MULTIMEDIA_FIELDS } from './fields.ts';
 import {
+    assertBranchCoverage,
     assertFieldAlignment,
     assertNonZeroRows,
     assertNoZeroByteFile,
+    describeCoverage,
+    type BranchCoverage,
     type PgColumn,
 } from './assertions.ts';
 import { buildMetaXml } from './meta-xml.ts';
@@ -70,6 +73,31 @@ const TAB_COLLAPSE_COLS: ReadonlySet<string> = new Set([
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** DuckDB hands Postgres bigints back as bigint; be tolerant of anything else. */
+function toBigInt(value: unknown): bigint {
+    return typeof value === 'bigint' ? value : BigInt(value as number | string);
+}
+
+/**
+ * One `dwc.export_coverage` row → `BranchCoverage`. The fixed columns are
+ * named; every other non-NULL column is a join the branch has and a count of
+ * rows that failed it, so a join added to a view and to the coverage view
+ * shows up in the log without touching this file.
+ */
+function rowToBranchCoverage(row: Record<string, unknown>): BranchCoverage {
+    const droppedBy: Record<string, bigint> = {};
+    for (const [column, value] of Object.entries(row)) {
+        if (['branch', 'source_rows', 'exported_rows'].includes(column) || value === null) continue;
+        droppedBy[column] = toBigInt(value);
+    }
+    return {
+        branch: String(row['branch']),
+        sourceRows: toBigInt(row['source_rows']),
+        exportedRows: toBigInt(row['exported_rows']),
+        droppedBy,
+    };
+}
 
 /**
  * Build the SELECT projection clause for a tab-delimited COPY. Columns in
@@ -188,6 +216,18 @@ export async function main(): Promise<void> {
         // empty multimedia — it can legitimately be empty in some local
         // states.
         const occCount = await assertNonZeroRows(conn, 'pgdb.dwc.occurrences');
+
+        // Step 8b: Per-branch coverage. The non-zero guard above cannot see one
+        // of the two UNION branches going dark while the other still has rows,
+        // and the views' inner joins drop unresolvable rows without a word
+        // (salish-lv0). Log what each branch admitted, exported and dropped per
+        // join; fail only when a branch exported nothing it had rows for.
+        const coverageReader = await conn.runAndReadAll(
+            'SELECT * FROM pgdb.dwc.export_coverage',
+        );
+        const coverage = coverageReader.getRowObjects().map(rowToBranchCoverage);
+        for (const line of describeCoverage(coverage)) console.log(line);
+        assertBranchCoverage(coverage);
 
         // Step 9: COPY occurrence.txt — tab-delimited, UTF-8, no quoting,
         // tab-collapse on the five user-content columns per §R5.
