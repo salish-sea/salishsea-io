@@ -36,6 +36,9 @@ const MAX_PER_RUN = 50;
  */
 const DIGEST_THRESHOLD = 8;
 
+/** Arbitrary but fixed; only this script uses it. See main() for why. */
+const ADVISORY_LOCK_KEY = 8_390_217_004_113_705;
+
 function maskDsn(error: unknown): string {
     const text = error instanceof Error ? error.message : String(error);
     return text.replace(/postgres(?:ql)?:\/\/[^\s]*/gi, 'postgres://<redacted>');
@@ -145,6 +148,22 @@ async function main(): Promise<void> {
 
     const sql = postgres(dsn, {prepare: false, max: 1});
     try {
+        // Only one notifier at a time, enforced where it actually matters.
+        //
+        // The workflow's concurrency group stops two *scheduled* runs
+        // overlapping, but not a scheduled run and someone running this by hand
+        // — and two runs would read the same unstamped rows, both find nothing
+        // in alreadyFiled(), and file everything twice. A session-level advisory
+        // lock covers every caller, and it needs no cleanup: it is released when
+        // the connection closes, including when a runner is killed outright, so
+        // a crash cannot strand the lock and block every later run.
+        const [lock] = await sql<{acquired: boolean}[]>`
+            SELECT pg_try_advisory_lock(${ADVISORY_LOCK_KEY}) AS acquired`;
+        if (!lock!.acquired) {
+            console.log('[feedback] another notifier holds the lock; leaving these rows to it');
+            return;
+        }
+
         const claimed = await unnotified(sql, MAX_PER_RUN);
         if (claimed.length === 0) {
             console.log('[feedback] nothing new');
