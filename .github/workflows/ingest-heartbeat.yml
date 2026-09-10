@@ -4,9 +4,15 @@ name: Ingest Heartbeat
 # (salish-89d.4 / decision 012). pg_cron can't watch itself die — the
 # 2026-07-06 pg_net gap failed prod ingest silently — so this runs OUTSIDE the
 # database: a scheduled check of ingest.runs that files a GitHub issue when no
-# successful run is fresh enough, or a run is stuck mid-flight. GitHub's cron
-# is best-effort (often 10-30 min late); that lateness only delays detection,
-# never falsifies it, because staleness is measured against the DB clock.
+# successful run is fresh enough, a run is stuck mid-flight, or successful runs
+# had a hole in them within the last day. GitHub's cron is best-effort — far
+# more so than "a little late": measured over 2026-08-23 → 09-10, checks were a
+# median 68 minutes apart and up to 12.5 hours, against the 30 requested. That
+# is why the third check exists: freshness is measured against the DB clock,
+# so lateness cannot make a live outage look healthy, but a transient outage
+# that healed between two checks was invisible to it (salish-oyf). The gap
+# check reads the worst interval between successes over a window longer than
+# the longest observed silence, so what it sees does not depend on when it runs.
 
 on:
     schedule:
@@ -78,6 +84,42 @@ jobs:
 
             - name: Check ingest heartbeat
               run: pnpm exec tsx scripts/ingest/heartbeat.ts
+
+            # Close the loop, as deploy.yml does: an open issue means the last check
+            # tripped, not that something tripped once. A healed gap keeps tripping
+            # until it is older than the lookback, so the issue stays open for as
+            # long as the outage is recent, then closes itself — rather than sitting
+            # open for weeks and suppressing the next alert, which is what happened
+            # to #378.
+            - name: Resolve failure issue
+              if: success()
+              uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+              with:
+                  script: |
+                      const items = await github.paginate(github.rest.issues.listForRepo, {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        state: 'open',
+                        labels: 'ingest-heartbeat-failed',
+                        per_page: 100,
+                      });
+                      // Never close a pull request that happens to carry the label.
+                      const issues = items.filter((item) => !item.pull_request);
+                      const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+                      for (const issue of issues) {
+                        await github.rest.issues.createComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: issue.number,
+                          body: `Heartbeat passed: every source fresh, nothing stuck, no gap in the lookback window. ${runUrl}. Closing.`,
+                        });
+                        await github.rest.issues.update({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: issue.number,
+                          state: 'closed',
+                        });
+                      }
 
             - name: Find existing failure issue
               id: find-issue
