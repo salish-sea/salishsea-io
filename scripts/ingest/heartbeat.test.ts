@@ -29,6 +29,7 @@ const healthy: HeartbeatInput = {
         { source: 'inaturalist', finishedAt: minutesAgo(6) },
     ],
     orphans: [],
+    recentSuccesses: [],
 };
 
 describe('evaluateHeartbeat', () => {
@@ -124,6 +125,7 @@ describe('evaluateHeartbeat', () => {
             {
                 now: NOW,
                 lastSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(90) }],
+                recentSuccesses: [],
                 orphans: [
                     {
                         id: 7,
@@ -141,6 +143,95 @@ describe('evaluateHeartbeat', () => {
             'stale',
             'stuck',
         ]);
+    });
+});
+
+describe('evaluateHeartbeat: gaps between successes', () => {
+    // A 5-minute cadence that stopped for an hour and came back, all of it
+    // before the check ran. The stale check sees a 4-minute-old success and
+    // says healthy; this is the outage that was invisible on 2026-08-28.
+    const healedOutage = [
+        { source: 'maplify', finishedAt: minutesAgo(74) },
+        { source: 'maplify', finishedAt: minutesAgo(69) },
+        { source: 'maplify', finishedAt: minutesAgo(9) },
+        { source: 'maplify', finishedAt: minutesAgo(4) },
+    ];
+
+    test('an outage that healed between two checks is still reported, as a gap', () => {
+        const findings = evaluateHeartbeat(
+            { ...healthy, recentSuccesses: healedOutage },
+            THRESHOLDS,
+        );
+        expect(findings).toHaveLength(1);
+        expect(findings[0]).toMatchObject({ kind: 'gap', source: 'maplify' });
+        expect(findings[0]!.message).toContain('for 60m');
+        expect(findings[0]!.message).toContain('healed 9m ago');
+    });
+
+    test('the interval from the newest success to now is staleness, not a gap', () => {
+        const findings = evaluateHeartbeat(
+            {
+                ...healthy,
+                lastSuccesses: [
+                    { source: 'maplify', finishedAt: minutesAgo(47) },
+                    { source: 'inaturalist', finishedAt: minutesAgo(6) },
+                ],
+                recentSuccesses: [
+                    { source: 'maplify', finishedAt: minutesAgo(52) },
+                    { source: 'maplify', finishedAt: minutesAgo(47) },
+                ],
+            },
+            THRESHOLDS,
+        );
+        expect(findings.map((f) => f.kind)).toEqual(['stale']);
+    });
+
+    test('a gap exactly at the threshold does not trip', () => {
+        const findings = evaluateHeartbeat(
+            {
+                ...healthy,
+                recentSuccesses: [
+                    { source: 'inaturalist', finishedAt: minutesAgo(36) },
+                    { source: 'inaturalist', finishedAt: minutesAgo(6) },
+                ],
+            },
+            THRESHOLDS,
+        );
+        expect(findings).toEqual([]);
+    });
+
+    test('sources are measured separately, whatever order the rows arrive in', () => {
+        const findings = evaluateHeartbeat(
+            {
+                ...healthy,
+                recentSuccesses: [
+                    { source: 'inaturalist', finishedAt: minutesAgo(6) },
+                    { source: 'maplify', finishedAt: minutesAgo(4) },
+                    { source: 'inaturalist', finishedAt: minutesAgo(11) },
+                    { source: 'maplify', finishedAt: minutesAgo(60) },
+                ],
+            },
+            THRESHOLDS,
+        );
+        // maplify's 56m hole is real; inaturalist's rows interleaved with it are not.
+        expect(findings.map((f) => [f.kind, f.source])).toEqual([['gap', 'maplify']]);
+    });
+
+    test('every gap in the window is reported, not just the worst', () => {
+        const findings = evaluateHeartbeat(
+            {
+                ...healthy,
+                recentSuccesses: [
+                    { source: 'maplify', finishedAt: minutesAgo(200) },
+                    { source: 'maplify', finishedAt: minutesAgo(150) },
+                    { source: 'maplify', finishedAt: minutesAgo(145) },
+                    { source: 'maplify', finishedAt: minutesAgo(100) },
+                    { source: 'maplify', finishedAt: minutesAgo(4) },
+                ],
+            },
+            THRESHOLDS,
+        );
+        expect(findings.map((f) => f.kind)).toEqual(['gap', 'gap', 'gap']);
     });
 });
 
@@ -233,6 +324,54 @@ describe.skipIf(!DSN)('fetchHeartbeatInput (local Supabase)', () => {
             expect(
                 evaluateHeartbeat(input, THRESHOLDS).map((f) => [f.kind, f.source]),
             ).toEqual([['never_succeeded', 'inaturalist']]);
+        });
+    });
+
+    test('recent successes: everything inside the lookback plus the newest before it', async () => {
+        await withRollback(sql, async (tx) => {
+            await tx`DELETE FROM ingest.runs`;
+            await tx`
+                INSERT INTO ingest.runs
+                    (source, trigger, dry_run, window_start, window_end,
+                     started_at, finished_at, outcome, error)
+                VALUES
+                    -- before the window: two, only the newer is wanted
+                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '200 minutes', now() - interval '199 minutes', 'success', NULL),
+                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '130 minutes', now() - interval '129 minutes', 'success', NULL),
+                    -- inside the window, after a 60m hole
+                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '70 minutes', now() - interval '69 minutes', 'success', NULL),
+                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '51 minutes', now() - interval '50 minutes', 'success', NULL),
+                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '21 minutes', now() - interval '20 minutes', 'success', NULL),
+                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '5 minutes', now() - interval '4 minutes', 'success', NULL),
+                    -- inside the window but dry-run / failed: not successes
+                    ('maplify', 'manual', true, '2026-06-26', '2026-07-06',
+                     now() - interval '40 minutes', now() - interval '39 minutes', 'success', NULL),
+                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '30 minutes', now() - interval '29 minutes', 'failed', 'boom'),
+                    -- inaturalist: fine
+                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '6 minutes', now() - interval '5 minutes', 'success', NULL)`;
+
+            const input = await fetchHeartbeatInput(tx, 120);
+
+            const maplify = input.recentSuccesses
+                .filter((s) => s.source === 'maplify')
+                .map((s) => Math.round((input.now.getTime() - s.finishedAt.getTime()) / 60_000))
+                .sort((a, b) => a - b);
+            // 4m…69m are in the window; 129m is the newest before it; 199m is not wanted
+            expect(maplify).toEqual([4, 20, 50, 69, 129]);
+
+            // And the whole thing, end to end: the hole between 129m and 69m ago is a
+            // gap even though maplify's newest success is 4 minutes old.
+            const findings = evaluateHeartbeat(input, THRESHOLDS);
+            expect(findings.map((f) => [f.kind, f.source])).toEqual([['gap', 'maplify']]);
+            expect(findings[0]!.message).toContain('for 60m');
         });
     });
 });

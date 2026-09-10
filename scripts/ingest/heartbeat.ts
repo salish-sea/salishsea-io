@@ -10,6 +10,16 @@
  *             STUCK_MINUTES (decision 011's started-orphan pattern: the audit
  *             row is written outside the data txn, so a crashed/hung run leaves
  *             a visible orphan).
+ *   - GAP:    within the last LOOKBACK_MINUTES, two consecutive successful runs
+ *             for a source were more than FRESHNESS_MINUTES apart. STALE only
+ *             sees an outage that is still going on when the check happens to
+ *             run, and this observer's schedule is best-effort: over 2026-08-23
+ *             → 09-10 the median interval between checks was 68 minutes and the
+ *             longest 12.5 hours, against a nominal 30. A 60-minute outage on
+ *             2026-08-28 healed between two checks and was never seen
+ *             (salish-oyf). ingest.runs keeps the history, so the check reads
+ *             the worst gap since, not just the age now — detection no longer
+ *             depends on when the observer runs.
  *
  * Invoked by .github/workflows/ingest-heartbeat.yml on a schedule, against prod
  * via SUPABASE_DB_URL (session pooler). Staleness is measured against the DB
@@ -41,6 +51,14 @@ const FRESHNESS_MINUTES = Number(process.env['FRESHNESS_MINUTES'] ?? 30);
 /** Edge Function wall clock tops out well under 15 min; older unfinished = dead. */
 const STUCK_MINUTES = Number(process.env['STUCK_MINUTES'] ?? 15);
 
+/**
+ * How far back the gap check looks. Must exceed the longest interval between two
+ * checks, or a gap can fall between them unseen — 12.5 hours observed, so a day.
+ * The price is that a healed gap keeps tripping until it ages out of the window;
+ * the workflow closes the issue again once a check passes.
+ */
+const LOOKBACK_MINUTES = Number(process.env['LOOKBACK_MINUTES'] ?? 24 * 60);
+
 // ---------------------------------------------------------------------------
 // Functional core — pure evaluation over already-fetched rows
 // ---------------------------------------------------------------------------
@@ -48,6 +66,11 @@ const STUCK_MINUTES = Number(process.env['STUCK_MINUTES'] ?? 15);
 export type Thresholds = {
     readonly freshnessMinutes: number;
     readonly stuckMinutes: number;
+};
+
+export type SuccessAt = {
+    readonly source: string;
+    readonly finishedAt: Date;
 };
 
 export type LastSuccess = {
@@ -70,10 +93,16 @@ export type HeartbeatInput = {
     readonly lastSuccesses: readonly LastSuccess[];
     /** All runs with no finished_at, oldest first. */
     readonly orphans: readonly OrphanRun[];
+    /**
+     * Every successful non-dry-run finish inside the lookback window, plus the
+     * newest one before it per source so a gap straddling the window's start
+     * is measured whole. Any order; the predicate sorts.
+     */
+    readonly recentSuccesses: readonly SuccessAt[];
 };
 
 export type Finding = {
-    readonly kind: 'never_succeeded' | 'stale' | 'stuck';
+    readonly kind: 'never_succeeded' | 'stale' | 'stuck' | 'gap';
     readonly source: string;
     readonly message: string;
 };
@@ -110,6 +139,31 @@ export function evaluateHeartbeat(input: HeartbeatInput, thresholds: Thresholds)
         }
     }
 
+    // Gaps between consecutive successes. The interval from the newest success
+    // to now is the stale check above, not a gap: a gap is over by definition,
+    // so it is reported as healed, with when.
+    for (const source of SOURCES) {
+        const finishes = input.recentSuccesses
+            .filter((s) => s.source === source)
+            .map((s) => s.finishedAt)
+            .sort((a, b) => a.getTime() - b.getTime());
+        for (let i = 1; i < finishes.length; i++) {
+            const from = finishes[i - 1]!;
+            const to = finishes[i]!;
+            const gapMinutes = minutesBetween(from, to);
+            if (gapMinutes > thresholds.freshnessMinutes) {
+                findings.push({
+                    kind: 'gap',
+                    source,
+                    message:
+                        `no successful ${source} run for ${gapMinutes}m, between ` +
+                        `${from.toISOString()} and ${to.toISOString()} (threshold ` +
+                        `${thresholds.freshnessMinutes}m); healed ${minutesBetween(to, input.now)}m ago`,
+                });
+            }
+        }
+    }
+
     for (const orphan of input.orphans) {
         const ageMinutes = minutesBetween(orphan.startedAt, input.now);
         if (ageMinutes > thresholds.stuckMinutes) {
@@ -132,15 +186,19 @@ export function evaluateHeartbeat(input: HeartbeatInput, thresholds: Thresholds)
 // ---------------------------------------------------------------------------
 
 /**
- * The three reads behind the predicate. dry_run successes are excluded here
+ * The four reads behind the predicate. dry_run successes are excluded here
  * (they prove the pipeline runs but write nothing, so they don't make data
  * fresh); failed runs never count. The last-success query walks
- * runs_source_finished_idx (partial on outcome = 'success').
+ * runs_source_finished_idx (partial on outcome = 'success'); so does the
+ * recent-success one, as a range on its second column.
  *
  * Accepts a plain connection or a transaction (postgres.js types them as
  * unrelated siblings) so the integration test can call it inside a rollback.
  */
-export async function fetchHeartbeatInput(sql: Sql | TransactionSql): Promise<HeartbeatInput> {
+export async function fetchHeartbeatInput(
+    sql: Sql | TransactionSql,
+    lookbackMinutes = LOOKBACK_MINUTES,
+): Promise<HeartbeatInput> {
     const [nowRow] = await sql<{ db_now: Date }[]>`SELECT now() AS db_now`;
     const successRows = await sql<{ source: string; finished_at: Date }[]>`
         SELECT source, max(finished_at) AS finished_at
@@ -154,10 +212,26 @@ export async function fetchHeartbeatInput(sql: Sql | TransactionSql): Promise<He
         FROM ingest.runs
         WHERE finished_at IS NULL
         ORDER BY started_at`;
+    // Inside the window, plus one before it per source (the newest), so the
+    // first in-window interval is measured from a real success rather than
+    // from the window's edge.
+    const recentRows = await sql<{ source: string; finished_at: Date }[]>`
+        WITH window_start AS (
+            SELECT now() - make_interval(mins => ${lookbackMinutes}) AS at
+        )
+        SELECT source, finished_at
+        FROM ingest.runs, window_start
+        WHERE outcome = 'success' AND NOT dry_run AND finished_at > window_start.at
+        UNION ALL
+        SELECT source, max(finished_at)
+        FROM ingest.runs, window_start
+        WHERE outcome = 'success' AND NOT dry_run AND finished_at <= window_start.at
+        GROUP BY source`;
 
     return {
         now: nowRow!.db_now,
         lastSuccesses: successRows.map((r) => ({ source: r.source, finishedAt: r.finished_at })),
+        recentSuccesses: recentRows.map((r) => ({ source: r.source, finishedAt: r.finished_at })),
         orphans: orphanRows.map((r) => ({
             id: Number(r.id),
             source: r.source,
@@ -182,7 +256,10 @@ function reportBody(findings: readonly Finding[], input: HeartbeatInput): string
         `${lines}\n\n` +
         `stale / never_succeeded: the pg_cron → pg_net → Edge Function ingest has stopped\n` +
         `producing successful runs for that source. stuck: a run crashed or hung mid-flight\n` +
-        `(started row never got its outcome — decision 011's orphan pattern).\n\n` +
+        `(started row never got its outcome — decision 011's orphan pattern). gap: it\n` +
+        `stopped and started again between two checks; the outage is over, but it happened,\n` +
+        `and this is the only place it will be reported. A gap keeps tripping until it is\n` +
+        `older than the lookback window; the issue closes itself once a check passes.\n\n` +
         `Diagnose (npx supabase db query --linked, or psql via the session pooler):\n` +
         `  SELECT * FROM ingest.runs ORDER BY started_at DESC LIMIT 20;\n` +
         `  SELECT jobname, status, return_message, start_time FROM cron.job_run_details\n` +
@@ -222,8 +299,9 @@ export async function main(): Promise<void> {
             return `${source} last success ${minutesBetween(hit!.finishedAt, input.now)}m ago`;
         }).join('; ');
         console.log(
-            `heartbeat ok: ${ages}; ${input.orphans.length} run(s) in flight ` +
-                `(freshness<=${thresholds.freshnessMinutes}m, stuck<=${thresholds.stuckMinutes}m)`,
+            `heartbeat ok: ${ages}; ${input.orphans.length} run(s) in flight; no gap in the ` +
+                `last ${LOOKBACK_MINUTES}m (freshness<=${thresholds.freshnessMinutes}m, ` +
+                `stuck<=${thresholds.stuckMinutes}m)`,
         );
         return;
     }
