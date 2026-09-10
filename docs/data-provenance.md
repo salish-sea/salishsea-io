@@ -97,8 +97,9 @@ fails if the export ever exceeds that baseline. (See the `dwc.occurrences` view
 and [`scripts/dwca/guard.ts`](../scripts/dwca/guard.ts).)
 
 Within the two included branches, a record is left out when the export cannot
-classify it: a Maplify sighting whose species name maps to no taxon, or a native
-observation with no contributor row to credit. About three percent of admitted
+classify or credit it: a Maplify sighting whose species name maps to no taxon,
+or a native observation with no taxon, no contributor row to credit, or no
+collection to file it under. About three percent of admitted
 Maplify records are unclassifiable today. The `dwc.export_coverage` view counts,
 per branch, what was admitted, what was exported, and what each join dropped;
 the nightly build logs those counts on every run and fails if a branch exports
