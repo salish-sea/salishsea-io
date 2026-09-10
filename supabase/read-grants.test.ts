@@ -86,14 +86,14 @@ describe.skipIf(!DSN)('public and dwc read grants (local Supabase)', () => {
         const rows = await sql<{rel: string; full_select: boolean; cols: string[] | null}[]>`
             SELECT n.nspname || '.' || c.relname AS rel,
                    has_table_privilege(${role}, c.oid, 'SELECT') AS full_select,
-                   (SELECT array_agg(a.attname ORDER BY a.attname)
+                   (SELECT array_agg(a.attname ORDER BY a.attname COLLATE "C")
                       FROM pg_attribute a
                      WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
                        AND has_column_privilege(${role}, c.oid, a.attnum, 'SELECT')) AS cols
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE n.nspname IN ('public', 'dwc') AND c.relkind IN ('r', 'p', 'v', 'm')
-            ORDER BY rel`;
+            ORDER BY (n.nspname || '.' || c.relname) COLLATE "C"`;
         const full: string[] = [];
         const partial: Record<string, string[]> = {};
         for (const row of rows) {
@@ -107,8 +107,11 @@ describe.skipIf(!DSN)('public and dwc read grants (local Supabase)', () => {
     for (const role of ['anon', 'authenticated']) {
         test(`${role} reads exactly the pinned relations`, async () => {
             const reads = await effectiveReads(role);
-            expect(reads.full).toEqual(READABLE);
-            expect(reads.partial).toEqual(PARTIALLY_READABLE);
+            // Byte order on both sides: prod's and CI's default collations need
+            // not agree on where an underscore sorts.
+            expect(reads.full).toEqual([...READABLE].sort());
+            expect(reads.partial).toEqual(
+                Object.fromEntries(Object.entries(PARTIALLY_READABLE).map(([rel, cols]) => [rel, [...cols].sort()])));
         });
     }
 });
