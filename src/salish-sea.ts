@@ -37,6 +37,16 @@ const viewInitiallySmall = window.innerWidth < 800;
 
 const dateRE = /^(\d\d\d\d-\d\d-\d\d)$/;
 
+/**
+ * How long a tab waits after a realtime broadcast before refetching the day:
+ * at least the minimum, so the ingest tick that sent it has finished its other
+ * source's writes, plus a random share of the jitter, so a hundred open tabs
+ * do not all ask at the same instant. The cost is that a sighting someone else
+ * just reported takes this long to appear.
+ */
+const BROADCAST_REFETCH_MIN_MS = 3_000;
+const BROADCAST_REFETCH_JITTER_MS = 5_000;
+
 function parseUrlParams(searchParams: URLSearchParams) {
   const dateParam = searchParams.get('d');
   const date = dateParam && dateRE.test(dateParam)
@@ -161,6 +171,8 @@ export default class SalishSea extends LitElement {
   #isRestoringFromHistory = false
   #isFocusingOccurrence = false
   #mapMoveDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  /** A refetch owed to a realtime broadcast, not yet run — see the channel handler. */
+  #broadcastRefetchTimer: ReturnType<typeof setTimeout> | null = null
   #realtimeChannel: RealtimeChannel | undefined
 
   @property({attribute: false})
@@ -355,7 +367,22 @@ export default class SalishSea extends LitElement {
     this.#realtimeChannel = supabaseClient
       .channel('occurrences')
       .on('broadcast', {event: 'occurrences_changed'}, () => {
-        this.refetchOccurrences(this.date);
+        // One refetch per burst, a few seconds after it, at a moment of this
+        // tab's own choosing. The ingest commits once per source on every
+        // tick and every open tab hears each commit; refetching on each one,
+        // immediately, put every tab's query onto the database at the same
+        // instant, while it was still inside the tick's writes — which is
+        // where a visitor's query met the 3s statement timeout (bd
+        // salish-xfo, SALISHSEA-IO-3D). A broadcast is sent on commit, so a
+        // refetch that starts after it arrives sees its rows: a timer already
+        // pending covers every broadcast that lands before it fires.
+        if (this.#broadcastRefetchTimer)
+          return;
+        const delay = BROADCAST_REFETCH_MIN_MS + Math.random() * BROADCAST_REFETCH_JITTER_MS;
+        this.#broadcastRefetchTimer = setTimeout(() => {
+          this.#broadcastRefetchTimer = null;
+          this.refetchOccurrences(this.date);
+        }, delay);
       })
       .subscribe();
   }
@@ -384,6 +411,10 @@ export default class SalishSea extends LitElement {
     window.removeEventListener('popstate', this.#handlePopState);
     if (this.#mapMoveDebounceTimer) {
       clearTimeout(this.#mapMoveDebounceTimer);
+    }
+    if (this.#broadcastRefetchTimer) {
+      clearTimeout(this.#broadcastRefetchTimer);
+      this.#broadcastRefetchTimer = null;
     }
     this.#realtimeChannel?.unsubscribe();
   }

@@ -127,6 +127,13 @@ export async function persistMaplify(
                 -- value, not a mirror field — re-running resolve_collection here would
                 -- clobber a one-time backfill and any curator correction on existing
                 -- rows (decision D-07). New rows still get it via the INSERT above.
+                --
+                -- Only when something differs: Maplify returns the whole window
+                -- every five minutes, and rewriting ~200 identical rows a tick
+                -- fired the occurrences_changed trigger on every tick and made
+                -- every open map refetch (bd salish-xfo). Row-wise IS DISTINCT
+                -- FROM treats NULLs as equal; location is compared as WKB
+                -- because that needs no operator from the gis schema.
                 ON CONFLICT (id) DO UPDATE SET
                     name = EXCLUDED.name,
                     scientific_name = EXCLUDED.scientific_name,
@@ -141,7 +148,22 @@ export async function persistMaplify(
                     source = EXCLUDED.source,
                     usernm = EXCLUDED.usernm,
                     taxon_id = EXCLUDED.taxon_id
+                WHERE (
+                    maplify.sightings.name, maplify.sightings.scientific_name,
+                    gis.ST_AsBinary(maplify.sightings.location), maplify.sightings.number_sighted,
+                    maplify.sightings.photo_url, maplify.sightings.comments, maplify.sightings.in_ocean,
+                    maplify.sightings.moderated, maplify.sightings.trusted, maplify.sightings.is_test,
+                    maplify.sightings.source, maplify.sightings.usernm, maplify.sightings.taxon_id
+                ) IS DISTINCT FROM (
+                    EXCLUDED.name, EXCLUDED.scientific_name,
+                    gis.ST_AsBinary(EXCLUDED.location), EXCLUDED.number_sighted,
+                    EXCLUDED.photo_url, EXCLUDED.comments, EXCLUDED.in_ocean,
+                    EXCLUDED.moderated, EXCLUDED.trusted, EXCLUDED.is_test,
+                    EXCLUDED.source, EXCLUDED.usernm, EXCLUDED.taxon_id
+                )
                 RETURNING id`;
+            // Inserted rows plus rows the guard let through: what the tick
+            // actually wrote, which is what ingest.runs.rows_upserted records.
             upserted = rows.count;
         }
 
@@ -428,6 +450,9 @@ export async function persistInaturalist(
                         id bigint, observation_id bigint, seq int2, attribution text, hidden bool,
                         license text, height int, width int, url text
                     )
+                    -- Only when something differs, for the same reason as the
+                    -- maplify upsert: every photo of every fetched observation
+                    -- was rewritten each tick — 4.2M updates on a 45k-row table.
                     ON CONFLICT (id) DO UPDATE SET
                         observation_id = EXCLUDED.observation_id,
                         seq = EXCLUDED.seq,
@@ -436,6 +461,17 @@ export async function persistInaturalist(
                         license = EXCLUDED.license,
                         original_dimensions = EXCLUDED.original_dimensions,
                         url = EXCLUDED.url
+                    WHERE (
+                        inaturalist.observation_photos.observation_id, inaturalist.observation_photos.seq,
+                        inaturalist.observation_photos.attribution, inaturalist.observation_photos.hidden,
+                        inaturalist.observation_photos.license, inaturalist.observation_photos.original_dimensions,
+                        inaturalist.observation_photos.url
+                    ) IS DISTINCT FROM (
+                        EXCLUDED.observation_id, EXCLUDED.seq,
+                        EXCLUDED.attribution, EXCLUDED.hidden,
+                        EXCLUDED.license, EXCLUDED.original_dimensions,
+                        EXCLUDED.url
+                    )
                     RETURNING id`;
                 photosUpserted = rows.count;
             }
