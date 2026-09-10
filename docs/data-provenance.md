@@ -96,6 +96,15 @@ exactly the two included branches, and a row-count gate in the nightly build
 fails if the export ever exceeds that baseline. (See the `dwc.occurrences` view
 and [`scripts/dwca/guard.ts`](../scripts/dwca/guard.ts).)
 
+Within the two included branches, a record is left out when the export cannot
+classify it: a Maplify sighting whose species name maps to no taxon, or a native
+observation with no contributor row to credit. About three percent of admitted
+Maplify records are unclassifiable today. The `dwc.export_coverage` view counts,
+per branch, what was admitted, what was exported, and what each join dropped;
+the nightly build logs those counts on every run and fails if a branch exports
+nothing it had records for, so a shrinking archive is a number in the log rather
+than a surprise.
+
 ## How a record's provenance is resolved
 
 When a record is ingested, its provider and collection are resolved by the first

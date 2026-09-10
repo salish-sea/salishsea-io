@@ -18,7 +18,17 @@
  *   3. `assertNoZeroByteFile` — guards against shipping a zero-byte archive
  *      file (e.g. the deterministic-zip writer races a filesystem failure).
  *
- * All three throw `Error` (subclass) — none of them call `process.exit`,
+ *   4. `assertBranchCoverage` — guards against an export branch going dark
+ *      while the archive as a whole still has rows. Both branches of
+ *      `dwc.occurrences` inner-join relations a source row may fail to
+ *      resolve, and a failed join drops the row without a word (bd
+ *      salish-lv0). `dwc.export_coverage` counts what each branch admitted,
+ *      exported and dropped per join; `describeCoverage` renders it for the
+ *      build log so shrinkage is visible, and this guard fails the build only
+ *      for the case that is certainly wrong — a branch with source rows and
+ *      no exported rows.
+ *
+ * All four throw `Error` (subclass) — none of them call `process.exit`,
  * so they remain unit-testable in Vitest. The caller in `build.ts` catches
  * and exits non-zero with a structured human-readable message.
  *
@@ -159,5 +169,59 @@ export async function assertNoZeroByteFile(path: string): Promise<void> {
     const s = await stat(path);
     if (s.size === 0) {
         throw new Error(`Zero-byte file: ${path}`);
+    }
+}
+
+/**
+ * One row of `dwc.export_coverage`. `droppedBy` carries only the joins the
+ * branch has, keyed by the view's column name (`no_taxon`, …).
+ */
+export interface BranchCoverage {
+    readonly branch: string;
+    readonly sourceRows: bigint;
+    readonly exportedRows: bigint;
+    readonly droppedBy: Readonly<Record<string, bigint>>;
+}
+
+/** The branches `dwc.occurrences` unions. A missing row is a regression too. */
+export const EXPORT_BRANCHES: readonly string[] = ['native', 'maplify'];
+
+/**
+ * One log line per branch: what came in, what went out, and what each join
+ * dropped. Always logged, tripped or not — the number that matters is the
+ * one that moved since last night.
+ */
+export function describeCoverage(rows: readonly BranchCoverage[]): string[] {
+    return rows.map((row) => {
+        const dropped = row.sourceRows - row.exportedRows;
+        const causes = Object.entries(row.droppedBy)
+            .map(([cause, n]) => `${cause}=${n}`)
+            .join(', ');
+        return (
+            `[build:dwca] coverage ${row.branch}: ${row.exportedRows} of ${row.sourceRows} ` +
+            `source rows exported, ${dropped} dropped by joins (${causes || 'no joins'})`
+        );
+    });
+}
+
+/**
+ * Throws when a branch is missing from the coverage rows, or has source rows
+ * and exported none of them. A branch that drops *some* rows is logged, not
+ * failed: an unclassifiable sighting is a defensible exclusion, and how many
+ * there are is a number to watch rather than a reason to withhold the archive.
+ */
+export function assertBranchCoverage(rows: readonly BranchCoverage[]): void {
+    const byBranch = new Map(rows.map((row) => [row.branch, row]));
+    for (const branch of EXPORT_BRANCHES) {
+        const row = byBranch.get(branch);
+        if (row === undefined) {
+            throw new Error(`Export coverage has no row for branch "${branch}"`);
+        }
+        if (row.sourceRows > 0n && row.exportedRows === 0n) {
+            throw new Error(
+                `Export branch "${branch}" dropped every row: ${row.sourceRows} source rows, 0 exported ` +
+                    `(${Object.entries(row.droppedBy).map(([cause, n]) => `${cause}=${n}`).join(', ')})`,
+            );
+        }
     }
 }

@@ -4,6 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import {
+    assertBranchCoverage,
+    describeCoverage,
+    type BranchCoverage,
     AlignmentError,
     assertFieldAlignment,
     assertNonZeroRows,
@@ -185,5 +188,41 @@ describe('assertNoZeroByteFile', () => {
             /Zero-byte file:/,
         );
         await expect(assertNoZeroByteFile(path)).rejects.toThrow(path);
+    });
+});
+
+
+describe('assertBranchCoverage / describeCoverage', () => {
+    const native: BranchCoverage = {
+        branch: 'native', sourceRows: 564n, exportedRows: 564n,
+        droppedBy: { no_contributor: 0n, no_taxon: 0n, no_collection: 0n },
+    };
+    const maplify: BranchCoverage = {
+        branch: 'maplify', sourceRows: 20201n, exportedRows: 19597n,
+        droppedBy: { no_taxon: 604n },
+    };
+
+    test('a branch that drops some rows is logged, not failed', () => {
+        expect(() => assertBranchCoverage([native, maplify])).not.toThrow();
+        expect(describeCoverage([native, maplify])).toEqual([
+            '[build:dwca] coverage native: 564 of 564 source rows exported, 0 dropped by joins (no_contributor=0, no_taxon=0, no_collection=0)',
+            '[build:dwca] coverage maplify: 19597 of 20201 source rows exported, 604 dropped by joins (no_taxon=604)',
+        ]);
+    });
+
+    test('a branch that drops every row it had fails, naming the joins', () => {
+        const dark = { ...maplify, exportedRows: 0n, droppedBy: { no_taxon: 20201n } };
+        expect(() => assertBranchCoverage([native, dark])).toThrow(
+            'Export branch "maplify" dropped every row: 20201 source rows, 0 exported (no_taxon=20201)',
+        );
+    });
+
+    test('a branch with nothing to export is not a failure', () => {
+        const empty = { ...native, sourceRows: 0n, exportedRows: 0n };
+        expect(() => assertBranchCoverage([empty, maplify])).not.toThrow();
+    });
+
+    test('a branch missing from the coverage rows is a failure', () => {
+        expect(() => assertBranchCoverage([native])).toThrow('no row for branch "maplify"');
     });
 });
