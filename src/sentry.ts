@@ -1,4 +1,4 @@
-import {BrowserClient, breadcrumbsIntegration, dedupeIntegration, defaultStackParser, getCurrentScope, globalHandlersIntegration, makeFetchTransport, linkedErrorsIntegration, browserTracingIntegration, feedbackIntegration, startInactiveSpan, captureException, addBreadcrumb} from "@sentry/browser";
+import {BrowserClient, breadcrumbsIntegration, dedupeIntegration, defaultStackParser, getCurrentScope, globalHandlersIntegration, makeFetchTransport, linkedErrorsIntegration, browserTracingIntegration, startInactiveSpan, captureException, addBreadcrumb} from "@sentry/browser";
 import {supabaseIntegration} from '@supabase/sentry-js-integration';
 import { supabase } from "./supabase.ts";
 
@@ -14,13 +14,12 @@ const sentryClient = new BrowserClient({
       shouldCreateSpanForRequest: url => !url.startsWith(`${import.meta.env.VITE_SUPABASE_URL}/rest`),
     }),
     breadcrumbsIntegration(),
-    feedbackIntegration({
-      colorScheme: "system",
-      formTitle: "Report a Bug or Give Feedback",
-      isNameRequired: true,
-      successMessageText: "Thank you for taking the time to let us know.",
-      triggerLabel: "Report Bug or Give Feedback",
-    }),
+    // No feedbackIntegration. Sentry hears about failures; it is no longer how
+    // a person tells us about one — that is <feedback-form>, posting to our own
+    // Supabase (decision 039). Sentry's widget could only deliver a report if
+    // the browser could reach sentry.io, and a content blocker or a captive
+    // portal is enough that it cannot; on 2026-09-08 a report naming three real
+    // bugs died in the form because of it.
     globalHandlersIntegration(),
     linkedErrorsIntegration(),
     dedupeIntegration(),

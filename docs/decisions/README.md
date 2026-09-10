@@ -42,3 +42,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [036](036-ingest-scope-killer-whales-range-wide.md) | Ingest scope: killer whales range-wide, everything else the Salish Sea; enforced in `isIngestable`, existing rows purged | accepted |
 | [037](037-sentry-transmits-from-production-only.md) | Sentry transmits from production only; one `initSentry()` gates the scope binding, not `init()` | accepted |
 | [038](038-nightly-backups-we-own.md) | A nightly database dump and incremental media mirror in a private versioned bucket; there was no backup before | accepted |
+| [039](039-feedback-goes-to-our-own-database.md) | Feedback posts to our own Supabase rather than Sentry, and the draft survives a failed send; a workflow files each report as an issue, message quoted, contact withheld | accepted |

@@ -1,9 +1,24 @@
 import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { execFileSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// The commit this bundle is built from, for the `release` on a feedback report
+// (decision 039). Sentry's plugin works one out for its own events, but the
+// point of that decision is that feedback does not depend on Sentry, so this
+// is derived here instead. GITHUB_SHA in CI; git locally; 'unknown' in a
+// tarball with no checkout, which must not fail the build.
+function releaseSha() {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA;
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim();
+  } catch {
+    return 'unknown';
+  }
+}
 
 // Exactly one path segment after the prefix — the page's own module/asset
 // requests resolve elsewhere and must not be swallowed by the rewrite.
@@ -21,6 +36,10 @@ function profilePagesRewrite(req, _res, next) {
 
 export default defineConfig({
   assetsInclude: ['**/*.geojson'],
+
+  define: {
+    __RELEASE__: JSON.stringify(releaseSha()),
+  },
 
   build: {
     rollupOptions: {
