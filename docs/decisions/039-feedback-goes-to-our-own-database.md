@@ -30,9 +30,12 @@ The RLS check is on `user_uuid`, not `true`. `submit_feedback` stamps it from `a
 
 **The issue carries the message and not the reporter.** This repo is public. Name and email stay in the table, referenced by row id; the message itself is quoted **inside a fenced code block, never a blockquote**, because markdown renders inside blockquotes and a report containing `@someone` would notify a stranger while one containing an image would embed it. The fence is computed from the content so a message containing back-ticks cannot break out of it. The form says plainly that the message may be quoted in a public tracker and that contact details stay private.
 
-![The feedback form on a phone](../images/039-feedback-form.png)
+<!-- Captured at 2x on a 390pt iPhone viewport, displayed at 390 so it is the
+     size the person actually sees. Without the width GitHub renders the
+     physical 780px and the phone comes out twice life size. -->
+<img src="../images/039-feedback-form.png" width="390" alt="The feedback form on a phone">
 
-![A send that failed, with the words kept](../images/039-feedback-send-failed.png)
+<img src="../images/039-feedback-send-failed.png" width="390" alt="A send that failed, with the words kept">
 
 The second is the one that matters, and the one the old widget got wrong: the send failed, and the report is still there.
 
