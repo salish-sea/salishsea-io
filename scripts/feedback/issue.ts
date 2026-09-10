@@ -90,12 +90,27 @@ export function titleFor(row: FeedbackRow): string {
  */
 export const rowMarker = (id: number): string => `<!-- feedback-row:${id} -->`;
 
-/** Row ids already filed, read back out of existing issue bodies. */
+/**
+ * Row ids already filed, read back out of existing issue bodies.
+ *
+ * Only the run of markers at the very END of a body counts, which is where we
+ * write them. Matching anywhere would let a *report* claim a row: a message
+ * containing the marker text for row 999 would make 999 look filed, and the
+ * notifier would then stamp 999 without ever creating its issue — losing a real
+ * person's report, which is the one outcome this whole change exists to
+ * prevent. The fence stops the marker rendering; it does not stop a regex
+ * finding it.
+ */
 export function filedRowIds(bodies: readonly (string | null | undefined)[]): Set<number> {
     const ids = new Set<number>();
     for (const body of bodies) {
-        for (const [, id] of (body ?? '').matchAll(/<!-- feedback-row:(\d+) -->/g))
-            ids.add(Number(id));
+        // Walk back from the end, taking marker lines until anything else.
+        const lines = (body ?? '').trimEnd().split('\n');
+        for (let i = lines.length - 1; i >= 0; i--) {
+            const match = /^<!-- feedback-row:(\d+) -->$/.exec(lines[i]!.trim());
+            if (!match) break;
+            ids.add(Number(match[1]));
+        }
     }
     return ids;
 }

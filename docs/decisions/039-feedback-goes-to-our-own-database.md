@@ -52,6 +52,10 @@ The second is the one that matters, and the one the old widget got wrong: the se
 
 **Each issue carries an invisible row marker**, and the notifier reads existing issues back before filing. The GitHub POST and the `notified_at` stamp are two operations, so a runner killed between them would otherwise leave a filed issue on an unstamped row and duplicate it on the next run. Listing by label rather than searching, because GitHub's search index lags by minutes — exactly the window this closes. Two notifiers running at once would defeat that check — both would list before either filed — so the script takes a Postgres session advisory lock, which covers a hand-run alongside a scheduled one and releases itself if the runner is killed.
 
+**Two ways feedback could have been silently swallowed, both closed.** A table-wide INSERT grant would have let a client set `notified_at` itself — and the notifier only looks at rows where it is NULL, so anyone could submit a report pre-marked as handled and it would never be filed. The grant is column-level. Separately, the row marker was matched anywhere in an issue body, so a *report* containing `<!-- feedback-row:999 -->` would make row 999 look filed and the notifier would stamp it without creating its issue. Only the trailing run of markers counts. Both would have lost a real person's report, which is the one outcome this record exists to prevent.
+
+**The draft expires after 30 days.** It holds a name, an email address and whatever was typed, in cleartext, on a device that may be shared. Long enough that "I'll finish this when I'm back in signal" works; short enough that a forgotten half-sentence does not outlive anyone's interest in it. Cancel deliberately does *not* clear it — closing the form is not discarding the report, and treating it as such would reintroduce the loss this record is about.
+
 ## Consequences
 
 A person who types their own email address *into the message* will see it published, since only the `email` column is withheld. The form's note is the disclosure; redacting address-shaped strings from the body was considered and left alone rather than guessing at what is safe to mangle.

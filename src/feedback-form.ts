@@ -11,13 +11,23 @@ export type Draft = {name: string; email: string; message: string};
 const EMPTY: Draft = {name: '', email: '', message: ''};
 
 /**
+ * How long an unsent draft is kept on the device.
+ *
+ * It holds a name, an email address and whatever was typed, in cleartext, on a
+ * device that may be shared — so it should not sit there forever. Long enough
+ * that "I'll finish this when I'm back in signal" works, short enough that a
+ * forgotten half-sentence does not outlive anyone's interest in it.
+ */
+export const DRAFT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
  * Read the saved draft, tolerating anything that is not one.
  *
  * localStorage is shared, old versions of this app wrote to it, and a person
  * can edit it — so treat whatever comes back as untrusted and fall back to an
  * empty draft rather than throwing on the way to rendering a form.
  */
-export function readDraft(storage: Pick<Storage, 'getItem'>): Draft {
+export function readDraft(storage: Pick<Storage, 'getItem'>, now: number = Date.now()): Draft {
   let raw: string | null;
   try {
     raw = storage.getItem(DRAFT_STORAGE_KEY);
@@ -28,7 +38,10 @@ export function readDraft(storage: Pick<Storage, 'getItem'>): Draft {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return EMPTY;
-    const {name, email, message} = parsed as Partial<Draft>;
+    const {name, email, message, savedAt} = parsed as Partial<Draft> & {savedAt?: unknown};
+    // Expired, or from a version that did not stamp one: either way, old enough
+    // that returning it is a privacy cost with no benefit.
+    if (typeof savedAt !== 'number' || now - savedAt > DRAFT_TTL_MS) return EMPTY;
     return {
       name: typeof name === 'string' ? name : '',
       email: typeof email === 'string' ? email : '',
@@ -199,7 +212,7 @@ export default class FeedbackForm extends LitElement {
     this.draft = {...this.draft, [field]: value};
     // A full disk, or Safari's private mode, must not stop someone typing.
     try {
-      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(this.draft));
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({...this.draft, savedAt: Date.now()}));
     } catch { /* the draft simply is not durable here */ }
     if (this.status === 'failed') this.status = 'editing';
   }
@@ -235,9 +248,12 @@ export default class FeedbackForm extends LitElement {
       name: sent.name,
       email: sent.email,
       message: sent.message,
-      page_url: location.href,
-      user_agent: navigator.userAgent,
-      release: __RELEASE__,
+      // Bounded to the column CHECKs. Over them the insert fails, and the only
+      // message we could show would be the offline one — telling somebody their
+      // connection is bad when in fact their URL is long.
+      page_url: location.href.slice(0, 2000),
+      user_agent: navigator.userAgent.slice(0, 500),
+      release: __RELEASE__.slice(0, 100),
     });
 
     if (error) {
@@ -275,7 +291,7 @@ export default class FeedbackForm extends LitElement {
 
   private renderSent() {
     return html`
-      <p class="sent">Thank you — that reached us. If you left an email address we may write back.</p>
+      <p class="sent" role="status">Thank you — that reached us. If you left an email address we may write back.</p>
       <div class="actions">
         <button class="send" type="button" @click=${this.close}>Close</button>
       </div>
@@ -285,22 +301,27 @@ export default class FeedbackForm extends LitElement {
   private renderForm() {
     return html`
       ${this.status === 'failed' ? html`
-        <p class="failed">
+        <p class="failed" role="alert">
           That didn't send — you may be offline. Your words are saved on this device,
           so you can close this and try again later without retyping them.
         </p>
       ` : nothing}
+      ${this.status === 'failed' ? nothing : html`
+        <p class="note">
+          What you type is kept on this device until it sends, so you can finish it later.
+        </p>
+      `}
       <label>
         <span>Name</span>
-        <input required .value=${this.draft.name} @input=${(e: Event) => this.#update('name', (e.target as HTMLInputElement).value)}>
+        <input required maxlength="200" .value=${this.draft.name} @input=${(e: Event) => this.#update('name', (e.target as HTMLInputElement).value)}>
       </label>
       <label>
         <span>Email</span>
-        <input type="email" .value=${this.draft.email} @input=${(e: Event) => this.#update('email', (e.target as HTMLInputElement).value)}>
+        <input type="email" maxlength="320" .value=${this.draft.email} @input=${(e: Event) => this.#update('email', (e.target as HTMLInputElement).value)}>
       </label>
       <label>
         <span>What happened?</span>
-        <textarea required .value=${this.draft.message} @input=${(e: Event) => this.#update('message', (e.target as HTMLTextAreaElement).value)}></textarea>
+        <textarea required maxlength="5000" .value=${this.draft.message} @input=${(e: Event) => this.#update('message', (e.target as HTMLTextAreaElement).value)}></textarea>
       </label>
       <p class="note">
         We may quote what you write here in our public issue tracker so we can work on it.

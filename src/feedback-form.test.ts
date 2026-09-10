@@ -28,7 +28,7 @@ vi.mock('./supabase.ts', () => ({
   }),
 }));
 
-const { readDraft, draftIsEmpty } = await import('./feedback-form.ts');
+const { readDraft, draftIsEmpty, DRAFT_TTL_MS } = await import('./feedback-form.ts');
 type Form = HTMLElement & {
   open(): void;
   updateComplete: Promise<unknown>;
@@ -94,8 +94,22 @@ describe('readDraft', () => {
   });
 
   test('a partial draft keeps what it has', () => {
-    expect(readDraft({getItem: () => '{"message":"half a thought"}'}))
+    const fresh = JSON.stringify({message: 'half a thought', savedAt: 1_000});
+    expect(readDraft({getItem: () => fresh}, 1_000))
       .toEqual({name: '', email: '', message: 'half a thought'});
+  });
+
+  test('an expired draft is dropped', () => {
+    // It holds a name, an email and whatever was typed, in cleartext, on a
+    // device that may be shared. A forgotten half-sentence should not outlive
+    // anyone's interest in it.
+    const old = JSON.stringify({message: 'from ages ago', savedAt: 0});
+    expect(draftIsEmpty(readDraft({getItem: () => old}, DRAFT_TTL_MS + 1))).toBe(true);
+    expect(readDraft({getItem: () => old}, DRAFT_TTL_MS - 1).message).toBe('from ages ago');
+  });
+
+  test('a draft with no timestamp is dropped rather than kept forever', () => {
+    expect(draftIsEmpty(readDraft({getItem: () => '{"message":"unstamped"}'}))).toBe(true);
   });
 });
 
@@ -111,7 +125,7 @@ describe('a draft in progress', () => {
   });
 
   test('comes back when the form is opened again', async () => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({name: 'Scott', email: '', message: 'half a thought'}));
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({name: 'Scott', email: '', message: 'half a thought', savedAt: Date.now()}));
     const reopened = document.createElement('feedback-form') as unknown as Form;
     document.body.appendChild(reopened);
     await reopened.updateComplete;
@@ -214,10 +228,32 @@ describe('sending', () => {
 });
 
 describe('telling people where their words go', () => {
+  test('announces the outcome to a screen reader', async () => {
+    // Both replace content without moving focus, so without a live region a
+    // screen-reader user is left not knowing whether it sent.
+    rpc.error = {message: 'Failed to fetch'};
+    el.open();
+    await typeInto(el, 'input', 'Scott');
+    await typeInto(el, 'textarea', 'something broke');
+    await send(el);
+    expect(el.shadowRoot.querySelector('.failed')?.getAttribute('role')).toBe('alert');
+
+    rpc.error = null;
+    await send(el);
+    expect(el.shadowRoot.querySelector('.sent')?.getAttribute('role')).toBe('status');
+  });
+
+  test('says the draft is kept on the device, before asking for anything', async () => {
+    el.open();
+    await el.updateComplete;
+    const notes = [...el.shadowRoot.querySelectorAll('.note')].map((n) => n.textContent!);
+    expect(notes[0]).toContain('kept on this device');
+  });
+
   test('says the message may be quoted publicly and contact details are not', async () => {
     el.open();
     await el.updateComplete;
-    const note = el.shadowRoot.querySelector('.note')!.textContent!;
+    const note = [...el.shadowRoot.querySelectorAll('.note')].map((n) => n.textContent!).join(' ');
 
     // The notifier quotes the message into a GitHub issue on a public repo.
     // Saying so is part of being allowed to do it.

@@ -59,9 +59,20 @@ ON public.feedback FOR INSERT
 TO anon, authenticated
 WITH CHECK (user_uuid IS NOT DISTINCT FROM (SELECT auth.uid()));
 
+-- Column-level, not table-level, and that is not fussiness.
+--
+-- A table-wide INSERT grant lets a client set `notified_at` itself, and the
+-- notifier only looks at rows where it IS NULL — so anyone could submit a
+-- report pre-marked as already handled and it would never be filed. A silently
+-- swallowed report is exactly the failure this table exists to end, so the
+-- bookkeeping columns are not the client's to write.
+--
 -- The grant ships in the same migration as the table (README convention): an
--- RLS policy with no grant behind it is a silent zero.
-GRANT INSERT ON public.feedback TO anon, authenticated;
+-- RLS policy with no grant behind it is a silent zero. `id` and `created_at`
+-- need no grant — they are never named by an insert, and take their defaults.
+GRANT INSERT (
+  name, email, message, page_url, user_agent, release, user_uuid
+) ON public.feedback TO anon, authenticated;
 
 -- Trimming, and the identity stamp, in one place rather than at the call site.
 --

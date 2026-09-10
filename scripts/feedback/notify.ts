@@ -39,6 +39,16 @@ const DIGEST_THRESHOLD = 8;
 /** Arbitrary but fixed; only this script uses it. See main() for why. */
 const ADVISORY_LOCK_KEY = 8_390_217_004_113_705;
 
+/**
+ * How long to wait on GitHub before giving up.
+ *
+ * Both calls happen while the advisory lock is held, so a request that hangs
+ * holds it — and the workflow's concurrency slot — until the job's own timeout,
+ * which is hours. Aborting turns that into a failed run whose rows are simply
+ * picked up fifteen minutes later.
+ */
+const GITHUB_TIMEOUT_MS = 30_000;
+
 function maskDsn(error: unknown): string {
     const text = error instanceof Error ? error.message : String(error);
     return text.replace(/postgres(?:ql)?:\/\/[^\s]*/gi, 'postgres://<redacted>');
@@ -64,7 +74,7 @@ export async function unnotified(sql: Sql, limit: number): Promise<FeedbackRow[]
 async function alreadyFiled(repo: string, token: string): Promise<Set<number>> {
     const response = await fetch(
         `https://api.github.com/repos/${repo}/issues?labels=feedback&state=all&per_page=100`,
-        {headers: githubHeaders(token)},
+        {headers: githubHeaders(token), signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS)},
     );
     if (!response.ok) {
         // Not fatal on its own, but proceeding blind risks duplicates, and a
@@ -93,6 +103,7 @@ async function createIssue(repo: string, token: string, issue: {title: string; b
         // load-bearing, not decoration; `needs-triage` because nobody has read
         // it yet and it should join the queue with everything else unreviewed.
         body: JSON.stringify({...issue, labels: ['feedback', 'needs-triage']}),
+        signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
     });
     if (!response.ok) {
         throw new Error(`GitHub refused the issue: ${response.status} ${await response.text()}`);

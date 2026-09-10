@@ -85,14 +85,17 @@ describe('recognising what we already filed', () => {
         expect(filedRowIds(['just a normal issue', ''])).toEqual(new Set());
     });
 
-    test('a report that quotes a marker cannot forge one, because it is fenced', () => {
-        // The marker is real markup only outside the fence; inside, it is text.
+    test('a report quoting a marker cannot claim a row it does not own', () => {
+        // Otherwise a message containing row 999's marker would make 999 look
+        // filed, and the notifier would stamp it without creating its issue —
+        // silently losing a real person's report. Only the trailing run counts.
         const body = issueForFeedback(row({id: 7, message: rowMarker(999)})).body;
-        expect(filedRowIds([body])).toEqual(new Set([999, 7]));
-        // Both are found by a plain regex, so the notifier must not treat a
-        // match as proof on its own — it only ever skips rows it is looking at,
-        // and the worst case is one report needing a manual look. Pinned here
-        // so the limitation is on the record rather than a surprise.
+        expect(filedRowIds([body])).toEqual(new Set([7]));
+    });
+
+    test('the digest claims every row it covers', () => {
+        const body = ['some digest', rowMarker(1), rowMarker(2), rowMarker(3)].join('\n');
+        expect(filedRowIds([body])).toEqual(new Set([1, 2, 3]));
     });
 });
 
