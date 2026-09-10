@@ -11,6 +11,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vite
 import postgres from 'postgres';
 import type { Sql } from 'postgres';
 import { alreadyFiled, stamp, unnotified } from './notify.ts';
+import { filedRowIds, rowMarker } from './issue.ts';
 
 const day = (n: number) => new Date(Date.UTC(2026, 0, n)).toISOString();
 const bot = 'github-actions[bot]';
@@ -169,6 +170,44 @@ describe.skipIf(!DSN)('stamping rows (local Supabase)', () => {
             // github_issue stays null when an earlier run filed it; the row must
             // still leave the queue, or it is looked at forever.
             expect(await unnotified(tx, 10)).toHaveLength(0);
+        });
+    });
+
+    test('returns id as a NUMBER, so a Set<number> can recognise it', async () => {
+        // postgres.js hands back bigint as a string, and TypeScript believes the
+        // declared type either way. The one place it matters is
+        // `filed.has(row.id)`, which silently answers no for a string and files
+        // every already-filed report a second time — which is what happened to
+        // the first real report this channel ever received.
+        await rolledBack(async (tx) => {
+            await tx`DELETE FROM public.feedback`;
+            await tx`INSERT INTO public.feedback (name, message) VALUES ('a','one')`;
+            const [row] = await unnotified(tx, 10);
+
+            expect(typeof row!.id).toBe('number');
+            // The actual failure, stated as the behaviour rather than the type.
+            expect(new Set([row!.id]).has(row!.id)).toBe(true);
+            expect(new Set<number>([Number(row!.id)]).has(row!.id)).toBe(true);
+        });
+    });
+
+    test('a row whose issue already exists is recognised as filed', async () => {
+        // The whole point of alreadyFiled, exercised across the seam that broke
+        // it: ids come from Postgres, markers come from a GitHub issue body, and
+        // the two have to meet in a Set. They did not, so the first real report
+        // this channel received was filed twice (#440 and #442).
+        await rolledBack(async (tx) => {
+            await tx`DELETE FROM public.feedback`;
+            await tx`INSERT INTO public.feedback (name, message) VALUES ('a','one')`;
+            const [row] = await unnotified(tx, 10);
+
+            const issueBody = `Someone sent this.\n\n${rowMarker(row!.id)}`;
+            const filed = filedRowIds([issueBody]);
+
+            expect(filed.has(row!.id)).toBe(true);
+            // And therefore it is dropped from the list to file, rather than
+            // filed a second time.
+            expect([row!].filter((r) => !filed.has(r.id))).toEqual([]);
         });
     });
 

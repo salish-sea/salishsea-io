@@ -75,14 +75,28 @@ function maskDsn(error: unknown): string {
     return text.replace(/postgres(?:ql)?:\/\/[^\s]*/gi, 'postgres://<redacted>');
 }
 
+/**
+ * The reports waiting to be filed, oldest first.
+ *
+ * `id` is coerced to a number here, at the boundary, because postgres.js hands
+ * back a `bigint` column as a **string** — JS numbers cannot hold the full
+ * range, so it declines to guess. Everything downstream then looks right and
+ * behaves wrongly in one place: `filed.has(row.id)` asks a `Set<number>` about
+ * a string and is always told no, so every already-filed report is filed again.
+ * That is not a type error — `FeedbackRow.id` is declared `number` and
+ * TypeScript believes the driver — and it survived a green suite into
+ * production, where it duplicated the first real report it ever saw
+ * (issues #440 and #442 on 2026-09-10).
+ */
 export async function unnotified(sql: Sql, limit: number): Promise<FeedbackRow[]> {
-    return sql<FeedbackRow[]>`
+    const rows = await sql<FeedbackRow[]>`
         SELECT id, created_at, message, page_url, user_agent, release,
                (user_uuid IS NOT NULL) AS signed_in
         FROM public.feedback
         WHERE notified_at IS NULL
         ORDER BY created_at
         LIMIT ${limit}`;
+    return rows.map((row) => ({...row, id: Number(row.id)}));
 }
 
 /**
