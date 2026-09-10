@@ -19,19 +19,34 @@ const READY_TIMEOUT_MS = 5 * 60_000;
 const READY_INTERVAL_MS = 10_000;
 const BOT_UA = { 'User-Agent': 'facebookexternalhit/1.1' };
 
+const PROBE_TIMEOUT_MS = 15_000;
+
 test.beforeAll(async ({ playwright }) => {
-  test.setTimeout(READY_TIMEOUT_MS + 30_000);
+  // The hook's own budget: every probe plus the sleep after it fits inside
+  // READY_TIMEOUT_MS by construction below, and this is the margin on top.
+  test.setTimeout(READY_TIMEOUT_MS + 60_000);
   const api = await playwright.request.newContext({ baseURL: test.info().project.use.baseURL });
   const started = Date.now();
   try {
     for (let attempt = 1; ; attempt++) {
-      const response = await api.get('/individuals/T065A', { headers: BOT_UA });
-      const body = await response.text();
-      if (response.status() === 200 && body.includes('content="profile"')) {
+      // A probe that fails in transport is a probe that didn't answer, not a
+      // verdict — a replicating edge can drop a connection. Keep going; the
+      // tests below say what they think of production once the wait is over.
+      let ready = false;
+      try {
+        const response = await api.get('/individuals/T065A', { headers: BOT_UA, timeout: PROBE_TIMEOUT_MS });
+        ready = response.status() === 200 && (await response.text()).includes('content="profile"');
+      } catch (err) {
+        console.warn(`probe ${attempt} failed: ${String(err)}`);
+      }
+      if (ready) {
         if (attempt > 1) console.log(`edge handler ready after ${attempt} probes, ${Date.now() - started}ms`);
         return;
       }
-      if (Date.now() - started >= READY_TIMEOUT_MS) {
+      // Stop while there is still room for one more sleep and one more probe;
+      // a probe started at the deadline would overrun the hook instead.
+      const remaining = READY_TIMEOUT_MS - (Date.now() - started);
+      if (remaining < READY_INTERVAL_MS + PROBE_TIMEOUT_MS) {
         console.warn(`edge handler still serving the shell after ${attempt} probes, ${Date.now() - started}ms; asserting anyway`);
         return;
       }
