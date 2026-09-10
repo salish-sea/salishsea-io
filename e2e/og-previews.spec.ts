@@ -1,5 +1,47 @@
 import { test, expect } from '@playwright/test';
 
+// Wait for the edge handler this deploy shipped before asserting on what it says.
+//
+// Smoke runs the moment `cdk deploy` returns, but a new Lambda@Edge version takes
+// minutes to replicate, and the first request a cold container answers can blow
+// its 3s Supabase deadline and take decision 015's fail-open path (the bare shell,
+// no per-thing OG tags). Neither is a regression; both read as one to an
+// assertion that fires too early. On 2026-08-31 that failed the smoke of a deploy
+// that had not touched the handler at all and filed a spurious deploy-failed issue
+// (bd salish-eia).
+//
+// So the wait is separate from the assertions: probe one OG route until it
+// answers with profile tags, then run every test exactly as strict as before. A
+// genuine regression still fails — after the bounded wait, with the assertion's
+// own message rather than a timeout. On the scheduled run, the probe passes on
+// its first request and costs nothing.
+const READY_TIMEOUT_MS = 5 * 60_000;
+const READY_INTERVAL_MS = 10_000;
+const BOT_UA = { 'User-Agent': 'facebookexternalhit/1.1' };
+
+test.beforeAll(async ({ playwright }) => {
+  test.setTimeout(READY_TIMEOUT_MS + 30_000);
+  const api = await playwright.request.newContext({ baseURL: test.info().project.use.baseURL });
+  const started = Date.now();
+  try {
+    for (let attempt = 1; ; attempt++) {
+      const response = await api.get('/individuals/T065A', { headers: BOT_UA });
+      const body = await response.text();
+      if (response.status() === 200 && body.includes('content="profile"')) {
+        if (attempt > 1) console.log(`edge handler ready after ${attempt} probes, ${Date.now() - started}ms`);
+        return;
+      }
+      if (Date.now() - started >= READY_TIMEOUT_MS) {
+        console.warn(`edge handler still serving the shell after ${attempt} probes, ${Date.now() - started}ms; asserting anyway`);
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, READY_INTERVAL_MS));
+    }
+  } finally {
+    await api.dispose();
+  }
+});
+
 test('bot UA on homepage receives OG meta tags', async ({ request }) => {
   const response = await request.get('/', {
     headers: { 'User-Agent': 'facebookexternalhit/1.1' },

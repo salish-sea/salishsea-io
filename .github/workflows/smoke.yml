@@ -43,8 +43,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Room for og-previews.spec.ts to wait out Lambda@Edge replication (up to
+      # five minutes, bd salish-eia) on top of the specs themselves.
       - name: Run smoke test
-        timeout-minutes: 4
+        timeout-minutes: 8
         run: pnpm exec playwright test
         env:
           # Public production URL. Set as a literal rather than reading
