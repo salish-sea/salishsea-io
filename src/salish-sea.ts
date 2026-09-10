@@ -19,6 +19,7 @@ import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
 import './error-toast.ts';
 import type ErrorToast from './error-toast.ts';
+import './feedback-form.ts';
 import { reportError, type ErrorReport } from './report-error.ts';
 import { v7 } from "uuid";
 import type { Extent } from "ol/extent.js";
@@ -409,6 +410,7 @@ export default class SalishSea extends LitElement {
           })}
         </obs-panel>
         <error-toast ${ref(this.errorToastRef)}></error-toast>
+        <feedback-form></feedback-form>
       </main>
     `;
   }

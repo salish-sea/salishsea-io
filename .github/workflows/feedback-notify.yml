@@ -1,0 +1,65 @@
+name: Feedback Notify
+
+# Turn new rows in public.feedback into GitHub issues (decision 039).
+#
+# Feedback now posts to our own Supabase rather than to Sentry, so it arrives
+# somewhere only this workflow looks. Without it a report would sit in a table
+# nobody opens — the same outcome as the widget that dropped reports on the
+# floor, which is the failure decision 039 exists to end.
+#
+# GitHub's cron is best-effort and often 10-30 minutes late. That only delays a
+# report, never loses one: rows are claimed by `notified_at IS NULL` and stamped
+# as each issue is created, so a late or repeated run files nothing twice.
+
+on:
+    schedule:
+        - cron: '*/15 * * * *'
+    workflow_dispatch:
+
+concurrency:
+    # Never two at once: both would read the same unstamped rows and file the
+    # same feedback twice.
+    group: feedback-notify
+    cancel-in-progress: false
+
+jobs:
+    notify:
+        runs-on: ubuntu-latest
+        environment: production
+        permissions:
+            contents: read
+            issues: write   # one issue per piece of feedback
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+            - name: Setup Node
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version-file: package.json
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # Same DSN assembly as ingest-heartbeat.yml (see the rationale there):
+            # URL-encode the password, mask it, connect via the IPv4 session pooler.
+            - name: Prepare Postgres DSN
+              env:
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+              run: |
+                  ENCODED_PW=$(node -e 'process.stdout.write(encodeURIComponent(process.env.DB_PASSWORD))')
+                  echo "::add-mask::${ENCODED_PW}"
+                  printf 'SUPABASE_DB_URL=postgres://postgres.%s:%s@aws-1-us-west-1.pooler.supabase.com:5432/postgres\n' \
+                    "${SUPABASE_PROJECT_ID}" "${ENCODED_PW}" >> "${GITHUB_ENV}"
+
+            - name: File issues for new feedback
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: pnpm exec tsx scripts/feedback/notify.ts

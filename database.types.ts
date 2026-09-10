@@ -177,6 +177,48 @@ export type Database = {
           },
         ]
       }
+      feedback: {
+        Row: {
+          created_at: string
+          email: string | null
+          github_issue: number | null
+          id: number
+          message: string
+          name: string
+          notified_at: string | null
+          page_url: string | null
+          release: string | null
+          user_agent: string | null
+          user_uuid: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          github_issue?: number | null
+          id?: never
+          message: string
+          name: string
+          notified_at?: string | null
+          page_url?: string | null
+          release?: string | null
+          user_agent?: string | null
+          user_uuid?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          github_issue?: number | null
+          id?: never
+          message?: string
+          name?: string
+          notified_at?: string | null
+          page_url?: string | null
+          release?: string | null
+          user_agent?: string | null
+          user_uuid?: string | null
+        }
+        Relationships: []
+      }
       group_memberships: {
         Row: {
           basis: Database["public"]["Enums"]["membership_basis"]
@@ -842,6 +884,17 @@ export type Database = {
           day: string
           occurrence_count: number
         }[]
+      }
+      submit_feedback: {
+        Args: {
+          email: string
+          message: string
+          name: string
+          page_url: string
+          release: string
+          user_agent: string
+        }
+        Returns: undefined
       }
       upsert_observation: {
         Args: {
