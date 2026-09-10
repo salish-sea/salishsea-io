@@ -45,6 +45,21 @@ BEGIN
 
     -- authenticated writes only through the sighting form, which touches
     -- exactly two tables. Everything else it holds is unused.
+    --
+    -- `feedback` is excluded here for the same reason as above, and it is worth
+    -- saying twice because the narrower-looking version of this line is wrong:
+    -- dropping 'feedback' from this list would revoke `authenticated`'s
+    -- column-level INSERT and break feedback submission for anyone signed in.
+    -- Verified rather than assumed — `REVOKE INSERT ON <table>` removes a
+    -- column-level grant:
+    --
+    --     GRANT INSERT (a) ON t TO anon;   -- column privileges: a
+    --     REVOKE INSERT ON t FROM anon;    -- column privileges: (none)
+    --
+    -- The residual risk that skipping it hides a *table-level* grant on
+    -- feedback is covered: 20260910020000 does REVOKE ALL before granting
+    -- columns, so none survives, and public-grants.test.ts fails if one ever
+    -- does — its allowlist is the two sighting tables and nothing else.
     IF rel.relname NOT IN ('feedback', 'observations', 'observation_photos') THEN
       EXECUTE format(
         'REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON %s FROM authenticated', rel.ident);
