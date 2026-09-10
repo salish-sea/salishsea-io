@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { geolocationMessage } from './geolocation-message.ts';
+import { geolocationErrorIsReportable, geolocationMessage } from './geolocation-message.ts';
 
 describe('geolocationMessage', () => {
   it('names the browser when permission was denied, because that is what the user can change', () => {
@@ -20,5 +20,20 @@ describe('geolocationMessage', () => {
   it('falls back rather than dropping the message for an unknown code', () => {
     expect(geolocationMessage({code: 99}, 'show your location'))
       .toBe("Couldn't show your location — your location is unavailable.");
+  });
+});
+
+describe('geolocationErrorIsReportable', () => {
+  it('does not count a refusal: the browser asked, the visitor said no, the feature worked', () => {
+    expect(geolocationErrorIsReportable({code: 1})).toBe(false);
+  });
+
+  it('counts a device with no fix and a timeout, which can point at something real', () => {
+    expect(geolocationErrorIsReportable({code: 2})).toBe(true);
+    expect(geolocationErrorIsReportable({code: 3})).toBe(true);
+  });
+
+  it('counts a code it does not recognise rather than guessing it is benign', () => {
+    expect(geolocationErrorIsReportable({code: 99})).toBe(true);
   });
 });

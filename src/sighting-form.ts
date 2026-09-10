@@ -27,7 +27,7 @@ import { detectIndividuals } from "./identifiers.ts";
 import { type License, type Occurrence, type TravelDirection, type UpsertObservationArgs } from "./types.ts";
 import { supabase } from "./supabase.ts";
 import { reportError } from "./report-error.ts";
-import { geolocationMessage } from "./geolocation-message.ts";
+import { geolocationErrorIsReportable, geolocationMessage } from "./geolocation-message.ts";
 import PhotoAttachment, { newPhotoId, photoThumbnail, readExif, uploadPhoto, type FailedUploadPhoto, type Photo, type UploadedPhoto } from "./photo-attachment.ts";
 import type { Coordinate } from "ol/coordinate.js";
 
@@ -618,7 +618,10 @@ export default class SightingForm extends LitElement {
       // The button offers to place the observer marker for you; when it can't,
       // the marker simply stays put, which is indistinguishable from a slow
       // fix. Say which of the two it is, and why.
-      reportError(this, geolocationMessage(error, 'place your marker'), {cause: error});
+      reportError(this, geolocationMessage(error, 'place your marker'), {
+        cause: error,
+        capture: geolocationErrorIsReportable(error),
+      });
     }, {
       maximumAge: 1000 * 10,
       timeout: 1000 * 5,

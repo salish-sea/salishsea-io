@@ -135,3 +135,29 @@ described the state that fix replaced:
 
 > ~~Note also `salish-280`: Sentry init is PROD-gated in `salish-sea.ts` but unconditional on
 > those three pages, so their dev sessions already report to the production DSN.~~
+
+## Amended 2026-09-10 — a withheld permission tells the user only (bd `salish-ogb`)
+
+The coupling above is right for a failed *action* and wrong for a *withheld permission*.
+Someone taps "show my location", their browser asks, they say no, and we filed an error
+report about it — Sentry carried it as SALISHSEA-IO-3H, `Error: [object
+GeolocationPositionError]`, handled, no stack, nothing anyone could act on. That is the
+feature working. The toast already says the useful thing to the person holding the phone
+("your browser is blocking location access for this site"); the report added nothing.
+
+`reportError` now takes `capture: false`, and both geolocation call sites pass it for
+`PERMISSION_DENIED` via [`geolocationErrorIsReportable`](../../src/geolocation-message.ts).
+The default stays `true`, and the default is the argument: an exception to the coupling
+belongs here, named, rather than as a flag someone reaches for because a failure of ours is
+noisy. It is for outcomes that are not failures, not for failures we would rather not hear
+about.
+
+`POSITION_UNAVAILABLE` and `TIMEOUT` stay reported. They are not defects either, but unlike
+a refusal they can point at something real — a device that never gets a fix, or the 5s
+timeout the report form chose — and volume is the only way to notice. Revisit if they turn
+out to be as inert as the denial was.
+
+One repair alongside it, for every caller: a cause that is not an `Error` (a
+`GeolocationPositionError`, a plain result object) now reaches Sentry wrapped in one whose
+message is the sentence the person saw, with the original as `cause`. The `[object …]`
+above is what the unwrapped form looked like.
