@@ -42,7 +42,10 @@ SELECT net.http_post(
 ```
 
 `net.http_post` is **async** — it enqueues and returns a request id. The function
-runs a few seconds later and records the outcome in `ingest.runs`; read it there:
+runs a few seconds later and records the outcome in `ingest.runs`; read it there.
+`rows_upserted` counts rows the run actually wrote: a record the source returns
+unchanged is neither rewritten nor counted, so a quiet tick reports 0 even though
+the fetch returned the whole window.
 
 ```sql
 SELECT window_start, window_end, outcome, dry_run, total_results,

@@ -72,6 +72,26 @@ describe.skipIf(!DSN)('persistMaplify (local Supabase)', () => {
         expect(rows[0]?.['number_sighted']).toBe(9);
     });
 
+    test('an identical re-ingest writes nothing — and so broadcasts nothing (salish-xfo)', async () => {
+        // Maplify returns the whole window every five minutes. Rewriting rows that
+        // have not changed is what fired the occurrences_changed trigger on every
+        // quiet tick; the guard on the upsert is what keeps it quiet.
+        const batch = plan({ upsert: [sighting({ id: 900107, comments: 'same' }), sighting({ id: 900108 })] });
+        const first = await persistMaplify(sql, batch, WINDOW);
+        expect(first.upserted).toBe(2);
+        const before = await sql`select id, xmin::text as xmin from maplify.sightings where id in (900107, 900108) order by id`;
+
+        const again = await persistMaplify(sql, batch, WINDOW);
+        expect(again.upserted).toBe(0);
+        // xmin is the writing transaction's id: unchanged means no row was rewritten.
+        const after = await sql`select id, xmin::text as xmin from maplify.sightings where id in (900107, 900108) order by id`;
+        expect(after).toEqual(before);
+
+        // A changed field still gets through, and only that row counts.
+        const changed = await persistMaplify(sql, plan({ upsert: [sighting({ id: 900107, comments: 'different' }), sighting({ id: 900108 })] }), WINDOW);
+        expect(changed.upserted).toBe(1);
+    });
+
     test('on re-ingest, refreshes upstream in_ocean but preserves resolved collection_id (D-07)', async () => {
         // first ingest: [Orca Network] bracket → collection 1, in_ocean true
         await persistMaplify(sql, plan({
@@ -196,6 +216,31 @@ describe.skipIf(!DSN)('persistInaturalist (local Supabase)', () => {
 
         const photos = await sql`select id from inaturalist.observation_photos where observation_id = 9000000001`;
         expect(photos.count).toBe(2);
+    });
+
+    test('an identical re-ingest rewrites no photo (salish-xfo)', async () => {
+        // Every fetch returns every photo of every observation in the window, and
+        // until the guard on the photo upsert each one was rewritten each tick.
+        const input = {
+            taxa: testTaxa,
+            plan: iplan({ upsert: [observation({ id: 9000000004, photos: [photo({ id: 9100000041 }), photo({ id: 9100000042, seq: 1 })] })] }),
+            window: WINDOW,
+        };
+        await persistInaturalist(sql, input);
+        const before = await sql`select id, xmin::text as xmin from inaturalist.observation_photos where observation_id = 9000000004 order by id`;
+
+        const again = await persistInaturalist(sql, input);
+        expect(again.photosUpserted).toBe(0);
+        expect(again.photosDeleted).toBe(0);
+        const after = await sql`select id, xmin::text as xmin from inaturalist.observation_photos where observation_id = 9000000004 order by id`;
+        expect(after).toEqual(before);
+
+        // A photo that did change is still written, and is the only one counted.
+        const changed = await persistInaturalist(sql, {
+            ...input,
+            plan: iplan({ upsert: [observation({ id: 9000000004, photos: [photo({ id: 9100000041, hidden: true }), photo({ id: 9100000042, seq: 1 })] })] }),
+        });
+        expect(changed.photosUpserted).toBe(1);
     });
 
     // salish-5ds. A retired taxon and its replacement arrive in one batch, and
