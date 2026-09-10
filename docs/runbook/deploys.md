@@ -13,7 +13,7 @@ The run is five jobs ([decision 024](../decisions/024-deploy-gating-and-alerting
 | **Test** | Calls [`build.yml`](../../.github/workflows/build.yml) — the same suite PRs run (type drift, build, unit tests, infra tests) against the commit being deployed. Nothing reaches production without it. |
 | **Build** | Builds the production bundle with the `production` environment's vars/secrets; uploads `dist` + `supabase` as artifacts. Runs alongside Test. |
 | **Deploy** | Edge Function → `supabase db push` → S3 sync → CloudFront invalidation → `cdk deploy`. Not atomic; see below. |
-| **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`. A production that doesn't answer correctly fails the deploy run. |
+| **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`. A production that doesn't answer correctly fails the deploy run. The OG specs first wait up to five minutes for the edge handler to replicate; a new Lambda@Edge version is not at every edge location the moment `cdk deploy` returns. |
 | **Alert / Resolve** | On failure, opens or updates the single `deploy-failed` issue; on a fully green run, closes it. |
 
 Two things to know when reading a red run:
