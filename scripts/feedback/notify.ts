@@ -200,12 +200,22 @@ export function digestFor(rows: readonly FeedbackRow[]): {title: string; body: s
     };
 }
 
-/** Mark rows notified. `issue` is null when an earlier run already filed them. */
-async function stamp(sql: Sql, ids: readonly number[], issue: number | null): Promise<void> {
+/**
+ * Mark rows notified. `issue` is null when an earlier run already filed them.
+ *
+ * The `::bigint[]` cast is load-bearing. Without it postgres.js sends the array
+ * as `text[]` and Postgres refuses with "operator does not exist: bigint =
+ * text" — which is not a type-checking failure, so nothing catches it until it
+ * runs against a real database. It went to production unnoticed on 2026-09-10
+ * because every test of this file mocked `fetch` and none of them touched
+ * Postgres; the end-to-end run caught it, after the issue had been filed and
+ * before the row was stamped.
+ */
+export async function stamp(sql: Sql, ids: readonly number[], issue: number | null): Promise<void> {
     await sql`
         UPDATE public.feedback
         SET notified_at = now(), github_issue = ${issue}
-        WHERE id = ANY(${sql.array(ids as number[])})`;
+        WHERE id = ANY(${sql.array(ids as number[])}::bigint[])`;
 }
 
 async function main(): Promise<void> {
