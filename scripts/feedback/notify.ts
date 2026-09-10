@@ -58,6 +58,18 @@ const GITHUB_TIMEOUT_MS = 30_000;
  */
 const WORKFLOW_AUTHOR = 'github-actions[bot]';
 
+/**
+ * A stop, not a budget.
+ *
+ * The loop above ends when it reaches issues older than the oldest row in hand,
+ * which in normal operation is the first page. This only exists so a surprise
+ * cannot turn the walk into thousands of requests.
+ */
+const MAX_ISSUE_PAGES = 20;
+
+/** GitHub's maximum, and what the walk asks for. */
+const ISSUES_PER_PAGE = 100;
+
 function maskDsn(error: unknown): string {
     const text = error instanceof Error ? error.message : String(error);
     return text.replace(/postgres(?:ql)?:\/\/[^\s]*/gi, 'postgres://<redacted>');
@@ -80,37 +92,56 @@ export async function unnotified(sql: Sql, limit: number): Promise<FeedbackRow[]
  * minutes, and the window this closes is a re-run moments after a crash —
  * exactly when search would still be blind.
  */
-async function alreadyFiled(repo: string, token: string): Promise<Set<number>> {
-    // Newest first, explicitly, and one page.
+export async function alreadyFiled(repo: string, token: string, oldestRow: Date): Promise<Set<number>> {
+    const ids = new Set<number>();
+
+    // Walk back only as far as the oldest row we are about to consider.
     //
-    // The only issues this needs to recognise are the ones a *previous run of
-    // this script* filed moments before it died — and those are, by
-    // construction, the newest feedback issues there are. Paginating the whole
-    // history would grow without bound for no benefit, so the sort is pinned
-    // rather than left to GitHub's default. The single case that could outrun
-    // one page is 100 feedback issues created between a crash and the retry
-    // fifteen minutes later, and that cannot happen: past DIGEST_THRESHOLD a
-    // run files one issue, not a hundred.
-    const response = await fetch(
-        `https://api.github.com/repos/${repo}/issues`
-            + `?labels=feedback&state=all&per_page=100&sort=created&direction=desc`,
-        {headers: githubHeaders(token), signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS)},
-    );
-    if (!response.ok) {
-        // Not fatal on its own, but proceeding blind risks duplicates, and a
-        // duplicate is noise while a missed report is a loss. Stop and let the
-        // next run try: the rows stay unstamped and nothing is lost.
-        throw new Error(`Could not list existing feedback issues: ${response.status}`);
+    // An issue is always created after the row it reports, so nothing older
+    // than `oldestRow` can be one of ours, and there is no reason to read the
+    // years of feedback issues behind it. That makes the work bounded by how
+    // long a report has been waiting rather than by how many we have ever
+    // filed — which is the property worth having, because the alternative
+    // arguments ("one page is surely enough") are the kind that hold until
+    // quietly they do not.
+    //
+    // Stopping early can only ever make this return FEWER ids, and the cost of
+    // that is a duplicate issue. Reading too few would cost a lost report. The
+    // asymmetry is why the loop errs towards stopping.
+    for (let page = 1; page <= MAX_ISSUE_PAGES; page++) {
+        const response = await fetch(
+            `https://api.github.com/repos/${repo}/issues`
+                + `?labels=feedback&state=all&per_page=${ISSUES_PER_PAGE}&sort=created&direction=desc&page=${page}`,
+            {headers: githubHeaders(token), signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS)},
+        );
+        if (!response.ok) {
+            // Proceeding blind risks duplicates, and a duplicate is noise while
+            // a missed report is a loss — but so is filing nothing. Stop and
+            // let the next run try: the rows stay unstamped, so nothing is lost.
+            throw new Error(`Could not list existing feedback issues: ${response.status}`);
+        }
+        const issues = await response.json() as {
+            body: string | null;
+            created_at: string;
+            user: {login: string} | null;
+        }[];
+        // A short page is the end of the results — the ordinary way this stops.
+        const lastPage = issues.length < ISSUES_PER_PAGE;
+        if (issues.length === 0) break;
+
+        // Only markers in issues WE wrote count. The label is applied by hand as
+        // often as by us — a maintainer triaging a user's issue as `feedback` is
+        // the ordinary case — and a body ending in a marker would then let that
+        // issue claim a row, so the row would be stamped with nothing filed for
+        // it. Hand-labelled issues still occupy places in the listing, which is
+        // the other reason not to reason about page counts.
+        const ours = issues.filter((issue) => issue.user?.login === WORKFLOW_AUTHOR);
+        for (const id of filedRowIds(ours.map((issue) => issue.body))) ids.add(id);
+
+        const oldestOnPage = new Date(issues[issues.length - 1]!.created_at);
+        if (lastPage || Number.isNaN(oldestOnPage.getTime()) || oldestOnPage < oldestRow) break;
     }
-    const issues = await response.json() as {body: string | null; user: {login: string} | null}[];
-    // Only markers in issues WE wrote count. The label is applied by hand as
-    // often as by us — a maintainer triaging a user's issue as `feedback` is
-    // the ordinary case — and a body ending in a marker would then let that
-    // issue claim a row, so the row would be stamped with nothing filed for it.
-    // Getting this wrong in the other direction merely risks a duplicate, which
-    // is the failure worth having.
-    const ours = issues.filter((issue) => issue.user?.login === WORKFLOW_AUTHOR);
-    return filedRowIds(ours.map((issue) => issue.body));
+    return ids;
 }
 
 function githubHeaders(token: string): Record<string, string> {
@@ -209,7 +240,8 @@ async function main(): Promise<void> {
         }
 
         // Drop anything a previous run filed but was killed before stamping.
-        const filed = await alreadyFiled(repo, token);
+        // rows are ordered oldest-first, so claimed[0] bounds the search.
+        const filed = await alreadyFiled(repo, token, new Date(claimed[0]!.created_at));
         const rows = claimed.filter((row) => !filed.has(row.id));
         if (rows.length < claimed.length)
             console.log(`[feedback] ${claimed.length - rows.length} already filed by an earlier run; stamping without re-filing`);
