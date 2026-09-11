@@ -508,8 +508,8 @@ export async function persistInaturalist(
                 USING inaturalist.observations o
                 WHERE p.observation_id = o.id
                   AND o.id = ANY(${deleteIds as unknown as number[]}::bigint[])
-                  AND o.observed_at >= ${window.start}::date
-                  AND o.observed_at < (${window.end}::date + 1)
+                  AND o.observed_at >= (${window.start}::date + 1)
+                  AND o.observed_at < ${window.end}::date
                 RETURNING p.id`;
             photosDeleted += delPhotos.count;
 

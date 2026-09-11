@@ -54,6 +54,8 @@ if (!STEP_MONTHS) { console.error('--step must be decade, year, quarter or month
 const dryRun = values['dry-run'];
 const maxDeleted = Number(values['max-deleted']);
 const pauseMs = Number(values['pause-ms']);
+if (!Number.isSafeInteger(maxDeleted) || maxDeleted < 0) { console.error('--max-deleted must be a non-negative integer'); process.exit(2); }
+if (!Number.isFinite(pauseMs) || pauseMs < 0) { console.error('--pause-ms must be a non-negative number'); process.exit(2); }
 
 // iNat asks for at most 60 requests a minute; a window of p pages costs about
 // p + 1 requests (pages plus one taxa lookup, usually none), so never let a
@@ -69,11 +71,19 @@ function addMonths(iso: string, months: number): string {
     return date.toISOString().slice(0, 10);
 }
 
+function addDays(iso: string, days: number): string {
+    const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
+    return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+// Both bounds of a window are inclusive (the function's start/end are iNat's
+// d1/d2), so a window ends the day before the next one starts, and the last
+// ends the day before --to.
 function windows(from: string, to: string, stepMonths: number): Window[] {
     const out: Window[] = [];
     for (let start = from; start < to; start = addMonths(start, stepMonths)) {
         const next = addMonths(start, stepMonths);
-        out.push({ start, end: next < to ? next : to });
+        out.push({ start, end: addDays(next < to ? next : to, -1) });
     }
     return out;
 }

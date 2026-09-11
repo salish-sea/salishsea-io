@@ -1,6 +1,6 @@
 # 041 — iNaturalist history is backfilled to the beginning, through our own ingest, within iNat's recommended practices
 
-**Status:** accepted · **Decided:** 2026-09-11 · **Applies:** [011](011-ingest-imperative-shell.md), [018](018-inat-id-keyset-pagination.md) · **Context:** the mirror began at 2025-01-01, which is why every haul-out page ([040](040-haul-out-sites-list-first.md)) and presence grid has twenty months of history when the source has twenty years.
+**Status:** accepted; the walk itself waits on the reconcile fix (`salish-34s`), see "What the first run found" · **Decided:** 2026-09-11 · **Applies:** [011](011-ingest-imperative-shell.md), [018](018-inat-id-keyset-pagination.md) · **Context:** the mirror began at 2025-01-01, which is why every haul-out page ([040](040-haul-out-sites-list-first.md)) and presence grid has twenty months of history when the source has twenty years.
 
 ## Decision
 
