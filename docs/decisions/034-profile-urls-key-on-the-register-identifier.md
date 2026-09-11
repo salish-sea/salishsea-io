@@ -1,6 +1,6 @@
 # 034 — A profile URL keys on the register identifier; the designation is a slug
 
-**Status:** accepted, not yet implemented · **Decided:** 2026-08-30 · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md)
+**Status:** accepted · implemented for individuals and ecotypes 2026-09-11 ([PR #452](https://github.com/salish-sea/salishsea-io/pull/452)); matrilines wait on `salish-ox2.6` · **Decided:** 2026-08-30 · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md)
 
 ## Decision
 
@@ -39,7 +39,7 @@ Animals [ADR-0011](https://github.com/salish-sea/animals/blob/main/decisions/001
 
 ## Sequencing: individuals and ecotypes now, matrilines when Q22 answers
 
-Nothing here is deployed yet. Production still serves the designation-keyed routes that [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md) and [017](017-ecotype-profile-pages.md) describe, and those records stay accurate about the running system until this one lands. What follows is the order it lands in.
+*Implemented for individuals and ecotypes on 2026-09-11 ([PR #452](https://github.com/salish-sea/salishsea-io/pull/452)).* `/individuals/` and `/ecotypes/` serve the shape above; `/matrilines/` still serves the designation-keyed route [016](016-matriline-profile-pages.md) describes. This paragraph and the two below record the sequencing as decided; the first sentence originally read "Nothing here is deployed yet."
 
 This record can be implemented for two of the three families immediately, and the epic's issue graph did not reflect that.
 
@@ -50,6 +50,8 @@ So `/individuals/` and `/ecotypes/` adopt this shape as soon as `public.individu
 ## Where the redirect happens
 
 The viewer-request Lambda@Edge already intercepts these paths ([015](015-individual-profile-pages.md)), so the redirect belongs there — cacheable at CloudFront, and correct for crawlers.
+
+*Implementation note (2026-09-11).* "Cacheable at CloudFront" was wrong: CloudFront does not cache a response a viewer-request function generates. The `301` carries `Cache-Control: public, max-age=86400`, so a browser holds it for a day, and each request for a non-canonical path costs the edge one Supabase read. The crawler-side claim stands.
 
 **The canonical path costs no lookup.** An identifier-keyed URL is rewritten to the page shell exactly as today. Only a designation path pays a Supabase round trip to resolve, and those are the legacy and hand-typed ones.
 

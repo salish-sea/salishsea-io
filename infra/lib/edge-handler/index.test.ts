@@ -730,60 +730,87 @@ describe('Image-asset carve-out: og:image must serve bytes, not OG HTML', () => 
   });
 });
 
-describe('/individuals/<designation> profile pages', () => {
+// Decision 034: a profile URL keys on the register identifier's seven-digit
+// local part; the designation rides along as a slug that is never read.
+const sampleIndividual = {
+  entity_id: 'SSA:0010193',
+  primary_designation: 'T065A',
+  sex: 'female',
+  born_earliest: 1986,
+  born_latest: 1986,
+  life_status: 'alive',
+  nicknames: [
+    { name: 'Old Name', status: 'deprecated' },
+    { name: 'Artemis', status: 'official' },
+  ],
+};
+const CANONICAL_T065A = '/individuals/0010193/T065A';
+
+// What PostgREST returns for a designations?select=individual:individuals(...) read.
+const designationRow = (individual: unknown) => [{ individual }];
+
+const HUMAN_UA = 'Mozilla/5.0 (Macintosh)';
+const BOT_UA = 'facebookexternalhit/1.1';
+
+type Redirect = { status: string; headers: Record<string, { key: string; value: string }[]> };
+const locationOf = (result: Redirect) => result.headers.location?.[0]?.value;
+
+describe('/individuals/<identifier>/<slug> profile pages', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(global, 'fetch').mockReset();
   });
 
-  const sampleIndividual = {
-    primary_designation: 'T065A',
-    sex: 'female',
-    born_earliest: 1986,
-    born_latest: 1986,
-    life_status: 'alive',
-    nicknames: [
-      { name: 'Old Name', status: 'deprecated' },
-      { name: 'Artemis', status: 'official' },
-    ],
-  };
-
-  it('rewrites the URI to /individual.html for a human user-agent', async () => {
-    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/individuals/T065A');
+  it('rewrites the canonical path to /individual.html for a human without a lookup', async () => {
+    const event = makeEvent(HUMAN_UA, '', CANONICAL_T065A);
     const result = await handler(event);
     expect(result).toBe(event.Records[0].cf.request);
     expect(result.uri).toBe('/individual.html');
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  // Telling a stale slug from the current one costs the lookup the canonical
+  // branch exists to avoid; the page fixes the address with replaceState.
+  it('serves the shell to a human whatever the slug says, still without a lookup', async () => {
+    for (const uri of ['/individuals/0010193/T065A9', '/individuals/0010193/t065a', '/individuals/0010193/T065A/']) {
+      const event = makeEvent(HUMAN_UA, '', uri);
+      const result = await handler(event);
+      expect(result.uri).toBe('/individual.html');
+    }
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
   it('leaves non-individual paths alone for a human user-agent', async () => {
-    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/about.html');
+    const event = makeEvent(HUMAN_UA, '', '/about.html');
     const result = await handler(event);
     expect(result.uri).toBe('/about.html');
   });
 
-  it('does not rewrite deeper paths under /individuals/', async () => {
-    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/individuals/T065A/photos');
-    const result = await handler(event);
-    expect(result.uri).toBe('/individuals/T065A/photos');
+  it('does not treat deeper paths as profile pages', async () => {
+    for (const uri of ['/individuals/T065A/photos', '/individuals/0010193/T065A/photos']) {
+      const event = makeEvent(HUMAN_UA, '', uri);
+      const result = await handler(event);
+      expect(result.uri).toBe(uri);
+    }
   });
 
-  it('returns individual-specific OG tags for a bot', async () => {
+  it('returns individual-specific OG tags for a bot on the canonical path, looked up by identifier', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [sampleIndividual],
     } as Response);
 
-    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+    const event = makeEvent(BOT_UA, '', CANONICAL_T065A);
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
     expect(result.body).toContain('content="Artemis (T065A)"');
     expect(result.body).toContain('born 1986');
-    expect(result.body).toContain('content="https://salishsea.io/individuals/T065A"');
+    expect(result.body).toContain('content="https://salishsea.io/individuals/0010193/T065A"');
     expect(result.body).toContain('content="profile"');
 
     const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
-    expect(apiUrl).toContain('/rest/v1/individuals?primary_designation=eq.T065A');
+    expect(apiUrl).toContain('/rest/v1/individuals?entity_id=eq.SSA%3A0010193');
+    expect(apiUrl).not.toContain('primary_designation=');
   });
 
   it('includes "born after" vitals when only born_earliest is known', async () => {
@@ -792,7 +819,7 @@ describe('/individuals/<designation> profile pages', () => {
       json: async () => [{ ...sampleIndividual, born_earliest: 1990, born_latest: null }],
     } as Response);
 
-    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+    const event = makeEvent(BOT_UA, '', CANONICAL_T065A);
     const result = await handler(event) as { body: string };
     expect(result.body).toContain('born after 1990');
   });
@@ -803,19 +830,19 @@ describe('/individuals/<designation> profile pages', () => {
       json: async () => [{ ...sampleIndividual, nicknames: [] }],
     } as Response);
 
-    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+    const event = makeEvent(BOT_UA, '', CANONICAL_T065A);
     const result = await handler(event) as { body: string };
     expect(result.body).toContain('<title>T065A</title>');
     expect(result.body).not.toContain('Artemis');
   });
 
-  it('returns the generic preview for an unknown designation', async () => {
+  it('returns the generic preview to a bot for an identifier nothing answers to', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [],
     } as Response);
 
-    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/NOPE');
+    const event = makeEvent(BOT_UA, '', '/individuals/9999999/NOPE');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
     expect(result.body).toContain('Salish Sea');
@@ -825,7 +852,7 @@ describe('/individuals/<designation> profile pages', () => {
   it('fail-open for a bot still rewrites to the page shell when fetch throws', async () => {
     jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
 
-    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+    const event = makeEvent(BOT_UA, '', CANONICAL_T065A);
     const result = await handler(event);
     expect(result).toBe(event.Records[0].cf.request);
     expect(result.uri).toBe('/individual.html');
@@ -840,10 +867,128 @@ describe('/individuals/<designation> profile pages', () => {
       }],
     } as Response);
 
-    const event = makeEvent('facebookexternalhit/1.1', '', '/individuals/T065A');
+    const event = makeEvent(BOT_UA, '', CANONICAL_T065A);
     const result = await handler(event) as { body: string };
     expect(result.body).not.toContain('<script>alert(1)</script>');
     expect(result.body).toContain('&lt;script&gt;');
+  });
+});
+
+// Every address that is not the canonical one redirects to it (decision 034).
+// The designation paths are the ones in the wild — every link ever shared,
+// and what a person types — and the ones that were dying for 65 codes.
+describe('redirects to the canonical profile address', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(global, 'fetch').mockReset();
+  });
+
+  const resolvesTo = (individual: unknown) =>
+    jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => designationRow(individual) } as Response);
+
+  it.each([HUMAN_UA, BOT_UA])('301s a designation path for UA %s, resolved through public.designations', async (ua) => {
+    resolvesTo(sampleIndividual);
+    for (const uri of ['/individuals/T065A', '/individuals/T065A/']) {
+      const result = await handler(makeEvent(ua, '', uri)) as Redirect;
+      expect(result.status).toBe('301');
+      expect(locationOf(result)).toBe(CANONICAL_T065A);
+      expect(result.headers['cache-control']?.[0]?.value).toBe('public, max-age=86400');
+    }
+
+    const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(apiUrl).toContain('/rest/v1/designations?code=ilike.T065A&select=individual:individuals(');
+    expect(apiUrl).toContain('limit=1');
+  });
+
+  // T046A was renamed T122. primary_designation never matched it; designations
+  // still does, because the superseded row points at the same individual.
+  it('301s a superseded code to the individual that now carries it', async () => {
+    resolvesTo({ ...sampleIndividual, entity_id: 'SSA:0010368', primary_designation: 'T122', nicknames: [] });
+    const result = await handler(makeEvent(HUMAN_UA, '', '/individuals/T046A')) as Redirect;
+    expect(result.status).toBe('301');
+    expect(locationOf(result)).toBe('/individuals/0010368/T122');
+  });
+
+  it('resolves a code as a person types it: unpadded and lower-case', async () => {
+    resolvesTo(sampleIndividual);
+    const result = await handler(makeEvent(HUMAN_UA, '', '/individuals/t65a')) as Redirect;
+    expect(locationOf(result)).toBe(CANONICAL_T065A);
+    const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(apiUrl).toContain('code=ilike.T065A&');
+  });
+
+  it('matches the typed code exactly — LIKE wildcards in the path are escaped', async () => {
+    resolvesTo(sampleIndividual);
+    await handler(makeEvent(HUMAN_UA, '', '/individuals/CA_20%25'));
+    const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    // `\_` and `\%`, percent-encoded for the query string.
+    expect(apiUrl).toContain(`code=ilike.${encodeURIComponent('CA\\_20\\%')}&`);
+  });
+
+  it.each([HUMAN_UA, BOT_UA])('301s a bare identifier to the slugged form for UA %s', async (ua) => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => [sampleIndividual] } as Response);
+    for (const uri of ['/individuals/0010193', '/individuals/0010193/']) {
+      const result = await handler(makeEvent(ua, '', uri)) as Redirect;
+      expect(result.status).toBe('301');
+      expect(locationOf(result)).toBe(CANONICAL_T065A);
+    }
+    const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(apiUrl).toContain('individuals?entity_id=eq.SSA%3A0010193');
+  });
+
+  // A crawler looks the subject up anyway, so a wrong slug costs nothing extra
+  // to correct; og:url alone would leave the stale address in the crawler's index.
+  it('301s a bot from a stale or mis-cased slug to the canonical one', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => [sampleIndividual] } as Response);
+    for (const uri of ['/individuals/0010193/T065A9', '/individuals/0010193/t065a', '/individuals/0010193/T065A/']) {
+      const result = await handler(makeEvent(BOT_UA, '', uri)) as Redirect;
+      expect(result.status).toBe('301');
+      expect(locationOf(result)).toBe(CANONICAL_T065A);
+    }
+  });
+
+  it('serves a human the shell for an unknown designation — the page says so', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => [] } as Response);
+    const event = makeEvent(HUMAN_UA, '', '/individuals/NOPE');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(result.uri).toBe('/individual.html');
+  });
+
+  it('serves a bot the site card for an unknown designation', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => [] } as Response);
+    const result = await handler(makeEvent(BOT_UA, '', '/individuals/NOPE')) as { status: string; body: string };
+    expect(result.status).toBe('200');
+    expect(result.body).toContain('Salish Sea');
+    expect(result.body).not.toContain('NOPE');
+  });
+
+  // Decision 015's rule: slowness degrades to the shell, never to a 503 — and
+  // the page then does the redirect's job client-side.
+  it('fails open to the shell for a human when the lookup times out', async () => {
+    jest.spyOn(global, 'fetch').mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError'));
+    const event = makeEvent(HUMAN_UA, '', '/individuals/T065A');
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(result.uri).toBe('/individual.html');
+  });
+
+  it('bounds the redirect lookup with the same AbortSignal deadline', async () => {
+    const mockFetch = resolvesTo(sampleIndividual);
+    await handler(makeEvent(HUMAN_UA, '', '/individuals/T065A'));
+    const options = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  // The register has no matriline identifiers yet (salish-ox2.6), so the
+  // family is not keyed: designation paths are canonical and nothing redirects.
+  it('leaves /matrilines/<designation> canonical, and does not read a two-segment matriline path', async () => {
+    const human = await handler(makeEvent(HUMAN_UA, '', '/matrilines/T065A'));
+    expect(human.uri).toBe('/matriline.html');
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    const deeper = makeEvent(HUMAN_UA, '', '/matrilines/0002039/T073s');
+    expect((await handler(deeper)).uri).toBe('/matrilines/0002039/T073s');
   });
 });
 
@@ -925,54 +1070,65 @@ describe('/matrilines/<designation> profile pages', () => {
   });
 });
 
-describe('/ecotypes/<designation> profile pages', () => {
+describe('/ecotypes/<identifier>/<slug> profile pages', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(global, 'fetch').mockReset();
   });
 
-  const sampleEcotype = { designation: 'Biggs', nicknames: [] };
+  const sampleEcotype = { entity_id: 'SSA:0000002', designation: 'Biggs', nicknames: [] };
+  const CANONICAL_BIGGS = '/ecotypes/0000002/Biggs';
 
-  it('rewrites the URI to /ecotype.html for a human user-agent', async () => {
-    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/ecotypes/Biggs');
+  it('rewrites the canonical path to /ecotype.html for a human without a lookup', async () => {
+    const event = makeEvent(HUMAN_UA, '', CANONICAL_BIGGS);
     const result = await handler(event);
     expect(result).toBe(event.Records[0].cf.request);
     expect(result.uri).toBe('/ecotype.html');
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('does not rewrite deeper paths under /ecotypes/', async () => {
-    const event = makeEvent('Mozilla/5.0 (Macintosh)', '', '/ecotypes/Biggs/members');
-    const result = await handler(event);
-    expect(result.uri).toBe('/ecotypes/Biggs/members');
+  it('does not treat deeper paths as profile pages', async () => {
+    for (const uri of ['/ecotypes/Biggs/members', '/ecotypes/0000002/Biggs/members']) {
+      const result = await handler(makeEvent(HUMAN_UA, '', uri));
+      expect(result.uri).toBe(uri);
+    }
   });
 
-  it('returns ecotype-specific OG tags for a bot', async () => {
+  it('returns ecotype-specific OG tags for a bot on the canonical path, looked up by identifier', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [sampleEcotype],
     } as Response);
 
-    const event = makeEvent('facebookexternalhit/1.1', '', '/ecotypes/Biggs');
-    const result = await handler(event) as { status: string; body: string };
+    const result = await handler(makeEvent(BOT_UA, '', CANONICAL_BIGGS)) as { status: string; body: string };
     expect(result.status).toBe('200');
     expect(result.body).toContain(`content="Bigg's (transient) killer whales"`);
-    expect(result.body).toContain('content="https://salishsea.io/ecotypes/Biggs"');
+    expect(result.body).toContain('content="https://salishsea.io/ecotypes/0000002/Biggs"');
     expect(result.body).toContain('content="profile"');
 
     const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
-    expect(apiUrl).toContain('/rest/v1/social_groups?designation=eq.Biggs');
+    expect(apiUrl).toContain('/rest/v1/social_groups?entity_id=eq.SSA%3A0000002');
     expect(apiUrl).toContain('kind=eq.ecotype');
   });
 
-  it('returns the generic preview for an unknown designation', async () => {
+  it.each([HUMAN_UA, BOT_UA])('301s the designation path for UA %s, matched case-insensitively', async (ua) => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => [sampleEcotype] } as Response);
+    for (const uri of ['/ecotypes/Biggs', '/ecotypes/biggs']) {
+      const result = await handler(makeEvent(ua, '', uri)) as Redirect;
+      expect(result.status).toBe('301');
+      expect(locationOf(result)).toBe(CANONICAL_BIGGS);
+    }
+    const apiUrl = (global.fetch as jest.Mock).mock.calls[1][0] as string;
+    expect(apiUrl).toContain('/rest/v1/social_groups?designation=ilike.biggs&kind=eq.ecotype');
+  });
+
+  it('returns the generic preview to a bot for an unknown designation', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => [],
     } as Response);
 
-    const event = makeEvent('facebookexternalhit/1.1', '', '/ecotypes/NOPE');
-    const result = await handler(event) as { status: string; body: string };
+    const result = await handler(makeEvent(BOT_UA, '', '/ecotypes/NOPE')) as { status: string; body: string };
     expect(result.status).toBe('200');
     expect(result.body).toContain('Salish Sea');
     expect(result.body).not.toContain('NOPE');
@@ -981,7 +1137,7 @@ describe('/ecotypes/<designation> profile pages', () => {
   it('fail-open for a bot still rewrites to the page shell when fetch throws', async () => {
     jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
 
-    const event = makeEvent('facebookexternalhit/1.1', '', '/ecotypes/Biggs');
+    const event = makeEvent(BOT_UA, '', CANONICAL_BIGGS);
     const result = await handler(event);
     expect(result).toBe(event.Records[0].cf.request);
     expect(result.uri).toBe('/ecotype.html');

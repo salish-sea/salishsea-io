@@ -107,12 +107,12 @@ Two rules that survive the isolation, because worktrees separate files and nothi
 
 ## Architecture Overview
 
-Static SPA (Lit web components + Vite + TypeScript, OpenLayers maps) on AWS S3/CloudFront, Supabase backend (Postgres + auth + storage), AWS CDK infra in `infra/`, deployed by GitHub Actions on push to `main`. A Lambda@Edge function serves OG meta tags to crawlers for rich link previews and rewrites `/individuals/<designation>` profile-page paths to the `individual.html` shell (fail-open; `/dwca/*` carved out; decision 015). A nightly workflow regenerates the DarwinCore Archive from the read-only `dwc` Postgres schema. Details: [docs/decisions/](docs/decisions/), [docs/data-provenance.md](docs/data-provenance.md).
+Static SPA (Lit web components + Vite + TypeScript, OpenLayers maps) on AWS S3/CloudFront, Supabase backend (Postgres + auth + storage), AWS CDK infra in `infra/`, deployed by GitHub Actions on push to `main`. A Lambda@Edge function serves OG meta tags to crawlers for rich link previews and rewrites `/individuals/<identifier>/<slug>` profile-page paths to the `individual.html` shell and `301`s designation paths to that shape (fail-open; `/dwca/*` carved out; decisions 015, 034). A nightly workflow regenerates the DarwinCore Archive from the read-only `dwc` Postgres schema. Details: [docs/decisions/](docs/decisions/), [docs/data-provenance.md](docs/data-provenance.md).
 
 ## Conventions & Patterns
 
 - Coordinates: decimal lon/lat WGS84, map projection EPSG:3857. Time: UNIX epoch seconds.
-- URL state: `d` (date), `x/y/z` (map), `o` (occurrence); `/individuals/<designation>` for profile pages.
+- URL state: `d` (date), `x/y/z` (map), `o` (occurrence); profile pages at `/individuals/<7-digit register id>/<designation slug>` and `/ecotypes/<id>/<slug>` — only the id is read (decision 034); `/matrilines/<designation>` until `salish-ox2.6`.
 - Migrations: SELECT grants ship in the same migration that creates a table or view (Supabase RLS defaults silently zero out joins otherwise), and the migration's PR updates the pinned set in `supabase/read-grants.test.ts`, which CI checks against a fresh reset.
 - `maplify.sightings.comments` is immutable — parse at read time, never UPDATE it.
 - Keep the project "light, nimble, and maintainable, minimizing abstractions and volatile dependencies" (README).

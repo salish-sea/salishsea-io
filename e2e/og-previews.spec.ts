@@ -21,6 +21,14 @@ const BOT_UA = { 'User-Agent': 'facebookexternalhit/1.1' };
 
 const PROBE_TIMEOUT_MS = 15_000;
 
+// Decision 034: a profile URL keys on the register identifier's seven-digit
+// local part, with the designation as a slug that is never read. T065A is
+// SSA:0010193; the Bigg's ecotype is SSA:0000002; T046A was renamed T122
+// (SSA:0010368) and is the code that died under the old scheme.
+const CANONICAL_T065A = '/individuals/0010193/T065A';
+const CANONICAL_BIGGS = '/ecotypes/0000002/Biggs';
+const HUMAN_UA = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' };
+
 test.beforeAll(async ({ playwright }) => {
   // The hook's own budget: every probe plus the sleep after it fits inside
   // READY_TIMEOUT_MS by construction below, and this is the margin on top.
@@ -34,7 +42,10 @@ test.beforeAll(async ({ playwright }) => {
       // tests below say what they think of production once the wait is over.
       let ready = false;
       try {
-        const response = await api.get('/individuals/T065A', { headers: BOT_UA, timeout: PROBE_TIMEOUT_MS });
+        // The canonical, two-segment path: a handler from before decision 034
+        // does not recognise it and answers with the site card, so profile tags
+        // here mean the deploy under test is the one answering.
+        const response = await api.get(CANONICAL_T065A, { headers: BOT_UA, timeout: PROBE_TIMEOUT_MS });
         ready = response.status() === 200 && (await response.text()).includes('content="profile"');
       } catch (err) {
         console.warn(`probe ${attempt} failed: ${String(err)}`);
@@ -123,17 +134,15 @@ test('regular browser UA on homepage receives SPA', async ({ request }) => {
   expect(body).toContain('<salish-sea>');
 });
 
-test('bot UA on an individual page receives profile OG meta tags', async ({ request }) => {
-  const response = await request.get('/individuals/T065A', {
-    headers: { 'User-Agent': 'facebookexternalhit/1.1' },
-  });
+test('bot UA on an individual page receives profile OG meta tags with the canonical og:url', async ({ request }) => {
+  const response = await request.get(CANONICAL_T065A, { headers: BOT_UA });
 
   expect(response.status()).toBe(200);
   const body = await response.text();
   expect(body).toContain('T065A');
   expect(body).toContain('og:title');
   expect(body).toContain('content="profile"');
-  expect(body).toContain('https://salishsea.io/individuals/T065A');
+  expect(body).toContain(`content="https://salishsea.io${CANONICAL_T065A}"`);
   // A profile has no image of its own, so it carries the brand card. Asserted
   // per route: the shared fallback is easy to restore to text-only for one
   // path without noticing (decision 026).
@@ -142,15 +151,38 @@ test('bot UA on an individual page receives profile OG meta tags', async ({ requ
 });
 
 test('regular browser UA on an individual page receives the page shell', async ({ request }) => {
-  const response = await request.get('/individuals/T065A', {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
-  });
+  const response = await request.get(CANONICAL_T065A, { headers: HUMAN_UA });
 
   expect(response.status()).toBe(200);
   const body = await response.text();
   // The viewer-request function rewrites /individuals/* to the individual.html
   // shell (there is no S3 object at the path itself).
   expect(body).toContain('<individual-page>');
+});
+
+// Every link ever shared has this shape, and so does every URL a person types.
+// The 301 is asserted for both audiences: a scheme that redirected crawlers but
+// served humans the old path would pass the tests above while half-migrated.
+for (const [who, headers] of [['a crawler', BOT_UA], ['a browser', HUMAN_UA]] as const) {
+  test(`a designation path 301s ${who} to the identifier-keyed address`, async ({ request }) => {
+    const response = await request.get('/individuals/T065A', { headers, maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    expect(response.headers()['location']).toBe(CANONICAL_T065A);
+  });
+}
+
+// The headline of decision 034: T046A was renamed T122 and had been dead as a
+// URL, because the old handler matched on primary_designation alone.
+test('a superseded code 301s to the individual that now carries it', async ({ request }) => {
+  const response = await request.get('/individuals/T046A', { headers: HUMAN_UA, maxRedirects: 0 });
+  expect(response.status()).toBe(301);
+  expect(response.headers()['location']).toBe('/individuals/0010368/T122');
+});
+
+test('a bare identifier 301s to the slugged canonical address', async ({ request }) => {
+  const response = await request.get('/individuals/0010193', { headers: HUMAN_UA, maxRedirects: 0 });
+  expect(response.status()).toBe(301);
+  expect(response.headers()['location']).toBe(CANONICAL_T065A);
 });
 
 test('bot UA on a matriline page receives profile OG meta tags', async ({ request }) => {
@@ -183,16 +215,14 @@ test('regular browser UA on a matriline page receives the page shell', async ({ 
   expect(body).toContain('<matriline-page>');
 });
 
-test('bot UA on an ecotype page receives profile OG meta tags', async ({ request }) => {
-  const response = await request.get('/ecotypes/Biggs', {
-    headers: { 'User-Agent': 'facebookexternalhit/1.1' },
-  });
+test('bot UA on an ecotype page receives profile OG meta tags with the canonical og:url', async ({ request }) => {
+  const response = await request.get(CANONICAL_BIGGS, { headers: BOT_UA });
 
   expect(response.status()).toBe(200);
   const body = await response.text();
   expect(body).toContain('og:title');
   expect(body).toContain('content="profile"');
-  expect(body).toContain('https://salishsea.io/ecotypes/Biggs');
+  expect(body).toContain(`content="https://salishsea.io${CANONICAL_BIGGS}"`);
   // A profile has no image of its own, so it carries the brand card. Asserted
   // per route: the shared fallback is easy to restore to text-only for one
   // path without noticing (decision 026).
@@ -201,13 +231,24 @@ test('bot UA on an ecotype page receives profile OG meta tags', async ({ request
 });
 
 test('regular browser UA on an ecotype page receives the page shell', async ({ request }) => {
-  const response = await request.get('/ecotypes/Biggs', {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
-  });
+  const response = await request.get(CANONICAL_BIGGS, { headers: HUMAN_UA });
 
   expect(response.status()).toBe(200);
   const body = await response.text();
   // The viewer-request function rewrites /ecotypes/* to the ecotype.html
   // shell (there is no S3 object at the path itself).
   expect(body).toContain('<ecotype-page>');
+});
+
+test('the ecotype designation path 301s to the identifier-keyed address', async ({ request }) => {
+  const response = await request.get('/ecotypes/Biggs', { headers: HUMAN_UA, maxRedirects: 0 });
+  expect(response.status()).toBe(301);
+  expect(response.headers()['location']).toBe(CANONICAL_BIGGS);
+});
+
+// Matrilines are not keyed yet (034, "Sequencing"; salish-ox2.6): the
+// designation path is canonical and must keep answering directly, not redirect.
+test('a matriline designation path still answers directly', async ({ request }) => {
+  const response = await request.get('/matrilines/T065A', { headers: HUMAN_UA, maxRedirects: 0 });
+  expect(response.status()).toBe(200);
 });

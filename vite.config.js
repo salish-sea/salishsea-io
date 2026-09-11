@@ -20,12 +20,14 @@ function releaseSha() {
   }
 }
 
-// Exactly one path segment after the prefix — the page's own module/asset
-// requests resolve elsewhere and must not be swallowed by the rewrite.
+// One path segment after the prefix, or two for the identifier-plus-slug
+// shape of decision 034 (/individuals/0010193/T065A) — the page's own
+// module/asset requests resolve elsewhere and must not be swallowed by the
+// rewrite. No redirects here: the page canonicalises its own address.
 const PROFILE_REWRITES = [
-  [/^\/individuals\/[^/]+\/?(\?.*)?$/, '/individual.html'],
+  [/^\/individuals\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/individual.html'],
   [/^\/matrilines\/[^/]+\/?(\?.*)?$/, '/matriline.html'],
-  [/^\/ecotypes\/[^/]+\/?(\?.*)?$/, '/ecotype.html'],
+  [/^\/ecotypes\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/ecotype.html'],
 ];
 
 function profilePagesRewrite(req, _res, next) {
@@ -58,9 +60,9 @@ export default defineConfig({
   plugins: [
     {
       // In production these rewrites live in the CloudFront viewer-request
-      // Lambda@Edge (infra/lib/edge-handler): /individuals/<designation> and
-      // /matrilines/<designation> are client-rendered pages served from their
-      // HTML shells.
+      // Lambda@Edge (infra/lib/edge-handler): /individuals/<id>/<slug>,
+      // /matrilines/<designation> and /ecotypes/<id>/<slug> are client-rendered
+      // pages served from their HTML shells.
       name: 'profile-pages-rewrite',
       configureServer(server) {
         server.middlewares.use(profilePagesRewrite);

@@ -18,9 +18,9 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [012](012-ingest-heartbeat.md) | Ingest heartbeat: external observer via scheduled GitHub Action | accepted |
 | [013](013-orcasound-acoustic-occurrences.md) | OrcaSound acoustic occurrences from curated biophony bouts, identified by upstream tags (amended 2026-08-14: identifications arrive typed) | accepted (our side); pending upstream adoption |
 | [014](014-trust-and-curation-model.md) | Trust & curation: claims have status, people have reputation, curators assert both | proposed (direction) |
-| [015](015-individual-profile-pages.md) | Individual profile pages at `/individuals/<designation>` | accepted (amended by 034) |
+| [015](015-individual-profile-pages.md) | Individual profile pages at `/individuals/<designation>` | accepted (amended by 034: now `/individuals/<identifier>/<slug>`) |
 | [016](016-matriline-profile-pages.md) | Matriline profile pages | accepted (amended by 034) |
-| [017](017-ecotype-profile-pages.md) | Ecotype profile pages | accepted (amended by 034) |
+| [017](017-ecotype-profile-pages.md) | Ecotype profile pages | accepted (amended by 034: now `/ecotypes/<identifier>/<slug>`) |
 | [018](018-inat-id-keyset-pagination.md) | iNaturalist ingest paginates by id-keyset, not page number (amends 011) | accepted |
 | [019](019-no-fallback-preview-image.md) | No fallback link-preview image: `og:image` only for a photo of the thing shared | superseded by 026 |
 | [020](020-map-preview-cards.md) | Map-rendered link preview cards; Esri basemap, day cards, basemap sourcing | accepted |
@@ -37,7 +37,7 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [031](031-surfacing-failures.md) | Failures reach the user through one toast, and Sentry through the same call | accepted |
 | [032](032-retired-taxa-resolved-on-read.md) | A retired taxon is resolved on read, not rewritten on write (applies 008) | accepted |
 | [033](033-register-names-the-animals.md) | The register names the animals, we compose the display (applies 008, extends 029) | accepted |
-| [034](034-profile-urls-key-on-the-register-identifier.md) | A profile URL keys on the register identifier; the designation is a slug (amends 015, 016, 017) | accepted, not yet implemented |
+| [034](034-profile-urls-key-on-the-register-identifier.md) | A profile URL keys on the register identifier; the designation is a slug (amends 015, 016, 017) | accepted; implemented for individuals and ecotypes 2026-09-11, matrilines pending `salish-ox2.6` |
 | [035](035-catalogue-migrates-before-tagging.md) | The catalogue migrates before the first OrcaSound bout is tagged (answers ADR-0012's open question) | accepted |
 | [036](036-ingest-scope-killer-whales-range-wide.md) | Ingest scope: killer whales range-wide, everything else the Salish Sea; enforced in `isIngestable`, existing rows purged | accepted |
 | [037](037-sentry-transmits-from-production-only.md) | Sentry transmits from production only; one `initSentry()` gates the scope binding, not `init()` | accepted |

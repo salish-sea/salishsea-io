@@ -6,7 +6,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import {
   displayName, fetchAllGroups, fetchGroupMembers, fetchGroupOccurrenceLinks, fetchMatriline,
   ecotypePath, groupChain, mapUrl, matrilinePath, observedDate, parseMatrilinePath,
-  type GroupMember, type MatrilineProfile, type OccurrenceLink, type SocialGroup,
+  type CatalogGroup, type GroupMember, type MatrilineProfile, type OccurrenceLink,
 } from './catalog.ts';
 import { profileStyles, renderDagger, renderMemberList, renderPresenceTable, renderRelative } from './profile-shared.ts';
 import { initSentry } from './sentry.ts';
@@ -16,7 +16,7 @@ initSentry();
 
 interface Profile {
   group: MatrilineProfile;
-  groups: Map<number, SocialGroup>;
+  groups: Map<number, CatalogGroup>;
   members: GroupMember[];
   name: string | null;
 }
@@ -95,7 +95,7 @@ export class MatrilinePage extends LitElement {
 
   // "Within T065's matriline · Bigg's (transient) killer whales" — ancestors
   // only; the masthead already names the group itself.
-  private renderChain(chain: SocialGroup[]): TemplateResult | typeof nothing {
+  private renderChain(chain: CatalogGroup[]): TemplateResult | typeof nothing {
     const ancestors = chain.slice(1);
     const parents = ancestors.filter(g => g.kind !== 'ecotype');
     const ecotype = ancestors.find(g => g.kind === 'ecotype');
@@ -103,7 +103,7 @@ export class MatrilinePage extends LitElement {
     return html`${parents.map((g, i) => html`${i ? ' · ' : ''}Within ${g.kind === 'matriline'
         ? html`<a href=${matrilinePath(g.designation)}>${g.designation}</a>`
         : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
-      }${ecotype ? html`${parents.length ? ' · ' : ''}<a href=${ecotypePath(ecotype.designation)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}`;
+      }${ecotype ? html`${parents.length ? ' · ' : ''}<a href=${ecotypePath(ecotype)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}`;
   }
 
   // Naming facts only (name, status, year, namer) — no story prose (D-21).

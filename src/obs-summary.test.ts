@@ -13,7 +13,7 @@ vi.mock('./supabase.ts', () => ({
 }));
 vi.mock('./individual-links.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./individual-links.ts')>()),
-  loadCatalogCodes: async () => new Map<string, string>(),
+  loadCatalogCodes: async () => new Map(),
 }));
 
 import { buildShareUrl, stripResolvedProvenance, ObsSummary } from './obs-summary.ts';

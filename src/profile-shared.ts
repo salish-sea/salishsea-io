@@ -151,9 +151,29 @@ export const profileStyles = css`
   }
 `;
 
-export function renderRelative(relative: { primary_designation: string; nicknames?: { name: string; status: string | null }[] }) {
+export function renderRelative(relative: { entity_id: string | null; primary_designation: string; nicknames?: { name: string; status: string | null }[] }) {
   const name = relative.nicknames ? displayName(relative.nicknames) : null;
-  return html`<a href=${individualPath(relative.primary_designation)}>${relative.primary_designation}${name ? ` ${name}` : ''}</a>`;
+  return html`<a href=${individualPath(relative)}>${relative.primary_designation}${name ? ` ${name}` : ''}</a>`;
+}
+
+// Settle the page on its canonical address (decision 034). The edge handler
+// 301s designation paths and bare identifiers before the page loads, but it
+// fails open to the shell when its lookup is slow, and a slug is never read —
+// so the address a visitor arrived on may be a legacy one, a stale slug, or
+// the bare identifier. Rewrite it in place, and declare the canonical URL for
+// crawlers that execute scripts; the edge's og:url covers the ones that don't.
+export function canonicalize(path: string) {
+  const { pathname, search, hash, origin } = window.location;
+  if (pathname !== path) {
+    history.replaceState(history.state, '', `${path}${search}${hash}`);
+  }
+  let link = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'canonical';
+    document.head.append(link);
+  }
+  link.href = new URL(path, origin).href;
 }
 
 export function renderDagger(lifeStatus: string) {

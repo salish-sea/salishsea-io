@@ -24,19 +24,32 @@ function ecotypeForTerm(term: string): string | null {
 // Odd-indexed segments are existing markdown links — leave them untouched.
 const EXISTING_LINK_RE = /(\[.*?\]\(.*?\))/g;
 
+// What a link needs to know about its target: the register identifier that
+// keys the URL (decision 034) and the designation that becomes its slug.
+export interface IndividualRef {
+  entity_id: string | null;
+  primary_designation: string;
+}
+
+export interface EcotypeRef {
+  entity_id: string | null;
+  designation: string;
+}
+
 // Turn catalog-resolvable identifier codes in a markdown body into links to the
 // individual's profile page, matriline codes ("T65As") into links to the
 // matriline's page, and ecotype names in prose ("Biggs", "transients") into
 // links to the ecotype page. `codes` maps a normalized designation (e.g.
-// 'T065A5') to the individual's primary designation; `matrilines` maps a
-// normalized matriarch designation (e.g. 'T065A') to the matriline's
-// designation. Codes that resolve to nothing (SRKW, CRC, uncataloged) pass
-// through as plain text — linking is a navigation aid, never an identification
-// claim.
+// 'T065A5') to the individual it names; `matrilines` maps a normalized
+// matriarch designation (e.g. 'T065A') to the matriline's designation;
+// `ecotypes` maps an ecotype designation ('Biggs') to the ecotype. Codes and
+// terms that resolve to nothing (SRKW, CRC, uncataloged) pass through as plain
+// text — linking is a navigation aid, never an identification claim.
 export function injectIndividualLinks(
   body: string,
-  codes: Map<string, string>,
+  codes: Map<string, IndividualRef>,
   matrilines: Map<string, string> = new Map(),
+  ecotypes: Map<string, EcotypeRef> = new Map(),
 ): string {
   return body
     .split(EXISTING_LINK_RE)
@@ -48,42 +61,45 @@ export function injectIndividualLinks(
           const designation = matrilines.get(normalized);
           return designation ? `[${match}](${matrilinePath(designation)})` : match;
         }
-        const designation = codes.get(normalized);
-        return designation ? `[${match}](${individualPath(designation)})` : match;
+        const individual = codes.get(normalized);
+        return individual ? `[${match}](${individualPath(individual)})` : match;
       });
       // Codes never contain an ecotype word and ecotype links never contain a
       // code, so this second pass can't collide with the one above.
       return linked.replace(ECOTYPE_TERM_RE, match => {
         const designation = ecotypeForTerm(match);
-        return designation ? `[${match}](${ecotypePath(designation)})` : match;
+        const ecotype = designation ? ecotypes.get(designation) : undefined;
+        return ecotype ? `[${match}](${ecotypePath(ecotype)})` : match;
       });
     })
     .join('');
 }
 
-let codeMap: Map<string, string> | null = null;
+let codeMap: Map<string, IndividualRef> | null = null;
 let matrilineMap: Map<string, string> | null = null;
-let loading: Promise<Map<string, string>> | null = null;
+let ecotypeMap: Map<string, EcotypeRef> | null = null;
+let loading: Promise<Map<string, IndividualRef>> | null = null;
 
-// Fetch the designation -> primary_designation lookup (plus the matriline
+// Fetch the designation -> individual lookup (plus the matriline and ecotype
 // designations) once per session. The whole catalog is ~1k tiny rows; callers
 // re-render when the promise settles.
-export function loadCatalogCodes(): Promise<Map<string, string>> {
+export function loadCatalogCodes(): Promise<Map<string, IndividualRef>> {
   loading ??= (async () => {
     try {
       const [{ data: designations }, { data: groups }] = await Promise.all([
         supabase()
           .from('designations')
-          .select('code, individual:individuals (primary_designation)')
+          .select('code, individual:individuals (entity_id, primary_designation)')
           .throwOnError(),
         supabase()
           .from('social_groups')
-          .select('designation')
-          .eq('kind', 'matriline')
+          .select('kind, designation, entity_id')
+          .in('kind', ['matriline', 'ecotype'])
           .throwOnError(),
       ]);
-      codeMap = new Map(designations.map(({ code, individual }) => [code, individual.primary_designation]));
-      matrilineMap = new Map(groups.map(({ designation }) => [designation, designation]));
+      codeMap = new Map(designations.map(({ code, individual }) => [code, individual]));
+      matrilineMap = new Map(groups.filter(g => g.kind === 'matriline').map(({ designation }) => [designation, designation]));
+      ecotypeMap = new Map(groups.filter(g => g.kind === 'ecotype').map(g => [g.designation, g]));
       return codeMap;
     } catch (error) {
       loading = null; // allow a later retry rather than caching the failure
@@ -93,10 +109,14 @@ export function loadCatalogCodes(): Promise<Map<string, string>> {
   return loading;
 }
 
-export function catalogCodes(): Map<string, string> | null {
+export function catalogCodes(): Map<string, IndividualRef> | null {
   return codeMap;
 }
 
 export function matrilineCodes(): Map<string, string> | null {
   return matrilineMap;
+}
+
+export function ecotypeCodes(): Map<string, EcotypeRef> | null {
+  return ecotypeMap;
 }
