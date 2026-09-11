@@ -60,7 +60,7 @@ interface SpeciesGroup {
 function speciesGroups(reports: HauloutReport[]): SpeciesGroup[] {
   const groups = new Map<string, HauloutReport[]>();
   for (const report of reports) {
-    const label = report.taxon?.vernacular_name ?? report.taxon?.scientific_name ?? 'Unidentified pinniped';
+    const label = report.species_name ?? 'Unidentified pinniped';
     groups.set(label, [...(groups.get(label) ?? []), report]);
   }
   return [...groups.entries()]
@@ -272,7 +272,7 @@ export class HauloutPage extends LitElement {
             return html`
               ${groups.map(g => html`
                 <h3>${g.label} <span class="muted">· ${plural(g.reports.length, 'report')}</span></h3>
-                ${renderPresenceTable(g.reports, years)}
+                ${renderPresenceTable(g.reports, years, 'Reports per month, as identified on iNaturalist by the people who filed them.')}
               `)}
               ${when(photos.length, () => html`
                 <div class="strip">
@@ -300,7 +300,7 @@ export class HauloutPage extends LitElement {
     return html`
       <li>
         <a href=${mapUrl(r)}>${observedDate(r.observed_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</a>
-        · ${r.taxon?.vernacular_name ?? r.taxon?.scientific_name ?? 'pinniped'}
+        · ${r.species_name ?? 'pinniped'}
         ${r.attribution ? html`· <span class="muted">${r.attribution}</span>` : nothing}
         · <span class="muted">${r.distance_m} m away</span>
         ${approx ? html`· <span class="approx">location approximate (±${r.accuracy} m)</span>` : nothing}

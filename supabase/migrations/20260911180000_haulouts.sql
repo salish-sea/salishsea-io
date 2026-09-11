@@ -414,6 +414,20 @@ INSERT INTO public.haulouts (id, name, location, region, atlas_code, atlas_speci
 
 SELECT setval(pg_get_serial_sequence('public.haulouts', 'id'), 1000);
 
+-- Metres between a site and a report. A SECURITY DEFINER function rather than
+-- gis.st_dwithin inline in the view: the geography wrappers are SQL-language
+-- functions the planner inlines, and an inlined body is parsed as the CALLER,
+-- who has no USAGE on schema gis — the same trap 20260829040000 documents for
+-- inaturalist.species_id. Running as the definer grants the caller nothing the
+-- view does not already show. search_path is emptied for the same reason as
+-- there; every name inside is qualified.
+CREATE FUNCTION public.haulout_distance_m(site public.lon_lat, report public.lon_lat)
+RETURNS integer LANGUAGE sql IMMUTABLE STRICT SECURITY DEFINER SET search_path = '' AS $$
+  SELECT round(gis.st_distance(
+    gis.st_setsrid(gis.st_makepoint(site.lon, site.lat), 4326)::gis.geography,
+    gis.st_setsrid(gis.st_makepoint(report.lon, report.lat), 4326)::gis.geography))::integer
+$$;
+
 -- One row per (site, pinniped report within the site's radius). Pinnipeds are
 -- everything under the families Phocidae and Otariidae in the iNaturalist
 -- taxonomy mirror, walked by parent_id so a subspecies or a family-rank report
@@ -435,24 +449,24 @@ SELECT
   o.observed_at,
   o.location,
   o.accuracy,
-  round(gis.st_distance(site.geog, report.geog))::integer AS distance_m,
+  d.distance_m,
   o.taxon,
+  -- The species the report resolves to, so a page can group a subspecies
+  -- (Pacific harbor seal) with its species (harbor seal); a report filed at
+  -- genus or family rank keeps its own name — it is honestly less specific.
+  COALESCE(sp.vernacular_name, sp.scientific_name, (o.taxon).vernacular_name, (o.taxon).scientific_name) AS species_name,
   o.photos,
   o.url,
   o.attribution,
   o.observer,
   o.body
 FROM public.haulouts h
-CROSS JOIN LATERAL (
-  SELECT gis.st_setsrid(gis.st_makepoint((h.location).lon, (h.location).lat), 4326)::gis.geography AS geog
-) site
 JOIN public.occurrences o
   ON (o.taxon).scientific_name IN (SELECT scientific_name FROM pinniped)
- AND (o.location).lon IS NOT NULL
-CROSS JOIN LATERAL (
-  SELECT gis.st_setsrid(gis.st_makepoint((o.location).lon, (o.location).lat), 4326)::gis.geography AS geog
-) report
-WHERE gis.st_dwithin(site.geog, report.geog, h.radius_m);
+ AND (o.location).lon IS NOT NULL AND (o.location).lat IS NOT NULL
+CROSS JOIN LATERAL (SELECT public.haulout_distance_m(h.location, o.location) AS distance_m) d
+LEFT JOIN inaturalist.taxa sp ON sp.id = (o.taxon).species_id
+WHERE d.distance_m <= h.radius_m;
 
 -- The grants ship with the relations (README convention); the pinned set in
 -- supabase/read-grants.test.ts grows by these two.

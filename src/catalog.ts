@@ -426,6 +426,7 @@ export interface HauloutReport {
   accuracy: number | null;
   distance_m: number;
   taxon: { scientific_name: string | null; vernacular_name: string | null } | null;
+  species_name: string | null;
   photos: { src: string | null; attribution: string | null }[];
   url: string | null;
   attribution: string | null;
@@ -484,6 +485,7 @@ export async function fetchHauloutReports(hauloutId: number): Promise<HauloutRep
       accuracy: row.accuracy,
       distance_m: row.distance_m,
       taxon: row.taxon ? { scientific_name: row.taxon.scientific_name, vernacular_name: row.taxon.vernacular_name } : null,
+      species_name: row.species_name,
       photos: (row.photos ?? []).map(p => ({ src: p.src, attribution: p.attribution })),
       url: row.url,
       attribution: row.attribution,

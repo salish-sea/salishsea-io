@@ -827,6 +827,7 @@ export type Database = {
           photos:
             | Database["public"]["CompositeTypes"]["occurrence_photo"][]
             | null
+          species_name: string | null
           taxon: Database["public"]["CompositeTypes"]["taxon"] | null
           url: string | null
         }
@@ -935,6 +936,13 @@ export type Database = {
       extract_travel_direction: {
         Args: { body: string }
         Returns: Database["public"]["Enums"]["travel_direction"]
+      }
+      haulout_distance_m: {
+        Args: {
+          report: Database["public"]["CompositeTypes"]["lon_lat"]
+          site: Database["public"]["CompositeTypes"]["lon_lat"]
+        }
+        Returns: number
       }
       is_valid_orcid: { Args: { uri: string }; Returns: boolean }
       normalize_designation: { Args: { code: string }; Returns: string }
