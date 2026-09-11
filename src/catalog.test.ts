@@ -1,31 +1,78 @@
 import { expect, test } from 'vitest';
 import {
-  dedupeOccurrenceLinks, displayName, ecotypePath, groupChain, individualPath, matrilinePath, monthlyPresence,
-  normalizeDesignation, parseEcotypePath, parseIndividualPath, parseMatrilinePath,
+  dedupeOccurrenceLinks, displayName, ecotypePath, groupChain, individualPath, keyLabel, matrilinePath, monthlyPresence,
+  normalizeDesignation, parseEcotypePath, parseIndividualPath, parseMatrilinePath, slugify,
   type IndividualOccurrence, type OccurrenceLink, type SocialGroup,
 } from './catalog.ts';
 
-test('parses /individuals/<designation> paths', () => {
-  expect(parseIndividualPath('/individuals/T065A')).toBe('T065A');
-  expect(parseIndividualPath('/individuals/T065A/')).toBe('T065A');
-  expect(parseIndividualPath('/individuals/T065A5')).toBe('T065A5');
+// Decision 034: the URL keys on the register identifier's seven-digit local
+// part; the designation is a slug, composed by us and ignored on read.
+const T065A = { entity_id: 'SSA:0010193', primary_designation: 'T065A' };
+
+test('composes the canonical individual path from identifier and designation', () => {
+  expect(individualPath(T065A)).toBe('/individuals/0010193/T065A');
+  // Conventional casing survives; nothing is lower-cased.
+  expect(individualPath({ entity_id: 'SSA:0010194', primary_designation: 'T065A2' })).toBe('/individuals/0010194/T065A2');
+  // A row that has no identifier yet is addressed as before.
+  expect(individualPath({ entity_id: null, primary_designation: 'AM25 X' })).toBe('/individuals/AM25%20X');
+});
+
+test('slugs drop apostrophes and collapse other punctuation', () => {
+  expect(slugify("Bigg's")).toBe('Biggs');
+  expect(slugify('Bigg’s')).toBe('Biggs');
+  expect(slugify('AM25 X')).toBe('AM25-X');
+  expect(slugify('T090 matriline')).toBe('T090-matriline');
+  expect(slugify(' / ')).toBe('');
+});
+
+test('reads the identifier from a keyed path and ignores the slug', () => {
+  const key = { kind: 'entity', entityId: 'SSA:0010193', slug: 'T065A' };
+  expect(parseIndividualPath('/individuals/0010193/T065A')).toEqual(key);
+  expect(parseIndividualPath('/individuals/0010193/T065A/')).toEqual(key);
+  expect(parseIndividualPath('/individuals/0010193/anything-at-all')).toEqual({ ...key, slug: 'anything-at-all' });
+  expect(parseIndividualPath('/individuals/0010193')).toEqual({ ...key, slug: null });
+  expect(parseIndividualPath('/individuals/0010193/')).toEqual({ ...key, slug: null });
+});
+
+test('reads a designation from a legacy or typed path', () => {
+  expect(parseIndividualPath('/individuals/T065A')).toEqual({ kind: 'designation', designation: 'T065A' });
+  expect(parseIndividualPath('/individuals/T065A/')).toEqual({ kind: 'designation', designation: 'T065A' });
+  expect(parseIndividualPath('/individuals/t65a')).toEqual({ kind: 'designation', designation: 't65a' });
+  expect(parseIndividualPath('/individuals/AM25%20X')).toEqual({ kind: 'designation', designation: 'AM25 X' });
+  // Six or eight digits are not an identifier; they are a (nonexistent) designation.
+  expect(parseIndividualPath('/individuals/001019')).toEqual({ kind: 'designation', designation: '001019' });
+});
+
+test('rejects paths that are not a profile', () => {
   expect(parseIndividualPath('/individuals/')).toBeNull();
   expect(parseIndividualPath('/individuals/T065A/photos')).toBeNull();
+  expect(parseIndividualPath('/individuals/0010193/T065A/photos')).toBeNull();
+  expect(parseIndividualPath('/individuals/%E0%A4%A')).toBeNull(); // malformed escape
   expect(parseIndividualPath('/')).toBeNull();
   expect(parseIndividualPath('/about.html')).toBeNull();
+  expect(parseIndividualPath('/matrilines/T065A')).toBeNull();
 });
 
 test('individualPath round-trips through parseIndividualPath', () => {
+  expect(parseIndividualPath(individualPath(T065A))).toEqual({ kind: 'entity', entityId: 'SSA:0010193', slug: 'T065A' });
   for (const designation of ['T065A', 'CA20', 'AM25 X']) {
-    expect(parseIndividualPath(individualPath(designation))).toBe(designation);
+    expect(parseIndividualPath(individualPath({ entity_id: null, primary_designation: designation })))
+      .toEqual({ kind: 'designation', designation });
   }
 });
 
+test('labels a key for the placeholder and not-found copy', () => {
+  expect(keyLabel({ kind: 'entity', entityId: 'SSA:0010193', slug: 'T065A' })).toBe('SSA:0010193');
+  expect(keyLabel({ kind: 'designation', designation: 'T065A' })).toBe('T065A');
+});
+
+// Matrilines are not keyed yet (salish-ox2.6): the designation path is canonical.
 test('parses /matrilines/<designation> paths', () => {
   expect(parseMatrilinePath('/matrilines/T065A')).toBe('T065A');
   expect(parseMatrilinePath('/matrilines/T065A/')).toBe('T065A');
   expect(parseMatrilinePath('/matrilines/')).toBeNull();
   expect(parseMatrilinePath('/matrilines/T065A/photos')).toBeNull();
+  expect(parseMatrilinePath('/matrilines/0002039/T073s')).toBeNull();
   expect(parseMatrilinePath('/individuals/T065A')).toBeNull();
   expect(parseIndividualPath('/matrilines/T065A')).toBeNull();
 });
@@ -36,9 +83,14 @@ test('matrilinePath round-trips through parseMatrilinePath', () => {
   }
 });
 
-test('parses /ecotypes/<designation> paths', () => {
-  expect(parseEcotypePath('/ecotypes/Biggs')).toBe('Biggs');
-  expect(parseEcotypePath('/ecotypes/Biggs/')).toBe('Biggs');
+const BIGGS = { entity_id: 'SSA:0000002', designation: 'Biggs' };
+
+test('composes and parses ecotype paths the same way', () => {
+  expect(ecotypePath(BIGGS)).toBe('/ecotypes/0000002/Biggs');
+  expect(ecotypePath({ entity_id: 'SSA:0000002', designation: "Bigg's" })).toBe('/ecotypes/0000002/Biggs');
+  expect(parseEcotypePath('/ecotypes/0000002/Biggs')).toEqual({ kind: 'entity', entityId: 'SSA:0000002', slug: 'Biggs' });
+  expect(parseEcotypePath('/ecotypes/Biggs')).toEqual({ kind: 'designation', designation: 'Biggs' });
+  expect(parseEcotypePath('/ecotypes/Biggs/')).toEqual({ kind: 'designation', designation: 'Biggs' });
   expect(parseEcotypePath('/ecotypes/')).toBeNull();
   expect(parseEcotypePath('/ecotypes/Biggs/members')).toBeNull();
   expect(parseEcotypePath('/matrilines/Biggs')).toBeNull();
@@ -46,8 +98,9 @@ test('parses /ecotypes/<designation> paths', () => {
 });
 
 test('ecotypePath round-trips through parseEcotypePath', () => {
+  expect(parseEcotypePath(ecotypePath(BIGGS))).toEqual({ kind: 'entity', entityId: 'SSA:0000002', slug: 'Biggs' });
   for (const designation of ['Biggs', 'Southern Residents']) {
-    expect(parseEcotypePath(ecotypePath(designation))).toBe(designation);
+    expect(parseEcotypePath(ecotypePath({ entity_id: null, designation }))).toEqual({ kind: 'designation', designation });
   }
 });
 

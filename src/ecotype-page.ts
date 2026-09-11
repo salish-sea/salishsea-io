@@ -4,11 +4,11 @@ import { Task } from '@lit/task';
 import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  descendantMatrilines, fetchAllGroups, fetchEcotype, fetchEcotypeOccurrenceLinks,
-  mapUrl, matrilinePath, observedDate, parseEcotypePath,
+  descendantMatrilines, ecotypePath, fetchAllGroups, fetchEcotype, fetchEcotypeOccurrenceLinks,
+  keyLabel, mapUrl, matrilinePath, observedDate, parseEcotypePath,
   type EcotypeProfile, type OccurrenceLink, type SocialGroup,
 } from './catalog.ts';
-import { profileStyles, renderPresenceTable } from './profile-shared.ts';
+import { canonicalize, profileStyles, renderPresenceTable } from './profile-shared.ts';
 import { initSentry } from './sentry.ts';
 import './individual-map.ts';
 
@@ -27,17 +27,18 @@ interface Profile {
 
 @customElement('ecotype-page')
 export class EcotypePage extends LitElement {
-  @state() private designation = parseEcotypePath(window.location.pathname);
+  @state() private key = parseEcotypePath(window.location.pathname);
 
   #profile = new Task(this, {
-    args: () => [this.designation] as const,
-    task: async ([designation]): Promise<Profile | null> => {
-      if (!designation) return null;
+    args: () => [this.key] as const,
+    task: async ([key]): Promise<Profile | null> => {
+      if (!key) return null;
       const [group, groups] = await Promise.all([
-        fetchEcotype(designation),
+        fetchEcotype(key),
         fetchAllGroups(),
       ]);
       if (!group) return null;
+      canonicalize(ecotypePath(group));
       const matrilines = descendantMatrilines(group.id, groups);
       document.title = `${ECOTYPE_LABELS[group.designation] ?? group.designation} · SalishSea.io`;
       return { group, matrilines };
@@ -58,7 +59,7 @@ export class EcotypePage extends LitElement {
       <main>
         <a class="back" href="/">&#8592; Back to the map</a>
         ${this.#profile.render({
-          pending: () => html`<p class="placeholder">Looking up ${this.designation}&hellip;</p>`,
+          pending: () => html`<p class="placeholder">Looking up ${this.key ? keyLabel(this.key) : 'this ecotype'}&hellip;</p>`,
           error: () => html`<p class="error">Something went wrong loading this page. Please try again.</p>`,
           complete: value => value ? this.renderProfile(value) : this.renderNotFound(),
         })}
@@ -67,9 +68,10 @@ export class EcotypePage extends LitElement {
   }
 
   private renderNotFound() {
+    const label = this.key ? keyLabel(this.key) : null;
     return html`
-      <h1>${this.designation ?? 'Not found'}</h1>
-      <p>We don't have ${this.designation ? html`a <b>${this.designation}</b> ecotype` : 'that ecotype'} in our catalog.
+      <h1>${label ?? 'Not found'}</h1>
+      <p>We don't have ${label ? html`a <b>${label}</b> ecotype` : 'that ecotype'} in our catalog.
       So far it covers Bigg's (transient) killer whales of the Salish Sea; other populations are on the way.</p>
       <p><a href="/">Explore the sightings map</a> or <a href="/about.html">read about this site</a>.</p>
     `;

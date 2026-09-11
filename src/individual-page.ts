@@ -5,11 +5,11 @@ import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
   displayName, fetchAllGroups, fetchGroupMembers, fetchIndividual, fetchOccurrenceLinks,
-  ecotypePath, fetchOffspring, fetchParents, groupChain, individualPath, mapUrl, matrilinePath,
+  ecotypePath, fetchOffspring, fetchParents, groupChain, individualPath, keyLabel, mapUrl, matrilinePath,
   observedDate, parseIndividualPath,
-  type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent, type SocialGroup,
+  type CatalogGroup, type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent,
 } from './catalog.ts';
-import { profileStyles, renderDagger, renderMemberList, renderPresenceTable, renderRelative } from './profile-shared.ts';
+import { canonicalize, profileStyles, renderDagger, renderMemberList, renderPresenceTable, renderRelative } from './profile-shared.ts';
 import { initSentry } from './sentry.ts';
 import './individual-map.ts';
 
@@ -32,8 +32,8 @@ interface Profile {
   mother: Parent | null;
   father: Parent | null;
   offspring: Offspring[];
-  groups: Map<number, SocialGroup>;
-  matriline: SocialGroup | null;
+  groups: Map<number, CatalogGroup>;
+  matriline: CatalogGroup | null;
   members: GroupMember[];
   name: string | null;
 }
@@ -58,21 +58,22 @@ function lifeStatusPhrase(status: IndividualProfile['life_status']): string | nu
 
 @customElement('individual-page')
 export class IndividualPage extends LitElement {
-  @state() private designation = parseIndividualPath(window.location.pathname);
+  @state() private key = parseIndividualPath(window.location.pathname);
 
   #profile = new Task(this, {
-    args: () => [this.designation] as const,
-    task: async ([designation]): Promise<Profile | null> => {
-      if (!designation) return null;
-      const profile = await fetchIndividual(designation);
+    args: () => [this.key] as const,
+    task: async ([key]): Promise<Profile | null> => {
+      if (!key) return null;
+      const profile = await fetchIndividual(key);
       if (!profile) return null;
+      canonicalize(individualPath(profile));
       const [{ mother, father }, offspring, groups] = await Promise.all([
         fetchParents(profile),
         fetchOffspring(profile.id),
         fetchAllGroups(),
       ]);
       const matrilineMembership = profile.memberships.find(m => m.is_current && m.group?.kind === 'matriline');
-      const matriline = matrilineMembership?.group ?? null;
+      const matriline = matrilineMembership?.group ? groups.get(matrilineMembership.group.id) ?? null : null;
       const members = matriline ? await fetchGroupMembers(matriline.id) : [];
       const name = displayName(profile.nicknames);
       document.title = `${name ? `${name} (${profile.primary_designation})` : profile.primary_designation} · SalishSea.io`;
@@ -114,7 +115,7 @@ export class IndividualPage extends LitElement {
       <main>
         <a class="back" href="/">&#8592; Back to the map</a>
         ${this.#profile.render({
-          pending: () => html`<p class="placeholder">Looking up ${this.designation}&hellip;</p>`,
+          pending: () => html`<p class="placeholder">Looking up ${this.key ? keyLabel(this.key) : 'this individual'}&hellip;</p>`,
           error: () => html`<p class="error">Something went wrong loading this page. Please try again.</p>`,
           complete: value => value ? this.renderProfile(value) : this.renderNotFound(),
         })}
@@ -123,9 +124,10 @@ export class IndividualPage extends LitElement {
   }
 
   private renderNotFound() {
+    const label = this.key ? keyLabel(this.key) : null;
     return html`
-      <h1>${this.designation ?? 'Not found'}</h1>
-      <p>We don't have ${this.designation ? html`<b>${this.designation}</b>` : 'that individual'} in our catalog.
+      <h1>${label ?? 'Not found'}</h1>
+      <p>We don't have ${label ? html`<b>${label}</b>` : 'that individual'} in our catalog.
       So far it covers Bigg's (transient) killer whales of the Salish Sea; other populations are on the way.</p>
       <p><a href="/">Explore the sightings map</a> or <a href="/about.html">read about this site</a>.</p>
     `;
@@ -158,16 +160,16 @@ export class IndividualPage extends LitElement {
   }
 
   // "T065A matriline — within T065 · Bigg's killer whales"
-  private renderChain(chain: SocialGroup[], selfDesignation: string): TemplateResult {
+  private renderChain(chain: CatalogGroup[], selfDesignation: string): TemplateResult {
     const [first, ...rest] = chain;
     const parents = rest.filter(g => g.kind !== 'ecotype');
     const ecotype = rest.find(g => g.kind === 'ecotype');
     return html`
       <b>${first!.designation} ${first!.kind === 'matriline' ? 'matriline' : first!.kind}</b>${
-        parents.map(g => html` · within ${g.anchor_individual_id && g.designation !== selfDesignation
-          ? html`<a href=${individualPath(g.designation)}>${g.designation}</a>`
+        parents.map(g => html` · within ${g.anchor && g.designation !== selfDesignation
+          ? html`<a href=${individualPath(g.anchor)}>${g.designation}</a>`
           : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
-      }${ecotype ? html` · <a href=${ecotypePath(ecotype.designation)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}
+      }${ecotype ? html` · <a href=${ecotypePath(ecotype)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}
     `;
   }
 
@@ -224,7 +226,7 @@ export class IndividualPage extends LitElement {
     `;
   }
 
-  private renderMatriline(matriline: SocialGroup, members: GroupMember[], selfId: number) {
+  private renderMatriline(matriline: CatalogGroup, members: GroupMember[], selfId: number) {
     return html`
       <section>
         <h2><a href=${matrilinePath(matriline.designation)}>${matriline.designation} matriline</a></h2>

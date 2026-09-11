@@ -27,41 +27,104 @@ export function mapUrl(link: Pick<OccurrenceLink, 'observed_at' | 'occurrence_id
   return `/?d=${observedDate(link.observed_at).toString()}&o=${encodeURIComponent(link.occurrence_id)}`;
 }
 
-export function individualPath(designation: string): string {
-  return `/individuals/${encodeURIComponent(designation)}`;
+// ---- Profile paths (decision 034) -------------------------------------------
+//
+// A profile URL keys on the register identifier; the designation rides along
+// as a slug that is composed here and ignored on read:
+//
+//   /individuals/0010193/T065A     canonical — only 0010193 is read
+//   /individuals/0010193           bare identifier; the page rewrites the address
+//   /individuals/T065A, /T046A     a designation: legacy links and typed URLs
+//
+// The edge handler (infra/lib/edge-handler) 301s the non-canonical shapes
+// before the page loads; the page handles them too, because the edge fails
+// open to the shell when its lookup is slow. These helpers mirror the ones in
+// the handler, which cannot import from src/ — change one, change the other.
+//
+// Matrilines are not keyed yet: 73 of 132 have no register entity (animals
+// Q22, salish-ox2.6), so /matrilines/<designation> stays canonical for now.
+
+// What a profile path names.
+export type ProfileKey =
+  | { kind: 'entity'; entityId: string; slug: string | null }
+  | { kind: 'designation'; designation: string };
+
+// The local part of a register identifier (SSA:0010193 → 0010193): animals
+// ADR-0021's registered pattern.
+const ENTITY_LOCAL_PART_RE = /^\d{7}$/;
+
+// The designation as a URL segment: apostrophes dropped (Bigg's → Biggs), any
+// other run of non-alphanumerics collapsed to a hyphen.
+export function slugify(designation: string): string {
+  return designation.replace(/['’]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+// A row with no register identifier is addressed by its designation, as before.
+function profilePath(prefix: string, entityId: string | null, designation: string): string {
+  if (!entityId) return `/${prefix}/${encodeURIComponent(designation)}`;
+  const slug = slugify(designation);
+  return `/${prefix}/${entityId.replace(/^SSA:/, '')}${slug ? `/${slug}` : ''}`;
+}
+
+export function individualPath(individual: { entity_id: string | null; primary_designation: string }): string {
+  return profilePath('individuals', individual.entity_id, individual.primary_designation);
 }
 
 export function matrilinePath(designation: string): string {
   return `/matrilines/${encodeURIComponent(designation)}`;
 }
 
-export function ecotypePath(designation: string): string {
-  return `/ecotypes/${encodeURIComponent(designation)}`;
+export function ecotypePath(group: { entity_id: string | null; designation: string }): string {
+  return profilePath('ecotypes', group.entity_id, group.designation);
 }
 
-function parseProfilePath(pathname: string, re: RegExp): string | null {
-  const match = pathname.match(re);
-  if (!match) return null;
+function decodeSegment(segment: string): string | null {
   try {
-    return decodeURIComponent(match[1]!);
+    return decodeURIComponent(segment);
   } catch {
     return null;
   }
 }
 
-// Extract the designation from an /individuals/<designation> path.
-export function parseIndividualPath(pathname: string): string | null {
-  return parseProfilePath(pathname, /^\/individuals\/([^/]+)\/?$/);
+// /<prefix>/<segment>[/<segment>][/]. Two segments name an identifier and its
+// slug; a designation stands alone, so /individuals/T065A/photos is nothing.
+function parseKeyedPath(pathname: string, prefix: string): ProfileKey | null {
+  const match = pathname.match(new RegExp(`^/${prefix}/([^/]+)(?:/([^/]*))?/?$`));
+  if (!match) return null;
+  const first = decodeSegment(match[1]!);
+  if (first === null) return null;
+  // A trailing slash leaves an empty second segment; it means nothing.
+  const second = match[2] ? decodeSegment(match[2]) : null;
+  if (ENTITY_LOCAL_PART_RE.test(first)) {
+    return { kind: 'entity', entityId: `SSA:${first}`, slug: second || null };
+  }
+  return second ? null : { kind: 'designation', designation: first };
+}
+
+export function parseIndividualPath(pathname: string): ProfileKey | null {
+  return parseKeyedPath(pathname, 'individuals');
+}
+
+export function parseEcotypePath(pathname: string): ProfileKey | null {
+  return parseKeyedPath(pathname, 'ecotypes');
 }
 
 // Extract the designation from a /matrilines/<designation> path.
 export function parseMatrilinePath(pathname: string): string | null {
-  return parseProfilePath(pathname, /^\/matrilines\/([^/]+)\/?$/);
+  const match = pathname.match(/^\/matrilines\/([^/]+)\/?$/);
+  return match ? decodeSegment(match[1]!) : null;
 }
 
-// Extract the designation from an /ecotypes/<designation> path.
-export function parseEcotypePath(pathname: string): string | null {
-  return parseProfilePath(pathname, /^\/ecotypes\/([^/]+)\/?$/);
+// What to call the subject before it has loaded, or when it never does.
+export function keyLabel(key: ProfileKey): string {
+  return key.kind === 'entity' ? key.entityId : key.designation;
+}
+
+// A LIKE pattern matching exactly `value`, so `ilike` gives case-insensitive
+// equality and nothing more. Postgres's wildcards are % and _, PostgREST adds *
+// as an alias for %, and the default escape character is the backslash.
+function ilikeLiteral(value: string): string {
+  return value.replace(/[\\%_*]/g, '\\$&');
 }
 
 // TS port of public.normalize_designation (20260707220211_identifications.sql):
@@ -130,8 +193,8 @@ export function monthlyPresence(links: OccurrenceLink[], years: number, currentY
 
 // Walk a group's ancestry (matriline -> parent matriline -> ... -> ecotype).
 // Returns the chain starting at the group itself; guards against cycles.
-export function groupChain(groupId: number, groupsById: Map<number, SocialGroup>): SocialGroup[] {
-  const chain: SocialGroup[] = [];
+export function groupChain<G extends SocialGroup>(groupId: number, groupsById: Map<number, G>): G[] {
+  const chain: G[] = [];
   const seen = new Set<number>();
   for (let id: number | null = groupId; id !== null && !seen.has(id);) {
     seen.add(id);
@@ -156,13 +219,30 @@ const INDIVIDUAL_SELECT = `
   )
 ` as const;
 
-export async function fetchIndividual(designation: string) {
+// The individual a designation names — any code it has ever carried, so a
+// superseded T046A finds T122 — matched case-insensitively and as typed
+// (T65A → T065A). null when no designation matches.
+async function individualIdForDesignation(designation: string): Promise<number | null> {
   const { data } = await supabase()
-    .from('individuals')
-    .select(INDIVIDUAL_SELECT)
-    .eq('primary_designation', designation)
+    .from('designations')
+    .select('individual_id')
+    .ilike('code', ilikeLiteral(normalizeDesignation(designation)))
+    .limit(1)
     .maybeSingle()
     .throwOnError();
+  return data?.individual_id ?? null;
+}
+
+export async function fetchIndividual(key: ProfileKey) {
+  let query = supabase().from('individuals').select(INDIVIDUAL_SELECT);
+  if (key.kind === 'entity') {
+    query = query.eq('entity_id', key.entityId);
+  } else {
+    const id = await individualIdForDesignation(key.designation);
+    if (id === null) return null;
+    query = query.eq('id', id);
+  }
+  const { data } = await query.maybeSingle().throwOnError();
   return data;
 }
 export type IndividualProfile = NonNullable<Awaited<ReturnType<typeof fetchIndividual>>>;
@@ -172,7 +252,7 @@ export async function fetchParents({ mother_id, father_id }: Pick<Individual, 'm
   if (!ids.length) return { mother: null, father: null };
   const { data } = await supabase()
     .from('individuals')
-    .select('id, primary_designation, life_status, nicknames (name, status)')
+    .select('id, entity_id, primary_designation, life_status, nicknames (name, status)')
     .in('id', ids)
     .throwOnError();
   return {
@@ -185,7 +265,7 @@ export type Parent = NonNullable<Awaited<ReturnType<typeof fetchParents>>['mothe
 export async function fetchOffspring(individualId: number) {
   const { data } = await supabase()
     .from('individuals')
-    .select('id, primary_designation, sex, born_earliest, born_latest, life_status, nicknames (name, status)')
+    .select('id, entity_id, primary_designation, sex, born_earliest, born_latest, life_status, nicknames (name, status)')
     .or(`mother_id.eq.${individualId},father_id.eq.${individualId}`)
     .order('born_earliest', { ascending: true, nullsFirst: true })
     .throwOnError();
@@ -193,12 +273,18 @@ export async function fetchOffspring(individualId: number) {
 }
 export type Offspring = Awaited<ReturnType<typeof fetchOffspring>>[number];
 
+// A group row plus what a page needs to link its anchor individual: the
+// register identifier that keys the individual's URL (decision 034).
+export type CatalogGroup = SocialGroup & {
+  anchor: { entity_id: string | null; primary_designation: string } | null;
+};
+
 // The whole catalog's group graph is a few hundred small rows — fetch it once
 // and resolve pod/ecotype chains client-side instead of walking FKs per hop.
-export async function fetchAllGroups(): Promise<Map<number, SocialGroup>> {
+export async function fetchAllGroups(): Promise<Map<number, CatalogGroup>> {
   const { data } = await supabase()
     .from('social_groups')
-    .select()
+    .select('*, anchor:individuals!anchor_individual_id (entity_id, primary_designation)')
     .throwOnError();
   return new Map(data.map(group => [group.id, group]));
 }
@@ -206,7 +292,7 @@ export async function fetchAllGroups(): Promise<Map<number, SocialGroup>> {
 export async function fetchGroupMembers(groupId: number) {
   const { data } = await supabase()
     .from('group_memberships')
-    .select('is_current, joined_year, left_year, individual:individuals (id, primary_designation, sex, born_earliest, life_status, nicknames (name, status))')
+    .select('is_current, joined_year, left_year, individual:individuals (id, entity_id, primary_designation, sex, born_earliest, life_status, nicknames (name, status))')
     .eq('group_id', groupId)
     .throwOnError();
   return data;
@@ -250,7 +336,7 @@ export async function fetchOccurrenceLinks(individualId: number): Promise<Occurr
 const MATRILINE_SELECT = `
   *,
   nicknames (name, theme, status, named_year, namer:parties (name, url)),
-  anchor:individuals!anchor_individual_id (id, primary_designation, life_status, nicknames (name, status))
+  anchor:individuals!anchor_individual_id (id, entity_id, primary_designation, life_status, nicknames (name, status))
 ` as const;
 
 export async function fetchMatriline(designation: string) {
@@ -280,14 +366,15 @@ const ECOTYPE_SELECT = `
   nicknames (name, theme, status, named_year, namer:parties (name, url))
 ` as const;
 
-export async function fetchEcotype(designation: string) {
-  const { data } = await supabase()
+export async function fetchEcotype(key: ProfileKey) {
+  let query = supabase()
     .from('social_groups')
     .select(ECOTYPE_SELECT)
-    .eq('designation', designation)
-    .eq('kind', 'ecotype')
-    .maybeSingle()
-    .throwOnError();
+    .eq('kind', 'ecotype');
+  query = key.kind === 'entity'
+    ? query.eq('entity_id', key.entityId)
+    : query.ilike('designation', ilikeLiteral(key.designation));
+  const { data } = await query.limit(1).maybeSingle().throwOnError();
   return data;
 }
 export type EcotypeProfile = NonNullable<Awaited<ReturnType<typeof fetchEcotype>>>;
@@ -305,7 +392,7 @@ export async function fetchEcotypeOccurrenceLinks(ecotypeId: number): Promise<Oc
 // The matrilines that descend from an ecotype, sorted A–Z — for the ecotype
 // page's directory. Tree-scoped (via groupChain), so a future second ecotype
 // only lists its own matrilines.
-export function descendantMatrilines(ecotypeId: number, groupsById: Map<number, SocialGroup>): SocialGroup[] {
+export function descendantMatrilines<G extends SocialGroup>(ecotypeId: number, groupsById: Map<number, G>): G[] {
   return [...groupsById.values()]
     .filter(g => g.kind === 'matriline' && groupChain(g.id, groupsById).some(a => a.id === ecotypeId))
     .sort((a, b) => a.designation.localeCompare(b.designation));
