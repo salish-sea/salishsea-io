@@ -1143,3 +1143,65 @@ describe('/ecotypes/<identifier>/<slug> profile pages', () => {
     expect(result.uri).toBe('/ecotype.html');
   });
 });
+
+// Decision 040: a haul-out site keys on its own integer id, not a register
+// identifier, and has no designation to fall back on.
+describe('/haulouts/<id>/<slug> site pages', () => {
+  const CANONICAL_SHILSHOLE = '/haulouts/340/Shilshole-Bay-Area';
+  const sampleHaulout = { id: 340, name: 'Shilshole Bay Area', region: 'Puget Sound (Whidbey Island to Olympia)', atlas_species: ['ZC'] };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(global, 'fetch').mockReset();
+  });
+
+  it('rewrites the canonical path to /haulout.html for a human without a lookup', async () => {
+    const event = makeEvent(HUMAN_UA, '', CANONICAL_SHILSHOLE);
+    const result = await handler(event);
+    expect(result).toBe(event.Records[0].cf.request);
+    expect(result.uri).toBe('/haulout.html');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('301s a human on the bare id to the slugged address, looked up by id', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => [sampleHaulout] } as Response);
+    const result = await handler(makeEvent(HUMAN_UA, '', '/haulouts/340')) as { status: string; headers: Record<string, { value: string }[]> };
+    expect(result.status).toBe('301');
+    expect(result.headers.location[0].value).toBe(CANONICAL_SHILSHOLE);
+    const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(apiUrl).toContain('/rest/v1/haulouts?id=eq.340');
+  });
+
+  it('returns site OG tags for a bot on the canonical path', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => [sampleHaulout] } as Response);
+    const result = await handler(makeEvent(BOT_UA, '', CANONICAL_SHILSHOLE)) as { status: string; body: string };
+    expect(result.status).toBe('200');
+    expect(result.body).toContain('<title>Shilshole Bay Area haul-out</title>');
+    expect(result.body).toContain('California sea lion haul-out site in the Puget Sound (Whidbey Island to Olympia)');
+    expect(result.body).toContain(`content="https://salishsea.io${CANONICAL_SHILSHOLE}"`);
+    expect(result.body).toContain('content="place"');
+    expect(result.body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
+  });
+
+  it('serves the shell to a human on a non-numeric first segment, and the generic card to a bot', async () => {
+    const human = await handler(makeEvent(HUMAN_UA, '', '/haulouts/Shilshole'));
+    expect(human.uri).toBe('/haulout.html');
+    expect(global.fetch).not.toHaveBeenCalled();
+    const bot = await handler(makeEvent(BOT_UA, '', '/haulouts/Shilshole')) as { body: string };
+    expect(bot.body).toContain(`content="website"`);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not read a seven-digit segment as a site id', async () => {
+    const result = await handler(makeEvent(HUMAN_UA, '', '/haulouts/0010193/T065A'));
+    // Not an entity key for this family, and a slug after a designation is nothing.
+    expect(result.uri).toBe('/haulouts/0010193/T065A');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('returns the generic preview to a bot for an id nothing answers to', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => [] } as Response);
+    const result = await handler(makeEvent(BOT_UA, '', '/haulouts/999999/Nowhere')) as { body: string };
+    expect(result.body).toContain(`content="website"`);
+  });
+});

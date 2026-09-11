@@ -50,6 +50,8 @@ const READABLE = [
     'public.ecotype_occurrences',
     'public.group_memberships',
     'public.group_occurrences',
+    'public.haulout_occurrences',
+    'public.haulouts',
     'public.identifications',
     'public.individual_occurrences',
     'public.individuals',

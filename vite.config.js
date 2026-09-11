@@ -28,6 +28,7 @@ const PROFILE_REWRITES = [
   [/^\/individuals\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/individual.html'],
   [/^\/matrilines\/[^/]+\/?(\?.*)?$/, '/matriline.html'],
   [/^\/ecotypes\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/ecotype.html'],
+  [/^\/haulouts\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/haulout.html'],
 ];
 
 function profilePagesRewrite(req, _res, next) {
@@ -51,6 +52,7 @@ export default defineConfig({
         individual: resolve(__dirname, 'individual.html'),
         matriline: resolve(__dirname, 'matriline.html'),
         ecotype: resolve(__dirname, 'ecotype.html'),
+        haulout: resolve(__dirname, 'haulout.html'),
       }
     },
 
@@ -61,7 +63,7 @@ export default defineConfig({
     {
       // In production these rewrites live in the CloudFront viewer-request
       // Lambda@Edge (infra/lib/edge-handler): /individuals/<id>/<slug>,
-      // /matrilines/<designation> and /ecotypes/<id>/<slug> are client-rendered
+      // /matrilines/<designation>, /ecotypes/<id>/<slug> and /haulouts/<id>/<slug> are client-rendered
       // pages served from their HTML shells.
       name: 'profile-pages-rewrite',
       configureServer(server) {

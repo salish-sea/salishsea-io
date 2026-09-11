@@ -1,0 +1,532 @@
+atlas_id,region,region_name,site_code,location,lat_dmm,lon_dmm,lat,lon,species_codes,species,count_class,tidal_use,tidal_use_full,description
+1,1,Columbia River,01.01,Large Navigation Bouy,46 12.17,124 11.00,46.20283,-124.18333,"ZC,EJ",California Sea Lion; Steller Sea Lion,100-500,ALL,All tidal states,Offshore navigation bouy (LNB) removed in early 1990’s.
+2,1,Columbia River,01.02,Tip of South Jetty,46 14.03,124 03.94,46.23383,-124.06567,"EJ,ZC,PV",Steller Sea Lion; California Sea Lion; Harbor Seal,100-500,ALL,All tidal states,Year round on concrete slabs and rock rubble. Abandoned during high ocean swell.
+3,1,Columbia River,01.03,Chinook/Baker Bay,46 15.90,123 57.89,46.265,-123.96483,PV,Harbor Seal,<100,LOW,Low tide,Chinook Channel area. Intermittent use at low tides.
+4,1,Columbia River,01.03,Chinook/Baker Bay,46 15.74,123 57.63,46.26233,-123.9605,PV,Harbor Seal,<100,LOW,Low tide,On shoals northwest of entrance channel. Intermittent use at low tides.
+5,1,Columbia River,01.04,Desdemona Sands,46 12.80,123 55.90,46.21333,-123.93167,PV,Harbor Seal,100-500,LOW,Low tide,Shoal to the west of Astoria/Megler bridge. Alternate site used intermittently.
+6,1,Columbia River,01.04,Desdemona Sands,46 13.19,123 53.61,46.21983,-123.8935,PV,Harbor Seal,<100,LOW,Low tide,Shoals west of Astoria/Megler bridge. Alternate site used intermittently on extreme low tides.
+7,1,Columbia River,01.04,Desdemona Sands,46 12.73,123 53.33,46.21217,-123.88883,PV,Harbor Seal,500>,LOW,Low tide,Shoals west of Astoria/Megler bridge. Main lower river haulout.
+8,1,Columbia River,01.05,Taylor Sands,46 14.20,123 48.40,46.23667,-123.80667,PV,Harbor Seal,500>,LOW,Low tide,Shoals north of Taylor Sands channel. Used extensively in 1980’s.
+9,1,Columbia River,01.06,Grays Bay,46 16.14,123 42.42,46.269,-123.707,PV,Harbor Seal,<100,LOW,Low tide,Intermittent use of shoal area.
+10,1,Columbia River,01.06,Grays Bay,46 16.71,124 43.54,46.2785,-124.72567,PV,Harbor Seal,<100,LOW,Low tide,Year round on intertidal sand bars.
+11,1,Columbia River,01.06,Grays Bay,46 16.50,123 43.54,46.275,-123.72567,PV,Harbor Seal,<100,LOW,Low tide,Year round on intertidal sand bars.
+12,1,Columbia River,01.07,Cathlamet Bay,46 12.31,123 39.56,46.20517,-123.65933,PV,Harbor Seal,100-500,LOW,Low tide,Exposed channels along Sanborn Slough.
+13,1,Columbia River,01.07,Cathlamet Bay,46 12.99,123 41.74,46.2165,-123.69567,PV,Harbor Seal,<100,LOW,Low tide,Along shoals west of Green Island. Intermittent during pupping season.
+14,1,Columbia River,01.07,Cathlamet Bay,46 12.86,123 40.50,46.21433,-123.675,PV,Harbor Seal,<100,LOW,Low tide,Exposed channels north of Green Island during pupping season. Nursery area.
+15,1,Columbia River,01.08,Lower Woody/Snag Island,46 13.40,123 37.55,46.22333,-123.62583,PV,Harbor Seal,<100,LOW,Low tide,Shoals southwest of Snag Island.
+16,1,Columbia River,01.08,Lower Woody/Snag Island,46 13.95,123 37.10,46.2325,-123.61833,PV,Harbor Seal,<100,LOW,Low tide,Along northeast side of Snag Island (near line of pilings).
+17,1,Columbia River,01.08,Lower Woody/Snag Island,46 13.92,123 36.59,46.232,-123.60983,PV,Harbor Seal,<100,LOW,Low tide,Shoals in lower Woody Island channel.
+18,1,Columbia River,01.09,South of Miller Sands,46 13.87,123 38.84,46.23117,-123.64733,PV,Harbor Seal,<100,LOW,Low tide,Along shoals on south side during winter and early spring.
+19,1,Columbia River,01.10,Three Tree Point Area,46 15.77,123 30.85,46.26283,-123.51417,PV,Harbor Seal,100-500,LOW,Low tide,On shoal just downriver from line of range markers during winter and spring.
+20,1,Columbia River,01.10,Three Tree Point Area,46 15.28,123 30.79,46.25467,-123.51317,PV,Harbor Seal,100-500,LOW,Low tide,Along north side of Grassy Island during winter and spring.
+21,1,Columbia River,01.11,NE of Welch Island,4614.99,123 27.03,46.24983,-123.4505,PV,Harbor Seal,<100,LOW,Low tide,On shoal along northeast side of island during winter and spring.
+22,1,Columbia River,01.12,Wallace Island/Eureka Bar,46 08.74,123 16.04,46.14567,-123.26733,PV,Harbor Seal,<100,LOW,Low tide,Along edge of unnamed island south of Waterford during spring and winter.
+23,1,Columbia River,01.12,Wallace Island/Eureka Bar,46 08.91,123 15.26,46.1485,-123.25433,PV,Harbor Seal,<100,LOW,Low tide,Shoals south of Cooper Point along lower Eureka Channel during spring and winter.
+24,1,Columbia River,01.13,Cowlitz River/Carroll Slough,46 05.98,122 54.34,46.09967,-122.90567,"PV,ZC",Harbor Seal; California Sea Lion,100-500,LOW,Low tide,Shoals near confluence with Columbia River during winter and spring.
+25,1,Columbia River,01.13,Cowlitz River/Carroll Slough,46 05.53,122 53.66,46.09217,-122.89433,ZC,California Sea Lion,<100,LOW,Low tide,Log booms anchored along Carroll Channel used intermittently during winter and spring.
+26,1,Columbia River,01.14,Tongue Point Sands,46 13.88,123 45.86,46.23133,-123.76433,PV,Harbor Seal,500>,LOW,Low tide,Along northwest side of shoal during winter and spring.
+27,1,Columbia River,01.14,Tongue Point Sands,46 14.08,123 45.16,46.23467,-123.75267,PV,Harbor Seal,<100,LOW,Low tide,Shoals upriver from main shoal area.
+28,1,Columbia River,01.15,E Puget Island,46 08.95,123 18.76,46.14917,-123.31267,PV,Harbor Seal,100-500,LOW,Low tide,Upriver end of Puget Island during winter and spring.
+29,1,Columbia River,01.16,Astoria/E Mooring Basin,46 11.80,123 47.95,46.19667,-123.79917,ZC,California Sea Lion,100-500,ALL,All tidal states,On marina floats and upriver jetty near processing plant from late fall through spring.
+30,2,Willapa Bay,02.01,W Shoalwater Bay,46 24.45,124 00.05,46.4075,-124.00083,PV,Harbor Seal,<100,LOW,Low tide,Areas along channels on west side of Shoalwater Bay.
+31,2,Willapa Bay,02.01,W Shoalwater Bay,46 24.54,124 00.18,46.409,-124.003,PV,Harbor Seal,<100,LOW,Low tide,Areas along channels in west Shoalwater Bay during pupping season.
+32,2,Willapa Bay,02.02,Shoalwater Bay Middle,46 24.34,123 59.32,46.40567,-123.98867,PV,Harbor Seal,<100,LOW,Low tide,Areas along channels in middle Shoalwater Bay during pupping season.
+33,2,Willapa Bay,02.03,SW of Long Island,46 25.64,123 58.87,46.42733,-123.98117,PV,Harbor Seal,<100,LOW,Low tide,Areas along channels southwest of Long Island during pupping season.
+34,2,Willapa Bay,02.04,NE of Long Island South,46 29.24,123 56.83,46.48733,-123.94717,PV,Harbor Seal,100-500,LOW,Low tide,Areas along south channel. Nursery area.
+35,2,Willapa Bay,02.05,NE of Long Island Middle,46 29.76,123 57.38,46.496,-123.95633,PV,Harbor Seal,<100,LOW,Low tide,Areas along the middle channel.
+36,2,Willapa Bay,02.06,NE of Long Island North,46 30.79,123 57.11,46.51317,-123.95183,PV,Harbor Seal,<100,LOW,Low tide,Areas along the north channels during pupping season.
+37,2,Willapa Bay,02.06,NE of Long Island North,46 31.32,123 56.89,46.522,-123.94817,PV,Harbor Seal,<100,LOW,Low tide,Along the northern most channel with house on pilings during pupping season.
+38,2,Willapa Bay,02.07,Riddle Spit Area,46 34.94,124 00.60,46.58233,-124.01,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas along edge of shoal.
+39,2,Willapa Bay,02.08,S of Grassy Island,46 37.06,124 01.38,46.61767,-124.023,PV,Harbor Seal,<100,LOW,Low tide,On shoals south of Grassy Island during pupping season.
+40,2,Willapa Bay,02.09,Ellen Sands,46 38.72,123 58.10,46.64533,-123.96833,PV,Harbor Seal,<100,LOW,Low tide,Intertidal sand flats along Ellen Sands. Nursery area.
+41,2,Willapa Bay,02.09,Ellen Sands,46 39.11,123 59.23,46.65183,-123.98717,PV,Harbor Seal,<100,LOW,Low tide,Intertidal sand flats along Ellen Sands. Nursery area.
+42,2,Willapa Bay,02.09,Ellen Sands,46 39.74,123 59.27,46.66233,-123.98783,PV,Harbor Seal,<100,LOW,Low tide,Intertidal sand flats along Ellen Sands. Nursery area.
+43,2,Willapa Bay,02.09,Ellen Sands,46 40.58,123 59.05,46.67633,-123.98417,PV,Harbor Seal,<100,LOW,Low tide,Intertidal sand flats along Ellen Sands. Nursery area.
+44,2,Willapa Bay,02.10,Pine Island Channel,46 40.98,123 57.64,46.683,-123.96067,PV,Harbor Seal,100-500,LOW,Low tide,Shoals along Pine Island channel.
+45,2,Willapa Bay,02.10,Pine Island Channel,46 40.74,123 57.67,46.679,-123.96117,PV,Harbor Seal,100-500,LOW,Low tide,Shoals along Pine Island channel.
+46,2,Willapa Bay,02.10,Pine Island Channel,46 40.15,123 56.95,46.66917,-123.94917,PV,Harbor Seal,100-500,LOW,Low tide,Shoals along Pine Island channel during pupping season. Nursery area.
+47,2,Willapa Bay,02.11,E of Toke Point,46 42.63,123 55.90,46.7105,-123.93167,PV,Harbor Seal,<100,LOW,Low tide,Shoals along channels east of Toke Point.
+48,2,Willapa Bay,02.12,Entrance Shoals,46 42.71,124 03.04,46.71183,-124.05067,PV,Harbor Seal,100-500,LOW,Low tide,Along north side of main shoal in entrance to Willapa Bay.
+49,2,Willapa Bay,02.12,Entrance Shoals,46 41.71,124 02.00,46.69517,-124.03333,PV,Harbor Seal,100-500,LOW,Low tide,Along south side of main shoal in entrance to Willapa Bay.
+50,2,Willapa Bay,02.12,Entrance Shoals,46 40.42,124 00.74,46.67367,-124.01233,PV,Harbor Seal,100-500,LOW,Low tide,On southeast shoal in entrance to Willapa Bay.
+51,2,Willapa Bay,02.12,Entrance Shoals,46 41.63,124 05.73,46.69383,-124.0955,PV,Harbor Seal,<100,LOW,Low tide,On southwest shoals in entrance to Willapa Bay during pupping season.
+52,2,Willapa Bay,02.12,Entrance Shoals,46 40.65,124 06.03,46.6775,-124.1005,PV,Harbor Seal,<100,LOW,Low tide,On south shoals in entrance to Willapa Bay during the pupping season.
+53,2,Willapa Bay,02.13,Leadbetter Shoals,46 39.93,124 03.22,46.6655,-124.05367,PV,Harbor Seal,<100,LOW,Low tide,Along shoals north of Leadbetter Point during pupping season.
+54,2,Willapa Bay,02.13,Leadbetter Shoals,46 38.36,124 00.89,46.63933,-124.01483,PV,Harbor Seal,100-500,LOW,Low tide,Shoals southeast of Leadbetter Point.
+55,2,Willapa Bay,02.13,Leadbetter Shoals,46 39.83,124 02.47,46.66383,-124.04117,PV,Harbor Seal,<100,LOW,Low tide,Shoals northeast of Leadbetter Point during pupping season.
+56,2,Willapa Bay,02.13,Leadbetter Shoals,46 39.42,124 02.21,46.657,-124.03683,PV,Harbor Seal,100-500,LOW,Low tide,On shoals east of Leadbetter Point.
+57,3,Grays Harbor,03.01,South Bay,46 52.83,124 04.08,46.8805,-124.068,PV,Harbor Seal,<100,LOW,Low tide,Along intertidal channels on east side of bay.
+58,3,Grays Harbor,03.02,Whitcomb Flats N,46 54.98,124 04.64,46.91633,-124.07733,PV,Harbor Seal,100-500,LOW,Low tide,Along north side of Whitcomb Flats.
+59,3,Grays Harbor,03.03,E of Whitcomb Flats,46 55.04,124 02.27,46.91733,-124.03783,PV,Harbor Seal,<100,LOW,Low tide,Along south side of shoal east of Whitcomb Flats during pupping season.
+60,3,Grays Harbor,03.03,E of Whitcomb Flats,46 54.81,124 03.02,46.9135,-124.05033,PV,Harbor Seal,<100,LOW,Low tide,Along south side of shoal east of Whitcomb Flats during pupping season.
+61,3,Grays Harbor,03.03,E of Whitcomb Flats,46 54.43,124 02.88,46.90717,-124.048,PV,Harbor Seal,<100,LOW,Low tide,On shoal southeast of Whitcomb Flats.
+62,3,Grays Harbor,03.04,Midharbor Flats,46 56.93,123 58.42,46.94883,-123.97367,PV,Harbor Seal,<100,LOW,Low tide,On shoals on north side of midharbor flats during pupping season.
+63,3,Grays Harbor,03.04,Midharbor Flats,46 56.32,123 59.94,46.93867,-123.999,PV,Harbor Seal,100-500,LOW,Low tide,On shoals on northwest side of midharbor flats during pupping season. Nursery area.
+64,3,Grays Harbor,03.04,Midharbor Flats,46 56.11,123 56.89,46.93517,-123.94817,PV,Harbor Seal,<100,LOW,Low tide,Shoals along south side of midharbor flats during pupping season.
+65,3,Grays Harbor,03.05,Sand Island Shoals,46 57.35,123 59.81,46.95583,-123.99683,PV,Harbor Seal,100-500,LOW,Low tide,On east side of shoal near rangefinders during pupping season. Nursery area.
+66,3,Grays Harbor,03.05,Sand Island Shoals Area,46 57.50,123 59.92,46.95833,-123.99867,PV,Harbor Seal,100-500,LOW,Low tide,On north side of shoal near rangefinders during pupping season.
+67,3,Grays Harbor,03.06,Sand Island Shoals Area,46 56.88,124 01.13,46.948,-124.01883,PV,Harbor Seal,<100,LOW,Low tide,On south side of south shoal during pupping season.
+68,3,Grays Harbor,03.06,Sand Island Shoals Area,46 56.91,124 01.61,46.9485,-124.02683,PV,Harbor Seal,500>,LOW,Low tide,On north side of south shoal.
+69,3,Grays Harbor,03.07,Sand Island Shoals Area,46 57.11,124 02.05,46.95183,-124.03417,PV,Harbor Seal,<100,LOW,Low tide,On north side of middle shoal during pupping season.
+70,3,Grays Harbor,03.07,Sand Island Shoals Area,46 57.19,124 01.42,46.95317,-124.02367,PV,Harbor Seal,<100,LOW,Low tide,Along southeast side of middle shoal during pupping season.
+71,3,Grays Harbor,03.07,Sand Island Shoals Area,46 56.71,124 02.15,46.94517,-124.03583,PV,Harbor Seal,500>,LOW,Low tide,Along south side of middle shoal.
+72,3,Grays Harbor,03.07,Sand Island Shoals Area,46 56.45,124 02.81,46.94083,-124.04683,PV,Harbor Seal,<100,LOW,Low tide,Along southwest side of middle shoal during pupping season.
+73,3,Grays Harbor,03.08,Sand Island Shoals Area,46 57.03,124 02.42,46.9505,-124.04033,PV,Harbor Seal,<100,LOW,Low tide,On south side of the north shoal during pupping season.
+74,3,Grays Harbor,03.09,S Side of Sand Island,46 57.38,124 02.90,46.95633,-124.04833,PV,Harbor Seal,100-500,LOW,Low tide,Shoals across channel on south side of island. Nursery area.
+75,3,Grays Harbor,03.09,S of Sand Island,46 57.58,124 03.07,46.95967,-124.05117,PV,Harbor Seal,100-500,LOW,Low tide,Along channel on south side of island. Nursery area.
+76,3,Grays Harbor,03.09,S Side of Sand Island,46 57.26,124 03.31,46.95433,-124.05517,PV,Harbor Seal,100-500,LOW,Low tide,Along channel on south side of island. Nursery area.
+77,3,Grays Harbor,03.09,S Side of Sand Island,46 58.03,124 02.09,46.96717,-124.03483,PV,Harbor Seal,<100,LOW,Low tide,Along channel on south side of island. Nursery area.
+78,3,Grays Harbor,03.09,S Side of Sand Island,46 57.61,124 03.40,46.96017,-124.05667,PV,Harbor Seal,<100,LOW,Low tide,Along channel on south side of island. Nursery area.
+79,3,Grays Harbor,03.10,N Side of Sand Island,46 57.82,124 03.37,46.96367,-124.05617,PV,Harbor Seal,100-500,LOW,Low tide,Along channel on north side of island. Nursery area.
+80,3,Grays Harbor,03.11,NW of Sand Island,46 58.01,124 03.83,46.96683,-124.06383,PV,Harbor Seal,100-500,LOW,Low tide,On northwest tip of Sand Island.
+81,3,Grays Harbor,03.11,NW of Sand Island,46 57.68,124 03.99,46.96133,-124.0665,PV,Harbor Seal,<100,LOW,Low tide,Shoals west of Sand Island during pupping season.
+82,3,Grays Harbor,03.12,S Side of Goose Island,46 58.56,124 03.85,46.976,-124.06417,PV,Harbor Seal,100-500,LOW,Low tide,Along channel on the south side of Goose Island. Nursery area.
+83,3,Grays Harbor,03.13,NW End of Goose Island,46 58.91,124 04.27,46.98183,-124.07117,PV,Harbor Seal,<100,LOW,Low tide,Northwest tip of Goose Island during pupping season.
+84,3,Grays Harbor,03.14,East Bay/Chenois Creek,46 59.93,124 02.78,46.99883,-124.04633,PV,Harbor Seal,<100,LOW,Low tide,Along Chenois Creek channel during pupping season.
+85,3,Grays Harbor,03.14,East Bay/Chenois Creek,47 01.47,124 02.73,47.0245,-124.0455,PV,Harbor Seal,<100,LOW,Low tide,Along Chenois Creek channel during pupping season.
+86,3,Grays Harbor,03.14,East Bay/Chenois Creek,47 01.39,124 02.09,47.02317,-124.03483,PV,Harbor Seal,<100,LOW,Low tide,Along Chenois Creek channel during pupping season.
+87,3,Grays Harbor,03.14,East Bay/Chenois Creek,47 00.79,124 02.06,47.01317,-124.03433,PV,Harbor Seal,<100,LOW,Low tide,Along Chenois Creek channel during pupping season.
+88,3,Grays Harbor,03.14,East Bay/Chenois Creek,47 00.45,124 02.32,47.0075,-124.03867,PV,Harbor Seal,<100,LOW,Low tide,Along Chenois Creek channel during pupping season.
+89,3,Grays Harbor,03.15,East Bay/Small Channel,47 00.27,124 02.92,47.0045,-124.04867,PV,Harbor Seal,100-500,LOW,Low tide,Along small deadend channel in East Bay. Nursery area.
+90,3,Grays Harbor,03.16,East Bay/Main Channel,47 00.78,124 03.05,47.013,-124.05083,PV,Harbor Seal,<100,LOW,Low tide,Along main channel in East Bay during pupping season.
+91,3,Grays Harbor,03.17,Shoals NW of Goose Island,46 59.23,124 04.66,46.98717,-124.07767,PV,Harbor Seal,<100,LOW,Low tide,Along channel in shoals northwest of Goose Island during pupping season.
+92,3,Grays Harbor,03.17,Shoals NW of Goose Island,46 59.65,124 05.98,46.99417,-124.09967,PV,Harbor Seal,100-500,LOW,Low tide,Along channel in shoal northwest of Goose Island.
+93,3,Grays Harbor,03.18,Shoals E of Ocean Shores,46 58.09,124 07.59,46.96817,-124.1265,PV,Harbor Seal,100-500,LOW,Low tide,Shoals along channel east of Oyehut/Ocean Shores. Nursery area.
+94,3,Grays Harbor,03.19,N of Campbell Slough,47 00.45,124 05.91,47.0075,-124.0985,PV,Harbor Seal,<100,LOW,Low tide,Mud flats along Campbell Slough during pupping season.
+95,3,Grays Harbor,03.20,North Bay/West Channel,47 01.15,124 06.59,47.01917,-124.10983,PV,Harbor Seal,100-500,LOW,Low tide,Mud flats along the west channel into North Bay. Nursery area.
+96,3,Grays Harbor,03.20,North Bay/West Channel,47 01.54,124 07.01,47.02567,-124.11683,PV,Harbor Seal,<100,LOW,Low tide,Mud flats along the west channel into North Bay. Nursery area.
+97,3,Grays Harbor,03.20,North Bay/West Channel,47 00.82,124 05.89,47.01367,-124.09817,PV,Harbor Seal,100-500,LOW,Low tide,Mud flats along the west channel into North Bay. Nursery area.
+98,3,Grays Harbor,03.21,North Bay/East Channel,47 01.92,124 05.54,47.032,-124.09233,PV,Harbor Seal,<100,LOW,Low tide,Mud flats along the east channel into North Bay. Nursery area.
+99,3,Grays Harbor,03.21,North Bay/East Channel,47 01.55,124 05.72,47.02583,-124.09533,PV,Harbor Seal,100-500,LOW,Low tide,Mud flats along the east channel into North Bay.
+100,3,Grays Harbor,03.21,North Bay/East Channel,47 01.21,124 05.45,47.02017,-124.09083,PV,Harbor Seal,<100,LOW,Low tide,Mud flats along the east channel into North Bay. Nursery area.
+101,3,Grays Harbor,03.22,North Bay/NW Channel,47 01.36,124 08.17,47.02267,-124.13617,PV,Harbor Seal,<100,LOW,Low tide,Mud flats along the northwest most channel into North Bay during pupping season.
+102,4,Olympic Coast-South,04.01,Cape Elizabeth,47 21.32,124 19.19,47.35533,-124.31983,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal reef areas off Cape Elizabeth.
+103,4,Olympic Coast-South,04.02,S of Split Rock,47 23.99,124 21.58,47.39983,-124.35967,"EJ,ZC",Steller Sea Lion; California Sea Lion,100-500,ALL,All tidal states,Unnamed rock (USFWS ID 535) south of Spit Rock.
+104,4,Olympic Coast-South,04.03,Split Rock Area,47 24.39,124 21.76,47.4065,-124.36267,"EJ,ZC",Steller Sea Lion; California Sea Lion,100-500,ALL,All tidal states,Along the west and south sides of Split Rock.
+105,4,Olympic Coast-South,04.03,Split Rock Area,47 24.44,124 21.50,47.40733,-124.35833,EJ,Steller Sea Lion,<100,ALL,All tidal states,Small intertidal rock (USFWS ID 533) to east of Split Rock.
+106,4,Olympic Coast-South,04.03,Split Rock Area,47 24.32,124 21.47,47.40533,-124.35783,EJ,Steller Sea Lion,<100,ALL,All tidal states,Small intertidal rock (USFWS ID 534) to east of Split Rock.
+107,4,Olympic Coast-South,04.04,Sea Lion Rock,47 27.00,124 24.20,47.45,-124.40333,PV,Harbor Seal,<100,LOW,Low tide,Sea Lion Rock (USFWS ID 502) about 3 miles northwest of Split Rock.
+108,4,Olympic Coast-South,04.05,Destruction Island/W End,47 40.35,124 29.30,47.6725,-124.48833,PV,Harbor Seal,<100,LOW,Low tide,Along intertidal channel and reef areas on west end of island.
+109,4,Olympic Coast-South,04.06,Destruction Island/NE End,47 40.73,124 28.76,47.67883,-124.47933,"PV,MA",Harbor Seal; Northern Elephant Seal,100-500,LOW,Low tide,On intertidal reefs and main beach area on the northeast end of island. MA’s in winter and spring.
+110,4,Olympic Coast-South,04.07,Islet N of Hoh River,47 45.23,124 27.24,47.75383,-124.454,PV,Harbor Seal,100-500,LOW,Low tide,On intertidal reefs just north of the Hoh River.
+111,4,Olympic Coast-South,04.08,Alexander Island,47 47.90,124 30.23,47.79833,-124.50383,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas along the east side of Alexander Island.
+112,4,Olympic Coast-South,04.09,Goodman Creek Area,47 49.24,124 30.66,47.82067,-124.511,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal rocks on south side of Goodman Creek.
+113,4,Olympic Coast-South,04.10,S of Toleak Point,47 49.64,124 32.15,47.82733,-124.53583,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal reef area south of Toleak Point.
+114,4,Olympic Coast-South,04.11,Toleak Point,47 49.96,124 32.60,47.83267,-124.54333,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal reef areas at Toleak Point.
+115,4,Olympic Coast-South,04.12,N of Toleak Point,47 50.24,124 32.65,47.83733,-124.54417,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reefs and rocks in bay north of Toleak Point. Nursery area.
+116,4,Olympic Coast-South,04.13,Strawberry Point,47 50.70,124 33.30,47.845,-124.555,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas at Strawberry Point.
+117,4,Olympic Coast-South,04.14,Giants Graveyard,47 51.18,124 34.00,47.853,-124.56667,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas at Giants Graveyard. Nursery area.
+118,4,Olympic Coast-South,04.14,Giants Graveyard,47 51.01,124 33.76,47.85017,-124.56267,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas at Giants Graveyard. Nursery area.
+119,4,Olympic Coast-South,04.15,NE of Giants Graveyard,47 51.61,124 33.74,47.86017,-124.56233,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas northeast of Giants Graveyard during pupping season.
+120,4,Olympic Coast-South,04.16,S Side Teawhit Head,47 52.26,124 36.37,47.871,-124.60617,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reef areas along the south side of Teawhit Head.
+121,4,Olympic Coast-South,04.17,Quillayute Needles,47 53.02,124 38.08,47.88367,-124.63467,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas on west side of Quillayute Needles.
+122,4,Olympic Coast-South,04.18,Point Grenville,47 18.09,124 16.55,47.3015,-124.27583,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas at Point Grenville. Intermittent use.
+123,4,Olympic Coast-South,04.20,Kalaloch Rocks,47 36.11,124 22.71,47.60183,-124.3785,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reef area at Kalaloch Rocks. Intermittent use.
+124,4,Olympic Coast-South,04.21,Perkins Reef Area,47 46.79,124 29.63,47.77983,-124.49383,PV,Harbor Seal,<100,LOW,Low tide,Reef areas inshore from Perkins Reef. Intermittent use.
+125,4,Olympic Coast-South,04.22,Flat Rock,47 22.68,124 20.72,47.378,-124.34533,PV,Harbor Seal,<100,LOW,Low tide,Flat Rock (USFWS ID 539). Intermittent use.
+126,4,Olympic Coast-South,04.23,Willoughby Rock,47 24.64,124 21.20,47.41067,-124.35333,PV,Harbor Seal,<100,LOW,Low tide,South side of Willoughby Rock on intertidal rocks and reefs.
+127,5,Olympic Coast-North,05.01,S of Cape Johnson,47 57.16,124 40.25,47.95267,-124.67083,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal rocks and reefs south of Cape Johnson.
+128,5,Olympic Coast-North,05.01,S of Cape Johnson,47 57.40,124 40.30,47.95667,-124.67167,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal reefs around point south of Cape Johnson.
+129,5,Olympic Coast-North,05.01,S of Cape Johnson,47 57.65,124 39.95,47.96083,-124.66583,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal reefs in bay south of Cape Johnson (Chilean Memorial).
+130,5,Olympic Coast-North,05.02,N of Cape Johnson,47 58.51,124 41.03,47.97517,-124.68383,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal reef complex off Cape Johnson.
+131,5,Olympic Coast-North,05.03,Sandy Island,47 59.21,124 41.24,47.98683,-124.68733,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal reef complex around Sandy Island (USFWS ID 275).
+132,5,Olympic Coast-North,05.04,Reef NE of Sandy Island,47 59.48,124 40.82,47.99133,-124.68033,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal area off point northeast of Sandy Island.
+133,5,Olympic Coast-North,05.05,Sea Lion Rock,47 59.59,124 43.45,47.99317,-124.72417,"PV,EJ,ZC",Harbor Seal; Steller Sea Lion; California Sea Lion,<100,LOW,Low tide,On inshore ledges of Sea Lion Rock (USFWS ID 271 and 272) area.
+134,5,Olympic Coast-North,05.06,Carroll Island,48 00.34,124 43.33,48.00567,-124.72217,"EJ,ZC",Steller Sea Lion; California Sea Lion,100-500,ALL,All tidal states,On ledges and tunnel areas around entire island.
+135,5,Olympic Coast-North,05.07,E of Jagged Island,47 59.78,124 41.48,47.99633,-124.69133,PV,Harbor Seal,100-500,LOW,Low tide,On intertidal reef areas east of Bald Island (Jagged Islet).
+136,5,Olympic Coast-North,05.08,S Cedar Creek Area,48 01.22,124 41.11,48.02033,-124.68517,PV,Harbor Seal,<100,LOW,Low tide,Reef areas south of Cedar Creek.
+137,5,Olympic Coast-North,05.08,N Cedar Creek Area,48 01.78,124 41.19,48.02967,-124.6865,PV,Harbor Seal,100-500,LOW,Low tide,Reef areas off stack just north of Cedar Creek.
+138,5,Olympic Coast-North,05.08,Norwegian Memorial Area,48 01.52,124 41.04,48.02533,-124.684,PV,Harbor Seal,100-500,LOW,Low tide,Reef areas north of Cedar Creek off Norwegian Memorial.
+139,5,Olympic Coast-North,05.09,S Yellow Banks,48 05.14,124 41.83,48.08567,-124.69717,PV,Harbor Seal,<100,LOW,Low tide,Reef areas just south of Yellow Banks.
+140,5,Olympic Coast-North,05.10,Sand Point Area,48 07.54,124 43.81,48.12567,-124.73017,PV,Harbor Seal,<100,LOW,Low tide,Reef complex offshore from Sand Point.
+141,5,Olympic Coast-North,05.10,Sand Point Area,48 07.55,124 42.79,48.12583,-124.71317,PV,Harbor Seal,100-500,LOW,Low tide,Reef complex around Sand Point.
+142,5,Olympic Coast-North,05.11,E of White Rock,48 08.39,124 43.16,48.13983,-124.71933,PV,Harbor Seal,<100,LOW,Low tide,Reef complex inshore from White Rock.
+143,5,Olympic Coast-North,05.11,E of White Rock,48 08.22,124 43.07,48.137,-124.71783,PV,Harbor Seal,<100,LOW,Low tide,Reef complex inshore from White Rock.
+144,5,Olympic Coast-North,05.12,Cape Alava Area,48 09.86,124 44.19,48.16433,-124.7365,PV,Harbor Seal,100-500,LOW,Low tide,Reef complex around Cape Alava.
+145,5,Olympic Coast-North,05.12,Cape Alava Area,48 09.52,124 44.74,48.15867,-124.74567,PV,Harbor Seal,100-500,LOW,Low tide,Reef complex inshore from Ozette Island.
+146,5,Olympic Coast-North,05.13,Bodelteh Island Area,48 10.55,124 45.20,48.17583,-124.75333,"ZC,PV,EJ",California Sea Lion; Harbor Seal; Steller Sea Lion,100-500,LOW,Low tide,Reef areas on northeast side of island.
+147,5,Olympic Coast-North,05.13,Bodelteh Island Area,48 10.52,124 45.49,48.17533,-124.75817,"ZC,PV,EJ",California Sea Lion; Harbor Seal; Steller Sea Lion,100-500,LOW,Low tide,Reef areas on south side of island.
+148,5,Olympic Coast-North,05.13,W Bodelteh Island Area,48 10.67,124 45.89,48.17783,-124.76483,"EJ,ZC",Steller Sea Lion; California Sea Lion,100-500,ALL,All tidal states,Rocks and reef areas off west end of island.
+149,5,Olympic Coast-North,05.14,Ozette Island Area,48 09.32,124 43.85,48.15533,-124.73083,PV,Harbor Seal,100-500,LOW,Low tide,Reef areas southeast of Ozette Island.
+150,5,Olympic Coast-North,05.14,Ozette Island Area,48 09.24,124 44.71,48.154,-124.74517,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on south side of island.
+151,5,Olympic Coast-North,05.15,Umatilla Reef,48 11.10,124 47.02,48.185,-124.78367,"EJ,ZC",Steller Sea Lion; California Sea Lion,100-500,LOW,Low tide,Intertidal reef areas at Umatilla Reef.
+152,5,Olympic Coast-North,05.16,N of Cape Alava,48 10.91,124 44.43,48.18183,-124.7405,"EJ,ZC",Steller Sea Lion; California Sea Lion,100-500,ALL,All tidal states,Unnamed rock (USFWS ID 158) northwest from Cape Alava.
+153,5,Olympic Coast-North,05.17,S of Point of Arches,48 14.17,124 42.17,48.23617,-124.70283,PV,Harbor Seal,<100,LOW,Low tide,Reef areas south of Point of Arches.
+154,5,Olympic Coast-North,05.17,S of Point of Arches,48 14.54,124 42.39,48.24233,-124.7065,PV,Harbor Seal,<100,LOW,Low tide,Reef areas south of Point of Arches.
+155,5,Olympic Coast-North,05.17,S of Point of Arches,48 14.42,124 42.35,48.24033,-124.70583,PV,Harbor Seal,<100,LOW,Low tide,Reef areas south of Point of Arches.
+156,5,Olympic Coast-North,05.17,S of Point of Arches,48 14.04,124 42.28,48.234,-124.70467,PV,Harbor Seal,<100,LOW,Low tide,Inshore ledges on ‘Cooke Rock’ (USFWS ID 119).
+157,5,Olympic Coast-North,05.18,Point of Arches,48 14.92,124 42.11,48.24867,-124.70183,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reef areas on south side of Point of Arches.
+158,5,Olympic Coast-North,05.19,Portage Head Area,48 16.76,124 40.97,48.27933,-124.68283,PV,Harbor Seal,<100,LOW,Low tide,Reef areas off ‘shipwreck’ beach.
+159,5,Olympic Coast-North,05.20,Waatch Point,48 20.39,124 41.56,48.33983,-124.69267,PV,Harbor Seal,<100,LOW,Low tide,Rocks and reef areas off Waatch Point.
+160,5,Olympic Coast-North,05.21,S of Fuca Pillar/Skagway,48 22.22,124 43.68,48.37033,-124.728,"PV,EJ",Harbor Seal; Steller Sea Lion,<100,LOW,Low tide,Rocks and reef areas around Skagway Rocks and Fuca Pillar.
+161,5,Olympic Coast-North,05.22,Tatoosh Island Area,48 23.53,124 44.34,48.39217,-124.739,"PV,EJ,ZC",Harbor Seal; Steller Sea Lion; California Sea Lion,<100,LOW,Low tide,Intertidal rocks off west side of island.
+162,5,Olympic Coast-North,05.22,Tatoosh Island Area,48 23.57,124 44.57,48.39283,-124.74283,"EJ,ZC",Steller Sea Lion; California Sea Lion,100-500,ALL,All tidal states,Intertidal rocks and reef areas off west side of island.
+163,5,Olympic Coast-North,05.22,E Tatoosh Island Area,48 23.51,124 43.83,48.39183,-124.7305,"EJ,ZC",Steller Sea Lion; California Sea Lion,<100,ALL,All tidal states,Intertidal rocks on east side of island.
+164,5,Olympic Coast-North,05.23,Allen’s Bay/Midway Area,48 03.69,124 41.69,48.0615,-124.69483,PV,Harbor Seal,100-500,LOW,Low tide,Reef areas along midway beach (off Allen’s Bay in Lake Ozette).
+165,5,Olympic Coast-North,05.23,Allen’s Bay/Midway Area,48 03.25,124 41.51,48.05417,-124.69183,PV,Harbor Seal,100-500,LOW,Low tide,Reef areas off south end of Lake Ozette.
+166,5,Olympic Coast-North,05.24,N Yellow Banks,48 06.16,124 41.63,48.10267,-124.69383,PV,Harbor Seal,<100,LOW,Low tide,Reef area at point north of Yellow Banks.
+167,5,Olympic Coast-North,05.25,Duk Point Area,48 12.23,124 42.08,48.20383,-124.70133,PV,Harbor Seal,<100,LOW,Low tide,On scattered rocks and reef areas off Duk Point.
+168,5,Olympic Coast-North,05.26,Father and Son Area,48 13.57,124 42.70,48.22617,-124.71167,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges on inshore side of Father and Son Rocks.
+169,5,Olympic Coast-North,05.27,Inshore of Father and Son,48 13.64,124 41.92,48.22733,-124.69867,PV,Harbor Seal,<100,LOW,Low tide,Reef areas inshore from Father and Son Rocks.
+170,6,Strait of Juan de Fuca-West,6.01,Waadah Island,48 22.93,124 35.50,48.38217,-124.59167,PV,Harbor Seal,<100,LOW,Low tide,Reef area on east side of Waadah Island.
+171,6,Strait of Juan de Fuca-West,6.01,N Waadah Island,48 23.15,124 35.98,48.38583,-124.59967,ZC,California Sea Lion,<100,ALL,All tidal states,On north tip of island.
+172,6,Strait of Juan de Fuca-West,6.02,Seal and Sail Rock Area,48 21.71,124 32.74,48.36183,-124.54567,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Seal Rock.
+173,6,Strait of Juan de Fuca-West,6.02,Seal and Sail Rock Area,48 21.55,124 32.63,48.35917,-124.54383,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Sail Rock.
+174,6,Strait of Juan de Fuca-West,6.02,Seal and Sail Rock Area,48 21.16,124 31.90,48.35267,-124.53167,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reef areas of Sail Rock.
+175,6,Strait of Juan de Fuca-West,6.03,W of Seiku River Mouth,48 18.07,124 24.76,48.30117,-124.41267,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reef areas west of Sekiu River.
+176,6,Strait of Juan de Fuca-West,6.03,W of Seiku River Mouth,48 18.30,124 25.18,48.305,-124.41967,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reef areas west of Sekiu River.
+177,6,Strait of Juan de Fuca-West,6.04,Eagle Point Area,48 16.75,124 20.44,48.27917,-124.34067,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges east of Eagle Point.
+178,6,Strait of Juan de Fuca-West,6.04,Eagle Point Area,48 16.58,124 19.97,48.27633,-124.33283,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges east of Eagle Point.
+179,6,Strait of Juan de Fuca-West,6.04,Eagle Point Area,48 16.48,124 19.48,48.27467,-124.32467,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges east of Eagle Point.
+180,6,Strait of Juan de Fuca-West,6.05,Ship Point Area,48 15.73,124 14.03,48.26217,-124.23383,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges east of Slip Point.
+181,6,Strait of Juan de Fuca-West,6.05,Ship Point Area,48 15.44,124 13.43,48.25733,-124.22383,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges east of Slip Point.
+182,6,Strait of Juan de Fuca-West,6.05,Ship Point Area,48 15.03,124 12.37,48.2505,-124.20617,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges east of Slip Point.
+183,6,Strait of Juan de Fuca-West,6.06,W of Pillar Point Area,48 13.30,124 07.06,48.22167,-124.11767,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges west of Pillar Point.
+184,6,Strait of Juan de Fuca-West,6.06,W of Pillar Point Area,48 13.07,124 06.05,48.21783,-124.10083,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges west of Pillar Point.
+185,6,Strait of Juan de Fuca-West,6.06,W of Pillar Point Area,48 13.64,124 08.26,48.22733,-124.13767,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges west of Pillar Point.
+186,6,Strait of Juan de Fuca-West,6.07,Deep Creek Area,48 10.70,124 02.57,48.17833,-124.04283,PV,Harbor Seal,<100,LOW,Low tide,Reef areas off Deep Creek.
+187,6,Strait of Juan de Fuca-West,6.07,Deep Creek Area,48 10.56,124 01.48,48.176,-124.02467,PV,Harbor Seal,<100,LOW,Low tide,Reef areas off Deep Creek.
+188,6,Strait of Juan de Fuca-West,6.07,Deep Creek Area,48 10.39,124 00.24,48.17317,-124.004,PV,Harbor Seal,<100,LOW,Low tide,Reef areas off Deep Creek.
+189,6,Strait of Juan de Fuca-West,6.08,Low Point/Lyre River Area,48 09.62,123 49.88,48.16033,-123.83133,PV,Harbor Seal,<100,LOW,Low tide,Scattered rocks and reef areas east of Lyre River.
+190,6,Strait of Juan de Fuca-West,6.09,Crescent Bay/Tongue Point,48 10.07,123 42.50,48.16783,-123.70833,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas of Tongue Point.
+191,6,Strait of Juan de Fuca-West,6.10,Striped Peak Area,48 09.85,123 40.80,48.16417,-123.68,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges north of Striped Peak.
+192,6,Strait of Juan de Fuca-West,6.10,Striped Peak Area,48 09.85,123 41.33,48.16417,-123.68883,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges north of Striped Peak.
+193,6,Strait of Juan de Fuca-West,6.10,Striped Peak Area,48 09.73,123 40.03,48.16217,-123.66717,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges north of Striped Peak.
+194,6,Strait of Juan de Fuca-West,6.10,Striped Peak Area,48 09.60,123 39.65,48.16,-123.66083,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges north of Striped Peak.
+195,6,Strait of Juan de Fuca-West,6.11,Port Angeles Area,48 07.07,123 24.67,48.11783,-123.41117,PV,Harbor Seal,<100,LOW,Low tide,Log booms off the ITT-Rayonier mill site (mill closed in 1997)
+196,6,Strait of Juan de Fuca-West,6.12,Port Angeles Area,48 08.21,123 27.46,48.13683,-123.45767,PV,Harbor Seal,<100,LOW,Low tide,Log booms on inside of Ediz Hook in Port Angeles harbor.
+197,6,Strait of Juan de Fuca-West,6.13,Rocks E of Pysht River,48 11.86,123 05.25,48.19767,-123.0875,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks and reef areas east of the Pysht River.
+198,6,Strait of Juan de Fuca-West,6.14,Twin River Area,48 09.76,123 55.06,48.16267,-123.91767,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks and reef areas near Twin Rivers.
+199,6,Strait of Juan de Fuca-West,6.14,Twin River Area,48 09.82,123 52.69,48.16367,-123.87817,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks and reef areas near Twin Rivers.
+200,6,Strait of Juan de Fuca-West,6.15,Seabird Rocks,48 44.91,125 09.32,48.7485,-125.15533,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around Seabird Rocks.
+201,6,Strait of Juan de Fuca-West,6.16,Sombrio Point Reef,48 29.72,123 17.99,48.49533,-123.29983,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around Sombrio Point.
+202,6,Strait of Juan de Fuca-West,6.16,Sombrio Point,48 29.11,123 17.25,48.48517,-123.2875,"PV,ZC",Harbor Seal; California Sea Lion,<100,LOW,Low tide,Intertidal ledges near Sombrio Point.
+203,6,Strait of Juan de Fuca-West,6.17,Rock W of Carmanah Point,48 36.96,123 45.62,48.616,-123.76033,EJ,Steller Sea Lion,100-500,LOW,Low tide,Rock W of Carmanah Point.
+204,6,Strait of Juan de Fuca-West,6.18,Dare Point Reef,48 38.64,123 48.11,48.644,-123.80183,PV,Harbor Seal,<100,LOW,Low tide,Reef area off Dare Point.
+205,6,Strait of Juan de Fuca-West,6.19,Sooke Harbor,48 21.32,123 43.43,48.35533,-123.72383,PV,Harbor Seal,<100,LOW,Low tide,Sooke Harbor area.
+206,6,Strait of Juan de Fuca-West,6.19,Sooke Harbor,48 22.26,123 42.90,48.371,-123.715,PV,Harbor Seal,<100,LOW,Low tide,Intertidal area off Sooke Harbor.
+207,6,Strait of Juan de Fuca-West,6.21,Otter Point,48 21.48,123 49.43,48.358,-123.82383,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas off Otter Point.
+208,6,Strait of Juan de Fuca-West,6.22,NW of Church Point,48 18.79,123 35.40,48.31317,-123.59,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas off Church Point.
+209,6,Strait of Juan de Fuca-West,6.23,Becher Bay,48 19.68,123 36.55,48.328,-123.60917,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around small island in Becher Bay.
+210,6,Strait of Juan de Fuca-West,6.24,Muir Point,48 22.75,123 52.25,48.37917,-123.87083,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas off Muir Point.
+211,6,Strait of Juan de Fuca-West,6.25,E San Simon Point,48 26.02,123 05.48,48.43367,-123.09133,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and rocks east of San Simon Point.
+212,6,Strait of Juan de Fuca-West,6.26,Owen Point,48 32.68,123 29.99,48.54467,-123.49983,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and rocks off Owen Point.
+213,6,Strait of Juan de Fuca-West,6.27,W Tsuquanah Point,48 40.40,123 52.91,48.67333,-123.88183,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas west of Tsuquanah Point.
+214,6,Strait of Juan de Fuca-West,6.28,Pachena Point,48 43.21,125 04.81,48.72017,-125.08017,"PV,EJ",Harbor Seal; Steller Sea Lion,<100,LOW,Low tide,Intertidal rocks and reef areas around Pachena Point.
+215,6,Strait of Juan de Fuca-West,6.29,E of Cape Beale,48 47.03,125 10.51,48.78383,-125.17517,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas east of Cape Beale.
+216,6,Strait of Juan de Fuca-West,6.30,Cullite Cove,48 34.12,124 37.10,48.56867,-124.61833,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas off Cullite Cove.
+217,6,Strait of Juan de Fuca-West,6.31,Walbran Creek,48 34.81,124 39.91,48.58017,-124.66517,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas off Walbran Creek.
+218,6,Strait of Juan de Fuca-West,6.32,Cerrantes Rocks,48 31.67,124 27.17,48.52783,-124.45283,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef areas at Cerantes Rocks.
+219,7,Strait of Juan de Fuca-East,07.01,Graveyard Spit,48 09.65,123 08.86,48.16083,-123.14767,PV,Harbor Seal,100-500,LOW,Low tide,Beach areas around Graveyard Spit in Dungeness Bay. Nursery area.
+220,7,Strait of Juan de Fuca-East,07.02,Dungeness Spit End,48 11.07,123 05.98,48.1845,-123.09967,"PV,MA",Harbor Seal; Northern Elephant Seal,100-500,LOW,Low tide,On beach at tip of Dungeness Spit.
+221,7,Strait of Juan de Fuca-East,07.03,Dungeness Bay Area,48 10.05,123 08.56,48.1675,-123.14267,PV,Harbor Seal,<100,LOW,Low tide,Along beach on east side of Dungeness Bay.
+222,7,Strait of Juan de Fuca-East,07.03,Dungeness Bay Area,48 09.65,123 09.34,48.16083,-123.15567,PV,Harbor Seal,<100,LOW,Low tide,Along north side of main channel in Dungeness Bay.
+223,7,Strait of Juan de Fuca-East,07.04,Gray’s Marsh (Kulakala Point),48 07.14,123 03.59,48.119,-123.05983,PV,Harbor Seal,<100,LOW,Low tide,Beach and intertidal sand bars near Gray’s Marsh (Kulakala Point)
+224,7,Strait of Juan de Fuca-East,07.05,"Protection Island, Kanem Spit",48 07.13,122 56.70,48.11883,-122.945,"PV,MA",Harbor Seal; Northern Elephant Seal,100-500,LOW,Low tide,On beach and spit areas around Kanem Spit. Nursery area.
+225,7,Strait of Juan de Fuca-East,07.06,"Protection Island, Violet Spit",48 07.63,122 54.47,48.12717,-122.90783,"PV,MA",Harbor Seal; Northern Elephant Seal,100-500,LOW,Low tide,On beach area around Violet Spit. Nursery area.
+226,7,Strait of Juan de Fuca-East,07.07,Smith Island Area,48 19.08,122 50.20,48.318,-122.83667,PV,Harbor Seal,<100,LOW,Low tide,On beaches and rocks on south side of Smith Island.
+227,7,Strait of Juan de Fuca-East,07.07,Smith Island Area,48 19.21,122 50.10,48.32017,-122.835,PV,Harbor Seal,100-500,LOW,Low tide,On scattered rocks along north side of Smith Island.
+228,7,Strait of Juan de Fuca-East,07.08,Minor Island Area,48 19.33,122 49.37,48.32217,-122.82283,PV,Harbor Seal,500>,LOW,Low tide,On cobble beach along south side of Minor Island. Nursery area.
+229,7,Strait of Juan de Fuca-East,07.08,Minor Island Area,48 19.46,122 48.97,48.32433,-122.81617,"PV,MA",Harbor Seal; Northern Elephant Seal,<100,LOW,Low tide,On beach along north side of Minor Island. Nursery area.
+230,7,Strait of Juan de Fuca-East,07.09,Kilisut Harbor Spit,48 05.32,122 43.99,48.08867,-122.73317,PV,Harbor Seal,100-500,LOW,Low tide,Along beach and spit at entrance to Kilisut Harbor.
+231,7,Strait of Juan de Fuca-East,07.10,East of Marrowstone Island,48 02.86,122 40.72,48.04767,-122.67867,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks along the northeast side of Marrowstone Island.
+232,7,Strait of Juan de Fuca-East,07.10,East of Marrowstone Island,48 04.69,122 41.11,48.07817,-122.68517,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks along southeast side of Marrowstone Island.
+233,7,Strait of Juan de Fuca-East,07.12,"Sequim Bay, Kiapot Point",48 04.74,123 02.41,48.079,-123.04017,PV,Harbor Seal,<100,LOW,Low tide,West end of Kiapot Point at entrance to Sequim Bay.
+234,7,Strait of Juan de Fuca-East,07.14,Discovery Bay Area,48 02.87,122 52.28,48.04783,-122.87133,PV,Harbor Seal,<100,LOW,Low tide,Along beaches and spit on west side of Discovery Bay.
+235,7,Strait of Juan de Fuca-East,08.01,Klas and Colvos Rocks Area,47 57.75,122 40.24,47.9625,-122.67067,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reef and shoals around Klas Rock.
+236,7,Strait of Juan de Fuca-East,08.01,Klas and Colvos Rocks Area,47 56.96,122 39.96,47.94933,-122.666,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal shoals and rocks around Colvos Rocks.
+237,8,Hood Canal,08.02,Port Gamble Bay,47 50.39,122 34.90,47.83983,-122.58167,PV,Harbor Seal,<100,ALL,All tidal states,North log booms along west side of Port Gamble Bay.
+238,8,Hood Canal,08.02,Port Gamble Bay,47 50.01,122 34.90,47.8335,-122.58167,PV,Harbor Seal,<100,ALL,All tidal states,South log booms along west side of Port Gamble Bay.
+239,8,Hood Canal,08.03,Quilcene Bay,47 48.86,122 51.05,47.81433,-122.85083,PV,Harbor Seal,<100,HIGH,High tide,Log booms on east side of bay.
+240,8,Hood Canal,08.03,Quilcene Bay,47 49.43,122 51.47,47.82383,-122.85783,PV,Harbor Seal,<100,HIGH,High tide,Along channels during high tides.
+241,8,Hood Canal,08.03,Quilcene Bay,47 47.55,122 50.99,47.7925,-122.84983,PV,Harbor Seal,100-500,ALL,All tidal states,On net pens and rafts along west side of Bolton Peninsula.
+242,8,Hood Canal,08.04,Dosewallips River,47 41.15,122 53.75,47.68583,-122.89583,PV,Harbor Seal,100-500,HIGH,High tide,Along channels north of river mouth during high tides.
+243,8,Hood Canal,08.04,Dosewallips River,47 41.38,122 53.65,47.68967,-122.89417,PV,Harbor Seal,<100,HIGH,High tide,Areas along channels at mouth of river during high tides.
+244,8,Hood Canal,08.05,Duckabush River,47 38.93,122 55.94,47.64883,-122.93233,PV,Harbor Seal,100-500,HIGH,High tide,Areas along channels north of river mouth during high tides.
+245,8,Hood Canal,08.05,Duckabush River,47 39.06,122 55.87,47.651,-122.93117,PV,Harbor Seal,<100,HIGH,High tide,Along channels and beach areas north of river during high tides.
+246,8,Hood Canal,08.06,Hamma Hamma River,47 32.71,12302.18,47.54517,-123.03633,PV,Harbor Seal,100-500,HIGH,High tide,Along channels and beaches west of river mouth during high tides.
+247,8,Hood Canal,08.07,Jorsted Creek,47 31.72,123 02.86,47.52867,-123.04767,PV,Harbor Seal,<100,ALL,All tidal states,On log booms off Jorstad Creek.
+248,8,Hood Canal,08.08,Skokomish River,47 20.57,123 07.00,47.34283,-123.11667,PV,Harbor Seal,100-500,HIGH,High tide,Along channels off reiver mouth during high tides.
+249,8,Hood Canal,08.08,Skokomish River,47 20.48,123 07.36,47.34133,-123.12267,PV,Harbor Seal,100-500,HIGH,High tide,Along channels and beaches west of river mouth during high tides.
+250,8,Hood Canal,08.09,Belfair Floats,47 25.05,122 52.31,47.4175,-122.87183,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and floats along south side.
+251,8,Hood Canal,08.09,Belfair Floats,47 24.44,122 53.32,47.40733,-122.88867,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and floats along south side.
+252,8,Hood Canal,08.09,Belfair Floats,47 24.14,122 53.69,47.40233,-122.89483,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and floats along south side.
+253,8,Hood Canal,08.11,Dabob Bay/Long Spit,47 50.86,122 48.54,47.84767,-122.809,PV,Harbor Seal,<100,HIGH,High tide,Scattered intertidal rocks off Tala Point.
+254,8,Hood Canal,08.12,Dabob Bay/Broad Spit,47 49.14,122 49.33,47.819,-122.82217,PV,Harbor Seal,<100,HIGH,High tide,Beach and floats at Long Spit during high tides.
+255,8,Hood Canal,08.12,Dabob Bay/Broad Spit,47 49.14,122 49.33,47.819,-122.82217,PV,Harbor Seal,,,,On rafts and floats on east side of Bolton Peninsula at Broad Spit.
+256,8,Hood Canal,08.13,Dabob Bay/Pulali Point,47 44.22,122 51.44,47.737,-122.85733,PV,Harbor Seal,<100,HIGH,High tide,Intertidal rocks off Pulali Point in Dabob Bay.
+257,9,Eastern Bays (Boundary Bay to Port Gardner),09.02,Point Roberts/SE Rocks,49 58.46,123 01.13,49.97433,-123.01883,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks off southeast corner of Point Roberts
+258,9,Eastern Bays (Boundary Bay to Port Gardner),09.03,West Boundary Bay,49 02.63,123 00.31,49.04383,-123.00517,PV,Harbor Seal,<100,LOW,Low tide,Along channels in northwest Boundary Bay. Nursery area.
+259,9,Eastern Bays (Boundary Bay to Port Gardner),09.04,"Boundary Bay, off Runway",49 02.45,122 59.37,49.04083,-122.9895,PV,Harbor Seal,500>,LOW,Low tide,Main channel south of Boundary Bay airport. Nursery area.
+260,9,Eastern Bays (Boundary Bay to Port Gardner),09.05,E Boundary Bay (Mud Bay),49 02.83,122 55.57,49.04717,-122.92617,PV,Harbor Seal,100-500,LOW,Low tide,Channels northwest of Cresent Beach in Mud Bay. Nursery area.
+261,9,Eastern Bays (Boundary Bay to Port Gardner),09.05,E Boundary Bay (Mud Bay),49 04.19,122 53.78,49.06983,-122.89633,PV,Harbor Seal,<100,LOW,Low tide,Channels in Mud Bay. Nursery area.
+262,9,Eastern Bays (Boundary Bay to Port Gardner),09.06,Rocks off Kwomais Point,49 01.74,122 52.52,49.029,-122.87533,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks off Kwomais Point.
+263,9,Eastern Bays (Boundary Bay to Port Gardner),09.07,Drayton Harbor,49 58.30,122 44.00,49.97167,-122.73333,PV,Harbor Seal,<100,LOW,Low tide,Channels along Dakota Creek in Drayton Harbor.
+264,9,Eastern Bays (Boundary Bay to Port Gardner),09.07,Drayton Harbor,48 58.73,122 45.07,48.97883,-122.75117,PV,Harbor Seal,<100,LOW,Low tide,On intertidal shoals and tideflats in central Drayton Harbor.
+265,9,Eastern Bays (Boundary Bay to Port Gardner),09.08,Drayton Harbor,48 59.11,122 46.42,48.98517,-122.77367,PV,Harbor Seal,100-500,ALL,All tidal states,On floats at Semiahmoo Marina in Drayton Harbor.
+266,9,Eastern Bays (Boundary Bay to Port Gardner),09.09,Rocks off Birch Point,48 56.92,122 49.24,48.94867,-122.82067,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks off Birch Point.
+267,9,Eastern Bays (Boundary Bay to Port Gardner),09.10,Point Whitehorn,48 53.05,122 47.05,48.88417,-122.78417,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks off Point Whitehorn.
+268,9,Eastern Bays (Boundary Bay to Port Gardner),09.11,Lummi Bay,48 46.99,122 41.02,48.78317,-122.68367,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas and shoals in Lummi Bay.
+269,9,Eastern Bays (Boundary Bay to Port Gardner),09.12,Bellingham Bay,48 44.28,122 29.82,48.738,-122.497,PV,Harbor Seal,<100,ALL,All tidal states,On log booms in Bellingham Bay.
+270,9,Eastern Bays (Boundary Bay to Port Gardner),09.12,Bellingham Bay,48 44.12,122 29.96,48.73533,-122.49933,PV,Harbor Seal,<100,ALL,All tidal states,On log booms in Bellingham Bay.
+271,9,Eastern Bays (Boundary Bay to Port Gardner),09.12,Bellingham Bay,48 43.43,122 30.43,48.72383,-122.50717,PV,Harbor Seal,<100,ALL,All tidal states,On log booms in Bellingham Bay.
+272,9,Eastern Bays (Boundary Bay to Port Gardner),09.13,Spit N of Portage Bay,48 43.61,122 37.84,48.72683,-122.63067,PV,Harbor Seal,<100,LOW,Low tide,Beach areas along spit north of Portage Bay.
+273,9,Eastern Bays (Boundary Bay to Port Gardner),09.14,Nooksack River Mouth,48 46.09,122 35.90,48.76817,-122.59833,PV,Harbor Seal,<100,LOW,Low tide,On shoals and along channels at mouth of Nooksack River.
+274,9,Eastern Bays (Boundary Bay to Port Gardner),09.15,Chuckanut Bay Area,48 40.99,122 30.05,48.68317,-122.50083,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks and reefs in Chuckanut Bay.
+275,9,Eastern Bays (Boundary Bay to Port Gardner),09.16,Rocks off Wildcat Cove,48 39.22,122 29.73,48.65367,-122.4955,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks and reefs off Larabee State Park.
+276,9,Eastern Bays (Boundary Bay to Port Gardner),09.17,Eliza Rocks,48 38.63,122 34.60,48.64383,-122.57667,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal rocks and reef areas off southeast corner of Eliza Island.
+277,9,Eastern Bays (Boundary Bay to Port Gardner),09.18,Samish Bay Area,48 33.57,122 28.14,48.5595,-122.469,PV,Harbor Seal,<100,LOW,Low tide,Along channels at mouth of Samish River.
+278,9,Eastern Bays (Boundary Bay to Port Gardner),09.19,Samish Bay Area,48 34.34,122 27.59,48.57233,-122.45983,PV,Harbor Seal,100-500,LOW,Low tide,"Along channels north of Edison Slough, Samish Bay."
+279,9,Eastern Bays (Boundary Bay to Port Gardner),09.20,Padilla Bay Area,48 33.41,122 31.22,48.55683,-122.52033,PV,Harbor Seal,<100,LOW,Low tide,Along channels in north Padilla Bay.
+280,9,Eastern Bays (Boundary Bay to Port Gardner),09.21,Padilla Bay Area,48 32.34,122 30.76,48.539,-122.51267,PV,Harbor Seal,100-500,LOW,Low tide,Along channels east of Saddlebag Island in Padilla Bay. Nursery area.
+281,9,Eastern Bays (Boundary Bay to Port Gardner),09.22,Padilla Bay Area,48 31.21,122 29.72,48.52017,-122.49533,PV,Harbor Seal,<100,LOW,Low tide,Along channels of Joe Leary Slough in Padilla Bay.
+282,9,Eastern Bays (Boundary Bay to Port Gardner),09.23,Padilla Bay Area,48 28.84,122 29.20,48.48067,-122.48667,PV,Harbor Seal,<100,LOW,Low tide,Along channels in southeast Padilla Bay.
+283,9,Eastern Bays (Boundary Bay to Port Gardner),09.23,Padilla Bay Area,48 28.56,122 28.99,48.476,-122.48317,PV,Harbor Seal,<100,LOW,Low tide,Along channels in southeast Padilla Bay. Nursery area.
+284,9,Eastern Bays (Boundary Bay to Port Gardner),09.23,Padilla Bay Area,48 28.55,122 29.36,48.47583,-122.48933,PV,Harbor Seal,<100,LOW,Low tide,Along channels in southeast Padilla Bay. Nursery area.
+285,9,Eastern Bays (Boundary Bay to Port Gardner),09.24,Padilla Bay Area,48 28.37,122 30.88,48.47283,-122.51467,PV,Harbor Seal,100-500,LOW,Low tide,Along channels east of Swinomish Slough in Padilla Bay.
+286,9,Eastern Bays (Boundary Bay to Port Gardner),09.24,Padilla Bay Area,48 28.10,122 30.94,48.46833,-122.51567,PV,Harbor Seal,<100,LOW,Low tide,Along channels east of Swinomish Slough in Padilla Bay. Nursery area.
+287,9,Eastern Bays (Boundary Bay to Port Gardner),09.24,Padilla Bay Area,48 29.03,122 30.80,48.48383,-122.51333,PV,Harbor Seal,<100,LOW,Low tide,Along channels east of Swinomish Slough in Padilla Bay. Nursery area.
+288,9,Eastern Bays (Boundary Bay to Port Gardner),09.25,Padilla Bay Area,48 29.10,122 32.55,48.485,-122.5425,PV,Harbor Seal,<100,LOW,Low tide,Along channels west of Swinomish Slough in Padilla Bay. Nursery area.
+289,9,Eastern Bays (Boundary Bay to Port Gardner),09.25,Padilla Bay Area,48 29.16,122 32.35,48.486,-122.53917,PV,Harbor Seal,<100,LOW,Low tide,Along channels west of Swinomish Slough in Padilla Bay. Nursery area.
+290,9,Eastern Bays (Boundary Bay to Port Gardner),09.27,Fidalgo Bay,48 29.74,122 35.94,48.49567,-122.599,PV,Harbor Seal,<100,ALL,All tidal states,On log booms at mill on west side of Fidalgo Bay.
+291,9,Eastern Bays (Boundary Bay to Port Gardner),09.27,Fidalgo Bay,48 29.89,122 35.06,48.49817,-122.58433,PV,Harbor Seal,100-500,ALL,All tidal states,On log booms anchored in middle of Fidalgo Bay.
+292,9,Eastern Bays (Boundary Bay to Port Gardner),09.28,Similk Bay,48 26.45,122 33.44,48.44083,-122.55733,PV,Harbor Seal,<100,ALL,All tidal states,On log booms in Similk Bay.
+293,9,Eastern Bays (Boundary Bay to Port Gardner),09.29,Seal Rocks,48 22.46,122 33.71,48.37433,-122.56183,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef area around Seal Rocks.
+294,9,Eastern Bays (Boundary Bay to Port Gardner),09.30,N Skagit Bay,48 21.47,122 31.30,48.35783,-122.52167,PV,Harbor Seal,<100,LOW,Low tide,Along channels south of Goat Island in Skagit Bay.
+295,9,Eastern Bays (Boundary Bay to Port Gardner),09.31,S Skagit Bay Area,48 17.09,122 23.03,48.28483,-122.38383,PV,Harbor Seal,<100,LOW,Low tide,Along channels off south arms of Skagit River in Skagit Bay. Nursery area.
+296,9,Eastern Bays (Boundary Bay to Port Gardner),09.31,S Skagit Bay Area,48 17.83,122 24.53,48.29717,-122.40883,PV,Harbor Seal,<100,LOW,Low tide,Along channels off south arms of Skagit River in Skagit Bay. Nursery area.
+297,9,Eastern Bays (Boundary Bay to Port Gardner),09.31,S Skagit Bay Area,48 17.53,122 24.17,48.29217,-122.40283,PV,Harbor Seal,<100,LOW,Low tide,Along channels off south arms of Skagit River in Skagit Bay. Nursery area.
+298,9,Eastern Bays (Boundary Bay to Port Gardner),09.31,S Skagit Bay Area,48 17.10,122 24.22,48.285,-122.40367,PV,Harbor Seal,<100,LOW,Low tide,Along channels off south arms of Skagit River in Skagit Bay. Nursery area.
+299,9,Eastern Bays (Boundary Bay to Port Gardner),09.31,S Skagit Bay Area,48 17.86,122 23.16,48.29767,-122.386,PV,Harbor Seal,<100,LOW,Low tide,Along channels off south arms of Skagit River in Skagit Bay. Nursery area.
+300,9,Eastern Bays (Boundary Bay to Port Gardner),09.32,Skagit Bay/N of Point Brown,48 16.30,122 26.54,48.27167,-122.44233,PV,Harbor Seal,100-500,LOW,Low tide,On intertidal shoals north of Point Brown in Skagit Bay.
+301,9,Eastern Bays (Boundary Bay to Port Gardner),09.33,Port Susan/Livingston Bay,48 13.33,122 25.87,48.22217,-122.43117,PV,Harbor Seal,<100,LOW,Low tide,Along channels in Livingston Bay.
+302,9,Eastern Bays (Boundary Bay to Port Gardner),09.34,Port Susan/Livingston Bay,48 12.59,122 23.75,48.20983,-122.39583,PV,Harbor Seal,100-500,LOW,Low tide,Along channels of South Pass into Port Susan.
+303,9,Eastern Bays (Boundary Bay to Port Gardner),09.34,Port Susan/Livingston Bay,48 12.03,122 23.32,48.2005,-122.38867,PV,Harbor Seal,<100,LOW,Low tide,Along channels off mouth of Stillaguamish River in Port Susan.
+304,9,Eastern Bays (Boundary Bay to Port Gardner),09.35,Gedney Island marina,48 01.25,122 19.19,48.02083,-122.31983,PV,Harbor Seal,<100,ALL,All tidal states,On bargeand log boom breakwater at Gedney Island marina.
+305,9,Eastern Bays (Boundary Bay to Port Gardner),09.36,Snohomish River log booms,48 02.61,122 12.34,48.0435,-122.20567,PV,Harbor Seal,<100,ALL,All tidal states,Log booms along Snohomish River.
+306,9,Eastern Bays (Boundary Bay to Port Gardner),09.37,Everett Harbor Area,47 59.60,122 13.28,47.99333,-122.22133,"ZC,PV",California Sea Lion; Harbor Seal,100-500,ALL,All tidal states,Log booms at Port of Everett/Navy Homeport.
+307,9,Eastern Bays (Boundary Bay to Port Gardner),09.38,Baby Island,48 05.98,122 31.56,48.09967,-122.526,PV,Harbor Seal,<100,LOW,Low tide,Beaches and intertidal areas around Baby Island.
+308,9,Eastern Bays (Boundary Bay to Port Gardner),09.39,Penn Cove/Oak Harbor,48 16.07,122 37.37,48.26783,-122.62283,PV,Harbor Seal,<100,LOW,Low tide,Scattered intertidal rocks and reef areas near Oak Harbor.
+309,9,Eastern Bays (Boundary Bay to Port Gardner),09.40,Everett Harbor Bouys,47 59.45,122 14.91,47.99083,-122.2485,ZC,California Sea Lion,<10,ALL,All tidal states,Everett Harbor bouy.
+310,9,Eastern Bays (Boundary Bay to Port Gardner),09.40,Everett Harbor Bouys,47 58.84,122 14.70,47.98067,-122.245,ZC,California Sea Lion,,,,Everett Harbor bouy.
+311,10,Puget Sound (Whidbey Island to Olympia),10.01,Liberty Bay/Poulsbo Marina,47 43.85,122 38.81,47.73083,-122.64683,PV,Harbor Seal,<100,ALL,All tidal states,On floats and log booms at the Poulsbo marina.
+312,10,Puget Sound (Whidbey Island to Olympia),10.02,Blakely Rocks,47 35.68,122 28.76,47.59467,-122.47933,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas around Blakely Rocks.
+313,10,Puget Sound (Whidbey Island to Olympia),10.03,Cutts Island,47 19.34,122 41.11,47.32233,-122.68517,PV,Harbor Seal,100-500,LOW,Low tide,On spit on north end of island.
+314,10,Puget Sound (Whidbey Island to Olympia),10.04,Horsehead Bay Floats,47 17.45,122 41.08,47.29083,-122.68467,PV,Harbor Seal,<100,ALL,All tidal states,On floats and rafts in Horsehead Bay.
+315,10,Puget Sound (Whidbey Island to Olympia),10.05,Wykoff Shoals,47 14.29,122 42.61,47.23817,-122.71017,PV,Harbor Seal,<100,LOW,Low tide,On intertidal areas around Wykoff Shoals.
+316,10,Puget Sound (Whidbey Island to Olympia),10.06,Gertrude Island,47 12.95,122 39.61,47.21583,-122.66017,PV,Harbor Seal,500>,LOW,Low tide,Along beaches and intertidal areas around island. Nursery area.
+317,10,Puget Sound (Whidbey Island to Olympia),10.07,Eagle Island Area,47 11.35,122 41.67,47.18917,-122.6945,PV,Harbor Seal,100-500,LOW,Low tide,On beach and shoals around Eagle Island.
+318,10,Puget Sound (Whidbey Island to Olympia),10.07,Eagle Island Area,47 11.54,122 42.04,47.19233,-122.70067,ZC,California Sea Lion,<10,ALL,All tidal states,On green bouy west of Eagle Island.
+319,10,Puget Sound (Whidbey Island to Olympia),10.08,Nisqually Delta Area,47 06.02,122 41.96,47.10033,-122.69933,PV,Harbor Seal,100-500,LOW,Low tide,Along channels at mouth of river during high tides.
+320,10,Puget Sound (Whidbey Island to Olympia),10.08,Nisqually Delta Bouy,47 06.84,122 41.78,47.114,-122.69633,ZC,California Sea Lion,<10,ALL,All tidal states,On green bouy off Nisqually Delta.
+321,10,Puget Sound (Whidbey Island to Olympia),10.09,Woodard Bay,47 08.32,122 50.29,47.13867,-122.83817,PV,Harbor Seal,100-500,ALL,All tidal states,On log booms in Woodard Bay (at old Weyerhauser site).
+322,10,Puget Sound (Whidbey Island to Olympia),10.10,McMicken Island,47 14.78,122 51.83,47.24633,-122.86383,PV,Harbor Seal,<100,LOW,Low tide,Beach and intertidal areas around island.
+323,10,Puget Sound (Whidbey Island to Olympia),10.11,Totten Inlet Area,47 07.99,123 01.12,47.13317,-123.01867,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and floats on west side of inlet.
+324,10,Puget Sound (Whidbey Island to Olympia),10.11,Totten Inlet Area,47 08.87,122 58.38,47.14783,-122.973,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and log booms on east side of inlet.
+325,10,Puget Sound (Whidbey Island to Olympia),10.11,Totten Inlet Area,47 08.99,122 58.03,47.14983,-122.96717,PV,Harbor Seal,<100,ALL,All tidal states,On log booms on east side of inlet.
+326,10,Puget Sound (Whidbey Island to Olympia),10.11,Totten Inlet Area,47 08.05,123 00.17,47.13417,-123.00283,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and net pens off Gallager Cove.
+327,10,Puget Sound (Whidbey Island to Olympia),10.12,Budd Inlet Area,47 04.30,122 55.07,47.07167,-122.91783,PV,Harbor Seal,<100,ALL,All tidal states,On log booms on west side of Budd Inlet.
+328,10,Puget Sound (Whidbey Island to Olympia),10.12,Budd Inlet Area,47 03.99,122 54.28,47.0665,-122.90467,PV,Harbor Seal,<100,ALL,All tidal states,On shoal area west of Priest Point State Park.
+329,10,Puget Sound (Whidbey Island to Olympia),10.13,Eld Inlet Area,47 04.16,123 00.58,47.06933,-123.00967,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and floats in Mud Bay.
+330,10,Puget Sound (Whidbey Island to Olympia),10.13,Eld Inlet Area,47 05.84,122 58.94,47.09733,-122.98233,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and floats on west side of Eld Inlet.
+331,10,Puget Sound (Whidbey Island to Olympia),10.13,Eld Inlet Area,47 05.57,122 57.74,47.09283,-122.96233,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and floats on east side of Eld Inlet.
+332,10,Puget Sound (Whidbey Island to Olympia),10.13,Eld Inlet Area,47 05.80,122 57.45,47.09667,-122.9575,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and float on east side of Eld Inlet.
+333,10,Puget Sound (Whidbey Island to Olympia),10.14,Hammersly Inlet/Shelton,47 12.65,123 04.99,47.21083,-123.08317,PV,Harbor Seal,<100,ALL,All tidal states,On log booms off mill at Shelton.
+334,10,Puget Sound (Whidbey Island to Olympia),10.14,Hammersly Inlet/Shelton,47 13.66,123 02.71,47.22767,-123.04517,PV,Harbor Seal,<100,ALL,All tidal states,On log booms in Chapman Bay.
+335,10,Puget Sound (Whidbey Island to Olympia),10.15,Rosedale Beach Floats,47 20.17,122 39.63,47.33617,-122.6605,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and floats off Rosedale.
+336,10,Puget Sound (Whidbey Island to Olympia),10.16,Edmonds Wreck/Scuba Float,47 48.89,122 22.96,47.81483,-122.38267,"ZC,PV",California Sea Lion; Harbor Seal,<100,ALL,All tidal states,On rafts and floats north of ferry dock.
+337,10,Puget Sound (Whidbey Island to Olympia),10.17,Bremerton/Dyes Inlet,47 35.45,122 40.90,47.59083,-122.68167,PV,Harbor Seal,<100,ALL,All tidal states,On rafts and floats in Dyes Inlet.
+338,10,Puget Sound (Whidbey Island to Olympia),10.18,Commencement Bay,47 17.51,122 24.76,47.29183,-122.41267,"PV,ZC",Harbor Seal; California Sea Lion,<100,ALL,All tidal states,On bouys and floats in northeast Commencement Bay.
+339,10,Puget Sound (Whidbey Island to Olympia),10.18,Commencement Bay,47 17.36,122 24.59,47.28933,-122.40983,PV,Harbor Seal,<100,ALL,All tidal states,On log booms in northeast Commencement Bay.
+340,10,Puget Sound (Whidbey Island to Olympia),10.19,Shilshole Bay Area,47 41.11,122 24.38,47.68517,-122.40633,ZC,California Sea Lion,<10,ALL,All tidal states,On floats and bouys of Shilshole Bay jetty.
+341,10,Puget Sound (Whidbey Island to Olympia),10.19,Shilshole Bay Area,47 40.69,122 24.67,47.67817,-122.41117,ZC,California Sea Lion,<100,ALL,All tidal states,On south tip of Shilshole Bay jetty.
+342,10,Puget Sound (Whidbey Island to Olympia),10.20,NW McNeil Island Bouy,47 14.27,122 41.06,47.23783,-122.68433,ZC,California Sea Lion,<10,ALL,All tidal states,On white mooring bouy off northwest side of McNeil Island.
+343,10,Puget Sound (Whidbey Island to Olympia),10.21,NE McNeil/Hyde Point Bouy,47 13.11,122 38.51,47.2185,-122.64183,ZC,California Sea Lion,<10,ALL,All tidal states,On white mooring bouy off Hyde Point on northeast side of McNeil Island.
+344,10,Puget Sound (Whidbey Island to Olympia),10.22,Toliva Shoals Bouy,47 12.15,122 36.25,47.2025,-122.60417,"ZC,EJ",California Sea Lion; Steller Sea Lion,<10,ALL,All tidal states,On Toliva Shoals bouy.
+345,10,Puget Sound (Whidbey Island to Olympia),10.23,Yellow ‘TC’ Bouy,47 19.42,122 27.35,47.32367,-122.45583,ZC,California Sea Lion,<10,ALL,All tidal states,On yellow ‘TC’ bouy off southeast Maury Island.
+346,10,Puget Sound (Whidbey Island to Olympia),10.24,Yellow ‘TB’ Bouy,47 23.11,122 21.11,47.38517,-122.35183,ZC,California Sea Lion,<10,ALL,All tidal states,On yellow ‘TB’ bouy off Pt. Robinson.
+347,10,Puget Sound (Whidbey Island to Olympia),10.25,Yellow ‘TA’ Bouy,47 26.87,122 24.11,47.44783,-122.40183,ZC,California Sea Lion,<10,ALL,All tidal states,On yellow ‘TA’ bouy off Three Tree Point.
+348,10,Puget Sound (Whidbey Island to Olympia),10.26,Yellow ‘T’ Bouy,47 34.54,122 26.96,47.57567,-122.44933,ZC,California Sea Lion,<10,ALL,All tidal states,On yellow ‘T’ bouy off Alki Point.
+349,10,Puget Sound (Whidbey Island to Olympia),10.27,West Point Bouy,47 39.60,122 26.21,47.66,-122.43683,ZC,California Sea Lion,<10,ALL,All tidal states,On green bouy just off West Point.
+350,10,Puget Sound (Whidbey Island to Olympia),10.28,Yellow ‘SG’ Bouy,47 39.71,122 27.80,47.66183,-122.46333,ZC,California Sea Lion,<10,ALL,All tidal states,On yellow ‘SG’ bouy between West Point and Skiff Point.
+351,10,Puget Sound (Whidbey Island to Olympia),10.29,Meadow Pt Bouy,47 41.80,122 24.46,47.69667,-122.40767,ZC,California Sea Lion,<10,ALL,All tidal states,On green Meadow Point bouy.
+352,10,Puget Sound (Whidbey Island to Olympia),10.30,Yellow ‘SF’ Bouy,47 45.91,122 26.17,47.76517,-122.43617,ZC,California Sea Lion,<10,ALL,All tidal states,On yellow ‘SF’ bouy east of Jefferson Head.
+353,10,Puget Sound (Whidbey Island to Olympia),10.31,Possession Point Bouy,47 53.84,122 23.05,47.89733,-122.38417,ZC,California Sea Lion,<10,ALL,All tidal states,On green bouy off Possession Point.
+354,10,Puget Sound (Whidbey Island to Olympia),10.32,Scatchet Head Bouy,47 54.56,122 26.14,47.90933,-122.43567,ZC,California Sea Lion,<10,ALL,All tidal states,On red Scatchet Head bouy.
+355,10,Puget Sound (Whidbey Island to Olympia),10.33,Yellow ‘SE’ Bouy,47 55.48,122 29.59,47.92467,-122.49317,ZC,California Sea Lion,<10,ALL,All tidal states,On yellow ‘SE’ bouy off Point No Point.
+356,10,Puget Sound (Whidbey Island to Olympia),10.34,Double Bluff Bouy,47 57.98,122 33.12,47.96633,-122.552,ZC,California Sea Lion,<10,ALL,All tidal states,On green bouy off Double Bluff.
+357,10,Puget Sound (Whidbey Island to Olympia),10.35,Yellow ‘SD’ Bouy,47 57.97,122 34.73,47.96617,-122.57883,ZC,California Sea Lion,<10,ALL,All tidal states,On yellow ‘SD’ bouy just north of Foulweather Bluff.
+358,10,Puget Sound (Whidbey Island to Olympia),10.36,Foulweather Bluff Bouy,47 56.80,122 36.12,47.94667,-122.602,ZC,California Sea Lion,<10,ALL,All tidal states,On red bouy off Foulweather Bluff.
+359,10,Puget Sound (Whidbey Island to Olympia),10.37,Yellow ‘SC’ Bouy,48 01.87,122 38.14,48.03117,-122.63567,ZC,California Sea Lion,<10,ALL,All tidal states,On yellow ‘SC’ bouy west of Bush Point.
+360,10,Puget Sound (Whidbey Island to Olympia),10.38,Restoration Point Bouy,47 35.02,122 28.54,47.58367,-122.47567,ZC,California Sea Lion,<10,ALL,All tidal states,On red bouy off Restoration Point.
+361,10,Puget Sound (Whidbey Island to Olympia),10.39,Rich Passage Bouy,47 34.07,122 31.28,47.56783,-122.52133,ZC,California Sea Lion,<10,ALL,All tidal states,On red ‘4’ bouy off Orchard Point.
+362,10,Puget Sound (Whidbey Island to Olympia),10.39,Rich Passage Bouy,47 34.56,122 32.06,47.576,-122.53433,ZC,California Sea Lion,<10,ALL,All tidal states,On red bouy in Rich Passage.
+363,11,San Juan Islands (Rosario Strait),11.01,Matia Island Area,48 44.96,122 50.03,48.74933,-122.83383,PV,Harbor Seal,<100,LOW,Low tide,On interti1dal ledges and reef areas along north side of island.
+364,11,San Juan Islands (Rosario Strait),11.01,Matia Island Area,48 44.64,122 49.55,48.744,-122.82583,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas off east end of island.
+365,11,San Juan Islands (Rosario Strait),11.02,Puffin Island Area,48 44.71,122 49.30,48.74517,-122.82167,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef area on west end of Puffin Island.
+366,11,San Juan Islands (Rosario Strait),11.02,Puffin Island Area,48 44.74,122 49.22,48.74567,-122.82033,PV,Harbor Seal,<100,LOW,Low tide,On intertidal ledges on north side of Puffin Island. Nursery area.
+367,11,San Juan Islands (Rosario Strait),11.03,Reef East of Puffin Island,48 44.64,122 48.95,48.744,-122.81583,PV,Harbor Seal,100-500,LOW,Low tide,On reef area just east of Puffin Island. Nursery area.
+368,11,San Juan Islands (Rosario Strait),11.04,Lummi Island/Point Migley,48 44.90,122 42.96,48.74833,-122.716,PV,Harbor Seal,100-500,LOW,Low tide,On rocks and reef area off Point Migley.
+369,11,San Juan Islands (Rosario Strait),11.05,Barnes Island,48 42.23,122 46.43,48.70383,-122.77383,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas on north end of island.
+370,11,San Juan Islands (Rosario Strait),11.06,Clark Island,48 42.50,122 45.88,48.70833,-122.76467,PV,Harbor Seal,100-500,LOW,Low tide,On intertidal rocks and reef areas on north end of island.
+371,11,San Juan Islands (Rosario Strait),11.07,The Sisters Area,48 41.51,122 45.53,48.69183,-122.75883,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas off southeast end of Barnes Island.
+372,11,San Juan Islands (Rosario Strait),11.07,The Sisters Area,48 41.61,122 45.38,48.6935,-122.75633,PV,Harbor Seal,<100,LOW,Low tide,On intertidal area around The Sisters Rock (USFWS ID 47).
+373,11,San Juan Islands (Rosario Strait),11.08,Little Sister,48 41.40,122 45.49,48.69,-122.75817,PV,Harbor Seal,<100,LOW,Low tide,On intertidal area around Little Sister Rock (USFWS ID 48).
+374,11,San Juan Islands (Rosario Strait),11.09,Middle Peapod Rock,48 38.41,122 45.04,48.64017,-122.75067,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas around Middle Peapod Rock (USFWS ID 63).
+375,11,San Juan Islands (Rosario Strait),11.10,North Peapod Rock,48 38.53,122 44.71,48.64217,-122.74517,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas around North Peapod Rock (USFWS ID 64).
+376,11,San Juan Islands (Rosario Strait),11.11,South Peapod Rock,48 38.04,122 45.45,48.634,-122.7575,PV,Harbor Seal,100-500,LOW,Low tide,On intertidal rocks and reef areas around South Peapod Rock (USFWS ID 62).
+377,11,San Juan Islands (Rosario Strait),11.12,Boulder Reef Area,48 38.11,122 41.35,48.63517,-122.68917,PV,Harbor Seal,100-500,LOW,Low tide,On intertidal rocks and reef area at Boulder Reef
+378,11,San Juan Islands (Rosario Strait),11.13,Buckeye Shoal,48 37.44,122 43.72,48.624,-122.72867,PV,Harbor Seal,<100,LOW,Low tide,On intertidal reef area at Buckeye Shoal.
+379,11,San Juan Islands (Rosario Strait),11.14,Cypress Reef,48 36.98,122 43.14,48.61633,-122.719,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and shoals at Cypress Reef.
+380,11,San Juan Islands (Rosario Strait),11.15,Cone Island,48 35.54,122 40.69,48.59233,-122.67817,PV,Harbor Seal,<100,LOW,Low tide,On intertidal areas around Cone Islands.
+381,11,San Juan Islands (Rosario Strait),11.16,"Sinclair Island, SE",48 36.77,122 39.41,48.61283,-122.65683,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas on southeast end of island.
+382,11,San Juan Islands (Rosario Strait),11.17,Viti Island,48 37.96,122 37.26,48.63267,-122.621,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas around Viti Island (USFWS ID 66).
+383,11,San Juan Islands (Rosario Strait),11.18,Black Rock,48 32.78,122 45.85,48.54633,-122.76417,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas around Black Rock.
+384,11,San Juan Islands (Rosario Strait),11.19,Pointer Island,48 32.30,122 46.85,48.53833,-122.78083,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas around Pointer Island (USFWS ID 57).
+385,11,San Juan Islands (Rosario Strait),11.20,Lawson Rock,48 31.87,122 47.24,48.53117,-122.78733,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas around Lawson Rock (USFWS ID 56).
+386,11,San Juan Islands (Rosario Strait),11.21,Belle Rock,48 29.59,122 45.09,48.49317,-122.7515,PV,Harbor Seal,<100,LOW,Low tide,On intertidal areas around Belle Rock.
+387,11,San Juan Islands (Rosario Strait),11.22,Bird Rocks,48 29.10,122 45.65,48.485,-122.76083,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas around south Bird Rocks (USFWS ID 80).
+388,11,San Juan Islands (Rosario Strait),11.22,Bird Rocks,48 29.16,122 45.61,48.486,-122.76017,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas around middle Bird Rocks (USFWS ID 80).
+389,11,San Juan Islands (Rosario Strait),11.22,Bird Rocks,48 29.23,122 45.56,48.48717,-122.75933,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef areas around north Bird Rocks (USFWS ID 80).
+390,11,San Juan Islands (Rosario Strait),11.25,Burrows Island/West Side,48 29.03,122 42.72,48.48383,-122.712,PV,Harbor Seal,<100,LOW,Low tide,On intertidal ledges and reef area off the northwest side of island.
+391,11,San Juan Islands (Rosario Strait),11.26,Allan Island/NW End,48 28.06,122 42.70,48.46767,-122.71167,PV,Harbor Seal,<100,LOW,Low tide,On intertidal rocks and reef area off the northwest side of island.
+392,11,San Juan Islands (Rosario Strait),11.27,Williamson Rocks,48 26.99,122 42.28,48.44983,-122.70467,PV,Harbor Seal,100-500,LOW,Low tide,On intertidal ledges and reef areas around Williamson Rocks (USFWS ID 81). Nursery area.
+393,11,San Juan Islands (Rosario Strait),11.28,Castle Rock Area,48 25.30,122 49.23,48.42167,-122.8205,PV,Harbor Seal,<100,LOW,Low tide,On scattered intertidal rocks and reef areas around Castle Rock area.
+394,11,San Juan Islands (Rosario Strait),11.29,Colville Island,48 24.87,122 49.24,48.4145,-122.82067,PV,Harbor Seal,100-500,LOW,Low tide,On intertidal ledges and rocks on south side of Colville Island USFWS ID 82).
+395,11,San Juan Islands (Rosario Strait),11.30,Aleck Bay Area,48 25.18,122 51.31,48.41967,-122.85517,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas off Aleck Bay.
+396,11,San Juan Islands (Rosario Strait),11.30,Aleck Bay Area,48 25.11,122 50.81,48.4185,-122.84683,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef areas around unnamed rock (USFWS ID 10) at entrance to Aleck Bay.
+397,11,San Juan Islands (Rosario Strait),11.30,Aleck Bay Area,48 25.34,122 50.90,48.42233,-122.84833,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef areas around unnamed rock (USFWS ID 11) at entrance to Aleck Bay.
+398,11,San Juan Islands (Rosario Strait),11.31,Iceberg Point,48 25.21,122 53.42,48.42017,-122.89033,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef areas just east of Iceberg Point.
+399,11,San Juan Islands (Rosario Strait),11.31,Iceberg Point,48 25.12,122 53.08,48.41867,-122.88467,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef area east of Iceberg Point (USFWS ID 14).
+400,11,San Juan Islands (Rosario Strait),11.32,Iceberg Point,48 25.18,122 52.00,48.41967,-122.86667,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around unnamed rocks in bay east of Iceberg Point.
+401,11,San Juan Islands (Rosario Strait),11.33,Iceberg Island,48 25.66,122 53.30,48.42767,-122.88833,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around Iceberg Island.
+402,11,San Juan Islands (Rosario Strait),11.34,Kellett Ledge,48 27.03,122 47.52,48.4505,-122.792,PV,Harbor Seal,<100,LOW,Low tide,On intertidal reef areas around Kellett Ledge.
+403,11,San Juan Islands (Rosario Strait),11.35,Spindle Rock/N Blakely Island,48 35.30,122 47.96,48.58833,-122.79933,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around Spindle Rock.
+404,11,San Juan Islands (Rosario Strait),11.36,Lummi Rocks,48 40.24,122 39.94,48.67067,-122.66567,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around Lummi Rocks.
+405,11,San Juan Islands (Rosario Strait),11.37,Vendovi Island,48 37.02,122 36.66,48.617,-122.611,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal rocks and reef areas off northwest side of island.
+406,12,San Juan Islands (San Juan Channel),12.01,Hall Island Area,48 26.12,122 54.65,48.43533,-122.91083,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reefs around Hall Island (USFWS ID 15).
+407,12,San Juan Islands (San Juan Channel),12.02,Rock NW of Hall Island,48 26.16,122 54.81,48.436,-122.9135,PV,Harbor Seal,<100,LOW,Low tide,Rock (USFWS ID 16) and intertidal reef area northwest of Hall Island.
+408,12,San Juan Islands (San Juan Channel),12.03,Secar Rock,48 26.29,122 54.33,48.43817,-122.9055,PV,Harbor Seal,<100,LOW,Low tide,"On intertidal areas around Secar Rock (USFWS ID 17), east of Charles Island."
+409,12,San Juan Islands (San Juan Channel),12.04,Rocks E of Charles Island,48 26.45,122 54.07,48.44083,-122.90117,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around rock (USFWS ID 18) and reef east of Charles Island.
+410,12,San Juan Islands (San Juan Channel),12.05,SE of Long Island,48 26.32,122 54.98,48.43867,-122.91633,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around rock (USFWS ID 19) southeast of Long Island.
+411,12,San Juan Islands (San Juan Channel),12.06,Reef S of Long Island,48 26.27,122 55.52,48.43783,-122.92533,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around reef south of Long Island.
+412,12,San Juan Islands (San Juan Channel),12.07,SW of Long Island,48 26.35,122 55.84,48.43917,-122.93067,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around rock (USFWS ID 20) southwest of Long Island.
+413,12,San Juan Islands (San Juan Channel),12.08,N of Long Island,48 26.62,122 55.30,48.44367,-122.92167,PV,Harbor Seal,<100,LOW,Low tide,Intertidal area around reef north of Long Island.
+414,12,San Juan Islands (San Juan Channel),12.09,Mummy Rock,48 26.99,122 55.73,48.44983,-122.92883,PV,Harbor Seal,<100,LOW,Low tide,Intertidal area around Mummy Rocks (USFWS ID 21).
+415,12,San Juan Islands (San Juan Channel),12.10,Whale Rock,48 26.84,122 56.46,48.44733,-122.941,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Whale Rock.
+416,12,San Juan Islands (San Juan Channel),12.11,Buck Island,48 27.14,122 55.21,48.45233,-122.92017,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Buck Island (USFWS ID 83).
+417,12,San Juan Islands (San Juan Channel),12.12,Rocks off Davis Point,48 27.35,122 55.85,48.45583,-122.93083,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on rocks and reef off Davis Point.
+418,12,San Juan Islands (San Juan Channel),12.13,Deadman Island,48 27.54,122 56.51,48.459,-122.94183,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Deadman Island.
+419,12,San Juan Islands (San Juan Channel),12.14,Goose Island,48 27.53,122 57.37,48.45883,-122.95617,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas around north end of Goose Island.
+420,12,San Juan Islands (San Juan Channel),12.15,Shark Reef,48 28.58,122 56.77,48.47633,-122.94617,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Shark Reef (USFWS ID 23).
+421,12,San Juan Islands (San Juan Channel),12.16,Harbor Rock,48 28.21,122 58.16,48.47017,-122.96933,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Harbor Rock (USFWS ID 24).
+422,12,San Juan Islands (San Juan Channel),12.17,North Pacific Rock,48 28.29,122 59.75,48.4715,-122.99583,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on North Pacific Rocks (USFWS ID 25).
+423,12,San Juan Islands (San Juan Channel),12.18,Halftide Rocks,48 28.73,122 59.93,48.47883,-122.99883,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Halftide Rocks (USFWS ID 26).
+424,12,San Juan Islands (San Juan Channel),12.19,Low Point,48 29.09,123 00.40,48.48483,-123.00667,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas off Low Point.
+425,12,San Juan Islands (San Juan Channel),12.20,Reef S of Dinner Island,48 30.30,123 00.41,48.505,-123.00683,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal reefs and rocks just south of Dinner Island (USFWS ID 74).
+426,12,San Juan Islands (San Juan Channel),12.21,NW of Dinner Island (N Bay),48 30.59,123 00.99,48.50983,-123.0165,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reefs and rocks in North Bay (northwest of Dinner Island).
+427,12,San Juan Islands (San Juan Channel),12.22,Pear Point Area,48 30.89,122 58.82,48.51483,-122.98033,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reefs off Pear Point.
+428,12,San Juan Islands (San Juan Channel),12.22,Pear Point Area,48 30.83,122 58.94,48.51383,-122.98233,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reefs off Pear Point.
+429,12,San Juan Islands (San Juan Channel),12.22,Pear Point Area,48 31.08,122 58.58,48.518,-122.97633,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reefs just north of Pear Point.
+430,12,San Juan Islands (San Juan Channel),12.23,Danger Rock/NE of Pear Point,48 31.26,122 58.16,48.521,-122.96933,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around Danger Rock.
+431,12,San Juan Islands (San Juan Channel),12.24,Reef Point,48 31.70,122 58.00,48.52833,-122.96667,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rock (USFWS ID 51) and reef area off Reef Point.
+432,12,San Juan Islands (San Juan Channel),12.25,Rock in Hicks Bay,48 33.10,122 58.07,48.55167,-122.96783,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on rocks in Hicks Bay.
+433,12,San Juan Islands (San Juan Channel),12.26,Rocks NE of Point George,48 33.99,122 59.01,48.5665,-122.9835,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on rocks northeast of Point George.
+434,12,San Juan Islands (San Juan Channel),12.27,"Tift Rocks, S of Neck Point",48 34.71,122 59.84,48.5785,-122.99733,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Tift Rocks (south of Neck Point).
+435,12,San Juan Islands (San Juan Channel),12.28,"E Of Neck Point, Shaw Island",48 35.22,123 00.38,48.587,-123.00633,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on rocks east of Neck Point.
+436,12,San Juan Islands (San Juan Channel),12.29,Bell Island/E of Crane Island,48 35.77,122 58.76,48.59617,-122.97933,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Bell Island.
+437,12,San Juan Islands (San Juan Channel),12.30,Reef W of Cliff Island,48 35.33,123 01.13,48.58883,-123.01883,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reef area west of Cliff Island.
+438,12,San Juan Islands (San Juan Channel),12.31,Nob Island,48 35.47,123 01.04,48.59117,-123.01733,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Nob Island.
+439,12,San Juan Islands (San Juan Channel),12.32,Bird Rock/W of Crane Island,48 35.90,123 00.82,48.59833,-123.01367,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Bird Rock (USFWS ID 68).
+440,12,San Juan Islands (San Juan Channel),12.33,Reef Island,48 36.31,123 00.97,48.60517,-123.01617,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Reef Island.
+441,12,San Juan Islands (San Juan Channel),12.34,Rock W of Yellow Island,48 35.46,123 01.97,48.591,-123.03283,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas on rocks and reef west of Yellow Island (USFWS ID 69).
+442,12,San Juan Islands (San Juan Channel),12.35,Rocky Bay,48 36.05,123 05.87,48.60083,-123.09783,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on reef in west Rocky Bay.
+443,12,San Juan Islands (San Juan Channel),12.36,Rocks SW of O’Neil Island,48 36.20,123 05.53,48.60333,-123.09217,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on O’Neil Island in Rocky Bay.
+444,12,San Juan Islands (San Juan Channel),12.37,Blind Island,48 35.21,122 56.33,48.58683,-122.93883,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Blind Island.
+445,12,San Juan Islands (San Juan Channel),12.37,Blind Island,48 35.12,122 56.13,48.58533,-122.9355,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on rocks and reefs around Blind Island.
+446,12,San Juan Islands (San Juan Channel),12.38,S of Grindstone Harbor,48 35.49,122 54.07,48.5915,-122.90117,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef south of Grindstone Harbor.
+447,12,San Juan Islands (San Juan Channel),12.39,Shag Rock,48 35.50,122 52.43,48.59167,-122.87383,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Shag Rock (USFWS ID 53).
+448,12,San Juan Islands (San Juan Channel),12.40,East Sound/Twin Rocks,48 36.94,122 51.82,48.61567,-122.86367,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around Twin Rocks in East Sound.
+449,12,San Juan Islands (San Juan Channel),12.41,Leo Reef,48 33.19,122 51.25,48.55317,-122.85417,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas around Leo Reef.
+450,12,San Juan Islands (San Juan Channel),12.42,Flower Island,48 32.78,122 51.11,48.54633,-122.85183,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around Flower Island (USFWS ID 54).
+451,12,San Juan Islands (San Juan Channel),12.43,Willow Island,48 32.38,122 49.30,48.53967,-122.82167,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around Willow Island (USFWS ID 55).
+452,12,San Juan Islands (San Juan Channel),12.44,Small Island,48 29.74,122 51.71,48.49567,-122.86183,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Small Island (USFWS ID 1).
+453,12,San Juan Islands (San Juan Channel),12.45,Crab Island,48 27.71,122 50.60,48.46183,-122.84333,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Crab Island (USFWS ID 5).
+454,12,San Juan Islands (San Juan Channel),12.46,Ram Island,48 28.51,122 49.93,48.47517,-122.83217,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Ram Island.
+455,12,San Juan Islands (San Juan Channel),12.47,McConnell Island,48 35.65,123 01.30,48.59417,-123.02167,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around McConnell Island.
+456,12,San Juan Islands (San Juan Channel),12.48,Reef E of Jones Island,48 36.74,123 02.16,48.61233,-123.036,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reef areas on east side of Jones Island.
+457,12,San Juan Islands (San Juan Channel),12.49,East Sound/NW of Rosario,48 39.16,122 52.82,48.65267,-122.88033,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reefs and rocks in East Sound.
+458,12,San Juan Islands (San Juan Channel),12.49,East Sound/NW of Rosario,48 39.42,122 54.48,48.657,-122.908,PV,Harbor Seal,<100,LOW,Low tide,Intertidal reef areas on west side of East Sound.
+459,12,San Juan Islands (San Juan Channel),12.50,Low Island,48 35.36,123 01.46,48.58933,-123.02433,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around Low Island.
+460,12,San Juan Islands (San Juan Channel),12.51,Turn Rock,48 32.14,122 57.79,48.53567,-122.96317,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on Turn Rock.
+461,13,San Juan Islands (Haro Strait),13.01,Sucia Island Area,48 46.25,122 54.09,48.77083,-122.9015,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges along north side of island.
+462,13,San Juan Islands (Haro Strait),13.01,Sucia Island Area,48 45.37,122 55.13,48.75617,-122.91883,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks off southwest side of island.
+463,13,San Juan Islands (Haro Strait),13.02,"Echo Bay, Ewing Island",48 45.77,122 52.58,48.76283,-122.87633,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas during pupping season.
+464,13,San Juan Islands (Haro Strait),13.03,"Echo Bay, Finger Islands",48 45.46,122 53.32,48.75767,-122.88867,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges along north side of island.
+465,13,San Juan Islands (Haro Strait),13.03,"Echo Bay, Finger Islands",48 45.17,122 52.86,48.75283,-122.881,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges along south east side of island.
+466,13,San Juan Islands (Haro Strait),13.04,Clements Reef,48 46.55,122 53.21,48.77583,-122.88683,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas on reef (USFWS ID 44).
+467,13,San Juan Islands (Haro Strait),13.05,Reef SE of Clements,48 46.19,122 52.64,48.76983,-122.87733,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas on reef (USFWS ID 45) south east of Clements Reef.
+468,13,San Juan Islands (Haro Strait),13.06,Parker Reef,48 43.56,122 53.57,48.726,-122.89283,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas on reef (USFWS ID 46).
+469,13,San Juan Islands (Haro Strait),13.07,Patos Island,48 47.34,122 58.09,48.789,-122.96817,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef areas on north side.
+470,13,San Juan Islands (Haro Strait),13.08,Bare Island,48 43.79,123 0.79,48.72983,-123.01317,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges around Bare Island (USFWS ID 84).
+471,13,San Juan Islands (Haro Strait),13.09,Reef E of Skipjack Is.,48 43.83,123 1.22,48.7305,-123.02033,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal reef area between Bare and Skipjack Islands.
+472,13,San Juan Islands (Haro Strait),13.11,Skipjack Island,48 43.98,123 2.26,48.733,-123.03767,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges on northwest side of island (USFWS ID 42).
+473,13,San Juan Islands (Haro Strait),13.11,Skipjack Island,48 44.00,123 2.04,48.73333,-123.034,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal ledges on northeast side of island (USFWS ID 42).
+474,13,San Juan Islands (Haro Strait),13.11,Reef E of Skipjack,48 43.99,123 1.70,48.73317,-123.02833,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef area around unnamed rock (USFWS ID 43) east of the Skipjack Island.
+475,13,San Juan Islands (Haro Strait),13.12,White Rock Area,48 40.27,123 4.43,48.67117,-123.07383,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on the north White Rock (USFWS ID 40).
+476,13,San Juan Islands (Haro Strait),13.12,White Rock Area,48 40.18,123 4.31,48.66967,-123.07183,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas on the middle White Rock (USFWS ID 40).
+477,13,San Juan Islands (Haro Strait),13.12,White Rock Area,48 40.01,123 4.15,48.66683,-123.06917,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas on the south White Rock (USFWS ID 40).
+478,13,San Juan Islands (Haro Strait),13.12,White Rock Area,48 40.09,123 4.21,48.66817,-123.07017,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on the reef off the south end of White Rock.
+479,13,San Juan Islands (Haro Strait),13.13,Flattop Island,48 38.74,123 5.15,48.64567,-123.08583,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on west end of Flattop Island (USFWS ID 39).
+480,13,San Juan Islands (Haro Strait),13.13,Ftlattop Island,48 38.89,123 4.60,48.64817,-123.07667,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas on east end of island.
+481,13,San Juan Islands (Haro Strait),13.13,Flattop Island,48 38.71,123 4.88,48.64517,-123.08133,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal ledges and reef on south side of island.
+482,13,San Juan Islands (Haro Strait),13.14,Gull Rock,48 39.07,123 5.31,48.65117,-123.0885,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas around rock (USFWS ID 38).
+483,13,San Juan Islands (Haro Strait),13.15,Stuart Is./Reid Harbor,48 39.80,123 10.04,48.66333,-123.16733,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reefs around entrance into Reid Harbor.
+484,13,San Juan Islands (Haro Strait),13.16,Satellite Is./Prevost Harbor,48 40.68,123 11.00,48.678,-123.18333,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef areas around Satellite Island in Prevost Harbor.
+485,13,San Juan Islands (Haro Strait),13.17,Ripple Island,48 39.38,123 7.79,48.65633,-123.12983,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal areas around island (USFWS ID 35).
+486,13,San Juan Islands (Haro Strait),13.18,Gull Reff,48 39.29,123 8.72,48.65483,-123.14533,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around Gull Reef (USFWS ID 34).
+487,13,San Juan Islands (Haro Strait),13.19,Shag Reef,48 39.26,123 7.92,48.65433,-123.132,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around Shag Reef (USFWS ID 36).
+488,13,San Juan Islands (Haro Strait),13.20,Little Cactus Island,48 39.02,123 8.05,48.65033,-123.13417,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and rocks around Little Cactus Island (USFSW ID 37).
+489,13,San Juan Islands (Haro Strait),13.21,Cactus Island Area,48 38.89,123 7.67,48.64817,-123.12783,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef areas on south side of Cactus Island.
+490,13,San Juan Islands (Haro Strait),13.21,Cactus Island Area,48 38.90,123 7.51,48.64833,-123.12517,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef areas on east end of Cactus Island.
+491,13,San Juan Islands (Haro Strait),13.22,Rocks SE of Cactus,48 38.89,123 7.43,48.64817,-123.12383,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas off southeast end of Cactus Island.
+492,13,San Juan Islands (Haro Strait),13.23,Rf Betw Gull Rf & Cactus,48 39.22,123 8.50,48.65367,-123.14167,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas between Gull Reef and Little Cactus Island.
+493,13,San Juan Islands (Haro Strait),13.24,Sentinel Island,48 38.41,123 9.07,48.64017,-123.15117,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges around Sentinel Island.
+494,13,San Juan Islands (Haro Strait),13.25,Sentinel Rock,48 38.41,123 9.35,48.64017,-123.15583,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal rocks and reef areas around Sentinel Rock (USFWS ID 32).
+495,13,San Juan Islands (Haro Strait),13.26,"Posey Is, Reef N of Pearl",48 37.12,123 9.97,48.61867,-123.16617,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas on north side of Pearl Island.
+496,13,San Juan Islands (Haro Strait),13.27,Barren Island,48 37.39,123 9.58,48.62317,-123.15967,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around Barren Island (USFWS ID 30).
+497,13,San Juan Islands (Haro Strait),13.28,Battleship Island,48 37.46,123 11.01,48.62433,-123.1835,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal ledges and reef areas around Battleship Island (USFWS ID 31).
+498,13,San Juan Islands (Haro Strait),13.29,Rocks off Mccracken Pt,48 37.19,123 10.82,48.61983,-123.18033,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas southwest of McCracken Point.
+499,13,San Juan Islands (Haro Strait),13.30,So Henry Island Area,48 34.94,123 10.19,48.58233,-123.16983,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around south entrance to Mosquito Pass.
+500,13,San Juan Islands (Haro Strait),13.30,So Henry Island Area,48 35.01,123 10.76,48.5835,-123.17933,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas off southeast end of Henry Island.
+501,13,San Juan Islands (Haro Strait),13.31,Mosquito Pass Area,48 35.86,123 10.15,48.59767,-123.16917,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas along Mosquito Pass.
+502,13,San Juan Islands (Haro Strait),13.32,False Bay Area,48 28.87,123 4.58,48.48117,-123.07633,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef area on unnamed rock (USFWS ID 27) off False Bay.
+503,13,San Juan Islands (Haro Strait),13.33,Freeman Island,48 41.97,122 57.04,48.6995,-122.95067,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef areas around Freeman Island.
+504,13,San Juan Islands (Haro Strait),13.34,Speiden Island,48 38.48,123 8.56,48.64133,-123.14267,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges on south side of Speiden Island.
+505,13,San Juan Islands (Haro Strait),13.34,Speiden Island,48 38.37,123 8.31,48.6395,-123.1385,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges on south side of Speiden Island.
+506,13,San Juan Islands (Haro Strait),13.34,Speiden Island,48 38.31,123 8.15,48.6385,-123.13583,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges on south side of Speiden Island.
+507,13,San Juan Islands (Haro Strait),13.35,Eagle Point Area,48 27.50,123 2.09,48.45833,-123.03483,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas off Eagle Point.
+508,13,San Juan Islands (Haro Strait),13.36,Pt. Doughty,48 42.74,122 56.98,48.71233,-122.94967,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and rocks along south side of Point Doughty.
+509,14,British Columbia (Fraser River to Race Rocks),14.01,Boiling Reef,48 47.33,123 2.27,48.78883,-123.03783,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal rocks and reef areas around Boiling Reef.
+510,14,British Columbia (Fraser River to Race Rocks),14.02,Race Rocks,48 17.79,123 31.76,48.2965,-123.52933,"PV,ZC,EJ",Harbor Seal; California Sea Lion; Steller Sea Lion,100-500,LOW,Low tide,Intertidal rocks and reef areas around Race Rocks.
+511,14,British Columbia (Fraser River to Race Rocks),14.03,Chain Islets,48 25.24,123 15.83,48.42067,-123.26383,PV,Harbor Seal,100-500,LOW,Low tide,On scattered intertidal rocks and reef areas around Chain Islets.
+512,14,British Columbia (Fraser River to Race Rocks),14.04,Trial Island,48 24.29,123 17.97,48.40483,-123.2995,"PV,ZC,EJ",Harbor Seal; California Sea Lion; Steller Sea Lion,100-500,LOW,Low tide,Intertidal rocks and reef areas around Trail Island.
+513,14,British Columbia (Fraser River to Race Rocks),14.05,Kelp Reefs,48 33.37,123 14.72,48.55617,-123.24533,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around Kelp Reef.
+514,14,British Columbia (Fraser River to Race Rocks),14.06,D’Arcy Island,48 33.25,123 16.62,48.55417,-123.277,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around D’Arcy Island.
+515,14,British Columbia (Fraser River to Race Rocks),14.07,Sallas Rocks,48 35.11,123 17.46,48.58517,-123.291,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal rocks and reef areas around Sallas Rocks.
+516,14,British Columbia (Fraser River to Race Rocks),14.08,Little D’Arcy,48 34.24,123 15.55,48.57067,-123.25917,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around Little D’Arcy Island.
+517,14,British Columbia (Fraser River to Race Rocks),14.09,Cooper Reef,48 40.38,123 16.33,48.673,-123.27217,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal rocks and reef areas around Cooper Reef.
+518,14,British Columbia (Fraser River to Race Rocks),14.10,Java Islets,48 45.57,123 6.21,48.7595,-123.1035,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas around the Java Islets.
+519,14,British Columbia (Fraser River to Race Rocks),14.11,Tumbo Island Area,48 47.98,123 5.59,48.79967,-123.09317,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas off west end of Tumbo Island.
+520,14,British Columbia (Fraser River to Race Rocks),14.11,Tumbo Island Area,48 48.19,123 6.76,48.80317,-123.11267,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas off west end of Tumbo Island.
+521,14,British Columbia (Fraser River to Race Rocks),14.12,Belle Chain Area,48 49.57,123 10.54,48.82617,-123.17567,"PV,EJ",Harbor Seal; Steller Sea Lion,100-500,LOW,Low tide,Intertidal rocks and reef areas of the Belle Chain.
+522,14,British Columbia (Fraser River to Race Rocks),14.12,Belle Chain Area,48 49.67,123 11.56,48.82783,-123.19267,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas just west of Belle Chain.
+523,14,British Columbia (Fraser River to Race Rocks),14.12,Belle Chain Area,48 50.42,123 12.65,48.84033,-123.21083,PV,Harbor Seal,<100,LOW,Low tide,Intertidal rocks and reef areas on north end of Belle Chain.
+524,14,British Columbia (Fraser River to Race Rocks),14.13,Gossip Island,48 53.52,123 18.74,48.892,-123.31233,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and reef areas around Gossip Island.
+525,14,British Columbia (Fraser River to Race Rocks),14.14,Fraser R./Roberts Bank,49 6.64,123 11.97,49.11067,-123.1995,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal channels and shoals along Reifel Island.
+526,14,British Columbia (Fraser River to Race Rocks),14.14,Fraser R./Roberts Bank,49 6.24,123 11.51,49.104,-123.19183,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal channels and shoals along southeast side of Reifel Island.
+527,14,British Columbia (Fraser River to Race Rocks),14.14,Fraser R./Roberts Bank,49 3.88,123 11.78,49.06467,-123.19633,PV,Harbor Seal,100-500,LOW,Low tide,Intertidal channels and shoals on Roberts Bank.
+528,14,British Columbia (Fraser River to Race Rocks),14.14,Fraser R./Roberts Bank,49 4.15,123 9.81,49.06917,-123.1635,PV,Harbor Seal,<100,LOW,Low tide,Intertidal channels and shoals on Roberts Bank.
+529,14,British Columbia (Fraser River to Race Rocks),14.15,Tsawwassen Ferry,49 0.67,123 6.77,49.01117,-123.11283,PV,Harbor Seal,<100,LOW,Low tide,Intertidal areas around jetty just south of Tswwassen ferry terminal.
+530,14,British Columbia (Fraser River to Race Rocks),14.16,Se Mayne/Edith Point,48 51.41,123 15.17,48.85683,-123.25283,PV,Harbor Seal,<100,LOW,Low tide,Intertidal ledges and rocks off Edith Point on Mayne Island.
+531,14,British Columbia (Fraser River to Race Rocks),14.17,Fraser R./Sand Heads Jetty,49 6.41,123 18.01,49.10683,-123.30017,ZC,California Sea Lion,100-500,ALL,All tidal states,On end of jetty near Sand Heads light during spring months.
