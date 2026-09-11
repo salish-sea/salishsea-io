@@ -1,6 +1,6 @@
 # 034 — A profile URL keys on the register identifier; the designation is a slug
 
-**Status:** accepted · implemented for individuals and ecotypes 2026-09-11 (PR #TBD); matrilines wait on `salish-ox2.6` · **Decided:** 2026-08-30 · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md)
+**Status:** accepted · implemented for individuals and ecotypes 2026-09-11 ([PR #452](https://github.com/salish-sea/salishsea-io/pull/452)); matrilines wait on `salish-ox2.6` · **Decided:** 2026-08-30 · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md)
 
 ## Decision
 
@@ -39,7 +39,7 @@ Animals [ADR-0011](https://github.com/salish-sea/animals/blob/main/decisions/001
 
 ## Sequencing: individuals and ecotypes now, matrilines when Q22 answers
 
-*Implemented for individuals and ecotypes on 2026-09-11 (PR #TBD).* `/individuals/` and `/ecotypes/` serve the shape above; `/matrilines/` still serves the designation-keyed route [016](016-matriline-profile-pages.md) describes. This paragraph and the two below record the sequencing as decided; the first sentence originally read "Nothing here is deployed yet."
+*Implemented for individuals and ecotypes on 2026-09-11 ([PR #452](https://github.com/salish-sea/salishsea-io/pull/452)).* `/individuals/` and `/ecotypes/` serve the shape above; `/matrilines/` still serves the designation-keyed route [016](016-matriline-profile-pages.md) describes. This paragraph and the two below record the sequencing as decided; the first sentence originally read "Nothing here is deployed yet."
 
 This record can be implemented for two of the three families immediately, and the epic's issue graph did not reflect that.
 
