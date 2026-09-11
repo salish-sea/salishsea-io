@@ -224,7 +224,7 @@ export class HauloutPage extends LitElement {
       complete: reports => {
         if (!reports?.length) return html`<p class="vitals">No pinniped reports within ${site.radius_m} m since ${MIRROR_SINCE_YEAR}.</p>`;
         const species = speciesGroups(reports).map(g => g.label);
-        const observers = new Set(reports.map(r => r.observer ?? r.attribution)).size;
+        const observers = new Set(reports.map(r => r.observer ?? r.attribution).filter((v): v is string => v !== null)).size;
         const first = reports[reports.length - 1]!;
         const last = reports[0]!;
         return html`<p class="vitals">${species.join(', ')} · ${plural(reports.length, 'report')} from ${plural(observers, 'observer')}, ${monthYear(first.observed_at)}${first.observed_at !== last.observed_at ? ` to ${monthYear(last.observed_at)}` : ''}</p>`;
@@ -275,10 +275,11 @@ export class HauloutPage extends LitElement {
                 ${renderPresenceTable(g.reports, years, 'Reports per month, as identified on iNaturalist by the people who filed them.')}
               `)}
               ${when(photos.length, () => html`
+                <p class="muted">Photos from the reports. Each links to its source; the attribution is in the tooltip.</p>
                 <div class="strip">
                   ${photos.map(({ report, photo }) => html`
-                    <a href=${mapUrl(report)} title="${report.taxon?.vernacular_name ?? ''} · ${observedDate(report.observed_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · ${photo.attribution ?? report.attribution ?? ''}">
-                      <img src=${mediumPhotoUrl(photo.src!)} alt=${report.taxon?.vernacular_name ?? 'pinniped'} loading="lazy">
+                    <a href=${report.url ?? mapUrl(report)} target="_blank" rel="noopener noreferrer" title="${report.species_name ?? ''} · ${observedDate(report.observed_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · ${photo.attribution ?? report.attribution ?? ''}">
+                      <img src=${mediumPhotoUrl(photo.src!)} alt=${photo.attribution ?? report.attribution ?? 'photo of the report'} loading="lazy">
                     </a>
                   `)}
                 </div>
