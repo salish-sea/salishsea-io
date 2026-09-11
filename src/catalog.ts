@@ -93,8 +93,10 @@ function parseKeyedPath(pathname: string, prefix: string): ProfileKey | null {
   if (!match) return null;
   const first = decodeSegment(match[1]!);
   if (first === null) return null;
-  // A trailing slash leaves an empty second segment; it means nothing.
+  // A trailing slash leaves an empty second segment; it means nothing. A
+  // present one that will not decode is a malformed path, not a missing slug.
   const second = match[2] ? decodeSegment(match[2]) : null;
+  if (match[2] && second === null) return null;
   if (ENTITY_LOCAL_PART_RE.test(first)) {
     return { kind: 'entity', entityId: `SSA:${first}`, slug: second || null };
   }

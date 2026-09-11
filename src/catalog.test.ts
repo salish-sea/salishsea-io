@@ -48,6 +48,7 @@ test('rejects paths that are not a profile', () => {
   expect(parseIndividualPath('/individuals/T065A/photos')).toBeNull();
   expect(parseIndividualPath('/individuals/0010193/T065A/photos')).toBeNull();
   expect(parseIndividualPath('/individuals/%E0%A4%A')).toBeNull(); // malformed escape
+  expect(parseIndividualPath('/individuals/0010193/%E0%A4%A')).toBeNull(); // malformed slug
   expect(parseIndividualPath('/')).toBeNull();
   expect(parseIndividualPath('/about.html')).toBeNull();
   expect(parseIndividualPath('/matrilines/T065A')).toBeNull();
