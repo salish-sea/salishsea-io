@@ -242,6 +242,12 @@ interface SocialGroup {
 // The local part of a register identifier (SSA:0010193 → 0010193): animals
 // ADR-0021's registered pattern.
 const ENTITY_LOCAL_PART_RE = /^\d{7}$/;
+const registerKey = (segment: string) => ENTITY_LOCAL_PART_RE.test(segment) ? `SSA:${segment}` : null;
+
+// A haul-out site's own id. Bounded so a designation-looking run of digits
+// cannot be mistaken for one, and no seven-digit register id can either.
+const HAULOUT_ID_RE = /^\d{1,6}$/;
+const hauloutKey = (segment: string) => HAULOUT_ID_RE.test(segment) ? segment : null;
 
 // The designation as a URL segment: apostrophes dropped (Bigg's → Biggs), any
 // other run of non-alphanumerics collapsed to a hyphen.
@@ -409,14 +415,17 @@ interface Resolved {
 }
 
 interface ProfileFamily {
-  prefix: 'individuals' | 'matrilines' | 'ecotypes';
+  prefix: 'individuals' | 'matrilines' | 'ecotypes' | 'haulouts';
   shell: string;
-  kind: 'individual' | 'matriline' | 'ecotype';
-  // Whether this family's rows carry register identifiers yet. Matrilines do
-  // not (73 of 132 have no register entity — animals Q22, salish-ox2.6), so
-  // their designation paths stay canonical and nothing redirects; 034 says
-  // they follow once the identifiers are settled.
-  keyed: boolean;
+  kind: 'individual' | 'matriline' | 'ecotype' | 'haulout';
+  // The identifier a first path segment names, or null when the segment is
+  // not one — then it is read as a designation. Absent for a family whose
+  // rows carry no identifier yet: matrilines (73 of 132 have no register
+  // entity — animals Q22, salish-ox2.6), whose designation paths stay
+  // canonical and never redirect; 034 says they follow once the identifiers
+  // are settled. Animals key on the register's seven digits; a haul-out site
+  // is our own row and keys on its own integer (decision 040).
+  entityKey?: (segment: string) => string | null;
   // null when nothing in the catalogue answers to the key.
   resolve(key: ProfileKey): Promise<Resolved | null>;
 }
@@ -524,10 +533,50 @@ async function resolveEcotype(key: ProfileKey): Promise<Resolved | null> {
 // Profile pages rendered client-side from a static shell (decision 015/016/017):
 // humans get the shell rewrite, bots get synthesized OG meta. S3 has no object
 // at these paths, so even the fail-open branch must rewrite to the shell.
+interface Haulout {
+  id: number;
+  name: string;
+  region: string | null;
+  atlas_species: string[] | null;
+}
+
+const ATLAS_SPECIES: Record<string, string> = {
+  PV: 'harbor seal',
+  ZC: 'California sea lion',
+  EJ: 'Steller sea lion',
+  MA: 'northern elephant seal',
+};
+
+function hauloutPreviewTags(site: Haulout): OgTags {
+  const species = (site.atlas_species ?? []).map(c => ATLAS_SPECIES[c] ?? c);
+  const title = `${site.name} haul-out`;
+  const description = `${species.length ? `${species.join(', ').replace(/^./, c => c.toUpperCase())} haul-out site` : 'Pinniped haul-out site'}${site.region ? ` in the ${site.region}` : ''}: what the 1999 WDFW atlas recorded, and what people report there now.`;
+  return {
+    'og:site_name': 'SalishSea.io',
+    'og:type': 'place',
+    'og:url': `https://salishsea.io${canonicalProfilePath('haulouts', String(site.id), site.name)}`,
+    'og:title': title,
+    'og:description': description,
+    ...BRAND_CARD_TAGS,
+    'fb:app_id': FB_APP_ID,
+  };
+}
+
+// A site by its own id; there is no designation to fall back on.
+async function resolveHaulout(key: ProfileKey): Promise<Resolved | null> {
+  if (key.kind !== 'entity') return null;
+  const rows = await readRows<Haulout>('haulout',
+    `haulouts?id=eq.${encodeURIComponent(key.entityId)}&select=id,name,region,atlas_species&limit=1`);
+  const site = rows?.[0];
+  if (!site) return null;
+  return { canonical: canonicalProfilePath('haulouts', String(site.id), site.name), tags: hauloutPreviewTags(site) };
+}
+
 const PROFILE_FAMILIES: ProfileFamily[] = [
-  { prefix: 'individuals', shell: '/individual.html', kind: 'individual', keyed: true, resolve: resolveIndividual },
-  { prefix: 'matrilines', shell: '/matriline.html', kind: 'matriline', keyed: false, resolve: resolveMatriline },
-  { prefix: 'ecotypes', shell: '/ecotype.html', kind: 'ecotype', keyed: true, resolve: resolveEcotype },
+  { prefix: 'individuals', shell: '/individual.html', kind: 'individual', entityKey: registerKey, resolve: resolveIndividual },
+  { prefix: 'matrilines', shell: '/matriline.html', kind: 'matriline', resolve: resolveMatriline },
+  { prefix: 'ecotypes', shell: '/ecotype.html', kind: 'ecotype', entityKey: registerKey, resolve: resolveEcotype },
+  { prefix: 'haulouts', shell: '/haulout.html', kind: 'haulout', entityKey: hauloutKey, resolve: resolveHaulout },
 ];
 
 interface ProfileRoute {
@@ -554,8 +603,9 @@ function matchProfileRoute(uri: string): ProfileRoute | null {
     const first = decodeSegment(match[1]!);
     // A trailing slash leaves an empty second segment; it means nothing.
     const second = match[2] ? decodeSegment(match[2]) : null;
-    if (family.keyed && ENTITY_LOCAL_PART_RE.test(first)) {
-      return { family, key: { kind: 'entity', entityId: `SSA:${first}`, slug: second } };
+    const entityId = family.entityKey?.(first) ?? null;
+    if (entityId) {
+      return { family, key: { kind: 'entity', entityId, slug: second } };
     }
     if (!second) {
       return { family, key: { kind: 'designation', code: first } };
@@ -594,7 +644,7 @@ function redirectResponse(location: string) {
 // to avoid, and the page fixes the address with replaceState.
 async function profileResponse(request: any, route: ProfileRoute, bot: boolean): Promise<any> {
   const { family, key } = route;
-  const nonCanonical = family.keyed && (key.kind === 'designation' || key.slug === null);
+  const nonCanonical = !!family.entityKey && (key.kind === 'designation' || key.slug === null);
   if (!bot && !nonCanonical) {
     request.uri = family.shell;
     return request;

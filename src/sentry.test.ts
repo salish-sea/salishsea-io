@@ -62,6 +62,7 @@ describe('the entry points agree about Sentry', () => {
     // about.ts reports nothing and is not required to; the rest must agree.
     expect(reporting.map(([src]) => src).sort()).toEqual([
       'src/ecotype-page.ts',
+      'src/haulout-page.ts',
       'src/individual-page.ts',
       'src/matriline-page.ts',
       'src/salish-sea.ts',

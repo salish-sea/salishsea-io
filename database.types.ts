@@ -271,6 +271,54 @@ export type Database = {
           },
         ]
       }
+      haulouts: {
+        Row: {
+          atlas_code: string | null
+          atlas_count: string | null
+          atlas_description: string | null
+          atlas_species: string[] | null
+          atlas_tidal_use: string | null
+          created_at: string
+          id: number
+          location: Database["public"]["CompositeTypes"]["lon_lat"]
+          name: string
+          radius_m: number
+          region: string | null
+          story: string | null
+          verified: boolean
+        }
+        Insert: {
+          atlas_code?: string | null
+          atlas_count?: string | null
+          atlas_description?: string | null
+          atlas_species?: string[] | null
+          atlas_tidal_use?: string | null
+          created_at?: string
+          id?: never
+          location: Database["public"]["CompositeTypes"]["lon_lat"]
+          name: string
+          radius_m?: number
+          region?: string | null
+          story?: string | null
+          verified?: boolean
+        }
+        Update: {
+          atlas_code?: string | null
+          atlas_count?: string | null
+          atlas_description?: string | null
+          atlas_species?: string[] | null
+          atlas_tidal_use?: string | null
+          created_at?: string
+          id?: never
+          location?: Database["public"]["CompositeTypes"]["lon_lat"]
+          name?: string
+          radius_m?: number
+          region?: string | null
+          story?: string | null
+          verified?: boolean
+        }
+        Relationships: []
+      }
       identifications: {
         Row: {
           asserted_by_party_id: number | null
@@ -762,6 +810,25 @@ export type Database = {
           occurrence_id: string | null
           social_group_id: number | null
           status: Database["public"]["Enums"]["identification_status"] | null
+        }
+        Relationships: []
+      }
+      haulout_occurrences: {
+        Row: {
+          accuracy: number | null
+          attribution: string | null
+          body: string | null
+          distance_m: number | null
+          haulout_id: number | null
+          location: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observed_at: string | null
+          observer: string | null
+          occurrence_id: string | null
+          photos:
+            | Database["public"]["CompositeTypes"]["occurrence_photo"][]
+            | null
+          taxon: Database["public"]["CompositeTypes"]["taxon"] | null
+          url: string | null
         }
         Relationships: []
       }

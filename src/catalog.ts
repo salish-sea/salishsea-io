@@ -180,7 +180,7 @@ export interface PresenceYear {
 
 // Distinct-occurrence counts per calendar month (PST8PDT, like the rest of the
 // app) for the trailing `years` years ending at `currentYear`, newest first.
-export function monthlyPresence(links: OccurrenceLink[], years: number, currentYear: number): PresenceYear[] {
+export function monthlyPresence(links: Pick<OccurrenceLink, 'observed_at'>[], years: number, currentYear: number): PresenceYear[] {
   const grid = new Map<number, number[]>();
   for (let y = currentYear; y > currentYear - years; y--)
     grid.set(y, new Array<number>(12).fill(0));
@@ -406,4 +406,108 @@ export function displayName(nicknames: { name: string; status: string | null }[]
   if (official) return official.name;
   const usable = nicknames.find(n => n.status !== 'deprecated');
   return usable?.name ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Haul-out sites (decision 040): our own list, seeded from the WDFW atlas.
+// A site's key is its own integer id, not a register identifier — the
+// register holds animals, not places — so the path helpers are separate.
+
+export type Haulout = PublicSchema['Tables']['haulouts']['Row'];
+export type HauloutOccurrence = PublicSchema['Views']['haulout_occurrences']['Row'];
+
+// A report the haulout_occurrences view attributed to a site, with the fields
+// the page relies on guaranteed present.
+export interface HauloutReport {
+  haulout_id: number;
+  occurrence_id: string;
+  observed_at: string;
+  location: { lon: number; lat: number } | null;
+  accuracy: number | null;
+  distance_m: number;
+  taxon: { scientific_name: string | null; vernacular_name: string | null } | null;
+  photos: { src: string | null; attribution: string | null }[];
+  url: string | null;
+  attribution: string | null;
+  observer: string | null;
+  body: string | null;
+}
+
+// The atlas's species codes (Jeffries et al. 2000, table legend).
+export const ATLAS_SPECIES: Record<string, string> = {
+  PV: 'harbor seal',
+  ZC: 'California sea lion',
+  EJ: 'Steller sea lion',
+  MA: 'northern elephant seal',
+};
+
+export function hauloutPath(site: Pick<Haulout, 'id' | 'name'>): string {
+  const slug = slugify(site.name);
+  return `/haulouts/${site.id}${slug ? `/${slug}` : ''}`;
+}
+
+// /haulouts/<id>[/<slug>][/]. Only the id is read; a non-numeric first segment
+// names nothing, since sites have no designation to fall back on.
+export function parseHauloutPath(pathname: string): number | null {
+  const match = pathname.match(/^\/haulouts\/(\d{1,9})(?:\/[^/]*)?\/?$/);
+  return match ? Number(match[1]) : null;
+}
+
+export async function fetchHaulout(id: number): Promise<Haulout | null> {
+  const { data } = await supabase().from('haulouts').select().eq('id', id).maybeSingle().throwOnError();
+  return data;
+}
+
+export async function fetchAllHaulouts(): Promise<Haulout[]> {
+  const { data } = await supabase().from('haulouts').select().order('id').throwOnError();
+  return data;
+}
+
+// Newest first. The view's location is never null (it is what the join is on),
+// but the generated type cannot know that.
+export async function fetchHauloutReports(hauloutId: number): Promise<HauloutReport[]> {
+  const { data } = await supabase()
+    .from('haulout_occurrences')
+    .select()
+    .eq('haulout_id', hauloutId)
+    .order('observed_at', { ascending: false })
+    .throwOnError();
+  return data.flatMap(row => {
+    if (!row.occurrence_id || !row.observed_at || row.haulout_id === null || row.distance_m === null) return [];
+    const location = row.location?.lon != null && row.location?.lat != null
+      ? { lon: row.location.lon, lat: row.location.lat } : null;
+    return [{
+      haulout_id: row.haulout_id,
+      occurrence_id: row.occurrence_id,
+      observed_at: row.observed_at,
+      location,
+      accuracy: row.accuracy,
+      distance_m: row.distance_m,
+      taxon: row.taxon ? { scientific_name: row.taxon.scientific_name, vernacular_name: row.taxon.vernacular_name } : null,
+      photos: (row.photos ?? []).map(p => ({ src: p.src, attribution: p.attribution })),
+      url: row.url,
+      attribution: row.attribution,
+      observer: row.observer,
+      body: row.body,
+    }];
+  });
+}
+
+// Great-circle distance between two points, in kilometres — for ordering
+// neighbouring sites, where a few metres either way is nothing.
+export function distanceKm(a: { lon: number; lat: number }, b: { lon: number; lat: number }): number {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLon = (b.lon - a.lon) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+// iNaturalist photos are mirrored as the 75×75 `square` thumbnail; the same
+// path serves `medium` (500px), which is what a photo strip wants. The hosts
+// are matched exactly, as the edge handler's og:image rewrite does.
+const INAT_SQUARE_RE =
+  /^(https:\/\/(?:inaturalist-open-data\.s3\.amazonaws\.com|static\.inaturalist\.org)\/photos\/\d+\/)square(\.[a-z]+)$/i;
+export function mediumPhotoUrl(src: string): string {
+  return src.replace(INAT_SQUARE_RE, '$1medium$2');
 }

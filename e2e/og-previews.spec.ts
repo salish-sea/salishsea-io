@@ -252,3 +252,28 @@ test('a matriline designation path still answers directly', async ({ request }) 
   const response = await request.get('/matrilines/T065A', { headers: HUMAN_UA, maxRedirects: 0 });
   expect(response.status()).toBe(200);
 });
+
+// Decision 040: a haul-out site keys on its own id. Row 340 is the atlas's
+// Shilshole Bay north floats, seeded by migration 20260911180000.
+const CANONICAL_SHILSHOLE = '/haulouts/340/Shilshole-Bay-Area';
+
+test('regular browser UA on a haul-out page receives the page shell', async ({ request }) => {
+  const response = await request.get(CANONICAL_SHILSHOLE, { headers: HUMAN_UA });
+  expect(response.status()).toBe(200);
+  expect(await response.text()).toContain('<haulout-page>');
+});
+
+test('a crawler on a haul-out page receives site-specific OG tags', async ({ request }) => {
+  const response = await request.get(CANONICAL_SHILSHOLE, { headers: BOT_UA });
+  expect(response.status()).toBe(200);
+  const body = await response.text();
+  expect(body).toContain('<title>Shilshole Bay Area haul-out</title>');
+  expect(body).toContain(`content="https://salishsea.io${CANONICAL_SHILSHOLE}"`);
+  expect(body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
+});
+
+test('the bare haul-out id 301s to the slugged address', async ({ request }) => {
+  const response = await request.get('/haulouts/340', { headers: HUMAN_UA, maxRedirects: 0 });
+  expect(response.status()).toBe(301);
+  expect(response.headers()['location']).toBe(CANONICAL_SHILSHOLE);
+});

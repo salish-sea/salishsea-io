@@ -28,8 +28,9 @@ CREATE TABLE public.haulouts (
   radius_m integer NOT NULL DEFAULT 500 CHECK (radius_m BETWEEN 50 AND 5000),
   -- The atlas's regional grouping, e.g. 'Puget Sound (Whidbey Island to Olympia)'.
   region text,
-  -- The atlas's fields, verbatim. atlas_row is the CSV's first column.
-  atlas_row integer UNIQUE,
+  -- The atlas's fields, verbatim. A seeded row's id IS the CSV's first column
+  -- (the atlas's running row number), so /haulouts/340 is atlas row 340 and a
+  -- proofreader can find it; hand-added sites number from 1001.
   atlas_code text,
   atlas_species text[],    -- PV harbor seal, ZC California sea lion, EJ Steller sea lion, MA elephant seal
   atlas_count text,        -- peak group size class: <10, <100, 100-500, 500>
@@ -47,7 +48,7 @@ ALTER TABLE public.haulouts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Haul-out sites are publicly readable"
   ON public.haulouts FOR SELECT USING (true);
 
-INSERT INTO public.haulouts (atlas_row, name, location, region, atlas_code, atlas_species, atlas_count, atlas_tidal_use, atlas_description) VALUES
+INSERT INTO public.haulouts (id, name, location, region, atlas_code, atlas_species, atlas_count, atlas_tidal_use, atlas_description) OVERRIDING SYSTEM VALUE VALUES
   (170, 'Waadah Island', ROW(-124.59167, 48.38217)::public.lon_lat, 'Strait of Juan de Fuca-West', '6.01', ARRAY['PV']::text[], '<100', 'LOW', 'Reef area on east side of Waadah Island.'),
   (171, 'N Waadah Island', ROW(-124.59967, 48.38583)::public.lon_lat, 'Strait of Juan de Fuca-West', '6.01', ARRAY['ZC']::text[], '<100', 'ALL', 'On north tip of island.'),
   (172, 'Seal and Sail Rock Area', ROW(-124.54567, 48.36183)::public.lon_lat, 'Strait of Juan de Fuca-West', '6.02', ARRAY['PV']::text[], '<100', 'LOW', 'Intertidal areas on Seal Rock.'),
@@ -410,6 +411,8 @@ INSERT INTO public.haulouts (atlas_row, name, location, region, atlas_code, atla
   (529, 'Tsawwassen Ferry', ROW(-123.11283, 49.01117)::public.lon_lat, 'British Columbia (Fraser River to Race Rocks)', '14.15', ARRAY['PV']::text[], '<100', 'LOW', 'Intertidal areas around jetty just south of Tswwassen ferry terminal.'),
   (530, 'Se Mayne/Edith Point', ROW(-123.25283, 48.85683)::public.lon_lat, 'British Columbia (Fraser River to Race Rocks)', '14.16', ARRAY['PV']::text[], '<100', 'LOW', 'Intertidal ledges and rocks off Edith Point on Mayne Island.'),
   (531, 'Fraser R./Sand Heads Jetty', ROW(-123.30017, 49.10683)::public.lon_lat, 'British Columbia (Fraser River to Race Rocks)', '14.17', ARRAY['ZC']::text[], '100-500', 'ALL', 'On end of jetty near Sand Heads light during spring months.');
+
+SELECT setval(pg_get_serial_sequence('public.haulouts', 'id'), 1000);
 
 -- One row per (site, pinniped report within the site's radius). Pinnipeds are
 -- everything under the families Phocidae and Otariidae in the iNaturalist
