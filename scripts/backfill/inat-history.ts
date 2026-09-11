@@ -1,7 +1,7 @@
 /**
- * Backfill iNaturalist history, one ingest window at a time (decision 041).
+ * Backfill a source's history, one ingest window at a time (decision 041).
  *
- * Nothing here talks to iNaturalist. Each window is a request to our own
+ * Nothing here talks to the source. Each window is a request to our own
  * ingest function — the same code path and completeness rules the cron uses
  * (decision 011), invoked the way supabase/functions/ingest/README.md
  * describes for a curator — and the function does the fetching from Supabase.
@@ -14,8 +14,13 @@
  * The function URL and trigger secret are read from Vault through the
  * Supabase CLI's keychain login, so the operator never handles the secret.
  *
- *   pnpm exec tsx scripts/backfill/inat-history.ts --from 2014-01-01 --to 2018-01-01 --step year --dry-run
- *   pnpm exec tsx scripts/backfill/inat-history.ts --from 2021-01-01 --to 2025-01-01 --step month
+ *   pnpm exec tsx scripts/backfill/inat-history.ts --source inaturalist --from 2014-01-01 --to 2018-01-01 --step year --dry-run
+ *   pnpm exec tsx scripts/backfill/inat-history.ts --source inaturalist --from 2021-01-01 --to 2025-01-01 --step month
+ *   pnpm exec tsx scripts/backfill/inat-history.ts --source maplify --from 2014-01-01 --to 2022-01-01 --step month
+ *
+ * Maplify's reconcile compares the UTC created_at its API filters on, so its
+ * windows may abut freely; iNaturalist's may too since salish-34s, because the
+ * reconcile leaves a window's edge days alone.
  *
  * `--to` is exclusive: the last window ends the day before it.
  */
@@ -24,6 +29,7 @@ import { parseArgs } from 'node:util';
 
 const { values } = parseArgs({
     options: {
+        source: { type: 'string' },
         from: { type: 'string' },
         to: { type: 'string' },
         step: { type: 'string', default: 'month' },
@@ -34,8 +40,13 @@ const { values } = parseArgs({
 });
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const source = values.source;
+if (source !== 'inaturalist' && source !== 'maplify') {
+    console.error('--source must be inaturalist or maplify');
+    process.exit(2);
+}
 if (!values.from || !values.to || !DATE_RE.test(values.from) || !DATE_RE.test(values.to)) {
-    console.error('usage: --from YYYY-MM-DD --to YYYY-MM-DD [--step decade|year|quarter|month] [--dry-run]');
+    console.error('usage: --source inaturalist|maplify --from YYYY-MM-DD --to YYYY-MM-DD [--step decade|year|quarter|month] [--dry-run]');
     process.exit(2);
 }
 const STEP_MONTHS = { decade: 120, year: 12, quarter: 3, month: 1 }[values.step ?? 'month'];
@@ -46,7 +57,8 @@ const pauseMs = Number(values['pause-ms']);
 
 // iNat asks for at most 60 requests a minute; a window of p pages costs about
 // p + 1 requests (pages plus one taxa lookup, usually none), so never let a
-// window and its pause take less than that many seconds.
+// window and its pause take less than that many seconds. Maplify publishes no
+// limit; one request a second is a courtesy there.
 const MS_PER_REQUEST = 1000;
 
 type Window = { start: string; end: string };
@@ -90,7 +102,7 @@ async function run(window: Window, creds: { url: string; secret: string }): Prom
     const res = await fetch(creds.url, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-ingest-secret': creds.secret },
-        body: JSON.stringify({ source: 'inaturalist', start: window.start, end: window.end, dry_run: dryRun, trigger: 'manual' }),
+        body: JSON.stringify({ source, start: window.start, end: window.end, dry_run: dryRun, trigger: 'manual' }),
     });
     const body = await res.json().catch(() => ({})) as Outcome;
     return { ...body, ok: res.ok && body.ok === true };
@@ -99,7 +111,7 @@ async function run(window: Window, creds: { url: string; secret: string }): Prom
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 const plan = windows(values.from, values.to, STEP_MONTHS);
-console.log(`${dryRun ? 'DRY RUN: ' : ''}${plan.length} window(s), ${values.from} to ${values.to} by ${values.step}`);
+console.log(`${dryRun ? 'DRY RUN: ' : ''}${source}: ${plan.length} window(s), ${values.from} to ${values.to} by ${values.step}`);
 const creds = vault();
 let totalUpserted = 0, totalRequests = 0;
 for (const w of plan) {
@@ -117,4 +129,4 @@ for (const w of plan) {
     }
     await sleep(Math.max(0, requests * MS_PER_REQUEST - elapsed) + pauseMs);
 }
-console.log(`done: ${plan.length} window(s), ${totalUpserted} row(s) upserted, about ${totalRequests} iNaturalist requests`);
+console.log(`done: ${plan.length} window(s), ${totalUpserted} row(s) upserted, about ${totalRequests} ${source} requests`);

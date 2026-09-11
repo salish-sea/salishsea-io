@@ -44,6 +44,10 @@ That is not a backfill quirk. The same bound in the daily cron had been deleting
 
 The order of operations therefore became: merge and deploy the fix, re-run windows from mid-June 2026 to today so the deleted evening rows come back (a pure upsert restores them), then walk the history. Until the fix is deployed the cron keeps deleting about ten rows a day, all of them recoverable the same way.
 
+## Maplify too
+
+Maplify's mirror begins on 2022-01-01 because the manual runs of 2026-07-06 began there; nothing recorded why. Its API returns sightings from 2014 (probed 2026-09-11 with whole-year windows: 461 in 2014, about 600 a year by 2018, about 1,400 a year in 2020 and 2021, nothing earlier; a single-year request may be capped, so these are lower bounds). The same driver walks it with `--source maplify` in monthly windows (`salish-9y6`). Two things differ from iNaturalist: Maplify publishes no rate limit, so one request a second is a courtesy rather than a rule; and its reconcile compares the same UTC `created_at` its API filters on, so the straddle above never applied to it. [036](036-ingest-scope-killer-whales-range-wide.md)'s scope rule applies at ingest, so historical rows land already filtered.
+
 ## Consequences
 
 - The fetch box is still the Acartia extent, California to northern BC ([036](036-ingest-scope-killer-whales-range-wide.md)), so the backfill triples the Californian rows along with the Salish Sea ones: about 42,000 of the 62,000 lie outside the Salish Sea box. `salish-a4y.4` is the open decision on whether iNaturalist follows Maplify's scope rule; if it lands as a purge, the purge is one statement and this record does not change.
