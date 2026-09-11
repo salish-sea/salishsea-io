@@ -43,7 +43,9 @@ export type PersistResult = {
 /**
  * The ids currently stored in a window — fed to reconcile() to compute the delete
  * set. Uses the SAME bound as the reconcile DELETE ([start, end+1)) so the read
- * and the write agree on window membership.
+ * and the write agree on window membership. Maplify's fetch filters on the same
+ * UTC created_at this compares, so the bound needs no margin; the iNaturalist
+ * one does — see fetchObservationWindowIds.
  */
 export async function fetchWindowIds(sql: Sql, window: IngestWindow): Promise<number[]> {
     const rows = await sql<{ id: number }[]>`
@@ -250,17 +252,31 @@ export async function fetchExistingTaxonIds(
 }
 
 /**
- * The observation ids currently stored in a window (by observed_at) — fed to
- * reconcile() to compute the delete set. Uses the SAME bound as the reconcile
- * DELETE ([start, end+1)) so the read and the write agree on window membership.
- * observations.id is bigint (returned as string by postgres.js) → coerced to
+ * The iNaturalist observation ids the reconcile may delete: those stored in the
+ * INTERIOR of the window, [start + 1 day, end) in UTC — not the window itself.
+ *
+ * The fetch and the store do not measure a day the same way. iNat's d1/d2 filter
+ * on the observer's LOCAL date (observed_on); observed_at here is the UTC
+ * instant. An observation made at 6 pm Pacific on the day before `start` is
+ * dated the day before by iNat, so the fetch omits it, but its UTC instant is
+ * 01:00 on `start`, so a bound of [start, end + 1) held it — and the reconcile,
+ * seeing a stored row the fetch did not return, deleted it. The cron's rolling
+ * window did this to every evening's observations eleven days later, from the
+ * edge-function cutover (2026-06-26) until 2026-09-11, and abutting backfill
+ * windows did it to each boundary day (bd salish-34s). Excluding the window's
+ * first and last UTC day from the delete set leaves no straddle for any time
+ * zone (±14 h), at the cost of never reconciling a window's edge days — which
+ * the rolling window covers on its next tick, and a backfill never had rows to
+ * reconcile anyway. Uses the SAME bound as the DELETE so read and write agree.
+ *
+ * ids are read as text and converted: postgres.js returns bigint as a string;
  * number (iNat ids are well within 2^53).
  */
 export async function fetchObservationWindowIds(sql: Sql, window: IngestWindow): Promise<number[]> {
     const rows = await sql<{ id: string }[]>`
         SELECT id FROM inaturalist.observations
-        WHERE observed_at >= ${window.start}::date
-          AND observed_at < (${window.end}::date + 1)`;
+        WHERE observed_at >= (${window.start}::date + 1)
+          AND observed_at < ${window.end}::date`;
     return rows.map((r) => Number(r.id));
 }
 
@@ -500,8 +516,8 @@ export async function persistInaturalist(
             const delObs = await tx`
                 DELETE FROM inaturalist.observations
                 WHERE id = ANY(${deleteIds as unknown as number[]}::bigint[])
-                  AND observed_at >= ${window.start}::date
-                  AND observed_at < (${window.end}::date + 1)
+                  AND observed_at >= (${window.start}::date + 1)
+                  AND observed_at < ${window.end}::date
                 RETURNING id`;
             observationsDeleted = delObs.count;
         }

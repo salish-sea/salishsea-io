@@ -361,6 +361,28 @@ describe.skipIf(!DSN)('persistInaturalist (local Supabase)', () => {
         expect(ids).not.toContain(9000000051);
     });
 
+    // iNat dates an observation by the observer's local day; observed_at is the
+    // UTC instant. 6 pm Pacific on June 30 is 01:00 UTC on July 1 — inside a
+    // [start, end + 1) bound, outside a d1=2026-07-01 fetch, and so deleted by
+    // the old reconcile (salish-34s). The window's first and last UTC days are
+    // therefore never reconciled: only the interior is.
+    test('a window never reconciles its edge days, so a local-date straddler survives', async () => {
+        await persistInaturalist(sql, { taxa: testTaxa, plan: iplan({ upsert: [
+            observation({ id: 9000000080, observedAt: '2026-06-30T18:00:00-07:00' }), // 2026-07-01T01:00Z
+            observation({ id: 9000000081, observedAt: '2026-07-05T10:00:00-07:00' }), // the end day
+            observation({ id: 9000000082, observedAt: '2026-07-02T00:30:00Z' }),      // interior
+        ] }), window: WINDOW });
+        const ids = await fetchObservationWindowIds(sql, WINDOW);
+        expect(ids).not.toContain(9000000080);
+        expect(ids).not.toContain(9000000081);
+        expect(ids).toContain(9000000082);
+
+        const res = await persistInaturalist(sql, { taxa: [], plan: iplan({ delete: [9000000080, 9000000081, 9000000082] }), window: WINDOW });
+        expect(res.observationsDeleted).toBe(1);
+        const survivors = await sql`select id from inaturalist.observations where id in (9000000080, 9000000081, 9000000082) order by id`;
+        expect(survivors.map((r) => Number(r['id']))).toEqual([9000000080, 9000000081]);
+    });
+
     test('dry run exercises constraints, reports would-be counts, writes nothing', async () => {
         const res = await persistInaturalist(sql, {
             taxa: testTaxa,

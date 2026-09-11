@@ -17,7 +17,7 @@ the source of truth in [`index.ts`](index.ts) (`RequestSchema`):
 | field | values | notes |
 |---|---|---|
 | `source` | `maplify` \| `inaturalist` | required |
-| `start`, `end` | `YYYY-MM-DD` | both or neither; `end` exclusive |
+| `start`, `end` | `YYYY-MM-DD` | both or neither; both inclusive, as iNat's `d1`/`d2` are |
 | `dry_run` | boolean | preview: fetch + reconcile, write nothing |
 | `trigger` | `cron` \| `manual` | recorded on the run |
 
@@ -62,7 +62,12 @@ outcome synchronously.
 ## The one caveat: reconcile is authoritative per window
 
 Within the fetched window, the function **deletes** any of that source's stored
-rows not present in the fetch (decision 011's completeness invariant). So:
+rows not present in the fetch (decision 011's completeness invariant). For
+iNaturalist that means the window's **interior** — its first and last UTC days
+are upserted but never reconciled, because iNat dates an observation by the
+observer's local day and the store holds the UTC instant, and the two disagree
+on which day an evening belongs to (bd `salish-34s`). The rolling window's
+next tick reconciles what this one left at its edges. So:
 
 - **Safe for filling a gap** — if the window has no rows for that source yet,
   it is pure upsert (verify with `dry_run` first: `rows_deleted` should be 0).
