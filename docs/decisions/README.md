@@ -43,3 +43,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [037](037-sentry-transmits-from-production-only.md) | Sentry transmits from production only; one `initSentry()` gates the scope binding, not `init()` | accepted |
 | [038](038-nightly-backups-we-own.md) | A nightly database dump and incremental media mirror in a private versioned bucket; there was no backup before | accepted |
 | [039](039-feedback-goes-to-our-own-database.md) | Feedback posts to our own Supabase rather than Sentry, and the draft survives a failed send; a workflow files each report as an issue, message quoted, contact withheld | accepted |
+| [041](041-inaturalist-history-backfilled.md) | iNaturalist history is backfilled to the beginning, through our own ingest, within iNat's recommended practices (applies 011, 018) | accepted |
