@@ -18,6 +18,11 @@
  *   pnpm exec tsx scripts/backfill/inat-history.ts --source inaturalist --from 2021-01-01 --to 2025-01-01 --step month
  *   pnpm exec tsx scripts/backfill/inat-history.ts --source maplify --from 2014-01-01 --to 2022-01-01 --step month
  *
+ * Pacing is per window: the function fetches a window's pages back to back,
+ * each a sequential round trip of roughly a second, so a window's burst stays
+ * near iNat's asked-for 60 a minute on its own, and the pause after it brings
+ * the average under. Retries and taxa lookups are not counted; both are rare.
+ *
  * Maplify's reconcile compares the UTC created_at its API filters on, so its
  * windows may abut freely; iNaturalist's may too since salish-34s, because the
  * reconcile leaves a window's edge days alone.
@@ -36,6 +41,7 @@ const { values } = parseArgs({
         'dry-run': { type: 'boolean', default: false },
         'max-deleted': { type: 'string', default: '0' },
         'pause-ms': { type: 'string', default: '2000' },
+        'timeout-ms': { type: 'string', default: '300000' },
     },
 });
 
@@ -52,10 +58,17 @@ if (!values.from || !values.to || !DATE_RE.test(values.from) || !DATE_RE.test(va
 const STEP_MONTHS = { decade: 120, year: 12, quarter: 3, month: 1 }[values.step ?? 'month'];
 if (!STEP_MONTHS) { console.error('--step must be decade, year, quarter or month'); process.exit(2); }
 const dryRun = values['dry-run'];
+// A historical window has nothing stored to reconcile against, so any deletion
+// is a fault and the default stops the walk. A RECOVERY walk over dates the
+// cron has already covered is different: its interior days legitimately
+// reconcile upstream deletions made since, so the operator raises this bound
+// knowingly (salish-34s's recovery of 2026-06-15 onward).
 const maxDeleted = Number(values['max-deleted']);
 const pauseMs = Number(values['pause-ms']);
+const timeoutMs = Number(values['timeout-ms']);
 if (!Number.isSafeInteger(maxDeleted) || maxDeleted < 0) { console.error('--max-deleted must be a non-negative integer'); process.exit(2); }
 if (!Number.isFinite(pauseMs) || pauseMs < 0) { console.error('--pause-ms must be a non-negative number'); process.exit(2); }
+if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) { console.error('--timeout-ms must be a positive number'); process.exit(2); }
 
 // iNat asks for at most 60 requests a minute; a window of p pages costs about
 // p + 1 requests (pages plus one taxa lookup, usually none), so never let a
@@ -92,7 +105,7 @@ function windows(from: string, to: string, stepMonths: number): Window[] {
 // CLI route a curator uses. Returns the plaintext to this process only.
 function vault(): { url: string; secret: string } {
     const out = execFileSync('npx', [
-        'supabase', 'db', 'query', '--linked',
+        'supabase', 'db', 'query', '--linked', '--output', 'json',
         "select name, decrypted_secret from vault.decrypted_secrets where name in ('ingest_function_url','ingest_trigger_secret')",
     ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     const json = out.slice(out.indexOf('{'));
@@ -108,14 +121,21 @@ type Outcome = {
     pagesFetched?: number; totalResults?: number; error?: string;
 };
 
+// One window through the function. A stalled request is a failed window, not a
+// hung walk: the deadline covers the request and the body both.
 async function run(window: Window, creds: { url: string; secret: string }): Promise<Outcome> {
-    const res = await fetch(creds.url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-ingest-secret': creds.secret },
-        body: JSON.stringify({ source, start: window.start, end: window.end, dry_run: dryRun, trigger: 'manual' }),
-    });
-    const body = await res.json().catch(() => ({})) as Outcome;
-    return { ...body, ok: res.ok && body.ok === true };
+    try {
+        const res = await fetch(creds.url, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-ingest-secret': creds.secret },
+            body: JSON.stringify({ source, start: window.start, end: window.end, dry_run: dryRun, trigger: 'manual' }),
+            signal: AbortSignal.timeout(timeoutMs),
+        });
+        const body = await res.json().catch(() => ({})) as Outcome;
+        return { ...body, ok: res.ok && body.ok === true, error: body.error ?? (res.ok ? undefined : `HTTP ${res.status}`) };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
