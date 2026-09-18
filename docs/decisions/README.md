@@ -47,3 +47,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [042](042-transient-ingest-failures-are-not-reported.md) | A transient ingest failure is recorded in `ingest.runs`, not reported to Sentry | accepted |
 | [043](043-undated-observations-are-out-of-scope.md) | An undated iNaturalist observation is out of scope, however the absence is spelled; epoch-zero dropped at ingest, the one row held purged (applies 008, 036) | accepted |
 | [044](044-inat-ingest-scope.md) | iNaturalist gets the same ingest scope rule as Maplify: killer whales range-wide, everything else the Salish Sea; 51,637 rows purged (extends 036, answers `salish-a4y.4`) | accepted |
+| [046](046-sentry-declines-third-party-noise.md) | The Sentry client declines third-party noise and keeps every network failure: filter on provenance, never on plausibility (extends 037, answers `salish-leg`) | accepted |
