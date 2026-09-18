@@ -43,14 +43,23 @@
  */
 
 import { z } from 'zod';
+import { acartiaExtent, extentContains, salishSeaExtent } from '../../src/extents.ts';
 
 /**
- * The fetch bbox — the Acartia box, NOT the Salish Sea despite the name: central
- * California to northern BC, the same extent the Maplify fetch uses. Decision 036
- * scopes Maplify to killer-whales-range-wide / everything-else-Salish-Sea; whether
- * iNaturalist gets the same rule is open (salish-a4y.4). The shell passes it to the query.
+ * The fetch bbox — central California to northern BC, the same extent the Maplify
+ * fetch uses, and the southern end of the Southern Resident range (decision 036:
+ * the width is what holds the Residents on their winter coast run). The shell
+ * passes it to the query.
+ *
+ * It was called `SALISH_SEA_BBOX` until decision 044, which is not what it is and
+ * had already misled decision 036's first draft. The box itself is `acartiaExtent`
+ * in [src/extents.ts](../../src/extents.ts) — one definition, shared with Maplify —
+ * and this is only its corner-named projection for iNat's query parameters.
  */
-export const SALISH_SEA_BBOX = { swLng: -136, swLat: 36, neLng: -120, neLat: 54 } as const;
+const [FETCH_SW_LNG, FETCH_SW_LAT, FETCH_NE_LNG, FETCH_NE_LAT] = acartiaExtent;
+export const FETCH_BBOX = {
+    swLng: FETCH_SW_LNG, swLat: FETCH_SW_LAT, neLng: FETCH_NE_LNG, neLat: FETCH_NE_LAT,
+} as const;
 
 /** In-scope root taxa: Cetacea, Phocoidea (pinnipeds), Lutrinae (otters). */
 export const INAT_ROOT_TAXON_IDS: readonly number[] = [152871, 372843, 526556];
@@ -312,6 +321,48 @@ export type InatParseResult =
       }
     | { readonly ok: false; readonly error: string };
 
+/** iNaturalist's genus *Orcinus*: the taxon every killer whale record sits under. */
+export const ORCINUS_TAXON_ID = 41520;
+
+/**
+ * Whether an observation is a killer whale of any kind. Pure.
+ *
+ * Reads the record's own ancestry, which iNaturalist ships with every observation,
+ * so it is exact where Maplify's `isKillerWhale` has to read the shape of a name:
+ * the genus catches `Orcinus orca` and all three subspecies (`ater`, `orca`,
+ * `rectipinnus`) without naming them, and a new one would be caught the day it is
+ * coined. `ancestorIds` is root→self — upstream's `ancestor_ids` ends with the
+ * observation's own taxon — so `includes` alone already catches a record filed at
+ * the genus. The `taxonId` check is the cheap guard for the one shape that would
+ * otherwise slip: an ancestry that arrives without self in it.
+ *
+ * A record filed under a RETIRED taxon is judged by the ancestry upstream shipped
+ * with it, not by its replacement's. That is the [032](docs/decisions/032-retired-taxa-resolved-on-read.md)
+ * posture — a stored id records what was claimed — and it is safe here because no
+ * taxon in the mirror retires INTO Orcinus: the genus and all four descendants are
+ * active, so a retirement could only move a record between orca taxa, never across
+ * the boundary this predicate draws.
+ */
+export function isKillerWhale(o: NormalizedObservation): boolean {
+    return o.taxonId === ORCINUS_TAXON_ID || o.ancestorIds.includes(ORCINUS_TAXON_ID);
+}
+
+/**
+ * Whether an observation is in ingest scope. Pure.
+ *
+ * Decision 036's rule, extended to iNaturalist by [044](docs/decisions/044-inat-ingest-scope.md):
+ * killer whales are kept from the whole fetch box — the Southern Resident range,
+ * which is why the box reaches central California — and everything else only inside
+ * `salishSeaExtent`, the same box the map's Salish Sea region filters on.
+ *
+ * The fetch box does not narrow. Asking iNaturalist a narrower question would drop
+ * the Californian orcas the width is there to hold, and it would make the ingest's
+ * scope a property of a URL rather than of a predicate we can test.
+ */
+export function isIngestable(o: NormalizedObservation): boolean {
+    return extentContains(salishSeaExtent, o.lon, o.lat) || isKillerWhale(o);
+}
+
 /**
  * Whether an upstream `time_observed_at` is the Unix epoch to the second.
  *
@@ -345,11 +396,16 @@ export function isEpochZeroObservedAt(observedAt: string): boolean {
  * treats the fetch as not-complete and aborts (writes nothing), never reconciling
  * against a partially-trusted response (decision 011).
  *
- * Records with no date are SKIPPED (not persisted, out of scope) but still count
- * toward `recordCount`, because `total_results` counts them too — the
- * completeness sum must reconcile against the raw page size. "No date" means
- * `time_observed_at === null` OR the epoch-zero artifact above: one rule, two
- * spellings of the same absence (decision 043).
+ * Out-of-scope records are SKIPPED (not persisted) but still count toward
+ * `recordCount`, because `total_results` counts them too — the completeness sum
+ * must reconcile against the raw page size. Two rules drop a record here, and both
+ * are pure predicates rather than clauses in this loop:
+ *   - it has no date — `time_observed_at === null` OR the epoch-zero artifact
+ *     below: one rule, two spellings of the same absence (decision 043);
+ *   - it fails `isIngestable` — outside the Salish Sea and not a killer whale
+ *     (decision 044).
+ * Normalizing before the scope test is deliberate: `isIngestable` reads our own
+ * normalized shape, so the predicate and its tests never touch upstream JSON.
  */
 export function parseInatResponse(raw: unknown): InatParseResult {
     const parsed = InatResponseSchema.safeParse(raw);
@@ -361,7 +417,9 @@ export function parseInatResponse(raw: unknown): InatParseResult {
         const observedAt = r.time_observed_at;
         if (observedAt == null) continue; // out of scope; skip (mirrors live SQL)
         if (isEpochZeroObservedAt(observedAt)) continue; // a missing date wearing a timestamp
-        observations.push(normalizeObservation(r, observedAt));
+        const o = normalizeObservation(r, observedAt);
+        if (!isIngestable(o)) continue; // outside the Salish Sea and not a killer whale (044)
+        observations.push(o);
     }
     const maxId = parsed.data.results.reduce<number | null>(
         (m, r) => (m == null || r.id > m ? r.id : m),

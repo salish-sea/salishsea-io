@@ -12,6 +12,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
+import { acartiaExtent } from '../../src/extents.ts';
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import {
@@ -21,7 +22,11 @@ import {
     referencedTaxonIds,
     referencedTaxonIdsFromTaxa,
     missingTaxonIds,
+    FETCH_BBOX,
     isEpochZeroObservedAt,
+    isIngestable,
+    isKillerWhale,
+    ORCINUS_TAXON_ID,
     isTerminalPage,
     isPaginationComplete,
     reconcile,
@@ -106,18 +111,97 @@ describe('isEpochZeroObservedAt', () => {
     });
 });
 
+test('the fetch box is the Acartia box, by reference and not by literal', () => {
+    // It was called SALISH_SEA_BBOX until decision 044, which is not what it is and
+    // had already misled 036's first draft. The corners must keep matching the one
+    // definition in src/extents.ts, which the Maplify fetch reads too.
+    const [swLng, swLat, neLng, neLat] = acartiaExtent;
+    expect(FETCH_BBOX).toEqual({ swLng, swLat, neLng, neLat });
+    expect(FETCH_BBOX).toEqual({ swLng: -136, swLat: 36, neLng: -120, neLat: 54 });
+});
+
+describe('isKillerWhale / isIngestable (decision 044)', () => {
+    const OUTSIDE = { lon: -122.411, lat: 37.811 };   // Pier 39, San Francisco
+    const INSIDE = { lon: -123.0, lat: 48.5 };        // Haro Strait
+    const NORTH = { lon: -126.8, lat: 50.55 };        // Telegraph Cove, Johnstone Strait
+
+    test('the genus catches the species and every subspecies, without naming them', () => {
+        // Ancestry is root->self, so a record filed AT the genus has Orcinus last
+        // rather than interior. Both spellings are the same animal.
+        expect(isKillerWhale(obs({ taxonId: 41521, ancestorIds: [48460, 41520, 41521] }))).toBe(true);
+        expect(isKillerWhale(obs({ taxonId: 1602531, ancestorIds: [48460, 41520, 41521, 1602531] }))).toBe(true);
+        expect(isKillerWhale(obs({ taxonId: 1602533, ancestorIds: [48460, 41520, 41521, 1602533] }))).toBe(true);
+        expect(isKillerWhale(obs({ taxonId: ORCINUS_TAXON_ID, ancestorIds: [48460, ORCINUS_TAXON_ID] }))).toBe(true);
+    });
+
+    test('a blue whale is not a killer whale, and neither is a bare Delphinidae', () => {
+        expect(isKillerWhale(obs({ taxonId: 41553, ancestorIds: [48460, 41546, 41547, 41553] }))).toBe(false);
+        expect(isKillerWhale(obs({ taxonId: 41479, ancestorIds: [48460, 41479] }))).toBe(false); // the family above Orcinus
+    });
+
+    test('a genus record with an ancestry that omits self is still caught', () => {
+        // ancestor_ids is self-inclusive in every record we have seen, so this
+        // guard is belt to the includes check's braces — but it is the one shape
+        // that would silently drop an orca.
+        expect(isKillerWhale(obs({ taxonId: ORCINUS_TAXON_ID, ancestorIds: [] }))).toBe(true);
+    });
+
+    test('inside the Salish Sea, everything is in scope', () => {
+        expect(isIngestable(obs({ ...INSIDE, taxonId: 41553 }))).toBe(true); // blue whale
+        expect(isIngestable(obs({ ...INSIDE, taxonId: 41740 }))).toBe(true); // California sea lion
+    });
+
+    test('outside it, only killer whales are', () => {
+        expect(isIngestable(obs({ ...OUTSIDE, taxonId: 41740 }))).toBe(false); // the Pier 39 sea lions
+        expect(isIngestable(obs({ ...OUTSIDE, taxonId: 41521, ancestorIds: [41520, 41521] }))).toBe(true);
+    });
+
+    test('the northern edge is a real cost, and it falls where 036 put it', () => {
+        // Johnstone Strait is outside salishSeaExtent on both bounds. Northern
+        // Resident orcas there are kept; every other animal beside them is not.
+        expect(isIngestable(obs({ ...NORTH, taxonId: 41521, ancestorIds: [41520, 41521] }))).toBe(true);
+        expect(isIngestable(obs({ ...NORTH, taxonId: 41553 }))).toBe(false);
+    });
+
+    test('the box edges are inclusive, as extentContains is', () => {
+        for (const [lon, lat] of [[-126, 47], [-122, 50.5], [-126, 50.5], [-122, 47]] as const) {
+            expect(isIngestable(obs({ lon, lat, taxonId: 41740 })), `${lon},${lat}`).toBe(true);
+        }
+    });
+});
+
 describe('parseInatResponse', () => {
-    test('accepts the real fixture and skips the null-time record', () => {
+    test('the real fixture is entirely out of scope — every record is Californian', () => {
+        // Not a contrived case. This fixture is one arbitrary page of the live feed,
+        // captured 2026-07-05, and all six records are between 36.6N and 37.8N: two
+        // at Pier 39 and the Bay, the rest down the San Mateo and Monterey coast.
+        // Decision 044 is what that page looks like as a rule, so the whole page
+        // drops and the counters still have to add up.
         const r = parseInatResponse(obsFixture);
         expect(r.ok).toBe(true);
         if (!r.ok) return;
-        // fixture has 6 results; exactly one has time_observed_at=null and is skipped
-        const skipped = obsFixture.results.filter((x: { time_observed_at: unknown }) => x.time_observed_at == null).length;
-        expect(skipped).toBe(1);
-        expect(r.observations).toHaveLength(obsFixture.results.length - 1);
-        expect(r.recordCount).toBe(obsFixture.results.length); // raw count includes the skipped record
+        expect(r.observations).toHaveLength(0);
+        expect(r.recordCount).toBe(obsFixture.results.length); // every skip still counted
         expect(r.totalResults).toBe(obsFixture.total_results);
         expect(typeof r.totalResults).toBe('number'); // real int, not a string (unlike Maplify's count)
+        expect(r.maxId).toBe(Math.max(...obsFixture.results.map((x: { id: number }) => x.id)));
+    });
+
+    test('the same fixture records inside the box parse normally', () => {
+        // Same six records, moved into the Salish Sea: the scope rule is the only
+        // thing keeping them out, so the null-time skip is all that remains.
+        const moved = {
+            ...obsFixture,
+            results: obsFixture.results.map((x: { geojson: { coordinates: number[] } }) => ({
+                ...x, geojson: { ...x.geojson, coordinates: [-123.5, 48.2] },
+            })),
+        };
+        const r = parseInatResponse(moved);
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        const undated = obsFixture.results.filter((x: { time_observed_at: unknown }) => x.time_observed_at == null).length;
+        expect(undated).toBe(1);
+        expect(r.observations).toHaveLength(obsFixture.results.length - 1);
     });
 
     test('normalizes coordinates as lon/lat, carries the ancestor chain', () => {

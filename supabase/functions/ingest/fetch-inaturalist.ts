@@ -35,7 +35,7 @@ import {
     markTransientUpstream,
 } from '../../../scripts/ingest/retry.ts';
 import {
-    SALISH_SEA_BBOX,
+    FETCH_BBOX,
     INAT_ROOT_TAXON_IDS,
     PER_PAGE,
     parseInatResponse,
@@ -181,10 +181,10 @@ function observationsUrl(window: IngestWindow, idAbove: number): string {
         d1: window.start,
         d2: window.end,
         licensed: 'true',
-        nelat: String(SALISH_SEA_BBOX.neLat),
-        nelng: String(SALISH_SEA_BBOX.neLng),
-        swlat: String(SALISH_SEA_BBOX.swLat),
-        swlng: String(SALISH_SEA_BBOX.swLng),
+        nelat: String(FETCH_BBOX.neLat),
+        nelng: String(FETCH_BBOX.neLng),
+        swlat: String(FETCH_BBOX.swLat),
+        swlng: String(FETCH_BBOX.swLng),
         taxon_id: INAT_ROOT_TAXON_IDS.join(','),
         geoprivacy: 'open',
         taxon_geoprivacy: 'open',

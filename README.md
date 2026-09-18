@@ -62,7 +62,7 @@ Before committing, try building with `pnpm build`.
 
 ## Data
 
-The fetch reaches [Acartia](https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia)'s boundaries — the full range of Southern Resident Killer Whales — but what we keep is narrower: killer whales from that whole range, everything else only from the Salish Sea and the Strait of Juan de Fuca ([decision 036](docs/decisions/036-ingest-scope-killer-whales-range-wide.md)). That rule is applied to Maplify today; iNaturalist still holds the wider box.
+The fetch reaches [Acartia](https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia)'s boundaries — the full range of Southern Resident Killer Whales — but what we keep is narrower: killer whales from that whole range, everything else only from the Salish Sea and the Strait of Juan de Fuca ([decision 036](docs/decisions/036-ingest-scope-killer-whales-range-wide.md)). That rule is applied to Maplify and iNaturalist alike ([decision 044](docs/decisions/044-inat-ingest-scope.md)); HappyWhale ingest is off.
 
 Geographic coordinates are decimal longitudes and latitudes with respect to WGS84. The projection is [EPSG:3857](https://spatialreference.org/ref/epsg/3857/) (Pseudo-Merctaor). Switching to [EPSG:32610](https://spatialreference.org/ref/epsg/32610/) (UTM 10N) might be nicer, but would require custom raster maps.
 
