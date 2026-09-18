@@ -41,7 +41,7 @@ That is the whole argument for classifying rather than silencing: the failures w
 
 ## Consequences
 
-- A transient failure is still fully recorded: the `ingest.runs` row with its `error` text, and the structured log line, now carrying `transient`. Nothing becomes unobservable; it stops paging.
+- A transient failure is still fully recorded: the `ingest.runs` row with its `error` text, and the structured log line, which now carries both `transient` (what the failure was) and `reported` (whether it reached Sentry). The two come apart on a manual run, which reports a transient failure anyway. Nothing becomes unobservable; it stops paging.
 - **The risk this accepts** is a defect misclassified as transient going quiet *on a cron tick*. It is bounded by the marker being applied only where the fetch layer already decided to retry, and by unmarked being the default — but a genuine upstream failure that is really our fault (say, a malformed request that earns a 500) will now pass unreported. The heartbeat remains the backstop if it persists.
 - Widening `isRetryableStatus` silently widens what goes unreported. `scripts/ingest/retry.test.ts` pins the two together so that cannot happen unnoticed.
 - The three issues held ignored-until-escalating pending this decision — `SALISHSEA-IO-2E` (Maplify timeout), `SALISHSEA-IO-3C` (connection refused), `SALISHSEA-IO-3J` (socket death under a query) — are all transient classes and should be resolved once this ships. `SALISHSEA-IO-3J`'s `write EBADF` is a postgres.js socket dying rather than an upstream fetch, so it is *not* covered by this change and stays reported.

@@ -29,7 +29,7 @@ import {
     fetchObservationWindowIds,
     type IngestWindow,
 } from '../../../scripts/ingest/persist.ts';
-import { shouldReportFailure } from '../../../scripts/ingest/retry.ts';
+import { isTransientUpstream, shouldReportFailure } from '../../../scripts/ingest/retry.ts';
 import { fetchMaplify } from './fetch-maplify.ts';
 import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
 
@@ -192,7 +192,13 @@ Deno.serve(async (req) => {
         // ingest.runs row below keeps every case on the record, and sustained
         // failure trips the heartbeat (decision 012).
         const report = shouldReportFailure(e, trigger);
-        log('ingest failed', { source, window, error: message, reported: report });
+        // Both fields, because they answer different questions: `transient` is
+        // what the failure WAS, `reported` is what we did about it. They come
+        // apart on a manual run, which reports a transient failure anyway.
+        log('ingest failed', {
+            source, window, error: message,
+            transient: isTransientUpstream(e), reported: report,
+        });
         if (report) {
             Sentry.withScope((scope) => {
                 scope.setTags({ source, trigger, dry_run: String(dryRun) });
