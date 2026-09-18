@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { InfraStack, cardRendererSource, stubAllowedFromContext } from '../lib/infra-stack';
+import { InfraStack, assertEdgeHandlerBuilt, cardRendererSource, stubAllowedFromContext } from '../lib/infra-stack';
 
 describe('stubAllowedFromContext', () => {
   it('accepts the string a CLI --context flag actually produces', () => {
@@ -54,6 +54,19 @@ describe('cardRendererSource', () => {
  * and the asset quietly carries the whole source tree. This is the only place
  * that would notice.
  */
+describe('assertEdgeHandlerBuilt', () => {
+  it('passes once tsc has emitted the handler', () => {
+    expect(() => assertEdgeHandlerBuilt(true)).not.toThrow();
+  });
+
+  it('refuses a synth that would ship an edge function with no handler', () => {
+    // Found while writing the asset test below: on an unbuilt tree the asset
+    // stages cleanly with only the generated config.js in it, and nothing —
+    // CDK, CloudFormation, CloudFront — objects until a viewer request arrives.
+    expect(() => assertEdgeHandlerBuilt(false)).toThrow(/pnpm run build/);
+  });
+});
+
 describe('the edge-handler asset carries only the runtime', () => {
   let files: string[];
   let bytes: number;
