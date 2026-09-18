@@ -13,6 +13,7 @@ import {
     retryDelayMs,
     parseRetryAfter,
     isRetryableStatus,
+    markTransientUpstream,
 } from '../../../scripts/ingest/retry.ts';
 import type { IngestWindow } from '../../../scripts/ingest/persist.ts';
 import { acartiaExtent } from '../../../src/extents.ts';
@@ -75,7 +76,10 @@ export async function fetchMaplify(window: IngestWindow, log: Logger): Promise<u
         } catch (e) {
             // fetch-level failure, abort (timeout), or a stalled/aborted body read
             clearTimeout(timeout);
-            lastError = e;
+            // Everything the fetch layer retries is transient by definition
+            // (decision 042): aborts, timeouts, refused connections, and the
+            // non-JSON-body throw above all land here.
+            lastError = markTransientUpstream(e);
             if (attempt === MAX_ATTEMPTS) break;
             const delay = retryDelayMs(attempt);
             log('maplify fetch error, retrying', { attempt, delayMs: delay, error: String(e) });
@@ -85,7 +89,8 @@ export async function fetchMaplify(window: IngestWindow, log: Logger): Promise<u
 
         // Non-2xx: res is defined and not ok.
         clearTimeout(timeout);
-        lastError = new Error(`Maplify HTTP ${res.status}`);
+        const httpError = new Error(`Maplify HTTP ${res.status}`);
+        lastError = isRetryableStatus(res.status) ? markTransientUpstream(httpError) : httpError;
         // drain the body so the connection can be reused/closed cleanly
         await res.body?.cancel();
         if (!isRetryableStatus(res.status) || attempt === MAX_ATTEMPTS) break;

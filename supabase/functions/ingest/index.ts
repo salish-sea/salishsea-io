@@ -29,6 +29,7 @@ import {
     fetchObservationWindowIds,
     type IngestWindow,
 } from '../../../scripts/ingest/persist.ts';
+import { isTransientUpstream, shouldReportFailure } from '../../../scripts/ingest/retry.ts';
 import { fetchMaplify } from './fetch-maplify.ts';
 import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
 
@@ -184,15 +185,30 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, runId, source, window, dryRun, ...outcome }, 200);
     } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        log('ingest failed', { source, window, error: message });
-        Sentry.withScope((scope) => {
-            scope.setTags({ source, trigger, dry_run: String(dryRun) });
-            scope.setContext('ingest_run', { runId, window, dryRun });
-            Sentry.captureException(e);
+        // A transient failure on a CRON tick is not reported (decision 042): the
+        // next tick five minutes from now re-covers the same rolling window, so
+        // the alert would describe a condition that has already healed. A manual
+        // run gets no such second pass, so it always reports. The `failed`
+        // ingest.runs row below keeps every case on the record, and sustained
+        // failure trips the heartbeat (decision 012).
+        const report = shouldReportFailure(e, trigger);
+        // Both fields, because they answer different questions: `transient` is
+        // what the failure WAS, `reported` is what we did about it. They come
+        // apart on a manual run, which reports a transient failure anyway.
+        log('ingest failed', {
+            source, window, error: message,
+            transient: isTransientUpstream(e), reported: report,
         });
-        // Flush before responding — the isolate may be frozen/killed right after
-        // the Response returns, losing any event still in the buffer.
-        await Sentry.flush(2000).catch(() => { /* fail-open: never mask ingest */ });
+        if (report) {
+            Sentry.withScope((scope) => {
+                scope.setTags({ source, trigger, dry_run: String(dryRun) });
+                scope.setContext('ingest_run', { runId, window, dryRun });
+                Sentry.captureException(e);
+            });
+            // Flush before responding — the isolate may be frozen/killed right after
+            // the Response returns, losing any event still in the buffer.
+            await Sentry.flush(2000).catch(() => { /* fail-open: never mask ingest */ });
+        }
         if (runId != null) {
             await sql`UPDATE ingest.runs SET finished_at = now(), outcome = 'failed', error = ${message} WHERE id = ${runId}`
                 .catch(() => { /* best-effort; do not mask the original error */ });

@@ -44,3 +44,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [038](038-nightly-backups-we-own.md) | A nightly database dump and incremental media mirror in a private versioned bucket; there was no backup before | accepted |
 | [039](039-feedback-goes-to-our-own-database.md) | Feedback posts to our own Supabase rather than Sentry, and the draft survives a failed send; a workflow files each report as an issue, message quoted, contact withheld | accepted |
 | [041](041-inaturalist-history-backfilled.md) | iNaturalist history is backfilled to the beginning, through our own ingest, within iNat's recommended practices (applies 011, 018) | accepted |
+| [042](042-transient-ingest-failures-are-not-reported.md) | A transient ingest failure is recorded in `ingest.runs`, not reported to Sentry | accepted |
