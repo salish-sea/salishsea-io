@@ -20,11 +20,11 @@ time_observed_at   : "1969-12-31T16:00:00-08:00"
 
 That string is `new Date(0).toString()` in Pacific time — a JavaScript date object that was never given a date, stringified and submitted. iNaturalist parsed it, believed it, and serves the observation research-grade and unflagged to this day. [008](008-source-schemas-are-upstream-mirrors.md) makes our source schemas mirrors of what the API returns, so `inaturalist.observations` held exactly one row at `1970-01-01T00:00:00Z` and `min(observed_at)` over the whole mirror was that row.
 
-The genuine earliest record is six years and a month later: observation 203014813, an elephant seal at Año Nuevo on 1976-02-01, entered by an observer in 2024 and dated by hand.
+The genuine earliest record is six years and a month later: observation 203014813, an elephant seal at Año Nuevo on 1976-02-01, entered by an observer in 2024 and dated by hand. *(That row is itself gone now. Año Nuevo is in California, and [044](044-inat-ingest-scope.md) purged it hours later along with everything else out of scope — an elephant seal 700 miles south is not a Salish Sea record however carefully it was dated. The mirror's floor is 1978-09-15, at Race Rocks. It does not change the argument here: an epoch-zero date is not a date whatever the second-oldest row happens to be.)*
 
 ## What it cost, and what it did not
 
-The damage is that the depth of the record could not be stated. After [041](041-inaturalist-history-backfilled.md) the honest sentence is "our iNaturalist mirror reaches 1976"; the artifact made it "1970" — six years too deep, and those six years are a client bug rather than anything anyone saw. Six years is not a large error in itself; what makes it worth fixing is that it is indistinguishable from a fact, so the number would have been quoted.
+The damage is that the depth of the record could not be stated. After [041](041-inaturalist-history-backfilled.md) the honest sentence was "our iNaturalist mirror reaches 1976"; the artifact made it "1970" — six years too deep, and those six years are a client bug rather than anything anyone saw. Six years is not a large error in itself; what makes it worth fixing is that it is indistinguishable from a fact, so the number would have been quoted.
 
 Two things the artifact did **not** reach, both checked rather than assumed:
 
@@ -51,7 +51,7 @@ If upstream ever produces a *different* serialization artifact — a zero rounde
 
 ## Consequences
 
-- The mirror's earliest observation is 1976-02-01, and that is a fact about the record rather than about a client bug.
+- The mirror's earliest observation becomes a fact about the record rather than about a client bug. It was 1976-02-01 when this was decided and is 1978-09-15 now, [044](044-inat-ingest-scope.md) having purged the Californian row above it; what this record fixes is that the number means something, not what the number is.
 - A re-run of the [041](041-inaturalist-history-backfilled.md) history walk no longer re-admits the row: the 1960s window now fetches it and drops it at parse, so the window is empty and reconciles to nothing. This closes the loop on the halt that walk hit — the record that stopped the first run on 2026-09-11 is the record this removes.
 - The skipped record still counts toward `recordCount` and still advances the keyset cursor, exactly as the null-date skip does. Completeness ([011](011-ingest-imperative-shell.md), [018](018-inat-id-keyset-pagination.md)) is untouched: `total_results` counts the record upstream, so the page arithmetic must too.
 - Nothing is lost that upstream does not still serve. The observation remains at its iNaturalist URL, and if the observer ever corrects the date it will be ingested on the next walk of whatever window it lands in.
