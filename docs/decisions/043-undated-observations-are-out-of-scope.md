@@ -20,7 +20,7 @@ time_observed_at   : "1969-12-31T16:00:00-08:00"
 
 That string is `new Date(0).toString()` in Pacific time — a JavaScript date object that was never given a date, stringified and submitted. iNaturalist parsed it, believed it, and serves the observation research-grade and unflagged to this day. [008](008-source-schemas-are-upstream-mirrors.md) makes our source schemas mirrors of what the API returns, so `inaturalist.observations` held exactly one row at `1970-01-01T00:00:00Z` and `min(observed_at)` over the whole mirror was that row.
 
-The genuine earliest record is six years and a month later: observation 203014813, an elephant seal at Año Nuevo on 1976-02-01, entered by an observer in 2024 and dated by hand.
+The genuine earliest record is six years and a month later: observation 203014813, an elephant seal at Año Nuevo on 1976-02-01, entered by an observer in 2024 and dated by hand. *(That row is itself gone now. Año Nuevo is in California, and [044](044-inat-ingest-scope.md) purged it hours later along with everything else out of scope — an elephant seal 700 miles south is not a Salish Sea record however carefully it was dated. The mirror's floor is 1978-09-15, at Race Rocks. It does not change the argument here: an epoch-zero date is not a date whatever the second-oldest row happens to be.)*
 
 ## What it cost, and what it did not
 
