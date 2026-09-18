@@ -30,7 +30,7 @@ Every rule is anchored to an issue we actually received. Counts are the 90 days 
 
 SALISHSEA-IO-3E is the worked example. Its frames are:
 
-```
+```text
 iabjs://navigation_performance_logger_android:1:18129
 iabjs://navigation_performance_logger_android:1:13577 (sendBeforeUnloadMessage)
 iabjs://navigation_performance_logger_android:1:10025 (sendDataToNative)
