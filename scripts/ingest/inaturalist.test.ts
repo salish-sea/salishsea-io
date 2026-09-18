@@ -21,6 +21,7 @@ import {
     referencedTaxonIds,
     referencedTaxonIdsFromTaxa,
     missingTaxonIds,
+    isEpochZeroObservedAt,
     isTerminalPage,
     isPaginationComplete,
     reconcile,
@@ -86,6 +87,25 @@ const taxon = (over: Partial<NormalizedTaxon> = {}): NormalizedTaxon => ({
     rank: 'species', ancestorIds: [1], isActive: true, currentTaxonId: null, ...over,
 });
 
+describe('isEpochZeroObservedAt', () => {
+    test('every time zone\'s rendering of the zero instant is the same artifact', () => {
+        expect(isEpochZeroObservedAt('1969-12-31T16:00:00-08:00')).toBe(true); // Pacific: reads 1969
+        expect(isEpochZeroObservedAt('1970-01-01T00:00:00+00:00')).toBe(true);
+        expect(isEpochZeroObservedAt('1970-01-01T09:00:00+09:00')).toBe(true); // Tokyo: reads 1970
+    });
+
+    test('a real date near the epoch is kept — the cut is equality, not a floor', () => {
+        expect(isEpochZeroObservedAt('1970-01-01T00:00:01+00:00')).toBe(false);
+        expect(isEpochZeroObservedAt('1969-12-31T23:59:59+00:00')).toBe(false);
+        expect(isEpochZeroObservedAt('1965-06-23T12:00:00-08:00')).toBe(false); // Namu, hypothetically
+        expect(isEpochZeroObservedAt('1976-02-01T00:00:00-08:00')).toBe(false); // the real earliest we hold
+    });
+
+    test('an unparseable string is not the artifact (NaN !== 0); the schema owns that', () => {
+        expect(isEpochZeroObservedAt('not a date')).toBe(false);
+    });
+});
+
 describe('parseInatResponse', () => {
     test('accepts the real fixture and skips the null-time record', () => {
         const r = parseInatResponse(obsFixture);
@@ -140,6 +160,23 @@ describe('parseInatResponse', () => {
     test('accepts an authoritative empty result set (total_results=0)', () => {
         const r = parseInatResponse({ total_results: 0, page: 1, per_page: 200, results: [] });
         expect(r).toMatchObject({ ok: true, observations: [], totalResults: 0, recordCount: 0, maxId: null });
+    });
+
+    test('skips the epoch-zero artifact: a missing date wearing a timestamp (salish-4bi)', () => {
+        // Observation 386594579 verbatim: observed_on_string is new Date(0).toString()
+        // in Pacific time, so time_observed_at is the epoch rendered at -08:00.
+        const r = parseInatResponse({
+            total_results: 2,
+            results: [
+                { ...rawObs, id: 386594579, time_observed_at: '1969-12-31T16:00:00-08:00' },
+                { ...rawObs, id: 203014813, time_observed_at: '1976-02-01T00:00:00-08:00' },
+            ],
+        });
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        expect(r.observations.map((o) => o.id)).toEqual([203014813]);
+        expect(r.recordCount).toBe(2); // counted, like the null-time skip: completeness must still add up
+        expect(r.maxId).toBe(386594579); // and the cursor still advances past it
     });
 
     test('reports the max raw id as the keyset cursor (incl. a skipped null-time record)', () => {
