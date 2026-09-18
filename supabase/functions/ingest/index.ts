@@ -29,7 +29,7 @@ import {
     fetchObservationWindowIds,
     type IngestWindow,
 } from '../../../scripts/ingest/persist.ts';
-import { isTransientUpstream } from '../../../scripts/ingest/retry.ts';
+import { shouldReportFailure } from '../../../scripts/ingest/retry.ts';
 import { fetchMaplify } from './fetch-maplify.ts';
 import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
 
@@ -185,15 +185,15 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, runId, source, window, dryRun, ...outcome }, 200);
     } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        const transient = isTransientUpstream(e);
-        log('ingest failed', { source, window, error: message, transient });
-        // A transient upstream failure is not reported (decision 042). The next
-        // tick five minutes from now re-covers the same window, so the alert
-        // would describe a condition that has already healed; the `failed`
-        // ingest.runs row below keeps it on the record, and a failure that
-        // PERSISTS stops being invisible when the heartbeat (decision 012)
-        // trips on thirty minutes without a successful run.
-        if (!transient) {
+        // A transient failure on a CRON tick is not reported (decision 042): the
+        // next tick five minutes from now re-covers the same rolling window, so
+        // the alert would describe a condition that has already healed. A manual
+        // run gets no such second pass, so it always reports. The `failed`
+        // ingest.runs row below keeps every case on the record, and sustained
+        // failure trips the heartbeat (decision 012).
+        const report = shouldReportFailure(e, trigger);
+        log('ingest failed', { source, window, error: message, reported: report });
+        if (report) {
             Sentry.withScope((scope) => {
                 scope.setTags({ source, trigger, dry_run: String(dryRun) });
                 scope.setContext('ingest_run', { runId, window, dryRun });

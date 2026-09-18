@@ -81,3 +81,17 @@ export function isTransientUpstream(error: unknown): boolean {
     return typeof error === 'object' && error !== null
         && (error as Record<PropertyKey, unknown>)[TRANSIENT_UPSTREAM] === true;
 }
+
+/**
+ * Whether a failed run should be reported to Sentry (decision 042).
+ *
+ * Suppression rests on one fact: the cron refires every five minutes over a
+ * ROLLING window, so a transient failure is re-covered by the next tick. That
+ * is not true of a manual run, which targets an explicit window — usually a
+ * historical one a backfill is walking — that no cron will ever revisit, while
+ * the cron's own successes keep the heartbeat green. So a manual run reports
+ * whatever it hits, and only cron ticks are allowed to go quiet.
+ */
+export function shouldReportFailure(error: unknown, trigger: 'cron' | 'manual'): boolean {
+    return trigger !== 'cron' || !isTransientUpstream(error);
+}

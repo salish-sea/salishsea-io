@@ -112,10 +112,11 @@ REFRESH MATERIALIZED VIEW CONCURRENTLY public.occurrence_identifier_candidates;
   the walk is [`scripts/backfill/inat-history.ts`](../../../scripts/backfill/inat-history.ts)).
   One iNaturalist row sits at epoch 0 from an upstream date artifact, so the
   earliest `observed_at` is not the earliest observation (`salish-4bi`).
-- **A failed run may not reach Sentry.** Retryable upstream failures — 5xx, 429,
-  timeouts, refused connections, a 200 with a non-JSON body — are recorded in
+- **A failed CRON run may not reach Sentry.** Retryable upstream failures — 5xx,
+  429, timeouts, refused connections, a 200 with a non-JSON body — are recorded in
   `ingest.runs` and deliberately not reported, because the next tick re-covers the
-  same window ([decision 042](../../../docs/decisions/042-transient-ingest-failures-are-not-reported.md)).
+  same rolling window. A **manual** run always reports, since nothing re-covers the
+  window you asked for ([decision 042](../../../docs/decisions/042-transient-ingest-failures-are-not-reported.md)).
   Everything else still alerts, and sustained failure trips the
   [heartbeat](../../../docs/decisions/012-ingest-heartbeat.md). To see what actually
   happened, read `ingest.runs`, not Sentry.

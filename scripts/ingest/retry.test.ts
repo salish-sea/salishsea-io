@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import {
     MAX_ATTEMPTS, parseRetryAfter, retryDelayMs, isRetryableStatus,
-    markTransientUpstream, isTransientUpstream,
+    markTransientUpstream, isTransientUpstream, shouldReportFailure,
 } from './retry.ts';
 
 describe('parseRetryAfter', () => {
@@ -95,5 +95,28 @@ describe('transient-upstream marking (decision 042)', () => {
         for (const status of [400, 401, 403, 404, 422]) {
             expect(isRetryableStatus(status)).toBe(false);
         }
+    });
+});
+
+describe('shouldReportFailure (decision 042)', () => {
+    const transient = () => markTransientUpstream(new Error('Maplify HTTP 503'));
+    const defect = () => new Error('iNaturalist observations parse failed');
+
+    test('a cron tick stays quiet on a transient failure — the next tick re-covers it', () => {
+        expect(shouldReportFailure(transient(), 'cron')).toBe(false);
+    });
+
+    test('a cron tick still reports a defect', () => {
+        expect(shouldReportFailure(defect(), 'cron')).toBe(true);
+    });
+
+    test('a MANUAL run reports even a transient failure', () => {
+        // The suppression argument is "the next tick re-covers the window". A
+        // manual run targets an explicit, usually historical window that no cron
+        // will revisit, and the cron's own successes keep the heartbeat green —
+        // so staying quiet here would lose a failed backfill entirely. This is
+        // the shape of the 2018-01 Maplify HTTP 520 hit during decision 041's walk.
+        expect(shouldReportFailure(transient(), 'manual')).toBe(true);
+        expect(shouldReportFailure(defect(), 'manual')).toBe(true);
     });
 });

@@ -4,7 +4,9 @@
 
 ## Decision
 
-A failed ingest run that the fetch layer classified as **retryable** writes its `failed` row to `ingest.runs` and is not sent to Sentry. Every other failure reports exactly as before.
+A failed **cron** run that the fetch layer classified as **retryable** writes its `failed` row to `ingest.runs` and is not sent to Sentry. Every other failure — any defect, and *anything at all* from a manual run — reports exactly as before.
+
+The manual exception is not a hedge. The entire case for suppression is that the cron refires every five minutes over a *rolling* window, so the next tick re-covers the same ground. A manual run targets an explicit window, usually a historical one a backfill is walking, that no cron will ever revisit; meanwhile the cron's own successes keep the heartbeat green. Suppressing there would lose a failed backfill in silence — the shape of the Maplify `HTTP 520` hit at 2018-01 during [041](041-inaturalist-history-backfilled.md)'s walk. The predicate is [`shouldReportFailure`](../../scripts/ingest/retry.ts), and `trigger` defaults to `manual`, so the reporting case is the default.
 
 Transient is not a second opinion about an error. It means precisely *what the retry policy already retries* — `isRetryableStatus` (429 and 5xx), plus anything thrown at the fetch level: an abort, a timeout, a refused connection, a 200 carrying a non-JSON body. One classifier serves both policies, in [`scripts/ingest/retry.ts`](../../scripts/ingest/retry.ts), so the two cannot drift apart. Unmarked is the default, and an unmarked failure alerts.
 
@@ -40,6 +42,6 @@ That is the whole argument for classifying rather than silencing: the failures w
 ## Consequences
 
 - A transient failure is still fully recorded: the `ingest.runs` row with its `error` text, and the structured log line, now carrying `transient`. Nothing becomes unobservable; it stops paging.
-- **The risk this accepts** is a defect misclassified as transient going quiet. It is bounded by the marker being applied only where the fetch layer already decided to retry, and by unmarked being the default — but a genuine upstream failure that is really our fault (say, a malformed request that earns a 500) will now pass unreported. The heartbeat remains the backstop if it persists.
+- **The risk this accepts** is a defect misclassified as transient going quiet *on a cron tick*. It is bounded by the marker being applied only where the fetch layer already decided to retry, and by unmarked being the default — but a genuine upstream failure that is really our fault (say, a malformed request that earns a 500) will now pass unreported. The heartbeat remains the backstop if it persists.
 - Widening `isRetryableStatus` silently widens what goes unreported. `scripts/ingest/retry.test.ts` pins the two together so that cannot happen unnoticed.
 - The three issues held ignored-until-escalating pending this decision — `SALISHSEA-IO-2E` (Maplify timeout), `SALISHSEA-IO-3C` (connection refused), `SALISHSEA-IO-3J` (socket death under a query) — are all transient classes and should be resolved once this ships. `SALISHSEA-IO-3J`'s `write EBADF` is a postgres.js socket dying rather than an upstream fetch, so it is *not* covered by this change and stays reported.
