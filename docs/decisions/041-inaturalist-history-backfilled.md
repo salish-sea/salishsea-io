@@ -1,6 +1,6 @@
 # 041 — iNaturalist history is backfilled to the beginning, through our own ingest, within iNat's recommended practices
 
-**Status:** accepted; the walk itself waits on the reconcile fix (`salish-34s`), see "What the first run found" · **Decided:** 2026-09-11 · **Applies:** [011](011-ingest-imperative-shell.md), [018](018-inat-id-keyset-pagination.md) · **Context:** the mirror began at 2025-01-01, which is why every haul-out page ([040](040-haul-out-sites-list-first.md)) and presence grid has twenty months of history when the source has twenty years.
+**Status:** accepted; both walks ran on 2026-09-18, see "What the walks landed" · **Decided:** 2026-09-11 · **Applies:** [011](011-ingest-imperative-shell.md), [018](018-inat-id-keyset-pagination.md) · **Context:** the mirror began at 2025-01-01, which is why every haul-out page ([040](040-haul-out-sites-list-first.md)) and presence grid has twenty months of history when the source has twenty years.
 
 ## Decision
 
@@ -38,7 +38,7 @@ About 62,000 observations in all, at 200 a page: roughly 350 requests, paced to 
 
 ## What the first run found
 
-The first walk (2026-09-11, runs 38701 to 38708) stopped itself at the 1970s window because that window deleted a row, and the script treats any deletion in a historical window as a fault. The row was observation 386594579, made at 4 pm Pacific on 1969-12-31: iNat dates it 1969-12-31, so the 1960s window fetched it and the 1970s window did not, but its UTC instant is 00:00 on 1970-01-01, inside the 1970s window's delete bound. The reconcile compared a UTC instant against a local-date fetch.
+The first walk (2026-09-11, runs 38701 to 38708) stopped itself at the 1970s window because that window deleted a row, and the script treats any deletion in a historical window as a fault. The row was observation 386594579, which iNat dates 1969-12-31 at 4 pm Pacific — an epoch-zero artifact rather than a real 1969 sighting, as "What the walks landed" sets out, though that makes no difference to the mechanism. The 1960s window fetched it and the 1970s window did not, but its UTC instant is 00:00 on 1970-01-01, inside the 1970s window's delete bound. The reconcile compared a UTC instant against a local-date fetch.
 
 That is not a backfill quirk. The same bound in the daily cron had been deleting every evening's observations eleven days after they were made, since the edge-function cutover on 2026-06-26: production's first eight UTC hours of every day older than the rolling window held zero rows, against five to twenty-four for days inside it or before the cutover. About ten rows a day, some 800 in all, plus four to nine at each month boundary of the July manual backfill. The fix (`salish-34s`) reconciles only a window's interior, `[start + 1 day, end)` in UTC, which no time zone can straddle; the rolling window's next tick covers the edge days it leaves.
 
@@ -52,8 +52,20 @@ Both halts are the same mechanism working as designed. The parse is deliberately
 
 Maplify's mirror begins on 2022-01-01 because the manual runs of 2026-07-06 began there; nothing recorded why. Its API returns sightings from 2014 (probed 2026-09-11 with whole-year windows: 461 in 2014, about 600 a year by 2018, about 1,400 a year in 2020 and 2021, nothing earlier; a single-year request may be capped, so these are lower bounds). The same driver walks it with `--source maplify` in monthly windows (`salish-9y6`). Two things differ from iNaturalist: Maplify publishes no rate limit, so one request a second is a courtesy rather than a rule; and its reconcile compares the same UTC `created_at` its API filters on, so the straddle above never applied to it. [036](036-ingest-scope-killer-whales-range-wide.md)'s scope rule applies at ingest, so historical rows land already filtered.
 
+## What the walks landed
+
+Both ran on 2026-09-18, after the reconcile fix and the null-dimensions fix deployed.
+
+**iNaturalist** (`salish-5e0`, runs 42746 to 42835, about 425 requests): the decade/year/quarter/month plan above, 1900 to 2024-12-31, meeting the existing mirror at 2025-01-01. About 57,300 rows upserted and **no window deleted anything**. `inaturalist.observations` began at 2025-01-01 and now reaches 1976 — an elephant seal at Año Nuevo, entered by an observer in 2024 and dated by hand. The measured volumes tracked the preflight closely: 11,849 results across 2018 to 2020 against a predicted 11,845.
+
+One row sits earlier, and it is not a 1969 observation. Observation 386594579 carries `observed_on_string` of `Wed Dec 31 1969 16:00:00 GMT -0800 (PST)`, which is `new Date(0)` printed in Pacific time: the observer uploaded an elephant seal at Pescadero in July 2026 and the date arrived as epoch zero. iNaturalist stores it as observed, we mirror what iNaturalist stores ([008](008-source-schemas-are-upstream-mirrors.md)), so the mirror's minimum `observed_at` is exactly epoch 0 and means nothing. Anything that reports the depth of the record — a presence grid, an "earliest sighting", the DwC-A's `eventDate` range — has to reckon with upstream dates that are artifacts rather than observations (`salish-4bi`).
+
+**Maplify** (`salish-9y6`, runs 42836 to 42935, about 192 requests): 2014-01-01 to 2021-12-31 monthly, meeting the 2022-01-01 floor, 1,280 rows upserted and again no deletions. One window (2018-01) returned HTTP 520 and succeeded on retry; the driver stops at the first failure, so a transient upstream error costs a restart at that window and nothing else.
+
+Maplify's backfill is small next to iNaturalist's, and the reason is [036](036-ingest-scope-killer-whales-range-wide.md)'s scope rule applied at ingest — but the share it keeps climbs steeply with time: 13 rows kept of about 461 the API reports for 2014, 285 of about 1,360 for 2020, 734 of about 1,383 for 2021. So the early Maplify record is overwhelmingly out of scope, and the depth this adds to the aggregator's history is thinner than the row counts alone suggest. Why the kept share moves that much is not established here.
+
 ## Consequences
 
 - The fetch box is still the Acartia extent, California to northern BC ([036](036-ingest-scope-killer-whales-range-wide.md)), so the backfill triples the Californian rows along with the Salish Sea ones: about 42,000 of the 62,000 lie outside the Salish Sea box. `salish-a4y.4` is the open decision on whether iNaturalist follows Maplify's scope rule; if it lands as a purge, the purge is one statement and this record does not change.
-- The haul-out pages' presence grid, pinned to 2025 (`MIRROR_SINCE_YEAR` in `src/haulout-page.ts`), should be re-pinned or derived once the backfill has landed.
+- The haul-out pages do not exist yet — decision 040 is still on the unmerged `haulout-pages` branch, which is why the link to it above is dead — so there is no `MIRROR_SINCE_YEAR` to re-pin. When they are built, the presence grid should derive its span from the data rather than assume 2025. Noted on `salish-4pr`.
 - A window's `ingest.runs` row carries `trigger = 'manual'`, so the heartbeat and the deploy gate are unaffected, and the backfill is auditable run by run.
