@@ -96,7 +96,10 @@ const InatPhotoSchema = z.object({
     attribution: z.string(),
     hidden: z.boolean(),
     license_code: licenseSchema,
-    original_dimensions: z.object({ height: z.number().int(), width: z.number().int() }),
+    // iNaturalist returns null dimensions for some early photos (first seen on a
+    // 2013 observation during the history backfill, decision 041). The columns
+    // have always been nullable; only this schema insisted otherwise.
+    original_dimensions: z.object({ height: z.number().int().nullable(), width: z.number().int().nullable() }),
     url: z.string(),
 });
 
@@ -184,8 +187,8 @@ export type NormalizedPhoto = {
     readonly attribution: string;
     readonly hidden: boolean;
     readonly license: (typeof LICENSE_CODES)[number] | null;
-    readonly height: number;
-    readonly width: number;
+    readonly height: number | null;
+    readonly width: number | null;
     readonly url: string;
 };
 

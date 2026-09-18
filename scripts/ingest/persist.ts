@@ -295,7 +295,7 @@ type ObservationPayloadRow = {
 
 type PhotoPayloadRow = {
     id: number; observation_id: number; seq: number; attribution: string;
-    hidden: boolean; license: string | null; height: number; width: number; url: string;
+    hidden: boolean; license: string | null; height: number | null; width: number | null; url: string;
 };
 
 function toTaxonPayload(taxa: readonly NormalizedTaxon[]): TaxonPayloadRow[] {
