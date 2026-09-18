@@ -44,6 +44,10 @@ That is not a backfill quirk. The same bound in the daily cron had been deleting
 
 The order of operations therefore became: merge and deploy the fix, re-run windows from mid-June 2026 to today so the deleted evening rows come back (a pure upsert restores them), then walk the history. Until the fix is deployed the cron keeps deleting about ten rows a day, all of them recoverable the same way.
 
+The second walk (2026-09-18, after the reconcile fix shipped) cleared the pre-2010 decades and 2010 to 2012, then stopped in 2013: a photo on one observation carries `original_dimensions` with a null height and width, and the parse required numbers. The columns have been nullable since the initial schema and the composite cast stores the pair as `(,)`; only the parse and its payload type disagreed. Both now accept null.
+
+Both halts are the same mechanism working as designed. The parse is deliberately strict because a silently dropped record becomes a reconcile delete-candidate ([008](008-source-schemas-are-upstream-mirrors.md)), so an unmodelled shape fails the whole window rather than losing a row — and twenty years of history exercises shapes that twenty months never did. Expect the walk to stop again on another such shape; that is the guard earning its keep, not a regression.
+
 ## Maplify too
 
 Maplify's mirror begins on 2022-01-01 because the manual runs of 2026-07-06 began there; nothing recorded why. Its API returns sightings from 2014 (probed 2026-09-11 with whole-year windows: 461 in 2014, about 600 a year by 2018, about 1,400 a year in 2020 and 2021, nothing earlier; a single-year request may be capped, so these are lower bounds). The same driver walks it with `--source maplify` in monthly windows (`salish-9y6`). Two things differ from iNaturalist: Maplify publishes no rate limit, so one request a second is a courtesy rather than a rule; and its reconcile compares the same UTC `created_at` its API filters on, so the straddle above never applied to it. [036](036-ingest-scope-killer-whales-range-wide.md)'s scope rule applies at ingest, so historical rows land already filtered.
