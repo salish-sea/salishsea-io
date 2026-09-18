@@ -20,11 +20,11 @@ time_observed_at   : "1969-12-31T16:00:00-08:00"
 
 That string is `new Date(0).toString()` in Pacific time — a JavaScript date object that was never given a date, stringified and submitted. iNaturalist parsed it, believed it, and serves the observation research-grade and unflagged to this day. [008](008-source-schemas-are-upstream-mirrors.md) makes our source schemas mirrors of what the API returns, so `inaturalist.observations` held exactly one row at `1970-01-01T00:00:00Z` and `min(observed_at)` over the whole mirror was that row.
 
-The genuine earliest record is fifty-three years later: observation 203014813, an elephant seal at Año Nuevo on 1976-02-01, entered by an observer in 2024 and dated by hand.
+The genuine earliest record is six years and a month later: observation 203014813, an elephant seal at Año Nuevo on 1976-02-01, entered by an observer in 2024 and dated by hand.
 
 ## What it cost, and what it did not
 
-The damage is that the depth of the record could not be stated. After [041](041-inaturalist-history-backfilled.md) the honest sentence is "our iNaturalist mirror reaches 1976"; the artifact made it "1970", off by the entire pre-history of the corpus and wrong in a way that looks like a fact rather than a bug.
+The damage is that the depth of the record could not be stated. After [041](041-inaturalist-history-backfilled.md) the honest sentence is "our iNaturalist mirror reaches 1976"; the artifact made it "1970" — six years too deep, and those six years are a client bug rather than anything anyone saw. Six years is not a large error in itself; what makes it worth fixing is that it is indistinguishable from a fact, so the number would have been quoted.
 
 Two things the artifact did **not** reach, both checked rather than assumed:
 
@@ -59,7 +59,7 @@ If upstream ever produces a *different* serialization artifact — a zero rounde
 
 ## Rejected
 
-- **Leave it.** One row, no visible symptom today. But the number it corrupts is the one a reader would quote — how deep the record goes — and it is wrong by fifty-three years while looking authoritative.
+- **Leave it.** One row, no visible symptom today, and the number is only six years out. But it is the one number a reader would quote — how deep the record goes — and it looks authoritative while being an artifact of somebody's browser.
 - **Filter on read, in `public.occurrences`.** Hides the row from the map and leaves `min(observed_at)` over the mirror at 1970, which is the complaint. Adds a fourth level to a view that is already three deep, and misses every consumer of the mirror that is not that view. This is the alternative [036](036-ingest-scope-killer-whales-range-wide.md) rejected, for the same reasons.
 - **Flag it rather than drop it** — a nullable `date_quality` column, or a boolean on the mirror. It puts a judgment of ours into a table whose contract is that it holds upstream's, which is the leak 008 forbids in the other direction; and every reader would then have to remember to honour the flag, which is how the artifact would go on being read.
 - **A plausibility floor.** See above.
