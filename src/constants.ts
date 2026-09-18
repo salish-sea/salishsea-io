@@ -22,8 +22,27 @@ export function observationToday(): Temporal.PlainDate {
 
 /**
  * The oldest day the date controls will navigate to — inherited from the `min`
- * on the date input the calendar replaced. Nothing in the corpus predates it by
- * much (earliest occurrence: 2012).
+ * on the date input the calendar replaced.
+ *
+ * It is NOT the corpus floor and never was. Decision 041's backfill took the
+ * record back into the 1970s, so more than two decades now sit below this bound
+ * — and they are close to empty. Measured on prod 2026-09-18, after decision
+ * 044's scope purge: 5 occurrences across the 1980s, 19 across the 1990s, 38 in
+ * 2000-2004, then 238, 705, 5,512 and 58,115 through 2026. **24 records** below
+ * the bound, against 64,632 in all.
+ *
+ * Dropping the bound to meet them would add some 250 months of all-but-empty
+ * grid to page through, and a month-at-a-time control is the wrong instrument
+ * for a corpus that thin. They are not lost either: `parseUrlParams` does not
+ * clamp, so a hand-edited `?d=` renders them. Unreachable through the controls,
+ * not unreachable.
+ *
+ * Deliberately no earliest DATE here, and no animal. This comment has named one
+ * twice and been wrong twice within a day — 2012 until decision 041 backfilled,
+ * then 1976-02-01 until decision 044 purged that row for being Californian. The
+ * shape of the distribution is what justifies the bound, and the shape is
+ * stable; the floor row is not. Revisit if the early record ever fills in
+ * (`salish-mkz`).
  *
  * Every control that moves the day shares this bound and {@link observationToday}
  * as its other end. Miss one and it walks the selection outside the range the

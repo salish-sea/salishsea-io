@@ -9,6 +9,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchMaplify } from './fetch-maplify.ts';
+import { isTransientUpstream } from '../../../scripts/ingest/retry.ts';
 import type { IngestWindow } from '../../../scripts/ingest/persist.ts';
 
 const WINDOW: IngestWindow = { start: '2026-06-29', end: '2026-07-09' };
@@ -56,5 +57,60 @@ describe('fetchMaplify parses JSON and diagnoses non-JSON 200s', () => {
         await expect(fetchMaplify(WINDOW, noopLog)).rejects.toThrow(
             /non-JSON 200 body \(0 chars\): \(empty body\)/,
         );
+    });
+});
+
+/** Stub global fetch to answer every attempt with one non-2xx status. */
+function stubStatus(status: number) {
+    let calls = 0;
+    vi.stubGlobal('fetch', () => {
+        calls++;
+        return Promise.resolve({
+            ok: false,
+            status,
+            body: { cancel: () => Promise.resolve() },
+            headers: { get: () => null },
+        });
+    });
+    return () => calls;
+}
+
+/**
+ * Which failures reach Sentry (decision 042). The marker is invisible in the
+ * message, so nothing else in these tests would catch it being dropped.
+ */
+describe('fetchMaplify marks transient upstream failures', () => {
+    // Fake timers so the retry backoff costs no wall-clock; without this the
+    // three retrying cases add ~9s to the suite.
+    const settle = async <T,>(promise: Promise<T>) => {
+        vi.useFakeTimers();
+        try {
+            const caught = promise.catch((e: unknown) => e);
+            await vi.runAllTimersAsync();
+            return await caught;
+        } finally {
+            vi.useRealTimers();
+        }
+    };
+
+    it('marks a 503, which the next tick re-covers', async () => {
+        stubStatus(503);
+        expect(isTransientUpstream(await settle(fetchMaplify(WINDOW, noopLog)))).toBe(true);
+    });
+
+    it('does NOT mark a 403 — a non-retryable status is a defect that must alert', async () => {
+        const calls = stubStatus(403);
+        expect(isTransientUpstream(await settle(fetchMaplify(WINDOW, noopLog)))).toBe(false);
+        expect(calls()).toBe(1); // broke out immediately rather than retrying
+    });
+
+    it('marks a network-level failure (no response at all)', async () => {
+        vi.stubGlobal('fetch', () => Promise.reject(new Error('connection refused')));
+        expect(isTransientUpstream(await settle(fetchMaplify(WINDOW, noopLog)))).toBe(true);
+    });
+
+    it('marks a non-JSON 200, which is Maplify failing server-side', async () => {
+        stubFetch(['<html>PHP fatal</html>', '<html>PHP fatal</html>', '<html>PHP fatal</html>']);
+        expect(isTransientUpstream(await settle(fetchMaplify(WINDOW, noopLog)))).toBe(true);
     });
 });

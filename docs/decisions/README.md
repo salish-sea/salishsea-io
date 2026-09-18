@@ -39,8 +39,12 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [033](033-register-names-the-animals.md) | The register names the animals, we compose the display (applies 008, extends 029) | accepted |
 | [034](034-profile-urls-key-on-the-register-identifier.md) | A profile URL keys on the register identifier; the designation is a slug (amends 015, 016, 017) | accepted; implemented for individuals and ecotypes 2026-09-11, matrilines pending `salish-ox2.6` |
 | [035](035-catalogue-migrates-before-tagging.md) | The catalogue migrates before the first OrcaSound bout is tagged (answers ADR-0012's open question) | accepted |
-| [036](036-ingest-scope-killer-whales-range-wide.md) | Ingest scope: killer whales range-wide, everything else the Salish Sea; enforced in `isIngestable`, existing rows purged | accepted |
+| [036](036-ingest-scope-killer-whales-range-wide.md) | Ingest scope: killer whales range-wide, everything else the Salish Sea; enforced in `isIngestable`, existing rows purged | accepted; extended to iNaturalist by 044 |
 | [037](037-sentry-transmits-from-production-only.md) | Sentry transmits from production only; one `initSentry()` gates the scope binding, not `init()` | accepted |
 | [038](038-nightly-backups-we-own.md) | A nightly database dump and incremental media mirror in a private versioned bucket; there was no backup before | accepted |
 | [039](039-feedback-goes-to-our-own-database.md) | Feedback posts to our own Supabase rather than Sentry, and the draft survives a failed send; a workflow files each report as an issue, message quoted, contact withheld | accepted |
 | [040](040-haul-out-sites-list-first.md) | Haul-out sites are a list we hold, not clusters we compute; each gets a page (extends 027) | accepted |
+| [041](041-inaturalist-history-backfilled.md) | iNaturalist history is backfilled to the beginning, through our own ingest, within iNat's recommended practices (applies 011, 018) | accepted |
+| [042](042-transient-ingest-failures-are-not-reported.md) | A transient ingest failure is recorded in `ingest.runs`, not reported to Sentry | accepted |
+| [043](043-undated-observations-are-out-of-scope.md) | An undated iNaturalist observation is out of scope, however the absence is spelled; epoch-zero dropped at ingest, the one row held purged (applies 008, 036) | accepted |
+| [044](044-inat-ingest-scope.md) | iNaturalist gets the same ingest scope rule as Maplify: killer whales range-wide, everything else the Salish Sea; 51,637 rows purged (extends 036, answers `salish-a4y.4`) | accepted |

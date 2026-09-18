@@ -14,6 +14,7 @@ import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturali
 import type { IngestWindow } from '../../../scripts/ingest/persist.ts';
 import type { Sql } from 'postgres';
 import type { NormalizedObservation } from '../../../scripts/ingest/inaturalist.ts';
+import { isTransientUpstream } from '../../../scripts/ingest/retry.ts';
 
 const WINDOW: IngestWindow = { start: '2026-06-29', end: '2026-07-09' };
 const noopLog = () => {};
@@ -249,5 +250,57 @@ describe('resolveTaxonClosure over a retired taxon', () => {
 
         expect(taxa.map((t) => t.id)).toEqual([10]);
         expect(urls).toHaveLength(1);
+    });
+});
+
+/**
+ * Which failures reach Sentry (decision 042). SALISHSEA-IO-3K was 18 of these
+ * 503s in 85 minutes, one per cron tick, for an outage that healed itself.
+ */
+describe('fetchAllObservationPages marks transient upstream failures', () => {
+    const settle = async <T,>(promise: Promise<T>) => {
+        vi.useFakeTimers();
+        try {
+            const caught = promise.catch((e: unknown) => e);
+            await vi.runAllTimersAsync();
+            return await caught;
+        } finally {
+            vi.useRealTimers();
+        }
+    };
+
+    function stubStatus(status: number) {
+        let calls = 0;
+        vi.stubGlobal('fetch', () => {
+            calls++;
+            return Promise.resolve({
+                ok: false,
+                status,
+                body: { cancel: () => Promise.resolve() },
+                headers: { get: () => null },
+            });
+        });
+        return () => calls;
+    }
+
+    it('marks a 503 — the SALISHSEA-IO-3K case, which must not alert', async () => {
+        stubStatus(503);
+        const error = await settle(fetchAllObservationPages(WINDOW, noopLog));
+        expect(String(error)).toContain('HTTP 503');
+        expect(isTransientUpstream(error)).toBe(true);
+    });
+
+    it('does NOT mark a 403 — auth or a blocked client is a defect that must alert', async () => {
+        const calls = stubStatus(403);
+        expect(isTransientUpstream(await settle(fetchAllObservationPages(WINDOW, noopLog)))).toBe(false);
+        expect(calls()).toBe(1);
+    });
+
+    it('does NOT mark a parse failure — the null-dimensions class that halted the backfill', async () => {
+        // A 200 with well-formed JSON that violates the schema: nothing retried
+        // it, so nothing marked it, so it alerts.
+        stubFetch([{ total_results: 1, results: [{ id: 'not-a-number' }] }]);
+        const error = await settle(fetchAllObservationPages(WINDOW, noopLog));
+        expect(isTransientUpstream(error)).toBe(false);
     });
 });
