@@ -313,15 +313,43 @@ export type InatParseResult =
     | { readonly ok: false; readonly error: string };
 
 /**
+ * Whether an upstream `time_observed_at` is the Unix epoch to the second.
+ *
+ * An observation dated to exactly 1970-01-01T00:00:00Z is not an observation
+ * made at that instant; it is a missing date that a client stringified before
+ * sending. iNaturalist keeps the observer's own words in `observed_on_string`,
+ * and for the one record we hold that is `'Wed Dec 31 1969 16:00:00 GMT -0800
+ * (PST)'` — `new Date(0).toString()` in Pacific time, submitted with a July 2026
+ * photograph of an elephant seal at Pescadero. iNat believes the date and serves
+ * it as observed (research grade, unflagged), so the artifact arrives as a value
+ * rather than as the `null` the skip below already handles.
+ *
+ * Testing the INSTANT rather than the rendered local date catches every time
+ * zone's rendering of the same zero: west of Greenwich it reads 1969-12-31, east
+ * of it 1970-01-01, and both parse to 0.
+ *
+ * The cut is equality, deliberately, and not a plausibility floor. A floor would
+ * have to guess where real history stops, and it would silently drop a genuine
+ * scanned photograph of Namu or Moby Doll — the 1960s captures are exactly the
+ * pre-epoch records someone might one day upload. Equality can only ever drop a
+ * record dated to the one second that is indistinguishable from the artifact.
+ */
+export function isEpochZeroObservedAt(observedAt: string): boolean {
+    return Date.parse(observedAt) === 0;
+}
+
+/**
  * Validate and normalize ONE page of an iNat `/observations` response.
  *
  * Returns ok:false if the envelope or ANY record is malformed — the shell then
  * treats the fetch as not-complete and aborts (writes nothing), never reconciling
  * against a partially-trusted response (decision 011).
  *
- * Records with `time_observed_at === null` are SKIPPED (not persisted, out of
- * scope) but still count toward `recordCount`, because `total_results` counts
- * them too — the completeness sum must reconcile against the raw page size.
+ * Records with no date are SKIPPED (not persisted, out of scope) but still count
+ * toward `recordCount`, because `total_results` counts them too — the
+ * completeness sum must reconcile against the raw page size. "No date" means
+ * `time_observed_at === null` OR the epoch-zero artifact above: one rule, two
+ * spellings of the same absence (decision 043).
  */
 export function parseInatResponse(raw: unknown): InatParseResult {
     const parsed = InatResponseSchema.safeParse(raw);
@@ -332,6 +360,7 @@ export function parseInatResponse(raw: unknown): InatParseResult {
     for (const r of parsed.data.results) {
         const observedAt = r.time_observed_at;
         if (observedAt == null) continue; // out of scope; skip (mirrors live SQL)
+        if (isEpochZeroObservedAt(observedAt)) continue; // a missing date wearing a timestamp
         observations.push(normalizeObservation(r, observedAt));
     }
     const maxId = parsed.data.results.reduce<number | null>(
