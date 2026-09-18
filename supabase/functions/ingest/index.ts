@@ -29,6 +29,7 @@ import {
     fetchObservationWindowIds,
     type IngestWindow,
 } from '../../../scripts/ingest/persist.ts';
+import { isTransientUpstream } from '../../../scripts/ingest/retry.ts';
 import { fetchMaplify } from './fetch-maplify.ts';
 import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
 
@@ -184,15 +185,24 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, runId, source, window, dryRun, ...outcome }, 200);
     } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        log('ingest failed', { source, window, error: message });
-        Sentry.withScope((scope) => {
-            scope.setTags({ source, trigger, dry_run: String(dryRun) });
-            scope.setContext('ingest_run', { runId, window, dryRun });
-            Sentry.captureException(e);
-        });
-        // Flush before responding — the isolate may be frozen/killed right after
-        // the Response returns, losing any event still in the buffer.
-        await Sentry.flush(2000).catch(() => { /* fail-open: never mask ingest */ });
+        const transient = isTransientUpstream(e);
+        log('ingest failed', { source, window, error: message, transient });
+        // A transient upstream failure is not reported (decision 042). The next
+        // tick five minutes from now re-covers the same window, so the alert
+        // would describe a condition that has already healed; the `failed`
+        // ingest.runs row below keeps it on the record, and a failure that
+        // PERSISTS stops being invisible when the heartbeat (decision 012)
+        // trips on thirty minutes without a successful run.
+        if (!transient) {
+            Sentry.withScope((scope) => {
+                scope.setTags({ source, trigger, dry_run: String(dryRun) });
+                scope.setContext('ingest_run', { runId, window, dryRun });
+                Sentry.captureException(e);
+            });
+            // Flush before responding — the isolate may be frozen/killed right after
+            // the Response returns, losing any event still in the buffer.
+            await Sentry.flush(2000).catch(() => { /* fail-open: never mask ingest */ });
+        }
         if (runId != null) {
             await sql`UPDATE ingest.runs SET finished_at = now(), outcome = 'failed', error = ${message} WHERE id = ${runId}`
                 .catch(() => { /* best-effort; do not mask the original error */ });

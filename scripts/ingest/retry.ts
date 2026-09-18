@@ -44,3 +44,40 @@ export function retryDelayMs(failedAttempt: number, retryAfterSeconds?: number |
 export function isRetryableStatus(status: number): boolean {
     return status === 429 || (status >= 500 && status <= 599);
 }
+
+/**
+ * Transient-failure marker (decision 042).
+ *
+ * A failure the next cron tick is expected to fix on its own — an upstream 5xx,
+ * a timeout, a refused connection. The ingest shell writes a `failed`
+ * ingest.runs row for these as for any other, but does not report them to
+ * Sentry: a five-minute cadence over a rolling ten-day window re-covers the
+ * same ground, so one bad tick is self-healing and nobody acts on the alert.
+ *
+ * The definition is deliberately not a second opinion. Transient means exactly
+ * "what the fetch layer already chose to retry", so there is one classifier
+ * serving both the retry policy and the alerting policy and no way for the two
+ * to drift apart. A failure nothing chose to retry — a parse failure, a broken
+ * completeness invariant, a 4xx — stays unmarked and reaches Sentry, which is
+ * the case the heartbeat (decision 012) structurally cannot see because it
+ * only fires when no *successful* run is recent.
+ *
+ * Marked with a globally-registered symbol rather than a subclass so the check
+ * survives the module being bundled more than once (the edge function and the
+ * scripts load this file through different paths).
+ */
+const TRANSIENT_UPSTREAM = Symbol.for('salishsea.ingest.transientUpstream');
+
+/** Tag an error as transient, returning it unchanged. Non-objects pass through. */
+export function markTransientUpstream<E>(error: E): E {
+    if (typeof error === 'object' && error !== null) {
+        Object.defineProperty(error, TRANSIENT_UPSTREAM, { value: true, enumerable: false });
+    }
+    return error;
+}
+
+/** Whether an error was tagged transient. Anything unmarked is treated as a defect. */
+export function isTransientUpstream(error: unknown): boolean {
+    return typeof error === 'object' && error !== null
+        && (error as Record<PropertyKey, unknown>)[TRANSIENT_UPSTREAM] === true;
+}

@@ -106,10 +106,19 @@ REFRESH MATERIALIZED VIEW CONCURRENTLY public.occurrence_identifier_candidates;
   iNaturalist paginates + resolves a taxon closure; month-sized windows keep
   each transaction bounded and give one legible `ingest.runs` row per month.
   Non-overlapping windows can be enqueued together (no reconcile conflict).
-- **Coverage reality (2026-07):** live Maplify/iNaturalist ingest began
-  2025-09-01; earlier history is only present where it has been manually
-  backfilled. The upstream APIs still serve it — the Maplify window is just
-  `search-all-sightings.php?start=&end=&BBOX=` (see [`fetch-maplify.ts`](fetch-maplify.ts)).
+- **Coverage (2026-09-18):** the history has been walked. `inaturalist.observations`
+  reaches 1976 and `maplify.sightings` reaches 2014, both continuous to now
+  ([decision 041](../../../docs/decisions/041-inaturalist-history-backfilled.md);
+  the walk is [`scripts/backfill/inat-history.ts`](../../../scripts/backfill/inat-history.ts)).
+  One iNaturalist row sits at epoch 0 from an upstream date artifact, so the
+  earliest `observed_at` is not the earliest observation (`salish-4bi`).
+- **A failed run may not reach Sentry.** Retryable upstream failures — 5xx, 429,
+  timeouts, refused connections, a 200 with a non-JSON body — are recorded in
+  `ingest.runs` and deliberately not reported, because the next tick re-covers the
+  same window ([decision 042](../../../docs/decisions/042-transient-ingest-failures-are-not-reported.md)).
+  Everything else still alerts, and sustained failure trips the
+  [heartbeat](../../../docs/decisions/012-ingest-heartbeat.md). To see what actually
+  happened, read `ingest.runs`, not Sentry.
 - **Scope (2026-08-30):** the Maplify BBOX is the Southern Resident range, but
   `isIngestable` keeps only killer whales from it; everything else must lie
   inside the Salish Sea and the Strait of Juan de Fuca — `salishSeaExtent`

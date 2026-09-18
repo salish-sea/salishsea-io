@@ -32,6 +32,7 @@ import {
     retryDelayMs,
     parseRetryAfter,
     isRetryableStatus,
+    markTransientUpstream,
 } from '../../../scripts/ingest/retry.ts';
 import {
     SALISH_SEA_BBOX,
@@ -147,7 +148,10 @@ async function fetchJsonWithRetry(url: string, label: string, log: Logger): Prom
         } catch (e) {
             // fetch-level failure, abort (timeout), or a stalled/aborted body read
             clearTimeout(timeout);
-            lastError = e;
+            // Everything the fetch layer retries is transient by definition
+            // (decision 042): aborts, timeouts, refused connections, and the
+            // non-JSON-body throw above all land here.
+            lastError = markTransientUpstream(e);
             if (attempt === MAX_ATTEMPTS) break;
             const delay = retryDelayMs(attempt);
             log('inat fetch error, retrying', { label, attempt, delayMs: delay, error: String(e) });
@@ -157,7 +161,8 @@ async function fetchJsonWithRetry(url: string, label: string, log: Logger): Prom
 
         // Non-2xx: res is defined and not ok.
         clearTimeout(timeout);
-        lastError = new Error(`iNaturalist ${label} HTTP ${res.status}`);
+        const httpError = new Error(`iNaturalist ${label} HTTP ${res.status}`);
+        lastError = isRetryableStatus(res.status) ? markTransientUpstream(httpError) : httpError;
         await res.body?.cancel();
         if (!isRetryableStatus(res.status) || attempt === MAX_ATTEMPTS) break;
         const delay = retryDelayMs(attempt, parseRetryAfter(res.headers.get('retry-after')));
