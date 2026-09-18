@@ -119,6 +119,24 @@ describe('parseInatResponse', () => {
         expect(r.observations[0]!.photos).toEqual([]);
     });
 
+    // Observation 141262045 (2013), found by the decision 041 history walk: iNat
+    // returns a photo whose original_dimensions are present but null. Strictness
+    // here fails the WHOLE response, so this once stopped the backfill dead.
+    test('accepts a photo whose original_dimensions are null', () => {
+        const photo = rawObs.observation_photos[0]!;
+        const raw = {
+            ...rawObs,
+            observation_photos: [{
+                ...photo,
+                photo: { ...photo.photo, original_dimensions: { height: null, width: null } },
+            }],
+        };
+        const r = parseInatResponse({ total_results: 1, results: [raw] });
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        expect(r.observations[0]!.photos[0]).toMatchObject({ height: null, width: null });
+    });
+
     test('accepts an authoritative empty result set (total_results=0)', () => {
         const r = parseInatResponse({ total_results: 0, page: 1, per_page: 200, results: [] });
         expect(r).toMatchObject({ ok: true, observations: [], totalResults: 0, recordCount: 0, maxId: null });
