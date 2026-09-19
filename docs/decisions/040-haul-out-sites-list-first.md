@@ -16,13 +16,22 @@ Otters are out. A river otter's latrine or den is not a haul-out, and sea otters
 
 **Attribution by radius is a view, not an algorithm.** With a site list, "which reports belong here" is a spatial join. That is honest about what it claims: this report was made within a few hundred metres of a known site. It makes no claim about which animals, or how many, which is exactly the claim [027](027-marine-mammal-scope-whale-centric-identity.md) says we cannot make for pinnipeds.
 
-**What the data supports, measured in production 2026-09-11.** The iNaturalist mirror holds about 14,500 pinniped reports since 2025-01-01, so a page has roughly twenty months of history and the four-year presence grid the other profile pages draw would be mostly blank. Only 10% of reports carry any text and 2% mention a count, so animal counts cannot be derived and are not shown. Nearly every report (97%) carries an openly licensed photo, so photos are the content. About 60% of reports state a positional accuracy of 100 m or better and 5% state none, which is why a page separates reports it is confident about from ones it is not.
+**What the data supports, re-measured in production 2026-09-18.** The iNaturalist mirror holds **17,376 pinniped reports reaching back to 1978**. Only 12% of reports carry any text and 2% mention a count, so animal counts cannot be derived and are not shown. Nearly every report (94%) carries an openly licensed photo, so photos are the content. About 53% of reports state a positional accuracy of 100 m or better and **14% state none**, which is why a page separates reports it is confident about from ones it is not.
+
+*Amended 2026-09-18 (bd `salish-4pr`).* That paragraph previously read:
+
+> ~~**What the data supports, measured in production 2026-09-11.** The iNaturalist mirror holds about 14,500 pinniped reports since 2025-01-01, so a page has roughly twenty months of history and the four-year presence grid the other profile pages draw would be mostly blank. Only 10% of reports carry any text and 2% mention a count, so animal counts cannot be derived and are not shown. Nearly every report (97%) carries an openly licensed photo, so photos are the content. About 60% of reports state a positional accuracy of 100 m or better and 5% state none, which is why a page separates reports it is confident about from ones it is not.~~
+
+Every design conclusion survives; one premise did not. [041](041-inaturalist-history-backfilled.md) backfilled the mirror to the 1970s on 2026-09-18 and [044](044-inat-ingest-scope.md) purged what was out of scope, which between them turned "about 14,500 reports since 2025" into 17,376 reaching back to 1978 — **11,438 of them, two thirds, below the line this record drew.** The page had a `MIRROR_SINCE_YEAR = 2025` constant and would have drawn every presence grid over two years while the report list beneath it showed reports the grid did not. The grid window is now derived per site from the reports that site actually has, capped at twelve years, which is the right shape regardless of where the mirror happens to begin.
+
+The proportions moved in the direction the extra history predicts: older reports are less likely to carry a licensed photo (94% against 97%) or a stated accuracy (14% state none, against 5%). That strengthens rather than weakens the confident/approximate split — there is now more to be honest about.
 
 ```text
-Shilshole Bay, within 1.2 km of the marina, since 2025-01:
-  97 reports from 46 observers
-  California sea lion, harbor seal, Steller sea lion
-  36 sea lion reports in April and May 2026; one or two a month otherwise
+Shilshole Bay (site 340), within 500 m, re-measured 2026-09-18:
+  92 reports from 51 observers, 2014-02-05 to 2026-09-05
+  California sea lion 50, harbor seal 36, Steller sea lion 3,
+    and four reports filed at genus or family rank
+  California sea lion: a spike each April and May, one or two a month otherwise
 ```
 
 That seasonal spike is what a page makes legible and the map does not.

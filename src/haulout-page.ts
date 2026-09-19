@@ -15,11 +15,30 @@ import './individual-map.ts';
 
 initSentry();
 
-// The iNaturalist mirror, which carries essentially every pinniped report we
-// hold, begins with 2025 (measured in production 2026-09-11: nothing earlier
-// for any pinniped taxon). The presence grid runs from there rather than the
-// four years the other profile pages draw, most of which would be blank here.
-const MIRROR_SINCE_YEAR = 2025;
+// How many years of presence grid a site draws: its own history, not a constant.
+//
+// This was `MIRROR_SINCE_YEAR = 2025`, measured on 2026-09-11 when the mirror
+// began there. Decision 041's backfill moved it to 1978 a week later, and 11,438
+// of the 17,376 pinniped reports we now hold — two thirds — fell below the line,
+// which would have drawn every grid over the two most recent years and silently
+// dropped the rest. A measured fact about the corpus does not belong in a
+// constant; the reports are already in hand, so each site's grid spans the
+// reports that site actually has.
+//
+// Capped because the tail is thin and one row per year: a site whose only early
+// report is from 1978 would otherwise draw forty-odd blank rows to reach it. The
+// cap is named in the coverage note rather than left to be noticed.
+const MAX_PRESENCE_YEARS = 12;
+
+/** Years of grid for a site: earliest report to now, at least 2, at most {@link MAX_PRESENCE_YEARS}. */
+export function presenceYearsFor(
+  reports: readonly { observed_at: string }[],
+  currentYear: number,
+): number {
+  if (!reports.length) return 2;
+  const earliest = Math.min(...reports.map(r => observedDate(r.observed_at).year));
+  return Math.min(Math.max(currentYear - earliest + 1, 2), MAX_PRESENCE_YEARS);
+}
 
 // How far afield a site counts as a neighbour, and how many to list.
 const NEIGHBOUR_KM = 8;
@@ -222,7 +241,7 @@ export class HauloutPage extends LitElement {
       pending: () => html`<p class="vitals muted">Counting reports within ${site.radius_m} m&hellip;</p>`,
       error: () => nothing,
       complete: reports => {
-        if (!reports?.length) return html`<p class="vitals">No pinniped reports within ${site.radius_m} m since ${MIRROR_SINCE_YEAR}.</p>`;
+        if (!reports?.length) return html`<p class="vitals">No pinniped reports within ${site.radius_m} m.</p>`;
         const species = speciesGroups(reports).map(g => g.label);
         const observers = new Set(reports.map(r => r.observer ?? r.attribution).filter((v): v is string => v !== null)).size;
         const first = reports[reports.length - 1]!;
@@ -265,15 +284,21 @@ export class HauloutPage extends LitElement {
           error: () => html`<p class="error">Couldn't load reports just now.</p>`,
           complete: reports => {
             if (!reports?.length)
-              return html`<p class="placeholder">No pinniped reports within ${site.radius_m} m of this point since ${MIRROR_SINCE_YEAR}. The atlas listed it; nobody on iNaturalist has reported animals here since we began keeping their reports.</p>`;
-            const years = Temporal.Now.zonedDateTimeISO('PST8PDT').year - MIRROR_SINCE_YEAR + 1;
+              return html`<p class="placeholder">No pinniped reports within ${site.radius_m} m of this point. The atlas listed it; nobody on iNaturalist has reported animals here in anything we hold.</p>`;
+            const currentYear = Temporal.Now.zonedDateTimeISO('PST8PDT').year;
             const groups = speciesGroups(reports);
             const photos = reports.flatMap(r => r.photos.filter(p => p.src).slice(0, 1).map(p => ({ report: r, photo: p }))).slice(0, PHOTO_STRIP_LIMIT);
             return html`
-              ${groups.map(g => html`
+              ${groups.map(g => {
+                // Per SPECIES, not per site: a site whose sea lions go back to
+                // 2015 and whose one eared seal was seen last month should not
+                // draw twelve near-empty rows for the seal. Each grid spans the
+                // history of the animal it is about.
+                const years = presenceYearsFor(g.reports, currentYear);
+                return html`
                 <h3>${g.label} <span class="muted">· ${plural(g.reports.length, 'report')}</span></h3>
-                ${renderPresenceTable(g.reports, years, 'Reports per month, as identified on iNaturalist by the people who filed them.')}
-              `)}
+                ${renderPresenceTable(g.reports, years, `Reports per month, as identified on iNaturalist by the people who filed them${years >= MAX_PRESENCE_YEARS ? `; the grid shows the last ${MAX_PRESENCE_YEARS} years, and there are earlier reports` : ''}.`)}
+              `;})}
               ${when(photos.length, () => html`
                 <p class="muted">Photos from the reports. Each links to its source; the attribution is in the tooltip.</p>
                 <div class="strip">
