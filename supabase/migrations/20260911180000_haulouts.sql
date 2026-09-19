@@ -473,15 +473,25 @@ JOIN public.occurrences o
  -- whole would. SELECT is granted to anon, so the unfiltered read is reachable
  -- and the view has to survive it.
  --
- -- The box is a strict SUPERSET of the circle, so the check below still decides
- -- membership and the radius stays strict: one degree of latitude is ~111,320 m
- -- everywhere, and one of longitude is that times cos(latitude), which narrows
- -- the box toward the poles exactly as the meridians converge. The cosine is
- -- floored so a site at a pole widens the box rather than dividing by zero —
- -- unreachable for a Salish Sea atlas, and the kind of thing that should fail
- -- open rather than error.
- AND (o.location).lat BETWEEN (h.location).lat - (h.radius_m / 111320.0)
-                          AND (h.location).lat + (h.radius_m / 111320.0)
+ -- The box must be a strict SUPERSET of the circle, or it silently decides
+ -- membership instead of merely narrowing the candidates — so each divisor is the
+ -- SMALLEST metres-per-degree that can occur, which makes each delta the largest.
+ --
+ -- Latitude: a degree runs 110,574 m at the equator to 111,694 m at the pole on
+ -- WGS84. 110,500 is below the minimum, so the box is never short. The obvious
+ -- 111,320 (the mean) is not safe and was the first version of this: at 48N with
+ -- a 500 m radius it gives a half-box of 499.42 m, which drops a report 499.5 m
+ -- due north of a site that the exact check would have kept. Caught in review;
+ -- `supabase/haulouts.test.ts` now asserts the superset property directly rather
+ -- than trusting the arithmetic.
+ --
+ -- Longitude: the true value is (pi/180)*N(lat)*cos(lat) and N(lat) >= a, so
+ -- 111,320*cos(lat) is already a LOWER bound and the delta is already generous
+ -- (at 48N: 74,488 against a true 74,625). The cosine is floored so a polar site
+ -- widens the box rather than dividing by zero — unreachable for a Salish Sea
+ -- atlas, and the kind of thing that should fail open rather than error.
+ AND (o.location).lat BETWEEN (h.location).lat - (h.radius_m / 110500.0)
+                          AND (h.location).lat + (h.radius_m / 110500.0)
  AND (o.location).lon BETWEEN (h.location).lon - (h.radius_m / (111320.0 * greatest(cos(radians((h.location).lat)), 0.01)))
                           AND (h.location).lon + (h.radius_m / (111320.0 * greatest(cos(radians((h.location).lat)), 0.01)))
 CROSS JOIN LATERAL (SELECT public.haulout_distance_m(h.location, o.location) AS distance_m) d

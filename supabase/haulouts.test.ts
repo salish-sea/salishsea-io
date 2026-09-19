@@ -40,4 +40,48 @@ describe.skipIf(!DSN)('haul-out sites (local Supabase)', () => {
             for (const r of reports) expect(r['distance_m']).toBeLessThanOrEqual(500);
         });
     });
+
+    test('the bounding box never excludes a point the radius would keep', async () => {
+        // The prefilter narrows candidates before haulout_distance_m; it must not
+        // DECIDE membership. Asserted against the real geometry rather than
+        // against the arithmetic, because the arithmetic was wrong once: 111,320
+        // (the MEAN metres per degree of latitude) gave a half-box of 499.42 m at
+        // 48N for a 500 m radius, so a report 499.5 m due north was dropped.
+        //
+        // ST_Project places each probe at an exact distance and bearing on the
+        // spheroid, which is the only way to say "just inside the radius" without
+        // re-deriving the metres-per-degree this test exists to check. Every
+        // seeded site is probed at all four compass points at 99.9% of its radius;
+        // due north is the worst case for the latitude bound, east and west for
+        // longitude.
+        const [{ failures }] = await sql<{failures: string[]}[]>`
+            WITH probes AS (
+                SELECT h.id, h.radius_m, (h.location).lat AS lat, (h.location).lon AS lon,
+                       gis.ST_Project(
+                           gis.ST_SetSRID(gis.ST_MakePoint((h.location).lon, (h.location).lat), 4326)::gis.geography,
+                           h.radius_m * 0.999,
+                           radians(az)
+                       ) AS probe
+                FROM public.haulouts h
+                CROSS JOIN (VALUES (0), (90), (180), (270)) AS a(az)
+            ), placed AS (
+                SELECT id, radius_m, lat, lon,
+                       gis.ST_Y(probe::gis.geometry) AS plat,
+                       gis.ST_X(probe::gis.geometry) AS plon
+                FROM probes
+            )
+            SELECT coalesce(array_agg(
+                     id || ' at ' || public.haulout_distance_m(ROW(lon, lat)::public.lon_lat,
+                                                               ROW(plon, plat)::public.lon_lat)
+                        || 'm, radius ' || radius_m), '{}') AS failures
+            FROM placed
+            WHERE public.haulout_distance_m(ROW(lon, lat)::public.lon_lat,
+                                            ROW(plon, plat)::public.lon_lat) <= radius_m
+              AND NOT (
+                plat BETWEEN lat - (radius_m / 110500.0) AND lat + (radius_m / 110500.0)
+                AND plon BETWEEN lon - (radius_m / (111320.0 * greatest(cos(radians(lat)), 0.01)))
+                             AND lon + (radius_m / (111320.0 * greatest(cos(radians(lat)), 0.01)))
+              )`;
+        expect(failures).toEqual([]);
+    });
 });
