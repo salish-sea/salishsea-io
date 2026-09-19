@@ -10,7 +10,7 @@
  * accumulated snapshot and that the id_above cursor advances by each page's max id.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
+import { fetchAllObservationPages, MAX_KEYSET_PAGES, resolveTaxonClosure } from './fetch-inaturalist.ts';
 import type { IngestWindow } from '../../../scripts/ingest/persist.ts';
 import type { Sql } from 'postgres';
 import type { NormalizedObservation } from '../../../scripts/ingest/inaturalist.ts';
@@ -130,19 +130,68 @@ describe('fetchAllObservationPages sweeps the window by ascending id', () => {
         expect(result.observations).toHaveLength(0);
     });
 
-    it('throws when the sweep never terminates (runaway bound)', async () => {
-        // Always return a full page with advancing ids: the cursor keeps moving but
-        // no terminal page ever arrives, so the sweep must hit MAX_KEYSET_PAGES.
+    /**
+     * Always a full page with advancing ids: the cursor keeps moving but no
+     * terminal page ever arrives, so the sweep can only stop at its own bound.
+     * Returns how many requests were made.
+     */
+    function stubEndlessFullPages(): () => number {
         let startId = 1;
+        let calls = 0;
         vi.stubGlobal('fetch', () => {
+            calls++;
             const body = pageBody(200, startId);
             startId += 200;
             return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(body)) });
         });
+        return () => calls;
+    }
 
-        await expect(fetchAllObservationPages(WINDOW, noopLog)).rejects.toThrow(
-            /keyset sweep exceeded 1000 pages/,
+    it('throws when the sweep never terminates (runaway bound)', async () => {
+        // Three pages, not a thousand. What is under test is that the loop refuses
+        // to run forever and says so; the page SIZE is incidental to that, and
+        // proving it at the production bound meant parsing 200 000 records to
+        // assert one throw — 3.2 s against vitest's 5 s default, the slowest test
+        // here by an order of magnitude and flaky under load (salish-s9v).
+        const calls = stubEndlessFullPages();
+
+        await expect(fetchAllObservationPages(WINDOW, noopLog, 3)).rejects.toThrow(
+            /keyset sweep exceeded 3 pages/,
         );
+
+        // The off-by-one, which the old test could not see: the bound is the number
+        // of pages ALLOWED, so three succeed and the fourth iteration throws before
+        // fetching. A `>=` there would cost a page of real data every sweep.
+        expect(calls()).toBe(3);
+    });
+
+    it('does not trip the bound one page early', async () => {
+        // The complement: a sweep that terminates on its last allowed page must
+        // succeed. Two full pages then a short one, with the bound set to exactly
+        // three.
+        stubFetch([pageBody(200, 1), pageBody(200, 201), pageBody(5, 401)]);
+
+        const result = await fetchAllObservationPages(WINDOW, noopLog, 3);
+
+        expect(result.recordCount).toBe(405);
+    });
+
+    it.each([NaN, Infinity, -Infinity, 0, -1, 1.5])('refuses a bound of %p', async (bad) => {
+        // NaN is the one that matters and the reason the others are here too:
+        // `pageNum > NaN` is false forever, so it would restore the unbounded loop
+        // this parameter caps — silently, and only on the window that needed the
+        // cap. No fetch is stubbed, so reaching one would throw a different error.
+        await expect(fetchAllObservationPages(WINDOW, noopLog, bad)).rejects.toThrow(
+            RangeError,
+        );
+    });
+
+    it('defaults the bound to MAX_KEYSET_PAGES', () => {
+        // The tests above run at 3, so nothing else would notice a typo in the
+        // default. 1000 pages is 200 000 records — a generous backstop for a
+        // 10-day window that realistically holds hundreds.
+        expect(MAX_KEYSET_PAGES).toBe(1000);
+        expect(fetchAllObservationPages.length).toBe(2); // maxPages is optional
     });
 });
 
