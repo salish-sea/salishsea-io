@@ -202,9 +202,9 @@ export function renderMemberList(members: GroupMember[], selfId?: number) {
 }
 
 // The month×year report-count grid with its honesty note.
-export function renderPresenceTable(links: OccurrenceLink[]) {
+export function renderPresenceTable(links: Pick<OccurrenceLink, 'observed_at'>[], years = PRESENCE_YEARS, note = 'Reports per month. Most are unverified mentions in sighting text, not confirmed identifications.') {
   const currentYear = Temporal.Now.zonedDateTimeISO('PST8PDT').year;
-  const grid = monthlyPresence(links, PRESENCE_YEARS, currentYear);
+  const grid = monthlyPresence(links, years, currentYear);
   if (grid.every(row => row.months.every(count => count === 0))) return nothing;
   return html`
     <table class="presence">
@@ -226,6 +226,6 @@ export function renderPresenceTable(links: OccurrenceLink[]) {
         `)}
       </tbody>
     </table>
-    <p class="presence-note">Reports per month. Most are unverified mentions in sighting text, not confirmed identifications.</p>
+    <p class="presence-note">${note}</p>
   `;
 }

@@ -3,6 +3,7 @@ import {
   dedupeOccurrenceLinks, displayName, ecotypePath, groupChain, individualPath, keyLabel, matrilinePath, monthlyPresence,
   normalizeDesignation, parseEcotypePath, parseIndividualPath, parseMatrilinePath, slugify,
   type IndividualOccurrence, type OccurrenceLink, type SocialGroup,
+  distanceKm, hauloutPath, mediumPhotoUrl, parseHauloutPath,
 } from './catalog.ts';
 
 // Decision 034: the URL keys on the register identifier's seven-digit local
@@ -208,4 +209,34 @@ test('picks the display name by nickname status', () => {
   expect(displayName([{ name: 'Proposed', status: 'proposed' }])).toBe('Proposed');
   expect(displayName([{ name: 'Old', status: 'deprecated' }])).toBeNull();
   expect(displayName([])).toBeNull();
+});
+
+// Decision 040: a haul-out site keys on its own integer id; the slug is the
+// site's name, composed by us and ignored on read.
+test('composes the haul-out path from id and name', () => {
+  expect(hauloutPath({ id: 340, name: 'Shilshole Bay Area' })).toBe('/haulouts/340/Shilshole-Bay-Area');
+  expect(hauloutPath({ id: 12, name: "Smith Island (E. side)" })).toBe('/haulouts/12/Smith-Island-E-side');
+});
+
+test('reads only the id from a haul-out path', () => {
+  expect(parseHauloutPath('/haulouts/340/Shilshole-Bay-Area')).toBe(340);
+  expect(parseHauloutPath('/haulouts/340/stale-slug/')).toBe(340);
+  expect(parseHauloutPath('/haulouts/340')).toBe(340);
+  expect(parseHauloutPath('/haulouts/Shilshole')).toBeNull();
+  expect(parseHauloutPath('/haulouts/340/x/y')).toBeNull();
+  expect(parseHauloutPath('/individuals/0010193/T065A')).toBeNull();
+});
+
+test('measures the distance between two sites in kilometres', () => {
+  // The two Shilshole rows in the atlas: the north floats and the south tip of the jetty.
+  const km = distanceKm({ lon: -122.40633, lat: 47.68517 }, { lon: -122.41117, lat: 47.67817 });
+  expect(km).toBeGreaterThan(0.8);
+  expect(km).toBeLessThan(0.9);
+});
+
+test('upgrades a mirrored iNaturalist thumbnail to the medium size, and only on the known hosts', () => {
+  expect(mediumPhotoUrl('https://inaturalist-open-data.s3.amazonaws.com/photos/565296662/square.jpg'))
+    .toBe('https://inaturalist-open-data.s3.amazonaws.com/photos/565296662/medium.jpg');
+  expect(mediumPhotoUrl('https://static.inaturalist.org/photos/1/square.jpeg')).toBe('https://static.inaturalist.org/photos/1/medium.jpeg');
+  expect(mediumPhotoUrl('https://evil.example/photos/1/square.jpg')).toBe('https://evil.example/photos/1/square.jpg');
 });

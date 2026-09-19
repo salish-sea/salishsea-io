@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self';
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' https: data:;
+      font-src 'self';
+      connect-src 'self' %VITE_SUPABASE_URL% %VITE_SUPABASE_WS_URL% https://o4509634382331904.ingest.us.sentry.io;
+      object-src 'none';
+      media-src 'self';
+      worker-src 'self';
+      base-uri 'self';
+      form-action 'none';
+      upgrade-insecure-requests;
+    ">
+    <title>Haul-out site — SalishSea.io</title>
+    <meta name="description" content="A pinniped haul-out site in the Salish Sea: what the 1999 WDFW atlas recorded there, and what people report there now.">
+    <meta property="og:site_name" content="SalishSea.io">
+    <meta property="og:type" content="place">
+    <meta property="og:title" content="Haul-out site — SalishSea.io">
+    <meta property="og:description" content="A pinniped haul-out site in the Salish Sea: what the 1999 WDFW atlas recorded there, and what people report there now.">
+    <meta property="og:image" content="https://salishsea.io/social-card.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <!-- Root-absolute URLs: this shell is served at /haulouts/<id>/<slug>,
+         so relative paths would resolve under /haulouts/. -->
+    <link href="/favicon.svg" rel="icon" type="image/svg+xml">
+    <link href="/favicon.ico" rel="icon" sizes="48x48">
+    <link href="/apple-touch-icon.png" rel="apple-touch-icon">
+    <style>
+      :root {
+        font-family: Mukta,Helvetica,Arial,sans-serif;
+        line-height: 1.5;
+        font-weight: 400;
+        color: #213547;
+        background-color: #ffffff;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      body {
+        margin: 0;
+      }
+    </style>
+    <script type="module" src="/src/haulout-page.ts"></script>
+  </head>
+  <body>
+    <haulout-page></haulout-page>
+  </body>
+</html>

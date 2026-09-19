@@ -9,6 +9,8 @@ import VectorLayer from 'ol/layer/Vector.js';
 import VectorSource from 'ol/source/Vector.js';
 import Feature from 'ol/Feature.js';
 import Point from 'ol/geom/Point.js';
+import { circular } from 'ol/geom/Polygon.js';
+import type Geometry from 'ol/geom/Geometry.js';
 import { fromLonLat } from 'ol/proj.js';
 import { defaults as defaultControls } from 'ol/control/defaults.js';
 import CircleStyle from 'ol/style/Circle.js';
@@ -18,12 +20,37 @@ import Style from 'ol/style/Style.js';
 import olCSS from 'ol/ol.css?url';
 import { mapUrl, type OccurrenceLink } from './catalog.ts';
 
+// What a dot needs: where, when, and which occurrence to open on the main map.
+export type MapDot = Pick<OccurrenceLink, 'occurrence_id' | 'observed_at' | 'location'>;
+
+// A place the dots are measured against (a haul-out site): its point and the
+// radius within which a report counts (decision 040).
+export interface MapSite {
+  lon: number;
+  lat: number;
+  radius_m: number;
+}
+
 const dotStyle = new Style({
   image: new CircleStyle({
     radius: 5,
     fill: new Fill({ color: 'rgba(25, 118, 210, 0.55)' }),
     stroke: new Stroke({ color: '#ffffff', width: 1 }),
   }),
+});
+
+const siteStyle = new Style({
+  fill: new Fill({ color: 'rgba(230, 81, 0, 0.10)' }),
+  stroke: new Stroke({ color: 'rgba(230, 81, 0, 0.8)', width: 1.5, lineDash: [6, 4] }),
+});
+
+const siteCentreStyle = new Style({
+  image: new CircleStyle({
+    radius: 4,
+    fill: new Fill({ color: '#e65100' }),
+    stroke: new Stroke({ color: '#ffffff', width: 1 }),
+  }),
+  zIndex: 2,
 });
 
 const latestStyle = new Style({
@@ -37,16 +64,20 @@ const latestStyle = new Style({
 
 // A non-panning, non-zooming map of everywhere an individual has been
 // reported; the most recent report is emphasized. Clicking a dot opens the
-// main map on that day, focused on the occurrence.
+// main map on that day, focused on the occurrence. Given a site, it also draws
+// the site's radius and zooms in close enough to see it.
 @customElement('individual-map')
 export class IndividualMap extends LitElement {
   // Newest first, as returned by fetchOccurrenceLinks
   @property({ attribute: false })
-  links: OccurrenceLink[] = [];
+  links: MapDot[] = [];
+
+  @property({ attribute: false })
+  site: MapSite | null = null;
 
   #mapRef = createRef<HTMLDivElement>();
   #map: OpenLayersMap | null = null;
-  #source = new VectorSource<Feature<Point>>();
+  #source = new VectorSource<Feature<Geometry>>();
 
   static styles = css`
     :host {
@@ -98,7 +129,7 @@ export class IndividualMap extends LitElement {
   }
 
   protected updated(changed: PropertyValues): void {
-    if (changed.has('links') && this.#map)
+    if ((changed.has('links') || changed.has('site')) && this.#map)
       this.#renderLinks();
   }
 
@@ -111,11 +142,18 @@ export class IndividualMap extends LitElement {
       feature.setStyle(i === 0 ? latestStyle : dotStyle);
       return feature;
     }));
+    if (this.site) {
+      const ring = new Feature(circular([this.site.lon, this.site.lat], this.site.radius_m, 64).transform('EPSG:4326', 'EPSG:3857'));
+      ring.setStyle(siteStyle);
+      const centre = new Feature(new Point(fromLonLat([this.site.lon, this.site.lat])));
+      centre.setStyle(siteCentreStyle);
+      this.#source.addFeatures([ring, centre]);
+    }
     const extent = this.#source.getExtent();
-    if (!located.length || !extent) return;
+    if ((!located.length && !this.site) || !extent) return;
     this.#map!.getView().fit(extent, {
       padding: [32, 32, 32, 32],
-      maxZoom: 10,
+      maxZoom: this.site ? 15 : 10,
     });
   }
 }
