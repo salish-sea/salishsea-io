@@ -44,6 +44,30 @@ export function cardRendererSource(bundleExists: boolean, stubAllowed: boolean):
   );
 }
 
+/**
+ * Whether the edge handler has been compiled, or the synth should refuse.
+ *
+ * The same shape as {@link cardRendererSource} and for the same reason, found
+ * while writing the asset test (salish-7iu). `Code.fromAsset` points at the
+ * handler's SOURCE directory and excludes `*.ts`, so on a tree where `tsc` has
+ * not run there is no `index.js` to ship — and the asset still stages happily,
+ * carrying only the `config.js` that this file generates at synth time. CDK does
+ * not mind. CloudFront does not mind. Every viewer request then hits a
+ * Lambda@Edge function with no handler.
+ *
+ * Unlike the card renderer there is no stub worth deploying: a viewer-request
+ * function that fails is not a degraded preview, it is the site. So this only
+ * refuses.
+ */
+export function assertEdgeHandlerBuilt(handlerExists: boolean): void {
+  if (handlerExists) return;
+  throw new Error(
+    'edge handler not compiled: lib/edge-handler/index.js is missing. Run `pnpm run build` ' +
+    'in infra/ first (the CDK deploy step in .github/workflows/deploy.yml does this, and ' +
+    "infra's `pnpm test` does the `tsc` half so the asset test sees what a deploy would ship).",
+  );
+}
+
 /** Kept in step with `.github/workflows/db-backup-nightly.yml` by a test. */
 export const BACKUP_BUCKET_NAME = 'salishsea-io-backups';
 
@@ -77,6 +101,7 @@ export class InfraStack extends cdk.Stack {
     );
 
     // Lambda@Edge function — automatically provisioned in us-east-1 regardless of stack region
+    assertEdgeHandlerBuilt(fs.existsSync(path.join(__dirname, 'edge-handler', 'index.js')));
     const ogFunction = new cloudfront.experimental.EdgeFunction(this, 'OgMetaFunction', {
       runtime: lambda.Runtime.NODEJS_24_X,
       handler: 'index.handler',
