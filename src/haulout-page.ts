@@ -30,7 +30,7 @@ initSentry();
 // cap is named in the coverage note rather than left to be noticed.
 const MAX_PRESENCE_YEARS = 12;
 
-/** Years of grid for a site: earliest report to now, at least 2, at most {@link MAX_PRESENCE_YEARS}. */
+/** Years of grid for a group: earliest report to now, at least 2, at most {@link MAX_PRESENCE_YEARS}. */
 export function presenceYearsFor(
   reports: readonly { observed_at: string }[],
   currentYear: number,
@@ -38,6 +38,22 @@ export function presenceYearsFor(
   if (!reports.length) return 2;
   const earliest = Math.min(...reports.map(r => observedDate(r.observed_at).year));
   return Math.min(Math.max(currentYear - earliest + 1, 2), MAX_PRESENCE_YEARS);
+}
+
+/**
+ * Whether the grid is hiding anything — asked of the reports, not inferred from
+ * the year count.
+ *
+ * `years === MAX_PRESENCE_YEARS` is not the same question. A group whose
+ * earliest report is exactly twelve years back fills the grid to its last row
+ * with nothing beyond it, and a note promising earlier reports would be a
+ * fabrication in the one place the page is explaining its own limits.
+ */
+export function hasReportsBefore(
+  reports: readonly { observed_at: string }[],
+  year: number,
+): boolean {
+  return reports.some(r => observedDate(r.observed_at).year < year);
 }
 
 // How far afield a site counts as a neighbour, and how many to list.
@@ -295,9 +311,10 @@ export class HauloutPage extends LitElement {
                 // draw twelve near-empty rows for the seal. Each grid spans the
                 // history of the animal it is about.
                 const years = presenceYearsFor(g.reports, currentYear);
+                const hidden = hasReportsBefore(g.reports, currentYear - years + 1);
                 return html`
                 <h3>${g.label} <span class="muted">· ${plural(g.reports.length, 'report')}</span></h3>
-                ${renderPresenceTable(g.reports, years, `Reports per month, as identified on iNaturalist by the people who filed them${years >= MAX_PRESENCE_YEARS ? `; the grid shows the last ${MAX_PRESENCE_YEARS} years, and there are earlier reports` : ''}.`)}
+                ${renderPresenceTable(g.reports, years, `Reports per month, as identified on iNaturalist by the people who filed them${hidden ? `; the grid shows the last ${years} years, and there are earlier reports` : ''}.`)}
               `;})}
               ${when(photos.length, () => html`
                 <p class="muted">Photos from the reports. Each links to its source; the attribution is in the tooltip.</p>

@@ -464,6 +464,26 @@ FROM public.haulouts h
 JOIN public.occurrences o
   ON (o.taxon).scientific_name IN (SELECT scientific_name FROM pinniped)
  AND (o.location).lon IS NOT NULL AND (o.location).lat IS NOT NULL
+ -- A bounding box before the exact distance, and it is not a micro-optimisation.
+ -- Nothing in this join is site-specific, so an unfiltered read of the view costs
+ -- (sites x pinniped reports) calls to haulout_distance_m: 362 x 17,376 is 6.3
+ -- million. Measured on 33,304 pairs it runs at 247 ms, which extrapolates to
+ -- about 47 seconds — well past anon's 3 s statement timeout. The page path
+ -- filters haulout_id and never notices; the map layer (#453) reading the view
+ -- whole would. SELECT is granted to anon, so the unfiltered read is reachable
+ -- and the view has to survive it.
+ --
+ -- The box is a strict SUPERSET of the circle, so the check below still decides
+ -- membership and the radius stays strict: one degree of latitude is ~111,320 m
+ -- everywhere, and one of longitude is that times cos(latitude), which narrows
+ -- the box toward the poles exactly as the meridians converge. The cosine is
+ -- floored so a site at a pole widens the box rather than dividing by zero —
+ -- unreachable for a Salish Sea atlas, and the kind of thing that should fail
+ -- open rather than error.
+ AND (o.location).lat BETWEEN (h.location).lat - (h.radius_m / 111320.0)
+                          AND (h.location).lat + (h.radius_m / 111320.0)
+ AND (o.location).lon BETWEEN (h.location).lon - (h.radius_m / (111320.0 * greatest(cos(radians((h.location).lat)), 0.01)))
+                          AND (h.location).lon + (h.radius_m / (111320.0 * greatest(cos(radians((h.location).lat)), 0.01)))
 CROSS JOIN LATERAL (SELECT public.haulout_distance_m(h.location, o.location) AS distance_m) d
 LEFT JOIN inaturalist.taxa sp ON sp.id = (o.taxon).species_id
 WHERE d.distance_m <= h.radius_m;

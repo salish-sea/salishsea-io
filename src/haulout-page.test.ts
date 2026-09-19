@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { presenceYearsFor } from './haulout-page.ts';
+import { hasReportsBefore, presenceYearsFor } from './haulout-page.ts';
 
 /**
  * The grid window is derived, not declared (salish-4pr / decision 040).
@@ -36,5 +36,34 @@ describe('presenceYearsFor', () => {
     // 2025-01-01T04:00Z is still 2024-12-31 in PST8PDT. Reading it as UTC would
     // give the grid an extra year at one end for no reason.
     expect(presenceYearsFor([{ observed_at: '2025-01-01T04:00:00Z' }], 2026)).toBe(3);
+  });
+});
+
+describe('hasReportsBefore', () => {
+  const report = (year: number) => ({ observed_at: `${year}-06-15T19:00:00Z` });
+
+  test('exactly a full grid hides nothing, and must not claim to', () => {
+    // The boundary CodeRabbit caught. Twelve years of history fills the grid to
+    // its last row with nothing beyond it; `years === MAX` would have said
+    // otherwise, in the one note whose whole job is explaining what is missing.
+    const twelve = [report(2015), report(2026)];
+    expect(presenceYearsFor(twelve, 2026)).toBe(12);
+    expect(hasReportsBefore(twelve, 2026 - 12 + 1)).toBe(false);
+  });
+
+  test('one year more than the grid holds does', () => {
+    const thirteen = [report(2014), report(2026)];
+    expect(presenceYearsFor(thirteen, 2026)).toBe(12);
+    expect(hasReportsBefore(thirteen, 2026 - 12 + 1)).toBe(true);
+  });
+
+  test('a short grid never hides anything, because it is sized to fit', () => {
+    const recent = [report(2024), report(2026)];
+    const years = presenceYearsFor(recent, 2026);
+    expect(hasReportsBefore(recent, 2026 - years + 1)).toBe(false);
+  });
+
+  test('no reports, nothing hidden', () => {
+    expect(hasReportsBefore([], 2015)).toBe(false);
   });
 });
