@@ -1,6 +1,9 @@
 import * as cdk from 'aws-cdk-lib';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { InfraStack, cardRendererSource, stubAllowedFromContext } from '../lib/infra-stack';
+import { InfraStack, assertEdgeHandlerBuilt, cardRendererSource, stubAllowedFromContext } from '../lib/infra-stack';
 
 describe('stubAllowedFromContext', () => {
   it('accepts the string a CLI --context flag actually produces', () => {
@@ -31,6 +34,84 @@ describe('cardRendererSource', () => {
     // `cdk deploy` from a clean checkout would otherwise ship a function that
     // 503s at every crawler, and the only symptom would be imageless previews.
     expect(() => cardRendererSource(false, false)).toThrow(/npm run build/);
+  });
+});
+
+/**
+ * What actually reaches Lambda@Edge (salish-7iu).
+ *
+ * `Code.fromAsset` is pointed at the edge-handler SOURCE directory, which holds
+ * `index.ts`, `index.test.ts` and everything `tsc` emits beside them — so the
+ * asset is defined by its `exclude` and by nothing else. Two reasons that
+ * matters, and neither of them announces itself:
+ *
+ *   - A viewer-request function has a hard 1 MB code limit, and `index.test.js`
+ *     alone is 152 KB against the handler's 81 KB.
+ *   - Every publish of an edge function is a CloudFront distribution update, so
+ *     shipping test files means editing a test republishes the distribution.
+ *
+ * Drop the `exclude` and nothing fails: the deploy succeeds, the handler works,
+ * and the asset quietly carries the whole source tree. This is the only place
+ * that would notice.
+ */
+describe('assertEdgeHandlerBuilt', () => {
+  it('passes once tsc has emitted the handler', () => {
+    expect(() => assertEdgeHandlerBuilt(true)).not.toThrow();
+  });
+
+  it('refuses a synth that would ship an edge function with no handler', () => {
+    // Found while writing the asset test below: on an unbuilt tree the asset
+    // stages cleanly with only the generated config.js in it, and nothing —
+    // CDK, CloudFormation, CloudFront — objects until a viewer request arrives.
+    expect(() => assertEdgeHandlerBuilt(false)).toThrow(/pnpm run build/);
+  });
+});
+
+describe('the edge-handler asset carries only the runtime', () => {
+  let files: string[];
+  let bytes: number;
+
+  beforeAll(() => {
+    // A real synth into a scratch outdir: asset staging is what we are asserting
+    // on, and Template.fromStack alone does not stage.
+    const outdir = fs.mkdtempSync(path.join(os.tmpdir(), 'infra-asset-'));
+    const app = new cdk.App({ outdir, context: { allowStubCardRenderer: true } });
+    new InfraStack(app, 'AssetStack', { env: { account: '648183724555', region: 'us-east-1' } });
+    app.synth();
+
+    const walk = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true })
+      .flatMap((e) => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
+
+    // Identified by content, not by hash: the hash changes with every handler
+    // edit, and the card renderer is the only other asset (it has handler.js,
+    // fonts and node_modules, so index.js tells them apart).
+    const staged = fs.readdirSync(outdir)
+      .filter((n) => n.startsWith('asset.'))
+      .map((n) => path.join(outdir, n))
+      .map((dir) => walk(dir).map((f) => path.relative(dir, f)));
+    const edge = staged.find((f) => f.includes('index.js') && f.includes('config.js'));
+    if (!edge) throw new Error(`no edge-handler asset staged; saw ${JSON.stringify(staged.map(f => f.slice(0, 3)))}`);
+    files = edge;
+
+    const dir = fs.readdirSync(outdir).filter((n) => n.startsWith('asset.'))
+      .map((n) => path.join(outdir, n))
+      .find((d) => fs.existsSync(path.join(d, 'index.js')) && fs.existsSync(path.join(d, 'config.js')))!;
+    bytes = files.reduce((sum, f) => sum + fs.statSync(path.join(dir, f)).size, 0);
+  });
+
+  it('is exactly the handler and its baked config', () => {
+    expect(files.sort()).toEqual(['config.js', 'index.js']);
+  });
+
+  it('carries no test file and no TypeScript source', () => {
+    // Asserted separately from the list above so a failure says which rule broke.
+    expect(files.filter((f) => f.includes('.test.'))).toEqual([]);
+    expect(files.filter((f) => f.endsWith('.ts'))).toEqual([]);
+  });
+
+  it('stays well under the 1 MB Lambda@Edge viewer-request limit', () => {
+    expect(bytes).toBeGreaterThan(1024); // a stub or an empty stage would also "pass" the checks above
+    expect(bytes).toBeLessThan(500 * 1024);
   });
 });
 
