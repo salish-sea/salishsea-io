@@ -70,7 +70,14 @@ const TAXA_ID_CHUNK = 30;
 // the edge invocation. Bound the sweep so a runaway fails loudly instead. The
 // 10-day rolling window realistically holds hundreds of records; 1000 pages
 // (200 000 records) is a generous backstop, not an expected limit.
-const MAX_KEYSET_PAGES = 1000;
+//
+// Exported, and overridable per call, for the test: proving the bound fires
+// meant scripting 1000 full pages of 200 records, and parsing 200 000 records to
+// assert one `throw` took 3.2 s against vitest's 5 s default — the slowest test
+// in the suite by an order of magnitude, and flaky under load (salish-s9v). The
+// page size is incidental to what is under test. Nothing in production passes
+// the argument.
+export const MAX_KEYSET_PAGES = 1000;
 
 // v2 `/observations` field selection. Extends the legacy SQL path's set with the
 // fields the functional core now requires: `updated_at` (drives the
@@ -243,20 +250,22 @@ export type ObservationFetchResult = {
  * observation created/edited/deleted between two requests no longer drifts a
  * completeness sum — the class of transient failure PR #327's bounded re-page
  * only retried around. Still throws on parse/HTTP failure, or if the sweep
- * exceeds MAX_KEYSET_PAGES (a runaway) — a genuine failure the next cron retries.
+ * exceeds `maxPages` (a runaway) — a genuine failure the next cron retries. The
+ * bound defaults to MAX_KEYSET_PAGES; only the test passes it.
  */
 export async function fetchAllObservationPages(
     window: IngestWindow,
     log: Logger,
+    maxPages: number = MAX_KEYSET_PAGES,
 ): Promise<ObservationFetchResult> {
     const pages: FetchedPage[] = [];
     const observations: NormalizedObservation[] = [];
     let cursor = 0; // id_above=0 → start from the smallest id
 
     for (let pageNum = 1; ; pageNum++) {
-        if (pageNum > MAX_KEYSET_PAGES) {
+        if (pageNum > maxPages) {
             throw new Error(
-                `iNaturalist keyset sweep exceeded ${MAX_KEYSET_PAGES} pages ` +
+                `iNaturalist keyset sweep exceeded ${maxPages} pages ` +
                     `(cursor id_above=${cursor}); window implausibly large or a cursor bug`,
             );
         }
