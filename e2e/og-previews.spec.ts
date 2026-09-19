@@ -254,7 +254,7 @@ test('a matriline designation path still answers directly', async ({ request }) 
 });
 
 // Decision 040: a haul-out site keys on its own id. Row 340 is the atlas's
-// Shilshole Bay north floats, seeded by migration 20260911180000.
+// Shilshole Bay north floats, seeded by migration 20260919010000.
 const CANONICAL_SHILSHOLE = '/haulouts/340/Shilshole-Bay-Area';
 
 test('regular browser UA on a haul-out page receives the page shell', async ({ request }) => {

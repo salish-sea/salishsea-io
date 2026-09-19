@@ -1,6 +1,6 @@
 /**
  * The haul-out site list and its attribution view read as anon (decision 040,
- * migration 20260911180000).
+ * migration 20260919010000).
  *
  * The second test is the one that matters: a view's tables are checked against
  * the view's owner, but a function body the planner inlines is checked against
