@@ -1,3 +1,12 @@
+-- Renumbered from 20260911180000 on 2026-09-19. The branch was written on the
+-- 11th and merged on the 19th, by which time production had applied
+-- 20260918200000 and 20260918210000 (decisions 043 and 044). `supabase db push`
+-- refuses a local migration that sorts before the remote's last applied one —
+-- correctly, because applying out of order makes "what schema does this version
+-- of the code expect" unanswerable. Nothing had applied this file outside local
+-- development, so renumbering is the honest fix; --include-all would have been
+-- the footgun that check exists to prevent, on every future deploy.
+
 -- Haul-out sites and the pinniped reports that fall within them (decision 040,
 -- bd salish-4pr.1, GH #385).
 --
