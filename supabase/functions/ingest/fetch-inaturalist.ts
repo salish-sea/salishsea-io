@@ -258,6 +258,16 @@ export async function fetchAllObservationPages(
     log: Logger,
     maxPages: number = MAX_KEYSET_PAGES,
 ): Promise<ObservationFetchResult> {
+    // A bound that a bad value can switch off is not a bound. `pageNum > NaN` is
+    // false forever, so a NaN here would restore precisely the unbounded loop this
+    // parameter exists to cap — silently, and only on the pathological window that
+    // needed the cap. Fail at the call instead, before any request goes out.
+    if (!Number.isSafeInteger(maxPages) || maxPages < 1) {
+        throw new RangeError(
+            `maxPages must be a positive integer, got ${String(maxPages)}`,
+        );
+    }
+
     const pages: FetchedPage[] = [];
     const observations: NormalizedObservation[] = [];
     let cursor = 0; // id_above=0 → start from the smallest id

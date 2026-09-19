@@ -176,6 +176,16 @@ describe('fetchAllObservationPages sweeps the window by ascending id', () => {
         expect(result.recordCount).toBe(405);
     });
 
+    it.each([NaN, Infinity, -Infinity, 0, -1, 1.5])('refuses a bound of %p', async (bad) => {
+        // NaN is the one that matters and the reason the others are here too:
+        // `pageNum > NaN` is false forever, so it would restore the unbounded loop
+        // this parameter caps — silently, and only on the window that needed the
+        // cap. No fetch is stubbed, so reaching one would throw a different error.
+        await expect(fetchAllObservationPages(WINDOW, noopLog, bad)).rejects.toThrow(
+            RangeError,
+        );
+    });
+
     it('defaults the bound to MAX_KEYSET_PAGES', () => {
         // The tests above run at 3, so nothing else would notice a typo in the
         // default. 1000 pages is 200 000 records — a generous backstop for a
