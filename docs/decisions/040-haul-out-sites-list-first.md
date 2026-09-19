@@ -27,10 +27,12 @@ Every design conclusion survives; one premise did not. [041](041-inaturalist-his
 The proportions moved in the direction the extra history predicts: older reports are less likely to carry a licensed photo (94% against 97%) or a stated accuracy (14% state none, against 5%). That strengthens rather than weakens the confident/approximate split — there is now more to be honest about.
 
 ```text
-Shilshole Bay (site 340), within 500 m, re-measured 2026-09-18:
-  92 reports from 51 observers, 2014-02-05 to 2026-09-05
-  California sea lion 50, harbor seal 36, Steller sea lion 3,
-    and four reports filed at genus or family rank
+Shilshole Bay (site 340), within 500 m, from public.haulout_occurrences
+in production 2026-09-19:
+  97 reports from 52 observers, 2014-02-05 to 2026-09-05
+  California sea lion 51, harbor seal 40, Steller sea lion 3,
+    and 3 filed at genus or family rank
+  92 from iNaturalist, 5 contributed directly
   California sea lion: a spike each April and May, one or two a month otherwise
 ```
 
