@@ -49,7 +49,7 @@ parsed from the free-text `name`.
 > *Retracted 2026-08-14. The vocabulary was not ours to invent and the cost was understated;
 > both halves are corrected in the [Amendment](#amendment-2026-08-14) below, and the retraction
 > is public in orcasound/orcasite#1001.*
-
+>
 > ~~Ingest follows the established pattern: mirror bouts + their tags **verbatim** into an
 > `orcasound` upstream-mirror schema, then **translate** at the boundary (decision
 > [008](008-source-schemas-are-upstream-mirrors.md)).~~
@@ -169,7 +169,7 @@ convention* to *resolving a stable identifier*.
 > the amount of *interpretation* in the translation step, which is exactly the fragile part.~~
 >
 > *Superseded 2026-09-20: 008 does not govern orcasite at all.*
-
+>
 > ~~Where an `iri` is absent — free text remains legal upstream, deliberately, so vocabulary gaps
 > stay visible — we fall back to matching the tag name against the register. **That match uses
 > the register's published fold**
