@@ -32,16 +32,18 @@ Recorded in the graph as `salish-8vr.24` — the activation moment, blocked by b
 
 ## Consequences
 
-- **The first tagged bout now transitively waits on Q22.** `ox2.5` is blocked by `ox2.6` (the sub-matriline question, which *is* Q22) and `ox2.3` (the six collision rows). This decision accepts that: the wait is the point, because Q22 is exactly the uncertainty a moderator's tag would be written against.
-- **The urgency flows to Q22, deliberately.** The path to OrcaSound tagging runs through an upstream curator question, which is pressure in the right place — the people who know the animals settle the group vocabulary once, instead of two consumer databases each guessing.
-- **If Q22 stalls, the fallback is scoped tagging, not reversal.** Individuals resolve 510/510 and ecotypes 1/1; a picker restricted to those tiers would honour this decision's logic while groups wait. That is a deliberate future amendment if needed, not the plan.
+> **Amended 2026-09-20 by [048](048-sub-matrilines-minted-ahead-of-q22.md).** The first three consequences below are struck through: they are what this decision cost while the register lacked the finer group level, and 048 removed that cost by minting the 73 sub-lineages ahead of Q22 rather than waiting for its answer. What holds now: **the migration and the first production tag no longer wait on Q22; the first production tag still waits on the migration (`salish-ox2.5`) and on the picker being built (`salish-8vr.9`).** Q22 stays open, and its answer confirms the sub-lineages or retires them.
+
+- ~~**The first tagged bout now transitively waits on Q22.** `ox2.5` is blocked by `ox2.6` (the sub-matriline question, which *is* Q22) and `ox2.3` (the six collision rows). This decision accepts that: the wait is the point, because Q22 is exactly the uncertainty a moderator's tag would be written against.~~
+- ~~**The urgency flows to Q22, deliberately.** The path to OrcaSound tagging runs through an upstream curator question, which is pressure in the right place — the people who know the animals settle the group vocabulary once, instead of two consumer databases each guessing.~~
+- ~~**If Q22 stalls, the fallback is scoped tagging, not reversal.** Individuals resolve 510/510 and ecotypes 1/1; a picker restricted to those tiers would honour this decision's logic while groups wait. That is a deliberate future amendment if needed, not the plan.~~
 - **The recommendation to OrcaSound gets communicated, not just recorded** (028: our call to make *and communicate*). The natural moment is on [orcasite#1015](https://github.com/orcasound/orcasite/issues/1015) when the picker approaches merge: build now, flip on after our migration.
 
 ## Alternatives considered
 
 - **Parallel, on the asymmetry argument** — `SSA:` identifiers are permanent, so tags are safe whenever written. Rejected above: true tier by tier, and false for the tier bouts actually get tagged with while Q22 is open.
 - **Tag first, migrate second.** Nothing recommends it; it maximises the time OrcaSound spends committed to a register its recommender has not adopted, and was only ever on the table because ADR-0012 phrased the question symmetrically.
-- **Per-tier gating now** (individuals tag immediately, groups wait). The honest reading of the asymmetry, and rejected only on simplicity: it complicates the picker and the recommendation for little gain, since the picker (`salish-8vr.9`) is not built yet and the migration may well land before it ships. Kept as the named fallback above rather than the rule.
+- **Per-tier gating now** (individuals tag immediately, groups wait). The honest reading of the asymmetry, and rejected only on simplicity: it complicates the picker and the recommendation for little gain, since the picker (`salish-8vr.9`) is not built yet and the migration may well land before it ships. Kept as the named fallback above rather than the rule. *(That fallback is withdrawn by [048](048-sub-matrilines-minted-ahead-of-q22.md): with the sub-lineages minted there is no tier left to wait for.)*
 
 ## Reference
 
