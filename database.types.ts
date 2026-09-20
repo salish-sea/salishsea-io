@@ -34,6 +34,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      acoustic_bout_entities: {
+        Row: {
+          bout_id: string
+          entity_id: string
+        }
+        Insert: {
+          bout_id: string
+          entity_id: string
+        }
+        Update: {
+          bout_id?: string
+          entity_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acoustic_bout_entities_bout_id_fkey"
+            columns: ["bout_id"]
+            isOneToOne: false
+            referencedRelation: "acoustic_bouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      acoustic_bouts: {
+        Row: {
+          collection_id: number
+          ended_at: string | null
+          feed_id: string
+          feed_name: string
+          fetched_at: string
+          id: string
+          location: unknown
+          provider_id: number
+          started_at: string
+          title: string | null
+        }
+        Insert: {
+          collection_id: number
+          ended_at?: string | null
+          feed_id: string
+          feed_name: string
+          fetched_at?: string
+          id: string
+          location: unknown
+          provider_id: number
+          started_at: string
+          title?: string | null
+        }
+        Update: {
+          collection_id?: number
+          ended_at?: string | null
+          feed_id?: string
+          feed_name?: string
+          fetched_at?: string
+          id?: string
+          location?: unknown
+          provider_id?: number
+          started_at?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acoustic_bouts_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acoustic_bouts_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collections: {
         Row: {
           id: number
@@ -916,6 +993,7 @@ export type Database = {
           location: Database["public"]["CompositeTypes"]["lon_lat"] | null
           observed_at: string | null
           observed_from: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observed_until: string | null
           observer: string | null
           organization: string | null
           organization_url: string | null
