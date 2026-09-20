@@ -222,6 +222,12 @@ async function main(): Promise<void> {
             if (malformedGroups.length) {
                 throw new Error(`${malformedGroups.length} malformed row(s) in data/matriline-entities.tsv`);
             }
+            // The seed upserts, so a group keeps whatever identifier an earlier seed gave it.
+            // If a pair is ever corrected, one group would be handed an identifier another
+            // still holds, and the UNIQUE constraint is checked row by row, not at the end
+            // of the statement. Clearing first makes a reseed independent of the last one;
+            // the refusal below still catches anything the mapping then misses.
+            await tx`UPDATE public.social_groups SET entity_id = NULL WHERE kind = 'matriline'`;
             await tx`
                 UPDATE public.social_groups g SET entity_id = v.entity_id
                 FROM jsonb_to_recordset(${tx.json(matrilineRows as never)}) AS v(designation text, entity_id text)
