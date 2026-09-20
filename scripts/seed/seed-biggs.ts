@@ -33,6 +33,9 @@ async function main(): Promise<void> {
     const entityPairs = readFileSync(new URL('../../data/individual-entities.tsv', import.meta.url), 'utf8')
         .split(/\r?\n/).slice(1).filter((l) => l.trim())
         .map((l) => l.split('\t') as [string, string]);
+    const matrilinePairs = readFileSync(new URL('../../data/matriline-entities.tsv', import.meta.url), 'utf8')
+        .split(/\r?\n/).slice(1).filter((l) => l.trim())
+        .map((l) => l.split('\t') as [string, string]);
 
     const known = new Set(cat.individuals.map((i) => i.primary_designation));
     const unresolvedMothers = cat.individuals
@@ -209,6 +212,25 @@ async function main(): Promise<void> {
                 RETURNING id`).count;
             if (ecotypeUpd !== 1) {
                 throw new Error(`expected exactly one Biggs ecotype row, updated ${ecotypeUpd}`);
+            }
+
+            // Matrilines, the same way as individuals above: data/matriline-entities.tsv is
+            // the measured mapping from the reconciliation against register 2026.09.1, and
+            // the migration applies the same pairs in production.
+            const matrilineRows = matrilinePairs.map(([designation, entity_id]) => ({ designation, entity_id }));
+            const malformedGroups = matrilineRows.filter((r) => !r.designation || !r.entity_id?.startsWith('SSA:'));
+            if (malformedGroups.length) {
+                throw new Error(`${malformedGroups.length} malformed row(s) in data/matriline-entities.tsv`);
+            }
+            await tx`
+                UPDATE public.social_groups g SET entity_id = v.entity_id
+                FROM jsonb_to_recordset(${tx.json(matrilineRows as never)}) AS v(designation text, entity_id text)
+                WHERE g.kind = 'matriline' AND g.designation = v.designation`;
+            const [unmappedGroups] = await tx`
+                SELECT count(*)::int AS n FROM public.social_groups WHERE entity_id IS NULL`;
+            if (unmappedGroups?.['n']) {
+                throw new Error(
+                    `${unmappedGroups['n']} social group(s) with no register identifier — regenerate data/matriline-entities.tsv from a fresh reconciliation run`);
             }
 
             return {

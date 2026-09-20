@@ -50,3 +50,14 @@ belongs to its maintainer and is credited, not claimed. Policy of record:
 - **Regenerate** by re-running `scripts/register/reconcile.ts` against the loaded edition
   and re-extracting the `individuals` rows; identifiers are permanent (animals ADR-0010),
   so existing pairs never change — a regeneration can only add rows.
+
+## `matriline-entities.tsv` — catalogue matrilines to register entities
+
+- **Source:** the same reconciliation, its `social_groups` rows: every one of our 132
+  matriline groups matched to exactly one register group of rank `matriline` (edition
+  2026.09.1, the first to hold the Bigg's sub-lineages such as `T073As`).
+- **Read by:** the migration that writes `social_groups.entity_id` for matrilines, and
+  [`scripts/seed/seed-biggs.ts`](../scripts/seed/seed-biggs.ts).
+- **Regenerate** as above, re-extracting the `social_groups` rows. If the register ever
+  retires a sub-lineage (animals Q22 is still open), the pair stays valid — identifiers
+  are never reused — and folding the group is a migration of its own, not an edit here.
