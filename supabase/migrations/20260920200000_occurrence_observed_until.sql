@@ -17,8 +17,8 @@
 -- a position (where the observer stood), not a time.
 --
 -- Appended as the LAST column: CREATE OR REPLACE VIEW may add columns only at the end,
--- and doing so leaves occurrences_on_date(), occurrence_index and the haul-out view --
--- all of which depend on this view -- in place. The body is otherwise the definition as
+-- and doing so leaves occurrence_index, occurrence_identifier_candidates and the haul-out
+-- view -- everything that depends on this view -- in place. The body is otherwise the definition as
 -- it stood (pg_get_viewdef), unchanged.
 --
 -- No consumer reads the column yet. Grants are relation-level and already cover it.
@@ -183,4 +183,3 @@ UNION ALL
      LEFT JOIN providers prov ON prov.id = o.provider_id
      LEFT JOIN collections col ON col.id = o.collection_id
      LEFT JOIN organizations org ON org.id = col.organization_id;
-Time: 9.096 ms;
