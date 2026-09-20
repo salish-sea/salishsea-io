@@ -462,7 +462,14 @@ function markdown(edition: Edition, cat: Catalogue, findings: Finding[]): string
         m.set(f.verdict, (m.get(f.verdict) ?? 0) + 1);
     }
     const verdicts = [...new Set(of('social_groups').map((f) => f.verdict))].sort();
-    const namedGroups = cat.socialGroups.filter((g) => g.kind === 'named_group').length;
+    // What is said about named groups is counted from the findings, never inferred from
+    // how many rows there are: a row that failed to match, or matched without colliding,
+    // must not be swept into "they all resolve and collide".
+    const namedFindings = of('social_groups').filter((f) => groupKind.get(f.row_id) === 'named_group');
+    const namedGroups = namedFindings.length;
+    const namedOne = namedFindings.filter((f) => f.verdict === 'one');
+    const collided = new Set(of('collision').map((f) => f.row_id));
+    const namedColliding = namedOne.filter((f) => collided.has(f.entity_ids)).length;
     const groupKindNote = [
         'Broken down by kind, because the tables above and below mean different things per kind:',
         '',
@@ -485,8 +492,9 @@ function markdown(edition: Edition, cat: Catalogue, findings: Finding[]): string
             : ''),
         ...(namedGroups > 0
             ? ['',
-                'A `named_group` resolving to `one` is not the clean result it looks like: each'
-                + ' lands on the matriline it names, which the collisions section below sets out.']
+                'A `named_group` resolving to `one` is not the clean result it looks like:'
+                + ` ${namedColliding} of the ${namedOne.length} that do land on an entity another`
+                + ' catalogue row also claims, which the collisions section below sets out.']
             : []),
     ].join('\n');
 
@@ -539,10 +547,12 @@ ${table(['basis', 'rows', 'share'], [...basis].map(([b, n]) =>
 ADR-0012's finding 4 is that \`named_group\` — a real travelling group with a name and no
 rank — has nowhere to go upstream, because the register's validator requires every group
 to have one. ${namedGroups > 0
-        ? `**This edition does express them**, and not as groups: the collective name is
-a \`common\` name on the ranked matriline, which is why all ${namedGroups} resolve above and appear
-in the collisions section. Whether that is the answer to finding 4 or an artefact of how the
-source sheet was read is for \`salish-ox2.3\` to carry upstream, not for this report to settle.`
+        ? `Of the catalogue's ${namedGroups} such rows, ${namedOne.length} resolve to exactly one
+register entity, and ${namedColliding} of those land on an entity another catalogue row also claims
+(the collisions section). Where that happens the register is expressing the group, and not as
+a group: the collective name is a \`common\` name on the ranked matriline. Whether that is the
+answer to finding 4 or an artefact of how the source sheet was read is for \`salish-ox2.3\` to
+carry upstream, not for this report to settle.`
         : `The catalogue holds no \`named_group\` rows, so there is nothing left here for
 that finding to size: the register expresses a collective name as a \`common\` name on the
 ranked matriline, and the catalogue's name-only shells were retired on that basis
