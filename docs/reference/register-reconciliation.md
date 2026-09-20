@@ -40,9 +40,7 @@ Broken down by kind, because the tables above and below mean different things pe
 | `ecotype` | 1 | 1 |
 | `matriline` | 132 | 132 |
 
-The register holds 207 matriline entities against our 132. A `wrong-kind-only` matriline is one whose designation names an *individual* in the register and no group — which is a question about how finely each side subdivides a matriline, not about spelling.
-
-A `named_group` resolving to `one` is not the clean result it looks like: every one of them lands on the matriline it names, which the collisions section below sets out.
+The register holds 207 matriline entities against our 132.
 
 Every row is `one`.
 
@@ -118,11 +116,10 @@ roster.
 
 ADR-0012's finding 4 is that `named_group` — a real travelling group with a name and no
 rank — has nowhere to go upstream, because the register's validator requires every group
-to have one. **This edition does express them**, and not as groups: the collective name is
-a `common` name on the ranked matriline, which is why all six resolve above and all six
-appear in the collisions section. Whether that is the answer to finding 4 or an artefact of
-how the source sheet was read is for `salish-ox2.3` to carry upstream, not for this report
-to settle.
+to have one. The catalogue holds no `named_group` rows, so there is nothing left here for
+that finding to size: the register expresses a collective name as a `common` name on the
+ranked matriline, and the catalogue's name-only shells were retired on that basis
+(`salish-ox2.3`).
 
 | kind | rows |
 |---|---|
