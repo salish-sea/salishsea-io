@@ -8,7 +8,7 @@ context: design conversation, 2026-07-29; conceptual only, no schema proposed
 
 **Conceptual model, not a schema.** The payoff being aimed at is interaction design: if the
 model is right, it should be obvious how an uploaded sighting, an iNaturalist observation
-and an OrcaSound record are the same kind of thing. Nothing here proposes tables, and
+and an Orcasound record are the same kind of thing. Nothing here proposes tables, and
 several parts are deliberately unresolved.
 
 This is the long-chewed-on part of the project, and the claim is that it is *uniquely*
@@ -137,7 +137,7 @@ At least five axes, separately asserted, separately confident, by different acto
 
 | Axis | Example | Vocabulary owner |
 |---|---|---|
-| Category | biophony / anthrophony / geophony | OrcaSound |
+| Category | biophony / anthrophony / geophony | Orcasound |
 | Taxon | *Orcinus orca* | iNaturalist / NCBI, via crosswalk |
 | Identity | T065A, J pod, the T023s | the animals register |
 | Signal type | an S1 call | `orcasound/signals-srkw` |
@@ -208,7 +208,7 @@ Two places it strains, both about scale rather than about the mechanism:
   growth should probably not burn an identifier and correction should. This distinction is
   likely what keeps churn tolerable.
 
-**OrcaSound dodges rather than solves this.** A bout is created manually, only once there is
+**Orcasound dodges rather than solves this.** A bout is created manually, only once there is
 sufficient evidence, and staffing limits mean few bouts exist. Sightings arrive at much
 higher volume, so the dodge does not transfer.
 
