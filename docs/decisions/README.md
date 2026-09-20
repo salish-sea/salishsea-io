@@ -16,7 +16,7 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [010](010-fresh-codebase-vs-acartia.md) | SalishSea.io is a fresh codebase, not an extension of acartia.io | accepted |
 | [011](011-ingest-imperative-shell.md) | Network ingest as a TypeScript imperative shell over a functional core | accepted |
 | [012](012-ingest-heartbeat.md) | Ingest heartbeat: external observer via scheduled GitHub Action | accepted |
-| [013](013-orcasound-acoustic-occurrences.md) | OrcaSound acoustic occurrences from curated biophony bouts, identified by upstream tags (amended 2026-08-14: identifications arrive typed) | accepted (our side); pending upstream adoption |
+| [013](013-orcasound-acoustic-occurrences.md) | Orcasound acoustic occurrences from curated biophony bouts, identified by upstream tags (amended 2026-08-14: identifications arrive typed; 2026-09-20: orcasite is read directly with no mirror schema, occurrences gain an end time, bouts withheld from DwC for now) | accepted (our side); pending upstream adoption |
 | [014](014-trust-and-curation-model.md) | Trust & curation: claims have status, people have reputation, curators assert both | proposed (direction) |
 | [015](015-individual-profile-pages.md) | Individual profile pages at `/individuals/<designation>` | accepted (amended by 034: now `/individuals/<identifier>/<slug>`) |
 | [016](016-matriline-profile-pages.md) | Matriline profile pages | accepted (amended by 034) |
@@ -31,14 +31,14 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [025](025-pnpm-over-npm.md) | pnpm replaces npm; `infra/` is a separate pnpm project | accepted |
 | [026](026-branded-fallback-preview-image.md) | Branded fallback link-preview image: the brand card where no image of the thing shared exists | accepted |
 | [027](027-marine-mammal-scope-whale-centric-identity.md) | Marine-mammal scope, whale-centric identity; PSEMP is a boundary, not a data source (extends 009) | accepted |
-| [028](028-salishsea-io-speaks-to-orcasound.md) | SalishSea.io is the single voice recommending an identification schema to OrcaSound | accepted |
+| [028](028-salishsea-io-speaks-to-orcasound.md) | SalishSea.io is the single voice recommending an identification schema to Orcasound | accepted |
 | [029](029-map-symbology.md) | Map symbology: colour carries the taxon, labels carry the specifics; uncertainty not encoded | accepted |
 | [030](030-google-signin-nonce.md) | Google sign-in carries a real nonce; GSI configured in code, not markup | accepted |
 | [031](031-surfacing-failures.md) | Failures reach the user through one toast, and Sentry through the same call | accepted |
 | [032](032-retired-taxa-resolved-on-read.md) | A retired taxon is resolved on read, not rewritten on write (applies 008) | accepted |
 | [033](033-register-names-the-animals.md) | The register names the animals, we compose the display (applies 008, extends 029) | accepted |
 | [034](034-profile-urls-key-on-the-register-identifier.md) | A profile URL keys on the register identifier; the designation is a slug (amends 015, 016, 017) | accepted; implemented for individuals and ecotypes 2026-09-11, matrilines pending `salish-ox2.6` |
-| [035](035-catalogue-migrates-before-tagging.md) | The catalogue migrates before the first OrcaSound bout is tagged (answers ADR-0012's open question) | accepted |
+| [035](035-catalogue-migrates-before-tagging.md) | The catalogue migrates before the first Orcasound bout is tagged (answers ADR-0012's open question) | accepted |
 | [036](036-ingest-scope-killer-whales-range-wide.md) | Ingest scope: killer whales range-wide, everything else the Salish Sea; enforced in `isIngestable`, existing rows purged | accepted; extended to iNaturalist by 044 |
 | [037](037-sentry-transmits-from-production-only.md) | Sentry transmits from production only; one `initSentry()` gates the scope binding, not `init()` | accepted |
 | [038](038-nightly-backups-we-own.md) | A nightly database dump and incremental media mirror in a private versioned bucket; there was no backup before | accepted |

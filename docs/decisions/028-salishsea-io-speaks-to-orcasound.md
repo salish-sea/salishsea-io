@@ -1,10 +1,10 @@
-# 028 — SalishSea.io is the single voice recommending an identification schema to OrcaSound
+# 028 — SalishSea.io is the single voice recommending an identification schema to Orcasound
 
 **Status:** accepted · **Decided:** 2026-08-13 · **Answers:** the closing open question of [animals ADR-0018](https://github.com/salish-sea/animals/blob/main/decisions/0018-annotation-semantics-belong-to-consumers.md)
 
 ## Context
 
-Two repositories in the salish-sea org have a stake in how OrcaSound records what a
+Two repositories in the salish-sea org have a stake in how Orcasound records what a
 moderator heard:
 
 - **[salish-sea/animals](https://github.com/salish-sea/animals)** — the register. It owns
@@ -16,7 +16,7 @@ moderator heard:
   it; decision [013](013-orcasound-acoustic-occurrences.md) defines an acoustic occurrence
   as one curated biophony bout identified by structured upstream tags.
 
-OrcaSound ([orcasound/orcasite](https://github.com/orcasound/orcasite)) is external to
+Orcasound ([orcasound/orcasite](https://github.com/orcasound/orcasite)) is external to
 both. Neither repository decides its schema; the most either can do is publish a
 recommendation — [orcasound/orcasite#1001](https://github.com/orcasound/orcasite/issues/1001).
 ADR-0018 closed by naming the risk and leaving it open: *"Two projects independently telling
@@ -24,7 +24,7 @@ a third what its annotation schema should be is worse than one."*
 
 ## Decision
 
-**SalishSea.io writes and posts the recommendation. The register does not address OrcaSound
+**SalishSea.io writes and posts the recommendation. The register does not address Orcasound
 directly on annotation.**
 
 Because SalishSea.io is the **consumer of the occurrence records orcasite emits**. The
@@ -42,9 +42,9 @@ The register's identifiers still travel in the recommendation — that is most o
 substance — but they travel **cited by the consumer**, the way any other upstream
 dependency does. Where the register wants something (an identifier rather than a name; a
 derived fact recording its edition), it states it as a requirement in its own ADRs and this
-repository carries it into #1001 in a form OrcaSound can implement. If the recommendation
+repository carries it into #1001 in a form Orcasound can implement. If the recommendation
 and the register disagree, that is a bug to fix here before posting, not two positions for
-OrcaSound to adjudicate.
+Orcasound to adjudicate.
 
 ## Rejected alternatives
 
@@ -55,7 +55,7 @@ OrcaSound to adjudicate.
   five-column table.
 - **Both, on their own topics** — the register on identifiers, SalishSea.io on annotation
   columns. Clean in theory, unworkable in practice: a tag slug *is* both at once, and
-  splitting the ask across two issue threads in two voices leaves OrcaSound reconciling
+  splitting the ask across two issue threads in two voices leaves Orcasound reconciling
   them. One recommendation with one author is the whole point.
 - **A joint statement from the salish-sea org.** No worse in substance, but it invents a
   publishing venue with no status field, no supersession, and no owner — the objection
@@ -72,7 +72,7 @@ OrcaSound to adjudicate.
   than a convention. The register makes no such demand: ADR-0018 grants it exactly two
   claims on an annotation — cite an identifier, and record the edition behind a derived
   fact — and ADR-0009's five-column sketch is explicitly illustrative. Where the field
-  lands is ours to propose and OrcaSound's to decide; naming one here as though the
+  lands is ours to propose and Orcasound's to decide; naming one here as though the
   register mandated it would re-create the confusion this record exists to end. Reposting
   is tracked as `salish-8vr.2`.
 - **The recommendation cannot be posted before the shape is settled here.** Q18's
@@ -80,7 +80,7 @@ OrcaSound to adjudicate.
   animal named (an occurrence with zero identifications) — has to land as an amendment to
   013 or a successor first (`salish-8vr.4`). Speaking with one voice only helps if the
   voice has something coherent to say.
-- **Register changes reach OrcaSound through here.** A new entity kind, a renamed label, or
+- **Register changes reach Orcasound through here.** A new entity kind, a renamed label, or
   a deprecation does not become an upstream ask on its own; it lands in
   [docs/design-notes/occurrence-identification-findings.md](../design-notes/occurrence-identification-findings.md),
   gets decided in `docs/decisions/`, and is carried into #1001 if it changes what we ask of
@@ -88,7 +88,7 @@ OrcaSound to adjudicate.
 - **This adds a hop for the register.** Accepted: the alternative is two authors, and in
   practice both hats are worn by the same person, which is precisely why the boundary needs
   to be written down rather than remembered.
-- OrcaSound remains free to ignore all of it. 013's "pending upstream adoption" status is
+- Orcasound remains free to ignore all of it. 013's "pending upstream adoption" status is
   unchanged by this record.
 
 ## Reference
