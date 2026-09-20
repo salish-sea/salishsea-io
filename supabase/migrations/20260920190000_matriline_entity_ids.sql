@@ -1,0 +1,187 @@
+-- Every matriline gets its register identifier (the group half of salish-ox2.5).
+--
+-- 20260830130000 gave individuals and the ecotype their identifiers and left the 132
+-- matrilines NULL on purpose: the register then held one level of Bigg's lineage where we
+-- hold two, so 73 of our groups -- T073A, T073C, every letter-suffixed sub-lineage -- had
+-- no register entity to adopt. Register edition 2026.09.1 mints those sub-lineages
+-- (salish-sea/animals#31, ahead of its open question Q22), and the reconciliation against
+-- it resolves all 132 to exactly one register group of rank matriline, with no register
+-- entity claimed twice (docs/reference/register-reconciliation.md). The pairs below are
+-- that measurement, committed as data/matriline-entities.tsv and embedded here because a
+-- migration must be static.
+--
+-- The match is by name, so it was also checked by structure against the register's
+-- published hierarchy: all 375 of our membership rows put the animal underneath the
+-- register group its group matched, and every group-to-parent link agrees.
+--
+-- What this column is FOR: decision 034 keys profile URLs on it. /individuals/ and
+-- /ecotypes/ already do; /matrilines/ still keys on the designation, which is a label and
+-- labels get replaced. This migration is what lets that route follow. It changes no URL
+-- by itself.
+--
+-- IF Q22 ANSWERS THAT SUB-LINEAGES ARE NOT REAL GROUPS, the register deprecates those 73
+-- entities as merged into their parent lineages. Nothing here breaks -- identifiers are
+-- never reused (animals ADR-0010) -- but the 73 rows would then point at retired
+-- entities, and folding them is a follow-up migration, not something to pre-empt.
+--
+-- UNIQUE on the column (from 20260830130000) is what makes a double assignment fail here
+-- rather than ship.
+--
+-- Additive: no view reads this column yet; grants are table-level and cover it.
+
+UPDATE public.social_groups g
+SET entity_id = map.entity_id
+FROM (VALUES
+  ('T002C', 'SSA:0002131'),
+  ('T007', 'SSA:0002001'),
+  ('T007B', 'SSA:0002132'),
+  ('T010', 'SSA:0002002'),
+  ('T011', 'SSA:0002003'),
+  ('T019', 'SSA:0002006'),
+  ('T023', 'SSA:0002009'),
+  ('T023C', 'SSA:0002133'),
+  ('T023D', 'SSA:0002134'),
+  ('T026', 'SSA:0002010'),
+  ('T028', 'SSA:0002011'),
+  ('T028A', 'SSA:0002135'),
+  ('T028B', 'SSA:0002136'),
+  ('T030', 'SSA:0002012'),
+  ('T030B', 'SSA:0002137'),
+  ('T034', 'SSA:0002014'),
+  ('T034A', 'SSA:0002138'),
+  ('T035', 'SSA:0002015'),
+  ('T035A', 'SSA:0002139'),
+  ('T036', 'SSA:0002016'),
+  ('T036A', 'SSA:0002140'),
+  ('T036A1', 'SSA:0002141'),
+  ('T036B', 'SSA:0002142'),
+  ('T036B1', 'SSA:0002143'),
+  ('T037', 'SSA:0002017'),
+  ('T037A', 'SSA:0002144'),
+  ('T037B', 'SSA:0002145'),
+  ('T038', 'SSA:0002018'),
+  ('T038A', 'SSA:0002146'),
+  ('T038B', 'SSA:0002147'),
+  ('T041', 'SSA:0002020'),
+  ('T041A', 'SSA:0002148'),
+  ('T046', 'SSA:0002021'),
+  ('T046B', 'SSA:0002149'),
+  ('T046B1', 'SSA:0002150'),
+  ('T046B2', 'SSA:0002151'),
+  ('T046B3', 'SSA:0002152'),
+  ('T046C', 'SSA:0002153'),
+  ('T049A', 'SSA:0002154'),
+  ('T049B', 'SSA:0002155'),
+  ('T050', 'SSA:0002023'),
+  ('T050B', 'SSA:0002156'),
+  ('T055', 'SSA:0002026'),
+  ('T055B', 'SSA:0002157'),
+  ('T057', 'SSA:0002027'),
+  ('T059', 'SSA:0002029'),
+  ('T059A', 'SSA:0002158'),
+  ('T059A1', 'SSA:0002159'),
+  ('T060', 'SSA:0002030'),
+  ('T064', 'SSA:0002032'),
+  ('T064A', 'SSA:0002160'),
+  ('T064B', 'SSA:0002161'),
+  ('T064B1', 'SSA:0002162'),
+  ('T065', 'SSA:0002033'),
+  ('T065A', 'SSA:0002163'),
+  ('T065B', 'SSA:0002164'),
+  ('T068', 'SSA:0002034'),
+  ('T068B', 'SSA:0002165'),
+  ('T068B1', 'SSA:0002166'),
+  ('T068C', 'SSA:0002167'),
+  ('T068C3', 'SSA:0002168'),
+  ('T069', 'SSA:0002035'),
+  ('T069A', 'SSA:0002169'),
+  ('T069D', 'SSA:0002170'),
+  ('T071', 'SSA:0002037'),
+  ('T071B', 'SSA:0002171'),
+  ('T073', 'SSA:0002039'),
+  ('T073A', 'SSA:0002172'),
+  ('T073C', 'SSA:0002173'),
+  ('T075', 'SSA:0002041'),
+  ('T075B', 'SSA:0002174'),
+  ('T075C', 'SSA:0002175'),
+  ('T077', 'SSA:0002042'),
+  ('T085', 'SSA:0002043'),
+  ('T086A', 'SSA:0002176'),
+  ('T086A1', 'SSA:0002177'),
+  ('T086A3', 'SSA:0002178'),
+  ('T090', 'SSA:0000040'),
+  ('T099', 'SSA:0002049'),
+  ('T099B', 'SSA:0002179'),
+  ('T100', 'SSA:0002050'),
+  ('T100B', 'SSA:0002180'),
+  ('T101', 'SSA:0002051'),
+  ('T109', 'SSA:0002054'),
+  ('T109A', 'SSA:0002181'),
+  ('T109A2', 'SSA:0002182'),
+  ('T109A3', 'SSA:0002183'),
+  ('T109B', 'SSA:0002184'),
+  ('T109C', 'SSA:0002185'),
+  ('T109D', 'SSA:0002186'),
+  ('T111', 'SSA:0002055'),
+  ('T111A', 'SSA:0002187'),
+  ('T111B', 'SSA:0002188'),
+  ('T116', 'SSA:0002060'),
+  ('T117', 'SSA:0002061'),
+  ('T117B', 'SSA:0002189'),
+  ('T121A', 'SSA:0002190'),
+  ('T123', 'SSA:0002066'),
+  ('T124', 'SSA:0002067'),
+  ('T124A', 'SSA:0002191'),
+  ('T124A1', 'SSA:0002192'),
+  ('T124A2', 'SSA:0002193'),
+  ('T124A3', 'SSA:0002194'),
+  ('T124A4', 'SSA:0002195'),
+  ('T124D', 'SSA:0002196'),
+  ('T125', 'SSA:0002068'),
+  ('T137', 'SSA:0002078'),
+  ('T140', 'SSA:0002080'),
+  ('T141', 'SSA:0002081'),
+  ('T146', 'SSA:0002084'),
+  ('T146A', 'SSA:0002197'),
+  ('T146C', 'SSA:0002198'),
+  ('T151', 'SSA:0002089'),
+  ('T151A', 'SSA:0002199'),
+  ('T152', 'SSA:0002090'),
+  ('T166', 'SSA:0002096'),
+  ('T166A', 'SSA:0002200'),
+  ('T167', 'SSA:0002097'),
+  ('T168A', 'SSA:0002201'),
+  ('T174', 'SSA:0002104'),
+  ('T174A', 'SSA:0002202'),
+  ('T174B', 'SSA:0002203'),
+  ('T176', 'SSA:0002106'),
+  ('T179', 'SSA:0002109'),
+  ('T181', 'SSA:0002111'),
+  ('T183', 'SSA:0002113'),
+  ('T185', 'SSA:0002115'),
+  ('T188', 'SSA:0002118'),
+  ('T199', 'SSA:0002121'),
+  ('T224', 'SSA:0002124'),
+  ('T250', 'SSA:0002127'),
+  ('T253', 'SSA:0002130')
+) AS map(designation, entity_id)
+WHERE g.kind = 'matriline' AND g.designation = map.designation;
+
+COMMENT ON COLUMN public.social_groups.entity_id IS
+  'The register''s permanent identifier for this group (salish-sea/animals, ADR-0002/'
+  '0010). Key URLs on this, never on a designation. Populated for the ecotype and for '
+  'every matriline, from data/matriline-entities.tsv; a row that mapping misses fails '
+  'the migration. UNIQUE so no two rows can ever claim one register entity.';
+
+DO $$
+DECLARE
+  unmapped integer;
+BEGIN
+  -- Zero rows (a fresh database, seeded afterwards) passes; a production group the
+  -- mapping misses does not. An identifier-keyed matriline route would silently have no
+  -- page for such a group, which is the quiet failure to refuse here.
+  SELECT count(*) INTO unmapped FROM public.social_groups WHERE entity_id IS NULL;
+  IF unmapped > 0 THEN
+    RAISE EXCEPTION '% social group(s) with no register identifier — regenerate data/matriline-entities.tsv from a fresh reconciliation run', unmapped;
+  END IF;
+END $$;
