@@ -43,7 +43,7 @@ Recorded in the graph as `salish-8vr.24` — the activation moment, blocked by b
 
 - **Parallel, on the asymmetry argument** — `SSA:` identifiers are permanent, so tags are safe whenever written. Rejected above: true tier by tier, and false for the tier bouts actually get tagged with while Q22 is open.
 - **Tag first, migrate second.** Nothing recommends it; it maximises the time Orcasound spends committed to a register its recommender has not adopted, and was only ever on the table because ADR-0012 phrased the question symmetrically.
-- **Per-tier gating now** (individuals tag immediately, groups wait). The honest reading of the asymmetry, and rejected only on simplicity: it complicates the picker and the recommendation for little gain, since the picker (`salish-8vr.9`) is not built yet and the migration may well land before it ships. Kept as the named fallback above rather than the rule. *(Moot since the 2026-09-20 amendment: with the sub-lineages minted there is no tier left to wait for.)*
+- **Per-tier gating now** (individuals tag immediately, groups wait). The honest reading of the asymmetry, and rejected only on simplicity: it complicates the picker and the recommendation for little gain, since the picker (`salish-8vr.9`) is not built yet and the migration may well land before it ships. ~~Kept as the named fallback above rather than the rule.~~ *(Withdrawn by the 2026-09-20 amendment: with the sub-lineages minted there is no tier left to wait for.)*
 
 ## Reference
 
