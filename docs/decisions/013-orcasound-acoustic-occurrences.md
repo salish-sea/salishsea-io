@@ -1,4 +1,4 @@
-# 013 — OrcaSound acoustic occurrences come from curated biophony bouts, identified by upstream tags
+# 013 — Orcasound acoustic occurrences come from curated biophony bouts, identified by upstream tags
 
 **Status:** accepted (our side) · **pending upstream adoption** · **Decided:** 2026-07-06 ·
 **Amended:** 2026-08-14 (see [Amendment](#amendment-2026-08-14) — identifications arrive
@@ -9,11 +9,11 @@ occurrence gains an end time; bouts stay out of the DarwinCore export for now)
 ## Context
 
 [CONTEXT.md](../../CONTEXT.md) has long reserved **acoustic detection** — an occurrence
-derived from sensor data rather than a human report — as a planned OrcaSound integration.
+derived from sensor data rather than a human report — as a planned Orcasound integration.
 Issue [#178](https://github.com/salish-sea/salishsea-io/issues/178) opened the question with a
 single unanswered comment: "What is it we want? Detections? Bouts?"
 
-OrcaSound (the [orcasound/orcasite](https://github.com/orcasound/orcasite) project, an Elixir/
+Orcasound (the [orcasound/orcasite](https://github.com/orcasound/orcasite) project, an Elixir/
 Ash app, a sister project in the Acartia cooperative) exposes acoustic activity at three grains:
 
 - **Detection** — one button-press. `source: :human` (an anonymous listener clicked) or
@@ -33,14 +33,14 @@ to ~3–6/mo; the moderator (largely Scott Veirs) is on sabbatical.
 
 ## Decision
 
-An OrcaSound **acoustic detection** occurrence is **one `biophony` bout** — located at the
+An Orcasound **acoustic detection** occurrence is **one `biophony` bout** — located at the
 bout's `feed` coordinates, spanning the bout's `start_time`/`end_time`. `anthrophony` and
 `geophony` bouts are excluded (not organisms), as are raw detections and candidates.
 
 A bout's **species / ecotype / pod / matriline** is read from **structured upstream tags**, not
 parsed from the free-text `name`.
 
-> ~~We asked OrcaSound (orcasound/orcasite#1001) to apply a controlled tag vocabulary to bouts
+> ~~We asked Orcasound (orcasound/orcasite#1001) to apply a controlled tag vocabulary to bouts
 > (`ecotype:srkw`, `pod:j`, `matriline:t090`, `species:humpback`, `unconfirmed`/`false-positive`,
 > …). Bouts already expose a `tags` relationship on the JSON:API (`Bout` `includes [:feed,
 > :tags]`), so consuming it needs no upstream schema change — only slug conventions and
@@ -58,7 +58,7 @@ parsed from the free-text `name`.
 > [Amendment](#amendment-2026-09-20).*
 
 Ingest runs within the imperative-shell architecture (decision
-[011](011-ingest-imperative-shell.md)). OrcaSound is already modeled as a **Collection** with
+[011](011-ingest-imperative-shell.md)). Orcasound is already modeled as a **Collection** with
 `collection_kind = acoustic_feed`.
 
 ## Rejected alternatives
@@ -80,15 +80,15 @@ Ingest runs within the imperative-shell architecture (decision
 
 ## Consequences
 
-- **Blocked on upstream, but no longer on one answer.** The integration depends on OrcaSound
+- **Blocked on upstream, but no longer on one answer.** The integration depends on Orcasound
   adopting the changes that let a tag carry identity, certainty and machine classification —
   now six issues that can each be accepted separately, listed under
   [Upstream status](#upstream-status) in the Amendment. orcasound/orcasite#1001 is retained as
   the narrative that links them, not as the ask itself. #178 stays parked at `needs-info`. This
-  ADR records *our* side; the upstream contract is not ratified, and OrcaSound may adopt some,
+  ADR records *our* side; the upstream contract is not ratified, and Orcasound may adopt some,
   all, or none of it.
 
-  > ~~The integration's value depends on OrcaSound adopting the tag vocabulary
+  > ~~The integration's value depends on Orcasound adopting the tag vocabulary
   > (orcasound/orcasite#1001). #178 is parked at `needs-info` pending that response, which may
   > not come.~~ *Superseded 2026-08-14: the vocabulary already exists and was never the ask —
   > see the Amendment. Kept because "waiting for one response" is what this record wrongly told
@@ -100,7 +100,7 @@ Ingest runs within the imperative-shell architecture (decision
   `organismID` — consistent with the unvalidated-identifier rule (decision
   [004](004-rights-and-licensing.md), [docs/rights-policy.md](../rights-policy.md)).
 - Volume is thin and currently declining; even a clean integration adds only a few occurrences
-  per month until OrcaSound's curation cadence recovers.
+  per month until Orcasound's curation cadence recovers.
 
 ## Amendment (2026-08-14)
 
@@ -110,7 +110,7 @@ rather than by parsing `name` — is unchanged and now better supported.
 
 ### 1. The vocabulary already exists, and it isn't ours
 
-The original proposed slugs (`ecotype:srkw`, `pod:j`, `matriline:t090`) for OrcaSound to
+The original proposed slugs (`ecotype:srkw`, `pod:j`, `matriline:t090`) for Orcasound to
 adopt. By the time anyone acted on it, moderators had built their own: **94 distinct tags,
 573 applications across 157 of 206 bouts** (live API, 2026-08-13), largely by Scott Veirs.
 It is a better vocabulary than the one we sketched, because it came from the work.
@@ -129,7 +129,7 @@ That is the argument for an explicit `kind` column, not against it.
 ### 2. It is a schema change, and the requirement is ours
 
 "No upstream schema change — only slug conventions and moderator habit" was wrong. Preserving a
-moderator's uncertainty needs a column. The evidence is in OrcaSound's own data: eleven bouts
+moderator's uncertainty needs a column. The evidence is in Orcasound's own data: eleven bouts
 carry a `?` in the name, and in every one the hedge survives in prose and dies in the tags —
 `SRKW signals at PT (J+K +L? pods)` is tagged `J`, `K`, `SRKW`, and **not** `L`. Both available
 moves are wrong: applying `L` overstates what was heard, omitting it discards an observation.
@@ -231,8 +231,8 @@ orcasite the way [008](008-source-schemas-are-upstream-mirrors.md) treats Maplif
 iNaturalist: a foreign system whose shape we do not control and must not let leak. That premise
 is wrong for orcasite. It is our project — we are among its maintainers, and when its shape is
 wrong for a consumer the remedy is a pull request, not a layer. ([028](028-salishsea-io-speaks-to-orcasound.md)
-and [035](035-catalogue-migrates-before-tagging.md) call OrcaSound "genuinely external". That is
-about who decides what OrcaSound's moderators record, which is still not us alone; it is not a
+and [035](035-catalogue-migrates-before-tagging.md) call Orcasound "genuinely external". That is
+about who decides what Orcasound's moderators record, which is still not us alone; it is not a
 reason to treat its code as foreign.) The first one is
 [orcasite#1042](https://github.com/orcasound/orcasite/pull/1042), which gives each tag a `kind`
 and an `iri` ([#1013](https://github.com/orcasound/orcasite/issues/1013)).
@@ -259,7 +259,7 @@ the other 78 name no animal at all: call types, vessels, recording-quality notes
 replace a matching rule here.
 
 This narrows `salish-8vr.18`: reconciling `normalize_designation()` with the register's fold
-still matters for Maplify comments, and no longer for OrcaSound.
+still matters for Maplify comments, and no longer for Orcasound.
 
 ### 2. An occurrence gains an end time
 

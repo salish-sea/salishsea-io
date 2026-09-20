@@ -7,7 +7,7 @@ describe('partners CSV', () => {
     expect(partners.length).toBeGreaterThanOrEqual(3);
     expect(typeof partners[0]!.name).toBe('string');
     expect(typeof partners[0]!.url).toBe('string');
-    expect(partners.find(p => p.name === 'OrcaSound')?.url).toBe('https://orcasound.net');
+    expect(partners.find(p => p.name === 'Orcasound')?.url).toBe('https://orcasound.net');
   });
 });
 
