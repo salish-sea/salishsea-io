@@ -1,6 +1,6 @@
 # 035 — The catalogue migrates before the first bout is tagged
 
-**Status:** accepted · **Decided:** 2026-08-30
+**Status:** accepted · **Decided:** 2026-08-30 · **Amended by:** [048](048-sub-matrilines-minted-ahead-of-q22.md) — the ordering stands; the transitive wait on Q22 and the scoped-tagging fallback do not
 
 ## Decision
 
