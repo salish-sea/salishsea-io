@@ -2,7 +2,9 @@
 
 **Status:** accepted (our side) · **pending upstream adoption** · **Decided:** 2026-07-06 ·
 **Amended:** 2026-08-14 (see [Amendment](#amendment-2026-08-14) — identifications arrive
-typed, and the upstream ask is a schema change)
+typed, and the upstream ask is a schema change) · 2026-09-20 (see
+[Amendment](#amendment-2026-09-20) — orcasite is read directly, with no mirror schema; an
+occurrence gains an end time; bouts stay out of the DarwinCore export for now)
 
 ## Context
 
@@ -48,12 +50,16 @@ parsed from the free-text `name`.
 > both halves are corrected in the [Amendment](#amendment-2026-08-14) below, and the retraction
 > is public in orcasound/orcasite#1001.*
 
-Ingest follows the established pattern: mirror bouts + their tags **verbatim** into an
-`orcasound` upstream-mirror schema, then **translate** at the boundary (decision
-[008](008-source-schemas-are-upstream-mirrors.md)), within the imperative-shell ingest
-architecture (decision [011](011-ingest-imperative-shell.md)). OrcaSound is already modeled as
-a **Collection** with `collection_kind = acoustic_feed`. What "translate" means changed once
-the tags carried identifiers — see the [Amendment](#amendment-2026-08-14).
+> ~~Ingest follows the established pattern: mirror bouts + their tags **verbatim** into an
+> `orcasound` upstream-mirror schema, then **translate** at the boundary (decision
+> [008](008-source-schemas-are-upstream-mirrors.md)).~~
+>
+> *Superseded 2026-09-20: there is no mirror schema and no translation step — see the
+> [Amendment](#amendment-2026-09-20).*
+
+Ingest runs within the imperative-shell architecture (decision
+[011](011-ingest-imperative-shell.md)). OrcaSound is already modeled as a **Collection** with
+`collection_kind = acoustic_feed`.
 
 ## Rejected alternatives
 
@@ -158,20 +164,25 @@ This is the substantive architectural change. The original plan was to mirror ta
 typed and already citing `SSA:0000020`, and the boundary's job shrinks from *parsing a
 convention* to *resolving a stable identifier*.
 
-Decision [008](008-source-schemas-are-upstream-mirrors.md) is unaffected — we still mirror
-verbatim, and the mirror is still the place upstream shape is allowed to leak. What shrinks is
-the amount of *interpretation* in the translation step, which is exactly the fragile part.
+> ~~Decision [008](008-source-schemas-are-upstream-mirrors.md) is unaffected — we still mirror
+> verbatim, and the mirror is still the place upstream shape is allowed to leak. What shrinks is
+> the amount of *interpretation* in the translation step, which is exactly the fragile part.~~
+>
+> *Superseded 2026-09-20: 008 does not govern orcasite at all.*
 
-Where an `iri` is absent — free text remains legal upstream, deliberately, so vocabulary gaps
-stay visible — we fall back to matching the tag name against the register. **That match uses
-the register's published fold**
-([ADR-0019](https://github.com/salish-sea/animals/blob/main/decisions/0019-names-are-compared-by-folding.md)):
-lowercase, delete apostrophes and hyphens, collapse whitespace, replace each run of digits with
-its decimal value, and never fold a trailing `s`. Under it, every animal-kind tag in the live
-corpus resolves except `fish` (outside the register's taxonomic bound) and `calf` (a life
-stage). Bare `T37` correctly yields **two** candidates — the matriline `T037s` and the
-individual `T037` — which is ambiguity the vocabulary genuinely has, to be surfaced rather than
-adjudicated by string manipulation.
+> ~~Where an `iri` is absent — free text remains legal upstream, deliberately, so vocabulary gaps
+> stay visible — we fall back to matching the tag name against the register. **That match uses
+> the register's published fold**
+> ([ADR-0019](https://github.com/salish-sea/animals/blob/main/decisions/0019-names-are-compared-by-folding.md)):
+> lowercase, delete apostrophes and hyphens, collapse whitespace, replace each run of digits with
+> its decimal value, and never fold a trailing `s`. Under it, every animal-kind tag in the live
+> corpus resolves except `fish` (outside the register's taxonomic bound) and `calf` (a life
+> stage). Bare `T37` correctly yields **two** candidates — the matriline `T037s` and the
+> individual `T037` — which is ambiguity the vocabulary genuinely has, to be surfaced rather than
+> adjudicated by string manipulation.~~
+>
+> *Superseded 2026-09-20: a tag with no `iri` yields no identification. The gap is closed in
+> orcasite, not matched around here — see the [Amendment](#amendment-2026-09-20).*
 
 Consequence for our code: `normalize_designation()` and the fold disagree — ours pads where the
 fold strips, and our trailing-`s` stripping is the matriline/matriarch merge the fold refuses
@@ -206,6 +217,75 @@ orcasound/orcasite[#1013](https://github.com/orcasound/orcasite/issues/1013) (`k
 [#1017](https://github.com/orcasound/orcasite/issues/1017) (machine class on detections), and
 orcasound/orcahello[#597](https://github.com/orcasound/orcahello/issues/597) (send the class
 label). #1001 is retained as the narrative that links them.
+
+## Amendment (2026-09-20)
+
+The core decision is again unchanged: an acoustic occurrence is one curated biophony bout,
+identified by structured upstream tags. What changes is how the bout gets here, and two things
+about what it looks like when it arrives.
+
+### 1. orcasite is read directly. Decision 008 does not govern it
+
+This record planned an `orcasound` mirror schema and a translation step because it treated
+orcasite the way [008](008-source-schemas-are-upstream-mirrors.md) treats Maplify and
+iNaturalist: a foreign system whose shape we do not control and must not let leak. That premise
+is wrong for orcasite. It is our project — we are among its maintainers, and when its shape is
+wrong for a consumer the remedy is a pull request, not a layer. ([028](028-salishsea-io-speaks-to-orcasound.md)
+and [035](035-catalogue-migrates-before-tagging.md) call OrcaSound "genuinely external". That is
+about who decides what OrcaSound's moderators record, which is still not us alone; it is not a
+reason to treat its code as foreign.) The first one is
+[orcasite#1042](https://github.com/orcasound/orcasite/pull/1042), which gives each tag a `kind`
+and an `iri` ([#1013](https://github.com/orcasound/orcasite/issues/1013)).
+
+So, as [033](033-register-names-the-animals.md) already decided for the register: **no mirror
+schema, no translation layer.** The ingest reads `/api/json/bouts` and writes a table in
+`public` that is shaped as ours — the bout's id, its feed's location, its start and end, and the
+register identifiers its tags cite. 008 stands unchanged for the sources it was written about.
+
+An anti-corruption layer earns its keep by absorbing a shape we cannot change. Here it would
+have absorbed a shape we can, and in doing so hidden the defect from the only people able to
+fix it.
+
+**The fold-matching fallback goes with it.** The 2026-08-14 amendment said a tag without an
+`iri` would be matched against the register by name. It will not be: a tag with no `iri`
+contributes no identification, and the fix is to classify the tag in orcasite
+([#1016](https://github.com/orcasound/orcasite/issues/1016)), where every consumer benefits.
+The cost of this is small and known. Measured against the live API on 2026-09-20 — 221 bouts,
+155 of them biophony, 94 distinct tags — 15 tags name exactly one register entity (`KW`, `SRKW`,
+`J`, `K`, `L`, `Bigg's`, `humpback`, `CA sea lion`, `T090s`, …, 220 applications between them),
+one (`T37`) names two and needs a person to choose between the matriline and the whale, and
+the other 78 name no animal at all: call types, vessels, recording-quality notes. 92 of the
+155 biophony bouts carry at least one animal tag. Sixteen rows of classification upstream
+replace a matching rule here.
+
+This narrows `salish-8vr.18`: reconciling `normalize_designation()` with the register's fold
+still matters for Maplify comments, and no longer for OrcaSound.
+
+### 2. An occurrence gains an end time
+
+Every occurrence has been an instant, `observed_at`. A bout is not: the median runs 14 minutes
+and the longest 2.9 hours, and collapsing that to its start misstates what was heard.
+`public.occurrences` gains an end-time column, null for every existing source.
+
+It is a property of occurrences, not an acoustic special case. HappyWhale's source rows already
+carry a start and an end that the view discards, and the sighting report form may come to offer
+one. The original Consequences section flagged the time range as something "segment/travel-chain
+heuristics … must account for"; that still holds, and is now a concrete column to account for.
+
+### 3. Bouts are withheld from the DarwinCore export, for now
+
+[005](005-export-exclusion-src-01.md) decides what the archive contains. Bouts are closer to
+first-party data than iNaturalist or HappyWhale records are, and may well belong in it. They
+stay out until this integration has run end to end and we like what it produces — an archive is
+the one place a half-right record is hard to take back. This is a deferral to revisit, not an
+exclusion.
+
+### What this amendment does not decide
+
+Still `salish-8vr.4`, and still ours: whether a biophony bout with no animal tag — 63 of 155
+today — lands as an occurrence with zero identifications, and how a moderator's `certainty`
+([#1014](https://github.com/orcasound/orcasite/issues/1014)) relates to our
+`identifications.status`.
 
 ## Reference
 
