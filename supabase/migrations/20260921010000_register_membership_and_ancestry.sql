@@ -136,7 +136,13 @@ SECURITY DEFINER
 SET search_path = register, pg_catalog
 AS $$
   WITH resolved AS (
-    SELECT COALESCE(d.replaced_by, e.entity_id) AS entity_id
+    -- NOT COALESCE(d.replaced_by, e.entity_id). That looks equivalent and is not: for a
+    -- SPLIT deprecation `replaced_by` is NULL by design, so COALESCE would fall back to
+    -- the tombstone and then walk ITS ancestors — answering with a species for an
+    -- identifier the register has explicitly refused to redirect. The test below seeds a
+    -- split, because the register has none today and this would otherwise go unnoticed
+    -- until one appeared.
+    SELECT CASE WHEN d.entity_id IS NULL THEN e.entity_id ELSE d.replaced_by END AS entity_id
     FROM register.entities e
     LEFT JOIN register.deprecations d ON d.entity_id = e.entity_id
     WHERE e.entity_id = p_entity_id

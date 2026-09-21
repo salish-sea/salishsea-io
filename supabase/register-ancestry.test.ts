@@ -57,16 +57,53 @@ describe.skipIf(!DSN)('register ancestry (local Supabase)', () => {
         ]);
     });
 
-    test('every entity in the register resolves to a taxon', async () => {
+    test('every live or merged entity resolves to a taxon', async () => {
         if (!loaded) return;
         // Totality is the property salish-8vr.26 depends on: a bout citing any entity the
         // register knows must get a species, or it silently vanishes from the map. If a
         // future edition adds an entity that hangs from nothing, this fails and names it
         // rather than leaving a hole to be noticed later.
+        //
+        // A SPLIT deprecation is excluded on purpose, and the next test is why: it has no
+        // single correct successor, so NULL is the right answer rather than a gap. Today
+        // the register has no split, so this exclusion changes nothing — it is here so the
+        // assertion stays true when one arrives instead of failing and being loosened in
+        // a hurry.
         const orphans = await sql<{entity_id: string; kind: string}[]>`
-            SELECT entity_id, kind FROM register.entities
-            WHERE register.taxon_entity_for(entity_id) IS NULL`;
+            SELECT e.entity_id, e.kind FROM register.entities e
+            LEFT JOIN register.deprecations d ON d.entity_id = e.entity_id
+            WHERE register.taxon_entity_for(e.entity_id) IS NULL
+              AND NOT (d.entity_id IS NOT NULL AND d.replaced_by IS NULL)`;
         expect(orphans).toEqual([]);
+    });
+
+    test('a SPLIT deprecation resolves to NULL rather than guessing a successor', async () => {
+        if (!loaded) return;
+        // The register has no split deprecation yet, so this seeds one. Without it the
+        // behaviour is untested and the obvious implementation is wrong: writing the hop
+        // as COALESCE(d.replaced_by, e.entity_id) falls back to the TOMBSTONE when
+        // replaced_by is NULL, then walks its ancestors and returns a species for an
+        // identifier the register deliberately refused to redirect. That is worse than a
+        // gap, because it looks like an answer. salish-8vr.5 decides what a split should
+        // actually do; until then, nothing.
+        await sql.begin(async tx => {
+            await tx`INSERT INTO register.entities (entity_id, kind, label)
+                     VALUES ('SSA:9700001', 'group', 'Split tombstone')`;
+            // Give it a real taxon ancestor, so a wrong implementation would succeed here
+            // rather than returning NULL for want of anything to find.
+            await tx`INSERT INTO register.ancestor (entity_id, ancestor_id, depth, ancestor_kind)
+                     VALUES ('SSA:9700001', 'SSA:0000900', 1, 'taxon')`;
+            const [before] = await tx<{r: string | null}[]>`
+                SELECT register.taxon_entity_for('SSA:9700001') AS r`;
+            expect(before?.r, 'precondition: resolves before being deprecated').toBe('SSA:0000900');
+
+            await tx`INSERT INTO register.deprecations (entity_id, reason, replaced_by, consider)
+                     VALUES ('SSA:9700001', 'split', NULL, 'SSA:0000010')`;
+            const [after] = await tx<{r: string | null}[]>`
+                SELECT register.taxon_entity_for('SSA:9700001') AS r`;
+            expect(after?.r).toBeNull();
+            throw new Rollback();
+        }).catch((e: unknown) => { if (!(e instanceof Rollback)) throw e; });
     });
 
     test('a taxon is its own answer', async () => {
