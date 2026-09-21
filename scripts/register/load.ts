@@ -62,6 +62,10 @@ const TABLES = [
     ['data', 'deprecations', ['entity_id', 'reason', 'replaced_by', 'consider', 'date', 'source_id', 'note']],
     ['data', 'membership', ['member_id', 'group_id', 'start', 'end', 'source_id', 'note']],
     ['dist', 'ancestor', ['entity_id', 'ancestor_id', 'depth', 'ancestor_label', 'ancestor_kind', 'ancestor_rank']],
+    ['data', 'taxonomic_parent', ['taxon_id', 'parent_id', 'rank', 'scientific_name', 'source_id']],
+    ['dist', 'taxon_ancestor', ['taxon_id', 'ancestor_id', 'depth', 'ancestor_rank', 'ancestor_name']],
+    ['dist', 'classification', ['entity_id', 'label', 'taxon_id', 'scientific_name', 'taxon_rank',
+        'kingdom', 'phylum', 'class', 'order', 'family', 'genus']],
 ] as const;
 
 /**
@@ -70,7 +74,7 @@ const TABLES = [
  * quote it — including the INSERT column list, which is easy to miss because the table
  * definition quotes it and looks handled.
  */
-const RESERVED = new Set(['end']);
+const RESERVED = new Set(['end', 'order']);
 const col = (c: string) => (RESERVED.has(c) ? `"${c}"` : c);
 
 /**
