@@ -93,33 +93,48 @@ describe.skipIf(!DSN)('dwc classification (local Supabase)', () => {
             SELECT scientific_name, family, genus FROM dwc.taxa_classification
             WHERE scientific_name IN ('Orcinus orca', 'Orcinus orca ater')
             ORDER BY scientific_name`;
-        if (rows.length === 2) {
-            expect(rows[0]?.family).toBe(rows[1]?.family);
-            expect(rows[0]?.genus).toBe(rows[1]?.genus);
-        }
+        // Asserted, not guarded. An earlier draft wrapped the comparison in
+        // `if (rows.length === 2)`, which passes silently on a mirror that happens not to
+        // hold the subspecies — the vacuity this file's header is about.
+        expect(rows.map(r => r.scientific_name)).toEqual(['Orcinus orca', 'Orcinus orca ater']);
+        expect(rows[0]?.family, 'the species must have a family to inherit').toBeTruthy();
+        expect(rows[1]?.family).toBe(rows[0]?.family);
+        expect(rows[1]?.genus).toBe(rows[0]?.genus);
     });
 
     test.skipIf(!loaded)('a taxon the register does not know keeps iNaturalist\'s lineage', async () => {
         // Delphinapterus leucas and Eubalaena are strays: the register scopes itself to the
         // Salish Sea's animals. 4 exported records that exist only because of the fallback.
-        const rows = await sql<{scientific_name: string; family: string; kingdom: string}[]>`
-            SELECT scientific_name, family, kingdom FROM dwc.taxa_classification
+        const [stray] = await sql<{family: string; kingdom: string}[]>`
+            SELECT family, kingdom FROM dwc.taxa_classification
             WHERE scientific_name = 'Delphinapterus leucas'`;
-        for (const r of rows) {
-            expect(r.kingdom).toBe('Animalia');
-            expect(r.family, 'fallback must still supply a family').toBeTruthy();
-        }
+        // Asserted rather than iterated: `for (const r of rows)` over an empty result is a
+        // test that passes by doing nothing.
+        expect(stray, 'the mirror must hold this taxon for the fallback to be exercised').toBeDefined();
+        expect(stray?.kingdom).toBe('Animalia');
+        expect(stray?.family, 'fallback must still supply a family').toBeTruthy();
+        const [{ inRegister }] = await sql<{inRegister: number}[]>`
+            SELECT count(*)::int AS "inRegister" FROM register.classification
+            WHERE scientific_name = 'Delphinapterus leucas'`;
+        expect(inRegister, 'if the register gains this taxon the test is no longer about the fallback').toBe(0);
     });
 
     test.skipIf(!loaded)('every exported record still has a classification row', async () => {
         // The archive-shrinking failure, asserted directly. Any taxon reachable from an
         // occurrence must resolve, or that occurrence is silently not exported.
-        const [{ orphaned }] = await sql<{orphaned: number}[]>`
-            SELECT count(*)::int AS orphaned
-            FROM inaturalist.taxa t
-            WHERE EXISTS (SELECT 1 FROM inaturalist.observations o WHERE o.taxon_id = t.id)
-              AND NOT EXISTS (SELECT 1 FROM dwc.taxa_classification c WHERE c.taxon_id = t.id)`;
-        expect(orphaned).toBe(0);
+        // BOTH export branches, not just one. dwc.occurrences unions _native_occurrences
+        // (public.observations) and _maplify_occurrences (maplify.sightings); checking only
+        // the iNaturalist mirror would leave the Maplify half of the archive unguarded
+        // against exactly the failure this test exists for.
+        const orphaned = await sql<{taxon_id: number; source: string}[]>`
+            SELECT taxon_id, 'public.observations' AS source FROM public.observations o
+             WHERE o.taxon_id IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM dwc.taxa_classification c WHERE c.taxon_id = o.taxon_id)
+            UNION
+            SELECT taxon_id, 'maplify.sightings' FROM maplify.sightings s
+             WHERE s.taxon_id IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM dwc.taxa_classification c WHERE c.taxon_id = s.taxon_id)`;
+        expect(orphaned).toEqual([]);
     });
 
     test.skipIf(!loaded)('the genus gate still applies to the register\'s genus', async () => {
