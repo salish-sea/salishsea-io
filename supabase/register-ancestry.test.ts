@@ -212,11 +212,15 @@ describe.skipIf(!DSN)('register ancestry (local Supabase)', () => {
         // Totality is what salish-8vr.26 depends on: a bout citing any entity the register
         // knows must get a species or it silently vanishes from the map. Split
         // deprecations are excluded because NULL is their correct answer, per above.
+        // `d.reason = 'split'`, not merely `replaced_by IS NULL`: a MERGED deprecation
+        // with no successor is malformed data, and exempting it by the shape of its NULL
+        // would hide that rather than fail on it. Mirrors scripts/register/verify.ts.
         const orphans = await sql<{entity_id: string; kind: string}[]>`
             SELECT e.entity_id, e.kind FROM register.entities e
             LEFT JOIN register.deprecations d ON d.entity_id = e.entity_id
             WHERE register.taxon_entity_for(e.entity_id) IS NULL
-              AND NOT (d.entity_id IS NOT NULL AND d.replaced_by IS NULL)`;
+              AND NOT (d.entity_id IS NOT NULL AND d.reason = 'split'
+                       AND d.replaced_by IS NULL)`;
         expect(orphans).toEqual([]);
     });
 
