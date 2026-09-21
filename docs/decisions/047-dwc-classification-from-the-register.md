@@ -4,9 +4,11 @@
 
 ## Decision
 
-**`dwc.taxa_classification` reads the register's NCBI excerpt for `phylum`, `class`, `order`, `family` and `genus`, and keeps emitting iNaturalist's `Animalia` for `kingdom`.**
+**`dwc.taxa_classification` reads the register's NCBI excerpt for `phylum`, `class`, `order`, `family` and `genus`, and keeps taking `kingdom` from iNaturalist.**
 
-The register says `Metazoa`. We decline to publish that one value, knowingly, because GBIF's own backbone taxonomy uses `Animalia` and this column exists to be matched against that backbone. Every other rank is the register's.
+For every animal we export that means `Animalia`. The register says `Metazoa`, and we decline to publish that one value knowingly, because GBIF's own backbone taxonomy uses `Animalia` and this column exists to be matched against that backbone. Every other rank is the register's.
+
+(`kingdom` is taken from iNaturalist rather than hard-coded to the literal `Animalia`, because the view spans the whole taxa mirror and not only the animals we export — production holds 10 taxa under `Viruses` and one with no kingdom. None reach an occurrence, and none should acquire a kingdom they do not have.)
 
 **Where the register has no entity for a taxon, the previous behaviour stands**: the recursive walk up `inaturalist.taxa.parent_id` still supplies the lineage. That fallback is load-bearing rather than defensive — see Consequences.
 
@@ -14,12 +16,12 @@ The register says `Metazoa`. We decline to publish that one value, knowingly, be
 
 [033](033-register-names-the-animals.md) moved names to the register on the grounds that [008](008-source-schemas-are-upstream-mirrors.md) forbids a mirror's vocabulary reaching our UI. The same argument applies with more force to the DwC-A: a classification published to GBIF is an *external contract*, and it was being assembled by walking a hierarchy we do not control and cannot stabilize. Animals [ADR-0022](https://github.com/salish-sea/animals/blob/main/decisions/0022-taxonomic-hierarchy-is-ncbis-excerpted.md) gives us the alternative — NCBI's lineage, excerpted by script into `dist/classification.tsv`, curating nothing.
 
-### This changes no data, and that is worth stating plainly
+### This changes nothing a consumer receives, and that is worth stating plainly
 
 Measured against production before the change, across all 513 rows of `dwc.taxa_classification`:
 
 - **511 rows are byte-identical.** For every one of the 18 taxa actually exported, `phylum` through `genus` already agreed between iNaturalist and NCBI.
-- **0 rows change in the archive.** The two rows that differ are not exported.
+- **0 rows change in the archive.** The two rows that differ are not exported, and would only ever be if someone recorded a *Kogia*.
 
 So this record buys **provenance, not accuracy**. Nobody should merge it expecting the archive to improve, and nobody should revert it expecting the archive to change back. It is worth doing because "where did this claim come from" now has one answer for names and classification alike; it is not worth doing twice.
 
@@ -44,7 +46,7 @@ This is the only value where we take iNaturalist's answer over the register's, a
 
 ## Consequences
 
-- **The iNaturalist fallback cannot be removed.** Both branches of `dwc.occurrences` **INNER JOIN** this view, so a taxon missing from it does not lose its classification columns — the occurrence **disappears from the archive**. The register covers 12 of the 18 exported taxa, so a register-only implementation would have silently dropped **4,955 of 20,952 records (23.6%)**, and a smaller archive would have passed every check we have.
+- **The iNaturalist fallback cannot be removed.** Both branches of `dwc.occurrences` **INNER JOIN** this view, so a taxon missing from it does not lose its classification columns — the occurrence **disappears from the archive**. The register covers 12 of the 18 exported taxa, so a register-only implementation — one that replaced the walk outright rather than falling back to it — would have silently dropped **4,955 of 20,952 records (23.6%)**, and a smaller archive would have passed every check we have. Those 4,955 are not records the fallback rescues from nothing: 4,951 of them reach the register through the subspecies-to-species hop below, and only 4 depend on the iNaturalist walk itself.
 - **A subspecies resolves to its species before lookup.** The register holds species and ecotypes, not subspecies, so *Orcinus orca ater* (4,707 records), *O. o. rectipinnus* (222), *Phoca vitulina richardii* (20) and *Eumetopias jubatus monteriensis* (2) have no entity of their own. Their species does, and a subspecies' lineage above genus is its species' by construction. `inaturalist.species_id()` is asked rather than reimplemented, so "which id counts as the species" has one definition.
 - **Two taxa reach no register entity at all** — *Delphinapterus leucas* (1 record) and *Eubalaena* (3). The register scopes itself to the Salish Sea's animals; these are strays. 4 records that exist only because of the fallback.
 - **The `genus` gate is unchanged and now covers the register's genus too.** A record identified only to a family emits no genus, whichever authority supplied the lineage.
