@@ -2,9 +2,10 @@
 --
 -- RESTATING THE RULE, NOT RELAXING IT. Migration 20260828100000 filtered
 -- `predicate_id = 'skos:exactMatch'`, and the reason it recorded was that a broader match
--- "would put a wider claim on the map than the data supports". That reason describes a
--- deny-list of WIDENING predicates; it was written as an allow-list of one because
--- exactMatch was the only predicate the register then had that could be honoured.
+-- "would put a wider claim on the map than the data supports". It stayed an allow-list of
+-- ONE not because one was the right size but because exactMatch was the only predicate the
+-- register then had that could be honoured. The criterion the reason describes — does this
+-- predicate assert the same extension, or change it? — admits more than one member.
 --
 -- Between coextensive concepts the reason does not apply. Edition 2026.09.2 crosswalks the
 -- two killer whale ecotypes to iNaturalist's two subspecies as `skos:closeMatch` — close
@@ -16,13 +17,19 @@
 -- equating the two concepts is the entire licence for this change; without it the row
 -- would be a second opinion and decision 033 would forbid it.
 --
--- So the filter below is a deny-list. `skos:broadMatch` and `skos:narrowMatch` are refused
--- because they change the extent of the claim — broadMatch is how the register says an
--- ecotype sits inside its species, and resolving through one would put "Killer whale" on a
--- record that said Southern Resident, or the reverse. `skos:relatedMatch` is refused
--- because it asserts no extensional relation at all. Anything else is refused because an
--- unrecognised predicate is not evidence of sameness; a predicate the register invents
--- later must be adjudicated here before it can reach the map, and failing closed is how
+-- So the filter below stays an ALLOW-LIST, and gains a second member. This matters more
+-- than the word: an allow-list refuses what it does not name, so `skos:broadMatch`,
+-- `skos:narrowMatch`, `skos:relatedMatch` and every predicate the register invents after
+-- this migration are all refused by the same mechanism, without being enumerated.
+--
+-- Do NOT rewrite it as `predicate_id NOT IN ('skos:broadMatch', ...)`. That reads like the
+-- same rule and is not: it admits narrowMatch and relatedMatch today, and silently admits
+-- whatever the register adds tomorrow. Why each would be wrong — broadMatch is how the
+-- register says an ecotype sits inside its species, so resolving through one would put
+-- "Killer whale" on a record that said Southern Resident; narrowMatch does the reverse;
+-- relatedMatch asserts no extensional relation at all; and an unrecognised predicate is
+-- simply not evidence of sameness. A predicate the register invents later must be
+-- adjudicated here before it can reach the map, and failing closed is how
 -- that adjudication gets forced.
 --
 -- WHAT THIS ADMITS THAT IS NOT COEXTENSIVE, deliberately. SSA:0000938 Pinnipedia is
@@ -66,8 +73,9 @@ SELECT DISTINCT ON (split_part(m.object_id, ':', 2)::integer)
 FROM register.mappings m
 JOIN register.entities e ON e.entity_id = m.subject_id
 JOIN register.names    n ON n.entity_id = e.entity_id AND n.type = 'common'
--- Deny-list, not an allow-list: see the header. An unlisted predicate is refused, so the
--- default for anything the register adds later is to stay off the map until adjudicated.
+-- An ALLOW-LIST, and it has to stay one: an unlisted predicate is refused, so the default
+-- for anything the register adds later is to stay off the map until adjudicated. See the
+-- header for why `NOT IN (...the widening ones)` is not the same rule.
 WHERE m.predicate_id IN ('skos:exactMatch', 'skos:closeMatch')
   -- The WHOLE identifier is matched, not a prefix plus one field. A prefix test with
   -- split_part accepts 'inaturalist.taxon:41777:legacy' — split_part returns 41777 and

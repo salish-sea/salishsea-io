@@ -2,11 +2,15 @@
  * What `register.inaturalist_taxon_name` will and will not resolve through
  * (decision 033 as amended, migration 20260920220000).
  *
- * The view's filter is a DENY-LIST of widening predicates. That is a rule which
- * degrades silently in both directions: admitting a broadMatch puts a wider claim
- * on the map than the record supports, and refusing a coextensive closeMatch drops
- * 5,664 occurrences back to iNaturalist's vocabulary with no error anywhere. Neither
- * shows up as a failure — only as a wrong or missing label on a pin.
+ * The view's filter is an ALLOW-LIST of predicates that assert the same extension.
+ * That is a rule which degrades silently in both directions: admitting a broadMatch
+ * puts a wider claim on the map than the record supports, and refusing a coextensive
+ * closeMatch drops 5,664 occurrences back to iNaturalist's vocabulary with no error
+ * anywhere. Neither shows up as a failure — only as a wrong or missing label on a pin.
+ *
+ * It must stay an allow-list rather than becoming `NOT IN (...the widening ones)`,
+ * which admits narrowMatch, relatedMatch and anything the register adds later. The
+ * second test below is the one that catches that rewrite.
  *
  * Seeds its own entities rather than reading whichever edition happens to be loaded,
  * so the assertions are about the VIEW's rule and not about the register's current
@@ -68,11 +72,12 @@ describe.skipIf(!DSN)('register crosswalk predicates (local Supabase)', () => {
         });
     });
 
-    test('an unrecognised predicate fails CLOSED, which is the point of a deny-list', async () => {
+    test('an unrecognised predicate fails CLOSED, which is the point of an allow-list', async () => {
         // Stated separately from the case above because it is the property that
-        // distinguishes this filter from `predicate_id NOT IN (...the bad ones)`.
-        // A predicate the register invents after this migration must be adjudicated
-        // here before it can reach a map pin; the default is silence, not trust.
+        // distinguishes this filter from `predicate_id NOT IN (...the widening ones)`,
+        // which reads like the same rule and is not. A predicate the register invents
+        // after this migration must be adjudicated here before it can reach a map pin;
+        // the default is silence, not trust.
         await withSeed(async tx => {
             const [{ n }] = await tx<{n: number}[]>`
                 SELECT count(*)::int AS n FROM register.inaturalist_taxon_name
