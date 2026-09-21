@@ -136,63 +136,45 @@ const SHORT_MAP_FORMS: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// The two killer whale subspecies, which no register entity covers
+// There was a second table here, and its deletion is the point
 //
-// KEYED ON THE SCIENTIFIC NAME, and it is the only table here that is, because
-// these two animals have no `SSA:` identifier to key on. That is not an
-// oversight upstream: animals ADR-0008 requires a `kind = taxon` entity to
-// reference an external authority, and neither NCBI (which holds no child of
-// `Orcinus orca` at all) nor WoRMS (which holds none either) has a concept to
-// point at. ADR-0008 also refuses the other route in as many words — an ecotype
-// "is not a taxonomic rank ... not a subspecies and not making any claim about
-// formal taxonomy" — so SSA:0000001 and SSA:0000002 cannot be crosswalked here
-// either. Hence the register is silent, correctly, and this is ours to compose
-// (ADR-0011). Tracked as salish-0gb, where ITIS and Catalogue of Life turn out
-// to carry both at SPECIES rank and may reopen the question.
+// `SUBSPECIES_FORMS` mapped the two killer whale subspecies onto composed names
+// — 'Orcinus orca ater' -> 'Resident killer whale' — and it was the only table
+// in this file keyed on a scientific name rather than on an `SSA:` identifier,
+// because those two animals had no identifier to key on. Its own comment gave
+// the reason as permanent: animals ADR-0008 requires a `kind = taxon` entity to
+// reference an external authority, and neither NCBI nor WoRMS holds a child of
+// `Orcinus orca` to point at.
 //
-// WHY THESE TWO AND NOT THE OTHER FALLBACKS. Migration 20260828120000 rolls a
-// subspecies up to its species' register name wherever the qualifier adds
-// nothing, and deliberately exempts these two because their qualifier is the
-// ecotype the map most wants to show. Exempting them left them reading
-// iNaturalist's Title Case — "Resident Killer Whale" beside the register's
-// "Killer whale" on one screen, which is the very complaint salish-0gb opens
-// with. The remaining fallbacks are genus and family stubs whose iNaturalist
-// vernacular is a plural or a clade description ("Humpback Whales", "Pilot
-// Whales and allies"); they need a different answer and are not fixed here.
+// The register found the other route. Edition 2026.09.2 crosswalks its two
+// ECOTYPES to iNaturalist's two subspecies as `skos:closeMatch` — not exact,
+// because an ecotype and a subspecies are different kinds of thing, but
+// coextensive on the Society for Marine Mammalogy's authority — and edition
+// 2026.09.3 gives SSA:0000003 the common name 'Resident killer whale' that this
+// table used to compose. Migration 20260920220000 admits close matches to the
+// crosswalk, so both names now arrive in `vernacular_name` like every other.
 //
-// NEITHER IS A NEW NAME. "Bigg's killer whale" composes two register
-// assertions — SSA:0000002's label `Bigg's` and SSA:0000900's `Killer whale`.
-// "Resident killer whale" is iNaturalist's own string under our capitalisation,
-// which ADR-0011 hands us explicitly; the register has no `Resident` ecotype to
-// source it from, holding only `Southern Resident`, and that is exactly the
-// narrowing labelForSegment must not perform.
+// Nothing a reader sees changed. What changed is who asserts the string:
+// composing a name we could have read is the second opinion decision 033
+// forbids, and it was only ever defensible while the register was silent.
 // ---------------------------------------------------------------------------
-
-const SUBSPECIES_FORMS: Record<string, string> = {
-  'Orcinus orca ater': 'Resident killer whale',
-  'Orcinus orca rectipinnus': "Bigg's killer whale",
-};
 
 /**
  * The name to show for a taxon, shortest honest form first.
  *
- * `vernacular_name` is already the register's common name wherever it has an
- * exact match (migrations 20260828110000 and 20260828120000); it falls back to
- * iNaturalist's only where the register has no entity, which is why this cannot
- * simply read a register table. Where even that is absent — a genus stub with no
- * vernacular anywhere — the group's category label claims less than the
- * scientific name would and is more use to a reader.
+ * `vernacular_name` is already the register's common name wherever the crosswalk
+ * reaches an entity (migrations 20260828110000, 20260828120000 and
+ * 20260920220000); it falls back to iNaturalist's only where the register has no
+ * entity, which is why this cannot simply read a register table. Where even that
+ * is absent — a genus stub with no vernacular anywhere — the group's category
+ * label claims less than the scientific name would and is more use to a reader.
  *
- * The two killer whale subspecies are the one case with no register entity that
- * we still compose for, because the register cannot hold them; see
- * SUBSPECIES_FORMS. They are consulted only when `entity_id` is absent, so a
- * register name can never be overridden by one.
+ * Every override here is keyed on the `SSA:` identifier and is a truncation of a
+ * name the register asserts, never a substitute for one. We no longer compose a
+ * name for any animal; see the note above.
  */
 export function displayNameFor(taxon: Occurrence['taxon']): string {
-  const short = taxon.entity_id
-    ? SHORT_MAP_FORMS[taxon.entity_id]
-    : SUBSPECIES_FORMS[taxon.scientific_name];
-  return short
+  return (taxon.entity_id ? SHORT_MAP_FORMS[taxon.entity_id] : undefined)
     ?? taxon.vernacular_name
     ?? GROUPS[taxonGroup(taxon.scientific_name)].label;
 }

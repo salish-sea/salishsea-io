@@ -74,14 +74,32 @@ describe('displayNameFor', () => {
       .toBe('Gray whale');
   });
 
-  test('the two orca subspecies are composed, not read from iNaturalist', () => {
-    // The register cannot hold these (animals ADR-0008: no NCBI concept to
-    // reference), so the composition is ours — and iNaturalist's Title Case
-    // must not sit beside the register's sentence case on one screen.
-    expect(displayNameFor(taxon('Orcinus orca ater', 'Resident Killer Whale')))
+  test('the two orca subspecies read their name from the register, and we compose nothing', () => {
+    // These were the last two animals we minted a name for, in a SUBSPECIES_FORMS
+    // table keyed on the scientific name, because the register could not hold an
+    // ecotype as a taxon. It can reach them now: editions 2026.09.2 and 2026.09.3
+    // crosswalk the ecotypes to iNaturalist's subspecies and name them, and
+    // migration 20260920220000 admits the close match. So `vernacular_name`
+    // arrives already correct and passes straight through.
+    //
+    // The displayed string is unchanged; what is asserted here is that it comes
+    // from the register rather than from us.
+    expect(displayNameFor(taxon('Orcinus orca ater', 'Resident killer whale', 'SSA:0000003')))
       .toBe('Resident killer whale');
-    expect(displayNameFor(taxon('Orcinus orca rectipinnus', "Bigg's Killer Whale")))
+    expect(displayNameFor(taxon('Orcinus orca rectipinnus', "Bigg's killer whale", 'SSA:0000002')))
       .toBe("Bigg's killer whale");
+  });
+
+  test('nothing rewrites a subspecies name we no longer have a table for', () => {
+    // The regression this guards is the deletion of SUBSPECIES_FORMS being
+    // reverted in spirit — a lookup keyed on the scientific name creeping back.
+    // Feed the scientific names it used to key on, with the register absent, and
+    // iNaturalist's own string must come through untouched rather than being
+    // rewritten to sentence case by a table.
+    expect(displayNameFor(taxon('Orcinus orca ater', 'Resident Killer Whale')))
+      .toBe('Resident Killer Whale');
+    expect(displayNameFor(taxon('Orcinus orca rectipinnus', "Bigg's Killer Whale")))
+      .toBe("Bigg's Killer Whale");
   });
 
   test('any other missing register entity still falls back to the vernacular', () => {
