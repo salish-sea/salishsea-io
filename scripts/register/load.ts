@@ -16,12 +16,18 @@
  *
  * Usage:
  *   SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
- *     npx tsx scripts/register/load.ts --tag 2026.08.1            # dry run
- *   ... npx tsx scripts/register/load.ts --tag 2026.08.1 --apply  # writes
- *   ... npx tsx scripts/register/load.ts --tag 2026.08.1 --emit-sql > register.sql
+ *     pnpm -s exec tsx scripts/register/load.ts --tag 2026.09.3            # dry run
+ *   ... pnpm -s exec tsx scripts/register/load.ts --tag 2026.09.3 --apply  # writes
+ *   ... pnpm -s exec tsx scripts/register/load.ts --tag 2026.09.3 --emit-sql > register.sql
  *
  * --emit-sql exists because production has no direct connection from a laptop; the
  * statements go through `supabase db query --linked`.
+ *
+ * THE `-s` IS LOAD-BEARING FOR --emit-sql, not a tidiness flag. pnpm prints its own
+ * "Already up to date" preamble on stdout, which lands as the FIRST LINE of the emitted
+ * SQL and makes it a syntax error at `Already` — after the file looks plausible enough to
+ * paste somewhere. Decision 025 makes pnpm the package manager here, so the obvious
+ * invocation is the broken one; hence the flag in every line above.
  */
 
 import { createHash } from 'node:crypto';
@@ -35,13 +41,37 @@ const REPO = 'salish-sea/animals';
 const RELEASE = (tag: string, asset: string) =>
     `https://github.com/${REPO}/releases/download/${tag}/${asset}`;
 
-/** Columns as published, in file order. The loader does not reorder or rename. */
+/**
+ * Columns as published, in file order. The loader does not reorder or rename.
+ *
+ * ORDER IS FK ORDER, and load order depends on it: everything references
+ * `register.entities`, so entities is first and the DELETE pass walks this list
+ * backwards. Adding a table that references another means putting it after it here.
+ *
+ * `dir` is the directory inside the tarball. `data/` is what the register asserts;
+ * `dist/` is derived from it by the register's own builder and published alongside
+ * (ADR-0013 makes dist/ part of the distribution, not a build by-product). We load
+ * `ancestor` from dist/ rather than recomputing the closure from `membership`, because a
+ * second implementation of someone else's transitive closure drifts from it silently.
+ */
 const TABLES = [
-    ['entities', ['entity_id', 'kind', 'rank', 'label', 'taxon_id', 'born', 'sex', 'source_id', 'note']],
-    ['names', ['entity_id', 'name', 'type', 'language', 'source_id', 'note']],
-    ['mappings', ['subject_id', 'predicate_id', 'object_id', 'object_label',
+    ['data', 'entities', ['entity_id', 'kind', 'rank', 'label', 'taxon_id', 'born', 'sex', 'source_id', 'note']],
+    ['data', 'names', ['entity_id', 'name', 'type', 'language', 'source_id', 'note']],
+    ['data', 'mappings', ['subject_id', 'predicate_id', 'object_id', 'object_label',
         'mapping_justification', 'confidence', 'source_id', 'note']],
+    ['data', 'deprecations', ['entity_id', 'reason', 'replaced_by', 'consider', 'date', 'source_id', 'note']],
+    ['data', 'membership', ['member_id', 'group_id', 'start', 'end', 'source_id', 'note']],
+    ['dist', 'ancestor', ['entity_id', 'ancestor_id', 'depth', 'ancestor_label', 'ancestor_kind', 'ancestor_rank']],
 ] as const;
+
+/**
+ * Columns needing quoting in generated SQL. `end` is a reserved word and the column is
+ * named for the published one rather than renamed, so every statement touching it has to
+ * quote it — including the INSERT column list, which is easy to miss because the table
+ * definition quotes it and looks handled.
+ */
+const RESERVED = new Set(['end']);
+const col = (c: string) => (RESERVED.has(c) ? `"${c}"` : c);
 
 /**
  * A SQL string literal, or NULL.
@@ -131,9 +161,9 @@ async function main(): Promise<void> {
                 `tar exited ${untar.status}: ${untar.stderr?.toString().trim() || '(no output)'}`,
             );
 
-        const parsed = TABLES.map(([name, columns]) => {
-            const rows = parseTsv(readFileSync(path.join(dir, 'data', `${name}.tsv`), 'utf8'), columns);
-            say(`  ${name}: ${rows.length} rows`);
+        const parsed = TABLES.map(([subdir, name, columns]) => {
+            const rows = parseTsv(readFileSync(path.join(dir, subdir, `${name}.tsv`), 'utf8'), columns);
+            say(`  ${subdir}/${name}: ${rows.length} rows`);
             return { name, columns, rows };
         });
 
@@ -148,7 +178,7 @@ async function main(): Promise<void> {
             for (let i = 0; i < rows.length; i += 200) {
                 const chunk = rows.slice(i, i + 200);
                 statements.push(
-                    `INSERT INTO register.${name} (${columns.join(', ')}) VALUES `
+                    `INSERT INTO register.${name} (${columns.map(col).join(', ')}) VALUES `
                     + chunk.map((r) => `(${r.map(lit).join(', ')})`).join(', ') + ';',
                 );
             }
