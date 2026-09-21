@@ -138,6 +138,61 @@ async function main(): Promise<void> {
             );
         }
 
+        // Can every entity the register knows be placed in a taxon? This is the property
+        // an occurrence keyed on a register identifier depends on (salish-53t.1): a bout
+        // citing an entity that reaches no species does not get a wrong label, it silently
+        // does not appear. So it has to be checked against the EDITION, and this is the
+        // only place that sees one — CI runs `pnpm test` against a database whose seed
+        // never loads `register.*`, so supabase/register-ancestry.test.ts can only assert
+        // the resolver's logic against a fixture it seeds itself.
+        //
+        // A split deprecation is excluded because NULL is its correct answer: no single
+        // successor exists, and guessing one would be worse than declining (salish-8vr.5).
+        if (counts?.entities) {
+            // `d.reason = 'split'` and not merely `replaced_by IS NULL`. A MERGED
+            // deprecation with no successor is malformed — a merge names where it went, by
+            // definition — and exempting it by the shape of its NULL would hide the data
+            // error instead of reporting it. Only a split is legitimately unresolvable.
+            // The `d.entity_id IS NOT NULL` guard is load-bearing too: without it,
+            // `d.reason = 'split'` is NULL for an undeprecated entity and NOT(NULL) filters
+            // the row out, silently exempting every live entity in the register.
+            const [tally] = await sql<{ eligible: number; splits: number }[]>`
+                SELECT count(*) FILTER (
+                         WHERE NOT (d.entity_id IS NOT NULL AND d.reason = 'split'
+                                    AND d.replaced_by IS NULL))::int AS eligible,
+                       count(*) FILTER (
+                         WHERE d.entity_id IS NOT NULL AND d.reason = 'split'
+                               AND d.replaced_by IS NULL)::int AS splits
+                FROM register.entities e
+                LEFT JOIN register.deprecations d ON d.entity_id = e.entity_id`;
+            const unplaceable = await sql<{ entity_id: string; kind: string }[]>`
+                SELECT e.entity_id, e.kind
+                FROM register.entities e
+                LEFT JOIN register.deprecations d ON d.entity_id = e.entity_id
+                WHERE register.taxon_entity_for(e.entity_id) IS NULL
+                  AND NOT (d.entity_id IS NOT NULL AND d.reason = 'split'
+                           AND d.replaced_by IS NULL)
+                ORDER BY e.entity_id`;
+            const eligible = tally?.eligible ?? counts.entities;
+            // Counted against the ELIGIBLE population, not every entity: a split
+            // deprecation is excluded from the check, so counting it as resolved would
+            // overstate the result by exactly the number of entities not examined.
+            console.log(`ancestry  ${eligible - unplaceable.length} of ${eligible} `
+                        + 'entities resolve to a taxon'
+                        + (tally?.splits
+                            ? `, ${tally.splits} split deprecation${tally.splits === 1 ? '' : 's'} not examined`
+                            : ''));
+            if (unplaceable.length) {
+                const shown = unplaceable.slice(0, 5).map((u) => `${u.entity_id} (${u.kind})`).join(', ');
+                problems.push(
+                    `${unplaceable.length} entities reach no taxon: ${shown}`
+                    + (unplaceable.length > 5 ? `, and ${unplaceable.length - 5} more` : '')
+                    + '. An occurrence citing one of these gets no species and vanishes '
+                    + 'from the map rather than appearing mislabelled.',
+                );
+            }
+        }
+
         const latest = await latestRelease();
         if (latest === null) {
             console.log('latest    (could not ask GitHub; drift not checked)');
