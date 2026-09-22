@@ -229,6 +229,36 @@ describe.skipIf(!DSN)('fetchNameIndex (local Supabase)', () => {
     });
 });
 
+describe.skipIf(!DSN)('the ingest role can do what the Maplify tick does (local Supabase)', () => {
+    // The Edge Function connects as the least-privilege `ingest` role, not postgres. Every
+    // other test here runs as postgres, which is how a tick that could not read the register
+    // reached production (2026-09-22). NOINHERIT and no grants beyond its own: SET ROLE
+    // inside a rolled-back transaction is exactly its view of the database.
+    let sql: Sql;
+    beforeAll(() => { sql = postgres(DSN!, { max: 1 }); });
+    afterAll(async () => { await sql?.end(); });
+
+    class Rollback extends Error {}
+
+    test('reads the register and writes entity_id', async () => {
+        // persistMaplify opens its own transaction, which cannot nest inside this one, so
+        // this does its two privileged steps directly: build the index, write the column.
+        let names = -1;
+        await sql.begin(async (tx) => {
+            // postgres created `ingest`, so it may grant itself membership; the rollback undoes it.
+            await tx`GRANT ingest TO postgres`;
+            await tx`SET LOCAL ROLE ingest`;
+            names = (await fetchNameIndex(tx as unknown as Sql)).byFold.size;
+            await tx`INSERT INTO maplify.sightings (id, project_id, trip_id, scientific_name, location,
+                         number_sighted, created_at, in_ocean, moderated, trusted, is_test, source, entity_id)
+                     VALUES (900401, 7, 1, 'Orcinus orca', gis.ST_Point(-123, 48)::gis.geography, 1,
+                             '2026-07-03 10:00', true, 0, false, false, 'test', 'SSA:0000900')`;
+            throw new Rollback();
+        }).catch((e: unknown) => { if (!(e instanceof Rollback)) throw e; });
+        expect(names).toBeGreaterThanOrEqual(0);
+    });
+});
+
 /**
  * Integration suite for the iNaturalist persist layer (salishsea-io-89d.2 / 011).
  *
