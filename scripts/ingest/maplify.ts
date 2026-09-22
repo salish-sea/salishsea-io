@@ -182,11 +182,14 @@ export function isKillerWhale(s: NormalizedSighting, index: NameIndex): boolean 
     const entity = resolveEntity(s, index);
     const taxon = entity ? index.taxonLabel.get(entity) : null;
     if (taxon) return /^orcinus\b/i.test(taxon);
-    // Nothing resolved: no usable scientific name and a common name the register does not
-    // hold. Upstream coins orca names freely — the live fixture has "Killer whale (Ecotype
-    // Unknown)" with a blank scientific_name — and outside the box an unrecognised orca is
-    // not a lost identification but a lost record, so read the shape of the name rather
-    // than demand the register know it.
+    // Nothing resolved: neither name is one the register holds. Upstream coins orca names
+    // freely — the live fixture has "Killer whale (Ecotype Unknown)" with a blank
+    // scientific_name — and a scientific name can be finer than the register goes
+    // ("Orcinus orca ater" is iNaturalist's, not a register name). Outside the box an
+    // unrecognised orca is not a lost identification but a lost record — reconcile would
+    // delete it — so read the shape of either name rather than demand the register know it.
+    const sci = s.scientificName.trim();
+    if (!SCIENTIFIC_NAME_PLACEHOLDERS.has(sci.toLowerCase()) && /^orcinus\b/i.test(sci)) return true;
     return s.name !== null && /\b(orca|killer whale)\b/.test(fold(repairUpstreamName(s.name)));
 }
 

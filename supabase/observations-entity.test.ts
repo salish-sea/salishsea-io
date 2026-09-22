@@ -32,6 +32,7 @@ const UNMAPPED = 'SSA:9900103';
 const POD = 'SSA:9900104';
 const UNMAPPED_ECOTYPE = 'SSA:9900105';
 const UNMAPPED_POD = 'SSA:9900106';
+const MERGED = 'SSA:9900107';
 const OBSERVATION = '22222222-2222-4222-a222-222222222222';
 
 const ROLLBACK = Symbol('rollback');
@@ -60,7 +61,9 @@ async function seedRegister(tx: TransactionSql) {
         (${UNMAPPED}, 'taxon', 'species', 'Not crosswalked'),
         (${POD}, 'group', 'pod', 'Test pod'),
         (${UNMAPPED_ECOTYPE}, 'group', 'ecotype', 'Uncrosswalked ecotype'),
-        (${UNMAPPED_POD}, 'group', 'pod', 'Pod of an uncrosswalked ecotype')`;
+        (${UNMAPPED_POD}, 'group', 'pod', 'Pod of an uncrosswalked ecotype'),
+        (${MERGED}, 'group', 'pod', 'Merged into the test pod')`;
+    await tx`INSERT INTO register.deprecations (entity_id, reason, replaced_by) VALUES (${MERGED}, 'merged', ${POD})`;
     await tx`INSERT INTO register.ancestor (entity_id, ancestor_id, depth, ancestor_kind) VALUES
         (${ECOTYPE}, ${BOTH}, 1, 'taxon'),
         (${POD}, ${ECOTYPE}, 1, 'group'),
@@ -133,6 +136,17 @@ describe.skipIf(!DSN)('observations keyed on a register entity (local Supabase)'
         });
         expect(pod).toBe(1602533);
         expect(uncrosswalked).toBe(41521);
+    });
+
+    test('a merged-away identifier answers as its replacement does', async () => {
+        // SSA:0000001 in production: the tombstone has no ancestry of its own, so only its
+        // replacement's lineage can place it.
+        const id = await rolledBack(sql, async (tx) => {
+            await seedRegister(tx);
+            const [row] = await tx`SELECT register.inaturalist_taxon_for(${MERGED}) AS id`;
+            return row?.['id'];
+        });
+        expect(id).toBe(1602533);
     });
 
     test('exactMatch beats closeMatch', async () => {

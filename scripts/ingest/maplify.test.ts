@@ -194,6 +194,15 @@ describe('isKillerWhale', () => {
         expect(killerWhale({ name: null, scientificName: '' })).toBe(false);
     });
 
+    test('an orca scientific name the register does not hold as a name', () => {
+        // The register holds the ecotypes, not iNaturalist's subspecies, as names. Outside
+        // the box, failing to recognise these would not lose an identification but delete
+        // the record.
+        expect(killerWhale({ name: null, scientificName: 'Orcinus orca ater' })).toBe(true);
+        expect(killerWhale({ name: '', scientificName: 'Orcinus orca rectipinnus' })).toBe(true);
+        expect(ingestable({ lat: 36.8, lon: -121.9, name: null, scientificName: 'Orcinus orca ater' })).toBe(true);
+    });
+
     test('an upstream correction in name wins over an orca scientific name, and vice versa', () => {
         expect(killerWhale({ name: 'Humpback', scientificName: 'Orcinus orca' })).toBe(false);
         expect(killerWhale({ name: 'Orca', scientificName: 'Megaptera novaeangliae' })).toBe(true);
