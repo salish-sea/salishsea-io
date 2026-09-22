@@ -26,44 +26,55 @@ import { convert as parseCoords } from 'geo-coordinates-parser';
 import { detectIndividuals } from "./identifiers.ts";
 import { type License, type Occurrence, type TravelDirection, type UpsertObservationArgs } from "./types.ts";
 import { supabase } from "./supabase.ts";
+import { fetchAnimalNames } from "./catalog.ts";
 import { reportError } from "./report-error.ts";
 import { geolocationErrorIsReportable, geolocationMessage } from "./geolocation-message.ts";
 import PhotoAttachment, { newPhotoId, photoThumbnail, readExif, uploadPhoto, type FailedUploadPhoto, type Photo, type UploadedPhoto } from "./photo-attachment.ts";
 import type { Coordinate } from "ol/coordinate.js";
 
 
-const TAXON_OPTIONS = {
-  "Seals and sea lions": {
-    "Phoca vitulina richardii": "Harbor seal",
-    "Eumetopias jubatus monteriensis": "Steller sea lion",
-    "Zalophus californianus": "California sea lion",
-    "Mirounga angustirostris": "Elephant seal",
-  },
-  "Dolphins and porpoises": {
-    "Phocoena phocoena": "Harbor porpoise",
-    "Phocoenoides dalli": "Dall's porpoise",
-    // Aethalodelphis, not Sagmatias: iNaturalist retired 1368491 in favour of
-    // 1664971. upsert_observation resolves this key by scientific name, so the
-    // old one minted a row on a dead taxon with every submission (salish-ayb.4).
-    "Aethalodelphis obliquidens": "Pacific white-sided dolphin",
-  },
-  "Killer whales": {
-    "Orcinus orca": "Killer whale (unknown ecotype)",
-    "Orcinus orca rectipinnus": "Bigg's killer whale",
-    "Orcinus orca ater": "Resident killer whale",
-  },
-  "Baleen whales": {
-    "Megaptera novaeangliae": "Humpback whale",
-    "Eschrichtius robustus": "Gray whale",
-    "Balaenoptera acutorostrata": "Minke whale",
-    "Balaenoptera physalus": "Fin whale",
-    "Physeter macrocephalus": "Sperm whale",
-  },
-  "Otters": {
-    "Lontra canadensis": "River otter",
-    "Enhydra lutris kenyoni": "Sea otter",
-  },
+/**
+ * What the form offers, by register entity (salish-53t.3). The labels come from the register
+ * at runtime (public.animal_names), so nothing here names an animal: decision 033 keys on
+ * `SSA:`, never on a name, and a list of our own labels drifts from the register the first
+ * time it renames something. The group headings are ours — a way of laying out a menu, not
+ * a claim about taxonomy ("Baleen whales" holds a sperm whale).
+ *
+ * Harbour seal, Steller sea lion and sea otter were iNaturalist subspecies here until the
+ * register became the dictionary; it holds the species, so that is what a sighting records.
+ */
+const ENTITY_OPTIONS: Readonly<Record<string, readonly string[]>> = {
+  "Seals and sea lions": [
+    "SSA:0000904", // Phoca vitulina
+    "SSA:0000902", // Eumetopias jubatus
+    "SSA:0000903", // Zalophus californianus
+    "SSA:0000917", // Mirounga angustirostris
+  ],
+  "Dolphins and porpoises": [
+    "SSA:0000912", // Phocoena phocoena
+    "SSA:0000913", // Phocoenoides dalli
+    "SSA:0000914", // Aethalodelphis obliquidens
+  ],
+  "Killer whales": [
+    "SSA:0000900", // Orcinus orca, ecotype unknown
+    "SSA:0000002", // Bigg's
+    "SSA:0000003", // Resident
+  ],
+  "Baleen whales": [
+    "SSA:0000901", // Megaptera novaeangliae
+    "SSA:0000905", // Eschrichtius robustus
+    "SSA:0000915", // Balaenoptera acutorostrata
+    "SSA:0000916", // Balaenoptera physalus
+    "SSA:0000921", // Physeter macrocephalus
+  ],
+  "Otters": [
+    "SSA:0000906", // Lontra canadensis
+    "SSA:0000918", // Enhydra lutris
+  ],
 };
+const OFFERED_ENTITIES = new Set(Object.values(ENTITY_OPTIONS).flat());
+const DEFAULT_ENTITY = "SSA:0000900";
+
 
 const DIRECTION_OPTIONS = Object.freeze({
   "": "None or unknown",
@@ -78,7 +89,13 @@ const DIRECTION_OPTIONS = Object.freeze({
 });
 
 const PHOTO_LICENSE_CHOICE_STORAGE_KEY = 'photoLicenseCode';
-const TAXON_CHOICE_STORAGE_KEY = 'lastTaxon';
+// A new key, not 'lastTaxon': that one holds a scientific name from before salish-53t.3.
+const ENTITY_CHOICE_STORAGE_KEY = 'lastEntity';
+/** The last species this browser reported, if it is still one the form offers. */
+function lastEntityChoice(): string {
+  const stored = localStorage.getItem(ENTITY_CHOICE_STORAGE_KEY);
+  return stored && OFFERED_ENTITIES.has(stored) ? stored : DEFAULT_ENTITY;
+}
 
 export type SightingFormData = {
   body: string;
@@ -88,7 +105,7 @@ export type SightingFormData = {
   photo_license: License;
   photos: Photo[];
   subject_location: string;
-  taxon: string;
+  entity_id: string;
   travel_direction: TravelDirection | '';
   url: string;
 };
@@ -104,7 +121,7 @@ export function newSighting(): SightingFormData {
     photo_license: getPhotoLicense(),
     photos: [],
     subject_location: '',
-    taxon: localStorage.getItem(TAXON_CHOICE_STORAGE_KEY) || 'Orcinus orca',
+    entity_id: lastEntityChoice(),
     travel_direction: '',
     url: '',
   };
@@ -120,7 +137,7 @@ export function observationToFormData(observation: Occurrence): SightingFormData
     photo_license: observation.photos[0]?.license || getPhotoLicense(),
     photos: observation.photos.map(photo => ({id: newPhotoId(), state: 'attached' as const, thumb: photo.thumb || photo.src, url: photo.src})),
     subject_location: `${observation.location.lat.toFixed(4)}, ${observation.location.lon.toFixed(4)}`,
-    taxon: observation.taxon.scientific_name,
+    entity_id: observation.taxon.entity_id ?? DEFAULT_ENTITY,
     travel_direction: observation.direction || '',
     url: observation.url || '',
   }
@@ -160,6 +177,14 @@ export default class SightingForm extends LitElement {
       this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: occurrence}));
       return data;
     }
+  });
+
+  /** The register's names for what the form offers; the menu shows ids until they arrive. */
+  private _namesTask = new Task(this, {
+    task: () => fetchAnimalNames([...OFFERED_ENTITIES]),
+    args: () => [],
+    onComplete: () => this.updateSubjectProps(),
+    onError: error => reportError(this, "Couldn't load species names; the menu shows identifiers instead.", {cause: error}),
   });
 
   @property({type: String, reflect: false})
@@ -385,11 +410,11 @@ export default class SightingForm extends LitElement {
         photos,
         location: {lon: subjectX, lat: subjectY},
         accuracy: null,
-        taxon: value.taxon,
+        entity_id: value.entity_id,
         url: value.url,
       };
       this._saveTask.run([payload]);
-      localStorage.setItem('lastTaxon', value.taxon);
+      localStorage.setItem(ENTITY_CHOICE_STORAGE_KEY, value.entity_id);
     },
   })
 
@@ -434,17 +459,17 @@ export default class SightingForm extends LitElement {
             </div>
           </label>
         `)}
-        ${this.#form.field({name: 'taxon'}, field => html`
+        ${this.#form.field({name: 'entity_id'}, field => html`
           <label>
             <span class="label">Species</span>
             <select name="${field.name}" @change=${(e: Event) => {
-              const scientificName = (e.target as HTMLSelectElement).value;
-              field.handleChange(scientificName);
-              localStorage.setItem(TAXON_CHOICE_STORAGE_KEY, scientificName);
+              const entityId = (e.target as HTMLSelectElement).value;
+              field.handleChange(entityId);
+              localStorage.setItem(ENTITY_CHOICE_STORAGE_KEY, entityId);
             }}>
-              ${Object.entries(TAXON_OPTIONS).map(([group, taxa]) => html`
-                <optgroup label=${group}>${Object.entries(taxa).map(([taxon, label]) => html`
-                  <option value=${taxon} ?selected=${taxon === field.state.value}>${label}</option>
+              ${Object.entries(ENTITY_OPTIONS).map(([group, entityIds]) => html`
+                <optgroup label=${group}>${entityIds.map(entityId => html`
+                  <option value=${entityId} ?selected=${entityId === field.state.value}>${this.#optionLabel(entityId)}</option>
                 `)}</optgroup>
               `)}
             </select>
@@ -868,8 +893,20 @@ export default class SightingForm extends LitElement {
     this.#subjectFeature.setProperties({
       direction: values.travel_direction,
       identifiers: detectIndividuals(values.body),
-      taxon: {scientific_name: values.taxon, vernacular_name: null},
+      // symbology groups and labels by scientific name, so the draft needs the one the
+      // saved sighting will read as ('Orcinus orca rectipinnus' for Bigg's -> "Biggs").
+      taxon: {
+        scientific_name: this._namesTask.value?.get(values.entity_id)?.inaturalist_scientific_name ?? null,
+        vernacular_name: null,
+        entity_id: values.entity_id,
+      },
     });
+  }
+
+  /** The register's name for an option, or its identifier until names arrive (or if it has none). */
+  #optionLabel(entityId: string): string {
+    const names = this._namesTask.value?.get(entityId);
+    return names?.common_name ?? names?.taxon_common_name ?? entityId;
   }
 
   cancel() {

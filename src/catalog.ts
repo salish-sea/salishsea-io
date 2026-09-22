@@ -209,6 +209,11 @@ export type AnimalName = {
   common_name: string | null;
   taxon_entity_id: string | null;
   taxon_common_name: string | null;
+  /**
+   * The scientific name public.occurrences shows for this entity — for a caller drawing
+   * something that has not been saved yet and must look as it will once it is.
+   */
+  inaturalist_scientific_name: string | null;
 };
 
 /**
@@ -224,7 +229,7 @@ export async function fetchAnimalNames(entityIds: readonly (string | null)[]): P
   if (!wanted.length) return new Map();
   const { data } = await supabase()
     .from('animal_names')
-    .select('entity_id, common_name, taxon_entity_id, taxon_common_name')
+    .select('entity_id, common_name, taxon_entity_id, taxon_common_name, inaturalist_scientific_name')
     .in('entity_id', wanted)
     .throwOnError();
   // `entity_id` types as nullable because every column of a VIEW does — Postgres cannot

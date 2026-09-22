@@ -648,13 +648,13 @@ export type Database = {
           count: number | null
           created_at: string
           direction: Database["public"]["Enums"]["travel_direction"] | null
+          entity_id: string
           id: string
           observed_at: string
           observer_location: unknown
           provider_id: number
           source_url: string | null
           subject_location: unknown
-          taxon_id: number
           updated_at: string
           url: string | null
           user_uuid: string
@@ -667,13 +667,13 @@ export type Database = {
           count?: number | null
           created_at: string
           direction?: Database["public"]["Enums"]["travel_direction"] | null
+          entity_id: string
           id: string
           observed_at: string
           observer_location?: unknown
           provider_id?: number
           source_url?: string | null
           subject_location: unknown
-          taxon_id: number
           updated_at: string
           url?: string | null
           user_uuid: string
@@ -686,13 +686,13 @@ export type Database = {
           count?: number | null
           created_at?: string
           direction?: Database["public"]["Enums"]["travel_direction"] | null
+          entity_id?: string
           id?: string
           observed_at?: string
           observer_location?: unknown
           provider_id?: number
           source_url?: string | null
           subject_location?: unknown
-          taxon_id?: number
           updated_at?: string
           url?: string | null
           user_uuid?: string
@@ -865,6 +865,7 @@ export type Database = {
         Row: {
           common_name: string | null
           entity_id: string | null
+          inaturalist_scientific_name: string | null
           taxon_common_name: string | null
           taxon_entity_id: string | null
         }
@@ -1061,12 +1062,12 @@ export type Database = {
           body: string
           count: number
           direction: Database["public"]["Enums"]["travel_direction"]
+          entity_id: string
           id: string
           location: Database["public"]["CompositeTypes"]["lon_lat"]
           observed_at: string
           observed_from: Database["public"]["CompositeTypes"]["lon_lat"]
           photos: Database["public"]["CompositeTypes"]["occurrence_photo"][]
-          taxon: string
           url: string
         }
         Returns: string

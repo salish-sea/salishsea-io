@@ -133,7 +133,7 @@ describe.skipIf(!DSN)('public write grants (local Supabase)', () => {
                 SELECT public.upsert_observation(
                     ${id}::uuid, NULL, ${body}::varchar, 1::smallint, NULL, now(), NULL,
                     ${photos}, ROW(-123.0, 48.5)::public.lon_lat,
-                    'Orcinus orca'::varchar, NULL)`;
+                    'SSA:0000900'::text, NULL)`;
 
             const photoCount = async () => {
                 const [row] = await tx<{n: number}[]>`

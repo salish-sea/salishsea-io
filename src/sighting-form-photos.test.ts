@@ -22,6 +22,13 @@ vi.mock('./supabase.ts', () => ({
   supabase: () => ({rpc: async () => ({data: null, error: null})}),
 }));
 
+// The form asks the register for its menu's names on mount (salish-53t.3); that is not
+// what these tests are about, and an unanswered fetch would raise a toast of its own.
+vi.mock('./catalog.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./catalog.ts')>()),
+  fetchAnimalNames: async () => new Map(),
+}));
+
 vi.mock('@sentry/browser', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@sentry/browser')>()),
   captureException: vi.fn(),
