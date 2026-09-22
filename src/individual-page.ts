@@ -4,7 +4,7 @@ import { Task } from '@lit/task';
 import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  displayName, fetchAllGroups, fetchGroupMembers, fetchIndividual, fetchOccurrenceLinks,
+  displayName, fetchAllGroups, fetchAnimalNames, fetchGroupMembers, fetchIndividual, fetchOccurrenceLinks,
   ecotypePath, fetchOffspring, fetchParents, groupChain, individualPath, keyLabel, mapUrl, matrilinePath,
   observedDate, parseIndividualPath,
   type CatalogGroup, type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent,
@@ -14,11 +14,6 @@ import { initSentry } from './sentry.ts';
 import './individual-map.ts';
 
 initSentry();
-
-// iNaturalist taxon ids the catalog actually uses (all rows are 41521 today).
-const TAXON_LABELS: Record<number, string> = {
-  41521: 'Killer whale',
-};
 
 const SCHEME_LABELS: Record<string, string> = {
   bc_wa: 'BC/WA',
@@ -36,6 +31,12 @@ interface Profile {
   matriline: CatalogGroup | null;
   members: GroupMember[];
   name: string | null;
+  /**
+   * What to call the animal, as the register calls it — resolved in the task because it
+   * needs a round trip. `null` when the register knows neither the ecotype nor the taxon,
+   * which renders as no species line rather than a guess.
+   */
+  species: string | null;
 }
 
 function bornPhrase(earliest: number | null, latest: number | null): string | null {
@@ -75,9 +76,32 @@ export class IndividualPage extends LitElement {
       const matrilineMembership = profile.memberships.find(m => m.is_current && m.group?.kind === 'matriline');
       const matriline = matrilineMembership?.group ? groups.get(matrilineMembership.group.id) ?? null : null;
       const members = matriline ? await fetchGroupMembers(matriline.id) : [];
+
+      // The most specific name the register has for this animal. The ecotype, where the
+      // group chain proves one — today the catalogue holds exactly one, Biggs — else the
+      // taxon the individual belongs to. Choosing between the two is ours (animals
+      // ADR-0011); both strings are the register's, and neither is composed here. This
+      // replaces a two-entry TAXON_LABELS table keyed on an iNaturalist taxon id, with
+      // "Bigg's killer whale" hard-coded beside it — a name minted here for an animal the
+      // register can name, which decision 033 forbids, and keyed on an iNaturalist taxon
+      // id where 033 says "keyed on `SSA:`, never on a name".
+      //
+      // renderChain below still hard-codes "Bigg's (transient) killer whales" against
+      // `designation === 'Biggs'`. That one is a gloss rather than a minted name — it
+      // pairs the register's common name with its own `historical` name, which ADR-0011
+      // hands us as display — but its key is still a string. Left alone here because
+      // whether that line wants a gloss at all is a separate question (salish-53t.3).
+      const ecotype = matriline
+        ? groupChain(matriline.id, groups).find(g => g.kind === 'ecotype') ?? null
+        : null;
+      const names = await fetchAnimalNames([ecotype?.entity_id ?? null, profile.entity_id]);
+      const species = (ecotype?.entity_id ? names.get(ecotype.entity_id)?.common_name : null)
+        ?? (profile.entity_id ? names.get(profile.entity_id)?.taxon_common_name : null)
+        ?? null;
+
       const name = displayName(profile.nicknames);
       document.title = `${name ? `${name} (${profile.primary_designation})` : profile.primary_designation} · SalishSea.io`;
-      return { profile, mother, father, offspring, groups, matriline, members, name };
+      return { profile, mother, father, offspring, groups, matriline, members, name, species };
     },
   });
 
@@ -133,17 +157,13 @@ export class IndividualPage extends LitElement {
     `;
   }
 
-  private renderProfile({ profile, mother, father, offspring, groups, matriline, members, name }: Profile) {
+  private renderProfile({ profile, mother, father, offspring, groups, matriline, members, name, species }: Profile) {
     const vitals = [
       profile.sex === 'female' ? 'Female' : profile.sex === 'male' ? 'Male' : null,
       bornPhrase(profile.born_earliest, profile.born_latest),
       lifeStatusPhrase(profile.life_status),
     ].filter(Boolean).join(' · ');
     const chain = matriline ? groupChain(matriline.id, groups) : [];
-    // Prefer the ecotype proven by the group chain; fall back to the taxon.
-    const species = chain.some(g => g.kind === 'ecotype' && g.designation === 'Biggs')
-      ? "Bigg's killer whale"
-      : TAXON_LABELS[profile.taxon_id] ?? null;
 
     return html`
       <header class="masthead">

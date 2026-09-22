@@ -44,6 +44,11 @@ const READABLE = [
     'dwc.datasets',
     'dwc.multimedia',
     'dwc.taxa_classification',
+    // Added 20260922010000: the register's display names, which the individual profile page
+    // fetches directly. The `register` tables it projects are NOT here and must not be —
+    // they grant SELECT to anon but `register` is absent from PostgREST's exposed schemas
+    // (supabase/config.toml), so no client can reach them.
+    'public.animal_names',
     'public.collections',
     'public.contributors',
     'public.designations',

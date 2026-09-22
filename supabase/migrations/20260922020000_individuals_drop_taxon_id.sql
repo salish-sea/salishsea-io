@@ -1,0 +1,23 @@
+-- An individual's taxon comes from the register, not from a defaulted column (salish-53t.3).
+--
+-- `public.individuals.taxon_id` was NOT NULL DEFAULT 41521 — iNaturalist's Orcinus orca —
+-- and in 510 rows it had never been anything else. One distinct value, always the default,
+-- carried on every individual in the catalogue.
+--
+-- It was the last thing keying a row of OUR OWN data on an iNaturalist identifier for a
+-- reason other than mirroring. Its only reader was a two-entry lookup table in
+-- src/individual-page.ts that turned 41521 back into the string "Killer whale" — a name the
+-- register holds for SSA:0000900, so the column existed to key a name we could already
+-- read. Migration 20260922010000 gives the page that name directly, and nothing reads this
+-- column now: no view, no function, no ingest path.
+--
+-- NOTHING IS LOST, because the answer is derivable and better. All 510 individuals carry
+-- `entity_id`, and `register.taxon_for(entity_id)` returns the taxon the register places
+-- them under — which is `Orcinus orca` for all 510 today, and will be right rather than
+-- defaulted if the catalogue ever holds an animal that is not a killer whale. A DEFAULT
+-- cannot be right about that; it can only be silent.
+--
+-- The FK to inaturalist.taxa goes with the column. That is the point: decision 008 makes
+-- that schema a mirror whose vocabulary must not reach ours, and a foreign key from our
+-- catalogue into it is exactly the coupling ADR-0012 asks us to stop holding.
+ALTER TABLE public.individuals DROP COLUMN taxon_id;
