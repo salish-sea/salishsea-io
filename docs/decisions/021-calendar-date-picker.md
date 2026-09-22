@@ -30,6 +30,20 @@ without a DOM.
 > counts are read live rather than off the matview still holds; only the shape
 > of the object changed.
 
+> **Amended 2026-09-22 (bd `salish-xfo`).** Partly supersedes the read-live
+> paragraph below and the rejected alternative "Read counts from
+> `occurrence_index`". The ~120ms was a warm-cache figure.
+> In production the function averaged 445ms and read ~150 MB of pages a render,
+> against a 224 MB cache and a 3s anon timeout; on 2026-09-14 it timed out for
+> three visitors in three minutes. It now reads `occurrence_index` for records
+> observed more than 48 hours ago and `public.occurrences` only for the last 48
+> hours, which keeps the requirement above: a contributor's sighting of today
+> still counts the moment it is saved. What is given up is narrower — a record
+> *observed* more than two days before it is saved or deleted reaches the
+> calendar at the next refresh, up to ~6 minutes later. Rationale and
+> measurements are in
+> [20260922030000_occurrence_days_reads_index.sql](../../supabase/migrations/20260922030000_occurrence_days_reads_index.sql).
+
 `public.occurrence_days` groups `public.occurrences` by the PST8PDT calendar
 day — the same day boundary as `?d=`, `fetchOccurrences`, and
 `dateFromObservedAt`, so a day's circle counts exactly the records the map draws
@@ -109,7 +123,8 @@ one screen-reader label away.
   circle depending on which grid it appears in.
 - **Read counts from `occurrence_index`.** Cheap and nearly correct, but a
   contributor's new sighting wouldn't register for minutes — precisely the case
-  the feature should reward.
+  the feature should reward. *(Since 2026-09-22 adopted for all but the last 48
+  hours; see the amendment above.)*
 - **A materialized `occurrence_days`.** Same lag, plus another cron job to keep
   in step.
 - **Keep the date input and add a sparkline.** Doesn't answer "which day", which
