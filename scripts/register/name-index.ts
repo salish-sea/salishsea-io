@@ -80,9 +80,13 @@ export function matchName(index: NameIndex, query: string | null): NameMatch {
     if (whole.verdict !== 'none') return whole;
     const parts = /^(.*?)\s*\(([^()]*)\)\s*$/.exec(query);
     if (!parts) return whole;
-    const agreed = new Set(
-        [matchWhole(index, parts[1]!), matchWhole(index, parts[2]!)]
-            .flatMap((m) => (m.verdict === 'one' ? [m.entityId] : [])),
-    );
-    return agreed.size === 1 ? { verdict: 'one', entityId: [...agreed][0]! } : whole;
+    const matches = [matchWhole(index, parts[1]!), matchWhole(index, parts[2]!)];
+    const agreed = new Set(matches.flatMap((m) => (m.verdict === 'one' ? [m.entityId] : [])));
+    if (agreed.size !== 1) return whole;
+    const [entityId] = agreed as Set<string>;
+    // An ambiguous part must still allow the answer: "Killer Whale" (species or genus)
+    // allows the species "Orca" names; "Humpback Whale" does not, so "Humpback Whale (Orca)"
+    // is a contradiction, not an orca.
+    const allowed = matches.every((m) => m.verdict !== 'many' || m.entityIds.includes(entityId!));
+    return allowed ? { verdict: 'one', entityId: entityId! } : whole;
 }

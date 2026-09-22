@@ -99,7 +99,8 @@ and [`scripts/dwca/guard.ts`](../scripts/dwca/guard.ts).)
 Within the two included branches, a record is left out when the export cannot
 classify or credit it: a Maplify sighting whose names identify no animal in the
 [SalishSea animals register](https://github.com/salish-sea/animals) — nearly
-always a report sent as "Unspecified" or "Other" — or a native observation with
+always a report sent as "Unspecified" or "Other" — or identify one the register
+does not crosswalk to a taxon we can classify, or a native observation with
 no contributor row to credit or no collection to file it under. Both branches
 identify a record by its register entity and classify it through the register's
 crosswalk to iNaturalist and its NCBI lineage

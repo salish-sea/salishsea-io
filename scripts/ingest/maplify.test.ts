@@ -379,6 +379,8 @@ describe('matchName', () => {
 
     test('"X (Y)" whose parts disagree stays unresolved', () => {
         expect(matchName(register, 'Humpback (Gray)').verdict).toBe('none');
+        // One part ambiguous, the other unique but not among its candidates.
+        expect(matchName(register, 'Humpback Whale (Orca)').verdict).not.toBe('one');
     });
 
     test('an ambiguous name reports every candidate rather than choosing', () => {
