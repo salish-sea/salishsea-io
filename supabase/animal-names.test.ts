@@ -16,12 +16,17 @@ import type { Sql } from 'postgres';
 
 const DSN = process.env['SUPABASE_DB_URL'];
 
-/** See supabase/register-ancestry.test.ts: skipIf is read at collection time, before hooks. */
+/**
+ * See supabase/register-ancestry.test.ts: skipIf is read at collection time, before hooks.
+ *
+ * Probes register.edition, not register.entities: ci-seed.sql plants one entity so the
+ * native sighting it seeds can be classified, and that is a fixture, not an edition.
+ */
 const loaded = await (async () => {
     if (!DSN) return false;
     const probe = postgres(DSN, {prepare: false, max: 1});
     try {
-        const [row] = await probe<{n: number}[]>`SELECT count(*)::int AS n FROM register.entities`;
+        const [row] = await probe<{n: number}[]>`SELECT count(*)::int AS n FROM register.edition`;
         return (row?.n ?? 0) > 0;
     } catch { return false; } finally { await probe.end(); }
 })();

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-08-29
 
+> **Amended 2026-09-22 by [048](048-our-sightings-are-keyed-on-the-register.md).** `public.observations.taxon_id` and `public.individuals.taxon_id` no longer exist; both now record a register entity. `public.individuals.taxon_id` was dropped by migration 20260922020000 (every individual already carried `entity_id`); `public.observations.taxon_id` by 20260922040000. The observations were translated to entities **once**, by migration 20260922040000, using exactly the resolution the view already applied on read — so no record changed what it displayed or exported as, except 22 records filed under two subspecies the register does not hold (*Phoca vitulina richardii*, *Eumetopias jubatus monteriensis*), which now read at species rank. That one-time translation is the exception to "never rewritten", and it is the only one: an entity is the register's to deprecate, and `register.taxon_entity_for` follows a merge on read, which is this decision's pattern again.
+
 ## Decision
 
 A stored taxon id records **what was claimed** — by upstream on a mirror row, by a contributor on a native one — and is never rewritten when iNaturalist retires that taxon. Resolution happens where the taxon is **read**: `public.occurrences` and `dwc.taxa_classification` hop through `inaturalist.taxa.current_taxon_id`, so a record keeps naming the taxon it was filed under while displaying and exporting the taxon that taxon has become.

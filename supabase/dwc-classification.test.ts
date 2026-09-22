@@ -89,7 +89,7 @@ describe.skipIf(!DSN)('dwc classification (local Supabase)', () => {
         const exported = await sql<{kingdom: string | null; n: number}[]>`
             SELECT c.kingdom, count(*)::int AS n
             FROM dwc.taxa_classification c
-            WHERE EXISTS (SELECT 1 FROM public.observations o WHERE o.taxon_id = c.taxon_id)
+            WHERE EXISTS (SELECT 1 FROM public.observations o WHERE register.inaturalist_taxon_for(o.entity_id) = c.taxon_id)
                OR EXISTS (SELECT 1 FROM maplify.sightings s WHERE s.taxon_id = c.taxon_id)
             GROUP BY 1`;
         for (const row of exported) expect(row.kingdom, `${row.n} exported rows`).toBe('Animalia');
@@ -160,12 +160,14 @@ describe.skipIf(!DSN)('dwc classification (local Supabase)', () => {
         // (public.observations) and _maplify_occurrences (maplify.sightings); checking only
         // the iNaturalist mirror would leave the Maplify half of the archive unguarded
         // against exactly the failure this test exists for.
-        const orphaned = await sql<{taxon_id: number; source: string}[]>`
-            SELECT taxon_id, 'public.observations' AS source FROM public.observations o
-             WHERE o.taxon_id IS NOT NULL
-               AND NOT EXISTS (SELECT 1 FROM dwc.taxa_classification c WHERE c.taxon_id = o.taxon_id)
+        // Our own sightings are keyed on a register entity (migration 20260922040000), so
+        // theirs is reported by entity: an entity the crosswalk cannot reach is an orphan too.
+        const orphaned = await sql<{key: string; source: string}[]>`
+            SELECT o.entity_id AS key, 'public.observations' AS source FROM public.observations o
+             WHERE NOT EXISTS (SELECT 1 FROM dwc.taxa_classification c
+                                WHERE c.taxon_id = register.inaturalist_taxon_for(o.entity_id))
             UNION
-            SELECT taxon_id, 'maplify.sightings' FROM maplify.sightings s
+            SELECT taxon_id::text, 'maplify.sightings' FROM maplify.sightings s
              WHERE s.taxon_id IS NOT NULL
                AND NOT EXISTS (SELECT 1 FROM dwc.taxa_classification c WHERE c.taxon_id = s.taxon_id)`;
         expect(orphaned).toEqual([]);

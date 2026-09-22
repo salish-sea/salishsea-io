@@ -24,6 +24,21 @@
 -- =====================================================================
 
 -- =====================================================================
+-- Section 0 — A one-entity register fixture
+-- =====================================================================
+-- Native observations are keyed on a register entity (migration
+-- 20260922040000), and the archive classifies them through the entity's
+-- iNaturalist crosswalk. CI never loads a register edition, so without this
+-- the native row below would drop out of dwc.occurrences and DWCA-03 would
+-- fail on its orphaned photo. One entity and its exactMatch, nothing else:
+-- register.edition stays empty, which is what the edition-dependent tests
+-- probe to decide whether a real register is present.
+INSERT INTO register.entities (entity_id, kind, rank, label)
+VALUES ('SSA:0000900', 'taxon', 'species', 'Orcinus orca');
+INSERT INTO register.mappings (subject_id, predicate_id, object_id, object_label)
+VALUES ('SSA:0000900', 'skos:exactMatch', 'inaturalist.taxon:41521', 'Orcinus orca');
+
+-- =====================================================================
 -- Section 1 — Native observations (dwc._native_occurrences + dwc.multimedia)
 -- =====================================================================
 
@@ -63,7 +78,7 @@ BEGIN
         id,
         observed_at,
         subject_location,
-        taxon_id,
+        entity_id,
         count,
         contributor_id,
         user_uuid,
@@ -79,7 +94,7 @@ BEGIN
         v_obs_id,
         NOW() - INTERVAL '1 day',
         gis.ST_Point(-123.3, 48.4)::gis.geography,
-        41521,   -- Orcinus orca (confirmed in inaturalist.taxa)
+        'SSA:0000900',   -- Orcinus orca; the register fixture above crosswalks it to 41521
         2,
         v_contrib_id,
         '00000000-0000-0000-0000-000000000001',
