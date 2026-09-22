@@ -97,10 +97,14 @@ fails if the export ever exceeds that baseline. (See the `dwc.occurrences` view
 and [`scripts/dwca/guard.ts`](../scripts/dwca/guard.ts).)
 
 Within the two included branches, a record is left out when the export cannot
-classify or credit it: a Maplify sighting whose species name maps to no taxon,
-or a native observation with no taxon, no contributor row to credit, or no
-collection to file it under. About three percent of admitted
-Maplify records are unclassifiable today. The `dwc.export_coverage` view counts,
+classify or credit it: a Maplify sighting whose names identify no animal in the
+[SalishSea animals register](https://github.com/salish-sea/animals) — nearly
+always a report sent as "Unspecified" or "Other" — or a native observation with
+no contributor row to credit or no collection to file it under. Both branches
+identify a record by its register entity and classify it through the register's
+crosswalk to iNaturalist and its NCBI lineage
+([decisions 047–049](decisions/)). About three percent of admitted Maplify
+records carry no identification today. The `dwc.export_coverage` view counts,
 per branch, what was admitted, what was exported, and what each join dropped;
 the nightly build logs those counts on every run and fails if a branch exports
 nothing it had records for, so a shrinking archive is a number in the log rather

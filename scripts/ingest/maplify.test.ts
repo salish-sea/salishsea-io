@@ -15,11 +15,12 @@ import {
     normalizeRecord,
     isIngestable,
     isKillerWhale,
-    resolveScientificName,
+    resolveEntity,
     reconcile,
     MaplifyRecordSchema,
     type NormalizedSighting,
 } from './maplify.ts';
+import { buildNameIndex, matchName, type RegisterName } from '../register/name-index.ts';
 
 const fixture = JSON.parse(
     readFileSync(path.resolve(__dirname, 'fixtures/maplify-sample.json'), 'utf8'),
@@ -129,43 +130,80 @@ describe('normalizeRecord', () => {
     });
 });
 
+/**
+ * A constructed edition: the slice of the real register these rules touch, named as the
+ * register names it (2026.09.5). Built by hand rather than loaded so the tests run without a
+ * register and say exactly which names each rule depends on.
+ */
+const register = (() => {
+    const rows: RegisterName[] = [];
+    const entity = (entity_id: string, kind: string, taxon_label: string, names: string[], retired = false) => {
+        for (const name of names) rows.push({ entity_id, name, kind, retired, taxon_label });
+    };
+    entity('SSA:0000900', 'taxon', 'Orcinus orca', ['Orcinus orca', 'Killer whale', 'orca', 'KW']);
+    entity('SSA:0000948', 'taxon', 'Orcinus', ['Orcinus', 'Killer whale']); // monotypic genus
+    entity('SSA:0000002', 'group', 'Orcinus orca', ["Bigg's", "Bigg's killer whale", 'Biggs']);
+    entity('SSA:0000003', 'group', 'Orcinus orca', ['Resident', 'Resident killer whale']);
+    entity('SSA:0000010', 'group', 'Orcinus orca', ['Southern Resident', 'Southern Resident killer whale', 'SRKW']);
+    // The deprecated Southern Resident keeps its names upstream; it must never be an answer.
+    entity('SSA:0000001', 'group', 'Orcinus orca', ['Southern Resident'], true);
+    entity('SSA:0000901', 'taxon', 'Megaptera novaeangliae', ['Megaptera novaeangliae', 'Humpback whale', 'Humpback']);
+    entity('SSA:0000946', 'taxon', 'Megaptera', ['Megaptera', 'Humpback whale']);
+    entity('SSA:0000905', 'taxon', 'Eschrichtius robustus', ['Eschrichtius robustus', 'Gray whale', 'Grey whale', 'Gray', 'Grey']);
+    entity('SSA:0000915', 'taxon', 'Balaenoptera acutorostrata', ['Balaenoptera acutorostrata', 'Minke whale']);
+    entity('SSA:0000903', 'taxon', 'Zalophus californianus', ['Zalophus californianus', 'California sea lion']);
+    entity('SSA:0000914', 'taxon', 'Sagmatias obliquidens', [
+        'Sagmatias obliquidens', 'Pacific white-sided dolphin', 'Aethalodelphis obliquidens', 'Lagenorhynchus obliquidens']);
+    entity('SSA:0000926', 'taxon', 'Grampus griseus', ['Grampus griseus', "Risso's dolphin"]);
+    entity('SSA:0000928', 'taxon', 'Delphinus delphis', ['Delphinus delphis', 'Common dolphin', 'Delphinus capensis']);
+    entity('SSA:0000942', 'taxon', 'Delphinus', ['Delphinus', 'Common dolphin']); // six species
+    entity('SSA:0000954', 'taxon', 'Eubalaena', ['Eubalaena', 'Right whale']);
+    entity('SSA:0000955', 'taxon', 'Hyperoodon', ['Hyperoodon', 'Bottlenose whale']);
+    // An individual nicknamed like a taxon: a taxon name never names an animal.
+    entity('SSA:0010001', 'individual', 'Megaptera novaeangliae', ['Big Mama', 'Gray']);
+    return buildNameIndex(rows);
+})();
+
+const entityOf = (over: Partial<NormalizedSighting>) => resolveEntity(norm(over), register);
+const killerWhale = (over: Partial<NormalizedSighting>) => isKillerWhale(norm(over), register);
+const ingestable = (over: Partial<NormalizedSighting>) => isIngestable(norm(over), register);
+
 describe('isKillerWhale', () => {
-    test('species, subspecies and the genus-only stub', () => {
-        expect(isKillerWhale(norm({ scientificName: 'Orcinus orca' }))).toBe(true);
-        expect(isKillerWhale(norm({ scientificName: 'Orcinus orca ater' }))).toBe(true);
-        expect(isKillerWhale(norm({ scientificName: 'Orcinus orca rectipinnus' }))).toBe(true);
-        expect(isKillerWhale(norm({ scientificName: 'Orcinus' }))).toBe(true);
-        expect(isKillerWhale(norm({ scientificName: 'orcinus orca' }))).toBe(true);
+    test('the species, an ecotype and the genus', () => {
+        expect(killerWhale({ scientificName: 'Orcinus orca' })).toBe(true);
+        expect(killerWhale({ scientificName: 'orcinus orca' })).toBe(true);
+        expect(killerWhale({ name: 'Southern Resident Killer Whale', scientificName: '' })).toBe(true);
+        expect(killerWhale({ name: null, scientificName: 'Orcinus' })).toBe(true);
     });
 
     test('an orca common name over a placeholder or blank scientific name', () => {
-        expect(isKillerWhale(norm({ name: 'Killer Whale', scientificName: 'N/A' }))).toBe(true);
-        expect(isKillerWhale(norm({ name: 'Southern Resident Killer Whale', scientificName: '' }))).toBe(true);
-        expect(isKillerWhale(norm({ name: 'Orca (ballena asesina)', scientificName: '' }))).toBe(true);
+        expect(killerWhale({ name: 'Orca', scientificName: 'N/A' })).toBe(true);
+        expect(killerWhale({ name: 'Orca (ballena asesina)', scientificName: '' })).toBe(true);
+        expect(killerWhale({ name: 'Killer Whale (Orca)', scientificName: '' })).toBe(true);
     });
 
-    test('an orca-shaped common name NAME_TO_SCIENTIFIC does not know, with nothing else to go on', () => {
+    test('an orca-shaped common name the register does not hold, with nothing else to go on', () => {
         // The live fixture's shape (there under the excluded wras source).
-        expect(isKillerWhale(norm({ name: 'Killer whale (Ecotype Unknown)', scientificName: '' }))).toBe(true);
-        expect(isKillerWhale(norm({ name: "Bigg's Killer Whale", scientificName: 'N/A' }))).toBe(true);
-        expect(isKillerWhale(norm({ name: 'Transient Orca', scientificName: '' }))).toBe(true);
+        expect(killerWhale({ name: 'Killer whale (Ecotype Unknown)', scientificName: '' })).toBe(true);
+        expect(killerWhale({ name: 'Transient Orca', scientificName: '' })).toBe(true);
+        // "Killer Whale" alone is ambiguous in the register (species and genus), so it
+        // resolves to nothing — and the name still reads as an orca.
+        expect(killerWhale({ name: 'Killer Whale', scientificName: 'N/A' })).toBe(true);
         // ...but not over a scientific name that resolves to something else.
-        expect(isKillerWhale(norm({ name: 'Transient Orca', scientificName: 'Megaptera novaeangliae' }))).toBe(false);
-        // and a null name with nothing resolvable is not an orca.
-        expect(isKillerWhale(norm({ name: null, scientificName: '' }))).toBe(false);
-        expect(isKillerWhale(norm({ name: null, scientificName: 'Orcinus orca' }))).toBe(true);
+        expect(killerWhale({ name: 'Transient Orca', scientificName: 'Megaptera novaeangliae' })).toBe(false);
+        expect(killerWhale({ name: null, scientificName: '' })).toBe(false);
     });
 
     test('an upstream correction in name wins over an orca scientific name, and vice versa', () => {
-        expect(isKillerWhale(norm({ name: 'Humpback', scientificName: 'Orcinus orca' }))).toBe(false);
-        expect(isKillerWhale(norm({ name: 'Orca', scientificName: 'Megaptera novaeangliae' }))).toBe(true);
+        expect(killerWhale({ name: 'Humpback', scientificName: 'Orcinus orca' })).toBe(false);
+        expect(killerWhale({ name: 'Orca', scientificName: 'Megaptera novaeangliae' })).toBe(true);
     });
 
     test('not an orca: other taxa, no identification, or a genus that merely starts with orc', () => {
-        expect(isKillerWhale(norm({ name: 'Humpback', scientificName: 'Megaptera novaeangliae' }))).toBe(false);
-        expect(isKillerWhale(norm({ name: 'Unspecified', scientificName: 'N/A' }))).toBe(false);
-        expect(isKillerWhale(norm({ name: '', scientificName: '' }))).toBe(false);
-        expect(isKillerWhale(norm({ name: 'Unspecified', scientificName: 'Orcinusfake orca' }))).toBe(false);
+        expect(killerWhale({ name: 'Humpback', scientificName: 'Megaptera novaeangliae' })).toBe(false);
+        expect(killerWhale({ name: 'Unspecified', scientificName: 'N/A' })).toBe(false);
+        expect(killerWhale({ name: '', scientificName: '' })).toBe(false);
+        expect(killerWhale({ name: 'Unspecified', scientificName: 'Orcinusfake orca' })).toBe(false);
     });
 });
 
@@ -176,50 +214,52 @@ describe('isIngestable', () => {
     const humpback = { name: 'Humpback', scientificName: 'Megaptera novaeangliae' };
 
     test('excludes rwsas and wras regardless of place or taxon', () => {
-        expect(isIngestable(norm({ source: 'rwsas', ...inside }))).toBe(false);
-        expect(isIngestable(norm({ source: 'wras', ...inside }))).toBe(false);
+        expect(ingestable({ source: 'rwsas', ...inside })).toBe(false);
+        expect(ingestable({ source: 'wras', ...inside })).toBe(false);
     });
 
     test('inside the Salish Sea, every taxon is in scope', () => {
-        expect(isIngestable(norm({ source: 'whale_alert', ...inside }))).toBe(true);
-        expect(isIngestable(norm({ source: 'FARPB', ...inside, ...humpback }))).toBe(true);
-        expect(isIngestable(norm({ ...inside, name: 'Unspecified', scientificName: 'N/A' }))).toBe(true);
+        expect(ingestable({ source: 'whale_alert', ...inside })).toBe(true);
+        expect(ingestable({ source: 'FARPB', ...inside, ...humpback })).toBe(true);
+        expect(ingestable({ ...inside, name: 'Unspecified', scientificName: 'N/A' })).toBe(true);
     });
 
     test('outside the Salish Sea, only killer whales are in scope', () => {
-        expect(isIngestable(norm({ ...outside }))).toBe(true); // rawRecord is an Orca
-        expect(isIngestable(norm({ ...outside, scientificName: 'Orcinus orca ater' }))).toBe(true);
-        expect(isIngestable(norm({ ...outside, ...humpback }))).toBe(false);
-        expect(isIngestable(norm({ ...outside, name: 'Unspecified', scientificName: 'N/A' }))).toBe(false);
+        expect(ingestable({ ...outside })).toBe(true); // norm() is an Orca
+        expect(ingestable({ ...outside, name: 'Southern Resident Killer Whale', scientificName: '' })).toBe(true);
+        expect(ingestable({ ...outside, ...humpback })).toBe(false);
+        expect(ingestable({ ...outside, name: 'Unspecified', scientificName: 'N/A' })).toBe(false);
     });
 
     test('the Salish Sea box is inclusive of its edges', () => {
-        expect(isIngestable(norm({ ...humpback, lon: -126, lat: 47 }))).toBe(true);
-        expect(isIngestable(norm({ ...humpback, lon: -122, lat: 50.5 }))).toBe(true);
-        expect(isIngestable(norm({ ...humpback, lon: -121.99, lat: 48 }))).toBe(false);
-        expect(isIngestable(norm({ ...humpback, lon: -124, lat: 46.99 }))).toBe(false);
+        expect(ingestable({ ...humpback, lon: -126, lat: 47 })).toBe(true);
+        expect(ingestable({ ...humpback, lon: -122, lat: 50.5 })).toBe(true);
+        expect(ingestable({ ...humpback, lon: -121.99, lat: 48 })).toBe(false);
+        expect(ingestable({ ...humpback, lon: -124, lat: 46.99 })).toBe(false);
     });
 });
 
-describe('resolveScientificName', () => {
+describe('resolveEntity', () => {
     test('prefers the record scientific name', () => {
-        expect(resolveScientificName(norm({ scientificName: 'Orcinus orca', name: 'Orca' })))
-            .toBe('Orcinus orca');
+        expect(entityOf({ scientificName: 'Orcinus orca', name: 'Orca' })).toBe('SSA:0000900');
     });
 
-    test('falls back to the common-name map when scientific name is blank', () => {
-        expect(resolveScientificName(norm({ scientificName: '', name: 'California Sea Lion' })))
-            .toBe('Zalophus californianus');
-    });
-
-    test('trims a whitespace-only scientific name before falling back', () => {
-        expect(resolveScientificName(norm({ scientificName: '   ', name: 'California Sea Lion' })))
-            .toBe('Zalophus californianus');
+    test('falls back to the common name when scientific name is blank or whitespace', () => {
+        expect(entityOf({ scientificName: '', name: 'California Sea Lion' })).toBe('SSA:0000903');
+        expect(entityOf({ scientificName: '   ', name: 'California Sea Lion' })).toBe('SSA:0000903');
     });
 
     test('returns null when neither resolves', () => {
-        expect(resolveScientificName(norm({ scientificName: '', name: 'Fictional Whale' }))).toBeNull();
-        expect(resolveScientificName(norm({ scientificName: '', name: null }))).toBeNull();
+        expect(entityOf({ scientificName: '', name: 'Fictional Whale' })).toBeNull();
+        expect(entityOf({ scientificName: '', name: null })).toBeNull();
+    });
+
+    test('an ecotype named in the common name is the ecotype, not the species', () => {
+        // 4,337 production records arrive exactly like this. Resident generally (the
+        // subspecies ater) was the most iNaturalist could say; the report says more.
+        expect(entityOf({ scientificName: '', name: 'Southern Resident Killer Whale' })).toBe('SSA:0000010');
+        expect(entityOf({ scientificName: 'Orcinus orca', name: 'Southern Resident Killer Whale' })).toBe('SSA:0000010');
+        expect(entityOf({ scientificName: 'N/A', name: "Bigg's Killer Whale" })).toBe('SSA:0000002');
     });
 
     // salish-7jl. Upstream moderators correct a species by editing `name` and the
@@ -229,101 +269,112 @@ describe('resolveScientificName', () => {
         // Real records, by upstream id, with the comment that proves the direction.
         test.each([
             // 188375: "reported as humpback but was gray whale - Alisa"
-            ['Gray Whale', 'Megaptera novaeangliae', 'Eschrichtius robustus'],
+            ['Gray Whale', 'Megaptera novaeangliae', 'SSA:0000905'],
             // 158632: "Edit, reported as grays but were the two humpbacks."
-            ['Humpback', 'Eschrichtius robustus', 'Megaptera novaeangliae'],
+            ['Humpback', 'Eschrichtius robustus', 'SSA:0000901'],
             // 195928: "[Orca Network] Humpback, low surfacing, northbound"
-            ['Humpback', 'Orcinus orca', 'Megaptera novaeangliae'],
+            ['Humpback', 'Orcinus orca', 'SSA:0000901'],
             // 144659: "Photo confirms minke, corrected species - alb"
-            ['Minke Whale', 'Megaptera novaeangliae', 'Balaenoptera acutorostrata'],
+            ['Minke Whale', 'Megaptera novaeangliae', 'SSA:0000915'],
             // 152658: "Edit to confirm these were orcas, J pod (Orca Network)"
-            ['Southern Resident Killer Whale', 'Balaenoptera acutorostrata', 'Orcinus orca ater'],
+            ['Southern Resident Killer Whale', 'Balaenoptera acutorostrata', 'SSA:0000010'],
         ])('%s reported as %s resolves to %s', (name, stale, corrected) => {
-            expect(resolveScientificName(norm({ scientificName: stale, name }))).toBe(corrected);
+            expect(entityOf({ scientificName: stale, name })).toBe(corrected);
         });
 
         test('agreement is left alone', () => {
-            expect(resolveScientificName(norm({
-                scientificName: 'Megaptera novaeangliae', name: 'Humpback',
-            }))).toBe('Megaptera novaeangliae');
+            expect(entityOf({ scientificName: 'Megaptera novaeangliae', name: 'Humpback' })).toBe('SSA:0000901');
         });
 
-        test('an unmapped name never overrides a scientific name', () => {
-            expect(resolveScientificName(norm({
-                scientificName: 'Orcinus orca', name: 'Something Nobody Has Mapped',
-            }))).toBe('Orcinus orca');
+        test('a name the register does not hold never overrides a scientific name', () => {
+            expect(entityOf({ scientificName: 'Orcinus orca', name: 'Something Nobody Has Named' })).toBe('SSA:0000900');
+        });
+
+        test('nor does an ambiguous one', () => {
+            // "Humpback whale" names the species and the monotypic genus alike.
+            expect(entityOf({ scientificName: 'Orcinus orca', name: 'Humpback Whale' })).toBe('SSA:0000900');
         });
     });
 
-    // 'N/A' is non-blank, so the old resolver returned it as if it were a name. It
-    // joins nothing, so 128 records lost their taxon while `name` said what they were.
-    describe("upstream placeholders are not scientific names", () => {
+    // 'N/A' is non-blank, so an early resolver returned it as if it were a name. It
+    // matches nothing, so 128 records lost their identity while `name` said what they were.
+    describe('upstream placeholders are not scientific names', () => {
         test.each(['N/A', 'n/a', 'NA', 'unknown', 'Unspecified'])('%s is treated as absent', (placeholder) => {
-            expect(resolveScientificName(norm({ scientificName: placeholder, name: 'Gray Whale' })))
-                .toBe('Eschrichtius robustus');
+            expect(entityOf({ scientificName: placeholder, name: 'Gray Whale' })).toBe('SSA:0000905');
         });
 
         test('a placeholder with no usable name resolves to null', () => {
-            expect(resolveScientificName(norm({ scientificName: 'N/A', name: 'Unspecified' }))).toBeNull();
+            expect(entityOf({ scientificName: 'N/A', name: 'Unspecified' })).toBeNull();
         });
     });
 
     // A name asserting no identification must not suppress a good scientific name:
     // 'Unspecified' with scientific_name 'Orcinus orca' is an orca.
     test('an unidentified name keeps a usable scientific name', () => {
-        expect(resolveScientificName(norm({ scientificName: 'Orcinus orca', name: 'Unspecified' })))
-            .toBe('Orcinus orca');
+        expect(entityOf({ scientificName: 'Orcinus orca', name: 'Unspecified' })).toBe('SSA:0000900');
     });
 
-    test("'Gray' resolves, not only 'Grey'", () => {
-        // The map carried 'Grey' but not 'Gray', so 174 records went unresolved over
-        // one letter.
-        expect(resolveScientificName(norm({ scientificName: '', name: 'Gray' })))
-            .toBe('Eschrichtius robustus');
-        expect(resolveScientificName(norm({ scientificName: '', name: 'Grey' })))
-            .toBe('Eschrichtius robustus');
+    test("Whale Alert's bare category labels resolve", () => {
+        // 141 records; the register carries these as hidden names since 2026.09.5.
+        expect(entityOf({ scientificName: '', name: 'Gray' })).toBe('SSA:0000905');
+        expect(entityOf({ scientificName: '', name: 'Grey' })).toBe('SSA:0000905');
     });
 
-    test('retired genus names resolve to the name iNaturalist carries', () => {
-        // Our taxa mirror holds the active Aethalodelphis row; Lagenorhynchus and
-        // Sagmatias join nothing.
-        expect(resolveScientificName(norm({
-            scientificName: 'Lagenorhynchus obliquidens', name: 'Pacific White-sided Dolphin',
-        }))).toBe('Aethalodelphis obliquidens');
-        expect(resolveScientificName(norm({ scientificName: '', name: 'Pacific White-sided Dolphin' })))
-            .toBe('Aethalodelphis obliquidens');
+    test('an individual is never the answer, even when its name matches', () => {
+        // The fixture's individual also answers to "Gray"; the gray whale still wins alone.
+        expect(entityOf({ scientificName: '', name: 'Big Mama' })).toBeNull();
+    });
+
+    test('a retired identifier is never the answer', () => {
+        // SSA:0000001 still answers to "Southern Resident"; only SSA:0000010 is live.
+        expect(entityOf({ scientificName: '', name: 'Southern Resident' })).toBe('SSA:0000010');
+    });
+
+    test('synonyms resolve through the register\'s historical and hidden names', () => {
+        expect(entityOf({ scientificName: 'Lagenorhynchus obliquidens', name: 'Pacific White-sided Dolphin' }))
+            .toBe('SSA:0000914');
+        expect(entityOf({ scientificName: 'Aethalodelphis obliquidens', name: '' })).toBe('SSA:0000914');
+        expect(entityOf({ scientificName: 'Delphinus capensis', name: 'Long-beaked Common Dolphin' }))
+            .toBe('SSA:0000928');
     });
 
     test('names are matched case- and spacing-insensitively', () => {
-        expect(resolveScientificName(norm({ scientificName: '', name: 'pacific white-sided dolphin' })))
-            .toBe('Aethalodelphis obliquidens');
-        expect(resolveScientificName(norm({ scientificName: '', name: '  Gray   Whale ' })))
-            .toBe('Eschrichtius robustus');
+        expect(entityOf({ scientificName: '', name: 'pacific white-sided dolphin' })).toBe('SSA:0000914');
+        expect(entityOf({ scientificName: '', name: '  Gray   Whale ' })).toBe('SSA:0000905');
     });
 
     // A genus-level upstream category must stay at genus. Whale Alert offers no finer
     // term for these, so narrowing them would be our invention, not the reporter's.
     test.each([
-        ['Common Dolphin', 'Delphinus'],
-        ['Right Whale', 'Eubalaena'],
-        ['Bottlenose Whale', 'Hyperoodon'],
-    ])('%s stays at the genus upstream supplied', (name, genus) => {
-        expect(resolveScientificName(norm({ scientificName: genus, name }))).toBe(genus);
+        ['Common Dolphin', 'Delphinus', 'SSA:0000942'],
+        ['Right Whale', 'Eubalaena', 'SSA:0000954'],
+        ['Bottlenose Whale', 'Hyperoodon', 'SSA:0000955'],
+    ])('%s stays at the genus upstream supplied', (name, genus, entity) => {
+        expect(entityOf({ scientificName: genus, name })).toBe(entity);
     });
 
-    test('non-English and mis-decoded names resolve', () => {
-        expect(resolveScientificName(norm({ scientificName: '', name: 'Ballena jorobada' })))
-            .toBe('Megaptera novaeangliae');
-        expect(resolveScientificName(norm({ scientificName: '', name: 'Baleine grise' })))
-            .toBe('Eschrichtius robustus');
+    test('mis-decoded and variant apostrophes resolve', () => {
         // Upstream sends UTF-8 decoded as Latin-1, so U+2019's three bytes arrive as
-        // three characters. All three spellings of the apostrophe must land together.
-        expect(resolveScientificName(norm({ scientificName: '', name: "Risso's dolphin" })))
-            .toBe('Grampus griseus');
-        expect(resolveScientificName(norm({ scientificName: '', name: 'Risso\u2019s dolphin' })))
-            .toBe('Grampus griseus');
-        expect(resolveScientificName(norm({ scientificName: '', name: 'Risso\u00e2\u0080\u0099s dolphin' })))
-            .toBe('Grampus griseus');
+        // three characters. Every spelling of the apostrophe must land together.
+        for (const name of ["Risso's dolphin", 'Risso\u2019s dolphin', 'Risso\u2018s dolphin',
+                            'Risso\u02bcs dolphin', 'Risso`s dolphin', 'Risso\u00e2\u0080\u0099s dolphin'])
+            expect(entityOf({ scientificName: '', name }), name).toBe('SSA:0000926');
+    });
+});
+
+describe('matchName', () => {
+    test('"X (Y)" resolves when the parts that match agree', () => {
+        expect(matchName(register, 'Killer Whale (Orca)')).toEqual({ verdict: 'one', entityId: 'SSA:0000900' });
+        expect(matchName(register, 'Orca (ballena asesina)')).toEqual({ verdict: 'one', entityId: 'SSA:0000900' });
+    });
+
+    test('"X (Y)" whose parts disagree stays unresolved', () => {
+        expect(matchName(register, 'Humpback (Gray)').verdict).toBe('none');
+    });
+
+    test('an ambiguous name reports every candidate rather than choosing', () => {
+        expect(matchName(register, 'Common dolphin'))
+            .toEqual({ verdict: 'many', entityIds: ['SSA:0000928', 'SSA:0000942'] });
     });
 });
 

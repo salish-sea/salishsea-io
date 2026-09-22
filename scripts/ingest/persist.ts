@@ -8,9 +8,10 @@
  * the SQL is authored here, in version-controlled TypeScript.
  *
  * Persist-time resolutions kept in SQL, unchanged from the prior path:
- *   - taxon_id      — LEFT JOIN inaturalist.taxa on the TS-resolved scientific
- *                     name (resolveScientificName is the single source of truth
- *                     for the common-name fallback; the join is a pure lookup).
+ *   - entity_id     — the register entity resolveEntity chose, computed in TS
+ *                     against the name index fetchNameIndex reads (decision 049).
+ *                     Not a join: the register's name rule (the ADR-0019 fold) is
+ *                     implemented once, in scripts/register/fold.ts.
  *   - collection_id — maplify.resolve_collection(comments, source), a
  *                     curator-editable DB rule table (decision: keep as data).
  *   - provider_id   — column DEFAULT (2 = Maplify).
@@ -21,7 +22,8 @@
  */
 
 import type { Sql, TransactionSql } from 'postgres';
-import { resolveScientificName, type NormalizedSighting, type ReconcilePlan } from './maplify.ts';
+import { resolveEntity, type NormalizedSighting, type ReconcilePlan } from './maplify.ts';
+import { buildNameIndex, type NameIndex, type RegisterName } from '../register/name-index.ts';
 import type {
     NormalizedObservation,
     NormalizedTaxon,
@@ -58,7 +60,6 @@ export async function fetchWindowIds(sql: Sql, window: IngestWindow): Promise<nu
 /**
  * Row shape handed to jsonb_to_recordset — snake_case keys that match the
  * recordset column names exactly (jsonb_to_recordset maps by key name).
- * resolved_name feeds only the taxon join, not a stored column.
  */
 type UpsertPayloadRow = {
     id: number; project_id: number; trip_id: number;
@@ -66,18 +67,61 @@ type UpsertPayloadRow = {
     lon: number; lat: number; number_sighted: number; created_at: string;
     photo_url: string | null; comments: string | null; in_ocean: boolean;
     moderated: number; trusted: boolean; is_test: boolean;
-    source: string; usernm: string | null; resolved_name: string | null;
+    source: string; usernm: string | null; entity_id: string | null;
 };
 
-function toPayload(sightings: readonly NormalizedSighting[]): UpsertPayloadRow[] {
+function toPayload(sightings: readonly NormalizedSighting[], index: NameIndex): UpsertPayloadRow[] {
     return sightings.map((s) => ({
         id: s.id, project_id: s.projectId, trip_id: s.tripId,
         scientific_name: s.scientificName, name: s.name, lon: s.lon, lat: s.lat,
         number_sighted: s.numberSighted, created_at: s.createdAt, photo_url: s.photoUrl,
         comments: s.comments, in_ocean: s.inOcean, moderated: s.moderated,
         trusted: s.trusted, is_test: s.isTest, source: s.source, usernm: s.usernm,
-        resolved_name: resolveScientificName(s),
+        entity_id: resolveEntity(s, index),
     }));
+}
+
+/**
+ * Every name the loaded register edition publishes, as the Maplify core matches against:
+ * each entity's label (its preferred name) and its common, hidden and historical names,
+ * with whether the entity is retired and the label of the taxon it belongs to.
+ *
+ * Read once per ingest tick — about 1,600 rows — rather than cached, so a register load
+ * reaches the next tick without a redeploy. With no edition loaded (CI, a fresh local
+ * stack) the index is empty and every sighting resolves to null, which the map shows
+ * unnamed rather than dropping.
+ */
+export async function fetchNameIndex(sql: Sql): Promise<NameIndex> {
+    // Per entity first, then fanned out to its names, so the taxon lookup runs once per
+    // entity rather than once per name. Individuals are dropped here as well as in
+    // buildNameIndex (which owns the rule): they are most of the register, and a tick
+    // should not read 600 animals to discard them. The taxon comes from register.ancestor
+    // directly rather than register.taxon_entity_for, whose only extra is following a
+    // merge — and retired entities are never candidates. Measured on production: the
+    // per-name form cost 182 ms and 30,581 buffers every five minutes.
+    const rows = await sql<RegisterName[]>`
+        WITH ent AS (
+            SELECT e.entity_id, e.kind,
+                   d.entity_id IS NOT NULL AS retired,
+                   CASE WHEN e.kind = 'taxon' THEN e.label
+                        ELSE (SELECT t.label FROM register.ancestor a
+                               JOIN register.entities t ON t.entity_id = a.ancestor_id
+                               WHERE a.entity_id = e.entity_id AND a.ancestor_kind = 'taxon'
+                               ORDER BY a.depth LIMIT 1)
+                   END AS taxon_label
+            FROM register.entities e
+            LEFT JOIN register.deprecations d ON d.entity_id = e.entity_id
+            WHERE e.kind <> 'individual'
+        ),
+        named AS (
+            SELECT entity_id, label AS name FROM register.entities
+            UNION ALL
+            SELECT entity_id, name FROM register.names
+        )
+        SELECT n.entity_id, n.name, ent.kind, ent.retired, ent.taxon_label
+        FROM named n
+        JOIN ent ON ent.entity_id = n.entity_id`;
+    return buildNameIndex(rows);
 }
 
 /**
@@ -94,9 +138,10 @@ export async function persistMaplify(
     sql: Sql,
     plan: ReconcilePlan,
     window: IngestWindow,
+    index: NameIndex,
     opts: { readonly dryRun?: boolean } = {},
 ): Promise<PersistResult> {
-    const payload = toPayload(plan.upsert);
+    const payload = toPayload(plan.upsert, index);
     const deleteIds = plan.delete;
 
     const run = async (tx: TransactionSql): Promise<PersistResult> => {
@@ -106,25 +151,24 @@ export async function persistMaplify(
                 INSERT INTO maplify.sightings (
                     id, project_id, trip_id, scientific_name, name, location, number_sighted,
                     created_at, photo_url, comments, in_ocean, moderated, trusted, is_test,
-                    source, usernm, taxon_id, collection_id
+                    source, usernm, entity_id, collection_id
                 )
                 SELECT
                     v.id, v.project_id, v.trip_id, v.scientific_name, v.name,
                     gis.ST_Point(v.lon, v.lat)::gis.geography, v.number_sighted,
                     v.created_at::timestamp, v.photo_url, v.comments, v.in_ocean, v.moderated,
                     v.trusted, v.is_test, v.source, v.usernm,
-                    t.id,
+                    v.entity_id,
                     maplify.resolve_collection(v.comments, v.source)
                 FROM jsonb_to_recordset(${tx.json(payload as never)}) AS v(
                     id int, project_id int, trip_id int, scientific_name text, name text,
                     lon float8, lat float8, number_sighted int, created_at text, photo_url text,
                     comments text, in_ocean bool, moderated int2, trusted bool, is_test bool,
-                    source text, usernm text, resolved_name text
+                    source text, usernm text, entity_id text
                 )
-                LEFT JOIN inaturalist.taxa AS t ON t.scientific_name = v.resolved_name
                 -- On conflict we refresh upstream-mirror fields (incl. in_ocean, a
-                -- Maplify-derived flag that tracks the updated location) and taxon_id
-                -- (a pure function of the refreshed scientific_name). We deliberately
+                -- Maplify-derived flag that tracks the updated location) and entity_id
+                -- (a pure function of the refreshed names and the register edition). We deliberately
                 -- do NOT refresh collection_id: it is our resolved/curatable domain
                 -- value, not a mirror field — re-running resolve_collection here would
                 -- clobber a one-time backfill and any curator correction on existing
@@ -149,19 +193,33 @@ export async function persistMaplify(
                     is_test = EXCLUDED.is_test,
                     source = EXCLUDED.source,
                     usernm = EXCLUDED.usernm,
-                    taxon_id = EXCLUDED.taxon_id
+                    -- Never un-name a record whose names have not changed: a tick run
+                    -- against an empty or damaged register index would otherwise blank
+                    -- ten days of identities, which resolve-maplify.ts refuses to do for
+                    -- the rest of the table. Changed names still take the new answer,
+                    -- NULL included.
+                    entity_id = CASE WHEN EXCLUDED.entity_id IS NULL
+                          AND maplify.sightings.name IS NOT DISTINCT FROM EXCLUDED.name
+                          AND maplify.sightings.scientific_name = EXCLUDED.scientific_name
+                         THEN maplify.sightings.entity_id
+                         ELSE EXCLUDED.entity_id END
                 WHERE (
                     maplify.sightings.name, maplify.sightings.scientific_name,
                     gis.ST_AsBinary(maplify.sightings.location), maplify.sightings.number_sighted,
                     maplify.sightings.photo_url, maplify.sightings.comments, maplify.sightings.in_ocean,
                     maplify.sightings.moderated, maplify.sightings.trusted, maplify.sightings.is_test,
-                    maplify.sightings.source, maplify.sightings.usernm, maplify.sightings.taxon_id
+                    maplify.sightings.source, maplify.sightings.usernm, maplify.sightings.entity_id
                 ) IS DISTINCT FROM (
                     EXCLUDED.name, EXCLUDED.scientific_name,
                     gis.ST_AsBinary(EXCLUDED.location), EXCLUDED.number_sighted,
                     EXCLUDED.photo_url, EXCLUDED.comments, EXCLUDED.in_ocean,
                     EXCLUDED.moderated, EXCLUDED.trusted, EXCLUDED.is_test,
-                    EXCLUDED.source, EXCLUDED.usernm, EXCLUDED.taxon_id
+                    EXCLUDED.source, EXCLUDED.usernm,
+                    CASE WHEN EXCLUDED.entity_id IS NULL
+                          AND maplify.sightings.name IS NOT DISTINCT FROM EXCLUDED.name
+                          AND maplify.sightings.scientific_name = EXCLUDED.scientific_name
+                         THEN maplify.sightings.entity_id
+                         ELSE EXCLUDED.entity_id END
                 )
                 RETURNING id`;
             // Inserted rows plus rows the guard let through: what the tick

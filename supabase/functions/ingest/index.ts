@@ -24,6 +24,7 @@ import { parseMaplifyResponse, isIngestable, reconcile } from '../../../scripts/
 import { reconcile as reconcileInat } from '../../../scripts/ingest/inaturalist.ts';
 import {
     persistMaplify,
+    fetchNameIndex,
     persistInaturalist,
     fetchWindowIds,
     fetchObservationWindowIds,
@@ -96,10 +97,12 @@ async function ingestMaplify(sql: Sql, window: IngestWindow, dryRun: boolean): P
     const result = parseMaplifyResponse(raw);
     if (!result.ok) throw new Error(`maplify parse failed: ${result.error}`);
 
-    const ingestable = result.sightings.filter(isIngestable);
+    // Read before the scope test, which asks the register whether a record is an orca.
+    const index = await fetchNameIndex(sql);
+    const ingestable = result.sightings.filter((s) => isIngestable(s, index));
     const existing = await fetchWindowIds(sql, window);
     const plan = reconcile(ingestable, existing);
-    const { upserted, deleted } = await persistMaplify(sql, plan, window, { dryRun });
+    const { upserted, deleted } = await persistMaplify(sql, plan, window, index, { dryRun });
     return { upserted, deleted, pagesFetched: 1, totalResults: result.sightings.length };
 }
 
