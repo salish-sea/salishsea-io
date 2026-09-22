@@ -492,7 +492,6 @@ export type Database = {
             | null
           primary_designation: string
           sex: Database["public"]["Enums"]["sex"] | null
-          taxon_id: number
         }
         Insert: {
           born_earliest?: number | null
@@ -509,7 +508,6 @@ export type Database = {
             | null
           primary_designation: string
           sex?: Database["public"]["Enums"]["sex"] | null
-          taxon_id?: number
         }
         Update: {
           born_earliest?: number | null
@@ -526,7 +524,6 @@ export type Database = {
             | null
           primary_designation?: string
           sex?: Database["public"]["Enums"]["sex"] | null
-          taxon_id?: number
         }
         Relationships: [
           {
@@ -864,6 +861,15 @@ export type Database = {
       }
     }
     Views: {
+      animal_names: {
+        Row: {
+          common_name: string | null
+          entity_id: string | null
+          taxon_common_name: string | null
+          taxon_entity_id: string | null
+        }
+        Relationships: []
+      }
       ecotype_occurrences: {
         Row: {
           ecotype_id: number | null

@@ -195,6 +195,49 @@ export function monthlyPresence(links: Pick<OccurrenceLink, 'observed_at'>[], ye
 
 // Walk a group's ancestry (matriline -> parent matriline -> ... -> ecotype).
 // Returns the chain starting at the group itself; guards against cycles.
+/**
+ * What the register calls an animal (decision 033, migration 20260922010000).
+ *
+ * `common_name` is what it calls THIS entity — an ecotype's "Bigg's killer whale", an
+ * individual's nickname. `taxon_common_name` is what it calls the taxon the entity belongs
+ * to, "Killer whale" for anything under Orcinus orca however deep. A caller usually wants
+ * the most specific of the two it can prove, which is a composition and therefore ours
+ * (animals ADR-0011); the register supplies the strings and we choose between them.
+ */
+export type AnimalName = {
+  entity_id: string;
+  common_name: string | null;
+  taxon_entity_id: string | null;
+  taxon_common_name: string | null;
+};
+
+/**
+ * Names for specific entities, keyed by `SSA:` identifier.
+ *
+ * Asks for the handful the caller can name rather than fetching the register: 426 of 786
+ * entities carry a common name, most of them individuals' nicknames that a profile page
+ * already has by other means. Returns an empty map for an empty request without a round
+ * trip, so a caller need not special-case an entity that has no identifier yet.
+ */
+export async function fetchAnimalNames(entityIds: readonly (string | null)[]): Promise<Map<string, AnimalName>> {
+  const wanted = [...new Set(entityIds.filter((id): id is string => !!id))];
+  if (!wanted.length) return new Map();
+  const { data } = await supabase()
+    .from('animal_names')
+    .select('entity_id, common_name, taxon_entity_id, taxon_common_name')
+    .in('entity_id', wanted)
+    .throwOnError();
+  // `entity_id` types as nullable because every column of a VIEW does — Postgres cannot
+  // express NOT NULL through one, so gen-types has nothing to go on. It is the view's key
+  // and cannot actually be null; narrowed rather than asserted, so a view that one day
+  // does return one is dropped instead of keying the map on `null`.
+  return new Map(
+    (data ?? [])
+      .filter((row): row is AnimalName => row.entity_id !== null)
+      .map(row => [row.entity_id, row]),
+  );
+}
+
 export function groupChain<G extends SocialGroup>(groupId: number, groupsById: Map<number, G>): G[] {
   const chain: G[] = [];
   const seen = new Set<number>();
