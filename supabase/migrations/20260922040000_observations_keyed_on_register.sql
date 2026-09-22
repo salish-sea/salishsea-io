@@ -43,12 +43,16 @@
 -- the entity IS in iNaturalist's vocabulary, as precisely as the crosswalk allows. NULL
 -- where neither the entity nor its taxon is crosswalked, or where the register is not
 -- loaded at all.
+--
+-- search_path is empty, not register.taxon_for's `register, public, pg_catalog`: this is
+-- definer-rights, and listing public ahead of pg_catalog would let an object created in
+-- public shadow split_part or an operator. Every relation below is schema-qualified.
 CREATE FUNCTION register.inaturalist_taxon_for(p_entity_id text)
 RETURNS integer
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = register, public, pg_catalog
+SET search_path = ''
 AS $$
   SELECT split_part(m.object_id, ':', 2)::integer
   FROM register.mappings m
