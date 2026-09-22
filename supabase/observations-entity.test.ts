@@ -7,7 +7,8 @@
  *
  * - an ecotype resolves to the iNaturalist taxon it is itself crosswalked to, not to its
  *   species — otherwise every Bigg's sighting reads as plain Orcinus orca, and
- *   src/symbology.ts stops labelling it "Biggs";
+ *   src/symbology.ts stops labelling it "Biggs" — and an entity with no crosswalk of its
+ *   own reads as its nearest crosswalked ancestor;
  * - the entity's own exactMatch beats its closeMatch;
  * - a sighting keyed on an entity the register does not (yet) hold still appears on the
  *   map, unnamed, rather than vanishing — the taxa joins are LEFT for this;
@@ -29,6 +30,9 @@ const ECOTYPE = 'SSA:9900101';
 const BOTH = 'SSA:9900102';
 const UNMAPPED = 'SSA:9900103';
 const POD = 'SSA:9900104';
+const UNMAPPED_ECOTYPE = 'SSA:9900105';
+const UNMAPPED_POD = 'SSA:9900106';
+const MERGED = 'SSA:9900107';
 const OBSERVATION = '22222222-2222-4222-a222-222222222222';
 
 const ROLLBACK = Symbol('rollback');
@@ -55,11 +59,18 @@ async function seedRegister(tx: TransactionSql) {
         (${ECOTYPE}, 'group', 'ecotype', 'Test ecotype'),
         (${BOTH}, 'taxon', 'species', 'Test species'),
         (${UNMAPPED}, 'taxon', 'species', 'Not crosswalked'),
-        (${POD}, 'group', 'pod', 'Test pod')`;
+        (${POD}, 'group', 'pod', 'Test pod'),
+        (${UNMAPPED_ECOTYPE}, 'group', 'ecotype', 'Uncrosswalked ecotype'),
+        (${UNMAPPED_POD}, 'group', 'pod', 'Pod of an uncrosswalked ecotype'),
+        (${MERGED}, 'group', 'pod', 'Merged into the test pod')`;
+    await tx`INSERT INTO register.deprecations (entity_id, reason, replaced_by) VALUES (${MERGED}, 'merged', ${POD})`;
     await tx`INSERT INTO register.ancestor (entity_id, ancestor_id, depth, ancestor_kind) VALUES
         (${ECOTYPE}, ${BOTH}, 1, 'taxon'),
         (${POD}, ${ECOTYPE}, 1, 'group'),
-        (${POD}, ${BOTH}, 2, 'taxon')`;
+        (${POD}, ${BOTH}, 2, 'taxon'),
+        (${UNMAPPED_ECOTYPE}, ${BOTH}, 1, 'taxon'),
+        (${UNMAPPED_POD}, ${UNMAPPED_ECOTYPE}, 1, 'group'),
+        (${UNMAPPED_POD}, ${BOTH}, 2, 'taxon')`;
     await tx`INSERT INTO register.names (entity_id, name, type, language) VALUES
         (${ECOTYPE}, 'Test ecotype whale', 'common', 'en')`;
     await tx`INSERT INTO register.mappings (subject_id, predicate_id, object_id) VALUES
@@ -113,13 +124,29 @@ describe.skipIf(!DSN)('observations keyed on a register entity (local Supabase)'
         expect(draft).toBe(saved);
     });
 
-    test('an entity with no mapping of its own takes its species\'', async () => {
+    test('an entity with no mapping of its own takes its nearest crosswalked ancestor\'s', async () => {
+        // The pod's ecotype is crosswalked, so the pod reads as that subspecies rather than
+        // falling all the way to the species: a J-pod record is as much ater as a Resident one
+        // (migration 20260922060000). Where the ecotype has no crosswalk, the species answers.
+        const [pod, uncrosswalked] = await rolledBack(sql, async (tx) => {
+            await seedRegister(tx);
+            const [a] = await tx`SELECT register.inaturalist_taxon_for(${POD}) AS id`;
+            const [b] = await tx`SELECT register.inaturalist_taxon_for(${UNMAPPED_POD}) AS id`;
+            return [a?.['id'], b?.['id']];
+        });
+        expect(pod).toBe(1602533);
+        expect(uncrosswalked).toBe(41521);
+    });
+
+    test('a merged-away identifier answers as its replacement does', async () => {
+        // SSA:0000001 in production: the tombstone has no ancestry of its own, so only its
+        // replacement's lineage can place it.
         const id = await rolledBack(sql, async (tx) => {
             await seedRegister(tx);
-            const [row] = await tx`SELECT register.inaturalist_taxon_for(${POD}) AS id`;
+            const [row] = await tx`SELECT register.inaturalist_taxon_for(${MERGED}) AS id`;
             return row?.['id'];
         });
-        expect(id).toBe(41521);
+        expect(id).toBe(1602533);
     });
 
     test('exactMatch beats closeMatch', async () => {

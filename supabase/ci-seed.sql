@@ -134,7 +134,7 @@ INSERT INTO maplify.sightings (
     id, project_id, trip_id, scientific_name,
     location, number_sighted, created_at,
     in_ocean, moderated, trusted, is_test,
-    source, comments, taxon_id, collection_id
+    source, comments, entity_id, collection_id
 ) VALUES (
     1, 100, 200, 'Orcinus orca',
     gis.ST_Point(-122.9, 48.5)::gis.geography,
@@ -142,7 +142,7 @@ INSERT INTO maplify.sightings (
     TRUE, 1, TRUE, FALSE,
     'whale_alert',
     '[Orca Network] 3 orcas heading north (Jane Smith)<br>All adults.',
-    41521,  -- Orcinus orca
+    'SSA:0000900',  -- Orcinus orca, crosswalked to 41521 by the fixture in Section 0
     (SELECT id FROM public.collections WHERE slug = 'orca-network')
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -153,14 +153,14 @@ INSERT INTO maplify.sightings (
     id, project_id, trip_id, scientific_name,
     location, number_sighted, created_at,
     in_ocean, moderated, trusted, is_test,
-    source, taxon_id
+    source, entity_id
 ) VALUES (
     2, 100, 200, 'Orcinus orca',
     gis.ST_Point(-123.1, 48.6)::gis.geography,
     1, NOW() - INTERVAL '3 days',
     TRUE, 0, FALSE, FALSE,
     'whale_alert',
-    41521
+    'SSA:0000900'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Row C: trusted=TRUE, no bracket tag → recordedBy=NULL (regex returns NULL).
@@ -170,7 +170,7 @@ INSERT INTO maplify.sightings (
     id, project_id, trip_id, scientific_name,
     location, number_sighted, created_at,
     in_ocean, moderated, trusted, is_test,
-    source, comments, taxon_id
+    source, comments, entity_id
 ) VALUES (
     3, 100, 200, 'Orcinus orca',
     gis.ST_Point(-123.0, 48.7)::gis.geography,
@@ -178,5 +178,5 @@ INSERT INTO maplify.sightings (
     TRUE, 1, TRUE, FALSE,
     'whale_alert',
     'Three orcas spotted near the rocks.',
-    41521
+    'SSA:0000900'
 ) ON CONFLICT (id) DO NOTHING;

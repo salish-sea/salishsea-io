@@ -12,8 +12,8 @@
  *
  * Deliberately NOT resolved in the core (persist-time concerns, unchanged from
  * the current SQL path):
- *   - taxon_id      — a declarative LEFT JOIN onto inaturalist.taxa by scientific
- *                     name; a legitimately relational lookup, not a transform.
+ *   - entity_id     — resolved HERE, against the register's names, by
+ *                     resolveEntity; the caller supplies the name index it reads.
  *   - collection_id — maplify.resolve_collection (a DB rule table, D-02/D-03).
  *   - provider_id   — column DEFAULT (2 = Maplify).
  * Whether collection resolution should move into TS is left to a later decision.
@@ -21,6 +21,8 @@
 
 import { z } from 'zod';
 import { extentContains, salishSeaExtent } from '../../src/extents.ts';
+import { fold } from '../register/fold.ts';
+import { matchName, type NameIndex } from '../register/name-index.ts';
 
 /** Maplify source codes excluded from ingest (CONTEXT.md: rwsas filtered, wras filtered + purged). */
 export const EXCLUDED_SOURCES: ReadonlySet<string> = new Set(['rwsas', 'wras']);
@@ -36,101 +38,20 @@ const SCIENTIFIC_NAME_PLACEHOLDERS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * The comparison form of an upstream common name: case, spacing and the apostrophe
- * folded away.
+ * An upstream name with its apostrophes made ones the register's fold recognises, and
+ * nothing else changed.
  *
- * The apostrophe needs folding because some records arrive with UTF-8 mis-decoded as
- * Latin-1 — "Risso’s" becomes "Risso\u00e2\u0080\u0099s", the three bytes of U+2019 read
- * as three characters. That is almost certainly upstream (we decode as UTF-8 at fetch),
- * but it has not been confirmed against the live API; if it turns out to be ours, fixing
- * the decode is better than folding here.
+ * The fold (ADR-0019) deletes `'` and `’`, so "Risso’s" and "Rissos" meet. Upstream also
+ * sends `‘`, `ʼ` and a backtick in that position, and some records arrive with UTF-8
+ * mis-decoded as Latin-1 — "Risso’s" becomes "Risso\u00e2\u0080\u0099s", the three bytes
+ * of U+2019 read as three characters. That is almost certainly upstream (we decode as
+ * UTF-8 at fetch), but it has not been confirmed against the live API; if it turns out to
+ * be ours, fixing the decode is better than repairing here. Repair is ours to do, at the
+ * boundary (decision 008); what the name means is the register's to say.
  */
-export function foldUpstreamName(name: string): string {
-    return name
-        .replace(/\u00e2\u0080\u0099|\u00e2\u0080\u0098|[\u2018\u2019\u02bc`]/g, "'")
-        .toLowerCase()
-        .replace(/\s+/g, ' ')
-        .trim();
+export function repairUpstreamName(name: string): string {
+    return name.replace(/\u00e2\u0080[\u0098\u0099]|[\u2018\u02bc`]/g, '’');
 }
-
-/**
- * Common name → scientific name, keyed by `foldUpstreamName`.
- *
- * Two jobs, and the second one is new (salish-7jl): supplying a scientific name when the
- * record has none, and *overriding* one when the two disagree. Upstream moderators
- * correct a species by editing `name` and leaving a comment — "reported as humpback but
- * was gray whale" — while `scientific_name` keeps the superseded identification. So a
- * disagreement means the name is the correction, and resolving toward `scientific_name`
- * discarded exactly the records a human had already fixed.
- *
- * That makes a wrong entry here expensive: it silently overrides good upstream data at
- * scale. Every key below was read off the live corpus, and names that assert no
- * identification ('Unspecified', 'Other', 'Unknown', 'Unidentified Whale', 'Autre',
- * 'No especificado') are deliberately ABSENT rather than mapped to null — an absent name
- * leaves a usable `scientific_name` alone, which is what makes 'Unspecified' + 'Orcinus
- * orca' still an orca.
- */
-export const NAME_TO_SCIENTIFIC: ReadonlyMap<string, string> = new Map([
-    // Killer whales. 'Southern Resident' is the subspecies; the plain forms are not.
-    ['killer whale (orca)', 'Orcinus orca'],
-    ['killer whale', 'Orcinus orca'],
-    ['orca', 'Orcinus orca'],
-    ['orca (ballena asesina)', 'Orcinus orca'],
-    ['southern resident killer whale', 'Orcinus orca ater'],
-    // Baleen whales. 'Gray' was missing while 'Grey' was present, which is the whole
-    // reason 174 records went unresolved.
-    ['gray', 'Eschrichtius robustus'],
-    ['grey', 'Eschrichtius robustus'],
-    ['gray whale', 'Eschrichtius robustus'],
-    ['grey whale', 'Eschrichtius robustus'],
-    ['baleine grise', 'Eschrichtius robustus'],
-    ['humpback', 'Megaptera novaeangliae'],
-    ['humpback whale', 'Megaptera novaeangliae'],
-    ['ballena jorobada', 'Megaptera novaeangliae'],
-    ['minke whale', 'Balaenoptera acutorostrata'],
-    ['fin whale', 'Balaenoptera physalus'],
-    ['finback whale', 'Balaenoptera physalus'],
-    ['blue whale', 'Balaenoptera musculus'],
-    ['ballena azul', 'Balaenoptera musculus'],
-    ['sei whale', 'Balaenoptera borealis'],
-    // Toothed whales.
-    ['sperm whale', 'Physeter macrocephalus'],
-    ["baird's beaked whale", 'Berardius bairdii'],
-    ['short finned pilot whale', 'Globicephala macrorhynchus'],
-    // Dolphins and porpoises. iNaturalist carries the white-sided dolphin under
-    // Aethalodelphis; Lagenorhynchus and Sagmatias join nothing in our taxa mirror.
-    ['pacific white-sided dolphin', 'Aethalodelphis obliquidens'],
-    ["risso's dolphin", 'Grampus griseus'],
-    ['bottlenose dolphin', 'Tursiops truncatus'],
-    // NOT 'common dolphin'. Whale Alert's category is genus-level by design and the
-    // feed supplies the bare genus `Delphinus`; mapping it to a species would invent a
-    // determination the reporter was never offered. The same holds for its 'Right Whale'
-    // (Eubalaena) and 'Bottlenose Whale' (Hyperoodon) categories, likewise unmapped.
-    // 'Long-beaked' is different: the name itself makes the narrower claim.
-    ['long-beaked common dolphin', 'Delphinus delphis bairdii'],
-    ['striped dolphin', 'Stenella coeruleoalba'],
-    ['northern right whale dolphin', 'Lissodelphis borealis'],
-    ['northern right-whale dolphin', 'Lissodelphis borealis'],
-    ['harbor porpoise', 'Phocoena phocoena'],
-    ['harbour porpoise', 'Phocoena phocoena'],
-    ['marsouin commun', 'Phocoena phocoena'],
-    ["dall's porpoise", 'Phocoenoides dalli'],
-    // Pinnipeds.
-    ['california sea lion', 'Zalophus californianus'],
-]);
-
-/**
- * Scientific names upstream still uses that our taxa mirror does not carry, mapped to
- * the name iNaturalist currently uses. Without this a valid identification resolves to
- * nothing: 43 Pacific white-sided dolphins arrive as `Lagenorhynchus obliquidens`.
- */
-const SCIENTIFIC_SYNONYMS: ReadonlyMap<string, string> = new Map([
-    ['lagenorhynchus obliquidens', 'Aethalodelphis obliquidens'],
-    // iNaturalist deactivated Sagmatias obliquidens in favour of Aethalodelphis
-    // (taxon 1368491 -> 1664971); see salish-ayb.4.
-    ['sagmatias obliquidens', 'Aethalodelphis obliquidens'],
-    ['delphinus capensis', 'Delphinus delphis bairdii'],
-]);
 
 /** Upstream ints (0/1) or genuine booleans → boolean. Maplify returns 0/1 today. */
 const intBool = z
@@ -200,8 +121,8 @@ export type NormalizedSighting = {
     readonly name: string | null;
     /**
      * Stored verbatim (may be '') — maplify.sightings is an upstream mirror
-     * (decision 008) and its scientific_name column is NOT NULL. Taxon resolution
-     * uses resolveScientificName, which trims and falls back; it does not depend
+     * (decision 008) and its scientific_name column is NOT NULL. Entity resolution
+     * (resolveEntity) trims it and treats placeholders as absent; it does not depend
      * on this being nulled.
      */
     readonly scientificName: string;
@@ -251,22 +172,25 @@ export function normalizeRecord(r: z.infer<typeof MaplifyRecordSchema>): Normali
  * Whether the record is a killer whale of any kind, as far as the record itself can
  * say. Pure.
  *
- * Works from the resolved scientific name so it survives a subspecies (`Orcinus orca
- * ater`, `O. o. rectipinnus`), the genus-only stub (`Orcinus`), a placeholder
- * `scientific_name` with an orca common name, and an upstream correction in `name`
- * that overrides `scientific_name` (all of which `resolveScientificName` already
- * handles); when nothing resolves, an orca-shaped common name is enough. It cannot
- * consult the taxonomy — the core sees names, not taxon ids.
+ * Asks the register which taxon the record's entity belongs to, so it survives an ecotype
+ * ("Southern Resident Killer Whale" is SSA:0000010, a community under Orcinus orca), the
+ * genus (*Orcinus*), a placeholder `scientific_name` with an orca common name, and an
+ * upstream correction in `name` — all of which `resolveEntity` already handles. When
+ * nothing resolves, an orca-shaped common name is enough.
  */
-export function isKillerWhale(s: NormalizedSighting): boolean {
-    const resolved = resolveScientificName(s);
-    if (resolved) return /^orcinus\b/i.test(resolved);
-    // Nothing resolved: no usable scientific name and a common name NAME_TO_SCIENTIFIC
-    // does not know. Upstream coins orca names freely — the live fixture has "Killer
-    // whale (Ecotype Unknown)" with a blank scientific_name — and outside the box an
-    // unrecognised orca is not a lost taxon_id but a lost record, so read the shape of
-    // the name rather than demand an exact key.
-    return s.name !== null && /\b(orca|killer whale)\b/.test(foldUpstreamName(s.name));
+export function isKillerWhale(s: NormalizedSighting, index: NameIndex): boolean {
+    const entity = resolveEntity(s, index);
+    const taxon = entity ? index.taxonLabel.get(entity) : null;
+    if (taxon) return /^orcinus\b/i.test(taxon);
+    // Nothing resolved: neither name is one the register holds. Upstream coins orca names
+    // freely — the live fixture has "Killer whale (Ecotype Unknown)" with a blank
+    // scientific_name — and a scientific name can be finer than the register goes
+    // ("Orcinus orca ater" is iNaturalist's, not a register name). Outside the box an
+    // unrecognised orca is not a lost identification but a lost record — reconcile would
+    // delete it — so read the shape of either name rather than demand the register know it.
+    const sci = s.scientificName.trim();
+    if (!SCIENTIFIC_NAME_PLACEHOLDERS.has(sci.toLowerCase()) && /^orcinus\b/i.test(sci)) return true;
+    return s.name !== null && /\b(orca|killer whale)\b/.test(fold(repairUpstreamName(s.name)));
 }
 
 /**
@@ -283,34 +207,39 @@ export function isKillerWhale(s: NormalizedSighting): boolean {
  * Filtering here means reconcile never sees an out-of-scope record: within the window
  * it is a delete, and the corpus stays consistent with what the rule says.
  */
-export function isIngestable(s: NormalizedSighting): boolean {
+export function isIngestable(s: NormalizedSighting, index: NameIndex): boolean {
     if (EXCLUDED_SOURCES.has(s.source)) return false;
-    return extentContains(salishSeaExtent, s.lon, s.lat) || isKillerWhale(s);
+    return extentContains(salishSeaExtent, s.lon, s.lat) || isKillerWhale(s, index);
 }
 
 /**
- * The scientific name to resolve a taxon from. The taxon_id lookup itself is
- * persist-time.
+ * The register entity a sighting names, or null (salish-53t.3, decision 049).
  *
- * Three rules, in order (salish-7jl):
+ * Both of the record's names are looked up in the register (`matchName`); three rules
+ * then decide between them, in order, unchanged from when they chose an iNaturalist name
+ * (salish-7jl):
  *   1. A placeholder in `scientific_name` ('N/A' and friends) counts as absent.
- *   2. If the common name maps and DISAGREES with the scientific name, the common name
- *      wins — upstream corrections land in `name`, not `scientific_name`.
- *   3. Otherwise the scientific name stands, passed through the synonym map so a retired
- *      genus still resolves.
+ *   2. If the common name names an entity and DISAGREES with the scientific name, the
+ *      common name wins — upstream corrections land in `name`, not `scientific_name`. It
+ *      is also how an ecotype is reported at all: "Southern Resident Killer Whale" with
+ *      "Orcinus orca" means the ecotype, not merely the species.
+ *   3. Otherwise the scientific name stands.
+ *
+ * A name that matches more than one entity counts as matching none. Names that assert no
+ * identification ('Unspecified', 'Other') are simply not register names, so they leave a
+ * usable scientific name alone — 'Unspecified' + 'Orcinus orca' is still an orca.
  */
-export function resolveScientificName(s: NormalizedSighting): string | null {
+export function resolveEntity(s: NormalizedSighting, index: NameIndex): string | null {
     const raw = s.scientificName.trim();
-    const sci = SCIENTIFIC_NAME_PLACEHOLDERS.has(raw.toLowerCase())
-        ? null
-        : SCIENTIFIC_SYNONYMS.get(raw.toLowerCase()) ?? raw;
-    const fromName = s.name
-        ? NAME_TO_SCIENTIFIC.get(foldUpstreamName(s.name)) ?? null
-        : null;
+    const sci = SCIENTIFIC_NAME_PLACEHOLDERS.has(raw.toLowerCase()) ? null : repairUpstreamName(raw);
+    const bySci = matchName(index, sci);
+    const byName = matchName(index, s.name === null ? null : repairUpstreamName(s.name));
+    const fromSci = bySci.verdict === 'one' ? bySci.entityId : null;
+    const fromName = byName.verdict === 'one' ? byName.entityId : null;
 
-    if (!sci) return fromName;
-    if (fromName && fromName !== sci) return fromName;
-    return sci;
+    if (!fromSci) return fromName;
+    if (fromName && fromName !== fromSci) return fromName;
+    return fromSci;
 }
 
 export type ParseResult =

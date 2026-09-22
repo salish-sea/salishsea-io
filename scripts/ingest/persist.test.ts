@@ -16,12 +16,14 @@ import postgres from 'postgres';
 import type { Sql } from 'postgres';
 import {
     persistMaplify,
+    fetchNameIndex,
     persistInaturalist,
     fetchExistingTaxonIds,
     fetchObservationWindowIds,
     type IngestWindow,
 } from './persist.ts';
 import type { NormalizedSighting, ReconcilePlan } from './maplify.ts';
+import { buildNameIndex } from '../register/name-index.ts';
 import type {
     NormalizedObservation,
     NormalizedPhoto,
@@ -41,32 +43,45 @@ const sighting = (over: Partial<NormalizedSighting> & { id: number }): Normalize
 
 const plan = (over: Partial<ReconcilePlan> = {}): ReconcilePlan => ({ upsert: [], delete: [], ...over });
 
+/**
+ * A constructed edition, so these tests do not depend on a register being loaded (CI loads
+ * none). Resolution itself is maplify.test.ts's subject; here it only has to reach the row.
+ */
+const taxon = (entity_id: string, name: string, taxon_label: string) =>
+    ({ entity_id, name, kind: 'taxon', retired: false, taxon_label });
+const INDEX = buildNameIndex([
+    taxon('SSA:0000900', 'Orcinus orca', 'Orcinus orca'),
+    taxon('SSA:0000900', 'Orca', 'Orcinus orca'),
+    taxon('SSA:0000999', 'Balaenoptera musculus', 'Balaenoptera musculus'),
+    taxon('SSA:0000999', 'Blue whale', 'Balaenoptera musculus'),
+]);
+
 describe.skipIf(!DSN)('persistMaplify (local Supabase)', () => {
     let sql: Sql;
     beforeAll(() => { sql = postgres(DSN!, { max: 1 }); });
     afterAll(async () => { await sql?.end(); });
     afterEach(async () => { await sql`delete from maplify.sightings where id >= 900000 and id < 910000`; });
 
-    test('inserts new sightings and resolves collection + taxon at persist time', async () => {
+    test('inserts new sightings and resolves collection + entity at persist time', async () => {
         const res = await persistMaplify(sql, plan({
             upsert: [
                 sighting({ id: 900101, comments: '[Orca Network] pod of 3' }),
                 sighting({ id: 900102, comments: 'Submitted by a Whale Alert Global Trusted Observer' }),
             ],
-        }), WINDOW);
+        }), WINDOW, INDEX);
         expect(res.upserted).toBe(2);
 
-        const [orcaNet] = await sql`select collection_id, taxon_id from maplify.sightings where id = 900101`;
-        expect(orcaNet?.['collection_id']).toBe(1);   // [Orca Network] bracket → collection 1
-        expect(orcaNet?.['taxon_id']).toBe(41521);    // Orcinus orca → taxa 41521
+        const [orcaNet] = await sql`select collection_id, entity_id from maplify.sightings where id = 900101`;
+        expect(orcaNet?.['collection_id']).toBe(1);          // [Orca Network] bracket → collection 1
+        expect(orcaNet?.['entity_id']).toBe('SSA:0000900');  // Orcinus orca → the register's entity
 
         const [whaleAlert] = await sql`select collection_id from maplify.sightings where id = 900102`;
         expect(whaleAlert?.['collection_id']).toBe(6); // Whale Alert Global attribution → collection 6
     });
 
     test('is idempotent — upserting the same batch twice leaves one row, updated', async () => {
-        await persistMaplify(sql, plan({ upsert: [sighting({ id: 900103, numberSighted: 2 })] }), WINDOW);
-        await persistMaplify(sql, plan({ upsert: [sighting({ id: 900103, numberSighted: 9 })] }), WINDOW);
+        await persistMaplify(sql, plan({ upsert: [sighting({ id: 900103, numberSighted: 2 })] }), WINDOW, INDEX);
+        await persistMaplify(sql, plan({ upsert: [sighting({ id: 900103, numberSighted: 9 })] }), WINDOW, INDEX);
         const rows = await sql`select number_sighted from maplify.sightings where id = 900103`;
         expect(rows.count).toBe(1);
         expect(rows[0]?.['number_sighted']).toBe(9);
@@ -77,18 +92,18 @@ describe.skipIf(!DSN)('persistMaplify (local Supabase)', () => {
         // have not changed is what fired the occurrences_changed trigger on every
         // quiet tick; the guard on the upsert is what keeps it quiet.
         const batch = plan({ upsert: [sighting({ id: 900107, comments: 'same' }), sighting({ id: 900108 })] });
-        const first = await persistMaplify(sql, batch, WINDOW);
+        const first = await persistMaplify(sql, batch, WINDOW, INDEX);
         expect(first.upserted).toBe(2);
         const before = await sql`select id, xmin::text as xmin from maplify.sightings where id in (900107, 900108) order by id`;
 
-        const again = await persistMaplify(sql, batch, WINDOW);
+        const again = await persistMaplify(sql, batch, WINDOW, INDEX);
         expect(again.upserted).toBe(0);
         // xmin is the writing transaction's id: unchanged means no row was rewritten.
         const after = await sql`select id, xmin::text as xmin from maplify.sightings where id in (900107, 900108) order by id`;
         expect(after).toEqual(before);
 
         // A changed field still gets through, and only that row counts.
-        const changed = await persistMaplify(sql, plan({ upsert: [sighting({ id: 900107, comments: 'different' }), sighting({ id: 900108 })] }), WINDOW);
+        const changed = await persistMaplify(sql, plan({ upsert: [sighting({ id: 900107, comments: 'different' }), sighting({ id: 900108 })] }), WINDOW, INDEX);
         expect(changed.upserted).toBe(1);
     });
 
@@ -96,12 +111,12 @@ describe.skipIf(!DSN)('persistMaplify (local Supabase)', () => {
         // first ingest: [Orca Network] bracket → collection 1, in_ocean true
         await persistMaplify(sql, plan({
             upsert: [sighting({ id: 900104, comments: '[Orca Network] pod', inOcean: true })],
-        }), WINDOW);
+        }), WINDOW, INDEX);
         // re-ingest same id with a comment that would resolve to a DIFFERENT collection,
         // and a flipped in_ocean.
         await persistMaplify(sql, plan({
             upsert: [sighting({ id: 900104, comments: 'Submitted by a Whale Alert Global Trusted Observer', inOcean: false })],
-        }), WINDOW);
+        }), WINDOW, INDEX);
         const [row] = await sql`select collection_id, in_ocean from maplify.sightings where id = 900104`;
         expect(row?.['collection_id']).toBe(1);    // preserved — NOT re-resolved to 6
         expect(row?.['in_ocean']).toBe(false);     // refreshed from the new fetch
@@ -114,43 +129,103 @@ describe.skipIf(!DSN)('persistMaplify (local Supabase)', () => {
                          (900202, 7, 1, 'Orcinus orca', gis.ST_Point(-123,48)::gis.geography, 1, '2026-06-01 10:00', true, 0, false, false, 'test')`;
 
         // caller passes BOTH ids to delete; the window guard must spare 900202
-        const res = await persistMaplify(sql, plan({ delete: [900201, 900202] }), WINDOW);
+        const res = await persistMaplify(sql, plan({ delete: [900201, 900202] }), WINDOW, INDEX);
         expect(res.deleted).toBe(1);
 
         const survivors = await sql`select id from maplify.sightings where id in (900201, 900202)`;
         expect(survivors.map((r) => r['id'])).toEqual([900202]);
     });
 
-    test('persists a record with a blank scientific_name and resolves its taxon from the name', async () => {
+    test('persists a record with a blank scientific_name and resolves its entity from the name', async () => {
         // Real Maplify data includes records with scientific_name '' (e.g. "Blue Whale").
         // The blank must round-trip verbatim — the mirror column is NOT NULL — while the
-        // taxon still resolves from the common name (salish-7jl).
+        // entity still resolves from the common name (salish-7jl).
         const res = await persistMaplify(sql, plan({
             upsert: [sighting({ id: 900105, scientificName: '', name: 'Blue Whale' })],
-        }), WINDOW);
+        }), WINDOW, INDEX);
         expect(res.upserted).toBe(1);
-        const [row] = await sql`select scientific_name, taxon_id from maplify.sightings where id = 900105`;
+        const [row] = await sql`select scientific_name, entity_id from maplify.sightings where id = 900105`;
         expect(row?.['scientific_name']).toBe(''); // stored verbatim, no NOT NULL violation
-        const [blue] = await sql`select id from inaturalist.taxa where scientific_name = 'Balaenoptera musculus'`;
-        expect(row?.['taxon_id']).toBe(blue?.['id']);
+        expect(row?.['entity_id']).toBe('SSA:0000999');
     });
 
-    test('leaves taxon null when the name asserts no identification', async () => {
-        // The counterpart to the test above: 'Unspecified' is deliberately absent from
-        // the name map, so nothing is guessed at.
+    test('leaves the entity null when the name asserts no identification', async () => {
+        // The counterpart to the test above: 'Unspecified' is not a register name, so
+        // nothing is guessed at.
         await persistMaplify(sql, plan({
             upsert: [sighting({ id: 900106, scientificName: 'N/A', name: 'Unspecified' })],
-        }), WINDOW);
-        const [row] = await sql`select scientific_name, taxon_id from maplify.sightings where id = 900106`;
+        }), WINDOW, INDEX);
+        const [row] = await sql`select scientific_name, entity_id from maplify.sightings where id = 900106`;
         expect(row?.['scientific_name']).toBe('N/A'); // upstream placeholder, mirrored verbatim
-        expect(row?.['taxon_id']).toBeNull();
+        expect(row?.['entity_id']).toBeNull();
+    });
+
+    test('a tick with an empty register index does not un-name a record whose names are unchanged', async () => {
+        await persistMaplify(sql, plan({ upsert: [sighting({ id: 900109 })] }), WINDOW, INDEX);
+        const EMPTY = buildNameIndex([]);
+        const again = await persistMaplify(sql, plan({ upsert: [sighting({ id: 900109 })] }), WINDOW, EMPTY);
+        expect(again.upserted).toBe(0); // nothing changed, so nothing was rewritten
+        const [kept] = await sql`select entity_id from maplify.sightings where id = 900109`;
+        expect(kept?.['entity_id']).toBe('SSA:0000900');
+
+        // The same when another field changes in the same tick, so the row IS rewritten.
+        await persistMaplify(sql, plan({ upsert: [sighting({ id: 900109, numberSighted: 7 })] }), WINDOW, EMPTY);
+        const [recounted] = await sql`select entity_id, number_sighted from maplify.sightings where id = 900109`;
+        expect(recounted?.['number_sighted']).toBe(7);
+        expect(recounted?.['entity_id']).toBe('SSA:0000900');
+
+        // A changed name is a new claim: it takes the new answer, even an empty one.
+        await persistMaplify(sql, plan({ upsert: [sighting({ id: 900109, name: 'Something else' , scientificName: '' })] }), WINDOW, EMPTY);
+        const [changed] = await sql`select entity_id from maplify.sightings where id = 900109`;
+        expect(changed?.['entity_id']).toBeNull();
     });
 
     test('dry run reports would-be counts but writes nothing', async () => {
-        const res = await persistMaplify(sql, plan({ upsert: [sighting({ id: 900301 })] }), WINDOW, { dryRun: true });
+        const res = await persistMaplify(sql, plan({ upsert: [sighting({ id: 900301 })] }), WINDOW, INDEX, { dryRun: true });
         expect(res.upserted).toBe(1);
         const rows = await sql`select id from maplify.sightings where id = 900301`;
         expect(rows.count).toBe(0);
+    });
+});
+
+describe.skipIf(!DSN)('fetchNameIndex (local Supabase)', () => {
+    let sql: Sql;
+    beforeAll(() => { sql = postgres(DSN!, { max: 1 }); });
+    afterAll(async () => { await sql?.end(); });
+
+    class Rollback extends Error {}
+
+    test('reads labels and every name type, skips retired entities and individuals, and knows each entity\'s taxon', async () => {
+        // Its own register rows, rolled back: CI loads no edition. Ids far above anything
+        // the register mints.
+        let index: Awaited<ReturnType<typeof fetchNameIndex>> | undefined;
+        await sql.begin(async (tx) => {
+            await tx`INSERT INTO register.entities (entity_id, kind, rank, label) VALUES
+                ('SSA:9900201', 'taxon', 'species', 'Testus maximus'),
+                ('SSA:9900202', 'group', 'ecotype', 'Test ecotype'),
+                ('SSA:9900203', 'taxon', 'species', 'Testus obsoletus'),
+                ('SSA:9900204', 'individual', NULL, 'T999')`;
+            await tx`INSERT INTO register.ancestor (entity_id, ancestor_id, depth, ancestor_kind)
+                     VALUES ('SSA:9900202', 'SSA:9900201', 1, 'taxon')`;
+            await tx`INSERT INTO register.names (entity_id, name, type, language) VALUES
+                ('SSA:9900201', 'Test whale', 'common', 'en'),
+                ('SSA:9900201', 'Testie', 'hidden', 'en'),
+                ('SSA:9900201', 'Testus antiquus', 'historical', 'en'),
+                ('SSA:9900204', 'Testie the whale', 'common', 'en')`;
+            await tx`INSERT INTO register.deprecations (entity_id, replaced_by, reason)
+                     VALUES ('SSA:9900203', 'SSA:9900201', 'merge')`;
+            index = await fetchNameIndex(tx as unknown as Sql);
+            throw new Rollback();
+        }).catch((e: unknown) => { if (!(e instanceof Rollback)) throw e; });
+
+        const at = (name: string) => [...(index!.byFold.get(name) ?? [])];
+        expect(at('testus maximus')).toEqual(['SSA:9900201']);   // the label
+        expect(at('test whale')).toEqual(['SSA:9900201']);       // common
+        expect(at('testie')).toEqual(['SSA:9900201']);           // hidden
+        expect(at('testus antiquus')).toEqual(['SSA:9900201']);  // historical
+        expect(at('testus obsoletus')).toEqual([]);              // retired: never an answer
+        expect(at('testie the whale')).toEqual([]);              // an individual is not a taxon name
+        expect(index!.taxonLabel.get('SSA:9900202')).toBe('Testus maximus');
     });
 });
 

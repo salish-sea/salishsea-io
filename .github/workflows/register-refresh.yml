@@ -128,6 +128,16 @@ jobs:
                   pnpm exec tsx scripts/register/load.ts --tag "${REGISTER_TAG}" --apply \
                     2>&1 | tee dist/register/refresh.log
 
+            # Maplify sightings are keyed on the register entity their names resolve to
+            # (decision 049), resolved at ingest — and the ingest only re-reads ten days.
+            # So a new edition's names reach older records here. Refuses, and fails this
+            # job, rather than take an entity away from any record.
+            - name: Re-resolve Maplify sightings against the new edition
+              run: |
+                  set -o pipefail
+                  pnpm exec tsx scripts/register/resolve-maplify.ts --apply \
+                    2>&1 | tee -a dist/register/refresh.log
+
             # The load reporting success is not the same as the register being usable: the
             # crosswalk view can be broken, or public.occurrences replaced by a definition
             # that no longer reads it. This is the check that would notice.

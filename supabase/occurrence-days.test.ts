@@ -47,8 +47,8 @@ async function rolledBack<T>(sql: Sql, body: (tx: TransactionSql) => Promise<T>)
 /** A Maplify sighting observed `hoursAgo` before the transaction started, far from every other seeded row. */
 const insertSighting = (tx: TransactionSql, id: number, hoursAgo: number) => tx`
     insert into maplify.sightings
-        (id, project_id, trip_id, scientific_name, taxon_id, location, number_sighted, created_at, in_ocean, moderated, trusted, is_test, source)
-    values (${id}, 7, 1, 'Orcinus orca', 41521, gis.ST_Point(-123.9876, 48.1234)::gis.geography, 1,
+        (id, project_id, trip_id, scientific_name, entity_id, location, number_sighted, created_at, in_ocean, moderated, trusted, is_test, source)
+    values (${id}, 7, 1, 'Orcinus orca', 'SSA:0000900', gis.ST_Point(-123.9876, 48.1234)::gis.geography, 1,
             (now() - make_interval(hours => ${hoursAgo})) at time zone 'GMT', true, 0, false, false, 'test')`;
 
 /** occurrence_days as anon, summed over a week either side of now, inside our fixture's tiny bbox. */

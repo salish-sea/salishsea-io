@@ -11,6 +11,10 @@
  * would produce on demand) and read the views, gated on SUPABASE_DB_URL like the rest of
  * the DB-backed suite. Reserved id band 2_000_001_000..2_000_001_999 — distinct from
  * persist.test.ts's band so the two can run in either order.
+ *
+ * The vehicle is an iNaturalist observation. It was a Maplify sighting until decision 049
+ * keyed those on a register entity; the iNaturalist mirror is the table that still stores
+ * an upstream taxon id, which is the thing 032 protects.
  */
 
 import { describe, test, expect, beforeAll, afterAll, afterEach } from 'vitest';
@@ -24,7 +28,8 @@ const DSN = process.env['SUPABASE_DB_URL'];
 const GENUS = 2000001001;
 const RETIRED = 2000001002;
 const REPLACEMENT = 2000001003;
-const SIGHTING = 900001001; // maplify reserved band, as in persist.test.ts
+const SIGHTING = 900001001;
+const OCCURRENCE = 'inaturalist:' + SIGHTING;
 
 describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () => {
     let sql: Sql;
@@ -32,7 +37,7 @@ describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () =>
     afterAll(async () => { await sql?.end(); });
 
     afterEach(async () => {
-        await sql`delete from maplify.sightings where id >= 900001000 and id < 900002000`;
+        await sql`delete from inaturalist.observations where id >= 900001000 and id < 900002000`;
         // current_taxon_id/parent_id reference each other; clear the links before the rows.
         await sql`update inaturalist.taxa set current_taxon_id = null, parent_id = null
                     where id >= 2000001000 and id < 2000002000`;
@@ -51,16 +56,14 @@ describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () =>
              where id = ${RETIRED}`;
     }
 
-    /** One maplify sighting filed under `taxonId`, surfaced as an occurrence. */
+    /** One iNaturalist observation filed under `taxonId`, surfaced as an occurrence. */
     async function seedSighting(taxonId: number): Promise<void> {
         await sql`
-            insert into maplify.sightings (
-                id, project_id, trip_id, scientific_name, name, location, number_sighted,
-                created_at, comments, in_ocean, moderated, trusted, is_test, source, usernm, taxon_id
+            insert into inaturalist.observations (
+                id, location, observed_at, uri, taxon_id, fetched_at, updated_at
             ) values (
-                ${SIGHTING}, 7, 1, 'Testessa obsoleta', 'Obsolete Whale',
-                gis.ST_Point(-123.0, 48.5)::gis.geography, 2, '2026-07-03 10:00:00', null,
-                true, 1, false, false, 'test', 'u', ${taxonId}
+                ${SIGHTING}, gis.ST_Point(-123.0, 48.5)::gis.geography, '2026-07-03 10:00:00Z',
+                'https://example.test/observations/1', ${taxonId}, now(), now()
             )`;
     }
 
@@ -71,7 +74,7 @@ describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () =>
         // The `taxon` composite comes back as a raw tuple string, so read its fields.
         const [o] = await sql`
             select (taxon).scientific_name, (taxon).species_id
-              from public.occurrences where id = ${'maplify:' + SIGHTING}`;
+              from public.occurrences where id = ${OCCURRENCE}`;
 
         expect(o?.['scientific_name']).toBe('Testessa renamed');
         // species_id chains sightings of one species into a track. Left unresolved, a
@@ -83,7 +86,7 @@ describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () =>
         await seedRetirement();
         await seedSighting(RETIRED);
 
-        const [s] = await sql`select taxon_id from maplify.sightings where id = ${SIGHTING}`;
+        const [s] = await sql`select taxon_id from inaturalist.observations where id = ${SIGHTING}`;
         expect(Number(s?.['taxon_id'])).toBe(RETIRED);
     });
 
@@ -92,7 +95,7 @@ describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () =>
         await seedSighting(REPLACEMENT);
 
         const [o] = await sql`
-            select (taxon).scientific_name from public.occurrences where id = ${'maplify:' + SIGHTING}`;
+            select (taxon).scientific_name from public.occurrences where id = ${OCCURRENCE}`;
         expect(o?.['scientific_name']).toBe('Testessa renamed');
     });
 
@@ -104,7 +107,7 @@ describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () =>
         await seedSighting(RETIRED);
 
         const [o] = await sql`
-            select (taxon).scientific_name from public.occurrences where id = ${'maplify:' + SIGHTING}`;
+            select (taxon).scientific_name from public.occurrences where id = ${OCCURRENCE}`;
         expect(o?.['scientific_name']).toBe('Testessa obsoleta');
     });
 
@@ -119,7 +122,7 @@ describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () =>
         await seedSighting(subspecies);
 
         const [o] = await sql`
-            select (taxon).species_id from public.occurrences where id = ${'maplify:' + SIGHTING}`;
+            select (taxon).species_id from public.occurrences where id = ${OCCURRENCE}`;
         expect(Number(o?.['species_id'])).toBe(REPLACEMENT);
     });
 
@@ -135,7 +138,7 @@ describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () =>
         const [o] = await sql.begin(async (tx) => {
             await tx`set local role anon`;
             return tx`select (taxon).species_id from public.occurrences
-                       where id = ${'maplify:' + SIGHTING}`;
+                       where id = ${OCCURRENCE}`;
         }) as unknown as [{ species_id: number }];
 
         expect(Number(o?.species_id)).toBe(REPLACEMENT);
@@ -147,7 +150,7 @@ describe.skipIf(!DSN)('a retired taxon resolves on read (local Supabase)', () =>
         const [c] = await sql`
             select taxon_id, scientific_name, genus from dwc.taxa_classification
              where taxon_id = ${RETIRED}`;
-        // Keyed by the id the record holds, so `tc.taxon_id = s.taxon_id` still joins…
+        // Keyed by the id the record holds, so a join on the stored id still finds it…
         expect(Number(c?.['taxon_id'])).toBe(RETIRED);
         // …but every name it reports is the live taxon's.
         expect(c?.['scientific_name']).toBe('Testessa renamed');
