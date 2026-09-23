@@ -199,6 +199,9 @@ export function displayNameFor(taxon: Occurrence['taxon']): string {
  * come last, because a report naming J pod is more specific than a taxon saying
  * "some resident".
  */
+/** The Southern Resident community in the register — SSA:0000001's replacement since Q1. */
+const SOUTHERN_RESIDENT = 'SSA:0000010';
+
 export function labelForSegment(occurrences: readonly Pick<Occurrence, 'body' | 'taxon'>[]): string {
   const head = occurrences[occurrences.length - 1]!;
   if (taxonGroup(head.taxon.scientific_name) === 'orca') {
@@ -215,6 +218,14 @@ export function labelForSegment(occurrences: readonly Pick<Occurrence, 'body' | 
       if (ecotype)
         return ecotype;
     }
+    // A record identified as the Southern Resident community says so itself: Maplify
+    // reports sent as "Southern Resident Killer Whale" resolve to SSA:0000010
+    // (decision 049). Keyed on the identifier, and a pass of its own ahead of the
+    // subspecies, because it is the more specific evidence — a track holding one
+    // SRKW record and one plain `ater` record is Southern Residents, not "some
+    // resident". This is not the narrowing refused below: here the record named them.
+    if (occurrences.some(({taxon}) => taxon.entity_id === SOUTHERN_RESIDENT))
+      return 'SRKW';
     for (const {taxon} of occurrences) {
       if (taxon.scientific_name === 'Orcinus orca rectipinnus')
         return 'Biggs';

@@ -26,6 +26,7 @@ Maplify is not an iNaturalist source. Its records arrive as two strings, and the
 
 ## Consequences
 
+- **The map labels a track holding a Southern Resident record "SRKW"** (`src/symbology.ts`), unless the reports name a pod, which is more specific. Added the same day at Peter's request; across all history it changes 37 tracks from "Resident".
 - **A record whose names the register does not hold is unidentified until the register holds them.** The fix is a register name, and register-refresh then carries it to every stored record. That is the intended loop, and the refusal rule is its guard.
 - **An ambiguous name is not resolved.** "Killer whale" names *Orcinus orca* and the monotypic genus *Orcinus*; "Common dolphin" names *Delphinus delphis* and the six-species genus *Delphinus*, which the register says must not claim a species. Nothing in the names distinguishes the harmless case from the harmful one, so neither is guessed. No record in the feed today is ambiguous.
 - **The ingest reads the register on every tick** (about 1,600 names), so a load reaches new records without a redeploy. With no edition loaded, every record is unidentified — which in CI is why `ci-seed.sql` plants one entity.

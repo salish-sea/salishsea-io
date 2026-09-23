@@ -162,6 +162,18 @@ describe('labelFor', () => {
       .toBe('SRKW');
   });
 
+  test('a record identified as the Southern Resident community is SRKW', () => {
+    // 4,571 Maplify records resolve to SSA:0000010 (decision 049). Their taxon still
+    // reads `ater` through the crosswalk, which alone would say only "Resident".
+    const srkw = {body: '', taxon: taxon('Orcinus orca ater', 'Southern Resident killer whale', 'SSA:0000010')};
+    expect(labelFor(srkw)).toBe('SRKW');
+    // More specific than the subspecies whichever record comes first in the track...
+    expect(labelForSegment([orca('', 'Orcinus orca ater'), srkw])).toBe('SRKW');
+    expect(labelForSegment([srkw, orca('', 'Orcinus orca ater')])).toBe('SRKW');
+    // ...and less specific than a pod the prose names.
+    expect(labelForSegment([srkw, orca('J pod off Lime Kiln')])).toBe('J pod');
+  });
+
   test('an unattributed killer whale is not renamed to Orca', () => {
     // The register holds `orca` for SSA:0000900 as a `hidden` name — a string
     // in use, explicitly not one it offers for display. Composing our way to
