@@ -1,7 +1,7 @@
 /**
  * Matriline membership as the register says it (salish-ox2.5, migration 20260923010000).
  *
- * The register defines a matriline as a female and her surviving descendants, so a
+ * The register defines a matriline as a female and all her descendants, so a
  * matriarch belongs to her own matriline AND to her mother's. Our own rows never said so,
  * which is what this view replaces. The seeded graph below is the smallest one that has
  * that shape:

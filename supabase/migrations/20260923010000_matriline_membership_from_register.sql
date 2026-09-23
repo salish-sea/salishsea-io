@@ -2,7 +2,7 @@
 --
 -- Until now a matriline's members were our own public.group_memberships rows, and the two
 -- sides encoded the same animals differently. The register defines a matriline as a female
--- and her surviving descendants, so a matriarch is a member of her own
+-- and all her descendants, so a matriarch is a member of her own
 -- matriline and of every matriline above it: T065A is in T065As and in T065s. Our rows never
 -- said so. A matriarch was social_groups.anchor_individual_id, and her one membership row
 -- pointed at her mother's group, which had two consequences on the site:
