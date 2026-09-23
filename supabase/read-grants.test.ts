@@ -55,6 +55,8 @@ const READABLE = [
     'public.ecotype_occurrences',
     'public.group_memberships',
     'public.group_occurrences',
+    // Added 20260923020000: which group sits inside which, as the register says it.
+    'public.group_parents',
     'public.haulout_occurrences',
     'public.haulouts',
     'public.identifications',

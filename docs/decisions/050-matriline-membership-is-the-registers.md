@@ -33,5 +33,5 @@ The ecotype row counts the 65 matriarchs and the 70 animals in no matriline. Bef
 
 ## Consequences
 
-- `group_memberships` is now unread, and `salish-ox2.5` retires it. `social_groups.anchor_individual_id` (the matriarch named in a page's masthead) and `parent_group_id` (the group chain) are still ours and still read; they are the next things the register can answer.
+- `group_memberships` is now unread, and `salish-ox2.5` retires it. `social_groups.anchor_individual_id` (the matriarch named in a page's masthead) stays ours. `parent_group_id` (the group chain) moved to the register the same day ([051](051-group-hierarchy-is-the-registers.md)); this sentence originally said both were "still ours and still read" and were "the next things the register can answer".
 - The inferred links are candidates, as before. A report of a whole matriline says nothing about which members were actually present. Each link records the group it came through (`via_group`), so it is never presented as an identification of the animal.
