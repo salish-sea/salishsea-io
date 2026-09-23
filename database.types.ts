@@ -200,6 +200,7 @@ export type Database = {
         Row: {
           authority_id: number | null
           code: string
+          code_folded: string | null
           id: number
           in_catalog: boolean
           individual_id: number
@@ -211,6 +212,7 @@ export type Database = {
         Insert: {
           authority_id?: number | null
           code: string
+          code_folded?: string | null
           id?: number
           in_catalog?: boolean
           individual_id: number
@@ -222,6 +224,7 @@ export type Database = {
         Update: {
           authority_id?: number | null
           code?: string
+          code_folded?: string | null
           id?: number
           in_catalog?: boolean
           individual_id?: number
@@ -827,6 +830,7 @@ export type Database = {
         Row: {
           anchor_individual_id: number | null
           designation: string
+          designation_folded: string | null
           entity_id: string | null
           id: number
           kind: Database["public"]["Enums"]["social_group_kind"]
@@ -835,6 +839,7 @@ export type Database = {
         Insert: {
           anchor_individual_id?: number | null
           designation: string
+          designation_folded?: string | null
           entity_id?: string | null
           id?: number
           kind: Database["public"]["Enums"]["social_group_kind"]
@@ -843,6 +848,7 @@ export type Database = {
         Update: {
           anchor_individual_id?: number | null
           designation?: string
+          designation_folded?: string | null
           entity_id?: string | null
           id?: number
           kind?: Database["public"]["Enums"]["social_group_kind"]
@@ -1081,7 +1087,6 @@ export type Database = {
         Returns: number
       }
       is_valid_orcid: { Args: { uri: string }; Returns: boolean }
-      normalize_designation: { Args: { code: string }; Returns: string }
       occurrence_days: {
         Args: {
           from_day: string

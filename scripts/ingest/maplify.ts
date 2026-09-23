@@ -21,7 +21,7 @@
 
 import { z } from 'zod';
 import { extentContains, salishSeaExtent } from '../../src/extents.ts';
-import { fold } from '../register/fold.ts';
+import { fold } from '../../src/fold.ts';
 import { matchName, type NameIndex } from '../register/name-index.ts';
 
 /** Maplify source codes excluded from ingest (CONTEXT.md: rwsas filtered, wras filtered + purged). */

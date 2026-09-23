@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fold } from './fold.ts';
+import { fold } from '../../src/fold.ts';
 import {
     candidates, describeCandidates, substitutionFor, verdictFor, type Edition,
 } from './match.ts';

@@ -255,20 +255,14 @@ function slugify(designation: string): string {
   return designation.replace(/['’]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-// TS port of public.normalize_designation: an un-padded, lower-cased code as a
-// person types it ('t65a') to the padded catalogue key ('T065A').
-function normalizeDesignation(code: string): string {
-  const u = code.trim().toUpperCase();
-  const m = u.match(/^T(\d+)(.*)$/);
-  if (!m) return u;
-  return 'T' + m[1]!.padStart(3, '0').slice(0, 3) + m[2]!;
-}
-
-// A LIKE pattern matching exactly `value`, so `ilike` gives case-insensitive
-// equality and nothing more. Postgres's wildcards are % and _, PostgREST adds *
-// as an alias for %, and the default escape character is the backslash.
-function ilikeLiteral(value: string): string {
-  return value.replace(/[\\%_*]/g, '\\$&');
+// The register's name-comparison rule (animals ADR-0019): a hand copy of
+// src/fold.ts, which this bundle cannot import. Lookups compare it against the
+// stored folded columns (designations.code_folded, social_groups.designation_folded),
+// so T65A, t065a and T065A all find the same animal.
+function fold(name: string): string {
+  const stripped = name.toLowerCase().replace(/['’-]/g, '');
+  const collapsed = stripped.split(/\s+/).filter(Boolean).join(' ');
+  return collapsed.replace(/\d+/g, (digits) => String(BigInt(digits)));
 }
 
 // The canonical address of a subject. A row with no register identifier is
@@ -449,9 +443,8 @@ async function resolveIndividual(key: ProfileKey): Promise<Resolved | null> {
       `individuals?entity_id=eq.${encodeURIComponent(key.entityId)}&select=${INDIVIDUAL_COLUMNS}&limit=1`);
     individual = rows?.[0];
   } else {
-    const pattern = ilikeLiteral(normalizeDesignation(key.code));
     const rows = await readRows<{ individual: Individual | null }>('individual',
-      `designations?code=ilike.${encodeURIComponent(pattern)}&select=individual:individuals(${INDIVIDUAL_COLUMNS})&limit=1`);
+      `designations?code_folded=eq.${encodeURIComponent(fold(key.code))}&select=individual:individuals(${INDIVIDUAL_COLUMNS})&limit=1`);
     individual = rows?.[0]?.individual ?? undefined;
   }
   if (!individual) return null;
@@ -490,13 +483,13 @@ const GROUP_COLUMNS = 'entity_id,designation,nicknames(name,status)';
 
 // A matriline by register identifier, or by designation: the matriarch's code
 // every pre-034 link carries (/matrilines/T065A), or the group's written form
-// a person types (T65As). Dropping the trailing s is safe only because the
-// route has already said this is a group — matrilineDesignation in
-// src/catalog.ts, which this mirrors.
+// a person types (T65As). Folded, then the trailing s dropped — safe only
+// because the route has already said this is a group (matrilineDesignation in
+// src/catalog.ts, which this mirrors).
 async function resolveMatriline(key: ProfileKey): Promise<Resolved | null> {
   const filter = key.kind === 'entity'
     ? `entity_id=eq.${encodeURIComponent(key.entityId)}`
-    : `designation=ilike.${encodeURIComponent(ilikeLiteral(normalizeDesignation(key.code).replace(/S$/, '')))}`;
+    : `designation_folded=eq.${encodeURIComponent(fold(key.code).replace(/s$/, ''))}`;
   const rows = await readRows<SocialGroup>('matriline',
     `social_groups?${filter}&kind=eq.matriline&select=${GROUP_COLUMNS}&limit=1`);
   const group = rows?.[0];
@@ -528,7 +521,7 @@ function ecotypePreviewTags(group: SocialGroup): OgTags {
 async function resolveEcotype(key: ProfileKey): Promise<Resolved | null> {
   const filter = key.kind === 'entity'
     ? `entity_id=eq.${encodeURIComponent(key.entityId)}`
-    : `designation=ilike.${encodeURIComponent(ilikeLiteral(key.code))}`;
+    : `designation_folded=eq.${encodeURIComponent(fold(key.code))}`;
   const rows = await readRows<SocialGroup>('ecotype',
     `social_groups?${filter}&kind=eq.ecotype&select=${GROUP_COLUMNS}&limit=1`);
   const group = rows?.[0];

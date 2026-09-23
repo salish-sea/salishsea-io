@@ -6,10 +6,11 @@
  * published name. Nothing stored or displayed is ever rewritten — `T090` keeps its zero,
  * `Bigg's` keeps its apostrophe.
  *
- * It lives in its own module so it can be tested without running a reconciliation, and so
- * there is exactly one of it. ADR-0012 lists our `normalize_designation()` as a divergence
- * to resolve (salish-8vr.18) precisely because a second, subtly different fold is how two
- * systems come to disagree about which animal a moderator meant.
+ * There is one of it in TypeScript, used by the browser and the scripts alike, with a SQL
+ * twin (`register.fold`, migration 20260923040000) and a hand copy in the edge handler,
+ * which cannot import from src/. It replaced our own `normalize_designation()`
+ * (salish-8vr.18), because a second, subtly different rule is how two systems come to
+ * disagree about which animal a report named.
  */
 
 /**

@@ -1,5 +1,6 @@
 import { supabase } from './supabase.ts';
-import { ecotypePath, individualPath, matrilinePath, normalizeDesignation } from './catalog.ts';
+import { ecotypePath, individualPath, matrilinePath } from './catalog.ts';
+import { fold } from './fold.ts';
 
 // Same shape as public.extract_identifiers (20250924160210_detect_individuals.sql):
 // pod/catalog prefix, optional separator, leading zeros, digit + hex block, and a
@@ -40,9 +41,10 @@ export interface GroupRef {
 // Turn catalog-resolvable identifier codes in a markdown body into links to the
 // individual's profile page, matriline codes ("T65As") into links to the
 // matriline's page, and ecotype names in prose ("Biggs", "transients") into
-// links to the ecotype page. `codes` maps a normalized designation (e.g.
-// 'T065A5') to the individual it names; `matrilines` maps a normalized
-// matriarch designation (e.g. 'T065A') to the matriline; `ecotypes` maps an ecotype designation ('Biggs') to the ecotype. Codes and
+// links to the ecotype page. Codes are compared by the register's fold
+// (animals ADR-0019): `codes` maps a folded designation (e.g. 't65a5') to the
+// individual it names; `matrilines` maps a folded group code (e.g. 't65as') to
+// the matriline; `ecotypes` maps an ecotype designation ('Biggs') to the ecotype. Codes and
 // terms that resolve to nothing (SRKW, CRC, uncataloged) pass through as plain
 // text — linking is a navigation aid, never an identification claim.
 export function injectIndividualLinks(
@@ -56,12 +58,14 @@ export function injectIndividualLinks(
     .map((segment, i) => {
       if (i % 2 === 1) return segment;
       const linked = segment.replace(CODE_RE, (match, prefix: string, block: string, matriline: string) => {
-        const normalized = normalizeDesignation(`${prefix}${block}`.toUpperCase());
+        // Separator and leading zeros dropped, as public.extract_identifiers does,
+        // then folded; the s stays, so a matriline code only ever finds a group.
+        const folded = fold(`${prefix}${block}${matriline}`);
         if (matriline) {
-          const group = matrilines.get(normalized);
+          const group = matrilines.get(folded);
           return group ? `[${match}](${matrilinePath(group)})` : match;
         }
-        const individual = codes.get(normalized);
+        const individual = codes.get(folded);
         return individual ? `[${match}](${individualPath(individual)})` : match;
       });
       // Codes never contain an ecotype word and ecotype links never contain a
@@ -97,8 +101,8 @@ export function loadCatalogCodes(): Promise<Map<string, IndividualRef>> {
           .in('kind', ['matriline', 'ecotype'])
           .throwOnError(),
       ]);
-      codeMap = new Map(designations.map(({ code, individual }) => [code, individual]));
-      matrilineMap = new Map(groups.filter(g => g.kind === 'matriline').map(g => [g.designation, g]));
+      codeMap = new Map(designations.map(({ code, individual }) => [fold(code), individual]));
+      matrilineMap = new Map(groups.filter(g => g.kind === 'matriline').map(g => [fold(`${g.designation}s`), g]));
       ecotypeMap = new Map(groups.filter(g => g.kind === 'ecotype').map(g => [g.designation, g]));
       return codeMap;
     } catch (error) {

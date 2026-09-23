@@ -45,7 +45,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import postgres from 'postgres';
 
-import { fold } from './fold.ts';
+import { fold } from '../../src/fold.ts';
 import {
     candidates, describeCandidates, substitutionFor, verdictFor, type Edition,
 } from './match.ts';
