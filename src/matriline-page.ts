@@ -5,10 +5,10 @@ import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
   displayName, fetchAllGroups, fetchGroupMembers, fetchGroupOccurrenceLinks, fetchMatriline,
-  ecotypePath, groupChain, mapUrl, matrilinePath, observedDate, parseMatrilinePath,
+  ecotypePath, groupChain, keyLabel, mapUrl, matrilinePath, observedDate, parseMatrilinePath,
   type CatalogGroup, type GroupMember, type MatrilineProfile, type OccurrenceLink,
 } from './catalog.ts';
-import { profileStyles, renderDagger, renderMemberList, renderPresenceTable, renderRelative } from './profile-shared.ts';
+import { canonicalize, profileStyles, renderDagger, renderMemberList, renderPresenceTable, renderRelative } from './profile-shared.ts';
 import { initSentry } from './sentry.ts';
 import './individual-map.ts';
 
@@ -23,14 +23,15 @@ interface Profile {
 
 @customElement('matriline-page')
 export class MatrilinePage extends LitElement {
-  @state() private designation = parseMatrilinePath(window.location.pathname);
+  @state() private key = parseMatrilinePath(window.location.pathname);
 
   #profile = new Task(this, {
-    args: () => [this.designation] as const,
-    task: async ([designation]): Promise<Profile | null> => {
-      if (!designation) return null;
-      const group = await fetchMatriline(designation);
+    args: () => [this.key] as const,
+    task: async ([key]): Promise<Profile | null> => {
+      if (!key) return null;
+      const group = await fetchMatriline(key);
       if (!group) return null;
+      canonicalize(matrilinePath(group));
       const [members, groups] = await Promise.all([
         fetchGroupMembers(group.id),
         fetchAllGroups(),
@@ -56,7 +57,7 @@ export class MatrilinePage extends LitElement {
       <main>
         <a class="back" href="/">&#8592; Back to the map</a>
         ${this.#profile.render({
-          pending: () => html`<p class="placeholder">Looking up the ${this.designation} matriline&hellip;</p>`,
+          pending: () => html`<p class="placeholder">Looking up ${this.key ? keyLabel(this.key) : 'this matriline'}&hellip;</p>`,
           error: () => html`<p class="error">Something went wrong loading this page. Please try again.</p>`,
           complete: value => value ? this.renderProfile(value) : this.renderNotFound(),
         })}
@@ -65,9 +66,10 @@ export class MatrilinePage extends LitElement {
   }
 
   private renderNotFound() {
+    const label = this.key ? keyLabel(this.key) : null;
     return html`
-      <h1>${this.designation ?? 'Not found'}</h1>
-      <p>We don't have ${this.designation ? html`a <b>${this.designation}</b> matriline` : 'that matriline'} in our catalog.
+      <h1>${label ?? 'Not found'}</h1>
+      <p>We don't have ${label ? html`a <b>${label}</b> matriline` : 'that matriline'} in our catalog.
       So far it covers Bigg's (transient) killer whales of the Salish Sea; other populations are on the way.</p>
       <p><a href="/">Explore the sightings map</a> or <a href="/about.html">read about this site</a>.</p>
     `;
@@ -101,7 +103,7 @@ export class MatrilinePage extends LitElement {
     const ecotype = ancestors.find(g => g.kind === 'ecotype');
     if (!parents.length && !ecotype) return nothing;
     return html`${parents.map((g, i) => html`${i ? ' · ' : ''}Within ${g.kind === 'matriline'
-        ? html`<a href=${matrilinePath(g.designation)}>${g.designation}</a>`
+        ? html`<a href=${matrilinePath(g)}>${g.designation}</a>`
         : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
       }${ecotype ? html`${parents.length ? ' · ' : ''}<a href=${ecotypePath(ecotype)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}`;
   }

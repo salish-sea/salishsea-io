@@ -112,7 +112,7 @@ Static SPA (Lit web components + Vite + TypeScript, OpenLayers maps) on AWS S3/C
 ## Conventions & Patterns
 
 - Coordinates: decimal lon/lat WGS84, map projection EPSG:3857. Time: UNIX epoch seconds.
-- URL state: `d` (date), `x/y/z` (map), `o` (occurrence); profile pages at `/individuals/<7-digit register id>/<designation slug>` and `/ecotypes/<id>/<slug>` — only the id is read (decision 034); `/matrilines/<designation>` until `salish-ox2.6`.
+- URL state: `d` (date), `x/y/z` (map), `o` (occurrence); profile pages at `/individuals/<7-digit register id>/<designation slug>`, `/matrilines/<id>/<slug>` and `/ecotypes/<id>/<slug>` — the slug is never read; a legacy `/<family>/<designation>` path is looked up once and `301`s to that form (decision 034).
 - Migrations: SELECT grants ship in the same migration that creates a table or view (Supabase RLS defaults silently zero out joins otherwise), and the migration's PR updates the pinned set in `supabase/read-grants.test.ts`, which CI checks against a fresh reset.
 - `maplify.sightings.comments` is immutable — parse at read time, never UPDATE it.
 - Keep the project "light, nimble, and maintainable, minimizing abstractions and volatile dependencies" (README).

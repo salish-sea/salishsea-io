@@ -99,7 +99,7 @@ export class EcotypePage extends LitElement {
         ${matrilines.length
           ? html`<ul class="people">
               ${repeat(matrilines, g => g.id, g =>
-                html`<li><a href=${matrilinePath(g.designation)}>${g.designation}</a></li>`)}
+                html`<li><a href=${matrilinePath(g)}>${g.designation}</a></li>`)}
             </ul>`
           : html`<p class="placeholder">No matrilines cataloged yet.</p>`}
       </section>

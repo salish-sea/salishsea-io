@@ -31,7 +31,8 @@ export interface IndividualRef {
   primary_designation: string;
 }
 
-export interface EcotypeRef {
+// A matriline or an ecotype: the register identifier, and our designation.
+export interface GroupRef {
   entity_id: string | null;
   designation: string;
 }
@@ -41,15 +42,14 @@ export interface EcotypeRef {
 // matriline's page, and ecotype names in prose ("Biggs", "transients") into
 // links to the ecotype page. `codes` maps a normalized designation (e.g.
 // 'T065A5') to the individual it names; `matrilines` maps a normalized
-// matriarch designation (e.g. 'T065A') to the matriline's designation;
-// `ecotypes` maps an ecotype designation ('Biggs') to the ecotype. Codes and
+// matriarch designation (e.g. 'T065A') to the matriline; `ecotypes` maps an ecotype designation ('Biggs') to the ecotype. Codes and
 // terms that resolve to nothing (SRKW, CRC, uncataloged) pass through as plain
 // text — linking is a navigation aid, never an identification claim.
 export function injectIndividualLinks(
   body: string,
   codes: Map<string, IndividualRef>,
-  matrilines: Map<string, string> = new Map(),
-  ecotypes: Map<string, EcotypeRef> = new Map(),
+  matrilines: Map<string, GroupRef> = new Map(),
+  ecotypes: Map<string, GroupRef> = new Map(),
 ): string {
   return body
     .split(EXISTING_LINK_RE)
@@ -58,8 +58,8 @@ export function injectIndividualLinks(
       const linked = segment.replace(CODE_RE, (match, prefix: string, block: string, matriline: string) => {
         const normalized = normalizeDesignation(`${prefix}${block}`.toUpperCase());
         if (matriline) {
-          const designation = matrilines.get(normalized);
-          return designation ? `[${match}](${matrilinePath(designation)})` : match;
+          const group = matrilines.get(normalized);
+          return group ? `[${match}](${matrilinePath(group)})` : match;
         }
         const individual = codes.get(normalized);
         return individual ? `[${match}](${individualPath(individual)})` : match;
@@ -76,8 +76,8 @@ export function injectIndividualLinks(
 }
 
 let codeMap: Map<string, IndividualRef> | null = null;
-let matrilineMap: Map<string, string> | null = null;
-let ecotypeMap: Map<string, EcotypeRef> | null = null;
+let matrilineMap: Map<string, GroupRef> | null = null;
+let ecotypeMap: Map<string, GroupRef> | null = null;
 let loading: Promise<Map<string, IndividualRef>> | null = null;
 
 // Fetch the designation -> individual lookup (plus the matriline and ecotype
@@ -98,7 +98,7 @@ export function loadCatalogCodes(): Promise<Map<string, IndividualRef>> {
           .throwOnError(),
       ]);
       codeMap = new Map(designations.map(({ code, individual }) => [code, individual]));
-      matrilineMap = new Map(groups.filter(g => g.kind === 'matriline').map(({ designation }) => [designation, designation]));
+      matrilineMap = new Map(groups.filter(g => g.kind === 'matriline').map(g => [g.designation, g]));
       ecotypeMap = new Map(groups.filter(g => g.kind === 'ecotype').map(g => [g.designation, g]));
       return codeMap;
     } catch (error) {
@@ -113,10 +113,10 @@ export function catalogCodes(): Map<string, IndividualRef> | null {
   return codeMap;
 }
 
-export function matrilineCodes(): Map<string, string> | null {
+export function matrilineCodes(): Map<string, GroupRef> | null {
   return matrilineMap;
 }
 
-export function ecotypeCodes(): Map<string, EcotypeRef> | null {
+export function ecotypeCodes(): Map<string, GroupRef> | null {
   return ecotypeMap;
 }

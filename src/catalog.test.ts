@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import {
-  dedupeOccurrenceLinks, displayName, ecotypePath, groupChain, individualPath, keyLabel, matrilinePath, monthlyPresence,
+  dedupeOccurrenceLinks, displayName, ecotypePath, groupChain, individualPath, keyLabel, matrilineDesignation, matrilinePath, monthlyPresence,
   normalizeDesignation, parseEcotypePath, parseIndividualPath, parseMatrilinePath, slugify,
   type IndividualOccurrence, type OccurrenceLink, type SocialGroup,
   distanceKm, hauloutPath, mediumPhotoUrl, parseHauloutPath,
@@ -68,21 +68,32 @@ test('labels a key for the placeholder and not-found copy', () => {
   expect(keyLabel({ kind: 'designation', designation: 'T065A' })).toBe('T065A');
 });
 
-// Matrilines are not keyed yet (salish-ox2.6): the designation path is canonical.
-test('parses /matrilines/<designation> paths', () => {
-  expect(parseMatrilinePath('/matrilines/T065A')).toBe('T065A');
-  expect(parseMatrilinePath('/matrilines/T065A/')).toBe('T065A');
+const T065AS = { entity_id: 'SSA:0002163', designation: 'T065A' };
+
+// The slug is the group's written form, not the matriarch's code (034's example).
+test('composes a matriline path from its identifier, slugged as the group is written', () => {
+  expect(matrilinePath(T065AS)).toBe('/matrilines/0002163/T065As');
+  expect(parseMatrilinePath(matrilinePath(T065AS)))
+    .toEqual({ kind: 'entity', entityId: 'SSA:0002163', slug: 'T065As' });
+});
+
+test('parses the designation path every pre-034 matriline link carries', () => {
+  expect(parseMatrilinePath('/matrilines/T065A')).toEqual({ kind: 'designation', designation: 'T065A' });
+  expect(parseMatrilinePath('/matrilines/T065A/')).toEqual({ kind: 'designation', designation: 'T065A' });
   expect(parseMatrilinePath('/matrilines/')).toBeNull();
   expect(parseMatrilinePath('/matrilines/T065A/photos')).toBeNull();
-  expect(parseMatrilinePath('/matrilines/0002039/T073s')).toBeNull();
   expect(parseMatrilinePath('/individuals/T065A')).toBeNull();
   expect(parseIndividualPath('/matrilines/T065A')).toBeNull();
 });
 
-test('matrilinePath round-trips through parseMatrilinePath', () => {
-  for (const designation of ['T065A', 'T046B', 'AM25 X']) {
-    expect(parseMatrilinePath(matrilinePath(designation))).toBe(designation);
-  }
+test('reads a typed matriline designation as the matriarch code the catalogue keys on', () => {
+  expect(matrilineDesignation('T065A')).toBe('T065A');
+  expect(matrilineDesignation('T65As')).toBe('T065A');
+  expect(matrilineDesignation('t073s')).toBe('T073');
+});
+
+test('addresses a matriline with no identifier by its designation', () => {
+  expect(matrilinePath({ entity_id: null, designation: 'T065A' })).toBe('/matrilines/T065A');
 });
 
 const BIGGS = { entity_id: 'SSA:0000002', designation: 'Biggs' };

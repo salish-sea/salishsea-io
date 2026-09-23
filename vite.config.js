@@ -26,7 +26,7 @@ function releaseSha() {
 // rewrite. No redirects here: the page canonicalises its own address.
 const PROFILE_REWRITES = [
   [/^\/individuals\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/individual.html'],
-  [/^\/matrilines\/[^/]+\/?(\?.*)?$/, '/matriline.html'],
+  [/^\/matrilines\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/matriline.html'],
   [/^\/ecotypes\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/ecotype.html'],
   [/^\/haulouts\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/haulout.html'],
 ];
@@ -63,7 +63,7 @@ export default defineConfig({
     {
       // In production these rewrites live in the CloudFront viewer-request
       // Lambda@Edge (infra/lib/edge-handler): /individuals/<id>/<slug>,
-      // /matrilines/<designation>, /ecotypes/<id>/<slug> and /haulouts/<id>/<slug> are client-rendered
+      // /matrilines/<id>/<slug>, /ecotypes/<id>/<slug> and /haulouts/<id>/<slug> are client-rendered
       // pages served from their HTML shells.
       name: 'profile-pages-rewrite',
       configureServer(server) {
