@@ -165,13 +165,9 @@ async function main(): Promise<void> {
                 LEFT JOIN public.individuals i ON i.primary_designation = v.anchor
                 WHERE g.designation = v.group_designation`;
 
-            const parents = cat.socialGroups
-                .map((g) => ({ group_designation: g.designation, parent: g.parent_designation }));
-            await tx`
-                UPDATE public.social_groups g SET parent_group_id = parent.id
-                FROM jsonb_to_recordset(${tx.json(parents as never)}) AS v(group_designation text, parent text)
-                LEFT JOIN public.social_groups parent ON parent.designation = v.parent
-                WHERE g.designation = v.group_designation`;
+            // No parents: which group sits inside which is the register's (decision
+            // 051), so a freshly seeded catalogue has its hierarchy once the register
+            // is loaded.
 
             const supersessions = cat.designations
                 .map((d) => ({ code: d.code, target: d.superseded_by_code }));

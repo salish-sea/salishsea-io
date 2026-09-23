@@ -4,7 +4,9 @@ import type { Database } from '../database.types.ts';
 
 type PublicSchema = Database['public'];
 export type Individual = PublicSchema['Tables']['individuals']['Row'];
-export type SocialGroup = PublicSchema['Tables']['social_groups']['Row'];
+// A group row plus its parent, which is the register's (decision 051) and so
+// comes from public.group_parents rather than a column of its own.
+export type SocialGroup = PublicSchema['Tables']['social_groups']['Row'] & { parent_group_id: number | null };
 export type IndividualOccurrence = PublicSchema['Views']['individual_occurrences']['Row'];
 
 // One (occurrence, individual) link from the individual_occurrences view, with
@@ -327,12 +329,20 @@ export type CatalogGroup = SocialGroup & {
 
 // The whole catalog's group graph is a few hundred small rows — fetch it once
 // and resolve pod/ecotype chains client-side instead of walking FKs per hop.
+// The rows are ours; which one sits inside which is the register's (051).
 export async function fetchAllGroups(): Promise<Map<number, CatalogGroup>> {
-  const { data } = await supabase()
-    .from('social_groups')
-    .select('*, anchor:individuals!anchor_individual_id (entity_id, primary_designation)')
-    .throwOnError();
-  return new Map(data.map(group => [group.id, group]));
+  const [{ data: groups }, { data: parents }] = await Promise.all([
+    supabase()
+      .from('social_groups')
+      .select('*, anchor:individuals!anchor_individual_id (entity_id, primary_designation)')
+      .throwOnError(),
+    supabase()
+      .from('group_parents')
+      .select('group_id, parent_group_id')
+      .throwOnError(),
+  ]);
+  const parentOf = new Map(parents.map(p => [p.group_id, p.parent_group_id]));
+  return new Map(groups.map(group => [group.id, { ...group, parent_group_id: parentOf.get(group.id) ?? null }]));
 }
 
 // Every animal in a matriline as the register says it (migration 20260923010000): the
