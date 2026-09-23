@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import {
   dedupeOccurrenceLinks, displayName, ecotypePath, groupChain, individualPath, keyLabel, matrilineDesignation, matrilinePath, monthlyPresence,
-  normalizeDesignation, parseEcotypePath, parseIndividualPath, parseMatrilinePath, slugify,
+  parseEcotypePath, parseIndividualPath, parseMatrilinePath, slugify,
   type IndividualOccurrence, type OccurrenceLink, type SocialGroup,
   distanceKm, hauloutPath, mediumPhotoUrl, parseHauloutPath,
 } from './catalog.ts';
@@ -86,10 +86,10 @@ test('parses the designation path every pre-034 matriline link carries', () => {
   expect(parseIndividualPath('/matrilines/T065A')).toBeNull();
 });
 
-test('reads a typed matriline designation as the matriarch code the catalogue keys on', () => {
-  expect(matrilineDesignation('T065A')).toBe('T065A');
-  expect(matrilineDesignation('T65As')).toBe('T065A');
-  expect(matrilineDesignation('t073s')).toBe('T073');
+test('reads a typed matriline designation as the folded matriarch code the catalogue keys on', () => {
+  expect(matrilineDesignation('T065A')).toBe('t65a');
+  expect(matrilineDesignation('T65As')).toBe('t65a');
+  expect(matrilineDesignation('t073s')).toBe('t73');
 });
 
 test('addresses a matriline with no identifier by its designation', () => {
@@ -115,19 +115,6 @@ test('ecotypePath round-trips through parseEcotypePath', () => {
   for (const designation of ['Biggs', 'Southern Residents']) {
     expect(parseEcotypePath(ecotypePath({ entity_id: null, designation }))).toEqual({ kind: 'designation', designation });
   }
-});
-
-// Mirrors public.normalize_designation (20260707220211_identifications.sql)
-test('normalizes sighting codes to padded catalog keys', () => {
-  expect(normalizeDesignation('T65A5')).toBe('T065A5');
-  expect(normalizeDesignation('t65a5')).toBe('T065A5');
-  expect(normalizeDesignation('T65')).toBe('T065');
-  expect(normalizeDesignation('T065A')).toBe('T065A');
-  expect(normalizeDesignation('T2B')).toBe('T002B');
-  expect(normalizeDesignation(' T137 ')).toBe('T137');
-  expect(normalizeDesignation('CRC56')).toBe('CRC56');
-  expect(normalizeDesignation('J26')).toBe('J26');
-  expect(normalizeDesignation('CA20')).toBe('CA20');
 });
 
 const link = (over: Partial<IndividualOccurrence>): IndividualOccurrence => ({
@@ -197,7 +184,7 @@ test('aggregates presence by PST8PDT calendar month', () => {
 });
 
 const group = (id: number, designation: string, parent: number | null): SocialGroup => ({
-  id, designation, parent_group_id: parent, kind: 'matriline', anchor_individual_id: null, notes: null, entity_id: null,
+  id, designation, designation_folded: null, parent_group_id: parent, kind: 'matriline', anchor_individual_id: null, notes: null, entity_id: null,
 });
 
 test('walks the group chain to the root and survives cycles', () => {

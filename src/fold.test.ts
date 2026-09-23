@@ -4,7 +4,7 @@ import { fold } from './fold.ts';
 /**
  * The register's own published cases, from `dist/fold_test.tsv` in edition 2026.08.1.
  *
- * THE AUTHORITY IS THE RELEASE, not this list. `reconcile.ts` re-reads the cases out of
+ * THE AUTHORITY IS THE RELEASE, not this list. `scripts/register/reconcile.ts` re-reads the cases out of
  * whichever edition it is reconciling against and aborts if the fold disagrees, which is
  * what stops a drifted fold producing a confidently wrong report. This copy exists so the
  * rule is also guarded in CI, where there is no network and no reconciliation running —
@@ -36,8 +36,8 @@ describe('fold', () => {
     });
 
     it('does not fold a trailing s, so a matriline never merges with its matriarch', () => {
-        // The clause our own normalize_designation() has and ADR-0019 deliberately omits.
-        // 126 such pairs exist; collapsing them would silently reassign animals.
+        // ADR-0019 deliberately omits this clause; 126 such pairs exist, and collapsing
+        // them would silently reassign animals.
         expect(fold('T090')).not.toBe(fold('T090s'));
         expect(fold('J17')).not.toBe(fold('J17s'));
     });

@@ -8,7 +8,7 @@
  * that is only exercised by data we happen to hold is a rule nobody has checked.
  */
 
-import { fold } from './fold.ts';
+import { fold } from '../../src/fold.ts';
 
 export interface Edition {
     tag: string;

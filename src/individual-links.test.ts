@@ -6,16 +6,17 @@ const T065A5 = { entity_id: 'SSA:0010197', primary_designation: 'T065A5' };
 const T065A = { entity_id: 'SSA:0010193', primary_designation: 'T065A' };
 const T122 = { entity_id: 'SSA:0010368', primary_designation: 'T122' };
 
+// Keyed by the register's fold, as loadCatalogCodes builds them.
 const codes = new Map([
-  ['T065A5', T065A5],
-  ['T065A', T065A],
-  ['T122', T122],   // renamed from T46A; both codes resolve to T122
-  ['T046A', T122],
+  ['t65a5', T065A5],
+  ['t65a', T065A],
+  ['t122', T122],   // renamed from T46A; both codes resolve to T122
+  ['t46a', T122],
 ]);
 
 const matrilines = new Map([
-  ['T065A', { entity_id: 'SSA:0002163', designation: 'T065A' }],
-  ['T046B', { entity_id: 'SSA:0002149', designation: 'T046B' }],
+  ['t65as', { entity_id: 'SSA:0002163', designation: 'T065A' }],
+  ['t46bs', { entity_id: 'SSA:0002149', designation: 'T046B' }],
 ]);
 
 const ecotypes = new Map([
@@ -33,7 +34,7 @@ test('links superseded codes to the individual that now carries them', () => {
 });
 
 test('addresses an individual with no identifier yet by designation', () => {
-  const unkeyed = new Map([['T999', { entity_id: null, primary_designation: 'T999' }]]);
+  const unkeyed = new Map([['t999', { entity_id: null, primary_designation: 'T999' }]]);
   expect(injectIndividualLinks('T999 offshore', unkeyed)).toBe('[T999](/individuals/T999) offshore');
 });
 

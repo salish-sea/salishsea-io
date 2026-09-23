@@ -191,6 +191,8 @@ across 126 pairs. Reconciling them is `salish-8vr.18`. This supersedes finding F
 which proposed `searchable_name.tsv` as a lookup *table*; the register publishes a *rule*
 instead, with executable cases in `dist/fold_test.tsv`.
 
+*Resolved 2026-09-23 by [052](052-designations-compared-by-the-registers-fold.md): we now compare by the fold. The trailing-`s` concern above turned out not to apply: our matching used the `s` to choose between groups and animals, and never merged the two.*
+
 ### What this amendment does not decide
 
 `certainty` arriving from upstream is the **asserter's confidence**, and is not the same axis as
@@ -304,5 +306,6 @@ Register-side contracts this record now depends on:
 (annotation belongs to consumers),
 [ADR-0010](https://github.com/salish-sea/animals/blob/main/decisions/0010-identifiers-are-never-reused.md)
 (identifiers never change meaning, which is what makes storing one safe).
-Open on our side: `salish-8vr.4` (the confidence/verification split) and `salish-8vr.18`
-(reconciling `normalize_designation()` with the fold).
+Open on our side: `salish-8vr.4` (the confidence/verification split). `salish-8vr.18`
+(reconciling `normalize_designation()` with the fold) was open here too, and closed on
+2026-09-23 by [052](052-designations-compared-by-the-registers-fold.md).

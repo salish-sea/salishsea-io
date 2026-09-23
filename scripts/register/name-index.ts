@@ -17,7 +17,7 @@
  * ecotype is exactly what "Southern Resident Killer Whale" names.
  */
 
-import { fold } from './fold.ts';
+import { fold } from '../../src/fold.ts';
 
 /** One name as the register publishes it, with enough of its entity to filter on. */
 export type RegisterName = {

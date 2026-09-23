@@ -896,7 +896,7 @@ describe('redirects to the canonical profile address', () => {
     }
 
     const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
-    expect(apiUrl).toContain('/rest/v1/designations?code=ilike.T065A&select=individual:individuals(');
+    expect(apiUrl).toContain('/rest/v1/designations?code_folded=eq.t65a&select=individual:individuals(');
     expect(apiUrl).toContain('limit=1');
   });
 
@@ -909,20 +909,19 @@ describe('redirects to the canonical profile address', () => {
     expect(locationOf(result)).toBe('/individuals/0010368/T122');
   });
 
-  it('resolves a code as a person types it: unpadded and lower-case', async () => {
+  it('resolves a code as a person types it, by the register\'s fold: unpadded and lower-case', async () => {
     resolvesTo(sampleIndividual);
     const result = await handler(makeEvent(HUMAN_UA, '', '/individuals/t65a')) as Redirect;
     expect(locationOf(result)).toBe(CANONICAL_T065A);
     const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
-    expect(apiUrl).toContain('code=ilike.T065A&');
+    expect(apiUrl).toContain('code_folded=eq.t65a&');
   });
 
-  it('matches the typed code exactly — LIKE wildcards in the path are escaped', async () => {
+  it('compares the folded code by equality, so LIKE wildcards in the path mean nothing', async () => {
     resolvesTo(sampleIndividual);
     await handler(makeEvent(HUMAN_UA, '', '/individuals/CA_20%25'));
     const apiUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
-    // `\_` and `\%`, percent-encoded for the query string.
-    expect(apiUrl).toContain(`code=ilike.${encodeURIComponent('CA\\_20\\%')}&`);
+    expect(apiUrl).toContain(`code_folded=eq.${encodeURIComponent('ca_20%')}&`);
   });
 
   it.each([HUMAN_UA, BOT_UA])('301s a bare identifier to the slugged form for UA %s', async (ua) => {
@@ -1015,7 +1014,7 @@ describe('/matrilines/<identifier>/<slug> profile pages', () => {
     expect(result.status).toBe('301');
     expect(result.headers.location[0].value).toBe(CANONICAL_T065AS);
     const apiUrl = mockFetch.mock.calls[0]![0] as string;
-    expect(apiUrl).toContain('/rest/v1/social_groups?designation=ilike.T065A');
+    expect(apiUrl).toContain('/rest/v1/social_groups?designation_folded=eq.t65a');
     expect(apiUrl).toContain('kind=eq.matriline');
   });
 
@@ -1023,7 +1022,7 @@ describe('/matrilines/<identifier>/<slug> profile pages', () => {
     const mockFetch = resolvesTo([sampleGroup]);
     const result = await handler(makeEvent(HUMAN_UA, '', '/matrilines/t65as'));
     expect(result.headers.location[0].value).toBe(CANONICAL_T065AS);
-    expect(mockFetch.mock.calls[0]![0] as string).toContain('designation=ilike.T065A&');
+    expect(mockFetch.mock.calls[0]![0] as string).toContain('designation_folded=eq.t65a&');
   });
 
   it('301s a bare identifier to the slugged address', async () => {
@@ -1122,7 +1121,7 @@ describe('/ecotypes/<identifier>/<slug> profile pages', () => {
       expect(locationOf(result)).toBe(CANONICAL_BIGGS);
     }
     const apiUrl = (global.fetch as jest.Mock).mock.calls[1][0] as string;
-    expect(apiUrl).toContain('/rest/v1/social_groups?designation=ilike.biggs&kind=eq.ecotype');
+    expect(apiUrl).toContain('/rest/v1/social_groups?designation_folded=eq.biggs&kind=eq.ecotype');
   });
 
   it('returns the generic preview to a bot for an unknown designation', async () => {

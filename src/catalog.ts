@@ -1,4 +1,5 @@
 import { supabase } from './supabase.ts';
+import { fold } from './fold.ts';
 import { Temporal } from 'temporal-polyfill';
 import type { Database } from '../database.types.ts';
 
@@ -122,24 +123,6 @@ export function parseMatrilinePath(pathname: string): ProfileKey | null {
 // What to call the subject before it has loaded, or when it never does.
 export function keyLabel(key: ProfileKey): string {
   return key.kind === 'entity' ? key.entityId : key.designation;
-}
-
-// A LIKE pattern matching exactly `value`, so `ilike` gives case-insensitive
-// equality and nothing more. Postgres's wildcards are % and _, PostgREST adds *
-// as an alias for %, and the default escape character is the backslash.
-function ilikeLiteral(value: string): string {
-  return value.replace(/[\\%_*]/g, '\\$&');
-}
-
-// TS port of public.normalize_designation (20260707220211_identifications.sql):
-// map an un-padded sighting code ('T65A5') to the padded catalog key ('T065A5').
-// Pad only the first numeric block of T-codes; uppercase; pass others through.
-// .slice(0, 3) mirrors SQL lpad()'s truncation for hypothetical 4+-digit blocks.
-export function normalizeDesignation(code: string): string {
-  const u = code.trim().toUpperCase();
-  const m = u.match(/^T(\d+)(.*)$/);
-  if (!m) return u;
-  return 'T' + m[1]!.padStart(3, '0').slice(0, 3) + m[2]!;
 }
 
 // The shared shape of individual_occurrences and group_occurrences rows;
@@ -268,13 +251,13 @@ const INDIVIDUAL_SELECT = `
 ` as const;
 
 // The individual a designation names — any code it has ever carried, so a
-// superseded T046A finds T122 — matched case-insensitively and as typed
-// (T65A → T065A). null when no designation matches.
+// superseded T046A finds T122 — compared by the register's fold (t65a matches
+// T065A). null when no designation matches.
 async function individualIdForDesignation(designation: string): Promise<number | null> {
   const { data } = await supabase()
     .from('designations')
     .select('individual_id')
-    .ilike('code', ilikeLiteral(normalizeDesignation(designation)))
+    .eq('code_folded', fold(designation))
     .limit(1)
     .maybeSingle()
     .throwOnError();
@@ -428,12 +411,12 @@ const MATRILINE_SELECT = `
 
 // A matriline by register identifier, or by designation as a legacy link or a
 // person writes it: the matriarch's code (T065A, /matrilines/T065A before 034)
-// or the group's own written form (T65As). Dropping the trailing s is safe
-// here, and only here, because the route has already said this is a group —
-// ADR-0019 omits that clause from the fold because in general it merges a
-// matriline with its matriarch.
+// or the group's own written form (T65As). Folded, then the trailing s dropped
+// — safe here, and only here, because the route has already said this is a
+// group. ADR-0019 omits that clause from the fold because in general it merges
+// a matriline with its matriarch.
 export function matrilineDesignation(typed: string): string {
-  return normalizeDesignation(typed).replace(/S$/, '');
+  return fold(typed).replace(/s$/, '');
 }
 
 export async function fetchMatriline(key: ProfileKey) {
@@ -443,7 +426,7 @@ export async function fetchMatriline(key: ProfileKey) {
     .eq('kind', 'matriline');
   query = key.kind === 'entity'
     ? query.eq('entity_id', key.entityId)
-    : query.ilike('designation', ilikeLiteral(matrilineDesignation(key.designation)));
+    : query.eq('designation_folded', matrilineDesignation(key.designation));
   const { data } = await query.limit(1).maybeSingle().throwOnError();
   return data;
 }
@@ -471,7 +454,7 @@ export async function fetchEcotype(key: ProfileKey) {
     .eq('kind', 'ecotype');
   query = key.kind === 'entity'
     ? query.eq('entity_id', key.entityId)
-    : query.ilike('designation', ilikeLiteral(key.designation));
+    : query.eq('designation_folded', fold(key.designation));
   const { data } = await query.limit(1).maybeSingle().throwOnError();
   return data;
 }
