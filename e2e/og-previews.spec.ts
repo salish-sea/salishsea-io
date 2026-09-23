@@ -44,10 +44,12 @@ test.beforeAll(async ({ playwright }) => {
       // tests below say what they think of production once the wait is over.
       let ready = false;
       try {
-        // The canonical, two-segment path: a handler from before decision 034
-        // does not recognise it and answers with the site card, so profile tags
-        // here mean the deploy under test is the one answering.
-        const response = await api.get(CANONICAL_T065A, { headers: BOT_UA, timeout: PROBE_TIMEOUT_MS });
+        // The newest canonical shape: a handler from before it does not
+        // recognise the path and answers without profile tags, so profile tags
+        // here mean the deploy under test is the one answering. Probe whichever
+        // family moved last — matrilines, since salish-ox2.5; the individual
+        // path this used to probe was already live on the old handler.
+        const response = await api.get(CANONICAL_T065AS, { headers: BOT_UA, timeout: PROBE_TIMEOUT_MS });
         ready = response.status() === 200 && (await response.text()).includes('content="profile"');
       } catch (err) {
         console.warn(`probe ${attempt} failed: ${String(err)}`);
