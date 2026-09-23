@@ -41,8 +41,9 @@ export function mapUrl(link: Pick<OccurrenceLink, 'observed_at' | 'occurrence_id
 // open to the shell when its lookup is slow. These helpers mirror the ones in
 // the handler, which cannot import from src/ — change one, change the other.
 //
-// Matrilines are not keyed yet: 73 of 132 have no register entity (animals
-// Q22, salish-ox2.6), so /matrilines/<designation> stays canonical for now.
+// A matriline's slug is the group's written form, T065As, not the matriarch's
+// code that social_groups.designation holds: /matrilines/0002163/T065As. It is
+// how sighting prose writes the group, and 034's own example.
 
 // What a profile path names.
 export type ProfileKey =
@@ -70,8 +71,9 @@ export function individualPath(individual: { entity_id: string | null; primary_d
   return profilePath('individuals', individual.entity_id, individual.primary_designation);
 }
 
-export function matrilinePath(designation: string): string {
-  return `/matrilines/${encodeURIComponent(designation)}`;
+export function matrilinePath(group: { entity_id: string | null; designation: string }): string {
+  if (!group.entity_id) return `/matrilines/${encodeURIComponent(group.designation)}`;
+  return profilePath('matrilines', group.entity_id, `${group.designation}s`);
 }
 
 export function ecotypePath(group: { entity_id: string | null; designation: string }): string {
@@ -111,10 +113,8 @@ export function parseEcotypePath(pathname: string): ProfileKey | null {
   return parseKeyedPath(pathname, 'ecotypes');
 }
 
-// Extract the designation from a /matrilines/<designation> path.
-export function parseMatrilinePath(pathname: string): string | null {
-  const match = pathname.match(/^\/matrilines\/([^/]+)\/?$/);
-  return match ? decodeSegment(match[1]!) : null;
+export function parseMatrilinePath(pathname: string): ProfileKey | null {
+  return parseKeyedPath(pathname, 'matrilines');
 }
 
 // What to call the subject before it has loaded, or when it never does.
@@ -389,14 +389,25 @@ const MATRILINE_SELECT = `
   anchor:individuals!anchor_individual_id (id, entity_id, primary_designation, life_status, nicknames (name, status))
 ` as const;
 
-export async function fetchMatriline(designation: string) {
-  const { data } = await supabase()
+// A matriline by register identifier, or by designation as a legacy link or a
+// person writes it: the matriarch's code (T065A, /matrilines/T065A before 034)
+// or the group's own written form (T65As). Dropping the trailing s is safe
+// here, and only here, because the route has already said this is a group —
+// ADR-0019 omits that clause from the fold because in general it merges a
+// matriline with its matriarch.
+export function matrilineDesignation(typed: string): string {
+  return normalizeDesignation(typed).replace(/S$/, '');
+}
+
+export async function fetchMatriline(key: ProfileKey) {
+  let query = supabase()
     .from('social_groups')
     .select(MATRILINE_SELECT)
-    .eq('designation', designation)
-    .eq('kind', 'matriline')
-    .maybeSingle()
-    .throwOnError();
+    .eq('kind', 'matriline');
+  query = key.kind === 'entity'
+    ? query.eq('entity_id', key.entityId)
+    : query.ilike('designation', ilikeLiteral(matrilineDesignation(key.designation)));
+  const { data } = await query.limit(1).maybeSingle().throwOnError();
   return data;
 }
 export type MatrilineProfile = NonNullable<Awaited<ReturnType<typeof fetchMatriline>>>;

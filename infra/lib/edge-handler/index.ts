@@ -271,8 +271,8 @@ function ilikeLiteral(value: string): string {
   return value.replace(/[\\%_*]/g, '\\$&');
 }
 
-// The canonical address of a subject. A row with no register identifier yet
-// (matrilines, until salish-ox2.6) is addressed by its designation, as before.
+// The canonical address of a subject. A row with no register identifier is
+// addressed by its designation, as before 034.
 function canonicalProfilePath(prefix: string, entityId: string | null, designation: string): string {
   if (!entityId) return `/${prefix}/${encodeURIComponent(designation)}`;
   const slug = slugify(designation);
@@ -419,13 +419,10 @@ interface ProfileFamily {
   shell: string;
   kind: 'individual' | 'matriline' | 'ecotype' | 'haulout';
   // The identifier a first path segment names, or null when the segment is
-  // not one — then it is read as a designation. Absent for a family whose
-  // rows carry no identifier yet: matrilines (73 of 132 have no register
-  // entity — animals Q22, salish-ox2.6), whose designation paths stay
-  // canonical and never redirect; 034 says they follow once the identifiers
-  // are settled. Animals key on the register's seven digits; a haul-out site
-  // is our own row and keys on its own integer (decision 040).
-  entityKey?: (segment: string) => string | null;
+  // not one — then it is read as a designation. Animals key on the register's
+  // seven digits; a haul-out site is our own row and keys on its own integer
+  // (decision 040).
+  entityKey: (segment: string) => string | null;
   // null when nothing in the catalogue answers to the key.
   resolve(key: ProfileKey): Promise<Resolved | null>;
 }
@@ -464,6 +461,13 @@ async function resolveIndividual(key: ProfileKey): Promise<Resolved | null> {
   };
 }
 
+// A matriline's slug is the group's written form (T065As), not the matriarch's
+// code social_groups.designation holds — matrilinePath in src/catalog.ts.
+function canonicalMatrilinePath(group: SocialGroup): string {
+  if (!group.entity_id) return canonicalProfilePath('matrilines', null, group.designation);
+  return canonicalProfilePath('matrilines', group.entity_id, `${group.designation}s`);
+}
+
 function matrilinePreviewTags(group: SocialGroup): OgTags {
   const name = group.nicknames.find(n => n.status === 'official')?.name
     ?? group.nicknames.find(n => n.status !== 'deprecated')?.name;
@@ -474,7 +478,7 @@ function matrilinePreviewTags(group: SocialGroup): OgTags {
   return {
     'og:site_name': 'SalishSea.io',
     'og:type': 'profile',
-    'og:url': `https://salishsea.io/matrilines/${encodeURIComponent(designation)}`,
+    'og:url': `https://salishsea.io${canonicalMatrilinePath(group)}`,
     'og:title': title,
     'og:description': description,
     ...BRAND_CARD_TAGS,
@@ -484,18 +488,20 @@ function matrilinePreviewTags(group: SocialGroup): OgTags {
 
 const GROUP_COLUMNS = 'entity_id,designation,nicknames(name,status)';
 
-// Matrilines are not keyed yet (see ProfileFamily.keyed), so the only key that
-// reaches here is a designation, matched exactly as before.
+// A matriline by register identifier, or by designation: the matriarch's code
+// every pre-034 link carries (/matrilines/T065A), or the group's written form
+// a person types (T65As). Dropping the trailing s is safe only because the
+// route has already said this is a group — matrilineDesignation in
+// src/catalog.ts, which this mirrors.
 async function resolveMatriline(key: ProfileKey): Promise<Resolved | null> {
-  if (key.kind !== 'designation') return null;
+  const filter = key.kind === 'entity'
+    ? `entity_id=eq.${encodeURIComponent(key.entityId)}`
+    : `designation=ilike.${encodeURIComponent(ilikeLiteral(normalizeDesignation(key.code).replace(/S$/, '')))}`;
   const rows = await readRows<SocialGroup>('matriline',
-    `social_groups?designation=eq.${encodeURIComponent(key.code)}&kind=eq.matriline&select=${GROUP_COLUMNS}&limit=1`);
+    `social_groups?${filter}&kind=eq.matriline&select=${GROUP_COLUMNS}&limit=1`);
   const group = rows?.[0];
   if (!group) return null;
-  // Canonical is the designation path regardless of entity_id: a matriline
-  // that gains an identifier ahead of the rest must not start redirecting
-  // before the family switches over together.
-  return { canonical: canonicalProfilePath('matrilines', null, group.designation), tags: matrilinePreviewTags(group) };
+  return { canonical: canonicalMatrilinePath(group), tags: matrilinePreviewTags(group) };
 }
 
 // Well-known killer whale ecotype descriptors. notes on the social_groups row
@@ -574,7 +580,7 @@ async function resolveHaulout(key: ProfileKey): Promise<Resolved | null> {
 
 const PROFILE_FAMILIES: ProfileFamily[] = [
   { prefix: 'individuals', shell: '/individual.html', kind: 'individual', entityKey: registerKey, resolve: resolveIndividual },
-  { prefix: 'matrilines', shell: '/matriline.html', kind: 'matriline', resolve: resolveMatriline },
+  { prefix: 'matrilines', shell: '/matriline.html', kind: 'matriline', entityKey: registerKey, resolve: resolveMatriline },
   { prefix: 'ecotypes', shell: '/ecotype.html', kind: 'ecotype', entityKey: registerKey, resolve: resolveEcotype },
   { prefix: 'haulouts', shell: '/haulout.html', kind: 'haulout', entityKey: hauloutKey, resolve: resolveHaulout },
 ];
@@ -603,7 +609,7 @@ function matchProfileRoute(uri: string): ProfileRoute | null {
     const first = decodeSegment(match[1]!);
     // A trailing slash leaves an empty second segment; it means nothing.
     const second = match[2] ? decodeSegment(match[2]) : null;
-    const entityId = family.entityKey?.(first) ?? null;
+    const entityId = family.entityKey(first);
     if (entityId) {
       return { family, key: { kind: 'entity', entityId, slug: second } };
     }
@@ -644,7 +650,7 @@ function redirectResponse(location: string) {
 // to avoid, and the page fixes the address with replaceState.
 async function profileResponse(request: any, route: ProfileRoute, bot: boolean): Promise<any> {
   const { family, key } = route;
-  const nonCanonical = !!family.entityKey && (key.kind === 'designation' || key.slug === null);
+  const nonCanonical = key.kind === 'designation' || key.slug === null;
   if (!bot && !nonCanonical) {
     request.uri = family.shell;
     return request;

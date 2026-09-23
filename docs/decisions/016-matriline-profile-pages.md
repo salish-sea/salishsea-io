@@ -6,7 +6,7 @@
 not individuals — the richest identification signal we have — but those codes
 were deliberately left unlinked because there was nowhere to send them.
 
-**Amended by [034](034-profile-urls-key-on-the-register-identifier.md) (2026-08-30):** the route below is what is deployed today. 034 decides that `/matrilines/<designation>` will key on the register `entity_id` with the designation as an ignored slug. Unlike individuals, this is not yet implementable — 73 of our 132 matriline groups have no register entity, pending animals [Q22](https://github.com/salish-sea/animals/issues/13). Individuals and ecotypes moved on 2026-09-11 (`salish-ox2.2`); this route is the one that still keys on a designation, and stays canonical until `salish-ox2.6` settles the identifiers.
+**Amended by [034](034-profile-urls-key-on-the-register-identifier.md) (2026-08-30):** the route below is no longer canonical. Since 2026-09-22 (`salish-ox2.5`) a matriline lives at `/matrilines/<identifier>/<slug>`, e.g. `/matrilines/0002163/T065As`, keyed on the register `entity_id`; the slug is the group's written form and is never read. `/matrilines/<designation>` still works and `301`s there. It waited on the 73 sub-lineages the register had no group for, which edition 2026.09.1 minted (`salish-ox2.6`).
 
 ## Decision
 

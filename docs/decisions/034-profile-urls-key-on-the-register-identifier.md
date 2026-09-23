@@ -1,6 +1,6 @@
 # 034 — A profile URL keys on the register identifier; the designation is a slug
 
-**Status:** accepted · implemented for individuals and ecotypes 2026-09-11 ([PR #452](https://github.com/salish-sea/salishsea-io/pull/452)); matrilines wait on `salish-ox2.6` · **Decided:** 2026-08-30 · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md)
+**Status:** accepted · implemented for individuals and ecotypes 2026-09-11 ([PR #452](https://github.com/salish-sea/salishsea-io/pull/452)), for matrilines 2026-09-22 (`salish-ox2.5`) · **Decided:** 2026-08-30 · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md)
 
 ## Decision
 
@@ -9,7 +9,7 @@ A profile URL keys on the register's `entity_id`. The designation stays in the U
 ```text
 /individuals/0010193/T065A       SSA:0010193
 /ecotypes/0000002/Biggs          SSA:0000002
-/matrilines/0002039/T073s        SSA:0002039  — not yet, see "Sequencing"
+/matrilines/0002039/T073s        SSA:0002039
 ```
 
 The first segment after the family is the seven-digit local part of the identifier, which is [ADR-0021](https://github.com/salish-sea/animals/blob/main/decisions/0021-ssa-is-a-registered-prefix.md)'s registered pattern `^\d{7}$`. It is the only part that is read.
@@ -38,6 +38,8 @@ Animals [ADR-0011](https://github.com/salish-sea/animals/blob/main/decisions/001
 **Now is the cheap moment.** [`sitemap.xml`](../../vite.config.js) declares only `/` and `/about.html`; no profile page has ever been submitted to a crawler as canonical. There is no declared canonical URL to invalidate, and that stops being true the first time one is.
 
 ## Sequencing: individuals and ecotypes now, matrilines when Q22 answers
+
+*Implemented for matrilines on 2026-09-22 (`salish-ox2.5`).* Edition 2026.09.1 minted the 73 sub-lineages (`salish-ox2.6`), so every one of the 132 matrilines carries an identifier and the family moved in one step, as this section asked. Two things the individuals did not need: the slug is the **group's** written form, `T065As`, because `social_groups.designation` holds the matriarch's code `T065A` and a slug of that would read as her page; and a designation path drops a trailing `s` before matching, so a typed `/matrilines/T65As` finds the group. That clause is the one [ADR-0019](https://github.com/salish-sea/animals/blob/main/decisions/0019-names-are-compared-by-folding.md) leaves out of the fold because it merges a matriline with its matriarch, and it is safe here only because the route has already said the subject is a group.
 
 *Implemented for individuals and ecotypes on 2026-09-11 ([PR #452](https://github.com/salish-sea/salishsea-io/pull/452)).* `/individuals/` and `/ecotypes/` serve the shape above; `/matrilines/` still serves the designation-keyed route [016](016-matriline-profile-pages.md) describes. This paragraph and the two below record the sequencing as decided; the first sentence originally read "Nothing here is deployed yet."
 

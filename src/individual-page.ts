@@ -249,7 +249,7 @@ export class IndividualPage extends LitElement {
   private renderMatriline(matriline: CatalogGroup, members: GroupMember[], selfId: number) {
     return html`
       <section>
-        <h2><a href=${matrilinePath(matriline.designation)}>${matriline.designation} matriline</a></h2>
+        <h2><a href=${matrilinePath(matriline)}>${matriline.designation} matriline</a></h2>
         ${renderMemberList(members, selfId)}
       </section>
     `;

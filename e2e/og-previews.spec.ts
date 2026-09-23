@@ -27,6 +27,8 @@ const PROBE_TIMEOUT_MS = 15_000;
 // (SSA:0010368) and is the code that died under the old scheme.
 const CANONICAL_T065A = '/individuals/0010193/T065A';
 const CANONICAL_BIGGS = '/ecotypes/0000002/Biggs';
+// A matriline's slug is the group's written form, not the matriarch's code.
+const CANONICAL_T065AS = '/matrilines/0002163/T065As';
 const HUMAN_UA = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' };
 
 test.beforeAll(async ({ playwright }) => {
@@ -185,17 +187,15 @@ test('a bare identifier 301s to the slugged canonical address', async ({ request
   expect(response.headers()['location']).toBe(CANONICAL_T065A);
 });
 
-test('bot UA on a matriline page receives profile OG meta tags', async ({ request }) => {
-  const response = await request.get('/matrilines/T065A', {
-    headers: { 'User-Agent': 'facebookexternalhit/1.1' },
-  });
+test('bot UA on a matriline page receives profile OG meta tags with the canonical og:url', async ({ request }) => {
+  const response = await request.get(CANONICAL_T065AS, { headers: BOT_UA });
 
   expect(response.status()).toBe(200);
   const body = await response.text();
   expect(body).toContain('T065A');
   expect(body).toContain('og:title');
   expect(body).toContain('content="profile"');
-  expect(body).toContain('https://salishsea.io/matrilines/T065A');
+  expect(body).toContain(`content="https://salishsea.io${CANONICAL_T065AS}"`);
   // A profile has no image of its own, so it carries the brand card. Asserted
   // per route: the shared fallback is easy to restore to text-only for one
   // path without noticing (decision 026).
@@ -204,9 +204,7 @@ test('bot UA on a matriline page receives profile OG meta tags', async ({ reques
 });
 
 test('regular browser UA on a matriline page receives the page shell', async ({ request }) => {
-  const response = await request.get('/matrilines/T065A', {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
-  });
+  const response = await request.get(CANONICAL_T065AS, { headers: HUMAN_UA });
 
   expect(response.status()).toBe(200);
   const body = await response.text();
@@ -246,12 +244,14 @@ test('the ecotype designation path 301s to the identifier-keyed address', async 
   expect(response.headers()['location']).toBe(CANONICAL_BIGGS);
 });
 
-// Matrilines are not keyed yet (034, "Sequencing"; salish-ox2.6): the
-// designation path is canonical and must keep answering directly, not redirect.
-test('a matriline designation path still answers directly', async ({ request }) => {
-  const response = await request.get('/matrilines/T065A', { headers: HUMAN_UA, maxRedirects: 0 });
-  expect(response.status()).toBe(200);
-});
+// Every matriline link shared before matrilines were keyed has this shape.
+for (const [who, headers] of [['a crawler', BOT_UA], ['a browser', HUMAN_UA]] as const) {
+  test(`a matriline designation path 301s ${who} to the identifier-keyed address`, async ({ request }) => {
+    const response = await request.get('/matrilines/T065A', { headers, maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    expect(response.headers()['location']).toBe(CANONICAL_T065AS);
+  });
+}
 
 // Decision 040: a haul-out site keys on its own id. Row 340 is the atlas's
 // Shilshole Bay north floats, seeded by migration 20260919010000.

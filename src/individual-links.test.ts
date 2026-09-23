@@ -14,8 +14,8 @@ const codes = new Map([
 ]);
 
 const matrilines = new Map([
-  ['T065A', 'T065A'],
-  ['T046B', 'T046B'],
+  ['T065A', { entity_id: 'SSA:0002163', designation: 'T065A' }],
+  ['T046B', { entity_id: 'SSA:0002149', designation: 'T046B' }],
 ]);
 
 const ecotypes = new Map([
@@ -39,10 +39,10 @@ test('addresses an individual with no identifier yet by designation', () => {
 
 test('links matriline codes to matriline pages', () => {
   expect(injectIndividualLinks('the T65As northbound', codes, matrilines))
-    .toBe('the [T65As](/matrilines/T065A) northbound');
+    .toBe('the [T65As](/matrilines/0002163/T065As) northbound');
   // Case and separators normalize the same way as individual codes
   expect(injectIndividualLinks('t-46bs milling', codes, matrilines))
-    .toBe('[t-46bs](/matrilines/T046B) milling');
+    .toBe('[t-46bs](/matrilines/0002149/T046Bs) milling');
 });
 
 test('leaves unresolvable and already-linked codes alone', () => {
@@ -67,7 +67,7 @@ test('normalizes case and separators', () => {
 
 test('links ecotype names in prose to the ecotype page', () => {
   expect(injectIndividualLinks('Biggs T46Bs southbound', codes, matrilines, ecotypes))
-    .toBe('[Biggs](/ecotypes/0000002/Biggs) [T46Bs](/matrilines/T046B) southbound');
+    .toBe('[Biggs](/ecotypes/0000002/Biggs) [T46Bs](/matrilines/0002149/T046Bs) southbound');
   // apostrophe variants and "transient(s)" all resolve to the same ecotype
   expect(injectIndividualLinks("Bigg's transients milling", codes, matrilines, ecotypes))
     .toBe("[Bigg's](/ecotypes/0000002/Biggs) [transients](/ecotypes/0000002/Biggs) milling");
