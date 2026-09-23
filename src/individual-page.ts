@@ -4,7 +4,7 @@ import { Task } from '@lit/task';
 import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  displayName, fetchAllGroups, fetchAnimalNames, fetchGroupMembers, fetchIndividual, fetchOccurrenceLinks,
+  displayName, fetchAllGroups, fetchAnimalNames, fetchGroupMembers, fetchIndividual, fetchInnermostMatrilineId, fetchOccurrenceLinks,
   ecotypePath, fetchOffspring, fetchParents, groupChain, individualPath, keyLabel, mapUrl, matrilinePath,
   observedDate, parseIndividualPath,
   type CatalogGroup, type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent,
@@ -68,13 +68,13 @@ export class IndividualPage extends LitElement {
       const profile = await fetchIndividual(key);
       if (!profile) return null;
       canonicalize(individualPath(profile));
-      const [{ mother, father }, offspring, groups] = await Promise.all([
+      const [{ mother, father }, offspring, groups, innermostId] = await Promise.all([
         fetchParents(profile),
         fetchOffspring(profile.id),
         fetchAllGroups(),
+        fetchInnermostMatrilineId(profile.id),
       ]);
-      const matrilineMembership = profile.memberships.find(m => m.is_current && m.group?.kind === 'matriline');
-      const matriline = matrilineMembership?.group ? groups.get(matrilineMembership.group.id) ?? null : null;
+      const matriline = innermostId !== null ? groups.get(innermostId) ?? null : null;
       const members = matriline ? await fetchGroupMembers(matriline.id) : [];
 
       // The most specific name the register has for this animal. The ecotype, where the
@@ -174,7 +174,7 @@ export class IndividualPage extends LitElement {
       </header>
       ${this.renderNaming(profile)}
       ${this.renderFamily(profile, mother, father, offspring)}
-      ${when(matriline && members.length > 1, () => this.renderMatriline(matriline!, members, profile.id))}
+      ${when(matriline && members.length > 1, () => this.renderMatriline(matriline!, members, groups, profile.id))}
       ${this.renderSightings(profile.primary_designation)}
     `;
   }
@@ -246,11 +246,11 @@ export class IndividualPage extends LitElement {
     `;
   }
 
-  private renderMatriline(matriline: CatalogGroup, members: GroupMember[], selfId: number) {
+  private renderMatriline(matriline: CatalogGroup, members: GroupMember[], groups: Map<number, CatalogGroup>, selfId: number) {
     return html`
       <section>
         <h2><a href=${matrilinePath(matriline)}>${matriline.designation} matriline</a></h2>
-        ${renderMemberList(members, selfId)}
+        ${renderMemberList(members, matriline.id, groups, selfId)}
       </section>
     `;
   }
