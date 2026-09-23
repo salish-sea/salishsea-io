@@ -106,18 +106,8 @@ async function main(): Promise<void> {
                     in_catalog = EXCLUDED.in_catalog
                 RETURNING id`).count;
 
-            const memberships = (await tx`
-                INSERT INTO public.group_memberships
-                    (group_id, individual_id, is_current, joined_year, basis)
-                SELECT g.id, i.id, v.is_current, v.joined_year, 'maternal'::public.membership_basis
-                FROM jsonb_to_recordset(${tx.json(cat.memberships as never)}) AS v(
-                    group_designation text, individual_designation text, is_current bool, joined_year int)
-                JOIN public.social_groups g ON g.designation = v.group_designation
-                JOIN public.individuals i ON i.primary_designation = v.individual_designation
-                ON CONFLICT (group_id, individual_id) DO UPDATE SET
-                    is_current = EXCLUDED.is_current, joined_year = EXCLUDED.joined_year,
-                    basis = EXCLUDED.basis
-                RETURNING id`).count;
+            // No memberships: which animals belong to which matriline is the
+            // register's (decision 050), read through public.matriline_members.
 
             const nickIndividual = (await tx`
                 INSERT INTO public.nicknames (individual_id, name, story, namer_id, theme, status)
@@ -236,7 +226,7 @@ async function main(): Promise<void> {
             }
 
             return {
-                parties, individuals, groups, designations, memberships,
+                parties, individuals, groups, designations,
                 nicknames: nickIndividual + nickGroup, motherUpd, entityUpd,
             };
         });

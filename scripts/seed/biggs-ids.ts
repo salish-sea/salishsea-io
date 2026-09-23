@@ -57,15 +57,7 @@ export type ParsedSocialGroup = {
     designation: string; // natural key: T-base for matrilines, 'Biggs' ecotype, label for named groups
     kind: 'ecotype' | 'matriline'; // named_group retired: a "Known as" label is a matriline nickname
     anchor_designation: string | null;
-    parent_designation: string | null;
     notes: string | null;
-};
-
-export type ParsedMembership = {
-    group_designation: string;
-    individual_designation: string;
-    is_current: boolean;
-    joined_year: number | null;
 };
 
 export type ParsedNickname = {
@@ -83,7 +75,6 @@ export type ParsedCatalog = {
     individuals: ParsedIndividual[];
     designations: ParsedDesignation[];
     socialGroups: ParsedSocialGroup[];
-    memberships: ParsedMembership[];
     nicknames: ParsedNickname[];
 };
 
@@ -220,7 +211,7 @@ function splitNamer(raw: string): { person: string; project: string | null } {
 export function parseBiggsIds(tsv: string): ParsedCatalog {
     const cat: ParsedCatalog = {
         parties: [], individuals: [], designations: [],
-        socialGroups: [], memberships: [], nicknames: [],
+        socialGroups: [], nicknames: [],
     };
     const partyNames = new Set<string>();
     const groupKeys = new Set<string>();
@@ -243,7 +234,7 @@ export function parseBiggsIds(tsv: string): ParsedCatalog {
     // shared ecotype parent for every matriline
     ensureGroup({
         designation: ECOTYPE_DESIGNATION, kind: 'ecotype',
-        anchor_designation: null, parent_designation: null, notes: "Bigg's (transient) killer whales",
+        anchor_designation: null, notes: "Bigg's (transient) killer whales",
     });
 
     const lines = tsv.split(/\r?\n/);
@@ -361,32 +352,16 @@ export function parseBiggsIds(tsv: string): ParsedCatalog {
     // ---- per-mother matrilineal descent groups (matches the identifications
     // migration, which derives the same set from individuals.mother_id). A group
     // exists for every individual who is another catalog individual's mother; it
-    // is NAMED FOR its anchor (not "matriarch"). Parent = the anchor's own
-    // mother's group, else the Biggs ecotype. Membership is DIRECT (each
-    // individual → its mother's group); transitive membership is derived later
-    // via mother_id recursion, not materialized here. ----
+    // is NAMED FOR its anchor (not "matriarch"). Which group sits inside which,
+    // and which animals belong to each, are the register's (decisions 050, 051),
+    // so neither is parsed here. ----
     const known = new Set(cat.individuals.map((i) => i.primary_designation));
-    const byDesignation = new Map(cat.individuals.map((i) => [i.primary_designation, i]));
     const motherDesignations = new Set<string>();
     for (const i of cat.individuals) {
         if (i.mother_designation && known.has(i.mother_designation)) motherDesignations.add(i.mother_designation);
     }
     for (const md of motherDesignations) {
-        const grandmother = byDesignation.get(md)?.mother_designation;
-        const parent = grandmother && motherDesignations.has(grandmother) ? grandmother : ECOTYPE_DESIGNATION;
-        ensureGroup({
-            designation: md, kind: 'matriline',
-            anchor_designation: md, parent_designation: parent, notes: null,
-        });
-    }
-    for (const i of cat.individuals) {
-        const md = i.mother_designation;
-        if (md && motherDesignations.has(md)) {
-            cat.memberships.push({
-                group_designation: md, individual_designation: i.primary_designation,
-                is_current: i.life_status === 'alive', joined_year: i.born_latest,
-            });
-        }
+        ensureGroup({ designation: md, kind: 'matriline', anchor_designation: md, notes: null });
     }
 
     return cat;

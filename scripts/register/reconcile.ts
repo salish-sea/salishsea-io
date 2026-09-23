@@ -197,20 +197,17 @@ interface Catalogue {
     individuals: { id: number; primary_designation: string }[];
     socialGroups: { id: number; kind: string; designation: string }[];
     designations: { id: number; individual_id: number; code: string; scheme: string; is_primary: boolean }[];
-    memberships: { id: number; group_id: number; individual_id: number; basis: string }[];
     nicknames: { id: number; individual_id: number | null; social_group_id: number | null; name: string }[];
     loadedEdition: string | null;
 }
 
 async function readCatalogue(query: Query): Promise<Catalogue> {
-    const [individuals, socialGroups, designations, memberships, nicknames, edition] =
+    const [individuals, socialGroups, designations, nicknames, edition] =
         await Promise.all([
             query(`SELECT id, primary_designation FROM public.individuals ORDER BY id`),
             query(`SELECT id, kind::text AS kind, designation FROM public.social_groups ORDER BY id`),
             query(`SELECT id, individual_id, code, scheme::text AS scheme, is_primary
                    FROM public.designations ORDER BY id`),
-            query(`SELECT id, group_id, individual_id, basis::text AS basis
-                   FROM public.group_memberships ORDER BY id`),
             query(`SELECT id, individual_id, social_group_id, name
                    FROM public.nicknames ORDER BY id`),
             query(`SELECT tag FROM register.edition`),
@@ -219,7 +216,6 @@ async function readCatalogue(query: Query): Promise<Catalogue> {
         individuals: individuals as Catalogue['individuals'],
         socialGroups: socialGroups as Catalogue['socialGroups'],
         designations: designations as Catalogue['designations'],
-        memberships: memberships as Catalogue['memberships'],
         nicknames: nicknames as Catalogue['nicknames'],
         loadedEdition: (edition[0]?.['tag'] as string | undefined) ?? null,
     };
@@ -305,26 +301,8 @@ function reconcile(edition: Edition, cat: Catalogue) {
         record('designations', d.id, d.code, 'individual',
             `individual:${d.individual_id}`, `scheme=${d.scheme}${d.is_primary ? ' primary' : ''}`);
 
-    // Memberships are edges, and the register's membership is not loaded here, so what
-    // this can honestly report is whether both endpoints resolve — which is what decides
-    // whether an edge has anywhere to go — plus the basis histogram that sizes finding 1.
     const groupById = new Map(cat.socialGroups.map((g) => [g.id, g]));
     const individualById = new Map(cat.individuals.map((i) => [i.id, i]));
-    for (const m of cat.memberships) {
-        const g = groupById.get(m.group_id);
-        const i = individualById.get(m.individual_id);
-        const gOk = g ? candidates(edition, g.designation, 'group').ofKind.length === 1 : false;
-        const iOk = i ? candidates(edition, i.primary_designation, 'individual').ofKind.length === 1 : false;
-        findings.push({
-            table: 'group_memberships',
-            row_id: String(m.id),
-            subject: `${g?.designation ?? `#${m.group_id}`} <- ${i?.primary_designation ?? `#${m.individual_id}`}`,
-            folded: '',
-            verdict: gOk && iOk ? 'both' : gOk ? 'group-only' : iOk ? 'individual-only' : 'neither',
-            entity_ids: '',
-            detail: `basis=${m.basis}`,
-        });
-    }
 
     // A nickname is a name row upstream, not an entity, so the question is not "which
     // entity is this" but "does the register already carry this name for the entity our
@@ -499,7 +477,6 @@ function markdown(edition: Edition, cat: Catalogue, findings: Finding[]): string
     ].join('\n');
 
     const unmatchedRegister = of('register');
-    const basis = tally(cat.memberships, (m) => m.basis);
     const kinds = tally(cat.socialGroups, (g) => g.kind);
 
     return `# Register reconciliation
@@ -527,20 +504,8 @@ ${section('individuals', 'individuals', cat.individuals.length, 'one')}
 ${section('social_groups', 'social_groups', cat.socialGroups.length, 'one', groupKindNote)}
 ${section('designations', 'designations', cat.designations.length, 'one')}
 ${section('nicknames', 'nicknames', cat.nicknames.length, 'carried')}
-### group_memberships — ${cat.memberships.length} rows
-
-Edges, not entities. What is checkable here is whether both endpoints resolve, since an
-edge whose endpoints do not is an edge with nowhere to go.
-
-${table(['endpoints resolved', 'rows'], [...counts('group_memberships')].map(([v, n]) => [`\`${v}\``, String(n)]))}
-
-**By basis** — this is the number that sizes ADR-0012's finding 1. \`association\` membership
-is [animals Q15](https://github.com/salish-sea/animals/issues/11), still open: ADR-0005
-declares membership genealogical without saying what a curator does with an associational
-roster.
-
-${table(['basis', 'rows', 'share'], [...basis].map(([b, n]) =>
-        [`\`${b}\``, String(n), `${((n / cat.memberships.length) * 100).toFixed(1)}%`]))}
+Membership is not reconciled here: since decision 050 it is read from the register
+(\`public.matriline_members\`), and our own rows are gone.
 
 ## social_groups by kind
 
@@ -630,7 +595,7 @@ async function main(): Promise<void> {
         say(`reading the catalogue${linked ? ' (linked project)' : ''}…`);
         const cat = await readCatalogue(query);
         say(`  ${cat.individuals.length} individuals, ${cat.socialGroups.length} groups, `
-            + `${cat.designations.length} designations, ${cat.memberships.length} memberships, `
+            + `${cat.designations.length} designations, `
             + `${cat.nicknames.length} nicknames`);
 
         const tag = tagArg ?? cat.loadedEdition;

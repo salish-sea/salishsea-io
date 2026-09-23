@@ -95,4 +95,6 @@ tracked for pagination (bd `salish-236`).
   descendants shape scoped to the pod rather than the ecotype root.
 - Individuals mentioned in sightings but lacking any maternal `group_memberships`
   row are invisible to the ecotype aggregate (23 occurrences on prod at launch).
-  This is a catalog data gap, not a query bug — tracked separately.
+  This is a catalog data gap, not a query bug — tracked separately. *(Resolved
+  2026-09-22 by [050](050-matriline-membership-is-the-registers.md): an animal now
+  reaches its ecotype through the register, which places all 510 under Bigg's.)*

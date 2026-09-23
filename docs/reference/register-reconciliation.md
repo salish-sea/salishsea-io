@@ -94,23 +94,8 @@ Every row that is not `carried`:
 | 213 | `Hocker` | `not-carried` | target=T038E (individual) |
 | 216 | `Cook` | `not-carried` | target=T038B1 (individual) |
 
-### group_memberships — 375 rows
-
-Edges, not entities. What is checkable here is whether both endpoints resolve, since an
-edge whose endpoints do not is an edge with nowhere to go.
-
-| endpoints resolved | rows |
-|---|---|
-| `both` | 375 |
-
-**By basis** — this is the number that sizes ADR-0012's finding 1. `association` membership
-is [animals Q15](https://github.com/salish-sea/animals/issues/11), still open: ADR-0005
-declares membership genealogical without saying what a curator does with an associational
-roster.
-
-| basis | rows | share |
-|---|---|---|
-| `maternal` | 375 | 100.0% |
+Membership is not reconciled here: since decision 050 it is read from the register
+(`public.matriline_members`), and our own rows are gone.
 
 ## social_groups by kind
 
