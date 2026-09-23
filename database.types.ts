@@ -303,93 +303,6 @@ export type Database = {
         }
         Relationships: []
       }
-      group_memberships: {
-        Row: {
-          basis: Database["public"]["Enums"]["membership_basis"]
-          group_id: number
-          id: number
-          individual_id: number
-          is_current: boolean
-          joined_year: number | null
-          left_year: number | null
-        }
-        Insert: {
-          basis?: Database["public"]["Enums"]["membership_basis"]
-          group_id: number
-          id?: number
-          individual_id: number
-          is_current?: boolean
-          joined_year?: number | null
-          left_year?: number | null
-        }
-        Update: {
-          basis?: Database["public"]["Enums"]["membership_basis"]
-          group_id?: number
-          id?: number
-          individual_id?: number
-          is_current?: boolean
-          joined_year?: number | null
-          left_year?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "group_memberships_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "group_parents"
-            referencedColumns: ["group_id"]
-          },
-          {
-            foreignKeyName: "group_memberships_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "group_parents"
-            referencedColumns: ["parent_group_id"]
-          },
-          {
-            foreignKeyName: "group_memberships_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "matriline_members"
-            referencedColumns: ["group_id"]
-          },
-          {
-            foreignKeyName: "group_memberships_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "matriline_members"
-            referencedColumns: ["innermost_group_id"]
-          },
-          {
-            foreignKeyName: "group_memberships_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "occurrence_identifier_candidates"
-            referencedColumns: ["social_group_id"]
-          },
-          {
-            foreignKeyName: "group_memberships_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "social_groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "group_memberships_individual_id_fkey"
-            columns: ["individual_id"]
-            isOneToOne: false
-            referencedRelation: "individuals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "group_memberships_individual_id_fkey"
-            columns: ["individual_id"]
-            isOneToOne: false
-            referencedRelation: "matriline_members"
-            referencedColumns: ["individual_id"]
-          },
-        ]
-      }
       haulouts: {
         Row: {
           atlas_code: string | null
@@ -1241,7 +1154,6 @@ export type Database = {
         | "cc-by-nc-nd"
         | "none"
       life_status: "alive" | "deceased" | "presumed_deceased" | "unknown"
-      membership_basis: "maternal" | "association" | "curated"
       nickname_status:
         | "official"
         | "provisional"
@@ -1458,7 +1370,6 @@ export const Constants = {
         "none",
       ],
       life_status: ["alive", "deceased", "presumed_deceased", "unknown"],
-      membership_basis: ["maternal", "association", "curated"],
       nickname_status: [
         "official",
         "provisional",

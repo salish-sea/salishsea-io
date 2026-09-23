@@ -192,17 +192,12 @@ describe('parseBiggsIds', () => {
         expect(cat.socialGroups.find((g) => g.designation === 'Biggs')?.kind).toBe('ecotype');
         // one matriline per mother, nested by ancestry
         expect(cat.socialGroups.find((g) => g.designation === 'T065')).toMatchObject({
-            kind: 'matriline', anchor_designation: 'T065', parent_designation: 'Biggs',
+            kind: 'matriline', anchor_designation: 'T065',
         });
         expect(cat.socialGroups.find((g) => g.designation === 'T065A')).toMatchObject({
-            kind: 'matriline', anchor_designation: 'T065A', parent_designation: 'T065',
+            kind: 'matriline', anchor_designation: 'T065A',
         });
         // T065A5 is not a mother -> no group named for her
         expect(cat.socialGroups.some((g) => g.designation === 'T065A5')).toBe(false);
-        // membership is direct: child -> its mother's group
-        expect(cat.memberships.filter((m) => m.group_designation === 'T065')
-            .map((m) => m.individual_designation)).toEqual(['T065A']);
-        expect(cat.memberships.filter((m) => m.group_designation === 'T065A')
-            .map((m) => m.individual_designation)).toEqual(['T065A5']);
     });
 });
