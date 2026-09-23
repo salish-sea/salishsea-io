@@ -22,6 +22,9 @@
  *      2 can hold while the crosswalk view is broken, the iNaturalist mirror has moved
  *      out from under the join, or a migration has replaced `public.occurrences` with a
  *      definition that no longer reads the register at all.
+ *   4. Every matriline has members. Membership is read from the register's closure
+ *      (decision 050), so an edition with entities and names but no `ancestor` rows would
+ *      pass 1–3 while every matriline page listed nobody.
  *
  * Drift is REPORTED, NOT FAILED. The register is cut on demand, possibly several times a
  * day, so being a release or two behind is the expected state rather than an incident.
@@ -191,6 +194,31 @@ async function main(): Promise<void> {
                     + 'from the map rather than appearing mislabelled.',
                 );
             }
+        }
+
+        // Does every matriline we publish a page for have members? Since decision 050 a
+        // matriline's members are the register's closure (public.matriline_members), so a
+        // load that carried entities and names but an empty or truncated `register.ancestor`
+        // would pass every check above while every matriline page listed nobody and every
+        // group mention reached no animal. That is the blank page this issue exists to
+        // prevent, reached by a different road.
+        const [lineages] = await sql<{ matrilines: number; empty: string[] }[]>`
+            SELECT count(*)::int AS matrilines,
+                   COALESCE(array_agg(g.designation ORDER BY g.designation)
+                            FILTER (WHERE NOT EXISTS (
+                              SELECT 1 FROM public.matriline_members m WHERE m.group_id = g.id)),
+                            '{}') AS empty
+            FROM public.social_groups g
+            WHERE g.kind = 'matriline'`;
+        const emptyLineages = lineages?.empty ?? [];
+        console.log(`members   ${(lineages?.matrilines ?? 0) - emptyLineages.length} of `
+                    + `${lineages?.matrilines ?? 0} matrilines have members`);
+        if (emptyLineages.length) {
+            problems.push(
+                `${emptyLineages.length} matrilines have no members: ${emptyLineages.slice(0, 5).join(', ')}`
+                + (emptyLineages.length > 5 ? `, and ${emptyLineages.length - 5} more` : '')
+                + '. Their pages would list nobody (decision 050 reads membership from the register).',
+            );
         }
 
         const latest = await latestRelease();

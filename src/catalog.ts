@@ -262,11 +262,7 @@ export function groupChain<G extends SocialGroup>(groupId: number, groupsById: M
 const INDIVIDUAL_SELECT = `
   *,
   designations (code, scheme, is_primary, status, in_catalog, authority:parties (name, url)),
-  nicknames (name, theme, status, named_year, namer:parties (name, url)),
-  memberships:group_memberships!individual_id (
-    is_current, joined_year, left_year, basis,
-    group:social_groups (id, kind, designation, entity_id, parent_group_id, anchor_individual_id, notes)
-  )
+  nicknames (name, theme, status, named_year, namer:parties (name, url))
 ` as const;
 
 // The individual a designation names — any code it has ever carried, so a
@@ -339,13 +335,44 @@ export async function fetchAllGroups(): Promise<Map<number, CatalogGroup>> {
   return new Map(data.map(group => [group.id, group]));
 }
 
+// Every animal in a matriline as the register says it (migration 20260923010000): the
+// matriarch and all her descendants, sub-lineages included, dead or alive. Each carries
+// her innermost matriline, which is how a page groups them by sub-lineage.
+//
+// Two reads rather than an embed: PostgREST cannot follow matriline_members to
+// individuals, because the view's individual_id is a primary key it projects, not a
+// foreign key, and PostgREST infers view relationships from foreign keys alone.
 export async function fetchGroupMembers(groupId: number) {
-  const { data } = await supabase()
-    .from('group_memberships')
-    .select('is_current, joined_year, left_year, individual:individuals (id, entity_id, primary_designation, sex, born_earliest, life_status, nicknames (name, status))')
+  const { data: rows } = await supabase()
+    .from('matriline_members')
+    .select('individual_id, innermost_group_id')
     .eq('group_id', groupId)
     .throwOnError();
-  return data;
+  const ids = rows.map(r => r.individual_id).filter((id): id is number => id !== null);
+  if (!ids.length) return [];
+  const { data: individuals } = await supabase()
+    .from('individuals')
+    .select('id, entity_id, primary_designation, sex, born_earliest, life_status, nicknames (name, status)')
+    .in('id', ids)
+    .throwOnError();
+  const byId = new Map(individuals.map(i => [i.id, i]));
+  return rows.flatMap(({ individual_id, innermost_group_id }) => {
+    const individual = individual_id !== null ? byId.get(individual_id) : undefined;
+    return individual ? [{ innermost_group_id, individual }] : [];
+  });
+}
+
+// An animal's narrowest matriline: a matriarch's own, not her mother's, though
+// the register counts her in both. null for an animal in no matriline.
+export async function fetchInnermostMatrilineId(individualId: number): Promise<number | null> {
+  const { data } = await supabase()
+    .from('matriline_members')
+    .select('innermost_group_id')
+    .eq('individual_id', individualId)
+    .limit(1)
+    .maybeSingle()
+    .throwOnError();
+  return data?.innermost_group_id ?? null;
 }
 export type GroupMember = Awaited<ReturnType<typeof fetchGroupMembers>>[number];
 
@@ -381,8 +408,8 @@ export async function fetchOccurrenceLinks(individualId: number): Promise<Occurr
 }
 
 // The !anchor_individual_id hint disambiguates the embed: social_groups
-// reaches individuals both through the anchor FK and through
-// group_memberships. Nickname facts only — story is access-restricted (D-21).
+// reaches individuals both through the anchor FK and through membership.
+// Nickname facts only — story is access-restricted (D-21).
 const MATRILINE_SELECT = `
   *,
   nicknames (name, theme, status, named_year, namer:parties (name, url)),

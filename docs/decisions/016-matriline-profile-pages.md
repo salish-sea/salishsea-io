@@ -8,6 +8,8 @@ were deliberately left unlinked because there was nowhere to send them.
 
 **Amended by [034](034-profile-urls-key-on-the-register-identifier.md) (2026-08-30):** the route below is no longer canonical. Since 2026-09-22 (`salish-ox2.5`) a matriline lives at `/matrilines/<identifier>/<slug>`, e.g. `/matrilines/0002163/T065As`, keyed on the register `entity_id`; the slug is the group's written form and is never read. `/matrilines/<designation>` still works and `301`s there. It waited on the 73 sub-lineages the register had no group for, which edition 2026.09.1 minted (`salish-ox2.6`).
 
+**Amended by [050](050-matriline-membership-is-the-registers.md) (2026-09-22):** a matriline's members are the register's — the matriarch and all her descendants, listed by sub-lineage — not our own membership rows.
+
 ## Decision
 
 Give every cataloged matriline a page at **`/matrilines/<designation>`**

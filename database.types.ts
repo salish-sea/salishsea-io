@@ -246,6 +246,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "designations_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["individual_id"]
+          },
+          {
             foreignKeyName: "designations_superseded_by_fkey"
             columns: ["superseded_by"]
             isOneToOne: false
@@ -329,6 +336,20 @@ export type Database = {
             foreignKeyName: "group_memberships_group_id_fkey"
             columns: ["group_id"]
             isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "group_memberships_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["innermost_group_id"]
+          },
+          {
+            foreignKeyName: "group_memberships_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
             referencedRelation: "occurrence_identifier_candidates"
             referencedColumns: ["social_group_id"]
           },
@@ -345,6 +366,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "individuals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_memberships_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["individual_id"]
           },
         ]
       }
@@ -461,6 +489,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "identifications_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["individual_id"]
+          },
+          {
+            foreignKeyName: "identifications_social_group_id_fkey"
+            columns: ["social_group_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "identifications_social_group_id_fkey"
+            columns: ["social_group_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["innermost_group_id"]
+          },
+          {
             foreignKeyName: "identifications_social_group_id_fkey"
             columns: ["social_group_id"]
             isOneToOne: false
@@ -534,11 +583,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "individuals_father_id_fkey"
+            columns: ["father_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["individual_id"]
+          },
+          {
             foreignKeyName: "individuals_mother_id_fkey"
             columns: ["mother_id"]
             isOneToOne: false
             referencedRelation: "individuals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "individuals_mother_id_fkey"
+            columns: ["mother_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["individual_id"]
           },
         ]
       }
@@ -585,11 +648,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "nicknames_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["individual_id"]
+          },
+          {
             foreignKeyName: "nicknames_namer_id_fkey"
             columns: ["namer_id"]
             isOneToOne: false
             referencedRelation: "parties"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nicknames_social_group_id_fkey"
+            columns: ["social_group_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "nicknames_social_group_id_fkey"
+            columns: ["social_group_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["innermost_group_id"]
           },
           {
             foreignKeyName: "nicknames_social_group_id_fkey"
@@ -821,6 +905,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "social_groups_anchor_individual_id_fkey"
+            columns: ["anchor_individual_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["individual_id"]
+          },
+          {
+            foreignKeyName: "social_groups_parent_group_id_fkey"
+            columns: ["parent_group_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "social_groups_parent_group_id_fkey"
+            columns: ["parent_group_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["innermost_group_id"]
+          },
+          {
             foreignKeyName: "social_groups_parent_group_id_fkey"
             columns: ["parent_group_id"]
             isOneToOne: false
@@ -933,6 +1038,14 @@ export type Database = {
         }
         Relationships: []
       }
+      matriline_members: {
+        Row: {
+          group_id: number | null
+          individual_id: number | null
+          innermost_group_id: number | null
+        }
+        Relationships: []
+      }
       occurrence_identifications: {
         Row: {
           asserted_by_party_id: number | null
@@ -968,6 +1081,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "individuals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "designations_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "matriline_members"
+            referencedColumns: ["individual_id"]
           },
         ]
       }

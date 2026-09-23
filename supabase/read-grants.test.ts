@@ -60,6 +60,9 @@ const READABLE = [
     'public.identifications',
     'public.individual_occurrences',
     'public.individuals',
+    // Added 20260923010000: matriline membership as the register says it, which the
+    // profile pages fetch in place of group_memberships.
+    'public.matriline_members',
     'public.observation_photos',
     'public.observations',
     'public.occurrence_identifications',

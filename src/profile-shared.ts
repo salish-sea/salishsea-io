@@ -2,8 +2,8 @@ import { css, html, nothing } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 import { Temporal } from 'temporal-polyfill';
 import {
-  displayName, individualPath, monthlyPresence,
-  type GroupMember, type OccurrenceLink,
+  displayName, groupChain, individualPath, matrilinePath, monthlyPresence,
+  type CatalogGroup, type GroupMember, type OccurrenceLink,
 } from './catalog.ts';
 
 // Shared rendering for the profile pages (individual-page, matriline-page).
@@ -74,6 +74,18 @@ export const profileStyles = css`
     margin: 0 0 1rem;
     padding-bottom: 0.375rem;
     text-transform: uppercase;
+  }
+  dl.sub-lineages {
+    display: grid;
+    gap: 0.375rem 1.5rem;
+    grid-template-columns: max-content 1fr;
+    margin: 0.75rem 0 0;
+  }
+  dl.sub-lineages:first-child {
+    margin-top: 0;
+  }
+  dl.sub-lineages dd {
+    margin: 0;
   }
   ul.people {
     display: inline;
@@ -182,10 +194,44 @@ export function renderDagger(lifeStatus: string) {
     : nothing;
 }
 
-// A matriline's member roster, oldest first (unknown birth years last).
+// The sub-lineage of `groupId` a member belongs to: the step on her chain of
+// matrilines just below it. null when she is in no sub-lineage of it — the
+// matriarch, and any descendant with no narrower matriline of her own.
+function subLineageOf(member: GroupMember, groupId: number, groups: Map<number, CatalogGroup>): CatalogGroup | null {
+  if (member.innermost_group_id === null || member.innermost_group_id === groupId) return null;
+  return groupChain(member.innermost_group_id, groups).find(g => g.parent_group_id === groupId) ?? null;
+}
+
+// A matriline's roster: its own members first, then each sub-lineage under its
+// name, each oldest first (unknown birth years last). The register counts a
+// sub-lineage's animals as members of every matriline above it, so T065s lists
+// the T065As too — grouped, so the page still reads as a family.
 // `selfId` bolds the page's own individual instead of linking it (individual
 // pages only).
-export function renderMemberList(members: GroupMember[], selfId?: number) {
+export function renderMemberList(members: GroupMember[], groupId: number, groups: Map<number, CatalogGroup>, selfId?: number) {
+  const byLineage = new Map<CatalogGroup | null, GroupMember[]>();
+  for (const member of members) {
+    const lineage = subLineageOf(member, groupId, groups);
+    byLineage.set(lineage, [...byLineage.get(lineage) ?? [], member]);
+  }
+  const own = byLineage.get(null) ?? [];
+  const subLineages = [...byLineage.entries()]
+    .filter((entry): entry is [CatalogGroup, GroupMember[]] => entry[0] !== null)
+    .sort(([a], [b]) => a.designation.localeCompare(b.designation));
+  return html`
+    ${own.length ? renderPeople(own, selfId) : nothing}
+    ${subLineages.length ? html`
+      <dl class="sub-lineages">
+        ${repeat(subLineages, ([lineage]) => lineage.id, ([lineage, lineageMembers]) => html`
+          <dt><a href=${matrilinePath(lineage)}>${lineage.designation}s</a></dt>
+          <dd>${renderPeople(lineageMembers, selfId)}</dd>
+        `)}
+      </dl>
+    ` : nothing}
+  `;
+}
+
+function renderPeople(members: GroupMember[], selfId?: number) {
   const sorted = [...members].sort((a, b) =>
     (a.individual?.born_earliest ?? Infinity) - (b.individual?.born_earliest ?? Infinity));
   return html`
@@ -194,7 +240,7 @@ export function renderMemberList(members: GroupMember[], selfId?: number) {
         <li class=${m.individual!.id === selfId ? 'self' : ''}>
           ${m.individual!.id === selfId
             ? html`${m.individual!.primary_designation}`
-            : renderRelative(m.individual!)}${m.individual!.born_earliest ? html` <span class="muted">b.&thinsp;${m.individual!.born_earliest}</span>` : nothing}${renderDagger(m.individual!.life_status)}${!m.is_current ? html` <span class="muted">(former)</span>` : nothing}
+            : renderRelative(m.individual!)}${m.individual!.born_earliest ? html` <span class="muted">b.&thinsp;${m.individual!.born_earliest}</span>` : nothing}${renderDagger(m.individual!.life_status)}
         </li>
       `)}
     </ul>
