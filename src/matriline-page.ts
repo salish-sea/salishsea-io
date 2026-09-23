@@ -79,7 +79,7 @@ export class MatrilinePage extends LitElement {
     const chain = groupChain(group.id, groups);
     const biggs = chain.some(g => g.kind === 'ecotype' && g.designation === 'Biggs');
     const anchor = group.anchor;
-    const current = members.filter(m => m.is_current);
+    const current = members.filter(m => m.individual?.life_status === 'alive');
     return html`
       <header class="masthead">
         <div class="designation-kicker">${name ? `${group.designation} matriline` : biggs ? "Bigg's killer whale matriline" : 'Matriline'}</div>
@@ -90,7 +90,7 @@ export class MatrilinePage extends LitElement {
         ${when(this.renderChain(chain) !== nothing, () => html`<p class="lineage">${this.renderChain(chain)}</p>`)}
       </header>
       ${this.renderNaming(group)}
-      ${this.renderMembers(members)}
+      ${this.renderMembers(group.id, members, groups)}
       ${this.renderSightings(group.designation)}
     `;
   }
@@ -128,12 +128,12 @@ export class MatrilinePage extends LitElement {
     `;
   }
 
-  private renderMembers(members: GroupMember[]) {
+  private renderMembers(groupId: number, members: GroupMember[], groups: Map<number, CatalogGroup>) {
     return html`
       <section>
         <h2>Members</h2>
         ${members.length
-          ? renderMemberList(members)
+          ? renderMemberList(members, groupId, groups)
           : html`<p class="placeholder">No cataloged members yet.</p>`}
       </section>
     `;
