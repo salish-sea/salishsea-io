@@ -7,11 +7,12 @@
  * (seed-biggs.ts) reads the file, calls this, and upserts the result.
  *
  * Source columns (tab-separated, 0-indexed):
- *   0 deceased flag (D / PD / ? / blank)
+ *   0 deceased flag (D / PD / ? / blank) — read only to mark a designation uncertain;
+ *     life status is the register's (decision 051)
  *   1 Local ID (BC/WA) — the T-code; ALSO holds collective-group labels
  *   2 Additional Designations (Alaska / California), slash-separated
- *   3 Gender (F / M / F? / unknown / blank)
- *   4 Birth Year (1979 / ≤1961 / <1968 / UNK / ? / blank)
+ *   3 Gender — not read; sex is the register's (decision 051)
+ *   4 Birth Year — not read; birth years are the register's (decision 051)
  *   5 Nicknames (slash-separated, positionally aligned with 6 and 7)
  *   6 Story Behind the Nickname (slash-separated when the names are)
  *   7 Who Nicknamed (slash-separated; parentheticals may contain slashes)
@@ -22,8 +23,6 @@
  * matriline) at match time — that matcher is NOT built here.
  */
 
-export type Sex = 'male' | 'female';
-export type LifeStatus = 'alive' | 'deceased' | 'presumed_deceased' | 'unknown';
 export type DesignationScheme = 'bc_wa' | 'alaska' | 'california' | 'other';
 export type DesignationStatus = 'active' | 'superseded' | 'uncertain';
 export type PartyKind =
@@ -31,12 +30,10 @@ export type PartyKind =
 export type NicknameStatus =
     | 'official' | 'provisional' | 'proposed' | 'deprecated' | 'awaiting_decision';
 
+// Sex, birth years and life status are the register's (decision 051): the register
+// loader writes them, so the sheet's columns for them are not parsed here.
 export type ParsedIndividual = {
     primary_designation: string;
-    sex: Sex | null;
-    born_earliest: number | null;
-    born_latest: number | null;
-    life_status: LifeStatus;
     notes: string | null;
     mother_designation: string | null; // resolved to mother_id in shell pass 2
 };
@@ -105,40 +102,6 @@ export function motherDesignation(code: string): string | null {
     return base + runs.join('');
 }
 
-
-export function parseSex(raw: string | undefined): { sex: Sex | null; uncertain: boolean } {
-    const v = (raw ?? '').trim();
-    if (v === '' || /^unknown$/i.test(v)) return { sex: null, uncertain: false };
-    const uncertain = v.includes('?');
-    if (/^f/i.test(v)) return { sex: 'female', uncertain };
-    if (/^m/i.test(v)) return { sex: 'male', uncertain };
-    return { sex: null, uncertain: false };
-}
-
-export function parseLifeStatus(raw: string | undefined): LifeStatus {
-    const v = (raw ?? '').trim().toUpperCase();
-    if (v === 'D') return 'deceased';
-    if (v === 'PD') return 'presumed_deceased';
-    if (v === '?') return 'unknown';
-    if (v === '') return 'alive';
-    return 'unknown';
-}
-
-/** Birth year as an [earliest, latest] bound pair. */
-export function parseBirth(raw: string | undefined): { earliest: number | null; latest: number | null } {
-    const v = (raw ?? '').trim();
-    const exact = v.match(/^(\d{4})$/);
-    if (exact) {
-        const y = Number(exact[1]);
-        return { earliest: y, latest: y };
-    }
-    const bound = v.match(/^[≤<](\d{4})$/);
-    if (bound) {
-        const y = Number(bound[1]);
-        return { earliest: null, latest: v.startsWith('<') ? y - 1 : y };
-    }
-    return { earliest: null, latest: null };
-}
 
 export function schemeFor(code: string): DesignationScheme {
     const c = code.trim().toUpperCase();
@@ -241,7 +204,8 @@ export function parseBiggsIds(tsv: string): ParsedCatalog {
     for (let i = 0; i < lines.length; i++) {
         const cells = (lines[i] ?? '').split('\t').map((c) => c.trim());
         const col = (j: number): string => cells[j] ?? '';
-        const flag = col(0), localId = col(1), altIds = col(2), gender = col(3), birth = col(4);
+        // Gender (3) and birth year (4) are not read: they are the register's (decision 051).
+        const flag = col(0), localId = col(1), altIds = col(2);
         const nickCell = col(5), storyCell = col(6), namerCell = col(7), notesCell = col(8);
 
         if (cells.every(blank)) continue; // spacer
@@ -275,19 +239,9 @@ export function parseBiggsIds(tsv: string): ParsedCatalog {
         const uncertainId = localId.endsWith('?');
         const designation = padDesignation(localId.replace(/\?+$/, ''));
 
-        const { sex, uncertain: sexUncertain } = parseSex(gender);
-        const { earliest, latest } = parseBirth(birth);
-        const noteParts: string[] = [];
-        if (!blank(notesCell)) noteParts.push(notesCell);
-        if (sexUncertain) noteParts.push('Sex uncertain in source.');
-
         cat.individuals.push({
             primary_designation: designation,
-            sex,
-            born_earliest: earliest,
-            born_latest: latest,
-            life_status: parseLifeStatus(flag),
-            notes: noteParts.length ? noteParts.join(' ') : null,
+            notes: blank(notesCell) ? null : notesCell,
             mother_designation: motherDesignation(designation),
         });
 

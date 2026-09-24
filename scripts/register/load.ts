@@ -57,6 +57,7 @@ const RELEASE = (tag: string, asset: string) =>
 const TABLES = [
     ['data', 'entities', ['entity_id', 'kind', 'rank', 'label', 'taxon_id', 'born', 'sex', 'source_id', 'note']],
     ['data', 'names', ['entity_id', 'name', 'type', 'language', 'source_id', 'note']],
+    ['dist', 'current_status', ['entity_id', 'status', 'effective', 'asserted_on', 'recorded', 'source_id']],
     ['data', 'mappings', ['subject_id', 'predicate_id', 'object_id', 'object_label',
         'mapping_justification', 'confidence', 'source_id', 'note']],
     ['data', 'deprecations', ['entity_id', 'reason', 'replaced_by', 'consider', 'date', 'source_id', 'note']],
@@ -192,6 +193,9 @@ async function main(): Promise<void> {
             + 'ON CONFLICT (singleton) DO UPDATE SET tag = EXCLUDED.tag, '
             + 'sha256 = EXCLUDED.sha256, loaded_at = EXCLUDED.loaded_at;',
         );
+        // Our individuals' sex, birth years and life status are the register's (decision
+        // 051), copied in the same transaction so they can never lag the edition beside them.
+        statements.push('SELECT public.refresh_individual_vitals();');
         if (emitSql) {
             process.stdout.write(['BEGIN;', ...statements, 'COMMIT;'].join('\n') + '\n');
             return;

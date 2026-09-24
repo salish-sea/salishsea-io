@@ -70,17 +70,11 @@ async function main(): Promise<void> {
                 RETURNING id`).count;
 
             const individuals = (await tx`
-                INSERT INTO public.individuals
-                    (primary_designation, sex, born_earliest, born_latest, life_status, notes)
-                SELECT v.primary_designation, v.sex::public.sex, v.born_earliest, v.born_latest,
-                       v.life_status::public.life_status, v.notes
+                INSERT INTO public.individuals (primary_designation, notes)
+                SELECT v.primary_designation, v.notes
                 FROM jsonb_to_recordset(${tx.json(cat.individuals as never)}) AS v(
-                    primary_designation text, sex text, born_earliest int, born_latest int,
-                    life_status text, notes text)
-                ON CONFLICT (primary_designation) DO UPDATE SET
-                    sex = EXCLUDED.sex, born_earliest = EXCLUDED.born_earliest,
-                    born_latest = EXCLUDED.born_latest, life_status = EXCLUDED.life_status,
-                    notes = EXCLUDED.notes
+                    primary_designation text, notes text)
+                ON CONFLICT (primary_designation) DO UPDATE SET notes = EXCLUDED.notes
                 RETURNING id`).count;
 
             const groups = (await tx`
@@ -192,6 +186,11 @@ async function main(): Promise<void> {
                     `${unmapped['n']} individual(s) with no register identifier — regenerate data/individual-entities.tsv from a fresh reconciliation run`,
                 );
             }
+            // With every individual keyed, take their sex, birth years and life status from
+            // the register (decision 051). A no-op until the register is loaded; the loader
+            // runs the same copy on every load after that.
+            await tx`SELECT public.refresh_individual_vitals()`;
+
             const ecotypeUpd = (await tx`
                 UPDATE public.social_groups SET entity_id = 'SSA:0000002'
                 WHERE kind = 'ecotype' AND designation = 'Biggs'

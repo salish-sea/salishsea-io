@@ -8,7 +8,7 @@
 
 **The group hierarchy moves now.** Which group sits inside which (T065As inside T065s inside Bigg's) is read from the register's closure (`register.ancestor`) through the view `public.group_parents`. `social_groups.parent_group_id` is dropped, and the ecotype views use the closure directly.
 
-**Sex, birth years and life status move next** (`salish-ox2.8`). The register holds all three, but in its own encodings: sex as `F`/`M`/`U`, birth as an EDTF interval such as `../1961`, and life status in a file not yet loaded here. So they get reconciled before we switch. A disagreement goes back to the register as a question; it does not become a silent override.
+**Sex, birth years and life status moved on 2026-09-24** (`salish-ox2.8`). The register loader copies them onto `public.individuals` in the same transaction as every load, through `public.refresh_individual_vitals()`, and nothing of ours writes them any more. The reconciliation first found no birth-year disagreements and one sex disagreement: T109A3A, whose sheet entry `F?` we read as female and the register reads as not known. It also found 56 animals the register records no status for, all of which we had as alive. The Bigg's sheet leaves their status blank, and "until we learn otherwise, blank could mean anything" (Peter), so they are now unknown. *This paragraph first said these would move after reconciliation.*
 
 **These stay ours, because the register does not hold them:**
 
