@@ -25,6 +25,8 @@
  *   4. Every matriline has members. Membership is read from the register's closure
  *      (decision 050), so an edition with entities and names but no `ancestor` rows would
  *      pass 1–3 while every matriline page listed nobody.
+ *   5. Our individuals' sex, birth years and life status match the register's, and every
+ *      register birth date is in a shape we read (decision 051).
  *
  * Drift is REPORTED, NOT FAILED. The register is cut on demand, possibly several times a
  * day, so being a release or two behind is the expected state rather than an incident.
@@ -41,6 +43,9 @@ const REPO = 'salish-sea/animals';
 
 /** Exit codes: 0 fine, 1 the register is not usable, 2 a usage error. */
 const FAIL = 1;
+
+/** Thrown to roll back a transaction whose only purpose was to ask a question. */
+class RolledBack extends Error {}
 
 function arg(name: string): string | undefined {
     const i = process.argv.indexOf(name);
@@ -218,6 +223,38 @@ async function main(): Promise<void> {
                 `${emptyLineages.length} matrilines have no members: ${emptyLineages.slice(0, 5).join(', ')}`
                 + (emptyLineages.length > 5 ? `, and ${emptyLineages.length - 5} more` : '')
                 + '. Their pages would list nobody (decision 050 reads membership from the register).',
+            );
+        }
+
+        // Do our individuals' sex, birth years and life status match the register's (decision
+        // 051)? The loader copies them in its transaction, so a mismatch means that step did
+        // not run. Asked by running the copy and rolling it back, so this check carries no
+        // second implementation of the mapping to drift from the first.
+        let drifted = 0;
+        await sql.begin(async (tx) => {
+            const [row] = await tx<{ n: number }[]>`SELECT public.refresh_individual_vitals() AS n`;
+            drifted = row?.n ?? 0;
+            throw new RolledBack();
+        }).catch((e: unknown) => { if (!(e instanceof RolledBack)) throw e; });
+        const [births] = await sql<{ n: number; shapes: string[] }[]>`
+            SELECT count(*)::int AS n,
+                   COALESCE(array_agg(DISTINCT born) FILTER (WHERE born IS NOT NULL), '{}') AS shapes
+            FROM register.entities
+            WHERE kind = 'individual' AND born <> ''
+              AND born !~ '^\\d{4}(-\\d{2})?$' AND born !~ '^\\.\\./\\d{4}(-\\d{2})?$'`;
+        console.log(`vitals    ${drifted} individuals differ from the register`
+                    + (births?.n ? `; ${births.n} birth dates in a shape we do not read` : ''));
+        if (drifted) {
+            problems.push(
+                `${drifted} individuals' sex, birth years or life status differ from the register. `
+                + 'The loader calls public.refresh_individual_vitals() in its transaction; it did not run.',
+            );
+        }
+        if (births?.n) {
+            problems.push(
+                `${births.n} register birth dates are in a shape we do not read `
+                + `(${births.shapes.slice(0, 5).join(', ')}), so those animals show no birth year. `
+                + 'Teach public.refresh_individual_vitals() the shape.',
             );
         }
 

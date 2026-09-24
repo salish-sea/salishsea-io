@@ -79,7 +79,10 @@ export class MatrilinePage extends LitElement {
     const chain = groupChain(group.id, groups);
     const biggs = chain.some(g => g.kind === 'ecotype' && g.designation === 'Biggs');
     const anchor = group.anchor;
-    const current = members.filter(m => m.individual?.life_status === 'alive');
+    // Members not known to be dead: a status nobody recorded says nothing either way
+    // (the same rule individual_occurrences uses for a group mention).
+    const current = members.filter(m =>
+      m.individual?.life_status !== 'deceased' && m.individual?.life_status !== 'presumed_deceased');
     return html`
       <header class="masthead">
         <div class="designation-kicker">${name ? `${group.designation} matriline` : biggs ? "Bigg's killer whale matriline" : 'Matriline'}</div>

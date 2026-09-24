@@ -9,9 +9,6 @@ import {
     parseBiggsIds,
     padDesignation,
     motherDesignation,
-    parseBirth,
-    parseSex,
-    parseLifeStatus,
     schemeFor,
     splitOutsideParens,
     partyKind,
@@ -39,29 +36,6 @@ describe('pure helpers', () => {
         expect(motherDesignation('T002C2')).toBe('T002C');
         expect(motherDesignation('T124A2A')).toBe('T124A2');
         expect(motherDesignation('T065')).toBeNull(); // matriarch
-    });
-
-    test('parseBirth returns a bound pair', () => {
-        expect(parseBirth('1979')).toEqual({ earliest: 1979, latest: 1979 });
-        expect(parseBirth('≤1961')).toEqual({ earliest: null, latest: 1961 });
-        expect(parseBirth('<1968')).toEqual({ earliest: null, latest: 1967 });
-        expect(parseBirth('UNK')).toEqual({ earliest: null, latest: null });
-        expect(parseBirth('')).toEqual({ earliest: null, latest: null });
-    });
-
-    test('parseSex handles F/M/F?/unknown', () => {
-        expect(parseSex('F')).toEqual({ sex: 'female', uncertain: false });
-        expect(parseSex('M')).toEqual({ sex: 'male', uncertain: false });
-        expect(parseSex('F?')).toEqual({ sex: 'female', uncertain: true });
-        expect(parseSex('unknown')).toEqual({ sex: null, uncertain: false });
-        expect(parseSex('')).toEqual({ sex: null, uncertain: false });
-    });
-
-    test('parseLifeStatus maps the deceased flag', () => {
-        expect(parseLifeStatus('D')).toBe('deceased');
-        expect(parseLifeStatus('PD')).toBe('presumed_deceased');
-        expect(parseLifeStatus('')).toBe('alive');
-        expect(parseLifeStatus('?')).toBe('unknown');
     });
 
     test('schemeFor maps designation prefixes', () => {
@@ -92,13 +66,10 @@ describe('parseBiggsIds', () => {
         expect(cat.individuals.map((i) => i.primary_designation)).toEqual(['T010']);
     });
 
-    test('parses an individual with mother, birth, life status', () => {
+    test('parses an individual and its mother', () => {
         const cat = parseBiggsIds(tsv(row('D', 'T065A5', '', 'M', '2014')));
         const ind = cat.individuals[0];
-        expect(ind).toMatchObject({
-            primary_designation: 'T065A5', sex: 'male', life_status: 'deceased',
-            born_earliest: 2014, born_latest: 2014, mother_designation: 'T065A',
-        });
+        expect(ind).toMatchObject({ primary_designation: 'T065A5', mother_designation: 'T065A' });
         const primary = cat.designations.find((d) => d.code === 'T065A5');
         expect(primary).toMatchObject({ scheme: 'bc_wa', is_primary: true, status: 'active', in_catalog: true });
     });
@@ -132,17 +103,6 @@ describe('parseBiggsIds', () => {
         expect(nn[0]?.story).toBe('Adventurous like Indiana Jones');
         // the community naming page is registered as its own party
         expect(cat.parties.some((p) => /Nick Naming Page/i.test(p.name) && p.kind === 'community_project')).toBe(true);
-    });
-
-    test('F? sets female with an uncertainty note; unknown clears sex', () => {
-        const cat = parseBiggsIds(tsv(
-            row('', 'T109A3A', '', 'F?', '2022'),
-            row('', 'T046B5', '', 'unknown', '2015'),
-        ));
-        const a = cat.individuals.find((i) => i.primary_designation === 'T109A3A')!;
-        expect(a.sex).toBe('female');
-        expect(a.notes).toMatch(/sex uncertain/i);
-        expect(cat.individuals.find((i) => i.primary_designation === 'T046B5')!.sex).toBeNull();
     });
 
     test('routes a collective-label row to a nickname on the lineage it heads', () => {

@@ -1101,6 +1101,7 @@ export type Database = {
           occurrence_count: number
         }[]
       }
+      refresh_individual_vitals: { Args: never; Returns: number }
       submit_feedback: {
         Args: {
           email: string
