@@ -133,6 +133,11 @@ describe('parseBoutsPage fails the whole page rather than drop a bout', () => {
         expect(!r.ok && r.error).toMatch(/end_time is not after start_time/);
     });
 
+    test('but an end half a second after a start of coarser precision is fine', () => {
+        const r = parseBoutsPage(page([bout('bout_1', { start_time: '2026-09-01T10:00:00Z', end_time: '2026-09-01T10:00:00.5Z' })], [feed()]));
+        expect(r.ok).toBe(true);
+    });
+
     test('an unknown category', () => {
         const r = parseBoutsPage(page([bout('bout_1', { category: 'whale' })], [feed()]));
         expect(r.ok).toBe(false);

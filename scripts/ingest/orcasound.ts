@@ -54,7 +54,10 @@ export const BoutResourceSchema = z.object({
         tags: z.object({ data: z.array(ResourceRef).default([]) }).optional(),
     }),
 }).refine(
-    (b) => b.attributes.end_time == null || b.attributes.end_time > b.attributes.start_time,
+    // As instants, not strings: ISO datetimes of different fractional precision do not
+    // sort lexically ('.' precedes 'Z'), and orcasite may not always send six digits.
+    (b) => b.attributes.end_time == null
+        || Date.parse(b.attributes.end_time) > Date.parse(b.attributes.start_time),
     'end_time is not after start_time',
 );
 
