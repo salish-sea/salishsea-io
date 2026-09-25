@@ -20,6 +20,8 @@ const BOT_AGENTS = [
   'bsky.social',
   'bluesky',
   'google-snippet',
+  // "Mozilla/5.0 (compatible; ZulipURLPreview/<version>; +<realm url>)"
+  'zulipurlpreview',
 ];
 
 function isBot(userAgent: string): boolean {
@@ -207,6 +209,12 @@ interface Occurrence {
   // card for one that doesn't would be a URL that can never render — see where
   // this is read below.
   location: { lon: number; lat: number } | null;
+  // The rest is read for an acoustic occurrence (an Orcasound bout, decision 053),
+  // which spans a time range at a hydrophone and names which whales in `identifiers`.
+  provider_slug?: string | null;
+  identifiers?: string[] | null;
+  observed_until?: string | null;
+  attribution?: string | null;
 }
 
 interface Individual {
@@ -731,7 +739,7 @@ export const handler = async (event: any): Promise<any> => {
     }
 
     const { url, key } = getCredentials();
-    const apiUrl = `${url}/rest/v1/occurrences?id=eq.${encodeURIComponent(occurrenceId)}&select=id,taxon,observed_at,count,photos,location&limit=1`;
+    const apiUrl = `${url}/rest/v1/occurrences?id=eq.${encodeURIComponent(occurrenceId)}&select=id,taxon,observed_at,count,photos,location,provider_slug,identifiers,observed_until,attribution&limit=1`;
     const res = await timedFetch('occurrence', apiUrl, key);
     if (!res.ok) {
       return {
@@ -759,14 +767,30 @@ export const handler = async (event: any): Promise<any> => {
     const date = new Intl.DateTimeFormat('en-US', {
       month: 'long', day: 'numeric', year: 'numeric', timeZone: PACIFIC,
     }).format(observedAt);
-    const title = `${species} · ${date}`;
-
-    // Description: "{count} {species}s · {time}" — e.g. "3 Orcas · 2:32 PM"
     const time = new Intl.DateTimeFormat('en-US', {
       hour: 'numeric', minute: '2-digit', timeZone: PACIFIC,
     }).format(observedAt);
-    const count = occ.count ?? 1;
-    const description = `${count} ${species}s · ${time}`;
+
+    let title: string;
+    let description: string;
+    if (occ.provider_slug === 'orcasound') {
+      // Heard, not seen: a bout has no count, spans a time range, and says which
+      // whales in its identifiers ("J pod, K pod, Southern Resident"). The hydrophone
+      // is in the attribution ("Orcasound moderators at Port Townsend").
+      title = `${species} heard · ${date}`;
+      const until = occ.observed_until
+        ? `–${new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: PACIFIC })
+          .format(new Date(normalizeInstant(occ.observed_until)))}`
+        : '';
+      const who = occ.identifiers?.length ? occ.identifiers.join(', ') : species;
+      const where = occ.attribution?.replace(/^Orcasound moderators at /, '') ?? 'Orcasound';
+      description = `${who} · ${time}${until} · ${where} hydrophone`;
+    } else {
+      title = `${species} · ${date}`;
+      // Description: "{count} {species}s · {time}" — e.g. "3 Orcas · 2:32 PM"
+      const count = occ.count ?? 1;
+      description = `${count} ${species}s · ${time}`;
+    }
 
     // Image: an open-licensed photo of the animal if there is one, otherwise a
     // rendered map of where it was seen. A photo of the actual whale beats a map

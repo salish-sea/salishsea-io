@@ -153,6 +153,45 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result.body).toContain('6:38 PM');
   });
 
+  // Zulip's fetcher identifies itself as "ZulipURLPreview"; a link pasted into the
+  // Orcasound Zulip got the generic card until it was on the list (2026-09-25).
+  it('serves the occurrence card to Zulip', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [sampleOccurrence],
+    } as Response);
+    const event = makeEvent('Mozilla/5.0 (compatible; ZulipURLPreview/11.2; +https://orcasound.zulipchat.com)', 'o=abc123');
+    const result = await handler(event) as { status: string; body: string };
+    expect(result.body).toContain('Orca · June 3, 2025');
+  });
+
+  // An Orcasound bout (decision 053): heard over a span at a hydrophone, no count,
+  // and the whales named in its identifiers rather than counted.
+  it('describes an acoustic occurrence as heard, over its span, at its hydrophone', async () => {
+    const bout = {
+      id: 'orcasound:bout_031YvAeJ4O13YgkbQlc8yJ:SSA:0000900',
+      taxon: { vernacular_name: 'Killer whale' },
+      observed_at: '2025-11-10T04:00:50.373+00:00',
+      observed_until: '2025-11-10T04:30:32.358+00:00',
+      count: null,
+      photos: [],
+      location: { lon: -122.760614, lat: 48.135743 },
+      provider_slug: 'orcasound',
+      identifiers: ['J pod', 'K pod', 'Southern Resident'],
+      attribution: 'Orcasound moderators at Port Townsend',
+    };
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => [bout],
+    } as Response);
+    const event = makeEvent('Slackbot-LinkExpanding 1.0', `o=${encodeURIComponent(bout.id)}`);
+    const result = await handler(event) as { status: string; body: string };
+    expect(result.body).toContain('Killer whale heard · November 9, 2025');
+    expect(result.body).toContain('J pod, K pod, Southern Resident · 8:00 PM–8:30 PM · Port Townsend hydrophone');
+    expect(result.body).not.toContain('1 Killer whales');
+    expect(result.body).toContain(`https://salishsea.io/cards/o/${encodeURIComponent(bout.id)}.jpg`);
+  });
+
   it('falls back to the map card when the photo is cc-by-nc', async () => {
     const occurrence = {
       ...sampleOccurrence,
