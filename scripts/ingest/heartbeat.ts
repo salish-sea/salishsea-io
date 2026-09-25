@@ -43,7 +43,7 @@ import type { Sql, TransactionSql } from 'postgres';
 const REPORT_PATH = 'dist/ingest/heartbeat-report.txt';
 
 /** Sources the ingest pipeline must keep fresh — mirrors the ingest.runs CHECK. */
-export const SOURCES = ['maplify', 'inaturalist'] as const;
+export const SOURCES = ['maplify', 'inaturalist', 'orcasound'] as const;
 
 /** Cron fires every 5 min; 30 min of no success = 6 consecutive missed/failed runs. */
 const FRESHNESS_MINUTES = Number(process.env['FRESHNESS_MINUTES'] ?? 30);

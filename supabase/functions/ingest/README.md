@@ -16,8 +16,8 @@ the source of truth in [`index.ts`](index.ts) (`RequestSchema`):
 
 | field | values | notes |
 |---|---|---|
-| `source` | `maplify` \| `inaturalist` | required |
-| `start`, `end` | `YYYY-MM-DD` | both or neither; both inclusive, as iNat's `d1`/`d2` are |
+| `source` | `maplify` \| `inaturalist` \| `orcasound` | required |
+| `start`, `end` | `YYYY-MM-DD` | both or neither; both inclusive, as iNat's `d1`/`d2` are. `orcasound` has no window: every run reads and reconciles the whole corpus, and records the default window only because the columns require one |
 | `dry_run` | boolean | preview: fetch + reconcile, write nothing |
 | `trigger` | `cron` \| `manual` | recorded on the run |
 

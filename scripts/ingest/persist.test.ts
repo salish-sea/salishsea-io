@@ -18,11 +18,14 @@ import {
     persistMaplify,
     fetchNameIndex,
     persistInaturalist,
+    persistOrcasound,
     fetchExistingTaxonIds,
     fetchObservationWindowIds,
+    fetchAcousticBoutIds,
     type IngestWindow,
 } from './persist.ts';
 import type { NormalizedSighting, ReconcilePlan } from './maplify.ts';
+import type { NormalizedBout, ReconcilePlan as BoutReconcilePlan } from './orcasound.ts';
 import { buildNameIndex } from '../register/name-index.ts';
 import type {
     NormalizedObservation,
@@ -506,5 +509,114 @@ describe.skipIf(!DSN)('persistInaturalist (local Supabase)', () => {
         expect(obsRows.count).toBe(0);
         const taxaRows = await sql`select id from inaturalist.taxa where id = 2000000001`;
         expect(taxaRows.count).toBe(0);
+    });
+});
+
+// =========================================================================
+// Orcasound (salish-8vr.26). Reserved id band: bout_TEST…, cleaned in afterEach.
+// =========================================================================
+
+const nbout = (over: Partial<NormalizedBout> & { id: string }): NormalizedBout => ({
+    feedId: 'feed_TEST', feedName: 'Test Lab', lon: -123.17, lat: 48.56,
+    startedAt: '2026-09-01T10:00:00.000000Z', endedAt: '2026-09-01T10:30:00.000000Z',
+    title: 'a test bout', category: 'biophony', entityIds: [], ...over,
+});
+const bplan = (over: Partial<BoutReconcilePlan> = {}): BoutReconcilePlan => ({ upsert: [], delete: [], ...over });
+
+describe.skipIf(!DSN)('persistOrcasound (local Supabase)', () => {
+    let sql: Sql;
+    beforeAll(() => { sql = postgres(DSN!, { max: 1 }); });
+    afterAll(async () => { await sql?.end(); });
+    afterEach(async () => { await sql`DELETE FROM public.acoustic_bouts WHERE id LIKE 'bout_TEST%'`; });
+
+    const stored = async () => sql<{ id: string; title: string | null; ended_at: Date | null }[]>`
+        SELECT id, title, ended_at FROM public.acoustic_bouts WHERE id LIKE 'bout_TEST%' ORDER BY id`;
+    const entities = async (id: string) => (await sql<{ entity_id: string }[]>`
+        SELECT entity_id FROM public.acoustic_bout_entities WHERE bout_id = ${id} ORDER BY entity_id`).map((r) => r.entity_id);
+
+    test('inserts bouts with their cited entities, under the Orcasound provider and collection', async () => {
+        const r = await persistOrcasound(sql, bplan({ upsert: [
+            nbout({ id: 'bout_TESTa', entityIds: ['SSA:9900001', 'SSA:9900020'] }),
+            nbout({ id: 'bout_TESTb', endedAt: null, title: null }),
+        ] }));
+        expect(r).toEqual({ upserted: 2, deleted: 0, entitiesAdded: 2, entitiesRemoved: 0 });
+        const rows = await stored();
+        expect(rows.map((x) => x.id)).toEqual(['bout_TESTa', 'bout_TESTb']);
+        expect(rows[1]!.ended_at).toBeNull();
+        expect(await entities('bout_TESTa')).toEqual(['SSA:9900001', 'SSA:9900020']);
+        const [prov] = await sql<{ p: string; c: string }[]>`
+            SELECT prov.slug AS p, col.slug AS c FROM public.acoustic_bouts b
+            JOIN public.providers prov ON prov.id = b.provider_id
+            JOIN public.collections col ON col.id = b.collection_id WHERE b.id = 'bout_TESTa'`;
+        expect(prov).toEqual({ p: 'orcasound', c: 'orcasound' });
+    });
+
+    test('rewrites nothing when nothing changed, and only what changed otherwise', async () => {
+        const same = bplan({ upsert: [nbout({ id: 'bout_TESTa' }), nbout({ id: 'bout_TESTb' })] });
+        await persistOrcasound(sql, same);
+        expect(await persistOrcasound(sql, same)).toEqual({ upserted: 0, deleted: 0, entitiesAdded: 0, entitiesRemoved: 0 });
+        const r = await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', title: 'renamed' }), nbout({ id: 'bout_TESTb' })] }));
+        expect(r.upserted).toBe(1);
+        expect((await stored())[0]!.title).toBe('renamed');
+    });
+
+    test('replaces a bout\'s entities with what its tags cite now — the path a tag gaining an iri takes', async () => {
+        await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', entityIds: ['SSA:9900001'] })] }));
+        const r = await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', entityIds: ['SSA:9900020', 'SSA:9900021'] })] }));
+        expect(r).toEqual({ upserted: 0, deleted: 0, entitiesAdded: 2, entitiesRemoved: 1 });
+        expect(await entities('bout_TESTa')).toEqual(['SSA:9900020', 'SSA:9900021']);
+    });
+
+    test('deletes reconciled bouts, and their entities go with them', async () => {
+        await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', entityIds: ['SSA:9900001'] }), nbout({ id: 'bout_TESTb' })] }));
+        const r = await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTb' })], delete: ['bout_TESTa', 'bout_TESTnever'] }));
+        expect(r.deleted).toBe(1);
+        expect((await stored()).map((x) => x.id)).toEqual(['bout_TESTb']);
+        expect(await entities('bout_TESTa')).toEqual([]);
+    });
+
+    test('dry run reports would-be counts and writes nothing', async () => {
+        await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa' })] }));
+        const r = await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTc' })], delete: ['bout_TESTa'] }), { dryRun: true });
+        expect(r).toEqual({ upserted: 1, deleted: 1, entitiesAdded: 0, entitiesRemoved: 0 });
+        expect((await stored()).map((x) => x.id)).toEqual(['bout_TESTa']);
+    });
+
+    test('fetchAcousticBoutIds is the whole corpus', async () => {
+        await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa' }), nbout({ id: 'bout_TESTb' })] }));
+        const ids = await fetchAcousticBoutIds(sql);
+        expect(ids).toEqual(expect.arrayContaining(['bout_TESTa', 'bout_TESTb']));
+    });
+});
+
+describe.skipIf(!DSN)('the ingest role can do what the Orcasound tick does (local Supabase)', () => {
+    // Same reason as the Maplify role test above: the tables have RLS on and the role is
+    // NOINHERIT, so a missing grant or policy is invisible to every test that runs as postgres.
+    let sql: Sql;
+    beforeAll(() => { sql = postgres(DSN!, { max: 1 }); });
+    afterAll(async () => { await sql?.end(); });
+
+    class Rollback extends Error {}
+
+    test('reads the corpus, resolves the provider and collection, writes a bout and its entities', async () => {
+        let seen: string[] = [];
+        let provider: number | null = null;
+        await sql.begin(async (tx) => {
+            await tx`GRANT ingest TO postgres`;
+            await tx`SET LOCAL ROLE ingest`;
+            seen = await fetchAcousticBoutIds(tx as unknown as Sql);
+            const [p] = await tx<{ id: number }[]>`SELECT id FROM public.providers WHERE slug = 'orcasound'`;
+            provider = p?.id ?? null;
+            await tx`INSERT INTO public.acoustic_bouts (id, feed_id, feed_name, location, started_at, ended_at, title, provider_id, collection_id)
+                     VALUES ('bout_TESTrole', 'feed_TEST', 'Test Lab', gis.ST_Point(-123, 48)::gis.geography, '2026-09-01T10:00:00Z', NULL, NULL,
+                             (SELECT id FROM public.providers WHERE slug = 'orcasound'),
+                             (SELECT id FROM public.collections WHERE slug = 'orcasound'))`;
+            await tx`INSERT INTO public.acoustic_bout_entities (bout_id, entity_id) VALUES ('bout_TESTrole', 'SSA:9900001')`;
+            await tx`DELETE FROM public.acoustic_bout_entities WHERE bout_id = 'bout_TESTrole'`;
+            await tx`DELETE FROM public.acoustic_bouts WHERE id = 'bout_TESTrole'`;
+            throw new Rollback();
+        }).catch((e: unknown) => { if (!(e instanceof Rollback)) throw e; });
+        expect(Array.isArray(seen)).toBe(true);
+        expect(provider).not.toBeNull();
     });
 });
