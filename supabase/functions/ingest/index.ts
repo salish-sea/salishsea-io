@@ -13,7 +13,7 @@
  *   - The ingest.runs `started` row is written OUTSIDE the data transaction, so a
  *     crash leaves a visible orphan (outcome NULL).
  *
- * Scope: Maplify and iNaturalist. Wiring pg_cron→pg_net is the cutover
+ * Scope: Maplify, iNaturalist and Orcasound. Wiring pg_cron→pg_net is the cutover
  * (salishsea-io-89d.3).
  */
 
@@ -22,17 +22,21 @@ import postgres, { type Sql } from 'postgres';
 import { z } from 'zod';
 import { parseMaplifyResponse, isIngestable, reconcile } from '../../../scripts/ingest/maplify.ts';
 import { reconcile as reconcileInat } from '../../../scripts/ingest/inaturalist.ts';
+import { reconcile as reconcileBouts } from '../../../scripts/ingest/orcasound.ts';
 import {
     persistMaplify,
     fetchNameIndex,
     persistInaturalist,
+    persistOrcasound,
     fetchWindowIds,
     fetchObservationWindowIds,
+    fetchAcousticBoutIds,
     type IngestWindow,
 } from '../../../scripts/ingest/persist.ts';
 import { isTransientUpstream, shouldReportFailure } from '../../../scripts/ingest/retry.ts';
 import { fetchMaplify } from './fetch-maplify.ts';
 import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
+import { fetchAllBouts } from './fetch-orcasound.ts';
 
 const TRIGGER_SECRET = Deno.env.get('INGEST_TRIGGER_SECRET') ?? '';
 // Server-side Sentry surface (decision 011 / salishsea-io-vif). No DSN (local
@@ -49,7 +53,7 @@ Sentry.init({
 const DB_URL = Deno.env.get('INGEST_DB_URL') ?? Deno.env.get('SUPABASE_DB_URL') ?? '';
 
 const RequestSchema = z.object({
-    source: z.enum(['maplify', 'inaturalist']),
+    source: z.enum(['maplify', 'inaturalist', 'orcasound']),
     start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     dry_run: z.boolean().optional(),
@@ -142,6 +146,26 @@ async function ingestInaturalist(
     };
 }
 
+/**
+ * Orcasound: read the whole corpus (every page, all categories) → reconcile biophony
+ * bouts against every bout we hold → persist bouts and their cited entities in one atomic
+ * txn. No window: the fetch refuses to return incomplete or empty, which is what makes a
+ * corpus-wide reconcile safe (fetch-orcasound.ts).
+ */
+async function ingestOrcasound(sql: Sql, dryRun: boolean, logger: typeof log): Promise<IngestOutcome> {
+    const { bouts, pages } = await fetchAllBouts(logger);
+    const existing = await fetchAcousticBoutIds(sql);
+    const plan = reconcileBouts(bouts, existing);
+    const result = await persistOrcasound(sql, plan, { dryRun });
+    logger('orcasound persist detail', { ...result, biophony: plan.upsert.length });
+    return {
+        upserted: result.upserted,
+        deleted: result.deleted,
+        pagesFetched: pages,
+        totalResults: bouts.length,
+    };
+}
+
 Deno.serve(async (req) => {
     const provided = req.headers.get('x-ingest-secret') ?? '';
     if (!secretsMatch(provided, TRIGGER_SECRET)) {
@@ -179,7 +203,9 @@ Deno.serve(async (req) => {
         // fetch throws before persist) and returns a common outcome shape.
         const outcome = source === 'maplify'
             ? await ingestMaplify(sql, window, dryRun)
-            : await ingestInaturalist(sql, window, dryRun, log);
+            : source === 'inaturalist'
+                ? await ingestInaturalist(sql, window, dryRun, log)
+                : await ingestOrcasound(sql, dryRun, log);
 
         await sql`
             UPDATE ingest.runs SET

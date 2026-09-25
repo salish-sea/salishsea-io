@@ -29,6 +29,7 @@ import type {
     NormalizedTaxon,
     ObservationReconcilePlan,
 } from './inaturalist.ts';
+import type { ReconcilePlan as BoutReconcilePlan } from './orcasound.ts';
 
 export type IngestWindow = {
     /** inclusive start date, 'YYYY-MM-DD' */
@@ -601,4 +602,151 @@ export async function persistInaturalist(
     }
 
     return sql.begin(run) as Promise<InatPersistResult>;
+}
+
+// =========================================================================
+// Orcasound persist (salish-8vr.26 / decision 013, amended 2026-09-20).
+//
+// Same discipline: injected connection, SQL authored here, ONE atomic transaction.
+// Two differences from the sources above:
+//   - No window. The corpus is a few hundred bouts read whole each tick, so the reconcile
+//     is against every stored bout. The guard that makes that safe is in the shell
+//     (fetch-orcasound.ts): a complete fetch, never an empty one.
+//   - Not a mirror. public.acoustic_bouts holds our shape (013): a bout's identity is the
+//     register entities its tags cite, kept as child rows, replaced wholesale per bout.
+// =========================================================================
+
+export type OrcasoundPersistResult = PersistResult & {
+    readonly entitiesAdded: number;
+    readonly entitiesRemoved: number;
+};
+
+/** Every bout we hold — the whole corpus is the reconcile's unit. */
+export async function fetchAcousticBoutIds(sql: Sql): Promise<string[]> {
+    const rows = await sql<{ id: string }[]>`SELECT id FROM public.acoustic_bouts`;
+    return rows.map((r) => r.id);
+}
+
+type BoutPayloadRow = {
+    id: string; feed_id: string; feed_name: string; lon: number; lat: number;
+    started_at: string; ended_at: string | null; title: string | null;
+};
+
+/**
+ * Apply a reconcile plan for the whole Orcasound corpus atomically.
+ *
+ * `upserted` counts bouts written (inserted, or updated because something differed);
+ * `entitiesAdded`/`entitiesRemoved` count the identity rows that changed underneath them,
+ * which is how a tag gaining an identifier upstream (orcasite#1016) reaches us with no
+ * bout touched. On dryRun the transaction is rolled back after executing.
+ *
+ * Precondition (decision 011): the caller has verified the fetch was complete and
+ * non-empty. An empty plan.upsert would delete every bout.
+ */
+export async function persistOrcasound(
+    sql: Sql,
+    plan: BoutReconcilePlan,
+    opts: { readonly dryRun?: boolean } = {},
+): Promise<OrcasoundPersistResult> {
+    const payload: BoutPayloadRow[] = plan.upsert.map((b) => ({
+        id: b.id, feed_id: b.feedId, feed_name: b.feedName, lon: b.lon, lat: b.lat,
+        started_at: b.startedAt, ended_at: b.endedAt, title: b.title,
+    }));
+    const pairs = plan.upsert.flatMap((b) => b.entityIds.map((entity_id) => ({ bout_id: b.id, entity_id })));
+    const upsertIds = plan.upsert.map((b) => b.id);
+    const deleteIds = plan.delete;
+
+    const run = async (tx: TransactionSql): Promise<OrcasoundPersistResult> => {
+        let upserted = 0;
+        let entitiesAdded = 0;
+        let entitiesRemoved = 0;
+
+        if (payload.length > 0) {
+            const rows = await tx`
+                INSERT INTO public.acoustic_bouts (
+                    id, feed_id, feed_name, location, started_at, ended_at, title,
+                    provider_id, collection_id
+                )
+                SELECT
+                    v.id, v.feed_id, v.feed_name,
+                    gis.ST_Point(v.lon, v.lat)::gis.geography,
+                    v.started_at::timestamptz, v.ended_at::timestamptz, v.title,
+                    (SELECT id FROM public.providers WHERE slug = 'orcasound'),
+                    (SELECT id FROM public.collections WHERE slug = 'orcasound')
+                FROM jsonb_to_recordset(${tx.json(payload as never)}) AS v(
+                    id text, feed_id text, feed_name text, lon float8, lat float8,
+                    started_at text, ended_at text, title text
+                )
+                -- Only when something differs, for the same reason as Maplify: the whole
+                -- corpus arrives every five minutes, and rewriting identical rows would
+                -- fire occurrences_changed on every tick. fetched_at then means "last
+                -- seen to change", which is the only reading that makes it worth a column.
+                ON CONFLICT (id) DO UPDATE SET
+                    feed_id = EXCLUDED.feed_id,
+                    feed_name = EXCLUDED.feed_name,
+                    location = EXCLUDED.location,
+                    started_at = EXCLUDED.started_at,
+                    ended_at = EXCLUDED.ended_at,
+                    title = EXCLUDED.title,
+                    fetched_at = now()
+                WHERE (
+                    acoustic_bouts.feed_id, acoustic_bouts.feed_name,
+                    gis.ST_AsBinary(acoustic_bouts.location),
+                    acoustic_bouts.started_at, acoustic_bouts.ended_at, acoustic_bouts.title
+                ) IS DISTINCT FROM (
+                    EXCLUDED.feed_id, EXCLUDED.feed_name,
+                    gis.ST_AsBinary(EXCLUDED.location),
+                    EXCLUDED.started_at, EXCLUDED.ended_at, EXCLUDED.title
+                )
+                RETURNING id`;
+            upserted = rows.count;
+
+            // Identity rows: make each upserted bout's set exactly what its tags cite now.
+            const removed = await tx`
+                DELETE FROM public.acoustic_bout_entities e
+                WHERE e.bout_id = ANY(${upsertIds as unknown as string[]}::text[])
+                  AND NOT EXISTS (
+                    SELECT 1 FROM jsonb_to_recordset(${tx.json(pairs as never)}) AS d(bout_id text, entity_id text)
+                    WHERE d.bout_id = e.bout_id AND d.entity_id = e.entity_id)
+                RETURNING e.bout_id`;
+            entitiesRemoved = removed.count;
+            if (pairs.length > 0) {
+                const added = await tx`
+                    INSERT INTO public.acoustic_bout_entities (bout_id, entity_id)
+                    SELECT d.bout_id, d.entity_id
+                    FROM jsonb_to_recordset(${tx.json(pairs as never)}) AS d(bout_id text, entity_id text)
+                    ON CONFLICT DO NOTHING
+                    RETURNING bout_id`;
+                entitiesAdded = added.count;
+            }
+        }
+
+        let deleted = 0;
+        if (deleteIds.length > 0) {
+            // Entities go with the bout (ON DELETE CASCADE).
+            const rows = await tx`
+                DELETE FROM public.acoustic_bouts
+                WHERE id = ANY(${deleteIds as unknown as string[]}::text[])
+                RETURNING id`;
+            deleted = rows.count;
+        }
+
+        return { upserted, deleted, entitiesAdded, entitiesRemoved };
+    };
+
+    if (opts.dryRun) {
+        const sentinel = Symbol('dry-run-rollback');
+        let result: OrcasoundPersistResult = { upserted: 0, deleted: 0, entitiesAdded: 0, entitiesRemoved: 0 };
+        try {
+            await sql.begin(async (tx) => {
+                result = await run(tx);
+                throw sentinel;
+            });
+        } catch (e) {
+            if (e !== sentinel) throw e;
+        }
+        return result;
+    }
+
+    return sql.begin(run) as Promise<OrcasoundPersistResult>;
 }

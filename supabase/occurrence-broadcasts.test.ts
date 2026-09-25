@@ -129,6 +129,8 @@ describe.skipIf(!DSN)('occurrences_changed broadcast (local Supabase)', () => {
             where t.tgname like 'occurrences_changed_after_%' and not t.tgisinternal
             order by 1`;
         expect(rows).toEqual([
+            { tbl: 'acoustic_bout_entities', row_level: true, fn: 'notify_occurrences_changed' },
+            { tbl: 'acoustic_bouts', row_level: true, fn: 'notify_occurrences_changed' },
             { tbl: 'happywhale.encounters', row_level: true, fn: 'notify_occurrences_changed' },
             { tbl: 'inaturalist.observations', row_level: true, fn: 'notify_occurrences_changed' },
             { tbl: 'maplify.sightings', row_level: true, fn: 'notify_occurrences_changed' },

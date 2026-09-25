@@ -27,6 +27,7 @@ const healthy: HeartbeatInput = {
     lastSuccesses: [
         { source: 'maplify', finishedAt: minutesAgo(4) },
         { source: 'inaturalist', finishedAt: minutesAgo(6) },
+        { source: 'orcasound', finishedAt: minutesAgo(5) },
     ],
     orphans: [],
     recentSuccesses: [],
@@ -44,6 +45,7 @@ describe('evaluateHeartbeat', () => {
                 lastSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(47) },
                     { source: 'inaturalist', finishedAt: minutesAgo(6) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) },
                 ],
             },
             THRESHOLDS,
@@ -57,7 +59,7 @@ describe('evaluateHeartbeat', () => {
         const findings = evaluateHeartbeat(
             {
                 ...healthy,
-                lastSuccesses: [{ source: 'maplify', finishedAt: minutesAgo(4) }],
+                lastSuccesses: [{ source: 'maplify', finishedAt: minutesAgo(4) }, { source: 'orcasound', finishedAt: minutesAgo(5) }],
             },
             THRESHOLDS,
         );
@@ -73,6 +75,7 @@ describe('evaluateHeartbeat', () => {
                 lastSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(30) },
                     { source: 'inaturalist', finishedAt: minutesAgo(6) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) },
                 ],
             },
             THRESHOLDS,
@@ -124,7 +127,7 @@ describe('evaluateHeartbeat', () => {
         const findings = evaluateHeartbeat(
             {
                 now: NOW,
-                lastSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(90) }],
+                lastSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(90) }, { source: 'orcasound', finishedAt: minutesAgo(5) }],
                 recentSuccesses: [],
                 orphans: [
                     {
@@ -175,6 +178,7 @@ describe('evaluateHeartbeat: gaps between successes', () => {
                 lastSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(47) },
                     { source: 'inaturalist', finishedAt: minutesAgo(6) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) },
                 ],
                 recentSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(52) },
@@ -323,7 +327,7 @@ describe.skipIf(!DSN)('fetchHeartbeatInput (local Supabase)', () => {
             expect(input.lastSuccesses.map((s) => s.source)).toEqual(['maplify']);
             expect(
                 evaluateHeartbeat(input, THRESHOLDS).map((f) => [f.kind, f.source]),
-            ).toEqual([['never_succeeded', 'inaturalist']]);
+            ).toEqual([['never_succeeded', 'inaturalist'], ['never_succeeded', 'orcasound']]);
         });
     });
 
@@ -354,9 +358,11 @@ describe.skipIf(!DSN)('fetchHeartbeatInput (local Supabase)', () => {
                      now() - interval '40 minutes', now() - interval '39 minutes', 'success', NULL),
                     ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
                      now() - interval '30 minutes', now() - interval '29 minutes', 'failed', 'boom'),
-                    -- inaturalist: fine
+                    -- inaturalist and orcasound: fine
                     ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '6 minutes', now() - interval '5 minutes', 'success', NULL)`;
+                     now() - interval '6 minutes', now() - interval '5 minutes', 'success', NULL),
+                    ('orcasound', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '7 minutes', now() - interval '6 minutes', 'success', NULL)`;
 
             const input = await fetchHeartbeatInput(tx, 120);
 
