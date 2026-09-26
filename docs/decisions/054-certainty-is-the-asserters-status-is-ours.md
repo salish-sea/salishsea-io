@@ -61,7 +61,7 @@ The map label reads `Killer whale · J pod, K pod, L pod?, Southern Resident`, t
 - **Reviewed-and-empty** (finding F6) remains the one open thing about a bout with no animal, and it is upstream: tracked as `salish-8vr.28`, blocked on orcasite recording that a moderator finished.
 - **Our own sighting form** has no hedge today. When it gets one, it is this column with these values, and the `?` on the map is the same `?`.
 - **`salish-8vr.5`**, a validated identification whose entity later splits, is the same principle from another side: the moderator was right at the time, and verification does not rewrite what they said. That record still needs a state the enum lacks, and this decision does not supply it.
-- **Decision 053** is answered on certainty and stays provisional only on the review mark; **decision 013**'s two "does not decide" sections now point here.
+- **Decision 053** is answered on certainty and stays provisional only on the review mark; **decision 013**'s two "did not decide" sections lead with this outcome and strike what they left open.
 
 ## Reference
 
