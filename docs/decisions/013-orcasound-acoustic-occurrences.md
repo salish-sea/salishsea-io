@@ -209,6 +209,8 @@ open question — whether our `confidence` stays a `REAL`, becomes a coarse enum
 surfaces in the upstream ask, because a *source* system records what its moderator said and
 takes no position on how we verify it later.
 
+*Resolved 2026-09-26: both. [054](054-certainty-is-the-asserters-status-is-ours.md) keeps `confidence` as a machine's number and adds `certainty` as a person's hedge, and [053](053-a-bout-is-one-occurrence-per-species.md) holds a bout with no animal tag rather than showing it.*
+
 ### Upstream status
 
 The single ask became six issues that can be accepted independently:
@@ -289,6 +291,8 @@ today — lands as an occurrence with zero identifications, and how a moderator'
 ([#1014](https://github.com/orcasound/orcasite/issues/1014)) relates to our
 `identifications.status`.
 
+*Resolved: the first by [053](053-a-bout-is-one-occurrence-per-species.md) on 2026-09-25 (held, not shown), the second by [054](054-certainty-is-the-asserters-status-is-ours.md) on 2026-09-26 (certainty is the moderator's, status is ours, and a hedge is carried to every consumer).*
+
 ## Reference
 
 Tracking issue: [#178](https://github.com/salish-sea/salishsea-io/issues/178). Upstream
@@ -306,6 +310,7 @@ Register-side contracts this record now depends on:
 (annotation belongs to consumers),
 [ADR-0010](https://github.com/salish-sea/animals/blob/main/decisions/0010-identifiers-are-never-reused.md)
 (identifiers never change meaning, which is what makes storing one safe).
-Open on our side: `salish-8vr.4` (the confidence/verification split). `salish-8vr.18`
+`salish-8vr.4` (the confidence/verification split) was open here too, and closed on 2026-09-26 by
+[053](053-a-bout-is-one-occurrence-per-species.md) and [054](054-certainty-is-the-asserters-status-is-ours.md). `salish-8vr.18`
 (reconciling `normalize_designation()` with the fold) was open here too, and closed on
 2026-09-23 by [052](052-designations-compared-by-the-registers-fold.md).

@@ -1,6 +1,6 @@
 # 053 — A bout is one occurrence per species its tags reach; a bout naming none is held, not shown
 
-**Status:** provisional · **Decided:** 2026-09-25 · **Answers:** `salish-8vr.4`, for now · **Extends:** [013](013-orcasound-acoustic-occurrences.md)
+**Status:** provisional · **Decided:** 2026-09-25 · **Answers:** the first half of `salish-8vr.4`; the second half is [054](054-certainty-is-the-asserters-status-is-ours.md) · **Extends:** [013](013-orcasound-acoustic-occurrences.md)
 
 ## Context
 
@@ -22,10 +22,12 @@ Two facts of the data force the shape. An occurrence has exactly one taxon, beca
 
 The shape above is right for the data as it is. Two things could change it, and both are upstream:
 
-- **orcasite#1051** proposes that a bout's changes be recorded as events and that `item_tags` become visible on the API with a per-tag certainty. When that lands, the ingest reads `item_tags`, and a `possible` tag may want to reach the map differently from a `certain` one. That is the second half of `salish-8vr.4`, still open.
+- ~~**orcasite#1051** proposes that a bout's changes be recorded as events and that `item_tags` become visible on the API with a per-tag certainty. When that lands, the ingest reads `item_tags`, and a `possible` tag may want to reach the map differently from a `certain` one. That is the second half of `salish-8vr.4`, still open.~~
+
+  *Decided 2026-09-26 by [054](054-certainty-is-the-asserters-status-is-ours.md): certainty is the moderator's and status is ours, a `possible` tag reaches the map as `L?` rather than differently or not at all, and a bout's cited entities become identification rows carrying it (`salish-8vr.27`). No longer a reason this record is provisional.*
 - **A moderator mark that a bout's tagging is finished** would let "reviewed and empty" be distinguished from "not tagged yet". Today neither is shown, which is the conservative choice; with the mark, a reviewed-empty biophony bout could reasonably appear as acoustic activity with no animal named.
 
-Until then, this record is what the branch does, and `salish-8vr.4` stays open for the rest.
+Until then, this record is what the branch does. `salish-8vr.4` closed on 2026-09-26 with [054](054-certainty-is-the-asserters-status-is-ours.md); the review mark is `salish-8vr.28`, and it is the only thing still keeping this record provisional.
 
 ## Rejected alternatives
 
