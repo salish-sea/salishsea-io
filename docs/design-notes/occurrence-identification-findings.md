@@ -180,6 +180,8 @@ is a UI that manufactures a number from a human hedge (`possible` → `0.5`), wh
 failure the register's argument is actually about. Two fields, or a nullable numeric read
 only when `method = 'cv'`, both avoid it.
 
+*Resolved 2026-09-26 by decision [054](../decisions/054-certainty-is-the-asserters-status-is-ours.md): two fields. `certainty` is the person's three-value hedge; `confidence` stays a machine's number with a check that says so.*
+
 ## F8 — Two ways to say "an orca was here", after the migration
 
 `public.occurrences` carries a `taxon` (an `inaturalist.taxa` reference) *and* an
@@ -234,8 +236,10 @@ count and own the claim; it may not present a derived one as the register's.**
 - Whether an identification's subject should become a single nullable `entity_id` after the
   migration, collapsing the individual/group/taxon distinction into the register's one
   identifier space (F8).
-- What a moderator's `possible` becomes when a curator later validates it — the
+- ~~What a moderator's `possible` becomes when a curator later validates it — the
   confidence/verification split is the *reason* this file exists, and the shipped enum
-  already models it, but the transition rules are unwritten.
+  already models it, but the transition rules are unwritten.~~ *Written 2026-09-26 in decision
+  [054](../decisions/054-certainty-is-the-asserters-status-is-ours.md): nothing. Verification never
+  rewrites certainty; a curator who resolves the hedge asserts their own claim beside it.*
 - Time-range occurrences (bouts) vs. point occurrences, already noted in decision 013's
   consequences; interacts with nothing here yet but will when segments are built.

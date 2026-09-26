@@ -193,21 +193,28 @@ instead, with executable cases in `dist/fold_test.tsv`.
 
 *Resolved 2026-09-23 by [052](052-designations-compared-by-the-registers-fold.md): we now compare by the fold. The trailing-`s` concern above turned out not to apply: our matching used the `s` to choose between groups and animals, and never merged the two.*
 
-### What this amendment does not decide
+### What this amendment did not decide
 
-`certainty` arriving from upstream is the **asserter's confidence**, and is not the same axis as
-our `identifications.status` (`candidate` / `validated` / `rejected`), which is the dataset's
-verification state. Keeping those apart is the whole of Q18's substance, along with allowing a
-bout with no animal tags to land as an occurrence with **zero identifications**. That is a
-separate decision, tracked as `salish-8vr.4`, and deliberately not settled here.
+Both halves are now decided elsewhere. A bout with no animal tag is held and not shown
+([053](053-a-bout-is-one-occurrence-per-species.md), 2026-09-25). `certainty` is the asserter's
+and `identifications.status` is ours, neither derived from the other, and `confidence` stays a
+`REAL` for machines only — so the answer to the question below was *both*
+([054](054-certainty-is-the-asserters-status-is-ours.md), 2026-09-26). The text this amendment
+wrote on 2026-08-14 is kept for what it left open:
 
-[028](028-salishsea-io-speaks-to-orcasound.md) makes that a gate — the recommendation "cannot
-be posted before the shape is settled here". It was read as satisfied: what #1014 asks orcasite
-for is a three-value hedge on the application, which is settled, and nothing published upstream
-commits our own `identifications` schema beyond what this record already said. The genuinely
-open question — whether our `confidence` stays a `REAL`, becomes a coarse enum, or both — never
-surfaces in the upstream ask, because a *source* system records what its moderator said and
-takes no position on how we verify it later.
+> ~~`certainty` arriving from upstream is the **asserter's confidence**, and is not the same axis as
+> our `identifications.status` (`candidate` / `validated` / `rejected`), which is the dataset's
+> verification state. Keeping those apart is the whole of Q18's substance, along with allowing a
+> bout with no animal tags to land as an occurrence with **zero identifications**. That is a
+> separate decision, tracked as `salish-8vr.4`, and deliberately not settled here.~~
+>
+> ~~[028](028-salishsea-io-speaks-to-orcasound.md) makes that a gate — the recommendation "cannot
+> be posted before the shape is settled here". It was read as satisfied: what #1014 asks orcasite
+> for is a three-value hedge on the application, which is settled, and nothing published upstream
+> commits our own `identifications` schema beyond what this record already said. The genuinely
+> open question — whether our `confidence` stays a `REAL`, becomes a coarse enum, or both — never
+> surfaces in the upstream ask, because a *source* system records what its moderator said and
+> takes no position on how we verify it later.~~
 
 ### Upstream status
 
@@ -282,12 +289,18 @@ stay out until this integration has run end to end and we like what it produces 
 the one place a half-right record is hard to take back. This is a deferral to revisit, not an
 exclusion.
 
-### What this amendment does not decide
+### What this amendment did not decide
 
-Still `salish-8vr.4`, and still ours: whether a biophony bout with no animal tag — 63 of 155
-today — lands as an occurrence with zero identifications, and how a moderator's `certainty`
-([#1014](https://github.com/orcasound/orcasite/issues/1014)) relates to our
-`identifications.status`.
+Decided since: a bout with no animal tag is held, not shown
+([053](053-a-bout-is-one-occurrence-per-species.md), 2026-09-25); a moderator's `certainty` is
+theirs, `identifications.status` is ours, and a hedge is carried to every consumer rather than
+dropped ([054](054-certainty-is-the-asserters-status-is-ours.md), 2026-09-26). As written on
+2026-09-20:
+
+> ~~Still `salish-8vr.4`, and still ours: whether a biophony bout with no animal tag — 63 of 155
+> today — lands as an occurrence with zero identifications, and how a moderator's `certainty`
+> ([#1014](https://github.com/orcasound/orcasite/issues/1014)) relates to our
+> `identifications.status`.~~
 
 ## Reference
 
@@ -306,6 +319,7 @@ Register-side contracts this record now depends on:
 (annotation belongs to consumers),
 [ADR-0010](https://github.com/salish-sea/animals/blob/main/decisions/0010-identifiers-are-never-reused.md)
 (identifiers never change meaning, which is what makes storing one safe).
-Open on our side: `salish-8vr.4` (the confidence/verification split). `salish-8vr.18`
+`salish-8vr.4` (the confidence/verification split) was open here too, and closed on 2026-09-26 by
+[053](053-a-bout-is-one-occurrence-per-species.md) and [054](054-certainty-is-the-asserters-status-is-ours.md). `salish-8vr.18`
 (reconciling `normalize_designation()` with the fold) was open here too, and closed on
 2026-09-23 by [052](052-designations-compared-by-the-registers-fold.md).
