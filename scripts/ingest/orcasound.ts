@@ -27,6 +27,20 @@ import { z } from 'zod';
 export const AUDIO_CATEGORIES = ['biophony', 'anthrophony', 'geophony'] as const;
 export type AudioCategory = (typeof AUDIO_CATEGORIES)[number];
 
+/**
+ * How sure the moderator was of a tag application (decision 054; the values of
+ * orcasound/orcasite#1014), ascending, as public.identification_certainty declares them.
+ * `null` is "nobody asked", which is every application until orcasite carries the column.
+ */
+export const CERTAINTIES = ['possible', 'probable', 'certain'] as const;
+export type Certainty = (typeof CERTAINTIES)[number];
+
+/** One cited register entity, with the moderator's certainty about it. */
+export type BoutEntity = {
+    readonly entityId: string;
+    readonly certainty: Certainty | null;
+};
+
 /** orcasite's prefixed ids; the same pattern public.acoustic_bouts.id checks. */
 const BOUT_ID = /^bout_[0-9A-Za-z]+$/;
 /** A register identifier; the same pattern public.acoustic_bout_entities.entity_id checks. */
@@ -109,8 +123,11 @@ export type NormalizedBout = {
     /** The moderator's free-text name, shown as the occurrence's body. Never parsed. */
     readonly title: string | null;
     readonly category: AudioCategory;
-    /** Register identifiers the bout's tags cite, unique and sorted. Empty is legitimate. */
-    readonly entityIds: readonly string[];
+    /**
+     * Register entities the bout's tags cite, unique by identifier and sorted by it, each
+     * with the moderator's certainty. Empty is legitimate (053: the bout is held, not shown).
+     */
+    readonly entities: readonly BoutEntity[];
 };
 
 export type ParseResult =
@@ -147,7 +164,7 @@ export function parseBoutsPage(raw: unknown): ParseResult {
         const feed = feeds.get(b.attributes.feed_id);
         if (!feed) return { ok: false, error: `bout ${b.id}: feed ${b.attributes.feed_id} is not in included` };
 
-        const entityIds = new Set<string>();
+        const entities = new Map<string, BoutEntity>();
         for (const ref of b.relationships.tags?.data ?? []) {
             const tag = tags.get(ref.id);
             if (!tag) return { ok: false, error: `bout ${b.id}: tag ${ref.id} is not in included` };
@@ -155,7 +172,15 @@ export function parseBoutsPage(raw: unknown): ParseResult {
             // The identifier is the identity; `kind` is a display facet of the tag and is
             // not consulted. A register identifier names an animal or a group of animals
             // whatever the tag is filed under (animals ADR-0010).
-            if (iri != null && ENTITY_ID.test(iri)) entityIds.add(iri);
+            if (iri == null || !ENTITY_ID.test(iri)) continue;
+            // Certainty is a property of the APPLICATION, not the tag (orcasite#1014), and
+            // the bouts include carries `tags`, not `item_tags`. So nobody has asked, yet.
+            // When orcasite exposes item_tags with a certainty on the include (#1051), this
+            // is the one place that reads it; nothing downstream changes.
+            const certainty: Certainty | null = null;
+            const prior = entities.get(iri);
+            // Two tags citing one entity are one claim here; keep the surer of the two.
+            if (!prior || rank(certainty) > rank(prior.certainty)) entities.set(iri, { entityId: iri, certainty });
         }
 
         const [lon, lat] = feed.attributes.location_point.coordinates;
@@ -169,12 +194,15 @@ export function parseBoutsPage(raw: unknown): ParseResult {
             endedAt: b.attributes.end_time ?? null,
             title: blankToNull(b.attributes.name),
             category: b.attributes.category,
-            entityIds: [...entityIds].sort(),
+            entities: [...entities.values()].sort((x, y) => x.entityId.localeCompare(y.entityId)),
         });
     }
 
     return { ok: true, bouts, next: parsed.data.links.next ?? null };
 }
+
+/** Ascending; null (nobody asked) ranks below every stated value. */
+const rank = (c: Certainty | null): number => (c === null ? -1 : CERTAINTIES.indexOf(c));
 
 /** Only biophony bouts are occurrences (013): the other two categories name no organism. */
 export function isIngestable(b: NormalizedBout): boolean {

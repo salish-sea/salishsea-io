@@ -37,14 +37,23 @@ export type Database = {
       acoustic_bout_entities: {
         Row: {
           bout_id: string
+          certainty:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
           entity_id: string
         }
         Insert: {
           bout_id: string
+          certainty?:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
           entity_id: string
         }
         Update: {
           bout_id?: string
+          certainty?:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
           entity_id?: string
         }
         Relationships: [
@@ -245,6 +254,13 @@ export type Database = {
             foreignKeyName: "designations_individual_id_fkey"
             columns: ["individual_id"]
             isOneToOne: false
+            referencedRelation: "acoustic_identifications"
+            referencedColumns: ["individual_id"]
+          },
+          {
+            foreignKeyName: "designations_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
             referencedRelation: "individuals"
             referencedColumns: ["id"]
           },
@@ -357,6 +373,9 @@ export type Database = {
       identifications: {
         Row: {
           asserted_by_party_id: number | null
+          certainty:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
           code: string | null
           confidence: number | null
           created_at: string
@@ -373,6 +392,9 @@ export type Database = {
         }
         Insert: {
           asserted_by_party_id?: number | null
+          certainty?:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
           code?: string | null
           confidence?: number | null
           created_at?: string
@@ -389,6 +411,9 @@ export type Database = {
         }
         Update: {
           asserted_by_party_id?: number | null
+          certainty?:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
           code?: string | null
           confidence?: number | null
           created_at?: string
@@ -410,6 +435,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "parties"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identifications_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "acoustic_identifications"
+            referencedColumns: ["individual_id"]
           },
           {
             foreignKeyName: "identifications_individual_id_fkey"
@@ -523,6 +555,13 @@ export type Database = {
             foreignKeyName: "individuals_father_id_fkey"
             columns: ["father_id"]
             isOneToOne: false
+            referencedRelation: "acoustic_identifications"
+            referencedColumns: ["individual_id"]
+          },
+          {
+            foreignKeyName: "individuals_father_id_fkey"
+            columns: ["father_id"]
+            isOneToOne: false
             referencedRelation: "individuals"
             referencedColumns: ["id"]
           },
@@ -531,6 +570,13 @@ export type Database = {
             columns: ["father_id"]
             isOneToOne: false
             referencedRelation: "matriline_members"
+            referencedColumns: ["individual_id"]
+          },
+          {
+            foreignKeyName: "individuals_mother_id_fkey"
+            columns: ["mother_id"]
+            isOneToOne: false
+            referencedRelation: "acoustic_identifications"
             referencedColumns: ["individual_id"]
           },
           {
@@ -584,6 +630,13 @@ export type Database = {
           theme?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "nicknames_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "acoustic_identifications"
+            referencedColumns: ["individual_id"]
+          },
           {
             foreignKeyName: "nicknames_individual_id_fkey"
             columns: ["individual_id"]
@@ -859,6 +912,13 @@ export type Database = {
             foreignKeyName: "social_groups_anchor_individual_id_fkey"
             columns: ["anchor_individual_id"]
             isOneToOne: false
+            referencedRelation: "acoustic_identifications"
+            referencedColumns: ["individual_id"]
+          },
+          {
+            foreignKeyName: "social_groups_anchor_individual_id_fkey"
+            columns: ["anchor_individual_id"]
+            isOneToOne: false
             referencedRelation: "individuals"
             referencedColumns: ["id"]
           },
@@ -896,6 +956,28 @@ export type Database = {
       }
     }
     Views: {
+      acoustic_identifications: {
+        Row: {
+          bout_id: string | null
+          certainty:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
+          code: string | null
+          entity_id: string | null
+          individual_id: number | null
+          occurrence_id: string | null
+          social_group_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acoustic_bout_entities_bout_id_fkey"
+            columns: ["bout_id"]
+            isOneToOne: false
+            referencedRelation: "acoustic_bouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       animal_names: {
         Row: {
           common_name: string | null
@@ -908,6 +990,9 @@ export type Database = {
       }
       ecotype_occurrences: {
         Row: {
+          certainty:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
           ecotype_id: number | null
           is_present: boolean | null
           location: Database["public"]["CompositeTypes"]["lon_lat"] | null
@@ -919,6 +1004,9 @@ export type Database = {
       }
       group_occurrences: {
         Row: {
+          certainty:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
           code: string | null
           evidence:
             | Database["public"]["Enums"]["identification_evidence"]
@@ -961,6 +1049,9 @@ export type Database = {
       }
       individual_occurrences: {
         Row: {
+          certainty:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
           code: string | null
           evidence:
             | Database["public"]["Enums"]["identification_evidence"]
@@ -986,6 +1077,9 @@ export type Database = {
       occurrence_identifications: {
         Row: {
           asserted_by_party_id: number | null
+          certainty:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
           code: string | null
           confidence: number | null
           created_at: string | null
@@ -1012,6 +1106,13 @@ export type Database = {
           social_group_id: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "designations_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "acoustic_identifications"
+            referencedColumns: ["individual_id"]
+          },
           {
             foreignKeyName: "designations_individual_id_fkey"
             columns: ["individual_id"]
@@ -1048,6 +1149,9 @@ export type Database = {
           accuracy: number | null
           attribution: string | null
           body: string | null
+          certainty:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
           collection: string | null
           contributor_id: number | null
           count: number | null
@@ -1139,11 +1243,13 @@ export type Database = {
         | "direct_app"
       designation_scheme: "bc_wa" | "alaska" | "california" | "other"
       designation_status: "active" | "superseded" | "uncertain"
+      identification_certainty: "possible" | "probable" | "certain"
       identification_evidence:
         | "text_mention"
         | "photograph"
         | "cv_match"
         | "field_observation"
+        | "acoustic"
       identification_method:
         | "text_extraction"
         | "manual"
@@ -1352,11 +1458,13 @@ export const Constants = {
       ],
       designation_scheme: ["bc_wa", "alaska", "california", "other"],
       designation_status: ["active", "superseded", "uncertain"],
+      identification_certainty: ["possible", "probable", "certain"],
       identification_evidence: [
         "text_mention",
         "photograph",
         "cv_match",
         "field_observation",
+        "acoustic",
       ],
       identification_method: [
         "text_extraction",

@@ -64,7 +64,7 @@ describe('parseBoutsPage on the live corpus', () => {
 
     test('no tag cited a register identifier on 2026-09-25, so no bout names an animal', () => {
         if (!result.ok) throw new Error(result.error);
-        expect(result.bouts.every((b) => b.entityIds.length === 0)).toBe(true);
+        expect(result.bouts.every((b) => b.entities.length === 0)).toBe(true);
     });
 
     test('the J+K+L? bout keeps its title verbatim and its five tags contribute nothing', () => {
@@ -73,7 +73,7 @@ describe('parseBoutsPage on the live corpus', () => {
         expect(b.title).toBe('SRKW signals at PT (J+K +L? pods)');
         expect(b.startedAt).toBe('2025-11-10T04:00:50.373000Z');
         expect(b.endedAt).toBe('2025-11-10T04:30:32.358000Z');
-        expect(b.entityIds).toEqual([]);
+        expect(b.entities).toEqual([]);
     });
 });
 
@@ -83,7 +83,10 @@ describe('parseBoutsPage identity', () => {
             [bout('bout_1', {}, ['j', 'srkw', 'srkw2', 'call'])],
             [feed(), tag('j', 'SSA:0000020'), tag('srkw', 'SSA:0000001'), tag('srkw2', 'SSA:0000001', null), tag('call', null, 'signal')],
         ));
-        expect(r.ok && r.bouts[0]!.entityIds).toEqual(['SSA:0000001', 'SSA:0000020']);
+        expect(r.ok && r.bouts[0]!.entities).toEqual([
+            { entityId: 'SSA:0000001', certainty: null },
+            { entityId: 'SSA:0000020', certainty: null },
+        ]);
     });
 
     test('an iri that is not a register identifier contributes nothing', () => {
@@ -91,7 +94,7 @@ describe('parseBoutsPage identity', () => {
             [bout('bout_1', {}, ['x', 'y'])],
             [feed(), tag('x', 'https://example.org/vessel/367479990'), tag('y', 'SSA:20')],
         ));
-        expect(r.ok && r.bouts[0]!.entityIds).toEqual([]);
+        expect(r.ok && r.bouts[0]!.entities).toEqual([]);
     });
 
     test('a blank name is no title; an open bout has no end', () => {
@@ -157,7 +160,7 @@ describe('parseBoutsPage fails the whole page rather than drop a bout', () => {
 describe('isIngestable and reconcile', () => {
     const nb = (id: string, category: NormalizedBout['category'] = 'biophony'): NormalizedBout => ({
         id, feedId: 'feed_1', feedName: 'Lab', lon: -123, lat: 48, startedAt: '2026-09-01T10:00:00Z',
-        endedAt: null, title: null, category, entityIds: [],
+        endedAt: null, title: null, category, entities: [],
     });
 
     test('only biophony is an occurrence', () => {

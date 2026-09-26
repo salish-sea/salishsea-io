@@ -122,6 +122,7 @@ const link = (over: Partial<IndividualOccurrence>): IndividualOccurrence => ({
   occurrence_id: 'maplify:1',
   observed_at: '2026-06-14T17:36:00+00:00',
   location: { lon: -123.07, lat: 48.6 },
+  certainty: null,
   is_present: true,
   status: 'candidate',
   evidence: 'text_mention',
