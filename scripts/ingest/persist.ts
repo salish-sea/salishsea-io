@@ -618,6 +618,8 @@ export async function persistInaturalist(
 
 export type OrcasoundPersistResult = PersistResult & {
     readonly entitiesAdded: number;
+    /** Same claim, the moderator's certainty revised in place (054). */
+    readonly entitiesRevised: number;
     readonly entitiesRemoved: number;
 };
 
@@ -652,13 +654,14 @@ export async function persistOrcasound(
         id: b.id, feed_id: b.feedId, feed_name: b.feedName, lon: b.lon, lat: b.lat,
         started_at: b.startedAt, ended_at: b.endedAt, title: b.title,
     }));
-    const pairs = plan.upsert.flatMap((b) => b.entityIds.map((entity_id) => ({ bout_id: b.id, entity_id })));
+    const pairs = plan.upsert.flatMap((b) => b.entities.map((e) => ({ bout_id: b.id, entity_id: e.entityId, certainty: e.certainty })));
     const upsertIds = plan.upsert.map((b) => b.id);
     const deleteIds = plan.delete;
 
     const run = async (tx: TransactionSql): Promise<OrcasoundPersistResult> => {
         let upserted = 0;
         let entitiesAdded = 0;
+        let entitiesRevised = 0;
         let entitiesRemoved = 0;
 
         if (payload.length > 0) {
@@ -711,13 +714,18 @@ export async function persistOrcasound(
                 RETURNING e.bout_id`;
             entitiesRemoved = removed.count;
             if (pairs.length > 0) {
-                const added = await tx`
-                    INSERT INTO public.acoustic_bout_entities (bout_id, entity_id)
-                    SELECT d.bout_id, d.entity_id
-                    FROM jsonb_to_recordset(${tx.json(pairs as never)}) AS d(bout_id text, entity_id text)
-                    ON CONFLICT DO NOTHING
-                    RETURNING bout_id`;
-                entitiesAdded = added.count;
+                // A row is the claim and its certainty (054). A revised certainty is the
+                // moderator's own revision of the same claim, so it updates in place; an
+                // unchanged row is left alone so occurrences_changed does not fire.
+                const added = await tx<{ inserted: boolean }[]>`
+                    INSERT INTO public.acoustic_bout_entities (bout_id, entity_id, certainty)
+                    SELECT d.bout_id, d.entity_id, d.certainty::public.identification_certainty
+                    FROM jsonb_to_recordset(${tx.json(pairs as never)}) AS d(bout_id text, entity_id text, certainty text)
+                    ON CONFLICT (bout_id, entity_id) DO UPDATE SET certainty = EXCLUDED.certainty
+                    WHERE acoustic_bout_entities.certainty IS DISTINCT FROM EXCLUDED.certainty
+                    RETURNING (xmax = 0) AS inserted`;
+                entitiesAdded = added.filter((r) => r.inserted).length;
+                entitiesRevised = added.length - entitiesAdded;
             }
         }
 
@@ -731,12 +739,12 @@ export async function persistOrcasound(
             deleted = rows.count;
         }
 
-        return { upserted, deleted, entitiesAdded, entitiesRemoved };
+        return { upserted, deleted, entitiesAdded, entitiesRevised, entitiesRemoved };
     };
 
     if (opts.dryRun) {
         const sentinel = Symbol('dry-run-rollback');
-        let result: OrcasoundPersistResult = { upserted: 0, deleted: 0, entitiesAdded: 0, entitiesRemoved: 0 };
+        let result: OrcasoundPersistResult = { upserted: 0, deleted: 0, entitiesAdded: 0, entitiesRevised: 0, entitiesRemoved: 0 };
         try {
             await sql.begin(async (tx) => {
                 result = await run(tx);

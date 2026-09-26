@@ -163,7 +163,10 @@ export const occurrenceStyle = (occurrence: Occurrence, isSelected = false) => {
     const identifiers = segmentIdentifiers ?? occurrence.identifiers;
     // segmentIdentity is absent on the drawing layer's in-progress sighting,
     // which belongs to no segment; there the occurrence speaks for itself.
-    const name = segmentIdentity ?? labelFor(occurrence);
+    // An occurrence whose species is only possibly what it says carries the same mark a
+    // hedged identifier does (decision 054): "Humpback whale?", never dropped, never plain.
+    const hedge = occurrence.certainty === 'possible' ? '?' : '';
+    const name = (segmentIdentity ?? labelFor(occurrence)) + hedge;
     const identity = identifiers?.length ? `${name} · ${identifiers.join(', ')}` : name;
     const points = segmentLength ?? 1;
     styles.push(labelStyle(
