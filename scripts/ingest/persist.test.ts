@@ -25,7 +25,7 @@ import {
     type IngestWindow,
 } from './persist.ts';
 import type { NormalizedSighting, ReconcilePlan } from './maplify.ts';
-import type { NormalizedBout, ReconcilePlan as BoutReconcilePlan } from './orcasound.ts';
+import type { BoutEntity, NormalizedBout, ReconcilePlan as BoutReconcilePlan } from './orcasound.ts';
 import { buildNameIndex } from '../register/name-index.ts';
 import type {
     NormalizedObservation,
@@ -519,9 +519,10 @@ describe.skipIf(!DSN)('persistInaturalist (local Supabase)', () => {
 const nbout = (over: Partial<NormalizedBout> & { id: string }): NormalizedBout => ({
     feedId: 'feed_TEST', feedName: 'Test Lab', lon: -123.17, lat: 48.56,
     startedAt: '2026-09-01T10:00:00.000000Z', endedAt: '2026-09-01T10:30:00.000000Z',
-    title: 'a test bout', category: 'biophony', entityIds: [], ...over,
+    title: 'a test bout', category: 'biophony', entities: [], ...over,
 });
 const bplan = (over: Partial<BoutReconcilePlan> = {}): BoutReconcilePlan => ({ upsert: [], delete: [], ...over });
+const ent = (entityId: string, certainty: BoutEntity['certainty'] = null): BoutEntity => ({ entityId, certainty });
 
 describe.skipIf(!DSN)('persistOrcasound (local Supabase)', () => {
     let sql: Sql;
@@ -536,10 +537,10 @@ describe.skipIf(!DSN)('persistOrcasound (local Supabase)', () => {
 
     test('inserts bouts with their cited entities, under the Orcasound provider and collection', async () => {
         const r = await persistOrcasound(sql, bplan({ upsert: [
-            nbout({ id: 'bout_TESTa', entityIds: ['SSA:9900001', 'SSA:9900020'] }),
+            nbout({ id: 'bout_TESTa', entities: [ent('SSA:9900001'), ent('SSA:9900020')] }),
             nbout({ id: 'bout_TESTb', endedAt: null, title: null }),
         ] }));
-        expect(r).toEqual({ upserted: 2, deleted: 0, entitiesAdded: 2, entitiesRemoved: 0 });
+        expect(r).toEqual({ upserted: 2, deleted: 0, entitiesAdded: 2, entitiesRevised: 0, entitiesRemoved: 0 });
         const rows = await stored();
         expect(rows.map((x) => x.id)).toEqual(['bout_TESTa', 'bout_TESTb']);
         expect(rows[1]!.ended_at).toBeNull();
@@ -554,21 +555,30 @@ describe.skipIf(!DSN)('persistOrcasound (local Supabase)', () => {
     test('rewrites nothing when nothing changed, and only what changed otherwise', async () => {
         const same = bplan({ upsert: [nbout({ id: 'bout_TESTa' }), nbout({ id: 'bout_TESTb' })] });
         await persistOrcasound(sql, same);
-        expect(await persistOrcasound(sql, same)).toEqual({ upserted: 0, deleted: 0, entitiesAdded: 0, entitiesRemoved: 0 });
+        expect(await persistOrcasound(sql, same)).toEqual({ upserted: 0, deleted: 0, entitiesAdded: 0, entitiesRevised: 0, entitiesRemoved: 0 });
         const r = await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', title: 'renamed' }), nbout({ id: 'bout_TESTb' })] }));
         expect(r.upserted).toBe(1);
         expect((await stored())[0]!.title).toBe('renamed');
     });
 
     test('replaces a bout\'s entities with what its tags cite now — the path a tag gaining an iri takes', async () => {
-        await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', entityIds: ['SSA:9900001'] })] }));
-        const r = await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', entityIds: ['SSA:9900020', 'SSA:9900021'] })] }));
-        expect(r).toEqual({ upserted: 0, deleted: 0, entitiesAdded: 2, entitiesRemoved: 1 });
+        await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', entities: [ent('SSA:9900001')] })] }));
+        const r = await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', entities: [ent('SSA:9900020'), ent('SSA:9900021')] })] }));
+        expect(r).toEqual({ upserted: 0, deleted: 0, entitiesAdded: 2, entitiesRevised: 0, entitiesRemoved: 1 });
         expect(await entities('bout_TESTa')).toEqual(['SSA:9900020', 'SSA:9900021']);
     });
 
+    test('a revised certainty updates the claim in place, and an unchanged one is left alone (054)', async () => {
+        await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', entities: [ent('SSA:9900001'), ent('SSA:9900020', 'certain')] })] }));
+        const r = await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', entities: [ent('SSA:9900001', 'possible'), ent('SSA:9900020', 'certain')] })] }));
+        expect(r).toEqual({ upserted: 0, deleted: 0, entitiesAdded: 0, entitiesRevised: 1, entitiesRemoved: 0 });
+        const rows = await sql<{ entity_id: string; certainty: string | null }[]>`
+            SELECT entity_id, certainty FROM public.acoustic_bout_entities WHERE bout_id = 'bout_TESTa' ORDER BY entity_id`;
+        expect(rows).toEqual([{ entity_id: 'SSA:9900001', certainty: 'possible' }, { entity_id: 'SSA:9900020', certainty: 'certain' }]);
+    });
+
     test('deletes reconciled bouts, and their entities go with them', async () => {
-        await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', entityIds: ['SSA:9900001'] }), nbout({ id: 'bout_TESTb' })] }));
+        await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa', entities: [ent('SSA:9900001')] }), nbout({ id: 'bout_TESTb' })] }));
         const r = await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTb' })], delete: ['bout_TESTa', 'bout_TESTnever'] }));
         expect(r.deleted).toBe(1);
         expect((await stored()).map((x) => x.id)).toEqual(['bout_TESTb']);
@@ -578,7 +588,7 @@ describe.skipIf(!DSN)('persistOrcasound (local Supabase)', () => {
     test('dry run reports would-be counts and writes nothing', async () => {
         await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTa' })] }));
         const r = await persistOrcasound(sql, bplan({ upsert: [nbout({ id: 'bout_TESTc' })], delete: ['bout_TESTa'] }), { dryRun: true });
-        expect(r).toEqual({ upserted: 1, deleted: 1, entitiesAdded: 0, entitiesRemoved: 0 });
+        expect(r).toEqual({ upserted: 1, deleted: 1, entitiesAdded: 0, entitiesRevised: 0, entitiesRemoved: 0 });
         expect((await stored()).map((x) => x.id)).toEqual(['bout_TESTa']);
     });
 
