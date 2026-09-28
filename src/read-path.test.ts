@@ -105,7 +105,7 @@ describe('watchManifest', () => {
     let current: Manifest | null = manifest('2025-03-09', '2025-03-09T20:00:00.000Z');
     vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       new Response(JSON.stringify(current), {status: 200}));
-    const onNewBuild = vi.fn();
+    const onNewBuild = vi.fn(() => true);
     const stop = watchManifest(onNewBuild, {intervalMs: 1000, isVisible: () => true});
     await settle();
     expect(onNewBuild).not.toHaveBeenCalled();
@@ -122,7 +122,7 @@ describe('watchManifest', () => {
   test('a hidden page does not poll', async () => {
     vi.useFakeTimers();
     const fetch = serve(200, manifest('2025-03-09'));
-    const stop = watchManifest(() => {}, {intervalMs: 1000, isVisible: () => false});
+    const stop = watchManifest(() => true, {intervalMs: 1000, isVisible: () => false});
     await vi.advanceTimersByTimeAsync(3000);
     expect(fetch).not.toHaveBeenCalled();
     stop();
@@ -131,7 +131,7 @@ describe('watchManifest', () => {
   test('a failed poll is not a new build', async () => {
     vi.useFakeTimers();
     const fetch = serve(200, manifest('2025-03-09'));
-    const onNewBuild = vi.fn();
+    const onNewBuild = vi.fn(() => true);
     const stop = watchManifest(onNewBuild, {intervalMs: 1000, isVisible: () => true});
     await settle();
     fetch.mockImplementation(async () => new Response(null, {status: 503}));
@@ -139,5 +139,21 @@ describe('watchManifest', () => {
     expect(onNewBuild).not.toHaveBeenCalled();
     stop();
   });
-});
 
+  test('a new build the page failed to load is tried again on the next poll', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify(current), {status: 200}));
+    let current = manifest('2025-03-09', '2025-03-09T20:00:00.000Z');
+    const results = [false, true];
+    const onNewBuild = vi.fn(() => results.shift() ?? true);
+    const stop = watchManifest(onNewBuild, {intervalMs: 1000, isVisible: () => true});
+    await settle();
+    current = manifest('2025-03-09', '2025-03-09T21:00:00.000Z');
+    await vi.advanceTimersByTimeAsync(1000);   // the load fails
+    await vi.advanceTimersByTimeAsync(1000);   // so the same build is tried again, and loads
+    await vi.advanceTimersByTimeAsync(1000);   // then it's seen, and nothing more happens
+    expect(onNewBuild).toHaveBeenCalledTimes(2);
+    stop();
+  });
+});

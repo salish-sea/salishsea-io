@@ -404,8 +404,14 @@ export default class SalishSea extends LitElement {
     // can't tell them anything new. The manifest can (decision 056). A signed-in
     // contributor reads Supabase and keeps the broadcast.
     if (readSource() === 'static')
-      this.#stopManifestWatch = watchManifest(() => {
-        if (!this.user) this.refetchOccurrences(this.date);
+      this.#stopManifestWatch = watchManifest(async () => {
+        if (this.user) return true;
+        // A failed load is retried on the next poll rather than waiting for the
+        // next build to come along.
+        return this.fetchOccurrences(this.date).catch(err => {
+          reportError(this, "Couldn't refresh sightings. The list may be out of date.", {cause: err, persist: true});
+          return false;
+        });
       });
     // Reflect the resolved date in the URL so a link shared while viewing the default
     // (today) is a permalink to that day, the way map coordinates already are. replaceState
@@ -594,7 +600,7 @@ export default class SalishSea extends LitElement {
    */
   private refetchOccurrences(date: string): Promise<void> {
     return this.fetchOccurrences(date)
-      .catch(err => reportError(this, "Couldn't refresh sightings. The list may be out of date.", {cause: err, persist: true}));
+      .then(() => {}, err => reportError(this, "Couldn't refresh sightings. The list may be out of date.", {cause: err, persist: true}));
   }
 
   /**
@@ -606,7 +612,12 @@ export default class SalishSea extends LitElement {
    */
   #listRevision = 0;
 
-  async fetchOccurrences(date: string) {
+  /**
+   * Resolves false when the load failed (and was reported), so a caller that can
+   * retry — the read-path manifest watch — knows to. A response superseded by a
+   * newer request still counts as done: the newer one covers it.
+   */
+  async fetchOccurrences(date: string): Promise<boolean> {
     // Captured up front: `this.#region` can change while this is in flight, and
     // the response has to be judged against the region that asked for it. Same
     // for the revision — see #listRevision.
@@ -656,7 +667,7 @@ export default class SalishSea extends LitElement {
       // message that times out would leave the map lying about the water.
       if (date === this.date && region.slug === this.#region.slug && revision === this.#listRevision)
         reportError(this, "Couldn't load sightings. The list may be incomplete.", {cause: err, persist: true});
-      return;
+      return false;
     }
 
     const occurrences = data.map(record => ({
@@ -665,8 +676,9 @@ export default class SalishSea extends LitElement {
     }));
 
     if (revision !== this.#listRevision)
-      return;
+      return true;
     this.receiveOccurrences(occurrences as Occurrence[], date, region.slug);
+    return true;
   }
 
   /**

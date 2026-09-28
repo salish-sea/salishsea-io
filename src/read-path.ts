@@ -104,11 +104,13 @@ export async function fetchDayOccurrences<T extends Located>(
 /**
  * Call `onNewBuild` whenever the manifest names a new snapshot, checking every
  * `intervalMs` while the page is visible. The first manifest seen is the
- * baseline, not a change. Errors are left for the next tick: a missed poll only
- * delays an update the next one will bring. Returns a function that stops it.
+ * baseline, not a change. A failed poll is left for the next tick, and so is a
+ * new build whose `onNewBuild` resolves false: the snapshot counts as seen only
+ * once the page has actually caught up with it. Returns a function that stops
+ * the watch.
  */
 export function watchManifest(
-  onNewBuild: () => void,
+  onNewBuild: () => boolean | Promise<boolean>,
   {intervalMs = 60_000, isVisible = () => document.visibilityState === 'visible'}: {
     intervalMs?: number,
     isVisible?: () => boolean,
@@ -124,7 +126,7 @@ export function watchManifest(
       return;
     }
     const taken = manifest?.snapshot_taken_at ?? null;
-    if (seen !== undefined && taken !== seen) onNewBuild();
+    if (seen !== undefined && taken !== seen && !(await onNewBuild())) return;
     seen = taken;
   };
   void tick();
