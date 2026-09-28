@@ -273,6 +273,10 @@ export default class SalishSea extends LitElement {
       } else if (event === 'SIGNED_OUT') {
         this.user = undefined;
       }
+      // Signing in or out can change where the list comes from (decision 056:
+      // the read-path files are for signed-out visitors only), so a request
+      // issued before this one answers a different question.
+      this.#listRevision++;
       this.refetchOccurrences(this.date);
       if (this.user) {
         getContributor(this.user.id, supabaseClient)
@@ -581,11 +585,11 @@ export default class SalishSea extends LitElement {
   }
 
   /**
-   * Bumped whenever the list is edited locally ahead of the server — today only
-   * a confirmed delete. Date and region are not enough to date a response: a
-   * request issued *before* the delete asks for the same day and the same
-   * region, so both guards pass and it repaints the row we just removed. It
-   * simply predates the edit, and this is what says so.
+   * Bumped whenever the list is edited locally ahead of the server — a confirmed
+   * delete — or its source changes, on signing in or out. Date and region are
+   * not enough to date a response: a request issued *before* the delete asks for
+   * the same day and the same region, so both guards pass and it repaints the
+   * row we just removed. It simply predates the edit, and this is what says so.
    */
   #listRevision = 0;
 
@@ -618,8 +622,11 @@ export default class SalishSea extends LitElement {
     let data;
     try {
       // The prototype reads the day's file instead (decision 056); the region
-      // filter above is then applied to the file's rows, in read-path.ts.
-      if (readSource() === 'static') {
+      // filter above is then applied to the file's rows, in read-path.ts. Only
+      // when signed out: the files trail the database by up to a build, and a
+      // contributor must see a sighting they just saved (decision 055). Every
+      // auth change refetches, so signing in or out switches source.
+      if (readSource() === 'static' && !this.user) {
         data = await fetchDayOccurrences<PatchedDatabase['public']['Views']['occurrences']['Row']>(
           date, region.extent);
       } else {

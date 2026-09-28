@@ -7,20 +7,25 @@
  * the prototype that reads files. Cutover and rollback are the same one-line
  * change.
  *
- * Only the map's day of sightings reads files so far. Everything else —
- * the calendar, profiles, share links, and anything signed in — still asks
- * Supabase.
+ * Only a signed-out visitor's day of sightings on the map reads files so far.
+ * Everything else — the calendar, profiles, share links, and anything a
+ * signed-in contributor sees — still asks Supabase.
  */
 
 import type { Extent } from './extents.ts';
 
 export type ReadSource = 'supabase' | 'static';
 
+/** The configured source. */
+export function readSource(): ReadSource {
+  return parseReadSource(import.meta.env.VITE_READ_SOURCE);
+}
+
 /**
- * The configured source. A value that is neither is a typo in a deploy's
- * environment, and failing loudly beats quietly reading the other source.
+ * A value that is neither source is a typo in a deploy's environment, and
+ * failing loudly beats quietly reading the other source.
  */
-export function readSource(value: string | undefined = import.meta.env.VITE_READ_SOURCE): ReadSource {
+export function parseReadSource(value: string | undefined): ReadSource {
   if (value === undefined || value === '' || value === 'supabase') return 'supabase';
   if (value === 'static') return 'static';
   throw new Error(`VITE_READ_SOURCE must be 'supabase' or 'static', not '${value}'`);

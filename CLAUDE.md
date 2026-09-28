@@ -87,7 +87,7 @@ pnpm build           # tsc + vite build + html-validate + CSP hash check
 pnpm build:dwca      # build the DarwinCore Archive locally (tsx scripts/dwca/build.ts)
 pnpm gen-types       # regenerate database.types.ts from local Supabase
 pnpm exec playwright test  # e2e
-VITE_READ_SOURCE=static READ_PATH_DIR=<export dir> pnpm dev  # map reads a read-path build's day files (decision 056)
+VITE_READ_SOURCE=static READ_PATH_DIR=/path/to/export pnpm dev  # map reads a read-path build's day files (decision 056)
 ```
 
 Node version is pinned in `.nvmrc`. The DwC-A build's CI gate needs the Supabase local stack (not bare Postgres) — see [decision 003](docs/decisions/003-dwc-export-pipeline.md).

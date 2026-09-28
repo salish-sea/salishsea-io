@@ -1,25 +1,25 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { fetchDayOccurrences, readSource } from './read-path.ts';
+import { fetchDayOccurrences, parseReadSource } from './read-path.ts';
 import type { Extent } from './extents.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('readSource', () => {
+describe('parseReadSource', () => {
   test('defaults to supabase', () => {
-    expect(readSource(undefined)).toBe('supabase');
-    expect(readSource('')).toBe('supabase');
-    expect(readSource('supabase')).toBe('supabase');
+    expect(parseReadSource(undefined)).toBe('supabase');
+    expect(parseReadSource('')).toBe('supabase');
+    expect(parseReadSource('supabase')).toBe('supabase');
   });
 
   test('reads static', () => {
-    expect(readSource('static')).toBe('static');
+    expect(parseReadSource('static')).toBe('static');
   });
 
   test('refuses anything else rather than quietly reading the other source', () => {
-    expect(() => readSource('Static')).toThrow(/VITE_READ_SOURCE/);
+    expect(() => parseReadSource('Static')).toThrow(/VITE_READ_SOURCE/);
   });
 });
 
