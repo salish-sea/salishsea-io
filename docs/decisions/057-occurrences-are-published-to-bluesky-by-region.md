@@ -67,12 +67,12 @@ will rarely be timely.
 
 ## Open before accepting
 
-- **Courtesy and norms.** Rights policy §4 already calls for a courtesy
-  notice to Orca Network, Whale Alert/Conserve.IO and Cascadia before
-  republishing. This is a second, livelier republication, into an open,
-  indexed, permanent network that boaters read. Ask them, and Orcasound,
-  whether they want a delay or coarser locations for Southern Residents. The
-  answer may change item 4.
+- **Courtesy.** Rights policy §4 already calls for a courtesy notice to Orca
+  Network, Whale Alert/Conserve.IO and Cascadia before republishing, and
+  this is one more republication. It exposes nothing new: real-time,
+  machine-readable sighting data already flows through Whale Alert (to
+  mariners) and Acartia. The notice is still owed, and it should mention the
+  Bluesky posts.
 - **Account handles.** For example `sanjuans.salishsea.io`, verified by DNS
   on the domain we already own.
 - **Taxa.** All in-scope taxa, or cetaceans only? A harbor-seal post every
@@ -90,15 +90,19 @@ will rarely be timely.
 - **One account, filtered by hashtag or feed.** Notifications attach to an
   account, so "your area" has to be an account.
 - **A post per report, unthreaded.** See item 3.
-- **Custom lexicon records first** (`io.salishsea.occurrence`). This is the
-  right *second* step, because it puts structured data on the firehose. But
-  it reaches no one until someone builds on it, while posts reach people now.
+- **Custom lexicon records first** (`io.salishsea.occurrence`). Real-time,
+  machine-readable sightings already exist: Whale Alert and Acartia are that
+  channel. A second copy on the firehose, re-published by an aggregator, adds
+  a source for machines to reconcile rather than a new capability. What's
+  missing is the human-facing side, which is what posts provide.
 
 ## Later steps (not decided here)
 
-- Publish structured `io.salishsea.occurrence` records beside the posts. Have
-  orcasite publish its own bouts from its own repository, since it is the
-  asserter.
+- Structured occurrence records on atproto only where they add something
+  Acartia doesn't carry. That likely means originals published by their
+  asserters: orcasite's bouts from orcasite's repository, or Acartia itself
+  publishing on atproto. It does not mean SalishSea.io re-publishing Maplify
+  records in a new format.
 - A labeler for our verification `status` on other people's records
   ([054](054-certainty-is-the-asserters-status-is-ours.md)).
 - Sighters writing sightings to their own repositories, indexed here. That is

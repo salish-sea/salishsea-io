@@ -43,7 +43,7 @@ Tracked as bd issues; the durable statements:
 - Sightings from Facebook community groups surfaced on the platform (cold-start / lock-in mitigation)
 - Comprehensive catalog of individual Salish Sea cetaceans; occurrence records carry `organismID`; registration with GBIF/OBIS
 - **Computer-vision individual identification via Flukebook** (Wildbook) — automatically match a photographed sighting to known individuals, turning every photo into a candidate identification. A strategic differentiator; builds on the individuals catalog and identification model.
-- **Publishing to Bluesky/atproto** — occurrences posted by one account per region, so following an account is subscribing to an area and Bluesky does the notifying; a publication, not the push notifications ruled out below. Structured records and an AppView come later. See [decision 057](docs/decisions/057-occurrences-are-published-to-bluesky-by-region.md).
+- **Publishing to Bluesky/atproto** — occurrences posted by one account per region, so following an account is subscribing to an area and Bluesky does the notifying; a publication, not the push notifications ruled out below. Machine-readable real-time data is already Whale Alert and Acartia's job; this is the human-facing side. See [decision 057](docs/decisions/057-occurrences-are-published-to-bluesky-by-region.md).
 - Inbound ingest of in-region GBIF records (mirror-image of SRC-01; must not re-import our own contributions)
 
 ### Out of Scope
