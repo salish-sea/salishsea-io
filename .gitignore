@@ -63,3 +63,6 @@ e2e/screenshots
 # Private strategy notes — the honest version of the uptake stall; not for the public repo.
 docs/strategy/private-notes.md
 .beads.gate.lock
+
+# Stelis build state for the read-path build (history, cache)
+.stelis/
