@@ -117,17 +117,30 @@ export function watchManifest(
   } = {},
 ): () => void {
   let seen: string | null | undefined;
+  // A failed first poll means the baseline comes from a later one, and a build
+  // may have landed in between, so that later baseline counts as a change.
+  let missedFirst = false;
+  let running = false;
   const tick = async () => {
-    if (!isVisible()) return;
-    let manifest;
+    // One poll at a time: on a slow connection a poll and its refetch can outlast
+    // the interval, and an older one must not land after a newer one.
+    if (running || !isVisible()) return;
+    running = true;
     try {
-      manifest = await fetchManifest();
-    } catch {
-      return;
+      let manifest;
+      try {
+        manifest = await fetchManifest();
+      } catch {
+        if (seen === undefined) missedFirst = true;
+        return;
+      }
+      const taken = manifest?.snapshot_taken_at ?? null;
+      const changed = seen === undefined ? missedFirst : taken !== seen;
+      if (changed && !(await onNewBuild())) return;
+      seen = taken;
+    } finally {
+      running = false;
     }
-    const taken = manifest?.snapshot_taken_at ?? null;
-    if (seen !== undefined && taken !== seen && !(await onNewBuild())) return;
-    seen = taken;
   };
   void tick();
   const timer = setInterval(() => void tick(), intervalMs);

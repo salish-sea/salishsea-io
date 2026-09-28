@@ -156,4 +156,38 @@ describe('watchManifest', () => {
     expect(onNewBuild).toHaveBeenCalledTimes(2);
     stop();
   });
+
+  test('a baseline taken after a failed first poll counts as a change', async () => {
+    vi.useFakeTimers();
+    const fetch = serve(503);
+    const onNewBuild = vi.fn(() => true);
+    const stop = watchManifest(onNewBuild, {intervalMs: 1000, isVisible: () => true});
+    await settle();
+    fetch.mockImplementation(async () => new Response(JSON.stringify(manifest('2025-03-09')), {status: 200}));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onNewBuild).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onNewBuild).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  test('a poll still refetching when the next is due holds that one back', async () => {
+    vi.useFakeTimers();
+    let current = manifest('2025-03-09', '2025-03-09T20:00:00.000Z');
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify(current), {status: 200}));
+    let finish!: (ok: boolean) => void;
+    const onNewBuild = vi.fn(() => new Promise<boolean>(resolve => finish = resolve));
+    const stop = watchManifest(onNewBuild, {intervalMs: 1000, isVisible: () => true});
+    await settle();
+    current = manifest('2025-03-09', '2025-03-09T21:00:00.000Z');
+    await vi.advanceTimersByTimeAsync(1000);   // a new build: the refetch starts, and hangs
+    const polls = fetch.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(3000);   // three ticks pass while it runs
+    expect(fetch.mock.calls.length).toBe(polls);
+    expect(onNewBuild).toHaveBeenCalledTimes(1);
+    finish(true);
+    stop();
+  });
 });
+
