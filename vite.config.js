@@ -1,6 +1,6 @@
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
@@ -43,13 +43,23 @@ function profilePagesRewrite(req, _res, next) {
 // VITE_READ_SOURCE=static frontend locally. In production the host serves them.
 // A missing file is a real 404, not Vite's SPA fallback: the frontend reads a
 // 404 as a day with no sightings, and a 200 of index.html would be a parse error.
+function realpathOrNull(p) {
+  try {
+    return realpathSync(p);
+  } catch {
+    return null;
+  }
+}
+
 function readPathFiles(req, res, next) {
   const root = process.env.READ_PATH_DIR;
   const prefix = '/read-path/';
   if (!root || !req.url?.startsWith(prefix)) return next();
   const rel = decodeURIComponent(req.url.slice(prefix.length).split('?')[0]);
-  const file = resolve(root, rel);
-  if (!file.startsWith(resolve(root) + sep) || !existsSync(file) || !statSync(file).isFile()) {
+  // Containment is checked on real paths, so a symlink inside the directory
+  // cannot serve a file outside it.
+  const file = realpathOrNull(resolve(root, rel));
+  if (!file || !file.startsWith(realpathSync(root) + sep) || !statSync(file).isFile()) {
     res.statusCode = 404;
     return res.end();
   }
