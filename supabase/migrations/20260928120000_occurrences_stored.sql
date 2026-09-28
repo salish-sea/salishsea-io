@@ -394,7 +394,7 @@ DECLARE
     WHEN 'orcasound' THEN 'text'
   END;
   cols text;
-  fresh_cols text;
+  fresh_row text;
   sets text;
   touched text[];
 BEGIN
@@ -411,15 +411,20 @@ BEGIN
   END IF;
 
   -- The store's own columns, so a column added to the store and the five views needs no
-  -- edit here.
-  SELECT string_agg(quote_ident(attname), ', ' ORDER BY attnum),
-         string_agg('f.' || quote_ident(attname), ', ' ORDER BY attnum),
+  -- edit here. `fresh_row` is a fresh row as the store would hold it, in the store's
+  -- column order, wherever `source` and `source_key` fall in it.
+  SELECT string_agg(quote_ident(attname), ', ' ORDER BY attnum)
+           FILTER (WHERE attname NOT IN ('source', 'source_key')),
+         string_agg(CASE attname
+                      WHEN 'source' THEN quote_literal(p_source) || '::text'
+                      WHEN 'source_key' THEN 'f.source_key::text'
+                      ELSE 'f.' || quote_ident(attname) END, ', ' ORDER BY attnum),
          string_agg(format('%1$I = EXCLUDED.%1$I', attname), ', ' ORDER BY attnum)
-    INTO cols, fresh_cols, sets
+           FILTER (WHERE attname NOT IN ('source', 'source_key'))
+    INTO cols, fresh_row, sets
     FROM pg_attribute
    WHERE attrelid = 'derived.occurrences'::regclass
-     AND attnum > 0 AND NOT attisdropped
-     AND attname NOT IN ('source', 'source_key');
+     AND attnum > 0 AND NOT attisdropped;
 
   EXECUTE format($q$
     WITH fresh AS MATERIALIZED (
@@ -436,7 +441,7 @@ BEGIN
       -- its WHERE then declines, and a rebuild would dirty every page of the table.
       WHERE NOT EXISTS (SELECT 1 FROM derived.occurrences s
                         WHERE s.id = f.id
-                          AND ROW(s.*) IS NOT DISTINCT FROM ROW(%7$s, %3$L::text, f.source_key::text))
+                          AND ROW(s.*) IS NOT DISTINCT FROM ROW(%7$s))
       ON CONFLICT (id) DO UPDATE SET %6$s,
         source = EXCLUDED.source, source_key = EXCLUDED.source_key
       WHERE ROW(o.*) IS DISTINCT FROM ROW(EXCLUDED.*)
@@ -450,7 +455,7 @@ BEGIN
     CASE WHEN p_keys IS NULL THEN '' ELSE 'AND o.source_key = ANY ($1)' END,
     cols,
     sets,
-    fresh_cols)
+    fresh_row)
   INTO touched
   USING p_keys;
 
