@@ -62,7 +62,7 @@ in the ecotype aggregate yet — a no-op while curation volume is zero; the
 durable fix is a cheap indexed occurrence-timestamp source for the stored branch
 (bd `salish-8uz`, a prerequisite for the curation UI `salish-ek3`),
 which the per-subject views will also need before curation makes *their* stored
-branch non-empty. **Resolved** (migration `20260708052333`): the
+branch non-empty. **Resolved** (migration `20260708052333`; *since 2026-09-28 the table `derived.occurrences` serves this, decision [055](055-occurrences-are-stored-not-assembled.md)*): the
 `occurrence_index` matview (id, observed_at, location; unique-indexed on id;
 refreshed on the same cron tick as the candidates cache) is that source. The
 per-subject views' stored branches join it instead of `occurrences`, and

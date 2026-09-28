@@ -49,6 +49,8 @@ ingest tick and by the catalog seed script; per-individual reads dropped to
 milliseconds. Stored claims (curation) still read live so a curator's edit
 takes effect immediately; candidates lag ingest by ≤8 minutes.
 
+*Amended 2026-09-28 by [055](055-occurrences-are-stored-not-assembled.md):* the candidates are no longer a matview but `derived.occurrence_identifier_candidates`, kept current in each writer's own transaction, so they lag ingest by nothing. A change to groups or designations (a catalog reseed) marks them stale for a rebuild within five minutes.
+
 *Amended 2026-09-09 (bd `salish-xfo`).* That passage previously read:
 
 > ~~materialized view, refreshed by pg_cron **a minute** after each 5-minute

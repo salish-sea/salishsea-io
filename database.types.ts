@@ -489,13 +489,6 @@ export type Database = {
             foreignKeyName: "identifications_social_group_id_fkey"
             columns: ["social_group_id"]
             isOneToOne: false
-            referencedRelation: "occurrence_identifier_candidates"
-            referencedColumns: ["social_group_id"]
-          },
-          {
-            foreignKeyName: "identifications_social_group_id_fkey"
-            columns: ["social_group_id"]
-            isOneToOne: false
             referencedRelation: "social_groups"
             referencedColumns: ["id"]
           },
@@ -685,13 +678,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "matriline_members"
             referencedColumns: ["innermost_group_id"]
-          },
-          {
-            foreignKeyName: "nicknames_social_group_id_fkey"
-            columns: ["social_group_id"]
-            isOneToOne: false
-            referencedRelation: "occurrence_identifier_candidates"
-            referencedColumns: ["social_group_id"]
           },
           {
             foreignKeyName: "nicknames_social_group_id_fkey"
@@ -1096,51 +1082,18 @@ export type Database = {
         }
         Relationships: []
       }
-      occurrence_identifier_candidates: {
-        Row: {
-          code: string | null
-          individual_id: number | null
-          location: Database["public"]["CompositeTypes"]["lon_lat"] | null
-          observed_at: string | null
-          occurrence_id: string | null
-          social_group_id: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "designations_individual_id_fkey"
-            columns: ["individual_id"]
-            isOneToOne: false
-            referencedRelation: "acoustic_identifications"
-            referencedColumns: ["individual_id"]
-          },
-          {
-            foreignKeyName: "designations_individual_id_fkey"
-            columns: ["individual_id"]
-            isOneToOne: false
-            referencedRelation: "individuals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "designations_individual_id_fkey"
-            columns: ["individual_id"]
-            isOneToOne: false
-            referencedRelation: "matriline_members"
-            referencedColumns: ["individual_id"]
-          },
-        ]
-      }
-      occurrence_index: {
-        Row: {
-          id: string | null
-          location: Database["public"]["CompositeTypes"]["lon_lat"] | null
-          observed_at: string | null
-        }
-        Relationships: []
-      }
       occurrence_unresolved_codes: {
         Row: {
           code: string | null
           occurrence_id: string | null
+        }
+        Insert: {
+          code?: string | null
+          occurrence_id?: string | null
+        }
+        Update: {
+          code?: string | null
+          occurrence_id?: string | null
         }
         Relationships: []
       }
@@ -1173,6 +1126,64 @@ export type Database = {
           source_url: string | null
           taxon: Database["public"]["CompositeTypes"]["taxon"] | null
           url: string | null
+        }
+        Insert: {
+          accuracy?: number | null
+          attribution?: string | null
+          body?: string | null
+          certainty?:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
+          collection?: string | null
+          contributor_id?: number | null
+          count?: number | null
+          direction?: Database["public"]["Enums"]["travel_direction"] | null
+          id?: string | null
+          identifiers?: string[] | null
+          location?: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observed_at?: string | null
+          observed_from?: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observed_until?: string | null
+          observer?: string | null
+          organization?: string | null
+          organization_url?: string | null
+          photos?:
+            | Database["public"]["CompositeTypes"]["occurrence_photo"][]
+            | null
+          provider?: string | null
+          provider_slug?: string | null
+          source_url?: string | null
+          taxon?: Database["public"]["CompositeTypes"]["taxon"] | null
+          url?: string | null
+        }
+        Update: {
+          accuracy?: number | null
+          attribution?: string | null
+          body?: string | null
+          certainty?:
+            | Database["public"]["Enums"]["identification_certainty"]
+            | null
+          collection?: string | null
+          contributor_id?: number | null
+          count?: number | null
+          direction?: Database["public"]["Enums"]["travel_direction"] | null
+          id?: string | null
+          identifiers?: string[] | null
+          location?: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observed_at?: string | null
+          observed_from?: Database["public"]["CompositeTypes"]["lon_lat"] | null
+          observed_until?: string | null
+          observer?: string | null
+          organization?: string | null
+          organization_url?: string | null
+          photos?:
+            | Database["public"]["CompositeTypes"]["occurrence_photo"][]
+            | null
+          provider?: string | null
+          provider_slug?: string | null
+          source_url?: string | null
+          taxon?: Database["public"]["CompositeTypes"]["taxon"] | null
+          url?: string | null
         }
         Relationships: []
       }

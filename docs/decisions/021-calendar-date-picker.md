@@ -23,6 +23,8 @@ without a DOM.
 
 ### Counts come from a live view, not the matview
 
+> *Superseded 2026-09-28 by [055](055-occurrences-are-stored-not-assembled.md): occurrences are stored and kept current by each writer, so `occurrence_days` reads the store for the whole range. The matview and the 48-hour split are gone; the requirement below — a sighting saved now counts now — holds without either.*
+
 > **Amended by [022](022-regions-filter-data.md).** `occurrence_days` is no
 > longer a view. Regions filter the calendar's counts too, and the bounding box
 > has to apply before the `GROUP BY`, so it is now a function taking a required

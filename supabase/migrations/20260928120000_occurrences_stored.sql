@@ -336,35 +336,44 @@ RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
+-- The whole set is ~16k rows; keep it off the disk, as refresh_occurrences does.
+SET work_mem = '64MB'
 AS $$
 BEGIN
-  IF p_ids IS NOT NULL THEN
-    IF cardinality(p_ids) = 0 THEN
-      RETURN;
-    END IF;
-    PERFORM pg_advisory_xact_lock_shared(hashtext('derived.occurrence_identifier_candidates'));
-    DELETE FROM derived.occurrence_identifier_candidates c
-    WHERE c.occurrence_id = ANY (p_ids)
-      AND NOT EXISTS (SELECT 1 FROM derived.identifier_candidates v
-                      WHERE v.occurrence_id = c.occurrence_id AND v.code = c.code);
-    INSERT INTO derived.occurrence_identifier_candidates AS c
-    SELECT * FROM derived.identifier_candidates v WHERE v.occurrence_id = ANY (p_ids)
-    ON CONFLICT (occurrence_id, code) DO UPDATE SET
-      individual_id = EXCLUDED.individual_id, social_group_id = EXCLUDED.social_group_id,
-      observed_at = EXCLUDED.observed_at, location = EXCLUDED.location
-    WHERE ROW(c.*) IS DISTINCT FROM ROW(EXCLUDED.*);
-  ELSE
-    PERFORM pg_advisory_xact_lock(hashtext('derived.occurrence_identifier_candidates'));
-    DELETE FROM derived.occurrence_identifier_candidates c
-    WHERE NOT EXISTS (SELECT 1 FROM derived.identifier_candidates v
-                      WHERE v.occurrence_id = c.occurrence_id AND v.code = c.code);
-    INSERT INTO derived.occurrence_identifier_candidates AS c
-    SELECT * FROM derived.identifier_candidates
-    ON CONFLICT (occurrence_id, code) DO UPDATE SET
-      individual_id = EXCLUDED.individual_id, social_group_id = EXCLUDED.social_group_id,
-      observed_at = EXCLUDED.observed_at, location = EXCLUDED.location
-    WHERE ROW(c.*) IS DISTINCT FROM ROW(EXCLUDED.*);
+  IF p_ids IS NOT NULL AND cardinality(p_ids) = 0 THEN
+    RETURN;
   END IF;
+  IF p_ids IS NULL THEN
+    PERFORM pg_advisory_xact_lock(hashtext('derived.occurrence_identifier_candidates'));
+  ELSE
+    PERFORM pg_advisory_xact_lock_shared(hashtext('derived.occurrence_identifier_candidates'));
+  END IF;
+
+  -- The fresh set first, then both writes against it. An anti-join straight onto the view
+  -- is planned over the whole view rather than the given ids: 220 ms for 20 sightings.
+  -- Dynamic so the plan sees whether there are ids at all; a generic plan for "all, or
+  -- these" would scan everything every time.
+  EXECUTE format($q$
+    WITH fresh AS MATERIALIZED (
+      SELECT * FROM derived.identifier_candidates v %1$s
+    ), gone AS (
+      DELETE FROM derived.occurrence_identifier_candidates c
+      WHERE NOT EXISTS (SELECT 1 FROM fresh f WHERE f.occurrence_id = c.occurrence_id AND f.code = c.code)
+        %2$s
+    )
+    INSERT INTO derived.occurrence_identifier_candidates AS c
+    SELECT * FROM fresh f
+    WHERE NOT EXISTS (SELECT 1 FROM derived.occurrence_identifier_candidates s
+                      WHERE s.occurrence_id = f.occurrence_id AND s.code = f.code
+                        AND ROW(s.*) IS NOT DISTINCT FROM ROW(f.*))
+    ON CONFLICT (occurrence_id, code) DO UPDATE SET
+      individual_id = EXCLUDED.individual_id, social_group_id = EXCLUDED.social_group_id,
+      observed_at = EXCLUDED.observed_at, location = EXCLUDED.location
+    WHERE ROW(c.*) IS DISTINCT FROM ROW(EXCLUDED.*)
+    $q$,
+    CASE WHEN p_ids IS NULL THEN '' ELSE 'WHERE v.occurrence_id = ANY ($1)' END,
+    CASE WHEN p_ids IS NULL THEN '' ELSE 'AND c.occurrence_id = ANY ($1)' END)
+  USING p_ids;
 END;
 $$;
 
@@ -385,6 +394,7 @@ DECLARE
     WHEN 'orcasound' THEN 'text'
   END;
   cols text;
+  fresh_cols text;
   sets text;
   touched text[];
 BEGIN
@@ -403,8 +413,9 @@ BEGIN
   -- The store's own columns, so a column added to the store and the five views needs no
   -- edit here.
   SELECT string_agg(quote_ident(attname), ', ' ORDER BY attnum),
+         string_agg('f.' || quote_ident(attname), ', ' ORDER BY attnum),
          string_agg(format('%1$I = EXCLUDED.%1$I', attname), ', ' ORDER BY attnum)
-    INTO cols, sets
+    INTO cols, fresh_cols, sets
     FROM pg_attribute
    WHERE attrelid = 'derived.occurrences'::regclass
      AND attnum > 0 AND NOT attisdropped
@@ -420,7 +431,12 @@ BEGIN
       RETURNING o.id
     ), written AS (
       INSERT INTO derived.occurrences AS o (%5$s, source, source_key)
-      SELECT %5$s, %3$L, source_key::text FROM fresh
+      SELECT %5$s, %3$L, f.source_key::text FROM fresh f
+      -- Unchanged rows never reach ON CONFLICT: it locks every conflicting row, even one
+      -- its WHERE then declines, and a rebuild would dirty every page of the table.
+      WHERE NOT EXISTS (SELECT 1 FROM derived.occurrences s
+                        WHERE s.id = f.id
+                          AND ROW(s.*) IS NOT DISTINCT FROM ROW(%7$s, %3$L::text, f.source_key::text))
       ON CONFLICT (id) DO UPDATE SET %6$s,
         source = EXCLUDED.source, source_key = EXCLUDED.source_key
       WHERE ROW(o.*) IS DISTINCT FROM ROW(EXCLUDED.*)
@@ -433,7 +449,8 @@ BEGIN
     p_source,
     CASE WHEN p_keys IS NULL THEN '' ELSE 'AND o.source_key = ANY ($1)' END,
     cols,
-    sets)
+    sets,
+    fresh_cols)
   INTO touched
   USING p_keys;
 
@@ -449,6 +466,21 @@ $$;
 COMMENT ON FUNCTION derived.refresh_occurrences(text, text[]) IS
   'Recompute the stored occurrences of one source for the given source keys (all when NULL), '
   'writing only rows that differ (decision 055). Called by the source-table triggers and the rebuild.';
+
+-- The whole store in the caller's transaction: what a migration that changes a derivation
+-- calls, and what a test calls after seeding reference data. The cron job uses the
+-- procedure below instead, which commits between sources.
+CREATE FUNCTION derived.refresh_all()
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT derived.refresh_occurrences(src)
+  FROM unnest(ARRAY['maplify', 'inaturalist', 'happywhale', 'orcasound', 'native']) AS src;
+  SELECT derived.refresh_identifier_candidates(NULL);
+  UPDATE derived.rebuild_state SET rebuilt_generation = generation, rebuilt_at = now();
+$$;
 
 -- The whole store, one source per transaction so each exclusive lock is held only for its
 -- own source: writers of our own sightings wait a third of a second, not ten. Invoker and
@@ -474,7 +506,7 @@ BEGIN
   END LOOP;
   PERFORM derived.refresh_identifier_candidates(NULL);
   UPDATE derived.rebuild_state
-     SET rebuilt_generation = pg_catalog.greatest(rebuilt_generation, target),
+     SET rebuilt_generation = GREATEST(rebuilt_generation, target),
          rebuilt_at = pg_catalog.now();
   COMMIT;
 END;
@@ -635,10 +667,7 @@ REVOKE ALL ON ALL PROCEDURES IN SCHEMA derived FROM PUBLIC, anon, authenticated;
 SELECT cron.unschedule(jobname) FROM cron.job
 WHERE jobname IN ('refresh-occurrence-index', 'refresh-identifier-candidates');
 
-SELECT derived.refresh_occurrences(src)
-FROM unnest(ARRAY['maplify', 'inaturalist', 'happywhale', 'orcasound', 'native']) AS src;
-SELECT derived.refresh_identifier_candidates(NULL);
-UPDATE derived.rebuild_state SET rebuilt_generation = generation, rebuilt_at = now();
+SELECT derived.refresh_all();
 
 DROP MATERIALIZED VIEW public.occurrence_identifier_candidates CASCADE;
 DROP MATERIALIZED VIEW public.occurrence_index CASCADE;

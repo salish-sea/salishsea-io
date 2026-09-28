@@ -6,7 +6,7 @@
 
 On 2026-09-27 Supabase warned that the project was running out of disk IO. The Free plan's instance has a small IO baseline and a daily burst allowance, and one job was spending it. Every five minutes, pg_cron ran `REFRESH MATERIALIZED VIEW CONCURRENTLY` on `occurrence_index` and on `occurrence_identifier_candidates`. Each refresh recomputed all of `public.occurrences`, a five-way `UNION ALL` view that joins about fifteen tables and runs text extraction over every comment. It wrote the result to a temporary table and diffed that against the old contents. With 2 MB of `work_mem`, the diff spilled to disk.
 
-Between 2026-08-28 and 2026-09-28, the `occurrence_index` refresh alone wrote 170 GB of temp files and 48 GB of temporary tables, against a 252 MB database. A seven-minute sample on 2026-09-28 found the two refreshes behind about 90% of all bytes written. The refreshes never skipped a tick, yet only about one ingest tick in five changed anything. When the iNaturalist history backfill (decision [041](041-inaturalist-history-backfilled.md)) grew the corpus from ~49k to ~76k occurrences on 2026-09-18, each refresh went from ~7 s to ~13 s within the hour. From then on, 26 s of every five minutes went to recomputing what was already known.
+Between 2026-08-28 and 2026-09-28, the `occurrence_index` refresh alone wrote 170 GB of temp files and 48 GB of temporary tables, against a 252 MB database. A seven-minute sample on 2026-09-28 found the two refreshes behind about 90% of all bytes written. The refreshes never skipped a tick, yet only about one ingest tick in five changed anything. When the iNaturalist history backfill (decision [041](041-inaturalist-history-backfilled.md)) grew the corpus on 2026-09-18, to the 63.5k occurrences it holds now, each refresh went from ~7 s to ~13 s within the hour. From then on, 26 s of every five minutes went to recomputing what was already known.
 
 This had been foreseen in `salish-4h3`, and the same load is what made visitors' 50 ms map queries miss the 3 s anonymous-read budget (`salish-xfo`).
 
@@ -26,7 +26,7 @@ The source tables are `maplify.sightings`, `inaturalist.observations`, `inatural
 - social groups and designations
 - the HappyWhale tables
 
-A statement trigger on each of these sets a flag. A five-minute cron job calls `derived.rebuild_occurrences_if_stale()`, which is a no-op when the flag is clear. The rebuild runs the same refresh function with no keys, one source per transaction. It is a diff, not a replacement, so a register reload that changed nothing costs about 10 s of computation and writes nothing. The register reloads about three times a day, on every deploy and on the daily refresh.
+A statement that changed rows in any of these marks the store stale; an upsert that changed nothing marks nothing. A five-minute cron job calls `derived.rebuild_occurrences(only_if_stale => true)`, which is a no-op when the store is current. The rebuild runs the same refresh function with no keys, one source per transaction. It is a diff, not a replacement: unchanged rows are filtered out before the upsert, because `ON CONFLICT` locks, and so dirties, every row it conflicts with even when its `WHERE` declines the update. So a register reload that changed nothing costs some seconds of computation and writes next to nothing. The register reloads about three times a day, on every deploy and on the daily refresh.
 
 **A change to a derivation ships with its own rebuild.** A migration that edits one of the five views, or a function they call (`extract_identifiers`, the register's fold), ends by calling the refresh for the sources it affects. There is no background drift detector. The rebuild is explicit and rare, as `salish-4h3` asked.
 
@@ -41,7 +41,7 @@ A statement trigger on each of these sets a flag. A five-minute cron job calls `
 
 ## Rejected alternatives
 
-- **Refresh the matviews only when something changed.** This is the cheapest interim fix. It cuts the refreshes to the one tick in five that changes anything, but each one still recomputes all 76k occurrences to reflect a handful, and still spills. It does nothing for a sighting saved through the app, which would still wait for a tick.
+- **Refresh the matviews only when something changed.** This is the cheapest interim fix. It cuts the refreshes to the one tick in five that changes anything, but each one still recomputes all 63.5k occurrences to reflect a handful, and still spills. It does nothing for a sighting saved through the app, which would still wait for a tick.
 - **The ingest maintains the table itself.** It misses every other writer: the app's own saves, a curator's edit, the register resolver's re-keying of Maplify rows, a hand-run fix. Triggers see every writer.
 - **Row-level triggers.** These fire once per row, so a batch upsert of a window becomes hundreds of single-key recomputes. Statement triggers with transition tables give one set-based recompute per statement.
 - **Recompute synchronously when reference data changes.** A new taxon would arrive inside an iNaturalist ingest tick and make that tick pay a 10 s rebuild. The flag moves the cost to a job that has nothing else to do.
@@ -49,8 +49,10 @@ A statement trigger on each of these sets a flag. A five-minute cron job calls `
 
 ## Consequences
 
+- **Rehearsed on production's data.** A data-only dump of production, restored locally onto the schema as of `main`, took the migration in 6 s on a laptop (allow several times that on the Nano instance). The store came out at 63,491 rows, the count the old view returned, and the candidates at 16,226, the count of production's matview. The store equalled its derivation exactly. A rebuild that changed nothing then took 1.6 s and wrote 7.5 kB of WAL and no temp files; the refresh it replaces spilled about 20 MB every five minutes. A write that changed 20 sightings took 22 ms including their refresh.
 - One migration adds the `derived` schema, the five views, the two tables, the functions and triggers, and the cron job. It drops both matviews and their jobs, re-creates the five dependent views and their grants, rewrites `occurrence_days`, and populates the store.
 - `derived` is not exposed to PostgREST, and neither `anon`, `authenticated` nor `ingest` has any privilege in it. The triggers call definer functions, so the ingest role needs no new grant.
+- `public.occurrences` and `occurrence_unresolved_codes` are now single-table views, which Postgres treats as updatable, and the generated types grow `Insert`/`Update` shapes for them. That is inert only because no client role holds a write privilege on either. `supabase/public-grants.test.ts` already pins the only client-writable relations (`observations` and `observation_photos`), so a grant that would open the store to writes fails CI.
 - `inaturalist.mint_contributor` stops rewriting the contributor row on every call. It had done so once per fetched observation per tick: 4M updates in thirty days on a table of 17k rows. With the new contributor trigger, that would also have been 4M pointless refresh checks.
 - A test pins the invariant: after writes to every source, the store equals what the five views compute. `supabase/refresh-schedules.test.ts` loses its subject and goes. The rule it guarded, that no two whole-view scans share a tick, no longer has two scans to keep apart.
 - This is the database-side step that `salish-t3g` (the logged-out read path as static artefacts) builds on: an artefact is easier to cut from a table that is already right.

@@ -79,13 +79,10 @@ next tick reconciles what this one left at its edges. So:
 
 ## After a backfill
 
-Resolved identifier codes (which power the individual/matriline/ecotype pages)
-come from the `occurrence_identifier_candidates` matview, refreshed by cron
-within ~5 minutes. To see backfilled sightings immediately:
-
-```sql
-REFRESH MATERIALIZED VIEW CONCURRENTLY public.occurrence_identifier_candidates;
-```
+Nothing to do. Backfilled sightings reach the map, and their identifier codes the
+individual/matriline/ecotype pages, in the backfill's own transaction: every write to
+a source table refreshes the stored occurrences it touched (decision
+[055](../../../docs/decisions/055-occurrences-are-stored-not-assembled.md)).
 
 ## Practical notes
 
