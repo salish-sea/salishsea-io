@@ -41,10 +41,11 @@ const ROWS = [
 ];
 
 let exportDir: string;
+let snapshot: string;
 
 beforeAll(async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'read-path-days-'));
-    const snapshot = path.join(dir, 'snapshot.duckdb');
+    snapshot = path.join(dir, 'snapshot.duckdb');
     // Named snapshot.duckdb on purpose: the file's catalog then shares the
     // schema's name, which is ambiguous unless the reader attaches it by alias.
     const db = await DuckDBInstance.create(':memory:');
@@ -88,5 +89,20 @@ describe('writeDays', () => {
     test('a day with no occurrences left loses its file', async () => {
         expect((await readdir(path.join(exportDir, 'days'))).sort())
             .toEqual(['2025-03-08.json', '2025-03-09.json', '2025-11-01.json', '2025-11-02.json']);
+    });
+
+    test('the swap leaves nothing beside days/', async () => {
+        expect(await readdir(exportDir)).toEqual(['days']);
+    });
+
+    test('a run after one that died mid-swap restores the last complete build first', async () => {
+        // The state a crash between the two renames leaves: no days/, the last
+        // complete build in days.previous. This run then fails on its snapshot,
+        // and must still leave that build in place.
+        const crashed = path.join(path.dirname(exportDir), 'crashed');
+        await mkdir(path.join(crashed, 'days.previous'), {recursive: true});
+        await writeFile(path.join(crashed, 'days.previous', '2020-01-01.json'), '[]');
+        await expect(writeDays(path.join(crashed, 'no-such.duckdb'), crashed)).rejects.toThrow();
+        expect(await readdir(path.join(crashed, 'days'))).toEqual(['2020-01-01.json']);
     });
 });
