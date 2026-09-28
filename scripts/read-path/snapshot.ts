@@ -74,6 +74,16 @@ export async function main(): Promise<void> {
         // One transaction: a reader never sees some tables from this snapshot and
         // some from the last.
         await conn.run('BEGIN');
+        // When the snapshot was taken, asked of Postgres BEFORE anything is read:
+        // everything committed by then is in the tables below, so the manifest can
+        // say the files cover every day up to this moment without overclaiming. A
+        // row committed while the read runs may be included too; that is extra,
+        // never missing. Its own relation, so that it moving every build does not
+        // move the occurrences' digest and defeat Stelis's early cutoff.
+        await conn.run(
+            `CREATE OR REPLACE TABLE store.snapshot.meta AS
+             SELECT * FROM postgres_query('pg', 'select now() as taken_at')`,
+        );
         for (const {name, query} of RELATIONS) {
             await conn.run(
                 `CREATE OR REPLACE TABLE store.snapshot.${name} AS

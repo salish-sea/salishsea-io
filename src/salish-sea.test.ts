@@ -288,7 +288,8 @@ test('in static mode, a signed-out visitor reads the day file and a signed-in co
   vi.stubEnv('VITE_READ_SOURCE', 'static');
   const fromFile = (date: string) => new Response(
     JSON.stringify([occurrenceFixture('from-file', `${date}T20:00:00Z`)]), {status: 200});
-  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => fromFile(el.date));
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) =>
+    String(url).endsWith('manifest.json') ? new Response(null, {status: 404}) : fromFile(el.date));
   occurrenceQuery.rows = [occurrenceFixture('from-supabase', '2025-03-09T20:00:00Z')];
   const el = document.createElement('salish-sea') as SalishSea;
   try {
@@ -304,7 +305,7 @@ test('in static mode, a signed-out visitor reads the day file and a signed-in co
     (el as unknown as {user: unknown}).user = {id: 'contributor'};
     await el.fetchOccurrences(el.date);
     await el.updateComplete;
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalledWith(`/read-path/days/${el.date}.json`);
     expect(summaryIds(el)).toEqual(['summary-from-supabase']);
   } finally {
     vi.unstubAllEnvs();
@@ -316,7 +317,8 @@ test('a day file still in flight when someone signs in does not overwrite their 
   vi.stubEnv('VITE_READ_SOURCE', 'static');
   let release!: (r: Response) => void;
   const held = new Promise<Response>(resolve => release = resolve);
-  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => held);
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url: RequestInfo | URL) =>
+    String(url).endsWith('manifest.json') ? Promise.resolve(new Response(null, {status: 404})) : held);
   occurrenceQuery.rows = [occurrenceFixture('from-supabase', '2025-03-09T20:00:00Z')];
   const el = document.createElement('salish-sea') as SalishSea;
   try {
@@ -336,3 +338,34 @@ test('a day file still in flight when someone signs in does not overwrite their 
     fetchSpy.mockRestore();
   }
 });
+
+test('in static mode, a new build makes a signed-out tab refetch its day', async () => {
+  vi.stubEnv('VITE_READ_SOURCE', 'static');
+  vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']});
+  let takenAt = '2025-03-09T20:00:00.000Z';
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) =>
+    String(url).endsWith('manifest.json')
+      ? new Response(JSON.stringify({version: 1, snapshot_taken_at: takenAt, covered_through: '2099-01-01'}))
+      : new Response(JSON.stringify([occurrenceFixture('from-file', '2025-03-09T20:00:00Z')])));
+  const el = document.createElement('salish-sea') as SalishSea;
+  const dayFetches = () => fetchSpy.mock.calls.filter(([url]) => String(url).includes('/read-path/days/')).length;
+  try {
+    document.body.appendChild(el);
+    await el.updateComplete;
+    await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledWith('/read-path/manifest.json'));
+    const before = dayFetches();
+
+    await vi.advanceTimersByTimeAsync(60_000);   // same snapshot: nothing to do
+    expect(dayFetches()).toBe(before);
+
+    takenAt = '2025-03-09T21:00:00.000Z';
+    await vi.advanceTimersByTimeAsync(60_000);   // a new build landed
+    await vi.waitFor(() => expect(dayFetches()).toBe(before + 1));
+  } finally {
+    el.remove();
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+    fetchSpy.mockRestore();
+  }
+});
+
