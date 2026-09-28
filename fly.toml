@@ -1,6 +1,8 @@
 # The salishsea-io Fly app (decision 056, salish-t3g.3). Deploy with fly/deploy.sh.
 app = "salishsea-io"
-primary_region = "sea"
+# Fly has no Seattle region any more; San Jose is the nearest, and offers Fly's
+# managed Postgres for when the database moves (decision 056, step 4).
+primary_region = "sjc"
 
 [build]
   dockerfile = "fly/Dockerfile"
