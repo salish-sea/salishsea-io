@@ -7,7 +7,9 @@
  *   SUPABASE_URL=… SUPABASE_PUBLISHABLE_KEY=… tsx scripts/read-path/listen.ts <build command>
  *
  * The broadcast is public, so the publishable key every browser has is enough;
- * the database credential stays with the build. Broadcasts sent while not
+ * the database credential stays with the build. Public also means anyone can
+ * send it, so it is only a hint about WHEN to build: the coalescer spaces builds
+ * at least two minutes apart whatever arrives. Broadcasts sent while not
  * subscribed are gone, so every subscription counts as a change, the first one
  * included: the boot build's snapshot and this subscription are not the same
  * moment, and a reconnection has missed whatever happened while it was down.
