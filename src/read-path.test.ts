@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { fetchDayOccurrences, parseReadSource } from './read-path.ts';
+import { fetchDayOccurrences, parseReadSource, watchManifest, type Manifest } from './read-path.ts';
 import type { Extent } from './extents.ts';
 
 afterEach(() => {
@@ -26,10 +26,21 @@ describe('parseReadSource', () => {
 type Row = {id: string, location: {lon: number | null, lat: number | null} | null};
 
 function serve(status: number, body: unknown = null) {
-  return vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
     new Response(body === null ? null : JSON.stringify(body), {status}),
   );
 }
+
+/** A day file's response, and the manifest's: `null` for either is a 404. */
+function serveDayAndManifest(day: unknown, manifest: Manifest | null) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
+    const body = String(url).endsWith('manifest.json') ? manifest : day;
+    return new Response(body === null ? null : JSON.stringify(body), {status: body === null ? 404 : 200});
+  });
+}
+
+const manifest = (coveredThrough: string, takenAt = `${coveredThrough}T20:00:00.000Z`): Manifest =>
+  ({version: 1, snapshot_taken_at: takenAt, covered_through: coveredThrough});
 
 const box: Extent = [-123, 48, -122, 49];
 
@@ -60,9 +71,19 @@ describe('fetchDayOccurrences', () => {
       .toEqual(['inside', 'on-the-edge']);
   });
 
-  test('a day with no file is a day with no sightings', async () => {
-    serve(404);
+  test('a missing day the last build covered is a day with no sightings', async () => {
+    serveDayAndManifest(null, manifest('2025-03-09'));
     expect(await fetchDayOccurrences<Row>('2025-03-09', null)).toEqual([]);
+  });
+
+  test('a missing day past the last build is not built yet, not quiet', async () => {
+    serveDayAndManifest(null, manifest('2025-03-08'));
+    await expect(fetchDayOccurrences<Row>('2025-03-09', null)).rejects.toThrow(/not built yet/);
+  });
+
+  test('with no manifest, nothing is built, so a missing day is not quiet either', async () => {
+    serveDayAndManifest(null, null);
+    await expect(fetchDayOccurrences<Row>('2025-03-09', null)).rejects.toThrow(/covered through nothing/);
   });
 
   test('any other failure throws, so the caller reports it', async () => {
@@ -70,3 +91,53 @@ describe('fetchDayOccurrences', () => {
     await expect(fetchDayOccurrences<Row>('2025-03-09', null)).rejects.toThrow(/HTTP 503/);
   });
 });
+
+describe('watchManifest', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Let the watcher's pending fetches settle. */
+  const settle = () => vi.advanceTimersByTimeAsync(0);
+
+  test('the first manifest is the baseline; a new snapshot is a new build', async () => {
+    vi.useFakeTimers();
+    let current: Manifest | null = manifest('2025-03-09', '2025-03-09T20:00:00.000Z');
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify(current), {status: 200}));
+    const onNewBuild = vi.fn();
+    const stop = watchManifest(onNewBuild, {intervalMs: 1000, isVisible: () => true});
+    await settle();
+    expect(onNewBuild).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onNewBuild).not.toHaveBeenCalled();
+
+    current = manifest('2025-03-09', '2025-03-09T21:00:00.000Z');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onNewBuild).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  test('a hidden page does not poll', async () => {
+    vi.useFakeTimers();
+    const fetch = serve(200, manifest('2025-03-09'));
+    const stop = watchManifest(() => {}, {intervalMs: 1000, isVisible: () => false});
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(fetch).not.toHaveBeenCalled();
+    stop();
+  });
+
+  test('a failed poll is not a new build', async () => {
+    vi.useFakeTimers();
+    const fetch = serve(200, manifest('2025-03-09'));
+    const onNewBuild = vi.fn();
+    const stop = watchManifest(onNewBuild, {intervalMs: 1000, isVisible: () => true});
+    await settle();
+    fetch.mockImplementation(async () => new Response(null, {status: 503}));
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(onNewBuild).not.toHaveBeenCalled();
+    stop();
+  });
+});
+

@@ -15,7 +15,7 @@ import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
-import { fetchDayOccurrences, readSource } from "./read-path.ts";
+import { fetchDayOccurrences, readSource, watchManifest } from "./read-path.ts";
 import type { PatchedDatabase } from "./types.ts";
 import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
@@ -393,9 +393,20 @@ export default class SalishSea extends LitElement {
       .subscribe();
   }
 
+  /** Stops the read-path manifest watch; set only in static mode. */
+  #stopManifestWatch: (() => void) | undefined;
+
   connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener('popstate', this.#handlePopState);
+    // A signed-out visitor's day comes from the read-path files, which change
+    // when a build lands, not when the database does — so the realtime broadcast
+    // can't tell them anything new. The manifest can (decision 056). A signed-in
+    // contributor reads Supabase and keeps the broadcast.
+    if (readSource() === 'static')
+      this.#stopManifestWatch = watchManifest(() => {
+        if (!this.user) this.refetchOccurrences(this.date);
+      });
     // Reflect the resolved date in the URL so a link shared while viewing the default
     // (today) is a permalink to that day, the way map coordinates already are. replaceState
     // adds no history entry; skip when an occurrence permalink (?o=) already pins context.
@@ -423,6 +434,8 @@ export default class SalishSea extends LitElement {
       this.#broadcastRefetchTimer = null;
     }
     this.#realtimeChannel?.unsubscribe();
+    this.#stopManifestWatch?.();
+    this.#stopManifestWatch = undefined;
   }
 
   protected render(): unknown {

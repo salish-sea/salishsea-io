@@ -7,7 +7,8 @@
  * the prototype that reads files. Cutover and rollback are the same one-line
  * change.
  *
- * Only a signed-out visitor's day of sightings on the map reads files so far.
+ * Only a signed-out visitor's day of sightings on the map reads files so far,
+ * and the manifest tells an open tab when a new build has landed.
  * Everything else — the calendar, profiles, share links, and anything a
  * signed-in contributor sees — still asks Supabase.
  */
@@ -41,15 +42,37 @@ export const READ_PATH_BASE = '/read-path/';
 type Located = {location: {lon: number | null, lat: number | null} | null};
 
 /**
+ * What the last build covered (scripts/read-path/manifest.ts). Every Pacific
+ * day up to and including `covered_through` is in the files; a new
+ * `snapshot_taken_at` means a new build.
+ */
+export type Manifest = {
+  version: 1,
+  snapshot_taken_at: string,
+  covered_through: string,
+};
+
+/** The current manifest, or null when nothing has been built yet. */
+export async function fetchManifest(): Promise<Manifest | null> {
+  const url = `${READ_PATH_BASE}manifest.json`;
+  const response = await fetch(url);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  const manifest = await response.json() as Manifest;
+  if (manifest.version !== 1) throw new Error(`${url}: unknown version ${manifest.version}`);
+  return manifest;
+}
+
+/**
  * A day's occurrences, newest first, from `days/<date>.json` — the same rows
  * `fetchOccurrences` gets from PostgREST, with the same region filter applied
  * here instead of in Postgres.
  *
- * A day with no sightings has no file, so a 404 is an empty day. That is only
- * honest while nothing else can make the file go missing: once the files are
- * served, a manifest has to say which days the build covered, or a failed
- * publish would read as a quiet day on the water (salish-t3g.1). Any other
- * failure throws, and the caller reports it.
+ * A day with no sightings has no file, and neither does a day no build has
+ * reached. The manifest tells them apart: a missing day the last build covered
+ * is empty, and any other missing day throws, because an empty list there would
+ * say the water was quiet when the truth is we don't know yet. Any other failure
+ * throws too, and the caller reports it.
  */
 export async function fetchDayOccurrences<T extends Located>(
   date: string,
@@ -57,7 +80,12 @@ export async function fetchDayOccurrences<T extends Located>(
 ): Promise<T[]> {
   const url = `${READ_PATH_BASE}days/${date}.json`;
   const response = await fetch(url);
-  if (response.status === 404) return [];
+  if (response.status === 404) {
+    const manifest = await fetchManifest();
+    // Both are ISO dates, so they compare as strings.
+    if (manifest && date <= manifest.covered_through) return [];
+    throw new Error(`${url}: not built yet (covered through ${manifest?.covered_through ?? 'nothing'})`);
+  }
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
   const day = await response.json() as T[];
   if (!extent) return day;
@@ -72,3 +100,35 @@ export async function fetchDayOccurrences<T extends Located>(
       lat >= miny && lat <= maxy;
   });
 }
+
+/**
+ * Call `onNewBuild` whenever the manifest names a new snapshot, checking every
+ * `intervalMs` while the page is visible. The first manifest seen is the
+ * baseline, not a change. Errors are left for the next tick: a missed poll only
+ * delays an update the next one will bring. Returns a function that stops it.
+ */
+export function watchManifest(
+  onNewBuild: () => void,
+  {intervalMs = 60_000, isVisible = () => document.visibilityState === 'visible'}: {
+    intervalMs?: number,
+    isVisible?: () => boolean,
+  } = {},
+): () => void {
+  let seen: string | null | undefined;
+  const tick = async () => {
+    if (!isVisible()) return;
+    let manifest;
+    try {
+      manifest = await fetchManifest();
+    } catch {
+      return;
+    }
+    const taken = manifest?.snapshot_taken_at ?? null;
+    if (seen !== undefined && taken !== seen) onNewBuild();
+    seen = taken;
+  };
+  void tick();
+  const timer = setInterval(() => void tick(), intervalMs);
+  return () => clearInterval(timer);
+}
+
