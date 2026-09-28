@@ -12,6 +12,8 @@ const occurrenceQuery = vi.hoisted(() => ({
   gate: null as Promise<void> | null,
   /** What a `?o=` permalink lookup finds. */
   single: {data: null as unknown, error: null as unknown},
+  /** The component's auth listener, so a test can sign someone in. */
+  onAuth: null as ((event: string, session: unknown) => void) | null,
 }));
 // The sighting form asks the register for its menu's names on mount (salish-53t.3); that is not
 // what these tests are about, and an unanswered fetch would raise a toast of its own.
@@ -46,7 +48,10 @@ vi.mock('./supabase.ts', () => {
   return {
     supabase: () => ({
       auth: {
-        onAuthStateChange: () => ({data: {subscription: {unsubscribe() {}}}}),
+        onAuthStateChange: (listener: (event: string, session: unknown) => void) => {
+          occurrenceQuery.onAuth = listener;
+          return {data: {subscription: {unsubscribe() {}}}};
+        },
         signOut: async () => ({error: null}),
       },
       from: () => query,
@@ -273,4 +278,61 @@ test('a permalink for a sighting we do not have stays quiet, as it always has', 
   await (el as unknown as {hydrateFromOccurrenceId(id: string): Promise<void>}).hydrateFromOccurrenceId('abc');
 
   expect(await toastText(el)).toBeNull();
+});
+
+// Decision 056: under VITE_READ_SOURCE=static a signed-out visitor's day comes
+// from the read-path file, while a signed-in contributor keeps reading Supabase,
+// because the files trail the database and a contributor must see a sighting
+// they just saved (decision 055).
+test('in static mode, a signed-out visitor reads the day file and a signed-in contributor reads Supabase', async () => {
+  vi.stubEnv('VITE_READ_SOURCE', 'static');
+  const fromFile = (date: string) => new Response(
+    JSON.stringify([occurrenceFixture('from-file', `${date}T20:00:00Z`)]), {status: 200});
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => fromFile(el.date));
+  occurrenceQuery.rows = [occurrenceFixture('from-supabase', '2025-03-09T20:00:00Z')];
+  const el = document.createElement('salish-sea') as SalishSea;
+  try {
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    await el.fetchOccurrences(el.date);
+    await el.updateComplete;
+    expect(fetchSpy).toHaveBeenCalledWith(`/read-path/days/${el.date}.json`);
+    expect(summaryIds(el)).toEqual(['summary-from-file']);
+
+    fetchSpy.mockClear();
+    (el as unknown as {user: unknown}).user = {id: 'contributor'};
+    await el.fetchOccurrences(el.date);
+    await el.updateComplete;
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(summaryIds(el)).toEqual(['summary-from-supabase']);
+  } finally {
+    vi.unstubAllEnvs();
+    fetchSpy.mockRestore();
+  }
+});
+
+test('a day file still in flight when someone signs in does not overwrite their Supabase list', async () => {
+  vi.stubEnv('VITE_READ_SOURCE', 'static');
+  let release!: (r: Response) => void;
+  const held = new Promise<Response>(resolve => release = resolve);
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => held);
+  occurrenceQuery.rows = [occurrenceFixture('from-supabase', '2025-03-09T20:00:00Z')];
+  const el = document.createElement('salish-sea') as SalishSea;
+  try {
+    document.body.appendChild(el);
+    await el.updateComplete;
+    const signedOut = el.fetchOccurrences(el.date);   // the file request, held open
+
+    occurrenceQuery.onAuth!('SIGNED_IN', {user: {id: 'contributor'}});
+    await vi.waitFor(() => expect(summaryIds(el)).toEqual(['summary-from-supabase']));
+
+    release(new Response(JSON.stringify([occurrenceFixture('from-file', `${el.date}T20:00:00Z`)]), {status: 200}));
+    await signedOut;
+    await el.updateComplete;
+    expect(summaryIds(el)).toEqual(['summary-from-supabase']);
+  } finally {
+    vi.unstubAllEnvs();
+    fetchSpy.mockRestore();
+  }
 });
