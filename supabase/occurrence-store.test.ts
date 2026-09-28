@@ -195,38 +195,88 @@ describe.skipIf(!DSN)('derived.occurrences equals its derivation (local Supabase
 
     test('reference data marks the store stale, a no-op upsert does not, and refresh_all converges', async () => {
         const result = await rolledBack(sql, async (tx) => {
-            const generation = async () =>
-                Number((await tx<{ g: string }[]>`SELECT generation::text AS g FROM derived.rebuild_state`)[0]!.g);
-            const start = await generation();
+            const marks = async () =>
+                (await tx<{ n: number }[]>`SELECT count(*)::int AS n FROM derived.stale_marks`)[0]!.n;
+            await tx`DELETE FROM derived.stale_marks`;
             // The iNaturalist ingest's taxa upsert, every tick, changing nothing.
             await tx`INSERT INTO inaturalist.taxa SELECT * FROM inaturalist.taxa WHERE id = ${ORCA_TAXON} ON CONFLICT (id) DO NOTHING`;
-            const afterNoop = await generation();
+            const afterNoop = await marks();
             await tx`UPDATE public.providers SET name = 'Renamed Provider' WHERE slug = 'direct'`;
-            const afterChange = await generation();
+            const afterChange = await marks();
             const staleDrift = await drift(tx);
             await tx`SELECT derived.refresh_all()`;
-            const [state] = await tx<{ current: boolean }[]>`
-                SELECT generation = rebuilt_generation AS current FROM derived.rebuild_state`;
-            return { start, afterNoop, afterChange, staleDrift, drift: await drift(tx), current: state!.current };
+            return { afterNoop, afterChange, staleDrift, drift: await drift(tx), afterRebuild: await marks() };
         });
-        expect(result.afterNoop).toBe(result.start);
-        expect(result.afterChange).toBe(result.start + 1);
+        expect(result.afterNoop).toBe(0);
+        expect(result.afterChange).toBe(1);
         // The seeded native sighting is the CI seed's 'direct' provider's: stale until the rebuild.
         expect(result.staleDrift.length).toBeGreaterThan(0);
         expect(result.drift).toEqual([]);
-        expect(result.current).toBe(true);
+        expect(result.afterRebuild).toBe(0);
+    });
+
+    test('truncating a source table empties its part of the store', async () => {
+        const left = await rolledBack(sql, async (tx) => {
+            await tx`TRUNCATE maplify.sightings`;
+            return (await tx<{ n: number }[]>`SELECT count(*)::int AS n FROM derived.occurrences WHERE source = 'maplify'`)[0]!.n;
+        });
+        expect(left).toBe(0);
+    });
+
+    test('two writers refreshing one occurrence at once both land', async () => {
+        // Committed, because the race is between two sessions. Removed at the end.
+        await sql`INSERT INTO inaturalist.observations (id, description, location, observed_at, uri, taxon_id, fetched_at, updated_at)
+                  VALUES (${INAT}, 'a whale', gis.ST_Point(-123.2, 48.5)::gis.geography, '2026-09-01T11:00:00Z',
+                          'https://example.test/observations/900902', ${ORCA_TAXON}, now(), now())`;
+        const first = postgres(DSN as string, { prepare: false, max: 1 });
+        const second = postgres(DSN as string, { prepare: false, max: 1 });
+        const photo = (tx: TransactionSql, id: number) => tx`
+            INSERT INTO inaturalist.observation_photos (id, observation_id, seq, attribution, hidden, license, original_dimensions, url)
+            VALUES (${id}, ${INAT}, ${id % 10}, '(c) someone', false, 'cc-by', ROW(10, 10), ${`https://example.test/${id}.jpg`})`;
+        try {
+            let release!: () => void;
+            const held = new Promise<void>((resolve) => { release = resolve; });
+            let firstWrote!: () => void;
+            const wrote = new Promise<void>((resolve) => { firstWrote = resolve; });
+            // The first writer inserts a photo, refreshes the occurrence, and holds its
+            // transaction open until the second is waiting on it.
+            const a = first.begin(async (tx) => { await photo(tx, 9009021); firstWrote(); await held; });
+            await wrote;
+            const b = second.begin((tx) => photo(tx, 9009022));
+            // Wait until the second writer is blocked on the source's lock, then let the first commit.
+            for (let i = 0; i < 100; i++) {
+                const [w] = await sql<{ n: number }[]>`
+                    SELECT count(*)::int AS n FROM pg_locks WHERE locktype = 'advisory' AND NOT granted`;
+                if (w!.n > 0) break;
+                await new Promise((r) => setTimeout(r, 20));
+            }
+            release();
+            await Promise.all([a, b]);
+            const [o] = await sql<{ photos: number }[]>`
+                SELECT cardinality(photos) AS photos FROM derived.occurrences WHERE id = ${'inaturalist:' + INAT}`;
+            expect(o!.photos).toBe(2);
+        } finally {
+            await first.end();
+            await second.end();
+            await sql`DELETE FROM inaturalist.observation_photos WHERE observation_id = ${INAT}`;
+            await sql`DELETE FROM inaturalist.observations WHERE id = ${INAT}`;
+        }
     });
 
     test('the five-minute job rebuilds when stale and does nothing when not', async () => {
         // CALL commits between sources, so this runs outside a transaction. It changes nothing
         // the store did not already say, which the first test establishes.
-        await sql`CALL derived.rebuild_occurrences()`;
-        const [first] = await sql<{ at: Date; current: boolean }[]>`
-            SELECT rebuilt_at AS at, generation = rebuilt_generation AS current FROM derived.rebuild_state`;
+        await sql`INSERT INTO derived.stale_marks (source_table) VALUES ('test')`;
         await sql`CALL derived.rebuild_occurrences(only_if_stale => true)`;
-        const [second] = await sql<{ at: Date }[]>`SELECT rebuilt_at AS at FROM derived.rebuild_state`;
-        expect(first!.current).toBe(true);
-        expect(second!.at).toEqual(first!.at);
+        const [first] = await sql<{ at: Date; marks: number }[]>`
+            SELECT rebuilt_at AS at, (SELECT count(*)::int FROM derived.stale_marks) AS marks FROM derived.rebuild_state`;
+        await sql`CALL derived.rebuild_occurrences(only_if_stale => true)`;
+        const [second] = await sql<{ at: Date; marks: number }[]>`
+            SELECT rebuilt_at AS at, (SELECT count(*)::int FROM derived.stale_marks) AS marks FROM derived.rebuild_state`;
+        expect(first!.marks).toBe(0);
+        // Nothing stale, so nothing rebuilt — unless another test file committed a mark in
+        // between, in which case rebuilding was right and there is nothing to compare.
+        if (second!.marks === 0) expect(second!.at).toEqual(first!.at);
         expect(await rolledBack(sql, drift)).toEqual([]);
     });
 });

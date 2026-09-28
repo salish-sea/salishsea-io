@@ -19,6 +19,11 @@
 -- and re-created against the new tables, as 20260926120100 did; their grants are
 -- re-applied at the end.
 
+-- Filling the store is the slow part (seconds on a laptop, more on the Nano), and prod's
+-- configured statement_timeout is 120 s. A timeout would only roll the migration back,
+-- but a red deploy is still a deploy nobody wanted.
+SET statement_timeout = 0;
+
 -- ---------------------------------------------------------------------------
 -- 1. The schema. Not exposed to PostgREST (supabase/config.toml), and no client role, nor
 --    the ingest role, gets anything in it: the triggers reach it through definer functions.
@@ -307,13 +312,20 @@ LEFT JOIN public.designations d
 -- Bouts carry register identifiers, not text; see public.acoustic_identifications.
 WHERE o.source <> 'orcasound';
 
--- Whether reference data has moved since the last rebuild: stale while generation is
--- ahead of rebuilt_generation. A counter rather than a flag, so a change that lands while
--- a rebuild is running is not cleared by that rebuild finishing.
+-- Whether reference data has moved since the last rebuild: one row per statement that
+-- moved it, stale while any row exists. Append-only, so a reference writer holds no lock
+-- anyone else wants (a counter row was one, and it deadlocked against the rebuild). A
+-- rebuild deletes only the marks it saw committed when it started, so a change that
+-- commits while it runs is still marked when it finishes.
+CREATE TABLE derived.stale_marks (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  marked_at timestamptz NOT NULL DEFAULT now(),
+  source_table text NOT NULL
+);
+
+-- When the store was last rebuilt in full; for the eyes of whoever is looking.
 CREATE TABLE derived.rebuild_state (
   singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
-  generation bigint NOT NULL DEFAULT 0,
-  rebuilt_generation bigint NOT NULL DEFAULT 0,
   rebuilt_at timestamptz
 );
 INSERT INTO derived.rebuild_state DEFAULT VALUES;
@@ -326,10 +338,13 @@ INSERT INTO derived.rebuild_state DEFAULT VALUES;
 --    with no keys it does the whole source. Either way it writes only what changed, so an
 --    ingest tick or a register reload that changed nothing writes nothing.
 --
---    A rebuild computes from its own snapshot, so a writer committing a refresh of the
---    same row mid-rebuild could be overwritten with the older answer. A per-source
---    advisory lock, shared for keys and exclusive for the whole source, keeps them apart;
---    the rebuild takes one lock per transaction, so no cycle is possible.
+--    Each refresh computes from its own snapshot, so two refreshes of one occurrence
+--    racing each other (two photos of one observation written at once; a rebuild and a
+--    tick) could leave the older answer stored. A per-source advisory lock, exclusive and
+--    held to commit, makes refreshes of one source take turns; the statement that
+--    computes runs after the lock is granted, so it sees every refresh committed before
+--    it. No transaction refreshes two sources, and the candidates lock is only ever taken
+--    after a source lock or alone, so no cycle is possible.
 -- ---------------------------------------------------------------------------
 CREATE FUNCTION derived.refresh_identifier_candidates(p_ids text[])
 RETURNS void
@@ -337,7 +352,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 -- The whole set is ~16k rows; keep it off the disk, as refresh_occurrences does.
-SET work_mem = '64MB'
+SET work_mem = '32MB'
 AS $$
 BEGIN
   IF p_ids IS NOT NULL AND cardinality(p_ids) = 0 THEN
@@ -382,8 +397,10 @@ RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
--- A whole-source refresh holds up to ~30k fresh rows at once; keep them off the disk.
-SET work_mem = '64MB'
+-- A whole-source refresh holds up to ~30k fresh rows at once. At 32 MB a full rebuild
+-- still spills ~20 MB (measured on a restore of prod), a few times a day; at 64 MB it would
+-- not, but several sort and hash nodes each entitled to that is too much to ask of 0.5 GB.
+SET work_mem = '32MB'
 AS $$
 DECLARE
   key_type constant text := CASE p_source
@@ -404,11 +421,7 @@ BEGIN
   IF p_keys IS NOT NULL AND cardinality(p_keys) = 0 THEN
     RETURN 0;
   END IF;
-  IF p_keys IS NULL THEN
-    PERFORM pg_advisory_xact_lock(hashtext('derived.occurrences:' || p_source));
-  ELSE
-    PERFORM pg_advisory_xact_lock_shared(hashtext('derived.occurrences:' || p_source));
-  END IF;
+  PERFORM pg_advisory_xact_lock(hashtext('derived.occurrences:' || p_source));
 
   -- The store's own columns, so a column added to the store and the five views needs no
   -- edit here. `fresh_row` is a fresh row as the store would hold it, in the store's
@@ -459,11 +472,10 @@ BEGIN
   INTO touched
   USING p_keys;
 
-  -- A whole-source refresh leaves the candidates to the rebuild's own final pass, which
-  -- also sees a designation or group that changed without any occurrence changing.
-  IF p_keys IS NOT NULL THEN
-    PERFORM derived.refresh_identifier_candidates(touched);
-  END IF;
+  -- Whatever changed here, its candidates follow, keyed or whole-source alike, so a
+  -- migration that refreshes a source leaves nothing stale. A designation or group that
+  -- changed without any occurrence changing is the rebuild's final pass's to see.
+  PERFORM derived.refresh_identifier_candidates(touched);
   RETURN cardinality(touched);
 END;
 $$;
@@ -484,7 +496,8 @@ AS $$
   SELECT derived.refresh_occurrences(src)
   FROM unnest(ARRAY['maplify', 'inaturalist', 'happywhale', 'orcasound', 'native']) AS src;
   SELECT derived.refresh_identifier_candidates(NULL);
-  UPDATE derived.rebuild_state SET rebuilt_generation = generation, rebuilt_at = now();
+  DELETE FROM derived.stale_marks;
+  UPDATE derived.rebuild_state SET rebuilt_at = now();
 $$;
 
 -- The whole store, one source per transaction so each exclusive lock is held only for its
@@ -495,13 +508,11 @@ CREATE PROCEDURE derived.rebuild_occurrences(only_if_stale boolean DEFAULT false
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  target bigint;
+  seen bigint[];
   src text;
 BEGIN
-  SELECT s.generation INTO target
-  FROM derived.rebuild_state s
-  WHERE NOT only_if_stale OR s.generation > s.rebuilt_generation;
-  IF NOT FOUND THEN
+  seen := ARRAY(SELECT m.id FROM derived.stale_marks m);
+  IF only_if_stale AND pg_catalog.cardinality(seen) = 0 THEN
     RETURN;
   END IF;
   COMMIT;
@@ -510,9 +521,10 @@ BEGIN
     COMMIT;
   END LOOP;
   PERFORM derived.refresh_identifier_candidates(NULL);
-  UPDATE derived.rebuild_state
-     SET rebuilt_generation = GREATEST(rebuilt_generation, target),
-         rebuilt_at = pg_catalog.now();
+  COMMIT;
+  -- Its own transaction, holding no advisory lock: only the marks seen at the start.
+  DELETE FROM derived.stale_marks m WHERE m.id = ANY (seen);
+  UPDATE derived.rebuild_state SET rebuilt_at = pg_catalog.now();
   COMMIT;
 END;
 $$;
@@ -534,7 +546,11 @@ DECLARE
   keycol constant text := TG_ARGV[1];
   keys text[];
 BEGIN
-  IF TG_OP = 'INSERT' THEN
+  IF TG_OP = 'TRUNCATE' THEN
+    -- No transition table to read; the whole source is as cheap to redo as to reason about.
+    PERFORM derived.refresh_occurrences(src);
+    RETURN NULL;
+  ELSIF TG_OP = 'INSERT' THEN
     EXECUTE format('SELECT array_agg(DISTINCT %I::text) FROM new_rows', keycol) INTO keys;
   ELSIF TG_OP = 'DELETE' THEN
     EXECUTE format('SELECT array_agg(DISTINCT %I::text) FROM old_rows', keycol) INTO keys;
@@ -571,6 +587,9 @@ BEGIN
                    'EXECUTE FUNCTION derived.occurrence_source_changed(%L, %L)', t.tbl, t.src, t.keycol);
     EXECUTE format('CREATE TRIGGER derived_occurrences_after_delete AFTER DELETE ON %s '
                    'REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT '
+                   'EXECUTE FUNCTION derived.occurrence_source_changed(%L, %L)', t.tbl, t.src, t.keycol);
+    EXECUTE format('CREATE TRIGGER derived_occurrences_after_truncate AFTER TRUNCATE ON %s '
+                   'FOR EACH STATEMENT '
                    'EXECUTE FUNCTION derived.occurrence_source_changed(%L, %L)', t.tbl, t.src, t.keycol);
   END LOOP;
 END;
@@ -625,7 +644,7 @@ BEGIN
     EXECUTE 'SELECT EXISTS (SELECT 1 FROM new_rows)' INTO changed;
   END IF;
   IF changed THEN
-    UPDATE derived.rebuild_state SET generation = generation + 1;
+    INSERT INTO derived.stale_marks (source_table) VALUES (TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME);
   END IF;
   RETURN NULL;
 END;
@@ -672,7 +691,15 @@ REVOKE ALL ON ALL PROCEDURES IN SCHEMA derived FROM PUBLIC, anon, authenticated;
 SELECT cron.unschedule(jobname) FROM cron.job
 WHERE jobname IN ('refresh-occurrence-index', 'refresh-identifier-candidates');
 
-SELECT derived.refresh_all();
+-- One statement per source, so no one statement carries the whole fill.
+SELECT derived.refresh_occurrences('maplify');
+SELECT derived.refresh_occurrences('inaturalist');
+SELECT derived.refresh_occurrences('happywhale');
+SELECT derived.refresh_occurrences('orcasound');
+SELECT derived.refresh_occurrences('native');
+SELECT derived.refresh_identifier_candidates(NULL);
+DELETE FROM derived.stale_marks;
+UPDATE derived.rebuild_state SET rebuilt_at = now();
 
 DROP MATERIALIZED VIEW public.occurrence_identifier_candidates CASCADE;
 DROP MATERIALIZED VIEW public.occurrence_index CASCADE;
@@ -981,5 +1008,9 @@ $function$;
 -- ---------------------------------------------------------------------------
 -- 11. The rebuild's clock: a no-op unless reference data moved since the last one.
 -- ---------------------------------------------------------------------------
-SELECT cron.schedule('rebuild-occurrences-if-stale', '*/5 * * * *',
+-- Offset from the three ingest jobs at :00, so a rebuild and a tick are not both
+-- starting on the same second.
+SELECT cron.schedule('rebuild-occurrences-if-stale', '2-59/5 * * * *',
   $$CALL derived.rebuild_occurrences(only_if_stale => true)$$);
+
+RESET statement_timeout;
