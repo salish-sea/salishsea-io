@@ -1,0 +1,32 @@
+# The salishsea-io Fly app (decision 056, salish-t3g.3). Deploy with fly/deploy.sh.
+app = "salishsea-io"
+primary_region = "sea"
+
+[build]
+  dockerfile = "fly/Dockerfile"
+
+# One machine, always running: it holds the volume and the hourly schedule, so it
+# cannot stop when idle, and there is no second machine to share the volume with.
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+
+# Build state, the snapshot and the served files. Stelis's history on it is the
+# only thing here that can't be rebuilt, and it is a record, not data.
+[mounts]
+  source = "salishsea_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

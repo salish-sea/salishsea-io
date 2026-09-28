@@ -1,0 +1,4 @@
+# The hourly read-path build (decision 056). Seven past, clear of anything else
+# scheduled on the hour; supercronic runs it in UTC, which for an hourly job is
+# the same thing.
+7 * * * * /app/fly/build.sh
