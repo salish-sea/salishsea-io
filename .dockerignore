@@ -13,6 +13,12 @@ htdocs
 test-results
 data/*.duckdb
 data/*.duckdb.wal
+# Anything a local mirror or backup leaves behind, and the Supabase CLI's link
+# to the production project.
+*.sql
+*.sql.gz
+*.dump
+supabase/.temp
 infra
 e2e
 docs
