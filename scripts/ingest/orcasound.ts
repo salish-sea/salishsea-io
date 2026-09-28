@@ -9,6 +9,9 @@
  * start to an end, citing zero or more register entities through its tags. That is the
  * whole of an acoustic occurrence (CONTEXT.md "Acoustic detection").
  *
+ * A bout reaches its tags through its tag APPLICATIONS (`item_tags`), because certainty is a
+ * property of the application, not of the tag (decision 054, orcasound/orcasite#1014).
+ *
  * What is deliberately NOT read (013):
  *   - the bout's free-text name, for identity. It is carried as the title and never parsed.
  *   - a tag's name, slug or kind, for identity. A tag identifies an animal only by citing a
@@ -30,7 +33,7 @@ export type AudioCategory = (typeof AUDIO_CATEGORIES)[number];
 /**
  * How sure the moderator was of a tag application (decision 054; the values of
  * orcasound/orcasite#1014), ascending, as public.identification_certainty declares them.
- * `null` is "nobody asked", which is every application until orcasite carries the column.
+ * `null` is "nobody asked", which is every application a moderator applied without choosing.
  */
 export const CERTAINTIES = ['possible', 'probable', 'certain'] as const;
 export type Certainty = (typeof CERTAINTIES)[number];
@@ -65,7 +68,7 @@ export const BoutResourceSchema = z.object({
     }),
     relationships: z.object({
         feed: z.object({ data: ResourceRef.nullish() }).optional(),
-        tags: z.object({ data: z.array(ResourceRef).default([]) }).optional(),
+        item_tags: z.object({ data: z.array(ResourceRef).default([]) }).optional(),
     }),
 }).refine(
     // As instants, not strings: ISO datetimes of different fractional precision do not
@@ -88,7 +91,7 @@ export const FeedResourceSchema = z.object({
     }),
 });
 
-/** A tag as included by `include=tags`. `iri` is the only field identity is read from. */
+/** A tag as included by `include=item_tags.tag`. `iri` is the only field identity is read from. */
 export const TagResourceSchema = z.object({
     type: z.literal('tag'),
     id: z.string(),
@@ -100,12 +103,31 @@ export const TagResourceSchema = z.object({
 });
 
 /**
- * One page of `/api/json/bouts?include=feed,tags`. Only the two included types we ask for
- * are accepted; anything else in `included` is a change upstream worth failing loudly on.
+ * One application of a tag to a bout, as included by `include=item_tags.tag`. A certainty
+ * outside the enum fails the page, as an unknown category does: the database would refuse
+ * it anyway, and a new value upstream is a question for decision 054, not a default.
+ */
+export const ItemTagResourceSchema = z.object({
+    type: z.literal('item_tag'),
+    id: z.string(),
+    attributes: z.object({
+        certainty: z.enum(CERTAINTIES).nullish(),
+    }),
+    relationships: z.object({
+        tag: z.object({ data: ResourceRef }),
+    }),
+});
+
+/**
+ * One page of `/api/json/bouts?include=feed,item_tags.tag`. Only the three included types
+ * we ask for are accepted; anything else in `included` is a change upstream worth failing
+ * loudly on.
  */
 export const BoutsPageSchema = z.object({
     data: z.array(BoutResourceSchema),
-    included: z.array(z.discriminatedUnion('type', [FeedResourceSchema, TagResourceSchema])).default([]),
+    included: z.array(
+        z.discriminatedUnion('type', [FeedResourceSchema, TagResourceSchema, ItemTagResourceSchema]),
+    ).default([]),
     links: z.object({ next: z.string().nullish() }).default({}),
 });
 
@@ -141,7 +163,7 @@ const blankToNull = (s: string | null | undefined): string | null => {
 
 /**
  * Validate and normalize one page. Returns ok:false if the envelope, ANY bout, or ANY
- * reference a bout makes (its feed, its tags) is malformed or missing from `included` —
+ * reference a bout makes (its feed, its tag applications, their tags) is malformed or missing from `included` —
  * the shell then aborts and writes nothing, never reconciling against a page it cannot
  * fully account for.
  *
@@ -154,9 +176,11 @@ export function parseBoutsPage(raw: unknown): ParseResult {
 
     const feeds = new Map<string, z.infer<typeof FeedResourceSchema>>();
     const tags = new Map<string, z.infer<typeof TagResourceSchema>>();
+    const itemTags = new Map<string, z.infer<typeof ItemTagResourceSchema>>();
     for (const inc of parsed.data.included) {
         if (inc.type === 'feed') feeds.set(inc.id, inc);
-        else tags.set(inc.id, inc);
+        else if (inc.type === 'tag') tags.set(inc.id, inc);
+        else itemTags.set(inc.id, inc);
     }
 
     const bouts: NormalizedBout[] = [];
@@ -165,21 +189,20 @@ export function parseBoutsPage(raw: unknown): ParseResult {
         if (!feed) return { ok: false, error: `bout ${b.id}: feed ${b.attributes.feed_id} is not in included` };
 
         const entities = new Map<string, BoutEntity>();
-        for (const ref of b.relationships.tags?.data ?? []) {
-            const tag = tags.get(ref.id);
-            if (!tag) return { ok: false, error: `bout ${b.id}: tag ${ref.id} is not in included` };
+        for (const ref of b.relationships.item_tags?.data ?? []) {
+            const itemTag = itemTags.get(ref.id);
+            if (!itemTag) return { ok: false, error: `bout ${b.id}: item_tag ${ref.id} is not in included` };
+            const tagId = itemTag.relationships.tag.data.id;
+            const tag = tags.get(tagId);
+            if (!tag) return { ok: false, error: `bout ${b.id}: tag ${tagId} is not in included` };
             const iri = tag.attributes.iri;
             // The identifier is the identity; `kind` is a display facet of the tag and is
             // not consulted. A register identifier names an animal or a group of animals
             // whatever the tag is filed under (animals ADR-0010).
             if (iri == null || !ENTITY_ID.test(iri)) continue;
-            // Certainty is a property of the APPLICATION, not the tag (orcasite#1014), and
-            // the bouts include carries `tags`, not `item_tags`. So nobody has asked, yet.
-            // When orcasite exposes item_tags with a certainty on the include (#1051), this
-            // is the one place that reads it; nothing downstream changes.
-            const certainty: Certainty | null = null;
+            const certainty = itemTag.attributes.certainty ?? null;
             const prior = entities.get(iri);
-            // Two tags citing one entity are one claim here; keep the surer of the two.
+            // Two applications citing one entity are one claim here; keep the surer of the two.
             if (!prior || rank(certainty) > rank(prior.certainty)) entities.set(iri, { entityId: iri, certainty });
         }
 
