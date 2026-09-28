@@ -1,0 +1,24 @@
+# The Fly image (fly/Dockerfile) builds from a clean install; nothing local goes in.
+# .env especially: it holds whatever this checkout points at, and the image must
+# carry only what the build args give it.
+.env
+.env.*
+.git
+.beads
+.stelis
+node_modules
+**/node_modules
+dist
+htdocs
+test-results
+data/*.duckdb
+data/*.duckdb.wal
+# Anything a local mirror or backup leaves behind, and the Supabase CLI's link
+# to the production project.
+*.sql
+*.sql.gz
+*.dump
+supabase/.temp
+infra
+e2e
+docs
