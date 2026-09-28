@@ -25,14 +25,19 @@ import type { Logger } from './fetch-maplify.ts';
 const ORIGIN = 'https://live.orcasound.net';
 /**
  * Sparse fieldsets keep a page to what the core reads. Without them each feed carries its
- * intro HTML and each bout its stream relationships: 173 KB for the corpus with, several
+ * intro HTML and each bout its stream relationships: 357 KB for the corpus with, several
  * times that without. `page[limit]` is orcasite's maximum.
+ *
+ * Tags come through their applications (`item_tags.tag`), which is where certainty lives
+ * (decision 054). `fields[item_tag]` must not name `tag`: orcasite then embeds the whole
+ * tag as an attribute of the application instead of relating it.
  */
 export const FIRST_PAGE_URL =
-    `${ORIGIN}/api/json/bouts?page[limit]=250&include=feed,tags` +
+    `${ORIGIN}/api/json/bouts?page[limit]=250&include=feed,item_tags.tag` +
     '&fields[bout]=name,category,start_time,end_time,feed_id' +
     '&fields[feed]=name,location_point' +
-    '&fields[tag]=name,kind,iri';
+    '&fields[tag]=name,kind,iri' +
+    '&fields[item_tag]=certainty';
 
 /** More pages than the corpus could plausibly need at 250 a page: a runaway `next` link. */
 const MAX_PAGES = 40;

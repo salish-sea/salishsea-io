@@ -12,7 +12,7 @@ const feed = { type: 'feed', id: 'feed_1', attributes: { name: 'Lab', location_p
 const bout = (id: string) => ({
     type: 'bout', id,
     attributes: { name: null, category: 'biophony', feed_id: 'feed_1', start_time: '2026-09-01T10:00:00Z', end_time: null },
-    relationships: { feed: { data: { id: 'feed_1', type: 'feed' } }, tags: { data: [] } },
+    relationships: { feed: { data: { id: 'feed_1', type: 'feed' } }, item_tags: { data: [] } },
 });
 const page = (ids: string[], next: string | null) => JSON.stringify({ data: ids.map(bout), included: [feed], links: { next } });
 
@@ -55,9 +55,12 @@ describe('fetchAllBouts', () => {
         await expect(fetchAllBouts(noopLog)).rejects.toThrow(/parse failed on page 1: bout bout_1: feed feed_1 is not in included/);
     });
 
-    it('asks for sparse fieldsets and both includes', () => {
-        expect(FIRST_PAGE_URL).toContain('include=feed,tags');
+    it('asks for sparse fieldsets and the feed and tag-application includes', () => {
+        expect(FIRST_PAGE_URL).toContain('include=feed,item_tags.tag');
         expect(FIRST_PAGE_URL).toContain('fields[tag]=name,kind,iri');
+        // Naming `tag` here would embed the tag in the application instead of relating it.
+        expect(FIRST_PAGE_URL).toContain('fields[item_tag]=certainty');
+        expect(FIRST_PAGE_URL).not.toMatch(/fields\[item_tag\]=[^&]*tag/);
         expect(FIRST_PAGE_URL).toContain('page[limit]=250');
     });
 });
