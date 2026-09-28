@@ -15,6 +15,8 @@ import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
+import { fetchDayOccurrences, readSource } from "./read-path.ts";
+import type { PatchedDatabase } from "./types.ts";
 import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
 import './error-toast.ts';
@@ -615,9 +617,16 @@ export default class SalishSea extends LitElement {
 
     let data;
     try {
-      ({data} = await query
-        .order('observed_at', {ascending: false})
-        .throwOnError());
+      // The prototype reads the day's file instead (decision 056); the region
+      // filter above is then applied to the file's rows, in read-path.ts.
+      if (readSource() === 'static') {
+        data = await fetchDayOccurrences<PatchedDatabase['public']['Views']['occurrences']['Row']>(
+          date, region.extent);
+      } else {
+        ({data} = await query
+          .order('observed_at', {ascending: false})
+          .throwOnError());
+      }
     } catch (err) {
       // Same staleness guard as receiveOccurrences, for the same reasons: a
       // slow request for the day or region you just left must not speak for

@@ -1,6 +1,7 @@
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { execFileSync } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
@@ -37,6 +38,26 @@ function profilePagesRewrite(req, _res, next) {
   next();
 }
 
+// The read-path build's files (decision 056), served at /read-path/ from a
+// build's export directory when READ_PATH_DIR names one — for developing the
+// VITE_READ_SOURCE=static frontend locally. In production the host serves them.
+// A missing file is a real 404, not Vite's SPA fallback: the frontend reads a
+// 404 as a day with no sightings, and a 200 of index.html would be a parse error.
+function readPathFiles(req, res, next) {
+  const root = process.env.READ_PATH_DIR;
+  const prefix = '/read-path/';
+  if (!root || !req.url?.startsWith(prefix)) return next();
+  const rel = decodeURIComponent(req.url.slice(prefix.length).split('?')[0]);
+  const file = resolve(root, rel);
+  if (!file.startsWith(resolve(root) + sep) || !existsSync(file) || !statSync(file).isFile()) {
+    res.statusCode = 404;
+    return res.end();
+  }
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.end(readFileSync(file));
+}
+
 export default defineConfig({
   assetsInclude: ['**/*.geojson'],
 
@@ -71,6 +92,15 @@ export default defineConfig({
       },
       configurePreviewServer(server) {
         server.middlewares.use(profilePagesRewrite);
+      },
+    },
+    {
+      name: 'read-path-files',
+      configureServer(server) {
+        server.middlewares.use(readPathFiles);
+      },
+      configurePreviewServer(server) {
+        server.middlewares.use(readPathFiles);
       },
     },
     {
