@@ -64,7 +64,7 @@ export async function main(): Promise<void> {
         await conn.run('USE store');
         await conn.run('INSTALL postgres; LOAD postgres;');
         try {
-            await conn.run(`ATTACH '${dsn}' AS pg (TYPE postgres, READ_ONLY)`);
+            await conn.run(`ATTACH '${dsn.replaceAll("'", "''")}' AS pg (TYPE postgres, READ_ONLY)`);
         } catch {
             // DuckDB can echo the connection string in its error; never pass it on.
             throw new Error('Failed to attach Postgres (message withheld: it may contain the DSN)');
