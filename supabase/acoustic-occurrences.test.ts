@@ -107,11 +107,10 @@ describe.skipIf(!DSN)('public.occurrences: the Orcasound branch (local Supabase)
                 FROM public.occurrence_identifications
                 WHERE occurrence_id LIKE 'orcasound:bout_TEST%'
                 ORDER BY occurrence_id, code`;
-            // The text candidates are a materialized view; refreshed here so the assertion
-            // that bouts are NOT in it sees these bouts.
-            await tx`REFRESH MATERIALIZED VIEW public.occurrence_identifier_candidates`;
+            // The text candidates are kept current by the bouts' own inserts (decision 055),
+            // so the assertion that bouts are NOT among them sees these bouts.
             const [c] = await tx<{ n: number }[]>`
-                SELECT count(*)::int AS n FROM public.occurrence_identifier_candidates WHERE occurrence_id LIKE 'orcasound:%'`;
+                SELECT count(*)::int AS n FROM derived.occurrence_identifier_candidates WHERE occurrence_id LIKE 'orcasound:%'`;
             candidates = c!.n;
             throw new Rollback();
         }).catch((e: unknown) => { if (!(e instanceof Rollback)) throw e; });

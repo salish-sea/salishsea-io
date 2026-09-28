@@ -1,23 +1,18 @@
 /**
- * occurrence_days splits its range at 48 hours ago (bd salish-xfo).
+ * occurrence_days counts every sighting the moment it is saved (decision 055).
  *
- * Older days come from occurrence_index, a matview refreshed every five
- * minutes; the last 48 hours come from public.occurrences, live. The split is
- * what took the calendar from ~19,500 buffers a render to ~3,000 in production,
- * and it is invisible from the outside when it works — so these tests pin the
- * three ways it could quietly stop working:
+ * It reads derived.occurrences, which each writer keeps current in its own transaction.
+ * Until 055 it split its range at 48 hours ago, older days coming from a matview that lagged
+ * by up to five minutes (bd salish-xfo); the store does not lag, so the split went. These
+ * tests pin what a visitor relies on:
  *
- * - anon must still be able to call it, though occurrence_index is revoked
- *   from anon (the function is SECURITY DEFINER for that reason);
- * - a sighting saved just now must count before any refresh (decision 021);
- * - a sighting present in both halves must count once, not twice.
+ * - anon must still be able to call it, though derived.* is closed to anon (the function is
+ *   SECURITY DEFINER for that reason);
+ * - a sighting saved just now counts, however long ago it was observed (decision 021);
+ * - one outside the bbox does not.
  *
- * And one that proves the split exists at all: an older sighting does NOT
- * count until the index refreshes. Without it, reverting the function to read
- * public.occurrences for the whole range would pass every other test here.
- *
- * Each test runs in a rolled-back transaction; gated on SUPABASE_DB_URL like
- * the other integration tiers (decision 011).
+ * Each test runs in a rolled-back transaction; gated on SUPABASE_DB_URL like the other
+ * integration tiers (decision 011).
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
@@ -69,7 +64,7 @@ describe.skipIf(!DSN)('occurrence_days (local Supabase)', () => {
     beforeAll(() => { sql = postgres(DSN!, { max: 1 }); });
     afterAll(async () => { await sql?.end(); });
 
-    test('a sighting from the last 48 hours counts before the index refreshes', async () => {
+    test('a sighting from the last 48 hours counts as soon as it is saved', async () => {
         const n = await rolledBack(sql, async (tx) => {
             await insertSighting(tx, RECENT, 1);
             return countAsAnon(tx);
@@ -77,24 +72,21 @@ describe.skipIf(!DSN)('occurrence_days (local Supabase)', () => {
         expect(n).toBe(1);
     });
 
-    test('an older sighting waits for the index, then counts', async () => {
-        const [before, after] = await rolledBack(sql, async (tx) => {
-            await insertSighting(tx, OLDER, 24 * 5);
-            const before = await countAsAnon(tx);
-            await tx`refresh materialized view public.occurrence_index`;
-            return [before, await countAsAnon(tx)];
-        });
-        expect(before).toBe(0);
-        expect(after).toBe(1);
-    });
-
-    test('a recent sighting already in the index counts once', async () => {
+    test('so does an older one, with no refresh to wait for', async () => {
         const n = await rolledBack(sql, async (tx) => {
             await insertSighting(tx, RECENT, 1);
             await insertSighting(tx, OLDER, 24 * 5);
-            await tx`refresh materialized view public.occurrence_index`;
             return countAsAnon(tx);
         });
         expect(n).toBe(2);
+    });
+
+    test('a sighting outside the bbox does not count', async () => {
+        const n = await rolledBack(sql, async (tx) => {
+            await insertSighting(tx, OLDER, 24 * 5);
+            await tx`update maplify.sightings set location = gis.ST_Point(-122.5, 47.6)::gis.geography where id = ${OLDER}`;
+            return countAsAnon(tx);
+        });
+        expect(n).toBe(0);
     });
 });
