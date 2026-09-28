@@ -263,20 +263,16 @@ describe.skipIf(!DSN)('derived.occurrences equals its derivation (local Supabase
         }
     });
 
-    test('the five-minute job rebuilds when stale and does nothing when not', async () => {
+    test('the five-minute job rebuilds when stale, and clears the marks it saw', async () => {
         // CALL commits between sources, so this runs outside a transaction. It changes nothing
-        // the store did not already say, which the first test establishes.
-        await sql`INSERT INTO derived.stale_marks (source_table) VALUES ('test')`;
+        // the store did not already say, which the first test establishes. Other test files
+        // commit real reference writes, and so marks of their own, concurrently: this looks
+        // only at its own.
+        const [mark] = await sql<{ id: string }[]>`
+            INSERT INTO derived.stale_marks (source_table) VALUES ('test') RETURNING id::text`;
         await sql`CALL derived.rebuild_occurrences(only_if_stale => true)`;
-        const [first] = await sql<{ at: Date; marks: number }[]>`
-            SELECT rebuilt_at AS at, (SELECT count(*)::int FROM derived.stale_marks) AS marks FROM derived.rebuild_state`;
-        await sql`CALL derived.rebuild_occurrences(only_if_stale => true)`;
-        const [second] = await sql<{ at: Date; marks: number }[]>`
-            SELECT rebuilt_at AS at, (SELECT count(*)::int FROM derived.stale_marks) AS marks FROM derived.rebuild_state`;
-        expect(first!.marks).toBe(0);
-        // Nothing stale, so nothing rebuilt — unless another test file committed a mark in
-        // between, in which case rebuilding was right and there is nothing to compare.
-        if (second!.marks === 0) expect(second!.at).toEqual(first!.at);
+        const left = await sql`SELECT 1 FROM derived.stale_marks WHERE id = ${mark!.id}::bigint`;
+        expect(left.length).toBe(0);
         expect(await rolledBack(sql, drift)).toEqual([]);
     });
 });

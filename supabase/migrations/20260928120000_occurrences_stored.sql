@@ -489,15 +489,23 @@ COMMENT ON FUNCTION derived.refresh_occurrences(text, text[]) IS
 -- procedure below instead, which commits between sources.
 CREATE FUNCTION derived.refresh_all()
 RETURNS void
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT derived.refresh_occurrences(src)
-  FROM unnest(ARRAY['maplify', 'inaturalist', 'happywhale', 'orcasound', 'native']) AS src;
-  SELECT derived.refresh_identifier_candidates(NULL);
-  DELETE FROM derived.stale_marks;
+DECLARE
+  -- Only the marks committed before the refresh began: one committed during it may be
+  -- for a change the refresh did not see.
+  seen bigint[] := ARRAY(SELECT id FROM derived.stale_marks);
+  src text;
+BEGIN
+  FOREACH src IN ARRAY ARRAY['maplify', 'inaturalist', 'happywhale', 'orcasound', 'native'] LOOP
+    PERFORM derived.refresh_occurrences(src);
+  END LOOP;
+  PERFORM derived.refresh_identifier_candidates(NULL);
+  DELETE FROM derived.stale_marks WHERE id = ANY (seen);
   UPDATE derived.rebuild_state SET rebuilt_at = now();
+END;
 $$;
 
 -- The whole store, one source per transaction so each exclusive lock is held only for its
@@ -698,6 +706,8 @@ SELECT derived.refresh_occurrences('happywhale');
 SELECT derived.refresh_occurrences('orcasound');
 SELECT derived.refresh_occurrences('native');
 SELECT derived.refresh_identifier_candidates(NULL);
+-- The triggers that write marks are this migration's, not yet committed, so every mark
+-- here is this transaction's own.
 DELETE FROM derived.stale_marks;
 UPDATE derived.rebuild_state SET rebuilt_at = now();
 
