@@ -76,12 +76,19 @@ RUN test -n "$STELIS_SHA" \
  && bash /opt/stelis/scripts/preflight.sh \
  && raco make /opt/stelis/src/main.rkt
 
+# Everything runs as `app`; start.sh drops to it after taking ownership of the
+# volume, which Fly mounts owned by root.
+RUN useradd --create-home --uid 1000 app
+ENV HOME=/home/app
+
 # The salishsea checkout the Stelis graph points at: its scripts, pins and
 # dependencies, and the built site.
 COPY --from=site /app /app
-# The Postgres extension the snapshot attaches through, fetched now rather than
-# on the first build after every restart.
+# The Postgres extension the snapshot attaches through, fetched now (into app's
+# home, where DuckDB looks) rather than on the first build after every restart.
+USER app
 RUN cd /app && node --input-type=module -e "import {DuckDBInstance} from '@duckdb/node-api'; const c = await (await DuckDBInstance.create(':memory:')).connect(); await c.run('INSTALL postgres');"
+USER root
 
 ARG SOURCE_DATE_EPOCH
 ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
