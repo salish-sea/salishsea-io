@@ -1,4 +1,5 @@
-# The hourly read-path build (decision 056). Seven past, clear of anything else
-# scheduled on the hour; supercronic runs it in UTC, which for an hourly job is
-# the same thing.
-7 * * * * /app/fly/build.sh
+# The hourly read-path build (decision 056): the backstop for a change the
+# listener missed. At one past, because Pacific midnight falls on the hour in
+# both PST and PDT, and until a build runs after it, "today" is a day no build
+# has reached. supercronic runs this in UTC, which for an hourly job is the same.
+1 * * * * /app/fly/build.sh

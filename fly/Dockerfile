@@ -90,8 +90,14 @@ USER app
 RUN cd /app && node --input-type=module -e "import {DuckDBInstance} from '@duckdb/node-api'; const c = await (await DuckDBInstance.create(':memory:')).connect(); await c.run('INSTALL postgres');"
 USER root
 
+# The change listener subscribes with the same public client config the site is
+# built with; the publishable key is in every browser already (decision 002).
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_KEY
 ARG SOURCE_DATE_EPOCH
-ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
+ENV SUPABASE_URL=${VITE_SUPABASE_URL} \
+    SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_KEY} \
+    SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
     SALISHSEA_DIR=/app \
     STELIS_STATE_DIR=/data/stelis \
     SALISHSEA_SNAPSHOT_DB=/data/read-path.duckdb \

@@ -1,0 +1,100 @@
+/**
+ * When to run a read-path build, given a stream of "the data changed" signals
+ * (salish-t3g.6). Pure: the listener supplies the signals and the build, and the
+ * tests supply the clock.
+ *
+ * The database announces changes in bursts: an ingest tick commits once per
+ * source, a register reload touches everything. A build per signal would read
+ * production over and over for one burst, so this waits for `quietMs` of quiet —
+ * but never longer than `maxWaitMs` after the first unhandled change, so a
+ * steady trickle can't postpone a build forever.
+ *
+ * Nothing is dropped. A change that arrives while a build runs may have missed
+ * its snapshot, so it earns exactly one more build afterwards, however many
+ * changes arrive. A build that couldn't start because another holds the lock
+ * (the hourly one) is retried after `busyRetryMs`, not forgotten.
+ */
+
+export type BuildResult = 'done' | 'busy';
+
+export type CoalescerOptions = {
+    quietMs: number,
+    maxWaitMs: number,
+    busyRetryMs: number,
+};
+
+export const DEFAULT_OPTIONS: CoalescerOptions = {
+    quietMs: 10_000,
+    maxWaitMs: 60_000,
+    busyRetryMs: 30_000,
+};
+
+export class BuildCoalescer {
+    #pendingSince: number | null = null;
+    #timer: ReturnType<typeof setTimeout> | null = null;
+    #running = false;
+    #changedDuringRun = false;
+
+    readonly #runBuild: () => Promise<BuildResult>;
+    readonly #options: CoalescerOptions;
+    readonly #now: () => number;
+
+    constructor(
+        runBuild: () => Promise<BuildResult>,
+        options: CoalescerOptions = DEFAULT_OPTIONS,
+        now: () => number = Date.now,
+    ) {
+        this.#runBuild = runBuild;
+        this.#options = options;
+        this.#now = now;
+    }
+
+    /** The data changed. */
+    changed(): void {
+        if (this.#running) {
+            this.#changedDuringRun = true;
+            return;
+        }
+        const now = this.#now();
+        this.#pendingSince ??= now;
+        const due = Math.min(now + this.#options.quietMs, this.#pendingSince + this.#options.maxWaitMs);
+        this.#schedule(due - now);
+    }
+
+    /** Stop any scheduled build; a running one finishes. */
+    stop(): void {
+        if (this.#timer) clearTimeout(this.#timer);
+        this.#timer = null;
+    }
+
+    #schedule(delayMs: number): void {
+        if (this.#timer) clearTimeout(this.#timer);
+        this.#timer = setTimeout(() => void this.#run(), Math.max(0, delayMs));
+    }
+
+    async #run(): Promise<void> {
+        this.#timer = null;
+        this.#running = true;
+        let result: BuildResult;
+        try {
+            result = await this.#runBuild();
+        } catch {
+            // A failed build is the hourly one's to retry; keep listening.
+            result = 'done';
+        } finally {
+            this.#running = false;
+        }
+        if (result === 'busy') {
+            // Still pending: keep #pendingSince, and try again once the other
+            // build has had time to finish.
+            this.#pendingSince ??= this.#now();
+            this.#schedule(this.#options.busyRetryMs);
+            return;
+        }
+        this.#pendingSince = null;
+        if (this.#changedDuringRun) {
+            this.#changedDuringRun = false;
+            this.changed();
+        }
+    }
+}
