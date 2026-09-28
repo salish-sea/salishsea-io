@@ -7,9 +7,10 @@
  *   SUPABASE_URL=… SUPABASE_PUBLISHABLE_KEY=… tsx scripts/read-path/listen.ts <build command>
  *
  * The broadcast is public, so the publishable key every browser has is enough;
- * the database credential stays with the build. When the connection drops and
- * comes back, broadcasts sent meanwhile are gone, so a reconnection counts as a
- * change: one build catches up on whatever was missed.
+ * the database credential stays with the build. Broadcasts sent while not
+ * subscribed are gone, so every subscription counts as a change, the first one
+ * included: the boot build's snapshot and this subscription are not the same
+ * moment, and a reconnection has missed whatever happened while it was down.
  *
  * This only works while Supabase Realtime sends the broadcast. Once the database
  * moves (decision 056, step 4), the signal has to come from the new write path.
@@ -45,7 +46,6 @@ export async function main(): Promise<void> {
     }
 
     const coalescer = new BuildCoalescer(runBuild(command));
-    let subscribedBefore = false;
     createClient(url, key)
         .channel('occurrences')
         .on('broadcast', {event: 'occurrences_changed'}, () => {
@@ -54,10 +54,7 @@ export async function main(): Promise<void> {
         })
         .subscribe(status => {
             console.log(`read-path listener: ${status}`);
-            if (status !== 'SUBSCRIBED') return;
-            // The first subscription needs no catch-up: the machine builds at boot.
-            if (subscribedBefore) coalescer.changed();
-            subscribedBefore = true;
+            if (status === 'SUBSCRIBED') coalescer.changed();
         });
 }
 
