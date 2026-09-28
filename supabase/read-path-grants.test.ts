@@ -48,10 +48,12 @@ describe.skipIf(!DSN)('read_path grants (local Supabase)', () => {
               AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
               AND has_schema_privilege('read_path', n.oid, 'USAGE')
               AND (has_table_privilege('read_path', c.oid, ${privilege})
-                   OR (${privilege} = 'SELECT' AND EXISTS (
+                   -- A grant on some columns only, as feedback's INSERT is
+                   -- (decision 039). Postgres has column privileges for these three.
+                   OR (${privilege} IN ('SELECT', 'INSERT', 'UPDATE') AND EXISTS (
                        SELECT 1 FROM pg_attribute a
                        WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
-                         AND has_column_privilege('read_path', c.oid, a.attnum, 'SELECT'))))
+                         AND has_column_privilege('read_path', c.oid, a.attnum, ${privilege}))))
             ORDER BY (n.nspname || '.' || c.relname) COLLATE "C"`;
         return rows.map(r => r.rel);
     };
