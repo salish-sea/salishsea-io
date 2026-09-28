@@ -1,6 +1,6 @@
 # 056 — What a logged-out visitor reads is built as static files, from an hourly snapshot of the database
 
-**Status:** accepted; first slice built, and the map reads it under `VITE_READ_SOURCE=static` · **Decided:** 2026-09-27 · **Answers:** the direction and format questions in `salish-t3g`, and the sequencing half of `salish-9uu` · **Amends:** [002](002-static-spa-edge-architecture.md) (for logged-out reads, PostgREST stops being the backend)
+**Status:** accepted; first slice built, the map reads it under `VITE_READ_SOURCE=static`, and the Fly app serves it at [salishsea-io.fly.dev](https://salishsea-io.fly.dev/) · **Decided:** 2026-09-27 · **Answers:** the direction and format questions in `salish-t3g`, and the sequencing half of `salish-9uu` · **Amends:** [002](002-static-spa-edge-architecture.md) (for logged-out reads, PostgREST stops being the backend)
 
 ## Context
 
@@ -66,4 +66,5 @@ On production data mirrored locally on 2026-09-27: 63,494 occurrences became 4,3
 - The snapshot is a DuckDB file at `data/read-path.duckdb`, already covered by the `*.duckdb` ignore. It stays around 100–200 MB across rebuilds, because DuckDB reuses the space a replaced table frees. Stelis's build state goes in `.stelis/`, which is now ignored.
 - While step 2 is unbuilt, nothing a visitor sees changes. The files exist only where a build has been run.
 - The map reads a day through [`src/read-path.ts`](../../src/read-path.ts) when built with `VITE_READ_SOURCE=static`, and applies the region there. In development, `READ_PATH_DIR` points Vite at a build's export directory, served at `/read-path/` on the page's own origin, so the CSP needs no new source. Until a manifest says which days a build covered, a missing day file reads as a day with no sightings (`salish-t3g.1`).
+- The Fly app ([`fly.toml`](../../fly.toml), [`fly/`](../../fly/)) is in the `orcasound` organization, in `sjc`, because Fly no longer has a Seattle region. It is one machine with one volume, which holds Stelis's build state, the snapshot and the served files. Caddy serves the site and `/read-path/`, and does the profile-page rewrites Lambda@Edge does on AWS. supercronic runs the build at seven past each hour under a lock. Everything runs as an unprivileged user. The image pins Stelis by commit and builds only on Fly's remote builder, because Racket won't run under Docker's x86_64 emulation on Apple silicon. Its first build on 2026-09-28 wrote 4,396 files from 63,549 occurrences in about 30 s, and the files matched production's PostgREST answer exactly on the days checked here.
 - Mirroring production locally for this measurement found `scripts/pull-prod-db.sh` broken against the current production schema (`salish-iel`).

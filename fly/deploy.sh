@@ -5,7 +5,11 @@
 #   STELIS_SHA=<commit> fly/deploy.sh
 #
 # The site's public client config is the AWS deploy's. The publishable key is
-# read from the Supabase CLI, which this checkout is linked to, rather than typed.
+# read from the Supabase CLI rather than typed.
+#
+# The image builds on Fly's remote builder, which is fly deploy's default and the
+# only builder that works: Racket CS won't run under Docker's x86_64 emulation on
+# Apple silicon ("error reading from petite"), so a local build fails.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
