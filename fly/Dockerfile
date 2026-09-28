@@ -42,13 +42,14 @@ COPY --from=site /usr/local/bin/node /usr/local/bin/node
 
 # Racket 9.3 CS (Stelis's racket-version), minimal, plus the two collections in
 # Stelis's racket-deps.txt. The URL is an alias of the buster build, whose
-# published SHA256 this is.
+# published SHA256 this is. --no-docs: datalog's dependencies carry
+# documentation whose build needs SQLite, and the engine never reads it.
 RUN curl -fsSL -o /tmp/racket.sh \
       https://download.racket-lang.org/installers/9.3/racket-minimal-9.3-x86_64-linux-cs.sh \
  && echo "7a1cc4b14a746add95eec2e549df54e5154b7dc94938a86330ce6a02ec7f75ce  /tmp/racket.sh" | sha256sum -c - \
  && sh /tmp/racket.sh --unix-style --dest /usr/local --create-dir \
  && rm /tmp/racket.sh \
- && raco pkg install --auto --batch --scope installation datalog sha
+ && raco pkg install --auto --batch --no-docs --scope installation datalog sha
 
 # The DuckDB CLI Stelis content-addresses relations with, pinned as in its CI.
 RUN curl -fsSL -o /tmp/duckdb.zip \
