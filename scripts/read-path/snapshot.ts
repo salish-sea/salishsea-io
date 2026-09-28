@@ -55,9 +55,13 @@ export async function main(): Promise<void> {
         process.exit(1);
     }
 
-    const db = await DuckDBInstance.create(out);
+    // Attached under a fixed name, as in occurrence-days.ts: opened directly, the
+    // catalog would be named after the file and could collide with `snapshot`.
+    const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
+        await conn.run(`ATTACH '${out.replaceAll("'", "''")}' AS store`);
+        await conn.run('USE store');
         await conn.run('INSTALL postgres; LOAD postgres;');
         try {
             await conn.run(`ATTACH '${dsn}' AS pg (TYPE postgres, READ_ONLY)`);
@@ -65,25 +69,25 @@ export async function main(): Promise<void> {
             // DuckDB can echo the connection string in its error; never pass it on.
             throw new Error('Failed to attach Postgres (message withheld: it may contain the DSN)');
         }
-        await conn.run('CREATE SCHEMA IF NOT EXISTS snapshot');
+        await conn.run('CREATE SCHEMA IF NOT EXISTS store.snapshot');
 
         // One transaction: a reader never sees some tables from this snapshot and
         // some from the last.
         await conn.run('BEGIN');
         for (const {name, query} of RELATIONS) {
             await conn.run(
-                `CREATE OR REPLACE TABLE snapshot.${name} AS
+                `CREATE OR REPLACE TABLE store.snapshot.${name} AS
                  SELECT * FROM postgres_query('pg', $q$${query}$q$)`,
             );
             const zones = await conn.runAndReadAll(
-                `SELECT DISTINCT tz FROM snapshot.${name} WHERE tz <> 'UTC'`,
+                `SELECT DISTINCT tz FROM store.snapshot.${name} WHERE tz <> 'UTC'`,
             );
             if (zones.getRows().length > 0) {
                 const found = zones.getRows().map(r => r[0]).join(', ');
                 throw new Error(`snapshot.${name}: rendered in TimeZone ${found}, not UTC`);
             }
-            await conn.run(`ALTER TABLE snapshot.${name} DROP COLUMN tz`);
-            const reader = await conn.runAndReadAll(`SELECT count(*) FROM snapshot.${name}`);
+            await conn.run(`ALTER TABLE store.snapshot.${name} DROP COLUMN tz`);
+            const reader = await conn.runAndReadAll(`SELECT count(*) FROM store.snapshot.${name}`);
             console.log(`snapshot.${name}: ${reader.getRows()[0]![0]} rows`);
         }
         await conn.run('COMMIT');
@@ -93,4 +97,6 @@ export async function main(): Promise<void> {
     }
 }
 
-await main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+    await main();
+}

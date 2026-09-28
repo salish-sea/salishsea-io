@@ -28,22 +28,27 @@ import * as path from 'node:path';
  */
 const DAY_ZONE = 'PST8PDT';
 
-export async function main(): Promise<void> {
-    const [snapshot] = process.argv.slice(2);
-    const exportDir = process.env['EXPORT_DIR'];
-    if (!snapshot || !exportDir) {
-        console.error('usage: EXPORT_DIR=… occurrence-days.ts <snapshot.duckdb>');
-        process.exit(2);
-    }
+/**
+ * Write the day files for `snapshot` under `exportDir/days`, replacing whatever
+ * was there. Returns what it wrote.
+ */
+export async function writeDays(
+    snapshot: string,
+    exportDir: string,
+): Promise<{files: number, occurrences: number}> {
     const outDir = path.join(exportDir, 'days');
 
-    const db = await DuckDBInstance.create(snapshot, {access_mode: 'READ_ONLY'});
+    // Attached under a fixed name: opened directly, the file's catalog is named
+    // after the file, and a file called snapshot.duckdb would make
+    // `snapshot.occurrences` ambiguous between catalog and schema.
+    const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     let rows;
     try {
+        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         const reader = await conn.runAndReadAll(`
             SELECT strftime(timezone('${DAY_ZONE}', observed_at), '%Y-%m-%d') AS day, doc
-            FROM snapshot.occurrences
+            FROM store.snapshot.occurrences
             ORDER BY day, observed_at DESC, id
         `);
         rows = reader.getRows() as [string, string][];
@@ -63,7 +68,21 @@ export async function main(): Promise<void> {
     for (const [day, list] of days) {
         await writeFile(path.join(outDir, `${day}.json`), JSON.stringify(list));
     }
-    console.log(`days/: ${days.size} files, ${rows.length} occurrences`);
+    return {files: days.size, occurrences: rows.length};
 }
 
-await main();
+export async function main(): Promise<void> {
+    const [snapshot] = process.argv.slice(2);
+    const exportDir = process.env['EXPORT_DIR'];
+    if (!snapshot || !exportDir) {
+        console.error('usage: EXPORT_DIR=… occurrence-days.ts <snapshot.duckdb>');
+        process.exit(2);
+    }
+    const {files, occurrences} = await writeDays(snapshot, exportDir);
+    console.log(`days/: ${files} files, ${occurrences} occurrences`);
+}
+
+// Only when run as a script, so the test can import writeDays.
+if (import.meta.url === `file://${process.argv[1]}`) {
+    await main();
+}

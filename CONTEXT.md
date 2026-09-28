@@ -50,6 +50,9 @@ Shared vocabulary for SalishSea.io. Use these terms as defined here, in code and
 - **dwc schema** — the read-only Postgres schema that is the export contract (view-as-contract: column/type parity enforced at CREATE VIEW time).
 - **License (per-record)** — native SalishSea.io records export as **CC-BY-NC 4.0**; Maplify / Whale Alert records as **CC-BY 4.0** (asserted via the Acartia cooperative). The per-record `license` column is authoritative; the dataset-level `eml.xml` license is CC-BY-NC 4.0. Full policy: [docs/rights-policy.md](docs/rights-policy.md).
 
+- **Read path** — what a *logged-out* visitor loads: the map's day of sightings, the calendar's counts, the catalogue, and the profile pages' occurrence lists. Being built as static files from a **snapshot** of the database (decision [056](docs/decisions/056-the-logged-out-read-path-is-built-as-static-files.md)), so it no longer needs Postgres to be up. Signed-in reads and every write are not part of it.
+- **Snapshot** (of the read path) — the local DuckDB copy a read-path build starts from, taken from Postgres and never written back. Everything after the snapshot reads the copy, so a build's inputs hold still and the same snapshot always builds the same files.
+
 ## Upstream Ecosystem
 
 - **Upstream mirror** — the per-source schemas (`maplify`, `inaturalist`, `happywhale`) that hold external-API data more-or-less verbatim: the ingest pipeline's landing zone and an anti-corruption layer, **not** authoritative domain. Their columns carry *upstream* semantics and must **not** leak into our vocabulary, interfaces, or public docs; our authoritative domain is `public.*` and the `dwc` export contract. Upstream signals may be *parsed* into our concepts (e.g. attribution from `comments`), never *adopted* as-is. See [decision 008](docs/decisions/008-source-schemas-are-upstream-mirrors.md).
