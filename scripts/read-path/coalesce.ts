@@ -102,6 +102,9 @@ export class BuildCoalescer {
             // bounded by the lock, not by the spacing.
             this.#pendingSince ??= this.#now();
             this.#notBefore = this.#now() + this.#options.busyRetryMs;
+            // Nothing ran, so a signal that arrived meanwhile is covered by the
+            // retry; left set, it would earn a second build after the retry.
+            this.#changedDuringRun = false;
             this.#schedule(this.#options.busyRetryMs);
             return;
         }

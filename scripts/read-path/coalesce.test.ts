@@ -113,5 +113,18 @@ describe('BuildCoalescer', () => {
         expect(build.mock.calls.length).toBeLessThanOrEqual(30);
         expect(build.mock.calls.length).toBeGreaterThanOrEqual(29);
     });
+
+    test('a signal during an attempt that found the lock held is covered by the retry', async () => {
+        // The attempt takes a moment to find the lock held; a signal lands then.
+        const results: BuildResult[] = ['busy', 'done'];
+        const build = vi.fn(() => new Promise<BuildResult>(resolve =>
+            setTimeout(() => resolve(results.shift() ?? 'done'), 1_000)));
+        const c = new BuildCoalescer(build, OPTIONS, Date.now);
+        c.changed();
+        await vi.advanceTimersByTimeAsync(10_500);   // the attempt is under way
+        c.changed();
+        await vi.advanceTimersByTimeAsync(600_000);
+        expect(build).toHaveBeenCalledTimes(2);      // the busy attempt and its retry
+    });
 });
 
