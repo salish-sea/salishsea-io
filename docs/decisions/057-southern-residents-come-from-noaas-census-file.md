@@ -1,6 +1,6 @@
 # 057 — Southern Residents come from NOAA's census file, by way of the register
 
-**Status:** proposed · **Drafted:** 2026-09-29 · **Extends:** [051](051-group-hierarchy-is-the-registers.md) · **Unblocks:** the Southern Resident catalogue deferred in [015](015-individual-profile-pages.md) (bd `salish-lzi`) · **Rights:** [rights policy §7.2](../rights-policy.md#72-noaa-nwfsc-southern-resident-census-file-d-22) (D-22)
+**Status:** proposed · **Drafted:** 2026-09-29 · **Extends:** [051](051-group-hierarchy-is-the-registers.md) · **Unblocks:** the Southern Resident catalogue deferred in [015](015-individual-profile-pages.md) (bd `salish-lzi`) · **Rights:** [rights policy §7.2](../rights-policy.md#72-noaa-nwfsc-southern-resident-census-file-d-22) (D-22) · **Tracking:** GitHub [#511](https://github.com/salish-sea/salishsea-io/issues/511)
 
 ## Context
 
