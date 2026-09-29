@@ -18,12 +18,36 @@
 		file_server
 	}
 
+	# An individual's page, prerendered by the read-path build (decision 057),
+	# found by the register identifier's seven digits; the slug after them is
+	# ignored, as the client page ignores it. A page the build hasn't written
+	# yet is a real 404 saying so. Designation-shaped paths (/individuals/J35,
+	# legacy links) don't match, and stay on the client-rendered shell below.
+	@individualPage path_regexp individualPage ^/individuals/([0-9]{7})(/[^/]*)?/?$
+	handle @individualPage {
+		header Cache-Control "no-cache"
+		root * /data/export/profiles/individuals
+		@published file /{re.individualPage.1}.html
+		handle @published {
+			rewrite * /{re.individualPage.1}.html
+			file_server
+		}
+		handle {
+			root * /app/dist
+			rewrite * /not-published.html
+			file_server {
+				status 404
+			}
+		}
+	}
+
 	handle {
 		root * /app/dist
 
 		# Profile pages are client-rendered from their HTML shells (decisions 015,
-		# 034). On AWS the Lambda@Edge viewer-request function does this; the
-		# patterns are vite.config.js's PROFILE_REWRITES.
+		# 034), except the individual pages the build has prerendered, above. On
+		# AWS the Lambda@Edge viewer-request function does this; the patterns are
+		# vite.config.js's PROFILE_REWRITES.
 		@individual path_regexp ^/individuals/[^/]+(/[^/]*)?/?$
 		rewrite @individual /individual.html
 		@matriline path_regexp ^/matrilines/[^/]+(/[^/]*)?/?$

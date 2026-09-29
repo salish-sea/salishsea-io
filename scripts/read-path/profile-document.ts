@@ -10,6 +10,9 @@
  *
  * Every substitution must match exactly once. A shell that has changed shape fails
  * the build rather than quietly producing a page with the generic title.
+ *
+ * The shell's own scripts go: they are the client-rendered page. What a page loads
+ * instead is its islands — the map, today — and only if it has one to upgrade.
  */
 
 import { render } from '@lit-labs/ssr';
@@ -24,6 +27,47 @@ export type PageHead = {
     /** Root-relative canonical path, e.g. /individuals/0010193/t065a. */
     path: string,
 };
+
+/**
+ * A custom element the prerendered page upgrades in the browser, and the tags that
+ * load its definition. The one client-side part of a profile page (decision 057).
+ */
+export type Island = {
+    element: string,
+    tags: string,
+};
+
+/** One entry of Vite's build manifest (dist/.vite/manifest.json). */
+type ManifestChunk = {file: string, imports?: string[], css?: string[]};
+
+/**
+ * The tags that load a built entry, from Vite's manifest: its module script, a
+ * preload for every chunk it imports, and its CSS, as Vite writes them into the
+ * HTML pages it builds. Root-absolute, since the page answers at a nested path.
+ */
+export function islandFromManifest(manifest: Record<string, ManifestChunk>, entry: string, element: string): Island {
+    const main = manifest[entry];
+    if (!main) throw new Error(`Vite manifest: no entry ${entry}; was the site built?`);
+    const preloads: string[] = [];
+    const css = new Set(main.css ?? []);
+    const seen = new Set<string>();
+    const visit = (key: string) => {
+        if (seen.has(key)) return;
+        seen.add(key);
+        const chunk = manifest[key];
+        if (!chunk) throw new Error(`Vite manifest: ${entry} imports ${key}, which it doesn't list`);
+        preloads.push(chunk.file);
+        for (const file of chunk.css ?? []) css.add(file);
+        for (const next of chunk.imports ?? []) visit(next);
+    };
+    for (const key of main.imports ?? []) visit(key);
+    const tags = [
+        `<script type="module" crossorigin src="/${escapeAttr(main.file)}"></script>`,
+        ...preloads.map(file => `<link rel="modulepreload" crossorigin href="/${escapeAttr(file)}">`),
+        ...[...css].map(file => `<link rel="stylesheet" crossorigin href="/${escapeAttr(file)}">`),
+    ];
+    return {element, tags: tags.join('\n    ')};
+}
 
 function escapeAttr(value: string): string {
     // & first, or the entities the others introduce would be escaped again.
@@ -56,6 +100,7 @@ export function renderDocument(
     styles: CSSResult[],
     head: PageHead,
     body: TemplateResult,
+    islands: Island[] = [],
 ): string {
     const title = `${head.title} · SalishSea.io`;
     const url = `${SITE_ORIGIN}${head.path}`;
@@ -69,13 +114,15 @@ export function renderDocument(
         'og:title meta');
     html = replaceOnce(html, /<meta property="og:description" content="[^"]*">/,
         `<meta property="og:description" content="${escapeAttr(head.description)}">`, 'og:description meta');
-    // The shell loads the client-rendered page; a prerendered page loads none of it.
-    // (The map's own script comes back with the map island.)
-    html = replaceOnce(html, /\n\s*<script type="module"[^>]*><\/script>/, '', 'module script');
+    const content = renderStatic(body);
+    // The shell loads the client-rendered page; a prerendered page loads none of it,
+    // only the islands it has an element for.
+    const scripts = islands.filter(i => content.includes(`<${i.element}`)).map(i => `\n    ${i.tags}`).join('');
     html = html.replace(/\n\s*<link rel="modulepreload"[^>]*>/g, '');
+    html = replaceOnce(html, /\n\s*<script type="module"[^>]*><\/script>/, scripts, 'module script');
     const css = styles.map(s => s.cssText).join('\n');
     html = replaceOnce(html, new RegExp(`<${element}></${element}>`),
-        `<${element}><template shadowrootmode="open"><style>${css}</style>${renderStatic(body)}</template></${element}>`,
+        `<${element}><template shadowrootmode="open"><style>${css}</style>${content}</template></${element}>`,
         `<${element}> element`);
     return html;
 }

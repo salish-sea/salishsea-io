@@ -66,11 +66,18 @@ const latestStyle = new Style({
 // reported; the most recent report is emphasized. Clicking a dot opens the
 // main map on that day, focused on the occurrence. Given a site, it also draws
 // the site's radius and zooms in close enough to see it.
+//
+// A prerendered profile page (decision 057) has no links to hand it: the map is
+// the page's one island, and it loads its dots from `src`, a data file the
+// read-path build writes beside the page. Given links, it ignores `src`.
 @customElement('individual-map')
 export class IndividualMap extends LitElement {
   // Newest first, as returned by fetchOccurrenceLinks
   @property({ attribute: false })
   links: MapDot[] = [];
+
+  @property()
+  src: string | null = null;
 
   @property({ attribute: false })
   site: MapSite | null = null;
@@ -131,6 +138,21 @@ export class IndividualMap extends LitElement {
   protected updated(changed: PropertyValues): void {
     if ((changed.has('links') || changed.has('site')) && this.#map)
       this.#renderLinks();
+    if (changed.has('src') && this.src && !this.links.length)
+      void this.#load(this.src);
+  }
+
+  // A failed load leaves the map without dots: the page's text already says how
+  // many reports there are, and a reload tries again.
+  async #load(src: string): Promise<void> {
+    try {
+      const response = await fetch(src);
+      if (!response.ok) throw new Error(`${src}: ${response.status}`);
+      const links = await response.json() as MapDot[];
+      if (this.src === src && !this.links.length) this.links = links;
+    } catch (error) {
+      console.error('individual-map: could not load its dots', error);
+    }
   }
 
   #renderLinks(): void {
