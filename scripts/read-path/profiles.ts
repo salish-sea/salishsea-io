@@ -1,7 +1,7 @@
 /**
  * The individual profile pages, prerendered from the read-path snapshot (decision 057).
  *
- *   EXPORT_DIR=… tsx scripts/read-path/profiles.ts <snapshot.duckdb> <dist/individual.html>
+ *   EXPORT_DIR=… tsx scripts/read-path/profiles.ts <snapshot.duckdb> <dist>
  *
  * Writes $EXPORT_DIR/profiles/individuals/<id>.html for every individual with a register
  * identifier (<id> is its seven digits), and beside it <id>.links.json, the sighting
@@ -13,6 +13,9 @@
  * order unspecified (embedded nicknames and designations, a matriline's members), this
  * fixes one, so the same snapshot always renders the same bytes. The presence table's
  * newest year is the snapshot's, not the clock's.
+ *
+ * <dist> is the site Vite built: the page's shell (individual.html), and the manifest
+ * naming the map island's files, which a page with a map loads and nothing else.
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
@@ -25,7 +28,7 @@ import {
     individualPreview, individualStyles, renderIndividualFrame, renderIndividualProfile, renderIndividualSightings,
     type IndividualProfileData,
 } from '../../src/individual-profile.ts';
-import { renderDocument } from './profile-document.ts';
+import { islandFromManifest, renderDocument, type Island } from './profile-document.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 
 /** The frontend's day and year, as in occurrence-days.ts. */
@@ -180,23 +183,28 @@ export function assembleIndividuals(t: Tables): IndividualPage[] {
 /** Where a page's map loads its points: served from the export by the read path. */
 export const linksUrl = (id: string) => `/read-path/profiles/individuals/${id}.links.json`;
 
-export function renderIndividualPage(shell: string, page: IndividualPage, currentYear: number): string {
+export function renderIndividualPage(shell: string, page: IndividualPage, currentYear: number, islands: Island[] = []): string {
     const {data, links} = page;
     const sightings = renderIndividualSightings(data.profile.primary_designation, links,
         {mapSrc: linksUrl(page.id), currentYear});
     return renderDocument(shell, 'individual-page', [profileStyles, individualStyles],
-        individualPreview(data), renderIndividualFrame(renderIndividualProfile(data, sightings)));
+        individualPreview(data), renderIndividualFrame(renderIndividualProfile(data, sightings)), islands);
 }
 
-export async function writeProfiles(snapshot: string, exportDir: string, shellPath: string): Promise<{pages: number}> {
+/** The map island's entry, as vite.config.js names it. */
+export const MAP_ISLAND = 'src/map-island.ts';
+
+export async function writeProfiles(snapshot: string, exportDir: string, dist: string): Promise<{pages: number}> {
     const outDir = path.join(exportDir, 'profiles', 'individuals');
     await recoverDir(outDir);
-    const shell = await readFile(shellPath, 'utf8');
+    const shell = await readFile(path.join(dist, 'individual.html'), 'utf8');
+    const manifest = JSON.parse(await readFile(path.join(dist, '.vite', 'manifest.json'), 'utf8'));
+    const islands = [islandFromManifest(manifest, MAP_ISLAND, 'individual-map')];
     const {tables, currentYear} = await loadTables(snapshot);
     const pages = assembleIndividuals(tables);
     const files: [string, string][] = [];
     for (const page of pages) {
-        files.push([`${page.id}.html`, renderIndividualPage(shell, page, currentYear)]);
+        files.push([`${page.id}.html`, renderIndividualPage(shell, page, currentYear, islands)]);
         files.push([`${page.id}.links.json`, JSON.stringify(page.links)]);
     }
     await replaceDir(outDir, files);
@@ -204,13 +212,13 @@ export async function writeProfiles(snapshot: string, exportDir: string, shellPa
 }
 
 export async function main(): Promise<void> {
-    const [snapshot, shell] = process.argv.slice(2);
+    const [snapshot, dist] = process.argv.slice(2);
     const exportDir = process.env['EXPORT_DIR'];
-    if (!snapshot || !shell || !exportDir) {
-        console.error('usage: EXPORT_DIR=… profiles.ts <snapshot.duckdb> <dist/individual.html>');
+    if (!snapshot || !dist || !exportDir) {
+        console.error('usage: EXPORT_DIR=… profiles.ts <snapshot.duckdb> <dist>');
         process.exit(2);
     }
-    const {pages} = await writeProfiles(snapshot, exportDir, shell);
+    const {pages} = await writeProfiles(snapshot, exportDir, dist);
     console.log(`profiles/individuals/: ${pages} pages`);
 }
 

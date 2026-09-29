@@ -84,8 +84,16 @@ export default defineConfig({
         matriline: resolve(__dirname, 'matriline.html'),
         ecotype: resolve(__dirname, 'ecotype.html'),
         haulout: resolve(__dirname, 'haulout.html'),
+        'not-published': resolve(__dirname, 'not-published.html'),
+        // The map on a prerendered profile page, its only script (decision 057).
+        // Not an HTML page, so the read-path build finds its files through the
+        // manifest below, and writes the tags for them itself.
+        'map-island': resolve(__dirname, 'src/map-island.ts'),
       }
     },
+
+    // dist/.vite/manifest.json: which built files each entry needs.
+    manifest: true,
 
     sourcemap: true
   },

@@ -1,6 +1,6 @@
 # 057 — Profile pages are prerendered: real HTML from the read-path build, with the map as the only client-side part
 
-**Status:** accepted; step 1 of 5 built, step 2's render written · **Decided:** 2026-09-29 · **Answers:** `salish-t3g.7` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md), [040](040-haul-out-sites-list-first.md) (how their pages are rendered, not what they show)
+**Status:** accepted; steps 1 and 2 of 5 built · **Decided:** 2026-09-29 · **Answers:** `salish-t3g.7` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md), [040](040-haul-out-sites-list-first.md) (how their pages are rendered, not what they show)
 
 ## Context
 
@@ -23,7 +23,7 @@ Two facts favoured the page:
 
 It reads correctly with JavaScript off. The render is a task in the Stelis graph, like the day and calendar files, so a page's history traces back to the data that produced it.
 
-**The map is the only client-side part.** The OpenLayers map on each page is a small island that loads its points from a per-profile data file. Nothing else on the page needs the browser. Pages stop preloading Sentry and the Supabase client, which profiles don't use.
+**The map is the only client-side part.** The OpenLayers map on each page is a small island that loads its points from a per-profile data file. Nothing else on the page needs the browser. Pages stop preloading Sentry and the Supabase client, which profiles don't use. The island is its own Vite entry, [`src/map-island.ts`](../../src/map-island.ts), which defines only `<individual-map>`. The build writes its script tags from Vite's manifest, and only into a page that has a map. Custom elements upgrade inside a declarative shadow root, so the map comes to life where the page rendered it.
 
 ~~**Plain string templates, not Lit's server renderer.**~~ *Amended 2026-09-29:* **lit-html templates, shared by the client page and the build.** Plain string templates would have meant writing each page twice, once for the client components that production keeps until cutover and once for the build. The page components can't be rendered on a server as they stand: each reads `window.location` when constructed, sets `document.title` and `history`, and loads its data in async tasks. But their *templates* can. So each page's render moves into pure functions of its data, which touch no window, document or network ([`src/individual-profile.ts`](../../src/individual-profile.ts)). The client component calls them with what it fetches from Supabase. The build calls them with what it assembles from the snapshot, and turns the result into HTML with `@lit-labs/ssr`'s template renderer ([`scripts/read-path/profile-document.ts`](../../scripts/read-path/profile-document.ts)). That is the one part of the "labs" package used, pinned exactly. Lit's hydration comments are stripped, because nothing on the page is hydrated. The page is written once, and lit-html escapes what it interpolates without a helper. Eleventy with Nunjucks, the stack of BeeAtlas and pnwmoths, was considered too. Both of those projects carry silent Nunjucks bugs on record, and a Nunjucks template can't be shared with a Lit client. Static JSX would have been a second way of writing UI beside Lit.
 
@@ -55,6 +55,8 @@ It reads correctly with JavaScript off. The render is a task in the Stelis graph
 
 ## Consequences
 
-- Until step 2 lands, nothing a visitor sees changes. The snapshot reads fourteen relations instead of one, which takes about 6 s against a mirror of production.
+- The snapshot reads fourteen relations instead of one, which takes about 6 s against a mirror of production.
+- The pages are rendered again on every build, because the snapshot's time is one of their inputs (the year). That takes about 2 s for the 510 individuals. When nothing on them changed, the output is byte-identical, and nothing downstream reruns.
+- On Fly, the individual pages are the prerendered ones from step 2. The AWS deploy keeps its client-rendered pages until cutover.
 - The presence table needs a "current year". It comes from the snapshot's time, not the clock, so the same snapshot always renders the same pages.
 - Crawler previews of *map* links (`?o=`, `?d=`) and the `/cards/*` images still exist only on AWS. They are a separate question from this one.

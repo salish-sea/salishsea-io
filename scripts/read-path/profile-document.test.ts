@@ -6,7 +6,7 @@
 import { describe, expect, test } from 'vitest';
 import { css, html } from 'lit';
 
-import { renderDocument } from './profile-document.ts';
+import { islandFromManifest, renderDocument } from './profile-document.ts';
 
 const SHELL = `<!DOCTYPE html>
 <html lang="en">
@@ -17,6 +17,7 @@ const SHELL = `<!DOCTYPE html>
     <meta property="og:site_name" content="SalishSea.io">
     <meta property="og:title" content="Individual — SalishSea.io">
     <meta property="og:description" content="Profile of an individual whale.">
+    <link rel="icon" href="/favicon.svg">
     <script type="module" crossorigin src="/assets/individual-abc.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/sentry-def.js">
   </head>
@@ -61,8 +62,46 @@ describe('renderDocument', () => {
         expect(doc).not.toMatch(/<!--\/?lit-/);
     });
 
+    test('an island\'s tags where the shell\'s script was, only when the page has its element', () => {
+        const island = {element: 'individual-map', tags: '<script type="module" src="/assets/map.js"></script>'};
+        const withMap = renderDocument(SHELL, 'individual-page', [], HEAD,
+            html`<individual-map src="/read-path/x.links.json"></individual-map>`, [island]);
+        expect(withMap).toContain('<link rel="icon" href="/favicon.svg">\n    <script type="module" src="/assets/map.js"></script>\n  </head>');
+        expect(withMap).not.toContain('individual-abc.js');
+        const without = renderDocument(SHELL, 'individual-page', [], HEAD, html`<p>No sightings.</p>`, [island]);
+        expect(without).not.toContain('<script');
+    });
+
     test('a shell that has changed shape fails, rather than ship the generic title', () => {
         expect(() => renderDocument(SHELL.replace('<individual-page></individual-page>', ''), 'individual-page', [], HEAD, html``))
             .toThrow(/exactly one <individual-page> element/);
+    });
+});
+
+describe('islandFromManifest', () => {
+    const MANIFEST = {
+        'src/map-island.ts': {file: 'assets/map-island-A.js', imports: ['_map-B.js'], css: ['assets/island-C.css']},
+        '_map-B.js': {file: 'assets/map-B.js', imports: ['_ol-D.js', '_lit-E.js']},
+        '_ol-D.js': {file: 'assets/ol-D.js', imports: ['_lit-E.js'], css: ['assets/ol-F.css']},
+        '_lit-E.js': {file: 'assets/lit-E.js'},
+        'src/main.ts': {file: 'assets/main-G.js', imports: ['_lit-E.js']},
+    };
+
+    test('the entry\'s script, a preload per chunk it reaches once each, and their CSS', () => {
+        expect(islandFromManifest(MANIFEST, 'src/map-island.ts', 'individual-map')).toEqual({
+            element: 'individual-map',
+            tags: [
+                '<script type="module" crossorigin src="/assets/map-island-A.js"></script>',
+                '<link rel="modulepreload" crossorigin href="/assets/map-B.js">',
+                '<link rel="modulepreload" crossorigin href="/assets/ol-D.js">',
+                '<link rel="modulepreload" crossorigin href="/assets/lit-E.js">',
+                '<link rel="stylesheet" crossorigin href="/assets/island-C.css">',
+                '<link rel="stylesheet" crossorigin href="/assets/ol-F.css">',
+            ].join('\n    '),
+        });
+    });
+
+    test('an entry the site wasn\'t built with fails the build', () => {
+        expect(() => islandFromManifest(MANIFEST, 'src/other.ts', 'x')).toThrow(/no entry src\/other\.ts/);
     });
 });
