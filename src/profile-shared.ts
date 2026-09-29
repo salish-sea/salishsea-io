@@ -232,8 +232,11 @@ export function renderMemberList(members: GroupMember[], groupId: number, groups
 }
 
 function renderPeople(members: GroupMember[], selfId?: number) {
+  // Birth year, then designation: two calves born the same year would otherwise fall in
+  // whatever order the rows arrived, which is no order at all (decision 057).
   const sorted = [...members].sort((a, b) =>
-    (a.individual?.born_earliest ?? Infinity) - (b.individual?.born_earliest ?? Infinity));
+    (a.individual?.born_earliest ?? Infinity) - (b.individual?.born_earliest ?? Infinity)
+    || (a.individual?.primary_designation ?? '').localeCompare(b.individual?.primary_designation ?? ''));
   return html`
     <ul class="people">
       ${repeat(sorted, m => m.individual!.id, m => html`

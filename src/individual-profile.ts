@@ -49,6 +49,16 @@ export interface IndividualProfileData {
   species: string | null;
 }
 
+/** The page around its content, whatever state the content is in. */
+export function renderIndividualFrame(content: unknown) {
+  return html`
+      <main>
+        <a class="back" href="/">&#8592; Back to the map</a>
+        ${content}
+      </main>
+    `;
+}
+
 /** The page's title, as the tab and the link preview both show it. */
 export function individualTitle({ profile, name }: Pick<IndividualProfileData, 'profile' | 'name'>): string {
   return name ? `${name} (${profile.primary_designation})` : profile.primary_designation;
@@ -136,7 +146,10 @@ export function renderChain(chain: CatalogGroup[], selfDesignation: string): Tem
 }
 
 export function renderNaming(profile: ProfileIndividual) {
-  const aliases = profile.designations.filter(d => d.code !== profile.primary_designation);
+  // By code: an embed's rows come in no stated order (decision 057).
+  const aliases = profile.designations
+    .filter(d => d.code !== profile.primary_designation)
+    .sort((a, b) => a.code.localeCompare(b.code));
   const nicknames = profile.nicknames.filter(n => n.status !== 'deprecated');
   if (!aliases.length && !nicknames.length) return nothing;
   return html`
@@ -221,4 +234,22 @@ export function renderIndividualSightings(
       · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} a dot above; the newest located report is solid. Click one to see that day on the map.`)}
     </p>
   `;
+}
+
+/**
+ * What a link preview says about the page: the same title and description the
+ * Lambda@Edge function computes for crawlers today, so a prerendered page previews
+ * as the live one does.
+ */
+export function individualPreview({ profile, name }: Pick<IndividualProfileData, 'profile' | 'name'>) {
+  const title = individualTitle({ profile, name });
+  const vitals = [
+    profile.sex === 'female' ? 'Female' : profile.sex === 'male' ? 'Male' : null,
+    bornPhrase(profile.born_earliest, profile.born_latest),
+  ].filter(Boolean).join(', ');
+  return {
+    title,
+    description: `${vitals ? `${vitals} · ` : ''}Names, family, and sighting history of ${title} in the Salish Sea.`,
+    path: individualPath(profile),
+  };
 }

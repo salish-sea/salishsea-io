@@ -143,6 +143,14 @@ test('dedupes occurrence links, preferring direct claims over via-group', () => 
   expect(deduped.find(l => l.occurrence_id === 'b')?.via_group).toBe('T065s');
 });
 
+// Two groups linking one sighting arrive in no stated order; the page must not say
+// "as T068C" on one load and "as T068" on the next (decision 057).
+test('between two via-group claims, the alphabetically first group, whatever the row order', () => {
+  const rows = [link({ occurrence_id: 'a', via_group: 'T068C' }), link({ occurrence_id: 'a', via_group: 'T068' })];
+  expect(dedupeOccurrenceLinks(rows)[0]?.via_group).toBe('T068');
+  expect(dedupeOccurrenceLinks([...rows].reverse())[0]?.via_group).toBe('T068');
+});
+
 test('drops absence claims and rejected identifications', () => {
   const rows = [
     link({ occurrence_id: 'a', is_present: false }),

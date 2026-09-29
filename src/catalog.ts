@@ -142,7 +142,9 @@ export function dedupeOccurrenceLinks(rows: OccurrenceRow[]): OccurrenceLink[] {
     if (!occurrence_id || !observed_at || !status) continue;
     if (is_present === false || status === 'rejected') continue;
     const existing = byOccurrence.get(occurrence_id);
-    if (existing && !(existing.via_group && !via_group)) continue;
+    // A direct claim beats a via-group one; between two groups, the alphabetically
+    // first, so the choice doesn't fall to row order (decision 057).
+    if (existing && !(existing.via_group && (!via_group || via_group < existing.via_group))) continue;
     byOccurrence.set(occurrence_id, {
       occurrence_id,
       observed_at,

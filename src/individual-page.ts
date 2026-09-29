@@ -8,7 +8,7 @@ import {
 } from './catalog.ts';
 import { canonicalize, profileStyles } from './profile-shared.ts';
 import {
-  individualStyles, individualTitle, renderIndividualProfile, renderIndividualSightings,
+  individualStyles, individualTitle, renderIndividualFrame, renderIndividualProfile, renderIndividualSightings,
   type IndividualProfileData,
 } from './individual-profile.ts';
 import { initSentry } from './sentry.ts';
@@ -75,9 +75,7 @@ export class IndividualPage extends LitElement {
   static styles = [profileStyles, individualStyles];
 
   render() {
-    return html`
-      <main>
-        <a class="back" href="/">&#8592; Back to the map</a>
+    return renderIndividualFrame(html`
         ${this.#profile.render({
           pending: () => html`<p class="placeholder">Looking up ${this.key ? keyLabel(this.key) : 'this individual'}&hellip;</p>`,
           error: () => html`<p class="error">Something went wrong loading this page. Please try again.</p>`,
@@ -85,8 +83,7 @@ export class IndividualPage extends LitElement {
             ? renderIndividualProfile(value, this.renderSightings(value.profile.primary_designation))
             : this.renderNotFound(),
         })}
-      </main>
-    `;
+    `);
   }
 
   private renderNotFound() {

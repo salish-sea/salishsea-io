@@ -1,6 +1,6 @@
 # 057 — Profile pages are prerendered: real HTML from the read-path build, with the map as the only client-side part
 
-**Status:** accepted; step 1 of 5 built · **Decided:** 2026-09-29 · **Answers:** `salish-t3g.7` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md), [040](040-haul-out-sites-list-first.md) (how their pages are rendered, not what they show)
+**Status:** accepted; step 1 of 5 built, step 2's render written · **Decided:** 2026-09-29 · **Answers:** `salish-t3g.7` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md), [040](040-haul-out-sites-list-first.md) (how their pages are rendered, not what they show)
 
 ## Context
 
@@ -25,7 +25,9 @@ It reads correctly with JavaScript off. The render is a task in the Stelis graph
 
 **The map is the only client-side part.** The OpenLayers map on each page is a small island that loads its points from a per-profile data file. Nothing else on the page needs the browser. Pages stop preloading Sentry and the Supabase client, which profiles don't use.
 
-**Plain string templates, not Lit's server renderer.** The page components can't be rendered on a server as they stand. Each reads `window.location` when constructed, sets `document.title` and `history`, and loads its data in async tasks that server rendering never awaits. Making them renderable would mean restructuring them anyway, and `@lit-labs/ssr` is Lit's experimental line, against the README's rule to minimize volatile dependencies. So the static sections are TypeScript functions returning escaped HTML strings, in the style the edge handler and the DarwinCore Archive builders already use. That means one renderer for the static sections. The client components stay only for production's Supabase mode, frozen, until cutover, and are deleted then.
+~~**Plain string templates, not Lit's server renderer.**~~ *Amended 2026-09-29:* **lit-html templates, shared by the client page and the build.** Plain string templates would have meant writing each page twice, once for the client components that production keeps until cutover and once for the build. The page components can't be rendered on a server as they stand: each reads `window.location` when constructed, sets `document.title` and `history`, and loads its data in async tasks. But their *templates* can. So each page's render moves into pure functions of its data, which touch no window, document or network ([`src/individual-profile.ts`](../../src/individual-profile.ts)). The client component calls them with what it fetches from Supabase. The build calls them with what it assembles from the snapshot, and turns the result into HTML with `@lit-labs/ssr`'s template renderer ([`scripts/read-path/profile-document.ts`](../../scripts/read-path/profile-document.ts)). That is the one part of the "labs" package used, pinned exactly. Lit's hydration comments are stripped, because nothing on the page is hydrated. The page is written once, and lit-html escapes what it interpolates without a helper. Eleventy with Nunjucks, the stack of BeeAtlas and pnwmoths, was considered too. Both of those projects carry silent Nunjucks bugs on record, and a Nunjucks template can't be shared with a Lit client. Static JSX would have been a second way of writing UI beside Lit.
+
+**A prerendered page is the shell with its content in a declarative shadow root.** The document starts from the shell Vite builds for the page, so its head (CSP, icons, root styles) has one source. Into it go the page's own title, description, preview and canonical tags. In place of the empty custom element goes `<template shadowrootmode="open">`, holding the page's styles and content. Every current browser attaches that as the element's shadow root without JavaScript, so the page's `:host`-scoped CSS applies exactly as it does client-side. The client page's scripts don't load. Every substitution into the shell must match exactly once, so a shell that changes shape fails the build rather than shipping the generic title.
 
 **A page the build hasn't produced is a "not published yet" 404.** That's an animal added to the register since the last build, at most about an hour. The page says so with the right status. Falling back to the client-rendered shell would have kept those components, and a Supabase dependency, alive indefinitely beside the new renderer.
 
@@ -47,7 +49,8 @@ It reads correctly with JavaScript off. The render is a task in the Stelis graph
 ## Rejected alternatives
 
 - **One data file per profile, client-rendered as now.** This is the same pattern as the day and calendar files and the least change. It leaves the pages empty without JavaScript, still preloading 750 KB, and still without link previews on Fly.
-- **Lit's server renderer.** See above: the same restructuring, plus an experimental dependency.
+- ~~**Lit's server renderer.** See above: the same restructuring, plus an experimental dependency.~~ Adopted after all, for templates only (amended 2026-09-29, above).
+- **Eleventy with Nunjucks, or static JSX.** See above.
 - **Fall back to the client page for a profile not yet built.** See above: a second renderer and a Supabase dependency kept forever, to cover a gap of about an hour.
 
 ## Consequences
