@@ -290,6 +290,18 @@ export class DateCalendar extends LitElement {
     }
   }
 
+  /**
+   * Fetch the month on screen again, keeping its circles until the new counts
+   * land — for a new read-path build, which arrives a few times an hour and
+   * shouldn't make every circle blink. Other cached months are dropped, to be
+   * fetched afresh when paged back to.
+   */
+  revalidate(): void {
+    this.#generation++;
+    this.#fetched.clear();
+    this.fetchCounts(this.month);
+  }
+
   /** Drop cached counts and refetch, e.g. after the user saves a sighting. */
   refresh(): void {
     this.#generation++;
@@ -425,7 +437,11 @@ export class DateCalendar extends LitElement {
         return;
       }
       if (generation !== this.#generation) return;
-      this.counts = new Map([...this.counts, ...counts]);
+      // Replace the grid's range whole, so a day that has dropped to zero loses
+      // its circle rather than keeping the one it had.
+      const merged = new Map([...this.counts].filter(([day]) => day < from || day > to));
+      for (const [day, count] of counts) merged.set(day, count);
+      this.counts = merged;
       return;
     }
 

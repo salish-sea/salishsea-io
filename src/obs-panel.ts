@@ -341,6 +341,11 @@ export class ObsPanel extends LitElement {
     this.sightingForForm = {...newSighting(), id: v7()};
   }
 
+  /** A new read-path build landed: bring the calendar's circles up to date. */
+  revalidateCalendar(): void {
+    this.calendarRef.value?.revalidate();
+  }
+
   private onSightingSaved() {
     this.showForm = false;
     this.sightingForForm = {...newSighting(), id: v7()};

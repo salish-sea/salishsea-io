@@ -349,18 +349,25 @@ test('in static mode, a new build makes a signed-out tab refetch its day', async
       : new Response(JSON.stringify([occurrenceFixture('from-file', '2025-03-09T20:00:00Z')])));
   const el = document.createElement('salish-sea') as SalishSea;
   const dayFetches = () => fetchSpy.mock.calls.filter(([url]) => String(url).includes('/read-path/days/')).length;
+  const calendarFetches = () => fetchSpy.mock.calls.filter(([url]) => String(url).includes('/read-path/calendar/')).length;
   try {
     document.body.appendChild(el);
     await el.updateComplete;
     await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledWith('/read-path/manifest.json'));
+    await vi.waitFor(() => expect(calendarFetches()).toBeGreaterThan(0));
     const before = dayFetches();
+    const calendarBefore = calendarFetches();
 
     await vi.advanceTimersByTimeAsync(60_000);   // same snapshot: nothing to do
     expect(dayFetches()).toBe(before);
 
+    expect(calendarFetches()).toBe(calendarBefore);
+
     takenAt = '2025-03-09T21:00:00.000Z';
     await vi.advanceTimersByTimeAsync(60_000);   // a new build landed
     await vi.waitFor(() => expect(dayFetches()).toBe(before + 1));
+    // The calendar's months are fetched again too, so its circles follow the build.
+    await vi.waitFor(() => expect(calendarFetches()).toBeGreaterThan(calendarBefore));
   } finally {
     el.remove();
     vi.useRealTimers();
