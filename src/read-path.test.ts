@@ -278,5 +278,11 @@ describe('findOccurrence', () => {
     serveIndex({manifest: null});
     await expect(findOccurrence('maplify:42')).rejects.toThrow(/nothing built/);
   });
+
+  test('an id naming an inherited property is not found', async () => {
+    serveIndex({shard: {'maplify:43': '2025-03-09'}, manifest: manifest('2025-03-09')});
+    expect(await findOccurrence('constructor')).toBeNull();
+    expect(await findOccurrence('__proto__')).toBeNull();
+  });
 });
 

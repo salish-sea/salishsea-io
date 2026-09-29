@@ -30,6 +30,7 @@ beforeAll(async () => {
     await conn.run('CREATE TABLE store.snapshot.occurrences (id VARCHAR, observed_at TIMESTAMPTZ, doc VARCHAR)');
     for (const {id, observed_at} of ROWS)
         await conn.run(`INSERT INTO store.snapshot.occurrences VALUES ('${id}', '${observed_at}', '{}')`);
+    await conn.run(`INSERT INTO store.snapshot.occurrences VALUES ('happywhale:undated', NULL, '{}')`);
     await conn.run('DETACH store');
     conn.closeSync();
     await writeIds(snapshot, dir);
@@ -40,4 +41,10 @@ describe('writeIds', () => {
         const shard = JSON.parse(await readFile(path.join(dir, 'ids', `${idShard(id)}.json`), 'utf8'));
         expect(shard[id]).toBe(day);
     });
+
+    test('an undated occurrence is left out, not indexed under a day of null', async () => {
+        const shard = JSON.parse(await readFile(path.join(dir, 'ids', `${idShard('happywhale:undated')}.json`), 'utf8').catch(() => '{}'));
+        expect(Object.hasOwn(shard, 'happywhale:undated')).toBe(false);
+    });
 });
+

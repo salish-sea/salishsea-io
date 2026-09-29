@@ -31,6 +31,10 @@ export async function writeIds(snapshot: string, exportDir: string): Promise<{sh
         const reader = await conn.runAndReadAll(`
             SELECT id, strftime(timezone('${DAY_ZONE}', observed_at), '%Y-%m-%d') AS day
             FROM store.snapshot.occurrences
+            -- An undated occurrence is on no day, so no day file holds it and the
+            -- index has nothing to point a link at (decision 043 keeps them out of
+            -- scope anyway); a null here would become a day of "null".
+            WHERE observed_at IS NOT NULL
             ORDER BY id
         `);
         rows = reader.getRows() as [string, string][];

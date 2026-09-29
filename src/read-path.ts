@@ -165,9 +165,12 @@ export async function findOccurrence<T extends Located & {id: string}>(id: strin
     throw new Error(`${url}: nothing built yet`);
   }
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-  const days = await response.json() as Record<string, string>;
-  const day = days[id];
-  if (!day) return null;
+  const days: unknown = await response.json();
+  // The id comes from the URL: `constructor` must not find an inherited property.
+  const day = days && typeof days === 'object' && Object.hasOwn(days, id)
+    ? (days as Record<string, unknown>)[id]
+    : undefined;
+  if (typeof day !== 'string') return null;
   const occurrences = await fetchDayOccurrences<T>(day, null);
   return occurrences.find(o => o.id === id) ?? null;
 }
