@@ -443,9 +443,9 @@ Phase 5 owns:
 
 ### 7.2 NOAA NWFSC Southern Resident Census File (D-22)
 
-*Added 2026-09-29 with [decision 057](decisions/057-southern-residents-come-from-noaas-census-file.md); proposed.*
+*Added 2026-09-29; proposed. The choice of source is the register's: [animals ADR-0023](https://github.com/salish-sea/animals/blob/claude/peaceful-darwin-5esd9n/decisions/0023-southern-residents-from-noaas-census-file.md), tracked in [salish-sea/animals#44](https://github.com/salish-sea/animals/issues/44). This entry governs what we surface from it.*
 
-**Source.** `orca.csv` in NOAA Northwest Fisheries Science Center's [`noaa-nwfsc/srkw-status`](https://github.com/noaa-nwfsc/srkw-status) (the `kwdemog` R package, maintained by Eric J. Ward). It has one row per Southern Resident since the census began: designation, birth and death year, pod, founding matriline, mother and sex. It is imported into the animals register at a pinned commit, and it reaches this repository only through the register (decision 051).
+**Source.** `orca.csv` in NOAA Northwest Fisheries Science Center's [`noaa-nwfsc/srkw-status`](https://github.com/noaa-nwfsc/srkw-status) (the `kwdemog` R package, maintained by Eric J. Ward). It has one row per Southern Resident since the census began: designation, birth and death year, pod, founding matriline, mother and sex. The animals register imports it at a pinned commit, and it reaches this repository only through the register ([051](decisions/051-group-hierarchy-is-the-registers.md)).
 
 **Determination (D-22).** The file is used without asking permission:
 
