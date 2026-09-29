@@ -17,9 +17,23 @@ import type { Sql } from 'postgres';
 
 const DSN = process.env['SUPABASE_DB_URL'];
 
-/** What the static files publish. */
+/** What the static files publish: the map and calendar (056), the profile pages (057). */
 const PUBLISHED = [
+    'public.animal_names',
+    'public.designations',
+    'public.ecotype_occurrences',
+    'public.group_occurrences',
+    'public.group_parents',
+    'public.haulout_occurrences',
+    'public.haulouts',
+    'public.individual_occurrences',
+    'public.individuals',
+    'public.matriline_members',
+    // Some columns only: `story` is withheld, as it is from anon (rights policy D-21).
+    'public.nicknames',
     'public.occurrences',
+    'public.parties',
+    'public.social_groups',
 ];
 
 /**
@@ -66,4 +80,33 @@ describe.skipIf(!DSN)('read_path grants (local Supabase)', () => {
         for (const privilege of ['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'])
             expect(await reachable(privilege), privilege).toEqual(PLATFORM_QUEUE);
     });
+
+    // A grant is not the whole story: five of these tables have row-level security,
+    // and a role no read policy names sees zero rows without any error. So check
+    // what it actually sees, against anon, for every published relation. postgres
+    // created read_path, so it may grant itself the role for one rolled-back
+    // transaction; nothing persists.
+    test('read_path sees every row anon sees', async () => {
+        const count = async (role: string, rel: string) => {
+            let n = -1;
+            await sql.begin(async tx => {
+                if (role === 'read_path') await tx`GRANT read_path TO postgres`;
+                await tx.unsafe(`SET LOCAL ROLE ${role}`);
+                [{n}] = await tx.unsafe(`SELECT count(*)::int AS n FROM ${rel}`) as [{n: number}];
+                throw new RolledBack();
+            }).catch(e => { if (!(e instanceof RolledBack)) throw e; });
+            return n;
+        };
+        for (const rel of PUBLISHED)
+            expect(await count('read_path', rel), rel).toBe(await count('anon', rel));
+    }, 120_000);   // two counts of each link view; slow against a mirror of production
+
+    test('nicknames.story stays withheld', async () => {
+        const [row] = await sql<{ok: boolean}[]>`
+            SELECT has_column_privilege('read_path', 'public.nicknames', 'story', 'SELECT') AS ok`;
+        expect(row!.ok).toBe(false);
+    });
 });
+
+class RolledBack extends Error {}
+
