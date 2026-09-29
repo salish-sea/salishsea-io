@@ -1,61 +1,20 @@
-import { css, html, LitElement, nothing, type TemplateResult } from 'lit';
+import { html, LitElement } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { Task } from '@lit/task';
-import { when } from 'lit/directives/when.js';
-import { repeat } from 'lit/directives/repeat.js';
 import {
   displayName, fetchAllGroups, fetchAnimalNames, fetchGroupMembers, fetchIndividual, fetchInnermostMatrilineId, fetchOccurrenceLinks,
-  ecotypePath, fetchOffspring, fetchParents, groupChain, individualPath, keyLabel, mapUrl, matrilinePath,
-  observedDate, parseIndividualPath,
-  type CatalogGroup, type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent,
+  fetchOffspring, fetchParents, groupChain, individualPath, keyLabel, parseIndividualPath,
+  type OccurrenceLink,
 } from './catalog.ts';
-import { canonicalize, profileStyles, renderDagger, renderMemberList, renderPresenceTable, renderRelative } from './profile-shared.ts';
+import { canonicalize, profileStyles } from './profile-shared.ts';
+import {
+  individualStyles, individualTitle, renderIndividualProfile, renderIndividualSightings,
+  type IndividualProfileData,
+} from './individual-profile.ts';
 import { initSentry } from './sentry.ts';
 import './individual-map.ts';
 
 initSentry();
-
-const SCHEME_LABELS: Record<string, string> = {
-  bc_wa: 'BC/WA',
-  alaska: 'Alaska',
-  california: 'California',
-  other: '',
-};
-
-interface Profile {
-  profile: IndividualProfile;
-  mother: Parent | null;
-  father: Parent | null;
-  offspring: Offspring[];
-  groups: Map<number, CatalogGroup>;
-  matriline: CatalogGroup | null;
-  members: GroupMember[];
-  name: string | null;
-  /**
-   * What to call the animal, as the register calls it — resolved in the task because it
-   * needs a round trip. `null` when the register knows neither the ecotype nor the taxon,
-   * which renders as no species line rather than a guess.
-   */
-  species: string | null;
-}
-
-function bornPhrase(earliest: number | null, latest: number | null): string | null {
-  if (earliest !== null && latest !== null)
-    return earliest === latest ? `born ${earliest}` : `born ${earliest}–${latest}`;
-  if (latest !== null)
-    return `born by ${latest}`;
-  if (earliest !== null)
-    return `born after ${earliest}`;
-  return null;
-}
-
-function lifeStatusPhrase(status: IndividualProfile['life_status']): string | null {
-  switch (status) {
-    case 'deceased': return 'deceased';
-    case 'presumed_deceased': return 'presumed deceased';
-    default: return null; // 'alive' is the unremarkable case; 'unknown' says nothing
-  }
-}
 
 @customElement('individual-page')
 export class IndividualPage extends LitElement {
@@ -63,7 +22,7 @@ export class IndividualPage extends LitElement {
 
   #profile = new Task(this, {
     args: () => [this.key] as const,
-    task: async ([key]): Promise<Profile | null> => {
+    task: async ([key]): Promise<IndividualProfileData | null> => {
       if (!key) return null;
       const profile = await fetchIndividual(key);
       if (!profile) return null;
@@ -100,7 +59,7 @@ export class IndividualPage extends LitElement {
         ?? null;
 
       const name = displayName(profile.nicknames);
-      document.title = `${name ? `${name} (${profile.primary_designation})` : profile.primary_designation} · SalishSea.io`;
+      document.title = `${individualTitle({ profile, name })} · SalishSea.io`;
       return { profile, mother, father, offspring, groups, matriline, members, name, species };
     },
   });
@@ -113,26 +72,7 @@ export class IndividualPage extends LitElement {
       individualId ? fetchOccurrenceLinks(individualId) : null,
   });
 
-  static styles = [profileStyles, css`
-    dl.family {
-      display: grid;
-      gap: 0.375rem 1.5rem;
-      grid-template-columns: max-content 1fr;
-      margin: 0;
-    }
-    dl.family dt {
-      color: #64748b;
-    }
-    dl.family dd {
-      margin: 0;
-    }
-    h2 a {
-      color: inherit;
-    }
-    h2 a:hover {
-      color: #1976d2;
-    }
-  `];
+  static styles = [profileStyles, individualStyles];
 
   render() {
     return html`
@@ -141,7 +81,9 @@ export class IndividualPage extends LitElement {
         ${this.#profile.render({
           pending: () => html`<p class="placeholder">Looking up ${this.key ? keyLabel(this.key) : 'this individual'}&hellip;</p>`,
           error: () => html`<p class="error">Something went wrong loading this page. Please try again.</p>`,
-          complete: value => value ? this.renderProfile(value) : this.renderNotFound(),
+          complete: value => value
+            ? renderIndividualProfile(value, this.renderSightings(value.profile.primary_designation))
+            : this.renderNotFound(),
         })}
       </main>
     `;
@@ -157,128 +99,14 @@ export class IndividualPage extends LitElement {
     `;
   }
 
-  private renderProfile({ profile, mother, father, offspring, groups, matriline, members, name, species }: Profile) {
-    const vitals = [
-      profile.sex === 'female' ? 'Female' : profile.sex === 'male' ? 'Male' : null,
-      bornPhrase(profile.born_earliest, profile.born_latest),
-      lifeStatusPhrase(profile.life_status),
-    ].filter(Boolean).join(' · ');
-    const chain = matriline ? groupChain(matriline.id, groups) : [];
-
-    return html`
-      <header class="masthead">
-        <div class="designation-kicker">${name ? profile.primary_designation : species ?? nothing}</div>
-        <h1>${name ?? profile.primary_designation}</h1>
-        ${vitals || (name && species) ? html`<p class="vitals">${when(name && species, () => html`${species} · `)}${vitals}</p>` : nothing}
-        ${chain.length ? html`<p class="lineage">${this.renderChain(chain, profile.primary_designation)}</p>` : nothing}
-      </header>
-      ${this.renderNaming(profile)}
-      ${this.renderFamily(profile, mother, father, offspring)}
-      ${when(matriline && members.length > 1, () => this.renderMatriline(matriline!, members, groups, profile.id))}
-      ${this.renderSightings(profile.primary_designation)}
-    `;
-  }
-
-  // "T065A matriline — within T065 · Bigg's killer whales"
-  private renderChain(chain: CatalogGroup[], selfDesignation: string): TemplateResult {
-    const [first, ...rest] = chain;
-    const parents = rest.filter(g => g.kind !== 'ecotype');
-    const ecotype = rest.find(g => g.kind === 'ecotype');
-    return html`
-      <b>${first!.designation} ${first!.kind === 'matriline' ? 'matriline' : first!.kind}</b>${
-        parents.map(g => html` · within ${g.anchor && g.designation !== selfDesignation
-          ? html`<a href=${individualPath(g.anchor)}>${g.designation}</a>`
-          : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
-      }${ecotype ? html` · <a href=${ecotypePath(ecotype)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}
-    `;
-  }
-
-  private renderNaming(profile: IndividualProfile) {
-    const aliases = profile.designations.filter(d => d.code !== profile.primary_designation);
-    const nicknames = profile.nicknames.filter(n => n.status !== 'deprecated');
-    if (!aliases.length && !nicknames.length) return nothing;
-    return html`
-      <section>
-        <h2>Names</h2>
-        ${repeat(nicknames, n => n.name, n => html`
-          <article class="nickname">
-            <p class="nickname-line">
-              <b>${n.name}</b>
-              ${n.status !== 'official' ? html`<span class="muted">(${n.status.replace('_', ' ')})</span>` : nothing}
-              ${n.named_year || n.namer ? html`<span class="muted"> — named${n.named_year ? ` in ${n.named_year}` : ''}${n.namer ? html` by ${n.namer.url ? html`<a target="_blank" rel="noopener noreferrer" href=${n.namer.url}>${n.namer.name}</a>` : n.namer.name}` : ''}</span>` : nothing}
-            </p>
-          </article>
-        `)}
-        ${when(aliases.length, () => html`
-          <p class="muted">Also cataloged as ${aliases.map((d, i) => html`${i ? ', ' : ''}<b>${d.code}</b>${SCHEME_LABELS[d.scheme] ? ` (${SCHEME_LABELS[d.scheme]})` : ''}${d.status === 'superseded' ? ' — superseded' : ''}`)}.</p>
-        `)}
-      </section>
-    `;
-  }
-
-  private renderFamily(profile: IndividualProfile, mother: Parent | null, father: Parent | null, offspring: Offspring[]) {
-    if (!mother && !father && !offspring.length) return nothing;
-    const certainty = profile.maternity_certainty;
-    return html`
-      <section>
-        <h2>Family</h2>
-        <dl class="family">
-          ${when(mother, () => html`
-            <dt>Mother</dt>
-            <dd>${renderRelative(mother!)}${certainty !== 'confirmed' ? html` <span class="muted">(${certainty})</span>` : nothing}</dd>
-          `)}
-          ${when(father, () => html`
-            <dt>Father</dt>
-            <dd>${renderRelative(father!)}${profile.paternity_certainty && profile.paternity_certainty !== 'confirmed' ? html` <span class="muted">(${profile.paternity_certainty})</span>` : nothing}</dd>
-          `)}
-          ${when(offspring.length, () => html`
-            <dt>Offspring</dt>
-            <dd>
-              <ul class="people">
-                ${repeat(offspring, calf => calf.id, calf => html`
-                  <li>${renderRelative(calf)}${calf.born_earliest ? html` <span class="muted">b.&thinsp;${calf.born_earliest}</span>` : nothing}${renderDagger(calf.life_status)}</li>
-                `)}
-              </ul>
-            </dd>
-          `)}
-        </dl>
-      </section>
-    `;
-  }
-
-  private renderMatriline(matriline: CatalogGroup, members: GroupMember[], groups: Map<number, CatalogGroup>, selfId: number) {
-    return html`
-      <section>
-        <h2><a href=${matrilinePath(matriline)}>${matriline.designation} matriline</a></h2>
-        ${renderMemberList(members, matriline.id, groups, selfId)}
-      </section>
-    `;
-  }
-
+  // The section's content; the heading is the shared template's. Pending and error are
+  // the live page's alone — a prerendered page has its links in hand.
   private renderSightings(designation: string) {
-    return html`
-      <section>
-        <h2>Sightings</h2>
-        ${this.#sightings.render({
-          pending: () => html`<p class="placeholder">Searching sighting reports&hellip; this takes a few seconds.</p>`,
-          error: () => html`<p class="error">Couldn't load sightings just now.</p>`,
-          complete: links => {
-            if (!links?.length)
-              return html`<p class="placeholder">No sighting reports mention ${designation} yet.</p>`;
-            const latest = links[0]!;
-            const located = links.filter(l => l.location).length;
-            return html`
-              ${renderPresenceTable(links)}
-              ${when(located, () => html`<individual-map .links=${links}></individual-map>`)}
-              <p class="sightings-note">
-                Last reported <a href=${mapUrl(latest)}>${observedDate(latest.observed_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}
-                · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} a dot above; the newest located report is solid. Click one to see that day on the map.`)}
-              </p>
-            `;
-          },
-        })}
-      </section>
-    `;
+    return this.#sightings.render({
+      pending: () => html`<p class="placeholder">Searching sighting reports&hellip; this takes a few seconds.</p>`,
+      error: () => html`<p class="error">Couldn't load sightings just now.</p>`,
+      complete: (links: OccurrenceLink[] | null) => renderIndividualSightings(designation, links),
+    });
   }
 
 }

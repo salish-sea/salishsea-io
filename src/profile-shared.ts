@@ -248,8 +248,15 @@ function renderPeople(members: GroupMember[], selfId?: number) {
 }
 
 // The month×year report-count grid with its honesty note.
-export function renderPresenceTable(links: Pick<OccurrenceLink, 'observed_at'>[], years = PRESENCE_YEARS, note = 'Reports per month. Most are unverified mentions in sighting text, not confirmed identifications.') {
-  const currentYear = Temporal.Now.zonedDateTimeISO('PST8PDT').year;
+// `currentYear` is the table's newest row: this year by default, the snapshot's year
+// when the build prerenders a page (decision 057), so the same snapshot always
+// renders the same table.
+export function renderPresenceTable(
+  links: Pick<OccurrenceLink, 'observed_at'>[],
+  years = PRESENCE_YEARS,
+  note = 'Reports per month. Most are unverified mentions in sighting text, not confirmed identifications.',
+  currentYear = Temporal.Now.zonedDateTimeISO('PST8PDT').year,
+) {
   const grid = monthlyPresence(links, years, currentYear);
   if (grid.every(row => row.months.every(count => count === 0))) return nothing;
   return html`
