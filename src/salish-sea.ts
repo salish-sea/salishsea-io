@@ -15,7 +15,7 @@ import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
-import { fetchDayOccurrences, readSource, watchManifest } from "./read-path.ts";
+import { fetchDayOccurrences, findOccurrence, readSource, watchManifest } from "./read-path.ts";
 import type { PatchedDatabase } from "./types.ts";
 import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
@@ -693,18 +693,27 @@ export default class SalishSea extends LitElement {
    * names no sighting we have.
    */
   private async hydrateFromOccurrenceId(id: string): Promise<void> {
-    const {data: occurrence, error} = await supabase()
-      .from('occurrences')
-      .select()
-      .eq('id', id)
-      .maybeSingle<Occurrence>();
-    // A failed lookup and a `?o=` that names a sighting we don't have both
-    // arrive as a null `data`, and they are not the same thing: the second is a
-    // deliberate silent fallback, the first is a link that would work if we
-    // could reach the server. Throwing separates them — firstUpdated's catch
-    // says so. (maybeSingle reports zero rows as data: null with no error, so
-    // this does not swallow the fallback.)
-    if (error) throw error;
+    let occurrence: Occurrence | null;
+    if (readSource() === 'static' && !this.user) {
+      // From the read-path files: the id index says which day, and the day's
+      // file has the sighting (decision 056). Same contract as below: an error
+      // throws, an id we don't have resolves to null.
+      occurrence = await findOccurrence<Occurrence>(id);
+    } else {
+      const {data, error} = await supabase()
+        .from('occurrences')
+        .select()
+        .eq('id', id)
+        .maybeSingle<Occurrence>();
+      // A failed lookup and a `?o=` that names a sighting we don't have both
+      // arrive as a null `data`, and they are not the same thing: the second is a
+      // deliberate silent fallback, the first is a link that would work if we
+      // could reach the server. Throwing separates them — firstUpdated's catch
+      // says so. (maybeSingle reports zero rows as data: null with no error, so
+      // this does not swallow the fallback.)
+      if (error) throw error;
+      occurrence = data;
+    }
     if (!occurrence) return; // not found — silent fallback per decisions
 
     const date = dateFromObservedAt(occurrence.observed_at);
