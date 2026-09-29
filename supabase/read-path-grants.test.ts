@@ -27,6 +27,7 @@ const PUBLISHED = [
     'public.haulout_occurrences',
     'public.haulouts',
     'public.individual_occurrences',
+    // Some columns only: `notes` is withheld, as no page renders it (rights policy D-21).
     'public.individuals',
     'public.matriline_members',
     // Some columns only: `story` is withheld, as it is from anon (rights policy D-21).
@@ -101,9 +102,14 @@ describe.skipIf(!DSN)('read_path grants (local Supabase)', () => {
             expect(await count('read_path', rel), rel).toBe(await count('anon', rel));
     }, 120_000);   // two counts of each link view; slow against a mirror of production
 
-    test('nicknames.story stays withheld', async () => {
+    // Rights policy D-21 (decision 015): verbatim Bigg's-sheet text is on no page,
+    // so the build that renders the pages never holds it.
+    test.each([
+        ['public.nicknames', 'story'],
+        ['public.individuals', 'notes'],
+    ])('%s.%s stays withheld', async (rel, column) => {
         const [row] = await sql<{ok: boolean}[]>`
-            SELECT has_column_privilege('read_path', 'public.nicknames', 'story', 'SELECT') AS ok`;
+            SELECT has_column_privilege('read_path', ${rel}, ${column}, 'SELECT') AS ok`;
         expect(row!.ok).toBe(false);
     });
 });

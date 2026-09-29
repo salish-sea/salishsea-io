@@ -30,7 +30,7 @@ It reads correctly with JavaScript off. The render is a task in the Stelis graph
 **A page the build hasn't produced is a "not published yet" 404.** That's an animal added to the register since the last build, at most about an hour. The page says so with the right status. Falling back to the client-rendered shell would have kept those components, and a Supabase dependency, alive indefinitely beside the new renderer.
 
 **The snapshot reads what the pages show, and nothing more.** Migration `20260929120000_read_path_profiles.sql` grants `read_path` the catalogue tables and the four sighting-link views.
-- `nicknames` is limited to the columns anon reads, so `story` stays withheld (rights policy D-21, decision [015](015-individual-profile-pages.md)).
+- Rights policy D-21 keeps verbatim Bigg's-sheet text off every page (decision [015](015-individual-profile-pages.md)), so the build never holds it. `nicknames.story` is withheld, as it is from anon, and so is `individuals.notes`, which anon can read but no page renders.
 - Five of the tables have row-level security whose read policies name anon and authenticated, so the migration adds a read policy for `read_path` to each. Without it, the role would see no rows and raise no error.
 - The one function a published view calls without a public grant, `register.inaturalist_taxon_for`, is granted too. It is `SECURITY DEFINER`, so it gives the role no table.
 

@@ -1,7 +1,8 @@
 -- The read-path build renders the profile pages now (decision 057), so read_path
 -- reads what they show: the catalogue and the four sighting-link views. No more
--- than anon reads, and the same columns where anon reads only some:
--- nicknames.story stays withheld (rights policy D-21, decision 015).
+-- than anon reads, and not the verbatim Bigg's-sheet text rights policy D-21
+-- keeps off every page (decision 015): nicknames.story, which anon can't read
+-- either, and individuals.notes, which anon can but no page renders.
 --
 -- Grants alone are not enough for five of these tables. They carry row-level
 -- security whose read policies name anon and authenticated, so read_path needs
@@ -10,7 +11,6 @@
 -- and that it sees every row anon does.
 
 GRANT SELECT ON
-  public.individuals,
   public.designations,
   public.parties,
   public.social_groups,
@@ -26,6 +26,9 @@ TO read_path;
 
 GRANT SELECT (id, individual_id, name, named_year, namer_id, social_group_id, status, theme)
   ON public.nicknames TO read_path;
+GRANT SELECT (id, entity_id, primary_designation, sex, born_earliest, born_latest, life_status,
+              mother_id, maternity_certainty, father_id, paternity_certainty)
+  ON public.individuals TO read_path;
 
 -- haulouts' read policy is TO public already; these five name anon and authenticated.
 CREATE POLICY "The read-path build may read individuals." ON public.individuals
