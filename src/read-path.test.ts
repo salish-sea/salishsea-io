@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { fetchDayOccurrences, parseReadSource, watchManifest, type Manifest } from './read-path.ts';
+import { fetchCalendarCounts, fetchDayOccurrences, parseReadSource, watchManifest, type Manifest } from './read-path.ts';
 import type { Extent } from './extents.ts';
 
 afterEach(() => {
@@ -188,6 +188,56 @@ describe('watchManifest', () => {
     expect(onNewBuild).toHaveBeenCalledTimes(1);
     finish(true);
     stop();
+  });
+});
+
+describe('fetchCalendarCounts', () => {
+  const files: Record<string, unknown> = {
+    '2025-08': {'salish-sea': {'2025-08-30': 4, '2025-08-31': 5}, 'puget-sound': {'2025-08-31': 2}},
+    '2025-09': {'salish-sea': {'2025-09-01': 7, '2025-09-15': 1}},
+    '2025-10': {'salish-sea': {'2025-10-04': 3, '2025-10-20': 9}},
+  };
+
+  function serveCalendar(manifest: Manifest | null, missing: string[] = []) {
+    return vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
+      const u = String(url);
+      if (u.endsWith('manifest.json'))
+        return new Response(manifest && JSON.stringify(manifest), {status: manifest ? 200 : 404});
+      const month = u.match(/calendar\/(\d{4}-\d{2})\.json$/)![1]!;
+      const body = missing.includes(month) ? undefined : files[month];
+      return new Response(body ? JSON.stringify(body) : null, {status: body ? 200 : 404});
+    });
+  }
+
+  test('a grid across three months reads three files, clipped to the grid, for one region', async () => {
+    const fetch = serveCalendar(manifest('2025-10-31'));
+    const counts = await fetchCalendarCounts('2025-08-31', '2025-10-11', 'salish-sea');
+    expect([...counts]).toEqual([['2025-08-31', 5], ['2025-09-01', 7], ['2025-09-15', 1], ['2025-10-04', 3]]);
+    expect(fetch.mock.calls.map(([u]) => String(u))).toEqual([
+      '/read-path/manifest.json',
+      '/read-path/calendar/2025-08.json', '/read-path/calendar/2025-09.json', '/read-path/calendar/2025-10.json']);
+  });
+
+  test('a region with nothing in a month contributes nothing from it', async () => {
+    serveCalendar(manifest('2025-10-31'));
+    expect([...await fetchCalendarCounts('2025-08-31', '2025-10-11', 'puget-sound')]).toEqual([['2025-08-31', 2]]);
+  });
+
+  test('a missing month the last build covered is empty', async () => {
+    serveCalendar(manifest('2025-10-31'), ['2025-09']);
+    expect([...(await fetchCalendarCounts('2025-09-01', '2025-09-30', 'salish-sea')).keys()]).toEqual([]);
+  });
+
+  test('the grid\'s days in next month, past the last build, are not fetched and get no circle', async () => {
+    const fetch = serveCalendar(manifest('2025-09-28'), ['2025-10']);
+    const counts = await fetchCalendarCounts('2025-08-31', '2025-10-11', 'salish-sea');
+    expect([...counts.keys()]).toEqual(['2025-08-31', '2025-09-01', '2025-09-15']);
+    expect(fetch.mock.calls.map(([u]) => String(u))).not.toContain('/read-path/calendar/2025-10.json');
+  });
+
+  test('with nothing built, it throws rather than draw an empty month', async () => {
+    serveCalendar(null);
+    await expect(fetchCalendarCounts('2025-09-01', '2025-09-30', 'salish-sea')).rejects.toThrow(/nothing built/);
   });
 });
 
