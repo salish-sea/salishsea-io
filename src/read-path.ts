@@ -14,6 +14,7 @@
  */
 
 import type { Extent } from './extents.ts';
+import { idShard } from './read-path-shard.ts';
 
 export type ReadSource = 'supabase' | 'static';
 
@@ -146,6 +147,29 @@ function monthsBetween(from: string, to: string): string[] {
     if (key >= last) return months;
     if (++month > 12) { month = 1; year++; }
   }
+}
+
+/**
+ * The occurrence a `?o=<id>` link names, read from the files: its day from the
+ * id index (`ids/<shard>.json`, see read-path-shard.ts), then the occurrence
+ * from that day's file, with no region applied — a linked sighting opens even
+ * outside the region on screen. Null when the id names no sighting the last
+ * build has, which the caller treats as it treats an unknown id; an error when
+ * nothing has been built or a fetch fails.
+ */
+export async function findOccurrence<T extends Located & {id: string}>(id: string): Promise<T | null> {
+  const url = `${READ_PATH_BASE}ids/${idShard(id)}.json`;
+  const response = await fetch(url);
+  if (response.status === 404) {
+    if (await fetchManifest()) return null;
+    throw new Error(`${url}: nothing built yet`);
+  }
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  const days = await response.json() as Record<string, string>;
+  const day = days[id];
+  if (!day) return null;
+  const occurrences = await fetchDayOccurrences<T>(day, null);
+  return occurrences.find(o => o.id === id) ?? null;
 }
 
 /**

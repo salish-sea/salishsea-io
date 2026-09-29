@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { fetchCalendarCounts, fetchDayOccurrences, parseReadSource, watchManifest, type Manifest } from './read-path.ts';
+import { fetchCalendarCounts, fetchDayOccurrences, findOccurrence, parseReadSource, watchManifest, type Manifest } from './read-path.ts';
+import { idShard } from './read-path-shard.ts';
 import type { Extent } from './extents.ts';
 
 afterEach(() => {
@@ -238,6 +239,44 @@ describe('fetchCalendarCounts', () => {
   test('with nothing built, it throws rather than draw an empty month', async () => {
     serveCalendar(null);
     await expect(fetchCalendarCounts('2025-09-01', '2025-09-30', 'salish-sea')).rejects.toThrow(/nothing built/);
+  });
+});
+
+describe('findOccurrence', () => {
+  const linked = {id: 'maplify:42', location: {lon: -130, lat: 55}};   // outside every region
+  const other = {id: 'maplify:43', location: {lon: -122.5, lat: 48.5}};
+
+  function serveIndex({shard, day, manifest: m}: {shard?: Record<string, string>, day?: unknown[], manifest?: Manifest | null}) {
+    return vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
+      const u = String(url);
+      const body = u.endsWith('manifest.json') ? m ?? null
+        : u.includes('/ids/') ? shard ?? null
+        : u.includes('/days/') ? day ?? null
+        : null;
+      return new Response(body === null ? null : JSON.stringify(body), {status: body === null ? 404 : 200});
+    });
+  }
+
+  test('reads the id\'s shard, then its day, and returns it whatever the region', async () => {
+    const fetch = serveIndex({shard: {'maplify:42': '2025-03-09'}, day: [other, linked], manifest: manifest('2025-03-09')});
+    expect(await findOccurrence<Row & {id: string}>('maplify:42')).toEqual(linked);
+    expect(fetch.mock.calls.map(([u]) => String(u))).toEqual([
+      `/read-path/ids/${idShard('maplify:42')}.json`, '/read-path/days/2025-03-09.json']);
+  });
+
+  test('an id its shard doesn\'t list is not ours: null, as an unknown link is today', async () => {
+    serveIndex({shard: {'maplify:43': '2025-03-09'}, manifest: manifest('2025-03-09')});
+    expect(await findOccurrence('maplify:42')).toBeNull();
+  });
+
+  test('a missing shard after a build is an unknown id too', async () => {
+    serveIndex({manifest: manifest('2025-03-09')});
+    expect(await findOccurrence('maplify:42')).toBeNull();
+  });
+
+  test('with nothing built, it throws, so the page says the link couldn\'t be opened', async () => {
+    serveIndex({manifest: null});
+    await expect(findOccurrence('maplify:42')).rejects.toThrow(/nothing built/);
   });
 });
 
