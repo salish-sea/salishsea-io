@@ -19,18 +19,15 @@
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
-import { access, mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
+
+import { recoverDir, replaceDir } from './replace-dir.ts';
 
 /**
  * The frontend's own definition of a day: `dateFromObservedAt` and
  * `fetchOccurrences` both use this zone.
  */
 const DAY_ZONE = 'PST8PDT';
-
-async function exists(p: string): Promise<boolean> {
-    return access(p).then(() => true, () => false);
-}
 
 /**
  * Write the day files for `snapshot` under `exportDir/days`, replacing whatever
@@ -41,15 +38,7 @@ export async function writeDays(
     exportDir: string,
 ): Promise<{files: number, occurrences: number}> {
     const outDir = path.join(exportDir, 'days');
-    const staging = `${outDir}.staging`;
-    const previous = `${outDir}.previous`;
-
-    // A run that died between the two renames below left the last complete build
-    // in previous and no days/. Put it back first, before anything here can fail,
-    // so a failing run never leaves days/ missing.
-    if (!(await exists(outDir)) && (await exists(previous))) {
-        await rename(previous, outDir);
-    }
+    await recoverDir(outDir);
 
     // Attached under a fixed name: opened directly, the file's catalog is named
     // after the file, and a file called snapshot.duckdb would make
@@ -76,36 +65,8 @@ export async function writeDays(
         list.push(JSON.parse(doc));
     }
 
-    // Built beside the old directory and swapped in only once complete: a run that
-    // fails partway leaves the last complete build in place, and a reader never
-    // sees an empty or half-written days/ — which matters once it is served
-    // straight from here.
-    //
-    // Swapping takes two renames, which is not atomic: days/ is absent between
-    // them. Making it so is the publish step's job (it copies into the served
-    // tree), not the build's. So is running one build at a time: the caller
-    // holds the lock, as Stelis's callers do.
-    await rm(staging, {recursive: true, force: true});
-    await rm(previous, {recursive: true, force: true});
-    try {
-        await mkdir(staging, {recursive: true});
-        for (const [day, list] of days) {
-            await writeFile(path.join(staging, `${day}.json`), JSON.stringify(list));
-        }
-        const hadPrevious = await rename(outDir, previous).then(() => true, (err: NodeJS.ErrnoException) => {
-            if (err.code === 'ENOENT') return false;
-            throw err;
-        });
-        try {
-            await rename(staging, outDir);
-        } catch (err) {
-            if (hadPrevious) await rename(previous, outDir);
-            throw err;
-        }
-        await rm(previous, {recursive: true, force: true});
-    } finally {
-        await rm(staging, {recursive: true, force: true});
-    }
+    await replaceDir(outDir,
+        [...days].map(([day, list]) => [`${day}.json`, JSON.stringify(list)] as [string, string]));
     return {files: days.size, occurrences: rows.length};
 }
 

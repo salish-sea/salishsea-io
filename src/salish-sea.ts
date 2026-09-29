@@ -406,6 +406,7 @@ export default class SalishSea extends LitElement {
     if (readSource() === 'static')
       this.#stopManifestWatch = watchManifest(async () => {
         if (this.user) return true;
+        this.panelRef.value?.revalidateCalendar();
         // A failed load is retried on the next poll rather than waiting for the
         // next build to come along.
         return this.fetchOccurrences(this.date).catch(err => {

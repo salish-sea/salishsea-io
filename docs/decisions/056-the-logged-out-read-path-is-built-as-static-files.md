@@ -22,9 +22,10 @@ The build is done by [Stelis](https://github.com/rainhead/stelis), the build eng
 
 **Signed-out visitors keep live updates, through builds instead of the database.** The realtime broadcast tells a tab the database changed, but a signed-out tab reads files, which change only when a build lands. So the Fly machine listens for the same broadcast and builds a few seconds after a burst of changes, with the hourly build as the backstop (`salish-t3g.6`). An open tab polls the manifest every minute while visible, and refetches its day when the snapshot time changes. That's usually a 304. Signed-in contributors keep reading Supabase and the broadcast, as before. The broadcast comes from Supabase Realtime, so once the database moves (step 4), the change signal has to come from the new write path instead.
 
+**The calendar reads one file per Pacific month.** [`scripts/read-path/calendar.ts`](../../scripts/read-path/calendar.ts) writes `calendar/<YYYY-MM>.json`: each region's count per day, what `occurrence_days` returns for it. It follows the same rules, so the circles don't change size when the source does: Pacific days, inclusive boxes, and no row without a location, not even for "Everywhere". The boxes are imported from `src/constants.ts`, so a region can't be redrawn in one place and not the other. The six-week grid touches at most three months. Months past the manifest's coverage aren't fetched, because the grid always reaches into next month; their days get no circle. As with the list, a signed-in contributor keeps reading Supabase, so their own new sighting grows its circle straight away. Compared in a browser against `occurrence_days` on the same data, every day's circle was the same size, over four months in each of three regions.
+
 The other logged-out reads follow the same pattern and are not built yet:
 
-- the calendar reads counts per day per region
 - sighting cards read the catalogue as whole-table files
 - profile pages read one occurrence list per individual, group, ecotype and haul-out
 

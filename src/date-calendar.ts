@@ -3,7 +3,10 @@ import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { Temporal } from "temporal-polyfill";
+import { consume } from "@lit/context";
 import { supabase } from "./supabase.ts";
+import { fetchCalendarCounts, readSource } from "./read-path.ts";
+import { userContext, type User } from "./identity.ts";
 import { chevronLeftIcon, chevronRightIcon } from "./icons.ts";
 import { monthGrid, volumeScale, WEEKDAY_INITIALS } from "./calendar.ts";
 import { DEFAULT_REGION_SLUG, EARLIEST_OBSERVATION_DATE, observationToday, regionBySlug } from "./constants.ts";
@@ -224,6 +227,15 @@ export class DateCalendar extends LitElement {
   #fetched = new Set<string>();
 
   /**
+   * Signed in or not decides where counts come from in static mode: files for a
+   * signed-out visitor, Supabase for a contributor, whose own new sighting must
+   * grow its circle straight away (decision 056).
+   */
+  @consume({context: userContext, subscribe: true})
+  @state()
+  private user: User | undefined;
+
+  /**
    * Bumped by {@link refresh}. A request that was in flight when the counts were
    * invalidated carries the old generation and is dropped on arrival — without
    * this it would resolve after the refetch it raced and write its stale counts
@@ -252,6 +264,11 @@ export class DateCalendar extends LitElement {
     // up — leaving circles quietly scoped to the region you just left.
     if (changed.has('regionSlug') && changed.get('regionSlug') !== undefined)
       this.refresh();
+    // Signing in or out can change where counts come from (the read-path files
+    // are for signed-out visitors only), so counts fetched from the other source
+    // go. Only after the first render: before it, nothing has been fetched.
+    else if ((changed as PropertyValues).has('user') && this.hasUpdated && readSource() === 'static')
+      this.refresh();
     // Follow the selection when it lands outside the month on screen — a day
     // step across a boundary, or a jump to an occurrence from another season.
     if (changed.has('date') && this.date) {
@@ -271,6 +288,18 @@ export class DateCalendar extends LitElement {
       this.#pendingFocus = null;
       cell?.focus();
     }
+  }
+
+  /**
+   * Fetch the month on screen again, keeping its circles until the new counts
+   * land — for a new read-path build, which arrives a few times an hour and
+   * shouldn't make every circle blink. Other cached months are dropped, to be
+   * fetched afresh when paged back to.
+   */
+  revalidate(): void {
+    this.#generation++;
+    this.#fetched.clear();
+    this.fetchCounts(this.month);
   }
 
   /** Drop cached counts and refetch, e.g. after the user saves a sighting. */
@@ -396,6 +425,25 @@ export class DateCalendar extends LitElement {
     const days = monthGrid(month);
     const from = days[0]!.toString();
     const to = days[days.length - 1]!.toString();
+
+    if (readSource() === 'static' && !this.user) {
+      let counts: Counts;
+      try {
+        counts = await fetchCalendarCounts(from, to, regionBySlug(this.regionSlug).slug);
+      } catch (error) {
+        if (generation !== this.#generation) return;
+        this.#fetched.delete(key);
+        console.error('Failed to load sighting volume', error);
+        return;
+      }
+      if (generation !== this.#generation) return;
+      // Replace the grid's range whole, so a day that has dropped to zero loses
+      // its circle rather than keeping the one it had.
+      const merged = new Map([...this.counts].filter(([day]) => day < from || day > to));
+      for (const [day, count] of counts) merged.set(day, count);
+      this.counts = merged;
+      return;
+    }
 
     // An RPC rather than a filtered view: the bbox has to apply before the
     // GROUP BY, and the view exposed only `day` and `occurrence_count`, so

@@ -7,8 +7,8 @@
  * the prototype that reads files. Cutover and rollback are the same one-line
  * change.
  *
- * Only a signed-out visitor's day of sightings on the map reads files so far,
- * and the manifest tells an open tab when a new build has landed.
+ * A signed-out visitor's day of sightings on the map, and the calendar's counts,
+ * read files; the manifest tells an open tab when a new build has landed.
  * Everything else — the calendar, profiles, share links, and anything a
  * signed-in contributor sees — still asks Supabase.
  */
@@ -99,6 +99,53 @@ export async function fetchDayOccurrences<T extends Located>(
       lon >= minx && lon <= maxx &&
       lat >= miny && lat <= maxy;
   });
+}
+
+/**
+ * The calendar's day counts for one region, for every day from `from` to `to`
+ * inclusive (ISO dates), from the month files under `calendar/` — what the
+ * `occurrence_days` call returns for the same range and region. A day with no
+ * sightings is absent.
+ *
+ * The grid always reaches into next month, which no build has covered yet, so a
+ * month after the manifest's coverage isn't fetched at all: its days get no
+ * circle, as a failed load leaves them today. A missing month within coverage is
+ * one with no sightings. With no manifest, nothing is built, and that throws.
+ */
+export async function fetchCalendarCounts(
+  from: string,
+  to: string,
+  regionSlug: string,
+): Promise<Map<string, number>> {
+  const manifest = await fetchManifest();
+  if (!manifest) throw new Error(`${READ_PATH_BASE}manifest.json: nothing built yet`);
+  const coveredMonth = manifest.covered_through.slice(0, 7);
+  const counts = new Map<string, number>();
+  for (const month of monthsBetween(from, to)) {
+    if (month > coveredMonth) break;
+    const url = `${READ_PATH_BASE}calendar/${month}.json`;
+    const response = await fetch(url);
+    if (response.status === 404) continue;
+    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+    const byRegion = await response.json() as Record<string, Record<string, number>>;
+    for (const [day, count] of Object.entries(byRegion[regionSlug] ?? {})) {
+      if (day >= from && day <= to) counts.set(day, count);
+    }
+  }
+  return counts;
+}
+
+/** Every `YYYY-MM` from `from`'s month to `to`'s, inclusive. */
+function monthsBetween(from: string, to: string): string[] {
+  const months: string[] = [];
+  let [year, month] = from.slice(0, 7).split('-').map(Number) as [number, number];
+  const last = to.slice(0, 7);
+  for (;;) {
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    months.push(key);
+    if (key >= last) return months;
+    if (++month > 12) { month = 1; year++; }
+  }
 }
 
 /**
