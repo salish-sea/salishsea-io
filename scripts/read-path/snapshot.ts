@@ -32,7 +32,7 @@ import { DuckDBInstance } from '@duckdb/node-api';
  * rather than trying to pin it, since a SET on one pooled connection says
  * nothing about the next.
  */
-const RELATIONS = [
+const RELATIONS: readonly {name: string, query: string}[] = [
     {
         name: 'occurrences',
         query: `
@@ -41,7 +41,40 @@ const RELATIONS = [
             from public.occurrences o
         `,
     },
-] as const;
+    // What the profile pages show (decision 057): the catalogue, and the four
+    // views linking a subject to its sightings. One document per row, in the
+    // shape Postgres serializes it; the render joins them.
+    ...[
+        'designations', 'parties', 'social_groups', 'group_parents',
+        'matriline_members', 'animal_names', 'haulouts',
+        'individual_occurrences', 'group_occurrences', 'ecotype_occurrences', 'haulout_occurrences',
+    ].map(name => ({
+        name,
+        query: `select current_setting('TimeZone') as tz, to_jsonb(t)::text as doc from public.${name} t`,
+    })),
+    {
+        // Every column but `notes`: verbatim Bigg's-sheet text that rights policy
+        // D-21 keeps off every page (decision 015), so the build never holds it.
+        // read_path is granted exactly these.
+        name: 'individuals',
+        query: `
+            select current_setting('TimeZone') as tz, to_jsonb(t)::text as doc
+            from (select id, entity_id, primary_designation, sex, born_earliest, born_latest,
+                         life_status, mother_id, maternity_certainty, father_id, paternity_certainty
+                  from public.individuals) t
+        `,
+    },
+    {
+        // The columns anon reads: `story` is withheld (rights policy D-21), and
+        // read_path is granted exactly these.
+        name: 'nicknames',
+        query: `
+            select current_setting('TimeZone') as tz, to_jsonb(t)::text as doc
+            from (select id, individual_id, name, named_year, namer_id, social_group_id, status, theme
+                  from public.nicknames) t
+        `,
+    },
+];
 
 export async function main(): Promise<void> {
     const [out] = process.argv.slice(2);
