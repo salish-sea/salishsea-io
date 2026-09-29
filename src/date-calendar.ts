@@ -264,6 +264,11 @@ export class DateCalendar extends LitElement {
     // up — leaving circles quietly scoped to the region you just left.
     if (changed.has('regionSlug') && changed.get('regionSlug') !== undefined)
       this.refresh();
+    // Signing in or out can change where counts come from (the read-path files
+    // are for signed-out visitors only), so counts fetched from the other source
+    // go. Only after the first render: before it, nothing has been fetched.
+    else if ((changed as PropertyValues).has('user') && this.hasUpdated && readSource() === 'static')
+      this.refresh();
     // Follow the selection when it lands outside the month on screen — a day
     // step across a boundary, or a jump to an occurrence from another season.
     if (changed.has('date') && this.date) {
