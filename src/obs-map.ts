@@ -334,7 +334,12 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
   }
 
   private referenceFeatureAt(pixel: number[]) {
-    const top = this.map.forEachFeatureAtPixel(pixel, f => f, {hitTolerance: 2});
+    // Not the mask: outside the region it is the topmost feature everywhere,
+    // and would make every site there unclickable.
+    const top = this.map.forEachFeatureAtPixel(pixel, f => f, {
+      hitTolerance: 2,
+      layerFilter: layer => layer !== this.maskLayer,
+    });
     return top && ['Hydrophone', 'SalmonCountingSite', 'Haulout'].includes(top.get('kind')) ? top : undefined;
   }
 
