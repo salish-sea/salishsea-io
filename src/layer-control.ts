@@ -61,9 +61,23 @@ class LayerControlElement extends LitElement {
 
   // Closes on a press anywhere else, or Escape. composedPath() sees through
   // the map's shadow root, which the event's target does not.
+  //
+  // A press on the map while the menu is open only closes it. Tapping the map
+  // is how a phone dismisses a menu, and with haul-outs on, that tap would
+  // otherwise land on a site and leave the page. Listening in the capture
+  // phase is what lets it stop the press before OpenLayers sees it.
   #onDocumentPointerDown = (e: PointerEvent) => {
-    if (this.open && !e.composedPath().includes(this))
-      this.open = false;
+    if (!this.open)
+      return;
+    const path = e.composedPath();
+    if (path.includes(this))
+      return;
+    this.open = false;
+    const viewport = this.closest('.ol-viewport');
+    if (viewport && path.includes(viewport)) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
   };
 
   #onKeyDown = (e: KeyboardEvent) => {
@@ -75,12 +89,12 @@ class LayerControlElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    document.addEventListener('pointerdown', this.#onDocumentPointerDown);
+    document.addEventListener('pointerdown', this.#onDocumentPointerDown, {capture: true});
     this.addEventListener('keydown', this.#onKeyDown);
   }
 
   override disconnectedCallback() {
-    document.removeEventListener('pointerdown', this.#onDocumentPointerDown);
+    document.removeEventListener('pointerdown', this.#onDocumentPointerDown, {capture: true});
     this.removeEventListener('keydown', this.#onKeyDown);
     super.disconnectedCallback();
   }

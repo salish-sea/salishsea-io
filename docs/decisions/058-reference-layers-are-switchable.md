@@ -14,7 +14,9 @@ BeeAtlas has the same control for its region layers: a button in the map's top-r
 
 **The defaults keep today's map.** Viewing locations, hydrophones and salmon counting sites stay on. Haul-out sites start off, and their data is fetched the first time someone switches them on, so a visit that never asks costs nothing.
 
-**Desktop and mobile both.** It is an OpenLayers control, like the location button, so it follows the map wherever the mobile redesign ([#67](https://github.com/salish-sea/salishsea-io/issues/67)) puts it. Under a coarse pointer the rows get bigger touch targets.
+**Desktop and mobile both.** It is an OpenLayers control, like the location button, so it follows the map wherever the mobile redesign ([#67](https://github.com/salish-sea/salishsea-io/issues/67)) puts it. Under a coarse pointer the rows get bigger touch targets. While the menu is open, a press on the map only closes it. Tapping the map is how a phone dismisses a menu, and with haul-outs on, that tap would otherwise land on a site and leave the page, which is what happened the first time this was tried on a phone-sized screen. A touch screen has no hover, so there a site's name shows only from zoom 12, where its label appears.
+
+![On a phone: the menu open, haul-outs across Puget Sound, and a site's ring up close](../images/058-mobile.png)
 
 **Visibility is in the URL as `l=`.** The value is the visible layers in a fixed order, separated by spaces, which a URL spells `+`: `l=viewpoints+hydrophones+salmon+haulouts`. A comma would come out as `%2C`. The parameter is absent while the set is the default, so ordinary links don't change, and `l=` with an empty value turns everything off. It lists the whole visible set rather than what differs from the default, so a link means the same thing if a default changes later. An unknown name is dropped and the rest of the link still works. A change replaces the history entry rather than pushing one, because showing a layer is a view setting and not a place to go Back to. Being in the URL is what lets a haul-out's page be a same-tab link: Back returns to the map with the layer still on.
 
