@@ -2,7 +2,7 @@
  * Redirects a designation-shaped profile path to the page's canonical address
  * (decision 057, step 5), from the map the read-path build writes — no database.
  *
- *   tsx scripts/read-path/redirect.ts <redirects.json> <port>
+ *   node scripts/read-path/redirect.ts <redirects.json> <port>
  *
  * Caddy sends it /individuals/<designation>, /matrilines/<designation> and
  * /ecotypes/<designation>: legacy links from before decision 034, and typed ones.

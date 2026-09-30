@@ -2,7 +2,7 @@
  * One file per Pacific calendar day of occurrences, from the read-path snapshot
  * (salish-t3g.1).
  *
- *   EXPORT_DIR=… tsx scripts/read-path/occurrence-days.ts <snapshot.duckdb>
+ *   EXPORT_DIR=… node scripts/read-path/occurrence-days.ts <snapshot.duckdb>
  *
  * Writes $EXPORT_DIR/days/<YYYY-MM-DD>.json for every day that has at least one
  * occurrence: a JSON array, newest first — what `fetchOccurrences` receives for

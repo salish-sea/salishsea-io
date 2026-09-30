@@ -3,6 +3,11 @@
 # the redirect server side by side, plus a build at boot so a fresh volume has
 # files before the first scheduled run.
 #
+# Everything here, and every build step Stelis runs, is plain node: it strips
+# the scripts' TypeScript types itself (the tsconfig keeps them erasable), and
+# tsx would add a wrapper process and an esbuild service, ~30 MB, beside each
+# one on a 1 GB machine.
+#
 # If any of the four exits, so does this, with a failure, and Fly restarts
 # the machine. The boot build is not watched: a failed build leaves the last good
 # files in place and the next hour tries again.
@@ -22,11 +27,10 @@ caddy_pid=$!
 supercronic /app/fly/crontab &
 cron_pid=$!
 # Builds when the data changes, a few seconds after each burst (salish-t3g.6).
-(cd /app && exec node_modules/.bin/tsx scripts/read-path/listen.ts /app/fly/build.sh) &
+(cd /app && exec node scripts/read-path/listen.ts /app/fly/build.sh) &
 listen_pid=$!
 # Redirects designation-shaped profile paths from the build's map; Caddy proxies
-# them here (decision 057, step 5). Plain node, not tsx: it runs all day on a 1 GB
-# machine, and node strips its types itself without tsx's extra process.
+# them here (decision 057, step 5).
 (cd /app && exec node scripts/read-path/redirect.ts "$READ_PATH_EXPORT_DIR/redirects.json" 8081) &
 redirect_pid=$!
 (/app/fly/build.sh || echo "read-path build at boot failed; the schedule will retry") &

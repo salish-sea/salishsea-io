@@ -2,7 +2,7 @@
  * The calendar's day counts, one file per Pacific month, from the read-path
  * snapshot (decision 056).
  *
- *   EXPORT_DIR=… tsx scripts/read-path/calendar.ts <snapshot.duckdb>
+ *   EXPORT_DIR=… node scripts/read-path/calendar.ts <snapshot.duckdb>
  *
  * Writes $EXPORT_DIR/calendar/<YYYY-MM>.json:
  *

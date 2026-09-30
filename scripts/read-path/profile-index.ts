@@ -2,7 +2,7 @@
  * Where every profile lives, for what finds the pages rather than renders them
  * (decision 057, step 5).
  *
- *   EXPORT_DIR=… tsx scripts/read-path/profile-index.ts <snapshot.duckdb> <dist>
+ *   EXPORT_DIR=… node scripts/read-path/profile-index.ts <snapshot.duckdb> <dist>
  *
  * Writes two files into $EXPORT_DIR:
  *
