@@ -1,6 +1,6 @@
 # 059 — The end state: a build graph over upstream data, and a small store for what only our users write
 
-**Status:** accepted as the direction; the store is confirmed once the Orcasound identity conversation settles (see below) · **Decided:** 2026-09-30 · **Answers:** the end-state question behind `salish-9uu` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Would amend:** [002](002-static-spa-edge-architecture.md) (no backend), when step 4 lands
+**Status:** accepted · **Decided:** 2026-09-30 · **Answers:** the end-state question behind `salish-9uu` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Would amend:** [002](002-static-spa-edge-architecture.md) (no backend), when step 4 lands
 
 ## Context
 
@@ -16,7 +16,7 @@ Two facts decide most of it.
 
 ## Decision
 
-**The target is BeeAtlas's shape.** The Stelis graph derives everything a visitor sees from upstream snapshots. What only our users write lives in a small store on the same machine, and the graph reads that store as an authoritative input. That's how it reads BeeAtlas's notes store: key by key, so one write rebuilds only what it touched and can be traced to the pages it changed ([`notes-digest.rkt`](https://github.com/rainhead/stelis/blob/e4780954e105f4925bf90a5813c0ac3f02259d13/src/notes-digest.rkt)). The store is expected to be SQLite, with a small write API beside it, as BeeAtlas's is ([BeeAtlas ADR 0042](https://github.com/rainhead/beeatlas/blob/57118da21dc31da08e05d82f3467cea5af7b8d84/docs/adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)).
+**The target is BeeAtlas's shape.** The Stelis graph derives everything a visitor sees from upstream snapshots. What only our users write lives in a small store on the same machine, and the graph reads that store as an authoritative input. That's how it reads BeeAtlas's notes store: key by key, so one write rebuilds only what it touched and can be traced to the pages it changed ([`notes-digest.rkt`](https://github.com/rainhead/stelis/blob/e4780954e105f4925bf90a5813c0ac3f02259d13/src/notes-digest.rkt)). The store is SQLite, with a small write API beside it, as BeeAtlas's is ([BeeAtlas ADR 0042](https://github.com/rainhead/beeatlas/blob/57118da21dc31da08e05d82f3467cea5af7b8d84/docs/adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)).
 
 Why this rather than keeping Postgres:
 
@@ -25,20 +25,18 @@ Why this rather than keeping Postgres:
 - **The build knows what changed without asking.** Against Postgres, the snapshot re-reads the database on every build just to learn whether anything moved. A local store can be read key by key, so an unchanged store costs almost nothing. That's what makes frequent builds affordable.
 - **A contributor's sighting can be live when the save returns.** A write can run a targeted build before responding, as a BeeAtlas note does, instead of waiting for a broadcast and the next build.
 
-**Step 3 comes first either way.** Moving ingest into the build is the prerequisite for this end state and for any version of keeping Postgres. So nothing waits on the store decision.
+**Step 3 comes next.** Moving ingest into the build is the prerequisite for this end state: it's what leaves the store holding only what our users write.
+
+**The Orcasound conversation decides who issues sign-ins, not where the data lives.** salishsea keeps its own data whatever comes of it. `salish-9uu` names shared identity as its gate because its preferred option depended on our minting the tokens that row-level security reads. Here it decides only how the write API checks a sign-in: by verifying Google's tokens itself, or by accepting Orcasound's. It gates step 4's sign-in work, not this decision.
 
 ## What would reverse it
 
-This depends on who issues identity, which is the question `salish-9uu` already names as the gate. The store is confirmed, or the direction reversed, once that's settled:
-
-- **A shared database with Orcasound.** If consolidating with Orcasound means both sites write to one Postgres (orcasite runs on Postgres), shared Postgres wins, and this becomes `salish-9uu`'s option 2.
-- **Shared identity only, separate data.** Then the write API accepts Orcasound's tokens instead of verifying Google's. The store choice stands.
-- **Several independent writers.** Moderators editing concurrently, or outside systems writing directly, would outgrow a single SQLite writer. Nothing today does.
+**Several independent writers.** Moderators editing concurrently, or outside systems writing directly, would outgrow a single SQLite writer, and a server database would earn its place back. Nothing today does, and the store's schema would be small enough to move.
 
 ## Rejected alternatives
 
 - **Keep Supabase.** It's the status quo, and it's what failed opaquely in the outage that started this.
-- **Managed Postgres with PostgREST and our own sign-in tokens** (`salish-9uu` option 2). This keeps decision 002's no-backend architecture and every row-level security policy. It stays the fallback if the data ends up shared with Orcasound. On its own, it keeps a database server running to hold a few hundred rows once step 3 has moved the derivation out.
+- **Managed Postgres with PostgREST and our own sign-in tokens** (`salish-9uu` option 2). This keeps decision 002's no-backend architecture and every row-level security policy. But it keeps a database server running to hold a few hundred rows once step 3 has moved the derivation out.
 - **Adopting BeeAtlas's read side too: Parquet queried in the browser** by wa-sqlite and hyparquet ([BeeAtlas ADR 0003](https://github.com/rainhead/beeatlas/blob/57118da21dc31da08e05d82f3467cea5af7b8d84/docs/adr/0003-client-query-engine-wa-sqlite.md)). "BeeAtlas's architecture" here means its build graph and its store, not its client. 056 and [057](057-profile-pages-are-prerendered.md) already settled salishsea's read side as plain files and prerendered pages, which serve its fixed views without a query engine in the page.
 
 ## Consequences
