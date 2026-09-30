@@ -6,7 +6,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
-    assembleEcotypes, assembleHaulouts, assembleIndividuals, assembleMatrilines,
+    assembleEcotypes, assembleHaulouts, assembleHauloutSites, assembleIndividuals, assembleMatrilines,
     renderEcotypePage, renderHauloutPage, renderIndividualPage, renderMatrilinePage,
     type Tables,
 } from './profiles.ts';
@@ -265,5 +265,13 @@ describe('assembleHaulouts and renderHauloutPage', () => {
         for (const rows of Object.values(shuffled)) rows.reverse();
         const again = assembleHaulouts(shuffled).find(p => p.id === '12')!;
         expect(renderHauloutPage(shellFor('haulout-page'), again, 2026)).toBe(doc());
+    });
+});
+
+describe('assembleHauloutSites', () => {
+    test('every site, by id, with only what the main map\'s layer reads', () => {
+        const sites = assembleHauloutSites(tables());
+        expect(sites.map(s => s.id)).toEqual([11, 12, 13, 14]);
+        expect(sites[1]).toEqual({id: 12, name: 'Protection Island', location: {lon: -122.92, lat: 48.12}, radius_m: 500});
     });
 });

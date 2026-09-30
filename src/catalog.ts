@@ -545,6 +545,22 @@ export async function fetchAllHaulouts(): Promise<Haulout[]> {
   return data;
 }
 
+// What the main map's haul-out layer draws of each site (GH #453): where it is,
+// how far its reports reach, and enough to name it and link to its page.
+export type HauloutSite = Pick<Haulout, 'id' | 'name' | 'location' | 'radius_m'>;
+
+export const hauloutSite = ({id, name, location, radius_m}: HauloutSite): HauloutSite => ({id, name, location, radius_m});
+
+// The file the read-path build writes the sites into, beside their pages
+// (scripts/read-path/profiles.ts), and the map reads them from under
+// VITE_READ_SOURCE=static.
+export const HAULOUT_SITES_FILE = 'sites.json';
+
+export async function fetchHauloutSites(): Promise<HauloutSite[]> {
+  const { data } = await supabase().from('haulouts').select('id, name, location, radius_m').order('id').throwOnError();
+  return data;
+}
+
 // Newest first, then by occurrence, so two reports of the same moment don't fall
 // to row order (decision 057). The view's location is never null (it is what the
 // join is on), but the generated type cannot know that.

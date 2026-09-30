@@ -11,7 +11,8 @@ import drawingSourceContext from "./drawing-context.ts";
 import type VectorSource from "ol/source/Vector.js";
 import type OpenLayersMap from "ol/Map.js";
 import mapContext from "./map-context.ts";
-import type { MapMoveDetail, ObsMap } from "./obs-map.ts";
+import type { LayersChangeDetail, MapMoveDetail, ObsMap } from "./obs-map.ts";
+import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from "./reference-layers.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
@@ -67,8 +68,11 @@ function parseUrlParams(searchParams: URLSearchParams) {
   // a stale link should still show the map, just not the region it asked for.
   const region = regionBySlug(searchParams.get('r'));
 
+  const layers = parseLayersParam(searchParams.get(LAYERS_PARAM));
+
   return {
     date,
+    layers,
     occurrenceId,
     region,
     mapPosition: hasValidMapPosition
@@ -242,6 +246,19 @@ export default class SalishSea extends LitElement {
   @property({attribute: false})
   private sightings: Occurrence[] = []
 
+  /** The map's reference layers switched on (GH #453). Replaces the URL entry rather than adding one: it is a view setting, not a place to go Back to. */
+  @state()
+  private layers: ReadonlySet<ReferenceLayer> = initialParams.layers;
+
+  #onLayersChange = (evt: Event) => {
+    this.layers = (evt as CustomEvent<LayersChangeDetail>).detail;
+    const value = layersParam(this.layers);
+    if (value === null)
+      setQueryParams({}, {remove: [LAYERS_PARAM], replace: true});
+    else
+      setQueryParams({[LAYERS_PARAM]: value}, {replace: true});
+  };
+
   #handlePopState = () => {
     this.#isRestoringFromHistory = true;
     if (this.#mapMoveDebounceTimer) {
@@ -252,6 +269,7 @@ export default class SalishSea extends LitElement {
       const params = parseUrlParams(new URLSearchParams(window.location.search));
       this.region = params.region;
       this.date = params.date;
+      this.layers = params.layers;
       this.focusedOccurrenceId = params.occurrenceId;
       this.mapRef.value?.setView(
         params.mapPosition.x,
@@ -456,7 +474,7 @@ export default class SalishSea extends LitElement {
         </div>
       </header>
       <main>
-        <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId} .maskExtent=${this.region.extent}></obs-map>
+        <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId} .maskExtent=${this.region.extent} .visibleLayers=${this.layers} @layers-change=${this.#onLayersChange}></obs-map>
         <obs-panel ${ref(this.panelRef)} date=${this.date} regionSlug=${this.region.slug} .lastOwnOccurrence=${this.lastOwnOccurrence}>
           ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
             const id = sighting.id;

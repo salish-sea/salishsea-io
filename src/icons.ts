@@ -12,3 +12,5 @@ export const linkIcon = svg`<path d="M440-280H280q-83 0-141.5-58.5T80-480q0-83 5
 // are exact mirrors of each other on every platform.
 export const chevronLeftIcon = svg`<path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/>`;
 export const chevronRightIcon = svg`<path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/>`;
+// Material Symbols "layers": the map's reference-layer switch (layer-control.ts).
+export const layersIcon = svg`<path d="M480-118 120-398l66-50 294 228 294-228 66 50-360 280Zm0-202L120-600l360-280 360 280-360 280Zm0-280Zm0 178 230-178-230-178-230 178 230 178Z"/>`;

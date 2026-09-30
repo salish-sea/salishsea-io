@@ -25,8 +25,8 @@ import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import {
-    dedupeOccurrenceLinks, descendantMatrilines, displayName, groupChain, hauloutReport,
-    type CatalogGroup, type Haulout, type HauloutOccurrence, type OccurrenceLink,
+    dedupeOccurrenceLinks, descendantMatrilines, displayName, groupChain, hauloutReport, hauloutSite,
+    HAULOUT_SITES_FILE, type CatalogGroup, type Haulout, type HauloutOccurrence, type HauloutSite, type OccurrenceLink,
 } from '../../src/catalog.ts';
 import type { MapDot } from '../../src/individual-map.ts';
 import { profileStyles, renderProfileFrame } from '../../src/profile-shared.ts';
@@ -305,6 +305,11 @@ export function assembleHaulouts(t: Pick<Tables, (typeof HAULOUT_TABLES)[number]
     });
 }
 
+/** Every site, as the main map's haul-out layer draws them (GH #453): what fetchHauloutSites gets. */
+export function assembleHauloutSites(t: Pick<Tables, 'haulouts'>): HauloutSite[] {
+    return ([...t.haulouts].sort(byId) as Haulout[]).map(hauloutSite);
+}
+
 export function renderHauloutPage(shell: string, page: HauloutPage, currentYear: number, islands: Island[] = []): string {
     const {site, reports} = page.data;
     const body = renderHauloutProfile(page.data, {
@@ -322,24 +327,34 @@ export function renderHauloutPage(shell: string, page: HauloutPage, currentYear:
 /** The map island's entry, as vite.config.js names it. */
 export const MAP_ISLAND = 'src/map-island.ts';
 
-/** A kind's pages as files: each page, and beside it the links its map loads. */
+type File = [name: string, content: string];
+
+/**
+ * A kind's pages as files: each page, and beside it the links its map loads. A
+ * kind may also write files about all its subjects at once, beside the pages.
+ */
 const pagesOf = <T extends Table, P extends ProfilePage<unknown>>(
     names: readonly T[],
     assemble: (t: Pick<Tables, T>) => P[],
     render: (shell: string, page: P, currentYear: number, islands: Island[]) => string,
-) => async (snapshot: string, shell: string, islands: Island[]): Promise<[string, string][][]> => {
+    index: (t: Pick<Tables, T>) => File[] = () => [],
+) => async (snapshot: string, shell: string, islands: Island[]): Promise<{pages: File[][], index: File[]}> => {
     const {tables, currentYear} = await readSnapshot(snapshot, async s => ({tables: await s.tables(names), currentYear: await s.year()}));
-    return assemble(tables).map(page => [
+    const pages = assemble(tables).map((page): File[] => [
         [`${page.id}.html`, render(shell, page, currentYear, islands)],
         [`${page.id}.links.json`, JSON.stringify(page.links)],
     ]);
+    return {pages, index: index(tables)};
 };
 
 const KINDS = {
     individuals: {shell: 'individual.html', pages: pagesOf(INDIVIDUAL_TABLES, assembleIndividuals, renderIndividualPage)},
     matrilines: {shell: 'matriline.html', pages: pagesOf(MATRILINE_TABLES, assembleMatrilines, renderMatrilinePage)},
     ecotypes: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assembleEcotypes, renderEcotypePage)},
-    haulouts: {shell: 'haulout.html', pages: pagesOf(HAULOUT_TABLES, assembleHaulouts, renderHauloutPage)},
+    // The sites' own list, for the main map's layer: a page's id is a number, so
+    // it cannot collide with one.
+    haulouts: {shell: 'haulout.html', pages: pagesOf(HAULOUT_TABLES, assembleHaulouts, renderHauloutPage,
+        t => [[HAULOUT_SITES_FILE, JSON.stringify(assembleHauloutSites(t))]])},
 };
 export type Kind = keyof typeof KINDS;
 
@@ -351,8 +366,8 @@ export async function writeProfiles(kind: Kind, snapshot: string, exportDir: str
     const shell = await readFile(path.join(dist, KINDS[kind].shell), 'utf8');
     const manifest = JSON.parse(await readFile(path.join(dist, '.vite', 'manifest.json'), 'utf8'));
     const islands = [islandFromManifest(manifest, MAP_ISLAND, 'individual-map')];
-    const pages = await KINDS[kind].pages(snapshot, shell, islands);
-    await replaceDir(outDir, pages.flat());
+    const {pages, index} = await KINDS[kind].pages(snapshot, shell, islands);
+    await replaceDir(outDir, [...pages.flat(), ...index]);
     return {pages: pages.length};
 }
 

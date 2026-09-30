@@ -7,6 +7,7 @@ import type { FeatureLike } from 'ol/Feature.js';
 import { Circle, LineString, Point } from 'ol/geom.js';
 import type Feature from 'ol/Feature.js';
 import Icon from 'ol/style/Icon.js';
+import RegularShape from 'ol/style/RegularShape.js';
 import travelArrowIcon from './assets/travel-arrow.svg?url';
 import hydrophoneIcon from './assets/hydrophone-default.svg?url';
 import salmonCountingSiteIcon from './assets/salmon-counting-site.svg?url';
@@ -354,6 +355,55 @@ export const salmonCountingSiteStyle = new Style({
     src: salmonCountingSiteIcon,
   }),
 });
+
+/**
+ * A haul-out site (decision 040, GH #453): a hollow slate diamond, so it reads
+ * as a place and not a sighting. Occurrences are filled circles in their
+ * taxon's colour, and seals and sea lions are the oranges, so a haul-out drawn
+ * in either would pass for a report. Zoomed in, the dashed ring is the radius
+ * within which a report counts for the site, drawn as the site's own page draws
+ * it, and the name appears where the viewing locations' names do.
+ */
+export const HAULOUT_COLOR = '#334155';
+
+const hauloutMarkerStyle = new Style({
+  image: new RegularShape({
+    // A report on the site must stay visible, so the marker never declutters it.
+    declutterMode: 'none',
+    points: 4,
+    radius: 6,
+    fill: new Fill({color: 'rgba(255, 255, 255, 0.85)'}),
+    stroke: new Stroke({color: HAULOUT_COLOR, width: 2}),
+  }),
+});
+
+const hauloutRingStyle = new Style({
+  // Set on the feature by obs-map when it loads the sites, from the site's own
+  // radius: a polygon rather than an ol Circle, since a circle's radius in
+  // EPSG:3857 is not metres anywhere but the equator.
+  geometry: (feature) => feature.get('ring'),
+  stroke: new Stroke({color: rgba(HAULOUT_COLOR, 0.7), width: 1.25, lineDash: [4, 4]}),
+});
+
+export const hauloutStyle = (site: FeatureLike, resolution: number) => {
+  if (resolution >= VIEWING_LABEL_MAX_RESOLUTION)
+    return hauloutMarkerStyle;
+  return [
+    hauloutRingStyle,
+    hauloutMarkerStyle,
+    new Style({
+      text: new Text({
+        fill: new Fill({color: HAULOUT_COLOR}),
+        font: '10px monospace',
+        offsetX: 10,
+        padding: [1, 1, 0, 1],
+        text: site.get('name'),
+        textAlign: 'left',
+        textBaseline: 'middle',
+      }),
+    }),
+  ];
+}
 
 /**
  * Shading for the map outside the active region.
