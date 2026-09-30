@@ -4,7 +4,7 @@
  *
  *   EXPORT_DIR=… node scripts/read-path/profile-index.ts <snapshot.duckdb> <dist>
  *
- * Writes two files into $EXPORT_DIR:
+ * Writes three files into $EXPORT_DIR:
  *
  * - redirects.json: each profile kind's designations, folded, mapped to the canonical
  *   address. A legacy or typed link (/individuals/T65A, /matrilines/T065As) is
@@ -12,6 +12,9 @@
  *   the same answers the Lambda@Edge function gives on AWS by asking PostgREST.
  * - sitemap.xml: the site's own pages, as Vite writes them into <dist>/sitemap.xml,
  *   and after them every published profile.
+ * - catalog-codes.json: the rows the map's sighting cards link designations from
+ *   (src/individual-links.ts), in the shape its Supabase query returns, so a sighting
+ *   that mentions T065A links to her page while the database is unreachable.
  *
  * Only subjects the profile build writes a page for are listed (profiles.ts's
  * filters: an animal or a group with a register identifier, every haul-out site), so
@@ -25,6 +28,7 @@ import { ecotypePath, hauloutPath, individualPath, matrilinePath } from '../../s
 import { designationKey, type Redirects } from './redirect-keys.ts';
 import { SITE_ORIGIN } from './profile-document.ts';
 import { readSnapshot, type Doc, type Tables } from './snapshot-tables.ts';
+import type { CatalogCodeRows } from '../../src/individual-links.ts';
 
 const TABLES = ['individuals', 'designations', 'social_groups', 'haulouts'] as const;
 type IndexTables = Pick<Tables, (typeof TABLES)[number]>;
@@ -39,17 +43,24 @@ const matrilineAt = (g: Doc) => matrilinePath({entity_id: g['entity_id'], design
 const ecotypeAt = (g: Doc) => ecotypePath({entity_id: g['entity_id'], designation: g['designation']});
 const hauloutAt = (h: Doc) => hauloutPath({id: h['id'], name: h['name']});
 
+/**
+ * Which designation row wins when two animals' codes fold alike: the animal the code
+ * is primary for, then the one it is current for, then the lower individual id, then
+ * the lower row id — never row order. Most preferred first.
+ */
+function byPrecedence(a: Doc, b: Doc): number {
+    const rank = (d: Doc) => [d['is_primary'] ? 0 : 1, d['status'] === 'current' ? 0 : 1, d['individual_id'], d['id']];
+    const [x, y] = [rank(a), rank(b)];
+    return x[0] - y[0] || x[1] - y[1] || x[2] - y[2] || x[3] - y[3];
+}
+
 export function buildRedirects(t: IndexTables): Redirects {
     const individuals = new Map(t.individuals.filter(i => i['entity_id']).map(i => [i['id'], i]));
     // Every code an animal has carried, current or not: a link made with a superseded
     // code still names the animal. Should two animals ever share a folded code, the
     // one it is primary for wins, then the current one, then the lower id — never row
     // order.
-    const rank = (d: Doc) => [d['is_primary'] ? 0 : 1, d['status'] === 'current' ? 0 : 1, d['individual_id']] as const;
-    const ranked = [...t.designations].sort((a, b) => {
-        const [x, y] = [rank(a), rank(b)];
-        return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
-    });
+    const ranked = [...t.designations].sort(byPrecedence);
     const out: Redirects = {individuals: {}, matrilines: {}, ecotypes: {}};
     for (const d of ranked) {
         const individual = individuals.get(d['individual_id']);
@@ -64,6 +75,34 @@ export function buildRedirects(t: IndexTables): Redirects {
             into[key] = g['kind'] === 'matriline' ? matrilineAt(g) : ecotypeAt(g);
     }
     return out;
+}
+
+/**
+ * What src/individual-links.ts's Supabase query returns: every designation with the
+ * individual carrying it, and the matriline and ecotype designations. Every row, as
+ * that query has no filter.
+ *
+ * The lookup built from these keeps the LAST row for a folded code, so where two
+ * subjects' designations fold alike the rows run so that the last is the one the
+ * redirects choose: subjects without a published page first (the redirects never
+ * pick those), then published ones from least preferred to most — for animals the
+ * redirects' own precedence reversed, for groups the highest id first.
+ */
+export function buildCatalogCodes(t: IndexTables): CatalogCodeRows {
+    const individuals = new Map(t.individuals.map(i => [i['id'], i]));
+    const published = (d: Doc) => individuals.get(d['individual_id'])?.['entity_id'] ? 1 : 0;
+    return {
+        designations: [...t.designations]
+            .sort((a, b) => published(a) - published(b) || byPrecedence(b, a))
+            .map(d => {
+                const i = individuals.get(d['individual_id']);
+                return {code: d['code'], individual: i ? {entity_id: i['entity_id'], primary_designation: i['primary_designation']} : null};
+            }),
+        groups: [...t.social_groups]
+            .filter(g => g['kind'] === 'matriline' || g['kind'] === 'ecotype')
+            .sort((a, b) => (a['entity_id'] ? 1 : 0) - (b['entity_id'] ? 1 : 0) || b['id'] - a['id'])
+            .map(g => ({kind: g['kind'], designation: g['designation'], entity_id: g['entity_id']})),
+    };
 }
 
 /** Every published profile's canonical path, in a fixed order. */
@@ -114,6 +153,7 @@ export async function main(): Promise<void> {
     const sitemap = buildSitemap(await readFile(path.join(dist, 'sitemap.xml'), 'utf8'), paths);
     await writeAtomically(path.join(exportDir, 'redirects.json'), JSON.stringify(redirects));
     await writeAtomically(path.join(exportDir, 'sitemap.xml'), sitemap);
+    await writeAtomically(path.join(exportDir, 'catalog-codes.json'), JSON.stringify(buildCatalogCodes(tables)));
     const counts = Object.entries(redirects).map(([k, v]) => `${Object.keys(v).length} ${k}`).join(', ');
     console.log(`redirects.json: ${counts}; sitemap.xml: ${paths.length} profiles`);
 }
