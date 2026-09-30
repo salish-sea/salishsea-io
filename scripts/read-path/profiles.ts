@@ -1,13 +1,15 @@
 /**
- * The individual profile pages, prerendered from the read-path snapshot (decision 057).
+ * The profile pages, prerendered from the read-path snapshot (decision 057).
  *
- *   EXPORT_DIR=… tsx scripts/read-path/profiles.ts <snapshot.duckdb> <dist>
+ *   EXPORT_DIR=… tsx scripts/read-path/profiles.ts <kind> <snapshot.duckdb> <dist>
  *
- * Writes $EXPORT_DIR/profiles/individuals/<id>.html for every individual with a register
- * identifier (<id> is its seven digits), and beside it <id>.links.json, the sighting
- * links its map loads. The page itself is src/individual-profile.ts's templates — the
- * same ones the client-rendered page uses — given the data the client would fetch,
- * assembled here from the snapshot's documents instead.
+ * <kind> is individuals, matrilines or ecotypes. Writes $EXPORT_DIR/profiles/<kind>/<id>.html
+ * for every subject of that kind with a register identifier (<id> is its seven digits),
+ * and beside it <id>.links.json, the sighting links its map loads. The page itself is
+ * the kind's templates (src/individual-profile.ts and its siblings) — the same ones the
+ * client-rendered page uses — given the data the client would fetch, assembled here
+ * from the snapshot's documents instead. Each kind reads only its own tables, which is
+ * what the Stelis task running it declares as its inputs.
  *
  * Assembly mirrors src/catalog.ts's fetchers one for one, and where PostgREST leaves an
  * order unspecified (embedded nicknames and designations, a matriline's members), this
@@ -22,12 +24,20 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { dedupeOccurrenceLinks, displayName, groupChain, type CatalogGroup, type OccurrenceLink } from '../../src/catalog.ts';
-import { profileStyles } from '../../src/profile-shared.ts';
 import {
-    individualPreview, individualStyles, renderIndividualFrame, renderIndividualProfile, renderIndividualSightings,
+    dedupeOccurrenceLinks, descendantMatrilines, displayName, groupChain, type CatalogGroup, type OccurrenceLink,
+} from '../../src/catalog.ts';
+import { profileStyles, renderProfileFrame } from '../../src/profile-shared.ts';
+import {
+    individualPreview, individualStyles, renderIndividualProfile, renderIndividualSightings,
     type IndividualProfileData,
 } from '../../src/individual-profile.ts';
+import {
+    matrilinePreview, renderMatrilineProfile, renderMatrilineSightings, type MatrilineProfileData,
+} from '../../src/matriline-profile.ts';
+import {
+    ecotypePreview, renderEcotypeProfile, renderEcotypeSightings, type EcotypeProfileData,
+} from '../../src/ecotype-profile.ts';
 import { islandFromManifest, renderDocument, type Island } from './profile-document.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 
@@ -41,17 +51,19 @@ type Doc = Record<string, any>;
 
 const TABLES = [
     'individuals', 'designations', 'nicknames', 'parties', 'social_groups', 'group_parents',
-    'matriline_members', 'animal_names', 'individual_occurrences',
+    'matriline_members', 'animal_names', 'individual_occurrences', 'group_occurrences', 'ecotype_occurrences',
 ] as const;
-export type Tables = Record<(typeof TABLES)[number], Doc[]>;
+type Table = (typeof TABLES)[number];
+export type Tables = Record<Table, Doc[]>;
 
-export async function loadTables(snapshot: string): Promise<{tables: Tables, currentYear: number}> {
+/** Reads the named tables and the snapshot's year; a kind's assembly touches no others. */
+export async function loadTables<T extends Table>(snapshot: string, names: readonly T[]): Promise<{tables: Pick<Tables, T>, currentYear: number}> {
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
-        const tables = {} as Tables;
-        for (const name of TABLES) {
+        const tables = {} as Pick<Tables, T>;
+        for (const name of names) {
             const reader = await conn.runAndReadAll(`SELECT doc FROM store.snapshot.${name}`);
             tables[name] = (reader.getRows() as [string][]).map(([doc]) => JSON.parse(doc));
         }
@@ -65,37 +77,95 @@ export async function loadTables(snapshot: string): Promise<{tables: Tables, cur
 
 const byId = (a: Doc, b: Doc) => a['id'] - b['id'];
 
-export type IndividualPage = {
-    /** The register identifier's seven digits: the page's file name and URL segment. */
-    id: string,
-    data: IndividualProfileData,
-    links: OccurrenceLink[],
-};
+/** The seven digits of a register identifier: a page's file name and URL segment. */
+const localPart = (entityId: string) => entityId.replace(/^SSA:/, '');
 
-/** Every individual with a register identifier, as its page's data. */
-export function assembleIndividuals(t: Tables): IndividualPage[] {
+/** Documents grouped by a key column, each group in the order `sort` gives. */
+function groupBy(docs: Doc[], key: string, sort: (a: Doc, b: Doc) => number): Map<unknown, Doc[]> {
+    const out = new Map<unknown, Doc[]>();
+    for (const d of [...docs].sort(sort)) {
+        if (d[key] === null) continue;
+        let list = out.get(d[key]);
+        if (!list) out.set(d[key], list = []);
+        list.push(d);
+    }
+    return out;
+}
+
+// --- Assembly shared between kinds, mirroring src/catalog.ts's fetchers ---------------
+
+/** An embedded party (authority, namer), as PostgREST embeds it. */
+function partyResolver(t: Pick<Tables, 'parties'>) {
     const parties = new Map(t.parties.map(p => [p['id'], p]));
-    const party = (id: number | null) => {
+    return (id: number | null) => {
         const p = id === null ? undefined : parties.get(id);
         return p ? {name: p['name'], url: p['url']} : null;
     };
-    const nicknamesOf = new Map<number, Doc[]>();
-    for (const n of [...t.nicknames].sort(byId)) {
-        if (n['individual_id'] === null) continue;
-        let list = nicknamesOf.get(n['individual_id']);
-        if (!list) nicknamesOf.set(n['individual_id'], list = []);
-        list.push(n);
-    }
-    const designationsOf = new Map<number, Doc[]>();
-    for (const d of [...t.designations].sort(byId)) {
-        let list = designationsOf.get(d['individual_id']);
-        if (!list) designationsOf.set(d['individual_id'], list = []);
-        list.push(d);
-    }
-    const individuals = new Map(t.individuals.map(i => [i['id'], i]));
-    const briefNicknames = (id: number) => (nicknamesOf.get(id) ?? []).map(n => ({name: n['name'], status: n['status']}));
+}
 
-    // fetchParents / fetchOffspring / fetchGroupMembers' shapes.
+/**
+ * fetchAllGroups' shape: every group, its parent, and — given the individuals — its
+ * anchor's address. The ecotype page reads no anchor, so it needn't read individuals.
+ */
+function catalogGroups(t: Pick<Tables, 'social_groups' | 'group_parents'>, individuals?: Map<number, Doc>): Map<number, CatalogGroup> {
+    const parentOf = new Map(t.group_parents.map(p => [p['group_id'], p['parent_group_id']]));
+    return new Map<number, CatalogGroup>(t.social_groups.map(g => {
+        const anchor = g['anchor_individual_id'] === null ? undefined : individuals?.get(g['anchor_individual_id']);
+        return [g['id'], {
+            ...g,
+            anchor: anchor ? {entity_id: anchor['entity_id'], primary_designation: anchor['primary_designation']} : null,
+            parent_group_id: parentOf.get(g['id']) ?? null,
+        } as CatalogGroup];
+    }));
+}
+
+/** Sighting links by subject, in occurrence order, as the fetchers ask PostgREST for them. */
+function linksBy(docs: Doc[], key: string): (id: number) => OccurrenceLink[] {
+    const bySubject = groupBy(docs, key, (a, b) => a['occurrence_id'].localeCompare(b['occurrence_id']));
+    return id => dedupeOccurrenceLinks((bySubject.get(id) ?? []) as never);
+}
+
+/** The individual-level pieces the individual and matriline pages both show. */
+function individualCatalogue(t: Pick<Tables, 'individuals' | 'nicknames' | 'matriline_members'>) {
+    const individuals = new Map(t.individuals.map(i => [i['id'], i]));
+    const nicknamesOf = groupBy(t.nicknames, 'individual_id', byId);
+    const briefNicknames = (id: number) => (nicknamesOf.get(id) ?? []).map(n => ({name: n['name'], status: n['status']}));
+    const membersOf = groupBy(t.matriline_members, 'group_id', (a, b) => a['individual_id'] - b['individual_id']);
+    // fetchGroupMembers' shape.
+    const members = (groupId: number) => (membersOf.get(groupId) ?? []).flatMap(m => {
+        const member = individuals.get(m['individual_id']);
+        return member ? [{innermost_group_id: m['innermost_group_id'], individual: {
+            id: member['id'], entity_id: member['entity_id'], primary_designation: member['primary_designation'],
+            sex: member['sex'], born_earliest: member['born_earliest'], life_status: member['life_status'],
+            nicknames: briefNicknames(member['id']),
+        }}] : [];
+    });
+    return {individuals, nicknamesOf, briefNicknames, members};
+}
+
+// --- Individuals ----------------------------------------------------------------------
+
+export type ProfilePage<D> = {
+    /** The register identifier's seven digits: the page's file name and URL segment. */
+    id: string,
+    data: D,
+    links: OccurrenceLink[],
+};
+
+export type IndividualPage = ProfilePage<IndividualProfileData>;
+
+const INDIVIDUAL_TABLES = [
+    'individuals', 'designations', 'nicknames', 'parties', 'social_groups', 'group_parents',
+    'matriline_members', 'animal_names', 'individual_occurrences',
+] as const;
+
+/** Every individual with a register identifier, as its page's data. */
+export function assembleIndividuals(t: Pick<Tables, (typeof INDIVIDUAL_TABLES)[number]>): IndividualPage[] {
+    const party = partyResolver(t);
+    const {individuals, nicknamesOf, briefNicknames, members: membersOf} = individualCatalogue(t);
+    const designationsOf = groupBy(t.designations, 'individual_id', byId);
+
+    // fetchParents / fetchOffspring's shapes.
     const parent = (id: number | null) => {
         const i = id === null ? undefined : individuals.get(id);
         return i ? {id: i['id'], entity_id: i['entity_id'], primary_designation: i['primary_designation'],
@@ -109,31 +179,12 @@ export function assembleIndividuals(t: Tables): IndividualPage[] {
             sex: i['sex'], born_earliest: i['born_earliest'], born_latest: i['born_latest'],
             life_status: i['life_status'], nicknames: briefNicknames(i['id'])}));
 
-    // fetchAllGroups' shape: every group, its anchor's address, its parent.
-    const parentOf = new Map(t.group_parents.map(p => [p['group_id'], p['parent_group_id']]));
-    const groups = new Map<number, CatalogGroup>(t.social_groups.map(g => {
-        const anchor = g['anchor_individual_id'] === null ? undefined : individuals.get(g['anchor_individual_id']);
-        return [g['id'], {
-            ...g,
-            anchor: anchor ? {entity_id: anchor['entity_id'], primary_designation: anchor['primary_designation']} : null,
-            parent_group_id: parentOf.get(g['id']) ?? null,
-        } as CatalogGroup];
-    }));
+    const groups = catalogGroups(t, individuals);
     const innermostOf = new Map<number, number>();
-    const membersOf = new Map<number, Doc[]>();
-    for (const m of [...t.matriline_members].sort((a, b) => a['individual_id'] - b['individual_id'])) {
+    for (const m of [...t.matriline_members].sort((a, b) => a['individual_id'] - b['individual_id']))
         if (m['innermost_group_id'] !== null) innermostOf.set(m['individual_id'], m['innermost_group_id']);
-        let list = membersOf.get(m['group_id']);
-        if (!list) membersOf.set(m['group_id'], list = []);
-        list.push(m);
-    }
     const names = new Map(t.animal_names.map(n => [n['entity_id'], n]));
-    const linksOf = new Map<number, Doc[]>();
-    for (const l of [...t.individual_occurrences].sort((a, b) => a['occurrence_id'].localeCompare(b['occurrence_id']))) {
-        let list = linksOf.get(l['individual_id']);
-        if (!list) linksOf.set(l['individual_id'], list = []);
-        list.push(l);
-    }
+    const linksOf = linksBy(t.individual_occurrences, 'individual_id');
 
     return t.individuals
         .filter(i => i['entity_id'])
@@ -155,14 +206,7 @@ export function assembleIndividuals(t: Tables): IndividualPage[] {
             };
             const innermostId = innermostOf.get(i['id']);
             const matriline = innermostId !== undefined ? groups.get(innermostId) ?? null : null;
-            const members = matriline ? (membersOf.get(matriline.id) ?? []).flatMap(m => {
-                const member = individuals.get(m['individual_id']);
-                return member ? [{innermost_group_id: m['innermost_group_id'], individual: {
-                    id: member['id'], entity_id: member['entity_id'], primary_designation: member['primary_designation'],
-                    sex: member['sex'], born_earliest: member['born_earliest'], life_status: member['life_status'],
-                    nicknames: briefNicknames(member['id']),
-                }}] : [];
-            }) : [];
+            const members = matriline ? membersOf(matriline.id) : [];
             const ecotype = matriline ? groupChain(matriline.id, groups).find(g => g.kind === 'ecotype') ?? null : null;
             const species = (ecotype?.entity_id ? names.get(ecotype.entity_id)?.['common_name'] : null)
                 ?? names.get(i['entity_id'])?.['taxon_common_name']
@@ -172,54 +216,143 @@ export function assembleIndividuals(t: Tables): IndividualPage[] {
                 mother: parent(i['mother_id']), father: parent(i['father_id']),
                 name: displayName(profile.nicknames), species,
             } satisfies IndividualProfileData;
-            return {
-                id: i['entity_id'].replace(/^SSA:/, ''),
-                data,
-                links: dedupeOccurrenceLinks((linksOf.get(i['id']) ?? []) as never),
-            };
+            return {id: localPart(i['entity_id']), data, links: linksOf(i['id'])};
         });
 }
 
 /** Where a page's map loads its points: served from the export by the read path. */
-export const linksUrl = (id: string) => `/read-path/profiles/individuals/${id}.links.json`;
+export const linksUrl = (kind: Kind, id: string) => `/read-path/profiles/${kind}/${id}.links.json`;
 
 export function renderIndividualPage(shell: string, page: IndividualPage, currentYear: number, islands: Island[] = []): string {
     const {data, links} = page;
     const sightings = renderIndividualSightings(data.profile.primary_designation, links,
-        {mapSrc: linksUrl(page.id), currentYear});
+        {mapSrc: linksUrl('individuals', page.id), currentYear});
     return renderDocument(shell, 'individual-page', [profileStyles, individualStyles],
-        individualPreview(data), renderIndividualFrame(renderIndividualProfile(data, sightings)), islands);
+        individualPreview(data), renderProfileFrame(renderIndividualProfile(data, sightings)), islands);
 }
+
+// --- Matrilines -----------------------------------------------------------------------
+
+export type MatrilinePage = ProfilePage<MatrilineProfileData>;
+
+const MATRILINE_TABLES = [
+    'social_groups', 'group_parents', 'nicknames', 'parties', 'individuals', 'matriline_members', 'group_occurrences',
+] as const;
+
+/** Every matriline with a register identifier, as its page's data. */
+export function assembleMatrilines(t: Pick<Tables, (typeof MATRILINE_TABLES)[number]>): MatrilinePage[] {
+    const party = partyResolver(t);
+    const {individuals, briefNicknames, members} = individualCatalogue(t);
+    const groups = catalogGroups(t, individuals);
+    const nicknamesOf = groupBy(t.nicknames, 'social_group_id', byId);
+    const linksOf = linksBy(t.group_occurrences, 'social_group_id');
+    return t.social_groups
+        .filter(g => g['kind'] === 'matriline' && g['entity_id'])
+        .sort(byId)
+        .map(g => {
+            // fetchMatriline's shape: the group, its names, and its anchor.
+            const anchor = g['anchor_individual_id'] === null ? undefined : individuals.get(g['anchor_individual_id']);
+            const group = {
+                id: g['id'], entity_id: g['entity_id'], designation: g['designation'],
+                nicknames: (nicknamesOf.get(g['id']) ?? []).map(n => ({
+                    name: n['name'], theme: n['theme'], status: n['status'], named_year: n['named_year'],
+                    namer: party(n['namer_id']),
+                })),
+                anchor: anchor ? {id: anchor['id'], entity_id: anchor['entity_id'],
+                    primary_designation: anchor['primary_designation'], life_status: anchor['life_status'],
+                    nicknames: briefNicknames(anchor['id'])} : null,
+            };
+            const data = {
+                group, groups, members: members(g['id']), name: displayName(group.nicknames),
+            } satisfies MatrilineProfileData;
+            return {id: localPart(g['entity_id']), data, links: linksOf(g['id'])};
+        });
+}
+
+export function renderMatrilinePage(shell: string, page: MatrilinePage, currentYear: number, islands: Island[] = []): string {
+    const {data, links} = page;
+    const sightings = renderMatrilineSightings(data.group.designation, links,
+        {mapSrc: linksUrl('matrilines', page.id), currentYear});
+    return renderDocument(shell, 'matriline-page', [profileStyles],
+        matrilinePreview(data), renderProfileFrame(renderMatrilineProfile(data, sightings)), islands);
+}
+
+// --- Ecotypes -------------------------------------------------------------------------
+
+export type EcotypePage = ProfilePage<EcotypeProfileData>;
+
+const ECOTYPE_TABLES = ['social_groups', 'group_parents', 'ecotype_occurrences'] as const;
+
+/** Every ecotype with a register identifier, as its page's data. */
+export function assembleEcotypes(t: Pick<Tables, (typeof ECOTYPE_TABLES)[number]>): EcotypePage[] {
+    const groups = catalogGroups(t);
+    const linksOf = linksBy(t.ecotype_occurrences, 'ecotype_id');
+    return t.social_groups
+        .filter(g => g['kind'] === 'ecotype' && g['entity_id'])
+        .sort(byId)
+        .map(g => {
+            const data = {
+                group: {id: g['id'], entity_id: g['entity_id'], designation: g['designation']},
+                matrilines: descendantMatrilines(g['id'], groups),
+            } satisfies EcotypeProfileData;
+            return {id: localPart(g['entity_id']), data, links: linksOf(g['id'])};
+        });
+}
+
+export function renderEcotypePage(shell: string, page: EcotypePage, currentYear: number, islands: Island[] = []): string {
+    const {data, links} = page;
+    const sightings = renderEcotypeSightings(links, {mapSrc: linksUrl('ecotypes', page.id), currentYear});
+    return renderDocument(shell, 'ecotype-page', [profileStyles],
+        ecotypePreview(data), renderProfileFrame(renderEcotypeProfile(data, sightings)), islands);
+}
+
+// --- Writing a kind's pages -----------------------------------------------------------
 
 /** The map island's entry, as vite.config.js names it. */
 export const MAP_ISLAND = 'src/map-island.ts';
 
-export async function writeProfiles(snapshot: string, exportDir: string, dist: string): Promise<{pages: number}> {
-    const outDir = path.join(exportDir, 'profiles', 'individuals');
+/** A kind's pages as files: each page, and beside it the links its map loads. */
+const pagesOf = <T extends Table, P extends ProfilePage<unknown>>(
+    names: readonly T[],
+    assemble: (t: Pick<Tables, T>) => P[],
+    render: (shell: string, page: P, currentYear: number, islands: Island[]) => string,
+) => async (snapshot: string, shell: string, islands: Island[]): Promise<[string, string][][]> => {
+    const {tables, currentYear} = await loadTables(snapshot, names);
+    return assemble(tables).map(page => [
+        [`${page.id}.html`, render(shell, page, currentYear, islands)],
+        [`${page.id}.links.json`, JSON.stringify(page.links)],
+    ]);
+};
+
+const KINDS = {
+    individuals: {shell: 'individual.html', pages: pagesOf(INDIVIDUAL_TABLES, assembleIndividuals, renderIndividualPage)},
+    matrilines: {shell: 'matriline.html', pages: pagesOf(MATRILINE_TABLES, assembleMatrilines, renderMatrilinePage)},
+    ecotypes: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assembleEcotypes, renderEcotypePage)},
+};
+export type Kind = keyof typeof KINDS;
+
+const isKind = (s: string | undefined): s is Kind => s !== undefined && Object.hasOwn(KINDS, s);
+
+export async function writeProfiles(kind: Kind, snapshot: string, exportDir: string, dist: string): Promise<{pages: number}> {
+    const outDir = path.join(exportDir, 'profiles', kind);
     await recoverDir(outDir);
-    const shell = await readFile(path.join(dist, 'individual.html'), 'utf8');
+    const shell = await readFile(path.join(dist, KINDS[kind].shell), 'utf8');
     const manifest = JSON.parse(await readFile(path.join(dist, '.vite', 'manifest.json'), 'utf8'));
     const islands = [islandFromManifest(manifest, MAP_ISLAND, 'individual-map')];
-    const {tables, currentYear} = await loadTables(snapshot);
-    const pages = assembleIndividuals(tables);
-    const files: [string, string][] = [];
-    for (const page of pages) {
-        files.push([`${page.id}.html`, renderIndividualPage(shell, page, currentYear, islands)]);
-        files.push([`${page.id}.links.json`, JSON.stringify(page.links)]);
-    }
-    await replaceDir(outDir, files);
+    const pages = await KINDS[kind].pages(snapshot, shell, islands);
+    await replaceDir(outDir, pages.flat());
     return {pages: pages.length};
 }
 
 export async function main(): Promise<void> {
-    const [snapshot, dist] = process.argv.slice(2);
+    const [kind, snapshot, dist] = process.argv.slice(2);
     const exportDir = process.env['EXPORT_DIR'];
-    if (!snapshot || !dist || !exportDir) {
-        console.error('usage: EXPORT_DIR=… profiles.ts <snapshot.duckdb> <dist>');
+    if (!isKind(kind) || !snapshot || !dist || !exportDir) {
+        console.error(`usage: EXPORT_DIR=… profiles.ts <${Object.keys(KINDS).join('|')}> <snapshot.duckdb> <dist>`);
         process.exit(2);
     }
-    const {pages} = await writeProfiles(snapshot, exportDir, dist);
-    console.log(`profiles/individuals/: ${pages} pages`);
+    const {pages} = await writeProfiles(kind, snapshot, exportDir, dist);
+    console.log(`profiles/${kind}/: ${pages} page${pages === 1 ? '' : 's'}`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

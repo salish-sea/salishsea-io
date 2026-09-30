@@ -1,8 +1,9 @@
-import { css, html, nothing } from 'lit';
+import { css, html, nothing, type TemplateResult } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
+import { when } from 'lit/directives/when.js';
 import { Temporal } from 'temporal-polyfill';
 import {
-  displayName, groupChain, individualPath, matrilinePath, monthlyPresence,
+  displayName, groupChain, individualPath, mapUrl, matrilinePath, monthlyPresence, observedDate,
   type CatalogGroup, type GroupMember, type OccurrenceLink,
 } from './catalog.ts';
 
@@ -283,5 +284,49 @@ export function renderPresenceTable(
       </tbody>
     </table>
     <p class="presence-note">${note}</p>
+  `;
+}
+
+/** A profile page around its content, whatever state the content is in. */
+export function renderProfileFrame(content: unknown) {
+  return html`
+      <main>
+        <a class="back" href="/">&#8592; Back to the map</a>
+        ${content}
+      </main>
+    `;
+}
+
+/**
+ * Where a prerendered page's map loads its points from, and the year its presence
+ * table ends on (decision 057). A client-rendered page passes neither: it hands the
+ * map its links, and the table ends on this year.
+ */
+export interface SightingsOptions {
+  mapSrc?: string;
+  currentYear?: number;
+}
+
+/**
+ * A profile's Sightings section once its links are known: the presence table, the
+ * map, and the last-reported line; `empty` when there are none. Every profile kind
+ * shows the same summary of its own links.
+ */
+export function renderSightingsSummary(
+  links: OccurrenceLink[] | null,
+  empty: TemplateResult,
+  { mapSrc, currentYear }: SightingsOptions = {},
+) {
+  if (!links?.length)
+    return empty;
+  const latest = links[0]!;
+  const located = links.filter(l => l.location).length;
+  return html`
+    ${renderPresenceTable(links, undefined, undefined, currentYear)}
+    ${when(located, () => html`<individual-map .links=${links} src=${mapSrc ?? nothing}></individual-map>`)}
+    <p class="sightings-note">
+      Last reported <a href=${mapUrl(latest)}>${observedDate(latest.observed_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}
+      · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} a dot above; the newest located report is solid. Click one to see that day on the map.`)}
+    </p>
   `;
 }

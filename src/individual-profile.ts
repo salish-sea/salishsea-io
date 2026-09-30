@@ -12,10 +12,12 @@ import { css, html, nothing, type TemplateResult } from 'lit';
 import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  ecotypePath, groupChain, individualPath, mapUrl, matrilinePath, observedDate,
+  ecotypePath, groupChain, individualPath, matrilinePath,
   type CatalogGroup, type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent,
 } from './catalog.ts';
-import { renderDagger, renderMemberList, renderPresenceTable, renderRelative } from './profile-shared.ts';
+import {
+  renderDagger, renderMemberList, renderRelative, renderSightingsSummary, type SightingsOptions,
+} from './profile-shared.ts';
 
 const SCHEME_LABELS: Record<string, string> = {
   bc_wa: 'BC/WA',
@@ -47,16 +49,6 @@ export interface IndividualProfileData {
    * neither the ecotype nor the taxon, which renders as no species line rather than a guess.
    */
   species: string | null;
-}
-
-/** The page around its content, whatever state the content is in. */
-export function renderIndividualFrame(content: unknown) {
-  return html`
-      <main>
-        <a class="back" href="/">&#8592; Back to the map</a>
-        ${content}
-      </main>
-    `;
 }
 
 /** The page's title, as the tab and the link preview both show it. */
@@ -210,30 +202,10 @@ export function renderMatriline(matriline: CatalogGroup, members: GroupMember[],
   `;
 }
 
-/**
- * The Sightings section's content once the links are known: the presence table, the
- * map, and the last-reported line. `mapSrc`, when given, is where the map loads its
- * points from — a prerendered page has no live links to hand it — and `currentYear`
- * pins the presence table's newest year, so a build renders the year of its snapshot
- * rather than of the clock.
- */
-export function renderIndividualSightings(
-  designation: string,
-  links: OccurrenceLink[] | null,
-  { mapSrc, currentYear }: { mapSrc?: string, currentYear?: number } = {},
-) {
-  if (!links?.length)
-    return html`<p class="placeholder">No sighting reports mention ${designation} yet.</p>`;
-  const latest = links[0]!;
-  const located = links.filter(l => l.location).length;
-  return html`
-    ${renderPresenceTable(links, undefined, undefined, currentYear)}
-    ${when(located, () => html`<individual-map .links=${links} src=${mapSrc ?? nothing}></individual-map>`)}
-    <p class="sightings-note">
-      Last reported <a href=${mapUrl(latest)}>${observedDate(latest.observed_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}
-      · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} a dot above; the newest located report is solid. Click one to see that day on the map.`)}
-    </p>
-  `;
+/** The Sightings section's content once the links are known. */
+export function renderIndividualSightings(designation: string, links: OccurrenceLink[] | null, options: SightingsOptions = {}) {
+  return renderSightingsSummary(links,
+    html`<p class="placeholder">No sighting reports mention ${designation} yet.</p>`, options);
 }
 
 /**
