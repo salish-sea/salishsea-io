@@ -1,10 +1,10 @@
-# 059 — The end state: a build graph over upstream data, and a small store for what only our users write
+# 059 — The end state: a build over upstream data, and a small store for what only our users write
 
 **Status:** accepted · **Decided:** 2026-09-30 · **Answers:** the end-state question behind `salish-9uu` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Would amend:** [002](002-static-spa-edge-architecture.md) (no backend), when step 4 lands
 
 ## Context
 
-Decision 056 set out four steps: build the logged-out read path, serve it, move ingest into the build, then move writes and sign-in. The first two are done: every page a signed-out visitor loads is now a file the [Stelis](https://github.com/rainhead/stelis/) build writes, served from the `salishsea-io` Fly app. What 056 left open is where the data lives once the last two steps are done. Does salishsea keep Postgres, or move to the architecture [BeeAtlas](https://github.com/rainhead/beeatlas/) runs on, where a build graph derives everything and a small local store holds only what users write?
+Decision 056 set out four steps: build the logged-out read path, serve it, move ingest into the build, then move writes and sign-in. The first two are done: every page a signed-out visitor loads is now a file written by the read-path build. That build runs on [Stelis](https://github.com/rainhead/stelis/), a build system Peter maintains for data pipelines: it takes snapshots of upstream data, runs the steps that derive the site's files from them, and reruns only the steps whose inputs actually changed. Its files are served from the `salishsea-io` Fly app. What 056 left open is where the data lives once the last two steps are done. Does salishsea keep Postgres, or move to the architecture of [BeeAtlas](https://github.com/rainhead/beeatlas/), Peter's site for the Washington Bee Atlas? There, a Stelis build derives everything, and a small local store holds only what users write (their notes on species).
 
 Two facts decide most of it.
 
@@ -16,11 +16,11 @@ Two facts decide most of it.
 
 ## Decision
 
-**The target is BeeAtlas's shape.** The Stelis graph derives everything a visitor sees from upstream snapshots. What only our users write lives in a small store on the same machine, and the graph reads that store as an authoritative input. That's how it reads BeeAtlas's notes store: key by key, so one write rebuilds only what it touched and can be traced to the pages it changed ([`notes-digest.rkt`](https://github.com/rainhead/stelis/blob/e4780954e105f4925bf90a5813c0ac3f02259d13/src/notes-digest.rkt)). The store is SQLite, with a small write API beside it, as BeeAtlas's is ([BeeAtlas ADR 0042](https://github.com/rainhead/beeatlas/blob/57118da21dc31da08e05d82f3467cea5af7b8d84/docs/adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)).
+**The target is BeeAtlas's shape.** The Stelis build derives everything a visitor sees from upstream snapshots. What only our users write lives in a small store on the same machine, and the build reads that store as an input it can never regenerate. That's how it reads BeeAtlas's notes store: key by key, so one write rebuilds only what it touched and can be traced to the pages it changed ([`notes-digest.rkt`](https://github.com/rainhead/stelis/blob/e4780954e105f4925bf90a5813c0ac3f02259d13/src/notes-digest.rkt)). The store is SQLite, with a small write API beside it, as BeeAtlas's is ([BeeAtlas ADR 0042](https://github.com/rainhead/beeatlas/blob/57118da21dc31da08e05d82f3467cea5af7b8d84/docs/adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)).
 
 Why this rather than keeping Postgres:
 
-- **It fits the data's shape.** Hundreds of records, a handful of writers, and a large derivation from upstream. That's what a build graph and a small authoritative store are for, and it's what BeeAtlas already runs.
+- **It fits the data's shape.** Hundreds of records, a handful of writers, and a large derivation from upstream. That's what a build over snapshots and a small store for user writes are for, and it's what BeeAtlas already runs.
 - **It's the control `salish-9uu` asked for.** A SQLite file on our own volume can be opened, queried and copied at any moment by anyone holding the machine.
 - **The build knows what changed without asking.** Against Postgres, the snapshot re-reads the database on every build just to learn whether anything moved. A local store can be read key by key, so an unchanged store costs almost nothing. That's what makes frequent builds affordable.
 - **A contributor's sighting can be live when the save returns.** A write can run a targeted build before responding, as a BeeAtlas note does, instead of waiting for a broadcast and the next build.
@@ -37,7 +37,7 @@ Why this rather than keeping Postgres:
 
 - **Keep Supabase.** It's the status quo, and it's what failed opaquely in the outage that started this.
 - **Managed Postgres with PostgREST and our own sign-in tokens** (`salish-9uu` option 2). This keeps decision 002's no-backend architecture and every row-level security policy. But it keeps a database server running to hold a few hundred rows once step 3 has moved the derivation out.
-- **Adopting BeeAtlas's read side too: Parquet queried in the browser** by wa-sqlite and hyparquet ([BeeAtlas ADR 0003](https://github.com/rainhead/beeatlas/blob/57118da21dc31da08e05d82f3467cea5af7b8d84/docs/adr/0003-client-query-engine-wa-sqlite.md)). "BeeAtlas's architecture" here means its build graph and its store, not its client. 056 and [057](057-profile-pages-are-prerendered.md) already settled salishsea's read side as plain files and prerendered pages, which serve its fixed views without a query engine in the page.
+- **Adopting BeeAtlas's read side too: Parquet queried in the browser** by wa-sqlite and hyparquet ([BeeAtlas ADR 0003](https://github.com/rainhead/beeatlas/blob/57118da21dc31da08e05d82f3467cea5af7b8d84/docs/adr/0003-client-query-engine-wa-sqlite.md)). "BeeAtlas's architecture" here means its build and its store, not its client. 056 and [057](057-profile-pages-are-prerendered.md) already settled salishsea's read side as plain files and prerendered pages, which serve its fixed views without a query engine in the page.
 
 ## Consequences
 
