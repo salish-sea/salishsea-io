@@ -80,19 +80,27 @@ export function buildRedirects(t: IndexTables): Redirects {
 /**
  * What src/individual-links.ts's Supabase query returns: every designation with the
  * individual carrying it, and the matriline and ecotype designations. Every row, as
- * that query has no filter. Designations run least preferred first: the lookup keeps
- * the last row for a folded code, so where two animals' codes fold alike the one the
- * redirects choose wins here too.
+ * that query has no filter.
+ *
+ * The lookup built from these keeps the LAST row for a folded code, so where two
+ * subjects' designations fold alike the rows run so that the last is the one the
+ * redirects choose: subjects without a published page first (the redirects never
+ * pick those), then published ones from least preferred to most — for animals the
+ * redirects' own precedence reversed, for groups the highest id first.
  */
 export function buildCatalogCodes(t: IndexTables): CatalogCodeRows {
     const individuals = new Map(t.individuals.map(i => [i['id'], i]));
+    const published = (d: Doc) => individuals.get(d['individual_id'])?.['entity_id'] ? 1 : 0;
     return {
-        designations: [...t.designations].sort((a, b) => byPrecedence(b, a)).map(d => {
-            const i = individuals.get(d['individual_id']);
-            return {code: d['code'], individual: i ? {entity_id: i['entity_id'], primary_designation: i['primary_designation']} : null};
-        }),
-        groups: [...t.social_groups].sort(byId)
+        designations: [...t.designations]
+            .sort((a, b) => published(a) - published(b) || byPrecedence(b, a))
+            .map(d => {
+                const i = individuals.get(d['individual_id']);
+                return {code: d['code'], individual: i ? {entity_id: i['entity_id'], primary_designation: i['primary_designation']} : null};
+            }),
+        groups: [...t.social_groups]
             .filter(g => g['kind'] === 'matriline' || g['kind'] === 'ecotype')
+            .sort((a, b) => (a['entity_id'] ? 1 : 0) - (b['entity_id'] ? 1 : 0) || b['id'] - a['id'])
             .map(g => ({kind: g['kind'], designation: g['designation'], entity_id: g['entity_id']})),
     };
 }
