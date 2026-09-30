@@ -4,7 +4,7 @@
 
 ## Context
 
-Decision 056 set out four steps: build the logged-out read path, serve it, move ingest into the build, then move writes and sign-in. The first two are done: every page a signed-out visitor loads is now a file the Stelis build writes, served from the `salishsea-io` Fly app. What 056 left open is where the data lives once the last two steps are done. Does salishsea keep Postgres, or move to the architecture BeeAtlas runs on, where a build graph derives everything and a small local store holds only what users write?
+Decision 056 set out four steps: build the logged-out read path, serve it, move ingest into the build, then move writes and sign-in. The first two are done: every page a signed-out visitor loads is now a file the Stelis build writes, served from the `salishsea-io` Fly app. What 056 left open is where the data lives once the last two steps are done. Does salishsea keep Postgres, or move to the architecture [BeeAtlas](https://github.com/rainhead/beeatlas/) runs on, where a build graph derives everything and a small local store holds only what users write?
 
 Two facts decide most of it.
 
