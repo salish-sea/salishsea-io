@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { hasReportsBefore, presenceYearsFor } from './haulout-page.ts';
+import { hasReportsBefore, presenceYearsFor } from './haulout-profile.ts';
 
 /**
  * The grid window is derived, not declared (salish-4pr / decision 040).

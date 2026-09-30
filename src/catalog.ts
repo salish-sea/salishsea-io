@@ -545,35 +545,40 @@ export async function fetchAllHaulouts(): Promise<Haulout[]> {
   return data;
 }
 
-// Newest first. The view's location is never null (it is what the join is on),
-// but the generated type cannot know that.
+// Newest first, then by occurrence, so two reports of the same moment don't fall
+// to row order (decision 057). The view's location is never null (it is what the
+// join is on), but the generated type cannot know that.
 export async function fetchHauloutReports(hauloutId: number): Promise<HauloutReport[]> {
   const { data } = await supabase()
     .from('haulout_occurrences')
     .select()
     .eq('haulout_id', hauloutId)
     .order('observed_at', { ascending: false })
+    .order('occurrence_id', { ascending: true })
     .throwOnError();
-  return data.flatMap(row => {
-    if (!row.occurrence_id || !row.observed_at || row.haulout_id === null || row.distance_m === null) return [];
-    const location = row.location?.lon != null && row.location?.lat != null
-      ? { lon: row.location.lon, lat: row.location.lat } : null;
-    return [{
-      haulout_id: row.haulout_id,
-      occurrence_id: row.occurrence_id,
-      observed_at: row.observed_at,
-      location,
-      accuracy: row.accuracy,
-      distance_m: row.distance_m,
-      taxon: row.taxon ? { scientific_name: row.taxon.scientific_name, vernacular_name: row.taxon.vernacular_name } : null,
-      species_name: row.species_name,
-      photos: (row.photos ?? []).map(p => ({ src: p.src, attribution: p.attribution })),
-      url: row.url,
-      attribution: row.attribution,
-      observer: row.observer,
-      body: row.body,
-    }];
-  });
+  return data.flatMap(hauloutReport);
+}
+
+/** A haulout_occurrences row as the page's report, or nothing if it lacks what the page needs. */
+export function hauloutReport(row: HauloutOccurrence): HauloutReport[] {
+  if (!row.occurrence_id || !row.observed_at || row.haulout_id === null || row.distance_m === null) return [];
+  const location = row.location?.lon != null && row.location?.lat != null
+    ? { lon: row.location.lon, lat: row.location.lat } : null;
+  return [{
+    haulout_id: row.haulout_id,
+    occurrence_id: row.occurrence_id,
+    observed_at: row.observed_at,
+    location,
+    accuracy: row.accuracy,
+    distance_m: row.distance_m,
+    taxon: row.taxon ? { scientific_name: row.taxon.scientific_name, vernacular_name: row.taxon.vernacular_name } : null,
+    species_name: row.species_name,
+    photos: (row.photos ?? []).map(p => ({ src: p.src, attribution: p.attribution })),
+    url: row.url,
+    attribution: row.attribution,
+    observer: row.observer,
+    body: row.body,
+  }];
 }
 
 // Great-circle distance between two points, in kilometres — for ordering

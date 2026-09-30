@@ -6,7 +6,8 @@
 import { describe, expect, test } from 'vitest';
 
 import {
-    assembleEcotypes, assembleIndividuals, assembleMatrilines, renderEcotypePage, renderIndividualPage, renderMatrilinePage,
+    assembleEcotypes, assembleHaulouts, assembleIndividuals, assembleMatrilines,
+    renderEcotypePage, renderHauloutPage, renderIndividualPage, renderMatrilinePage,
     type Tables,
 } from './profiles.ts';
 
@@ -19,6 +20,20 @@ const person = (id: number, designation: string, extra: Record<string, unknown> 
     id, entity_id: `SSA:${String(10000 + id).padStart(7, '0')}`, primary_designation: designation,
     sex: 'female', born_earliest: null, born_latest: null, life_status: 'alive',
     mother_id: null, maternity_certainty: 'confirmed', father_id: null, paternity_certainty: null, ...extra,
+});
+
+const site = (id: number, name: string, extra: Record<string, unknown> = {}) => ({
+    id, name, story: null, region: 'Strait of Juan de Fuca', location: {lon: -122.92, lat: 48.12}, radius_m: 500,
+    verified: false, atlas_code: null, created_at: '2026-09-19T01:06:00+00:00', atlas_count: '<100',
+    atlas_species: ['PV'], atlas_tidal_use: 'ALL', atlas_description: null, ...extra,
+});
+
+const report = (hauloutId: number, id: string, observedAt: string, extra: Record<string, unknown> = {}) => ({
+    url: `https://www.inaturalist.org/observations/${id.slice(5)}`, body: null,
+    taxon: {entity_id: null, species_id: 41755, scientific_name: 'Phoca vitulina', vernacular_name: 'Harbor Seal'},
+    photos: [], accuracy: 10, location: {lon: -122.92, lat: 48.12}, observer: 'someone', distance_m: 120,
+    haulout_id: hauloutId, attribution: '(c) someone', observed_at: observedAt, species_name: 'Harbor Seal',
+    occurrence_id: id, ...extra,
 });
 
 function tables(): Tables {
@@ -59,6 +74,18 @@ function tables(): Tables {
         ],
         ecotype_occurrences: [
             {ecotype_id: 200, occurrence_id: 'maplify:3', observed_at: '2025-06-01T20:00:00+00:00', location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate'},
+        ],
+        haulouts: [
+            site(12, 'Protection Island', {atlas_code: '6.10', story: 'Harbor seals *pup* here & rest.'}),
+            site(11, 'Protection Island Spit', {atlas_code: '6.10', location: {lon: -122.93, lat: 48.13}}),
+            site(13, 'Smith Island', {atlas_code: '6.20', location: {lon: -122.9, lat: 48.15}}),
+            site(14, 'Far Away Rock', {atlas_code: '9.99', location: {lon: -124.7, lat: 48.4}}),
+        ],
+        haulout_occurrences: [
+            report(12, 'inat:2', '2026-05-01T18:00:00+00:00', {photos: [{src: 'https://static.inaturalist.org/photos/7/square.jpg', thumb: null, license: null, mimetype: null, attribution: '(c) someone'}]}),
+            report(12, 'inat:1', '2026-05-01T18:00:00+00:00'),
+            report(12, 'inat:3', '2024-03-01T18:00:00+00:00', {location: null, accuracy: 2000}),
+            report(11, 'inat:9', '2026-01-01T18:00:00+00:00', {distance_m: null}),
         ],
     };
 }
@@ -186,5 +213,57 @@ describe('assembleEcotypes and renderEcotypePage', () => {
         expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/ecotypes/0000901/Biggs">');
         expect(doc).toContain('<h1>Bigg&#39;s (transient) killer whales</h1>');
         expect(doc).not.toContain('ECOTYPE SHEET TEXT');
+    });
+});
+
+describe('assembleHaulouts and renderHauloutPage', () => {
+    const protection = () => assembleHaulouts(tables()).find(p => p.id === '12')!;
+    const doc = () => renderHauloutPage(shellFor('haulout-page'), protection(), 2026);
+
+    test('one page per site, named by its id', () => {
+        expect(assembleHaulouts(tables()).map(p => p.id)).toEqual(['11', '12', '13', '14']);
+    });
+
+    test('the atlas\'s other point for the site, and its neighbours within reach, as the client computes them', () => {
+        const {siblings, neighbours} = protection().data;
+        expect(siblings.map(s => s.name)).toEqual(['Protection Island Spit']);
+        expect(neighbours.map(n => n.site.name)).toEqual(['Smith Island']);
+    });
+
+    test('reports newest first, a tie by occurrence; the map\'s dots only the located ones, only what it reads', () => {
+        expect(protection().data.reports.map(r => r.occurrence_id)).toEqual(['inat:1', 'inat:2', 'inat:3']);
+        expect(protection().links).toEqual([
+            {occurrence_id: 'inat:1', observed_at: '2026-05-01T18:00:00+00:00', location: {lon: -122.92, lat: 48.12}},
+            {occurrence_id: 'inat:2', observed_at: '2026-05-01T18:00:00+00:00', location: {lon: -122.92, lat: 48.12}},
+        ]);
+    });
+
+    test('a row the page cannot use is dropped, as the client drops it', () => {
+        expect(assembleHaulouts(tables()).find(p => p.id === '11')!.data.reports).toEqual([]);
+    });
+
+    test('the page previews as the edge function does', () => {
+        expect(doc()).toContain('<title>Protection Island haul-out · SalishSea.io</title>');
+        expect(doc()).toContain('<meta name="description" content="Harbor seal haul-out site in the Strait of Juan de Fuca: what the 1999 WDFW atlas recorded, and what people report there now.">');
+        expect(doc()).toContain('<link rel="canonical" href="https://salishsea.io/haulouts/12/Protection-Island">');
+    });
+
+    test('the map is handed its site and its dots\' file, as attributes a prerendered page can carry', () => {
+        expect(doc()).toContain('src="/read-path/profiles/haulouts/12.links.json"');
+        expect(doc()).toContain('site="{&quot;lon&quot;:-122.92,&quot;lat&quot;:48.12,&quot;radius_m&quot;:500}"');
+    });
+
+    test('the story as markdown, the photo strip at medium size, the grid ending on the snapshot\'s year', () => {
+        expect(doc()).toContain('<p>Harbor seals <em>pup</em> here &amp; rest.</p>');
+        expect(doc()).toContain('src="https://static.inaturalist.org/photos/7/medium.jpg"');
+        expect(doc()).toMatch(/<th scope="row">2026<\/th>/);
+        expect(doc()).toContain('3 reports from 1 observer, March 2024 to May 2026');
+    });
+
+    test('depends on the data alone: shuffled snapshot rows render the same bytes', () => {
+        const shuffled = tables();
+        for (const rows of Object.values(shuffled)) rows.reverse();
+        const again = assembleHaulouts(shuffled).find(p => p.id === '12')!;
+        expect(renderHauloutPage(shellFor('haulout-page'), again, 2026)).toBe(doc());
     });
 });

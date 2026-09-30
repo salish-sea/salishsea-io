@@ -5,6 +5,28 @@
 	auto_https off
 }
 
+# A prerendered page, for the paths args[1] matches: capture 1 is the kind
+# (profiles/<kind>/ in the export), capture 2 the page's id.
+(prerendered) {
+	@{args[0]} path_regexp {args[0]} {args[1]}
+	handle @{args[0]} {
+		header Cache-Control "no-cache"
+		root * /data/export/profiles
+		@{args[0]}Published file /{re.{args[0]}.1}/{re.{args[0]}.2}.html
+		handle @{args[0]}Published {
+			rewrite * /{re.{args[0]}.1}/{re.{args[0]}.2}.html
+			file_server
+		}
+		handle {
+			root * /app/dist
+			rewrite * /not-published.html
+			file_server {
+				status 404
+			}
+		}
+	}
+}
+
 :8080 {
 	encode zstd gzip
 
@@ -19,28 +41,13 @@
 	}
 
 	# A profile page prerendered by the read-path build (decision 057): an
-	# individual, a matriline or an ecotype, found by its register identifier's
-	# seven digits. The slug after them is ignored, as the client pages ignore
-	# it. A page the build hasn't written yet is a real 404 saying so.
-	# Designation-shaped paths (/individuals/J35, legacy links) don't match, and
-	# stay on the client-rendered shells below.
-	@profilePage path_regexp profilePage ^/(individuals|matrilines|ecotypes)/([0-9]{7})(/[^/]*)?/?$
-	handle @profilePage {
-		header Cache-Control "no-cache"
-		root * /data/export/profiles
-		@published file /{re.profilePage.1}/{re.profilePage.2}.html
-		handle @published {
-			rewrite * /{re.profilePage.1}/{re.profilePage.2}.html
-			file_server
-		}
-		handle {
-			root * /app/dist
-			rewrite * /not-published.html
-			file_server {
-				status 404
-			}
-		}
-	}
+	# individual, a matriline or an ecotype by its register identifier's seven
+	# digits, or a haul-out site by its id. The slug after them is ignored, as
+	# the client pages ignore it. A page the build hasn't written yet is a real
+	# 404 saying so. Designation-shaped paths (/individuals/J35, legacy links)
+	# don't match, and stay on the client-rendered shells below.
+	import prerendered animalPage ^/(individuals|matrilines|ecotypes)/([0-9]{7})(/[^/]*)?/?$
+	import prerendered sitePage ^/(haulouts)/([0-9]{1,9})(/[^/]*)?/?$
 
 	handle {
 		root * /app/dist

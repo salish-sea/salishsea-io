@@ -69,7 +69,8 @@ const latestStyle = new Style({
 //
 // A prerendered profile page (decision 057) has no links to hand it: the map is
 // the page's one island, and it loads its dots from `src`, a data file the
-// read-path build writes beside the page. Given links, it ignores `src`.
+// read-path build writes beside the page. Given links, it ignores `src`. A
+// haul-out's site, likewise, comes as JSON in its `site` attribute.
 @customElement('individual-map')
 export class IndividualMap extends LitElement {
   // Newest first, as returned by fetchOccurrenceLinks
@@ -79,7 +80,8 @@ export class IndividualMap extends LitElement {
   @property()
   src: string | null = null;
 
-  @property({ attribute: false })
+  // A prerendered page gives it as JSON in the `site` attribute.
+  @property({ type: Object })
   site: MapSite | null = null;
 
   #mapRef = createRef<HTMLDivElement>();
