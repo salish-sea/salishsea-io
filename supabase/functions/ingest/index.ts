@@ -243,8 +243,10 @@ Deno.serve(async (req) => {
             // the Response returns, losing any event still in the buffer.
             await Sentry.flush(2000).catch(() => { /* fail-open: never mask ingest */ });
         }
+        // `transient` on the row lets the heartbeat tell an upstream outage from
+        // our pipeline stopping (decision 060).
         if (runId != null) {
-            await sql`UPDATE ingest.runs SET finished_at = now(), outcome = 'failed', error = ${message} WHERE id = ${runId}`
+            await sql`UPDATE ingest.runs SET finished_at = now(), outcome = 'failed', error = ${message}, transient = ${isTransientUpstream(e)} WHERE id = ${runId}`
                 .catch(() => { /* best-effort; do not mask the original error */ });
         }
         return jsonResponse({ ok: false, error: message }, 500);

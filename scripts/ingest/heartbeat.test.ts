@@ -18,7 +18,7 @@ import {
     type Thresholds,
 } from './heartbeat.ts';
 
-const THRESHOLDS: Thresholds = { freshnessMinutes: 30, stuckMinutes: 15 };
+const THRESHOLDS: Thresholds = { freshnessMinutes: 30, stuckMinutes: 15, upstreamMinutes: 360 };
 const NOW = new Date('2026-07-06T12:00:00Z');
 const minutesAgo = (m: number) => new Date(NOW.getTime() - m * 60_000);
 
@@ -31,6 +31,7 @@ const healthy: HeartbeatInput = {
     ],
     orphans: [],
     recentSuccesses: [],
+    recentTransientFailures: [],
 };
 
 describe('evaluateHeartbeat', () => {
@@ -129,6 +130,7 @@ describe('evaluateHeartbeat', () => {
                 now: NOW,
                 lastSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(90) }, { source: 'orcasound', finishedAt: minutesAgo(5) }],
                 recentSuccesses: [],
+                recentTransientFailures: [],
                 orphans: [
                     {
                         id: 7,
@@ -236,6 +238,116 @@ describe('evaluateHeartbeat: gaps between successes', () => {
             THRESHOLDS,
         );
         expect(findings.map((f) => f.kind)).toEqual(['gap', 'gap', 'gap']);
+    });
+});
+
+/** A run every five minutes from `from` down to `to` minutes ago, inclusive. */
+const every5 = (source: string, from: number, to: number) =>
+    Array.from({ length: (from - to) / 5 + 1 }, (_, i) => ({
+        source,
+        finishedAt: minutesAgo(from - i * 5),
+    }));
+
+describe('evaluateHeartbeat: upstream outages', () => {
+    // 2026-09-30, 04:00–04:25 UTC: iNaturalist answered 503 to six ticks in a
+    // row, our side ran every one of them, and 04:30 caught up (#523).
+    const maintenance: HeartbeatInput = {
+        ...healthy,
+        recentSuccesses: [
+            { source: 'inaturalist', finishedAt: minutesAgo(46) },
+            ...every5('inaturalist', 11, 1),
+        ],
+        recentTransientFailures: every5('inaturalist', 41, 16),
+    };
+
+    test('a short upstream outage is not news', () => {
+        expect(evaluateHeartbeat(maintenance, THRESHOLDS)).toEqual([]);
+    });
+
+    test('the same hole with no transient failures in it is ours, and trips', () => {
+        const findings = evaluateHeartbeat(
+            { ...maintenance, recentTransientFailures: [] },
+            THRESHOLDS,
+        );
+        expect(findings.map((f) => [f.kind, f.source])).toEqual([['gap', 'inaturalist']]);
+        expect(findings[0]!.message).toContain('for 35m');
+    });
+
+    test('an ongoing upstream outage is tolerated up to the threshold', () => {
+        const input = (downFor: number): HeartbeatInput => ({
+            ...healthy,
+            lastSuccesses: [
+                { source: 'maplify', finishedAt: minutesAgo(4) },
+                { source: 'inaturalist', finishedAt: minutesAgo(downFor) },
+                { source: 'orcasound', finishedAt: minutesAgo(5) },
+            ],
+            recentSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(downFor) }],
+            recentTransientFailures: every5('inaturalist', downFor - 5, 1),
+        });
+        expect(evaluateHeartbeat(input(356), THRESHOLDS)).toEqual([]);
+        const findings = evaluateHeartbeat(input(366), THRESHOLDS);
+        expect(findings.map((f) => [f.kind, f.source])).toEqual([
+            ['upstream_outage', 'inaturalist'],
+        ]);
+        expect(findings[0]!.message).toContain('unavailable for 366m');
+    });
+
+    test('a healed upstream outage past the threshold is reported as one', () => {
+        const findings = evaluateHeartbeat(
+            {
+                ...healthy,
+                recentSuccesses: [
+                    { source: 'inaturalist', finishedAt: minutesAgo(500) },
+                    ...every5('inaturalist', 101, 1),
+                ],
+                recentTransientFailures: every5('inaturalist', 495, 106),
+            },
+            THRESHOLDS,
+        );
+        expect(findings.map((f) => [f.kind, f.source])).toEqual([
+            ['upstream_outage', 'inaturalist'],
+        ]);
+        expect(findings[0]!.message).toContain('unavailable for 399m');
+        expect(findings[0]!.message).toContain('healed 101m ago');
+    });
+
+    test('if our side stops during an upstream outage, that is the finding', () => {
+        const findings = evaluateHeartbeat(
+            {
+                ...healthy,
+                lastSuccesses: [
+                    { source: 'maplify', finishedAt: minutesAgo(4) },
+                    { source: 'inaturalist', finishedAt: minutesAgo(400) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) },
+                ],
+                recentSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(400) }],
+                // failing upstream, then nothing at all for the last 45 minutes
+                recentTransientFailures: every5('inaturalist', 395, 45),
+            },
+            THRESHOLDS,
+        );
+        expect(findings.map((f) => [f.kind, f.source])).toEqual([['stale', 'inaturalist']]);
+        expect(findings[0]!.message).toContain('in the last 45m');
+    });
+
+    test('a hole of ours inside a long outage is reported as ours, not upstream', () => {
+        const findings = evaluateHeartbeat(
+            {
+                ...healthy,
+                recentSuccesses: [
+                    { source: 'inaturalist', finishedAt: minutesAgo(500) },
+                    ...every5('inaturalist', 11, 1),
+                ],
+                // upstream failures with an hour of silence from 300m to 240m ago
+                recentTransientFailures: [
+                    ...every5('inaturalist', 495, 300),
+                    ...every5('inaturalist', 240, 16),
+                ],
+            },
+            THRESHOLDS,
+        );
+        expect(findings.map((f) => [f.kind, f.source])).toEqual([['gap', 'inaturalist']]);
+        expect(findings[0]!.message).toContain('for 60m');
     });
 });
 
@@ -373,11 +485,60 @@ describe.skipIf(!DSN)('fetchHeartbeatInput (local Supabase)', () => {
             // 4m…69m are in the window; 129m is the newest before it; 199m is not wanted
             expect(maplify).toEqual([4, 20, 50, 69, 129]);
 
+            expect(input.recentTransientFailures).toEqual([]);
+
             // And the whole thing, end to end: the hole between 129m and 69m ago is a
             // gap even though maplify's newest success is 4 minutes old.
             const findings = evaluateHeartbeat(input, THRESHOLDS);
             expect(findings.map((f) => [f.kind, f.source])).toEqual([['gap', 'maplify']]);
             expect(findings[0]!.message).toContain('for 60m');
+        });
+    });
+
+    test('transient failures: only failed, non-dry-run rows marked transient', async () => {
+        await withRollback(sql, async (tx) => {
+            await tx`DELETE FROM ingest.runs`;
+            await tx`
+                INSERT INTO ingest.runs
+                    (source, trigger, dry_run, window_start, window_end,
+                     started_at, finished_at, outcome, error, transient)
+                VALUES
+                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '46 minutes', now() - interval '45 minutes', 'success', NULL, false),
+                    -- upstream down: these are signs of life, not successes
+                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '31 minutes', now() - interval '30 minutes', 'failed', 'HTTP 503', true),
+                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '16 minutes', now() - interval '15 minutes', 'failed', 'HTTP 503', true),
+                    -- a defect: not a sign of life
+                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '11 minutes', now() - interval '10 minutes', 'failed', 'parse', false),
+                    -- a dry run: not a sign of anything
+                    ('inaturalist', 'manual', true, '2026-06-26', '2026-07-06',
+                     now() - interval '6 minutes', now() - interval '5 minutes', 'failed', 'HTTP 503', true),
+                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '5 minutes', now() - interval '4 minutes', 'success', NULL, false),
+                    ('orcasound', 'cron', false, '2026-06-26', '2026-07-06',
+                     now() - interval '5 minutes', now() - interval '4 minutes', 'success', NULL, false)`;
+
+            const input = await fetchHeartbeatInput(tx, 120);
+            const ages = input.recentTransientFailures
+                .map((s) => [s.source, Math.round((input.now.getTime() - s.finishedAt.getTime()) / 60_000)])
+                .sort((a, b) => (b[1] as number) - (a[1] as number));
+            expect(ages).toEqual([['inaturalist', 30], ['inaturalist', 15]]);
+
+            // 45m without success, but our side was alive 15m ago: not stale.
+            expect(evaluateHeartbeat(input, THRESHOLDS)).toEqual([]);
+        });
+    });
+
+    test('transient is refused on a run that did not fail', async () => {
+        await withRollback(sql, async (tx) => {
+            await expect(tx`
+                INSERT INTO ingest.runs
+                    (source, trigger, window_start, window_end, finished_at, outcome, transient)
+                VALUES ('maplify', 'cron', '2026-06-26', '2026-07-06', now(), 'success', true)`,
+            ).rejects.toThrow(/runs_transient_only_on_failure/);
         });
     });
 });
