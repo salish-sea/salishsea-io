@@ -6,9 +6,9 @@ import {
   fetchOffspring, fetchParents, groupChain, individualPath, keyLabel, parseIndividualPath,
   type OccurrenceLink,
 } from './catalog.ts';
-import { canonicalize, profileStyles } from './profile-shared.ts';
+import { canonicalize, profileStyles, renderProfileFrame } from './profile-shared.ts';
 import {
-  individualStyles, individualTitle, renderIndividualFrame, renderIndividualProfile, renderIndividualSightings,
+  individualStyles, individualTitle, renderIndividualProfile, renderIndividualSightings,
   type IndividualProfileData,
 } from './individual-profile.ts';
 import { initSentry } from './sentry.ts';
@@ -75,7 +75,7 @@ export class IndividualPage extends LitElement {
   static styles = [profileStyles, individualStyles];
 
   render() {
-    return renderIndividualFrame(html`
+    return renderProfileFrame(html`
         ${this.#profile.render({
           pending: () => html`<p class="placeholder">Looking up ${this.key ? keyLabel(this.key) : 'this individual'}&hellip;</p>`,
           error: () => html`<p class="error">Something went wrong loading this page. Please try again.</p>`,
