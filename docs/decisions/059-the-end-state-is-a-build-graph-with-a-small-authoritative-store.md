@@ -1,6 +1,6 @@
 # 059 — The end state: a build over upstream data, and a small store for what only our users write
 
-**Status:** accepted · **Decided:** 2026-09-30 · **Answers:** the end-state question behind `salish-9uu` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Would amend:** [002](002-static-spa-edge-architecture.md) (no backend), when step 4 lands
+**Status:** accepted · **Decided:** 2026-09-30 · **Answers:** the end-state question behind `salish-9uu` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Would amend:** [002](002-static-spa-edge-architecture.md) (no custom backend), when step 4 lands
 
 ## Context
 
@@ -16,7 +16,7 @@ Two facts decide most of it.
 
 ## Decision
 
-**The target is BeeAtlas's shape.** The Stelis build derives everything a visitor sees from upstream snapshots. What only our users write lives in a small store on the same machine, and the build reads that store as an input it can never regenerate. That's how it reads BeeAtlas's notes store: key by key, so one write rebuilds only what it touched and can be traced to the pages it changed ([`notes-digest.rkt`](https://github.com/rainhead/stelis/blob/e4780954e105f4925bf90a5813c0ac3f02259d13/src/notes-digest.rkt)). The store is SQLite, with a small write API beside it, as BeeAtlas's is ([BeeAtlas ADR 0042](https://github.com/rainhead/beeatlas/blob/57118da21dc31da08e05d82f3467cea5af7b8d84/docs/adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)).
+**The target is BeeAtlas's shape.** The Stelis build derives everything a visitor sees from two kinds of input: snapshots of upstream data, which it can always fetch again, and a small store on the same machine holding what only our users write, which it can never regenerate. That's how it reads BeeAtlas's notes store: key by key, so one write rebuilds only what it touched and can be traced to the pages it changed ([`notes-digest.rkt`](https://github.com/rainhead/stelis/blob/e4780954e105f4925bf90a5813c0ac3f02259d13/src/notes-digest.rkt)). The store is SQLite, with a small write API beside it, as BeeAtlas's is ([BeeAtlas ADR 0042](https://github.com/rainhead/beeatlas/blob/57118da21dc31da08e05d82f3467cea5af7b8d84/docs/adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)).
 
 Why this rather than keeping Postgres:
 
