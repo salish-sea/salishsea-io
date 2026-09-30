@@ -40,34 +40,53 @@ export async function writeDays(
     const outDir = path.join(exportDir, 'days');
     await recoverDir(outDir);
 
-    // Attached under a fixed name: opened directly, the file's catalog is named
-    // after the file, and a file called snapshot.duckdb would make
-    // `snapshot.occurrences` ambiguous between catalog and schema.
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
-    let rows;
+    const counts = {files: 0, occurrences: 0};
     try {
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
-        const reader = await conn.runAndReadAll(`
+        // Streamed, a chunk of rows at a time, in day order: each day's file is
+        // finished and written before the next day's rows are read. Reading every
+        // row at once held the whole table three times over (DuckDB's result,
+        // its JS copy, the parsed documents) and took the 1 GB Fly machine down.
+        const result = await conn.stream(`
             SELECT strftime(timezone('${DAY_ZONE}', observed_at), '%Y-%m-%d') AS day, doc
             FROM store.snapshot.occurrences
             ORDER BY day, observed_at DESC, id
         `);
-        rows = reader.getRows() as [string, string][];
+        await replaceDir(outDir, dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts));
     } finally {
         conn.closeSync();
+        db.closeSync();
     }
+    return counts;
+}
 
-    const days = new Map<string, unknown[]>();
-    for (const [day, doc] of rows) {
-        let list = days.get(day);
-        if (!list) days.set(day, list = []);
-        list.push(JSON.parse(doc));
+/** Rows in day order, as one file per day: each emitted once its day's rows have all arrived. */
+export async function* dayFiles(
+    chunks: AsyncIterable<[string, string][]>,
+    counts = {files: 0, occurrences: 0},
+): AsyncGenerator<[string, string]> {
+    let day: string | null = null;
+    let list: unknown[] = [];
+    for await (const rows of chunks) {
+        for (const [rowDay, doc] of rows) {
+            if (rowDay !== day) {
+                if (day !== null) {
+                    counts.files++;
+                    yield [`${day}.json`, JSON.stringify(list)];
+                }
+                day = rowDay;
+                list = [];
+            }
+            list.push(JSON.parse(doc));
+            counts.occurrences++;
+        }
     }
-
-    await replaceDir(outDir,
-        [...days].map(([day, list]) => [`${day}.json`, JSON.stringify(list)] as [string, string]));
-    return {files: days.size, occurrences: rows.length};
+    if (day !== null) {
+        counts.files++;
+        yield [`${day}.json`, JSON.stringify(list)];
+    }
 }
 
 export async function main(): Promise<void> {
