@@ -3,8 +3,9 @@
  *
  *   EXPORT_DIR=… tsx scripts/read-path/profiles.ts <kind> <snapshot.duckdb> <dist>
  *
- * <kind> is individuals, matrilines or ecotypes. Writes $EXPORT_DIR/profiles/<kind>/<id>.html
- * for every subject of that kind with a register identifier (<id> is its seven digits),
+ * <kind> is individuals, matrilines, ecotypes or haulouts. Writes $EXPORT_DIR/profiles/<kind>/<id>.html
+ * for every subject of that kind (<id> is its register identifier's seven digits, or a
+ * haul-out site's id: the register holds animals, not places),
  * and beside it <id>.links.json, the sighting links its map loads. The page itself is
  * the kind's templates (src/individual-profile.ts and its siblings) — the same ones the
  * client-rendered page uses — given the data the client would fetch, assembled here
@@ -25,8 +26,10 @@ import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import {
-    dedupeOccurrenceLinks, descendantMatrilines, displayName, groupChain, type CatalogGroup, type OccurrenceLink,
+    dedupeOccurrenceLinks, descendantMatrilines, displayName, groupChain, hauloutReport,
+    type CatalogGroup, type Haulout, type HauloutOccurrence, type OccurrenceLink,
 } from '../../src/catalog.ts';
+import type { MapDot } from '../../src/individual-map.ts';
 import { profileStyles, renderProfileFrame } from '../../src/profile-shared.ts';
 import {
     individualPreview, individualStyles, renderIndividualProfile, renderIndividualSightings,
@@ -38,6 +41,10 @@ import {
 import {
     ecotypePreview, renderEcotypeProfile, renderEcotypeSightings, type EcotypeProfileData,
 } from '../../src/ecotype-profile.ts';
+import {
+    hauloutPreview, hauloutProfile, hauloutStyles, renderHauloutProfile, renderHauloutReports, renderHauloutVitals,
+    type HauloutProfileData,
+} from '../../src/haulout-profile.ts';
 import { islandFromManifest, renderDocument, type Island } from './profile-document.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 
@@ -52,6 +59,7 @@ type Doc = Record<string, any>;
 const TABLES = [
     'individuals', 'designations', 'nicknames', 'parties', 'social_groups', 'group_parents',
     'matriline_members', 'animal_names', 'individual_occurrences', 'group_occurrences', 'ecotype_occurrences',
+    'haulouts', 'haulout_occurrences',
 ] as const;
 type Table = (typeof TABLES)[number];
 export type Tables = Record<Table, Doc[]>;
@@ -146,13 +154,14 @@ function individualCatalogue(t: Pick<Tables, 'individuals' | 'nicknames' | 'matr
 // --- Individuals ----------------------------------------------------------------------
 
 export type ProfilePage<D> = {
-    /** The register identifier's seven digits: the page's file name and URL segment. */
+    /** The page's file name and URL segment: a register identifier's seven digits, or a site's id. */
     id: string,
     data: D,
-    links: OccurrenceLink[],
+    /** What the page's map draws, and the file its map loads them from. */
+    links: MapDot[],
 };
 
-export type IndividualPage = ProfilePage<IndividualProfileData>;
+export type IndividualPage = ProfilePage<IndividualProfileData> & {links: OccurrenceLink[]};
 
 const INDIVIDUAL_TABLES = [
     'individuals', 'designations', 'nicknames', 'parties', 'social_groups', 'group_parents',
@@ -233,7 +242,7 @@ export function renderIndividualPage(shell: string, page: IndividualPage, curren
 
 // --- Matrilines -----------------------------------------------------------------------
 
-export type MatrilinePage = ProfilePage<MatrilineProfileData>;
+export type MatrilinePage = ProfilePage<MatrilineProfileData> & {links: OccurrenceLink[]};
 
 const MATRILINE_TABLES = [
     'social_groups', 'group_parents', 'nicknames', 'parties', 'individuals', 'matriline_members', 'group_occurrences',
@@ -279,7 +288,7 @@ export function renderMatrilinePage(shell: string, page: MatrilinePage, currentY
 
 // --- Ecotypes -------------------------------------------------------------------------
 
-export type EcotypePage = ProfilePage<EcotypeProfileData>;
+export type EcotypePage = ProfilePage<EcotypeProfileData> & {links: OccurrenceLink[]};
 
 const ECOTYPE_TABLES = ['social_groups', 'group_parents', 'ecotype_occurrences'] as const;
 
@@ -306,6 +315,41 @@ export function renderEcotypePage(shell: string, page: EcotypePage, currentYear:
         ecotypePreview(data), renderProfileFrame(renderEcotypeProfile(data, sightings)), islands);
 }
 
+// --- Haul-out sites --------------------------------------------------------------------
+
+export type HauloutPage = ProfilePage<HauloutProfileData & {reports: ReturnType<typeof hauloutReport>}>;
+
+const HAULOUT_TABLES = ['haulouts', 'haulout_occurrences'] as const;
+
+/** Every haul-out site, as its page's data: fetchHaulout, fetchAllHaulouts and fetchHauloutReports' shapes. */
+export function assembleHaulouts(t: Pick<Tables, (typeof HAULOUT_TABLES)[number]>): HauloutPage[] {
+    const all = [...t.haulouts].sort(byId) as Haulout[];
+    // observed_at newest first, then occurrence_id, as fetchHauloutReports orders.
+    const reportsOf = groupBy(t.haulout_occurrences, 'haulout_id', (a, b) =>
+        b['observed_at'].localeCompare(a['observed_at']) || a['occurrence_id'].localeCompare(b['occurrence_id']));
+    return all.map(site => {
+        const reports = (reportsOf.get(site.id) ?? []).flatMap(r => hauloutReport(r as HauloutOccurrence));
+        return {
+            id: String(site.id),
+            data: {...hauloutProfile(site, all), reports},
+            // The map's dots: only what it reads of each report.
+            links: reports.filter(r => r.location).map(({occurrence_id, observed_at, location}) => ({occurrence_id, observed_at, location})),
+        };
+    });
+}
+
+export function renderHauloutPage(shell: string, page: HauloutPage, currentYear: number, islands: Island[] = []): string {
+    const {site, reports} = page.data;
+    const body = renderHauloutProfile(page.data, {
+        vitals: renderHauloutVitals(site, reports),
+        dots: reports.filter(r => r.location),
+        reports: renderHauloutReports(site, reports, currentYear),
+        mapSrc: linksUrl('haulouts', page.id),
+    });
+    return renderDocument(shell, 'haulout-page', [profileStyles, hauloutStyles],
+        hauloutPreview(page.data), renderProfileFrame(body), islands);
+}
+
 // --- Writing a kind's pages -----------------------------------------------------------
 
 /** The map island's entry, as vite.config.js names it. */
@@ -328,6 +372,7 @@ const KINDS = {
     individuals: {shell: 'individual.html', pages: pagesOf(INDIVIDUAL_TABLES, assembleIndividuals, renderIndividualPage)},
     matrilines: {shell: 'matriline.html', pages: pagesOf(MATRILINE_TABLES, assembleMatrilines, renderMatrilinePage)},
     ecotypes: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assembleEcotypes, renderEcotypePage)},
+    haulouts: {shell: 'haulout.html', pages: pagesOf(HAULOUT_TABLES, assembleHaulouts, renderHauloutPage)},
 };
 export type Kind = keyof typeof KINDS;
 
