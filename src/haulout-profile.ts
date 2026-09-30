@@ -17,6 +17,7 @@ import {
   ATLAS_SPECIES, distanceKm, hauloutPath, mapUrl, mediumPhotoUrl, observedDate,
   type Haulout, type HauloutReport,
 } from './catalog.ts';
+import { formatDate } from './date-format.ts';
 import { renderPresenceTable } from './profile-shared.ts';
 
 // How many years of presence grid a site draws: its own history, not a constant.
@@ -112,7 +113,7 @@ function plural(n: number, noun: string): string {
 }
 
 function monthYear(observedAt: string): string {
-  return observedDate(observedAt).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  return formatDate(observedDate(observedAt), { month: 'long', year: 'numeric' });
 }
 
 /**
@@ -290,7 +291,7 @@ export function renderHauloutReports(
       <p class="muted">Photos from the reports. Each links to its source; the attribution is in the tooltip.</p>
       <div class="strip">
         ${photos.map(({ report, photo }) => html`
-          <a href=${report.url ?? mapUrl(report)} target="_blank" rel="noopener noreferrer" title="${report.species_name ?? ''} · ${observedDate(report.observed_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · ${photo.attribution ?? report.attribution ?? ''}">
+          <a href=${report.url ?? mapUrl(report)} target="_blank" rel="noopener noreferrer" title="${report.species_name ?? ''} · ${formatDate(observedDate(report.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })} · ${photo.attribution ?? report.attribution ?? ''}">
             <img src=${mediumPhotoUrl(photo.src!)} alt=${photo.attribution ?? report.attribution ?? 'photo of the report'} loading="lazy">
           </a>
         `)}
@@ -331,7 +332,7 @@ function renderReport(r: HauloutReport, site: Haulout): TemplateResult {
   const approx = r.accuracy !== null && r.accuracy > site.radius_m;
   return html`
     <li>
-      <a href=${mapUrl(r)}>${observedDate(r.observed_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</a>
+      <a href=${mapUrl(r)}>${formatDate(observedDate(r.observed_at), { month: 'short', day: 'numeric', year: 'numeric' })}</a>
       · ${r.species_name ?? 'pinniped'}
       ${r.attribution ? html`· <span class="muted">${r.attribution}</span>` : nothing}
       · <span class="muted">${r.distance_m} m away</span>

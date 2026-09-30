@@ -22,30 +22,14 @@ import { readFile, writeFile, rename } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { ecotypePath, hauloutPath, individualPath, matrilinePath } from '../../src/catalog.ts';
-import { fold } from '../../src/fold.ts';
+import { designationKey, type Redirects } from './redirect-keys.ts';
 import { SITE_ORIGIN } from './profile-document.ts';
 import { readSnapshot, type Doc, type Tables } from './snapshot-tables.ts';
 
 const TABLES = ['individuals', 'designations', 'social_groups', 'haulouts'] as const;
 type IndexTables = Pick<Tables, (typeof TABLES)[number]>;
 
-/** The kinds a designation path can name. A haul-out has no designation, only its id. */
-export type Redirects = {
-    individuals: Record<string, string>,
-    matrilines: Record<string, string>,
-    ecotypes: Record<string, string>,
-};
-
-/** A designation as a redirect key: folded as the register compares names. */
-export const designationKey = fold;
-
-/**
- * A typed matriline segment as a redirect key. People write the group's form
- * (T065As) as often as the matriarch's code (T065A) that social_groups holds, and
- * the route has already said this is a group, so a trailing s is dropped here —
- * safe only because of that, as src/catalog.ts's matrilineDesignation says.
- */
-export const matrilineKey = (segment: string) => fold(segment).replace(/s$/, '');
+export { designationKey, matrilineKey, type Redirects } from './redirect-keys.ts';
 
 const byId = (a: Doc, b: Doc) => a['id'] - b['id'];
 
