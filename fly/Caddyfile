@@ -49,6 +49,43 @@
 	import prerendered animalPage ^/(individuals|matrilines|ecotypes)/([0-9]{7})(/[^/]*)?/?$
 	import prerendered sitePage ^/(haulouts)/([0-9]{1,9})(/[^/]*)?/?$
 
+	# A designation (/individuals/T65A, /matrilines/T065As, /ecotypes/Biggs):
+	# legacy links from before decision 034, and typed ones. The redirect server
+	# (scripts/read-path/redirect.ts) folds it and 301s to the canonical page from
+	# the map the build writes, with no database lookup; a designation no profile
+	# answers to is a 404 saying so (decision 057, step 5). After the routes
+	# above, which a seven-digit identifier matches first.
+	@designation path_regexp designation ^/(individuals|matrilines|ecotypes)/[^/]+/?$
+	handle @designation {
+		reverse_proxy 127.0.0.1:8081 {
+			@unknown status 404
+			handle_response @unknown {
+				# A later build may add the designation: never reuse this answer unasked.
+				header Cache-Control "no-cache"
+				root * /app/dist
+				rewrite * /not-in-catalog.html
+				file_server {
+					status 404
+				}
+			}
+		}
+	}
+
+	# The sitemap the build writes, with every profile in it; the site's own,
+	# from the image, until the first build has run.
+	handle /sitemap.xml {
+		header Cache-Control "no-cache"
+		root * /data/export
+		@built file
+		handle @built {
+			file_server
+		}
+		handle {
+			root * /app/dist
+			file_server
+		}
+	}
+
 	handle {
 		root * /app/dist
 

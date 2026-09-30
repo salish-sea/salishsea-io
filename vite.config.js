@@ -85,6 +85,7 @@ export default defineConfig({
         ecotype: resolve(__dirname, 'ecotype.html'),
         haulout: resolve(__dirname, 'haulout.html'),
         'not-published': resolve(__dirname, 'not-published.html'),
+        'not-in-catalog': resolve(__dirname, 'not-in-catalog.html'),
         // The map on a prerendered profile page, its only script (decision 057).
         // Not an HTML page, so the read-path build finds its files through the
         // manifest below, and writes the tags for them itself.
