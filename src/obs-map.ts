@@ -12,9 +12,9 @@ import './obs-summary.ts';
 import VectorLayer from 'ol/layer/Vector.js';
 import TileLayer from 'ol/layer/Tile.js';
 import XYZ from 'ol/source/XYZ.js';
-import { editStyle, hydrophoneStyle, occurrenceStyle, outsideRegionStyle, salmonCountingSiteStyle, selectedObservationStyle, sighterStyle, travelStyle, userLocationStyle, viewingLocationStyle} from './style.ts';
+import { editStyle, hauloutStyle, hydrophoneStyle, occurrenceStyle, outsideRegionStyle, salmonCountingSiteStyle, selectedObservationStyle, sighterStyle, travelStyle, userLocationStyle, viewingLocationStyle} from './style.ts';
 import Point from 'ol/geom/Point.js';
-import Polygon from 'ol/geom/Polygon.js';
+import Polygon, { circular } from 'ol/geom/Polygon.js';
 import VectorSource from 'ol/source/Vector.js';
 import Feature from 'ol/Feature.js';
 import Modify from 'ol/interaction/Modify.js';
@@ -33,10 +33,16 @@ import { createRef, ref } from 'lit/directives/ref.js';
 import { compactMap } from './utils.ts';
 import type { Extent as RegionExtent } from './constants.ts';
 import UserLocationControl from './user-location-control.ts';
+import LayerControl from './layer-control.ts';
+import { DEFAULT_LAYERS, type ReferenceLayer } from './reference-layers.ts';
+import { fetchHauloutSites, hauloutPath, type HauloutSite } from './catalog.ts';
+import { fetchStaticHauloutSites, readSource } from './read-path.ts';
 import { reportError } from './report-error.ts';
 import { geolocationErrorIsReportable } from './geolocation-message.ts';
 
 const sphericalMercator = 'EPSG:3857';
+
+export type LayersChangeDetail = Set<ReferenceLayer>;
 
 export type MapMoveDetail = {
   center: [number, number];
@@ -86,6 +92,34 @@ export class ObsMap extends LitElement {
     source: new VectorSource(),
     style: salmonCountingSiteStyle,
   })
+  // Loaded the first time it is switched on (decision 058): hidden by default,
+  // so most visits never ask for it.
+  private hauloutLayer = new VectorLayer({
+    // The names declutter one another: the atlas maps some sites at several
+    // points a few hundred metres apart, all under one name.
+    declutter: true,
+    source: new VectorSource<Feature<Point>>({
+      attributions: 'Haul-out sites after Jeffries et al. 2000, <i>Atlas of Seal and Sea Lion Haulout Sites in Washington</i>, WDFW.',
+    }),
+    style: hauloutStyle,
+  });
+  private hauloutsLoaded: Promise<void> | null = null;
+  private referenceLayers: Record<ReferenceLayer, VectorLayer> = {
+    viewpoints: this.viewingLocationsLayer,
+    hydrophones: this.hydrophoneLayer,
+    salmon: this.salmonCountingSiteLayer,
+    haulouts: this.hauloutLayer,
+  };
+
+  /** Which reference layers are drawn (GH #453). A change made with the map's own control is dispatched as `layers-change`. */
+  @property({attribute: false})
+  public visibleLayers: ReadonlySet<ReferenceLayer> = DEFAULT_LAYERS;
+
+  private layerControl = new LayerControl({
+    visible: this.visibleLayers,
+    onChange: (detail: LayersChangeDetail) =>
+      this.dispatchEvent(new CustomEvent('layers-change', {bubbles: true, composed: true, detail})),
+  });
   private userLocationFeature = new Feature<Point>(new Point([]));
   private userLocationLayer = new VectorLayer({
     source: new VectorSource({features: [this.userLocationFeature]}),
@@ -163,6 +197,7 @@ export class ObsMap extends LitElement {
       // Infrastructure under the data. These are places that are always there —
       // context for reading the map, not things anybody saw today — and drawing
       // them last let a hydrophone cover a sighting (salish-fll.3).
+      this.hauloutLayer,
       this.viewingLocationsLayer,
       this.hydrophoneLayer,
       this.salmonCountingSiteLayer,
@@ -196,12 +231,59 @@ user-location-control {
   top: 4em;
 }
 user-location-control svg { fill: currentColor; }
+layer-control {
+  right: 0.5em;
+  top: 0.5em;
+}
+layer-control svg.inline-icon { fill: currentColor; }
+layer-control .layer-menu {
+  background: var(--ol-background-color, white);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin: 0.3em 0 0;
+  padding: 0.4em 0.6em 0.5em;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  white-space: nowrap;
+}
+layer-control legend {
+  float: left;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0 0 0.2em;
+  width: 100%;
+}
+layer-control label {
+  align-items: center;
+  clear: both;
+  cursor: pointer;
+  display: flex;
+  font-size: 0.85rem;
+  gap: 0.4em;
+  padding: 0.2em 0;
+}
+layer-control .marker {
+  display: inline-flex;
+  height: 16px;
+  justify-content: center;
+  width: 16px;
+}
+layer-control .marker img, layer-control .marker svg {
+  max-height: 16px;
+  max-width: 16px;
+}
 user-location-control.active svg { color: rgb(51, 153, 255); }
 user-location-control.error svg { color: red; }
 user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
 @media (pointer: coarse) {
   user-location-control {
     top: 5.3em;
+  }
+  layer-control label {
+    font-size: 1rem;
+    padding: 0.45em 0;
   }
 }
   `
@@ -220,7 +302,9 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
       const evt = new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: occurrence});
       this.dispatchEvent(evt);
     });
+    this.map.addControl(this.layerControl);
     this.map.on('singleclick', this.onClick.bind(this));
+    this.map.on('pointermove', this.onPointerMove.bind(this));
     this.map.on('moveend', this.onMoveEnd.bind(this));
   }
 
@@ -237,11 +321,37 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
       return false;
     }
 
-    const feature = this.map.getFeaturesAtPixel(evt.pixel)
-      .filter(f => f.get('kind') === 'Hydrophone' || f.get('kind') === 'SalmonCountingSite')[0];
-    if (!feature)
+    // The topmost feature only: a sighting drawn over a site is the sighting's
+    // click, which the Select interaction already has.
+    const feature = this.referenceFeatureAt(evt.pixel);
+    const kind = feature?.get('kind');
+    if (kind === 'Hydrophone' || kind === 'SalmonCountingSite')
+      window.open(feature!.get('url'), '_blank');
+    // Our own page, so the same tab: the map's state, this layer included, is
+    // in the URL, and Back returns to it.
+    else if (kind === 'Haulout')
+      window.location.assign(hauloutPath({id: feature!.get('id'), name: feature!.get('name')}));
+  }
+
+  private referenceFeatureAt(pixel: number[]) {
+    // Not the mask: outside the region it is the topmost feature everywhere,
+    // and would make every site there unclickable.
+    const top = this.map.forEachFeatureAtPixel(pixel, f => f, {
+      hitTolerance: 2,
+      layerFilter: layer => layer !== this.maskLayer,
+    });
+    return top && ['Hydrophone', 'SalmonCountingSite', 'Haulout'].includes(top.get('kind')) ? top : undefined;
+  }
+
+  // A site's name at any zoom, since its label shows only from zoom 12, and a
+  // hand where a click goes somewhere.
+  protected onPointerMove(evt: MapBrowserEvent) {
+    const target = this.mapRef.value;
+    if (evt.dragging || !target)
       return;
-    window.open(feature.get('url'), '_blank')
+    const feature = this.referenceFeatureAt(evt.pixel);
+    target.style.cursor = feature ? 'pointer' : '';
+    target.title = feature?.get('name') ?? '';
   }
 
   private skipNextMoveEvent = false;
@@ -327,6 +437,16 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
     }
   }
 
+  private loadHaulouts() {
+    this.hauloutsLoaded ??= (readSource() === 'static' ? fetchStaticHauloutSites() : fetchHauloutSites())
+      .then(sites => this.hauloutLayer.getSource()!.addFeatures(compactMap(sites, hauloutFeature)))
+      .catch(err => {
+        // Not latched, so switching the layer off and on again retries.
+        this.hauloutsLoaded = null;
+        reportError(this, "Couldn't load the haul-out sites.", {cause: err});
+      });
+  }
+
   private async loadSalmonCountingSites() {
     try {
       const { default: geojsonText } = await import('./assets/orcasalmon-counting-sites.geojson?raw');
@@ -366,6 +486,13 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {
+    if (changedProperties.has('visibleLayers')) {
+      for (const [id, layer] of Object.entries(this.referenceLayers))
+        layer.setVisible(this.visibleLayers.has(id as ReferenceLayer));
+      this.layerControl.visible = this.visibleLayers;
+      if (this.visibleLayers.has('haulouts'))
+        this.loadHaulouts();
+    }
     if (changedProperties.has('maskExtent'))
       this.renderMask();
     if (changedProperties.has('focusedOccurrenceId') && this.focusedOccurrenceId) {
@@ -452,6 +579,21 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
     const geometry = this.userLocationFeature.getGeometry()!;
     geometry.setCoordinates([]);
   }
+}
+
+function hauloutFeature({id, name, location, radius_m}: HauloutSite): Feature<Point> | undefined {
+  if (location.lon === null || location.lat === null)
+    return undefined;
+  const lonLat = [location.lon, location.lat];
+  const feature = new Feature({
+    geometry: new Point(fromLonLat(lonLat)),
+    kind: 'Haulout',
+    id,
+    name,
+    ring: circular(lonLat, radius_m, 64).transform('EPSG:4326', sphericalMercator),
+  });
+  feature.setId(`haulout:${id}`);
+  return feature;
 }
 
 declare global {

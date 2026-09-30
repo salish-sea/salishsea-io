@@ -15,6 +15,7 @@
 
 import type { Extent } from './extents.ts';
 import { idShard } from './read-path-shard.ts';
+import { HAULOUT_SITES_FILE, type HauloutSite } from './catalog.ts';
 
 export type ReadSource = 'supabase' | 'static';
 
@@ -173,6 +174,19 @@ export async function findOccurrence<T extends Located & {id: string}>(id: strin
   if (typeof day !== 'string') return null;
   const occurrences = await fetchDayOccurrences<T>(day, null);
   return occurrences.find(o => o.id === id) ?? null;
+}
+
+/**
+ * Every haul-out site, as the main map's layer draws them: what
+ * `fetchHauloutSites` gets from PostgREST, written beside the sites' pages by
+ * the build (scripts/read-path/profiles.ts). A missing file is an error, not an
+ * empty list: the build always writes it, so its absence means nothing is built.
+ */
+export async function fetchStaticHauloutSites(): Promise<HauloutSite[]> {
+  const url = `${READ_PATH_BASE}profiles/haulouts/${HAULOUT_SITES_FILE}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  return await response.json() as HauloutSite[];
 }
 
 /**
