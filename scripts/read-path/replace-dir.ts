@@ -32,14 +32,16 @@ export async function recoverDir(outDir: string): Promise<void> {
 }
 
 /** Replace `outDir` with exactly `files` (name → contents). */
-export async function replaceDir(outDir: string, files: Iterable<[string, string]>): Promise<void> {
+export async function replaceDir(outDir: string, files: Iterable<[string, string]> | AsyncIterable<[string, string]>): Promise<void> {
     const staging = `${outDir}.staging`;
     const previous = `${outDir}.previous`;
     await rm(staging, {recursive: true, force: true});
     await rm(previous, {recursive: true, force: true});
     try {
         await mkdir(staging, {recursive: true});
-        for (const [name, contents] of files) {
+        // Written as they arrive, so a caller can produce them one at a time
+        // rather than hold every file in memory at once.
+        for await (const [name, contents] of files) {
             await writeFile(path.join(staging, name), contents);
         }
         const hadPrevious = await rename(outDir, previous).then(() => true, (err: NodeJS.ErrnoException) => {

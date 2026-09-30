@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { Temporal } from 'temporal-polyfill';
 
-import { writeDays } from './occurrence-days.ts';
+import { dayFiles, writeDays } from './occurrence-days.ts';
 
 /** The frontend's definition of a day (src/salish-sea.ts, dateFromObservedAt). */
 function frontendDay(observedAt: string): string {
@@ -104,5 +104,34 @@ describe('writeDays', () => {
         await writeFile(path.join(crashed, 'days.previous', '2020-01-01.json'), '[]');
         await expect(writeDays(path.join(crashed, 'no-such.duckdb'), crashed)).rejects.toThrow();
         expect(await readdir(path.join(crashed, 'days'))).toEqual(['2020-01-01.json']);
+    });
+});
+
+describe('dayFiles', () => {
+    // Rows arrive in chunks that don't line up with days; each day's file must
+    // still hold all of that day, and come out once its last row has arrived.
+    async function* chunks(...cs: [string, string][][]) { yield* cs; }
+
+    test('one file per day across chunk boundaries, counted', async () => {
+        const counts = {files: 0, occurrences: 0};
+        const files = [];
+        for await (const file of dayFiles(chunks(
+            [['2026-09-28', '{"id": "a"}'], ['2026-09-29', '{"id": "b"}']],
+            [['2026-09-29', '{"id": "c"}']],
+            [],
+            [['2026-09-30', '{"id": "d"}']],
+        ), counts)) files.push(file);
+        expect(files).toEqual([
+            ['2026-09-28.json', '[{"id":"a"}]'],
+            ['2026-09-29.json', '[{"id":"b"},{"id":"c"}]'],
+            ['2026-09-30.json', '[{"id":"d"}]'],
+        ]);
+        expect(counts).toEqual({files: 3, occurrences: 4});
+    });
+
+    test('no rows, no files', async () => {
+        const files = [];
+        for await (const file of dayFiles(chunks())) files.push(file);
+        expect(files).toEqual([]);
     });
 });
