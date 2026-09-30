@@ -6,6 +6,7 @@ import {
   displayName, groupChain, individualPath, mapUrl, matrilinePath, monthlyPresence, observedDate,
   type CatalogGroup, type GroupMember, type OccurrenceLink,
 } from './catalog.ts';
+import { formatDate } from './date-format.ts';
 
 // Shared rendering for the profile pages (individual-page, matriline-page).
 // Lit styles are scoped per component, so the common rules live here as a
@@ -268,7 +269,7 @@ export function renderPresenceTable(
       <thead>
         <tr>
           <td></td>
-          ${MONTH_INITIALS.map((initial, i) => html`<th scope="col" title=${Temporal.PlainDate.from({year: 2000, month: i + 1, day: 1}).toLocaleString('en-US', {month: 'long'})}>${initial}</th>`)}
+          ${MONTH_INITIALS.map((initial, i) => html`<th scope="col" title=${formatDate(Temporal.PlainDate.from({year: 2000, month: i + 1, day: 1}), {month: 'long'})}>${initial}</th>`)}
         </tr>
       </thead>
       <tbody>
@@ -277,7 +278,7 @@ export function renderPresenceTable(
             <th scope="row">${year}</th>
             ${months.map((count, i) => html`
               <td class=${count >= 4 ? 'p3' : count >= 2 ? 'p2' : count === 1 ? 'p1' : ''}
-                  title="${count} report${count === 1 ? '' : 's'} in ${Temporal.PlainDate.from({year, month: i + 1, day: 1}).toLocaleString('en-US', {month: 'long', year: 'numeric'})}">${count || nothing}</td>
+                  title="${count} report${count === 1 ? '' : 's'} in ${formatDate(Temporal.PlainDate.from({year, month: i + 1, day: 1}), {month: 'long', year: 'numeric'})}">${count || nothing}</td>
             `)}
           </tr>
         `)}
@@ -325,7 +326,7 @@ export function renderSightingsSummary(
     ${renderPresenceTable(links, undefined, undefined, currentYear)}
     ${when(located, () => html`<individual-map .links=${links} src=${mapSrc ?? nothing}></individual-map>`)}
     <p class="sightings-note">
-      Last reported <a href=${mapUrl(latest)}>${observedDate(latest.observed_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}
+      Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}
       · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} a dot above; the newest located report is solid. Click one to see that day on the map.`)}
     </p>
   `;
