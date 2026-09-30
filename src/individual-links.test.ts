@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { injectIndividualLinks } from './individual-links.ts';
+import { ecotypeCodes, injectIndividualLinks, matrilineCodes, setCatalogCodes } from './individual-links.ts';
 
 // Links carry the register identifier and the designation as its slug (034).
 const T065A5 = { entity_id: 'SSA:0010197', primary_designation: 'T065A5' };
@@ -85,4 +85,24 @@ test('leaves ecotype names alone when the catalog has no ecotype for them', () =
 test('does not link ecotype names inside existing markdown links', () => {
   const linked = 'see [Biggs report](https://example.com/biggs) for details';
   expect(injectIndividualLinks(linked, codes, matrilines, ecotypes)).toBe(linked);
+});
+
+// The read-path build writes the same rows the Supabase query returns (decision 056),
+// so links built from its file are the links built from the database.
+test('rows from either source build the lookup the links are made from', () => {
+  const byCode = setCatalogCodes({
+    designations: [
+      { code: 'T065A', individual: T065A },
+      { code: 'T46A', individual: T122 },
+      { code: 'X9', individual: null },
+    ],
+    groups: [
+      { kind: 'matriline', designation: 'T065A', entity_id: 'SSA:0002163' },
+      { kind: 'ecotype', designation: 'Biggs', entity_id: 'SSA:0000002' },
+    ],
+  });
+  expect([...byCode.keys()]).toEqual(['t65a', 't46a']);
+  expect(injectIndividualLinks('T65A and the T65As, with T046A, among transients; X9 too',
+    byCode, matrilineCodes()!, ecotypeCodes()!)).toBe(
+    '[T65A](/individuals/0010193/T065A) and the [T65As](/matrilines/0002163/T065As), with [T046A](/individuals/0010368/T122), among [transients](/ecotypes/0000002/Biggs); X9 too');
 });

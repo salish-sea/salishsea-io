@@ -4,8 +4,10 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { buildRedirects, buildSitemap, profilePaths } from './profile-index.ts';
+import { buildCatalogCodes, buildRedirects, buildSitemap, profilePaths } from './profile-index.ts';
 import { redirectFor } from './redirect.ts';
+import { setCatalogCodes } from '../../src/individual-links.ts';
+import { individualPath } from '../../src/catalog.ts';
 
 const animal = (id: number, entityId: string | null, designation: string) =>
     ({id, entity_id: entityId, primary_designation: designation});
@@ -100,5 +102,38 @@ describe('the sitemap', () => {
 
     test('a Vite sitemap that has changed shape fails the build', () => {
         expect(() => buildSitemap('<urlset>', [])).toThrow(/exactly one <\/urlset>/);
+    });
+});
+
+describe('buildCatalogCodes', () => {
+    test('every designation with the animal carrying it, and the groups, as the Supabase query returns them', () => {
+        expect(buildCatalogCodes(tables())).toEqual({
+            // Least preferred first, so the lookup's last-row-wins picks what the redirects pick.
+            designations: [
+                {code: 'T65A2', individual: {entity_id: 'SSA:0010193', primary_designation: 'T065A'}},
+                {code: 'AM25', individual: {entity_id: 'SSA:0010193', primary_designation: 'T065A'}},
+                {code: 'X1', individual: {entity_id: null, primary_designation: 'X1'}},
+                {code: 'T065A2', individual: {entity_id: 'SSA:0010002', primary_designation: 'T065A2'}},
+                {code: 'T065A', individual: {entity_id: 'SSA:0010193', primary_designation: 'T065A'}},
+            ],
+            groups: [
+                {kind: 'matriline', designation: 'T065A', entity_id: 'SSA:0002163'},
+                {kind: 'matriline', designation: 'T065A2', entity_id: null},
+                {kind: 'ecotype', designation: 'Biggs', entity_id: 'SSA:0000002'},
+            ],
+        });
+    });
+
+    test('depends on the data alone: shuffled rows give the same file', () => {
+        const t = tables();
+        for (const rows of Object.values(t)) rows.reverse();
+        expect(JSON.stringify(buildCatalogCodes(t))).toBe(JSON.stringify(buildCatalogCodes(tables())));
+    });
+
+    test('where two animals share a folded code, the sighting links agree with the redirects', () => {
+        const t = tables();
+        const codes = setCatalogCodes(buildCatalogCodes(t));
+        expect(individualPath(codes.get('t65a2')!)).toBe(buildRedirects(t).individuals['t65a2']);
+        expect(individualPath(codes.get('t65a2')!)).toBe('/individuals/0010002/T065A2');
     });
 });

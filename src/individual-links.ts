@@ -1,6 +1,7 @@
 import { supabase } from './supabase.ts';
 import { ecotypePath, individualPath, matrilinePath } from './catalog.ts';
 import { fold } from './fold.ts';
+import { READ_PATH_BASE, readSource } from './read-path.ts';
 
 // Same shape as public.extract_identifiers (20250924160210_detect_individuals.sql):
 // pod/catalog prefix, optional separator, leading zeros, digit + hex block, and a
@@ -84,27 +85,54 @@ let matrilineMap: Map<string, GroupRef> | null = null;
 let ecotypeMap: Map<string, GroupRef> | null = null;
 let loading: Promise<Map<string, IndividualRef>> | null = null;
 
+/**
+ * The rows the lookup is built from, in the shape the Supabase query returns and the
+ * read-path build writes to `catalog-codes.json` (decision 057): every designation an
+ * individual has carried, and the matriline and ecotype designations.
+ */
+export interface CatalogCodeRows {
+  designations: { code: string; individual: IndividualRef | null }[];
+  groups: { kind: string; designation: string; entity_id: string | null }[];
+}
+
+/** Sets the lookup from its rows, whichever source they came from. */
+export function setCatalogCodes({ designations, groups }: CatalogCodeRows): Map<string, IndividualRef> {
+  codeMap = new Map(designations.flatMap(({ code, individual }) => individual ? [[fold(code), individual]] : []));
+  matrilineMap = new Map(groups.filter(g => g.kind === 'matriline').map(g => [fold(`${g.designation}s`), g]));
+  ecotypeMap = new Map(groups.filter(g => g.kind === 'ecotype').map(g => [g.designation, g]));
+  return codeMap;
+}
+
+async function fetchCatalogCodeRows(): Promise<CatalogCodeRows> {
+  // In static mode the build's file, so a sighting's designations still link while
+  // the database is unreachable (decision 056); it is at most one build behind.
+  if (readSource() === 'static') {
+    const url = `${READ_PATH_BASE}catalog-codes.json`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`${url}: ${response.status}`);
+    return await response.json() as CatalogCodeRows;
+  }
+  const [{ data: designations }, { data: groups }] = await Promise.all([
+    supabase()
+      .from('designations')
+      .select('code, individual:individuals (entity_id, primary_designation)')
+      .throwOnError(),
+    supabase()
+      .from('social_groups')
+      .select('kind, designation, entity_id')
+      .in('kind', ['matriline', 'ecotype'])
+      .throwOnError(),
+  ]);
+  return { designations, groups };
+}
+
 // Fetch the designation -> individual lookup (plus the matriline and ecotype
 // designations) once per session. The whole catalog is ~1k tiny rows; callers
 // re-render when the promise settles.
 export function loadCatalogCodes(): Promise<Map<string, IndividualRef>> {
   loading ??= (async () => {
     try {
-      const [{ data: designations }, { data: groups }] = await Promise.all([
-        supabase()
-          .from('designations')
-          .select('code, individual:individuals (entity_id, primary_designation)')
-          .throwOnError(),
-        supabase()
-          .from('social_groups')
-          .select('kind, designation, entity_id')
-          .in('kind', ['matriline', 'ecotype'])
-          .throwOnError(),
-      ]);
-      codeMap = new Map(designations.map(({ code, individual }) => [fold(code), individual]));
-      matrilineMap = new Map(groups.filter(g => g.kind === 'matriline').map(g => [fold(`${g.designation}s`), g]));
-      ecotypeMap = new Map(groups.filter(g => g.kind === 'ecotype').map(g => [g.designation, g]));
-      return codeMap;
+      return setCatalogCodes(await fetchCatalogCodeRows());
     } catch (error) {
       loading = null; // allow a later retry rather than caching the failure
       throw error;
