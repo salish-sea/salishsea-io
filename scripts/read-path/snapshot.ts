@@ -163,6 +163,15 @@ export async function main(): Promise<void> {
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
+        // DuckDB keeps what a transaction hasn't committed in memory, and the whole
+        // snapshot is one transaction (below), so by default every table it writes
+        // stays resident until COMMIT: 320 MB peak on the 1 GB Fly machine once the
+        // occurrences' inputs joined the published relations. Capped, it spills to a
+        // directory beside the snapshot instead, which it removes when done. Measured
+        // there: 240 MB peak and a 50 MB spill, about 20 s slower. The rest is node
+        // and the Postgres client holding each query's result.
+        await conn.run(`SET memory_limit = '64MB'`);
+        await conn.run(`SET temp_directory = '${`${out}.tmp`.replaceAll("'", "''")}'`);
         await conn.run(`ATTACH '${out.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
         await conn.run('INSTALL postgres; LOAD postgres;');
