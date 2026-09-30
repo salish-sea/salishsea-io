@@ -25,8 +25,9 @@ cron_pid=$!
 (cd /app && exec node_modules/.bin/tsx scripts/read-path/listen.ts /app/fly/build.sh) &
 listen_pid=$!
 # Redirects designation-shaped profile paths from the build's map; Caddy proxies
-# them here (decision 057, step 5).
-(cd /app && exec node_modules/.bin/tsx scripts/read-path/redirect.ts "$READ_PATH_EXPORT_DIR/redirects.json" 8081) &
+# them here (decision 057, step 5). Plain node, not tsx: it runs all day on a 1 GB
+# machine, and node strips its types itself without tsx's extra process.
+(cd /app && exec node scripts/read-path/redirect.ts "$READ_PATH_EXPORT_DIR/redirects.json" 8081) &
 redirect_pid=$!
 (/app/fly/build.sh || echo "read-path build at boot failed; the schedule will retry") &
 

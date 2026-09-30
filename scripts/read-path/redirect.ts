@@ -19,7 +19,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 
-import { designationKey, matrilineKey, type Redirects } from './profile-index.ts';
+import { designationKey, matrilineKey, type Redirects } from './redirect-keys.ts';
 
 /** How a browser may cache the redirect: a day bounds how long a mistaken mapping survives a fix, as on AWS. */
 const REDIRECT_CACHE = 'public, max-age=86400';
