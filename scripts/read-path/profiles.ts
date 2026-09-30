@@ -21,7 +21,6 @@
  * naming the map island's files, which a page with a map loads and nothing else.
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -47,41 +46,9 @@ import {
 } from '../../src/haulout-profile.ts';
 import { islandFromManifest, renderDocument, type Island } from './profile-document.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
+import { readSnapshot, type Doc, type Table, type Tables } from './snapshot-tables.ts';
 
-/** The frontend's day and year, as in occurrence-days.ts. */
-const DAY_ZONE = 'PST8PDT';
-
-// Snapshot documents, as Postgres serialized them. Loosely typed here and narrowed by
-// what assembly builds from them, which the page's types check.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Doc = Record<string, any>;
-
-const TABLES = [
-    'individuals', 'designations', 'nicknames', 'parties', 'social_groups', 'group_parents',
-    'matriline_members', 'animal_names', 'individual_occurrences', 'group_occurrences', 'ecotype_occurrences',
-    'haulouts', 'haulout_occurrences',
-] as const;
-type Table = (typeof TABLES)[number];
-export type Tables = Record<Table, Doc[]>;
-
-/** Reads the named tables and the snapshot's year; a kind's assembly touches no others. */
-export async function loadTables<T extends Table>(snapshot: string, names: readonly T[]): Promise<{tables: Pick<Tables, T>, currentYear: number}> {
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
-        const tables = {} as Pick<Tables, T>;
-        for (const name of names) {
-            const reader = await conn.runAndReadAll(`SELECT doc FROM store.snapshot.${name}`);
-            tables[name] = (reader.getRows() as [string][]).map(([doc]) => JSON.parse(doc));
-        }
-        const year = await conn.runAndReadAll(
-            `SELECT year(timezone('${DAY_ZONE}', taken_at))::INTEGER FROM store.snapshot.meta`);
-        return {tables, currentYear: (year.getRows() as [number][])[0]![0]};
-    } finally {
-        conn.closeSync();
-    }
-}
+export type { Tables } from './snapshot-tables.ts';
 
 const byId = (a: Doc, b: Doc) => a['id'] - b['id'];
 
@@ -361,7 +328,7 @@ const pagesOf = <T extends Table, P extends ProfilePage<unknown>>(
     assemble: (t: Pick<Tables, T>) => P[],
     render: (shell: string, page: P, currentYear: number, islands: Island[]) => string,
 ) => async (snapshot: string, shell: string, islands: Island[]): Promise<[string, string][][]> => {
-    const {tables, currentYear} = await loadTables(snapshot, names);
+    const {tables, currentYear} = await readSnapshot(snapshot, async s => ({tables: await s.tables(names), currentYear: await s.year()}));
     return assemble(tables).map(page => [
         [`${page.id}.html`, render(shell, page, currentYear, islands)],
         [`${page.id}.links.json`, JSON.stringify(page.links)],

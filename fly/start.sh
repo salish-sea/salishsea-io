@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# The machine's one process: Caddy, the hourly schedule and the change listener
-# side by side, plus a build at boot so a fresh volume has files before the first
-# scheduled run.
+# The machine's one process: Caddy, the hourly schedule, the change listener and
+# the redirect server side by side, plus a build at boot so a fresh volume has
+# files before the first scheduled run.
 #
-# If any of the three exits, so does this, with a failure, and Fly restarts
+# If any of the four exits, so does this, with a failure, and Fly restarts
 # the machine. The boot build is not watched: a failed build leaves the last good
 # files in place and the next hour tries again.
 set -euo pipefail
@@ -24,10 +24,14 @@ cron_pid=$!
 # Builds when the data changes, a few seconds after each burst (salish-t3g.6).
 (cd /app && exec node_modules/.bin/tsx scripts/read-path/listen.ts /app/fly/build.sh) &
 listen_pid=$!
+# Redirects designation-shaped profile paths from the build's map; Caddy proxies
+# them here (decision 057, step 5).
+(cd /app && exec node_modules/.bin/tsx scripts/read-path/redirect.ts "$READ_PATH_EXPORT_DIR/redirects.json" 8081) &
+redirect_pid=$!
 (/app/fly/build.sh || echo "read-path build at boot failed; the schedule will retry") &
 
 # Either one stopping is a failure, whatever its exit status: a clean exit would
 # otherwise read to Fly as a finished machine, not one to restart.
-wait -n "$caddy_pid" "$cron_pid" "$listen_pid" || true
-echo "caddy, supercronic or the change listener exited; stopping so Fly restarts the machine" >&2
+wait -n "$caddy_pid" "$cron_pid" "$listen_pid" "$redirect_pid" || true
+echo "caddy, supercronic, the change listener or the redirect server exited; stopping so Fly restarts the machine" >&2
 exit 1
