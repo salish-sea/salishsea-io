@@ -1,6 +1,6 @@
 # 012 — Ingest heartbeat: an external observer via scheduled GitHub Action
 
-**Status:** accepted · **Decided:** 2026-07-06
+**Status:** accepted, amended by [060](060-an-upstream-outage-is-held-to-a-longer-threshold.md) · **Decided:** 2026-07-06
 
 ## Context
 
