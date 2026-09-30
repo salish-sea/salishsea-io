@@ -1,7 +1,7 @@
 /**
  * The profile pages, prerendered from the read-path snapshot (decision 057).
  *
- *   EXPORT_DIR=… tsx scripts/read-path/profiles.ts <kind> <snapshot.duckdb> <dist>
+ *   EXPORT_DIR=… node scripts/read-path/profiles.ts <kind> <snapshot.duckdb> <dist>
  *
  * <kind> is individuals, matrilines, ecotypes or haulouts. Writes $EXPORT_DIR/profiles/<kind>/<id>.html
  * for every subject of that kind (<id> is its register identifier's seven digits, or a

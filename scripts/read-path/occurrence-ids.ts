@@ -2,7 +2,7 @@
  * The read path's id index: which Pacific day each occurrence is on, so a
  * `?o=<id>` link can be opened without asking the database (decision 056).
  *
- *   EXPORT_DIR=… tsx scripts/read-path/occurrence-ids.ts <snapshot.duckdb>
+ *   EXPORT_DIR=… node scripts/read-path/occurrence-ids.ts <snapshot.duckdb>
  *
  * Writes $EXPORT_DIR/ids/<shard>.json, `{"<id>": "YYYY-MM-DD", …}`, one file per
  * shard of src/read-path-shard.ts — the browser computes the same shard from the

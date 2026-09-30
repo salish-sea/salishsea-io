@@ -4,7 +4,7 @@
  * after each burst of changes. Runs on the Fly machine beside Caddy and the
  * hourly schedule, which stays as the backstop for a broadcast this missed.
  *
- *   SUPABASE_URL=… SUPABASE_PUBLISHABLE_KEY=… tsx scripts/read-path/listen.ts <build command>
+ *   SUPABASE_URL=… SUPABASE_PUBLISHABLE_KEY=… node scripts/read-path/listen.ts <build command>
  *
  * The broadcast is public, so the publishable key every browser has is enough;
  * the database credential stays with the build. Public also means anyone can

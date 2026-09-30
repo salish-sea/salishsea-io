@@ -1,7 +1,7 @@
 /**
  * The read path's manifest: what the last build covered (salish-t3g.4).
  *
- *   EXPORT_DIR=… tsx scripts/read-path/manifest.ts <snapshot.duckdb>
+ *   EXPORT_DIR=… node scripts/read-path/manifest.ts <snapshot.duckdb>
  *
  * Writes $EXPORT_DIR/manifest.json:
  *

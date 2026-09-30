@@ -2,7 +2,7 @@
  * Snapshot what a logged-out visitor reads, from Postgres into a local DuckDB
  * file (salish-t3g.1; the Stelis side is st-ml9 in the stelis repo).
  *
- *   SUPABASE_DB_URL=… tsx scripts/read-path/snapshot.ts <snapshot.duckdb>
+ *   SUPABASE_DB_URL=… node scripts/read-path/snapshot.ts <snapshot.duckdb>
  *
  * This is the ingestion boundary of the read-path build: everything downstream
  * reads the snapshot, never the database, so a build's inputs hold still while
