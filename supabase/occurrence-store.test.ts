@@ -195,8 +195,12 @@ describe.skipIf(!DSN)('derived.occurrences equals its derivation (local Supabase
 
     test('reference data marks the store stale, a no-op upsert does not, and refresh_all converges', async () => {
         const result = await rolledBack(sql, async (tx) => {
+            // Only this transaction's marks: marked_at defaults to now(), which is the
+            // transaction's start. Other test files commit reference-data writes while this
+            // one runs (taxon-resolution's taxa), and a count of the whole table saw theirs.
             const marks = async () =>
-                (await tx<{ n: number }[]>`SELECT count(*)::int AS n FROM derived.stale_marks`)[0]!.n;
+                (await tx<{ n: number }[]>`SELECT count(*)::int AS n FROM derived.stale_marks
+                                           WHERE marked_at = now()`)[0]!.n;
             await tx`DELETE FROM derived.stale_marks`;
             // The iNaturalist ingest's taxa upsert, every tick, changing nothing.
             await tx`INSERT INTO inaturalist.taxa SELECT * FROM inaturalist.taxa WHERE id = ${ORCA_TAXON} ON CONFLICT (id) DO NOTHING`;
