@@ -30,6 +30,45 @@ export type RegisterName = {
     readonly taxon_label: string | null;
 };
 
+/**
+ * The rows `buildNameIndex` reads, as SQL: each name the register publishes for a non-individual
+ * entity, with whether the entity is retired and the label of the taxon it belongs to. One
+ * text for both readers: the ingest runs it in Postgres (persist.ts `fetchNameIndex`), and
+ * the read-path build runs it in DuckDB over the snapshot's copy of the register
+ * (scripts/read-path/derive/maplify-entities.ts), so the two cannot read the register
+ * differently.
+ *
+ * Per entity first, then fanned out to its names, so the taxon lookup runs once per entity
+ * rather than once per name. Individuals are dropped here as well as in buildNameIndex (which
+ * owns the rule): they are most of the register, and a tick should not read 600 animals to
+ * discard them. The taxon comes from register.ancestor directly rather than
+ * register.taxon_entity_for, whose only extra is following a merge — and retired entities are
+ * never candidates. Measured on production: the per-name form cost 182 ms and 30,581 buffers
+ * every five minutes.
+ */
+export const NAME_INDEX_SQL = `
+    WITH ent AS (
+        SELECT e.entity_id, e.kind,
+               d.entity_id IS NOT NULL AS retired,
+               CASE WHEN e.kind = 'taxon' THEN e.label
+                    ELSE (SELECT t.label FROM register.ancestor a
+                           JOIN register.entities t ON t.entity_id = a.ancestor_id
+                           WHERE a.entity_id = e.entity_id AND a.ancestor_kind = 'taxon'
+                           ORDER BY a.depth LIMIT 1)
+               END AS taxon_label
+        FROM register.entities e
+        LEFT JOIN register.deprecations d ON d.entity_id = e.entity_id
+        WHERE e.kind <> 'individual'
+    ),
+    named AS (
+        SELECT entity_id, label AS name FROM register.entities
+        UNION ALL
+        SELECT entity_id, name FROM register.names
+    )
+    SELECT n.entity_id, n.name, ent.kind, ent.retired, ent.taxon_label
+    FROM named n
+    JOIN ent ON ent.entity_id = n.entity_id`;
+
 export type NameIndex = {
     readonly byFold: ReadonlyMap<string, ReadonlySet<string>>;
     readonly taxonLabel: ReadonlyMap<string, string | null>;

@@ -149,23 +149,29 @@ INSERT INTO maplify.sightings (
 -- Row B: trusted=FALSE → EXCLUDED from dwc.occurrences by WHERE s.trusted.
 --   Exercises the trust-filter branch: row is present in maplify.sightings
 --   but MUST NOT appear in dwc.occurrences (occurrenceID='maplify:2' count=0).
+--   Its collection is what the ingest would resolve for it (maplify.resolve_collection),
+--   as for every row here: the read-path build resolves it the same way from the rules
+--   and checks that against what is stored (decision 061).
 INSERT INTO maplify.sightings (
     id, project_id, trip_id, scientific_name,
     location, number_sighted, created_at,
     in_ocean, moderated, trusted, is_test,
-    source, entity_id
+    source, entity_id, collection_id
 ) VALUES (
     2, 100, 200, 'Orcinus orca',
     gis.ST_Point(-123.1, 48.6)::gis.geography,
     1, NOW() - INTERVAL '3 days',
     TRUE, 0, FALSE, FALSE,
     'whale_alert',
-    'SSA:0000900'
+    'SSA:0000900',
+    maplify.resolve_collection(NULL, 'whale_alert')
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Row C: trusted=TRUE, no bracket tag → recordedBy=NULL (regex returns NULL).
 --   collection_id=NULL (no org) → LEFT JOIN falls through to COALESCE fallback;
 --   Row C appears in dwc.occurrences but NOT in Step 15.5 associated-parties.
+--   NULL because no collection rule matches it, as the ingest would find: its source is
+--   one no rule names ('whale_alert' would resolve to Whale Alert).
 INSERT INTO maplify.sightings (
     id, project_id, trip_id, scientific_name,
     location, number_sighted, created_at,
@@ -176,7 +182,7 @@ INSERT INTO maplify.sightings (
     gis.ST_Point(-123.0, 48.7)::gis.geography,
     2, NOW() - INTERVAL '4 days',
     TRUE, 1, TRUE, FALSE,
-    'whale_alert',
+    'acartia',
     'Three orcas spotted near the rocks.',
     'SSA:0000900'
 ) ON CONFLICT (id) DO NOTHING;

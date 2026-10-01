@@ -15,6 +15,7 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 
 import { writeExtractions } from './derive/extract.ts';
+import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 
 export async function deriveOccurrences(snapshot: string): Promise<number> {
     const sql = await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8');
@@ -39,6 +40,7 @@ export async function deriveOccurrences(snapshot: string): Promise<number> {
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
         await writeExtractions(conn);
+        await writeMaplifyEntities(conn);
         await conn.run(sql);
         const reader = await conn.runAndReadAll('SELECT count(*) FROM build.occurrences');
         return Number(reader.getRows()[0]![0]);
