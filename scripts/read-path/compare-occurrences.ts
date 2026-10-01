@@ -16,6 +16,8 @@
 
 import { DuckDBInstance } from '@duckdb/node-api';
 
+import { budget } from './duckdb-budget.ts';
+
 const SHOWN = 5;
 
 type Doc = Record<string, unknown>;
@@ -41,11 +43,7 @@ export async function compare(snapshot: string): Promise<boolean> {
     try {
         // Measured on 63,720 occurrences: 262 MB peak RSS; at 96 MB DuckDB
         // runs out instead, which fails this task rather than the machine.
-        await conn.run(`SET memory_limit = '128MB'`);
-        // One thread, as the Fly machine has one CPU: DuckDB gives each thread its own
-        // buffers, so the limit above holds on a laptop only if this does too.
-        await conn.run('SET threads = 1');
-        await conn.run(`SET temp_directory = '${`${snapshot}.tmp`.replaceAll("'", "''")}'`);
+        await budget(conn, snapshot, '128MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         // Only pairs that might differ reach JavaScript. Postgres's text is spaced and
         // the build's isn't, so DuckDB minifies Postgres's first: two documents with the

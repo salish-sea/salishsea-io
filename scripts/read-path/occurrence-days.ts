@@ -21,6 +21,7 @@
 import { DuckDBInstance } from '@duckdb/node-api';
 import * as path from 'node:path';
 
+import { budget } from './duckdb-budget.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 
 /**
@@ -44,6 +45,12 @@ export async function writeDays(
     const conn = await db.connect();
     const counts = {files: 0, occurrences: 0};
     try {
+        // Measured on 63,762 occurrences: runs out at 64 MB; at 128 the process peaks at
+        // ~380 MB on macOS (366 on Fly uncapped). Most of that is outside DuckDB's budget,
+        // in node-api holding the sorted result: the same query peaks at 152 MB in the
+        // DuckDB CLI. Assembling each day's file in DuckDB instead (string_agg) was
+        // byte-identical but peaked at 854 MB, so the cap is what's taken here.
+        await budget(conn, snapshot, '128MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         // Streamed, a chunk of rows at a time, in day order: each day's file is
         // finished and written before the next day's rows are read. Reading every

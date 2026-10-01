@@ -16,6 +16,7 @@ import { readFile } from 'node:fs/promises';
 
 import { writeExtractions } from './derive/extract.ts';
 import { writeMaplifyEntities } from './derive/maplify-entities.ts';
+import { budget } from './duckdb-budget.ts';
 
 export async function deriveOccurrences(snapshot: string): Promise<number> {
     const sql = await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8');
@@ -27,11 +28,7 @@ export async function deriveOccurrences(snapshot: string): Promise<number> {
         // completes at 96; at 128 the process peaks at 324 MB on macOS, of which about
         // 115 is node and DuckDB before any query. Running out fails this task, loudly,
         // which is the failure to want here, rather than the machine thrashing.
-        await conn.run(`SET memory_limit = '128MB'`);
-        // One thread, as the Fly machine has one CPU: DuckDB gives each thread its own
-        // buffers, so the limit above holds on a laptop only if this does too.
-        await conn.run('SET threads = 1');
-        await conn.run(`SET temp_directory = '${`${snapshot}.tmp`.replaceAll("'", "''")}'`);
+        await budget(conn, snapshot, '128MB');
         // Postgres's session: timestamps rendered in UTC, text sorted by ICU's en-US.
         await conn.run(`INSTALL icu; LOAD icu; SET TimeZone = 'UTC'`);
         // The table's row order means nothing (readers order by observed_at and id),

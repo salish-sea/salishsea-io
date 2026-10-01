@@ -14,6 +14,8 @@
 
 import { DuckDBInstance } from '@duckdb/node-api';
 
+import { budget } from './duckdb-budget.ts';
+
 const SHOWN = 10;
 
 const COLUMNS = ['individual_id', 'social_group_id', 'observed_at', 'location_lon', 'location_lat'] as const;
@@ -22,9 +24,7 @@ export async function compare(snapshot: string): Promise<boolean> {
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
-        await conn.run(`SET memory_limit = '128MB'`);
-        await conn.run('SET threads = 1');
-        await conn.run(`SET temp_directory = '${`${snapshot}.tmp`.replaceAll("'", "''")}'`);
+        await budget(conn, snapshot, '128MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         const differing = COLUMNS.map(c => `p.${c} IS DISTINCT FROM b.${c}`).join(' OR ');
         await conn.run(`

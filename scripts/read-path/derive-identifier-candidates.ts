@@ -13,6 +13,8 @@
 import { DuckDBInstance } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 
+import { budget } from './duckdb-budget.ts';
+
 export async function deriveIdentifierCandidates(snapshot: string): Promise<number> {
     const sql = await readFile(new URL('./derive/identifier-candidates.sql', import.meta.url), 'utf8');
     const db = await DuckDBInstance.create(':memory:');
@@ -20,9 +22,7 @@ export async function deriveIdentifierCandidates(snapshot: string): Promise<numb
     try {
         // As derive-occurrences.ts: capped for the 1 GB Fly machine, spilling beside
         // the snapshot, one thread as Fly has.
-        await conn.run(`SET memory_limit = '128MB'`);
-        await conn.run('SET threads = 1');
-        await conn.run(`SET temp_directory = '${`${snapshot}.tmp`.replaceAll("'", "''")}'`);
+        await budget(conn, snapshot, '128MB');
         await conn.run('SET preserve_insertion_order = false');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');

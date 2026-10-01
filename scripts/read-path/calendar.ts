@@ -28,6 +28,7 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import * as path from 'node:path';
 
 import { REGIONS } from '../../src/constants.ts';
+import { budget } from './duckdb-budget.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 
 /** occurrence_days' own day. */
@@ -46,6 +47,9 @@ export async function writeCalendar(snapshot: string, exportDir: string): Promis
     const conn = await db.connect();
     const months = new Map<string, MonthCounts>();
     try {
+        // Measured on 63,762 occurrences: runs out at 32 MB, completes at 64; uncapped it
+        // peaked at 275 MB, and at 96 MB it peaks at 239.
+        await budget(conn, snapshot, '96MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         await conn.run(`
             CREATE TEMP TABLE located AS
