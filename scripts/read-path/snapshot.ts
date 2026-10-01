@@ -26,6 +26,8 @@
 
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 
+import { budget } from './duckdb-budget.ts';
+
 /**
  * What the pages publish: one relation per table, as documents. `query` runs
  * inside Postgres, so it is Postgres SQL; its result lands in DuckDB as
@@ -170,8 +172,7 @@ export async function main(): Promise<void> {
         // directory beside the snapshot instead, which it removes when done. Measured
         // there: 240 MB peak and a 50 MB spill, about 20 s slower. The rest is node
         // and the Postgres client holding each query's result.
-        await conn.run(`SET memory_limit = '64MB'`);
-        await conn.run(`SET temp_directory = '${`${out}.tmp`.replaceAll("'", "''")}'`);
+        await budget(conn, out, '64MB');
         await conn.run(`ATTACH '${out.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
         await conn.run('INSTALL postgres; LOAD postgres;');
