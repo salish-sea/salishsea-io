@@ -2,6 +2,8 @@
 
 **Research date:** 2026-09-30 · **Author:** research spike (AI-assisted) · **Status:** background/reference
 
+The rules compared in #445 can be rerun over current data with [`scripts/segments/compare.ts`](../../scripts/segments/compare.ts).
+
 ## Executive summary
 
 The tracking literature says our next rule should do four things the current one does not. It should let each sighting's own uncertainty, and the time since a track was last seen, set how far a join may reach. It should choose between candidate tracks by how probable the new sighting is under each, always counting "this is a different group" as one of the candidates. It should decide a whole day at once, so a later sighting can settle an earlier ambiguity. And it should treat a reported ecotype as a barrier and a reported pod or matriline as strong but fallible evidence. None of this needs a full multi-target tracker.
