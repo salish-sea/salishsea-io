@@ -231,18 +231,16 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
   LEFT JOIN public.collections col ON col.id = o.collection_id
   LEFT JOIN public.organizations org ON org.id = col.organization_id;
 
--- `(date + time) AT TIME ZONE zone`, as Postgres reads the zones Happywhale reports. An
--- IANA name is a zone. 'Z' is UTC. A bare offset like '-07:00' Postgres reads as a POSIX
--- zone, whose sign is the opposite of ISO 8601's: '-07:00' becomes seven hours EAST of
--- Greenwich, so these encounters are stored about fourteen hours from when they were
--- seen. Kept here so the port agrees with what Postgres stores; fixed in both together
--- (salish-tyse).
+-- derived.happywhale_instant(local_time, zone): an encounter's local date and time as an
+-- instant. Happywhale's zone is an IANA name, 'Z', or a bare ISO 8601 offset like
+-- '-07:00', which is subtracted: 13:01 at -07:00 is 20:01Z. (Postgres once read those
+-- offsets with POSIX's reversed sign, putting 582 sightings on the wrong day: salish-tyse.)
 CREATE OR REPLACE TEMP MACRO happywhale_instant(local_time, zone) AS
   CASE
     WHEN zone = 'Z' THEN timezone('UTC', local_time)
     WHEN regexp_full_match(zone, '[+-][0-9]{2}:[0-9]{2}') THEN
       timezone('UTC', local_time
-        + (CASE WHEN zone[1] = '-' THEN -1 ELSE 1 END)
+        - (CASE WHEN zone[1] = '-' THEN -1 ELSE 1 END)
           * (CAST(zone[2:3] AS INTEGER) * INTERVAL 1 HOUR + CAST(zone[5:6] AS INTEGER) * INTERVAL 1 MINUTE))
     ELSE timezone(zone, local_time)
   END;
