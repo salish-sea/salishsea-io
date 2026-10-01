@@ -71,7 +71,7 @@ The 14:56 point is a different question. Under the random-walk model, a gate tha
 - Southern Resident matrilines and pods associate preferentially, but cohesion varied across years and was lower in years of low salmon abundance (Parsons et al. 2009).
 - Matrilines can split permanently, "both along and across maternal lines" (Stredulinsky et al. 2021).
 
-**For us.** Ecotype is the one reported identity strong enough to forbid a join. A registered matriline says who belongs together over years and little about who was in a party at 14:56. **Justifies:** a cannot-link between sightings reported as different ecotypes, unless an editor's must-link overrides it; a score bonus for sightings naming the same pod or matriline and a smaller penalty for different ones; slower motion parameters for Bigg's than for residents (2.7).
+**For us.** Ecotype is the one reported identity strong enough to forbid a join. A registered matriline says who belongs together over years and little about who was in a party at 14:56. **Justifies:** a cannot-link between sightings reported as different ecotypes, unless a curator-validated must-link overrides it (how much an unvalidated claim counts is left open by [decision 062](../decisions/062-segment-edits-are-claims-about-sightings.md)); a score bonus for sightings naming the same pod or matriline and a smaller penalty for different ones; slower motion parameters for Bigg's than for residents (2.7).
 
 ### 2.5 Must-link and cannot-link
 
@@ -137,7 +137,7 @@ A sighting's position has two parts: where the observer was, which phone GPS now
 
 Miller (2006) estimated the **active space** of resident calls, the range at which other whales could hear them, at "10–16 km in sea state zero" for long-range calls and 5 to 9 km for others. Hydrophone detection ranges are shorter. Mouy, Austin, Wladichuk and Yurk (2025) modelled Southern Resident pulsed calls at eight stations around the southern Salish Sea: median detection ranges ran "from 650 m under the worst conditions ... to 7.9 km under the best conditions", longer in summer. Bigg's are harder to hear: "transients call less often than residents" (Myers et al. 2025; see also Deecke, Ford and Slater 2005).
 
-**For us.** An Orcasound bout places the animals within several kilometres of the hydrophone over a span of time. **Justifies:** a default radius of about 5 km, wider in winter; letting a bout match a track at any time in its span; treating silence as weak evidence about Bigg's.
+**For us.** An Orcasound bout places the animals within several kilometres of the hydrophone over a span of time. **Justifies:** a default radius of about 5 km, narrower in winter, when detection ranges are shorter and a detected group must have been closer to the hydrophone; letting a bout match a track at any time in its span; treating silence as weak evidence about Bigg's.
 
 ### 3.6 GPS and iNaturalist pins
 
