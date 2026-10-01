@@ -44,6 +44,7 @@ Tracked as bd issues; the durable statements:
 - Comprehensive catalog of individual Salish Sea cetaceans; occurrence records carry `organismID`; registration with GBIF/OBIS
 - **Computer-vision individual identification via Flukebook** (Wildbook) — automatically match a photographed sighting to known individuals, turning every photo into a candidate identification. A strategic differentiator; builds on the individuals catalog and identification model.
 - Inbound ingest of in-region GBIF records (mirror-image of SRC-01; must not re-import our own contributions)
+- **Editors can split and link travel segments.** No rule computed from sightings can get segments right every time: groups join up and split all day, individuals wander off, and what people on the water have worked out is often written in a narrative (a Facebook thread) rather than in any one sighting. Named identities make the computed segments better but don't settle membership. An edit is stored as a claim that two sightings are, or are not, the same animals, and segments stay derived ([decision 062](docs/decisions/062-segment-edits-are-claims-about-sightings.md)).
 
 ### Out of Scope
 

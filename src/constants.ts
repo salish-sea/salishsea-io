@@ -134,7 +134,12 @@ export const licenseCodes = Object.freeze({
 });
 
 /**
- * Scientific name -> mean travel speed in km/h.
+ * Scientific name -> typical travel speed in km/h.
+ *
+ * The 6.8 km/h orca speed came from Dave Bain, probably with some margin
+ * added; no publication is recorded for it, or for the 6.6 km/h Southern
+ * Resident figure. The segment rule also uses three times each figure as a
+ * maximum speed, though a typical speed and a maximum are different quantities.
  *
  * Absence is load-bearing. A taxon with no entry can never seed a travel
  * segment, which is how [027](../docs/decisions/027-marine-mammal-scope-whale-centric-identity.md)
