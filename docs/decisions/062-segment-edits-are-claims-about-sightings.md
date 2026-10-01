@@ -36,6 +36,7 @@ Segments stay derived. Whatever rule builds them takes the claims as input and m
 ## Open
 
 - Whether a validated claim is a hard constraint or very strong evidence that a rule weighs against everything else.
-- Whether a claim may link sightings on different days. Segments are drawn one day at a time today.
+- Whether a claim may link sightings on different days. Segments are drawn one day at a time today. Peter's lean (2026-09-30) is that days do need linking: if a group was near Olympia yesterday and nothing else was reported in Puget Sound, the group that turns up off Tacoma today is probably the same one. That inference rests on nothing else having been seen, so it is only as strong as the watching was.
+- How a claim says what it rests on. A moderator who labels a sighting as a group because that group was seen nearby earlier is repeating the inference a rule makes, not adding evidence. A rule that counted that label as independent support would be citing its own conclusion; tracking theory calls this *data incest*. The map can feed the loop as well, once people label sightings to match a line it drew. Claims, and identifications under 014, need to record whether they rest on direct evidence (a photo, a recognised animal, being there) or on circumstance (continuity, proximity, the map), so a rule can discount the second kind.
 - Who may assert a claim. The curator role in 014 is not built yet.
 - How splitting and linking look in the map.

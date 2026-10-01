@@ -134,7 +134,11 @@ export const licenseCodes = Object.freeze({
 });
 
 /**
- * Scientific name -> mean travel speed in km/h.
+ * Scientific name -> typical travel speed in km/h.
+ *
+ * The orca figures came from Dave Bain, probably with some margin added. The
+ * segment rule also uses three times the figure as a maximum speed, though a
+ * typical speed and a maximum are different quantities.
  *
  * Absence is load-bearing. A taxon with no entry can never seed a travel
  * segment, which is how [027](../docs/decisions/027-marine-mammal-scope-whale-centric-identity.md)

@@ -159,7 +159,7 @@ These came up and could not be confirmed from a primary source. No recommendatio
 - The salmon link in Parsons et al. (2009) and the foraging description in Baird and Dill (1995), both seen only in secondary summaries of the abstracts.
 - The Fellegi–Sunter decision rule in the 1969 original, read only through Winkler (1993).
 - That track coalescence is a general property of JPDA, inferred from Blom and Bloem's title and abstract summary.
-- The source of the 6.8 km/h orca travel speed in `src/constants.ts`, not researched. Williams and Noren (2009) measured a mean of 1.6 m/s (5.8 km/h) for travelling and foraging northern residents in Johnstone Strait.
+- The published basis for the 6.8 km/h orca travel speed in `src/constants.ts`. Peter reports that the figure came from Dave Bain, probably with some margin added; no publication was traced. Williams and Noren (2009) measured a mean of 1.6 m/s (5.8 km/h) for travelling and foraging northern residents in Johnstone Strait. The rule uses the figure both as a typical speed and, tripled, as a maximum, and those are different quantities.
 - How often iNaturalist uploaders move the pin to the animals. No data found.
 - The proposed defaults for Orca Network reports (1 to 2 km) and hydrophone detections (about 5 km) are this note's own inferences. I found no published values for these sources.
 
