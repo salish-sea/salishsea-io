@@ -8,7 +8,9 @@
 -- for row (compare-occurrences.ts). A fix goes into both, together.
 --
 -- Run by derive-occurrences.ts, which first sets TimeZone to UTC, loads ICU (text sorts
--- as Postgres's en-US ICU collation does: COLLATE en_us), and writes memory.extracted:
+-- as Postgres's en-US ICU collation does: COLLATE en_us), writes memory.maplify_entity
+-- (each Maplify name pair's register entity, derive/maplify-entities.ts), and writes
+-- memory.extracted:
 -- what extract_travel_direction and extract_identifiers answer for each source's text,
 -- computed in JavaScript because RE2 can't express their patterns (derive/extract.ts).
 -- Where a Postgres view calls one of them, the twin here joins that table.
@@ -148,7 +150,35 @@ CREATE OR REPLACE TEMP VIEW taxon_for AS
 -- is a composite of NULLs, not a NULL, when the geography is missing. Its doubles are
 -- exact here; the document rounds them (pg_lon_lat).
 
--- derived.maplify_occurrences
+-- maplify.resolve_collection(comments, source): which collection a Maplify sighting came
+-- through, by the curator-editable rules in maplify.collection_rule. A leading [bracket
+-- tag] first, then an attribution phrase anywhere in the comments, then Maplify's source
+-- code. Postgres leaves that precedence to the order of a UNION ALL under LIMIT 1, and
+-- the order among rules of one kind to chance; here both are explicit, the second by rule
+-- id. An attribution rule's value is a regular expression, run here by RE2 rather than
+-- Postgres; today's are all plain phrases, and the gate would name the first that isn't.
+-- Resolved in the build rather than read from the column the ingest wrote, so the mirror
+-- holds only what Maplify said (decision 061, salish-xv35.11).
+CREATE OR REPLACE TEMP VIEW maplify_collection AS
+  SELECT s.id,
+         coalesce(
+           (SELECT r.collection_id FROM maplify.collection_rule r
+             WHERE r.match_kind = 'bracket' AND regexp_matches(s.comments, '^\[([^\]]+)\]')
+               AND r.match_value = regexp_extract(s.comments, '^\[([^\]]+)\]', 1)
+             ORDER BY r.id LIMIT 1),
+           (SELECT r.collection_id FROM maplify.collection_rule r
+             WHERE r.match_kind = 'attribution' AND regexp_matches(s.comments, r.match_value)
+             ORDER BY r.id LIMIT 1),
+           (SELECT r.collection_id FROM maplify.collection_rule r
+             WHERE r.match_kind = 'source' AND r.match_value = s.source
+             ORDER BY r.id LIMIT 1)
+         ) AS collection_id
+  FROM maplify.sightings s;
+
+-- derived.maplify_occurrences. Its entity and collection are resolved here, not read from
+-- the mirror: the entity by the ingest's own resolveEntity, run first over each distinct
+-- (name, scientific name) pair into memory.maplify_entity (derive/maplify-entities.ts),
+-- and the collection by maplify_collection above.
 CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
   SELECT 'maplify:' || s.id AS id,
          CAST(NULL AS VARCHAR) AS url,
@@ -164,7 +194,7 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
               ELSE [] END AS photos,
          timezone('UTC', s.created_at) AS observed_at,
          CAST(NULL AS STRUCT(lat DOUBLE, lon DOUBLE)) AS observed_from,
-         {'entity_id': s.entity_id,
+         {'entity_id': me.entity_id,
           'species_id': t.species_id,
           'scientific_name': coalesce(t.scientific_name, s.scientific_name),
           'vernacular_name': coalesce(cn.name, t.vernacular_name)} AS taxon,
@@ -181,14 +211,17 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          CAST(NULL AS VARCHAR) AS certainty
   FROM maplify.sightings s
   LEFT JOIN memory.extracted xt ON xt.source = 'maplify' AND xt.key = CAST(s.id AS VARCHAR)
-  LEFT JOIN inaturalist_taxon xw ON xw.entity_id = s.entity_id
+  LEFT JOIN memory.maplify_entity me
+    ON me.name IS NOT DISTINCT FROM s.name AND me.scientific_name = s.scientific_name
+  LEFT JOIN maplify_collection mc ON mc.id = s.id
+  LEFT JOIN inaturalist_taxon xw ON xw.entity_id = me.entity_id
   LEFT JOIN taxa t_recorded ON t_recorded.id = xw.inaturalist_taxon_id
   LEFT JOIN taxa t ON t.id = coalesce(t_recorded.current_taxon_id, t_recorded.id)
-  LEFT JOIN entity_common_name cn ON cn.entity_id = s.entity_id
+  LEFT JOIN entity_common_name cn ON cn.entity_id = me.entity_id
   LEFT JOIN public.providers prov ON prov.id = s.provider_id
-  LEFT JOIN public.collections col ON col.id = s.collection_id
+  LEFT JOIN public.collections col ON col.id = mc.collection_id
   LEFT JOIN public.organizations org ON org.id = col.organization_id
-  WHERE NOT s.is_test AND s.entity_id IS NOT NULL;
+  WHERE NOT s.is_test AND me.entity_id IS NOT NULL;
 
 -- derived.inaturalist_occurrences
 CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
