@@ -46,6 +46,14 @@ const {values: args} = parseArgs({options: {
   refresh: {type: 'boolean', default: false},
 }});
 
+/** A real calendar date, YYYY-MM-DD. It goes into SQL and a cache file name, so nothing else is let through. */
+function calendarDate(flag: string, value: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).toISOString().startsWith(value)) return value;
+  throw new Error(`--${flag} must be a calendar date like 2026-09-03, not "${value}"`);
+}
+calendarDate('since', args.since);
+if (args.day) calendarDate('day', args.day);
+
 /** Run read-only SQL against production. The CLI prints JSON, sometimes after a status line. */
 function query(sql: string): Record<string, unknown>[] {
   let out: string;
