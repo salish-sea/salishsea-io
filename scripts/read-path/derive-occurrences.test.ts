@@ -5,7 +5,9 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, test } from 'vitest';
 
+import { compare as compareCandidates } from './compare-identifier-candidates.ts';
 import { compare, differences, sourceOf } from './compare-occurrences.ts';
+import { deriveIdentifierCandidates } from './derive-identifier-candidates.ts';
 import { deriveOccurrences } from './derive-occurrences.ts';
 
 describe('compare-occurrences', () => {
@@ -39,7 +41,7 @@ const DSN = process.env['SUPABASE_DB_URL'];
 // one of the five views without changing derive/occurrences.sql fails here, if the data
 // exercises the change, before it can fail the build's gate in production.
 describe.skipIf(!DSN)('the build derives what Postgres stores (local Supabase)', () => {
-    test('snapshot, derive, compare', async () => {
+    test('snapshot, derive, compare: occurrences, then their identifier candidates', async () => {
         const dir = await mkdtemp(path.join(tmpdir(), 'derive-occurrences-'));
         try {
             const snapshot = path.join(dir, 'snapshot.duckdb');
@@ -48,6 +50,8 @@ describe.skipIf(!DSN)('the build derives what Postgres stores (local Supabase)',
             });
             await deriveOccurrences(snapshot);
             expect(await compare(snapshot)).toBe(true);
+            await deriveIdentifierCandidates(snapshot);
+            expect(await compareCandidates(snapshot)).toBe(true);
         } finally {
             await rm(dir, {recursive: true, force: true});
         }

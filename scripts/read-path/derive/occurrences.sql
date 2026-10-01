@@ -28,9 +28,12 @@ CREATE OR REPLACE TEMP MACRO pg_ts(t) AS
 
 -- A float8 as Postgres renders it here: the database sets extra_float_digits = 0, so
 -- float8out prints %.15g (fifteen significant digits) and to_jsonb keeps that text.
--- Coordinates are the only floats in a document.
+-- Coordinates are the only floats in a document. Only the document is rounded: the
+-- views and build.occurrences hold the exact doubles, as derived.occurrences does,
+-- because the identifier candidates carry an occurrence's location unrounded.
 CREATE OR REPLACE TEMP MACRO pg_float(x) AS CAST(printf('%.15g', x) AS DOUBLE);
-CREATE OR REPLACE TEMP MACRO pg_lon_lat(lon, lat) AS {'lat': pg_float(lat), 'lon': pg_float(lon)};
+CREATE OR REPLACE TEMP MACRO pg_lon_lat(p) AS
+  CASE WHEN p IS NOT NULL THEN {'lat': pg_float(p.lat), 'lon': pg_float(p.lon)} END;
 
 -- An enum label's position in its type's declared order, for the two comparisons that
 -- use it.
@@ -142,7 +145,8 @@ CREATE OR REPLACE TEMP VIEW taxon_for AS
 -- --- The five sources --------------------------------------------------------------------
 -- Each the same columns as public.occurrences, in its order; the document is built from
 -- them at the end. `location` is never NULL: Postgres builds it as ROW(st_x, st_y), which
--- is a composite of NULLs, not a NULL, when the geography is missing.
+-- is a composite of NULLs, not a NULL, when the geography is missing. Its doubles are
+-- exact here; the document rounds them (pg_lon_lat).
 
 -- derived.maplify_occurrences
 CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
@@ -152,7 +156,7 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          s.comments AS body,
          CASE WHEN s.number_sighted >= 1 AND s.number_sighted <= 1000 THEN s.number_sighted END AS count,
          xt.direction,
-         pg_lon_lat(s.location_lon, s.location_lat) AS location,
+         {'lat': s.location_lat, 'lon': s.location_lon} AS location,
          CAST(NULL AS INTEGER) AS accuracy,
          CASE WHEN s.photo_url IS NOT NULL
               THEN [{'src': s.photo_url, 'thumb': CAST(NULL AS VARCHAR), 'license': CAST(NULL AS VARCHAR),
@@ -194,7 +198,7 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          o.description AS body,
          CAST(NULL AS INTEGER) AS count,
          xt.direction,
-         pg_lon_lat(o.location_lon, o.location_lat) AS location,
+         {'lat': o.location_lat, 'lon': o.location_lon} AS location,
          o.public_positional_accuracy AS accuracy,
          coalesce((
            SELECT list({'src': p.url, 'thumb': CAST(NULL AS VARCHAR), 'license': p.license,
@@ -257,7 +261,7 @@ CREATE OR REPLACE TEMP VIEW happywhale_occurrences AS
            e.comments) AS body,
          e.min_count AS count,
          xt.direction,
-         pg_lon_lat(e.location_lon, e.location_lat) AS location,
+         {'lat': e.location_lat, 'lon': e.location_lon} AS location,
          CASE e.accuracy WHEN 'GENERAL' THEN 161 WHEN 'APPROX' THEN 16 ELSE 2 END AS accuracy,
          coalesce((
            SELECT list({'src': m.url, 'thumb': m.thumb_url, 'license': CAST(NULL AS VARCHAR),
@@ -309,7 +313,7 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
          o.body,
          o.count,
          o.direction,
-         pg_lon_lat(o.subject_location_lon, o.subject_location_lat) AS location,
+         {'lat': o.subject_location_lat, 'lon': o.subject_location_lon} AS location,
          CAST(NULL AS INTEGER) AS accuracy,
          coalesce((
            SELECT list({'src': p.href, 'thumb': CAST(NULL AS VARCHAR), 'license': p.license_code,
@@ -318,7 +322,7 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
          ), []) AS photos,
          o.observed_at,
          CASE WHEN o.observer_location_lon IS NOT NULL OR o.observer_location_lat IS NOT NULL
-              THEN pg_lon_lat(o.observer_location_lon, o.observer_location_lat) END AS observed_from,
+              THEN {'lat': o.observer_location_lat, 'lon': o.observer_location_lon} END AS observed_from,
          {'entity_id': o.entity_id,
           'species_id': t.species_id,
           'scientific_name': t.scientific_name,
@@ -375,7 +379,7 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
          b.title AS body,
          CAST(NULL AS INTEGER) AS count,
          CAST(NULL AS VARCHAR) AS direction,
-         pg_lon_lat(b.location_lon, b.location_lat) AS location,
+         {'lat': b.location_lat, 'lon': b.location_lon} AS location,
          CAST(NULL AS INTEGER) AS accuracy,
          CAST([] AS STRUCT(src VARCHAR, thumb VARCHAR, license VARCHAR, mimetype VARCHAR, attribution VARCHAR)[]) AS photos,
          b.started_at AS observed_at,
@@ -405,7 +409,9 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
   WHERE tx.taxon_entity_id IS NOT NULL;
 
 -- --- The store ---------------------------------------------------------------------------
--- As snapshot.occurrences holds Postgres's: id, observed_at, and the document. The
+-- As snapshot.occurrences holds Postgres's: id, observed_at, and the document; and, as
+-- derived.occurrences holds them, the source, the identifiers and the exact location,
+-- which the identifier candidates read (derive/identifier-candidates.sql). The
 -- document's keys are in jsonb's order (shorter keys first, then bytewise), which is the
 -- order Postgres stores them in, so the files built from it keep their key order.
 -- One source at a time rather than one UNION ALL, so only one source's joins and photo
@@ -420,7 +426,7 @@ CREATE OR REPLACE TEMP MACRO occurrence_doc(o) AS CAST(to_json({
            'taxon': o.taxon,
            'photos': o.photos,
            'accuracy': o.accuracy,
-           'location': o.location,
+           'location': pg_lon_lat(o.location),
            'observer': o.observer,
            'provider': o.provider,
            'certainty': o.certainty,
@@ -431,15 +437,22 @@ CREATE OR REPLACE TEMP MACRO occurrence_doc(o) AS CAST(to_json({
            'identifiers': o.identifiers,
            'observed_at': pg_ts(o.observed_at),
            'organization': o.organization,
-           'observed_from': o.observed_from,
+           'observed_from': pg_lon_lat(o.observed_from),
            'provider_slug': o.provider_slug,
            'contributor_id': o.contributor_id,
            'observed_until': pg_ts(o.observed_until),
            'organization_url': o.organization_url
          }) AS VARCHAR);
-CREATE OR REPLACE TABLE build.occurrences (id VARCHAR, observed_at TIMESTAMPTZ, doc VARCHAR);
-INSERT INTO build.occurrences SELECT id, observed_at, occurrence_doc(o) FROM maplify_occurrences o;
-INSERT INTO build.occurrences SELECT id, observed_at, occurrence_doc(o) FROM inaturalist_occurrences o;
-INSERT INTO build.occurrences SELECT id, observed_at, occurrence_doc(o) FROM happywhale_occurrences o;
-INSERT INTO build.occurrences SELECT id, observed_at, occurrence_doc(o) FROM native_occurrences o;
-INSERT INTO build.occurrences SELECT id, observed_at, occurrence_doc(o) FROM orcasound_occurrences o;
+CREATE OR REPLACE TABLE build.occurrences (
+  id VARCHAR, observed_at TIMESTAMPTZ, doc VARCHAR,
+  source VARCHAR, identifiers VARCHAR[], location STRUCT(lat DOUBLE, lon DOUBLE));
+INSERT INTO build.occurrences
+  SELECT id, observed_at, occurrence_doc(o), 'maplify', identifiers, location FROM maplify_occurrences o;
+INSERT INTO build.occurrences
+  SELECT id, observed_at, occurrence_doc(o), 'inaturalist', identifiers, location FROM inaturalist_occurrences o;
+INSERT INTO build.occurrences
+  SELECT id, observed_at, occurrence_doc(o), 'happywhale', identifiers, location FROM happywhale_occurrences o;
+INSERT INTO build.occurrences
+  SELECT id, observed_at, occurrence_doc(o), 'native', identifiers, location FROM native_occurrences o;
+INSERT INTO build.occurrences
+  SELECT id, observed_at, occurrence_doc(o), 'orcasound', identifiers, location FROM orcasound_occurrences o;

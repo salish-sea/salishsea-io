@@ -1,7 +1,7 @@
-import { DuckDBInstance } from '@duckdb/node-api';
-import { readFile } from 'node:fs/promises';
 import postgres from 'postgres';
 import { describe, expect, test } from 'vitest';
+
+import { withMacros } from './sql-macros.ts';
 
 /**
  * A Happywhale encounter's local time and zone, as an instant (salish-tyse): Postgres's
@@ -24,19 +24,11 @@ const CASES: [string, string][] = [
     ['2025-06-01 23:59:59', 'Pacific/Honolulu'],
 ];
 
-/** The twin, as the SQL defines it: only the macros of derive/occurrences.sql, in an empty database. */
+/** The twin, as derive/occurrences.sql defines it. */
 async function twin(): Promise<(local: string, zone: string) => Promise<string>> {
-    const sql = await readFile(new URL('./occurrences.sql', import.meta.url), 'utf8');
-    const macros = sql.split(/;\s*\n/).map(s => s.replace(/^(\s*--.*\n)*/, '')).filter(s => s.startsWith('CREATE OR REPLACE TEMP MACRO'));
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    await conn.run(`INSTALL icu; LOAD icu; SET TimeZone = 'UTC'`);
-    for (const macro of macros) await conn.run(macro);
-    return async (local, zone) => {
-        const reader = await conn.runAndReadAll(
-            `SELECT pg_ts(happywhale_instant(CAST($local AS TIMESTAMP), $zone))`, {local, zone});
-        return reader.getRows()[0]![0] as string;
-    };
+    const query = await withMacros('occurrences.sql');
+    return async (local, zone) =>
+        await query(`SELECT pg_ts(happywhale_instant(CAST($local AS TIMESTAMP), $zone))`, {local, zone}) as string;
 }
 
 describe('the twin', () => {
