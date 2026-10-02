@@ -29,7 +29,7 @@ import type {
     NormalizedTaxon,
     ObservationReconcilePlan,
 } from './inaturalist.ts';
-import type { ReconcilePlan as BoutReconcilePlan } from './orcasound.ts';
+import { boutRows, type ReconcilePlan as BoutReconcilePlan } from './orcasound.ts';
 
 export type IngestWindow = {
     /** inclusive start date, 'YYYY-MM-DD' */
@@ -601,11 +601,6 @@ export async function fetchAcousticBoutIds(sql: Sql): Promise<string[]> {
     return rows.map((r) => r.id);
 }
 
-type BoutPayloadRow = {
-    id: string; feed_id: string; feed_name: string; lon: number; lat: number;
-    started_at: string; ended_at: string | null; title: string | null;
-};
-
 /**
  * Apply a reconcile plan for the whole Orcasound corpus atomically.
  *
@@ -622,11 +617,7 @@ export async function persistOrcasound(
     plan: BoutReconcilePlan,
     opts: { readonly dryRun?: boolean } = {},
 ): Promise<OrcasoundPersistResult> {
-    const payload: BoutPayloadRow[] = plan.upsert.map((b) => ({
-        id: b.id, feed_id: b.feedId, feed_name: b.feedName, lon: b.lon, lat: b.lat,
-        started_at: b.startedAt, ended_at: b.endedAt, title: b.title,
-    }));
-    const pairs = plan.upsert.flatMap((b) => b.entities.map((e) => ({ bout_id: b.id, entity_id: e.entityId, certainty: e.certainty })));
+    const {bouts: payload, entities: pairs} = boutRows(plan.upsert);
     const upsertIds = plan.upsert.map((b) => b.id);
     const deleteIds = plan.delete;
 

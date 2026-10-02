@@ -43,4 +43,4 @@ Until then, this record is what the branch does. `salish-8vr.4` closed on 2026-0
 
 ## Reference
 
-Ingest: [scripts/ingest/orcasound.ts](../../scripts/ingest/orcasound.ts), [supabase/functions/ingest/fetch-orcasound.ts](../../supabase/functions/ingest/fetch-orcasound.ts), `persistOrcasound` in [scripts/ingest/persist.ts](../../scripts/ingest/persist.ts). Migration: `supabase/migrations/20260925120000_orcasound_ingest.sql`. Tests: `scripts/ingest/orcasound.test.ts`, `supabase/acoustic-occurrences.test.ts`. Tracking: `salish-8vr.26`, `salish-8vr.4`.
+Ingest: [scripts/ingest/orcasound.ts](../../scripts/ingest/orcasound.ts), [scripts/ingest/fetch-orcasound.ts](../../scripts/ingest/fetch-orcasound.ts), `persistOrcasound` in [scripts/ingest/persist.ts](../../scripts/ingest/persist.ts). Migration: `supabase/migrations/20260925120000_orcasound_ingest.sql`. Tests: `scripts/ingest/orcasound.test.ts`, `supabase/acoustic-occurrences.test.ts`. Tracking: `salish-8vr.26`, `salish-8vr.4`.
