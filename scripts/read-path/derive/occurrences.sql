@@ -9,11 +9,11 @@
 --
 -- Run by derive-occurrences.ts, which first sets TimeZone to UTC, loads ICU (text sorts
 -- as Postgres's en-US ICU collation does: COLLATE en_us), runs derive/shared.sql, writes
--- memory.maplify_entity (each Maplify name pair's register entity,
--- derive/maplify-entities.ts), and writes memory.extracted: what extract_travel_direction
--- and extract_identifiers answer for each source's text, computed in JavaScript because
--- RE2 can't express their patterns (derive/extract.ts). Where a Postgres view calls one
--- of them, the twin here joins that table.
+-- memory.maplify_entity (each Maplify name pair's register entity, and with it
+-- memory.maplify_out_of_scope, derive/maplify-entities.ts), and writes memory.extracted:
+-- what extract_travel_direction and extract_identifiers answer for each source's text,
+-- computed in JavaScript because RE2 can't express their patterns (derive/extract.ts).
+-- Where a Postgres view calls one of them, the twin here joins that table.
 
 -- --- Shared shapes ---------------------------------------------------------------------
 
@@ -187,7 +187,11 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
   LEFT JOIN public.providers prov ON prov.id = s.provider_id
   LEFT JOIN public.collections col ON col.id = mc.collection_id
   LEFT JOIN public.organizations org ON org.id = col.organization_id
-  WHERE NOT s.is_test AND me.entity_id IS NOT NULL;
+  WHERE NOT s.is_test AND me.entity_id IS NOT NULL
+    -- Out of the map's scope by the ingest's isIngestable, decided in the build because
+    -- the mirror keeps all Maplify returned (salish-xv35.7). Against Postgres's store,
+    -- which the ingest already filtered, nothing is: 0 of 28,611 on 2026-10-02.
+    AND s.id NOT IN (SELECT id FROM memory.maplify_out_of_scope);
 
 -- derived.inaturalist_occurrences
 CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS

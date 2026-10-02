@@ -4,8 +4,10 @@
  * Effectful: builds the request, fetches, and retries transient failures using
  * the pure policy in scripts/ingest/retry.ts. Returns the parsed JSON body on a
  * 2xx, or throws after MAX_ATTEMPTS. A non-retryable status (e.g. 403) throws
- * immediately. The caller (index.ts) turns any throw into a `failed` ingest.runs
- * row and writes nothing — upholding decision 011's "abort on a failed fetch".
+ * immediately. Two callers, and both write nothing on a throw — decision 011's "abort
+ * on a failed fetch": the Supabase function (supabase/functions/ingest/index.ts), which
+ * records a `failed` ingest.runs row, and the read-path build's own ingest
+ * (scripts/read-path/ingest-maplify.ts, decision 061), which fails its task.
  */
 
 import {
@@ -14,9 +16,9 @@ import {
     parseRetryAfter,
     isRetryableStatus,
     markTransientUpstream,
-} from '../../../scripts/ingest/retry.ts';
-import type { IngestWindow } from '../../../scripts/ingest/persist.ts';
-import { acartiaExtent } from '../../../src/extents.ts';
+} from './retry.ts';
+import type { IngestWindow } from './persist.ts';
+import { acartiaExtent } from '../../src/extents.ts';
 
 // The fetch reaches the whole Southern Resident range (Acartia's boundaries),
 // not just the Salish Sea: killer whales are consumed range-wide, everything
@@ -38,8 +40,8 @@ function bodySnippet(text: string, max = 200): string {
 // each attempt so a hang becomes a retryable AbortError instead.
 const FETCH_TIMEOUT_MS = 15_000;
 
-export type { Logger } from '../../../scripts/ingest/log.ts';
-import type { Logger } from '../../../scripts/ingest/log.ts';
+export type { Logger } from './log.ts';
+import type { Logger } from './log.ts';
 
 export async function fetchMaplify(window: IngestWindow, log: Logger): Promise<unknown> {
     const url = `${MAPLIFY_URL}?start=${window.start}&end=${window.end}&BBOX=${BBOX}`;

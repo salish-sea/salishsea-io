@@ -1,0 +1,138 @@
+import { readFileSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import * as path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import postgres from 'postgres';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+
+import { isIngestable, parseMaplifyResponse, reconcile, type NormalizedSighting } from '../ingest/maplify.ts';
+import { persistMaplify, type IngestWindow } from '../ingest/persist.ts';
+import { buildNameIndex } from '../register/name-index.ts';
+import { mirrorRow, reconcileWindow, windowDays, type MirrorRow } from './ingest-maplify.ts';
+
+/**
+ * What Maplify returned on 2026-07-05 (scripts/ingest/fixtures/maplify-sample.json), six
+ * sightings, with wras's Salish Sea humpback relabelled as Whale Alert's so that both of
+ * scope's rules keep one: an orca, and a humpback inside the Salish Sea. Out of scope stay
+ * a blue and a humpback whale off California, and wras's killer whale (an excluded
+ * source). Ids are moved into a range a database that mirrors production can't hold.
+ */
+function fetched(): NormalizedSighting[] {
+    const raw = JSON.parse(readFileSync(path.join(import.meta.dirname, '../ingest/fixtures/maplify-sample.json'), 'utf8'));
+    const parsed = parseMaplifyResponse(raw);
+    if (!parsed.ok) throw new Error(parsed.error);
+    return parsed.sightings.map(s => ({
+        ...s,
+        id: s.id + 920_000_000,
+        source: s.id === 238140 ? 'whale_alert' : s.source,
+    }));
+}
+
+const WINDOW: IngestWindow = {start: '2026-06-26', end: '2026-07-05'};
+
+/** A constructed register edition, as persist.test.ts has: CI loads none. */
+const taxon = (entity_id: string, name: string, taxon_label: string) =>
+    ({entity_id, name, kind: 'taxon', retired: false, taxon_label});
+const INDEX = buildNameIndex([
+    taxon('SSA:0000900', 'Orcinus orca', 'Orcinus orca'),
+    taxon('SSA:0000900', 'Orca', 'Orcinus orca'),
+    taxon('SSA:0000999', 'Balaenoptera musculus', 'Balaenoptera musculus'),
+]);
+
+const rowsOf = (file: string): MirrorRow[] => {
+    const db = new DatabaseSync(file, {readOnly: true});
+    try {
+        return db.prepare('SELECT * FROM sightings ORDER BY id').all() as unknown as MirrorRow[];
+    } finally {
+        db.close();
+    }
+};
+
+describe('the mirror', () => {
+    let dir: string;
+    beforeAll(async () => { dir = await mkdtemp(path.join(tmpdir(), 'maplify-mirror-')); });
+    afterAll(async () => { await rm(dir, {recursive: true, force: true}); });
+
+    test('holds every sighting fetched, in scope or not', () => {
+        const mirror = path.join(dir, 'all.sqlite');
+        const sightings = fetched();
+        expect(sightings.filter(s => isIngestable(s, INDEX))).toHaveLength(2);
+        expect(reconcileWindow(mirror, WINDOW, sightings)).toEqual({upserted: 6, deleted: 0, changed: 6});
+        expect(rowsOf(mirror)).toEqual(sightings.map(mirrorRow).sort((a, b) => a.id - b.id));
+    });
+
+    test('a window fetched again unchanged writes nothing', () => {
+        const mirror = path.join(dir, 'again.sqlite');
+        reconcileWindow(mirror, WINDOW, fetched());
+        expect(reconcileWindow(mirror, WINDOW, fetched())).toEqual({upserted: 6, deleted: 0, changed: 0});
+    });
+
+    test('reconciles within the window: an edit is written, a sighting gone from the window deleted, others kept', () => {
+        const mirror = path.join(dir, 'reconcile.sqlite');
+        const [first, ...rest] = fetched();
+        const before: NormalizedSighting = {...first!, id: 920_000_001, createdAt: '2026-06-01 12:00:00'};
+        reconcileWindow(mirror, {start: '2026-06-01', end: '2026-06-01'}, [before]);
+        reconcileWindow(mirror, WINDOW, [first!, ...rest]);
+        const edited = {...rest[0]!, comments: 'edited upstream'};
+        const result = reconcileWindow(mirror, WINDOW, [edited, ...rest.slice(1)]);
+        expect(result).toEqual({upserted: 5, deleted: 1, changed: 2});
+        const ids = rowsOf(mirror).map(r => r.id);
+        expect(ids).not.toContain(first!.id);
+        expect(ids).toContain(before.id);   // outside the window: not this fetch's to delete
+        expect(rowsOf(mirror).find(r => r.id === edited.id)?.comments).toBe('edited upstream');
+    });
+
+    test('records the days it covered', () => {
+        const mirror = path.join(dir, 'days.sqlite');
+        reconcileWindow(mirror, WINDOW, []);
+        const db = new DatabaseSync(mirror, {readOnly: true});
+        const days = (db.prepare('SELECT day FROM covered_days ORDER BY day').all() as {day: string}[]).map(r => r.day);
+        db.close();
+        expect(days).toEqual(windowDays(WINDOW));
+        expect(days).toHaveLength(10);
+    });
+
+    test('a window is its days, both ends included, across a month', () => {
+        expect(windowDays({start: '2026-06-29', end: '2026-07-02'})).toEqual(['2026-06-29', '2026-06-30', '2026-07-01', '2026-07-02']);
+    });
+});
+
+const DSN = process.env['SUPABASE_DB_URL'];
+
+// The guarantee the live report can't give (it races two fetches): for the same response,
+// the mirror's in-scope sightings are what Postgres's ingest stores, field for field.
+describe.skipIf(!DSN)('the mirror stores what Postgres stores (local Supabase)', () => {
+    let sql: ReturnType<typeof postgres>;
+    let dir: string;
+    beforeAll(async () => {
+        sql = postgres(DSN as string, {max: 1});
+        dir = await mkdtemp(path.join(tmpdir(), 'maplify-equivalence-'));
+    });
+    afterAll(async () => {
+        await sql`DELETE FROM maplify.sightings WHERE id >= 920000000 AND id < 930000000`;
+        await sql.end();
+        await rm(dir, {recursive: true, force: true});
+    });
+
+    test('for the recorded response', async () => {
+        const sightings = fetched();
+        // Postgres's ingest, as the Supabase function runs it: scope first, then reconcile.
+        await persistMaplify(sql, reconcile(sightings.filter(s => isIngestable(s, INDEX)), []), WINDOW, INDEX);
+        await sql`SET extra_float_digits = 3`;
+        const stored = await sql<MirrorRow[]>`
+            SELECT id, project_id, trip_id, name, scientific_name,
+                   gis.st_x(location::gis.geometry) AS lon, gis.st_y(location::gis.geometry) AS lat,
+                   number_sighted, to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+                   photo_url, comments, in_ocean::int AS in_ocean, moderated, trusted::int AS trusted,
+                   is_test::int AS is_test, source, usernm
+            FROM maplify.sightings WHERE id >= 920000000 AND id < 930000000 ORDER BY id`;
+
+        const mirror = path.join(dir, 'maplify.sqlite');
+        reconcileWindow(mirror, WINDOW, sightings);
+        const inScope = rowsOf(mirror).filter(r => isIngestable(
+            {name: r.name, scientificName: r.scientific_name, lon: r.lon, lat: r.lat, source: r.source} as NormalizedSighting, INDEX));
+        expect(inScope).toEqual(stored.map(r => ({...r})));
+        expect(stored).toHaveLength(2);
+    });
+});
