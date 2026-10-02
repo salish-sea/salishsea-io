@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { boutRows, parseBoutsPage, reconcile, type NormalizedBout } from '../ingest/orcasound.ts';
 import { persistOrcasound } from '../ingest/persist.ts';
 import { changedBouts, readMirror, sameRows, writeMirror, type MirrorRows } from './ingest-orcasound.ts';
+import { rolledBack } from './rolled-back.ts';
 
 /**
  * The corpus orcasite returned on 2026-09-27 (scripts/ingest/fixtures/orcasound-bouts.json),
@@ -86,25 +87,30 @@ describe.skipIf(!DSN)('the mirror stores what Postgres stores (local Supabase)',
         dir = await mkdtemp(path.join(tmpdir(), 'orcasound-equivalence-'));
     });
     afterAll(async () => {
-        await sql`DELETE FROM public.acoustic_bouts WHERE id LIKE 'bout_TEST%'`;
         await sql.end();
         await rm(dir, {recursive: true, force: true});
     });
 
     test('for the recorded corpus', async () => {
         const bouts = corpus();
-        await persistOrcasound(sql, {upsert: bouts, delete: []});
-        // The database sends doubles as 15-digit text (extra_float_digits = 0), which parses
-        // to a neighbouring double; ask for the exact one, which is what Postgres holds.
-        await sql`SET extra_float_digits = 3`;
-        const stored = await sql<{id: string, feed_id: string, feed_name: string, lon: number, lat: number,
-                                  started_at: Date, ended_at: Date | null, title: string | null}[]>`
-            SELECT id, feed_id, feed_name, gis.st_x(location::gis.geometry) AS lon, gis.st_y(location::gis.geometry) AS lat,
-                   started_at, ended_at, title
-            FROM public.acoustic_bouts WHERE id LIKE 'bout_TEST%' ORDER BY id`;
-        const claims = await sql<{bout_id: string, entity_id: string, certainty: string | null}[]>`
-            SELECT bout_id, entity_id, certainty::text AS certainty
-            FROM public.acoustic_bout_entities WHERE bout_id LIKE 'bout_TEST%' ORDER BY bout_id, entity_id`;
+        // Written inside a transaction that is always rolled back (rolled-back.ts), so no
+        // other test file running beside this one ever sees these bouts.
+        const {stored, claims} = await rolledBack(sql, async (nested, tx) => {
+            await persistOrcasound(nested, {upsert: bouts, delete: []});
+            // The database sends doubles as 15-digit text (extra_float_digits = 0), which
+            // parses to a neighbouring double; ask for the exact one, which is what Postgres holds.
+            await tx`SET LOCAL extra_float_digits = 3`;
+            return {
+                stored: [...await tx<{id: string, feed_id: string, feed_name: string, lon: number, lat: number,
+                                      started_at: Date, ended_at: Date | null, title: string | null}[]>`
+                    SELECT id, feed_id, feed_name, gis.st_x(location::gis.geometry) AS lon, gis.st_y(location::gis.geometry) AS lat,
+                           started_at, ended_at, title
+                    FROM public.acoustic_bouts WHERE id LIKE 'bout_TEST%' ORDER BY id`],
+                claims: [...await tx<{bout_id: string, entity_id: string, certainty: string | null}[]>`
+                    SELECT bout_id, entity_id, certainty::text AS certainty
+                    FROM public.acoustic_bout_entities WHERE bout_id LIKE 'bout_TEST%' ORDER BY bout_id, entity_id`],
+            };
+        });
 
         const mirrorPath = path.join(dir, 'orcasound.sqlite');
         await writeMirror(mirrorPath, boutRows(bouts));

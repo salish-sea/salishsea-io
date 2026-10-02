@@ -10,6 +10,7 @@ import { isIngestable, parseMaplifyResponse, reconcile, type NormalizedSighting 
 import { persistMaplify, type IngestWindow } from '../ingest/persist.ts';
 import { buildNameIndex } from '../register/name-index.ts';
 import { mirrorRow, reconcileWindow, windowDays, type MirrorRow } from './ingest-maplify.ts';
+import { rolledBack } from './rolled-back.ts';
 
 /**
  * What Maplify returned on 2026-07-05 (scripts/ingest/fixtures/maplify-sample.json), six
@@ -102,6 +103,9 @@ const DSN = process.env['SUPABASE_DB_URL'];
 
 // The guarantee the live report can't give (it races two fetches): for the same response,
 // the mirror's in-scope sightings are what Postgres's ingest stores, field for field.
+//
+// Written inside a transaction that is always rolled back (rolled-back.ts), so no other
+// test file running beside this one ever sees these rows.
 describe.skipIf(!DSN)('the mirror stores what Postgres stores (local Supabase)', () => {
     let sql: ReturnType<typeof postgres>;
     let dir: string;
@@ -110,23 +114,24 @@ describe.skipIf(!DSN)('the mirror stores what Postgres stores (local Supabase)',
         dir = await mkdtemp(path.join(tmpdir(), 'maplify-equivalence-'));
     });
     afterAll(async () => {
-        await sql`DELETE FROM maplify.sightings WHERE id >= 920000000 AND id < 930000000`;
         await sql.end();
         await rm(dir, {recursive: true, force: true});
     });
 
     test('for the recorded response', async () => {
         const sightings = fetched();
-        // Postgres's ingest, as the Supabase function runs it: scope first, then reconcile.
-        await persistMaplify(sql, reconcile(sightings.filter(s => isIngestable(s, INDEX)), []), WINDOW, INDEX);
-        await sql`SET extra_float_digits = 3`;
-        const stored = await sql<MirrorRow[]>`
-            SELECT id, project_id, trip_id, name, scientific_name,
-                   gis.st_x(location::gis.geometry) AS lon, gis.st_y(location::gis.geometry) AS lat,
-                   number_sighted, to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
-                   photo_url, comments, in_ocean::int AS in_ocean, moderated, trusted::int AS trusted,
-                   is_test::int AS is_test, source, usernm
-            FROM maplify.sightings WHERE id >= 920000000 AND id < 930000000 ORDER BY id`;
+        const stored = await rolledBack(sql, async (nested, tx) => {
+            // Postgres's ingest, as the Supabase function runs it: scope first, then reconcile.
+            await persistMaplify(nested, reconcile(sightings.filter(s => isIngestable(s, INDEX)), []), WINDOW, INDEX);
+            await tx`SET LOCAL extra_float_digits = 3`;
+            return [...await tx<MirrorRow[]>`
+                SELECT id, project_id, trip_id, name, scientific_name,
+                       gis.st_x(location::gis.geometry) AS lon, gis.st_y(location::gis.geometry) AS lat,
+                       number_sighted, to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+                       photo_url, comments, in_ocean::int AS in_ocean, moderated, trusted::int AS trusted,
+                       is_test::int AS is_test, source, usernm
+                FROM maplify.sightings WHERE id >= 920000000 AND id < 930000000 ORDER BY id`];
+        });
 
         const mirror = path.join(dir, 'maplify.sqlite');
         reconcileWindow(mirror, WINDOW, sightings);
@@ -134,5 +139,7 @@ describe.skipIf(!DSN)('the mirror stores what Postgres stores (local Supabase)',
             {name: r.name, scientificName: r.scientific_name, lon: r.lon, lat: r.lat, source: r.source} as NormalizedSighting, INDEX));
         expect(inScope).toEqual(stored.map(r => ({...r})));
         expect(stored).toHaveLength(2);
+        const [left] = await sql<{n: number}[]>`SELECT count(*)::int AS n FROM maplify.sightings WHERE id >= 920000000 AND id < 930000000`;
+        expect(left?.n, 'and nothing was left behind').toBe(0);
     });
 });
