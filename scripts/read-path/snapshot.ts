@@ -28,6 +28,9 @@ import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 
 import { budget } from './duckdb-budget.ts';
 
+/** The frontend's day and year, as in occurrence-days.ts. */
+const DAY_ZONE = 'PST8PDT';
+
 /**
  * What the pages publish: one relation per table, as documents. `query` runs
  * inside Postgres, so it is Postgres SQL; its result lands in DuckDB as
@@ -207,6 +210,14 @@ export async function main(): Promise<void> {
         // relation, so that it moving every build does not move the occurrences'
         // digest and defeat Stelis's early cutoff.
         await read(conn, 'snapshot.meta', 'select now() as taken_at');
+        // The Pacific year it was taken in, which is all a profile page reads of when:
+        // the newest year its presence table shows. Its own relation for the same reason
+        // as meta (salish-xv35.12): taken_at moves every build and the year once a year,
+        // so the pages, reading only this, skip a build that changed nothing they show.
+        await conn.run(
+            `CREATE OR REPLACE TABLE store.snapshot.year AS
+             SELECT year(timezone('${DAY_ZONE}', taken_at))::INTEGER AS year FROM store.snapshot.meta`,
+        );
         for (const {name, query} of PUBLISHED)
             await read(conn, `snapshot.${name}`, query);
         for (const {table, columns} of DERIVED_FROM)

@@ -6,9 +6,6 @@
 
 import { DuckDBInstance } from '@duckdb/node-api';
 
-/** The frontend's day and year, as in occurrence-days.ts. */
-const DAY_ZONE = 'PST8PDT';
-
 // Snapshot documents, as Postgres serialized them. Loosely typed here and narrowed by
 // what assembly builds from them, which the pages' types check.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,8 +46,9 @@ export async function readSnapshot<R>(snapshot: string, read: (s: Snapshot) => P
                 return tables;
             },
             async year() {
-                const reader = await conn.runAndReadAll(
-                    `SELECT year(timezone('${DAY_ZONE}', taken_at))::INTEGER FROM store.snapshot.meta`);
+                // Written by snapshot.ts beside snapshot.meta, so a page reads the year and
+                // not the moment, and a build in the same year leaves the pages' inputs be.
+                const reader = await conn.runAndReadAll('SELECT year FROM store.snapshot.year');
                 return (reader.getRows() as [number][])[0]![0];
             },
         });
