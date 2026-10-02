@@ -6,9 +6,9 @@
  *
  * Writes `build.occurrences` into the snapshot: id, observed_at and the document,
  * the shape of `snapshot.occurrences`, which holds Postgres's answer. The SQL is
- * derive/occurrences.sql, twins of the five Postgres views; the two text
- * extractions they call run first, as JavaScript (derive/extract.ts). compare-occurrences.ts
- * checks the result against Postgres's.
+ * derive/occurrences.sql, twins of the five Postgres views, after derive/shared.sql;
+ * the two text extractions they call run first, as JavaScript (derive/extract.ts).
+ * compare-occurrences.ts checks the result against Postgres's.
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
@@ -19,6 +19,7 @@ import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 import { budget } from './duckdb-budget.ts';
 
 export async function deriveOccurrences(snapshot: string): Promise<number> {
+    const shared = await readFile(new URL('./derive/shared.sql', import.meta.url), 'utf8');
     const sql = await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8');
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
@@ -36,6 +37,7 @@ export async function deriveOccurrences(snapshot: string): Promise<number> {
         await conn.run('SET preserve_insertion_order = false');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
+        await conn.run(shared);
         await writeExtractions(conn);
         await writeMaplifyEntities(conn);
         await conn.run(sql);
