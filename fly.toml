@@ -29,6 +29,13 @@ primary_region = "sjc"
   source = "salishsea_data"
   destination = "/data"
 
+# CPU is what runs out first here, not memory (bd salish-xv35.5). A shared vCPU's
+# sustained share is 5 ms in every 80 (6.25% of a core), plus banked burst credit that
+# every machine start resets; four shared vCPUs combine to 20 ms in 80, about six
+# CPU-hours a day, against a measured ~1.6-2.4 for today's ~95 builds a day
+# (https://docs.fly.io/machines/cpu-performance). Builds are single-threaded (DuckDB is
+# pinned to one thread), so the extra vCPUs buy quota, not parallelism, and memory stays
+# at 1 GB. Chosen on 2026-10-02 as relief while the build's own CPU is cut.
 [[vm]]
-  size = "shared-cpu-1x"
+  size = "shared-cpu-4x"
   memory = "1gb"
