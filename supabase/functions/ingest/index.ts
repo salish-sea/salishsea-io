@@ -34,7 +34,8 @@ import {
     type IngestWindow,
 } from '../../../scripts/ingest/persist.ts';
 import { isTransientUpstream, shouldReportFailure } from '../../../scripts/ingest/retry.ts';
-import { fetchMaplify } from './fetch-maplify.ts';
+import { fetchMaplify } from '../../../scripts/ingest/fetch-maplify.ts';
+import { defaultWindow } from '../../../scripts/ingest/window.ts';
 import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
 import { fetchAllBouts } from '../../../scripts/ingest/fetch-orcasound.ts';
 
@@ -76,15 +77,6 @@ function secretsMatch(a: string, b: string): boolean {
     let diff = 0;
     for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
     return diff === 0;
-}
-
-/** Rolling 10-day window ending today (UTC), matching the legacy cron cadence. */
-function defaultWindow(): IngestWindow {
-    const now = new Date();
-    const end = now.toISOString().slice(0, 10);
-    const startDate = new Date(now);
-    startDate.setUTCDate(startDate.getUTCDate() - 10);
-    return { start: startDate.toISOString().slice(0, 10), end };
 }
 
 /** Common per-run outcome recorded to ingest.runs and returned to the caller. */
