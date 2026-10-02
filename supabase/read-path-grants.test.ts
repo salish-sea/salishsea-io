@@ -41,9 +41,10 @@ const PUBLISHED = [
 /**
  * What the build derives the occurrences from (decision 061): the tables the five views
  * behind derived.occurrences read, the Maplify resolvers' inputs, and the stored
- * identifier candidates the port is checked against. Each column read_path may select,
- * where it may select only some: the build machine holds nothing it doesn't derive from.
- * `null` is the whole table.
+ * identifier candidates the port is checked against; and the identifications people
+ * assert, which the profile pages' link views start from (salish-xv35.13). Each column
+ * read_path may select, where it may select only some: the build machine holds nothing it
+ * doesn't derive from. `null` is the whole table.
  */
 const DERIVED_FROM: Record<string, readonly string[] | null> = {
     'derived.occurrence_identifier_candidates': null,
@@ -69,6 +70,10 @@ const DERIVED_FROM: Record<string, readonly string[] | null> = {
     'public.collections': ['id', 'name', 'organization_id'],
     // A contributor's name and nothing else of theirs.
     'public.contributors': ['id', 'name'],
+    // Not who asserted one, when, how, or a machine's confidence: no link view reads them.
+    'public.identifications': [
+        'occurrence_id', 'individual_id', 'social_group_id', 'is_present', 'evidence', 'status', 'code',
+        'certainty'],
     'public.observation_photos': ['id', 'observation_id', 'seq', 'href', 'license_code'],
     // Not user_uuid: which sign-in account wrote a sighting is not the build's business.
     'public.observations': [

@@ -99,6 +99,9 @@ importers:
       '@types/jsdom':
         specifier: ^28.0.3
         version: 28.0.3
+      geographiclib-geodesic:
+        specifier: 2.2.0
+        version: 2.2.0
       html-validate:
         specifier: ^11.5.6
         version: 11.5.6(@vitest/expect@4.1.10)(vitest@4.1.10(@types/node@25.6.2)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.1.5(@types/node@25.6.2)(esbuild@0.28.1)(tsx@4.23.1)))
@@ -1355,6 +1358,9 @@ packages:
 
   geo-coordinates-parser@1.7.4:
     resolution: {integrity: sha512-gVGxBW+s1csexXVMf5bIwz3TH9n4sCEglOOOqmrPk8YazUI5f79jCowKjTw05m/0h1//3+Z2m/nv8IIozgZyUw==}
+
+  geographiclib-geodesic@2.2.0:
+    resolution: {integrity: sha512-cIedo9VTYb0DFufodgibDmVfsWe9EASqb/kUByl09xc6PZYvLvlc89BHCThtGTPf2OII/zWJGxsR3Uz6O7QOVw==}
 
   geotiff@3.0.5:
     resolution: {integrity: sha512-OWcL9S9+yDZ6iAlXMt32T1iwUApJM8UiD47xbm6ZP1h33d10fqkPs14EG/ttT5EnefpZSx3G15iDFC5FxUNUwA==}
@@ -3158,6 +3164,8 @@ snapshots:
   gensync@1.0.0-beta.2: {}
 
   geo-coordinates-parser@1.7.4: {}
+
+  geographiclib-geodesic@2.2.0: {}
 
   geotiff@3.0.5:
     dependencies:

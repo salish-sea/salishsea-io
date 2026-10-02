@@ -7,8 +7,10 @@ import { describe, expect, test } from 'vitest';
 
 import { compare as compareCandidates } from './compare-identifier-candidates.ts';
 import { compare, differences, sourceOf } from './compare-occurrences.ts';
+import { compare as compareProfileLinks, unmatched } from './compare-profile-links.ts';
 import { deriveIdentifierCandidates } from './derive-identifier-candidates.ts';
 import { deriveOccurrences } from './derive-occurrences.ts';
+import { deriveProfileLinks } from './derive-profile-links.ts';
 
 describe('compare-occurrences', () => {
     test('a document agrees with itself however it is spaced', () => {
@@ -35,13 +37,28 @@ describe('compare-occurrences', () => {
     });
 });
 
+describe('compare-profile-links', () => {
+    test('a document agrees with itself however it is spaced or its numbers written', () => {
+        expect(unmatched([['{"a": 1, "b": 48.50}', 1]], [['{"a":1,"b":48.5}', 1]])).toEqual(new Map());
+    });
+
+    test('rows are a multiset: a document twice on one side and once on the other differs', () => {
+        expect(unmatched([['{"a":1}', 2]], [['{"a":1}', 1]])).toEqual(new Map([['{"a":1}', 1]]));
+        expect(unmatched([], [['{"a":1}', 1]])).toEqual(new Map([['{"a":1}', -1]]));
+    });
+
+    test('key order counts, since the pages read documents as written', () => {
+        expect(unmatched([['{"a":1,"b":2}', 1]], [['{"b":2,"a":1}', 1]]).size).toBe(2);
+    });
+});
+
 const DSN = process.env['SUPABASE_DB_URL'];
 
 // The port against Postgres on whatever this database holds: a migration that changes
-// one of the five views without changing derive/occurrences.sql fails here, if the data
+// one of the views without changing its twin under derive/ fails here, if the data
 // exercises the change, before it can fail the build's gate in production.
 describe.skipIf(!DSN)('the build derives what Postgres stores (local Supabase)', () => {
-    test('snapshot, derive, compare: occurrences, then their identifier candidates', async () => {
+    test('snapshot, derive, compare: occurrences, their identifier candidates, the profile links', async () => {
         const dir = await mkdtemp(path.join(tmpdir(), 'derive-occurrences-'));
         try {
             const snapshot = path.join(dir, 'snapshot.duckdb');
@@ -52,6 +69,8 @@ describe.skipIf(!DSN)('the build derives what Postgres stores (local Supabase)',
             expect(await compare(snapshot)).toBe(true);
             await deriveIdentifierCandidates(snapshot);
             expect(await compareCandidates(snapshot)).toBe(true);
+            await deriveProfileLinks(snapshot);
+            expect(await compareProfileLinks(snapshot)).toBe(true);
         } finally {
             await rm(dir, {recursive: true, force: true});
         }

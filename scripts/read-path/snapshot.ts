@@ -82,7 +82,8 @@ const lonLat = (column: string) => [
 /**
  * What the occurrences are derived from (decision 061): every table the five
  * views behind derived.occurrences read, the tables the functions they call read,
- * and the Maplify resolvers' inputs. Each lands in DuckDB under its Postgres name,
+ * and the Maplify resolvers' inputs; and what the profile pages' links to them are
+ * derived from besides (salish-xv35.13), the identifications our users assert. Each lands in DuckDB under its Postgres name,
  * so the port's SQL reads like the views it ports, and a source's own mirror,
  * attached later under that source's name, is read by the same SQL.
  *
@@ -123,6 +124,11 @@ const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
         'id', 'feed_name', 'title', ...lonLat('location'), 'started_at', 'ended_at', 'provider_id',
         'collection_id']},
     {table: 'public.acoustic_bout_entities', columns: ['bout_id', 'entity_id', 'certainty::text as certainty']},
+    // What a person asserted an occurrence shows, which overrides what the text and the
+    // bouts suggest. Not who asserted it, or when: no link view reads either.
+    {table: 'public.identifications', columns: [
+        'occurrence_id', 'individual_id', 'social_group_id', 'is_present', 'evidence::text as evidence',
+        'status::text as status', 'code', 'certainty::text as certainty']},
     {table: 'public.providers', columns: ['id', 'slug', 'name']},
     {table: 'public.collections', columns: ['id', 'name', 'organization_id']},
     {table: 'public.organizations', columns: ['id', 'name', 'url']},

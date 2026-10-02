@@ -7,9 +7,9 @@
 import { DuckDBInstance } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 
-/** A query runner over the macros `file` (beside this module) defines, in a UTC session with ICU. */
-export async function withMacros(file: string): Promise<(sql: string, values?: Record<string, string>) => Promise<unknown>> {
-    const sql = await readFile(new URL(`./${file}`, import.meta.url), 'utf8');
+/** A query runner over the macros `files` (beside this module) define, in a UTC session with ICU. */
+export async function withMacros(...files: string[]): Promise<(sql: string, values?: Record<string, string>) => Promise<unknown>> {
+    const sql = (await Promise.all(files.map(file => readFile(new URL(`./${file}`, import.meta.url), 'utf8')))).join('\n');
     const macros = sql.split(/;\s*\n/)
         .map(statement => statement.replace(/^(\s*--.*\n)*/, ''))
         .filter(statement => statement.startsWith('CREATE OR REPLACE TEMP MACRO'));

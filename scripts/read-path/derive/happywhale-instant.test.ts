@@ -24,9 +24,9 @@ const CASES: [string, string][] = [
     ['2025-06-01 23:59:59', 'Pacific/Honolulu'],
 ];
 
-/** The twin, as derive/occurrences.sql defines it. */
+/** The twin, as derive/occurrences.sql defines it, rendered by derive/shared.sql's pg_ts. */
 async function twin(): Promise<(local: string, zone: string) => Promise<string>> {
-    const query = await withMacros('occurrences.sql');
+    const query = await withMacros('shared.sql', 'occurrences.sql');
     return async (local, zone) =>
         await query(`SELECT pg_ts(happywhale_instant(CAST($local AS TIMESTAMP), $zone))`, {local, zone}) as string;
 }
