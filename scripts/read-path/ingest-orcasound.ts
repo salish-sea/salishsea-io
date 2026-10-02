@@ -43,24 +43,31 @@ const SCHEMA = `
 
 /** Replace the mirror at `path` with `rows`, atomically. */
 export async function writeMirror(path: string, rows: MirrorRows): Promise<void> {
+    // Named for this process, so it never collides with another writer's; removed on any
+    // failure, since a later run with another pid would never find it.
     const temp = `${path}.${process.pid}.tmp`;
     await mkdir(dirname(path), {recursive: true});
     await rm(temp, {force: true});
-    const db = new DatabaseSync(temp);
     try {
-        db.exec(SCHEMA);
-        db.exec('BEGIN');
-        const bout = db.prepare(
-            'INSERT INTO bouts (id, feed_id, feed_name, lon, lat, started_at, ended_at, title) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-        for (const b of rows.bouts)
-            bout.run(b.id, b.feed_id, b.feed_name, b.lon, b.lat, b.started_at, b.ended_at, b.title);
-        const entity = db.prepare('INSERT INTO bout_entities (bout_id, entity_id, certainty) VALUES (?, ?, ?)');
-        for (const e of rows.entities) entity.run(e.bout_id, e.entity_id, e.certainty);
-        db.exec('COMMIT');
-    } finally {
-        db.close();
+        const db = new DatabaseSync(temp);
+        try {
+            db.exec(SCHEMA);
+            db.exec('BEGIN');
+            const bout = db.prepare(
+                'INSERT INTO bouts (id, feed_id, feed_name, lon, lat, started_at, ended_at, title) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+            for (const b of rows.bouts)
+                bout.run(b.id, b.feed_id, b.feed_name, b.lon, b.lat, b.started_at, b.ended_at, b.title);
+            const entity = db.prepare('INSERT INTO bout_entities (bout_id, entity_id, certainty) VALUES (?, ?, ?)');
+            for (const e of rows.entities) entity.run(e.bout_id, e.entity_id, e.certainty);
+            db.exec('COMMIT');
+        } finally {
+            db.close();
+        }
+        await rename(temp, path);
+    } catch (error) {
+        await rm(temp, {force: true});
+        throw error;
     }
-    await rename(temp, path);
 }
 
 /** The mirror's rows, in a fixed order, or null when there is no mirror yet. */

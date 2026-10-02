@@ -55,6 +55,17 @@ describe('the mirror', () => {
         expect(changedBouts(rows, edited)).toBe(removedHadClaim ? 2 : 3);
     });
 
+    test('a write that fails leaves the mirror as it was and no temporary file', async () => {
+        const mirror = path.join(dir, 'failing.sqlite');
+        const rows = boutRows(corpus());
+        await writeMirror(mirror, rows);
+        // The same claim twice breaks bout_entities' primary key at insert.
+        const broken: MirrorRows = {bouts: rows.bouts, entities: [...rows.entities, {bout_id: rows.entities[0]!.bout_id, entity_id: rows.entities[0]!.entity_id, certainty: null}]};
+        await expect(writeMirror(mirror, broken)).rejects.toThrow();
+        expect(sameRows(readMirror(mirror)!, rows)).toBe(true);
+        expect((await readdir(dir)).filter(f => f.startsWith('failing.sqlite.'))).toEqual([]);
+    });
+
     test('sameRows ignores order and sees one changed field', () => {
         const rows = boutRows(corpus());
         expect(sameRows(rows, {bouts: [...rows.bouts].reverse(), entities: [...rows.entities].reverse()})).toBe(true);
