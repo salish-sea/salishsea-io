@@ -2,8 +2,11 @@
  * Orcasound fetch with retry — imperative shell (salish-8vr.26 / decision 011).
  *
  * Effectful: reads every page of orcasite's `/api/json/bouts`, parsing each with the pure
- * core as it goes, and returns the complete corpus or throws. The caller (index.ts) turns
- * any throw into a `failed` ingest.runs row and writes nothing.
+ * core as it goes, and returns the complete corpus or throws. Two callers: the Supabase
+ * function (supabase/functions/ingest/index.ts), which turns any throw into a `failed`
+ * ingest.runs row and writes nothing, and the read-path build's own ingest
+ * (scripts/read-path/ingest-orcasound.ts, decision 061), which fails its task and
+ * likewise writes nothing.
  *
  * Completeness is what makes reconcile safe here, because there is no window (see
  * scripts/ingest/orcasound.ts): the corpus is complete only when the last page's `next`
@@ -12,15 +15,15 @@
  * it would delete every bout we hold.
  */
 
+import type { Logger } from './log.ts';
+import { parseBoutsPage, type NormalizedBout } from './orcasound.ts';
 import {
     MAX_ATTEMPTS,
     retryDelayMs,
     parseRetryAfter,
     isRetryableStatus,
     markTransientUpstream,
-} from '../../../scripts/ingest/retry.ts';
-import { parseBoutsPage, type NormalizedBout } from '../../../scripts/ingest/orcasound.ts';
-import type { Logger } from './fetch-maplify.ts';
+} from './retry.ts';
 
 const ORIGIN = 'https://live.orcasound.net';
 /**

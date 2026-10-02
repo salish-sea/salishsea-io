@@ -254,3 +254,37 @@ export function reconcile(
     const kept = new Set(upsert.map((b) => b.id));
     return { upsert, delete: existingIds.filter((id) => !kept.has(id)) };
 }
+
+/** A bout as a store holds it: Postgres's public.acoustic_bouts, or the build's mirror. */
+export type BoutRow = {
+    readonly id: string;
+    readonly feed_id: string;
+    readonly feed_name: string;
+    readonly lon: number;
+    readonly lat: number;
+    readonly started_at: string;
+    readonly ended_at: string | null;
+    readonly title: string | null;
+};
+
+/** One register entity a bout's tags cite, with the moderator's certainty (054). */
+export type BoutEntityRow = {
+    readonly bout_id: string;
+    readonly entity_id: string;
+    readonly certainty: Certainty | null;
+};
+
+/**
+ * The rows a store holds for the bouts a reconcile keeps. One mapping for both stores,
+ * Postgres (persist.ts) and the read-path build's mirror (decision 061), so they cannot
+ * hold the same corpus differently.
+ */
+export function boutRows(bouts: readonly NormalizedBout[]): {bouts: BoutRow[], entities: BoutEntityRow[]} {
+    return {
+        bouts: bouts.map((b) => ({
+            id: b.id, feed_id: b.feedId, feed_name: b.feedName, lon: b.lon, lat: b.lat,
+            started_at: b.startedAt, ended_at: b.endedAt, title: b.title,
+        })),
+        entities: bouts.flatMap((b) => b.entities.map((e) => ({bout_id: b.id, entity_id: e.entityId, certainty: e.certainty}))),
+    };
+}

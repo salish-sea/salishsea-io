@@ -36,7 +36,7 @@ import {
 import { isTransientUpstream, shouldReportFailure } from '../../../scripts/ingest/retry.ts';
 import { fetchMaplify } from './fetch-maplify.ts';
 import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
-import { fetchAllBouts } from './fetch-orcasound.ts';
+import { fetchAllBouts } from '../../../scripts/ingest/fetch-orcasound.ts';
 
 const TRIGGER_SECRET = Deno.env.get('INGEST_TRIGGER_SECRET') ?? '';
 // Server-side Sentry surface (decision 011 / salishsea-io-vif). No DSN (local
@@ -150,7 +150,7 @@ async function ingestInaturalist(
  * Orcasound: read the whole corpus (every page, all categories) → reconcile biophony
  * bouts against every bout we hold → persist bouts and their cited entities in one atomic
  * txn. No window: the fetch refuses to return incomplete or empty, which is what makes a
- * corpus-wide reconcile safe (fetch-orcasound.ts).
+ * corpus-wide reconcile safe (scripts/ingest/fetch-orcasound.ts).
  */
 async function ingestOrcasound(sql: Sql, dryRun: boolean, logger: typeof log): Promise<IngestOutcome> {
     const { bouts, pages } = await fetchAllBouts(logger);

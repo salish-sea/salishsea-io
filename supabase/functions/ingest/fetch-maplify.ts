@@ -38,7 +38,8 @@ function bodySnippet(text: string, max = 200): string {
 // each attempt so a hang becomes a retryable AbortError instead.
 const FETCH_TIMEOUT_MS = 15_000;
 
-export type Logger = (msg: string, extra?: Record<string, unknown>) => void;
+export type { Logger } from '../../../scripts/ingest/log.ts';
+import type { Logger } from '../../../scripts/ingest/log.ts';
 
 export async function fetchMaplify(window: IngestWindow, log: Logger): Promise<unknown> {
     const url = `${MAPLIFY_URL}?start=${window.start}&end=${window.end}&BBOX=${BBOX}`;
