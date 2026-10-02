@@ -79,6 +79,19 @@ function addDays(day: string, n: number): string {
     return d.toISOString().slice(0, 10);
 }
 
+/**
+ * A curator's window, or null when it isn't one: both ends real calendar days written
+ * 'YYYY-MM-DD' (Date would roll 2026-02-30 over into March rather than refuse it), start
+ * no later than end. Checked before fetching, so a typo never reaches the reconcile.
+ */
+export function curatorWindow(start: string, end: string): IngestWindow | null {
+    const isDay = (s: string) => {
+        const d = new Date(`${s}T00:00:00Z`);
+        return /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+    };
+    return isDay(start) && isDay(end) && start <= end ? {start, end} : null;
+}
+
 /** Every day of a window, both ends included. */
 export function windowDays(window: IngestWindow): string[] {
     const days: string[] = [];
@@ -139,7 +152,11 @@ export async function main(): Promise<void> {
         console.error('usage: ingest-maplify.ts <maplify.sqlite> [<start> <end>]');
         process.exit(2);
     }
-    const window: IngestWindow = start && end ? {start, end} : defaultWindow();
+    const window = start !== undefined && end !== undefined ? curatorWindow(start, end) : defaultWindow();
+    if (!window) {
+        console.error(`not a window: ${start}..${end} (two days, 'YYYY-MM-DD', start first)`);
+        process.exit(2);
+    }
     const log = (msg: string, extra?: Record<string, unknown>) =>
         console.log(extra ? `${msg} ${JSON.stringify(extra)}` : msg);
     const result = parseMaplifyResponse(await fetchMaplify(window, log));

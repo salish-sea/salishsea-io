@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { isIngestable, parseMaplifyResponse, reconcile, type NormalizedSighting } from '../ingest/maplify.ts';
 import { persistMaplify, type IngestWindow } from '../ingest/persist.ts';
 import { buildNameIndex } from '../register/name-index.ts';
-import { mirrorRow, reconcileWindow, windowDays, type MirrorRow } from './ingest-maplify.ts';
+import { curatorWindow, mirrorRow, reconcileWindow, windowDays, type MirrorRow } from './ingest-maplify.ts';
 import { rolledBack } from './rolled-back.ts';
 
 /**
@@ -92,6 +92,15 @@ describe('the mirror', () => {
         db.close();
         expect(days).toEqual(windowDays(WINDOW));
         expect(days).toHaveLength(10);
+    });
+
+    test("a curator's window is two real days, start first", () => {
+        expect(curatorWindow('2024-06-01', '2024-06-30')).toEqual({start: '2024-06-01', end: '2024-06-30'});
+        expect(curatorWindow('2024-06-01', '2024-06-01')).not.toBeNull();
+        expect(curatorWindow('2026-7-1', '2026-07-31')).toBeNull();
+        expect(curatorWindow('2026-02-01', '2026-02-30')).toBeNull();
+        expect(curatorWindow('2026-13-01', '2026-13-02')).toBeNull();
+        expect(curatorWindow('2026-07-31', '2026-07-01')).toBeNull();
     });
 
     test('a window is its days, both ends included, across a month', () => {
