@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { isIngestable, parseMaplifyResponse, reconcile, type NormalizedSighting } from '../ingest/maplify.ts';
 import { persistMaplify, type IngestWindow } from '../ingest/persist.ts';
 import { buildNameIndex } from '../register/name-index.ts';
-import { curatorWindow, mirrorRow, reconcileWindow, windowDays, type MirrorRow } from './ingest-maplify.ts';
+import { antiEntropyWindow, curatorWindow, firstCoveredDay, mirrorRow, reconcileWindow, windowDays, type MirrorRow } from './ingest-maplify.ts';
 import { rolledBack } from './rolled-back.ts';
 
 /**
@@ -101,6 +101,35 @@ describe('the mirror', () => {
         expect(curatorWindow('2026-02-01', '2026-02-30')).toBeNull();
         expect(curatorWindow('2026-13-01', '2026-13-02')).toBeNull();
         expect(curatorWindow('2026-07-31', '2026-07-01')).toBeNull();
+    });
+
+    test('anti-entropy picks one whole calendar month before the regular window, the last one cut short', () => {
+        const now = new Date('2026-10-02T12:00:00Z');
+        // the regular window starts 2026-09-02, so the newest month is 2026-09-01..09-01
+        expect(antiEntropyWindow('2014-04-17', '2026-09-02', now, 0)).toEqual({start: '2014-04-01', end: '2014-04-30'});
+        expect(antiEntropyWindow('2014-04-17', '2026-09-02', now, 0.999999)).toEqual({start: '2026-09-01', end: '2026-09-01'});
+        expect(antiEntropyWindow('2026-02-10', '2026-03-15', now, 0.5)?.start).toMatch(/^2026-0[23]-01$/);
+        expect(antiEntropyWindow('2026-09-05', '2026-09-02', now, 0.5)).toBeNull();
+    });
+
+    test('anti-entropy favours recent months, as BeeAtlas weights its sample', () => {
+        const now = new Date('2026-10-02T12:00:00Z');
+        const picks = new Map<string, number>();
+        for (let i = 0; i < 1000; i++) {
+            const w = antiEntropyWindow('2014-04-01', '2026-09-02', now, i / 1000)!;
+            picks.set(w.start.slice(0, 4), (picks.get(w.start.slice(0, 4)) ?? 0) + 1);
+        }
+        // a month a year old weighs half what this month does, twelve years old a thirteenth
+        expect(picks.get('2026')!).toBeGreaterThan(picks.get('2015')! * 4);
+        expect(picks.get('2015')!).toBeGreaterThan(0);
+    });
+
+    test('the anti-entropy sweep reaches back as far as the mirror covers', () => {
+        const mirror = path.join(dir, 'first.sqlite');
+        expect(firstCoveredDay(mirror)).toBeNull();
+        reconcileWindow(mirror, {start: '2024-06-01', end: '2024-06-03'}, []);
+        reconcileWindow(mirror, WINDOW, []);
+        expect(firstCoveredDay(mirror)).toBe('2024-06-01');
     });
 
     test('a window is its days, both ends included, across a month', () => {

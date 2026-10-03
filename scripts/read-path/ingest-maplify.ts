@@ -4,11 +4,20 @@
  *
  *   node scripts/read-path/ingest-maplify.ts <maplify.sqlite> [<start> <end>]
  *
- * Fetches one window (the ten days ending today, or the curator's start and end, both
- * inclusive 'YYYY-MM-DD') with the same shell and pure core the Supabase function uses
- * (scripts/ingest/fetch-maplify.ts, scripts/ingest/maplify.ts), and reconciles it into a
- * SQLite mirror: every sighting fetched is written, and every sighting the mirror holds
- * in the window that the fetch didn't return is deleted.
+ * Fetches windows with the same shell and pure core the Supabase function uses
+ * (scripts/ingest/fetch-maplify.ts, scripts/ingest/maplify.ts), and reconciles each into
+ * a SQLite mirror: every sighting fetched is written, and every sighting the mirror holds
+ * in the window that the fetch didn't return is deleted. Given a curator's start and end
+ * (both inclusive 'YYYY-MM-DD'), that one window. Otherwise two (salish-xv35.15):
+ *
+ *   - the thirty days ending today. Postgres's ingest fetches ten, and a sighting Maplify
+ *     publishes after its date has left that window never arrives at all: 66 such, dated
+ *     October 2025 to May 2026, were missing from Postgres on 2026-10-02.
+ *   - one older calendar month, for anti-entropy: Maplify also edits, deletes and
+ *     re-sources sightings long after their date, and only a fetch of that month again
+ *     finds out. Chosen at random, weighted toward recent months as BeeAtlas's
+ *     anti_entropy_pipeline.py weights its sample (a month a year old is half as likely
+ *     as this one), so across builds every month the mirror covers is revisited.
  *
  * The mirror holds what Maplify said and nothing else (decision 008, as 061 applies it).
  * So unlike Postgres's ingest it keeps every sighting in the fetch box, in scope or not:
@@ -26,7 +35,7 @@
  * whether the window changed anything.
  */
 
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -35,6 +44,53 @@ import { fetchMaplify } from '../ingest/fetch-maplify.ts';
 import { parseMaplifyResponse, reconcile, type NormalizedSighting } from '../ingest/maplify.ts';
 import type { IngestWindow } from '../ingest/persist.ts';
 import { defaultWindow } from '../ingest/window.ts';
+
+/** How many days the regular fetch reaches back (salish-xv35.15, Peter 2026-10-02). */
+export const REGULAR_DAYS = 30;
+
+/** 'YYYY-MM-01' of the month containing `day`. */
+const monthOf = (day: string) => `${day.slice(0, 7)}-01`;
+
+/** 'YYYY-MM-01' of the month after the one containing `day`: 31 days on from its 1st is always in it. */
+const nextMonth = (day: string) => monthOf(addDays(monthOf(day), 31));
+
+/**
+ * The anti-entropy window: one calendar month from the one containing `earliest` up to
+ * the day before `before` (the regular window's start), the last one cut off there,
+ * chosen with weight 1 / (1 + age in years), `random` in [0, 1). Null when there is no
+ * such month.
+ */
+export function antiEntropyWindow(earliest: string, before: string, now: Date, random: number): IngestWindow | null {
+    const last = addDays(before, -1);
+    if (last < earliest) return null;
+    const months: IngestWindow[] = [];
+    for (let start = monthOf(earliest); start <= last; start = nextMonth(start)) {
+        const end = addDays(nextMonth(start), -1);
+        months.push({start, end: end < last ? end : last});
+    }
+    const weight = (w: IngestWindow) =>
+        1 / (1 + (now.getTime() - new Date(`${w.end}T00:00:00Z`).getTime()) / (365 * 86_400_000));
+    const total = months.reduce((sum, w) => sum + weight(w), 0);
+    let at = random * total;
+    for (const w of months) {
+        at -= weight(w);
+        if (at < 0) return w;
+    }
+    return months.at(-1) ?? null;
+}
+
+/** The first day the mirror covers, or null when it covers none (or isn't there yet). */
+export function firstCoveredDay(path: string): string | null {
+    if (!existsSync(path)) return null;
+    const db = new DatabaseSync(path, {readOnly: true});
+    try {
+        return (db.prepare('SELECT min(day) AS day FROM covered_days').get() as {day: string | null}).day;
+    } catch {
+        return null;
+    } finally {
+        db.close();
+    }
+}
 
 /** A sighting as the mirror stores it: Maplify's fields, normalized as the core does. */
 export type MirrorRow = {
@@ -152,20 +208,36 @@ export async function main(): Promise<void> {
         console.error('usage: ingest-maplify.ts <maplify.sqlite> [<start> <end>]');
         process.exit(2);
     }
-    const window = start !== undefined && end !== undefined ? curatorWindow(start, end) : defaultWindow();
-    if (!window) {
-        console.error(`not a window: ${start}..${end} (two days, 'YYYY-MM-DD', start first)`);
-        process.exit(2);
+    let windows: IngestWindow[];
+    if (start !== undefined && end !== undefined) {
+        const window = curatorWindow(start, end);
+        if (!window) {
+            console.error(`not a window: ${start}..${end} (two days, 'YYYY-MM-DD', start first)`);
+            process.exit(2);
+        }
+        windows = [window];
+    } else {
+        const now = new Date();
+        const regular = defaultWindow(now, REGULAR_DAYS);
+        const earliest = firstCoveredDay(path);
+        const older = earliest === null ? null : antiEntropyWindow(earliest, regular.start, now, Math.random());
+        windows = older ? [regular, older] : [regular];
     }
     const log = (msg: string, extra?: Record<string, unknown>) =>
         console.log(extra ? `${msg} ${JSON.stringify(extra)}` : msg);
-    const result = parseMaplifyResponse(await fetchMaplify(window, log));
-    if (!result.ok) throw new Error(`maplify parse failed: ${result.error}`);
-    const {upserted, deleted, changed} = reconcileWindow(path, window, result.sightings);
-    console.log(`maplify ${window.start}..${window.end}: ${result.sightings.length} sightings fetched; `
-        + `${changed === 0 ? 'unchanged' : `${changed} changed (${deleted} deleted)`}; ${upserted} in the window`);
+    let changedInAll = 0;
+    for (const window of windows) {
+        const result = parseMaplifyResponse(await fetchMaplify(window, log));
+        if (!result.ok) throw new Error(`maplify parse failed: ${result.error}`);
+        const {upserted, deleted, changed} = reconcileWindow(path, window, result.sightings);
+        changedInAll += changed;
+        console.log(`maplify ${window.start}..${window.end}: ${result.sightings.length} sightings fetched; `
+            + `${changed === 0 ? 'unchanged' : `${changed} changed (${deleted} deleted)`}; ${upserted} in the window`);
+    }
     const receipt = process.env['STELIS_BOUNDARY_RECEIPT'];
-    if (receipt) await writeFile(receipt, JSON.stringify({unchanged: changed === 0, records: changed, since: window.start}));
+    // `since` is where the fetch reached back to, the anti-entropy month when there is one.
+    const since = windows.map(w => w.start).sort()[0]!;
+    if (receipt) await writeFile(receipt, JSON.stringify({unchanged: changedInAll === 0, records: changedInAll, since}));
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
