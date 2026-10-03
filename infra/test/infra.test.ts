@@ -147,6 +147,25 @@ describe('InfraStack', () => {
     });
   });
 
+  // salish-xv35.16: salishsea.io reads the Fly app; only the nightly archive stays on S3.
+  it('serves the site from the Fly app', () => {
+    const dist = Object.values(template.findResources('AWS::CloudFront::Distribution'))[0] as any;
+    const config = dist.Properties.DistributionConfig;
+    const origin = config.Origins.find((o: any) => o.Id === config.DefaultCacheBehavior.TargetOriginId);
+    expect(origin.DomainName).toBe('salishsea-io.fly.dev');
+    expect(origin.CustomOriginConfig.OriginProtocolPolicy).toBe('https-only');
+  });
+
+  it('serves /dwca/* from the bucket, with no edge function', () => {
+    const dist = Object.values(template.findResources('AWS::CloudFront::Distribution'))[0] as any;
+    const config = dist.Properties.DistributionConfig;
+    const dwca = config.CacheBehaviors.find((b: any) => b.PathPattern === '/dwca/*');
+    expect(dwca).toBeDefined();
+    expect(dwca.LambdaFunctionAssociations).toBeUndefined();
+    const origin = config.Origins.find((o: any) => o.Id === dwca.TargetOriginId);
+    expect(origin.S3OriginConfig).toBeDefined();
+  });
+
   describe('card renderer', () => {
     it('serves /cards/* from its own behavior', () => {
       template.hasResourceProperties('AWS::CloudFront::Distribution', {
