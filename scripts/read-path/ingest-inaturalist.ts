@@ -15,8 +15,8 @@
  * Given a curator's start and end (observer's dates, both inclusive), that one window.
  * Otherwise, each run:
  *
- *   - what iNaturalist changed since the last run (`updated_since`, from the newest
- *     `updated_at` the mirror has seen): new observations, edits, and the late uploads a
+ *   - what iNaturalist changed since the last run (`updated_since`, from an hour before
+ *     the newest `updated_at` the mirror has seen): new observations, edits, and the late uploads a
  *     window by observation date never sees. Of October 2025's 537 observations in scope,
  *     Postgres's ten-day ingest was missing 184 on 2026-10-03, 128 of them uploaded more
  *     than ten days after the sighting. About 200 a day; one page, usually.
@@ -214,6 +214,21 @@ export function recordSynced(db: DatabaseSync, fetched: readonly NormalizedObser
     db.prepare("INSERT OR REPLACE INTO sync (key, value) VALUES ('updated_since', ?)").run(newest);
 }
 
+/**
+ * How far before its checkpoint a changes sweep starts. iNaturalist can commit a change
+ * stamped slightly earlier than the newest `updated_at` a sweep already read, and a sweep
+ * from exactly the checkpoint would never see it; the overlap's few records come back
+ * again and are skipped as not newer.
+ */
+export const SYNC_OVERLAP_MS = 60 * 60 * 1000;
+
+/** Where the changes sweep starts: an hour before the checkpoint, or 30 days back before the first. */
+export function sweepFrom(synced: string | null, now: Date): string {
+    return synced === null
+        ? defaultWindow(now, FIRST_UPDATED_DAYS).start
+        : new Date(Date.parse(synced) - SYNC_OVERLAP_MS).toISOString();
+}
+
 /** A window, a day wider at each end, for the fetch that reconciles it. */
 export const padded = (w: IngestWindow): IngestWindow => ({start: addDays(w.start, -1), end: addDays(w.end, 1)});
 
@@ -252,7 +267,7 @@ export async function main(): Promise<void> {
             since = window.start;
         } else {
             const now = new Date();
-            const updatedSince = syncedThrough(db) ?? defaultWindow(now, FIRST_UPDATED_DAYS).start;
+            const updatedSince = sweepFrom(syncedThrough(db), now);
             await run(`updated since ${updatedSince}`, {updatedSince}, null);
             const recent = defaultWindow(now, 10);
             await run(`${recent.start}..${recent.end}`, padded(recent), recent);

@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { isIngestable, reconcile, type NormalizedObservation, type NormalizedPhoto, type NormalizedTaxon } from '../ingest/inaturalist.ts';
 import { persistInaturalist, type IngestWindow } from '../ingest/persist.ts';
 import {
-    applyFetch, observationRow, openMirror, padded, photoRows, recordSynced, storedTaxonIds, syncedThrough,
+    applyFetch, observationRow, openMirror, padded, photoRows, recordSynced, storedTaxonIds, sweepFrom, syncedThrough,
     type ObservationRow, type PhotoRow,
 } from './ingest-inaturalist.ts';
 import { rolledBack } from './rolled-back.ts';
@@ -113,6 +113,12 @@ describe('the mirror', () => {
         recordSynced(db, []);
         expect(syncedThrough(db)).toBe('2026-07-05T18:00:00Z');
         db.close();
+    });
+
+    test('a sweep starts an hour before its checkpoint, so a change committed late is still found', () => {
+        expect(sweepFrom('2026-07-05T18:00:00Z', new Date('2026-07-06T00:00:00Z'))).toBe('2026-07-05T17:00:00.000Z');
+        expect(sweepFrom('2026-07-05T10:00:00-07:00', new Date())).toBe('2026-07-05T16:00:00.000Z');
+        expect(sweepFrom(null, new Date('2026-07-31T12:00:00Z'))).toBe('2026-07-01');
     });
 });
 
