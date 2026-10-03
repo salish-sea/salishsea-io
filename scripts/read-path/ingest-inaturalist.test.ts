@@ -64,6 +64,17 @@ describe('the mirror', () => {
         expect(m.taxa).toEqual([2000000001, 2000000002]);
     });
 
+    test('rewrites an observation whose photo was re-licensed, though its updated_at stayed put', () => {
+        const db = fresh('relicensed.sqlite');
+        const before = observation({id: 9000000020, photos: [photo({id: 9100000020, license: 'cc0', attribution: 'no rights reserved'})]});
+        applyFetch(db, [before], taxa, null);
+        expect(applyFetch(db, [before], [], null).written).toBe(0);
+        const after = {...before, photos: [photo({id: 9100000020, license: 'cc-by', attribution: '(c) tester, some rights reserved (CC BY)'})]};
+        expect(applyFetch(db, [after], [], null).written).toBe(1);
+        db.close();
+        expect(rows(path.join(dir, 'relicensed.sqlite')).photos[0]!.license).toBe('cc-by');
+    });
+
     test('rewrites an observation only when upstream changed it since, and replaces its photos', () => {
         const db = fresh('newer.sqlite');
         applyFetch(db, [observation({id: 9000000003, photos: [photo({id: 9100000003}), photo({id: 9100000004, seq: 1})]})], taxa, null);
