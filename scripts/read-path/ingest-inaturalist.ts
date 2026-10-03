@@ -30,9 +30,10 @@
  * are reconciled: iNaturalist's `d1`/`d2` filter the observer's local date, the mirror
  * bounds by instant, and no time zone puts an observation of one of a window's days
  * outside the padded fetch (the straddle decision 041 found, closed the other way round).
- * An observation is rewritten only when iNaturalist's `updated_at` is newer than the
- * mirror's, as Postgres's persist does; its photos are replaced with it. Taxa are only
- * ever added.
+ * An observation is rewritten when anything about it or its photos differs, unless the copy
+ * fetched is older than the mirror's; its photos are replaced with it. (Postgres's persist
+ * rewrites only when `updated_at` moved, which a photo's re-licensing doesn't do.) Taxa are
+ * only ever added.
  *
  * Decision 011's rule holds: a sweep that isn't provably complete, or a taxon closure that
  * doesn't resolve, throws before anything is written, and each window or sweep is one
@@ -154,13 +155,27 @@ export function applyFetch(
     taxa: readonly NormalizedTaxon[],
     window: IngestWindow | null,
 ): ApplyResult {
-    const stored = new Map(
-        (db.prepare(`SELECT id, updated_at FROM observations WHERE id IN (SELECT value FROM json_each(?))`)
-            .all(JSON.stringify(fetched.map(o => o.id))) as {id: number, updated_at: string}[])
-            .map(r => [r.id, r.updated_at]));
+    // What the mirror holds of each fetched observation, as its row and photos would be
+    // written, to compare with what came back.
+    const ids = JSON.stringify(fetched.map(o => o.id));
+    const storedRows = new Map(
+        (db.prepare('SELECT * FROM observations WHERE id IN (SELECT value FROM json_each(?))').all(ids) as unknown as ObservationRow[])
+            .map(r => [r.id, r]));
+    const storedPhotos = new Map<number, PhotoRow[]>();
+    for (const p of db.prepare('SELECT * FROM observation_photos WHERE observation_id IN (SELECT value FROM json_each(?)) ORDER BY id')
+        .all(ids) as unknown as PhotoRow[])
+        storedPhotos.set(p.observation_id, [...(storedPhotos.get(p.observation_id) ?? []), p]);
+    const asStored = (row: ObservationRow, photos: readonly PhotoRow[]) =>
+        JSON.stringify([row, [...photos].sort((a, b) => a.id - b.id)]);
+    // Written when anything differs, not only when iNaturalist's updated_at moved: a photo
+    // re-licensed (CC0 to CC BY, seen) or an observer renamed leaves updated_at alone, and
+    // Postgres's newer-only rule has kept 3,361 observations' photos stale that way. An
+    // older copy than the mirror's is still never written over a newer one.
     const newer = fetched.filter(o => {
-        const was = stored.get(o.id);
-        return was === undefined || Date.parse(o.updatedAt) > Date.parse(was);
+        const was = storedRows.get(o.id);
+        if (was === undefined) return true;
+        if (Date.parse(o.updatedAt) < Date.parse(was.updated_at)) return false;
+        return asStored(observationRow(o), photoRows(o)) !== asStored(was, storedPhotos.get(o.id) ?? []);
     });
     let deleteIds: number[] = [];
     if (window) {
