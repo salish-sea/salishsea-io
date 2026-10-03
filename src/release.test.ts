@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
 
-import { release, resetRelease } from './release.ts';
+import { release, releaseIfKnown, resetRelease } from './release.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -35,4 +35,13 @@ test('no file, or the dev server\'s HTML in its place, is unknown, and the next 
 test('a failed fetch is unknown, never a rejection', async () => {
   vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
   expect(await release()).toBe('unknown');
+});
+
+test('without waiting, the release is unknown until a read has finished, then known', async () => {
+  const fetch = serve(200, '{"release":"abc123"}');
+  expect(releaseIfKnown()).toBe('unknown');   // and starts the read
+  expect(fetch).toHaveBeenCalledTimes(1);
+  await release();
+  expect(releaseIfKnown()).toBe('abc123');
+  expect(fetch).toHaveBeenCalledTimes(1);
 });

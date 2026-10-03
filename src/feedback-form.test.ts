@@ -29,7 +29,10 @@ vi.mock('./supabase.ts', () => ({
 }));
 
 // What the build wrote to release.json (src/release.ts).
-vi.mock('./release.ts', () => ({release: async () => 'built-from-abc123'}));
+vi.mock('./release.ts', () => ({
+  release: async () => 'built-from-abc123',
+  releaseIfKnown: () => 'built-from-abc123',
+}));
 
 const { readDraft, draftIsEmpty, DRAFT_TTL_MS } = await import('./feedback-form.ts');
 type Form = HTMLElement & {
@@ -49,8 +52,7 @@ const typeInto = async (el: Form, selector: string, value: string) => {
 const send = async (el: Form) => {
   (el.shadowRoot.querySelector('.send') as HTMLButtonElement).click();
   await el.updateComplete;
-  // Send reads the release, then calls the RPC: let both settle.
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await Promise.resolve();
   await el.updateComplete;
 };
 

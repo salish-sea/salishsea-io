@@ -16,13 +16,25 @@
 const RELEASE_FILE = '/release.json';
 
 let pending: Promise<string> | undefined;
+let known: string | undefined;
 
 export function release(): Promise<string> {
   pending ??= fetchRelease().then(r => {
     if (r === 'unknown') pending = undefined;
+    else known = r;
     return r;
   });
   return pending;
+}
+
+/**
+ * The release if it has already been read, without waiting: for a caller that
+ * must not be held up by it, like the feedback form's Send on a bad
+ * connection. Starts a read if none has succeeded, for next time.
+ */
+export function releaseIfKnown(): string {
+  if (known === undefined) void release();
+  return known ?? 'unknown';
 }
 
 async function fetchRelease(): Promise<string> {
@@ -42,4 +54,5 @@ async function fetchRelease(): Promise<string> {
 /** For tests: forget the last answer. */
 export function resetRelease(): void {
   pending = undefined;
+  known = undefined;
 }

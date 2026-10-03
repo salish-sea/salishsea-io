@@ -2,7 +2,7 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 import { supabase } from './supabase.ts';
-import { release } from './release.ts';
+import { release, releaseIfKnown } from './release.ts';
 
 /** Where an unsent draft waits. One draft; the newest replaces the last. */
 const DRAFT_STORAGE_KEY = 'feedback-draft';
@@ -276,7 +276,6 @@ export default class FeedbackForm extends LitElement {
     // is in flight, and on a slow connection — the case this whole component is
     // built for — someone will carry on typing.
     const sent = this.draft;
-    const builtFrom = await release();
     const {error} = await supabase().rpc('submit_feedback', {
       name: sent.name,
       email: sent.email,
@@ -286,7 +285,7 @@ export default class FeedbackForm extends LitElement {
       // connection is bad when in fact their URL is long.
       page_url: location.href.slice(0, 2000),
       user_agent: navigator.userAgent.slice(0, 500),
-      release: builtFrom.slice(0, 100),
+      release: releaseIfKnown().slice(0, 100),
     });
 
     if (error) {
