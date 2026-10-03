@@ -377,10 +377,14 @@ test('a signed-in permalink to a native sighting deleted since the build does no
     await hydrate('gone-native');
     expect(el.date).toBe(today);
 
-    // An upstream sighting still opens from the files.
+    // An upstream sighting still opens from the files. Focusing it scrolls its
+    // summary into view, which jsdom doesn't implement.
+    Element.prototype.scrollIntoView = () => {};
     await hydrate('maplify:1').catch(() => {});   // jsdom has no map to centre
     expect(el.date).toBe('2025-03-09');
   } finally {
+    el.remove();
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
     vi.unstubAllEnvs();
     fetchSpy.mockRestore();
   }
