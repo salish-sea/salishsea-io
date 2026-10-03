@@ -48,7 +48,7 @@ cannot be followed by more, so it *is* the completeness proof.
 - Split unchanged per 011: `isTerminalPage` / `isPaginationComplete` are pure predicates in the
   functional core ([`scripts/ingest/inaturalist.ts`](../../scripts/ingest/inaturalist.ts)); the
   sweep loop is the shell
-  ([`supabase/functions/ingest/fetch-inaturalist.ts`](../../supabase/functions/ingest/fetch-inaturalist.ts)).
+  ([`scripts/ingest/fetch-inaturalist.ts`](../../scripts/ingest/fetch-inaturalist.ts)).
   The shell asserts `isPaginationComplete` after the loop as a defensive invariant.
 
 ## Rejected alternatives

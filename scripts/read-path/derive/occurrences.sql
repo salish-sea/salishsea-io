@@ -10,7 +10,8 @@
 -- Run by derive-occurrences.ts, which first sets TimeZone to UTC, loads ICU (text sorts
 -- as Postgres's en-US ICU collation does: COLLATE en_us), runs derive/shared.sql, writes
 -- memory.maplify_entity (each Maplify name pair's register entity, and with it
--- memory.maplify_out_of_scope, derive/maplify-entities.ts), and writes memory.extracted:
+-- memory.maplify_out_of_scope, derive/maplify-entities.ts) and
+-- memory.inaturalist_out_of_scope (derive/inaturalist-scope.ts), and writes memory.extracted:
 -- what extract_travel_direction and extract_identifiers answer for each source's text,
 -- computed in JavaScript because RE2 can't express their patterns (derive/extract.ts).
 -- Where a Postgres view calls one of them, the twin here joins that table.
@@ -236,7 +237,10 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
    AND t.scientific_name NOT LIKE 'Orcinus orca %' AND t.scientific_name NOT LIKE 'Delphinus delphis %'
   LEFT JOIN public.providers prov ON prov.id = o.provider_id
   LEFT JOIN public.collections col ON col.id = o.collection_id
-  LEFT JOIN public.organizations org ON org.id = col.organization_id;
+  LEFT JOIN public.organizations org ON org.id = col.organization_id
+  -- Out of the map's scope by the ingest's isIngestable, decided in the build because the
+  -- mirror keeps the whole fetch box (salish-xv35.8, derive/inaturalist-scope.ts).
+  WHERE o.id NOT IN (SELECT id FROM memory.inaturalist_out_of_scope);
 
 -- derived.happywhale_instant(local_time, zone): an encounter's local date and time as an
 -- instant. Happywhale's zone is an IANA name, 'Z', or a bare ISO 8601 offset like

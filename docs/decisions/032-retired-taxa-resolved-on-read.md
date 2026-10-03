@@ -38,4 +38,4 @@ Resolving on read also reaches the one link a repointing script cannot. `inatura
 
 ## Reference
 
-Mirror discipline: [008](008-source-schemas-are-upstream-mirrors.md). The columns: migration `20260828000000_taxa_deactivation.sql`. The read path: migration `20260829020000_resolve_retired_taxa_on_read.sql`. Why the ingest can see a retirement at all: `supabase/functions/ingest/fetch-inaturalist.ts` (salish-5ds).
+Mirror discipline: [008](008-source-schemas-are-upstream-mirrors.md). The columns: migration `20260828000000_taxa_deactivation.sql`. The read path: migration `20260829020000_resolve_retired_taxa_on_read.sql`. Why the ingest can see a retirement at all: `scripts/ingest/fetch-inaturalist.ts` (salish-5ds; it lived in supabase/functions/ingest/ until salish-xv35.8).
