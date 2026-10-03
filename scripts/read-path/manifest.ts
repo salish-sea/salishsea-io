@@ -71,6 +71,6 @@ export async function main(): Promise<void> {
     console.log(`manifest.json: covered through ${manifest.covered_through} (snapshot ${manifest.snapshot_taken_at})`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

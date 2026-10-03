@@ -413,7 +413,7 @@ export async function main(): Promise<void> {
 // CLI entry point — only runs when invoked as a script, not when imported.
 // ---------------------------------------------------------------------------
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     main().catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         console.error('[heartbeat] FAILED:', maskDsn(msg));

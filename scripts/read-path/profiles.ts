@@ -382,6 +382,6 @@ export async function main(): Promise<void> {
     console.log(`profiles/${kind}/: ${pages} page${pages === 1 ? '' : 's'}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

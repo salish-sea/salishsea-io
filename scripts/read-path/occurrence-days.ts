@@ -108,6 +108,6 @@ export async function main(): Promise<void> {
 }
 
 // Only when run as a script, so the test can import writeDays.
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

@@ -44,6 +44,6 @@ export async function main(): Promise<void> {
     console.log(`build.occurrence_identifier_candidates: ${await deriveIdentifierCandidates(snapshot)} rows`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

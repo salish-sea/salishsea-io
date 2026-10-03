@@ -60,6 +60,6 @@ export async function main(): Promise<void> {
     console.log(`build.occurrences: ${await deriveOccurrences(snapshot)} rows`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

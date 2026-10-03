@@ -278,6 +278,6 @@ async function read(conn: DuckDBConnection, target: string, query: string): Prom
     console.log(`${target}: ${reader.getRows()[0]![0]} rows`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

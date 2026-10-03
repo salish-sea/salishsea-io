@@ -465,7 +465,7 @@ export async function main(): Promise<void> {
 // Entry-point conditional — only run main() when invoked as a script (e.g.
 // `tsx scripts/dwca/build.ts`). Importing this module from a test does NOT
 // trigger the pipeline.
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     main().catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         console.error('[build:dwca] FAILED:', msg);

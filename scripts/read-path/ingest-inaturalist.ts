@@ -283,6 +283,6 @@ export async function main(): Promise<void> {
     if (receipt) await writeFile(receipt, JSON.stringify({unchanged: changed === 0, records: changed, since}));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }
