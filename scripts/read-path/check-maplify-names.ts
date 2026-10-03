@@ -1,7 +1,7 @@
 /**
  * Does the build still name every Maplify sighting Postgres named? (salish-xv35.9)
  *
- *   node scripts/read-path/check-maplify-names.ts <snapshot.duckdb>
+ *   node scripts/read-path/check-maplify-names.ts <snapshot.duckdb> <maplify.sqlite>
  *
  * The build resolves a Maplify sighting's animal from the register it was given
  * (derive/maplify-entities.ts), so a register edition that loses a name would quietly
@@ -14,7 +14,8 @@
  * a failure leaves the last good files published.
  *
  * Only an identification taken away fails it; one moved to another entity is a register
- * edit doing its job. It reads Postgres's answer, so it lasts as long as Postgres
+ * edit doing its job. Only pairs the build's Maplify mirror still holds count: a sighting
+ * Maplify no longer returns isn't on the map to lose. It reads Postgres's answer, so it lasts as long as Postgres
  * ingests Maplify; once that stops it needs the build's own previous answer instead.
  */
 
@@ -26,18 +27,22 @@ import { budget } from './duckdb-budget.ts';
 
 export type Unnamed = {name: string | null, scientific_name: string, was: string, sightings: number};
 
-export async function unnamedPairs(snapshot: string): Promise<Unnamed[]> {
+export async function unnamedPairs(snapshot: string, mirror: string): Promise<Unnamed[]> {
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
         await budget(conn, snapshot, '64MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         await conn.run('USE store');
+        await conn.run('INSTALL sqlite; LOAD sqlite');
+        await conn.run(`ATTACH '${mirror.replaceAll("'", "''")}' AS maplify_mirror (TYPE sqlite, READ_ONLY)`);
         const index = buildNameIndex((await conn.runAndReadAll(NAME_INDEX_SQL)).getRowObjectsJS() as unknown as RegisterName[]);
         const named = (await conn.runAndReadAll(`
             SELECT name, scientific_name, any_value(entity_id) AS was, CAST(count(*) AS INTEGER) AS sightings
-            FROM maplify.sightings
+            FROM maplify.sightings s
             WHERE entity_id IS NOT NULL
+              AND EXISTS (SELECT 1 FROM maplify_mirror.sightings m
+                          WHERE m.name IS NOT DISTINCT FROM s.name AND m.scientific_name = s.scientific_name)
             GROUP BY name, scientific_name
             ORDER BY sightings DESC`)).getRowObjectsJS() as unknown as Unnamed[];
         // resolveEntity reads only these two of a sighting's fields.
@@ -50,12 +55,12 @@ export async function unnamedPairs(snapshot: string): Promise<Unnamed[]> {
 }
 
 export async function main(): Promise<void> {
-    const [snapshot] = process.argv.slice(2);
-    if (!snapshot) {
-        console.error('usage: check-maplify-names.ts <snapshot.duckdb>');
+    const [snapshot, mirror] = process.argv.slice(2);
+    if (!snapshot || !mirror) {
+        console.error('usage: check-maplify-names.ts <snapshot.duckdb> <maplify.sqlite>');
         process.exit(2);
     }
-    const unnamed = await unnamedPairs(snapshot);
+    const unnamed = await unnamedPairs(snapshot, mirror);
     if (unnamed.length === 0) {
         console.log('every Maplify name Postgres resolved still resolves');
         return;

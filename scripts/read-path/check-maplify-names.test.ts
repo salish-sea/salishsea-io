@@ -5,6 +5,7 @@
 
 import { DuckDBInstance } from '@duckdb/node-api';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, expect, test } from 'vitest';
@@ -20,6 +21,17 @@ beforeAll(async () => {
 afterAll(async () => {
     await rm(dir, {recursive: true, force: true});
 });
+
+/** The build's Maplify mirror, holding these (name, scientific name) pairs. */
+function mirror(file: string, pairs: [name: string | null, scientific: string][]): string {
+    const target = path.join(dir, file);
+    const db = new DatabaseSync(target);
+    db.exec('CREATE TABLE sightings (name TEXT, scientific_name TEXT NOT NULL)');
+    const insert = db.prepare('INSERT INTO sightings VALUES (?, ?)');
+    for (const [name, scientific] of pairs) insert.run(name, scientific);
+    db.close();
+    return target;
+}
 
 /** A snapshot whose register has these entities, and Postgres's Maplify sightings. */
 async function snapshot(
@@ -50,7 +62,8 @@ test('every pair Postgres named still resolves: nothing to report', async () => 
     const file = await snapshot('named.duckdb',
         [['SSA:1', 'Orcinus orca'], ['SSA:2', 'Balaenoptera borealis']],
         [['Orca', 'Orcinus orca', 'SSA:1'], ['Sei Whale', 'Balaenoptera borealis', 'SSA:2']]);
-    expect(await unnamedPairs(file)).toEqual([]);
+    const m = mirror('named.sqlite', [['Orca', 'Orcinus orca'], ['Sei Whale', 'Balaenoptera borealis']]);
+    expect(await unnamedPairs(file, m)).toEqual([]);
 });
 
 test('a pair Postgres named that the register no longer names is reported, with its sightings', async () => {
@@ -58,7 +71,8 @@ test('a pair Postgres named that the register no longer names is reported, with 
         [['SSA:1', 'Orcinus orca']],
         [['Orca', 'Orcinus orca', 'SSA:1'],
          ['Sei Whale', 'Balaenoptera borealis', 'SSA:2'], ['Sei Whale', 'Balaenoptera borealis', 'SSA:2']]);
-    expect(await unnamedPairs(file)).toEqual([
+    const m = mirror('unnamed.sqlite', [['Orca', 'Orcinus orca'], ['Sei Whale', 'Balaenoptera borealis']]);
+    expect(await unnamedPairs(file, m)).toEqual([
         {name: 'Sei Whale', scientific_name: 'Balaenoptera borealis', was: 'SSA:2', sightings: 2},
     ]);
 });
@@ -67,5 +81,24 @@ test('a pair Postgres never named is not the guard\'s business', async () => {
     const file = await snapshot('never.duckdb',
         [['SSA:1', 'Orcinus orca']],
         [['Something', 'Unknown thing', null]]);
-    expect(await unnamedPairs(file)).toEqual([]);
+    const m = mirror('never.sqlite', [['Something', 'Unknown thing']]);
+    expect(await unnamedPairs(file, m)).toEqual([]);
+});
+
+test('a pair only Postgres still holds can\'t be lost from the map, so it doesn\'t count', async () => {
+    const file = await snapshot('gone.duckdb',
+        [['SSA:1', 'Orcinus orca']],
+        [['Orca', 'Orcinus orca', 'SSA:1'], ['Sei Whale', 'Balaenoptera borealis', 'SSA:2']]);
+    const m = mirror('gone.sqlite', [['Orca', 'Orcinus orca']]);
+    expect(await unnamedPairs(file, m)).toEqual([]);
+});
+
+test('a pair with no common name matches its mirror row by its scientific name alone', async () => {
+    const file = await snapshot('nameless.duckdb',
+        [['SSA:1', 'Orcinus orca']],
+        [[null, 'Balaenoptera borealis', 'SSA:2']]);
+    const m = mirror('nameless.sqlite', [[null, 'Balaenoptera borealis']]);
+    expect(await unnamedPairs(file, m)).toEqual([
+        {name: null, scientific_name: 'Balaenoptera borealis', was: 'SSA:2', sightings: 1},
+    ]);
 });
