@@ -1,14 +1,15 @@
 name: Ingest Heartbeat
 
-# External observer for the 5-minute pg_cron → Edge Function ingest
-# (salish-89d.4 / decision 012). pg_cron can't watch itself die — the
-# 2026-07-06 pg_net gap failed prod ingest silently — so this runs OUTSIDE the
-# database: a scheduled check of ingest.runs that files a GitHub issue when no
-# successful run is fresh enough, a run is stuck mid-flight, or successful runs
-# had a hole in them within the last day. GitHub's cron is best-effort — far
+# External observer for the ingest (salish-89d.4 / decision 012), which runs in the
+# read-path build on the Fly app every five minutes since salish-xv35.9 (it was
+# pg_cron → Edge Function before). A job can't watch itself die, so this runs
+# elsewhere: a scheduled check of the build's run log, which the Fly app serves at
+# /status/ingest-runs.json, that files a GitHub issue when no successful run is fresh
+# enough, a run is stuck mid-flight, or successful runs had a hole in them within the
+# last day. GitHub's cron is best-effort — far
 # more so than "a little late": measured over 2026-08-23 → 09-10, checks were a
 # median 68 minutes apart and up to 12.5 hours, against the 30 requested. That
-# is why the third check exists: freshness is measured against the DB clock,
+# is why the third check exists: freshness is measured against the checker's clock,
 # so lateness cannot make a live outage look healthy, but a transient outage
 # that healed between two checks was invisible to it (salish-oyf). The gap
 # check reads the worst interval between successes over a window longer than
@@ -34,7 +35,7 @@ jobs:
             issues: write  # failure issue, dwca-nightly pattern
         env:
             FRESHNESS_MINUTES: '30'  # ingest cron fires every 5 min → 6 misses
-            STUCK_MINUTES: '15'      # Edge Function wall clock is minutes at most
+            STUCK_MINUTES: '15'      # an ingest run takes minutes at most
             UPSTREAM_MINUTES: '360'  # a source down, our side running (decision 060)
 
         steps:
@@ -68,23 +69,13 @@ jobs:
                   Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
                   Triggered: ${{ github.event_name }} on ${{ github.sha }} at $(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-                  Check the failing step's logs. Common causes: DSN/secret issue, a
-                  dependency install error, or the database being unreachable — the last of which
-                  is itself an ingest outage, so treat this issue as a real alert.
+                  Check the failing step's logs. Common causes: a dependency install error, or
+                  the run log at https://salishsea.io/status/ingest-runs.json being unreachable —
+                  the last of which means the Fly app is down, so treat this issue as a real alert.
                   EOF
 
             # Same DSN assembly as dwca-nightly.yml (see the rationale there): URL-encode
             # the password, mask it, connect via the IPv4 session pooler on port 5432.
-            - name: Prepare Postgres DSN
-              env:
-                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-                  SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
-              run: |
-                  ENCODED_PW=$(node -e 'process.stdout.write(encodeURIComponent(process.env.DB_PASSWORD))')
-                  echo "::add-mask::${ENCODED_PW}"
-                  printf 'SUPABASE_DB_URL=postgres://postgres.%s:%s@aws-1-us-west-1.pooler.supabase.com:5432/postgres\n' \
-                    "${SUPABASE_PROJECT_ID}" "${ENCODED_PW}" >> "${GITHUB_ENV}"
-
             - name: Check ingest heartbeat
               run: pnpm exec tsx scripts/ingest/heartbeat.ts
 

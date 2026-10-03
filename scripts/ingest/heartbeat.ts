@@ -1,7 +1,10 @@
 /**
  * Ingest heartbeat/freshness check (salishsea-io-89d.4 / decisions 011, 012).
  *
- * Queries ingest.runs and exits non-zero when either silent-failure mode is live:
+ * Reads the read-path build's ingest run log, which the Fly app serves at
+ * /status/ingest-runs.json (scripts/read-path/ingest-runs.ts), and exits non-zero
+ * when a silent-failure mode is live. Until salish-xv35.9 it read ingest.runs, which
+ * Postgres's pg_cron ingest wrote; the checks are unchanged:
  *   - STALE:  the newest successful non-dry-run run for a source is older than
  *             FRESHNESS_MINUTES (or the source has no successful run at all).
  *             Catches a cron that stopped firing — the gap Sentry can't see,
@@ -34,20 +37,18 @@
  * the fault was upstream. A failure that is not transient does not count — a
  * defect that keeps every run failing is ours, and trips at FRESHNESS_MINUTES.
  *
- * Invoked by .github/workflows/ingest-heartbeat.yml on a schedule, against prod
- * via SUPABASE_DB_URL (session pooler). Staleness is measured against the DB
- * server's clock (SELECT now()), not the runner's, so clock skew can't lie.
+ * Invoked by .github/workflows/ingest-heartbeat.yml on a schedule, reading
+ * RUNS_URL. Ages are measured against this checker's clock, not the file's
+ * written_at: a build that stopped entirely stops rewriting the file, and must read
+ * as stale rather than as fresh at the moment it stopped.
  *
  * On trip: writes a human-readable report to dist/ingest/heartbeat-report.txt
  * (the workflow files it as a GitHub issue) and exits 1.
- *
- * Security: NEVER log the DSN — errors are scrubbed via maskDsn() (T-7-01,
- * same rule as scripts/dwca/guard.ts).
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
-import postgres from 'postgres';
-import type { Sql, TransactionSql } from 'postgres';
+
+import type { RunsFile } from '../read-path/ingest-runs.ts';
 
 // ---------------------------------------------------------------------------
 // Constants (env-overridable; the workflow sets both explicitly)
@@ -55,13 +56,19 @@ import type { Sql, TransactionSql } from 'postgres';
 
 const REPORT_PATH = 'dist/ingest/heartbeat-report.txt';
 
-/** Sources the ingest pipeline must keep fresh — mirrors the ingest.runs CHECK. */
+/** Where the build publishes its run log. */
+const RUNS_URL = process.env['RUNS_URL'] ?? 'https://salishsea.io/status/ingest-runs.json';
+
+/** Sources the ingest pipeline must keep fresh. */
 export const SOURCES = ['maplify', 'inaturalist', 'orcasound'] as const;
 
 /** Cron fires every 5 min; 30 min of no success = 6 consecutive missed/failed runs. */
 const FRESHNESS_MINUTES = Number(process.env['FRESHNESS_MINUTES'] ?? 30);
 
-/** Edge Function wall clock tops out well under 15 min; older unfinished = dead. */
+/**
+ * An ingest run takes seconds to minutes; one still unfinished after this, with no
+ * later run to close it (ingest-runs.ts), means the build has stopped mid-run.
+ */
 const STUCK_MINUTES = Number(process.env['STUCK_MINUTES'] ?? 15);
 
 /**
@@ -276,112 +283,69 @@ export function evaluateHeartbeat(input: HeartbeatInput, thresholds: Thresholds)
  * Accepts a plain connection or a transaction (postgres.js types them as
  * unrelated siblings) so the integration test can call it inside a rollback.
  */
-export async function fetchHeartbeatInput(
-    sql: Sql | TransactionSql,
-    lookbackMinutes = LOOKBACK_MINUTES,
-): Promise<HeartbeatInput> {
-    const [nowRow] = await sql<{ db_now: Date }[]>`SELECT now() AS db_now`;
-    const successRows = await sql<{ source: string; finished_at: Date }[]>`
-        SELECT source, max(finished_at) AS finished_at
-        FROM ingest.runs
-        WHERE outcome = 'success' AND NOT dry_run
-        GROUP BY source`;
-    const orphanRows = await sql<
-        { id: number; source: string; trigger: string; dry_run: boolean; started_at: Date }[]
-    >`
-        SELECT id, source, trigger, dry_run, started_at
-        FROM ingest.runs
-        WHERE finished_at IS NULL
-        ORDER BY started_at`;
-    // Inside the window, plus one before it per source (the newest), so the
-    // first in-window interval is measured from a real event rather than from
-    // the window's edge. Successes and transient failures alike.
-    const recentFinishes = (kind: ReturnType<typeof sql>) => sql<
-        { source: string; finished_at: Date }[]
-    >`
-        WITH window_start AS (
-            SELECT now() - make_interval(mins => ${lookbackMinutes}) AS at
-        ), finishes AS (
-            SELECT source, finished_at
-            FROM ingest.runs
-            WHERE NOT dry_run AND ${kind}
-        )
-        SELECT source, finished_at
-        FROM finishes, window_start
-        WHERE finished_at > window_start.at
-        UNION ALL
-        SELECT source, max(finished_at)
-        FROM finishes, window_start
-        WHERE finished_at <= window_start.at
-        GROUP BY source`;
-    const recentRows = await recentFinishes(sql`outcome = 'success'`);
-    const transientRows = await recentFinishes(sql`outcome = 'failed' AND transient`);
-
+/**
+ * The checks' input from the build's run log, as of `now`: each source's last success,
+ * the runs still unfinished, and the successes and transient failures inside the
+ * lookback window plus the newest of each before it per source, so the first
+ * in-window interval is measured from a real event rather than from the window's edge.
+ */
+export function heartbeatInput(file: RunsFile, now: Date, lookbackMinutes = LOOKBACK_MINUTES): HeartbeatInput {
+    const windowStart = now.getTime() - lookbackMinutes * 60_000;
+    const finishes = (keep: (r: RunsFile['runs'][number]) => boolean): SuccessAt[] => {
+        const rows = file.runs.filter(r => r.finished_at !== null && keep(r))
+            .map(r => ({source: r.source, finishedAt: new Date(r.finished_at!)}));
+        const inside = rows.filter(r => r.finishedAt.getTime() > windowStart);
+        const before = new Map<string, SuccessAt>();
+        for (const r of rows.filter(r => r.finishedAt.getTime() <= windowStart)) {
+            const seen = before.get(r.source);
+            if (!seen || seen.finishedAt < r.finishedAt) before.set(r.source, r);
+        }
+        return [...inside, ...before.values()];
+    };
     return {
-        now: nowRow!.db_now,
-        lastSuccesses: successRows.map((r) => ({ source: r.source, finishedAt: r.finished_at })),
-        recentSuccesses: recentRows.map((r) => ({ source: r.source, finishedAt: r.finished_at })),
-        recentTransientFailures: transientRows.map((r) => ({
-            source: r.source,
-            finishedAt: r.finished_at,
+        now,
+        lastSuccesses: Object.entries(file.last_success)
+            .map(([source, at]) => ({source, finishedAt: new Date(at!)})),
+        orphans: file.runs.filter(r => r.finished_at === null).map(r => ({
+            id: r.id, source: r.source, trigger: r.trigger, dryRun: false, startedAt: new Date(r.started_at),
         })),
-        orphans: orphanRows.map((r) => ({
-            id: Number(r.id),
-            source: r.source,
-            trigger: r.trigger,
-            dryRun: r.dry_run,
-            startedAt: r.started_at,
-        })),
+        recentSuccesses: finishes(r => r.outcome === 'success'),
+        recentTransientFailures: finishes(r => r.outcome === 'failed' && r.transient === true),
     };
 }
 
-/** Mask the password in any DSN-shaped substring (mirrors scripts/dwca/guard.ts). */
-function maskDsn(s: string): string {
-    const masked = s.replace(/\b(postgres(?:ql)?:\/\/[^:\s/@]+:)[^@\s]+(@)/gi, '$1***$2');
-    if (masked !== s) return masked;
-    return s.includes('://') ? '<redacted>' : s;
+/** The run log, or an error naming what went wrong: the build unreachable is itself an alarm. */
+export async function fetchRuns(url = RUNS_URL): Promise<RunsFile> {
+    const response = await fetch(url, {signal: AbortSignal.timeout(30_000)});
+    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+    const file = await response.json() as RunsFile;
+    if (file.version !== 1) throw new Error(`${url}: unknown version ${String(file.version)}`);
+    return file;
 }
 
 function reportBody(findings: readonly Finding[], input: HeartbeatInput): string {
     const lines = findings.map((f) => `- [${f.kind}] ${f.message}`).join('\n');
     return (
-        `Ingest heartbeat tripped at ${input.now.toISOString()} (DB clock)\n\n` +
+        `Ingest heartbeat tripped at ${input.now.toISOString()}\n\n` +
         `${lines}\n\n` +
-        `stale / never_succeeded: the pg_cron → pg_net → Edge Function ingest has stopped\n` +
-        `producing successful runs for that source. stuck: a run crashed or hung mid-flight\n` +
-        `(started row never got its outcome — decision 011's orphan pattern). gap: it\n` +
-        `stopped and started again between two checks; the outage is over, but it happened,\n` +
-        `and this is the only place it will be reported. A gap keeps tripping until it is\n` +
-        `older than the lookback window; the issue closes itself once a check passes.\n` +
+        `stale / never_succeeded: the read-path build on the Fly app has stopped\n` +
+        `producing successful runs for that source. stuck: a run started and nothing has\n` +
+        `run since to close it; the build has stopped mid-run. gap: it stopped and started\n` +
+        `again between two checks; the outage is over, but it happened, and this is the\n` +
+        `only place it will be reported. A gap keeps tripping until it is older than the\n` +
+        `lookback window; the issue closes itself once a check passes.\n` +
         `upstream_outage: our side kept running, but every run failed because the source\n` +
         `was unavailable, for longer than we tolerate (decision 060). Check the source's\n` +
-        `status before ours; nothing is lost if it comes back within ten days.\n\n` +
-        `Diagnose (npx supabase db query --linked, or psql via the session pooler):\n` +
-        `  SELECT * FROM ingest.runs ORDER BY started_at DESC LIMIT 20;\n` +
-        `  SELECT jobname, status, return_message, start_time FROM cron.job_run_details\n` +
-        `    ORDER BY start_time DESC LIMIT 20;\n` +
-        `  SELECT id, status_code, error_msg, created FROM net._http_response\n` +
-        `    ORDER BY created DESC LIMIT 20;\n\n` +
-        `Also check the ingest Edge Function logs in the Supabase dashboard.\n` +
-        `The window self-heals: once the cause is fixed, the next successful run\n` +
-        `re-fetches the whole 10-day window (decision 011).\n`
+        `status before ours. While a source is down the map keeps everything else current\n` +
+        `and that source's last good copy.\n\n` +
+        `Diagnose: ${RUNS_URL} lists the runs, with each failure's error;\n` +
+        `\`fly logs -a salishsea-io\` shows the builds. Each source's next successful run\n` +
+        `re-fetches its whole window, so nothing is lost once the cause is fixed.\n`
     );
 }
 
 export async function main(): Promise<void> {
-    const dsn = process.env['SUPABASE_DB_URL'];
-    if (!dsn) {
-        console.error('SUPABASE_DB_URL is not set');
-        process.exit(1);
-    }
-
-    const sql = postgres(dsn, { prepare: false, max: 1 });
-    let input: HeartbeatInput;
-    try {
-        input = await fetchHeartbeatInput(sql);
-    } finally {
-        await sql.end();
-    }
+    const input = heartbeatInput(await fetchRuns(), new Date());
 
     const thresholds: Thresholds = {
         freshnessMinutes: FRESHNESS_MINUTES,
@@ -416,7 +380,7 @@ export async function main(): Promise<void> {
 if (import.meta.main) {
     main().catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error('[heartbeat] FAILED:', maskDsn(msg));
+        console.error('[heartbeat] FAILED:', msg);
         process.exit(1);
     });
 }

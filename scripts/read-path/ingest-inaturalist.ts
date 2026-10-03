@@ -53,6 +53,7 @@ import { reconcile, type NormalizedObservation, type NormalizedTaxon } from '../
 import type { IngestWindow } from '../ingest/persist.ts';
 import { defaultWindow } from '../ingest/window.ts';
 import { addDays, antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
+import { recordedRun } from './ingest-runs.ts';
 
 /** How far back the first `updated_since` reaches, before the mirror has seen anything. */
 export const FIRST_UPDATED_DAYS = 30;
@@ -261,35 +262,46 @@ export async function main(): Promise<void> {
     const db = openMirror(path);
     let changed = 0;
     let since: string | null = null;
+    const trigger = start !== undefined ? 'manual' : 'cron';
+    // Checked before the run is recorded, so a mistyped backfill leaves no run unfinished.
+    const manual = start !== undefined && end !== undefined ? curatorWindow(start, end) : null;
+    if (trigger === 'manual' && !manual) {
+        console.error(`not a window: ${start}..${end} (two days, 'YYYY-MM-DD', start first)`);
+        process.exit(2);
+    }
     try {
-        const run = async (label: string, query: ObservationQuery, window: IngestWindow | null) => {
-            const {observations, recordCount} = await fetchAllObservationPages(query, quiet, undefined, {scoped: false});
-            const taxa = await resolveTaxonClosure(async ids => storedTaxonIds(db, ids), observations, quiet);
-            const result = applyFetch(db, observations, taxa, window);
-            if (!window) recordSynced(db, observations);
-            changed += result.written + result.deleted;
-            log(`inaturalist ${label}: ${recordCount} fetched; ${result.written} written, ${result.deleted} deleted, `
-                + `${result.taxa} taxa added`);
-            await sleep(1000);
-        };
-        if (start !== undefined && end !== undefined) {
-            const window = curatorWindow(start, end);
-            if (!window) {
-                console.error(`not a window: ${start}..${end} (two days, 'YYYY-MM-DD', start first)`);
-                process.exit(2);
+        const outcome = await recordedRun(path, 'inaturalist', trigger, async () => {
+            const run = async (label: string, query: ObservationQuery, window: IngestWindow | null) => {
+                const {observations, recordCount} = await fetchAllObservationPages(query, quiet, undefined, {scoped: false});
+                const taxa = await resolveTaxonClosure(async ids => storedTaxonIds(db, ids), observations, quiet);
+                const result = applyFetch(db, observations, taxa, window);
+                if (!window) recordSynced(db, observations);
+                changed += result.written + result.deleted;
+                log(`inaturalist ${label}: ${recordCount} fetched; ${result.written} written, ${result.deleted} deleted, `
+                    + `${result.taxa} taxa added`);
+                await sleep(1000);
+            };
+            if (manual) {
+                await run(`${manual.start}..${manual.end}`, padded(manual), manual);
+                since = manual.start;
+            } else {
+                const now = new Date();
+                const updatedSince = sweepFrom(syncedThrough(db), now);
+                await run(`updated since ${updatedSince}`, {updatedSince}, null);
+                const recent = defaultWindow(now, 10);
+                await run(`${recent.start}..${recent.end}`, padded(recent), recent);
+                const earliest = firstCoveredDay(path);
+                const older = earliest === null ? null : antiEntropyWindow(earliest, recent.start, now, Math.random());
+                if (older) await run(`${older.start}..${older.end}`, padded(older), older);
+                since = older?.start ?? recent.start;
             }
-            await run(`${window.start}..${window.end}`, padded(window), window);
-            since = window.start;
-        } else {
-            const now = new Date();
-            const updatedSince = sweepFrom(syncedThrough(db), now);
-            await run(`updated since ${updatedSince}`, {updatedSince}, null);
-            const recent = defaultWindow(now, 10);
-            await run(`${recent.start}..${recent.end}`, padded(recent), recent);
-            const earliest = firstCoveredDay(path);
-            const older = earliest === null ? null : antiEntropyWindow(earliest, recent.start, now, Math.random());
-            if (older) await run(`${older.start}..${older.end}`, padded(older), older);
-            since = older?.start ?? recent.start;
+            return changed;
+        });
+        // A source that can't be reached leaves what it had applied, each window whole,
+        // and the build goes on with it (ingest-runs.ts); a backfill run by hand fails loudly.
+        if (!outcome.ok) {
+            console.error(`inaturalist: fetch failed; the mirror keeps its last good copy: ${String(outcome.error)}`);
+            if (trigger === 'manual') throw outcome.error;
         }
     } finally {
         db.close();

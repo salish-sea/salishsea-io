@@ -101,3 +101,5 @@ the Actions API) — exact, but it makes the window depend on the observer's own
 another permission, and gives a check that failed before evaluating nothing to measure from.
 *A shorter window with a more frequent schedule* — the schedule is not honoured now; asking
 for more of it does not make it so.
+
+*Amended 2026-10-03 (`salish-xv35.9`, [decision 061](061-ingest-and-derivation-move-into-the-build.md)):* the ingest runs in the read-path build on the Fly app, so the heartbeat reads the build's run log ([`scripts/read-path/ingest-runs.ts`](../../scripts/read-path/ingest-runs.ts)), served at `/status/ingest-runs.json`, instead of `ingest.runs`. The checks are the same. Ages are measured against the checker's clock rather than the file's, so a build that stopped entirely reads as stale. A run left unfinished by a restart is closed as interrupted when the source's next run starts, so "stuck" still means nothing has run since.

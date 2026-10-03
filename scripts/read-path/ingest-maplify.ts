@@ -45,6 +45,7 @@ import { parseMaplifyResponse, reconcile, type NormalizedSighting } from '../ing
 import type { IngestWindow } from '../ingest/persist.ts';
 import { defaultWindow } from '../ingest/window.ts';
 import { addDays, antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
+import { recordedRun } from './ingest-runs.ts';
 
 /** How many days the regular fetch reaches back (salish-xv35.15, Peter 2026-10-02). */
 export const REGULAR_DAYS = 30;
@@ -155,14 +156,25 @@ export async function main(): Promise<void> {
     }
     const log = (msg: string, extra?: Record<string, unknown>) =>
         console.log(extra ? `${msg} ${JSON.stringify(extra)}` : msg);
+    const trigger = start !== undefined ? 'manual' : 'cron';
+    // Counted as windows land, so a failure after one still reports what it changed.
     let changedInAll = 0;
-    for (const window of windows) {
-        const result = parseMaplifyResponse(await fetchMaplify(window, log));
-        if (!result.ok) throw new Error(`maplify parse failed: ${result.error}`);
-        const {upserted, deleted, changed} = reconcileWindow(path, window, result.sightings);
-        changedInAll += changed;
-        console.log(`maplify ${window.start}..${window.end}: ${result.sightings.length} sightings fetched; `
-            + `${changed === 0 ? 'unchanged' : `${changed} changed (${deleted} deleted)`}; ${upserted} in the window`);
+    const run = await recordedRun(path, 'maplify', trigger, async () => {
+        for (const window of windows) {
+            const result = parseMaplifyResponse(await fetchMaplify(window, log));
+            if (!result.ok) throw new Error(`maplify parse failed: ${result.error}`);
+            const {upserted, deleted, changed} = reconcileWindow(path, window, result.sightings);
+            changedInAll += changed;
+            console.log(`maplify ${window.start}..${window.end}: ${result.sightings.length} sightings fetched; `
+                + `${changed === 0 ? 'unchanged' : `${changed} changed (${deleted} deleted)`}; ${upserted} in the window`);
+        }
+        return changedInAll;
+    });
+    // A source that can't be reached leaves the mirror as it was, and the build goes on
+    // with it (ingest-runs.ts); a backfill run by hand fails loudly instead.
+    if (!run.ok) {
+        console.error(`maplify: fetch failed; the mirror keeps its last good copy: ${String(run.error)}`);
+        if (trigger === 'manual') throw run.error;
     }
     const receipt = process.env['STELIS_BOUNDARY_RECEIPT'];
     // `since` is where the fetch reached back to, the anti-entropy month when there is one.
