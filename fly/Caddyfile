@@ -40,6 +40,16 @@
 		file_server
 	}
 
+	# The build's ingest run log (scripts/read-path/ingest-runs.ts), which the heartbeat
+	# workflow reads (scripts/ingest/heartbeat.ts). Beside the mirrors, outside the
+	# export, so it is never a published file; no-cache, since its age is the point.
+	handle /status/ingest-runs.json {
+		header Cache-Control "no-cache"
+		root * /data/mirrors
+		rewrite * /ingest-runs.json
+		file_server
+	}
+
 	# A bare identifier (/individuals/0010193, /haulouts/340): decision 034 301s it to
 	# the slugged address. The redirect server answers from the map the build writes,
 	# with no lookup; an identifier it doesn't know has no published page, which is the

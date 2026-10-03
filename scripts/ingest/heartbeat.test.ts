@@ -1,22 +1,16 @@
 /**
- * Heartbeat check (salishsea-io-89d.4): unit tier for the pure predicate,
- * integration tier for the ingest.runs reads (decision 011's two tiers).
- *
- * The integration suite runs against local Supabase, gated on SUPABASE_DB_URL
- * (set by build.yml in CI; skips on a fresh checkout). It empties and reseeds
- * ingest.runs INSIDE a transaction that is always rolled back, so results are
- * deterministic regardless of prior local runs and the DB is left untouched.
+ * Heartbeat check (salishsea-io-89d.4): the pure predicate, and the input it is
+ * given from the read-path build's run log (salish-xv35.9; it read ingest.runs before).
  */
 
-import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import postgres from 'postgres';
-import type { Sql, TransactionSql } from 'postgres';
+import { describe, test, expect } from 'vitest';
 import {
     evaluateHeartbeat,
-    fetchHeartbeatInput,
+    heartbeatInput,
     type HeartbeatInput,
     type Thresholds,
 } from './heartbeat.ts';
+import type { Run, RunsFile } from '../read-path/ingest-runs.ts';
 
 const THRESHOLDS: Thresholds = { freshnessMinutes: 30, stuckMinutes: 15, upstreamMinutes: 360 };
 const NOW = new Date('2026-07-06T12:00:00Z');
@@ -352,193 +346,108 @@ describe('evaluateHeartbeat: upstream outages', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Integration: the reads against local Supabase
+// The input, from the build's run log (scripts/read-path/ingest-runs.ts)
 // ---------------------------------------------------------------------------
 
-const DSN = process.env['SUPABASE_DB_URL'];
-
-/** Run fn in a transaction that is ALWAYS rolled back. */
-class Rollback extends Error {}
-async function withRollback(sql: Sql, fn: (tx: TransactionSql) => Promise<void>): Promise<void> {
-    await sql
-        .begin(async (tx) => {
-            await fn(tx);
-            throw new Rollback();
-        })
-        .catch((err: unknown) => {
-            if (!(err instanceof Rollback)) throw err;
-        });
+let nextId = 1;
+/** A run that started `startedMinutesAgo` and, unless `finishedMinutesAgo` is null, ended. */
+function run(
+    source: Run['source'], startedMinutesAgo: number, finishedMinutesAgo: number | null,
+    outcome: Run['outcome'], transient: boolean | null = null,
+): Run {
+    return {
+        id: nextId++, source, trigger: 'cron',
+        started_at: minutesAgo(startedMinutesAgo).toISOString(),
+        finished_at: finishedMinutesAgo === null ? null : minutesAgo(finishedMinutesAgo).toISOString(),
+        outcome, transient, rows_changed: outcome === 'success' ? 0 : null, error: outcome === 'failed' ? 'boom' : null,
+    };
 }
 
-describe.skipIf(!DSN)('fetchHeartbeatInput (local Supabase)', () => {
-    let sql: Sql;
+/** The file as the build writes it: last_success from the runs given, unless overridden. */
+function file(runs: Run[], lastSuccess?: RunsFile['last_success']): RunsFile {
+    const last: RunsFile['last_success'] = {};
+    for (const r of runs) {
+        if (r.outcome === 'success' && r.finished_at && (!last[r.source] || last[r.source]! < r.finished_at))
+            last[r.source] = r.finished_at;
+    }
+    return {version: 1, written_at: NOW.toISOString(), runs, last_success: lastSuccess ?? last};
+}
 
-    beforeAll(() => {
-        sql = postgres(DSN as string, { prepare: false, max: 1 });
+describe('heartbeatInput (the build\'s run log)', () => {
+    test('a failed run is no success; an unfinished one is an orphan', () => {
+        const input = heartbeatInput(file([
+            run('maplify', 20, 19, 'success'),
+            run('maplify', 3, 2, 'failed'),
+            run('inaturalist', 6, 5, 'success'),
+            run('inaturalist', 45, null, null),
+        ]), NOW);
+        const bySource = new Map(input.lastSuccesses.map((s) => [s.source, s.finishedAt]));
+        expect(bySource.get('maplify')).toEqual(minutesAgo(19));
+        expect(input.orphans).toHaveLength(1);
+        expect(input.orphans[0]).toMatchObject({source: 'inaturalist', trigger: 'cron', dryRun: false});
     });
 
-    afterAll(async () => {
-        await sql.end();
+    test('a source with no runs has no lastSuccess entry', () => {
+        const input = heartbeatInput(file([run('maplify', 2, 1, 'success')]), NOW);
+        expect(input.lastSuccesses.map((s) => s.source)).toEqual(['maplify']);
+        expect(evaluateHeartbeat(input, THRESHOLDS).map((f) => [f.kind, f.source]))
+            .toEqual([['never_succeeded', 'inaturalist'], ['never_succeeded', 'orcasound']]);
     });
 
-    test('excludes dry-run and failed runs from last success; surfaces orphans', async () => {
-        await withRollback(sql, async (tx) => {
-            await tx`DELETE FROM ingest.runs`;
-            await tx`
-                INSERT INTO ingest.runs
-                    (source, trigger, dry_run, window_start, window_end,
-                     started_at, finished_at, outcome, error)
-                VALUES
-                    -- the real last success for maplify
-                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '20 minutes', now() - interval '19 minutes', 'success', NULL),
-                    -- newer, but dry-run: must NOT count as freshness
-                    ('maplify', 'manual', true, '2026-06-26', '2026-07-06',
-                     now() - interval '5 minutes', now() - interval '4 minutes', 'success', NULL),
-                    -- newer, but failed: must NOT count either
-                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '3 minutes', now() - interval '2 minutes', 'failed', 'boom'),
-                    -- inaturalist success
-                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '6 minutes', now() - interval '5 minutes', 'success', NULL),
-                    -- an orphan: started, never finished
-                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '45 minutes', NULL, NULL, NULL)`;
-
-            const input = await fetchHeartbeatInput(tx);
-
-            expect(input.now).toBeInstanceOf(Date);
-
-            const bySource = new Map(input.lastSuccesses.map((s) => [s.source, s.finishedAt]));
-            const maplifyAge = input.now.getTime() - bySource.get('maplify')!.getTime();
-            // ~19 minutes, i.e. the non-dry-run success — not the 4m dry run or 2m failure
-            expect(maplifyAge).toBeGreaterThan(18 * 60_000);
-            expect(bySource.get('inaturalist')).toBeInstanceOf(Date);
-
-            expect(input.orphans).toHaveLength(1);
-            expect(input.orphans[0]).toMatchObject({
-                source: 'inaturalist',
-                trigger: 'cron',
-                dryRun: false,
-            });
-            expect(typeof input.orphans[0]!.id).toBe('number');
-        });
+    test('ages are measured against the checker\'s clock: a build that stopped reads as stale', () => {
+        // The file was last written two hours ago, when everything was fine.
+        const twoHoursLate = new Date(NOW.getTime() + 120 * 60_000);
+        const input = heartbeatInput(file([
+            run('maplify', 5, 4, 'success'), run('inaturalist', 5, 4, 'success'), run('orcasound', 5, 4, 'success'),
+        ]), twoHoursLate);
+        expect(evaluateHeartbeat(input, THRESHOLDS).map((f) => f.kind)).toEqual(['stale', 'stale', 'stale']);
     });
 
-    test('a source with no rows simply has no lastSuccess entry', async () => {
-        await withRollback(sql, async (tx) => {
-            await tx`DELETE FROM ingest.runs`;
-            await tx`
-                INSERT INTO ingest.runs
-                    (source, trigger, dry_run, window_start, window_end,
-                     started_at, finished_at, outcome)
-                VALUES ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
-                        now() - interval '2 minutes', now() - interval '1 minutes', 'success')`;
-
-            const input = await fetchHeartbeatInput(tx);
-            expect(input.lastSuccesses.map((s) => s.source)).toEqual(['maplify']);
-            expect(
-                evaluateHeartbeat(input, THRESHOLDS).map((f) => [f.kind, f.source]),
-            ).toEqual([['never_succeeded', 'inaturalist'], ['never_succeeded', 'orcasound']]);
-        });
+    test('recent successes: everything inside the lookback plus the newest before it', () => {
+        const input = heartbeatInput(file([
+            run('maplify', 200, 199, 'success'),
+            run('maplify', 130, 129, 'success'),
+            run('maplify', 70, 69, 'success'),
+            run('maplify', 51, 50, 'success'),
+            run('maplify', 21, 20, 'success'),
+            run('maplify', 5, 4, 'success'),
+            run('maplify', 30, 29, 'failed'),
+            run('inaturalist', 6, 5, 'success'),
+            run('orcasound', 7, 6, 'success'),
+        ]), NOW, 120);
+        const maplify = input.recentSuccesses
+            .filter((s) => s.source === 'maplify')
+            .map((s) => Math.round((NOW.getTime() - s.finishedAt.getTime()) / 60_000))
+            .sort((a, b) => a - b);
+        // 4m…69m are in the window; 129m is the newest before it; 199m is not wanted
+        expect(maplify).toEqual([4, 20, 50, 69, 129]);
+        expect(input.recentTransientFailures).toEqual([]);
+        const findings = evaluateHeartbeat(input, THRESHOLDS);
+        expect(findings.map((f) => [f.kind, f.source])).toEqual([['gap', 'maplify']]);
+        expect(findings[0]!.message).toContain('for 60m');
     });
 
-    test('recent successes: everything inside the lookback plus the newest before it', async () => {
-        await withRollback(sql, async (tx) => {
-            await tx`DELETE FROM ingest.runs`;
-            await tx`
-                INSERT INTO ingest.runs
-                    (source, trigger, dry_run, window_start, window_end,
-                     started_at, finished_at, outcome, error)
-                VALUES
-                    -- before the window: two, only the newer is wanted
-                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '200 minutes', now() - interval '199 minutes', 'success', NULL),
-                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '130 minutes', now() - interval '129 minutes', 'success', NULL),
-                    -- inside the window, after a 60m hole
-                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '70 minutes', now() - interval '69 minutes', 'success', NULL),
-                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '51 minutes', now() - interval '50 minutes', 'success', NULL),
-                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '21 minutes', now() - interval '20 minutes', 'success', NULL),
-                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '5 minutes', now() - interval '4 minutes', 'success', NULL),
-                    -- inside the window but dry-run / failed: not successes
-                    ('maplify', 'manual', true, '2026-06-26', '2026-07-06',
-                     now() - interval '40 minutes', now() - interval '39 minutes', 'success', NULL),
-                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '30 minutes', now() - interval '29 minutes', 'failed', 'boom'),
-                    -- inaturalist and orcasound: fine
-                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '6 minutes', now() - interval '5 minutes', 'success', NULL),
-                    ('orcasound', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '7 minutes', now() - interval '6 minutes', 'success', NULL)`;
-
-            const input = await fetchHeartbeatInput(tx, 120);
-
-            const maplify = input.recentSuccesses
-                .filter((s) => s.source === 'maplify')
-                .map((s) => Math.round((input.now.getTime() - s.finishedAt.getTime()) / 60_000))
-                .sort((a, b) => a - b);
-            // 4m…69m are in the window; 129m is the newest before it; 199m is not wanted
-            expect(maplify).toEqual([4, 20, 50, 69, 129]);
-
-            expect(input.recentTransientFailures).toEqual([]);
-
-            // And the whole thing, end to end: the hole between 129m and 69m ago is a
-            // gap even though maplify's newest success is 4 minutes old.
-            const findings = evaluateHeartbeat(input, THRESHOLDS);
-            expect(findings.map((f) => [f.kind, f.source])).toEqual([['gap', 'maplify']]);
-            expect(findings[0]!.message).toContain('for 60m');
-        });
+    test('transient failures: only failed runs marked transient', () => {
+        const input = heartbeatInput(file([
+            run('inaturalist', 46, 45, 'success'),
+            // upstream down: these are signs of life, not successes
+            run('inaturalist', 31, 30, 'failed', true),
+            run('inaturalist', 16, 15, 'failed', true),
+            // a defect, or a run interrupted by a restart: not a sign of life
+            run('inaturalist', 11, 10, 'failed', false),
+            run('maplify', 5, 4, 'success'),
+            run('orcasound', 5, 4, 'success'),
+        ]), NOW, 120);
+        const ages = input.recentTransientFailures
+            .map((s) => [s.source, Math.round((NOW.getTime() - s.finishedAt.getTime()) / 60_000)])
+            .sort((a, b) => (b[1] as number) - (a[1] as number));
+        expect(ages).toEqual([['inaturalist', 30], ['inaturalist', 15]]);
+        // 45m without success, but our side was alive 15m ago: not stale.
+        expect(evaluateHeartbeat(input, THRESHOLDS)).toEqual([]);
     });
 
-    test('transient failures: only failed, non-dry-run rows marked transient', async () => {
-        await withRollback(sql, async (tx) => {
-            await tx`DELETE FROM ingest.runs`;
-            await tx`
-                INSERT INTO ingest.runs
-                    (source, trigger, dry_run, window_start, window_end,
-                     started_at, finished_at, outcome, error, transient)
-                VALUES
-                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '46 minutes', now() - interval '45 minutes', 'success', NULL, false),
-                    -- upstream down: these are signs of life, not successes
-                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '31 minutes', now() - interval '30 minutes', 'failed', 'HTTP 503', true),
-                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '16 minutes', now() - interval '15 minutes', 'failed', 'HTTP 503', true),
-                    -- a defect: not a sign of life
-                    ('inaturalist', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '11 minutes', now() - interval '10 minutes', 'failed', 'parse', false),
-                    -- a dry run: not a sign of anything
-                    ('inaturalist', 'manual', true, '2026-06-26', '2026-07-06',
-                     now() - interval '6 minutes', now() - interval '5 minutes', 'failed', 'HTTP 503', true),
-                    ('maplify', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '5 minutes', now() - interval '4 minutes', 'success', NULL, false),
-                    ('orcasound', 'cron', false, '2026-06-26', '2026-07-06',
-                     now() - interval '5 minutes', now() - interval '4 minutes', 'success', NULL, false)`;
-
-            const input = await fetchHeartbeatInput(tx, 120);
-            const ages = input.recentTransientFailures
-                .map((s) => [s.source, Math.round((input.now.getTime() - s.finishedAt.getTime()) / 60_000)])
-                .sort((a, b) => (b[1] as number) - (a[1] as number));
-            expect(ages).toEqual([['inaturalist', 30], ['inaturalist', 15]]);
-
-            // 45m without success, but our side was alive 15m ago: not stale.
-            expect(evaluateHeartbeat(input, THRESHOLDS)).toEqual([]);
-        });
-    });
-
-    test('transient is refused on a run that did not fail', async () => {
-        await withRollback(sql, async (tx) => {
-            await expect(tx`
-                INSERT INTO ingest.runs
-                    (source, trigger, window_start, window_end, finished_at, outcome, transient)
-                VALUES ('maplify', 'cron', '2026-06-26', '2026-07-06', now(), 'success', true)`,
-            ).rejects.toThrow(/runs_transient_only_on_failure/);
-        });
+    test('last success comes from the file, which reaches further back than its runs', () => {
+        const input = heartbeatInput(file([], {maplify: minutesAgo(3000).toISOString()}), NOW);
+        expect(input.lastSuccesses).toEqual([{source: 'maplify', finishedAt: minutesAgo(3000)}]);
     });
 });
