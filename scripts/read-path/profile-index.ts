@@ -158,6 +158,6 @@ export async function main(): Promise<void> {
     console.log(`redirects.json: ${counts}; sitemap.xml: ${paths.length} profiles`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

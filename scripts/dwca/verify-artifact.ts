@@ -521,7 +521,7 @@ export async function main(): Promise<void> {
 // CLI guard — only runs when invoked directly, not when imported.
 // ---------------------------------------------------------------------------
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     main().catch((err: unknown) => {
         console.error(err instanceof Error ? err.message : String(err));
         process.exit(1);

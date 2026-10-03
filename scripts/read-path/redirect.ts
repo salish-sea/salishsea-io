@@ -98,6 +98,6 @@ export async function main(): Promise<void> {
         console.log(`redirect: listening on 127.0.0.1:${port}, from ${file}`));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

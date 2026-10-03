@@ -30,7 +30,6 @@
  *   SUPABASE_DB_URL=... pnpm exec tsx scripts/register/resolve-maplify.ts --apply   # writes
  */
 
-import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
 import { resolveEntity, type NormalizedSighting } from '../ingest/maplify.ts';
 import { fetchNameIndex } from '../ingest/persist.ts';
@@ -115,7 +114,7 @@ async function main(): Promise<void> {
 }
 
 // Run only as a script, so the test can import planResolution.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
     main().catch((err: unknown) => {
         console.error(err);
         process.exit(1);

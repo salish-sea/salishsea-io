@@ -112,6 +112,6 @@ export async function main(): Promise<void> {
             Object.fromEntries(Object.entries(differences as Record<string, {count: number}>).map(([k, v]) => [k, v.count])))}`}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

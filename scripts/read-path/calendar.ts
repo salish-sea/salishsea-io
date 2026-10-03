@@ -94,6 +94,6 @@ export async function main(): Promise<void> {
     console.log(`calendar/: ${months} month files`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

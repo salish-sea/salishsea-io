@@ -226,7 +226,7 @@ export async function main() {
   console.log('Dump carries every irreplaceable table at its live row count.');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
   main().catch((err: unknown) => {
     console.error(err);
     process.exit(FAIL);

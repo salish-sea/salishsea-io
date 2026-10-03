@@ -61,6 +61,6 @@ export async function main(): Promise<void> {
         console.log(`build.${relation}: ${n} rows`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

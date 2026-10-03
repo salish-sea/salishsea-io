@@ -89,6 +89,6 @@ export async function main(): Promise<void> {
         : `the mirror and Postgres differ (timing, until shown otherwise): ${JSON.stringify(result)}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
     await main();
 }

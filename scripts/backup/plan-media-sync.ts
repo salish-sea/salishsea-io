@@ -193,7 +193,7 @@ export async function main() {
   );
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
   main().catch((err: unknown) => {
     console.error(err);
     process.exit(FAIL);
