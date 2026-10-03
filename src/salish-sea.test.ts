@@ -350,6 +350,42 @@ test('a day file still in flight when someone signs in does not overwrite their 
   }
 });
 
+test('a signed-in permalink to a native sighting deleted since the build does not open the file\'s copy', async () => {
+  vi.stubEnv('VITE_READ_SOURCE', 'static');
+  // The live lookup finds nothing: the sighting is gone from Supabase.
+  occurrenceQuery.single = {data: null, error: null};
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
+    const u = String(url);
+    if (u.includes('/read-path/ids/'))
+      return new Response(JSON.stringify({'gone-native': '2025-03-09', 'maplify:1': '2025-03-09'}));
+    if (u.endsWith('/read-path/days/2025-03-09.json'))
+      return new Response(JSON.stringify([
+        occurrenceFixture('gone-native', '2025-03-09T20:00:00Z', 7),
+        occurrenceFixture('maplify:1', '2025-03-09T19:00:00Z'),
+      ]));
+    return new Response(null, {status: 404});
+  });
+  const el = document.createElement('salish-sea') as SalishSea;
+  const hydrate = (id: string) =>
+    (el as unknown as {hydrateFromOccurrenceId(id: string): Promise<void>}).hydrateFromOccurrenceId(id);
+  try {
+    document.body.appendChild(el);
+    await el.updateComplete;
+    (el as unknown as {user: unknown}).user = {id: 'contributor'};
+    const today = el.date;
+
+    await hydrate('gone-native');
+    expect(el.date).toBe(today);
+
+    // An upstream sighting still opens from the files.
+    await hydrate('maplify:1').catch(() => {});   // jsdom has no map to centre
+    expect(el.date).toBe('2025-03-09');
+  } finally {
+    vi.unstubAllEnvs();
+    fetchSpy.mockRestore();
+  }
+});
+
 test('in static mode, a new build makes a signed-in tab refetch its day too', async () => {
   vi.stubEnv('VITE_READ_SOURCE', 'static');
   vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']});

@@ -736,8 +736,13 @@ export default class SalishSea extends LitElement {
       }
       // From the read-path files: the id index says which day, and the day's
       // file has the sighting (decision 056). Same contract as below: an error
-      // throws, an id we don't have resolves to null.
-      occurrence ??= await findOccurrence<Occurrence>(id);
+      // throws, an id we don't have resolves to null. A native sighting the
+      // live lookup didn't find has been deleted since the build, so a
+      // signed-in tab doesn't open the file's copy of it.
+      if (!occurrence) {
+        const fromFile = await findOccurrence<Occurrence>(id);
+        occurrence = this.user && fromFile?.contributor_id != null ? null : fromFile;
+      }
     } else {
       const {data, error} = await supabase()
         .from('occurrences')
