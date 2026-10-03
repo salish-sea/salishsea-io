@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { fetchCalendarCounts, fetchDayOccurrences, findOccurrence, parseReadSource, watchManifest, type Manifest } from './read-path.ts';
+import { addLiveNative, fetchCalendarCounts, fetchDayOccurrences, findOccurrence, overlayNative, parseReadSource, watchManifest, type Manifest } from './read-path.ts';
 import { idShard } from './read-path-shard.ts';
 import type { Extent } from './extents.ts';
 
@@ -199,13 +199,19 @@ describe('fetchCalendarCounts', () => {
     '2025-10': {'salish-sea': {'2025-10-04': 3, '2025-10-20': 9}},
   };
 
+  // What the build counted again as saved here (calendar/<month>.native.json).
+  const nativeFiles: Record<string, unknown> = {
+    '2025-08': {'salish-sea': {'2025-08-31': 2}},
+    '2025-09': {'salish-sea': {'2025-09-15': 1}},
+  };
+
   function serveCalendar(manifest: Manifest | null, missing: string[] = []) {
     return vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
       const u = String(url);
       if (u.endsWith('manifest.json'))
         return new Response(manifest && JSON.stringify(manifest), {status: manifest ? 200 : 404});
-      const month = u.match(/calendar\/(\d{4}-\d{2})\.json$/)![1]!;
-      const body = missing.includes(month) ? undefined : files[month];
+      const [, month, native] = u.match(/calendar\/(\d{4}-\d{2})(\.native)?\.json$/)!;
+      const body = missing.includes(month!) ? undefined : (native ? nativeFiles : files)[month!];
       return new Response(body ? JSON.stringify(body) : null, {status: body ? 200 : 404});
     });
   }
@@ -239,6 +245,49 @@ describe('fetchCalendarCounts', () => {
   test('with nothing built, it throws rather than draw an empty month', async () => {
     serveCalendar(null);
     await expect(fetchCalendarCounts('2025-09-01', '2025-09-30', 'salish-sea')).rejects.toThrow(/nothing built/);
+  });
+
+  test('without native sightings, each month\'s native count comes off, and a day left with none has no circle', async () => {
+    serveCalendar(manifest('2025-10-31'));
+    const counts = await fetchCalendarCounts('2025-08-31', '2025-10-11', 'salish-sea', {withoutNative: true});
+    // 08-31: 5 - 2; 09-15: 1 - 1, gone; October has no native file.
+    expect([...counts]).toEqual([['2025-08-31', 3], ['2025-09-01', 7], ['2025-10-04', 3]]);
+  });
+
+  test('signed out, the native files are not fetched', async () => {
+    const fetch = serveCalendar(manifest('2025-10-31'));
+    await fetchCalendarCounts('2025-08-31', '2025-10-11', 'salish-sea');
+    expect(fetch.mock.calls.map(([u]) => String(u)).filter(u => u.includes('.native.'))).toEqual([]);
+  });
+});
+
+describe('addLiveNative', () => {
+  test('adds each live sighting to its Pacific day, within the grid', () => {
+    const counts = addLiveNative(new Map([['2025-09-14', 3]]), [
+      // 22:00 Pacific on the 14th, though the 15th in UTC.
+      {observed_at: '2025-09-15T05:00:00Z'},
+      {observed_at: '2025-09-15T20:00:00Z'},
+      {observed_at: '2025-10-20T20:00:00Z'},   // past the grid
+    ], '2025-08-31', '2025-10-11');
+    expect([...counts]).toEqual([['2025-09-14', 4], ['2025-09-15', 1]]);
+  });
+});
+
+describe('overlayNative', () => {
+  type Row = {id: string, observed_at: string, contributor_id: number | null};
+  const row = (id: string, hour: number, contributor_id: number | null = null): Row =>
+    ({id, observed_at: `2025-09-15T${String(hour).padStart(2, '0')}:00:00Z`, contributor_id});
+
+  test('the file\'s upstream rows and the live native ones, newest first; the file\'s native rows go', () => {
+    const file = [row('maplify:2', 20), row('native-old-copy', 19, 7), row('native-since-deleted', 18, 7), row('maplify:1', 17)];
+    const live = [row('native-old-copy', 21, 7), row('native-new', 18, 3)];
+    expect(overlayNative(file, live).map(r => r.id))
+      .toEqual(['native-old-copy', 'maplify:2', 'native-new', 'maplify:1']);
+  });
+
+  test('upstream rows at the same instant keep the file\'s order', () => {
+    const file = [row('b', 20), row('a', 20)];
+    expect(overlayNative(file, []).map(r => r.id)).toEqual(['b', 'a']);
   });
 });
 

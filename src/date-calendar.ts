@@ -5,7 +5,8 @@ import { styleMap } from "lit/directives/style-map.js";
 import { Temporal } from "temporal-polyfill";
 import { consume } from "@lit/context";
 import { supabase } from "./supabase.ts";
-import { fetchCalendarCounts, readSource } from "./read-path.ts";
+import { addLiveNative, fetchCalendarCounts, readSource } from "./read-path.ts";
+import type { Extent } from "./extents.ts";
 import { userContext, type User } from "./identity.ts";
 import { chevronLeftIcon, chevronRightIcon } from "./icons.ts";
 import { monthGrid, volumeScale, WEEKDAY_INITIALS } from "./calendar.ts";
@@ -426,10 +427,21 @@ export class DateCalendar extends LitElement {
     const from = days[0]!.toString();
     const to = days[days.length - 1]!.toString();
 
-    if (readSource() === 'static' && !this.user) {
+    if (readSource() === 'static') {
       let counts: Counts;
       try {
-        counts = await fetchCalendarCounts(from, to, regionBySlug(this.regionSlug).slug);
+        const region = regionBySlug(this.regionSlug);
+        // A signed-in tab counts the native sightings live, as the list shows
+        // them (decision 061): the file's counts without them, plus Supabase's.
+        if (this.user) {
+          const [fileCounts, live] = await Promise.all([
+            fetchCalendarCounts(from, to, region.slug, {withoutNative: true}),
+            fetchLiveNative(from, to, region.extent),
+          ]);
+          counts = addLiveNative(fileCounts, live, from, to);
+        } else {
+          counts = await fetchCalendarCounts(from, to, region.slug);
+        }
       } catch (error) {
         if (generation !== this.#generation) return;
         this.#fetched.delete(key);
@@ -482,6 +494,34 @@ export class DateCalendar extends LitElement {
     }
     this.counts = counts;
   }
+}
+
+/**
+ * When each native sighting from `from` to `to` (Pacific days, inclusive) inside
+ * the region was made, live from Supabase. A sighting with a contributor is one
+ * saved here; no upstream source has one.
+ */
+async function fetchLiveNative(from: string, to: string, extent: Extent | null): Promise<{observed_at: string}[]> {
+  const start = Temporal.PlainDate.from(from).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
+  const end = Temporal.PlainDate.from(to).add({days: 1}).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
+  let query = supabase()
+    .from('occurrences')
+    .select('observed_at')
+    .not('contributor_id', 'is', null)
+    .gte('observed_at', start.toInstant())
+    .lt('observed_at', end.toInstant())
+    // The files count nothing without a location, not even for Everywhere.
+    .not('location->lon', 'is', null)
+    .not('location->lat', 'is', null);
+  // `->`, not `->>`: see fetchOccurrences in salish-sea.ts.
+  if (extent) {
+    const [minx, miny, maxx, maxy] = extent;
+    query = query
+      .gte('location->lon', minx).lte('location->lon', maxx)
+      .gte('location->lat', miny).lte('location->lat', maxy);
+  }
+  const {data} = await query.throwOnError();
+  return data;
 }
 
 declare global {
