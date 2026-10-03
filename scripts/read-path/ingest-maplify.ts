@@ -235,7 +235,9 @@ export async function main(): Promise<void> {
             + `${changed === 0 ? 'unchanged' : `${changed} changed (${deleted} deleted)`}; ${upserted} in the window`);
     }
     const receipt = process.env['STELIS_BOUNDARY_RECEIPT'];
-    if (receipt) await writeFile(receipt, JSON.stringify({unchanged: changedInAll === 0, records: changedInAll, since: windows[0]!.start}));
+    // `since` is where the fetch reached back to, the anti-entropy month when there is one.
+    const since = windows.map(w => w.start).sort()[0]!;
+    if (receipt) await writeFile(receipt, JSON.stringify({unchanged: changedInAll === 0, records: changedInAll, since}));
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
