@@ -2,8 +2,11 @@
  * iNaturalist fetch — imperative shell (salishsea-io-89d.2 / decision 011).
  *
  * The two effectful orchestration loops iNat ingest needs; everything they call
- * is the pure functional core (scripts/ingest/inaturalist.ts) or the persist
- * layer (scripts/ingest/persist.ts). Both loops enforce decision 011's
+ * is the pure functional core (scripts/ingest/inaturalist.ts). Two callers: the
+ * Supabase function (supabase/functions/ingest/index.ts), and the read-path build's
+ * own ingest (scripts/read-path/ingest-inaturalist.ts, decision 061), which asks
+ * for what changed since a time as well as for a window of dates, and keeps what is
+ * out of scope. Both loops enforce decision 011's
  * completeness invariant: they either produce a PROVABLY COMPLETE fetch or they
  * throw — and a throw makes index.ts write nothing.
  *
@@ -26,14 +29,13 @@
  * timeout, and a hung connection would block the whole edge invocation.
  */
 
-import type { Sql } from 'postgres';
 import {
     MAX_ATTEMPTS,
     retryDelayMs,
     parseRetryAfter,
     isRetryableStatus,
     markTransientUpstream,
-} from '../../../scripts/ingest/retry.ts';
+} from './retry.ts';
 import {
     FETCH_BBOX,
     INAT_ROOT_TAXON_IDS,
@@ -48,8 +50,8 @@ import {
     type FetchedPage,
     type NormalizedObservation,
     type NormalizedTaxon,
-} from '../../../scripts/ingest/inaturalist.ts';
-import { fetchExistingTaxonIds, type IngestWindow } from '../../../scripts/ingest/persist.ts';
+} from './inaturalist.ts';
+import type { IngestWindow } from './persist.ts';
 
 export type Logger = (msg: string, extra?: Record<string, unknown>) => void;
 
@@ -183,10 +185,16 @@ async function fetchJsonWithRetry(url: string, label: string, log: Logger): Prom
 // id-keyset page: ascending id, records with id strictly greater than `idAbove`
 // (0 → from the smallest id). No `page` param — the cursor, not an offset, walks
 // the window, which is what makes the sweep immune to live-window drift.
-function observationsUrl(window: IngestWindow, idAbove: number): string {
+/**
+ * Which observations to sweep: those the observer dated in a window (`d1`..`d2`,
+ * inclusive), or those iNaturalist changed at or after an instant (`updated_since`),
+ * which is how a late upload or an edit to an old observation is found.
+ */
+export type ObservationQuery = IngestWindow | {readonly updatedSince: string};
+
+function observationsUrl(query: ObservationQuery, idAbove: number): string {
     const params = new URLSearchParams({
-        d1: window.start,
-        d2: window.end,
+        ...('updatedSince' in query ? {updated_since: query.updatedSince} : {d1: query.start, d2: query.end}),
         licensed: 'true',
         nelat: String(FETCH_BBOX.neLat),
         nelng: String(FETCH_BBOX.neLng),
@@ -254,9 +262,10 @@ export type ObservationFetchResult = {
  * bound defaults to MAX_KEYSET_PAGES; only the test passes it.
  */
 export async function fetchAllObservationPages(
-    window: IngestWindow,
+    query: ObservationQuery,
     log: Logger,
     maxPages: number = MAX_KEYSET_PAGES,
+    {scoped = true}: {readonly scoped?: boolean} = {},
 ): Promise<ObservationFetchResult> {
     // A bound that a bad value can switch off is not a bound. `pageNum > NaN` is
     // false forever, so a NaN here would restore precisely the unbounded loop this
@@ -280,8 +289,8 @@ export async function fetchAllObservationPages(
             );
         }
 
-        const raw = await fetchJsonWithRetry(observationsUrl(window, cursor), 'observations', log);
-        const result = parseInatResponse(raw);
+        const raw = await fetchJsonWithRetry(observationsUrl(query, cursor), 'observations', log);
+        const result = parseInatResponse(raw, {scoped});
         if (!result.ok) {
             throw new Error(
                 `iNaturalist observations parse failed (id_above ${cursor}): ${result.error}`,
@@ -335,18 +344,25 @@ export async function fetchAllObservationPages(
  * upstream genuinely does not know, not merely one it has retired.
  */
 export async function resolveTaxonClosure(
-    sql: Sql,
+    storedTaxonIds: (candidates: readonly number[]) => Promise<readonly number[]>,
     observations: readonly NormalizedObservation[],
     log: Logger,
 ): Promise<NormalizedTaxon[]> {
     const referenced = new Set<number>(referencedTaxonIds(observations));
-    const present = new Set<number>(await fetchExistingTaxonIds(sql, [...referenced]));
+    const present = new Set<number>();
+    // Every id is asked of the store once, when it is first referenced: a taxon a
+    // fetched one points to (its replacement, its parent) may already be stored, and
+    // asking only about the observations' own taxa up front would fetch it again.
+    const askedStore = new Set<number>();
 
     const fetchedTaxa: NormalizedTaxon[] = [];
     const fetchedIds = new Set<number>();
     const requested = new Set<number>();
 
     for (;;) {
+        const unasked = [...referenced].filter((id) => !askedStore.has(id));
+        for (const id of unasked) askedStore.add(id);
+        if (unasked.length > 0) for (const id of await storedTaxonIds(unasked)) present.add(id);
         const have = new Set<number>([...present, ...fetchedIds]);
         const missing = missingTaxonIds(referenced, have);
         if (missing.length === 0) break;

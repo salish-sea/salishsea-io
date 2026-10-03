@@ -30,13 +30,14 @@ import {
     persistOrcasound,
     fetchWindowIds,
     fetchObservationWindowIds,
+    fetchExistingTaxonIds,
     fetchAcousticBoutIds,
     type IngestWindow,
 } from '../../../scripts/ingest/persist.ts';
 import { isTransientUpstream, shouldReportFailure } from '../../../scripts/ingest/retry.ts';
 import { fetchMaplify } from '../../../scripts/ingest/fetch-maplify.ts';
 import { defaultWindow } from '../../../scripts/ingest/window.ts';
-import { fetchAllObservationPages, resolveTaxonClosure } from './fetch-inaturalist.ts';
+import { fetchAllObservationPages, resolveTaxonClosure } from '../../../scripts/ingest/fetch-inaturalist.ts';
 import { fetchAllBouts } from '../../../scripts/ingest/fetch-orcasound.ts';
 
 const TRIGGER_SECRET = Deno.env.get('INGEST_TRIGGER_SECRET') ?? '';
@@ -119,7 +120,7 @@ async function ingestInaturalist(
     logger: typeof log,
 ): Promise<IngestOutcome> {
     const { pages, observations, recordCount } = await fetchAllObservationPages(window, logger);
-    const taxa = await resolveTaxonClosure(sql, observations, logger);
+    const taxa = await resolveTaxonClosure((ids) => fetchExistingTaxonIds(sql, ids), observations, logger);
 
     const existing = await fetchObservationWindowIds(sql, window);
     const plan = reconcileInat(observations, existing);

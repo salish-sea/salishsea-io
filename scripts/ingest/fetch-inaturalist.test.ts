@@ -11,10 +11,9 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchAllObservationPages, MAX_KEYSET_PAGES, resolveTaxonClosure } from './fetch-inaturalist.ts';
-import type { IngestWindow } from '../../../scripts/ingest/persist.ts';
-import type { Sql } from 'postgres';
-import type { NormalizedObservation } from '../../../scripts/ingest/inaturalist.ts';
-import { isTransientUpstream } from '../../../scripts/ingest/retry.ts';
+import type { IngestWindow } from './persist.ts';
+import type { NormalizedObservation } from './inaturalist.ts';
+import { isTransientUpstream } from './retry.ts';
 
 const WINDOW: IngestWindow = { start: '2026-06-29', end: '2026-07-09' };
 const noopLog = () => {};
@@ -210,9 +209,9 @@ describe('fetchAllObservationPages sweeps the window by ascending id', () => {
  * and fail rather than quietly pass.
  */
 describe('resolveTaxonClosure over a retired taxon', () => {
-    /** Only what fetchExistingTaxonIds does: SELECT ids already stored. */
+    /** The taxa already stored: of the candidates asked about, these. */
     const storedSql = (ids: number[]) =>
-        (() => Promise.resolve(ids.map((id) => ({ id })))) as unknown as Sql;
+        (candidates: readonly number[]) => Promise.resolve(candidates.filter((id) => ids.includes(id)));
 
     /** One minimal valid v2 /taxa record (passes InatTaxonSchema). */
     function taxonRecord(

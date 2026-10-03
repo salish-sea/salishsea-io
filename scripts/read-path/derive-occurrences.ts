@@ -15,6 +15,7 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 
 import { writeExtractions } from './derive/extract.ts';
+import { writeInaturalistOutOfScope } from './derive/inaturalist-scope.ts';
 import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 import { budget } from './duckdb-budget.ts';
 
@@ -40,6 +41,7 @@ export async function deriveOccurrences(snapshot: string): Promise<number> {
         await conn.run(shared);
         await writeExtractions(conn);
         await writeMaplifyEntities(conn);
+        await writeInaturalistOutOfScope(conn);
         await conn.run(sql);
         const reader = await conn.runAndReadAll('SELECT count(*) FROM build.occurrences');
         return Number(reader.getRows()[0]![0]);

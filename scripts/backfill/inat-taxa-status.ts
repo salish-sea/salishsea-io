@@ -46,7 +46,7 @@
  */
 
 import postgres from 'postgres';
-import { taxaUrl } from '../../supabase/functions/ingest/fetch-inaturalist.ts';
+import { taxaUrl } from '../ingest/fetch-inaturalist.ts';
 import { parseInatTaxa, type NormalizedTaxon } from '../ingest/inaturalist.ts';
 
 const BATCH = 30;          // iNaturalist caps the id list at ~30

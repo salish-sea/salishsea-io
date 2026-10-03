@@ -407,7 +407,7 @@ export function isEpochZeroObservedAt(observedAt: string): boolean {
  * Normalizing before the scope test is deliberate: `isIngestable` reads our own
  * normalized shape, so the predicate and its tests never touch upstream JSON.
  */
-export function parseInatResponse(raw: unknown): InatParseResult {
+export function parseInatResponse(raw: unknown, {scoped = true}: {readonly scoped?: boolean} = {}): InatParseResult {
     const parsed = InatResponseSchema.safeParse(raw);
     if (!parsed.success) {
         return { ok: false, error: z.prettifyError(parsed.error) };
@@ -418,7 +418,10 @@ export function parseInatResponse(raw: unknown): InatParseResult {
         if (observedAt == null) continue; // out of scope; skip (mirrors live SQL)
         if (isEpochZeroObservedAt(observedAt)) continue; // a missing date wearing a timestamp
         const o = normalizeObservation(r, observedAt);
-        if (!isIngestable(o)) continue; // outside the Salish Sea and not a killer whale (044)
+        // Outside the Salish Sea and not a killer whale (044). The read-path build's mirror
+        // keeps these (`scoped: false`), since scope is its derivation's call (decision 061,
+        // salish-xv35.8); an undated record stays out either way, since it isn't one.
+        if (scoped && !isIngestable(o)) continue;
         observations.push(o);
     }
     const maxId = parsed.data.results.reduce<number | null>(

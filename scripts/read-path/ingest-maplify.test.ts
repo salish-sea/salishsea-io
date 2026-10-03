@@ -9,7 +9,8 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { isIngestable, parseMaplifyResponse, reconcile, type NormalizedSighting } from '../ingest/maplify.ts';
 import { persistMaplify, type IngestWindow } from '../ingest/persist.ts';
 import { buildNameIndex } from '../register/name-index.ts';
-import { antiEntropyWindow, curatorWindow, firstCoveredDay, mirrorRow, reconcileWindow, windowDays, type MirrorRow } from './ingest-maplify.ts';
+import { mirrorRow, reconcileWindow, type MirrorRow } from './ingest-maplify.ts';
+import { antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
 import { rolledBack } from './rolled-back.ts';
 
 /**
