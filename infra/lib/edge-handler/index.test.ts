@@ -6,7 +6,7 @@ jest.mock('./config', () => ({
   get SUPABASE_ANON_KEY() { return (globalThis as any).__testSupabaseKey ?? 'test-key'; },
 }));
 
-import { handler, WARMUP_WAIT_MS } from './index';
+import { handler, idShard, WARMUP_WAIT_MS } from './index';
 
 // The handler emits structured JSON log lines (og-fetch, og-fail-open, …);
 // keep test output clean while leaving the spies available for assertions.
@@ -34,6 +34,24 @@ function makeEvent(userAgent: string, querystring: string = '', uri: string = '/
   };
 }
 
+/**
+ * The read-path build's files as the edge reads a sighting from them (decisions 056,
+ * 061): the id index names each occurrence's day, and that day's file holds it.
+ * Supabase, asked only for a sighting saved here since the last build, has none.
+ */
+function servePublished(...occurrences: { id: string; [field: string]: unknown }[]) {
+  return jest.spyOn(global, 'fetch').mockImplementation(async (input: any) => {
+    const url = String(input);
+    const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body } as Response);
+    if (url.startsWith('https://salishsea.io/read-path/ids/'))
+      return json(Object.fromEntries(occurrences.map(o => [o.id, '2025-06-03'])));
+    if (url === 'https://salishsea.io/read-path/days/2025-06-03.json') return json(occurrences);
+    // Nothing saved here since the last build.
+    if (url.includes('/rest/v1/occurrences?')) return json([]);
+    throw new Error(`unexpected fetch ${url}`);
+  });
+}
+
 // Sample occurrence data matching the locked format decisions
 const sampleOccurrence = {
   id: 'abc123',
@@ -58,10 +76,7 @@ describe('Lambda@Edge OG meta handler', () => {
   });
 
   it('returns OG HTML response for known bot user-agent facebookexternalhit/1.1', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    } as Response);
+    servePublished();
     const event = makeEvent('facebookexternalhit/1.1');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
@@ -70,10 +85,7 @@ describe('Lambda@Edge OG meta handler', () => {
   });
 
   it('returns generic preview with og:title "SalishSea.io" when no ?o= param present', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    } as Response);
+    servePublished();
     const event = makeEvent('facebookexternalhit/1.1', '');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
@@ -92,10 +104,7 @@ describe('Lambda@Edge OG meta handler', () => {
   });
 
   it('returns occurrence-specific OG tags with correct title, description, and image for cc0 photo', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [sampleOccurrence],
-    } as Response);
+    servePublished(sampleOccurrence);
     const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
@@ -117,10 +126,7 @@ describe('Lambda@Edge OG meta handler', () => {
   // has already rolled over in UTC, which is how the bug reached production: the
   // preview for a 6:38 PM sighting on Aug 29 read "August 30 · 1:38 AM".
   it('renders date and time in Pacific for an evening sighting that is next-day in UTC', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [{ ...sampleOccurrence, observed_at: '2026-08-30T01:38:00Z', count: 5 }],
-    } as Response);
+    servePublished({ ...sampleOccurrence, observed_at: '2026-08-30T01:38:00Z', count: 5 });
     const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.body).toContain('Orca · August 29, 2026');
@@ -131,10 +137,7 @@ describe('Lambda@Edge OG meta handler', () => {
 
   // Postgres can hand back a bare timestamp with no zone designator; it is UTC.
   it('reads a zone-less observed_at as UTC, then renders it in Pacific', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [{ ...sampleOccurrence, observed_at: '2026-08-30 01:38:00' }],
-    } as Response);
+    servePublished({ ...sampleOccurrence, observed_at: '2026-08-30 01:38:00' });
     const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.body).toContain('Orca · August 29, 2026');
@@ -143,10 +146,7 @@ describe('Lambda@Edge OG meta handler', () => {
 
   // An explicit negative offset must be left alone, not have 'Z' appended onto it.
   it('preserves an explicit negative UTC offset on observed_at', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [{ ...sampleOccurrence, observed_at: '2026-08-29T18:38:00-07:00' }],
-    } as Response);
+    servePublished({ ...sampleOccurrence, observed_at: '2026-08-29T18:38:00-07:00' });
     const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.body).toContain('Orca · August 29, 2026');
@@ -156,10 +156,7 @@ describe('Lambda@Edge OG meta handler', () => {
   // Zulip's fetcher identifies itself as "ZulipURLPreview"; a link pasted into the
   // Orcasound Zulip got the generic card until it was on the list (2026-09-25).
   it('serves the occurrence card to Zulip', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [sampleOccurrence],
-    } as Response);
+    servePublished(sampleOccurrence);
     const event = makeEvent('Mozilla/5.0 (compatible; ZulipURLPreview/11.2; +https://orcasound.zulipchat.com)', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.body).toContain('Orca · June 3, 2025');
@@ -180,10 +177,7 @@ describe('Lambda@Edge OG meta handler', () => {
       identifiers: ['J pod', 'K pod', 'Southern Resident'],
       attribution: 'Orcasound moderators at Port Townsend',
     };
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [bout],
-    } as Response);
+    servePublished(bout);
     const event = makeEvent('Slackbot-LinkExpanding 1.0', `o=${encodeURIComponent(bout.id)}`);
     const result = await handler(event) as { status: string; body: string };
     expect(result.body).toContain('Killer whale heard · November 9, 2025');
@@ -197,10 +191,7 @@ describe('Lambda@Edge OG meta handler', () => {
       ...sampleOccurrence,
       photos: [{ src: 'https://example.com/restricted.jpg', license: 'cc-by-nc' }],
     };
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [occurrence],
-    } as Response);
+    servePublished(occurrence);
     const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
@@ -211,10 +202,7 @@ describe('Lambda@Edge OG meta handler', () => {
 
   it('falls back to the map card when the photos array is empty', async () => {
     const occurrence = { ...sampleOccurrence, photos: [] };
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [occurrence],
-    } as Response);
+    servePublished(occurrence);
     const event = makeEvent('twitterbot/1.0', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
@@ -231,10 +219,7 @@ describe('Lambda@Edge OG meta handler', () => {
         { src: 'https://example.com/photo3.jpg', license: null },
       ],
     };
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [occurrence],
-    } as Response);
+    servePublished(occurrence);
     const event = makeEvent('discordbot/1.0', 'o=abc123');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
@@ -244,10 +229,7 @@ describe('Lambda@Edge OG meta handler', () => {
   });
 
   it('returns generic preview with og:title "SalishSea.io" when occurrence is not found', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    } as Response);
+    servePublished();
     const event = makeEvent('facebookexternalhit/1.1', 'o=nonexistent-id');
     const result = await handler(event) as { status: string; body: string };
     expect(result.status).toBe('200');
@@ -255,6 +237,63 @@ describe('Lambda@Edge OG meta handler', () => {
     // Falls back to the generic homepage preview, which now includes a description
     expect(result.body).toContain('og:description');
     expect(result.body).toContain('<meta name="description"');
+  });
+
+  // decision 061: the sightings are the build's files; Supabase holds only what people
+  // save here, and is asked only for one saved since the last build.
+  it('reads a sighting from the id index and its day file, never Supabase', async () => {
+    const fetchSpy = servePublished(sampleOccurrence);
+    const result = await handler(makeEvent('facebookexternalhit/1.1', 'o=abc123')) as { body: string };
+    expect(result.body).toContain('Orca · June 3, 2025');
+    expect(fetchSpy.mock.calls.map(([u]) => String(u))).toEqual([
+      `https://salishsea.io/read-path/ids/${idShard('abc123')}.json`,
+      'https://salishsea.io/read-path/days/2025-06-03.json',
+    ]);
+  });
+
+  // Generated from src/read-path-shard.ts, which the build and the browser share and
+  // this bundle cannot import: an edit to either copy must change this table too.
+  it.each([
+      ["abc123", "05"],
+      ["maplify:1", "42"],
+      ["maplify:2", "af"],
+      ["inaturalist:375544838", "c6"],
+      ["happywhale:42", "62"],
+      ["orcasound:bout_031YvAeJ4O13YgkbQlc8yJ:SSA:0000900", "f8"],
+      ["0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b", "3f"],
+      ["\u00e9", "44"],
+      ["", "c5"],
+  ])('shards %j into %s, as the build and the browser do', (id, shard) => {
+    expect(idShard(id)).toBe(shard);
+  });
+
+  it('asks Supabase, for native sightings only, about one no file holds yet', async () => {
+    const fresh = { ...sampleOccurrence, id: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b' };
+    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation(async (input: any) => {
+      const url = String(input);
+      const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body } as Response);
+      if (url.includes('/read-path/ids/')) return json({});
+      if (url.includes('/rest/v1/occurrences?')) return json([fresh]);
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const result = await handler(makeEvent('facebookexternalhit/1.1', `o=${fresh.id}`)) as { body: string };
+    expect(result.body).toContain('Orca · June 3, 2025');
+    const supabase = fetchSpy.mock.calls.map(([u]) => String(u)).find(u => u.includes('/rest/v1/'));
+    expect(supabase).toContain(`id=eq.${fresh.id}`);
+    expect(supabase).toContain('contributor_id=not.is.null');
+  });
+
+  it('never asks Supabase about an upstream id the files don\'t hold', async () => {
+    const fetchSpy = servePublished();
+    const result = await handler(makeEvent('facebookexternalhit/1.1', 'o=maplify:1')) as { body: string };
+    expect(result.body).toContain('og:title');
+    expect(fetchSpy.mock.calls.map(([u]) => String(u)).some(u => u.includes('/rest/v1/'))).toBe(false);
+  });
+
+  it('an id naming an inherited property is not found in the index', async () => {
+    const fetchSpy = servePublished();
+    await handler(makeEvent('facebookexternalhit/1.1', 'o=maplify:constructor'));
+    expect(fetchSpy.mock.calls.map(([u]) => String(u)).some(u => u.includes('/days/'))).toBe(false);
   });
 
   it('returns request (fail-open) when Supabase fetch throws an error', async () => {
@@ -268,11 +307,8 @@ describe('Lambda@Edge OG meta handler', () => {
   // salish-g9e: the viewer-request Lambda is killed at 5s and CloudFront
   // serves a 503 — every network call must carry its own deadline so slowness
   // surfaces as a catchable error inside the fail-open try/catch instead.
-  it('bounds the Supabase fetch with an AbortSignal deadline', async () => {
-    const mockFetch = jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [sampleOccurrence],
-    } as Response);
+  it('bounds every fetch with an AbortSignal deadline', async () => {
+    const mockFetch = servePublished(sampleOccurrence);
     await handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
     const options = mockFetch.mock.calls[0]?.[1] as RequestInit;
     expect(options.signal).toBeInstanceOf(AbortSignal);
@@ -297,20 +333,18 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(JSON.parse(line!)).toMatchObject({ msg: 'og-fail-open', uri: '/', error: expect.stringContaining('Network timeout') });
   });
 
-  it('logs og-fetch timing and status for a successful Supabase read', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => [sampleOccurrence],
-    } as Response);
+  it('logs og-fetch timing and status for each read', async () => {
+    servePublished(sampleOccurrence);
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     await handler(makeEvent('facebookexternalhit/1.1', 'o=abc123'));
-    const line = logSpy.mock.calls.map(c => String(c[0])).find(m => m.includes('"og-fetch"'));
-    expect(line).toBeDefined();
-    expect(JSON.parse(line!)).toMatchObject({ msg: 'og-fetch', kind: 'occurrence', status: 200 });
+    const lines = logSpy.mock.calls.map(c => String(c[0])).filter(m => m.includes('"og-fetch"')).map(l => JSON.parse(l));
+    expect(lines).toEqual([
+      expect.objectContaining({ msg: 'og-fetch', kind: 'ids', status: 200 }),
+      expect.objectContaining({ msg: 'og-fetch', kind: 'day', status: 200 }),
+    ]);
   });
 
-  it('warms the Supabase connection at module init when running in Lambda', () => {
+  it('warms the read path\'s connection at module init when running in Lambda', () => {
     const fetchSpy = jest.spyOn(global, 'fetch')
       .mockResolvedValue({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(0) } as Response);
     const prevEnv = process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -322,7 +356,7 @@ describe('Lambda@Edge OG meta handler', () => {
       });
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [url, options] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe('https://test.supabase.co/auth/v1/health');
+      expect(url).toBe('https://salishsea.io/read-path/manifest.json');
       expect(options.signal).toBeInstanceOf(AbortSignal);
     } finally {
       if (prevEnv === undefined) delete process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -462,9 +496,8 @@ describe('Lambda@Edge OG meta handler', () => {
     }
   });
 
-  it('fails open to the origin when build-time config was not baked', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch')
-      .mockRejectedValue(new Error('unexpected network call'));
+  it('fails open to the origin when a native sighting needs Supabase and config was not baked', async () => {
+    const fetchSpy = servePublished();
     (globalThis as any).__testSupabaseUrl = '';
     (globalThis as any).__testSupabaseKey = '';
     try {
@@ -472,7 +505,7 @@ describe('Lambda@Edge OG meta handler', () => {
       const result = await handler(event);
       expect(result).toBe(event.Records[0].cf.request);
       expect(result.uri).toBe('/');
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(fetchSpy.mock.calls.map(([u]) => String(u)).some(u => u.includes('/rest/v1/'))).toBe(false);
     } finally {
       delete (globalThis as any).__testSupabaseUrl;
       delete (globalThis as any).__testSupabaseKey;
@@ -560,11 +593,8 @@ describe('map cards', () => {
     jest.spyOn(global, 'fetch').mockReset();
   });
 
-  const bodyFor = async (querystring: string, occurrence?: unknown) => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => (occurrence ? [occurrence] : []),
-    } as Response);
+  const bodyFor = async (querystring: string, occurrence?: { id: string; [field: string]: unknown }) => {
+    if (occurrence) servePublished(occurrence); else servePublished();
     const result = await handler(makeEvent('facebookexternalhit/1.1', querystring)) as { body: string };
     return result.body;
   };
@@ -639,10 +669,7 @@ describe('og:image uses a card-sized photo, not the 75×75 iNat thumbnail', () =
   const withPhoto = (src: string) => ({ ...sampleOccurrence, photos: [{ src, license: 'cc0' }] });
 
   const cardFor = async (src: string) => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [withPhoto(src)],
-    } as Response);
+    servePublished(withPhoto(src));
     const result = await handler(makeEvent('facebookexternalhit/1.1', 'o=abc123')) as { body: string };
     return result.body.match(/<meta property="og:image" content="([^"]*)">/)?.[1];
   };
@@ -721,10 +748,7 @@ describe('Image-asset carve-out: og:image must serve bytes, not OG HTML', () => 
   });
 
   it('does not treat a query-string image extension as an asset path (?o=inaturalist:...)', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    } as Response);
+    servePublished();
     // uri is '/', extension-like tokens live only in the querystring — must still intercept
     const event = makeEvent('facebookexternalhit/1.1', 'o=inaturalist:377539157', '/');
     const result = await handler(event) as { status: string; body: string };

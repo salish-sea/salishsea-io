@@ -9,8 +9,7 @@
 
 import { writeFileSync } from 'node:fs';
 import { renderDayCard, renderOccurrenceCard } from './cards.js';
-import { configFromEnv, fetchOccurrence, fetchOccurrencesBetween, type Occurrence } from './data.js';
-import { pacificDayRange } from './pacific-day.js';
+import { configFromEnv, fetchDayOccurrences, fetchOccurrence, type Occurrence } from './data.js';
 
 async function main(): Promise<number> {
   const [mode, ...rest] = process.argv.slice(2);
@@ -53,9 +52,7 @@ async function main(): Promise<number> {
   if (mode === 'day') {
     const [date, out] = rest;
     if (!date || !out) throw new Error('usage: day <YYYY-MM-DD> <out.jpg>');
-    const cfg = configFromEnv();
-    const { startIso, endIso } = pacificDayRange(date);
-    const occurrences = await fetchOccurrencesBetween(cfg, startIso, endIso);
+    const occurrences = await fetchDayOccurrences(date);
     writeFileSync(out, await renderDayCard(occurrences, date));
     console.log(`wrote ${out} (${occurrences.length} occurrences fetched for ${date})`);
     return 0;

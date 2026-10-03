@@ -9,7 +9,7 @@
 // decision 019. A broken-image card would be worse than none.
 
 import { renderDayCard, renderOccurrenceCard } from './cards.js';
-import { configFromEnv, fetchOccurrence, fetchOccurrencesBetween } from './data.js';
+import { configFromEnv, fetchDayOccurrences, fetchOccurrence } from './data.js';
 import { MISS as MISS_CACHE, cacheControlForDate, cacheControlForInstant } from './cache-control.js';
 import { isValidDate, pacificDayRange } from './pacific-day.js';
 
@@ -68,8 +68,8 @@ export const handler = async (event: FunctionUrlEvent): Promise<Result> => {
     if (dayMatch) {
       const date = dayMatch[1]!;
       if (!isValidDate(date)) return miss('not a calendar date');
-      const { startIso, endIso } = pacificDayRange(date);
-      const occurrences = await fetchOccurrencesBetween(configFromEnv(), startIso, endIso);
+      const { endIso } = pacificDayRange(date);
+      const occurrences = await fetchDayOccurrences(date);
       const jpeg = await renderDayCard(occurrences, date);
       console.log(JSON.stringify({
         msg: 'card', kind: 'day', date, fetched: occurrences.length,

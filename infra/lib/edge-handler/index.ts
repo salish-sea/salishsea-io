@@ -29,10 +29,10 @@ function isBot(userAgent: string): boolean {
   return BOT_AGENTS.some(bot => ua.includes(bot));
 }
 
-// Network deadline: the viewer-request Lambda is hard-killed at 5s, and a kill
-// bypasses the fail-open catch — CloudFront serves a 503 (salish-g9e).
-// With config baked in at synth the cold chain is init (~0.3s) + one Supabase
-// fetch, so 3s leaves ample room to degrade to the shell instead.
+// Network deadline for a sighting's whole lookup: the viewer-request Lambda is
+// hard-killed at 5s, and a kill bypasses the fail-open catch — CloudFront serves a
+// 503 (salish-g9e). The cold chain is init (~0.3s) plus two read-path fetches,
+// usually edge cache hits, so 3s leaves room to degrade to the map page instead.
 const FETCH_TIMEOUT_MS = 3000;
 
 // How long the first real fetch will wait for the init warmup before giving up
@@ -41,10 +41,29 @@ const FETCH_TIMEOUT_MS = 3000;
 // Exported so the tests assert against the real budget instead of restating it.
 export const WARMUP_WAIT_MS = 1000;
 
-// Floor on what's left for the fetch after waiting. A near-zero deadline would
-// abort instantly and fail open, which is worse than slightly overrunning the
-// budget; 1s + the 1s cap above still lands well inside the 5s kill.
-const MIN_FETCH_BUDGET_MS = 1000;
+// Floor on what's left for a fetch. A sighting's lookup is up to three fetches
+// against ONE deadline (the id index, the day file, and for a sighting saved here
+// since the last build, Supabase), so a later fetch can find the deadline nearly
+// spent; a near-zero budget would abort instantly and fail open, which is worse
+// than slightly overrunning. Worst case 3s + 2 × 0.5s, well inside the 5s kill.
+const MIN_FETCH_BUDGET_MS = 500;
+
+// Where the read-path build's files are served (decisions 056, 061): through this
+// same distribution, so a lookup is usually an edge cache hit. The sightings are
+// there, not in Supabase, since Postgres stopped ingesting the upstream sources.
+const READ_PATH = 'https://salishsea.io/read-path/';
+
+// Which file of the read-path id index holds an id: a hand copy of
+// src/read-path-shard.ts, which this bundle cannot import. FNV-1a over UTF-16 code
+// units, 256 shards; index.test.ts pins the two copies to the same answers.
+export function idShard(id: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) {
+    hash ^= id.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return ((hash >>> 0) % 256).toString(16).padStart(2, '0');
+}
 
 // The in-flight init warmup, or null once someone has waited on it.
 let pendingWarmup: Promise<void> | null = null;
@@ -55,8 +74,8 @@ let pendingWarmup: Promise<void> | null = null;
 // for lazy undici load + DNS + TLS; later fetches run ~150-275ms. Calling
 // fetch() here does the expensive stack load synchronously at full speed, and
 // the handshake to the same origin proceeds so the handler's real fetch can
-// reuse it. The env-var guard keeps imports outside Lambda (unit tests) from
-// touching the network.
+// reuse it: the read path's, where every sighting lookup starts. The env-var
+// guard keeps imports outside Lambda (unit tests) from touching the network.
 //
 // The promise is kept (not fire-and-forget) so the first real fetch can wait
 // for it: an invocation arriving while the warmup is still in flight used to
@@ -64,9 +83,9 @@ let pendingWarmup: Promise<void> | null = null;
 // how a cold container blew the 3s deadline and served the bare shell
 // (salish-cwd). Ending in .catch means awaiting it can only delay the
 // handler, never throw into it.
-if (SUPABASE_URL && process.env.AWS_LAMBDA_FUNCTION_NAME) {
+if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
   const warmupStarted = Date.now();
-  pendingWarmup = fetch(`${SUPABASE_URL}/auth/v1/health`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+  pendingWarmup = fetch(`${READ_PATH}manifest.json`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
     .then(async res => {
       // Drain: undici returns the socket to its per-origin pool only once the
       // body is consumed — and reuse is half the point of warming.
@@ -101,24 +120,23 @@ function getCredentials(): { url: string; key: string } {
   return { url: SUPABASE_URL, key: SUPABASE_ANON_KEY };
 }
 
-// All Supabase reads go through here: one deadline, one timing/status log line.
-// `kind` names the lookup (individual/matriline/ecotype/occurrence) so a slow or
-// failing step is attributable straight from the log.
-async function timedFetch(kind: string, apiUrl: string, key: string): Promise<Response> {
+// Every read goes through here: the lookup's one deadline, one timing/status log
+// line. `kind` names the step (ids/day/native) so a slow or failing one is
+// attributable straight from the log.
+async function timedFetch(
+  kind: string, apiUrl: string, deadline: number, headers: Record<string, string> = {},
+): Promise<Response> {
   const waitStarted = Date.now();
-  await awaitWarmup(WARMUP_WAIT_MS);
+  await awaitWarmup(Math.min(WARMUP_WAIT_MS, Math.max(deadline - waitStarted, 0)));
   const warmupMs = Date.now() - waitStarted;
 
-  // Whatever the wait consumed comes off this fetch's own deadline, so a cold
-  // invocation still degrades to the shell inside the total 3s (salish-g9e).
-  const budgetMs = Math.max(FETCH_TIMEOUT_MS - warmupMs, MIN_FETCH_BUDGET_MS);
+  // Whatever the wait and the earlier steps consumed comes off this fetch, so a
+  // cold invocation still degrades to the map page inside the budget (salish-g9e).
+  const budgetMs = Math.max(deadline - Date.now(), MIN_FETCH_BUDGET_MS);
 
   const started = Date.now();
   try {
-    const res = await fetch(apiUrl, {
-      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` },
-      signal: AbortSignal.timeout(budgetMs),
-    });
+    const res = await fetch(apiUrl, { headers, signal: AbortSignal.timeout(budgetMs) });
     console.log(JSON.stringify({ msg: 'og-fetch', kind, ms: Date.now() - started, warmupMs, status: res.status }));
     return res;
   } catch (err) {
@@ -309,6 +327,40 @@ const htmlResponse = (tags: OgTags) => ({
   body: buildOgHtml(tags),
 });
 
+/**
+ * A sighting as the build published it: the id index names its day, and the day's
+ * file holds it. Null when the index doesn't list it; a failed fetch throws, and the
+ * handler fails open.
+ */
+async function readPathOccurrence(id: string, deadline: number): Promise<Occurrence | null> {
+  const shard = await timedFetch('ids', `${READ_PATH}ids/${idShard(id)}.json`, deadline);
+  if (shard.status === 404) return null;
+  if (!shard.ok) throw new Error(`read path ids: HTTP ${shard.status}`);
+  const days = await shard.json() as Record<string, unknown>;
+  // The id comes from the URL: `constructor` must not find an inherited property.
+  const day = Object.hasOwn(days, id) ? days[id] : undefined;
+  if (typeof day !== 'string') return null;
+  const res = await timedFetch('day', `${READ_PATH}days/${day}.json`, deadline);
+  if (!res.ok) throw new Error(`read path day ${day}: HTTP ${res.status}`);
+  return (await res.json() as Occurrence[]).find(o => o.id === id) ?? null;
+}
+
+/**
+ * A sighting saved here since the last build, which no file holds yet: native
+ * sightings stay in Supabase (decision 061). An upstream id carries its source
+ * (`maplify:…`); a native one is a bare uuid, and only those are asked.
+ */
+async function nativeOccurrence(id: string, deadline: number): Promise<Occurrence | null> {
+  if (id.includes(':')) return null;
+  const { url, key } = getCredentials();
+  const res = await timedFetch('native',
+    `${url}/rest/v1/occurrences?id=eq.${encodeURIComponent(id)}&contributor_id=not.is.null` +
+    `&select=id,taxon,observed_at,count,photos,location,provider_slug,identifiers,observed_until,attribution&limit=1`,
+    deadline, { apikey: key, Authorization: `Bearer ${key}` });
+  if (!res.ok) return null;
+  return (await res.json() as Occurrence[])[0] ?? null;
+}
+
 export const handler = async (event: any): Promise<any> => {
   const request = event.Records[0].cf.request;
 
@@ -345,18 +397,10 @@ export const handler = async (event: any): Promise<any> => {
       };
     }
 
-    const { url, key } = getCredentials();
-    const apiUrl = `${url}/rest/v1/occurrences?id=eq.${encodeURIComponent(occurrenceId)}&select=id,taxon,observed_at,count,photos,location,provider_slug,identifiers,observed_until,attribution&limit=1`;
-    const res = await timedFetch('occurrence', apiUrl, key);
-    if (!res.ok) {
-      return {
-        status: '200',
-        headers: { 'content-type': [{ key: 'Content-Type', value: 'text/html; charset=utf-8' }] },
-        body: buildOgHtml(genericPreviewTags()),
-      };
-    }
-    const occurrences = await res.json() as Occurrence[];
-    const occ = occurrences[0];
+    // One deadline for the whole lookup, however many fetches it takes.
+    const deadline = Date.now() + FETCH_TIMEOUT_MS;
+    const occ = await readPathOccurrence(occurrenceId, deadline)
+      ?? await nativeOccurrence(occurrenceId, deadline);
 
     if (!occ) {
       console.log(JSON.stringify({ msg: 'og-unknown', kind: 'occurrence', designation: occurrenceId }));
