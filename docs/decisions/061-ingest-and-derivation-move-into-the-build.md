@@ -52,7 +52,7 @@ The mirrors are derived, not authoritative: a lost one is rebuilt by running the
 - Peak memory of the derivation and of each ingest script is measured before it is deployed; the Fly machine is 1 GB with no swap and has been taken down by a build task twice.
 - The heartbeat ([012](012-ingest-heartbeat.md), [060](060-an-upstream-outage-is-held-to-a-longer-threshold.md)) reads `ingest.runs`. Once a source's ingest runs in the build, its runs are recorded by Stelis's build history and the operator build log, and the heartbeat's questions ("is our side running", "is the source reachable") are asked of that instead. Each source keeps writing `ingest.runs` until its Postgres ingest is unscheduled, so the heartbeat never goes blind mid-migration.
 - On Stelis's side: a keyed SQLite store as a task's output rather than only a leaf (the notes store is read-only from the graph's point of view), and a rule node that says two relations must agree, reusable for each source's gate. Both are small; neither is delta propagation or a Racket derivation.
-- The `ingest` Deno function, its trigger secret and the three pg_cron jobs are retired one source at a time, each in the migration that unschedules it, once that source's gate has been green and the overlay is live.
+- The `ingest` Deno function, its trigger secret and the three pg_cron jobs are retired one source at a time, each in the migration that unschedules it, ~~once that source's gate has been green and the overlay is live~~ once salishsea.io itself reads the files (*amended 2026-10-03*, see below: until then the public site reads Postgres, and stopping its ingest would freeze it).
 
 ## The cutover, in two halves (2026-10-03, `salish-xv35.9`)
 
