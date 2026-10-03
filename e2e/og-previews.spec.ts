@@ -159,8 +159,8 @@ test('regular browser UA on an individual page receives the page shell', async (
 
   expect(response.status()).toBe(200);
   const body = await response.text();
-  // The viewer-request function rewrites /individuals/* to the individual.html
-  // shell (there is no S3 object at the path itself).
+  // The page the read-path build prerendered, inside the individual.html shell
+  // (salish-xv35.16; before that, the edge function rewrote to the bare shell).
   expect(body).toContain('<individual-page>');
 });
 
@@ -210,8 +210,8 @@ test('regular browser UA on a matriline page receives the page shell', async ({ 
 
   expect(response.status()).toBe(200);
   const body = await response.text();
-  // The viewer-request function rewrites /matrilines/* to the matriline.html
-  // shell (there is no S3 object at the path itself).
+  // The page the read-path build prerendered, inside the matriline.html shell
+  // (salish-xv35.16; before that, the edge function rewrote to the bare shell).
   expect(body).toContain('<matriline-page>');
 });
 
@@ -235,8 +235,8 @@ test('regular browser UA on an ecotype page receives the page shell', async ({ r
 
   expect(response.status()).toBe(200);
   const body = await response.text();
-  // The viewer-request function rewrites /ecotypes/* to the ecotype.html
-  // shell (there is no S3 object at the path itself).
+  // The page the read-path build prerendered, inside the ecotype.html shell
+  // (salish-xv35.16; before that, the edge function rewrote to the bare shell).
   expect(body).toContain('<ecotype-page>');
 });
 
@@ -269,7 +269,8 @@ test('a crawler on a haul-out page receives site-specific OG tags', async ({ req
   const response = await request.get(CANONICAL_SHILSHOLE, { headers: BOT_UA });
   expect(response.status()).toBe(200);
   const body = await response.text();
-  expect(body).toContain('<title>Shilshole Bay Area haul-out</title>');
+  // The prerendered page's own tags (salish-xv35.16), not ones the edge synthesizes.
+  expect(body).toContain('<meta property="og:title" content="Shilshole Bay Area haul-out">');
   expect(body).toContain(`content="https://salishsea.io${CANONICAL_SHILSHOLE}"`);
   expect(body).toContain('<meta property="og:image" content="https://salishsea.io/social-card.jpg">');
 });

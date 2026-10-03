@@ -74,6 +74,14 @@ export function buildRedirects(t: IndexTables): Redirects {
         if (into && !Object.hasOwn(into, key))
             into[key] = g['kind'] === 'matriline' ? matrilineAt(g) : ecotypeAt(g);
     }
+    // Every published page by its bare identifier: the canonical path's first two segments.
+    // Only where a slug follows, or the bare path would redirect to itself.
+    const ids: Record<string, string> = {};
+    for (const path of profilePaths(t)) {
+        const segments = path.split('/');
+        if (segments.length > 3 && segments[3]) ids[segments.slice(1, 3).join('/')] = path;
+    }
+    out.ids = ids;
     return out;
 }
 

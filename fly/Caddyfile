@@ -40,6 +40,26 @@
 		file_server
 	}
 
+	# A bare identifier (/individuals/0010193, /haulouts/340): decision 034 301s it to
+	# the slugged address. The redirect server answers from the map the build writes,
+	# with no lookup; an identifier it doesn't know has no published page, which is the
+	# same 404 the prerendered route below gives. Before that route, which would
+	# otherwise serve the page at the bare address.
+	@bareId path_regexp bareId ^/((individuals|matrilines|ecotypes)/[0-9]{7}|haulouts/[0-9]{1,9})/?$
+	handle @bareId {
+		reverse_proxy 127.0.0.1:8081 {
+			@unpublished status 404
+			handle_response @unpublished {
+				header Cache-Control "no-cache"
+				root * /app/dist
+				rewrite * /not-published.html
+				file_server {
+					status 404
+				}
+			}
+		}
+	}
+
 	# A profile page prerendered by the read-path build (decision 057): an
 	# individual, a matriline or an ecotype by its register identifier's seven
 	# digits, or a haul-out site by its id. The slug after them is ignored, as
