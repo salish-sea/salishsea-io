@@ -29,11 +29,6 @@ function isBot(userAgent: string): boolean {
   return BOT_AGENTS.some(bot => ua.includes(bot));
 }
 
-// Image assets a crawler may fetch directly (icons, and any og:image we ever serve
-// from our own origin). These must pass through to origin as raw bytes, never be
-// intercepted for OG-meta HTML.
-const STATIC_ASSET_RE = /\.(jpe?g|png|gif|svg|webp|ico|avif)$/i;
-
 // Network deadline: the viewer-request Lambda is hard-killed at 5s, and a kill
 // bypasses the fail-open catch — CloudFront serves a 503 (salish-g9e).
 // With config baked in at synth the cold chain is init (~0.3s) + one Supabase
@@ -217,96 +212,6 @@ interface Occurrence {
   attribution?: string | null;
 }
 
-interface Individual {
-  entity_id: string | null;
-  primary_designation: string;
-  sex: 'female' | 'male' | null;
-  born_earliest: number | null;
-  born_latest: number | null;
-  life_status: string;
-  nicknames: { name: string; status: string }[];
-}
-
-interface SocialGroup {
-  entity_id: string | null;
-  designation: string;
-  nicknames: { name: string; status: string }[];
-}
-
-// ---- Profile URLs (decision 034) -------------------------------------------
-//
-// A profile URL keys on the register's identifier and carries the designation
-// as a slug that is composed here and ignored on read:
-//
-//   /individuals/0010193/T065A      canonical — the only segment READ is 0010193
-//   /individuals/0010193            bare identifier: 301 to the slugged form
-//   /individuals/0010193/T065A9     stale slug: 301 (crawlers) or fixed client-side
-//   /individuals/T065A, /T046A      designation: one lookup, then 301
-//
-// The path helpers below mirror src/catalog.ts, which composes the same URLs
-// in the browser. The edge bundle cannot import from src/, so the two are kept
-// in step by hand — change one, change the other.
-
-// The local part of a register identifier (SSA:0010193 → 0010193): animals
-// ADR-0021's registered pattern.
-const ENTITY_LOCAL_PART_RE = /^\d{7}$/;
-const registerKey = (segment: string) => ENTITY_LOCAL_PART_RE.test(segment) ? `SSA:${segment}` : null;
-
-// A haul-out site's own id. Bounded so a designation-looking run of digits
-// cannot be mistaken for one, and no seven-digit register id can either.
-const HAULOUT_ID_RE = /^\d{1,6}$/;
-const hauloutKey = (segment: string) => HAULOUT_ID_RE.test(segment) ? segment : null;
-
-// The designation as a URL segment: apostrophes dropped (Bigg's → Biggs), any
-// other run of non-alphanumerics collapsed to a hyphen.
-function slugify(designation: string): string {
-  return designation.replace(/['’]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-}
-
-// The register's name-comparison rule (animals ADR-0019): a hand copy of
-// src/fold.ts, which this bundle cannot import. Lookups compare it against the
-// stored folded columns (designations.code_folded, social_groups.designation_folded),
-// so T65A, t065a and T065A all find the same animal.
-function fold(name: string): string {
-  const stripped = name.toLowerCase().replace(/['’-]/g, '');
-  const collapsed = stripped.split(/\s+/).filter(Boolean).join(' ');
-  return collapsed.replace(/\d+/g, (digits) => String(BigInt(digits)));
-}
-
-// The canonical address of a subject. A row with no register identifier is
-// addressed by its designation, as before 034.
-function canonicalProfilePath(prefix: string, entityId: string | null, designation: string): string {
-  if (!entityId) return `/${prefix}/${encodeURIComponent(designation)}`;
-  const slug = slugify(designation);
-  return `/${prefix}/${entityId.replace(/^SSA:/, '')}${slug ? `/${slug}` : ''}`;
-}
-
-function individualPreviewTags(individual: Individual): OgTags {
-  const name = individual.nicknames.find(n => n.status === 'official')?.name
-    ?? individual.nicknames.find(n => n.status !== 'deprecated')?.name;
-  const designation = individual.primary_designation;
-  const title = name ? `${name} (${designation})` : designation;
-  const vitals = [
-    individual.sex === 'female' ? 'Female' : individual.sex === 'male' ? 'Male' : null,
-    individual.born_earliest !== null && individual.born_latest !== null
-      ? (individual.born_earliest === individual.born_latest
-        ? `born ${individual.born_earliest}`
-        : `born ${individual.born_earliest}–${individual.born_latest}`)
-      : individual.born_latest !== null ? `born by ${individual.born_latest}`
-      : individual.born_earliest !== null ? `born after ${individual.born_earliest}` : null,
-  ].filter(Boolean).join(', ');
-  const description = `${vitals ? `${vitals} · ` : ''}Names, family, and sighting history of ${title} in the Salish Sea.`;
-  return {
-    'og:site_name': 'SalishSea.io',
-    'og:type': 'profile',
-    'og:url': `https://salishsea.io${canonicalProfilePath('individuals', individual.entity_id, designation)}`,
-    'og:title': title,
-    'og:description': description,
-    ...BRAND_CARD_TAGS,
-    'fb:app_id': FB_APP_ID,
-  };
-}
-
 // Only cc0 and cc-by are unambiguously open for re-use
 const OPEN_LICENSES = ['cc0', 'cc-by'];
 
@@ -335,9 +240,9 @@ function cardImageUrl(src: string): string {
 // keeps this function inside its 128MB/5s budget and keeps a card URL cacheable
 // by id alone.
 //
-// Note the paths end in .jpg, which STATIC_ASSET_RE above deliberately passes
-// through: a crawler fetching the image it was just told about must get bytes,
-// not another OG document.
+// A crawler fetching the image it was just told about must get bytes, not another
+// OG document: /cards/* has no edge function at all, and the handler answers only
+// the map page.
 function occurrenceCardUrl(id: string): string {
   return `https://salishsea.io/cards/o/${encodeURIComponent(id)}.jpg`;
 }
@@ -404,319 +309,21 @@ const htmlResponse = (tags: OgTags) => ({
   body: buildOgHtml(tags),
 });
 
-// What a profile path names: the register identifier (with whatever slug came
-// along, unread), or a designation on a legacy or hand-typed path.
-type ProfileKey =
-  | { kind: 'entity'; entityId: string; slug: string | null }
-  | { kind: 'designation'; code: string };
-
-// A subject the edge has looked up: where it canonically lives, and its card.
-interface Resolved {
-  canonical: string;
-  tags: OgTags;
-}
-
-interface ProfileFamily {
-  prefix: 'individuals' | 'matrilines' | 'ecotypes' | 'haulouts';
-  shell: string;
-  kind: 'individual' | 'matriline' | 'ecotype' | 'haulout';
-  // The identifier a first path segment names, or null when the segment is
-  // not one — then it is read as a designation. Animals key on the register's
-  // seven digits; a haul-out site is our own row and keys on its own integer
-  // (decision 040).
-  entityKey: (segment: string) => string | null;
-  // null when nothing in the catalogue answers to the key.
-  resolve(key: ProfileKey): Promise<Resolved | null>;
-}
-
-// One Supabase read, or null on a non-2xx. The `kind` names the lookup in the
-// og-fetch log line.
-async function readRows<T>(kind: string, path: string): Promise<T[] | null> {
-  const { url, key } = getCredentials();
-  const res = await timedFetch(kind, `${url}/rest/v1/${path}`, key);
-  if (!res.ok) return null;
-  return await res.json() as T[];
-}
-
-const INDIVIDUAL_COLUMNS = 'entity_id,primary_designation,sex,born_earliest,born_latest,life_status,nicknames(name,status)';
-
-// An individual by register identifier, or by ANY designation it has ever
-// carried — public.designations holds the superseded and alternate codes the
-// register does not publish (034, consequences), which is what lets
-// /individuals/T046A find T122 when primary_designation alone never did.
-async function resolveIndividual(key: ProfileKey): Promise<Resolved | null> {
-  let individual: Individual | undefined;
-  if (key.kind === 'entity') {
-    const rows = await readRows<Individual>('individual',
-      `individuals?entity_id=eq.${encodeURIComponent(key.entityId)}&select=${INDIVIDUAL_COLUMNS}&limit=1`);
-    individual = rows?.[0];
-  } else {
-    const rows = await readRows<{ individual: Individual | null }>('individual',
-      `designations?code_folded=eq.${encodeURIComponent(fold(key.code))}&select=individual:individuals(${INDIVIDUAL_COLUMNS})&limit=1`);
-    individual = rows?.[0]?.individual ?? undefined;
-  }
-  if (!individual) return null;
-  return {
-    canonical: canonicalProfilePath('individuals', individual.entity_id, individual.primary_designation),
-    tags: individualPreviewTags(individual),
-  };
-}
-
-// A matriline's slug is the group's written form (T065As), not the matriarch's
-// code social_groups.designation holds — matrilinePath in src/catalog.ts.
-function canonicalMatrilinePath(group: SocialGroup): string {
-  if (!group.entity_id) return canonicalProfilePath('matrilines', null, group.designation);
-  return canonicalProfilePath('matrilines', group.entity_id, `${group.designation}s`);
-}
-
-function matrilinePreviewTags(group: SocialGroup): OgTags {
-  const name = group.nicknames.find(n => n.status === 'official')?.name
-    ?? group.nicknames.find(n => n.status !== 'deprecated')?.name;
-  const designation = group.designation;
-  const title = name ? `${name} (${designation} matriline)` : `The ${designation} matriline`;
-  const description =
-    `Members, naming, and sighting history of the ${designation} matriline of Bigg's killer whales in the Salish Sea.`;
-  return {
-    'og:site_name': 'SalishSea.io',
-    'og:type': 'profile',
-    'og:url': `https://salishsea.io${canonicalMatrilinePath(group)}`,
-    'og:title': title,
-    'og:description': description,
-    ...BRAND_CARD_TAGS,
-    'fb:app_id': FB_APP_ID,
-  };
-}
-
-const GROUP_COLUMNS = 'entity_id,designation,nicknames(name,status)';
-
-// A matriline by register identifier, or by designation: the matriarch's code
-// every pre-034 link carries (/matrilines/T065A), or the group's written form
-// a person types (T65As). Folded, then the trailing s dropped — safe only
-// because the route has already said this is a group (matrilineDesignation in
-// src/catalog.ts, which this mirrors).
-async function resolveMatriline(key: ProfileKey): Promise<Resolved | null> {
-  const filter = key.kind === 'entity'
-    ? `entity_id=eq.${encodeURIComponent(key.entityId)}`
-    : `designation_folded=eq.${encodeURIComponent(fold(key.code).replace(/s$/, ''))}`;
-  const rows = await readRows<SocialGroup>('matriline',
-    `social_groups?${filter}&kind=eq.matriline&select=${GROUP_COLUMNS}&limit=1`);
-  const group = rows?.[0];
-  if (!group) return null;
-  return { canonical: canonicalMatrilinePath(group), tags: matrilinePreviewTags(group) };
-}
-
-// Well-known killer whale ecotype descriptors. notes on the social_groups row
-// carries this too, but notes are never rendered (D-21), so it lives in code.
-const ECOTYPE_LABELS: Record<string, string> = {
-  Biggs: "Bigg's (transient) killer whales",
-};
-
-function ecotypePreviewTags(group: SocialGroup): OgTags {
-  const designation = group.designation;
-  const label = ECOTYPE_LABELS[designation] ?? `The ${designation} ecotype`;
-  const description = `The matrilines and aggregated sighting history of ${label} in the Salish Sea.`;
-  return {
-    'og:site_name': 'SalishSea.io',
-    'og:type': 'profile',
-    'og:url': `https://salishsea.io${canonicalProfilePath('ecotypes', group.entity_id, designation)}`,
-    'og:title': label,
-    'og:description': description,
-    ...BRAND_CARD_TAGS,
-    'fb:app_id': FB_APP_ID,
-  };
-}
-
-async function resolveEcotype(key: ProfileKey): Promise<Resolved | null> {
-  const filter = key.kind === 'entity'
-    ? `entity_id=eq.${encodeURIComponent(key.entityId)}`
-    : `designation_folded=eq.${encodeURIComponent(fold(key.code))}`;
-  const rows = await readRows<SocialGroup>('ecotype',
-    `social_groups?${filter}&kind=eq.ecotype&select=${GROUP_COLUMNS}&limit=1`);
-  const group = rows?.[0];
-  if (!group) return null;
-  return { canonical: canonicalProfilePath('ecotypes', group.entity_id, group.designation), tags: ecotypePreviewTags(group) };
-}
-
-// Profile pages rendered client-side from a static shell (decision 015/016/017):
-// humans get the shell rewrite, bots get synthesized OG meta. S3 has no object
-// at these paths, so even the fail-open branch must rewrite to the shell.
-interface Haulout {
-  id: number;
-  name: string;
-  region: string | null;
-  atlas_species: string[] | null;
-}
-
-const ATLAS_SPECIES: Record<string, string> = {
-  PV: 'harbor seal',
-  ZC: 'California sea lion',
-  EJ: 'Steller sea lion',
-  MA: 'northern elephant seal',
-};
-
-function hauloutPreviewTags(site: Haulout): OgTags {
-  const species = (site.atlas_species ?? []).map(c => ATLAS_SPECIES[c] ?? c);
-  const title = `${site.name} haul-out`;
-  const description = `${species.length ? `${species.join(', ').replace(/^./, c => c.toUpperCase())} haul-out site` : 'Pinniped haul-out site'}${site.region ? ` in the ${site.region}` : ''}: what the 1999 WDFW atlas recorded, and what people report there now.`;
-  return {
-    'og:site_name': 'SalishSea.io',
-    'og:type': 'place',
-    'og:url': `https://salishsea.io${canonicalProfilePath('haulouts', String(site.id), site.name)}`,
-    'og:title': title,
-    'og:description': description,
-    ...BRAND_CARD_TAGS,
-    'fb:app_id': FB_APP_ID,
-  };
-}
-
-// A site by its own id; there is no designation to fall back on.
-async function resolveHaulout(key: ProfileKey): Promise<Resolved | null> {
-  if (key.kind !== 'entity') return null;
-  const rows = await readRows<Haulout>('haulout',
-    `haulouts?id=eq.${encodeURIComponent(key.entityId)}&select=id,name,region,atlas_species&limit=1`);
-  const site = rows?.[0];
-  if (!site) return null;
-  return { canonical: canonicalProfilePath('haulouts', String(site.id), site.name), tags: hauloutPreviewTags(site) };
-}
-
-const PROFILE_FAMILIES: ProfileFamily[] = [
-  { prefix: 'individuals', shell: '/individual.html', kind: 'individual', entityKey: registerKey, resolve: resolveIndividual },
-  { prefix: 'matrilines', shell: '/matriline.html', kind: 'matriline', entityKey: registerKey, resolve: resolveMatriline },
-  { prefix: 'ecotypes', shell: '/ecotype.html', kind: 'ecotype', entityKey: registerKey, resolve: resolveEcotype },
-  { prefix: 'haulouts', shell: '/haulout.html', kind: 'haulout', entityKey: hauloutKey, resolve: resolveHaulout },
-];
-
-interface ProfileRoute {
-  family: ProfileFamily;
-  key: ProfileKey;
-}
-
-// A percent-encoded path segment as text; a malformed escape is taken as typed.
-function decodeSegment(segment: string): string {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return segment;
-  }
-}
-
-// /<family>/<segment>[/<segment>][/]. Two segments name an identifier and its
-// slug; a designation stands alone, so /individuals/T065A/photos is not a
-// profile path and passes through untouched, as it always has.
-function matchProfileRoute(uri: string): ProfileRoute | null {
-  for (const family of PROFILE_FAMILIES) {
-    const match = uri.match(new RegExp(`^/${family.prefix}/([^/]+)(?:/([^/]*))?/?$`));
-    if (!match) continue;
-    const first = decodeSegment(match[1]!);
-    // A trailing slash leaves an empty second segment; it means nothing.
-    const second = match[2] ? decodeSegment(match[2]) : null;
-    const entityId = family.entityKey(first);
-    if (entityId) {
-      return { family, key: { kind: 'entity', entityId, slug: second } };
-    }
-    if (!second) {
-      return { family, key: { kind: 'designation', code: first } };
-    }
-    return null;
-  }
-  return null;
-}
-
-// The browser caches a 301 for as long as we say; a day bounds how long a
-// mistaken mapping would survive a fix. (CloudFront does not cache responses a
-// viewer-request function generates, so this header is for the client alone.)
-function redirectResponse(location: string) {
-  return {
-    status: '301',
-    statusDescription: 'Moved Permanently',
-    headers: {
-      location: [{ key: 'Location', value: location }],
-      'cache-control': [{ key: 'Cache-Control', value: 'public, max-age=86400' }],
-    },
-  };
-}
-
-// Everything a profile path can get back.
-//
-//   human, canonical shape     → the page shell, no lookup (034: "costs no lookup")
-//   human, designation or bare → one lookup, 301 to the canonical address
-//   crawler, any shape         → one lookup; 301 unless already canonical, else OG meta
-//   unknown subject            → shell for a human (the page says "not in our
-//                                catalog"), the site card for a crawler
-//   lookup failed or timed out → the shell, always (decision 015's fail-open):
-//                                the page canonicalises client-side instead
-//
-// A human on a canonical-looking path with a stale slug also gets the shell:
-// telling a stale slug from a current one costs the lookup this branch exists
-// to avoid, and the page fixes the address with replaceState.
-async function profileResponse(request: any, route: ProfileRoute, bot: boolean): Promise<any> {
-  const { family, key } = route;
-  const nonCanonical = key.kind === 'designation' || key.slug === null;
-  if (!bot && !nonCanonical) {
-    request.uri = family.shell;
-    return request;
-  }
-  try {
-    const resolved = await family.resolve(key);
-    if (!resolved) {
-      console.log(JSON.stringify({ msg: 'og-unknown', kind: family.kind, key }));
-      if (bot) return htmlResponse(genericPreviewTags());
-      request.uri = family.shell;
-      return request;
-    }
-    if (resolved.canonical !== request.uri) {
-      return redirectResponse(resolved.canonical);
-    }
-    if (!bot) {
-      request.uri = family.shell;
-      return request;
-    }
-    return htmlResponse(resolved.tags);
-  } catch (err) {
-    console.error(JSON.stringify({ msg: 'og-fail-open', uri: request.uri, error: String(err) }));
-    request.uri = family.shell;
-    return request;
-  }
-}
-
 export const handler = async (event: any): Promise<any> => {
   const request = event.Records[0].cf.request;
-
-  // L-01: bypass OG-meta interception for /dwca/* binary downloads (DwC-A archive +
-  // GeoParquet sidecar). Path-prefix gate runs BEFORE the bot-UA branch so crawlers
-  // (Slackbot, Facebook, etc.) receive the binary, not synthesized HTML.
-  // Ref: .planning/phases/07-nightly-workflow-hosting/07-CONTEXT.md §L-01
-  //
-  // Same rationale for /sitemap.xml and /robots.txt: search crawlers that ARE in
-  // BOT_AGENTS (baiduspider, google-snippet) must receive the raw file, never
-  // synthesized HTML, or the sitemap/robots directives are unreadable.
-  //
-  // Same rationale for static image assets: whenever a card points at an image on
-  // our own origin, the very same crawlers (facebookexternalhit, twitterbot, …)
-  // fetch that URL with their bot UA to render it. Without this carve-out the
-  // handler answers the image request with OG-meta HTML — an HTML body served as
-  // the image — and the preview breaks (it did, with the old /preview.jpg fallback).
-  // Any path with an image extension must pass through to origin as raw bytes.
-  if (
-    request.uri.startsWith('/dwca/') ||
-    request.uri === '/sitemap.xml' ||
-    request.uri === '/robots.txt' ||
-    STATIC_ASSET_RE.test(request.uri)
-  ) {
-    return request;
-  }
 
   const ua = request.headers['user-agent']?.[0]?.value ?? '';
   const bot = isBot(ua);
 
-  // Profile paths have their own contract (shell rewrite, redirect, OG meta,
-  // fail-open to the shell) — see profileResponse.
-  const route = matchProfileRoute(request.uri);
-  if (route) {
-    return profileResponse(request, route, bot);
-  }
-
-  if (!bot) {
+  // Only the map page's preview depends on its query (?o= a sighting, ?d= a day), so only
+  // it is answered here. Every other page carries its own tags from the origin, the
+  // prerendered profiles included (salish-xv35.16), so a crawler gets it as a person would.
+  // Everything else a crawler fetches must reach the origin as bytes too: the /dwca/
+  // archive and its GeoParquet sidecar (L-01), /sitemap.xml and /robots.txt, which
+  // listed crawlers (baiduspider, google-snippet) read, and any image a card points at,
+  // which the same crawlers fetch with their bot UA to render it (an HTML body served as
+  // the image is how previews broke once).
+  if (!bot || (request.uri !== '/' && request.uri !== '/index.html')) {
     return request;
   }
 

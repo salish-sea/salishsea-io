@@ -1,6 +1,6 @@
 # CDK infrastructure
 
-CloudFront, the Lambda@Edge OG/preview handler, and the card renderer.
+CloudFront, the Lambda@Edge OG/preview handler, and the card renderer. CloudFront's default origin is the `salishsea-io` Fly app, which serves the site and the read-path build's files ([decision 061](../docs/decisions/061-ingest-and-derivation-move-into-the-build.md)); the S3 bucket serves only `/dwca/*`.
 The `cdk.json` file tells the CDK Toolkit how to execute this app.
 
 This is a **separate pnpm project** from the repo root, not a workspace member:

@@ -226,10 +226,21 @@ export class InfraStack extends cdk.Stack {
       description: 'Nightly database dump and media mirror (decision 038)',
     });
 
-    // S3 origin — bucket already exists in production; import by name
+    // S3 origin — bucket already exists in production; import by name. Since salishsea.io
+    // reads the read-path build (decision 061, salish-xv35.16) it serves only what the
+    // nightly workflow uploads there, the /dwca/ archive. The deploy workflow still syncs
+    // the site into it, so pointing the default behavior back at it is the rollback.
     const siteBucket = s3.Bucket.fromBucketName(this, 'SiteBucket', 'salishsea-io');
     const s3Origin = origins.S3BucketOrigin.withOriginAccessControl(siteBucket, {
       originPath: '/site',
+    });
+
+    // The Fly app (decision 056): the site built to read static files, the files the
+    // read-path build writes every five minutes, the prerendered profile pages and their
+    // redirects. Its redirects are relative and its pages are no-cache, so CloudFront
+    // passes both through as they are.
+    const flyOrigin = new origins.HttpOrigin('salishsea-io.fly.dev', {
+      protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
     });
 
     // CloudFront Distribution — reconstructed to match production config
@@ -245,7 +256,7 @@ export class InfraStack extends cdk.Stack {
         `arn:aws:acm:us-east-1:${ACCOUNT_ID}:certificate/8cfdef8d-648b-42ba-a525-045f7b1a7762`,
       ),
       defaultBehavior: {
-        origin: s3Origin,
+        origin: flyOrigin,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         compress: true,
         cachePolicy: cloudfront.CachePolicy.fromCachePolicyId(
@@ -259,9 +270,18 @@ export class InfraStack extends cdk.Stack {
         ],
       },
       additionalBehaviors: {
+        // The Darwin Core archive and its GeoParquet sidecar, uploaded nightly to the
+        // bucket (dwca-nightly.yml), not built by the read-path build. Binary downloads:
+        // no edge function, so a crawler gets the bytes.
+        '/dwca/*': {
+          origin: s3Origin,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        },
         // Preview card images. No edge function here: the OG handler's whole job
         // is to name these URLs, and letting it intercept its own images is the
-        // bug that broke previews once already (STATIC_ASSET_RE in the handler).
+        // bug that broke previews once already.
         '/cards/*': {
           origin: cardOrigin,
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
