@@ -5,17 +5,19 @@ import path from 'node:path';
 
 const setClient = vi.hoisted(() => vi.fn());
 const init = vi.hoisted(() => vi.fn());
+const addEventProcessor = vi.hoisted(() => vi.fn());
 
 vi.mock('@sentry/browser', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@sentry/browser')>()),
   BrowserClient: class { init = init },
-  getCurrentScope: () => ({setClient}),
+  getCurrentScope: () => ({setClient, addEventProcessor}),
 }));
 vi.mock('@supabase/sentry-js-integration', () => ({supabaseIntegration: () => ({name: 'supabase'})}));
 vi.mock('./supabase.ts', () => ({supabase: () => ({})}));
+vi.mock('./release.ts', () => ({release: async () => 'built-from-abc123'}));
 
 describe('initSentry', () => {
-  beforeEach(() => { setClient.mockClear(); init.mockClear(); vi.resetModules(); });
+  beforeEach(() => { setClient.mockClear(); init.mockClear(); addEventProcessor.mockClear(); vi.resetModules(); });
   afterEach(() => { vi.unstubAllEnvs(); });
 
   const load = () => import('./sentry.ts');
@@ -25,6 +27,14 @@ describe('initSentry', () => {
     (await load()).initSentry();
     expect(setClient).toHaveBeenCalledTimes(1);
     expect(init).toHaveBeenCalledTimes(1);
+  });
+
+  it('names the release on an event from release.json, not from the bundle', async () => {
+    vi.stubEnv('PROD', true);
+    (await load()).initSentry();
+    const process = addEventProcessor.mock.calls[0]![0] as (e: object) => Promise<object>;
+    expect(await process({message: 'boom'})).toEqual({message: 'boom', release: 'built-from-abc123'});
+    expect(await process({message: 'boom', release: 'given'})).toEqual({message: 'boom', release: 'given'});
   });
 
   it('binds nothing outside production, so captureException cannot transmit', async () => {

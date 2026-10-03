@@ -28,6 +28,12 @@ vi.mock('./supabase.ts', () => ({
   }),
 }));
 
+// What the build wrote to release.json (src/release.ts).
+vi.mock('./release.ts', () => ({
+  release: async () => 'built-from-abc123',
+  releaseIfKnown: () => 'built-from-abc123',
+}));
+
 const { readDraft, draftIsEmpty, DRAFT_TTL_MS } = await import('./feedback-form.ts');
 type Form = HTMLElement & {
   open(): void;
@@ -181,6 +187,7 @@ describe('sending', () => {
     // The 2026-09-08 report was iOS-Safari-specific and we could not tell.
     expect(rpc.calls[0]!.args['user_agent']).toBe(navigator.userAgent);
     expect(rpc.calls[0]!.args['page_url']).toBe(location.href);
+    expect(rpc.calls[0]!.args['release']).toBe('built-from-abc123');
   });
 
   test('clears the draft once it has actually arrived', async () => {

@@ -2,6 +2,7 @@ import {BrowserClient, breadcrumbsIntegration, dedupeIntegration, defaultStackPa
 import {supabaseIntegration} from '@supabase/sentry-js-integration';
 import { supabase } from "./supabase.ts";
 import { DENY_URLS, dropThirdPartyNoise, IGNORE_ERRORS } from "./sentry-noise.ts";
+import { release } from "./release.ts";
 
 /**
  * Exported for `src/sentry.test.ts` only. Nothing else should reach for the
@@ -65,5 +66,12 @@ export const sentryClient = new BrowserClient({
 export function initSentry(): void {
   if (!import.meta.env.PROD) return;
   getCurrentScope().setClient(sentryClient);
+  // The release comes from release.json, not the bundle (src/release.ts), so it
+  // arrives after the client is made; an event waits for it.
+  getCurrentScope().addEventProcessor(async event => {
+    if (event.release) return event;
+    const builtFrom = await release();
+    return builtFrom === 'unknown' ? event : {...event, release: builtFrom};
+  });
   sentryClient.init();
 }
