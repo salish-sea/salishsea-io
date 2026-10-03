@@ -59,7 +59,7 @@ CREATE OR REPLACE TEMP VIEW acoustic_identification AS
          CASE WHEN i.id IS NULL THEN g.id END AS social_group_id,
          ent.label AS code,
          e.certainty
-  FROM public.acoustic_bout_entities e
+  FROM source_acoustic_bout_entities e
   JOIN register.entities ent ON ent.entity_id = e.entity_id
   LEFT JOIN individual i ON i.entity_id = e.entity_id
   LEFT JOIN social_group g ON g.entity_id = e.entity_id
@@ -279,4 +279,4 @@ CREATE OR REPLACE TABLE build.haulout_occurrences AS
            'occurrence_id': occurrence_id
          }) AS VARCHAR) AS doc
   FROM kept
-  LEFT JOIN inaturalist.taxa sp ON sp.id = CAST(f[3]->>'species_id' AS INTEGER);
+  LEFT JOIN source_inaturalist_taxa sp ON sp.id = CAST(f[3]->>'species_id' AS INTEGER);

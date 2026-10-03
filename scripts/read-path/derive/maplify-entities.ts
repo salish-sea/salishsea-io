@@ -26,7 +26,7 @@ export async function writeMaplifyEntities(conn: DuckDBConnection): Promise<void
     const index = buildNameIndex(names);
     await writeOutOfScope(conn, index);
     const pairs = (await conn.runAndReadAll(
-        'SELECT DISTINCT name, scientific_name FROM maplify.sightings',
+        'SELECT DISTINCT name, scientific_name FROM source_maplify_sightings',
     )).getRows() as [string | null, string][];
     await conn.run(`CREATE OR REPLACE TABLE memory.main.maplify_entity (
         name VARCHAR, scientific_name VARCHAR, entity_id VARCHAR)`);
@@ -57,7 +57,7 @@ async function writeOutOfScope(conn: DuckDBConnection, index: NameIndex): Promis
     await conn.run('CREATE OR REPLACE TABLE memory.main.maplify_out_of_scope (id INTEGER)');
     // Streamed: read whole, the sightings cost the 1 GB machine ~40 MB more at peak.
     const result = await conn.stream(
-        'SELECT id, name, scientific_name, location_lon, location_lat, source FROM maplify.sightings');
+        'SELECT id, name, scientific_name, location_lon, location_lat, source FROM source_maplify_sightings');
     const out: number[] = [];
     for await (const rows of result.yieldRows() as AsyncIterable<[number, string | null, string, number, number, string][]>) {
         for (const [id, name, scientificName, lon, lat, source] of rows) {

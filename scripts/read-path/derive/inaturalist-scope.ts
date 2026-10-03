@@ -32,11 +32,11 @@ export function ancestry(taxonId: number, parentOf: ReadonlyMap<number, number |
  */
 export async function writeInaturalistOutOfScope(conn: DuckDBConnection): Promise<void> {
     const parentOf = new Map(
-        ((await conn.runAndReadAll('SELECT id, parent_id FROM inaturalist.taxa')).getRows() as [number, number | null][]));
+        ((await conn.runAndReadAll('SELECT id, parent_id FROM source_inaturalist_taxa')).getRows() as [number, number | null][]));
     await conn.run('CREATE OR REPLACE TABLE memory.main.inaturalist_out_of_scope (id BIGINT)');
     // Streamed, as the Maplify sightings are: there are tens of thousands.
     const result = await conn.stream(
-        'SELECT id, location_lon, location_lat, taxon_id FROM inaturalist.observations');
+        'SELECT id, location_lon, location_lat, taxon_id FROM source_inaturalist_observations');
     const out: bigint[] = [];
     for await (const rows of result.yieldRows() as AsyncIterable<[bigint, number, number, number][]>) {
         for (const [id, lon, lat, taxonId] of rows) {

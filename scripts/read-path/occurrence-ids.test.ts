@@ -26,11 +26,11 @@ beforeAll(async () => {
     const snapshot = path.join(dir, 'snapshot.duckdb');
     const conn = await (await DuckDBInstance.create(':memory:')).connect();
     await conn.run(`ATTACH '${snapshot}' AS store`);
-    await conn.run('CREATE SCHEMA store.snapshot');
-    await conn.run('CREATE TABLE store.snapshot.occurrences (id VARCHAR, observed_at TIMESTAMPTZ, doc VARCHAR)');
+    await conn.run('CREATE SCHEMA store.build');
+    await conn.run('CREATE TABLE store.build.occurrences (id VARCHAR, observed_at TIMESTAMPTZ, doc VARCHAR)');
     for (const {id, observed_at} of ROWS)
-        await conn.run(`INSERT INTO store.snapshot.occurrences VALUES ('${id}', '${observed_at}', '{}')`);
-    await conn.run(`INSERT INTO store.snapshot.occurrences VALUES ('happywhale:undated', NULL, '{}')`);
+        await conn.run(`INSERT INTO store.build.occurrences VALUES ('${id}', '${observed_at}', '{}')`);
+    await conn.run(`INSERT INTO store.build.occurrences VALUES ('happywhale:undated', NULL, '{}')`);
     await conn.run('DETACH store');
     conn.closeSync();
     await writeIds(snapshot, dir);

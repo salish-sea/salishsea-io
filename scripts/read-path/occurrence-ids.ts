@@ -1,6 +1,7 @@
 /**
  * The read path's id index: which Pacific day each occurrence is on, so a
- * `?o=<id>` link can be opened without asking the database (decision 056).
+ * `?o=<id>` link can be opened without asking the database (decision 056), from
+ * the build's occurrences (build.occurrences, decision 061).
  *
  *   EXPORT_DIR=… node scripts/read-path/occurrence-ids.ts <snapshot.duckdb>
  *
@@ -30,7 +31,7 @@ export async function writeIds(snapshot: string, exportDir: string): Promise<{sh
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         const reader = await conn.runAndReadAll(`
             SELECT id, strftime(timezone('${DAY_ZONE}', observed_at), '%Y-%m-%d') AS day
-            FROM store.snapshot.occurrences
+            FROM store.build.occurrences
             -- An undated occurrence is on no day, so no day file holds it and the
             -- index has nothing to point a link at (decision 043 keeps them out of
             -- scope anyway); a null here would become a day of "null".

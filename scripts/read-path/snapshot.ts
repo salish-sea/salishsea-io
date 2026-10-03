@@ -18,8 +18,11 @@
  * typed columns, for the build to derive them itself (decision 061).
  *
  * Everything is read in one Postgres transaction, and the snapshot checks that it
- * was: the derivation's port is compared row for row with the stored occurrences,
- * which is only fair if both come from the same moment.
+ * was. Maplify, iNaturalist and Orcasound come from the build's own mirrors now
+ * (salish-xv35.9); their Postgres tables are still read, for the overlap reports and
+ * the Maplify name guard, while Postgres ingests them too. With `--answers` it also
+ * reads Postgres's own derived occurrences, for checking the derivation's twins
+ * against them, which is only fair if both come from the same moment.
  *
  * Reads only. Never writes the DSN to stdout, stderr or the snapshot.
  */
@@ -37,17 +40,12 @@ const DAY_ZONE = 'PST8PDT';
  * `snapshot.<name>`.
  */
 const PUBLISHED: readonly {name: string, query: string}[] = [
-    {
-        name: 'occurrences',
-        query: `select o.id, o.observed_at, to_jsonb(o)::text as doc from public.occurrences o`,
-    },
-    // What the profile pages show (decision 057): the catalogue, and the four
-    // views linking a subject to its sightings. One document per row, in the
-    // shape Postgres serializes it; the render joins them.
+    // What the profile pages show of the catalogue (decision 057). One document per
+    // row, in the shape Postgres serializes it; the render joins them. The links from
+    // a subject to its sightings are the build's (salish-xv35.13).
     ...[
         'designations', 'parties', 'social_groups', 'group_parents',
         'matriline_members', 'animal_names', 'haulouts',
-        'individual_occurrences', 'group_occurrences', 'ecotype_occurrences', 'haulout_occurrences',
     ].map(name => ({
         name,
         query: `select to_jsonb(t)::text as doc from public.${name} t`,
@@ -133,14 +131,33 @@ const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
         'occurrence_id', 'individual_id', 'social_group_id', 'is_present', 'evidence::text as evidence',
         'status::text as status', 'code', 'certainty::text as certainty']},
     {table: 'public.providers', columns: ['id', 'slug', 'name']},
-    {table: 'public.collections', columns: ['id', 'name', 'organization_id']},
+    {table: 'public.collections', columns: ['id', 'name', 'organization_id', 'slug']},
     {table: 'public.organizations', columns: ['id', 'name', 'url']},
     {table: 'register.entities', columns: ['entity_id', 'kind', 'label']},
     {table: 'register.names', columns: ['entity_id', 'name', 'type', 'language']},
     {table: 'register.mappings', columns: ['subject_id', 'predicate_id', 'object_id']},
     {table: 'register.ancestor', columns: ['entity_id', 'ancestor_id', 'depth', 'ancestor_kind']},
     {table: 'register.deprecations', columns: ['entity_id', 'replaced_by']},
-    // What the port of derived.identifier_candidates is checked against.
+];
+
+/**
+ * Postgres's own answers to what the build derives: the occurrences, their identifier
+ * candidates and the profile pages' link views. The build derives these itself
+ * (decision 061) and no longer reads them; with `--answers`, the snapshot holds them
+ * too, read in the same transaction as their inputs, so the twins of Postgres's views
+ * can be checked against it (derive-occurrences.test.ts).
+ */
+const ANSWERS: readonly {name: string, query: string}[] = [
+    {
+        name: 'occurrences',
+        query: `select o.id, o.observed_at, to_jsonb(o)::text as doc from public.occurrences o`,
+    },
+    ...['individual_occurrences', 'group_occurrences', 'ecotype_occurrences', 'haulout_occurrences'].map(name => ({
+        name,
+        query: `select to_jsonb(t)::text as doc from public.${name} t`,
+    })),
+];
+const ANSWER_TABLES: readonly {table: string, columns: readonly string[]}[] = [
     {table: 'derived.occurrence_identifier_candidates', columns: [
         'occurrence_id', 'code', 'individual_id', 'social_group_id', 'observed_at',
         '(location).lon as location_lon', '(location).lat as location_lat']},
@@ -158,11 +175,15 @@ const ENUMS = [
 ];
 
 export async function main(): Promise<void> {
-    const [out] = process.argv.slice(2);
+    const args = process.argv.slice(2);
+    const answers = args[0] === '--answers';
+    const [out] = answers ? args.slice(1) : args;
     if (!out) {
-        console.error('usage: snapshot.ts <snapshot.duckdb>');
+        console.error('usage: snapshot.ts [--answers] <snapshot.duckdb>');
         process.exit(2);
     }
+    const published = answers ? [...PUBLISHED, ...ANSWERS] : PUBLISHED;
+    const derivedFrom = answers ? [...DERIVED_FROM, ...ANSWER_TABLES] : DERIVED_FROM;
     const dsn = process.env['SUPABASE_DB_URL'];
     if (!dsn) {
         console.error('SUPABASE_DB_URL is not set');
@@ -191,7 +212,7 @@ export async function main(): Promise<void> {
             // DuckDB can echo the connection string in its error; never pass it on.
             throw new Error('Failed to attach Postgres (message withheld: it may contain the DSN)');
         }
-        for (const schema of new Set(['snapshot', 'types', ...DERIVED_FROM.map(r => r.table.split('.')[0]!)]))
+        for (const schema of new Set(['snapshot', 'types', ...derivedFrom.map(r => r.table.split('.')[0]!)]))
             await conn.run(`CREATE SCHEMA IF NOT EXISTS store.${schema}`);
 
         // One transaction: a reader never sees some tables from this snapshot and
@@ -218,9 +239,9 @@ export async function main(): Promise<void> {
             `CREATE OR REPLACE TABLE store.snapshot.year AS
              SELECT year(timezone('${DAY_ZONE}', taken_at))::INTEGER AS year FROM store.snapshot.meta`,
         );
-        for (const {name, query} of PUBLISHED)
+        for (const {name, query} of published)
             await read(conn, `snapshot.${name}`, query);
-        for (const {table, columns} of DERIVED_FROM)
+        for (const {table, columns} of derivedFrom)
             await read(conn, table, `select ${columns.join(', ')} from ${table}`);
         await read(conn, 'types.enums', `
             select n.nspname || '.' || t.typname as type, e.enumlabel as label,

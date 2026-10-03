@@ -1,5 +1,8 @@
-# The hourly read-path build (decision 056): the backstop for a change the
-# listener missed. At one past, because Pacific midnight falls on the hour in
-# both PST and PDT, and until a build runs after it, "today" is a day no build
-# has reached. supercronic runs this in UTC, which for an hourly job is the same.
-1 * * * * /app/fly/build.sh
+# The read-path build every five minutes (decision 061): it fetches Maplify, iNaturalist
+# and Orcasound itself, so its cadence is the ingest's, as pg_cron's was (salish-xv35.5).
+# The change listener still builds a few seconds after a native sighting is saved; a
+# build that finds another holding the lock skips. At one past and every five minutes
+# after, because Pacific midnight falls on the hour in both PST and PDT, and until a
+# build runs after it, "today" is a day no build has reached. supercronic runs this in
+# UTC, which for a five-minute job is the same.
+1-59/5 * * * * /app/fly/build.sh

@@ -36,11 +36,11 @@ CREATE OR REPLACE TEMP VIEW taxa AS
   SELECT t.*,
          CASE
            WHEN r.position < (SELECT position FROM rank_position WHERE rank = 'species')
-             THEN (SELECT coalesce(p.current_taxon_id, p.id) FROM inaturalist.taxa p WHERE p.id = t.parent_id)
+             THEN (SELECT coalesce(p.current_taxon_id, p.id) FROM source_inaturalist_taxa p WHERE p.id = t.parent_id)
            WHEN t.rank = 'species' THEN coalesce(t.current_taxon_id, t.id)
            ELSE NULL
          END AS species_id
-  FROM inaturalist.taxa t
+  FROM source_inaturalist_taxa t
   LEFT JOIN rank_position r ON r.rank = t.rank;
 
 -- --- The register ----------------------------------------------------------------------
@@ -140,7 +140,7 @@ CREATE OR REPLACE TEMP VIEW maplify_collection AS
              WHERE r.match_kind = 'source' AND r.match_value = s.source
              ORDER BY r.id LIMIT 1)
          ) AS collection_id
-  FROM maplify.sightings s;
+  FROM source_maplify_sightings s;
 
 -- derived.maplify_occurrences. Its entity and collection are resolved here, not read from
 -- the mirror: the entity by the ingest's own resolveEntity, run first over each distinct
@@ -176,7 +176,7 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          prov.slug AS provider_slug,
          CAST(NULL AS TIMESTAMPTZ) AS observed_until,
          CAST(NULL AS VARCHAR) AS certainty
-  FROM maplify.sightings s
+  FROM source_maplify_sightings s
   LEFT JOIN memory.extracted xt ON xt.source = 'maplify' AND xt.key = CAST(s.id AS VARCHAR)
   LEFT JOIN memory.maplify_entity me
     ON me.name IS NOT DISTINCT FROM s.name AND me.scientific_name = s.scientific_name
@@ -207,7 +207,7 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          coalesce((
            SELECT list({'src': p.url, 'thumb': CAST(NULL AS VARCHAR), 'license': p.license,
                         'mimetype': CAST(NULL AS VARCHAR), 'attribution': p.attribution} ORDER BY p.seq)
-           FROM inaturalist.observation_photos p
+           FROM source_inaturalist_observation_photos p
            WHERE p.observation_id = o.id AND NOT p.hidden AND p.license IS NOT NULL
          ), []) AS photos,
          o.observed_at,
@@ -227,7 +227,7 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          prov.slug AS provider_slug,
          CAST(NULL AS TIMESTAMPTZ) AS observed_until,
          CAST(NULL AS VARCHAR) AS certainty
-  FROM inaturalist.observations o
+  FROM source_inaturalist_observations o
   LEFT JOIN memory.extracted xt ON xt.source = 'inaturalist' AND xt.key = CAST(o.id AS VARCHAR)
   JOIN taxa t_recorded ON o.taxon_id = t_recorded.id
   JOIN taxa t ON t.id = coalesce(t_recorded.current_taxon_id, t_recorded.id)
@@ -368,7 +368,7 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
            cp.position AS certainty_position,
            ent.kind,
            ent.label || CASE WHEN e.certainty = 'possible' THEN '?' ELSE '' END AS label
-    FROM public.acoustic_bout_entities e
+    FROM source_acoustic_bout_entities e
     JOIN register.entities ent ON ent.entity_id = e.entity_id
     LEFT JOIN taxon_entity te ON te.entity_id = e.entity_id
     LEFT JOIN certainty_position cp ON cp.certainty = e.certainty
@@ -407,7 +407,7 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
          prov.slug AS provider_slug,
          b.ended_at AS observed_until,
          tx.certainty
-  FROM public.acoustic_bouts b
+  FROM source_acoustic_bouts b
   JOIN per_species tx ON tx.bout_id = b.id
   LEFT JOIN taxon_for tf ON tf.entity_id = tx.taxon_entity_id
   LEFT JOIN public.providers prov ON prov.id = b.provider_id

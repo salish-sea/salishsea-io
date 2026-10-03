@@ -16,10 +16,10 @@
 -- the same arithmetic rather than a tighter one of its own.
 CREATE OR REPLACE TEMP TABLE haulout_nearby AS
   WITH RECURSIVE pinniped AS (
-    SELECT id, scientific_name FROM inaturalist.taxa
+    SELECT id, scientific_name FROM source_inaturalist_taxa
      WHERE rank = 'family' AND scientific_name IN ('Phocidae', 'Otariidae')
     UNION
-    SELECT t.id, t.scientific_name FROM inaturalist.taxa t JOIN pinniped p ON t.parent_id = p.id
+    SELECT t.id, t.scientific_name FROM source_inaturalist_taxa t JOIN pinniped p ON t.parent_id = p.id
   ),
   site AS (
     SELECT CAST(doc->>'id' AS INTEGER) AS id,

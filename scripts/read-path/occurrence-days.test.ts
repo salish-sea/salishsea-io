@@ -51,13 +51,13 @@ beforeAll(async () => {
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     await conn.run(`ATTACH '${snapshot}' AS store`);
-    await conn.run('CREATE SCHEMA store.snapshot');
+    await conn.run('CREATE SCHEMA store.build');
     await conn.run(
-        'CREATE TABLE store.snapshot.occurrences (id VARCHAR, observed_at TIMESTAMPTZ, doc VARCHAR)',
+        'CREATE TABLE store.build.occurrences (id VARCHAR, observed_at TIMESTAMPTZ, doc VARCHAR)',
     );
     for (const {id, observed_at} of ROWS) {
         await conn.run(
-            `INSERT INTO store.snapshot.occurrences VALUES ('${id}', '${observed_at}', '${JSON.stringify({id, observed_at})}')`,
+            `INSERT INTO store.build.occurrences VALUES ('${id}', '${observed_at}', '${JSON.stringify({id, observed_at})}')`,
         );
     }
     await conn.run('DETACH store');

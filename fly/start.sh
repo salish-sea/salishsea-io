@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The machine's one process: Caddy, the hourly schedule, the change listener and
+# The machine's one process: Caddy, the five-minute schedule, the change listener and
 # the redirect server side by side, plus a build at boot so a fresh volume has
 # files before the first scheduled run.
 #

@@ -67,7 +67,7 @@ const DERIVED_FROM: Record<string, readonly string[] | null> = {
         'comments', 'is_test', 'source', 'usernm', 'provider_id', 'collection_id', 'source_url', 'entity_id'],
     'public.acoustic_bout_entities': ['bout_id', 'entity_id', 'certainty'],
     'public.acoustic_bouts': ['id', 'feed_name', 'title', 'location', 'started_at', 'ended_at', 'provider_id', 'collection_id'],
-    'public.collections': ['id', 'name', 'organization_id'],
+    'public.collections': ['id', 'name', 'organization_id', 'slug'],
     // A contributor's name and nothing else of theirs.
     'public.contributors': ['id', 'name'],
     // Not who asserted one, when, how, or a machine's confidence: no link view reads them.
