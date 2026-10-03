@@ -16,7 +16,7 @@ import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
-import { fetchDayOccurrences, findOccurrence, readSource, watchManifest } from "./read-path.ts";
+import { fetchDayOccurrences, findOccurrence, overlayNative, pacificDay, readSource, watchManifest } from "./read-path.ts";
 import type { PatchedDatabase } from "./types.ts";
 import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
@@ -417,13 +417,13 @@ export default class SalishSea extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener('popstate', this.#handlePopState);
-    // A signed-out visitor's day comes from the read-path files, which change
-    // when a build lands, not when the database does — so the realtime broadcast
-    // can't tell them anything new. The manifest can (decision 056). A signed-in
-    // contributor reads Supabase and keeps the broadcast.
+    // The day comes from the read-path files, which change when a build lands,
+    // not when the database does — so the realtime broadcast can't tell anyone
+    // about them. The manifest can (decision 056). A signed-in tab hears both:
+    // the manifest for the files, the broadcast for the native sightings it
+    // overlays live (decision 061).
     if (readSource() === 'static')
       this.#stopManifestWatch = watchManifest(async () => {
-        if (this.user) return true;
         this.panelRef.value?.revalidateCalendar();
         // A failed load is retried on the next poll rather than waiting for the
         // next build to come along.
@@ -662,16 +662,23 @@ export default class SalishSea extends LitElement {
         .gte('location->lat', miny).lte('location->lat', maxy);
     }
 
+    type Row = PatchedDatabase['public']['Views']['occurrences']['Row'];
     let data;
     try {
-      // The prototype reads the day's file instead (decision 056); the region
-      // filter above is then applied to the file's rows, in read-path.ts. Only
-      // when signed out: the files trail the database by up to a build, and a
-      // contributor must see a sighting they just saved (decision 055). Every
-      // auth change refetches, so signing in or out switches source.
+      // Static mode reads the day's file instead (decision 056); the region
+      // filter above is then applied to the file's rows, in read-path.ts. The
+      // files trail the database by up to a build, and a contributor must see a
+      // sighting they just saved (decision 055), so a signed-in tab asks
+      // Supabase for the native sightings alone and overlays them (decision
+      // 061). Every auth change refetches, so signing in or out switches source.
       if (readSource() === 'static' && !this.user) {
-        data = await fetchDayOccurrences<PatchedDatabase['public']['Views']['occurrences']['Row']>(
-          date, region.extent);
+        data = await fetchDayOccurrences<Row>(date, region.extent);
+      } else if (readSource() === 'static') {
+        const [file, {data: live}] = await Promise.all([
+          fetchDayOccurrences<Row>(date, region.extent),
+          query.not('contributor_id', 'is', null).throwOnError(),
+        ]);
+        data = overlayNative(file, live);
       } else {
         ({data} = await query
           .order('observed_at', {ascending: false})
@@ -712,11 +719,25 @@ export default class SalishSea extends LitElement {
    */
   private async hydrateFromOccurrenceId(id: string): Promise<void> {
     let occurrence: Occurrence | null;
-    if (readSource() === 'static' && !this.user) {
+    if (readSource() === 'static') {
+      // A signed-in tab looks for a live native sighting first (decision 061):
+      // one saved since the last build is in no file yet, and one in a file may
+      // have moved since.
+      occurrence = null;
+      if (this.user) {
+        const {data, error} = await supabase()
+          .from('occurrences')
+          .select()
+          .eq('id', id)
+          .not('contributor_id', 'is', null)
+          .maybeSingle<Occurrence>();
+        if (error) throw error;
+        occurrence = data;
+      }
       // From the read-path files: the id index says which day, and the day's
       // file has the sighting (decision 056). Same contract as below: an error
       // throws, an id we don't have resolves to null.
-      occurrence = await findOccurrence<Occurrence>(id);
+      occurrence ??= await findOccurrence<Occurrence>(id);
     } else {
       const {data, error} = await supabase()
         .from('occurrences')
@@ -754,10 +775,7 @@ export default class SalishSea extends LitElement {
 }
 
 export function dateFromObservedAt(observedAt: string): string {
-  return Temporal.Instant.from(observedAt)
-    .toZonedDateTimeISO('PST8PDT')
-    .toPlainDate()
-    .toString();
+  return pacificDay(observedAt);
 }
 
 function setQueryParams(params: {[k: string]: string}, options: {replace?: boolean, remove?: string[]} = {}) {
