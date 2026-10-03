@@ -28,6 +28,9 @@ vi.mock('./supabase.ts', () => ({
   }),
 }));
 
+// What the build wrote to release.json (src/release.ts).
+vi.mock('./release.ts', () => ({release: async () => 'built-from-abc123'}));
+
 const { readDraft, draftIsEmpty, DRAFT_TTL_MS } = await import('./feedback-form.ts');
 type Form = HTMLElement & {
   open(): void;
@@ -46,7 +49,8 @@ const typeInto = async (el: Form, selector: string, value: string) => {
 const send = async (el: Form) => {
   (el.shadowRoot.querySelector('.send') as HTMLButtonElement).click();
   await el.updateComplete;
-  await Promise.resolve();
+  // Send reads the release, then calls the RPC: let both settle.
+  await new Promise(resolve => setTimeout(resolve, 0));
   await el.updateComplete;
 };
 
@@ -181,6 +185,7 @@ describe('sending', () => {
     // The 2026-09-08 report was iOS-Safari-specific and we could not tell.
     expect(rpc.calls[0]!.args['user_agent']).toBe(navigator.userAgent);
     expect(rpc.calls[0]!.args['page_url']).toBe(location.href);
+    expect(rpc.calls[0]!.args['release']).toBe('built-from-abc123');
   });
 
   test('clears the draft once it has actually arrived', async () => {

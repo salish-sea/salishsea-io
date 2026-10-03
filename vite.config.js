@@ -8,10 +8,11 @@ import { defineConfig } from 'vite';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // The commit this bundle is built from, for the `release` on a feedback report
-// (decision 039). Sentry's plugin works one out for its own events, but the
-// point of that decision is that feedback does not depend on Sentry, so this
-// is derived here instead. GITHUB_SHA in CI; git locally; 'unknown' in a
-// tarball with no checkout, which must not fail the build.
+// (decision 039) and on Sentry's events. Written to dist/release.json and read
+// at runtime (src/release.ts), never compiled in: in the bundle it would change
+// every hashed file on every commit (salish-xv35.14). GITHUB_SHA in CI; git
+// locally; 'unknown' in a tarball with no checkout, which must not fail the
+// build.
 function releaseSha() {
   if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA;
   try {
@@ -71,10 +72,6 @@ function readPathFiles(req, res, next) {
 export default defineConfig({
   assetsInclude: ['**/*.geojson'],
 
-  define: {
-    __RELEASE__: JSON.stringify(releaseSha()),
-  },
-
   build: {
     rollupOptions: {
       input: {
@@ -120,6 +117,17 @@ export default defineConfig({
       },
       configurePreviewServer(server) {
         server.middlewares.use(readPathFiles);
+      },
+    },
+    {
+      name: 'release-file',
+      apply: 'build',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'release.json',
+          source: JSON.stringify({release: releaseSha()}) + '\n',
+        });
       },
     },
     {
@@ -184,6 +192,11 @@ ${urls}
       },
     },
     sentryVitePlugin({
+      // The plugin would otherwise write the release into every chunk, which is
+      // the per-commit churn release.json exists to avoid. It still names the
+      // release it uploads source maps under; debug ids, which are content
+      // hashes, are what match them to a chunk.
+      release: {inject: false},
       bundleSizeOptimizations: {
         excludeReplayShadowDom: true,
         excludeDebugStatements: true,
