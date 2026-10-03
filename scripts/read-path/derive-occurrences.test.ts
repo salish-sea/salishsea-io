@@ -11,6 +11,7 @@ import { compare as compareProfileLinks, unmatched } from './compare-profile-lin
 import { deriveIdentifierCandidates } from './derive-identifier-candidates.ts';
 import { deriveOccurrences } from './derive-occurrences.ts';
 import { deriveProfileLinks } from './derive-profile-links.ts';
+import { mirrorsFromSnapshot } from './derive/mirrors-from-snapshot.ts';
 
 describe('compare-occurrences', () => {
     test('a document agrees with itself however it is spaced', () => {
@@ -56,20 +57,22 @@ const DSN = process.env['SUPABASE_DB_URL'];
 
 // The port against Postgres on whatever this database holds: a migration that changes
 // one of the views without changing its twin under derive/ fails here, if the data
-// exercises the change, before it can fail the build's gate in production.
+// exercises the change. The build derives from its own mirrors (salish-xv35.9); here the
+// mirrors are written from Postgres's tables, so the two derivations read the same rows.
 describe.skipIf(!DSN)('the build derives what Postgres stores (local Supabase)', () => {
     test('snapshot, derive, compare: occurrences, their identifier candidates, the profile links', async () => {
         const dir = await mkdtemp(path.join(tmpdir(), 'derive-occurrences-'));
         try {
             const snapshot = path.join(dir, 'snapshot.duckdb');
-            await promisify(execFile)('node', [path.join(import.meta.dirname, 'snapshot.ts'), snapshot], {
+            await promisify(execFile)('node', [path.join(import.meta.dirname, 'snapshot.ts'), '--answers', snapshot], {
                 env: {...process.env, SUPABASE_DB_URL: DSN},
             });
-            await deriveOccurrences(snapshot);
+            const mirrors = await mirrorsFromSnapshot(snapshot, dir);
+            await deriveOccurrences(snapshot, mirrors);
             expect(await compare(snapshot)).toBe(true);
             await deriveIdentifierCandidates(snapshot);
             expect(await compareCandidates(snapshot)).toBe(true);
-            await deriveProfileLinks(snapshot);
+            await deriveProfileLinks(snapshot, mirrors);
             expect(await compareProfileLinks(snapshot)).toBe(true);
         } finally {
             await rm(dir, {recursive: true, force: true});

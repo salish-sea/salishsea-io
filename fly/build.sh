@@ -5,7 +5,7 @@
 # into place with two renames, and two builds interleaving would each move the
 # other's directory. A build that finds the lock held skips rather than queues,
 # and exits 75 (EX_TEMPFAIL) to say so: the change listener retries on that,
-# while the hourly schedule simply leaves it for the next hour.
+# while the five-minute schedule simply leaves it for the next run.
 set -euo pipefail
 
 mkdir -p "$STELIS_STATE_DIR" "$READ_PATH_EXPORT_DIR"

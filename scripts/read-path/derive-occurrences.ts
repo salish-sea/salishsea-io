@@ -1,8 +1,10 @@
 /**
- * Derive the occurrences in the build (decision 061, salish-xv35.2), from the
- * snapshot's copies of what Postgres derives them from.
+ * Derive the occurrences in the build (decision 061, salish-xv35.2): Maplify, iNaturalist
+ * and Orcasound from the build's own mirrors (salish-xv35.9, derive/sources.sql), and
+ * the rest (native sightings, Happywhale, the register, the reference tables) from the
+ * snapshot's copies of Postgres's tables.
  *
- *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb>
+ *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite>
  *
  * Writes `build.occurrences` into the snapshot: id, observed_at and the document,
  * the shape of `snapshot.occurrences`, which holds Postgres's answer. The SQL is
@@ -17,9 +19,10 @@ import { readFile } from 'node:fs/promises';
 import { writeExtractions } from './derive/extract.ts';
 import { writeInaturalistOutOfScope } from './derive/inaturalist-scope.ts';
 import { writeMaplifyEntities } from './derive/maplify-entities.ts';
+import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
 
-export async function deriveOccurrences(snapshot: string): Promise<number> {
+export async function deriveOccurrences(snapshot: string, mirrors: Mirrors): Promise<number> {
     const shared = await readFile(new URL('./derive/shared.sql', import.meta.url), 'utf8');
     const sql = await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8');
     const db = await DuckDBInstance.create(':memory:');
@@ -38,6 +41,7 @@ export async function deriveOccurrences(snapshot: string): Promise<number> {
         await conn.run('SET preserve_insertion_order = false');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
+        await attachSources(conn, mirrors);
         await conn.run(shared);
         await writeExtractions(conn);
         await writeMaplifyEntities(conn);
@@ -52,12 +56,13 @@ export async function deriveOccurrences(snapshot: string): Promise<number> {
 }
 
 export async function main(): Promise<void> {
-    const [snapshot] = process.argv.slice(2);
-    if (!snapshot) {
-        console.error('usage: derive-occurrences.ts <snapshot.duckdb>');
+    const [snapshot, ...rest] = process.argv.slice(2);
+    const mirrors = mirrorArgs(rest);
+    if (!snapshot || !mirrors) {
+        console.error('usage: derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite>');
         process.exit(2);
     }
-    console.log(`build.occurrences: ${await deriveOccurrences(snapshot)} rows`);
+    console.log(`build.occurrences: ${await deriveOccurrences(snapshot, mirrors)} rows`);
 }
 
 if (import.meta.main) {

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 #
 # The salishsea-io Fly app (decision 056, salish-t3g.3): one machine that serves
-# the site built to read static files, and rebuilds those files hourly with
+# the site built to read static files, and rebuilds those files every five minutes with
 # Stelis. The shape is beeatlas's ADR 0042: one machine, one volume.
 #
 # Build args (fly/deploy.sh passes them):
@@ -57,7 +57,7 @@ RUN curl -fsSL -o /tmp/duckdb.zip \
  && echo "08c0ca117111fcede14239d0093792352befdc174218c344d232c13279643d05  /tmp/duckdb.zip" | sha256sum -c - \
  && unzip -q /tmp/duckdb.zip -d /usr/local/bin && rm /tmp/duckdb.zip
 
-# Caddy serves the site and the files; supercronic runs the hourly build.
+# Caddy serves the site and the files; supercronic runs the build every five minutes.
 RUN curl -fsSL -o /tmp/caddy.tgz \
       https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_linux_amd64.tar.gz \
  && echo "527fbf917c39189a1e3b31d34fa955601680b2d5c8055d2a87b8b9588dec7bb9  /tmp/caddy.tgz" | sha256sum -c - \

@@ -80,8 +80,8 @@ export function extractIdentifiers(body: string | null): string[] | null {
  * source row's key as text.
  */
 const TEXTS = [
-    {source: 'maplify', query: 'SELECT CAST(id AS VARCHAR), comments FROM maplify.sightings'},
-    {source: 'inaturalist', query: 'SELECT CAST(id AS VARCHAR), description FROM inaturalist.observations'},
+    {source: 'maplify', query: 'SELECT CAST(id AS VARCHAR), comments FROM source_maplify_sightings'},
+    {source: 'inaturalist', query: 'SELECT CAST(id AS VARCHAR), description FROM source_inaturalist_observations'},
     {source: 'happywhale', query: 'SELECT CAST(id AS VARCHAR), comments FROM happywhale.encounters'},
     {source: 'native', query: 'SELECT CAST(id AS VARCHAR), body FROM public.observations'},
 ] as const;

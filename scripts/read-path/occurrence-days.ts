@@ -1,6 +1,6 @@
 /**
- * One file per Pacific calendar day of occurrences, from the read-path snapshot
- * (salish-t3g.1).
+ * One file per Pacific calendar day of occurrences, from the occurrences the build
+ * derives into the snapshot file, build.occurrences (salish-t3g.1; decision 061).
  *
  *   EXPORT_DIR=… node scripts/read-path/occurrence-days.ts <snapshot.duckdb>
  *
@@ -14,8 +14,8 @@
  *
  * Deterministic by construction: rows are ordered by observed_at and then id
  * (PostgREST orders by observed_at alone, so ties there fall in no particular
- * order), and each document is re-serialized compactly from Postgres's jsonb
- * text, whose key order Postgres fixes.
+ * order), and each document is re-serialized compactly from its JSON text, whose
+ * key order the derivation fixes as Postgres's to_jsonb did.
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
@@ -58,7 +58,7 @@ export async function writeDays(
         // its JS copy, the parsed documents) and took the 1 GB Fly machine down.
         const result = await conn.stream(`
             SELECT strftime(timezone('${DAY_ZONE}', observed_at), '%Y-%m-%d') AS day, doc
-            FROM store.snapshot.occurrences
+            FROM store.build.occurrences
             ORDER BY day, observed_at DESC, id
         `);
         await replaceDir(outDir, dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts));

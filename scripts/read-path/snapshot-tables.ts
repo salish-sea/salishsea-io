@@ -1,6 +1,6 @@
 /**
- * The read-path snapshot's catalogue documents, as the profile scripts read them
- * (decision 057). Each script names the tables it reads and gets only those, so the
+ * The read-path snapshot's catalogue documents, and the build's links from each
+ * subject to its sightings, as the profile scripts read them (decision 057). Each script names the tables it reads and gets only those, so the
  * Stelis task running it can declare exactly its inputs.
  */
 
@@ -17,6 +17,14 @@ const TABLES = [
     'haulouts', 'haulout_occurrences',
 ] as const;
 export type Table = (typeof TABLES)[number];
+
+/**
+ * The links from a subject to its sightings are derived in the build (salish-xv35.13),
+ * under build.; the catalogue is Postgres's, under snapshot.
+ */
+const DERIVED: ReadonlySet<Table> = new Set([
+    'individual_occurrences', 'group_occurrences', 'ecotype_occurrences', 'haulout_occurrences',
+]);
 export type Tables = Record<Table, Doc[]>;
 
 /** What a script reads from an attached snapshot: the tables it names, and the year if it asks. */
@@ -40,7 +48,8 @@ export async function readSnapshot<R>(snapshot: string, read: (s: Snapshot) => P
             async tables<T extends Table>(names: readonly T[]) {
                 const tables = {} as Pick<Tables, T>;
                 for (const name of names) {
-                    const reader = await conn.runAndReadAll(`SELECT doc FROM store.snapshot.${name}`);
+                    const schema = DERIVED.has(name) ? 'build' : 'snapshot';
+                    const reader = await conn.runAndReadAll(`SELECT doc FROM store.${schema}.${name}`);
                     tables[name] = (reader.getRows() as [string][]).map(([doc]) => JSON.parse(doc));
                 }
                 return tables;

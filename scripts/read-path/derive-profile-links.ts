@@ -3,7 +3,10 @@
  * salish-xv35.13): which occurrences each individual, matriline, ecotype and haul-out
  * site was seen in.
  *
- *   node scripts/read-path/derive-profile-links.ts <snapshot.duckdb>
+ *   node scripts/read-path/derive-profile-links.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite>
+ *
+ * Orcasound's bouts and iNaturalist's taxa come from the build's mirrors
+ * (salish-xv35.9, derive/sources.sql).
  *
  * Writes `build.individual_occurrences`, `build.group_occurrences`,
  * `build.ecotype_occurrences` and `build.haulout_occurrences` into the snapshot, each in
@@ -17,13 +20,14 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 
 import { writeHauloutDistances } from './derive/haulout-distance.ts';
+import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
 
 const RELATIONS = [
     'individual_occurrences', 'group_occurrences', 'ecotype_occurrences', 'haulout_occurrences',
 ] as const;
 
-export async function deriveProfileLinks(snapshot: string): Promise<Record<string, number>> {
+export async function deriveProfileLinks(snapshot: string, mirrors: Mirrors): Promise<Record<string, number>> {
     const sql = async (file: string) => readFile(new URL(`./derive/${file}`, import.meta.url), 'utf8');
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
@@ -35,6 +39,7 @@ export async function deriveProfileLinks(snapshot: string): Promise<Record<strin
         await conn.run('SET preserve_insertion_order = false');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
+        await attachSources(conn, mirrors);
         await conn.run(await sql('shared.sql'));
         await conn.run(await sql('haulout-nearby.sql'));
         await writeHauloutDistances(conn);
@@ -52,12 +57,13 @@ export async function deriveProfileLinks(snapshot: string): Promise<Record<strin
 }
 
 export async function main(): Promise<void> {
-    const [snapshot] = process.argv.slice(2);
-    if (!snapshot) {
-        console.error('usage: derive-profile-links.ts <snapshot.duckdb>');
+    const [snapshot, ...rest] = process.argv.slice(2);
+    const mirrors = mirrorArgs(rest);
+    if (!snapshot || !mirrors) {
+        console.error('usage: derive-profile-links.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite>');
         process.exit(2);
     }
-    for (const [relation, n] of Object.entries(await deriveProfileLinks(snapshot)))
+    for (const [relation, n] of Object.entries(await deriveProfileLinks(snapshot, mirrors)))
         console.log(`build.${relation}: ${n} rows`);
 }
 

@@ -1,6 +1,6 @@
 /**
  * The calendar's day counts, one file per Pacific month, from the read-path
- * snapshot (decision 056).
+ * build's occurrences, build.occurrences (decision 056; decision 061).
  *
  *   EXPORT_DIR=… node scripts/read-path/calendar.ts <snapshot.duckdb>
  *
@@ -65,7 +65,7 @@ export async function writeCalendar(snapshot: string, exportDir: string): Promis
                    json_extract(doc, '$.location.lon')::DOUBLE AS lon,
                    json_extract(doc, '$.location.lat')::DOUBLE AS lat,
                    json_extract_string(doc, '$.contributor_id') IS NOT NULL AS native
-            FROM store.snapshot.occurrences
+            FROM store.build.occurrences
         `);
         for (const region of REGIONS) {
             const [minLon, minLat, maxLon, maxLat] = region.extent ?? WORLD;
