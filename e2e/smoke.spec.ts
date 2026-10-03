@@ -15,11 +15,12 @@ test('production smoke', async ({ page }) => {
 
   // The app holds a persistent Supabase realtime WebSocket, so the network
   // never goes idle -- waitForLoadState('networkidle') would hang until timeout.
-  // Instead, wait for concrete readiness signals: the core occurrences data
-  // fetch returning, and the map element rendering.
+  // Instead, wait for concrete readiness signals: the day's sightings arriving,
+  // from the read-path build's file since salishsea.io reads the Fly app
+  // (salish-xv35.16), and the map element rendering.
   const occurrencesResponse = page.waitForResponse(
     response =>
-      response.url().includes('/rest/v1/occurrences') &&
+      response.url().includes('/read-path/days/') &&
       response.request().method() === 'GET',
     { timeout: 30_000 },
   );

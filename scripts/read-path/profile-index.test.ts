@@ -50,6 +50,17 @@ describe('buildRedirects', () => {
         expect(redirects().ecotypes).toEqual({'biggs': '/ecotypes/0000002/Biggs'});
     });
 
+    test('every published page by its bare identifier, to its slugged address', () => {
+        expect(redirects().ids).toEqual({
+            'ecotypes/0000002': '/ecotypes/0000002/Biggs',
+            'matrilines/0002163': '/matrilines/0002163/T065As',
+            'individuals/0010002': '/individuals/0010002/T065A2',
+            'individuals/0010193': '/individuals/0010193/T065A',
+            'haulouts/12': '/haulouts/12/Protection-Island',
+            'haulouts/510': '/haulouts/510/Race-Rocks',
+        });
+    });
+
     test('depends on the data alone: shuffled rows give the same map', () => {
         const t = tables();
         for (const rows of Object.values(t)) rows.reverse();
@@ -70,6 +81,26 @@ describe('redirectFor', () => {
         ['/ecotypes/Bigg%E2%80%99s', '/ecotypes/0000002/Biggs'],
     ])('%s → %s, folded as the register compares names', (url, target) => {
         expect(redirectFor(redirects, url)).toBe(target);
+    });
+
+    test.each([
+        ['/individuals/0010193', '/individuals/0010193/T065A'],
+        ['/individuals/0010193/', '/individuals/0010193/T065A'],
+        ['/matrilines/0002163?o=x', '/matrilines/0002163/T065As?o=x'],
+        ['/haulouts/510', '/haulouts/510/Race-Rocks'],
+    ])('a bare identifier %s → %s (decision 034)', (url, target) => {
+        expect(redirectFor(redirects, url)).toBe(target);
+    });
+
+    test.each(['/individuals/0099999', '/haulouts/999', '/haulouts/510/Race-Rocks'])(
+        '%s is no bare identifier we publish', url => {
+            expect(redirectFor(redirects, url)).toBeNull();
+        });
+
+    test('a map written before bare identifiers redirects none of them', () => {
+        const {ids: _ids, ...older} = redirects;
+        expect(redirectFor(older, '/individuals/0010193')).toBeNull();
+        expect(redirectFor(older, '/individuals/T065A')).toBe('/individuals/0010193/T065A');
     });
 
     test.each([

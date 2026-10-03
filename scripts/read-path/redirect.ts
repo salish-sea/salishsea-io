@@ -5,7 +5,9 @@
  *   node scripts/read-path/redirect.ts <redirects.json> <port>
  *
  * Caddy sends it /individuals/<designation>, /matrilines/<designation> and
- * /ecotypes/<designation>: legacy links from before decision 034, and typed ones.
+ * /ecotypes/<designation>: legacy links from before decision 034, and typed ones; and
+ * a bare identifier, /individuals/0010193 or /haulouts/340, which decision 034 301s
+ * to the slugged address (salish-xv35.16).
  * A known designation gets a 301 to the canonical address, as the Lambda@Edge
  * function gives on AWS; an unknown one gets a 404, which Caddy answers with the
  * not-in-catalog page. The typed segment is folded as the register compares names
@@ -19,12 +21,15 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 
-import { designationKey, matrilineKey, type Redirects } from './redirect-keys.ts';
+import { bareIdKey, designationKey, matrilineKey, type Redirects } from './redirect-keys.ts';
 
 /** How a browser may cache the redirect: a day bounds how long a mistaken mapping survives a fix, as on AWS. */
 const REDIRECT_CACHE = 'public, max-age=86400';
 
-const KEYS: Record<keyof Redirects, (segment: string) => string> = {
+/** The kinds a designation names. */
+type DesignationKind = 'individuals' | 'matrilines' | 'ecotypes';
+
+const KEYS: Record<DesignationKind, (segment: string) => string> = {
     individuals: designationKey,
     matrilines: matrilineKey,
     ecotypes: designationKey,
@@ -33,9 +38,17 @@ const KEYS: Record<keyof Redirects, (segment: string) => string> = {
 /** Where a request path redirects to, with its query kept; null if it names nothing we have. */
 export function redirectFor(redirects: Redirects, url: string): string | null {
     const [pathname, query] = splitOnce(url, '?');
+    const keep = (target: unknown) =>
+        typeof target === 'string' ? target + (query !== undefined ? `?${query}` : '') : null;
+    // A bare identifier first: seven digits would otherwise be read as a designation.
+    const id = bareIdKey(pathname);
+    if (id !== null) {
+        const ids = redirects.ids ?? {};
+        return keep(Object.hasOwn(ids, id) ? ids[id] : undefined);
+    }
     const match = pathname.match(/^\/(individuals|matrilines|ecotypes)\/([^/]+)\/?$/);
     if (!match) return null;
-    const kind = match[1] as keyof Redirects;
+    const kind = match[1] as DesignationKind;
     let segment: string;
     try {
         segment = decodeURIComponent(match[2]!);
@@ -44,8 +57,7 @@ export function redirectFor(redirects: Redirects, url: string): string | null {
     }
     // Own keys only: /individuals/constructor is not Object.prototype's.
     const key = KEYS[kind](segment);
-    const target = Object.hasOwn(redirects[kind], key) ? redirects[kind][key] : undefined;
-    return typeof target === 'string' ? target + (query !== undefined ? `?${query}` : '') : null;
+    return keep(Object.hasOwn(redirects[kind], key) ? redirects[kind][key] : undefined);
 }
 
 function splitOnce(s: string, sep: string): [string, string | undefined] {
