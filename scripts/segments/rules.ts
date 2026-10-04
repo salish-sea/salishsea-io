@@ -1,19 +1,20 @@
 /**
- * Candidate rules for joining a day's sightings into travel segments, for
- * comparison against the map's own rule (#445, decision 062).
+ * Rules for joining a day's sightings into travel segments, for comparison
+ * against each other and the map's own rule (#445, decisions 062 and 063).
  *
- * None of these is used by the map. They exist so `compare.ts` can measure them
- * against `src/segments.ts` over real days, and so the cases that motivated them
- * stay pinned in `rules.test.ts`.
+ * `current` is the map's rule, `occurrences2segments` in `src/segments.ts`;
+ * since decision 063 it is `spaceTimeEcotype`. `previous` is the rule it
+ * replaced, kept so `compare.ts` can still measure against it. The rest are
+ * candidates, pinned in `rules.test.ts` with the cases that motivated them.
  *
- * Every rule admits a sighting to a track with the same test as `segments.ts`:
+ * Every rule admits a sighting to a track with the same test:
  * same species, within 12 hours and 20 km of the track's latest point, and no
  * faster than three times the species' speed after a 3 km allowance. They differ
  * in which track gets a sighting when more than one could take it.
  */
 import {distance} from '@turf/distance';
 import {travelSpeedFor} from '../../src/constants.ts';
-import {occurrences2segments} from '../../src/segments.ts';
+import {ecotypesOf, occurrences2segments} from '../../src/segments.ts';
 import type {Occurrence} from '../../src/types.ts';
 
 const hour = 60 * 60 * 1000;
@@ -33,9 +34,35 @@ export type Rule = (sightings: Sighting[]) => Track[];
 export const km = (a: Sighting, b: Sighting) =>
   distance([a.location.lon, a.location.lat], [b.location.lon, b.location.lat], {units: 'kilometers'});
 
-/** The map's rule, unchanged. It reads only a sighting's id, time, place and taxon. */
+/** The map's rule. It reads a sighting's id, time, place, taxon and identifiers. */
 export const current: Rule = sightings =>
   occurrences2segments(sightings as unknown as Occurrence[]).map(s => s.occurrences as unknown as Track);
+
+/**
+ * The map's rule before decision 063. It builds one track at a time, oldest
+ * sighting first, and each track takes every later sighting it admits before
+ * the next track is started, so a sighting one track passed over can never
+ * join another.
+ */
+export const previous: Rule = sightings => {
+  const sorted = sightings.toSorted((a, b) => a.observed_at_ms - b.observed_at_ms);
+  const placed = new Set<string>();
+  const tracks: Track[] = [];
+  for (const start of sorted) {
+    if (placed.has(start.id)) continue;
+    const track = [start];
+    placed.add(start.id);
+    for (const candidate of sorted) {
+      if (placed.has(candidate.id) || candidate.observed_at_ms < start.observed_at_ms) continue;
+      if (admits(start, track[track.length - 1]!, candidate)) {
+        track.push(candidate);
+        placed.add(candidate.id);
+      }
+    }
+    tracks.push(track);
+  }
+  return tracks;
+};
 
 /** The admission test of `segments.ts`, applied to one track's latest point. */
 export function admits(start: Sighting, tail: Sighting, candidate: Sighting): boolean {
@@ -52,21 +79,7 @@ export function admits(start: Sighting, tail: Sighting, candidate: Sighting): bo
   return !(metersPerHour > 3.0 * speed * 1000);
 }
 
-/**
- * What a report says the animals were: Southern Residents or Bigg's, from the
- * taxon or from a named pod or ID (J, K, L or T). Empty when it says neither.
- */
-export function ecotypesOf(s: Sighting): Set<'srkw' | 'biggs'> {
-  const out = new Set<'srkw' | 'biggs'>();
-  const sub = s.taxon.scientific_name.split(' ')[2];
-  if (sub === 'ater') out.add('srkw');
-  if (sub === 'rectipinnus') out.add('biggs');
-  for (const id of s.identifiers) {
-    if (/^[JKL](\d|\s*pod|$)/i.test(id) || /southern resident/i.test(id)) out.add('srkw');
-    else if (/^T\d/.test(id) || /bigg/i.test(id)) out.add('biggs');
-  }
-  return out;
-}
+export {ecotypesOf};
 
 /** True when the sighting and the track each name an ecotype and they share none. */
 function ecotypesDisagree(s: Sighting, track: Track): boolean {
@@ -159,6 +172,7 @@ export function identityPreferred(sees: (s: Sighting) => boolean = () => true): 
 
 export const RULES = {
   current,
+  previous,
   nearest,
   spaceTime,
   nearestEcotype,
