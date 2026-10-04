@@ -19,15 +19,17 @@
  * job. On a pass the baseline becomes this build's answers, keeping the named pairs the
  * mirror doesn't hold at the moment.
  *
- * Before the first pass there is no baseline file, and Postgres's stored answer
- * (maplify.sightings.entity_id, the last one its ingest accepted) stands in for it.
+ * Before the first pass there is no baseline file, and the first pass seeds it with this
+ * build's answers (until 2026-10-05 Postgres's stored answer stood in, while its own
+ * ingest still resolved Maplify); the register-refresh workflow checks an edition
+ * against the published baseline before loading it, so this gate is the backstop.
  *
  * The baseline is operational state outside the graph, like the ingest run log: the
  * gate's inputs are the register and the mirror, and a build whose inputs are unchanged
  * has nothing new to judge.
  */
 
-import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
+import { DuckDBInstance } from '@duckdb/node-api';
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
@@ -97,7 +99,7 @@ export async function checkNames(snapshot: string, mirror: string, allow?: strin
         }));
         baseline = existsSync(baselineFile(mirror))
             ? (JSON.parse(readFileSync(baselineFile(mirror), 'utf8')) as {pairs: Named[]}).pairs
-            : await postgresAnswer(conn);
+            : [];
     } finally {
         conn.closeSync();
         db.closeSync();
@@ -110,15 +112,6 @@ export async function checkNames(snapshot: string, mirror: string, allow?: strin
         renameSync(temp, file);
     }
     return unnamed;
-}
-
-/** Before the first pass: each pair Postgres's ingest named, the last answer it accepted. */
-async function postgresAnswer(conn: DuckDBConnection): Promise<Named[]> {
-    return (await conn.runAndReadAll(`
-        SELECT name, scientific_name, any_value(entity_id) AS entity_id
-        FROM maplify.sightings
-        WHERE entity_id IS NOT NULL
-        GROUP BY name, scientific_name`)).getRowObjectsJS() as unknown as Named[];
 }
 
 export async function main(): Promise<void> {

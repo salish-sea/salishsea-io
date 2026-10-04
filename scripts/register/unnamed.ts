@@ -7,8 +7,7 @@
  * the edition (check-unnaming.ts), and the build's own gate before it derives
  * (read-path/check-maplify-names.ts) — and both read this one file for the pairs a
  * curator means to un-name, so an accepted un-naming is one reviewed change rather than
- * a file edited on a volume. resolve-maplify.ts reads it too while Postgres still
- * resolves Maplify itself.
+ * a file edited on a volume.
  *
  * TSV with a header, as the register's own files are: `name` empty means the sighting
  * carries no common name (the pair is keyed on NULL, not on the string "null").
