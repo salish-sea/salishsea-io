@@ -167,6 +167,12 @@ const ANSWER_TABLES: readonly {table: string, columns: readonly string[]}[] = [
         'id', 'feed_name', 'title', ...lonLat('location'), 'started_at', 'ended_at', 'provider_id',
         'collection_id']},
     {table: 'public.acoustic_bout_entities', columns: ['bout_id', 'entity_id', 'certainty::text as certainty']},
+    // Postgres's Maplify sightings again, with the trusted flag the archive filters on,
+    // for the twin test to write a mirror from; the build reads it from its own mirror.
+    {table: 'maplify.sightings', columns: [
+        'id', 'name', 'scientific_name', ...lonLat('location'), 'number_sighted', 'created_at',
+        'photo_url', 'comments', 'is_test', 'source', 'usernm', 'provider_id', 'collection_id',
+        'source_url', 'entity_id', 'trusted']},
     // Postgres's Darwin Core views, the answer the archive's twins are checked against.
     {table: 'dwc.occurrences', columns: ['*']},
     {table: 'dwc.multimedia', columns: ['*']},
@@ -252,6 +258,12 @@ export async function main(): Promise<void> {
         await conn.run(
             `CREATE OR REPLACE TABLE store.snapshot.year AS
              SELECT year(timezone('${DAY_ZONE}', taken_at))::INTEGER AS year FROM store.snapshot.meta`,
+        );
+        // The UTC day, which the Darwin Core archive is dated by, as Postgres's CURRENT_DATE
+        // dated it: its own relation, so the archive reruns once a day rather than every build.
+        await conn.run(
+            `CREATE OR REPLACE TABLE store.snapshot.day AS
+             SELECT strftime(timezone('UTC', taken_at), '%Y-%m-%d') AS day FROM store.snapshot.meta`,
         );
         for (const {name, query} of published)
             await read(conn, `snapshot.${name}`, query);

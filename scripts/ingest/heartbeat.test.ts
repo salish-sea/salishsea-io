@@ -345,6 +345,20 @@ describe('evaluateHeartbeat: upstream outages', () => {
     });
 });
 
+describe('evaluateHeartbeat: the Darwin Core archive', () => {
+    const withArchive = {...THRESHOLDS, archiveMinutes: 26 * 60};
+
+    test('an archive written within the day is fine', () => {
+        expect(evaluateHeartbeat({...healthy, archivedAt: minutesAgo(20 * 60)}, withArchive)).toEqual([]);
+    });
+
+    test('one older than that, or none, is the finding', () => {
+        expect(evaluateHeartbeat({...healthy, archivedAt: minutesAgo(30 * 60)}, withArchive).map((f) => [f.kind, f.source]))
+            .toEqual([['archive_stale', 'dwca']]);
+        expect(evaluateHeartbeat({...healthy, archivedAt: null}, withArchive).map((f) => f.kind)).toEqual(['archive_stale']);
+    });
+});
+
 describe('evaluateHeartbeat: the published files', () => {
     const withPublished = {...THRESHOLDS, publishedMinutes: 30};
 

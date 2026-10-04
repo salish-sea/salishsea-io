@@ -1,7 +1,8 @@
 /**
  * For tests: mirrors holding exactly what the snapshot's copies of Postgres's source tables
  * hold, in the mirrors' own shape (the ingest scripts' schemas, only the columns
- * derive/sources.sql reads). Deriving from them must give what Postgres stores, which is
+ * derive/sources.sql reads; the snapshot must be taken with --answers, for Maplify's
+ * trusted flag). Deriving from them must give what Postgres stores, which is
  * how the twins of Postgres's views stay checkable now that the build derives from its
  * own mirrors (salish-xv35.9).
  */
@@ -28,7 +29,7 @@ export async function mirrorsFromSnapshot(snapshot: string, dir: string): Promis
             CREATE TABLE maplify.sightings AS
               SELECT id, name, scientific_name, location_lon AS lon, location_lat AS lat, number_sighted,
                      CAST(created_at AS VARCHAR) AS created_at, photo_url, comments,
-                     CAST(is_test AS INTEGER) AS is_test, source, usernm
+                     CAST(is_test AS INTEGER) AS is_test, CAST(trusted AS INTEGER) AS trusted, source, usernm
               FROM store.maplify.sightings;
             CREATE TABLE inaturalist.observations AS
               SELECT id, description, location_lon AS lon, location_lat AS lat,

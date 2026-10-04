@@ -20,7 +20,7 @@ CREATE OR REPLACE TEMP VIEW source_maplify_sightings AS
          CAST(lon AS DOUBLE) AS location_lon, CAST(lat AS DOUBLE) AS location_lat,
          CAST(number_sighted AS INTEGER) AS number_sighted,
          CAST(created_at AS TIMESTAMP) AS created_at, photo_url, comments,
-         is_test <> 0 AS is_test, source, usernm,
+         is_test <> 0 AS is_test, trusted <> 0 AS trusted, source, usernm,
          (SELECT id FROM public.providers WHERE slug = 'maplify') AS provider_id,
          CAST(NULL AS VARCHAR) AS source_url
   FROM maplify_mirror.sightings;

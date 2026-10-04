@@ -12,6 +12,7 @@ import { deriveIdentifierCandidates } from './derive-identifier-candidates.ts';
 import { deriveOccurrences } from './derive-occurrences.ts';
 import { deriveProfileLinks } from './derive-profile-links.ts';
 import { mirrorsFromSnapshot } from './derive/mirrors-from-snapshot.ts';
+import { withDwc } from './dwca.ts';
 
 describe('compare-occurrences', () => {
     test('a document agrees with itself however it is spaced', () => {
@@ -74,6 +75,20 @@ describe.skipIf(!DSN)('the build derives what Postgres stores (local Supabase)',
             expect(await compareCandidates(snapshot)).toBe(true);
             await deriveProfileLinks(snapshot, mirrors);
             expect(await compareProfileLinks(snapshot)).toBe(true);
+            // The Darwin Core archive's relations (salish-xv35.9): the twins against
+            // Postgres's dwc views, every column as text, as multisets.
+            const unmatched = await withDwc(snapshot, mirrors, async conn => {
+                const out: Record<string, number> = {};
+                for (const view of ['occurrences', 'multimedia', 'export_coverage']) {
+                    const differ = (a: string, b: string) => `SELECT count(*) FROM (
+                        SELECT COLUMNS(*)::VARCHAR FROM ${a} EXCEPT ALL SELECT COLUMNS(*)::VARCHAR FROM ${b})`;
+                    const ours = (await conn.runAndReadAll(differ(`pgdb.dwc.${view}`, `store.dwc.${view}`))).getRows()[0]![0];
+                    const theirs = (await conn.runAndReadAll(differ(`store.dwc.${view}`, `pgdb.dwc.${view}`))).getRows()[0]![0];
+                    out[view] = Number(ours) + Number(theirs);
+                }
+                return out;
+            });
+            expect(unmatched).toEqual({occurrences: 0, multimedia: 0, export_coverage: 0});
         } finally {
             await rm(dir, {recursive: true, force: true});
         }
