@@ -95,10 +95,8 @@ const lonLat = (column: string) => [
  * `types.enums`, since two derivations compare by it.
  */
 const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
-    {table: 'maplify.sightings', columns: [
-        'id', 'name', 'scientific_name', ...lonLat('location'), 'number_sighted', 'created_at',
-        'photo_url', 'comments', 'is_test', 'source', 'usernm', 'provider_id', 'collection_id',
-        'source_url', 'entity_id']},
+    // maplify.sightings is read only under --answers now (salish-xv35.9): the build's
+    // mirror is the source, and Postgres's copy is frozen.
     {table: 'maplify.collection_rule', columns: ['id', 'match_kind', 'match_value', 'collection_id']},
     {table: 'happywhale.encounters', columns: [
         'id', 'individual_id', 'user_id', 'species_id', 'verbatim_location', 'comments', 'min_count',

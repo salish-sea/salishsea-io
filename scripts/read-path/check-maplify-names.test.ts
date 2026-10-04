@@ -112,26 +112,16 @@ describe('judge', () => {
 });
 
 describe('checkNames', () => {
-    test('with no baseline, Postgres\'s answer stands in; a pass writes the build\'s own', async () => {
+    test('with no baseline, the first pass has nothing to judge against and seeds it with its own answers', async () => {
         const file = await snapshot('bootstrap.duckdb',
             [['SSA:1', 'Orcinus orca'], ['SSA:2', 'Balaenoptera borealis']],
-            [['Orca', 'Orcinus orca', 'SSA:1']]);
-        const m = mirror('bootstrap/maplify.sqlite', [['Orca', 'Orcinus orca'], ['Sei Whale', 'Balaenoptera borealis']]);
+            // Postgres's stored answer no longer counts (salish-xv35.9): it would have named a pair this register does not
+            [['Gray', 'Eschrichtius robustus', 'SSA:3']]);
+        const m = mirror('bootstrap/maplify.sqlite', [['Orca', 'Orcinus orca'], ['Sei Whale', 'Balaenoptera borealis'], ['Gray', 'Eschrichtius robustus']]);
         expect(existsSync(baselineFile(m))).toBe(false);
         expect(await checkNames(file, m)).toEqual([]);
         expect(JSON.parse(readFileSync(baselineFile(m), 'utf8')).pairs.map((p: {entity_id: string}) => p.entity_id).sort())
             .toEqual(['SSA:1', 'SSA:2']);
-    });
-
-    test('Postgres\'s answer counts before the first pass: what it named must still resolve', async () => {
-        const file = await snapshot('bootstrap-fail.duckdb',
-            [['SSA:1', 'Orcinus orca']],
-            [['Sei Whale', 'Balaenoptera borealis', 'SSA:2']]);
-        const m = mirror('bootstrap-fail/maplify.sqlite', [['Sei Whale', 'Balaenoptera borealis']]);
-        expect(await checkNames(file, m)).toEqual([
-            {name: 'Sei Whale', scientific_name: 'Balaenoptera borealis', was: 'SSA:2', sightings: 1},
-        ]);
-        expect(existsSync(baselineFile(m))).toBe(false);
     });
 
     test('once there is a baseline it is what counts, and a failure leaves it as it was', async () => {
