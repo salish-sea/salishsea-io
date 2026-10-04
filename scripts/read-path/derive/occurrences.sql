@@ -13,10 +13,9 @@
 -- rule, which the Darwin Core export reads too), writes
 -- memory.maplify_entity (each Maplify name pair's register entity, and with it
 -- memory.maplify_out_of_scope, derive/maplify-entities.ts) and
--- memory.inaturalist_out_of_scope (derive/inaturalist-scope.ts), and writes memory.extracted:
--- what extract_travel_direction and extract_identifiers answer for each source's text,
--- computed in JavaScript because RE2 can't express their patterns (derive/extract.ts).
--- Where a Postgres view calls one of them, the twin here joins that table.
+-- memory.inaturalist_out_of_scope (derive/inaturalist-scope.ts). The two text
+-- extractions the Postgres views call, extract_travel_direction and extract_identifiers,
+-- are temp macros from derive/extract.sql, called where the Postgres view calls them.
 
 -- --- The five sources --------------------------------------------------------------------
 -- Each the same columns as public.occurrences, in its order; the document is built from
@@ -34,7 +33,7 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          s.usernm || ' on ' || s.source AS attribution,
          s.comments AS body,
          CASE WHEN s.number_sighted >= 1 AND s.number_sighted <= 1000 THEN s.number_sighted END AS count,
-         xt.direction,
+         extract_travel_direction(s.comments) AS direction,
          {'lat': s.location_lat, 'lon': s.location_lon} AS location,
          CAST(NULL AS INTEGER) AS accuracy,
          CASE WHEN s.photo_url IS NOT NULL
@@ -47,7 +46,7 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
           'species_id': t.species_id,
           'scientific_name': coalesce(t.scientific_name, s.scientific_name),
           'vernacular_name': coalesce(cn.name, t.vernacular_name)} AS taxon,
-         coalesce(xt.identifiers, []) AS identifiers,
+         coalesce(extract_identifiers(s.comments), []) AS identifiers,
          CAST(NULL AS INTEGER) AS contributor_id,
          CAST(NULL AS VARCHAR) AS observer,
          col.name AS collection,
@@ -59,7 +58,6 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          CAST(NULL AS TIMESTAMPTZ) AS observed_until,
          CAST(NULL AS VARCHAR) AS certainty
   FROM source_maplify_sightings s
-  LEFT JOIN memory.extracted xt ON xt.source = 'maplify' AND xt.key = CAST(s.id AS VARCHAR)
   LEFT JOIN memory.maplify_entity me
     ON me.name IS NOT DISTINCT FROM s.name AND me.scientific_name = s.scientific_name
   LEFT JOIN maplify_collection mc ON mc.id = s.id
@@ -83,7 +81,7 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          o.username || ' on iNaturalist' AS attribution,
          o.description AS body,
          CAST(NULL AS INTEGER) AS count,
-         xt.direction,
+         extract_travel_direction(o.description) AS direction,
          {'lat': o.location_lat, 'lon': o.location_lon} AS location,
          o.public_positional_accuracy AS accuracy,
          coalesce((
@@ -98,7 +96,7 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
           'species_id': t.species_id,
           'scientific_name': t.scientific_name,
           'vernacular_name': coalesce(reg.common_name, par.common_name, t.vernacular_name)} AS taxon,
-         coalesce(xt.identifiers, []) AS identifiers,
+         coalesce(extract_identifiers(o.description), []) AS identifiers,
          CAST(NULL AS INTEGER) AS contributor_id,
          o.username AS observer,
          col.name AS collection,
@@ -110,7 +108,6 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          CAST(NULL AS TIMESTAMPTZ) AS observed_until,
          CAST(NULL AS VARCHAR) AS certainty
   FROM source_inaturalist_observations o
-  LEFT JOIN memory.extracted xt ON xt.source = 'inaturalist' AND xt.key = CAST(o.id AS VARCHAR)
   JOIN taxa t_recorded ON o.taxon_id = t_recorded.id
   JOIN taxa t ON t.id = coalesce(t_recorded.current_taxon_id, t_recorded.id)
   LEFT JOIN inaturalist_taxon_name reg ON reg.inat_taxon_id = t.id
@@ -149,7 +146,7 @@ CREATE OR REPLACE TEMP VIEW happywhale_occurrences AS
            '📍 ' || e.verbatim_location,
            e.comments) AS body,
          e.min_count AS count,
-         xt.direction,
+         extract_travel_direction(e.comments) AS direction,
          {'lat': e.location_lat, 'lon': e.location_lon} AS location,
          CASE e.accuracy WHEN 'GENERAL' THEN 161 WHEN 'APPROX' THEN 16 ELSE 2 END AS accuracy,
          coalesce((
@@ -166,7 +163,7 @@ CREATE OR REPLACE TEMP VIEW happywhale_occurrences AS
           'species_id': t.species_id,
           'scientific_name': coalesce(t.scientific_name, s.scientific),
           'vernacular_name': coalesce(reg.common_name, par.common_name, t.vernacular_name, s.name)} AS taxon,
-         coalesce(xt.identifiers, []) AS identifiers,
+         coalesce(extract_identifiers(e.comments), []) AS identifiers,
          CAST(NULL AS INTEGER) AS contributor_id,
          u.display_name AS observer,
          col.name AS collection,
@@ -179,7 +176,6 @@ CREATE OR REPLACE TEMP VIEW happywhale_occurrences AS
               THEN happywhale_instant(e.start_date + e.end_time, e.timezone) END AS observed_until,
          CAST(NULL AS VARCHAR) AS certainty
   FROM happywhale.encounters e
-  LEFT JOIN memory.extracted xt ON xt.source = 'happywhale' AND xt.key = CAST(e.id AS VARCHAR)
   LEFT JOIN happywhale.users u ON e.user_id = u.id
   JOIN happywhale.individuals i ON e.individual_id = i.id
   JOIN happywhale.species s ON e.species_id = s.id
@@ -216,7 +212,7 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
           'species_id': t.species_id,
           'scientific_name': t.scientific_name,
           'vernacular_name': coalesce(cn.name, t.vernacular_name)} AS taxon,
-         coalesce(xt.identifiers, []) AS identifiers,
+         coalesce(extract_identifiers(o.body), []) AS identifiers,
          o.contributor_id,
          con.name AS observer,
          col.name AS collection,
@@ -228,7 +224,6 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
          CAST(NULL AS TIMESTAMPTZ) AS observed_until,
          CAST(NULL AS VARCHAR) AS certainty
   FROM public.observations o
-  LEFT JOIN memory.extracted xt ON xt.source = 'native' AND xt.key = CAST(o.id AS VARCHAR)
   JOIN public.contributors con ON con.id = o.contributor_id
   LEFT JOIN inaturalist_taxon xw ON xw.entity_id = o.entity_id
   LEFT JOIN taxa t_recorded ON t_recorded.id = xw.inaturalist_taxon_id

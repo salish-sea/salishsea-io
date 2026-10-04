@@ -6,8 +6,9 @@
 -- (derive-occurrences.test.ts, which checks the archive's relations beside the occurrences').
 --
 -- Run by scripts/read-path/dwca.ts after derive/sources.sql, derive/shared.sql and
--- derive/lookups.sql, and after memory.extracted and memory.maplify_entity are written, as
--- for derive/occurrences.sql. The archive's publication date is the variable pub_date.
+-- derive/extract.sql, derive/shared.sql and derive/lookups.sql, and after
+-- memory.maplify_entity is written, as for derive/occurrences.sql. The archive's
+-- publication date is the variable pub_date.
 
 ATTACH ':memory:' AS pgdb;
 CREATE SCHEMA pgdb.dwc;
@@ -115,7 +116,7 @@ CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
          'https://creativecommons.org/licenses/by-nc/4.0/legalcode' AS license,
          pg_jsonb_object([
            pg_jsonb_member('travelDirection', o.direction),
-           pg_jsonb_list_member('unvalidatedIdentifiers', nullif(xt.identifiers, []))
+           pg_jsonb_list_member('unvalidatedIdentifiers', nullif(extract_identifiers(o.body), []))
          ]) AS "dynamicProperties",
          CAST(NULL AS VARCHAR) AS "informationWithheld",
          c.orcid AS "recordedByID"
@@ -124,7 +125,6 @@ CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
   JOIN inaturalist_taxon xw ON xw.entity_id = o.entity_id
   JOIN dwc_taxa_classification tc ON tc.taxon_id = xw.inaturalist_taxon_id
   JOIN public.collections c_coll ON c_coll.id = o.collection_id
-  LEFT JOIN memory.extracted xt ON xt.source = 'native' AND xt.key = CAST(o.id AS VARCHAR);
 
 -- --- dwc._maplify_occurrences -------------------------------------------------------------
 -- recordedBy: the observer in the parenthetical of the comments' first <br> segment,
@@ -164,9 +164,9 @@ CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
          'https://creativecommons.org/licenses/by/4.0/legalcode' AS license,
          pg_jsonb_object([
            pg_jsonb_member('aggregatorChain', 'Whale Alert / Maplify (WASEAK) > ' || coalesce(c_coll.name, 'Whale Alert (Global)')),
-           pg_jsonb_member('travelDirection', xt.direction),
+           pg_jsonb_member('travelDirection', extract_travel_direction(s.comments)),
            pg_jsonb_member('aggregatorSource', coalesce(c_coll.name, 'Whale Alert (Global)')),
-           pg_jsonb_list_member('unvalidatedIdentifiers', nullif(xt.identifiers, []))
+           pg_jsonb_list_member('unvalidatedIdentifiers', nullif(extract_identifiers(s.comments), []))
          ]) AS "dynamicProperties",
          CAST(NULL AS VARCHAR) AS "informationWithheld",
          CAST(NULL AS VARCHAR) AS "recordedByID"
@@ -174,7 +174,6 @@ CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
   JOIN inaturalist_taxon xw ON xw.entity_id = s.entity_id
   JOIN dwc_taxa_classification tc ON tc.taxon_id = xw.inaturalist_taxon_id
   LEFT JOIN public.collections c_coll ON c_coll.id = s.collection_id
-  LEFT JOIN memory.extracted xt ON xt.source = 'maplify' AND xt.key = CAST(s.id AS VARCHAR)
   WHERE NOT s.is_test AND s.number_sighted BETWEEN 1 AND 1000 AND s.source <> 'rwsas' AND s.trusted;
 
 -- dwc.occurrences: the union, in a fixed order so the archive is the same bytes for the
