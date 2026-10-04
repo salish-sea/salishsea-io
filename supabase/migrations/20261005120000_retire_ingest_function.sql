@@ -15,7 +15,8 @@
 -- run as it through SET ROLE, which needs no login.
 --
 -- The function itself is deleted by hand (`supabase functions delete ingest`), along with
--- its secrets, INGEST_TRIGGER_SECRET and INGEST_DB_URL; none lives in the database.
+-- its secrets INGEST_TRIGGER_SECRET, INGEST_DB_URL and INGEST_SENTRY_DSN; none lives in
+-- the database.
 -- ingest.runs stays: it is the history of every run Postgres's ingest made, and dropping
 -- it is a decision of its own.
 
