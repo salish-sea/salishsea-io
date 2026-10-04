@@ -25,7 +25,6 @@ import * as path from 'node:path';
 import { writeArchive } from '../dwca/build.ts';
 import { floorsFromEnv } from '../dwca/guard.ts';
 import { verifyArtifact } from '../dwca/verify-artifact.ts';
-import { writeExtractions } from './derive/extract.ts';
 import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
@@ -47,9 +46,9 @@ export async function withDwc<T>(
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         await conn.run('USE store');
         await attachSources(conn, mirrors);
+        await conn.run(await sql('extract.sql'));
         await conn.run(await sql('shared.sql'));
         await conn.run(await sql('lookups.sql'));
-        await writeExtractions(conn, ['maplify', 'native']);
         await writeMaplifyEntities(conn);
         // snapshot.day, not snapshot.meta's moment: the archive changes with its data or
         // the date, not with every build.
