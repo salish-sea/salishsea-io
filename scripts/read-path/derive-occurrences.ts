@@ -24,6 +24,7 @@ import { budget } from './duckdb-budget.ts';
 
 export async function deriveOccurrences(snapshot: string, mirrors: Mirrors): Promise<number> {
     const shared = await readFile(new URL('./derive/shared.sql', import.meta.url), 'utf8');
+    const lookups = await readFile(new URL('./derive/lookups.sql', import.meta.url), 'utf8');
     const sql = await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8');
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
@@ -43,6 +44,7 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors): Pro
         await conn.run('USE store');
         await attachSources(conn, mirrors);
         await conn.run(shared);
+        await conn.run(lookups);
         await writeExtractions(conn);
         await writeMaplifyEntities(conn);
         await writeInaturalistOutOfScope(conn);
