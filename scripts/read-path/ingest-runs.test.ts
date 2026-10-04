@@ -9,7 +9,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { markTransientUpstream } from '../ingest/retry.ts';
-import { recordedRun, runsPaths, type RunsFile } from './ingest-runs.ts';
+import { boundaryReceipt, recordedRun, runsPaths, type RunsFile } from './ingest-runs.ts';
 
 let dir: string;
 let mirror: string;
@@ -95,4 +95,18 @@ test('the file holds two days of runs, the log a week, and last success reaches 
     file = await published();
     // The success eight days ago has been pruned from the log, so there is no last success.
     expect(file.last_success).toEqual({});
+});
+
+// The receipt the build reads (Stelis's st-8bj / st-ml9.9): an outage is its own arm,
+// never a quiet day — before this, a failed fetch was reported as {unchanged: true}.
+test('the boundary receipt says unchanged, changed, or unreachable — and an outage is never "unchanged"', () => {
+    expect(JSON.parse(boundaryReceipt({ok: true, changed: 0}, '2026-09-03')))
+        .toEqual({unchanged: true, records: 0, since: '2026-09-03'});
+    expect(JSON.parse(boundaryReceipt({ok: true, changed: 12}, null)))
+        .toEqual({unchanged: false, records: 12, since: null});
+    const down = JSON.parse(boundaryReceipt({ok: false, error: new Error('fetch failed: ECONNREFUSED')}, '2026-09-03'));
+    expect(down).toEqual({unreachable: true, error: 'fetch failed: ECONNREFUSED'});
+    expect(down).not.toHaveProperty('unchanged');
+    // a non-Error rejection still lands as text, capped so it fits a trace line
+    expect(JSON.parse(boundaryReceipt({ok: false, error: 'x'.repeat(1000)}, null)).error).toHaveLength(300);
 });

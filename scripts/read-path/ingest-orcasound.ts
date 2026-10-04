@@ -27,7 +27,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { fetchAllBouts } from '../ingest/fetch-orcasound.ts';
 import { boutRows, reconcile, type BoutEntityRow, type BoutRow } from '../ingest/orcasound.ts';
-import { recordedRun } from './ingest-runs.ts';
+import { boundaryReceipt, recordedRun } from './ingest-runs.ts';
 
 export type MirrorRows = {bouts: BoutRow[], entities: BoutEntityRow[]};
 
@@ -137,11 +137,8 @@ export async function main(): Promise<void> {
     // with it (ingest-runs.ts).
     if (!run.ok)
         console.error(`orcasound: fetch failed; the mirror keeps its last good copy: ${String(run.error)}`);
-    // `records` is what moved since the last fetch (Stelis's boundary receipt, st-8bj), not
-    // the corpus's size.
-    const records = run.ok ? run.changed : 0;
     const receipt = process.env['STELIS_BOUNDARY_RECEIPT'];
-    if (receipt) await writeFile(receipt, JSON.stringify({unchanged: records === 0, records, since: null}));
+    if (receipt) await writeFile(receipt, boundaryReceipt(run, null));
 }
 
 if (import.meta.main) {

@@ -45,7 +45,7 @@ import { parseMaplifyResponse, reconcile, type NormalizedSighting } from '../ing
 import type { IngestWindow } from '../ingest/persist.ts';
 import { defaultWindow } from '../ingest/window.ts';
 import { addDays, antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
-import { recordedRun } from './ingest-runs.ts';
+import { boundaryReceipt, recordedRun } from './ingest-runs.ts';
 
 /** How many days the regular fetch reaches back (salish-xv35.15, Peter 2026-10-02). */
 export const REGULAR_DAYS = 30;
@@ -179,7 +179,7 @@ export async function main(): Promise<void> {
     const receipt = process.env['STELIS_BOUNDARY_RECEIPT'];
     // `since` is where the fetch reached back to, the anti-entropy month when there is one.
     const since = windows.map(w => w.start).sort()[0]!;
-    if (receipt) await writeFile(receipt, JSON.stringify({unchanged: changedInAll === 0, records: changedInAll, since}));
+    if (receipt) await writeFile(receipt, boundaryReceipt(run, since));
 }
 
 if (import.meta.main) {
