@@ -95,7 +95,28 @@ export type ReconcileResult = {upserted: number, deleted: number, changed: numbe
  * times. `changed` counts sightings added, altered or deleted; a window that changed
  * nothing and whose days were already covered writes nothing.
  */
-export function reconcileWindow(path: string, window: IngestWindow, fetched: readonly NormalizedSighting[]): ReconcileResult {
+/**
+ * The delete floor (salish-xv35.21): Maplify gives no way to prove a response complete —
+ * nothing in it says how many sightings exist — so a response cut short would read as
+ * "these sightings are gone" and a month-long anti-entropy window would delete a month in
+ * one transaction. A scheduled run therefore refuses to delete more than this share of a
+ * window's stored sightings, once the window holds enough for a share to mean anything;
+ * the run fails, the window keeps what it had, and the next run asks again. A curator's
+ * backfill names its window on purpose and is the way through when Maplify really did
+ * retract that much (Peter, 2026-10-04: a floor of ten percent).
+ */
+export const DELETE_FLOOR_SHARE = 0.1;
+export const DELETE_FLOOR_MIN_STORED = 20;
+
+export type ReconcileOptions = {
+    /** The share of a window's stored sightings one run may delete; null for no floor. */
+    readonly maxDeleteShare?: number | null;
+};
+
+export function reconcileWindow(
+    path: string, window: IngestWindow, fetched: readonly NormalizedSighting[],
+    {maxDeleteShare = DELETE_FLOOR_SHARE}: ReconcileOptions = {},
+): ReconcileResult {
     mkdirSync(dirname(path), {recursive: true});
     const db = new DatabaseSync(path);
     try {
@@ -105,6 +126,11 @@ export function reconcileWindow(path: string, window: IngestWindow, fetched: rea
                 .all(window.start, addDays(window.end, 1)) as unknown as MirrorRow[])
                 .map(r => [r.id, JSON.stringify(COLUMNS.map(c => r[c]))]));
         const plan = reconcile(fetched, [...stored.keys()]);
+        if (maxDeleteShare !== null && stored.size >= DELETE_FLOOR_MIN_STORED
+            && plan.delete.length > maxDeleteShare * stored.size)
+            throw new Error(`maplify ${window.start}..${window.end}: the response lacks ${plan.delete.length} of the `
+                + `${stored.size} sightings the mirror holds for the window, more than the ${Math.round(maxDeleteShare * 100)}% `
+                + `a scheduled run may delete; nothing written. If Maplify really retracted them, a backfill of the window applies it.`);
         const rows = plan.upsert.map(mirrorRow);
         const altered = rows.filter(r => stored.get(r.id) !== JSON.stringify(COLUMNS.map(c => r[c])));
         const days = windowDays(window);
@@ -163,7 +189,9 @@ export async function main(): Promise<void> {
         for (const window of windows) {
             const result = parseMaplifyResponse(await fetchMaplify(window, log));
             if (!result.ok) throw new Error(`maplify parse failed: ${result.error}`);
-            const {upserted, deleted, changed} = reconcileWindow(path, window, result.sightings);
+            // a curator's backfill applies what it fetched, floor or no floor (see reconcileWindow)
+            const {upserted, deleted, changed} = reconcileWindow(path, window, result.sightings,
+                trigger === 'manual' ? {maxDeleteShare: null} : {});
             changedInAll += changed;
             console.log(`maplify ${window.start}..${window.end}: ${result.sightings.length} sightings fetched; `
                 + `${changed === 0 ? 'unchanged' : `${changed} changed (${deleted} deleted)`}; ${upserted} in the window`);
