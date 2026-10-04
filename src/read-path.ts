@@ -103,7 +103,16 @@ export async function fetchManifest(): Promise<Manifest | null> {
  * is empty, and any other missing day throws, because an empty list there would
  * say the water was quiet when the truth is we don't know yet. Any other failure
  * throws too, and the caller reports it.
+ *
+ * The not-built-yet case is its own error, because one caller can do better
+ * than report it: a signed-in tab reads its own sightings live, so for the
+ * minutes between Pacific midnight and the first build of the new day it shows
+ * those alone rather than nothing (salish-xv35.22).
  */
+export class NotBuiltYet extends Error {
+  override readonly name = 'NotBuiltYet';
+}
+
 export async function fetchDayOccurrences<T extends Located>(
   date: string,
   extent: Extent | null,
@@ -114,7 +123,7 @@ export async function fetchDayOccurrences<T extends Located>(
     const manifest = await fetchManifest();
     // Both are ISO dates, so they compare as strings.
     if (manifest && date <= manifest.covered_through) return [];
-    throw new Error(`${url}: not built yet (covered through ${manifest?.covered_through ?? 'nothing'})`);
+    throw new NotBuiltYet(`${url}: not built yet (covered through ${manifest?.covered_through ?? 'nothing'})`);
   }
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
   const day = await response.json() as T[];
