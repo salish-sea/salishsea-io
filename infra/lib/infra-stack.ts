@@ -229,7 +229,10 @@ export class InfraStack extends cdk.Stack {
     // S3 origin — bucket already exists in production; import by name. Since salishsea.io
     // reads the read-path build (decision 061, salish-xv35.16) it serves only what the
     // nightly workflow uploads there, the /dwca/ archive. The deploy workflow still syncs
-    // the site into it, so pointing the default behavior back at it is the rollback.
+    // the site into it, but pointing the default behavior back at it is a DEGRADED
+    // fallback, not a rollback: that site reads Supabase, which stopped ingesting
+    // Orcasound and iNaturalist on 2026-10-04. The rollback is a Fly image —
+    // docs/runbook/deploys.md.
     const siteBucket = s3.Bucket.fromBucketName(this, 'SiteBucket', 'salishsea-io');
     const s3Origin = origins.S3BucketOrigin.withOriginAccessControl(siteBucket, {
       originPath: '/site',

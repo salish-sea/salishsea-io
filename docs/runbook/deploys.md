@@ -6,6 +6,27 @@ How production deploys work, and the recurring surprises they produce. Audience:
 
 Push to `main` → GitHub Actions [`deploy.yml`](../../.github/workflows/deploy.yml) → CDK (`infra/`, synthed via `ts-node`) updates the stack. The rich-preview handler is a Lambda@Edge **viewer-request** function on the CloudFront distribution, defined in [`infra/lib/infra-stack.ts`](../../infra/lib/infra-stack.ts). Its code and behaviour live in [`infra/lib/edge-handler/index.ts`](../../infra/lib/edge-handler/index.ts) — see [decision 002](../decisions/002-static-spa-edge-architecture.md).
 
+### Since 2026-10-03 the site people see is the Fly app, and `main` does not deploy it
+
+CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.16`). The workflow above still runs on every merge and still matters for what stays on AWS — the Supabase migrations and Edge Function, the Lambda@Edge preview handler, the `/cards/*` renderer, and `/dwca/*` on S3 until the archive moves — but **a change to the site itself is live only when someone deploys the Fly app**, by hand, from a clean checkout of `main`:
+
+```sh
+STELIS_SHA=<full Stelis commit> fly/deploy.sh      # see the header of fly/deploy.sh
+```
+
+A green Deploy run therefore does not mean the fix you merged is live, and the smoke job in that run tests Fly's current image, not what the run shipped (`salish-t3g.5` is the workflow that would close this gap).
+
+**Rollback is a Fly image, not the S3 bucket.** Every Fly deploy is a release with a retained image:
+
+```sh
+fly releases -a salishsea-io --image                      # pick the last good one
+fly deploy -a salishsea-io --image registry.fly.io/salishsea-io:deployment-<id>
+```
+
+The image carries the site bundle, the read-path scripts and the pinned Stelis together, so rolling it back rolls all three back; the data on the volume (`/data`: the snapshot, the mirrors, the build history) stays as it is, and the next build at the old pin runs over it. The one thing an image rollback cannot undo is a migration `deploy.yml` applied to Postgres in the meantime — forward-only, as above.
+
+Pointing CloudFront's default behaviour back at S3 ([`infra-stack.ts`](../../infra/lib/infra-stack.ts), the previous rollback) now serves a **degraded** site, not an older one: since migration `20261004120000` Postgres no longer ingests Orcasound or iNaturalist, so the Supabase-mode site frozen in the bucket shows no bout and no iNaturalist observation after 2026-10-04, and once Maplify's ingest is unscheduled too it shows nothing new at all. Use it only if the Fly app itself is unreachable, and say so on the status issue.
+
 The run is five jobs ([decision 024](../decisions/024-deploy-gating-and-alerting.md)):
 
 | Job | What it does |
