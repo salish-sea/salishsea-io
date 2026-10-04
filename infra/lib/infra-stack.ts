@@ -226,17 +226,14 @@ export class InfraStack extends cdk.Stack {
       description: 'Nightly database dump and media mirror (decision 038)',
     });
 
-    // S3 origin — bucket already exists in production; import by name. Since salishsea.io
-    // reads the read-path build (decision 061, salish-xv35.16) it serves only what the
-    // nightly workflow uploads there, the /dwca/ archive. The deploy workflow still syncs
-    // the site into it, but pointing the default behavior back at it is a DEGRADED
-    // fallback, not a rollback: that site reads Supabase, which stopped ingesting
-    // Orcasound and iNaturalist on 2026-10-04. The rollback is a Fly image —
-    // docs/runbook/deploys.md.
-    const siteBucket = s3.Bucket.fromBucketName(this, 'SiteBucket', 'salishsea-io');
-    const s3Origin = origins.S3BucketOrigin.withOriginAccessControl(siteBucket, {
-      originPath: '/site',
-    });
+    // No S3 origin any more (decision 061, salish-xv35.9): since 2026-10-03 the Fly app
+    // serves the site, and since 2026-10-04 the Darwin Core archive too, so nothing
+    // CloudFront answers comes from the salishsea-io bucket. The deploy workflow still
+    // syncs the Supabase-mode site into it, and the last nightly archive is still there,
+    // but a behavior pointed back at the bucket would be a DEGRADED fallback, not a
+    // rollback: that site reads a Postgres that stopped following two of the three
+    // sources on 2026-10-04. The rollback is a Fly image — docs/runbook/deploys.md.
+    // The origin's code is in git (#555, and the change that removed /dwca/*).
 
     // The Fly app (decision 056): the site built to read static files, the files the
     // read-path build writes every five minutes, the prerendered profile pages and their
@@ -273,15 +270,10 @@ export class InfraStack extends cdk.Stack {
         ],
       },
       additionalBehaviors: {
-        // The Darwin Core archive and its GeoParquet sidecar, uploaded nightly to the
-        // bucket (dwca-nightly.yml), not built by the read-path build. Binary downloads:
-        // no edge function, so a crawler gets the bytes.
-        '/dwca/*': {
-          origin: s3Origin,
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
-          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-        },
+        // The Darwin Core archive (/dwca/*) has no behavior of its own since
+        // 2026-10-04: the read-path build writes it and the Fly app serves it under
+        // the default behavior, whose edge function passes every path but / through
+        // untouched, so a crawler still gets the bytes.
         // Preview card images. No edge function here: the OG handler's whole job
         // is to name these URLs, and letting it intercept its own images is the
         // bug that broke previews once already.

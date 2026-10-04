@@ -69,8 +69,11 @@ const MANIFEST_URL = process.env['MANIFEST_URL'] ?? 'https://salishsea.io/read-p
 /** Builds run every five minutes; half an hour of nothing published is six missed. */
 const PUBLISHED_MINUTES = Number(process.env['PUBLISHED_MINUTES'] ?? 30);
 
-/** The archive's checksum, rewritten with the archive (scripts/read-path/dwca.ts). */
-const ARCHIVE_URL = process.env['ARCHIVE_URL'] ?? 'https://salishsea-io.fly.dev/dwca/salishsea-occurrences-v1.zip.sha256';
+/**
+ * The archive's checksum, rewritten with the archive (scripts/read-path/dwca.ts), at the
+ * address GBIF reads — served by the Fly app since 2026-10-04 (salish-xv35.9).
+ */
+const ARCHIVE_URL = process.env['ARCHIVE_URL'] ?? 'https://salishsea.io/dwca/salishsea-occurrences-v1.zip.sha256';
 
 /** Rebuilt at least daily; a little over a day allows for the build that crosses midnight UTC. */
 const ARCHIVE_MINUTES = Number(process.env['ARCHIVE_MINUTES'] ?? 26 * 60);

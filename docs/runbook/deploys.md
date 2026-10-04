@@ -8,7 +8,7 @@ Push to `main` → GitHub Actions [`deploy.yml`](../../.github/workflows/deploy.
 
 ### Since 2026-10-03 the site people see is the Fly app, and `main` does not deploy it
 
-CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.16`). The workflow above still runs on every merge and still matters for what stays on AWS — the Supabase migrations and Edge Function, the Lambda@Edge preview handler, the `/cards/*` renderer, and `/dwca/*` on S3 until the archive moves — but **a change to the site itself is live only when someone deploys the Fly app**, by hand, from a clean checkout of `main`:
+CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.16`). The workflow above still runs on every merge and still matters for what stays on AWS — the Supabase migrations and Edge Function, the Lambda@Edge preview handler and the `/cards/*` renderer — but **a change to the site itself is live only when someone deploys the Fly app**, by hand, from a clean checkout of `main`:
 
 ```sh
 STELIS_SHA=<full Stelis commit> fly/deploy.sh      # see the header of fly/deploy.sh
