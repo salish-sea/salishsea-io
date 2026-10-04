@@ -414,8 +414,20 @@ export async function main(): Promise<void> {
                 since = older?.start ?? recent.start;
                 const stored = async (ids: readonly number[]) => storedTaxonIds(db, ids);
                 // Pull `ids` and everything they reach into the mirror; how many were added.
+                // Lenient where the observations' own closure is strict: these ids come from
+                // the register, a refresh or a dangling pointer, never from an observation,
+                // so one iNaturalist no longer answers for is logged and left — the pointer
+                // stays, is asked for again next run, and never fails the run.
                 const close = async (ids: readonly number[]) => {
-                    const reached = ids.length > 0 ? await resolveTaxonClosure(stored, [], quiet, ids) : [];
+                    if (ids.length === 0) return 0;
+                    let reached: NormalizedTaxon[];
+                    try {
+                        reached = await resolveTaxonClosure(stored, [], quiet, ids);
+                    } catch (error) {
+                        if (!(error instanceof Error && error.message.startsWith('iNaturalist taxon closure unresolved'))) throw error;
+                        log(`inaturalist taxa: ${error.message}; left as they are`);
+                        return 0;
+                    }
                     if (reached.length > 0) applyFetch(db, [], reached, null, now);
                     return reached.length;
                 };
