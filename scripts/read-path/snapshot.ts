@@ -19,8 +19,9 @@
  *
  * Everything is read in one Postgres transaction, and the snapshot checks that it
  * was. Maplify, iNaturalist and Orcasound come from the build's own mirrors now
- * (salish-xv35.9); their Postgres tables are still read, for the overlap reports and
- * the Maplify name guard, while Postgres ingests them too. With `--answers` it also
+ * (salish-xv35.9). Postgres's Maplify table is still read, for the overlap report and
+ * the Maplify name guard, while Postgres ingests Maplify too; its iNaturalist and
+ * Orcasound tables only with --answers, since it stopped ingesting those. With `--answers` it also
  * reads Postgres's own derived occurrences, for checking the derivation's twins
  * against them, which is only fair if both come from the same moment.
  *
@@ -99,11 +100,6 @@ const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
         'photo_url', 'comments', 'is_test', 'source', 'usernm', 'provider_id', 'collection_id',
         'source_url', 'entity_id']},
     {table: 'maplify.collection_rule', columns: ['id', 'match_kind', 'match_value', 'collection_id']},
-    {table: 'inaturalist.observations', columns: [
-        'id', 'description', ...lonLat('location'), 'observed_at', 'uri', 'username', 'taxon_id',
-        'public_positional_accuracy', 'provider_id', 'collection_id', 'source_url']},
-    {table: 'inaturalist.observation_photos', columns: [
-        'id', 'observation_id', 'seq', 'attribution', 'hidden', 'license::text as license', 'url']},
     {table: 'inaturalist.taxa', columns: [
         'id', 'parent_id', 'scientific_name', 'vernacular_name', 'rank::text as rank', 'current_taxon_id']},
     {table: 'happywhale.encounters', columns: [
@@ -121,10 +117,6 @@ const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
         'collection_id', 'source_url']},
     {table: 'public.observation_photos', columns: ['id', 'observation_id', 'seq', 'href', 'license_code']},
     {table: 'public.contributors', columns: ['id', 'name']},
-    {table: 'public.acoustic_bouts', columns: [
-        'id', 'feed_name', 'title', ...lonLat('location'), 'started_at', 'ended_at', 'provider_id',
-        'collection_id']},
-    {table: 'public.acoustic_bout_entities', columns: ['bout_id', 'entity_id', 'certainty::text as certainty']},
     // What a person asserted an occurrence shows, which overrides what the text and the
     // bouts suggest. Not who asserted it, or when: no link view reads either.
     {table: 'public.identifications', columns: [
@@ -158,6 +150,19 @@ const ANSWERS: readonly {name: string, query: string}[] = [
     })),
 ];
 const ANSWER_TABLES: readonly {table: string, columns: readonly string[]}[] = [
+    // Postgres's own copies of iNaturalist and Orcasound, which it stopped ingesting on
+    // 2026-10-04 (salish-xv35.9): the build reads its own mirrors, and the twin test
+    // writes mirrors from these to check the twins against Postgres's answer.
+    {table: 'inaturalist.observations', columns: [
+        'id', 'description', ...lonLat('location'), 'observed_at', 'uri', 'username', 'taxon_id',
+        'public_positional_accuracy', 'provider_id', 'collection_id', 'source_url']},
+    {table: 'inaturalist.observation_photos', columns: [
+        'id', 'observation_id', 'seq', 'attribution', 'hidden', 'license::text as license', 'url']},
+    {table: 'public.acoustic_bouts', columns: [
+        'id', 'feed_name', 'title', ...lonLat('location'), 'started_at', 'ended_at', 'provider_id',
+        'collection_id']},
+    {table: 'public.acoustic_bout_entities', columns: ['bout_id', 'entity_id', 'certainty::text as certainty']},
+    // Postgres's identifier candidates, the answer the candidates' twin is checked against.
     {table: 'derived.occurrence_identifier_candidates', columns: [
         'occurrence_id', 'code', 'individual_id', 'social_group_id', 'observed_at',
         '(location).lon as location_lon', '(location).lat as location_lat']},
