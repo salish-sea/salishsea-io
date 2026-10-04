@@ -167,6 +167,12 @@ const ANSWER_TABLES: readonly {table: string, columns: readonly string[]}[] = [
         'id', 'feed_name', 'title', ...lonLat('location'), 'started_at', 'ended_at', 'provider_id',
         'collection_id']},
     {table: 'public.acoustic_bout_entities', columns: ['bout_id', 'entity_id', 'certainty::text as certainty']},
+    // Postgres's Maplify sightings again, with the trusted flag the archive filters on,
+    // for the twin test to write a mirror from; the build reads it from its own mirror.
+    {table: 'maplify.sightings', columns: [
+        'id', 'name', 'scientific_name', ...lonLat('location'), 'number_sighted', 'created_at',
+        'photo_url', 'comments', 'is_test', 'source', 'usernm', 'provider_id', 'collection_id',
+        'source_url', 'entity_id', 'trusted']},
     // Postgres's Darwin Core views, the answer the archive's twins are checked against.
     {table: 'dwc.occurrences', columns: ['*']},
     {table: 'dwc.multimedia', columns: ['*']},
