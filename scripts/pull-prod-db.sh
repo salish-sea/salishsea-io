@@ -16,19 +16,10 @@
 # Why the exclusions below exist
 #
 #   cron.job, cron.job_run_details
-#       Prod's job rows and their run history. Note this exclusion alone does
-#       NOT stop the ingest jobs locally: migration 20260706000000 schedules
-#       ingest-maplify and ingest-inaturalist itself, so `db reset` recreates
-#       them every time. What actually keeps a laptop from calling the
-#       production ingest endpoint every 5 minutes is that both job bodies are
-#       guarded by
-#           WHERE EXISTS (SELECT 1 FROM vault.decrypted_secrets
-#                         WHERE name = 'ingest_function_url')
-#       and the CLI excludes `vault` from dumps, so the local vault stays
-#       empty and net.http_post never runs. That is one guard deep. This
-#       script unschedules the two ingest jobs after the reset as well, so
-#       populating the local vault for some unrelated reason cannot silently
-#       turn a dev box into a fifth ingest worker.
+#       Prod's job rows and their run history. No ingest job survives a
+#       `db reset` any more: the migrations that scheduled them are followed by
+#       20261004120000 and 20261005000000, which unschedule all three, and the
+#       Edge Function they called is retired (decision 061).
 #
 #   net.http_request_queue, net._http_response
 #       Transient pg_net plumbing for the jobs above.
@@ -103,13 +94,6 @@ echo "    $(du -h "$DUMP" | cut -f1) -> $DUMP"
 
 echo "==> Resetting local database (applying migrations, no seed)"
 npx supabase db reset --no-seed >/dev/null
-
-# Only the two ingest jobs. The matview refresh jobs and nightly-vacuum are
-# useful locally and harmless -- they touch nothing outside this database.
-echo "==> Unscheduling local ingest cron jobs"
-psql "$LOCAL_DB" -q -v ON_ERROR_STOP=1 -c "
-SELECT cron.unschedule(jobid) FROM cron.job
-WHERE jobname IN ('ingest-maplify', 'ingest-inaturalist');" >/dev/null
 
 echo "==> Applying local drift workaround"
 psql "$LOCAL_DB" -q -v ON_ERROR_STOP=1 \

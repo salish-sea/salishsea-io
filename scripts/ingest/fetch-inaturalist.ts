@@ -2,13 +2,12 @@
  * iNaturalist fetch — imperative shell (salishsea-io-89d.2 / decision 011).
  *
  * The two effectful orchestration loops iNat ingest needs; everything they call
- * is the pure functional core (scripts/ingest/inaturalist.ts). Two callers: the
- * Supabase function (supabase/functions/ingest/index.ts), and the read-path build's
- * own ingest (scripts/read-path/ingest-inaturalist.ts, decision 061), which asks
- * for what changed since a time as well as for a window of dates, and keeps what is
- * out of scope. Both loops enforce decision 011's
- * completeness invariant: they either produce a PROVABLY COMPLETE fetch or they
- * throw — and a throw makes index.ts write nothing.
+ * is the pure functional core (scripts/ingest/inaturalist.ts). Its caller is the
+ * read-path build's ingest (scripts/read-path/ingest-inaturalist.ts, decision 061),
+ * which asks for what changed since a time as well as for a window of dates, and keeps
+ * what is out of scope; until 2026-10-05 the Supabase `ingest` function called it too.
+ * Both loops enforce decision 011's completeness invariant: they either produce a
+ * PROVABLY COMPLETE fetch or they throw — and a throw means the caller writes nothing.
  *
  *   A. fetchAllObservationPages — sweep the window by ASCENDING observation id
  *      (id-keyset/cursor pagination, decision 018): fetch `id_above=<lastId>`
