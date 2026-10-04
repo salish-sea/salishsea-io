@@ -1,6 +1,6 @@
 # 003 — DwC-A export: view-as-contract schema, hybrid TS+DuckDB build, nightly publication
 
-**Status:** accepted · **Decided:** v1.2 Phases 5–8 (2026-06), gate added v1.3 Phase 14
+**Status:** accepted · **Decided:** v1.2 Phases 5–8 (2026-06), gate added v1.3 Phase 14 · *Amended 2026-10-04 by [061](061-ingest-and-derivation-move-into-the-build.md) (`salish-xv35.9`):* the archive is written by the read-path build on the Fly app, from DuckDB twins of the `dwc` views over the build's own mirrors, with this record's writer and checks, and served at `salishsea.io/dwca/` by that app; the nightly workflow and the S3 copy are retired (the last nightly's files stay in the bucket, unrefreshed). The view-as-contract schema, the hybrid build and the guard are unchanged.
 
 ## Decision
 

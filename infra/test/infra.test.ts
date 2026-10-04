@@ -156,14 +156,11 @@ describe('InfraStack', () => {
     expect(origin.CustomOriginConfig.OriginProtocolPolicy).toBe('https-only');
   });
 
-  it('serves /dwca/* from the bucket, with no edge function', () => {
+  it('has no /dwca/* behavior and no S3 origin: the Fly app serves the archive under the default', () => {
     const dist = Object.values(template.findResources('AWS::CloudFront::Distribution'))[0] as any;
     const config = dist.Properties.DistributionConfig;
-    const dwca = config.CacheBehaviors.find((b: any) => b.PathPattern === '/dwca/*');
-    expect(dwca).toBeDefined();
-    expect(dwca.LambdaFunctionAssociations).toBeUndefined();
-    const origin = config.Origins.find((o: any) => o.Id === dwca.TargetOriginId);
-    expect(origin.S3OriginConfig).toBeDefined();
+    expect((config.CacheBehaviors ?? []).find((b: any) => b.PathPattern === '/dwca/*')).toBeUndefined();
+    expect(config.Origins.find((o: any) => o.S3OriginConfig !== undefined)).toBeUndefined();
   });
 
   describe('card renderer', () => {
