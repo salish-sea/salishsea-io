@@ -1,13 +1,15 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { isIngestable, reconcile, type NormalizedObservation, type NormalizedPhoto, type NormalizedTaxon } from '../ingest/inaturalist.ts';
 import { persistInaturalist, type IngestWindow } from '../ingest/persist.ts';
 import {
-    applyFetch, observationRow, openMirror, padded, photoRows, recordSynced, storedTaxonIds, sweepFrom, syncedThrough,
+    applyFetch, danglingTaxonIds, dueTaxa, observationRow, openMirror, padded, photoRows, recordSynced, refreshTaxa, REFRESH_PER_RUN,
+    storedTaxonIds, sweepFrom, syncedThrough,
     type ObservationRow, type PhotoRow,
 } from './ingest-inaturalist.ts';
 import { rolledBack } from './rolled-back.ts';
@@ -111,6 +113,63 @@ describe('the mirror', () => {
         const renamed = {...taxa[1]!, vernacularName: 'Renamed'};
         expect(applyFetch(db, [], [renamed], null).taxa).toBe(0);
         expect(storedTaxonIds(db, [2000000002, 2000000099])).toEqual([2000000002]);
+        db.close();
+    });
+
+    // The rolling refresh (salish-xv35.9.3): what Postgres's weekly job did, a few taxa a run.
+    test('a taxon is asked about again after a week, the longest-unchecked first, a request\'s worth at a time', () => {
+        const db = fresh('due.sqlite');
+        const day = 86_400_000;
+        const t0 = new Date('2026-10-04T12:00:00Z');
+        applyFetch(db, [], taxa, null, new Date(t0.getTime() - 8 * day));          // checked eight days ago
+        const many = Array.from({length: REFRESH_PER_RUN + 5}, (_, i) => ({
+            ...taxa[1]!, id: 2000000100 + i, parentId: 2000000001, ancestorIds: [2000000001, 2000000100 + i]}));
+        applyFetch(db, [], many, null, new Date(t0.getTime() - 10 * day));         // ten days ago
+        db.prepare('UPDATE taxa SET checked_at = NULL WHERE id = ?').run(2000000002); // never
+        expect(dueTaxa(db, new Date(t0.getTime() - 9 * day))).toEqual([2000000002],
+        ); // a day before the others expire, only the never-checked one is due
+        const due = dueTaxa(db, t0);
+        expect(due).toHaveLength(REFRESH_PER_RUN);
+        expect(due.slice(0, 2)).toEqual([2000000002, 2000000100]); // never-checked, then oldest
+        expect(due).not.toContain(2000000001);                     // the eight-day-old one waits its turn
+        db.close();
+    });
+
+    test('a refresh rewrites what upstream changed, marks every taxon asked, and names a new parent to fetch', () => {
+        const db = fresh('refresh.sqlite');
+        const t0 = new Date('2026-10-04T12:00:00Z');
+        applyFetch(db, [], taxa, null, new Date(t0.getTime() - 8 * 86_400_000));
+        const asked = [2000000001, 2000000002];
+        // 2 was retired in favour of 3 (not held), 1 came back unchanged
+        const answered = [
+            taxa[0]!,
+            {...taxa[1]!, isActive: false, currentTaxonId: 2000000003},
+            {...taxa[1]!, id: 2000000999}, // not one we hold: the closure's business, ignored here
+        ];
+        const {changed, missing} = refreshTaxa(db, asked, answered, t0);
+        expect(changed).toEqual([2000000002]);
+        expect(missing).toEqual([2000000003]);
+        const row = (id: number) => db.prepare('SELECT is_active, current_taxon_id, checked_at FROM taxa WHERE id = ?').get(id);
+        expect(row(2000000002)).toEqual({is_active: 0, current_taxon_id: 2000000003, checked_at: t0.toISOString()});
+        expect(row(2000000001)).toEqual({is_active: 1, current_taxon_id: null, checked_at: t0.toISOString()});
+        expect(storedTaxonIds(db, [2000000999])).toEqual([]);
+        expect(dueTaxa(db, t0)).toEqual([]);
+        // until the closure fetches the replacement, the mirror points at nothing — and says so
+        expect(danglingTaxonIds(db)).toEqual([2000000003]);
+        applyFetch(db, [], [{...taxa[1]!, id: 2000000003, ancestorIds: [2000000001, 2000000003]}], null, t0);
+        expect(danglingTaxonIds(db)).toEqual([]);
+        db.close();
+    });
+
+    test('a mirror from before the refresh gains its checked_at column, with every taxon due', () => {
+        const file = path.join(dir, 'old.sqlite');
+        const old = new DatabaseSync(file);
+        old.exec(`CREATE TABLE taxa (id INTEGER PRIMARY KEY, parent_id INTEGER, scientific_name TEXT NOT NULL,
+                  vernacular_name TEXT, rank TEXT NOT NULL, is_active INTEGER NOT NULL, current_taxon_id INTEGER);
+                  INSERT INTO taxa VALUES (2000000001, NULL, 'Testessa radix', NULL, 'stateofmatter', 1, NULL)`);
+        old.close();
+        const db = openMirror(file);
+        expect(dueTaxa(db, new Date())).toEqual([2000000001]);
         db.close();
     });
 

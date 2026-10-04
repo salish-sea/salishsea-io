@@ -32,8 +32,10 @@
  * outside the padded fetch (the straddle decision 041 found, closed the other way round).
  * An observation is rewritten when anything about it or its photos differs, unless the copy
  * fetched is older than the mirror's; its photos are replaced with it. (Postgres's persist
- * rewrites only when `updated_at` moved, which a photo's re-licensing doesn't do.) Taxa are
- * only ever added.
+ * rewrites only when `updated_at` moved, which a photo's re-licensing doesn't do.) A fetch
+ * only ever adds taxa; what changes one is the rolling refresh below (salish-xv35.9.3),
+ * which also fetches every taxon the register names, so the derivation needs no copy of
+ * Postgres's.
  *
  * Decision 011's rule holds: a sweep that isn't provably complete, or a taxon closure that
  * doesn't resolve, throws before anything is written, and each window or sweep is one
@@ -48,10 +50,13 @@ import { writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-import { fetchAllObservationPages, resolveTaxonClosure, type ObservationQuery } from '../ingest/fetch-inaturalist.ts';
+import { DuckDBInstance } from '@duckdb/node-api';
+
+import { fetchAllObservationPages, fetchTaxa, resolveTaxonClosure, type ObservationQuery } from '../ingest/fetch-inaturalist.ts';
 import { reconcile, type NormalizedObservation, type NormalizedTaxon } from '../ingest/inaturalist.ts';
 import type { IngestWindow } from '../ingest/persist.ts';
 import { defaultWindow } from '../ingest/window.ts';
+import { budget } from './duckdb-budget.ts';
 import { addDays, antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
 import { boundaryReceipt, recordedRun } from './ingest-runs.ts';
 
@@ -74,7 +79,8 @@ const SCHEMA = `
     CREATE INDEX IF NOT EXISTS observation_photos_observation ON observation_photos (observation_id);
     CREATE TABLE IF NOT EXISTS taxa (
         id INTEGER PRIMARY KEY, parent_id INTEGER, scientific_name TEXT NOT NULL,
-        vernacular_name TEXT, rank TEXT NOT NULL, is_active INTEGER NOT NULL, current_taxon_id INTEGER
+        vernacular_name TEXT, rank TEXT NOT NULL, is_active INTEGER NOT NULL, current_taxon_id INTEGER,
+        checked_at TEXT
     );
     CREATE TABLE IF NOT EXISTS covered_days (day TEXT PRIMARY KEY);
     CREATE TABLE IF NOT EXISTS sync (key TEXT PRIMARY KEY, value TEXT NOT NULL);`;
@@ -132,6 +138,10 @@ export function openMirror(path: string): DatabaseSync {
     mkdirSync(dirname(path), {recursive: true});
     const db = new DatabaseSync(path);
     db.exec(SCHEMA);
+    // A mirror from before the rolling refresh (salish-xv35.9.3) has no checked_at; every
+    // taxon in it is then due, and the refresh works through them a run at a time.
+    if (db.prepare("SELECT 1 FROM pragma_table_info('taxa') WHERE name = 'checked_at'").get() === undefined)
+        db.exec('ALTER TABLE taxa ADD COLUMN checked_at TEXT');
     return db;
 }
 
@@ -139,6 +149,106 @@ export function openMirror(path: string): DatabaseSync {
 export function storedTaxonIds(db: DatabaseSync, candidates: readonly number[]): number[] {
     const have = new Set((db.prepare('SELECT id FROM taxa').all() as {id: number}[]).map(r => r.id));
     return candidates.filter(id => have.has(id));
+}
+
+// --- The taxa the register names, and the rolling refresh (salish-xv35.9.3) ---------------
+//
+// A taxon row is written when first reached and, until now, never asked about again, so
+// its name, rank, parent and whether it still exists froze at that day; Postgres's copy
+// had a weekly job for this (scripts/backfill/inat-taxa-status.ts). And the mirror held
+// only the taxa its observations reached, while the register maps entities to taxa that
+// a Happywhale or native sighting names and no observation ever carried — those came
+// from Postgres until here. Both are the ingest's now: each run fetches every taxon the
+// register names that the mirror lacks, and re-asks upstream about a handful of the
+// longest-unchecked, so a week's worth is covered many times over in a day of builds.
+
+/** How long a mirrored taxon's fields are trusted before upstream is asked again. */
+export const REFRESH_AFTER_DAYS = 7;
+/** How many taxa one run re-asks about: one request (fetch-inaturalist's chunk). */
+export const REFRESH_PER_RUN = 30;
+
+/**
+ * Every iNaturalist taxon the register's mappings name (the same test as
+ * derive/lookups.sql's inaturalist_mapping), read from the snapshot's copy of the register.
+ */
+export async function registerTaxonIds(snapshot: string): Promise<number[]> {
+    const db = await DuckDBInstance.create(':memory:');
+    const conn = await db.connect();
+    try {
+        await budget(conn, snapshot, '64MB');
+        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+        const reader = await conn.runAndReadAll(`
+            SELECT DISTINCT CAST(split_part(object_id, ':', 2) AS INTEGER) AS id
+            FROM store.register.mappings
+            WHERE predicate_id IN ('skos:exactMatch', 'skos:closeMatch')
+              AND regexp_full_match(object_id, 'inaturalist\\.taxon:[0-9]{1,9}')
+            ORDER BY id`);
+        return (reader.getRows() as [number][]).map(([id]) => Number(id));
+    } finally {
+        conn.closeSync();
+        db.closeSync();
+    }
+}
+
+/**
+ * Taxa the mirror's rows point at (a parent, a replacement) that it does not hold. None,
+ * normally: a fetch closes over what it reaches. But a refresh commits its rows before
+ * the closure fetches what they newly reference, so an upstream failure in between leaves
+ * a pointer at nothing; each run asks for these again rather than waiting a week.
+ */
+export function danglingTaxonIds(db: DatabaseSync): number[] {
+    return (db.prepare(`
+        SELECT DISTINCT r FROM (SELECT parent_id AS r FROM taxa UNION SELECT current_taxon_id AS r FROM taxa)
+        WHERE r IS NOT NULL AND r NOT IN (SELECT id FROM taxa) ORDER BY r`).all() as {r: number}[]).map(x => x.r);
+}
+
+/** The taxa due a refresh: never checked, or not within REFRESH_AFTER_DAYS; oldest first. */
+export function dueTaxa(db: DatabaseSync, now: Date): number[] {
+    const before = new Date(now.getTime() - REFRESH_AFTER_DAYS * 86_400_000).toISOString();
+    return (db.prepare(`
+        SELECT id FROM taxa WHERE checked_at IS NULL OR checked_at < ?
+        ORDER BY checked_at IS NOT NULL, checked_at, id LIMIT ?`)
+        .all(before, REFRESH_PER_RUN) as {id: number}[]).map(r => r.id);
+}
+
+const TAXON_FIELDS = ['id', 'parent_id', 'scientific_name', 'vernacular_name', 'rank', 'is_active', 'current_taxon_id'] as const;
+
+/**
+ * Apply what upstream now says about the taxa `asked`: a row is rewritten wherever a
+ * mirrored field differs (a rename, a retirement and its replacement, a new parent), and
+ * every taxon asked about is marked checked whether or not it came back — one upstream no
+ * longer answers for stays as it was and is asked again in a week, not every run. Returns
+ * the ids rewritten, and the ids the answers reference that the mirror lacks (a new
+ * parent, a replacement), for the closure to fetch so the tree stays whole.
+ */
+export function refreshTaxa(
+    db: DatabaseSync, asked: readonly number[], fetched: readonly NormalizedTaxon[], now: Date,
+): {changed: number[], missing: number[]} {
+    const stamp = now.toISOString();
+    const changed: number[] = [];
+    const referenced = new Set<number>();
+    const stored = db.prepare(`SELECT ${TAXON_FIELDS.join(', ')} FROM taxa WHERE id = ?`);
+    db.exec('BEGIN');
+    try {
+        for (const t of fetched) {
+            const was = stored.get(t.id) as Record<string, unknown> | undefined;
+            if (was === undefined) continue; // not one the mirror holds; the closure's business
+            const row = taxonRow(t) as unknown as Record<string, unknown>;
+            if (TAXON_FIELDS.some(f => row[f] !== was[f])) {
+                insert(db, 'taxa', {...row, checked_at: stamp});
+                changed.push(t.id);
+            }
+            for (const id of [t.parentId, t.currentTaxonId]) if (id !== null) referenced.add(id);
+        }
+        const mark = db.prepare('UPDATE taxa SET checked_at = ? WHERE id = ?');
+        for (const id of asked) mark.run(stamp, id);
+        db.exec('COMMIT');
+    } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+    }
+    const have = new Set(storedTaxonIds(db, [...referenced]));
+    return {changed, missing: [...referenced].filter(id => !have.has(id)).sort((a, b) => a - b)};
 }
 
 export type ApplyResult = {written: number, deleted: number, taxa: number};
@@ -155,6 +265,7 @@ export function applyFetch(
     fetched: readonly NormalizedObservation[],
     taxa: readonly NormalizedTaxon[],
     window: IngestWindow | null,
+    now: Date = new Date(),
 ): ApplyResult {
     // What the mirror holds of each fetched observation, as its row and photos would be
     // written, to compare with what came back.
@@ -190,7 +301,8 @@ export function applyFetch(
         let added = 0;
         for (const t of taxa) {
             const before = (db.prepare('SELECT count(*) AS n FROM taxa WHERE id = ?').get(t.id) as {n: number}).n;
-            if (before === 0) { insert(db, 'taxa', taxonRow(t), 'INSERT'); added++; }
+            // just fetched, so just checked
+            if (before === 0) { insert(db, 'taxa', {...taxonRow(t), checked_at: now.toISOString()}, 'INSERT'); added++; }
         }
         const dropPhotos = db.prepare('DELETE FROM observation_photos WHERE observation_id = ?');
         for (const o of newer) {
@@ -251,9 +363,15 @@ export const padded = (w: IngestWindow): IngestWindow => ({start: addDays(w.star
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
 export async function main(): Promise<void> {
-    const [path, start, end] = process.argv.slice(2);
-    if (!path || (start === undefined) !== (end === undefined)) {
-        console.error('usage: ingest-inaturalist.ts <inaturalist.sqlite> [<start> <end>]');
+    const args = process.argv.slice(2);
+    // --register <snapshot.duckdb>: the register's copy to read the taxa it names from.
+    // Without it a run fetches no register taxa and refreshes none (a backfill by hand).
+    const at = args.indexOf('--register');
+    const register = at >= 0 ? args[at + 1] : undefined;
+    if (at >= 0) args.splice(at, 2);
+    const [path, start, end] = args;
+    if (!path || (start === undefined) !== (end === undefined) || (at >= 0 && !register)) {
+        console.error('usage: ingest-inaturalist.ts <inaturalist.sqlite> [--register <snapshot.duckdb>] [<start> <end>]');
         process.exit(2);
     }
     const log = (msg: string, extra?: Record<string, unknown>) =>
@@ -294,6 +412,57 @@ export async function main(): Promise<void> {
                 const older = earliest === null ? null : antiEntropyWindow(earliest, recent.start, now, Math.random());
                 if (older) await run(`${older.start}..${older.end}`, padded(older), older);
                 since = older?.start ?? recent.start;
+                const stored = async (ids: readonly number[]) => storedTaxonIds(db, ids);
+                // Pull `ids` and everything they reach into the mirror; how many were added.
+                // Lenient where the observations' own closure is strict: these ids come from
+                // the register, a refresh or a dangling pointer, never from an observation,
+                // so one iNaturalist no longer answers for is logged and left — the pointer
+                // stays, is asked for again next run, and never fails the run.
+                const close = async (ids: readonly number[]) => {
+                    if (ids.length === 0) return 0;
+                    let reached: NormalizedTaxon[];
+                    try {
+                        reached = await resolveTaxonClosure(stored, [], quiet, ids);
+                    } catch (error) {
+                        if (!(error instanceof Error && error.message.startsWith('iNaturalist taxon closure unresolved'))) throw error;
+                        log(`inaturalist taxa: ${error.message}; left as they are`);
+                        return 0;
+                    }
+                    if (reached.length > 0) applyFetch(db, [], reached, null, now);
+                    return reached.length;
+                };
+                if (register) {
+                    // The taxa the register names that the mirror lacks. Asked for directly
+                    // and leniently first: the register is curated, and a mapping to a taxon
+                    // iNaturalist has deleted must not fail every run — it is logged, and
+                    // the derivation treats it as it did (no taxon). The closure then runs
+                    // over what came back, so ancestors and replacements follow.
+                    const named = await registerTaxonIds(register);
+                    const have = new Set(storedTaxonIds(db, named));
+                    const wanted = named.filter(id => !have.has(id));
+                    const answered = wanted.length > 0 ? await fetchTaxa(wanted, quiet) : [];
+                    if (answered.length > 0) applyFetch(db, [], answered, null, now);
+                    // seeded with what they reference, not with them: they are stored now,
+                    // and the closure widens only through taxa it fetched itself
+                    const closed = await close(answered.flatMap(t =>
+                        [...t.ancestorIds, t.parentId, t.currentTaxonId].filter((id): id is number => id !== null)));
+                    changed += answered.length + closed;
+                    const unknown = wanted.filter(id => !answered.some(t => t.id === id));
+                    log(`inaturalist register taxa: ${named.length} named, ${answered.length} fetched, ${closed} reached`
+                        + (unknown.length > 0 ? `; iNaturalist does not know ${unknown.join(', ')}` : ''));
+                    if (wanted.length > 0) await sleep(1000);
+                }
+                // a pointer left at nothing by an earlier run's failure is asked for again
+                changed += await close(danglingTaxonIds(db));
+                const due = dueTaxa(db, now);
+                if (due.length > 0) {
+                    const answered = await fetchTaxa(due, quiet);
+                    const {changed: rewritten, missing} = refreshTaxa(db, due, answered, now);
+                    const widened = await close(missing);
+                    changed += rewritten.length + widened;
+                    log(`inaturalist taxa refresh: ${due.length} asked, ${answered.length} answered, `
+                        + `${rewritten.length} changed, ${widened} fetched`);
+                }
             }
             return changed;
         });

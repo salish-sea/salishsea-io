@@ -100,8 +100,6 @@ const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
         'photo_url', 'comments', 'is_test', 'source', 'usernm', 'provider_id', 'collection_id',
         'source_url', 'entity_id']},
     {table: 'maplify.collection_rule', columns: ['id', 'match_kind', 'match_value', 'collection_id']},
-    {table: 'inaturalist.taxa', columns: [
-        'id', 'parent_id', 'scientific_name', 'vernacular_name', 'rank::text as rank', 'current_taxon_id']},
     {table: 'happywhale.encounters', columns: [
         'id', 'individual_id', 'user_id', 'species_id', 'verbatim_location', 'comments', 'min_count',
         ...lonLat('location'), 'accuracy::text as accuracy', 'start_date', 'start_time', 'end_time',
@@ -163,6 +161,10 @@ const ANSWER_TABLES: readonly {table: string, columns: readonly string[]}[] = [
         'public_positional_accuracy', 'provider_id', 'collection_id', 'source_url']},
     {table: 'inaturalist.observation_photos', columns: [
         'id', 'observation_id', 'seq', 'attribution', 'hidden', 'license::text as license', 'url']},
+    // and its taxa, which the build read beside its own until the mirror held every taxon
+    // the register names (salish-xv35.9.3)
+    {table: 'inaturalist.taxa', columns: [
+        'id', 'parent_id', 'scientific_name', 'vernacular_name', 'rank::text as rank', 'current_taxon_id']},
     {table: 'public.acoustic_bouts', columns: [
         'id', 'feed_name', 'title', ...lonLat('location'), 'started_at', 'ended_at', 'provider_id',
         'collection_id']},
