@@ -44,6 +44,8 @@ export async function mirrorsFromSnapshot(snapshot: string, dir: string): Promis
               FROM store.inaturalist.taxa;
             CREATE TABLE orcasound.bouts AS
               SELECT id, feed_name, title, location_lon AS lon, location_lat AS lat,
+                     -- Postgres kept biophony bouts only, so every row it holds is one (salish-xv35.18)
+                     'biophony' AS category,
                      CAST(started_at AS VARCHAR) AS started_at, CAST(ended_at AS VARCHAR) AS ended_at
               FROM store.public.acoustic_bouts;
             CREATE TABLE orcasound.bout_entities AS

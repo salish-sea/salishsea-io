@@ -52,12 +52,18 @@ CREATE OR REPLACE TEMP VIEW source_inaturalist_taxa AS
   FROM inaturalist_mirror.taxa;
 
 -- public.acoustic_bouts and its entities, as Orcasound's moderators published them.
+-- Postgres's ingest kept biophony bouts only (decision 013: the other two categories
+-- name no organism); the mirror holds every category, and the scope rule is applied
+-- here, as Maplify's and iNaturalist's are (salish-xv35.18).
 CREATE OR REPLACE TEMP VIEW source_acoustic_bouts AS
   SELECT id, feed_name, title, CAST(lon AS DOUBLE) AS location_lon, CAST(lat AS DOUBLE) AS location_lat,
          CAST(started_at AS TIMESTAMPTZ) AS started_at, CAST(ended_at AS TIMESTAMPTZ) AS ended_at,
          (SELECT id FROM public.providers WHERE slug = 'orcasound') AS provider_id,
          (SELECT id FROM public.collections WHERE slug = 'orcasound') AS collection_id
-  FROM orcasound.bouts;
+  FROM orcasound.bouts
+  WHERE category = 'biophony';
 
 CREATE OR REPLACE TEMP VIEW source_acoustic_bout_entities AS
-  SELECT bout_id, entity_id, certainty FROM orcasound.bout_entities;
+  SELECT e.bout_id, e.entity_id, e.certainty
+  FROM orcasound.bout_entities e
+  JOIN orcasound.bouts b ON b.id = e.bout_id AND b.category = 'biophony';

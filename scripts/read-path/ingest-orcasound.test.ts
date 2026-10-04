@@ -1,13 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
-import { boutRows, parseBoutsPage, reconcile, type NormalizedBout } from '../ingest/orcasound.ts';
+import { isIngestable, parseBoutsPage, reconcile, type NormalizedBout } from '../ingest/orcasound.ts';
 import { persistOrcasound } from '../ingest/persist.ts';
-import { changedBouts, readMirror, sameRows, writeMirror, type MirrorRows } from './ingest-orcasound.ts';
+import { changedBouts, migrateMirror, mirrorRows, readMirror, sameRows, writeMirror, type MirrorRows } from './ingest-orcasound.ts';
 import { rolledBack } from './rolled-back.ts';
 
 /**
@@ -31,9 +32,34 @@ describe('the mirror', () => {
     beforeAll(async () => { dir = await mkdtemp(path.join(tmpdir(), 'orcasound-mirror-')); });
     afterAll(async () => { await rm(dir, {recursive: true, force: true}); });
 
+    test('a mirror from before the category column gains it, every bout biophony', () => {
+        const file = path.join(dir, 'old.sqlite');
+        const old = new DatabaseSync(file);
+        old.exec(`CREATE TABLE bouts (id TEXT PRIMARY KEY, feed_id TEXT NOT NULL, feed_name TEXT NOT NULL,
+                  lon REAL NOT NULL, lat REAL NOT NULL, started_at TEXT NOT NULL, ended_at TEXT, title TEXT);
+                  CREATE TABLE bout_entities (bout_id TEXT NOT NULL, entity_id TEXT NOT NULL, certainty TEXT, PRIMARY KEY (bout_id, entity_id));
+                  INSERT INTO bouts VALUES ('bout_TESTold', 'f', 'Feed', -123, 48, '2026-07-01T00:00:00Z', NULL, NULL)`);
+        old.close();
+        migrateMirror(file);
+        migrateMirror(file); // a second time is harmless
+        expect(readMirror(file)!.bouts.map(b => b.category)).toEqual(['biophony']);
+    });
+
+    test('holds every bout orcasite published, with its category; scope is the derivation\'s', () => {
+        const raw = JSON.parse(readFileSync(path.join(import.meta.dirname, '../ingest/fixtures/orcasound-bouts.json'), 'utf8'));
+        const parsed = parseBoutsPage(raw);
+        if (!parsed.ok) throw new Error(parsed.error);
+        const rows = mirrorRows(parsed.bouts);
+        expect(rows.bouts).toHaveLength(parsed.bouts.length);
+        expect(new Set(rows.bouts.map(b => b.category))).toEqual(new Set(parsed.bouts.map(b => b.category)));
+        // what Postgres's ingest kept is exactly the biophony subset
+        expect(rows.bouts.filter(b => b.category === 'biophony').map(b => b.id))
+            .toEqual(reconcile(parsed.bouts, []).upsert.filter(isIngestable).map(b => b.id));
+    });
+
     test('holds exactly the rows written, and replaces them whole', async () => {
         const mirror = path.join(dir, 'orcasound.sqlite');
-        const rows = boutRows(corpus());
+        const rows = mirrorRows(corpus());
         expect(readMirror(mirror)).toBeNull();
         await writeMirror(mirror, rows);
         expect(sameRows(readMirror(mirror)!, rows)).toBe(true);
@@ -44,7 +70,7 @@ describe('the mirror', () => {
     });
 
     test('changedBouts counts the bouts added, removed or changed, claims included', () => {
-        const rows = boutRows(corpus());
+        const rows = mirrorRows(corpus());
         expect(changedBouts(rows, rows)).toBe(0);
         expect(changedBouts(null, rows)).toBe(rows.bouts.length);
         const claimed = rows.entities[0]!.bout_id;
@@ -58,7 +84,7 @@ describe('the mirror', () => {
 
     test('a write that fails leaves the mirror as it was and no temporary file', async () => {
         const mirror = path.join(dir, 'failing.sqlite');
-        const rows = boutRows(corpus());
+        const rows = mirrorRows(corpus());
         await writeMirror(mirror, rows);
         // The same claim twice breaks bout_entities' primary key at insert.
         const broken: MirrorRows = {bouts: rows.bouts, entities: [...rows.entities, {bout_id: rows.entities[0]!.bout_id, entity_id: rows.entities[0]!.entity_id, certainty: null}]};
@@ -68,7 +94,7 @@ describe('the mirror', () => {
     });
 
     test('sameRows ignores order and sees one changed field', () => {
-        const rows = boutRows(corpus());
+        const rows = mirrorRows(corpus());
         expect(sameRows(rows, {bouts: [...rows.bouts].reverse(), entities: [...rows.entities].reverse()})).toBe(true);
         const retitled = {...rows, bouts: rows.bouts.map((b, i) => i === 0 ? {...b, title: 'renamed'} : b)};
         expect(sameRows(rows, retitled)).toBe(false);
@@ -113,7 +139,7 @@ describe.skipIf(!DSN)('the mirror stores what Postgres stores (local Supabase)',
         });
 
         const mirrorPath = path.join(dir, 'orcasound.sqlite');
-        await writeMirror(mirrorPath, boutRows(bouts));
+        await writeMirror(mirrorPath, mirrorRows(bouts));
         const mirror = readMirror(mirrorPath)!;
         expect(existsSync(mirrorPath)).toBe(true);
 
@@ -126,7 +152,8 @@ describe.skipIf(!DSN)('the mirror stores what Postgres stores (local Supabase)',
             rows.map(b => ({...b, started_at: instant(b.started_at), ended_at: instant(b.ended_at)})).sort(byKey(b => b.id));
         const asClaims = (rows: readonly {bout_id: string, entity_id: string}[]) =>
             rows.map(c => ({...c})).sort(byKey(c => `${c.bout_id} ${c.entity_id}`));
-        expect(asBouts(mirror.bouts)).toEqual(asBouts(stored));
+        // The mirror also holds each bout's category, which Postgres filtered on instead of storing.
+        expect(asBouts(mirror.bouts.map(({category: _category, ...b}) => b))).toEqual(asBouts(stored));
         expect(asClaims(mirror.entities)).toEqual(asClaims(claims));
         expect(stored.length).toBe(bouts.length);
         expect(claims.some(c => c.certainty === 'possible')).toBe(true);
