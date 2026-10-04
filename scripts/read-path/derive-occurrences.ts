@@ -9,20 +9,20 @@
  * Writes `build.occurrences` into the snapshot: id, observed_at and the document,
  * the shape of `snapshot.occurrences`, which holds Postgres's answer. The SQL is
  * derive/occurrences.sql, twins of the five Postgres views, after derive/shared.sql;
- * the two text extractions they call run first, as JavaScript (derive/extract.ts).
+ * the two text extractions they call are macros from derive/extract.sql.
  * compare-occurrences.ts checks the result against Postgres's.
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 
-import { writeExtractions } from './derive/extract.ts';
 import { writeInaturalistOutOfScope } from './derive/inaturalist-scope.ts';
 import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
 
 export async function deriveOccurrences(snapshot: string, mirrors: Mirrors): Promise<number> {
+    const extract = await readFile(new URL('./derive/extract.sql', import.meta.url), 'utf8');
     const shared = await readFile(new URL('./derive/shared.sql', import.meta.url), 'utf8');
     const lookups = await readFile(new URL('./derive/lookups.sql', import.meta.url), 'utf8');
     const sql = await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8');
@@ -43,12 +43,19 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors): Pro
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
         await attachSources(conn, mirrors);
+        await conn.run(extract);
         await conn.run(shared);
         await conn.run(lookups);
-        await writeExtractions(conn);
         await writeMaplifyEntities(conn);
         await writeInaturalistOutOfScope(conn);
         await conn.run(sql);
+        // Postgres casts the extracted direction to its enum and fails on anything else;
+        // the pattern can only yield these eight, so this is the cast's refusal, kept.
+        const odd = await conn.runAndReadAll(`
+            SELECT count(*) FROM (SELECT json_extract_string(doc, '$.direction') AS direction FROM build.occurrences)
+            WHERE direction IS NOT NULL AND direction NOT IN
+              ('north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest')`);
+        if (Number(odd.getRows()[0]![0]) > 0) throw new Error('extract_travel_direction answered outside the enum');
         const reader = await conn.runAndReadAll('SELECT count(*) FROM build.occurrences');
         return Number(reader.getRows()[0]![0]);
     } finally {
