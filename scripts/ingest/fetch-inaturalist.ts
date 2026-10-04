@@ -328,6 +328,24 @@ export async function fetchAllObservationPages(
 }
 
 /**
+ * The taxa iNaturalist holds for `ids`, asked by the path form so a retired one comes
+ * back flagged with its replacement rather than filtered out (salish-5ds). One request
+ * per chunk of TAXA_ID_CHUNK; what upstream doesn't return is simply absent from the
+ * answer. The read-path build's rolling refresh of its taxa mirror asks this
+ * (salish-xv35.9.3), the same question the closure asks, so the two cannot drift.
+ */
+export async function fetchTaxa(ids: readonly number[], log: Logger): Promise<NormalizedTaxon[]> {
+    const taxa: NormalizedTaxon[] = [];
+    for (const some of chunk(ids, TAXA_ID_CHUNK)) {
+        const raw = await fetchJsonWithRetry(taxaUrl(some), 'taxa', log);
+        const parsed = parseInatTaxa(raw);
+        if (!parsed.ok) throw new Error(`iNaturalist taxa parse failed: ${parsed.error}`);
+        taxa.push(...parsed.taxa);
+    }
+    return taxa;
+}
+
+/**
  * Loop B. Resolve the full taxon-ancestor closure for the fetched observations
  * BEFORE the caller opens the persist transaction. Diff referenced taxa against
  * what's stored, fetch the missing ones (chunked), expand their references, and
@@ -347,8 +365,12 @@ export async function resolveTaxonClosure(
     storedTaxonIds: (candidates: readonly number[]) => Promise<readonly number[]>,
     observations: readonly NormalizedObservation[],
     log: Logger,
+    // Taxa referenced by something other than an observation — the register's mappings,
+    // a refreshed taxon's new parent or replacement (salish-xv35.9.3). Closed over the
+    // same way: ancestors and replacements follow.
+    extraIds: readonly number[] = [],
 ): Promise<NormalizedTaxon[]> {
-    const referenced = new Set<number>(referencedTaxonIds(observations));
+    const referenced = new Set<number>([...referencedTaxonIds(observations), ...extraIds]);
     const present = new Set<number>();
     // Every id is asked of the store once, when it is first referenced: a taxon a
     // fetched one points to (its replacement, its parent) may already be stored, and
