@@ -54,6 +54,7 @@ const PINNED: [string, string | null, string[] | null][] = [
     ['XJ27', null, null],
     ['', null, null],
     ['T65A T65B', null, ['T65A', 'T65B']],
+    ['T65A\nnorthbound', 'north', ['T65A']],
     ['J27,K37', null, ['J27', 'K37']],
     ['ſouthbound', null, null],
     ['K37 eaſt', null, null],
@@ -67,12 +68,19 @@ beforeAll(async () => {
     await conn.run(await readFile(new URL('./extract.sql', import.meta.url), 'utf8'));
 });
 
-/** Both extractions over `bodies`, in order, as the build's SQL answers them. */
+/**
+ * Both extractions over `bodies`, in order, as the build's SQL answers them. The texts
+ * go in through the appender, byte for byte: a cast from a string literal to VARCHAR[]
+ * would not unescape a JSON "\n", and CI caught exactly that.
+ */
 async function extract(bodies: readonly string[]): Promise<Extracted[]> {
+    await conn.run('CREATE OR REPLACE TEMP TABLE corpus (n INTEGER, body VARCHAR)');
+    const appender = await conn.createAppender('corpus');
+    bodies.forEach((body, n) => { appender.appendInteger(n); appender.appendVarchar(body); appender.endRow(); });
+    appender.flushSync(); appender.closeSync();
     const rows = (await conn.runAndReadAll(`
         SELECT body, extract_travel_direction(body) AS direction, extract_identifiers(body) AS identifiers
-        FROM (SELECT unnest($bodies::VARCHAR[]) AS body, generate_subscripts($bodies::VARCHAR[], 1) AS n)
-        ORDER BY n`, {bodies: JSON.stringify(bodies)})).getRowObjectsJS() as unknown as {body: string, direction: string | null, identifiers: {items: string[]} | string[] | null}[];
+        FROM corpus ORDER BY n`)).getRowObjectsJS() as unknown as {body: string, direction: string | null, identifiers: {items: string[]} | string[] | null}[];
     return rows.map(r => ({
         body: r.body, direction: r.direction,
         identifiers: r.identifiers === null ? null : Array.isArray(r.identifiers) ? r.identifiers : r.identifiers.items,

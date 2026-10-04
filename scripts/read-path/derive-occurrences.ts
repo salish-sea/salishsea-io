@@ -52,8 +52,8 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors): Pro
         // Postgres casts the extracted direction to its enum and fails on anything else;
         // the pattern can only yield these eight, so this is the cast's refusal, kept.
         const odd = await conn.runAndReadAll(`
-            SELECT count(*) FROM build.occurrences
-            WHERE doc->>'direction' IS NOT NULL AND doc->>'direction' NOT IN
+            SELECT count(*) FROM (SELECT json_extract_string(doc, '$.direction') AS direction FROM build.occurrences)
+            WHERE direction IS NOT NULL AND direction NOT IN
               ('north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest')`);
         if (Number(odd.getRows()[0]![0]) > 0) throw new Error('extract_travel_direction answered outside the enum');
         const reader = await conn.runAndReadAll('SELECT count(*) FROM build.occurrences');
