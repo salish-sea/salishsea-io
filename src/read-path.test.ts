@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { addLiveNative, fetchCalendarCounts, fetchDayOccurrences, findOccurrence, overlayNative, parseReadSource, watchManifest, type Manifest } from './read-path.ts';
+import { addLiveNative, fetchCalendarCounts, fetchDayOccurrences, findOccurrence, NotBuiltYet, overlayNative, parseReadSource, watchManifest, type Manifest } from './read-path.ts';
 import { idShard } from './read-path-shard.ts';
 import type { Extent } from './extents.ts';
 
@@ -80,6 +80,8 @@ describe('fetchDayOccurrences', () => {
   test('a missing day past the last build is not built yet, not quiet', async () => {
     serveDayAndManifest(null, manifest('2025-03-08'));
     await expect(fetchDayOccurrences<Row>('2025-03-09', null)).rejects.toThrow(/not built yet/);
+    // its own kind of error, so a signed-in tab can show its own sightings meanwhile
+    await expect(fetchDayOccurrences<Row>('2025-03-09', null)).rejects.toBeInstanceOf(NotBuiltYet);
   });
 
   test('with no manifest, nothing is built, so a missing day is not quiet either', async () => {
