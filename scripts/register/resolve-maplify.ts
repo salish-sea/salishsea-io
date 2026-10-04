@@ -33,6 +33,7 @@
 import postgres from 'postgres';
 import { resolveEntity, type NormalizedSighting } from '../ingest/maplify.ts';
 import { fetchNameIndex } from '../ingest/persist.ts';
+import { pairKey, readUnnamed } from './unnamed.ts';
 
 type Row = { name: string | null; scientific_name: string; entity_id: string | null; n: number };
 type Change = { row: Row; to: string | null };
@@ -41,18 +42,24 @@ type Change = { row: Row; to: string | null };
  * What would change, and what would be lost. Pure, so the refusal rule is testable
  * without a database.
  */
-export function planResolution(current: readonly Row[], resolve: (r: Row) => string | null) {
+export function planResolution(
+    current: readonly Row[], resolve: (r: Row) => string | null, allowed: ReadonlySet<string> = new Set(),
+) {
     const changes: Change[] = [];
     for (const row of current) {
         const to = resolve(row);
         if (to !== row.entity_id) changes.push({ row, to });
     }
-    const losing = changes.filter((c) => c.to === null && c.row.entity_id !== null);
+    // A loss a curator has accepted (data/maplify-unnamed.tsv, salish-xv35.9.2) is a
+    // change like any other: the records are meant to show under no animal now.
+    const losing = changes.filter((c) => c.to === null && c.row.entity_id !== null && !allowed.has(pairKey(c.row)));
     return { changes, losing };
 }
 
 async function main(): Promise<void> {
     const apply = process.argv.includes('--apply');
+    const allowAt = process.argv.indexOf('--allow');
+    const allowed = readUnnamed(allowAt >= 0 ? process.argv[allowAt + 1] : undefined);
     const dsn = process.env['SUPABASE_DB_URL'];
     if (!dsn) {
         console.error('SUPABASE_DB_URL is not set');
@@ -69,7 +76,7 @@ async function main(): Promise<void> {
             FROM maplify.sightings
             GROUP BY 1, 2, 3`;
         const { changes, losing } = planResolution(current, (r) =>
-            resolveEntity({ name: r.name, scientificName: r.scientific_name } as NormalizedSighting, index));
+            resolveEntity({ name: r.name, scientificName: r.scientific_name } as NormalizedSighting, index), allowed);
 
         const describe = (c: Change) =>
             `  ${String(c.row.n).padStart(6)}  ${c.row.entity_id ?? '(none)'} -> ${c.to ?? '(none)'}`
@@ -82,9 +89,10 @@ async function main(): Promise<void> {
         }
 
         const gained = changes.filter((c) => c.row.entity_id === null).reduce((a, c) => a + c.row.n, 0);
-        const moved = changes.filter((c) => c.row.entity_id !== null).reduce((a, c) => a + c.row.n, 0);
+        const lost = changes.filter((c) => c.to === null && c.row.entity_id !== null).reduce((a, c) => a + c.row.n, 0);
+        const moved = changes.filter((c) => c.row.entity_id !== null && c.to !== null).reduce((a, c) => a + c.row.n, 0);
         console.log(`${changes.length} (name, scientific_name) combinations change: `
-            + `${gained} rows gain an entity, ${moved} move to a different one, 0 lose one`);
+            + `${gained} rows gain an entity, ${moved} move to a different one, ${lost} lose one (accepted)`);
         for (const c of [...changes].sort((a, b) => b.row.n - a.row.n)) console.log(describe(c));
 
         if (!apply || !changes.length) {

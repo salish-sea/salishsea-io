@@ -33,6 +33,7 @@ import { dirname, join } from 'node:path';
 
 import { resolveEntity, type NormalizedSighting } from '../ingest/maplify.ts';
 import { buildNameIndex, NAME_INDEX_SQL, type RegisterName } from '../register/name-index.ts';
+import { pairKey, readUnnamed } from '../register/unnamed.ts';
 import { budget } from './duckdb-budget.ts';
 
 /** A (name, scientific name) pair and the entity it resolves to. */
@@ -40,15 +41,20 @@ export type Named = {name: string | null, scientific_name: string, entity_id: st
 export type Unnamed = {name: string | null, scientific_name: string, was: string, sightings: number};
 type Pair = {name: string | null, scientific_name: string, entity_id: string | null, sightings: number};
 
-const key = (p: {name: string | null, scientific_name: string}) => JSON.stringify([p.name, p.scientific_name]);
+const key = pairKey;
 
 /**
  * The pairs that were named and now resolve to nothing, and what the baseline becomes if
  * there are none: every pair named now, and every named pair the mirror doesn't hold at
  * the moment, carried forward, so a pair that leaves and comes back unnamed is still
- * caught. Pure.
+ * caught. A pair a curator has accepted as un-named (`allowed`, data/maplify-unnamed.tsv)
+ * is nobody's loss: it leaves the baseline, and comes back only if it resolves again.
+ * Pure.
  */
-export function judge(baseline: readonly Named[], current: readonly Pair[]): {unnamed: Unnamed[], next: Named[]} {
+export function judge(
+    baseline: readonly Named[], current: readonly Pair[], allowed: ReadonlySet<string> = new Set(),
+): {unnamed: Unnamed[], next: Named[]} {
+    baseline = baseline.filter(b => !allowed.has(key(b)));
     const now = new Map(current.map(p => [key(p), p]));
     const unnamed = baseline.flatMap(b => {
         const p = now.get(key(b));
@@ -68,7 +74,8 @@ export function judge(baseline: readonly Named[], current: readonly Pair[]): {un
 export const baselineFile = (mirror: string) => join(dirname(mirror), 'maplify-names.json');
 
 /** Check the mirror's pairs against the baseline; on a pass, write the new baseline. */
-export async function checkNames(snapshot: string, mirror: string): Promise<Unnamed[]> {
+export async function checkNames(snapshot: string, mirror: string, allow?: string): Promise<Unnamed[]> {
+    const allowed = readUnnamed(allow);
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     let current: Pair[];
@@ -95,7 +102,7 @@ export async function checkNames(snapshot: string, mirror: string): Promise<Unna
         conn.closeSync();
         db.closeSync();
     }
-    const {unnamed, next} = judge(baseline, current);
+    const {unnamed, next} = judge(baseline, current, allowed);
     if (unnamed.length === 0) {
         const file = baselineFile(mirror);
         const temp = `${file}.${process.pid}.tmp`;
@@ -115,12 +122,16 @@ async function postgresAnswer(conn: DuckDBConnection): Promise<Named[]> {
 }
 
 export async function main(): Promise<void> {
-    const [snapshot, mirror] = process.argv.slice(2);
-    if (!snapshot || !mirror) {
-        console.error('usage: check-maplify-names.ts <snapshot.duckdb> <maplify.sqlite>');
+    const args = process.argv.slice(2);
+    const at = args.indexOf('--allow');
+    const allow = at >= 0 ? args[at + 1] : undefined;
+    if (at >= 0) args.splice(at, 2);
+    const [snapshot, mirror] = args;
+    if (!snapshot || !mirror || (at >= 0 && !allow)) {
+        console.error('usage: check-maplify-names.ts <snapshot.duckdb> <maplify.sqlite> [--allow <maplify-unnamed.tsv>]');
         process.exit(2);
     }
-    const unnamed = await checkNames(snapshot, mirror);
+    const unnamed = await checkNames(snapshot, mirror, allow);
     if (unnamed.length === 0) {
         console.log('every Maplify name the last build resolved still resolves');
         return;
