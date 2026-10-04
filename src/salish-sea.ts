@@ -16,7 +16,7 @@ import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
-import { fetchDayOccurrences, findOccurrence, overlayNative, pacificDay, readSource, watchManifest } from "./read-path.ts";
+import { fetchDayOccurrences, findOccurrence, NotBuiltYet, overlayNative, pacificDay, readSource, watchManifest } from "./read-path.ts";
 import type { PatchedDatabase } from "./types.ts";
 import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
@@ -674,11 +674,24 @@ export default class SalishSea extends LitElement {
       if (readSource() === 'static' && !this.user) {
         data = await fetchDayOccurrences<Row>(date, region.extent);
       } else if (readSource() === 'static') {
+        // Between Pacific midnight and the first build of the new day, the day
+        // has no file yet. A signed-out tab is told so (below, as an error); a
+        // signed-in one still has its own sightings live, and a contributor who
+        // just saved one must see it (decision 055) — so the file side reads as
+        // empty for now, and a notice says the rest is on its way. Not a
+        // failure of ours, so Sentry doesn't hear it (salish-xv35.22).
+        let notBuiltYet = false;
         const [file, {data: live}] = await Promise.all([
-          fetchDayOccurrences<Row>(date, region.extent),
+          fetchDayOccurrences<Row>(date, region.extent).catch((err: unknown) => {
+            if (!(err instanceof NotBuiltYet)) throw err;
+            notBuiltYet = true;
+            return [] as Row[];
+          }),
           query.not('contributor_id', 'is', null).throwOnError(),
         ]);
         data = overlayNative(file, live);
+        if (notBuiltYet && date === this.date && region.slug === this.#region.slug && revision === this.#listRevision)
+          reportError(this, "Today's sightings from other sources arrive with the next update; yours are shown.", {capture: false});
       } else {
         ({data} = await query
           .order('observed_at', {ascending: false})
