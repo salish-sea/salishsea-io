@@ -57,7 +57,7 @@ fly ssh console -a salishsea-io -C "sh -c 'cd /app && flock /data/build.lock nod
 fly ssh console -a salishsea-io -C "sh -c 'cd /app && flock /data/build.lock node scripts/read-path/ingest-inaturalist.ts /data/mirrors/inaturalist.sqlite 2026-01-01 2026-01-31'"
 ```
 
-Orcasound is read whole every run, so its mirror needs no backfill. The iNaturalist mirror's taxa refresh themselves (thirty a run) and pick up what the register names on the next scheduled run.
+Orcasound is read whole every run, so its mirror needs no backfill. A scheduled Maplify run refuses to delete more than a tenth of a window's stored sightings in one go (a response cut short would otherwise read as a month of retractions) and fails instead; the run log's error names the window. If Maplify really did retract them, a backfill of that window by hand applies the deletes — the manual run has no floor. The iNaturalist mirror's taxa refresh themselves (thirty a run) and pick up what the register names on the next scheduled run.
 
 ## When the name guard holds
 

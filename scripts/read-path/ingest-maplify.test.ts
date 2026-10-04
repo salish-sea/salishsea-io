@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { isIngestable, parseMaplifyResponse, reconcile, type NormalizedSighting } from '../ingest/maplify.ts';
 import { persistMaplify, type IngestWindow } from '../ingest/persist.ts';
 import { buildNameIndex } from '../register/name-index.ts';
-import { mirrorRow, reconcileWindow, type MirrorRow } from './ingest-maplify.ts';
+import { DELETE_FLOOR_MIN_STORED, mirrorRow, reconcileWindow, type MirrorRow } from './ingest-maplify.ts';
 import { antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
 import { rolledBack } from './rolled-back.ts';
 
@@ -83,6 +83,33 @@ describe('the mirror', () => {
         expect(ids).not.toContain(first!.id);
         expect(ids).toContain(before.id);   // outside the window: not this fetch's to delete
         expect(rowsOf(mirror).find(r => r.id === edited.id)?.comments).toBe('edited upstream');
+    });
+
+    // The delete floor (salish-xv35.21): a response cut short must not read as a month of
+    // retractions. Thirty sightings in the window; a fetch that returns twenty-six is a
+    // retraction of four (13%), which a scheduled run refuses and a backfill applies.
+    test('a scheduled run refuses to delete more than a tenth of a window, and writes nothing', () => {
+        const mirror = path.join(dir, 'floor.sqlite');
+        const base = fetched()[0]!;
+        const thirty = Array.from({length: 30}, (_, i) => ({...base, id: 930_000_000 + i, createdAt: '2026-07-01T12:00:00Z'}));
+        expect(thirty.length).toBeGreaterThanOrEqual(DELETE_FLOOR_MIN_STORED);
+        reconcileWindow(mirror, WINDOW, thirty);
+        const before = rowsOf(mirror);
+        expect(() => reconcileWindow(mirror, WINDOW, thirty.slice(4))).toThrow(/lacks 4 of the 30 .* more than the 10%/);
+        expect(rowsOf(mirror)).toEqual(before);
+        // three of thirty is within the floor
+        expect(reconcileWindow(mirror, WINDOW, thirty.slice(3))).toMatchObject({deleted: 3});
+        // and a curator's backfill has no floor
+        expect(reconcileWindow(mirror, WINDOW, thirty.slice(10), {maxDeleteShare: null})).toMatchObject({deleted: 7});
+        expect(rowsOf(mirror)).toHaveLength(20);
+    });
+
+    test('a window too small for a share to mean anything has no floor', () => {
+        const mirror = path.join(dir, 'small.sqlite');
+        const base = fetched()[0]!;
+        const five = Array.from({length: 5}, (_, i) => ({...base, id: 940_000_000 + i, createdAt: '2026-07-01T12:00:00Z'}));
+        reconcileWindow(mirror, WINDOW, five);
+        expect(reconcileWindow(mirror, WINDOW, [])).toMatchObject({deleted: 5});
     });
 
     test('records the days it covered', () => {
