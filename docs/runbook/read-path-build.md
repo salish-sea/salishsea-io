@@ -18,6 +18,17 @@ Every five minutes (`fly/crontab`, and a few seconds after a native sighting is 
 | `/data/export/` | every published file | derived |
 | `/app/data/maplify-unnamed.tsv` | the curator's allow-list of accepted un-namings | from git, in the image |
 
+## Maintenance mode: for anything longer than a query
+
+For a backfill, a repair of the snapshot or a measurement — anything that would hold the build lock for more than a minute or two — put the machine in maintenance mode rather than racing the schedule for the lock:
+
+```sh
+fly machine update 82973dc7675348 -a salishsea-io --env READ_PATH_MAINTENANCE=1 -y   # in
+fly machine update 82973dc7675348 -a salishsea-io --env READ_PATH_MAINTENANCE=0 -y   # out
+```
+
+Each is one reboot of the machine (about ten seconds). In maintenance, Caddy and the redirect server run and nothing else: every published file keeps serving, Fly's health check keeps passing, and the schedule, the change listener and the boot build stay off, so `/data` is yours. `/status/maintenance.json` says since when; the heartbeat reads it and reports a planned window instead of filing a stale-build issue (it still files one if a window runs past a day). Visitors notice nothing except that the files stop advancing; a signed-in contributor sees their own sightings live as always. Leaving the mode boots normally, build included. (Beeline's PR #132 is the same idea for an app with a store to keep closed; here the site is static, so it can simply keep serving.)
+
 ## Looking at the machine: take the lock first
 
 The machine has 1 GB and no swap, and a build's largest task peaks near 400 MB. Anything you run beside a running build competes with it; a Stelis query run during one was killed at 137 on 2026-10-04. So run operator commands under the build lock — a build that finds it held skips that tick and the next one runs:

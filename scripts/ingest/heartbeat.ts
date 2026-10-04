@@ -58,6 +58,10 @@ const REPORT_PATH = 'dist/ingest/heartbeat-report.txt';
 
 /** Where the build publishes its run log. */
 const RUNS_URL = process.env['RUNS_URL'] ?? 'https://salishsea.io/status/ingest-runs.json';
+/** Present, with `since`, only while the machine is in maintenance mode (fly/start.sh). */
+const MAINTENANCE_URL = process.env['MAINTENANCE_URL'] ?? 'https://salishsea.io/status/maintenance.json';
+/** How long a maintenance window may run before it is a finding of its own. */
+const MAINTENANCE_MINUTES = Number(process.env['MAINTENANCE_MINUTES'] ?? 24 * 60);
 
 /** What the build last published, written after every other file. */
 const MANIFEST_URL = process.env['MANIFEST_URL'] ?? 'https://salishsea.io/read-path/manifest.json';
@@ -164,13 +168,31 @@ export type HeartbeatInput = {
 };
 
 export type Finding = {
-    readonly kind: 'never_succeeded' | 'stale' | 'stuck' | 'gap' | 'upstream_outage' | 'unpublished' | 'archive_stale';
+    readonly kind: 'never_succeeded' | 'stale' | 'stuck' | 'gap' | 'upstream_outage' | 'unpublished' | 'archive_stale'
+        | 'maintenance_overrun';
     readonly source: string;
     readonly message: string;
 };
 
 const minutesBetween = (from: Date, to: Date): number =>
     Math.round((to.getTime() - from.getTime()) / 60_000);
+
+/**
+ * Maintenance mode (salish-xv35.24): the machine is serving its last published files
+ * with the builds paused on purpose, since `since`. Every other check would trip, and
+ * none of them is news, so the heartbeat reports the window instead — unless it has
+ * run past `limitMinutes`, which is the one thing worth an issue: a window someone
+ * forgot to close.
+ */
+export function maintenanceFinding(since: Date, now: Date, limitMinutes: number): Finding | null {
+    const minutes = minutesBetween(since, now);
+    if (minutes <= limitMinutes) return null;
+    return {
+        kind: 'maintenance_overrun', source: 'build',
+        message: `the machine has been in maintenance mode for ${minutes}m (since ${since.toISOString()}), `
+            + `longer than ${limitMinutes}m: builds are paused and the published files are ageing`,
+    };
+}
 
 /**
  * The heartbeat predicate. Healthy = empty array. An orphan younger than
@@ -427,7 +449,36 @@ function reportBody(findings: readonly Finding[], input: HeartbeatInput): string
     );
 }
 
+/** When maintenance mode began, or null when the machine is building as usual (404). */
+export async function fetchMaintenanceSince(url = MAINTENANCE_URL): Promise<Date | null> {
+    const response = await fetch(url, {signal: AbortSignal.timeout(30_000)});
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+    const {since} = await response.json() as {since?: unknown};
+    if (typeof since !== 'string' || Number.isNaN(Date.parse(since))) throw new Error(`${url}: no usable "since"`);
+    return new Date(since);
+}
+
 export async function main(): Promise<void> {
+    // A planned pause is not a stale build (salish-xv35.24): say so and stop, unless
+    // the window has outlived its welcome.
+    const maintenanceSince = await fetchMaintenanceSince();
+    if (maintenanceSince !== null) {
+        const now = new Date();
+        const overrun = maintenanceFinding(maintenanceSince, now, MAINTENANCE_MINUTES);
+        if (overrun === null) {
+            console.log(`heartbeat: maintenance mode since ${maintenanceSince.toISOString()} `
+                + `(${minutesBetween(maintenanceSince, now)}m); builds are paused on purpose, nothing else checked`);
+            return;
+        }
+        mkdirSync('dist/ingest', { recursive: true });
+        writeFileSync(REPORT_PATH, `- [${overrun.kind}] ${overrun.message}\n\n`
+            + `Leave maintenance mode with \`fly machine update <machine> -a salishsea-io --env READ_PATH_MAINTENANCE=0 -y\` `
+            + `(docs/runbook/read-path-build.md).\n`);
+        console.error(`heartbeat tripped: [${overrun.kind}] ${overrun.message}`);
+        process.exit(1);
+    }
+
     const input = {
         ...heartbeatInput(await fetchRuns(), new Date()),
         publishedAt: await fetchPublishedAt(),
