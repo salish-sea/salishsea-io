@@ -8,7 +8,10 @@
 -- for row (compare-occurrences.ts). A fix goes into both, together.
 --
 -- Run by derive-occurrences.ts, which first sets TimeZone to UTC, loads ICU (text sorts
--- as Postgres's en-US ICU collation does: COLLATE en_us), runs derive/shared.sql and
+-- as Postgres's en-US ICU collation does: COLLATE en_us — verified on production
+-- 2026-10-04, pg_database says datlocprovider 'i', datcollate en_US.UTF-8, so a tie
+-- like 'J pod' before 'J27' orders the same on both sides; salish-xv35.20), runs
+-- derive/shared.sql and
 -- derive/lookups.sql (the register's and iNaturalist's lookups, and Maplify's collection
 -- rule, which the Darwin Core export reads too), writes
 -- memory.maplify_entity (each Maplify name pair's register entity, and with it
