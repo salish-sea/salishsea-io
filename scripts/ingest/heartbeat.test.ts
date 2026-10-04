@@ -345,6 +345,30 @@ describe('evaluateHeartbeat: upstream outages', () => {
     });
 });
 
+describe('evaluateHeartbeat: the published files', () => {
+    const withPublished = {...THRESHOLDS, publishedMinutes: 30};
+
+    test('a build that published recently is fine', () => {
+        expect(evaluateHeartbeat({...healthy, publishedAt: minutesAgo(6)}, withPublished)).toEqual([]);
+    });
+
+    test('fresh ingests but files standing still is the finding: a task after the ingests failed', () => {
+        const findings = evaluateHeartbeat({...healthy, publishedAt: minutesAgo(95)}, withPublished);
+        expect(findings.map((f) => [f.kind, f.source])).toEqual([['unpublished', 'read-path']]);
+        expect(findings[0]!.message).toContain('95m ago');
+    });
+
+    test('nothing published at all is the finding too', () => {
+        expect(evaluateHeartbeat({...healthy, publishedAt: null}, withPublished).map((f) => f.kind))
+            .toEqual(['unpublished']);
+    });
+
+    test('unchecked when either side is absent', () => {
+        expect(evaluateHeartbeat({...healthy, publishedAt: minutesAgo(95)}, THRESHOLDS)).toEqual([]);
+        expect(evaluateHeartbeat(healthy, withPublished)).toEqual([]);
+    });
+});
+
 // ---------------------------------------------------------------------------
 // The input, from the build's run log (scripts/read-path/ingest-runs.ts)
 // ---------------------------------------------------------------------------

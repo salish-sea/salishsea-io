@@ -59,6 +59,12 @@ const REPORT_PATH = 'dist/ingest/heartbeat-report.txt';
 /** Where the build publishes its run log. */
 const RUNS_URL = process.env['RUNS_URL'] ?? 'https://salishsea.io/status/ingest-runs.json';
 
+/** What the build last published, written after every other file. */
+const MANIFEST_URL = process.env['MANIFEST_URL'] ?? 'https://salishsea.io/read-path/manifest.json';
+
+/** Builds run every five minutes; half an hour of nothing published is six missed. */
+const PUBLISHED_MINUTES = Number(process.env['PUBLISHED_MINUTES'] ?? 30);
+
 /** Sources the ingest pipeline must keep fresh. */
 export const SOURCES = ['maplify', 'inaturalist', 'orcasound'] as const;
 
@@ -95,6 +101,8 @@ export type Thresholds = {
     readonly freshnessMinutes: number;
     readonly stuckMinutes: number;
     readonly upstreamMinutes: number;
+    /** How old the published files may be; unchecked when absent. */
+    readonly publishedMinutes?: number;
 };
 
 export type SuccessAt = {
@@ -137,10 +145,16 @@ export type HeartbeatInput = {
      * the newest of either is always present.
      */
     readonly recentTransientFailures: readonly TransientFailureAt[];
+    /**
+     * When the build last published: the manifest's snapshot time, which the build
+     * writes after every other file. Null when nothing is published; absent when not
+     * checked.
+     */
+    readonly publishedAt?: Date | null;
 };
 
 export type Finding = {
-    readonly kind: 'never_succeeded' | 'stale' | 'stuck' | 'gap' | 'upstream_outage';
+    readonly kind: 'never_succeeded' | 'stale' | 'stuck' | 'gap' | 'upstream_outage' | 'unpublished';
     readonly source: string;
     readonly message: string;
 };
@@ -265,6 +279,22 @@ export function evaluateHeartbeat(input: HeartbeatInput, thresholds: Thresholds)
         }
     }
 
+    // Every published file waits on the ingests and the derivation; a task that fails
+    // after the ingests (a gate refusing a register edition, a derivation running out
+    // of memory) leaves the ingests fresh and the map frozen. The manifest is written
+    // last, so its age is how long the files have stood still, whatever the reason.
+    if (input.publishedAt !== undefined && thresholds.publishedMinutes !== undefined) {
+        const age = input.publishedAt === null ? null : minutesBetween(input.publishedAt, input.now);
+        if (age === null || age > thresholds.publishedMinutes) {
+            findings.push({
+                kind: 'unpublished',
+                source: 'read-path',
+                message: age === null
+                    ? 'the read-path build has published nothing'
+                    : `the read-path build last published ${age}m ago (threshold ${thresholds.publishedMinutes}m)`,
+            });
+        }
+    }
     return findings;
 }
 
@@ -314,6 +344,18 @@ export function heartbeatInput(file: RunsFile, now: Date, lookbackMinutes = LOOK
     };
 }
 
+/** When the build last published, or null when it has published nothing. */
+export async function fetchPublishedAt(url = MANIFEST_URL): Promise<Date | null> {
+    const response = await fetch(url, {signal: AbortSignal.timeout(30_000)});
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+    const taken = (await response.json() as {snapshot_taken_at?: unknown}).snapshot_taken_at;
+    const at = typeof taken === 'string' ? new Date(taken) : new Date(NaN);
+    // An unreadable time would make every age NaN and quietly pass the check.
+    if (Number.isNaN(at.getTime())) throw new Error(`${url}: no readable snapshot_taken_at`);
+    return at;
+}
+
 /** The run log, or an error naming what went wrong: the build unreachable is itself an alarm. */
 export async function fetchRuns(url = RUNS_URL): Promise<RunsFile> {
     const response = await fetch(url, {signal: AbortSignal.timeout(30_000)});
@@ -337,7 +379,11 @@ function reportBody(findings: readonly Finding[], input: HeartbeatInput): string
         `upstream_outage: our side kept running, but every run failed because the source\n` +
         `was unavailable, for longer than we tolerate (decision 060). Check the source's\n` +
         `status before ours. While a source is down the map keeps everything else current\n` +
-        `and that source's last good copy.\n\n` +
+        `and that source's last good copy.\n` +
+        `unpublished: the ingests may be fine, but nothing after them finished: a gate\n` +
+        `refused (maplify-names: the register stopped naming sightings it used to; fix the\n` +
+        `register) or a task failed. The map is frozen at the last published build until it\n` +
+        `passes; \`fly logs -a salishsea-io\` names the task.\n\n` +
         `Diagnose: ${RUNS_URL} lists the runs, with each failure's error;\n` +
         `\`fly logs -a salishsea-io\` shows the builds. Each source's next successful run\n` +
         `re-fetches its whole window, so nothing is lost once the cause is fixed.\n`
@@ -345,12 +391,13 @@ function reportBody(findings: readonly Finding[], input: HeartbeatInput): string
 }
 
 export async function main(): Promise<void> {
-    const input = heartbeatInput(await fetchRuns(), new Date());
+    const input = {...heartbeatInput(await fetchRuns(), new Date()), publishedAt: await fetchPublishedAt()};
 
     const thresholds: Thresholds = {
         freshnessMinutes: FRESHNESS_MINUTES,
         stuckMinutes: STUCK_MINUTES,
         upstreamMinutes: UPSTREAM_MINUTES,
+        publishedMinutes: PUBLISHED_MINUTES,
     };
     const findings = evaluateHeartbeat(input, thresholds);
 
@@ -360,7 +407,8 @@ export async function main(): Promise<void> {
             return `${source} last success ${minutesBetween(hit!.finishedAt, input.now)}m ago`;
         }).join('; ');
         console.log(
-            `heartbeat ok: ${ages}; ${input.orphans.length} run(s) in flight; no gap in the ` +
+            `heartbeat ok: ${ages}; published ${minutesBetween(input.publishedAt!, input.now)}m ago; ` +
+                `${input.orphans.length} run(s) in flight; no gap in the ` +
                 `last ${LOOKBACK_MINUTES}m (freshness<=${thresholds.freshnessMinutes}m, ` +
                 `stuck<=${thresholds.stuckMinutes}m, upstream<=${thresholds.upstreamMinutes}m)`,
         );
