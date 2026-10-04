@@ -90,14 +90,19 @@ const TEXTS = [
  * Write `extracted(source, key, direction, identifiers)`, one row per text, for the
  * SQL to join where Postgres's views call the two functions. Streamed a chunk at a
  * time; the connection must already be using the snapshot. The table is in the
- * connection's in-memory catalog, so nothing of it lands in the snapshot.
+ * connection's in-memory catalog, so nothing of it lands in the snapshot. `sources`
+ * limits it to the texts a caller joins: the Darwin Core archive reads only Maplify's
+ * and native ones, and reading the rest would make it depend on them.
  */
-export async function writeExtractions(conn: DuckDBConnection): Promise<void> {
+export async function writeExtractions(
+    conn: DuckDBConnection,
+    sources: readonly (typeof TEXTS)[number]['source'][] = TEXTS.map(t => t.source),
+): Promise<void> {
     await conn.run(`CREATE OR REPLACE TABLE memory.main.extracted (
         source VARCHAR, key VARCHAR, direction VARCHAR, identifiers VARCHAR[])`);
     const appender = await conn.createAppender('extracted', 'main', 'memory');
     try {
-        for (const {source, query} of TEXTS) {
+        for (const {source, query} of TEXTS.filter(t => sources.includes(t.source))) {
             const result = await conn.stream(query);
             for await (const rows of result.yieldRows() as AsyncIterable<[string, string | null][]>) {
                 for (const [key, text] of rows) {

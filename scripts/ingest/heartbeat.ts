@@ -65,6 +65,12 @@ const MANIFEST_URL = process.env['MANIFEST_URL'] ?? 'https://salishsea.io/read-p
 /** Builds run every five minutes; half an hour of nothing published is six missed. */
 const PUBLISHED_MINUTES = Number(process.env['PUBLISHED_MINUTES'] ?? 30);
 
+/** The archive's checksum, rewritten with the archive (scripts/read-path/dwca.ts). */
+const ARCHIVE_URL = process.env['ARCHIVE_URL'] ?? 'https://salishsea-io.fly.dev/dwca/salishsea-occurrences-v1.zip.sha256';
+
+/** Rebuilt at least daily; a little over a day allows for the build that crosses midnight UTC. */
+const ARCHIVE_MINUTES = Number(process.env['ARCHIVE_MINUTES'] ?? 26 * 60);
+
 /** Sources the ingest pipeline must keep fresh. */
 export const SOURCES = ['maplify', 'inaturalist', 'orcasound'] as const;
 
@@ -103,6 +109,8 @@ export type Thresholds = {
     readonly upstreamMinutes: number;
     /** How old the published files may be; unchecked when absent. */
     readonly publishedMinutes?: number;
+    /** How old the Darwin Core archive may be; unchecked when absent. */
+    readonly archiveMinutes?: number;
 };
 
 export type SuccessAt = {
@@ -151,10 +159,12 @@ export type HeartbeatInput = {
      * checked.
      */
     readonly publishedAt?: Date | null;
+    /** When the build last wrote the Darwin Core archive; null when there is none. */
+    readonly archivedAt?: Date | null;
 };
 
 export type Finding = {
-    readonly kind: 'never_succeeded' | 'stale' | 'stuck' | 'gap' | 'upstream_outage' | 'unpublished';
+    readonly kind: 'never_succeeded' | 'stale' | 'stuck' | 'gap' | 'upstream_outage' | 'unpublished' | 'archive_stale';
     readonly source: string;
     readonly message: string;
 };
@@ -295,6 +305,21 @@ export function evaluateHeartbeat(input: HeartbeatInput, thresholds: Thresholds)
             });
         }
     }
+    // The archive is rebuilt whenever its data or the date moves, so it is never more
+    // than a day old while the build works; it is not a published file the manifest
+    // waits on, so its age is checked on its own.
+    if (input.archivedAt !== undefined && thresholds.archiveMinutes !== undefined) {
+        const age = input.archivedAt === null ? null : minutesBetween(input.archivedAt, input.now);
+        if (age === null || age > thresholds.archiveMinutes) {
+            findings.push({
+                kind: 'archive_stale',
+                source: 'dwca',
+                message: age === null
+                    ? 'the Darwin Core archive has not been written'
+                    : `the Darwin Core archive was last written ${age}m ago (threshold ${thresholds.archiveMinutes}m)`,
+            });
+        }
+    }
     return findings;
 }
 
@@ -356,6 +381,16 @@ export async function fetchPublishedAt(url = MANIFEST_URL): Promise<Date | null>
     return at;
 }
 
+/** When the archive was last written (its Last-Modified), or null when there is none. */
+export async function fetchArchivedAt(url = ARCHIVE_URL): Promise<Date | null> {
+    const response = await fetch(url, {method: 'HEAD', signal: AbortSignal.timeout(30_000)});
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+    const at = new Date(response.headers.get('last-modified') ?? NaN);
+    if (Number.isNaN(at.getTime())) throw new Error(`${url}: no readable Last-Modified`);
+    return at;
+}
+
 /** The run log, or an error naming what went wrong: the build unreachable is itself an alarm. */
 export async function fetchRuns(url = RUNS_URL): Promise<RunsFile> {
     const response = await fetch(url, {signal: AbortSignal.timeout(30_000)});
@@ -383,7 +418,9 @@ function reportBody(findings: readonly Finding[], input: HeartbeatInput): string
         `unpublished: the ingests may be fine, but nothing after them finished: a gate\n` +
         `refused (maplify-names: the register stopped naming sightings it used to; fix the\n` +
         `register) or a task failed. The map is frozen at the last published build until it\n` +
-        `passes; \`fly logs -a salishsea-io\` names the task.\n\n` +
+        `passes; \`fly logs -a salishsea-io\` names the task.\n` +
+        `archive_stale: the Darwin Core archive (the dwca task) has not been rebuilt in over\n` +
+        `a day, though it is at least daily; \`fly logs -a salishsea-io\` names why.\n\n` +
         `Diagnose: ${RUNS_URL} lists the runs, with each failure's error;\n` +
         `\`fly logs -a salishsea-io\` shows the builds. Each source's next successful run\n` +
         `re-fetches its whole window, so nothing is lost once the cause is fixed.\n`
@@ -391,13 +428,18 @@ function reportBody(findings: readonly Finding[], input: HeartbeatInput): string
 }
 
 export async function main(): Promise<void> {
-    const input = {...heartbeatInput(await fetchRuns(), new Date()), publishedAt: await fetchPublishedAt()};
+    const input = {
+        ...heartbeatInput(await fetchRuns(), new Date()),
+        publishedAt: await fetchPublishedAt(),
+        archivedAt: await fetchArchivedAt(),
+    };
 
     const thresholds: Thresholds = {
         freshnessMinutes: FRESHNESS_MINUTES,
         stuckMinutes: STUCK_MINUTES,
         upstreamMinutes: UPSTREAM_MINUTES,
         publishedMinutes: PUBLISHED_MINUTES,
+        archiveMinutes: ARCHIVE_MINUTES,
     };
     const findings = evaluateHeartbeat(input, thresholds);
 

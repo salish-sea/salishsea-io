@@ -40,6 +40,16 @@
 		file_server
 	}
 
+	# The Darwin Core archive GBIF crawls, its GeoParquet sidecar and their checksums,
+	# written by the read-path build (scripts/read-path/dwca.ts, salish-xv35.9) at the
+	# paths the nightly workflow published them under. no-cache: rebuilt whenever its data
+	# or the date moves.
+	handle_path /dwca/* {
+		header Cache-Control "no-cache"
+		root * /data/export/dwca
+		file_server
+	}
+
 	# The build's ingest run log (scripts/read-path/ingest-runs.ts), which the heartbeat
 	# workflow reads (scripts/ingest/heartbeat.ts). Beside the mirrors, outside the
 	# export, so it is never a published file; no-cache, since its age is the point.

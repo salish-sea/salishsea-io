@@ -253,6 +253,12 @@ export async function main(): Promise<void> {
             `CREATE OR REPLACE TABLE store.snapshot.year AS
              SELECT year(timezone('${DAY_ZONE}', taken_at))::INTEGER AS year FROM store.snapshot.meta`,
         );
+        // The UTC day, which the Darwin Core archive is dated by, as Postgres's CURRENT_DATE
+        // dated it: its own relation, so the archive reruns once a day rather than every build.
+        await conn.run(
+            `CREATE OR REPLACE TABLE store.snapshot.day AS
+             SELECT strftime(timezone('UTC', taken_at), '%Y-%m-%d') AS day FROM store.snapshot.meta`,
+        );
         for (const {name, query} of published)
             await read(conn, `snapshot.${name}`, query);
         for (const {table, columns} of derivedFrom)

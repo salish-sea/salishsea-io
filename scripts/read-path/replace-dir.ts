@@ -31,8 +31,11 @@ export async function recoverDir(outDir: string): Promise<void> {
     }
 }
 
-/** Replace `outDir` with exactly `files` (name → contents). */
-export async function replaceDir(outDir: string, files: Iterable<[string, string]> | AsyncIterable<[string, string]>): Promise<void> {
+/** Replace `outDir` with exactly `files` (name → contents, text or bytes). */
+export async function replaceDir(
+    outDir: string,
+    files: Iterable<[string, string | Uint8Array]> | AsyncIterable<[string, string | Uint8Array]>,
+): Promise<void> {
     const staging = `${outDir}.staging`;
     const previous = `${outDir}.previous`;
     await rm(staging, {recursive: true, force: true});
