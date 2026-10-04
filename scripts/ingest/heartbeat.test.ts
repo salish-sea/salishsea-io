@@ -7,9 +7,27 @@ import { describe, test, expect } from 'vitest';
 import {
     evaluateHeartbeat,
     heartbeatInput,
+    maintenanceFinding,
     type HeartbeatInput,
     type Thresholds,
 } from './heartbeat.ts';
+
+// Maintenance mode (salish-xv35.24): a planned pause is reported, not alarmed —
+// until it outlives its limit.
+describe('maintenanceFinding', () => {
+    const since = new Date('2026-10-04T20:00:00Z');
+    test('a window inside its limit is nothing to file', () => {
+        expect(maintenanceFinding(since, new Date('2026-10-05T19:59:00Z'), 24 * 60)).toBeNull();
+    });
+    test('exactly at the limit still passes', () => {
+        expect(maintenanceFinding(since, new Date('2026-10-05T20:00:00Z'), 24 * 60)).toBeNull();
+    });
+    test('past it, one finding naming how long and since when', () => {
+        const f = maintenanceFinding(since, new Date('2026-10-05T20:01:00Z'), 24 * 60);
+        expect(f?.kind).toBe('maintenance_overrun');
+        expect(f?.message).toMatch(/1441m \(since 2026-10-04T20:00:00.000Z\), longer than 1440m/);
+    });
+});
 import type { Run, RunsFile } from '../read-path/ingest-runs.ts';
 
 const THRESHOLDS: Thresholds = { freshnessMinutes: 30, stuckMinutes: 15, upstreamMinutes: 360 };

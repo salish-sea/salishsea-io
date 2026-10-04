@@ -41,6 +41,7 @@ jobs:
             UPSTREAM_MINUTES: '360'  # a source down, our side running (decision 060)
             PUBLISHED_MINUTES: '30'  # the build publishes every 5 min → 6 misses
             ARCHIVE_MINUTES: '1560'  # the Darwin Core archive is rebuilt at least daily
+            MAINTENANCE_MINUTES: '1440'  # a maintenance window left open for a day is a finding of its own
 
         steps:
             - name: Checkout repo
