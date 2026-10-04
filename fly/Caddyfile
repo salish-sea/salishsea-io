@@ -60,6 +60,16 @@
 		file_server
 	}
 
+	# The Maplify name guard's baseline: every (name, scientific name) pair the last
+	# passing build resolved, and to what (salish-xv35.9.2). register-refresh.yml reads
+	# it before loading an edition, to refuse one that would un-name any of them.
+	handle /status/maplify-names.json {
+		header Cache-Control "no-cache"
+		root * /data/mirrors
+		rewrite * /maplify-names.json
+		file_server
+	}
+
 	# A bare identifier (/individuals/0010193, /haulouts/340): decision 034 301s it to
 	# the slugged address. The redirect server answers from the map the build writes,
 	# with no lookup; an identifier it doesn't know has no published page, which is the

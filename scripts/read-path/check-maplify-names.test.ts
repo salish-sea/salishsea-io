@@ -94,6 +94,16 @@ describe('judge', () => {
         expect(next).toEqual([named('Orca', 'Orcinus orca', 'SSA:1')]);
     });
 
+    test('a pair a curator accepted as un-named is nobody\'s loss, and leaves the baseline', () => {
+        const allowed = new Set([JSON.stringify(['Sei Whale', 'Balaenoptera borealis'])]);
+        const {unnamed, next} = judge(
+            [named('Sei Whale', 'Balaenoptera borealis', 'SSA:2'), named('Orca', 'Orcinus orca', 'SSA:1')],
+            [pair('Sei Whale', 'Balaenoptera borealis', null, 4), pair('Orca', 'Orcinus orca', 'SSA:1')],
+            allowed);
+        expect(unnamed).toEqual([]);
+        expect(next).toEqual([named('Orca', 'Orcinus orca', 'SSA:1')]);
+    });
+
     test('a pair with no common name is told apart from one whose name is the string "null"', () => {
         expect(judge([named(null, 'Balaenoptera borealis', 'SSA:2')],
                      [pair('null', 'Balaenoptera borealis', null), pair(null, 'Balaenoptera borealis', 'SSA:2')]).unnamed)

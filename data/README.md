@@ -4,6 +4,10 @@ External reference sources we **mirror** here so that changes are diffable and
 seeding is reproducible. These files are inputs, not authoritative domain data —
 our authoritative catalog lives in Postgres (see the individuals/subjects model).
 
+## `maplify-unnamed.tsv` — Maplify names a curator has accepted as un-named
+
+Unlike the rest of this directory, ours: a decision record in table form. A Maplify sighting carries a common name and a scientific name, and the map shows it under the register entity those resolve to ([decision 049](../docs/decisions/049-maplify-keyed-on-the-register.md)). A register edition that stops naming a pair would silently drop every sighting carrying it, so two checks refuse such an edition — `register-refresh.yml` before it loads one, and the read-path build's gate before it derives — unless the pair is listed here ([decision 061](../docs/decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.9.2`). A row says: these sightings are *meant* to show under no animal from now on, and why. An empty `name` means the sighting carries none. Add a row in the same pull request as the register release that needs it, and leave it: the pair may come back.
+
 ## `biggs-ids.tsv` — Bigg's killer whale designations & nicknames
 
 - **Source:** [Bigg's Orca/Killer Whale Nick Names](https://docs.google.com/spreadsheets/d/1fj3sA2R8LGw68-Rxb0dL6jwTKkc4AkhGKuk-jt9zmis/edit?gid=0) (Google Sheet, `gid=0`)

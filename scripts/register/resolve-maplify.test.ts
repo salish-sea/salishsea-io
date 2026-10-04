@@ -23,6 +23,13 @@ describe('planResolution', () => {
         expect(losing).toEqual([]);
     });
 
+    test('a loss a curator accepted (data/maplify-unnamed.tsv) is a change, not a refusal', () => {
+        const allowed = new Set([JSON.stringify(['Gray', ''])]);
+        const { changes, losing } = planResolution([row('Gray', 'SSA:0000905', 141)], () => null, allowed);
+        expect(losing).toEqual([]);
+        expect(changes.map((c) => c.to)).toEqual([null]);
+    });
+
     test('an unchanged record is not a change, so nothing is rewritten', () => {
         const { changes } = planResolution([row('Orca', 'SSA:0000900')], () => 'SSA:0000900');
         expect(changes).toEqual([]);
