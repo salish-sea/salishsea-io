@@ -63,6 +63,25 @@ export function runsPaths(mirror: string): {db: string, json: string} {
 }
 
 /**
+ * What the build is told about this run — Stelis's boundary receipt (its st-8bj;
+ * the unreachable arm is st-ml9.9). On success, whether the source moved and by how
+ * much: `records` is what changed since the last fetch, not the corpus's size, and
+ * `since` is how far back the fetch reached. On failure, that the source could not be
+ * reached, so the build's own history and its operator log never read an outage as a
+ * quiet day; the mirror the build goes on with is the last good copy either way.
+ */
+export function boundaryReceipt(
+    run: {ok: true, changed: number} | {ok: false, error: unknown},
+    since: string | null,
+): string {
+    if (!run.ok) {
+        const message = run.error instanceof Error ? run.error.message : String(run.error);
+        return JSON.stringify({unreachable: true, error: message.slice(0, 300)});
+    }
+    return JSON.stringify({unchanged: run.changed === 0, records: run.changed, since});
+}
+
+/**
  * Run one ingest, recording it. On success, the rows it changed; on failure the error,
  * recorded and not thrown, so the caller can keep its last good mirror and let the
  * build go on. `now` is for tests.

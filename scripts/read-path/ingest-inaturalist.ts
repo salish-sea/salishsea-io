@@ -53,7 +53,7 @@ import { reconcile, type NormalizedObservation, type NormalizedTaxon } from '../
 import type { IngestWindow } from '../ingest/persist.ts';
 import { defaultWindow } from '../ingest/window.ts';
 import { addDays, antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
-import { recordedRun } from './ingest-runs.ts';
+import { boundaryReceipt, recordedRun } from './ingest-runs.ts';
 
 /** How far back the first `updated_since` reaches, before the mirror has seen anything. */
 export const FIRST_UPDATED_DAYS = 30;
@@ -303,11 +303,11 @@ export async function main(): Promise<void> {
             console.error(`inaturalist: fetch failed; the mirror keeps its last good copy: ${String(outcome.error)}`);
             if (trigger === 'manual') throw outcome.error;
         }
+        const receipt = process.env['STELIS_BOUNDARY_RECEIPT'];
+        if (receipt) await writeFile(receipt, boundaryReceipt(outcome, since));
     } finally {
         db.close();
     }
-    const receipt = process.env['STELIS_BOUNDARY_RECEIPT'];
-    if (receipt) await writeFile(receipt, JSON.stringify({unchanged: changed === 0, records: changed, since}));
 }
 
 if (import.meta.main) {
