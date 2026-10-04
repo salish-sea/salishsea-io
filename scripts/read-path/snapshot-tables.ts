@@ -6,6 +6,8 @@
 
 import { DuckDBInstance } from '@duckdb/node-api';
 
+import { budget } from './duckdb-budget.ts';
+
 // Snapshot documents, as Postgres serialized them. Loosely typed here and narrowed by
 // what assembly builds from them, which the pages' types check.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -43,6 +45,10 @@ export async function readSnapshot<R>(snapshot: string, read: (s: Snapshot) => P
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
+        // The catalogue and the profile links: whole small tables, read into JS. The cap
+        // is for the day the inputs stop being small (salish-xv35.19; measured on Fly:
+        // see the bead).
+        await budget(conn, snapshot, '64MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         return await read({
             async tables<T extends Table>(names: readonly T[]) {

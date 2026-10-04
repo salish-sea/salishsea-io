@@ -12,6 +12,8 @@
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
+
+import { budget } from './duckdb-budget.ts';
 import * as path from 'node:path';
 
 import { idShard } from '../../src/read-path-shard.ts';
@@ -28,6 +30,9 @@ export async function writeIds(snapshot: string, exportDir: string): Promise<{sh
     const conn = await db.connect();
     let rows;
     try {
+        // Two columns of build.occurrences, read once and sorted; the sort is the only
+        // thing that could grow (salish-xv35.19; measured on Fly: see the bead).
+        await budget(conn, snapshot, '64MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         const reader = await conn.runAndReadAll(`
             SELECT id, strftime(timezone('${DAY_ZONE}', observed_at), '%Y-%m-%d') AS day
