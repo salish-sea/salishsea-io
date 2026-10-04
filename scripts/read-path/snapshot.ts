@@ -114,9 +114,9 @@ const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
     {table: 'public.observations', columns: [
         'id', 'url', 'body', 'count', 'direction::text as direction', ...lonLat('subject_location'),
         ...lonLat('observer_location'), 'observed_at', 'entity_id', 'contributor_id', 'provider_id',
-        'collection_id', 'source_url']},
+        'collection_id', 'source_url', 'accuracy']},
     {table: 'public.observation_photos', columns: ['id', 'observation_id', 'seq', 'href', 'license_code']},
-    {table: 'public.contributors', columns: ['id', 'name']},
+    {table: 'public.contributors', columns: ['id', 'name', 'orcid']},
     // What a person asserted an occurrence shows, which overrides what the text and the
     // bouts suggest. Not who asserted it, or when: no link view reads either.
     {table: 'public.identifications', columns: [
@@ -130,6 +130,11 @@ const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
     {table: 'register.mappings', columns: ['subject_id', 'predicate_id', 'object_id']},
     {table: 'register.ancestor', columns: ['entity_id', 'ancestor_id', 'depth', 'ancestor_kind']},
     {table: 'register.deprecations', columns: ['entity_id', 'replaced_by']},
+    // The register's lineage for each taxon, which the Darwin Core archive's classification
+    // reads (dwc.taxa_classification, salish-xv35.9).
+    {table: 'register.classification', columns: [
+        'entity_id', 'label', 'taxon_id', 'scientific_name', 'taxon_rank', 'kingdom', 'phylum', 'class',
+        '"order"', 'family', 'genus']},
 ];
 
 /**
@@ -162,6 +167,10 @@ const ANSWER_TABLES: readonly {table: string, columns: readonly string[]}[] = [
         'id', 'feed_name', 'title', ...lonLat('location'), 'started_at', 'ended_at', 'provider_id',
         'collection_id']},
     {table: 'public.acoustic_bout_entities', columns: ['bout_id', 'entity_id', 'certainty::text as certainty']},
+    // Postgres's Darwin Core views, the answer the archive's twins are checked against.
+    {table: 'dwc.occurrences', columns: ['*']},
+    {table: 'dwc.multimedia', columns: ['*']},
+    {table: 'dwc.export_coverage', columns: ['*']},
     // Postgres's identifier candidates, the answer the candidates' twin is checked against.
     {table: 'derived.occurrence_identifier_candidates', columns: [
         'occurrence_id', 'code', 'individual_id', 'social_group_id', 'observed_at',

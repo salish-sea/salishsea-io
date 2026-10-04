@@ -69,7 +69,7 @@ const DERIVED_FROM: Record<string, readonly string[] | null> = {
     'public.acoustic_bouts': ['id', 'feed_name', 'title', 'location', 'started_at', 'ended_at', 'provider_id', 'collection_id'],
     'public.collections': ['id', 'name', 'organization_id', 'slug'],
     // A contributor's name and nothing else of theirs.
-    'public.contributors': ['id', 'name'],
+    'public.contributors': ['id', 'name', 'orcid'],
     // Not who asserted one, when, how, or a machine's confidence: no link view reads them.
     'public.identifications': [
         'occurrence_id', 'individual_id', 'social_group_id', 'is_present', 'evidence', 'status', 'code',
@@ -78,10 +78,14 @@ const DERIVED_FROM: Record<string, readonly string[] | null> = {
     // Not user_uuid: which sign-in account wrote a sighting is not the build's business.
     'public.observations': [
         'id', 'url', 'body', 'count', 'direction', 'subject_location', 'observer_location',
-        'observed_at', 'entity_id', 'contributor_id', 'provider_id', 'collection_id', 'source_url'],
+        'observed_at', 'entity_id', 'contributor_id', 'provider_id', 'collection_id', 'source_url',
+        'accuracy'],
     'public.organizations': ['id', 'name', 'url'],
     'public.providers': ['id', 'slug', 'name'],
     'register.ancestor': ['entity_id', 'ancestor_id', 'depth', 'ancestor_kind'],
+    'register.classification': [
+        'entity_id', 'label', 'taxon_id', 'scientific_name', 'taxon_rank', 'kingdom', 'phylum', 'class',
+        'order', 'family', 'genus'],
     'register.deprecations': ['entity_id', 'replaced_by'],
     'register.entities': ['entity_id', 'kind', 'label'],
     'register.mappings': ['subject_id', 'predicate_id', 'object_id'],
