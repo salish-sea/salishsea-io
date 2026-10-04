@@ -77,8 +77,15 @@ describe('judge', () => {
         expect(judge([named('Orca', 'Orcinus orca', 'SSA:1')], [pair('Orca', 'Orcinus orca', 'SSA:9')]).unnamed).toEqual([]);
     });
 
-    test('a pair the mirror no longer holds has no sighting to lose', () => {
-        expect(judge([named('Sei Whale', 'Balaenoptera borealis', 'SSA:2')], []).unnamed).toEqual([]);
+    test('a pair the mirror no longer holds has no sighting to lose, and stays in the baseline', () => {
+        const {unnamed, next} = judge([named('Sei Whale', 'Balaenoptera borealis', 'SSA:2')], []);
+        expect(unnamed).toEqual([]);
+        expect(next).toEqual([named('Sei Whale', 'Balaenoptera borealis', 'SSA:2')]);
+    });
+
+    test('so a pair that leaves and comes back unnamed is still caught', () => {
+        const {next} = judge([named('Sei Whale', 'Balaenoptera borealis', 'SSA:2')], [pair('Orca', 'Orcinus orca', 'SSA:1')]);
+        expect(judge(next, [pair('Sei Whale', 'Balaenoptera borealis', null)]).unnamed.map(u => u.was)).toEqual(['SSA:2']);
     });
 
     test('a pair never named is not the guard\'s business, and is not in the next baseline', () => {

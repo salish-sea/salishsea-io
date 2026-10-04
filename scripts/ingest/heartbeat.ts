@@ -349,7 +349,11 @@ export async function fetchPublishedAt(url = MANIFEST_URL): Promise<Date | null>
     const response = await fetch(url, {signal: AbortSignal.timeout(30_000)});
     if (response.status === 404) return null;
     if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-    return new Date((await response.json() as {snapshot_taken_at: string}).snapshot_taken_at);
+    const taken = (await response.json() as {snapshot_taken_at?: unknown}).snapshot_taken_at;
+    const at = typeof taken === 'string' ? new Date(taken) : new Date(NaN);
+    // An unreadable time would make every age NaN and quietly pass the check.
+    if (Number.isNaN(at.getTime())) throw new Error(`${url}: no readable snapshot_taken_at`);
+    return at;
 }
 
 /** The run log, or an error naming what went wrong: the build unreachable is itself an alarm. */

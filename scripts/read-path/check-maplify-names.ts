@@ -16,7 +16,8 @@
  * was named and now resolves to nothing fails the build, naming it; the baseline is then
  * left as it was, so the build keeps failing until the register names it again, as
  * Postgres's refusal did. A pair moving to another entity is a register edit doing its
- * job. On a pass the baseline becomes this build's answers.
+ * job. On a pass the baseline becomes this build's answers, keeping the named pairs the
+ * mirror doesn't hold at the moment.
  *
  * Before the first pass there is no baseline file, and Postgres's stored answer
  * (maplify.sightings.entity_id, the last one its ingest accepted) stands in for it.
@@ -43,7 +44,9 @@ const key = (p: {name: string | null, scientific_name: string}) => JSON.stringif
 
 /**
  * The pairs that were named and now resolve to nothing, and what the baseline becomes if
- * there are none: every pair named now. Pure.
+ * there are none: every pair named now, and every named pair the mirror doesn't hold at
+ * the moment, carried forward, so a pair that leaves and comes back unnamed is still
+ * caught. Pure.
  */
 export function judge(baseline: readonly Named[], current: readonly Pair[]): {unnamed: Unnamed[], next: Named[]} {
     const now = new Map(current.map(p => [key(p), p]));
@@ -53,9 +56,11 @@ export function judge(baseline: readonly Named[], current: readonly Pair[]): {un
             ? [{name: b.name, scientific_name: b.scientific_name, was: b.entity_id, sightings: p.sightings}]
             : [];
     }).sort((a, b) => b.sightings - a.sightings);
-    const next = current.flatMap(p => p.entity_id === null ? []
-        : [{name: p.name, scientific_name: p.scientific_name, entity_id: p.entity_id}])
-        .sort((a, b) => key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0);
+    const next = [
+        ...current.flatMap(p => p.entity_id === null ? []
+            : [{name: p.name, scientific_name: p.scientific_name, entity_id: p.entity_id}]),
+        ...baseline.filter(b => !now.has(key(b))),
+    ].sort((a, b) => key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0);
     return {unnamed, next};
 }
 
