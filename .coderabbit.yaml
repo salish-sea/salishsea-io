@@ -7,4 +7,7 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
+    # Peter's own branches are reviewed with the CodeRabbit CLI before the pull
+    # request is opened, so the PR bot skips his PRs. Everyone else's it still reviews.
+    ignore_usernames: ["rainhead"]
   review_status: false
