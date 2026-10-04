@@ -5,6 +5,8 @@
 
 **Amended by [034](034-profile-urls-key-on-the-register-identifier.md) (2026-08-30, implemented 2026-09-11):** the URL scheme below keyed on `primary_designation`, which animals ADR-0011 forbids. Since 2026-09-11 the canonical address is `/individuals/<seven-digit register identifier>/<designation>` (e.g. `/individuals/0010193/T065A`); the identifier is the only segment read, and `/individuals/T065A` — along with every superseded or alternate code in `public.designations` — `301`s to it. The path shape decided here — resolved at the edge, rewritten to `individual.html`, fail-open under a deadline — stands.
 
+**Amended by [061](061-ingest-and-derivation-move-into-the-build.md) (2026-10-03, `salish-xv35.16`):** the pages are prerendered by the read-path build ([057](057-profile-pages-are-prerendered.md)) and served by the Fly app, which answers the designation `301`s itself; the Lambda@Edge rewrite described below is retired, and the edge function now handles crawler previews on the map page only. The URL scheme is unchanged.
+
 ## Decision
 
 Give every catalog individual a full page at **`/individuals/<primary_designation>`**

@@ -3,7 +3,7 @@
 -- names scripts/dwca/build.ts reads, so the archive writer is the same code whether it
 -- reads Postgres (the nightly) or the build. Twins, not improvements: each names the
 -- Postgres object it ports and keeps its quirks, and the twin test checks them row for row
--- (derive-dwc.test.ts).
+-- (derive-occurrences.test.ts, which checks the archive's relations beside the occurrences').
 --
 -- Run by scripts/read-path/dwca.ts after derive/sources.sql, derive/shared.sql and
 -- derive/lookups.sql, and after memory.extracted and memory.maplify_entity are written, as
