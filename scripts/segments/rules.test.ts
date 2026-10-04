@@ -28,14 +28,14 @@ const sept3 = [
 ];
 
 describe('Scott\'s first sighting on 3 September (#445)', () => {
-  test('the map\'s rule leaves it alone and carries the morning track into his encounter', () => {
-    expect(ids(RULES.current(sept3))).toEqual([
+  test('the rule before decision 063 leaves it alone and carries the morning track into his encounter', () => {
+    expect(ids(RULES.previous(sept3))).toEqual([
       ['hydrophone-0715', 'report-0833', 'scott-1502', 'scott-1513', 'scott-1550', 'scott-1605'],
       ['scott-1456'],
     ]);
   });
 
-  test.each(['nearest', 'spaceTime', 'nearestEcotype', 'spaceTimeEcotype', 'identity'] as const)(
+  test.each(['current', 'nearest', 'spaceTime', 'nearestEcotype', 'spaceTimeEcotype', 'identity'] as const)(
     '%s starts his track with it and leaves the morning reports to themselves', name => {
       expect(ids(RULES[name](sept3))).toEqual([
         ['hydrophone-0715', 'report-0833'],
@@ -66,7 +66,7 @@ test('identity-preferred follows a named animal past a nearer anonymous track', 
 });
 
 test('ecotypesOf reads the taxon and named pods and IDs', () => {
-  expect([...ecotypesOf(sighting('a', '2026-01-01T00:00:00Z', 0, 0, {identifiers: ['K pod']}))]).toEqual(['srkw']);
+  expect([...ecotypesOf(sighting('a', '2026-01-01T00:00:00Z', 0, 0, {identifiers: ['K pod']}))]).toEqual(['resident']);
   expect([...ecotypesOf(sighting('b', '2026-01-01T00:00:00Z', 0, 0, {identifiers: ['T049A1']}))]).toEqual(['biggs']);
   expect([...ecotypesOf(sighting('c', '2026-01-01T00:00:00Z', 0, 0, biggs))]).toEqual(['biggs']);
   expect(ecotypesOf(sighting('d', '2026-01-01T00:00:00Z', 0, 0)).size).toBe(0);

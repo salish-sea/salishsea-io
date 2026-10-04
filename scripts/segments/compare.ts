@@ -19,12 +19,14 @@
  * look at the days with `--day`.
  * - stranded: a sighting drawn alone although a same-species sighting within
  *   3 km and an hour of it is on a track. The #445 failure.
- * - mixed: tracks containing both a Southern Resident and a Bigg's report.
+ * - mixed: tracks containing both a resident and a Bigg's report.
  *   Most reports name neither, so this is a floor.
  * - held-out disagree: links between two sightings that both name registered
  *   animals but share none, counted only between sightings in the half that
  *   the identity rule is never shown (the identityHalfNames row).
  *   Groups join and split, so some of these links are right.
+ * - days changed: days whose tracks differ from `previous`, the map's rule
+ *   before decision 063.
  */
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
@@ -159,7 +161,7 @@ function stranded(tracks: Track[]) {
 }
 const mixed = (t: Track) => {
   const e = new Set(t.flatMap(s => [...ecotypesOf(s)]));
-  return e.has('srkw') && e.has('biggs');
+  return e.has('resident') && e.has('biggs');
 };
 const membership = (tracks: Track[]) =>
   new Map(tracks.flatMap(t => { const key = t.map(s => s.id).sort().join('|'); return t.map(s => [s.id, key] as const); }));
@@ -170,7 +172,7 @@ for (const name of selected) {
   for (const day of days.values()) {
     const tracks = rules[name]!(day);
     m.stranded += stranded(tracks);
-    const before = membership(RULES.current(day)), after = membership(tracks);
+    const before = membership(RULES.previous(day)), after = membership(tracks);
     if (day.some(s => before.get(s.id) !== after.get(s.id))) m['days changed']++;
     for (const t of tracks) {
       if (t.length === 1) {
