@@ -124,7 +124,7 @@ CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
   JOIN public.contributors c ON c.id = o.contributor_id
   JOIN inaturalist_taxon xw ON xw.entity_id = o.entity_id
   JOIN dwc_taxa_classification tc ON tc.taxon_id = xw.inaturalist_taxon_id
-  JOIN public.collections c_coll ON c_coll.id = o.collection_id
+  JOIN public.collections c_coll ON c_coll.id = o.collection_id;
 
 -- --- dwc._maplify_occurrences -------------------------------------------------------------
 -- recordedBy: the observer in the parenthetical of the comments' first <br> segment,
