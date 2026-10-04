@@ -5,8 +5,9 @@ name: Ingest Heartbeat
 # pg_cron → Edge Function before). A job can't watch itself die, so this runs
 # elsewhere: a scheduled check of the build's run log, which the Fly app serves at
 # /status/ingest-runs.json, that files a GitHub issue when no successful run is fresh
-# enough, a run is stuck mid-flight, or successful runs had a hole in them within the
-# last day. GitHub's cron is best-effort — far
+# enough, a run is stuck mid-flight, successful runs had a hole in them within the
+# last day, or the build has published nothing for half an hour (a task after the
+# ingests failing would otherwise freeze the map silently). GitHub's cron is best-effort — far
 # more so than "a little late": measured over 2026-08-23 → 09-10, checks were a
 # median 68 minutes apart and up to 12.5 hours, against the 30 requested. That
 # is why the third check exists: freshness is measured against the checker's clock,
@@ -37,6 +38,7 @@ jobs:
             FRESHNESS_MINUTES: '30'  # ingest cron fires every 5 min → 6 misses
             STUCK_MINUTES: '15'      # an ingest run takes minutes at most
             UPSTREAM_MINUTES: '360'  # a source down, our side running (decision 060)
+            PUBLISHED_MINUTES: '30'  # the build publishes every 5 min → 6 misses
 
         steps:
             - name: Checkout repo
