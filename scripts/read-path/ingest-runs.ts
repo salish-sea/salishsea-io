@@ -115,6 +115,9 @@ export async function recordedRun(
         ).run(now().toISOString(), changed, id));
         return {ok: true, changed};
     } catch (error) {
+        // Published as-is at /status/ingest-runs.json. Fine while every source is read
+        // without credentials; a source that needs a token must not let it into its
+        // error text (a URL with a key in it, say), because this is a public page.
         const message = error instanceof Error ? error.message : String(error);
         withDb(paths.db, db => db.prepare(
             `UPDATE runs SET finished_at = ?, outcome = 'failed', transient = ?, error = ? WHERE id = ?`,

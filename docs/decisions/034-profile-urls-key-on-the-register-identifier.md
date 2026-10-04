@@ -51,7 +51,7 @@ So `/individuals/` and `/ecotypes/` adopt this shape as soon as `public.individu
 
 ## Where the redirect happens
 
-The viewer-request Lambda@Edge already intercepts these paths ([015](015-individual-profile-pages.md)), so the redirect belongs there — cacheable at CloudFront, and correct for crawlers.
+The viewer-request Lambda@Edge already intercepts these paths ([015](015-individual-profile-pages.md)), so the redirect belongs there — cacheable at CloudFront, and correct for crawlers. *Amended 2026-10-03 ([061](061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.16`):* since the site is served by the Fly app, the `301`s are answered there, by a small redirect server reading the build's `redirects.json` (`fly/`), still cacheable at CloudFront; the edge function no longer sees these paths.
 
 *Implementation note (2026-09-11).* "Cacheable at CloudFront" was wrong: CloudFront does not cache a response a viewer-request function generates. The `301` carries `Cache-Control: public, max-age=86400`, so a browser holds it for a day, and each request for a non-canonical path costs the edge one Supabase read. The crawler-side claim stands.
 
