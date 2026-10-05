@@ -45,8 +45,7 @@ const PUBLISHED: readonly {name: string, query: string}[] = [
     // row, in the shape Postgres serializes it; the render joins them. The links from
     // a subject to its sightings are the build's (salish-xv35.13).
     ...[
-        'designations', 'parties', 'social_groups', 'group_parents',
-        'matriline_members', 'animal_names', 'haulouts',
+        'designations', 'parties', 'social_groups', 'haulouts',
     ].map(name => ({
         name,
         query: `select to_jsonb(t)::text as doc from public.${name} t`,
@@ -128,6 +127,13 @@ const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
  * can be checked against it (derive-occurrences.test.ts).
  */
 const ANSWERS: readonly {name: string, query: string}[] = [
+    // The catalogue's three views over the register, which the build derives itself now
+    // (derive-catalogue.ts, salish-9uu.2.3), each beside the build's under `<view>_answer`
+    // for compare-catalogue.ts.
+    ...['group_parents', 'matriline_members', 'animal_names'].map(name => ({
+        name: `${name}_answer`,
+        query: `select to_jsonb(t)::text as doc from public.${name} t`,
+    })),
     {
         name: 'occurrences',
         query: `select o.id, o.observed_at, to_jsonb(o)::text as doc from public.occurrences o`,

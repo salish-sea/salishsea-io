@@ -8,6 +8,8 @@ import { describe, expect, test } from 'vitest';
 import { compare as compareCandidates } from './compare-identifier-candidates.ts';
 import { compare, differences, sourceOf } from './compare-occurrences.ts';
 import { compare as compareProfileLinks, unmatched } from './compare-profile-links.ts';
+import { compare as compareCatalogue } from './compare-catalogue.ts';
+import { deriveCatalogue } from './derive-catalogue.ts';
 import { deriveIdentifierCandidates } from './derive-identifier-candidates.ts';
 import { deriveOccurrences } from './derive-occurrences.ts';
 import { deriveProfileLinks } from './derive-profile-links.ts';
@@ -76,6 +78,10 @@ describe.skipIf(!DSN)('the build derives what Postgres stores (local Supabase)',
             expect(await compare(snapshot)).toBe(true);
             await deriveIdentifierCandidates(snapshot);
             expect(await compareCandidates(snapshot)).toBe(true);
+            // The catalogue's views over the register (salish-9uu.2.3), which the profile
+            // links read, derived as the build derives them and checked against Postgres's.
+            await deriveCatalogue(snapshot, mirrors);
+            expect(await compareCatalogue(snapshot)).toBe(true);
             await deriveProfileLinks(snapshot, mirrors);
             expect(await compareProfileLinks(snapshot)).toBe(true);
             // The Darwin Core archive's relations (salish-xv35.9): the twins against
