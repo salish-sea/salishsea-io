@@ -18,7 +18,8 @@
  *   POST   /api/photos?sighting=<id>&name=<file>  a JPEG's or JPEG 2000's bytes, at most
  *                                             8 MiB (photos.ts): put in the photo bucket;
  *                                             answers {url}, at salishsea.io/media/
- *   POST   /api/feedback        a message       anyone (039), a few per sender per window
+ *   POST   /api/feedback        a message       anyone (039), a few per sender per window;
+ *                                             notifier.ts files it as a GitHub issue
  *
  * A change to a sighting wakes the build (BUILD_COMMAND, coalesced as the change listener
  * coalesces Realtime's signal), so the published files follow within a build.
@@ -31,11 +32,13 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { DatabaseSync } from 'node:sqlite';
 
+import { WORKFLOW_AUTHOR } from '../scripts/feedback/filing.ts';
 import { BuildCoalescer, commandBuild } from '../scripts/read-path/coalesce.ts';
 import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
+import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './google.ts';
+import { startNotifier, storeQueue } from './notifier.ts';
 import { MAX_PHOTO_BYTES, PHOTO_CACHE_CONTROL, photoFolder, photoName, photoType } from './photos.ts';
 import { putObject } from './s3.ts';
-import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './google.ts';
 import { deleteSighting, parseSighting, Refused, saveSighting } from './sightings.ts';
 import { cookie, mint, readCookie, signingKey, verifySession } from './session.ts';
 import { openStore } from './store/store.ts';
@@ -250,10 +253,25 @@ if (import.meta.main) {
         credentials: {accessKeyId, secretAccessKey},
     } : null;
     if (!bucket) console.warn('api: no AWS key, so photo uploads answer 503');
+    // The feedback notifier's GitHub token (notifier.ts), likewise the API's alone. Without
+    // it, feedback is kept and nobody is told.
+    const githubToken = process.env['FEEDBACK_GITHUB_TOKEN'];
+    delete process.env['FEEDBACK_GITHUB_TOKEN'];
+    const issueAuthor = process.env['FEEDBACK_ISSUE_AUTHOR'];
     const build = process.env['BUILD_COMMAND']?.split(' ').filter(Boolean) ?? [];
     const coalescer = build.length > 0 ? new BuildCoalescer(commandBuild(build)) : null;
+    const db = openStore(store);
+    if (githubToken && issueAuthor) {
+        startNotifier(storeQueue(db, store), {
+            repo: process.env['GITHUB_REPOSITORY'] ?? 'salish-sea/salishsea-io',
+            token: githubToken,
+            authors: new Set([issueAuthor, WORKFLOW_AUTHOR]),
+        });
+    } else {
+        console.warn('api: FEEDBACK_GITHUB_TOKEN or FEEDBACK_ISSUE_AUTHOR is not set, so feedback files no issues');
+    }
     serve({
-        store: openStore(store), key, keys: googleKeys(), origins,
+        store: db, key, keys: googleKeys(), origins,
         changed: coalescer ? () => coalescer.changed() : undefined,
         feedbackAllowed: rateLimiter(),
         edgeSecret,

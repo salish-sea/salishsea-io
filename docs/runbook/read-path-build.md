@@ -44,6 +44,12 @@ Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment be
   aws iam delete-access-key --profile orcasound --user-name salishsea-io-store-writer --access-key-id <old key id>
   ```
 
+- **`FEEDBACK_GITHUB_TOKEN`**, with **`FEEDBACK_ISSUE_AUTHOR`**, for the feedback notifier (`api/notifier.ts`), which files each new piece of feedback in the store as a GitHub issue every fifteen minutes, as [039](../decisions/039-feedback-goes-to-our-own-database.md)'s workflow does for Postgres's until the cutover. The token may create issues in `salish-sea/salishsea-io` and nothing else (a fine-grained token with Issues: read and write on that repository alone); `FEEDBACK_ISSUE_AUTHOR` is the login the issues are posted as, which the notifier needs to recognise its own work after a crash. Without either, feedback is kept and no issue is filed; the API says so when it starts. A wrong author files a report twice at worst, never loses one.
+
+  ```sh
+  fly secrets set -a salishsea-io --stage FEEDBACK_GITHUB_TOKEN=<token> FEEDBACK_ISSUE_AUTHOR=<its login>
+  ```
+
 ## Where state lives
 
 | Path | What | Provenance |
