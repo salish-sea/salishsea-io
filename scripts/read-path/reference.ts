@@ -72,12 +72,21 @@ export const REFERENCE: readonly ReferenceTable[] = [
     },
 ];
 
-/** The DuckDB expression reading one reference file, typed and with nothing guessed. */
+/**
+ * The DuckDB expression reading one of our checked-in TSV files (data/reference/,
+ * data/catalogue/), typed and with nothing guessed: tab-separated with a header, a field
+ * quoted only when it must be, whitespace kept, an empty field a null.
+ */
+export function readTsv(file: string, columns: readonly (readonly [string, string])[]): string {
+    const quoted = file.replaceAll("'", "''");
+    const typed = columns.map(([name, type]) => `'${name}': '${type}'`).join(', ');
+    return `read_csv('${quoted}', delim = '\t', header = true, quote = '"', escape = '"',
+                     auto_detect = false, columns = {${typed}}, nullstr = '', allow_quoted_nulls = false, strict_mode = true)`;
+}
+
+/** The DuckDB expression reading one reference file. */
 export function readFile(ref: ReferenceTable, dir = REFERENCE_DIR): string {
-    const file = path.join(dir, ref.file).replaceAll("'", "''");
-    const columns = ref.columns.map(([name, type]) => `'${name}': '${type}'`).join(', ');
-    return `read_csv('${file}', delim = '\t', header = true, quote = '"', escape = '"',
-                     auto_detect = false, columns = {${columns}}, nullstr = '', allow_quoted_nulls = false, strict_mode = true)`;
+    return readTsv(path.join(dir, ref.file), ref.columns);
 }
 
 /** Load every reference table into `<catalog>`, replacing what was there, in one transaction. */

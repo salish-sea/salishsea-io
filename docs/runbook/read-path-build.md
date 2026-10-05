@@ -13,7 +13,7 @@ Every five minutes (`fly/crontab`, and a few seconds after a native sighting is 
 | `/data/mirrors/{maplify,inaturalist,orcasound}.sqlite` | the upstream mirrors, holding only what each source said | derived: a lost one is rebuilt by a backfill (below) |
 | `/data/mirrors/runs.sqlite` → `/status/ingest-runs.json` | each ingest run's outcome; what the heartbeat reads | log |
 | `/data/mirrors/maplify-names.json` → `/status/maplify-names.json` | the name guard's baseline: every Maplify (name, scientific name) pair and what the last passing build resolved it to | **authoritative** — forward-only, nothing regenerates it once Postgres stops resolving Maplify |
-| `/data/read-path.duckdb` | what Postgres still holds, the register release the build holds (`register.edition` says which), the reference tables from `data/reference/`, and the build's own derived relations | derived |
+| `/data/read-path.duckdb` | what Postgres still holds, the register release the build holds (`register.edition` says which), the reference tables from `data/reference/`, the catalogue from `data/catalogue/` with its views over the register, and the build's own derived relations | derived |
 | `/data/stelis/` | Stelis's build history (30 days) and content-addressed blocks | log |
 | `/data/export/` | every published file | derived |
 | `/app/data/maplify-unnamed.tsv` | the curator's allow-list of accepted un-namings | from git, in the image |

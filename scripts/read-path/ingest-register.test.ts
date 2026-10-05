@@ -22,9 +22,10 @@ describe('latestTag (decision 064)', () => {
 });
 
 describe('REGISTER_TABLES', () => {
-    test('the six tables the derivation reads, depth typed as Postgres types it', () => {
+    test('the tables the derivations read, depth typed as Postgres types it', () => {
         expect(REGISTER_TABLES.map(t => t.table)).toEqual(
-            ['entities', 'names', 'mappings', 'ancestor', 'deprecations', 'classification']);
+            ['entities', 'names', 'mappings', 'ancestor', 'deprecations', 'classification', 'vitals', 'current_status']);
+        expect(REGISTER_TABLES.find(t => t.table === 'vitals')!.file).toBe('entities');
         expect(REGISTER_TABLES.find(t => t.table === 'ancestor')!.select).toContain('CAST(depth AS INTEGER)');
     });
 });

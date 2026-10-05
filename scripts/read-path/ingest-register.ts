@@ -44,10 +44,12 @@ import { boundaryReceipt, recordedRun } from './ingest-runs.ts';
 
 /**
  * The register tables the build reads, the columns of each it reads, and where each lives in
- * the published tarball — the snapshot's own selection from Postgres, so the switch moves no
- * digest. `depth` is the one column Postgres types; the rest are text there and here.
+ * the published tarball — for the first six, the snapshot's own selection from Postgres, so
+ * the switch moved no digest. `depth` is the one column Postgres types; the rest are text
+ * there and here. `file` names the tarball's file when the table is a selection under
+ * another name.
  */
-export const REGISTER_TABLES: readonly {table: string, dir: 'data' | 'dist', select: string}[] = [
+export const REGISTER_TABLES: readonly {table: string, dir: 'data' | 'dist', file?: string, select: string}[] = [
     {table: 'entities', dir: 'data', select: 'entity_id, kind, label'},
     {table: 'names', dir: 'data', select: 'entity_id, name, type, language'},
     {table: 'mappings', dir: 'data', select: 'subject_id, predicate_id, object_id'},
@@ -55,6 +57,11 @@ export const REGISTER_TABLES: readonly {table: string, dir: 'data' | 'dist', sel
     {table: 'deprecations', dir: 'data', select: 'entity_id, replaced_by'},
     {table: 'classification', dir: 'dist', select:
         'entity_id, label, taxon_id, scientific_name, taxon_rank, kingdom, phylum, class, "order", family, genus'},
+    // What an individual's sex, birth years and life status are derived from (decision 051,
+    // salish-9uu.2.3): Postgres copied them onto public.individuals on every load
+    // (refresh_individual_vitals); the build's catalogue derives them (catalogue.ts).
+    {table: 'vitals', dir: 'data', file: 'entities', select: 'entity_id, sex, born'},
+    {table: 'current_status', dir: 'dist', select: 'entity_id, status'},
 ];
 
 /** The tag `releases/latest` redirects to: one request, nothing downloaded. */
@@ -108,8 +115,8 @@ async function adopt(conn: DuckDBConnection, dir: string, tag: string, digest: s
     await conn.run('CREATE SCHEMA IF NOT EXISTS store.register');
     await conn.run('BEGIN');
     let rows = 0;
-    for (const {table, dir: sub, select} of REGISTER_TABLES) {
-        const file = path.join(dir, sub, `${table}.tsv`).replaceAll("'", "''");
+    for (const {table, dir: sub, file: name, select} of REGISTER_TABLES) {
+        const file = path.join(dir, sub, `${name ?? table}.tsv`).replaceAll("'", "''");
         // the register's TSVs carry no quoting, and an empty cell is NULL (edition.ts)
         await conn.run(`CREATE OR REPLACE TABLE store.register.${table} AS SELECT ${select}
             FROM read_csv('${file}', delim = '\t', header = true, quote = '', escape = '', nullstr = '', all_varchar = true)`);
@@ -153,10 +160,16 @@ export async function main(): Promise<void> {
             const held = await tableExists(conn, 'register', 'edition')
                 ? (await conn.runAndReadAll('SELECT tag FROM register.edition')).getRows()[0]?.[0] as string | undefined
                 : undefined;
-            if (held === tag) {
+            // Held, and every table the build reads is there: nothing to do. A table missing
+            // (one this version of the build reads that the last didn't) re-adopts the edition.
+            const missing: string[] = [];
+            for (const {table} of REGISTER_TABLES)
+                if (!(await tableExists(conn, 'register', table))) missing.push(table);
+            if (held === tag && missing.length === 0) {
                 say(`register ${tag}: held already`);
                 return 0;
             }
+            if (held === tag) say(`register ${tag}: held, but without ${missing.join(', ')}; adopting it again`);
             await conn.run('INSTALL sqlite; LOAD sqlite');
             await conn.run(`ATTACH '${mirror.replaceAll("'", "''")}' AS maplify_mirror (TYPE sqlite, READ_ONLY)`);
             const baseline = await heldNames(conn);

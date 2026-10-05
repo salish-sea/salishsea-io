@@ -1,0 +1,363 @@
+id	name	region	lat	lon	radius_m	atlas_code	atlas_species	atlas_count	atlas_tidal_use	atlas_description	story	verified	created_at
+170	Waadah Island	Strait of Juan de Fuca-West	48.38217	-124.59167	500	6.01	PV	<100	LOW	Reef area on east side of Waadah Island.		false	2026-09-19T01:06:00.46634+00:00
+171	N Waadah Island	Strait of Juan de Fuca-West	48.38583	-124.59967	500	6.01	ZC	<100	ALL	On north tip of island.		false	2026-09-19T01:06:00.46634+00:00
+172	Seal and Sail Rock Area	Strait of Juan de Fuca-West	48.36183	-124.54567	500	6.02	PV	<100	LOW	Intertidal areas on Seal Rock.		false	2026-09-19T01:06:00.46634+00:00
+173	Seal and Sail Rock Area	Strait of Juan de Fuca-West	48.35917	-124.54383	500	6.02	PV	<100	LOW	Intertidal areas on Sail Rock.		false	2026-09-19T01:06:00.46634+00:00
+174	Seal and Sail Rock Area	Strait of Juan de Fuca-West	48.35267	-124.53167	500	6.02	PV	<100	LOW	Intertidal reef areas of Sail Rock.		false	2026-09-19T01:06:00.46634+00:00
+175	W of Seiku River Mouth	Strait of Juan de Fuca-West	48.30117	-124.41267	500	6.03	PV	<100	LOW	Intertidal reef areas west of Sekiu River.		false	2026-09-19T01:06:00.46634+00:00
+176	W of Seiku River Mouth	Strait of Juan de Fuca-West	48.305	-124.41967	500	6.03	PV	<100	LOW	Intertidal reef areas west of Sekiu River.		false	2026-09-19T01:06:00.46634+00:00
+177	Eagle Point Area	Strait of Juan de Fuca-West	48.27917	-124.34067	500	6.04	PV	<100	LOW	Intertidal ledges east of Eagle Point.		false	2026-09-19T01:06:00.46634+00:00
+178	Eagle Point Area	Strait of Juan de Fuca-West	48.27633	-124.33283	500	6.04	PV	<100	LOW	Intertidal ledges east of Eagle Point.		false	2026-09-19T01:06:00.46634+00:00
+179	Eagle Point Area	Strait of Juan de Fuca-West	48.27467	-124.32467	500	6.04	PV	<100	LOW	Intertidal ledges east of Eagle Point.		false	2026-09-19T01:06:00.46634+00:00
+180	Ship Point Area	Strait of Juan de Fuca-West	48.26217	-124.23383	500	6.05	PV	<100	LOW	Intertidal ledges east of Slip Point.		false	2026-09-19T01:06:00.46634+00:00
+181	Ship Point Area	Strait of Juan de Fuca-West	48.25733	-124.22383	500	6.05	PV	<100	LOW	Intertidal ledges east of Slip Point.		false	2026-09-19T01:06:00.46634+00:00
+182	Ship Point Area	Strait of Juan de Fuca-West	48.2505	-124.20617	500	6.05	PV	<100	LOW	Intertidal ledges east of Slip Point.		false	2026-09-19T01:06:00.46634+00:00
+183	W of Pillar Point Area	Strait of Juan de Fuca-West	48.22167	-124.11767	500	6.06	PV	<100	LOW	Intertidal ledges west of Pillar Point.		false	2026-09-19T01:06:00.46634+00:00
+184	W of Pillar Point Area	Strait of Juan de Fuca-West	48.21783	-124.10083	500	6.06	PV	<100	LOW	Intertidal ledges west of Pillar Point.		false	2026-09-19T01:06:00.46634+00:00
+185	W of Pillar Point Area	Strait of Juan de Fuca-West	48.22733	-124.13767	500	6.06	PV	<100	LOW	Intertidal ledges west of Pillar Point.		false	2026-09-19T01:06:00.46634+00:00
+186	Deep Creek Area	Strait of Juan de Fuca-West	48.17833	-124.04283	500	6.07	PV	<100	LOW	Reef areas off Deep Creek.		false	2026-09-19T01:06:00.46634+00:00
+187	Deep Creek Area	Strait of Juan de Fuca-West	48.176	-124.02467	500	6.07	PV	<100	LOW	Reef areas off Deep Creek.		false	2026-09-19T01:06:00.46634+00:00
+188	Deep Creek Area	Strait of Juan de Fuca-West	48.17317	-124.004	500	6.07	PV	<100	LOW	Reef areas off Deep Creek.		false	2026-09-19T01:06:00.46634+00:00
+189	Low Point/Lyre River Area	Strait of Juan de Fuca-West	48.16033	-123.83133	500	6.08	PV	<100	LOW	Scattered rocks and reef areas east of Lyre River.		false	2026-09-19T01:06:00.46634+00:00
+190	Crescent Bay/Tongue Point	Strait of Juan de Fuca-West	48.16783	-123.70833	500	6.09	PV	<100	LOW	Intertidal areas of Tongue Point.		false	2026-09-19T01:06:00.46634+00:00
+191	Striped Peak Area	Strait of Juan de Fuca-West	48.16417	-123.68	500	6.10	PV	<100	LOW	Intertidal ledges north of Striped Peak.		false	2026-09-19T01:06:00.46634+00:00
+192	Striped Peak Area	Strait of Juan de Fuca-West	48.16417	-123.68883	500	6.10	PV	<100	LOW	Intertidal ledges north of Striped Peak.		false	2026-09-19T01:06:00.46634+00:00
+193	Striped Peak Area	Strait of Juan de Fuca-West	48.16217	-123.66717	500	6.10	PV	<100	LOW	Intertidal ledges north of Striped Peak.		false	2026-09-19T01:06:00.46634+00:00
+194	Striped Peak Area	Strait of Juan de Fuca-West	48.16	-123.66083	500	6.10	PV	<100	LOW	Intertidal ledges north of Striped Peak.		false	2026-09-19T01:06:00.46634+00:00
+195	Port Angeles Area	Strait of Juan de Fuca-West	48.11783	-123.41117	500	6.11	PV	<100	LOW	Log booms off the ITT-Rayonier mill site (mill closed in 1997)		false	2026-09-19T01:06:00.46634+00:00
+196	Port Angeles Area	Strait of Juan de Fuca-West	48.13683	-123.45767	500	6.12	PV	<100	LOW	Log booms on inside of Ediz Hook in Port Angeles harbor.		false	2026-09-19T01:06:00.46634+00:00
+197	Rocks E of Pysht River	Strait of Juan de Fuca-West	48.19767	-123.0875	500	6.13	PV	<100	LOW	Scattered intertidal rocks and reef areas east of the Pysht River.		false	2026-09-19T01:06:00.46634+00:00
+198	Twin River Area	Strait of Juan de Fuca-West	48.16267	-123.91767	500	6.14	PV	<100	LOW	Scattered intertidal rocks and reef areas near Twin Rivers.		false	2026-09-19T01:06:00.46634+00:00
+199	Twin River Area	Strait of Juan de Fuca-West	48.16367	-123.87817	500	6.14	PV	<100	LOW	Scattered intertidal rocks and reef areas near Twin Rivers.		false	2026-09-19T01:06:00.46634+00:00
+200	Seabird Rocks	Strait of Juan de Fuca-West	48.7485	-125.15533	500	6.15	PV	<100	LOW	Intertidal rocks and reef areas around Seabird Rocks.		false	2026-09-19T01:06:00.46634+00:00
+201	Sombrio Point Reef	Strait of Juan de Fuca-West	48.49533	-123.29983	500	6.16	PV	<100	LOW	Intertidal rocks and reef areas around Sombrio Point.		false	2026-09-19T01:06:00.46634+00:00
+202	Sombrio Point	Strait of Juan de Fuca-West	48.48517	-123.2875	500	6.16	PV,ZC	<100	LOW	Intertidal ledges near Sombrio Point.		false	2026-09-19T01:06:00.46634+00:00
+203	Rock W of Carmanah Point	Strait of Juan de Fuca-West	48.616	-123.76033	500	6.17	EJ	100-500	LOW	Rock W of Carmanah Point.		false	2026-09-19T01:06:00.46634+00:00
+204	Dare Point Reef	Strait of Juan de Fuca-West	48.644	-123.80183	500	6.18	PV	<100	LOW	Reef area off Dare Point.		false	2026-09-19T01:06:00.46634+00:00
+205	Sooke Harbor	Strait of Juan de Fuca-West	48.35533	-123.72383	500	6.19	PV	<100	LOW	Sooke Harbor area.		false	2026-09-19T01:06:00.46634+00:00
+206	Sooke Harbor	Strait of Juan de Fuca-West	48.371	-123.715	500	6.19	PV	<100	LOW	Intertidal area off Sooke Harbor.		false	2026-09-19T01:06:00.46634+00:00
+207	Otter Point	Strait of Juan de Fuca-West	48.358	-123.82383	500	6.21	PV	<100	LOW	Intertidal rocks and reef areas off Otter Point.		false	2026-09-19T01:06:00.46634+00:00
+208	NW of Church Point	Strait of Juan de Fuca-West	48.31317	-123.59	500	6.22	PV	<100	LOW	Intertidal rocks and reef areas off Church Point.		false	2026-09-19T01:06:00.46634+00:00
+209	Becher Bay	Strait of Juan de Fuca-West	48.328	-123.60917	500	6.23	PV	<100	LOW	Intertidal rocks and reef areas around small island in Becher Bay.		false	2026-09-19T01:06:00.46634+00:00
+210	Muir Point	Strait of Juan de Fuca-West	48.37917	-123.87083	500	6.24	PV	<100	LOW	Intertidal rocks and reef areas off Muir Point.		false	2026-09-19T01:06:00.46634+00:00
+211	E San Simon Point	Strait of Juan de Fuca-West	48.43367	-123.09133	500	6.25	PV	<100	LOW	Intertidal ledges and rocks east of San Simon Point.		false	2026-09-19T01:06:00.46634+00:00
+212	Owen Point	Strait of Juan de Fuca-West	48.54467	-123.49983	500	6.26	PV	<100	LOW	Intertidal ledges and rocks off Owen Point.		false	2026-09-19T01:06:00.46634+00:00
+213	W Tsuquanah Point	Strait of Juan de Fuca-West	48.67333	-123.88183	500	6.27	PV	<100	LOW	Intertidal rocks and reef areas west of Tsuquanah Point.		false	2026-09-19T01:06:00.46634+00:00
+214	Pachena Point	Strait of Juan de Fuca-West	48.72017	-125.08017	500	6.28	PV,EJ	<100	LOW	Intertidal rocks and reef areas around Pachena Point.		false	2026-09-19T01:06:00.46634+00:00
+215	E of Cape Beale	Strait of Juan de Fuca-West	48.78383	-125.17517	500	6.29	PV	<100	LOW	Intertidal rocks and reef areas east of Cape Beale.		false	2026-09-19T01:06:00.46634+00:00
+216	Cullite Cove	Strait of Juan de Fuca-West	48.56867	-124.61833	500	6.30	PV	<100	LOW	Intertidal rocks and reef areas off Cullite Cove.		false	2026-09-19T01:06:00.46634+00:00
+217	Walbran Creek	Strait of Juan de Fuca-West	48.58017	-124.66517	500	6.31	PV	<100	LOW	Intertidal rocks and reef areas off Walbran Creek.		false	2026-09-19T01:06:00.46634+00:00
+218	Cerrantes Rocks	Strait of Juan de Fuca-West	48.52783	-124.45283	500	6.32	PV	<100	LOW	Intertidal ledges and reef areas at Cerantes Rocks.		false	2026-09-19T01:06:00.46634+00:00
+219	Graveyard Spit	Strait of Juan de Fuca-East	48.16083	-123.14767	500	07.01	PV	100-500	LOW	Beach areas around Graveyard Spit in Dungeness Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+220	Dungeness Spit End	Strait of Juan de Fuca-East	48.1845	-123.09967	500	07.02	PV,MA	100-500	LOW	On beach at tip of Dungeness Spit.		false	2026-09-19T01:06:00.46634+00:00
+221	Dungeness Bay Area	Strait of Juan de Fuca-East	48.1675	-123.14267	500	07.03	PV	<100	LOW	Along beach on east side of Dungeness Bay.		false	2026-09-19T01:06:00.46634+00:00
+222	Dungeness Bay Area	Strait of Juan de Fuca-East	48.16083	-123.15567	500	07.03	PV	<100	LOW	Along north side of main channel in Dungeness Bay.		false	2026-09-19T01:06:00.46634+00:00
+223	Gray’s Marsh (Kulakala Point)	Strait of Juan de Fuca-East	48.119	-123.05983	500	07.04	PV	<100	LOW	Beach and intertidal sand bars near Gray’s Marsh (Kulakala Point)		false	2026-09-19T01:06:00.46634+00:00
+224	Protection Island, Kanem Spit	Strait of Juan de Fuca-East	48.11883	-122.945	500	07.05	PV,MA	100-500	LOW	On beach and spit areas around Kanem Spit. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+225	Protection Island, Violet Spit	Strait of Juan de Fuca-East	48.12717	-122.90783	500	07.06	PV,MA	100-500	LOW	On beach area around Violet Spit. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+226	Smith Island Area	Strait of Juan de Fuca-East	48.318	-122.83667	500	07.07	PV	<100	LOW	On beaches and rocks on south side of Smith Island.		false	2026-09-19T01:06:00.46634+00:00
+227	Smith Island Area	Strait of Juan de Fuca-East	48.32017	-122.835	500	07.07	PV	100-500	LOW	On scattered rocks along north side of Smith Island.		false	2026-09-19T01:06:00.46634+00:00
+228	Minor Island Area	Strait of Juan de Fuca-East	48.32217	-122.82283	500	07.08	PV	500>	LOW	On cobble beach along south side of Minor Island. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+229	Minor Island Area	Strait of Juan de Fuca-East	48.32433	-122.81617	500	07.08	PV,MA	<100	LOW	On beach along north side of Minor Island. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+230	Kilisut Harbor Spit	Strait of Juan de Fuca-East	48.08867	-122.73317	500	07.09	PV	100-500	LOW	Along beach and spit at entrance to Kilisut Harbor.		false	2026-09-19T01:06:00.46634+00:00
+231	East of Marrowstone Island	Strait of Juan de Fuca-East	48.04767	-122.67867	500	07.10	PV	<100	LOW	Scattered intertidal rocks along the northeast side of Marrowstone Island.		false	2026-09-19T01:06:00.46634+00:00
+232	East of Marrowstone Island	Strait of Juan de Fuca-East	48.07817	-122.68517	500	07.10	PV	<100	LOW	Scattered intertidal rocks along southeast side of Marrowstone Island.		false	2026-09-19T01:06:00.46634+00:00
+233	Sequim Bay, Kiapot Point	Strait of Juan de Fuca-East	48.079	-123.04017	500	07.12	PV	<100	LOW	West end of Kiapot Point at entrance to Sequim Bay.		false	2026-09-19T01:06:00.46634+00:00
+234	Discovery Bay Area	Strait of Juan de Fuca-East	48.04783	-122.87133	500	07.14	PV	<100	LOW	Along beaches and spit on west side of Discovery Bay.		false	2026-09-19T01:06:00.46634+00:00
+235	Klas and Colvos Rocks Area	Strait of Juan de Fuca-East	47.9625	-122.67067	500	08.01	PV	<100	LOW	Intertidal reef and shoals around Klas Rock.		false	2026-09-19T01:06:00.46634+00:00
+236	Klas and Colvos Rocks Area	Strait of Juan de Fuca-East	47.94933	-122.666	500	08.01	PV	100-500	LOW	Intertidal shoals and rocks around Colvos Rocks.		false	2026-09-19T01:06:00.46634+00:00
+237	Port Gamble Bay	Hood Canal	47.83983	-122.58167	500	08.02	PV	<100	ALL	North log booms along west side of Port Gamble Bay.		false	2026-09-19T01:06:00.46634+00:00
+238	Port Gamble Bay	Hood Canal	47.8335	-122.58167	500	08.02	PV	<100	ALL	South log booms along west side of Port Gamble Bay.		false	2026-09-19T01:06:00.46634+00:00
+239	Quilcene Bay	Hood Canal	47.81433	-122.85083	500	08.03	PV	<100	HIGH	Log booms on east side of bay.		false	2026-09-19T01:06:00.46634+00:00
+240	Quilcene Bay	Hood Canal	47.82383	-122.85783	500	08.03	PV	<100	HIGH	Along channels during high tides.		false	2026-09-19T01:06:00.46634+00:00
+241	Quilcene Bay	Hood Canal	47.7925	-122.84983	500	08.03	PV	100-500	ALL	On net pens and rafts along west side of Bolton Peninsula.		false	2026-09-19T01:06:00.46634+00:00
+242	Dosewallips River	Hood Canal	47.68583	-122.89583	500	08.04	PV	100-500	HIGH	Along channels north of river mouth during high tides.		false	2026-09-19T01:06:00.46634+00:00
+243	Dosewallips River	Hood Canal	47.68967	-122.89417	500	08.04	PV	<100	HIGH	Areas along channels at mouth of river during high tides.		false	2026-09-19T01:06:00.46634+00:00
+244	Duckabush River	Hood Canal	47.64883	-122.93233	500	08.05	PV	100-500	HIGH	Areas along channels north of river mouth during high tides.		false	2026-09-19T01:06:00.46634+00:00
+245	Duckabush River	Hood Canal	47.651	-122.93117	500	08.05	PV	<100	HIGH	Along channels and beach areas north of river during high tides.		false	2026-09-19T01:06:00.46634+00:00
+246	Hamma Hamma River	Hood Canal	47.54517	-123.03633	500	08.06	PV	100-500	HIGH	Along channels and beaches west of river mouth during high tides.		false	2026-09-19T01:06:00.46634+00:00
+247	Jorsted Creek	Hood Canal	47.52867	-123.04767	500	08.07	PV	<100	ALL	On log booms off Jorstad Creek.		false	2026-09-19T01:06:00.46634+00:00
+248	Skokomish River	Hood Canal	47.34283	-123.11667	500	08.08	PV	100-500	HIGH	Along channels off reiver mouth during high tides.		false	2026-09-19T01:06:00.46634+00:00
+249	Skokomish River	Hood Canal	47.34133	-123.12267	500	08.08	PV	100-500	HIGH	Along channels and beaches west of river mouth during high tides.		false	2026-09-19T01:06:00.46634+00:00
+250	Belfair Floats	Hood Canal	47.4175	-122.87183	500	08.09	PV	<100	ALL	On rafts and floats along south side.		false	2026-09-19T01:06:00.46634+00:00
+251	Belfair Floats	Hood Canal	47.40733	-122.88867	500	08.09	PV	<100	ALL	On rafts and floats along south side.		false	2026-09-19T01:06:00.46634+00:00
+252	Belfair Floats	Hood Canal	47.40233	-122.89483	500	08.09	PV	<100	ALL	On rafts and floats along south side.		false	2026-09-19T01:06:00.46634+00:00
+253	Dabob Bay/Long Spit	Hood Canal	47.84767	-122.809	500	08.11	PV	<100	HIGH	Scattered intertidal rocks off Tala Point.		false	2026-09-19T01:06:00.46634+00:00
+254	Dabob Bay/Broad Spit	Hood Canal	47.819	-122.82217	500	08.12	PV	<100	HIGH	Beach and floats at Long Spit during high tides.		false	2026-09-19T01:06:00.46634+00:00
+255	Dabob Bay/Broad Spit	Hood Canal	47.819	-122.82217	500	08.12	PV			On rafts and floats on east side of Bolton Peninsula at Broad Spit.		false	2026-09-19T01:06:00.46634+00:00
+256	Dabob Bay/Pulali Point	Hood Canal	47.737	-122.85733	500	08.13	PV	<100	HIGH	Intertidal rocks off Pulali Point in Dabob Bay.		false	2026-09-19T01:06:00.46634+00:00
+257	Point Roberts/SE Rocks	Eastern Bays (Boundary Bay to Port Gardner)	49.97433	-123.01883	500	09.02	PV	<100	LOW	Scattered intertidal rocks off southeast corner of Point Roberts		false	2026-09-19T01:06:00.46634+00:00
+258	West Boundary Bay	Eastern Bays (Boundary Bay to Port Gardner)	49.04383	-123.00517	500	09.03	PV	<100	LOW	Along channels in northwest Boundary Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+259	Boundary Bay, off Runway	Eastern Bays (Boundary Bay to Port Gardner)	49.04083	-122.9895	500	09.04	PV	500>	LOW	Main channel south of Boundary Bay airport. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+260	E Boundary Bay (Mud Bay)	Eastern Bays (Boundary Bay to Port Gardner)	49.04717	-122.92617	500	09.05	PV	100-500	LOW	Channels northwest of Cresent Beach in Mud Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+261	E Boundary Bay (Mud Bay)	Eastern Bays (Boundary Bay to Port Gardner)	49.06983	-122.89633	500	09.05	PV	<100	LOW	Channels in Mud Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+262	Rocks off Kwomais Point	Eastern Bays (Boundary Bay to Port Gardner)	49.029	-122.87533	500	09.06	PV	<100	LOW	Scattered intertidal rocks off Kwomais Point.		false	2026-09-19T01:06:00.46634+00:00
+263	Drayton Harbor	Eastern Bays (Boundary Bay to Port Gardner)	49.97167	-122.73333	500	09.07	PV	<100	LOW	Channels along Dakota Creek in Drayton Harbor.		false	2026-09-19T01:06:00.46634+00:00
+264	Drayton Harbor	Eastern Bays (Boundary Bay to Port Gardner)	48.97883	-122.75117	500	09.07	PV	<100	LOW	On intertidal shoals and tideflats in central Drayton Harbor.		false	2026-09-19T01:06:00.46634+00:00
+265	Drayton Harbor	Eastern Bays (Boundary Bay to Port Gardner)	48.98517	-122.77367	500	09.08	PV	100-500	ALL	On floats at Semiahmoo Marina in Drayton Harbor.		false	2026-09-19T01:06:00.46634+00:00
+266	Rocks off Birch Point	Eastern Bays (Boundary Bay to Port Gardner)	48.94867	-122.82067	500	09.09	PV	<100	LOW	Scattered intertidal rocks off Birch Point.		false	2026-09-19T01:06:00.46634+00:00
+267	Point Whitehorn	Eastern Bays (Boundary Bay to Port Gardner)	48.88417	-122.78417	500	09.10	PV	<100	LOW	Scattered intertidal rocks off Point Whitehorn.		false	2026-09-19T01:06:00.46634+00:00
+268	Lummi Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.78317	-122.68367	500	09.11	PV	<100	LOW	Intertidal areas and shoals in Lummi Bay.		false	2026-09-19T01:06:00.46634+00:00
+269	Bellingham Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.738	-122.497	500	09.12	PV	<100	ALL	On log booms in Bellingham Bay.		false	2026-09-19T01:06:00.46634+00:00
+270	Bellingham Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.73533	-122.49933	500	09.12	PV	<100	ALL	On log booms in Bellingham Bay.		false	2026-09-19T01:06:00.46634+00:00
+271	Bellingham Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.72383	-122.50717	500	09.12	PV	<100	ALL	On log booms in Bellingham Bay.		false	2026-09-19T01:06:00.46634+00:00
+272	Spit N of Portage Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.72683	-122.63067	500	09.13	PV	<100	LOW	Beach areas along spit north of Portage Bay.		false	2026-09-19T01:06:00.46634+00:00
+273	Nooksack River Mouth	Eastern Bays (Boundary Bay to Port Gardner)	48.76817	-122.59833	500	09.14	PV	<100	LOW	On shoals and along channels at mouth of Nooksack River.		false	2026-09-19T01:06:00.46634+00:00
+274	Chuckanut Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.68317	-122.50083	500	09.15	PV	<100	LOW	Scattered intertidal rocks and reefs in Chuckanut Bay.		false	2026-09-19T01:06:00.46634+00:00
+275	Rocks off Wildcat Cove	Eastern Bays (Boundary Bay to Port Gardner)	48.65367	-122.4955	500	09.16	PV	<100	LOW	Scattered intertidal rocks and reefs off Larabee State Park.		false	2026-09-19T01:06:00.46634+00:00
+276	Eliza Rocks	Eastern Bays (Boundary Bay to Port Gardner)	48.64383	-122.57667	500	09.17	PV	100-500	LOW	Intertidal rocks and reef areas off southeast corner of Eliza Island.		false	2026-09-19T01:06:00.46634+00:00
+277	Samish Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.5595	-122.469	500	09.18	PV	<100	LOW	Along channels at mouth of Samish River.		false	2026-09-19T01:06:00.46634+00:00
+278	Samish Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.57233	-122.45983	500	09.19	PV	100-500	LOW	Along channels north of Edison Slough, Samish Bay.		false	2026-09-19T01:06:00.46634+00:00
+279	Padilla Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.55683	-122.52033	500	09.20	PV	<100	LOW	Along channels in north Padilla Bay.		false	2026-09-19T01:06:00.46634+00:00
+280	Padilla Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.539	-122.51267	500	09.21	PV	100-500	LOW	Along channels east of Saddlebag Island in Padilla Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+281	Padilla Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.52017	-122.49533	500	09.22	PV	<100	LOW	Along channels of Joe Leary Slough in Padilla Bay.		false	2026-09-19T01:06:00.46634+00:00
+282	Padilla Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.48067	-122.48667	500	09.23	PV	<100	LOW	Along channels in southeast Padilla Bay.		false	2026-09-19T01:06:00.46634+00:00
+283	Padilla Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.476	-122.48317	500	09.23	PV	<100	LOW	Along channels in southeast Padilla Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+284	Padilla Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.47583	-122.48933	500	09.23	PV	<100	LOW	Along channels in southeast Padilla Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+285	Padilla Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.47283	-122.51467	500	09.24	PV	100-500	LOW	Along channels east of Swinomish Slough in Padilla Bay.		false	2026-09-19T01:06:00.46634+00:00
+286	Padilla Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.46833	-122.51567	500	09.24	PV	<100	LOW	Along channels east of Swinomish Slough in Padilla Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+287	Padilla Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.48383	-122.51333	500	09.24	PV	<100	LOW	Along channels east of Swinomish Slough in Padilla Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+288	Padilla Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.485	-122.5425	500	09.25	PV	<100	LOW	Along channels west of Swinomish Slough in Padilla Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+289	Padilla Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.486	-122.53917	500	09.25	PV	<100	LOW	Along channels west of Swinomish Slough in Padilla Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+290	Fidalgo Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.49567	-122.599	500	09.27	PV	<100	ALL	On log booms at mill on west side of Fidalgo Bay.		false	2026-09-19T01:06:00.46634+00:00
+291	Fidalgo Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.49817	-122.58433	500	09.27	PV	100-500	ALL	On log booms anchored in middle of Fidalgo Bay.		false	2026-09-19T01:06:00.46634+00:00
+292	Similk Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.44083	-122.55733	500	09.28	PV	<100	ALL	On log booms in Similk Bay.		false	2026-09-19T01:06:00.46634+00:00
+293	Seal Rocks	Eastern Bays (Boundary Bay to Port Gardner)	48.37433	-122.56183	500	09.29	PV	<100	LOW	On intertidal rocks and reef area around Seal Rocks.		false	2026-09-19T01:06:00.46634+00:00
+294	N Skagit Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.35783	-122.52167	500	09.30	PV	<100	LOW	Along channels south of Goat Island in Skagit Bay.		false	2026-09-19T01:06:00.46634+00:00
+295	S Skagit Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.28483	-122.38383	500	09.31	PV	<100	LOW	Along channels off south arms of Skagit River in Skagit Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+296	S Skagit Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.29717	-122.40883	500	09.31	PV	<100	LOW	Along channels off south arms of Skagit River in Skagit Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+297	S Skagit Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.29217	-122.40283	500	09.31	PV	<100	LOW	Along channels off south arms of Skagit River in Skagit Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+298	S Skagit Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.285	-122.40367	500	09.31	PV	<100	LOW	Along channels off south arms of Skagit River in Skagit Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+299	S Skagit Bay Area	Eastern Bays (Boundary Bay to Port Gardner)	48.29767	-122.386	500	09.31	PV	<100	LOW	Along channels off south arms of Skagit River in Skagit Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+300	Skagit Bay/N of Point Brown	Eastern Bays (Boundary Bay to Port Gardner)	48.27167	-122.44233	500	09.32	PV	100-500	LOW	On intertidal shoals north of Point Brown in Skagit Bay.		false	2026-09-19T01:06:00.46634+00:00
+301	Port Susan/Livingston Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.22217	-122.43117	500	09.33	PV	<100	LOW	Along channels in Livingston Bay.		false	2026-09-19T01:06:00.46634+00:00
+302	Port Susan/Livingston Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.20983	-122.39583	500	09.34	PV	100-500	LOW	Along channels of South Pass into Port Susan.		false	2026-09-19T01:06:00.46634+00:00
+303	Port Susan/Livingston Bay	Eastern Bays (Boundary Bay to Port Gardner)	48.2005	-122.38867	500	09.34	PV	<100	LOW	Along channels off mouth of Stillaguamish River in Port Susan.		false	2026-09-19T01:06:00.46634+00:00
+304	Gedney Island marina	Eastern Bays (Boundary Bay to Port Gardner)	48.02083	-122.31983	500	09.35	PV	<100	ALL	On bargeand log boom breakwater at Gedney Island marina.		false	2026-09-19T01:06:00.46634+00:00
+305	Snohomish River log booms	Eastern Bays (Boundary Bay to Port Gardner)	48.0435	-122.20567	500	09.36	PV	<100	ALL	Log booms along Snohomish River.		false	2026-09-19T01:06:00.46634+00:00
+306	Everett Harbor Area	Eastern Bays (Boundary Bay to Port Gardner)	47.99333	-122.22133	500	09.37	ZC,PV	100-500	ALL	Log booms at Port of Everett/Navy Homeport.		false	2026-09-19T01:06:00.46634+00:00
+307	Baby Island	Eastern Bays (Boundary Bay to Port Gardner)	48.09967	-122.526	500	09.38	PV	<100	LOW	Beaches and intertidal areas around Baby Island.		false	2026-09-19T01:06:00.46634+00:00
+308	Penn Cove/Oak Harbor	Eastern Bays (Boundary Bay to Port Gardner)	48.26783	-122.62283	500	09.39	PV	<100	LOW	Scattered intertidal rocks and reef areas near Oak Harbor.		false	2026-09-19T01:06:00.46634+00:00
+309	Everett Harbor Bouys	Eastern Bays (Boundary Bay to Port Gardner)	47.99083	-122.2485	500	09.40	ZC	<10	ALL	Everett Harbor bouy.		false	2026-09-19T01:06:00.46634+00:00
+310	Everett Harbor Bouys	Eastern Bays (Boundary Bay to Port Gardner)	47.98067	-122.245	500	09.40	ZC			Everett Harbor bouy.		false	2026-09-19T01:06:00.46634+00:00
+311	Liberty Bay/Poulsbo Marina	Puget Sound (Whidbey Island to Olympia)	47.73083	-122.64683	500	10.01	PV	<100	ALL	On floats and log booms at the Poulsbo marina.		false	2026-09-19T01:06:00.46634+00:00
+312	Blakely Rocks	Puget Sound (Whidbey Island to Olympia)	47.59467	-122.47933	500	10.02	PV	<100	LOW	On intertidal rocks and reef areas around Blakely Rocks.		false	2026-09-19T01:06:00.46634+00:00
+313	Cutts Island	Puget Sound (Whidbey Island to Olympia)	47.32233	-122.68517	500	10.03	PV	100-500	LOW	On spit on north end of island.		false	2026-09-19T01:06:00.46634+00:00
+314	Horsehead Bay Floats	Puget Sound (Whidbey Island to Olympia)	47.29083	-122.68467	500	10.04	PV	<100	ALL	On floats and rafts in Horsehead Bay.		false	2026-09-19T01:06:00.46634+00:00
+315	Wykoff Shoals	Puget Sound (Whidbey Island to Olympia)	47.23817	-122.71017	500	10.05	PV	<100	LOW	On intertidal areas around Wykoff Shoals.		false	2026-09-19T01:06:00.46634+00:00
+316	Gertrude Island	Puget Sound (Whidbey Island to Olympia)	47.21583	-122.66017	500	10.06	PV	500>	LOW	Along beaches and intertidal areas around island. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+317	Eagle Island Area	Puget Sound (Whidbey Island to Olympia)	47.18917	-122.6945	500	10.07	PV	100-500	LOW	On beach and shoals around Eagle Island.		false	2026-09-19T01:06:00.46634+00:00
+318	Eagle Island Area	Puget Sound (Whidbey Island to Olympia)	47.19233	-122.70067	500	10.07	ZC	<10	ALL	On green bouy west of Eagle Island.		false	2026-09-19T01:06:00.46634+00:00
+319	Nisqually Delta Area	Puget Sound (Whidbey Island to Olympia)	47.10033	-122.69933	500	10.08	PV	100-500	LOW	Along channels at mouth of river during high tides.		false	2026-09-19T01:06:00.46634+00:00
+320	Nisqually Delta Bouy	Puget Sound (Whidbey Island to Olympia)	47.114	-122.69633	500	10.08	ZC	<10	ALL	On green bouy off Nisqually Delta.		false	2026-09-19T01:06:00.46634+00:00
+321	Woodard Bay	Puget Sound (Whidbey Island to Olympia)	47.13867	-122.83817	500	10.09	PV	100-500	ALL	On log booms in Woodard Bay (at old Weyerhauser site).		false	2026-09-19T01:06:00.46634+00:00
+322	McMicken Island	Puget Sound (Whidbey Island to Olympia)	47.24633	-122.86383	500	10.10	PV	<100	LOW	Beach and intertidal areas around island.		false	2026-09-19T01:06:00.46634+00:00
+323	Totten Inlet Area	Puget Sound (Whidbey Island to Olympia)	47.13317	-123.01867	500	10.11	PV	<100	ALL	On rafts and floats on west side of inlet.		false	2026-09-19T01:06:00.46634+00:00
+324	Totten Inlet Area	Puget Sound (Whidbey Island to Olympia)	47.14783	-122.973	500	10.11	PV	<100	ALL	On rafts and log booms on east side of inlet.		false	2026-09-19T01:06:00.46634+00:00
+325	Totten Inlet Area	Puget Sound (Whidbey Island to Olympia)	47.14983	-122.96717	500	10.11	PV	<100	ALL	On log booms on east side of inlet.		false	2026-09-19T01:06:00.46634+00:00
+326	Totten Inlet Area	Puget Sound (Whidbey Island to Olympia)	47.13417	-123.00283	500	10.11	PV	<100	ALL	On rafts and net pens off Gallager Cove.		false	2026-09-19T01:06:00.46634+00:00
+327	Budd Inlet Area	Puget Sound (Whidbey Island to Olympia)	47.07167	-122.91783	500	10.12	PV	<100	ALL	On log booms on west side of Budd Inlet.		false	2026-09-19T01:06:00.46634+00:00
+328	Budd Inlet Area	Puget Sound (Whidbey Island to Olympia)	47.0665	-122.90467	500	10.12	PV	<100	ALL	On shoal area west of Priest Point State Park.		false	2026-09-19T01:06:00.46634+00:00
+329	Eld Inlet Area	Puget Sound (Whidbey Island to Olympia)	47.06933	-123.00967	500	10.13	PV	<100	ALL	On rafts and floats in Mud Bay.		false	2026-09-19T01:06:00.46634+00:00
+330	Eld Inlet Area	Puget Sound (Whidbey Island to Olympia)	47.09733	-122.98233	500	10.13	PV	<100	ALL	On rafts and floats on west side of Eld Inlet.		false	2026-09-19T01:06:00.46634+00:00
+331	Eld Inlet Area	Puget Sound (Whidbey Island to Olympia)	47.09283	-122.96233	500	10.13	PV	<100	ALL	On rafts and floats on east side of Eld Inlet.		false	2026-09-19T01:06:00.46634+00:00
+332	Eld Inlet Area	Puget Sound (Whidbey Island to Olympia)	47.09667	-122.9575	500	10.13	PV	<100	ALL	On rafts and float on east side of Eld Inlet.		false	2026-09-19T01:06:00.46634+00:00
+333	Hammersly Inlet/Shelton	Puget Sound (Whidbey Island to Olympia)	47.21083	-123.08317	500	10.14	PV	<100	ALL	On log booms off mill at Shelton.		false	2026-09-19T01:06:00.46634+00:00
+334	Hammersly Inlet/Shelton	Puget Sound (Whidbey Island to Olympia)	47.22767	-123.04517	500	10.14	PV	<100	ALL	On log booms in Chapman Bay.		false	2026-09-19T01:06:00.46634+00:00
+335	Rosedale Beach Floats	Puget Sound (Whidbey Island to Olympia)	47.33617	-122.6605	500	10.15	PV	<100	ALL	On rafts and floats off Rosedale.		false	2026-09-19T01:06:00.46634+00:00
+336	Edmonds Wreck/Scuba Float	Puget Sound (Whidbey Island to Olympia)	47.81483	-122.38267	500	10.16	ZC,PV	<100	ALL	On rafts and floats north of ferry dock.		false	2026-09-19T01:06:00.46634+00:00
+337	Bremerton/Dyes Inlet	Puget Sound (Whidbey Island to Olympia)	47.59083	-122.68167	500	10.17	PV	<100	ALL	On rafts and floats in Dyes Inlet.		false	2026-09-19T01:06:00.46634+00:00
+338	Commencement Bay	Puget Sound (Whidbey Island to Olympia)	47.29183	-122.41267	500	10.18	PV,ZC	<100	ALL	On bouys and floats in northeast Commencement Bay.		false	2026-09-19T01:06:00.46634+00:00
+339	Commencement Bay	Puget Sound (Whidbey Island to Olympia)	47.28933	-122.40983	500	10.18	PV	<100	ALL	On log booms in northeast Commencement Bay.		false	2026-09-19T01:06:00.46634+00:00
+340	Shilshole Bay Area	Puget Sound (Whidbey Island to Olympia)	47.68517	-122.40633	500	10.19	ZC	<10	ALL	On floats and bouys of Shilshole Bay jetty.		false	2026-09-19T01:06:00.46634+00:00
+341	Shilshole Bay Area	Puget Sound (Whidbey Island to Olympia)	47.67817	-122.41117	500	10.19	ZC	<100	ALL	On south tip of Shilshole Bay jetty.		false	2026-09-19T01:06:00.46634+00:00
+342	NW McNeil Island Bouy	Puget Sound (Whidbey Island to Olympia)	47.23783	-122.68433	500	10.20	ZC	<10	ALL	On white mooring bouy off northwest side of McNeil Island.		false	2026-09-19T01:06:00.46634+00:00
+343	NE McNeil/Hyde Point Bouy	Puget Sound (Whidbey Island to Olympia)	47.2185	-122.64183	500	10.21	ZC	<10	ALL	On white mooring bouy off Hyde Point on northeast side of McNeil Island.		false	2026-09-19T01:06:00.46634+00:00
+344	Toliva Shoals Bouy	Puget Sound (Whidbey Island to Olympia)	47.2025	-122.60417	500	10.22	ZC,EJ	<10	ALL	On Toliva Shoals bouy.		false	2026-09-19T01:06:00.46634+00:00
+345	Yellow ‘TC’ Bouy	Puget Sound (Whidbey Island to Olympia)	47.32367	-122.45583	500	10.23	ZC	<10	ALL	On yellow ‘TC’ bouy off southeast Maury Island.		false	2026-09-19T01:06:00.46634+00:00
+346	Yellow ‘TB’ Bouy	Puget Sound (Whidbey Island to Olympia)	47.38517	-122.35183	500	10.24	ZC	<10	ALL	On yellow ‘TB’ bouy off Pt. Robinson.		false	2026-09-19T01:06:00.46634+00:00
+347	Yellow ‘TA’ Bouy	Puget Sound (Whidbey Island to Olympia)	47.44783	-122.40183	500	10.25	ZC	<10	ALL	On yellow ‘TA’ bouy off Three Tree Point.		false	2026-09-19T01:06:00.46634+00:00
+348	Yellow ‘T’ Bouy	Puget Sound (Whidbey Island to Olympia)	47.57567	-122.44933	500	10.26	ZC	<10	ALL	On yellow ‘T’ bouy off Alki Point.		false	2026-09-19T01:06:00.46634+00:00
+349	West Point Bouy	Puget Sound (Whidbey Island to Olympia)	47.66	-122.43683	500	10.27	ZC	<10	ALL	On green bouy just off West Point.		false	2026-09-19T01:06:00.46634+00:00
+350	Yellow ‘SG’ Bouy	Puget Sound (Whidbey Island to Olympia)	47.66183	-122.46333	500	10.28	ZC	<10	ALL	On yellow ‘SG’ bouy between West Point and Skiff Point.		false	2026-09-19T01:06:00.46634+00:00
+351	Meadow Pt Bouy	Puget Sound (Whidbey Island to Olympia)	47.69667	-122.40767	500	10.29	ZC	<10	ALL	On green Meadow Point bouy.		false	2026-09-19T01:06:00.46634+00:00
+352	Yellow ‘SF’ Bouy	Puget Sound (Whidbey Island to Olympia)	47.76517	-122.43617	500	10.30	ZC	<10	ALL	On yellow ‘SF’ bouy east of Jefferson Head.		false	2026-09-19T01:06:00.46634+00:00
+353	Possession Point Bouy	Puget Sound (Whidbey Island to Olympia)	47.89733	-122.38417	500	10.31	ZC	<10	ALL	On green bouy off Possession Point.		false	2026-09-19T01:06:00.46634+00:00
+354	Scatchet Head Bouy	Puget Sound (Whidbey Island to Olympia)	47.90933	-122.43567	500	10.32	ZC	<10	ALL	On red Scatchet Head bouy.		false	2026-09-19T01:06:00.46634+00:00
+355	Yellow ‘SE’ Bouy	Puget Sound (Whidbey Island to Olympia)	47.92467	-122.49317	500	10.33	ZC	<10	ALL	On yellow ‘SE’ bouy off Point No Point.		false	2026-09-19T01:06:00.46634+00:00
+356	Double Bluff Bouy	Puget Sound (Whidbey Island to Olympia)	47.96633	-122.552	500	10.34	ZC	<10	ALL	On green bouy off Double Bluff.		false	2026-09-19T01:06:00.46634+00:00
+357	Yellow ‘SD’ Bouy	Puget Sound (Whidbey Island to Olympia)	47.96617	-122.57883	500	10.35	ZC	<10	ALL	On yellow ‘SD’ bouy just north of Foulweather Bluff.		false	2026-09-19T01:06:00.46634+00:00
+358	Foulweather Bluff Bouy	Puget Sound (Whidbey Island to Olympia)	47.94667	-122.602	500	10.36	ZC	<10	ALL	On red bouy off Foulweather Bluff.		false	2026-09-19T01:06:00.46634+00:00
+359	Yellow ‘SC’ Bouy	Puget Sound (Whidbey Island to Olympia)	48.03117	-122.63567	500	10.37	ZC	<10	ALL	On yellow ‘SC’ bouy west of Bush Point.		false	2026-09-19T01:06:00.46634+00:00
+360	Restoration Point Bouy	Puget Sound (Whidbey Island to Olympia)	47.58367	-122.47567	500	10.38	ZC	<10	ALL	On red bouy off Restoration Point.		false	2026-09-19T01:06:00.46634+00:00
+361	Rich Passage Bouy	Puget Sound (Whidbey Island to Olympia)	47.56783	-122.52133	500	10.39	ZC	<10	ALL	On red ‘4’ bouy off Orchard Point.		false	2026-09-19T01:06:00.46634+00:00
+362	Rich Passage Bouy	Puget Sound (Whidbey Island to Olympia)	47.576	-122.53433	500	10.39	ZC	<10	ALL	On red bouy in Rich Passage.		false	2026-09-19T01:06:00.46634+00:00
+363	Matia Island Area	San Juan Islands (Rosario Strait)	48.74933	-122.83383	500	11.01	PV	<100	LOW	On interti1dal ledges and reef areas along north side of island.		false	2026-09-19T01:06:00.46634+00:00
+364	Matia Island Area	San Juan Islands (Rosario Strait)	48.744	-122.82583	500	11.01	PV	<100	LOW	On intertidal rocks and reef areas off east end of island.		false	2026-09-19T01:06:00.46634+00:00
+365	Puffin Island Area	San Juan Islands (Rosario Strait)	48.74517	-122.82167	500	11.02	PV	<100	LOW	On intertidal rocks and reef area on west end of Puffin Island.		false	2026-09-19T01:06:00.46634+00:00
+366	Puffin Island Area	San Juan Islands (Rosario Strait)	48.74567	-122.82033	500	11.02	PV	<100	LOW	On intertidal ledges on north side of Puffin Island. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+367	Reef East of Puffin Island	San Juan Islands (Rosario Strait)	48.744	-122.81583	500	11.03	PV	100-500	LOW	On reef area just east of Puffin Island. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+368	Lummi Island/Point Migley	San Juan Islands (Rosario Strait)	48.74833	-122.716	500	11.04	PV	100-500	LOW	On rocks and reef area off Point Migley.		false	2026-09-19T01:06:00.46634+00:00
+369	Barnes Island	San Juan Islands (Rosario Strait)	48.70383	-122.77383	500	11.05	PV	<100	LOW	On intertidal rocks and reef areas on north end of island.		false	2026-09-19T01:06:00.46634+00:00
+370	Clark Island	San Juan Islands (Rosario Strait)	48.70833	-122.76467	500	11.06	PV	100-500	LOW	On intertidal rocks and reef areas on north end of island.		false	2026-09-19T01:06:00.46634+00:00
+371	The Sisters Area	San Juan Islands (Rosario Strait)	48.69183	-122.75883	500	11.07	PV	<100	LOW	On intertidal rocks and reef areas off southeast end of Barnes Island.		false	2026-09-19T01:06:00.46634+00:00
+372	The Sisters Area	San Juan Islands (Rosario Strait)	48.6935	-122.75633	500	11.07	PV	<100	LOW	On intertidal area around The Sisters Rock (USFWS ID 47).		false	2026-09-19T01:06:00.46634+00:00
+373	Little Sister	San Juan Islands (Rosario Strait)	48.69	-122.75817	500	11.08	PV	<100	LOW	On intertidal area around Little Sister Rock (USFWS ID 48).		false	2026-09-19T01:06:00.46634+00:00
+374	Middle Peapod Rock	San Juan Islands (Rosario Strait)	48.64017	-122.75067	500	11.09	PV	<100	LOW	On intertidal rocks and reef areas around Middle Peapod Rock (USFWS ID 63).		false	2026-09-19T01:06:00.46634+00:00
+375	North Peapod Rock	San Juan Islands (Rosario Strait)	48.64217	-122.74517	500	11.10	PV	<100	LOW	On intertidal rocks and reef areas around North Peapod Rock (USFWS ID 64).		false	2026-09-19T01:06:00.46634+00:00
+376	South Peapod Rock	San Juan Islands (Rosario Strait)	48.634	-122.7575	500	11.11	PV	100-500	LOW	On intertidal rocks and reef areas around South Peapod Rock (USFWS ID 62).		false	2026-09-19T01:06:00.46634+00:00
+377	Boulder Reef Area	San Juan Islands (Rosario Strait)	48.63517	-122.68917	500	11.12	PV	100-500	LOW	On intertidal rocks and reef area at Boulder Reef		false	2026-09-19T01:06:00.46634+00:00
+378	Buckeye Shoal	San Juan Islands (Rosario Strait)	48.624	-122.72867	500	11.13	PV	<100	LOW	On intertidal reef area at Buckeye Shoal.		false	2026-09-19T01:06:00.46634+00:00
+379	Cypress Reef	San Juan Islands (Rosario Strait)	48.61633	-122.719	500	11.14	PV	<100	LOW	On intertidal rocks and shoals at Cypress Reef.		false	2026-09-19T01:06:00.46634+00:00
+380	Cone Island	San Juan Islands (Rosario Strait)	48.59233	-122.67817	500	11.15	PV	<100	LOW	On intertidal areas around Cone Islands.		false	2026-09-19T01:06:00.46634+00:00
+381	Sinclair Island, SE	San Juan Islands (Rosario Strait)	48.61283	-122.65683	500	11.16	PV	<100	LOW	On intertidal rocks and reef areas on southeast end of island.		false	2026-09-19T01:06:00.46634+00:00
+382	Viti Island	San Juan Islands (Rosario Strait)	48.63267	-122.621	500	11.17	PV	<100	LOW	On intertidal rocks and reef areas around Viti Island (USFWS ID 66).		false	2026-09-19T01:06:00.46634+00:00
+383	Black Rock	San Juan Islands (Rosario Strait)	48.54633	-122.76417	500	11.18	PV	<100	LOW	On intertidal rocks and reef areas around Black Rock.		false	2026-09-19T01:06:00.46634+00:00
+384	Pointer Island	San Juan Islands (Rosario Strait)	48.53833	-122.78083	500	11.19	PV	<100	LOW	On intertidal rocks and reef areas around Pointer Island (USFWS ID 57).		false	2026-09-19T01:06:00.46634+00:00
+385	Lawson Rock	San Juan Islands (Rosario Strait)	48.53117	-122.78733	500	11.20	PV	<100	LOW	On intertidal rocks and reef areas around Lawson Rock (USFWS ID 56).		false	2026-09-19T01:06:00.46634+00:00
+386	Belle Rock	San Juan Islands (Rosario Strait)	48.49317	-122.7515	500	11.21	PV	<100	LOW	On intertidal areas around Belle Rock.		false	2026-09-19T01:06:00.46634+00:00
+387	Bird Rocks	San Juan Islands (Rosario Strait)	48.485	-122.76083	500	11.22	PV	<100	LOW	On intertidal rocks and reef areas around south Bird Rocks (USFWS ID 80).		false	2026-09-19T01:06:00.46634+00:00
+388	Bird Rocks	San Juan Islands (Rosario Strait)	48.486	-122.76017	500	11.22	PV	<100	LOW	On intertidal rocks and reef areas around middle Bird Rocks (USFWS ID 80).		false	2026-09-19T01:06:00.46634+00:00
+389	Bird Rocks	San Juan Islands (Rosario Strait)	48.48717	-122.75933	500	11.22	PV	<100	LOW	On intertidal rocks and reef areas around north Bird Rocks (USFWS ID 80).		false	2026-09-19T01:06:00.46634+00:00
+390	Burrows Island/West Side	San Juan Islands (Rosario Strait)	48.48383	-122.712	500	11.25	PV	<100	LOW	On intertidal ledges and reef area off the northwest side of island.		false	2026-09-19T01:06:00.46634+00:00
+391	Allan Island/NW End	San Juan Islands (Rosario Strait)	48.46767	-122.71167	500	11.26	PV	<100	LOW	On intertidal rocks and reef area off the northwest side of island.		false	2026-09-19T01:06:00.46634+00:00
+392	Williamson Rocks	San Juan Islands (Rosario Strait)	48.44983	-122.70467	500	11.27	PV	100-500	LOW	On intertidal ledges and reef areas around Williamson Rocks (USFWS ID 81). Nursery area.		false	2026-09-19T01:06:00.46634+00:00
+393	Castle Rock Area	San Juan Islands (Rosario Strait)	48.42167	-122.8205	500	11.28	PV	<100	LOW	On scattered intertidal rocks and reef areas around Castle Rock area.		false	2026-09-19T01:06:00.46634+00:00
+394	Colville Island	San Juan Islands (Rosario Strait)	48.4145	-122.82067	500	11.29	PV	100-500	LOW	On intertidal ledges and rocks on south side of Colville Island USFWS ID 82).		false	2026-09-19T01:06:00.46634+00:00
+395	Aleck Bay Area	San Juan Islands (Rosario Strait)	48.41967	-122.85517	500	11.30	PV	<100	LOW	Intertidal rocks and reef areas off Aleck Bay.		false	2026-09-19T01:06:00.46634+00:00
+396	Aleck Bay Area	San Juan Islands (Rosario Strait)	48.4185	-122.84683	500	11.30	PV	<100	LOW	Intertidal ledges and reef areas around unnamed rock (USFWS ID 10) at entrance to Aleck Bay.		false	2026-09-19T01:06:00.46634+00:00
+397	Aleck Bay Area	San Juan Islands (Rosario Strait)	48.42233	-122.84833	500	11.30	PV	<100	LOW	Intertidal ledges and reef areas around unnamed rock (USFWS ID 11) at entrance to Aleck Bay.		false	2026-09-19T01:06:00.46634+00:00
+398	Iceberg Point	San Juan Islands (Rosario Strait)	48.42017	-122.89033	500	11.31	PV	<100	LOW	Intertidal ledges and reef areas just east of Iceberg Point.		false	2026-09-19T01:06:00.46634+00:00
+399	Iceberg Point	San Juan Islands (Rosario Strait)	48.41867	-122.88467	500	11.31	PV	<100	LOW	Intertidal ledges and reef area east of Iceberg Point (USFWS ID 14).		false	2026-09-19T01:06:00.46634+00:00
+400	Iceberg Point	San Juan Islands (Rosario Strait)	48.41967	-122.86667	500	11.32	PV	<100	LOW	Intertidal rocks and reef areas around unnamed rocks in bay east of Iceberg Point.		false	2026-09-19T01:06:00.46634+00:00
+401	Iceberg Island	San Juan Islands (Rosario Strait)	48.42767	-122.88833	500	11.33	PV	<100	LOW	Intertidal rocks and reef areas around Iceberg Island.		false	2026-09-19T01:06:00.46634+00:00
+402	Kellett Ledge	San Juan Islands (Rosario Strait)	48.4505	-122.792	500	11.34	PV	<100	LOW	On intertidal reef areas around Kellett Ledge.		false	2026-09-19T01:06:00.46634+00:00
+403	Spindle Rock/N Blakely Island	San Juan Islands (Rosario Strait)	48.58833	-122.79933	500	11.35	PV	<100	LOW	Intertidal areas around Spindle Rock.		false	2026-09-19T01:06:00.46634+00:00
+404	Lummi Rocks	San Juan Islands (Rosario Strait)	48.67067	-122.66567	500	11.36	PV	<100	LOW	Intertidal rocks and reef areas around Lummi Rocks.		false	2026-09-19T01:06:00.46634+00:00
+405	Vendovi Island	San Juan Islands (Rosario Strait)	48.617	-122.611	500	11.37	PV	100-500	LOW	Intertidal rocks and reef areas off northwest side of island.		false	2026-09-19T01:06:00.46634+00:00
+406	Hall Island Area	San Juan Islands (San Juan Channel)	48.43533	-122.91083	500	12.01	PV	<100	LOW	Intertidal rocks and reefs around Hall Island (USFWS ID 15).		false	2026-09-19T01:06:00.46634+00:00
+407	Rock NW of Hall Island	San Juan Islands (San Juan Channel)	48.436	-122.9135	500	12.02	PV	<100	LOW	Rock (USFWS ID 16) and intertidal reef area northwest of Hall Island.		false	2026-09-19T01:06:00.46634+00:00
+408	Secar Rock	San Juan Islands (San Juan Channel)	48.43817	-122.9055	500	12.03	PV	<100	LOW	On intertidal areas around Secar Rock (USFWS ID 17), east of Charles Island.		false	2026-09-19T01:06:00.46634+00:00
+409	Rocks E of Charles Island	San Juan Islands (San Juan Channel)	48.44083	-122.90117	500	12.04	PV	<100	LOW	Intertidal areas around rock (USFWS ID 18) and reef east of Charles Island.		false	2026-09-19T01:06:00.46634+00:00
+410	SE of Long Island	San Juan Islands (San Juan Channel)	48.43867	-122.91633	500	12.05	PV	<100	LOW	Intertidal areas around rock (USFWS ID 19) southeast of Long Island.		false	2026-09-19T01:06:00.46634+00:00
+411	Reef S of Long Island	San Juan Islands (San Juan Channel)	48.43783	-122.92533	500	12.06	PV	<100	LOW	Intertidal areas around reef south of Long Island.		false	2026-09-19T01:06:00.46634+00:00
+412	SW of Long Island	San Juan Islands (San Juan Channel)	48.43917	-122.93067	500	12.07	PV	<100	LOW	Intertidal areas around rock (USFWS ID 20) southwest of Long Island.		false	2026-09-19T01:06:00.46634+00:00
+413	N of Long Island	San Juan Islands (San Juan Channel)	48.44367	-122.92167	500	12.08	PV	<100	LOW	Intertidal area around reef north of Long Island.		false	2026-09-19T01:06:00.46634+00:00
+414	Mummy Rock	San Juan Islands (San Juan Channel)	48.44983	-122.92883	500	12.09	PV	<100	LOW	Intertidal area around Mummy Rocks (USFWS ID 21).		false	2026-09-19T01:06:00.46634+00:00
+415	Whale Rock	San Juan Islands (San Juan Channel)	48.44733	-122.941	500	12.10	PV	<100	LOW	Intertidal areas on Whale Rock.		false	2026-09-19T01:06:00.46634+00:00
+416	Buck Island	San Juan Islands (San Juan Channel)	48.45233	-122.92017	500	12.11	PV	<100	LOW	Intertidal areas on Buck Island (USFWS ID 83).		false	2026-09-19T01:06:00.46634+00:00
+417	Rocks off Davis Point	San Juan Islands (San Juan Channel)	48.45583	-122.93083	500	12.12	PV	<100	LOW	Intertidal areas on rocks and reef off Davis Point.		false	2026-09-19T01:06:00.46634+00:00
+418	Deadman Island	San Juan Islands (San Juan Channel)	48.459	-122.94183	500	12.13	PV	<100	LOW	Intertidal areas on Deadman Island.		false	2026-09-19T01:06:00.46634+00:00
+419	Goose Island	San Juan Islands (San Juan Channel)	48.45883	-122.95617	500	12.14	PV	100-500	LOW	Intertidal areas around north end of Goose Island.		false	2026-09-19T01:06:00.46634+00:00
+420	Shark Reef	San Juan Islands (San Juan Channel)	48.47633	-122.94617	500	12.15	PV	<100	LOW	Intertidal areas on Shark Reef (USFWS ID 23).		false	2026-09-19T01:06:00.46634+00:00
+421	Harbor Rock	San Juan Islands (San Juan Channel)	48.47017	-122.96933	500	12.16	PV	<100	LOW	Intertidal areas on Harbor Rock (USFWS ID 24).		false	2026-09-19T01:06:00.46634+00:00
+422	North Pacific Rock	San Juan Islands (San Juan Channel)	48.4715	-122.99583	500	12.17	PV	<100	LOW	Intertidal areas on North Pacific Rocks (USFWS ID 25).		false	2026-09-19T01:06:00.46634+00:00
+423	Halftide Rocks	San Juan Islands (San Juan Channel)	48.47883	-122.99883	500	12.18	PV	<100	LOW	Intertidal areas on Halftide Rocks (USFWS ID 26).		false	2026-09-19T01:06:00.46634+00:00
+424	Low Point	San Juan Islands (San Juan Channel)	48.48483	-123.00667	500	12.19	PV	<100	LOW	Intertidal areas off Low Point.		false	2026-09-19T01:06:00.46634+00:00
+425	Reef S of Dinner Island	San Juan Islands (San Juan Channel)	48.505	-123.00683	500	12.20	PV	100-500	LOW	Intertidal reefs and rocks just south of Dinner Island (USFWS ID 74).		false	2026-09-19T01:06:00.46634+00:00
+426	NW of Dinner Island (N Bay)	San Juan Islands (San Juan Channel)	48.50983	-123.0165	500	12.21	PV	<100	LOW	Intertidal reefs and rocks in North Bay (northwest of Dinner Island).		false	2026-09-19T01:06:00.46634+00:00
+427	Pear Point Area	San Juan Islands (San Juan Channel)	48.51483	-122.98033	500	12.22	PV	<100	LOW	Intertidal reefs off Pear Point.		false	2026-09-19T01:06:00.46634+00:00
+428	Pear Point Area	San Juan Islands (San Juan Channel)	48.51383	-122.98233	500	12.22	PV	<100	LOW	Intertidal reefs off Pear Point.		false	2026-09-19T01:06:00.46634+00:00
+429	Pear Point Area	San Juan Islands (San Juan Channel)	48.518	-122.97633	500	12.22	PV	<100	LOW	Intertidal reefs just north of Pear Point.		false	2026-09-19T01:06:00.46634+00:00
+430	Danger Rock/NE of Pear Point	San Juan Islands (San Juan Channel)	48.521	-122.96933	500	12.23	PV	<100	LOW	Intertidal areas around Danger Rock.		false	2026-09-19T01:06:00.46634+00:00
+431	Reef Point	San Juan Islands (San Juan Channel)	48.52833	-122.96667	500	12.24	PV	<100	LOW	Intertidal rock (USFWS ID 51) and reef area off Reef Point.		false	2026-09-19T01:06:00.46634+00:00
+432	Rock in Hicks Bay	San Juan Islands (San Juan Channel)	48.55167	-122.96783	500	12.25	PV	<100	LOW	Intertidal areas on rocks in Hicks Bay.		false	2026-09-19T01:06:00.46634+00:00
+433	Rocks NE of Point George	San Juan Islands (San Juan Channel)	48.5665	-122.9835	500	12.26	PV	<100	LOW	Intertidal areas on rocks northeast of Point George.		false	2026-09-19T01:06:00.46634+00:00
+434	Tift Rocks, S of Neck Point	San Juan Islands (San Juan Channel)	48.5785	-122.99733	500	12.27	PV	<100	LOW	Intertidal areas on Tift Rocks (south of Neck Point).		false	2026-09-19T01:06:00.46634+00:00
+435	E Of Neck Point, Shaw Island	San Juan Islands (San Juan Channel)	48.587	-123.00633	500	12.28	PV	<100	LOW	Intertidal areas on rocks east of Neck Point.		false	2026-09-19T01:06:00.46634+00:00
+436	Bell Island/E of Crane Island	San Juan Islands (San Juan Channel)	48.59617	-122.97933	500	12.29	PV	<100	LOW	Intertidal areas on Bell Island.		false	2026-09-19T01:06:00.46634+00:00
+437	Reef W of Cliff Island	San Juan Islands (San Juan Channel)	48.58883	-123.01883	500	12.30	PV	<100	LOW	Intertidal reef area west of Cliff Island.		false	2026-09-19T01:06:00.46634+00:00
+438	Nob Island	San Juan Islands (San Juan Channel)	48.59117	-123.01733	500	12.31	PV	<100	LOW	Intertidal areas on Nob Island.		false	2026-09-19T01:06:00.46634+00:00
+439	Bird Rock/W of Crane Island	San Juan Islands (San Juan Channel)	48.59833	-123.01367	500	12.32	PV	<100	LOW	Intertidal areas on Bird Rock (USFWS ID 68).		false	2026-09-19T01:06:00.46634+00:00
+440	Reef Island	San Juan Islands (San Juan Channel)	48.60517	-123.01617	500	12.33	PV	<100	LOW	Intertidal areas on Reef Island.		false	2026-09-19T01:06:00.46634+00:00
+441	Rock W of Yellow Island	San Juan Islands (San Juan Channel)	48.591	-123.03283	500	12.34	PV	100-500	LOW	Intertidal areas on rocks and reef west of Yellow Island (USFWS ID 69).		false	2026-09-19T01:06:00.46634+00:00
+442	Rocky Bay	San Juan Islands (San Juan Channel)	48.60083	-123.09783	500	12.35	PV	<100	LOW	Intertidal areas on reef in west Rocky Bay.		false	2026-09-19T01:06:00.46634+00:00
+443	Rocks SW of O’Neil Island	San Juan Islands (San Juan Channel)	48.60333	-123.09217	500	12.36	PV	<100	LOW	Intertidal areas on O’Neil Island in Rocky Bay.		false	2026-09-19T01:06:00.46634+00:00
+444	Blind Island	San Juan Islands (San Juan Channel)	48.58683	-122.93883	500	12.37	PV	<100	LOW	Intertidal areas on Blind Island.		false	2026-09-19T01:06:00.46634+00:00
+445	Blind Island	San Juan Islands (San Juan Channel)	48.58533	-122.9355	500	12.37	PV	<100	LOW	Intertidal areas on rocks and reefs around Blind Island.		false	2026-09-19T01:06:00.46634+00:00
+446	S of Grindstone Harbor	San Juan Islands (San Juan Channel)	48.5915	-122.90117	500	12.38	PV	<100	LOW	Intertidal rocks and reef south of Grindstone Harbor.		false	2026-09-19T01:06:00.46634+00:00
+447	Shag Rock	San Juan Islands (San Juan Channel)	48.59167	-122.87383	500	12.39	PV	<100	LOW	Intertidal areas on Shag Rock (USFWS ID 53).		false	2026-09-19T01:06:00.46634+00:00
+448	East Sound/Twin Rocks	San Juan Islands (San Juan Channel)	48.61567	-122.86367	500	12.40	PV	<100	LOW	Intertidal areas around Twin Rocks in East Sound.		false	2026-09-19T01:06:00.46634+00:00
+449	Leo Reef	San Juan Islands (San Juan Channel)	48.55317	-122.85417	500	12.41	PV	100-500	LOW	Intertidal areas around Leo Reef.		false	2026-09-19T01:06:00.46634+00:00
+450	Flower Island	San Juan Islands (San Juan Channel)	48.54633	-122.85183	500	12.42	PV	<100	LOW	Intertidal areas around Flower Island (USFWS ID 54).		false	2026-09-19T01:06:00.46634+00:00
+451	Willow Island	San Juan Islands (San Juan Channel)	48.53967	-122.82167	500	12.43	PV	<100	LOW	Intertidal areas around Willow Island (USFWS ID 55).		false	2026-09-19T01:06:00.46634+00:00
+452	Small Island	San Juan Islands (San Juan Channel)	48.49567	-122.86183	500	12.44	PV	<100	LOW	Intertidal areas on Small Island (USFWS ID 1).		false	2026-09-19T01:06:00.46634+00:00
+453	Crab Island	San Juan Islands (San Juan Channel)	48.46183	-122.84333	500	12.45	PV	<100	LOW	Intertidal areas on Crab Island (USFWS ID 5).		false	2026-09-19T01:06:00.46634+00:00
+454	Ram Island	San Juan Islands (San Juan Channel)	48.47517	-122.83217	500	12.46	PV	<100	LOW	Intertidal areas on Ram Island.		false	2026-09-19T01:06:00.46634+00:00
+455	McConnell Island	San Juan Islands (San Juan Channel)	48.59417	-123.02167	500	12.47	PV	<100	LOW	Intertidal areas around McConnell Island.		false	2026-09-19T01:06:00.46634+00:00
+456	Reef E of Jones Island	San Juan Islands (San Juan Channel)	48.61233	-123.036	500	12.48	PV	<100	LOW	Intertidal reef areas on east side of Jones Island.		false	2026-09-19T01:06:00.46634+00:00
+457	East Sound/NW of Rosario	San Juan Islands (San Juan Channel)	48.65267	-122.88033	500	12.49	PV	<100	LOW	Intertidal reefs and rocks in East Sound.		false	2026-09-19T01:06:00.46634+00:00
+458	East Sound/NW of Rosario	San Juan Islands (San Juan Channel)	48.657	-122.908	500	12.49	PV	<100	LOW	Intertidal reef areas on west side of East Sound.		false	2026-09-19T01:06:00.46634+00:00
+459	Low Island	San Juan Islands (San Juan Channel)	48.58933	-123.02433	500	12.50	PV	<100	LOW	Intertidal areas around Low Island.		false	2026-09-19T01:06:00.46634+00:00
+460	Turn Rock	San Juan Islands (San Juan Channel)	48.53567	-122.96317	500	12.51	PV	<100	LOW	Intertidal areas on Turn Rock.		false	2026-09-19T01:06:00.46634+00:00
+461	Sucia Island Area	San Juan Islands (Haro Strait)	48.77083	-122.9015	500	13.01	PV	<100	LOW	Intertidal ledges along north side of island.		false	2026-09-19T01:06:00.46634+00:00
+462	Sucia Island Area	San Juan Islands (Haro Strait)	48.75617	-122.91883	500	13.01	PV	<100	LOW	Intertidal rocks off southwest side of island.		false	2026-09-19T01:06:00.46634+00:00
+463	Echo Bay, Ewing Island	San Juan Islands (Haro Strait)	48.76283	-122.87633	500	13.02	PV	<100	LOW	Intertidal areas during pupping season.		false	2026-09-19T01:06:00.46634+00:00
+464	Echo Bay, Finger Islands	San Juan Islands (Haro Strait)	48.75767	-122.88867	500	13.03	PV	<100	LOW	Intertidal ledges along north side of island.		false	2026-09-19T01:06:00.46634+00:00
+465	Echo Bay, Finger Islands	San Juan Islands (Haro Strait)	48.75283	-122.881	500	13.03	PV	<100	LOW	Intertidal ledges along south east side of island.		false	2026-09-19T01:06:00.46634+00:00
+466	Clements Reef	San Juan Islands (Haro Strait)	48.77583	-122.88683	500	13.04	PV	100-500	LOW	Intertidal areas on reef (USFWS ID 44).		false	2026-09-19T01:06:00.46634+00:00
+467	Reef SE of Clements	San Juan Islands (Haro Strait)	48.76983	-122.87733	500	13.05	PV	100-500	LOW	Intertidal areas on reef (USFWS ID 45) south east of Clements Reef.		false	2026-09-19T01:06:00.46634+00:00
+468	Parker Reef	San Juan Islands (Haro Strait)	48.726	-122.89283	500	13.06	PV	100-500	LOW	Intertidal areas on reef (USFWS ID 46).		false	2026-09-19T01:06:00.46634+00:00
+469	Patos Island	San Juan Islands (Haro Strait)	48.789	-122.96817	500	13.07	PV	<100	LOW	Intertidal ledges and reef areas on north side.		false	2026-09-19T01:06:00.46634+00:00
+470	Bare Island	San Juan Islands (Haro Strait)	48.72983	-123.01317	500	13.08	PV	<100	LOW	Intertidal ledges around Bare Island (USFWS ID 84).		false	2026-09-19T01:06:00.46634+00:00
+471	Reef E of Skipjack Is.	San Juan Islands (Haro Strait)	48.7305	-123.02033	500	13.09	PV	100-500	LOW	Intertidal reef area between Bare and Skipjack Islands.		false	2026-09-19T01:06:00.46634+00:00
+472	Skipjack Island	San Juan Islands (Haro Strait)	48.733	-123.03767	500	13.11	PV	<100	LOW	Intertidal ledges on northwest side of island (USFWS ID 42).		false	2026-09-19T01:06:00.46634+00:00
+473	Skipjack Island	San Juan Islands (Haro Strait)	48.73333	-123.034	500	13.11	PV	100-500	LOW	Intertidal ledges on northeast side of island (USFWS ID 42).		false	2026-09-19T01:06:00.46634+00:00
+474	Reef E of Skipjack	San Juan Islands (Haro Strait)	48.73317	-123.02833	500	13.11	PV	<100	LOW	Intertidal ledges and reef area around unnamed rock (USFWS ID 43) east of the Skipjack Island.		false	2026-09-19T01:06:00.46634+00:00
+475	White Rock Area	San Juan Islands (Haro Strait)	48.67117	-123.07383	500	13.12	PV	<100	LOW	Intertidal areas on the north White Rock (USFWS ID 40).		false	2026-09-19T01:06:00.46634+00:00
+476	White Rock Area	San Juan Islands (Haro Strait)	48.66967	-123.07183	500	13.12	PV	100-500	LOW	Intertidal areas on the middle White Rock (USFWS ID 40).		false	2026-09-19T01:06:00.46634+00:00
+477	White Rock Area	San Juan Islands (Haro Strait)	48.66683	-123.06917	500	13.12	PV	100-500	LOW	Intertidal areas on the south White Rock (USFWS ID 40).		false	2026-09-19T01:06:00.46634+00:00
+478	White Rock Area	San Juan Islands (Haro Strait)	48.66817	-123.07017	500	13.12	PV	<100	LOW	Intertidal areas on the reef off the south end of White Rock.		false	2026-09-19T01:06:00.46634+00:00
+479	Flattop Island	San Juan Islands (Haro Strait)	48.64567	-123.08583	500	13.13	PV	<100	LOW	Intertidal areas on west end of Flattop Island (USFWS ID 39).		false	2026-09-19T01:06:00.46634+00:00
+480	Ftlattop Island	San Juan Islands (Haro Strait)	48.64817	-123.07667	500	13.13	PV	<100	LOW	Intertidal areas on east end of island.		false	2026-09-19T01:06:00.46634+00:00
+481	Flattop Island	San Juan Islands (Haro Strait)	48.64517	-123.08133	500	13.13	PV	100-500	LOW	Intertidal ledges and reef on south side of island.		false	2026-09-19T01:06:00.46634+00:00
+482	Gull Rock	San Juan Islands (Haro Strait)	48.65117	-123.0885	500	13.14	PV	100-500	LOW	Intertidal areas around rock (USFWS ID 38).		false	2026-09-19T01:06:00.46634+00:00
+483	Stuart Is./Reid Harbor	San Juan Islands (Haro Strait)	48.66333	-123.16733	500	13.15	PV	<100	LOW	Intertidal ledges and reefs around entrance into Reid Harbor.		false	2026-09-19T01:06:00.46634+00:00
+484	Satellite Is./Prevost Harbor	San Juan Islands (Haro Strait)	48.678	-123.18333	500	13.16	PV	<100	LOW	Intertidal ledges and reef areas around Satellite Island in Prevost Harbor.		false	2026-09-19T01:06:00.46634+00:00
+485	Ripple Island	San Juan Islands (Haro Strait)	48.65633	-123.12983	500	13.17	PV	100-500	LOW	Intertidal areas around island (USFWS ID 35).		false	2026-09-19T01:06:00.46634+00:00
+486	Gull Reff	San Juan Islands (Haro Strait)	48.65483	-123.14533	500	13.18	PV	<100	LOW	Intertidal rocks and reef areas around Gull Reef (USFWS ID 34).		false	2026-09-19T01:06:00.46634+00:00
+487	Shag Reef	San Juan Islands (Haro Strait)	48.65433	-123.132	500	13.19	PV	<100	LOW	Intertidal areas around Shag Reef (USFWS ID 36).		false	2026-09-19T01:06:00.46634+00:00
+488	Little Cactus Island	San Juan Islands (Haro Strait)	48.65033	-123.13417	500	13.20	PV	<100	LOW	Intertidal ledges and rocks around Little Cactus Island (USFSW ID 37).		false	2026-09-19T01:06:00.46634+00:00
+489	Cactus Island Area	San Juan Islands (Haro Strait)	48.64817	-123.12783	500	13.21	PV	<100	LOW	Intertidal ledges and reef areas on south side of Cactus Island.		false	2026-09-19T01:06:00.46634+00:00
+490	Cactus Island Area	San Juan Islands (Haro Strait)	48.64833	-123.12517	500	13.21	PV	<100	LOW	Intertidal ledges and reef areas on east end of Cactus Island.		false	2026-09-19T01:06:00.46634+00:00
+491	Rocks SE of Cactus	San Juan Islands (Haro Strait)	48.64817	-123.12383	500	13.22	PV	<100	LOW	Intertidal rocks and reef areas off southeast end of Cactus Island.		false	2026-09-19T01:06:00.46634+00:00
+492	Rf Betw Gull Rf & Cactus	San Juan Islands (Haro Strait)	48.65367	-123.14167	500	13.23	PV	<100	LOW	Intertidal rocks and reef areas between Gull Reef and Little Cactus Island.		false	2026-09-19T01:06:00.46634+00:00
+493	Sentinel Island	San Juan Islands (Haro Strait)	48.64017	-123.15117	500	13.24	PV	<100	LOW	Intertidal ledges around Sentinel Island.		false	2026-09-19T01:06:00.46634+00:00
+494	Sentinel Rock	San Juan Islands (Haro Strait)	48.64017	-123.15583	500	13.25	PV	100-500	LOW	Intertidal rocks and reef areas around Sentinel Rock (USFWS ID 32).		false	2026-09-19T01:06:00.46634+00:00
+495	Posey Is, Reef N of Pearl	San Juan Islands (Haro Strait)	48.61867	-123.16617	500	13.26	PV	<100	LOW	Intertidal rocks and reef areas on north side of Pearl Island.		false	2026-09-19T01:06:00.46634+00:00
+496	Barren Island	San Juan Islands (Haro Strait)	48.62317	-123.15967	500	13.27	PV	<100	LOW	Intertidal rocks and reef areas around Barren Island (USFWS ID 30).		false	2026-09-19T01:06:00.46634+00:00
+497	Battleship Island	San Juan Islands (Haro Strait)	48.62433	-123.1835	500	13.28	PV	100-500	LOW	Intertidal ledges and reef areas around Battleship Island (USFWS ID 31).		false	2026-09-19T01:06:00.46634+00:00
+498	Rocks off Mccracken Pt	San Juan Islands (Haro Strait)	48.61983	-123.18033	500	13.29	PV	<100	LOW	Intertidal rocks and reef areas southwest of McCracken Point.		false	2026-09-19T01:06:00.46634+00:00
+499	So Henry Island Area	San Juan Islands (Haro Strait)	48.58233	-123.16983	500	13.30	PV	<100	LOW	Intertidal rocks and reef areas around south entrance to Mosquito Pass.		false	2026-09-19T01:06:00.46634+00:00
+500	So Henry Island Area	San Juan Islands (Haro Strait)	48.5835	-123.17933	500	13.30	PV	<100	LOW	Intertidal rocks and reef areas off southeast end of Henry Island.		false	2026-09-19T01:06:00.46634+00:00
+501	Mosquito Pass Area	San Juan Islands (Haro Strait)	48.59767	-123.16917	500	13.31	PV	<100	LOW	Intertidal rocks and reef areas along Mosquito Pass.		false	2026-09-19T01:06:00.46634+00:00
+502	False Bay Area	San Juan Islands (Haro Strait)	48.48117	-123.07633	500	13.32	PV	<100	LOW	Intertidal rocks and reef area on unnamed rock (USFWS ID 27) off False Bay.		false	2026-09-19T01:06:00.46634+00:00
+503	Freeman Island	San Juan Islands (Haro Strait)	48.6995	-122.95067	500	13.33	PV	<100	LOW	Intertidal ledges and reef areas around Freeman Island.		false	2026-09-19T01:06:00.46634+00:00
+504	Speiden Island	San Juan Islands (Haro Strait)	48.64133	-123.14267	500	13.34	PV	<100	LOW	Intertidal ledges on south side of Speiden Island.		false	2026-09-19T01:06:00.46634+00:00
+505	Speiden Island	San Juan Islands (Haro Strait)	48.6395	-123.1385	500	13.34	PV	<100	LOW	Intertidal ledges on south side of Speiden Island.		false	2026-09-19T01:06:00.46634+00:00
+506	Speiden Island	San Juan Islands (Haro Strait)	48.6385	-123.13583	500	13.34	PV	<100	LOW	Intertidal ledges on south side of Speiden Island.		false	2026-09-19T01:06:00.46634+00:00
+507	Eagle Point Area	San Juan Islands (Haro Strait)	48.45833	-123.03483	500	13.35	PV	<100	LOW	Intertidal rocks and reef areas off Eagle Point.		false	2026-09-19T01:06:00.46634+00:00
+508	Pt. Doughty	San Juan Islands (Haro Strait)	48.71233	-122.94967	500	13.36	PV	<100	LOW	Intertidal ledges and rocks along south side of Point Doughty.		false	2026-09-19T01:06:00.46634+00:00
+509	Boiling Reef	British Columbia (Fraser River to Race Rocks)	48.78883	-123.03783	500	14.01	PV	100-500	LOW	Intertidal rocks and reef areas around Boiling Reef.		false	2026-09-19T01:06:00.46634+00:00
+510	Race Rocks	British Columbia (Fraser River to Race Rocks)	48.2965	-123.52933	500	14.02	PV,ZC,EJ	100-500	LOW	Intertidal rocks and reef areas around Race Rocks.		false	2026-09-19T01:06:00.46634+00:00
+511	Chain Islets	British Columbia (Fraser River to Race Rocks)	48.42067	-123.26383	500	14.03	PV	100-500	LOW	On scattered intertidal rocks and reef areas around Chain Islets.		false	2026-09-19T01:06:00.46634+00:00
+512	Trial Island	British Columbia (Fraser River to Race Rocks)	48.40483	-123.2995	500	14.04	PV,ZC,EJ	100-500	LOW	Intertidal rocks and reef areas around Trail Island.		false	2026-09-19T01:06:00.46634+00:00
+513	Kelp Reefs	British Columbia (Fraser River to Race Rocks)	48.55617	-123.24533	500	14.05	PV	<100	LOW	Intertidal rocks and reef areas around Kelp Reef.		false	2026-09-19T01:06:00.46634+00:00
+514	D’Arcy Island	British Columbia (Fraser River to Race Rocks)	48.55417	-123.277	500	14.06	PV	<100	LOW	Intertidal rocks and reef areas around D’Arcy Island.		false	2026-09-19T01:06:00.46634+00:00
+515	Sallas Rocks	British Columbia (Fraser River to Race Rocks)	48.58517	-123.291	500	14.07	PV	100-500	LOW	Intertidal rocks and reef areas around Sallas Rocks.		false	2026-09-19T01:06:00.46634+00:00
+516	Little D’Arcy	British Columbia (Fraser River to Race Rocks)	48.57067	-123.25917	500	14.08	PV	<100	LOW	Intertidal rocks and reef areas around Little D’Arcy Island.		false	2026-09-19T01:06:00.46634+00:00
+517	Cooper Reef	British Columbia (Fraser River to Race Rocks)	48.673	-123.27217	500	14.09	PV	100-500	LOW	Intertidal rocks and reef areas around Cooper Reef.		false	2026-09-19T01:06:00.46634+00:00
+518	Java Islets	British Columbia (Fraser River to Race Rocks)	48.7595	-123.1035	500	14.10	PV	<100	LOW	Intertidal rocks and reef areas around the Java Islets.		false	2026-09-19T01:06:00.46634+00:00
+519	Tumbo Island Area	British Columbia (Fraser River to Race Rocks)	48.79967	-123.09317	500	14.11	PV	<100	LOW	Intertidal rocks and reef areas off west end of Tumbo Island.		false	2026-09-19T01:06:00.46634+00:00
+520	Tumbo Island Area	British Columbia (Fraser River to Race Rocks)	48.80317	-123.11267	500	14.11	PV	<100	LOW	Intertidal rocks and reef areas off west end of Tumbo Island.		false	2026-09-19T01:06:00.46634+00:00
+521	Belle Chain Area	British Columbia (Fraser River to Race Rocks)	48.82617	-123.17567	500	14.12	PV,EJ	100-500	LOW	Intertidal rocks and reef areas of the Belle Chain.		false	2026-09-19T01:06:00.46634+00:00
+522	Belle Chain Area	British Columbia (Fraser River to Race Rocks)	48.82783	-123.19267	500	14.12	PV	<100	LOW	Intertidal rocks and reef areas just west of Belle Chain.		false	2026-09-19T01:06:00.46634+00:00
+523	Belle Chain Area	British Columbia (Fraser River to Race Rocks)	48.84033	-123.21083	500	14.12	PV	<100	LOW	Intertidal rocks and reef areas on north end of Belle Chain.		false	2026-09-19T01:06:00.46634+00:00
+524	Gossip Island	British Columbia (Fraser River to Race Rocks)	48.892	-123.31233	500	14.13	PV	<100	LOW	Intertidal ledges and reef areas around Gossip Island.		false	2026-09-19T01:06:00.46634+00:00
+525	Fraser R./Roberts Bank	British Columbia (Fraser River to Race Rocks)	49.11067	-123.1995	500	14.14	PV	100-500	LOW	Intertidal channels and shoals along Reifel Island.		false	2026-09-19T01:06:00.46634+00:00
+526	Fraser R./Roberts Bank	British Columbia (Fraser River to Race Rocks)	49.104	-123.19183	500	14.14	PV	100-500	LOW	Intertidal channels and shoals along southeast side of Reifel Island.		false	2026-09-19T01:06:00.46634+00:00
+527	Fraser R./Roberts Bank	British Columbia (Fraser River to Race Rocks)	49.06467	-123.19633	500	14.14	PV	100-500	LOW	Intertidal channels and shoals on Roberts Bank.		false	2026-09-19T01:06:00.46634+00:00
+528	Fraser R./Roberts Bank	British Columbia (Fraser River to Race Rocks)	49.06917	-123.1635	500	14.14	PV	<100	LOW	Intertidal channels and shoals on Roberts Bank.		false	2026-09-19T01:06:00.46634+00:00
+529	Tsawwassen Ferry	British Columbia (Fraser River to Race Rocks)	49.01117	-123.11283	500	14.15	PV	<100	LOW	Intertidal areas around jetty just south of Tswwassen ferry terminal.		false	2026-09-19T01:06:00.46634+00:00
+530	Se Mayne/Edith Point	British Columbia (Fraser River to Race Rocks)	48.85683	-123.25283	500	14.16	PV	<100	LOW	Intertidal ledges and rocks off Edith Point on Mayne Island.		false	2026-09-19T01:06:00.46634+00:00
+531	Fraser R./Sand Heads Jetty	British Columbia (Fraser River to Race Rocks)	49.10683	-123.30017	500	14.17	ZC	100-500	ALL	On end of jetty near Sand Heads light during spring months.		false	2026-09-19T01:06:00.46634+00:00

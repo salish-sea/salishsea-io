@@ -10,20 +10,21 @@
  * on every build and content-addresses what it wrote; when nothing in Postgres
  * changed, the tables digest the same and nothing downstream reruns.
  *
- * It reads two kinds of relation. What the pages publish is serialized BY
- * POSTGRES, with to_jsonb, rather than read column by column. That is the
- * serializer PostgREST uses, so the files carry exactly the shape the frontend
- * already parses — the composite columns (`location`, `taxon`, `photos`) arrive
- * as the same nested objects. What the occurrences are derived from is read as
- * typed columns, for the build to derive them itself (decision 061).
+ * It reads two kinds of relation. What the occurrences are derived from is read as
+ * typed columns, for the build to derive them itself (decision 061). The catalogue,
+ * read only for the twin test now, is serialized BY POSTGRES, with to_jsonb, rather
+ * than read column by column: the serializer PostgREST uses, which the shape the
+ * pages parse came from, and which catalogue.ts reproduces from the checked-in files.
  *
  * Everything is read in one Postgres transaction, and the snapshot checks that it
  * was. Maplify, iNaturalist and Orcasound come from the build's own mirrors
  * (salish-xv35.9), the reference tables from checked-in files (reference.ts,
- * decision 064), and the register from its own release (ingest-register.ts); Postgres's
- * copies of the three sources and of the register are read only with --answers, which
- * also reads Postgres's own derived occurrences, for checking the derivation's twins
- * against them, which is only fair if both come from the same moment.
+ * decision 064), the register from its own release (ingest-register.ts), and the
+ * catalogue from checked-in files (catalogue.ts); Postgres's copies of all of those are
+ * read only with --answers, which also reads Postgres's own derived occurrences, for
+ * checking the derivation's twins against them, which is only fair if both come from the
+ * same moment. Without it, what is left is what users write and Happywhale's frozen
+ * tables (decision 064).
  *
  * Reads only. Never writes the DSN to stdout, stderr or the snapshot.
  */
@@ -36,9 +37,12 @@ import { budget } from './duckdb-budget.ts';
 const DAY_ZONE = 'PST8PDT';
 
 /**
- * What the pages publish: one relation per table, as documents. `query` runs
- * inside Postgres, so it is Postgres SQL; its result lands in DuckDB as
- * `snapshot.<name>`.
+ * The catalogue as Postgres holds it: one relation per table, as documents. `query`
+ * runs inside Postgres, so it is Postgres SQL; its result lands in DuckDB as
+ * `snapshot.<name>`. Read only with --answers since salish-9uu.2.3: the build's
+ * catalogue is checked-in data (catalogue.ts) and its views over the register are
+ * derived (derive-catalogue.ts), but the twin test derives from this database's own
+ * catalogue, which a local or CI database seeds differently from production's.
  */
 const PUBLISHED: readonly {name: string, query: string}[] = [
     // What the profile pages show of the catalogue (decision 057). One document per
@@ -197,7 +201,7 @@ export async function main(): Promise<void> {
         console.error('usage: snapshot.ts [--answers] <snapshot.duckdb>');
         process.exit(2);
     }
-    const published = answers ? [...PUBLISHED, ...ANSWERS] : PUBLISHED;
+    const published = answers ? [...PUBLISHED, ...ANSWERS] : [];
     const derivedFrom = answers ? [...DERIVED_FROM, ...ANSWER_TABLES] : DERIVED_FROM;
     const dsn = process.env['SUPABASE_DB_URL'];
     if (!dsn) {
