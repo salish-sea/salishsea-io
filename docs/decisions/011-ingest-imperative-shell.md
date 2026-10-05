@@ -1,6 +1,8 @@
 # 011 — Network ingest as a TypeScript imperative shell over a functional core
 
-**Status:** accepted · **Decided:** 2026-07-05 · **Amended by:** [018](018-inat-id-keyset-pagination.md) (iNaturalist completeness proof is now an id-keyset terminal-page sweep, not a `total_results` page-count sum)
+**Status:** accepted · **Decided:** 2026-07-05 · **Amended by:** [018](018-inat-id-keyset-pagination.md) (iNaturalist completeness proof is now an id-keyset terminal-page sweep, not a `total_results` page-count sum), [061](061-ingest-and-derivation-move-into-the-build.md) (the shell runs in the read-path build and writes SQLite mirrors, not Postgres)
+
+*Amended 2026-10-05 ([061](061-ingest-and-derivation-move-into-the-build.md)):* the Edge Function, its trigger secret and its pg_cron jobs are retired. The read-path build runs the shell every five minutes, one ingest task per source, and a curator backfills a window by running that task with a start and end ([runbook](../runbook/read-path-build.md)). The functional core and the completeness rule below stand unchanged; what this record says about Deno, `pg_net`, the trigger secret and persisting to Postgres describes the arrangement as it was.
 
 ## Context
 

@@ -220,8 +220,8 @@ END $$;
 -- Function (decision 011) and the in-database HTTP path was retired. The SC#5
 -- blocks below will fail with "function does not exist" against any current
 -- database. They are left in place because this file documents the Phase 11
--- verification as it was performed; the resolution behaviour they asserted now
--- lives in supabase/functions/ingest and is covered by its own tests.
+-- verification as it was performed; the resolution behaviour they asserted moved
+-- to the ingest Edge Function, itself retired on 2026-10-05 (decision 061).
 --
 -- These assertions verify the ingest function edits from plan 11-04
 -- (20260620000200_resolution_ingest.sql) without hitting live HTTP endpoints.
@@ -243,8 +243,8 @@ END $$;
 
    Kept verbatim below as the record of what Phase 11 verified. The
    behaviour they asserted (collection resolution, and minting a
-   contributor on insert without overwriting it on update) now lives in
-   supabase/functions/ingest and is covered by its own tests.
+   contributor on insert without overwriting it on update) moved to the
+   ingest Edge Function, itself retired on 2026-10-05 (decision 061).
    --------------------------------------------------------------------- */
 -- \echo SC#5a: update_sightings function body contains maplify.resolve_collection
 /*

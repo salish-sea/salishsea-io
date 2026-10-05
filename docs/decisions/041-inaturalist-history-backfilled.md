@@ -4,9 +4,9 @@
 
 ## Decision
 
-Every licensed, open-geoprivacy iNaturalist observation of an in-scope taxon in the fetch box is backfilled, as far back as observers have dated them, by walking date windows through the **same ingest function the cron uses** (`supabase/functions/ingest`), invoked as a curator does (its [README](../../supabase/functions/ingest/README.md)). Nothing new touches iNaturalist: the function's fetch, completeness rules and reconcile apply unchanged to each historical window.
+Every licensed, open-geoprivacy iNaturalist observation of an in-scope taxon in the fetch box is backfilled, as far back as observers have dated them, by walking date windows through the **same ingest function the cron uses** (`supabase/functions/ingest`), invoked as a curator does (its README, retired with the function). Nothing new touches iNaturalist: the function's fetch, completeness rules and reconcile apply unchanged to each historical window.
 
-The walk is [`scripts/backfill/inat-history.ts`](../../scripts/backfill/inat-history.ts). It exists so the depth of the mirror is a repeatable, recorded operation rather than a one-off: it cuts a range into windows, paces them, stops at the first failed window, and refuses to continue if a window deletes anything, because a historical window has nothing stored to reconcile against and should be pure upsert.
+The walk was `scripts/backfill/inat-history.ts`. *Amended 2026-10-05 ([061](061-ingest-and-derivation-move-into-the-build.md)):* the function and the walk retired; the read-path build's iNaturalist ingest takes a window the same way, and backfilling its mirror is in the [runbook](../runbook/read-path-build.md). The walk existed so the depth of the mirror is a repeatable, recorded operation rather than a one-off: it cuts a range into windows, paces them, stops at the first failed window, and refuses to continue if a window deletes anything, because a historical window has nothing stored to reconcile against and should be pure upsert.
 
 ## What iNaturalist asks, and how this fits
 

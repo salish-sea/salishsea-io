@@ -4,10 +4,9 @@
  * Effectful: builds the request, fetches, and retries transient failures using
  * the pure policy in scripts/ingest/retry.ts. Returns the parsed JSON body on a
  * 2xx, or throws after MAX_ATTEMPTS. A non-retryable status (e.g. 403) throws
- * immediately. Two callers, and both write nothing on a throw — decision 011's "abort
- * on a failed fetch": the Supabase function (supabase/functions/ingest/index.ts), which
- * records a `failed` ingest.runs row, and the read-path build's own ingest
- * (scripts/read-path/ingest-maplify.ts, decision 061), which fails its task.
+ * immediately. Its caller writes nothing on a throw, decision 011's "abort on a failed
+ * fetch": the read-path build's ingest (scripts/read-path/ingest-maplify.ts, decision
+ * 061). Until 2026-10-05 the Supabase `ingest` function called it too.
  */
 
 import {

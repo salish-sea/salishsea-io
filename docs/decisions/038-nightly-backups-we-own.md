@@ -177,8 +177,9 @@ because a CDK-generated name would have to be copied into a repository variable 
 the first deploy, which is exactly when nobody is watching. A test fails if the two drift.
 
 **Known gaps, so nobody assumes otherwise.** The `vault` schema is excluded from the CLI's data
-dump, so the two secrets it holds (`ingest_function_url`, `ingest_trigger_secret`) are not
-backed up and would have to be re-minted. Platform configuration — auth providers, API keys,
+dump, so a secret stored there is not backed up and would have to be re-minted. Today that
+loses nothing: the two it held, `ingest_function_url` and `ingest_trigger_secret`, retired with
+the ingest Edge Function on 2026-10-05 ([061](061-ingest-and-derivation-move-into-the-build.md)). Platform configuration — auth providers, API keys,
 edge settings — lives in Supabase's control plane, not the database, and is not captured here.
 Recovery restores to the previous 07:00 UTC, not to an arbitrary moment; a destructive change
 made just after a nightly costs a day of writes.
