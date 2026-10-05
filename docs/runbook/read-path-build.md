@@ -10,7 +10,7 @@ Every five minutes (`fly/crontab`, and a few seconds after a native sighting is 
 
 [Decision 065](../decisions/065-the-store-and-write-api.md)'s service, `api/server.ts`, takes over what users write from Supabase at the cutover. Until then it does not run: `fly/start.sh` starts it only when the machine's environment sets `API_ENABLED`, because its store (`/data/store/salishsea.db`) must be empty when the cutover copies Postgres into it, and a sign-in would write to it. Caddy routes `/api/*` to it, so until then those paths answer 502, on the Fly app's own address and through salishsea.io's `/api/*` CloudFront behavior alike. If the API can't start, it is retried every ten seconds while the site keeps serving.
 
-Its secrets are Fly secrets. `fly/start.sh` takes the first two out of the environment before it starts anything and hands them to the API alone:
+Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment before it starts anything and hands them to the API alone:
 
 - **`SESSION_SIGNING_KEY`**: at least 32 random bytes, base64. Changing it signs everyone out.
 - **`EDGE_SECRET`**: the value CloudFront sends on `/api/*` requests as `x-origin-verify`, so the API can tell them from requests made to the Fly app directly. It must equal the production environment's `EDGE_SECRET` GitHub secret, which the deploy passes to `cdk deploy`. A mismatch fails nothing visibly: the feedback rate limit falls back to keying senders by the CloudFront edge that carried them. CloudFormation holds it in the stack's template, so anyone who can read the template or the distribution in the AWS account can read it. To rotate it, set both:
