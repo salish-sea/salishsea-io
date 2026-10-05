@@ -18,12 +18,12 @@
  * typed columns, for the build to derive them itself (decision 061).
  *
  * Everything is read in one Postgres transaction, and the snapshot checks that it
- * was. Maplify, iNaturalist and Orcasound come from the build's own mirrors now
- * (salish-xv35.9). Postgres's Maplify table is still read, for the overlap report and
- * the Maplify name guard, while Postgres ingests Maplify too; its iNaturalist and
- * Orcasound tables only with --answers, since it stopped ingesting those. With `--answers` it also
- * reads Postgres's own derived occurrences, for checking the derivation's twins
- * against them, which is only fair if both come from the same moment.
+ * was. Maplify, iNaturalist and Orcasound come from the build's own mirrors
+ * (salish-xv35.9), and the reference tables from checked-in files (reference.ts,
+ * decision 064); Postgres's copies of the three sources are read only with --answers,
+ * since it stopped ingesting them. With `--answers` it also reads Postgres's own derived
+ * occurrences, for checking the derivation's twins against them, which is only fair if
+ * both come from the same moment.
  *
  * Reads only. Never writes the DSN to stdout, stderr or the snapshot.
  */
@@ -91,13 +91,13 @@ const lonLat = (column: string) => [
  *
  * Typed columns, only those the derivation reads; read_path is granted exactly
  * these (supabase/read-path-grants.test.ts). A geography becomes `<column>_lon`
- * and `<column>_lat`. An enum becomes its label, with its declared order in
- * `types.enums`, since two derivations compare by it.
+ * and `<column>_lat`. An enum becomes its label; its declared order is checked-in
+ * data now (reference.ts), as are the providers, organizations, collections and
+ * Maplify's collection rules (decision 064).
  */
 const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
     // maplify.sightings is read only under --answers now (salish-xv35.9): the build's
     // mirror is the source, and Postgres's copy is frozen.
-    {table: 'maplify.collection_rule', columns: ['id', 'match_kind', 'match_value', 'collection_id']},
     {table: 'happywhale.encounters', columns: [
         'id', 'individual_id', 'user_id', 'species_id', 'verbatim_location', 'comments', 'min_count',
         ...lonLat('location'), 'accuracy::text as accuracy', 'start_date', 'start_time', 'end_time',
@@ -118,9 +118,6 @@ const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
     {table: 'public.identifications', columns: [
         'occurrence_id', 'individual_id', 'social_group_id', 'is_present', 'evidence::text as evidence',
         'status::text as status', 'code', 'certainty::text as certainty']},
-    {table: 'public.providers', columns: ['id', 'slug', 'name']},
-    {table: 'public.collections', columns: ['id', 'name', 'organization_id', 'slug']},
-    {table: 'public.organizations', columns: ['id', 'name', 'url']},
     {table: 'register.entities', columns: ['entity_id', 'kind', 'label']},
     {table: 'register.names', columns: ['entity_id', 'name', 'type', 'language']},
     {table: 'register.mappings', columns: ['subject_id', 'predicate_id', 'object_id']},
@@ -183,17 +180,6 @@ const ANSWER_TABLES: readonly {table: string, columns: readonly string[]}[] = [
         '(location).lon as location_lon', '(location).lat as location_lat']},
 ];
 
-/**
- * The enums the derivation reads, each label with its position in the type's
- * declared order: inaturalist.species_id compares ranks by it, and an Orcasound
- * occurrence takes the strongest certainty by it. The others are here because a
- * view casts text to them, which fails on a label the type doesn't have.
- */
-const ENUMS = [
-    'inaturalist.rank', 'public.identification_certainty', 'public.travel_direction',
-    'public.license', 'public.sex', 'happywhale.accuracy',
-];
-
 export async function main(): Promise<void> {
     const args = process.argv.slice(2);
     const answers = args[0] === '--answers';
@@ -232,7 +218,7 @@ export async function main(): Promise<void> {
             // DuckDB can echo the connection string in its error; never pass it on.
             throw new Error('Failed to attach Postgres (message withheld: it may contain the DSN)');
         }
-        for (const schema of new Set(['snapshot', 'types', ...derivedFrom.map(r => r.table.split('.')[0]!)]))
+        for (const schema of new Set(['snapshot', ...derivedFrom.map(r => r.table.split('.')[0]!)]))
             await conn.run(`CREATE SCHEMA IF NOT EXISTS store.${schema}`);
 
         // One transaction: a reader never sees some tables from this snapshot and
@@ -269,17 +255,6 @@ export async function main(): Promise<void> {
             await read(conn, `snapshot.${name}`, query);
         for (const {table, columns} of derivedFrom)
             await read(conn, table, `select ${columns.join(', ')} from ${table}`);
-        await read(conn, 'types.enums', `
-            select n.nspname || '.' || t.typname as type, e.enumlabel as label,
-                   row_number() over (partition by t.oid order by e.enumsortorder)::int as position
-            from pg_enum e
-            join pg_type t on t.oid = e.enumtypid
-            join pg_namespace n on n.oid = t.typnamespace
-            where n.nspname || '.' || t.typname in (${ENUMS.map(e => `'${e}'`).join(', ')})
-        `);
-        const found = await conn.runAndReadAll('SELECT count(DISTINCT type) FROM store.types.enums');
-        if (Number(found.getRows()[0]![0]) !== ENUMS.length)
-            throw new Error(`types.enums: expected ${ENUMS.length} enum types, found ${found.getRows()[0]![0]}`);
         await conn.run('COMMIT');
         await conn.run('DETACH pg');
     } finally {

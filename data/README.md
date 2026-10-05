@@ -1,8 +1,17 @@
 # Reference data
 
-External reference sources we **mirror** here so that changes are diffable and
-seeding is reproducible. These files are inputs, not authoritative domain data —
-our authoritative catalog lives in Postgres (see the individuals/subjects model).
+Mostly external reference sources we **mirror** here so that changes are diffable and
+seeding is reproducible. Two kinds of file are ours instead, and are the source of what
+they hold: `maplify-unnamed.tsv`, and the reference tables under `reference/`. Under
+[decision 064](../docs/decisions/064-what-users-do-not-write-leaves-postgres-first.md)
+more of what we curate moves here as it leaves Postgres; until then the catalogue's
+source is still Postgres.
+
+## `reference/` — providers, organizations, collections, Maplify's collection rules, enum orders
+
+Ours, and the source the read-path build reads ([decision 064](../docs/decisions/064-what-users-do-not-write-leaves-postgres-first.md), `salish-9uu.2.1`): who a sighting is attributed to ([decision 006](../docs/decisions/006-provenance-graph.md)), the rules that file a Maplify sighting under a collection by the bracketed source in its comment, and the declared order of the enums the derivation compares by. [`reference.ts`](../scripts/read-path/reference.ts) loads them into the build under their Postgres names; the format is described there. Whitespace is kept exactly, so a quoted value with a leading space means it.
+
+Migrations wrote these tables, and the signed-in site still reads Postgres's copies until the store replaces it, so **a change here needs a migration making the same change** until then. [`reference.test.ts`](../scripts/read-path/reference.test.ts) fails in CI when a fresh migration replay and the files disagree.
 
 ## `maplify-unnamed.tsv` — Maplify names a curator has accepted as un-named
 
