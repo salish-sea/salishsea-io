@@ -33,7 +33,7 @@ import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 
 import { fold } from '../../src/fold.ts';
 import { budget } from './duckdb-budget.ts';
-import { readTsv } from './reference.ts';
+import { assertHeader, readTsv } from './reference.ts';
 
 export const CATALOGUE_DIR = path.join(import.meta.dirname, '..', '..', 'data', 'catalogue');
 
@@ -66,6 +66,87 @@ export const CATALOGUE: Readonly<Record<string, {file: string, columns: readonly
 };
 
 type Row = Record<string, unknown>;
+
+/**
+ * What Postgres enforced on these tables, enforced here instead: in Postgres a bad row was
+ * refused on insert, and in a file it is only text. Their NOT NULLs, uniques (a NULL never
+ * collides, as in Postgres), foreign keys, enum types and CHECKs, as their migrations
+ * declare them; the enums' labels are the checked-in data/reference/enums.tsv, which CI
+ * holds equal to a fresh migration replay. A build whose catalogue breaks any of them
+ * fails the catalogue task, naming every row that does.
+ */
+export const CONSTRAINTS = {
+    notNull: {
+        individuals: ['id', 'primary_designation', 'maternity_certainty'],
+        designations: ['id', 'individual_id', 'code', 'scheme', 'is_primary', 'status', 'in_catalog'],
+        parties: ['id', 'name'],
+        social_groups: ['id', 'kind', 'designation'],
+        nicknames: ['id', 'name', 'status'],
+        haulouts: ['id', 'name', 'lat', 'lon', 'radius_m', 'verified', 'created_at'],
+    } as Record<string, string[]>,
+    unique: [
+        ['individuals', ['id']], ['individuals', ['primary_designation']], ['individuals', ['entity_id']],
+        ['designations', ['id']], ['designations', ['code']],
+        ['parties', ['id']], ['parties', ['name']],
+        ['social_groups', ['id']], ['social_groups', ['designation']], ['social_groups', ['entity_id']],
+        ['nicknames', ['id']], ['nicknames', ['individual_id', 'name']], ['nicknames', ['social_group_id', 'name']],
+        ['haulouts', ['id']],
+    ] as [string, string[]][],
+    references: [
+        ['individuals', 'mother_id', 'individuals'], ['individuals', 'father_id', 'individuals'],
+        ['designations', 'individual_id', 'individuals'], ['designations', 'superseded_by', 'designations'],
+        ['designations', 'authority_id', 'parties'],
+        ['nicknames', 'individual_id', 'individuals'], ['nicknames', 'social_group_id', 'social_groups'],
+        ['nicknames', 'namer_id', 'parties'],
+        ['social_groups', 'anchor_individual_id', 'individuals'],
+    ] as [string, string, string][],
+    enums: [
+        ['individuals', 'maternity_certainty', 'public.parentage_certainty'],
+        ['individuals', 'paternity_certainty', 'public.parentage_certainty'],
+        ['designations', 'scheme', 'public.designation_scheme'],
+        ['designations', 'status', 'public.designation_status'],
+        ['parties', 'kind', 'public.party_kind'],
+        ['social_groups', 'kind', 'public.social_group_kind'],
+        ['nicknames', 'status', 'public.nickname_status'],
+    ] as [string, string, string][],
+    // [table, what every row must do, the condition that says it does]
+    checks: [
+        ['nicknames', 'name exactly one individual or group', '(individual_id IS NULL) <> (social_group_id IS NULL)'],
+        ['haulouts', 'have a radius from 50 to 5,000 metres', 'radius_m BETWEEN 50 AND 5000'],
+    ] as [string, string, string][],
+};
+
+/** Every row of the loaded files (temp views `cat_<table>`) that breaks a constraint, described. */
+async function violations(conn: DuckDBConnection): Promise<string[]> {
+    const found: string[] = [];
+    const ids = async (sql: string) =>
+        (await conn.runAndReadAll(sql)).getRows().map(r => r.map(v => String(v)).join('/'));
+    const report = (what: string, rows: string[]) => {
+        if (rows.length) found.push(`${what}: ${rows.slice(0, 10).join(', ')}${rows.length > 10 ? `, and ${rows.length - 10} more` : ''}`);
+    };
+    for (const [table, columns] of Object.entries(CONSTRAINTS.notNull))
+        for (const column of columns)
+            report(`${table}.${column} is empty in row`, await ids(`SELECT id FROM cat_${table} WHERE ${column} IS NULL`));
+    for (const [table, columns] of CONSTRAINTS.unique)
+        report(`${table} repeats (${columns.join(', ')})`, await ids(
+            `SELECT ${columns.join(', ')} FROM cat_${table} WHERE ${columns.map(c => `${c} IS NOT NULL`).join(' AND ')}
+             GROUP BY ALL HAVING count(*) > 1`));
+    for (const [table, column, target] of CONSTRAINTS.references)
+        report(`${table}.${column} names no row of ${target}, in row`, await ids(
+            `SELECT t.id FROM cat_${table} t WHERE t.${column} IS NOT NULL
+             AND NOT EXISTS (SELECT 1 FROM cat_${target} r WHERE r.id = t.${column})`));
+    for (const [table, column, type] of CONSTRAINTS.enums) {
+        const labels = await conn.runAndReadAll(`SELECT count(*) FROM store.types.enums WHERE type = '${type}'`);
+        if (Number(labels.getRows()[0]![0]) === 0) found.push(`${type} has no labels in types.enums`);
+        report(`${table}.${column} is not a ${type}`, await ids(
+            `SELECT DISTINCT ${column} FROM cat_${table} WHERE ${column} IS NOT NULL
+             AND ${column} NOT IN (SELECT label FROM store.types.enums WHERE type = '${type}')`));
+    }
+    // As a CHECK does, a condition that comes out NULL passes; NOT NULL is checked above.
+    for (const [table, what, holds] of CONSTRAINTS.checks)
+        report(`${table} rows must ${what}; these don't`, await ids(`SELECT id FROM cat_${table} WHERE NOT (${holds})`));
+    return found;
+}
 
 /** An object with its keys in jsonb's order — shorter first, then bytewise — as Postgres stores them. */
 export function jsonbOrdered(row: Row): Row {
@@ -134,6 +215,12 @@ export async function loadCatalogue(snapshot: string, dir = CATALOGUE_DIR): Prom
         await budget(conn, snapshot, '64MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         const read = (table: string) => readTsv(path.join(dir, CATALOGUE[table]!.file), CATALOGUE[table]!.columns);
+        for (const [table, {file, columns}] of Object.entries(CATALOGUE)) {
+            assertHeader(path.join(dir, file), columns);
+            await conn.run(`CREATE TEMP VIEW cat_${table} AS SELECT * FROM ${read(table)}`);
+        }
+        const broken = await violations(conn);
+        if (broken.length) throw new Error(`the catalogue breaks what Postgres enforced:\n  ${broken.join('\n  ')}`);
         const vitals = await registerVitals(conn, read('individuals'));
         const docs: Record<string, string[]> = {};
         for (const table of Object.keys(CATALOGUE)) {

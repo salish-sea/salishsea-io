@@ -19,6 +19,7 @@
  * matches a bracket that begins with a space. An empty field is a null.
  */
 
+import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
@@ -28,10 +29,13 @@ export const REFERENCE_DIR = path.join(import.meta.dirname, '..', '..', 'data', 
 /** A reference table: where it lives in the snapshot, its file, and its columns in order. */
 export type ReferenceTable = {table: string, file: string, columns: readonly (readonly [string, string])[], postgres: string};
 
-/** The enum types the derivation reads, as snapshot.ts listed them. */
+/** The enum types the build reads: the derivation's, and the catalogue's vocabularies. */
 const ENUMS = [
     'inaturalist.rank', 'public.identification_certainty', 'public.travel_direction',
     'public.license', 'public.sex', 'happywhale.accuracy',
+    // the catalogue's vocabularies, which catalogue.ts holds its files to (salish-9uu.2.3)
+    'public.designation_scheme', 'public.designation_status', 'public.parentage_certainty',
+    'public.nickname_status', 'public.party_kind', 'public.social_group_kind',
 ];
 
 export const REFERENCE: readonly ReferenceTable[] = [
@@ -84,6 +88,18 @@ export function readTsv(file: string, columns: readonly (readonly [string, strin
                      auto_detect = false, columns = {${typed}}, nullstr = '', allow_quoted_nulls = false, strict_mode = true)`;
 }
 
+/**
+ * Refuse a file whose header doesn't name exactly the declared columns, in order. The
+ * reader takes columns by position, so a file with two same-typed columns swapped — `lat`
+ * and `lon` — would otherwise load without a word.
+ */
+export function assertHeader(file: string, columns: readonly (readonly [string, string])[]): void {
+    const header = readFileSync(file, 'utf8').split('\n', 1)[0]!.replace(/\r$/, '').split('\t');
+    const declared = columns.map(([name]) => name);
+    if (header.join('\t') !== declared.join('\t'))
+        throw new Error(`${path.basename(file)}: its header is ${header.join(', ')}; expected ${declared.join(', ')}`);
+}
+
 /** The DuckDB expression reading one reference file. */
 export function readFile(ref: ReferenceTable, dir = REFERENCE_DIR): string {
     return readTsv(path.join(dir, ref.file), ref.columns);
@@ -95,6 +111,7 @@ export async function loadReference(conn: DuckDBConnection, catalog: string, dir
         await conn.run(`CREATE SCHEMA IF NOT EXISTS ${catalog}.${schema}`);
     await conn.run('BEGIN');
     for (const ref of REFERENCE) {
+        assertHeader(path.join(dir, ref.file), ref.columns);
         await conn.run(`CREATE OR REPLACE TABLE ${catalog}.${ref.table} AS SELECT * FROM ${readFile(ref, dir)}`);
         const count = await conn.runAndReadAll(`SELECT count(*) FROM ${catalog}.${ref.table}`);
         const rows = Number(count.getRows()[0]![0]);

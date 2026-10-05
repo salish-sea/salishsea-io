@@ -17,7 +17,9 @@ Ours, and the source the read-path build reads (`salish-9uu.2.3`): what the prof
 
 The files hold what is ours and nothing derived. The build computes the rest as Postgres did: the folded designation codes (`src/fold.ts`), and an individual's sex, birth years and life status, which are the register's ([decision 051](../docs/decisions/051-group-hierarchy-is-the-registers.md)) — so a correction to those is a register edit, not an edit here. The rights policy's withheld columns are not here at all (D-21): the sheet's notes on an individual and the story behind a nickname.
 
-Postgres keeps its copy for the signed-in site until the store replaces it, so **a change here needs a migration making the same change** until then. `seed-biggs.ts` and the sheet are no longer the catalogue's source; these files are.
+The build holds the files to what Postgres's schema enforced — required columns, unique codes and names, references between the tables, the enum vocabularies in `reference/enums.tsv`, a nickname belonging to exactly one individual or group, a haul-out radius of 50 to 5,000 metres — and a pull request that breaks one fails the build's catalogue task, naming the rows. The header row must name the columns in the order the loader declares them.
+
+Postgres keeps its copy for the signed-in site until the store replaces it, so **a change here needs a migration making the same change** until then. `seed-biggs.ts` and the sheet are no longer the catalogue's source; these files are, and `scripts/register/reconcile.ts` still reconciles Postgres's copy.
 
 ## `maplify-unnamed.tsv` — Maplify names a curator has accepted as un-named
 

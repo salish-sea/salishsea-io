@@ -160,16 +160,26 @@ export async function main(): Promise<void> {
             const held = await tableExists(conn, 'register', 'edition')
                 ? (await conn.runAndReadAll('SELECT tag FROM register.edition')).getRows()[0]?.[0] as string | undefined
                 : undefined;
-            // Held, and every table the build reads is there: nothing to do. A table missing
-            // (one this version of the build reads that the last didn't) re-adopts the edition.
+            // A table this version of the build reads that the last didn't is missing from the
+            // edition it holds: adopt that edition again first, whatever is newest, so a newer
+            // edition being refused can't leave the build without it (Fable review).
             const missing: string[] = [];
             for (const {table} of REGISTER_TABLES)
                 if (!(await tableExists(conn, 'register', table))) missing.push(table);
-            if (held === tag && missing.length === 0) {
-                say(`register ${tag}: held already`);
-                return 0;
+            let restored = 0;
+            if (held && missing.length > 0) {
+                say(`register ${held}: held, but without ${missing.join(', ')}; adopting it again`);
+                const again = await fetchEdition(held, () => {});
+                try {
+                    restored = await adopt(conn, again.dir, held, again.digest);
+                } finally {
+                    rmSync(again.dir, {recursive: true, force: true});
+                }
             }
-            if (held === tag) say(`register ${tag}: held, but without ${missing.join(', ')}; adopting it again`);
+            if (held === tag) {
+                if (!restored) say(`register ${tag}: held already`);
+                return restored;
+            }
             await conn.run('INSTALL sqlite; LOAD sqlite');
             await conn.run(`ATTACH '${mirror.replaceAll("'", "''")}' AS maplify_mirror (TYPE sqlite, READ_ONLY)`);
             const baseline = await heldNames(conn);
