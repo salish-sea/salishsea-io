@@ -1,6 +1,7 @@
 /**
  * The write API (decision 065): what replaces Supabase for what salishsea.io's users
- * write. This step is sign-in (salish-9uu.3.3); the writes follow (salish-9uu.3.4).
+ * write — sign-in (salish-9uu.3.3), sightings and feedback (salish-9uu.3.4); photos
+ * follow once their bucket exists.
  *
  *   STORE_PATH=… SESSION_SIGNING_KEY=… node api/server.ts
  *
@@ -12,6 +13,13 @@
  *                                             cookie set; answers as GET /api/me does
  *   DELETE /api/session                       ends the session
  *   GET    /api/me                            {user_id, contributor} or 401
+ *   PUT    /api/sightings/<id>  a sighting      save it (sightings.ts): 401 signed out, 403 not
+ *                                             the owner's or an editor's
+ *   DELETE /api/sightings/<id>                 delete it, likewise; 404 if there is none
+ *   POST   /api/feedback        a message       anyone (039), a few per sender per window
+ *
+ * A change to a sighting wakes the build (BUILD_COMMAND, coalesced as the change listener
+ * coalesces Realtime's signal), so the published files follow within a build.
  *
  * Anything that changes state must come from an allowed origin: the cookie is SameSite=Lax,
  * and the Origin check is the second lock on the same door.
@@ -20,7 +28,10 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { DatabaseSync } from 'node:sqlite';
 
+import { BuildCoalescer, commandBuild } from '../scripts/read-path/coalesce.ts';
+import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
 import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './google.ts';
+import { deleteSighting, parseSighting, Refused, saveSighting } from './sightings.ts';
 import { cookie, mint, readCookie, signingKey, verifySession } from './session.ts';
 import { openStore } from './store/store.ts';
 import { me, sessionEpoch, signIn, signOut, type Me } from './users.ts';
@@ -28,7 +39,22 @@ import { me, sessionEpoch, signIn, signOut, type Me } from './users.ts';
 export const DEFAULT_ORIGINS = ['https://salishsea.io', 'https://salishsea-io.fly.dev'];
 const MAX_BODY = 64 * 1024;
 
-export type Api = {store: DatabaseSync, key: Buffer, keys: KeySource, origins: ReadonlySet<string>, clientId?: string};
+export type Api = {
+    store: DatabaseSync, key: Buffer, keys: KeySource, origins: ReadonlySet<string>, clientId?: string,
+    /** Told after a sighting changes: wakes the build. */
+    changed?: () => void,
+    /** Whether a sender may send feedback now. */
+    feedbackAllowed?: (sender: string) => boolean,
+};
+
+/** Who sent a request, as the address the edge saw: CloudFront's header, then Caddy's, then the socket. */
+function sender(req: IncomingMessage): string {
+    const cloudfront = req.headers['cloudfront-viewer-address'];
+    if (typeof cloudfront === 'string') return cloudfront.replace(/:\d+$/, '');
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string') return forwarded.split(',')[0]!.trim();
+    return req.socket.remoteAddress ?? 'unknown';
+}
 
 class HttpError extends Error {
     readonly status: number;
@@ -105,9 +131,28 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
             if (who === null) return send(res, 401, {signed_in: false});
             return send(res, 200, who);
         }
+        const sighting = /^\/api\/sightings\/([^/]+)$/.exec(url.pathname);
+        if (sighting && (method === 'PUT' || method === 'DELETE')) {
+            const who = currentUser(api, req);
+            if (who === null) throw new HttpError(401, 'sign in first');
+            const id = decodeURIComponent(sighting[1]!);
+            if (method === 'PUT') {
+                const outcome = saveSighting(api.store, who, id, parseSighting(await json(req)));
+                api.changed?.();
+                return send(res, outcome === 'created' ? 201 : 200, {id, outcome});
+            }
+            if (!deleteSighting(api.store, who, id)) throw new HttpError(404, 'no such sighting');
+            api.changed?.();
+            return send(res, 200, {id, deleted: true});
+        }
+        if (url.pathname === '/api/feedback' && method === 'POST') {
+            if (api.feedbackAllowed && !api.feedbackAllowed(sender(req))) throw new HttpError(429, 'too much feedback; try again later');
+            submitFeedback(api.store, currentUser(api, req)?.user_id ?? null, parseFeedback(await json(req)));
+            return send(res, 201, {received: true});
+        }
         throw new HttpError(404, 'no such route');
     } catch (error) {
-        if (error instanceof HttpError) return send(res, error.status, {error: error.message});
+        if (error instanceof HttpError || error instanceof Refused) return send(res, error.status, {error: error.message});
         console.error(error);
         return send(res, 500, {error: 'internal error'});
     }
@@ -131,6 +176,12 @@ if (import.meta.main) {
     const configured = (process.env['ALLOWED_ORIGINS'] ?? '').split(',').map(o => o.trim()).filter(Boolean);
     const origins = new Set(configured.length > 0 ? configured : DEFAULT_ORIGINS);
     const port = Number(process.env['API_PORT'] ?? 8082);
-    serve({store: openStore(store), key: signingKey(process.env['SESSION_SIGNING_KEY']), keys: googleKeys(), origins}, port);
+    const build = process.env['BUILD_COMMAND']?.split(' ').filter(Boolean) ?? [];
+    const coalescer = build.length > 0 ? new BuildCoalescer(commandBuild(build)) : null;
+    serve({
+        store: openStore(store), key: signingKey(process.env['SESSION_SIGNING_KEY']), keys: googleKeys(), origins,
+        changed: coalescer ? () => coalescer.changed() : undefined,
+        feedbackAllowed: rateLimiter(),
+    }, port);
     console.log(`api: listening on 127.0.0.1:${port}`);
 }

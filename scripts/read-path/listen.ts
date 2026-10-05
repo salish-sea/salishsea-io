@@ -18,25 +18,9 @@
  * moves (decision 056, step 4), the signal has to come from the new write path.
  */
 
-import { spawn } from 'node:child_process';
 import { createClient } from '@supabase/supabase-js';
 
-import { BuildCoalescer, type BuildResult } from './coalesce.ts';
-
-/** build.sh's answer when another build holds the lock: EX_TEMPFAIL. */
-const BUSY = 75;
-
-function runBuild(command: string[]): () => Promise<BuildResult> {
-    return () => new Promise((resolve, reject) => {
-        const child = spawn(command[0]!, command.slice(1), {stdio: 'inherit'});
-        child.on('error', reject);
-        child.on('exit', code => {
-            if (code === BUSY) resolve('busy');
-            else if (code === 0) resolve('done');
-            else reject(new Error(`build exited ${code}`));
-        });
-    });
-}
+import { BuildCoalescer, commandBuild } from './coalesce.ts';
 
 export async function main(): Promise<void> {
     const command = process.argv.slice(2);
@@ -47,7 +31,7 @@ export async function main(): Promise<void> {
         process.exit(2);
     }
 
-    const coalescer = new BuildCoalescer(runBuild(command));
+    const coalescer = new BuildCoalescer(commandBuild(command));
     createClient(url, key)
         .channel('occurrences')
         .on('broadcast', {event: 'occurrences_changed'}, () => {
