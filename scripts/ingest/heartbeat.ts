@@ -78,8 +78,12 @@ const ARCHIVE_URL = process.env['ARCHIVE_URL'] ?? 'https://salishsea.io/dwca/sal
 /** Rebuilt at least daily; a little over a day allows for the build that crosses midnight UTC. */
 const ARCHIVE_MINUTES = Number(process.env['ARCHIVE_MINUTES'] ?? 26 * 60);
 
-/** Sources the ingest pipeline must keep fresh. */
-export const SOURCES = ['maplify', 'inaturalist', 'orcasound'] as const;
+/**
+ * Sources the ingest pipeline must keep fresh. The register too (decision 064): the build
+ * asks for its newest release every run, and a run that fails without being transient —
+ * an edition refused because it would un-name Maplify sightings — is a curator's to fix.
+ */
+export const SOURCES = ['maplify', 'inaturalist', 'orcasound', 'register'] as const;
 
 /** Cron fires every 5 min; 30 min of no success = 6 consecutive missed/failed runs. */
 const FRESHNESS_MINUTES = Number(process.env['FRESHNESS_MINUTES'] ?? 30);

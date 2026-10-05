@@ -39,7 +39,7 @@ const healthy: HeartbeatInput = {
     lastSuccesses: [
         { source: 'maplify', finishedAt: minutesAgo(4) },
         { source: 'inaturalist', finishedAt: minutesAgo(6) },
-        { source: 'orcasound', finishedAt: minutesAgo(5) },
+        { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
     ],
     orphans: [],
     recentSuccesses: [],
@@ -58,7 +58,7 @@ describe('evaluateHeartbeat', () => {
                 lastSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(47) },
                     { source: 'inaturalist', finishedAt: minutesAgo(6) },
-                    { source: 'orcasound', finishedAt: minutesAgo(5) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
                 ],
             },
             THRESHOLDS,
@@ -72,7 +72,7 @@ describe('evaluateHeartbeat', () => {
         const findings = evaluateHeartbeat(
             {
                 ...healthy,
-                lastSuccesses: [{ source: 'maplify', finishedAt: minutesAgo(4) }, { source: 'orcasound', finishedAt: minutesAgo(5) }],
+                lastSuccesses: [{ source: 'maplify', finishedAt: minutesAgo(4) }, { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) }],
             },
             THRESHOLDS,
         );
@@ -88,7 +88,7 @@ describe('evaluateHeartbeat', () => {
                 lastSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(30) },
                     { source: 'inaturalist', finishedAt: minutesAgo(6) },
-                    { source: 'orcasound', finishedAt: minutesAgo(5) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
                 ],
             },
             THRESHOLDS,
@@ -140,7 +140,7 @@ describe('evaluateHeartbeat', () => {
         const findings = evaluateHeartbeat(
             {
                 now: NOW,
-                lastSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(90) }, { source: 'orcasound', finishedAt: minutesAgo(5) }],
+                lastSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(90) }, { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) }],
                 recentSuccesses: [],
                 recentTransientFailures: [],
                 orphans: [
@@ -192,7 +192,7 @@ describe('evaluateHeartbeat: gaps between successes', () => {
                 lastSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(47) },
                     { source: 'inaturalist', finishedAt: minutesAgo(6) },
-                    { source: 'orcasound', finishedAt: minutesAgo(5) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
                 ],
                 recentSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(52) },
@@ -291,7 +291,7 @@ describe('evaluateHeartbeat: upstream outages', () => {
             lastSuccesses: [
                 { source: 'maplify', finishedAt: minutesAgo(4) },
                 { source: 'inaturalist', finishedAt: minutesAgo(downFor) },
-                { source: 'orcasound', finishedAt: minutesAgo(5) },
+                { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
             ],
             recentSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(downFor) }],
             recentTransientFailures: every5('inaturalist', downFor - 5, 1),
@@ -330,7 +330,7 @@ describe('evaluateHeartbeat: upstream outages', () => {
                 lastSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(4) },
                     { source: 'inaturalist', finishedAt: minutesAgo(400) },
-                    { source: 'orcasound', finishedAt: minutesAgo(5) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
                 ],
                 recentSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(400) }],
                 // failing upstream, then nothing at all for the last 45 minutes
@@ -447,7 +447,8 @@ describe('heartbeatInput (the build\'s run log)', () => {
         const input = heartbeatInput(file([run('maplify', 2, 1, 'success')]), NOW);
         expect(input.lastSuccesses.map((s) => s.source)).toEqual(['maplify']);
         expect(evaluateHeartbeat(input, THRESHOLDS).map((f) => [f.kind, f.source]))
-            .toEqual([['never_succeeded', 'inaturalist'], ['never_succeeded', 'orcasound']]);
+            .toEqual([['never_succeeded', 'inaturalist'], ['never_succeeded', 'orcasound'],
+                ['never_succeeded', 'register']]);
     });
 
     test('ages are measured against the checker\'s clock: a build that stopped reads as stale', () => {
@@ -455,8 +456,9 @@ describe('heartbeatInput (the build\'s run log)', () => {
         const twoHoursLate = new Date(NOW.getTime() + 120 * 60_000);
         const input = heartbeatInput(file([
             run('maplify', 5, 4, 'success'), run('inaturalist', 5, 4, 'success'), run('orcasound', 5, 4, 'success'),
+            run('register', 5, 4, 'success'),
         ]), twoHoursLate);
-        expect(evaluateHeartbeat(input, THRESHOLDS).map((f) => f.kind)).toEqual(['stale', 'stale', 'stale']);
+        expect(evaluateHeartbeat(input, THRESHOLDS).map((f) => f.kind)).toEqual(['stale', 'stale', 'stale', 'stale']);
     });
 
     test('recent successes: everything inside the lookback plus the newest before it', () => {
@@ -470,6 +472,7 @@ describe('heartbeatInput (the build\'s run log)', () => {
             run('maplify', 30, 29, 'failed'),
             run('inaturalist', 6, 5, 'success'),
             run('orcasound', 7, 6, 'success'),
+            run('register', 7, 6, 'success'),
         ]), NOW, 120);
         const maplify = input.recentSuccesses
             .filter((s) => s.source === 'maplify')
@@ -493,6 +496,7 @@ describe('heartbeatInput (the build\'s run log)', () => {
             run('inaturalist', 11, 10, 'failed', false),
             run('maplify', 5, 4, 'success'),
             run('orcasound', 5, 4, 'success'),
+            run('register', 5, 4, 'success'),
         ]), NOW, 120);
         const ages = input.recentTransientFailures
             .map((s) => [s.source, Math.round((NOW.getTime() - s.finishedAt.getTime()) / 60_000)])
