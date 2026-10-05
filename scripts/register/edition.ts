@@ -15,6 +15,8 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { isRetryableStatus, markTransientUpstream } from '../ingest/retry.ts';
+
 export const REPO = 'salish-sea/animals';
 const RELEASE = (tag: string, asset: string) =>
     `https://github.com/${REPO}/releases/download/${tag}/${asset}`;
@@ -68,12 +70,23 @@ export function parseTsv(text: string, columns: readonly string[]): (string | nu
 }
 
 async function download(url: string): Promise<Buffer> {
-    // Bounded: a stalled connection should fail the load, not hang it indefinitely.
-    const res = await fetch(url, {
-        headers: { 'User-Agent': 'salishsea.io register loader' },
-        signal: AbortSignal.timeout(60_000),
-    });
-    if (!res.ok) throw new Error(`${res.status} fetching ${url}`);
+    // Bounded: a stalled connection should fail the load, not hang it indefinitely. A
+    // failure GitHub's side might clear by itself — no connection, a timeout, a 5xx or
+    // 429 — is marked transient (decision 042), so the read-path build's heartbeat
+    // treats it as a source outage rather than as our build stopping.
+    let res: Response;
+    try {
+        res = await fetch(url, {
+            headers: { 'User-Agent': 'salishsea.io register loader' },
+            signal: AbortSignal.timeout(60_000),
+        });
+    } catch (error) {
+        throw markTransientUpstream(error);
+    }
+    if (!res.ok) {
+        const error = new Error(`${res.status} fetching ${url}`);
+        throw isRetryableStatus(res.status) ? markTransientUpstream(error) : error;
+    }
     return Buffer.from(await res.arrayBuffer());
 }
 

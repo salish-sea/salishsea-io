@@ -28,3 +28,21 @@ describe('REGISTER_TABLES', () => {
         expect(REGISTER_TABLES.find(t => t.table === 'ancestor')!.select).toContain('CAST(depth AS INTEGER)');
     });
 });
+
+describe('latestTag classifies what fails (decision 042)', () => {
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    test('no connection, or GitHub erroring, is transient: a source outage, not our build stopping', async () => {
+        const { isTransientUpstream } = await import('../ingest/retry.ts');
+        vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('fetch failed'); }));
+        await expect(latestTag().catch(e => isTransientUpstream(e))).resolves.toBe(true);
+        vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 503})));
+        await expect(latestTag().catch(e => isTransientUpstream(e))).resolves.toBe(true);
+    });
+
+    test('an answer GitHub meant, that names no release, is a defect', async () => {
+        const { isTransientUpstream } = await import('../ingest/retry.ts');
+        vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 200})));
+        await expect(latestTag().catch(e => isTransientUpstream(e))).resolves.toBe(false);
+    });
+});

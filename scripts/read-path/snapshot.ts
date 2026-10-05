@@ -258,6 +258,9 @@ export async function main(): Promise<void> {
             await read(conn, `snapshot.${name}`, query);
         for (const {table, columns} of derivedFrom)
             await read(conn, table, `select ${columns.join(', ')} from ${table}`);
+        // Postgres's register, read only here, is not the release `register.edition`
+        // names, so that marker goes, and a later ingest-register adopts afresh.
+        if (answers) await conn.run('DROP TABLE IF EXISTS store.register.edition');
         await conn.run('COMMIT');
         await conn.run('DETACH pg');
     } finally {

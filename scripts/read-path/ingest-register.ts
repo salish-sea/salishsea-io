@@ -33,6 +33,7 @@ import path from 'node:path';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 
 import { resolveEntity, type NormalizedSighting } from '../ingest/maplify.ts';
+import { isRetryableStatus, markTransientUpstream } from '../ingest/retry.ts';
 import { checkEdition } from '../register/check-unnaming.ts';
 import { fetchEdition, REPO } from '../register/edition.ts';
 import { buildNameIndex, NAME_INDEX_SQL, type RegisterName } from '../register/name-index.ts';
@@ -58,14 +59,23 @@ export const REGISTER_TABLES: readonly {table: string, dir: 'data' | 'dist', sel
 
 /** The tag `releases/latest` redirects to: one request, nothing downloaded. */
 export async function latestTag(): Promise<string> {
-    const res = await fetch(`https://github.com/${REPO}/releases/latest`, {
-        redirect: 'manual',
-        headers: {'User-Agent': 'salishsea.io read-path build'},
-        signal: AbortSignal.timeout(30_000),
-    });
+    let res: Response;
+    try {
+        res = await fetch(`https://github.com/${REPO}/releases/latest`, {
+            redirect: 'manual',
+            headers: {'User-Agent': 'salishsea.io read-path build'},
+            signal: AbortSignal.timeout(30_000),
+        });
+    } catch (error) {
+        // no connection or a timeout: GitHub's side, or the network's, not ours (decision 042)
+        throw markTransientUpstream(error);
+    }
     const location = res.headers.get('location');
     const tag = location?.match(/\/releases\/tag\/([^/?#]+)$/)?.[1];
-    if (!tag) throw new Error(`releases/latest answered ${res.status} without a release tag`);
+    if (!tag) {
+        const error = new Error(`releases/latest answered ${res.status} without a release tag`);
+        throw isRetryableStatus(res.status) ? markTransientUpstream(error) : error;
+    }
     return decodeURIComponent(tag);
 }
 
@@ -113,20 +123,23 @@ async function adopt(conn: DuckDBConnection, dir: string, tag: string, digest: s
 
 export async function main(): Promise<void> {
     const args = process.argv.slice(2);
+    function usage(): never {
+        console.error('usage: ingest-register.ts <snapshot.duckdb> <maplify.sqlite> --allow <maplify-unnamed.tsv> [--tag <tag>]');
+        process.exit(2);
+    }
+    // An option's value is the next argument, and never another option.
     const option = (name: string): string | undefined => {
         const at = args.indexOf(name);
         if (at < 0) return undefined;
         const value = args[at + 1];
+        if (value === undefined || value.startsWith('--')) usage();
         args.splice(at, 2);
         return value;
     };
     const allow = option('--allow');
     const pinned = option('--tag') ?? (process.env['REGISTER_TAG'] || undefined);
     const [snapshot, mirror] = args;
-    if (!snapshot || !mirror || !allow) {
-        console.error('usage: ingest-register.ts <snapshot.duckdb> <maplify.sqlite> --allow <maplify-unnamed.tsv> [--tag <tag>]');
-        process.exit(2);
-    }
+    if (!snapshot || !mirror || !allow || args.length !== 2) usage();
     const say = (msg: string) => console.log(msg);
 
     const run = await recordedRun(mirror, 'register', pinned ? 'manual' : 'cron', async () => {
