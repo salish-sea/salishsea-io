@@ -1,0 +1,47 @@
+# 065 — What users write moves to a SQLite store behind a small write API on the Fly machine
+
+**Status:** accepted · **Decided:** 2026-10-05 · **Answers:** the second move of step 4 of [056](056-the-logged-out-read-path-is-built-as-static-files.md), after [064](064-what-users-do-not-write-leaves-postgres-first.md) · **Extends:** [059](059-the-end-state-is-a-build-graph-with-a-small-authoritative-store.md) · **Amends, at the cutover:** [002](002-static-spa-edge-architecture.md) (PostgREST stops being the backend) · **Context:** bd `salish-9uu`
+
+## Context
+
+Since 064 the build reads from Postgres only what users write. That is a small surface, and it is all the app does with Supabase now:
+
+- **Save a sighting** (`upsert_observation`): a signed-in contributor inserts or updates one sighting and its photos, merged by position. The owner columns are stamped on insert and never change. Its register entity must look like `SSA:nnnnnnn`.
+- **Delete a sighting**: its photos go with it.
+- **Upload a photo** to the public `media` bucket, under the uploader's folder: JPEG or JPEG 2000, at most 8 MiB.
+- **Submit feedback** (`submit_feedback`, [039](039-feedback-goes-to-our-own-database.md)): open to anyone, write-only, identity stamped by the server; a scheduled job opens a GitHub issue for each.
+- **Sign in with Google** ([030](030-google-signin-nonce.md)): the browser sends Google's ID token and the raw nonce whose hash Google signed; a database trigger makes a contributor for a new user, reusing one whose email it already knows.
+
+Who may change a sighting: its owner, or anyone whose contributor row has `editor` set, which is set by hand. Nothing else in the app writes. The volumes are small — about 600 sightings, 150 photos (104 MB), 36 sign-ins, a few dozen contributors who have signed in or own native sightings.
+
+059 settled the target: a SQLite store on the machine, a small write API beside it, replicated continuously from day one. This record fixes how.
+
+## Decision
+
+**A Node service on the Fly machine, at `salishsea.io/api/`.** TypeScript, like the rest of salishsea's scripts and its pure ingest cores, using `node:sqlite` as the build's mirrors already do. Caddy proxies `/api/*` to it, so it is the same origin as the site: no CORS, and cookies are first-party. It runs beside Caddy, the redirect server and the build, as one more process in `fly/start.sh`, and its memory is measured against the 1 GB budget before it ships.
+
+**The store is one SQLite file on the volume, holding only what users write.** Sightings and their photos, the contributors who signed in or own a native sighting (the six thousand iNaturalist logins Postgres minted retire with its ingest; the mirror keeps each observer's login), the link from a Google account to a contributor, feedback, and the identifications people assert (none yet; only curators will set their status, [014](014-trust-and-curation-model.md), [054](054-certainty-is-the-asserters-status-is-ours.md)), and later the segment claims of [062](062-segment-edits-are-claims-about-sightings.md). The schema is written in migrations, as Postgres's was.
+
+**Sign-in stays Google Sign-In, verified by the API.** The browser posts Google's ID token and the raw nonce. The API checks the token's signature against Google's published keys, its audience (salishsea's client id), issuer and expiry, and that the token's nonce is the raw nonce's SHA-256 (030). It finds the user by Google's `sub`, or makes one and a contributor as the Postgres trigger did, then sets its own session: a signed, `HttpOnly`, `Secure`, `SameSite=Lax` cookie. Every write also checks the request's `Origin`. Existing users keep their contributors: each Supabase user's Google `sub` is in `auth.identities` and moves with them.
+
+**The writes keep Postgres's rules.** Save keeps `upsert_observation`'s semantics — the owner stamped once, photos merged by position, the entity checked — and adds the authorization RLS gave: owner or editor. Delete likewise. A photo is checked (type, size) and written to object storage under its contributor and sighting; the API returns its public URL. Feedback keeps 039's shape: anyone may write, nobody may read, and the notifier runs on the machine on a schedule instead of polling Postgres from GitHub.
+
+**Photos and the replica live in S3, in the Orcasound AWS account** (Peter, 2026-10-05). Photos are public, served at `salishsea.io/media/` through a CloudFront behavior, so their URLs belong to the site rather than to a bucket. Litestream replicates the store continuously to a private bucket beside the existing nightly backup bucket. The API's credentials can write those two places and nothing else. All of it is CDK, in `infra/`.
+
+**A save is seen at once by its author, and by everyone at the next build** (Peter, 2026-10-05). The API serves the signed-in user's own sightings for the days they view, which the map overlays on the files as it overlays Supabase's today. After a write, the API wakes the build, so the published files follow within a minute or two. Saves stay fast; the build stays one queue. The build reads the store in place of Postgres's four tables, through a task like the frozen Happywhale file's, and the Realtime broadcast and its listener retire.
+
+**The cutover is one short freeze.** Built and tested beside Supabase first, against a copy of production. Then: writes stop in Supabase (its write grants revoked), the rows, photos and Google identities are copied into the store and S3, the site switches to the API, and Postgres stays read-only for a few weeks as the way back. Everyone signs in once more.
+
+## Rejected alternatives
+
+- **Flask, as BeeAtlas's API is.** It works there; salishsea's code is TypeScript, and its sighting rules already have TypeScript homes. One language per repository.
+- **A build before the save returns** (BeeAtlas's synchronous publish, 059's stated aim). Saves would take 20 to 60 seconds on this machine, and need a publish queue; the overlay gives the author the same answer at once.
+- **Photos on the volume.** The simplest to serve, but they would need their own copy off the machine and would compete for a 3 GB volume.
+- **Tigris for the replica.** One command from Fly, but a second place where backups live, outside the infrastructure code.
+
+## Consequences
+
+- There is a backend (002 ends at the cutover). Its secrets: a session signing key, AWS credentials scoped to two prefixes, and a GitHub token for the notifier. Google's client id is public.
+- The machine runs one more resident process, plus Litestream. Measured before each ships; a bigger machine only as a deliberate, measured decision.
+- Restoring the store from its replica is rehearsed before the cutover, not after.
+- The withheld catalogue text that 064 left in Postgres (an individual's sheet notes, a nickname's story) needs a home before Postgres goes; it is curated, not user-written, so it is not the store's by this record's rule, and is decided separately.
