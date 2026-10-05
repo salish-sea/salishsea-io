@@ -155,3 +155,42 @@ export function deleteSighting(store: DatabaseSync, who: Me, id: string): boolea
     store.prepare('DELETE FROM observations WHERE id = ?').run(id);
     return true;
 }
+
+/** The longest span one request for a contributor's own sightings may cover. */
+const MAX_SPAN_MS = 400 * 24 * 60 * 60_000;
+
+export type OwnSighting = {
+    id: string, observed_at: string, location: LonLat, observed_from: LonLat | null, body: string | null,
+    count: number | null, direction: string | null, url: string | null, entity_id: string,
+    photos: {src: string, license: string}[], contributor_id: number, updated_at: string,
+};
+
+/**
+ * The sightings a contributor saved, observed from `since` up to `until` (decision 065):
+ * the author's view of their own writes before a build has published them, which the map
+ * lays over the published files. As the store holds them, not as the build derives them:
+ * no taxon names, identifiers or attribution, which are the build's to work out.
+ */
+export function ownSightings(store: DatabaseSync, contributorId: number, since: string | null, until: string | null): OwnSighting[] {
+    const from = since ? new Date(since) : null;
+    const to = until ? new Date(until) : null;
+    if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from >= to)
+        throw bad('since and until must be times, since the earlier');
+    if (to.getTime() - from.getTime() > MAX_SPAN_MS) throw bad('at most 400 days at once');
+    const rows = store.prepare(`SELECT id, observed_at, subject_lon, subject_lat, observer_lon, observer_lat, body, count,
+            direction, url, entity_id, contributor_id, updated_at
+        FROM observations WHERE contributor_id = ? AND observed_at >= ? AND observed_at < ? ORDER BY observed_at DESC, id`)
+        .all(contributorId, isoMicros(from), isoMicros(to)) as {
+            id: string, observed_at: string, subject_lon: number, subject_lat: number, observer_lon: number | null,
+            observer_lat: number | null, body: string | null, count: number | null, direction: string | null,
+            url: string | null, entity_id: string, contributor_id: number, updated_at: string}[];
+    const photos = store.prepare('SELECT href, license_code FROM observation_photos WHERE observation_id = ? ORDER BY seq');
+    return rows.map(r => ({
+        id: r.id, observed_at: r.observed_at,
+        location: {lon: r.subject_lon, lat: r.subject_lat},
+        observed_from: r.observer_lon === null || r.observer_lat === null ? null : {lon: r.observer_lon, lat: r.observer_lat},
+        body: r.body, count: r.count, direction: r.direction, url: r.url, entity_id: r.entity_id,
+        photos: (photos.all(r.id) as {href: string, license_code: string}[]).map(p => ({src: p.href, license: p.license_code})),
+        contributor_id: r.contributor_id, updated_at: r.updated_at,
+    }));
+}

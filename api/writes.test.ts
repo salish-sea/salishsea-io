@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
 import { sender, serve } from './server.ts';
 import { mint } from './session.ts';
-import { deleteSighting, isoMicros, parseSighting, saveSighting } from './sightings.ts';
+import { deleteSighting, isoMicros, ownSightings, parseSighting, saveSighting } from './sightings.ts';
 import { openStore } from './store/store.ts';
 import { me, signIn, type Me } from './users.ts';
 
@@ -103,6 +103,35 @@ describe('deleting a sighting', () => {
     });
 });
 
+describe("a contributor's own sightings, for the map to lay over the files", () => {
+    const OTHER = '01977c2a-b313-77a9-8433-ffccbd56bf58';
+    const DAY = ['2026-10-05T07:00:00Z', '2026-10-06T07:00:00Z'] as const;
+
+    test('only theirs, only the span asked, as saved, newest first, with photos in order', () => {
+        saveSighting(store, owner, ID, input());
+        saveSighting(store, owner, OTHER, input({observed_at: '2026-10-05T19:00:00Z', photos: [], observed_from: {lon: -123.2, lat: 48.6}}));
+        saveSighting(store, owner, '01977c2a-b313-77a9-8433-ffccbd56bf59', input({observed_at: '2026-10-04T19:00:00Z'}));
+        saveSighting(store, stranger, '01977c2a-b313-77a9-8433-ffccbd56bf5a', input());
+        // an editor's correction leaves it the owner's
+        saveSighting(store, editor, ID, input({body: 'corrected'}));
+        const own = ownSightings(store, owner.contributor.id, ...DAY);
+        expect(own.map(s => s.id)).toEqual([OTHER, ID]);
+        expect(own[1]).toMatchObject({
+            observed_at: '2026-10-05T17:00:00.000000Z', location: {lon: -123.1, lat: 48.5}, observed_from: null,
+            body: 'corrected', count: 3, direction: 'north', entity_id: 'SSA:0000900', contributor_id: owner.contributor.id,
+            photos: [{src: 'https://salishsea.io/media/a.jpg', license: 'cc-by'}, {src: 'https://salishsea.io/media/b.jpg', license: 'cc-by'}],
+        });
+        expect(own[0]).toMatchObject({observed_from: {lon: -123.2, lat: 48.6}, photos: []});
+        expect(ownSightings(store, editor.contributor.id, ...DAY)).toEqual([]);
+    });
+
+    test('a span must be two times in order, and not too long', () => {
+        expect(() => ownSightings(store, owner.contributor.id, null, DAY[1])).toThrow(/since and until/);
+        expect(() => ownSightings(store, owner.contributor.id, DAY[1], DAY[0])).toThrow(/since the earlier/);
+        expect(() => ownSightings(store, owner.contributor.id, '2020-01-01T00:00:00Z', DAY[1])).toThrow(/400 days/);
+    });
+});
+
 describe('feedback (039)', () => {
     test('trimmed, an empty optional field none, the sender stamped when signed in', () => {
         submitFeedback(store, owner.user_id, parseFeedback({name: ' Ann ', message: ' Hello ', email: ' ', page_url: 'https://salishsea.io/'}));
@@ -161,6 +190,12 @@ describe('the writes over HTTP', () => {
             const del = await fetch(`${base}/api/sightings/${ID}`, {method: 'DELETE', headers: {origin: 'https://salishsea.io', cookie: session}});
             expect(del.status).toBe(200);
             expect(woken).toBe(3);
+            const span = 'since=2026-10-05T07:00:00Z&until=2026-10-06T07:00:00Z';
+            expect((await fetch(`${base}/api/sightings?${span}`)).status).toBe(401);
+            const mine = await fetch(`${base}/api/sightings?${span}`, {headers: {cookie: session}});
+            expect(mine.status).toBe(200);
+            expect(await mine.json()).toEqual({sightings: []});
+            expect((await fetch(`${base}/api/sightings?since=x&until=y`, {headers: {cookie: session}})).status).toBe(400);
             expect((await feedback()).status).toBe(201);
             expect((await feedback()).status).toBe(429);
             const malformed = await fetch(`${base}/api/sightings/%E0%A4%A`, {method: 'DELETE', headers: {origin: 'https://salishsea.io', cookie: session}});

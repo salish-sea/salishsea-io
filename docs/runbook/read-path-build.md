@@ -10,6 +10,15 @@ Every five minutes (`fly/crontab`, and a few seconds after a native sighting is 
 
 [Decision 065](../decisions/065-the-store-and-write-api.md)'s service, `api/server.ts`, takes over what users write from Supabase at the cutover. Until then it does not run: `fly/start.sh` starts it only when the machine's environment sets `API_ENABLED`, because its store (`/data/store/salishsea.db`) must be empty when the cutover copies Postgres into it, and a sign-in would write to it. Caddy routes `/api/*` to it, so until then those paths answer 502, on the Fly app's own address and through salishsea.io's `/api/*` CloudFront behavior alike. If the API can't start, it is retried every ten seconds while the site keeps serving.
 
+**What the build reads users' writes from.** Until the cutover, the snapshot reads the native sightings, their photos, contributors and identifications from Postgres, and the change listener builds after each Supabase Realtime signal. `READ_PATH_STORE=/data/store/salishsea.db` in the machine's environment switches both: the snapshot reads those tables from a consistent copy of the store instead (`scripts/read-path/snapshot.ts`, typed as Postgres's arrive, so nothing downstream can tell), Postgres is not read, and the listener is not started, since the API wakes the build after each write. Clearing it switches back, which is the way back for as long as Postgres is kept, with one condition: Postgres is read-only from the cutover, so a sighting saved through the API since then is in the store alone, and a build from Postgres leaves it off the map. Switch back only before anyone has saved one, or after copying what they saved back into Postgres:
+
+```sh
+fly machine update 82973dc7675348 -a salishsea-io --env READ_PATH_STORE=/data/store/salishsea.db -y   # the store
+fly machine update 82973dc7675348 -a salishsea-io --env READ_PATH_STORE= -y                            # Postgres
+```
+
+Set it only with `API_ENABLED`: without the API nothing writes the store, and a missing store fails the snapshot, so the build stops (loudly) rather than publish a map without native sightings.
+
 Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment before it starts anything and hands them to the API alone:
 
 - **`SESSION_SIGNING_KEY`**: at least 32 random bytes, base64. Changing it signs everyone out.
@@ -59,6 +68,7 @@ Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment be
 | `/data/mirrors/runs.sqlite` → `/status/ingest-runs.json` | each ingest run's outcome; what the heartbeat reads | log |
 | `/data/mirrors/maplify-names.json` → `/status/maplify-names.json` | the name guard's baseline: every Maplify (name, scientific name) pair and what the last passing build resolved it to | **authoritative** — forward-only, nothing regenerates it once Postgres stops resolving Maplify |
 | `/data/read-path.duckdb` | what Postgres still holds, the register release the build holds (`register.edition` says which), the reference tables from `data/reference/`, the catalogue from `data/catalogue/` with its views over the register, and the build's own derived relations | derived |
+| `/data/store/salishsea.db` | what users write (decision 065): sightings, photos' URLs, contributors, sign-ins, feedback | **authoritative** — the write API's alone; Litestream replicates it once salish-9uu.3.6 ships |
 | `/data/stelis/` | Stelis's build history (30 days) and content-addressed blocks | log |
 | `/data/export/` | every published file | derived |
 | `/app/data/maplify-unnamed.tsv` | the curator's allow-list of accepted un-namings | from git, in the image |

@@ -12,6 +12,10 @@
  *                                             cookie set; answers as GET /api/me does
  *   DELETE /api/session                       ends the session
  *   GET    /api/me                            {user_id, contributor} or 401
+ *   GET    /api/sightings?since=<time>&until=<time>
+ *                                             {sightings}: the signed-in contributor's own,
+ *                                             as saved, for the map to lay over the files
+ *                                             until a build publishes them; 401 signed out
  *   PUT    /api/sightings/<id>  a sighting      save it (sightings.ts): 401 signed out, 403 not
  *                                             the owner's or an editor's
  *   DELETE /api/sightings/<id>                 delete it, likewise; 404 if there is none
@@ -39,7 +43,7 @@ import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './googl
 import { startNotifier, storeQueue } from './notifier.ts';
 import { MAX_PHOTO_BYTES, PHOTO_CACHE_CONTROL, photoFolder, photoName, photoType } from './photos.ts';
 import { putObject } from './s3.ts';
-import { deleteSighting, parseSighting, Refused, saveSighting } from './sightings.ts';
+import { deleteSighting, ownSightings, parseSighting, Refused, saveSighting } from './sightings.ts';
 import { cookie, mint, readCookie, signingKey, verifySession } from './session.ts';
 import { openStore } from './store/store.ts';
 import { me, sessionEpoch, signIn, signOut, type Me } from './users.ts';
@@ -171,6 +175,12 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
             const who = currentUser(api, req);
             if (who === null) return send(res, 401, {signed_in: false});
             return send(res, 200, who);
+        }
+        if (url.pathname === '/api/sightings' && method === 'GET') {
+            const who = currentUser(api, req);
+            if (who === null) throw new HttpError(401, 'sign in first');
+            return send(res, 200, {sightings: ownSightings(api.store, who.contributor.id,
+                url.searchParams.get('since'), url.searchParams.get('until'))});
         }
         const sighting = /^\/api\/sightings\/([^/]+)$/.exec(url.pathname);
         if (sighting && (method === 'PUT' || method === 'DELETE')) {

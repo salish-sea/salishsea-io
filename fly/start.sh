@@ -90,13 +90,21 @@ fi
 
 supercronic /app/fly/crontab &
 cron_pid=$!
-# Builds when the data changes, a few seconds after each burst (salish-t3g.6).
-(cd /app && exec node scripts/read-path/listen.ts /app/fly/build.sh) &
-listen_pid=$!
+# Builds when the data changes, a few seconds after each burst (salish-t3g.6): Supabase
+# Realtime's signal, while Postgres holds what users write. From the cutover the build
+# reads the store (READ_PATH_STORE, scripts/read-path/snapshot.ts) and the write API wakes
+# it after each write, so the listener isn't started.
+if [ -z "${READ_PATH_STORE:-}" ]; then
+    (cd /app && exec node scripts/read-path/listen.ts /app/fly/build.sh) &
+    listen_pid=$!
+else
+    listen_pid=
+fi
 (/app/fly/build.sh || echo "read-path build at boot failed; the schedule will retry") &
 
 # Either one stopping is a failure, whatever its exit status: a clean exit would
 # otherwise read to Fly as a finished machine, not one to restart.
-wait -n "$caddy_pid" "$cron_pid" "$listen_pid" "$redirect_pid" || true
+# shellcheck disable=SC2086 # listen_pid is empty, and so no argument, once it retires
+wait -n "$caddy_pid" "$cron_pid" $listen_pid "$redirect_pid" || true
 echo "caddy, supercronic, the change listener or the redirect server exited; stopping so Fly restarts the machine" >&2
 exit 1
