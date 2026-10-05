@@ -25,6 +25,7 @@
  * and the Origin check is the second lock on the same door.
  */
 
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { DatabaseSync } from 'node:sqlite';
 
@@ -59,9 +60,16 @@ export type Api = {
  * proxy sets and a client can't. Caddy's X-Forwarded-For is not used: it would be Fly's
  * proxy, the same for everyone.
  */
+function sameSecret(given: string | string[] | undefined, secret: string): boolean {
+    if (typeof given !== 'string') return false;
+    const a = createHash('sha256').update(given).digest();
+    const b = createHash('sha256').update(secret).digest();
+    return timingSafeEqual(a, b);
+}
+
 export function sender(req: IncomingMessage, edgeSecret?: string): string {
     const cloudfront = req.headers['cloudfront-viewer-address'];
-    if (edgeSecret && req.headers['x-origin-verify'] === edgeSecret && typeof cloudfront === 'string')
+    if (edgeSecret && sameSecret(req.headers['x-origin-verify'], edgeSecret) && typeof cloudfront === 'string')
         return cloudfront.replace(/:\d+$/, '');
     const fly = req.headers['fly-client-ip'];
     if (typeof fly === 'string') return fly;
