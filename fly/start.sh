@@ -24,14 +24,15 @@ fi
 
 # The write API's secrets (decision 065) are taken out of the environment here, before
 # anything starts, so that only the API is handed them (below): the session signing key,
-# the edge secret that marks a request as having come through CloudFront, and the AWS key
-# that may add photos and keep the store's replica. Hygiene rather than a boundary: every
-# process runs as `app`.
+# the edge secret that marks a request as having come through CloudFront, the AWS key
+# that may add photos and keep the store's replica, and the GitHub token the feedback
+# notifier files issues with. Hygiene rather than a boundary: every process runs as `app`.
 session_key="${SESSION_SIGNING_KEY:-}"
 edge_secret="${EDGE_SECRET:-}"
 aws_key_id="${AWS_ACCESS_KEY_ID:-}"
 aws_secret="${AWS_SECRET_ACCESS_KEY:-}"
-unset SESSION_SIGNING_KEY EDGE_SECRET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+github_token="${FEEDBACK_GITHUB_TOKEN:-}"
+unset SESSION_SIGNING_KEY EDGE_SECRET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY FEEDBACK_GITHUB_TOKEN
 
 caddy run --config /app/fly/Caddyfile --adapter caddyfile &
 caddy_pid=$!
@@ -77,6 +78,7 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
         while true; do
             STORE_PATH=/data/store/salishsea.db SESSION_SIGNING_KEY="$session_key" EDGE_SECRET="$edge_secret" \
                 AWS_ACCESS_KEY_ID="$aws_key_id" AWS_SECRET_ACCESS_KEY="$aws_secret" \
+                FEEDBACK_GITHUB_TOKEN="$github_token" \
                 BUILD_COMMAND=/app/fly/build.sh \
                 node api/server.ts
             status=$?

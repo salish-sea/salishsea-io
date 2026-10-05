@@ -1,7 +1,6 @@
 /**
  * The write API (decision 065): what replaces Supabase for what salishsea.io's users
- * write — sign-in (salish-9uu.3.3), sightings and feedback (salish-9uu.3.4); photos
- * follow once their bucket exists.
+ * write — sign-in (salish-9uu.3.3), sightings, their photos and feedback (salish-9uu.3.4).
  *
  *   STORE_PATH=… SESSION_SIGNING_KEY=… node api/server.ts
  *
@@ -16,7 +15,11 @@
  *   PUT    /api/sightings/<id>  a sighting      save it (sightings.ts): 401 signed out, 403 not
  *                                             the owner's or an editor's
  *   DELETE /api/sightings/<id>                 delete it, likewise; 404 if there is none
- *   POST   /api/feedback        a message       anyone (039), a few per sender per window
+ *   POST   /api/photos?sighting=<id>&name=<file>  a JPEG's or JPEG 2000's bytes, at most
+ *                                             8 MiB (photos.ts): put in the photo bucket;
+ *                                             answers {url}, at salishsea.io/media/
+ *   POST   /api/feedback        a message       anyone (039), a few per sender per window;
+ *                                             notifier.ts files it as a GitHub issue
  *
  * A change to a sighting wakes the build (BUILD_COMMAND, coalesced as the change listener
  * coalesces Realtime's signal), so the published files follow within a build.
@@ -29,9 +32,13 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { DatabaseSync } from 'node:sqlite';
 
+import { WORKFLOW_AUTHOR } from '../scripts/feedback/filing.ts';
 import { BuildCoalescer, commandBuild } from '../scripts/read-path/coalesce.ts';
 import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
 import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './google.ts';
+import { startNotifier, storeQueue } from './notifier.ts';
+import { MAX_PHOTO_BYTES, PHOTO_CACHE_CONTROL, photoFolder, photoName, photoType } from './photos.ts';
+import { putObject } from './s3.ts';
 import { deleteSighting, parseSighting, Refused, saveSighting } from './sightings.ts';
 import { cookie, mint, readCookie, signingKey, verifySession } from './session.ts';
 import { openStore } from './store/store.ts';
@@ -51,6 +58,14 @@ export type Api = {
      * x-origin-verify). Only a request carrying it is believed about the viewer's address.
      */
     edgeSecret?: string,
+    /**
+     * Where photos go: `put` stores an object, and a photo's URL is `base` and its key.
+     * Without it, a photo upload answers 503.
+     */
+    photos?: {
+        put: (key: string, body: Uint8Array<ArrayBuffer>, meta: {contentType: string, cacheControl: string}) => Promise<void>,
+        base: string,
+    },
 };
 
 /**
@@ -84,17 +99,23 @@ class HttpError extends Error {
     }
 }
 
-async function json(req: IncomingMessage): Promise<Record<string, unknown>> {
-    if (!/^application\/json\b/.test(req.headers['content-type'] ?? '')) throw new HttpError(415, 'send JSON');
+async function bytes(req: IncomingMessage, max: number): Promise<Buffer<ArrayBuffer>> {
+    if (Number(req.headers['content-length'] ?? 0) > max) throw new HttpError(413, 'too large');
     let size = 0;
     const chunks: Buffer[] = [];
     for await (const chunk of req) {
         size += (chunk as Buffer).length;
-        if (size > MAX_BODY) throw new HttpError(413, 'too large');
+        if (size > max) throw new HttpError(413, 'too large');
         chunks.push(chunk as Buffer);
     }
+    return Buffer.concat(chunks);
+}
+
+async function json(req: IncomingMessage): Promise<Record<string, unknown>> {
+    if (!/^application\/json\b/.test(req.headers['content-type'] ?? '')) throw new HttpError(415, 'send JSON');
+    const raw = await bytes(req, MAX_BODY);
     try {
-        const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        const body = JSON.parse(raw.toString('utf8'));
         if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new Error();
         return body as Record<string, unknown>;
     } catch {
@@ -170,6 +191,17 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
             api.changed?.();
             return send(res, 200, {id, deleted: true});
         }
+        if (url.pathname === '/api/photos' && method === 'POST') {
+            const who = currentUser(api, req);
+            if (who === null) throw new HttpError(401, 'sign in first');
+            if (!api.photos) throw new HttpError(503, 'photo uploads are not configured');
+            const folder = photoFolder(who.contributor.id, url.searchParams.get('sighting') ?? '');
+            const body = await bytes(req, MAX_PHOTO_BYTES);
+            const type = photoType(req.headers['content-type'], body);
+            const key = `${folder}/${photoName(url.searchParams.get('name'), type)}`;
+            await api.photos.put(key, body, {contentType: type, cacheControl: PHOTO_CACHE_CONTROL});
+            return send(res, 201, {url: `${api.photos.base}/${key}`});
+        }
         if (url.pathname === '/api/feedback' && method === 'POST') {
             const message = parseFeedback(await json(req));
             if (api.feedbackAllowed && !api.feedbackAllowed(sender(req, api.edgeSecret)))
@@ -209,13 +241,44 @@ if (import.meta.main) {
     delete process.env['SESSION_SIGNING_KEY'];
     const edgeSecret = process.env['EDGE_SECRET'] || undefined;
     delete process.env['EDGE_SECRET'];
+    // The AWS key may only add photos (and keep Litestream's replica, which has its own
+    // copy): no photos without it.
+    const accessKeyId = process.env['AWS_ACCESS_KEY_ID'];
+    const secretAccessKey = process.env['AWS_SECRET_ACCESS_KEY'];
+    delete process.env['AWS_ACCESS_KEY_ID'];
+    delete process.env['AWS_SECRET_ACCESS_KEY'];
+    const bucket = accessKeyId && secretAccessKey ? {
+        name: process.env['MEDIA_BUCKET'] ?? 'salishsea-io-media',
+        region: process.env['MEDIA_BUCKET_REGION'] ?? 'us-west-2',
+        credentials: {accessKeyId, secretAccessKey},
+    } : null;
+    if (!bucket) console.warn('api: no AWS key, so photo uploads answer 503');
+    // The feedback notifier's GitHub token (notifier.ts), likewise the API's alone. Without
+    // it, feedback is kept and nobody is told.
+    const githubToken = process.env['FEEDBACK_GITHUB_TOKEN'];
+    delete process.env['FEEDBACK_GITHUB_TOKEN'];
+    const issueAuthor = process.env['FEEDBACK_ISSUE_AUTHOR'];
     const build = process.env['BUILD_COMMAND']?.split(' ').filter(Boolean) ?? [];
     const coalescer = build.length > 0 ? new BuildCoalescer(commandBuild(build)) : null;
+    const db = openStore(store);
+    if (githubToken && issueAuthor) {
+        startNotifier(storeQueue(db, store), {
+            repo: process.env['GITHUB_REPOSITORY'] ?? 'salish-sea/salishsea-io',
+            token: githubToken,
+            authors: new Set([issueAuthor, WORKFLOW_AUTHOR]),
+        });
+    } else {
+        console.warn('api: FEEDBACK_GITHUB_TOKEN or FEEDBACK_ISSUE_AUTHOR is not set, so feedback files no issues');
+    }
     serve({
-        store: openStore(store), key, keys: googleKeys(), origins,
+        store: db, key, keys: googleKeys(), origins,
         changed: coalescer ? () => coalescer.changed() : undefined,
         feedbackAllowed: rateLimiter(),
         edgeSecret,
+        photos: bucket ? {
+            put: (key, body, meta) => putObject(bucket, key, body, meta),
+            base: process.env['MEDIA_BASE_URL'] ?? 'https://salishsea.io',
+        } : undefined,
     }, port);
     console.log(`api: listening on 127.0.0.1:${port}`);
 }

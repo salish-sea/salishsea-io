@@ -10,7 +10,8 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import postgres from 'postgres';
 import type { Sql } from 'postgres';
-import { alreadyFiled, stamp, unnotified } from './notify.ts';
+import { alreadyFiled } from './filing.ts';
+import { stamp, unnotified } from './notify.ts';
 import { filedRowIds, rowMarker } from './issue.ts';
 
 const day = (n: number) => new Date(Date.UTC(2026, 0, n)).toISOString();

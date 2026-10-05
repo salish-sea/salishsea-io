@@ -25,7 +25,7 @@ Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment be
   ```
 
   CloudFront takes the new value at the next run of the deploy workflow, the Fly app at its next `fly/deploy.sh`; until both have, they disagree.
-- **`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`**, for photo uploads and Litestream once they ship (`salish-9uu.3.4`, `.3.6`): the IAM user `salishsea-io-store-writer` (`infra/`), which may add photos under `media/` in `salishsea-io-media` and keep Litestream's replica under `store/` in `salishsea-io-store-replica`, and nothing else. CDK makes the user but not its key, so the key's secret never passes through CloudFormation. Make one:
+- **`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`**, for photo uploads (`POST /api/photos`, which answers 503 without them) and, once it ships, Litestream (`salish-9uu.3.6`): the IAM user `salishsea-io-store-writer` (`infra/`), which may add photos under `media/` in `salishsea-io-media` and keep Litestream's replica under `store/` in `salishsea-io-store-replica`, and nothing else. CDK makes the user but not its key, so the key's secret never passes through CloudFormation. Make one:
 
   ```sh
   (
@@ -42,6 +42,12 @@ Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment be
 
   ```sh
   aws iam delete-access-key --profile orcasound --user-name salishsea-io-store-writer --access-key-id <old key id>
+  ```
+
+- **`FEEDBACK_GITHUB_TOKEN`**, with **`FEEDBACK_ISSUE_AUTHOR`**, for the feedback notifier (`api/notifier.ts`), which files each new piece of feedback in the store as a GitHub issue every fifteen minutes, as [039](../decisions/039-feedback-goes-to-our-own-database.md)'s workflow does for Postgres's until the cutover. The token may create issues in `salish-sea/salishsea-io` and nothing else (a fine-grained token with Issues: read and write on that repository alone); `FEEDBACK_ISSUE_AUTHOR` is the login the issues are posted as, which the notifier needs to recognise its own work after a crash. Without either, feedback is kept and no issue is filed; the API says so when it starts. A wrong author files a report twice at worst, never loses one.
+
+  ```sh
+  fly secrets set -a salishsea-io --stage FEEDBACK_GITHUB_TOKEN=<token> FEEDBACK_ISSUE_AUTHOR=<its login>
   ```
 
 ## Where state lives
