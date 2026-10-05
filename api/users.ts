@@ -46,11 +46,15 @@ export function me(store: DatabaseSync, userId: string): Me | null {
 
 /** The user for a verified Google identity, made if this is its first sign-in. Returns its id. */
 export function signIn(store: DatabaseSync, identity: GoogleIdentity, now = new Date()): string {
-    const known = store.prepare('SELECT id FROM users WHERE google_sub = ?').get(identity.sub) as {id: string} | undefined;
-    if (known) return known.id;
     const verifiedEmail = identity.email_verified ? identity.email : null;
     store.exec('BEGIN IMMEDIATE');
     try {
+        // looked up under the write lock, so two first sign-ins of one account can't both make it
+        const known = store.prepare('SELECT id FROM users WHERE google_sub = ?').get(identity.sub) as {id: string} | undefined;
+        if (known) {
+            store.exec('COMMIT');
+            return known.id;
+        }
         const joined = verifiedEmail === null ? undefined : store.prepare(
             'SELECT contributor_id FROM contributor_email_addresses WHERE email_address = ?',
         ).get(verifiedEmail) as {contributor_id: number} | undefined;

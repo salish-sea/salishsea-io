@@ -65,8 +65,9 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
     (
         cd /app
         while true; do
-            STORE_PATH=/data/store/salishsea.db SESSION_SIGNING_KEY="$session_key" node api/server.ts \
-                || echo "write API exited ($?); restarting in 10 s" >&2
+            STORE_PATH=/data/store/salishsea.db SESSION_SIGNING_KEY="$session_key" node api/server.ts
+            status=$?
+            echo "write API exited ($status); restarting in 10 s" >&2
             sleep 10
         done
     ) &

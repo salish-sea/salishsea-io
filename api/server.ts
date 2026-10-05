@@ -128,7 +128,8 @@ if (import.meta.main) {
         console.error('STORE_PATH is not set');
         process.exit(2);
     }
-    const origins = new Set(process.env['ALLOWED_ORIGINS']?.split(',').map(o => o.trim()).filter(Boolean) ?? DEFAULT_ORIGINS);
+    const configured = (process.env['ALLOWED_ORIGINS'] ?? '').split(',').map(o => o.trim()).filter(Boolean);
+    const origins = new Set(configured.length > 0 ? configured : DEFAULT_ORIGINS);
     const port = Number(process.env['API_PORT'] ?? 8082);
     serve({store: openStore(store), key: signingKey(process.env['SESSION_SIGNING_KEY']), keys: googleKeys(), origins}, port);
     console.log(`api: listening on 127.0.0.1:${port}`);
