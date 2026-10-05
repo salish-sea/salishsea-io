@@ -51,11 +51,25 @@ rm -f "$MAINTENANCE_FLAG"
 # until the cutover copies Postgres into it (api/store/copy-from-postgres.ts refuses a
 # store that holds anything), so it isn't started before then. It holds the session
 # signing key, which only it reads.
-api_pid=
+#
+# Supervised on its own, not by the `wait -n` below: an API that can't start (a missing
+# key, a migration that fails) must not take the published site down with it, so it is
+# restarted here, after a pause, while Caddy keeps serving.
+#
+# The signing key is taken out of the environment every other process inherits — the
+# build, its tasks, the listener — and handed to the API alone.
+session_key="${SESSION_SIGNING_KEY:-}"
+unset SESSION_SIGNING_KEY
 if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
     mkdir -p /data/store
-    (cd /app && STORE_PATH=/data/store/salishsea.db exec node api/server.ts) &
-    api_pid=$!
+    (
+        cd /app
+        while true; do
+            STORE_PATH=/data/store/salishsea.db SESSION_SIGNING_KEY="$session_key" node api/server.ts \
+                || echo "write API exited ($?); restarting in 10 s" >&2
+            sleep 10
+        done
+    ) &
 fi
 
 supercronic /app/fly/crontab &
@@ -67,6 +81,6 @@ listen_pid=$!
 
 # Either one stopping is a failure, whatever its exit status: a clean exit would
 # otherwise read to Fly as a finished machine, not one to restart.
-wait -n "$caddy_pid" "$cron_pid" "$listen_pid" "$redirect_pid" ${api_pid:+"$api_pid"} || true
+wait -n "$caddy_pid" "$cron_pid" "$listen_pid" "$redirect_pid" || true
 echo "caddy, supercronic, the change listener or the redirect server exited; stopping so Fly restarts the machine" >&2
 exit 1

@@ -52,6 +52,24 @@ describe("a Google ID token (decision 065, 030's nonce)", () => {
         await expect(verifyAs('not.a.jwt.at.all')).rejects.toThrow(/not a JWT/);
     });
 
+    test('a token whose header or claims are not JSON objects is refused, not a crash', async () => {
+        const junk = (h: unknown, c: unknown) =>
+            `${Buffer.from(JSON.stringify(h)).toString('base64url')}.${Buffer.from(JSON.stringify(c)).toString('base64url')}.sig`;
+        await expect(verifyAs(junk(null, claims()))).rejects.toThrow(/not a JWT/);
+        await expect(verifyAs(junk({alg: 'RS256', kid: 'k1'}, 'a string'))).rejects.toThrow(/not a JWT/);
+    });
+
+    test("a key Google rotated in before our cache expired is fetched, not refused", async () => {
+        let calls = 0;
+        const rotating: KeySource = async (refresh = false) => {
+            calls++;
+            const fresh = new Map([['k1', {...publicKey.export({format: 'jwk'}), kid: 'k1', alg: 'RS256'}]]);
+            return refresh ? fresh : new Map();
+        };
+        await expect(verifyIdToken(token(claims()), 'raw-nonce', rotating, {clientId: CLIENT})).resolves.toMatchObject({sub: '1234'});
+        expect(calls).toBe(2);
+    });
+
     test('is refused when sent with a nonce other than the one Google was given the hash of', async () => {
         await expect(verifyAs(token(claims()), 'another-raw-nonce')).rejects.toThrow(/nonce/);
     });
@@ -60,8 +78,9 @@ describe("a Google ID token (decision 065, 030's nonce)", () => {
 describe('the session cookie', () => {
     const key = Buffer.alloc(32, 7);
     test('names its user until it expires, and only if signed with our key', () => {
-        const value = mint(key, 'user-1', 0);
-        expect(verifySession(key, value, 1000)).toBe('user-1');
+        const value = mint(key, 'user-1', 3, 0);
+        expect(verifySession(key, value, 1000)).toEqual({userId: 'user-1', epoch: 3});
+        expect(verifySession(key, mint(key, 'a.b', 0, 0), 1000)).toEqual({userId: 'a.b', epoch: 0});
         expect(verifySession(Buffer.alloc(32, 8), value, 1000)).toBeNull();
         expect(verifySession(key, value.replace('user-1', 'user-2'), 1000)).toBeNull();
         expect(verifySession(key, value, 31 * 24 * 3600 * 1000)).toBeNull();
@@ -129,8 +148,10 @@ describe('the API over HTTP', () => {
             expect(who.status).toBe(200);
             expect(await who.json()).toMatchObject({contributor: {name: 'Scott'}});
             expect((await fetch(`${base}/api/me`)).status).toBe(401);
-            const out = await fetch(`${base}/api/session`, {method: 'DELETE', headers: {origin: 'https://salishsea.io'}});
+            const out = await fetch(`${base}/api/session`, {method: 'DELETE', headers: {origin: 'https://salishsea.io', cookie: session}});
             expect(out.headers.get('set-cookie')).toMatch(/Max-Age=0/);
+            // signing out ends the session itself, not only this browser's copy of the cookie
+            expect((await fetch(`${base}/api/me`, {headers: {cookie: session}})).status).toBe(401);
             const refused = await fetch(`${base}/api/session`, {
                 method: 'POST', headers: {'content-type': 'application/json', origin: 'https://salishsea.io'},
                 body: JSON.stringify({credential: token(claims({aud: 'other'})), nonce: 'raw-nonce'}),

@@ -23,7 +23,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './google.ts';
 import { cookie, mint, readCookie, signingKey, verifySession } from './session.ts';
 import { openStore } from './store/store.ts';
-import { me, signIn } from './users.ts';
+import { me, sessionEpoch, signIn, signOut, type Me } from './users.ts';
 
 export const DEFAULT_ORIGINS = ['https://salishsea.io', 'https://salishsea-io.fly.dev'];
 const MAX_BODY = 64 * 1024;
@@ -61,6 +61,16 @@ function send(res: ServerResponse, status: number, body: unknown, headers: Recor
     res.end(JSON.stringify(body));
 }
 
+/**
+ * The signed-in user a request carries, or null: a session cookie that is ours, unexpired,
+ * for a user still in the store, at the epoch the store has for them.
+ */
+export function currentUser(api: Api, req: IncomingMessage): Me | null {
+    const session = verifySession(api.key, readCookie(req.headers['cookie']));
+    if (session === null || sessionEpoch(api.store, session.userId) !== session.epoch) return null;
+    return me(api.store, session.userId);
+}
+
 /** Handle one request. Exported for tests, which call it without a socket. */
 export async function handle(api: Api, req: IncomingMessage, res: ServerResponse): Promise<void> {
     try {
@@ -70,7 +80,6 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
             const origin = req.headers['origin'];
             if (!origin || !api.origins.has(origin)) throw new HttpError(403, 'not from salishsea.io');
         }
-        const session = () => verifySession(api.key, readCookie(req.headers['cookie']));
         if (url.pathname === '/api/session' && method === 'POST') {
             const {credential, nonce} = await json(req);
             if (typeof credential !== 'string' || typeof nonce !== 'string') throw new HttpError(400, 'send {credential, nonce}');
@@ -82,13 +91,17 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
                 throw error;
             }
             const userId = signIn(api.store, identity);
-            return send(res, 200, me(api.store, userId), {'set-cookie': cookie(mint(api.key, userId))});
+            const epoch = sessionEpoch(api.store, userId)!;
+            return send(res, 200, me(api.store, userId), {'set-cookie': cookie(mint(api.key, userId, epoch))});
         }
-        if (url.pathname === '/api/session' && method === 'DELETE')
+        if (url.pathname === '/api/session' && method === 'DELETE') {
+            // Signing out ends the user's every session, not only this cookie.
+            const who = currentUser(api, req);
+            if (who !== null) signOut(api.store, who.user_id);
             return send(res, 200, {signed_in: false}, {'set-cookie': cookie(null)});
+        }
         if (url.pathname === '/api/me' && method === 'GET') {
-            const userId = session();
-            const who = userId === null ? null : me(api.store, userId);
+            const who = currentUser(api, req);
             if (who === null) return send(res, 401, {signed_in: false});
             return send(res, 200, who);
         }
@@ -101,7 +114,12 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
 }
 
 export function serve(api: Api, port: number): Server {
-    return createServer((req, res) => void handle(api, req, res)).listen(port, '127.0.0.1');
+    return createServer((req, res) => {
+        handle(api, req, res).catch(error => {
+            console.error(error);
+            if (!res.headersSent) send(res, 500, {error: 'internal error'});
+        });
+    }).listen(port, '127.0.0.1');
 }
 
 if (import.meta.main) {

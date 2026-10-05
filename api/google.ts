@@ -28,19 +28,26 @@ export type GoogleIdentity = {
 };
 
 type Jwk = JsonWebKeyInput['key'] & {kid?: string, alg?: string};
-/** Google's current signing keys, by key id. */
-export type KeySource = () => Promise<Map<string, Jwk>>;
+/**
+ * Google's current signing keys, by key id. `refresh` asks again even if the cache is
+ * fresh: Google may rotate a key early, and a token signed by a key not yet cached
+ * would otherwise be refused until the cache expired.
+ */
+export type KeySource = (refresh?: boolean) => Promise<Map<string, Jwk>>;
+/** At most one forced refetch a minute, so a stream of junk key ids can't hammer Google. */
+const REFRESH_COOLDOWN_MS = 60_000;
 
 /** Google's published keys, fetched once and kept as long as Google's Cache-Control says. */
 export function googleKeys(fetcher: typeof fetch = fetch): KeySource {
-    let cached: {keys: Map<string, Jwk>, until: number} | null = null;
-    return async () => {
-        if (cached && Date.now() < cached.until) return cached.keys;
+    let cached: {keys: Map<string, Jwk>, until: number, fetched: number} | null = null;
+    return async (refresh = false) => {
+        const forced = refresh && cached !== null && Date.now() - cached.fetched > REFRESH_COOLDOWN_MS;
+        if (cached && Date.now() < cached.until && !forced) return cached.keys;
         const res = await fetcher(CERTS, {signal: AbortSignal.timeout(10_000)});
         if (!res.ok) throw new Error(`Google's keys: ${res.status}`);
         const body = await res.json() as {keys: Jwk[]};
         const maxAge = Number(/max-age=(\d+)/.exec(res.headers.get('cache-control') ?? '')?.[1] ?? 3600);
-        cached = {keys: new Map(body.keys.map(k => [k.kid!, k])), until: Date.now() + maxAge * 1000};
+        cached = {keys: new Map(body.keys.map(k => [k.kid!, k])), until: Date.now() + maxAge * 1000, fetched: Date.now()};
         return cached.keys;
     };
 }
@@ -60,14 +67,19 @@ export async function verifyIdToken(
     const [head, body, signature] = parts as [string, string, string];
     let header: {alg?: string, kid?: string};
     let claims: Record<string, unknown>;
+    const object = (segment: string) => {
+        const value: unknown = JSON.parse(Buffer.from(segment, 'base64url').toString('utf8'));
+        if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('not an object');
+        return value as Record<string, unknown>;
+    };
     try {
-        header = JSON.parse(Buffer.from(head, 'base64url').toString('utf8'));
-        claims = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+        header = object(head) as {alg?: string, kid?: string};
+        claims = object(body);
     } catch {
         throw new InvalidToken('not a JWT');
     }
     if (header.alg !== 'RS256' || !header.kid) throw new InvalidToken('not an RS256 token with a key id');
-    const jwk = (await keys()).get(header.kid);
+    const jwk = (await keys()).get(header.kid) ?? (await keys(true)).get(header.kid);
     if (!jwk) throw new InvalidToken('signed by no current Google key');
     const signed = verify('RSA-SHA256', Buffer.from(`${head}.${body}`), createPublicKey({key: jwk, format: 'jwk'}),
         Buffer.from(signature, 'base64url'));

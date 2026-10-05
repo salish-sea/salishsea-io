@@ -20,6 +20,17 @@ export type Me = {
     contributor: {id: number, name: string, picture: string | null, editor: boolean, orcid: string | null},
 };
 
+/** A user's session epoch, or null if the user is gone. */
+export function sessionEpoch(store: DatabaseSync, userId: string): number | null {
+    const row = store.prepare('SELECT session_epoch FROM users WHERE id = ?').get(userId) as {session_epoch: number} | undefined;
+    return row ? row.session_epoch : null;
+}
+
+/** End every session the user has: the epoch their cookies carry no longer matches. */
+export function signOut(store: DatabaseSync, userId: string): void {
+    store.prepare('UPDATE users SET session_epoch = session_epoch + 1 WHERE id = ?').run(userId);
+}
+
 /** The user and contributor a session names, or null if the user is gone. */
 export function me(store: DatabaseSync, userId: string): Me | null {
     const row = store.prepare(`
@@ -46,7 +57,7 @@ export function signIn(store: DatabaseSync, identity: GoogleIdentity, now = new 
         let contributorId = joined?.contributor_id;
         if (contributorId === undefined) {
             const made = store.prepare('INSERT INTO contributors (entity_id, name, picture) VALUES (?, ?, ?) RETURNING id')
-                .get(randomUUID(), identity.name ?? 'Anonymous', identity.picture) as {id: number};
+                .get(randomUUID(), (identity.name ?? 'Anonymous').slice(0, 200), identity.picture) as {id: number};
             contributorId = made.id;
             if (verifiedEmail !== null)
                 store.prepare('INSERT INTO contributor_email_addresses (email_address, contributor_id) VALUES (?, ?)')
