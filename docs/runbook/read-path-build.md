@@ -25,7 +25,7 @@ Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment be
   ```
 
   CloudFront takes the new value at the next run of the deploy workflow, the Fly app at its next `fly/deploy.sh`; until both have, they disagree.
-- **`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`**, for photo uploads and Litestream once they ship (`salish-9uu.3.4`, `.3.6`): the IAM user `salishsea-io-store-writer` (`infra/`), which may add photos under `media/` in `salishsea-io-media` and keep Litestream's replica under `store/` in `salishsea-io-store-replica`, and nothing else. CDK makes the user but not its key, so the key's secret never passes through CloudFormation. Make one:
+- **`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`**, for photo uploads (`POST /api/photos`, which answers 503 without them) and, once it ships, Litestream (`salish-9uu.3.6`): the IAM user `salishsea-io-store-writer` (`infra/`), which may add photos under `media/` in `salishsea-io-media` and keep Litestream's replica under `store/` in `salishsea-io-store-replica`, and nothing else. CDK makes the user but not its key, so the key's secret never passes through CloudFormation. Make one:
 
   ```sh
   (
