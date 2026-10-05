@@ -23,8 +23,8 @@
  * catalogue from checked-in files (catalogue.ts); Postgres's copies of all of those are
  * read only with --answers, which also reads Postgres's own derived occurrences, for
  * checking the derivation's twins against them, which is only fair if both come from the
- * same moment. Without it, what is left is what users write and Happywhale's frozen
- * tables (decision 064).
+ * same moment, and Happywhale's frozen tables, which the build reads from a file
+ * (happywhale.ts). Without it, what is left is what users write (decision 064).
  *
  * Reads only. Never writes the DSN to stdout, stderr or the snapshot.
  */
@@ -85,6 +85,25 @@ const lonLat = (column: string) => [
 ];
 
 /**
+ * Happywhale's tables, frozen: nothing has written them since their in-database loader
+ * stopped being called (decision 061). The build reads them from one file on the volume
+ * (happywhale.ts, decision 064, salish-9uu.2.4), exported once from Postgres with these
+ * columns (happywhale-export.ts); the snapshot reads them only with --answers, for the
+ * twin test, whose database seeds its own.
+ */
+export const HAPPYWHALE_TABLES: readonly {table: string, columns: readonly string[]}[] = [
+    {table: 'happywhale.encounters', columns: [
+        'id', 'individual_id', 'user_id', 'species_id', 'verbatim_location', 'comments', 'min_count',
+        ...lonLat('location'), 'accuracy::text as accuracy', 'start_date', 'start_time', 'end_time',
+        'timezone', 'public', 'source_url', 'provider_id', 'collection_id']},
+    {table: 'happywhale.users', columns: ['id', 'display_name']},
+    {table: 'happywhale.individuals', columns: ['id', 'primary_id', 'sex::text as sex']},
+    {table: 'happywhale.species', columns: ['id', 'scientific', 'name']},
+    {table: 'happywhale.media', columns: [
+        'id', 'encounter_id', 'user_id', 'mimetype', 'url', 'thumb_url', 'public', 'license_level']},
+];
+
+/**
  * What the occurrences are derived from (decision 061): every table the five
  * views behind derived.occurrences read, the tables the functions they call read,
  * and the Maplify resolvers' inputs; and what the profile pages' links to them are
@@ -101,15 +120,6 @@ const lonLat = (column: string) => [
 const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
     // maplify.sightings is read only under --answers now (salish-xv35.9): the build's
     // mirror is the source, and Postgres's copy is frozen.
-    {table: 'happywhale.encounters', columns: [
-        'id', 'individual_id', 'user_id', 'species_id', 'verbatim_location', 'comments', 'min_count',
-        ...lonLat('location'), 'accuracy::text as accuracy', 'start_date', 'start_time', 'end_time',
-        'timezone', 'public', 'source_url', 'provider_id', 'collection_id']},
-    {table: 'happywhale.users', columns: ['id', 'display_name']},
-    {table: 'happywhale.individuals', columns: ['id', 'primary_id', 'sex::text as sex']},
-    {table: 'happywhale.species', columns: ['id', 'scientific', 'name']},
-    {table: 'happywhale.media', columns: [
-        'id', 'encounter_id', 'user_id', 'mimetype', 'url', 'thumb_url', 'public', 'license_level']},
     {table: 'public.observations', columns: [
         'id', 'url', 'body', 'count', 'direction::text as direction', ...lonLat('subject_location'),
         ...lonLat('observer_location'), 'observed_at', 'entity_id', 'contributor_id', 'provider_id',
@@ -202,7 +212,7 @@ export async function main(): Promise<void> {
         process.exit(2);
     }
     const published = answers ? [...PUBLISHED, ...ANSWERS] : [];
-    const derivedFrom = answers ? [...DERIVED_FROM, ...ANSWER_TABLES] : DERIVED_FROM;
+    const derivedFrom = answers ? [...DERIVED_FROM, ...HAPPYWHALE_TABLES, ...ANSWER_TABLES] : DERIVED_FROM;
     const dsn = process.env['SUPABASE_DB_URL'];
     if (!dsn) {
         console.error('SUPABASE_DB_URL is not set');

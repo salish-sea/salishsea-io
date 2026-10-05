@@ -1,0 +1,73 @@
+/**
+ * Write Happywhale's frozen tables to one DuckDB file, for the build to read instead of
+ * Postgres (decision 064, salish-9uu.2.4).
+ *
+ *   SUPABASE_DB_URL=… node scripts/read-path/happywhale-export.ts <happywhale.duckdb>
+ *   node scripts/read-path/happywhale-export.ts <happywhale.duckdb> --from-snapshot <snapshot.duckdb>
+ *
+ * Nothing has written happywhale.* since its in-database loader stopped being called
+ * (decision 061), so the build needs it once. The file holds each table as the snapshot
+ * read it (snapshot.ts's HAPPYWHALE_TABLES: the same columns, a location as two doubles,
+ * enums as text), under `happywhale.<table>`, and lives beside the mirrors on the volume,
+ * not in the repository: it carries Happywhale contributors' names (Peter, 2026-10-05).
+ *
+ * From Postgres while it holds the tables; or from a snapshot that already holds them in
+ * that shape, which is how the volume's copy was made, and how to make another once
+ * Postgres is gone. Refuses to replace an existing file: the build treats it as upstream
+ * data snapshotted in, and replacing it is a deliberate act (delete it first).
+ */
+
+import { existsSync } from 'node:fs';
+
+import { DuckDBInstance } from '@duckdb/node-api';
+
+import { HAPPYWHALE_TABLES } from './snapshot.ts';
+
+export async function exportHappywhale(out: string, source: {dsn: string} | {snapshot: string}): Promise<Record<string, number>> {
+    if (existsSync(out)) throw new Error(`${out} exists: Happywhale's frozen file is replaced only on purpose — delete it first`);
+    const db = await DuckDBInstance.create(':memory:');
+    const conn = await db.connect();
+    try {
+        await conn.run(`ATTACH '${out.replaceAll("'", "''")}' AS out`);
+        await conn.run('CREATE SCHEMA out.happywhale');
+        if ('dsn' in source) {
+            await conn.run('INSTALL postgres; LOAD postgres;');
+            try {
+                await conn.run(`ATTACH '${source.dsn.replaceAll("'", "''")}' AS pg (TYPE postgres, READ_ONLY)`);
+            } catch {
+                throw new Error('Failed to attach Postgres (message withheld: it may contain the DSN)');
+            }
+        } else {
+            await conn.run(`ATTACH '${source.snapshot.replaceAll("'", "''")}' AS snap (READ_ONLY)`);
+        }
+        await conn.run('BEGIN');
+        const counts: Record<string, number> = {};
+        for (const {table, columns} of HAPPYWHALE_TABLES) {
+            const from = 'dsn' in source
+                ? `postgres_query('pg', $q$select ${columns.join(', ')} from ${table}$q$)`
+                : `snap.${table}`;
+            await conn.run(`CREATE TABLE out.${table} AS SELECT * FROM ${from}`);
+            counts[table] = Number((await conn.runAndReadAll(`SELECT count(*) FROM out.${table}`)).getRows()[0]![0]);
+            if (counts[table] === 0) throw new Error(`${table}: no rows`);
+        }
+        await conn.run('COMMIT');
+        return counts;
+    } finally {
+        conn.closeSync();
+        db.closeSync();
+    }
+}
+
+if (import.meta.main) {
+    const args = process.argv.slice(2);
+    const at = args.indexOf('--from-snapshot');
+    const snapshot = at >= 0 ? args[at + 1] : undefined;
+    const [out] = at >= 0 ? args.slice(0, at) : args;
+    const dsn = process.env['SUPABASE_DB_URL'];
+    if (!out || (at >= 0 && !snapshot) || (at < 0 && !dsn)) {
+        console.error('usage: SUPABASE_DB_URL=… happywhale-export.ts <happywhale.duckdb> | happywhale-export.ts <happywhale.duckdb> --from-snapshot <snapshot.duckdb>');
+        process.exit(2);
+    }
+    const counts = await exportHappywhale(out, snapshot ? {snapshot} : {dsn: dsn!});
+    for (const [table, n] of Object.entries(counts)) console.log(`${table}: ${n} rows`);
+}
