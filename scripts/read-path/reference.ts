@@ -92,9 +92,13 @@ export async function loadReference(conn: DuckDBConnection, catalog: string, dir
         if (rows === 0) throw new Error(`${ref.file}: no rows`);
         console.log(`${ref.table}: ${rows} rows`);
     }
-    const types = await conn.runAndReadAll(`SELECT count(DISTINCT type) FROM ${catalog}.types.enums`);
-    if (Number(types.getRows()[0]![0]) !== ENUMS.length)
-        throw new Error(`enums.tsv: expected ${ENUMS.length} enum types, found ${types.getRows()[0]![0]}`);
+    // By name, not by count: a misspelled type would otherwise load as an extra one and
+    // leave the real one without labels, which the derivation would read as no order.
+    const types = await conn.runAndReadAll(`SELECT DISTINCT type FROM ${catalog}.types.enums ORDER BY type`);
+    const found = types.getRows().map(r => String(r[0]));
+    const expected = [...ENUMS].sort();
+    if (found.join('\n') !== expected.join('\n'))
+        throw new Error(`enums.tsv: expected the types ${expected.join(', ')}; found ${found.join(', ')}`);
     await conn.run('COMMIT');
 }
 

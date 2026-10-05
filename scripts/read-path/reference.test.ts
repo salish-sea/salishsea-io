@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile, copyFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
@@ -34,6 +34,18 @@ describe('reference data (decision 064)', () => {
         ]);
         expect(spaced).toEqual([[' Orca Network']]);
         expect(Number(nulls[0]![0])).toBeGreaterThan(0);
+    });
+
+    test('an enum type the derivation does not read, or a missing one, is refused', async () => {
+        const dir = await mkdtemp(path.join(tmpdir(), 'reference-'));
+        try {
+            for (const ref of REFERENCE) await copyFile(path.join(REFERENCE_DIR, ref.file), path.join(dir, ref.file));
+            const enums = path.join(dir, 'enums.tsv');
+            await writeFile(enums, (await readFile(enums, 'utf8')).replaceAll('public.sex\t', 'public.sx\t'));
+            await expect(loaded(dir, async () => null)).rejects.toThrow(/expected the types/);
+        } finally {
+            await rm(dir, {recursive: true, force: true});
+        }
     });
 
     test('a file with a value its column cannot hold is refused, not loaded', async () => {
