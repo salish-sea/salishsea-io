@@ -18,36 +18,16 @@ import type { Sql } from 'postgres';
 
 const DSN = process.env['SUPABASE_DB_URL'];
 
-/** What the static files publish: the map and calendar (056), the profile pages (057). */
-const PUBLISHED = [
-    'public.animal_names',
-    'public.designations',
-    'public.ecotype_occurrences',
-    'public.group_occurrences',
-    'public.group_parents',
-    'public.haulout_occurrences',
-    'public.haulouts',
-    'public.individual_occurrences',
-    // Some columns only: `notes` is withheld, as no page renders it (rights policy D-21).
-    'public.individuals',
-    'public.matriline_members',
-    // Some columns only: `story` is withheld, as it is from anon (rights policy D-21).
-    'public.nicknames',
-    'public.occurrences',
-    'public.parties',
-    'public.social_groups',
-];
-
 /**
- * What the build derives the occurrences from (decision 061): the tables the five views
- * behind derived.occurrences read, the Maplify resolvers' inputs, and the stored
- * identifier candidates the port is checked against; and the identifications people
- * assert, which the profile pages' link views start from (salish-xv35.13). Each column
- * read_path may select, where it may select only some: the build machine holds nothing it
- * doesn't derive from. `null` is the whole table.
+ * What the build still reads from Postgres (decision 064, salish-9uu.2.5): what users
+ * write — native sightings, their photos, contributors, the identifications people
+ * assert — and Happywhale's frozen tables, which only the recovery of the volume's frozen
+ * file re-exports (happywhale-export.ts). Everything else the build reads it fetches,
+ * takes from checked-in files, or derives (061, 064). Each column read_path may select,
+ * where it may select only some: the build machine holds nothing it doesn't use. `null`
+ * is the whole table.
  */
-const DERIVED_FROM: Record<string, readonly string[] | null> = {
-    'derived.occurrence_identifier_candidates': null,
+const READS: Record<string, readonly string[] | null> = {
     'happywhale.encounters': [
         'id', 'individual_id', 'user_id', 'species_id', 'verbatim_location', 'comments', 'min_count',
         'location', 'accuracy', 'start_date', 'start_time', 'end_time', 'timezone', 'public',
@@ -56,18 +36,6 @@ const DERIVED_FROM: Record<string, readonly string[] | null> = {
     'happywhale.media': ['id', 'encounter_id', 'user_id', 'mimetype', 'url', 'thumb_url', 'public', 'license_level'],
     'happywhale.species': ['id', 'scientific', 'name'],
     'happywhale.users': ['id', 'display_name'],
-    'inaturalist.observation_photos': ['id', 'observation_id', 'seq', 'attribution', 'hidden', 'license', 'url'],
-    'inaturalist.observations': [
-        'id', 'description', 'location', 'observed_at', 'uri', 'username', 'taxon_id',
-        'public_positional_accuracy', 'provider_id', 'collection_id', 'source_url'],
-    'inaturalist.taxa': ['id', 'parent_id', 'scientific_name', 'vernacular_name', 'rank', 'current_taxon_id'],
-    'maplify.collection_rule': null,
-    'maplify.sightings': [
-        'id', 'name', 'scientific_name', 'location', 'number_sighted', 'created_at', 'photo_url',
-        'comments', 'is_test', 'source', 'usernm', 'provider_id', 'collection_id', 'source_url', 'entity_id'],
-    'public.acoustic_bout_entities': ['bout_id', 'entity_id', 'certainty'],
-    'public.acoustic_bouts': ['id', 'feed_name', 'title', 'location', 'started_at', 'ended_at', 'provider_id', 'collection_id'],
-    'public.collections': ['id', 'name', 'organization_id', 'slug'],
     // A contributor's name and nothing else of theirs.
     'public.contributors': ['id', 'name', 'orcid'],
     // Not who asserted one, when, how, or a machine's confidence: no link view reads them.
@@ -80,16 +48,6 @@ const DERIVED_FROM: Record<string, readonly string[] | null> = {
         'id', 'url', 'body', 'count', 'direction', 'subject_location', 'observer_location',
         'observed_at', 'entity_id', 'contributor_id', 'provider_id', 'collection_id', 'source_url',
         'accuracy'],
-    'public.organizations': ['id', 'name', 'url'],
-    'public.providers': ['id', 'slug', 'name'],
-    'register.ancestor': ['entity_id', 'ancestor_id', 'depth', 'ancestor_kind'],
-    'register.classification': [
-        'entity_id', 'label', 'taxon_id', 'scientific_name', 'taxon_rank', 'kingdom', 'phylum', 'class',
-        'order', 'family', 'genus'],
-    'register.deprecations': ['entity_id', 'replaced_by'],
-    'register.entities': ['entity_id', 'kind', 'label'],
-    'register.mappings': ['subject_id', 'predicate_id', 'object_id'],
-    'register.names': ['entity_id', 'name', 'type', 'language'],
 };
 
 /**
@@ -139,12 +97,12 @@ describe.skipIf(!DSN)('read_path grants (local Supabase)', () => {
         return rows.map(r => r.rel);
     };
 
-    test('read_path reads what the files publish, plus the platform queue', async () => {
+    test('read_path reads what the build reads, plus the platform queue', async () => {
         expect(await reachable('SELECT'))
-            .toEqual([...PUBLISHED, ...Object.keys(DERIVED_FROM), ...POSTGIS_CATALOGS, ...PLATFORM_QUEUE].sort());
+            .toEqual([...Object.keys(READS), ...POSTGIS_CATALOGS, ...PLATFORM_QUEUE].sort());
     });
 
-    test.each(Object.entries(DERIVED_FROM))('read_path reads exactly these columns of %s', async (rel, columns) => {
+    test.each(Object.entries(READS))('read_path reads exactly these columns of %s', async (rel, columns) => {
         const rows = await sql<{column: string, readable: boolean}[]>`
             SELECT a.attname AS column,
                    has_column_privilege('read_path', ${rel}::regclass, a.attnum, 'SELECT') AS readable
@@ -175,17 +133,10 @@ describe.skipIf(!DSN)('read_path grants (local Supabase)', () => {
         return n;
     };
 
-    // What a page shows, a signed-out visitor could have asked PostgREST for.
-    test('read_path sees every published row anon sees', async () => {
-        for (const rel of PUBLISHED)
-            expect(await count('read_path', rel), rel).toBe(await count('anon', rel));
-    }, 120_000);   // two counts of each link view; slow against a mirror of production
-
-    // The views behind derived.occurrences run as their owner, who reads every row, so
-    // the port must too, or it would disagree with the store for a reason that has
-    // nothing to do with the port. anon is no measure here: it can't read maplify at all.
-    test('read_path sees every row of what the occurrences derive from', async () => {
-        for (const rel of Object.keys(DERIVED_FROM))
+    // The build derives the occurrences from these as their owner would see them: row-level
+    // security must not hide any from read_path, or the files would silently lack them.
+    test('read_path sees every row of what it reads', async () => {
+        for (const rel of Object.keys(READS))
             expect(await count('read_path', rel), rel).toBe(await count(null, rel));
     }, 120_000);
 
