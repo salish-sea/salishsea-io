@@ -49,6 +49,7 @@ export async function withDwc<T>(
         await conn.run(await sql('extract.sql'));
         await conn.run(await sql('shared.sql'));
         await conn.run(await sql('lookups.sql'));
+        await conn.run(await sql('maplify-collection.sql'));
         await writeMaplifyEntities(conn);
         // snapshot.day, not snapshot.meta's moment: the archive changes with its data or
         // the date, not with every build.

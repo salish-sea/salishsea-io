@@ -80,7 +80,7 @@ describe.skipIf(!DSN)('the build derives what Postgres stores (local Supabase)',
             expect(await compareCandidates(snapshot)).toBe(true);
             // The catalogue's views over the register (salish-9uu.2.3), which the profile
             // links read, derived as the build derives them and checked against Postgres's.
-            await deriveCatalogue(snapshot, mirrors);
+            await deriveCatalogue(snapshot, mirrors.inaturalist);
             expect(await compareCatalogue(snapshot)).toBe(true);
             await deriveProfileLinks(snapshot, mirrors);
             expect(await compareProfileLinks(snapshot)).toBe(true);
