@@ -22,6 +22,14 @@ if [ "$(id -u)" = 0 ]; then
     exec setpriv --reuid=app --regid=app --init-groups "$0" "$@"
 fi
 
+# The write API's secrets (decision 065), the session signing key and the edge secret
+# that marks a request as having come through CloudFront, are taken out of the
+# environment here, before anything starts, so that only the API is handed them (below).
+# Hygiene rather than a boundary: every process runs as `app`.
+session_key="${SESSION_SIGNING_KEY:-}"
+edge_secret="${EDGE_SECRET:-}"
+unset SESSION_SIGNING_KEY EDGE_SECRET
+
 caddy run --config /app/fly/Caddyfile --adapter caddyfile &
 caddy_pid=$!
 # Redirects designation-shaped profile paths from the build's map; Caddy proxies
@@ -56,12 +64,7 @@ rm -f "$MAINTENANCE_FLAG"
 # key, a migration that fails) must not take the published site down with it, so it is
 # restarted here, after a pause, while Caddy keeps serving.
 #
-# Its secrets — the session signing key, and the edge secret that marks a request as
-# having come through CloudFront — are taken out of the environment every other process
-# inherits (the build, its tasks, the listener) and handed to the API alone.
-session_key="${SESSION_SIGNING_KEY:-}"
-edge_secret="${EDGE_SECRET:-}"
-unset SESSION_SIGNING_KEY EDGE_SECRET
+# Its secrets are taken out of the environment before anything starts (see above).
 if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
     mkdir -p /data/store
     (

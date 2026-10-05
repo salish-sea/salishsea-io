@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// Deploy with: cdk deploy --context supabaseAnonKey=<SUPABASE_ANON_KEY>
+// Deploy with: cdk deploy --context supabaseAnonKey=<SUPABASE_ANON_KEY> --context edgeSecret=<EDGE_SECRET>
+// (the deploy workflow does; a synth or diff without edgeSecret is refused, see
+// edgeSecretFromContext in lib/infra-stack.ts).
 // The anon key (public by design) is baked into the edge-handler bundle at
 // synth; deploying without the context bakes an empty key and bot OG previews
 // fail open to the page shell.

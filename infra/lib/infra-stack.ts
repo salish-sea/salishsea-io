@@ -348,7 +348,9 @@ export class InfraStack extends cdk.Stack {
 
     // The same app as the API's origin (decision 065), carrying the secret that tells the
     // API a request came through CloudFront (see edgeSecretFromContext). On its own origin
-    // so the secret goes only where it is read.
+    // so the secret goes only where it is read. It is in the synthesized template, so
+    // anyone who can read this stack's template or the distribution's config in the
+    // account can read it; what it protects is only the feedback rate limit's key.
     const apiOrigin = new origins.HttpOrigin('salishsea-io.fly.dev', {
       protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
       customHeaders: { 'x-origin-verify': edgeSecretFromContext(this.node.tryGetContext('edgeSecret')) },
@@ -432,7 +434,8 @@ export class InfraStack extends cdk.Stack {
         '/api/*': {
           origin: apiOrigin,
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
-          compress: true,
+          // CachingDisabled turns CloudFront's compression off anyway; Caddy compresses.
+          compress: false,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
           cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
           originRequestPolicy: new cloudfront.OriginRequestPolicy(this, 'ApiOriginRequestPolicy', {
