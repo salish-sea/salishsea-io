@@ -1,0 +1,24 @@
+id	match_kind	match_value	collection_id
+1	bracket	Orca Network	1
+2	bracket	" Orca Network"	1
+3	bracket	Orca Networ	1
+4	bracket	Orca Networks	1
+5	bracket	Orca Neteork	1
+6	bracket	Orcasound	4
+7	bracket	MBARI	5
+8	bracket	Bremerton FB group	21
+9	bracket	PSWS	11
+10	bracket	MCW	12
+11	bracket	CWW	13
+12	bracket	WSSJI	14
+13	bracket	HIWS	15
+14	bracket	SBW	16
+15	bracket	WA	17
+16	bracket	SSCH	18
+17	bracket	SA	19
+18	bracket	PSWW	20
+19	attribution	Whale Alert Global	6
+20	attribution	Whale Alert Alaska	7
+21	attribution	TMMC	3
+22	attribution	Cascadia	2
+23	source	whale_alert	22

@@ -68,6 +68,9 @@ describe.skipIf(!DSN)('the build derives what Postgres stores (local Supabase)',
             await promisify(execFile)('node', [path.join(import.meta.dirname, 'snapshot.ts'), '--answers', snapshot], {
                 env: {...process.env, SUPABASE_DB_URL: DSN},
             });
+            // The reference tables are checked-in files, as in the build (decision 064);
+            // reference.test.ts holds them equal to this database's.
+            await promisify(execFile)('node', [path.join(import.meta.dirname, 'reference.ts'), snapshot]);
             const mirrors = await mirrorsFromSnapshot(snapshot, dir);
             await deriveOccurrences(snapshot, mirrors);
             expect(await compare(snapshot)).toBe(true);
