@@ -1,0 +1,213 @@
+/**
+ * The write API (decision 065): what replaces Supabase for what salishsea.io's users
+ * write — sign-in (salish-9uu.3.3), sightings and feedback (salish-9uu.3.4); photos
+ * follow once their bucket exists.
+ *
+ *   STORE_PATH=… SESSION_SIGNING_KEY=… node api/server.ts
+ *
+ * Plain node:http on loopback; Caddy proxies salishsea.io/api/* to it, so it shares the
+ * site's origin. Routes:
+ *
+ *   POST   /api/session  {credential, nonce}  Google's ID token and the raw nonce (030):
+ *                                             verified, the user found or made, a session
+ *                                             cookie set; answers as GET /api/me does
+ *   DELETE /api/session                       ends the session
+ *   GET    /api/me                            {user_id, contributor} or 401
+ *   PUT    /api/sightings/<id>  a sighting      save it (sightings.ts): 401 signed out, 403 not
+ *                                             the owner's or an editor's
+ *   DELETE /api/sightings/<id>                 delete it, likewise; 404 if there is none
+ *   POST   /api/feedback        a message       anyone (039), a few per sender per window
+ *
+ * A change to a sighting wakes the build (BUILD_COMMAND, coalesced as the change listener
+ * coalesces Realtime's signal), so the published files follow within a build.
+ *
+ * Anything that changes state must come from an allowed origin: the cookie is SameSite=Lax,
+ * and the Origin check is the second lock on the same door.
+ */
+
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import type { DatabaseSync } from 'node:sqlite';
+
+import { BuildCoalescer, commandBuild } from '../scripts/read-path/coalesce.ts';
+import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
+import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './google.ts';
+import { deleteSighting, parseSighting, Refused, saveSighting } from './sightings.ts';
+import { cookie, mint, readCookie, signingKey, verifySession } from './session.ts';
+import { openStore } from './store/store.ts';
+import { me, sessionEpoch, signIn, signOut, type Me } from './users.ts';
+
+export const DEFAULT_ORIGINS = ['https://salishsea.io', 'https://salishsea-io.fly.dev'];
+const MAX_BODY = 64 * 1024;
+
+export type Api = {
+    store: DatabaseSync, key: Buffer, keys: KeySource, origins: ReadonlySet<string>, clientId?: string,
+    /** Told after a sighting changes: wakes the build. */
+    changed?: () => void,
+    /** Whether a sender may send feedback now. */
+    feedbackAllowed?: (sender: string) => boolean,
+    /**
+     * The secret CloudFront adds to every request it forwards (an origin custom header,
+     * x-origin-verify). Only a request carrying it is believed about the viewer's address.
+     */
+    edgeSecret?: string,
+};
+
+/**
+ * Who sent a request, by the client's address. Through CloudFront, the viewer address it
+ * reports — but only when the request proves it came through CloudFront, since anyone can
+ * reach the Fly app directly and send that header. Otherwise Fly-Client-IP, which Fly's
+ * proxy sets and a client can't. Caddy's X-Forwarded-For is not used: it would be Fly's
+ * proxy, the same for everyone.
+ */
+export function sender(req: IncomingMessage, edgeSecret?: string): string {
+    const cloudfront = req.headers['cloudfront-viewer-address'];
+    if (edgeSecret && req.headers['x-origin-verify'] === edgeSecret && typeof cloudfront === 'string')
+        return cloudfront.replace(/:\d+$/, '');
+    const fly = req.headers['fly-client-ip'];
+    if (typeof fly === 'string') return fly;
+    return req.socket.remoteAddress ?? 'unknown';
+}
+
+class HttpError extends Error {
+    readonly status: number;
+    constructor(status: number, message: string) {
+        super(message);
+        this.status = status;
+    }
+}
+
+async function json(req: IncomingMessage): Promise<Record<string, unknown>> {
+    if (!/^application\/json\b/.test(req.headers['content-type'] ?? '')) throw new HttpError(415, 'send JSON');
+    let size = 0;
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+        size += (chunk as Buffer).length;
+        if (size > MAX_BODY) throw new HttpError(413, 'too large');
+        chunks.push(chunk as Buffer);
+    }
+    try {
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new Error();
+        return body as Record<string, unknown>;
+    } catch {
+        throw new HttpError(400, 'not a JSON object');
+    }
+}
+
+function send(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}): void {
+    res.writeHead(status, {'content-type': 'application/json', 'cache-control': 'no-store', ...headers});
+    res.end(JSON.stringify(body));
+}
+
+/**
+ * The signed-in user a request carries, or null: a session cookie that is ours, unexpired,
+ * for a user still in the store, at the epoch the store has for them.
+ */
+export function currentUser(api: Api, req: IncomingMessage): Me | null {
+    const session = verifySession(api.key, readCookie(req.headers['cookie']));
+    if (session === null || sessionEpoch(api.store, session.userId) !== session.epoch) return null;
+    return me(api.store, session.userId);
+}
+
+/** Handle one request. Exported for tests, which call it without a socket. */
+export async function handle(api: Api, req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+        const url = new URL(req.url ?? '/', 'http://api');
+        const method = req.method ?? 'GET';
+        if (method !== 'GET' && method !== 'HEAD') {
+            const origin = req.headers['origin'];
+            if (!origin || !api.origins.has(origin)) throw new HttpError(403, 'not from salishsea.io');
+        }
+        if (url.pathname === '/api/session' && method === 'POST') {
+            const {credential, nonce} = await json(req);
+            if (typeof credential !== 'string' || typeof nonce !== 'string') throw new HttpError(400, 'send {credential, nonce}');
+            let identity;
+            try {
+                identity = await verifyIdToken(credential, nonce, api.keys, api.clientId ? {clientId: api.clientId} : {});
+            } catch (error) {
+                if (error instanceof InvalidToken) throw new HttpError(401, `sign-in refused: ${error.message}`);
+                throw error;
+            }
+            const userId = signIn(api.store, identity);
+            const epoch = sessionEpoch(api.store, userId)!;
+            return send(res, 200, me(api.store, userId), {'set-cookie': cookie(mint(api.key, userId, epoch))});
+        }
+        if (url.pathname === '/api/session' && method === 'DELETE') {
+            // Signing out ends the user's every session, not only this cookie.
+            const who = currentUser(api, req);
+            if (who !== null) signOut(api.store, who.user_id);
+            return send(res, 200, {signed_in: false}, {'set-cookie': cookie(null)});
+        }
+        if (url.pathname === '/api/me' && method === 'GET') {
+            const who = currentUser(api, req);
+            if (who === null) return send(res, 401, {signed_in: false});
+            return send(res, 200, who);
+        }
+        const sighting = /^\/api\/sightings\/([^/]+)$/.exec(url.pathname);
+        if (sighting && (method === 'PUT' || method === 'DELETE')) {
+            const who = currentUser(api, req);
+            if (who === null) throw new HttpError(401, 'sign in first');
+            let id: string;
+            try {
+                id = decodeURIComponent(sighting[1]!);
+            } catch {
+                throw new HttpError(400, 'not a sighting id');
+            }
+            if (method === 'PUT') {
+                const outcome = saveSighting(api.store, who, id, parseSighting(await json(req)));
+                api.changed?.();
+                return send(res, outcome === 'created' ? 201 : 200, {id, outcome});
+            }
+            if (!deleteSighting(api.store, who, id)) throw new HttpError(404, 'no such sighting');
+            api.changed?.();
+            return send(res, 200, {id, deleted: true});
+        }
+        if (url.pathname === '/api/feedback' && method === 'POST') {
+            const message = parseFeedback(await json(req));
+            if (api.feedbackAllowed && !api.feedbackAllowed(sender(req, api.edgeSecret)))
+                throw new HttpError(429, 'too much feedback; try again later');
+            submitFeedback(api.store, currentUser(api, req)?.user_id ?? null, message);
+            return send(res, 201, {received: true});
+        }
+        throw new HttpError(404, 'no such route');
+    } catch (error) {
+        if (error instanceof HttpError || error instanceof Refused) return send(res, error.status, {error: error.message});
+        console.error(error);
+        return send(res, 500, {error: 'internal error'});
+    }
+}
+
+export function serve(api: Api, port: number): Server {
+    return createServer((req, res) => {
+        handle(api, req, res).catch(error => {
+            console.error(error);
+            if (!res.headersSent) send(res, 500, {error: 'internal error'});
+        });
+    }).listen(port, '127.0.0.1');
+}
+
+if (import.meta.main) {
+    const store = process.env['STORE_PATH'];
+    if (!store) {
+        console.error('STORE_PATH is not set');
+        process.exit(2);
+    }
+    const configured = (process.env['ALLOWED_ORIGINS'] ?? '').split(',').map(o => o.trim()).filter(Boolean);
+    const origins = new Set(configured.length > 0 ? configured : DEFAULT_ORIGINS);
+    const port = Number(process.env['API_PORT'] ?? 8082);
+    // Read once, then gone from this process's environment, which the build it wakes
+    // inherits: the key is the API's alone.
+    const key = signingKey(process.env['SESSION_SIGNING_KEY']);
+    delete process.env['SESSION_SIGNING_KEY'];
+    const edgeSecret = process.env['EDGE_SECRET'] || undefined;
+    delete process.env['EDGE_SECRET'];
+    const build = process.env['BUILD_COMMAND']?.split(' ').filter(Boolean) ?? [];
+    const coalescer = build.length > 0 ? new BuildCoalescer(commandBuild(build)) : null;
+    serve({
+        store: openStore(store), key, keys: googleKeys(), origins,
+        changed: coalescer ? () => coalescer.changed() : undefined,
+        feedbackAllowed: rateLimiter(),
+        edgeSecret,
+    }, port);
+    console.log(`api: listening on 127.0.0.1:${port}`);
+}

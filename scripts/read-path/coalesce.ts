@@ -22,6 +22,8 @@
  * pending lock retry.
  */
 
+import { spawn } from 'node:child_process';
+
 export type BuildResult = 'done' | 'busy';
 
 export type CoalescerOptions = {
@@ -114,4 +116,24 @@ export class BuildCoalescer {
             this.changed();
         }
     }
+}
+
+/** build.sh's answer when another build holds the lock: EX_TEMPFAIL. */
+const BUSY = 75;
+
+/**
+ * A build as a command to run: 'done' when it exits 0, 'busy' when another build held the
+ * lock, an error otherwise. What the change listener and the write API both hand the
+ * coalescer.
+ */
+export function commandBuild(command: readonly string[]): () => Promise<BuildResult> {
+    return () => new Promise((resolve, reject) => {
+        const child = spawn(command[0]!, command.slice(1), {stdio: 'inherit'});
+        child.on('error', reject);
+        child.on('exit', code => {
+            if (code === BUSY) resolve('busy');
+            else if (code === 0) resolve('done');
+            else reject(new Error(`build exited ${code}`));
+        });
+    });
 }

@@ -47,6 +47,35 @@ if [ -n "${READ_PATH_MAINTENANCE:-}" ] && [ "${READ_PATH_MAINTENANCE}" != 0 ]; t
 fi
 rm -f "$MAINTENANCE_FLAG"
 
+# The write API (decision 065), only once API_ENABLED is set: its store must stay empty
+# until the cutover copies Postgres into it (api/store/copy-from-postgres.ts refuses a
+# store that holds anything), so it isn't started before then. It holds the session
+# signing key, which only it reads.
+#
+# Supervised on its own, not by the `wait -n` below: an API that can't start (a missing
+# key, a migration that fails) must not take the published site down with it, so it is
+# restarted here, after a pause, while Caddy keeps serving.
+#
+# The signing key is taken out of the environment every other process inherits — the
+# build, its tasks, the listener — and handed to the API alone.
+session_key="${SESSION_SIGNING_KEY:-}"
+unset SESSION_SIGNING_KEY
+if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
+    mkdir -p /data/store
+    (
+        # this script runs with -e, which would end the loop at the API's first exit
+        set +e
+        cd /app
+        while true; do
+            STORE_PATH=/data/store/salishsea.db SESSION_SIGNING_KEY="$session_key" BUILD_COMMAND=/app/fly/build.sh \
+                node api/server.ts
+            status=$?
+            echo "write API exited ($status); restarting in 10 s" >&2
+            sleep 10
+        done
+    ) &
+fi
+
 supercronic /app/fly/crontab &
 cron_pid=$!
 # Builds when the data changes, a few seconds after each burst (salish-t3g.6).

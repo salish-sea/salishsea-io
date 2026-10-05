@@ -30,6 +30,13 @@
 :8080 {
 	encode zstd gzip
 
+	# The write API (decision 065, api/server.ts): what users write, behind a session it
+	# issues itself. Only runs with API_ENABLED (fly/start.sh); until then this answers
+	# 502. It sets its own Cache-Control.
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8082
+	}
+
 	# The read-path files, on the volume, rewritten hourly. no-cache: a browser
 	# may keep a copy but must revalidate it, or it would keep showing a sighting
 	# that has since been deleted. A missing day is a real 404, which the frontend
