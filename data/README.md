@@ -1,17 +1,25 @@
 # Reference data
 
 Mostly external reference sources we **mirror** here so that changes are diffable and
-seeding is reproducible. Two kinds of file are ours instead, and are the source of what
-they hold: `maplify-unnamed.tsv`, and the reference tables under `reference/`. Under
-[decision 064](../docs/decisions/064-what-users-do-not-write-leaves-postgres-first.md)
-more of what we curate moves here as it leaves Postgres; until then the catalogue's
-source is still Postgres.
+seeding is reproducible. Three kinds of file are ours instead, and are the source of what
+they hold: `maplify-unnamed.tsv`, the reference tables under `reference/`, and the
+catalogue under `catalogue/` ([decision 064](../docs/decisions/064-what-users-do-not-write-leaves-postgres-first.md)).
 
 ## `reference/` — providers, organizations, collections, Maplify's collection rules, enum orders
 
 Ours, and the source the read-path build reads ([decision 064](../docs/decisions/064-what-users-do-not-write-leaves-postgres-first.md), `salish-9uu.2.1`): who a sighting is attributed to ([decision 006](../docs/decisions/006-provenance-graph.md)), the rules that file a Maplify sighting under a collection by the bracketed source in its comment, and the declared order of the enums the derivation compares by. [`reference.ts`](../scripts/read-path/reference.ts) loads them into the build under their Postgres names; the format is described there. Whitespace is kept exactly, so a quoted value with a leading space means it.
 
 Migrations wrote these tables, and the signed-in site still reads Postgres's copies until the store replaces it, so **a change here needs a migration making the same change** until then. [`reference.test.ts`](../scripts/read-path/reference.test.ts) fails in CI when a fresh migration replay and the files disagree.
+
+## `catalogue/` — the individuals, their designations and nicknames, the social groups, the parties, the haul-out sites
+
+Ours, and the source the read-path build reads (`salish-9uu.2.3`): what the profile pages show of each animal, group and site. Exported on 2026-10-05 from what production held, which was seeded from the Bigg's sheet below and the 2000 WDFW haul-out atlas and corrected since by hand. [`catalogue.ts`](../scripts/read-path/catalogue.ts) loads them, in the reference tables' format; a haul-out site's location is its `lat` and `lon`, and its atlas species a comma-separated list.
+
+The files hold what is ours and nothing derived. The build computes the rest as Postgres did: the folded designation codes (`src/fold.ts`), and an individual's sex, birth years and life status, which are the register's ([decision 051](../docs/decisions/051-group-hierarchy-is-the-registers.md)) — so a correction to those is a register edit, not an edit here. The rights policy's withheld columns are not here at all (D-21): the sheet's notes on an individual and the story behind a nickname.
+
+The build holds the files to what Postgres's schema enforced — required columns, unique codes and names, references between the tables, the enum vocabularies in `reference/enums.tsv`, a nickname belonging to exactly one individual or group, a haul-out radius of 50 to 5,000 metres — and a pull request that breaks one fails the build's catalogue task, naming the rows. The header row must name the columns in the order the loader declares them.
+
+Postgres keeps its copy for the signed-in site until the store replaces it, so **a change here needs a migration making the same change** until then. `seed-biggs.ts` and the sheet are no longer the catalogue's source; these files are, and `scripts/register/reconcile.ts` still reconciles Postgres's copy.
 
 ## `maplify-unnamed.tsv` — Maplify names a curator has accepted as un-named
 
