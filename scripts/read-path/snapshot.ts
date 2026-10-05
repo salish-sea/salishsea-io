@@ -26,8 +26,19 @@
  * same moment, and Happywhale's frozen tables, which the build reads from a file
  * (happywhale.ts). Without it, what is left is what users write (decision 064).
  *
+ * From the cutover (decision 065, salish-9uu.3.5), what users write comes from the
+ * write API's SQLite store instead: with READ_PATH_STORE naming it, the snapshot reads
+ * the same four tables from a consistent copy of the store, typed as Postgres's arrive,
+ * and Postgres is not read at all. Unset, Postgres is read as before, which is the way
+ * back for as long as Postgres is kept.
+ *
+ *   READ_PATH_STORE=/data/store/salishsea.db node scripts/read-path/snapshot.ts <snapshot.duckdb>
+ *
  * Reads only. Never writes the DSN to stdout, stderr or the snapshot.
  */
+
+import { rmSync } from 'node:fs';
+import { backup, DatabaseSync } from 'node:sqlite';
 
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 
@@ -134,6 +145,37 @@ const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
 ];
 
 /**
+ * DERIVED_FROM, read from the store (decision 065): the same tables, columns and DuckDB
+ * types as the Postgres read gives them, so the derivation can't tell the two apart. The
+ * store keeps a location as two doubles and a time as ISO 8601 text in UTC; a uuid, an
+ * enum and a smallint are text and integers there. Its contributors are only those who
+ * sign in or own a native sighting, where Postgres also held every iNaturalist login it
+ * minted; the build reads a contributor only through a sighting, so nothing it derives
+ * differs (salish-9uu.3.5 compared the two on production's rows).
+ */
+export const FROM_STORE: readonly {table: string, query: string}[] = [
+    {table: 'public.observations', query: `
+        SELECT CAST(id AS UUID) AS id, url, body, CAST(count AS SMALLINT) AS count, direction,
+               subject_lon AS subject_location_lon, subject_lat AS subject_location_lat,
+               observer_lon AS observer_location_lon, observer_lat AS observer_location_lat,
+               CAST(observed_at AS TIMESTAMPTZ) AS observed_at, entity_id,
+               CAST(contributor_id AS INTEGER) AS contributor_id, CAST(provider_id AS INTEGER) AS provider_id,
+               CAST(collection_id AS INTEGER) AS collection_id, source_url, CAST(accuracy AS INTEGER) AS accuracy
+        FROM copy.observations`},
+    {table: 'public.observation_photos', query: `
+        SELECT CAST(id AS INTEGER) AS id, CAST(observation_id AS UUID) AS observation_id,
+               CAST(seq AS SMALLINT) AS seq, href, license_code
+        FROM copy.observation_photos`},
+    {table: 'public.contributors', query: `
+        SELECT CAST(id AS INTEGER) AS id, name, orcid FROM copy.contributors`},
+    {table: 'public.identifications', query: `
+        SELECT occurrence_id, CAST(individual_id AS INTEGER) AS individual_id,
+               CAST(social_group_id AS INTEGER) AS social_group_id, is_present = 1 AS is_present,
+               evidence, status, code, certainty
+        FROM copy.identifications`},
+];
+
+/**
  * Postgres's own answers to what the build derives: the occurrences, their identifier
  * candidates and the profile pages' link views. The build derives these itself
  * (decision 061) and no longer reads them; with `--answers`, the snapshot holds them
@@ -211,6 +253,8 @@ export async function main(): Promise<void> {
         console.error('usage: snapshot.ts [--answers] <snapshot.duckdb>');
         process.exit(2);
     }
+    const store = process.env['READ_PATH_STORE'];
+    if (store && !answers) return snapshotStore(out, store);
     const published = answers ? [...PUBLISHED, ...ANSWERS] : [];
     const derivedFrom = answers ? [...DERIVED_FROM, ...HAPPYWHALE_TABLES, ...ANSWER_TABLES] : DERIVED_FROM;
     const dsn = process.env['SUPABASE_DB_URL'];
@@ -264,16 +308,10 @@ export async function main(): Promise<void> {
         // the newest year its presence table shows. Its own relation for the same reason
         // as meta (salish-xv35.12): taken_at moves every build and the year once a year,
         // so the pages, reading only this, skip a build that changed nothing they show.
-        await conn.run(
-            `CREATE OR REPLACE TABLE store.snapshot.year AS
-             SELECT year(timezone('${DAY_ZONE}', taken_at))::INTEGER AS year FROM store.snapshot.meta`,
-        );
-        // The UTC day, which the Darwin Core archive is dated by, as Postgres's CURRENT_DATE
-        // dated it: its own relation, so the archive reruns once a day rather than every build.
-        await conn.run(
-            `CREATE OR REPLACE TABLE store.snapshot.day AS
-             SELECT strftime(timezone('UTC', taken_at), '%Y-%m-%d') AS day FROM store.snapshot.meta`,
-        );
+        // And the UTC day, which the Darwin Core archive is dated by, as Postgres's
+        // CURRENT_DATE dated it: its own relation, so the archive reruns once a day rather
+        // than every build.
+        await whenTaken(conn);
         for (const {name, query} of published)
             await read(conn, `snapshot.${name}`, query);
         for (const {table, columns} of derivedFrom)
@@ -286,6 +324,57 @@ export async function main(): Promise<void> {
     } finally {
         conn.closeSync();
     }
+}
+
+/**
+ * The snapshot from the store (decision 065): DERIVED_FROM as FROM_STORE reads it, and
+ * when it was taken. The store is copied first, with SQLite's backup, so the four tables
+ * agree with each other however the API writes meanwhile; the copy sits beside the
+ * snapshot and is removed when done. The moment is the clock's as the copy begins, so
+ * everything saved by then is in it, as Postgres's transaction start was.
+ */
+export async function snapshotStore(out: string, store: string): Promise<void> {
+    const copy = `${out}.store-copy`;
+    rmSync(copy, {force: true});
+    const source = new DatabaseSync(store, {readOnly: true});
+    const db = await DuckDBInstance.create(':memory:');
+    const conn = await db.connect();
+    try {
+        await conn.run(`CREATE TEMP TABLE taken AS SELECT now() AS taken_at`);
+        await backup(source, copy);
+        await budget(conn, out, '64MB');
+        await conn.run(`ATTACH '${out.replaceAll("'", "''")}' AS store`);
+        await conn.run('INSTALL sqlite; LOAD sqlite;');
+        await conn.run(`ATTACH '${copy.replaceAll("'", "''")}' AS copy (TYPE sqlite, READ_ONLY)`);
+        for (const schema of ['snapshot', 'public']) await conn.run(`CREATE SCHEMA IF NOT EXISTS store.${schema}`);
+        await conn.run('BEGIN');
+        await conn.run('CREATE OR REPLACE TABLE store.snapshot.meta AS SELECT taken_at FROM temp.main.taken');
+        await whenTaken(conn);
+        for (const {table, query} of FROM_STORE) {
+            await conn.run(`CREATE OR REPLACE TABLE store.${table} AS ${query}`);
+            const rows = (await conn.runAndReadAll(`SELECT count(*) FROM store.${table}`)).getRows()[0]![0];
+            console.log(`${table}: ${rows} rows (from the store)`);
+        }
+        await conn.run('COMMIT');
+        await conn.run('DETACH copy');
+    } finally {
+        conn.closeSync();
+        db.closeSync();
+        source.close();
+        rmSync(copy, {force: true});
+    }
+}
+
+/** snapshot.year and snapshot.day, from snapshot.meta: see main() for why each is its own. */
+async function whenTaken(conn: DuckDBConnection): Promise<void> {
+    await conn.run(
+        `CREATE OR REPLACE TABLE store.snapshot.year AS
+         SELECT year(timezone('${DAY_ZONE}', taken_at))::INTEGER AS year FROM store.snapshot.meta`,
+    );
+    await conn.run(
+        `CREATE OR REPLACE TABLE store.snapshot.day AS
+         SELECT strftime(timezone('UTC', taken_at), '%Y-%m-%d') AS day FROM store.snapshot.meta`,
+    );
 }
 
 /**
