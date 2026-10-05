@@ -47,6 +47,17 @@ if [ -n "${READ_PATH_MAINTENANCE:-}" ] && [ "${READ_PATH_MAINTENANCE}" != 0 ]; t
 fi
 rm -f "$MAINTENANCE_FLAG"
 
+# The write API (decision 065), only once API_ENABLED is set: its store must stay empty
+# until the cutover copies Postgres into it (api/store/copy-from-postgres.ts refuses a
+# store that holds anything), so it isn't started before then. It holds the session
+# signing key, which only it reads.
+api_pid=
+if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
+    mkdir -p /data/store
+    (cd /app && STORE_PATH=/data/store/salishsea.db exec node api/server.ts) &
+    api_pid=$!
+fi
+
 supercronic /app/fly/crontab &
 cron_pid=$!
 # Builds when the data changes, a few seconds after each burst (salish-t3g.6).
@@ -56,6 +67,6 @@ listen_pid=$!
 
 # Either one stopping is a failure, whatever its exit status: a clean exit would
 # otherwise read to Fly as a finished machine, not one to restart.
-wait -n "$caddy_pid" "$cron_pid" "$listen_pid" "$redirect_pid" || true
+wait -n "$caddy_pid" "$cron_pid" "$listen_pid" "$redirect_pid" ${api_pid:+"$api_pid"} || true
 echo "caddy, supercronic, the change listener or the redirect server exited; stopping so Fly restarts the machine" >&2
 exit 1

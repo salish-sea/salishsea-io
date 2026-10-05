@@ -6,6 +6,10 @@ What runs on the `salishsea-io` Fly app, where its state lives, and how to look 
 
 Every five minutes (`fly/crontab`, and a few seconds after a native sighting is saved, via the change listener) `fly/build.sh` takes `/data/build.lock` and runs the Stelis build (`racket src/main.rkt --project salishsea --build --all`, from `/opt/stelis`). One build: three ingest tasks fetch Maplify, iNaturalist and Orcasound into SQLite mirrors; a fourth fetches the newest release of the animals register into the snapshot database ([decision 064](../decisions/064-what-users-do-not-write-leaves-postgres-first.md)); the snapshot task reads what Postgres still holds into `/data/read-path.duckdb`; the Maplify name guard runs; the derivations write `build.*` into the snapshot file; the day files, calendar, id index, profile pages, redirects and the Darwin Core archive are written under `/data/export`, which Caddy serves. A no-op build takes about half a minute; one that rebuilds the occurrences, a few minutes.
 
+## The write API (not yet on)
+
+[Decision 065](../decisions/065-the-store-and-write-api.md)'s service, `api/server.ts`, takes over what users write from Supabase at the cutover. Until then it does not run: `fly/start.sh` starts it only when the machine's environment sets `API_ENABLED`, because its store (`/data/store/salishsea.db`) must be empty when the cutover copies Postgres into it, and a sign-in would write to it. Caddy already routes `/api/*` to it, so until then those paths answer 502. It needs `SESSION_SIGNING_KEY` (at least 32 random bytes, base64) as a Fly secret, which only it reads.
+
 ## Where state lives
 
 | Path | What | Provenance |
