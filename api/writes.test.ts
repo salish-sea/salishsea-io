@@ -7,9 +7,9 @@ import type { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
-import { serve } from './server.ts';
+import { sender, serve } from './server.ts';
 import { mint } from './session.ts';
-import { deleteSighting, parseSighting, saveSighting } from './sightings.ts';
+import { deleteSighting, isoMicros, parseSighting, saveSighting } from './sightings.ts';
 import { openStore } from './store/store.ts';
 import { me, signIn, type Me } from './users.ts';
 
@@ -80,6 +80,14 @@ describe("saving a sighting, as upsert_observation and its row-level security di
         expect(() => input(over)).toThrow(error);
     });
 
+    test("Postgres's varchar limits hold, an empty url is none, and times carry microseconds", () => {
+        expect(() => input({body: 'x'.repeat(2001)})).toThrow(/at most 2000/);
+        expect(() => input({photos: [{src: 'https://salishsea.io/media/a.jpg', license: 'x'.repeat(21)}]})).toThrow(/https URL, license/);
+        saveSighting(store, owner, ID, input({url: '  '}));
+        expect(row()).toMatchObject({url: null, observed_at: '2026-10-05T17:00:00.000000Z'});
+        expect(isoMicros(new Date('2026-10-05T17:00:00.123Z'))).toBe('2026-10-05T17:00:00.123000Z');
+    });
+
     test('a sighting id must be a UUID', () => {
         expect(() => saveSighting(store, owner, 'not-a-uuid', input())).toThrow(/UUID/);
     });
@@ -116,6 +124,17 @@ describe('feedback (039)', () => {
     });
 });
 
+describe("a feedback sender is the client's address, as the edge saw it", () => {
+    const req = (headers: Record<string, string>) => ({headers, socket: {remoteAddress: '10.0.0.1'}}) as never;
+    test("CloudFront's viewer address only with CloudFront's secret; otherwise Fly's client address", () => {
+        expect(sender(req({'cloudfront-viewer-address': '203.0.113.5:443', 'x-origin-verify': 's3cret'}), 's3cret')).toBe('203.0.113.5');
+        // forged: anyone reaching the Fly app directly could send the header
+        expect(sender(req({'cloudfront-viewer-address': '203.0.113.5:443', 'fly-client-ip': '198.51.100.9'}), 's3cret')).toBe('198.51.100.9');
+        expect(sender(req({'cloudfront-viewer-address': '203.0.113.5:443', 'x-origin-verify': 'guess', 'fly-client-ip': '198.51.100.9'}), 's3cret')).toBe('198.51.100.9');
+        expect(sender(req({'x-forwarded-for': '1.2.3.4'}))).toBe('10.0.0.1');
+    });
+});
+
 describe('the writes over HTTP', () => {
     test('signed out is 401; a save is 201 then 200 and wakes the build; feedback is open; a flood is 429', async () => {
         let woken = 0;
@@ -144,6 +163,8 @@ describe('the writes over HTTP', () => {
             expect(woken).toBe(3);
             expect((await feedback()).status).toBe(201);
             expect((await feedback()).status).toBe(429);
+            const malformed = await fetch(`${base}/api/sightings/%E0%A4%A`, {method: 'DELETE', headers: {origin: 'https://salishsea.io', cookie: session}});
+            expect(malformed.status).toBe(400);
         } finally {
             server.close();
         }

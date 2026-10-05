@@ -45,14 +45,26 @@ export type Api = {
     changed?: () => void,
     /** Whether a sender may send feedback now. */
     feedbackAllowed?: (sender: string) => boolean,
+    /**
+     * The secret CloudFront adds to every request it forwards (an origin custom header,
+     * x-origin-verify). Only a request carrying it is believed about the viewer's address.
+     */
+    edgeSecret?: string,
 };
 
-/** Who sent a request, as the address the edge saw: CloudFront's header, then Caddy's, then the socket. */
-function sender(req: IncomingMessage): string {
+/**
+ * Who sent a request, by the client's address. Through CloudFront, the viewer address it
+ * reports — but only when the request proves it came through CloudFront, since anyone can
+ * reach the Fly app directly and send that header. Otherwise Fly-Client-IP, which Fly's
+ * proxy sets and a client can't. Caddy's X-Forwarded-For is not used: it would be Fly's
+ * proxy, the same for everyone.
+ */
+export function sender(req: IncomingMessage, edgeSecret?: string): string {
     const cloudfront = req.headers['cloudfront-viewer-address'];
-    if (typeof cloudfront === 'string') return cloudfront.replace(/:\d+$/, '');
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') return forwarded.split(',')[0]!.trim();
+    if (edgeSecret && req.headers['x-origin-verify'] === edgeSecret && typeof cloudfront === 'string')
+        return cloudfront.replace(/:\d+$/, '');
+    const fly = req.headers['fly-client-ip'];
+    if (typeof fly === 'string') return fly;
     return req.socket.remoteAddress ?? 'unknown';
 }
 
@@ -135,7 +147,12 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
         if (sighting && (method === 'PUT' || method === 'DELETE')) {
             const who = currentUser(api, req);
             if (who === null) throw new HttpError(401, 'sign in first');
-            const id = decodeURIComponent(sighting[1]!);
+            let id: string;
+            try {
+                id = decodeURIComponent(sighting[1]!);
+            } catch {
+                throw new HttpError(400, 'not a sighting id');
+            }
             if (method === 'PUT') {
                 const outcome = saveSighting(api.store, who, id, parseSighting(await json(req)));
                 api.changed?.();
@@ -146,8 +163,10 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
             return send(res, 200, {id, deleted: true});
         }
         if (url.pathname === '/api/feedback' && method === 'POST') {
-            if (api.feedbackAllowed && !api.feedbackAllowed(sender(req))) throw new HttpError(429, 'too much feedback; try again later');
-            submitFeedback(api.store, currentUser(api, req)?.user_id ?? null, parseFeedback(await json(req)));
+            const message = parseFeedback(await json(req));
+            if (api.feedbackAllowed && !api.feedbackAllowed(sender(req, api.edgeSecret)))
+                throw new HttpError(429, 'too much feedback; try again later');
+            submitFeedback(api.store, currentUser(api, req)?.user_id ?? null, message);
             return send(res, 201, {received: true});
         }
         throw new HttpError(404, 'no such route');
@@ -176,12 +195,19 @@ if (import.meta.main) {
     const configured = (process.env['ALLOWED_ORIGINS'] ?? '').split(',').map(o => o.trim()).filter(Boolean);
     const origins = new Set(configured.length > 0 ? configured : DEFAULT_ORIGINS);
     const port = Number(process.env['API_PORT'] ?? 8082);
+    // Read once, then gone from this process's environment, which the build it wakes
+    // inherits: the key is the API's alone.
+    const key = signingKey(process.env['SESSION_SIGNING_KEY']);
+    delete process.env['SESSION_SIGNING_KEY'];
+    const edgeSecret = process.env['EDGE_SECRET'] || undefined;
+    delete process.env['EDGE_SECRET'];
     const build = process.env['BUILD_COMMAND']?.split(' ').filter(Boolean) ?? [];
     const coalescer = build.length > 0 ? new BuildCoalescer(commandBuild(build)) : null;
     serve({
-        store: openStore(store), key: signingKey(process.env['SESSION_SIGNING_KEY']), keys: googleKeys(), origins,
+        store: openStore(store), key, keys: googleKeys(), origins,
         changed: coalescer ? () => coalescer.changed() : undefined,
         feedbackAllowed: rateLimiter(),
+        edgeSecret,
     }, port);
     console.log(`api: listening on 127.0.0.1:${port}`);
 }

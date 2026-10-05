@@ -63,6 +63,8 @@ unset SESSION_SIGNING_KEY
 if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
     mkdir -p /data/store
     (
+        # this script runs with -e, which would end the loop at the API's first exit
+        set +e
         cd /app
         while true; do
             STORE_PATH=/data/store/salishsea.db SESSION_SIGNING_KEY="$session_key" BUILD_COMMAND=/app/fly/build.sh \

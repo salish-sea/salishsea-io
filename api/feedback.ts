@@ -5,12 +5,12 @@
  * signed in. The lengths are the store's CHECKs, the same as Postgres's.
  *
  * Open to anyone means open to a flood, so a sender is held to a few messages in a
- * window, by the address CloudFront saw.
+ * window, by the client's address as the edge saw it (server.ts's `sender`).
  */
 
 import type { DatabaseSync } from 'node:sqlite';
 
-import { Refused } from './sightings.ts';
+import { isoMicros, Refused } from './sightings.ts';
 
 export type FeedbackInput = {name: string, email: string | null, message: string, page_url: string | null,
     user_agent: string | null, release: string | null};
@@ -35,7 +35,7 @@ export function submitFeedback(store: DatabaseSync, userId: string | null, input
     try {
         store.prepare(`INSERT INTO feedback (created_at, name, email, message, page_url, user_agent, release, user_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-            .run(now.toISOString(), input.name, input.email, input.message, input.page_url, input.user_agent,
+            .run(isoMicros(now), input.name, input.email, input.message, input.page_url, input.user_agent,
                 input.release, userId);
     } catch (error) {
         if (error instanceof Error && /CHECK constraint failed/.test(error.message))
@@ -55,7 +55,14 @@ export function rateLimiter(limit = 5, windowMs = 10 * 60_000) {
         }
         recent.push(now);
         seen.set(sender, recent);
-        if (seen.size > 10_000) for (const [k, v] of seen) if (v.every(t => now - t >= windowMs)) seen.delete(k);
+        // bounded, whatever senders arrive: forget the expired, then the oldest
+        if (seen.size > 10_000) {
+            for (const [k, v] of seen) if (v.every(t => now - t >= windowMs)) seen.delete(k);
+            for (const k of seen.keys()) {
+                if (seen.size <= 10_000) break;
+                seen.delete(k);
+            }
+        }
         return true;
     };
 }

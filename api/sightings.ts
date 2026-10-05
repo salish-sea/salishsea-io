@@ -21,6 +21,12 @@ import type { Me } from './users.ts';
 const DIRECTIONS = new Set(['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_PHOTOS = 20;
+/** Postgres's varchar limits on these columns, which the store's schema doesn't repeat. */
+const MAX_TEXT = 2000;
+const MAX_LICENSE = 20;
+
+/** A time as ISO 8601 in UTC with microseconds, the form the copy from Postgres writes. */
+export const isoMicros = (date: Date) => date.toISOString().replace(/Z$/, '000Z');
 
 export class Refused extends Error {
     readonly status: number;
@@ -56,6 +62,7 @@ function lonLat(value: unknown, what: string): LonLat {
 const optionalText = (value: unknown, what: string): string | null => {
     if (value === undefined || value === null) return null;
     if (typeof value !== 'string') throw bad(`${what} must be text`);
+    if (value.length > MAX_TEXT) throw bad(`${what} must be at most ${MAX_TEXT} characters`);
     return value;
 };
 
@@ -77,20 +84,21 @@ export function parseSighting(body: Record<string, unknown>): SightingInput {
         body: optionalText(body['body'], 'body'),
         count: count as number | null,
         direction: direction as string | null,
-        observed_at: observed.toISOString(),
+        observed_at: isoMicros(observed),
         observed_from: body['observed_from'] === undefined || body['observed_from'] === null
             ? null : lonLat(body['observed_from'], 'observed_from'),
         location: lonLat(body['location'], 'location'),
         photos: photos.map((p: unknown, i: number) => {
             const photo = p as {src?: unknown, license?: unknown} | null;
             if (typeof photo !== 'object' || photo === null || typeof photo.src !== 'string'
-                || !/^https:\/\/\S+$/.test(photo.src) || typeof photo.license !== 'string' || photo.license === ''
-                || photo.license.length > 100)
+                || !/^https:\/\/\S+$/.test(photo.src) || photo.src.length > MAX_TEXT
+                || typeof photo.license !== 'string' || photo.license === '' || photo.license.length > MAX_LICENSE)
                 throw bad(`photo ${i + 1} must be {src: an https URL, license}`);
             return {src: photo.src, license: photo.license};
         }),
         entity_id: entity,
-        url: optionalText(body['url'], 'url'),
+        // an empty url is none: the form sends '' when there is no link
+        url: optionalText(body['url'], 'url')?.trim() || null,
     };
 }
 
@@ -104,7 +112,7 @@ function mayChange(store: DatabaseSync, who: Me, id: string): 'absent' | 'yes' |
 /** Save a sighting as `who`: made if new, changed if theirs to change. */
 export function saveSighting(store: DatabaseSync, who: Me, id: string, input: SightingInput, now = new Date()): 'created' | 'updated' {
     if (!UUID.test(id)) throw bad('a sighting id is a UUID');
-    const stamp = now.toISOString();
+    const stamp = isoMicros(now);
     const body = input.body?.trim() || null;
     store.exec('BEGIN IMMEDIATE');
     try {
