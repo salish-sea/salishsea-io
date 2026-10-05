@@ -43,6 +43,15 @@ describe('the store (decision 065)', () => {
         db.close();
     });
 
+    test('removing a contributor is refused while anything names them', () => {
+        const db = openStore(path.join(dir, 'store.db'));
+        fixtures(db);
+        db.exec(sighting('s'));
+        expect(() => db.exec('DELETE FROM contributors WHERE id = 1')).toThrow(/FOREIGN KEY/);
+        expect(db.prepare('SELECT count(*) AS n FROM observations').get()).toMatchObject({n: 1});
+        db.close();
+    });
+
     test("deleting a sighting deletes its photos, as Postgres's cascade did", () => {
         const db = openStore(path.join(dir, 'store.db'));
         fixtures(db);
@@ -73,6 +82,23 @@ describe('the store (decision 065)', () => {
 const DSN = process.env['SUPABASE_DB_URL'];
 
 describe.skipIf(!DSN)('the copy from Postgres (local Supabase)', () => {
+    test('a sighting whose owner has no Google sign-in is named, and the copy refused', async () => {
+        const sql = postgres(DSN!, {max: 1});
+        try {
+            await sql.begin(async tx => {
+                // as the local database ships: its seeded user has a sighting and no identity
+                await tx`DELETE FROM auth.identities`;
+                const store = openStore(path.join(dir, 'store.db'));
+                await expect(copyFromPostgres(store, directQuery(tx))).rejects.toThrow(/no Google sign-in/);
+                expect(store.prepare('SELECT count(*) AS n FROM observations').get()).toMatchObject({n: 0});
+                store.close();
+                throw new RolledBack();
+            }).catch(e => { if (!(e instanceof RolledBack)) throw e; });
+        } finally {
+            await sql.end();
+        }
+    });
+
     test('every table arrives, and a second copy into the same store is refused', async () => {
         const sql = postgres(DSN!, {max: 1});
         try {

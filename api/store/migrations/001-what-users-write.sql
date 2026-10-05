@@ -22,11 +22,14 @@ CREATE TABLE users (
   id             TEXT    PRIMARY KEY,
   google_sub     TEXT    NOT NULL UNIQUE,
   email          TEXT,
-  contributor_id INTEGER NOT NULL REFERENCES contributors(id),
+  -- RESTRICT, here and on a sighting: removing a contributor is a deliberate migration,
+  -- never a cascade that takes their sightings with it.
+  contributor_id INTEGER NOT NULL REFERENCES contributors(id) ON DELETE RESTRICT,
   created_at     TEXT    NOT NULL
 ) STRICT;
 
--- The emails a contributor is known by, so a new sign-in with one joins its contributor.
+-- The emails a contributor is known by, so a new sign-in with one Google has verified
+-- joins its contributor. NOCASE folds ASCII only, where Postgres's citext folded Unicode.
 CREATE TABLE contributor_email_addresses (
   email_address  TEXT    PRIMARY KEY COLLATE NOCASE,
   contributor_id INTEGER NOT NULL REFERENCES contributors(id) ON DELETE CASCADE
@@ -45,7 +48,7 @@ CREATE TABLE observations (
   direction      TEXT    CHECK (direction IS NULL OR direction IN
                    ('north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest')),
   accuracy       INTEGER,
-  contributor_id INTEGER REFERENCES contributors(id) ON DELETE CASCADE,
+  contributor_id INTEGER REFERENCES contributors(id) ON DELETE RESTRICT,
   user_id        TEXT    NOT NULL REFERENCES users(id),
   provider_id    INTEGER NOT NULL DEFAULT 1,
   collection_id  INTEGER DEFAULT 10,

@@ -15,6 +15,15 @@
  * feedback message, and every identification. Times become ISO 8601 text in UTC, a
  * location its longitude and latitude. It refuses a store that already holds anything,
  * and copies in one transaction, so a failed copy leaves the store as empty as it found it.
+ *
+ * Every sighting must have an owner who signs in with Google, since the store keys a user
+ * by their Google account; a sighting whose owner doesn't is named, and the copy refused.
+ * Feedback from such a user keeps its message and loses the user, as feedback may be
+ * anonymous anyway (039).
+ *
+ * Over a direct connection the reads are one repeatable-read transaction, so they agree
+ * with each other. The linked path is one CLI call per table, so it relies on the
+ * cutover's freeze of Supabase's writes for the same guarantee.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -94,7 +103,8 @@ export function directQuery(sql: {unsafe: (query: string) => PromiseLike<readonl
 /** Through the Supabase CLI's linked query: how a laptop reaches production. */
 export function linkedQuery(projectRef: string): Query {
     return async (query) => {
-        const out = execFileSync('npx', ['supabase', 'db', 'query', '--linked', '--project-ref', projectRef, query],
+        const out = execFileSync('npx', ['supabase', 'db', 'query', '--linked', '--project-ref', projectRef,
+                                         '--output-format', 'json', query],
             {encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'inherit']});
         const parsed = JSON.parse(out) as {rows?: Row[]};
         if (!Array.isArray(parsed.rows)) throw new Error('supabase db query returned no rows array');
@@ -138,6 +148,15 @@ export async function copyFromPostgres(store: DatabaseSync, query: Query): Promi
     }
     const rows: Record<string, Row[]> = {};
     for (const {table, query: sql} of COPY) rows[table] = await query(sql);
+    const users = new Set(rows['users']!.map(u => String(u['id'])));
+    const orphaned = rows['observations']!.filter(o => !users.has(String(o['user_id'])));
+    if (orphaned.length > 0) {
+        const owners = [...new Set(orphaned.map(o => String(o['user_id'])))];
+        throw new Error(`${orphaned.length} sighting(s) belong to user(s) with no Google sign-in, which the store keys `
+            + `users by: ${owners.join(', ')} (sightings ${orphaned.slice(0, 10).map(o => String(o['id'])).join(', ')})`);
+    }
+    for (const f of rows['feedback']!)
+        if (f['user_id'] !== null && !users.has(String(f['user_id']))) f['user_id'] = null;
     for (const c of rows['contributors']!)
         if (c['orcid'] !== null && !validOrcid(String(c['orcid'])))
             throw new Error(`contributor ${String(c['id'])}: ${String(c['orcid'])} is not a valid ORCID`);
@@ -175,7 +194,9 @@ if (import.meta.main) {
     const store = openStore(file);
     const sql = ref ? null : postgres(dsn!, {max: 1});
     try {
-        const counts = await copyFromPostgres(store, ref ? linkedQuery(ref) : directQuery(sql!));
+        const counts = ref
+            ? await copyFromPostgres(store, linkedQuery(ref))
+            : await sql!.begin('isolation level repeatable read read only', tx => copyFromPostgres(store, directQuery(tx)));
         for (const [table, n] of Object.entries(counts)) console.log(`${table}: ${n} rows`);
     } finally {
         store.close();
