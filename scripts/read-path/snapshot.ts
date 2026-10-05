@@ -19,11 +19,11 @@
  *
  * Everything is read in one Postgres transaction, and the snapshot checks that it
  * was. Maplify, iNaturalist and Orcasound come from the build's own mirrors
- * (salish-xv35.9), and the reference tables from checked-in files (reference.ts,
- * decision 064); Postgres's copies of the three sources are read only with --answers,
- * since it stopped ingesting them. With `--answers` it also reads Postgres's own derived
- * occurrences, for checking the derivation's twins against them, which is only fair if
- * both come from the same moment.
+ * (salish-xv35.9), the reference tables from checked-in files (reference.ts,
+ * decision 064), and the register from its own release (ingest-register.ts); Postgres's
+ * copies of the three sources and of the register are read only with --answers, which
+ * also reads Postgres's own derived occurrences, for checking the derivation's twins
+ * against them, which is only fair if both come from the same moment.
  *
  * Reads only. Never writes the DSN to stdout, stderr or the snapshot.
  */
@@ -118,16 +118,6 @@ const DERIVED_FROM: readonly {table: string, columns: readonly string[]}[] = [
     {table: 'public.identifications', columns: [
         'occurrence_id', 'individual_id', 'social_group_id', 'is_present', 'evidence::text as evidence',
         'status::text as status', 'code', 'certainty::text as certainty']},
-    {table: 'register.entities', columns: ['entity_id', 'kind', 'label']},
-    {table: 'register.names', columns: ['entity_id', 'name', 'type', 'language']},
-    {table: 'register.mappings', columns: ['subject_id', 'predicate_id', 'object_id']},
-    {table: 'register.ancestor', columns: ['entity_id', 'ancestor_id', 'depth', 'ancestor_kind']},
-    {table: 'register.deprecations', columns: ['entity_id', 'replaced_by']},
-    // The register's lineage for each taxon, which the Darwin Core archive's classification
-    // reads (dwc.taxa_classification, salish-xv35.9).
-    {table: 'register.classification', columns: [
-        'entity_id', 'label', 'taxon_id', 'scientific_name', 'taxon_rank', 'kingdom', 'phylum', 'class',
-        '"order"', 'family', 'genus']},
 ];
 
 /**
@@ -148,6 +138,19 @@ const ANSWERS: readonly {name: string, query: string}[] = [
     })),
 ];
 const ANSWER_TABLES: readonly {table: string, columns: readonly string[]}[] = [
+    // The register as Postgres holds it (salish-9uu.2.2, decision 064): the build fetches
+    // its own copy (ingest-register.ts), and the twin test, which has no release to fetch,
+    // takes Postgres's — the edition the workflow loaded, which the twins were written over.
+    {table: 'register.entities', columns: ['entity_id', 'kind', 'label']},
+    {table: 'register.names', columns: ['entity_id', 'name', 'type', 'language']},
+    {table: 'register.mappings', columns: ['subject_id', 'predicate_id', 'object_id']},
+    {table: 'register.ancestor', columns: ['entity_id', 'ancestor_id', 'depth', 'ancestor_kind']},
+    {table: 'register.deprecations', columns: ['entity_id', 'replaced_by']},
+    // The register's lineage for each taxon, which the Darwin Core archive's classification
+    // reads (dwc.taxa_classification, salish-xv35.9).
+    {table: 'register.classification', columns: [
+        'entity_id', 'label', 'taxon_id', 'scientific_name', 'taxon_rank', 'kingdom', 'phylum', 'class',
+        '"order"', 'family', 'genus']},
     // Postgres's own copies of iNaturalist and Orcasound, which it stopped ingesting on
     // 2026-10-04 (salish-xv35.9): the build reads its own mirrors, and the twin test
     // writes mirrors from these to check the twins against Postgres's answer.
@@ -255,6 +258,9 @@ export async function main(): Promise<void> {
             await read(conn, `snapshot.${name}`, query);
         for (const {table, columns} of derivedFrom)
             await read(conn, table, `select ${columns.join(', ')} from ${table}`);
+        // Postgres's register, read only here, is not the release `register.edition`
+        // names, so that marker goes, and a later ingest-register adopts afresh.
+        if (answers) await conn.run('DROP TABLE IF EXISTS store.register.edition');
         await conn.run('COMMIT');
         await conn.run('DETACH pg');
     } finally {

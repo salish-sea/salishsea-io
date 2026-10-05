@@ -21,7 +21,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { isTransientUpstream } from '../ingest/retry.ts';
 
-export type Source = 'maplify' | 'inaturalist' | 'orcasound';
+export type Source = 'maplify' | 'inaturalist' | 'orcasound' | 'register';
 /** A scheduled build's run, or a backfill run by hand, which fails loudly instead. */
 export type Trigger = 'cron' | 'manual';
 
