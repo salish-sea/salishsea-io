@@ -1,7 +1,7 @@
 -- The lookups more than one derivation joins (decision 061): iNaturalist's taxa and their
--- species, the register's names and its iNaturalist crosswalk, and which collection a
--- Maplify sighting came through. Twins of the Postgres objects each names, quirks kept,
--- as derive/occurrences.sql's are. Run after derive/sources.sql and derive/shared.sql,
+-- species, and the register's names and its iNaturalist crosswalk; which collection a
+-- Maplify sighting came through is derive/maplify-collection.sql. Twins of the Postgres
+-- objects each names, quirks kept, as derive/occurrences.sql's are. Run after derive/sources.sql and derive/shared.sql,
 -- before derive/occurrences.sql and derive/dwc.sql.
 
 -- --- Shared shapes ---------------------------------------------------------------------
@@ -98,28 +98,3 @@ CREATE OR REPLACE TEMP VIEW taxon_for AS
     SELECT subject_id, inaturalist_taxon_id FROM inaturalist_mapping
     QUALIFY row_number() OVER (PARTITION BY subject_id ORDER BY exact DESC) = 1
   ) inat ON inat.subject_id = e.entity_id;
-
--- maplify.resolve_collection(comments, source): which collection a Maplify sighting came
--- through, by the curator-editable rules in maplify.collection_rule. A leading [bracket
--- tag] first, then an attribution phrase anywhere in the comments, then Maplify's source
--- code. Postgres leaves that precedence to the order of a UNION ALL under LIMIT 1, and
--- the order among rules of one kind to chance; here both are explicit, the second by rule
--- id. An attribution rule's value is a regular expression, run here by RE2 rather than
--- Postgres; today's are all plain phrases, and the gate would name the first that isn't.
--- Resolved in the build rather than read from the column the ingest wrote, so the mirror
--- holds only what Maplify said (decision 061, salish-xv35.11).
-CREATE OR REPLACE TEMP VIEW maplify_collection AS
-  SELECT s.id,
-         coalesce(
-           (SELECT r.collection_id FROM maplify.collection_rule r
-             WHERE r.match_kind = 'bracket' AND regexp_matches(s.comments, '^\[([^\]]+)\]')
-               AND r.match_value = regexp_extract(s.comments, '^\[([^\]]+)\]', 1)
-             ORDER BY r.id LIMIT 1),
-           (SELECT r.collection_id FROM maplify.collection_rule r
-             WHERE r.match_kind = 'attribution' AND regexp_matches(s.comments, r.match_value)
-             ORDER BY r.id LIMIT 1),
-           (SELECT r.collection_id FROM maplify.collection_rule r
-             WHERE r.match_kind = 'source' AND r.match_value = s.source
-             ORDER BY r.id LIMIT 1)
-         ) AS collection_id
-  FROM source_maplify_sightings s;

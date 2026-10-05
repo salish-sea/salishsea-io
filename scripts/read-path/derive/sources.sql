@@ -42,15 +42,6 @@ CREATE OR REPLACE TEMP VIEW source_inaturalist_observation_photos AS
          CAST(seq AS SMALLINT) AS seq, attribution, hidden <> 0 AS hidden, license, url
   FROM inaturalist_mirror.observation_photos;
 
--- inaturalist.taxa. The mirror holds the taxa its observations reach and, since
--- salish-xv35.9.3, every taxon the register's mappings name — which it may for another
--- source's sighting — kept current by the ingest's rolling refresh. Postgres's copy is
--- no longer read: it was the last of its upstream tables the build still needed.
-CREATE OR REPLACE TEMP VIEW source_inaturalist_taxa AS
-  SELECT CAST(id AS INTEGER) AS id, CAST(parent_id AS INTEGER) AS parent_id, scientific_name,
-         vernacular_name, rank, CAST(current_taxon_id AS INTEGER) AS current_taxon_id
-  FROM inaturalist_mirror.taxa;
-
 -- public.acoustic_bouts and its entities, as Orcasound's moderators published them.
 -- Postgres's ingest kept biophony bouts only (decision 013: the other two categories
 -- name no organism); the mirror holds every category, and the scope rule is applied

@@ -25,6 +25,7 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors): Pro
     const extract = await readFile(new URL('./derive/extract.sql', import.meta.url), 'utf8');
     const shared = await readFile(new URL('./derive/shared.sql', import.meta.url), 'utf8');
     const lookups = await readFile(new URL('./derive/lookups.sql', import.meta.url), 'utf8');
+    const maplifyCollection = await readFile(new URL('./derive/maplify-collection.sql', import.meta.url), 'utf8');
     const sql = await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8');
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
@@ -46,6 +47,7 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors): Pro
         await conn.run(extract);
         await conn.run(shared);
         await conn.run(lookups);
+        await conn.run(maplifyCollection);
         await writeMaplifyEntities(conn);
         await writeInaturalistOutOfScope(conn);
         await conn.run(sql);
