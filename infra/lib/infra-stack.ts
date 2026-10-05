@@ -7,6 +7,7 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as glue from 'aws-cdk-lib/aws-glue';
 import * as athena from 'aws-cdk-lib/aws-athena';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -70,6 +71,35 @@ export function assertEdgeHandlerBuilt(handlerExists: boolean): void {
 
 /** Kept in step with `.github/workflows/db-backup-nightly.yml` by a test. */
 export const BACKUP_BUCKET_NAME = 'salishsea-io-backups';
+
+/**
+ * Where users' photos live (decision 065), served at salishsea.io/media/. Named so the
+ * Fly app's configuration can say it without a lookup after the first deploy.
+ */
+export const MEDIA_BUCKET_NAME = 'salishsea-io-media';
+/** Where Litestream replicates the store (decision 065), under STORE_REPLICA_PREFIX. */
+export const STORE_REPLICA_BUCKET_NAME = 'salishsea-io-store-replica';
+export const STORE_REPLICA_PREFIX = 'store';
+
+/**
+ * The secret CloudFront sends the Fly app on /api/* requests as `x-origin-verify`, the
+ * same value as the Fly app's EDGE_SECRET.
+ *
+ * The API believes CloudFront-Viewer-Address, the feedback rate limit's key, only on a
+ * request carrying it, because the Fly app is also reachable directly and anyone could
+ * send that header there. So a deploy without the secret would not fail anything
+ * visible: the API would quietly key every sender by the CloudFront edge that carried
+ * them, and one busy edge would hold back everyone behind it. Refused here instead.
+ */
+export function edgeSecretFromContext(value: unknown): string {
+  if (typeof value !== 'string' || value.length < 32) {
+    throw new Error(
+      'edgeSecret missing or shorter than 32 characters. The deploy workflow passes the ' +
+      "EDGE_SECRET repository secret as --context edgeSecret=...; it must equal the Fly app's EDGE_SECRET.",
+    );
+  }
+  return value;
+}
 
 export class InfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -226,9 +256,82 @@ export class InfraStack extends cdk.Stack {
       description: 'Nightly database dump and media mirror (decision 038)',
     });
 
-    // No S3 origin any more (decision 061, salish-xv35.9): since 2026-10-03 the Fly app
-    // serves the site, and since 2026-10-04 the Darwin Core archive too, so nothing
-    // CloudFront answers comes from the salishsea-io bucket. The deploy workflow still
+    // --- The store's infrastructure (decision 065) ---
+    // Users' photos. Private to everyone but CloudFront, which reads it through origin
+    // access control and serves it at salishsea.io/media/<key>: a photo's URL belongs to
+    // the site, not to a bucket, so the bucket can change without rewriting a sighting.
+    // "Public" in 065's sense means readable at that URL, not a public bucket policy (see
+    // BackupBucket above on what a public policy has cost before). Keys keep the path:
+    // salishsea.io/media/a/b.jpg is the object media/a/b.jpg.
+    //
+    // Versioned so an overwrite or a delete can be undone; a superseded version is kept
+    // a year, as the backup mirror keeps its own.
+    const mediaBucket = new s3.Bucket(this, 'MediaBucket', {
+      bucketName: MEDIA_BUCKET_NAME,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      versioned: true,
+      lifecycleRules: [{
+        id: 'retire-superseded-photos',
+        noncurrentVersionExpiration: cdk.Duration.days(365),
+        abortIncompleteMultipartUploadAfter: cdk.Duration.days(7),
+      }],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    // Litestream's replica of the store, beside the nightly backups and private like
+    // them. Litestream writes a snapshot and a stream of WAL segments and deletes the
+    // ones its retention no longer needs; versioning keeps a deleted segment for 30
+    // days, so a mistaken retention setting or a bad credential is recoverable.
+    const replicaBucket = new s3.Bucket(this, 'StoreReplicaBucket', {
+      bucketName: STORE_REPLICA_BUCKET_NAME,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      versioned: true,
+      lifecycleRules: [{
+        id: 'retire-deleted-segments',
+        noncurrentVersionExpiration: cdk.Duration.days(30),
+        abortIncompleteMultipartUploadAfter: cdk.Duration.days(7),
+      }],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    // The Fly machine's identity for both: it may add photos and keep the replica, and
+    // nothing else. A user, not a role, because Fly has no AWS identity to assume one
+    // from. Its access key is made by hand and set as Fly secrets, so the secret never
+    // passes through CloudFormation (docs/runbook/read-path-build.md).
+    //
+    // Photos are add-only: deleting a sighting leaves its photos, as Supabase's storage
+    // did, and the API cannot destroy one. Litestream needs to list, read (a restore),
+    // write and delete under its prefix.
+    const storeWriter = new iam.User(this, 'StoreWriter', { userName: 'salishsea-io-store-writer' });
+    storeWriter.addToPolicy(new iam.PolicyStatement({
+      sid: 'AddPhotos',
+      actions: ['s3:PutObject'],
+      resources: [mediaBucket.arnForObjects('media/*')],
+    }));
+    storeWriter.addToPolicy(new iam.PolicyStatement({
+      sid: 'ListReplica',
+      actions: ['s3:ListBucket'],
+      resources: [replicaBucket.bucketArn],
+      conditions: { StringLike: { 's3:prefix': [`${STORE_REPLICA_PREFIX}/*`, STORE_REPLICA_PREFIX] } },
+    }));
+    storeWriter.addToPolicy(new iam.PolicyStatement({
+      sid: 'KeepReplica',
+      actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
+      resources: [replicaBucket.arnForObjects(`${STORE_REPLICA_PREFIX}/*`)],
+    }));
+    new cdk.CfnOutput(this, 'StoreWriterName', {
+      value: storeWriter.userName,
+      description: "The Fly machine's AWS identity: photos and the store's replica (decision 065)",
+    });
+
+    // No origin in the site bucket any more (decision 061, salish-xv35.9): since
+    // 2026-10-03 the Fly app serves the site, and since 2026-10-04 the Darwin Core
+    // archive too, so nothing CloudFront answers comes from the salishsea-io bucket.
+    // (Users' photos are a different bucket, above.) The deploy workflow still
     // syncs the Supabase-mode site into it, and the last nightly archive is still there,
     // but a behavior pointed back at the bucket would be a DEGRADED fallback, not a
     // rollback: that site reads a Postgres that stopped following two of the three
@@ -241,6 +344,14 @@ export class InfraStack extends cdk.Stack {
     // passes both through as they are.
     const flyOrigin = new origins.HttpOrigin('salishsea-io.fly.dev', {
       protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+    });
+
+    // The same app as the API's origin (decision 065), carrying the secret that tells the
+    // API a request came through CloudFront (see edgeSecretFromContext). On its own origin
+    // so the secret goes only where it is read.
+    const apiOrigin = new origins.HttpOrigin('salishsea-io.fly.dev', {
+      protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+      customHeaders: { 'x-origin-verify': edgeSecretFromContext(this.node.tryGetContext('edgeSecret')) },
     });
 
     // CloudFront Distribution — reconstructed to match production config
@@ -309,6 +420,39 @@ export class InfraStack extends cdk.Stack {
             enableAcceptEncodingGzip: false,
             enableAcceptEncodingBrotli: false,
           }),
+        },
+        // After /cards/*, because CloudFront origins are numbered in order of use: a new
+        // origin ahead of the renderer's would renumber it, and replace its access control.
+        // The write API (decision 065). The default behavior is set up for a static site
+        // and would break it three ways: it allows only GET and HEAD, so a save or a
+        // sign-in is refused at the edge; it forwards no cookies and no Origin, so the
+        // API sees no session and refuses every write as cross-site; and it caches, so
+        // one person's /api/me could be served to the next. Nothing here is cached.
+        // Host is not forwarded: Fly routes by it, and it must name the Fly app.
+        '/api/*': {
+          origin: apiOrigin,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+          compress: true,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          originRequestPolicy: new cloudfront.OriginRequestPolicy(this, 'ApiOriginRequestPolicy', {
+            originRequestPolicyName: 'salishsea-api',
+            comment: 'The write API: its session cookie, the Origin it checks, the viewer address it rate-limits by',
+            cookieBehavior: cloudfront.OriginRequestCookieBehavior.all(),
+            headerBehavior: cloudfront.OriginRequestHeaderBehavior.allowList(
+              'Origin', 'Content-Type', 'CloudFront-Viewer-Address',
+            ),
+            queryStringBehavior: cloudfront.OriginRequestQueryStringBehavior.all(),
+          }),
+        },
+        // Users' photos, from their bucket (decision 065). No edge function: the OG
+        // handler names pages, not images. JPEG is already compressed.
+        '/media/*': {
+          origin: origins.S3BucketOrigin.withOriginAccessControl(mediaBucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          compress: false,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         },
       },
     });

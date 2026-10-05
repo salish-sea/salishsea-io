@@ -3,7 +3,12 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { InfraStack, assertEdgeHandlerBuilt, cardRendererSource, stubAllowedFromContext } from '../lib/infra-stack';
+import {
+  InfraStack, MEDIA_BUCKET_NAME, STORE_REPLICA_BUCKET_NAME, assertEdgeHandlerBuilt, cardRendererSource,
+  edgeSecretFromContext, stubAllowedFromContext,
+} from '../lib/infra-stack';
+
+const EDGE_SECRET = 'test-edge-secret-0123456789abcdef0123';
 
 describe('stubAllowedFromContext', () => {
   it('accepts the string a CLI --context flag actually produces', () => {
@@ -75,7 +80,7 @@ describe('the edge-handler asset carries only the runtime', () => {
     // A real synth into a scratch outdir: asset staging is what we are asserting
     // on, and Template.fromStack alone does not stage.
     const outdir = fs.mkdtempSync(path.join(os.tmpdir(), 'infra-asset-'));
-    const app = new cdk.App({ outdir, context: { allowStubCardRenderer: true } });
+    const app = new cdk.App({ outdir, context: { allowStubCardRenderer: true, edgeSecret: EDGE_SECRET } });
     new InfraStack(app, 'AssetStack', { env: { account: '648183724555', region: 'us-east-1' } });
     app.synth();
 
@@ -115,12 +120,25 @@ describe('the edge-handler asset carries only the runtime', () => {
   });
 });
 
+describe('edgeSecretFromContext', () => {
+  it('passes a secret long enough to be one', () => {
+    expect(edgeSecretFromContext(EDGE_SECRET)).toBe(EDGE_SECRET);
+  });
+
+  it.each([undefined, '', 'short', 42])('refuses %p: a deploy without it would key every feedback sender by its edge', (value) => {
+    expect(() => edgeSecretFromContext(value)).toThrow(/edgeSecret/);
+  });
+});
+
 describe('InfraStack', () => {
   let template: Template;
+  const distConfig = () => (Object.values(template.findResources('AWS::CloudFront::Distribution'))[0] as any)
+    .Properties.DistributionConfig;
+  const behavior = (pattern: string) => distConfig().CacheBehaviors.find((b: any) => b.PathPattern === pattern);
   beforeAll(() => {
     // Tests synthesize without building the card-renderer bundle; a deploy may
     // not (see the guard in infra-stack.ts).
-    const app = new cdk.App({ context: { allowStubCardRenderer: true } });
+    const app = new cdk.App({ context: { allowStubCardRenderer: true, edgeSecret: EDGE_SECRET } });
     const stack = new InfraStack(app, 'TestStack', {
       env: { account: '648183724555', region: 'us-east-1' },
     });
@@ -156,11 +174,86 @@ describe('InfraStack', () => {
     expect(origin.CustomOriginConfig.OriginProtocolPolicy).toBe('https-only');
   });
 
-  it('has no /dwca/* behavior and no S3 origin: the Fly app serves the archive under the default', () => {
-    const dist = Object.values(template.findResources('AWS::CloudFront::Distribution'))[0] as any;
-    const config = dist.Properties.DistributionConfig;
+  it('has no /dwca/* behavior and no origin in the site bucket: the Fly app serves the archive under the default', () => {
+    const config = distConfig();
     expect((config.CacheBehaviors ?? []).find((b: any) => b.PathPattern === '/dwca/*')).toBeUndefined();
-    expect(config.Origins.find((o: any) => o.S3OriginConfig !== undefined)).toBeUndefined();
+    // the only S3 origin is the photo bucket's, reached through /media/*
+    const s3Origins = config.Origins.filter((o: any) => o.S3OriginConfig !== undefined);
+    expect(s3Origins).toHaveLength(1);
+    expect(behavior('/media/*').TargetOriginId).toBe(s3Origins[0].Id);
+  });
+
+  describe('the write API (decision 065)', () => {
+    it('allows every method, caches nothing, and has no edge function', () => {
+      const api = behavior('/api/*');
+      expect(api.AllowedMethods).toEqual(expect.arrayContaining(['POST', 'PUT', 'DELETE']));
+      // Managed-CachingDisabled
+      expect(api.CachePolicyId).toBe('4135ea2d-6df8-44a3-9df3-4b5a84be39ad');
+      expect(api.LambdaFunctionAssociations).toBeUndefined();
+      expect(api.ViewerProtocolPolicy).toBe('https-only');
+    });
+
+    it('forwards the session cookie, the Origin the API checks, and the viewer address, but not Host', () => {
+      template.hasResourceProperties('AWS::CloudFront::OriginRequestPolicy', {
+        OriginRequestPolicyConfig: Match.objectLike({
+          Name: 'salishsea-api',
+          CookiesConfig: { CookieBehavior: 'all' },
+          HeadersConfig: {
+            HeaderBehavior: 'whitelist',
+            Headers: ['Origin', 'Content-Type', 'CloudFront-Viewer-Address'],
+          },
+        }),
+      });
+    });
+
+    it('reaches the Fly app with the secret that marks a request as having come through CloudFront', () => {
+      const config = distConfig();
+      const origin = config.Origins.find((o: any) => o.Id === behavior('/api/*').TargetOriginId);
+      expect(origin.DomainName).toBe('salishsea-io.fly.dev');
+      expect(origin.OriginCustomHeaders).toEqual([{ HeaderName: 'x-origin-verify', HeaderValue: EDGE_SECRET }]);
+      // and only there: the default behavior's requests do not carry it
+      const site = config.Origins.find((o: any) => o.Id === config.DefaultCacheBehavior.TargetOriginId);
+      expect(site.OriginCustomHeaders).toBeUndefined();
+    });
+  });
+
+  describe("users' photos and the store's replica (decision 065)", () => {
+    it('serves /media/* from the photo bucket through origin access control, GET and HEAD only', () => {
+      const media = behavior('/media/*');
+      expect(media.AllowedMethods).toEqual(['GET', 'HEAD']);
+      expect(media.LambdaFunctionAssociations).toBeUndefined();
+      template.hasResourceProperties('AWS::CloudFront::OriginAccessControl', {
+        OriginAccessControlConfig: Match.objectLike({ OriginAccessControlOriginType: 's3' }),
+      });
+    });
+
+    it.each([MEDIA_BUCKET_NAME, STORE_REPLICA_BUCKET_NAME])('keeps %s private, versioned, and past a teardown', (name) => {
+      const [id, bucket] = Object.entries(template.findResources('AWS::S3::Bucket'))
+        .find(([, b]: [string, any]) => b.Properties.BucketName === name) as [string, any];
+      expect(bucket.DeletionPolicy).toBe('Retain');
+      expect(bucket.Properties.VersioningConfiguration).toEqual({ Status: 'Enabled' });
+      expect(bucket.Properties.PublicAccessBlockConfiguration).toEqual({
+        BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true,
+      });
+      expect(id).toBeDefined();
+    });
+
+    it("lets the Fly machine add photos and keep the replica, and nothing else", () => {
+      const policies = Object.values(template.findResources('AWS::IAM::Policy'))
+        .filter((p: any) => JSON.stringify(p.Properties.Users ?? []).includes('StoreWriter'));
+      expect(policies).toHaveLength(1);
+      const statements = (policies[0] as any).Properties.PolicyDocument.Statement;
+      const actions = statements.flatMap((s: any) => [s.Action].flat()).sort();
+      expect(actions).toEqual(['s3:DeleteObject', 's3:GetObject', 's3:ListBucket', 's3:PutObject', 's3:PutObject']);
+      // no wildcard resource, and no delete on photos
+      expect(JSON.stringify(statements)).not.toMatch(/"Resource":"\*"/);
+      const addPhotos = statements.find((s: any) => s.Sid === 'AddPhotos');
+      expect(addPhotos.Action).toBe('s3:PutObject');
+    });
+
+    it('creates no access key: the secret is made by hand and never passes through CloudFormation', () => {
+      template.resourceCountIs('AWS::IAM::AccessKey', 0);
+    });
   });
 
   describe('card renderer', () => {

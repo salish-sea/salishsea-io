@@ -8,7 +8,27 @@ Every five minutes (`fly/crontab`, and a few seconds after a native sighting is 
 
 ## The write API (not yet on)
 
-[Decision 065](../decisions/065-the-store-and-write-api.md)'s service, `api/server.ts`, takes over what users write from Supabase at the cutover. Until then it does not run: `fly/start.sh` starts it only when the machine's environment sets `API_ENABLED`, because its store (`/data/store/salishsea.db`) must be empty when the cutover copies Postgres into it, and a sign-in would write to it. Caddy routes `/api/*` to it, so on the Fly app's own address those paths answer 502 until then; salishsea.io's CloudFront doesn't pass them through yet (it needs an `/api/*` behavior that allows every method, forwards cookies and `Origin`, and caches nothing — `salish-9uu.3.1`). It needs `SESSION_SIGNING_KEY` (at least 32 random bytes, base64) as a Fly secret; `fly/start.sh` hands it to the API alone and removes it from every other process's environment. If the API can't start, it is retried every ten seconds while the site keeps serving.
+[Decision 065](../decisions/065-the-store-and-write-api.md)'s service, `api/server.ts`, takes over what users write from Supabase at the cutover. Until then it does not run: `fly/start.sh` starts it only when the machine's environment sets `API_ENABLED`, because its store (`/data/store/salishsea.db`) must be empty when the cutover copies Postgres into it, and a sign-in would write to it. Caddy routes `/api/*` to it, so until then those paths answer 502, on the Fly app's own address and through salishsea.io's `/api/*` CloudFront behavior alike. If the API can't start, it is retried every ten seconds while the site keeps serving.
+
+Its secrets are Fly secrets. `fly/start.sh` hands the first two to the API alone and removes them from every other process's environment:
+
+- **`SESSION_SIGNING_KEY`**: at least 32 random bytes, base64. Changing it signs everyone out.
+- **`EDGE_SECRET`**: the value CloudFront sends on `/api/*` requests as `x-origin-verify`, so the API can tell them from requests made to the Fly app directly. It must equal the production environment's `EDGE_SECRET` GitHub secret, which the deploy passes to `cdk deploy`. A mismatch fails nothing visibly: the feedback rate limit falls back to keying senders by the CloudFront edge that carried them. To rotate it, set both:
+
+  ```sh
+  umask 077; openssl rand -hex 32 | tr -d '\n' > /tmp/edge-secret
+  gh secret set EDGE_SECRET --env production < /tmp/edge-secret
+  fly secrets set -a salishsea-io --stage EDGE_SECRET="$(cat /tmp/edge-secret)"; rm /tmp/edge-secret
+  ```
+
+  CloudFront takes the new value at the next run of the deploy workflow, the Fly app at its next `fly/deploy.sh`; until both have, they disagree.
+- **`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`**, for photo uploads and Litestream once they ship (`salish-9uu.3.4`, `.3.6`): the IAM user `salishsea-io-store-writer` (`infra/`), which may add photos under `media/` in `salishsea-io-media` and keep Litestream's replica under `store/` in `salishsea-io-store-replica`, and nothing else. CDK makes the user but not its key, so the secret never passes through CloudFormation. Make one, or rotate by making a second and deleting the first:
+
+  ```sh
+  aws iam create-access-key --profile orcasound --user-name salishsea-io-store-writer \
+    --query 'AccessKey.[AccessKeyId,SecretAccessKey]' --output text |
+    { read -r id secret; fly secrets set -a salishsea-io --stage AWS_ACCESS_KEY_ID="$id" AWS_SECRET_ACCESS_KEY="$secret"; }
+  ```
 
 ## Where state lives
 

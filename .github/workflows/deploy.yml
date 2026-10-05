@@ -128,6 +128,18 @@ jobs:
       - run: supabase link --project-ref "${PROJECT_REF}"
         env:
           PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
+      # The CDK step runs last, so a synth refusing a missing secret there would fail
+      # with production already half-changed. Refuse here instead, while nothing is.
+      # The value must equal the Fly app's EDGE_SECRET (decision 065; infra-stack.ts's
+      # edgeSecretFromContext says what goes wrong otherwise).
+      - name: Require the edge secret
+        env:
+          EDGE_SECRET: ${{ secrets.EDGE_SECRET }}
+        run: |
+          if [ "${#EDGE_SECRET}" -lt 32 ]; then
+            echo "::error::The production environment's EDGE_SECRET is missing or shorter than 32 characters."
+            exit 1
+          fi
       # Last check before anything leaves this runner: everything above is local
       # setup, everything below mutates production.
       - name: Re-check the tip before mutating anything
@@ -169,11 +181,13 @@ jobs:
         working-directory: infra
         env:
           SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
+          EDGE_SECRET: ${{ secrets.EDGE_SECRET }}
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
           pnpm exec cdk deploy --all --require-approval never \
-            --context "supabaseAnonKey=${SUPABASE_ANON_KEY}"
+            --context "supabaseAnonKey=${SUPABASE_ANON_KEY}" \
+            --context "edgeSecret=${EDGE_SECRET}"
 
   # Post-deploy verification, inside the deploy run rather than trailing it: a
   # deploy whose steps all reported success but left production not answering

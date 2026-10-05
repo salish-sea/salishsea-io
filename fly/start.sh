@@ -56,10 +56,12 @@ rm -f "$MAINTENANCE_FLAG"
 # key, a migration that fails) must not take the published site down with it, so it is
 # restarted here, after a pause, while Caddy keeps serving.
 #
-# The signing key is taken out of the environment every other process inherits — the
-# build, its tasks, the listener — and handed to the API alone.
+# Its secrets — the session signing key, and the edge secret that marks a request as
+# having come through CloudFront — are taken out of the environment every other process
+# inherits (the build, its tasks, the listener) and handed to the API alone.
 session_key="${SESSION_SIGNING_KEY:-}"
-unset SESSION_SIGNING_KEY
+edge_secret="${EDGE_SECRET:-}"
+unset SESSION_SIGNING_KEY EDGE_SECRET
 if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
     mkdir -p /data/store
     (
@@ -67,7 +69,8 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
         set +e
         cd /app
         while true; do
-            STORE_PATH=/data/store/salishsea.db SESSION_SIGNING_KEY="$session_key" BUILD_COMMAND=/app/fly/build.sh \
+            STORE_PATH=/data/store/salishsea.db SESSION_SIGNING_KEY="$session_key" EDGE_SECRET="$edge_secret" \
+                BUILD_COMMAND=/app/fly/build.sh \
                 node api/server.ts
             status=$?
             echo "write API exited ($status); restarting in 10 s" >&2
