@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
@@ -51,6 +52,9 @@ describe("Happywhale's frozen file (decision 064)", () => {
             await snapshotWithHappywhale(path.join(dir, 'from.duckdb'), 'happywhale.media');
             await expect(exportHappywhale(path.join(dir, 'happywhale.duckdb'), {snapshot: path.join(dir, 'from.duckdb')}))
                 .rejects.toThrow(/happywhale.media: no rows/);
+            expect(existsSync(path.join(dir, 'happywhale.duckdb')), 'a failed export leaves nothing behind').toBe(false);
+            await expect(loadHappywhale(path.join(dir, 'to.duckdb'), path.join(dir, 'happywhale.duckdb')))
+                .rejects.toThrow(/is missing/);
         } finally {
             await rm(dir, {recursive: true, force: true});
         }

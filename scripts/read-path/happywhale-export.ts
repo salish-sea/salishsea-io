@@ -14,10 +14,13 @@
  * From Postgres while it holds the tables; or from a snapshot that already holds them in
  * that shape, which is how the volume's copy was made, and how to make another once
  * Postgres is gone. Refuses to replace an existing file: the build treats it as upstream
- * data snapshotted in, and replacing it is a deliberate act (delete it first).
+ * data snapshotted in, and replacing it is a deliberate act (delete it first). The export
+ * is written beside it and renamed into place only once it is complete, so a failed or
+ * interrupted one leaves nothing at `out`; the finished file is read-only, as the build
+ * only reads it.
  */
 
-import { existsSync } from 'node:fs';
+import { chmodSync, existsSync, renameSync, rmSync } from 'node:fs';
 
 import { DuckDBInstance } from '@duckdb/node-api';
 
@@ -25,10 +28,13 @@ import { HAPPYWHALE_TABLES } from './snapshot.ts';
 
 export async function exportHappywhale(out: string, source: {dsn: string} | {snapshot: string}): Promise<Record<string, number>> {
     if (existsSync(out)) throw new Error(`${out} exists: Happywhale's frozen file is replaced only on purpose — delete it first`);
+    const staging = `${out}.partial`;
+    for (const f of [staging, `${staging}.wal`]) rmSync(f, {force: true});
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
+    let done = false;
     try {
-        await conn.run(`ATTACH '${out.replaceAll("'", "''")}' AS out`);
+        await conn.run(`ATTACH '${staging.replaceAll("'", "''")}' AS out`);
         await conn.run('CREATE SCHEMA out.happywhale');
         if ('dsn' in source) {
             await conn.run('INSTALL postgres; LOAD postgres;');
@@ -51,10 +57,18 @@ export async function exportHappywhale(out: string, source: {dsn: string} | {sna
             if (counts[table] === 0) throw new Error(`${table}: no rows`);
         }
         await conn.run('COMMIT');
+        done = true;
         return counts;
     } finally {
+        // closing checkpoints the staging file, so it is whole before it is published
         conn.closeSync();
         db.closeSync();
+        if (done) {
+            renameSync(staging, out);
+            chmodSync(out, 0o444);
+        } else {
+            for (const f of [staging, `${staging}.wal`]) rmSync(f, {force: true});
+        }
     }
 }
 

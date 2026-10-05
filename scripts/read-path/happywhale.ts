@@ -10,12 +10,17 @@
  * without Happywhale.
  */
 
+import { existsSync } from 'node:fs';
+
 import { DuckDBInstance } from '@duckdb/node-api';
 
 import { budget } from './duckdb-budget.ts';
 import { HAPPYWHALE_TABLES } from './snapshot.ts';
 
 export async function loadHappywhale(snapshot: string, frozen: string): Promise<Record<string, number>> {
+    if (!existsSync(frozen))
+        throw new Error(`${frozen} is missing: Happywhale's frozen tables are exported once, by `
+            + 'happywhale-export.ts (docs/runbook/read-path-build.md says how)');
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
