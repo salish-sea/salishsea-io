@@ -155,6 +155,20 @@ describe('the photo move (salish-9uu.3.8)', () => {
         db.close();
     });
 
+    test("two users' photos that would land at one key stop the plan", async () => {
+        const {planMoves, SUPABASE_MEDIA} = await import('./move-photos.ts');
+        const db = openStore(path.join(dir, 'store.db'));
+        fixtures(db);
+        db.exec(`INSERT INTO users (id, google_sub, contributor_id, created_at) VALUES ('u2', 'g2', 1, '2026-01-01T00:00:00Z')`);
+        db.exec(sighting('s1'));
+        const photo = (seq: number, href: string) =>
+            db.prepare('INSERT INTO observation_photos (observation_id, seq, href, license_code) VALUES (?, ?, ?, ?)').run('s1', seq, href, 'cc-by');
+        photo(1, `${SUPABASE_MEDIA}u1/s1/a.jpg`);
+        photo(2, `${SUPABASE_MEDIA}u2/s1/a.jpg`);
+        expect(() => planMoves(db)).toThrow(/would both become media\/1\/s1\/a.jpg/);
+        db.close();
+    });
+
     test('a photo whose user the store lacks stops the plan', async () => {
         const {planMoves, SUPABASE_MEDIA} = await import('./move-photos.ts');
         const db = openStore(path.join(dir, 'store.db'));

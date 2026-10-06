@@ -33,7 +33,7 @@ export function planMoves(store: DatabaseSync): Move[] {
     const hrefs = store.prepare('SELECT DISTINCT href FROM observation_photos WHERE substr(href, 1, ?) = ? ORDER BY href')
         .all(SUPABASE_MEDIA.length, SUPABASE_MEDIA) as {href: string}[];
     const contributorOf = store.prepare('SELECT contributor_id FROM users WHERE id = ?');
-    return hrefs.map(({href}) => {
+    const moves = hrefs.map(({href}) => {
         const path = href.slice(SUPABASE_MEDIA.length);
         const [user, sighting, ...rest] = path.split('/');
         const file = rest.join('/');
@@ -44,6 +44,15 @@ export function planMoves(store: DatabaseSync): Move[] {
         if (!type) throw new Error(`${href}: not a JPEG or JPEG 2000 by its name`);
         return {from: `media/${path}`, to: `media/${row.contributor_id}/${sighting}/${file}`, type};
     });
+    // Two users of one contributor could each have a photo of one sighting by one name;
+    // their folders merge, and one would overwrite the other. Refused, not guessed at.
+    const seen = new Map<string, string>();
+    for (const {from, to} of moves) {
+        const other = seen.get(to);
+        if (other) throw new Error(`${from} and ${other} would both become ${to}`);
+        seen.set(to, from);
+    }
+    return moves;
 }
 
 /** Rewrite every Supabase-kept photo's URL to its place at salishsea.io/media/. Returns how many rows. */
