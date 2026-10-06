@@ -142,7 +142,7 @@ jobs:
           fi
       # The Fly job runs after this one has changed production, so a token that can't
       # deploy would fail it with the database already migrated. Refuse here instead, by
-      # using it: missing, revoked, mistyped or another app's, `fly status` fails. An
+      # using it: missing, revoked, mistyped or another app's, `flyctl status` fails. An
       # app-scoped deploy token (`fly tokens create deploy -a salishsea-io`); runbook:
       # deploys.md.
       - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
@@ -152,8 +152,13 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          if [ -z "${FLY_API_TOKEN}" ] || ! fly status -a salishsea-io > /dev/null; then
-            echo "::error::The production environment's FLY_API_TOKEN is missing or can't read the salishsea-io app."
+          # flyctl, not fly: setup-flyctl installs no `fly` alias.
+          if [ -z "${FLY_API_TOKEN}" ]; then
+            echo "::error::The production environment's FLY_API_TOKEN is missing."
+            exit 1
+          fi
+          if ! flyctl status -a salishsea-io > /dev/null; then
+            echo "::error::The production environment's FLY_API_TOKEN can't read the salishsea-io app."
             exit 1
           fi
       # Last check before anything leaves this runner: everything above is local

@@ -16,6 +16,8 @@
 # The site's public client config is the AWS deploy's. The publishable key is
 # read from the Supabase CLI rather than typed.
 #
+# flyctl by that name: the Deploy workflow's setup-flyctl installs no `fly` alias.
+#
 # The image builds on Fly's remote builder, which is fly deploy's default and the
 # only builder that works: Racket CS won't run under Docker's x86_64 emulation on
 # Apple silicon ("error reading from petite"), so a local build fails.
@@ -57,7 +59,7 @@ IMAGE="registry.fly.io/$APP:$LABEL"
 
 # Build and push the image while the machine goes on building: the remote build takes
 # minutes, and the build lock (below) is held only for the switch.
-fly deploy --build-only --push --image-label "$LABEL" \
+flyctl deploy --build-only --push --image-label "$LABEL" \
     --build-arg VITE_SUPABASE_URL="https://$REF.supabase.co" \
     --build-arg VITE_SUPABASE_WS_URL="wss://$REF.supabase.co" \
     --build-arg VITE_SUPABASE_KEY="$KEY" \
@@ -75,14 +77,14 @@ fly deploy --build-only --push --image-label "$LABEL" \
 HOLD=600 LOCK_WAIT=300
 HOLDER="deploy-hold-$SHA-$$"   # names this deploy's hold alone, to release it
 lock_log=$(mktemp)
-fly ssh console -a "$APP" \
+flyctl ssh console -a "$APP" \
     -C "flock -o -w $LOCK_WAIT /data/build.lock timeout $HOLD sh -c 'echo held; sleep $HOLD' $HOLDER" \
     > "$lock_log" 2>&1 &
 hold_pid=$!
 deployed=
 release() {
     kill "$hold_pid" 2>/dev/null || true
-    [ -n "$deployed" ] || fly ssh console -a "$APP" -C "pkill -f $HOLDER" > /dev/null 2>&1 || true
+    [ -n "$deployed" ] || flyctl ssh console -a "$APP" -C "pkill -f $HOLDER" > /dev/null 2>&1 || true
     rm -f "$lock_log"
 }
 trap release EXIT
@@ -95,5 +97,5 @@ until grep -q '^held' "$lock_log"; do
     sleep 2
 done
 
-fly deploy --ha=false --image "$IMAGE"
+flyctl deploy --ha=false --image "$IMAGE"
 deployed=1
