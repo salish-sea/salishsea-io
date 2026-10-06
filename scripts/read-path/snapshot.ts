@@ -43,9 +43,7 @@ import { backup, DatabaseSync } from 'node:sqlite';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 
 import { budget } from './duckdb-budget.ts';
-
-/** The frontend's day and year, as in occurrence-days.ts. */
-const DAY_ZONE = 'PST8PDT';
+import { DAY_ZONE } from './pacific-day.ts';
 
 /**
  * The catalogue as Postgres holds it: one relation per table, as documents. `query`

@@ -20,7 +20,7 @@
  * keys; this is told only what to write). A save touches one day, and this is how the
  * build stops rewriting 4,400 files for it. Without the variable, the whole directory
  * as before. The grouping here and the build's key expression are the same by hand
- * (DAY_ZONE, strftime), and the build checks the directory's files against its keys.
+ * (pacific-day.ts's dayOf), and the build checks the directory's files against its keys.
  *
  * Deterministic by construction: rows are ordered by observed_at and then id
  * (PostgREST orders by observed_at alone, so ties there fall in no particular
@@ -34,17 +34,12 @@ import * as path from 'node:path';
 import { access, readdir, rename, rm, writeFile } from 'node:fs/promises';
 
 import { budget } from './duckdb-budget.ts';
+import { dayOf } from './pacific-day.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 
 const exists = (p: string) => access(p).then(() => true, () => false);
 
-/**
- * The frontend's own definition of a day: `dateFromObservedAt` and
- * `fetchOccurrences` both use this zone.
- */
-const DAY_ZONE = 'PST8PDT';
-
-const DAY_EXPR = `strftime(timezone('${DAY_ZONE}', observed_at), '%Y-%m-%d')`;
+const DAY_EXPR = dayOf('observed_at');
 const A_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
