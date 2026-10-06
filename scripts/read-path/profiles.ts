@@ -38,7 +38,7 @@ import {
     matrilinePreview, renderMatrilineProfile, renderMatrilineSightings, type MatrilineProfileData,
 } from '../../src/matriline-profile.ts';
 import {
-    ecotypePreview, renderEcotypeProfile, renderEcotypeSightings, type EcotypeProfileData,
+    ecotypePreview, ecotypeStyles, renderEcotypeProfile, renderEcotypeSightings, type EcotypeProfileData,
 } from '../../src/ecotype-profile.ts';
 import {
     hauloutPreview, hauloutProfile, hauloutStyles, renderHauloutProfile, renderHauloutReports, renderHauloutVitals,
@@ -257,19 +257,26 @@ export function renderMatrilinePage(shell: string, page: MatrilinePage, currentY
 
 export type EcotypePage = ProfilePage<EcotypeProfileData> & {links: OccurrenceLink[]};
 
-const ECOTYPE_TABLES = ['social_groups', 'group_parents', 'ecotype_occurrences'] as const;
+// group_occurrences: each matriline's reports, for its small map (decision 067).
+const ECOTYPE_TABLES = ['social_groups', 'group_parents', 'ecotype_occurrences', 'group_occurrences'] as const;
 
 /** Every ecotype with a register identifier, as its page's data. */
 export function assembleEcotypes(t: Pick<Tables, (typeof ECOTYPE_TABLES)[number]>): EcotypePage[] {
     const groups = catalogGroups(t);
     const linksOf = linksBy(t.ecotype_occurrences, 'ecotype_id');
+    const matrilineLinksOf = linksBy(t.group_occurrences, 'social_group_id');
+    // A small map draws where, and links to the matriline's page rather than to a report.
+    const dots = (id: number) => matrilineLinksOf(id).map(({occurrence_id, observed_at, location}) =>
+        ({occurrence_id, observed_at, location}));
     return t.social_groups
         .filter(g => g['kind'] === 'ecotype' && g['entity_id'])
         .sort(byId)
         .map(g => {
+            const matrilines = descendantMatrilines(g['id'], groups);
             const data = {
                 group: {id: g['id'], entity_id: g['entity_id'], designation: g['designation']},
-                matrilines: descendantMatrilines(g['id'], groups),
+                matrilines,
+                matrilineReports: new Map(matrilines.map(m => [m.id, dots(m.id)])),
             } satisfies EcotypeProfileData;
             return {id: localPart(g['entity_id']), data, links: linksOf(g['id'])};
         });
@@ -278,7 +285,7 @@ export function assembleEcotypes(t: Pick<Tables, (typeof ECOTYPE_TABLES)[number]
 export function renderEcotypePage(shell: string, page: EcotypePage, currentYear: number, islands: Island[] = []): string {
     const {data, links} = page;
     const sightings = renderEcotypeSightings(links, {mapSrc: linksUrl('ecotypes', page.id), currentYear});
-    return renderDocument(shell, 'ecotype-page', [profileStyles],
+    return renderDocument(shell, 'ecotype-page', [profileStyles, ...ecotypeStyles],
         ecotypePreview(data), renderProfileFrame(renderEcotypeProfile(data, sightings)), islands);
 }
 

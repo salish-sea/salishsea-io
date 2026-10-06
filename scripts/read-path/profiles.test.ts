@@ -214,6 +214,49 @@ describe('assembleEcotypes and renderEcotypePage', () => {
         expect(doc).toContain('<h1>Bigg&#39;s (transient) killer whales</h1>');
         expect(doc).not.toContain('ECOTYPE SHEET TEXT');
     });
+
+    // Three more matrilines beneath the ecotype: T099, reported more often than T065A;
+    // T030, reported once, off the outer coast; and T046, never reported.
+    const withSiblings = () => {
+        const t = tables();
+        t.social_groups.push(
+            {id: 102, kind: 'matriline', anchor_individual_id: null, designation: 'T099', entity_id: 'SSA:0020002', designation_folded: 't99', notes: null},
+            {id: 103, kind: 'matriline', anchor_individual_id: null, designation: 'T046', entity_id: 'SSA:0020003', designation_folded: 't46', notes: null},
+            {id: 104, kind: 'matriline', anchor_individual_id: null, designation: 'T030', entity_id: 'SSA:0020004', designation_folded: 't30', notes: null},
+        );
+        t.group_parents.push({group_id: 102, parent_group_id: 200}, {group_id: 103, parent_group_id: 200}, {group_id: 104, parent_group_id: 200});
+        t.group_occurrences.push({social_group_id: 104, occurrence_id: 'maplify:9', observed_at: '2026-05-01T20:00:00+00:00', location: {lon: -125.5, lat: 48.9}, is_present: true, status: 'candidate', code: 'T30s'});
+        for (const n of [6, 7, 8])
+            t.group_occurrences.push({social_group_id: 102, occurrence_id: `maplify:${n}`, observed_at: '2026-07-0' + n + 'T20:00:00+00:00', location: {lon: -122.5, lat: 47.6}, is_present: true, status: 'candidate', code: 'T99s'});
+        return assembleEcotypes(t)[0]!;
+    };
+
+    test('each matriline\'s reports, as its own page has them, for its small map', () => {
+        const reports = biggs().data.matrilineReports!;
+        expect([...reports.keys()]).toEqual([100]);
+        expect(reports.get(100)).toEqual([
+            {occurrence_id: 'maplify:4', observed_at: '2026-07-01T20:00:00+00:00', location: null},
+            {occurrence_id: 'maplify:3', observed_at: '2025-06-01T20:00:00+00:00', location: {lon: -123, lat: 48.5}},
+        ]);
+    });
+
+    test('a small map per reported matriline, most-reported first; the rest listed by name', () => {
+        const doc = renderEcotypePage(shellFor('ecotype-page'), withSiblings(), 2026);
+        const maps = [...doc.matchAll(/<a href="([^"]+)"><span class="label">(\w+)<span class="count">([^<]+)/g)]
+            .map(([, href, label, count]) => [href, label, count]);
+        expect(maps).toEqual([
+            ['/matrilines/0020002/T099s', 'T099s', '3 reports'],
+            ['/matrilines/0020001/T065As', 'T065As', '2 reports'],
+            ['/matrilines/0020004/T030s', 'T030s', '1 report, none here'],
+        ]);
+        // T065A's unlocated report counts but isn't drawn; T099's three, at one spot, are one
+        // darker dot; T030's one, off the map, isn't drawn.
+        const circles = [...doc.matchAll(/<svg [^>]*>(.*?)<\/svg>/gs)].map(([, inner]) => inner!.match(/<circle [^>]*>/g));
+        expect(circles.map(c => c?.length ?? 0)).toEqual([1, 1, 0]);
+        expect(circles[0]![0]).toContain('fill-opacity="0.88"');
+        expect(doc).toMatch(/Not reported yet:.*href="\/matrilines\/0020003\/T046s">T046</s);
+        expect(doc).toContain('services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/8/');
+    });
 });
 
 describe('assembleHaulouts and renderHauloutPage', () => {

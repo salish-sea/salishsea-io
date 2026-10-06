@@ -8,7 +8,7 @@ import {
 } from './catalog.ts';
 import { canonicalize, profileStyles, renderProfileFrame } from './profile-shared.ts';
 import {
-  ecotypeLabel, renderEcotypeProfile, renderEcotypeSightings, type EcotypeProfileData,
+  ecotypeLabel, ecotypeStyles, renderEcotypeProfile, renderEcotypeSightings, type EcotypeProfileData,
 } from './ecotype-profile.ts';
 import { initSentry } from './sentry.ts';
 import './individual-map.ts';
@@ -42,7 +42,7 @@ export class EcotypePage extends LitElement {
       ecotypeId ? fetchEcotypeOccurrenceLinks(ecotypeId) : null,
   });
 
-  static styles = profileStyles;
+  static styles = [profileStyles, ...ecotypeStyles];
 
   render() {
     return renderProfileFrame(html`
