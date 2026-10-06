@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { overlayOwn, ownOccurrence, parseWriteSource, sightingBody, type OwnSighting } from './write-api.ts';
+import { fetchPublicSighting, overlayOwn, ownOccurrence, parseWriteSource, sightingBody, type OwnSighting } from './write-api.ts';
 import type { UpsertObservationArgs } from './types.ts';
 
 const sighting = (over: Partial<OwnSighting> = {}): OwnSighting => ({
@@ -53,5 +53,22 @@ describe('a save, as the API is sent it', () => {
     const sent = sightingBody(args);
     expect(sent.photos).toEqual([{src: 'https://salishsea.io/media/7/x/a.jpg', license: 'cc-by'}]);
     expect(JSON.stringify(sent).length).toBeLessThan(1000);
+  });
+});
+
+describe('fetchPublicSighting (salish-9uu.5)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  test('the occurrence the API answers; null for a 404; any other failure throws', async () => {
+    const id = '01977c2a-b313-77a9-8433-ffccbd56bf57';
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({occurrence: {id, count: 3}}), {status: 200}));
+    expect(await fetchPublicSighting(id)).toMatchObject({id, count: 3});
+    expect(String(fetchSpy.mock.calls[0]![0])).toBe(`/api/sightings/${id}`);
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({error: 'no such sighting'}), {status: 404}));
+    expect(await fetchPublicSighting(id)).toBeNull();
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({error: 'a sighting id is a UUID'}), {status: 400}));
+    expect(await fetchPublicSighting('abc')).toBeNull();
+    fetchSpy.mockResolvedValueOnce(new Response('', {status: 503}));
+    await expect(fetchPublicSighting(id)).rejects.toThrow(/503/);
   });
 });

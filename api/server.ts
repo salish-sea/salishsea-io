@@ -16,6 +16,9 @@
  *                                             {sightings}: the signed-in contributor's own,
  *                                             as saved, for the map to lay over the files
  *                                             until a build publishes them; 401 signed out
+ *   GET    /api/sightings/<id>                 {occurrence}: one sighting as the build will
+ *                                             publish it, for anyone (salish-9uu.5) — a link
+ *                                             shared before the build lands; 404 if none
  *   PUT    /api/sightings/<id>  a sighting      save it (sightings.ts): 401 signed out, 403 not
  *                                             the owner's or an editor's
  *   DELETE /api/sightings/<id>                 delete it, likewise; 404 if there is none
@@ -37,13 +40,15 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { DatabaseSync } from 'node:sqlite';
 
 import { WORKFLOW_AUTHOR } from '../scripts/feedback/filing.ts';
+import { ownOccurrence } from '../src/own-occurrence.ts';
 import { BuildCoalescer, commandBuild } from '../scripts/read-path/coalesce.ts';
+import { animalNames, type NamesLookup } from './animal-names.ts';
 import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
 import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './google.ts';
 import { startNotifier, storeQueue } from './notifier.ts';
 import { MAX_PHOTO_BYTES, PHOTO_CACHE_CONTROL, photoFolder, photoName, photoType } from './photos.ts';
 import { putObject } from './s3.ts';
-import { deleteSighting, ownSightings, parseSighting, Refused, saveSighting } from './sightings.ts';
+import { Refused, deleteSighting, ownSightings, parseSighting, publicSighting, saveSighting } from './sightings.ts';
 import { cookie, mint, readCookie, signingKey, verifySession } from './session.ts';
 import { openStore } from './store/store.ts';
 import { me, sessionEpoch, signIn, signOut, type Me } from './users.ts';
@@ -57,6 +62,8 @@ export type Api = {
     changed?: () => void,
     /** Whether a sender may send feedback now. */
     feedbackAllowed?: (sender: string) => boolean,
+    /** The species names the build published, for a public sighting read; none without it. */
+    names?: NamesLookup,
     /**
      * The secret CloudFront adds to every request it forwards (an origin custom header,
      * x-origin-verify). Only a request carrying it is believed about the viewer's address.
@@ -183,6 +190,25 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
                 url.searchParams.get('since'), url.searchParams.get('until'))});
         }
         const sighting = /^\/api\/sightings\/([^/]+)$/.exec(url.pathname);
+        if (sighting && (method === 'GET' || method === 'HEAD')) {
+            // Anyone: the sighting as the build will publish it, so a link shared the
+            // moment it is saved opens, and its preview card and text render, before the
+            // build lands (salish-9uu.5). The files stay the authority once they hold it:
+            // the page, the card renderer and the OG handler ask here only when they don't.
+            let id: string;
+            try {
+                id = decodeURIComponent(sighting[1]!);
+            } catch {
+                throw new HttpError(400, 'not a sighting id');
+            }
+            const found = publicSighting(api.store, id);
+            if (!found) throw new HttpError(404, 'no such sighting');
+            const names = api.names?.([found.sighting.entity_id]);
+            // no-cache, not no-store: a browser may keep it but must ask again, since the
+            // sighting may be edited or deleted before any file carries it
+            return send(res, 200, {occurrence: ownOccurrence(found.sighting, found.contributor, names)},
+                {'cache-control': 'no-cache'});
+        }
         if (sighting && (method === 'PUT' || method === 'DELETE')) {
             const who = currentUser(api, req);
             if (who === null) throw new HttpError(401, 'sign in first');
@@ -269,6 +295,10 @@ if (import.meta.main) {
     delete process.env['FEEDBACK_GITHUB_TOKEN'];
     const issueAuthor = process.env['FEEDBACK_ISSUE_AUTHOR'];
     const build = process.env['BUILD_COMMAND']?.split(' ').filter(Boolean) ?? [];
+    // The build's export directory, for the species names a public sighting read carries
+    // (animal-names.ts); without it the read still answers, species unnamed.
+    const exportDir = process.env['READ_PATH_EXPORT_DIR'] || undefined;
+    if (!exportDir) console.warn('api: READ_PATH_EXPORT_DIR is not set, so a public sighting read names no species');
     const coalescer = build.length > 0 ? new BuildCoalescer(commandBuild(build)) : null;
     const db = openStore(store);
     if (githubToken && issueAuthor) {
@@ -284,6 +314,7 @@ if (import.meta.main) {
         store: db, key, keys: googleKeys(), origins,
         changed: coalescer ? () => coalescer.changed() : undefined,
         feedbackAllowed: rateLimiter(),
+        names: exportDir ? animalNames(exportDir) : undefined,
         edgeSecret,
         photos: bucket ? {
             put: (key, body, meta) => putObject(bucket, key, body, meta),
