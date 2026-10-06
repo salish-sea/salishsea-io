@@ -40,7 +40,7 @@ import { buildNameIndex, NAME_INDEX_SQL, type RegisterName } from '../register/n
 import { readUnnamed } from '../register/unnamed.ts';
 import type { Named } from './check-maplify-names.ts';
 import { budget } from './duckdb-budget.ts';
-import { boundaryReceipt, recordedRun } from './ingest-runs.ts';
+import { boundaryReceipt, markRefused, recordedRun } from './ingest-runs.ts';
 
 /**
  * The register tables the build reads, the columns of each it reads, and where each lives in
@@ -189,10 +189,11 @@ export async function main(): Promise<void> {
                 if (unnamed.length > 0) {
                     const pairs = unnamed.map(u => `${u.name ?? '(no name)'} / ${u.scientific_name} (was ${u.was})`);
                     // Recorded, published in the run log, and the heartbeat's to raise; the
-                    // build goes on with the edition it holds.
-                    throw new Error(`register ${tag} refused: it un-names ${unnamed.length} Maplify `
+                    // build goes on with the edition it holds. Marked a refusal, so the
+                    // boundary receipt says so rather than "unreachable" (Stelis's st-8wt).
+                    throw markRefused(new Error(`register ${tag} refused: it un-names ${unnamed.length} Maplify `
                         + `pair(s) ${held ? `edition ${held} names` : 'the held register names'}: ${pairs.join('; ')}. `
-                        + 'Accept in data/maplify-unnamed.tsv, or fix the register.');
+                        + 'Accept in data/maplify-unnamed.tsv, or fix the register.'));
                 }
                 const rows = await adopt(conn, dir, tag, digest);
                 say(`register ${tag}: adopted (${held ? `was ${held}` : 'no edition held before'}), ${rows} rows`);

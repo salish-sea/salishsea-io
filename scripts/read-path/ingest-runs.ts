@@ -21,6 +21,31 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { isTransientUpstream } from '../ingest/retry.ts';
 
+/**
+ * A run that reached its source and REFUSED what it offered, by the loader's own rule —
+ * ingest-register.ts refuses an edition that would un-name Maplify sightings — as against
+ * one that could not reach it. The receipt tells the build which (Stelis's st-8wt), so its
+ * trace and operator log headline a curator's decision as one, not as an outage: before
+ * this, both printed "source unreachable" over an error text that said "refused". Marked
+ * with a globally-registered symbol, as retry.ts marks a transient failure, for the same
+ * reason: the check survives the module being bundled more than once.
+ */
+const REFUSED = Symbol.for('salishsea.ingest.refused');
+
+/** Tag an error as a refusal, returning it unchanged. Non-objects pass through. */
+export function markRefused<E>(error: E): E {
+    if (typeof error === 'object' && error !== null) {
+        Object.defineProperty(error, REFUSED, { value: true, enumerable: false });
+    }
+    return error;
+}
+
+/** Whether an error was tagged a refusal. */
+export function isRefused(error: unknown): boolean {
+    return typeof error === 'object' && error !== null
+        && (error as Record<PropertyKey, unknown>)[REFUSED] === true;
+}
+
 export type Source = 'maplify' | 'inaturalist' | 'orcasound' | 'register';
 /** A scheduled build's run, or a backfill run by hand, which fails loudly instead. */
 export type Trigger = 'cron' | 'manual';
@@ -63,12 +88,14 @@ export function runsPaths(mirror: string): {db: string, json: string} {
 }
 
 /**
- * What the build is told about this run — Stelis's boundary receipt (its st-8bj;
- * the unreachable arm is st-ml9.9). On success, whether the source moved and by how
- * much: `records` is what changed since the last fetch, not the corpus's size, and
- * `since` is how far back the fetch reached. On failure, that the source could not be
- * reached, so the build's own history and its operator log never read an outage as a
- * quiet day; the mirror the build goes on with is the last good copy either way.
+ * What the build is told about this run — Stelis's boundary receipt (its st-8bj; the
+ * unreachable arm is st-ml9.9, the refused arm st-8wt). On success, whether the source
+ * moved and by how much: `records` is what changed since the last fetch, not the corpus's
+ * size, and `since` is how far back the fetch reached. On failure, either that the source
+ * could not be reached, or that it was reached and what it offered was refused (an error
+ * marked by markRefused), so the build's own history and its operator log never read an
+ * outage as a quiet day, nor a refusal as an outage; the mirror the build goes on with is
+ * the last good copy either way.
  */
 export function boundaryReceipt(
     run: {ok: true, changed: number} | {ok: false, error: unknown},
@@ -76,7 +103,8 @@ export function boundaryReceipt(
 ): string {
     if (!run.ok) {
         const message = run.error instanceof Error ? run.error.message : String(run.error);
-        return JSON.stringify({unreachable: true, error: message.slice(0, 300)});
+        const error = message.slice(0, 300);
+        return JSON.stringify(isRefused(run.error) ? {refused: true, error} : {unreachable: true, error});
     }
     return JSON.stringify({unchanged: run.changed === 0, records: run.changed, since});
 }
