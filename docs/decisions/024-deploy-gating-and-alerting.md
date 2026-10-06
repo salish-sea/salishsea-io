@@ -90,6 +90,12 @@ repair, and the alert fires regardless of supersession.
   covered instead by the newer run deploying behind it and by the daily scheduled smoke run,
   which still checks out `main`.
 
+## Amendment, 2026-10-06 — a lost deployment is watched for, not timed out
+
+GitHub sometimes loses a job's deployment to the `production` environment, and the job then waits indefinitely for approval nobody can give. Serialized deploys (`cancel-in-progress: false`, kept) turn that into `main` not deploying at all, silently: twice on 2026-10-06, about three hours each (`salish-t3g.11`). A **Watch** job in the run, bound to no environment itself, treats fifteen minutes without a runner as lost. It waits for anything in flight, files the `deploy-failed` issue, dispatches one fresh run of `main` when the run holds the tip, and cancels the run. Details: [runbook gotcha 4](../runbook/deploys.md#gotcha-4--a-deploy-stuck-waiting-holds-every-later-one).
+
+Rejected: `timeout-minutes`, because it counts from when a runner takes the job, and a lost job never gets one. Also rejected: `cancel-in-progress: true`, because it would interrupt a healthy deploy mid `supabase db push` whenever a newer commit merged, the hazard serializing exists to avoid. Also rejected: an external scheduled check that `main`'s tip deployed. GitHub's cron runs a median 68 minutes late (measured for `ingest-heartbeat.yml`), and a check outside the run could see the stall but not clear it.
+
 ## Reference
 
 Issue: `salish-ior`. Workflows: [`deploy.yml`](../../.github/workflows/deploy.yml),

@@ -3,10 +3,16 @@ on:
   push:
     branches:
       - main
+  # A fresh run of the tip, which is what the watch job dispatches when GitHub loses one
+  # of this run's deployments. Also the way to redeploy main by hand: unlike a re-run, it
+  # checks out the current tip (gotcha 3 in the runbook).
+  workflow_dispatch:
 # Serialize production deploys. Several PRs merging in quick succession otherwise
 # run overlapping `cdk deploy`s against the same CloudFormation stacks, which fails
 # with "stack ... in UPDATE_COMPLETE_CLEANUP_IN_PROGRESS". Queue instead of cancel:
-# never interrupt an in-flight deploy mid `supabase db push` / `cdk deploy`.
+# never interrupt an in-flight deploy mid `supabase db push` / `cdk deploy`. The price
+# is that a run which never finishes holds every later one; the watch job is what
+# keeps that from lasting.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
@@ -231,13 +237,133 @@ jobs:
     uses: ./.github/workflows/register-refresh.yml
     secrets: inherit
 
+  # GitHub sometimes loses a job's deployment to the production environment. The job sits
+  # "waiting" for approval that nobody can give: the environment has no reviewers, and the
+  # API lists none (twice on 2026-10-06, about three hours each; salish-t3g.11). Since
+  # deploys queue rather than cancel, every later run waits behind it, so main stops
+  # deploying and nothing says so. timeout-minutes can't catch it, because it counts from
+  # when a runner takes the job and a lost job never gets one. cancel-in-progress would
+  # catch it, but it would also interrupt a healthy deploy mid `supabase db push`.
+  #
+  # So this job watches the run's own environment-bound jobs. When one has waited
+  # STALL_MINUTES without a runner, it waits for whatever else is running to finish, so the
+  # cancel interrupts nothing. Then it files the deploy-failed issue, dispatches one fresh
+  # run if this run holds the tip, and cancels this run so the queue moves. It binds no
+  # environment itself, so it can't be lost the same way.
+  watch:
+    name: Watch for a lost deployment
+    needs: [test, image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      actions: write  # dispatch the retry, cancel this run
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      # A healthy job gets a runner within seconds: the environment has no reviewers or
+      # wait timer, and the register's own concurrency group holds it a minute at most.
+      STALL_MINUTES: '15'
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Watch the environment-bound jobs
+        run: |
+          # The jobs that bind the production environment, named as the jobs API reports
+          # them. Keep in step with the jobs above.
+          env_jobs='["Deploy", "Switch the Fly app", "Register / refresh"]'
+          # filter=latest: each job's newest attempt, so a partial re-run still lists the
+          # jobs it didn't repeat.
+          jobs_path="repos/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}/jobs?filter=latest"
+          while :; do
+            jobs=$(gh api --paginate "${jobs_path}" --jq '.jobs[]' | jq -s .)
+            # Done once every environment-bound job exists and has a runner or has
+            # finished. Fly and the register only appear once Deploy ends, skipped if it
+            # failed, so their absence means the run isn't past the risk yet.
+            done=$(jq --argjson names "${env_jobs}" '
+              [.[] | select(.name | IN($names[]))] as $e
+              | ($e | length) == ($names | length)
+                and ($e | all(.status == "completed" or (.runner_name // "") != ""))' <<<"${jobs}")
+            if [ "${done}" = "true" ]; then
+              echo "Every environment-bound job got a runner."
+              exit 0
+            fi
+            stalled=$(jq --argjson names "${env_jobs}" --argjson limit "$((STALL_MINUTES * 60))" '
+              [.[] | select(.name | IN($names[]))
+                   | select(.status != "completed" and (.runner_name // "") == "")
+                   | select(now - (.created_at | fromdateiso8601) > $limit)]' <<<"${jobs}")
+            busy=$(jq --arg me "Watch for a lost deployment" '
+              [.[] | select(.name != $me and .status != "completed" and (.runner_name // "") != "")]
+              | length' <<<"${jobs}")
+            if [ "$(jq length <<<"${stalled}")" -gt 0 ] && [ "${busy}" -eq 0 ]; then
+              break
+            fi
+            sleep 30
+          done
+
+          names=$(jq -r 'map(.name) | join(", ")' <<<"${stalled}")
+          deploy_lost=$(jq 'any(.name == "Deploy")' <<<"${stalled}")
+          echo "::error::Lost deployment: ${names} waited over ${STALL_MINUTES} minutes for the production environment without a runner."
+
+          head_sha=$(gh api "repos/${GH_REPO}/commits/${GITHUB_REF_NAME}" --jq .sha)
+          # One automatic retry, and only of the tip: a superseded commit has a newer run
+          # queued behind this one, which the cancel below lets start.
+          retry=false
+          if [ "${head_sha}" = "${GITHUB_SHA}" ] && [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            retry=true
+          fi
+
+          # The alert job's rule: a superseded run that changed nothing stays quiet,
+          # because the run behind it deploys the tip. A lost Deploy job changed nothing.
+          if [ "${head_sha}" = "${GITHUB_SHA}" ] || [ "${deploy_lost}" != "true" ]; then
+            mkdir -p dist
+            {
+              echo "Deploy of \`${GITHUB_SHA}\` stalled: GitHub lost the production deployment of ${names}. It waited over ${STALL_MINUTES} minutes for approval the environment doesn't require, so the run was cancelled to let later deploys through."
+              echo
+              echo "Run: ${RUN_URL}"
+              echo
+              if [ "${deploy_lost}" = "true" ]; then
+                echo "**Production was not touched.** The Deploy job never started, so nothing was migrated or switched."
+              else
+                echo "**Production is partly updated.** The Deploy job ran, so the database is migrated and the CDK stacks deployed; ${names} never ran. Until a deploy completes, the Fly app may be serving the previous image against the migrated database, and the register was not reloaded after the migration."
+              fi
+              echo
+              if [ "${retry}" = "true" ]; then
+                echo "A fresh Deploy of \`${GITHUB_REF_NAME}\` was dispatched. If it goes green it closes this issue."
+              elif [ "${head_sha}" = "${GITHUB_SHA}" ]; then
+                echo "This run was already a dispatched retry, so it did not dispatch another. Redeploy by hand once GitHub is healthy: \`gh workflow run deploy.yml --ref ${GITHUB_REF_NAME}\`."
+              else
+                echo "\`${GITHUB_REF_NAME}\` has moved on to \`${head_sha}\`, whose queued Deploy runs next."
+              fi
+              echo
+              echo "Runbook: [docs/runbook/deploys.md](${GITHUB_SERVER_URL}/${GH_REPO}/blob/main/docs/runbook/deploys.md)"
+            } > dist/deploy-stalled.md
+            # gh issue list never returns pull requests, unlike the REST listing the
+            # alert job filters.
+            issue=$(gh issue list --label deploy-failed --state open --json number --jq '.[0].number // empty')
+            title="Deploy to production stalled (run ${GITHUB_RUN_ID})"
+            if [ -n "${issue}" ]; then
+              gh issue edit "${issue}" --title "${title}" --body-file dist/deploy-stalled.md
+            else
+              gh issue create --title "${title}" --body-file dist/deploy-stalled.md --label deploy-failed
+            fi
+          fi
+
+          if [ "${retry}" = "true" ]; then
+            gh workflow run deploy.yml --ref "${GITHUB_REF_NAME}"
+          fi
+          # Cancels this job too, so nothing after it runs unless the cancel didn't take.
+          gh run cancel "${GITHUB_RUN_ID}"
+          sleep 300
+          echo "::error::The run did not cancel. Cancel it by hand: gh run cancel ${GITHUB_RUN_ID}"
+          exit 1
+
   # A red run in the Actions tab is only a signal if someone is looking at the
   # Actions tab. File an issue instead, reusing dwca-nightly.yml's approach: one
   # open issue per failure mode, updated rather than duplicated, closed again by
   # the next green deploy.
   alert:
     name: Alert on failure
-    needs: [test, image, deploy, fly, smoke, register]
+    needs: [test, image, deploy, fly, smoke, register, watch]
     # `!cancelled()` is what lets this run at all — a job whose `needs` were
     # skipped is otherwise skipped itself, which is precisely the case when an
     # early job failed and took the rest of the graph with it.
@@ -290,6 +416,7 @@ jobs:
           RESULT_FLY: ${{ needs.fly.result }}
           RESULT_SMOKE: ${{ needs.smoke.result }}
           RESULT_REGISTER: ${{ needs.register.result }}
+          RESULT_WATCH: ${{ needs.watch.result }}
           MUTATION_STARTED: ${{ needs.deploy.outputs.mutation_started }}
           SUPERSEDED: ${{ steps.tip.outputs.superseded }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -306,6 +433,7 @@ jobs:
             echo "| Fly app (switch) | ${RESULT_FLY} |"
             echo "| Smoke (production specs) | ${RESULT_SMOKE} |"
             echo "| Register (reload + verify) | ${RESULT_REGISTER} |"
+            echo "| Watch (lost deployments) | ${RESULT_WATCH} |"
             echo
             echo "Run: ${RUN_URL}"
             echo
@@ -365,7 +493,7 @@ jobs:
   # still broken" rather than "something broke here once".
   resolve:
     name: Resolve failure issue
-    needs: [test, image, deploy, fly, smoke, register]
+    needs: [test, image, deploy, fly, smoke, register, watch]
     if: ${{ success() }}
     runs-on: ubuntu-latest
     permissions:

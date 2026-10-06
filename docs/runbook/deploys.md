@@ -49,6 +49,7 @@ The run is these jobs ([decision 024](../decisions/024-deploy-gating-and-alertin
 | **Fly app** | `fly/deploy.sh switch` after the deploy job: takes the machine's build lock, then deploys the pushed image (decision 066). A failure here leaves the previous image serving, with the database already migrated; `fly/deploy.sh switch` from that commit retries it. |
 | **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`, after the Fly app job, or after the deploy job alone if the Fly job failed: a migrated database under the previous image is what most needs checking. A production that doesn't answer correctly fails the deploy run. The OG specs first wait up to five minutes for the edge handler to replicate; a new Lambda@Edge version is not at every edge location the moment `cdk deploy` returns. |
 | **Register** | Calls [`register-refresh.yml`](../../.github/workflows/register-refresh.yml) after the deploy job: reloads the register into the database just migrated and checks it arrived. Runs alongside the Fly app job; a failure here is a register load failing, not the site. |
+| **Watch** | Watches the jobs that bind the `production` environment (Deploy, Fly app, Register). When one waits fifteen minutes with no runner, GitHub has lost it: see [gotcha 4](#gotcha-4--a-deploy-stuck-waiting-holds-every-later-one). |
 | **Alert / Resolve** | On failure, opens or updates the single `deploy-failed` issue; on a fully green run, closes it. |
 
 Two things to know when reading a red run:
@@ -104,6 +105,22 @@ This was about the `salishsea-io` site bucket as a CloudFront origin. Since 2026
 - **Runs created before this guard existed are not protected.** A re-run replays the workflow file *as of its own commit*, so re-running any Deploy from before this merged skips the check entirely. Don't re-run old deploys; push instead. (Deliberately not fixed by deleting run history — that history is the audit trail.)
 
 The smoke job is a partial backstop for both. It now runs inside the deploy run and checks out **the commit being deployed**, so it verifies that what this run shipped works — it will not notice that what this run shipped was already stale. What covers that is the queued newer run deploying right behind it, plus the daily scheduled smoke run, which checks out `main` and so does compare production against the current tree.
+
+## Gotcha 4 — a deploy stuck "waiting" holds every later one
+
+**Symptom.** A Deploy run's Deploy, Fly app or Register job shows *Waiting* on the `production` environment for hours. The environment has no reviewers and no wait timer, and `gh api repos/salish-sea/salishsea-io/actions/runs/<id>/pending_deployments` lists no reviewers, so there is nothing to approve. GitHub has lost the deployment. Because deploys queue rather than cancel (`cancel-in-progress: false`), every later run waits behind it, and GitHub keeps only the newest of those. This happened twice on 2026-10-06, about three hours each time (`salish-t3g.11`).
+
+**What now happens.** The **Watch** job notices a job that has waited fifteen minutes without a runner. It waits for anything else in the run to finish, so the cancel interrupts nothing. Then:
+
+- it opens or updates the `deploy-failed` issue, unless the run's commit is superseded and the lost job was Deploy, which means nothing changed and the queued run deploys the tip;
+- if the run holds the tip of `main` and was started by a push, it dispatches one fresh Deploy of `main`, so the commit still ships;
+- it cancels the run, and whatever was queued behind it starts.
+
+A dispatched run doesn't dispatch another if it is lost too. That case, and a cancel that doesn't take, need a person. Cancel the stuck run (`gh run cancel <id>`), then `gh workflow run deploy.yml --ref main`. A dispatch checks out the current tip, which a re-run does not ([gotcha 3](#gotcha-3--re-running-an-old-deploy-rolls-production-back)).
+
+**Why not a timeout or `cancel-in-progress`.** `timeout-minutes` counts from when a runner takes the job, and a lost job never gets one. `cancel-in-progress: true` would also cancel a healthy deploy mid `supabase db push` whenever a newer commit merged.
+
+**What it does not cover.** The scheduled workflows that bind `production` (the ingest heartbeat, the daily register refresh) have no watcher. A lost heartbeat run holds later heartbeats behind it, and nothing alerts while it does.
 
 ## `/cards/*` is not S3
 
