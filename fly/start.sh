@@ -122,7 +122,7 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
             STORE_PATH=/data/store/salishsea.db SESSION_SIGNING_KEY="$session_key" EDGE_SECRET="$edge_secret" \
                 AWS_ACCESS_KEY_ID="$aws_key_id" AWS_SECRET_ACCESS_KEY="$aws_secret" \
                 FEEDBACK_GITHUB_TOKEN="$github_token" \
-                BUILD_COMMAND=/app/fly/build.sh \
+                BUILD_COMMAND="/app/fly/build.sh --downstream snapshot" \
                 litestream replicate -config /app/fly/litestream.yml -exec "node api/server.ts" &
             litestream_pid=$!
             # A signal during the restore ran the trap before there was a pid to pass it to.

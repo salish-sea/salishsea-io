@@ -77,13 +77,18 @@ RUN curl -fsSL -o /usr/local/bin/supercronic \
  && chmod +x /usr/local/bin/supercronic
 
 # Stelis, pinned. A change spanning both repos ships only when this pin moves,
-# which makes it atomic rather than coincidental (beeatlas ADR 0042).
+# which makes it atomic rather than coincidental (beeatlas ADR 0042). The last step
+# checks the pin carries --downstream (Stelis f364281, st-wzk), which the
+# save-triggered build passes (fly/start.sh, salish-9uu.6): an older pin would refuse
+# it on every save, and the coalescer only logs that, so the image fails instead.
 ARG STELIS_SHA
 RUN test -n "$STELIS_SHA" \
  && curl -fsSL "https://github.com/rainhead/stelis/archive/${STELIS_SHA}.tar.gz" | tar -xz -C /opt \
  && mv "/opt/stelis-${STELIS_SHA}" /opt/stelis \
  && bash /opt/stelis/scripts/preflight.sh \
- && raco make /opt/stelis/src/main.rkt
+ && raco make /opt/stelis/src/main.rkt \
+ && (racket /opt/stelis/src/main.rkt --help 2>&1 | grep -q -- '--downstream' \
+     || { echo "Stelis ${STELIS_SHA} predates --downstream, which the save-triggered build needs (salish-9uu.6)" >&2; exit 1; })
 
 # Everything runs as `app`; start.sh drops to it after taking ownership of the
 # volume, which Fly mounts owned by root.

@@ -3,16 +3,19 @@
  * (salish-t3g.6). Pure: the listener supplies the signals and the build, and the
  * tests supply the clock.
  *
- * The database announces changes in bursts: an ingest tick commits once per
- * source, a register reload touches everything. A build per signal would read
+ * The database announced changes in bursts: an ingest tick committed once per
+ * source, a register reload touched everything. A build per signal would read
  * production over and over for one burst, so this waits for `quietMs` of quiet —
  * but never longer than `maxWaitMs` after the first unhandled change, so a
- * steady trickle can't postpone a build forever.
+ * steady trickle can't postpone a build forever. Since the cutover the one signal
+ * is the write API's own, one per save, and it runs this with SAVE_OPTIONS below
+ * (api/server.ts, salish-9uu.6); DEFAULT_OPTIONS are the retired listener's, kept
+ * for the Supabase read path while it is kept.
  *
  * Nothing is dropped. A change that arrives while a build runs may have missed
  * its snapshot, so it earns exactly one more build afterwards, however many
  * changes arrive. A build that couldn't start because another holds the lock
- * (the hourly one) is retried after `busyRetryMs`, not forgotten.
+ * (the schedule's) is retried after `busyRetryMs`, not forgotten.
  *
  * And builds are spaced at least `minIntervalMs` apart, whatever arrives. The
  * signal is a public broadcast, which anyone holding the publishable key can
@@ -38,6 +41,23 @@ export const DEFAULT_OPTIONS: CoalescerOptions = {
     maxWaitMs: 60_000,
     busyRetryMs: 30_000,
     minIntervalMs: 120_000,
+};
+
+/**
+ * The write API's options (salish-9uu.6). A save is one signal from this process, so
+ * there is no burst to wait out: the build starts at once, and a visitor who has just
+ * saved can share the link about twenty seconds later. The signal is an authenticated
+ * PUT, not a public broadcast, so the spacing is not against forgery; it bounds what a
+ * signed-in user saving in quick succession can cost the 1 GB machine — at most two
+ * builds a minute, each a build of the store and what derives from it — while a
+ * correction made right after a save follows within about half a minute. The lock
+ * retry is the schedule's build finishing.
+ */
+export const SAVE_OPTIONS: CoalescerOptions = {
+    quietMs: 0,
+    maxWaitMs: 0,
+    busyRetryMs: 30_000,
+    minIntervalMs: 30_000,
 };
 
 export class BuildCoalescer {
@@ -92,8 +112,11 @@ export class BuildCoalescer {
         let result: BuildResult;
         try {
             result = await this.#runBuild();
-        } catch {
-            // A failed build is the hourly one's to retry; keep listening.
+        } catch (error) {
+            // A failed build is the schedule's to retry, and the next save's; keep
+            // listening — but say so, or a build that fails every time (a Stelis pin
+            // without a flag build.sh passes, an out-of-memory kill) is invisible here.
+            console.error('build failed:', error instanceof Error ? error.message : error);
             result = 'done';
         } finally {
             this.#running = false;
@@ -123,7 +146,7 @@ const BUSY = 75;
 
 /**
  * A build as a command to run: 'done' when it exits 0, 'busy' when another build held the
- * lock, an error otherwise. What the change listener and the write API both hand the
+ * lock, an error otherwise. What the write API (and the retired listener) hand the
  * coalescer.
  */
 export function commandBuild(command: readonly string[]): () => Promise<BuildResult> {
