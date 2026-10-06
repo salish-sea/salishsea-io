@@ -6,9 +6,9 @@ What runs on the `salishsea-io` Fly app, where its state lives, and how to look 
 
 Every five minutes (`fly/crontab`, and a few seconds after a native sighting is saved, via the change listener) `fly/build.sh` takes `/data/build.lock` and runs the Stelis build (`racket src/main.rkt --project salishsea --build --all`, from `/opt/stelis`). One build: three ingest tasks fetch Maplify, iNaturalist and Orcasound into SQLite mirrors; a fourth fetches the newest release of the animals register into the snapshot database ([decision 064](../decisions/064-what-users-do-not-write-leaves-postgres-first.md)); the snapshot task reads what Postgres still holds into `/data/read-path.duckdb`; the Maplify name guard runs; the derivations write `build.*` into the snapshot file; the day files, calendar, id index, profile pages, redirects and the Darwin Core archive are written under `/data/export`, which Caddy serves. A no-op build takes about half a minute; one that rebuilds the occurrences, a few minutes.
 
-## The write API (not yet on)
+## The write API
 
-[Decision 065](../decisions/065-the-store-and-write-api.md)'s service, `api/server.ts`, takes over what users write from Supabase at the cutover. Until then it does not run: `fly/start.sh` starts it only when the machine's environment sets `API_ENABLED`, because its store (`/data/store/salishsea.db`) must be empty when the cutover copies Postgres into it, and a sign-in would write to it. Caddy routes `/api/*` to it, so until then those paths answer 502, on the Fly app's own address and through salishsea.io's `/api/*` CloudFront behavior alike. If the API can't start, it is retried every ten seconds while the site keeps serving.
+[Decision 065](../decisions/065-the-store-and-write-api.md)'s service, `api/server.ts`, has taken what users write since the cutover (2026-10-05): sign-in, sightings, photos and feedback, in the store at `/data/store/salishsea.db`. `fly/start.sh` starts it when the machine's environment sets `API_ENABLED` (`fly.toml` does), under Litestream (below), and restarts it after a pause if it exits, while Caddy keeps serving. Caddy routes `/api/*` to it, on the Fly app's own address and through salishsea.io's `/api/*` CloudFront behavior alike.
 
 **What the build reads users' writes from.** Until the cutover, the snapshot reads the native sightings, their photos, contributors and identifications from Postgres, and the change listener builds after each Supabase Realtime signal. `READ_PATH_STORE=/data/store/salishsea.db` in the machine's environment switches both: the snapshot reads those tables from a consistent copy of the store instead (`scripts/read-path/snapshot.ts`, typed as Postgres's arrive, so nothing downstream can tell), Postgres is not read, and the listener is not started, since the API wakes the build after each write. Clearing it switches back, which is the way back for as long as Postgres is kept, with one condition: Postgres is read-only from the cutover, so a sighting saved through the API since then is in the store alone, and a build from Postgres leaves it off the map. Switch back only before anyone has saved one, or after copying what they saved back into Postgres:
 
@@ -59,6 +59,52 @@ Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment be
   fly secrets set -a salishsea-io --stage FEEDBACK_GITHUB_TOKEN=<token> FEEDBACK_ISSUE_AUTHOR=<its login>
   ```
 
+### The cutover, once (salish-9uu.3.8)
+
+Supabase stops taking writes first: from 2026-10-05 the project is restricted for going over its egress quota, which blocks every API write. Otherwise, revoke the write grants. Then:
+
+1. **The store, from Postgres:** `node api/store/copy-from-postgres.ts /tmp/salishsea.db --linked grztmjpzamcxlzecmqca`, from a laptop with the Supabase CLI linked.
+2. **The photos:** [`api/store/move-photos.ts`](../../api/store/move-photos.ts) plans each Supabase-kept photo's move from the nightly backup's mirror (`s3://salishsea-io-backups/media/`) to its place in the photo bucket, and then rewrites the store's URLs:
+
+   ```sh
+   node api/store/move-photos.ts /tmp/salishsea.db plan > /tmp/moves.tsv
+   # the URLs are rewritten only if every copy succeeded (a subshell, so a failure ends it, not the terminal)
+   (
+     while IFS=$'\t' read -r from to type; do
+       aws s3 cp --profile orcasound "s3://salishsea-io-backups/$from" "s3://salishsea-io-media/$to" \
+         --content-type "$type" --cache-control max-age=259200 --metadata-directive REPLACE --only-show-errors \
+         || { echo "copy failed: $from" >&2; exit 1; }
+     done < /tmp/moves.tsv
+   ) && node api/store/move-photos.ts /tmp/salishsea.db rewrite
+   ```
+
+   Every photo the store names must then answer 200 at its `salishsea.io/media/` URL.
+3. **The store onto the volume**, in maintenance mode: `fly ssh sftp shell` to put it at `/data/store/salishsea.db`, then `chown app:app` it.
+4. **The switch, in one deploy:** `SESSION_SIGNING_KEY` set (`openssl rand -base64 32`); `fly.toml`'s `[env]` gains `API_ENABLED = "1"` and `READ_PATH_STORE = "/data/store/salishsea.db"`; the Dockerfile's `VITE_WRITE_SOURCE` becomes `api`. Maintenance mode is left as the deploy restarts the machine. Litestream finds the store present and starts replicating it.
+5. **Verify:** the build's snapshot says `(from the store)`; the restore drill passes; someone signs in, saves, edits, deletes, uploads a photo and sends feedback.
+
+## The store's replica: Litestream
+
+The write API runs under `litestream replicate -exec` ([`fly/litestream.yml`](../../fly/litestream.yml), started by `fly/start.sh`), so the store is replicated to `s3://salishsea-io-store-replica/store/salishsea.db` (Orcasound account, us-west-2) for exactly as long as the API can write it, about a second behind each write. A full snapshot is taken daily and kept thirty days, which is how far back a point-in-time restore reaches. If the API or Litestream exits, both are restarted together.
+
+**On a fresh volume the store comes back by itself.** Before each start, `start.sh` runs `litestream restore -if-db-not-exists`. With the store present, that does nothing. With the store gone, it restores the replica's latest state before the API can write. With neither, it fails, and the API stays down, retrying every ten seconds, rather than start an empty store and publish a map without anyone's sightings.
+
+**A restore drill**, to run before the cutover and after any change to the replication. [`fly/restore-drill.sh`](../../fly/restore-drill.sh) restores the latest replicated state into a scratch file, never over the live store, and compares each table with the store's, by its row count and a hash of every row, so a changed row shows as well as a missing one. It exits non-zero if any differ:
+
+```sh
+fly ssh console -a salishsea-io -C "setpriv --reuid=app --regid=app --init-groups env HOME=/home/app /app/fly/restore-drill.sh"
+```
+
+A write in the second between the two reads can show as a difference, so run it again before believing one. To restore a moment rather than the latest state, call Litestream directly, into a scratch file:
+
+```sh
+litestream restore -config /app/fly/litestream.yml -timestamp 2026-10-20T17:00:00Z -o /tmp/restored.db /data/store/salishsea.db
+```
+
+To put a restored store into service, first stop the API (maintenance mode), move the live file and its `-wal` and `-shm` aside, put the restored file at `/data/store/salishsea.db`, then leave maintenance. Litestream then replicates it as a new generation.
+
+Rehearsed on 2026-10-05 against the bucket, with a copy of production's rows under a scratch prefix (since deleted): a one-off replication, then a restore, gave a byte-identical SQL dump, and a write made while replication ran was in the next restore. The drill above, against the live store, runs once the cutover has made one.
+
 ## Where state lives
 
 | Path | What | Provenance |
@@ -68,7 +114,7 @@ Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment be
 | `/data/mirrors/runs.sqlite` → `/status/ingest-runs.json` | each ingest run's outcome; what the heartbeat reads | log |
 | `/data/mirrors/maplify-names.json` → `/status/maplify-names.json` | the name guard's baseline: every Maplify (name, scientific name) pair and what the last passing build resolved it to | **authoritative** — forward-only, nothing regenerates it once Postgres stops resolving Maplify |
 | `/data/read-path.duckdb` | what Postgres still holds, the register release the build holds (`register.edition` says which), the reference tables from `data/reference/`, the catalogue from `data/catalogue/` with its views over the register, and the build's own derived relations | derived |
-| `/data/store/salishsea.db` | what users write (decision 065): sightings, photos' URLs, contributors, sign-ins, feedback | **authoritative** — the write API's alone; Litestream replicates it once salish-9uu.3.6 ships |
+| `/data/store/salishsea.db` | what users write (decision 065): sightings, photos' URLs, contributors, sign-ins, feedback | **authoritative** — the write API's alone; replicated by Litestream (above) |
 | `/data/stelis/` | Stelis's build history (30 days) and content-addressed blocks | log |
 | `/data/export/` | every published file | derived |
 | `/app/data/maplify-unnamed.tsv` | the curator's allow-list of accepted un-namings | from git, in the image |

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** project inception; Lambda@Edge validated v1.0 Phase 02
 
+*Amended 2026-10-05 by [065](065-the-store-and-write-api.md) (`salish-9uu.3.8`):* Supabase is no longer the backend. What users write goes to a write API on the Fly app that serves the site, which keeps it in a SQLite store; the site reads static files the read-path build publishes ([056](056-the-logged-out-read-path-is-built-as-static-files.md)). So there is a backend, ours, at `salishsea.io/api/`. What this record says about Supabase describes the arrangement as it was.
+
 ## Decision
 
 The app is a static SPA (Lit + Vite) on S3 + CloudFront with a Supabase backend. Server-side behavior is added only at the edge: a Lambda@Edge function intercepts crawler requests to serve OG meta tags for rich link previews.

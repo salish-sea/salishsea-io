@@ -95,6 +95,19 @@ describe('alreadyFiled', () => {
         expect(await alreadyFiled('o/r', 't', new Date(day(19)))).toEqual(new Set(['41']));
     });
 
+    test('ignores a marker in an issue older than the oldest report: an earlier row with the same id', async () => {
+        // Postgres's feedback table was emptied after #440 and #442 named its row 2, and the
+        // store's ids began again at 1 (decision 065). The store's row 2, arriving later, is a
+        // different report, and must be filed, not stamped as done.
+        fakeGitHub({
+            1: [
+                {body: `new\n<!-- feedback-row:3 -->`, created_at: day(21), user: {login: bot}},
+                {body: `old\n<!-- feedback-row:2 -->`, created_at: day(5), user: {login: bot}},
+            ],
+        });
+        expect(await alreadyFiled('o/r', 't', new Date(day(19)))).toEqual(new Set(['3']));
+    });
+
     test('stops on an empty page rather than counting to the limit', async () => {
         const requested = fakeGitHub({1: []});
         expect(await alreadyFiled('o/r', 't', new Date(day(1)))).toEqual(new Set());

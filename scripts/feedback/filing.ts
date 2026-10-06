@@ -132,7 +132,12 @@ export async function alreadyFiled(repo: string, token: string, oldestRow: Date,
         // it. Hand-labelled issues still occupy places in the listing, which is
         // the other reason not to reason about page counts.
         const ours = issues.filter((issue) => issue.user !== null && authors.has(issue.user.login));
-        for (const id of filedRowIds(ours.map((issue) => issue.body))) ids.add(id);
+        // And only issues created since the oldest row in hand: an issue is always created
+        // after the row it reports, so an older one names an older row that happened to
+        // have the same id. That happens: the store's feedback ids began again at 1 after
+        // Postgres's table had been emptied, and #440 and #442 name row 2 (decision 065).
+        const since = ours.filter((issue) => !(new Date(issue.created_at) < oldestRow));
+        for (const id of filedRowIds(since.map((issue) => issue.body))) ids.add(id);
 
         const oldestOnPage = new Date(issues[issues.length - 1]!.created_at);
         if (lastPage || Number.isNaN(oldestOnPage.getTime()) || oldestOnPage < oldestRow) break;
