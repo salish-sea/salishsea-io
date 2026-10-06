@@ -68,11 +68,14 @@ Supabase stops taking writes first: from 2026-10-05 the project is restricted fo
 
    ```sh
    node api/store/move-photos.ts /tmp/salishsea.db plan > /tmp/moves.tsv
-   while IFS=$'\t' read -r from to type; do
-     aws s3 cp --profile orcasound "s3://salishsea-io-backups/$from" "s3://salishsea-io-media/$to" \
-       --content-type "$type" --cache-control max-age=259200 --metadata-directive REPLACE --only-show-errors
-   done < /tmp/moves.tsv
-   node api/store/move-photos.ts /tmp/salishsea.db rewrite
+   # the URLs are rewritten only if every copy succeeded (a subshell, so a failure ends it, not the terminal)
+   (
+     while IFS=$'\t' read -r from to type; do
+       aws s3 cp --profile orcasound "s3://salishsea-io-backups/$from" "s3://salishsea-io-media/$to" \
+         --content-type "$type" --cache-control max-age=259200 --metadata-directive REPLACE --only-show-errors \
+         || { echo "copy failed: $from" >&2; exit 1; }
+     done < /tmp/moves.tsv
+   ) && node api/store/move-photos.ts /tmp/salishsea.db rewrite
    ```
 
    Every photo the store names must then answer 200 at its `salishsea.io/media/` URL.

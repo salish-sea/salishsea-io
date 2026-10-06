@@ -2,7 +2,7 @@
 
 **Status:** accepted · **Decided:** 2026-09-09 · bd `salish-5of`
 
-*Amended 2026-10-05 by [065](065-the-store-and-write-api.md) (`salish-9uu.3.8`):* feedback is written to the write API's store on the Fly app, not Postgres, and the notifier runs inside that API every fifteen minutes ([`api/notifier.ts`](../../api/notifier.ts)), filing issues as the GitHub account its token belongs to. The workflow below is retired; its filing code is shared ([`scripts/feedback/filing.ts`](../../scripts/feedback/filing.ts)). Anyone may still write and nobody reads back, as below.
+*Amended 2026-10-05 by [065](065-the-store-and-write-api.md) (`salish-9uu.3.8`):* feedback is written to the write API's store on the Fly app, not Postgres, and the notifier runs inside that API every fifteen minutes ([`api/notifier.ts`](../../api/notifier.ts)), filing issues as the GitHub account its token belongs to. The workflow below is retired; its filing code is shared ([`scripts/feedback/filing.ts`](../../scripts/feedback/filing.ts)). Anyone may still write and nobody reads back, as below. What this record says about Supabase, `submit_feedback`, the workflow and its advisory lock describes the arrangement as it was.
 
 ## Context
 
