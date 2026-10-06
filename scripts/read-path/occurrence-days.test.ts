@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { Temporal } from 'temporal-polyfill';
 
-import { dayFiles, writeDays } from './occurrence-days.ts';
+import { dayFiles, PARTIAL_LIMIT, rebuildKeys, writeDays } from './occurrence-days.ts';
 
 /** The frontend's definition of a day (src/salish-sea.ts, dateFromObservedAt). */
 function frontendDay(observedAt: string): string {
@@ -68,7 +68,7 @@ beforeAll(async () => {
     await mkdir(path.join(exportDir, 'days'), {recursive: true});
     await writeFile(path.join(exportDir, 'days', '2020-01-01.json'), '[]');
 
-    await writeDays(snapshot, exportDir);
+    await writeDays(snapshot, exportDir, null);
 });
 
 async function day(name: string): Promise<{id: string}[]> {
@@ -102,8 +102,72 @@ describe('writeDays', () => {
         const crashed = path.join(path.dirname(exportDir), 'crashed');
         await mkdir(path.join(crashed, 'days.previous'), {recursive: true});
         await writeFile(path.join(crashed, 'days.previous', '2020-01-01.json'), '[]');
-        await expect(writeDays(path.join(crashed, 'no-such.duckdb'), crashed)).rejects.toThrow();
+        await expect(writeDays(path.join(crashed, 'no-such.duckdb'), crashed, null)).rejects.toThrow();
         expect(await readdir(path.join(crashed, 'days'))).toEqual(['2020-01-01.json']);
+    });
+});
+
+// The build names the days that moved (Stelis ADR 0016): only those are rewritten, in
+// place; the rest of the directory is not touched; a named day with no rows left loses
+// its file; and a key that is not a date is refused.
+describe('writeDays, told which days', () => {
+    test('writes the named days in place and leaves the others alone', async () => {
+        const dir = path.join(path.dirname(exportDir), 'partial');
+        await mkdir(path.join(dir, 'days'), {recursive: true});
+        await writeFile(path.join(dir, 'days', '2025-03-08.json'), '["stale but not mine to touch"]');
+        await writeFile(path.join(dir, 'days', '2025-11-02.json'), '["to be rewritten"]');
+        await writeFile(path.join(dir, 'days', '2020-01-01.json'), '["named, but no rows: goes"]');
+        await writeFile(path.join(dir, 'days', '2025-03-09.json.partial'), 'left by a killed run');
+        const counts = await writeDays(snapshot, dir, ['2025-11-02', '2020-01-01']);
+        expect(counts).toEqual({files: 1, occurrences: 1, mode: 'some'});
+        expect((await readdir(path.join(dir, 'days'))).sort()).toEqual(['2025-03-08.json', '2025-11-02.json']);
+        expect(await readFile(path.join(dir, 'days', '2025-03-08.json'), 'utf8')).toBe('["stale but not mine to touch"]');
+        expect(JSON.parse(await readFile(path.join(dir, 'days', '2025-11-02.json'), 'utf8')).map((o: {id: string}) => o.id)).toEqual(['fall-after']);
+    });
+
+    test('a day with no file yet gets one; a killed full run\'s leftovers beside the directory are swept', async () => {
+        const dir = path.join(path.dirname(exportDir), 'added');
+        await mkdir(path.join(dir, 'days'), {recursive: true});
+        await mkdir(path.join(dir, 'days.previous'), {recursive: true});
+        await writeFile(path.join(dir, 'days.previous', '2020-01-01.json'), '[]');
+        const counts = await writeDays(snapshot, dir, ['2025-03-09']);
+        expect(counts).toEqual({files: 1, occurrences: 3, mode: 'some'});
+        expect(JSON.parse(await readFile(path.join(dir, 'days', '2025-03-09.json'), 'utf8')).map((o: {id: string}) => o.id))
+            .toEqual(['tie-y', 'tie-z', 'spring-after']);
+        expect((await readdir(dir)).sort()).toEqual(['days']);
+    });
+
+    test('told days but given no directory to rewrite into, a run is a full one', async () => {
+        const dir = path.join(path.dirname(exportDir), 'fresh');
+        await mkdir(dir, {recursive: true});
+        expect((await writeDays(snapshot, dir, ['2025-03-09'])).mode).toBe('all');
+        expect((await readdir(path.join(dir, 'days'))).length).toBe(4);
+    });
+
+    test('an empty list writes nothing and touches nothing', async () => {
+        const dir = path.join(path.dirname(exportDir), 'nothing');
+        await mkdir(path.join(dir, 'days'), {recursive: true});
+        await writeFile(path.join(dir, 'days', 'x.json'), '[]');
+        expect(await writeDays(snapshot, dir, [])).toEqual({files: 0, occurrences: 0, mode: 'some'});
+        expect(await readdir(path.join(dir, 'days'))).toEqual(['x.json']);
+    });
+
+    test('told more days than the partial limit, the directory is replaced whole', async () => {
+        const dir = path.join(path.dirname(exportDir), 'many');
+        await mkdir(path.join(dir, 'days'), {recursive: true});
+        await writeFile(path.join(dir, 'days', '2020-01-01.json'), '["would survive a partial run"]');
+        const many = Array.from({length: PARTIAL_LIMIT + 1}, (_, i) => `2000-01-${String(1 + (i % 28)).padStart(2, '0')}`);
+        expect((await writeDays(snapshot, dir, many)).mode).toBe('all');
+        expect((await readdir(path.join(dir, 'days'))).sort())
+            .toEqual(['2025-03-08.json', '2025-03-09.json', '2025-11-01.json', '2025-11-02.json']);
+    });
+
+    test('the variable is newline-separated days; absent is every day; a non-date, an empty key included, is refused', () => {
+        expect(rebuildKeys({})).toBeNull();
+        expect(rebuildKeys({STELIS_REBUILD_KEYS: ''})).toEqual([]);
+        expect(rebuildKeys({STELIS_REBUILD_KEYS: '2025-11-02\n2025-03-09\n'})).toEqual(['2025-11-02', '2025-03-09']);
+        expect(() => rebuildKeys({STELIS_REBUILD_KEYS: "2025-11-02') OR ('1'='1"})).toThrow(/not a date/);
+        expect(() => rebuildKeys({STELIS_REBUILD_KEYS: '2025-11-02\n\n2025-03-09'})).toThrow(/not a date/);
     });
 });
 
@@ -127,6 +191,15 @@ describe('dayFiles', () => {
             ['2026-09-30.json', '[{"id":"d"}]'],
         ]);
         expect(counts).toEqual({files: 3, occurrences: 4});
+    });
+
+    test('a row with no day is on no file and is not counted', async () => {
+        const counts = {files: 0, occurrences: 0};
+        const out: [string, string][] = [];
+        for await (const file of dayFiles((async function* () { yield [['2025-01-01', '{"id":"a"}'], [null, '{"id":"no-day"}']] as [string | null, string][]; })(), counts))
+            out.push(file);
+        expect(out).toEqual([['2025-01-01.json', '[{"id":"a"}]']]);
+        expect(counts).toEqual({files: 1, occurrences: 1});
     });
 
     test('no rows, no files', async () => {
