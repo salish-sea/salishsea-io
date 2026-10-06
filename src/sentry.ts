@@ -3,6 +3,7 @@ import {supabaseIntegration} from '@supabase/sentry-js-integration';
 import { supabase } from "./supabase.ts";
 import { DENY_URLS, dropThirdPartyNoise, IGNORE_ERRORS } from "./sentry-noise.ts";
 import { release } from "./release.ts";
+import { writeSource } from "./write-api.ts";
 
 /**
  * Exported for `src/sentry.test.ts` only. Nothing else should reach for the
@@ -45,11 +46,13 @@ export const sentryClient = new BrowserClient({
     globalHandlersIntegration(),
     linkedErrorsIntegration(),
     dedupeIntegration(),
-    supabaseIntegration(supabase(), {startInactiveSpan, captureException, addBreadcrumb}, {
+    // Through the write API (decision 065) nothing talks to Supabase, and making its
+    // client would still start its auth housekeeping, so it isn't made.
+    ...(writeSource() === 'supabase' ? [supabaseIntegration(supabase(), {startInactiveSpan, captureException, addBreadcrumb}, {
       tracing: true,
       breadcrumbs: true,
       errors: true,
-    }),
+    })] : []),
   ],
 });
 

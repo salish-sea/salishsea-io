@@ -6,6 +6,7 @@ import { Temporal } from "temporal-polyfill";
 import { consume } from "@lit/context";
 import { supabase } from "./supabase.ts";
 import { addLiveNative, fetchCalendarCounts, readSource } from "./read-path.ts";
+import { writeSource } from "./write-api.ts";
 import type { Extent } from "./extents.ts";
 import { userContext, type User } from "./identity.ts";
 import { chevronLeftIcon, chevronRightIcon } from "./icons.ts";
@@ -433,7 +434,10 @@ export class DateCalendar extends LitElement {
         const region = regionBySlug(this.regionSlug);
         // A signed-in tab counts the native sightings live, as the list shows
         // them (decision 061): the file's counts without them, plus Supabase's.
-        if (this.user) {
+        // Through the write API a tab sees only its contributor's own sightings live,
+        // which the counts can't tell apart from the file's (decision 065): the file's
+        // counts stand, a build behind at most.
+        if (this.user && writeSource() === 'supabase') {
           const [fileCounts, live] = await Promise.all([
             fetchCalendarCounts(from, to, region.slug, {withoutNative: true}),
             fetchLiveNative(from, to, region.extent),

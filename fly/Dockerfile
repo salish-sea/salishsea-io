@@ -27,6 +27,9 @@ ARG VITE_SUPABASE_WS_URL
 ARG VITE_SUPABASE_KEY
 ARG GITHUB_SHA
 ENV VITE_READ_SOURCE=static
+# What a signed-in contributor writes goes to Supabase until the cutover (decision 065,
+# salish-9uu.3.8), which makes this `api`: the write API on this machine.
+ENV VITE_WRITE_SOURCE=supabase
 RUN test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_KEY" \
  && VITE_SUPABASE_URL="$VITE_SUPABASE_URL" VITE_SUPABASE_WS_URL="$VITE_SUPABASE_WS_URL" \
     VITE_SUPABASE_KEY="$VITE_SUPABASE_KEY" GITHUB_SHA="$GITHUB_SHA" pnpm build
