@@ -34,6 +34,32 @@ aws_secret="${AWS_SECRET_ACCESS_KEY:-}"
 github_token="${FEEDBACK_GITHUB_TOKEN:-}"
 unset SESSION_SIGNING_KEY EDGE_SECRET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY FEEDBACK_GITHUB_TOKEN
 
+# Stopping (decision 066). Fly sends SIGTERM (fly.toml's kill_signal) to this process
+# alone, and the processes started below with & ignore SIGINT, so without this every
+# stop ended at Fly's SIGKILL. The write API goes first, and is waited for: Litestream
+# passes the signal on, the API finishes the requests in flight, and Litestream's final
+# sync carries their writes to the replica. Then Caddy and the redirect server. A build
+# isn't waited for: Fly has stopped routing to the machine by now, so waiting would be
+# downtime. A deploy takes the build lock before it stops the machine (fly/deploy.sh);
+# any other stop kills a running build, which the next one repairs.
+caddy_pid='' redirect_pid='' api_pid='' cron_pid='' listen_pid=''
+# shellcheck disable=SC2329 # invoked by the trap below
+stop() {
+    echo "stopping: the write API and Litestream's final sync, then Caddy" >&2
+    # shellcheck disable=SC2086 # an empty pid is no argument
+    kill -TERM $cron_pid $listen_pid 2>/dev/null || true
+    if [ -n "$api_pid" ]; then
+        kill -TERM "$api_pid" 2>/dev/null || true
+        wait "$api_pid" || true
+    fi
+    # shellcheck disable=SC2086
+    kill -TERM $caddy_pid $redirect_pid 2>/dev/null || true
+    # shellcheck disable=SC2086
+    wait $caddy_pid $redirect_pid || true
+    exit 0
+}
+trap stop TERM
+
 caddy run --config /app/fly/Caddyfile --adapter caddyfile &
 caddy_pid=$!
 # Redirects designation-shaped profile paths from the build's map; Caddy proxies
@@ -75,7 +101,12 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
         # this script runs with -e, which would end the loop at the API's first exit
         set +e
         cd /app
-        while true; do
+        # Stopping (above): pass SIGTERM to Litestream, wait while it stops the API and
+        # makes its final sync, and don't restart. Litestream runs in the background so
+        # the signal can interrupt the wait; a foreground command would defer it.
+        stopping='' litestream_pid=''
+        trap 'stopping=1; [ -z "$litestream_pid" ] || kill -TERM "$litestream_pid"' TERM
+        while [ -z "$stopping" ]; do
             # A fresh volume gets the store back from its replica before anything can
             # write it; with a store present this does nothing. With neither a store nor
             # a replica it fails, and the API stays down rather than start an empty store
@@ -91,12 +122,20 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
                 AWS_ACCESS_KEY_ID="$aws_key_id" AWS_SECRET_ACCESS_KEY="$aws_secret" \
                 FEEDBACK_GITHUB_TOKEN="$github_token" \
                 BUILD_COMMAND=/app/fly/build.sh \
-                litestream replicate -config /app/fly/litestream.yml -exec "node api/server.ts"
+                litestream replicate -config /app/fly/litestream.yml -exec "node api/server.ts" &
+            litestream_pid=$!
+            # A signal during the restore ran the trap before there was a pid to pass it to.
+            [ -z "$stopping" ] || kill -TERM "$litestream_pid"
+            wait "$litestream_pid"
             status=$?
+            # The trap interrupted the wait; this one lasts until Litestream has synced.
+            [ -z "$stopping" ] || { wait "$litestream_pid"; exit 0; }
+            litestream_pid=
             echo "write API or Litestream exited ($status); restarting in 10 s" >&2
             sleep 10
         done
     ) &
+    api_pid=$!
 fi
 
 supercronic /app/fly/crontab &
@@ -108,8 +147,6 @@ cron_pid=$!
 if [ -z "${READ_PATH_STORE:-}" ]; then
     (cd /app && exec node scripts/read-path/listen.ts /app/fly/build.sh) &
     listen_pid=$!
-else
-    listen_pid=
 fi
 (/app/fly/build.sh || echo "read-path build at boot failed; the schedule will retry") &
 
