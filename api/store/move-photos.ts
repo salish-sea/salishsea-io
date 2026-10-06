@@ -17,6 +17,7 @@
  * photos of the one it was cloned from.
  */
 
+import { existsSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 
 import { openStore } from './store.ts';
@@ -77,6 +78,11 @@ if (import.meta.main) {
     if (!file || (mode !== 'plan' && mode !== 'rewrite')) {
         console.error('usage: move-photos.ts <store.db> plan|rewrite');
         process.exit(2);
+    }
+    // openStore would make an empty store at a mistyped path, and the plan would be empty
+    if (!existsSync(file)) {
+        console.error(`${file} does not exist`);
+        process.exit(1);
     }
     const store = openStore(file);
     try {
