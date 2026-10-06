@@ -22,7 +22,7 @@ A green Deploy run therefore does not mean the fix you merged is live, and the s
 
 ```sh
 fly releases -a salishsea-io --image                      # pick the last good one
-fly deploy -a salishsea-io --image registry.fly.io/salishsea-io:<commit sha>-stelis-<12 of Stelis's>
+fly deploy -a salishsea-io --image <the image reference from that list>
 ```
 
 Images deployed since decision 066 are tagged with their commit and Stelis's. Earlier ones carry `deployment-<id>`. `fly deploy --image` by hand skips `fly/deploy.sh`'s build lock, so a running build may be killed. The next build repairs that.
