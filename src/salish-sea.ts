@@ -523,6 +523,7 @@ export default class SalishSea extends LitElement {
       this.lastOwnOccurrence = null;
       return;
     }
+    const revision = this.#listRevision;
     const now = new Date();
     fetchOwnSightings(new Date(now.getTime() - 399 * 24 * 60 * 60_000), new Date(now.getTime() + 24 * 60 * 60_000))
       .then(async own => {
@@ -530,7 +531,8 @@ export default class SalishSea extends LitElement {
         if (!last) return null;
         return ownOccurrence(last, contributor, await fetchStaticAnimalNames([last.entity_id]).catch(() => undefined));
       })
-      .then(occurrence => this.lastOwnOccurrence = occurrence)
+      // A sign-out or another sign-in since makes this answer someone else's.
+      .then(occurrence => { if (revision === this.#listRevision) this.lastOwnOccurrence = occurrence; })
       .catch(err => reportError(this, "Couldn't find your last sighting.", {cause: err}));
   }
 
