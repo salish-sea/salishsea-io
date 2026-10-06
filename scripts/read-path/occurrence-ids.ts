@@ -14,13 +14,12 @@
 import { DuckDBInstance } from '@duckdb/node-api';
 
 import { budget } from './duckdb-budget.ts';
+import { dayOf } from './pacific-day.ts';
 import * as path from 'node:path';
 
 import { idShard } from '../../src/read-path-shard.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 
-/** The frontend's day, as in occurrence-days.ts. */
-const DAY_ZONE = 'PST8PDT';
 
 export async function writeIds(snapshot: string, exportDir: string): Promise<{shards: number, ids: number}> {
     const outDir = path.join(exportDir, 'ids');
@@ -35,7 +34,7 @@ export async function writeIds(snapshot: string, exportDir: string): Promise<{sh
         await budget(conn, snapshot, '64MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         const reader = await conn.runAndReadAll(`
-            SELECT id, strftime(timezone('${DAY_ZONE}', observed_at), '%Y-%m-%d') AS day
+            SELECT id, ${dayOf('observed_at')} AS day
             FROM store.build.occurrences
             -- An undated occurrence is on no day, so no day file holds it and the
             -- index has nothing to point a link at (decision 043 keeps them out of

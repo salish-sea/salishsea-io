@@ -26,8 +26,8 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import { rename, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
-/** The frontend's definition of a day, as in occurrence-days.ts. */
-const DAY_ZONE = 'PST8PDT';
+import { dayOf } from './pacific-day.ts';
+
 
 export type Manifest = {
     version: 1,
@@ -43,7 +43,7 @@ export async function writeManifest(snapshot: string, exportDir: string): Promis
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         const reader = await conn.runAndReadAll(`
             SELECT strftime(taken_at AT TIME ZONE 'UTC', '%Y-%m-%dT%H:%M:%S.%gZ') AS taken_at,
-                   strftime(timezone('${DAY_ZONE}', taken_at), '%Y-%m-%d') AS covered_through
+                   ${dayOf('taken_at')} AS covered_through
             FROM store.snapshot.meta
         `);
         const rows = reader.getRows() as [string, string][];

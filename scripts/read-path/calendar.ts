@@ -36,10 +36,8 @@ import * as path from 'node:path';
 
 import { REGIONS } from '../../src/constants.ts';
 import { budget } from './duckdb-budget.ts';
+import { dayOf } from './pacific-day.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
-
-/** occurrence_days' own day. */
-const DAY_ZONE = 'PST8PDT';
 
 /** occurrence_days' bounds when a region has none: the whole world. */
 const WORLD = [-180, -90, 180, 90] as const;
@@ -61,7 +59,7 @@ export async function writeCalendar(snapshot: string, exportDir: string): Promis
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         await conn.run(`
             CREATE TEMP TABLE located AS
-            SELECT strftime(timezone('${DAY_ZONE}', observed_at), '%Y-%m-%d') AS day,
+            SELECT ${dayOf('observed_at')} AS day,
                    json_extract(doc, '$.location.lon')::DOUBLE AS lon,
                    json_extract(doc, '$.location.lat')::DOUBLE AS lat,
                    json_extract_string(doc, '$.contributor_id') IS NOT NULL AS native
