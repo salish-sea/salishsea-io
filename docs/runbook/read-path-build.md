@@ -59,6 +59,22 @@ Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment be
   fly secrets set -a salishsea-io --stage FEEDBACK_GITHUB_TOKEN=<token> FEEDBACK_ISSUE_AUTHOR=<its login>
   ```
 
+## The store's replica: Litestream
+
+The write API runs under `litestream replicate -exec` ([`fly/litestream.yml`](../../fly/litestream.yml), started by `fly/start.sh`), so the store is replicated to `s3://salishsea-io-store-replica/store/salishsea.db` (Orcasound account, us-west-2) for exactly as long as the API can write it, about a second behind each write. A full snapshot is taken daily and kept thirty days, which is how far back a point-in-time restore reaches. If the API or Litestream exits, both are restarted together.
+
+**On a fresh volume the store comes back by itself.** Before each start, `start.sh` runs `litestream restore -if-db-not-exists -if-replica-exists`. With the store present, or no replica yet, that does nothing. With the store gone and a replica in the bucket, it restores the latest state before the API can write.
+
+**A restore drill**, to run before the cutover and after any change to the replication. [`fly/restore-drill.sh`](../../fly/restore-drill.sh) restores the latest replicated state into a scratch file, never over the live store, and compares each table's row count with the store's. It exits non-zero if any differ:
+
+```sh
+fly ssh console -a salishsea-io -C "setpriv --reuid=app --regid=app --init-groups env HOME=/home/app /app/fly/restore-drill.sh"
+```
+
+A write in the second between the two reads can show as a difference, so run it again before believing one. To restore to a moment instead of the latest state, add `-timestamp 2026-10-20T17:00:00Z`. To put a restored store into service, first stop the API (maintenance mode), move the live file and its `-wal` and `-shm` aside, put the restored file at `/data/store/salishsea.db`, then leave maintenance. Litestream then replicates it as a new generation.
+
+Rehearsed on 2026-10-05 against the bucket, with a copy of production's rows under a scratch prefix (since deleted): a one-off replication, then a restore, gave a byte-identical SQL dump, and a write made while replication ran was in the next restore. The drill above, against the live store, runs once the cutover has made one.
+
 ## Where state lives
 
 | Path | What | Provenance |
@@ -68,7 +84,7 @@ Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment be
 | `/data/mirrors/runs.sqlite` → `/status/ingest-runs.json` | each ingest run's outcome; what the heartbeat reads | log |
 | `/data/mirrors/maplify-names.json` → `/status/maplify-names.json` | the name guard's baseline: every Maplify (name, scientific name) pair and what the last passing build resolved it to | **authoritative** — forward-only, nothing regenerates it once Postgres stops resolving Maplify |
 | `/data/read-path.duckdb` | what Postgres still holds, the register release the build holds (`register.edition` says which), the reference tables from `data/reference/`, the catalogue from `data/catalogue/` with its views over the register, and the build's own derived relations | derived |
-| `/data/store/salishsea.db` | what users write (decision 065): sightings, photos' URLs, contributors, sign-ins, feedback | **authoritative** — the write API's alone; Litestream replicates it once salish-9uu.3.6 ships |
+| `/data/store/salishsea.db` | what users write (decision 065): sightings, photos' URLs, contributors, sign-ins, feedback | **authoritative** — the write API's alone; replicated by Litestream (above) |
 | `/data/stelis/` | Stelis's build history (30 days) and content-addressed blocks | log |
 | `/data/export/` | every published file | derived |
 | `/app/data/maplify-unnamed.tsv` | the curator's allow-list of accepted un-namings | from git, in the image |

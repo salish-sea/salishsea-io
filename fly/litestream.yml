@@ -1,0 +1,22 @@
+# Litestream (decision 065, salish-9uu.3.6): the store, replicated continuously to its
+# private bucket in the Orcasound account (infra/lib/infra-stack.ts, StoreReplicaBucket).
+# fly/start.sh runs the write API under `litestream replicate -exec`, so the store is
+# replicated exactly while something can write it, and restores the store from here on a
+# fresh volume before the API starts. The AWS key is the store-writer's, handed to this
+# process alone (fly/start.sh).
+#
+# The region is stated, not discovered: the key's ListBucket is conditioned on the
+# store/ prefix, so a region lookup (HeadBucket, no prefix) would be refused.
+dbs:
+  - path: /data/store/salishsea.db
+    replica:
+      type: s3
+      bucket: salishsea-io-store-replica
+      path: store/salishsea.db
+      region: us-west-2
+
+# A full snapshot a day, kept thirty days: how far back a point-in-time restore reaches.
+# The bucket's versioning keeps anything Litestream deletes another thirty.
+snapshot:
+  interval: 24h
+  retention: 720h

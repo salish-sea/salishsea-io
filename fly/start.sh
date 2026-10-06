@@ -76,13 +76,21 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
         set +e
         cd /app
         while true; do
+            # A fresh volume gets the store back from its replica before anything can
+            # write it; with a store present, or no replica yet, this does nothing.
+            AWS_ACCESS_KEY_ID="$aws_key_id" AWS_SECRET_ACCESS_KEY="$aws_secret" \
+                litestream restore -config /app/fly/litestream.yml -if-db-not-exists -if-replica-exists \
+                /data/store/salishsea.db \
+            || { echo "restoring the store from its replica failed; retrying in 10 s" >&2; sleep 10; continue; }
+            # The API runs under Litestream, so the store is replicated exactly while
+            # the API can write it, and the two stop and restart together.
             STORE_PATH=/data/store/salishsea.db SESSION_SIGNING_KEY="$session_key" EDGE_SECRET="$edge_secret" \
                 AWS_ACCESS_KEY_ID="$aws_key_id" AWS_SECRET_ACCESS_KEY="$aws_secret" \
                 FEEDBACK_GITHUB_TOKEN="$github_token" \
                 BUILD_COMMAND=/app/fly/build.sh \
-                node api/server.ts
+                litestream replicate -config /app/fly/litestream.yml -exec "node api/server.ts"
             status=$?
-            echo "write API exited ($status); restarting in 10 s" >&2
+            echo "write API or Litestream exited ($status); restarting in 10 s" >&2
             sleep 10
         done
     ) &

@@ -65,6 +65,12 @@ RUN curl -fsSL -o /tmp/caddy.tgz \
       https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_linux_amd64.tar.gz \
  && echo "527fbf917c39189a1e3b31d34fa955601680b2d5c8055d2a87b8b9588dec7bb9  /tmp/caddy.tgz" | sha256sum -c - \
  && tar -xzf /tmp/caddy.tgz -C /usr/local/bin caddy && rm /tmp/caddy.tgz
+# Litestream replicates the write API's store to S3 (decision 065); its checksum is the
+# one the release publishes in checksums.txt.
+RUN curl -fsSL -o /tmp/litestream.tgz \
+      https://github.com/benbjohnson/litestream/releases/download/v0.5.17/litestream-0.5.17-linux-x86_64.tar.gz \
+ && echo "cfb371176d164437ae869f8351cfde49bd1804ae71c61923f75c9cba9c9c006d  /tmp/litestream.tgz" | sha256sum -c - \
+ && tar -xzf /tmp/litestream.tgz -C /usr/local/bin litestream && rm /tmp/litestream.tgz
 RUN curl -fsSL -o /usr/local/bin/supercronic \
       https://github.com/aptible/supercronic/releases/download/v0.2.49/supercronic-linux-amd64 \
  && echo "a53ae236602c7338aba3fbaff40bda6300eae3b9fedb8261eb06cfe3724430c1  /usr/local/bin/supercronic" | sha256sum -c - \
