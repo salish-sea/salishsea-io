@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Deploy the salishsea-io Fly app from this checkout (salish-t3g.3), by hand until
-# a workflow does it (salish-t3g.5). The image is tagged with both pins, so
-# `fly deploy --image registry.fly.io/salishsea-io:<sha>-stelis-<12>` redeploys one.
+# Deploy the salishsea-io Fly app from this checkout (salish-t3g.3). The Deploy workflow
+# runs it on every push to main (salish-t3g.5); run it by hand to redeploy. The image
+# is tagged with both pins, so `fly deploy --image
+# registry.fly.io/salishsea-io:<sha>-stelis-<12>` redeploys one.
 #
 #   fly/deploy.sh
 #
@@ -33,7 +34,16 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 REF=grztmjpzamcxlzecmqca
-KEY=$(npx --yes supabase projects api-keys --project-ref "$REF" -o json \
+# The lockfile's Supabase CLI: the devDependency when installed (a hand deploy), else
+# the one the Deploy workflow's setup-cli put on PATH, which reads the same lockfile.
+if [ -x node_modules/.bin/supabase ]; then
+    supabase=(node_modules/.bin/supabase)
+elif command -v supabase > /dev/null; then
+    supabase=(supabase)
+else
+    supabase=(npx --yes supabase)
+fi
+KEY=$("${supabase[@]}" projects api-keys --project-ref "$REF" -o json \
       | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const k=JSON.parse(s).find(k=>k.type==="publishable");if(!k)process.exit(1);process.stdout.write(k.api_key)})')
 
 APP=salishsea-io

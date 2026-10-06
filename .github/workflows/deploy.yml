@@ -140,6 +140,22 @@ jobs:
             echo "::error::The production environment's EDGE_SECRET is missing or shorter than 32 characters."
             exit 1
           fi
+      # The Fly job runs after this one has changed production, so a token that can't
+      # deploy would fail it with the database already migrated. Refuse here instead, by
+      # using it: missing, revoked, mistyped or another app's, `fly status` fails. An
+      # app-scoped deploy token (`fly tokens create deploy -a salishsea-io`); runbook:
+      # deploys.md.
+      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+        with:
+          version: 0.4.112
+      - name: Require a working Fly deploy token
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "${FLY_API_TOKEN}" ] || ! fly status -a salishsea-io > /dev/null; then
+            echo "::error::The production environment's FLY_API_TOKEN is missing or can't read the salishsea-io app."
+            exit 1
+          fi
       # Last check before anything leaves this runner: everything above is local
       # setup, everything below mutates production.
       - name: Re-check the tip before mutating anything
@@ -189,6 +205,50 @@ jobs:
             --context "supabaseAnonKey=${SUPABASE_ANON_KEY}" \
             --context "edgeSecret=${EDGE_SECRET}"
 
+  # The Fly app: the site people see, the read-path build and the write API (decisions
+  # 061, 065; salish-t3g.5). After the deploy job, so the database is migrated before
+  # code that reads it ships, as the S3 site always was. A job of its own so that it
+  # starts from a clean checkout: fly/deploy.sh refuses a working tree with anything in
+  # it, and the deploy job's tree holds the downloaded artifacts. It is the script a
+  # hand deploy runs: the image builds on Fly's remote builder, then the machine's build
+  # lock is taken so the switch doesn't kill a running build (decision 066).
+  fly:
+    name: Deploy the Fly app
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Only on a re-run, which checks out its original commit and could ship it over a
+      # newer one. A first attempt can't be overtaken here: the concurrency group holds
+      # the next run until this one ends, so a merge landing while the deploy job ran
+      # is deployed by the run queued behind this one. Checking anyway would fail this
+      # job and file a deploy-failed issue for every pair of close merges.
+      - name: Refuse to deploy a superseded commit
+        if: ${{ github.run_attempt != 1 }}
+        uses: ./.github/actions/require-current-tip
+        with:
+          token: ${{ github.token }}
+          phase: before the Fly deploy
+      # For the publishable key the site is built with (fly/deploy.sh).
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+      # flyctl pinned like everything else here, in both jobs that install it. Its own
+      # releases (github.com/superfly/flyctl) are what to track, not the action's.
+      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+        with:
+          version: 0.4.112
+      - name: Deploy
+        run: fly/deploy.sh
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
   # Post-deploy verification, inside the deploy run rather than trailing it: a
   # deploy whose steps all reported success but left production not answering
   # correctly still ends red, and — because it is *this* run that fails — the
@@ -197,7 +257,10 @@ jobs:
   # what the scheduled smoke run and the require-current-tip guard are for.
   smoke:
     name: Smoke
-    needs: deploy
+    needs: [deploy, fly]
+    # Whenever the deploy job changed production, even if the Fly job then failed: the
+    # previous image reading a migrated database is exactly what smoke should look at.
+    if: ${{ !cancelled() && needs.deploy.result == 'success' }}
     uses: ./.github/workflows/smoke.yml
 
   # Reload the register against the database this deploy just migrated, and prove it
@@ -224,7 +287,7 @@ jobs:
   # the next green deploy.
   alert:
     name: Alert on failure
-    needs: [test, build, deploy, smoke, register]
+    needs: [test, build, deploy, fly, smoke, register]
     # `!cancelled()` is what lets this run at all — a job whose `needs` were
     # skipped is otherwise skipped itself, which is precisely the case when an
     # early job failed and took the rest of the graph with it.
@@ -274,6 +337,7 @@ jobs:
           RESULT_TEST: ${{ needs.test.result }}
           RESULT_BUILD: ${{ needs.build.result }}
           RESULT_DEPLOY: ${{ needs.deploy.result }}
+          RESULT_FLY: ${{ needs.fly.result }}
           RESULT_SMOKE: ${{ needs.smoke.result }}
           RESULT_REGISTER: ${{ needs.register.result }}
           MUTATION_STARTED: ${{ needs.deploy.outputs.mutation_started }}
@@ -289,6 +353,7 @@ jobs:
             echo "| Test (build.yml suite) | ${RESULT_TEST} |"
             echo "| Build (production artifacts) | ${RESULT_BUILD} |"
             echo "| Deploy | ${RESULT_DEPLOY} |"
+            echo "| Fly app | ${RESULT_FLY} |"
             echo "| Smoke (production specs) | ${RESULT_SMOKE} |"
             echo "| Register (reload + verify) | ${RESULT_REGISTER} |"
             echo
@@ -305,9 +370,10 @@ jobs:
               echo "remote change, which is the gate working. Fix forward on \`main\`."
             else
               echo "**Production may be partially updated.** The deploy job mutates production"
-              echo "in sequence with no atomicity: Edge Function → \`supabase db push\` → S3 sync"
-              echo "→ CloudFront invalidation → \`cdk deploy\`. Whichever step failed, everything"
-              echo "before it already landed. Read the run log to find how far it got."
+              echo "in sequence with no atomicity: \`supabase db push\` → S3 sync → CloudFront"
+              echo "invalidation → \`cdk deploy\` → the Fly app. Whichever step failed, everything"
+              echo "before it already landed. Read the run log to find how far it got. A failed"
+              echo "Fly deploy leaves the previous image serving; \`fly/deploy.sh\` redeploys by hand."
               echo
               echo "There is no automatic rollback, deliberately: \`supabase db push\` is"
               echo "forward-only, so reverting the frontend alone would point old code at a"
@@ -349,7 +415,7 @@ jobs:
   # still broken" rather than "something broke here once".
   resolve:
     name: Resolve failure issue
-    needs: [test, build, deploy, smoke, register]
+    needs: [test, build, deploy, fly, smoke, register]
     if: ${{ success() }}
     runs-on: ubuntu-latest
     permissions:
