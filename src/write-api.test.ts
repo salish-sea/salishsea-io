@@ -11,9 +11,11 @@ const sighting = (over: Partial<OwnSighting> = {}): OwnSighting => ({
 
 describe('the write source', () => {
   test('supabase unless the build says api; anything else is a mistake', () => {
-    expect([parseWriteSource(undefined), parseWriteSource(''), parseWriteSource('supabase'), parseWriteSource('api')])
-      .toEqual(['supabase', 'supabase', 'supabase', 'api']);
-    expect(() => parseWriteSource('API')).toThrow(/VITE_WRITE_SOURCE/);
+    expect([parseWriteSource(undefined, 'static'), parseWriteSource('', 'static'), parseWriteSource('supabase', 'supabase'),
+      parseWriteSource('api', 'static')]).toEqual(['supabase', 'supabase', 'supabase', 'api']);
+    expect(() => parseWriteSource('API', 'static')).toThrow(/VITE_WRITE_SOURCE/);
+    // the overlay lays own sightings over the published files, which Supabase's reads don't use
+    expect(() => parseWriteSource('api', 'supabase')).toThrow(/VITE_READ_SOURCE=static/);
   });
 });
 

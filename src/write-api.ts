@@ -8,19 +8,25 @@
  */
 
 import { detectIndividuals } from './identifiers.ts';
+import { readSource, type ReadSource } from './read-path.ts';
 import type { Contributor, Occurrence, UpsertObservationArgs } from './types.ts';
 
 export type WriteSource = 'supabase' | 'api';
 
 export function writeSource(): WriteSource {
-  return parseWriteSource(import.meta.env.VITE_WRITE_SOURCE);
+  return parseWriteSource(import.meta.env.VITE_WRITE_SOURCE, readSource());
 }
 
-/** As parseReadSource: a value that is neither is a typo in a deploy, and fails loudly. */
-export function parseWriteSource(value: string | undefined): WriteSource {
+/**
+ * As parseReadSource: a value that is neither is a typo in a deploy, and fails loudly.
+ * So does the API with Supabase's reads: the API's overlay lays a contributor's own
+ * sightings over the published files, and a build reading Supabase has none.
+ */
+export function parseWriteSource(value: string | undefined, reads: ReadSource): WriteSource {
   if (value === undefined || value === '' || value === 'supabase') return 'supabase';
-  if (value === 'api') return 'api';
-  throw new Error(`VITE_WRITE_SOURCE must be 'supabase' or 'api', not '${value}'`);
+  if (value !== 'api') throw new Error(`VITE_WRITE_SOURCE must be 'supabase' or 'api', not '${value}'`);
+  if (reads !== 'static') throw new Error('VITE_WRITE_SOURCE=api needs VITE_READ_SOURCE=static');
+  return 'api';
 }
 
 /** Who is signed in, as GET /api/me answers. */

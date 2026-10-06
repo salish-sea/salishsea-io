@@ -748,12 +748,20 @@ export default class SalishSea extends LitElement {
           // Through the write API, a contributor's own sightings as saved, over the
           // file's copies of them (decision 065); everyone else's come with the build.
           const contributor = this.contributor;
+          // Their own failing to load leaves the published day standing, theirs included
+          // as of the last build, rather than failing the list.
+          let ownFailure: unknown = null;
           const [file, own] = await Promise.all([
             fileSide,
-            contributor ? fetchOwnSightings(new Date(startOfDay.epochMilliseconds), new Date(endOfDay.epochMilliseconds)) : [],
+            contributor
+              ? fetchOwnSightings(new Date(startOfDay.epochMilliseconds), new Date(endOfDay.epochMilliseconds))
+                .catch((err: unknown) => { ownFailure = err; return null; })
+              : [],
           ]);
-          const names = own.length ? await fetchStaticAnimalNames(own.map(o => o.entity_id)).catch(() => undefined) : undefined;
-          data = contributor
+          if (ownFailure && date === this.date && region.slug === this.#region.slug && revision === this.#listRevision)
+            reportError(this, "Couldn't load your latest sightings; showing them as last published.", {cause: ownFailure});
+          const names = own?.length ? await fetchStaticAnimalNames(own.map(o => o.entity_id)).catch(() => undefined) : undefined;
+          data = contributor && own
             ? overlayOwn(file, withinExtent(own.map(o => ownOccurrence(o, contributor, names)) as unknown as Row[], region.extent), contributor.id)
             : file;
         } else {
