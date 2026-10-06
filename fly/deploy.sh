@@ -3,7 +3,11 @@
 # a workflow does it (salish-t3g.5). The image is tagged with both pins, so
 # `fly deploy --image registry.fly.io/salishsea-io:<sha>-stelis-<12>` redeploys one.
 #
-#   STELIS_SHA=<commit> fly/deploy.sh
+#   fly/deploy.sh
+#
+# The Stelis commit the image pins is fly/stelis-commit (salish-t3g.9): moving it is a
+# PR here, so a change spanning both repos ships when that PR deploys, and the commit
+# a release names says which Stelis it ran.
 #
 # The site's public client config is the AWS deploy's. The publishable key is
 # read from the Supabase CLI rather than typed.
@@ -14,7 +18,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-: "${STELIS_SHA:?set STELIS_SHA to the Stelis commit this image pins}"
+if [ -n "${STELIS_SHA:-}" ]; then
+    echo "STELIS_SHA is read from fly/stelis-commit now; to move Stelis, change that file in a PR" >&2
+    exit 1
+fi
+STELIS_SHA=$(tr -d '[:space:]' < fly/stelis-commit)
+if ! [[ "$STELIS_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "fly/stelis-commit must hold one full 40-character Stelis commit, not '$STELIS_SHA'" >&2
+    exit 1
+fi
 if [ -n "$(git status --porcelain)" ]; then
     echo "refusing to deploy uncommitted work: the image would not match any commit" >&2
     exit 1

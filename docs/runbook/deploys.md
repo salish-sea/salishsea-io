@@ -11,8 +11,10 @@ Push to `main` → GitHub Actions [`deploy.yml`](../../.github/workflows/deploy.
 CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.16`). The workflow above still runs on every merge and still matters for what stays on AWS — the Supabase migrations and Edge Function, the Lambda@Edge preview handler and the `/cards/*` renderer — but **a change to the site itself is live only when someone deploys the Fly app**, by hand, from a clean checkout of `main`:
 
 ```sh
-STELIS_SHA=<full Stelis commit> fly/deploy.sh      # see the header of fly/deploy.sh
+fly/deploy.sh      # see its header
 ```
+
+The Stelis commit the image runs is [`fly/stelis-commit`](../../fly/stelis-commit). To move Stelis, push the Stelis commit first, then change that file to the full commit (`git -C ~/dev/stelis rev-parse <ref>`) in a PR here. That PR deploys the graph change and whatever here depends on it together. Because the pin is committed, the commit `salishsea.io/release.json` names also says which Stelis production runs.
 
 The script builds and pushes the image first, tagged with the commit and the Stelis pin, while the machine goes on serving and building. It then takes the machine's build lock, waiting out a running build so the switch doesn't kill one, and deploys that image ([decision 066](../decisions/066-a-deploy-takes-the-build-lock-and-the-machine-stops-its-writers.md)). On the stop signal the old machine stops the write API and lets Litestream make its final sync before it goes. If the lock can't be had within five minutes, a build is probably stuck. The deploy then fails with production untouched, and the image is already pushed for a rerun.
 
