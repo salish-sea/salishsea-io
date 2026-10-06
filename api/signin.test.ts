@@ -147,11 +147,14 @@ describe('the API over HTTP', () => {
             const who = await fetch(`${base}/api/me`, {headers: {cookie: session}});
             expect(who.status).toBe(200);
             expect(await who.json()).toMatchObject({contributor: {name: 'Scott'}});
-            expect((await fetch(`${base}/api/me`)).status).toBe(401);
+            // signed out is an answer, not an error: a 401 here is a console error on every page
+            const nobody = await fetch(`${base}/api/me`);
+            expect(nobody.status).toBe(200);
+            expect(await nobody.json()).toBeNull();
             const out = await fetch(`${base}/api/session`, {method: 'DELETE', headers: {origin: 'https://salishsea.io', cookie: session}});
             expect(out.headers.get('set-cookie')).toMatch(/Max-Age=0/);
             // signing out ends the session itself, not only this browser's copy of the cookie
-            expect((await fetch(`${base}/api/me`, {headers: {cookie: session}})).status).toBe(401);
+            expect(await (await fetch(`${base}/api/me`, {headers: {cookie: session}})).json()).toBeNull();
             const refused = await fetch(`${base}/api/session`, {
                 method: 'POST', headers: {'content-type': 'application/json', origin: 'https://salishsea.io'},
                 body: JSON.stringify({credential: token(claims({aud: 'other'})), nonce: 'raw-nonce'}),
