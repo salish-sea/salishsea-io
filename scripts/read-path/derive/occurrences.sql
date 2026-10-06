@@ -22,10 +22,15 @@
 
 -- --- The five sources --------------------------------------------------------------------
 -- Each the same columns as public.occurrences, in its order; the document is built from
--- them at the end. `location` is never NULL: Postgres builds it as ROW(st_x, st_y), which
+-- them at the end. The `-- arm: <source>` and `-- shared` lines are read by
+-- derive-occurrences.ts, which runs the shared part first and then only the arms it
+-- re-derives (Stelis ADR 0015): a view binds the tables it names when it is CREATEd, so
+-- an arm's view is created after the memory tables its arm resolves into, and not at all
+-- for an arm left as it was. `location` is never NULL: Postgres builds it as ROW(st_x, st_y), which
 -- is a composite of NULLs, not a NULL, when the geography is missing. Its doubles are
 -- exact here; the document rounds them (pg_lon_lat).
 
+-- arm: maplify
 -- derived.maplify_occurrences. Its entity and collection are resolved here, not read from
 -- the mirror: the entity by the ingest's own resolveEntity, run first over each distinct
 -- (name, scientific name) pair into memory.maplify_entity (derive/maplify-entities.ts),
@@ -77,6 +82,7 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
     -- which the ingest already filtered, nothing is: 0 of 28,611 on 2026-10-02.
     AND s.id NOT IN (SELECT id FROM memory.maplify_out_of_scope);
 
+-- arm: inaturalist
 -- derived.inaturalist_occurrences
 CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
   SELECT 'inaturalist:' || o.id AS id,
@@ -124,6 +130,7 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
   -- mirror keeps the whole fetch box (salish-xv35.8, derive/inaturalist-scope.ts).
   WHERE o.id NOT IN (SELECT id FROM memory.inaturalist_out_of_scope);
 
+-- arm: happywhale
 -- derived.happywhale_instant(local_time, zone): an encounter's local date and time as an
 -- instant. Happywhale's zone is an IANA name, 'Z', or a bare ISO 8601 offset like
 -- '-07:00', which is subtracted: 13:01 at -07:00 is 20:01Z. (Postgres once read those
@@ -193,6 +200,7 @@ CREATE OR REPLACE TEMP VIEW happywhale_occurrences AS
   LEFT JOIN public.organizations org ON org.id = col.organization_id
   WHERE e.public;
 
+-- arm: native
 -- derived.native_occurrences: what our own contributors reported.
 CREATE OR REPLACE TEMP VIEW native_occurrences AS
   SELECT CAST(o.id AS VARCHAR) AS id,
@@ -236,6 +244,7 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
   LEFT JOIN public.collections col ON col.id = o.collection_id
   LEFT JOIN public.organizations org ON org.id = col.organization_id;
 
+-- arm: orcasound
 -- derived.orcasound_occurrences: one occurrence per bout per species the moderators'
 -- tags reach. A species' identifiers are its tags' labels below the species, a
 -- 'possible' one marked with '?' (decision 054); its certainty is the strongest claim
@@ -295,6 +304,7 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
   LEFT JOIN public.organizations org ON org.id = col.organization_id
   WHERE tx.taxon_entity_id IS NOT NULL;
 
+-- shared
 -- --- The store ---------------------------------------------------------------------------
 -- As snapshot.occurrences holds Postgres's: id, observed_at, and the document; and, as
 -- derived.occurrences holds them, the source, the identifiers and the exact location,
@@ -303,7 +313,9 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
 -- order Postgres stores them in, so the files built from it keep their key order.
 -- One source at a time rather than one UNION ALL, so only one source's joins and photo
 -- lists are held at once: on the 1 GB Fly machine that is the difference between fitting
--- DuckDB in 128 MB and needing 256.
+-- DuckDB in 128 MB and needing 256. The table and its one INSERT per source are written
+-- by derive-occurrences.ts, which chooses the sources: all of them, or, when the build
+-- says which inputs changed (Stelis ADR 0015), only the arms that read one.
 CREATE SCHEMA IF NOT EXISTS build;
 CREATE OR REPLACE TEMP MACRO occurrence_doc(o) AS CAST(to_json({
            'id': o.id,
@@ -330,16 +342,3 @@ CREATE OR REPLACE TEMP MACRO occurrence_doc(o) AS CAST(to_json({
            'observed_until': pg_ts(o.observed_until),
            'organization_url': o.organization_url
          }) AS VARCHAR);
-CREATE OR REPLACE TABLE build.occurrences (
-  id VARCHAR, observed_at TIMESTAMPTZ, doc VARCHAR,
-  source VARCHAR, identifiers VARCHAR[], location STRUCT(lat DOUBLE, lon DOUBLE));
-INSERT INTO build.occurrences
-  SELECT id, observed_at, occurrence_doc(o), 'maplify', identifiers, location FROM maplify_occurrences o;
-INSERT INTO build.occurrences
-  SELECT id, observed_at, occurrence_doc(o), 'inaturalist', identifiers, location FROM inaturalist_occurrences o;
-INSERT INTO build.occurrences
-  SELECT id, observed_at, occurrence_doc(o), 'happywhale', identifiers, location FROM happywhale_occurrences o;
-INSERT INTO build.occurrences
-  SELECT id, observed_at, occurrence_doc(o), 'native', identifiers, location FROM native_occurrences o;
-INSERT INTO build.occurrences
-  SELECT id, observed_at, occurrence_doc(o), 'orcasound', identifiers, location FROM orcasound_occurrences o;
