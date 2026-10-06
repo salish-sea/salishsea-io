@@ -18,7 +18,7 @@ One fact decides where the waiting goes: **Fly's proxy stops sending new request
 
 ## Decision
 
-**The deploy waits for the build, before the switch.** `fly/deploy.sh` builds and pushes the image first (`fly deploy --build-only --push`, tagged with the commit), while the machine goes on building and serving. It then takes `/data/build.lock` over `fly ssh console`, which waits out a running build, and only then deploys the pushed image. While the lock is held, a scheduled build skips its run and the API's build trigger retries, so nothing starts. The lock dies with the old machine.
+**The deploy waits for the build, before the switch.** `fly/deploy.sh` builds and pushes the image first (`fly deploy --build-only --push`, tagged with the commit and the Stelis pin), while the machine goes on building and serving. It then takes `/data/build.lock` over `fly ssh console`, which waits out a running build, and only then deploys the pushed image. While the lock is held, a scheduled build skips its run and the API's build trigger retries, so nothing starts. The lock dies with the old machine.
 
 - The session holding the lock outlives the local client: killing `fly ssh console` leaves the remote side running (tested 2026-10-05). So the hold lets go by itself after ten minutes, and a deploy that fails before the machine is replaced releases it explicitly.
 - A build still running after five minutes is likely stuck, so the deploy fails rather than kill it. The image is already pushed, so a rerun is a deploy of that tag.
@@ -39,6 +39,6 @@ It doesn't wait for a build. Under `fly/deploy.sh` there isn't one running. Unde
 
 ## Consequences
 
-- A deploy is now two `fly deploy` calls, and images carry the commit as their tag, so `fly deploy --image registry.fly.io/salishsea-io:<sha>` redeploys any earlier commit. [The deploys runbook](../runbook/deploys.md) says so.
+- A deploy is now two `fly deploy` calls, and an image's tag names its commit and its Stelis pin, so `fly deploy --image` with that tag redeploys any earlier one. [The deploys runbook](../runbook/deploys.md) says so.
 - Under the lock, a deploy's switch costs the site about as long as the new machine takes to boot and pass its health check. The old machine's shutdown, waiting for the API and Litestream, adds seconds.
 - `salish-t3g.5`'s workflow calls `fly/deploy.sh` rather than restating it, so hand deploys and CI take the same lock.

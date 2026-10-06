@@ -14,7 +14,7 @@ CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../dec
 STELIS_SHA=<full Stelis commit> fly/deploy.sh      # see the header of fly/deploy.sh
 ```
 
-The script builds and pushes the image first, tagged with the commit, while the machine goes on serving and building. It then takes the machine's build lock, waiting out a running build so the switch doesn't kill one, and deploys that image ([decision 066](../decisions/066-a-deploy-takes-the-build-lock-and-the-machine-stops-its-writers.md)). On the stop signal the old machine stops the write API and lets Litestream make its final sync before it goes. If the lock can't be had within five minutes, a build is probably stuck. The deploy then fails with production untouched, and the image is already pushed for a rerun.
+The script builds and pushes the image first, tagged with the commit and the Stelis pin, while the machine goes on serving and building. It then takes the machine's build lock, waiting out a running build so the switch doesn't kill one, and deploys that image ([decision 066](../decisions/066-a-deploy-takes-the-build-lock-and-the-machine-stops-its-writers.md)). On the stop signal the old machine stops the write API and lets Litestream make its final sync before it goes. If the lock can't be had within five minutes, a build is probably stuck. The deploy then fails with production untouched, and the image is already pushed for a rerun.
 
 A green Deploy run therefore does not mean the fix you merged is live, and the smoke job in that run tests Fly's current image, not what the run shipped (`salish-t3g.5` is the workflow that would close this gap).
 
@@ -22,10 +22,10 @@ A green Deploy run therefore does not mean the fix you merged is live, and the s
 
 ```sh
 fly releases -a salishsea-io --image                      # pick the last good one
-fly deploy -a salishsea-io --image registry.fly.io/salishsea-io:<commit sha>
+fly deploy -a salishsea-io --image registry.fly.io/salishsea-io:<commit sha>-stelis-<12 of Stelis's>
 ```
 
-Images deployed since decision 066 are tagged with their commit. Earlier ones carry `deployment-<id>`. `fly deploy --image` by hand skips `fly/deploy.sh`'s build lock, so a running build may be killed. The next build repairs that.
+Images deployed since decision 066 are tagged with their commit and Stelis's. Earlier ones carry `deployment-<id>`. `fly deploy --image` by hand skips `fly/deploy.sh`'s build lock, so a running build may be killed. The next build repairs that.
 
 The image carries the site bundle, the read-path scripts and the pinned Stelis together, so rolling it back rolls all three back; the data on the volume (`/data`: the snapshot, the mirrors, the build history) stays as it is, and the next build at the old pin runs over it. Two things a release does not carry: `fly deploy --image` applies the `fly.toml` of the checkout you run it from, so check out the release's commit first (the `GITHUB_SHA` build arg in `fly/deploy.sh` is how an image names its commit); and Fly secrets, which are set on the app, not in a release. The one thing an image rollback cannot undo is a migration `deploy.yml` applied to Postgres in the meantime — forward-only, as above.
 

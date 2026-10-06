@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deploy the salishsea-io Fly app from this checkout (salish-t3g.3), by hand until
-# a workflow does it (salish-t3g.5). The image is tagged with the commit, so
-# `fly deploy --image registry.fly.io/salishsea-io:<sha>` redeploys any earlier one.
+# a workflow does it (salish-t3g.5). The image is tagged with both pins, so
+# `fly deploy --image registry.fly.io/salishsea-io:<sha>-stelis-<12>` redeploys one.
 #
 #   STELIS_SHA=<commit> fly/deploy.sh
 #
@@ -26,11 +26,13 @@ KEY=$(npx --yes supabase projects api-keys --project-ref "$REF" -o json \
 
 APP=salishsea-io
 SHA=$(git rev-parse HEAD)
-IMAGE="registry.fly.io/$APP:$SHA"
+# The tag names both pins, so a rerun at another Stelis commit can't overwrite an image.
+LABEL="$SHA-stelis-${STELIS_SHA:0:12}"
+IMAGE="registry.fly.io/$APP:$LABEL"
 
 # Build and push the image while the machine goes on building: the remote build takes
 # minutes, and the build lock (below) is held only for the switch.
-fly deploy --build-only --push --image-label "$SHA" \
+fly deploy --build-only --push --image-label "$LABEL" \
     --build-arg VITE_SUPABASE_URL="https://$REF.supabase.co" \
     --build-arg VITE_SUPABASE_WS_URL="wss://$REF.supabase.co" \
     --build-arg VITE_SUPABASE_KEY="$KEY" \
@@ -46,15 +48,16 @@ fly deploy --build-only --push --image-label "$SHA" \
 # replaced lets go at once. A build that runs for LOCK_WAIT seconds is likely stuck,
 # and fails the deploy rather than being killed by it.
 HOLD=600 LOCK_WAIT=300
+HOLDER="deploy-hold-$SHA-$$"   # names this deploy's hold alone, to release it
 lock_log=$(mktemp)
 fly ssh console -a "$APP" \
-    -C "flock -o -w $LOCK_WAIT /data/build.lock timeout $HOLD sh -c 'echo held; sleep $HOLD' deploy-hold" \
+    -C "flock -o -w $LOCK_WAIT /data/build.lock timeout $HOLD sh -c 'echo held; sleep $HOLD' $HOLDER" \
     > "$lock_log" 2>&1 &
 hold_pid=$!
 deployed=
 release() {
     kill "$hold_pid" 2>/dev/null || true
-    [ -n "$deployed" ] || fly ssh console -a "$APP" -C "pkill -f deploy-hold" > /dev/null 2>&1 || true
+    [ -n "$deployed" ] || fly ssh console -a "$APP" -C "pkill -f $HOLDER" > /dev/null 2>&1 || true
     rm -f "$lock_log"
 }
 trap release EXIT

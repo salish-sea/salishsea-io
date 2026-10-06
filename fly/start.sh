@@ -124,6 +124,8 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
                 BUILD_COMMAND=/app/fly/build.sh \
                 litestream replicate -config /app/fly/litestream.yml -exec "node api/server.ts" &
             litestream_pid=$!
+            # A signal during the restore ran the trap before there was a pid to pass it to.
+            [ -z "$stopping" ] || kill -TERM "$litestream_pid"
             wait "$litestream_pid"
             status=$?
             # The trap interrupted the wait; this one lasts until Litestream has synced.
