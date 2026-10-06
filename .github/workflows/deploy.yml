@@ -140,15 +140,20 @@ jobs:
             echo "::error::The production environment's EDGE_SECRET is missing or shorter than 32 characters."
             exit 1
           fi
-      # The Fly job runs after this one has changed production, so a missing token would
-      # fail it with the database already migrated. Refuse here instead. An app-scoped
-      # deploy token (`fly tokens create deploy -a salishsea-io`); runbook: deploys.md.
-      - name: Require the Fly deploy token
+      # The Fly job runs after this one has changed production, so a token that can't
+      # deploy would fail it with the database already migrated. Refuse here instead, by
+      # using it: missing, revoked, mistyped or another app's, `fly status` fails. An
+      # app-scoped deploy token (`fly tokens create deploy -a salishsea-io`); runbook:
+      # deploys.md.
+      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+        with:
+          version: 0.4.112
+      - name: Require a working Fly deploy token
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          if [ -z "${FLY_API_TOKEN}" ]; then
-            echo "::error::The production environment's FLY_API_TOKEN is missing."
+          if [ -z "${FLY_API_TOKEN}" ] || ! fly status -a salishsea-io > /dev/null; then
+            echo "::error::The production environment's FLY_API_TOKEN is missing or can't read the salishsea-io app."
             exit 1
           fi
       # Last check before anything leaves this runner: everything above is local
@@ -220,18 +225,24 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # A re-run of only this job checks out its original commit, like any re-run.
+      # Only on a re-run, which checks out its original commit and could ship it over a
+      # newer one. A first attempt can't be overtaken here: the concurrency group holds
+      # the next run until this one ends, so a merge landing while the deploy job ran
+      # is deployed by the run queued behind this one. Checking anyway would fail this
+      # job and file a deploy-failed issue for every pair of close merges.
       - name: Refuse to deploy a superseded commit
+        if: ${{ github.run_attempt != 1 }}
         uses: ./.github/actions/require-current-tip
         with:
           token: ${{ github.token }}
           phase: before the Fly deploy
       # For the publishable key the site is built with (fly/deploy.sh).
       - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
-      # flyctl pinned like everything else here; bump it with the action.
+      # flyctl pinned like everything else here, in both jobs that install it. Its own
+      # releases (github.com/superfly/flyctl) are what to track, not the action's.
       - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
         with:
-          version: 0.4.111
+          version: 0.4.112
       - name: Deploy
         run: fly/deploy.sh
         env:
@@ -247,6 +258,9 @@ jobs:
   smoke:
     name: Smoke
     needs: [deploy, fly]
+    # Whenever the deploy job changed production, even if the Fly job then failed: the
+    # previous image reading a migrated database is exactly what smoke should look at.
+    if: ${{ !cancelled() && needs.deploy.result == 'success' }}
     uses: ./.github/workflows/smoke.yml
 
   # Reload the register against the database this deploy just migrated, and prove it

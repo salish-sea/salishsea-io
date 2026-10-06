@@ -41,7 +41,7 @@ The image carries the site bundle, the read-path scripts and the pinned Stelis t
 
 Pointing CloudFront's default behaviour back at S3 ([`infra-stack.ts`](../../infra/lib/infra-stack.ts), the previous rollback) now serves a **degraded** site, not an older one: since migration `20261004120000` Postgres no longer ingests Orcasound or iNaturalist, so the Supabase-mode site frozen in the bucket shows no bout and no iNaturalist observation after 2026-10-04, and once Maplify's ingest is unscheduled too it shows nothing new at all. Use it only if the Fly app itself is unreachable, and say so on the status issue.
 
-The run is six jobs ([decision 024](../decisions/024-deploy-gating-and-alerting.md)):
+The run is these jobs ([decision 024](../decisions/024-deploy-gating-and-alerting.md)):
 
 | Job | What it does |
 |---|---|
@@ -49,7 +49,8 @@ The run is six jobs ([decision 024](../decisions/024-deploy-gating-and-alerting.
 | **Build** | Builds the production bundle with the `production` environment's vars/secrets; uploads `dist` + `supabase` as artifacts. Runs alongside Test. |
 | **Deploy** | `supabase db push` → S3 sync → CloudFront invalidation → `cdk deploy`. Not atomic; see below. |
 | **Fly app** | `fly/deploy.sh` from a clean checkout: the image builds on Fly's remote builder, then the build lock is taken and the image deployed. A failure here leaves the previous image serving, with the database already migrated. |
-| **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`, after both the Deploy and Fly app jobs. A production that doesn't answer correctly fails the deploy run. The OG specs first wait up to five minutes for the edge handler to replicate; a new Lambda@Edge version is not at every edge location the moment `cdk deploy` returns. |
+| **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`, after the Fly app job, or after the deploy job alone if the Fly job failed: a migrated database under the previous image is what most needs checking. A production that doesn't answer correctly fails the deploy run. The OG specs first wait up to five minutes for the edge handler to replicate; a new Lambda@Edge version is not at every edge location the moment `cdk deploy` returns. |
+| **Register** | Calls [`register-refresh.yml`](../../.github/workflows/register-refresh.yml) after the deploy job: reloads the register into the database just migrated and checks it arrived. Runs alongside the Fly app job; a failure here is a register load failing, not the site. |
 | **Alert / Resolve** | On failure, opens or updates the single `deploy-failed` issue; on a fully green run, closes it. |
 
 Two things to know when reading a red run:

@@ -34,9 +34,15 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 REF=grztmjpzamcxlzecmqca
-# The Supabase CLI on PATH (the Deploy workflow's setup-cli), else the devDependency.
-supabase=(npx --yes supabase)
-command -v supabase > /dev/null && supabase=(supabase)
+# The lockfile's Supabase CLI: the devDependency when installed (a hand deploy), else
+# the one the Deploy workflow's setup-cli put on PATH, which reads the same lockfile.
+if [ -x node_modules/.bin/supabase ]; then
+    supabase=(node_modules/.bin/supabase)
+elif command -v supabase > /dev/null; then
+    supabase=(supabase)
+else
+    supabase=(npx --yes supabase)
+fi
 KEY=$("${supabase[@]}" projects api-keys --project-ref "$REF" -o json \
       | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const k=JSON.parse(s).find(k=>k.type==="publishable");if(!k)process.exit(1);process.stdout.write(k.api_key)})')
 
