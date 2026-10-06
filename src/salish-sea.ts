@@ -16,7 +16,8 @@ import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
-import { fetchDayOccurrences, findOccurrence, NotBuiltYet, overlayNative, pacificDay, readSource, watchManifest } from "./read-path.ts";
+import { fetchDayOccurrences, fetchStaticAnimalNames, findOccurrence, NotBuiltYet, overlayNative, pacificDay, readSource, watchManifest, withinExtent } from "./read-path.ts";
+import { fetchMe, fetchOwnSightings, overlayOwn, ownOccurrence, signIn as apiSignIn, signOut as apiSignOut, writeSource, type Me } from "./write-api.ts";
 import type { PatchedDatabase } from "./types.ts";
 import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
@@ -284,31 +285,38 @@ export default class SalishSea extends LitElement {
 
   constructor() {
     super();
-    const supabaseClient = supabase();
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-        this.user = session?.user;
-      } else if (event === 'SIGNED_OUT') {
-        this.user = undefined;
-      }
-      // Signing in or out can change where the list comes from (decision 056:
-      // the read-path files are for signed-out visitors only), so a request
-      // issued before this one answers a different question.
-      this.#listRevision++;
-      this.refetchOccurrences(this.date);
-      if (this.user) {
-        getContributor(this.user.id, supabaseClient)
-          .then(contributor => this.contributor = contributor)
-          .then(contributor => fetchLastOwnOccurrence(contributor, supabaseClient))
-          .then(occurrence => this.lastOwnOccurrence = occurrence)
-          // Without this the Report button stays hidden and the form has no
-          // contributor to save against, with nothing on screen saying why.
-          .catch(err => reportError(this, "Couldn't load your account. You may not be able to report a sighting.", {cause: err}));
-      } else {
-        this.contributor = undefined;
-        this.lastOwnOccurrence = null;
-      }
-    });
+    if (writeSource() === 'api') {
+      // The write API's session is a cookie it set (decision 065): ask who it names.
+      fetchMe()
+        .then(me => this.#signedInAs(me))
+        .catch(err => reportError(this, "Couldn't load your account. You may not be able to report a sighting.", {cause: err}));
+    } else {
+      const supabaseClient = supabase();
+      supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          this.user = session?.user;
+        } else if (event === 'SIGNED_OUT') {
+          this.user = undefined;
+        }
+        // Signing in or out can change where the list comes from (decision 056:
+        // the read-path files are for signed-out visitors only), so a request
+        // issued before this one answers a different question.
+        this.#listRevision++;
+        this.refetchOccurrences(this.date);
+        if (this.user) {
+          getContributor(this.user.id, supabaseClient)
+            .then(contributor => this.contributor = contributor)
+            .then(contributor => fetchLastOwnOccurrence(contributor, supabaseClient))
+            .then(occurrence => this.lastOwnOccurrence = occurrence)
+            // Without this the Report button stays hidden and the form has no
+            // contributor to save against, with nothing on screen saying why.
+            .catch(err => reportError(this, "Couldn't load your account. You may not be able to report a sighting.", {cause: err}));
+        } else {
+          this.contributor = undefined;
+          this.lastOwnOccurrence = null;
+        }
+      });
+    }
     this.addEventListener('report-error', evt => {
       const {message, persist} = (evt as CustomEvent<ErrorReport>).detail;
       this.errorToastRef.value?.show(message, {persist});
@@ -388,7 +396,9 @@ export default class SalishSea extends LitElement {
       this.panelRef.value!.editObservation(sighting)
         .catch(err => reportError(this, "Couldn't open that sighting for editing. Please try again.", {cause: err}));
     });
-    this.#realtimeChannel = supabaseClient
+    // Through the write API there is no broadcast: a tab's own saves refetch on their
+    // own events, and everyone else's arrive with the build the manifest announces.
+    if (writeSource() === 'supabase') this.#realtimeChannel = supabase()
       .channel('occurrences')
       .on('broadcast', {event: 'occurrences_changed'}, () => {
         // One refetch per burst, a few seconds after it, at a moment of this
@@ -497,7 +507,45 @@ export default class SalishSea extends LitElement {
     }).catch(err => reportError(this, "Couldn't reach Google to sign in. An ad blocker may be blocking it.", {cause: err}));
   }
 
+  /**
+   * The write API's answer to who is signed in, applied (decision 065): what Supabase's
+   * auth events did, for the API's session.
+   */
+  #signedInAs(me: Me | null) {
+    this.user = me ? {id: me.user_id} : undefined;
+    // Before the refetch, which overlays this contributor's own sightings.
+    const contributor = me ? me.contributor as Contributor : undefined;
+    this.contributor = contributor;
+    // As with Supabase's events: where the list comes from changes with who is signed in.
+    this.#listRevision++;
+    this.refetchOccurrences(this.date);
+    if (!contributor) {
+      this.lastOwnOccurrence = null;
+      return;
+    }
+    const revision = this.#listRevision;
+    const now = new Date();
+    fetchOwnSightings(new Date(now.getTime() - 399 * 24 * 60 * 60_000), new Date(now.getTime() + 24 * 60 * 60_000))
+      .then(async own => {
+        const last = own[0];
+        if (!last) return null;
+        return ownOccurrence(last, contributor, await fetchStaticAnimalNames([last.entity_id]).catch(() => undefined));
+      })
+      // A sign-out or another sign-in since makes this answer someone else's.
+      .then(occurrence => { if (revision === this.#listRevision) this.lastOwnOccurrence = occurrence; })
+      .catch(err => reportError(this, "Couldn't find your last sighting.", {cause: err}));
+  }
+
   async doLogOut() {
+    if (writeSource() === 'api') {
+      try {
+        await apiSignOut();
+        this.#signedInAs(null);
+      } catch (err) {
+        reportError(this, "Couldn't sign you out. Please try again.", {cause: err});
+      }
+      return;
+    }
     try {
       // Supabase returns auth failures in the result rather than throwing (see
       // receiveIdToken below) — unchecked, a failed sign-out leaves the Log out
@@ -512,6 +560,14 @@ export default class SalishSea extends LitElement {
   }
 
   public async receiveIdToken(token: string, nonce: string) {
+    if (writeSource() === 'api') {
+      try {
+        this.#signedInAs(await apiSignIn(token, nonce));
+      } catch (err) {
+        reportError(this, "Couldn't sign you in with Google. Please try again.", {cause: err});
+      }
+      return;
+    }
     const {error} = await supabase().auth.signInWithIdToken({'provider': 'google', token, nonce});
     // Supabase returns auth failures in the result instead of throwing, and the
     // Supabase Sentry integration only wraps PostgREST — so an unchecked error
@@ -644,23 +700,27 @@ export default class SalishSea extends LitElement {
     const revision = this.#listRevision;
     const startOfDay = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
     const endOfDay = startOfDay.add({days: 1});
-    let query = supabase()
-      .from('occurrences')
-      .select()
-      .gte('observed_at', startOfDay.toInstant())
-      .lt('observed_at', endOfDay.toInstant());
+    // Built only when Supabase is asked: through the write API, nothing here touches it.
+    const supabaseQuery = () => {
+      let query = supabase()
+        .from('occurrences')
+        .select()
+        .gte('observed_at', startOfDay.toInstant())
+        .lt('observed_at', endOfDay.toInstant());
 
-    // `location` is a composite (lon_lat), not jsonb, but PostgREST still
-    // addresses its fields with `->`. Use `->` and NOT `->>`: the text form
-    // compares lexically, so numeric bounds silently match nothing — zero rows,
-    // no error, no clue.
-    const extent = region.extent;
-    if (extent) {
-      const [minx, miny, maxx, maxy] = extent;
-      query = query
-        .gte('location->lon', minx).lte('location->lon', maxx)
-        .gte('location->lat', miny).lte('location->lat', maxy);
-    }
+      // `location` is a composite (lon_lat), not jsonb, but PostgREST still
+      // addresses its fields with `->`. Use `->` and NOT `->>`: the text form
+      // compares lexically, so numeric bounds silently match nothing — zero rows,
+      // no error, no clue.
+      const extent = region.extent;
+      if (extent) {
+        const [minx, miny, maxx, maxy] = extent;
+        query = query
+          .gte('location->lon', minx).lte('location->lon', maxx)
+          .gte('location->lat', miny).lte('location->lat', maxy);
+      }
+      return query;
+    };
 
     type Row = PatchedDatabase['public']['Views']['occurrences']['Row'];
     let data;
@@ -681,19 +741,42 @@ export default class SalishSea extends LitElement {
         // empty for now, and a notice says the rest is on its way. Not a
         // failure of ours, so Sentry doesn't hear it (salish-xv35.22).
         let notBuiltYet = false;
-        const [file, {data: live}] = await Promise.all([
-          fetchDayOccurrences<Row>(date, region.extent).catch((err: unknown) => {
-            if (!(err instanceof NotBuiltYet)) throw err;
-            notBuiltYet = true;
-            return [] as Row[];
-          }),
-          query.not('contributor_id', 'is', null).throwOnError(),
-        ]);
-        data = overlayNative(file, live);
+        const fileSide = fetchDayOccurrences<Row>(date, region.extent).catch((err: unknown) => {
+          if (!(err instanceof NotBuiltYet)) throw err;
+          notBuiltYet = true;
+          return [] as Row[];
+        });
+        if (writeSource() === 'api') {
+          // Through the write API, a contributor's own sightings as saved, over the
+          // file's copies of them (decision 065); everyone else's come with the build.
+          const contributor = this.contributor;
+          // Their own failing to load leaves the published day standing, theirs included
+          // as of the last build, rather than failing the list.
+          let ownFailure: unknown = null;
+          const [file, own] = await Promise.all([
+            fileSide,
+            contributor
+              ? fetchOwnSightings(new Date(startOfDay.epochMilliseconds), new Date(endOfDay.epochMilliseconds))
+                .catch((err: unknown) => { ownFailure = err; return null; })
+              : [],
+          ]);
+          if (ownFailure && date === this.date && region.slug === this.#region.slug && revision === this.#listRevision)
+            reportError(this, "Couldn't load your latest sightings; showing them as last published.", {cause: ownFailure});
+          const names = own?.length ? await fetchStaticAnimalNames(own.map(o => o.entity_id)).catch(() => undefined) : undefined;
+          data = contributor && own
+            ? overlayOwn(file, withinExtent(own.map(o => ownOccurrence(o, contributor, names)) as unknown as Row[], region.extent), contributor.id)
+            : file;
+        } else {
+          const [file, {data: live}] = await Promise.all([
+            fileSide,
+            supabaseQuery().not('contributor_id', 'is', null).throwOnError(),
+          ]);
+          data = overlayNative(file, live);
+        }
         if (notBuiltYet && date === this.date && region.slug === this.#region.slug && revision === this.#listRevision)
           reportError(this, "Today's sightings from other sources arrive with the next update; yours are shown.", {capture: false});
       } else {
-        ({data} = await query
+        ({data} = await supabaseQuery()
           .order('observed_at', {ascending: false})
           .throwOnError());
       }
@@ -737,7 +820,7 @@ export default class SalishSea extends LitElement {
       // one saved since the last build is in no file yet, and one in a file may
       // have moved since.
       occurrence = null;
-      if (this.user) {
+      if (this.user && writeSource() === 'supabase') {
         const {data, error} = await supabase()
           .from('occurrences')
           .select()
@@ -754,7 +837,7 @@ export default class SalishSea extends LitElement {
       // signed-in tab doesn't open the file's copy of it.
       if (!occurrence) {
         const fromFile = await findOccurrence<Occurrence>(id);
-        occurrence = this.user && fromFile?.contributor_id != null ? null : fromFile;
+        occurrence = this.user && writeSource() === 'supabase' && fromFile?.contributor_id != null ? null : fromFile;
       }
     } else {
       const {data, error} = await supabase()

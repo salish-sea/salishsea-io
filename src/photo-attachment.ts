@@ -4,6 +4,7 @@ import type { Coordinate } from 'ol/coordinate.js';
 import { fromLonLat } from 'ol/proj.js';
 import { supabase } from './supabase.ts';
 import { v7 } from 'uuid';
+import { uploadPhoto as uploadThroughApi, writeSource } from './write-api.ts';
 
 /**
  * Every photo carries an `id` minted when it joins the list, and it is the only
@@ -58,6 +59,9 @@ export async function photoThumbnail(file: File): Promise<string> {
 }
 
 export async function uploadPhoto(file: File, sightingId: string): Promise<string> {
+  // The API names the photo's folder by the signed-in contributor (decision 065).
+  if (writeSource() === 'api')
+    return uploadThroughApi(file, sightingId);
   const {data: authData, error: authError} = await supabase().auth.getUser();
   if (authError)
     throw new Error(`Error identifying user during photo upload: ${authError}`);

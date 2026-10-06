@@ -13,6 +13,7 @@ import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
 import { Temporal } from "temporal-polyfill";
 import { supabase } from "./supabase.ts";
+import { deleteSighting as deleteThroughApi, writeSource } from './write-api.ts';
 import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
@@ -318,8 +319,12 @@ export class ObsSummary extends LitElement {
   private async onDelete(e: Event) {
     e.preventDefault();
     try {
-      const {error} = await supabase().from('observations').delete().eq('id', this.sighting.id);
-      if (error) throw error;
+      if (writeSource() === 'api') {
+        await deleteThroughApi(this.sighting.id);
+      } else {
+        const {error} = await supabase().from('observations').delete().eq('id', this.sighting.id);
+        if (error) throw error;
+      }
     } catch (error) {
       reportError(this, "Couldn't delete that sighting. Please try again.", {cause: error});
       return;

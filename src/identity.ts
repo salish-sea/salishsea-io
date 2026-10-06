@@ -1,9 +1,12 @@
 import { createContext } from '@lit/context';
-import type { User } from '@supabase/auth-js';
 import type { Contributor, PatchedDatabase } from './types.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type {User} from '@supabase/auth-js';
+/**
+ * Who is signed in: all the app reads of a user is its id. Supabase's user has one, and
+ * so does the write API's (decision 065).
+ */
+export type User = {id: string};
 export const userContext = createContext<User | undefined>(Symbol('user'));
 
 export const contributorContext = createContext<Contributor | undefined>(Symbol('contributor'));

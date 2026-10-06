@@ -18,7 +18,7 @@
 import { Temporal } from 'temporal-polyfill';
 import type { Extent } from './extents.ts';
 import { idShard } from './read-path-shard.ts';
-import { HAULOUT_SITES_FILE, type HauloutSite } from './catalog.ts';
+import { HAULOUT_SITES_FILE, type AnimalName, type HauloutSite } from './catalog.ts';
 
 export type ReadSource = 'supabase' | 'static';
 
@@ -126,12 +126,18 @@ export async function fetchDayOccurrences<T extends Located>(
     throw new NotBuiltYet(`${url}: not built yet (covered through ${manifest?.covered_through ?? 'nothing'})`);
   }
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-  const day = await response.json() as T[];
-  if (!extent) return day;
-  // Inclusive on every side, as PostgREST's gte/lte were. A row with no
-  // location fails every comparison there, so it is excluded here too.
+  return withinExtent(await response.json() as T[], extent);
+}
+
+/**
+ * The rows inside `extent`, or all of them for none. Inclusive on every side, as
+ * PostgREST's gte/lte were. A row with no location fails every comparison there, so it
+ * is excluded here too.
+ */
+export function withinExtent<T extends Located>(rows: T[], extent: Extent | null): T[] {
+  if (!extent) return rows;
   const [minx, miny, maxx, maxy] = extent;
-  return day.filter(({location}) => {
+  return rows.filter(({location}) => {
     const lon = location?.lon ?? null;
     const lat = location?.lat ?? null;
     return lon !== null && lat !== null &&
@@ -261,6 +267,20 @@ export async function fetchStaticHauloutSites(): Promise<HauloutSite[]> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
   return await response.json() as HauloutSite[];
+}
+
+/**
+ * Names for specific entities, as fetchAnimalNames returns them, from the file the build
+ * publishes (scripts/read-path/profile-index.ts) rather than from the database.
+ */
+export async function fetchStaticAnimalNames(entityIds: readonly (string | null)[]): Promise<Map<string, AnimalName>> {
+  const wanted = new Set(entityIds.filter((id): id is string => !!id));
+  if (!wanted.size) return new Map();
+  const url = `${READ_PATH_BASE}animal-names.json`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  const rows = await response.json() as AnimalName[];
+  return new Map(rows.filter(row => wanted.has(row.entity_id)).map(row => [row.entity_id, row]));
 }
 
 /**

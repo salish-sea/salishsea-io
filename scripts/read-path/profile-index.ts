@@ -4,7 +4,7 @@
  *
  *   EXPORT_DIR=… node scripts/read-path/profile-index.ts <snapshot.duckdb> <dist>
  *
- * Writes three files into $EXPORT_DIR:
+ * Writes four files into $EXPORT_DIR:
  *
  * - redirects.json: each profile kind's designations, folded, mapped to the canonical
  *   address. A legacy or typed link (/individuals/T65A, /matrilines/T065As) is
@@ -15,6 +15,9 @@
  * - catalog-codes.json: the rows the map's sighting cards link designations from
  *   (src/individual-links.ts), in the shape its Supabase query returns, so a sighting
  *   that mentions T065A links to her page while the database is unreachable.
+ * - animal-names.json: every register name the map shows for an entity (the build's
+ *   animal_names), in the shape src/catalog.ts's fetchAnimalNames returns, so the
+ *   report form's species menu reads it without the database (decision 065).
  *
  * Only subjects the profile build writes a page for are listed (profiles.ts's
  * filters: an animal or a group with a register identifier, every haul-out site), so
@@ -24,14 +27,14 @@
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { ecotypePath, hauloutPath, individualPath, matrilinePath } from '../../src/catalog.ts';
+import { ecotypePath, hauloutPath, individualPath, matrilinePath, type AnimalName } from '../../src/catalog.ts';
 import { designationKey, type Redirects } from './redirect-keys.ts';
 import { SITE_ORIGIN } from './profile-document.ts';
 import { readSnapshot, type Doc, type Tables } from './snapshot-tables.ts';
 import type { CatalogCodeRows } from '../../src/individual-links.ts';
 
-const TABLES = ['individuals', 'designations', 'social_groups', 'haulouts'] as const;
-type IndexTables = Pick<Tables, (typeof TABLES)[number]>;
+const TABLES = ['individuals', 'designations', 'social_groups', 'haulouts', 'animal_names'] as const;
+type IndexTables = Pick<Tables, 'individuals' | 'designations' | 'social_groups' | 'haulouts'>;
 
 export { designationKey, matrilineKey, type Redirects } from './redirect-keys.ts';
 
@@ -83,6 +86,17 @@ export function buildRedirects(t: IndexTables): Redirects {
     }
     out.ids = ids;
     return out;
+}
+
+/** Every entity's names, by entity id, in the columns fetchAnimalNames reads. */
+export function buildAnimalNames(t: Pick<Tables, 'animal_names'>): AnimalName[] {
+    return t.animal_names
+        .filter(n => n['entity_id'])
+        .sort((a, b) => (a['entity_id'] < b['entity_id'] ? -1 : a['entity_id'] > b['entity_id'] ? 1 : 0))
+        .map(n => ({
+            entity_id: n['entity_id'], common_name: n['common_name'] ?? null, taxon_entity_id: n['taxon_entity_id'] ?? null,
+            taxon_common_name: n['taxon_common_name'] ?? null, inaturalist_scientific_name: n['inaturalist_scientific_name'] ?? null,
+        }));
 }
 
 /**
@@ -162,6 +176,7 @@ export async function main(): Promise<void> {
     await writeAtomically(path.join(exportDir, 'redirects.json'), JSON.stringify(redirects));
     await writeAtomically(path.join(exportDir, 'sitemap.xml'), sitemap);
     await writeAtomically(path.join(exportDir, 'catalog-codes.json'), JSON.stringify(buildCatalogCodes(tables)));
+    await writeAtomically(path.join(exportDir, 'animal-names.json'), JSON.stringify(buildAnimalNames(tables)));
     const counts = Object.entries(redirects).map(([k, v]) => `${Object.keys(v).length} ${k}`).join(', ');
     console.log(`redirects.json: ${counts}; sitemap.xml: ${paths.length} profiles`);
 }

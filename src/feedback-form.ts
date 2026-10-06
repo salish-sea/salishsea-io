@@ -2,6 +2,7 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 import { supabase } from './supabase.ts';
+import { submitFeedback as submitThroughApi, writeSource } from './write-api.ts';
 import { release, releaseIfKnown } from './release.ts';
 
 /** Where an unsent draft waits. One draft; the newest replaces the last. */
@@ -276,7 +277,7 @@ export default class FeedbackForm extends LitElement {
     // is in flight, and on a slow connection — the case this whole component is
     // built for — someone will carry on typing.
     const sent = this.draft;
-    const {error} = await supabase().rpc('submit_feedback', {
+    const fields = {
       name: sent.name,
       email: sent.email,
       message: sent.message,
@@ -286,7 +287,13 @@ export default class FeedbackForm extends LitElement {
       page_url: location.href.slice(0, 2000),
       user_agent: navigator.userAgent.slice(0, 500),
       release: releaseIfKnown().slice(0, 100),
-    });
+    };
+    let error: unknown = null;
+    if (writeSource() === 'api') {
+      try { await submitThroughApi(fields); } catch (err) { error = err; }
+    } else {
+      ({error} = await supabase().rpc('submit_feedback', fields));
+    }
 
     if (error) {
       // Keep the draft. The report is the valuable thing here, and the whole

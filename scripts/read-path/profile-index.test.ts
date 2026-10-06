@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { buildCatalogCodes, buildRedirects, buildSitemap, profilePaths } from './profile-index.ts';
+import { buildAnimalNames, buildCatalogCodes, buildRedirects, buildSitemap, profilePaths } from './profile-index.ts';
 import { redirectFor } from './redirect.ts';
 import { matrilineCodes, setCatalogCodes } from '../../src/individual-links.ts';
 import { individualPath, matrilinePath } from '../../src/catalog.ts';
@@ -188,5 +188,18 @@ describe('buildCatalogCodes', () => {
         const group = matrilineCodes()!.get('t65as')!;
         expect(matrilinePath(group)).toBe(buildRedirects(t).matrilines['t65a']);
         expect(matrilinePath(group)).toBe('/matrilines/0002163/T065As'); // the lowest-id published group
+    });
+});
+
+describe('animal-names.json', () => {
+    test("every entity's names, by entity id, in fetchAnimalNames's columns", () => {
+        expect(buildAnimalNames({animal_names: [
+            {entity_id: 'SSA:0000900', common_name: 'Killer whale', taxon_entity_id: 'SSA:0000900', taxon_common_name: 'Killer whale', inaturalist_scientific_name: 'Orcinus orca'},
+            {entity_id: 'SSA:0000001', common_name: null, taxon_entity_id: 'SSA:0000900', taxon_common_name: 'Killer whale', inaturalist_scientific_name: 'Orcinus orca ater', extra: 1},
+            {entity_id: null, common_name: 'x'},
+        ]})).toEqual([
+            {entity_id: 'SSA:0000001', common_name: null, taxon_entity_id: 'SSA:0000900', taxon_common_name: 'Killer whale', inaturalist_scientific_name: 'Orcinus orca ater'},
+            {entity_id: 'SSA:0000900', common_name: 'Killer whale', taxon_entity_id: 'SSA:0000900', taxon_common_name: 'Killer whale', inaturalist_scientific_name: 'Orcinus orca'},
+        ]);
     });
 });
