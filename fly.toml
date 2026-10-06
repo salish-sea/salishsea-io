@@ -4,15 +4,16 @@ app = "salishsea-io"
 # managed Postgres for when the database moves (decision 056, step 4).
 primary_region = "sjc"
 
-[build]
-  dockerfile = "fly/Dockerfile"
-
 # Stopping (decision 066): fly/start.sh traps SIGTERM, stops the write API (up to 10 s to
 # finish its requests) and lets Litestream make its final sync (up to 30 s of retries),
 # then Caddy. The timeout covers that with room; it doesn't cover a build, which a deploy
-# keeps from running by taking the build lock first (fly/deploy.sh).
+# keeps from running by taking the build lock first (fly/deploy.sh). These are top-level
+# keys, so they stay above the first [table]: below one, TOML files them under it.
 kill_signal = "SIGTERM"
 kill_timeout = 60
+
+[build]
+  dockerfile = "fly/Dockerfile"
 
 # What users write lives in the write API's store on the volume (decision 065, cut over
 # 2026-10-05): the API runs, under Litestream, and the build reads the store, not

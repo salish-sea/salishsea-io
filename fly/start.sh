@@ -34,14 +34,15 @@ aws_secret="${AWS_SECRET_ACCESS_KEY:-}"
 github_token="${FEEDBACK_GITHUB_TOKEN:-}"
 unset SESSION_SIGNING_KEY EDGE_SECRET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY FEEDBACK_GITHUB_TOKEN
 
-# Stopping (decision 066). Fly sends SIGTERM (fly.toml's kill_signal) to this process
-# alone, and the processes started below with & ignore SIGINT, so without this every
-# stop ended at Fly's SIGKILL. The write API goes first, and is waited for: Litestream
-# passes the signal on, the API finishes the requests in flight, and Litestream's final
-# sync carries their writes to the replica. Then Caddy and the redirect server. A build
-# isn't waited for: Fly has stopped routing to the machine by now, so waiting would be
-# downtime. A deploy takes the build lock before it stops the machine (fly/deploy.sh);
-# any other stop kills a running build, which the next one repairs.
+# Stopping (decision 066). Fly sends SIGTERM (fly.toml's kill_signal; SIGINT, its default,
+# is trapped too, in case that setting is lost) to this process alone, and the processes
+# started below with & ignore SIGINT, so without this every stop ended at Fly's SIGKILL.
+# The write API goes first, and is waited for: Litestream passes the signal on, the API
+# finishes the requests in flight, and Litestream's final sync carries their writes to
+# the replica. Then Caddy and the redirect server. A build isn't waited for: Fly has
+# stopped routing to the machine by now, so waiting would be downtime. A deploy takes the
+# build lock before it stops the machine (fly/deploy.sh); any other stop kills a running
+# build, which the next one repairs.
 caddy_pid='' redirect_pid='' api_pid='' cron_pid='' listen_pid=''
 # shellcheck disable=SC2329 # invoked by the trap below
 stop() {
@@ -58,7 +59,7 @@ stop() {
     wait $caddy_pid $redirect_pid || true
     exit 0
 }
-trap stop TERM
+trap stop TERM INT
 
 caddy run --config /app/fly/Caddyfile --adapter caddyfile &
 caddy_pid=$!
