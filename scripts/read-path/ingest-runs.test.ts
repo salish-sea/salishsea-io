@@ -9,7 +9,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { markTransientUpstream } from '../ingest/retry.ts';
-import { boundaryReceipt, recordedRun, runsPaths, type RunsFile } from './ingest-runs.ts';
+import { boundaryReceipt, isRefused, markRefused, recordedRun, runsPaths, type RunsFile } from './ingest-runs.ts';
 
 let dir: string;
 let mirror: string;
@@ -109,4 +109,18 @@ test('the boundary receipt says unchanged, changed, or unreachable — and an ou
     expect(down).not.toHaveProperty('unchanged');
     // a non-Error rejection still lands as text, capped so it fits a trace line
     expect(JSON.parse(boundaryReceipt({ok: false, error: 'x'.repeat(1000)}, null)).error).toHaveLength(300);
+});
+
+// The fourth arm (Stelis's st-8wt): the source was reached and what it offered was
+// refused by the loader's own rule. Its own arm, because the operator's next move differs
+// from an outage's — before this a refusal was reported as {unreachable: true}.
+test('a refusal is its own receipt arm, never "unreachable"', () => {
+    const refused = JSON.parse(boundaryReceipt(
+        {ok: false, error: markRefused(new Error('register v12 refused: it un-names 2 Maplify pair(s)'))}, null));
+    expect(refused).toEqual({refused: true, error: 'register v12 refused: it un-names 2 Maplify pair(s)'});
+    expect(refused).not.toHaveProperty('unreachable');
+    expect(isRefused(markRefused(new Error('x')))).toBe(true);
+    expect(isRefused(new Error('x'))).toBe(false);
+    expect(isRefused('x')).toBe(false);
+    expect(markRefused('x')).toBe('x');
 });
