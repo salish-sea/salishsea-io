@@ -11,7 +11,7 @@
 #   GITHUB_SHA         the commit, for the release a feedback report names (039)
 #   SOURCE_DATE_EPOCH  that commit's time: Stelis's build clock (its ADR 0004),
 #       which it would otherwise read from git, and the image carries no .git
-#   STELIS_SHA         the Stelis commit this image pins
+#   STELIS_SHA         the Stelis commit this image pins, from fly/stelis-commit
 
 ARG NODE_VERSION=24.13
 
