@@ -65,7 +65,7 @@ The write API runs under `litestream replicate -exec` ([`fly/litestream.yml`](..
 
 **On a fresh volume the store comes back by itself.** Before each start, `start.sh` runs `litestream restore -if-db-not-exists -if-replica-exists`. With the store present, or no replica yet, that does nothing. With the store gone and a replica in the bucket, it restores the latest state before the API can write.
 
-**A restore drill**, to run before the cutover and after any change to the replication. [`fly/restore-drill.sh`](../../fly/restore-drill.sh) restores the latest replicated state into a scratch file, never over the live store, and compares each table's row count with the store's. It exits non-zero if any differ:
+**A restore drill**, to run before the cutover and after any change to the replication. [`fly/restore-drill.sh`](../../fly/restore-drill.sh) restores the latest replicated state into a scratch file, never over the live store, and compares each table with the store's, by its row count and a hash of every row, so a changed row shows as well as a missing one. It exits non-zero if any differ:
 
 ```sh
 fly ssh console -a salishsea-io -C "setpriv --reuid=app --regid=app --init-groups env HOME=/home/app /app/fly/restore-drill.sh"
