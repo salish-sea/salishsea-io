@@ -441,6 +441,23 @@ Phase 5 owns:
 
 **Scope note.** This is an **ingest-side reference source**, not an occurrence-record redistribution question. If catalog/individual data derived from it is ever *exported* (e.g. a validated `organismID` to GBIF/OBIS), that export gets its own rights pass at that time — §7 authorizes internal use and in-app surfacing, not third-party redistribution of the compilation.
 
+### 7.2 NOAA NWFSC Southern Resident Census File (D-22)
+
+*Added 2026-09-29; adopted 2026-10-06, approved by Scott Veirs together with the register's choice of source, [animals ADR-0023](https://github.com/salish-sea/animals/blob/70461f3d3c30f1bcd3a324e3f501e845573b14d2/decisions/0023-southern-residents-from-noaas-census-file.md), tracked in [salish-sea/animals#44](https://github.com/salish-sea/animals/issues/44). This entry governs what we surface from it.*
+
+**Source.** `orca.csv` in NOAA Northwest Fisheries Science Center's [`noaa-nwfsc/srkw-status`](https://github.com/noaa-nwfsc/srkw-status) (the `kwdemog` R package, maintained by Eric J. Ward). It has one row per Southern Resident since the census began: designation, birth and death year, pod, founding matriline, mother and sex. The animals register imports it at a pinned commit, and it reaches this repository only through the register ([051](decisions/051-group-hierarchy-is-the-registers.md)).
+
+**Determination (D-22).** The file is used without asking permission:
+
+1. **It is a U.S. government work.** The repository's README says it "was created by U.S. Government employees as part of their official duties" and "is in the public domain within the United States" (17 U.S.C. §105).
+2. **Its content is factual anyway:** designations, years, sex and maternity. Facts are not copyrightable (*Feist*), which is the ground D-21 already stands on.
+
+The repository also carries a GPL-3 `LICENSE.md`, and its `DESCRIPTION` declares `GPL (>=3)`. That license governs the package's **code**. It cannot attach to public-domain facts, and we copy no code. This discrepancy is recorded so it is not rediscovered as a blocker.
+
+**Credit.** The observations behind the file are the Center for Whale Research's annual photo-identification census, made under NOAA contract. Wherever Southern Resident catalogue data is surfaced, **CWR is credited as the observer and NOAA NWFSC as the publisher of the table**. We credit CWR even though no license requires it: this is D-02's include-and-attribute default applied to a reference source. The courtesy request to CWR (the register's `CWR` source row, "not-yet-requested") stays open for what the file lacks, such as ID photos and guide content. It does not gate this data.
+
+**Not covered.** Nicknames and naming stories (The Whale Museum, the Samish Indian Nation and others) are not in this file. They get their own entry when a source is chosen, on D-21's terms: naming facts are used, and creative prose is restated, not reproduced. The same export caveat as §7.1 applies.
+
 ---
 
 ## Decision Index
@@ -470,6 +487,7 @@ All D-numbers are cited in the sections above. For reference:
 | D-19 | 1.2, 1.4 | `license_code = 'none'` and `IS NULL` are semantically distinct (`none` = "no license" terminal; NULL = "unknown" non-terminal); both excluded in v1.2; Phase 5 emits separate CASE branches |
 | D-20 | 1.1, 2.2, 3.2, 4.1–4.5 | Per-record `license` is per-source: native = CC-BY-NC 4.0; Maplify = CC-BY 4.0 (asserted upstream at Acartia cooperative). Resolves the rights gate for the Maplify branch; reframes §4 conferral as courtesy + reframes D-05 hold as data-QA gate. |
 | D-21 | 7.1 | Bigg's reference sheet: factual content (designations, genealogy, nickname etymology) is uncopyrightable and used freely; creative story prose stated as fact, not reproduced; compilation credited, not republished; ingest-side reference — any future export gets its own rights pass. |
+| D-22 | 7.2 | NOAA NWFSC `srkw-status` census file: a U.S. government work (17 U.S.C. §105) of facts, used without asking permission; the repo's GPL-3 covers its code, not the data; CWR credited as observer and NOAA as publisher; nicknames not covered; same export caveat as D-21. |
 
 ---
 
@@ -477,5 +495,6 @@ All D-numbers are cited in the sections above. For reference:
 *§6 (Dataset Identity & EML Content) added: 2026-06-17*
 *D-19 (NULL ≠ none semantics) and D-20 (per-source license, Acartia CC-BY for Maplify) added: 2026-06-17*
 *§7 (Reference & Catalog Source Rights) and D-21 (Bigg's reference sheet) added: 2026-07-07*
+*§7.2 and D-22 (NOAA NWFSC Southern Resident census file) added: 2026-09-29; adopted: 2026-10-06*
 *Phase: 04-rights-data-model-policy-gate*
 *Document home: `docs/rights-policy.md` (authored as `.planning/phases/04-rights-data-model-policy-gate/04-POLICY.md` in the v1.2 policy-gate phase; moved here in the 2026-07 GSD migration)*
