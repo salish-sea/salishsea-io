@@ -28,8 +28,10 @@
  *   POST   /api/feedback        a message       anyone (039), a few per sender per window;
  *                                             notifier.ts files it as a GitHub issue
  *
- * A change to a sighting wakes the build (BUILD_COMMAND, coalesced as the change listener
- * coalesces Realtime's signal), so the published files follow within a build.
+ * A change to a sighting wakes the build (BUILD_COMMAND: the snapshot and what derives from
+ * it, fly/start.sh), at once — the coalescer's quiet period was for Realtime's bursts, and
+ * the only signal now is this process's own, one per save — and spaced as the coalescer
+ * spaces builds, so the published files follow within about twenty seconds.
  *
  * Anything that changes state must come from an allowed origin: the cookie is SameSite=Lax,
  * and the Origin check is the second lock on the same door.
@@ -41,7 +43,7 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { WORKFLOW_AUTHOR } from '../scripts/feedback/filing.ts';
 import { ownOccurrence } from '../src/own-occurrence.ts';
-import { BuildCoalescer, commandBuild } from '../scripts/read-path/coalesce.ts';
+import { BuildCoalescer, commandBuild, DEFAULT_OPTIONS } from '../scripts/read-path/coalesce.ts';
 import { animalNames, type NamesLookup } from './animal-names.ts';
 import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
 import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './google.ts';
@@ -299,7 +301,9 @@ if (import.meta.main) {
     // (animal-names.ts); without it the read still answers, species unnamed.
     const exportDir = process.env['READ_PATH_EXPORT_DIR'] || undefined;
     if (!exportDir) console.warn('api: READ_PATH_EXPORT_DIR is not set, so a public sighting read names no species');
-    const coalescer = build.length > 0 ? new BuildCoalescer(commandBuild(build)) : null;
+    // No quiet period (salish-9uu.6): a save is one signal, and a visitor who has just
+    // saved is about to share the link. The spacing and the lock retry stay as they are.
+    const coalescer = build.length > 0 ? new BuildCoalescer(commandBuild(build), {...DEFAULT_OPTIONS, quietMs: 0}) : null;
     const db = openStore(store);
     if (githubToken && issueAuthor) {
         startNotifier(storeQueue(db, store), {

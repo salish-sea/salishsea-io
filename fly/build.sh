@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # One read-path build: snapshot the database, rewrite the files that changed.
+# Arguments go to Stelis, which is how the write API's build after a save is scoped
+# to the store and what derives from it (--downstream snapshot, salish-9uu.6): the
+# three ingests have their five-minute schedule, and a save should not wait on them.
 #
 # Under a lock, because the build assumes one writer: the day files are swapped
 # into place with two renames, and two builds interleaving would each move the
@@ -16,4 +19,4 @@ if ! flock -n 9; then
 fi
 
 cd /opt/stelis
-exec racket src/main.rkt --project salishsea --build --all --export-dir "$READ_PATH_EXPORT_DIR"
+exec racket src/main.rkt --project salishsea --build --all --export-dir "$READ_PATH_EXPORT_DIR" "$@"

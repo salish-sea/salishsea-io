@@ -3,11 +3,13 @@
  * (salish-t3g.6). Pure: the listener supplies the signals and the build, and the
  * tests supply the clock.
  *
- * The database announces changes in bursts: an ingest tick commits once per
- * source, a register reload touches everything. A build per signal would read
+ * The database announced changes in bursts: an ingest tick committed once per
+ * source, a register reload touched everything. A build per signal would read
  * production over and over for one burst, so this waits for `quietMs` of quiet —
  * but never longer than `maxWaitMs` after the first unhandled change, so a
- * steady trickle can't postpone a build forever.
+ * steady trickle can't postpone a build forever. Since the cutover the one signal
+ * is the write API's own, one per save, and it runs this with no quiet period
+ * (api/server.ts, salish-9uu.6); the defaults below are the listener's.
  *
  * Nothing is dropped. A change that arrives while a build runs may have missed
  * its snapshot, so it earns exactly one more build afterwards, however many
