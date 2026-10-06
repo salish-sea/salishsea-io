@@ -1,11 +1,3 @@
-// Stand in for the values infra-stack.ts bakes into config.js at synth.
-// Getters read overridable globals so a test can simulate a bundle whose
-// config was never baked (index.ts references the exports live, not by copy).
-jest.mock('./config', () => ({
-  get SUPABASE_URL() { return (globalThis as any).__testSupabaseUrl ?? 'https://test.supabase.co'; },
-  get SUPABASE_ANON_KEY() { return (globalThis as any).__testSupabaseKey ?? 'test-key'; },
-}));
-
 import { handler, idShard, WARMUP_WAIT_MS } from './index';
 
 // The handler emits structured JSON log lines (og-fetch, og-fail-open, …);
@@ -47,7 +39,7 @@ function servePublished(...occurrences: { id: string; [field: string]: unknown }
       return json(Object.fromEntries(occurrences.map(o => [o.id, '2025-06-03'])));
     if (url === 'https://salishsea.io/read-path/days/2025-06-03.json') return json(occurrences);
     // Nothing saved here since the last build.
-    if (url.includes('/rest/v1/occurrences?')) return json([]);
+    if (url.includes('/api/sightings/')) return { ok: false, status: 404, json: async () => ({ error: 'no such sighting' }) } as Response;
     throw new Error(`unexpected fetch ${url}`);
   });
 }
@@ -267,27 +259,39 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(idShard(id)).toBe(shard);
   });
 
-  it('asks Supabase, for native sightings only, about one no file holds yet', async () => {
+  it('asks the write API, for native sightings only, about one no file holds yet', async () => {
     const fresh = { ...sampleOccurrence, id: '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b' };
     const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation(async (input: any) => {
       const url = String(input);
       const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body } as Response);
       if (url.includes('/read-path/ids/')) return json({});
-      if (url.includes('/rest/v1/occurrences?')) return json([fresh]);
+      if (url === `https://salishsea.io/api/sightings/${fresh.id}`) return json({ occurrence: fresh });
       throw new Error(`unexpected fetch ${url}`);
     });
     const result = await handler(makeEvent('facebookexternalhit/1.1', `o=${fresh.id}`)) as { body: string };
     expect(result.body).toContain('Orca · June 3, 2025');
-    const supabase = fetchSpy.mock.calls.map(([u]) => String(u)).find(u => u.includes('/rest/v1/'));
-    expect(supabase).toContain(`id=eq.${fresh.id}`);
-    expect(supabase).toContain('contributor_id=not.is.null');
+    expect(fetchSpy.mock.calls.map(([u]) => String(u))).toContain(`https://salishsea.io/api/sightings/${fresh.id}`);
   });
 
-  it('never asks Supabase about an upstream id the files don\'t hold', async () => {
+  it('a native id the API has not got either falls back to the map page', async () => {
+    const id = '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
+    jest.spyOn(global, 'fetch').mockImplementation(async (input: any) => {
+      const url = String(input);
+      if (url.includes('/read-path/ids/')) return { ok: true, status: 200, json: async () => ({}) } as Response;
+      if (url.includes('/api/sightings/')) return { ok: false, status: 404, json: async () => ({ error: 'no such sighting' }) } as Response;
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const result = await handler(makeEvent('facebookexternalhit/1.1', `o=${id}`)) as { body: string };
+    // the site's own tags, not a sighting's
+    expect(result.body).toContain('og:title" content="Salish Sea');
+    expect(result.body).not.toContain('June 3, 2025');
+  });
+
+  it('never asks the API about an upstream id the files don\'t hold', async () => {
     const fetchSpy = servePublished();
     const result = await handler(makeEvent('facebookexternalhit/1.1', 'o=maplify:1')) as { body: string };
     expect(result.body).toContain('og:title');
-    expect(fetchSpy.mock.calls.map(([u]) => String(u)).some(u => u.includes('/rest/v1/'))).toBe(false);
+    expect(fetchSpy.mock.calls.map(([u]) => String(u)).some(u => u.includes('/api/'))).toBe(false);
   });
 
   it('an id naming an inherited property is not found in the index', async () => {
@@ -496,21 +500,6 @@ describe('Lambda@Edge OG meta handler', () => {
     }
   });
 
-  it('fails open to the origin when a native sighting needs Supabase and config was not baked', async () => {
-    const fetchSpy = servePublished();
-    (globalThis as any).__testSupabaseUrl = '';
-    (globalThis as any).__testSupabaseKey = '';
-    try {
-      const event = makeEvent('facebookexternalhit/1.1', 'o=abc123', '/');
-      const result = await handler(event);
-      expect(result).toBe(event.Records[0].cf.request);
-      expect(result.uri).toBe('/');
-      expect(fetchSpy.mock.calls.map(([u]) => String(u)).some(u => u.includes('/rest/v1/'))).toBe(false);
-    } finally {
-      delete (globalThis as any).__testSupabaseUrl;
-      delete (globalThis as any).__testSupabaseKey;
-    }
-  });
 });
 
 describe('L-01 carve-out: /dwca/* path-gate', () => {

@@ -390,6 +390,51 @@ test('a signed-in permalink to a native sighting deleted since the build does no
   }
 });
 
+test('a permalink to a sighting saved since the last build opens it from the API (salish-9uu.5)', async () => {
+  vi.stubEnv('VITE_READ_SOURCE', 'static');
+  vi.stubEnv('VITE_WRITE_SOURCE', 'api');
+  const fresh = '01977c2a-b313-77a9-8433-ffccbd56bf57';
+  const asked: string[] = [];
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
+    const u = String(url);
+    asked.push(u);
+    // no file holds it yet; the API, which holds what was saved, does
+    if (u.includes('/read-path/ids/')) return new Response(JSON.stringify({'maplify:1': '2025-03-09'}));
+    if (u.endsWith('/read-path/manifest.json')) return new Response(JSON.stringify({version: 1, covered_through: '2025-03-10'}));
+    if (u === `/api/sightings/${fresh}`)
+      return new Response(JSON.stringify({occurrence: occurrenceFixture(fresh, '2025-03-10T20:00:00Z', 7)}), {status: 200});
+    if (u.includes('/api/sightings/')) return new Response(JSON.stringify({error: 'no such sighting'}), {status: 404});
+    if (u.endsWith('/read-path/days/2025-03-10.json')) return new Response(JSON.stringify([]));
+    return new Response(null, {status: 404});
+  });
+  const el = document.createElement('salish-sea') as SalishSea;
+  const hydrate = (id: string) =>
+    (el as unknown as {hydrateFromOccurrenceId(id: string): Promise<void>}).hydrateFromOccurrenceId(id);
+  try {
+    document.body.appendChild(el);
+    await el.updateComplete;
+    const today = el.date;
+    Element.prototype.scrollIntoView = () => {};
+    await hydrate(fresh).catch(() => {});   // jsdom has no map to centre
+    expect(el.date).toBe('2025-03-10');
+    expect(asked).toContain(`/api/sightings/${fresh}`);
+
+    // an upstream id no file holds is not asked of the API: it comes with the build or not at all
+    asked.length = 0;
+    await hydrate('maplify:9');
+    expect(asked.some(u => u.includes('/api/sightings/'))).toBe(false);
+    // nor is a native id the API has not got an error: the quiet fallback, as ever
+    await hydrate('01977c2a-b313-77a9-8433-000000000000');
+    expect(el.date).toBe('2025-03-10');
+    void today;
+  } finally {
+    el.remove();
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+    vi.unstubAllEnvs();
+    fetchSpy.mockRestore();
+  }
+});
+
 test('in static mode, a new build makes a signed-in tab refetch its day too', async () => {
   vi.stubEnv('VITE_READ_SOURCE', 'static');
   vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']});

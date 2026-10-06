@@ -177,20 +177,44 @@ export function ownSightings(store: DatabaseSync, contributorId: number, since: 
     if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from >= to)
         throw bad('since and until must be times, since the earlier');
     if (to.getTime() - from.getTime() > MAX_SPAN_MS) throw bad('at most 400 days at once');
-    const rows = store.prepare(`SELECT id, observed_at, subject_lon, subject_lat, observer_lon, observer_lat, body, count,
-            direction, url, entity_id, contributor_id, updated_at
+    const rows = store.prepare(`${SELECT_SIGHTING}
         FROM observations WHERE contributor_id = ? AND observed_at >= ? AND observed_at < ? ORDER BY observed_at DESC, id`)
-        .all(contributorId, isoMicros(from), isoMicros(to)) as {
-            id: string, observed_at: string, subject_lon: number, subject_lat: number, observer_lon: number | null,
-            observer_lat: number | null, body: string | null, count: number | null, direction: string | null,
-            url: string | null, entity_id: string, contributor_id: number, updated_at: string}[];
-    const photos = store.prepare('SELECT href, license_code FROM observation_photos WHERE observation_id = ? ORDER BY seq');
-    return rows.map(r => ({
+        .all(contributorId, isoMicros(from), isoMicros(to)) as SightingRow[];
+    return rows.map(r => sightingFromRow(store, r));
+}
+
+const SELECT_SIGHTING = `SELECT id, observed_at, subject_lon, subject_lat, observer_lon, observer_lat, body, count,
+            direction, url, entity_id, contributor_id, updated_at`;
+type SightingRow = {
+    id: string, observed_at: string, subject_lon: number, subject_lat: number, observer_lon: number | null,
+    observer_lat: number | null, body: string | null, count: number | null, direction: string | null,
+    url: string | null, entity_id: string, contributor_id: number, updated_at: string};
+
+function sightingFromRow(store: DatabaseSync, r: SightingRow): OwnSighting {
+    const photos = store.prepare('SELECT href, license_code FROM observation_photos WHERE observation_id = ? ORDER BY seq')
+        .all(r.id) as {href: string, license_code: string}[];
+    return {
         id: r.id, observed_at: r.observed_at,
         location: {lon: r.subject_lon, lat: r.subject_lat},
         observed_from: r.observer_lon === null || r.observer_lat === null ? null : {lon: r.observer_lon, lat: r.observer_lat},
         body: r.body, count: r.count, direction: r.direction, url: r.url, entity_id: r.entity_id,
-        photos: (photos.all(r.id) as {href: string, license_code: string}[]).map(p => ({src: p.href, license: p.license_code})),
+        photos: photos.map(p => ({src: p.href, license: p.license_code})),
         contributor_id: r.contributor_id, updated_at: r.updated_at,
-    }));
+    };
+}
+
+/**
+ * One sighting by id, with its contributor's name, for anyone (salish-9uu.5): the bridge
+ * between a save and the build that publishes it, so a link shared at once opens and its
+ * preview renders. Everything here is public once published — the name is the published
+ * attribution — and a sighting the store holds is one the next build publishes, so this
+ * reveals nothing early except the sighting itself. Null when there is none; a malformed
+ * id is a 400, as a save's is.
+ */
+export function publicSighting(store: DatabaseSync, id: string): {sighting: OwnSighting, contributor: {name: string}} | null {
+    if (!UUID.test(id)) throw bad('a sighting id is a UUID');
+    const row = store.prepare(`${SELECT_SIGHTING}, (SELECT name FROM contributors WHERE id = contributor_id) AS contributor_name
+        FROM observations WHERE id = ?`).get(id) as (SightingRow & {contributor_name: string | null}) | undefined;
+    if (!row) return null;
+    return {sighting: sightingFromRow(store, row), contributor: {name: row.contributor_name ?? 'Anonymous'}};
 }

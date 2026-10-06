@@ -9,7 +9,7 @@
 // decision 019. A broken-image card would be worse than none.
 
 import { renderDayCard, renderOccurrenceCard } from './cards.js';
-import { configFromEnv, fetchDayOccurrences, fetchOccurrence } from './data.js';
+import { fetchDayOccurrences, fetchOccurrence } from './data.js';
 import { MISS as MISS_CACHE, cacheControlForDate, cacheControlForInstant } from './cache-control.js';
 import { isValidDate, pacificDayRange } from './pacific-day.js';
 
@@ -52,7 +52,7 @@ export const handler = async (event: FunctionUrlEvent): Promise<Result> => {
     const occurrenceMatch = path.match(OCCURRENCE_PATH);
     if (occurrenceMatch) {
       const id = decodeURIComponent(occurrenceMatch[1]!);
-      const occ = await fetchOccurrence(configFromEnv(), id);
+      const occ = await fetchOccurrence(id);
       if (!occ?.location) {
         console.log(JSON.stringify({ msg: 'card-miss', kind: 'occurrence', id }));
         return miss('no such occurrence, or it has no location');

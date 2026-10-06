@@ -1,12 +1,8 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
-// One line per container init: confirms which config the replica is running.
-// Edge logs land in a log group of the SAME NAME in the region that served the
-// request, not (only) us-east-1 — see the logGroup comment in infra-stack.ts.
-console.log(JSON.stringify({
-  msg: 'og-edge-init',
-  hasConfig: Boolean(SUPABASE_URL && SUPABASE_ANON_KEY),
-}));
+// One line per container init, so a replica's start is visible. Edge logs land in a
+// log group of the SAME NAME in the region that served the request, not (only)
+// us-east-1 — see the logGroup comment in infra-stack.ts.
+console.log(JSON.stringify({ msg: 'og-edge-init' }));
 
 const BOT_AGENTS = [
   'facebookexternalhit',
@@ -52,6 +48,8 @@ const MIN_FETCH_BUDGET_MS = 500;
 // same distribution, so a lookup is usually an edge cache hit. The sightings are
 // there, not in Supabase, since Postgres stopped ingesting the upstream sources.
 const READ_PATH = 'https://salishsea.io/read-path/';
+// The write API (decision 065), through the same distribution.
+const API = 'https://salishsea.io/api/';
 
 // Which file of the read-path id index holds an id: a hand copy of
 // src/read-path-shard.ts, which this bundle cannot import. FNV-1a over UTF-16 code
@@ -109,15 +107,6 @@ async function awaitWarmup(budgetMs: number): Promise<void> {
     new Promise<void>(resolve => { timer = setTimeout(resolve, budgetMs); }),
   ]);
   clearTimeout(timer);
-}
-
-function getCredentials(): { url: string; key: string } {
-  // Values are baked in at synth (see infra-stack.ts). Empty means a synth
-  // without --context supabaseAnonKey reached production — fail open, loudly.
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error('edge config missing: SUPABASE_URL / SUPABASE_ANON_KEY not baked at synth');
-  }
-  return { url: SUPABASE_URL, key: SUPABASE_ANON_KEY };
 }
 
 // Every read goes through here: the lookup's one deadline, one timing/status log
@@ -346,19 +335,16 @@ async function readPathOccurrence(id: string, deadline: number): Promise<Occurre
 }
 
 /**
- * A sighting saved here since the last build, which no file holds yet: native
- * sightings stay in Supabase (decision 061). An upstream id carries its source
- * (`maplify:…`); a native one is a bare uuid, and only those are asked.
+ * A sighting saved here since the last build, which no file holds yet: the write API
+ * (decision 065) answers anyone's read of it by id, as the build will publish it
+ * (salish-9uu.5), so a link shared the moment it was saved previews. An upstream id
+ * carries its source (`maplify:…`); a native one is a bare uuid, and only those are asked.
  */
 async function nativeOccurrence(id: string, deadline: number): Promise<Occurrence | null> {
   if (id.includes(':')) return null;
-  const { url, key } = getCredentials();
-  const res = await timedFetch('native',
-    `${url}/rest/v1/occurrences?id=eq.${encodeURIComponent(id)}&contributor_id=not.is.null` +
-    `&select=id,taxon,observed_at,count,photos,location,provider_slug,identifiers,observed_until,attribution&limit=1`,
-    deadline, { apikey: key, Authorization: `Bearer ${key}` });
+  const res = await timedFetch('native', `${API}sightings/${encodeURIComponent(id)}`, deadline);
   if (!res.ok) return null;
-  return (await res.json() as Occurrence[])[0] ?? null;
+  return (await res.json() as { occurrence: Occurrence | null }).occurrence ?? null;
 }
 
 export const handler = async (event: any): Promise<any> => {

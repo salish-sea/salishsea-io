@@ -1,5 +1,5 @@
 // The card renderer's reads: the read-path build's files (decisions 056, 061), and
-// Supabase only for a sighting saved here since the last build.
+// the write API only for a sighting saved here since the last build (salish-9uu.5).
 //
 // The renderer fetches its own data rather than having the edge handler pass it
 // in. That keeps the 128MB/5s viewer-request function thin — it only has to
@@ -25,11 +25,13 @@ interface OccurrenceRow {
 }
 
 const FETCH_TIMEOUT_MS = 4000;
-const SELECT = 'id,location,observed_at,count,taxon';
 
 // Where the read-path build's files are served: through the site's distribution, so a
 // read is usually a cache hit.
 const READ_PATH = 'https://salishsea.io/read-path/';
+// The write API (decision 065), which answers anyone's read of one sighting by id as the
+// build will publish it: the bridge between a save and the build that carries it.
+const API = 'https://salishsea.io/api/';
 
 /**
  * Which file of the read-path id index holds an id: a hand copy of
@@ -49,29 +51,6 @@ async function readPath(path: string): Promise<Response> {
   return await fetch(`${READ_PATH}${path}`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
 }
 
-export interface SupabaseConfig {
-  url: string;
-  key: string;
-}
-
-export function configFromEnv(): SupabaseConfig {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    throw new Error('card renderer needs SUPABASE_URL and SUPABASE_ANON_KEY');
-  }
-  return { url, key };
-}
-
-async function query(cfg: SupabaseConfig, path: string): Promise<unknown[]> {
-  const res = await fetch(`${cfg.url}/rest/v1/${path}`, {
-    headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`supabase ${res.status} for ${path}`);
-  return await res.json() as unknown[];
-}
-
 function toOccurrence(row: OccurrenceRow): Occurrence {
   return {
     id: row.id,
@@ -85,10 +64,12 @@ function toOccurrence(row: OccurrenceRow): Occurrence {
 /**
  * One occurrence, or null if the id is unknown: from the build's files, where the id
  * index names its day and the day's file holds it; failing that, for a native
- * sighting (a bare uuid; an upstream id carries its source, `maplify:…`), from
- * Supabase, which holds what people save here until a build publishes it.
+ * sighting (a bare uuid; an upstream id carries its source, `maplify:…`), from the
+ * write API, which holds what people save here until a build publishes it. Without
+ * that arm a link shared the moment a sighting was saved rendered no card, and the
+ * miss was cached for minutes after the files had caught up.
  */
-export async function fetchOccurrence(cfg: SupabaseConfig, id: string): Promise<Occurrence | null> {
+export async function fetchOccurrence(id: string): Promise<Occurrence | null> {
   const shard = await readPath(`ids/${idShard(id)}.json`);
   if (!shard.ok && shard.status !== 404) throw new Error(`read path ids: HTTP ${shard.status}`);
   const days = shard.ok ? await shard.json() as Record<string, unknown> : {};
@@ -99,10 +80,13 @@ export async function fetchOccurrence(cfg: SupabaseConfig, id: string): Promise<
     if (row) return toOccurrence(row);
   }
   if (id.includes(':')) return null;
-  const rows = await query(cfg,
-    `occurrences?id=eq.${encodeURIComponent(id)}&contributor_id=not.is.null&select=${SELECT}&limit=1`);
-  const row = rows[0] as OccurrenceRow | undefined;
-  return row ? toOccurrence(row) : null;
+  const res = await fetch(`${API}sightings/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  // 404: no such sighting. 400: not a sighting id at all (a native id is a uuid), which is
+  // as much a miss as an unknown one, and a cacheable one rather than a 500 per crawler.
+  if (res.status === 404 || res.status === 400) return null;
+  if (!res.ok) throw new Error(`api sighting ${id}: HTTP ${res.status}`);
+  const { occurrence } = await res.json() as { occurrence: OccurrenceRow | null };
+  return occurrence ? toOccurrence(occurrence) : null;
 }
 
 /** A Pacific day's file, newest first; a day with none has no file. */

@@ -17,7 +17,7 @@ import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchLastOwnOccurrence } from "./occurrence.ts";
 import { supabase } from "./supabase.ts";
 import { fetchDayOccurrences, fetchStaticAnimalNames, findOccurrence, NotBuiltYet, overlayNative, pacificDay, readSource, watchManifest, withinExtent } from "./read-path.ts";
-import { fetchMe, fetchOwnSightings, overlayOwn, ownOccurrence, signIn as apiSignIn, signOut as apiSignOut, writeSource, type Me } from "./write-api.ts";
+import { fetchMe, fetchOwnSightings, fetchPublicSighting, overlayOwn, ownOccurrence, signIn as apiSignIn, signOut as apiSignOut, writeSource, type Me } from "./write-api.ts";
 import type { PatchedDatabase } from "./types.ts";
 import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
@@ -838,6 +838,13 @@ export default class SalishSea extends LitElement {
       if (!occurrence) {
         const fromFile = await findOccurrence<Occurrence>(id);
         occurrence = this.user && writeSource() === 'supabase' && fromFile?.contributor_id != null ? null : fromFile;
+      }
+      // A native sighting no file holds yet — saved since the last build, and shared at
+      // once — is in the store, which the API answers for anyone (salish-9uu.5). Only a
+      // bare uuid is asked about: an upstream id carries its source (`maplify:…`) and
+      // comes with the build or not at all.
+      if (!occurrence && writeSource() === 'api' && !id.includes(':')) {
+        occurrence = await fetchPublicSighting(id);
       }
     } else {
       const {data, error} = await supabase()

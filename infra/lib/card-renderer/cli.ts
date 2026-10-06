@@ -5,11 +5,11 @@
 //   node lib/card-renderer/cli.js day 2026-07-27 out.jpg
 //
 // `point` needs no credentials, which makes it the fastest way to eyeball the
-// basemap and chrome. The other two read SUPABASE_URL / SUPABASE_ANON_KEY.
+// basemap and chrome. The other two read the published files, and the write API.
 
 import { writeFileSync } from 'node:fs';
 import { renderDayCard, renderOccurrenceCard } from './cards.js';
-import { configFromEnv, fetchDayOccurrences, fetchOccurrence, type Occurrence } from './data.js';
+import { fetchDayOccurrences, fetchOccurrence, type Occurrence } from './data.js';
 
 async function main(): Promise<number> {
   const [mode, ...rest] = process.argv.slice(2);
@@ -41,8 +41,7 @@ async function main(): Promise<number> {
   if (mode === 'occurrence') {
     const [id, out] = rest;
     if (!id || !out) throw new Error('usage: occurrence <id> <out.jpg>');
-    const cfg = configFromEnv();
-    const occ = await fetchOccurrence(cfg, id);
+    const occ = await fetchOccurrence(id);
     if (!occ) throw new Error(`no occurrence ${id}`);
     writeFileSync(out, await renderOccurrenceCard(occ));
     console.log(`wrote ${out} (${occ.species}, ${occ.location?.lon}, ${occ.location?.lat})`);
