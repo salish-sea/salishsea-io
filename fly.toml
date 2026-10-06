@@ -7,6 +7,13 @@ primary_region = "sjc"
 [build]
   dockerfile = "fly/Dockerfile"
 
+# What users write lives in the write API's store on the volume (decision 065, cut over
+# 2026-10-05): the API runs, under Litestream, and the build reads the store, not
+# Postgres (docs/runbook/read-path-build.md, "The write API").
+[env]
+  API_ENABLED = "1"
+  READ_PATH_STORE = "/data/store/salishsea.db"
+
 # One machine, always running: it holds the volume and the hourly schedule, so it
 # cannot stop when idle, and there is no second machine to share the volume with.
 [http_service]
