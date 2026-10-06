@@ -11,7 +11,7 @@ Push to `main` → GitHub Actions [`deploy.yml`](../../.github/workflows/deploy.
 CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.16`). It serves the site, runs the read-path build and holds the write API. The workflow's **Fly app** job deploys it on every push to `main`, after the deploy job has migrated the database and updated AWS (`salish-t3g.5`). It runs [`fly/deploy.sh`](../../fly/deploy.sh), and the same script redeploys by hand from a clean checkout:
 
 ```sh
-fly/deploy.sh      # see its header
+fly/deploy.sh      # build, then switch; `build` or `switch` alone. See its header.
 ```
 
 The job authenticates with `FLY_API_TOKEN`, a secret in the `production` environment holding an app-scoped deploy token. That token can also `fly ssh` to the machine, which is how the build lock is taken. The deploy job refuses to start without it, before it changes anything. To rotate it:
@@ -28,7 +28,7 @@ The script builds and pushes the image first, tagged with the commit and the Ste
 
 A green Deploy run therefore means the merged commit is what salishsea.io serves, and its smoke job tested that image. Check with `curl -s https://salishsea.io/release.json`.
 
-**Rollback is a Fly image, not the S3 bucket.** Every Fly deploy is a release with a retained image:
+**Rollback is a Fly image.** Every Fly deploy is a release with a retained image:
 
 ```sh
 fly releases -a salishsea-io --image                      # pick the last good one
@@ -39,23 +39,21 @@ Images deployed since decision 066 are tagged with their commit and Stelis's. Ea
 
 The image carries the site bundle, the read-path scripts and the pinned Stelis together, so rolling it back rolls all three back; the data on the volume (`/data`: the snapshot, the mirrors, the build history) stays as it is, and the next build at the old pin runs over it. Two things a release does not carry: `fly deploy --image` applies the `fly.toml` of the checkout you run it from, so check out the release's commit first (the `GITHUB_SHA` build arg in `fly/deploy.sh` is how an image names its commit); and Fly secrets, which are set on the app, not in a release. The one thing an image rollback cannot undo is a migration `deploy.yml` applied to Postgres in the meantime — forward-only, as above.
 
-Pointing CloudFront's default behaviour back at S3 ([`infra-stack.ts`](../../infra/lib/infra-stack.ts), the previous rollback) now serves a **degraded** site, not an older one: since migration `20261004120000` Postgres no longer ingests Orcasound or iNaturalist, so the Supabase-mode site frozen in the bucket shows no bout and no iNaturalist observation after 2026-10-04, and once Maplify's ingest is unscheduled too it shows nothing new at all. Use it only if the Fly app itself is unreachable, and say so on the status issue.
-
 The run is these jobs ([decision 024](../decisions/024-deploy-gating-and-alerting.md)):
 
 | Job | What it does |
 |---|---|
 | **Test** | Calls [`build.yml`](../../.github/workflows/build.yml) — the same suite PRs run (type drift, build, unit tests, infra tests) against the commit being deployed. Nothing reaches production without it. |
-| **Build** | Builds the production bundle with the `production` environment's vars/secrets; uploads `dist` + `supabase` as artifacts. Runs alongside Test. |
-| **Deploy** | `supabase db push` → S3 sync → CloudFront invalidation → `cdk deploy`. Not atomic; see below. |
-| **Fly app** | `fly/deploy.sh` from a clean checkout: the image builds on Fly's remote builder, then the build lock is taken and the image deployed. A failure here leaves the previous image serving, with the database already migrated. |
+| **Fly image** | `fly/deploy.sh build`: builds the image on Fly's remote builder and pushes it, tagged with the commit and the Stelis pin, alongside Test (`salish-t3g.10`). Nothing in production changes. The build uploads the bundle's source maps to Sentry. An image that won't build, or a `FLY_API_TOKEN` that can't, stops the run here, before any migration. |
+| **Deploy** | `supabase db push` → `cdk deploy`. Waits for both Test and Fly image. Not atomic; see below. |
+| **Fly app** | `fly/deploy.sh switch` after the deploy job: takes the machine's build lock, then deploys the pushed image (decision 066). A failure here leaves the previous image serving, with the database already migrated; `fly/deploy.sh switch` from that commit retries it. |
 | **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`, after the Fly app job, or after the deploy job alone if the Fly job failed: a migrated database under the previous image is what most needs checking. A production that doesn't answer correctly fails the deploy run. The OG specs first wait up to five minutes for the edge handler to replicate; a new Lambda@Edge version is not at every edge location the moment `cdk deploy` returns. |
 | **Register** | Calls [`register-refresh.yml`](../../.github/workflows/register-refresh.yml) after the deploy job: reloads the register into the database just migrated and checks it arrived. Runs alongside the Fly app job; a failure here is a register load failing, not the site. |
 | **Alert / Resolve** | On failure, opens or updates the single `deploy-failed` issue; on a fully green run, closes it. |
 
 Two things to know when reading a red run:
 
-- **A red Deploy does not imply production changed.** If *Test* or *Build* failed, the deploy job never ran and production was untouched — that is the gate working. The failure issue says which case it is.
+- **A red Deploy does not imply production changed.** If *Test* or *Fly image* failed, the deploy job never ran and production was untouched — that is the gate working. The failure issue says which case it is.
 - **There is no automatic rollback, on purpose.** `supabase db push` is forward-only, so reverting the frontend alone would point old code at a migrated schema. If the deploy job failed partway, everything before the failing step already landed; read the log to see how far it got, and fix forward.
 
 An open `deploy-failed` issue means a run failed and has not been followed by a green one. **Read its first bold line before assuming production is broken** — the issue states whether the run got past the deploy job's point of no return (`Production may be partially updated`) or failed before it (`Production was not touched`). Either way the next green deploy closes it, so it should not need manual triage-and-close.
@@ -84,25 +82,9 @@ aws cloudformation continue-update-rollback --stack-name <edge-lambda-stack-…>
 
 The churn is inherent to `cloudfront.experimental.EdgeFunction` (a new version per deploy); there is no clean CDK knob to retain old versions.
 
-## Gotcha 2 — "Cannot update bucket policy of an imported bucket"
+## Gotcha 2 — "Cannot update bucket policy of an imported bucket" (retired)
 
-**Symptom.** On synth/deploy:
-
-> `[/InfraStack/SalishSeaDist/Origin1] Cannot update bucket policy of an imported bucket. You will need to update the policy manually instead.`
-
-**Why.** The site bucket is imported by name and attached as an Origin Access Control origin ([`infra-stack.ts`](../../infra/lib/infra-stack.ts), `Bucket.fromBucketName` + `S3BucketOrigin.withOriginAccessControl`). CDK won't write the bucket policy of a bucket it doesn't own, so the OAC `s3:GetObject` grant is maintained **by hand** on the `salishsea-io` bucket.
-
-**Is it a problem?** Benign as long as the existing bucket policy already grants the serving distribution's OAC — which it does whenever the site is serving assets. It only bites if a deploy creates a **new** distribution (new OAC `SourceArn`): S3 origin fetches then 403 until you add the grant manually (`originPath` is `/site`, so the resource is `/site/*`):
-
-```json
-{
-  "Effect": "Allow",
-  "Principal": { "Service": "cloudfront.amazonaws.com" },
-  "Action": "s3:GetObject",
-  "Resource": "arn:aws:s3:::salishsea-io/site/*",
-  "Condition": { "StringEquals": { "AWS:SourceArn": "arn:aws:cloudfront::<acct-id>:distribution/<dist-id>" } }
-}
-```
+This was about the `salishsea-io` site bucket as a CloudFront origin. Since 2026-10-03 the default origin is the Fly app and the bucket is no origin at all, and since `salish-t3g.10` the deploy no longer syncs a site into it. Its `site/` prefix holds the last Supabase-mode build, frozen on 2026-10-06. The heading stays so later gotchas keep their numbers.
 
 ## Gotcha 3 — re-running an old deploy rolls production back
 
