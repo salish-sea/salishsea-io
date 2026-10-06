@@ -20,6 +20,12 @@ ARG NODE_VERSION=24.13
 
 # --- the site, built to read the read-path files -----------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS site
+# The slim image has no CA store. Node carries its own, so installs work without one,
+# but sentry-cli, which uploads the source maps, is a native binary that reads the
+# system's, and without it every upload fails its TLS handshake.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
