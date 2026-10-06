@@ -59,6 +59,27 @@ Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment be
   fly secrets set -a salishsea-io --stage FEEDBACK_GITHUB_TOKEN=<token> FEEDBACK_ISSUE_AUTHOR=<its login>
   ```
 
+### The cutover, once (salish-9uu.3.8)
+
+Supabase stops taking writes first: from 2026-10-05 the project is restricted for going over its egress quota, which blocks every API write. Otherwise, revoke the write grants. Then:
+
+1. **The store, from Postgres:** `node api/store/copy-from-postgres.ts /tmp/salishsea.db --linked grztmjpzamcxlzecmqca`, from a laptop with the Supabase CLI linked.
+2. **The photos:** [`api/store/move-photos.ts`](../../api/store/move-photos.ts) plans each Supabase-kept photo's move from the nightly backup's mirror (`s3://salishsea-io-backups/media/`) to its place in the photo bucket, and then rewrites the store's URLs:
+
+   ```sh
+   node api/store/move-photos.ts /tmp/salishsea.db plan > /tmp/moves.tsv
+   while IFS=$'\t' read -r from to type; do
+     aws s3 cp --profile orcasound "s3://salishsea-io-backups/$from" "s3://salishsea-io-media/$to" \
+       --content-type "$type" --cache-control max-age=259200 --metadata-directive REPLACE --only-show-errors
+   done < /tmp/moves.tsv
+   node api/store/move-photos.ts /tmp/salishsea.db rewrite
+   ```
+
+   Every photo the store names must then answer 200 at its `salishsea.io/media/` URL.
+3. **The store onto the volume**, in maintenance mode: `fly ssh sftp shell` to put it at `/data/store/salishsea.db`, then `chown app:app` it.
+4. **The switch, in one deploy:** `SESSION_SIGNING_KEY` set (`openssl rand -base64 32`); `fly.toml`'s `[env]` gains `API_ENABLED = "1"` and `READ_PATH_STORE = "/data/store/salishsea.db"`; the Dockerfile's `VITE_WRITE_SOURCE` becomes `api`. Maintenance mode is left as the deploy restarts the machine. Litestream finds the store present and starts replicating it.
+5. **Verify:** the build's snapshot says `(from the store)`; the restore drill passes; someone signs in, saves, edits, deletes, uploads a photo and sends feedback.
+
 ## The store's replica: Litestream
 
 The write API runs under `litestream replicate -exec` ([`fly/litestream.yml`](../../fly/litestream.yml), started by `fly/start.sh`), so the store is replicated to `s3://salishsea-io-store-replica/store/salishsea.db` (Orcasound account, us-west-2) for exactly as long as the API can write it, about a second behind each write. A full snapshot is taken daily and kept thirty days, which is how far back a point-in-time restore reaches. If the API or Litestream exits, both are restarted together.

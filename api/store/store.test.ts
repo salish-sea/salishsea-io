@@ -126,3 +126,43 @@ describe.skipIf(!DSN)('the copy from Postgres (local Supabase)', () => {
 });
 
 class RolledBack extends Error {}
+
+describe('the photo move (salish-9uu.3.8)', () => {
+    test("Supabase's photos move under their contributor's folder; the rest stay; a cloned sighting keeps its folder", async () => {
+        const {planMoves, rewriteHrefs, SUPABASE_MEDIA} = await import('./move-photos.ts');
+        const db = openStore(path.join(dir, 'store.db'));
+        fixtures(db);
+        db.exec(sighting('s1'));
+        db.exec(sighting('s2'));
+        const photo = (o: string, seq: number, href: string) =>
+            db.prepare('INSERT INTO observation_photos (observation_id, seq, href, license_code) VALUES (?, ?, ?, ?)').run(o, seq, href, 'cc-by');
+        photo('s1', 1, `${SUPABASE_MEDIA}u1/s1/a.jpg`);
+        photo('s2', 1, `${SUPABASE_MEDIA}u1/s1/a.jpg`);  // cloned from s1
+        photo('s2', 2, `${SUPABASE_MEDIA}u1/s2/b.JPEG`);
+        photo('s2', 3, 'https://salishsea-io.s3.us-west-2.amazonaws.com/old.jpg');
+        expect(planMoves(db)).toEqual([
+            {from: 'media/u1/s1/a.jpg', to: 'media/1/s1/a.jpg', type: 'image/jpeg'},
+            {from: 'media/u1/s2/b.JPEG', to: 'media/1/s2/b.JPEG', type: 'image/jpeg'},
+        ]);
+        expect(rewriteHrefs(db)).toBe(3);
+        expect(db.prepare('SELECT observation_id, seq, href FROM observation_photos ORDER BY observation_id, seq').all()).toEqual([
+            {observation_id: 's1', seq: 1, href: 'https://salishsea.io/media/1/s1/a.jpg'},
+            {observation_id: 's2', seq: 1, href: 'https://salishsea.io/media/1/s1/a.jpg'},
+            {observation_id: 's2', seq: 2, href: 'https://salishsea.io/media/1/s2/b.JPEG'},
+            {observation_id: 's2', seq: 3, href: 'https://salishsea-io.s3.us-west-2.amazonaws.com/old.jpg'},
+        ]);
+        expect(planMoves(db)).toEqual([]);
+        db.close();
+    });
+
+    test('a photo whose user the store lacks stops the plan', async () => {
+        const {planMoves, SUPABASE_MEDIA} = await import('./move-photos.ts');
+        const db = openStore(path.join(dir, 'store.db'));
+        fixtures(db);
+        db.exec(sighting('s1'));
+        db.prepare('INSERT INTO observation_photos (observation_id, seq, href, license_code) VALUES (?, ?, ?, ?)')
+            .run('s1', 1, `${SUPABASE_MEDIA}nobody/s1/a.jpg`, 'cc-by');
+        expect(() => planMoves(db)).toThrow(/user nobody is not in the store/);
+        db.close();
+    });
+});
