@@ -62,6 +62,11 @@ export const REGISTER_TABLES: readonly {table: string, dir: 'data' | 'dist', fil
     // (refresh_individual_vitals); the build's catalogue derives them (catalogue.ts).
     {table: 'vitals', dir: 'data', file: 'entities', select: 'entity_id, sex, born'},
     {table: 'current_status', dir: 'dist', select: 'entity_id, status'},
+    // Each taxon's lineage up to its kingdom: what makes a species a cetacean, for the
+    // whales page (salish-nkbq). classification stops at order, and a whale's order is
+    // Artiodactyla, which deer share.
+    {table: 'taxon_ancestor', dir: 'dist', select:
+        'taxon_id, ancestor_id, CAST(depth AS INTEGER) AS depth, ancestor_rank, ancestor_name'},
 ];
 
 /** The tag `releases/latest` redirects to: one request, nothing downloaded. */

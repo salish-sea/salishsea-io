@@ -35,6 +35,12 @@ const DOT_RADIUS = 6;
 const DOT_OPACITY = 0.5;
 /** Reports this close together, in the map's units, are drawn as one darker circle. */
 const DOT_GRID = 2;
+/**
+ * Past this many reports on one map, each is drawn fainter, by the square root of how many
+ * more there are, or the busiest maps go solid black and show no water at all: the whales
+ * page's killer whales are 22,000 reports. Every matriline map is below it.
+ */
+const DENSE = 1500;
 
 /** Web Mercator pixel coordinates at ZOOM. */
 function project(lon: number, lat: number): [number, number] {
@@ -51,12 +57,17 @@ const [X1, Y1] = project(SMALL_MAP_EXTENT.east, SMALL_MAP_EXTENT.south).map(Math
 const WIDTH = X1 - X0;
 const HEIGHT = Y1 - Y0;
 
-/** The basemap every small map shares, as SVG. Path order is Esri's: /z/y/x. */
+/**
+ * The basemap every small map shares, as SVG. Path order is Esri's: /z/y/x. Every element
+ * here and in the dots is closed explicitly: Lit's server renderer parses this markup as
+ * HTML, where a self-closing <circle/> doesn't close, so each would nest in the last and a
+ * map of thousands overflows the stack.
+ */
 const BASEMAP = (() => {
   const tiles: string[] = [];
   for (let ty = Math.floor(Y0 / TILE); ty * TILE < Y1; ty++)
     for (let tx = Math.floor(X0 / TILE); tx * TILE < X1; tx++)
-      tiles.push(`<image href="${TILE_URL}/${ZOOM}/${ty}/${tx}" x="${tx * TILE - X0}" y="${ty * TILE - Y0}" width="${TILE}" height="${TILE}"/>`);
+      tiles.push(`<image href="${TILE_URL}/${ZOOM}/${ty}/${tx}" x="${tx * TILE - X0}" y="${ty * TILE - Y0}" width="${TILE}" height="${TILE}"></image>`);
   return tiles.join('');
 })();
 
@@ -77,10 +88,11 @@ export function smallMapDots(dots: readonly MapDot[]): { svg: string, shown: num
     cells.set(key, (cells.get(key) ?? 0) + 1);
     shown++;
   }
+  const each = shown > DENSE ? DOT_OPACITY * Math.sqrt(DENSE / shown) : DOT_OPACITY;
   const svg = [...cells].sort(([a], [b]) => a.localeCompare(b)).map(([key, n]) => {
     const [cx, cy] = key.split(',');
-    const opacity = 1 - (1 - DOT_OPACITY) ** n;
-    return `<circle cx="${cx}" cy="${cy}" r="${DOT_RADIUS}" fill-opacity="${opacity.toFixed(2)}"/>`;
+    const opacity = 1 - (1 - each) ** n;
+    return `<circle cx="${cx}" cy="${cy}" r="${DOT_RADIUS}" fill-opacity="${opacity.toFixed(2)}"></circle>`;
   }).join('');
   return { svg, shown };
 }
@@ -90,7 +102,7 @@ export function smallMapDots(dots: readonly MapDot[]): { svg: string, shown: num
  * location, says nothing: the page's note covers that. A map that draws none says so,
  * or it would look broken.
  */
-function countLabel(total: number, shown: number): string {
+export function countLabel(total: number, shown: number): string {
   const reports = `${total.toLocaleString('en-US')} report${total === 1 ? '' : 's'}`;
   return shown ? reports : `${reports}, none here`;
 }
@@ -128,7 +140,7 @@ export const smallMapStyles = css`
     font-weight: 400;
     margin-left: 0.25rem;
   }
-  ul.small-maps svg {
+  svg.small-map {
     background: #c4daea;
     border: 1px solid #e2e8f0;
     display: block;
@@ -136,7 +148,7 @@ export const smallMapStyles = css`
     margin-top: 0.25rem;
     width: 100%;
   }
-  ul.small-maps circle {
+  svg.small-map circle {
     fill: #1a1a1a;
   }
   .small-maps-credit {
@@ -146,21 +158,37 @@ export const smallMapStyles = css`
   }
 `;
 
-/** The maps, in the order given, and the basemap's credit. */
+/** Required wherever the maps appear, by the basemap's terms (decision 020). */
+export const renderSmallMapsCredit = () =>
+  html`<p class="small-maps-credit">Base maps by Esri and its data providers</p>`;
+
+/**
+ * One small map of these reports, and how many of them it draws. `subject` finishes
+ * "where … have been reported" for a screen reader.
+ */
+export function renderSmallMap(dots: readonly MapDot[], subject: string) {
+  const { svg, shown } = smallMapDots(dots);
+  return {
+    map: html`<svg class="small-map" viewBox="0 0 ${WIDTH} ${HEIGHT}" width=${WIDTH} height=${HEIGHT} role="img"
+      aria-label="Map of where ${subject} have been reported">${unsafeSVG(BASEMAP + svg)}</svg>`,
+    shown,
+  };
+}
+
+/** The maps as a grid, in the order given, each under its label, and the basemap's credit. */
 export function renderSmallMaps(maps: readonly SmallMap[]) {
   if (!maps.length) return nothing;
   return html`
     <ul class="small-maps">
       ${maps.map(({ href, label, dots }) => {
-        const { svg, shown } = smallMapDots(dots);
+        const { map, shown } = renderSmallMap(dots, `the ${label}`);
         return html`<li>
           <a href=${href}><span class="label">${label}<span class="count">${countLabel(dots.length, shown)}</span></span>
-            <svg viewBox="0 0 ${WIDTH} ${HEIGHT}" width=${WIDTH} height=${HEIGHT} role="img"
-              aria-label="Map of where the ${label} have been reported">${unsafeSVG(BASEMAP + svg)}</svg>
+            ${map}
           </a>
         </li>`;
       })}
     </ul>
-    <p class="small-maps-credit">Base maps by Esri and its data providers</p>
+    ${renderSmallMapsCredit()}
   `;
 }

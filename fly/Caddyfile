@@ -138,6 +138,24 @@
 		}
 	}
 
+	# The whales page the build writes (salish-nkbq, scripts/read-path/whales.ts); its
+	# shell, which says the list isn't ready, until the first build has run.
+	handle /whales {
+		header Cache-Control "no-cache"
+		root * /data/export
+		@whalesBuilt file /whales.html
+		handle @whalesBuilt {
+			rewrite * /whales.html
+			file_server
+		}
+		handle {
+			root * /app/dist
+			rewrite * /whales.html
+			file_server
+		}
+	}
+	redir /whales.html /whales permanent
+
 	# The sitemap the build writes, with every profile in it; the site's own,
 	# from the image, until the first build has run.
 	handle /sitemap.xml {

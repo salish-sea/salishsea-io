@@ -34,6 +34,7 @@ import { createRef, ref } from "lit/directives/ref.js";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Contributor, Occurrence } from "./types.ts";
 import lockupUrl from "./assets/lockup-dark.svg?url";
+import { renderSiteNav } from './site-nav.ts';
 
 initSentry();
 
@@ -104,9 +105,38 @@ export default class SalishSea extends LitElement {
     a {
       text-decoration: none;
     }
-    .about-link {
-      color: inherit;
-      font-size: 1rem;
+    /* The site's nav (src/site-nav.ts), light on the header's dark blue. */
+    nav.site-nav {
+      display: flex;
+      gap: 1rem;
+      margin: 0 auto 0 1rem;
+    }
+    nav.site-nav a {
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 0.95rem;
+    }
+    nav.site-nav a:hover,
+    nav.site-nav a[aria-current="page"] {
+      color: white;
+    }
+    nav.site-nav a[aria-current="page"] {
+      font-weight: 600;
+    }
+    header > div {
+      flex-shrink: 0;
+    }
+    /* A phone: the logo, three links and the login button share 390 pixels. */
+    @media (max-width: 30rem) {
+      h1 img {
+        height: 1.375rem;
+      }
+      nav.site-nav {
+        gap: 0.75rem;
+        margin-left: 0.75rem;
+      }
+      nav.site-nav a {
+        font-size: 0.875rem;
+      }
     }
 
     header {
@@ -481,7 +511,8 @@ export default class SalishSea extends LitElement {
 
     return html`
       <header>
-        <h1><img src=${lockupUrl} alt="SalishSea.io"> <a class="about-link" href="/about.html" title="About SalishSea.io" aria-label="About SalishSea.io">&#9432;</a></h1>
+        <h1><img src=${lockupUrl} alt="SalishSea.io"></h1>
+        ${renderSiteNav('map')}
         <div>
           <login-button></login-button>
         </div>
