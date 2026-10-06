@@ -119,6 +119,10 @@ Rehearsed on 2026-10-05 against the bucket, with a copy of production's rows und
 | `/data/export/` | every published file | derived |
 | `/app/data/maplify-unnamed.tsv` | the curator's allow-list of accepted un-namings | from git, in the image |
 
+## Stopping and restarting
+
+On `SIGTERM` (`fly.toml`'s `kill_signal`; a deploy, `fly machine restart`, `fly machine stop`), `fly/start.sh` stops the schedule, then the write API, waiting while Litestream makes its final sync, then Caddy. All of that fits in a few seconds of `kill_timeout`'s sixty. A running build is not waited for: Fly has stopped routing to the machine by then, so waiting would be downtime. `fly/deploy.sh` takes the build lock before it switches, so no build is running when a deploy stops the machine. Any other stop may kill one, and the next build repairs it ([decision 066](../decisions/066-a-deploy-takes-the-build-lock-and-the-machine-stops-its-writers.md)). While a deploy holds the lock, an operator command run under `flock /data/build.lock` waits for it, as it would for a build.
+
 ## Maintenance mode: for anything longer than a query
 
 For a backfill, a repair of the snapshot or a measurement — anything that would hold the build lock for more than a minute or two — put the machine in maintenance mode rather than racing the schedule for the lock:

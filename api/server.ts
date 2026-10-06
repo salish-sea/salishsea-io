@@ -280,7 +280,7 @@ if (import.meta.main) {
     } else {
         console.warn('api: FEEDBACK_GITHUB_TOKEN or FEEDBACK_ISSUE_AUTHOR is not set, so feedback files no issues');
     }
-    serve({
+    const server = serve({
         store: db, key, keys: googleKeys(), origins,
         changed: coalescer ? () => coalescer.changed() : undefined,
         feedbackAllowed: rateLimiter(),
@@ -291,4 +291,13 @@ if (import.meta.main) {
         } : undefined,
     }, port);
     console.log(`api: listening on 127.0.0.1:${port}`);
+    // The machine stopping (decision 066): Litestream passes on SIGTERM. Finish the requests
+    // in flight, so the final sync Litestream makes once this exits carries their writes. Ten
+    // seconds at most, inside fly.toml's kill_timeout with the sync's own thirty.
+    process.once('SIGTERM', () => {
+        console.log('api: stopping');
+        server.close(() => process.exit(0));
+        server.closeIdleConnections();
+        setTimeout(() => process.exit(0), 10_000).unref();
+    });
 }
