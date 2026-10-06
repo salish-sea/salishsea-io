@@ -6,9 +6,12 @@
 #
 # Build args (fly/deploy.sh passes them):
 #   VITE_SUPABASE_URL, VITE_SUPABASE_WS_URL, VITE_SUPABASE_KEY  the public client
-#       config the site is built with, exactly as the AWS deploy's; the key is the
-#       publishable one every browser already receives (decision 002)
-#   GITHUB_SHA         the commit, for the release a feedback report names (039)
+#       config the site is built with; the key is the publishable one every browser
+#       already receives (decision 002)
+#   GITHUB_SHA         the commit, for the release a feedback report names (039) and
+#       the one Sentry's source maps are uploaded under
+#
+# Build secret: SENTRY_AUTH_TOKEN, optional (see the site stage).
 #   SOURCE_DATE_EPOCH  that commit's time: Stelis's build clock (its ADR 0004),
 #       which it would otherwise read from git, and the image carries no .git
 #   STELIS_SHA         the Stelis commit this image pins, from fly/stelis-commit
@@ -30,7 +33,11 @@ ENV VITE_READ_SOURCE=static
 # What a signed-in contributor writes goes to the write API on this machine (decision
 # 065), not Supabase, since the cutover (salish-9uu.3.8).
 ENV VITE_WRITE_SOURCE=api
-RUN test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_KEY" \
+# Sentry's token, if fly/deploy.sh was given one, as a build secret: the Sentry plugin
+# uploads this bundle's source maps, the bundle production runs. Without it, no upload.
+RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN \
+    test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_KEY" \
+ && if [ -s /run/secrets/SENTRY_AUTH_TOKEN ]; then SENTRY_AUTH_TOKEN="$(cat /run/secrets/SENTRY_AUTH_TOKEN)"; export SENTRY_AUTH_TOKEN; fi \
  && VITE_SUPABASE_URL="$VITE_SUPABASE_URL" VITE_SUPABASE_WS_URL="$VITE_SUPABASE_WS_URL" \
     VITE_SUPABASE_KEY="$VITE_SUPABASE_KEY" GITHUB_SHA="$GITHUB_SHA" pnpm build
 

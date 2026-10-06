@@ -4,7 +4,12 @@
 # is tagged with both pins, so `fly deploy --image
 # registry.fly.io/salishsea-io:<sha>-stelis-<12>` redeploys one.
 #
-#   fly/deploy.sh
+#   fly/deploy.sh          build the image, then switch the machine to it
+#   fly/deploy.sh build    build and push the image only; production is untouched
+#   fly/deploy.sh switch   take the build lock and deploy the image `build` pushed
+#
+# The Deploy workflow runs `build` beside its tests and `switch` after the database is
+# migrated (salish-t3g.10); by hand, the bare command does both.
 #
 # The Stelis commit the image pins is fly/stelis-commit (salish-t3g.9): moving it is a
 # PR here, so a change spanning both repos ships when that PR deploys, and the commit
@@ -24,6 +29,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+MODE=${1:-all}
+case "$MODE" in
+    all|build|switch) ;;
+    *) echo "usage: fly/deploy.sh [build|switch]" >&2; exit 2 ;;
+esac
+
 if [ -n "${STELIS_SHA:-}" ]; then
     echo "STELIS_SHA is read from fly/stelis-commit now; to move Stelis, change that file in a PR" >&2
     exit 1
@@ -38,64 +49,77 @@ if [ -n "$(git status --porcelain)" ]; then
     exit 1
 fi
 
-REF=grztmjpzamcxlzecmqca
-# The lockfile's Supabase CLI: the devDependency when installed (a hand deploy), else
-# the one the Deploy workflow's setup-cli put on PATH, which reads the same lockfile.
-if [ -x node_modules/.bin/supabase ]; then
-    supabase=(node_modules/.bin/supabase)
-elif command -v supabase > /dev/null; then
-    supabase=(supabase)
-else
-    supabase=(npx --yes supabase)
-fi
-KEY=$("${supabase[@]}" projects api-keys --project-ref "$REF" -o json \
-      | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const k=JSON.parse(s).find(k=>k.type==="publishable");if(!k)process.exit(1);process.stdout.write(k.api_key)})')
-
 APP=salishsea-io
 SHA=$(git rev-parse HEAD)
 # The tag names both pins, so a rerun at another Stelis commit can't overwrite an image.
 LABEL="$SHA-stelis-${STELIS_SHA:0:12}"
 IMAGE="registry.fly.io/$APP:$LABEL"
 
-# Build and push the image while the machine goes on building: the remote build takes
-# minutes, and the build lock (below) is held only for the switch.
-flyctl deploy --build-only --push --image-label "$LABEL" \
-    --build-arg VITE_SUPABASE_URL="https://$REF.supabase.co" \
-    --build-arg VITE_SUPABASE_WS_URL="wss://$REF.supabase.co" \
-    --build-arg VITE_SUPABASE_KEY="$KEY" \
-    --build-arg GITHUB_SHA="$SHA" \
-    --build-arg SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
-    --build-arg STELIS_SHA="$STELIS_SHA"
-
-# Then take the build lock on the machine (decision 066), waiting out a running build,
-# so that none is running when the machine stops: the machine's own stop doesn't wait
-# for one, because Fly has stopped routing to it by then. It is held by a session that
-# outlives this one: killing the local `fly ssh` leaves the remote side running. So it
-# lets go by itself after HOLD seconds, and a deploy that fails before the machine is
-# replaced lets go at once. A build that runs for LOCK_WAIT seconds is likely stuck,
-# and fails the deploy rather than being killed by it.
-HOLD=600 LOCK_WAIT=300
-HOLDER="deploy-hold-$SHA-$$"   # names this deploy's hold alone, to release it
-lock_log=$(mktemp)
-flyctl ssh console -a "$APP" \
-    -C "flock -o -w $LOCK_WAIT /data/build.lock timeout $HOLD sh -c 'echo held; sleep $HOLD' $HOLDER" \
-    > "$lock_log" 2>&1 &
-hold_pid=$!
-deployed=
-release() {
-    kill "$hold_pid" 2>/dev/null || true
-    [ -n "$deployed" ] || flyctl ssh console -a "$APP" -C "pkill -f $HOLDER" > /dev/null 2>&1 || true
-    rm -f "$lock_log"
-}
-trap release EXIT
-until grep -q '^held' "$lock_log"; do
-    if ! kill -0 "$hold_pid" 2>/dev/null; then
-        cat "$lock_log" >&2
-        echo "couldn't take the build lock within ${LOCK_WAIT}s; is a build stuck? The image is pushed: rerun with $IMAGE" >&2
-        exit 1
+build() {
+    REF=grztmjpzamcxlzecmqca
+    # The lockfile's Supabase CLI: the devDependency when installed (a hand deploy), else
+    # the one the Deploy workflow's setup-cli put on PATH, which reads the same lockfile.
+    if [ -x node_modules/.bin/supabase ]; then
+        supabase=(node_modules/.bin/supabase)
+    elif command -v supabase > /dev/null; then
+        supabase=(supabase)
+    else
+        supabase=(npx --yes supabase)
     fi
-    sleep 2
-done
+    KEY=$("${supabase[@]}" projects api-keys --project-ref "$REF" -o json \
+          | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const k=JSON.parse(s).find(k=>k.type==="publishable");if(!k)process.exit(1);process.stdout.write(k.api_key)})')
 
-flyctl deploy --ha=false --image "$IMAGE"
-deployed=1
+    # Sentry's token, when there is one (the Deploy workflow has it), uploads the bundle's
+    # source maps from the build that ships: a build secret, so it is in no image layer.
+    # Without it the build is the same and uploads nothing.
+    secrets=()
+    [ -z "${SENTRY_AUTH_TOKEN:-}" ] || secrets=(--build-secret "SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN")
+
+    # Build and push the image while the machine goes on building: the remote build takes
+    # minutes, and the build lock (in switch) is held only for the switch.
+    flyctl deploy --build-only --push --image-label "$LABEL" "${secrets[@]}" \
+        --build-arg VITE_SUPABASE_URL="https://$REF.supabase.co" \
+        --build-arg VITE_SUPABASE_WS_URL="wss://$REF.supabase.co" \
+        --build-arg VITE_SUPABASE_KEY="$KEY" \
+        --build-arg GITHUB_SHA="$SHA" \
+        --build-arg SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
+        --build-arg STELIS_SHA="$STELIS_SHA"
+}
+
+switch() {
+    # Take the build lock on the machine (decision 066), waiting out a running build,
+    # so that none is running when the machine stops: the machine's own stop doesn't wait
+    # for one, because Fly has stopped routing to it by then. It is held by a session that
+    # outlives this one: killing the local `fly ssh` leaves the remote side running. So it
+    # lets go by itself after HOLD seconds, and a deploy that fails before the machine is
+    # replaced lets go at once. A build that runs for LOCK_WAIT seconds is likely stuck,
+    # and fails the deploy rather than being killed by it.
+    HOLD=600 LOCK_WAIT=300
+    HOLDER="deploy-hold-$SHA-$$"   # names this deploy's hold alone, to release it
+    lock_log=$(mktemp)
+    flyctl ssh console -a "$APP" \
+        -C "flock -o -w $LOCK_WAIT /data/build.lock timeout $HOLD sh -c 'echo held; sleep $HOLD' $HOLDER" \
+        > "$lock_log" 2>&1 &
+    hold_pid=$!
+    deployed=
+    release() {
+        kill "$hold_pid" 2>/dev/null || true
+        [ -n "$deployed" ] || flyctl ssh console -a "$APP" -C "pkill -f $HOLDER" > /dev/null 2>&1 || true
+        rm -f "$lock_log"
+    }
+    trap release EXIT
+    until grep -q '^held' "$lock_log"; do
+        if ! kill -0 "$hold_pid" 2>/dev/null; then
+            cat "$lock_log" >&2
+            echo "couldn't take the build lock within ${LOCK_WAIT}s; is a build stuck? The image is pushed: rerun fly/deploy.sh switch" >&2
+            exit 1
+        fi
+        sleep 2
+    done
+
+    flyctl deploy --ha=false --image "$IMAGE"
+    deployed=1
+}
+
+[ "$MODE" = switch ] || build
+[ "$MODE" = build ] || switch
