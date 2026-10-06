@@ -69,7 +69,7 @@ export function assertEdgeHandlerBuilt(handlerExists: boolean): void {
   );
 }
 
-/** Kept in step with `.github/workflows/db-backup-nightly.yml` by a test. */
+/** Kept in step with `.github/workflows/db-restore-verify.yml` by a test. */
 export const BACKUP_BUCKET_NAME = 'salishsea-io-backups';
 
 /**

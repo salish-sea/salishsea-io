@@ -10,8 +10,9 @@ describe('the backup bucket is named once', () => {
   // does not exist fails the run, but `aws s3 ls` on the media prefix is
   // tolerated, so a renamed bucket could produce a run that looks partly fine
   // while backing nothing up. Pin them together instead.
+  // The nightly backup retired with Postgres as the store of record (decision 065); the
+  // restore check stays, for the archives the bucket keeps.
   const WORKFLOWS = [
-    '.github/workflows/db-backup-nightly.yml',
     '.github/workflows/db-restore-verify.yml',
   ];
 

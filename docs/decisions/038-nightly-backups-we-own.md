@@ -1,6 +1,8 @@
 # 038 — A nightly backup we own, in a bucket that is not the public one
 
-**Status:** accepted · **Decided:** 2026-08-31 · bd `salish-5xy`
+**Status:** retired 2026-10-06 · **Decided:** 2026-08-31 · bd `salish-5xy`
+
+*Retired 2026-10-06 by [065](065-the-store-and-write-api.md):* Postgres stopped being the store of record at the cutover (2026-10-05), so there is nothing new to back up nightly. What users write is in the write API's store on the Fly app, replicated continuously by Litestream to `salishsea-io-store-replica`, with a rehearsed restore ([runbook](../runbook/read-path-build.md#the-stores-replica-litestream)); photos are in `salishsea-io-media`, versioned. The last run, made by hand after the cutover (`db/2026/10/06/041131/`), is Postgres's archive. It and the earlier dumps stay in `salishsea-io-backups`, and `db-restore-verify.yml` still restores one on demand. What follows describes the arrangement as it was.
 
 ## Context
 
@@ -32,7 +34,7 @@ back from anywhere:
 ## Decision
 
 **A nightly dump, into a bucket this account owns.**
-[`db-backup-nightly.yml`](../../.github/workflows/db-backup-nightly.yml) runs at 07:00 UTC,
+[`db-backup-nightly.yml`](https://github.com/salish-sea/salishsea-io/blob/e640527d2511725a7ebb581c801ebc143157cbee/.github/workflows/db-backup-nightly.yml) runs at 07:00 UTC,
 clear of the DwC-A build at 09:00, and writes `roles.sql.gz`, `schema.sql.gz`,
 `auth-storage.sql.gz`, `data.sql.gz` and `SHA256SUMS` under `s3://salishsea-io-backups/db/YYYY/MM/DD/HHMMSS/`.
 
@@ -76,7 +78,7 @@ is right for the one case with no traffic: verifying a restored copy.
 **Photos are mirrored incrementally, and separately.** `pg_dump` captures `storage.objects` and
 not one byte of the objects. Copying the whole ~104 MB bucket nightly would spend roughly 3 GB
 a month against a free-tier allowance of 5 GB, re-downloading bytes we already hold, and would
-grow to breach it. So [`plan-media-sync.ts`](../../scripts/backup/plan-media-sync.ts) compares
+grow to breach it. So [`plan-media-sync.ts`](https://github.com/salish-sea/salishsea-io/blob/e640527d2511725a7ebb581c801ebc143157cbee/scripts/backup/plan-media-sync.ts) compares
 upstream names and ETags against the mirror and names only the difference; sighting photos are
 written once and never edited, so the steady state is nearly zero.
 
