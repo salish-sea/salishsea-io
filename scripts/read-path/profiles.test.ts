@@ -257,6 +257,13 @@ describe('assembleEcotypes and renderEcotypePage', () => {
         expect(doc).toMatch(/Not reported yet:.*href="\/matrilines\/0020003\/T046s">T046</s);
         expect(doc).toContain('services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/8/');
     });
+
+    test('the ecotype\'s own sightings first, the long run of matrilines after', () => {
+        const doc = renderEcotypePage(shellFor('ecotype-page'), withSiblings(), 2026);
+        expect(doc.indexOf('<h2>Sightings</h2>')).toBeGreaterThan(-1);
+        expect(doc.indexOf('<h2>Sightings</h2>')).toBeLessThan(doc.indexOf('<h2>Matrilines</h2>'));
+        expect(doc).toContain('The maps below break it down by matriline.');
+    });
 });
 
 describe('assembleHaulouts and renderHauloutPage', () => {
