@@ -29,9 +29,9 @@
  *                                             notifier.ts files it as a GitHub issue
  *
  * A change to a sighting wakes the build (BUILD_COMMAND: the snapshot and what derives from
- * it, fly/start.sh), at once — the coalescer's quiet period was for Realtime's bursts, and
- * the only signal now is this process's own, one per save — and spaced as the coalescer
- * spaces builds, so the published files follow within about twenty seconds.
+ * it, fly/start.sh) at once, so the published files follow within about twenty seconds; a
+ * second save within half a minute follows once that spacing has passed (coalesce.ts's
+ * SAVE_OPTIONS). Until the files carry it, GET /api/sightings/<id> answers for it.
  *
  * Anything that changes state must come from an allowed origin: the cookie is SameSite=Lax,
  * and the Origin check is the second lock on the same door.
@@ -43,7 +43,7 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { WORKFLOW_AUTHOR } from '../scripts/feedback/filing.ts';
 import { ownOccurrence } from '../src/own-occurrence.ts';
-import { BuildCoalescer, commandBuild, DEFAULT_OPTIONS } from '../scripts/read-path/coalesce.ts';
+import { BuildCoalescer, commandBuild, SAVE_OPTIONS } from '../scripts/read-path/coalesce.ts';
 import { animalNames, type NamesLookup } from './animal-names.ts';
 import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
 import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './google.ts';
@@ -301,9 +301,10 @@ if (import.meta.main) {
     // (animal-names.ts); without it the read still answers, species unnamed.
     const exportDir = process.env['READ_PATH_EXPORT_DIR'] || undefined;
     if (!exportDir) console.warn('api: READ_PATH_EXPORT_DIR is not set, so a public sighting read names no species');
-    // No quiet period (salish-9uu.6): a save is one signal, and a visitor who has just
-    // saved is about to share the link. The spacing and the lock retry stay as they are.
-    const coalescer = build.length > 0 ? new BuildCoalescer(commandBuild(build), {...DEFAULT_OPTIONS, quietMs: 0}) : null;
+    // SAVE_OPTIONS (salish-9uu.6): no quiet period — a save is one signal, and a visitor
+    // who has just saved is about to share the link — and a spacing that bounds the
+    // machine's work, not forgery.
+    const coalescer = build.length > 0 ? new BuildCoalescer(commandBuild(build), SAVE_OPTIONS) : null;
     const db = openStore(store);
     if (githubToken && issueAuthor) {
         startNotifier(storeQueue(db, store), {

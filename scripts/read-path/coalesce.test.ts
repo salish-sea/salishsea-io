@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { BuildCoalescer, type BuildResult } from './coalesce.ts';
+import { BuildCoalescer, SAVE_OPTIONS, type BuildResult } from './coalesce.ts';
 
 const OPTIONS = {quietMs: 10_000, maxWaitMs: 60_000, busyRetryMs: 30_000, minIntervalMs: 0};
 
@@ -126,5 +126,61 @@ describe('BuildCoalescer', () => {
         await vi.advanceTimersByTimeAsync(600_000);
         expect(build).toHaveBeenCalledTimes(2);      // the busy attempt and its retry
     });
-});
 
+    // The write API's configuration (salish-9uu.6): no quiet period, a half-minute spacing.
+    describe('with SAVE_OPTIONS', () => {
+        test('a lone save starts a build at once', async () => {
+            const build = fakeBuild();
+            const c = new BuildCoalescer(build, SAVE_OPTIONS, Date.now);
+            c.changed();
+            await vi.advanceTimersByTimeAsync(0);
+            expect(build).toHaveBeenCalledTimes(1);
+        });
+
+        test('a save during the build waits for the spacing, not the quiet period, and earns one build', async () => {
+            const build = fakeBuild(20_000);
+            const c = new BuildCoalescer(build, SAVE_OPTIONS, Date.now);
+            c.changed();
+            await vi.advanceTimersByTimeAsync(0);
+            await vi.advanceTimersByTimeAsync(5_000);
+            c.changed();
+            c.changed();
+            await vi.advanceTimersByTimeAsync(15_000);   // the first build finishes at 20 s
+            expect(build).toHaveBeenCalledTimes(1);
+            await vi.advanceTimersByTimeAsync(9_999);    // 30 s after the first started
+            expect(build).toHaveBeenCalledTimes(1);
+            await vi.advanceTimersByTimeAsync(1);
+            expect(build).toHaveBeenCalledTimes(2);
+            await vi.advanceTimersByTimeAsync(120_000);
+            expect(build).toHaveBeenCalledTimes(2);
+        });
+
+        test('a save while the lock retry is pending does not bring the retry forward', async () => {
+            const build = fakeBuild(0, ['busy']);
+            const c = new BuildCoalescer(build, SAVE_OPTIONS, Date.now);
+            c.changed();
+            await vi.advanceTimersByTimeAsync(0);        // busy: retry in 30 s
+            expect(build).toHaveBeenCalledTimes(1);
+            await vi.advanceTimersByTimeAsync(10_000);
+            c.changed();
+            await vi.advanceTimersByTimeAsync(19_999);
+            expect(build).toHaveBeenCalledTimes(1);
+            await vi.advanceTimersByTimeAsync(1);
+            expect(build).toHaveBeenCalledTimes(2);
+        });
+
+        test('a build that fails is logged, and the next save builds again', async () => {
+            const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const build = vi.fn(() => Promise.reject(new Error('build exited 1')));
+            const c = new BuildCoalescer(build, SAVE_OPTIONS, Date.now);
+            c.changed();
+            await vi.advanceTimersByTimeAsync(0);
+            expect(error).toHaveBeenCalledWith('build failed:', 'build exited 1');
+            await vi.advanceTimersByTimeAsync(30_000);
+            c.changed();
+            await vi.advanceTimersByTimeAsync(0);
+            expect(build).toHaveBeenCalledTimes(2);
+            error.mockRestore();
+        });
+    });
+});
