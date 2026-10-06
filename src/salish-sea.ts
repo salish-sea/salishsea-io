@@ -154,6 +154,9 @@ export default class SalishSea extends LitElement {
         flex-direction: column;
       }
       obs-map {
+        /* Not just shrink: until the panel renders it is short, and a growing
+           map took the slack, then lost it a frame later. */
+        flex-grow: 0;
         flex-shrink: 0;
         height: 50svh;
       }

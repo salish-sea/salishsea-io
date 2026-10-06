@@ -21,6 +21,7 @@ import Modify from 'ol/interaction/Modify.js';
 import GeoJSON from 'ol/format/GeoJSON.js';
 import { all } from 'ol/loadingstrategy.js';
 import { never } from 'ol/events/condition.js';
+import { unByKey } from 'ol/Observable.js';
 import { containsCoordinate, type Extent } from 'ol/extent.js';
 import type { Coordinate } from 'ol/coordinate.js';
 import type MapBrowserEvent from 'ol/MapBrowserEvent.js';
@@ -554,17 +555,30 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
    * `view.fit` sizes the viewport against `map.getSize()`, which is undefined
    * until the target element has been laid out and rendered — so a fit issued
    * from a parent's `firstUpdated` silently does nothing. Defer to the first
-   * render when that is the case.
+   * size when that is the case.
+   *
+   * Wait for the size, not for a render: OpenLayers measures the target with a
+   * ResizeObserver, so the size lands before anything is drawn, whereas
+   * `rendercomplete` waits for every tile. Fitting then let the default view
+   * show for a second and visibly jump sideways into the region.
    */
   public frameExtentWhenReady(extent: Extent) {
     // `getSize()` returns an array — truthy even when it is [0, 0], which is
     // what you get between setTarget and layout. Fitting to a zero-width
     // viewport is the same silent no-op as fitting with no size at all.
-    const size = this.map.getSize();
-    if (size && size[0]! > 0 && size[1]! > 0)
+    const hasArea = () => {
+      const size = this.map.getSize();
+      return !!size && size[0]! > 0 && size[1]! > 0;
+    };
+    if (hasArea()) {
       this.zoomToExtent(extent);
-    else
-      this.map.once('rendercomplete', () => this.zoomToExtent(extent));
+      return;
+    }
+    const key = this.map.on('change:size', () => {
+      if (!hasArea()) return;
+      unByKey(key);
+      this.zoomToExtent(extent);
+    });
   }
 
   public onLocationUpdated({longitude, latitude}: {longitude: number; latitude: number}) {
