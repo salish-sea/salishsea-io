@@ -69,8 +69,9 @@ async function call<T>(method: string, path: string, init: {json?: unknown, body
 /** The signed-in user, or null when nobody is. */
 export async function fetchMe(): Promise<Me | null> {
   try {
-    return await call<Me>('GET', '/api/me');
+    return await call<Me | null>('GET', '/api/me');
   } catch (error) {
+    // An API from before null meant signed out answered 401.
     if (error instanceof ApiError && error.status === 401) return null;
     throw error;
   }

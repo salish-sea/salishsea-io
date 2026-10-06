@@ -11,7 +11,9 @@
  *                                             verified, the user found or made, a session
  *                                             cookie set; answers as GET /api/me does
  *   DELETE /api/session                       ends the session
- *   GET    /api/me                            {user_id, contributor} or 401
+ *   GET    /api/me                            {user_id, contributor}, or null signed out:
+ *                                             a 200, since every page asks and a browser
+ *                                             logs each 401 as an error
  *   GET    /api/sightings?since=<time>&until=<time>
  *                                             {sightings}: the signed-in contributor's own,
  *                                             as saved, for the map to lay over the files
@@ -182,7 +184,6 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
         }
         if (url.pathname === '/api/me' && method === 'GET') {
             const who = currentUser(api, req);
-            if (who === null) return send(res, 401, {signed_in: false});
             return send(res, 200, who);
         }
         if (url.pathname === '/api/sightings' && method === 'GET') {
