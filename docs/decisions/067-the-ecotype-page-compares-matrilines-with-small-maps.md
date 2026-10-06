@@ -10,7 +10,7 @@ Colour doesn't work here. Seventy of the 132 Bigg's matrilines have been reporte
 
 ## Decision
 
-**Every reported matriline gets a small map of its own, every map at the same scale, in the page's Matrilines section.** The maps run most-reported first, and each links to its matriline's page, which has the interactive map. The matrilines never reported are listed after them by name. A report that names two matrilines is on both of their maps.
+**Every reported matriline gets a small map of its own, every map at the same scale, in the page's Matrilines section.** That section follows the pooled Sightings section, which is about the ecotype as a whole, because seventy maps run long. The maps run most-reported first, and each links to its matriline's page, which has the interactive map. The matrilines never reported are listed after them by name. A report that names two matrilines is on both of their maps.
 
 - **Each map draws exactly what its matriline's page does:** `group_occurrences`, deduplicated the same way. The ecotype page reads that relation for the first time, so its task in Stelis's graph takes it as an input.
 - **One fixed extent, the Salish Sea from Tacoma to the Strait of Georgia** (124.3°W to 122.1°W, 47.05°N to 49.45°N; [`src/small-multiples.ts`](../../src/small-multiples.ts)). It holds 99% of located matriline reports. Fitting the extent to the data instead would let one report off the outer coast shrink every map. The reports outside aren't drawn, and the page says so.

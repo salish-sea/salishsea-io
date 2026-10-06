@@ -73,18 +73,20 @@ export function renderEcotypeProfile({ group, matrilines, matrilineReports }: Ec
         : nothing}
     </header>
     <section>
+      <h2>Sightings</h2>
+      <p class="sightings-note">Every report of any ${short} member —
+      each matriline and individual pooled together. ${matrilineReports
+        ? 'The maps below break it down by matriline.'
+        : 'Individual and matriline pages break this down by subject.'}</p>
+      ${sightings}
+    </section>
+    <section>
       <h2>Matrilines</h2>
       ${!matrilines.length
         ? html`<p class="placeholder">No matrilines cataloged yet.</p>`
         : matrilineReports
           ? renderMatrilineMaps(matrilines, matrilineReports)
           : renderMatrilineList(matrilines)}
-    </section>
-    <section>
-      <h2>Sightings</h2>
-      <p class="sightings-note">Every report of any ${short} member —
-      each matriline and individual pooled together. Individual and matriline pages break this down by subject.</p>
-      ${sightings}
     </section>
   `;
 }
