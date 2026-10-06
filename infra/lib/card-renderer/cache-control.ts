@@ -34,8 +34,10 @@ export const FRESH = 'public, max-age=300, must-revalidate';
 export const SETTLED = 'public, max-age=2592000';
 
 /**
- * A 404. Long enough that a crawler storm over one bad id doesn't hammer
- * Supabase, short enough that a genuinely new occurrence isn't 404-locked.
+ * A 404. Long enough that a crawler storm over one bad id doesn't hammer the
+ * write API, short enough that a genuinely new occurrence isn't 404-locked.
+ * A sighting saved here is answered by the API from the moment it is saved
+ * (salish-9uu.5), so a miss now means an id nothing holds.
  */
 export const MISS = 'public, max-age=300';
 

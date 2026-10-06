@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
 import { sender, serve } from './server.ts';
 import { mint } from './session.ts';
-import { deleteSighting, isoMicros, ownSightings, parseSighting, saveSighting } from './sightings.ts';
+import { deleteSighting, isoMicros, ownSightings, parseSighting, publicSighting, saveSighting } from './sightings.ts';
 import { openStore } from './store/store.ts';
 import { me, signIn, type Me } from './users.ts';
 
@@ -161,6 +161,50 @@ describe("a feedback sender is the client's address, as the edge saw it", () => 
         expect(sender(req({'cloudfront-viewer-address': '203.0.113.5:443', 'fly-client-ip': '198.51.100.9'}), 's3cret')).toBe('198.51.100.9');
         expect(sender(req({'cloudfront-viewer-address': '203.0.113.5:443', 'x-origin-verify': 'guess', 'fly-client-ip': '198.51.100.9'}), 's3cret')).toBe('198.51.100.9');
         expect(sender(req({'x-forwarded-for': '1.2.3.4'}))).toBe('10.0.0.1');
+    });
+});
+
+describe('a sighting anyone may read by id (salish-9uu.5)', () => {
+    test('the sighting as saved, with its contributor\'s name; none for an unknown id; a malformed id refused', () => {
+        saveSighting(store, owner, ID, input());
+        const found = publicSighting(store, ID)!;
+        expect(found.contributor).toEqual({name: 'Owner'});
+        expect(found.sighting).toMatchObject({id: ID, count: 3, entity_id: 'SSA:0000900', contributor_id: owner.contributor.id,
+            location: {lon: -123.1, lat: 48.5}, photos: [{src: 'https://salishsea.io/media/a.jpg', license: 'cc-by'},
+                {src: 'https://salishsea.io/media/b.jpg', license: 'cc-by'}]});
+        expect(publicSighting(store, '01977c2a-b313-77a9-8433-000000000000')).toBeNull();
+        expect(() => publicSighting(store, 'not-a-uuid')).toThrow(/UUID/);
+        deleteSighting(store, owner, ID);
+        expect(publicSighting(store, ID)).toBeNull();
+    });
+
+    test('over HTTP, signed out: the occurrence as the build will publish it, species named from the export', async () => {
+        saveSighting(store, owner, ID, input());
+        const key = Buffer.alloc(32, 2);
+        const server = serve({store, key, keys: async () => new Map(), origins: new Set(['https://salishsea.io']),
+            names: ids => new Map(ids.filter(id => id === 'SSA:0000900')
+                .map(id => [id, {common_name: 'Orca', taxon_common_name: 'Killer whale', inaturalist_scientific_name: 'Orcinus orca'}]))}, 0);
+        await new Promise(r => server.once('listening', r));
+        const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        try {
+            const res = await fetch(`${base}/api/sightings/${ID}`);
+            expect(res.status).toBe(200);
+            expect(res.headers.get('cache-control')).toBe('no-cache');
+            const {occurrence} = await res.json() as {occurrence: Record<string, unknown>};
+            expect(occurrence).toMatchObject({
+                id: ID, count: 3, body: 'Three orcas heading north', attribution: 'Owner on SalishSea.io', observer: 'Owner',
+                contributor_id: owner.contributor.id, location: {lon: -123.1, lat: 48.5}, direction: 'north',
+                taxon: {entity_id: 'SSA:0000900', vernacular_name: 'Orca', scientific_name: 'Orcinus orca'},
+                photos: [{src: 'https://salishsea.io/media/a.jpg', license: 'cc-by'}, {src: 'https://salishsea.io/media/b.jpg', license: 'cc-by'}],
+                provider_slug: null, observed_until: null,
+            });
+            expect(occurrence['observed_at']).toBe(isoMicros(new Date('2026-10-05T17:00:00Z')));
+            expect((await fetch(`${base}/api/sightings/01977c2a-b313-77a9-8433-000000000000`)).status).toBe(404);
+            expect((await fetch(`${base}/api/sightings/not-a-uuid`)).status).toBe(400);
+            expect((await fetch(`${base}/api/sightings/${ID}`, {method: 'HEAD'})).status).toBe(200);
+        } finally {
+            server.close();
+        }
     });
 });
 

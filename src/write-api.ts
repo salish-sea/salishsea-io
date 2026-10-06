@@ -7,9 +7,8 @@
  * and the CSP's connect-src 'self' already admits it.
  */
 
-import { detectIndividuals } from './identifiers.ts';
 import { readSource, type ReadSource } from './read-path.ts';
-import type { Contributor, Occurrence, UpsertObservationArgs } from './types.ts';
+import type { Occurrence, UpsertObservationArgs } from './types.ts';
 
 export type WriteSource = 'supabase' | 'api';
 
@@ -35,16 +34,8 @@ export type Me = {
   contributor: {id: number, name: string, picture: string | null, editor: boolean, orcid: string | null},
 };
 
-/** A sighting as the store holds it (api/sightings.ts's OwnSighting). */
-export type OwnSighting = {
-  id: string, observed_at: string, location: {lon: number, lat: number},
-  observed_from: {lon: number, lat: number} | null, body: string | null, count: number | null,
-  direction: string | null, url: string | null, entity_id: string,
-  photos: {src: string, license: string}[], contributor_id: number, updated_at: string,
-};
-
-/** What the form shows of a species, as the build publishes it (animal-names.json). */
-export type SpeciesNames = {common_name: string | null, taxon_common_name: string | null, inaturalist_scientific_name: string | null};
+import type { OwnSighting } from './own-occurrence.ts';
+export { ownOccurrence, type OwnSighting, type SpeciesNames } from './own-occurrence.ts';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -125,46 +116,19 @@ export async function fetchOwnSightings(since: Date, until: Date): Promise<OwnSi
 }
 
 /**
- * A sighting as saved, shaped as the map's occurrence, until a build publishes the
- * build's own version of it. What the build derives is approximated from what the page
- * has: the species' names from the published names, identifiers as the form detects
- * them, the attribution from the contributor's name.
+ * A sighting anyone may read by id, as the build will publish it (salish-9uu.5): for a
+ * `?o=` link to one saved since the last build, which no file holds yet. Null when the
+ * API has no such sighting (404), or when the id is no sighting id at all (400: a native
+ * id is a uuid) — both the quiet "we don't have it" the link has always fallen back to;
+ * any other failure throws, as a file read's does.
  */
-export function ownOccurrence(sighting: OwnSighting, contributor: Pick<Contributor, 'name'>,
-  names: ReadonlyMap<string, SpeciesNames> | undefined): Occurrence {
-  const species = names?.get(sighting.entity_id);
-  return {
-    id: sighting.id,
-    url: sighting.url,
-    attribution: `${contributor.name} on SalishSea.io`,
-    body: sighting.body,
-    count: sighting.count,
-    direction: sighting.direction as Occurrence['direction'],
-    location: sighting.location,
-    accuracy: null,
-    photos: sighting.photos.map(p => ({src: p.src, thumb: null, license: p.license as Occurrence['photos'][number]['license'],
-      mimetype: null, attribution: 'someone'})),
-    observed_at: sighting.observed_at,
-    observed_at_ms: Date.parse(sighting.observed_at),
-    observed_from: sighting.observed_from,
-    taxon: {
-      entity_id: sighting.entity_id,
-      species_id: null,
-      scientific_name: species?.inaturalist_scientific_name ?? null,
-      vernacular_name: species?.common_name ?? species?.taxon_common_name ?? null,
-    } as Occurrence['taxon'],
-    identifiers: detectIndividuals(sighting.body ?? ''),
-    contributor_id: sighting.contributor_id,
-    observer: contributor.name,
-    collection: null,
-    source_url: null,
-    organization: null,
-    organization_url: null,
-    provider: null,
-    provider_slug: null,
-    observed_until: null,
-    certainty: null,
-  };
+export async function fetchPublicSighting(id: string): Promise<Occurrence | null> {
+  try {
+    return (await call<{occurrence: Occurrence}>('GET', `/api/sightings/${encodeURIComponent(id)}`)).occurrence;
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 404 || error.status === 400)) return null;
+    throw error;
+  }
 }
 
 /**
