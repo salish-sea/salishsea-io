@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
-import { overlayOwn, ownOccurrence, parseWriteSource, type OwnSighting } from './write-api.ts';
+import { overlayOwn, ownOccurrence, parseWriteSource, sightingBody, type OwnSighting } from './write-api.ts';
+import type { UpsertObservationArgs } from './types.ts';
 
 const sighting = (over: Partial<OwnSighting> = {}): OwnSighting => ({
   id: '01977c2a-b313-77a9-8433-ffccbd56bf57', observed_at: '2026-10-05T17:00:00.000000Z',
@@ -38,5 +39,19 @@ describe("a contributor's own sighting, before a build has it", () => {
     const file = [row('mine-old', 7, '2026-10-05T18:00:00Z'), row('theirs', 8, '2026-10-05T17:30:00Z'), row('inat', null, '2026-10-05T16:00:00Z')];
     const own = [row('mine-new', 7, '2026-10-05T17:45:00Z')];
     expect(overlayOwn(file, own, 7).map(r => r.id)).toEqual(['mine-new', 'theirs', 'inat']);
+  });
+});
+
+describe('a save, as the API is sent it', () => {
+  test("a photo goes as its URL and license, never the form's thumbnail, so a save stays small", () => {
+    const thumb = `data:image/jpeg;base64,${'A'.repeat(500_000)}`;
+    const args = {
+      id: 'x', body: 'b', count: 1, direction: null, observed_at: '2026-10-05T17:00:00Z', observed_from: null,
+      location: {lon: -123, lat: 48.5}, accuracy: null, entity_id: 'SSA:0000900', url: '',
+      photos: [{src: 'https://salishsea.io/media/7/x/a.jpg', license: 'cc-by', thumb, attribution: null, mimetype: null}],
+    } as unknown as UpsertObservationArgs;
+    const sent = sightingBody(args);
+    expect(sent.photos).toEqual([{src: 'https://salishsea.io/media/7/x/a.jpg', license: 'cc-by'}]);
+    expect(JSON.stringify(sent).length).toBeLessThan(1000);
   });
 });

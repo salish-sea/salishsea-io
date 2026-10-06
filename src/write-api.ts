@@ -91,8 +91,20 @@ export const signIn = (credential: string, nonce: string) => call<Me>('POST', '/
 /** Sign out: the API ends every session the user has. */
 export const signOut = () => call<unknown>('DELETE', '/api/session');
 
+/**
+ * What the API reads of a sighting the form saves. Each photo goes as its URL and license
+ * alone: the form also carries a thumbnail, which is the whole image as a data URL, and
+ * would take a save with one photo past the API's 64 KB limit on a request.
+ */
+export function sightingBody(sighting: UpsertObservationArgs) {
+  const {body, count, direction, observed_at, observed_from, location, entity_id, url, photos} = sighting;
+  return {body, count, direction, observed_at, observed_from, location, entity_id, url,
+    photos: photos.map(({src, license}) => ({src, license}))};
+}
+
 export const saveSighting = (sighting: UpsertObservationArgs) =>
-  call<{id: string, outcome: 'created' | 'updated'}>('PUT', `/api/sightings/${encodeURIComponent(sighting.id)}`, {json: sighting});
+  call<{id: string, outcome: 'created' | 'updated'}>('PUT', `/api/sightings/${encodeURIComponent(sighting.id)}`,
+    {json: sightingBody(sighting)});
 
 export const deleteSighting = (id: string) => call<unknown>('DELETE', `/api/sightings/${encodeURIComponent(id)}`);
 
