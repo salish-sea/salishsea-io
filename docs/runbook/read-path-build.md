@@ -71,7 +71,13 @@ The write API runs under `litestream replicate -exec` ([`fly/litestream.yml`](..
 fly ssh console -a salishsea-io -C "setpriv --reuid=app --regid=app --init-groups env HOME=/home/app /app/fly/restore-drill.sh"
 ```
 
-A write in the second between the two reads can show as a difference, so run it again before believing one. To restore to a moment instead of the latest state, add `-timestamp 2026-10-20T17:00:00Z`. To put a restored store into service, first stop the API (maintenance mode), move the live file and its `-wal` and `-shm` aside, put the restored file at `/data/store/salishsea.db`, then leave maintenance. Litestream then replicates it as a new generation.
+A write in the second between the two reads can show as a difference, so run it again before believing one. To restore a moment rather than the latest state, call Litestream directly, into a scratch file:
+
+```sh
+litestream restore -config /app/fly/litestream.yml -timestamp 2026-10-20T17:00:00Z -o /tmp/restored.db /data/store/salishsea.db
+```
+
+To put a restored store into service, first stop the API (maintenance mode), move the live file and its `-wal` and `-shm` aside, put the restored file at `/data/store/salishsea.db`, then leave maintenance. Litestream then replicates it as a new generation.
 
 Rehearsed on 2026-10-05 against the bucket, with a copy of production's rows under a scratch prefix (since deleted): a one-off replication, then a restore, gave a byte-identical SQL dump, and a write made while replication ran was in the next restore. The drill above, against the live store, runs once the cutover has made one.
 

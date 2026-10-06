@@ -18,18 +18,23 @@ litestream restore -config "$config" -o "$restored" "$store"
 
 counts() {
     # shellcheck disable=SC2016 # the script is JavaScript, its ${…} node's own
-    node -e '
+    NODE_NO_WARNINGS=1 node -e '
         const {DatabaseSync} = require("node:sqlite");
         const db = new DatabaseSync(process.argv[1], {readOnly: true});
         const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = ? ORDER BY name").all("table").map(t => t.name);
         for (const t of tables) console.log(`${t} ${db.prepare(`SELECT count(*) AS n FROM "${t}"`).get().n}`);
-    ' "$1" 2>/dev/null
+    ' "$1"
 }
 
-if diff <(counts "$store") <(counts "$restored"); then
+# Each read must succeed, or there is nothing to compare: two failed reads would
+# otherwise "agree".
+live="$(counts "$store")"
+replica="$(counts "$restored")"
+if [ "$live" = "$replica" ]; then
     echo "restore drill: the replica's latest state matches the store, table by table:"
-    counts "$restored" | sed 's/^/  /'
+    printf '%s\n' "$replica" | sed 's/^/  /'
 else
-    echo "restore drill: the replica differs from the store (above: < store, > restored)" >&2
+    echo "restore drill: the replica differs from the store (< store, > restored):" >&2
+    diff <(printf '%s\n' "$live") <(printf '%s\n' "$replica") >&2 || true
     exit 1
 fi
