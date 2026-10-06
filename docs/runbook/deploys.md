@@ -6,19 +6,27 @@ How production deploys work, and the recurring surprises they produce. Audience:
 
 Push to `main` → GitHub Actions [`deploy.yml`](../../.github/workflows/deploy.yml) → CDK (`infra/`, synthed via `ts-node`) updates the stack. The rich-preview handler is a Lambda@Edge **viewer-request** function on the CloudFront distribution, defined in [`infra/lib/infra-stack.ts`](../../infra/lib/infra-stack.ts). Its code and behaviour live in [`infra/lib/edge-handler/index.ts`](../../infra/lib/edge-handler/index.ts) — see [decision 002](../decisions/002-static-spa-edge-architecture.md).
 
-### Since 2026-10-03 the site people see is the Fly app, and `main` does not deploy it
+### The site people see is the Fly app, and the same workflow deploys it
 
-CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.16`). The workflow above still runs on every merge and still matters for what stays on AWS — the Supabase migrations and Edge Function, the Lambda@Edge preview handler and the `/cards/*` renderer — but **a change to the site itself is live only when someone deploys the Fly app**, by hand, from a clean checkout of `main`:
+CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.16`). It serves the site, runs the read-path build and holds the write API. The workflow's **Fly app** job deploys it on every push to `main`, after the deploy job has migrated the database and updated AWS (`salish-t3g.5`). It runs [`fly/deploy.sh`](../../fly/deploy.sh), and the same script redeploys by hand from a clean checkout:
 
 ```sh
 fly/deploy.sh      # see its header
+```
+
+The job authenticates with `FLY_API_TOKEN`, a secret in the `production` environment holding an app-scoped deploy token. That token can also `fly ssh` to the machine, which is how the build lock is taken. The deploy job refuses to start without it, before it changes anything. To rotate it:
+
+```sh
+fly tokens create deploy -a salishsea-io --name "GitHub Actions deploy" \
+  | gh secret set FLY_API_TOKEN --env production -R salish-sea/salishsea-io
+fly tokens list -a salishsea-io       # then revoke the old one: fly tokens revoke <id>
 ```
 
 The Stelis commit the image runs is [`fly/stelis-commit`](../../fly/stelis-commit). To move Stelis, push the Stelis commit first, then change that file to the full commit (`git -C ~/dev/stelis rev-parse <ref>`) in a PR here. That PR deploys the graph change and whatever here depends on it together. Because the pin is committed, the commit `salishsea.io/release.json` names also says which Stelis production runs.
 
 The script builds and pushes the image first, tagged with the commit and the Stelis pin, while the machine goes on serving and building. It then takes the machine's build lock, waiting out a running build so the switch doesn't kill one, and deploys that image ([decision 066](../decisions/066-a-deploy-takes-the-build-lock-and-the-machine-stops-its-writers.md)). On the stop signal the old machine stops the write API and lets Litestream make its final sync before it goes. If the lock can't be had within five minutes, a build is probably stuck. The deploy then fails with production untouched, and the image is already pushed for a rerun.
 
-A green Deploy run therefore does not mean the fix you merged is live, and the smoke job in that run tests Fly's current image, not what the run shipped (`salish-t3g.5` is the workflow that would close this gap).
+A green Deploy run therefore means the merged commit is what salishsea.io serves, and its smoke job tested that image. Check with `curl -s https://salishsea.io/release.json`.
 
 **Rollback is a Fly image, not the S3 bucket.** Every Fly deploy is a release with a retained image:
 
@@ -33,14 +41,15 @@ The image carries the site bundle, the read-path scripts and the pinned Stelis t
 
 Pointing CloudFront's default behaviour back at S3 ([`infra-stack.ts`](../../infra/lib/infra-stack.ts), the previous rollback) now serves a **degraded** site, not an older one: since migration `20261004120000` Postgres no longer ingests Orcasound or iNaturalist, so the Supabase-mode site frozen in the bucket shows no bout and no iNaturalist observation after 2026-10-04, and once Maplify's ingest is unscheduled too it shows nothing new at all. Use it only if the Fly app itself is unreachable, and say so on the status issue.
 
-The run is five jobs ([decision 024](../decisions/024-deploy-gating-and-alerting.md)):
+The run is six jobs ([decision 024](../decisions/024-deploy-gating-and-alerting.md)):
 
 | Job | What it does |
 |---|---|
 | **Test** | Calls [`build.yml`](../../.github/workflows/build.yml) — the same suite PRs run (type drift, build, unit tests, infra tests) against the commit being deployed. Nothing reaches production without it. |
 | **Build** | Builds the production bundle with the `production` environment's vars/secrets; uploads `dist` + `supabase` as artifacts. Runs alongside Test. |
 | **Deploy** | `supabase db push` → S3 sync → CloudFront invalidation → `cdk deploy`. Not atomic; see below. |
-| **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`. A production that doesn't answer correctly fails the deploy run. The OG specs first wait up to five minutes for the edge handler to replicate; a new Lambda@Edge version is not at every edge location the moment `cdk deploy` returns. |
+| **Fly app** | `fly/deploy.sh` from a clean checkout: the image builds on Fly's remote builder, then the build lock is taken and the image deployed. A failure here leaves the previous image serving, with the database already migrated. |
+| **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`, after both the Deploy and Fly app jobs. A production that doesn't answer correctly fails the deploy run. The OG specs first wait up to five minutes for the edge handler to replicate; a new Lambda@Edge version is not at every edge location the moment `cdk deploy` returns. |
 | **Alert / Resolve** | On failure, opens or updates the single `deploy-failed` issue; on a fully green run, closes it. |
 
 Two things to know when reading a red run:

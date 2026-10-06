@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Deploy the salishsea-io Fly app from this checkout (salish-t3g.3), by hand until
-# a workflow does it (salish-t3g.5). The image is tagged with both pins, so
-# `fly deploy --image registry.fly.io/salishsea-io:<sha>-stelis-<12>` redeploys one.
+# Deploy the salishsea-io Fly app from this checkout (salish-t3g.3). The Deploy workflow
+# runs it on every push to main (salish-t3g.5); run it by hand to redeploy. The image
+# is tagged with both pins, so `fly deploy --image
+# registry.fly.io/salishsea-io:<sha>-stelis-<12>` redeploys one.
 #
 #   fly/deploy.sh
 #
@@ -33,7 +34,10 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 REF=grztmjpzamcxlzecmqca
-KEY=$(npx --yes supabase projects api-keys --project-ref "$REF" -o json \
+# The Supabase CLI on PATH (the Deploy workflow's setup-cli), else the devDependency.
+supabase=(npx --yes supabase)
+command -v supabase > /dev/null && supabase=(supabase)
+KEY=$("${supabase[@]}" projects api-keys --project-ref "$REF" -o json \
       | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const k=JSON.parse(s).find(k=>k.type==="publishable");if(!k)process.exit(1);process.stdout.write(k.api_key)})')
 
 APP=salishsea-io
