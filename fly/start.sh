@@ -77,9 +77,12 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
         cd /app
         while true; do
             # A fresh volume gets the store back from its replica before anything can
-            # write it; with a store present, or no replica yet, this does nothing.
+            # write it; with a store present this does nothing. With neither a store nor
+            # a replica it fails, and the API stays down rather than start an empty store
+            # that would publish a map without anyone's sightings: putting a store in
+            # place is a deliberate act (the cutover, or a restore by hand).
             AWS_ACCESS_KEY_ID="$aws_key_id" AWS_SECRET_ACCESS_KEY="$aws_secret" \
-                litestream restore -config /app/fly/litestream.yml -if-db-not-exists -if-replica-exists \
+                litestream restore -config /app/fly/litestream.yml -if-db-not-exists \
                 /data/store/salishsea.db \
             || { echo "restoring the store from its replica failed; retrying in 10 s" >&2; sleep 10; continue; }
             # The API runs under Litestream, so the store is replicated exactly while

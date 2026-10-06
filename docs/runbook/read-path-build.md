@@ -87,7 +87,7 @@ Supabase stops taking writes first: from 2026-10-05 the project is restricted fo
 
 The write API runs under `litestream replicate -exec` ([`fly/litestream.yml`](../../fly/litestream.yml), started by `fly/start.sh`), so the store is replicated to `s3://salishsea-io-store-replica/store/salishsea.db` (Orcasound account, us-west-2) for exactly as long as the API can write it, about a second behind each write. A full snapshot is taken daily and kept thirty days, which is how far back a point-in-time restore reaches. If the API or Litestream exits, both are restarted together.
 
-**On a fresh volume the store comes back by itself.** Before each start, `start.sh` runs `litestream restore -if-db-not-exists -if-replica-exists`. With the store present, or no replica yet, that does nothing. With the store gone and a replica in the bucket, it restores the latest state before the API can write.
+**On a fresh volume the store comes back by itself.** Before each start, `start.sh` runs `litestream restore -if-db-not-exists`. With the store present, that does nothing. With the store gone, it restores the replica's latest state before the API can write. With neither, it fails, and the API stays down, retrying every ten seconds, rather than start an empty store and publish a map without anyone's sightings.
 
 **A restore drill**, to run before the cutover and after any change to the replication. [`fly/restore-drill.sh`](../../fly/restore-drill.sh) restores the latest replicated state into a scratch file, never over the live store, and compares each table with the store's, by its row count and a hash of every row, so a changed row shows as well as a missing one. It exits non-zero if any differ:
 
