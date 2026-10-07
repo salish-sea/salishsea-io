@@ -71,10 +71,11 @@ public.party_kind	first_nation	5
 public.sex	male	1
 public.sex	female	2
 public.social_group_kind	ecotype	1
-public.social_group_kind	clan	2
-public.social_group_kind	pod	3
-public.social_group_kind	matriline	4
-public.social_group_kind	named_group	5
+public.social_group_kind	community	2
+public.social_group_kind	clan	3
+public.social_group_kind	pod	4
+public.social_group_kind	matriline	5
+public.social_group_kind	named_group	6
 public.travel_direction	north	1
 public.travel_direction	northeast	2
 public.travel_direction	east	3
