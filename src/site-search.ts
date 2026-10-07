@@ -232,6 +232,9 @@ export class SiteSearch extends LitElement {
       if (!options.length) return;
       const step = event.key === 'ArrowDown' ? 1 : -1;
       this.active = (this.active + step + options.length) % options.length;
+      // The list scrolls; the marked link must stay in it. Focus stays in the field.
+      void this.updateComplete.then(() =>
+        this.shadowRoot?.getElementById(`option-${this.active}`)?.scrollIntoView({ block: 'nearest' }));
     } else if (event.key === 'Enter') {
       const option = options[this.active] ?? options[0];
       if (option) {
@@ -273,7 +276,8 @@ export class SiteSearch extends LitElement {
         <li id=${`option-${i}`} role="option" aria-selected=${i === this.active ? 'true' : 'false'}
           @mouseenter=${() => { this.active = i; }}>
           ${option.latest
-            ? html`<a class="latest" href=${option.href} tabindex="-1">Latest sighting · ${formatDay(option.entry.latest!.date)}</a>`
+            ? html`<a class="latest" href=${option.href} tabindex="-1"
+                aria-label=${`${option.entry.label}'s latest sighting, ${formatDay(option.entry.latest!.date)}`}>Latest sighting · ${formatDay(option.entry.latest!.date)}</a>`
             : html`<a href=${option.href} tabindex="-1"><span class="label">${option.entry.label}</span>
                 <span class="note">${option.entry.note || KIND_LABELS[option.entry.kind]}</span></a>`}
         </li>`)}
