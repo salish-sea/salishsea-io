@@ -11,7 +11,7 @@ import { fold } from '../../src/fold.ts';
 export type Redirects = {
     individuals: Record<string, string>,
     matrilines: Record<string, string>,
-    ecotypes: Record<string, string>,
+    populations: Record<string, string>,
     /**
      * Each published page by its bare identifier, `<kind>/<id>` (individuals/0010193,
      * haulouts/340), to its canonical address: decision 034 301s a bare identifier to
@@ -22,7 +22,7 @@ export type Redirects = {
 
 /** A bare-identifier path's key in Redirects.ids: `<kind>/<id>`, or null for any other path. */
 export function bareIdKey(pathname: string): string | null {
-    const match = pathname.match(/^\/((?:individuals|matrilines|ecotypes)\/[0-9]{7}|haulouts\/[0-9]{1,9})\/?$/);
+    const match = pathname.match(/^\/((?:individuals|matrilines|populations)\/[0-9]{7}|haulouts\/[0-9]{1,9})\/?$/);
     return match ? match[1]! : null;
 }
 

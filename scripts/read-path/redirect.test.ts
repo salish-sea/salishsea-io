@@ -9,7 +9,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { handler } from './redirect.ts';
 import type { Redirects } from './redirect-keys.ts';
 
-const REDIRECTS: Redirects = {individuals: {'t65a': '/individuals/0010193/T065A'}, matrilines: {}, ecotypes: {}};
+const REDIRECTS: Redirects = {individuals: {'t65a': '/individuals/0010193/T065A'}, matrilines: {}, populations: {}};
 
 async function answer(map: () => Promise<Redirects>, url: string) {
     let status = 0;

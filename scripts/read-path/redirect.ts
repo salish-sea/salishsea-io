@@ -5,7 +5,7 @@
  *   node scripts/read-path/redirect.ts <redirects.json> <port>
  *
  * Caddy sends it /individuals/<designation>, /matrilines/<designation> and
- * /ecotypes/<designation>: legacy links from before decision 034, and typed ones; and
+ * /populations/<designation>: legacy links from before decision 034, and typed ones; and
  * a bare identifier, /individuals/0010193 or /haulouts/340, which decision 034 301s
  * to the slugged address (salish-xv35.16).
  * A known designation gets a 301 to the canonical address, as the Lambda@Edge
@@ -27,12 +27,12 @@ import { bareIdKey, designationKey, matrilineKey, type Redirects } from './redir
 const REDIRECT_CACHE = 'public, max-age=86400';
 
 /** The kinds a designation names. */
-type DesignationKind = 'individuals' | 'matrilines' | 'ecotypes';
+type DesignationKind = 'individuals' | 'matrilines' | 'populations';
 
 const KEYS: Record<DesignationKind, (segment: string) => string> = {
     individuals: designationKey,
     matrilines: matrilineKey,
-    ecotypes: designationKey,
+    populations: designationKey,
 };
 
 /** Where a request path redirects to, with its query kept; null if it names nothing we have. */
@@ -46,7 +46,7 @@ export function redirectFor(redirects: Redirects, url: string): string | null {
         const ids = redirects.ids ?? {};
         return keep(Object.hasOwn(ids, id) ? ids[id] : undefined);
     }
-    const match = pathname.match(/^\/(individuals|matrilines|ecotypes)\/([^/]+)\/?$/);
+    const match = pathname.match(/^\/(individuals|matrilines|populations)\/([^/]+)\/?$/);
     if (!match) return null;
     const kind = match[1] as DesignationKind;
     let segment: string;
@@ -57,7 +57,9 @@ export function redirectFor(redirects: Redirects, url: string): string | null {
     }
     // Own keys only: /individuals/constructor is not Object.prototype's.
     const key = KEYS[kind](segment);
-    return keep(Object.hasOwn(redirects[kind], key) ? redirects[kind][key] : undefined);
+    // A map written before population pages moved to /populations/ has no such kind.
+    const table = redirects[kind] ?? {};
+    return keep(Object.hasOwn(table, key) ? table[key] : undefined);
 }
 
 function splitOnce(s: string, sep: string): [string, string | undefined] {

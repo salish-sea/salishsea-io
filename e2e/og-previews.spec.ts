@@ -26,7 +26,7 @@ const PROBE_TIMEOUT_MS = 15_000;
 // SSA:0010193; the Bigg's ecotype is SSA:0000002; T046A was renamed T122
 // (SSA:0010368) and is the code that died under the old scheme.
 const CANONICAL_T065A = '/individuals/0010193/T065A';
-const CANONICAL_BIGGS = '/ecotypes/0000002/Biggs';
+const CANONICAL_BIGGS = '/populations/0000002/Biggs';
 // A matriline's slug is the group's written form, not the matriarch's code.
 const CANONICAL_T065AS = '/matrilines/0002163/T065As';
 const HUMAN_UA = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' };
@@ -241,7 +241,14 @@ test('regular browser UA on an ecotype page receives the page shell', async ({ r
 });
 
 test('the ecotype designation path 301s to the identifier-keyed address', async ({ request }) => {
-  const response = await request.get('/ecotypes/Biggs', { headers: HUMAN_UA, maxRedirects: 0 });
+  const response = await request.get('/populations/Biggs', { headers: HUMAN_UA, maxRedirects: 0 });
+  expect(response.status()).toBe(301);
+  expect(response.headers()['location']).toBe(CANONICAL_BIGGS);
+});
+
+// Population pages were /ecotypes/ until decision 070; every link shared before then has this shape.
+test('an /ecotypes/ path 301s to the same path under /populations/', async ({ request }) => {
+  const response = await request.get('/ecotypes/0000002/Biggs', { headers: HUMAN_UA, maxRedirects: 0 });
   expect(response.status()).toBe(301);
   expect(response.headers()['location']).toBe(CANONICAL_BIGGS);
 });

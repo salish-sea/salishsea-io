@@ -79,8 +79,8 @@ export function matrilinePath(group: { entity_id: string | null; designation: st
   return profilePath('matrilines', group.entity_id, `${group.designation}s`);
 }
 
-export function ecotypePath(group: { entity_id: string | null; designation: string }): string {
-  return profilePath('ecotypes', group.entity_id, group.designation);
+export function populationPath(group: { entity_id: string | null; designation: string }): string {
+  return profilePath('populations', group.entity_id, group.designation);
 }
 
 function decodeSegment(segment: string): string | null {
@@ -112,8 +112,8 @@ export function parseIndividualPath(pathname: string): ProfileKey | null {
   return parseKeyedPath(pathname, 'individuals');
 }
 
-export function parseEcotypePath(pathname: string): ProfileKey | null {
-  return parseKeyedPath(pathname, 'ecotypes');
+export function parsePopulationPath(pathname: string): ProfileKey | null {
+  return parseKeyedPath(pathname, 'populations');
 }
 
 export function parseMatrilinePath(pathname: string): ProfileKey | null {

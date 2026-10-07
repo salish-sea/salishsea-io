@@ -47,12 +47,12 @@ describe('buildRedirects', () => {
 
     test('groups by their designation; none for a subject without a page', () => {
         expect(redirects().matrilines).toEqual({'t65a': '/matrilines/0002163/T065As'});
-        expect(redirects().ecotypes).toEqual({'biggs': '/ecotypes/0000002/Biggs'});
+        expect(redirects().populations).toEqual({'biggs': '/populations/0000002/Biggs'});
     });
 
     test('every published page by its bare identifier, to its slugged address', () => {
         expect(redirects().ids).toEqual({
-            'ecotypes/0000002': '/ecotypes/0000002/Biggs',
+            'populations/0000002': '/populations/0000002/Biggs',
             'matrilines/0002163': '/matrilines/0002163/T065As',
             'individuals/0010002': '/individuals/0010002/T065A2',
             'individuals/0010193': '/individuals/0010193/T065A',
@@ -78,7 +78,7 @@ describe('redirectFor', () => {
         ['/individuals/T65A?d=2026-01-01&o=x', '/individuals/0010193/T065A?d=2026-01-01&o=x'],
         ['/matrilines/T065As', '/matrilines/0002163/T065As'],
         ['/matrilines/t65a', '/matrilines/0002163/T065As'],
-        ['/ecotypes/Bigg%E2%80%99s', '/ecotypes/0000002/Biggs'],
+        ['/populations/Bigg%E2%80%99s', '/populations/0000002/Biggs'],
     ])('%s → %s, folded as the register compares names', (url, target) => {
         expect(redirectFor(redirects, url)).toBe(target);
     });
@@ -122,12 +122,12 @@ describe('the sitemap', () => {
 
     test("every published profile, and only those, after the site's own pages", () => {
         expect(profilePaths(tables())).toEqual([
-            '/ecotypes/0000002/Biggs', '/matrilines/0002163/T065As',
+            '/populations/0000002/Biggs', '/matrilines/0002163/T065As',
             '/individuals/0010193/T065A', '/individuals/0010002/T065A2',
             '/haulouts/12/Protection-Island', '/haulouts/510/Race-Rocks',
         ]);
-        const sitemap = buildSitemap(VITE, ['/ecotypes/0000002/Biggs']);
-        expect(sitemap).toContain('<loc>https://salishsea.io/</loc>\n  </url>\n  <url>\n    <loc>https://salishsea.io/ecotypes/0000002/Biggs</loc>');
+        const sitemap = buildSitemap(VITE, ['/populations/0000002/Biggs']);
+        expect(sitemap).toContain('<loc>https://salishsea.io/</loc>\n  </url>\n  <url>\n    <loc>https://salishsea.io/populations/0000002/Biggs</loc>');
         expect(sitemap.endsWith('</urlset>\n')).toBe(true);
     });
 

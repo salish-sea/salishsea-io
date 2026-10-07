@@ -11,7 +11,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  ecotypePath, groupChain, matrilinePath,
+  populationPath, groupChain, matrilinePath,
   type CatalogGroup, type GroupMember, type MatrilineProfile, type OccurrenceLink,
 } from './catalog.ts';
 import {
@@ -90,7 +90,7 @@ function renderChain(chain: CatalogGroup[]): TemplateResult | typeof nothing {
   return html`${parents.map((g, i) => html`${i ? ' · ' : ''}Within ${g.kind === 'matriline'
       ? html`<a href=${matrilinePath(g)}>${g.designation}</a>`
       : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
-    }${ecotype ? html`${parents.length ? ' · ' : ''}<a href=${ecotypePath(ecotype)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}`;
+    }${ecotype ? html`${parents.length ? ' · ' : ''}<a href=${populationPath(ecotype)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}`;
 }
 
 // Naming facts only (name, status, year, namer) — no story prose (D-21).

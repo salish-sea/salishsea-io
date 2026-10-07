@@ -10,7 +10,7 @@
 import { css, html, nothing } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  ecotypePath, matrilinePath,
+  populationPath, matrilinePath,
   type EcotypeProfile, type OccurrenceLink, type SocialGroup,
 } from './catalog.ts';
 import type { MapDot } from './individual-map.ts';
@@ -56,7 +56,7 @@ export function ecotypePreview({ group }: Pick<EcotypeProfileData, 'group'>) {
   return {
     title: label,
     description: `The matrilines and aggregated sighting history of ${label} in the Salish Sea.`,
-    path: ecotypePath(group),
+    path: populationPath(group),
   };
 }
 
