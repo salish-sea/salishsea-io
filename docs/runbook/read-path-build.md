@@ -132,7 +132,13 @@ fly machine update 82973dc7675348 -a salishsea-io --env READ_PATH_MAINTENANCE=1 
 fly machine update 82973dc7675348 -a salishsea-io --env READ_PATH_MAINTENANCE=0 -y   # out
 ```
 
-Each is one reboot of the machine (about ten seconds). In maintenance, Caddy and the redirect server run and nothing else: every published file keeps serving, Fly's health check keeps passing, and the schedule, the change listener and the boot build stay off, so `/data` is yours. `/status/maintenance.json` says since when; the heartbeat reads it and reports a planned window instead of filing a stale-build issue (it still files one if a window runs past a day). Visitors notice nothing except that the files stop advancing; a signed-in contributor sees their own sightings live as always. Leaving the mode boots normally, build included. (Beeline's PR #132 is the same idea for an app with a store to keep closed; here the site is static, so it can simply keep serving.)
+Each is one reboot of the machine (about ten seconds). In maintenance, Caddy and the redirect server run and nothing else: every published file keeps serving, Fly's health check keeps passing, and the schedule, the change listener and the boot build stay off, so `/data` is yours. `/status/maintenance.json` says since when; the heartbeat reads it and reports a planned window instead of filing a stale-build issue (it still files one if a window runs past a day). The Sentry cron monitor can't read it: **mute `read-path-build` in Sentry before entering maintenance, and unmute it after**, or it opens an issue half an hour in ([below](#is-the-build-publishing-the-sentry-cron-monitor)). Visitors notice nothing except that the files stop advancing; a signed-in contributor sees their own sightings live as always. Leaving the mode boots normally, build included. (Beeline's PR #132 is the same idea for an app with a store to keep closed; here the site is static, so it can simply keep serving.)
+
+## Is the build publishing? The Sentry cron monitor
+
+Each scheduled build checks in to the Sentry cron monitor [`read-path-build`](https://beam-reach.sentry.io/crons/salishsea-io/read-path-build/) ([`fly/build.sh`](../../fly/build.sh), decision 012 as amended): `ok` when it rewrote `manifest.json`, which waits on every other file, `error` when it didn't. A build that doesn't run at all, because the machine is down or the schedule stopped, checks in nothing, which Sentry counts as missed. Six in a row without an `ok`, half an hour, open a Sentry issue, and the first `ok` resolves it. The monitor's settings travel with each check-in, so change them in `build.sh`, not in Sentry. A save's build doesn't check in.
+
+What it doesn't tell you is *why*. For that, read the build's log (`flyctl logs -a salishsea-io --no-tail`, a failing task prints `✗ <task> — exit 1` and the tasks it blocked `⊘`), or ask Stelis, below.
 
 ## Looking at the machine: take the lock first
 
@@ -166,7 +172,7 @@ Orcasound is read whole every run, so its mirror needs no backfill. A scheduled 
 
 ## When the build refuses a register edition
 
-Every build asks which release of the animals register is newest and adopts it if it is new — unless it would stop naming a (name, scientific name) pair from the Maplify mirror that the edition the build holds names. Then the build keeps the edition it holds, the `register` run in `/status/ingest-runs.json` fails with the pairs named, and the heartbeat files a `stale` finding for `register` within half an hour. Everything else keeps publishing. The fix is the same as for the name guard below: name the pair again in the register, or accept the un-naming with a row in `data/maplify-unnamed.tsv`. To hold the build at one edition meanwhile (or roll it back), set it in the machine's environment, which reboots the machine once:
+Every build asks which release of the animals register is newest and adopts it if it is new — unless it would stop naming a (name, scientific name) pair from the Maplify mirror that the edition the build holds names. Then the build keeps the edition it holds, the `register` run in `/status/ingest-runs.json` fails with the pairs named, and the heartbeat files a `stale` finding for `register` the next time it runs, which GitHub's scheduler makes hours rather than minutes. Everything else keeps publishing. The fix is the same as for the name guard below: name the pair again in the register, or accept the un-naming with a row in `data/maplify-unnamed.tsv`. To hold the build at one edition meanwhile (or roll it back), set it in the machine's environment, which reboots the machine once:
 
 ```sh
 fly machine update 82973dc7675348 -a salishsea-io --env REGISTER_TAG=2026.09.6 -y   # hold
@@ -175,7 +181,7 @@ fly machine update 82973dc7675348 -a salishsea-io --env REGISTER_TAG= -y        
 
 ## When the name guard holds
 
-`maplify-names` fails when a register edition stops naming a pair the last passing build named; every published file then stays as it was, and the heartbeat's `unpublished` check fires within half an hour. This should not happen: the build's register fetch refuses such an edition before adopting it, and `register-refresh.yml` before loading it into Postgres. The guard still catches a pair the Maplify mirror didn't hold when the edition was judged. The fix is in the register (name the pair again) or, for an un-naming meant on purpose, a row in `data/maplify-unnamed.tsv` in a pull request — never an edit to `maplify-names.json` on the volume.
+`maplify-names` fails when a register edition stops naming a pair the last passing build named; every published file then stays as it was, and the Sentry cron monitor opens an issue within half an hour (the heartbeat's `unpublished` check too, whenever it next runs). This should not happen: the build's register fetch refuses such an edition before adopting it, and `register-refresh.yml` before loading it into Postgres. The guard still catches a pair the Maplify mirror didn't hold when the edition was judged. The fix is in the register (name the pair again) or, for an un-naming meant on purpose, a row in `data/maplify-unnamed.tsv` in a pull request — never an edit to `maplify-names.json` on the volume.
 
 ## Measuring a task
 

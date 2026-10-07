@@ -1,6 +1,8 @@
 # 012 — Ingest heartbeat: an external observer via scheduled GitHub Action
 
-**Status:** accepted, amended by [060](060-an-upstream-outage-is-held-to-a-longer-threshold.md) · **Decided:** 2026-07-06
+**Status:** accepted, amended by [060](060-an-upstream-outage-is-held-to-a-longer-threshold.md) and below (2026-10-07) · **Decided:** 2026-07-06
+
+**Amended 2026-10-07: whether the build is publishing is watched by a Sentry cron monitor** (bd `salish-d7tr`). This record expected detection "roughly 30–60 minutes" after a stall. By October GitHub ran the `*/30` heartbeat four to six hours apart: five runs on 2026-10-06. A 46-minute stall that night, the whales page failing every build and holding `manifest.json` back with it, fell between two runs and was never reported. Each scheduled build on the Fly machine now checks in to the Sentry monitor `read-path-build` ([`fly/build.sh`](../../fly/build.sh)): `ok` when it rewrote the manifest, `error` when it didn't. A build that never runs checks in nothing, and Sentry counts that as missed, so the monitor still catches the case this record exists for: a schedule that stops. Six check-ins in a row without an `ok` (half an hour) open an issue. The rejection below assumed Sentry would be a second channel added for this alone. The site already reports to Sentry, and a channel that fires in half an hour is worth more than a single channel that fires in hours. The heartbeat stays, for the checks Sentry can't make from a build's exit: per-source freshness, gaps between successes, upstream outages, the archive's age, and planned maintenance, which the monitor has to be muted for ([runbook](../runbook/read-path-build.md#is-the-build-publishing-the-sentry-cron-monitor)).
 
 ## Context
 

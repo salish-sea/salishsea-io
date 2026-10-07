@@ -122,13 +122,16 @@ USER root
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_KEY
 ARG SOURCE_DATE_EPOCH
+# SENTRY_CRONS: the scheduled build's check-in (fly/build.sh), under the site's own Sentry
+# project. Its key is the DSN's public one, in every browser already (src/sentry.ts).
 ENV SUPABASE_URL=${VITE_SUPABASE_URL} \
     SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_KEY} \
     SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
     SALISHSEA_DIR=/app \
     STELIS_STATE_DIR=/data/stelis \
     SALISHSEA_SNAPSHOT_DB=/data/read-path.duckdb \
-    READ_PATH_EXPORT_DIR=/data/export
+    READ_PATH_EXPORT_DIR=/data/export \
+    SENTRY_CRONS=https://o4509634382331904.ingest.us.sentry.io/api/4509634387509248/cron/read-path-build/56ce99ce80994bab79dab62d06078c97/
 
 EXPOSE 8080
 CMD ["/app/fly/start.sh"]
