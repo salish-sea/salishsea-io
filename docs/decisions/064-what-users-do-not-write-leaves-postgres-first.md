@@ -1,6 +1,6 @@
 # 064 — Step 4 starts by taking out of Postgres everything our users do not write
 
-**Status:** accepted · **Decided:** 2026-10-05 · **Answers:** the first move of step 4 of [056](056-the-logged-out-read-path-is-built-as-static-files.md), toward [059](059-the-end-state-is-a-build-graph-with-a-small-authoritative-store.md)'s end state · **Context:** bd `salish-9uu`
+**Status:** accepted · **Decided:** 2026-10-05 · **Answers:** the first move of step 4 of [056](056-the-logged-out-read-path-is-built-as-static-files.md), toward [059](059-the-end-state-is-a-build-graph-with-a-small-authoritative-store.md)'s end state · **Context:** bd `salish-9uu` · **Amended by:** [070](070-southern-residents-are-generated-from-the-register.md) (the Southern Residents' catalogue rows are generated from the register, not checked in)
 
 ## Context
 
