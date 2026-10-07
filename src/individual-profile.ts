@@ -12,7 +12,7 @@ import { css, html, nothing, type TemplateResult } from 'lit';
 import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  populationPath, groupChain, individualPath, matrilinePath,
+  isPopulation, populationLabel, populationPath, groupChain, individualPath, matrilinePath,
   type CatalogGroup, type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent,
 } from './catalog.ts';
 import {
@@ -126,14 +126,14 @@ export function renderIndividualProfile(
 
 export function renderChain(chain: CatalogGroup[], selfDesignation: string): TemplateResult {
   const [first, ...rest] = chain;
-  const parents = rest.filter(g => g.kind !== 'ecotype');
-  const ecotype = rest.find(g => g.kind === 'ecotype');
+  const parents = rest.filter(g => !isPopulation(g));
+  const population = rest.find(isPopulation);
   return html`
     <b>${first!.designation} ${first!.kind === 'matriline' ? 'matriline' : first!.kind}</b>${
       parents.map(g => html` · within ${g.anchor && g.designation !== selfDesignation
         ? html`<a href=${individualPath(g.anchor)}>${g.designation}</a>`
         : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
-    }${ecotype ? html` · <a href=${populationPath(ecotype)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}
+    }${population ? html` · <a href=${populationPath(population)}>${populationLabel(population)}</a>` : nothing}
   `;
 }
 

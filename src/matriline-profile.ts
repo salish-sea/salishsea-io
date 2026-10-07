@@ -11,7 +11,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  populationPath, groupChain, matrilinePath,
+  isPopulation, populationLabel, populationNoun, populationPath, groupChain, matrilinePath,
   type CatalogGroup, type GroupMember, type MatrilineProfile, type OccurrenceLink,
 } from './catalog.ts';
 import {
@@ -37,10 +37,11 @@ export function matrilineTitle({ group, name }: Pick<MatrilineProfileData, 'grou
 }
 
 /** What a link preview says about the page, as the Lambda@Edge function says it. */
-export function matrilinePreview({ group, name }: Pick<MatrilineProfileData, 'group' | 'name'>) {
+export function matrilinePreview({ group, groups, name }: Pick<MatrilineProfileData, 'group' | 'groups' | 'name'>) {
+  const population = groupChain(group.id, groups).find(isPopulation);
   return {
     title: matrilineTitle({ group, name }),
-    description: `Members, naming, and sighting history of the ${group.designation} matriline of Bigg's killer whales in the Salish Sea.`,
+    description: `Members, naming, and sighting history of the ${group.designation} matriline of ${population ? `${populationNoun(population)}s` : 'killer whales'} in the Salish Sea.`,
     path: matrilinePath(group),
   };
 }
@@ -48,7 +49,7 @@ export function matrilinePreview({ group, name }: Pick<MatrilineProfileData, 'gr
 /** The page's content, given its Sightings section's content. */
 export function renderMatrilineProfile({ group, groups, members, name }: MatrilineProfileData, sightings: unknown) {
   const chain = groupChain(group.id, groups);
-  const biggs = chain.some(g => g.kind === 'ecotype' && g.designation === 'Biggs');
+  const population = chain.find(isPopulation);
   const anchor = group.anchor;
   // Members not known to be dead: a status nobody recorded says nothing either way
   // (the same rule individual_occurrences uses for a group mention).
@@ -56,7 +57,7 @@ export function renderMatrilineProfile({ group, groups, members, name }: Matrili
     m.individual?.life_status !== 'deceased' && m.individual?.life_status !== 'presumed_deceased');
   return html`
     <header class="masthead">
-      <div class="designation-kicker">${name ? `${group.designation} matriline` : biggs ? "Bigg's killer whale matriline" : 'Matriline'}</div>
+      <div class="designation-kicker">${name ? `${group.designation} matriline` : population ? `${populationNoun(population)} matriline` : 'Matriline'}</div>
       <h1>${name ?? `The ${group.designation} matriline`}</h1>
       <p class="vitals">
         ${anchor ? html`Matriline of ${renderRelative(anchor)}${renderDagger(anchor.life_status)}` : nothing}${anchor && current.length ? ' · ' : nothing}${current.length ? `${current.length} current member${current.length === 1 ? '' : 's'}` : nothing}
@@ -80,17 +81,17 @@ export function renderMatrilineSightings(designation: string, links: OccurrenceL
     html`<p class="placeholder">No sighting reports mention the ${designation}s as a group yet.</p>`, options);
 }
 
-// "Within T065's matriline · Bigg's (transient) killer whales" — ancestors
-// only; the masthead already names the group itself.
+// "Within T065's matriline · Bigg's (transient) killer whales", or "Within J pod ·
+// Southern Resident killer whales" — ancestors only; the masthead already names the group itself.
 function renderChain(chain: CatalogGroup[]): TemplateResult | typeof nothing {
   const ancestors = chain.slice(1);
-  const parents = ancestors.filter(g => g.kind !== 'ecotype');
-  const ecotype = ancestors.find(g => g.kind === 'ecotype');
-  if (!parents.length && !ecotype) return nothing;
+  const parents = ancestors.filter(g => !isPopulation(g));
+  const population = ancestors.find(isPopulation);
+  if (!parents.length && !population) return nothing;
   return html`${parents.map((g, i) => html`${i ? ' · ' : ''}Within ${g.kind === 'matriline'
       ? html`<a href=${matrilinePath(g)}>${g.designation}</a>`
       : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
-    }${ecotype ? html`${parents.length ? ' · ' : ''}<a href=${populationPath(ecotype)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}`;
+    }${population ? html`${parents.length ? ' · ' : ''}<a href=${populationPath(population)}>${populationLabel(population)}</a>` : nothing}`;
 }
 
 // Naming facts only (name, status, year, namer) — no story prose (D-21).

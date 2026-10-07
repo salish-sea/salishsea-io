@@ -266,6 +266,50 @@ describe('assembleEcotypes and renderEcotypePage', () => {
     });
 });
 
+// The Southern Residents' rows as the catalogue generates them (decision 070): J31 in the
+// J31s, inside J pod, inside the Southern Resident community, whose page is a population's.
+const withSouthernResidents = () => {
+    const t = tables();
+    t.individuals.push({...person(0, 'J31'), id: 10020030, entity_id: 'SSA:0020030', maternity_certainty: 'presumed'});
+    t.social_groups.push(
+        {id: 10000010, kind: 'community', anchor_individual_id: null, designation: 'Southern Resident', entity_id: 'SSA:0000010', designation_folded: 'southern resident', notes: null},
+        {id: 10000020, kind: 'pod', anchor_individual_id: null, designation: 'J', entity_id: 'SSA:0000020', designation_folded: 'j', notes: null},
+        {id: 10003011, kind: 'matriline', anchor_individual_id: 10020030, designation: 'J31', entity_id: 'SSA:0003011', designation_folded: 'j31', notes: null},
+    );
+    t.group_parents.push({group_id: 10003011, parent_group_id: 10000020}, {group_id: 10000020, parent_group_id: 10000010});
+    t.matriline_members.push({group_id: 10003011, individual_id: 10020030, innermost_group_id: 10003011});
+    t.ecotype_occurrences.push({ecotype_id: 10000010, occurrence_id: 'maplify:30', observed_at: '2026-10-06T20:00:00+00:00', location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate'});
+    return t;
+};
+
+describe("a community's population page, and the Southern Residents' chain beneath it (decision 070)", () => {
+    test("the community's page is a population's, beside the Bigg's, its matrilines found through their pods", () => {
+        const pages = assembleEcotypes(withSouthernResidents());
+        expect(pages.map(p => p.id)).toEqual(['0000901', '0000010']);
+        const page = pages[1]!;
+        expect(page.data.matrilines.map(g => g.designation)).toEqual(['J31']);
+        const doc = renderEcotypePage(shellFor('ecotype-page'), page, 2026);
+        expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/populations/0000010/Southern-Resident">');
+        expect(doc).toContain('<div class="designation-kicker">Community</div>');
+        expect(doc).toContain('<h1>Southern Resident killer whales</h1>');
+    });
+
+    test('a matriline names its pod and its population, and previews as one of theirs', () => {
+        const page = assembleMatrilines(withSouthernResidents()).find(p => p.id === '0003011')!;
+        const doc = renderMatrilinePage(shellFor('matriline-page'), page, 2026);
+        expect(doc).toContain('Southern Resident killer whale matriline');
+        expect(doc).toContain('Within J pod');
+        expect(doc).toContain('<a href="/populations/0000010/Southern-Resident">Southern Resident killer whales</a>');
+        expect(doc).toContain('the J31 matriline of Southern Resident killer whales in the Salish Sea');
+    });
+
+    test('an individual names its matriline, its pod and its population', () => {
+        const page = assembleIndividuals(withSouthernResidents()).find(p => p.id === '0020030')!;
+        const doc = renderIndividualPage(SHELL, page, 2026);
+        expect(doc).toMatch(/J31 matriline<\/b>.*within .*J.* pod.*<a href="\/populations\/0000010\/Southern-Resident">Southern Resident killer whales<\/a>/s);
+    });
+});
+
 describe('assembleHaulouts and renderHauloutPage', () => {
     const protection = () => assembleHaulouts(tables()).find(p => p.id === '12')!;
     const doc = () => renderHauloutPage(shellFor('haulout-page'), protection(), 2026);

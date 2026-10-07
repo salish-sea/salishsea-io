@@ -1,5 +1,6 @@
 /**
- * An ecotype's profile page, as templates that render anywhere (decision 057).
+ * A population's profile page, as templates that render anywhere (decision 057): an
+ * ecotype's, as the Bigg's is, or a community's, as the Southern Residents' is (070).
  *
  * As src/individual-profile.ts is for an individual: the client-rendered page
  * (src/ecotype-page.ts) fills these from Supabase, and the read-path build
@@ -10,18 +11,12 @@
 import { css, html, nothing } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  populationPath, matrilinePath,
+  populationLabel, populationPath, matrilinePath,
   type EcotypeProfile, type OccurrenceLink, type SocialGroup,
 } from './catalog.ts';
 import type { MapDot } from './individual-map.ts';
 import { renderSightingsSummary, type SightingsOptions } from './profile-shared.ts';
 import { renderSmallMaps, smallMapStyles } from './small-multiples.ts';
-
-// The catalog's one ecotype today; its notes column carries this descriptor but
-// notes are never rendered (D-21), so the display label is set in code.
-const ECOTYPE_LABELS: Record<string, string> = {
-  Biggs: "Bigg's (transient) killer whales",
-};
 
 /** The ecotype page's own styles, after profileStyles. */
 export const ecotypeStyles = [smallMapStyles, css`
@@ -32,7 +27,7 @@ export const ecotypeStyles = [smallMapStyles, css`
 `];
 
 /** What the page shows of the group itself: never its `notes` (D-21). */
-export type ProfileEcotype = Pick<EcotypeProfile, 'id' | 'entity_id' | 'designation'>;
+export type ProfileEcotype = Pick<EcotypeProfile, 'id' | 'entity_id' | 'designation' | 'kind'>;
 
 export interface EcotypeProfileData {
   group: ProfileEcotype;
@@ -45,10 +40,8 @@ export interface EcotypeProfileData {
   matrilineReports?: ReadonlyMap<number, readonly MapDot[]>;
 }
 
-/** What the page calls the ecotype, in its heading, its title and its preview. */
-export function ecotypeLabel(group: Pick<ProfileEcotype, 'designation'>): string {
-  return ECOTYPE_LABELS[group.designation] ?? group.designation;
-}
+/** What the page calls the population, in its heading, its title and its preview. */
+export const ecotypeLabel = (group: Pick<ProfileEcotype, 'designation'>): string => populationLabel(group);
 
 /** What a link preview says about the page, as the Lambda@Edge function says it. */
 export function ecotypePreview({ group }: Pick<EcotypeProfileData, 'group'>) {
@@ -66,7 +59,7 @@ export function renderEcotypeProfile({ group, matrilines, matrilineReports }: Ec
   const short = label.replace(/ killer whales$/, '');
   return html`
     <header class="masthead">
-      <div class="designation-kicker">Ecotype</div>
+      <div class="designation-kicker">${group.kind === 'community' ? 'Community' : 'Ecotype'}</div>
       <h1>${label}</h1>
       ${matrilines.length
         ? html`<p class="vitals">${matrilines.length} matrilines cataloged in the Salish Sea</p>`
@@ -128,5 +121,5 @@ function renderMatrilineMaps(matrilines: readonly Matriline[], reports: Readonly
 /** The Sightings section's content once the links are known. */
 export function renderEcotypeSightings(links: OccurrenceLink[] | null, options: SightingsOptions = {}) {
   return renderSightingsSummary(links,
-    html`<p class="placeholder">No sighting reports resolve to this ecotype yet.</p>`, options);
+    html`<p class="placeholder">No sighting reports resolve to this population yet.</p>`, options);
 }

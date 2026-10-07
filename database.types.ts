@@ -1293,6 +1293,7 @@ export type Database = {
       sex: "male" | "female"
       social_group_kind:
         | "ecotype"
+        | "community"
         | "clan"
         | "pod"
         | "matriline"
@@ -1511,7 +1512,14 @@ export const Constants = {
         "first_nation",
       ],
       sex: ["male", "female"],
-      social_group_kind: ["ecotype", "clan", "pod", "matriline", "named_group"],
+      social_group_kind: [
+        "ecotype",
+        "community",
+        "clan",
+        "pod",
+        "matriline",
+        "named_group",
+      ],
       travel_direction: [
         "north",
         "northeast",

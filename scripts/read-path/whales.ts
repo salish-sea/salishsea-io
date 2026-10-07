@@ -16,8 +16,7 @@ import * as path from 'node:path';
 
 import { DuckDBInstance } from '@duckdb/node-api';
 
-import { populationPath } from '../../src/catalog.ts';
-import { ecotypeLabel } from '../../src/ecotype-profile.ts';
+import { POPULATION_KINDS, populationLabel, populationPath } from '../../src/catalog.ts';
 import type { MapDot } from '../../src/individual-map.ts';
 import { profileStyles, renderProfileFrame } from '../../src/profile-shared.ts';
 import { renderWhales, whalesPreview, whalesStyles, type WhaleSpecies, type WhalesData } from '../../src/whales.ts';
@@ -34,8 +33,8 @@ export type Inputs = {
     /** Every report of a cetacean: the taxon it reaches, and whether that taxon is a species. */
     reports: {taxon_entity_id: string, species: boolean, occurrence_id: string, observed_at: string,
         lon: number | null, lat: number | null}[],
-    /** The ecotypes with pages, and the taxon each belongs to. */
-    ecotypes: {taxon_entity_id: string, entity_id: string, designation: string}[],
+    /** The populations with pages, an ecotype or a community (decision 070), and the taxon each belongs to. */
+    populations: {taxon_entity_id: string, entity_id: string, designation: string}[],
 };
 
 /**
@@ -89,14 +88,14 @@ export async function readInputs(snapshot: string): Promise<Inputs> {
             JOIN cetacean_taxa t ON t.entity_id = et.taxon_entity_id`))
             .sort((a, b) => b.at - a.at || (a.occurrence_id < b.occurrence_id ? -1 : a.occurrence_id > b.occurrence_id ? 1 : 0))
             .map(({at: _, ...r}) => r);
-        const ecotypes = await rows<Inputs['ecotypes'][number]>(`
+        const populations = await rows<Inputs['populations'][number]>(`
             SELECT et.taxon_entity_id, json_extract_string(g.doc, '$.entity_id') AS entity_id,
                    json_extract_string(g.doc, '$.designation') AS designation
             FROM store.snapshot.social_groups g
             JOIN entity_taxon et ON et.entity_id = json_extract_string(g.doc, '$.entity_id')
-            WHERE json_extract_string(g.doc, '$.kind') = 'ecotype'
+            WHERE json_extract_string(g.doc, '$.kind') IN (${POPULATION_KINDS.map(k => `'${k}'`).join(', ')})
             ORDER BY designation`);
-        return {species, reports, ecotypes};
+        return {species, reports, populations};
     } finally {
         conn.closeSync();
         db.closeSync();
@@ -104,7 +103,7 @@ export async function readInputs(snapshot: string): Promise<Inputs> {
 }
 
 /** The page's data: the species with reports, most-reported first, a tie by name. */
-export function assembleWhales({species, reports, ecotypes}: Inputs): WhalesData {
+export function assembleWhales({species, reports, populations}: Inputs): WhalesData {
     const bySpecies = new Map<string, MapDot[]>();
     let unidentified = 0;
     for (const r of reports) {
@@ -121,9 +120,9 @@ export function assembleWhales({species, reports, ecotypes}: Inputs): WhalesData
             common_name: s.common_name ?? s.scientific_name,
             scientific_name: s.scientific_name,
             reports: bySpecies.get(s.entity_id)!,
-            ecotypes: ecotypes.filter(e => e.taxon_entity_id === s.entity_id).map(e => ({
-                href: populationPath(e),
-                label: ecotypeLabel(e).replace(/ killer whales$/, ''),
+            populations: populations.filter(p => p.taxon_entity_id === s.entity_id).map(p => ({
+                href: populationPath(p),
+                label: populationLabel(p).replace(/ killer whales$/, ''),
             })),
         }))
         .sort((a, b) => b.reports.length - a.reports.length || a.common_name.localeCompare(b.common_name));

@@ -25,7 +25,7 @@ import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import {
-    dedupeOccurrenceLinks, descendantMatrilines, displayName, groupChain, hauloutReport, hauloutSite,
+    dedupeOccurrenceLinks, descendantMatrilines, displayName, groupChain, hauloutReport, hauloutSite, isPopulation,
     HAULOUT_SITES_FILE, type CatalogGroup, type Haulout, type HauloutOccurrence, type HauloutSite, type OccurrenceLink,
 } from '../../src/catalog.ts';
 import type { MapDot } from '../../src/individual-map.ts';
@@ -183,8 +183,8 @@ export function assembleIndividuals(t: Pick<Tables, (typeof INDIVIDUAL_TABLES)[n
             const innermostId = innermostOf.get(i['id']);
             const matriline = innermostId !== undefined ? groups.get(innermostId) ?? null : null;
             const members = matriline ? membersOf(matriline.id) : [];
-            const ecotype = matriline ? groupChain(matriline.id, groups).find(g => g.kind === 'ecotype') ?? null : null;
-            const species = (ecotype?.entity_id ? names.get(ecotype.entity_id)?.['common_name'] : null)
+            const population = matriline ? groupChain(matriline.id, groups).find(isPopulation) ?? null : null;
+            const species = (population?.entity_id ? names.get(population.entity_id)?.['common_name'] : null)
                 ?? names.get(i['entity_id'])?.['taxon_common_name']
                 ?? null;
             const data = {
@@ -260,7 +260,7 @@ export type EcotypePage = ProfilePage<EcotypeProfileData> & {links: OccurrenceLi
 // group_occurrences: each matriline's reports, for its small map (decision 067).
 const ECOTYPE_TABLES = ['social_groups', 'group_parents', 'ecotype_occurrences', 'group_occurrences'] as const;
 
-/** Every ecotype with a register identifier, as its page's data. */
+/** Every population with a register identifier, an ecotype or a community (decision 070), as its page's data. */
 export function assembleEcotypes(t: Pick<Tables, (typeof ECOTYPE_TABLES)[number]>): EcotypePage[] {
     const groups = catalogGroups(t);
     const linksOf = linksBy(t.ecotype_occurrences, 'ecotype_id');
@@ -269,12 +269,12 @@ export function assembleEcotypes(t: Pick<Tables, (typeof ECOTYPE_TABLES)[number]
     const dots = (id: number) => matrilineLinksOf(id).map(({occurrence_id, observed_at, location}) =>
         ({occurrence_id, observed_at, location}));
     return t.social_groups
-        .filter(g => g['kind'] === 'ecotype' && g['entity_id'])
+        .filter(g => isPopulation({kind: g['kind']}) && g['entity_id'])
         .sort(byId)
         .map(g => {
             const matrilines = descendantMatrilines(g['id'], groups);
             const data = {
-                group: {id: g['id'], entity_id: g['entity_id'], designation: g['designation']},
+                group: {id: g['id'], entity_id: g['entity_id'], designation: g['designation'], kind: g['kind']},
                 matrilines,
                 matrilineReports: new Map(matrilines.map(m => [m.id, dots(m.id)])),
             } satisfies EcotypeProfileData;

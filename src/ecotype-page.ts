@@ -59,7 +59,7 @@ export class EcotypePage extends LitElement {
     return html`
       <h1>${label ?? 'Not found'}</h1>
       <p>We don't have ${label ? html`a <b>${label}</b> ecotype` : 'that ecotype'} in our catalog.
-      So far it covers Bigg's (transient) killer whales of the Salish Sea; other populations are on the way.</p>
+      So far it covers Bigg's (transient) and Southern Resident killer whales; other populations are on the way.</p>
       <p><a href="/">Explore the sightings map</a> or <a href="/about.html">read about this site</a>.</p>
     `;
   }
