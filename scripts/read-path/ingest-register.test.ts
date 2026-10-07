@@ -25,7 +25,7 @@ describe('REGISTER_TABLES', () => {
     test('the tables the derivations read, depth typed as Postgres types it', () => {
         expect(REGISTER_TABLES.map(t => t.table)).toEqual(
             ['entities', 'names', 'mappings', 'ancestor', 'deprecations', 'classification', 'vitals', 'current_status',
-                'taxon_ancestor']);
+                'taxon_ancestor', 'group_ranks', 'parentage', 'matriarchs']);
         expect(REGISTER_TABLES.find(t => t.table === 'vitals')!.file).toBe('entities');
         expect(REGISTER_TABLES.find(t => t.table === 'ancestor')!.select).toContain('CAST(depth AS INTEGER)');
     });
