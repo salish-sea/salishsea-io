@@ -25,6 +25,7 @@ SalishSea.io is a whale sighting platform for the Salish Sea serving two distinc
 - User can copy a shareable link to a specific occurrence; following it sets date and map view from the occurrence — v1.0
 - Shared links generate rich previews in RCS, Facebook, Bluesky — v1.0
 - Partner organization names in occurrence body text auto-link to their websites — v1.1
+- Visitors can search, from any page, for a whale, matriline, population, haul-out site or map region by designation or nickname, and go to its page or an animal's most recent sighting ([decision 071](docs/decisions/071-a-search-field-in-the-nav.md))
 - Data consumers can download occurrences as a nightly-regenerated DwC-A + GeoParquet sidecar with sha256 verification — v1.2
 - Exported records are correctly attributed under the SalishSea.io aggregator pattern via the provider/collection/organization/contributor provenance graph — v1.3
 

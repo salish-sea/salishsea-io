@@ -44,7 +44,7 @@ import {
     hauloutPreview, hauloutProfile, hauloutStyles, renderHauloutProfile, renderHauloutReports, renderHauloutVitals,
     type HauloutProfileData,
 } from '../../src/haulout-profile.ts';
-import { islandFromManifest, renderDocument, type Island } from './profile-document.ts';
+import { islandFromManifest, renderDocument, SEARCH_ISLAND, type Island } from './profile-document.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 import { readSnapshot, type Doc, type Table, type Tables } from './snapshot-tables.ts';
 
@@ -372,7 +372,8 @@ export async function writeProfiles(kind: Kind, snapshot: string, exportDir: str
     await recoverDir(outDir);
     const shell = await readFile(path.join(dist, KINDS[kind].shell), 'utf8');
     const manifest = JSON.parse(await readFile(path.join(dist, '.vite', 'manifest.json'), 'utf8'));
-    const islands = [islandFromManifest(manifest, MAP_ISLAND, 'individual-map')];
+    const islands = [islandFromManifest(manifest, MAP_ISLAND, 'individual-map'),
+        islandFromManifest(manifest, SEARCH_ISLAND, 'site-search')];
     const {pages, index} = await KINDS[kind].pages(snapshot, shell, islands);
     await replaceDir(outDir, [...pages.flat(), ...index]);
     return {pages: pages.length};

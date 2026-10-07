@@ -35,6 +35,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Contributor, Occurrence } from "./types.ts";
 import lockupUrl from "./assets/lockup-dark.svg?url";
 import { renderSiteNav } from './site-nav.ts';
+import './site-search.ts';
 
 initSentry();
 
@@ -105,37 +106,65 @@ export default class SalishSea extends LitElement {
     a {
       text-decoration: none;
     }
-    /* The site's nav (src/site-nav.ts), light on the header's dark blue. */
+    /* The site's nav (src/site-nav.ts) on the header's dark blue: BeeAtlas's header
+       items, white and dimmed, the current page full strength over the lockup's teal. */
     nav.site-nav {
+      align-items: center;
+      align-self: stretch;
       display: flex;
-      gap: 1rem;
-      margin: 0 auto 0 1rem;
+      flex: 1;
+      gap: 4px;
+      margin-left: 1rem;
+      min-width: 0;
     }
     nav.site-nav a {
-      color: rgba(255, 255, 255, 0.75);
-      font-size: 0.95rem;
-    }
-    nav.site-nav a:hover,
-    nav.site-nav a[aria-current="page"] {
+      align-items: center;
+      align-self: stretch;
+      border-bottom: 2px solid transparent;
+      box-sizing: border-box;
       color: white;
+      display: inline-flex;
+      font-size: 0.95rem;
+      gap: 6px;
+      justify-content: center;
+      min-width: 44px;
+      opacity: 0.6;
+      padding: 0 10px;
+    }
+    nav.site-nav a:hover {
+      opacity: 0.9;
     }
     nav.site-nav a[aria-current="page"] {
+      border-bottom-color: #4bd6dd;
       font-weight: 600;
+      opacity: 1;
+    }
+    nav.site-nav site-search {
+      align-self: stretch;
+      color: white;
+      margin-left: auto;
+      --site-search-accent: #4bd6dd;
     }
     header > div {
       flex-shrink: 0;
+      margin-left: 0.25rem;
     }
-    /* A phone: the logo, three links and the login button share 390 pixels. */
-    @media (max-width: 30rem) {
+    /* A phone: the lockup's mark without its wordmark, and the nav's icons without
+       their names, so the mark, three links, search and the login button share 360
+       pixels. */
+    @media (max-width: 40rem) {
       h1 img {
-        height: 1.375rem;
+        height: 1.75rem;
+        object-fit: cover;
+        object-position: left center;
+        width: calc(1.75rem * 600 / 386.57);
       }
       nav.site-nav {
-        gap: 0.75rem;
-        margin-left: 0.75rem;
+        gap: 0;
+        margin-left: 0.25rem;
       }
-      nav.site-nav a {
-        font-size: 0.875rem;
+      nav.site-nav .nav-label {
+        display: none;
       }
     }
 
@@ -146,7 +175,10 @@ export default class SalishSea extends LitElement {
       color: white;
       display: flex;
       justify-content: space-between;
-      padding: 0.5rem;
+      /* No vertical padding: the nav's items fill the header's height, so the current
+         page's underline is its bottom edge, as BeeAtlas's is. */
+      min-height: 3rem;
+      padding: 0 0.5rem;
       width: 100%;
     }
 
