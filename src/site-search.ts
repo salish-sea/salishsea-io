@@ -210,6 +210,8 @@ export class SiteSearch extends LitElement {
     await this.updateComplete;
     this.input?.focus();
     if (this.entries) return;
+    // A retry after a failure says it is loading again, not that it failed.
+    this.failed = false;
     loadIndex().then(entries => {
       this.entries = entries;
       this.failed = false;
