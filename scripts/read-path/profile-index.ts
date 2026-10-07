@@ -27,7 +27,7 @@
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { populationPath, hauloutPath, individualPath, matrilinePath, type AnimalName } from '../../src/catalog.ts';
+import { hauloutPath, individualPath, isPopulation, matrilinePath, populationPath, type AnimalName } from '../../src/catalog.ts';
 import { designationKey, type Redirects } from './redirect-keys.ts';
 import { SITE_ORIGIN } from './profile-document.ts';
 import { readSnapshot, type Doc, type Tables } from './snapshot-tables.ts';
@@ -72,7 +72,7 @@ export function buildRedirects(t: IndexTables): Redirects {
             out.individuals[key] = individualAt(individual);
     }
     for (const g of [...t.social_groups].filter(g => g['entity_id']).sort(byId)) {
-        const into = g['kind'] === 'matriline' ? out.matrilines : g['kind'] === 'ecotype' ? out.populations : null;
+        const into = g['kind'] === 'matriline' ? out.matrilines : isPopulation({kind: g['kind']}) ? out.populations : null;
         const key = designationKey(g['designation']);
         if (into && !Object.hasOwn(into, key))
             into[key] = g['kind'] === 'matriline' ? matrilineAt(g) : populationAt(g);
@@ -121,7 +121,7 @@ export function buildCatalogCodes(t: IndexTables): CatalogCodeRows {
                 return {code: d['code'], individual: i ? {entity_id: i['entity_id'], primary_designation: i['primary_designation']} : null};
             }),
         groups: [...t.social_groups]
-            .filter(g => g['kind'] === 'matriline' || g['kind'] === 'ecotype')
+            .filter(g => g['kind'] === 'matriline' || isPopulation({kind: g['kind']}))
             .sort((a, b) => (a['entity_id'] ? 1 : 0) - (b['entity_id'] ? 1 : 0) || b['id'] - a['id'])
             .map(g => ({kind: g['kind'], designation: g['designation'], entity_id: g['entity_id']})),
     };
@@ -132,9 +132,9 @@ export function profilePaths(t: IndexTables): string[] {
     const individuals = t.individuals.filter(i => i['entity_id']).sort(byId).map(individualAt);
     const groups = t.social_groups.filter(g => g['entity_id']).sort(byId);
     const matrilines = groups.filter(g => g['kind'] === 'matriline').map(matrilineAt);
-    const ecotypes = groups.filter(g => g['kind'] === 'ecotype').map(populationAt);
+    const populations = groups.filter(g => isPopulation({kind: g['kind']})).map(populationAt);
     const haulouts = [...t.haulouts].sort(byId).map(hauloutAt);
-    return [...ecotypes, ...matrilines, ...individuals, ...haulouts];
+    return [...populations, ...matrilines, ...individuals, ...haulouts];
 }
 
 function escapeXml(s: string): string {

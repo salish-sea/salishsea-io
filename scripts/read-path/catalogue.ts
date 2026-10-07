@@ -7,8 +7,14 @@
  *
  * They are ours: seeded once from the Bigg's sheet and the 2000 WDFW atlas, corrected
  * since by hand, and written by nothing in the app, so a curator changes them by a pull
- * request to data/catalogue/. Each file holds what is ours and nothing derived. What is
- * derived is computed here, as Postgres computed it:
+ * request to data/catalogue/. Each file holds what is ours and nothing derived.
+ *
+ * Beside them, the rows of every population in GENERATED_POPULATIONS are generated from
+ * the register edition the build holds (decision 070), every build, and none of them is
+ * checked in: the Southern Residents' animals, their primary designations, and their
+ * community, pods and matrilines. Both are held to the same constraints, together.
+ *
+ * What is derived is computed here, as Postgres computed it:
  *
  *   - `designations.code_folded` and `social_groups.designation_folded`, the register's
  *     comparison form of a code (src/fold.ts; Postgres's generated columns use its SQL
@@ -116,7 +122,79 @@ export const CONSTRAINTS = {
     ] as [string, string, string][],
 };
 
-/** Every row of the loaded files (temp views `cat_<table>`) that breaks a constraint, described. */
+/**
+ * The populations whose catalogue rows are generated from the register rather than checked
+ * in (decision 070): each one, and every group and animal beneath it. The Bigg's follow
+ * when nothing in their rows is ours alone (salish-1deu).
+ */
+export const GENERATED_POPULATIONS: readonly string[] = [
+    'SSA:0000010', // the Southern Resident community
+];
+
+/**
+ * A generated row's id, from the register identifier's seven digits: the same row from one
+ * edition to the next, and clear of every checked-in id, which count up from 1.
+ */
+const GENERATED_ID_BASE = 10_000_000;
+const generatedId = (column: string) => `CAST(${GENERATED_ID_BASE} + CAST(substr(${column}, 5) AS INTEGER) AS INTEGER)`;
+
+/** The register's group ranks that become catalogue groups, and the kind each becomes. */
+const GENERATED_GROUP_KINDS = ['community', 'pod', 'matriline'];
+
+/**
+ * Temp views `gen_individuals`, `gen_designations` and `gen_social_groups`: the generated
+ * rows, in their files' columns. A matriline's designation is its matriarch's code, as the
+ * Bigg's rows have it (T065A for the T065As), and a pod's is its letter (J for J pod):
+ * the pages add the word. A mother, matriarch or member the register deprecated is left
+ * out, so a row never points at one that isn't there; every mother's certainty is
+ * 'presumed', as every Bigg's mother's is.
+ */
+export async function generatedRows(conn: DuckDBConnection): Promise<void> {
+    const roots = GENERATED_POPULATIONS.map(id => `'${id}'`).join(', ');
+    await conn.run(`CREATE TEMP VIEW gen_members AS
+        SELECT entity_id FROM (
+            SELECT entity_id FROM store.register.ancestor WHERE ancestor_id IN (${roots})
+            UNION SELECT unnest([${roots}]) AS entity_id)
+        WHERE entity_id NOT IN (SELECT entity_id FROM store.register.deprecations)`);
+    await conn.run(`CREATE TEMP VIEW gen_individuals AS
+        SELECT ${generatedId('e.entity_id')} AS id, e.entity_id, e.label AS primary_designation,
+               ${generatedId('p.parent_id')} AS mother_id, 'presumed' AS maternity_certainty,
+               CAST(NULL AS INTEGER) AS father_id, CAST(NULL AS VARCHAR) AS paternity_certainty
+        FROM store.register.entities e
+        JOIN gen_members USING (entity_id)
+        LEFT JOIN store.register.parentage p ON p.child_id = e.entity_id AND p.role = 'mother'
+            AND p.parent_id IN (SELECT entity_id FROM gen_members)
+        WHERE e.kind = 'individual'`);
+    await conn.run(`CREATE TEMP VIEW gen_designations AS
+        SELECT id, id AS individual_id, primary_designation AS code, 'bc_wa' AS scheme, 'active' AS status,
+               true AS is_primary, true AS in_catalog, CAST(NULL AS INTEGER) AS superseded_by,
+               CAST(NULL AS INTEGER) AS authority_id
+        FROM gen_individuals`);
+    await conn.run(`CREATE TEMP VIEW gen_social_groups AS
+        SELECT ${generatedId('e.entity_id')} AS id, r.rank AS kind,
+               CASE r.rank
+                   WHEN 'matriline' THEN coalesce(matriarch.label, regexp_replace(e.label, 's$', ''))
+                   WHEN 'pod' THEN regexp_replace(e.label, ' pod$', '')
+                   ELSE e.label
+               END AS designation,
+               e.entity_id,
+               CASE WHEN r.rank = 'matriline' THEN ${generatedId('matriarch.entity_id')} END AS anchor_individual_id,
+               CAST(NULL AS VARCHAR) AS notes
+        FROM store.register.entities e
+        JOIN gen_members USING (entity_id)
+        JOIN store.register.group_ranks r USING (entity_id)
+        LEFT JOIN store.register.matriarchs m ON m.matriline_id = e.entity_id
+            AND m.matriarch_id IN (SELECT entity_id FROM gen_members)
+        LEFT JOIN store.register.entities matriarch ON matriarch.entity_id = m.matriarch_id
+        WHERE e.kind = 'group' AND r.rank IN (${GENERATED_GROUP_KINDS.map(k => `'${k}'`).join(', ')})`);
+}
+
+/** The tables some of whose rows are generated (generatedRows), each with its temp view. */
+const GENERATED: Readonly<Record<string, string>> = {
+    individuals: 'gen_individuals', designations: 'gen_designations', social_groups: 'gen_social_groups',
+};
+
+/** Every row of the loaded files and the generated rows (temp views `cat_<table>`) that breaks a constraint, described. */
 async function violations(conn: DuckDBConnection): Promise<string[]> {
     const found: string[] = [];
     const ids = async (sql: string) =>
@@ -215,16 +293,19 @@ export async function loadCatalogue(snapshot: string, dir = CATALOGUE_DIR): Prom
         await budget(conn, snapshot, '64MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         const read = (table: string) => readTsv(path.join(dir, CATALOGUE[table]!.file), CATALOGUE[table]!.columns);
+        await generatedRows(conn);
         for (const [table, {file, columns}] of Object.entries(CATALOGUE)) {
             assertHeader(path.join(dir, file), columns);
-            await conn.run(`CREATE TEMP VIEW cat_${table} AS SELECT * FROM ${read(table)}`);
+            const list = columns.map(([name]) => name).join(', ');
+            const generated = GENERATED[table] ? ` UNION ALL SELECT ${list} FROM ${GENERATED[table]}` : '';
+            await conn.run(`CREATE TEMP VIEW cat_${table} AS SELECT ${list} FROM ${read(table)}${generated}`);
         }
         const broken = await violations(conn);
         if (broken.length) throw new Error(`the catalogue breaks what Postgres enforced:\n  ${broken.join('\n  ')}`);
-        const vitals = await registerVitals(conn, read('individuals'));
+        const vitals = await registerVitals(conn, 'cat_individuals');
         const docs: Record<string, string[]> = {};
         for (const table of Object.keys(CATALOGUE)) {
-            const rows = (await conn.runAndReadAll(`SELECT * FROM ${read(table)}`)).getRowObjectsJS() as Row[];
+            const rows = (await conn.runAndReadAll(`SELECT * FROM cat_${table} ORDER BY id`)).getRowObjectsJS() as Row[];
             if (rows.length === 0) throw new Error(`${CATALOGUE[table]!.file}: no rows`);
             docs[table] = documents(table, rows, vitals);
         }

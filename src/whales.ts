@@ -16,10 +16,10 @@ export interface WhaleSpecies {
   entity_id: string;
   common_name: string;
   scientific_name: string;
-  /** Every report of the species or of anything beneath it (an ecotype), newest first. */
+  /** Every report of the species or of anything beneath it (a population), newest first. */
   reports: readonly MapDot[];
-  /** Its ecotypes that have pages of their own. */
-  ecotypes: readonly { href: string, label: string }[];
+  /** Its populations that have pages of their own: an ecotype's or a community's (decision 070). */
+  populations: readonly { href: string, label: string }[];
 }
 
 export interface WhalesData {
@@ -75,7 +75,7 @@ export const whalesStyles = [smallMapStyles, css`
 
 const plural = (n: number, one: string) => `${n.toLocaleString('en-US')} ${one}${n === 1 ? '' : 's'}`;
 
-function renderSpecies({ common_name, scientific_name, reports, ecotypes }: WhaleSpecies) {
+function renderSpecies({ common_name, scientific_name, reports, populations }: WhaleSpecies) {
   const { map, shown } = renderSmallMap(reports, `${common_name.toLowerCase()}s`);
   const latest = reports[0];
   return html`<li>
@@ -86,8 +86,8 @@ function renderSpecies({ common_name, scientific_name, reports, ecotypes }: Whal
       <p class="facts">${plural(reports.length, 'report')}${shown ? nothing : ', none in the area shown'}${latest
         ? html` · last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>`
         : nothing}</p>
-      ${ecotypes.length ? html`<p class="facts">Ecotypes: ${ecotypes.map((e, i) =>
-        html`${i ? ' · ' : ''}<a href=${e.href}>${e.label}</a>`)}</p>` : nothing}
+      ${populations.length ? html`<p class="facts">Populations: ${populations.map((p, i) =>
+        html`${i ? ' · ' : ''}<a href=${p.href}>${p.label}</a>`)}</p>` : nothing}
     </div>
   </li>`;
 }

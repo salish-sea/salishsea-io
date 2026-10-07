@@ -80,7 +80,9 @@ beforeAll(async () => {
     for (const [entity_id, common_name] of [['SSA:0000900', 'Killer whale'], ['SSA:0000901', 'Humpback whale']])
         await conn.run(`INSERT INTO store.snapshot.animal_names VALUES (${q(JSON.stringify({entity_id, common_name}))})`);
     await conn.run('CREATE TABLE store.snapshot.social_groups (doc VARCHAR)');
-    for (const g of [{kind: 'ecotype', entity_id: 'SSA:0000002', designation: 'Biggs'}, {kind: 'matriline', entity_id: 'SSA:0020001', designation: 'T065A'}])
+    for (const g of [{kind: 'ecotype', entity_id: 'SSA:0000002', designation: 'Biggs'},
+        {kind: 'community', entity_id: 'SSA:0000010', designation: 'Southern Resident'},
+        {kind: 'matriline', entity_id: 'SSA:0020001', designation: 'T065A'}])
         await conn.run(`INSERT INTO store.snapshot.social_groups VALUES (${q(JSON.stringify(g))})`);
     await conn.run('CREATE TABLE store.build.occurrences (id VARCHAR, observed_at TIMESTAMPTZ, doc VARCHAR)');
     for (const [id, observed_at, entity_id, located] of OCCURRENCES) {
@@ -107,9 +109,13 @@ describe('the whales page', () => {
         expect(unidentified).toBe(2);
     });
 
-    test('a species links the ecotypes that have pages', () => {
+    // An ecotype's page and a community's are peers (decision 070); the Resident ecotype has none.
+    test('a species links the populations that have pages, an ecotype or a community', () => {
         const orca = assembleWhales(inputs).species.find(s => s.entity_id === 'SSA:0000900')!;
-        expect(orca.ecotypes).toEqual([{href: '/populations/0000002/Biggs', label: "Bigg's (transient)"}]);
+        expect(orca.populations).toEqual([
+            {href: '/populations/0000002/Biggs', label: "Bigg's (transient)"},
+            {href: '/populations/0000010/Southern-Resident', label: 'Southern Resident'},
+        ]);
     });
 
     test('the page: the nav with Whales current, each species with its facts and map, the rest counted', () => {
@@ -119,7 +125,8 @@ describe('the whales page', () => {
         expect(doc).toMatch(/<a class="whales-link" href="\/whales" aria-current="page">Whales<\/a>/);
         expect(doc).not.toContain('<script');
         expect(doc).toMatch(/<h2>Humpback whale<\/h2>.*<h2>Killer whale<\/h2>/s);
-        expect(doc).toContain('Ecotypes: <a href="/populations/0000002/Biggs">Bigg&#39;s (transient)</a>');
+        expect(doc).toContain('Populations: <a href="/populations/0000002/Biggs">Bigg&#39;s (transient)</a>'
+            + ' · <a href="/populations/0000010/Southern-Resident">Southern Resident</a>');
         expect(doc).toMatch(/2 more reports name a cetacean only/);
         expect(doc.match(/<svg class="small-map"/g)).toHaveLength(2);
     });

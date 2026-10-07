@@ -3,7 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { Task } from '@lit/task';
 import {
   displayName, fetchAllGroups, fetchAnimalNames, fetchGroupMembers, fetchIndividual, fetchInnermostMatrilineId, fetchOccurrenceLinks,
-  fetchOffspring, fetchParents, groupChain, individualPath, keyLabel, parseIndividualPath,
+  fetchOffspring, fetchParents, groupChain, individualPath, isPopulation, keyLabel, parseIndividualPath,
   type OccurrenceLink,
 } from './catalog.ts';
 import { canonicalize, profileStyles, renderProfileFrame } from './profile-shared.ts';
@@ -36,8 +36,8 @@ export class IndividualPage extends LitElement {
       const matriline = innermostId !== null ? groups.get(innermostId) ?? null : null;
       const members = matriline ? await fetchGroupMembers(matriline.id) : [];
 
-      // The most specific name the register has for this animal. The ecotype, where the
-      // group chain proves one — today the catalogue holds exactly one, Biggs — else the
+      // The most specific name the register has for this animal. Its population, where the
+      // group chain proves one — an ecotype or a community (decision 070) — else the
       // taxon the individual belongs to. Choosing between the two is ours (animals
       // ADR-0011); both strings are the register's, and neither is composed here. This
       // replaces a two-entry TAXON_LABELS table keyed on an iNaturalist taxon id, with
@@ -45,13 +45,13 @@ export class IndividualPage extends LitElement {
       // register can name, which decision 033 forbids, and keyed on an iNaturalist taxon
       // id where 033 says "keyed on `SSA:`, never on a name".
       //
-      // renderChain below still hard-codes "Bigg's (transient) killer whales" against
-      // `designation === 'Biggs'`. That one is a gloss rather than a minted name — it
-      // pairs the register's common name with its own `historical` name, which ADR-0011
+      // renderChain below still glosses a population by its designation (populationLabel:
+      // "Bigg's (transient) killer whales"). That one is a gloss rather than a minted name —
+      // it pairs the register's common name with its own `historical` name, which ADR-0011
       // hands us as display — but its key is still a string. Left alone here because
       // whether that line wants a gloss at all is a separate question (salish-53t.3).
       const ecotype = matriline
-        ? groupChain(matriline.id, groups).find(g => g.kind === 'ecotype') ?? null
+        ? groupChain(matriline.id, groups).find(isPopulation) ?? null
         : null;
       const names = await fetchAnimalNames([ecotype?.entity_id ?? null, profile.entity_id]);
       const species = (ecotype?.entity_id ? names.get(ecotype.entity_id)?.common_name : null)
@@ -91,7 +91,7 @@ export class IndividualPage extends LitElement {
     return html`
       <h1>${label ?? 'Not found'}</h1>
       <p>We don't have ${label ? html`<b>${label}</b>` : 'that individual'} in our catalog.
-      So far it covers Bigg's (transient) killer whales of the Salish Sea; other populations are on the way.</p>
+      So far it covers Bigg's (transient) and Southern Resident killer whales; other populations are on the way.</p>
       <p><a href="/">Explore the sightings map</a> or <a href="/about.html">read about this site</a>.</p>
     `;
   }

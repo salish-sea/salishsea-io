@@ -2,11 +2,85 @@ import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
-import { DuckDBInstance } from '@duckdb/node-api';
+import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { describe, expect, test } from 'vitest';
 
-import { CATALOGUE, CATALOGUE_DIR, documents, jsonbOrdered, loadCatalogue } from './catalogue.ts';
+import { CATALOGUE, CATALOGUE_DIR, documents, generatedRows, jsonbOrdered, loadCatalogue } from './catalogue.ts';
 import { loadReference, readTsv } from './reference.ts';
+
+/**
+ * The register tables the catalogue reads, in `store.register`, holding `rows`: a small
+ * Southern Resident community by default. Each entity is [id, kind, rank, label].
+ */
+async function registerFixture(conn: DuckDBConnection, {
+    entities = [] as [string, string, string | null, string][],
+    ancestor = [] as [string, string][],
+    parentage = [] as [string, string][],
+    matriarchs = [] as [string, string][],
+    deprecated = [] as string[],
+} = {}): Promise<void> {
+    const q = (v: string | null) => (v === null ? 'NULL' : `'${v.replaceAll("'", "''")}'`);
+    const fill = async (table: string, columns: string, rows: (string | null)[][]) => {
+        await conn.run(`CREATE TABLE store.register.${table} (${columns})`);
+        if (rows.length) await conn.run(`INSERT INTO store.register.${table} VALUES ${rows.map(r => `(${r.map(q).join(', ')})`).join(', ')}`);
+    };
+    await conn.run('CREATE SCHEMA store.register');
+    await fill('entities', 'entity_id VARCHAR, kind VARCHAR, label VARCHAR', entities.map(([id, kind, , label]) => [id, kind, label]));
+    await fill('group_ranks', 'entity_id VARCHAR, rank VARCHAR', entities.map(([id, , rank]) => [id, rank]));
+    await fill('ancestor', 'entity_id VARCHAR, ancestor_id VARCHAR', ancestor);
+    await fill('parentage', 'child_id VARCHAR, parent_id VARCHAR, role VARCHAR', parentage.map(([c, p]) => [c, p, 'mother']));
+    await fill('matriarchs', 'matriline_id VARCHAR, matriarch_id VARCHAR', matriarchs);
+    await fill('deprecations', 'entity_id VARCHAR, replaced_by VARCHAR', deprecated.map(id => [id, null]));
+}
+
+/** J pod's J31s, as edition 2026.10.1 has them, and a deprecated stray and a Bigg's whale that are not generated. */
+const SOUTHERN_RESIDENTS = {
+    entities: [
+        ['SSA:0000010', 'group', 'community', 'Southern Resident'],
+        ['SSA:0000020', 'group', 'pod', 'J pod'],
+        ['SSA:0000030', 'group', 'clan', 'J clan'],
+        ['SSA:0003011', 'group', 'matriline', 'J31s'],
+        ['SSA:0020005', 'individual', null, 'J11'],
+        ['SSA:0020030', 'individual', null, 'J31'],
+        ['SSA:0020099', 'individual', null, 'J99'],
+        ['SSA:0010193', 'individual', null, 'T065A'],
+    ] as [string, string, string | null, string][],
+    ancestor: [
+        ['SSA:0000020', 'SSA:0000010'], ['SSA:0000030', 'SSA:0000010'], ['SSA:0003011', 'SSA:0000010'],
+        ['SSA:0020005', 'SSA:0000010'], ['SSA:0020030', 'SSA:0000010'], ['SSA:0020099', 'SSA:0000010'],
+    ] as [string, string][],
+    parentage: [['SSA:0020030', 'SSA:0020005'], ['SSA:0020099', 'SSA:0020030']] as [string, string][],
+    matriarchs: [['SSA:0003011', 'SSA:0020030']] as [string, string][],
+    deprecated: ['SSA:0020099'],
+};
+
+describe("the Southern Residents' rows are generated from the register (decision 070)", () => {
+    test('each animal, its primary designation and its mother; the community, pods and matrilines, without clans', async () => {
+        const conn = await (await DuckDBInstance.create(':memory:')).connect();
+        try {
+            await conn.run(`ATTACH ':memory:' AS store`);
+            await registerFixture(conn, SOUTHERN_RESIDENTS);
+            await generatedRows(conn);
+            const rows = async (view: string) => (await conn.runAndReadAll(`SELECT * FROM ${view} ORDER BY id`)).getRowObjectsJS();
+            expect(await rows('gen_individuals')).toEqual([
+                {id: 10020005, entity_id: 'SSA:0020005', primary_designation: 'J11', mother_id: null,
+                    maternity_certainty: 'presumed', father_id: null, paternity_certainty: null},
+                {id: 10020030, entity_id: 'SSA:0020030', primary_designation: 'J31', mother_id: 10020005,
+                    maternity_certainty: 'presumed', father_id: null, paternity_certainty: null},
+            ]);
+            expect((await rows('gen_designations')).map(d => [d['individual_id'], d['code'], d['is_primary']]))
+                .toEqual([[10020005, 'J11', true], [10020030, 'J31', true]]);
+            expect((await rows('gen_social_groups')).map(g => [g['id'], g['kind'], g['designation'], g['anchor_individual_id']]))
+                .toEqual([
+                    [10000010, 'community', 'Southern Resident', null],
+                    [10000020, 'pod', 'J', null],
+                    [10003011, 'matriline', 'J31', 10020030],
+                ]);
+        } finally {
+            conn.closeSync();
+        }
+    });
+});
 
 describe('the catalogue as documents (decision 064)', () => {
     test("keys in jsonb's order: shorter first, then bytewise", () => {
@@ -58,6 +132,8 @@ describe('the catalogue as documents (decision 064)', () => {
             const conn = await (await DuckDBInstance.create(':memory:')).connect();
             await conn.run(`ATTACH '${snapshot}' AS store`);
             await loadReference(conn, 'store');
+            // A register with no Southern Residents: only the files' own rows are held to account.
+            await registerFixture(conn);
             conn.closeSync();
             for (const {file} of Object.values(CATALOGUE)) await copyFile(path.join(CATALOGUE_DIR, file), path.join(dir, file));
             const edit = async (file: string, change: (lines: string[]) => string[]) => {
