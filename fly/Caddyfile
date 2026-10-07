@@ -155,6 +155,7 @@
 		}
 	}
 	redir /whales.html /whales permanent
+	redir /whales/ /whales permanent
 
 	# The sitemap the build writes, with every profile in it; the site's own,
 	# from the image, until the first build has run.
