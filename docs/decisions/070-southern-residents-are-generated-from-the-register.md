@@ -1,6 +1,6 @@
 # 070 — The catalogue's rows are generated from the register edition, not checked in: the Southern Residents now, the Bigg's when they're ready
 
-**Status:** accepted · **Decided:** 2026-10-07 · **Applies:** [051](051-group-hierarchy-is-the-registers.md) (whatever the register holds, we read from it) · **Amends:** [064](064-what-users-do-not-write-leaves-postgres-first.md) (the catalogue is no longer only checked-in files) · **Context:** GitHub [#511](https://github.com/salish-sea/salishsea-io/issues/511), bd `salish-lzi`
+**Status:** accepted · **Decided:** 2026-10-07 · **Applies:** [051](051-group-hierarchy-is-the-registers.md) (whatever the register holds, we read from it) · **Amends:** [064](064-what-users-do-not-write-leaves-postgres-first.md) (the catalogue is no longer only checked-in files) · **Extends:** [017](017-ecotype-profile-pages.md) (a population's top page can be a community's, not only an ecotype's) · **Context:** GitHub [#511](https://github.com/salish-sea/salishsea-io/issues/511), bd `salish-lzi`
 
 ## Context
 
@@ -14,7 +14,7 @@ So the Southern Residents need catalogue rows, which could come from either of t
 
 **The build generates the Southern Residents' catalogue rows from the register edition it holds, on every build, and none of them is checked in.** For them the register already holds everything a page needs: who each whale is and her designation, her mother, the matriline she is in and the matriarch it is named for, and her sex, birth year and status. Under 051's rule, a copy of any of that would be ours only to drift.
 
-- **Generated:** the individuals, each with her primary designation; the matrilines, each with its matriarch; and the group the matrilines sit in, which is what the ecotype page reads.
+- **Generated:** the individuals, each with her primary designation; the matrilines, each with its matriarch; and the groups above them: the pods, and the community their top page is for.
 - **Keyed by the register identifier.** Any internal id a generated row needs is derived from the register's `entity_id`, so a row is the same row from one edition to the next and cannot collide with a checked-in Bigg's row.
 - **Not generated, because the register doesn't hold it:** nicknames (#511's names step, which needs a source and its own rights entry), alternate designations, and the reading lists. When one of these arrives, it comes as checked-in data keyed by register identifier, beside the generated rows rather than inside them.
 - **A wrong fact is fixed in the register.** There is no local override for a generated row: the correction goes upstream and arrives with the next edition. That is what [animals ADR-0012](https://github.com/salish-sea/animals/blob/6a5b325f88af25ca6f73cee1d672fbc478b6f7b4/decisions/0012-relationship-to-the-salishsea-io-catalogue.md) makes this repository: a materialization of the register, not a second opinion.
@@ -26,6 +26,12 @@ So the Southern Residents need catalogue rows, which could come from either of t
 
 When nothing is left in the Bigg's rows that the register couldn't regenerate, they are generated the same way and their files go (bd `salish-1deu`).
 
+**Pages follow the populations people talk about, not the register's ranks.** The register nests a Southern Resident whale six deep (Resident ecotype › Southern Resident community › J clan › J pod › J31s › J31), and a Bigg's whale three or four (Bigg's ecotype › T065s › T065As › T065A). Generating rows from the register must not mean a page for every level of it. Peter's constraint: the Northern Residents may be modelled someday, but the pages shouldn't grow a hierarchy to make room for them.
+
+- **Each population has a top page, and they are peers:** the Bigg's, the Southern Residents, and, if they come, the Northern Residents. The Southern Residents' top page is their community's, not the Resident ecotype's.
+- **The Resident ecotype and the clans get no page.** A Resident page would only gather two populations nobody reads together, and a clan is an acoustic grouping that no observer records. Their rows can still be generated where the hierarchy needs them; they just aren't rendered.
+- **Pods are the one level the Southern Residents add**, as #511 plans: "J pod" is how everyone names them. So a Southern Resident's page sits under population › pod › matriline, a Bigg's whale's under population › matriline, and the Northern Residents would arrive as a third top page without restructuring the other two.
+
 ## Rejected
 
 - **Curate them into `data/catalogue/` by hand, as the Bigg's rows were.** Every fact would be copied from the register and then have to be reconciled with it whenever the register changes. NOAA's file changes with every birth and death, so that would happen every season, by hand, for 227 animals. 051 exists to stop exactly this.
@@ -34,4 +40,3 @@ When nothing is left in the Bigg's rows that the register couldn't regenerate, t
 ## What this doesn't decide
 
 - **When the Bigg's rows move.** That waits on the steps above, none of them scheduled.
-- **Which group the Southern Residents' ecotype page is for.** The register puts the Southern Resident community inside the Resident ecotype, while our Bigg's page is for an ecotype. Whether the new page is the community's or the ecotype's is left to the work on #511.
