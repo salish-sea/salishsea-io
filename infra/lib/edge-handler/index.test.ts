@@ -781,7 +781,7 @@ describe('profile paths pass through to the origin', () => {
     ['/individuals/0010193/T065A', 'facebookexternalhit/1.1'],
     ['/individuals/T065A', 'facebookexternalhit/1.1'],
     ['/matrilines/0010001/J2s', 'twitterbot'],
-    ['/ecotypes/0000003/Resident', 'slackbot'],
+    ['/populations/0000010/Southern-Resident', 'slackbot'],
     ['/haulouts/170/Waadah-Island', 'Mozilla/5.0 (Macintosh)'],
   ])('%s for %s: untouched, no lookup', async (uri, ua) => {
     const fetchSpy = jest.spyOn(global, 'fetch').mockRejectedValue(new Error('unexpected network call'));

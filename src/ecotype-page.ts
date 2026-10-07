@@ -2,8 +2,8 @@ import { html, LitElement } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { Task } from '@lit/task';
 import {
-  descendantMatrilines, ecotypePath, fetchAllGroups, fetchEcotype, fetchEcotypeOccurrenceLinks,
-  keyLabel, parseEcotypePath,
+  descendantMatrilines, populationPath, fetchAllGroups, fetchEcotype, fetchEcotypeOccurrenceLinks,
+  keyLabel, parsePopulationPath,
   type OccurrenceLink,
 } from './catalog.ts';
 import { canonicalize, profileStyles, renderProfileFrame } from './profile-shared.ts';
@@ -17,7 +17,7 @@ initSentry();
 
 @customElement('ecotype-page')
 export class EcotypePage extends LitElement {
-  @state() private key = parseEcotypePath(window.location.pathname);
+  @state() private key = parsePopulationPath(window.location.pathname);
 
   #profile = new Task(this, {
     args: () => [this.key] as const,
@@ -28,7 +28,7 @@ export class EcotypePage extends LitElement {
         fetchAllGroups(),
       ]);
       if (!group) return null;
-      canonicalize(ecotypePath(group));
+      canonicalize(populationPath(group));
       const matrilines = descendantMatrilines(group.id, groups);
       document.title = `${ecotypeLabel(group)} · SalishSea.io`;
       return { group, matrilines };

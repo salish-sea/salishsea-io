@@ -109,7 +109,7 @@ describe('the whales page', () => {
 
     test('a species links the ecotypes that have pages', () => {
         const orca = assembleWhales(inputs).species.find(s => s.entity_id === 'SSA:0000900')!;
-        expect(orca.ecotypes).toEqual([{href: '/ecotypes/0000002/Biggs', label: "Bigg's (transient)"}]);
+        expect(orca.ecotypes).toEqual([{href: '/populations/0000002/Biggs', label: "Bigg's (transient)"}]);
     });
 
     test('the page: the nav with Whales current, each species with its facts and map, the rest counted', () => {
@@ -119,7 +119,7 @@ describe('the whales page', () => {
         expect(doc).toMatch(/<a class="whales-link" href="\/whales" aria-current="page">Whales<\/a>/);
         expect(doc).not.toContain('<script');
         expect(doc).toMatch(/<h2>Humpback whale<\/h2>.*<h2>Killer whale<\/h2>/s);
-        expect(doc).toContain('Ecotypes: <a href="/ecotypes/0000002/Biggs">Bigg&#39;s (transient)</a>');
+        expect(doc).toContain('Ecotypes: <a href="/populations/0000002/Biggs">Bigg&#39;s (transient)</a>');
         expect(doc).toMatch(/2 more reports name a cetacean only/);
         expect(doc.match(/<svg class="small-map"/g)).toHaveLength(2);
     });

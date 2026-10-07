@@ -12,7 +12,7 @@ import { css, html, nothing, type TemplateResult } from 'lit';
 import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  ecotypePath, groupChain, individualPath, matrilinePath,
+  populationPath, groupChain, individualPath, matrilinePath,
   type CatalogGroup, type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent,
 } from './catalog.ts';
 import {
@@ -133,7 +133,7 @@ export function renderChain(chain: CatalogGroup[], selfDesignation: string): Tem
       parents.map(g => html` · within ${g.anchor && g.designation !== selfDesignation
         ? html`<a href=${individualPath(g.anchor)}>${g.designation}</a>`
         : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
-    }${ecotype ? html` · <a href=${ecotypePath(ecotype)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}
+    }${ecotype ? html` · <a href=${populationPath(ecotype)}>${ecotype.designation === 'Biggs' ? "Bigg's (transient) killer whales" : ecotype.designation}</a>` : nothing}
   `;
 }
 

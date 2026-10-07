@@ -7,6 +7,8 @@ row (`kind='ecotype'`, `designation='Biggs'`, no anchor, no parent), parent of
 all 65 top-level → 132 total matrilines, and every cataloged Bigg's
 individual descends from it.
 
+**Amended by [070](070-southern-residents-are-generated-from-the-register.md) (2026-10-07):** an ecotype's page is now one kind of population page, at `/populations/<identifier>/<slug>`; every `/ecotypes/` path `301`s there.
+
 **Amended by [067](067-the-ecotype-page-compares-matrilines-with-small-maps.md) (2026-10-06):** the matriline directory below is now a small map per reported matriline, most-reported first, with the unreported ones listed after.
 
 **Amended by [034](034-profile-urls-key-on-the-register-identifier.md) (2026-08-30, implemented 2026-09-11):** the route below keyed on the designation. Since 2026-09-11 the canonical address is `/ecotypes/<seven-digit register identifier>/<slug>` — `/ecotypes/0000002/Biggs` — and `/ecotypes/Biggs` `301`s to it.

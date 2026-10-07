@@ -16,7 +16,7 @@ import * as path from 'node:path';
 
 import { DuckDBInstance } from '@duckdb/node-api';
 
-import { ecotypePath } from '../../src/catalog.ts';
+import { populationPath } from '../../src/catalog.ts';
 import { ecotypeLabel } from '../../src/ecotype-profile.ts';
 import type { MapDot } from '../../src/individual-map.ts';
 import { profileStyles, renderProfileFrame } from '../../src/profile-shared.ts';
@@ -122,7 +122,7 @@ export function assembleWhales({species, reports, ecotypes}: Inputs): WhalesData
             scientific_name: s.scientific_name,
             reports: bySpecies.get(s.entity_id)!,
             ecotypes: ecotypes.filter(e => e.taxon_entity_id === s.entity_id).map(e => ({
-                href: ecotypePath(e),
+                href: populationPath(e),
                 label: ecotypeLabel(e).replace(/ killer whales$/, ''),
             })),
         }))

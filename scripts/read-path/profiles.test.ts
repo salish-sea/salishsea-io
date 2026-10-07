@@ -210,7 +210,7 @@ describe('assembleEcotypes and renderEcotypePage', () => {
     test('the page previews as the edge function does, and shows no notes', () => {
         const doc = renderEcotypePage(shellFor('ecotype-page'), biggs(), 2026);
         expect(doc).toContain("<title>Bigg's (transient) killer whales · SalishSea.io</title>");
-        expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/ecotypes/0000901/Biggs">');
+        expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/populations/0000901/Biggs">');
         expect(doc).toContain('<h1>Bigg&#39;s (transient) killer whales</h1>');
         expect(doc).not.toContain('ECOTYPE SHEET TEXT');
     });

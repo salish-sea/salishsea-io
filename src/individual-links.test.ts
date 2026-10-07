@@ -68,13 +68,13 @@ test('normalizes case and separators', () => {
 
 test('links ecotype names in prose to the ecotype page', () => {
   expect(injectIndividualLinks('Biggs T46Bs southbound', codes, matrilines, ecotypes))
-    .toBe('[Biggs](/ecotypes/0000002/Biggs) [T46Bs](/matrilines/0002149/T046Bs) southbound');
+    .toBe('[Biggs](/populations/0000002/Biggs) [T46Bs](/matrilines/0002149/T046Bs) southbound');
   // apostrophe variants and "transient(s)" all resolve to the same ecotype
   expect(injectIndividualLinks("Bigg's transients milling", codes, matrilines, ecotypes))
-    .toBe("[Bigg's](/ecotypes/0000002/Biggs) [transients](/ecotypes/0000002/Biggs) milling");
+    .toBe("[Bigg's](/populations/0000002/Biggs) [transients](/populations/0000002/Biggs) milling");
   // curly apostrophe
   expect(injectIndividualLinks('Bigg’s northbound', codes, matrilines, ecotypes))
-    .toBe('[Bigg’s](/ecotypes/0000002/Biggs) northbound');
+    .toBe('[Bigg’s](/populations/0000002/Biggs) northbound');
 });
 
 test('leaves ecotype names alone when the catalog has no ecotype for them', () => {
@@ -104,5 +104,5 @@ test('rows from either source build the lookup the links are made from', () => {
   expect([...byCode.keys()]).toEqual(['t65a', 't46a']);
   expect(injectIndividualLinks('T65A and the T65As, with T046A, among transients; X9 too',
     byCode, matrilineCodes()!, ecotypeCodes()!)).toBe(
-    '[T65A](/individuals/0010193/T065A) and the [T65As](/matrilines/0002163/T065As), with [T046A](/individuals/0010368/T122), among [transients](/ecotypes/0000002/Biggs); X9 too');
+    '[T65A](/individuals/0010193/T065A) and the [T65As](/matrilines/0002163/T065As), with [T046A](/individuals/0010368/T122), among [transients](/populations/0000002/Biggs); X9 too');
 });

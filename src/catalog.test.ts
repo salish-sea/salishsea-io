@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import {
-  dedupeOccurrenceLinks, displayName, ecotypePath, groupChain, individualPath, keyLabel, matrilineDesignation, matrilinePath, monthlyPresence,
-  parseEcotypePath, parseIndividualPath, parseMatrilinePath, slugify,
+  dedupeOccurrenceLinks, displayName, populationPath, groupChain, individualPath, keyLabel, matrilineDesignation, matrilinePath, monthlyPresence,
+  parsePopulationPath, parseIndividualPath, parseMatrilinePath, slugify,
   type IndividualOccurrence, type OccurrenceLink, type SocialGroup,
   distanceKm, hauloutPath, mediumPhotoUrl, parseHauloutPath,
 } from './catalog.ts';
@@ -99,21 +99,21 @@ test('addresses a matriline with no identifier by its designation', () => {
 const BIGGS = { entity_id: 'SSA:0000002', designation: 'Biggs' };
 
 test('composes and parses ecotype paths the same way', () => {
-  expect(ecotypePath(BIGGS)).toBe('/ecotypes/0000002/Biggs');
-  expect(ecotypePath({ entity_id: 'SSA:0000002', designation: "Bigg's" })).toBe('/ecotypes/0000002/Biggs');
-  expect(parseEcotypePath('/ecotypes/0000002/Biggs')).toEqual({ kind: 'entity', entityId: 'SSA:0000002', slug: 'Biggs' });
-  expect(parseEcotypePath('/ecotypes/Biggs')).toEqual({ kind: 'designation', designation: 'Biggs' });
-  expect(parseEcotypePath('/ecotypes/Biggs/')).toEqual({ kind: 'designation', designation: 'Biggs' });
-  expect(parseEcotypePath('/ecotypes/')).toBeNull();
-  expect(parseEcotypePath('/ecotypes/Biggs/members')).toBeNull();
-  expect(parseEcotypePath('/matrilines/Biggs')).toBeNull();
-  expect(parseMatrilinePath('/ecotypes/Biggs')).toBeNull();
+  expect(populationPath(BIGGS)).toBe('/populations/0000002/Biggs');
+  expect(populationPath({ entity_id: 'SSA:0000002', designation: "Bigg's" })).toBe('/populations/0000002/Biggs');
+  expect(parsePopulationPath('/populations/0000002/Biggs')).toEqual({ kind: 'entity', entityId: 'SSA:0000002', slug: 'Biggs' });
+  expect(parsePopulationPath('/populations/Biggs')).toEqual({ kind: 'designation', designation: 'Biggs' });
+  expect(parsePopulationPath('/populations/Biggs/')).toEqual({ kind: 'designation', designation: 'Biggs' });
+  expect(parsePopulationPath('/populations/')).toBeNull();
+  expect(parsePopulationPath('/populations/Biggs/members')).toBeNull();
+  expect(parsePopulationPath('/matrilines/Biggs')).toBeNull();
+  expect(parseMatrilinePath('/populations/Biggs')).toBeNull();
 });
 
-test('ecotypePath round-trips through parseEcotypePath', () => {
-  expect(parseEcotypePath(ecotypePath(BIGGS))).toEqual({ kind: 'entity', entityId: 'SSA:0000002', slug: 'Biggs' });
+test('populationPath round-trips through parsePopulationPath', () => {
+  expect(parsePopulationPath(populationPath(BIGGS))).toEqual({ kind: 'entity', entityId: 'SSA:0000002', slug: 'Biggs' });
   for (const designation of ['Biggs', 'Southern Residents']) {
-    expect(parseEcotypePath(ecotypePath({ entity_id: null, designation }))).toEqual({ kind: 'designation', designation });
+    expect(parsePopulationPath(populationPath({ entity_id: null, designation }))).toEqual({ kind: 'designation', designation });
   }
 });
 

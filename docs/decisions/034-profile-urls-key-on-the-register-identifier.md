@@ -2,6 +2,8 @@
 
 **Status:** accepted · implemented for individuals and ecotypes 2026-09-11 ([PR #452](https://github.com/salish-sea/salishsea-io/pull/452)), for matrilines 2026-09-22 (`salish-ox2.5`) · **Decided:** 2026-08-30 · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md)
 
+**Amended by [070](070-southern-residents-are-generated-from-the-register.md) (2026-10-07):** the ecotype page's prefix is now `/populations/` (`/populations/0000002/Biggs`); every `/ecotypes/` path `301`s to the same path there. The keying below is unchanged.
+
 ## Decision
 
 A profile URL keys on the register's `entity_id`. The designation stays in the URL as a slug that is composed by us, shown to people, and **ignored on read**.

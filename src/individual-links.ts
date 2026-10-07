@@ -1,5 +1,5 @@
 import { supabase } from './supabase.ts';
-import { ecotypePath, individualPath, matrilinePath } from './catalog.ts';
+import { populationPath, individualPath, matrilinePath } from './catalog.ts';
 import { fold } from './fold.ts';
 import { READ_PATH_BASE, readSource } from './read-path.ts';
 
@@ -74,7 +74,7 @@ export function injectIndividualLinks(
       return linked.replace(ECOTYPE_TERM_RE, match => {
         const designation = ecotypeForTerm(match);
         const ecotype = designation ? ecotypes.get(designation) : undefined;
-        return ecotype ? `[${match}](${ecotypePath(ecotype)})` : match;
+        return ecotype ? `[${match}](${populationPath(ecotype)})` : match;
       });
     })
     .join('');

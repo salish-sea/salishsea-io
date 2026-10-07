@@ -3,7 +3,7 @@
  *
  *   EXPORT_DIR=… node scripts/read-path/profiles.ts <kind> <snapshot.duckdb> <dist>
  *
- * <kind> is individuals, matrilines, ecotypes or haulouts. Writes $EXPORT_DIR/profiles/<kind>/<id>.html
+ * <kind> is individuals, matrilines, populations or haulouts. Writes $EXPORT_DIR/profiles/<kind>/<id>.html
  * for every subject of that kind (<id> is its register identifier's seven digits, or a
  * haul-out site's id: the register holds animals, not places),
  * and beside it <id>.links.json, the sighting links its map loads. The page itself is
@@ -284,7 +284,7 @@ export function assembleEcotypes(t: Pick<Tables, (typeof ECOTYPE_TABLES)[number]
 
 export function renderEcotypePage(shell: string, page: EcotypePage, currentYear: number, islands: Island[] = []): string {
     const {data, links} = page;
-    const sightings = renderEcotypeSightings(links, {mapSrc: linksUrl('ecotypes', page.id), currentYear});
+    const sightings = renderEcotypeSightings(links, {mapSrc: linksUrl('populations', page.id), currentYear});
     return renderDocument(shell, 'ecotype-page', [profileStyles, ...ecotypeStyles],
         ecotypePreview(data), renderProfileFrame(renderEcotypeProfile(data, sightings)), islands);
 }
@@ -357,7 +357,7 @@ const pagesOf = <T extends Table, P extends ProfilePage<unknown>>(
 const KINDS = {
     individuals: {shell: 'individual.html', pages: pagesOf(INDIVIDUAL_TABLES, assembleIndividuals, renderIndividualPage)},
     matrilines: {shell: 'matriline.html', pages: pagesOf(MATRILINE_TABLES, assembleMatrilines, renderMatrilinePage)},
-    ecotypes: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assembleEcotypes, renderEcotypePage)},
+    populations: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assembleEcotypes, renderEcotypePage)},
     // The sites' own list, for the main map's layer: a page's id is a number, so
     // it cannot collide with one.
     haulouts: {shell: 'haulout.html', pages: pagesOf(HAULOUT_TABLES, assembleHaulouts, renderHauloutPage,
