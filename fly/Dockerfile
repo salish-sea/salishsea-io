@@ -123,7 +123,10 @@ ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_KEY
 ARG SOURCE_DATE_EPOCH
 # SENTRY_CRONS: the scheduled build's check-in (fly/build.sh), under the site's own Sentry
-# project. Its key is the DSN's public one, in every browser already (src/sentry.ts).
+# project. Its key is the DSN's public one, in every browser already (src/sentry.ts), so a
+# check-in proves nothing about who sent it: anyone could post an ok and mask a stall, as
+# anyone can post an error event. Accepted (decision 012, amended): it guards against the
+# build failing, not against someone hiding that it has.
 ENV SUPABASE_URL=${VITE_SUPABASE_URL} \
     SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_KEY} \
     SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
