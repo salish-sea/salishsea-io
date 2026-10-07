@@ -2,15 +2,16 @@
  * The site's search field (GH #640), in the nav on every page: one query field for every
  * named thing, as BeeAtlas's is (its ADR 0021). It finds what src/search.ts says, from
  * the index the read-path build writes (scripts/read-path/search-index.ts), fetched the
- * first time the field is focused, so a page that is never searched never loads it.
+ * first time the search is opened, so a page that is never searched never loads it.
  *
  * A result is a link. An animal offers two: its page, and beneath it its most recent
  * sighting on the map (Peter, 2026-10-07); one never sighted offers only its page. The
  * list is an ARIA combobox: arrows move through every link, Enter follows the one
- * marked, Escape closes the list.
+ * marked, Escape closes the search.
  *
- * On a phone there is no room in the nav for a field, so it is a button that opens the
- * field across the top of the screen.
+ * In the nav it is an icon button, as BeeAtlas's search is (its bee-header.ts), and the
+ * field opens in a popover beneath it: a field in the row would set its own baseline
+ * against the nav's icons, and on a phone there is no room for one.
  *
  * A prerendered page loads this as an island (scripts/read-path/profiles.ts); the
  * client-rendered pages import it.
@@ -52,62 +53,86 @@ function formatDay(date: string): string {
   return new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-const searchIcon = svg`<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>`;
+/** BeeAtlas's search glyph (heroicons' magnifying glass), at its header's 24px. */
+const searchIcon = svg`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m1.85-4.65a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"></path></svg>`;
 
 @customElement('site-search')
 export class SiteSearch extends LitElement {
   static styles = css`
     :host {
-      display: block;
+      align-items: center;
+      display: flex;
       font: inherit;
       position: relative;
     }
-    .toggle, .close {
-      display: none;
+    /* BeeAtlas's .icon-btn: a 44px target, dimmed until it is the thing in use. */
+    .toggle {
+      align-items: center;
+      background: transparent;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      box-sizing: border-box;
+      color: inherit;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      min-height: 44px;
+      min-width: 44px;
+      opacity: 0.6;
+      padding: 10px;
+    }
+    .toggle:hover {
+      opacity: 0.9;
+    }
+    .toggle[aria-expanded="true"] {
+      border-bottom-color: var(--site-search-accent, #1976d2);
+      opacity: 1;
+    }
+    .popover {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+      box-sizing: border-box;
+      color: #213547;
+      padding: 12px;
+      /* Its left edge and width are set when it opens (place()), to stay on screen. */
+      position: absolute;
+      top: calc(100% + 4px);
+      z-index: 1000;
     }
     input {
       background: white;
-      border: 1px solid var(--site-search-border, #cbd5e1);
-      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
       box-sizing: border-box;
       color: #0f172a;
       font: inherit;
-      font-size: 0.95rem;
-      padding: 0.35rem 0.6rem;
+      font-size: 0.9375rem;
+      padding: 8px 10px;
       width: 100%;
     }
-    input:focus {
-      border-color: #1976d2;
-      outline: 2px solid rgba(25, 118, 210, 0.3);
+    input:focus-visible {
+      outline: 2px solid #1976d2;
+      outline-offset: -1px;
     }
     ul {
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
-      box-sizing: border-box;
       list-style: none;
-      margin: 0.25rem 0 0;
-      max-height: min(70vh, 32rem);
-      min-width: 100%;
+      margin: 8px -12px -4px;
+      max-height: min(60vh, 28rem);
       overflow-y: auto;
-      padding: 0.25rem 0;
-      position: absolute;
-      right: 0;
-      width: max-content;
-      max-width: min(26rem, 92vw);
-      z-index: 1000;
+      padding: 0;
     }
     li a {
       color: #0f172a;
       display: block;
-      padding: 0.4rem 0.75rem;
+      padding: 0.4rem 12px;
       text-decoration: none;
     }
     li a.latest {
       color: #1565c0;
       font-size: 0.875rem;
-      padding: 0.15rem 0.75rem 0.45rem 1.75rem;
+      padding: 0.1rem 12px 0.45rem 28px;
     }
     li[aria-selected="true"] a {
       background: #e3f2fd;
@@ -123,54 +148,7 @@ export class SiteSearch extends LitElement {
     .message {
       color: #64748b;
       font-size: 0.875rem;
-      padding: 0.4rem 0.75rem;
-    }
-    /* A phone: a button in the nav, and the field across the top of the screen. */
-    @media (max-width: 40rem) {
-      .toggle {
-        align-items: center;
-        background: none;
-        border: 0;
-        color: inherit;
-        cursor: pointer;
-        display: inline-flex;
-        padding: 0.125rem;
-      }
-      .field {
-        display: none;
-      }
-      .field.open {
-        align-items: flex-start;
-        background: white;
-        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.25);
-        box-sizing: border-box;
-        display: flex;
-        gap: 0.5rem;
-        left: 0;
-        padding: 0.5rem;
-        position: fixed;
-        right: 0;
-        top: 0;
-        z-index: 1000;
-      }
-      .field.open .box {
-        flex: 1;
-        position: relative;
-      }
-      .close {
-        background: none;
-        border: 0;
-        color: #1976d2;
-        cursor: pointer;
-        display: block;
-        font: inherit;
-        padding: 0.4rem 0.25rem;
-      }
-      ul {
-        left: 0;
-        max-width: none;
-        width: 100%;
-      }
+      padding: 0.4rem 12px;
     }
   `;
 
@@ -178,11 +156,11 @@ export class SiteSearch extends LitElement {
   @state() private entries: SearchEntry[] | null = null;
   @state() private failed = false;
   @state() private active = -1;
-  @state() private listOpen = false;
-  /** The phone's sheet. */
-  @state() private sheetOpen = false;
+  @state() private open = false;
+  /** Where the popover sits, in px from the button's own left edge, and how wide. */
+  @state() private placement = { left: 0, width: 384 };
 
-  @query('input') private input!: HTMLInputElement;
+  @query('input') private input?: HTMLInputElement;
 
   private get options(): Option[] {
     if (!this.entries) return [];
@@ -192,8 +170,45 @@ export class SiteSearch extends LitElement {
     ]);
   }
 
-  private onFocus() {
-    this.listOpen = true;
+  connectedCallback() {
+    super.connectedCallback();
+    document.addEventListener('click', this.onDocumentClick);
+    window.addEventListener('resize', this.place);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener('click', this.onDocumentClick);
+    window.removeEventListener('resize', this.place);
+  }
+
+  /**
+   * Hang the popover from the button's right edge, as BeeAtlas's hangs from its header's,
+   * but never past the screen's left edge: on a phone the button isn't the last thing in
+   * the row (the login button is), so right-aligned to it a full-width popover would run
+   * off the left.
+   */
+  private place = () => {
+    const margin = 8;
+    const viewport = document.documentElement.clientWidth;
+    const width = Math.min(384, viewport - 2 * margin);
+    const button = this.getBoundingClientRect();
+    const left = Math.max(margin, Math.min(button.right - width, viewport - margin - width));
+    this.placement = { left: left - button.left, width };
+  };
+
+  /** A click anywhere outside the button and its popover closes it. */
+  private onDocumentClick = (event: MouseEvent) => {
+    if (this.open && !event.composedPath().includes(this)) this.open = false;
+  };
+
+  private async toggle() {
+    this.open = !this.open;
+    if (!this.open) return;
+    this.place();
+    // A search button that doesn't put the caret in the field costs a second tap.
+    await this.updateComplete;
+    this.input?.focus();
     if (this.entries) return;
     loadIndex().then(entries => {
       this.entries = entries;
@@ -206,7 +221,6 @@ export class SiteSearch extends LitElement {
   private onInput(event: InputEvent) {
     this.query = (event.target as HTMLInputElement).value;
     this.active = this.query.trim() ? 0 : -1;
-    this.listOpen = true;
   }
 
   private onKeydown(event: KeyboardEvent) {
@@ -214,7 +228,6 @@ export class SiteSearch extends LitElement {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       if (!options.length) return;
-      this.listOpen = true;
       const step = event.key === 'ArrowDown' ? 1 : -1;
       this.active = (this.active + step + options.length) % options.length;
     } else if (event.key === 'Enter') {
@@ -224,47 +237,27 @@ export class SiteSearch extends LitElement {
         window.location.assign(option.href);
       }
     } else if (event.key === 'Escape') {
-      if (this.listOpen && this.query) this.listOpen = false;
-      else this.closeSheet();
+      this.open = false;
+      this.shadowRoot?.querySelector<HTMLButtonElement>('.toggle')?.focus();
     }
-  }
-
-  /** Close the list when focus leaves the field and its list for something else on the page. */
-  private onFocusout(event: FocusEvent) {
-    if (!this.renderRoot.contains(event.relatedTarget as Node | null)) {
-      this.listOpen = false;
-      this.sheetOpen = false;
-    }
-  }
-
-  private async openSheet() {
-    this.sheetOpen = true;
-    await this.updateComplete;
-    this.input.focus();
-  }
-
-  private closeSheet() {
-    this.sheetOpen = false;
-    this.listOpen = false;
   }
 
   protected render() {
     const options = this.options;
-    const showList = this.listOpen && this.query.trim() !== '';
+    const showList = this.query.trim() !== '';
     return html`
-      <button class="toggle" type="button" aria-label="Search whales and places" aria-expanded=${this.sheetOpen ? 'true' : 'false'}
-        @click=${this.openSheet}>${searchIcon}</button>
-      <div class="field ${this.sheetOpen ? 'open' : ''}" @focusout=${this.onFocusout}>
-        <div class="box">
-          <input type="search" role="combobox" aria-label="Search whales and places" placeholder="Search whales and places"
-            autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-controls="results"
+      <button class="toggle" type="button" aria-label="Search whales and places" title="Search"
+        aria-haspopup="dialog" aria-expanded=${this.open ? 'true' : 'false'} @click=${this.toggle}>${searchIcon}</button>
+      ${this.open ? html`
+        <div class="popover" role="dialog" aria-label="Search"
+          style=${`left: ${this.placement.left}px; width: ${this.placement.width}px`}>
+          <input type="search" role="combobox" aria-label="Search whales and places" placeholder="Whale, matriline, or place"
+            autocomplete="off" spellcheck="false" enterkeyhint="go" aria-autocomplete="list" aria-controls="results"
             aria-expanded=${showList ? 'true' : 'false'}
             aria-activedescendant=${showList && this.active >= 0 && options[this.active] ? `option-${this.active}` : nothing}
-            .value=${this.query} @focus=${this.onFocus} @input=${this.onInput} @keydown=${this.onKeydown}>
+            .value=${this.query} @input=${this.onInput} @keydown=${this.onKeydown}>
           ${showList ? this.renderList(options) : nothing}
-        </div>
-        <button class="close" type="button" @click=${this.closeSheet}>Cancel</button>
-      </div>
+        </div>` : nothing}
     `;
   }
 

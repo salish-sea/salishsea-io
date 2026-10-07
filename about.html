@@ -48,33 +48,45 @@
       }
       /* src/site-nav.ts's siteNavStyles, by hand: this page is plain HTML. */
       nav.site-nav {
+        align-items: center;
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.25rem 1.25rem;
-        margin-bottom: 1.5rem;
+        gap: 4px;
+        margin: 0 0 2rem -10px;
       }
       nav.site-nav a {
-        color: #1976d2;
+        align-items: center;
+        border-bottom: 2px solid transparent;
+        box-sizing: border-box;
+        color: #213547;
+        display: inline-flex;
         font-weight: 500;
+        gap: 6px;
+        justify-content: center;
+        min-height: 44px;
+        min-width: 44px;
+        opacity: 0.6;
+        padding: 0 10px;
         text-decoration: none;
       }
       nav.site-nav a:hover {
-        color: #1565c0;
+        opacity: 0.9;
       }
       nav.site-nav a[aria-current="page"] {
-        color: #213547;
-        font-weight: 600;
+        border-bottom-color: #1976d2;
+        opacity: 1;
       }
       nav.site-nav site-search {
-        flex: 0 1 16rem;
+        color: #213547;
         margin-left: auto;
+        margin-right: -10px;
       }
+      /* When the row runs out of room, the icons speak for themselves. */
       @media (max-width: 40rem) {
         nav.site-nav {
-          align-items: center;
+          gap: 0;
         }
-        nav.site-nav site-search {
-          flex: 0 0 auto;
+        nav.site-nav .nav-label {
+          display: none;
         }
       }
       .downloads {
@@ -99,7 +111,7 @@
   </head>
   <body>
     <main class="about">
-      <nav class="site-nav" aria-label="Site"><a class="about-link" href="/about.html" aria-current="page">About</a><a class="map-link" href="/" aria-current="false">Map</a><a class="whales-link" href="/whales" aria-current="false">Whales</a><site-search></site-search></nav>
+      <nav class="site-nav" aria-label="Site"><a class="about-link" href="/about.html" aria-current="page" aria-label="About" title="About"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"></path></svg><span class="nav-label">About</span></a><a class="map-link" href="/" aria-current="false" aria-label="Map" title="Map"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"></path></svg><span class="nav-label">Map</span></a><a class="whales-link" href="/whales" aria-current="false" aria-label="Whales" title="Whales"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true"><g transform="translate(0, 2.25)"><rect x="8.5" y="2" width="7" height="4.5" rx="0.75"></rect><path stroke-linecap="round" d="M12 6.5v3M6.5 9.5H17.5M6.5 9.5v3.5M17.5 9.5v3.5"></path><rect x="3" y="13" width="7" height="4.5" rx="0.75"></rect><rect x="14" y="13" width="7" height="4.5" rx="0.75"></rect></g></svg><span class="nav-label">Whales</span></a><site-search></site-search></nav>
       <h1>About SalishSea.io</h1>
       <p>Communities throughout the Salish Sea are working to monitor and protect the diversity of life it supports. This site serves as a portal into their efforts.</p>
       <p>We currently show:</p>

@@ -251,7 +251,8 @@ describe('assembleEcotypes and renderEcotypePage', () => {
         ]);
         // T065A's unlocated report counts but isn't drawn; T099's three, at one spot, are one
         // darker dot; T030's one, off the map, isn't drawn.
-        const circles = [...doc.matchAll(/<svg [^>]*>(.*?)<\/svg>/gs)].map(([, inner]) => inner!.match(/<circle [^>]*>/g));
+        // The small maps' own svgs: the nav's icons are svgs too.
+        const circles = [...doc.matchAll(/<svg class="small-map"[^>]*>(.*?)<\/svg>/gs)].map(([, inner]) => inner!.match(/<circle [^>]*>/g));
         expect(circles.map(c => c?.length ?? 0)).toEqual([1, 1, 0]);
         expect(circles[0]![0]).toContain('fill-opacity="0.88"');
         expect(doc).toMatch(/Not reported yet:.*href="\/matrilines\/0020003\/T046s">T046</s);

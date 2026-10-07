@@ -122,7 +122,7 @@ describe('the whales page', () => {
         const doc = renderWhalesPage(shell, assembleWhales(inputs));
         expect(doc).toContain('<title>Whales · SalishSea.io</title>');
         expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/whales">');
-        expect(doc).toMatch(/<a class="whales-link" href="\/whales" aria-current="page">Whales<\/a>/);
+        expect(doc).toMatch(/<a class="whales-link" href="\/whales" aria-current="page" aria-label="Whales" title="Whales">.*?<span class="nav-label">Whales<\/span><\/a>/s);
         expect(doc).not.toContain('<script');
         expect(doc).toMatch(/<h2>Humpback whale<\/h2>.*<h2>Killer whale<\/h2>/s);
         expect(doc).toContain('Populations: <a href="/populations/0000002/Biggs">Bigg&#39;s (transient)</a>'
