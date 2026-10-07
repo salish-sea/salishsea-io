@@ -6,7 +6,7 @@ import { enhanceAboutDownloads, restoreMapBackLink } from './about.ts';
 function makeAboutRoot(): HTMLElement {
   const root = document.createElement('div');
   root.innerHTML = `
-    <a class="back" href="/">&#8592; Back to the map</a>
+    <nav class="site-nav"><a class="about-link" href="/about.html">About</a><a class="map-link" href="/">Map</a><a class="whales-link" href="/whales">Whales</a></nav>
     <ul class="downloads">
       <li><a href="/dwca/salishsea-occurrences-v1.zip" download>zip</a><small data-size="zip"></small></li>
       <li><a href="/dwca/salishsea-occurrences-v1.parquet" download>parquet</a><small data-size="parquet"></small></li>
@@ -60,25 +60,25 @@ test('fills in sizes and a relative timestamp on success', async () => {
 test('restoreMapBackLink: restores the map permalink from a same-origin referrer', () => {
   const root = makeAboutRoot();
   restoreMapBackLink(root, 'https://salishsea.io/?d=2026-06-29&x=1&y=2&z=10&o=abc', 'https://salishsea.io');
-  expect(root.querySelector('.back')!.getAttribute('href')).toBe('/?d=2026-06-29&x=1&y=2&z=10&o=abc');
+  expect(root.querySelector('.map-link')!.getAttribute('href')).toBe('/?d=2026-06-29&x=1&y=2&z=10&o=abc');
 });
 
 test('restoreMapBackLink: keeps "/" fallback for a cross-origin referrer', () => {
   const root = makeAboutRoot();
   restoreMapBackLink(root, 'https://example.com/?d=2026-06-29', 'https://salishsea.io');
-  expect(root.querySelector('.back')!.getAttribute('href')).toBe('/');
+  expect(root.querySelector('.map-link')!.getAttribute('href')).toBe('/');
 });
 
 test('restoreMapBackLink: keeps "/" fallback when there is no referrer (direct visit)', () => {
   const root = makeAboutRoot();
   restoreMapBackLink(root, '', 'https://salishsea.io');
-  expect(root.querySelector('.back')!.getAttribute('href')).toBe('/');
+  expect(root.querySelector('.map-link')!.getAttribute('href')).toBe('/');
 });
 
 test('restoreMapBackLink: keeps "/" fallback for a same-origin non-map referrer', () => {
   const root = makeAboutRoot();
   restoreMapBackLink(root, 'https://salishsea.io/about.html', 'https://salishsea.io');
-  expect(root.querySelector('.back')!.getAttribute('href')).toBe('/');
+  expect(root.querySelector('.map-link')!.getAttribute('href')).toBe('/');
 });
 
 test('leaves the static fallbacks untouched on HEAD failure', async () => {

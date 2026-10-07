@@ -7,6 +7,7 @@ import {
   type CatalogGroup, type GroupMember, type OccurrenceLink,
 } from './catalog.ts';
 import { formatDate } from './date-format.ts';
+import { renderSiteNav, siteNavStyles, type NavPage } from './site-nav.ts';
 
 // Shared rendering for the profile pages (individual-page, matriline-page).
 // Lit styles are scoped per component, so the common rules live here as a
@@ -15,7 +16,7 @@ import { formatDate } from './date-format.ts';
 export const PRESENCE_YEARS = 4;
 const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
-export const profileStyles = css`
+const profileOwnStyles = css`
   :host {
     display: block;
   }
@@ -31,10 +32,6 @@ export const profileStyles = css`
   }
   a:hover {
     color: #1565c0;
-  }
-  .back {
-    display: inline-block;
-    margin-bottom: 2.5rem;
   }
   header.masthead {
     margin-bottom: 2.5rem;
@@ -165,6 +162,9 @@ export const profileStyles = css`
   }
 `;
 
+/** The profile pages' common rules, the nav's among them. */
+export const profileStyles = css`${siteNavStyles}${profileOwnStyles}`;
+
 export function renderRelative(relative: { entity_id: string | null; primary_designation: string; nicknames?: { name: string; status: string | null }[] }) {
   const name = relative.nicknames ? displayName(relative.nicknames) : null;
   return html`<a href=${individualPath(relative)}>${relative.primary_designation}${name ? ` ${name}` : ''}</a>`;
@@ -288,11 +288,14 @@ export function renderPresenceTable(
   `;
 }
 
-/** A profile page around its content, whatever state the content is in. */
-export function renderProfileFrame(content: unknown) {
+/**
+ * A profile page around its content, whatever state the content is in. The whales page
+ * shares the frame, and is the one page in it the nav names.
+ */
+export function renderProfileFrame(content: unknown, current: NavPage | null = null) {
   return html`
       <main>
-        <a class="back" href="/">&#8592; Back to the map</a>
+        ${renderSiteNav(current)}
         ${content}
       </main>
     `;

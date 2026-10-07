@@ -31,6 +31,7 @@ const PROFILE_REWRITES = [
   [/^\/matrilines\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/matriline.html'],
   [/^\/ecotypes\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/ecotype.html'],
   [/^\/haulouts\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/haulout.html'],
+  [/^\/whales\/?(\?.*)?$/, '/whales.html'],
 ];
 
 function profilePagesRewrite(req, _res, next) {
@@ -81,6 +82,7 @@ export default defineConfig({
         matriline: resolve(__dirname, 'matriline.html'),
         ecotype: resolve(__dirname, 'ecotype.html'),
         haulout: resolve(__dirname, 'haulout.html'),
+        whales: resolve(__dirname, 'whales.html'),
         'not-published': resolve(__dirname, 'not-published.html'),
         'not-in-catalog': resolve(__dirname, 'not-in-catalog.html'),
         // The map on a prerendered profile page, its only script (decision 057).
@@ -149,6 +151,7 @@ export default defineConfig({
         const pages = [
           { loc: 'https://salishsea.io/', changefreq: 'daily', priority: '1.0' },
           { loc: 'https://salishsea.io/about.html', changefreq: 'monthly', priority: '0.5' },
+          { loc: 'https://salishsea.io/whales', changefreq: 'daily', priority: '0.6' },
         ];
         const urls = pages.map(p => `  <url>
     <loc>${p.loc}</loc>

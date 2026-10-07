@@ -97,16 +97,17 @@ afterEach(() => {
   document.body.querySelectorAll('salish-sea').forEach(el => el.remove());
 });
 
-test('header info control is a plain anchor to /about.html with no dialog', async () => {
+test('the header carries the site nav, the map marked as the page you are on, and no dialog', async () => {
   const el = document.createElement('salish-sea') as InstanceType<typeof import('./salish-sea.ts').default>;
   document.body.appendChild(el);
   await el.updateComplete;
 
-  const aboutLink = el.shadowRoot!.querySelector('a.about-link') as HTMLAnchorElement | null;
-  expect(aboutLink).not.toBeNull();
-  expect(aboutLink!.getAttribute('href')).toBe('/about.html');
-  // Icon-only control needs an explicit accessible name for screen readers / voice control
-  expect(aboutLink!.getAttribute('aria-label')).toBe('About SalishSea.io');
+  const links = [...el.shadowRoot!.querySelectorAll('header nav.site-nav a')] as HTMLAnchorElement[];
+  expect(links.map(a => [a.textContent, a.getAttribute('href'), a.getAttribute('aria-current')])).toEqual([
+    ['About', '/about.html', 'false'],
+    ['Map', '/', 'page'],
+    ['Whales', '/whales', 'false'],
+  ]);
 
   const dialog = el.shadowRoot!.querySelector('dialog');
   expect(dialog).toBeNull();

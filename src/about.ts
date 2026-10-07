@@ -1,12 +1,12 @@
 // Progressive enhancement for the static /about.html page.
 //
-// The page content (prose, links, download list, "Back to the map" link) is
+// The page content (prose, links, download list, the nav's Map link) is
 // plain static HTML so it is fully crawlable and readable with JavaScript
 // disabled. This script only *upgrades* two things:
 //   1. the download section — fills in archive file sizes and replaces the
 //      static "Updated nightly at 09:00 UTC." line with a relative timestamp,
 //      via a pair of HEAD requests (see download-info.ts);
-//   2. the "Back to the map" link — restores the map permalink the visitor came
+//   2. the nav's Map link — restores the map permalink the visitor came
 //      from (?d/?x/?y/?z/?o) instead of dropping them at the default map view.
 // On failure / direct visits it leaves the static fallbacks untouched.
 import { fetchArchiveMetadata, formatBytes, formatRelativeTime } from "./download-info.ts";
@@ -34,7 +34,7 @@ export async function enhanceAboutDownloads(root: ParentNode = document): Promis
 }
 
 /**
- * Point the "Back to the map" link at the map view the visitor arrived from, so
+ * Point the nav's Map link at the map view the visitor arrived from, so
  * its permalink state (?d/?x/?y/?z/?o) survives the round trip. Only acts when
  * the referrer is a same-origin map URL (path "/"); otherwise the static
  * href="/" fallback stands — correct for direct visits, crawlers, and external
@@ -57,8 +57,8 @@ export function restoreMapBackLink(
     return;
   }
   if (url.origin !== origin || url.pathname !== "/") return;
-  const back = root.querySelector(".back");
-  if (back) back.setAttribute("href", "/" + url.search);
+  const map = root.querySelector(".map-link");
+  if (map) map.setAttribute("href", "/" + url.search);
 }
 
 function setSize(root: ParentNode, key: "zip" | "parquet", bytes: number): void {

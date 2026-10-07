@@ -15,6 +15,12 @@ describe('smallMapDots', () => {
     expect(two[0]).toContain('fill-opacity="0.75"');
   });
 
+  test('a very busy map draws each report fainter, so it does not go solid', () => {
+    const busy = Array.from({ length: 6000 }, (_, i) => at(-123 + (i % 60) * 0.01, 48 + Math.floor(i / 60) * 0.005));
+    const opacities = circles(smallMapDots(busy)).map(c => Number(c.match(/fill-opacity="([\d.]+)"/)![1]));
+    expect(Math.min(...opacities)).toBe(0.25);
+  });
+
   test('reports apart are apart', () => {
     expect(circles(smallMapDots([at(-122.5, 47.6), at(-123, 48.5)]))).toHaveLength(2);
   });
@@ -24,7 +30,7 @@ describe('smallMapDots', () => {
     expect(smallMapDots([
       { occurrence_id: 'x', observed_at: '2026-01-01T00:00:00Z', location: null },
       at(west - 0.1, 48), at(-123, north + 0.1), at(-122.5, 47.6),
-    ])).toEqual({ svg: expect.stringMatching(/^<circle [^>]*>$/), shown: 1 });
+    ])).toEqual({ svg: expect.stringMatching(/^<circle [^>]*><\/circle>$/), shown: 1 });
   });
 
   test('the corners are on the map', () => {
