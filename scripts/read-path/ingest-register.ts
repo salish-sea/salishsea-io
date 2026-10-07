@@ -67,6 +67,13 @@ export const REGISTER_TABLES: readonly {table: string, dir: 'data' | 'dist', fil
     // Artiodactyla, which deer share.
     {table: 'taxon_ancestor', dir: 'dist', select:
         'taxon_id, ancestor_id, CAST(depth AS INTEGER) AS depth, ancestor_rank, ancestor_name'},
+    // What the catalogue generates the Southern Residents' rows from (decision 070,
+    // salish-lzi.2): each group's rank (pod, matriline, community), each animal's mother,
+    // and the matriarch each matriline is named for. `ranks` is the register's own
+    // vocabulary file, so a group's rank is read off entities under another name.
+    {table: 'group_ranks', dir: 'data', file: 'entities', select: 'entity_id, rank'},
+    {table: 'parentage', dir: 'data', select: 'child_id, parent_id, role'},
+    {table: 'matriarchs', dir: 'data', select: 'matriline_id, matriarch_id'},
 ];
 
 /** The tag `releases/latest` redirects to: one request, nothing downloaded. */
