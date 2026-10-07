@@ -12,9 +12,9 @@ So the Southern Residents need catalogue rows, which could come from either of t
 
 ## Decision
 
-**The build generates the Southern Residents' catalogue rows from the register edition it holds, on every build, and none of them is checked in.** For them the register already holds everything a page needs: who each whale is and her designation, her mother, the matriline she is in and the matriarch it is named for, and her sex, birth year and status. Under 051's rule, a copy of any of that would be ours only to drift.
+**The build generates the Southern Residents' catalogue rows from the register edition it holds, on every build, and none of them is checked in.** For them the register already holds everything a page needs: each whale's identity and designation, its mother, the matriline it belongs to and the matriarch that matriline is named for, and its sex, birth year and status. Under 051's rule, a copy of any of that would be ours only to drift.
 
-- **Generated:** the individuals, each with her primary designation; the matrilines, each with its matriarch; and the groups above them: the pods, and the community their top page is for.
+- **Generated:** the individuals, each with its primary designation; the matrilines, each with its matriarch; and the groups above them: the pods, and the community their top page is for.
 - **Keyed by the register identifier.** Any internal id a generated row needs is derived from the register's `entity_id`, so a row is the same row from one edition to the next and cannot collide with a checked-in Bigg's row.
 - **Not generated, because the register doesn't hold it:** nicknames (#511's names step, which needs a source and its own rights entry), alternate designations, and the reading lists. When one of these arrives, it comes as checked-in data keyed by register identifier, beside the generated rows rather than inside them.
 - **A wrong fact is fixed in the register.** There is no local override for a generated row: the correction goes upstream and arrives with the next edition. That is what [animals ADR-0012](https://github.com/salish-sea/animals/blob/6a5b325f88af25ca6f73cee1d672fbc478b6f7b4/decisions/0012-relationship-to-the-salishsea-io-catalogue.md) makes this repository: a materialization of the register, not a second opinion.
