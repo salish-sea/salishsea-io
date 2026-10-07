@@ -1,6 +1,6 @@
 # 070 — The catalogue's rows are generated from the register edition, not checked in: the Southern Residents now, the Bigg's when they're ready
 
-**Status:** accepted · **Decided:** 2026-10-07 · **Applies:** [051](051-group-hierarchy-is-the-registers.md) (whatever the register holds, we read from it) · **Amends:** [064](064-what-users-do-not-write-leaves-postgres-first.md) (the catalogue is no longer only checked-in files) · **Extends:** [017](017-ecotype-profile-pages.md) (a population's top page can be a community's, not only an ecotype's) · **Context:** GitHub [#511](https://github.com/salish-sea/salishsea-io/issues/511), bd `salish-lzi`
+**Status:** accepted · **Decided:** 2026-10-07 · **Applies:** [051](051-group-hierarchy-is-the-registers.md) (whatever the register holds, we read from it) · **Amends:** [064](064-what-users-do-not-write-leaves-postgres-first.md) (the catalogue is no longer only checked-in files), [069](069-a-whales-page-and-a-site-nav.md) (the whales page lists populations, not ecotypes) · **Extends:** [017](017-ecotype-profile-pages.md) (a population's top page can be a community's, not only an ecotype's) · **Context:** GitHub [#511](https://github.com/salish-sea/salishsea-io/issues/511), bd `salish-lzi`
 
 ## Context
 
@@ -31,6 +31,7 @@ When nothing is left in the Bigg's rows that the register couldn't regenerate, t
 - **Each population has a top page, and they are peers:** the Bigg's, the Southern Residents, and, if they come, the Northern Residents. The Southern Residents' top page is their community's, not the Resident ecotype's.
 - **The Resident ecotype and the clans get no page.** A Resident page would only gather two populations nobody reads together, and a clan is an acoustic grouping that no observer records. Their rows can still be generated where the hierarchy needs them; they just aren't rendered.
 - **Pods are the one level the Southern Residents add**, as #511 plans: "J pod" is how everyone names them. So a Southern Resident's page sits under population › pod › matriline, a Bigg's whale's under population › matriline, and the Northern Residents would arrive as a third top page without restructuring the other two.
+- **Lists of populations follow the same rule.** The whales page (decision [069](069-a-whales-page-and-a-site-nav.md)) listed killer whale's ecotypes that have pages, which would miss the Southern Residents' community page. It lists each population's top page instead, and 069 is amended to say so.
 
 ## Rejected
 

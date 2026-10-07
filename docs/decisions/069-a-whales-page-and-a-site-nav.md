@@ -1,6 +1,6 @@
 # 069 — A whales page lists the cetacean species, and every page carries a nav to it
 
-**Status:** accepted; built · **Decided:** 2026-10-06 · **Context:** bd `salish-nkbq` · **Builds on:** [067](067-the-ecotype-page-compares-matrilines-with-small-maps.md) (the small maps), [057](057-profile-pages-are-prerendered.md) (prerendered pages), [009](009-taxonomic-scope-marine-mammals.md) (taxonomic scope)
+**Status:** accepted; built · **Decided:** 2026-10-06 · **Context:** bd `salish-nkbq` · **Amended by:** [070](070-southern-residents-are-generated-from-the-register.md) (the whales page lists populations' top pages, not ecotypes') · **Builds on:** [067](067-the-ecotype-page-compares-matrilines-with-small-maps.md) (the small maps), [057](057-profile-pages-are-prerendered.md) (prerendered pages), [009](009-taxonomic-scope-marine-mammals.md) (taxonomic scope)
 
 ## Context
 
@@ -27,4 +27,4 @@ The site had two ways in: the map, and a profile page someone linked to. Nothing
 ## Consequences
 
 - Every save's build now also rewrites the whales page, because it reads every occurrence.
-- When Southern Residents get a page, killer whale links to it with no further change: the list shows every ecotype that has a page.
+- ~~When Southern Residents get a page, killer whale links to it with no further change: the list shows every ecotype that has a page.~~ *Amended by [070](070-southern-residents-are-generated-from-the-register.md) (2026-10-07):* the Southern Residents' top page is their community's, not an ecotype's, so a list of ecotypes would miss it. The list shows each population's top page instead, an ecotype's or a community's, under a label to match ("Populations: Bigg's · Southern Residents"). That change lands with the Southern Residents' pages (`salish-lzi`).
