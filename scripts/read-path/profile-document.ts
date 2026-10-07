@@ -21,6 +21,9 @@ import type { CSSResult, TemplateResult } from 'lit';
 
 export const SITE_ORIGIN = 'https://salishsea.io';
 
+/** The nav's search field (GH #640): an island on every prerendered page, its own entry so a page without a map loads only it. */
+export const SEARCH_ISLAND = 'src/site-search.ts';
+
 export type PageHead = {
     title: string,
     description: string,

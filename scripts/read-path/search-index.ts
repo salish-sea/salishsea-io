@@ -25,7 +25,7 @@ import * as path from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
 
 import {
-    groupChain, hauloutPath, individualPath, isPopulation, mapUrl, matrilinePath, observedDate,
+    groupChain, hauloutPath, individualPath, isPopulation, mapUrl, matrilinePath, observedDate, POPULATION_KINDS,
     populationLabel, populationNoun, populationPath, type SocialGroup,
 } from '../../src/catalog.ts';
 import { REGIONS } from '../../src/constants.ts';
@@ -45,6 +45,8 @@ export type Inputs = {
     haulouts: Doc[],
     /** The register's names for each entity: what it answers to beyond our own codes. */
     names: {entity_id: string, name: string, type: string}[],
+    /** Each entity beneath a population group of ours, and that group: an animal in no matriline still has one. */
+    populationOf: {entity_id: string, group_id: number}[],
     /** Each subject's newest report its page would list: an individual, a group (matriline or population). */
     latest: {kind: 'individual' | 'group' | 'population', id: number, occurrence_id: string, observed_at: string}[],
 };
@@ -53,7 +55,7 @@ export type Inputs = {
 const latestIn = (table: string, idColumn: string, kind: string) => `
     SELECT '${kind}' AS kind, CAST(json_extract_string(doc, '$.${idColumn}') AS INTEGER) AS id,
            arg_max(json_extract_string(doc, '$.occurrence_id'), json_extract_string(doc, '$.observed_at')::TIMESTAMPTZ) AS occurrence_id,
-           max(json_extract_string(doc, '$.observed_at')::TIMESTAMPTZ)::VARCHAR AS observed_at
+           epoch_ms(max(json_extract_string(doc, '$.observed_at')::TIMESTAMPTZ)) AS observed_ms
     FROM store.build.${table}
     WHERE coalesce(json_extract(doc, '$.is_present')::BOOLEAN, true)
       AND json_extract_string(doc, '$.status') IS DISTINCT FROM 'rejected'
@@ -77,12 +79,17 @@ export async function readInputs(snapshot: string): Promise<Inputs> {
             matriline_members: await docs('matriline_members'),
             haulouts: await docs('haulouts'),
             names: await rows(`SELECT entity_id, name, type FROM store.register.names WHERE type IN ('historical', 'hidden')`),
-            latest: (await rows<Inputs['latest'][number]>(`
+            populationOf: await rows(`
+                SELECT a.entity_id, CAST(json_extract_string(g.doc, '$.id') AS INTEGER) AS group_id
+                FROM store.register.ancestor a
+                JOIN store.snapshot.social_groups g ON json_extract_string(g.doc, '$.entity_id') = a.ancestor_id
+                WHERE json_extract_string(g.doc, '$.kind') IN (${POPULATION_KINDS.map(k => `'${k}'`).join(', ')})
+                ORDER BY a.entity_id, a.depth`),
+            latest: (await rows<Omit<Inputs['latest'][number], 'observed_at'> & {observed_ms: number | bigint}>(`
                 ${latestIn('individual_occurrences', 'individual_id', 'individual')}
                 UNION ALL ${latestIn('group_occurrences', 'social_group_id', 'group')}
                 UNION ALL ${latestIn('ecotype_occurrences', 'ecotype_id', 'population')}`))
-                // DuckDB writes a TIMESTAMPTZ as "2026-10-06 20:00:00+00"; the map wants an instant.
-                .map(r => ({...r, observed_at: new Date(r.observed_at.replace(' ', 'T').replace(/([+-]\d\d)$/, '$1:00')).toISOString()})),
+                .map(({observed_ms, ...r}) => ({...r, observed_at: new Date(Number(observed_ms)).toISOString()})),
         };
     } finally {
         conn.closeSync();
@@ -103,6 +110,9 @@ export function buildSearchIndex(t: Inputs): SearchIndex {
     }
     const populationOf = (groupId: number | undefined) =>
         groupId === undefined ? undefined : groupChain(groupId, groups).find(isPopulation);
+    // The nearest population above each entity, by the register: what an animal's note names.
+    const registerPopulation = new Map<string, number>();
+    for (const p of t.populationOf) if (!registerPopulation.has(p.entity_id)) registerPopulation.set(p.entity_id, p.group_id);
     const innermost = new Map<number, number>();
     for (const m of t.matriline_members) if (m['innermost_group_id'] !== null) innermost.set(m['individual_id'], m['innermost_group_id']);
     const registerNames = new Map<string, string[]>();
@@ -119,7 +129,7 @@ export function buildSearchIndex(t: Inputs): SearchIndex {
 
     const individuals = [...t.individuals].filter(i => i['entity_id']).sort(byId).map(i => {
         const own = nicknames('individual_id', i['id']);
-        const population = populationOf(innermost.get(i['id']));
+        const population = populationOf(innermost.get(i['id'])) ?? populationOf(registerPopulation.get(i['entity_id']));
         return withLatest({
             kind: 'individual',
             label: i['primary_designation'],
@@ -151,13 +161,15 @@ export function buildSearchIndex(t: Inputs): SearchIndex {
             href: populationPath({entity_id: g['entity_id'], designation: g['designation']}),
         }, sighting('population', g['id']));
     });
-    const haulouts: SearchEntry[] = [...t.haulouts].sort(byId).map(h => ({
-        kind: 'haulout',
-        label: h['name'],
-        note: ['Haul-out site', h['region']].filter(Boolean).join(' · '),
-        keys: keysOf(h['name']),
-        href: hauloutPath({id: h['id'], name: h['name']}),
-    }));
+    // The atlas maps some sites at several points a few hundred metres apart under one name
+    // (decision 058); a list can't tell them apart, so the first by id speaks for them all.
+    const seenSites = new Set<string>();
+    const haulouts: SearchEntry[] = [...t.haulouts].sort(byId).flatMap(h => {
+        const note = ['Haul-out site', h['region']].filter(Boolean).join(' · ');
+        if (seenSites.has(`${h['name']}\n${note}`)) return [];
+        seenSites.add(`${h['name']}\n${note}`);
+        return [{kind: 'haulout' as const, label: h['name'], note, keys: keysOf(h['name']), href: hauloutPath({id: h['id'], name: h['name']})}];
+    });
     // The map's regions are the site's, not the catalogue's; a region is a view, so it opens the map filtered to it.
     const regions: SearchEntry[] = REGIONS.filter(r => r.extent !== null).map(r => ({
         kind: 'region',

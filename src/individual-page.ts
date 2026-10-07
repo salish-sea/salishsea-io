@@ -13,6 +13,7 @@ import {
 } from './individual-profile.ts';
 import { initSentry } from './sentry.ts';
 import './individual-map.ts';
+import './site-search.ts';
 
 initSentry();
 

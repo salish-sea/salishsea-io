@@ -21,7 +21,7 @@ import type { MapDot } from '../../src/individual-map.ts';
 import { profileStyles, renderProfileFrame } from '../../src/profile-shared.ts';
 import { renderWhales, whalesPreview, whalesStyles, type WhaleSpecies, type WhalesData } from '../../src/whales.ts';
 import { budget } from './duckdb-budget.ts';
-import { renderDocument } from './profile-document.ts';
+import { islandFromManifest, renderDocument, SEARCH_ISLAND, type Island } from './profile-document.ts';
 
 /** Cetacea, as the register identifies it. */
 export const CETACEA = 'SSA:0000934';
@@ -129,17 +129,20 @@ export function assembleWhales({species, reports, populations}: Inputs): WhalesD
     return {species: list, unidentified};
 }
 
-export function renderWhalesPage(shell: string, data: WhalesData): string {
+export function renderWhalesPage(shell: string, data: WhalesData, islands: Island[] = []): string {
     return renderDocument(shell, 'whales-page', [profileStyles, ...whalesStyles], whalesPreview(),
-        renderProfileFrame(renderWhales(data), 'whales'));
+        renderProfileFrame(renderWhales(data), 'whales'), islands);
 }
 
 export async function writeWhales(snapshot: string, exportDir: string, dist: string): Promise<WhalesData> {
     const shell = await readFile(path.join(dist, 'whales.html'), 'utf8');
+    // The nav's search field is the page's one script (GH #640).
+    const manifest = JSON.parse(await readFile(path.join(dist, '.vite', 'manifest.json'), 'utf8'));
+    const islands = [islandFromManifest(manifest, SEARCH_ISLAND, 'site-search')];
     const data = assembleWhales(await readInputs(snapshot));
     // Replaced with a rename, so a reader never sees half of one.
     const file = path.join(exportDir, 'whales.html');
-    await writeFile(`${file}.partial`, renderWhalesPage(shell, data));
+    await writeFile(`${file}.partial`, renderWhalesPage(shell, data, islands));
     await rename(`${file}.partial`, file);
     return data;
 }

@@ -9,6 +9,7 @@ import { html, LitElement } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { profileStyles, renderProfileFrame } from './profile-shared.ts';
 import { whalesStyles } from './whales.ts';
+import './site-search.ts';
 
 @customElement('whales-page')
 export class WhalesPage extends LitElement {

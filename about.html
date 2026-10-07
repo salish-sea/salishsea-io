@@ -65,6 +65,18 @@
         color: #213547;
         font-weight: 600;
       }
+      nav.site-nav site-search {
+        flex: 0 1 16rem;
+        margin-left: auto;
+      }
+      @media (max-width: 40rem) {
+        nav.site-nav {
+          align-items: center;
+        }
+        nav.site-nav site-search {
+          flex: 0 0 auto;
+        }
+      }
       .downloads {
         margin-top: 0.25rem;
         padding-left: 1.25rem;
@@ -87,7 +99,7 @@
   </head>
   <body>
     <main class="about">
-      <nav class="site-nav" aria-label="Site"><a class="about-link" href="/about.html" aria-current="page">About</a><a class="map-link" href="/" aria-current="false">Map</a><a class="whales-link" href="/whales" aria-current="false">Whales</a></nav>
+      <nav class="site-nav" aria-label="Site"><a class="about-link" href="/about.html" aria-current="page">About</a><a class="map-link" href="/" aria-current="false">Map</a><a class="whales-link" href="/whales" aria-current="false">Whales</a><site-search></site-search></nav>
       <h1>About SalishSea.io</h1>
       <p>Communities throughout the Salish Sea are working to monitor and protect the diversity of life it supports. This site serves as a portal into their efforts.</p>
       <p>We currently show:</p>

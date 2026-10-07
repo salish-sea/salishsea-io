@@ -11,7 +11,6 @@
  */
 
 import { fold } from './fold.ts';
-import { REGIONS } from './constants.ts';
 
 export type SearchKind = 'individual' | 'matriline' | 'population' | 'haulout' | 'region';
 
@@ -33,17 +32,6 @@ export interface SearchEntry {
 /** The index the build writes to /read-path/search-index.json. */
 export interface SearchIndex {
   entries: SearchEntry[];
-}
-
-/** The map's regions, which the site defines rather than the build: each opens the map filtered to it. */
-export function regionEntries(): SearchEntry[] {
-  return REGIONS.filter(r => r.extent !== null).map(r => ({
-    kind: 'region' as const,
-    label: r.label,
-    note: 'Map region',
-    keys: [fold(r.label)],
-    href: `/?r=${r.slug}`,
-  }));
 }
 
 /** Which kind shows first among results that match equally well: animals before places. */

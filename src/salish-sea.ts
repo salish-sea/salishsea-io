@@ -35,6 +35,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Contributor, Occurrence } from "./types.ts";
 import lockupUrl from "./assets/lockup-dark.svg?url";
 import { renderSiteNav } from './site-nav.ts';
+import './site-search.ts';
 
 initSentry();
 
@@ -122,17 +123,31 @@ export default class SalishSea extends LitElement {
     nav.site-nav a[aria-current="page"] {
       font-weight: 600;
     }
+    /* The search field (src/site-search.ts): a field beside the links, or on a phone a
+       button that opens one across the top of the screen. */
+    nav.site-nav site-search {
+      align-self: center;
+      margin-left: 0.5rem;
+      width: 15rem;
+      --site-search-border: transparent;
+    }
+    @media (max-width: 40rem) {
+      nav.site-nav site-search {
+        margin-left: 0;
+        width: auto;
+      }
+    }
     header > div {
       flex-shrink: 0;
     }
-    /* A phone: the logo, three links and the login button share 390 pixels. */
+    /* A phone: the logo, three links, the search button and the login button share 390 pixels. */
     @media (max-width: 30rem) {
       h1 img {
-        height: 1.375rem;
+        height: 1.25rem;
       }
       nav.site-nav {
-        gap: 0.75rem;
-        margin-left: 0.75rem;
+        gap: 0.6rem;
+        margin-left: 0.6rem;
       }
       nav.site-nav a {
         font-size: 0.875rem;

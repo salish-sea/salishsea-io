@@ -89,6 +89,8 @@ export default defineConfig({
         // Not an HTML page, so the read-path build finds its files through the
         // manifest below, and writes the tags for them itself.
         'map-island': resolve(__dirname, 'src/map-island.ts'),
+        // The search field in the nav (GH #640), an island on every prerendered page.
+        'site-search': resolve(__dirname, 'src/site-search.ts'),
       }
     },
 

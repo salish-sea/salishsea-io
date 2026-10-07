@@ -10,6 +10,7 @@
 //      from (?d/?x/?y/?z/?o) instead of dropping them at the default map view.
 // On failure / direct visits it leaves the static fallbacks untouched.
 import { fetchArchiveMetadata, formatBytes, formatRelativeTime } from "./download-info.ts";
+import './site-search.ts';
 
 /**
  * Fill in DwC-A archive sizes and a relative "updated" timestamp from a pair of

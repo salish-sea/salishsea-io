@@ -16,3 +16,10 @@ test('about.html carries, by hand, the nav the template renders for it', () => {
   expect(links(handWritten)).toEqual(links(rendered));
   expect(links(handWritten)).toHaveLength(3);
 });
+
+test('the search field closes the nav, on about.html too (GH #640)', () => {
+  const rendered = collectResultSync(render(renderSiteNav(null))).replace(/<!--[^>]*-->/g, '');
+  expect(rendered).toMatch(/<\/a><site-search><\/site-search><\/nav>$/);
+  const about = readFileSync(new URL('../about.html', import.meta.url), 'utf8');
+  expect(about.match(/<nav class="site-nav"[^>]*>.*?<\/nav>/s)![0]).toContain('<site-search></site-search></nav>');
+});
