@@ -62,7 +62,10 @@ export async function readInputs(snapshot: string): Promise<Inputs> {
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
-        await budget(conn, snapshot, '64MB');
+        // Measured on 64,000 occurrences with documents of 1.3 KB on average (production's
+        // are 1.1): runs out at 64 and 96 MB, completes at 128, peaking at 370 MB resident
+        // with the page's rendering. The first production build ran out at 64.
+        await budget(conn, snapshot, '128MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         await conn.run(`CREATE TEMP TABLE entity_taxon AS ${ENTITY_TAXON}`);
         await conn.run(`CREATE TEMP TABLE cetacean_taxa AS ${CETACEAN_TAXA}`);
@@ -73,16 +76,19 @@ export async function readInputs(snapshot: string): Promise<Inputs> {
             LEFT JOIN store.snapshot.animal_names n ON json_extract_string(n.doc, '$.entity_id') = t.entity_id
             WHERE t.taxon_rank = 'species'
             ORDER BY t.entity_id`);
-        // Newest first, a tie by id, so the same store renders the same page.
-        const reports = await rows<Inputs['reports'][number]>(`
+        // Sorted below rather than here, newest first and a tie by id, so the same store
+        // renders the same page without DuckDB holding the extracted rows for a sort.
+        const reports = (await rows<Inputs['reports'][number] & {at: number}>(`
             SELECT t.entity_id AS taxon_entity_id, t.taxon_rank = 'species' AS species,
                    o.id AS occurrence_id, json_extract_string(o.doc, '$.observed_at') AS observed_at,
                    json_extract(o.doc, '$.location.lon')::DOUBLE AS lon,
-                   json_extract(o.doc, '$.location.lat')::DOUBLE AS lat
+                   json_extract(o.doc, '$.location.lat')::DOUBLE AS lat,
+                   epoch(o.observed_at) AS at
             FROM store.build.occurrences o
             JOIN entity_taxon et ON et.entity_id = json_extract_string(o.doc, '$.taxon.entity_id')
-            JOIN cetacean_taxa t ON t.entity_id = et.taxon_entity_id
-            ORDER BY o.observed_at DESC, o.id`);
+            JOIN cetacean_taxa t ON t.entity_id = et.taxon_entity_id`))
+            .sort((a, b) => b.at - a.at || (a.occurrence_id < b.occurrence_id ? -1 : a.occurrence_id > b.occurrence_id ? 1 : 0))
+            .map(({at: _, ...r}) => r);
         const ecotypes = await rows<Inputs['ecotypes'][number]>(`
             SELECT et.taxon_entity_id, json_extract_string(g.doc, '$.entity_id') AS entity_id,
                    json_extract_string(g.doc, '$.designation') AS designation
