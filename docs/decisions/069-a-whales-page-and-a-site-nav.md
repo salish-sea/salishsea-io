@@ -8,7 +8,7 @@ The site had two ways in: the map, and a profile page someone linked to. Nothing
 
 ## Decision
 
-**A page at `/whales` lists every cetacean species someone has reported to us, most-reported first.** Each species shows its common and scientific names, how many reports, when it was last reported (linking to that day on the map), and a small map of where, at decision 067's shared scale. Killer whale also lists its ecotypes that have pages: Bigg's today, and Southern Residents once #511 lands. Species have no pages of their own yet. A line at the end counts the reports that name a cetacean only as a group, such as "baleen whale".
+**A page at `/whales` lists every cetacean species someone has reported to us, most-reported first.** Each species shows its common and scientific names, how many reports, when it was last reported (linking to that day on the map), and a small map of where, at decision 067's shared scale. Killer whale also lists ~~its ecotypes that have pages~~ each population's top page, an ecotype's or a community's (*amended by [070](070-southern-residents-are-generated-from-the-register.md)*): Bigg's today, and Southern Residents once #511 lands. Species have no pages of their own yet. A line at the end counts the reports that name a cetacean only as a group, such as "baleen whale".
 
 - **Cetaceans only**, as the name says. Our scope is all marine mammals (009), but seals, sea lions and otters would need a page under another name.
 - **What a cetacean is comes from the register:** a taxon of species rank whose lineage (`register.taxon_ancestor`) reaches Cetacea (`SSA:0000934`). The build now loads that table with the rest of the register. `register.classification` stops at order, and a whale's order is Artiodactyla, which deer share.
