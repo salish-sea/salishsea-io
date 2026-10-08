@@ -1,6 +1,8 @@
 /**
  * A population's profile page, as templates that render anywhere (decision 057): an
  * ecotype's, as the Bigg's is, or a community's, as the Southern Residents' is (070).
+ * A Southern Resident pod's page is the same page a level down: its matrilines and the
+ * sightings of all of them, pooled (070's population › pod › matriline).
  *
  * As src/individual-profile.ts is for an individual: the client-rendered page
  * (src/ecotype-page.ts) fills these from Supabase, and the read-path build
@@ -11,7 +13,7 @@
 import { css, html, nothing } from 'lit';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  populationLabel, populationPath, matrilinePath,
+  podLabel, podPath, populationLabel, populationPath, matrilinePath,
   type EcotypeProfile, type OccurrenceLink, type SocialGroup,
 } from './catalog.ts';
 import type { MapDot } from './individual-map.ts';
@@ -29,9 +31,15 @@ export const ecotypeStyles = [smallMapStyles, css`
 /** What the page shows of the group itself: never its `notes` (D-21). */
 export type ProfileEcotype = Pick<EcotypeProfile, 'id' | 'entity_id' | 'designation' | 'kind'>;
 
+type GroupLink = Pick<SocialGroup, 'id' | 'entity_id' | 'designation'>;
+
 export interface EcotypeProfileData {
   group: ProfileEcotype;
-  matrilines: Pick<SocialGroup, 'id' | 'entity_id' | 'designation'>[];
+  matrilines: GroupLink[];
+  /** A community's pods, each with a page (070). None for an ecotype or a pod. */
+  pods?: GroupLink[];
+  /** The population a pod belongs to, which its page links up to. */
+  population?: Pick<SocialGroup, 'entity_id' | 'designation'> | null;
   /**
    * Each matriline's reports, by group id, as its own page has them: what its small map
    * draws (decision 067). The prerendered page has them; the client-rendered one, which
@@ -40,29 +48,39 @@ export interface EcotypeProfileData {
   matrilineReports?: ReadonlyMap<number, readonly MapDot[]>;
 }
 
-/** What the page calls the population, in its heading, its title and its preview. */
-export const ecotypeLabel = (group: Pick<ProfileEcotype, 'designation'>): string => populationLabel(group);
+/** What the page calls the population or pod, in its heading, its title and its preview. */
+export const ecotypeLabel = (group: Pick<ProfileEcotype, 'designation' | 'kind'>): string =>
+  group.kind === 'pod' ? podLabel(group) : populationLabel(group);
+
+const KICKERS: Record<string, string> = { ecotype: 'Ecotype', community: 'Community', pod: 'Pod' };
 
 /** What a link preview says about the page, as the Lambda@Edge function says it. */
-export function ecotypePreview({ group }: Pick<EcotypeProfileData, 'group'>) {
+export function ecotypePreview({ group, population }: Pick<EcotypeProfileData, 'group' | 'population'>) {
   const label = ecotypeLabel(group);
+  const of = population ? `${label} of ${populationLabel(population)}` : label;
   return {
-    title: label,
-    description: `The matrilines and aggregated sighting history of ${label} in the Salish Sea.`,
-    path: populationPath(group),
+    title: population ? `${label} · ${populationLabel(population)}` : label,
+    description: `The matrilines and aggregated sighting history of ${of} in the Salish Sea.`,
+    path: group.kind === 'pod' ? podPath(group) : populationPath(group),
   };
 }
 
 /** The page's content, given its Sightings section's content. */
-export function renderEcotypeProfile({ group, matrilines, matrilineReports }: EcotypeProfileData, sightings: unknown) {
+export function renderEcotypeProfile({ group, matrilines, matrilineReports, pods, population }: EcotypeProfileData, sightings: unknown) {
   const label = ecotypeLabel(group);
   const short = label.replace(/ killer whales$/, '');
   return html`
     <header class="masthead">
-      <div class="designation-kicker">${group.kind === 'community' ? 'Community' : 'Ecotype'}</div>
+      <div class="designation-kicker">${KICKERS[group.kind] ?? nothing}</div>
       <h1>${label}</h1>
       ${matrilines.length
         ? html`<p class="vitals">${matrilines.length} matrilines cataloged in the Salish Sea</p>`
+        : nothing}
+      ${population
+        ? html`<p class="lineage"><a href=${populationPath(population)}>${populationLabel(population)}</a></p>`
+        : nothing}
+      ${pods?.length
+        ? html`<p class="lineage">Pods: ${pods.map((p, i) => html`${i ? ' · ' : ''}<a href=${podPath(p)}>${podLabel(p)}</a>`)}</p>`
         : nothing}
     </header>
     <section>
@@ -119,7 +137,7 @@ function renderMatrilineMaps(matrilines: readonly Matriline[], reports: Readonly
 }
 
 /** The Sightings section's content once the links are known. */
-export function renderEcotypeSightings(links: OccurrenceLink[] | null, options: SightingsOptions = {}) {
+export function renderEcotypeSightings(links: OccurrenceLink[] | null, options: SightingsOptions = {}, subject = 'population') {
   return renderSightingsSummary(links,
-    html`<p class="placeholder">No sighting reports resolve to this population yet.</p>`, options);
+    html`<p class="placeholder">No sighting reports resolve to this ${subject} yet.</p>`, options);
 }

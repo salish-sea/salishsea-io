@@ -168,7 +168,9 @@ CREATE OR REPLACE TABLE build.individual_occurrences AS
 
 -- --- public.ecotype_occurrences ----------------------------------------------------------
 -- A sighting of any group or individual under a population, an ecotype or a community
--- (decision 070), by the register's ancestry. Named for the ecotype, which it was first.
+-- (decision 070), or under a Southern Resident pod, by the register's ancestry: what a
+-- population's page and a pod's pool. Named for the ecotype, which it was first, and
+-- unlike the view, which never had a pod to roll up to, it has the pods' rows too.
 -- UNION, not UNION ALL, as the view: the same sighting reached twice is one row.
 
 CREATE OR REPLACE TABLE build.ecotype_occurrences AS
@@ -176,15 +178,15 @@ CREATE OR REPLACE TABLE build.ecotype_occurrences AS
     SELECT g.id AS group_id, e.id AS ecotype_id
     FROM social_group g
     JOIN register.ancestor a ON a.entity_id = g.entity_id
-    JOIN social_group e ON e.entity_id = a.ancestor_id AND e.kind IN ('ecotype', 'community')
+    JOIN social_group e ON e.entity_id = a.ancestor_id AND e.kind IN ('ecotype', 'community', 'pod')
     UNION ALL
-    SELECT e.id, e.id FROM social_group e WHERE e.kind IN ('ecotype', 'community')
+    SELECT e.id, e.id FROM social_group e WHERE e.kind IN ('ecotype', 'community', 'pod')
   ),
   individual_to_ecotype AS (
     SELECT i.id AS individual_id, e.id AS ecotype_id
     FROM individual i
     JOIN register.ancestor a ON a.entity_id = i.entity_id
-    JOIN social_group e ON e.entity_id = a.ancestor_id AND e.kind IN ('ecotype', 'community')
+    JOIN social_group e ON e.entity_id = a.ancestor_id AND e.kind IN ('ecotype', 'community', 'pod')
   ),
   link AS (
     SELECT gte.ecotype_id, c.occurrence_id, c.observed_at, c.location,

@@ -12,7 +12,7 @@ import { css, html, nothing, type TemplateResult } from 'lit';
 import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  isPopulation, populationLabel, populationPath, groupChain, individualPath, matrilinePath,
+  isPopulation, podLabel, podPath, populationLabel, populationPath, groupChain, individualPath, matrilinePath,
   type CatalogGroup, type GroupMember, type IndividualProfile, type OccurrenceLink, type Offspring, type Parent,
 } from './catalog.ts';
 import {
@@ -130,9 +130,11 @@ export function renderChain(chain: CatalogGroup[], selfDesignation: string): Tem
   const population = rest.find(isPopulation);
   return html`
     <b>${first!.designation} ${first!.kind === 'matriline' ? 'matriline' : first!.kind}</b>${
-      parents.map(g => html` · within ${g.anchor && g.designation !== selfDesignation
-        ? html`<a href=${individualPath(g.anchor)}>${g.designation}</a>`
-        : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
+      parents.map(g => html` · within ${g.kind === 'pod'
+        ? html`<a href=${podPath(g)}>${podLabel(g)}</a>`
+        : html`${g.anchor && g.designation !== selfDesignation
+          ? html`<a href=${individualPath(g.anchor)}>${g.designation}</a>`
+          : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`}`)
     }${population ? html` · <a href=${populationPath(population)}>${populationLabel(population)}</a>` : nothing}
   `;
 }

@@ -27,7 +27,7 @@
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { hauloutPath, individualPath, isPopulation, matrilinePath, populationPath, type AnimalName } from '../../src/catalog.ts';
+import { hauloutPath, individualPath, isPopulation, matrilinePath, podPath, populationPath, type AnimalName } from '../../src/catalog.ts';
 import { designationKey, type Redirects } from './redirect-keys.ts';
 import { SITE_ORIGIN } from './profile-document.ts';
 import { readSnapshot, type Doc, type Tables } from './snapshot-tables.ts';
@@ -44,6 +44,7 @@ const byId = (a: Doc, b: Doc) => a['id'] - b['id'];
 const individualAt = (i: Doc) => individualPath({entity_id: i['entity_id'], primary_designation: i['primary_designation']});
 const matrilineAt = (g: Doc) => matrilinePath({entity_id: g['entity_id'], designation: g['designation']});
 const populationAt = (g: Doc) => populationPath({entity_id: g['entity_id'], designation: g['designation']});
+const podAt = (g: Doc) => podPath({entity_id: g['entity_id'], designation: g['designation']});
 const hauloutAt = (h: Doc) => hauloutPath({id: h['id'], name: h['name']});
 
 /**
@@ -64,7 +65,7 @@ export function buildRedirects(t: IndexTables): Redirects {
     // one it is primary for wins, then the current one, then the lower id — never row
     // order.
     const ranked = [...t.designations].sort(byPrecedence);
-    const out: Redirects = {individuals: {}, matrilines: {}, populations: {}};
+    const out: Redirects = {individuals: {}, matrilines: {}, populations: {}, pods: {}};
     for (const d of ranked) {
         const individual = individuals.get(d['individual_id']);
         const key = designationKey(d['code']);
@@ -72,10 +73,11 @@ export function buildRedirects(t: IndexTables): Redirects {
             out.individuals[key] = individualAt(individual);
     }
     for (const g of [...t.social_groups].filter(g => g['entity_id']).sort(byId)) {
-        const into = g['kind'] === 'matriline' ? out.matrilines : isPopulation({kind: g['kind']}) ? out.populations : null;
+        const into = g['kind'] === 'matriline' ? out.matrilines : isPopulation({kind: g['kind']}) ? out.populations
+            : g['kind'] === 'pod' ? out.pods! : null;
         const key = designationKey(g['designation']);
         if (into && !Object.hasOwn(into, key))
-            into[key] = g['kind'] === 'matriline' ? matrilineAt(g) : populationAt(g);
+            into[key] = g['kind'] === 'matriline' ? matrilineAt(g) : g['kind'] === 'pod' ? podAt(g) : populationAt(g);
     }
     // Every published page by its bare identifier: the canonical path's first two segments.
     // Only where a slug follows, or the bare path would redirect to itself.
@@ -133,8 +135,9 @@ export function profilePaths(t: IndexTables): string[] {
     const groups = t.social_groups.filter(g => g['entity_id']).sort(byId);
     const matrilines = groups.filter(g => g['kind'] === 'matriline').map(matrilineAt);
     const populations = groups.filter(g => isPopulation({kind: g['kind']})).map(populationAt);
+    const pods = groups.filter(g => g['kind'] === 'pod').map(podAt);
     const haulouts = [...t.haulouts].sort(byId).map(hauloutAt);
-    return [...populations, ...matrilines, ...individuals, ...haulouts];
+    return [...populations, ...pods, ...matrilines, ...individuals, ...haulouts];
 }
 
 function escapeXml(s: string): string {

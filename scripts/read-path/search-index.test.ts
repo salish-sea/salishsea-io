@@ -60,6 +60,7 @@ const LINKS: Record<string, object[]> = {
     ],
     ecotype_occurrences: [
         {ecotype_id: 10000010, occurrence_id: 'maplify:30', observed_at: '2026-10-06T20:00:00+00:00', is_present: true, status: 'candidate'},
+        {ecotype_id: 10000020, occurrence_id: 'maplify:30', observed_at: '2026-10-06T20:00:00+00:00', is_present: true, status: 'candidate'},
     ],
 };
 
@@ -106,9 +107,16 @@ describe('the search index (GH #640)', () => {
         expect(find('J56').latest).toBeUndefined();
     });
 
-    test('only what has a page: no animal without a register identifier, no pod', () => {
+    test('only what has a page: no animal without a register identifier', () => {
         expect(index.entries.map(e => e.label)).not.toContain('T999');
         expect(index.entries.filter(e => e.kind === 'matriline').map(e => e.label)).toEqual(['T065As', 'J31s']);
+    });
+
+    test('a pod by its name, however it is written, with its population and its newest report', () => {
+        expect(find('J pod')).toMatchObject({
+            kind: 'pod', note: 'Pod · Southern Resident killer whales', href: '/pods/0000020/J-pod',
+            keys: ['j pod', 'jpod'], latest: {date: '2026-10-06', href: '/?d=2026-10-06&o=maplify%3A30'},
+        });
         expect(index.entries.map(e => e.label)).not.toContain('J');
     });
 

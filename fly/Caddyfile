@@ -99,7 +99,7 @@
 	# with no lookup; an identifier it doesn't know has no published page, which is the
 	# same 404 the prerendered route below gives. Before that route, which would
 	# otherwise serve the page at the bare address.
-	@bareId path_regexp bareId ^/((individuals|matrilines|populations)/[0-9]{7}|haulouts/[0-9]{1,9})/?$
+	@bareId path_regexp bareId ^/((individuals|matrilines|populations|pods)/[0-9]{7}|haulouts/[0-9]{1,9})/?$
 	handle @bareId {
 		reverse_proxy 127.0.0.1:8081 {
 			@unpublished status 404
@@ -115,21 +115,21 @@
 	}
 
 	# A profile page prerendered by the read-path build (decision 057): an
-	# individual, a matriline or a population by its register identifier's seven
-	# digits, or a haul-out site by its id. The slug after them is ignored, as
+	# individual, a matriline, a population or a Southern Resident pod by its register
+	# identifier's seven digits, or a haul-out site by its id. The slug after them is ignored, as
 	# the client pages ignore it. A page the build hasn't written yet is a real
 	# 404 saying so. Designation-shaped paths (/individuals/J35, legacy links)
 	# don't match, and stay on the client-rendered shells below.
-	import prerendered animalPage ^/(individuals|matrilines|populations)/([0-9]{7})(/[^/]*)?/?$
+	import prerendered animalPage ^/(individuals|matrilines|populations|pods)/([0-9]{7})(/[^/]*)?/?$
 	import prerendered sitePage ^/(haulouts)/([0-9]{1,9})(/[^/]*)?/?$
 
-	# A designation (/individuals/T65A, /matrilines/T065As, /populations/Biggs):
+	# A designation (/individuals/T65A, /matrilines/T065As, /populations/Biggs, /pods/J):
 	# legacy links from before decision 034, and typed ones. The redirect server
 	# (scripts/read-path/redirect.ts) folds it and 301s to the canonical page from
 	# the map the build writes, with no database lookup; a designation no profile
 	# answers to is a 404 saying so (decision 057, step 5). After the routes
 	# above, which a seven-digit identifier matches first.
-	@designation path_regexp designation ^/(individuals|matrilines|populations)/[^/]+/?$
+	@designation path_regexp designation ^/(individuals|matrilines|populations|pods)/[^/]+/?$
 	handle @designation {
 		reverse_proxy 127.0.0.1:8081 {
 			@unknown status 404
