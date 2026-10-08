@@ -131,6 +131,12 @@ export default class SalishSea extends LitElement {
       opacity: 0.6;
       padding: 0 10px;
     }
+    /* A label centred in the header puts Mukta's baseline 0.237em below the middle,
+       measured; it drops the rest of the way to the wordmark's. The icon stays centred. */
+    nav.site-nav .nav-label {
+      position: relative;
+      top: calc(var(--wordmark-drop) - 0.237em);
+    }
     nav.site-nav a:hover {
       opacity: 0.9;
     }
@@ -148,6 +154,13 @@ export default class SalishSea extends LitElement {
     header > div {
       flex-shrink: 0;
       margin-left: 0.25rem;
+    }
+    /* Its label, centred in its button, sits 0.28rem below the header's middle, measured;
+       the button drops so the label meets the wordmark's baseline too. */
+    login-button {
+      display: block;
+      position: relative;
+      top: calc(var(--wordmark-drop) - 0.28rem);
     }
     /* A phone: the lockup's mark without its wordmark, and the nav's icons without
        their names, so the mark, three links, search and the login button share 360
@@ -178,6 +191,10 @@ export default class SalishSea extends LitElement {
       /* No vertical padding: the nav's items fill the header's height, so the current
          page's underline is its bottom edge, as BeeAtlas's is. */
       min-height: 3rem;
+      /* How far below the header's middle the lockup's wordmark sits on its baseline:
+         the lockup is centred, 1.75rem tall, and the wordmark's baseline (the foot of its
+         "l") is at 291.95 of its 386.57 units. Every text in the header sits there. */
+      --wordmark-drop: calc(1.75rem * (291.95 / 386.57 - 0.5));
       padding: 0 0.5rem;
       width: 100%;
     }
