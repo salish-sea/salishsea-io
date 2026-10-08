@@ -8,6 +8,8 @@ import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as glue from 'aws-cdk-lib/aws-glue';
 import * as athena from 'aws-cdk-lib/aws-athena';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -80,6 +82,8 @@ export const MEDIA_BUCKET_NAME = 'salishsea-io-media';
 /** Where Litestream replicates the store (decision 065), under STORE_REPLICA_PREFIX. */
 export const STORE_REPLICA_BUCKET_NAME = 'salishsea-io-store-replica';
 export const STORE_REPLICA_PREFIX = 'store';
+/** Where `scripts/deploy-dev.sh` puts the site dev.salishsea.io serves (decision 072). */
+export const DEV_SITE_BUCKET_NAME = 'salishsea-io-dev-site';
 
 /**
  * The secret CloudFront sends the Fly app on /api/* requests as `x-origin-verify`, the
@@ -458,6 +462,87 @@ export class InfraStack extends cdk.Stack {
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         },
       },
+    });
+
+    // --- dev.salishsea.io (decision 072) ---
+    // A frontend built from any branch, in front of production's data: the app comes from
+    // its own bucket, put there by scripts/deploy-dev.sh, and everything a signed-out
+    // visitor reads besides the app is passed through to the Fly app. So it shows what a
+    // change to the map looks like on today's sightings, without a second read-path build.
+    //
+    // Read-only by construction. /api/* is GET and HEAD only, with no cookies forwarded,
+    // so /api/me answers "nobody" and nothing can be written; the API would refuse a
+    // write from this origin anyway (DEFAULT_ORIGINS in api/server.ts). No edge function,
+    // so no preview cards, and no profile pages: Fly prerenders them around its own
+    // build's hashed assets, which this bucket doesn't have.
+    const devSiteBucket = new s3.Bucket(this, 'DevSiteBucket', {
+      bucketName: DEV_SITE_BUCKET_NAME,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    const devFlyOrigin = new origins.HttpOrigin('salishsea-io.fly.dev', {
+      protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+    });
+    // A copy of the site under another name is not something a search engine should list.
+    const devNoIndex = new cloudfront.ResponseHeadersPolicy(this, 'DevNoIndex', {
+      responseHeadersPolicyName: 'salishsea-dev-noindex',
+      comment: 'dev.salishsea.io: keep the copy out of search results',
+      customHeadersBehavior: {
+        customHeaders: [{ header: 'X-Robots-Tag', value: 'noindex, nofollow', override: true }],
+      },
+    });
+    const devPassThrough: cloudfront.BehaviorOptions = {
+      origin: devFlyOrigin,
+      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      compress: true,
+      allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+      // As production's default behavior: the Fly app sends these files no-cache.
+      cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      responseHeadersPolicy: devNoIndex,
+    };
+    const devDist = new cloudfront.Distribution(this, 'DevDist', {
+      comment: 'dev.salishsea.io: a branch build over production data (decision 072)',
+      defaultRootObject: 'index.html',
+      priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
+      httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
+      domainNames: ['dev.salishsea.io'],
+      certificate: acm.Certificate.fromCertificateArn(
+        this, 'DevCert',
+        `arn:aws:acm:us-east-1:${ACCOUNT_ID}:certificate/325c4a00-c72c-4820-8514-943d688f3c82`,
+      ),
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(devSiteBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        compress: true,
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+        // The deploy script invalidates everything, so a day's caching of index.html
+        // never outlives a deploy.
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        responseHeadersPolicy: devNoIndex,
+      },
+      additionalBehaviors: {
+        '/read-path/*': devPassThrough,
+        '/status/*': devPassThrough,
+        '/dwca/*': devPassThrough,
+        '/api/*': {
+          ...devPassThrough,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          compress: false,
+        },
+      },
+    });
+    const zone = route53.HostedZone.fromHostedZoneAttributes(this, 'Zone', {
+      hostedZoneId: 'Z0267557TOKCHC5IUMVH',
+      zoneName: 'salishsea.io',
+    });
+    const devTarget = route53.RecordTarget.fromAlias(new route53Targets.CloudFrontTarget(devDist));
+    new route53.ARecord(this, 'DevARecord', { zone, recordName: 'dev', target: devTarget });
+    new route53.AaaaRecord(this, 'DevAaaaRecord', { zone, recordName: 'dev', target: devTarget });
+    new cdk.CfnOutput(this, 'DevDistributionId', {
+      value: devDist.distributionId,
+      description: 'dev.salishsea.io, which scripts/deploy-dev.sh invalidates (decision 072)',
     });
 
     // --- Site-monitoring analytics over the CloudFront access logs (Glue + Athena) ---

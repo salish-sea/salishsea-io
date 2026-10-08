@@ -39,6 +39,17 @@ Images deployed since decision 066 are tagged with their commit and Stelis's. Ea
 
 The image carries the site bundle, the read-path scripts and the pinned Stelis together, so rolling it back rolls all three back; the data on the volume (`/data`: the snapshot, the mirrors, the build history) stays as it is, and the next build at the old pin runs over it. Two things a release does not carry: `fly deploy --image` applies the `fly.toml` of the checkout you run it from, so check out the release's commit first (the `GITHUB_SHA` build arg in `fly/deploy.sh` is how an image names its commit); and Fly secrets, which are set on the app, not in a release. The one thing an image rollback cannot undo is a migration `deploy.yml` applied to Postgres in the meantime — forward-only, as above.
 
+### dev.salishsea.io is deployed by hand
+
+[Decision 072](../decisions/072-dev-salishsea-io-is-a-branch-build-over-production-data.md): dev.salishsea.io serves whatever was last deployed to it, built from any checkout, over production's data. It is read-only, has no profile pages, and nothing deploys it on push:
+
+```sh
+scripts/deploy-dev.sh   # builds this checkout, syncs it to the dev bucket, invalidates
+curl -s https://dev.salishsea.io/release.json   # which commit it shows
+```
+
+The script needs AWS credentials (`AWS_PROFILE`, default `orcasound`) and a logged-in Supabase CLI. Its distribution and DNS are in the CDK stack, so a push to `main` deploys changes to them like any other infrastructure.
+
 The run is these jobs ([decision 024](../decisions/024-deploy-gating-and-alerting.md)):
 
 | Job | What it does |

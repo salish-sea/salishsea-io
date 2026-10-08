@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import {
-  InfraStack, MEDIA_BUCKET_NAME, STORE_REPLICA_BUCKET_NAME, assertEdgeHandlerBuilt, cardRendererSource,
+  DEV_SITE_BUCKET_NAME, InfraStack, MEDIA_BUCKET_NAME, STORE_REPLICA_BUCKET_NAME, assertEdgeHandlerBuilt, cardRendererSource,
   edgeSecretFromContext, stubAllowedFromContext,
 } from '../lib/infra-stack';
 
@@ -132,8 +132,9 @@ describe('edgeSecretFromContext', () => {
 
 describe('InfraStack', () => {
   let template: Template;
-  const distConfig = () => (Object.values(template.findResources('AWS::CloudFront::Distribution'))[0] as any)
-    .Properties.DistributionConfig;
+  const distFor = (alias: string) => (Object.values(template.findResources('AWS::CloudFront::Distribution'))
+    .find((d: any) => d.Properties.DistributionConfig.Aliases?.includes(alias)) as any).Properties.DistributionConfig;
+  const distConfig = () => distFor('salishsea.io');
   const behavior = (pattern: string) => distConfig().CacheBehaviors.find((b: any) => b.PathPattern === pattern);
   beforeAll(() => {
     // Tests synthesize without building the card-renderer bundle; a deploy may
@@ -149,8 +150,8 @@ describe('InfraStack', () => {
     template.resourceCountIs('AWS::Lambda::Function', 2);
   });
 
-  it('creates a CloudFront Distribution', () => {
-    template.resourceCountIs('AWS::CloudFront::Distribution', 1);
+  it("creates salishsea.io's distribution and dev.salishsea.io's", () => {
+    template.resourceCountIs('AWS::CloudFront::Distribution', 2);
   });
 
   it('attaches Lambda@Edge on VIEWER_REQUEST to the default behavior', () => {
@@ -167,8 +168,7 @@ describe('InfraStack', () => {
 
   // salish-xv35.16: salishsea.io reads the Fly app; only the nightly archive stays on S3.
   it('serves the site from the Fly app', () => {
-    const dist = Object.values(template.findResources('AWS::CloudFront::Distribution'))[0] as any;
-    const config = dist.Properties.DistributionConfig;
+    const config = distConfig();
     const origin = config.Origins.find((o: any) => o.Id === config.DefaultCacheBehavior.TargetOriginId);
     expect(origin.DomainName).toBe('salishsea-io.fly.dev');
     expect(origin.CustomOriginConfig.OriginProtocolPolicy).toBe('https-only');
@@ -256,6 +256,58 @@ describe('InfraStack', () => {
     });
   });
 
+  describe('dev.salishsea.io (decision 072)', () => {
+    const dev = () => distFor('dev.salishsea.io');
+    const devBehavior = (pattern: string) => dev().CacheBehaviors.find((b: any) => b.PathPattern === pattern);
+    const originOf = (b: any) => dev().Origins.find((o: any) => o.Id === b.TargetOriginId);
+
+    it('serves the app from its own private bucket', () => {
+      const origin = originOf(dev().DefaultCacheBehavior);
+      expect(origin.S3OriginConfig).toBeDefined();
+      const [, bucket] = Object.entries(template.findResources('AWS::S3::Bucket'))
+        .find(([, b]: [string, any]) => b.Properties.BucketName === DEV_SITE_BUCKET_NAME) as [string, any];
+      expect(bucket.Properties.PublicAccessBlockConfiguration).toEqual({
+        BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true,
+      });
+    });
+
+    it.each(['/read-path/*', '/status/*', '/dwca/*', '/api/*'])('passes %s through to the Fly app', (pattern) => {
+      expect(originOf(devBehavior(pattern)).DomainName).toBe('salishsea-io.fly.dev');
+    });
+
+    it('cannot write: /api/* is GET and HEAD, with no cookies and no CloudFront secret', () => {
+      const api = devBehavior('/api/*');
+      expect(api.AllowedMethods).toEqual(['GET', 'HEAD']);
+      expect(api.OriginRequestPolicyId).toBeUndefined();
+      // Managed-CachingDisabled: no session to leak, but no stale "nobody" either
+      expect(api.CachePolicyId).toBe('4135ea2d-6df8-44a3-9df3-4b5a84be39ad');
+      for (const origin of dev().Origins) expect(origin.OriginCustomHeaders).toBeUndefined();
+    });
+
+    it('has no edge function, so a crawler gets no preview from the copy', () => {
+      expect(dev().DefaultCacheBehavior.LambdaFunctionAssociations).toBeUndefined();
+    });
+
+    it('asks search engines not to index the copy', () => {
+      template.hasResourceProperties('AWS::CloudFront::ResponseHeadersPolicy', {
+        ResponseHeadersPolicyConfig: Match.objectLike({
+          CustomHeadersConfig: { Items: [Match.objectLike({ Header: 'X-Robots-Tag', Override: true })] },
+        }),
+      });
+      for (const b of [dev().DefaultCacheBehavior, ...dev().CacheBehaviors]) {
+        expect(b.ResponseHeadersPolicyId).toBeDefined();
+      }
+    });
+
+    it('names itself in DNS', () => {
+      for (const type of ['A', 'AAAA']) {
+        template.hasResourceProperties('AWS::Route53::RecordSet', {
+          Name: 'dev.salishsea.io.', Type: type, HostedZoneId: 'Z0267557TOKCHC5IUMVH',
+        });
+      }
+    });
+  });
+
   describe('card renderer', () => {
     it('serves /cards/* from its own behavior', () => {
       template.hasResourceProperties('AWS::CloudFront::Distribution', {
@@ -270,12 +322,7 @@ describe('InfraStack', () => {
     it('keeps the OG edge function off the card behavior', () => {
       // The OG handler's job is to NAME card URLs. Letting it intercept them is
       // how preview images broke before (an HTML body served as an image).
-      const behaviors = template.toJSON()
-        .Resources[Object.keys(template.toJSON().Resources)
-          .find(k => template.toJSON().Resources[k].Type === 'AWS::CloudFront::Distribution')!]
-        .Properties.DistributionConfig.CacheBehaviors;
-      const cards = behaviors.find((b: { PathPattern: string }) => b.PathPattern === '/cards/*');
-      expect(cards.LambdaFunctionAssociations).toBeUndefined();
+      expect(behavior('/cards/*').LambdaFunctionAssociations).toBeUndefined();
     });
 
     it('reaches the renderer only through CloudFront, via IAM auth + OAC', () => {
