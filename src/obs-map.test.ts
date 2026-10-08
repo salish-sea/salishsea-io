@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeAll } from 'vitest';
-import View from 'ol/View.js';
-import { transformExtent } from 'ol/proj.js';
-import { ObsMap, framingZoom } from './obs-map.ts';
-import { REGIONS } from './constants.ts';
+import { ObsMap } from './obs-map.ts';
 
 beforeAll(() => {
   global.ResizeObserver = class {
@@ -24,17 +21,14 @@ describe('ObsMap', () => {
   });
 });
 
-describe('framingZoom', () => {
-  // A desktop window and a phone's, where the default view is a zoom or two apart.
-  it.each([[[1280, 800]], [[390, 700]]])('is where fitting each region lands, in a %j window', size => {
-    for (const region of REGIONS) {
-      const view = new View({projection: 'EPSG:3857', zoom: 9});
-      view.fit(transformExtent([...region.zoomExtent], 'EPSG:4326', 'EPSG:3857'), {size});
-      const zoom = framingZoom(view, region.zoomExtent, size);
-      // the default view is at it, so the mask is hidden there…
-      expect(view.getZoom()!).toBeLessThanOrEqual(zoom);
-      // …and a nudge inward shows it
-      expect(view.getZoom()! + 0.01).toBeGreaterThan(zoom);
-    }
+describe('the out-of-region mask', () => {
+  it('shows at zoom 9 and further out, and not zoomed in past it', () => {
+    const el = document.createElement('obs-map') as ObsMap;
+    // the mask is the one layer between the basemap and the data
+    const mask = el.map.getLayers().getArray().find(l => l.getZIndex() === 1)!;
+    // OpenLayers draws a layer above its minZoom and at or below its maxZoom
+    const shownAt = (zoom: number) => zoom > mask.getMinZoom() && zoom <= mask.getMaxZoom();
+    expect([7, 8.14, 9].map(shownAt)).toEqual([true, true, true]);
+    expect([9.01, 12].map(shownAt)).toEqual([false, false]);
   });
 });

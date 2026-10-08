@@ -575,7 +575,7 @@ export default class SalishSea extends LitElement {
         <account-menu .lastOwnOccurrence=${this.lastOwnOccurrence}></account-menu>
       </header>
       <main>
-        <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId} .maskExtent=${this.region.extent} .frameExtent=${this.region.zoomExtent} .visibleLayers=${this.layers} @layers-change=${this.#onLayersChange}></obs-map>
+        <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId} .maskExtent=${this.region.extent} .visibleLayers=${this.layers} @layers-change=${this.#onLayersChange}></obs-map>
         <obs-panel ${ref(this.panelRef)} date=${this.date} regionSlug=${this.region.slug} .lastOwnOccurrence=${this.lastOwnOccurrence}>
           ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
             const id = sighting.id;
