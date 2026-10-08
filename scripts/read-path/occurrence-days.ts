@@ -9,7 +9,8 @@
  * that day with no region selected. The region is left to the browser, so the
  * seven regions don't multiply the files.
  *
- * A day with no occurrences has no file. The directory is replaced whole each
+ * A day with no occurrences has no file here (a recent one has an empty file in
+ * quiet-days/, quiet-days.ts). The directory is replaced whole each
  * run, so a day that loses its last occurrence loses its file too.
  *
  * Or only some days (Stelis ADR 0016, salish-9uu.8.2): the build observes the
