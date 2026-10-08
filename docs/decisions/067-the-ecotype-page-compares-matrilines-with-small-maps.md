@@ -1,6 +1,6 @@
 # 067 — The ecotype page compares its matrilines with a small map each
 
-**Status:** accepted; built · **Decided:** 2026-10-06 · **Context:** GitHub [#624](https://github.com/salish-sea/salishsea-io/issues/624), bd `salish-7ta7` · **Amends:** [017](017-ecotype-profile-pages.md) (the page's matriline directory) · **Builds on:** [057](057-profile-pages-are-prerendered.md) (prerendered pages), [020](020-map-preview-cards.md) (the basemap and its terms)
+**Status:** accepted; built · **Decided:** 2026-10-06 · **Context:** GitHub [#624](https://github.com/salish-sea/salishsea-io/issues/624), bd `salish-7ta7` · **Amends:** [017](017-ecotype-profile-pages.md) (the page's matriline directory) · **Builds on:** [057](057-profile-pages-are-prerendered.md) (prerendered pages), [020](020-map-preview-cards.md) (the basemap and its terms) · *Amended 2026-10-08 by [074](074-the-basemap-is-its-own-project-and-the-cards-follow-it.md):* the small maps' basemap moves to image tiles rendered from our own basemap, as the cards' does; until then it is Esri's, as below
 
 ## Context
 
