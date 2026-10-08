@@ -7,7 +7,7 @@ export const DISMISS_AFTER_MS = 8_000;
 /**
  * The app's one way of telling someone that something failed.
  *
- * It hangs from the top-right of the content area, directly under the Log in
+ * It hangs from the top-right of the content area, directly under the account
  * button and over the top of the sightings panel — the two places a person is
  * when an action of theirs fails. Feedback far from the control that produced
  * it is feedback nobody reads. It is positioned against `main` rather than the

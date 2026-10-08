@@ -1,7 +1,7 @@
 import { css, html, LitElement, type PropertyValues} from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import './obs-map.ts';
-import './login-button.ts';
+import './account-menu.ts';
 import { contributorContext, getContributor, userContext, type User } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
@@ -151,19 +151,16 @@ export default class SalishSea extends LitElement {
       margin-left: auto;
       --site-search-accent: #4bd6dd;
     }
-    header > div {
+    /* The account button and its menu (src/account-menu.ts), last in the row: the
+       nav's icon button at full strength, underlined in the teal while its menu is open. */
+    account-menu {
+      align-self: stretch;
+      color: white;
       flex-shrink: 0;
-      margin-left: 0.25rem;
-    }
-    /* Its label, centred in its button, sits 0.28rem below the header's middle, measured;
-       the button drops so the label meets the wordmark's baseline too. */
-    login-button {
-      display: block;
-      position: relative;
-      top: calc(var(--wordmark-drop) - 0.28rem);
+      --account-menu-accent: #4bd6dd;
     }
     /* A phone: the lockup's mark without its wordmark, and the nav's icons without
-       their names, so the mark, three links, search and the login button share 360
+       their names, so the mark, three links, search and the account button share 360
        pixels. */
     @media (max-width: 40rem) {
       h1 img {
@@ -375,6 +372,7 @@ export default class SalishSea extends LitElement {
     } else {
       const supabaseClient = supabase();
       supabaseClient.auth.onAuthStateChange((event, session) => {
+        const before = this.user?.id;
         if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
           this.user = session?.user;
         } else if (event === 'SIGNED_OUT') {
@@ -386,10 +384,22 @@ export default class SalishSea extends LitElement {
         this.#listRevision++;
         this.refetchOccurrences(this.date);
         if (this.user) {
+          // Whoever was signed in before is not who this answers for (a token refresh
+          // keeps the same person, and their details, on screen); and a sign-out or
+          // another sign-in before it arrives makes it someone else's. The account menu
+          // shows this name and picture; the write API's path guards the same way.
+          if (this.user.id !== before) {
+            this.contributor = undefined;
+            this.lastOwnOccurrence = null;
+          }
+          const revision = this.#listRevision;
           getContributor(this.user.id, supabaseClient)
-            .then(contributor => this.contributor = contributor)
-            .then(contributor => fetchLastOwnOccurrence(contributor, supabaseClient))
-            .then(occurrence => this.lastOwnOccurrence = occurrence)
+            .then(contributor => {
+              if (revision !== this.#listRevision) return null;
+              this.contributor = contributor;
+              return fetchLastOwnOccurrence(contributor, supabaseClient);
+            })
+            .then(occurrence => { if (revision === this.#listRevision) this.lastOwnOccurrence = occurrence; })
             // Without this the Report button stays hidden and the form has no
             // contributor to save against, with nothing on screen saying why.
             .catch(err => reportError(this, "Couldn't load your account. You may not be able to report a sighting.", {cause: err}));
@@ -562,9 +572,7 @@ export default class SalishSea extends LitElement {
       <header>
         <h1><img src=${lockupUrl} alt="SalishSea.io"></h1>
         ${renderSiteNav('map')}
-        <div>
-          <login-button></login-button>
-        </div>
+        <account-menu .lastOwnOccurrence=${this.lastOwnOccurrence}></account-menu>
       </header>
       <main>
         <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId} .maskExtent=${this.region.extent} .visibleLayers=${this.layers} @layers-change=${this.#onLayersChange}></obs-map>
@@ -654,7 +662,7 @@ export default class SalishSea extends LitElement {
     const {error} = await supabase().auth.signInWithIdToken({'provider': 'google', token, nonce});
     // Supabase returns auth failures in the result instead of throwing, and the
     // Supabase Sentry integration only wraps PostgREST — so an unchecked error
-    // here is invisible twice over: nothing reported, and a Log in button that
+    // here is invisible twice over: nothing reported, and a sign-in that
     // silently does nothing. That is how the nonce mismatch went unnoticed.
     if (error)
       reportError(this, "Couldn't sign you in with Google. Please try again.", {cause: error});
