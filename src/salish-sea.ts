@@ -1,7 +1,7 @@
 import { css, html, LitElement, type PropertyValues} from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import './obs-map.ts';
-import './login-button.ts';
+import './account-menu.ts';
 import { contributorContext, getContributor, userContext, type User } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
@@ -151,19 +151,16 @@ export default class SalishSea extends LitElement {
       margin-left: auto;
       --site-search-accent: #4bd6dd;
     }
-    header > div {
+    /* The account button and its menu (src/account-menu.ts), last in the row: the
+       nav's icon button at full strength, underlined in the teal while its menu is open. */
+    account-menu {
+      align-self: stretch;
+      color: white;
       flex-shrink: 0;
-      margin-left: 0.25rem;
-    }
-    /* Its label, centred in its button, sits 0.28rem below the header's middle, measured;
-       the button drops so the label meets the wordmark's baseline too. */
-    login-button {
-      display: block;
-      position: relative;
-      top: calc(var(--wordmark-drop) - 0.28rem);
+      --account-menu-accent: #4bd6dd;
     }
     /* A phone: the lockup's mark without its wordmark, and the nav's icons without
-       their names, so the mark, three links, search and the login button share 360
+       their names, so the mark, three links, search and the account button share 360
        pixels. */
     @media (max-width: 40rem) {
       h1 img {
@@ -562,9 +559,7 @@ export default class SalishSea extends LitElement {
       <header>
         <h1><img src=${lockupUrl} alt="SalishSea.io"></h1>
         ${renderSiteNav('map')}
-        <div>
-          <login-button></login-button>
-        </div>
+        <account-menu .lastOwnOccurrence=${this.lastOwnOccurrence}></account-menu>
       </header>
       <main>
         <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId} .maskExtent=${this.region.extent} .visibleLayers=${this.layers} @layers-change=${this.#onLayersChange}></obs-map>
@@ -654,7 +649,7 @@ export default class SalishSea extends LitElement {
     const {error} = await supabase().auth.signInWithIdToken({'provider': 'google', token, nonce});
     // Supabase returns auth failures in the result instead of throwing, and the
     // Supabase Sentry integration only wraps PostgREST — so an unchecked error
-    // here is invisible twice over: nothing reported, and a Log in button that
+    // here is invisible twice over: nothing reported, and a sign-in that
     // silently does nothing. That is how the nonce mismatch went unnoticed.
     if (error)
       reportError(this, "Couldn't sign you in with Google. Please try again.", {cause: error});

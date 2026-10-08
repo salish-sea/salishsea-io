@@ -29,6 +29,6 @@ Someone who arrives knowing a name, such as "J35", "T65As", "Fingers" or "Lime K
 ## Consequences
 
 - Every page has a search button and icons in its nav, and every prerendered page loads one more small script.
-- "Log in" is the one text button left in the map's header; #644 replaces it with an account menu like BeeAtlas's.
+- "Log in" was the one text button left in the map's header; #644 replaced it with an account button and menu like BeeAtlas's, the same icon button with its menu on the search popover's surface.
 - A name the register gains reaches search on the next build, with no change here.
 - Southern Resident nicknames ("Tahlequah") become searchable when #511's names step gives them a source.

@@ -75,8 +75,9 @@ export class AccountMenu extends LitElement {
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
       box-sizing: border-box;
       color: #213547;
-      max-width: calc(100vw - 1rem);
+      max-width: min(22rem, calc(100vw - 1rem));
       min-width: 240px;
+      width: max-content;
       padding: 8px 0;
       position: absolute;
       right: 0;
