@@ -1,6 +1,6 @@
 # 020 — Map-rendered link preview cards
 
-**Status:** accepted (2026-07-27) · *Amended 2026-10-08 by [074](074-the-basemap-is-its-own-project-and-the-cards-follow-it.md) (`salish-3zok`):* the cards' map moves off Esri's tiles to image tiles rendered from our own basemap, so a card looks like the site; until those tiles exist the cards stay on Esri as below. The compositing, sizes and caching are unchanged; the attribution follows the tiles.
+**Status:** accepted (2026-07-27) · *Amended 2026-10-08 by [074](074-the-basemap-is-its-own-project-and-the-cards-draw-on-it.md) (`salish-3zok`):* the cards' map moves off Esri's tiles to image tiles rendered from our own basemap, so a card looks like the site; until those tiles exist the cards stay on Esri as below. The compositing, sizes and caching are unchanged; the attribution follows the tiles.
 **Context:** GitHub issue [#38](https://github.com/salish-sea/salishsea-io/issues/38);
 bd `salish-bym`. Amends [decision 019](019-no-fallback-preview-image.md).
 
