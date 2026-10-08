@@ -372,6 +372,7 @@ export default class SalishSea extends LitElement {
     } else {
       const supabaseClient = supabase();
       supabaseClient.auth.onAuthStateChange((event, session) => {
+        const before = this.user?.id;
         if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
           this.user = session?.user;
         } else if (event === 'SIGNED_OUT') {
@@ -383,10 +384,22 @@ export default class SalishSea extends LitElement {
         this.#listRevision++;
         this.refetchOccurrences(this.date);
         if (this.user) {
+          // Whoever was signed in before is not who this answers for (a token refresh
+          // keeps the same person, and their details, on screen); and a sign-out or
+          // another sign-in before it arrives makes it someone else's. The account menu
+          // shows this name and picture; the write API's path guards the same way.
+          if (this.user.id !== before) {
+            this.contributor = undefined;
+            this.lastOwnOccurrence = null;
+          }
+          const revision = this.#listRevision;
           getContributor(this.user.id, supabaseClient)
-            .then(contributor => this.contributor = contributor)
-            .then(contributor => fetchLastOwnOccurrence(contributor, supabaseClient))
-            .then(occurrence => this.lastOwnOccurrence = occurrence)
+            .then(contributor => {
+              if (revision !== this.#listRevision) return null;
+              this.contributor = contributor;
+              return fetchLastOwnOccurrence(contributor, supabaseClient);
+            })
+            .then(occurrence => { if (revision === this.#listRevision) this.lastOwnOccurrence = occurrence; })
             // Without this the Report button stays hidden and the form has no
             // contributor to save against, with nothing on screen saying why.
             .catch(err => reportError(this, "Couldn't load your account. You may not be able to report a sighting.", {cause: err}));
