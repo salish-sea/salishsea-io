@@ -72,6 +72,15 @@ describe('account-menu (GH #644)', () => {
     expect($(menu, '.account svg')).not.toBeNull();
   });
 
+  it('a new picture is tried even after another failed', async () => {
+    const menu = await mount({ name: 'Peter', picture: 'https://example.org/gone.jpg', editor: false });
+    $(menu, '.account img')!.dispatchEvent(new Event('error'));
+    await menu.updateComplete;
+    (menu as unknown as { contributor: Partial<Contributor> }).contributor = { name: 'Peter', picture: 'https://example.org/new.jpg' };
+    await menu.updateComplete;
+    expect($(menu, '.account img')!.getAttribute('src')).toBe('https://example.org/new.jpg');
+  });
+
   it('a click elsewhere, or Escape, closes the menu', async () => {
     const menu = await mount(null);
     await open(menu);

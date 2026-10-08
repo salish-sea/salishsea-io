@@ -157,8 +157,8 @@ export class AccountMenu extends LitElement {
   lastOwnOccurrence: Occurrence | null = null;
 
   @state() private open = false;
-  /** Your picture failed to load: the outline person stands in. */
-  @state() private pictureFailed = false;
+  /** The picture that failed to load, so the outline person stands in for it and not for another. */
+  @state() private failedPicture: string | null = null;
 
   connectedCallback() {
     super.connectedCallback();
@@ -191,14 +191,15 @@ export class AccountMenu extends LitElement {
 
   protected render() {
     const signedIn = !!this.user;
-    const picture = signedIn && !this.pictureFailed ? this.contributor?.picture : null;
+    const own = signedIn ? this.contributor?.picture ?? null : null;
+    const picture = own !== this.failedPicture ? own : null;
     const name = this.contributor?.name;
     return html`
       <button class="account" type="button" aria-haspopup="dialog" aria-expanded=${this.open ? 'true' : 'false'}
         aria-label=${signedIn ? `Account${name ? `: ${name}` : ''}` : 'Account'} title="Account"
         @click=${() => { this.open = !this.open; }}>
         ${picture
-          ? html`<img class="avatar" src=${picture} alt="" referrerpolicy="no-referrer" @error=${() => { this.pictureFailed = true; }}>`
+          ? html`<img class="avatar" src=${picture} alt="" referrerpolicy="no-referrer" @error=${() => { this.failedPicture = own; }}>`
           : personIcon}
       </button>
       ${this.open ? this.renderMenu(signedIn, picture ?? null, name) : nothing}
