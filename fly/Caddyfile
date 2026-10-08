@@ -39,11 +39,20 @@
 
 	# The read-path files, on the volume, rewritten hourly. no-cache: a browser
 	# may keep a copy but must revalidate it, or it would keep showing a sighting
-	# that has since been deleted. A missing day is a real 404, which the frontend
-	# reads as a day with no sightings.
+	# that has since been deleted. A recent day with no sightings has its empty file in
+	# quiet-days/ rather than days/, whose files Stelis holds to the days that have
+	# sightings (scripts/read-path/quiet-days.ts, salish-518u); an older one is a real
+	# 404, which the frontend reads as a day with no sightings too.
 	handle_path /read-path/* {
 		root * /data/export
 		header Cache-Control "no-cache"
+		@dayFile {
+			path /days/*.json
+			file {
+				try_files {path} /quiet-days/{file}
+			}
+		}
+		rewrite @dayFile {file_match.relative}
 		file_server
 	}
 

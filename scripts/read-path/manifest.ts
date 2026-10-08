@@ -9,7 +9,7 @@
  *    "snapshot_taken_at": "2026-09-28T20:39:36.123Z",
  *    "covered_through": "2026-09-28"}
  *
- * A day with no sightings has no file, and neither does a day no build has
+ * A day with no sightings has no file, unless it is recent (quiet-days.ts), and neither does a day no build has
  * reached, so a missing file means nothing on its own. `covered_through` is the
  * Pacific date the snapshot was taken on: every day up to and including it is
  * covered, so a missing file there is a day with no sightings, and past it is a

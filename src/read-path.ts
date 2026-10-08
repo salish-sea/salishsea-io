@@ -98,8 +98,8 @@ export async function fetchManifest(): Promise<Manifest | null> {
  * `fetchOccurrences` gets from PostgREST, with the same region filter applied
  * here instead of in Postgres.
  *
- * A day with no sightings has no file, and neither does a day no build has
- * reached. The manifest tells them apart: a missing day the last build covered
+ * A day with no sightings has no file, unless it is recent (quiet-days.ts writes an
+ * empty one), and neither does a day no build has reached. The manifest tells them apart: a missing day the last build covered
  * is empty, and any other missing day throws, because an empty list there would
  * say the water was quiet when the truth is we don't know yet. Any other failure
  * throws too, and the caller reports it.
