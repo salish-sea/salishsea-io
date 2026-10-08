@@ -211,6 +211,10 @@
 		@unhashed not path /assets/*
 		header @unhashed Cache-Control "no-cache"
 
-		file_server
+		# The build writes a Brotli copy beside each text file (vite.config.js,
+		# precompress-brotli); `encode` above still gzips for a browser without Brotli.
+		file_server {
+			precompressed br
+		}
 	}
 }

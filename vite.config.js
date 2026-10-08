@@ -1,7 +1,8 @@
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { execFileSync } from 'node:child_process';
-import { readFileSync, realpathSync, statSync } from 'node:fs';
-import { dirname, resolve, sep } from 'node:path';
+import { readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, extname, join, resolve, sep } from 'node:path';
+import { brotliCompressSync, constants as zlib } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
@@ -34,6 +35,9 @@ export const VENDOR_CHUNKS = [
   ['vendor-dompurify', name => name === 'dompurify'],
   ['vendor-temporal', name => name === 'temporal-polyfill'],
 ];
+/** What precompress-brotli writes a .br for: text the browser fetches. Not source maps. */
+const BROTLI_TYPES = new Set(['.js', '.mjs', '.css', '.html', '.svg', '.json', '.xml', '.txt', '.webmanifest', '.geojson']);
+
 export function vendorChunk(id) {
   const at = id.lastIndexOf('node_modules/');
   if (at < 0) return null;
@@ -90,6 +94,31 @@ function readPathFiles(req, res, next) {
   res.end(readFileSync(file));
 }
 
+/**
+ * A Brotli copy beside every text file in the build, which Caddy serves to a browser
+ * that accepts it (fly/Caddyfile, `precompressed br`). Caddy can't compress Brotli on
+ * the fly, so without these CloudFront got gzip, about 17% larger.
+ */
+function precompressBrotli() {
+  let outDir;
+  return {
+    name: 'precompress-brotli',
+    apply: 'build',
+    enforce: 'post',
+    configResolved(config) { outDir = resolve(config.root, config.build.outDir); },
+    closeBundle() {
+      const walk = dir => readdirSync(dir, {withFileTypes: true})
+        .flatMap(e => e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]);
+      for (const file of walk(outDir)) {
+        if (!BROTLI_TYPES.has(extname(file))) continue;
+        const raw = readFileSync(file);
+        if (raw.length < 1024) continue;
+        writeFileSync(`${file}.br`, brotliCompressSync(raw, {params: {[zlib.BROTLI_PARAM_QUALITY]: 11, [zlib.BROTLI_PARAM_SIZE_HINT]: raw.length}}));
+      }
+    },
+  };
+}
+
 export default defineConfig({
   assetsInclude: ['**/*.geojson'],
 
@@ -113,13 +142,20 @@ export default defineConfig({
         'site-search': resolve(__dirname, 'src/site-search.ts'),
       },
       output: {
-        // Each library the pages load up front gets a chunk of its own, so a deploy
+        // The libraries the pages load up front get chunks of their own, so a deploy
         // that changes only our code leaves them cached: hashed files are served
         // immutable for a year. Left to itself, Rolldown put our read-path.ts into
         // Sentry's chunk and part of OpenLayers into main, so a one-line edit
         // re-downloaded both. Libraries loaded lazily (exifreader, marked) are not
         // listed: a group would pull them into the first load.
-        codeSplitting: {groups: [{name: vendorChunk}]},
+        // Split each library by sharing: the modules more than one entry uses, and the
+        // ones only the map page's editing tools use. One chunk per library handed the
+        // profile pages' map island all of OpenLayers' editing modules, 30 KB they
+        // never run (decision 057 keeps those pages light).
+        codeSplitting: {groups: [
+          {name: vendorChunk, minShareCount: 2, priority: 1},
+          {name: id => vendorChunk(id) && `${vendorChunk(id)}-map`},
+        ]},
       },
     },
 
@@ -225,6 +261,17 @@ ${urls}
         return out;
       },
     },
+    {
+      // The map page's first data request, started with the HTML rather than after
+      // the scripts have run: the day's file waits on the manifest, so this takes a
+      // round trip out of the chain. Only in a build that reads the files (056).
+      name: 'preload-read-path-manifest',
+      apply: 'build',
+      transformIndexHtml(html, ctx) {
+        if (process.env.VITE_READ_SOURCE !== 'static' || !ctx.path.endsWith('/index.html')) return html;
+        return [{tag: 'link', attrs: {rel: 'preload', href: '/read-path/manifest.json', as: 'fetch', crossorigin: true}, injectTo: 'head'}];
+      },
+    },
     sentryVitePlugin({
       // The plugin would otherwise write the release into every chunk, which is
       // the per-commit churn release.json exists to avoid. It still names the
@@ -240,6 +287,7 @@ ${urls}
       org: "beam-reach",
       project: "salishsea-io",
     }),
+    precompressBrotli(),
   ],
 
   server: {
