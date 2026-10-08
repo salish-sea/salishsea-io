@@ -111,6 +111,19 @@ export function populationPath(group: { entity_id: string | null; designation: s
   return profilePath('populations', group.entity_id, group.designation);
 }
 
+/** What a pod is called in a heading, a title or a link: J pod. Its designation is the letter alone. */
+export function podLabel(group: { designation: string }): string {
+  return `${group.designation} pod`;
+}
+
+/**
+ * A Southern Resident pod's page (decision 070's one level between a population and its
+ * matrilines): /pods/0000020/J-pod. Generated from the register, so it always has an identifier.
+ */
+export function podPath(group: { entity_id: string | null; designation: string }): string {
+  return profilePath('pods', group.entity_id, podLabel(group));
+}
+
 function decodeSegment(segment: string): string | null {
   try {
     return decodeURIComponent(segment);

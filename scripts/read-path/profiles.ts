@@ -3,7 +3,7 @@
  *
  *   EXPORT_DIR=… node scripts/read-path/profiles.ts <kind> <snapshot.duckdb> <dist>
  *
- * <kind> is individuals, matrilines, populations or haulouts. Writes $EXPORT_DIR/profiles/<kind>/<id>.html
+ * <kind> is individuals, matrilines, populations, pods or haulouts. Writes $EXPORT_DIR/profiles/<kind>/<id>.html
  * for every subject of that kind (<id> is its register identifier's seven digits, or a
  * haul-out site's id: the register holds animals, not places),
  * and beside it <id>.links.json, the sighting links its map loads. The page itself is
@@ -260,34 +260,58 @@ export type EcotypePage = ProfilePage<EcotypeProfileData> & {links: OccurrenceLi
 // group_occurrences: each matriline's reports, for its small map (decision 067).
 const ECOTYPE_TABLES = ['social_groups', 'group_parents', 'ecotype_occurrences', 'group_occurrences'] as const;
 
-/** Every population with a register identifier, an ecotype or a community (decision 070), as its page's data. */
-export function assembleEcotypes(t: Pick<Tables, (typeof ECOTYPE_TABLES)[number]>): EcotypePage[] {
+/**
+ * The pages of the groups `isSubject` picks, each a population's page or a pod's, as their
+ * data: the group, the matrilines under it with each one's reports, and the sightings of
+ * everything under it, pooled. ecotype_occurrences has a pod's too (derive/profile-links.sql).
+ */
+function assembleGroupPages(t: Pick<Tables, (typeof ECOTYPE_TABLES)[number]>, isSubject: (g: Doc) => boolean): EcotypePage[] {
     const groups = catalogGroups(t);
     const linksOf = linksBy(t.ecotype_occurrences, 'ecotype_id');
     const matrilineLinksOf = linksBy(t.group_occurrences, 'social_group_id');
     // A small map draws where, and links to the matriline's page rather than to a report.
     const dots = (id: number) => matrilineLinksOf(id).map(({occurrence_id, observed_at, location}) =>
         ({occurrence_id, observed_at, location}));
+    const link = (g: CatalogGroup) => ({id: g.id, entity_id: g.entity_id, designation: g.designation});
+    const pods = [...groups.values()].filter(g => g.kind === 'pod' && g.entity_id).sort((a, b) => a.id - b.id);
     return t.social_groups
-        .filter(g => isPopulation({kind: g['kind']}) && g['entity_id'])
+        .filter(g => isSubject(g) && g['entity_id'])
         .sort(byId)
         .map(g => {
             const matrilines = descendantMatrilines(g['id'], groups);
+            const population = g['kind'] === 'pod' ? groupChain(g['id'], groups).find(isPopulation) : undefined;
             const data = {
                 group: {id: g['id'], entity_id: g['entity_id'], designation: g['designation'], kind: g['kind']},
                 matrilines,
                 matrilineReports: new Map(matrilines.map(m => [m.id, dots(m.id)])),
+                ...(population ? {population: link(population)} : {}),
+                ...(isPopulation({kind: g['kind']})
+                    ? {pods: pods.filter(p => groupChain(p.id, groups).some(a => a.id === g['id'])).map(link)}
+                    : {}),
             } satisfies EcotypeProfileData;
             return {id: localPart(g['entity_id']), data, links: linksOf(g['id'])};
         });
 }
 
-export function renderEcotypePage(shell: string, page: EcotypePage, currentYear: number, islands: Island[] = []): string {
-    const {data, links} = page;
-    const sightings = renderEcotypeSightings(links, {mapSrc: linksUrl('populations', page.id), currentYear});
-    return renderDocument(shell, 'ecotype-page', [profileStyles, ...ecotypeStyles],
-        ecotypePreview(data), renderProfileFrame(renderEcotypeProfile(data, sightings)), islands);
-}
+/** Every population with a register identifier, an ecotype or a community (decision 070), as its page's data. */
+export const assembleEcotypes = (t: Pick<Tables, (typeof ECOTYPE_TABLES)[number]>): EcotypePage[] =>
+    assembleGroupPages(t, g => isPopulation({kind: g['kind']}));
+
+/** Every Southern Resident pod, the level between the community and its matrilines (070), as its page's data. */
+export const assemblePods = (t: Pick<Tables, (typeof ECOTYPE_TABLES)[number]>): EcotypePage[] =>
+    assembleGroupPages(t, g => g['kind'] === 'pod');
+
+const renderGroupPage = (kind: 'populations' | 'pods') =>
+    (shell: string, page: EcotypePage, currentYear: number, islands: Island[] = []): string => {
+        const {data, links} = page;
+        const sightings = renderEcotypeSightings(links, {mapSrc: linksUrl(kind, page.id), currentYear},
+            kind === 'pods' ? 'pod' : 'population');
+        return renderDocument(shell, 'ecotype-page', [profileStyles, ...ecotypeStyles],
+            ecotypePreview(data), renderProfileFrame(renderEcotypeProfile(data, sightings)), islands);
+    };
+
+export const renderEcotypePage = renderGroupPage('populations');
+export const renderPodPage = renderGroupPage('pods');
 
 // --- Haul-out sites --------------------------------------------------------------------
 
@@ -358,6 +382,9 @@ const KINDS = {
     individuals: {shell: 'individual.html', pages: pagesOf(INDIVIDUAL_TABLES, assembleIndividuals, renderIndividualPage)},
     matrilines: {shell: 'matriline.html', pages: pagesOf(MATRILINE_TABLES, assembleMatrilines, renderMatrilinePage)},
     populations: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assembleEcotypes, renderEcotypePage)},
+    // A pod's page is a population's a level down, in the same shell: no client-rendered
+    // page reads it, since its rows exist only in the build (decision 070).
+    pods: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assemblePods, renderPodPage)},
     // The sites' own list, for the main map's layer: a page's id is a number, so
     // it cannot collide with one.
     haulouts: {shell: 'haulout.html', pages: pagesOf(HAULOUT_TABLES, assembleHaulouts, renderHauloutPage,

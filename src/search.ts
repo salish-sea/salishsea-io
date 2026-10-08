@@ -4,7 +4,7 @@
  * (src/site-search.ts) share one definition, and a test can hold both to it.
  *
  * Search is a way in for someone who already knows a name: a designation (T65A, J31),
- * a nickname, a matriline (T065As), a population, a region of the map, a haul-out site.
+ * a nickname, a matriline (T065As), a pod (J pod), a population, a region of the map, a haul-out site.
  * Each result is a place to go. An animal offers two: its page, and its most recent
  * sighting on the map, the day it was reported with the report focused (Peter,
  * 2026-10-07). A region is a view, so it opens the map filtered to it.
@@ -12,7 +12,7 @@
 
 import { fold } from './fold.ts';
 
-export type SearchKind = 'individual' | 'matriline' | 'population' | 'haulout' | 'region';
+export type SearchKind = 'individual' | 'matriline' | 'pod' | 'population' | 'haulout' | 'region';
 
 /** One thing the field can find, as the build writes it. */
 export interface SearchEntry {
@@ -35,7 +35,7 @@ export interface SearchIndex {
 }
 
 /** Which kind shows first among results that match equally well: animals before places. */
-const KIND_ORDER: readonly SearchKind[] = ['individual', 'matriline', 'population', 'region', 'haulout'];
+const KIND_ORDER: readonly SearchKind[] = ['individual', 'matriline', 'pod', 'population', 'region', 'haulout'];
 
 /**
  * The entries a query finds, best first: a name matched whole, then one it begins, then

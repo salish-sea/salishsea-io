@@ -29,6 +29,7 @@ function tables() {
             {id: 200, kind: 'ecotype', entity_id: 'SSA:0000002', designation: 'Biggs'},
             {id: 100, kind: 'matriline', entity_id: 'SSA:0002163', designation: 'T065A'},
             {id: 101, kind: 'matriline', entity_id: null, designation: 'T065A2'},
+            {id: 10000020, kind: 'pod', entity_id: 'SSA:0000020', designation: 'J'},
         ],
         haulouts: [{id: 510, name: 'Race Rocks'}, {id: 12, name: 'Protection Island'}],
     };
@@ -48,11 +49,13 @@ describe('buildRedirects', () => {
     test('groups by their designation; none for a subject without a page', () => {
         expect(redirects().matrilines).toEqual({'t65a': '/matrilines/0002163/T065As'});
         expect(redirects().populations).toEqual({'biggs': '/populations/0000002/Biggs'});
+        expect(redirects().pods).toEqual({'j': '/pods/0000020/J-pod'});
     });
 
     test('every published page by its bare identifier, to its slugged address', () => {
         expect(redirects().ids).toEqual({
             'populations/0000002': '/populations/0000002/Biggs',
+            'pods/0000020': '/pods/0000020/J-pod',
             'matrilines/0002163': '/matrilines/0002163/T065As',
             'individuals/0010002': '/individuals/0010002/T065A2',
             'individuals/0010193': '/individuals/0010193/T065A',
@@ -79,6 +82,10 @@ describe('redirectFor', () => {
         ['/matrilines/T065As', '/matrilines/0002163/T065As'],
         ['/matrilines/t65a', '/matrilines/0002163/T065As'],
         ['/populations/Bigg%E2%80%99s', '/populations/0000002/Biggs'],
+        ['/pods/J', '/pods/0000020/J-pod'],
+        ['/pods/j-pod', '/pods/0000020/J-pod'],
+        ['/pods/J%20pod', '/pods/0000020/J-pod'],
+        ['/pods/Jpod/', '/pods/0000020/J-pod'],
     ])('%s → %s, folded as the register compares names', (url, target) => {
         expect(redirectFor(redirects, url)).toBe(target);
     });
@@ -87,6 +94,7 @@ describe('redirectFor', () => {
         ['/individuals/0010193', '/individuals/0010193/T065A'],
         ['/individuals/0010193/', '/individuals/0010193/T065A'],
         ['/matrilines/0002163?o=x', '/matrilines/0002163/T065As?o=x'],
+        ['/pods/0000020', '/pods/0000020/J-pod'],
         ['/haulouts/510', '/haulouts/510/Race-Rocks'],
     ])('a bare identifier %s → %s (decision 034)', (url, target) => {
         expect(redirectFor(redirects, url)).toBe(target);
@@ -106,6 +114,7 @@ describe('redirectFor', () => {
     test.each([
         '/individuals/J35', '/individuals/X1', '/individuals/constructor', '/individuals/__proto__',
         '/individuals/%E0%A4', '/individuals/T065A/photos', '/haulouts/T065A', '/matrilines/T065A2s',
+        '/pods/K', '/pods/pod', '/pods/T065A',
     ])('%s names nothing we publish', url => {
         expect(redirectFor(redirects, url)).toBeNull();
     });
@@ -122,7 +131,7 @@ describe('the sitemap', () => {
 
     test("every published profile, and only those, after the site's own pages", () => {
         expect(profilePaths(tables())).toEqual([
-            '/populations/0000002/Biggs', '/matrilines/0002163/T065As',
+            '/populations/0000002/Biggs', '/pods/0000020/J-pod', '/matrilines/0002163/T065As',
             '/individuals/0010193/T065A', '/individuals/0010002/T065A2',
             '/haulouts/12/Protection-Island', '/haulouts/510/Race-Rocks',
         ]);

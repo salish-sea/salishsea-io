@@ -12,6 +12,8 @@ export type Redirects = {
     individuals: Record<string, string>,
     matrilines: Record<string, string>,
     populations: Record<string, string>,
+    /** A Southern Resident pod's letter (decision 070). Absent from a map written before pods had pages. */
+    pods?: Record<string, string>,
     /**
      * Each published page by its bare identifier, `<kind>/<id>` (individuals/0010193,
      * haulouts/340), to its canonical address: decision 034 301s a bare identifier to
@@ -22,7 +24,7 @@ export type Redirects = {
 
 /** A bare-identifier path's key in Redirects.ids: `<kind>/<id>`, or null for any other path. */
 export function bareIdKey(pathname: string): string | null {
-    const match = pathname.match(/^\/((?:individuals|matrilines|populations)\/[0-9]{7}|haulouts\/[0-9]{1,9})\/?$/);
+    const match = pathname.match(/^\/((?:individuals|matrilines|populations|pods)\/[0-9]{7}|haulouts\/[0-9]{1,9})\/?$/);
     return match ? match[1]! : null;
 }
 
@@ -36,3 +38,10 @@ export const designationKey = fold;
  * safe only because of that, as src/catalog.ts's matrilineDesignation says.
  */
 export const matrilineKey = (segment: string) => fold(segment).replace(/s$/, '');
+
+/**
+ * A typed pod segment as a redirect key. A pod's designation is its letter (J), but people
+ * write the pod's name (J pod, J-pod, Jpod), so a trailing "pod" is dropped, as the route
+ * has already said this is a pod.
+ */
+export const podKey = (segment: string) => fold(segment).replace(/ ?pod$/, '');

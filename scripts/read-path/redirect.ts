@@ -4,8 +4,8 @@
  *
  *   node scripts/read-path/redirect.ts <redirects.json> <port>
  *
- * Caddy sends it /individuals/<designation>, /matrilines/<designation> and
- * /populations/<designation>: legacy links from before decision 034, and typed ones; and
+ * Caddy sends it /individuals/<designation>, /matrilines/<designation>,
+ * /populations/<designation> and /pods/<designation>: legacy links from before decision 034, and typed ones; and
  * a bare identifier, /individuals/0010193 or /haulouts/340, which decision 034 301s
  * to the slugged address (salish-xv35.16).
  * A known designation gets a 301 to the canonical address, as the Lambda@Edge
@@ -21,18 +21,19 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 
-import { bareIdKey, designationKey, matrilineKey, type Redirects } from './redirect-keys.ts';
+import { bareIdKey, designationKey, matrilineKey, podKey, type Redirects } from './redirect-keys.ts';
 
 /** How a browser may cache the redirect: a day bounds how long a mistaken mapping survives a fix, as on AWS. */
 const REDIRECT_CACHE = 'public, max-age=86400';
 
 /** The kinds a designation names. */
-type DesignationKind = 'individuals' | 'matrilines' | 'populations';
+type DesignationKind = 'individuals' | 'matrilines' | 'populations' | 'pods';
 
 const KEYS: Record<DesignationKind, (segment: string) => string> = {
     individuals: designationKey,
     matrilines: matrilineKey,
     populations: designationKey,
+    pods: podKey,
 };
 
 /** Where a request path redirects to, with its query kept; null if it names nothing we have. */
@@ -46,7 +47,7 @@ export function redirectFor(redirects: Redirects, url: string): string | null {
         const ids = redirects.ids ?? {};
         return keep(Object.hasOwn(ids, id) ? ids[id] : undefined);
     }
-    const match = pathname.match(/^\/(individuals|matrilines|populations)\/([^/]+)\/?$/);
+    const match = pathname.match(/^\/(individuals|matrilines|populations|pods)\/([^/]+)\/?$/);
     if (!match) return null;
     const kind = match[1] as DesignationKind;
     let segment: string;
@@ -57,7 +58,8 @@ export function redirectFor(redirects: Redirects, url: string): string | null {
     }
     // Own keys only: /individuals/constructor is not Object.prototype's.
     const key = KEYS[kind](segment);
-    // A map written before population pages moved to /populations/ has no such kind.
+    // A map written before population pages moved to /populations/, or before pods had
+    // pages, has no such kind.
     const table = redirects[kind] ?? {};
     return keep(Object.hasOwn(table, key) ? table[key] : undefined);
 }

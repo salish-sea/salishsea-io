@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import {
   dedupeOccurrenceLinks, displayName, populationPath, groupChain, individualPath, keyLabel, matrilineDesignation, matrilinePath, monthlyPresence,
-  parsePopulationPath, parseIndividualPath, parseMatrilinePath, slugify,
+  parsePopulationPath, parseIndividualPath, parseMatrilinePath, podPath, slugify,
   type IndividualOccurrence, type OccurrenceLink, type SocialGroup,
   distanceKm, hauloutPath, mediumPhotoUrl, parseHauloutPath,
 } from './catalog.ts';
@@ -97,6 +97,10 @@ test('addresses a matriline with no identifier by its designation', () => {
 });
 
 const BIGGS = { entity_id: 'SSA:0000002', designation: 'Biggs' };
+
+test('a pod is addressed by its name, J pod, though its designation is the letter', () => {
+  expect(podPath({ entity_id: 'SSA:0000020', designation: 'J' })).toBe('/pods/0000020/J-pod');
+});
 
 test('composes and parses ecotype paths the same way', () => {
   expect(populationPath(BIGGS)).toBe('/populations/0000002/Biggs');

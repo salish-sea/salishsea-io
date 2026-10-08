@@ -11,7 +11,7 @@ import { html, nothing, type TemplateResult } from 'lit';
 import { when } from 'lit/directives/when.js';
 import { repeat } from 'lit/directives/repeat.js';
 import {
-  isPopulation, populationLabel, populationNoun, populationPath, groupChain, matrilinePath,
+  isPopulation, podLabel, podPath, populationLabel, populationNoun, populationPath, groupChain, matrilinePath,
   type CatalogGroup, type GroupMember, type MatrilineProfile, type OccurrenceLink,
 } from './catalog.ts';
 import {
@@ -88,9 +88,11 @@ function renderChain(chain: CatalogGroup[]): TemplateResult | typeof nothing {
   const parents = ancestors.filter(g => !isPopulation(g));
   const population = ancestors.find(isPopulation);
   if (!parents.length && !population) return nothing;
-  return html`${parents.map((g, i) => html`${i ? ' · ' : ''}Within ${g.kind === 'matriline'
-      ? html`<a href=${matrilinePath(g)}>${g.designation}</a>`
-      : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`)
+  return html`${parents.map((g, i) => html`${i ? ' · ' : ''}Within ${g.kind === 'pod'
+      ? html`<a href=${podPath(g)}>${podLabel(g)}</a>`
+      : html`${g.kind === 'matriline'
+        ? html`<a href=${matrilinePath(g)}>${g.designation}</a>`
+        : g.designation}${g.kind === 'matriline' ? "'s matriline" : ` ${g.kind}`}`}`)
     }${population ? html`${parents.length ? ' · ' : ''}<a href=${populationPath(population)}>${populationLabel(population)}</a>` : nothing}`;
 }
 

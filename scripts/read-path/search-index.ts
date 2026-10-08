@@ -1,5 +1,5 @@
 /**
- * The site search field's index (GH #640): every animal, matriline, population and
+ * The site search field's index (GH #640): every animal, matriline, pod, population and
  * haul-out site with a page, and the map's regions, each with the names it answers to.
  *
  *   EXPORT_DIR=… node scripts/read-path/search-index.ts <snapshot.duckdb>
@@ -25,8 +25,8 @@ import * as path from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
 
 import {
-    groupChain, hauloutPath, individualPath, isPopulation, mapUrl, matrilinePath, observedDate, POPULATION_KINDS,
-    populationLabel, populationNoun, populationPath, type SocialGroup,
+    groupChain, hauloutPath, individualPath, isPopulation, mapUrl, matrilinePath, observedDate, podLabel, podPath,
+    POPULATION_KINDS, populationLabel, populationNoun, populationPath, type SocialGroup,
 } from '../../src/catalog.ts';
 import { REGIONS } from '../../src/constants.ts';
 import { fold } from '../../src/fold.ts';
@@ -161,6 +161,18 @@ export function buildSearchIndex(t: Inputs): SearchIndex {
             href: populationPath({entity_id: g['entity_id'], designation: g['designation']}),
         }, sighting('population', g['id']));
     });
+    // A pod's sightings are pooled as a population's are, in the same table (derive/profile-links.sql).
+    const pods = [...t.social_groups].filter(g => g['kind'] === 'pod' && g['entity_id']).sort(byId).map(g => {
+        const label = podLabel({designation: g['designation']});
+        const population = populationOf(g['id']);
+        return withLatest({
+            kind: 'pod',
+            label,
+            note: ['Pod', population ? populationLabel(population) : null].filter(Boolean).join(' · '),
+            keys: keysOf(label, `${g['designation']}pod`, ...(registerNames.get(g['entity_id']) ?? [])),
+            href: podPath({entity_id: g['entity_id'], designation: g['designation']}),
+        }, sighting('population', g['id']));
+    });
     // The atlas maps some sites at several points a few hundred metres apart under one name
     // (decision 058); a list can't tell them apart, so the first by id speaks for them all.
     const seenSites = new Set<string>();
@@ -178,7 +190,7 @@ export function buildSearchIndex(t: Inputs): SearchIndex {
         keys: keysOf(r.label),
         href: `/?r=${r.slug}`,
     }));
-    return {entries: [...individuals, ...matrilines, ...populations, ...haulouts, ...regions]};
+    return {entries: [...individuals, ...matrilines, ...pods, ...populations, ...haulouts, ...regions]};
 }
 
 export async function writeSearchIndex(snapshot: string, exportDir: string): Promise<SearchIndex> {
@@ -199,7 +211,7 @@ async function main(): Promise<void> {
     }
     const {entries} = await writeSearchIndex(snapshot, exportDir);
     const count = (kind: string) => entries.filter(e => e.kind === kind).length;
-    console.log(`search-index.json: ${count('individual')} individuals, ${count('matriline')} matrilines, `
+    console.log(`search-index.json: ${count('individual')} individuals, ${count('matriline')} matrilines, ${count('pod')} pods, `
         + `${count('population')} populations, ${count('haulout')} haul-out sites, ${count('region')} regions; `
         + `${entries.filter(e => e.latest).length} with a latest sighting`);
 }

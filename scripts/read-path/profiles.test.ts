@@ -6,8 +6,8 @@
 import { describe, expect, test } from 'vitest';
 
 import {
-    assembleEcotypes, assembleHaulouts, assembleHauloutSites, assembleIndividuals, assembleMatrilines,
-    renderEcotypePage, renderHauloutPage, renderIndividualPage, renderMatrilinePage,
+    assembleEcotypes, assembleHaulouts, assembleHauloutSites, assembleIndividuals, assembleMatrilines, assemblePods,
+    renderEcotypePage, renderHauloutPage, renderIndividualPage, renderMatrilinePage, renderPodPage,
     type Tables,
 } from './profiles.ts';
 
@@ -279,7 +279,11 @@ const withSouthernResidents = () => {
     );
     t.group_parents.push({group_id: 10003011, parent_group_id: 10000020}, {group_id: 10000020, parent_group_id: 10000010});
     t.matriline_members.push({group_id: 10003011, individual_id: 10020030, innermost_group_id: 10003011});
-    t.ecotype_occurrences.push({ecotype_id: 10000010, occurrence_id: 'maplify:30', observed_at: '2026-10-06T20:00:00+00:00', location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate'});
+    t.ecotype_occurrences.push(
+        {ecotype_id: 10000010, occurrence_id: 'maplify:30', observed_at: '2026-10-06T20:00:00+00:00', location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate'},
+        {ecotype_id: 10000020, occurrence_id: 'maplify:30', observed_at: '2026-10-06T20:00:00+00:00', location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate'},
+    );
+    t.group_occurrences.push({social_group_id: 10003011, occurrence_id: 'maplify:30', observed_at: '2026-10-06T20:00:00+00:00', location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate', evidence: 'text_mention', code: 'J31s'});
     return t;
 };
 
@@ -293,13 +297,38 @@ describe("a community's population page, and the Southern Residents' chain benea
         expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/populations/0000010/Southern-Resident">');
         expect(doc).toContain('<div class="designation-kicker">Community</div>');
         expect(doc).toContain('<h1>Southern Resident killer whales</h1>');
+        expect(doc).toContain('Pods: <a href="/pods/0000020/J-pod">J pod</a>');
+    });
+
+    test("the Bigg's page names no pods: an ecotype's matrilines sit directly under it", () => {
+        const doc = renderEcotypePage(shellFor('ecotype-page'), assembleEcotypes(withSouthernResidents())[0]!, 2026);
+        expect(doc).not.toContain('Pods:');
+    });
+
+    test("a pod's page is its population's a level down: its matrilines, their small maps, its pooled sightings", () => {
+        const pages = assemblePods(withSouthernResidents());
+        expect(pages.map(p => p.id)).toEqual(['0000020']);
+        const page = pages[0]!;
+        expect(page.data.matrilines.map(g => g.designation)).toEqual(['J31']);
+        expect(page.data.population).toEqual({id: 10000010, entity_id: 'SSA:0000010', designation: 'Southern Resident'});
+        expect(page.links.map(l => l.occurrence_id)).toEqual(['maplify:30']);
+        const doc = renderPodPage(shellFor('ecotype-page'), page, 2026);
+        expect(doc).toContain('<title>J pod · Southern Resident killer whales · SalishSea.io</title>');
+        expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/pods/0000020/J-pod">');
+        expect(doc).toContain('history of J pod of Southern Resident killer whales in the Salish Sea');
+        expect(doc).toContain('<div class="designation-kicker">Pod</div>');
+        expect(doc).toContain('<h1>J pod</h1>');
+        expect(doc).toContain('<a href="/populations/0000010/Southern-Resident">Southern Resident killer whales</a>');
+        expect(doc).toContain('src="/read-path/profiles/pods/0000020.links.json"');
+        expect(doc).toContain('href="/matrilines/0003011/J31s"');
+        expect(doc).not.toContain('Pods:');
     });
 
     test('a matriline names its pod and its population, and previews as one of theirs', () => {
         const page = assembleMatrilines(withSouthernResidents()).find(p => p.id === '0003011')!;
         const doc = renderMatrilinePage(shellFor('matriline-page'), page, 2026);
         expect(doc).toContain('Southern Resident killer whale matriline');
-        expect(doc).toContain('Within J pod');
+        expect(doc).toContain('Within <a href="/pods/0000020/J-pod">J pod</a>');
         expect(doc).toContain('<a href="/populations/0000010/Southern-Resident">Southern Resident killer whales</a>');
         expect(doc).toContain('the J31 matriline of Southern Resident killer whales in the Salish Sea');
     });
@@ -307,7 +336,7 @@ describe("a community's population page, and the Southern Residents' chain benea
     test('an individual names its matriline, its pod and its population', () => {
         const page = assembleIndividuals(withSouthernResidents()).find(p => p.id === '0020030')!;
         const doc = renderIndividualPage(SHELL, page, 2026);
-        expect(doc).toMatch(/J31 matriline<\/b>.*within .*J.* pod.*<a href="\/populations\/0000010\/Southern-Resident">Southern Resident killer whales<\/a>/s);
+        expect(doc).toMatch(/J31 matriline<\/b>.*within .*<a href="\/pods\/0000020\/J-pod">J pod<\/a>.*<a href="\/populations\/0000010\/Southern-Resident">Southern Resident killer whales<\/a>/s);
     });
 });
 

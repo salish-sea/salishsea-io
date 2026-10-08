@@ -28,7 +28,7 @@ const INDEX_URL = '/read-path/search-index.json';
 type Option = { entry: SearchEntry; latest: boolean; href: string };
 
 const KIND_LABELS: Record<SearchEntry['kind'], string> = {
-  individual: 'Whale', matriline: 'Matriline', population: 'Population', haulout: 'Haul-out site', region: 'Map region',
+  individual: 'Whale', matriline: 'Matriline', pod: 'Pod', population: 'Population', haulout: 'Haul-out site', region: 'Map region',
 };
 
 let indexRequest: Promise<SearchEntry[]> | null = null;
