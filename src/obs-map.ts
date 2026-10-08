@@ -140,6 +140,16 @@ export class ObsMap extends LitElement {
   @property({attribute: false})
   public maskExtent: RegionExtent | null = null;
 
+  /**
+   * Lon/lat bounds the active region opens framed to: the map's default view.
+   *
+   * At that zoom and further out the mask is hidden. Framed, the region already
+   * fills the window, and the shading would only grey its margins; it earns its
+   * place once you zoom in and can pan past the region's edge.
+   */
+  @property({attribute: false})
+  public frameExtent: RegionExtent | null = null;
+
   private maskSource = new VectorSource<Feature<Polygon>>();
   private maskLayer = new VectorLayer({
     source: this.maskSource,
@@ -307,6 +317,7 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
     this.map.on('singleclick', this.onClick.bind(this));
     this.map.on('pointermove', this.onPointerMove.bind(this));
     this.map.on('moveend', this.onMoveEnd.bind(this));
+    this.map.on('change:size', () => this.updateMaskMinZoom());
   }
 
   public render() {
@@ -496,6 +507,8 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
     }
     if (changedProperties.has('maskExtent'))
       this.renderMask();
+    if (changedProperties.has('frameExtent'))
+      this.updateMaskMinZoom();
     if (changedProperties.has('focusedOccurrenceId') && this.focusedOccurrenceId) {
       const feature = this.ocurrenceSource.getFeatureById(this.focusedOccurrenceId) as Feature<Point>;
       if (feature) {
@@ -532,6 +545,18 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
       fromLonLat([maxLon, maxLat]), fromLonLat([maxLon, minLat]), fromLonLat([minLon, minLat]),
     ];
     this.maskSource.addFeature(new Feature(new Polygon([outer, hole])));
+  }
+
+  /**
+   * Hide the mask at the default zoom and further out: the zoom framing
+   * `frameExtent` gives in the current window, so it follows the region and the
+   * window's size. OpenLayers shows a layer only above its minZoom.
+   */
+  private updateMaskMinZoom() {
+    const size = this.map.getSize();
+    this.maskLayer.setMinZoom(this.frameExtent && size && size[0]! > 0 && size[1]! > 0
+      ? framingZoom(this.view, this.frameExtent, size)
+      : -Infinity);
   }
 
   public ensureCoordsInViewport(coords: Coordinate) {
@@ -614,4 +639,13 @@ declare global {
   interface HTMLElementTagNameMap {
     "obs-map": ObsMap;
   }
+}
+
+/**
+ * The zoom `view.fit` lands on for `extent` (lon/lat) in a window of `size` pixels,
+ * plus a hair, so the view sitting exactly on it isn't over it by a rounding error.
+ */
+export function framingZoom(view: View, extent: RegionExtent, size: readonly number[]): number {
+  const projected = transformExtent([...extent], 'EPSG:4326', view.getProjection());
+  return view.getZoomForResolution(view.getResolutionForExtent(projected, [size[0]!, size[1]!]))! + 1e-6;
 }
