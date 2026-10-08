@@ -22,6 +22,26 @@ function releaseSha() {
   }
 }
 
+// The chunk a module belongs to when it comes from one of the libraries every map
+// page loads up front, by npm package name; null leaves it to Rolldown. Exported
+// for vite-config.test.ts.
+export const VENDOR_CHUNKS = [
+  ['vendor-sentry', name => name.startsWith('@sentry/') || name === '@supabase/sentry-js-integration'],
+  ['vendor-supabase', name => name.startsWith('@supabase/')],
+  ['vendor-ol', name => ['ol', 'rbush', 'quickselect'].includes(name)],
+  ['vendor-lit', name => ['lit', 'lit-html', 'lit-element'].includes(name) || name.startsWith('@lit/')],
+  ['vendor-form', name => name.startsWith('@tanstack/')],
+  ['vendor-dompurify', name => name === 'dompurify'],
+  ['vendor-temporal', name => name === 'temporal-polyfill'],
+];
+export function vendorChunk(id) {
+  const at = id.lastIndexOf('node_modules/');
+  if (at < 0) return null;
+  const [scope, rest] = id.slice(at + 'node_modules/'.length).split('/');
+  const name = scope.startsWith('@') ? `${scope}/${rest}` : scope;
+  return VENDOR_CHUNKS.find(([, matches]) => matches(name))?.[0] ?? null;
+}
+
 // One path segment after the prefix, or two for the identifier-plus-slug
 // shape of decision 034 (/individuals/0010193/T065A) — the page's own
 // module/asset requests resolve elsewhere and must not be swallowed by the
@@ -91,7 +111,16 @@ export default defineConfig({
         'map-island': resolve(__dirname, 'src/map-island.ts'),
         // The search field in the nav (GH #640), an island on every prerendered page.
         'site-search': resolve(__dirname, 'src/site-search.ts'),
-      }
+      },
+      output: {
+        // Each library the pages load up front gets a chunk of its own, so a deploy
+        // that changes only our code leaves them cached: hashed files are served
+        // immutable for a year. Left to itself, Rolldown put our read-path.ts into
+        // Sentry's chunk and part of OpenLayers into main, so a one-line edit
+        // re-downloaded both. Libraries loaded lazily (exifreader, marked) are not
+        // listed: a group would pull them into the first load.
+        codeSplitting: {groups: [{name: vendorChunk}]},
+      },
     },
 
     // dist/.vite/manifest.json: which built files each entry needs.
