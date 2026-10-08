@@ -12,14 +12,14 @@
 
 ## Decision
 
-**The basemap is its own project, in its own repository in the `salish-sea` organization.** It holds the scripts that build the tiles, the style, the web component, and its own decision records; later decisions about sources, styling and coverage go there. SalishSea.io is one of its users, not its owner.
+**The basemap is its own project, `salish-sea/basemap`.** It holds the scripts that build the tiles, the style, and its own decision records; later decisions about sources, styling and coverage go there. SalishSea.io is one of its users, not its owner.
 
 **It publishes two versions from one style:**
 
 - **Vector tiles (PMTiles) and the style.** These are what interactive maps draw. They stay sharp at any zoom and can be restyled.
 - **Image tiles rendered from that style** (256-pixel, down to about z12). These are for anything that stitches images together rather than drawing a map, starting with the preview cards and the small maps. They are rendered server-side, so labels and fonts may differ slightly from the live map's. The colours and depth shading, which are what carry the look, will be the same.
 
-**It publishes a web component for using it,** so a site that just wants the map doesn't have to assemble one. orcasite is the first such site: it draws Esri's ocean tiles with Leaflet today, and nobody is attached to that. How the component is designed, what it exposes and which renderer it uses are their own line of work and not settled here. What SalishSea.io's own map uses is likewise open: 068 chose OpenLayers before a cross-site basemap was in view, and it is being re-examined.
+**orcasite gets SalishSea.io's map, not only its basemap.** orcasite draws Esri's ocean tiles with Leaflet today, and nobody is attached to that. What a listener choosing a hydrophone would gain is the recent sightings around it, so the likely shape is SalishSea.io's map made into a web component, with the basemap as one ingredient. That component would belong with SalishSea.io, not with the basemap. Its design is its own line of work and not settled here, nor is which renderer SalishSea.io's map uses: 068 chose OpenLayers before the map was in view for another site, and it is being re-examined.
 
 **It is served from tiles.salishsea.io:** its own bucket and CloudFront distribution, with CORS so other sites can fetch from it, defined in the basemap repository's own CDK stack. Which AWS account is open: SalishSea.io's infrastructure lives in Orcasound's account today (`648183724555`, the only account in its organization). salishsea.io's content security policy adds that host. Each build's files sit under a versioned path, so a rebuild can't change what a published page shows halfway through a deploy.
 
