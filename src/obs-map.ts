@@ -135,7 +135,9 @@ export class ObsMap extends LitElement {
    *
    * Everything outside is shaded. The point is GH #16: without it, panning past
    * the filter shows empty water that reads as "no whales were seen here" when
-   * it means "we are not showing you this". The mask says which.
+   * it means "we are not showing you this". The mask says which. It shows at
+   * zoom 9 and further out, where the region's edge is in view; zoomed in past
+   * that, you are looking inside the region, and it would only grey the margins.
    */
   @property({attribute: false})
   public maskExtent: RegionExtent | null = null;
@@ -148,6 +150,7 @@ export class ObsMap extends LitElement {
     // outside the region (a stale ?o= permalink) must stay visible and
     // clickable rather than being greyed into the background.
     zIndex: 1,
+    maxZoom: 9,
   });
 
   private modify = new Modify({
