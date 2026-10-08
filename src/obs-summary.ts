@@ -232,7 +232,7 @@ export class ObsSummary extends LitElement {
       ${photos?.length ?
         html`<ul class="photos">${
           repeat(photos, photo => photo.src, ({attribution, src, thumb}) => html`
-            <li><a target="_blank" href=${url || src}><img alt=${attribution || 'photo of subject'} height="75" src=${thumb || src}></a></li>
+            <li><a target="_blank" href=${url || src}><img alt=${attribution || 'photo of subject'} height="75" loading="lazy" src=${thumb || src}></a></li>
           `)
         }</ul>`
       : undefined}
