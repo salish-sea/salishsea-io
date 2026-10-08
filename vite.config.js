@@ -95,6 +95,25 @@ function readPathFiles(req, res, next) {
 }
 
 /**
+ * The map page's first data request, started with the HTML rather than after the
+ * scripts have run: the day's file waits on the manifest, so this takes a round trip
+ * out of the chain. Only in a build that reads the files (056), as the app decides it:
+ * from Vite's resolved environment, which includes .env files, not process.env alone.
+ */
+function preloadReadPathManifest() {
+  let readSource;
+  return {
+    name: 'preload-read-path-manifest',
+    apply: 'build',
+    configResolved(config) { readSource = config.env.VITE_READ_SOURCE; },
+    transformIndexHtml(html, ctx) {
+      if (readSource !== 'static' || !ctx.path.endsWith('/index.html')) return html;
+      return [{tag: 'link', attrs: {rel: 'preload', href: '/read-path/manifest.json', as: 'fetch', crossorigin: true}, injectTo: 'head'}];
+    },
+  };
+}
+
+/**
  * A Brotli copy beside every text file in the build, which Caddy serves to a browser
  * that accepts it (fly/Caddyfile, `precompressed br`). Caddy can't compress Brotli on
  * the fly, so without these CloudFront got gzip, about 17% larger.
@@ -261,17 +280,7 @@ ${urls}
         return out;
       },
     },
-    {
-      // The map page's first data request, started with the HTML rather than after
-      // the scripts have run: the day's file waits on the manifest, so this takes a
-      // round trip out of the chain. Only in a build that reads the files (056).
-      name: 'preload-read-path-manifest',
-      apply: 'build',
-      transformIndexHtml(html, ctx) {
-        if (process.env.VITE_READ_SOURCE !== 'static' || !ctx.path.endsWith('/index.html')) return html;
-        return [{tag: 'link', attrs: {rel: 'preload', href: '/read-path/manifest.json', as: 'fetch', crossorigin: true}, injectTo: 'head'}];
-      },
-    },
+    preloadReadPathManifest(),
     sentryVitePlugin({
       // The plugin would otherwise write the release into every chunk, which is
       // the per-commit churn release.json exists to avoid. It still names the
