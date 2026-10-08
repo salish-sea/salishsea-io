@@ -12,12 +12,19 @@
 
 ## Decision
 
-**The basemap is its own project, in its own repository in the `salish-sea` organization.** It holds the scripts that build the tiles, the style, and its own decision records; later decisions about sources, styling and coverage go there. SalishSea.io is one of its users, not its owner.
+**The basemap is its own project, in its own repository in the `salish-sea` organization.** It holds the scripts that build the tiles, the style, the package that draws them, and its own decision records; later decisions about sources, styling and coverage go there. SalishSea.io is one of its users, not its owner.
 
 **It publishes two versions from one style:**
 
 - **Vector tiles (PMTiles) and the style.** These are what interactive maps draw. They stay sharp at any zoom and can be restyled. SalishSea.io's maps draw them with OpenLayers (068), and orcasite can draw them with whatever it moves to.
 - **Image tiles rendered from that style** (256-pixel, down to about z12). These are for anything that stitches images together rather than drawing a map, starting with the preview cards and the small maps. They are rendered server-side, so labels and fonts may differ slightly from the live map's. The colours and depth shading, which are what carry the look, will be the same.
+
+**It publishes a web component for using it,** an npm package from the same repository:
+
+- **A map element** that draws the basemap and takes data layers on top. A site that just wants the map uses this, without having to know about OpenLayers. orcasite is the first such site, whatever its map is now: React handles custom elements.
+- **The layers on their own**, as a function returning OpenLayers layers, for a site that already has an OpenLayers map with its own controls. SalishSea.io uses this: its map carries the sighting symbols, the editing tools and the mask, and wrapping that map inside someone else's element would get in the way. The element is built on the same function, so the two can't drift apart.
+
+Each release of the package names the tile build it reads, so one version number covers both the code and the tiles.
 
 **It is served from tiles.salishsea.io:** its own bucket and CloudFront distribution, with CORS so other sites can fetch from it, defined in the basemap repository's own CDK stack in the same AWS account. salishsea.io's content security policy adds that host. The basemap's raster and vector files sit under one versioned path, so a rebuild can't change what a published page shows halfway through a deploy.
 
@@ -30,4 +37,5 @@
 - **The basemap as a directory in this repository, served at salishsea.io/basemap/.** It would work for us, but another site would then depend on our deploys and our origin, and the basemap's history would be mixed into ours.
 - **Cards that stay on Esri while the site moves.** It's cheaper, but the cards are where consistency counts most.
 - **Rendering the cards' maps from the vector tiles on demand**, inside the card renderer. That needs a GL renderer in a Lambda; image tiles rendered ahead of time are a change of tile address for a renderer that already composites tiles.
+- **Only the element, with SalishSea.io's map moved inside it.** Our map's tools would then live in someone else's component, or the component would grow an interface for every one of them.
 - **Image tiles only.** They would serve the cards and a Leaflet orcasite, but they blur past their last zoom, which is what we are leaving Esri over.
