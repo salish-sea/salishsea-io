@@ -9,12 +9,10 @@
   "packageManager": "pnpm@11.20.0",
   "scripts": {
     "build": "tsc && vite build && html-validate dist/**/*.html",
-    "build:dwca": "tsx scripts/dwca/build.ts",
     "build:size": "vite build",
     "dev": "vite dev",
     "gen-types": "supabase gen types --local --schema public --schema graphql_public > database.types.ts",
     "preview": "vite preview",
-    "seed:biggs": "tsx scripts/seed/seed-biggs.ts",
     "test": "vitest"
   },
   "dependencies": {

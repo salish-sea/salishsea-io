@@ -31,12 +31,8 @@ import type {
 } from './inaturalist.ts';
 import { boutRows, type ReconcilePlan as BoutReconcilePlan } from './orcasound.ts';
 
-export type IngestWindow = {
-    /** inclusive start date, 'YYYY-MM-DD' */
-    readonly start: string;
-    /** inclusive end date, 'YYYY-MM-DD' — the reconcile delete covers start .. end+1 day */
-    readonly end: string;
-};
+import type { IngestWindow } from './window.ts';
+export type { IngestWindow };
 
 export type PersistResult = {
     readonly upserted: number;

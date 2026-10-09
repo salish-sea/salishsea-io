@@ -50,7 +50,7 @@ import {
     type NormalizedObservation,
     type NormalizedTaxon,
 } from './inaturalist.ts';
-import type { IngestWindow } from './persist.ts';
+import type { IngestWindow } from './window.ts';
 
 export type Logger = (msg: string, extra?: Record<string, unknown>) => void;
 

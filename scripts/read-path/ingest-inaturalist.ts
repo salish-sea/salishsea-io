@@ -54,7 +54,7 @@ import { DuckDBInstance } from '@duckdb/node-api';
 
 import { fetchAllObservationPages, fetchTaxa, resolveTaxonClosure, type ObservationQuery } from '../ingest/fetch-inaturalist.ts';
 import { reconcile, type NormalizedObservation, type NormalizedTaxon } from '../ingest/inaturalist.ts';
-import type { IngestWindow } from '../ingest/persist.ts';
+import type { IngestWindow } from '../ingest/window.ts';
 import { defaultWindow } from '../ingest/window.ts';
 import { budget } from './duckdb-budget.ts';
 import { addDays, antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';

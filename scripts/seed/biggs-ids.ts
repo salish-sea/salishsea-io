@@ -3,8 +3,10 @@
  *
  * `parseBiggsIds` maps the committed reference TSV (data/biggs-ids.tsv) into
  * normalized catalog records. No I/O, no DB — every derivation here is a pure
- * string transform, unit-tested in biggs-ids.test.ts. The imperative shell
- * (seed-biggs.ts) reads the file, calls this, and upserts the result.
+ * string transform, unit-tested in biggs-ids.test.ts. Its shell, seed-biggs.ts,
+ * upserted the result into Postgres and retired with it (salish-9uu.13); this
+ * stays as the way to read the sheet's mirror, which is the catalogue text's
+ * way back (decision 064, amended 2026-10-09).
  *
  * Source columns (tab-separated, 0-indexed):
  *   0 deceased flag (D / PD / ? / blank) — read only to mark a designation uncertain;

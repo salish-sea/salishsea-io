@@ -16,7 +16,7 @@ import {
     isRetryableStatus,
     markTransientUpstream,
 } from './retry.ts';
-import type { IngestWindow } from './persist.ts';
+import type { IngestWindow } from './window.ts';
 import { acartiaExtent } from '../../src/extents.ts';
 
 // The fetch reaches the whole Southern Resident range (Acartia's boundaries),

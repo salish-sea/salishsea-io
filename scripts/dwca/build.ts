@@ -1,19 +1,20 @@
 /**
- * DarwinCore Archive build orchestrator — Phase 06 Plan 05.
+ * The Darwin Core archive writer (decision 003, amended): asserts the
+ * `dwc.occurrences` / `dwc.multimedia` column lists match the canonical TS field
+ * arrays in `./fields.ts`, COPYs the two tab-delimited data files and the
+ * GeoParquet sidecar, runs the R1 empirical GeoParquet metadata check, builds
+ * `meta.xml` + `eml.xml` via the pure Plan 03 generators, and writes the
+ * deterministic zip via Plan 04's `writeZip`.
  *
- * Single entry point invoked by `npm run build:dwca`. Connects to Postgres via
- * DuckDB ATTACH (read-only), asserts the live `dwc.occurrences` / `dwc.multimedia`
- * view column lists match the canonical TS field arrays in `./fields.ts`,
- * COPYs the two tab-delimited data files and the GeoParquet sidecar, runs the
- * R1 empirical GeoParquet metadata check, builds `meta.xml` + `eml.xml` via the
- * pure Plan 03 generators, and writes the deterministic zip via Plan 04's
- * `writeZip`.
+ * The read-path build calls `writeArchive` over its own derivation
+ * (scripts/read-path/dwca.ts). Until salish-9uu.13 this file was also the
+ * nightly's entry point, `pnpm build:dwca`, which attached Postgres as `pgdb`;
+ * that path retired with Postgres. The `pgdb` catalog name is the contract the
+ * build still supplies.
  *
- * Exits non-zero on any failure (drift, empty, zero-byte, missing geo metadata,
- * missing env var). NEVER writes the DSN to stdout/stderr or any log file.
+ * Throws on any failure (drift, empty, zero-byte, missing geo metadata).
  *
  * Cross-reference:
- *   - 06-05-PLAN.md for the 22-step pipeline.
  *   - 06-RESEARCH.md §T1..§T12 for the DuckDB + COPY + parquet_kv_metadata
  *     details, §R1 for the GeoParquet metadata empirical-verify decision
  *     (GEOMETRY column auto-emits `geo` metadata in DuckDB 1.5.4-r.1; we
@@ -24,7 +25,7 @@
  *     (geometry appended).
  */
 
-import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
+import type { DuckDBConnection } from '@duckdb/node-api';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -45,9 +46,6 @@ import { writeZip } from './zip.ts';
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/** Where the nightly writes the archive; the read-path build passes its own (writeArchive). */
-const OUT_DIR = 'dist/dwca';
 
 /**
  * RESEARCH §R5: the user-content occurrence columns whose values may carry
@@ -131,23 +129,6 @@ function describeViewToPgColumns(
     });
 }
 
-/**
- * Mask the password portion of any `scheme://user:password@host…` substrings
- * found in `s`, leaving the rest of the message intact so the underlying error
- * is still actionable. The previous all-or-nothing implementation collapsed
- * the entire message to `<redacted>` whenever it contained `://`, which made
- * production connection failures undiagnosable. Falls back to a hard redaction
- * if the regex can't find a structured DSN but `://` is still present.
- */
-function maskDsn(s: string): string {
-    const masked = s.replace(
-        /\b(postgres(?:ql)?:\/\/[^:\s/@]+:)[^@\s]+(@)/gi,
-        '$1***$2',
-    );
-    if (masked !== s) return masked;
-    return s.includes('://') ? '<redacted>' : s;
-}
-
 // ---------------------------------------------------------------------------
 // Main pipeline
 // ---------------------------------------------------------------------------
@@ -156,8 +137,8 @@ function maskDsn(s: string): string {
  * Steps 6-22: write the archive from a DuckDB connection that has a `pgdb` catalog
  * holding `dwc.occurrences`, `dwc.multimedia`, `dwc.export_coverage`, `dwc.datasets`,
  * `maplify.sightings`, `public.observations`, `public.collections` and
- * `public.organizations`, into `outDir`. The nightly attaches Postgres as `pgdb`; the
- * read-path build supplies the same names from its own derivation
+ * `public.organizations`, into `outDir`. The read-path build supplies those names from
+ * its own derivation
  * (scripts/read-path/dwca.ts, salish-xv35.9). Returns the occurrence count.
  */
 export async function writeArchive(conn: DuckDBConnection, outDir: string): Promise<number> {
@@ -434,64 +415,4 @@ export async function writeArchive(conn: DuckDBConnection, outDir: string): Prom
         `[build:dwca] OK — ${occCount} occurrence rows, parquet=${OUT_PARQUET}, zip=${OUT_ZIP}`,
     );
     return Number(occCount);
-}
-
-export async function main(): Promise<void> {
-    // Step 1: DSN guard. Read SUPABASE_DB_URL; exit 1 if missing. Never log it.
-    const dsn = process.env['SUPABASE_DB_URL'];
-    if (!dsn) {
-        console.error('SUPABASE_DB_URL is not set');
-        process.exit(1);
-    }
-
-    // Step 2: Ensure output directory exists.
-    await mkdir(OUT_DIR, { recursive: true });
-
-    // Step 3: Create DuckDB instance + connection. Use try/finally to ensure
-    // the connection always closes.
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-
-    try {
-        // Step 4: Install + load extensions.
-        await conn.run('INSTALL postgres; LOAD postgres;');
-        await conn.run('INSTALL spatial; LOAD spatial;');
-
-        // Step 5: ATTACH Postgres read-only. Wrap to scrub DSN from any error.
-        try {
-            await conn.run(
-                `ATTACH '${dsn}' AS pgdb (TYPE postgres, READ_ONLY)`,
-            );
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            // maskDsn returns '<redacted>' if `://` is found; this avoids
-            // leaking the DSN if DuckDB echoes the connection string in
-            // its error.
-            console.error(`Failed to attach Postgres: ${maskDsn(msg)}`);
-            throw err instanceof Error
-                ? new Error(`Failed to attach Postgres: ${maskDsn(msg)}`)
-                : new Error('Failed to attach Postgres');
-        }
-
-        await writeArchive(conn, OUT_DIR);
-    } finally {
-        conn.closeSync();
-    }
-}
-
-// Entry-point conditional — only run main() when invoked as a script (e.g.
-// `tsx scripts/dwca/build.ts`). Importing this module from a test does NOT
-// trigger the pipeline.
-if (import.meta.main) {
-    main().catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error('[build:dwca] FAILED:', msg);
-        if (err && typeof err === 'object' && 'diff' in err) {
-            const diff = (err as { diff: readonly string[] }).diff;
-            for (const line of diff) {
-                console.error(line);
-            }
-        }
-        process.exit(1);
-    });
 }

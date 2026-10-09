@@ -8,7 +8,7 @@
 import { existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
-import type { IngestWindow } from '../ingest/persist.ts';
+import type { IngestWindow } from '../ingest/window.ts';
 
 /** 'YYYY-MM-01' of the month containing `day`. */
 const monthOf = (day: string) => `${day.slice(0, 7)}-01`;

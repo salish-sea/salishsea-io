@@ -42,7 +42,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { fetchMaplify } from '../ingest/fetch-maplify.ts';
 import { parseMaplifyResponse, reconcile, type NormalizedSighting } from '../ingest/maplify.ts';
-import type { IngestWindow } from '../ingest/persist.ts';
+import type { IngestWindow } from '../ingest/window.ts';
 import { defaultWindow } from '../ingest/window.ts';
 import { addDays, antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
 import { boundaryReceipt, recordedRun } from './ingest-runs.ts';
