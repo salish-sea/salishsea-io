@@ -1,9 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-
-// The module registers <sighting-form> and reaches for a Supabase client at
-// import; neither is exercised by these tests.
-vi.mock('./supabase.ts', () => ({supabase: () => ({rpc: async () => ({data: null, error: null})})}));
+import { describe, it, expect } from 'vitest';
 
 const { latLonInBoundsValidator } = await import('./sighting-form.ts');
 

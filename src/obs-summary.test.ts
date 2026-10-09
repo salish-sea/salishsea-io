@@ -3,14 +3,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const deleteResult = vi.hoisted(() => ({error: null as unknown}));
 vi.mock('@sentry/browser', () => ({captureException: () => {}}));
-vi.mock('./supabase.ts', () => ({
-  supabase: () => ({
-    from: () => ({delete: () => ({eq: async () => ({error: deleteResult.error})})}),
-    // obs-summary's connectedCallback warms the catalog-code lookup; an empty
-    // result leaves designations as plain text, which these tests don't assert on.
-    // (`select` is the only other entry point it reaches.)
-  }),
+// The write API's DELETE (decision 065): it throws on a failed delete.
+vi.mock('./write-api.ts', () => ({
+  deleteSighting: async () => { if (deleteResult.error) throw deleteResult.error; },
 }));
+// obs-summary's connectedCallback warms the catalog-code lookup; an empty result
+// leaves designations as plain text, which these tests don't assert on.
 vi.mock('./individual-links.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./individual-links.ts')>()),
   loadCatalogCodes: async () => new Map(),
@@ -126,7 +124,7 @@ describe('deleting a sighting', () => {
 
   beforeEach(() => { deleteResult.error = null; });
 
-  it('announces the deletion so the list can drop the row without waiting on a broadcast', async () => {
+  it('announces the deletion so the list can drop the row without waiting for the next build', async () => {
     const el = summaryFor('abc-123');
     const deleted: string[] = [];
     el.addEventListener('sighting-deleted', e => deleted.push((e as CustomEvent<string>).detail));

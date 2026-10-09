@@ -35,10 +35,6 @@ ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_WS_URL
 ARG VITE_SUPABASE_KEY
 ARG GITHUB_SHA
-ENV VITE_READ_SOURCE=static
-# What a signed-in contributor writes goes to the write API on this machine (decision
-# 065), not Supabase, since the cutover (salish-9uu.3.8).
-ENV VITE_WRITE_SOURCE=api
 # Sentry's token, if fly/deploy.sh was given one, as a build secret: the Sentry plugin
 # uploads this bundle's source maps, the bundle production runs. Without it, no upload.
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN \

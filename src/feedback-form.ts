@@ -1,8 +1,7 @@
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { createRef, ref, type Ref } from 'lit/directives/ref.js';
-import { supabase } from './supabase.ts';
-import { submitFeedback as submitThroughApi, writeSource } from './write-api.ts';
+import { submitFeedback } from './write-api.ts';
 import { release, releaseIfKnown } from './release.ts';
 
 /** Where an unsent draft waits. One draft; the newest replaces the last. */
@@ -88,8 +87,8 @@ export const draftIsEmpty = (draft: Draft): boolean =>
  *
  * Two things follow, and they are the whole design:
  *
- * **It posts to our own Supabase**, the same host the map is already talking
- * to. If the app works at all, feedback can be sent.
+ * **It posts to our own write API** (decision 065), the same host that serves
+ * the page. If the app works at all, feedback can be sent.
  *
  * **The draft is saved as they type**, so a failed send, a closed tab or a
  * flat battery cannot take the report with it. That is the specific loss that
@@ -289,11 +288,7 @@ export default class FeedbackForm extends LitElement {
       release: releaseIfKnown().slice(0, 100),
     };
     let error: unknown = null;
-    if (writeSource() === 'api') {
-      try { await submitThroughApi(fields); } catch (err) { error = err; }
-    } else {
-      ({error} = await supabase().rpc('submit_feedback', fields));
-    }
+    try { await submitFeedback(fields); } catch (err) { error = err; }
 
     if (error) {
       // Keep the draft. The report is the valuable thing here, and the whole

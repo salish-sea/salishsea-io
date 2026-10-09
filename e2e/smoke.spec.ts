@@ -13,9 +13,8 @@ test('production smoke', async ({ page }) => {
     failedRequests.push(`${request.failure()?.errorText} ${request.url()}`);
   });
 
-  // The app holds a persistent Supabase realtime WebSocket, so the network
-  // never goes idle -- waitForLoadState('networkidle') would hang until timeout.
-  // Instead, wait for concrete readiness signals: the day's sightings arriving,
+  // Wait for concrete readiness signals rather than network idle, which the
+  // manifest poll and the tile loads make a poor proxy: the day's sightings arriving,
   // from the read-path build's file since salishsea.io reads the Fly app
   // (salish-xv35.16), and the map element rendering.
   const occurrencesResponse = page.waitForResponse(

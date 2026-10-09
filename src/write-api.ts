@@ -1,32 +1,12 @@
 /**
  * The write API (decision 065), from the browser: what a signed-in contributor does,
- * sent to salishsea.io/api/ instead of Supabase, when the build sets
- * VITE_WRITE_SOURCE=api (salish-9uu.3.7). Unset, everything goes to Supabase as before.
+ * sent to salishsea.io/api/.
  *
  * Same origin as the page, so the session cookie the API sets travels with every call
  * and the CSP's connect-src 'self' already admits it.
  */
 
-import { readSource, type ReadSource } from './read-path.ts';
 import type { Occurrence, UpsertObservationArgs } from './types.ts';
-
-export type WriteSource = 'supabase' | 'api';
-
-export function writeSource(): WriteSource {
-  return parseWriteSource(import.meta.env.VITE_WRITE_SOURCE, readSource());
-}
-
-/**
- * As parseReadSource: a value that is neither is a typo in a deploy, and fails loudly.
- * So does the API with Supabase's reads: the API's overlay lays a contributor's own
- * sightings over the published files, and a build reading Supabase has none.
- */
-export function parseWriteSource(value: string | undefined, reads: ReadSource): WriteSource {
-  if (value === undefined || value === '' || value === 'supabase') return 'supabase';
-  if (value !== 'api') throw new Error(`VITE_WRITE_SOURCE must be 'supabase' or 'api', not '${value}'`);
-  if (reads !== 'static') throw new Error('VITE_WRITE_SOURCE=api needs VITE_READ_SOURCE=static');
-  return 'api';
-}
 
 /** Who is signed in, as GET /api/me answers. */
 export type Me = {

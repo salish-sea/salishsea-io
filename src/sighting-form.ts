@@ -25,10 +25,8 @@ import { TanStackFormController } from '@tanstack/lit-form';
 import { convert as parseCoords } from 'geo-coordinates-parser';
 import { detectIndividuals } from "./identifiers.ts";
 import { type License, type Occurrence, type TravelDirection, type UpsertObservationArgs } from "./types.ts";
-import { supabase } from "./supabase.ts";
-import { fetchAnimalNames } from "./catalog.ts";
-import { fetchStaticAnimalNames, readSource } from "./read-path.ts";
-import { saveSighting as saveSightingThroughApi, writeSource } from "./write-api.ts";
+import { fetchStaticAnimalNames } from "./read-path.ts";
+import { saveSighting } from "./write-api.ts";
 import { reportError } from "./report-error.ts";
 import { geolocationErrorIsReportable, geolocationMessage } from "./geolocation-message.ts";
 import PhotoAttachment, { newPhotoId, photoThumbnail, readExif, uploadPhoto, type FailedUploadPhoto, type Photo, type UploadedPhoto } from "./photo-attachment.ts";
@@ -172,23 +170,15 @@ export default class SightingForm extends LitElement {
   private _saveTask = new Task(this, {
     autoRun: false,
     task: async([occurrence]: [UpsertObservationArgs]) => {
-      if (writeSource() === 'api') {
-        await saveSightingThroughApi(occurrence);
-        this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: occurrence}));
-        return null;
-      }
-      const {data, error} = await supabase().rpc('upsert_observation', occurrence);
-      if (error) {
-        throw new Error(`Error saving observation: ${error}`);
-      }
+      await saveSighting(occurrence);
       this.dispatchEvent(new CustomEvent('sighting-saved', {bubbles: true, composed: true, detail: occurrence}));
-      return data;
+      return null;
     }
   });
 
   /** The register's names for what the form offers; the menu shows ids until they arrive. */
   private _namesTask = new Task(this, {
-    task: () => (readSource() === 'static' ? fetchStaticAnimalNames : fetchAnimalNames)([...OFFERED_ENTITIES]),
+    task: () => fetchStaticAnimalNames([...OFFERED_ENTITIES]),
     args: () => [],
     onComplete: () => this.updateSubjectProps(),
     onError: error => reportError(this, "Couldn't load species names; the menu shows identifiers instead.", {cause: error}),

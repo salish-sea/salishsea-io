@@ -2,7 +2,7 @@ import { css, html, LitElement, type PropertyValues} from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import './obs-map.ts';
 import './account-menu.ts';
-import { contributorContext, getContributor, userContext, type User } from "./identity.ts";
+import { contributorContext, userContext, type User } from "./identity.ts";
 import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
 import { repeat } from "lit/directives/repeat.js";
@@ -14,10 +14,8 @@ import mapContext from "./map-context.ts";
 import type { LayersChangeDetail, MapMoveDetail, ObsMap } from "./obs-map.ts";
 import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from "./reference-layers.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
-import { fetchLastOwnOccurrence } from "./occurrence.ts";
-import { supabase } from "./supabase.ts";
-import { fetchDayOccurrences, fetchStaticAnimalNames, findOccurrence, NotBuiltYet, overlayNative, pacificDay, readSource, watchManifest, withinExtent } from "./read-path.ts";
-import { fetchMe, fetchOwnSightings, fetchPublicSighting, overlayOwn, ownOccurrence, signIn as apiSignIn, signOut as apiSignOut, writeSource, type Me } from "./write-api.ts";
+import { fetchDayOccurrences, fetchStaticAnimalNames, findOccurrence, NotBuiltYet, pacificDay, watchManifest, withinExtent } from "./read-path.ts";
+import { fetchMe, fetchOwnSightings, fetchPublicSighting, overlayOwn, ownOccurrence, signIn as apiSignIn, signOut as apiSignOut, type Me } from "./write-api.ts";
 import type { PatchedDatabase } from "./types.ts";
 import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
@@ -31,7 +29,6 @@ import { fromLonLat } from 'ol/proj.js';
 import { DEFAULT_REGION_SLUG, isExtent, observationToday, regionBySlug, type Region } from "./constants.ts";
 import { ObsPanel } from "./obs-panel.ts";
 import { createRef, ref } from "lit/directives/ref.js";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Contributor, Occurrence } from "./types.ts";
 import lockupUrl from "./assets/lockup-dark.svg?url";
 import { renderSiteNav } from './site-nav.ts';
@@ -42,16 +39,6 @@ initSentry();
 const viewInitiallySmall = window.innerWidth < 800;
 
 const dateRE = /^(\d\d\d\d-\d\d-\d\d)$/;
-
-/**
- * How long a tab waits after a realtime broadcast before refetching the day:
- * at least the minimum, so the ingest tick that sent it has finished its other
- * source's writes, plus a random share of the jitter, so a hundred open tabs
- * do not all ask at the same instant. The cost is that a sighting someone else
- * just reported takes this long to appear.
- */
-const BROADCAST_REFETCH_MIN_MS = 3_000;
-const BROADCAST_REFETCH_JITTER_MS = 5_000;
 
 function parseUrlParams(searchParams: URLSearchParams) {
   const dateParam = searchParams.get('d');
@@ -258,8 +245,6 @@ export default class SalishSea extends LitElement {
   #isFocusingOccurrence = false
   #mapMoveDebounceTimer: ReturnType<typeof setTimeout> | null = null
   /** A refetch owed to a realtime broadcast, not yet run — see the channel handler. */
-  #broadcastRefetchTimer: ReturnType<typeof setTimeout> | null = null
-  #realtimeChannel: RealtimeChannel | undefined
 
   @property({attribute: false})
   private focusedOccurrenceId: string | null = initialParams.occurrenceId;
@@ -364,51 +349,10 @@ export default class SalishSea extends LitElement {
 
   constructor() {
     super();
-    if (writeSource() === 'api') {
-      // The write API's session is a cookie it set (decision 065): ask who it names.
-      fetchMe()
-        .then(me => this.#signedInAs(me))
-        .catch(err => reportError(this, "Couldn't load your account. You may not be able to report a sighting.", {cause: err}));
-    } else {
-      const supabaseClient = supabase();
-      supabaseClient.auth.onAuthStateChange((event, session) => {
-        const before = this.user?.id;
-        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          this.user = session?.user;
-        } else if (event === 'SIGNED_OUT') {
-          this.user = undefined;
-        }
-        // Signing in or out can change where the list comes from (decision 056:
-        // the read-path files are for signed-out visitors only), so a request
-        // issued before this one answers a different question.
-        this.#listRevision++;
-        this.refetchOccurrences(this.date);
-        if (this.user) {
-          // Whoever was signed in before is not who this answers for (a token refresh
-          // keeps the same person, and their details, on screen); and a sign-out or
-          // another sign-in before it arrives makes it someone else's. The account menu
-          // shows this name and picture; the write API's path guards the same way.
-          if (this.user.id !== before) {
-            this.contributor = undefined;
-            this.lastOwnOccurrence = null;
-          }
-          const revision = this.#listRevision;
-          getContributor(this.user.id, supabaseClient)
-            .then(contributor => {
-              if (revision !== this.#listRevision) return null;
-              this.contributor = contributor;
-              return fetchLastOwnOccurrence(contributor, supabaseClient);
-            })
-            .then(occurrence => { if (revision === this.#listRevision) this.lastOwnOccurrence = occurrence; })
-            // Without this the Report button stays hidden and the form has no
-            // contributor to save against, with nothing on screen saying why.
-            .catch(err => reportError(this, "Couldn't load your account. You may not be able to report a sighting.", {cause: err}));
-        } else {
-          this.contributor = undefined;
-          this.lastOwnOccurrence = null;
-        }
-      });
-    }
+    // The write API's session is a cookie it set (decision 065): ask who it names.
+    fetchMe()
+      .then(me => this.#signedInAs(me))
+      .catch(err => reportError(this, "Couldn't load your account. You may not be able to report a sighting.", {cause: err}));
     this.addEventListener('report-error', evt => {
       const {message, persist} = (evt as CustomEvent<ErrorReport>).detail;
       this.errorToastRef.value?.show(message, {persist});
@@ -488,52 +432,26 @@ export default class SalishSea extends LitElement {
       this.panelRef.value!.editObservation(sighting)
         .catch(err => reportError(this, "Couldn't open that sighting for editing. Please try again.", {cause: err}));
     });
-    // Through the write API there is no broadcast: a tab's own saves refetch on their
-    // own events, and everyone else's arrive with the build the manifest announces.
-    if (writeSource() === 'supabase') this.#realtimeChannel = supabase()
-      .channel('occurrences')
-      .on('broadcast', {event: 'occurrences_changed'}, () => {
-        // One refetch per burst, a few seconds after it, at a moment of this
-        // tab's own choosing. The ingest commits once per source on every
-        // tick and every open tab hears each commit; refetching on each one,
-        // immediately, put every tab's query onto the database at the same
-        // instant, while it was still inside the tick's writes — which is
-        // where a visitor's query met the 3s statement timeout (bd
-        // salish-xfo, SALISHSEA-IO-3D). A broadcast is sent on commit, so a
-        // refetch that starts after it arrives sees its rows: a timer already
-        // pending covers every broadcast that lands before it fires.
-        if (this.#broadcastRefetchTimer)
-          return;
-        const delay = BROADCAST_REFETCH_MIN_MS + Math.random() * BROADCAST_REFETCH_JITTER_MS;
-        this.#broadcastRefetchTimer = setTimeout(() => {
-          this.#broadcastRefetchTimer = null;
-          this.refetchOccurrences(this.date);
-        }, delay);
-      })
-      .subscribe();
   }
 
-  /** Stops the read-path manifest watch; set only in static mode. */
+  /** Stops the read-path manifest watch. */
   #stopManifestWatch: (() => void) | undefined;
 
   connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener('popstate', this.#handlePopState);
-    // The day comes from the read-path files, which change when a build lands,
-    // not when the database does — so the realtime broadcast can't tell anyone
-    // about them. The manifest can (decision 056). A signed-in tab hears both:
-    // the manifest for the files, the broadcast for the native sightings it
-    // overlays live (decision 061).
-    if (readSource() === 'static')
-      this.#stopManifestWatch = watchManifest(async () => {
-        this.panelRef.value?.revalidateCalendar();
-        // A failed load is retried on the next poll rather than waiting for the
-        // next build to come along.
-        return this.fetchOccurrences(this.date).catch(err => {
-          reportError(this, "Couldn't refresh sightings. The list may be out of date.", {cause: err, persist: true});
-          return false;
-        });
+    // The day comes from the read-path files, which change when a build lands; the
+    // manifest says when one has (decision 056). A tab's own saves refetch on their
+    // own events, and everyone else's arrive with the build the manifest announces.
+    this.#stopManifestWatch = watchManifest(async () => {
+      this.panelRef.value?.revalidateCalendar();
+      // A failed load is retried on the next poll rather than waiting for the
+      // next build to come along.
+      return this.fetchOccurrences(this.date).catch(err => {
+        reportError(this, "Couldn't refresh sightings. The list may be out of date.", {cause: err, persist: true});
+        return false;
       });
+    });
     // Reflect the resolved date in the URL so a link shared while viewing the default
     // (today) is a permalink to that day, the way map coordinates already are. replaceState
     // adds no history entry; skip when an occurrence permalink (?o=) already pins context.
@@ -556,11 +474,6 @@ export default class SalishSea extends LitElement {
     if (this.#mapMoveDebounceTimer) {
       clearTimeout(this.#mapMoveDebounceTimer);
     }
-    if (this.#broadcastRefetchTimer) {
-      clearTimeout(this.#broadcastRefetchTimer);
-      this.#broadcastRefetchTimer = null;
-    }
-    this.#realtimeChannel?.unsubscribe();
     this.#stopManifestWatch?.();
     this.#stopManifestWatch = undefined;
   }
@@ -598,16 +511,13 @@ export default class SalishSea extends LitElement {
     }).catch(err => reportError(this, "Couldn't reach Google to sign in. An ad blocker may be blocking it.", {cause: err}));
   }
 
-  /**
-   * The write API's answer to who is signed in, applied (decision 065): what Supabase's
-   * auth events did, for the API's session.
-   */
+  /** The write API's answer to who is signed in, applied (decision 065). */
   #signedInAs(me: Me | null) {
     this.user = me ? {id: me.user_id} : undefined;
     // Before the refetch, which overlays this contributor's own sightings.
     const contributor = me ? me.contributor as Contributor : undefined;
     this.contributor = contributor;
-    // As with Supabase's events: where the list comes from changes with who is signed in.
+    // Where the list comes from changes with who is signed in.
     this.#listRevision++;
     this.refetchOccurrences(this.date);
     if (!contributor) {
@@ -628,44 +538,20 @@ export default class SalishSea extends LitElement {
   }
 
   async doLogOut() {
-    if (writeSource() === 'api') {
-      try {
-        await apiSignOut();
-        this.#signedInAs(null);
-      } catch (err) {
-        reportError(this, "Couldn't sign you out. Please try again.", {cause: err});
-      }
-      return;
-    }
     try {
-      // Supabase returns auth failures in the result rather than throwing (see
-      // receiveIdToken below) — unchecked, a failed sign-out leaves the Log out
-      // button apparently doing nothing. A transport failure still throws, so
-      // both shapes have to be handled to cover the one button.
-      const {error} = await supabase().auth.signOut();
-      if (error) throw error;
+      await apiSignOut();
+      this.#signedInAs(null);
     } catch (err) {
       reportError(this, "Couldn't sign you out. Please try again.", {cause: err});
     }
-    await this.refetchOccurrences(this.date);
   }
 
   public async receiveIdToken(token: string, nonce: string) {
-    if (writeSource() === 'api') {
-      try {
-        this.#signedInAs(await apiSignIn(token, nonce));
-      } catch (err) {
-        reportError(this, "Couldn't sign you in with Google. Please try again.", {cause: err});
-      }
-      return;
+    try {
+      this.#signedInAs(await apiSignIn(token, nonce));
+    } catch (err) {
+      reportError(this, "Couldn't sign you in with Google. Please try again.", {cause: err});
     }
-    const {error} = await supabase().auth.signInWithIdToken({'provider': 'google', token, nonce});
-    // Supabase returns auth failures in the result instead of throwing, and the
-    // Supabase Sentry integration only wraps PostgREST — so an unchecked error
-    // here is invisible twice over: nothing reported, and a sign-in that
-    // silently does nothing. That is how the nonce mismatch went unnoticed.
-    if (error)
-      reportError(this, "Couldn't sign you in with Google. Please try again.", {cause: error});
   }
 
   protected async firstUpdated(_changedProperties: PropertyValues): Promise<void> {
@@ -791,40 +677,16 @@ export default class SalishSea extends LitElement {
     const revision = this.#listRevision;
     const startOfDay = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
     const endOfDay = startOfDay.add({days: 1});
-    // Built only when Supabase is asked: through the write API, nothing here touches it.
-    const supabaseQuery = () => {
-      let query = supabase()
-        .from('occurrences')
-        .select()
-        .gte('observed_at', startOfDay.toInstant())
-        .lt('observed_at', endOfDay.toInstant());
-
-      // `location` is a composite (lon_lat), not jsonb, but PostgREST still
-      // addresses its fields with `->`. Use `->` and NOT `->>`: the text form
-      // compares lexically, so numeric bounds silently match nothing — zero rows,
-      // no error, no clue.
-      const extent = region.extent;
-      if (extent) {
-        const [minx, miny, maxx, maxy] = extent;
-        query = query
-          .gte('location->lon', minx).lte('location->lon', maxx)
-          .gte('location->lat', miny).lte('location->lat', maxy);
-      }
-      return query;
-    };
-
     type Row = PatchedDatabase['public']['Views']['occurrences']['Row'];
     let data;
     try {
-      // Static mode reads the day's file instead (decision 056); the region
-      // filter above is then applied to the file's rows, in read-path.ts. The
-      // files trail the database by up to a build, and a contributor must see a
-      // sighting they just saved (decision 055), so a signed-in tab asks
-      // Supabase for the native sightings alone and overlays them (decision
-      // 061). Every auth change refetches, so signing in or out switches source.
-      if (readSource() === 'static' && !this.user) {
+      // The day's file (decision 056), the region filter applied to its rows in
+      // read-path.ts. The files trail the store by up to a build, and a contributor must
+      // see a sighting they just saved (decision 055), so a signed-in tab overlays its
+      // own sightings from the write API (decision 065). Every sign-in or out refetches.
+      if (!this.user) {
         data = await fetchDayOccurrences<Row>(date, region.extent);
-      } else if (readSource() === 'static') {
+      } else {
         // Between Pacific midnight and the first build of the new day, the day
         // has no file yet. A signed-out tab is told so (below, as an error); a
         // signed-in one still has its own sightings live, and a contributor who
@@ -837,39 +699,27 @@ export default class SalishSea extends LitElement {
           notBuiltYet = true;
           return [] as Row[];
         });
-        if (writeSource() === 'api') {
-          // Through the write API, a contributor's own sightings as saved, over the
-          // file's copies of them (decision 065); everyone else's come with the build.
-          const contributor = this.contributor;
-          // Their own failing to load leaves the published day standing, theirs included
-          // as of the last build, rather than failing the list.
-          let ownFailure: unknown = null;
-          const [file, own] = await Promise.all([
-            fileSide,
-            contributor
-              ? fetchOwnSightings(new Date(startOfDay.epochMilliseconds), new Date(endOfDay.epochMilliseconds))
-                .catch((err: unknown) => { ownFailure = err; return null; })
-              : [],
-          ]);
-          if (ownFailure && date === this.date && region.slug === this.#region.slug && revision === this.#listRevision)
-            reportError(this, "Couldn't load your latest sightings; showing them as last published.", {cause: ownFailure});
-          const names = own?.length ? await fetchStaticAnimalNames(own.map(o => o.entity_id)).catch(() => undefined) : undefined;
-          data = contributor && own
-            ? overlayOwn(file, withinExtent(own.map(o => ownOccurrence(o, contributor, names)) as unknown as Row[], region.extent), contributor.id)
-            : file;
-        } else {
-          const [file, {data: live}] = await Promise.all([
-            fileSide,
-            supabaseQuery().not('contributor_id', 'is', null).throwOnError(),
-          ]);
-          data = overlayNative(file, live);
-        }
+        // A contributor's own sightings as saved, over the file's copies of them;
+        // everyone else's come with the build.
+        const contributor = this.contributor;
+        // Their own failing to load leaves the published day standing, theirs included
+        // as of the last build, rather than failing the list.
+        let ownFailure: unknown = null;
+        const [file, own] = await Promise.all([
+          fileSide,
+          contributor
+            ? fetchOwnSightings(new Date(startOfDay.epochMilliseconds), new Date(endOfDay.epochMilliseconds))
+              .catch((err: unknown) => { ownFailure = err; return null; })
+            : [],
+        ]);
+        if (ownFailure && date === this.date && region.slug === this.#region.slug && revision === this.#listRevision)
+          reportError(this, "Couldn't load your latest sightings; showing them as last published.", {cause: ownFailure});
+        const names = own?.length ? await fetchStaticAnimalNames(own.map(o => o.entity_id)).catch(() => undefined) : undefined;
+        data = contributor && own
+          ? overlayOwn(file, withinExtent(own.map(o => ownOccurrence(o, contributor, names)) as unknown as Row[], region.extent), contributor.id)
+          : file;
         if (notBuiltYet && date === this.date && region.slug === this.#region.slug && revision === this.#listRevision)
           reportError(this, "Today's sightings from other sources arrive with the next update; yours are shown.", {capture: false});
-      } else {
-        ({data} = await supabaseQuery()
-          .order('observed_at', {ascending: false})
-          .throwOnError());
       }
     } catch (err) {
       // Same staleness guard as receiveOccurrences, for the same reasons: a
@@ -905,53 +755,15 @@ export default class SalishSea extends LitElement {
    * names no sighting we have.
    */
   private async hydrateFromOccurrenceId(id: string): Promise<void> {
-    let occurrence: Occurrence | null;
-    if (readSource() === 'static') {
-      // A signed-in tab looks for a live native sighting first (decision 061):
-      // one saved since the last build is in no file yet, and one in a file may
-      // have moved since.
-      occurrence = null;
-      if (this.user && writeSource() === 'supabase') {
-        const {data, error} = await supabase()
-          .from('occurrences')
-          .select()
-          .eq('id', id)
-          .not('contributor_id', 'is', null)
-          .maybeSingle<Occurrence>();
-        if (error) throw error;
-        occurrence = data;
-      }
-      // From the read-path files: the id index says which day, and the day's
-      // file has the sighting (decision 056). Same contract as below: an error
-      // throws, an id we don't have resolves to null. A native sighting the
-      // live lookup didn't find has been deleted since the build, so a
-      // signed-in tab doesn't open the file's copy of it.
-      if (!occurrence) {
-        const fromFile = await findOccurrence<Occurrence>(id);
-        occurrence = this.user && writeSource() === 'supabase' && fromFile?.contributor_id != null ? null : fromFile;
-      }
-      // A native sighting no file holds yet — saved since the last build, and shared at
-      // once — is in the store, which the API answers for anyone (salish-9uu.5). Only a
-      // bare uuid is asked about: an upstream id carries its source (`maplify:…`) and
-      // comes with the build or not at all.
-      if (!occurrence && writeSource() === 'api' && !id.includes(':')) {
-        occurrence = await fetchPublicSighting(id);
-      }
-    } else {
-      const {data, error} = await supabase()
-        .from('occurrences')
-        .select()
-        .eq('id', id)
-        .maybeSingle<Occurrence>();
-      // A failed lookup and a `?o=` that names a sighting we don't have both
-      // arrive as a null `data`, and they are not the same thing: the second is a
-      // deliberate silent fallback, the first is a link that would work if we
-      // could reach the server. Throwing separates them — firstUpdated's catch
-      // says so. (maybeSingle reports zero rows as data: null with no error, so
-      // this does not swallow the fallback.)
-      if (error) throw error;
-      occurrence = data;
-    }
+    // From the read-path files: the id index says which day, and the day's file has
+    // the sighting (decision 056). An error throws; an id we don't have resolves to null.
+    let occurrence = await findOccurrence<Occurrence>(id);
+    // A native sighting no file holds yet — saved since the last build, and shared at
+    // once — is in the store, which the API answers for anyone (salish-9uu.5). Only a
+    // bare uuid is asked about: an upstream id carries its source (`maplify:…`) and
+    // comes with the build or not at all.
+    if (!occurrence && !id.includes(':'))
+      occurrence = await fetchPublicSighting(id);
     if (!occurrence) return; // not found — silent fallback per decisions
 
     const date = dateFromObservedAt(occurrence.observed_at);
