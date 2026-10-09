@@ -21,7 +21,7 @@ These files hold the Bigg's. The Southern Residents' rows aren't here: the build
 
 The build holds the files to what Postgres's schema enforced — required columns, unique codes and names, references between the tables, the enum vocabularies in `reference/enums.tsv`, a nickname belonging to exactly one individual or group, a haul-out radius of 50 to 5,000 metres — and a pull request that breaks one fails the build's catalogue task, naming the rows. The header row must name the columns in the order the loader declares them.
 
-`seed-biggs.ts` and the sheet are no longer the catalogue's source; these files are. Postgres's copy is frozen and nothing reads it.
+The sheet is no longer the catalogue's source; these files are. Postgres's copy is frozen and nothing reads it.
 
 ## `maplify-unnamed.tsv` — Maplify names a curator has accepted as un-named
 
@@ -67,9 +67,9 @@ belongs to its maintainer and is credited, not claimed. Policy of record:
   per-row TSV — the measured, one-to-one mapping of every catalogue individual to its
   [salish-sea/animals](https://github.com/salish-sea/animals) register entity
   (edition 2026.08.1, all 510 `verdict=one`).
-- **Read by:** the migration that writes `individuals.entity_id`, and
-  [`scripts/seed/seed-biggs.ts`](../scripts/seed/seed-biggs.ts), which applies the same
-  pairs so a locally seeded database matches production.
+- **Read by:** the migration that wrote `individuals.entity_id`, and until
+  `salish-9uu.13` the local seed (`scripts/seed/seed-biggs.ts`). The build reads
+  neither: the catalogue's own files carry each individual's entity.
 - **Regenerate**: the reconciler that produced it (`scripts/register/reconcile.ts`, [last
   version](https://github.com/salish-sea/salishsea-io/blob/2d2a6bd028a24b423fa78078a8772c794067be49/scripts/register/reconcile.ts))
   read Postgres's catalogue and retired with it. Identifiers are permanent (animals
@@ -80,8 +80,8 @@ belongs to its maintainer and is credited, not claimed. Policy of record:
 - **Source:** the same reconciliation, its `social_groups` rows: every one of our 132
   matriline groups matched to exactly one register group of rank `matriline` (edition
   2026.09.1, the first to hold the Bigg's sub-lineages such as `T073As`).
-- **Read by:** the migration that writes `social_groups.entity_id` for matrilines, and
-  [`scripts/seed/seed-biggs.ts`](../scripts/seed/seed-biggs.ts).
+- **Read by:** the migration that wrote `social_groups.entity_id` for matrilines, and
+  until `salish-9uu.13` the local seed. The build reads neither.
 - **Regenerate** as above, re-extracting the `social_groups` rows. If the register ever
   retires a sub-lineage (animals Q22 is still open), the pair stays valid — identifiers
   are never reused — and folding the group is a migration of its own, not an edit here.

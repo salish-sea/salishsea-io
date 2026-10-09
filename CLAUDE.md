@@ -84,7 +84,6 @@ pnpm install         # install deps (NOT npm — see decision 025)
 pnpm dev             # vite dev server
 pnpm test            # vitest
 pnpm build           # tsc + vite build + html-validate + CSP hash check
-pnpm build:dwca      # build the DarwinCore Archive locally (tsx scripts/dwca/build.ts)
 pnpm gen-types       # regenerate database.types.ts from local Supabase
 pnpm exec playwright test  # e2e
 VITE_READ_SOURCE=static READ_PATH_DIR=/path/to/export pnpm dev  # map reads a read-path build's day files (decision 056)
@@ -103,7 +102,7 @@ Use `bd worktree create <name>`, not `git worktree add` — it shares the main r
 
 Two rules that survive the isolation, because worktrees separate files and nothing else:
 
-- **The local Supabase stack is a singleton** on port 54321. Only one worktree at a time runs anything that touches it (`pnpm build:dwca`, `pnpm gen-types`, `scripts/dwca/build.test.ts`).
+- **The local Supabase stack is a singleton** on port 54321. Only one worktree at a time runs anything that touches it (`pnpm gen-types`, `scripts/dwca/build.test.ts`, the twin tests).
 - **Commit a new file as soon as it exists**, even as a stub. In a shared directory, a tracked file's edits get swept up by another agent's `git add -A` while an untracked file doesn't, which is precisely how the two halves of a change separate. In a worktree the risk inverts rather than disappears: nothing else can touch your files, and uncommitted work is discarded outright when the worktree is cleaned up.
 
 ## Architecture Overview

@@ -10,7 +10,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchMaplify } from './fetch-maplify.ts';
 import { isTransientUpstream } from './retry.ts';
-import type { IngestWindow } from './persist.ts';
+import type { IngestWindow } from './window.ts';
 
 const WINDOW: IngestWindow = { start: '2026-06-29', end: '2026-07-09' };
 const noopLog = () => {};

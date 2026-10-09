@@ -1,8 +1,9 @@
 /**
- * Static guard for build.ts Postgres query references.
+ * Static guard for build.ts's relation references.
  *
- * `build.ts` reads Postgres through a DuckDB `ATTACH '<dsn>' AS pgdb` alias
- * (build.ts step 5), so EVERY Postgres relation referenced in a DuckDB query
+ * `build.ts` reads its relations through a `pgdb` catalog the caller supplies
+ * (the read-path build, from its own derivation; the retired nightly attached
+ * Postgres under that name), so EVERY relation referenced in a DuckDB query
  * MUST be `pgdb`-qualified (e.g. `pgdb.dwc.occurrences`, `pgdb.maplify.sightings`).
  * A bare `FROM maplify.sightings` resolves against DuckDB's own catalog and
  * fails at runtime with `Catalog Error: schema "maplify" does not exist` — only

@@ -1,8 +1,8 @@
 /**
  * DwC-A build pipeline integration test — Phase 06 Plan 06.
  *
- * Exercises `npm run build:dwca` end-to-end against the live local Supabase
- * Postgres, then introspects the produced artifacts in `dist/dwca/`. Covers
+ * Writes the archive with `writeArchive` over the live local Supabase Postgres,
+ * attached as `pgdb` the way the retired nightly did (salish-9uu.13), then introspects the produced artifacts in `dist/dwca/`. Covers
  * five of the six DWCA-* requirements automatically:
  *
  *   - DWCA-01: zip exists with the four expected entries; parquet sidecar present.
@@ -24,10 +24,9 @@
  * in `.env.local`, the integration suite activates automatically. Otherwise
  * the unit-test suite still runs green on a fresh checkout.
  *
- * SECURITY: The DSN is never logged. We pass it to the child build via
- * `execSync(..., { env: { ...process.env, SUPABASE_DB_URL: DSN } })` and to
- * DuckDB ATTACH via a string-interpolated SQL statement, but never
- * `console.log` it or include it in error messages.
+ * SECURITY: The DSN is never logged. We pass it to DuckDB ATTACH via a
+ * string-interpolated SQL statement, but never `console.log` it or include it
+ * in error messages.
  *
  * Cross-reference: 06-RESEARCH.md §T8 (round-trip parse pattern), §T10
  * (Vitest gating), §T11 (DuckDB parquet introspection); 06-CONTEXT.md F-05
@@ -42,6 +41,7 @@ import { execSync } from 'node:child_process';
 
 import { DuckDBInstance } from '@duckdb/node-api';
 
+import { writeArchive } from './build.ts';
 import { OCCURRENCE_FIELDS, MULTIMEDIA_FIELDS } from './fields.ts';
 
 // ---------------------------------------------------------------------------
@@ -65,16 +65,20 @@ const d = HAS_DSN
     ? describe
     : describe.skip;
 
-d('build:dwca integration (DWCA-01..04/06; requires SUPABASE_DB_URL)', () => {
-    beforeAll(() => {
-        // Run the full pipeline against the live local DB. stdio:'inherit'
-        // forwards build.ts's progress log to the test output. The
-        // SUPABASE_DB_URL env is passed through explicitly — it is NEVER
-        // interpolated into the command string.
-        execSync('npm run build:dwca', {
-            stdio: 'inherit',
-            env: { ...process.env, SUPABASE_DB_URL: DSN as string },
-        });
+d('writeArchive integration (DWCA-01..04/06; requires SUPABASE_DB_URL)', () => {
+    beforeAll(async () => {
+        // Postgres's dwc views under `pgdb`, the catalog writeArchive reads; the
+        // read-path build supplies the same names from its own derivation.
+        const db = await DuckDBInstance.create(':memory:');
+        const conn = await db.connect();
+        try {
+            await conn.run('INSTALL postgres; LOAD postgres; INSTALL spatial; LOAD spatial;');
+            await conn.run(`ATTACH '${DSN as string}' AS pgdb (TYPE postgres, READ_ONLY)`);
+            await writeArchive(conn, DIST);
+        } finally {
+            conn.closeSync();
+            db.closeSync();
+        }
     }, 60_000);
 
     // -----------------------------------------------------------------------

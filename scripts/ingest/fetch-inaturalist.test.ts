@@ -11,7 +11,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchAllObservationPages, MAX_KEYSET_PAGES, resolveTaxonClosure } from './fetch-inaturalist.ts';
-import type { IngestWindow } from './persist.ts';
+import type { IngestWindow } from './window.ts';
 import type { NormalizedObservation } from './inaturalist.ts';
 import { isTransientUpstream } from './retry.ts';
 
