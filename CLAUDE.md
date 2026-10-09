@@ -82,14 +82,13 @@ Single-context: `CONTEXT.md` + `docs/decisions/` at the repo root. See [docs/age
 ```bash
 pnpm install         # install deps (NOT npm — see decision 025)
 pnpm dev             # vite dev server
-pnpm test            # vitest
+pnpm test            # vitest; needs no database
 pnpm build           # tsc + vite build + html-validate + CSP hash check
-pnpm gen-types       # regenerate database.types.ts from local Supabase
 pnpm exec playwright test  # e2e
 READ_PATH_DIR=/path/to/export pnpm dev  # the site reads a read-path build's files (decision 056); without it the map has nothing to show
 ```
 
-Node version is pinned in `.nvmrc`. The DwC-A build's CI gate needs the Supabase local stack (not bare Postgres) — see [decision 003](docs/decisions/003-dwc-export-pipeline.md).
+Node version is pinned in `.nvmrc`. The derivations' tests compare against answers Postgres gave once, saved in [`scripts/read-path/fixtures/twins/`](scripts/read-path/fixtures/twins/README.md); when a derivation changes on purpose, the expected rows change with it, as a reviewed edit.
 
 ## Parallel agents
 
@@ -100,20 +99,19 @@ Use `bd worktree create <name>`, not `git worktree add` — it shares the main r
 - **Copy `.env` and `.env.test` in.** Both are gitignored, so a fresh worktree has neither, and the resulting failures look like code problems.
 - **`pnpm install` in the worktree, and again in `infra/`** — a separate pnpm project with its own lockfile. Cheap: pnpm's global store hardlinks rather than copies.
 
-Two rules that survive the isolation, because worktrees separate files and nothing else:
+One rule survives the isolation, because worktrees separate files and nothing else:
 
-- **The local Supabase stack is a singleton** on port 54321. Only one worktree at a time runs anything that touches it (`pnpm gen-types`, `scripts/dwca/build.test.ts`, the twin tests).
 - **Commit a new file as soon as it exists**, even as a stub. In a shared directory, a tracked file's edits get swept up by another agent's `git add -A` while an untracked file doesn't, which is precisely how the two halves of a change separate. In a worktree the risk inverts rather than disappears: nothing else can touch your files, and uncommitted work is discarded outright when the worktree is cleaned up.
 
 ## Architecture Overview
 
-Static SPA (Lit web components + Vite + TypeScript, OpenLayers maps). Since 2026-10-03 the site people see is served by the `salishsea-io` Fly app (Caddy + a small redirect server, `fly/`), behind CloudFront, which keeps only `/cards/*` (the preview-card renderer Lambda) (decision 061, `salish-xv35.16`). On that machine the read-path build — Stelis, a build system Peter maintains ([github.com/rainhead/stelis](https://github.com/rainhead/stelis); the graph is `src/salishsea.rkt` there) — runs every five minutes: it fetches Maplify, iNaturalist and Orcasound itself into SQLite mirrors on the volume, fetches the register's newest release, snapshots the write API's store, derives the occurrences, identifier candidates and profile links in DuckDB, and writes the day files, calendar, id index, prerendered profile pages and the Darwin Core archive (decisions 056, 057, 061, 064). What users write — native sightings, feedback, the Google sign-in that owns them — goes to a small write API on the same machine (`api/`), kept in a SQLite store on the volume and replicated by Litestream; photos go to S3 (decision 065). The catalogue is checked-in data under `data/` (decision 064). A signed-in tab reads the files with its own sightings overlaid from the API. Supabase is frozen and being retired (`salish-9uu`): CI still runs the twin tests against a local Postgres, and the deploy still pushes migrations. AWS CDK infra in `infra/` and the Fly app (`fly/deploy.sh`, Stelis pinned in `fly/stelis-commit`) are both deployed by GitHub Actions on push to `main` ([runbook](docs/runbook/deploys.md)); what runs there, where its state lives and how to operate it: [docs/runbook/read-path-build.md](docs/runbook/read-path-build.md). A Lambda@Edge function serves OG meta tags to crawlers on the map page only (fail-open; decision 015's rewrite of profile paths retired with the move to Fly, which prerenders them and answers designation `301`s itself). The Darwin Core archive is written by that build and served by the Fly app too; the nightly workflow that built it from Postgres is retired (decision 003, amended). Details: [docs/decisions/](docs/decisions/), [docs/data-provenance.md](docs/data-provenance.md).
+Static SPA (Lit web components + Vite + TypeScript, OpenLayers maps). Since 2026-10-03 the site people see is served by the `salishsea-io` Fly app (Caddy + a small redirect server, `fly/`), behind CloudFront, which keeps only `/cards/*` (the preview-card renderer Lambda) (decision 061, `salish-xv35.16`). On that machine the read-path build — Stelis, a build system Peter maintains ([github.com/rainhead/stelis](https://github.com/rainhead/stelis); the graph is `src/salishsea.rkt` there) — runs every five minutes: it fetches Maplify, iNaturalist and Orcasound itself into SQLite mirrors on the volume, fetches the register's newest release, snapshots the write API's store, derives the occurrences, identifier candidates and profile links in DuckDB, and writes the day files, calendar, id index, prerendered profile pages and the Darwin Core archive (decisions 056, 057, 061, 064). What users write — native sightings, feedback, the Google sign-in that owns them — goes to a small write API on the same machine (`api/`), kept in a SQLite store on the volume and replicated by Litestream; photos go to S3 (decision 065). The catalogue is checked-in data under `data/` (decision 064). A signed-in tab reads the files with its own sightings overlaid from the API. Supabase is frozen and being retired (`salish-9uu`): nothing reads it, CI no longer starts it, and the deploy still pushes migrations until the project goes. AWS CDK infra in `infra/` and the Fly app (`fly/deploy.sh`, Stelis pinned in `fly/stelis-commit`) are both deployed by GitHub Actions on push to `main` ([runbook](docs/runbook/deploys.md)); what runs there, where its state lives and how to operate it: [docs/runbook/read-path-build.md](docs/runbook/read-path-build.md). A Lambda@Edge function serves OG meta tags to crawlers on the map page only (fail-open; decision 015's rewrite of profile paths retired with the move to Fly, which prerenders them and answers designation `301`s itself). The Darwin Core archive is written by that build and served by the Fly app too; the nightly workflow that built it from Postgres is retired (decision 003, amended). Details: [docs/decisions/](docs/decisions/), [docs/data-provenance.md](docs/data-provenance.md).
 
 ## Conventions & Patterns
 
 - Coordinates: decimal lon/lat WGS84, map projection EPSG:3857. Time: UNIX epoch seconds.
 - URL state: `d` (date), `x/y/z` (map), `o` (occurrence); profile pages at `/individuals/<7-digit register id>/<designation slug>`, `/matrilines/<id>/<slug>`, `/populations/<id>/<slug>` (a population's top page, an ecotype's or a community's; `/ecotypes/…` `301`s there, decision 070) and `/pods/<id>/<slug>` (a Southern Resident pod, 070) — the slug is never read; a legacy `/<family>/<designation>` path is looked up once and `301`s to that form (decision 034).
-- Migrations: SELECT grants ship in the same migration that creates a table or view (Supabase RLS defaults silently zero out joins otherwise), and the migration's PR updates the pinned set in `supabase/read-grants.test.ts`, which CI checks against a fresh reset.
+- Postgres is frozen (decision 065) and retiring (bd `salish-9uu`): write no new migrations. A push to `main` still runs `supabase db push` until the project goes (`salish-9uu.14`), so a migration would reach production untested, since CI no longer starts a database.
 - `maplify.sightings.comments` is immutable — parse at read time, never UPDATE it.
 - Keep the project "light, nimble, and maintainable, minimizing abstractions and volatile dependencies" (README).
 - Engineering lessons from past milestones: [docs/engineering-lessons.md](docs/engineering-lessons.md).

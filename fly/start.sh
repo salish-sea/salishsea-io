@@ -86,10 +86,8 @@ if [ -n "${READ_PATH_MAINTENANCE:-}" ] && [ "${READ_PATH_MAINTENANCE}" != 0 ]; t
 fi
 rm -f "$MAINTENANCE_FLAG"
 
-# The write API (decision 065), only once API_ENABLED is set: its store must stay empty
-# until the cutover copies Postgres into it (api/store/copy-from-postgres.ts refuses a
-# store that holds anything), so it isn't started before then. It holds the session
-# signing key, which only it reads.
+# The write API (decision 065), only when API_ENABLED is set, as fly.toml sets it. It
+# holds the session signing key, which only it reads.
 #
 # Supervised on its own, not by the `wait -n` below: an API that can't start (a missing
 # key, a migration that fails) must not take the published site down with it, so it is

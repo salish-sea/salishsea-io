@@ -2,10 +2,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
-import postgres from 'postgres';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
-import { copyFromPostgres, directQuery, exactDouble, validOrcid } from './copy-from-postgres.ts';
 import { migrations, openStore } from './store.ts';
 
 let dir: string;
@@ -61,69 +59,4 @@ describe('the store (decision 065)', () => {
         expect(db.prepare('SELECT count(*) AS n FROM observation_photos').get()).toMatchObject({n: 0});
         db.close();
     });
-
-    test('a coordinate crosses as its exact eight bytes, not as fifteen printed digits', () => {
-        const lon = -123.12345678901234;
-        const hex = Buffer.alloc(8);
-        hex.writeDoubleBE(lon, 0);
-        expect(exactDouble(hex.toString('hex'))).toBe(lon);
-        expect(exactDouble(null)).toBeNull();
-        expect(() => exactDouble('-123.1')).toThrow(/not a float8/);
-    });
-
-    test("an ORCID is checked as is_valid_orcid checked it: shape, then ISO 7064 MOD 11-2", () => {
-        expect(validOrcid('https://orcid.org/0000-0002-1825-0097')).toBe(true);
-        expect(validOrcid('https://orcid.org/0000-0002-1694-233X')).toBe(true);
-        expect(validOrcid('https://orcid.org/0000-0002-1825-0098')).toBe(false);
-        expect(validOrcid('0000-0002-1825-0097')).toBe(false);
-    });
 });
-
-const DSN = process.env['SUPABASE_DB_URL'];
-
-describe.skipIf(!DSN)('the copy from Postgres (local Supabase)', () => {
-    test('a sighting whose owner has no Google sign-in is named, and the copy refused', async () => {
-        const sql = postgres(DSN!, {max: 1});
-        try {
-            await sql.begin(async tx => {
-                // as the local database ships: its seeded user has a sighting and no identity
-                await tx`DELETE FROM auth.identities`;
-                const store = openStore(path.join(dir, 'store.db'));
-                await expect(copyFromPostgres(store, directQuery(tx))).rejects.toThrow(/no Google sign-in/);
-                expect(store.prepare('SELECT count(*) AS n FROM observations').get()).toMatchObject({n: 0});
-                store.close();
-                throw new RolledBack();
-            }).catch(e => { if (!(e instanceof RolledBack)) throw e; });
-        } finally {
-            await sql.end();
-        }
-    });
-
-    test('every table arrives, and a second copy into the same store is refused', async () => {
-        const sql = postgres(DSN!, {max: 1});
-        try {
-            await sql.begin(async tx => {
-                // the local database's seeded user signs in with Google, and writes more
-                const [{id: user}] = await tx`SELECT user_uuid::text AS id FROM public.user_contributor LIMIT 1` as [{id: string}];
-                await tx`INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, created_at, updated_at)
-                         VALUES ('google-sub-1', ${user}::uuid, '{}'::jsonb, 'google', now(), now())`;
-                await tx`INSERT INTO public.feedback (name, message, user_uuid) VALUES ('A reader', 'hello', ${user}::uuid)`;
-                const store = openStore(path.join(dir, 'store.db'));
-                const counts = await copyFromPostgres(store, directQuery(tx));
-                const [{n: observations}] = await tx`SELECT count(*)::int AS n FROM public.observations` as [{n: number}];
-                expect(counts['observations']).toBe(observations);
-                expect(counts['users']).toBe(1);
-                expect(counts['feedback']).toBe(1);
-                expect(store.prepare('SELECT google_sub FROM users').get()).toMatchObject({google_sub: 'google-sub-1'});
-                await expect(copyFromPostgres(store, directQuery(tx))).rejects.toThrow(/empty store/);
-                store.close();
-                throw new RolledBack();
-            }).catch(e => { if (!(e instanceof RolledBack)) throw e; });
-        } finally {
-            await sql.end();
-        }
-    });
-});
-
-class RolledBack extends Error {}
-

@@ -8,10 +8,11 @@
  * A bare `FROM maplify.sightings` resolves against DuckDB's own catalog and
  * fails at runtime with `Catalog Error: schema "maplify" does not exist` — only
  * surfacing in the nightly build against the live DB, because `build.test.ts`
- * is gated on `SUPABASE_DB_URL` and skips on a fresh checkout / in CI.
+ * was gated on a database and skipped on a fresh checkout and in CI.
  *
  * This test needs NO database: it greps the build.ts source so the regression
- * is caught on every checkout. Companion to the DB-gated `build.test.ts`.
+ * is caught on every checkout. Companion to `build.test.ts`, which writes the
+ * archive from the twin fixture.
  *
  * Context: Phase 12 shipped a Step 15.5 associated-parties query with bare
  * `maplify.sightings` / `public.*` refs; the nightly failed with the catalog
