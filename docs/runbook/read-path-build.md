@@ -181,7 +181,7 @@ fly machine update 82973dc7675348 -a salishsea-io --env REGISTER_TAG= -y        
 
 ## When the name guard holds
 
-`maplify-names` fails when a register edition stops naming a pair the last passing build named; every published file then stays as it was, and the Sentry cron monitor opens an issue within half an hour (the heartbeat's `unpublished` check too, whenever it next runs). This should not happen: the build's register fetch refuses such an edition before adopting it, and `register-refresh.yml` before loading it into Postgres. The guard still catches a pair the Maplify mirror didn't hold when the edition was judged. The fix is in the register (name the pair again) or, for an un-naming meant on purpose, a row in `data/maplify-unnamed.tsv` in a pull request — never an edit to `maplify-names.json` on the volume.
+`maplify-names` fails when a register edition stops naming a pair the last passing build named; every published file then stays as it was, and the Sentry cron monitor opens an issue within half an hour (the heartbeat's `unpublished` check too, whenever it next runs). This should not happen: the build's register fetch refuses such an edition before adopting it. The guard still catches a pair the Maplify mirror didn't hold when the edition was judged. The fix is in the register (name the pair again) or, for an un-naming meant on purpose, a row in `data/maplify-unnamed.tsv` in a pull request — never an edit to `maplify-names.json` on the volume.
 
 ## Measuring a task
 

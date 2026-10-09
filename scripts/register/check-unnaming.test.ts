@@ -1,5 +1,5 @@
 /**
- * The register-refresh workflow's refusal (salish-xv35.9.2): an edition that would un-name
+ * The register fetch's refusal (salish-xv35.9.2): an edition that would un-name
  * a Maplify pair the map shows is refused before it is loaded, unless a curator accepted
  * the un-naming in data/maplify-unnamed.tsv. The edition is read the way the build reads
  * one — its TSVs, the same name index, the same resolution.

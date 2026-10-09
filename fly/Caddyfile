@@ -77,8 +77,8 @@
 	}
 
 	# The Maplify name guard's baseline: every (name, scientific name) pair the last
-	# passing build resolved, and to what (salish-xv35.9.2). register-refresh.yml reads
-	# it before loading an edition, to refuse one that would un-name any of them.
+	# passing build resolved, and to what (salish-xv35.9.2). check-unnaming.ts, run by
+	# hand, asks of a candidate edition whether it would un-name any of them.
 	handle /status/maplify-names.json {
 		header Cache-Control "no-cache"
 		root * /data/mirrors

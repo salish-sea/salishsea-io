@@ -384,7 +384,7 @@ describe('parseInatTaxa / normalizeTaxon', () => {
     });
 
     // A split names several successors; picking one would guess which animal was
-    // seen. Same rule as scripts/backfill/inat-taxa-status.ts.
+    // seen.
     test('a split taxon is inactive with NO replacement', () => {
         const n = normalizeTaxon(InatTaxonSchema.parse(
             rawTaxon({ is_active: false, current_synonymous_taxon_ids: [2, 3] }),
