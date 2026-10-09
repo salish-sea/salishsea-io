@@ -12,8 +12,6 @@ vi.mock('@sentry/browser', async (importOriginal) => ({
   BrowserClient: class { init = init },
   getCurrentScope: () => ({setClient, addEventProcessor}),
 }));
-vi.mock('@supabase/sentry-js-integration', () => ({supabaseIntegration: () => ({name: 'supabase'})}));
-vi.mock('./supabase.ts', () => ({supabase: () => ({})}));
 vi.mock('./release.ts', () => ({release: async () => 'built-from-abc123'}));
 
 describe('initSentry', () => {
@@ -71,10 +69,6 @@ describe('the entry points agree about Sentry', () => {
     const reporting = entryPointSources().filter(([, code]) => /['"]\.\/sentry\.ts['"]/.test(code));
     // about.ts reports nothing and is not required to; the rest must agree.
     expect(reporting.map(([src]) => src).sort()).toEqual([
-      'src/ecotype-page.ts',
-      'src/haulout-page.ts',
-      'src/individual-page.ts',
-      'src/matriline-page.ts',
       'src/salish-sea.ts',
     ]);
     for (const [src, code] of reporting) {

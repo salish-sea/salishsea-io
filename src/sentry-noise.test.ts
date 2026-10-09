@@ -83,10 +83,10 @@ describe('dropThirdPartyNoise', () => {
     expect(dropThirdPartyNoise(ours)).toBe(ours); // same object, not a copy
   });
 
-  test('a Supabase network failure is NOT dropped', () => {
-    // SALISHSEA-IO-37/-38/-3B: 24 events, 19 users. These look like noise one at
-    // a time and are the only thing that distinguishes a boat losing signal from
-    // a Supabase outage. Volume is the message, so they keep arriving.
+  test('a network failure against our own host is NOT dropped', () => {
+    // SALISHSEA-IO-37/-38/-3B (against Supabase, then): 24 events, 19 users. These
+    // look like noise one at a time and are the only thing that distinguishes a boat
+    // losing signal from an outage of ours. Volume is the message, so they keep arriving.
     const networkFailure = withFrames(
       { filename: 'https://salishsea.io/assets/main-abc.js', function: 'fetchOccurrences' },
     );
@@ -108,7 +108,7 @@ describe('the filter lists match what they claim', () => {
     }
   });
 
-  test('ignoreErrors does not match a Supabase network failure', () => {
+  test('ignoreErrors does not match a network failure against our own host', () => {
     // The one rule this file must never break, asserted against the literal
     // messages Sentry recorded.
     for (const message of [

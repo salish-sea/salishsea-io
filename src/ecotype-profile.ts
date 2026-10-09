@@ -4,10 +4,9 @@
  * A Southern Resident pod's page is the same page a level down: its matrilines and the
  * sightings of all of them, pooled (070's population › pod › matriline).
  *
- * As src/individual-profile.ts is for an individual: the client-rendered page
- * (src/ecotype-page.ts) fills these from Supabase, and the read-path build
- * (scripts/read-path/profiles.ts) from the snapshot. Nothing here touches the
- * window, the document, or the network.
+ * As src/individual-profile.ts is for an individual: the read-path build fills these
+ * from the snapshot (scripts/read-path/profiles.ts). Nothing here touches the window,
+ * the document, or the network.
  */
 
 import { css, html, nothing } from 'lit';
@@ -42,8 +41,7 @@ export interface EcotypeProfileData {
   population?: Pick<SocialGroup, 'entity_id' | 'designation'> | null;
   /**
    * Each matriline's reports, by group id, as its own page has them: what its small map
-   * draws (decision 067). The prerendered page has them; the client-rendered one, which
-   * would need a request per matriline, doesn't, and lists the matrilines instead.
+   * draws (decision 067). Without them the page lists the matrilines by name.
    */
   matrilineReports?: ReadonlyMap<number, readonly MapDot[]>;
 }

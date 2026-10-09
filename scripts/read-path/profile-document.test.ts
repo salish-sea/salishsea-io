@@ -50,7 +50,7 @@ describe('renderDocument', () => {
         expect(render()).toContain(`<meta http-equiv="Content-Security-Policy" content="default-src 'self'">`);
     });
 
-    test('none of the client-rendered page\'s scripts', () => {
+    test('none of the shell\'s own scripts', () => {
         const doc = render();
         expect(doc).not.toContain('<script');
         expect(doc).not.toContain('modulepreload');
@@ -62,7 +62,7 @@ describe('renderDocument', () => {
         expect(doc).not.toMatch(/<!--\/?lit-/);
     });
 
-    test('an island\'s tags where the shell\'s script was, only when the page has its element', () => {
+    test('an island\'s tags at the end of the head, in place of the shell\'s script, only when the page has its element', () => {
         const island = {element: 'individual-map', tags: '<script type="module" src="/assets/map.js"></script>'};
         const withMap = renderDocument(SHELL, 'individual-page', [], HEAD,
             html`<individual-map src="/read-path/x.links.json"></individual-map>`, [island]);

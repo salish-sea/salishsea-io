@@ -13,11 +13,10 @@
  * - sitemap.xml: the site's own pages, as Vite writes them into <dist>/sitemap.xml,
  *   and after them every published profile.
  * - catalog-codes.json: the rows the map's sighting cards link designations from
- *   (src/individual-links.ts), in the shape its Supabase query returns, so a sighting
- *   that mentions T065A links to her page while the database is unreachable.
+ *   (src/individual-links.ts), so a sighting that mentions T065A links to her page.
  * - animal-names.json: every register name the map shows for an entity (the build's
- *   animal_names), in the shape src/catalog.ts's fetchAnimalNames returns, so the
- *   report form's species menu reads it without the database (decision 065).
+ *   animal_names), keyed by entity (src/catalog.ts's AnimalName), so the report form's
+ *   species menu reads it without a database (decision 065).
  *
  * Only subjects the profile build writes a page for are listed (profiles.ts's
  * filters: an animal or a group with a register identifier, every haul-out site), so

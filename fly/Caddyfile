@@ -191,18 +191,19 @@
 	handle {
 		root * /app/dist
 
-		# Profile pages are client-rendered from their HTML shells (decisions 015,
-		# 034), except the pages the build has prerendered, above. On
-		# AWS the Lambda@Edge viewer-request function does this; the patterns are
-		# vite.config.js's PROFILE_REWRITES.
-		@individual path_regexp ^/individuals/[^/]+(/[^/]*)?/?$
-		rewrite @individual /individual.html
-		@matriline path_regexp ^/matrilines/[^/]+(/[^/]*)?/?$
-		rewrite @matriline /matriline.html
-		@population path_regexp ^/populations/[^/]+(/[^/]*)?/?$
-		rewrite @population /ecotype.html
-		@haulout path_regexp ^/haulouts/[^/]+(/[^/]*)?/?$
-		rewrite @haulout /haulout.html
+		# A profile-shaped path none of the routes above took — a designation with more
+		# after it (/individuals/T65A/photos), a haul-out by name — names nothing we
+		# publish, and says so. So does a profile shell asked for by name: the shells
+		# are the build's templates (scripts/read-path/profile-document.ts), with no
+		# page of their own since the client-rendered pages went (salish-9uu.10).
+		@unpublishedProfile path_regexp ^/((individuals|matrilines|populations|pods|haulouts)(/.*)?|(individual|matriline|ecotype|haulout)\.html)$
+		handle @unpublishedProfile {
+			header Cache-Control "no-cache"
+			rewrite * /not-in-catalog.html
+			file_server {
+				status 404
+			}
+		}
 
 		# Content-hashed, so never stale; everything else revalidates, as the AWS
 		# deploy's S3 sync sets it.

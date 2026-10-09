@@ -56,19 +56,6 @@ LABEL="$SHA-stelis-${STELIS_SHA:0:12}"
 IMAGE="registry.fly.io/$APP:$LABEL"
 
 build() {
-    REF=grztmjpzamcxlzecmqca
-    # The lockfile's Supabase CLI: the devDependency when installed (a hand deploy), else
-    # the one the Deploy workflow's setup-cli put on PATH, which reads the same lockfile.
-    if [ -x node_modules/.bin/supabase ]; then
-        supabase=(node_modules/.bin/supabase)
-    elif command -v supabase > /dev/null; then
-        supabase=(supabase)
-    else
-        supabase=(npx --yes supabase)
-    fi
-    KEY=$("${supabase[@]}" projects api-keys --project-ref "$REF" -o json \
-          | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const k=JSON.parse(s).find(k=>k.type==="publishable");if(!k)process.exit(1);process.stdout.write(k.api_key)})')
-
     # Sentry's token, when there is one (the Deploy workflow has it), uploads the bundle's
     # source maps from the build that ships: a build secret, so it is in no image layer.
     # Without it the build is the same and uploads nothing.
@@ -78,9 +65,6 @@ build() {
     # Build and push the image while the machine goes on building: the remote build takes
     # minutes, and the build lock (in switch) is held only for the switch.
     flyctl deploy --build-only --push --image-label "$LABEL" "${secrets[@]}" \
-        --build-arg VITE_SUPABASE_URL="https://$REF.supabase.co" \
-        --build-arg VITE_SUPABASE_WS_URL="wss://$REF.supabase.co" \
-        --build-arg VITE_SUPABASE_KEY="$KEY" \
         --build-arg GITHUB_SHA="$SHA" \
         --build-arg SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
         --build-arg STELIS_SHA="$STELIS_SHA"

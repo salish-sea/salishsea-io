@@ -7,14 +7,13 @@
  * for every subject of that kind (<id> is its register identifier's seven digits, or a
  * haul-out site's id: the register holds animals, not places),
  * and beside it <id>.links.json, the sighting links its map loads. The page itself is
- * the kind's templates (src/individual-profile.ts and its siblings) — the same ones the
- * client-rendered page uses — given the data the client would fetch, assembled here
- * from the snapshot's documents instead. Each kind reads only its own tables, which is
+ * the kind's templates (src/individual-profile.ts and its siblings), given data assembled
+ * from the snapshot's documents in the shapes src/catalog.ts declares. Each kind reads only its own tables, which is
  * what the Stelis task running it declares as its inputs.
  *
- * Assembly mirrors src/catalog.ts's fetchers one for one, and where PostgREST leaves an
- * order unspecified (embedded nicknames and designations, a matriline's members), this
- * fixes one, so the same snapshot always renders the same bytes. The presence table's
+ * Assembly mirrors what the client pages' PostgREST fetchers returned, one for one, and
+ * where PostgREST left an order unspecified (embedded nicknames and designations, a
+ * matriline's members), this fixes one, so the same snapshot always renders the same bytes. The presence table's
  * newest year is the snapshot's, not the clock's.
  *
  * <dist> is the site Vite built: the page's shell (individual.html), and the manifest
@@ -67,7 +66,7 @@ function groupBy(docs: Doc[], key: string, sort: (a: Doc, b: Doc) => number): Ma
     return out;
 }
 
-// --- Assembly shared between kinds, mirroring src/catalog.ts's fetchers ---------------
+// --- Assembly shared between kinds, mirroring the retired PostgREST fetchers ---------
 
 /** An embedded party (authority, namer), as PostgREST embeds it. */
 function partyResolver(t: Pick<Tables, 'parties'>) {
@@ -382,8 +381,7 @@ const KINDS = {
     individuals: {shell: 'individual.html', pages: pagesOf(INDIVIDUAL_TABLES, assembleIndividuals, renderIndividualPage)},
     matrilines: {shell: 'matriline.html', pages: pagesOf(MATRILINE_TABLES, assembleMatrilines, renderMatrilinePage)},
     populations: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assembleEcotypes, renderEcotypePage)},
-    // A pod's page is a population's a level down, in the same shell: no client-rendered
-    // page reads it, since its rows exist only in the build (decision 070).
+    // A pod's page is a population's a level down, in the same shell (decision 070).
     pods: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assemblePods, renderPodPage)},
     // The sites' own list, for the main map's layer: a page's id is a number, so
     // it cannot collide with one.

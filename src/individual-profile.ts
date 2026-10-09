@@ -1,11 +1,9 @@
 /**
  * An individual's profile page, as templates that render anywhere (decision 057).
  *
- * The same functions serve the client-rendered page (src/individual-page.ts, which
- * fetches the data from Supabase) and the build that prerenders every profile from
- * the read-path snapshot (scripts/read-path/profiles.ts, through @lit-labs/ssr). So
- * the page is written once: nothing here touches the window, the document, or the
- * network, and everything it shows arrives as data.
+ * The build prerenders every profile from the read-path snapshot through these
+ * (scripts/read-path/profiles.ts, through @lit-labs/ssr). Nothing here touches the
+ * window, the document, or the network, and everything it shows arrives as data.
  */
 
 import { css, html, nothing, type TemplateResult } from 'lit';

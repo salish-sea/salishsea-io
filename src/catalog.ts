@@ -1,14 +1,64 @@
-import { supabase } from './supabase.ts';
 import { fold } from './fold.ts';
 import { Temporal } from 'temporal-polyfill';
-import type { Database } from '../database.types.ts';
 
-type PublicSchema = Database['public'];
-export type Individual = PublicSchema['Tables']['individuals']['Row'];
+// The catalogue as its pages read it, written out by hand since Postgres stopped being
+// its source (salish-9uu.10). The read-path build assembles these shapes from the
+// checked-in catalogue and the register (scripts/read-path/profiles.ts, decision 064);
+// the vocabularies are data/reference/enums.tsv's.
+type LifeStatus = 'alive' | 'deceased' | 'presumed_deceased' | 'unknown';
+type Sex = 'male' | 'female';
+type ParentageCertainty = 'confirmed' | 'presumed' | 'hypothesized';
+type NicknameStatus = 'official' | 'provisional' | 'proposed' | 'deprecated' | 'awaiting_decision';
+type DesignationScheme = 'bc_wa' | 'alaska' | 'california' | 'other';
+type DesignationStatus = 'active' | 'superseded' | 'uncertain';
+type SocialGroupKind = 'ecotype' | 'community' | 'clan' | 'pod' | 'matriline' | 'named_group';
+type IdentificationStatus = 'candidate' | 'validated' | 'rejected';
+type IdentificationCertainty = 'possible' | 'probable' | 'certain';
+type IdentificationEvidence = 'text_mention' | 'photograph' | 'cv_match' | 'field_observation' | 'acoustic';
+type MaybeLonLat = { lon: number | null; lat: number | null };
+
+export type Individual = {
+  id: number;
+  entity_id: string | null;
+  primary_designation: string;
+  sex: Sex | null;
+  born_earliest: number | null;
+  born_latest: number | null;
+  life_status: LifeStatus;
+  mother_id: number | null;
+  maternity_certainty: ParentageCertainty;
+  father_id: number | null;
+  paternity_certainty: ParentageCertainty | null;
+};
+type SocialGroupRow = {
+  id: number;
+  kind: SocialGroupKind;
+  designation: string;
+  designation_folded: string | null;
+  entity_id: string | null;
+  anchor_individual_id: number | null;
+};
 // A group row plus its parent, which is the register's (decision 051) and so
 // comes from public.group_parents rather than a column of its own.
-export type SocialGroup = PublicSchema['Tables']['social_groups']['Row'] & { parent_group_id: number | null };
-export type IndividualOccurrence = PublicSchema['Views']['individual_occurrences']['Row'];
+export type SocialGroup = SocialGroupRow & { parent_group_id: number | null };
+// One (individual, occurrence) row of the build's individual links (salish-xv35.13),
+// in the columns Postgres's individual_occurrences view had.
+export type IndividualOccurrence = {
+  individual_id: number | null;
+  occurrence_id: string | null;
+  observed_at: string | null;
+  location: MaybeLonLat | null;
+  code: string | null;
+  is_present: boolean | null;
+  evidence: IdentificationEvidence | null;
+  status: IdentificationStatus | null;
+  certainty: IdentificationCertainty | null;
+  via_group: string | null;
+};
+
+type Party = { name: string; url: string | null };
+type Nickname = { name: string; theme: string | null; status: NicknameStatus; named_year: number | null; namer: Party | null };
+type NicknameBrief = { name: string; status: NicknameStatus };
 
 // One (occurrence, individual) link from the individual_occurrences view, with
 // the fields the profile page needs guaranteed present.
@@ -17,7 +67,7 @@ export interface OccurrenceLink {
   observed_at: string;
   location: { lon: number; lat: number } | null;
   is_present: boolean;
-  status: PublicSchema['Enums']['identification_status'];
+  status: IdentificationStatus;
   via_group: string | null;
 }
 
@@ -39,23 +89,12 @@ export function mapUrl(link: Pick<OccurrenceLink, 'observed_at' | 'occurrence_id
 //   /individuals/0010193           bare identifier; the page rewrites the address
 //   /individuals/T065A, /T046A     a designation: legacy links and typed URLs
 //
-// The edge handler (infra/lib/edge-handler) 301s the non-canonical shapes
-// before the page loads; the page handles them too, because the edge fails
-// open to the shell when its lookup is slow. These helpers mirror the ones in
-// the handler, which cannot import from src/ — change one, change the other.
+// The Fly app's redirect server (scripts/read-path/redirect.ts) 301s the
+// non-canonical shapes, from the map the build writes.
 //
 // A matriline's slug is the group's written form, T065As, not the matriarch's
 // code that social_groups.designation holds: /matrilines/0002163/T065As. It is
 // how sighting prose writes the group, and 034's own example.
-
-// What a profile path names.
-export type ProfileKey =
-  | { kind: 'entity'; entityId: string; slug: string | null }
-  | { kind: 'designation'; designation: string };
-
-// The local part of a register identifier (SSA:0010193 → 0010193): animals
-// ADR-0021's registered pattern.
-const ENTITY_LOCAL_PART_RE = /^\d{7}$/;
 
 // The designation as a URL segment: apostrophes dropped (Bigg's → Biggs), any
 // other run of non-alphanumerics collapsed to a hyphen.
@@ -122,48 +161,6 @@ export function podLabel(group: { designation: string }): string {
  */
 export function podPath(group: { entity_id: string | null; designation: string }): string {
   return profilePath('pods', group.entity_id, podLabel(group));
-}
-
-function decodeSegment(segment: string): string | null {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return null;
-  }
-}
-
-// /<prefix>/<segment>[/<segment>][/]. Two segments name an identifier and its
-// slug; a designation stands alone, so /individuals/T065A/photos is nothing.
-function parseKeyedPath(pathname: string, prefix: string): ProfileKey | null {
-  const match = pathname.match(new RegExp(`^/${prefix}/([^/]+)(?:/([^/]*))?/?$`));
-  if (!match) return null;
-  const first = decodeSegment(match[1]!);
-  if (first === null) return null;
-  // A trailing slash leaves an empty second segment; it means nothing. A
-  // present one that will not decode is a malformed path, not a missing slug.
-  const second = match[2] ? decodeSegment(match[2]) : null;
-  if (match[2] && second === null) return null;
-  if (ENTITY_LOCAL_PART_RE.test(first)) {
-    return { kind: 'entity', entityId: `SSA:${first}`, slug: second || null };
-  }
-  return second ? null : { kind: 'designation', designation: first };
-}
-
-export function parseIndividualPath(pathname: string): ProfileKey | null {
-  return parseKeyedPath(pathname, 'individuals');
-}
-
-export function parsePopulationPath(pathname: string): ProfileKey | null {
-  return parseKeyedPath(pathname, 'populations');
-}
-
-export function parseMatrilinePath(pathname: string): ProfileKey | null {
-  return parseKeyedPath(pathname, 'matrilines');
-}
-
-// What to call the subject before it has loaded, or when it never does.
-export function keyLabel(key: ProfileKey): string {
-  return key.kind === 'entity' ? key.entityId : key.designation;
 }
 
 // The shared shape of individual_occurrences and group_occurrences rows;
@@ -244,33 +241,6 @@ export type AnimalName = {
   inaturalist_scientific_name: string | null;
 };
 
-/**
- * Names for specific entities, keyed by `SSA:` identifier.
- *
- * Asks for the handful the caller can name rather than fetching the register: 426 of 786
- * entities carry a common name, most of them individuals' nicknames that a profile page
- * already has by other means. Returns an empty map for an empty request without a round
- * trip, so a caller need not special-case an entity that has no identifier yet.
- */
-export async function fetchAnimalNames(entityIds: readonly (string | null)[]): Promise<Map<string, AnimalName>> {
-  const wanted = [...new Set(entityIds.filter((id): id is string => !!id))];
-  if (!wanted.length) return new Map();
-  const { data } = await supabase()
-    .from('animal_names')
-    .select('entity_id, common_name, taxon_entity_id, taxon_common_name, inaturalist_scientific_name')
-    .in('entity_id', wanted)
-    .throwOnError();
-  // `entity_id` types as nullable because every column of a VIEW does — Postgres cannot
-  // express NOT NULL through one, so gen-types has nothing to go on. It is the view's key
-  // and cannot actually be null; narrowed rather than asserted, so a view that one day
-  // does return one is dropped instead of keying the map on `null`.
-  return new Map(
-    (data ?? [])
-      .filter((row): row is AnimalName => row.entity_id !== null)
-      .map(row => [row.entity_id, row]),
-  );
-}
-
 export function groupChain<G extends SocialGroup>(groupId: number, groupsById: Map<number, G>): G[] {
   const chain: G[] = [];
   const seen = new Set<number>();
@@ -284,68 +254,17 @@ export function groupChain<G extends SocialGroup>(groupId: number, groupsById: M
   return chain;
 }
 
-// mother/father are fetched separately (fetchParents): the self-referencing FK
-// makes PostgREST embed direction ambiguous, and supabase-js's type parser and
-// the server disagree on the disambiguation syntax.
-const INDIVIDUAL_SELECT = `
-  *,
-  designations (code, scheme, is_primary, status, in_catalog, authority:parties (name, url)),
-  nicknames (name, theme, status, named_year, namer:parties (name, url))
-` as const;
-
-// The individual a designation names — any code it has ever carried, so a
-// superseded T046A finds T122 — compared by the register's fold (t65a matches
-// T065A). null when no designation matches.
-async function individualIdForDesignation(designation: string): Promise<number | null> {
-  const { data } = await supabase()
-    .from('designations')
-    .select('individual_id')
-    .eq('code_folded', fold(designation))
-    .limit(1)
-    .maybeSingle()
-    .throwOnError();
-  return data?.individual_id ?? null;
-}
-
-export async function fetchIndividual(key: ProfileKey) {
-  let query = supabase().from('individuals').select(INDIVIDUAL_SELECT);
-  if (key.kind === 'entity') {
-    query = query.eq('entity_id', key.entityId);
-  } else {
-    const id = await individualIdForDesignation(key.designation);
-    if (id === null) return null;
-    query = query.eq('id', id);
-  }
-  const { data } = await query.maybeSingle().throwOnError();
-  return data;
-}
-export type IndividualProfile = NonNullable<Awaited<ReturnType<typeof fetchIndividual>>>;
-
-export async function fetchParents({ mother_id, father_id }: Pick<Individual, 'mother_id' | 'father_id'>) {
-  const ids = [mother_id, father_id].filter((id): id is number => id !== null);
-  if (!ids.length) return { mother: null, father: null };
-  const { data } = await supabase()
-    .from('individuals')
-    .select('id, entity_id, primary_designation, life_status, nicknames (name, status)')
-    .in('id', ids)
-    .throwOnError();
-  return {
-    mother: data.find(i => i.id === mother_id) ?? null,
-    father: data.find(i => i.id === father_id) ?? null,
-  };
-}
-export type Parent = NonNullable<Awaited<ReturnType<typeof fetchParents>>['mother']>;
-
-export async function fetchOffspring(individualId: number) {
-  const { data } = await supabase()
-    .from('individuals')
-    .select('id, entity_id, primary_designation, sex, born_earliest, born_latest, life_status, nicknames (name, status)')
-    .or(`mother_id.eq.${individualId},father_id.eq.${individualId}`)
-    .order('born_earliest', { ascending: true, nullsFirst: true })
-    .throwOnError();
-  return data;
-}
-export type Offspring = Awaited<ReturnType<typeof fetchOffspring>>[number];
+// What an individual's page shows of it (decision 057): its row, its designations and
+// their authorities, and its nicknames with their namers. Nickname facts only: a story is
+// withheld (rights policy D-21).
+export type IndividualProfile = Individual & {
+  designations: { code: string; scheme: DesignationScheme; is_primary: boolean; status: DesignationStatus;
+    in_catalog: boolean; authority: Party | null }[];
+  nicknames: Nickname[];
+};
+export type Parent = Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'life_status'> & { nicknames: NicknameBrief[] };
+export type Offspring = Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'sex' | 'born_earliest' | 'born_latest' | 'life_status'>
+  & { nicknames: NicknameBrief[] };
 
 // A group row plus what a page needs to link its anchor individual: the
 // register identifier that keys the individual's URL (decision 034).
@@ -353,104 +272,14 @@ export type CatalogGroup = SocialGroup & {
   anchor: { entity_id: string | null; primary_designation: string } | null;
 };
 
-// The whole catalog's group graph is a few hundred small rows — fetch it once
-// and resolve pod/ecotype chains client-side instead of walking FKs per hop.
-// The rows are ours; which one sits inside which is the register's (051).
-export async function fetchAllGroups(): Promise<Map<number, CatalogGroup>> {
-  const [{ data: groups }, { data: parents }] = await Promise.all([
-    supabase()
-      .from('social_groups')
-      .select('*, anchor:individuals!anchor_individual_id (entity_id, primary_designation)')
-      .throwOnError(),
-    supabase()
-      .from('group_parents')
-      .select('group_id, parent_group_id')
-      .throwOnError(),
-  ]);
-  const parentOf = new Map(parents.map(p => [p.group_id, p.parent_group_id]));
-  return new Map(groups.map(group => [group.id, { ...group, parent_group_id: parentOf.get(group.id) ?? null }]));
-}
-
-// Every animal in a matriline as the register says it (migration 20260923010000): the
-// matriarch and all her descendants, sub-lineages included, dead or alive. Each carries
-// her innermost matriline, which is how a page groups them by sub-lineage.
-//
-// Two reads rather than an embed: PostgREST cannot follow matriline_members to
-// individuals, because the view's individual_id is a primary key it projects, not a
-// foreign key, and PostgREST infers view relationships from foreign keys alone.
-export async function fetchGroupMembers(groupId: number) {
-  const { data: rows } = await supabase()
-    .from('matriline_members')
-    .select('individual_id, innermost_group_id')
-    .eq('group_id', groupId)
-    .throwOnError();
-  const ids = rows.map(r => r.individual_id).filter((id): id is number => id !== null);
-  if (!ids.length) return [];
-  const { data: individuals } = await supabase()
-    .from('individuals')
-    .select('id, entity_id, primary_designation, sex, born_earliest, life_status, nicknames (name, status)')
-    .in('id', ids)
-    .throwOnError();
-  const byId = new Map(individuals.map(i => [i.id, i]));
-  return rows.flatMap(({ individual_id, innermost_group_id }) => {
-    const individual = individual_id !== null ? byId.get(individual_id) : undefined;
-    return individual ? [{ innermost_group_id, individual }] : [];
-  });
-}
-
-// An animal's narrowest matriline: a matriarch's own, not her mother's, though
-// the register counts her in both. null for an animal in no matriline.
-export async function fetchInnermostMatrilineId(individualId: number): Promise<number | null> {
-  const { data } = await supabase()
-    .from('matriline_members')
-    .select('innermost_group_id')
-    .eq('individual_id', individualId)
-    .limit(1)
-    .maybeSingle()
-    .throwOnError();
-  return data?.innermost_group_id ?? null;
-}
-export type GroupMember = Awaited<ReturnType<typeof fetchGroupMembers>>[number];
-
-// The occurrence-view slice every page yields; the three views are all
-// structurally OccurrenceRow (group/ecotype rows just omit via_group).
-type OccurrencePage = {
-  range(from: number, to: number): {
-    throwOnError(): PromiseLike<{ data: OccurrenceRow[] }>;
-  };
+// An animal in a matriline as the register says it: the matriarch and all her
+// descendants, sub-lineages included, dead or alive. Each carries her innermost
+// matriline, which is how a page groups them by sub-lineage.
+export type GroupMember = {
+  innermost_group_id: number | null;
+  individual: Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'sex' | 'born_earliest' | 'life_status'>
+    & { nicknames: NicknameBrief[] };
 };
-
-// PostgREST caps a single response at max_rows (1000). Page through so a subject
-// with more reports than the cap (a busy matriline, or the whole ecotype) isn't
-// silently truncated. `build` makes a fresh filtered query per page — a
-// PostgREST builder is single-use — and is fully type-checked at each call site.
-async function pageOccurrences(build: () => OccurrencePage): Promise<OccurrenceRow[]> {
-  const PAGE = 1000;
-  const rows: OccurrenceRow[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data } = await build().range(from, from + PAGE - 1).throwOnError();
-    rows.push(...data);
-    if (data.length < PAGE) break;
-  }
-  return rows;
-}
-
-export async function fetchOccurrenceLinks(individualId: number): Promise<OccurrenceLink[]> {
-  return dedupeOccurrenceLinks(await pageOccurrences(() => supabase()
-    .from('individual_occurrences')
-    .select()
-    .eq('individual_id', individualId)
-    .order('occurrence_id', { ascending: true })));
-}
-
-// The !anchor_individual_id hint disambiguates the embed: social_groups
-// reaches individuals both through the anchor FK and through membership.
-// Nickname facts only — story is access-restricted (D-21).
-const MATRILINE_SELECT = `
-  *,
-  nicknames (name, theme, status, named_year, namer:parties (name, url)),
-  anchor:individuals!anchor_individual_id (id, entity_id, primary_designation, life_status, nicknames (name, status))
-` as const;
 
 // A matriline by register identifier, or by designation as a legacy link or a
 // person writes it: the matriarch's code (T065A, /matrilines/T065A before 034)
@@ -462,56 +291,14 @@ export function matrilineDesignation(typed: string): string {
   return fold(typed).replace(/s$/, '');
 }
 
-export async function fetchMatriline(key: ProfileKey) {
-  let query = supabase()
-    .from('social_groups')
-    .select(MATRILINE_SELECT)
-    .eq('kind', 'matriline');
-  query = key.kind === 'entity'
-    ? query.eq('entity_id', key.entityId)
-    : query.eq('designation_folded', matrilineDesignation(key.designation));
-  const { data } = await query.limit(1).maybeSingle().throwOnError();
-  return data;
-}
-export type MatrilineProfile = NonNullable<Awaited<ReturnType<typeof fetchMatriline>>>;
-
-export async function fetchGroupOccurrenceLinks(groupId: number): Promise<OccurrenceLink[]> {
-  return dedupeOccurrenceLinks(await pageOccurrences(() => supabase()
-    .from('group_occurrences')
-    .select()
-    .eq('social_group_id', groupId)
-    .order('occurrence_id', { ascending: true })));
-}
-
-// An ecotype has no anchor individual and no group nicknames today, but the
-// select mirrors the matriline shape so the masthead can grow. Facts only (D-21).
-const ECOTYPE_SELECT = `
-  *,
-  nicknames (name, theme, status, named_year, namer:parties (name, url))
-` as const;
-
-export async function fetchEcotype(key: ProfileKey) {
-  let query = supabase()
-    .from('social_groups')
-    .select(ECOTYPE_SELECT)
-    .in('kind', POPULATION_KINDS);
-  query = key.kind === 'entity'
-    ? query.eq('entity_id', key.entityId)
-    : query.eq('designation_folded', fold(key.designation));
-  const { data } = await query.limit(1).maybeSingle().throwOnError();
-  return data;
-}
-export type EcotypeProfile = NonNullable<Awaited<ReturnType<typeof fetchEcotype>>>;
-
-// The ecotype's sighting record is the union of every descendant's reports
-// (see docs/decisions/017); one filter on ecotype_id, deduped per occurrence.
-export async function fetchEcotypeOccurrenceLinks(ecotypeId: number): Promise<OccurrenceLink[]> {
-  return dedupeOccurrenceLinks(await pageOccurrences(() => supabase()
-    .from('ecotype_occurrences')
-    .select()
-    .eq('ecotype_id', ecotypeId)
-    .order('occurrence_id', { ascending: true })));
-}
+// What a matriline's page shows of it: the group, its nicknames, and its anchor.
+export type MatrilineProfile = SocialGroupRow & {
+  nicknames: Nickname[];
+  anchor: (Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'life_status'> & { nicknames: NicknameBrief[] }) | null;
+};
+// A population has no anchor individual and no group nicknames today, but the shape
+// mirrors the matriline's so the masthead can grow. Facts only (D-21).
+export type EcotypeProfile = SocialGroupRow & { nicknames: Nickname[] };
 
 // The matrilines that descend from an ecotype, sorted A–Z — for the ecotype
 // page's directory. Tree-scoped (via groupChain), so a future second ecotype
@@ -535,8 +322,38 @@ export function displayName(nicknames: { name: string; status: string | null }[]
 // A site's key is its own integer id, not a register identifier — the
 // register holds animals, not places — so the path helpers are separate.
 
-export type Haulout = PublicSchema['Tables']['haulouts']['Row'];
-export type HauloutOccurrence = PublicSchema['Views']['haulout_occurrences']['Row'];
+export type Haulout = {
+  id: number;
+  name: string;
+  location: MaybeLonLat;
+  radius_m: number;
+  region: string | null;
+  story: string | null;
+  verified: boolean;
+  created_at: string;
+  atlas_code: string | null;
+  atlas_count: string | null;
+  atlas_description: string | null;
+  atlas_species: string[] | null;
+  atlas_tidal_use: string | null;
+};
+// One report the build attributed to a site, in the columns Postgres's
+// haulout_occurrences view had.
+export type HauloutOccurrence = {
+  haulout_id: number | null;
+  occurrence_id: string | null;
+  observed_at: string | null;
+  location: MaybeLonLat | null;
+  accuracy: number | null;
+  distance_m: number | null;
+  taxon: { scientific_name: string | null; vernacular_name: string | null; species_id: number | null; entity_id: string | null } | null;
+  species_name: string | null;
+  photos: { src: string | null; thumb: string | null; attribution: string | null; mimetype: string | null; license: string | null }[] | null;
+  url: string | null;
+  attribution: string | null;
+  observer: string | null;
+  body: string | null;
+};
 
 // A report the haulout_occurrences view attributed to a site, with the fields
 // the page relies on guaranteed present.
@@ -569,23 +386,6 @@ export function hauloutPath(site: Pick<Haulout, 'id' | 'name'>): string {
   return `/haulouts/${site.id}${slug ? `/${slug}` : ''}`;
 }
 
-// /haulouts/<id>[/<slug>][/]. Only the id is read; a non-numeric first segment
-// names nothing, since sites have no designation to fall back on.
-export function parseHauloutPath(pathname: string): number | null {
-  const match = pathname.match(/^\/haulouts\/(\d{1,9})(?:\/[^/]*)?\/?$/);
-  return match ? Number(match[1]) : null;
-}
-
-export async function fetchHaulout(id: number): Promise<Haulout | null> {
-  const { data } = await supabase().from('haulouts').select().eq('id', id).maybeSingle().throwOnError();
-  return data;
-}
-
-export async function fetchAllHaulouts(): Promise<Haulout[]> {
-  const { data } = await supabase().from('haulouts').select().order('id').throwOnError();
-  return data;
-}
-
 // What the main map's haul-out layer draws of each site (GH #453): where it is,
 // how far its reports reach, and enough to name it and link to its page.
 export type HauloutSite = Pick<Haulout, 'id' | 'name' | 'location' | 'radius_m'>;
@@ -593,30 +393,9 @@ export type HauloutSite = Pick<Haulout, 'id' | 'name' | 'location' | 'radius_m'>
 export const hauloutSite = ({id, name, location, radius_m}: HauloutSite): HauloutSite => ({id, name, location, radius_m});
 
 // The file the read-path build writes the sites into, beside their pages
-// (scripts/read-path/profiles.ts), and the map reads them from under
-// VITE_READ_SOURCE=static.
+// (scripts/read-path/profiles.ts), and the map reads them from.
 export const HAULOUT_SITES_FILE = 'sites.json';
 
-export async function fetchHauloutSites(): Promise<HauloutSite[]> {
-  const { data } = await supabase().from('haulouts').select('id, name, location, radius_m').order('id').throwOnError();
-  return data;
-}
-
-// Newest first, then by occurrence, so two reports of the same moment don't fall
-// to row order (decision 057). The view's location is never null (it is what the
-// join is on), but the generated type cannot know that.
-export async function fetchHauloutReports(hauloutId: number): Promise<HauloutReport[]> {
-  const { data } = await supabase()
-    .from('haulout_occurrences')
-    .select()
-    .eq('haulout_id', hauloutId)
-    .order('observed_at', { ascending: false })
-    .order('occurrence_id', { ascending: true })
-    .throwOnError();
-  return data.flatMap(hauloutReport);
-}
-
-/** A haulout_occurrences row as the page's report, or nothing if it lacks what the page needs. */
 export function hauloutReport(row: HauloutOccurrence): HauloutReport[] {
   if (!row.occurrence_id || !row.observed_at || row.haulout_id === null || row.distance_m === null) return [];
   const location = row.location?.lon != null && row.location?.lat != null
