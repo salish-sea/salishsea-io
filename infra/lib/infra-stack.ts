@@ -15,8 +15,6 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 const ACCOUNT_ID = '648183724555';
-// Baked into the edge bundle at synth (not read at runtime from anywhere)
-const SUPABASE_URL = 'https://grztmjpzamcxlzecmqca.supabase.co';
 
 /**
  * Read the stub opt-in from CDK context.
@@ -54,8 +52,7 @@ export function cardRendererSource(bundleExists: boolean, stubAllowed: boolean):
  * while writing the asset test (salish-7iu). `Code.fromAsset` points at the
  * handler's SOURCE directory and excludes `*.ts`, so on a tree where `tsc` has
  * not run there is no `index.js` to ship — and the asset still stages happily,
- * carrying only the `config.js` that this file generates at synth time. CDK does
- * not mind. CloudFront does not mind. Every viewer request then hits a
+ * empty. CDK does not mind. CloudFront does not mind. Every viewer request then hits a
  * Lambda@Edge function with no handler.
  *
  * Unlike the card renderer there is no stub worth deploying: a viewer-request
@@ -121,19 +118,6 @@ export class InfraStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    // Bake Supabase config into the edge bundle at synth time. Lambda@Edge
-    // forbids environment variables, and neither value is secret — the anon key
-    // ships in every browser bundle. Overwrites the tsc-compiled config.js
-    // placeholder; a synth without --context supabaseAnonKey (unit tests) bakes
-    // an empty key, which the handler treats as fail-open.
-    const supabaseAnonKey = this.node.tryGetContext('supabaseAnonKey') ?? '';
-    fs.writeFileSync(
-      path.join(__dirname, 'edge-handler', 'config.js'),
-      '// Generated at synth by infra-stack.ts — do not edit.\n' +
-      `module.exports = { SUPABASE_URL: ${JSON.stringify(SUPABASE_URL)}, ` +
-      `SUPABASE_ANON_KEY: ${JSON.stringify(supabaseAnonKey)} };\n`,
-    );
-
     // Lambda@Edge function — automatically provisioned in us-east-1 regardless of stack region
     assertEdgeHandlerBuilt(fs.existsSync(path.join(__dirname, 'edge-handler', 'index.js')));
     const ogFunction = new cloudfront.experimental.EdgeFunction(this, 'OgMetaFunction', {
@@ -180,9 +164,6 @@ export class InfraStack extends cdk.Stack {
       // host should still produce a card rather than a 500.
       timeout: cdk.Duration.seconds(15),
       environment: {
-        SUPABASE_URL,
-        // Same value the browser bundle ships; not a secret.
-        SUPABASE_ANON_KEY: supabaseAnonKey,
         // The Lambda image ships no fonts, so librsvg draws every glyph as a
         // .notdef box while still returning a valid JPEG — invisible to any
         // check that doesn't look at the picture. Point fontconfig at the fonts
@@ -335,11 +316,11 @@ export class InfraStack extends cdk.Stack {
     // No origin in the site bucket any more (decision 061, salish-xv35.9): since
     // 2026-10-03 the Fly app serves the site, and since 2026-10-04 the Darwin Core
     // archive too, so nothing CloudFront answers comes from the salishsea-io bucket.
-    // (Users' photos are a different bucket, above.) The deploy workflow still
-    // syncs the Supabase-mode site into it, and the last nightly archive is still there,
-    // but a behavior pointed back at the bucket would be a DEGRADED fallback, not a
-    // rollback: that site reads a Postgres that stopped following two of the three
-    // sources on 2026-10-04. The rollback is a Fly image — docs/runbook/deploys.md.
+    // (Users' photos are a different bucket, above.) The last Supabase-mode site and
+    // nightly archive are still in it, but a behavior pointed back at the bucket would
+    // be a DEGRADED fallback, not a rollback: that site reads a Postgres that stopped
+    // following two of the three sources on 2026-10-04 and every write since 2026-10-05.
+    // The rollback is a Fly image — docs/runbook/deploys.md.
     // The origin's code is in git (#555, and the change that removed /dwca/*).
 
     // The Fly app (decision 056): the site built to read static files, the files the

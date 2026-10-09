@@ -66,7 +66,7 @@ describe('assertEdgeHandlerBuilt', () => {
 
   it('refuses a synth that would ship an edge function with no handler', () => {
     // Found while writing the asset test below: on an unbuilt tree the asset
-    // stages cleanly with only the generated config.js in it, and nothing —
+    // stages cleanly with nothing in it, and nothing —
     // CDK, CloudFormation, CloudFront — objects until a viewer request arrives.
     expect(() => assertEdgeHandlerBuilt(false)).toThrow(/pnpm run build/);
   });
@@ -94,18 +94,18 @@ describe('the edge-handler asset carries only the runtime', () => {
       .filter((n) => n.startsWith('asset.'))
       .map((n) => path.join(outdir, n))
       .map((dir) => walk(dir).map((f) => path.relative(dir, f)));
-    const edge = staged.find((f) => f.includes('index.js') && f.includes('config.js'));
+    const edge = staged.find((f) => f.includes('index.js') && !f.includes('handler.js'));
     if (!edge) throw new Error(`no edge-handler asset staged; saw ${JSON.stringify(staged.map(f => f.slice(0, 3)))}`);
     files = edge;
 
     const dir = fs.readdirSync(outdir).filter((n) => n.startsWith('asset.'))
       .map((n) => path.join(outdir, n))
-      .find((d) => fs.existsSync(path.join(d, 'index.js')) && fs.existsSync(path.join(d, 'config.js')))!;
+      .find((d) => fs.existsSync(path.join(d, 'index.js')) && !fs.existsSync(path.join(d, 'handler.js')))!;
     bytes = files.reduce((sum, f) => sum + fs.statSync(path.join(dir, f)).size, 0);
   });
 
-  it('is exactly the handler and its baked config', () => {
-    expect(files.sort()).toEqual(['config.js', 'index.js']);
+  it('is exactly the handler', () => {
+    expect(files).toEqual(['index.js']);
   });
 
   it('carries no test file and no TypeScript source', () => {
@@ -374,11 +374,5 @@ describe('InfraStack', () => {
       });
     });
 
-    it('gives the renderer the Supabase config it reads at runtime', () => {
-      template.hasResourceProperties('AWS::Lambda::Function', {
-        Handler: 'handler.handler',
-        Environment: { Variables: Match.objectLike({ SUPABASE_URL: Match.anyValue() }) },
-      });
-    });
   });
 });

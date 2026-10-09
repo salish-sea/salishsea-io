@@ -159,13 +159,11 @@ jobs:
       - name: Deploy CDK infra (CloudFront + Lambda@Edge)
         working-directory: infra
         env:
-          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
           EDGE_SECRET: ${{ secrets.EDGE_SECRET }}
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
           pnpm exec cdk deploy --all --require-approval never \
-            --context "supabaseAnonKey=${SUPABASE_ANON_KEY}" \
             --context "edgeSecret=${EDGE_SECRET}"
 
   # The Fly app: the site people see, the read-path build and the write API (decisions
