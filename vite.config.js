@@ -27,8 +27,7 @@ function releaseSha() {
 // page loads up front, by npm package name; null leaves it to Rolldown. Exported
 // for vite-config.test.ts.
 export const VENDOR_CHUNKS = [
-  ['vendor-sentry', name => name.startsWith('@sentry/') || name === '@supabase/sentry-js-integration'],
-  ['vendor-supabase', name => name.startsWith('@supabase/')],
+  ['vendor-sentry', name => name.startsWith('@sentry/')],
   ['vendor-ol', name => ['ol', 'rbush', 'quickselect'].includes(name)],
   ['vendor-lit', name => ['lit', 'lit-html', 'lit-element'].includes(name) || name.startsWith('@lit/')],
   ['vendor-form', name => name.startsWith('@tanstack/')],
@@ -46,23 +45,47 @@ export function vendorChunk(id) {
   return VENDOR_CHUNKS.find(([, matches]) => matches(name))?.[0] ?? null;
 }
 
-// One path segment after the prefix, or two for the identifier-plus-slug
-// shape of decision 034 (/individuals/0010193/T065A) — the page's own
-// module/asset requests resolve elsewhere and must not be swallowed by the
-// rewrite. No redirects here: the page canonicalises its own address.
-const PROFILE_REWRITES = [
-  [/^\/individuals\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/individual.html'],
-  [/^\/matrilines\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/matriline.html'],
-  [/^\/populations\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/ecotype.html'],
-  [/^\/haulouts\/[^/]+(\/[^/]*)?\/?(\?.*)?$/, '/haulout.html'],
-  [/^\/whales\/?(\?.*)?$/, '/whales.html'],
-];
-
-function profilePagesRewrite(req, _res, next) {
-  const rewrite = PROFILE_REWRITES.find(([re]) => re.test(req.url ?? ''));
-  if (rewrite) req.url = rewrite[1];
+// The whales page's shell, client-rendered until the build has written the page.
+function whalesRewrite(req, _res, next) {
+  if (/^\/whales\/?(\?.*)?$/.test(req.url ?? '')) req.url = '/whales.html';
   next();
 }
+
+// A profile page in development (salish-9uu.10): the page the read-path build
+// prerendered, from the export directory READ_PATH_DIR names, as Caddy serves it in
+// production (fly/Caddyfile). Its islands load from the source rather than the build's
+// hashed files, which this server doesn't have. A page the build hasn't written, or a
+// path no build writes — a designation, which the redirect server answers in
+// production — is the not-published page. The shells are the build's templates, not
+// pages: there is nothing to client-render.
+const PROFILE_PAGE_RE = /^\/(individuals|matrilines|populations|pods|haulouts)\/(\d{1,9})(\/[^/?]*)?\/?(\?.*)?$/;
+const PROFILE_FAMILY_RE = /^\/(individuals|matrilines|populations|pods|haulouts)(\/|$)/;
+
+export function devProfilePage(html) {
+  return html
+    .replace(/<script type="module" crossorigin src="\/assets\/(map-island|site-search)-[^"]+\.js"><\/script>/g,
+      '<script type="module" src="/src/$1.ts"></script>')
+    .replace(/\s*<link rel="(modulepreload|stylesheet)" crossorigin href="\/assets\/[^"]+">/g, '')
+    .replace(/\s*upgrade-insecure-requests;?/g, '');
+}
+
+// `fromSource`: in `vite` the islands load from the source; `vite preview` serves the
+// build, whose own hashed files the page may name.
+export const prerenderedProfiles = ({fromSource}) => function prerenderedProfiles(req, res, next) {
+  const url = req.url ?? '';
+  if (!PROFILE_FAMILY_RE.test(url)) return next();
+  const match = url.match(PROFILE_PAGE_RE);
+  const root = process.env.READ_PATH_DIR;
+  const file = match && root && realpathOrNull(resolve(root, 'profiles', match[1], `${match[2]}.html`));
+  if (!file || !statSync(file).isFile()) {
+    req.url = '/not-published.html';
+    return next();
+  }
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  const html = readFileSync(file, 'utf8');
+  res.end(fromSource ? devProfilePage(html) : html.replace(/\s*upgrade-insecure-requests;?/g, ''));
+};
 
 // The read-path build's files (decision 056), served at /read-path/ from a
 // build's export directory when READ_PATH_DIR names one — for developing the
@@ -183,16 +206,15 @@ export default defineConfig({
 
   plugins: [
     {
-      // In production these rewrites live in the CloudFront viewer-request
-      // Lambda@Edge (infra/lib/edge-handler): /individuals/<id>/<slug>,
-      // /matrilines/<id>/<slug>, /populations/<id>/<slug> and /haulouts/<id>/<slug> are client-rendered
-      // pages served from their HTML shells.
-      name: 'profile-pages-rewrite',
+      // In production Caddy routes these (fly/Caddyfile).
+      name: 'profile-pages',
       configureServer(server) {
-        server.middlewares.use(profilePagesRewrite);
+        server.middlewares.use(prerenderedProfiles({fromSource: true}));
+        server.middlewares.use(whalesRewrite);
       },
       configurePreviewServer(server) {
-        server.middlewares.use(profilePagesRewrite);
+        server.middlewares.use(prerenderedProfiles({fromSource: false}));
+        server.middlewares.use(whalesRewrite);
       },
     },
     {

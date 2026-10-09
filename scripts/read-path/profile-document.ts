@@ -6,13 +6,14 @@
  * source, and a change to it reaches the prerendered pages too. Into it go the page's
  * own title, description, link-preview and canonical tags, and in place of the empty
  * custom element, the rendered content as a declarative shadow root: the same styles,
- * applied the same way, as the client-rendered page has, and no script needed to show it.
+ * applied as a client-rendered element would have them, and no script needed to show it.
  *
  * Every substitution must match exactly once. A shell that has changed shape fails
  * the build rather than quietly producing a page with the generic title.
  *
- * The shell's own scripts go: they are the client-rendered page. What a page loads
- * instead is its islands — the map, today — and only if it has one to upgrade.
+ * The shell's own scripts go, if it has any (the whales shell's placeholder; the
+ * profile shells have none, being templates only). What a page loads instead is its
+ * islands — the map and the search, today — and only those it has an element for.
  */
 
 import { render } from '@lit-labs/ssr';
@@ -118,11 +119,12 @@ export function renderDocument(
     html = replaceOnce(html, /<meta property="og:description" content="[^"]*">/,
         `<meta property="og:description" content="${escapeAttr(head.description)}">`, 'og:description meta');
     const content = renderStatic(body);
-    // The shell loads the client-rendered page; a prerendered page loads none of it,
-    // only the islands it has an element for.
+    // A prerendered page loads none of the shell's own scripts, only the islands it has
+    // an element for, at the end of the head.
     const scripts = islands.filter(i => content.includes(`<${i.element}`)).map(i => `\n    ${i.tags}`).join('');
     html = html.replace(/\n\s*<link rel="modulepreload"[^>]*>/g, '');
-    html = replaceOnce(html, /\n\s*<script type="module"[^>]*><\/script>/, scripts, 'module script');
+    html = html.replace(/\n\s*<script type="module"[^>]*><\/script>/g, '');
+    html = replaceOnce(html, /\s*<\/head>/, `${scripts}\n  </head>`, '</head>');
     const css = styles.map(s => s.cssText).join('\n');
     html = replaceOnce(html, new RegExp(`<${element}></${element}>`),
         `<${element}><template shadowrootmode="open"><style>${css}</style>${content}</template></${element}>`,

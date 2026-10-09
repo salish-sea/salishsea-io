@@ -14,7 +14,7 @@ import { DENY_URLS, IGNORE_ERRORS, dropThirdPartyNoise } from './sentry-noise.ts
  * It exists for one failure mode. `denyUrls` and `ignoreErrors` do nothing on
  * their own: they are implemented by `eventFiltersIntegration`, which arrives in
  * Sentry's default integrations, and passing an explicit `integrations` array —
- * as this client does, for `supabaseIntegration` and to leave out
+ * as this client does, to leave out
  * `feedbackIntegration` (decision 039) — replaces the defaults rather than
  * extending them. Drop that one line and both options stay type-correct, stay in
  * the options object, and silently filter nothing, with no error anywhere.

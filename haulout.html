@@ -9,7 +9,7 @@
       style-src 'self' 'unsafe-inline';
       img-src 'self' https: data:;
       font-src 'self';
-      connect-src 'self' %VITE_SUPABASE_URL% %VITE_SUPABASE_WS_URL% https://o4509634382331904.ingest.us.sentry.io;
+      connect-src 'self' https://o4509634382331904.ingest.us.sentry.io;
       object-src 'none';
       media-src 'self';
       worker-src 'self';
@@ -48,7 +48,9 @@
         margin: 0;
       }
     </style>
-    <script type="module" src="/src/haulout-page.ts"></script>
+    <!-- A template, not a page: the read-path build renders each profile into it
+         (scripts/read-path/profile-document.ts), with the page's islands added here.
+         Nothing serves the shell itself (fly/Caddyfile). -->
   </head>
   <body>
     <haulout-page></haulout-page>

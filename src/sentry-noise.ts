@@ -120,10 +120,10 @@ export function isThirdPartyFrame(event: NoiseCandidate): boolean {
  * The `beforeSend` hook: drop the event (return null) or send it unchanged.
  *
  * Deliberately NOT a place to drop network failures. `TypeError: Failed to
- * fetch` and `Load failed` against our Supabase host (SALISHSEA-IO-37, -38,
- * -3B: 24 events, 19 users) look like noise one at a time and are the only
- * signal we have that distinguishes a boat losing cell signal from a Supabase
- * outage or a botched CSP deploy. Volume is the whole message, so the client
+ * fetch` and `Load failed` against our own host (SALISHSEA-IO-37, -38, -3B,
+ * against Supabase when it was the backend: 24 events, 19 users) look like noise
+ * one at a time and are the only signal we have that distinguishes a boat losing
+ * cell signal from an outage of ours or a botched CSP deploy. Volume is the whole message, so the client
  * keeps sending them and Sentry keeps them ignored-until-escalating.
  */
 export function dropThirdPartyNoise<T extends NoiseCandidate>(event: T): T | null {

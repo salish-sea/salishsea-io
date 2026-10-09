@@ -17,7 +17,7 @@ Colour doesn't work here. Seventy of the 132 Bigg's matrilines have been reporte
 - **Static SVG, prerendered with the page; no script.** The basemap is Esri's ocean tiles as `<image>`s, the layer and terms the interactive maps already use (decision 020): the reader's browser fetches them from Esri, as it does for any map here. Every map shares the extent and zoom, so the browser fetches the same dozen tiles once. Reports in the same two-unit cell become one circle, as dark as the overlapping dots would be. For Bigg's this makes the page 37 KB compressed, against 4.5 KB without the maps.
 - **The page states what the maps can't show.** Reports cluster where people watch from, along shorelines and ferry routes, so the note under the heading says to compare the maps with each other rather than read any one as a range.
 
-The client-rendered page, which now runs only in development, still lists the matrilines by name. Drawing the maps there would take a request per matriline.
+The client-rendered page, which now runs only in development, still lists the matrilines by name. Drawing the maps there would take a request per matriline. *(Amended 2026-10-09, `salish-9uu.10`: the client-rendered page is gone; development serves the prerendered page too, maps and all.)*
 
 ## Rejected alternatives
 

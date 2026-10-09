@@ -16,7 +16,6 @@ import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchDayOccurrences, fetchStaticAnimalNames, findOccurrence, NotBuiltYet, pacificDay, watchManifest, withinExtent } from "./read-path.ts";
 import { fetchMe, fetchOwnSightings, fetchPublicSighting, overlayOwn, ownOccurrence, signIn as apiSignIn, signOut as apiSignOut, type Me } from "./write-api.ts";
-import type { PatchedDatabase } from "./types.ts";
 import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
 import './error-toast.ts';
@@ -677,7 +676,7 @@ export default class SalishSea extends LitElement {
     const revision = this.#listRevision;
     const startOfDay = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
     const endOfDay = startOfDay.add({days: 1});
-    type Row = PatchedDatabase['public']['Views']['occurrences']['Row'];
+    type Row = Omit<Occurrence, 'observed_at_ms'>;
     let data;
     try {
       // The day's file (decision 056), the region filter applied to its rows in

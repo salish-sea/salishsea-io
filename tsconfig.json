@@ -24,5 +24,5 @@
     "noUncheckedSideEffectImports": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["src", "database.types.ts", "scripts", "api"]
+  "include": ["src", "scripts", "api"]
 }

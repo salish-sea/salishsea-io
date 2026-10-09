@@ -1,11 +1,9 @@
 /**
  * A haul-out site's page, as templates that render anywhere (decision 057).
  *
- * As src/individual-profile.ts is for an individual: the client-rendered page
- * (src/haulout-page.ts) fills these from Supabase, and the read-path build
- * (scripts/read-path/profiles.ts) from the snapshot. Nothing here touches the
- * window, the document, or the network. The site's story is markdown, rendered
- * by `marked` in either place.
+ * As src/individual-profile.ts is for an individual: the read-path build fills these
+ * from the snapshot (scripts/read-path/profiles.ts). Nothing here touches the window,
+ * the document, or the network. The site's story is markdown, rendered by `marked`.
  */
 
 import { css, html, nothing, type TemplateResult } from 'lit';

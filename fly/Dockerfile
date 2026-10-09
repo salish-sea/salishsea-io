@@ -5,9 +5,6 @@
 # Stelis. The shape is beeatlas's ADR 0042: one machine, one volume.
 #
 # Build args (fly/deploy.sh passes them):
-#   VITE_SUPABASE_URL, VITE_SUPABASE_WS_URL, VITE_SUPABASE_KEY  the public client
-#       config the site is built with; the key is the publishable one every browser
-#       already receives (decision 002)
 #   GITHUB_SHA         the commit, for the release a feedback report names (039) and
 #       the one Sentry's source maps are uploaded under
 #
@@ -31,17 +28,12 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-ARG VITE_SUPABASE_URL
-ARG VITE_SUPABASE_WS_URL
-ARG VITE_SUPABASE_KEY
 ARG GITHUB_SHA
 # Sentry's token, if fly/deploy.sh was given one, as a build secret: the Sentry plugin
 # uploads this bundle's source maps, the bundle production runs. Without it, no upload.
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN \
-    test -n "$VITE_SUPABASE_URL" && test -n "$VITE_SUPABASE_KEY" \
- && if [ -s /run/secrets/SENTRY_AUTH_TOKEN ]; then SENTRY_AUTH_TOKEN="$(cat /run/secrets/SENTRY_AUTH_TOKEN)"; export SENTRY_AUTH_TOKEN; fi \
- && VITE_SUPABASE_URL="$VITE_SUPABASE_URL" VITE_SUPABASE_WS_URL="$VITE_SUPABASE_WS_URL" \
-    VITE_SUPABASE_KEY="$VITE_SUPABASE_KEY" GITHUB_SHA="$GITHUB_SHA" pnpm build
+    if [ -s /run/secrets/SENTRY_AUTH_TOKEN ]; then SENTRY_AUTH_TOKEN="$(cat /run/secrets/SENTRY_AUTH_TOKEN)"; export SENTRY_AUTH_TOKEN; fi \
+ && GITHUB_SHA="$GITHUB_SHA" pnpm build
 
 # --- the machine --------------------------------------------------------------
 FROM debian:bookworm-slim

@@ -11,7 +11,6 @@
     "build": "tsc && vite build && html-validate dist/**/*.html",
     "build:size": "vite build",
     "dev": "vite dev",
-    "gen-types": "supabase gen types --local --schema public --schema graphql_public > database.types.ts",
     "preview": "vite preview",
     "test": "vitest"
   },
@@ -21,9 +20,6 @@
     "@lit/task": "1.0.3",
     "@sentry/browser": "^10.68.0",
     "@sentry/vite-plugin": "^5.4.0",
-    "@supabase/auth-js": "^2.110.8",
-    "@supabase/sentry-js-integration": "^0.3.0",
-    "@supabase/supabase-js": "^2.110.8",
     "@tanstack/lit-form": "^1.25.2",
     "@turf/bearing": "^7.3.5",
     "@turf/distance": "^7.3.5",
@@ -66,7 +62,6 @@
     "supabase": "^2.114.0",
     "supertest": "^7.2.2",
     "tsx": "^4.23.1",
-    "type-fest": "^5.8.0",
     "typescript": "~7.0.2",
     "vitest": "^4.1.10",
     "yazl": "3.3.1"
