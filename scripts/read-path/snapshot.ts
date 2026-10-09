@@ -211,6 +211,9 @@ const ANSWER_TABLES: readonly {table: string, columns: readonly string[]}[] = [
     {table: 'register.classification', columns: [
         'entity_id', 'label', 'taxon_id', 'scientific_name', 'taxon_rank', 'kingdom', 'phylum', 'class',
         '"order"', 'family', 'genus']},
+    // Each taxon's lineage, which the build's own copy has (ingest-register.ts) for the whales
+    // page and for which Orcasound tags imply which (derive/sources.sql, salish-8vr.32).
+    {table: 'register.taxon_ancestor', columns: ['taxon_id', 'ancestor_id', 'depth']},
     // Postgres's own copies of iNaturalist and Orcasound, which it stopped ingesting on
     // 2026-10-04 (salish-xv35.9): the build reads its own mirrors, and the twin test
     // writes mirrors from these to check the twins against Postgres's answer.
