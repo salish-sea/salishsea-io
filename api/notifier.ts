@@ -9,8 +9,8 @@
  * advisory lock. Every fifteen minutes, as the workflow ran, because the digest
  * that bounds a flood at one issue per run counts on runs being that far apart.
  *
- * The store's feedback rows carry on Postgres's ids (copy-from-postgres.ts keeps
- * them, stamps included), so a row's marker never names a row the workflow filed.
+ * The store's feedback rows carried on Postgres's ids when the cutover copied them
+ * (stamps included), so a row's marker never names a row the workflow filed.
  */
 
 import type { DatabaseSync } from 'node:sqlite';

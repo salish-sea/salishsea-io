@@ -12,7 +12,7 @@ The smaller twins' answers (the text extractions, Happywhale's instants, the reg
 
 All of it is synthetic or public. The snapshot was taken (`snapshot.ts --answers`, as of [95c8e13](https://github.com/salish-sea/salishsea-io/blob/95c8e1363b5b42f22c2511161726f275eea35325/scripts/read-path/snapshot.ts)) from a scratch copy of the local database holding, in order:
 
-1. `supabase/ci-seed.sql`: three Maplify sightings and one native one;
+1. [`supabase/ci-seed.sql`](https://github.com/salish-sea/salishsea-io/blob/386d78df1cdac0b39076d0f7f8a55d55df6f7731/supabase/ci-seed.sql): three Maplify sightings and one native one;
 2. register release 2026.10.1, loaded by the [register loader](https://github.com/salish-sea/salishsea-io/blob/5c1497a95301e7cc212e46712705ef5d0f426cec/scripts/register/load.ts);
 3. the Bigg's catalogue, from `data/biggs-ids.tsv` by the [catalogue seed](https://github.com/salish-sea/salishsea-io/blob/37564ef580f84996b42c57b907fcb85029c6f984/scripts/seed/seed-biggs.ts), without the withheld notes and stories (rights policy D-21), which the snapshot never read;
 4. [`seed.sql`](seed.sql): one or two invented rows per source, so every derivation has something to derive;

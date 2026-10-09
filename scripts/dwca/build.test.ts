@@ -1,8 +1,9 @@
 /**
  * DwC-A build pipeline integration test — Phase 06 Plan 06.
  *
- * Writes the archive with `writeArchive` over the live local Supabase Postgres,
- * attached as `pgdb` the way the retired nightly did (salish-9uu.13), then introspects the produced artifacts in `dist/dwca/`. Covers
+ * Writes the archive with `writeArchive` as the read-path build does (scripts/read-path/
+ * dwca.ts's withDwc), over the twin fixture's snapshot and mirrors (salish-9uu.11), then
+ * introspects the produced artifacts in a scratch directory. No database. Covers
  * five of the six DWCA-* requirements automatically:
  *
  *   - DWCA-01: zip exists with the four expected entries; parquet sidecar present.
@@ -17,69 +18,50 @@
  *
  * DWCA-05 is the GBIF validator manual upload — handled by Task 2's checkpoint.
  *
- * GATING: The whole describe block is skipped unless `SUPABASE_DB_URL` is
- * exported in the environment. `vitest.config.ts` calls `loadEnv(mode, ...)`,
- * which sources `.env.local` / `.env.{mode}` files — if a developer puts
- * `SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres`
- * in `.env.local`, the integration suite activates automatically. Otherwise
- * the unit-test suite still runs green on a fresh checkout.
- *
- * SECURITY: The DSN is never logged. We pass it to DuckDB ATTACH via a
- * string-interpolated SQL statement, but never `console.log` it or include it
- * in error messages.
- *
  * Cross-reference: 06-RESEARCH.md §T8 (round-trip parse pattern), §T10
  * (Vitest gating), §T11 (DuckDB parquet introspection); 06-CONTEXT.md F-05
  * (no BOM, tab/newline collapse); 06-VALIDATION.md Per-Task Verification
  * Map (this file populates DWCA-01..04/06).
  */
 
-import { describe, test, expect, beforeAll } from 'vitest';
-import { readFileSync, statSync, existsSync } from 'node:fs';
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
+import { readFileSync, statSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 
 import { DuckDBInstance } from '@duckdb/node-api';
 
 import { writeArchive } from './build.ts';
 import { OCCURRENCE_FIELDS, MULTIMEDIA_FIELDS } from './fields.ts';
+import { mirrorsFromSnapshot } from '../read-path/derive/mirrors-from-snapshot.ts';
+import { withDwc } from '../read-path/dwca.ts';
+import { fixtureSnapshot } from '../read-path/twin-fixture.ts';
 
 // ---------------------------------------------------------------------------
 // Gating + artifact paths
 // ---------------------------------------------------------------------------
 
-const DSN = process.env['SUPABASE_DB_URL'];
-const HAS_DSN = !!DSN;
-
-const DIST = path.resolve(process.cwd(), 'dist/dwca');
+const SCRATCH = mkdtempSync(path.join(tmpdir(), 'dwca-build-'));
+const DIST = path.join(SCRATCH, 'dwca');
 const ZIP = path.join(DIST, 'salishsea-occurrences-v1.zip');
 const PARQUET = path.join(DIST, 'salishsea-occurrences-v1.parquet');
 const OCC_TXT = path.join(DIST, 'occurrence.txt');
 const MM_TXT = path.join(DIST, 'multimedia.txt');
+/** The occurrences writeArchive reports writing: what the Parquet's rows must number. */
+let written = 0;
 
-// When DSN is absent, use describe.skip so every nested test reports as
-// skipped (with a clean reason). When DSN is present, run the suite. This
-// pattern keeps Vitest's exit code at 0 on a fresh checkout while still
-// surfacing each integration test name in the reporter when active.
-const d = HAS_DSN
-    ? describe
-    : describe.skip;
-
-d('writeArchive integration (DWCA-01..04/06; requires SUPABASE_DB_URL)', () => {
+describe('writeArchive integration (DWCA-01..04/06)', () => {
     beforeAll(async () => {
-        // Postgres's dwc views under `pgdb`, the catalog writeArchive reads; the
-        // read-path build supplies the same names from its own derivation.
-        const db = await DuckDBInstance.create(':memory:');
-        const conn = await db.connect();
-        try {
-            await conn.run('INSTALL postgres; LOAD postgres; INSTALL spatial; LOAD spatial;');
-            await conn.run(`ATTACH '${DSN as string}' AS pgdb (TYPE postgres, READ_ONLY)`);
-            await writeArchive(conn, DIST);
-        } finally {
-            conn.closeSync();
-            db.closeSync();
-        }
+        const snapshot = path.join(SCRATCH, 'snapshot.duckdb');
+        await fixtureSnapshot(snapshot);
+        // The reference tables are checked-in files, as in the build (decision 064).
+        execFileSync('node', [path.resolve(__dirname, '../read-path/reference.ts'), snapshot]);
+        const mirrors = await mirrorsFromSnapshot(snapshot, SCRATCH);
+        written = await withDwc(snapshot, mirrors, conn => writeArchive(conn, DIST));
     }, 60_000);
+
+    afterAll(() => rmSync(SCRATCH, {recursive: true, force: true}));
 
     // -----------------------------------------------------------------------
     // DWCA-01: zip + parquet artifacts exist
@@ -227,7 +209,6 @@ d('writeArchive integration (DWCA-01..04/06; requires SUPABASE_DB_URL)', () => {
         const conn = await db.connect();
         try {
             await conn.run('INSTALL spatial; LOAD spatial;');
-            await conn.run('INSTALL postgres; LOAD postgres;');
 
             // (1) GeoParquet kv-metadata. parquet_kv_metadata returns BLOBs;
             // `decode(...)` casts them to VARCHAR (per the §R1 footgun fix in
@@ -270,22 +251,13 @@ d('writeArchive integration (DWCA-01..04/06; requires SUPABASE_DB_URL)', () => {
                 expect(wkt.startsWith('POINT(') || wkt.startsWith('POINT (')).toBe(true);
             }
 
-            // (4) Row-count parity: parquet vs source view. Attach the same
-            // Postgres DSN read-only, then compare counts.
-            await conn.run(
-                `ATTACH '${DSN}' AS pgdb (TYPE postgres, READ_ONLY)`,
-            );
-            const viewCountReader = await conn.runAndReadAll(
-                'SELECT COUNT(*) AS n FROM pgdb.dwc.occurrences',
-            );
+            // (4) Row-count parity: parquet vs the occurrences writeArchive wrote.
             const parquetCountReader = await conn.runAndReadAll(
                 `SELECT COUNT(*) AS n FROM read_parquet('${PARQUET}')`,
             );
-            const viewN = viewCountReader.getRowObjects()[0]!['n'];
             const parquetN = parquetCountReader.getRowObjects()[0]!['n'];
-            const toBig = (v: unknown): bigint =>
-                typeof v === 'bigint' ? v : BigInt(v as number | string);
-            expect(toBig(parquetN)).toBe(toBig(viewN));
+            expect(Number(parquetN)).toBe(written);
+            expect(written).toBeGreaterThan(0);
         } finally {
             conn.closeSync();
         }

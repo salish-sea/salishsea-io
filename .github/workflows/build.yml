@@ -18,11 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      # Both `db start` and `gen types` pull Supabase docker images; ghcr.io
-      # avoids public.ecr.aws's 1-pull/sec anonymous rate limit. This used to
-      # arrive as a setup-cli side effect (supabase/cli#5785).
-      SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,17 +37,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The CLI is the `supabase` devDependency, traceable to package.json. The database
-      # is for the twin tests and Postgres's own, until they retire (salish-9uu.11, .12).
-      - run: pnpm exec supabase db start
-      - name: Apply CI seed fixture
-        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/ci-seed.sql
-
       - run: pnpm run build
+      # No database: the derivations are checked against saved answers (salish-9uu.11).
       - name: Run tests
         run: pnpm test
-        env:
-          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
       # `infra/` is a separate pnpm project with its own lockfile, so it needs
       # its own install — the root one does not reach it.
