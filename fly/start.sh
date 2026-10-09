@@ -43,12 +43,12 @@ unset SESSION_SIGNING_KEY EDGE_SECRET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY FE
 # stopped routing to the machine by now, so waiting would be downtime. A deploy takes the
 # build lock before it stops the machine (fly/deploy.sh); any other stop kills a running
 # build, which the next one repairs.
-caddy_pid='' redirect_pid='' api_pid='' cron_pid='' listen_pid=''
+caddy_pid='' redirect_pid='' api_pid='' cron_pid=''
 # shellcheck disable=SC2329 # invoked by the trap below
 stop() {
     echo "stopping: the write API and Litestream's final sync, then Caddy" >&2
     # shellcheck disable=SC2086 # an empty pid is no argument
-    kill -TERM $cron_pid $listen_pid 2>/dev/null || true
+    kill -TERM $cron_pid 2>/dev/null || true
     if [ -n "$api_pid" ]; then
         kill -TERM "$api_pid" 2>/dev/null || true
         wait "$api_pid" || true
