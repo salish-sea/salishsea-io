@@ -1,38 +1,38 @@
 /**
- * Snapshot what a logged-out visitor reads, from Postgres into a local DuckDB
- * file (salish-t3g.1; the Stelis side is st-ml9 in the stelis repo).
+ * Snapshot what users write, from the write API's SQLite store into a local DuckDB
+ * file (salish-t3g.1, decision 065; the Stelis side is st-ml9 in the stelis repo).
  *
- *   SUPABASE_DB_URL=… node scripts/read-path/snapshot.ts <snapshot.duckdb>
+ *   READ_PATH_STORE=/data/store/salishsea.db node scripts/read-path/snapshot.ts <snapshot.duckdb>
  *
  * This is the ingestion boundary of the read-path build: everything downstream
- * reads the snapshot, never the database, so a build's inputs hold still while
- * it runs and the same snapshot always builds the same files. Stelis runs this
- * on every build and content-addresses what it wrote; when nothing in Postgres
+ * reads the snapshot, never the store, so a build's inputs hold still while it
+ * runs and the same snapshot always builds the same files. Stelis runs this on
+ * every build and content-addresses what it wrote; when nothing in the store
  * changed, the tables digest the same and nothing downstream reruns.
  *
+ * The store holds the native sightings, their photos, the contributors and the
+ * identifications, read as the same four tables, typed, that Postgres's read gave
+ * before the cutover (salish-9uu.3.5), so nothing downstream changed with it.
+ * Since 2026-10-09 (salish-9uu.3.9) that is the only way the build reads them:
+ * Postgres is no longer the way back.
+ *
+ *   SUPABASE_DB_URL=… node scripts/read-path/snapshot.ts --answers <snapshot.duckdb>
+ *
+ * --answers is for the twin tests alone, until they have answers of their own
+ * (salish-9uu.11): it reads a local Postgres — those four tables, and Postgres's
+ * copies of everything else the build reads, and Postgres's own derived answers.
  * It reads two kinds of relation. What the occurrences are derived from is read as
  * typed columns, for the build to derive them itself (decision 061). The catalogue,
- * read only for the twin test now, is serialized BY POSTGRES, with to_jsonb, rather
+ * is serialized BY POSTGRES, with to_jsonb, rather
  * than read column by column: the serializer PostgREST uses, which the shape the
  * pages parse came from, and which catalogue.ts reproduces from the checked-in files.
  *
  * Everything is read in one Postgres transaction, and the snapshot checks that it
- * was. Maplify, iNaturalist and Orcasound come from the build's own mirrors
- * (salish-xv35.9), the reference tables from checked-in files (reference.ts,
- * decision 064), the register from its own release (ingest-register.ts), and the
- * catalogue from checked-in files (catalogue.ts); Postgres's copies of all of those are
- * read only with --answers, which also reads Postgres's own derived occurrences, for
- * checking the derivation's twins against them, which is only fair if both come from the
- * same moment, and Happywhale's frozen tables, which the build reads from a file
- * (happywhale.ts). Without it, what is left is what users write (decision 064).
- *
- * From the cutover (decision 065, salish-9uu.3.5), what users write comes from the
- * write API's SQLite store instead: with READ_PATH_STORE naming it, the snapshot reads
- * the same four tables from a consistent copy of the store, typed as Postgres's arrive,
- * and Postgres is not read at all. Unset, Postgres is read as before, which is the way
- * back for as long as Postgres is kept.
- *
- *   READ_PATH_STORE=/data/store/salishsea.db node scripts/read-path/snapshot.ts <snapshot.duckdb>
+ * was: the twins are only checked fairly if their inputs and Postgres's answers come
+ * from the same moment. In the build, Maplify, iNaturalist and Orcasound come from its
+ * own mirrors (salish-xv35.9), the reference tables and the catalogue from checked-in
+ * files (reference.ts, catalogue.ts, decision 064), the register from its own release
+ * (ingest-register.ts), and Happywhale's frozen tables from a file (happywhale.ts).
  *
  * Reads only. Never writes the DSN to stdout, stderr or the snapshot.
  */
@@ -254,10 +254,16 @@ export async function main(): Promise<void> {
         console.error('usage: snapshot.ts [--answers] <snapshot.duckdb>');
         process.exit(2);
     }
-    const store = process.env['READ_PATH_STORE'];
-    if (store && !answers) return snapshotStore(out, store);
-    const published = answers ? [...PUBLISHED, ...ANSWERS] : [];
-    const derivedFrom = answers ? [...DERIVED_FROM, ...HAPPYWHALE_TABLES, ...ANSWER_TABLES] : DERIVED_FROM;
+    if (!answers) {
+        const store = process.env['READ_PATH_STORE'];
+        if (!store) {
+            console.error('READ_PATH_STORE is not set');
+            process.exit(1);
+        }
+        return snapshotStore(out, store);
+    }
+    const published = [...PUBLISHED, ...ANSWERS];
+    const derivedFrom = [...DERIVED_FROM, ...HAPPYWHALE_TABLES, ...ANSWER_TABLES];
     const dsn = process.env['SUPABASE_DB_URL'];
     if (!dsn) {
         console.error('SUPABASE_DB_URL is not set');
@@ -319,7 +325,7 @@ export async function main(): Promise<void> {
             await read(conn, table, `select ${columns.join(', ')} from ${table}`);
         // Postgres's register, read only here, is not the release `register.edition`
         // names, so that marker goes, and a later ingest-register adopts afresh.
-        if (answers) await conn.run('DROP TABLE IF EXISTS store.register.edition');
+        await conn.run('DROP TABLE IF EXISTS store.register.edition');
         await conn.run('COMMIT');
         await conn.run('DETACH pg');
     } finally {

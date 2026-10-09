@@ -1,19 +1,17 @@
 /**
  * The snapshot from the store (decision 065, salish-9uu.3.5): the derivation must not be
- * able to tell it from the snapshot from Postgres, so these pin the store's tables to the
- * Postgres read's names, types and values.
+ * able to tell it from the snapshot from Postgres, which the twin tests still take, so
+ * this pins the store's tables to the Postgres read's names and types. That the two
+ * agreed row for row on production's data was checked at the cutover and retired with
+ * the way back (salish-9uu.3.9).
  */
-import { execFile } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { promisify } from 'node:util';
 
 import { DuckDBInstance } from '@duckdb/node-api';
-import postgres from 'postgres';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
-import { copyFromPostgres, directQuery } from '../../api/store/copy-from-postgres.ts';
 import { openStore } from '../../api/store/store.ts';
 import { parseSighting, saveSighting } from '../../api/sightings.ts';
 import { me, signIn } from '../../api/users.ts';
@@ -90,63 +88,3 @@ describe('the snapshot from the store', () => {
         expect(Number(taken)).toBeLessThanOrEqual(Date.now());
     });
 });
-
-const DSN = process.env['SUPABASE_DB_URL'];
-
-/**
- * The same rows two ways: copied into a store and snapshotted from it, and snapshotted
- * from Postgres. Every observation, photo and identification agrees; every contributor
- * a sighting names agrees (the store keeps no others).
- */
-describe.skipIf(!DSN)('the snapshot from the store agrees with the snapshot from Postgres (local Supabase)', () => {
-    test('row for row, value for value', async () => {
-        const storeFile = path.join(dir, 'store.db');
-        const sql = postgres(DSN!, {max: 1});
-        try {
-            await sql.begin(async tx => {
-                // the copy needs every sighting's owner to sign in with Google; the seeded one doesn't
-                await tx`INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, created_at, updated_at)
-                         SELECT 'google-' || o.user_uuid, o.user_uuid, '{}'::jsonb, 'google', now(), now()
-                         FROM (SELECT DISTINCT user_uuid FROM public.observations) o
-                         WHERE NOT EXISTS (SELECT 1 FROM auth.identities i WHERE i.user_id = o.user_uuid AND i.provider = 'google')`;
-                const store = openStore(storeFile);
-                await copyFromPostgres(store, directQuery(tx));
-                store.close();
-                throw new RolledBack();
-            }).catch(e => { if (!(e instanceof RolledBack)) throw e; });
-        } finally {
-            await sql.end();
-        }
-        const fromStore = path.join(dir, 'from-store.duckdb');
-        const fromPostgres = path.join(dir, 'from-postgres.duckdb');
-        await snapshotStore(fromStore, storeFile);
-        await promisify(execFile)('node', [path.join(import.meta.dirname, 'snapshot.ts'), fromPostgres], {
-            env: {...process.env, SUPABASE_DB_URL: DSN, READ_PATH_STORE: ''},
-        });
-        expect(await columns(fromStore)).toEqual(await columns(fromPostgres));
-
-        const db = await DuckDBInstance.create(':memory:');
-        const conn = await db.connect();
-        try {
-            await conn.run(`ATTACH '${fromStore}' AS a (READ_ONLY)`);
-            await conn.run(`ATTACH '${fromPostgres}' AS b (READ_ONLY)`);
-            const differ = async (one: string, other: string) =>
-                Number((await conn.runAndReadAll(`SELECT count(*) FROM ((${one}) EXCEPT ALL (${other}))`)).getRows()[0]![0]);
-            for (const table of ['observations', 'observation_photos', 'identifications']) {
-                expect(await differ(`SELECT * FROM a.public.${table}`, `SELECT * FROM b.public.${table}`), `${table}: store but not Postgres`).toBe(0);
-                expect(await differ(`SELECT * FROM b.public.${table}`, `SELECT * FROM a.public.${table}`), `${table}: Postgres but not store`).toBe(0);
-            }
-            const named = (s: string) => `SELECT * FROM ${s}.public.contributors c
-                WHERE c.id IN (SELECT contributor_id FROM ${s}.public.observations)`;
-            expect(await differ(named('a'), named('b'))).toBe(0);
-            expect(await differ(named('b'), named('a'))).toBe(0);
-            const observations = Number((await conn.runAndReadAll('SELECT count(*) FROM b.public.observations')).getRows()[0]![0]);
-            expect(observations).toBeGreaterThan(0);
-        } finally {
-            conn.closeSync();
-            db.closeSync();
-        }
-    });
-});
-
-class RolledBack extends Error {}

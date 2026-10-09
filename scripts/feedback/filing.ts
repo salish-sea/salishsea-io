@@ -6,9 +6,8 @@
  * Idempotent by construction: it claims rows nobody has stamped and stamps each one
  * immediately after its issue is created, so a crash halfway through re-files
  * nothing. Re-running is always safe, but two runs at once are not: both would read
- * the same unstamped rows. Each caller keeps to one at a time (notify.ts with a
- * Postgres advisory lock, api/notifier.ts by running in the one process that owns
- * the store).
+ * the same unstamped rows. api/notifier.ts keeps to one at a time by running in the
+ * one process that owns the store.
  *
  * Never put a reporter's name or email in an issue — see issue.ts for why.
  */

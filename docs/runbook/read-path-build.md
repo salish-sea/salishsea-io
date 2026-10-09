@@ -10,12 +10,7 @@ Every five minutes (`fly/crontab`) `fly/build.sh` takes `/data/build.lock` and r
 
 [Decision 065](../decisions/065-the-store-and-write-api.md)'s service, `api/server.ts`, has taken what users write since the cutover (2026-10-05): sign-in, sightings, photos and feedback, in the store at `/data/store/salishsea.db`. `fly/start.sh` starts it when the machine's environment sets `API_ENABLED` (`fly.toml` does), under Litestream (below), and restarts it after a pause if it exits, while Caddy keeps serving. Caddy routes `/api/*` to it, on the Fly app's own address and through salishsea.io's `/api/*` CloudFront behavior alike.
 
-**What the build reads users' writes from.** Until the cutover, the snapshot reads the native sightings, their photos, contributors and identifications from Postgres, and the change listener builds after each Supabase Realtime signal. `READ_PATH_STORE=/data/store/salishsea.db` in the machine's environment switches both: the snapshot reads those tables from a consistent copy of the store instead (`scripts/read-path/snapshot.ts`, typed as Postgres's arrive, so nothing downstream can tell), Postgres is not read, and the listener is not started, since the API wakes the build after each write. Clearing it switches back, which is the way back for as long as Postgres is kept, with one condition: Postgres is read-only from the cutover, so a sighting saved through the API since then is in the store alone, and a build from Postgres leaves it off the map. Switch back only before anyone has saved one, or after copying what they saved back into Postgres:
-
-```sh
-fly machine update 82973dc7675348 -a salishsea-io --env READ_PATH_STORE=/data/store/salishsea.db -y   # the store
-fly machine update 82973dc7675348 -a salishsea-io --env READ_PATH_STORE= -y                            # Postgres
-```
+**What the build reads users' writes from.** The snapshot reads the native sightings, their photos, contributors and identifications from a consistent copy of the store (`scripts/read-path/snapshot.ts`, typed as Postgres's arrived, so nothing downstream changed at the cutover), named by `READ_PATH_STORE=/data/store/salishsea.db` in `fly.toml`. The API wakes the build after each write. There is no way back to Postgres: it was kept read-only from the cutover and given up on 2026-10-09 (`salish-9uu.3.9`), and the snapshot refuses to run without `READ_PATH_STORE`.
 
 Set it only with `API_ENABLED`: without the API nothing writes the store, and a missing store fails the snapshot, so the build stops (loudly) rather than publish a map without native sightings.
 
@@ -61,27 +56,7 @@ Its secrets are Fly secrets. `fly/start.sh` takes them out of the environment be
 
 ### The cutover, once (salish-9uu.3.8)
 
-Supabase stops taking writes first: from 2026-10-05 the project is restricted for going over its egress quota, which blocks every API write. Otherwise, revoke the write grants. Then:
-
-1. **The store, from Postgres:** `node api/store/copy-from-postgres.ts /tmp/salishsea.db --linked grztmjpzamcxlzecmqca`, from a laptop with the Supabase CLI linked.
-2. **The photos:** [`api/store/move-photos.ts`](../../api/store/move-photos.ts) plans each Supabase-kept photo's move from the nightly backup's mirror (`s3://salishsea-io-backups/media/`) to its place in the photo bucket, and then rewrites the store's URLs:
-
-   ```sh
-   node api/store/move-photos.ts /tmp/salishsea.db plan > /tmp/moves.tsv
-   # the URLs are rewritten only if every copy succeeded (a subshell, so a failure ends it, not the terminal)
-   (
-     while IFS=$'\t' read -r from to type; do
-       aws s3 cp --profile orcasound "s3://salishsea-io-backups/$from" "s3://salishsea-io-media/$to" \
-         --content-type "$type" --cache-control max-age=259200 --metadata-directive REPLACE --only-show-errors \
-         || { echo "copy failed: $from" >&2; exit 1; }
-     done < /tmp/moves.tsv
-   ) && node api/store/move-photos.ts /tmp/salishsea.db rewrite
-   ```
-
-   Every photo the store names must then answer 200 at its `salishsea.io/media/` URL.
-3. **The store onto the volume**, in maintenance mode: `fly ssh sftp shell` to put it at `/data/store/salishsea.db`, then `chown app:app` it.
-4. **The switch, in one deploy:** `SESSION_SIGNING_KEY` set (`openssl rand -base64 32`); `fly.toml`'s `[env]` gains `API_ENABLED = "1"` and `READ_PATH_STORE = "/data/store/salishsea.db"`; the Dockerfile's `VITE_WRITE_SOURCE` becomes `api`. Maintenance mode is left as the deploy restarts the machine. Litestream finds the store present and starts replicating it.
-5. **Verify:** the build's snapshot says `(from the store)`; the restore drill passes; someone signs in, saves, edits, deletes, uploads a photo and sends feedback.
+Done on 2026-10-05: Supabase's writes frozen, the store copied from Postgres, the photos moved to S3, the site switched. The procedure is in this runbook's [last version that carried it](https://github.com/salish-sea/salishsea-io/blob/37564ef580f84996b42c57b907fcb85029c6f984/docs/runbook/read-path-build.md#the-cutover-once-salish-9uu38), and what happened in bd `salish-9uu.3.8`.
 
 ## The store's replica: Litestream
 
