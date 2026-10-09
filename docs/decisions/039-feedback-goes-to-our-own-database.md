@@ -20,7 +20,7 @@ Sentry has zero events from that session, so we cannot say which cause it was. T
 
 ## Decision
 
-**Feedback posts to our own Supabase.** [`public.feedback`](../../supabase/migrations/20260909180000_feedback.sql) plus a `submit_feedback` RPC, reached through the same client the map already uses. If the app works at all, feedback can be sent. Anyone may insert; nobody may read — there is no SELECT policy and no SELECT grant, because a report carries a name, an email and whatever the person chose to type.
+**Feedback posts to our own Supabase.** [`public.feedback`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260909180000_feedback.sql) plus a `submit_feedback` RPC, reached through the same client the map already uses. If the app works at all, feedback can be sent. Anyone may insert; nobody may read — there is no SELECT policy and no SELECT grant, because a report carries a name, an email and whatever the person chose to type.
 
 The RLS check is on `user_uuid`, not `true`. `submit_feedback` stamps it from `auth.uid()`, but the INSERT grant also permits a direct insert, and with `WITH CHECK (true)` a signed-out client could post a row carrying someone else's uuid and have it read as "from a signed-in contributor". Requiring it to match the caller makes the stamp true however the row arrives.
 

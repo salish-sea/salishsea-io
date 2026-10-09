@@ -4,7 +4,7 @@
 
 ## Decision
 
-**Killer whales range-wide, everything else the Salish Sea — now for iNaturalist too.** A record is in scope if it sits under the genus *Orcinus*, or inside `salishSeaExtent` `[-126, 47, -122, 50.5]`. The rule is enforced at ingest in `isIngestable` ([scripts/ingest/inaturalist.ts](../../scripts/ingest/inaturalist.ts)), beside the same-named predicate the Maplify ingest has had since [036](036-ingest-scope-killer-whales-range-wide.md), and the 51,637 out-of-scope rows already held were purged in one pass ([migration 20260918210000](../../supabase/migrations/20260918210000_purge_out_of_scope_inaturalist.sql)).
+**Killer whales range-wide, everything else the Salish Sea — now for iNaturalist too.** A record is in scope if it sits under the genus *Orcinus*, or inside `salishSeaExtent` `[-126, 47, -122, 50.5]`. The rule is enforced at ingest in `isIngestable` ([scripts/ingest/inaturalist.ts](../../scripts/ingest/inaturalist.ts)), beside the same-named predicate the Maplify ingest has had since [036](036-ingest-scope-killer-whales-range-wide.md), and the 51,637 out-of-scope rows already held were purged in one pass ([migration 20260918210000](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260918210000_purge_out_of_scope_inaturalist.sql)).
 
 The fetch box does not change. It stays `acartiaExtent` `[-136, 36, -120, 54]` — the southern end of the Southern Resident range, which is the whole reason it reaches California.
 

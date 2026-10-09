@@ -68,7 +68,7 @@ export function assertEdgeHandlerBuilt(handlerExists: boolean): void {
   );
 }
 
-/** Kept in step with `.github/workflows/db-restore-verify.yml` by a test. */
+/** Holds the Postgres backups, the final one among them (final/postgres-2026-10-09/, salish-9uu.14). */
 export const BACKUP_BUCKET_NAME = 'salishsea-io-backups';
 
 /**
@@ -204,11 +204,11 @@ export class InfraStack extends cdk.Stack {
     // the same accident it exists to survive; RETAIN because a stack teardown
     // must not take the backups with it.
     const backupBucket = new s3.Bucket(this, 'BackupBucket', {
-      // Named explicitly, and not left to CloudFormation, so the workflow that
-      // writes here does not need a generated name plumbed through a repository
-      // variable — which would have to be set by hand after the first deploy,
-      // i.e. exactly when nobody is watching. `backup-bucket-name.test.ts`
-      // fails if this and the workflow's literal drift apart.
+      // Named explicitly, and not left to CloudFormation, so the workflows that
+      // wrote here needed no generated name plumbed through a repository variable.
+      // Nothing writes here now. It keeps the Postgres backups: the nightly ones
+      // under db/ age out by the rule below, and the final dump, taken before the
+      // project was retired, is under final/, which no rule expires (salish-9uu.14).
       bucketName: BACKUP_BUCKET_NAME,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       enforceSSL: true,

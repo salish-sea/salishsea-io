@@ -1,6 +1,6 @@
 -- The profile pages' links to sightings, derived in the build (decision 061,
 -- salish-xv35.13): DuckDB twins of the four Postgres views a page reads to place its
--- subject's sightings, as supabase/migrations/20260928120000_occurrences_stored.sql
+-- subject's sightings, as supabase/migrations/20260928120000_occurrences_stored.sql@6898775
 -- (group_, individual_ and ecotype_occurrences) and 20260919010000_haulouts.sql
 -- (haulout_occurrences) last define them, and of public.acoustic_identifications, which
 -- three of them read.

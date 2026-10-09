@@ -1,4 +1,4 @@
--- The first half of public.haulout_occurrences (supabase/migrations/20260919010000_haulouts.sql),
+-- The first half of public.haulout_occurrences (supabase/migrations/20260919010000_haulouts.sql@6898775),
 -- as a DuckDB twin (decision 061, salish-xv35.13): each pinniped report inside a haul-out
 -- site's bounding box, with the two points the exact distance is measured between.
 --

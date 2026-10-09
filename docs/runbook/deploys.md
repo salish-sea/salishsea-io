@@ -8,13 +8,13 @@ Push to `main` → GitHub Actions [`deploy.yml`](../../.github/workflows/deploy.
 
 ### The site people see is the Fly app, and the same workflow deploys it
 
-CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.16`). It serves the site, runs the read-path build and holds the write API. The workflow's **Fly app** job deploys it on every push to `main`, after the deploy job has migrated the database and updated AWS (`salish-t3g.5`). It runs [`fly/deploy.sh`](../../fly/deploy.sh), and the same script redeploys by hand from a clean checkout:
+CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.16`). It serves the site, runs the read-path build and holds the write API. The workflow's **Fly app** job deploys it on every push to `main`, after the deploy job has updated AWS (`salish-t3g.5`). It runs [`fly/deploy.sh`](../../fly/deploy.sh), and the same script redeploys by hand from a clean checkout:
 
 ```sh
 fly/deploy.sh      # build, then switch; `build` or `switch` alone. See its header.
 ```
 
-The job authenticates with `FLY_API_TOKEN`, a secret in the `production` environment holding an app-scoped deploy token. That token can also `fly ssh` to the machine, which is how the build lock is taken. The deploy job refuses to start without it, before it changes anything. To rotate it:
+The job authenticates with `FLY_API_TOKEN`, a secret in the `production` environment holding an app-scoped deploy token. That token can also `fly ssh` to the machine, which is how the build lock is taken. The **Fly image** job uses it first, so a missing or broken token fails the run there, before anything changes. To rotate it:
 
 ```sh
 fly tokens create deploy -a salishsea-io --name "GitHub Actions deploy" \
@@ -37,7 +37,7 @@ fly deploy -a salishsea-io --image <the image reference from that list>
 
 Images deployed since decision 066 are tagged with their commit and Stelis's. Earlier ones carry `deployment-<id>`. `fly deploy --image` by hand skips `fly/deploy.sh`'s build lock, so a running build may be killed. The next build repairs that.
 
-The image carries the site bundle, the read-path scripts and the pinned Stelis together, so rolling it back rolls all three back; the data on the volume (`/data`: the snapshot, the mirrors, the build history) stays as it is, and the next build at the old pin runs over it. Two things a release does not carry: `fly deploy --image` applies the `fly.toml` of the checkout you run it from, so check out the release's commit first (the `GITHUB_SHA` build arg in `fly/deploy.sh` is how an image names its commit); and Fly secrets, which are set on the app, not in a release. The one thing an image rollback cannot undo is a migration `deploy.yml` applied to Postgres in the meantime — forward-only, as above.
+The image carries the site bundle, the read-path scripts and the pinned Stelis together, so rolling it back rolls all three back; the data on the volume (`/data`: the snapshot, the mirrors, the build history) stays as it is, and the next build at the old pin runs over it. Two things a release does not carry: `fly deploy --image` applies the `fly.toml` of the checkout you run it from, so check out the release's commit first (the `GITHUB_SHA` build arg in `fly/deploy.sh` is how an image names its commit); and Fly secrets, which are set on the app, not in a release.
 
 ### dev.salishsea.io is deployed by hand
 
@@ -48,24 +48,24 @@ scripts/deploy-dev.sh   # builds this checkout, syncs it to the dev bucket, inva
 curl -s https://dev.salishsea.io/release.json   # which commit it shows
 ```
 
-The script needs AWS credentials (`AWS_PROFILE`, default `orcasound`) and a logged-in Supabase CLI. Its distribution and DNS are in the CDK stack, so a push to `main` deploys changes to them like any other infrastructure.
+The script needs AWS credentials (`AWS_PROFILE`, default `orcasound`). Its distribution and DNS are in the CDK stack, so a push to `main` deploys changes to them like any other infrastructure.
 
 The run is these jobs ([decision 024](../decisions/024-deploy-gating-and-alerting.md)):
 
 | Job | What it does |
 |---|---|
 | **Test** | Calls [`build.yml`](../../.github/workflows/build.yml) — the same suite PRs run (type drift, build, unit tests, infra tests) against the commit being deployed. Nothing reaches production without it. |
-| **Fly image** | `fly/deploy.sh build`: builds the image on Fly's remote builder and pushes it, tagged with the commit and the Stelis pin, alongside Test (`salish-t3g.10`). Nothing in production changes. The build uploads the bundle's source maps to Sentry. An image that won't build, or a `FLY_API_TOKEN` that can't, stops the run here, before any migration. |
-| **Deploy** | `supabase db push` → `cdk deploy`. Waits for both Test and Fly image. Not atomic; see below. |
-| **Fly app** | `fly/deploy.sh switch` after the deploy job: takes the machine's build lock, then deploys the pushed image (decision 066). A failure here leaves the previous image serving, with the database already migrated; `fly/deploy.sh switch` from that commit retries it. |
-| **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`, after the Fly app job, or after the deploy job alone if the Fly job failed: a migrated database under the previous image is what most needs checking. A production that doesn't answer correctly fails the deploy run. The OG specs first wait up to five minutes for the edge handler to replicate; a new Lambda@Edge version is not at every edge location the moment `cdk deploy` returns. |
+| **Fly image** | `fly/deploy.sh build`: builds the image on Fly's remote builder and pushes it, tagged with the commit and the Stelis pin, alongside Test (`salish-t3g.10`). Nothing in production changes. The build uploads the bundle's source maps to Sentry. An image that won't build, or a `FLY_API_TOKEN` that can't, stops the run here, before anything changes. |
+| **Deploy** | `cdk deploy`. Waits for both Test and Fly image. |
+| **Fly app** | `fly/deploy.sh switch` after the deploy job: takes the machine's build lock, then deploys the pushed image (decision 066). A failure here leaves the previous image serving behind the newly deployed stacks; `fly/deploy.sh switch` from that commit retries it. |
+| **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`, after the Fly app job, or after the deploy job alone if the Fly job failed: the previous image behind new infrastructure is what most needs checking. A production that doesn't answer correctly fails the deploy run. The OG specs first wait up to five minutes for the edge handler to replicate; a new Lambda@Edge version is not at every edge location the moment `cdk deploy` returns. |
 | **Watch** | Watches the jobs that bind the `production` environment (Deploy, Fly app). When one waits fifteen minutes with no runner, GitHub has lost it: see [gotcha 4](#gotcha-4--a-deploy-stuck-waiting-holds-every-later-one). |
 | **Alert / Resolve** | On failure, opens or updates the single `deploy-failed` issue; on a fully green run, closes it. |
 
 Two things to know when reading a red run:
 
 - **A red Deploy does not imply production changed.** If *Test* or *Fly image* failed, the deploy job never ran and production was untouched — that is the gate working. The failure issue says which case it is.
-- **There is no automatic rollback, on purpose.** `supabase db push` is forward-only, so reverting the frontend alone would point old code at a migrated schema. If the deploy job failed partway, everything before the failing step already landed; read the log to see how far it got, and fix forward.
+- **There is no automatic rollback.** If the deploy job or the switch failed, everything before the failing step already landed; read the log to see how far it got, and fix forward, or switch the Fly app back to an earlier image (above).
 
 An open `deploy-failed` issue means a run failed and has not been followed by a green one. **Read its first bold line before assuming production is broken** — the issue states whether the run got past the deploy job's point of no return (`Production may be partially updated`) or failed before it (`Production was not touched`). Either way the next green deploy closes it, so it should not need manual triage-and-close.
 
@@ -118,7 +118,7 @@ The smoke job is a partial backstop for both. It now runs inside the deploy run 
 
 ## Gotcha 4 — a deploy stuck "waiting" holds every later one
 
-**Symptom.** A Deploy run's Deploy, Fly app or Register job shows *Waiting* on the `production` environment for hours. The environment has no reviewers and no wait timer, and `gh api repos/salish-sea/salishsea-io/actions/runs/<id>/pending_deployments` lists no reviewers, so there is nothing to approve. GitHub has lost the deployment. Because deploys queue rather than cancel (`cancel-in-progress: false`), every later run waits behind it, and GitHub keeps only the newest of those. This happened twice on 2026-10-06, about three hours each time (`salish-t3g.11`).
+**Symptom.** A Deploy run's Deploy or Fly app job shows *Waiting* on the `production` environment for hours. The environment has no reviewers and no wait timer, and `gh api repos/salish-sea/salishsea-io/actions/runs/<id>/pending_deployments` lists no reviewers, so there is nothing to approve. GitHub has lost the deployment. Because deploys queue rather than cancel (`cancel-in-progress: false`), every later run waits behind it, and GitHub keeps only the newest of those. This happened twice on 2026-10-06, about three hours each time (`salish-t3g.11`).
 
 **What now happens.** The **Watch** job notices a job that has waited fifteen minutes without a runner. It waits for anything else in the run to finish, so the cancel interrupts nothing. Then:
 
@@ -128,9 +128,9 @@ The smoke job is a partial backstop for both. It now runs inside the deploy run 
 
 A dispatched run doesn't dispatch another if it is lost too. That case, and a cancel that doesn't take, need a person. Cancel the stuck run (`gh run cancel <id>`), then `gh workflow run deploy.yml --ref main`. A dispatch checks out the current tip, which a re-run does not ([gotcha 3](#gotcha-3--re-running-an-old-deploy-rolls-production-back)).
 
-**Why not a timeout or `cancel-in-progress`.** `timeout-minutes` counts from when a runner takes the job, and a lost job never gets one. `cancel-in-progress: true` would also cancel a healthy deploy mid `supabase db push` whenever a newer commit merged.
+**Why not a timeout or `cancel-in-progress`.** `timeout-minutes` counts from when a runner takes the job, and a lost job never gets one. `cancel-in-progress: true` would also cancel a healthy deploy mid `cdk deploy` whenever a newer commit merged.
 
-**What it does not cover.** The scheduled workflows that bind `production` (the ingest heartbeat, the daily register refresh) have no watcher. A lost heartbeat run holds later heartbeats behind it, and nothing alerts while it does.
+**What it does not cover.** The scheduled workflows that bind `production` (the ingest heartbeat) have no watcher. A lost heartbeat run holds later heartbeats behind it, and nothing alerts while it does.
 
 ## `/cards/*` is not S3
 

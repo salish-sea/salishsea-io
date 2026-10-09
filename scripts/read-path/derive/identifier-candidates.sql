@@ -1,7 +1,7 @@
 -- The identifier candidates, derived in the build (decision 061, salish-xv35.3): a DuckDB
 -- twin of Postgres's derived.identifier_candidates, which pairs each designation an
 -- occurrence names (T065A, J27s) with the individual or matriline the catalogue says it
--- means (supabase/migrations/20260928120000_occurrences_stored.sql). Postgres keeps them in
+-- means (supabase/migrations/20260928120000_occurrences_stored.sql@6898775). Postgres keeps them in
 -- derived.occurrence_identifier_candidates, and the profile pages' link views read them.
 --
 -- Reads build.occurrences, which carries each occurrence's source, identifiers and exact

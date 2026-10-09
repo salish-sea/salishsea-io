@@ -11,7 +11,7 @@
  *     tables (that is the column DEFAULT per D-05).
  *
  * Slug literals must match the Phase 9 seed in
- * supabase/migrations/20260619184037_reference_tables.sql exactly — they are
+ * supabase/migrations/20260619184037_reference_tables.sql@6898775 exactly — they are
  * the join contract with public.providers and public.collections.
  */
 

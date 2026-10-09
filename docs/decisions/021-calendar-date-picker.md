@@ -44,7 +44,7 @@ without a DOM.
 > *observed* more than two days before it is saved or deleted reaches the
 > calendar at the next refresh, up to ~6 minutes later. Rationale and
 > measurements are in
-> [20260922030000_occurrence_days_reads_index.sql](../../supabase/migrations/20260922030000_occurrence_days_reads_index.sql).
+> [20260922030000_occurrence_days_reads_index.sql](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260922030000_occurrence_days_reads_index.sql).
 
 `public.occurrence_days` groups `public.occurrences` by the PST8PDT calendar
 day — the same day boundary as `?d=`, `fetchOccurrences`, and

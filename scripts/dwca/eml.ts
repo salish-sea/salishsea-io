@@ -10,7 +10,7 @@
  * Inputs:
  *   - `datasets`: a row from the `dwc.datasets` view (19 columns mirroring
  *     the migration's VALUES literal — see
- *     `supabase/migrations/20260617203900_dwc_schema.sql`).
+ *     `supabase/migrations/20260617203900_dwc_schema.sql@6898775`).
  *   - `temporalCoverage.begin` / `.end`: ISO date strings (`YYYY-MM-DD`)
  *     computed by `build.ts` from `MIN(eventDate)` / `MAX(eventDate)` over
  *     `dwc.occurrences`. These are passed as a separate parameter (not read
@@ -35,7 +35,7 @@
 
 /**
  * Mirrors the 19-column `dwc.datasets` view in
- * `supabase/migrations/20260617203900_dwc_schema.sql` (lines 568..613).
+ * `supabase/migrations/20260617203900_dwc_schema.sql@6898775` (lines 568..613).
  *
  * Field naming follows the snake_case SQL column aliases. Three columns are
  * typed nullable here because the migration sets them to `NULL::text` and

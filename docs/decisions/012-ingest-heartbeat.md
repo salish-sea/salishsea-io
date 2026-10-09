@@ -66,7 +66,7 @@ session pooler and **fails loudly by filing/updating a labeled GitHub issue**
 ## Reference
 
 Issue: `salish-89d.4`. Substrate: `ingest.runs`
-([20260705130000_ingest_runs.sql](../../supabase/migrations/20260705130000_ingest_runs.sql)).
+([20260705130000_ingest_runs.sql](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260705130000_ingest_runs.sql)).
 Alert-channel precedent: [003](003-dwc-export-pipeline.md) (DwC-A nightly failure issue).
 
 ## Amended 2026-09-10 — the observer's lateness did falsify detection (bd `salish-oyf`)

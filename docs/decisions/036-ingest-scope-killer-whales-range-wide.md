@@ -4,7 +4,7 @@
 
 ## Decision
 
-**We consume killer whales from their full range, and everything else only from the Salish Sea and the Strait of Juan de Fuca.** This record applies the rule to Maplify; [044](044-inat-ingest-scope.md) later applied the same rule to iNaturalist, whose mirror turned out to be 63% out of scope. A Maplify record is in scope if it is a killer whale of any kind, or if it falls inside `salishSeaExtent` — `[-126, 47, -122, 50.5]`, the same box the map's Salish Sea region filters on. The rule is enforced at ingest, in `isIngestable` ([scripts/ingest/maplify.ts](../../scripts/ingest/maplify.ts)), and the records already held that fail it were purged in one pass ([migration 20260830200000](../../supabase/migrations/20260830200000_purge_out_of_scope_maplify.sql)).
+**We consume killer whales from their full range, and everything else only from the Salish Sea and the Strait of Juan de Fuca.** This record applies the rule to Maplify; [044](044-inat-ingest-scope.md) later applied the same rule to iNaturalist, whose mirror turned out to be 63% out of scope. A Maplify record is in scope if it is a killer whale of any kind, or if it falls inside `salishSeaExtent` — `[-126, 47, -122, 50.5]`, the same box the map's Salish Sea region filters on. The rule is enforced at ingest, in `isIngestable` ([scripts/ingest/maplify.ts](../../scripts/ingest/maplify.ts)), and the records already held that fail it were purged in one pass ([migration 20260830200000](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260830200000_purge_out_of_scope_maplify.sql)).
 
 The fetch box does not change. It stays `acartiaExtent` `[-136, 36, -120, 54]`, central California to northern BC.
 

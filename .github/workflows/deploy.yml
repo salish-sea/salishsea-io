@@ -10,7 +10,7 @@ on:
 # Serialize production deploys. Several PRs merging in quick succession otherwise
 # run overlapping `cdk deploy`s against the same CloudFormation stacks, which fails
 # with "stack ... in UPDATE_COMPLETE_CLEANUP_IN_PROGRESS". Queue instead of cancel:
-# never interrupt an in-flight deploy mid `supabase db push` / `cdk deploy`. The price
+# never interrupt an in-flight deploy mid `cdk deploy`. The price
 # is that a run which never finishes holds every later one; the watch job is what
 # keeps that from lasting.
 concurrency:
@@ -23,9 +23,8 @@ jobs:
   # result, and no ruleset requires them, so a push landing on `main` by any other
   # route would otherwise reach production untested.
   #
-  # It costs a few minutes on the front of every deploy. That is the price of the
-  # deploy sequence below being unrepeatable: `supabase db push` is forward-only,
-  # so a bad migration cannot be taken back, only rolled forward.
+  # It costs a minute or so on the front of every deploy, against shipping a change
+  # nothing tested.
   test:
     name: Test
     uses: ./.github/workflows/build.yml
@@ -33,7 +32,7 @@ jobs:
   # The Fly image, built and pushed beside the tests (salish-t3g.10). Pushing an image
   # to Fly's registry changes nothing in production, and the remote build takes minutes
   # the rest of the run no longer waits for. The deploy job waits for it, so an image
-  # that won't build stops the run before the database is migrated; and building with
+  # that won't build stops the run before anything changes; and building with
   # the token proves FLY_API_TOKEN works before anything changes. It also uploads the
   # bundle's source maps to Sentry from the build that ships (fly/deploy.sh). Not
   # checked against the tip: building an older commit's image is harmless, and the
@@ -67,9 +66,6 @@ jobs:
     needs: [test, image]
     runs-on: ubuntu-latest
     environment: production
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
     permissions:
       id-token: write
       contents: read
@@ -111,15 +107,6 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::648183724555:role/salishsea-deploy-action
           aws-region: us-west-2
-      # This job never installs the root node_modules, so the CLI comes from
-      # setup-cli rather than the `supabase` devDependency. With `version`
-      # omitted, the action installs the version declared in pnpm-lock.yaml
-      # (verifying npm integrity metadata), so prod (`db push`) and CI
-      # (build.yml) run the same CLI, pinned in one place.
-      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
-      - run: supabase link --project-ref "${PROJECT_REF}"
-        env:
-          PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
       # The CDK step runs last, so a synth refusing a missing secret there would fail
       # with production already half-changed. Refuse here instead, while nothing is.
       # The value must equal the Fly app's EDGE_SECRET (decision 065; infra-stack.ts's
@@ -144,7 +131,6 @@ jobs:
       - name: Mark the start of production mutation
         id: mutation
         run: echo "started=true" >> "${GITHUB_OUTPUT}"
-      - run: supabase db push
       - name: Setup pnpm for CDK
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: Setup Node for CDK
@@ -165,7 +151,7 @@ jobs:
 
   # The Fly app: the site people see, the read-path build and the write API (decisions
   # 061, 065; salish-t3g.5). The switch to the image the image job pushed, after the
-  # deploy job, so the database is migrated before code that reads it ships. It is the
+  # deploy job, so the CDK stacks are in place before the code that relies on them ships. It is the
   # script a hand deploy runs: the machine's build lock is taken so the switch doesn't
   # kill a running build, then the image is deployed (decision 066).
   fly:
@@ -210,7 +196,7 @@ jobs:
     name: Smoke
     needs: [deploy, fly]
     # Whenever the deploy job changed production, even if the Fly job then failed: the
-    # previous image reading a migrated database is exactly what smoke should look at.
+    # previous image behind newly deployed infrastructure is exactly what smoke should look at.
     if: ${{ !cancelled() && needs.deploy.result == 'success' }}
     uses: ./.github/workflows/smoke.yml
 
@@ -220,7 +206,7 @@ jobs:
   # deploys queue rather than cancel, every later run waits behind it, so main stops
   # deploying and nothing says so. timeout-minutes can't catch it, because it counts from
   # when a runner takes the job and a lost job never gets one. cancel-in-progress would
-  # catch it, but it would also interrupt a healthy deploy mid `supabase db push`.
+  # catch it, but it would also interrupt a healthy deploy mid `cdk deploy`.
   #
   # So this job watches the run's own environment-bound jobs. When one has waited
   # STALL_MINUTES without a runner, it waits for whatever else is running to finish, so the
@@ -299,9 +285,9 @@ jobs:
               echo "Run: ${RUN_URL}"
               echo
               if [ "${deploy_lost}" = "true" ]; then
-                echo "**Production was not touched.** The Deploy job never started, so nothing was migrated or switched."
+                echo "**Production was not touched.** The Deploy job never started, so nothing was deployed or switched."
               else
-                echo "**Production is partly updated.** The Deploy job ran, so the database is migrated and the CDK stacks deployed; ${names} never ran. Until a deploy completes, the Fly app may be serving the previous image against the migrated database."
+                echo "**Production is partly updated.** The Deploy job ran, so the CDK stacks are deployed; ${names} never ran. Until a deploy completes, the Fly app may be serving the previous image."
               fi
               echo
               if [ "${retry}" = "true" ]; then
@@ -423,14 +409,13 @@ jobs:
               echo "remote change, which is the gate working. Fix forward on \`main\`."
             else
               echo "**Production may be partially updated.** The deploy job mutates production"
-              echo "in sequence with no atomicity: \`supabase db push\` → \`cdk deploy\` → the Fly"
-              echo "app's switch. Whichever step failed, everything before it already landed. Read"
+              echo "in sequence with no atomicity: \`cdk deploy\` → the Fly app's switch."
+              echo "Whichever step failed, everything before it already landed. Read"
               echo "the run log to find how far it got. A failed switch leaves the previous image"
               echo "serving; \`fly/deploy.sh switch\` retries it by hand from this commit."
               echo
-              echo "There is no automatic rollback, deliberately: \`supabase db push\` is"
-              echo "forward-only, so reverting the frontend alone would point old code at a"
-              echo "migrated schema. Recover by fixing forward."
+              echo "There is no automatic rollback: recover by fixing forward, or by switching"
+              echo "the Fly app back to an earlier image (docs/runbook/deploys.md)."
             fi
             echo
             echo "Runbook: [docs/runbook/deploys.md](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/main/docs/runbook/deploys.md)"
