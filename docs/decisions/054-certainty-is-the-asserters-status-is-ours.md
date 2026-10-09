@@ -37,16 +37,18 @@ One input arrived while this was open. Dave Bain, asked on [orcahello#650](https
 
 ## The example, worked
 
-Once [#1014](https://github.com/orcasound/orcasite/issues/1014) lands and a moderator adds `L` to `bout_031YvAeJ4O13YgkbQlc8yJ` as `possible`, the bout's animal tags cite `SSA:0000010`, `SSA:0000020`, `SSA:0000021` and `SSA:0000022`, all under *Orcinus orca*. That is one occurrence, `orcasound:bout_031YvAeJ4O13YgkbQlc8yJ:SSA:0000900`, and four identification rows:
+Once [#1014](https://github.com/orcasound/orcasite/issues/1014) lands and a moderator adds `L` to `bout_031YvAeJ4O13YgkbQlc8yJ` as `possible`, the bout's animal tags cite `SSA:0000010`, `SSA:0000020`, `SSA:0000021` and `SSA:0000022`, all under *Orcinus orca*. That is one occurrence, `orcasound:bout_031YvAeJ4O13YgkbQlc8yJ:SSA:0000900`, and three identification rows, ~~four~~ (amended 2026-10-08, below: the certain J and K imply Southern Resident, so its row goes):
 
 | subject | certainty | status | asserted by |
 |---|---|---|---|
-| Southern Resident (community) | `certain` | `candidate` | the moderator |
+| ~~Southern Resident (community)~~ | ~~`certain`~~ | ~~`candidate`~~ | ~~the moderator~~ |
 | J pod | `certain` | `candidate` | the moderator |
 | K pod | `certain` | `candidate` | the moderator |
 | L pod | `possible` | `candidate` | the moderator |
 
-The map label reads `Killer whale · J pod, K pod, L pod?, Southern Resident`, the identifiers being the register's labels for the cited groups (053). If a curator later validates J and K, two rows become `validated` and nothing else changes. If a curator concludes L was there, a fifth row appears, `certain`, `validated`, asserted by the curator; the moderator's `L?` stays. If the moderator does the measurement work and revises their own tag, the fourth row's certainty changes and no new row appears. Today, with no certainty column upstream, the fourth row does not exist, and the first three arrive with certainty null.
+The map label reads `Killer whale · J pod, K pod, L pod?` ~~`Killer whale · J pod, K pod, L pod?, Southern Resident`~~, the identifiers being the register's labels for the cited groups (053). If a curator later validates J and K, two rows become `validated` and nothing else changes. If a curator concludes L was there, another row appears, `certain`, `validated`, asserted by the curator; the moderator's `L?` stays. If the moderator does the measurement work and revises their own tag, the L pod row's certainty changes and no new row appears. ~~Today, with no certainty column upstream, the fourth row does not exist, and the first three arrive with certainty null.~~ *(Struck 2026-10-08: orcasite records certainty since [orcasound/orcasite#1059](https://github.com/orcasound/orcasite/pull/1059).)*
+
+*Amended 2026-10-08 (`salish-8vr.32`, Peter's call):* a bout's tags arrive as whole chains. Orcasound's tag picker applies a tag with everything above it, as the OrcaHello portal stores `J pod;srkw;orca;whale` and as moderators have tagged bouts by hand: every production bout tagged J, K or L also carries SRKW ([orcasound/orcasite#1077](https://github.com/orcasound/orcasite/pull/1077)). We drop a cited entity that a more specific one on the same bout implies, by the register's group ancestry and its taxonomy, unless the implied one is the surer claim, with an unhedged claim the surest. In the example, the Southern Resident row goes, because the certain J and K imply it. The label reads `Killer whale · J pod, K pod, L pod?`, and the Southern Residents' page still lists the bout, since it rolls up its pods. Had the moderator tagged only Southern Resident and `L?`, both rows would stay, so that the certain claim is not lost to the hedge. On production's tags this drops 111 of 243 cited entities, all of them *Orcinus orca*, Southern Resident or Bigg's beneath a deeper tag. The rule is in [`derive/sources.sql`](../../scripts/read-path/derive/sources.sql).
 
 ## Rejected alternatives
 
