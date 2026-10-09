@@ -1,8 +1,9 @@
 /**
  * Would this register edition un-name any Maplify sighting the map shows? Asked BEFORE
- * the edition is loaded (salish-xv35.9.2), so that an edition which would is refused —
- * register-refresh.yml goes red, Postgres keeps the edition it has — rather than loaded
+ * the edition is adopted (salish-xv35.9.2), so that an edition which would is refused —
+ * the build keeps the edition it has (read-path/ingest-register.ts) — rather than adopted
  * and then regretted. An input that would leave us inconsistent is rejected at the door.
+ * The command line below asks the same question of a candidate edition by hand.
  *
  *   pnpm exec tsx scripts/register/check-unnaming.ts --tag 2026.10.1 \
  *     --baseline https://salishsea.io/status/maplify-names.json \

@@ -4,15 +4,10 @@ import { fold } from './fold.ts';
 /**
  * The register's own published cases, from `dist/fold_test.tsv` in edition 2026.08.1.
  *
- * THE AUTHORITY IS THE RELEASE, not this list. `scripts/register/reconcile.ts` re-reads the cases out of
- * whichever edition it is reconciling against and aborts if the fold disagrees, which is
- * what stops a drifted fold producing a confidently wrong report. This copy exists so the
- * rule is also guarded in CI, where there is no network and no reconciliation running —
- * and so that a change to `fold()` fails a test rather than waiting for someone to run a
- * report against production.
- *
- * If these ever disagree with a published edition, the edition wins and this list is
- * stale; `reconcile.ts` will say so by name.
+ * THE AUTHORITY IS THE RELEASE, not this list. This copy exists so the rule is guarded
+ * in CI, where there is no network — so that a change to `fold()` fails a test rather
+ * than a confidently wrong match in a build. If these ever disagree with a published
+ * edition, the edition wins and this list is stale.
  */
 const PUBLISHED: readonly [string, string][] = [
     ['T090', 't90'],

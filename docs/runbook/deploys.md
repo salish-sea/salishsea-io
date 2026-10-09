@@ -59,8 +59,7 @@ The run is these jobs ([decision 024](../decisions/024-deploy-gating-and-alertin
 | **Deploy** | `supabase db push` → `cdk deploy`. Waits for both Test and Fly image. Not atomic; see below. |
 | **Fly app** | `fly/deploy.sh switch` after the deploy job: takes the machine's build lock, then deploys the pushed image (decision 066). A failure here leaves the previous image serving, with the database already migrated; `fly/deploy.sh switch` from that commit retries it. |
 | **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`, after the Fly app job, or after the deploy job alone if the Fly job failed: a migrated database under the previous image is what most needs checking. A production that doesn't answer correctly fails the deploy run. The OG specs first wait up to five minutes for the edge handler to replicate; a new Lambda@Edge version is not at every edge location the moment `cdk deploy` returns. |
-| **Register** | Calls [`register-refresh.yml`](../../.github/workflows/register-refresh.yml) after the deploy job: reloads the register into the database just migrated and checks it arrived. Runs alongside the Fly app job; a failure here is a register load failing, not the site. |
-| **Watch** | Watches the jobs that bind the `production` environment (Deploy, Fly app, Register). When one waits fifteen minutes with no runner, GitHub has lost it: see [gotcha 4](#gotcha-4--a-deploy-stuck-waiting-holds-every-later-one). |
+| **Watch** | Watches the jobs that bind the `production` environment (Deploy, Fly app). When one waits fifteen minutes with no runner, GitHub has lost it: see [gotcha 4](#gotcha-4--a-deploy-stuck-waiting-holds-every-later-one). |
 | **Alert / Resolve** | On failure, opens or updates the single `deploy-failed` issue; on a fully green run, closes it. |
 
 Two things to know when reading a red run:

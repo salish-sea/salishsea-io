@@ -21,8 +21,8 @@
  *
  * Before the first pass there is no baseline file, and the first pass seeds it with this
  * build's answers (until 2026-10-05 Postgres's stored answer stood in, while its own
- * ingest still resolved Maplify); the register-refresh workflow checks an edition
- * against the published baseline before loading it, so this gate is the backstop.
+ * ingest still resolved Maplify); the build's register fetch refuses an edition that
+ * would un-name a pair the mirror holds before adopting it, so this gate is the backstop.
  *
  * The baseline is operational state outside the graph, like the ingest run log: the
  * gate's inputs are the register and the mirror, and a build whose inputs are unchanged

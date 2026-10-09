@@ -217,24 +217,6 @@ jobs:
     if: ${{ !cancelled() && needs.deploy.result == 'success' }}
     uses: ./.github/workflows/smoke.yml
 
-  # Reload the register against the database this deploy just migrated, and prove it
-  # arrived (salish-1g8). Deliberately a reload rather than a bare assertion: the failure
-  # this guards against is a migration recreating `register.*` empty, and the repair for
-  # that is exactly what the loader does. Idempotent, so re-running a deploy is free.
-  #
-  # Parallel with smoke rather than before it: both are post-deploy gates, neither
-  # depends on the other, and a register that failed to load does not break the page
-  # smoke is checking — it only changes the names on it, which is the whole problem.
-  #
-  # Costs one extra production deployment record per run, because the loader needs
-  # DB_PASSWORD and that means binding to the environment. smoke.yml declines the same
-  # binding for a var it can hardcode; here the secret is unavoidable.
-  register:
-    name: Register
-    needs: deploy
-    uses: ./.github/workflows/register-refresh.yml
-    secrets: inherit
-
   # GitHub sometimes loses a job's deployment to the production environment. The job sits
   # "waiting" for approval that nobody can give: the environment has no reviewers, and the
   # API lists none (twice on 2026-10-06, about three hours each; salish-t3g.11). Since
@@ -260,7 +242,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       # A healthy job gets a runner within seconds: the environment has no reviewers or
-      # wait timer, and the register's own concurrency group holds it a minute at most.
+      # wait timer.
       STALL_MINUTES: '15'
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
@@ -268,14 +250,14 @@ jobs:
         run: |
           # The jobs that bind the production environment, named as the jobs API reports
           # them. Keep in step with the jobs above.
-          env_jobs='["Deploy", "Switch the Fly app", "Register / refresh"]'
+          env_jobs='["Deploy", "Switch the Fly app"]'
           # filter=latest: each job's newest attempt, so a partial re-run still lists the
           # jobs it didn't repeat.
           jobs_path="repos/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}/jobs?filter=latest"
           while :; do
             jobs=$(gh api --paginate "${jobs_path}" --jq '.jobs[]' | jq -s .)
             # Done once every environment-bound job exists and has a runner or has
-            # finished. Fly and the register only appear once Deploy ends, skipped if it
+            # finished. Fly only appears once Deploy ends, skipped if it
             # failed, so their absence means the run isn't past the risk yet.
             done=$(jq --argjson names "${env_jobs}" '
               [.[] | select(.name | IN($names[]))] as $e
@@ -322,7 +304,7 @@ jobs:
               if [ "${deploy_lost}" = "true" ]; then
                 echo "**Production was not touched.** The Deploy job never started, so nothing was migrated or switched."
               else
-                echo "**Production is partly updated.** The Deploy job ran, so the database is migrated and the CDK stacks deployed; ${names} never ran. Until a deploy completes, the Fly app may be serving the previous image against the migrated database, and the register was not reloaded after the migration."
+                echo "**Production is partly updated.** The Deploy job ran, so the database is migrated and the CDK stacks deployed; ${names} never ran. Until a deploy completes, the Fly app may be serving the previous image against the migrated database."
               fi
               echo
               if [ "${retry}" = "true" ]; then
@@ -361,7 +343,7 @@ jobs:
   # the next green deploy.
   alert:
     name: Alert on failure
-    needs: [test, image, deploy, fly, smoke, register, watch]
+    needs: [test, image, deploy, fly, smoke, watch]
     # `!cancelled()` is what lets this run at all — a job whose `needs` were
     # skipped is otherwise skipped itself, which is precisely the case when an
     # early job failed and took the rest of the graph with it.
@@ -413,7 +395,6 @@ jobs:
           RESULT_DEPLOY: ${{ needs.deploy.result }}
           RESULT_FLY: ${{ needs.fly.result }}
           RESULT_SMOKE: ${{ needs.smoke.result }}
-          RESULT_REGISTER: ${{ needs.register.result }}
           RESULT_WATCH: ${{ needs.watch.result }}
           MUTATION_STARTED: ${{ needs.deploy.outputs.mutation_started }}
           SUPERSEDED: ${{ steps.tip.outputs.superseded }}
@@ -430,7 +411,6 @@ jobs:
             echo "| Deploy | ${RESULT_DEPLOY} |"
             echo "| Fly app (switch) | ${RESULT_FLY} |"
             echo "| Smoke (production specs) | ${RESULT_SMOKE} |"
-            echo "| Register (reload + verify) | ${RESULT_REGISTER} |"
             echo "| Watch (lost deployments) | ${RESULT_WATCH} |"
             echo
             echo "Run: ${RUN_URL}"
@@ -491,7 +471,7 @@ jobs:
   # still broken" rather than "something broke here once".
   resolve:
     name: Resolve failure issue
-    needs: [test, image, deploy, fly, smoke, register, watch]
+    needs: [test, image, deploy, fly, smoke, watch]
     if: ${{ success() }}
     runs-on: ubuntu-latest
     permissions:

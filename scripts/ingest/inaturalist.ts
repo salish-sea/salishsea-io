@@ -283,8 +283,8 @@ export function normalizeObservation(
  * A replacement is recorded only when iNaturalist named exactly one. Several means
  * it SPLIT the taxon, and choosing among them would be a guess about which animal
  * was seen; the row stays inactive with no replacement, visible to anyone looking
- * for retirements nobody could repoint. Same rule as
- * scripts/backfill/inat-taxa-status.ts, which repairs rows this ingest never revisits.
+ * for retirements nobody could repoint. The read-path build's rolling taxa refresh
+ * (read-path/ingest-inaturalist.ts) applies it to rows this ingest never revisits.
  */
 export function normalizeTaxon(t: z.infer<typeof InatTaxonSchema>): NormalizedTaxon {
     const replacements = t.current_synonymous_taxon_ids ?? [];

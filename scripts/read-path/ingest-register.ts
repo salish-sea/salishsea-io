@@ -12,7 +12,7 @@
  * them, so the derivation reads them unchanged; `register.edition` records which.
  *
  * An edition that would un-name a Maplify sighting is refused BEFORE it is adopted, as
- * register-refresh.yml refuses it before loading Postgres (salish-xv35.9.2): the build keeps
+ * register-refresh.yml (retired 2026-10-09) refused it before loading Postgres (salish-xv35.9.2): the build keeps
  * the edition it has, the run is recorded as failed with the pairs named, and the heartbeat
  * says so. The question is the workflow's, asked of different evidence: every (name,
  * scientific name) pair the Maplify mirror holds, resolved by the edition the build holds

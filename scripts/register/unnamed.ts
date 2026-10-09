@@ -3,8 +3,8 @@
  * (salish-xv35.9.2): data/maplify-unnamed.tsv.
  *
  * A register edition that stops naming a pair Maplify sightings carry would drop those
- * sightings from the map. Two checks refuse that — register-refresh.yml before it loads
- * the edition (check-unnaming.ts), and the build's own gate before it derives
+ * sightings from the map. Two checks refuse that — the build's register fetch before it
+ * adopts the edition (check-unnaming.ts), and the build's own gate before it derives
  * (read-path/check-maplify-names.ts) — and both read this one file for the pairs a
  * curator means to un-name, so an accepted un-naming is one reviewed change rather than
  * a file edited on a volume.

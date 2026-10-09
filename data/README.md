@@ -21,11 +21,11 @@ These files hold the Bigg's. The Southern Residents' rows aren't here: the build
 
 The build holds the files to what Postgres's schema enforced — required columns, unique codes and names, references between the tables, the enum vocabularies in `reference/enums.tsv`, a nickname belonging to exactly one individual or group, a haul-out radius of 50 to 5,000 metres — and a pull request that breaks one fails the build's catalogue task, naming the rows. The header row must name the columns in the order the loader declares them.
 
-Postgres keeps its copy for the signed-in site until the store replaces it, so **a change here needs a migration making the same change** until then. `seed-biggs.ts` and the sheet are no longer the catalogue's source; these files are, and `scripts/register/reconcile.ts` still reconciles Postgres's copy.
+`seed-biggs.ts` and the sheet are no longer the catalogue's source; these files are. Postgres's copy is frozen and nothing reads it.
 
 ## `maplify-unnamed.tsv` — Maplify names a curator has accepted as un-named
 
-Unlike the rest of this directory, ours: a decision record in table form. A Maplify sighting carries a common name and a scientific name, and the map shows it under the register entity those resolve to ([decision 049](../docs/decisions/049-maplify-keyed-on-the-register.md)). A register edition that stops naming a pair would silently drop every sighting carrying it, so two checks refuse such an edition — `register-refresh.yml` before it loads one, and the read-path build's gate before it derives — unless the pair is listed here ([decision 061](../docs/decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.9.2`). A row says: these sightings are *meant* to show under no animal from now on, and why. An empty `name` means the sighting carries none. Add a row in the same pull request as the register release that needs it, and leave it: the pair may come back.
+Unlike the rest of this directory, ours: a decision record in table form. A Maplify sighting carries a common name and a scientific name, and the map shows it under the register entity those resolve to ([decision 049](../docs/decisions/049-maplify-keyed-on-the-register.md)). A register edition that stops naming a pair would silently drop every sighting carrying it, so two checks refuse such an edition — the read-path build's register fetch before it adopts one, and its gate before it derives — unless the pair is listed here ([decision 061](../docs/decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.9.2`). A row says: these sightings are *meant* to show under no animal from now on, and why. An empty `name` means the sighting carries none. Add a row in the same pull request as the register release that needs it, and leave it: the pair may come back.
 
 ## `biggs-ids.tsv` — Bigg's killer whale designations & nicknames
 
@@ -70,9 +70,10 @@ belongs to its maintainer and is credited, not claimed. Policy of record:
 - **Read by:** the migration that writes `individuals.entity_id`, and
   [`scripts/seed/seed-biggs.ts`](../scripts/seed/seed-biggs.ts), which applies the same
   pairs so a locally seeded database matches production.
-- **Regenerate** by re-running `scripts/register/reconcile.ts` against the loaded edition
-  and re-extracting the `individuals` rows; identifiers are permanent (animals ADR-0010),
-  so existing pairs never change — a regeneration can only add rows.
+- **Regenerate**: the reconciler that produced it (`scripts/register/reconcile.ts`, [last
+  version](https://github.com/salish-sea/salishsea-io/blob/2d2a6bd028a24b423fa78078a8772c794067be49/scripts/register/reconcile.ts))
+  read Postgres's catalogue and retired with it. Identifiers are permanent (animals
+  ADR-0010), so existing pairs never change — new rows are only ever added.
 
 ## `matriline-entities.tsv` — catalogue matrilines to register entities
 

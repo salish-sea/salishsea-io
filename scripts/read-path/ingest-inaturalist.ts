@@ -155,7 +155,7 @@ export function storedTaxonIds(db: DatabaseSync, candidates: readonly number[]):
 //
 // A taxon row is written when first reached and, until now, never asked about again, so
 // its name, rank, parent and whether it still exists froze at that day; Postgres's copy
-// had a weekly job for this (scripts/backfill/inat-taxa-status.ts). And the mirror held
+// had a weekly job for this (taxa-refresh.yml, retired 2026-10-09). And the mirror held
 // only the taxa its observations reached, while the register maps entities to taxa that
 // a Happywhale or native sighting names and no observation ever carried — those came
 // from Postgres until here. Both are the ingest's now: each run fetches every taxon the
