@@ -1,0 +1,3 @@
+id,url,body,count,direction,subject_location_lon,subject_location_lat,observer_location_lon,observer_location_lat,observed_at,entity_id,contributor_id,provider_id,collection_id,source_url,accuracy
+00000000-0000-4000-a000-000000000001,,,2,,-123.3,48.4,,,2026-10-08 02:32:47.860174+00,SSA:0000900,73,1,10,,
+00000000-0000-4000-a000-000000000002,,"T65A with her calves, heading east; T137s nearby",3,east,-123.15,48.52,-123.16,48.53,2026-09-18 20:15:00+00,SSA:0000900,73,1,10,,

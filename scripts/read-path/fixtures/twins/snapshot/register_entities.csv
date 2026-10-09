@@ -1,0 +1,29 @@
+entity_id,kind,label
+SSA:0000001,group,Southern Resident
+SSA:0000002,group,Bigg's
+SSA:0000003,group,Resident
+SSA:0000010,group,Southern Resident
+SSA:0000011,group,J clan
+SSA:0000020,group,J pod
+SSA:0000030,group,J17s
+SSA:0000101,individual,J35
+SSA:0000900,taxon,Orcinus orca
+SSA:0000901,taxon,Megaptera novaeangliae
+SSA:0000904,taxon,Phoca vitulina
+SSA:0002033,group,T065s
+SSA:0002078,group,T137s
+SSA:0002163,group,T065As
+SSA:0003001,group,J5s
+SSA:0003012,group,J35s
+SSA:0010192,individual,T065
+SSA:0010193,individual,T065A
+SSA:0010194,individual,T065A2
+SSA:0010195,individual,T065A3
+SSA:0010196,individual,T065A4
+SSA:0010197,individual,T065A5
+SSA:0010198,individual,T065A6
+SSA:0010404,individual,T137
+SSA:0010405,individual,T137A
+SSA:0010406,individual,T137B
+SSA:0010407,individual,T137D
+SSA:0020047,individual,J47

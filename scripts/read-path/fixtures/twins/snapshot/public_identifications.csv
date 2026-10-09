@@ -1,0 +1,3 @@
+occurrence_id,individual_id,social_group_id,is_present,evidence,status,code,certainty
+00000000-0000-4000-a000-000000000002,495,,true,photograph,validated,T65A,certain
+maplify:11,706,,false,photograph,rejected,T137A,certain

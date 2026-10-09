@@ -5,7 +5,8 @@
  *
  * Compares `build.occurrences` (derive-occurrences.ts) with `snapshot.occurrences`
  * (Postgres's derived.occurrences, read in the same transaction as everything the
- * derivation read, so the two answer the same question). Two documents agree when
+ * derivation read, so the two answer the same question; the twin fixture holds both,
+ * twin-fixture.ts). Two documents agree when
  * the files would hold the same bytes: each is parsed and re-serialized as the day
  * files are, so Postgres's spacing doesn't count, but key order, every value and
  * every timestamp string do.

@@ -4,7 +4,7 @@
  *   node scripts/read-path/compare-catalogue.ts <snapshot.duckdb>
  *
  * Compares each view derive-catalogue.ts writes, `snapshot.<view>`, with Postgres's
- * answer, `snapshot.<view>_answer`, which snapshot.ts reads only with --answers. As
+ * answer, `snapshot.<view>_answer`, which the twin fixture holds (twin-fixture.ts). As
  * compare-profile-links.ts does: each side a multiset of documents, two documents the
  * same when they parse to the same JSON with the same key order.
  */

@@ -1,0 +1,3 @@
+id,description,location_lon,location_lat,observed_at,uri,username,taxon_id,public_positional_accuracy,provider_id,collection_id,source_url
+9000001,T137A and T137B foraging near the kelp line,-122.95,48.45,2026-09-14 18:30:00+00,https://www.inaturalist.org/observations/9000001,synthetic_observer,1602533,30,3,8,https://www.inaturalist.org/observations/9000001
+9000002,,-123.4,48.3,2026-09-15 16:00:00+00,https://www.inaturalist.org/observations/9000002,synthetic_observer,41566,,3,8,https://www.inaturalist.org/observations/9000002

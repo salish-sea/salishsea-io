@@ -1,0 +1,44 @@
+entity_id,name,type,language
+SSA:0000002,Bigg's killer whale,common,en
+SSA:0000002,Biggs,hidden,en
+SSA:0000002,Orcinus orca rectipinnus,hidden,en
+SSA:0000002,Transient,historical,en
+SSA:0000003,Orcinus orca ater,hidden,en
+SSA:0000003,Resident killer whale,common,en
+SSA:0000010,SRKW,hidden,en
+SSA:0000010,Southern Resident killer whale,common,en
+SSA:0000020,J,hidden,en
+SSA:0000020,Js,hidden,en
+SSA:0000030,J17,hidden,en
+SSA:0000030,J17 matriline,hidden,en
+SSA:0000101,J-35,hidden,en
+SSA:0000101,Tahlequah,common,en
+SSA:0000900,KW,hidden,en
+SSA:0000900,Killer whale,common,en
+SSA:0000900,orca,hidden,en
+SSA:0000901,Ballena jorobada,common,es
+SSA:0000901,Humpback whale,common,en
+SSA:0000901,humpback,hidden,en
+SSA:0000904,Harbour seal,common,en
+SSA:0000904,harbor seal,hidden,en
+SSA:0002033,T065,hidden,en
+SSA:0002078,T137,hidden,en
+SSA:0002163,T065A,hidden,en
+SSA:0010192,AM22,hidden,en
+SSA:0010192,Whidbey II,common,en
+SSA:0010193,AM25,hidden,en
+SSA:0010193,Artemis,common,en
+SSA:0010193,Fingers,common,en
+SSA:0010194,Ooxjaa,common,en
+SSA:0010195,Amir,common,en
+SSA:0010195,Amira,common,en
+SSA:0010196,Ellifrit,common,en
+SSA:0010197,Elsie,common,en
+SSA:0010197,Indy,common,en
+SSA:0010198,Butterbean*,common,en
+SSA:0010198,Callisto,common,en
+SSA:0010404,Loon,common,en
+SSA:0010405,Barb,common,en
+SSA:0010405,Jack,common,en
+SSA:0010406,Tempest,common,en
+SSA:0010407,Wright,common,en

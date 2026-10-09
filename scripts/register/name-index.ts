@@ -7,11 +7,11 @@
  * register's C2 for those strings: compare `fold(query)` against the fold of every name the
  * register publishes (ADR-0019) — labels, common, hidden and historical names alike.
  *
- * PURE. The index is built from rows the caller has read (see `persist.ts`'s
- * `fetchNameIndex`), so the ingest core stays free of I/O and tests can construct an
- * edition that holds exactly the case they are about.
+ * PURE. The index is built from rows the caller has read (NAME_INDEX_SQL), so the ingest
+ * core stays free of I/O and tests can construct an edition that holds exactly the case
+ * they are about.
  *
- * Deliberately narrower than `match.ts`, which reconciles a catalogue of animals: a taxon
+ * Deliberately narrower than the catalogue reconciler (retired), which matched animals: a taxon
  * name never names an individual, so individuals are not candidates at all — an animal
  * nicknamed "Orca" must not capture every report of one. Groups stay candidates, because an
  * ecotype is exactly what "Southern Resident Killer Whale" names.
@@ -32,11 +32,10 @@ export type RegisterName = {
 
 /**
  * The rows `buildNameIndex` reads, as SQL: each name the register publishes for a non-individual
- * entity, with whether the entity is retired and the label of the taxon it belongs to. One
- * text for both readers: the ingest runs it in Postgres (persist.ts `fetchNameIndex`), and
- * the read-path build runs it in DuckDB over the snapshot's copy of the register
- * (scripts/read-path/derive/maplify-entities.ts), so the two cannot read the register
- * differently.
+ * entity, with whether the entity is retired and the label of the taxon it belongs to. The
+ * read-path build runs it in DuckDB over the snapshot's copy of the register
+ * (scripts/read-path/derive/maplify-entities.ts, check-unnaming.ts); Postgres's ingest ran
+ * the same text until it retired, so the two could not read the register differently.
  *
  * Per entity first, then fanned out to its names, so the taxon lookup runs once per entity
  * rather than once per name. Individuals are dropped here as well as in buildNameIndex (which

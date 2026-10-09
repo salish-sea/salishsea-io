@@ -1,0 +1,10 @@
+{
+"observations": [
+  {"id": 9000000011, "description": "two photos", "lon": -123, "lat": 48.5, "observed_ms": 1783098000000, "license_code": "cc-by-nc", "uri": "https://www.inaturalist.org/observations/x", "login": "test_inat_a", "orcid": null, "taxon_id": 2000000002, "public_positional_accuracy": 10},
+  {"id": 9000000013, "description": null, "lon": -123, "lat": 48.5, "observed_ms": 1783098000000, "license_code": null, "uri": "https://www.inaturalist.org/observations/x", "login": "test_inat_b", "orcid": "https://orcid.org/0000-0002-1825-0097", "taxon_id": 2000000002, "public_positional_accuracy": null}
+],
+"photos": [
+  {"id": 9100000011, "observation_id": 9000000011, "seq": 0, "attribution": "(c) tester", "hidden": 0, "license": "cc-by-nc", "height": 100, "width": 200, "url": "https://example.com/p.jpg"},
+  {"id": 9100000012, "observation_id": 9000000011, "seq": 1, "attribution": "(c) tester", "hidden": 0, "license": null, "height": null, "width": null, "url": "https://example.com/p.jpg"}
+]
+}

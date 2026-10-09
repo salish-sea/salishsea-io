@@ -16,6 +16,7 @@ import { ARM_INPUTS, armsFor, changedInputs, deriveOccurrences, parseArms, SOURC
 import { deriveProfileLinks } from './derive-profile-links.ts';
 import { mirrorsFromSnapshot } from './derive/mirrors-from-snapshot.ts';
 import { withDwc } from './dwca.ts';
+import { fixtureSnapshot } from './twin-fixture.ts';
 
 describe('compare-occurrences', () => {
     test('a document agrees with itself however it is spaced', () => {
@@ -185,22 +186,18 @@ describe('compare-profile-links', () => {
     });
 });
 
-const DSN = process.env['SUPABASE_DB_URL'];
-
-// The port against Postgres on whatever this database holds: a migration that changes
-// one of the views without changing its twin under derive/ fails here, if the data
-// exercises the change. The build derives from its own mirrors (salish-xv35.9); here the
-// mirrors are written from Postgres's tables, so the two derivations read the same rows.
-describe.skipIf(!DSN)('the build derives what Postgres stores (local Supabase)', () => {
+// The twins against what Postgres's views answered, over the twin fixture (twin-fixture.ts,
+// salish-9uu.11): a change to a derivation under derive/ that changes what it derives from
+// these rows fails here. The build derives from its own mirrors (salish-xv35.9); here the
+// mirrors are written from the fixture's copies of Postgres's tables, so the two
+// derivations read the same rows.
+describe('the build derives what Postgres stored (the twin fixture)', () => {
     test('snapshot, derive, compare: occurrences, their identifier candidates, the profile links', async () => {
         const dir = await mkdtemp(path.join(tmpdir(), 'derive-occurrences-'));
         try {
             const snapshot = path.join(dir, 'snapshot.duckdb');
-            await promisify(execFile)('node', [path.join(import.meta.dirname, 'snapshot.ts'), '--answers', snapshot], {
-                env: {...process.env, SUPABASE_DB_URL: DSN},
-            });
-            // The reference tables are checked-in files, as in the build (decision 064);
-            // reference.test.ts holds them equal to this database's.
+            await fixtureSnapshot(snapshot);
+            // The reference tables are checked-in files, as in the build (decision 064).
             await promisify(execFile)('node', [path.join(import.meta.dirname, 'reference.ts'), snapshot]);
             const mirrors = await mirrorsFromSnapshot(snapshot, dir);
             expect((await deriveOccurrences(snapshot, mirrors, null)).arms).toBe('all');

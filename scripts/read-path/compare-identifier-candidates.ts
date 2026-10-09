@@ -5,7 +5,7 @@
  *
  * Compares `build.occurrence_identifier_candidates` (derive-identifier-candidates.ts)
  * with `derived.occurrence_identifier_candidates`, Postgres's, read in the same
- * transaction as everything they were derived from. Rows are keyed by occurrence and
+ * transaction as everything they were derived from (the twin fixture, twin-fixture.ts). Rows are keyed by occurrence and
  * code, and every column must be equal, location's doubles and observed_at included:
  * nothing here is rendered, so nothing is allowed to differ in rendering either.
  *
