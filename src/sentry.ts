@@ -1,9 +1,6 @@
-import {BrowserClient, breadcrumbsIntegration, dedupeIntegration, defaultStackParser, eventFiltersIntegration, getCurrentScope, globalHandlersIntegration, makeFetchTransport, linkedErrorsIntegration, browserTracingIntegration, startInactiveSpan, captureException, addBreadcrumb} from "@sentry/browser";
-import {supabaseIntegration} from '@supabase/sentry-js-integration';
-import { supabase } from "./supabase.ts";
+import {BrowserClient, breadcrumbsIntegration, dedupeIntegration, defaultStackParser, eventFiltersIntegration, getCurrentScope, globalHandlersIntegration, makeFetchTransport, linkedErrorsIntegration, browserTracingIntegration} from "@sentry/browser";
 import { DENY_URLS, dropThirdPartyNoise, IGNORE_ERRORS } from "./sentry-noise.ts";
 import { release } from "./release.ts";
-import { writeSource } from "./write-api.ts";
 
 /**
  * Exported for `src/sentry.test.ts` only. Nothing else should reach for the
@@ -26,9 +23,7 @@ export const sentryClient = new BrowserClient({
   ignoreErrors: [...IGNORE_ERRORS],
   beforeSend: dropThirdPartyNoise,
   integrations: [
-    browserTracingIntegration({
-      shouldCreateSpanForRequest: url => !url.startsWith(`${import.meta.env.VITE_SUPABASE_URL}/rest`),
-    }),
+    browserTracingIntegration(),
     breadcrumbsIntegration(),
     // This is what makes `denyUrls` and `ignoreErrors` above do anything. They
     // are not client-level behaviour — they are implemented BY this integration,
@@ -39,20 +34,13 @@ export const sentryClient = new BrowserClient({
     eventFiltersIntegration(),
     // No feedbackIntegration. Sentry hears about failures; it is no longer how
     // a person tells us about one — that is <feedback-form>, posting to our own
-    // Supabase (decision 039). Sentry's widget could only deliver a report if
+    // write API (decisions 039, 065). Sentry's widget could only deliver a report if
     // the browser could reach sentry.io, and a content blocker or a captive
     // portal is enough that it cannot; on 2026-09-08 a report naming three real
     // bugs died in the form because of it.
     globalHandlersIntegration(),
     linkedErrorsIntegration(),
     dedupeIntegration(),
-    // Through the write API (decision 065) nothing talks to Supabase, and making its
-    // client would still start its auth housekeeping, so it isn't made.
-    ...(writeSource() === 'supabase' ? [supabaseIntegration(supabase(), {startInactiveSpan, captureException, addBreadcrumb}, {
-      tracing: true,
-      breadcrumbs: true,
-      errors: true,
-    })] : []),
   ],
 });
 

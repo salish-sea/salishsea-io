@@ -2,9 +2,8 @@ import { css, html, LitElement, type TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { Coordinate } from 'ol/coordinate.js';
 import { fromLonLat } from 'ol/proj.js';
-import { supabase } from './supabase.ts';
 import { v7 } from 'uuid';
-import { uploadPhoto as uploadThroughApi, writeSource } from './write-api.ts';
+import { uploadPhoto as uploadThroughApi } from './write-api.ts';
 
 /**
  * Every photo carries an `id` minted when it joins the list, and it is the only
@@ -58,27 +57,9 @@ export async function photoThumbnail(file: File): Promise<string> {
   });
 }
 
+/** The API names the photo's folder by the signed-in contributor (decision 065). */
 export async function uploadPhoto(file: File, sightingId: string): Promise<string> {
-  // The API names the photo's folder by the signed-in contributor (decision 065).
-  if (writeSource() === 'api')
-    return uploadThroughApi(file, sightingId);
-  const {data: authData, error: authError} = await supabase().auth.getUser();
-  if (authError)
-    throw new Error(`Error identifying user during photo upload: ${authError}`);
-  const {id: uid} = authData.user;
-
-  const filename = (file.name?.trim() || v7()).replace(/[^-a-z0-9\._]/gi, '_').toLowerCase();
-  const path = `${uid}/${sightingId}/${filename}`;
-
-  const {data, error} = await supabase().storage.from('media').upload(path, file, {
-    cacheControl: 'max-age=259200',
-    upsert: true,
-  });
-  if (error) {
-    throw new Error(`Upload failed: ${error.message}`);
-  }
-  const {data: {publicUrl}} = supabase().storage.from('media').getPublicUrl(data.path);
-  return publicUrl;
+  return uploadThroughApi(file, sightingId);
 }
 
 @customElement('photo-attachment')

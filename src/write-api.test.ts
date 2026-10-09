@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { fetchPublicSighting, overlayOwn, ownOccurrence, parseWriteSource, sightingBody, type OwnSighting } from './write-api.ts';
+import { fetchPublicSighting, overlayOwn, ownOccurrence, sightingBody, type OwnSighting } from './write-api.ts';
 import type { UpsertObservationArgs } from './types.ts';
 
 const sighting = (over: Partial<OwnSighting> = {}): OwnSighting => ({
@@ -8,16 +8,6 @@ const sighting = (over: Partial<OwnSighting> = {}): OwnSighting => ({
   location: {lon: -123.1, lat: 48.5}, observed_from: null, body: 'J35 and J47 heading north', count: 3,
   direction: 'north', url: null, entity_id: 'SSA:0000002', photos: [{src: 'https://salishsea.io/media/7/x/a.jpg', license: 'cc-by'}],
   contributor_id: 7, updated_at: '2026-10-05T17:01:00.000000Z', ...over,
-});
-
-describe('the write source', () => {
-  test('supabase unless the build says api; anything else is a mistake', () => {
-    expect([parseWriteSource(undefined, 'static'), parseWriteSource('', 'static'), parseWriteSource('supabase', 'supabase'),
-      parseWriteSource('api', 'static')]).toEqual(['supabase', 'supabase', 'supabase', 'api']);
-    expect(() => parseWriteSource('API', 'static')).toThrow(/VITE_WRITE_SOURCE/);
-    // the overlay lays own sightings over the published files, which Supabase's reads don't use
-    expect(() => parseWriteSource('api', 'supabase')).toThrow(/VITE_READ_SOURCE=static/);
-  });
 });
 
 describe("a contributor's own sighting, before a build has it", () => {

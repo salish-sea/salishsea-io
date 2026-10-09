@@ -66,7 +66,7 @@ function profilePagesRewrite(req, _res, next) {
 
 // The read-path build's files (decision 056), served at /read-path/ from a
 // build's export directory when READ_PATH_DIR names one — for developing the
-// VITE_READ_SOURCE=static frontend locally. In production the host serves them.
+// frontend locally. In production the host serves them.
 // A missing file is a real 404, not Vite's SPA fallback: the frontend reads a
 // 404 as a day with no sightings, and a 200 of index.html would be a parse error.
 function realpathOrNull(p) {
@@ -97,17 +97,14 @@ function readPathFiles(req, res, next) {
 /**
  * The map page's first data request, started with the HTML rather than after the
  * scripts have run: the day's file waits on the manifest, so this takes a round trip
- * out of the chain. Only in a build that reads the files (056), as the app decides it:
- * from Vite's resolved environment, which includes .env files, not process.env alone.
+ * out of the chain (decision 056).
  */
 function preloadReadPathManifest() {
-  let readSource;
   return {
     name: 'preload-read-path-manifest',
     apply: 'build',
-    configResolved(config) { readSource = config.env.VITE_READ_SOURCE; },
     transformIndexHtml(html, ctx) {
-      if (readSource !== 'static' || !ctx.path.endsWith('/index.html')) return html;
+      if (!ctx.path.endsWith('/index.html')) return html;
       return [{tag: 'link', attrs: {rel: 'preload', href: '/read-path/manifest.json', as: 'fetch', crossorigin: true}, injectTo: 'head'}];
     },
   };

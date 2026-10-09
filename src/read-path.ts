@@ -1,41 +1,16 @@
 /**
- * Where a logged-out visitor's reads come from (decision 056): Supabase, as
- * always, or the static files the read-path build writes.
- *
- * Chosen at build time by VITE_READ_SOURCE, `supabase` (the default) or
- * `static`, so production keeps reading Supabase while the same `main` builds
- * the prototype that reads files. Cutover and rollback are the same one-line
- * change.
- *
+ * What the site reads: the static files the read-path build writes (decision 056).
  * A day of sightings on the map, and the calendar's counts, read files; the
- * manifest tells an open tab when a new build has landed. A signed-in tab
- * overlays the sightings contributors saved here, live from Supabase (decision
- * 061): the files trail the database by up to a build, and a contributor must
- * see a sighting they just saved (decision 055). Upstream sightings come only
- * from the files, so they reach a contributor within one build.
+ * manifest tells an open tab when a new build has landed. A signed-in tab overlays
+ * its contributor's own sightings from the write API (write-api.ts, decision 065):
+ * the files trail the store by up to a build, and a contributor must see a sighting
+ * they just saved (decision 055).
  */
 
 import { Temporal } from 'temporal-polyfill';
 import type { Extent } from './extents.ts';
 import { idShard } from './read-path-shard.ts';
 import { HAULOUT_SITES_FILE, type AnimalName, type HauloutSite } from './catalog.ts';
-
-export type ReadSource = 'supabase' | 'static';
-
-/** The configured source. */
-export function readSource(): ReadSource {
-  return parseReadSource(import.meta.env.VITE_READ_SOURCE);
-}
-
-/**
- * A value that is neither source is a typo in a deploy's environment, and
- * failing loudly beats quietly reading the other source.
- */
-export function parseReadSource(value: string | undefined): ReadSource {
-  if (value === undefined || value === '' || value === 'supabase') return 'supabase';
-  if (value === 'static') return 'static';
-  throw new Error(`VITE_READ_SOURCE must be 'supabase' or 'static', not '${value}'`);
-}
 
 /**
  * Where the files are served. Same origin as the page, so the CSP's
@@ -45,26 +20,6 @@ export function parseReadSource(value: string | undefined): ReadSource {
 export const READ_PATH_BASE = '/read-path/';
 
 type Located = {location: {lon: number | null, lat: number | null} | null};
-
-/**
- * A sighting a contributor saved here has a contributor; no upstream source's
- * does. What the overlay replaces and the native calendar files count.
- */
-type Attributed = {contributor_id: number | null, observed_at: string};
-
-const isNative = ({contributor_id}: Attributed) => contributor_id != null;
-
-/**
- * A day for a signed-in tab: the file's upstream sightings and the live native
- * ones, newest first. Every native sighting in the file goes, not just those the
- * live rows replace, so one deleted or moved to another day since the build
- * leaves this day too. Live rows are already filtered to the day and region.
- */
-export function overlayNative<T extends Attributed>(file: T[], live: T[]): T[] {
-  // Stable, so the file's own order among equal instants survives.
-  return [...file.filter(o => !isNative(o)), ...live]
-    .sort((a, b) => Date.parse(b.observed_at) - Date.parse(a.observed_at));
-}
 
 /** The Pacific day an instant falls on, as the files and occurrence_days date it. */
 export function pacificDay(observedAt: string): string {
@@ -156,17 +111,11 @@ export function withinExtent<T extends Located>(rows: T[], extent: Extent | null
  * month after the manifest's coverage isn't fetched at all: its days get no
  * circle, as a failed load leaves them today. A missing month within coverage is
  * one with no sightings. With no manifest, nothing is built, and that throws.
- *
- * `withoutNative` leaves out the sightings contributors saved here, which the
- * build counts again in `calendar/<month>.native.json`, for a signed-in tab to
- * add back live (see {@link addLiveNative}). A month with no native file has
- * none.
  */
 export async function fetchCalendarCounts(
   from: string,
   to: string,
   regionSlug: string,
-  {withoutNative = false}: {withoutNative?: boolean} = {},
 ): Promise<Map<string, number>> {
   const manifest = await fetchManifest();
   if (!manifest) throw new Error(`${READ_PATH_BASE}manifest.json: nothing built yet`);
@@ -182,39 +131,8 @@ export async function fetchCalendarCounts(
     for (const [day, count] of Object.entries(byRegion[regionSlug] ?? {})) {
       if (day >= from && day <= to) counts.set(day, count);
     }
-    if (withoutNative) {
-      const nativeUrl = `${READ_PATH_BASE}calendar/${month}.native.json`;
-      const native = await fetch(nativeUrl);
-      if (native.status === 404) continue;
-      if (!native.ok) throw new Error(`${nativeUrl}: HTTP ${native.status}`);
-      const nativeByRegion = await native.json() as Record<string, Record<string, number>>;
-      for (const [day, count] of Object.entries(nativeByRegion[regionSlug] ?? {})) {
-        const left = (counts.get(day) ?? 0) - count;
-        if (left > 0) counts.set(day, left);
-        else counts.delete(day);
-      }
-    }
   }
   return counts;
-}
-
-/**
- * The counts with each live native sighting added to its Pacific day, for days
- * from `from` to `to` — the other half of `withoutNative`. The live rows are
- * already filtered to the region.
- */
-export function addLiveNative(
-  counts: Map<string, number>,
-  live: {observed_at: string}[],
-  from: string,
-  to: string,
-): Map<string, number> {
-  const merged = new Map(counts);
-  for (const {observed_at} of live) {
-    const day = pacificDay(observed_at);
-    if (day >= from && day <= to) merged.set(day, (merged.get(day) ?? 0) + 1);
-  }
-  return merged;
 }
 
 /** Every `YYYY-MM` from `from`'s month to `to`'s, inclusive. */

@@ -36,8 +36,8 @@ import type { Extent as RegionExtent } from './constants.ts';
 import UserLocationControl from './user-location-control.ts';
 import LayerControl from './layer-control.ts';
 import { DEFAULT_LAYERS, type ReferenceLayer } from './reference-layers.ts';
-import { fetchHauloutSites, hauloutPath, type HauloutSite } from './catalog.ts';
-import { fetchStaticHauloutSites, readSource } from './read-path.ts';
+import { hauloutPath, type HauloutSite } from './catalog.ts';
+import { fetchStaticHauloutSites } from './read-path.ts';
 import { reportError } from './report-error.ts';
 import { geolocationErrorIsReportable } from './geolocation-message.ts';
 
@@ -442,7 +442,7 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
   }
 
   private loadHaulouts() {
-    this.hauloutsLoaded ??= (readSource() === 'static' ? fetchStaticHauloutSites() : fetchHauloutSites())
+    this.hauloutsLoaded ??= fetchStaticHauloutSites()
       .then(sites => this.hauloutLayer.getSource()!.addFeatures(compactMap(sites, hauloutFeature)))
       .catch(err => {
         // Not latched, so switching the layer off and on again retries.

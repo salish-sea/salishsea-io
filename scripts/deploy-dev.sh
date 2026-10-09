@@ -29,8 +29,7 @@ KEY=$(node_modules/.bin/supabase projects api-keys --project-ref "$REF" -o json 
       | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const k=JSON.parse(s).find(k=>k.type==="publishable");if(!k)process.exit(1);process.stdout.write(k.api_key)})')
 
 # Variables set here outrank .env, which in a checkout names the local Supabase stack.
-export VITE_READ_SOURCE=static VITE_WRITE_SOURCE=api \
-    VITE_SUPABASE_URL="https://$REF.supabase.co" VITE_SUPABASE_WS_URL="wss://$REF.supabase.co" \
+export VITE_SUPABASE_URL="https://$REF.supabase.co" VITE_SUPABASE_WS_URL="wss://$REF.supabase.co" \
     VITE_SUPABASE_KEY="$KEY"
 pnpm exec tsc
 pnpm exec vite build --mode dev

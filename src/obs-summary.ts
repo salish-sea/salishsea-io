@@ -12,8 +12,7 @@ import { marked, Renderer } from 'marked';
 import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
 import { Temporal } from "temporal-polyfill";
-import { supabase } from "./supabase.ts";
-import { deleteSighting as deleteThroughApi, writeSource } from './write-api.ts';
+import { deleteSighting } from './write-api.ts';
 import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
@@ -319,17 +318,12 @@ export class ObsSummary extends LitElement {
   private async onDelete(e: Event) {
     e.preventDefault();
     try {
-      if (writeSource() === 'api') {
-        await deleteThroughApi(this.sighting.id);
-      } else {
-        const {error} = await supabase().from('observations').delete().eq('id', this.sighting.id);
-        if (error) throw error;
-      }
+      await deleteSighting(this.sighting.id);
     } catch (error) {
       reportError(this, "Couldn't delete that sighting. Please try again.", {cause: error});
       return;
     }
-    // The row's removal must not depend on the realtime broadcast arriving.
+    // The row's removal must not wait for the next build.
     // <salish-sea> drops it from the list and refetches; see its handler.
     this.dispatchEvent(new CustomEvent('sighting-deleted', {bubbles: true, composed: true, detail: this.sighting.id}));
   }

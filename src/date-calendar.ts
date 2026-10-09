@@ -3,12 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { Temporal } from "temporal-polyfill";
-import { consume } from "@lit/context";
-import { supabase } from "./supabase.ts";
-import { addLiveNative, fetchCalendarCounts, readSource } from "./read-path.ts";
-import { writeSource } from "./write-api.ts";
-import type { Extent } from "./extents.ts";
-import { userContext, type User } from "./identity.ts";
+import { fetchCalendarCounts } from "./read-path.ts";
 import { chevronLeftIcon, chevronRightIcon } from "./icons.ts";
 import { monthGrid, volumeScale, WEEKDAY_INITIALS } from "./calendar.ts";
 import { DEFAULT_REGION_SLUG, EARLIEST_OBSERVATION_DATE, observationToday, regionBySlug } from "./constants.ts";
@@ -229,15 +224,6 @@ export class DateCalendar extends LitElement {
   #fetched = new Set<string>();
 
   /**
-   * Signed in or not decides where counts come from in static mode: files for a
-   * signed-out visitor, Supabase for a contributor, whose own new sighting must
-   * grow its circle straight away (decision 056).
-   */
-  @consume({context: userContext, subscribe: true})
-  @state()
-  private user: User | undefined;
-
-  /**
    * Bumped by {@link refresh}. A request that was in flight when the counts were
    * invalidated carries the old generation and is dropped on arrival — without
    * this it would resolve after the refetch it raced and write its stale counts
@@ -265,11 +251,6 @@ export class DateCalendar extends LitElement {
     // #fetched would suppress the correct request when the slug finally showed
     // up — leaving circles quietly scoped to the region you just left.
     if (changed.has('regionSlug') && changed.get('regionSlug') !== undefined)
-      this.refresh();
-    // Signing in or out can change where counts come from (the read-path files
-    // are for signed-out visitors only), so counts fetched from the other source
-    // go. Only after the first render: before it, nothing has been fetched.
-    else if ((changed as PropertyValues).has('user') && this.hasUpdated && readSource() === 'static')
       this.refresh();
     // Follow the selection when it lands outside the month on screen — a day
     // step across a boundary, or a jump to an occurrence from another season.
@@ -428,108 +409,23 @@ export class DateCalendar extends LitElement {
     const from = days[0]!.toString();
     const to = days[days.length - 1]!.toString();
 
-    if (readSource() === 'static') {
-      let counts: Counts;
-      try {
-        const region = regionBySlug(this.regionSlug);
-        // A signed-in tab counts the native sightings live, as the list shows
-        // them (decision 061): the file's counts without them, plus Supabase's.
-        // Through the write API a tab sees only its contributor's own sightings live,
-        // which the counts can't tell apart from the file's (decision 065): the file's
-        // counts stand, a build behind at most.
-        if (this.user && writeSource() === 'supabase') {
-          const [fileCounts, live] = await Promise.all([
-            fetchCalendarCounts(from, to, region.slug, {withoutNative: true}),
-            fetchLiveNative(from, to, region.extent),
-          ]);
-          counts = addLiveNative(fileCounts, live, from, to);
-        } else {
-          counts = await fetchCalendarCounts(from, to, region.slug);
-        }
-      } catch (error) {
-        if (generation !== this.#generation) return;
-        this.#fetched.delete(key);
-        console.error('Failed to load sighting volume', error);
-        return;
-      }
+    let counts: Counts;
+    try {
+      // A signed-in tab's own new sighting reaches the counts with the next build, a
+      // minute or so: the write API overlays only the list, which the counts can't
+      // tell apart from the file's (decision 065).
+      counts = await fetchCalendarCounts(from, to, regionBySlug(this.regionSlug).slug);
+    } catch (error) {
       if (generation !== this.#generation) return;
-      // Replace the grid's range whole, so a day that has dropped to zero loses
-      // its circle rather than keeping the one it had.
-      const merged = new Map([...this.counts].filter(([day]) => day < from || day > to));
-      for (const [day, count] of counts) merged.set(day, count);
-      this.counts = merged;
-      return;
-    }
-
-    // An RPC rather than a filtered view: the bbox has to apply before the
-    // GROUP BY, and the view exposed only `day` and `occurrence_count`, so
-    // there was nothing for a client-side predicate to bite on.
-    const extent = regionBySlug(this.regionSlug).extent;
-    // Everywhere omits the bounds entirely; the function defaults them to NULL,
-    // which COALESCEs to whole-world limits.
-    const [minLon, minLat, maxLon, maxLat] = extent ?? [undefined, undefined, undefined, undefined];
-    const {data, error} = await supabase()
-      .rpc('occurrence_days', {
-        from_day: from,
-        to_day: to,
-        min_lon: minLon,
-        min_lat: minLat,
-        max_lon: maxLon,
-        max_lat: maxLat,
-      });
-
-    // Superseded by a refresh while in flight. Bail before the error branch too:
-    // this request's key was cleared by refresh() and re-added by the request
-    // that replaced it, so deleting it here would evict a live entry.
-    if (generation !== this.#generation)
-      return;
-
-    if (error) {
-      // A calendar without circles is still a usable date picker; leave it bare.
       this.#fetched.delete(key);
       console.error('Failed to load sighting volume', error);
       return;
     }
-
-    const counts = new Map(this.counts);
-    for (const row of data ?? []) {
-      if (row.day)
-        counts.set(row.day, row.occurrence_count ?? 0);
-    }
-    this.counts = counts;
-  }
-}
-
-/**
- * When each native sighting from `from` to `to` (Pacific days, inclusive) inside
- * the region was made, live from Supabase. A sighting with a contributor is one
- * saved here; no upstream source has one.
- */
-async function fetchLiveNative(from: string, to: string, extent: Extent | null): Promise<{observed_at: string}[]> {
-  const start = Temporal.PlainDate.from(from).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
-  const end = Temporal.PlainDate.from(to).add({days: 1}).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
-  let query = supabase()
-    .from('occurrences')
-    .select('observed_at')
-    .not('contributor_id', 'is', null)
-    .gte('observed_at', start.toInstant())
-    .lt('observed_at', end.toInstant())
-    // The files count nothing without a location, not even for Everywhere.
-    .not('location->lon', 'is', null)
-    .not('location->lat', 'is', null);
-  // `->`, not `->>`: see fetchOccurrences in salish-sea.ts.
-  if (extent) {
-    const [minx, miny, maxx, maxy] = extent;
-    query = query
-      .gte('location->lon', minx).lte('location->lon', maxx)
-      .gte('location->lat', miny).lte('location->lat', maxy);
-  }
-  const {data} = await query.throwOnError();
-  return data;
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    "date-calendar": DateCalendar;
+    if (generation !== this.#generation) return;
+    // Replace the grid's range whole, so a day that has dropped to zero loses
+    // its circle rather than keeping the one it had.
+    const merged = new Map([...this.counts].filter(([day]) => day < from || day > to));
+    for (const [day, count] of counts) merged.set(day, count);
+    this.counts = merged;
   }
 }

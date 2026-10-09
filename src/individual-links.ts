@@ -1,7 +1,6 @@
-import { supabase } from './supabase.ts';
 import { populationPath, individualPath, matrilinePath } from './catalog.ts';
 import { fold } from './fold.ts';
-import { READ_PATH_BASE, readSource } from './read-path.ts';
+import { READ_PATH_BASE } from './read-path.ts';
 
 // Same shape as public.extract_identifiers (20250924160210_detect_individuals.sql):
 // pod/catalog prefix, optional separator, leading zeros, digit + hex block, and a
@@ -104,26 +103,11 @@ export function setCatalogCodes({ designations, groups }: CatalogCodeRows): Map<
 }
 
 async function fetchCatalogCodeRows(): Promise<CatalogCodeRows> {
-  // In static mode the build's file, so a sighting's designations still link while
-  // the database is unreachable (decision 056); it is at most one build behind.
-  if (readSource() === 'static') {
-    const url = `${READ_PATH_BASE}catalog-codes.json`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${url}: ${response.status}`);
-    return await response.json() as CatalogCodeRows;
-  }
-  const [{ data: designations }, { data: groups }] = await Promise.all([
-    supabase()
-      .from('designations')
-      .select('code, individual:individuals (entity_id, primary_designation)')
-      .throwOnError(),
-    supabase()
-      .from('social_groups')
-      .select('kind, designation, entity_id')
-      .in('kind', ['matriline', 'ecotype'])
-      .throwOnError(),
-  ]);
-  return { designations, groups };
+  // The build's file (decision 056), at most one build behind.
+  const url = `${READ_PATH_BASE}catalog-codes.json`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url}: ${response.status}`);
+  return await response.json() as CatalogCodeRows;
 }
 
 // Fetch the designation -> individual lookup (plus the matriline and ecotype

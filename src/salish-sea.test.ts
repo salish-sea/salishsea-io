@@ -1,65 +1,74 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-// Every test here instantiates <salish-sea>, whose constructor subscribes to
-// auth and to the realtime channel and whose first render fetches a day of
-// sightings. Stub the client so none of that reaches the network, and so a
-// query failure is something a test can ask for.
+// Every test here instantiates <salish-sea>, whose constructor asks the write API who is
+// signed in and whose first render fetches a day of sightings and watches the manifest.
+// Stub the file readers and the API so none of that reaches the network, and so a
+// failure is something a test can ask for. A test that serves the files itself, through
+// a fetch stub, sets `files` and gets the real readers.
 const occurrenceQuery = vi.hoisted(() => ({
   rows: [] as unknown[] | null,
   error: null as unknown,
   /** Set to hold a response open, so a test can decide when it lands. */
   gate: null as Promise<void> | null,
-  /** What a `?o=` permalink lookup finds. */
+  /** What a `?o=` permalink lookup finds in the files. */
   single: {data: null as unknown, error: null as unknown},
-  /** The component's auth listener, so a test can sign someone in. */
-  onAuth: null as ((event: string, session: unknown) => void) | null,
+  /** Read the files for real, from whatever the test's fetch stub serves. */
+  files: false,
 }));
-// The sighting form asks the register for its menu's names on mount (salish-53t.3); that is not
-// what these tests are about, and an unanswered fetch would raise a toast of its own.
-vi.mock('./catalog.ts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./catalog.ts')>()),
-  fetchAnimalNames: async () => new Map(),
+const api = vi.hoisted(() => ({
+  /** Who GET /api/me (and a sign-in) says is signed in. */
+  me: null as unknown,
+  /** The signed-in contributor's own sightings, as GET /api/sightings answers. */
+  own: [] as unknown[],
 }));
+vi.mock('./read-path.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./read-path.ts')>();
+  return {
+    ...actual,
+    fetchDayOccurrences: ((...args: Parameters<typeof actual.fetchDayOccurrences>) => {
+      if (occurrenceQuery.files) return actual.fetchDayOccurrences(...args);
+      // Captured when the request is issued, not when it lands: a test that holds a
+      // response open is modelling a server whose answer is already decided.
+      const {rows, error, gate} = occurrenceQuery;
+      return (async () => {
+        if (gate) await gate;
+        if (error) throw error;
+        return rows;
+      })();
+    }) as typeof actual.fetchDayOccurrences,
+    findOccurrence: (async (id: string) => {
+      if (occurrenceQuery.files) return actual.findOccurrence(id);
+      if (occurrenceQuery.single.error) throw occurrenceQuery.single.error;
+      return occurrenceQuery.single.data;
+    }) as typeof actual.findOccurrence,
+    fetchCalendarCounts: ((...args: Parameters<typeof actual.fetchCalendarCounts>) =>
+      occurrenceQuery.files ? actual.fetchCalendarCounts(...args) : Promise.resolve(new Map())) as typeof actual.fetchCalendarCounts,
+    watchManifest: ((...args: Parameters<typeof actual.watchManifest>) =>
+      occurrenceQuery.files ? actual.watchManifest(...args) : () => {}) as typeof actual.watchManifest,
+    // The published names, which the sighting form's menu asks for on mount (salish-53t.3)
+    // and a contributor's own sightings are named from. Only the fixtures' animal.
+    fetchStaticAnimalNames: async () => new Map([['SSA:0000002',
+      {common_name: null, taxon_common_name: 'Killer whale', inaturalist_scientific_name: 'Orcinus orca'}]]),
+  };
+});
+vi.mock('./write-api.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./write-api.ts')>();
+  return {
+    ...actual,
+    fetchMe: async () => api.me,
+    signIn: async () => api.me,
+    signOut: async () => {},
+    fetchOwnSightings: async () => api.own,
+    fetchPublicSighting: ((id: string) =>
+      occurrenceQuery.files ? actual.fetchPublicSighting(id) : Promise.resolve(null)) as typeof actual.fetchPublicSighting,
+  };
+});
 
 vi.mock('@sentry/browser', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@sentry/browser')>()),
   captureException: () => {},
 }));
-vi.mock('./supabase.ts', () => {
-  const query: Record<string, unknown> = {};
-  for (const chained of ['select', 'gte', 'lt', 'lte', 'eq', 'not', 'order'])
-    query[chained] = () => query;
-  query.throwOnError = () => {
-    // Captured when the request is issued, not when it lands: a test that holds
-    // a response open is modelling a server whose answer is already decided.
-    const {rows, error, gate} = occurrenceQuery;
-    return (async () => {
-      if (gate) await gate;
-      if (error) throw error;
-      return {data: rows};
-    })();
-  };
-  query.maybeSingle = async () => occurrenceQuery.single;
-  const channel: Record<string, unknown> = {};
-  channel.on = () => channel;
-  channel.subscribe = () => channel;
-  channel.unsubscribe = () => {};
-  return {
-    supabase: () => ({
-      auth: {
-        onAuthStateChange: (listener: (event: string, session: unknown) => void) => {
-          occurrenceQuery.onAuth = listener;
-          return {data: {subscription: {unsubscribe() {}}}};
-        },
-        signOut: async () => ({error: null}),
-      },
-      from: () => query,
-      channel: () => channel,
-      rpc: async () => ({data: null, error: null}),
-    }),
-  };
-});
 
 import SalishSea, { dateFromObservedAt } from './salish-sea.ts';
 import type { Occurrence } from './types.ts';
@@ -90,6 +99,9 @@ beforeEach(() => {
   occurrenceQuery.error = null;
   occurrenceQuery.gate = null;
   occurrenceQuery.single = {data: null, error: null};
+  occurrenceQuery.files = false;
+  api.me = null;
+  api.own = [];
 });
 
 afterEach(() => {
@@ -155,7 +167,7 @@ async function toastText(el: SalishSea): Promise<string | null> {
   return toast.shadowRoot!.querySelector('.toast p')?.textContent ?? null;
 }
 
-test('a deleted sighting leaves the list on the delete, not on the broadcast', async () => {
+test('a deleted sighting leaves the list on the delete, not on the next build', async () => {
   const el = await mountWithSightings(
     occurrenceFixture('aaa', '2024-07-15T18:23:00Z'),
     occurrenceFixture('bbb', '2024-07-15T19:23:00Z'),
@@ -165,8 +177,8 @@ test('a deleted sighting leaves the list on the delete, not on the broadcast', a
   el.dispatchEvent(new CustomEvent('sighting-deleted', {detail: 'aaa'}));
   await el.updateComplete;
 
-  // No realtime broadcast was delivered. Before this, a missed broadcast left
-  // the deleted sighting on screen indefinitely.
+  // No build has landed. Before this, a missed refresh left the deleted sighting
+  // on screen indefinitely.
   expect(summaryIds(el)).toEqual(['summary-bbb']);
 });
 
@@ -204,9 +216,9 @@ test('a fire-and-forget refetch that fails outright surfaces instead of rejectin
   const onUnhandled = (e: PromiseRejectionEvent) => { unhandled.push(e.reason); e.preventDefault(); };
   window.addEventListener('unhandledrejection', onUnhandled as EventListener);
   try {
-    // A response the query layer is happy with and the code that reads it is
+    // A response the reader is happy with and the code that reads it is
     // not. It fails *after* fetchOccurrences' own try/catch, which is the
-    // failure that used to reject into nothing — the query errors it does catch
+    // failure that used to reject into nothing — the read errors it does catch
     // report themselves.
     occurrenceQuery.rows = null;
     el.date = '2024-07-16';
@@ -257,15 +269,15 @@ test('a response already in flight when a sighting is deleted does not put the r
 });
 
 test('a permalink lookup that fails is not reported as a sighting that does not exist', async () => {
-  const failure = {code: '57014', message: 'canceling statement due to statement timeout'};
+  const failure = new Error('/read-path/ids/ab.json: HTTP 503');
   occurrenceQuery.single = {data: null, error: failure};
   const el = document.createElement('salish-sea') as SalishSea;
   document.body.appendChild(el);
   await el.updateComplete;
 
-  // Supabase hands a failed lookup back as a null `data` alongside an error —
-  // the same null a `?o=` for a sighting we don't have produces. Reaching
-  // firstUpdated's toast depends on the two being told apart here.
+  // A failed lookup and a `?o=` for a sighting we don't have both leave nothing to
+  // show. Reaching firstUpdated's toast depends on the two being told apart: the
+  // files' reader throws for one and resolves null for the other.
   await expect(
     (el as unknown as {hydrateFromOccurrenceId(id: string): Promise<void>}).hydrateFromOccurrenceId('abc'),
   ).rejects.toBe(failure);
@@ -282,12 +294,19 @@ test('a permalink for a sighting we do not have stays quiet, as it always has', 
   expect(await toastText(el)).toBeNull();
 });
 
-// Decisions 056 and 061: under VITE_READ_SOURCE=static the day comes from the
-// read-path file. A signed-in contributor's tab overlays the native sightings
-// live from Supabase, because the files trail the database and a contributor
-// must see a sighting they just saved (decision 055).
-test('in static mode, a signed-out visitor reads the day file and a signed-in contributor sees its natives live', async () => {
-  vi.stubEnv('VITE_READ_SOURCE', 'static');
+/** A contributor's own sighting as GET /api/sightings answers (decision 065). */
+const ownSighting = (id: string, observedAt: string) => ({
+  id, observed_at: observedAt, location: {lon: -123.0, lat: 48.5}, observed_from: null, body: 'Two orcas heading north',
+  count: 2, direction: null, url: null, entity_id: 'SSA:0000002', photos: [], contributor_id: 7, updated_at: observedAt,
+});
+const CONTRIBUTOR = {id: 7, name: 'Contributor', picture: null, editor: false, orcid: null};
+
+// Decisions 056 and 065: the day comes from the read-path file. A signed-in
+// contributor's tab overlays their own sightings from the write API, because the
+// files trail the store and a contributor must see a sighting they just saved
+// (decision 055).
+test('a signed-out visitor reads the day file and a signed-in contributor sees their own sightings as saved', async () => {
+  occurrenceQuery.files = true;
   const fromFile = (date: string) => new Response(JSON.stringify([
     occurrenceFixture('from-file', `${date}T20:00:00Z`),
     // Saved here, then deleted or moved to another day since the build.
@@ -299,7 +318,7 @@ test('in static mode, a signed-out visitor reads the day file and a signed-in co
   try {
     document.body.appendChild(el);
     await el.updateComplete;
-    occurrenceQuery.rows = [occurrenceFixture('live-native', `${el.date}T21:00:00Z`, 7)];
+    api.own = [ownSighting('live-native', `${el.date}T21:00:00Z`)];
 
     await el.fetchOccurrences(el.date);
     await el.updateComplete;
@@ -307,21 +326,20 @@ test('in static mode, a signed-out visitor reads the day file and a signed-in co
     expect(summaryIds(el)).toEqual(['summary-from-file', 'summary-stale-native']);
 
     fetchSpy.mockClear();
-    (el as unknown as {user: unknown}).user = {id: 'contributor'};
+    Object.assign(el as unknown as {user: unknown, contributor: unknown}, {user: {id: 'contributor'}, contributor: CONTRIBUTOR});
     await el.fetchOccurrences(el.date);
     await el.updateComplete;
     expect(fetchSpy).toHaveBeenCalledWith(`/read-path/days/${el.date}.json`);
-    // The file's upstream sighting and the live native one, newest first; the
-    // file's own native sighting is not Supabase's to vouch for any more.
+    // The file's upstream sighting and their own as saved, newest first; the file's
+    // copy of their sighting goes, since it may have been deleted or moved since.
     expect(summaryIds(el)).toEqual(['summary-live-native', 'summary-from-file']);
   } finally {
-    vi.unstubAllEnvs();
     fetchSpy.mockRestore();
   }
 });
 
 test('a day file still in flight when someone signs in does not overwrite their overlaid list', async () => {
-  vi.stubEnv('VITE_READ_SOURCE', 'static');
+  occurrenceQuery.files = true;
   let release!: (r: Response) => void;
   const held = new Promise<Response>(resolve => release = resolve);
   let dayRequests = 0;
@@ -335,10 +353,11 @@ test('a day file still in flight when someone signs in does not overwrite their 
   try {
     document.body.appendChild(el);
     await el.updateComplete;
-    occurrenceQuery.rows = [occurrenceFixture('live-native', `${el.date}T20:00:00Z`, 7)];
+    api.own = [ownSighting('live-native', `${el.date}T20:00:00Z`)];
     const signedOut = el.fetchOccurrences(el.date);   // the file request, held open
 
-    occurrenceQuery.onAuth!('SIGNED_IN', {user: {id: 'contributor'}});
+    api.me = {user_id: 'contributor', contributor: CONTRIBUTOR};
+    await el.receiveIdToken('token', 'nonce');
     await vi.waitFor(() => expect(summaryIds(el)).toEqual(['summary-live-native']));
 
     release(new Response(JSON.stringify([occurrenceFixture('from-file', `${el.date}T20:00:00Z`)]), {status: 200}));
@@ -346,54 +365,12 @@ test('a day file still in flight when someone signs in does not overwrite their 
     await el.updateComplete;
     expect(summaryIds(el)).toEqual(['summary-live-native']);
   } finally {
-    vi.unstubAllEnvs();
-    fetchSpy.mockRestore();
-  }
-});
-
-test('a signed-in permalink to a native sighting deleted since the build does not open the file\'s copy', async () => {
-  vi.stubEnv('VITE_READ_SOURCE', 'static');
-  // The live lookup finds nothing: the sighting is gone from Supabase.
-  occurrenceQuery.single = {data: null, error: null};
-  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
-    const u = String(url);
-    if (u.includes('/read-path/ids/'))
-      return new Response(JSON.stringify({'gone-native': '2025-03-09', 'maplify:1': '2025-03-09'}));
-    if (u.endsWith('/read-path/days/2025-03-09.json'))
-      return new Response(JSON.stringify([
-        occurrenceFixture('gone-native', '2025-03-09T20:00:00Z', 7),
-        occurrenceFixture('maplify:1', '2025-03-09T19:00:00Z'),
-      ]));
-    return new Response(null, {status: 404});
-  });
-  const el = document.createElement('salish-sea') as SalishSea;
-  const hydrate = (id: string) =>
-    (el as unknown as {hydrateFromOccurrenceId(id: string): Promise<void>}).hydrateFromOccurrenceId(id);
-  try {
-    document.body.appendChild(el);
-    await el.updateComplete;
-    (el as unknown as {user: unknown}).user = {id: 'contributor'};
-    const today = el.date;
-
-    await hydrate('gone-native');
-    expect(el.date).toBe(today);
-
-    // An upstream sighting still opens from the files. Focusing it scrolls its
-    // summary into view, which jsdom doesn't implement.
-    Element.prototype.scrollIntoView = () => {};
-    await hydrate('maplify:1').catch(() => {});   // jsdom has no map to centre
-    expect(el.date).toBe('2025-03-09');
-  } finally {
-    el.remove();
-    delete (Element.prototype as Partial<Element>).scrollIntoView;
-    vi.unstubAllEnvs();
     fetchSpy.mockRestore();
   }
 });
 
 test('a permalink to a sighting saved since the last build opens it from the API (salish-9uu.5)', async () => {
-  vi.stubEnv('VITE_READ_SOURCE', 'static');
-  vi.stubEnv('VITE_WRITE_SOURCE', 'api');
+  occurrenceQuery.files = true;
   const fresh = '01977c2a-b313-77a9-8433-ffccbd56bf57';
   const asked: string[] = [];
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
@@ -431,13 +408,12 @@ test('a permalink to a sighting saved since the last build opens it from the API
   } finally {
     el.remove();
     delete (Element.prototype as Partial<Element>).scrollIntoView;
-    vi.unstubAllEnvs();
     fetchSpy.mockRestore();
   }
 });
 
-test('in static mode, a new build makes a signed-in tab refetch its day too', async () => {
-  vi.stubEnv('VITE_READ_SOURCE', 'static');
+test('a new build makes a signed-in tab refetch its day too', async () => {
+  occurrenceQuery.files = true;
   vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']});
   let takenAt = '2025-03-09T20:00:00.000Z';
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) =>
@@ -460,13 +436,12 @@ test('in static mode, a new build makes a signed-in tab refetch its day too', as
   } finally {
     el.remove();
     vi.useRealTimers();
-    vi.unstubAllEnvs();
     fetchSpy.mockRestore();
   }
 });
 
-test('in static mode, a new build makes a signed-out tab refetch its day', async () => {
-  vi.stubEnv('VITE_READ_SOURCE', 'static');
+test('a new build makes a signed-out tab refetch its day', async () => {
+  occurrenceQuery.files = true;
   vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']});
   let takenAt = '2025-03-09T20:00:00.000Z';
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) =>
@@ -497,7 +472,6 @@ test('in static mode, a new build makes a signed-out tab refetch its day', async
   } finally {
     el.remove();
     vi.useRealTimers();
-    vi.unstubAllEnvs();
     fetchSpy.mockRestore();
   }
 });

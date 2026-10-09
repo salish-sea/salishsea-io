@@ -12,20 +12,19 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const rpc = vi.hoisted(() => ({
-  calls: [] as {fn: string; args: Record<string, unknown>}[],
+  calls: [] as {args: Record<string, unknown>}[],
   error: null as unknown,
   /** Set to hold a request open, so a test decides when it lands. */
   gate: null as Promise<void> | null,
 }));
 
-vi.mock('./supabase.ts', () => ({
-  supabase: () => ({
-    rpc: async (fn: string, args: Record<string, unknown>) => {
-      rpc.calls.push({fn, args});
-      if (rpc.gate) await rpc.gate;
-      return {data: null, error: rpc.error};
-    },
-  }),
+// The write API's POST /api/feedback (decision 065): it throws on a failed send.
+vi.mock('./write-api.ts', () => ({
+  submitFeedback: async (args: Record<string, unknown>) => {
+    rpc.calls.push({args});
+    if (rpc.gate) await rpc.gate;
+    if (rpc.error) throw rpc.error;
+  },
 }));
 
 // What the build wrote to release.json (src/release.ts).
@@ -175,14 +174,13 @@ describe('a draft in progress', () => {
 });
 
 describe('sending', () => {
-  test('goes to our own Supabase, and carries context nobody could be asked for', async () => {
+  test('goes to our own write API, and carries context nobody could be asked for', async () => {
     el.open();
     await typeInto(el, 'input', 'Scott');
     await typeInto(el, 'textarea', 'Trouble uploading pix');
     await send(el);
 
     expect(rpc.calls).toHaveLength(1);
-    expect(rpc.calls[0]!.fn).toBe('submit_feedback');
     expect(rpc.calls[0]!.args).toMatchObject({name: 'Scott', message: 'Trouble uploading pix'});
     // The 2026-09-08 report was iOS-Safari-specific and we could not tell.
     expect(rpc.calls[0]!.args['user_agent']).toBe(navigator.userAgent);

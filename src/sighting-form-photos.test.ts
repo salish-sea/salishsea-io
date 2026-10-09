@@ -18,15 +18,11 @@ const uploads = vi.hoisted(() => ({
   attempted: [] as string[],
 }));
 
-vi.mock('./supabase.ts', () => ({
-  supabase: () => ({rpc: async () => ({data: null, error: null})}),
-}));
-
-// The form asks the register for its menu's names on mount (salish-53t.3); that is not
+// The form asks the published names for its menu on mount (salish-53t.3); that is not
 // what these tests are about, and an unanswered fetch would raise a toast of its own.
-vi.mock('./catalog.ts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./catalog.ts')>()),
-  fetchAnimalNames: async () => new Map(),
+vi.mock('./read-path.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./read-path.ts')>()),
+  fetchStaticAnimalNames: async () => new Map(),
 }));
 
 vi.mock('@sentry/browser', async (importOriginal) => ({
