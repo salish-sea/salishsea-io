@@ -1,20 +1,19 @@
+import { readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
-import { isIngestable, reconcile, type NormalizedObservation, type NormalizedPhoto, type NormalizedTaxon } from '../ingest/inaturalist.ts';
-import { persistInaturalist, type IngestWindow } from '../ingest/persist.ts';
+import { isIngestable, type NormalizedObservation, type NormalizedPhoto, type NormalizedTaxon } from '../ingest/inaturalist.ts';
+import type { IngestWindow } from '../ingest/window.ts';
 import {
     applyFetch, danglingTaxonIds, dueTaxa, observationRow, openMirror, padded, photoRows, recordSynced, refreshTaxa, REFRESH_PER_RUN,
     storedTaxonIds, sweepFrom, syncedThrough,
     type ObservationRow, type PhotoRow,
 } from './ingest-inaturalist.ts';
-import { rolledBack } from './rolled-back.ts';
 
-/** Taxa and observations in ranges no database that mirrors production holds, as persist.test.ts does. */
+/** Taxa and observations in ranges no production mirror holds, as Postgres's ingest tests used. */
 const taxa: NormalizedTaxon[] = [
     {id: 2000000001, parentId: null, scientificName: 'Testessa radix', vernacularName: null, rank: 'stateofmatter',
      ancestorIds: [2000000001], isActive: true, currentTaxonId: null},
@@ -192,22 +191,13 @@ describe('the mirror', () => {
     });
 });
 
-const DSN = process.env['SUPABASE_DB_URL'];
-
 // The guarantee the live report can't give: for the same fetch, the mirror's in-scope
-// observations and photos are what Postgres's ingest stores. Written inside a transaction
-// that is always rolled back (rolled-back.ts), so no other test file sees them.
-describe.skipIf(!DSN)('the mirror stores what Postgres stores (local Supabase)', () => {
-    let sql: ReturnType<typeof postgres>;
+// observations and photos are what Postgres's ingest stored. What it stored for this fetch
+// was captured before Postgres retired (salish-9uu.11): fixtures/twins/ingest-inaturalist.json.
+describe('the mirror stores what Postgres stored', () => {
     let dir: string;
-    beforeAll(async () => {
-        sql = postgres(DSN as string, {max: 1});
-        dir = await mkdtemp(path.join(tmpdir(), 'inaturalist-equivalence-'));
-    });
-    afterAll(async () => {
-        await sql.end();
-        await rm(dir, {recursive: true, force: true});
-    });
+    beforeAll(async () => { dir = await mkdtemp(path.join(tmpdir(), 'inaturalist-equivalence-')); });
+    afterAll(async () => { await rm(dir, {recursive: true, force: true}); });
 
     test('for one fetch', async () => {
         const fetched = [
@@ -215,26 +205,8 @@ describe.skipIf(!DSN)('the mirror stores what Postgres stores (local Supabase)',
             observation({id: 9000000012, lon: -122.4, lat: 37.8}),   // California, not an orca: out of scope
             observation({id: 9000000013, login: 'test_inat_b', orcid: 'https://orcid.org/0000-0002-1825-0097', publicPositionalAccuracy: null, licenseCode: null}),
         ];
-        const stored = await rolledBack(sql, async (nested, tx) => {
-            // Postgres's ingest, as the Supabase function runs it: the parse drops what is out of scope.
-            await persistInaturalist(nested, {taxa, plan: reconcile(fetched.filter(isIngestable), []), window: WINDOW});
-            await tx`SET LOCAL extra_float_digits = 3`;
-            return {
-                observations: [...await tx`
-                    SELECT CAST(o.id AS bigint)::float8 AS id, o.description,
-                           gis.st_x(o.location::gis.geometry) AS lon, gis.st_y(o.location::gis.geometry) AS lat,
-                           extract(epoch from o.observed_at)::float8 * 1000 AS observed_ms, o.license_code::text AS license_code,
-                           o.uri, o.username AS login, c.orcid, o.taxon_id, o.public_positional_accuracy
-                    FROM inaturalist.observations o LEFT JOIN public.contributors c ON c.id = o.contributor_id
-                    WHERE o.id >= 9000000000 AND o.id < 9000010000 ORDER BY o.id`],
-                photos: [...await tx`
-                    SELECT CAST(id AS bigint)::float8 AS id, CAST(observation_id AS bigint)::float8 AS observation_id, seq,
-                           attribution, hidden::int AS hidden, license::text AS license,
-                           (original_dimensions).height AS height, (original_dimensions).width AS width, url
-                    FROM inaturalist.observation_photos WHERE observation_id >= 9000000000 AND observation_id < 9000010000
-                    ORDER BY id`],
-            };
-        });
+        const stored = JSON.parse(readFileSync(path.join(import.meta.dirname, 'fixtures/twins/ingest-inaturalist.json'), 'utf8')) as
+            {observations: Record<string, unknown>[], photos: Record<string, unknown>[]};
 
         const file = path.join(dir, 'inaturalist.sqlite');
         const db = openMirror(file);

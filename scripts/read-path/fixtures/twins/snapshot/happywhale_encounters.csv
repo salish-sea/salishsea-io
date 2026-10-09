@@ -1,0 +1,2 @@
+id,individual_id,user_id,species_id,verbatim_location,comments,min_count,location_lon,location_lat,accuracy,start_date,start_time,end_time,timezone,public,source_url,provider_id,collection_id
+1,1,1,1,Off Turn Point,Mother and calf,4,-123.24,48.69,,2026-09-17,13:01:38,,America/Vancouver,true,https://happywhale.com/individual/1;enc=1,4,9

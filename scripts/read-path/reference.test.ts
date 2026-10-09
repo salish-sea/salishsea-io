@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { describe, expect, test } from 'vitest';
 
-import { REFERENCE, REFERENCE_DIR, compareWithPostgres, loadReference } from './reference.ts';
+import { REFERENCE, REFERENCE_DIR, loadReference } from './reference.ts';
 
 async function loaded<T>(dir: string, read: (q: (sql: string) => Promise<unknown[][]>) => Promise<T>): Promise<T> {
     const conn = await (await DuckDBInstance.create(':memory:')).connect();
@@ -70,15 +70,5 @@ describe('reference data (decision 064)', () => {
         } finally {
             await rm(dir, {recursive: true, force: true});
         }
-    });
-});
-
-const DSN = process.env['SUPABASE_DB_URL'];
-
-// Migrations wrote these tables, so a fresh replay must hold exactly what the files do:
-// a migration that changes one without changing its file (or the reverse) fails here.
-describe.skipIf(!DSN)('reference data matches a migration replay (local Supabase)', () => {
-    test('no row only one side has', async () => {
-        expect(await compareWithPostgres(DSN!)).toEqual([]);
     });
 });

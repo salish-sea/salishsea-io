@@ -33,8 +33,8 @@
  *      BEFORE opening the persist transaction. A taxon-API failure counts against
  *      fetch-completeness (shell aborts, writes nothing).
  *
- * Persist-time resolutions kept in SQL (see persist.ts / decision 011), unchanged
- * from the prior path:
+ * Persist-time resolutions Postgres's ingest kept in SQL (decision 011; its persist.ts
+ * retired with Postgres, salish-9uu.11):
  *   - provider_id     — column DEFAULT (3 = iNaturalist).
  *   - collection_id   — column DEFAULT (8 = iNaturalist).
  *   - contributor_id  — inaturalist.mint_contributor(login, orcid), a DB upsert

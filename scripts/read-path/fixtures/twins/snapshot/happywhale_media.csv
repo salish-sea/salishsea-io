@@ -1,0 +1,2 @@
+id,encounter_id,user_id,mimetype,url,thumb_url,public,license_level
+1,1,1,image/jpeg,https://happywhale.com/media/1.jpg,https://happywhale.com/media/1/thumb.jpg,true,cc-by

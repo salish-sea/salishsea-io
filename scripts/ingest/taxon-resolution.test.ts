@@ -9,8 +9,8 @@
  *
  * These tests write the mirror directly (the fixture IS a retirement, which no ingest run
  * would produce on demand) and read the views, gated on SUPABASE_DB_URL like the rest of
- * the DB-backed suite. Reserved id band 2_000_001_000..2_000_001_999 — distinct from
- * persist.test.ts's band so the two can run in either order.
+ * the DB-backed suite. Reserved id band 2_000_001_000..2_000_001_999, apart from the
+ * bands other DB-backed tests used.
  *
  * The vehicle is an iNaturalist observation. It was a Maplify sighting until decision 049
  * keyed those on a register entity; the iNaturalist mirror is the table that still stores

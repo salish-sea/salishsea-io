@@ -1,0 +1,8 @@
+subject_id,predicate_id,object_id
+SSA:0000002,skos:broadMatch,NCBITaxon:9733
+SSA:0000002,skos:closeMatch,inaturalist.taxon:1602533
+SSA:0000003,skos:broadMatch,NCBITaxon:9733
+SSA:0000003,skos:closeMatch,inaturalist.taxon:1602531
+SSA:0000900,skos:exactMatch,inaturalist.taxon:41521
+SSA:0000901,skos:exactMatch,inaturalist.taxon:41566
+SSA:0000904,skos:exactMatch,inaturalist.taxon:41708

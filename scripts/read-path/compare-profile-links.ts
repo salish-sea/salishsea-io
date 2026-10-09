@@ -5,7 +5,7 @@
  *
  * Compares each relation derive-profile-links.ts writes, `build.<view>`, with
  * `snapshot.<view>`, Postgres's answer to the same view, read in the same transaction as
- * everything the build derived it from. The rows have no key (a sighting can link one
+ * everything the build derived it from (the twin fixture, twin-fixture.ts). The rows have no key (a sighting can link one
  * individual twice, once per code naming her), so each side is a multiset of documents,
  * and two documents are the same when the pages would read the same thing from them:
  * each is parsed and re-serialized, so Postgres's spacing doesn't count, but key order

@@ -275,9 +275,8 @@ export type BoutEntityRow = {
 };
 
 /**
- * The rows a store holds for the bouts a reconcile keeps. One mapping for both stores,
- * Postgres (persist.ts) and the read-path build's mirror (decision 061), so they cannot
- * hold the same corpus differently.
+ * The rows a store holds for the bouts a reconcile keeps: the read-path build's mirror
+ * (decision 061), as Postgres's ingest held them until it retired (salish-9uu.11).
  */
 export function boutRows(bouts: readonly NormalizedBout[]): {bouts: BoutRow[], entities: BoutEntityRow[]} {
     return {

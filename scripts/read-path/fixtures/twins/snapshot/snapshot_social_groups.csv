@@ -1,0 +1,4 @@
+doc
+"{""id"": 116, ""kind"": ""matriline"", ""notes"": null, ""entity_id"": ""SSA:0002163"", ""designation"": ""T065A"", ""designation_folded"": ""t65a"", ""anchor_individual_id"": 495}"
+"{""id"": 168, ""kind"": ""matriline"", ""notes"": null, ""entity_id"": ""SSA:0002078"", ""designation"": ""T137"", ""designation_folded"": ""t137"", ""anchor_individual_id"": 705}"
+"{""id"": 61, ""kind"": ""ecotype"", ""notes"": ""Bigg's (transient) killer whales"", ""entity_id"": ""SSA:0000002"", ""designation"": ""Biggs"", ""designation_folded"": ""biggs"", ""anchor_individual_id"": null}"

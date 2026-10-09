@@ -1,0 +1,4 @@
+entity_id,label,taxon_id,scientific_name,taxon_rank,kingdom,phylum,class,order,family,genus
+SSA:0000900,Orcinus orca,NCBITaxon:9733,Orcinus orca,species,Metazoa,Chordata,Mammalia,Artiodactyla,Delphinidae,Orcinus
+SSA:0000901,Megaptera novaeangliae,NCBITaxon:9773,Megaptera novaeangliae,species,Metazoa,Chordata,Mammalia,Artiodactyla,Balaenopteridae,Megaptera
+SSA:0000904,Phoca vitulina,NCBITaxon:9720,Phoca vitulina,species,Metazoa,Chordata,Mammalia,Carnivora,Phocidae,Phoca

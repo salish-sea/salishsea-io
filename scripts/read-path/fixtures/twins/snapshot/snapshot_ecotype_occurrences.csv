@@ -1,0 +1,6 @@
+doc
+"{""status"": ""candidate"", ""location"": {""lat"": 48.45, ""lon"": -122.95}, ""certainty"": null, ""ecotype_id"": 61, ""is_present"": true, ""observed_at"": ""2026-09-14T18:30:00+00:00"", ""occurrence_id"": ""inaturalist:9000001""}"
+"{""status"": ""candidate"", ""location"": {""lat"": 48.52, ""lon"": -123.15}, ""certainty"": null, ""ecotype_id"": 61, ""is_present"": true, ""observed_at"": ""2026-09-18T20:15:00+00:00"", ""occurrence_id"": ""00000000-0000-4000-a000-000000000002""}"
+"{""status"": ""candidate"", ""location"": {""lat"": 48.55, ""lon"": -123.05}, ""certainty"": null, ""ecotype_id"": 61, ""is_present"": true, ""observed_at"": ""2026-09-10T17:20:00+00:00"", ""occurrence_id"": ""maplify:11""}"
+"{""status"": ""rejected"", ""location"": {""lat"": 48.55, ""lon"": -123.05}, ""certainty"": ""certain"", ""ecotype_id"": 61, ""is_present"": false, ""observed_at"": ""2026-09-10T17:20:00+00:00"", ""occurrence_id"": ""maplify:11""}"
+"{""status"": ""validated"", ""location"": {""lat"": 48.52, ""lon"": -123.15}, ""certainty"": ""certain"", ""ecotype_id"": 61, ""is_present"": true, ""observed_at"": ""2026-09-18T20:15:00+00:00"", ""occurrence_id"": ""00000000-0000-4000-a000-000000000002""}"

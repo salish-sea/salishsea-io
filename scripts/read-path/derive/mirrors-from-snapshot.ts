@@ -1,10 +1,9 @@
 /**
- * For tests: mirrors holding exactly what the snapshot's copies of Postgres's source tables
- * hold, in the mirrors' own shape (the ingest scripts' schemas, only the columns
- * derive/sources.sql reads; the snapshot must be taken with --answers, for Maplify's
- * trusted flag). Deriving from them must give what Postgres stores, which is
- * how the twins of Postgres's views stay checkable now that the build derives from its
- * own mirrors (salish-xv35.9).
+ * For tests: mirrors holding exactly what the twin fixture's copies of Postgres's source
+ * tables hold (twin-fixture.ts), in the mirrors' own shape (the ingest scripts' schemas,
+ * only the columns derive/sources.sql reads). Deriving from them must give what Postgres
+ * stored, which is how the twins of Postgres's views stay checked now that the build
+ * derives from its own mirrors (salish-xv35.9) and Postgres is gone (salish-9uu.11).
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';

@@ -3,13 +3,10 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { isIngestable, parseBoutsPage, reconcile, type NormalizedBout } from '../ingest/orcasound.ts';
-import { persistOrcasound } from '../ingest/persist.ts';
 import { changedBouts, migrateMirror, mirrorRows, readMirror, sameRows, writeMirror, type MirrorRows } from './ingest-orcasound.ts';
-import { rolledBack } from './rolled-back.ts';
 
 /**
  * The corpus orcasite returned on 2026-09-27 (scripts/ingest/fixtures/orcasound-bouts.json),
@@ -101,42 +98,21 @@ describe('the mirror', () => {
     });
 });
 
-const DSN = process.env['SUPABASE_DB_URL'];
-
 // The guarantee the live overlap report can't give (it races two fetches): for the same
-// corpus, the build's mirror stores what Postgres's ingest stores.
-describe.skipIf(!DSN)('the mirror stores what Postgres stores (local Supabase)', () => {
-    let sql: ReturnType<typeof postgres>;
+// corpus, the build's mirror stores what Postgres's ingest stored. What it stored was
+// captured before Postgres retired (salish-9uu.11): fixtures/twins/ingest-orcasound.json.
+describe('the mirror stores what Postgres stored', () => {
     let dir: string;
-    beforeAll(async () => {
-        sql = postgres(DSN as string, {max: 1});
-        dir = await mkdtemp(path.join(tmpdir(), 'orcasound-equivalence-'));
-    });
-    afterAll(async () => {
-        await sql.end();
-        await rm(dir, {recursive: true, force: true});
-    });
+    beforeAll(async () => { dir = await mkdtemp(path.join(tmpdir(), 'orcasound-equivalence-')); });
+    afterAll(async () => { await rm(dir, {recursive: true, force: true}); });
 
     test('for the recorded corpus', async () => {
         const bouts = corpus();
-        // Written inside a transaction that is always rolled back (rolled-back.ts), so no
-        // other test file running beside this one ever sees these bouts.
-        const {stored, claims} = await rolledBack(sql, async (nested, tx) => {
-            await persistOrcasound(nested, {upsert: bouts, delete: []});
-            // The database sends doubles as 15-digit text (extra_float_digits = 0), which
-            // parses to a neighbouring double; ask for the exact one, which is what Postgres holds.
-            await tx`SET LOCAL extra_float_digits = 3`;
-            return {
-                stored: [...await tx<{id: string, feed_id: string, feed_name: string, lon: number, lat: number,
-                                      started_at: Date, ended_at: Date | null, title: string | null}[]>`
-                    SELECT id, feed_id, feed_name, gis.st_x(location::gis.geometry) AS lon, gis.st_y(location::gis.geometry) AS lat,
-                           started_at, ended_at, title
-                    FROM public.acoustic_bouts WHERE id LIKE 'bout_TEST%' ORDER BY id`],
-                claims: [...await tx<{bout_id: string, entity_id: string, certainty: string | null}[]>`
-                    SELECT bout_id, entity_id, certainty::text AS certainty
-                    FROM public.acoustic_bout_entities WHERE bout_id LIKE 'bout_TEST%' ORDER BY bout_id, entity_id`],
-            };
-        });
+        const {stored, claims} = JSON.parse(readFileSync(path.join(import.meta.dirname, 'fixtures/twins/ingest-orcasound.json'), 'utf8')) as {
+            stored: {id: string, feed_id: string, feed_name: string, lon: number, lat: number,
+                     started_at: string, ended_at: string | null, title: string | null}[],
+            claims: {bout_id: string, entity_id: string, certainty: string | null}[],
+        };
 
         const mirrorPath = path.join(dir, 'orcasound.sqlite');
         await writeMirror(mirrorPath, mirrorRows(bouts));

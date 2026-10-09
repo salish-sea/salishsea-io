@@ -6,9 +6,7 @@
 
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
-import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import postgres from 'postgres';
-import type { Sql } from 'postgres';
+import { beforeAll, describe, expect, test } from 'vitest';
 
 /**
  * Text that has tripped, or could trip, a twin of a Postgres regex: word boundaries
@@ -101,28 +99,81 @@ describe('the extractions', () => {
     });
 });
 
-const DSN = process.env['SUPABASE_DB_URL'];
+/**
+ * What Postgres's extract_travel_direction and extract_identifiers answered for each string
+ * in the corpus, in order, captured from the functions as the migrations defined them
+ * before Postgres retired (salish-9uu.11).
+ */
+const POSTGRES: [string, string | null, string[] | null][] = [
+    ["J pod southbound, surface active", "south", null],
+    ["Southbound", "south", null],
+    ["NORTHBOUND", "north", null],
+    ["north-east bound", "northeast", null],
+    ["North, Eastbound", "northeast", null],
+    ["south west", "southwest", null],
+    ["southwesterly", null, null],
+    ["eastern side", null, null],
+    ["westward", null, null],
+    ["headed east.", "east", null],
+    ["going north-ish", "north", null],
+    ["northbound then southbound", "north", null],
+    ["north_east", null, null],
+    ["Nordeste", null, null],
+    ["éast", null, null],
+    ["east,west", "east", null],
+    ["T65A and T065A2 with T-65B, t 65c, T65As", null, ["T65A", "T65A2", "T65B", "T65c", "T65As"]],
+    ["J27 J39 K37s L87", null, ["J27", "J39", "K37s", "L87"]],
+    ["CRC-18676", null, ["CRC18676"]],
+    ["crc2356", null, ["CRC2356"]],
+    ["T00", null, ["T00"]],
+    ["T0", null, null],
+    ["T001", null, ["T01"]],
+    ["J27s2", null, null],
+    ["XJ27", null, null],
+    ["J27_", null, null],
+    ["J٢٧", null, ["J٢٧"]],
+    ["T65Ab", null, ["T65Ab"]],
+    ["T65ABs", null, ["T65ABs"]],
+    ["L-pod", null, null],
+    ["J--27", null, null],
+    ["T137A, T137B.", null, ["T137A", "T137B"]],
+    ["(T65A)", null, ["T65A"]],
+    ["T65A/T65B", null, ["T65A", "T65B"]],
+    ["T65a", null, ["T65a"]],
+    ["T 65 A", null, ["T65"]],
+    ["Jpod", null, null],
+    ["J 1", null, null],
+    ["J1", null, null],
+    ["J11", null, ["J11"]],
+    ["", null, null],
+    ["no identifiers here", null, null],
+    ["T65A\nnorthbound", "north", ["T65A"]],
+    ["ſouthbound", null, null],
+    ["K Pod moving north-west!", "northwest", null],
+    ["K37 eaſt", null, null],
+    ["ſ65", null, null],
+    ["éT65A", null, null],
+    ["T65Aé", null, null],
+    ["北east", null, null],
+    ["east北", null, null],
+    ["T65A T65B", null, ["T65A", "T65B"]],
+    ["J27,K37", null, ["J27", "K37"]],
+];
 
-// The twins' whole claim: Postgres answers the same. Checked against the functions
-// themselves, as the migrations define them, on every string in the corpus — except the
-// strings pinned above as the one known divergence, which must be exactly those.
-describe.skipIf(!DSN)('the extractions match Postgres (local Supabase)', () => {
-    let sql: Sql;
-    beforeAll(() => { sql = postgres(DSN as string, {prepare: false, max: 1}); });
-    afterAll(async () => { await sql.end(); });
+// The twins' whole claim: Postgres answered the same, on every string in the corpus —
+// except the strings pinned above as the one known divergence, which must be exactly those.
+describe('the extractions match what Postgres answered', () => {
+    test('the corpus is the one Postgres answered', () => {
+        expect(POSTGRES.map(([body]) => body)).toEqual(CORPUS);
+    });
 
     test('on every string in the corpus, but the known divergences', async () => {
-        const theirs = await sql<Extracted[]>`
-            SELECT body, public.extract_travel_direction(body)::text AS direction,
-                   public.extract_identifiers(body)::text[] AS identifiers
-            FROM unnest(${CORPUS}::text[]) WITH ORDINALITY AS c(body, n)
-            ORDER BY n`;
         const ours = await extract(CORPUS);
         const differing = new Set<string>();
-        for (const [i, t] of theirs.entries()) {
+        for (const [i, [body, direction, identifiers]] of POSTGRES.entries()) {
             const o = ours[i]!;
-            if (o.direction !== t.direction || JSON.stringify(o.identifiers) !== JSON.stringify(t.identifiers))
-                differing.add(t.body);
+            if (o.direction !== direction || JSON.stringify(o.identifiers) !== JSON.stringify(identifiers))
+                differing.add(body);
         }
         expect([...differing].sort()).toEqual([...KNOWN_DIVERGENCES].sort());
     });

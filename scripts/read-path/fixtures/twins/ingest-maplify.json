@@ -1,0 +1,4 @@
+[
+  {"id": 920238140, "project_id": 7, "trip_id": 0, "name": "Humpback whale", "scientific_name": "Megaptera novaeangliae", "lon": -123.152559, "lat": 48.515938, "number_sighted": 0, "created_at": "2026-07-04 11:10:00", "photo_url": null, "comments": "Traveling: Unknown<br><br>SMRUC<br>", "in_ocean": 0, "moderated": 1, "trusted": 1, "is_test": 0, "source": "whale_alert", "usernm": "wras"},
+  {"id": 920252119, "project_id": 7, "trip_id": 163826, "name": "Orca", "scientific_name": "Orcinus orca", "lon": -123.28294, "lat": 48.23129, "number_sighted": 4, "created_at": "2026-07-05 19:25:29", "photo_url": "https://spotter-production.s3.amazonaws.com/sightings_photos/2be7b608-a733-4231-81c4-506f20bdd479.JPG", "comments": null, "in_ocean": 1, "moderated": 1, "trusted": 0, "is_test": 0, "source": "whale_alert", "usernm": "whalealertoa"}
+]

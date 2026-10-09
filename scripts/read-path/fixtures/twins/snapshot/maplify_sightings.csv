@@ -1,0 +1,8 @@
+id,name,scientific_name,location_lon,location_lat,number_sighted,created_at,photo_url,comments,is_test,source,usernm,provider_id,collection_id,source_url,entity_id,trusted
+1,,Orcinus orca,-122.9,48.5,3,2026-10-07 02:32:47.906745,,[Orca Network] 3 orcas heading north (Jane Smith)<br>All adults.,false,whale_alert,,2,1,,SSA:0000900,true
+2,,Orcinus orca,-123.1,48.6,1,2026-10-06 02:32:47.911948,,,false,whale_alert,,2,22,,SSA:0000900,false
+3,,Orcinus orca,-123.0,48.7,2,2026-10-05 02:32:47.915351,,Three orcas spotted near the rocks.,false,acartia,,2,,,SSA:0000900,true
+11,Orca,Orcinus orca,-123.05,48.55,5,2026-09-10 17:20:00,,"[Orca Network] T65A, T065A2 and T137A southbound off Lime Kiln (Pat Doe)",false,whale_alert,pdoe,2,1,,SSA:0000900,true
+12,Harbor Seal,Phoca vitulina,-124.591,48.3825,12,2026-09-11 09:05:00,,Hauled out at low tide,false,whale_alert,,2,22,,SSA:0000904,true
+13,Orca,Orcinus orca,-123.2,48.5,20,2026-09-12 21:45:00,,"J35 and J47 with Ls, northbound in Haro Strait",false,acartia,,2,,,SSA:0000900,true
+14,Orca,Orcinus orca,-123.1,48.6,1,2026-09-13 12:00:00,,"test, please ignore",true,whale_alert,,2,22,,SSA:0000900,true
