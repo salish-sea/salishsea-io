@@ -3,8 +3,8 @@
  * two tiers; decision 039 for why the notifier exists at all).
  *
  * Pure, so the part that is easy to get wrong can be tested without a database
- * or a GitHub token. The imperative shell (notify.ts) does the querying, the
- * posting and the stamping.
+ * or a GitHub token. The imperative shell (api/notifier.ts, with filing.ts) does
+ * the querying, the posting and the stamping.
  */
 
 /** The columns the notifier reads. `name` and `email` are deliberately absent. */
