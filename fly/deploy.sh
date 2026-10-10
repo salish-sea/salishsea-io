@@ -18,9 +18,6 @@
 # The pin must be at or past f364281 (--downstream, which the save-triggered build
 # passes, salish-9uu.6); the Dockerfile refuses an older one.
 #
-# The site's public client config is the AWS deploy's. The publishable key is
-# read from the Supabase CLI rather than typed.
-#
 # flyctl by that name: the Deploy workflow's setup-flyctl installs no `fly` alias.
 #
 # The image builds on Fly's remote builder, which is fly deploy's default and the

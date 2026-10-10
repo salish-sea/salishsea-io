@@ -32,28 +32,18 @@ import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { budget } from './duckdb-budget.ts';
 import { DAY_ZONE } from './pacific-day.ts';
 
-/** A geography column as two doubles, computed as Postgres's views computed them (happywhale-export.ts reads with it). */
-const lonLat = (column: string) => [
-    `gis.st_x(${column}::gis.geometry) as ${column}_lon`,
-    `gis.st_y(${column}::gis.geometry) as ${column}_lat`,
-];
-
 /**
  * Happywhale's tables, frozen: nothing has written them since their in-database loader
  * stopped being called (decision 061). The build reads them from one file on the volume
- * (happywhale.ts, decision 064, salish-9uu.2.4), exported once from Postgres with these
- * columns (happywhale-export.ts).
+ * (happywhale.ts, decision 064, salish-9uu.2.4), exported once from Postgres
+ * (happywhale-export.ts), each with the columns Postgres's snapshot read.
  */
-export const HAPPYWHALE_TABLES: readonly {table: string, columns: readonly string[]}[] = [
-    {table: 'happywhale.encounters', columns: [
-        'id', 'individual_id', 'user_id', 'species_id', 'verbatim_location', 'comments', 'min_count',
-        ...lonLat('location'), 'accuracy::text as accuracy', 'start_date', 'start_time', 'end_time',
-        'timezone', 'public', 'source_url', 'provider_id', 'collection_id']},
-    {table: 'happywhale.users', columns: ['id', 'display_name']},
-    {table: 'happywhale.individuals', columns: ['id', 'primary_id', 'sex::text as sex']},
-    {table: 'happywhale.species', columns: ['id', 'scientific', 'name']},
-    {table: 'happywhale.media', columns: [
-        'id', 'encounter_id', 'user_id', 'mimetype', 'url', 'thumb_url', 'public', 'license_level']},
+export const HAPPYWHALE_TABLES: readonly {table: string}[] = [
+    {table: 'happywhale.encounters'},
+    {table: 'happywhale.users'},
+    {table: 'happywhale.individuals'},
+    {table: 'happywhale.species'},
+    {table: 'happywhale.media'},
 ];
 
 /**

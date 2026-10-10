@@ -62,7 +62,7 @@ This is the only value where we take iNaturalist's answer over the register's, a
 
 ## Reference
 
-The migration: [`20260921020000_dwc_classification_from_register.sql`](../../supabase/migrations/20260921020000_dwc_classification_from_register.sql). The tables it reads: [`20260921015000_register_lineage.sql`](../../supabase/migrations/20260921015000_register_lineage.sql). The loader: [`scripts/register/load.ts`](../../scripts/register/load.ts).
+The migration: [`20260921020000_dwc_classification_from_register.sql`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260921020000_dwc_classification_from_register.sql). The tables it reads: [`20260921015000_register_lineage.sql`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260921015000_register_lineage.sql). The loader: [`scripts/register/load.ts`](../../scripts/register/load.ts).
 
 Upstream: animals [ADR-0022](https://github.com/salish-sea/animals/blob/main/decisions/0022-taxonomic-hierarchy-is-ncbis-excerpted.md) (hierarchy is NCBI's, excerpted), [ADR-0012](https://github.com/salish-sea/animals/blob/main/decisions/0012-relationship-to-the-salishsea-io-catalogue.md).
 

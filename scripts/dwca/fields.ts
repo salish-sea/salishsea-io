@@ -20,7 +20,7 @@
  * Cross-reference: see `.planning/phases/06-archive-generation/06-CONTEXT.md`
  * F-01 for the field-shape contract and F-03 for the ordinal-stability rule.
  * Column-order parity with `dwc._native_occurrences` and `dwc.multimedia` in
- * `supabase/migrations/20260617203900_dwc_schema.sql` is enforced statically
+ * `supabase/migrations/20260617203900_dwc_schema.sql@6898775` is enforced statically
  * by `fields.test.ts` (DWCA-02 unit surface) and at runtime by Plan 03's
  * `assertions.ts`.
  */
@@ -38,7 +38,7 @@ export type MultimediaField = {
 /**
  * Canonical 27-entry occurrence field list. Order MUST match the column
  * order of `dwc._native_occurrences` (and, by UNION ALL inheritance,
- * `dwc.occurrences`) in `supabase/migrations/20260617203900_dwc_schema.sql`.
+ * `dwc.occurrences`) in `supabase/migrations/20260617203900_dwc_schema.sql@6898775`.
  *
  * Namespace divergence (F-03 — URIs are data, not derived):
  *   - index 20 (`rightsHolder`) → `http://purl.org/dc/terms/` (Dublin Core)
@@ -80,7 +80,7 @@ export const OCCURRENCE_FIELDS = [
 /**
  * Canonical 6-entry multimedia (GBIF Simple Multimedia extension) field
  * list. Order MUST match the column order of `dwc.multimedia` in
- * `supabase/migrations/20260617203900_dwc_schema.sql`.
+ * `supabase/migrations/20260617203900_dwc_schema.sql@6898775`.
  *
  * Namespace divergence (F-03 — URIs are data, not derived):
  *   - index 0 (`coreId`) → `http://rs.gbif.org/terms/1.0/coreid` (GBIF extension)

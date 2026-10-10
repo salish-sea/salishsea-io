@@ -38,7 +38,7 @@ It reads correctly with JavaScript off. The render is a task in the Stelis graph
 - Five of the tables have row-level security whose read policies name anon and authenticated, so the migration adds a read policy for `read_path` to each. Without it, the role would see no rows and raise no error.
 - The one function a published view calls without a public grant, `register.inaturalist_taxon_for`, is granted too. It is `SECURITY DEFINER`, so it gives the role no table.
 
-[`supabase/read-path-grants.test.ts`](../../supabase/read-path-grants.test.ts) pins what the role may read, and checks that it sees every row anon does in each published relation. Dropping one of the new policies makes that test fail with "public.individuals: expected 0 to be 510".
+[`supabase/read-path-grants.test.ts`](https://github.com/salish-sea/salishsea-io/blob/386d78df1cdac0b39076d0f7f8a55d55df6f7731/supabase/read-path-grants.test.ts) pins what the role may read, and checks that it sees every row anon does in each published relation. Dropping one of the new policies makes that test fail with "public.individuals: expected 0 to be 510".
 
 ## Steps
 

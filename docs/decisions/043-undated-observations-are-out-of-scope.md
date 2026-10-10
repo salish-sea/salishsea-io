@@ -4,7 +4,7 @@
 
 ## Decision
 
-**An iNaturalist observation whose date is the Unix epoch to the second is treated as undated, and is not ingested.** The rule is enforced in the functional core, in `parseInatResponse` ([scripts/ingest/inaturalist.ts](../../scripts/ingest/inaturalist.ts)), beside the rule that already skips `time_observed_at === null`; the one record already held was deleted in one pass ([migration 20260918200000](../../supabase/migrations/20260918200000_purge_epoch_zero_inat_observation.sql)).
+**An iNaturalist observation whose date is the Unix epoch to the second is treated as undated, and is not ingested.** The rule is enforced in the functional core, in `parseInatResponse` ([scripts/ingest/inaturalist.ts](../../scripts/ingest/inaturalist.ts)), beside the rule that already skips `time_observed_at === null`; the one record already held was deleted in one pass ([migration 20260918200000](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260918200000_purge_epoch_zero_inat_observation.sql)).
 
 This is not a new rule. The ingest has always declined undated observations. This is the same absence arriving with a value in front of it.
 

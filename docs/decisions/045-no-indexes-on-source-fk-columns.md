@@ -61,4 +61,4 @@ That is the correct plan for "read the whole table", and an index can only make 
 
 ## Reference
 
-Measurements: `pg_stat_user_tables` and `EXPLAIN (ANALYZE, BUFFERS)` against production, 2026-09-18. The view whose cost dominates both plans: [supabase/migrations/20260829020000_resolve_retired_taxa_on_read.sql](../../supabase/migrations/20260829020000_resolve_retired_taxa_on_read.sql). Related and still open: `salish-4h3` (precompute occurrences) and `salish-xfo` (the map query timing out), both of which are about the view, which is where the time actually goes.
+Measurements: `pg_stat_user_tables` and `EXPLAIN (ANALYZE, BUFFERS)` against production, 2026-09-18. The view whose cost dominates both plans: [supabase/migrations/20260829020000_resolve_retired_taxa_on_read.sql](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260829020000_resolve_retired_taxa_on_read.sql). Related and still open: `salish-4h3` (precompute occurrences) and `salish-xfo` (the map query timing out), both of which are about the view, which is where the time actually goes.

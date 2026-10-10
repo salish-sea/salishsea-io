@@ -1,6 +1,6 @@
 -- The occurrences, derived in the build (decision 061, salish-xv35.2): DuckDB twins of the
 -- five per-source views behind Postgres's derived.occurrences
--- (supabase/migrations/20260928120000_occurrences_stored.sql), and of the register
+-- (supabase/migrations/20260928120000_occurrences_stored.sql@6898775), and of the register
 -- functions and views they call, reading the snapshot's typed copies of the same tables.
 --
 -- Twins, not improvements. Each piece below names the Postgres object it ports, and

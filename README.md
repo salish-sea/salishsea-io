@@ -16,7 +16,7 @@ Welcome! This is a new project, started in 2025, to gather sightings and informa
 
 This codebase was started by Peter Abrahamsen. My goals for the codebase are to keep it relatively light, nimble, and maintainable, minimizing the number of abstractions or volatile third-party dependencies. Right now, I'm using:
 - [typescript](https://www.typescriptlang.org/) for better refactoring and quality control than vanilla JS
-- [supabase](https://supabase.com/) for storing and projecting data, and storing and serving user-uploaded photos
+- [Stelis](https://github.com/rainhead/stelis), [DuckDB](https://duckdb.org/) and SQLite for building the site's data from its sources, and a small write API for what people submit
 - [vite](https://vite.dev/) for building out assets
 - [lit](https://lit.dev/) for templating and scoped styles
 - [openlayers](https://openlayers.org/) for drawing and interacting with a map in the browser
@@ -35,7 +35,6 @@ Prerequisites:
 - `nvm` (or install the version of node from `.nvmrc` yourself)
 - `pnpm` — the package manager for this repo, npm is not usable here
   ([decision 025](docs/decisions/025-pnpm-over-npm.md))
-- `docker`
 
 Prep the environment:
 ```
@@ -46,9 +45,7 @@ $ pnpm install
 
 ## Running
 
-Control the Supabase local stack with e.g.: `pnpm exec supabase start`.
-
-For development mode, run `pnpm dev`.
+For development mode, run `pnpm dev`, with `READ_PATH_DIR` naming a read-path build's export directory: the site reads its sightings, calendar and profile pages from those files ([decision 056](docs/decisions/056-the-logged-out-read-path-is-built-as-static-files.md)), and without them the map has nothing to show.
 
 Before committing, try building with `pnpm build`.
 
@@ -73,6 +70,6 @@ Occurrence records are published nightly as a [DarwinCore Archive](https://salis
 ## Production deployment
 
 The production environment consists of:
-- A [Supabase project](https://supabase.com/dashboard/project/grztmjpzamcxlzecmqca)
+- The `salishsea-io` Fly app: the site, the read-path build that rewrites its data every five minutes, and the write API with its SQLite store ([runbook](docs/runbook/read-path-build.md))
 - A Cloudfront distribution `EQ0KYC2Y6IUYU`
 - An S3 bucket `salishsea-io` in `us-west-2` for assets

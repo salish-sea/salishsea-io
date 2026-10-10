@@ -48,17 +48,19 @@ same group were entered into SalishSea.io directly, the collection would be
 unchanged and only the provider would flip. Provider is per-record provenance;
 it is never a property of the collection.
 
-The reference tables (`providers`, `organizations`, `collections`) and their seed
-data are defined in
-[`supabase/migrations/20260619184037_reference_tables.sql`](../supabase/migrations/20260619184037_reference_tables.sql).
+The reference tables (`providers`, `organizations`, `collections`) are checked-in
+data under [`data/reference/`](../data/reference/) (decision 064). They were first
+defined in Postgres, in
+[`20260619184037_reference_tables.sql`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260619184037_reference_tables.sql).
 
 ## How provenance appears in the DarwinCore Archive
 
 This is the consumer-facing contract. The exact column list and term URIs live in
 [`scripts/dwca/fields.ts`](../scripts/dwca/fields.ts); the projection that fills
-them is the `dwc.occurrences` view, defined by whichever migration touched it
-most recently — currently
-[`supabase/migrations/20260813200000_dwc_recorded_by_id.sql`](../supabase/migrations/20260813200000_dwc_recorded_by_id.sql);
+them is `dwc.occurrences` in
+[`scripts/read-path/derive/dwc.sql`](../scripts/read-path/derive/dwc.sql), which the
+read-path build runs (decision 061; its Postgres original was last defined in
+[`20260813200000_dwc_recorded_by_id.sql`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260813200000_dwc_recorded_by_id.sql));
 the dataset-level metadata (`eml.xml`) is built by
 [`scripts/dwca/eml.ts`](../scripts/dwca/eml.ts).
 
@@ -153,9 +155,8 @@ This is a living document. When the export contract changes, update it here in
 the same change:
 
 - Attribution mapping or new DwC terms → keep the table above in sync with
-  [`scripts/dwca/fields.ts`](../scripts/dwca/fields.ts) and the `dwc.occurrences`
-  view (latest definition in the most recent `*_dwc_*` migration under
-  [`supabase/migrations/`](../supabase/migrations/)).
+  [`scripts/dwca/fields.ts`](../scripts/dwca/fields.ts) and `dwc.occurrences` in
+  [`scripts/read-path/derive/dwc.sql`](../scripts/read-path/derive/dwc.sql).
 - Dataset metadata / `associatedParty` / contacts → track
   [`scripts/dwca/eml.ts`](../scripts/dwca/eml.ts).
 - Included/excluded sources → track the export view's branches and

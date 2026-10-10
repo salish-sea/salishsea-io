@@ -57,7 +57,7 @@ Tracked as bd issues; the durable statements:
 ## Constraints
 
 - **Stack:** Lit + Vite + TypeScript — no framework changes planned
-- **Backend:** Supabase (PostgreSQL + auth + storage) — existing schema
+- **Backend:** none hosted by others: a small write API and SQLite store on the Fly machine for what people submit, with Google Sign-In verified there; photos in S3; everything else built from its sources by the read-path build (decisions 059, 065). Supabase was retired in October 2026 (bd `salish-9uu`).
 - **Deployment:** the site is served by a Fly app behind CloudFront since 2026-10-03 (decision 061): static files written every five minutes by the read-path build on that machine, deployed by hand; AWS CDK infra for CloudFront, the preview handler and the card renderer, deployed by GitHub Actions on push to `main`; server-side behavior on AWS is edge functions only
 - **Auth:** Google Sign-In only
 - **Spatial scope:** killer whales across their full range — Acartia's boundaries, central California to northern BC, which is where the Southern Residents go — and every other species only in the Salish Sea and the Strait of Juan de Fuca. Southern Residents cannot be told from other killer whales at ingest, so the rule is the species ([decision 036](docs/decisions/036-ingest-scope-killer-whales-range-wide.md)). Applied to Maplify and, since 2026-09-18, to iNaturalist, whose mirror was 63% out of scope — mostly Californian sea lions and elephant seals ([decision 044](docs/decisions/044-inat-ingest-scope.md)). HappyWhale ingest is off.

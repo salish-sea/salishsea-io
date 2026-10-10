@@ -15,7 +15,7 @@ import type { DatasetsRow, EmlInput } from './eml.ts';
 
 /**
  * Mock `DatasetsRow` reflecting the literal VALUES tuple in
- * `supabase/migrations/20260617203900_dwc_schema.sql` lines 568..613.
+ * `supabase/migrations/20260617203900_dwc_schema.sql@6898775` lines 568..613.
  * The view's NULL columns (geographic_coverage, temporal_coverage, methods)
  * are passed through as null — `buildEml` is expected to use its own
  * authored text for these per E-01 / E-03.

@@ -25,7 +25,7 @@ Only the last is what 059's store is for. The rest is in Postgres because Postgr
 
 **Each move is checked once against production, then Postgres's copy is frozen.** The change that moves a kind of data compares what the build now reads with what the snapshot read from production, and they must agree before it lands. Afterwards the file is the source. Until the cutover, a change to it that the signed-in site must see in Postgres also needs a migration, and for the reference tables, which migrations wrote in the first place, a test checks that a fresh migration replay matches the files.
 
-The order is the reference tables, then the register, then the catalogue (which reads the register), then Happywhale. The `read_path` role's grants narrow as each one leaves. *Done 2026-10-05:* all four moved, and [`20261005140000_read_path_narrows.sql`](../../supabase/migrations/20261005140000_read_path_narrows.sql) leaves `read_path` the four tables users write, `gis`, and Happywhale's frozen tables — those only so the volume's frozen file can be re-exported if it is lost, until the cutover.
+The order is the reference tables, then the register, then the catalogue (which reads the register), then Happywhale. The `read_path` role's grants narrow as each one leaves. *Done 2026-10-05:* all four moved, and [`20261005140000_read_path_narrows.sql`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20261005140000_read_path_narrows.sql) leaves `read_path` the four tables users write, `gis`, and Happywhale's frozen tables — those only so the volume's frozen file can be re-exported if it is lost, until the cutover.
 
 ## Rejected alternatives
 

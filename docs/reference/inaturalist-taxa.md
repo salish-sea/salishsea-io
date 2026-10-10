@@ -1,8 +1,8 @@
 # iNaturalist ingest taxa — reference
 
-The iNaturalist ingest (`inaturalist.update_observations`) fetches observations under a fixed list of iNaturalist **taxon IDs**. This is the cheat-sheet for what those numeric IDs actually mean, so nobody has to guess (a wrong guess about `372843` once mislabelled pinnipeds as "not ingested" — see [decision 009](../decisions/009-taxonomic-scope-marine-mammals.md)).
+The iNaturalist ingest fetches observations under a fixed list of iNaturalist **taxon IDs**. This is the cheat-sheet for what those numeric IDs actually mean, so nobody has to guess (a wrong guess about `372843` once mislabelled pinnipeds as "not ingested" — see [decision 009](../decisions/009-taxonomic-scope-marine-mammals.md)).
 
-**Source of truth:** the `array[…]` in the most recent `inaturalist.update_observations` definition under [`supabase/migrations/`](../../supabase/migrations/) (the taxon set was last set in `20260526000000_inat_add_lutrinae.sql`). Update the table below in the same change that edits that array.
+**Source of truth:** `INAT_ROOT_TAXON_IDS` in [`scripts/ingest/inaturalist.ts`](../../scripts/ingest/inaturalist.ts), which the read-path build's iNaturalist mirror fetches with. Update the table below in the same change that edits that list.
 
 ## Current ingest taxa
 

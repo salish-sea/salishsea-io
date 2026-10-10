@@ -359,8 +359,8 @@ All "Whale Alert Alaska" rows (which should resolve to `collection = 'Whale Aler
 
 ## Sources
 
-- Production schema: `supabase/migrations/20250903172708_initial_schema.sql` (maplify.sightings definition)
-- DwC projection: `supabase/migrations/20260617203900_dwc_schema.sql` (25-column contract, UNION ALL, LATERAL CASE)
+- Production schema: [`supabase/migrations/20250903172708_initial_schema.sql`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20250903172708_initial_schema.sql) (maplify.sightings definition)
+- DwC projection: [`supabase/migrations/20260617203900_dwc_schema.sql`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260617203900_dwc_schema.sql) (25-column contract, UNION ALL, LATERAL CASE)
 - TS field list: `scripts/dwca/fields.ts` (OCCURRENCE_FIELDS ordinal contract)
 - v1.3 Executive Summary (prod counts, signal inventory, resolution order): pre-migration git history at `.planning/v1.3-EXECUTIVE-SUMMARY.md`
 - Design note: [provenance-graph-design.md](provenance-graph-design.md) (graph model, Maplify-bias note)
