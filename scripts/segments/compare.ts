@@ -104,7 +104,7 @@ function months(since: string): string[] {
 }
 
 async function load(since: string): Promise<Row[]> {
-  const source = remote ? new URL(base).host : base.replaceAll(path.sep, '_');
+  const source = (remote ? base.replace(/^https?:\/\//, '') : base).replace(/[^A-Za-z0-9.-]+/g, '_');
   const cache = path.join(os.tmpdir(), 'salishsea-segments', `${source}-${since}.json`);
   if (!args.refresh && fs.existsSync(cache)) return JSON.parse(fs.readFileSync(cache, 'utf8'));
 
