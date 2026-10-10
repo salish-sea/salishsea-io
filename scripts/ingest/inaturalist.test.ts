@@ -72,16 +72,17 @@ const rawObs = {
     user: { id: 5, login: 'obs_user', name: '', orcid: null },
     identifications: [{
         id: 700, created_at: '2026-07-04T14:00:00-07:00', current: true, own_observation: true,
-        disagreement: null, hidden: false, vision: false,
+        disagreement: null, hidden: false, vision: false, body: null,
         user: { id: 5, login: 'obs_user', orcid: null }, taxon: { id: 41553 },
     }],
+    comments: [],
 };
 
 const obs = (over: Partial<NormalizedObservation> = {}): NormalizedObservation => ({
     id: 1, description: null, lon: -123, lat: 48, observedAt: '2026-07-04T13:08:00-07:00',
     licenseCode: 'cc-by-nc', uri: 'https://inat/1', login: 'u', orcid: null, taxonId: 41553,
     ancestorIds: [48460, 1, 41553], publicPositionalAccuracy: null,
-    updatedAt: '2026-07-05T20:08:06-07:00', photos: [], identifications: [], ...over,
+    updatedAt: '2026-07-05T20:08:06-07:00', photos: [], identifications: [], comments: [], ...over,
 });
 
 /** A minimal valid upstream taxon, for targeted mutation. */
@@ -219,6 +220,41 @@ describe('parseInatResponse', () => {
         expect(o.taxonId).toBe(41553);
         expect(o.ancestorIds).toEqual([48460, 1, 2, 41553]);
         expect(o.login).toBe('obs_user');
+    });
+
+    test('keeps what people wrote, except what iNaturalist\'s moderators hid', () => {
+        const identification = rawObs.identifications[0]!;
+        const user = { id: 9, login: 'commenter', orcid: null };
+        const r = parseInatResponse({ total_results: 1, results: [{
+            ...rawObs,
+            identifications: [
+                { ...identification, body: 'Saddle patch matches T049A1' },
+                { ...identification, id: 701, own_observation: false, body: 'rude', hidden: true },
+                { ...identification, id: 702, own_observation: false, body: '  ' },
+            ],
+            comments: [
+                { id: 800, body: 'Seen from the ferry too', created_at: '2026-07-04T15:00:00-07:00', hidden: false, user },
+                { id: 801, body: 'spam', created_at: '2026-07-04T16:00:00-07:00', hidden: true, user },
+            ],
+        }] });
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        const o = r.observations[0]!;
+        expect(o.identifications.map(i => [i.id, i.body, i.hidden])).toEqual(
+            [[700, 'Saddle patch matches T049A1', false], [701, null, true], [702, null, false]]);
+        expect(o.comments).toEqual([
+            { id: 800, userId: 9, login: 'commenter', orcid: null, body: 'Seen from the ferry too',
+              createdAt: '2026-07-04T15:00:00-07:00', hidden: false },
+            { id: 801, userId: 9, login: 'commenter', orcid: null, body: null,
+              createdAt: '2026-07-04T16:00:00-07:00', hidden: true },
+        ]);
+    });
+
+    test('a response without identifications or comments is refused, not read as nobody', () => {
+        const { identifications: _i, ...noIdentifications } = rawObs;
+        const { comments: _c, ...noComments } = rawObs;
+        expect(parseInatResponse({ total_results: 1, results: [noIdentifications] }).ok).toBe(false);
+        expect(parseInatResponse({ total_results: 1, results: [noComments] }).ok).toBe(false);
     });
 
     test('normalizes a record WITHOUT photos to an empty photo list', () => {

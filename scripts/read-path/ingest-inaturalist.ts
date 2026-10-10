@@ -77,16 +77,23 @@ const SCHEMA = `
         width INTEGER, url TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS observation_photos_observation ON observation_photos (observation_id);
-    -- Who identified an observation as what (decision 075; rights-policy §5.5): kept to
-    -- derive a confidence of ours, never published. taxon_id is not held to the taxa:
-    -- someone else's identification can name a taxon no observation reaches.
+    -- Who identified an observation as what, and what anyone wrote on it (decision 075;
+    -- rights-policy §5.5): kept to derive a confidence of ours and the animals people
+    -- name, never published. taxon_id is not held to the taxa: someone else's
+    -- identification can name a taxon no observation reaches. A body hidden by
+    -- iNaturalist's moderators is not kept.
     CREATE TABLE IF NOT EXISTS identifications (
         id INTEGER PRIMARY KEY, observation_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
         login TEXT NOT NULL, orcid TEXT, taxon_id INTEGER NOT NULL, created_at TEXT NOT NULL,
         current INTEGER NOT NULL, own_observation INTEGER NOT NULL, disagreement INTEGER,
-        hidden INTEGER NOT NULL, vision INTEGER NOT NULL
+        hidden INTEGER NOT NULL, vision INTEGER NOT NULL, body TEXT
     );
     CREATE INDEX IF NOT EXISTS identifications_observation ON identifications (observation_id);
+    CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY, observation_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+        login TEXT NOT NULL, orcid TEXT, body TEXT, created_at TEXT NOT NULL, hidden INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS comments_observation ON comments (observation_id);
     CREATE TABLE IF NOT EXISTS taxa (
         id INTEGER PRIMARY KEY, parent_id INTEGER, scientific_name TEXT NOT NULL,
         vernacular_name TEXT, rank TEXT NOT NULL, is_active INTEGER NOT NULL, current_taxon_id INTEGER,
@@ -112,7 +119,13 @@ export type PhotoRow = {
 export type IdentificationRow = {
     id: number, observation_id: number, user_id: number, login: string, orcid: string | null,
     taxon_id: number, created_at: string, current: number, own_observation: number,
-    disagreement: number | null, hidden: number, vision: number,
+    disagreement: number | null, hidden: number, vision: number, body: string | null,
+};
+
+/** A comment as the mirror stores it. */
+export type CommentRow = {
+    id: number, observation_id: number, user_id: number, login: string, orcid: string | null,
+    body: string | null, created_at: string, hidden: number,
 };
 
 /** A taxon as the mirror stores it. */
@@ -142,7 +155,14 @@ export function identificationRows(o: NormalizedObservation): IdentificationRow[
         id: i.id, observation_id: o.id, user_id: i.userId, login: i.login, orcid: i.orcid,
         taxon_id: i.taxonId, created_at: i.createdAt, current: Number(i.current),
         own_observation: Number(i.ownObservation), disagreement: i.disagreement === null ? null : Number(i.disagreement),
-        hidden: Number(i.hidden), vision: Number(i.vision),
+        hidden: Number(i.hidden), vision: Number(i.vision), body: i.body,
+    }));
+}
+
+export function commentRows(o: NormalizedObservation): CommentRow[] {
+    return o.comments.map(c => ({
+        id: c.id, observation_id: o.id, user_id: c.userId, login: c.login, orcid: c.orcid,
+        body: c.body, created_at: c.createdAt, hidden: Number(c.hidden),
     }));
 }
 
@@ -308,9 +328,10 @@ export function applyFetch(
     };
     const storedPhotos = children<PhotoRow>('observation_photos');
     const storedIdentifications = children<IdentificationRow>('identifications');
+    const storedComments = children<CommentRow>('comments');
     const byId = (a: {id: number}, b: {id: number}) => a.id - b.id;
-    const asStored = (row: ObservationRow, photos: readonly PhotoRow[], identifications: readonly IdentificationRow[]) =>
-        JSON.stringify([row, [...photos].sort(byId), [...identifications].sort(byId)]);
+    const asStored = (row: ObservationRow, ...kids: (readonly {id: number}[])[]) =>
+        JSON.stringify([row, ...kids.map(k => [...k].sort(byId))]);
     // Written when anything differs, not only when iNaturalist's updated_at moved: a photo
     // re-licensed (CC0 to CC BY, seen) or an observer renamed leaves updated_at alone, and
     // Postgres's newer-only rule has kept 3,361 observations' photos stale that way. An
@@ -319,8 +340,8 @@ export function applyFetch(
         const was = storedRows.get(o.id);
         if (was === undefined) return true;
         if (Date.parse(o.updatedAt) < Date.parse(was.updated_at)) return false;
-        return asStored(observationRow(o), photoRows(o), identificationRows(o))
-            !== asStored(was, storedPhotos.get(o.id) ?? [], storedIdentifications.get(o.id) ?? []);
+        return asStored(observationRow(o), photoRows(o), identificationRows(o), commentRows(o))
+            !== asStored(was, storedPhotos.get(o.id) ?? [], storedIdentifications.get(o.id) ?? [], storedComments.get(o.id) ?? []);
     });
     let deleteIds: number[] = [];
     if (window) {
@@ -339,17 +360,21 @@ export function applyFetch(
         }
         const dropPhotos = db.prepare('DELETE FROM observation_photos WHERE observation_id = ?');
         const dropIdentifications = db.prepare('DELETE FROM identifications WHERE observation_id = ?');
+        const dropComments = db.prepare('DELETE FROM comments WHERE observation_id = ?');
         for (const o of newer) {
             insert(db, 'observations', observationRow(o));
             dropPhotos.run(o.id);
             for (const p of photoRows(o)) insert(db, 'observation_photos', p);
             dropIdentifications.run(o.id);
             for (const i of identificationRows(o)) insert(db, 'identifications', i);
+            dropComments.run(o.id);
+            for (const c of commentRows(o)) insert(db, 'comments', c);
         }
         const dropObservation = db.prepare('DELETE FROM observations WHERE id = ?');
         for (const id of deleteIds) {
             dropPhotos.run(id);
             dropIdentifications.run(id);
+            dropComments.run(id);
             dropObservation.run(id);
         }
         if (window) {

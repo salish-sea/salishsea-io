@@ -91,9 +91,10 @@ const OBSERVATION_FIELDS =
     'license_code:!t,original_dimensions:(height:!t,width:!t),url:!t)),' +
     'taxon:(id:!t,ancestor_ids:!t),' +
     'user:(id:!t,login:!t,name:!t,orcid:!t),' +
-    // decision 075: who identified it as what, never the comment text (rights-policy §5.5)
-    'identifications:(id:!t,created_at:!t,current:!t,own_observation:!t,disagreement:!t,' +
-    'hidden:!t,vision:!t,user:(id:!t,login:!t,orcid:!t),taxon:(id:!t)))';
+    // decision 075: who identified it as what, and what anyone wrote (rights-policy §5.5)
+    'identifications:(id:!t,body:!t,created_at:!t,current:!t,own_observation:!t,disagreement:!t,' +
+    'hidden:!t,vision:!t,user:(id:!t,login:!t,orcid:!t),taxon:(id:!t)),' +
+    'comments:(id:!t,body:!t,created_at:!t,hidden:!t,user:(id:!t,login:!t,orcid:!t)))';
 
 // v2 `/taxa` field selection (copied from inaturalist.fetch_taxa in migration
 // 20250904165159_fetch_data.sql; matches parseInatTaxa's schema).
