@@ -6,14 +6,8 @@ declare module '*.geojson' {
   export default value;
 }
 
+// No VITE_* variables: the build reads none, so strict typing makes a stray
+// import.meta.env.VITE_… a type error rather than a silent undefined.
 interface ViteTypeOptions {
   strictImportMetaEnv: unknown;
-}
-
-interface ImportMetaEnv {
-  readonly VITE_BASE_URL: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
 }

@@ -1,17 +1,25 @@
 /**
- * Compare the travel-segment rules in `rules.ts` over real days from production
- * (#445, decision 062).
+ * Compare the travel-segment rules in `rules.ts` over real days from the
+ * published read-path files (#445, decision 062).
  *
  *   pnpm exec tsx scripts/segments/compare.ts                 # measures since 2022
  *   pnpm exec tsx scripts/segments/compare.ts --since 2025-01-01
  *   pnpm exec tsx scripts/segments/compare.ts --day 2026-09-03 --rules current,nearestEcotype
- *   pnpm exec tsx scripts/segments/compare.ts --refresh       # re-read production
+ *   pnpm exec tsx scripts/segments/compare.ts --refresh       # re-read the files
+ *   pnpm exec tsx scripts/segments/compare.ts --from ~/salishsea-export   # a local build
  *
- * It reads production through `supabase db query --linked`, which needs no
- * database password, only `supabase login`. It reads, never writes, and caches
- * what it read under the system temp directory, so later runs are offline.
+ * It reads what the map reads (decision 056): the calendar's month files for
+ * which days have sightings, each such day's file for the sightings, and every
+ * individual's links file (the profile page's map of its sightings) for which
+ * registered animals a sighting names. `--from` is salishsea.io's read-path
+ * directory by default, or a build's export directory on disk. It caches what it
+ * read under the system temp directory, so later runs are offline; the first
+ * run against salishsea.io makes a few thousand requests.
  *
  * Days are Pacific calendar days, as the map draws them, with no region filter.
+ * A sighting names an animal when the animal's page links to it: a code on the
+ * sighting or an identification of the animal, or of a matriline it is a living
+ * member of (profile-links.sql's individual_occurrences).
  *
  * WHAT THE MEASURES MEAN
  *
@@ -28,27 +36,31 @@
  * - days changed: days whose tracks differ from `previous`, the map's rule
  *   before decision 063.
  */
-import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {parseArgs} from 'node:util';
+import {Temporal} from 'temporal-polyfill';
 import {travelSpeedFor} from '../../src/constants.ts';
+import {pacificDay} from '../../src/read-path.ts';
+import type {Occurrence} from '../../src/types.ts';
 import {RULES, ecotypesOf, identityPreferred, km, type Rule, type Sighting, type Track} from './rules.ts';
 
 const hour = 60 * 60 * 1000;
-const TRACKED = '^(Orcinus orca|Megaptera novaeangliae|Eschrichtius robustus|Balaenoptera acutorostrata)';
+const TRACKED = /^(Orcinus orca|Megaptera novaeangliae|Eschrichtius robustus|Balaenoptera acutorostrata)/;
 
 type Row = Omit<Sighting, 'animals'> & {day: string; time: string; animals: number[]};
+type Link = {occurrence_id: string; is_present: boolean};
 
 const {values: args} = parseArgs({options: {
   since: {type: 'string', default: '2022-01-01'},
   day: {type: 'string'},
   rules: {type: 'string'},
   refresh: {type: 'boolean', default: false},
+  from: {type: 'string', default: 'https://salishsea.io/read-path'},
 }});
 
-/** A real calendar date, YYYY-MM-DD. It goes into SQL and a cache file name, so nothing else is let through. */
+/** A real calendar date, YYYY-MM-DD. It goes into a cache file name, so nothing else is let through. */
 function calendarDate(flag: string, value: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).toISOString().startsWith(value)) return value;
   throw new Error(`--${flag} must be a calendar date like 2026-09-03, not "${value}"`);
@@ -56,68 +68,86 @@ function calendarDate(flag: string, value: string): string {
 calendarDate('since', args.since);
 if (args.day) calendarDate('day', args.day);
 
-/** Run read-only SQL against production. The CLI prints JSON, sometimes after a status line. */
-function query(sql: string): Record<string, unknown>[] {
-  let out: string;
-  try {
-    out = execFileSync('pnpm', ['-s', 'exec', 'supabase', 'db', 'query', '--linked', sql],
-      {encoding: 'utf8', maxBuffer: 1 << 30, stdio: ['ignore', 'pipe', 'ignore']});
-  } catch (err) {
-    const stdout = String((err as {stdout?: unknown}).stdout ?? '');
-    if (stdout.includes('LegacyProjectNotLinkedError'))
-      throw new Error('This checkout is not linked to the Supabase project. Run `pnpm exec supabase link` once here.', {cause: err});
-    throw err;
+const remote = /^https?:\/\//.test(args.from);
+const base = remote ? args.from.replace(/\/+$/, '') : path.resolve(args.from.replace(/^~(?=\/)/, os.homedir()));
+
+/** A published file, parsed; null when there is no such file (a month or day with no sightings). */
+async function read<T>(file: string): Promise<T | null> {
+  if (!remote) {
+    try { return JSON.parse(await fs.promises.readFile(path.join(base, file), 'utf8')); }
+    catch (err) { if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null; throw err; }
   }
-  const parsed = JSON.parse(out.slice(out.search(/^[[{]/m)));
-  if (parsed._tag === 'Error') throw new Error(parsed.error?.message ?? out);
-  return Array.isArray(parsed) ? parsed : parsed.rows;
+  for (let attempt = 1; ; attempt++) {
+    const response = await fetch(`${base}/${file}`);
+    if (response.status === 404) return null;
+    if (response.ok) return await response.json() as T;
+    if (attempt === 3 || response.status < 500) throw new Error(`${base}/${file}: HTTP ${response.status}`);
+    await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+  }
 }
 
-function load(since: string): Row[] {
-  const cache = path.join(os.tmpdir(), 'salishsea-segments', `${since}.json`);
+/** `f` over `items`, a few at a time, in order. */
+async function pooled<T, U>(items: readonly T[], f: (item: T) => Promise<U>): Promise<U[]> {
+  const out: U[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => { while (next < items.length) { const i = next++; out[i] = await f(items[i]!); } };
+  await Promise.all(Array.from({length: remote ? 8 : 32}, worker));
+  return out;
+}
+
+function months(since: string): string[] {
+  const out: string[] = [];
+  const last = Temporal.Now.plainDateISO('PST8PDT').toPlainYearMonth();
+  for (let m = Temporal.PlainYearMonth.from(since.slice(0, 7)); Temporal.PlainYearMonth.compare(m, last) <= 0; m = m.add({months: 1}))
+    out.push(m.toString());
+  return out;
+}
+
+async function load(since: string): Promise<Row[]> {
+  const source = remote ? new URL(base).host : base.replaceAll(path.sep, '_');
+  const cache = path.join(os.tmpdir(), 'salishsea-segments', `${source}-${since}.json`);
   if (!args.refresh && fs.existsSync(cache)) return JSON.parse(fs.readFileSync(cache, 'utf8'));
 
-  const named = new Map(query(`
-    select oi.occurrence_id id,
-      array_agg(distinct coalesce(oi.individual_id, mm.individual_id))
-        filter (where coalesce(oi.individual_id, mm.individual_id) is not null) animals
-    from public.occurrence_identifications oi
-    join public.occurrences o on o.id = oi.occurrence_id
-    left join public.social_groups sg on sg.id = oi.social_group_id
-    left join public.matriline_members mm on mm.group_id = oi.social_group_id and sg.kind = 'matriline'
-    where o.observed_at >= '${since}' and oi.is_present and (sg.kind is null or sg.kind = 'matriline')
-    group by 1`).map(r => [r.id as string, (r.animals as number[] | null) ?? []]));
+  // Which days have any sightings at all: the calendar's "everywhere" counts.
+  const calendars = await pooled(months(since), m => read<{everywhere?: Record<string, number>}>(`calendar/${m}.json`));
+  const dayKeys = calendars.flatMap(c => Object.keys(c?.everywhere ?? {})).filter(d => d >= since).sort();
+
+  // Each individual's sightings, inverted: which animals a sighting names. The
+  // individual's 7-digit register number (its page's address) stands for it.
+  const redirects = await read<{individuals: Record<string, string>}>('redirects.json');
+  if (!redirects) throw new Error(`${base}/redirects.json is missing: is --from a read-path export?`);
+  const individuals = [...new Set(Object.values(redirects.individuals).map(p => p.split('/')[2]!))];
+  const named = new Map<string, Set<number>>();
+  await pooled(individuals, async id => {
+    for (const link of await read<Link[]>(`profiles/individuals/${id}.links.json`) ?? []) {
+      if (!link.is_present) continue;
+      named.set(link.occurrence_id, (named.get(link.occurrence_id) ?? new Set()).add(Number(id)));
+    }
+  });
 
   const rows: Row[] = [];
-  // A year at a time keeps each response well under the CLI's limits.
-  for (let year = Number(since.slice(0, 4)); year <= new Date().getFullYear(); year++) {
-    const from = year === Number(since.slice(0, 4)) ? since : `${year}-01-01`;
-    for (const r of query(`
-      select id, (extract(epoch from observed_at) * 1000)::bigint ms,
-        to_char(observed_at at time zone 'America/Los_Angeles', 'YYYY-MM-DD') d,
-        to_char(observed_at at time zone 'America/Los_Angeles', 'HH24:MI') t,
-        (taxon).scientific_name sn, (taxon).species_id sp, (location).lat lat, (location).lon lon, identifiers
-      from public.occurrences
-      where observed_at >= '${from}' and observed_at < '${year + 1}-01-01'
-        and (taxon).scientific_name ~ '${TRACKED}'`)) {
-      rows.push({
-        id: r.id as string,
-        observed_at_ms: Number(r.ms),
-        day: r.d as string,
-        time: r.t as string,
-        location: {lat: Number(r.lat), lon: Number(r.lon)},
-        taxon: {species_id: r.sp === null ? null : Number(r.sp), scientific_name: r.sn as string},
-        identifiers: (r.identifiers as string[] | null) ?? [],
-        animals: named.get(r.id as string) ?? [],
-      });
-    }
+  const days = await pooled(dayKeys, d => read<Occurrence[]>(`days/${d}.json`));
+  for (const occurrences of days) for (const o of occurrences ?? []) {
+    if (!o.location || o.location.lat === null || o.location.lon === null) continue;
+    if (!TRACKED.test(o.taxon.scientific_name)) continue;
+    const at = Temporal.Instant.from(o.observed_at);
+    rows.push({
+      id: o.id,
+      observed_at_ms: at.epochMilliseconds,
+      day: pacificDay(o.observed_at),
+      time: at.toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute'}),
+      location: {lat: o.location.lat, lon: o.location.lon},
+      taxon: {species_id: o.taxon.species_id, scientific_name: o.taxon.scientific_name},
+      identifiers: o.identifiers ?? [],
+      animals: [...named.get(o.id) ?? []],
+    });
   }
   fs.mkdirSync(path.dirname(cache), {recursive: true});
   fs.writeFileSync(cache, JSON.stringify(rows));
   return rows;
 }
 
-const rows = load(args.since);
+const rows = await load(args.since);
 const meta = new Map(rows.map(r => [r.id, r]));
 const days = new Map<string, Sighting[]>();
 for (const r of rows) {

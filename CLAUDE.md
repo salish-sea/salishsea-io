@@ -96,7 +96,6 @@ Node version is pinned in `.nvmrc`. The derivations' tests compare against answe
 
 Use `bd worktree create <name>`, not `git worktree add` — it shares the main repo's beads database via git's common directory, so the issue tracker stays single. Then, before working:
 
-- **Copy `.env` and `.env.test` in.** Both are gitignored, so a fresh worktree has neither, and the resulting failures look like code problems.
 - **`pnpm install` in the worktree, and again in `infra/`** — a separate pnpm project with its own lockfile. Cheap: pnpm's global store hardlinks rather than copies.
 
 One rule survives the isolation, because worktrees separate files and nothing else:
