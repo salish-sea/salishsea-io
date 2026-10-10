@@ -138,6 +138,12 @@ const InatTaxonRefSchema = z.object({
     ancestor_ids: z.array(z.number().int()),
 });
 
+// Who wrote an identification or a comment. Nullable: the schema checks a whole page at
+// once, so a strict author would let one entry from a deleted account refuse the page,
+// and the backfill would meet that page on every run (as null photo dimensions once
+// stopped the history backfill, decision 041).
+const InatAuthorSchema = z.object({id: z.number().int(), login: z.string(), orcid: z.string().nullish()}).nullish();
+
 // One identification of an observation: who said which taxon, when, whether it is still
 // theirs, and what they wrote with it (decision 075; rights-policy §5.5). REQUIRED on the
 // observation, never defaulted to empty: every observation with a taxon has at least one,
@@ -155,7 +161,7 @@ const InatIdentificationSchema = z.object({
     hidden: z.boolean(),
     // whether the identifier took the computer-vision suggestion
     vision: z.boolean(),
-    user: z.object({id: z.number().int(), login: z.string(), orcid: z.string().nullish()}),
+    user: InatAuthorSchema,
     taxon: z.object({id: z.number().int()}),
 });
 
@@ -166,7 +172,7 @@ const InatCommentSchema = z.object({
     body: z.string(),
     created_at: z.string(),
     hidden: z.boolean(),
-    user: z.object({id: z.number().int(), login: z.string(), orcid: z.string().nullish()}),
+    user: InatAuthorSchema,
 });
 
 export const InatObservationSchema = z.object({
@@ -237,8 +243,9 @@ export type NormalizedPhoto = {
 /** One normalized identification, child of an observation (decision 075). */
 export type NormalizedIdentification = {
     readonly id: number;
-    readonly userId: number;
-    readonly login: string;
+    /** null, with login, when iNaturalist names no author (a deleted account). */
+    readonly userId: number | null;
+    readonly login: string | null;
     readonly orcid: string | null;
     readonly taxonId: number;
     /** ISO8601 with offset, verbatim from created_at. */
@@ -255,8 +262,9 @@ export type NormalizedIdentification = {
 /** One normalized comment, child of an observation. */
 export type NormalizedComment = {
     readonly id: number;
-    readonly userId: number;
-    readonly login: string;
+    /** null, with login, when iNaturalist names no author (a deleted account). */
+    readonly userId: number | null;
+    readonly login: string | null;
     readonly orcid: string | null;
     /** null when hidden by iNaturalist's moderators: we keep that the comment existed, not what it said. */
     readonly body: string | null;
@@ -341,13 +349,13 @@ export function normalizeObservation(
         updatedAt: r.updated_at,
         photos: r.observation_photos.map(normalizePhoto),
         identifications: r.identifications.map(i => ({
-            id: i.id, userId: i.user.id, login: i.user.login, orcid: blankToNull(i.user.orcid),
+            id: i.id, userId: i.user?.id ?? null, login: i.user?.login ?? null, orcid: blankToNull(i.user?.orcid),
             taxonId: i.taxon.id, createdAt: i.created_at, current: i.current,
             ownObservation: i.own_observation, disagreement: i.disagreement, hidden: i.hidden,
             vision: i.vision, body: i.hidden ? null : blankToNull(i.body),
         })),
         comments: r.comments.map(c => ({
-            id: c.id, userId: c.user.id, login: c.user.login, orcid: blankToNull(c.user.orcid),
+            id: c.id, userId: c.user?.id ?? null, login: c.user?.login ?? null, orcid: blankToNull(c.user?.orcid),
             body: c.hidden ? null : blankToNull(c.body), createdAt: c.created_at, hidden: c.hidden,
         })),
     };

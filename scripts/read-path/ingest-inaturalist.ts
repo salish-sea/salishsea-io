@@ -83,15 +83,15 @@ const SCHEMA = `
     -- identification can name a taxon no observation reaches. A body hidden by
     -- iNaturalist's moderators is not kept.
     CREATE TABLE IF NOT EXISTS identifications (
-        id INTEGER PRIMARY KEY, observation_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
-        login TEXT NOT NULL, orcid TEXT, taxon_id INTEGER NOT NULL, created_at TEXT NOT NULL,
+        id INTEGER PRIMARY KEY, observation_id INTEGER NOT NULL, user_id INTEGER,
+        login TEXT, orcid TEXT, taxon_id INTEGER NOT NULL, created_at TEXT NOT NULL,
         current INTEGER NOT NULL, own_observation INTEGER NOT NULL, disagreement INTEGER,
         hidden INTEGER NOT NULL, vision INTEGER NOT NULL, body TEXT
     );
     CREATE INDEX IF NOT EXISTS identifications_observation ON identifications (observation_id);
     CREATE TABLE IF NOT EXISTS comments (
-        id INTEGER PRIMARY KEY, observation_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
-        login TEXT NOT NULL, orcid TEXT, body TEXT, created_at TEXT NOT NULL, hidden INTEGER NOT NULL
+        id INTEGER PRIMARY KEY, observation_id INTEGER NOT NULL, user_id INTEGER,
+        login TEXT, orcid TEXT, body TEXT, created_at TEXT NOT NULL, hidden INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS comments_observation ON comments (observation_id);
     CREATE TABLE IF NOT EXISTS taxa (
@@ -117,14 +117,14 @@ export type PhotoRow = {
 
 /** An identification as the mirror stores it. */
 export type IdentificationRow = {
-    id: number, observation_id: number, user_id: number, login: string, orcid: string | null,
+    id: number, observation_id: number, user_id: number | null, login: string | null, orcid: string | null,
     taxon_id: number, created_at: string, current: number, own_observation: number,
     disagreement: number | null, hidden: number, vision: number, body: string | null,
 };
 
 /** A comment as the mirror stores it. */
 export type CommentRow = {
-    id: number, observation_id: number, user_id: number, login: string, orcid: string | null,
+    id: number, observation_id: number, user_id: number | null, login: string | null, orcid: string | null,
     body: string | null, created_at: string, hidden: number,
 };
 

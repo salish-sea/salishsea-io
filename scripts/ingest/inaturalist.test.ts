@@ -250,6 +250,18 @@ describe('parseInatResponse', () => {
         ]);
     });
 
+    test('an identification or comment whose author is gone does not refuse the page', () => {
+        const r = parseInatResponse({ total_results: 1, results: [{
+            ...rawObs,
+            identifications: [...rawObs.identifications, { ...rawObs.identifications[0]!, id: 703, user: null }],
+            comments: [{ id: 802, body: 'from a deleted account', created_at: '2026-07-04T17:00:00-07:00', hidden: false, user: null }],
+        }] });
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        expect(r.observations[0]!.identifications[1]).toMatchObject({ id: 703, userId: null, login: null });
+        expect(r.observations[0]!.comments[0]).toMatchObject({ id: 802, userId: null, login: null, body: 'from a deleted account' });
+    });
+
     test('a response without identifications or comments is refused, not read as nobody', () => {
         const { identifications: _i, ...noIdentifications } = rawObs;
         const { comments: _c, ...noComments } = rawObs;
