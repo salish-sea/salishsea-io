@@ -52,7 +52,7 @@ jobs:
       # flyctl pinned like everything else here, in both jobs that install it. Its own
       # releases (github.com/superfly/flyctl) are what to track, not the action's. It
       # installs no `fly` alias, so scripts call `flyctl`.
-      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
         with:
           version: 0.4.112
       - name: Build and push
@@ -178,7 +178,7 @@ jobs:
         with:
           token: ${{ github.token }}
           phase: before the Fly deploy
-      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be # 1.5
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
         with:
           version: 0.4.112
       - name: Switch
