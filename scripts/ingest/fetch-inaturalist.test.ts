@@ -30,6 +30,7 @@ function record(id: number) {
         observation_photos: [],
         taxon: { id: 152871, ancestor_ids: [152871] },
         user: { id: 1, login: 'observer' },
+        identifications: [],
     };
 }
 
@@ -74,6 +75,19 @@ describe('fetchAllObservationPages sweeps the window by ascending id', () => {
         expect(result.pages.map((p) => p.recordCount)).toEqual([50]);
         expect(urls).toHaveLength(1);
         expect(urls[0]).toContain('id_above=0');
+    });
+
+    it('asks for a backfill\'s ids under the same filters, with identifications', async () => {
+        const urls = stubFetch([pageBody(2, 1)]);
+
+        await fetchAllObservationPages({ids: [1, 2]}, noopLog);
+
+        const url = new URL(urls[0]!);
+        expect(url.searchParams.get('id')).toBe('1,2');
+        expect(url.searchParams.get('licensed')).toBe('true');
+        expect(url.searchParams.get('geoprivacy')).toBe('open');
+        expect(url.searchParams.has('d1')).toBe(false);
+        expect(url.searchParams.get('fields')).toContain('identifications:(');
     });
 
     it('advances the id_above cursor by each page\'s max id, ending on a terminal short page', async () => {
@@ -250,7 +264,7 @@ describe('resolveTaxonClosure over a retired taxon', () => {
         id: 1, description: null, lon: -123, lat: 48, observedAt: '2026-07-04T13:08:00-07:00',
         licenseCode: 'cc-by-nc', uri: 'https://inat/1', login: 'u', orcid: null,
         taxonId, ancestorIds, publicPositionalAccuracy: null,
-        updatedAt: '2026-07-05T20:08:06-07:00', photos: [],
+        updatedAt: '2026-07-05T20:08:06-07:00', photos: [], identifications: [],
     });
 
     it('asks by the path form, not the retired-taxon-hiding id= query param', async () => {

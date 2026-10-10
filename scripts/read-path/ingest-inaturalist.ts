@@ -77,6 +77,16 @@ const SCHEMA = `
         width INTEGER, url TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS observation_photos_observation ON observation_photos (observation_id);
+    -- Who identified an observation as what (decision 075; rights-policy §5.5): kept to
+    -- derive a confidence of ours, never published. taxon_id is not held to the taxa:
+    -- someone else's identification can name a taxon no observation reaches.
+    CREATE TABLE IF NOT EXISTS identifications (
+        id INTEGER PRIMARY KEY, observation_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+        login TEXT NOT NULL, orcid TEXT, taxon_id INTEGER NOT NULL, created_at TEXT NOT NULL,
+        current INTEGER NOT NULL, own_observation INTEGER NOT NULL, disagreement INTEGER,
+        hidden INTEGER NOT NULL, vision INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS identifications_observation ON identifications (observation_id);
     CREATE TABLE IF NOT EXISTS taxa (
         id INTEGER PRIMARY KEY, parent_id INTEGER, scientific_name TEXT NOT NULL,
         vernacular_name TEXT, rank TEXT NOT NULL, is_active INTEGER NOT NULL, current_taxon_id INTEGER,
@@ -98,6 +108,13 @@ export type PhotoRow = {
     license: string | null, height: number | null, width: number | null, url: string,
 };
 
+/** An identification as the mirror stores it. */
+export type IdentificationRow = {
+    id: number, observation_id: number, user_id: number, login: string, orcid: string | null,
+    taxon_id: number, created_at: string, current: number, own_observation: number,
+    disagreement: number | null, hidden: number, vision: number,
+};
+
 /** A taxon as the mirror stores it. */
 export type TaxonRow = {
     id: number, parent_id: number | null, scientific_name: string, vernacular_name: string | null,
@@ -117,6 +134,15 @@ export function photoRows(o: NormalizedObservation): PhotoRow[] {
     return o.photos.map(p => ({
         id: p.id, observation_id: o.id, seq: p.seq, attribution: p.attribution, hidden: Number(p.hidden),
         license: p.license, height: p.height, width: p.width, url: p.url,
+    }));
+}
+
+export function identificationRows(o: NormalizedObservation): IdentificationRow[] {
+    return o.identifications.map(i => ({
+        id: i.id, observation_id: o.id, user_id: i.userId, login: i.login, orcid: i.orcid,
+        taxon_id: i.taxonId, created_at: i.createdAt, current: Number(i.current),
+        own_observation: Number(i.ownObservation), disagreement: i.disagreement === null ? null : Number(i.disagreement),
+        hidden: Number(i.hidden), vision: Number(i.vision),
     }));
 }
 
@@ -273,12 +299,18 @@ export function applyFetch(
     const storedRows = new Map(
         (db.prepare('SELECT * FROM observations WHERE id IN (SELECT value FROM json_each(?))').all(ids) as unknown as ObservationRow[])
             .map(r => [r.id, r]));
-    const storedPhotos = new Map<number, PhotoRow[]>();
-    for (const p of db.prepare('SELECT * FROM observation_photos WHERE observation_id IN (SELECT value FROM json_each(?)) ORDER BY id')
-        .all(ids) as unknown as PhotoRow[])
-        storedPhotos.set(p.observation_id, [...(storedPhotos.get(p.observation_id) ?? []), p]);
-    const asStored = (row: ObservationRow, photos: readonly PhotoRow[]) =>
-        JSON.stringify([row, [...photos].sort((a, b) => a.id - b.id)]);
+    const children = <T extends {observation_id: number}>(table: string) => {
+        const byObservation = new Map<number, T[]>();
+        for (const c of db.prepare(`SELECT * FROM ${table} WHERE observation_id IN (SELECT value FROM json_each(?)) ORDER BY id`)
+            .all(ids) as unknown as T[])
+            byObservation.set(c.observation_id, [...(byObservation.get(c.observation_id) ?? []), c]);
+        return byObservation;
+    };
+    const storedPhotos = children<PhotoRow>('observation_photos');
+    const storedIdentifications = children<IdentificationRow>('identifications');
+    const byId = (a: {id: number}, b: {id: number}) => a.id - b.id;
+    const asStored = (row: ObservationRow, photos: readonly PhotoRow[], identifications: readonly IdentificationRow[]) =>
+        JSON.stringify([row, [...photos].sort(byId), [...identifications].sort(byId)]);
     // Written when anything differs, not only when iNaturalist's updated_at moved: a photo
     // re-licensed (CC0 to CC BY, seen) or an observer renamed leaves updated_at alone, and
     // Postgres's newer-only rule has kept 3,361 observations' photos stale that way. An
@@ -287,7 +319,8 @@ export function applyFetch(
         const was = storedRows.get(o.id);
         if (was === undefined) return true;
         if (Date.parse(o.updatedAt) < Date.parse(was.updated_at)) return false;
-        return asStored(observationRow(o), photoRows(o)) !== asStored(was, storedPhotos.get(o.id) ?? []);
+        return asStored(observationRow(o), photoRows(o), identificationRows(o))
+            !== asStored(was, storedPhotos.get(o.id) ?? [], storedIdentifications.get(o.id) ?? []);
     });
     let deleteIds: number[] = [];
     if (window) {
@@ -305,14 +338,18 @@ export function applyFetch(
             if (before === 0) { insert(db, 'taxa', {...taxonRow(t), checked_at: now.toISOString()}, 'INSERT'); added++; }
         }
         const dropPhotos = db.prepare('DELETE FROM observation_photos WHERE observation_id = ?');
+        const dropIdentifications = db.prepare('DELETE FROM identifications WHERE observation_id = ?');
         for (const o of newer) {
             insert(db, 'observations', observationRow(o));
             dropPhotos.run(o.id);
             for (const p of photoRows(o)) insert(db, 'observation_photos', p);
+            dropIdentifications.run(o.id);
+            for (const i of identificationRows(o)) insert(db, 'identifications', i);
         }
         const dropObservation = db.prepare('DELETE FROM observations WHERE id = ?');
         for (const id of deleteIds) {
             dropPhotos.run(id);
+            dropIdentifications.run(id);
             dropObservation.run(id);
         }
         if (window) {
@@ -325,6 +362,35 @@ export function applyFetch(
         db.exec('ROLLBACK');
         throw error;
     }
+}
+
+// --- The identifications backfill (decision 075, salish-nfsg) ------------------------------
+//
+// Identifications arrive with every fetch, but the observations already mirrored before
+// they were asked for have none until something fetches them again. Every observation
+// with a taxon has at least one identification, so one without any hasn't been asked
+// yet. Each run asks about the next page of those above a cursor. The cursor, not "the
+// ones still lacking", decides what comes next: an observation iNaturalist no longer
+// returns under the fetch's filters (deleted, its license or location withdrawn) would
+// otherwise be asked about forever. The reconciled windows remove those in time.
+
+/** How many observations one run backfills: one request, a page. */
+export const BACKFILL_PER_RUN = 200;
+
+/** The next observations to ask for identifications, by ascending id past the cursor. */
+export function backfillIds(db: DatabaseSync, limit = BACKFILL_PER_RUN): number[] {
+    const cursor = db.prepare("SELECT value FROM sync WHERE key = 'identifications_backfilled_through'").get() as {value: string} | undefined;
+    return (db.prepare(`
+        SELECT id FROM observations o
+        WHERE id > ? AND NOT EXISTS (SELECT 1 FROM identifications i WHERE i.observation_id = o.id)
+        ORDER BY id LIMIT ?`).all(Number(cursor?.value ?? 0), limit) as {id: number}[]).map(r => r.id);
+}
+
+/** Move the backfill's cursor past `ids`, the ones just asked. */
+export function recordBackfilled(db: DatabaseSync, ids: readonly number[]): void {
+    if (ids.length === 0) return;
+    db.prepare("INSERT OR REPLACE INTO sync (key, value) VALUES ('identifications_backfilled_through', ?)")
+        .run(String(Math.max(...ids)));
 }
 
 /** The `updated_since` the next sweep starts from, or null before the first. */
@@ -393,7 +459,9 @@ export async function main(): Promise<void> {
                 const {observations, recordCount} = await fetchAllObservationPages(query, quiet, undefined, {scoped: false});
                 const taxa = await resolveTaxonClosure(async ids => storedTaxonIds(db, ids), observations, quiet);
                 const result = applyFetch(db, observations, taxa, window);
-                if (!window) recordSynced(db, observations);
+                // only the changes sweep moves its checkpoint: a backfill's newest updated_at
+                // says nothing about what changed before it
+                if ('updatedSince' in query) recordSynced(db, observations);
                 changed += result.written + result.deleted;
                 log(`inaturalist ${label}: ${recordCount} fetched; ${result.written} written, ${result.deleted} deleted, `
                     + `${result.taxa} taxa added`);
@@ -451,6 +519,11 @@ export async function main(): Promise<void> {
                     log(`inaturalist register taxa: ${named.length} named, ${answered.length} fetched, ${closed} reached`
                         + (unknown.length > 0 ? `; iNaturalist does not know ${unknown.join(', ')}` : ''));
                     if (wanted.length > 0) await sleep(1000);
+                }
+                const backfill = backfillIds(db);
+                if (backfill.length > 0) {
+                    await run(`identifications backfill, ${backfill.length} from id ${backfill[0]}`, {ids: backfill}, null);
+                    recordBackfilled(db, backfill);
                 }
                 // a pointer left at nothing by an earlier run's failure is asked for again
                 changed += await close(danglingTaxonIds(db));

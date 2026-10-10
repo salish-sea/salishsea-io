@@ -70,13 +70,18 @@ const rawObs = {
     ],
     taxon: { id: 41553, ancestor_ids: [48460, 1, 2, 41553] },
     user: { id: 5, login: 'obs_user', name: '', orcid: null },
+    identifications: [{
+        id: 700, created_at: '2026-07-04T14:00:00-07:00', current: true, own_observation: true,
+        disagreement: null, hidden: false, vision: false,
+        user: { id: 5, login: 'obs_user', orcid: null }, taxon: { id: 41553 },
+    }],
 };
 
 const obs = (over: Partial<NormalizedObservation> = {}): NormalizedObservation => ({
     id: 1, description: null, lon: -123, lat: 48, observedAt: '2026-07-04T13:08:00-07:00',
     licenseCode: 'cc-by-nc', uri: 'https://inat/1', login: 'u', orcid: null, taxonId: 41553,
     ancestorIds: [48460, 1, 41553], publicPositionalAccuracy: null,
-    updatedAt: '2026-07-05T20:08:06-07:00', photos: [], ...over,
+    updatedAt: '2026-07-05T20:08:06-07:00', photos: [], identifications: [], ...over,
 });
 
 /** A minimal valid upstream taxon, for targeted mutation. */

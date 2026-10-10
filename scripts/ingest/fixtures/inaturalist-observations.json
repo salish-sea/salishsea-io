@@ -118,7 +118,26 @@
         "login": "egines5",
         "name": "",
         "orcid": null
-      }
+      },
+      "identifications": [
+        {
+          "id": 800000000,
+          "created_at": "2026-07-05T20:08:04-07:00",
+          "current": true,
+          "own_observation": true,
+          "disagreement": null,
+          "hidden": false,
+          "vision": false,
+          "user": {
+            "id": 10482805,
+            "login": "egines5",
+            "orcid": null
+          },
+          "taxon": {
+            "id": 41740
+          }
+        }
+      ]
     },
     {
       "id": 378638325,
@@ -176,7 +195,26 @@
         "login": "amybird",
         "name": "Amy Wolfrum",
         "orcid": null
-      }
+      },
+      "identifications": [
+        {
+          "id": 800000001,
+          "created_at": "2026-07-05T20:06:14-07:00",
+          "current": true,
+          "own_observation": true,
+          "disagreement": null,
+          "hidden": false,
+          "vision": false,
+          "user": {
+            "id": 3204,
+            "login": "amybird",
+            "orcid": null
+          },
+          "taxon": {
+            "id": 117766
+          }
+        }
+      ]
     },
     {
       "id": 378610508,
@@ -233,7 +271,26 @@
         "login": "egines5",
         "name": "",
         "orcid": null
-      }
+      },
+      "identifications": [
+        {
+          "id": 800000002,
+          "created_at": "2026-07-05T18:52:59-07:00",
+          "current": true,
+          "own_observation": true,
+          "disagreement": null,
+          "hidden": false,
+          "vision": false,
+          "user": {
+            "id": 10482805,
+            "login": "egines5",
+            "orcid": null
+          },
+          "taxon": {
+            "id": 41708
+          }
+        }
+      ]
     },
     {
       "id": 378550282,
@@ -290,7 +347,26 @@
         "login": "devinkellar",
         "name": "Devin Kellar",
         "orcid": null
-      }
+      },
+      "identifications": [
+        {
+          "id": 800000003,
+          "created_at": "2026-07-05T18:55:19-07:00",
+          "current": true,
+          "own_observation": true,
+          "disagreement": null,
+          "hidden": false,
+          "vision": false,
+          "user": {
+            "id": 2323410,
+            "login": "devinkellar",
+            "orcid": null
+          },
+          "taxon": {
+            "id": 41740
+          }
+        }
+      ]
     },
     {
       "id": 378638904,
@@ -333,7 +409,26 @@
         "login": "egines5",
         "name": "",
         "orcid": null
-      }
+      },
+      "identifications": [
+        {
+          "id": 800000004,
+          "created_at": "2026-07-05T20:08:06-07:00",
+          "current": true,
+          "own_observation": true,
+          "disagreement": null,
+          "hidden": false,
+          "vision": false,
+          "user": {
+            "id": 10482805,
+            "login": "egines5",
+            "orcid": null
+          },
+          "taxon": {
+            "id": 41553
+          }
+        }
+      ]
     },
     {
       "id": 378638874,
@@ -405,7 +500,26 @@
         "login": "egines5",
         "name": "",
         "orcid": null
-      }
+      },
+      "identifications": [
+        {
+          "id": 800000005,
+          "created_at": "2026-07-05T20:08:04-07:00",
+          "current": true,
+          "own_observation": true,
+          "disagreement": null,
+          "hidden": false,
+          "vision": false,
+          "user": {
+            "id": 10482805,
+            "login": "egines5",
+            "orcid": null
+          },
+          "taxon": {
+            "id": 41740
+          }
+        }
+      ]
     }
   ]
 }

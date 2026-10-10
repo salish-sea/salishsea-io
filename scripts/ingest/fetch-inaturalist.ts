@@ -90,7 +90,10 @@ const OBSERVATION_FIELDS =
     'observation_photos:(id:!t,position:!t,photo:(id:!t,attribution:!t,hidden:!t,' +
     'license_code:!t,original_dimensions:(height:!t,width:!t),url:!t)),' +
     'taxon:(id:!t,ancestor_ids:!t),' +
-    'user:(id:!t,login:!t,name:!t,orcid:!t))';
+    'user:(id:!t,login:!t,name:!t,orcid:!t),' +
+    // decision 075: who identified it as what, never the comment text (rights-policy §5.5)
+    'identifications:(id:!t,created_at:!t,current:!t,own_observation:!t,disagreement:!t,' +
+    'hidden:!t,vision:!t,user:(id:!t,login:!t,orcid:!t),taxon:(id:!t)))';
 
 // v2 `/taxa` field selection (copied from inaturalist.fetch_taxa in migration
 // 20250904165159_fetch_data.sql; matches parseInatTaxa's schema).
@@ -186,14 +189,17 @@ async function fetchJsonWithRetry(url: string, label: string, log: Logger): Prom
 // the window, which is what makes the sweep immune to live-window drift.
 /**
  * Which observations to sweep: those the observer dated in a window (`d1`..`d2`,
- * inclusive), or those iNaturalist changed at or after an instant (`updated_since`),
- * which is how a late upload or an edit to an old observation is found.
+ * inclusive), those iNaturalist changed at or after an instant (`updated_since`),
+ * which is how a late upload or an edit to an old observation is found, or a list of
+ * ids (at most a page's worth), still under the same filters, for a backfill.
  */
-export type ObservationQuery = IngestWindow | {readonly updatedSince: string};
+export type ObservationQuery = IngestWindow | {readonly updatedSince: string} | {readonly ids: readonly number[]};
 
 function observationsUrl(query: ObservationQuery, idAbove: number): string {
     const params = new URLSearchParams({
-        ...('updatedSince' in query ? {updated_since: query.updatedSince} : {d1: query.start, d2: query.end}),
+        ...('updatedSince' in query ? {updated_since: query.updatedSince}
+            : 'ids' in query ? {id: query.ids.join(',')}
+            : {d1: query.start, d2: query.end}),
         licensed: 'true',
         nelat: String(FETCH_BBOX.neLat),
         nelng: String(FETCH_BBOX.neLng),

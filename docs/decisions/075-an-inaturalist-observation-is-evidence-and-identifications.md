@@ -28,7 +28,7 @@ Today the build's iNaturalist arm takes the observation's current taxon and noth
 
 ## Consequences
 
-- The iNaturalist mirror needs each observation's identifications (identifier, taxon, when, whether current), not only its current taxon. The rolling refresh can backfill them. The rights policy needs checking for identifications before they're stored ([rights-policy](../rights-policy.md)); they are in the public API and in GBIF's export of research-grade records.
+- The iNaturalist mirror needs each observation's identifications (identifier, taxon, when, whether current), not only its current taxon. The rolling refresh can backfill them. The rights policy needs checking for identifications before they're stored ([rights-policy](../rights-policy.md)); they are in the public API and in GBIF's export of research-grade records. *Done 2026-10-10 (`salish-nfsg`):* the mirror keeps each identification's identifier, taxon, time, whether it is current, the observer's own, disagreeing, made with the computer-vision suggestion, or hidden; the rights basis is [rights-policy §5.5](../rights-policy.md#55-inaturalist-identifications-are-mirrored-not-published-d-23) (D-23). Observations mirrored before then are backfilled a page per build, by ascending id ([`ingest-inaturalist.ts`](../../scripts/read-path/ingest-inaturalist.ts)).
 - Until the rule exists, nothing changes on the map: the iNaturalist arm's certainty stays null.
 
 ## Rejected
