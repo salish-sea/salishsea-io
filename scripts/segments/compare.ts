@@ -36,6 +36,7 @@
  * - days changed: days whose tracks differ from `previous`, the map's rule
  *   before decision 063.
  */
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -71,15 +72,23 @@ if (args.day) calendarDate('day', args.day);
 const remote = /^https?:\/\//.test(args.from);
 const base = remote ? args.from.replace(/\/+$/, '') : path.resolve(args.from.replace(/^~(?=\/)/, os.homedir()));
 
-/** A published file, parsed; null when there is no such file (a month or day with no sightings). */
-async function read<T>(file: string): Promise<T | null> {
+/**
+ * A published file, parsed. A file the export says exists (`required`) must be
+ * there: a missing one would quietly drop a day or an animal's names from every
+ * measure. Otherwise a missing file is null, as for a month with no sightings.
+ */
+async function read<T>(file: string, {required = true} = {}): Promise<T | null> {
+  const missing = () => {
+    if (required) throw new Error(`${base}/${file} is missing, but the export says it exists`);
+    return null;
+  };
   if (!remote) {
     try { return JSON.parse(await fs.promises.readFile(path.join(base, file), 'utf8')); }
-    catch (err) { if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null; throw err; }
+    catch (err) { if ((err as NodeJS.ErrnoException).code === 'ENOENT') return missing(); throw err; }
   }
   for (let attempt = 1; ; attempt++) {
     const response = await fetch(`${base}/${file}`);
-    if (response.status === 404) return null;
+    if (response.status === 404) return missing();
     if (response.ok) return await response.json() as T;
     if (attempt === 3 || response.status < 500) throw new Error(`${base}/${file}: HTTP ${response.status}`);
     await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
@@ -104,22 +113,21 @@ function months(since: string): string[] {
 }
 
 async function load(since: string): Promise<Row[]> {
-  const source = (remote ? base.replace(/^https?:\/\//, '') : base).replace(/[^A-Za-z0-9.-]+/g, '_');
+  const source = createHash('sha256').update(base).digest('hex').slice(0, 12);
   const cache = path.join(os.tmpdir(), 'salishsea-segments', `${source}-${since}.json`);
   if (!args.refresh && fs.existsSync(cache)) return JSON.parse(fs.readFileSync(cache, 'utf8'));
 
   // Which days have any sightings at all: the calendar's "everywhere" counts.
-  const calendars = await pooled(months(since), m => read<{everywhere?: Record<string, number>}>(`calendar/${m}.json`));
+  const calendars = await pooled(months(since), m => read<{everywhere?: Record<string, number>}>(`calendar/${m}.json`, {required: false}));
   const dayKeys = calendars.flatMap(c => Object.keys(c?.everywhere ?? {})).filter(d => d >= since).sort();
 
   // Each individual's sightings, inverted: which animals a sighting names. The
   // individual's 7-digit register number (its page's address) stands for it.
-  const redirects = await read<{individuals: Record<string, string>}>('redirects.json');
-  if (!redirects) throw new Error(`${base}/redirects.json is missing: is --from a read-path export?`);
+  const redirects = (await read<{individuals: Record<string, string>}>('redirects.json'))!;
   const individuals = [...new Set(Object.values(redirects.individuals).map(p => p.split('/')[2]!))];
   const named = new Map<string, Set<number>>();
   await pooled(individuals, async id => {
-    for (const link of await read<Link[]>(`profiles/individuals/${id}.links.json`) ?? []) {
+    for (const link of (await read<Link[]>(`profiles/individuals/${id}.links.json`))!) {
       if (!link.is_present) continue;
       named.set(link.occurrence_id, (named.get(link.occurrence_id) ?? new Set()).add(Number(id)));
     }
@@ -127,7 +135,7 @@ async function load(since: string): Promise<Row[]> {
 
   const rows: Row[] = [];
   const days = await pooled(dayKeys, d => read<Occurrence[]>(`days/${d}.json`));
-  for (const occurrences of days) for (const o of occurrences ?? []) {
+  for (const occurrences of days) for (const o of occurrences!) {
     if (!o.location || o.location.lat === null || o.location.lon === null) continue;
     if (!TRACKED.test(o.taxon.scientific_name)) continue;
     const at = Temporal.Instant.from(o.observed_at);
