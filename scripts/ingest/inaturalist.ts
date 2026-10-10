@@ -138,6 +138,44 @@ const InatTaxonRefSchema = z.object({
     ancestor_ids: z.array(z.number().int()),
 });
 
+// Who wrote an identification or a comment. Nullable: the schema checks a whole page at
+// once, so a strict author would let one entry from a deleted account refuse the page,
+// and the backfill would meet that page on every run (as null photo dimensions once
+// stopped the history backfill, decision 041).
+const InatAuthorSchema = z.object({id: z.number().int(), login: z.string(), orcid: z.string().nullish()}).nullish();
+
+// One identification of an observation: who said which taxon, when, whether it is still
+// theirs, and what they wrote with it (decision 075; rights-policy §5.5). REQUIRED on the
+// observation, never defaulted to empty: every observation with a taxon has at least one,
+// so an absent list means the field selection drifted, and "nobody identified it" would
+// be written on no evidence. iNaturalist's `category` (its standing against the
+// community taxon, a derived value 075 doesn't adopt) is not asked for.
+const InatIdentificationSchema = z.object({
+    id: z.number().int(),
+    body: z.string().nullish(),
+    created_at: z.string(),
+    current: z.boolean(),
+    own_observation: z.boolean(),
+    // null when the identification agrees with, or precedes, what the observation said
+    disagreement: z.boolean().nullable(),
+    hidden: z.boolean(),
+    // whether the identifier took the computer-vision suggestion
+    vision: z.boolean(),
+    user: InatAuthorSchema,
+    taxon: z.object({id: z.number().int()}),
+});
+
+// A comment on an observation, by anyone (rights-policy §5.5). REQUIRED, for the same
+// reason as identifications, though an empty list is ordinary here.
+const InatCommentSchema = z.object({
+    id: z.number().int(),
+    // nullish: a hidden comment may come without its text, and must not refuse the page
+    body: z.string().nullish(),
+    created_at: z.string(),
+    hidden: z.boolean(),
+    user: InatAuthorSchema,
+});
+
 export const InatObservationSchema = z.object({
     id: z.number().int(),
     description: z.string().nullish(),
@@ -153,6 +191,8 @@ export const InatObservationSchema = z.object({
     observation_photos: z.array(InatObservationPhotoSchema),
     taxon: InatTaxonRefSchema,
     user: InatUserSchema,
+    identifications: z.array(InatIdentificationSchema),
+    comments: z.array(InatCommentSchema),
 });
 
 export const InatResponseSchema = z.object({
@@ -201,7 +241,40 @@ export type NormalizedPhoto = {
     readonly url: string;
 };
 
-/** One normalized observation; photos travel with their parent. */
+/** One normalized identification, child of an observation (decision 075). */
+export type NormalizedIdentification = {
+    readonly id: number;
+    /** null, with login, when iNaturalist names no author (a deleted account). */
+    readonly userId: number | null;
+    readonly login: string | null;
+    readonly orcid: string | null;
+    readonly taxonId: number;
+    /** ISO8601 with offset, verbatim from created_at. */
+    readonly createdAt: string;
+    readonly current: boolean;
+    readonly ownObservation: boolean;
+    readonly disagreement: boolean | null;
+    readonly hidden: boolean;
+    readonly vision: boolean;
+    /** What the identifier wrote with it; null when blank, or hidden by iNaturalist's moderators. */
+    readonly body: string | null;
+};
+
+/** One normalized comment, child of an observation. */
+export type NormalizedComment = {
+    readonly id: number;
+    /** null, with login, when iNaturalist names no author (a deleted account). */
+    readonly userId: number | null;
+    readonly login: string | null;
+    readonly orcid: string | null;
+    /** null when hidden by iNaturalist's moderators: we keep that the comment existed, not what it said. */
+    readonly body: string | null;
+    /** ISO8601 with offset, verbatim from created_at. */
+    readonly createdAt: string;
+    readonly hidden: boolean;
+};
+
+/** One normalized observation; photos and identifications travel with their parent. */
 export type NormalizedObservation = {
     readonly id: number;
     readonly description: string | null;
@@ -220,6 +293,8 @@ export type NormalizedObservation = {
     /** ISO8601 with offset, verbatim from updated_at (cast to timestamp at persist). */
     readonly updatedAt: string;
     readonly photos: readonly NormalizedPhoto[];
+    readonly identifications: readonly NormalizedIdentification[];
+    readonly comments: readonly NormalizedComment[];
 };
 
 /** One normalized taxon row (the taxa closure the shell resolves before persist). */
@@ -274,6 +349,16 @@ export function normalizeObservation(
         publicPositionalAccuracy: r.public_positional_accuracy ?? null,
         updatedAt: r.updated_at,
         photos: r.observation_photos.map(normalizePhoto),
+        identifications: r.identifications.map(i => ({
+            id: i.id, userId: i.user?.id ?? null, login: i.user?.login ?? null, orcid: blankToNull(i.user?.orcid),
+            taxonId: i.taxon.id, createdAt: i.created_at, current: i.current,
+            ownObservation: i.own_observation, disagreement: i.disagreement, hidden: i.hidden,
+            vision: i.vision, body: i.hidden ? null : blankToNull(i.body),
+        })),
+        comments: r.comments.map(c => ({
+            id: c.id, userId: c.user?.id ?? null, login: c.user?.login ?? null, orcid: blankToNull(c.user?.orcid),
+            body: c.hidden ? null : blankToNull(c.body), createdAt: c.created_at, hidden: c.hidden,
+        })),
     };
 }
 

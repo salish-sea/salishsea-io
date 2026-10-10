@@ -5,12 +5,12 @@ import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
-import { isIngestable, type NormalizedObservation, type NormalizedPhoto, type NormalizedTaxon } from '../ingest/inaturalist.ts';
+import { isIngestable, type NormalizedIdentification, type NormalizedObservation, type NormalizedPhoto, type NormalizedTaxon } from '../ingest/inaturalist.ts';
 import type { IngestWindow } from '../ingest/window.ts';
 import {
-    applyFetch, danglingTaxonIds, dueTaxa, observationRow, openMirror, padded, photoRows, recordSynced, refreshTaxa, REFRESH_PER_RUN,
-    storedTaxonIds, sweepFrom, syncedThrough,
-    type ObservationRow, type PhotoRow,
+    applyFetch, backfillIds, commentRows, danglingTaxonIds, dueTaxa, identificationRows, observationRow, openMirror, padded, photoRows,
+    recordBackfilled, recordSynced, refreshTaxa, REFRESH_PER_RUN, storedTaxonIds, sweepFrom, syncedThrough,
+    type CommentRow, type IdentificationRow, type ObservationRow, type PhotoRow,
 } from './ingest-inaturalist.ts';
 
 /** Taxa and observations in ranges no production mirror holds, as Postgres's ingest tests used. */
@@ -24,11 +24,15 @@ const photo = (over: Partial<NormalizedPhoto> & {id: number}): NormalizedPhoto =
     seq: 0, attribution: '(c) tester', hidden: false, license: 'cc-by-nc', height: 100, width: 200,
     url: 'https://example.com/p.jpg', ...over,
 });
+const identification = (over: Partial<NormalizedIdentification> & {id: number}): NormalizedIdentification => ({
+    userId: 7, login: 'test_identifier', orcid: null, taxonId: 2000000002, createdAt: '2026-07-04T09:00:00-07:00',
+    current: true, ownObservation: false, disagreement: false, hidden: false, vision: false, body: null, ...over,
+});
 const observation = (over: Partial<NormalizedObservation> & {id: number}): NormalizedObservation => ({
     description: null, lon: -123, lat: 48.5, observedAt: '2026-07-03T10:00:00-07:00', licenseCode: 'cc-by-nc',
     uri: 'https://www.inaturalist.org/observations/x', login: 'test_inat_a', orcid: null, taxonId: 2000000002,
     ancestorIds: [2000000001, 2000000002], publicPositionalAccuracy: 10, updatedAt: '2026-07-05T10:00:00-07:00',
-    photos: [], ...over,
+    photos: [], identifications: [], comments: [], ...over,
 });
 const WINDOW: IngestWindow = {start: '2026-07-01', end: '2026-07-05'};
 
@@ -38,6 +42,8 @@ const rows = (file: string) => {
         return {
             observations: db.prepare('SELECT * FROM observations ORDER BY id').all() as unknown as ObservationRow[],
             photos: db.prepare('SELECT * FROM observation_photos ORDER BY id').all() as unknown as PhotoRow[],
+            identifications: db.prepare('SELECT * FROM identifications ORDER BY id').all() as unknown as IdentificationRow[],
+            comments: db.prepare('SELECT * FROM comments ORDER BY id').all() as unknown as CommentRow[],
             taxa: (db.prepare('SELECT id FROM taxa ORDER BY id').all() as {id: number}[]).map(r => r.id),
             days: (db.prepare('SELECT day FROM covered_days ORDER BY day').all() as {day: string}[]).map(r => r.day),
         };
@@ -90,9 +96,68 @@ describe('the mirror', () => {
         expect(m.photos.map(p => p.id)).toEqual([9100000004]);
     });
 
+    test('keeps who identified an observation as what, and replaces them when they change', () => {
+        const db = fresh('identifications.sqlite');
+        const own = identification({id: 9200000001, userId: 5, login: 'test_inat_a', ownObservation: true, disagreement: null});
+        const first = observation({id: 9000000030, identifications: [own, identification({id: 9200000002})]});
+        applyFetch(db, [first], taxa, null);
+        expect(applyFetch(db, [first], [], null).written).toBe(0);
+        // The second identifier withdraws theirs (no longer current) and a third disagrees,
+        // naming a taxon the mirror doesn't hold; iNaturalist moves updated_at for both.
+        const later = {...first, updatedAt: '2026-07-06T10:00:00-07:00', identifications: [own,
+            identification({id: 9200000002, current: false}),
+            identification({id: 9200000003, userId: 8, login: 'test_other', taxonId: 2000000099, disagreement: true, vision: true})]};
+        expect(applyFetch(db, [later], [], null).written).toBe(1);
+        db.close();
+        const m = rows(path.join(dir, 'identifications.sqlite'));
+        expect(m.identifications).toEqual(identificationRows(later));
+        expect(m.identifications.map(i => [i.id, i.current, i.disagreement])).toEqual(
+            [[9200000001, 1, null], [9200000002, 0, 0], [9200000003, 1, 1]]);
+    });
+
+    test('keeps the comments on an observation, and picks up a new one whenever the observation is fetched again', () => {
+        const db = fresh('comments.sqlite');
+        const comment = {id: 9300000001, userId: 9, login: 'test_commenter', orcid: null, body: 'Seen from the ferry too',
+                         createdAt: '2026-07-04T15:00:00-07:00', hidden: false};
+        const first = observation({id: 9000000032, comments: [comment]});
+        applyFetch(db, [first], taxa, null);
+        // a comment doesn't move iNaturalist's updated_at, so the copy that carries it looks no newer
+        const later = {...first, comments: [comment, {...comment, id: 9300000002, body: 'T49As, I think'}]};
+        expect(applyFetch(db, [later], [], null).written).toBe(1);
+        db.close();
+        expect(rows(path.join(dir, 'comments.sqlite')).comments).toEqual(commentRows(later));
+    });
+
+    test('an observation fetched again gains the identifications it was mirrored without', () => {
+        const db = fresh('gains.sqlite');
+        const bare = observation({id: 9000000031});
+        applyFetch(db, [bare], taxa, null);
+        // the same upstream copy, now asked with identifications: same updated_at
+        expect(applyFetch(db, [{...bare, identifications: [identification({id: 9200000010})]}], [], null).written).toBe(1);
+        db.close();
+        expect(rows(path.join(dir, 'gains.sqlite')).identifications.map(i => i.id)).toEqual([9200000010]);
+    });
+
+    test('the backfill asks about observations without identifications, a page at a time, never the same twice', () => {
+        const db = fresh('backfill.sqlite');
+        const ided = observation({id: 9000000041, identifications: [identification({id: 9200000041})]});
+        applyFetch(db, [observation({id: 9000000040}), ided, observation({id: 9000000042}), observation({id: 9000000043})], taxa, null);
+        expect(backfillIds(db, 2)).toEqual([9000000040, 9000000042]);
+        // 9000000040 came back with its identifications; 9000000042 didn't come back at all
+        applyFetch(db, [observation({id: 9000000040, identifications: [identification({id: 9200000040})]})], [], null);
+        recordBackfilled(db, [9000000040, 9000000042]);
+        expect(backfillIds(db, 2)).toEqual([9000000043]);
+        recordBackfilled(db, [9000000043]);
+        expect(backfillIds(db, 2)).toEqual([]);
+        db.close();
+    });
+
     test('a window deletes what upstream no longer returns on its own days, and only those', () => {
         const db = fresh('window.sqlite');
-        const inside = observation({id: 9000000005, observedAt: '2026-07-03T10:00:00-07:00', photos: [photo({id: 9100000005})]});
+        const inside = observation({id: 9000000005, observedAt: '2026-07-03T10:00:00-07:00', photos: [photo({id: 9100000005})],
+                                    identifications: [identification({id: 9200000005})],
+                                    comments: [{id: 9300000005, userId: 9, login: 'c', orcid: null, body: 'x',
+                                                createdAt: '2026-07-03T11:00:00-07:00', hidden: false}]});
         const lastEvening = observation({id: 9000000006, observedAt: '2026-07-05T23:30:00Z'});
         const dayAfter = observation({id: 9000000007, observedAt: '2026-07-06T00:30:00Z'});
         applyFetch(db, [inside, lastEvening, dayAfter], taxa, null);
@@ -103,6 +168,8 @@ describe('the mirror', () => {
         const m = rows(path.join(dir, 'window.sqlite'));
         expect(m.observations.map(o => o.id)).toEqual([9000000007]);
         expect(m.photos).toEqual([]);
+        expect(m.identifications).toEqual([]);
+        expect(m.comments).toEqual([]);
         expect(m.days).toEqual(['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04', '2026-07-05']);
     });
 
