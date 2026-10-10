@@ -93,7 +93,7 @@ export type Ecotype = 'resident' | 'biggs';
  */
 export function ecotypesOf({taxon, identifiers}: {taxon: Pick<Occurrence['taxon'], 'scientific_name'>, identifiers: Occurrence['identifiers']}): Set<Ecotype> {
   const out = new Set<Ecotype>();
-  const subspecies = taxon.scientific_name.split(' ')[2];
+  const subspecies = taxon.scientific_name?.split(' ')[2];
   if (subspecies === 'ater') out.add('resident');
   if (subspecies === 'rectipinnus') out.add('biggs');
   for (const id of identifiers ?? []) {

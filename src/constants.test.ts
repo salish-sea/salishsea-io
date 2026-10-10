@@ -100,6 +100,10 @@ describe('regions', () => {
 });
 
 describe('travelSpeedFor', () => {
+  test('a species with no scientific name has no speed', () => {
+    expect(travelSpeedFor(null)).toBeUndefined();
+  });
+
   test('finds a listed species by its exact name', () => {
     expect(travelSpeedFor('Megaptera novaeangliae')).toBe(5.0);
   });

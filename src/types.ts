@@ -22,7 +22,7 @@ export type OccurrencePhoto = {
   license: License | null;
 };
 type Taxon = {
-  scientific_name: string;
+  scientific_name: string | null;
   vernacular_name: string | null;
   species_id: number | null;
   entity_id: string | null;

@@ -137,7 +137,8 @@ async function load(since: string): Promise<Row[]> {
   const days = await pooled(dayKeys, d => read<Occurrence[]>(`days/${d}.json`));
   for (const occurrences of days) for (const o of occurrences!) {
     if (!o.location || o.location.lat === null || o.location.lon === null) continue;
-    if (!TRACKED.test(o.taxon.scientific_name)) continue;
+    const name = o.taxon.scientific_name;
+    if (name === null || !TRACKED.test(name)) continue;
     const at = Temporal.Instant.from(o.observed_at);
     rows.push({
       id: o.id,
@@ -145,7 +146,7 @@ async function load(since: string): Promise<Row[]> {
       day: pacificDay(o.observed_at),
       time: at.toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute'}),
       location: {lat: o.location.lat, lon: o.location.lon},
-      taxon: {species_id: o.taxon.species_id, scientific_name: o.taxon.scientific_name},
+      taxon: {species_id: o.taxon.species_id, scientific_name: name},
       identifiers: o.identifiers ?? [],
       animals: [...named.get(o.id) ?? []],
     });

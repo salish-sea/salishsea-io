@@ -50,7 +50,7 @@ export function ownOccurrence(sighting: OwnSighting, contributor: Pick<Contribut
       species_id: null,
       scientific_name: species?.inaturalist_scientific_name ?? null,
       vernacular_name: species?.common_name ?? species?.taxon_common_name ?? null,
-    } as Occurrence['taxon'],
+    },
     identifiers: detectIndividuals(sighting.body ?? ''),
     contributor_id: sighting.contributor_id,
     observer: contributor.name,
