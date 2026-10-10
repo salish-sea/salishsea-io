@@ -69,6 +69,8 @@ export const FROM_STORE: readonly {table: string, query: string}[] = [
         SELECT CAST(id AS INTEGER) AS id, CAST(observation_id AS UUID) AS observation_id,
                CAST(seq AS SMALLINT) AS seq, href, license_code
         FROM copy.observation_photos`},
+    // Name and ORCID only: everything the snapshot holds can be published, and a
+    // contributor's picture, email and editor flag must not be (065, salish-8wh).
     {table: 'public.contributors', query: `
         SELECT CAST(id AS INTEGER) AS id, name, orcid FROM copy.contributors`},
     {table: 'public.identifications', query: `
