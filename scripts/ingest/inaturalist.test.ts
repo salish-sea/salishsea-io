@@ -254,7 +254,10 @@ describe('parseInatResponse', () => {
         const r = parseInatResponse({ total_results: 1, results: [{
             ...rawObs,
             identifications: [...rawObs.identifications, { ...rawObs.identifications[0]!, id: 703, user: null }],
-            comments: [{ id: 802, body: 'from a deleted account', created_at: '2026-07-04T17:00:00-07:00', hidden: false, user: null }],
+            comments: [
+                { id: 802, body: 'from a deleted account', created_at: '2026-07-04T17:00:00-07:00', hidden: false, user: null },
+                { id: 803, body: null, created_at: '2026-07-04T18:00:00-07:00', hidden: true, user: null },
+            ],
         }] });
         expect(r.ok).toBe(true);
         if (!r.ok) return;

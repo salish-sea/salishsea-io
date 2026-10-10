@@ -169,7 +169,8 @@ const InatIdentificationSchema = z.object({
 // reason as identifications, though an empty list is ordinary here.
 const InatCommentSchema = z.object({
     id: z.number().int(),
-    body: z.string(),
+    // nullish: a hidden comment may come without its text, and must not refuse the page
+    body: z.string().nullish(),
     created_at: z.string(),
     hidden: z.boolean(),
     user: InatAuthorSchema,
