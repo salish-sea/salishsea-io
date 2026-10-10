@@ -174,7 +174,11 @@ export const travelSpeedKmH: {[k: string]: number} = {
  * nothing. Where a subspecies' speed is genuinely different — the two orca
  * ecotypes — an explicit key still wins over the binomial.
  */
-export function travelSpeedFor(scientificName: string): number | undefined {
+export function travelSpeedFor(scientificName: string | null): number | undefined {
+  // A species with no scientific name (its entity maps to no taxon, or a page's names
+  // failed to load) has no known speed, so no track grows from it (segments.ts).
+  if (scientificName === null)
+    return undefined;
   const exact = travelSpeedKmH[scientificName];
   if (exact !== undefined)
     return exact;

@@ -139,6 +139,22 @@ describe('orca short-window transit regression', () => {
   });
 });
 
+describe('a sighting whose species has no scientific name', () => {
+  // salish-jrmt: a signed-in tab's own sighting has no scientific name when the page's
+  // names fail to load (ownOccurrence), and the build publishes none for an entity that
+  // maps to no taxon. Segmenting a day with one in it threw, and the map showed nothing.
+  const before = makeOrca('before', '2026-03-30T01:12:00Z', -123.2363, 48.6177);
+  const after = makeOrca('after', '2026-03-30T01:30:00Z', -123.2285, 48.5466);
+  const nameless: Occurrence = {...makeOrca('nameless', '2026-03-30T01:20:00Z', -123.2363, 48.6177),
+    taxon: {entity_id: 'SSA:0000900', species_id: null, scientific_name: null, vernacular_name: null}};
+
+  test('stands alone, and the day around it still segments', () => {
+    const segs = occurrences2segments([before, nameless, after]);
+    expect(segs.map(s => s.occurrences.map(o => o.id))).toEqual([['before', 'after'], ['nameless']]);
+    expect(ecotypesOf(nameless)).toEqual(new Set());
+  });
+});
+
 describe('segment2features head metadata', () => {
   // Decision 029 puts one label on each segment head and lets it speak for the
   // whole track, so the head has to carry what the track knows.
@@ -210,7 +226,7 @@ function day(date: string) {
   /** The sighting reported at `time`, narrowed by what it said when two share a minute. */
   const at = (time: string, said?: string) => {
     const matches = sightings.filter(s => s.time === time &&
-      (said === undefined || (s.identifiers ?? []).includes(said) || s.taxon.scientific_name.endsWith(said)));
+      (said === undefined || (s.identifiers ?? []).includes(said) || s.taxon.scientific_name?.endsWith(said)));
     if (matches.length !== 1) throw new Error(`${matches.length} sightings at ${date} ${time} ${said ?? ''}`);
     return matches[0]!.id;
   };
