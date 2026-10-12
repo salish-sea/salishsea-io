@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-11 · **Context:** GitHub [#385](https://github.com/salish-sea/salishsea-io/issues/385) (haul-out clustering), [#453](https://github.com/salish-sea/salishsea-io/issues/453) (map layer toggle) · **Extends:** [027](027-marine-mammal-scope-whale-centric-identity.md) (haul-out clustering filed as the pinniped-shaped analogue of a segment)
 
+*Amended 2026-10-12:* the list is still ours, but where it lives changed. Since 2026-10-04 the sites are checked-in data in [`data/catalogue/haulouts.tsv`](../../data/catalogue/haulouts.tsv) ([064](064-what-users-do-not-write-leaves-postgres-first.md), #591), so a new site or a `story` is edited there, not by a migration. The read-path build matches reports to sites ([`derive/haulout-nearby.sql`](../../scripts/read-path/derive/haulout-nearby.sql), [061](061-ingest-and-derivation-move-into-the-build.md)) and prerenders each site's page, which the Fly app serves ([057](057-profile-pages-are-prerendered.md)); the edge no longer rewrites these paths.
+
 ## Decision
 
 A **haul-out site** is a first-class row in our own database (`public.haulouts`): a name, a point, a radius, and what the reference literature says about it. The list is seeded from the WDFW atlas ([Jeffries et al. 2000](https://github.com/user-attachments/files/31973228/Jeffries%2B2000.pdf)) and extended by hand. A pinniped report belongs to a site when it falls within the site's radius (`public.haulout_occurrences`). Each site gets a page at `/haulouts/<id>/<slug>`, shaped like the individual and matriline pages.

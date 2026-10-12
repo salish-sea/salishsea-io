@@ -161,3 +161,7 @@ One repair alongside it, for every caller: a cause that is not an `Error` (a
 `GeolocationPositionError`, a plain result object) now reaches Sentry wrapped in one whose
 message is the sentence the person saw, with the original as `cause`. The `[object …]`
 above is what the unwrapped form looked like.
+
+## Amended 2026-10-12 — the Realtime broadcast is gone ([065](065-the-store-and-write-api.md))
+
+The Supabase Realtime broadcast that the follow-through reconciles against was removed with Supabase on 2026-10-09 (#663). A confirmed delete still removes the row at once and re-fetches behind it, and `#listRevision` still drops a response sent before the delete. Another person's save now reaches the map at the next build of the files. The Log in button is now an account menu (#647).

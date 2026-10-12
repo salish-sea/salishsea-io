@@ -1,6 +1,8 @@
 # 044 — iNaturalist gets the same ingest scope rule as Maplify
 
-**Status:** accepted · **Decided:** 2026-09-18 · **Extends:** [036](036-ingest-scope-killer-whales-range-wide.md) · **Applies:** [008](008-source-schemas-are-upstream-mirrors.md) · **Answers:** `salish-a4y.4`, the open question 036 left
+**Status:** accepted; amended by [061](061-ingest-and-derivation-move-into-the-build.md) on 2026-10-03: the rule is applied in the build's derivation, not at ingest · **Decided:** 2026-09-18 · **Extends:** [036](036-ingest-scope-killer-whales-range-wide.md) · **Applies:** [008](008-source-schemas-are-upstream-mirrors.md) · **Answers:** `salish-a4y.4`, the open question 036 left
+
+*Amended 2026-10-12 ([061](061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.8`):* since 2026-10-03 the rule runs in the read-path build's derivation ([`derive/inaturalist-scope.ts`](../../scripts/read-path/derive/inaturalist-scope.ts)), not at ingest. The build's iNaturalist mirror keeps every dated observation in the fetch box by design, Californian ones included, and nothing out of scope reaches the map, the pages or the archive. That reverses the choice below to delete at ingest and the rejection of filtering on read, for the reasons [036](036-ingest-scope-killer-whales-range-wide.md)'s amendment gives. The rule and the fetch box are unchanged; the purge describes Postgres's copy, which has retired.
 
 ## Decision
 

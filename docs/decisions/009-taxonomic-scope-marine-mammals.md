@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-07-02 · **Supersedes:** the "cetaceans only" scope of [001](001-product-framing.md) · **Extended by:** [027](027-marine-mammal-scope-whale-centric-identity.md) (PSEMP is a boundary, not a data source; whale-centric identity; export coverage; segment species-gate)
 
+*Amended 2026-10-12:* the iNaturalist query is no longer the Postgres function named below. The read-path build fetches the same three taxa (`INAT_ROOT_TAXON_IDS` in [`scripts/ingest/inaturalist.ts`](../../scripts/ingest/inaturalist.ts)). What is kept is narrowed by place, not by taxon: killer whales range-wide, everything else in the Salish Sea ([036](036-ingest-scope-killer-whales-range-wide.md), [044](044-inat-ingest-scope.md)).
+
 ## Decision
 
 The taxonomic scope is that of **PSEMP's Marine Mammal Working Group** (Puget Sound Ecosystem Monitoring Program) — Salish Sea **marine mammals** broadly (cetaceans, pinnipeds, mustelids), not cetaceans only. Which animals are in scope is a property of the *site's coverage*, not of the definition of an occurrence.

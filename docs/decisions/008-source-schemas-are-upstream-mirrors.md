@@ -1,6 +1,8 @@
 # 008 — Source schemas are verbatim upstream mirrors (anti-corruption layer)
 
-**Status:** accepted · **Decided:** 2026-07-02
+**Status:** accepted · **Decided:** 2026-07-02 · **Amended by:** [061](061-ingest-and-derivation-move-into-the-build.md) (the mirrors leave Postgres for SQLite files on the build machine, and lose their two resolved columns)
+
+*Amended 2026-10-12 ([061](061-ingest-and-derivation-move-into-the-build.md), [064](064-what-users-do-not-write-leaves-postgres-first.md), [065](065-the-store-and-write-api.md)):* the principle stands, applied more strictly. The Maplify and iNaturalist mirrors are SQLite files the read-path build writes on the Fly machine, not Postgres schemas, and Maplify's no longer stores the register entity or collection a sighting was matched to: the build works both out when it derives the occurrences. Happywhale's frozen rows are a DuckDB file beside the mirrors. Our own domain, which this record places in `public.*` and the `dwc` schema, now lives in the write API's SQLite store (what users write), in checked-in files under `data/` (the catalogue and reference data), and in the build's DuckDB tables (the Darwin Core contract). This record does not govern Orcasound ([013](013-orcasound-acoustic-occurrences.md), 2026-09-20).
 
 ## Decision
 

@@ -96,10 +96,14 @@ GitHub sometimes loses a job's deployment to the `production` environment, and t
 
 Rejected: `timeout-minutes`, because it counts from when a runner takes the job, and a lost job never gets one. Also rejected: `cancel-in-progress: true`, because it would interrupt a healthy deploy mid `supabase db push` whenever a newer commit merged, the hazard serializing exists to avoid. Also rejected: an external scheduled check that `main`'s tip deployed. GitHub's cron runs a median 68 minutes late (measured for `ingest-heartbeat.yml`), and a check outside the run could see the stall but not clear it.
 
+## Amendment, 2026-10-12 — the sequence the gate guards has changed
+
+The test gate, the smoke job inside the run, the `deploy-failed` issue and its silence for superseded runs all stand. A deploy now builds the Fly image beside the tests, deploys the CDK stacks, then switches the Fly app to the new image ([`fly/deploy.sh`](../../fly/deploy.sh), [066](066-a-deploy-takes-the-build-lock-and-the-machine-stops-its-writers.md)). There is no Edge Function step, no `supabase db push` and no S3 sync, because Postgres and the S3 site are retired, and the suite has started no database since #669. Rolling back means switching the Fly app to an earlier image ([runbook](../runbook/deploys.md)). The nightly archive workflow cited below as the alert channel's precedent retired on 2026-10-04 ([061](061-ingest-and-derivation-move-into-the-build.md)); the link is to its last version.
+
 ## Reference
 
 Issue: `salish-ior`. Workflows: [`deploy.yml`](../../.github/workflows/deploy.yml),
 [`build.yml`](../../.github/workflows/build.yml), [`smoke.yml`](../../.github/workflows/smoke.yml).
-Alert-channel precedent: [`dwca-nightly.yml`](../../.github/workflows/dwca-nightly.yml).
+Alert-channel precedent: [`dwca-nightly.yml`](https://github.com/salish-sea/salishsea-io/blob/4cb8ed3121ba1ad3fedf25b0b7038e6d8b36bd5b/.github/workflows/dwca-nightly.yml) (retired 2026-10-04).
 Superseded-commit guard: [`require-current-tip`](../../.github/actions/require-current-tip/action.yml),
 [runbook gotcha 3](../runbook/deploys.md).

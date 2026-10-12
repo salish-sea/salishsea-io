@@ -1,6 +1,8 @@
 # 045 — The source tables' foreign-key columns stay unindexed
 
-**Status:** accepted · **Decided:** 2026-09-18 · **Answers:** `salish-b0v`
+**Status:** retired 2026-10-09 · **Decided:** 2026-09-18 · **Answers:** `salish-b0v`
+
+*Retired 2026-10-09:* the four source tables this record measures stopped being written when the ingests moved into the read-path build ([061](061-ingest-and-derivation-move-into-the-build.md); the last stopped on 2026-10-05), and Postgres retired on 2026-10-09 (`salish-9uu.14`, #671). Their replacements are SQLite files on the build machine, read by the build's derivation, so the question doesn't arise. What follows describes Postgres as it was.
 
 ## Decision
 

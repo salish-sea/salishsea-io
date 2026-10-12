@@ -1,6 +1,8 @@
 # 055 — Occurrences are stored, not assembled: each writer keeps them current in its own transaction, and reference data triggers a rebuild
 
-**Status:** accepted · **Decided:** 2026-09-28 · **Answers:** `salish-4h3` · **Supersedes:** the two five-minute matview refreshes (migrations `20260708052333`, `20260708000104`, `20260909120000`)
+**Status:** retired 2026-10-09: the derivation moved into the build ([061](061-ingest-and-derivation-move-into-the-build.md)), and the Postgres store went with Postgres (`salish-9uu`) · **Decided:** 2026-09-28 · **Answers:** `salish-4h3` · **Supersedes:** the two five-minute matview refreshes (migrations `20260708052333`, `20260708000104`, `20260909120000`)
+
+*Amended 2026-10-12:* nothing described here runs any more. Decision [061](061-ingest-and-derivation-move-into-the-build.md) moved the occurrence derivation into the read-path build, as five DuckDB queries over the build's mirrors ([`derive/occurrences.sql`](../../scripts/read-path/derive/occurrences.sql)), one per source as here. Since 2026-10-06 the build re-derives only the sources whose inputs changed (`salish-9uu.8.1`, in [065](065-the-store-and-write-api.md)), which carries this record's aim of recomputing only what changed into the build. Postgres was retired on 2026-10-09, and `derived.occurrences`, its triggers, the stale marks and the rebuild job went with it. The record is kept as the account of why the matview refreshes went, and of what the five views computed. The build's tests still check its output against answers those views gave ([`fixtures/twins/`](../../scripts/read-path/fixtures/twins/README.md)).
 
 ## Context
 

@@ -5,6 +5,8 @@
 **Issue:** bd `salish-yfd`, GitHub [#16](https://github.com/salish-sea/salishsea-io/issues/16)
 **Follows:** [021](021-calendar-date-picker.md) (which added the calendar and the `occurrence_days` view this amends)
 
+*Amended 2026-10-12 ([056](056-the-logged-out-read-path-is-built-as-static-files.md), [061](061-ingest-and-derivation-move-into-the-build.md)):* the rule stands: a region filters the map, the list and the calendar alike. Postgres no longer does the filtering. The read-path build writes each month's day counts once per region, from the boxes in `src/constants.ts`, and the map and the list filter a day's file by the active region's box in the browser. The `occurrence_days` function, the PostgREST filter and the query timings below describe the arrangement as it was.
+
 ## Problem
 
 The region bubbles added in #352 were pure navigation: clicking one moved the map and changed nothing else. Two things followed.

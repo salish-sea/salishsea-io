@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-22 · **Extends:** [033](033-register-names-the-animals.md) · **Answers:** `salish-53t.3` (the `public.observations` half)
 
+*Amended 2026-10-12:* since 2026-10-05 the write API saves a sighting into its own store, whose `observations.entity_id` keeps the same `SSA:` check ([065](065-the-store-and-write-api.md)); `upsert_observation`, the CI seed and the Postgres columns named here retired with Postgres. The crosswalk walk is now a view in the read-path build's [`derive/lookups.sql`](../../scripts/read-path/derive/lookups.sql) ([061](061-ingest-and-derivation-move-into-the-build.md)).
+
 ## Decision
 
 **A sighting reported through SalishSea.io records a register entity (`observations.entity_id`, an `SSA:` identifier), not an iNaturalist taxon id.** The sighting form offers entities and shows the register's name for each; `upsert_observation` stores the entity; `observations.taxon_id` is gone.

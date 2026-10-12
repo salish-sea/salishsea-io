@@ -1,6 +1,6 @@
 # 066 — A deploy takes the build lock before the switch; the machine stops its writers on the stop signal
 
-**Status:** accepted · **Decided:** 2026-10-05 · **Prerequisite of:** bd `salish-t3g.5` (deploying the Fly app from GitHub Actions) · **Context:** bd `salish-t3g.8` · **Departs from:** the mechanism, not the rule, of [BeeAtlas ADR 0042](https://github.com/rainhead/beeatlas/blob/main/docs/adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)
+**Status:** accepted; built · **Decided:** 2026-10-05 · **Prerequisite of:** bd `salish-t3g.5` (deploying the Fly app from GitHub Actions) · **Context:** bd `salish-t3g.8` · **Departs from:** the mechanism, not the rule, of [BeeAtlas ADR 0042](https://github.com/rainhead/beeatlas/blob/main/docs/adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)
 
 ## Context
 

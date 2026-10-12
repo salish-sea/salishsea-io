@@ -1,10 +1,12 @@
 # 013 — Orcasound acoustic occurrences come from curated biophony bouts, identified by upstream tags
 
-**Status:** accepted (our side) · **pending upstream adoption** · **Decided:** 2026-07-06 ·
+**Status:** accepted; built (bouts on the map since 2026-09-25) · upstream adopted tag `kind`, `iri` and `certainty` (orcasite#1042, #1014); the older tags classified 2026-09-25 (#1016); #1015, #1017 and orcahello#597 still open · **Decided:** 2026-07-06 ·
 **Amended:** 2026-08-14 (see [Amendment](#amendment-2026-08-14) — identifications arrive
 typed, and the upstream ask is a schema change) · 2026-09-20 (see
 [Amendment](#amendment-2026-09-20) — orcasite is read directly, with no mirror schema; an
-occurrence gains an end time; bouts stay out of the DarwinCore export for now)
+occurrence gains an end time; bouts stay out of the DarwinCore export for now) · 2026-10-12
+(see [Amendment](#amendment-2026-10-12) — built, upstream changes adopted, the build reads
+orcasite)
 
 ## Context
 
@@ -301,6 +303,24 @@ dropped ([054](054-certainty-is-the-asserters-status-is-ours.md), 2026-09-26). A
 > today — lands as an occurrence with zero identifications, and how a moderator's `certainty`
 > ([#1014](https://github.com/orcasound/orcasite/issues/1014)) relates to our
 > `identifications.status`.~~
+
+## Amendment (2026-10-12)
+
+The integration is built, and the upstream changes it waited on are in. orcasite gave each tag a
+`kind` and an `iri` on 2026-09-20 ([orcasite#1042](https://github.com/orcasound/orcasite/pull/1042))
+and has recorded a moderator's certainty on each tag application since 2026-09-27
+([#1059](https://github.com/orcasound/orcasite/pull/1059), closing #1014). Bouts have been on the
+map since 2026-09-25 (#495). The older tags were classified on
+production on 2026-09-25 by a one-off script (#1016; the issue is still open upstream). What
+remains improves coverage and blocks nothing: a tag picker that knows the register (#1015), and
+the machine's classification on detections (#1017, orcahello#597).
+
+Since 2026-10-04 the read-path build, not Postgres, reads orcasite
+([061](061-ingest-and-derivation-move-into-the-build.md)). It keeps a SQLite file of every bout
+orcasite's bouts API returns (the API has no separate published flag), with its category and the register identifiers its tags cite, and the
+derivation keeps the biophony bouts. That file is already in our shape, so the 2026-09-20 point
+stands: it is a copy, not a translation layer. Bouts are still kept out of the Darwin Core
+archive.
 
 ## Reference
 

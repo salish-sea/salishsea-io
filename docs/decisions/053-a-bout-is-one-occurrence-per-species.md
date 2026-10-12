@@ -2,6 +2,8 @@
 
 **Status:** provisional · **Decided:** 2026-09-25 · **Answers:** the first half of `salish-8vr.4`; the second half is [054](054-certainty-is-the-asserters-status-is-ours.md) · **Extends:** [013](013-orcasound-acoustic-occurrences.md)
 
+*Amended 2026-10-12 (`salish-9uu`):* the rule stands, and it is still provisional for the one reason given below (`salish-8vr.28`), but the tables it names are gone with Postgres. Since [061](061-ingest-and-derivation-move-into-the-build.md), the build's Orcasound mirror holds every bout orcasite publishes, and the build derives the occurrences from it ([`derive/sources.sql`](../../scripts/read-path/derive/sources.sql), [`derive/occurrences.sql`](../../scripts/read-path/derive/occurrences.sql)). So a bout that names nothing placeable is held in that mirror, not in `public.acoustic_bouts`. The archive is written from [`derive/dwc.sql`](../../scripts/read-path/derive/dwc.sql), which still reads no Orcasound data, and runs are recorded in the build's run log rather than `ingest.runs`. The build's ingest is [`ingest-orcasound.ts`](../../scripts/read-path/ingest-orcasound.ts). The migrations named below can be read at commit `6898775`.
+
 ## Context
 
 Decision [013](013-orcasound-acoustic-occurrences.md) makes an acoustic occurrence one curated `biophony` bout, identified by the register entities its tags cite. It left two things open, tracked as `salish-8vr.4`: what a bout with no animal tag does, and how a moderator's certainty relates to our verification status. The ingest (`salish-8vr.26`) cannot ship without an answer to the first, and Peter decided on 2026-09-25 that provisional data on the map is acceptable while the upstream design settles ([orcasound/orcasite#1051](https://github.com/orcasound/orcasite/issues/1051)), provided bouts stay out of the DarwinCore archive.
@@ -43,4 +45,4 @@ Until then, this record is what the branch does. `salish-8vr.4` closed on 2026-0
 
 ## Reference
 
-Ingest: [scripts/ingest/orcasound.ts](../../scripts/ingest/orcasound.ts), [scripts/ingest/fetch-orcasound.ts](../../scripts/ingest/fetch-orcasound.ts), `persistOrcasound` in [scripts/ingest/persist.ts](../../scripts/ingest/persist.ts). Migration: `supabase/migrations/20260925120000_orcasound_ingest.sql`. Tests: `scripts/ingest/orcasound.test.ts`, `supabase/acoustic-occurrences.test.ts`. Tracking: `salish-8vr.26`, `salish-8vr.4`.
+Ingest: [scripts/ingest/orcasound.ts](../../scripts/ingest/orcasound.ts), [scripts/ingest/fetch-orcasound.ts](../../scripts/ingest/fetch-orcasound.ts), `persistOrcasound` in [scripts/ingest/persist.ts](https://github.com/salish-sea/salishsea-io/blob/19580a5ca09d210e53e71b59e3cd23bf2f534b23/scripts/ingest/persist.ts). Migration: `supabase/migrations/20260925120000_orcasound_ingest.sql`. Tests: `scripts/ingest/orcasound.test.ts`, `supabase/acoustic-occurrences.test.ts`. Tracking: `salish-8vr.26`, `salish-8vr.4`.

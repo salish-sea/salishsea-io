@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-08-13 · **Extends:** [009](009-taxonomic-scope-marine-mammals.md) (which stands; this record answers the questions 009 left open)
 
+*Amended 2026-10-12 ([061](061-ingest-and-derivation-move-into-the-build.md)):* since 2026-10-04 the read-path build writes the archive, not the nightly workflow. The coverage prose is the metadata row in [`derive/dwc.sql`](../../scripts/read-path/derive/dwc.sql), and the build runs `verify-artifact` before it publishes, so SC#4c still gates the archive.
+
 ## Decision
 
 Four related calls, resolved together:

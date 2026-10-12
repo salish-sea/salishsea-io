@@ -24,7 +24,7 @@ The trigger was "N" for a river otter. The scheme's real failure is that it cann
 
 ## Decision
 
-![Taxon-group palette, segment head and tail, and the two-line label](images/029-symbology-legend.png)
+![Taxon-group palette, segment head and tail, and the two-line label](../images/029-symbology-legend.png)
 
 
 **Colour carries the taxon group. The label carries the specifics. The track is supporting, not the subject.**
@@ -124,7 +124,7 @@ This does **not** solve cross-layer collision: decluttering is per-layer, so an 
 
 Added after building it (`salish-ayb.6`); the decision above is unchanged.
 
-![The map at 112 occurrences — synthetic data shaped like 2026-06-15, the busiest day measured above](images/029-symbology-map.png)
+![The map at 112 occurrences — synthetic data shaped like 2026-06-15, the busiest day measured above](../images/029-symbology-map.png)
 
 A synthetic day, not a real one: the taxa, register names and `SSA:` identifiers are real, the
 positions are generated, and it over-produces multi-point tracks compared with the 10 that

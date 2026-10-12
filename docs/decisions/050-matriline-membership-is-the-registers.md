@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-22 · **Amends:** [016](016-matriline-profile-pages.md) · **Answers:** part of `salish-ox2.5` (the membership half)
 
+*Amended 2026-10-12:* the rule is unchanged; the read-path build now computes `matriline_members` from the register's closure ([`derive/catalogue.sql`](../../scripts/read-path/derive/catalogue.sql), [061](061-ingest-and-derivation-move-into-the-build.md)). The matriarch is checked-in data in [`data/catalogue/social-groups.tsv`](../../data/catalogue/social-groups.tsv) ([064](064-what-users-do-not-write-leaves-postgres-first.md)), and for the Southern Residents the build generates it from the register ([070](070-southern-residents-are-generated-from-the-register.md)).
+
 ## Decision
 
 **Which animals belong to a matriline is read from the register, and the register's answer is a matriarch and all her descendants.** A matriarch belongs to her own matriline and to every matriline above it: T065A is in T065As and in T065s. Our own `public.group_memberships` rows are no longer read.

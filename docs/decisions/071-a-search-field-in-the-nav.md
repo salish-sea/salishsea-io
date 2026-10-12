@@ -1,6 +1,6 @@
 # 071 — A search button in the nav finds animals and places, from an index the build writes
 
-**Status:** accepted · **Decided:** 2026-10-07 · **Context:** GitHub [#640](https://github.com/salish-sea/salishsea-io/issues/640) · **Follows:** [BeeAtlas ADR 0021](https://github.com/rainhead/beeatlas/blob/7fd8d251514f1752f3a8e760997a855da6b4ec05/docs/adr/0021-search-is-a-header-affordance.md) (search is one field in the header) · **Relates:** [057](057-profile-pages-are-prerendered.md) (a prerendered page's scripts are islands), [070](070-southern-residents-are-generated-from-the-register.md) (the populations it finds)
+**Status:** accepted; built · **Decided:** 2026-10-07 · **Context:** GitHub [#640](https://github.com/salish-sea/salishsea-io/issues/640) · **Follows:** [BeeAtlas ADR 0021](https://github.com/rainhead/beeatlas/blob/7fd8d251514f1752f3a8e760997a855da6b4ec05/docs/adr/0021-search-is-a-header-affordance.md) (search is one field in the header) · **Relates:** [057](057-profile-pages-are-prerendered.md) (a prerendered page's scripts are islands), [070](070-southern-residents-are-generated-from-the-register.md) (the populations it finds)
 
 ## Context
 

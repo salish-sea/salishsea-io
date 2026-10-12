@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-18 · **Applies:** [008](008-source-schemas-are-upstream-mirrors.md), [036](036-ingest-scope-killer-whales-range-wide.md) · **Context:** found by the [041](041-inaturalist-history-backfilled.md) backfill
 
+*Amended 2026-10-12:* the rule holds in the read-path build ([061](061-ingest-and-derivation-move-into-the-build.md)), whose iNaturalist ingest drops an epoch-zero date at parse even though its mirror otherwise keeps the whole fetch box. The last consequence below was overtaken hours later, when [044](044-inat-ingest-scope.md) applied the scope rule to iNaturalist.
+
 ## Decision
 
 **An iNaturalist observation whose date is the Unix epoch to the second is treated as undated, and is not ingested.** The rule is enforced in the functional core, in `parseInatResponse` ([scripts/ingest/inaturalist.ts](../../scripts/ingest/inaturalist.ts)), beside the rule that already skips `time_observed_at === null`; the one record already held was deleted in one pass ([migration 20260918200000](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260918200000_purge_epoch_zero_inat_observation.sql)).

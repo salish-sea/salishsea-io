@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-07-10 · **Amends:** [011](011-ingest-imperative-shell.md)
 
+*Amended 2026-10-12 ([061](061-ingest-and-derivation-move-into-the-build.md)):* the sweep is unchanged and now runs in the read-path build, which also uses it to ask what iNaturalist changed since the last run (`updated_since`). The Edge Function whose wall clock is mentioned below is retired. `ingest.runs` stopped receiving runs with Postgres's ingest; the build's run log ([`ingest-runs.ts`](../../scripts/read-path/ingest-runs.ts)) records how many rows changed, not how many were fetched.
+
 ## Context
 
 Decision [011](011-ingest-imperative-shell.md) made a *provably complete* fetch the precondition

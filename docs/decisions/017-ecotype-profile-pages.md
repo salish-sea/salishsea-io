@@ -7,6 +7,8 @@ row (`kind='ecotype'`, `designation='Biggs'`, no anchor, no parent), parent of
 all 65 top-level → 132 total matrilines, and every cataloged Bigg's
 individual descends from it.
 
+**Amended 2026-10-12 ([057](057-profile-pages-are-prerendered.md), [061](061-ingest-and-derivation-move-into-the-build.md)):** a population's page is rendered by the read-path build and served by the Fly app; the edge route table is gone. `ecotype_occurrences` is DuckDB SQL in the build ([`derive/profile-links.sql`](../../scripts/read-path/derive/profile-links.sql)) and still pools every descendant's reports. The query-plan, timeout and row-cap problems below belonged to PostgREST and went with it. The pages are in the sitemap since 057.
+
 **Amended by [070](070-southern-residents-are-generated-from-the-register.md) (2026-10-07):** an ecotype's page is now one kind of population page, at `/populations/<identifier>/<slug>`; every `/ecotypes/` path `301`s there.
 
 **Amended by [067](067-the-ecotype-page-compares-matrilines-with-small-maps.md) (2026-10-06):** the matriline directory below is now a small map per reported matriline, most-reported first, with the unreported ones listed after.

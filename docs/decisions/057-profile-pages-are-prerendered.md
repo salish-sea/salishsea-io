@@ -2,6 +2,8 @@
 
 **Status:** accepted; all five steps built · **Decided:** 2026-09-29 · **Answers:** `salish-t3g.7` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Amends:** [015](015-individual-profile-pages.md), [016](016-matriline-profile-pages.md), [017](017-ecotype-profile-pages.md), [040](040-haul-out-sites-list-first.md) (how their pages are rendered, not what they show)
 
+*Amended 2026-10-12 (`salish-9uu`):* the section "The snapshot reads what the pages show", and the first consequence, describe a Postgres snapshot that no longer exists. The pages are built from the checked-in catalogue under [`data/`](../../data/), the register release the build fetches ([064](064-what-users-do-not-write-leaves-postgres-first.md)) and the write API's store ([065](065-the-store-and-write-api.md)). The `read_path` role, its row-level security policies and its grants test went with Postgres on 2026-10-09. Rights policy D-21 is still kept: the build blanks the withheld columns before writing any page (064, amended 2026-10-09). A profile not yet built is now at most about five minutes behind, not an hour. Link previews for map links, which the last consequence leaves on AWS, are bd `salish-2ljo`, which plans to retire the Lambda@Edge function that serves them.
+
 ## Context
 
 The four profile pages (an individual, a matriline, an ecotype, a haul-out site) are client-rendered today. Each HTML file is an empty shell. Its component reads the key from the URL, makes five to eight PostgREST requests with embedded joins, and renders. [056](056-the-logged-out-read-path-is-built-as-static-files.md) takes what a logged-out visitor reads off the database, and it named profiles as one of the remaining reads.
