@@ -1,6 +1,6 @@
 # 013 — Orcasound acoustic occurrences come from curated biophony bouts, identified by upstream tags
 
-**Status:** accepted; built (bouts on the map since 2026-09-25) · upstream adopted tag `kind`, `iri` and `certainty` (orcasite#1042, #1014); #1015, #1016, #1017 and orcahello#597 still open · **Decided:** 2026-07-06 ·
+**Status:** accepted; built (bouts on the map since 2026-09-25) · upstream adopted tag `kind`, `iri` and `certainty` (orcasite#1042, #1014); the older tags classified 2026-09-25 (#1016); #1015, #1017 and orcahello#597 still open · **Decided:** 2026-07-06 ·
 **Amended:** 2026-08-14 (see [Amendment](#amendment-2026-08-14) — identifications arrive
 typed, and the upstream ask is a schema change) · 2026-09-20 (see
 [Amendment](#amendment-2026-09-20) — orcasite is read directly, with no mirror schema; an
@@ -310,9 +310,10 @@ The integration is built, and the upstream changes it waited on are in. orcasite
 `kind` and an `iri` on 2026-09-20 ([orcasite#1042](https://github.com/orcasound/orcasite/pull/1042))
 and has recorded a moderator's certainty on each tag application since 2026-09-27
 ([#1059](https://github.com/orcasound/orcasite/pull/1059), closing #1014). Bouts have been on the
-map since 2026-09-25 (#495). What remains upstream improves coverage and blocks nothing:
-classifying the older tags (#1016), a tag picker that knows the register (#1015), and the
-machine's classification on detections (#1017, orcahello#597).
+map since 2026-09-25 (#495). The older tags were classified on
+production on 2026-09-25 by a one-off script (#1016; the issue is still open upstream). What
+remains improves coverage and blocks nothing: a tag picker that knows the register (#1015), and
+the machine's classification on detections (#1017, orcahello#597).
 
 Since 2026-10-04 the read-path build, not Postgres, reads orcasite
 ([061](061-ingest-and-derivation-move-into-the-build.md)). It keeps a SQLite file of every bout
