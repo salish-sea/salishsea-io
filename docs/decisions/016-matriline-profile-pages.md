@@ -10,6 +10,8 @@ were deliberately left unlinked because there was nowhere to send them.
 
 **Amended by [050](050-matriline-membership-is-the-registers.md) (2026-09-22):** a matriline's members are the register's — the matriarch and all her descendants, listed by sub-lineage — not our own membership rows.
 
+**Amended 2026-10-12 ([057](057-profile-pages-are-prerendered.md), [061](061-ingest-and-derivation-move-into-the-build.md)):** as with individual pages ([015](015-individual-profile-pages.md)), a matriline page is real HTML rendered by the read-path build and served by the Fly app, which answers the designation `301`s itself. The edge route table described below is gone. `group_occurrences` is DuckDB SQL in the build ([`derive/profile-links.sql`](../../scripts/read-path/derive/profile-links.sql)) with the same rule: reports that name the group as a unit, not spread to its members. Matriline pages are in the sitemap since 057.
+
 ## Decision
 
 Give every cataloged matriline a page at **`/matrilines/<designation>`**

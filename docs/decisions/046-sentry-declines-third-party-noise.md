@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-18 · **Extends:** [037](037-sentry-transmits-from-production-only.md) · **Answers:** `salish-leg`
 
+*Amended 2026-10-12:* Supabase has retired ([065](065-the-store-and-write-api.md); the browser stopped calling it on 2026-10-09, #663), so the network failures kept on purpose are now those against our own host. The rule and its reason are unchanged. `SALISHSEA-IO-3J`'s ingest Edge Function retired on 2026-10-05 ([061](061-ingest-and-derivation-move-into-the-build.md)).
+
 ## Decision
 
 **The browser client declines to send errors it can already tell are not about us, and keeps sending the ones that look like noise but are signal.** The rules live in [src/sentry-noise.ts](../../src/sentry-noise.ts) as pure predicates with tests; [src/sentry.ts](../../src/sentry.ts) wires them in.

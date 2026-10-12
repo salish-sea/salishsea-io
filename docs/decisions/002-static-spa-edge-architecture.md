@@ -1,8 +1,10 @@
 # 002 — Static SPA on S3/CloudFront, with Lambda@Edge for crawler-facing behavior
 
-**Status:** accepted · **Decided:** project inception; Lambda@Edge validated v1.0 Phase 02
+**Status:** accepted in part; **hosting superseded by [061](061-ingest-and-derivation-move-into-the-build.md)**, **backend by [065](065-the-store-and-write-api.md)** · **Decided:** project inception; Lambda@Edge validated v1.0 Phase 02
 
 *Amended 2026-10-05 by [065](065-the-store-and-write-api.md) (`salish-9uu.3.8`):* Supabase is no longer the backend. What users write goes to a write API on the Fly app that serves the site, which keeps it in a SQLite store; the site reads static files the read-path build publishes ([056](056-the-logged-out-read-path-is-built-as-static-files.md)). So there is a backend, ours, at `salishsea.io/api/`. What this record says about Supabase describes the arrangement as it was.
+
+*Amended 2026-10-12 ([061](061-ingest-and-derivation-move-into-the-build.md)):* the site is no longer served from S3. Since 2026-10-03 CloudFront sends every request except `/cards/*` to the `salishsea-io` Fly app, and nothing it answers comes from the S3 bucket. The Lambda@Edge function still answers crawlers, but only on the map page (`/`), and it looks a sighting up in the build's files and the write API, so the bullet below about baking Supabase's settings into its bundle describes the arrangement as it was. What stands: the app is a static SPA, crawler previews fail open, and a share link carries only the occurrence id. Peter plans to retire the edge function too (bd `salish-2ljo`); the record that chooses its replacement will amend this one.
 
 ## Decision
 

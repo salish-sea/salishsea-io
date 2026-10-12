@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-30 · **Amends:** [012](012-ingest-heartbeat.md) · **Extends:** [042](042-transient-ingest-failures-are-not-reported.md) · **Context:** GitHub [#523](https://github.com/salish-sea/salishsea-io/issues/523) and [#456](https://github.com/salish-sea/salishsea-io/issues/456), bd `salish-1zgd`
 
+*Amended 2026-10-12 (`salish-9uu`):* the rule is unchanged, but where it is recorded has moved. Since [061](061-ingest-and-derivation-move-into-the-build.md) the ingests run in the build, which writes each run's outcome, `transient` included, to its own run log ([`ingest-runs.ts`](../../scripts/read-path/ingest-runs.ts)), published at `/status/ingest-runs.json`. That log is what the heartbeat reads ([012](012-ingest-heartbeat.md), amended). `ingest.runs` and the ingest edge function went with Postgres, so the second consequence, about the edge function deploying before `supabase db push`, no longer applies.
+
 ## Context
 
 Twice in two weeks the heartbeat filed an ingest-outage issue for iNaturalist's maintenance. On 2026-09-30 every iNaturalist run from 04:00 to 04:25 UTC failed with `iNaturalist observations HTTP 503`, a thirty-five-minute hole in successful runs against a thirty-minute threshold. On 2026-09-17 the same 503 began at the same minute and lasted ninety-five. Both times, Orcasound and Maplify ran every five minutes, every pg_cron job succeeded, and the next iNaturalist run after the outage caught up: 24 rows against a usual 0–4 on the 30th. Nothing was lost and there was nothing to do, but the alert stayed red for a day, because a healed gap trips until it ages out of the 24-hour lookback.

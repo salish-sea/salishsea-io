@@ -2,6 +2,8 @@
 
 **Status:** proposed (direction) · **Decided:** 2026-07-07
 
+*Amended 2026-10-12:* [054](054-certainty-is-the-asserters-status-is-ours.md) answers the first question deferred below: `status` stays `candidate` / `validated` / `rejected`, and how sure the asserter was is a separate field, `certainty`. [062](062-segment-edits-are-claims-about-sightings.md) and [065](065-the-store-and-write-api.md) build on this record as the working model. Identifications now live in the write API's SQLite store (065), so the privilege mechanism, when built, will be a check in that API rather than a row-level security policy in Postgres. The curator role itself is still not built.
+
 ## Context
 
 The identification foundation ([anx], PR #318) introduced `public.identifications` with a

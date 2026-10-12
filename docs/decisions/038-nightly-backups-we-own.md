@@ -4,6 +4,8 @@
 
 *Retired 2026-10-06 by [065](065-the-store-and-write-api.md):* Postgres stopped being the store of record at the cutover (2026-10-05), so there is nothing new to back up nightly. What users write is in the write API's store on the Fly app, replicated continuously by Litestream to `salishsea-io-store-replica`, with a rehearsed restore ([runbook](../runbook/read-path-build.md#the-stores-replica-litestream)); photos are in `salishsea-io-media`, versioned. The last run, made by hand after the cutover (`db/2026/10/06/041131/`), is Postgres's archive. It and the earlier dumps stay in `salishsea-io-backups`, and `db-restore-verify.yml` still restores one on demand. What follows describes the arrangement as it was.
 
+*Amended 2026-10-12:* two facts in that note changed. The final dump is the one taken on 2026-10-09 (`db/2026/10/09/221217/`), copied to `final/postgres-2026-10-09/`, which no lifecycle rule expires; the dated `db/` prefixes, the 2026-10-06 run included, expire after 90 days. And `db-restore-verify.yml` was deleted with Supabase on 2026-10-09 (`salish-9uu.14`, #671), after it restored that final dump cleanly. To restore it again, follow the workflow as it stands at commit `6898775`, where the links below now point.
+
 ## Context
 
 There were no backups. Not "backups with a gap", not "backups nobody had tested" — none.
@@ -60,7 +62,7 @@ path. The CLI also knows which platform schemas to exclude, which a hand-rolled 
 would have to learn and then keep learning.
 
 **The dump is checked against the database before it is kept.**
-[`verify-dump.ts`](../../scripts/backup/verify-dump.ts) counts the rows in each `COPY` block
+[`verify-dump.ts`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/scripts/backup/verify-dump.ts) counts the rows in each `COPY` block
 and compares them, table by table, against the seven irreplaceable tables above. `pg_dump`
 exiting 0 means the process finished, not that the file is worth keeping — and a size floor is
 nearly useless here: a dump missing `public.observations` entirely is within 1% of the right
@@ -109,7 +111,7 @@ We did not reason our way to that. The restore verification found it, by failing
 column the container's did not, and nothing in the backup could have created the right table.
 
 **A restore is verified by restoring.**
-[`db-restore-verify.yml`](../../.github/workflows/db-restore-verify.yml) loads the most recent
+[`db-restore-verify.yml`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/.github/workflows/db-restore-verify.yml) loads the most recent
 complete backup into `supabase/postgres` and re-runs the same row comparison against the
 restored copy. It is manual: restoring 166 MB nightly to assert something that changes only
 when the schema changes is not worth the minutes. Run it after a migration that changes the
@@ -124,7 +126,7 @@ also connects as `supabase_admin` rather than `postgres`: only that role is a su
 image, and the restore has to create roles and drop the platform's own schemas.
 
 Every step that must tolerate an error names exactly which errors, via
-[`only-already-exists.sh`](../../scripts/only-already-exists.sh), and fails on anything else.
+[`only-already-exists.sh`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/scripts/only-already-exists.sh), and fails on anything else.
 Most tolerate only "already exists"; the first `auth-storage` pass also tolerates a missing
 *function* specifically, because the `public` functions its triggers call are not there yet.
 The second pass re-runs the whole file, so it additionally tolerates "multiple primary keys",

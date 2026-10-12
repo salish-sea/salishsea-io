@@ -5,6 +5,8 @@
 (branding contribution by Liam Reese); PR #381. Supersedes
 [decision 019](019-no-fallback-preview-image.md).
 
+*Amended 2026-10-12 ([061](061-ingest-and-derivation-move-into-the-build.md), [057](057-profile-pages-are-prerendered.md)):* the rule is unchanged, but step 2 below moved. Since 2026-10-03 the profile pages are prerendered by the read-path build from the shells of step 1, so they carry the brand card in their own tags. The edge handler answers crawlers on the map page only, where the bare homepage and a sighting with neither a photo nor coordinates still get the card.
+
 Decision 019 removed the site-wide fallback `og:image` because the only
 available asset was a stale April-2026 map screenshot: a preview reads as a
 picture *of the post*, and a content-shaped screenshot attached to an unrelated

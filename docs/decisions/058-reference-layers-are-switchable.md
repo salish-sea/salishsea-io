@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-29 · **Context:** GitHub [#453](https://github.com/salish-sea/salishsea-io/issues/453), bd `salish-4v7` · **Extends:** [040](040-haul-out-sites-list-first.md) (which left the haul-out map layer to #453)
 
+*Amended 2026-10-12 (`salish-9uu`):* the haul-out layer now always reads `profiles/haulouts/sites.json`, which the build writes; the PostgREST branch and the `VITE_READ_SOURCE` switch were deleted on 2026-10-09 (#663). The sites come from the checked-in [`data/catalogue/haulouts.tsv`](../../data/catalogue/haulouts.tsv) ([064](064-what-users-do-not-write-leaves-postgres-first.md)), not from `public.haulouts`, so the map and the pages still read the same list, as this record requires.
+
 ## Context
 
 Four kinds of place are drawn on the map that nobody saw today: Orca Network's viewing locations, Orcasound's hydrophones, the salmon counting sites, and now the 362 haul-out sites of [040](040-haul-out-sites-list-first.md). The first three were fixed layers with no switch. Haul-out sites can't be one, because they line every shoreline. They answer an occasional question, "is this a known haul-out?", and the rest of the time they bury the sightings. #453 asked for a switch, and left three questions open: desktop only or mobile too, whether the layer reads the table the haul-out pages read, and whether visibility belongs in the URL.

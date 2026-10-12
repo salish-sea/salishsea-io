@@ -1,6 +1,6 @@
 # 063 — A sighting joins the segment nearest in space and time, and never one of another ecotype
 
-**Status:** accepted · **Decided:** 2026-10-04 · **Amends:** how [`segments.ts`](../../src/segments.ts) builds segments · **Relates:** [062](062-segment-edits-are-claims-about-sightings.md), [029](029-map-symbology.md) · **Context:** GitHub [#445](https://github.com/salish-sea/salishsea-io/issues/445), bd `salish-lvzr` (build), `salish-71m7` (named animals)
+**Status:** accepted; built · **Decided:** 2026-10-04 · **Amends:** how [`segments.ts`](../../src/segments.ts) builds segments · **Relates:** [062](062-segment-edits-are-claims-about-sightings.md), [029](029-map-symbology.md) · **Context:** GitHub [#445](https://github.com/salish-sea/salishsea-io/issues/445), bd `salish-lvzr` (build), `salish-71m7` (named animals)
 
 ## Context
 

@@ -7,6 +7,8 @@
 
 **Amended by [061](061-ingest-and-derivation-move-into-the-build.md) (2026-10-03, `salish-xv35.16`):** the pages are prerendered by the read-path build ([057](057-profile-pages-are-prerendered.md)) and served by the Fly app, which answers the designation `301`s itself; the Lambda@Edge rewrite described below is retired, and the edge function now handles crawler previews on the map page only. The URL scheme is unchanged.
 
+**Amended 2026-10-12 (Postgres retired):** the read path below is history. `individual_occurrences` and the views it reads are DuckDB SQL in the read-path build ([`derive/profile-links.sql`](../../scripts/read-path/derive/profile-links.sql)), held to what Postgres answered, and a page is rendered from them each time the build runs. Nothing is read live, so the lag figures and refresh schedule below no longer apply: a new claim or sighting reaches a page with the next build. D-21 now holds because the checked-in catalogue ([`data/catalogue/`](../../data/catalogue/)) has no nickname stories and no `individuals.notes` to publish. Profile pages are in the sitemap since [057](057-profile-pages-are-prerendered.md).
+
 ## Decision
 
 Give every catalog individual a full page at **`/individuals/<primary_designation>`**

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-21 · **Extends:** [033](033-register-names-the-animals.md) · **Answers:** `salish-53t.2`
 
+*Amended 2026-10-12 ([061](061-ingest-and-derivation-move-into-the-build.md)):* the classification is unchanged. Since 2026-10-04 the read-path build derives it, in `dwc_taxa_classification` in [`derive/dwc.sql`](../../scripts/read-path/derive/dwc.sql), and writes the archive from it; the fallback is still load-bearing, because the join is still inner. The register reaches the build through its own fetch ([`ingest-register.ts`](../../scripts/read-path/ingest-register.ts)); `register-refresh` and `scripts/register/load.ts` retired on 2026-10-09 (#660).
+
 ## Decision
 
 **`dwc.taxa_classification` reads the register's NCBI excerpt for `phylum`, `class`, `order`, `family` and `genus`, and keeps taking `kingdom` from iNaturalist.**
@@ -62,7 +64,7 @@ This is the only value where we take iNaturalist's answer over the register's, a
 
 ## Reference
 
-The migration: [`20260921020000_dwc_classification_from_register.sql`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260921020000_dwc_classification_from_register.sql). The tables it reads: [`20260921015000_register_lineage.sql`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260921015000_register_lineage.sql). The loader: [`scripts/register/load.ts`](../../scripts/register/load.ts).
+The migration: [`20260921020000_dwc_classification_from_register.sql`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260921020000_dwc_classification_from_register.sql). The tables it reads: [`20260921015000_register_lineage.sql`](https://github.com/salish-sea/salishsea-io/blob/6898775035909b56db557b529f939d3e8426965a/supabase/migrations/20260921015000_register_lineage.sql). The loader: [`scripts/register/load.ts`](https://github.com/salish-sea/salishsea-io/blob/5c1497a95301e7cc212e46712705ef5d0f426cec/scripts/register/load.ts).
 
 Upstream: animals [ADR-0022](https://github.com/salish-sea/animals/blob/main/decisions/0022-taxonomic-hierarchy-is-ncbis-excerpted.md) (hierarchy is NCBI's, excerpted), [ADR-0012](https://github.com/salish-sea/animals/blob/main/decisions/0012-relationship-to-the-salishsea-io-catalogue.md).
 

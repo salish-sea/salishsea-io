@@ -1,6 +1,8 @@
 # 059 — The end state: a build over upstream data, and a small store for what only our users write
 
-**Status:** accepted · **Decided:** 2026-09-30 · **Answers:** the end-state question behind `salish-9uu` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Would amend:** [002](002-static-spa-edge-architecture.md) (no custom backend), when step 4 lands
+**Status:** accepted; reached 2026-10-09: step 3 by [061](061-ingest-and-derivation-move-into-the-build.md), step 4 by [064](064-what-users-do-not-write-leaves-postgres-first.md) and [065](065-the-store-and-write-api.md), Postgres retired (`salish-9uu`) · **Decided:** 2026-09-30 · **Answers:** the end-state question behind `salish-9uu` · **Extends:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) · **Would amend:** [002](002-static-spa-edge-architecture.md) (no custom backend), when step 4 lands
+
+*Amended 2026-10-12:* this end state is now how the site runs. [064](064-what-users-do-not-write-leaves-postgres-first.md) took everything users don't write out of Postgres. [065](065-the-store-and-write-api.md) moved what they do write into a SQLite store behind a write API on the Fly machine, replicated by Litestream, with photos in S3. Postgres was retired on 2026-10-09, and 002 carries the amendment. The question about Orcasound resolved as this record allowed: the write API verifies Google's tokens itself. One aim was not taken up: 065 rejected building the site before a save returns, and instead shows a save to its author at once and to everyone after a short build.
 
 ## Context
 

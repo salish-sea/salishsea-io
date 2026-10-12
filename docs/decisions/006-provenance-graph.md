@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** v1.3 (2026-06-19 → 2026-06-24)
 
+*Amended 2026-10-12 ([061](061-ingest-and-derivation-move-into-the-build.md), [064](064-what-users-do-not-write-leaves-postgres-first.md)):* the four concepts and the aggregator pattern stand; where they are stored has changed. Providers, organizations, collections and Maplify's collection rules are checked-in files under [`data/reference/`](../../data/reference/), changed by pull request. The source mirrors no longer carry provenance columns: the read-path build works out each record's provider and collection when it derives the occurrences ([`derive/maplify-collection.sql`](../../scripts/read-path/derive/maplify-collection.sql), [`derive/sources.sql`](../../scripts/read-path/derive/sources.sql)). For Maplify it tries a leading bracket tag, then an attribution phrase, then Maplify's source code. The bullet about SELECT grants and row-level security describes Postgres, which is retired.
+
 ## Decision
 
 Every sighting's provenance is modeled as four independent concepts — **provider** (how it reached us), **collection** (what channel), **organization** (what institution backs the channel), **contributor** (who observed) — as reference tables in `public` with FK columns directly on each source table. SalishSea.io publishes under the **aggregator pattern**. Definitions: [CONTEXT.md](../../CONTEXT.md); full model: [docs/data-provenance.md](../data-provenance.md).

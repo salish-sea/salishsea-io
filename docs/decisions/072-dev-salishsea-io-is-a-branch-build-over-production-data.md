@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-10-08 · **Context:** the basemap prototype (`salish-3zok`), which needs somewhere to be seen at full size on real sightings · **Relates:** [056](056-the-logged-out-read-path-is-built-as-static-files.md) (signed-out visitors read static files), [061](061-ingest-and-derivation-move-into-the-build.md) (the Fly app serves them), [065](065-the-store-and-write-api.md) (the write API and its allowed origins), [068](068-the-map-stays-on-openlayers.md) (the basemap work this serves first)
 
+*Amended 2026-10-12 (`salish-9uu`):* [`scripts/deploy-dev.sh`](../../scripts/deploy-dev.sh) no longer sets `VITE_READ_SOURCE`, `VITE_WRITE_SOURCE` or a Supabase client. Since 2026-10-09 (#663, #664) the app has one way to read, the files, and one way to write, the API, so a plain `vite build --mode dev` builds what the Fly image builds.
+
 ## Context
 
 dev.salishsea.io existed: a CloudFront distribution and a public bucket, both made by hand in September 2025, deployed by two package.json scripts that were deleted in #149. Nothing had been put there since 28 September 2025, and it was in no stack. Meanwhile production moved to the Fly app, so syncing a build into that bucket would no longer have given a working site: the map reads the read-path build's files, which exist only on the Fly machine.

@@ -1,6 +1,6 @@
 # 036 — Ingest scope: killer whales range-wide, everything else the Salish Sea
 
-**Status:** accepted; extended to iNaturalist by [044](044-inat-ingest-scope.md) on 2026-09-18 · **Decided:** 2026-08-30 · **Applies:** [008](008-source-schemas-are-upstream-mirrors.md) · **Reconciles with:** [022](022-regions-filter-data.md), [023](023-region-framing-vs-filtering.md) · **Touches:** [027](027-marine-mammal-scope-whale-centric-identity.md)
+**Status:** accepted; extended to iNaturalist by [044](044-inat-ingest-scope.md) on 2026-09-18; amended by [061](061-ingest-and-derivation-move-into-the-build.md) on 2026-10-02: the rule is applied in the build's derivation, not at ingest · **Decided:** 2026-08-30 · **Applies:** [008](008-source-schemas-are-upstream-mirrors.md) · **Reconciles with:** [022](022-regions-filter-data.md), [023](023-region-framing-vs-filtering.md) · **Touches:** [027](027-marine-mammal-scope-whale-centric-identity.md)
 
 ## Decision
 
@@ -39,6 +39,8 @@ The owner relaxed both on 2026-08-28: nobody consumes the DwC-A export yet, and 
 - **`isIngestable` is a pure predicate over a normalized sighting** — unit-testable, no SQL, and it stops the data arriving rather than hiding it after the fact. The view-side filter would have been a fourth level of dependency on a view that is already three deep, and every consumer of `maplify.sightings` that is not `public.occurrences` (the `dwc` constituent that reads the mirror directly) would have needed the same clause separately.
 - **The mirror was already a filtered subset.** `isIngestable` drops the `rwsas` and `wras` sources today, and [CONTEXT.md](../../CONTEXT.md) records that `wras` was "filtered + purged" — filter at ingest, one-time delete of what was already held. Scope filtering is the same move, not a new departure from [008](008-source-schemas-are-upstream-mirrors.md). 008's claim is that mirror *columns* carry upstream semantics and must not leak; it does not require the mirror to hold every row upstream returned for a box we chose to ask about. What upstream returned is recoverable — the API still serves it.
 - **The purge keeps the corpus consistent.** Without it, "we hold Californian humpbacks" would be true up to 2026-08-30 and false after, which is worse than either answer alone.
+
+*Amended 2026-10-12 ([061](061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.7`):* since 2026-10-02 the filter is in the read-path build's derivation, not the ingest. The build's Maplify mirror keeps everything the fetch returns, and the same `isIngestable` runs in [`derive/maplify-entities.ts`](../../scripts/read-path/derive/maplify-entities.ts), so nothing out of scope reaches the map or the archive. That is the read-time filter rejected above, but the objections to it no longer apply: it is the same tested predicate rather than a clause in a SQL view, the derivation is the mirror's only reader, and 061 keeps each mirror exactly what upstream said. The rule and the fetch box are unchanged; the purge describes Postgres's copy, which has retired.
 
 ## One extent, not two
 

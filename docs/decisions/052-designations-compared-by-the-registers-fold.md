@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-23 · **Extends:** [051](051-group-hierarchy-is-the-registers.md) · **Answers:** `salish-8vr.18`
 
+*Amended 2026-10-12 (`salish-9uu`):* the rule is unchanged, but it runs in different places. With Postgres retired, sighting codes are matched by `register_fold`, a DuckDB macro in [`derive/identifier-candidates.sql`](../../scripts/read-path/derive/identifier-candidates.sql), and the build computes the folded columns ([`catalogue.ts`](../../scripts/read-path/catalogue.ts)). The migration linked below is the Postgres version as it was. The edge handler's hand copy went on 2026-10-03 (#555), when the edge function stopped handling profile paths. The `/matrilines/` route's rule of dropping a trailing `s` now lives in the redirect server ([`redirect-keys.ts`](../../scripts/read-path/redirect-keys.ts)).
+
 ## Decision
 
 **Wherever we decide whether a written code names a catalogued animal or group, we compare the register's fold of both sides** ([ADR-0019](https://github.com/salish-sea/animals/blob/main/decisions/0019-names-are-compared-by-folding.md)). The fold lower-cases a code, drops apostrophes and hyphens, collapses whitespace, and compares digit runs as numbers, so `T065A5`, `T65A5` and `t65a5` are the same. Our own `normalize_designation()`, which upper-cased a code and padded its first number to three digits, is gone.

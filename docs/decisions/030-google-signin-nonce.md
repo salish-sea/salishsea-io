@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-08-28
 
+*Amended 2026-10-12 ([065](065-the-store-and-write-api.md)):* since 2026-10-05 the token and the raw nonce go to the write API, not Supabase, and [`api/google.ts`](../../api/google.ts) checks that the token's nonce is the raw nonce's SHA-256, as GoTrue did. The nonce's lifecycle and the GSI configuration in code are unchanged. What follows about GoTrue, `signInWithIdToken` and the Supabase Sentry integration describes the arrangement as it was. The Log in button became an account menu on 2026-10-07 (#647).
+
 ## Context
 
 Google sign-in failed in production for at least one contributor with an opaque
@@ -104,7 +106,7 @@ and wrong. Google's reference says `initialize` is called once and GSI warns at 
 "only the last initialized instance will be used": a second click swaps the nonce underneath
 the prompt already on screen, so completing that prompt presents a token minted against the
 previous nonce and GoTrue answers "Nonces mismatch". Two components dispatch `log-in`
-([`login-button.ts`](../../src/login-button.ts), [`obs-panel.ts`](../../src/obs-panel.ts)) and
+([`login-button.ts`](https://github.com/salish-sea/salishsea-io/blob/5ab1382b9f3c08a8c9b1d2c5a8dbcec8fa6e49c5/src/login-button.ts), [`obs-panel.ts`](../../src/obs-panel.ts)) and
 One Tap appears in a screen corner, which is precisely the shape that invites a second click.
 
 **One nonce for the life of the page, configuring GSI once.** Fixes the above and fails the

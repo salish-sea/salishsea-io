@@ -23,6 +23,8 @@ without a DOM.
 
 ### Counts come from a live view, not the matview
 
+> *Amended 2026-10-12 ([056](056-the-logged-out-read-path-is-built-as-static-files.md), [061](061-ingest-and-derivation-move-into-the-build.md), [065](065-the-store-and-write-api.md)):* the counts no longer come from the database. The read-path build writes one file per Pacific month with each region's count for each day ([`scripts/read-path/calendar.ts`](../../scripts/read-path/calendar.ts)), and the calendar reads those files. A contributor's own sighting now counts soon after it is saved, not at once: saving starts a short build of about twenty seconds, and the calendar redraws when that build is published. The live correction a signed-in tab used to apply to the counts was removed with the last Supabase code on 2026-10-09 (#663); what it left behind is bd `salish-369z`. The day boundary, the fixed scale and the design below are unchanged.
+
 > *Superseded 2026-09-28 by [055](055-occurrences-are-stored-not-assembled.md): occurrences are stored and kept current by each writer, so `occurrence_days` reads the store for the whole range. The matview and the 48-hour split are gone; the requirement below — a sighting saved now counts now — holds without either.*
 
 > **Amended by [022](022-regions-filter-data.md).** `occurrence_days` is no

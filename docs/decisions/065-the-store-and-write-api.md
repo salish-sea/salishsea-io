@@ -1,6 +1,6 @@
 # 065 — What users write moves to a SQLite store behind a small write API on the Fly machine
 
-**Status:** accepted · **Decided:** 2026-10-05 · **Answers:** the second move of step 4 of [056](056-the-logged-out-read-path-is-built-as-static-files.md), after [064](064-what-users-do-not-write-leaves-postgres-first.md) · **Extends:** [059](059-the-end-state-is-a-build-graph-with-a-small-authoritative-store.md) · **Amends, at the cutover:** [002](002-static-spa-edge-architecture.md) (PostgREST stops being the backend) · **Context:** bd `salish-9uu`
+**Status:** accepted; built: cut over on 2026-10-05, and the way back through Postgres given up on 2026-10-09 · **Decided:** 2026-10-05 · **Answers:** the second move of step 4 of [056](056-the-logged-out-read-path-is-built-as-static-files.md), after [064](064-what-users-do-not-write-leaves-postgres-first.md) · **Extends:** [059](059-the-end-state-is-a-build-graph-with-a-small-authoritative-store.md) · **Amends, at the cutover:** [002](002-static-spa-edge-architecture.md) (PostgREST stops being the backend) · **Context:** bd `salish-9uu`
 
 ## Context
 
@@ -48,4 +48,4 @@ Who may change a sighting: its owner, or anyone whose contributor row has `edito
 - There is a backend (002 ends at the cutover). Its secrets: a session signing key, AWS credentials scoped to two prefixes, and a GitHub token for the notifier. Google's client id is public.
 - The machine runs one more resident process, plus Litestream. Measured before each ships; a bigger machine only as a deliberate, measured decision.
 - Restoring the store from its replica is rehearsed before the cutover, not after.
-- The withheld catalogue text that 064 left in Postgres (an individual's sheet notes, a nickname's story) needs a home before Postgres goes; it is curated, not user-written, so it is not the store's by this record's rule, and is decided separately.
+- The withheld catalogue text that 064 left in Postgres (an individual's sheet notes, a nickname's story) needs a home before Postgres goes; it is curated, not user-written, so it is not the store's by this record's rule, and is decided separately. *(Amended 2026-10-12: decided by [064](064-what-users-do-not-write-leaves-postgres-first.md)'s 2026-10-09 amendment. The text was already in [`data/biggs-ids.tsv`](../../data/biggs-ids.tsv), the Bigg's sheet's mirror, which became its home.)*

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-22 · **Extends:** [050](050-matriline-membership-is-the-registers.md) · **Answers:** the scope question left open in `salish-ox2.5`
 
+*Amended 2026-10-12 (`salish-9uu`):* the rule stands, but the machinery named below is gone with Postgres. `public.group_parents`, `register.ancestor`, `refresh_individual_vitals()` and the register loader no longer exist. The build fetches each register release itself and computes the group hierarchy, matriline membership and vitals in DuckDB ([`derive/catalogue.sql`](../../scripts/read-path/derive/catalogue.sql)), as [064](064-what-users-do-not-write-leaves-postgres-first.md) describes, and the seed was deleted on 2026-10-09. Two items under "These stay ours" no longer hold as written. Since register edition 2026.10.1 the register names the matriarch of 162 Bigg's matrilines, and it records the mothers of 184 Southern Residents. By this record's own rule those facts move to the register: [070](070-southern-residents-are-generated-from-the-register.md) does so for the Southern Residents, and bd `salish-o3gx` and `salish-1deu` track it for the Bigg's, whose parentage is still ours.
+
 ## Decision
 
 **Whatever the register can supply, we read from it, and our own copy goes.** This is Peter's rule for the rest of the catalogue migration, and it follows [ADR-0012](https://github.com/salish-sea/animals/blob/main/decisions/0012-relationship-to-the-salishsea-io-catalogue.md): this repository becomes a materialization of the register rather than a second opinion. We keep a field only where the register has no answer. A field we keep because the register lacks it moves over when the register gains it.

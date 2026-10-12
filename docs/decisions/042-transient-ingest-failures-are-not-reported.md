@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-18 · **Applies:** [011](011-ingest-imperative-shell.md), [012](012-ingest-heartbeat.md) · **Context:** `salish-w9n`; one upstream outage produced eighteen Sentry errors for a condition that healed itself in eighty-five minutes.
 
+*Amended 2026-10-12 ([061](061-ingest-and-derivation-move-into-the-build.md)):* no failed ingest run reaches Sentry any more, defect or not. Since 2026-10-05 the ingests run in the read-path build. A failed scheduled run there records its outcome, and whether it was transient, in the build's run log ([`ingest-runs.ts`](../../scripts/read-path/ingest-runs.ts)), and the build goes on with the last good copy; nothing calls `shouldReportFailure`. The classifier still decides what the heartbeat ([012](012-ingest-heartbeat.md), [060](060-an-upstream-outage-is-held-to-a-longer-threshold.md)) counts as a sign of life, and a run started by hand still fails loudly. What is lost is the case this record was written to keep: a defect that fails some runs while others succeed, like the pagination failures below, trips neither the heartbeat nor the Sentry cron monitor, which only watches whether a build published. Whether scheduled-run defects should reach Sentry again is tracked in bd `salish-849s`.
+
 ## Decision
 
 A failed **cron** run that the fetch layer classified as **retryable** writes its `failed` row to `ingest.runs` and is not sent to Sentry. Every other failure — any defect, and *anything at all* from a manual run — reports exactly as before.

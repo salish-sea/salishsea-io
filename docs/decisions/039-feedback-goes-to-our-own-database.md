@@ -28,7 +28,7 @@ The RLS check is on `user_uuid`, not `true`. `submit_feedback` stamps it from `a
 
 **Sentry keeps the errors.** It is good at the failures nobody is watching, which is what [037](037-sentry-transmits-from-production-only.md) and [031](031-surfacing-failures.md) use it for. It is simply no longer how a *person* tells us something is wrong.
 
-**A scheduled workflow files each report as a GitHub issue.** A table nobody opens is the same outcome as a widget that drops reports on the floor. [`feedback-notify.yml`](../../.github/workflows/feedback-notify.yml) claims rows where `notified_at IS NULL` and stamps each one as its issue is created, so a late or repeated run files nothing twice.
+**A scheduled workflow files each report as a GitHub issue.** A table nobody opens is the same outcome as a widget that drops reports on the floor. [`feedback-notify.yml`](https://github.com/salish-sea/salishsea-io/blob/547d7c9dc91d5be8ed4f90bbe37b80e5bfefc417/.github/workflows/feedback-notify.yml) claims rows where `notified_at IS NULL` and stamps each one as its issue is created, so a late or repeated run files nothing twice.
 
 **The issue carries the message and not the reporter.** This repo is public. Name and email stay in the table, referenced by row id; the message itself is quoted **inside a fenced code block, never a blockquote**, because markdown renders inside blockquotes and a report containing `@someone` would notify a stranger while one containing an image would embed it. The fence is computed from the content so a message containing back-ticks cannot break out of it. The form says plainly that the message may be quoted in a public tracker and that contact details stay private.
 
