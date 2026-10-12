@@ -317,7 +317,7 @@ the machine's classification on detections (#1017, orcahello#597).
 
 Since 2026-10-04 the read-path build, not Postgres, reads orcasite
 ([061](061-ingest-and-derivation-move-into-the-build.md)). It keeps a SQLite file of every bout
-orcasite publishes, with its category and the register identifiers its tags cite, and the
+orcasite's bouts API returns (the API has no separate published flag), with its category and the register identifiers its tags cite, and the
 derivation keeps the biophony bouts. That file is already in our shape, so the 2026-09-20 point
 stands: it is a copy, not a translation layer. Bouts are still kept out of the Darwin Core
 archive.
