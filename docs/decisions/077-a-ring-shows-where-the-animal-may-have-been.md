@@ -30,7 +30,7 @@ iNaturalist's and HappyWhale's values stay in the data and in the export as they
 
 **How it looks.** A faint fill in the taxon's colour with a thin dashed edge, the radius true on the water, drawn under every track, dot and label so it never hides another sighting. The dot stays at the stated position. A ring smaller than its dot on screen adds nothing visible.
 
-**Where it isn't drawn, for now.** The profile pages' pictures and the ecotype page's small maps (076, 067) draw their dots as before.
+**Where it isn't drawn.** The profile pages' pictures and the ecotype page's small maps (076, 067) draw their dots as before, and won't get rings: Peter decided against them on 2026-10-13, after the map's rings shipped.
 
 ## Rejected
 
