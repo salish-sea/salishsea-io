@@ -133,7 +133,10 @@ function occurrenceLayers(source: string, prefix: string, filter?: ExpressionSpe
         'text-size': 11,
         'text-anchor': 'left',
         'text-justify': 'left',
-        'text-offset': [1, 0],
+        // 11.6px: where OpenLayers' `offsetX: 11` put the text, measured. MapLibre
+        // starts a line slightly further left, and any less and the label's box
+        // runs into the white ring of a segment head's dot.
+        'text-offset': [11.6 / 11, 0],
         // OpenLayers broke lines only at \n; MapLibre wraps at 10 ems unless told.
         'text-max-width': 60,
         // Near-opaque. At 88% a marker underneath showed through as a pale
@@ -141,7 +144,9 @@ function occurrenceLayers(source: string, prefix: string, filter?: ExpressionSpe
         // neighbour should look like a label.
         'icon-image': ['concat', 'label-', ['get', 'color']],
         'icon-text-fit': 'both',
-        'icon-text-fit-padding': [2, 4, 1, 4],
+        // A pixel less above and below than OpenLayers' [2, 4, 1, 4]: MapLibre's
+        // line box is taller, and this makes the box the same height.
+        'icon-text-fit-padding': [1, 4, 0, 4],
       },
       paint: {'text-color': '#111827'},
     },
@@ -423,7 +428,9 @@ function box(fill: string, stroke?: string) {
     pixelRatio: pixelRatio(),
     stretchX: [[s(2), s(14)]] as [number, number][],
     stretchY: [[s(2), s(14)]] as [number, number][],
-    content: [s(2), s(2), s(14), s(14)] as [number, number, number, number],
+    // The text area starts just inside the 1px border, so the padding the
+    // layers ask for is all the room the text gets, as OpenLayers' padding was.
+    content: [s(1), s(1), s(15), s(15)] as [number, number, number, number],
   }] as const;
 }
 
