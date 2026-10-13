@@ -1,21 +1,9 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import { fromLonLat, toLonLat } from "ol/proj.js";
-import { bearing as getBearing } from "@turf/bearing";
-import { point as turfPoint } from "@turf/helpers";
-import { distance as getDistance } from '@turf/distance';
-import Point from "ol/geom/Point.js";
 import { consume } from "@lit/context";
-import Feature from "ol/Feature.js";
-import VectorSource from "ol/source/Vector.js";
-import { bearingStyle, occurrenceStyle, sighterStyle } from "./style.ts";
 import { licenseCodes, acartiaExtent } from './constants.ts';
 import { Temporal } from "temporal-polyfill";
-import drawingSourceContext from "./drawing-context.ts";
-import mapContext from './map-context.ts';
-import { LineString } from "ol/geom.js";
-import type Map from "ol/Map.js";
-import PlacePoint from "./place-point.ts";
+import { sightingDraftsContext, type DraftPoints, type LonLat, type SightingDraft, type SightingDrafts } from "./sighting-drafts.ts";
 import { repeat } from "lit/directives/repeat.js";
 import {createRef, ref} from 'lit/directives/ref.js';
 import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
@@ -30,7 +18,6 @@ import { saveSighting } from "./write-api.ts";
 import { reportError } from "./report-error.ts";
 import { geolocationErrorIsReportable, geolocationMessage } from "./geolocation-message.ts";
 import PhotoAttachment, { newPhotoId, photoThumbnail, readExif, uploadPhoto, type FailedUploadPhoto, type Photo, type UploadedPhoto } from "./photo-attachment.ts";
-import type { Coordinate } from "ol/coordinate.js";
 
 
 /**
@@ -203,17 +190,11 @@ export default class SightingForm extends LitElement {
   @property({attribute: false, type: Object})
   initialValues: Partial<SightingFormData> = {}
 
-  @consume({context: drawingSourceContext})
-  private drawingSource: VectorSource | undefined
+  @consume({context: sightingDraftsContext})
+  private drafts: SightingDrafts | undefined
 
-  @consume({context: mapContext})
-  private map: Map | undefined
-
-  #observerFeature = new Feature(new Point([]));
-  #subjectFeature = new Feature(new Point([]));
-  #bearingFeature = new Feature(new LineString([]));
-
-  private place: PlacePoint | undefined
+  /** This sighting's observer and subject on the map. */
+  #draft: SightingDraft | undefined
 
   static styles = css`
     :host {
@@ -382,9 +363,9 @@ export default class SightingForm extends LitElement {
     defaultValues: newSighting(),
     onSubmit: ({value}) => {
       const observedAt = Temporal.PlainDate.from(this.date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: value.observed_time});
-      const [observerX, observerY] = toLonLat(this.#observerFeature.getGeometry()!.getCoordinates())
-      const [subjectX, subjectY] = toLonLat(this.#subjectFeature.getGeometry()!.getCoordinates());
-      if (!subjectX || !subjectY)
+      const observer = this.#draft?.observer;
+      const subject = this.#draft?.subject;
+      if (!subject)
         throw new Error("Subject coordinates not set");
 
       const photos = this.photos
@@ -403,9 +384,9 @@ export default class SightingForm extends LitElement {
         count: isNaN(value.count) ? null : value.count,
         direction: value.travel_direction ? value.travel_direction : null,
         observed_at: observedAt.toInstant().toString(),
-        observed_from: (observerX && observerY) ? {lon: observerX, lat: observerY} : null,
+        observed_from: observer ? {lon: observer[0], lat: observer[1]} : null,
         photos,
-        location: {lon: subjectX, lat: subjectY},
+        location: {lon: subject[0], lat: subject[1]},
         accuracy: null,
         entity_id: value.entity_id,
         url: value.url,
@@ -635,7 +616,7 @@ export default class SightingForm extends LitElement {
   private locateMe() {
     const geo = navigator.geolocation;
     geo.getCurrentPosition(({coords: {latitude, longitude}}) => {
-      this.#observerFeature.getGeometry()!.setCoordinates(fromLonLat([longitude, latitude]));
+      this.#draft?.set('observer', [longitude, latitude]);
     }, error => {
       // The button offers to place the observer marker for you; when it can't,
       // the marker simply stays put, which is indistinguishable from a slow
@@ -762,9 +743,9 @@ export default class SightingForm extends LitElement {
     }
   }
 
-  private receiveCoordinatesFromUpload(coords: Coordinate) {
-    if (this.#observerFeature.getGeometry()!.getCoordinates().length === 0)
-      this.#observerFeature.getGeometry()!.setCoordinates(coords);
+  private receiveCoordinatesFromUpload(lonLat: LonLat) {
+    if (this.#draft && !this.#draft.observer)
+      this.#draft.set('observer', lonLat);
   }
 
   private onUploadClicked() {
@@ -772,80 +753,31 @@ export default class SightingForm extends LitElement {
   }
 
   private placeObserver() {
-    this.placePoint(this.#observerFeature.getGeometry()!);
+    this.#draft?.place('observer');
   }
 
   private placeSubject() {
-    this.placePoint(this.#subjectFeature.getGeometry()!);
-  }
-
-  private placePoint(point: Point) {
-    if (this.place) {
-      this.endPlacingPoint();
-    } else {
-      this.place = new PlacePoint({onComplete: this.endPlacingPoint.bind(this), point});
-      this.map!.addInteraction(this.place);
-    }
-  }
-
-  private endPlacingPoint() {
-    if (this.place) {
-      this.map!.removeInteraction(this.place);
-      this.place = undefined;
-    }
+    this.#draft?.place('subject');
   }
 
   private onObserverInputChange(value: string) {
-    try {
-      const {decimalLatitude, decimalLongitude} = parseCoords(value, 4);
-      this.#observerFeature.getGeometry()!.setCoordinates(fromLonLat([decimalLongitude, decimalLatitude]));
-    } catch (e) {
-      this.#observerFeature.getGeometry()!.setCoordinates([]);
-    }
+    this.#draft?.set('observer', parseLonLat(value));
   }
 
   private onSubjectInputChange(value: string) {
-    if (value.trim() === '') {
-      this.#subjectFeature.getGeometry()!.setCoordinates([]);
-      return;
-    }
-    try {
-      const {decimalLatitude, decimalLongitude} = parseCoords(value, 4);
-      this.#subjectFeature.getGeometry()!.setCoordinates(fromLonLat([decimalLongitude, decimalLatitude]));
-    } catch (e) {
-      this.#subjectFeature.getGeometry()!.setCoordinates([]);
-    }
+    this.#draft?.set('subject', parseLonLat(value));
   }
 
-  private onCoordinatesChanged() {
-    const observerCoordinates = toLonLat(this.#observerFeature.getGeometry()!.getCoordinates());
-    const subjectCoordinates = toLonLat(this.#subjectFeature.getGeometry()!.getCoordinates());
-    let observerCoordinateStr = observerCoordinates.map(v => v.toFixed(4)).reverse().join(', ');
-    let subjectCoordinateStr = subjectCoordinates.map(v => v.toFixed(4)).reverse().join(', ');
-    if (this.observerLocationInput && this.subjectLocationInput) {
-      if (this.observerLocationInput.value !== observerCoordinateStr) {
-        this.observerLocationInput.value = observerCoordinateStr;
-        this.observerLocationInput.dispatchEvent(new Event('change'));
+  /** A point moved, on the map or in an input: make both inputs say where the points are. */
+  private onPointsChanged({observer, subject}: DraftPoints) {
+    if (!this.observerLocationInput || !this.subjectLocationInput)
+      return;
+    for (const [input, point] of [[this.observerLocationInput, observer], [this.subjectLocationInput, subject]] as const) {
+      const text = point ? `${point[1].toFixed(4)}, ${point[0].toFixed(4)}` : '';
+      if (input.value !== text) {
+        input.value = text;
+        input.dispatchEvent(new Event('change'));
       }
-
-      if (this.subjectLocationInput.value !== subjectCoordinateStr) {
-        this.subjectLocationInput.value = subjectCoordinateStr;
-        this.subjectLocationInput.dispatchEvent(new Event('change'));
-      }
-    }
-    if (observerCoordinates.length && subjectCoordinates.length) {
-      let bearing = getBearing(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
-      if (bearing < 0)
-        bearing += 360;
-      const distance = getDistance(turfPoint(observerCoordinates), turfPoint(subjectCoordinates));
-      this.#bearingFeature.getGeometry()!.setCoordinates([
-        this.#observerFeature.getGeometry()!.getCoordinates(),
-        this.#subjectFeature.getGeometry()!.getCoordinates()
-      ]);
-      this.#bearingFeature.setProperties({bearing, distance});
-    } else {
-      this.#bearingFeature.getGeometry()!.setCoordinates([]);
-      this.#bearingFeature.setProperties({bearing: null, distance: null});
     }
   }
 
@@ -859,43 +791,28 @@ export default class SightingForm extends LitElement {
         this.#form.api.setFieldValue(typedField, typedValue);
       }
     }
+    this.#draft = this.drafts?.create(this.sightingId, this.onPointsChanged.bind(this));
+    this.updateSubjectProps();
+    this.onObserverInputChange(this.initialValues.observer_location || '');
     this.onSubjectInputChange(this.initialValues.subject_location || '');
 
     this.#form.api.baseStore.subscribe(this.updateSubjectProps.bind(this));
-
-    const sightingProperties = newSighting();
-    this.#observerFeature.setId(`${this.sightingId}/observer`);
-    this.#observerFeature.setProperties({identifiers: [], kind: 'Sighter'});
-    this.#observerFeature.setStyle(sighterStyle);
-
-    this.#subjectFeature.setId(this.sightingId);
-    this.#subjectFeature.setProperties(sightingProperties);
-    this.updateSubjectProps();
-    this.#subjectFeature.setStyle((f) => occurrenceStyle(f.getProperties() as Occurrence, false));
-    this.updateSubjectProps();
-
-    this.#bearingFeature.setStyle(feature => bearingStyle(feature as Feature<LineString>));
-
-    this.drawingSource!.addFeatures([this.#observerFeature, this.#subjectFeature, this.#bearingFeature]);
-    this.#observerFeature.getGeometry()!.on('change', this.onCoordinatesChanged.bind(this));
-    this.#subjectFeature.getGeometry()!.on('change', this.onCoordinatesChanged.bind(this));
   }
 
   disconnectedCallback(): void {
-    this.drawingSource!.removeFeatures([this.#observerFeature, this.#subjectFeature, this.#bearingFeature]);
+    super.disconnectedCallback();
+    this.#draft?.remove();
   }
 
   updateSubjectProps() {
     const values = this.#form.api.baseStore.state.values;
-    this.#subjectFeature.setProperties({
+    this.#draft?.setSubjectOccurrence({
       direction: values.travel_direction,
       identifiers: detectIndividuals(values.body),
       // symbology groups and labels by scientific name, so the draft needs the one the
       // saved sighting will read as ('Orcinus orca rectipinnus' for Bigg's -> "Biggs").
       taxon: {
         scientific_name: this._namesTask.value?.get(values.entity_id)?.inaturalist_scientific_name ?? null,
-        vernacular_name: null,
-        entity_id: values.entity_id,
       },
     });
   }
@@ -914,5 +831,17 @@ export default class SightingForm extends LitElement {
 declare global {
   interface HTMLElementTagNameMap {
     "sighting-form": SightingForm;
+  }
+}
+
+/** The longitude and latitude a location input holds, or null when it holds none. */
+function parseLonLat(value: string): LonLat | null {
+  if (value.trim() === '')
+    return null;
+  try {
+    const {decimalLatitude, decimalLongitude} = parseCoords(value, 4);
+    return [decimalLongitude, decimalLatitude];
+  } catch {
+    return null;
   }
 }

@@ -5,7 +5,7 @@ function degToRad(degrees: number) {
 }
 
 // How many radians to rotate a thing that was pointing east (i.e. direction of text writing) to point instead in the given direction
-// Used to rotate textual symbols in OpenLayers
+// Used to turn the direction-of-travel arrow on the map
 export function directionToRads (direction: TravelDirection): number {
   switch (direction) {
     case 'east': return 0;

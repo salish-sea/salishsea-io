@@ -7,6 +7,13 @@ import { occurrenceProperties } from './style.ts';
 import type { Occurrence } from './types.ts';
 
 export type LonLat = [number, number];
+
+/** As much of an occurrence as the form knows before it is saved. */
+export type SubjectOccurrence = {
+  direction?: Occurrence['direction'] | '';
+  identifiers?: string[];
+  taxon?: Pick<Occurrence['taxon'], 'scientific_name'>;
+};
 export type DraftPoint = 'observer' | 'subject';
 
 /** What a form hears whenever one of its points moves, however it was moved. */
@@ -71,6 +78,11 @@ export class SightingDrafts {
     const suppress = this.#suppressClick;
     this.#suppressClick = false;
     return suppress;
+  }
+
+  /** True while the pointer is close enough to a point to grab it. */
+  get hovering(): boolean {
+    return this.#hover !== null;
   }
 
   /** While a point is being dragged or placed, the map's own hovering and clicking stand aside. */
@@ -171,13 +183,17 @@ export class SightingDraft {
   observer: LonLat | null = null;
   subject: LonLat | null = null;
   /** What the subject's dot is drawn from: its taxon, direction and identifiers. */
-  subjectOccurrence: Partial<Occurrence> = {};
+  subjectOccurrence: SubjectOccurrence = {};
 
-  constructor(
-    private readonly drafts: SightingDrafts,
-    readonly id: string,
-    private readonly onChange: (points: DraftPoints) => void,
-  ) {}
+  private readonly drafts: SightingDrafts;
+  readonly id: string;
+  private readonly onChange: (points: DraftPoints) => void;
+
+  constructor(drafts: SightingDrafts, id: string, onChange: (points: DraftPoints) => void) {
+    this.drafts = drafts;
+    this.id = id;
+    this.onChange = onChange;
+  }
 
   /** Move a point, or take it off the map with `null`. The form hears about it either way. */
   set(which: DraftPoint, lonLat: LonLat | null) {
@@ -186,7 +202,7 @@ export class SightingDraft {
     this.onChange({observer: this.observer, subject: this.subject});
   }
 
-  setSubjectOccurrence(occurrence: Partial<Occurrence>) {
+  setSubjectOccurrence(occurrence: SubjectOccurrence) {
     this.subjectOccurrence = occurrence;
     this.drafts.render();
   }
@@ -210,7 +226,13 @@ function draftFeatures(draft: SightingDraft): Feature[] {
     features.push({type: 'Feature', geometry: {type: 'Point', coordinates: observer},
       properties: {id: featureId(draft, 'observer'), kind: 'Sighter'}});
   if (subject) {
-    const occurrence = {taxon: {scientific_name: null}, ...draft.subjectOccurrence, id: featureId(draft, 'subject')} as Occurrence;
+    const {direction, identifiers, taxon} = draft.subjectOccurrence;
+    const occurrence = {
+      id: featureId(draft, 'subject'),
+      direction: direction || null,
+      identifiers: identifiers ?? null,
+      taxon: taxon ?? {scientific_name: null},
+    } as Occurrence;
     features.push({type: 'Feature', geometry: {type: 'Point', coordinates: subject},
       properties: {...occurrenceProperties(occurrence), kind: 'Sighting'}});
   }
