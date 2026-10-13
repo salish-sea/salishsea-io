@@ -80,7 +80,7 @@ describe('renderDocument', () => {
 
 describe('islandFromManifest', () => {
     const MANIFEST = {
-        'src/map-island.ts': {file: 'assets/map-island-A.js', imports: ['_map-B.js'], css: ['assets/island-C.css']},
+        'src/site-search.ts': {file: 'assets/site-search-A.js', imports: ['_map-B.js'], css: ['assets/island-C.css']},
         '_map-B.js': {file: 'assets/map-B.js', imports: ['_ol-D.js', '_lit-E.js']},
         '_ol-D.js': {file: 'assets/ol-D.js', imports: ['_lit-E.js'], css: ['assets/ol-F.css']},
         '_lit-E.js': {file: 'assets/lit-E.js'},
@@ -88,10 +88,10 @@ describe('islandFromManifest', () => {
     };
 
     test('the entry\'s script, a preload per chunk it reaches once each, and their CSS', () => {
-        expect(islandFromManifest(MANIFEST, 'src/map-island.ts', 'individual-map')).toEqual({
-            element: 'individual-map',
+        expect(islandFromManifest(MANIFEST, 'src/site-search.ts', 'site-search')).toEqual({
+            element: 'site-search',
             tags: [
-                '<script type="module" crossorigin src="/assets/map-island-A.js"></script>',
+                '<script type="module" crossorigin src="/assets/site-search-A.js"></script>',
                 '<link rel="modulepreload" crossorigin href="/assets/map-B.js">',
                 '<link rel="modulepreload" crossorigin href="/assets/ol-D.js">',
                 '<link rel="modulepreload" crossorigin href="/assets/lit-E.js">',

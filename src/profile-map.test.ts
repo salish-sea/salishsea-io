@@ -29,8 +29,8 @@ describe('profileMapSvg', () => {
 
   it('links each dot to its day on the main map, escaped for markup', () => {
     const svg = profileMapSvg([dot('inat:1', -123, 48.5), dot('maplify:2', -122.3, 47.6, '2026-09-19T18:00:00Z')]);
-    expect(svg).toContain('<a href="/?d=2026-09-20&amp;o=inat%3A1">');
-    expect(svg).toContain('<a href="/?d=2026-09-19&amp;o=maplify%3A2">');
+    expect(svg).toContain('<a href="/?d=2026-09-20&amp;o=inat%3A1" tabindex="-1">');
+    expect(svg).toContain('<a href="/?d=2026-09-19&amp;o=maplify%3A2" tabindex="-1">');
   });
 
   it('draws the newest report last, so it is on top', () => {
@@ -46,8 +46,27 @@ describe('profileMapSvg', () => {
       dot('d', -123, 48.5, '2026-09-17T18:00:00Z'),
     ]);
     expect(svg.match(/class="dot"/g)).toHaveLength(1);
-    expect(svg).toContain('o=b"><title>3 reports, the newest on Sep 19, 2026</title>');
+    expect(svg).toContain('o=b" tabindex="-1"><title>3 reports, the newest on Sep 19, 2026</title>');
     expect(svg).toMatch(/fill-opacity="0\.91"/);
+  });
+
+  it('counts older reports at the newest\'s spot in the newest\'s dot, which covers theirs', () => {
+    const svg = profileMapSvg([dot('newest', -123, 48.5), dot('b', -123, 48.5, '2026-09-19T18:00:00Z')]);
+    expect(svg).not.toContain('class="dot"');
+    expect(svg).toContain('<title>2 reports, the newest on Sep 20, 2026</title><circle class="newest"');
+  });
+
+  it('keeps the dots out of the tab order, each with a tap target wider than itself', () => {
+    const svg = profileMapSvg([dot('a', -123, 48.5), dot('b', -122.3, 47.6)]);
+    expect(svg.match(/<a /g)).toHaveLength(2);
+    expect(svg.match(/tabindex="-1"/g)).toHaveLength(2);
+    expect(svg.match(/class="hit"[^>]*r="12"/g)).toHaveLength(2);
+  });
+
+  it('wraps tile columns across the antimeridian', () => {
+    const svg = profileMapSvg([dot('a', 179.9, 52), dot('b', -179.9, 52)]);
+    const columns = [...svg.matchAll(/tile\/(\d+)\/\d+\/(-?\d+)"/g)].map(m => [Number(m[1]), Number(m[2])]);
+    expect(columns.every(([z, x]) => x! >= 0 && x! < 2 ** z!)).toBe(true);
   });
 
   it('closes every element, since the server renderer parses it as HTML', () => {

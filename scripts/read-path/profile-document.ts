@@ -13,7 +13,7 @@
  *
  * The shell's own scripts go, if it has any (the whales shell's placeholder; the
  * profile shells have none, being templates only). What a page loads instead is its
- * islands — the map and the search, today — and only those it has an element for.
+ * islands — the search field, today — and only those it has an element for.
  */
 
 import { render } from '@lit-labs/ssr';
@@ -34,7 +34,7 @@ export type PageHead = {
 
 /**
  * A custom element the prerendered page upgrades in the browser, and the tags that
- * load its definition. The one client-side part of a profile page (decision 057).
+ * load its definition: the client-side parts of a profile page (decision 057).
  */
 export type Island = {
     element: string,
@@ -81,7 +81,7 @@ function escapeAttr(value: string): string {
 /**
  * A lit-html template as static HTML. Lit's server renderer marks every binding with
  * comments so a client can hydrate it; nothing here is hydrated — the only script on
- * the page is the map's — so they go.
+ * the page is the search field's, which renders its own — so they go.
  */
 export function renderStatic(template: TemplateResult): string {
     return collectResultSync(render(template))

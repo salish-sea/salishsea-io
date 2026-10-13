@@ -325,7 +325,7 @@ export function renderSightingsSummary(
     ${when(located, () => renderProfileMap(links))}
     <p class="sightings-note">
       Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}
-      · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} a dot above; the newest located report is solid. Click one to see that day on the map.`)}
+      · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} on the map above, where reports at one spot share a dot; the newest is solid. Click a dot to see its day on the map.`)}
     </p>
   `;
 }

@@ -79,9 +79,13 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
     return '';
 
   // Fit the points at zoom 0, then scale up to the zoom that just holds them.
-  const flat = points.map(([lon, lat]) => project(lon, lat, 0));
-  const xs = flat.map(p => p[0]), ys = flat.map(p => p[1]);
-  const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  // A loop, not Math.min(...xs): spreading a page's worth of points as arguments
+  // overflows the stack somewhere past a hundred thousand.
+  let [minX, maxX, minY, maxY] = [Infinity, -Infinity, Infinity, -Infinity];
+  for (const [lon, lat] of points) {
+    const [x, y] = project(lon, lat, 0);
+    [minX, maxX, minY, maxY] = [Math.min(minX, x), Math.max(maxX, x), Math.min(minY, y), Math.max(maxY, y)];
+  }
   const fits = (span: number, room: number) => span > 0 ? Math.log2(room / span) : Infinity;
   const zoom = Math.min(fits(maxX - minX, WIDTH - 2 * PADDING), fits(maxY - minY, HEIGHT - 2 * PADDING), site ? MAX_ZOOM_SITE : MAX_ZOOM);
   const scale = 2 ** zoom;
@@ -92,30 +96,46 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
     return [x * scale - left, y * scale - top];
   };
 
-  // Tiles from the next zoom up, so they are never stretched; each drawn at its scaled size.
-  const tileZoom = Math.ceil(zoom);
+  // Tiles from the next zoom up, so they are never stretched much; each drawn at its
+  // scaled size. A zoom a hair past a whole one takes that one's tiles, stretched a
+  // little, rather than four times as many from the next.
+  const tileZoom = Math.ceil(zoom - 0.1);
   const tileSize = TILE * 2 ** (zoom - tileZoom);
   const lastTile = 2 ** tileZoom - 1;
   const tiles: string[] = [];
   for (let ty = Math.max(0, Math.floor(top / tileSize)); ty * tileSize < top + HEIGHT && ty <= lastTile; ty++)
     for (let tx = Math.floor(left / tileSize); tx * tileSize < left + WIDTH; tx++)
-      tiles.push(`<image href="${TILE_URL}/${tileZoom}/${ty}/${tx}" x="${(tx * tileSize - left).toFixed(1)}" y="${(ty * tileSize - top).toFixed(1)}" width="${tileSize.toFixed(1)}" height="${tileSize.toFixed(1)}"></image>`);
+      tiles.push(`<image href="${TILE_URL}/${tileZoom}/${ty}/${((tx % (lastTile + 1)) + lastTile + 1) % (lastTile + 1)}" x="${(tx * tileSize - left).toFixed(1)}" y="${(ty * tileSize - top).toFixed(1)}" width="${tileSize.toFixed(1)}" height="${tileSize.toFixed(1)}"></image>`);
 
   // Every element is closed explicitly: Lit's server renderer parses this markup
   // as HTML, where a self-closing <circle/> doesn't close (src/small-multiples.ts).
   const [newest, ...older] = located;
+  const cellOf = (dot: MapDot & { location: { lon: number, lat: number } }) => {
+    const [x, y] = at(dot.location.lon, dot.location.lat);
+    return [Math.round(x / DOT_GRID) * DOT_GRID, Math.round(y / DOT_GRID) * DOT_GRID] as const;
+  };
+  // Older reports at the newest's spot are counted in its dot, which covers theirs.
+  const newestCell = newest ? cellOf(newest).join(',') : null;
+  let newestCount = 1;
   const cells = new Map<string, { x: number, y: number, dot: MapDot, count: number }>();
   for (const dot of older) {
-    const [x, y] = at(dot.location.lon, dot.location.lat);
-    const [cx, cy] = [Math.round(x / DOT_GRID) * DOT_GRID, Math.round(y / DOT_GRID) * DOT_GRID];
+    const [cx, cy] = cellOf(dot);
+    if (`${cx},${cy}` === newestCell) {
+      newestCount++;
+      continue;
+    }
     const cell = cells.get(`${cx},${cy}`);
     if (cell) cell.count++;
     else cells.set(`${cx},${cy}`, { x: cx, y: cy, dot, count: 1 });
   }
-  const link = (dot: MapDot, count: number, circleMarkup: string) =>
-    `<a href="${escape(mapUrl(dot))}"><title>${escape(dotTitle(dot, count))}</title>${circleMarkup}</a>`;
+  // Out of the tab order: a busy page would otherwise put hundreds of stops before
+  // the next link, and the presence table and the line under the map reach the
+  // same days. Each carries an invisible circle wider than the dot, so a dot stays
+  // easy to tap when the picture is scaled down to a phone's width.
+  const link = (dot: MapDot, count: number, x: number, y: number, circleMarkup: string) =>
+    `<a href="${escape(mapUrl(dot))}" tabindex="-1"><title>${escape(dotTitle(dot, count))}</title>${circleMarkup}<circle class="hit" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="12"></circle></a>`;
   const olderMarkup = [...cells.values()].map(({ x, y, dot, count }) =>
-    link(dot, count, `<circle class="dot" cx="${x}" cy="${y}" r="5" fill-opacity="${(1 - (1 - DOT_OPACITY) ** count).toFixed(2)}"></circle>`));
+    link(dot, count, x, y, `<circle class="dot" cx="${x}" cy="${y}" r="5" fill-opacity="${(1 - (1 - DOT_OPACITY) ** count).toFixed(2)}"></circle>`));
 
   const siteMarkup = site ? (() => {
     const path = ring.map(([lon, lat], i) => `${i ? 'L' : 'M'}${at(lon, lat).map(v => v.toFixed(1)).join(' ')}`).join('') + 'Z';
@@ -125,7 +145,7 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
 
   const newestMarkup = newest ? (() => {
     const [x, y] = at(newest.location.lon, newest.location.lat);
-    return link(newest, 1, `<circle class="newest" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7"></circle>`);
+    return link(newest, newestCount, x, y, `<circle class="newest" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7"></circle>`);
   })() : '';
 
   return tiles.join('') + olderMarkup.join('') + (siteMarkup?.ring ?? '') + newestMarkup + (siteMarkup?.centre ?? '');
@@ -152,7 +172,10 @@ export const profileMapStyles = css`
     stroke: #ffffff;
     stroke-width: 2;
   }
-  figure.profile-map a:hover circle {
+  figure.profile-map .hit {
+    fill: transparent;
+  }
+  figure.profile-map a:hover circle:not(.hit) {
     stroke: #ffff00;
     stroke-width: 3;
   }

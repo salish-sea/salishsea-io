@@ -216,7 +216,9 @@ export interface HauloutReportParts {
 
 /** The page's content. */
 export function renderHauloutProfile({ site, siblings, neighbours }: HauloutProfileData, { vitals, dots, reports }: HauloutReportParts) {
-  const mapSite = { lon: site.location.lon!, lat: site.location.lat!, radius_m: site.radius_m };
+  const mapSite = site.location.lon != null && site.location.lat != null
+    ? { lon: site.location.lon, lat: site.location.lat, radius_m: site.radius_m }
+    : null;
   return html`
     <header class="masthead">
       <div class="designation-kicker">Haul-out site${site.region ? html` · ${site.region}` : nothing}</div>
