@@ -1,6 +1,6 @@
 # 073 — The basemap's depths are 30 m everywhere, shaded lightly
 
-**Status:** accepted · **Decided:** 2026-10-08 · **Context:** `salish-3zok` (our own basemap; its notes hold the prototype's findings) · **Follows:** [068](068-the-map-stays-on-openlayers.md), which left bathymetry to this work
+**Status:** accepted; amended 2026-10-13 (Canada's grid wherever it has data; relief shaded by MapLibre) · **Decided:** 2026-10-08 · **Context:** `salish-3zok` (our own basemap; its notes hold the prototype's findings) · **Follows:** [068](068-the-map-stays-on-openlayers.md), which left bathymetry to this work
 
 ## Context
 
@@ -10,19 +10,23 @@ The 10 m looked best: less harsh, less heavy. Measured over the same seafloor an
 
 ## Decision
 
-**One 30 m grid for the whole range, Monterey Bay to northern Vancouver Island,** for both the bands and the relief. All the NOAA grids are public domain, at 1 arc-second:
+**One 30 m grid for the whole range, Monterey Bay to northern Vancouver Island,** for both the bands and the relief:
 
-- NOAA's Southern California CRM v2 covers 31–37°N, which takes in southern Monterey Bay.
-- CRM Volume 7 (2025) covers 37–44°N.
-- CRM Volume 8 (2025) covers 44–49°N to 127°W, across the border in the Salish Sea.
-- North of 49°N and west of 127°W, Natural Resources Canada's West Coast topo-bathy DEM is resampled from 10 m to 30 m. It is under the Open Government Licence – Canada.
+- Wherever Natural Resources Canada's West Coast topo-bathy DEM has data, it is used, resampled from 10 m to 30 m. That is everywhere north of about 47.4°N, Puget Sound included. It is under the Open Government Licence – Canada.
+- Everywhere else, NOAA's grids are used, all public domain, at 1 arc-second. The Southern California CRM v2 covers 31–37°N, which takes in southern Monterey Bay. CRM Volume 7 (2025) covers 37–44°N. CRM Volume 8 (2025) covers 44–49°N to 127°W.
 
-The coastline comes from OpenStreetMap, not from any of these grids: their vertical datums differ.
+The coastline comes from OpenStreetMap, not from any of these grids: their vertical datums differ. NOAA's grids give heights above EGM2008, close to mean sea level. NRCan's are measured from the Canadian Hydrographic Service's chart datum, a low-water level, so in the Salish Sea its depths read a little shallower: by a median of 1.1 m in water NOAA puts at 0–10 m deep, and 1.9 m at 100–400 m. Each grid is kept as published. The difference moves the shallow isobaths slightly where the grids meet, and nautical charts measure depth from a low-water level too.
 
-**The relief is shaded lightly, and set in the style, not baked into the tiles.** The tiles hold a full-strength relief; the map draws it at about half opacity, and how much can vary by zoom. Tuning it is then a style edit, not a rebuild.
+**The relief is shaded lightly, by MapLibre, from elevation tiles.** The tiles hold elevations, and MapLibre's `hillshade` layer shades them in the browser at about half strength, fading out between z11.5 and z13. How strong it is, how it is lit and how it fades are all set in the style, so tuning them is a style edit, not a rebuild.
+
+*Amended 2026-10-13:* as first decided, the grid north of 49°N came from NRCan and the grid south of it from NOAA, and the relief was baked into image tiles with only its opacity set in the style. Peter chose both changes after a build over Haro Strait:
+
+- **Canada's grid first.** Shaded side by side, NOAA's grid shows straight seams where its survey patches meet, in the Strait of Georgia south of 49°N and in Haro Strait. NRCan's grid has no seams there and otherwise matches. Splitting at 49°N also left a visible step along the border.
+- **Relief shaded by MapLibre.** For the Haro Strait test window, the elevation tiles are 18 MB against 96 MB for the baked tiles, and they can be restyled without a rebuild. The baked tiles were a little crisper at z11.5–12, because they went one zoom deeper. How fast a slow phone shades the relief has not been measured yet. The image tiles for the preview cards and small maps ([074](074-the-basemap-is-its-own-project-and-the-cards-draw-on-it.md)) are rendered from the same style, so they get the same relief.
 
 ## Rejected, for now
 
 - **10 m (CUDEM, and NRCan at full resolution) as the base.** It costs a z14 level and about 4.5× the archive per area. Most of what made it look better was lighter shading, which the 30 m now has. It may still come back where sighters zoom in closest, such as west San Juan Island and Haro Strait, if the reef detail turns out to matter; nothing here blocks adding it there.
+- **Relief baked into image tiles,** as first decided above. It is five times the archive and needs a rebuild for every change of style; see the amendment.
 - **GMRT.** It is coarser, shows swath artifacts, and is CC BY where the NOAA grids are public domain.
 - **The Canadian Hydrographic Service's NONNA depths.** Its licence forbids passing the data on.
