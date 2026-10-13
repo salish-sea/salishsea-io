@@ -72,8 +72,16 @@ describe("saving a sighting, as upsert_observation and its row-level security di
     test('accuracy is stored, and changed or cleared by a later save (decision 077)', () => {
         saveSighting(store, owner, ID, input());
         expect(row()).toMatchObject({accuracy: 50});
+        saveSighting(store, owner, ID, input({accuracy: 120}));
+        expect(row()).toMatchObject({accuracy: 120});
         saveSighting(store, owner, ID, input({accuracy: null}));
         expect(row()).toMatchObject({accuracy: null});
+    });
+
+    test('a save that says nothing of accuracy, from a page older than the field, leaves it as it was', () => {
+        saveSighting(store, owner, ID, input());
+        saveSighting(store, owner, ID, input({accuracy: undefined}));
+        expect(row()).toMatchObject({accuracy: 50});
     });
 
     test.each([

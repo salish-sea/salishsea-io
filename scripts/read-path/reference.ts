@@ -30,6 +30,8 @@ export type ReferenceTable = {
     table: string, file: string, columns: readonly (readonly [string, string])[],
     /** A column no two rows may share, where a duplicate would multiply the rows a join makes. */
     unique?: string,
+    /** What every row must satisfy, as SQL, and what to call a row that doesn't. */
+    check?: {where: string, says: string},
 };
 
 /** The enum types the build reads: the derivation's, and the catalogue's vocabularies. */
@@ -48,8 +50,10 @@ export const REFERENCE: readonly ReferenceTable[] = [
         // and an estimate.
         table: 'public.hydrophones', file: 'hydrophones.tsv',
         columns: [['feed_id', 'VARCHAR'], ['slug', 'VARCHAR'], ['name', 'VARCHAR'], ['hearing_range_m', 'INTEGER']],
-        // A feed twice would give each of its bouts' occurrences twice.
+        // A feed twice would give each of its bouts' occurrences twice, and a row without
+        // its feed or its range would leave that hydrophone's bouts without rings.
         unique: 'feed_id',
+        check: {where: 'feed_id IS NOT NULL AND hearing_range_m > 0', says: 'needs a feed_id and a hearing_range_m above zero'},
     },
     {
         table: 'public.providers', file: 'providers.tsv',
@@ -120,6 +124,11 @@ export async function loadReference(conn: DuckDBConnection, catalog: string, dir
         if (ref.unique) {
             const dup = await conn.runAndReadAll(`SELECT ${ref.unique} FROM ${catalog}.${ref.table} GROUP BY 1 HAVING count(*) > 1 LIMIT 1`);
             if (dup.getRows().length) throw new Error(`${ref.file}: ${ref.unique} ${String(dup.getRows()[0]![0])} appears twice`);
+        }
+        if (ref.check) {
+            const bad = await conn.runAndReadAll(`SELECT count(*) FROM ${catalog}.${ref.table} WHERE NOT coalesce(${ref.check.where}, false)`);
+            const n = Number(bad.getRows()[0]![0]);
+            if (n) throw new Error(`${ref.file}: ${n} row${n === 1 ? '' : 's'} ${ref.check.says}`);
         }
         console.log(`${ref.table}: ${rows} rows`);
     }

@@ -50,7 +50,8 @@ export type SightingInput = {
     photos: {src: string, license: string}[],
     entity_id: string,
     url: string | null,
-    accuracy: number | null,
+    /** Metres, or null to clear it; undefined when the request didn't say, which leaves it as it was. */
+    accuracy?: number | null,
 };
 
 const bad = (message: string) => new Refused(400, message);
@@ -82,8 +83,10 @@ export function parseSighting(body: Record<string, unknown>): SightingInput {
         throw bad('direction must be a compass point');
     const entity = body['entity_id'];
     if (typeof entity !== 'string' || !/^SSA:[0-9]{7}$/.test(entity)) throw bad('entity_id must be an SSA identifier');
-    const accuracy = body['accuracy'] ?? null;
-    if (accuracy !== null && (typeof accuracy !== 'number' || !Number.isInteger(accuracy) || accuracy < 1 || accuracy > MAX_ACCURACY_M))
+    // Absent is not null: a page older than the field sends none, and its save mustn't
+    // clear a radius a newer one stored. Null clears it.
+    const accuracy = body['accuracy'];
+    if (accuracy !== undefined && accuracy !== null && (typeof accuracy !== 'number' || !Number.isInteger(accuracy) || accuracy < 1 || accuracy > MAX_ACCURACY_M))
         throw bad(`accuracy must be a whole number of metres from 1 to ${MAX_ACCURACY_M}`);
     const photos = body['photos'] ?? [];
     if (!Array.isArray(photos) || photos.length > MAX_PHOTOS) throw bad(`photos must be a list of at most ${MAX_PHOTOS}`);
@@ -106,7 +109,7 @@ export function parseSighting(body: Record<string, unknown>): SightingInput {
         entity_id: entity,
         // an empty url is none: the form sends '' when there is no link
         url: optionalText(body['url'], 'url')?.trim() || null,
-        accuracy: accuracy as number | null,
+        accuracy: accuracy as number | null | undefined,
     };
 }
 
@@ -128,18 +131,20 @@ export function saveSighting(store: DatabaseSync, who: Me, id: string, input: Si
         if (may === 'no') throw new Refused(403, 'only its owner or an editor may change a sighting');
         const values = [input.observed_at, input.location.lon, input.location.lat,
             input.observed_from?.lon ?? null, input.observed_from?.lat ?? null,
-            body, input.count, input.url, input.direction, input.entity_id, input.accuracy, stamp] as const;
+            body, input.count, input.url, input.direction, input.entity_id, stamp] as const;
         if (may === 'absent') {
             store.prepare(`INSERT INTO observations
                 (observed_at, subject_lon, subject_lat, observer_lon, observer_lat, body, count, url, direction, entity_id,
-                 accuracy, updated_at, id, created_at, contributor_id, user_id)
+                 updated_at, id, created_at, contributor_id, user_id, accuracy)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-                .run(...values, id, stamp, who.contributor.id, who.user_id);
+                .run(...values, id, stamp, who.contributor.id, who.user_id, input.accuracy ?? null);
         } else {
             store.prepare(`UPDATE observations SET
                 observed_at = ?, subject_lon = ?, subject_lat = ?, observer_lon = ?, observer_lat = ?, body = ?, count = ?,
-                url = ?, direction = ?, entity_id = ?, accuracy = ?, updated_at = ?
+                url = ?, direction = ?, entity_id = ?, updated_at = ?
                 WHERE id = ?`).run(...values, id);
+            if (input.accuracy !== undefined)
+                store.prepare('UPDATE observations SET accuracy = ? WHERE id = ?').run(input.accuracy, id);
         }
         // photos by position from 1, as the MERGE in upsert_observation did
         const upsert = store.prepare(`INSERT INTO observation_photos (observation_id, seq, href, license_code) VALUES (?, ?, ?, ?)
