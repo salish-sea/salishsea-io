@@ -82,6 +82,7 @@ vi.mock('maplibre-gl', async (importOriginal) => ({
     jumpTo() {}
     fitBounds() {}
     easeTo() {}
+    getBounds() { return {contains: () => true}; }
     getContainer() { return this.#container; }
   },
 }));

@@ -76,10 +76,19 @@ export class SightingDrafts {
     map.on('touchcancel', e => this.#up(e));
     // The map hears a mouse released only over itself. Released anywhere else,
     // or with the window losing focus mid-drag, the drag ends where it is.
-    window.addEventListener('mouseup', () => this.#stop());
-    window.addEventListener('blur', () => this.#stop());
+    window.addEventListener('mouseup', this.#stopOnWindow);
+    window.addEventListener('blur', this.#stopOnWindow);
     this.render();
   }
+
+  /** Let go of the window when the map goes away. */
+  detach() {
+    window.removeEventListener('mouseup', this.#stopOnWindow);
+    window.removeEventListener('blur', this.#stopOnWindow);
+    this.#map = undefined;
+  }
+
+  readonly #stopOnWindow = () => this.#stop();
 
   /** True once after a drag or a placement, so the click it ends in doesn't also select an occurrence. */
   takeClick(): boolean {

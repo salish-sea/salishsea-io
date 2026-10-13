@@ -276,6 +276,7 @@ user-location-control.inactive svg { color: #333; }
   override disconnectedCallback() {
     super.disconnectedCallback();
     clearInterval(this.#clock);
+    this.drafts.detach();
   }
 
   #setData(id: SourceId, data: FeatureCollection) {
