@@ -810,15 +810,23 @@ export default class SightingForm extends LitElement {
       this.#draft?.setAccuracy(parseAccuracy(value));
   }
 
+  /** The radius the accuracy field last heard from the map. */
+  #syncedAccuracy: number | null | undefined = undefined;
+
   /** A point or the ring changed, on the map or in an input: make the inputs say where they are. */
   private onPointsChanged({observer, subject, accuracy}: DraftPoints) {
     if (!this.observerLocationInput || !this.subjectLocationInput || !this.accuracyInput)
       return;
-    const texts = [
+    const texts: [HTMLInputElement, string][] = [
       [this.observerLocationInput, observer ? `${observer[1].toFixed(4)}, ${observer[0].toFixed(4)}` : ''],
       [this.subjectLocationInput, subject ? `${subject[1].toFixed(4)}, ${subject[0].toFixed(4)}` : ''],
-      [this.accuracyInput, accuracy ? String(accuracy) : ''],
-    ] as const;
+    ];
+    // Only when the radius itself changed: moving a point mustn't overwrite text the
+    // author is still correcting, such as an invalid 0, with the radius before it.
+    if (accuracy !== this.#syncedAccuracy) {
+      this.#syncedAccuracy = accuracy;
+      texts.push([this.accuracyInput, accuracy ? String(accuracy) : '']);
+    }
     for (const [input, text] of texts) {
       if (input.value !== text) {
         input.value = text;
