@@ -85,6 +85,10 @@ export class SightingDrafts {
   detach() {
     window.removeEventListener('mouseup', this.#stopOnWindow);
     window.removeEventListener('blur', this.#stopOnWindow);
+    this.#dragging = null;
+    this.#placing = null;
+    this.#hover = null;
+    this.#suppressClick = false;
     this.#map = undefined;
   }
 

@@ -197,6 +197,15 @@ user-location-control.inactive svg { color: #333; }
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
+    this.#build();
+    // Load GeoJSON layers asynchronously
+    this.loadReferenceLayer('viewpoints', () => import('./assets/orcanetwork-viewing-locations.geojson?raw'));
+    this.loadReferenceLayer('hydrophones', () => import('./assets/orcasound-hydrophones.geojson?raw'));
+    this.loadReferenceLayer('salmon', () => import('./assets/orcasalmon-counting-sites.geojson?raw'));
+  }
+
+  /** Make the map, with everything already set on the element drawn once it has loaded. */
+  #build() {
     const frame = this.#pendingFrame;
     this.#pendingFrame = null;
     let map: MapLibreMap;
@@ -254,11 +263,6 @@ user-location-control.inactive svg { color: #333; }
 
     // The arrows' imputed positions say where the animals are now, so they move on with the clock.
     this.#clock = setInterval(() => this.#drawImputedPositions(), 60_000);
-
-    // Load GeoJSON layers asynchronously
-    this.loadReferenceLayer('viewpoints', () => import('./assets/orcanetwork-viewing-locations.geojson?raw'));
-    this.loadReferenceLayer('hydrophones', () => import('./assets/orcasound-hydrophones.geojson?raw'));
-    this.loadReferenceLayer('salmon', () => import('./assets/orcasalmon-counting-sites.geojson?raw'));
   }
 
   #createMap(): MapLibreMap {
@@ -279,10 +283,27 @@ user-location-control.inactive svg { color: #333; }
     });
   }
 
+  // Taken off the page, the map gives back its WebGL context and its worker; put
+  // back, it is made again where it was, with the same data.
+  override connectedCallback() {
+    super.connectedCallback();
+    if (this.hasUpdated && !this.#map)
+      this.#build();
+  }
+
   override disconnectedCallback() {
     super.disconnectedCallback();
     clearInterval(this.#clock);
     this.drafts.detach();
+    const map = this.#map;
+    if (!map)
+      return;
+    const {lng, lat} = map.getCenter();
+    [this.centerX, this.centerY] = fromLonLat([lng, lat]);
+    this.zoom = permalinkZoom(map.getZoom());
+    map.remove();
+    this.#map = undefined;
+    this.#loaded = false;
   }
 
   #setData(id: SourceId, data: FeatureCollection) {

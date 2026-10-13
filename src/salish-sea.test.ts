@@ -83,6 +83,9 @@ vi.mock('maplibre-gl', async (importOriginal) => ({
     fitBounds() {}
     easeTo() {}
     getBounds() { return {contains: () => true}; }
+    getCenter() { return {lng: -123, lat: 48.5}; }
+    getZoom() { return 8; }
+    remove() {}
     getContainer() { return this.#container; }
   },
 }));
