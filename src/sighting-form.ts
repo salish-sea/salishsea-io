@@ -3,7 +3,7 @@ import { customElement, property, query, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import { licenseCodes, acartiaExtent } from './constants.ts';
 import { Temporal } from "temporal-polyfill";
-import { distanceLabel, MAX_ACCURACY_M, sightingDraftsContext, type DraftPoints, type LonLat, type SightingDraft, type SightingDrafts } from "./sighting-drafts.ts";
+import { distanceLabel, MAX_ACCURACY_M, SUGGESTED_FRACTION, SUGGESTED_MIN_M, sightingDraftsContext, type DraftPoints, type LonLat, type SightingDraft, type SightingDrafts } from "./sighting-drafts.ts";
 import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
 import { distance as getDistance } from "@turf/distance";
@@ -589,7 +589,7 @@ export default class SightingForm extends LitElement {
                 }}>
                 <span class="unit">m</span>
               </div>
-              ${this.suggestedFrom !== null && field.state.value !== '' ? html`<div class="field-hint">Suggested: a quarter of the ${distanceLabel(this.suggestedFrom)} from observer to subject. Change it if you can judge better.</div>` : ''}
+              ${this.suggestedFrom !== null && field.state.value !== '' ? html`<div class="field-hint">${suggestionHint(this.suggestedFrom)}</div>` : ''}
               ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
             </div>
           </label>
@@ -911,6 +911,8 @@ export default class SightingForm extends LitElement {
       accuracy: parseAccuracy(values.accuracy),
       suggested: this.#suggesting,
     });
+    // A copy can arrive with both points, and so with a suggestion the field hasn't heard of.
+    this.onPointsChanged(this.#draft);
     this.updateSubjectProps();
   }
 
@@ -948,6 +950,13 @@ declare global {
   interface HTMLElementTagNameMap {
     "sighting-form": SightingForm;
   }
+}
+
+/** The line under a suggested accuracy, saying how it was worked out from the distance between the points. */
+function suggestionHint(distance: number): string {
+  return distance * SUGGESTED_FRACTION < SUGGESTED_MIN_M
+    ? `Suggested: ${SUGGESTED_MIN_M} m, the least we suggest, as the subject is only ${distanceLabel(distance)} from the observer. Change it if you can judge better.`
+    : `Suggested: a quarter of the ${distanceLabel(distance)} from observer to subject. Change it if you can judge better.`;
 }
 
 /** The accuracy field's complaint, if any: a whole number of metres, or empty. */

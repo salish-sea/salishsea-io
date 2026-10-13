@@ -61,7 +61,7 @@ export function suggestedAccuracy(observer: LonLat | null, subject: LonLat | nul
   return roundRadius(Math.max(SUGGESTED_MIN_M, getDistance(observer, subject) * 1000 * SUGGESTED_FRACTION));
 }
 export const SUGGESTED_FRACTION = 0.25;
-const SUGGESTED_MIN_M = 20;
+export const SUGGESTED_MIN_M = 20;
 
 /** "±250 m", "±1.2 km". */
 export function radiusLabel(metres: number): string {
@@ -227,7 +227,10 @@ export class SightingDrafts {
     if (which !== 'radius') {
       draft.set(which, lonLat);
     } else if (draft.subject && from) {
-      const radius = from.radius + getDistance(draft.subject, lonLat) * 1000 - from.distance;
+      const distance = getDistance(draft.subject, lonLat) * 1000;
+      // Let go where it was pressed, the handle leaves a typed 125 m as it is, unrounded.
+      if (distance === from.distance) return;
+      const radius = from.radius + distance - from.distance;
       draft.setAccuracy(radius < 1 ? null : roundRadius(radius));
     }
   }
