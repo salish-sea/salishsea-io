@@ -78,6 +78,10 @@ export class ObsMap extends LitElement {
   /** A frame asked for before the map existed or had a size. */
   #pendingFrame: Extent | null = null;
   #clock: ReturnType<typeof setInterval> | undefined;
+  /** This browser can't make a map; put back on the page, it doesn't try (or report) again. */
+  #cannotDraw = false;
+  /** Stops waiting for a size to frame a region in, handing the region back for the next map. */
+  #stopWaitingToFrame: (() => void) | null = null;
 
   /** Which reference layers are drawn (GH #453). A change made with the map's own control is dispatched as `layers-change`. */
   @property({attribute: false})
@@ -197,7 +201,9 @@ user-location-control.inactive svg { color: #333; }
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
-    this.#build();
+    // Removed before its first render finished, it waits to be put back.
+    if (this.isConnected)
+      this.#build();
     // Load GeoJSON layers asynchronously
     this.loadReferenceLayer('viewpoints', () => import('./assets/orcanetwork-viewing-locations.geojson?raw'));
     this.loadReferenceLayer('hydrophones', () => import('./assets/orcasound-hydrophones.geojson?raw'));
@@ -216,6 +222,7 @@ user-location-control.inactive svg { color: #333; }
       // browser is no fault of ours, but how many visitors it leaves without a map
       // is worth knowing (OpenLayers drew on a plain canvas, which every browser
       // has), so it goes to Sentry as one issue, ignored until it escalates.
+      this.#cannotDraw = true;
       if (err instanceof GPUInitializationError)
         reportError(this, "This browser can't draw the map. The list of sightings still works.", {cause: err, fingerprint: ['maplibre-no-webgl2']});
       else
@@ -247,7 +254,10 @@ user-location-control.inactive svg { color: #333; }
 
     map.on('load', () => {
       this.#loaded = true;
-      addImages(map).catch(err => console.error('Failed to load map icons:', err));
+      addImages(map).catch(err => {
+        // An icon that arrived after the map was taken off the page has nowhere to go.
+        if (map === this.#map) console.error('Failed to load map icons:', err);
+      });
       for (const [id, data] of this.#data)
         map.getSource<GeoJSONSource>(id)!.setData(data);
       this.#applyVisibility();
@@ -287,7 +297,7 @@ user-location-control.inactive svg { color: #333; }
   // back, it is made again where it was, with the same data.
   override connectedCallback() {
     super.connectedCallback();
-    if (this.hasUpdated && !this.#map)
+    if (this.hasUpdated && !this.#map && !this.#cannotDraw)
       this.#build();
   }
 
@@ -295,6 +305,8 @@ user-location-control.inactive svg { color: #333; }
     super.disconnectedCallback();
     clearInterval(this.#clock);
     this.drafts.detach();
+    this.#stopWaitingToFrame?.();
+    this.skipNextMoveEvent = false;
     const map = this.#map;
     if (!map)
       return;
@@ -515,12 +527,19 @@ user-location-control.inactive svg { color: #333; }
       this.zoomToExtent(extent);
       return;
     }
+    this.#stopWaitingToFrame?.();
     const onResize = () => {
       if (container.clientWidth === 0 || container.clientHeight === 0) return;
       map.off('resize', onResize);
+      this.#stopWaitingToFrame = null;
       this.zoomToExtent(extent);
     };
     map.on('resize', onResize);
+    this.#stopWaitingToFrame = () => {
+      map.off('resize', onResize);
+      this.#stopWaitingToFrame = null;
+      this.#pendingFrame = extent;
+    };
   }
 
   #userLocationShown = false;

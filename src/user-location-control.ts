@@ -27,6 +27,8 @@ type State = {
 };
 export default class UserLocationControl implements IControl {
   readonly #container = document.createElement('div');
+  /** Stops watching, if it is: what taking the control off the map has to do. */
+  readonly #stop: () => void;
 
   constructor({onLocationUpdated, onLocationInactive, onLocationError}: Options) {
     let state: State = {state: 'inactive'};
@@ -53,6 +55,13 @@ export default class UserLocationControl implements IControl {
         state = element.stateObject = {state: 'active', watchID};
       }
     });
+
+    this.#stop = () => {
+      if (state.state !== 'active') return;
+      navigator.geolocation.clearWatch(state.watchID);
+      state = element.stateObject = {state: 'inactive'};
+      onLocationInactive();
+    };
   }
 
   onAdd() {
@@ -60,6 +69,7 @@ export default class UserLocationControl implements IControl {
   }
 
   onRemove() {
+    this.#stop();
     this.#container.remove();
   }
 }
