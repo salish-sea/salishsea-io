@@ -9,7 +9,7 @@ catalogue under `catalogue/` ([decision 064](../docs/decisions/064-what-users-do
 
 Ours, and the source the read-path build reads ([decision 064](../docs/decisions/064-what-users-do-not-write-leaves-postgres-first.md), `salish-9uu.2.1`): who a sighting is attributed to ([decision 006](../docs/decisions/006-provenance-graph.md)), the rules that file a Maplify sighting under a collection by the bracketed source in its comment, the declared order of the enums the derivation compares by, and how far each Orcasound hydrophone can hear, which is a bout's ring on the map until Orcasound states one per bout ([decision 077](../docs/decisions/077-a-ring-shows-where-the-animal-may-have-been.md); every feed starts at our 5 km estimate). [`reference.ts`](../scripts/read-path/reference.ts) loads them into the build under their Postgres names; the format is described there. Whitespace is kept exactly, so a quoted value with a leading space means it.
 
-Migrations wrote these tables, and the signed-in site still reads Postgres's copies until the store replaces it, so **a change here needs a migration making the same change** until then. [`reference.test.ts`](../scripts/read-path/reference.test.ts) fails in CI when a fresh migration replay and the files disagree.
+Migrations wrote these tables once; Postgres is retired, so these files are their only copy.
 
 ## `catalogue/` — the individuals, their designations and nicknames, the social groups, the parties, the haul-out sites
 

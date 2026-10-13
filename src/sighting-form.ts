@@ -914,7 +914,7 @@ export function accuracyValidator(value: string): string | undefined {
 /** The metres the accuracy field holds, or null when it holds none. */
 function parseAccuracy(value: string): number | null {
   const metres = Number(value.trim());
-  return value.trim() !== '' && Number.isInteger(metres) && metres >= 1 ? metres : null;
+  return value.trim() !== '' && Number.isInteger(metres) && metres >= 1 && metres <= MAX_ACCURACY_M ? metres : null;
 }
 
 /** The longitude and latitude a location input holds, or null when it holds none. */

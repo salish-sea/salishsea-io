@@ -25,10 +25,22 @@ export type DraftPoints = Record<DraftPoint, LonLat | null> & {
   accuracy: number | null;
 };
 
+/**
+ * What the pointer holds. A ring's handle remembers the radius and the pointer's
+ * distance from the subject when the drag began: the drag changes the radius by how
+ * far the pointer moves, so the handle needn't sit exactly on a ring too small to
+ * reach, and pressing it changes nothing.
+ */
+type Held = {draft: SightingDraft, which: Grip, from?: {radius: number, distance: number}};
+
 /** The widest ring the handle draws, as the write API takes it. */
 export const MAX_ACCURACY_M = 100_000;
-/** Where the handle waits, in pixels east of the subject, until a radius is set. */
-const UNSET_HANDLE_PX = 24;
+/**
+ * The nearest the handle comes to the subject, in pixels: where it waits until a
+ * radius is set, and where it stays while the ring is smaller than that on screen, so
+ * it never covers the subject's dot or takes its drag.
+ */
+const HANDLE_MIN_PX = 24;
 
 /** A radius rounded to two significant figures, so a drag lands on 1,200 m and not 1,187. */
 export function roundRadius(metres: number): number {
@@ -63,7 +75,7 @@ export class SightingDrafts {
   #map: MapLibreMap | undefined;
   readonly #drafts = new Set<SightingDraft>();
   /** The point being dragged, or placed, while a gesture is under way. */
-  #dragging: {draft: SightingDraft, which: Grip} | null = null;
+  #dragging: Held | null = null;
   /** The point to place with the next click or tap. */
   #placing: {draft: SightingDraft, which: DraftPoint} | null = null;
   #hover: string | null = null;
@@ -104,7 +116,7 @@ export class SightingDrafts {
     map.on('touchcancel', e => this.#up(e));
     // The map hears a mouse released only over itself. Released anywhere else,
     // or with the window losing focus mid-drag, the drag ends where it is.
-    // The handle of a ring not yet set sits a fixed distance on screen from its subject.
+    // The handle never comes nearer its subject than a fixed distance on screen.
     map.on('zoomend', () => this.render());
     window.addEventListener('mouseup', this.#stopOnWindow);
     window.addEventListener('blur', this.#stopOnWindow);
@@ -174,29 +186,40 @@ export class SightingDrafts {
     if (!target) return;
     // No pan or box zoom: this gesture is ours.
     e.preventDefault();
-    this.#dragging = target;
-    this.#drag(target, e.lngLat.toArray());
+    const lonLat: LonLat = e.lngLat.toArray();
+    if (target.which === 'radius' && target.draft.subject) {
+      this.#dragging = {...target, from: {radius: target.draft.accuracy ?? 0, distance: getDistance(target.draft.subject, lonLat) * 1000}};
+    } else {
+      this.#dragging = target;
+      this.#drag(target, lonLat);
+    }
     this.#cursor();
   }
 
-  /** Move what is held to where the pointer is: a point there, or the ring's edge through it. */
-  #drag({draft, which}: {draft: SightingDraft, which: Grip}, lonLat: LonLat) {
-    if (which !== 'radius')
+  /**
+   * Move what is held to where the pointer is: a point there, or the ring wider or
+   * narrower by as much as the pointer has moved away from or toward the subject.
+   * Drawn in to nothing, the ring goes, as clearing the field does.
+   */
+  #drag({draft, which, from}: Held, lonLat: LonLat) {
+    if (which !== 'radius') {
       draft.set(which, lonLat);
-    else if (draft.subject)
-      draft.setAccuracy(roundRadius(getDistance(draft.subject, lonLat) * 1000));
+    } else if (draft.subject && from) {
+      const radius = from.radius + getDistance(draft.subject, lonLat) * 1000 - from.distance;
+      draft.setAccuracy(radius < 1 ? null : roundRadius(radius));
+    }
   }
 
   /**
-   * Where a draft's ring handle is: on the ring's east edge, or, before a radius is
-   * set, a little east of the subject, which is a distance on screen and so moves
-   * with the zoom.
+   * Where a draft's ring handle is: on the ring's east edge, but never nearer the
+   * subject than HANDLE_MIN_PX, a distance on screen that moves with the zoom.
    */
   #handleAt(draft: SightingDraft): LonLat | null {
     if (!draft.subject || !this.#map) return null;
-    if (draft.accuracy) return eastOf(draft.subject, draft.accuracy);
     const {x, y} = this.#map.project(draft.subject);
-    return this.#map.unproject([x + UNSET_HANDLE_PX, y]).toArray();
+    const edge = draft.accuracy ? eastOf(draft.subject, draft.accuracy) : null;
+    if (edge && this.#map.project(edge).x >= x + HANDLE_MIN_PX) return edge;
+    return this.#map.unproject([x + HANDLE_MIN_PX, y]).toArray();
   }
 
   #move(e: MapMouseEvent | MapTouchEvent) {
@@ -276,6 +299,7 @@ export class SightingDraft {
 
   /** Ring the subject with `metres`, or take the ring away with `null`. The form hears about it either way. */
   setAccuracy(metres: number | null) {
+    if (metres === this.accuracy) return;
     this.accuracy = metres;
     this.#changed();
   }

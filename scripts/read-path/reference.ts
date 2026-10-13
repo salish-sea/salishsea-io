@@ -26,7 +26,11 @@ import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 export const REFERENCE_DIR = path.join(import.meta.dirname, '..', '..', 'data', 'reference');
 
 /** A reference table: where it lives in the snapshot, its file, and its columns in order. */
-export type ReferenceTable = {table: string, file: string, columns: readonly (readonly [string, string])[]};
+export type ReferenceTable = {
+    table: string, file: string, columns: readonly (readonly [string, string])[],
+    /** A column no two rows may share, where a duplicate would multiply the rows a join makes. */
+    unique?: string,
+};
 
 /** The enum types the build reads: the derivation's, and the catalogue's vocabularies. */
 const ENUMS = [
@@ -44,6 +48,8 @@ export const REFERENCE: readonly ReferenceTable[] = [
         // and an estimate.
         table: 'public.hydrophones', file: 'hydrophones.tsv',
         columns: [['feed_id', 'VARCHAR'], ['slug', 'VARCHAR'], ['name', 'VARCHAR'], ['hearing_range_m', 'INTEGER']],
+        // A feed twice would give each of its bouts' occurrences twice.
+        unique: 'feed_id',
     },
     {
         table: 'public.providers', file: 'providers.tsv',
@@ -111,6 +117,10 @@ export async function loadReference(conn: DuckDBConnection, catalog: string, dir
         const count = await conn.runAndReadAll(`SELECT count(*) FROM ${catalog}.${ref.table}`);
         const rows = Number(count.getRows()[0]![0]);
         if (rows === 0) throw new Error(`${ref.file}: no rows`);
+        if (ref.unique) {
+            const dup = await conn.runAndReadAll(`SELECT ${ref.unique} FROM ${catalog}.${ref.table} GROUP BY 1 HAVING count(*) > 1 LIMIT 1`);
+            if (dup.getRows().length) throw new Error(`${ref.file}: ${ref.unique} ${String(dup.getRows()[0]![0])} appears twice`);
+        }
         console.log(`${ref.table}: ${rows} rows`);
     }
     // By name, not by count: a misspelled type would otherwise load as an extra one and
