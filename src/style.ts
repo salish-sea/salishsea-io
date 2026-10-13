@@ -97,6 +97,25 @@ export function occurrenceProperties(occurrence: Occurrence): OccurrenceProperti
   return properties;
 }
 
+/**
+ * Sources whose `accuracy` says how far the animal may have been from its point, not
+ * how well the observer's phone knew where the observer was (decision 077): our own
+ * sightings, whose author states it, and Orcasound's bouts, whose hydrophone's hearing
+ * range it is. Only these are drawn as a ring; iNaturalist's and HappyWhale's values,
+ * which describe the observer or the coordinates' precision, are not (decision 029).
+ */
+const ANIMAL_POSITION_SOURCES = new Set(['direct', 'orcasound']);
+
+/** The radius in metres to ring an occurrence with, or null when it states none we draw. */
+export function uncertaintyRadius({accuracy, provider_slug}: Pick<Occurrence, 'accuracy' | 'provider_slug'>): number | null {
+  return accuracy && accuracy > 0 && ANIMAL_POSITION_SOURCES.has(provider_slug ?? '') ? accuracy : null;
+}
+
+/** A ring's fill and edge, in its taxon's colour (decision 077). */
+export function ringColours(color: string) {
+  return {fill: rgba(color, 0.08), edge: rgba(color, 0.6)};
+}
+
 const selected: ExpressionSpecification = ['boolean', ['feature-state', 'selected'], false];
 const hovered: ExpressionSpecification = ['boolean', ['feature-state', 'hover'], false];
 
@@ -222,7 +241,7 @@ const empty = {type: 'FeatureCollection', features: []} as const;
 /** The map's sources, all GeoJSON in longitude and latitude, empty until filled. */
 export const SOURCES = [
   'mask', 'haulouts', 'haulout-rings', 'viewpoints', 'hydrophones', 'salmon',
-  'travel', 'travel-arrows', 'travel-now', 'occurrences', 'selected', 'user-location', 'drawing',
+  'uncertainty', 'travel', 'travel-arrows', 'travel-now', 'occurrences', 'selected', 'user-location', 'drawing',
 ] as const;
 export type SourceId = typeof SOURCES[number];
 
@@ -310,6 +329,14 @@ const LAYERS: LayerSpecification[] = [
   {id: 'salmon', type: 'symbol', source: 'salmon',
     layout: {'icon-image': 'salmon', 'icon-allow-overlap': true}},
 
+  // Where the animal may have been, when the source says so (decision 077): a faint
+  // fill in the taxon's colour with a thin dashed edge, the radius true on the water,
+  // under every track, dot and label so it never hides another sighting.
+  {id: 'uncertainty-fill', type: 'fill', source: 'uncertainty',
+    paint: {'fill-color': ['get', 'fill']}},
+  {id: 'uncertainty-edge', type: 'line', source: 'uncertainty',
+    paint: {'line-color': ['get', 'edge'], 'line-width': 1, 'line-dasharray': [3, 3]}},
+
   // A casing under the line, not a heavier line. 2px alone disappears into the
   // Esri basemap's coastline, which is the other half of #271; a white halo
   // separates the track from whatever it crosses without making it louder.
@@ -352,8 +379,13 @@ const LAYERS: LayerSpecification[] = [
     paint: {'circle-radius': 8, 'circle-color': 'rgba(51, 153, 255, 0.8)',
       'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2}},
 
-  // The sighting being drawn in the form: the bearing from observer to subject,
-  // dashed blue with "x km at y°" at its middle.
+  // The sighting being drawn in the form: how far off its subject may be, as a ring
+  // with a handle on its edge to drag it wider or narrower (decision 077)…
+  {id: 'draft-ring-fill', type: 'fill', source: 'drawing', filter: ['==', ['get', 'kind'], 'DraftRing'],
+    paint: {'fill-color': ['get', 'fill']}},
+  {id: 'draft-ring-edge', type: 'line', source: 'drawing', filter: ['==', ['get', 'kind'], 'DraftRing'],
+    paint: {'line-color': ['get', 'edge'], 'line-width': 1.5, 'line-dasharray': [3, 3]}},
+  // …and the bearing from observer to subject, dashed blue with "x km at y°" at its middle.
   {id: 'bearing', type: 'line', source: 'drawing', filter: ['==', ['get', 'kind'], 'Bearing'],
     paint: {'line-color': '#0000ff', 'line-width': 1.5, 'line-dasharray': [2, 4]}},
   {id: 'bearing-label', type: 'symbol', source: 'drawing', filter: ['==', ['get', 'kind'], 'BearingLabel'],
@@ -368,6 +400,16 @@ const LAYERS: LayerSpecification[] = [
       'circle-stroke-width': 3, 'circle-opacity': ['case', hovered, 1, 0], 'circle-stroke-opacity': ['case', hovered, 1, 0]}},
   {id: 'sighter', type: 'symbol', source: 'drawing', filter: ['==', ['get', 'kind'], 'Sighter'],
     layout: {'icon-image': 'sighter', 'icon-allow-overlap': true, 'icon-ignore-placement': true}},
+  // The ring's handle: hollow until a radius is set, with the radius beside it.
+  {id: 'radius-handle', type: 'circle', source: 'drawing', filter: ['==', ['get', 'kind'], 'RadiusHandle'],
+    paint: {'circle-radius': ['case', hovered, 7, 5],
+      'circle-color': ['case', ['get', 'set'], '#ffffff', 'rgba(255, 255, 255, 0.6)'],
+      'circle-stroke-color': ['case', hovered, yellow, '#1f2937'], 'circle-stroke-width': ['case', hovered, 3, 1.5]}},
+  {id: 'radius-label', type: 'symbol', source: 'drawing', filter: ['all', ['==', ['get', 'kind'], 'RadiusHandle'], ['get', 'set']],
+    layout: {'text-field': ['get', 'label'], 'text-font': sans, 'text-size': 10,
+      'text-anchor': 'left', 'text-offset': [0.9, 0],
+      'icon-image': 'bearing-label', 'icon-text-fit': 'both', 'icon-text-fit-padding': [1, 3, 0, 3],
+      'text-allow-overlap': true, 'icon-allow-overlap': true}},
 ];
 
 /** The layers whose features a click on the map can select. */

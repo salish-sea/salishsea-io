@@ -3,7 +3,7 @@ import { customElement, property, query, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import { licenseCodes, acartiaExtent } from './constants.ts';
 import { Temporal } from "temporal-polyfill";
-import { sightingDraftsContext, type DraftPoints, type LonLat, type SightingDraft, type SightingDrafts } from "./sighting-drafts.ts";
+import { MAX_ACCURACY_M, sightingDraftsContext, type DraftPoints, type LonLat, type SightingDraft, type SightingDrafts } from "./sighting-drafts.ts";
 import { repeat } from "lit/directives/repeat.js";
 import {createRef, ref} from 'lit/directives/ref.js';
 import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
@@ -92,6 +92,8 @@ export type SightingFormData = {
   photo_license: License;
   photos: Photo[];
   subject_location: string;
+  /** How far the animal may have been from the subject location, in metres (decision 077); empty when not stated. */
+  accuracy: string;
   entity_id: string;
   travel_direction: TravelDirection | '';
   url: string;
@@ -108,6 +110,7 @@ export function newSighting(): SightingFormData {
     photo_license: getPhotoLicense(),
     photos: [],
     subject_location: '',
+    accuracy: '',
     entity_id: lastEntityChoice(),
     travel_direction: '',
     url: '',
@@ -124,6 +127,9 @@ export function observationToFormData(observation: Occurrence): SightingFormData
     photo_license: observation.photos[0]?.license || getPhotoLicense(),
     photos: observation.photos.map(photo => ({id: newPhotoId(), state: 'attached' as const, thumb: photo.thumb || photo.src, url: photo.src})),
     subject_location: `${observation.location.lat.toFixed(4)}, ${observation.location.lon.toFixed(4)}`,
+    // Only our own sightings' accuracy is how far off the animal was; another source's
+    // describes something else (decision 077), so a copy of one starts without it.
+    accuracy: observation.provider_slug === 'direct' && observation.accuracy ? String(observation.accuracy) : '',
     entity_id: observation.taxon.entity_id ?? DEFAULT_ENTITY,
     travel_direction: observation.direction || '',
     url: observation.url || '',
@@ -293,6 +299,11 @@ export default class SightingForm extends LitElement {
     .input-with-buttons button {
       flex-shrink: 0;
     }
+    .input-with-buttons .unit {
+      color: var(--slate-500, #64748b);
+      flex-shrink: 0;
+      font-size: 0.875rem;
+    }
     .thumbnails {
       display: flex;
       flex-wrap: wrap;
@@ -360,6 +371,9 @@ export default class SightingForm extends LitElement {
   @query('input[name=subject_location]', true)
   private subjectLocationInput: HTMLInputElement | undefined
 
+  @query('input[name=accuracy]', true)
+  private accuracyInput: HTMLInputElement | undefined
+
   private photosInputRef = createRef<HTMLInputElement>()
 
   #form = new TanStackFormController(this, {
@@ -390,7 +404,7 @@ export default class SightingForm extends LitElement {
         observed_from: observer ? {lon: observer[0], lat: observer[1]} : null,
         photos,
         location: {lon: subject[0], lat: subject[1]},
-        accuracy: null,
+        accuracy: parseAccuracy(value.accuracy),
         entity_id: value.entity_id,
         url: value.url,
       };
@@ -528,6 +542,26 @@ export default class SightingForm extends LitElement {
                   this.onSubjectInputChange(value);
                 }}>
                 <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
+              </div>
+              ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
+            </div>
+          </label>
+        `)}
+        ${this.#form.field({
+          name: 'accuracy',
+          validators: {onChange: ({value}) => accuracyValidator(value)},
+        }, field => html`
+          <label title="How far the animal may have been from the subject location. You can also drag the handle beside the subject on the map.">
+            <span class="label">Give or take</span>
+            <div>
+              <div class="input-with-buttons">
+                <input type="number" name="${field.name}" min="1" max=${MAX_ACCURACY_M} step="1" inputmode="numeric" placeholder="metres, if you know"
+                  .value=${field.state.value} @change=${(e: InputEvent) => {
+                  const value = (e.target as HTMLInputElement).value;
+                  field.handleChange(value);
+                  this.onAccuracyInputChange(value);
+                }}>
+                <span class="unit">m</span>
               </div>
               ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
             </div>
@@ -771,12 +805,21 @@ export default class SightingForm extends LitElement {
     this.#draft?.set('subject', parseLonLat(value));
   }
 
-  /** A point moved, on the map or in an input: make both inputs say where the points are. */
-  private onPointsChanged({observer, subject}: DraftPoints) {
-    if (!this.observerLocationInput || !this.subjectLocationInput)
+  private onAccuracyInputChange(value: string) {
+    if (accuracyValidator(value) === undefined)
+      this.#draft?.setAccuracy(parseAccuracy(value));
+  }
+
+  /** A point or the ring changed, on the map or in an input: make the inputs say where they are. */
+  private onPointsChanged({observer, subject, accuracy}: DraftPoints) {
+    if (!this.observerLocationInput || !this.subjectLocationInput || !this.accuracyInput)
       return;
-    for (const [input, point] of [[this.observerLocationInput, observer], [this.subjectLocationInput, subject]] as const) {
-      const text = point ? `${point[1].toFixed(4)}, ${point[0].toFixed(4)}` : '';
+    const texts = [
+      [this.observerLocationInput, observer ? `${observer[1].toFixed(4)}, ${observer[0].toFixed(4)}` : ''],
+      [this.subjectLocationInput, subject ? `${subject[1].toFixed(4)}, ${subject[0].toFixed(4)}` : ''],
+      [this.accuracyInput, accuracy ? String(accuracy) : ''],
+    ] as const;
+    for (const [input, text] of texts) {
       if (input.value !== text) {
         input.value = text;
         input.dispatchEvent(new Event('change'));
@@ -817,6 +860,7 @@ export default class SightingForm extends LitElement {
     this.#draft = this.drafts.create(this.sightingId, this.onPointsChanged.bind(this), {
       observer: parseLonLat(values.observer_location),
       subject: parseLonLat(values.subject_location),
+      accuracy: parseAccuracy(values.accuracy),
     });
     this.updateSubjectProps();
   }
@@ -855,6 +899,22 @@ declare global {
   interface HTMLElementTagNameMap {
     "sighting-form": SightingForm;
   }
+}
+
+/** The accuracy field's complaint, if any: a whole number of metres, or empty. */
+export function accuracyValidator(value: string): string | undefined {
+  const text = value.trim();
+  if (text === '')
+    return;
+  const metres = Number(text);
+  if (!Number.isInteger(metres) || metres < 1 || metres > MAX_ACCURACY_M)
+    return `A whole number of metres, from 1 to ${MAX_ACCURACY_M.toLocaleString('en-US')}`;
+}
+
+/** The metres the accuracy field holds, or null when it holds none. */
+function parseAccuracy(value: string): number | null {
+  const metres = Number(value.trim());
+  return value.trim() !== '' && Number.isInteger(metres) && metres >= 1 ? metres : null;
 }
 
 /** The longitude and latitude a location input holds, or null when it holds none. */

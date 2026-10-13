@@ -60,8 +60,10 @@ export function ownOccurrence(sighting: OwnSighting, contributor: Pick<Contribut
     source_url: null,
     organization: null,
     organization_url: null,
-    provider: null,
-    provider_slug: null,
+    // Ours, as the build will say once it publishes the sighting: the summary credits its
+    // author, and the map rings its accuracy (decision 077).
+    provider: 'SalishSea.io Direct',
+    provider_slug: 'direct',
     observed_until: null,
     certainty: null,
   };

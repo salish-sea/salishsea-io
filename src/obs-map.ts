@@ -11,7 +11,7 @@ import { Temporal } from 'temporal-polyfill';
 import './obs-panel.ts';
 import './obs-summary.ts';
 
-import { addImages, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, type SourceId } from './style.ts';
+import { addImages, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, ringColours, uncertaintyRadius, type SourceId } from './style.ts';
 import type { Occurrence } from './types.ts';
 import { imputedPositions, occurrences2segments, placeInSegment, segment2travelLine, travelArrows, type TravelLineProperties } from './segments.ts';
 import { createRef, ref } from 'lit/directives/ref.js';
@@ -440,6 +440,7 @@ user-location-control.inactive svg { color: #333; }
     const placed = segments.flatMap(placeInSegment);
     this.#occurrences = new Map(placed.map(occurrence => [occurrence.id, occurrence]));
     this.#setData('occurrences', {type: 'FeatureCollection', features: compactMap(placed, occurrenceFeature)});
+    this.#setData('uncertainty', {type: 'FeatureCollection', features: compactMap(placed, uncertaintyRing)});
 
     this.#travelLines = compactMap(segments, segment2travelLine);
     this.#setData('travel', {type: 'FeatureCollection', features: this.#travelLines});
@@ -568,6 +569,19 @@ function occurrenceFeature(occurrence: Occurrence): Feature | undefined {
     return undefined;
   }
   return {type: 'Feature', geometry: {type: 'Point', coordinates: [lon, lat]}, properties: occurrenceProperties(occurrence)};
+}
+
+/**
+ * Where the animal may have been, when its source says so (decision 077): a polygon
+ * in longitude and latitude, so its radius is true on the water.
+ */
+function uncertaintyRing(occurrence: Occurrence): Feature | undefined {
+  const radius = uncertaintyRadius(occurrence);
+  const {lat, lon} = occurrence.location;
+  if (!radius || lon == null || lat == null)
+    return undefined;
+  const ring = circle([lon, lat], radius / 1000, {steps: 64, units: 'kilometers'});
+  return {...ring, properties: ringColours(occurrenceProperties(occurrence).color)};
 }
 
 function hauloutFeature({id, name, location}: HauloutSite): Feature {

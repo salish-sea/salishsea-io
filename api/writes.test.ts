@@ -206,7 +206,7 @@ describe('a sighting anyone may read by id (salish-9uu.5)', () => {
                 contributor_id: owner.contributor.id, location: {lon: -123.1, lat: 48.5}, direction: 'north',
                 taxon: {entity_id: 'SSA:0000900', vernacular_name: 'Orca', scientific_name: 'Orcinus orca'},
                 photos: [{src: 'https://salishsea.io/media/a.jpg', license: 'cc-by'}, {src: 'https://salishsea.io/media/b.jpg', license: 'cc-by'}],
-                provider_slug: null, observed_until: null,
+                provider_slug: 'direct', accuracy: 50, observed_until: null,
             });
             expect(occurrence['observed_at']).toBe(isoMicros(new Date('2026-10-05T17:00:00Z')));
             expect((await fetch(`${base}/api/sightings/01977c2a-b313-77a9-8433-000000000000`)).status).toBe(404);
