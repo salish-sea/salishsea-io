@@ -1,7 +1,7 @@
 import { LitElement, css, html } from 'lit'
 import type { PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js'
-import { AttributionControl, Map as MapLibreMap, NavigationControl, setWorkerUrl } from 'maplibre-gl';
+import { AttributionControl, GPUInitializationError, Map as MapLibreMap, NavigationControl, setWorkerUrl } from 'maplibre-gl';
 import type { GeoJSONSource, LngLatBoundsLike, MapGeoJSONFeature, MapMouseEvent, PointLike } from 'maplibre-gl';
 import maplibreCSS from 'maplibre-gl/dist/maplibre-gl.css?url';
 import maplibreWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
@@ -203,8 +203,12 @@ user-location-control.inactive svg { color: #333; }
     try {
       map = this.#map = this.#createMap();
     } catch (err) {
-      // MapLibre needs WebGL2; without it the rest of the page still works.
-      reportError(this, "This browser can't draw the map. The list of sightings still works.", {cause: err, capture: false});
+      // MapLibre needs WebGL2; without it the rest of the page still works, and
+      // the browser is no fault of ours. Any other failure here is.
+      if (err instanceof GPUInitializationError)
+        reportError(this, "This browser can't draw the map. The list of sightings still works.", {cause: err, capture: false});
+      else
+        reportError(this, "Couldn't draw the map. The list of sightings still works.", {cause: err});
       return;
     }
 

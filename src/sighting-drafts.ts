@@ -107,9 +107,10 @@ export class SightingDrafts {
     return !!(this.#dragging || this.#placing);
   }
 
-  /** @internal Start placing a point, or stop if any placement is under way. */
+  /** @internal Start placing a point; pressed again for the same point, stop. */
   place(draft: SightingDraft, which: DraftPoint) {
-    this.#placing = this.#placing ? null : {draft, which};
+    const same = this.#placing?.draft === draft && this.#placing.which === which;
+    this.#placing = same ? null : {draft, which};
     this.#cursor();
   }
 
