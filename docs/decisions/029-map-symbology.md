@@ -33,7 +33,7 @@ The trigger was "N" for a river otter. The scheme's real failure is that it cann
 2. **Each segment head carries a label.** Because a singleton is a segment of one, that means in practice every occurrence is labelled — see "Why labelling everything is affordable".
 3. **The label is up to two lines in one box**: identity on line one, and for multi-point tracks only, a track summary on line two.
 4. **Killer whales keep their pod letter** — `J pod`, `Biggs`, `SRKW`. That part of the existing scheme is real information to the audience and survives.
-5. **Location uncertainty is not encoded.** See "Rejected".
+5. **Location uncertainty is not encoded.** See "Rejected". *Amended 2026-10-12 by [077](077-a-ring-shows-where-the-animal-may-have-been.md): a ring is drawn where the stated uncertainty describes the animal (our own sightings, Orcasound bouts); the rest of this item and its rejection below still hold for iNaturalist and HappyWhale.*
 
 ## Why labelling everything is affordable
 
