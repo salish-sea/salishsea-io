@@ -416,7 +416,7 @@ export default class SalishSea extends LitElement {
     this.addEventListener('clone-sighting', (evt) => {
       const sighting = (evt as CloneSightingEvent).detail;
       const clone = {...sighting, id: v7()};
-      this.panelRef.value!.editObservation(clone)
+      this.panelRef.value!.editObservation(clone, {copy: true})
         .catch(err => reportError(this, "Couldn't open a copy of that sighting. Please try again.", {cause: err}));
     });
     this.addEventListener('edit-observation', (evt) => {

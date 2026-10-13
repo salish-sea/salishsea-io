@@ -210,7 +210,8 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
          o.count,
          o.direction,
          {'lat': o.subject_location_lat, 'lon': o.subject_location_lon} AS location,
-         CAST(NULL AS INTEGER) AS accuracy,
+         -- How far the animal may have been from that point, as its author said (077).
+         o.accuracy,
          coalesce((
            SELECT list({'src': p.href, 'thumb': CAST(NULL AS VARCHAR), 'license': p.license_code,
                         'mimetype': CAST(NULL AS VARCHAR), 'attribution': 'someone'} ORDER BY p.seq)
@@ -276,7 +277,9 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
          CAST(NULL AS INTEGER) AS count,
          CAST(NULL AS VARCHAR) AS direction,
          {'lat': b.location_lat, 'lon': b.location_lon} AS location,
-         CAST(NULL AS INTEGER) AS accuracy,
+         -- How far the hydrophone can hear: where the animals may have been, which the
+         -- map rings (decision 077). Our estimate, until orcasite states one per bout.
+         h.hearing_range_m AS accuracy,
          CAST([] AS STRUCT(src VARCHAR, thumb VARCHAR, license VARCHAR, mimetype VARCHAR, attribution VARCHAR)[]) AS photos,
          b.started_at AS observed_at,
          CAST(NULL AS STRUCT(lat DOUBLE, lon DOUBLE)) AS observed_from,
@@ -298,6 +301,7 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
          tx.certainty
   FROM source_acoustic_bouts b
   JOIN per_species tx ON tx.bout_id = b.id
+  LEFT JOIN public.hydrophones h ON h.feed_id = b.feed_id
   LEFT JOIN taxon_for tf ON tf.entity_id = tx.taxon_entity_id
   LEFT JOIN public.providers prov ON prov.id = b.provider_id
   LEFT JOIN public.collections col ON col.id = b.collection_id

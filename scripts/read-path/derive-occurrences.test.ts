@@ -95,7 +95,7 @@ describe('armsFor', () => {
         'happywhale.media': 'happywhale.media',
         'public.observations': 'public.observations', 'public.observation_photos': 'public.observation_photos',
         'public.contributors': 'public.contributors',
-        'orcasound.bouts': 'source_acoustic_bouts', 'orcasound.bout_entities': 'source_acoustic_bout_entities',
+        'orcasound.bouts': 'source_acoustic_bouts', 'orcasound.bout_entities': 'source_acoustic_bout_entities', 'public.hydrophones': 'public.hydrophones',
     };
 
     const HELPERS = ['sources.sql', 'shared.sql', 'lookups.sql', 'maplify-collection.sql', 'extract.sql'];

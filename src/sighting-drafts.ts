@@ -1,9 +1,10 @@
 import { createContext } from '@lit/context';
 import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent, MapTouchEvent, PointLike } from 'maplibre-gl';
-import type { Feature } from 'geojson';
+import type { Feature, Polygon } from 'geojson';
+import { circle } from '@turf/circle';
 import { bearing as getBearing } from '@turf/bearing';
 import { distance as getDistance } from '@turf/distance';
-import { occurrenceProperties } from './style.ts';
+import { occurrenceProperties, ringColours } from './style.ts';
 import type { Occurrence } from './types.ts';
 
 export type LonLat = [number, number];
@@ -15,9 +16,68 @@ export type SubjectOccurrence = {
   taxon?: Pick<Occurrence['taxon'], 'scientific_name'>;
 };
 export type DraftPoint = 'observer' | 'subject';
+/** What the pointer can take hold of: either point, or the handle on the subject's ring. */
+type Grip = DraftPoint | 'radius';
 
-/** What a form hears whenever one of its points moves, however it was moved. */
-export type DraftPoints = Record<DraftPoint, LonLat | null>;
+/** What a form hears whenever one of its points, or its subject's ring, changes, however it was changed. */
+export type DraftPoints = Record<DraftPoint, LonLat | null> & {
+  /** How far the animal may have been from the subject, in metres (decision 077); null when not stated. */
+  accuracy: number | null;
+  /** True while `accuracy` is our suggestion, which follows the points until the author changes it. */
+  suggested: boolean;
+};
+
+/**
+ * What the pointer holds. A ring's handle remembers the radius and the pointer's
+ * distance from the subject when the drag began: the drag changes the radius by how
+ * far the pointer moves, so the handle needn't sit exactly on a ring too small to
+ * reach, and pressing it changes nothing.
+ */
+type Held = {draft: SightingDraft, which: Grip, from?: {radius: number, distance: number}};
+
+/** The widest ring the handle draws, as the write API takes it. */
+export const MAX_ACCURACY_M = 100_000;
+/**
+ * The nearest the handle comes to the subject, in pixels: where it waits until a
+ * radius is set, and where it stays while the ring is smaller than that on screen, so
+ * it never covers the subject's dot or takes its drag.
+ */
+const HANDLE_MIN_PX = 24;
+
+/** A radius rounded to two significant figures, so a drag lands on 1,200 m and not 1,187. */
+export function roundRadius(metres: number): number {
+  const scale = 10 ** Math.max(0, Math.floor(Math.log10(Math.max(metres, 1))) - 1);
+  return Math.min(MAX_ACCURACY_M, Math.max(1, Math.round(metres / scale) * scale));
+}
+
+/**
+ * How far off a new sighting's animal may have been when its author hasn't said: a
+ * quarter of the distance from observer to subject, since a range judged by eye over
+ * water is often 20 to 30% out and a bearing 10° out adds about a sixth sideways. Never
+ * under 20 m, about what a phone knows of its own position. Null without both points.
+ */
+export function suggestedAccuracy(observer: LonLat | null, subject: LonLat | null): number | null {
+  if (!observer || !subject) return null;
+  return roundRadius(Math.max(SUGGESTED_MIN_M, getDistance(observer, subject) * 1000 * SUGGESTED_FRACTION));
+}
+export const SUGGESTED_FRACTION = 0.25;
+export const SUGGESTED_MIN_M = 20;
+
+/** "±250 m", "±1.2 km". */
+export function radiusLabel(metres: number): string {
+  return metres < 1000 ? `±${metres} m` : `±${(metres / 1000).toLocaleString('en-US', {maximumFractionDigits: 1})} km`;
+}
+
+/** "450 m", "2.0 km": a distance as the form's hint says it. */
+export function distanceLabel(metres: number): string {
+  const rounded = roundRadius(metres);
+  return rounded < 1000 ? `${rounded} m` : `${(metres / 1000).toFixed(1)} km`;
+}
+
+/** The point `metres` due east of `[lon, lat]`. */
+function eastOf([lon, lat]: LonLat, metres: number): LonLat {
+  return [lon + metres / (111_320 * Math.cos(lat * Math.PI / 180)), lat];
+}
 
 /** How close, in pixels, the pointer has to come to a point to grab it: OpenLayers' `Modify` default. */
 const GRAB_TOLERANCE = 10;
@@ -36,7 +96,7 @@ export class SightingDrafts {
   #map: MapLibreMap | undefined;
   readonly #drafts = new Set<SightingDraft>();
   /** The point being dragged, or placed, while a gesture is under way. */
-  #dragging: {draft: SightingDraft, which: DraftPoint} | null = null;
+  #dragging: Held | null = null;
   /** The point to place with the next click or tap. */
   #placing: {draft: SightingDraft, which: DraftPoint} | null = null;
   #hover: string | null = null;
@@ -47,6 +107,8 @@ export class SightingDrafts {
     const draft = new SightingDraft(this, id, onChange);
     draft.observer = initial.observer ?? null;
     draft.subject = initial.subject ?? null;
+    draft.suggested = initial.suggested ?? false;
+    draft.accuracy = draft.suggested ? suggestedAccuracy(draft.observer, draft.subject) : initial.accuracy ?? null;
     this.#drafts.add(draft);
     this.render();
     return draft;
@@ -76,6 +138,8 @@ export class SightingDrafts {
     map.on('touchcancel', e => this.#up(e));
     // The map hears a mouse released only over itself. Released anywhere else,
     // or with the window losing focus mid-drag, the drag ends where it is.
+    // The handle never comes nearer its subject than a fixed distance on screen.
+    map.on('zoomend', () => this.render());
     window.addEventListener('mouseup', this.#stopOnWindow);
     window.addEventListener('blur', this.#stopOnWindow);
     this.render();
@@ -118,13 +182,13 @@ export class SightingDrafts {
     this.#cursor();
   }
 
-  #nearest(point: PointLike): {draft: SightingDraft, which: DraftPoint} | null {
+  #nearest(point: PointLike): {draft: SightingDraft, which: Grip} | null {
     const [px, py] = Array.isArray(point) ? point : [point.x, point.y];
-    let best: {draft: SightingDraft, which: DraftPoint} | null = null;
+    let best: {draft: SightingDraft, which: Grip} | null = null;
     let bestDistance = GRAB_TOLERANCE;
     for (const draft of this.#drafts) {
-      for (const which of ['subject', 'observer'] as const) {
-        const lonLat = draft[which];
+      for (const which of ['radius', 'subject', 'observer'] as const) {
+        const lonLat = which === 'radius' ? this.#handleAt(draft) : draft[which];
         if (!lonLat) continue;
         const {x, y} = this.#map!.project(lonLat);
         const d = Math.hypot(x - px, y - py);
@@ -144,14 +208,48 @@ export class SightingDrafts {
     if (!target) return;
     // No pan or box zoom: this gesture is ours.
     e.preventDefault();
-    this.#dragging = target;
-    target.draft.set(target.which, e.lngLat.toArray());
+    const lonLat: LonLat = e.lngLat.toArray();
+    if (target.which === 'radius' && target.draft.subject) {
+      this.#dragging = {...target, from: {radius: target.draft.accuracy ?? 0, distance: getDistance(target.draft.subject, lonLat) * 1000}};
+    } else {
+      this.#dragging = target;
+      this.#drag(target, lonLat);
+    }
     this.#cursor();
+  }
+
+  /**
+   * Move what is held to where the pointer is: a point there, or the ring wider or
+   * narrower by as much as the pointer has moved away from or toward the subject.
+   * Drawn in to nothing, the ring goes, as clearing the field does.
+   */
+  #drag({draft, which, from}: Held, lonLat: LonLat) {
+    if (which !== 'radius') {
+      draft.set(which, lonLat);
+    } else if (draft.subject && from) {
+      const distance = getDistance(draft.subject, lonLat) * 1000;
+      // Let go where it was pressed, the handle leaves a typed 125 m as it is, unrounded.
+      if (distance === from.distance) return;
+      const radius = from.radius + distance - from.distance;
+      draft.setAccuracy(radius < 1 ? null : roundRadius(radius));
+    }
+  }
+
+  /**
+   * Where a draft's ring handle is: on the ring's east edge, but never nearer the
+   * subject than HANDLE_MIN_PX, a distance on screen that moves with the zoom.
+   */
+  #handleAt(draft: SightingDraft): LonLat | null {
+    if (!draft.subject || !this.#map) return null;
+    const {x, y} = this.#map.project(draft.subject);
+    const edge = draft.accuracy ? eastOf(draft.subject, draft.accuracy) : null;
+    if (edge && this.#map.project(edge).x >= x + HANDLE_MIN_PX) return edge;
+    return this.#map.unproject([x + HANDLE_MIN_PX, y]).toArray();
   }
 
   #move(e: MapMouseEvent | MapTouchEvent) {
     if (this.#dragging) {
-      this.#dragging.draft.set(this.#dragging.which, e.lngLat.toArray());
+      this.#drag(this.#dragging, e.lngLat.toArray());
       return;
     }
     if (e.type !== 'mousemove') return;
@@ -171,7 +269,7 @@ export class SightingDrafts {
 
   #up(e: MapMouseEvent | MapTouchEvent) {
     if (!this.#dragging) return;
-    if (e.lngLat) this.#dragging.draft.set(this.#dragging.which, e.lngLat.toArray());
+    if (e.lngLat) this.#drag(this.#dragging, e.lngLat.toArray());
     this.#dragging = null;
     this.#placing = null;
     this.#suppressClick = true;
@@ -195,7 +293,7 @@ export class SightingDrafts {
   render() {
     const source = this.#map?.getSource<GeoJSONSource>('drawing');
     if (!source) return;
-    source.setData({type: 'FeatureCollection', features: [...this.#drafts].flatMap(draftFeatures)});
+    source.setData({type: 'FeatureCollection', features: [...this.#drafts].flatMap(draft => draftFeatures(draft, this.#handleAt(draft)))});
   }
 }
 
@@ -203,6 +301,13 @@ export class SightingDrafts {
 export class SightingDraft {
   observer: LonLat | null = null;
   subject: LonLat | null = null;
+  /** How far the animal may have been from the subject, in metres; null when not stated. */
+  accuracy: number | null = null;
+  /**
+   * True while `accuracy` is ours, not the author's: a new sighting suggests one from
+   * the distance between its points, and follows them, until the author sets or clears it.
+   */
+  suggested = false;
   /** What the subject's dot is drawn from: its taxon, direction and identifiers. */
   subjectOccurrence: SubjectOccurrence = {};
 
@@ -219,8 +324,33 @@ export class SightingDraft {
   /** Move a point, or take it off the map with `null`. The form hears about it either way. */
   set(which: DraftPoint, lonLat: LonLat | null) {
     this[which] = lonLat;
+    if (this.suggested) this.accuracy = suggestedAccuracy(this.observer, this.subject);
+    this.#changed();
+  }
+
+  /**
+   * Ring the subject with `metres`, or take the ring away with `null`; either way the
+   * radius is now the author's. Setting the radius it already has changes nothing, so
+   * the form writing a suggestion into its field doesn't adopt it. The form hears about
+   * any change.
+   */
+  setAccuracy(metres: number | null) {
+    if (metres === this.accuracy) return;
+    this.accuracy = metres;
+    this.suggested = false;
+    this.#changed();
+  }
+
+  /** The author has taken the field over without a usable radius yet: stop suggesting, and keep the ring as it is. */
+  keepAccuracy() {
+    if (!this.suggested) return;
+    this.suggested = false;
+    this.#changed();
+  }
+
+  #changed() {
     this.drafts.render();
-    this.onChange({observer: this.observer, subject: this.subject});
+    this.onChange({observer: this.observer, subject: this.subject, accuracy: this.accuracy, suggested: this.suggested});
   }
 
   setSubjectOccurrence(occurrence: SubjectOccurrence) {
@@ -238,10 +368,10 @@ export class SightingDraft {
   }
 }
 
-const featureId = (draft: SightingDraft, which: DraftPoint) => `${draft.id}/${which}`;
+const featureId = (draft: SightingDraft, which: Grip) => `${draft.id}/${which}`;
 
-function draftFeatures(draft: SightingDraft): Feature[] {
-  const {observer, subject} = draft;
+function draftFeatures(draft: SightingDraft, handle: LonLat | null): Feature[] {
+  const {observer, subject, accuracy, suggested} = draft;
   const features: Feature[] = [];
   if (observer)
     features.push({type: 'Feature', geometry: {type: 'Point', coordinates: observer},
@@ -254,8 +384,16 @@ function draftFeatures(draft: SightingDraft): Feature[] {
       identifiers: identifiers ?? null,
       taxon: taxon ?? {scientific_name: null},
     } as Occurrence;
+    const properties = occurrenceProperties(occurrence);
+    if (accuracy) {
+      const ring = circle(subject, accuracy / 1000, {steps: 64, units: 'kilometers'}) as Feature<Polygon>;
+      features.push({...ring, properties: {id: `${draft.id}/ring`, kind: 'DraftRing', ...ringColours(properties.color)}});
+    }
     features.push({type: 'Feature', geometry: {type: 'Point', coordinates: subject},
-      properties: {...occurrenceProperties(occurrence), kind: 'Sighting'}});
+      properties: {...properties, kind: 'Sighting'}});
+    if (handle)
+      features.push({type: 'Feature', geometry: {type: 'Point', coordinates: handle},
+        properties: {id: featureId(draft, 'radius'), kind: 'RadiusHandle', set: !!accuracy, label: accuracy ? `${suggested ? 'suggested ' : ''}${radiusLabel(accuracy)}` : ''}});
   }
   if (observer && subject) {
     const bearing = (getBearing(observer, subject) + 360) % 360;

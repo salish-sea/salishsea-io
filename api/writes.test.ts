@@ -64,9 +64,24 @@ describe("saving a sighting, as upsert_observation and its row-level security di
         expect(photos()).toEqual([{seq: 1, href: 'https://salishsea.io/media/c.jpg'}]);
     });
 
-    test('an empty body is none, and accuracy is not stored, as Postgres did', () => {
+    test('an empty body is none', () => {
         saveSighting(store, owner, ID, input({body: '   '}));
-        expect(row()).toMatchObject({body: null, accuracy: null});
+        expect(row()).toMatchObject({body: null});
+    });
+
+    test('accuracy is stored, and changed or cleared by a later save (decision 077)', () => {
+        saveSighting(store, owner, ID, input());
+        expect(row()).toMatchObject({accuracy: 50});
+        saveSighting(store, owner, ID, input({accuracy: 120}));
+        expect(row()).toMatchObject({accuracy: 120});
+        saveSighting(store, owner, ID, input({accuracy: null}));
+        expect(row()).toMatchObject({accuracy: null});
+    });
+
+    test('a save that says nothing of accuracy, from a page older than the field, leaves it as it was', () => {
+        saveSighting(store, owner, ID, input());
+        saveSighting(store, owner, ID, input({accuracy: undefined}));
+        expect(row()).toMatchObject({accuracy: 50});
     });
 
     test.each([
@@ -76,6 +91,9 @@ describe("saving a sighting, as upsert_observation and its row-level security di
         [{location: {lon: 200, lat: 0}}, /location/],
         [{observed_at: 'yesterday'}, /a time/],
         [{photos: [{src: 'javascript:alert(1)', license: 'cc-by'}]}, /https URL/],
+        [{accuracy: 0}, /metres/],
+        [{accuracy: 12.5}, /metres/],
+        [{accuracy: 200_000}, /metres/],
     ])('a sighting that Postgres would refuse is refused: %j', (over, error) => {
         expect(() => input(over)).toThrow(error);
     });
@@ -196,7 +214,7 @@ describe('a sighting anyone may read by id (salish-9uu.5)', () => {
                 contributor_id: owner.contributor.id, location: {lon: -123.1, lat: 48.5}, direction: 'north',
                 taxon: {entity_id: 'SSA:0000900', vernacular_name: 'Orca', scientific_name: 'Orcinus orca'},
                 photos: [{src: 'https://salishsea.io/media/a.jpg', license: 'cc-by'}, {src: 'https://salishsea.io/media/b.jpg', license: 'cc-by'}],
-                provider_slug: null, observed_until: null,
+                provider_slug: 'direct', accuracy: 50, observed_until: null,
             });
             expect(occurrence['observed_at']).toBe(isoMicros(new Date('2026-10-05T17:00:00Z')));
             expect((await fetch(`${base}/api/sightings/01977c2a-b313-77a9-8433-000000000000`)).status).toBe(404);

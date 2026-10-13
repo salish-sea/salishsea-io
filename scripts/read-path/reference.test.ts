@@ -61,6 +61,33 @@ describe('reference data (decision 064)', () => {
         }
     });
 
+    test('a hydrophone listed twice is refused, since each of its bouts would come out twice', async () => {
+        const dir = await mkdtemp(path.join(tmpdir(), 'reference-'));
+        try {
+            for (const ref of REFERENCE) await copyFile(path.join(REFERENCE_DIR, ref.file), path.join(dir, ref.file));
+            const file = path.join(dir, 'hydrophones.tsv');
+            const lines = (await readFile(file, 'utf8')).trimEnd().split('\n');
+            await writeFile(file, [...lines, lines[1]!].join('\n') + '\n');
+            await expect(loaded(dir, async () => null)).rejects.toThrow(/appears twice/);
+        } finally {
+            await rm(dir, {recursive: true, force: true});
+        }
+    });
+
+    test('a hydrophone without a range is refused, since its bouts would have no ring', async () => {
+        const dir = await mkdtemp(path.join(tmpdir(), 'reference-'));
+        try {
+            for (const ref of REFERENCE) await copyFile(path.join(REFERENCE_DIR, ref.file), path.join(dir, ref.file));
+            const file = path.join(dir, 'hydrophones.tsv');
+            const lines = (await readFile(file, 'utf8')).trimEnd().split('\n');
+            lines[1] = lines[1]!.replace(/\t\d+$/, '\t');
+            await writeFile(file, lines.join('\n') + '\n');
+            await expect(loaded(dir, async () => null)).rejects.toThrow(/hearing_range_m above zero/);
+        } finally {
+            await rm(dir, {recursive: true, force: true});
+        }
+    });
+
     test('a file with a value its column cannot hold is refused, not loaded', async () => {
         const dir = await mkdtemp(path.join(tmpdir(), 'reference-'));
         try {

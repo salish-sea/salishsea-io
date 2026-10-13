@@ -3,8 +3,10 @@ import { customElement, property, query, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import { licenseCodes, acartiaExtent } from './constants.ts';
 import { Temporal } from "temporal-polyfill";
-import { sightingDraftsContext, type DraftPoints, type LonLat, type SightingDraft, type SightingDrafts } from "./sighting-drafts.ts";
+import { distanceLabel, MAX_ACCURACY_M, SUGGESTED_FRACTION, SUGGESTED_MIN_M, sightingDraftsContext, type DraftPoints, type LonLat, type SightingDraft, type SightingDrafts } from "./sighting-drafts.ts";
 import { repeat } from "lit/directives/repeat.js";
+import { classMap } from "lit/directives/class-map.js";
+import { distance as getDistance } from "@turf/distance";
 import {createRef, ref} from 'lit/directives/ref.js';
 import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
 import {Task} from '@lit/task';
@@ -92,6 +94,8 @@ export type SightingFormData = {
   photo_license: License;
   photos: Photo[];
   subject_location: string;
+  /** How far the animal may have been from the subject location, in metres (decision 077); empty when not stated. */
+  accuracy: string;
   entity_id: string;
   travel_direction: TravelDirection | '';
   url: string;
@@ -108,6 +112,7 @@ export function newSighting(): SightingFormData {
     photo_license: getPhotoLicense(),
     photos: [],
     subject_location: '',
+    accuracy: '',
     entity_id: lastEntityChoice(),
     travel_direction: '',
     url: '',
@@ -124,6 +129,9 @@ export function observationToFormData(observation: Occurrence): SightingFormData
     photo_license: observation.photos[0]?.license || getPhotoLicense(),
     photos: observation.photos.map(photo => ({id: newPhotoId(), state: 'attached' as const, thumb: photo.thumb || photo.src, url: photo.src})),
     subject_location: `${observation.location.lat.toFixed(4)}, ${observation.location.lon.toFixed(4)}`,
+    // Only our own sightings' accuracy is how far off the animal was; another source's
+    // describes something else (decision 077), so a copy of one starts without it.
+    accuracy: observation.provider_slug === 'direct' && observation.accuracy ? String(observation.accuracy) : '',
     entity_id: observation.taxon.entity_id ?? DEFAULT_ENTITY,
     travel_direction: observation.direction || '',
     url: observation.url || '',
@@ -190,6 +198,10 @@ export default class SightingForm extends LitElement {
   @property({attribute: false, type: Object})
   initialValues: Partial<SightingFormData> = {}
 
+  /** True for a sighting not yet saved, a blank one or a copy of another; false while editing a saved one. */
+  @property({attribute: false, type: Boolean})
+  isNew = true
+
   // Subscribed, so the form doesn't depend on <obs-map> having handed over its
   // drafts before the form first renders.
   @consume({context: sightingDraftsContext, subscribe: true})
@@ -198,6 +210,17 @@ export default class SightingForm extends LitElement {
 
   /** This sighting's observer and subject on the map. */
   #draft: SightingDraft | undefined
+
+  /**
+   * True while the accuracy field holds our suggestion rather than the author's value:
+   * from the start for a new sighting, until the author sets or clears it (decision 077).
+   * Kept here as well as on the draft, so a draft made again keeps suggesting.
+   */
+  #suggesting = false
+
+  /** The distance from observer to subject, in metres, while the field holds a suggestion made from it. */
+  @state()
+  private suggestedFrom: number | null = null
 
   static styles = css`
     :host {
@@ -293,6 +316,11 @@ export default class SightingForm extends LitElement {
     .input-with-buttons button {
       flex-shrink: 0;
     }
+    .input-with-buttons .unit {
+      color: var(--slate-500, #64748b);
+      flex-shrink: 0;
+      font-size: 0.875rem;
+    }
     .thumbnails {
       display: flex;
       flex-wrap: wrap;
@@ -301,6 +329,15 @@ export default class SightingForm extends LitElement {
     }
     select {
       max-width: 100%;
+    }
+    input.suggested {
+      color: var(--slate-500, #64748b);
+      font-style: italic;
+    }
+    .field-hint {
+      color: var(--slate-500, #64748b);
+      font-size: 0.6875rem;
+      margin-top: 0.25rem;
     }
     .field-error {
       color: #d32f2f;
@@ -360,6 +397,9 @@ export default class SightingForm extends LitElement {
   @query('input[name=subject_location]', true)
   private subjectLocationInput: HTMLInputElement | undefined
 
+  @query('input[name=accuracy]', true)
+  private accuracyInput: HTMLInputElement | undefined
+
   private photosInputRef = createRef<HTMLInputElement>()
 
   #form = new TanStackFormController(this, {
@@ -390,7 +430,7 @@ export default class SightingForm extends LitElement {
         observed_from: observer ? {lon: observer[0], lat: observer[1]} : null,
         photos,
         location: {lon: subject[0], lat: subject[1]},
-        accuracy: null,
+        accuracy: parseAccuracy(value.accuracy),
         entity_id: value.entity_id,
         url: value.url,
       };
@@ -529,6 +569,27 @@ export default class SightingForm extends LitElement {
                 }}>
                 <button @click=${this.placeSubject} title="Locate on map" type="button"><svg class="inline-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">${clickTargetIcon}</svg></button>
               </div>
+              ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
+            </div>
+          </label>
+        `)}
+        ${this.#form.field({
+          name: 'accuracy',
+          validators: {onChange: ({value}) => accuracyValidator(value)},
+        }, field => html`
+          <label title="How far the animal may have been from the subject location. You can also drag the handle beside the subject on the map.">
+            <span class="label">Give or take</span>
+            <div>
+              <div class="input-with-buttons">
+                <input type="number" name="${field.name}" class=${classMap({suggested: this.suggestedFrom !== null})} min="1" max=${MAX_ACCURACY_M} step="1" inputmode="numeric" placeholder="metres, if you know"
+                  .value=${field.state.value} @change=${(e: InputEvent) => {
+                  const value = (e.target as HTMLInputElement).value;
+                  field.handleChange(value);
+                  this.onAccuracyInputChange(value);
+                }}>
+                <span class="unit">m</span>
+              </div>
+              ${this.suggestedFrom !== null && field.state.value !== '' ? html`<div class="field-hint">${suggestionHint(this.suggestedFrom)}</div>` : ''}
               ${field.state.meta.errors.map(err => html`<div class="field-error">${err}</div>`)}
             </div>
           </label>
@@ -771,20 +832,50 @@ export default class SightingForm extends LitElement {
     this.#draft?.set('subject', parseLonLat(value));
   }
 
-  /** A point moved, on the map or in an input: make both inputs say where the points are. */
+  private onAccuracyInputChange(value: string) {
+    if (accuracyValidator(value) === undefined)
+      this.#draft?.setAccuracy(parseAccuracy(value));
+    else
+      // Text the author is still correcting is theirs too: the suggestion stops following the points.
+      this.#draft?.keepAccuracy();
+  }
+
+  /** The radius the accuracy field last heard from the map. */
+  #syncedAccuracy: number | null | undefined = undefined;
+
+  /** A point or the ring changed, on the map or in an input: make the inputs say where they are. */
   private onPointsChanged({observer, subject}: DraftPoints) {
-    if (!this.observerLocationInput || !this.subjectLocationInput)
+    if (!this.observerLocationInput || !this.subjectLocationInput || !this.accuracyInput)
       return;
-    for (const [input, point] of [[this.observerLocationInput, observer], [this.subjectLocationInput, subject]] as const) {
-      const text = point ? `${point[1].toFixed(4)}, ${point[0].toFixed(4)}` : '';
+    const write = (input: HTMLInputElement, text: string) => {
       if (input.value !== text) {
         input.value = text;
         input.dispatchEvent(new Event('change'));
       }
+    };
+    write(this.observerLocationInput, observer ? `${observer[1].toFixed(4)}, ${observer[0].toFixed(4)}` : '');
+    write(this.subjectLocationInput, subject ? `${subject[1].toFixed(4)}, ${subject[0].toFixed(4)}` : '');
+    // Writing a point's input moves the point again, to where four decimals put it, and
+    // with it a suggested radius; so the radius is read from the draft only now, after
+    // that, and not from what this call was told.
+    const draft = this.#draft;
+    if (!draft)
+      return;
+    const {accuracy, suggested} = draft;
+    this.#suggesting = suggested;
+    this.suggestedFrom = suggested && draft.observer && draft.subject ? getDistance(draft.observer, draft.subject) * 1000 : null;
+    // Only when the radius itself changed: moving a point mustn't overwrite text the
+    // author is still correcting, such as an invalid 0, with the radius before it.
+    if (accuracy !== this.#syncedAccuracy) {
+      this.#syncedAccuracy = accuracy;
+      write(this.accuracyInput, accuracy ? String(accuracy) : '');
     }
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
+    // A new sighting without an accuracy of its own starts with a suggested one; one
+    // being edited keeps what was saved, including nothing.
+    this.#suggesting = this.isNew && !this.initialValues.accuracy;
     for (const [field, value] of Object.entries(this.initialValues)) {
       const typedField = field as keyof typeof this.initialValues;
       if (typedField === 'photos') {
@@ -817,7 +908,11 @@ export default class SightingForm extends LitElement {
     this.#draft = this.drafts.create(this.sightingId, this.onPointsChanged.bind(this), {
       observer: parseLonLat(values.observer_location),
       subject: parseLonLat(values.subject_location),
+      accuracy: parseAccuracy(values.accuracy),
+      suggested: this.#suggesting,
     });
+    // A copy can arrive with both points, and so with a suggestion the field hasn't heard of.
+    this.onPointsChanged(this.#draft);
     this.updateSubjectProps();
   }
 
@@ -855,6 +950,29 @@ declare global {
   interface HTMLElementTagNameMap {
     "sighting-form": SightingForm;
   }
+}
+
+/** The line under a suggested accuracy, saying how it was worked out from the distance between the points. */
+function suggestionHint(distance: number): string {
+  return distance * SUGGESTED_FRACTION < SUGGESTED_MIN_M
+    ? `Suggested: ${SUGGESTED_MIN_M} m, the least we suggest, as the subject is only ${distanceLabel(distance)} from the observer. Change it if you can judge better.`
+    : `Suggested: a quarter of the ${distanceLabel(distance)} from observer to subject. Change it if you can judge better.`;
+}
+
+/** The accuracy field's complaint, if any: a whole number of metres, or empty. */
+export function accuracyValidator(value: string): string | undefined {
+  const text = value.trim();
+  if (text === '')
+    return;
+  const metres = Number(text);
+  if (!Number.isInteger(metres) || metres < 1 || metres > MAX_ACCURACY_M)
+    return `A whole number of metres, from 1 to ${MAX_ACCURACY_M.toLocaleString('en-US')}`;
+}
+
+/** The metres the accuracy field holds, or null when it holds none. */
+function parseAccuracy(value: string): number | null {
+  const metres = Number(value.trim());
+  return value.trim() !== '' && Number.isInteger(metres) && metres >= 1 && metres <= MAX_ACCURACY_M ? metres : null;
 }
 
 /** The longitude and latitude a location input holds, or null when it holds none. */
