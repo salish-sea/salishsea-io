@@ -233,6 +233,10 @@ export class ObsPanel extends LitElement {
   @property({attribute: false})
   private sightingForForm = {...newSighting(), id: v7()};
 
+  /** Whether the form holds a sighting not yet saved, a blank one or a copy, which may suggest its accuracy (decision 077). */
+  @state()
+  private sightingIsNew = true;
+
   private formRef = createRef<SightingForm>();
   private calendarRef = createRef<DateCalendar>();
   private seekInputRef = createRef<HTMLInputElement>();
@@ -311,6 +315,7 @@ export class ObsPanel extends LitElement {
           @cancel-edit=${this.onCancelEdit}
           @sighting-saved=${this.onSightingSaved}
           .initialValues=${sighting}
+          .isNew=${this.sightingIsNew}
           sightingId=${id}
           date=${this.date}
         ></sighting-form>
@@ -329,16 +334,19 @@ export class ObsPanel extends LitElement {
     `;
   }
 
-  async editObservation(observation: Occurrence) {
+  /** Open the form on a saved sighting, or with `copy`, on a new one copied from it. */
+  async editObservation(observation: Occurrence, {copy = false} = {}) {
     await this.doShowForm();
     // Prefer PST8PDT for consistency with sighting-form validation
     this.sightingForForm = observationToFormData(observation);
+    this.sightingIsNew = copy;
     this.formRef.value!.scrollIntoView();
   }
 
   private onCancelEdit() {
     this.showForm = false;
     this.sightingForForm = {...newSighting(), id: v7()};
+    this.sightingIsNew = true;
   }
 
   /** A new read-path build landed: bring the calendar's circles up to date. */
@@ -349,6 +357,7 @@ export class ObsPanel extends LitElement {
   private onSightingSaved() {
     this.showForm = false;
     this.sightingForForm = {...newSighting(), id: v7()};
+    this.sightingIsNew = true;
     // The new sighting belongs to some day's volume; drop the cached counts so
     // its circle grows straight away.
     this.calendarRef.value?.refresh();

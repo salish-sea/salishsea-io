@@ -70,7 +70,8 @@ export function radiusLabel(metres: number): string {
 
 /** "450 m", "2.0 km": a distance as the form's hint says it. */
 export function distanceLabel(metres: number): string {
-  return metres < 1000 ? `${roundRadius(metres)} m` : `${(metres / 1000).toFixed(1)} km`;
+  const rounded = roundRadius(metres);
+  return rounded < 1000 ? `${rounded} m` : `${(metres / 1000).toFixed(1)} km`;
 }
 
 /** The point `metres` due east of `[lon, lat]`. */
@@ -333,6 +334,13 @@ export class SightingDraft {
   setAccuracy(metres: number | null) {
     if (metres === this.accuracy) return;
     this.accuracy = metres;
+    this.suggested = false;
+    this.#changed();
+  }
+
+  /** The author has taken the field over without a usable radius yet: stop suggesting, and keep the ring as it is. */
+  keepAccuracy() {
+    if (!this.suggested) return;
     this.suggested = false;
     this.#changed();
   }

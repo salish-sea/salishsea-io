@@ -30,6 +30,7 @@ describe('distanceLabel', () => {
   it('says metres under a kilometre and kilometres above', () => {
     expect(distanceLabel(452)).toBe('450 m');
     expect(distanceLabel(2012)).toBe('2.0 km');
+    expect(distanceLabel(996)).toBe('1.0 km');
   });
 });
 
@@ -59,6 +60,13 @@ describe('a draft that suggests its accuracy', () => {
     d.setAccuracy(null);
     d.set('subject', close);
     expect(d.accuracy).toBeNull();
+  });
+
+  it("stops following once the author has typed something it can't use yet", () => {
+    const {d} = draft({observer: shore, subject: twoKm, suggested: true});
+    d.keepAccuracy();
+    d.set('subject', close);
+    expect(d).toMatchObject({accuracy: 500, suggested: false});
   });
 
   it("doesn't suggest for a sighting that isn't new", () => {

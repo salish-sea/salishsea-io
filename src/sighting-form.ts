@@ -198,6 +198,10 @@ export default class SightingForm extends LitElement {
   @property({attribute: false, type: Object})
   initialValues: Partial<SightingFormData> = {}
 
+  /** True for a sighting not yet saved, a blank one or a copy of another; false while editing a saved one. */
+  @property({attribute: false, type: Boolean})
+  isNew = true
+
   // Subscribed, so the form doesn't depend on <obs-map> having handed over its
   // drafts before the form first renders.
   @consume({context: sightingDraftsContext, subscribe: true})
@@ -831,39 +835,47 @@ export default class SightingForm extends LitElement {
   private onAccuracyInputChange(value: string) {
     if (accuracyValidator(value) === undefined)
       this.#draft?.setAccuracy(parseAccuracy(value));
+    else
+      // Text the author is still correcting is theirs too: the suggestion stops following the points.
+      this.#draft?.keepAccuracy();
   }
 
   /** The radius the accuracy field last heard from the map. */
   #syncedAccuracy: number | null | undefined = undefined;
 
   /** A point or the ring changed, on the map or in an input: make the inputs say where they are. */
-  private onPointsChanged({observer, subject, accuracy, suggested}: DraftPoints) {
+  private onPointsChanged({observer, subject}: DraftPoints) {
     if (!this.observerLocationInput || !this.subjectLocationInput || !this.accuracyInput)
       return;
-    this.#suggesting = suggested;
-    this.suggestedFrom = suggested && observer && subject ? getDistance(observer, subject) * 1000 : null;
-    const texts: [HTMLInputElement, string][] = [
-      [this.observerLocationInput, observer ? `${observer[1].toFixed(4)}, ${observer[0].toFixed(4)}` : ''],
-      [this.subjectLocationInput, subject ? `${subject[1].toFixed(4)}, ${subject[0].toFixed(4)}` : ''],
-    ];
-    // Only when the radius itself changed: moving a point mustn't overwrite text the
-    // author is still correcting, such as an invalid 0, with the radius before it.
-    if (accuracy !== this.#syncedAccuracy) {
-      this.#syncedAccuracy = accuracy;
-      texts.push([this.accuracyInput, accuracy ? String(accuracy) : '']);
-    }
-    for (const [input, text] of texts) {
+    const write = (input: HTMLInputElement, text: string) => {
       if (input.value !== text) {
         input.value = text;
         input.dispatchEvent(new Event('change'));
       }
+    };
+    write(this.observerLocationInput, observer ? `${observer[1].toFixed(4)}, ${observer[0].toFixed(4)}` : '');
+    write(this.subjectLocationInput, subject ? `${subject[1].toFixed(4)}, ${subject[0].toFixed(4)}` : '');
+    // Writing a point's input moves the point again, to where four decimals put it, and
+    // with it a suggested radius; so the radius is read from the draft only now, after
+    // that, and not from what this call was told.
+    const draft = this.#draft;
+    if (!draft)
+      return;
+    const {accuracy, suggested} = draft;
+    this.#suggesting = suggested;
+    this.suggestedFrom = suggested && draft.observer && draft.subject ? getDistance(draft.observer, draft.subject) * 1000 : null;
+    // Only when the radius itself changed: moving a point mustn't overwrite text the
+    // author is still correcting, such as an invalid 0, with the radius before it.
+    if (accuracy !== this.#syncedAccuracy) {
+      this.#syncedAccuracy = accuracy;
+      write(this.accuracyInput, accuracy ? String(accuracy) : '');
     }
   }
 
   protected firstUpdated(_changedProperties: PropertyValues): void {
-    // A new sighting, with no subject yet, starts with a suggested accuracy; one being
-    // edited keeps what was saved, including nothing.
-    this.#suggesting = !this.initialValues.subject_location && !this.initialValues.accuracy;
+    // A new sighting without an accuracy of its own starts with a suggested one; one
+    // being edited keeps what was saved, including nothing.
+    this.#suggesting = this.isNew && !this.initialValues.accuracy;
     for (const [field, value] of Object.entries(this.initialValues)) {
       const typedField = field as keyof typeof this.initialValues;
       if (typedField === 'photos') {
