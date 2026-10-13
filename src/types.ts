@@ -56,13 +56,12 @@ export type Occurrence = {
 } & SegmentPlacement;
 
 /**
- * Where an occurrence sits in its travel segment, hung on the map feature by
- * {@link segment2features} and read back out by the style.
+ * Where an occurrence sits in its travel segment, set by
+ * {@link placeInSegment} and read by the style.
  *
  * It is not part of the record. A sighting has no intrinsic "last": the same
  * occurrence is a segment head on a day's map and a mid-track point once the
- * next sighting arrives. It lives on the Occurrence because the style receives
- * `feature.getProperties()`, and OpenLayers gives it no other channel.
+ * next sighting arrives.
  *
  * The head is the LAST point, not the first — the most recent place the animal
  * was, which is what a reader is looking for and what the label speaks for.

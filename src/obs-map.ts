@@ -1,38 +1,22 @@
 import { LitElement, css, html } from 'lit'
 import type { PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js'
-import OpenLayersMap from "ol/Map.js";
-import View from "ol/View.js";
-import Select, { SelectEvent } from 'ol/interaction/Select.js';
-import {defaults as defaultInteractions} from 'ol/interaction/defaults.js';
+import { AttributionControl, GPUInitializationError, Map as MapLibreMap, NavigationControl, setWorkerUrl } from 'maplibre-gl';
+import type { GeoJSONSource, LngLatBoundsLike, MapGeoJSONFeature, MapMouseEvent, PointLike } from 'maplibre-gl';
+import maplibreCSS from 'maplibre-gl/dist/maplibre-gl.css?url';
+import maplibreWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
+import type { Feature, FeatureCollection, LineString } from 'geojson';
+import { circle } from '@turf/circle';
+import { Temporal } from 'temporal-polyfill';
 import './obs-panel.ts';
 import './obs-summary.ts';
 
-// imports below these lines smell like they support functionality that should be factored out
-import VectorLayer from 'ol/layer/Vector.js';
-import TileLayer from 'ol/layer/Tile.js';
-import XYZ from 'ol/source/XYZ.js';
-import { editStyle, hauloutStyle, hydrophoneStyle, occurrenceStyle, outsideRegionStyle, salmonCountingSiteStyle, selectedObservationStyle, sighterStyle, travelStyle, userLocationStyle, viewingLocationStyle} from './style.ts';
-import Point from 'ol/geom/Point.js';
-import Polygon, { circular } from 'ol/geom/Polygon.js';
-import VectorSource from 'ol/source/Vector.js';
-import Feature from 'ol/Feature.js';
-import Modify from 'ol/interaction/Modify.js';
-import GeoJSON from 'ol/format/GeoJSON.js';
-import { all } from 'ol/loadingstrategy.js';
-import { never } from 'ol/events/condition.js';
-import { unByKey } from 'ol/Observable.js';
-import { containsCoordinate, type Extent } from 'ol/extent.js';
-import type { Coordinate } from 'ol/coordinate.js';
-import type MapBrowserEvent from 'ol/MapBrowserEvent.js';
-import olCSS from 'ol/ol.css?url';
+import { addImages, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, type SourceId } from './style.ts';
 import type { Occurrence } from './types.ts';
-import { LineString } from 'ol/geom.js';
-import { occurrences2segments, segment2features, segment2travelLine } from './segments.ts';
-import { fromLonLat, transformExtent } from 'ol/proj.js';
+import { imputedPositions, occurrences2segments, placeInSegment, segment2travelLine, travelArrows, type TravelLineProperties } from './segments.ts';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { compactMap } from './utils.ts';
-import type { Extent as RegionExtent } from './constants.ts';
+import type { Extent } from './constants.ts';
 import UserLocationControl from './user-location-control.ts';
 import LayerControl from './layer-control.ts';
 import { DEFAULT_LAYERS, type ReferenceLayer } from './reference-layers.ts';
@@ -40,77 +24,64 @@ import { hauloutPath, type HauloutSite } from './catalog.ts';
 import { fetchStaticHauloutSites } from './read-path.ts';
 import { reportError } from './report-error.ts';
 import { geolocationErrorIsReportable } from './geolocation-message.ts';
+import { fromLonLat, mapZoom, permalinkZoom, toLonLat } from './map-view.ts';
+import { SightingDrafts } from './sighting-drafts.ts';
 
-const sphericalMercator = 'EPSG:3857';
+setWorkerUrl(maplibreWorker);
 
 export type LayersChangeDetail = Set<ReferenceLayer>;
 
+/** The map's position as permalinks carry it: EPSG:3857 metres and OpenLayers' zoom (see map-view.ts). */
 export type MapMoveDetail = {
   center: [number, number];
   zoom: number;
 }
 
-// This is a thin wrapper around imperative code driving OpenLayers.
-// The code is informed by the `openlayers-elements` project, but we avoid taking it as a dependency.
+const emptyCollection = (): FeatureCollection => ({type: 'FeatureCollection', features: []});
+
+// The clock the imputed positions are measured against: now, or the time a
+// `?d=…&t=…` link asks for, so a past day can be seen as it looked then.
+let nowOverride: number | null = null;
+(() => {
+  const params = new URLSearchParams(document.location.search);
+  const d = params.get('d');
+  const t = params.get('t');
+  if (d && t) {
+    try {
+      nowOverride = Temporal.PlainDate.from(d).toZonedDateTime({timeZone: 'PST8PDT', plainTime: t}).epochMilliseconds;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+})();
+const now = () => nowOverride ?? Date.now();
+
+/** A square of `tolerance` pixels each way around a point, for hit-testing. */
+const around = ({x, y}: {x: number, y: number}, tolerance: number): [PointLike, PointLike] =>
+  [[x - tolerance, y - tolerance], [x + tolerance, y + tolerance]];
+
+// A thin wrapper around imperative code driving MapLibre GL (decision 076).
 @customElement('obs-map')
 export class ObsMap extends LitElement {
-  public drawingSource = new VectorSource();
-  public ocurrenceSource = new VectorSource<Feature<Point>>({
-    features: [],
-    strategy: all,
-  });
-  private occurrenceLayer = new VectorLayer({
-    // Layer-level decluttering is what lets the labels negotiate space, and it
-    // replaces the hand-tuned pixel offsets that still let two identifier
-    // labels overprint near Victoria on an ordinary day (decision 029). It is
-    // per-layer, so it does NOT stop an occurrence label colliding with a
-    // hydrophone; that is a separate problem, and the reason infrastructure now
-    // draws underneath.
-    declutter: true,
-    source: this.ocurrenceSource,
-    style: (feature) => occurrenceStyle(feature.getProperties() as Occurrence, false),
-  });
-  private travelSource = new VectorSource<Feature<LineString>>({
-    features: [],
-    strategy: all,
-  });
-  private travelLayer = new VectorLayer({
-    source: this.travelSource,
-    style: (line, res) => travelStyle(line as Feature<LineString>, res),
-  })
-  private viewingLocationsLayer = new VectorLayer({
-    // Markers appear a level earlier than before; the labels — the actual
-    // clutter — stay gated behind zoom 12 in viewingLocationStyle.
-    minZoom: 11,
-    source: new VectorSource(),
-    style: viewingLocationStyle,
-  });
-  private hydrophoneLayer = new VectorLayer({
-    source: new VectorSource(),
-    style: hydrophoneStyle,
-  })
-  private salmonCountingSiteLayer = new VectorLayer({
-    source: new VectorSource(),
-    style: salmonCountingSiteStyle,
-  })
-  // Loaded the first time it is switched on (decision 058): hidden by default,
-  // so most visits never ask for it.
-  private hauloutLayer = new VectorLayer({
-    // The names declutter one another: the atlas maps some sites at several
-    // points a few hundred metres apart, all under one name.
-    declutter: true,
-    source: new VectorSource<Feature<Point>>({
-      attributions: 'Haul-out sites after Jeffries et al. 2000, <i>Atlas of Seal and Sea Lion Haulout Sites in Washington</i>, WDFW.',
-    }),
-    style: hauloutStyle,
-  });
-  private hauloutsLoaded: Promise<void> | null = null;
-  private referenceLayers: Record<ReferenceLayer, VectorLayer> = {
-    viewpoints: this.viewingLocationsLayer,
-    hydrophones: this.hydrophoneLayer,
-    salmon: this.salmonCountingSiteLayer,
-    haulouts: this.hauloutLayer,
-  };
+  /** The sightings open forms are drawing. Exists before the map does, so a form can start one at any time. */
+  public readonly drafts = new SightingDrafts();
+
+  #map: MapLibreMap | undefined;
+  #loaded = false;
+  /** What each source should hold. Kept so data set before the map has loaded is drawn once it has. */
+  readonly #data = new Map<SourceId, FeatureCollection>();
+  /** The day's occurrences by id, as placed in their segments: what a click on a dot hands on. */
+  #occurrences = new Map<string, Occurrence>();
+  #travelLines: Feature<LineString, TravelLineProperties>[] = [];
+  #selectedId: string | null = null;
+  #hauloutsLoaded: Promise<void> | null = null;
+  /** A frame asked for before the map existed or had a size. */
+  #pendingFrame: Extent | null = null;
+  #clock: ReturnType<typeof setInterval> | undefined;
+  /** This browser can't make a map; put back on the page, it doesn't try (or report) again. */
+  #cannotDraw = false;
+  /** Stops waiting for a size to frame a region in, handing the region back for the next map. */
+  #stopWaitingToFrame: (() => void) | null = null;
 
   /** Which reference layers are drawn (GH #453). A change made with the map's own control is dispatched as `layers-change`. */
   @property({attribute: false})
@@ -120,11 +91,6 @@ export class ObsMap extends LitElement {
     visible: this.visibleLayers,
     onChange: (detail: LayersChangeDetail) =>
       this.dispatchEvent(new CustomEvent('layers-change', {bubbles: true, composed: true, detail})),
-  });
-  private userLocationFeature = new Feature<Point>(new Point([]));
-  private userLocationLayer = new VectorLayer({
-    source: new VectorSource({features: [this.userLocationFeature]}),
-    style: userLocationStyle,
   });
 
   @property({type: String, reflect: true})
@@ -140,81 +106,18 @@ export class ObsMap extends LitElement {
    * that, you are looking inside the region, and it would only grey the margins.
    */
   @property({attribute: false})
-  public maskExtent: RegionExtent | null = null;
+  public maskExtent: Extent | null = null;
 
-  private maskSource = new VectorSource<Feature<Polygon>>();
-  private maskLayer = new VectorLayer({
-    source: this.maskSource,
-    style: outsideRegionStyle,
-    // Above the basemap, below the occurrences: a sighting that sits just
-    // outside the region (a stale ?o= permalink) must stay visible and
-    // clickable rather than being greyed into the background.
-    zIndex: 1,
-    maxZoom: 9,
-  });
-
-  private modify = new Modify({
-    deleteCondition: never,
-    insertVertexCondition: never,
-    source: this.drawingSource,
-    style: editStyle,
-  });
-  private select = new Select({
-    layers: [this.occurrenceLayer],
-    multi: false,
-    style: selectedObservationStyle,
-  });
-
+  /** The starting centre, in EPSG:3857 metres, as the permalink gives it. */
   @property({type: Number, reflect: true})
   private centerX!: number
 
   @property({type: Number, reflect: true})
   private centerY!: number
 
+  /** The starting zoom, in OpenLayers' numbering, as the permalink gives it. */
   @property({type: Number, reflect: true})
   private zoom!: number
-
-  private view = new View({
-    projection: sphericalMercator,
-    zoom: 9,
-  })
-
-  public map = new OpenLayersMap({
-    interactions: defaultInteractions().extend([this.modify, this.select]),
-    layers: [
-      new TileLayer({
-        source: new XYZ({
-          attributions: 'Base map by Esri and its data providers',
-          urls: [
-            'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
-            'https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
-          ]
-        }),
-      }),
-      new TileLayer({
-        source: new XYZ({
-          // NB: this source is unmaintained
-          url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
-        }),
-      }),
-      this.maskLayer,
-      // Infrastructure under the data. These are places that are always there —
-      // context for reading the map, not things anybody saw today — and drawing
-      // them last let a hydrophone cover a sighting (salish-fll.3).
-      this.hauloutLayer,
-      this.viewingLocationsLayer,
-      this.hydrophoneLayer,
-      this.salmonCountingSiteLayer,
-      this.travelLayer,
-      this.occurrenceLayer,
-      this.userLocationLayer,
-      new VectorLayer({
-        source: this.drawingSource,
-        style: (f) => f.get('kind') === 'Sighter' ? sighterStyle : occurrenceStyle(f.getProperties() as Occurrence),
-      }),
-    ],
-    view: this.view,
-  });
 
   mapRef = createRef<HTMLDivElement>();
 
@@ -229,19 +132,20 @@ export class ObsMap extends LitElement {
 #map {
   flex-grow: 1;
 }
-user-location-control {
-  position: absolute;
-  left: 0.5em;
-  top: 4em;
+user-location-control, layer-control {
+  display: block;
 }
-user-location-control svg { fill: currentColor; }
+user-location-control svg, layer-control svg.inline-icon {
+  fill: currentColor;
+  height: 18px;
+  vertical-align: middle;
+  width: 18px;
+}
 layer-control {
-  right: 0.5em;
-  top: 0.5em;
+  position: relative;
 }
-layer-control svg.inline-icon { fill: currentColor; }
 layer-control .layer-menu {
-  background: var(--ol-background-color, white);
+  background: white;
   border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -280,11 +184,8 @@ layer-control .marker img, layer-control .marker svg {
 }
 user-location-control.active svg { color: rgb(51, 153, 255); }
 user-location-control.error svg { color: red; }
-user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
+user-location-control.inactive svg { color: #333; }
 @media (pointer: coarse) {
-  user-location-control {
-    top: 5.3em;
-  }
   layer-control label {
     font-size: 1rem;
     padding: 0.45em 0;
@@ -292,70 +193,183 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
 }
   `
 
-  constructor() {
-    super();
-    if ('geolocation' in navigator)
-      this.map.addControl(new UserLocationControl({
-        onLocationUpdated: this.onLocationUpdated.bind(this),
-        onLocationInactive: this.onLocationInactive.bind(this),
-        onLocationError: (message, error) =>
-          reportError(this, message, {cause: error, capture: geolocationErrorIsReportable(error)}),
-      }));
-    this.select.on('select', (e: SelectEvent) => {
-      const occurrence = e.selected[0]?.getProperties() || null;
-      const evt = new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: occurrence});
-      this.dispatchEvent(evt);
-    });
-    this.map.addControl(this.layerControl);
-    this.map.on('singleclick', this.onClick.bind(this));
-    this.map.on('pointermove', this.onPointerMove.bind(this));
-    this.map.on('moveend', this.onMoveEnd.bind(this));
-  }
-
   public render() {
     return html`
-      <link rel="stylesheet" href="${olCSS}" type="text/css" />
+      <link rel="stylesheet" href="${maplibreCSS}" type="text/css" />
       <div ${ref(this.mapRef)} id="map"></div>
     `;
   }
 
-  protected onClick(evt: MapBrowserEvent) {
-    if (evt.originalEvent.altKey) {
-      // Prevent the Select from getting this click.
-      return false;
+  public firstUpdated(_changedProperties: PropertyValues): void {
+    // Removed before its first render finished, it waits to be put back.
+    if (this.isConnected)
+      this.#build();
+    // Load GeoJSON layers asynchronously
+    this.loadReferenceLayer('viewpoints', () => import('./assets/orcanetwork-viewing-locations.geojson?raw'));
+    this.loadReferenceLayer('hydrophones', () => import('./assets/orcasound-hydrophones.geojson?raw'));
+    this.loadReferenceLayer('salmon', () => import('./assets/orcasalmon-counting-sites.geojson?raw'));
+  }
+
+  /** Make the map, with everything already set on the element drawn once it has loaded. */
+  #build() {
+    const frame = this.#pendingFrame;
+    this.#pendingFrame = null;
+    let map: MapLibreMap;
+    try {
+      map = this.#map = this.#createMap();
+    } catch (err) {
+      // MapLibre needs WebGL2; without it the rest of the page still works. The
+      // browser is no fault of ours, but how many visitors it leaves without a map
+      // is worth knowing (OpenLayers drew on a plain canvas, which every browser
+      // has), so it goes to Sentry as one issue, ignored until it escalates.
+      this.#cannotDraw = true;
+      if (err instanceof GPUInitializationError)
+        reportError(this, "This browser can't draw the map. The list of sightings still works.", {cause: err, fingerprint: ['maplibre-no-webgl2']});
+      else
+        reportError(this, "Couldn't draw the map. The list of sightings still works.", {cause: err});
+      return;
     }
 
+    // A region asked for before the map existed, framed once it has a size.
+    if (frame)
+      this.frameExtentWhenReady(frame);
+    map.touchZoomRotate.disableRotation();
+    map.keyboard.disableRotation();
+    map.addControl(new NavigationControl({showCompass: false}), 'top-left');
+    if ('geolocation' in navigator)
+      map.addControl(new UserLocationControl({
+        onLocationUpdated: this.onLocationUpdated.bind(this),
+        onLocationInactive: this.onLocationInactive.bind(this),
+        onLocationError: (message, error) =>
+          reportError(this, message, {cause: error, capture: geolocationErrorIsReportable(error)}),
+      }), 'top-left');
+    map.addControl(this.layerControl, 'top-right');
+    map.addControl(new AttributionControl({compact: true}), 'bottom-right');
+    // Folded behind its button from the start, as OpenLayers' was. MapLibre opens
+    // it on a wide map; its own button closes it, keeping its ARIA state right.
+    map.once('load', () => {
+      if (map.getContainer().querySelector('.maplibregl-compact-show'))
+        map.getContainer().querySelector<HTMLButtonElement>('.maplibregl-ctrl-attrib-button')?.click();
+    });
+
+    map.on('load', () => {
+      this.#loaded = true;
+      addImages(map).catch(err => {
+        // An icon that arrived after the map was taken off the page has nowhere to go.
+        if (map === this.#map) console.error('Failed to load map icons:', err);
+      });
+      for (const [id, data] of this.#data)
+        map.getSource<GeoJSONSource>(id)!.setData(data);
+      this.#applyVisibility();
+      this.#select(this.#selectedId);
+      this.drafts.attach(map);
+      // OpenLayers announced the first view as a move, which is what first
+      // writes a position into the URL; keep that.
+      this.onMoveEnd();
+    });
+    map.on('click', this.onClick.bind(this));
+    map.on('mousemove', this.onPointerMove.bind(this));
+    map.on('moveend', this.onMoveEnd.bind(this));
+
+    // The arrows' imputed positions say where the animals are now, so they move on with the clock.
+    this.#clock = setInterval(() => this.#drawImputedPositions(), 60_000);
+  }
+
+  #createMap(): MapLibreMap {
+    return new MapLibreMap({
+      container: this.mapRef.value!,
+      // Absolute, and not built with URL(), which would escape the braces MapLibre fills in.
+      style: baseStyle(`${location.origin}${import.meta.env.BASE_URL}glyphs/{fontstack}/{range}.pbf`),
+      center: toLonLat([this.centerX, this.centerY]),
+      zoom: mapZoom(this.zoom),
+      attributionControl: false,
+      // A north-up map, as it has always been: nothing here reads a rotation.
+      dragRotate: false,
+      pitchWithRotate: false,
+      maxPitch: 0,
+      // No fading labels in and out: every move of a point being dragged
+      // redraws the drawing layer, and would fade its label again each time.
+      fadeDuration: 0,
+    });
+  }
+
+  // Taken off the page, the map gives back its WebGL context and its worker; put
+  // back, it is made again where it was, with the same data.
+  override connectedCallback() {
+    super.connectedCallback();
+    if (this.hasUpdated && !this.#map && !this.#cannotDraw)
+      this.#build();
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    clearInterval(this.#clock);
+    this.drafts.detach();
+    this.#stopWaitingToFrame?.();
+    this.skipNextMoveEvent = false;
+    const map = this.#map;
+    if (!map)
+      return;
+    const {lng, lat} = map.getCenter();
+    [this.centerX, this.centerY] = fromLonLat([lng, lat]);
+    this.zoom = permalinkZoom(map.getZoom());
+    map.remove();
+    this.#map = undefined;
+    this.#loaded = false;
+  }
+
+  #setData(id: SourceId, data: FeatureCollection) {
+    this.#data.set(id, data);
+    if (this.#loaded)
+      this.#map!.getSource<GeoJSONSource>(id)!.setData(data);
+  }
+
+  protected onClick(evt: MapMouseEvent) {
+    if (this.drafts.takeClick())
+      return;
     // The topmost feature only: a sighting drawn over a site is the sighting's
-    // click, which the Select interaction already has.
-    const feature = this.referenceFeatureAt(evt.pixel);
-    const kind = feature?.get('kind');
+    // click, and a site under a sighting is not opened by it.
+    const [top] = this.#map!.queryRenderedFeatures(around(evt.point, 2), {
+      layers: [...OCCURRENCE_LAYERS, ...CLICKABLE_REFERENCE_LAYERS],
+    });
+    const occurrence = top && OCCURRENCE_LAYERS.includes(top.layer.id)
+      ? this.#occurrences.get(top.properties['id'])
+      : undefined;
+    if (occurrence) {
+      if (occurrence.id !== this.#selectedId) {
+        this.#select(occurrence.id);
+        this.dispatchEvent(new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: occurrence}));
+      }
+      return;
+    }
+    if (this.#selectedId) {
+      this.#select(null);
+      this.dispatchEvent(new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: null}));
+    }
+    const kind = top?.properties['kind'];
     if (kind === 'Hydrophone' || kind === 'SalmonCountingSite')
-      window.open(feature!.get('url'), '_blank');
+      window.open(top!.properties['url'], '_blank');
     // Our own page, so the same tab: the map's state, this layer included, is
     // in the URL, and Back returns to it.
     else if (kind === 'Haulout')
-      window.location.assign(hauloutPath({id: feature!.get('id'), name: feature!.get('name')}));
+      window.location.assign(hauloutPath({id: top!.properties['id'], name: top!.properties['name']}));
   }
 
-  private referenceFeatureAt(pixel: number[]) {
-    // Not the mask: outside the region it is the topmost feature everywhere,
-    // and would make every site there unclickable.
-    const top = this.map.forEachFeatureAtPixel(pixel, f => f, {
-      hitTolerance: 2,
-      layerFilter: layer => layer !== this.maskLayer,
-    });
-    return top && ['Hydrophone', 'SalmonCountingSite', 'Haulout'].includes(top.get('kind')) ? top : undefined;
+  #featureAt(point: {x: number, y: number}): MapGeoJSONFeature | undefined {
+    return this.#map!.queryRenderedFeatures(around(point, 2), {
+      layers: [...OCCURRENCE_LAYERS, ...CLICKABLE_REFERENCE_LAYERS],
+    })[0];
   }
 
   // A site's name at any zoom, since its label shows only from zoom 12, and a
   // hand where a click goes somewhere.
-  protected onPointerMove(evt: MapBrowserEvent) {
+  protected onPointerMove(evt: MapMouseEvent) {
     const target = this.mapRef.value;
-    if (evt.dragging || !target)
+    if (!target || this.drafts.busy || this.drafts.hovering || evt.originalEvent.buttons)
       return;
-    const feature = this.referenceFeatureAt(evt.pixel);
-    target.style.cursor = feature ? 'pointer' : '';
-    target.title = feature?.get('name') ?? '';
+    const feature = this.#featureAt(evt.point);
+    this.#map!.getCanvas().style.cursor = feature ? 'pointer' : '';
+    target.title = CLICKABLE_REFERENCE_LAYERS.includes(feature?.layer.id ?? '') ? feature!.properties['name'] ?? '' : '';
   }
 
   private skipNextMoveEvent = false;
@@ -365,252 +379,217 @@ user-location-control.inactive svg { color: var(--ol-subtle-foreground-color); }
       this.skipNextMoveEvent = false;
       return;
     }
+    const {lng, lat} = this.#map!.getCenter();
     const detail: MapMoveDetail = {
-      center: this.view.getCenter() as [number, number],
-      zoom: this.view.getZoom()!
+      center: fromLonLat([lng, lat]),
+      zoom: permalinkZoom(this.#map!.getZoom()),
     };
-    const evt = new CustomEvent('map-move', {bubbles: true, composed: true, detail});
-    this.dispatchEvent(evt);
+    this.dispatchEvent(new CustomEvent('map-move', {bubbles: true, composed: true, detail}));
   }
 
   /**
    * Programmatically set the map view (center and zoom)
-   * @param x - X coordinate in map projection (EPSG:3857)
-   * @param y - Y coordinate in map projection (EPSG:3857)
-   * @param zoom - Zoom level
+   * @param x - X coordinate in EPSG:3857, as permalinks carry it
+   * @param y - Y coordinate in EPSG:3857
+   * @param zoom - Zoom level, in OpenLayers' numbering, as permalinks carry it
    * @param options - Optional configuration
    * @param options.skipEvent - If true, suppresses the 'map-move' event
    */
   public setView(x: number, y: number, zoom: number, options: {skipEvent?: boolean} = {}) {
-    if (options.skipEvent) {
+    if (!this.#map) {
+      this.centerX = x;
+      this.centerY = y;
+      this.zoom = zoom;
+      return;
+    }
+    if (options.skipEvent)
       this.skipNextMoveEvent = true;
-    }
-    this.view.setCenter([x, y]);
-    this.view.setZoom(zoom);
+    this.#map.jumpTo({center: toLonLat([x, y]), zoom: mapZoom(zoom)});
   }
 
-  public firstUpdated(_changedProperties: PropertyValues): void {
-    this.view.setCenter([this.centerX, this.centerY]);
-    this.view.setZoom(this.zoom);
-    this.map.setTarget(this.mapRef.value!);
-    this.mapRef.value!.addEventListener('pointerdown', evt => {
-      if (! evt.altKey)
-        return;
-
-      const pixel = this.map.getEventPixel(evt);
-      const sighting = this.map.getFeaturesAtPixel(pixel).filter(f => f.get('kind') === 'Sighting')[0];
-      if (sighting) {
-        const props = sighting.getProperties();
-        const event = new CustomEvent('clone-sighting', {bubbles: true, composed: true, detail: props});
-        this.dispatchEvent(event);
-      }
-    });
-
-    // Load GeoJSON layers asynchronously
-    this.loadViewingLocations();
-    this.loadHydrophones();
-    this.loadSalmonCountingSites();
-  }
-
-  private async loadViewingLocations() {
+  private async loadReferenceLayer(id: 'viewpoints' | 'hydrophones' | 'salmon', load: () => Promise<{default: string}>) {
     try {
-      const { default: geojsonText } = await import('./assets/orcanetwork-viewing-locations.geojson?raw');
-      const features = new GeoJSON().readFeatures(geojsonText, {
-        dataProjection: 'EPSG:4326',
-        featureProjection: 'EPSG:3857'
-      });
-      this.viewingLocationsLayer.getSource()!.addFeatures(features);
-      this.viewingLocationsLayer.getSource()!.setAttributions(
-        'Sighting Viewpoints by Thorsten Lisker and Alisa Lemire Brooks of Orca Network.'
-      );
+      const {default: geojsonText} = await load();
+      this.#setData(id, JSON.parse(geojsonText) as FeatureCollection);
     } catch (err) {
-      console.error('Failed to load viewing locations:', err);
+      console.error(`Failed to load ${id}:`, err);
     }
   }
 
-  private async loadHydrophones() {
-    try {
-      const { default: geojsonText } = await import('./assets/orcasound-hydrophones.geojson?raw');
-      const features = new GeoJSON().readFeatures(geojsonText, {
-        dataProjection: 'EPSG:4326',
-        featureProjection: 'EPSG:3857'
-      });
-      this.hydrophoneLayer.getSource()!.addFeatures(features);
-    } catch (err) {
-      console.error('Failed to load hydrophones:', err);
-    }
-  }
-
+  // Loaded the first time it is switched on (decision 058): hidden by default,
+  // so most visits never ask for it.
   private loadHaulouts() {
-    this.hauloutsLoaded ??= fetchStaticHauloutSites()
-      .then(sites => this.hauloutLayer.getSource()!.addFeatures(compactMap(sites, hauloutFeature)))
+    this.#hauloutsLoaded ??= fetchStaticHauloutSites()
+      .then(sites => {
+        const located = sites.filter(({location}) => location.lon !== null && location.lat !== null);
+        this.#setData('haulouts', {type: 'FeatureCollection', features: located.map(hauloutFeature)});
+        // A polygon around each site, not a MapLibre circle, which is sized in
+        // pixels: the ring is the site's radius on the water.
+        this.#setData('haulout-rings', {type: 'FeatureCollection', features: located.map(({location, radius_m}) =>
+          circle([location.lon!, location.lat!], radius_m / 1000, {steps: 64, units: 'kilometers'}))});
+      })
       .catch(err => {
         // Not latched, so switching the layer off and on again retries.
-        this.hauloutsLoaded = null;
+        this.#hauloutsLoaded = null;
         reportError(this, "Couldn't load the haul-out sites.", {cause: err});
       });
   }
 
-  private async loadSalmonCountingSites() {
-    try {
-      const { default: geojsonText } = await import('./assets/orcasalmon-counting-sites.geojson?raw');
-      const features = new GeoJSON().readFeatures(geojsonText, {
-        dataProjection: 'EPSG:4326',
-        featureProjection: 'EPSG:3857'
-      });
-      this.salmonCountingSiteLayer.getSource()!.addFeatures(features);
-    } catch (err) {
-      console.error('Failed to load salmon counting sites:', err);
-    }
-  }
-
   public setOccurrences(occurrences: Occurrence[]) {
     const segments = occurrences2segments(occurrences);
-    const features = segments.flatMap(segment2features);
-    this.ocurrenceSource.clear()
-    this.ocurrenceSource.addFeatures(features);
+    const placed = segments.flatMap(placeInSegment);
+    this.#occurrences = new Map(placed.map(occurrence => [occurrence.id, occurrence]));
+    this.#setData('occurrences', {type: 'FeatureCollection', features: compactMap(placed, occurrenceFeature)});
 
-    const travelLines = compactMap(segments, segment2travelLine);
-    this.travelSource.clear()
-    this.travelSource.addFeatures(travelLines);
+    this.#travelLines = compactMap(segments, segment2travelLine);
+    this.#setData('travel', {type: 'FeatureCollection', features: this.#travelLines});
+    this.#setData('travel-arrows', {type: 'FeatureCollection', features: this.#travelLines.flatMap(travelArrows)});
+    this.#drawImputedPositions();
 
-    // Select the focused occurrence if one is set
-    if (this.focusedOccurrenceId) {
-      const feature = this.ocurrenceSource.getFeatureById(this.focusedOccurrenceId) as Feature<Point>;
-      if (feature) {
-        this.selectFeature(feature);
-      }
-    }
+    // Select the focused occurrence if one is set; otherwise drop a selection
+    // whose occurrence is no longer on the map.
+    const keep = this.focusedOccurrenceId ?? this.#selectedId;
+    this.#select(keep && this.#occurrences.has(keep) ? keep : null);
   }
 
-  public selectFeature(feature: Feature) {
-    const selection = this.select.getFeatures();
-    selection.clear();
-    selection.push(feature);
+  #drawImputedPositions() {
+    const time = now();
+    this.#setData('travel-now', {type: 'FeatureCollection', features: this.#travelLines.flatMap(line => imputedPositions(line, time))});
+  }
+
+  /** Mark an occurrence selected, drawing it again on top in the selection's style; `null` clears it. */
+  #select(id: string | null) {
+    if (this.#loaded && this.#selectedId && this.#selectedId !== id)
+      this.#map!.setFeatureState({source: 'occurrences', id: this.#selectedId}, {selected: false});
+    this.#selectedId = id;
+    const occurrence = id ? this.#occurrences.get(id) : undefined;
+    const feature = occurrence && occurrenceFeature(occurrence);
+    this.#setData('selected', {type: 'FeatureCollection', features: feature ? [feature] : []});
+    if (this.#loaded && id)
+      this.#map!.setFeatureState({source: 'occurrences', id}, {selected: true});
+  }
+
+  #applyVisibility() {
+    if (!this.#loaded) return;
+    for (const [layer, ids] of Object.entries(REFERENCE_LAYER_IDS))
+      for (const id of ids)
+        this.#map!.setLayoutProperty(id, 'visibility', this.visibleLayers.has(layer as ReferenceLayer) ? 'visible' : 'none');
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('visibleLayers')) {
-      for (const [id, layer] of Object.entries(this.referenceLayers))
-        layer.setVisible(this.visibleLayers.has(id as ReferenceLayer));
+      this.#applyVisibility();
       this.layerControl.visible = this.visibleLayers;
       if (this.visibleLayers.has('haulouts'))
         this.loadHaulouts();
     }
     if (changedProperties.has('maskExtent'))
-      this.renderMask();
+      this.#setData('mask', this.maskExtent ? maskCollection(this.maskExtent) : emptyCollection());
     if (changedProperties.has('focusedOccurrenceId') && this.focusedOccurrenceId) {
-      const feature = this.ocurrenceSource.getFeatureById(this.focusedOccurrenceId) as Feature<Point>;
-      if (feature) {
-        this.selectFeature(feature);
-        const coords = feature.getGeometry()!.getCoordinates();
-        this.ensureCoordsInViewport(coords);
+      const occurrence = this.#occurrences.get(this.focusedOccurrenceId);
+      if (occurrence) {
+        this.#select(occurrence.id);
+        this.ensureInViewport([occurrence.location.lon, occurrence.location.lat]);
       }
     }
   }
 
-  /**
-   * Shade the world outside the active region: one polygon covering everything,
-   * with the region punched out as a hole.
-   *
-   * A rectangle in lon/lat is still a rectangle in EPSG:3857 — it is a
-   * cylindrical projection, so constant longitude stays constant x and constant
-   * latitude stays constant y — which is why the corners can simply be
-   * transformed rather than densified along the edges.
-   */
-  private renderMask() {
-    this.maskSource.clear();
-    if (!this.maskExtent)
+  /** Bring a point into view, zooming in to zoom 12 (in the permalinks' numbering) to show it, if it is off screen. */
+  public ensureInViewport(lonLat: [number, number]) {
+    const map = this.#map;
+    if (!map || map.getBounds().contains(lonLat))
       return;
-
-    const [minLon, minLat, maxLon, maxLat] = this.maskExtent;
-    // ±85 rather than ±90: the Mercator projection is undefined at the poles.
-    const outer = [
-      fromLonLat([-180, -85]), fromLonLat([180, -85]),
-      fromLonLat([180, 85]), fromLonLat([-180, 85]), fromLonLat([-180, -85]),
-    ];
-    // Wound opposite to the outer ring, per the GeoJSON convention for holes.
-    const hole = [
-      fromLonLat([minLon, minLat]), fromLonLat([minLon, maxLat]),
-      fromLonLat([maxLon, maxLat]), fromLonLat([maxLon, minLat]), fromLonLat([minLon, minLat]),
-    ];
-    this.maskSource.addFeature(new Feature(new Polygon([outer, hole])));
-  }
-
-  public ensureCoordsInViewport(coords: Coordinate) {
-    const view = this.map.getView();
-    const mapExtent = view.calculateExtent(this.map.getSize());
-    if (! containsCoordinate(mapExtent, coords)) {
-      view.animate({zoom: 12});
-      view.animate({center: coords});
-    }
+    map.easeTo({center: lonLat, zoom: mapZoom(12)});
   }
 
   public zoomToExtent(extent: Extent) {
-    const view = this.map.getView();
-    const transformedExtent = transformExtent(extent, 'EPSG:4326', view.getProjection());
-    view.fit(transformedExtent);
+    if (!this.#map) {
+      this.#pendingFrame = extent;
+      return;
+    }
+    this.#map.fitBounds(bounds(extent), {animate: false});
   }
 
   /**
-   * Like {@link zoomToExtent}, but safe to call before the map is on screen.
-   *
-   * `view.fit` sizes the viewport against `map.getSize()`, which is undefined
-   * until the target element has been laid out and rendered — so a fit issued
-   * from a parent's `firstUpdated` silently does nothing. Defer to the first
-   * size when that is the case.
-   *
-   * Wait for the size, not for a render: OpenLayers measures the target with a
-   * ResizeObserver, so the size lands before anything is drawn, whereas
-   * `rendercomplete` waits for every tile. Fitting then let the default view
-   * show for a second and visibly jump sideways into the region.
+   * Like {@link zoomToExtent}, but safe to call before the map is on screen:
+   * before it exists, the frame waits for it; before its element has
+   * been laid out, the frame waits for the first size, since fitting to a
+   * viewport of no size fits nothing.
    */
   public frameExtentWhenReady(extent: Extent) {
-    // `getSize()` returns an array — truthy even when it is [0, 0], which is
-    // what you get between setTarget and layout. Fitting to a zero-width
-    // viewport is the same silent no-op as fitting with no size at all.
-    const hasArea = () => {
-      const size = this.map.getSize();
-      return !!size && size[0]! > 0 && size[1]! > 0;
-    };
-    if (hasArea()) {
+    const map = this.#map;
+    if (!map) {
+      this.#pendingFrame = extent;
+      return;
+    }
+    const container = map.getContainer();
+    if (container.clientWidth > 0 && container.clientHeight > 0) {
       this.zoomToExtent(extent);
       return;
     }
-    const key = this.map.on('change:size', () => {
-      if (!hasArea()) return;
-      unByKey(key);
+    this.#stopWaitingToFrame?.();
+    const onResize = () => {
+      if (container.clientWidth === 0 || container.clientHeight === 0) return;
+      map.off('resize', onResize);
+      this.#stopWaitingToFrame = null;
       this.zoomToExtent(extent);
-    });
+    };
+    map.on('resize', onResize);
+    this.#stopWaitingToFrame = () => {
+      map.off('resize', onResize);
+      this.#stopWaitingToFrame = null;
+      this.#pendingFrame = extent;
+    };
   }
 
+  #userLocationShown = false;
+
   public onLocationUpdated({longitude, latitude}: {longitude: number; latitude: number}) {
-    const coordinate = fromLonLat([longitude, latitude]);
-    const geometry = this.userLocationFeature.getGeometry()!;
-    if (geometry.getCoordinates().length === 0)
-      this.ensureCoordsInViewport(coordinate);
-    this.userLocationFeature.getGeometry()!.setCoordinates(coordinate);
+    if (!this.#userLocationShown)
+      this.ensureInViewport([longitude, latitude]);
+    this.#userLocationShown = true;
+    this.#setData('user-location', {type: 'FeatureCollection', features: [
+      {type: 'Feature', geometry: {type: 'Point', coordinates: [longitude, latitude]}, properties: {}},
+    ]});
   }
 
   public onLocationInactive() {
-    const geometry = this.userLocationFeature.getGeometry()!;
-    geometry.setCoordinates([]);
+    this.#userLocationShown = false;
+    this.#setData('user-location', emptyCollection());
   }
 }
 
-function hauloutFeature({id, name, location, radius_m}: HauloutSite): Feature<Point> | undefined {
-  if (location.lon === null || location.lat === null)
+const bounds = ([west, south, east, north]: Extent): LngLatBoundsLike => [[west, south], [east, north]];
+
+function occurrenceFeature(occurrence: Occurrence): Feature | undefined {
+  const {lat, lon} = occurrence.location;
+  if (lon == null || lat == null) {
+    console.error(`Occurrence ${occurrence.id} missing location: ${JSON.stringify(occurrence.location)}`);
     return undefined;
-  const lonLat = [location.lon, location.lat];
-  const feature = new Feature({
-    geometry: new Point(fromLonLat(lonLat)),
-    kind: 'Haulout',
-    id,
-    name,
-    ring: circular(lonLat, radius_m, 64).transform('EPSG:4326', sphericalMercator),
-  });
-  feature.setId(`haulout:${id}`);
-  return feature;
+  }
+  return {type: 'Feature', geometry: {type: 'Point', coordinates: [lon, lat]}, properties: occurrenceProperties(occurrence)};
+}
+
+function hauloutFeature({id, name, location}: HauloutSite): Feature {
+  return {
+    type: 'Feature',
+    geometry: {type: 'Point', coordinates: [location.lon!, location.lat!]},
+    properties: {kind: 'Haulout', id, name},
+  };
+}
+
+/**
+ * Shade the world outside the active region: one polygon covering everything,
+ * with the region punched out as a hole.
+ */
+export function maskCollection([minLon, minLat, maxLon, maxLat]: Extent): FeatureCollection {
+  // ±85 rather than ±90: the Mercator projection is undefined at the poles.
+  const outer = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
+  // Wound opposite to the outer ring, per the GeoJSON convention for holes.
+  const hole = [[minLon, minLat], [minLon, maxLat], [maxLon, maxLat], [maxLon, minLat], [minLon, minLat]];
+  return {type: 'FeatureCollection', features: [
+    {type: 'Feature', geometry: {type: 'Polygon', coordinates: [outer, hole]}, properties: {}},
+  ]};
 }
 
 declare global {

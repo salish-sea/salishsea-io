@@ -7,10 +7,7 @@ import { provide } from "@lit/context";
 import { Temporal } from "temporal-polyfill";
 import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
-import drawingSourceContext from "./drawing-context.ts";
-import type VectorSource from "ol/source/Vector.js";
-import type OpenLayersMap from "ol/Map.js";
-import mapContext from "./map-context.ts";
+import { sightingDraftsContext, type SightingDrafts } from "./sighting-drafts.ts";
 import type { LayersChangeDetail, MapMoveDetail, ObsMap } from "./obs-map.ts";
 import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from "./reference-layers.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
@@ -23,9 +20,8 @@ import type ErrorToast from './error-toast.ts';
 import './feedback-form.ts';
 import { reportError, type ErrorReport } from './report-error.ts';
 import { v7 } from "uuid";
-import type { Extent } from "ol/extent.js";
-import { fromLonLat } from 'ol/proj.js';
-import { DEFAULT_REGION_SLUG, isExtent, observationToday, regionBySlug, type Region } from "./constants.ts";
+import { fromLonLat } from './map-view.ts';
+import { DEFAULT_REGION_SLUG, type Extent, isExtent, observationToday, regionBySlug, type Region } from "./constants.ts";
 import { ObsPanel } from "./obs-panel.ts";
 import { createRef, ref } from "lit/directives/ref.js";
 import type { Contributor, Occurrence } from "./types.ts";
@@ -234,11 +230,8 @@ export default class SalishSea extends LitElement {
 
   `;
 
-  @provide({context: mapContext})
-  olmap: OpenLayersMap | undefined
-
-  @provide({context: drawingSourceContext})
-  drawingSource: VectorSource | undefined
+  @provide({context: sightingDraftsContext})
+  sightingDrafts: SightingDrafts | undefined
 
   #isRestoringFromHistory = false
   #isFocusingOccurrence = false
@@ -554,8 +547,7 @@ export default class SalishSea extends LitElement {
   }
 
   protected async firstUpdated(_changedProperties: PropertyValues): Promise<void> {
-    this.olmap = this.mapRef.value!.map;
-    this.drawingSource = this.mapRef.value!.drawingSource;
+    this.sightingDrafts = this.mapRef.value!.drafts;
     // Frame the active region whenever the URL does not say otherwise —
     // including the default one, with no ?r= at all.
     //

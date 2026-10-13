@@ -1,4 +1,4 @@
-import Control from "ol/control/Control.js";
+import type { IControl } from "maplibre-gl";
 import { html, LitElement, svg } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { layersIcon } from "./icons.ts";
@@ -18,21 +18,30 @@ type Options = {
  * in the map's top-right corner that opens a checkbox per layer. Each row shows
  * the layer's own marker, so the menu is also the legend.
  *
- * Like the location control, an OpenLayers `Control` whose element is grafted
- * into the map, so it sits with the zoom buttons and takes their styling. It
- * holds no state of its own beyond whether it is open: `<obs-map>` sets which
- * layers are visible, and a change goes back up through `onChange`.
+ * Like the location control, a MapLibre control whose element is grafted into
+ * the map, so it sits with the zoom buttons and takes their styling. It holds no
+ * state of its own beyond whether it is open: `<obs-map>` sets which layers are
+ * visible, and a change goes back up through `onChange`.
  */
-export default class LayerControl extends Control {
+export default class LayerControl implements IControl {
   readonly #element: LayerControlElement;
+  readonly #container = document.createElement('div');
 
   constructor({visible, onChange}: Options) {
     const element = document.createElement('layer-control');
-    element.className = 'ol-unselectable ol-control';
     element.visible = visible;
     element.onChange = onChange;
-    super({element});
     this.#element = element;
+    this.#container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    this.#container.append(element);
+  }
+
+  onAdd() {
+    return this.#container;
+  }
+
+  onRemove() {
+    this.#container.remove();
   }
 
   set visible(visible: ReadonlySet<ReferenceLayer>) {
@@ -65,7 +74,7 @@ class LayerControlElement extends LitElement {
   // A press on the map while the menu is open only closes it. Tapping the map
   // is how a phone dismisses a menu, and with haul-outs on, that tap would
   // otherwise land on a site and leave the page. Listening in the capture
-  // phase is what lets it stop the press before OpenLayers sees it.
+  // phase is what lets it stop the press before the map sees it.
   #onDocumentPointerDown = (e: PointerEvent) => {
     if (!this.open)
       return;
@@ -73,7 +82,7 @@ class LayerControlElement extends LitElement {
     if (path.includes(this))
       return;
     this.open = false;
-    const viewport = this.closest('.ol-viewport');
+    const viewport = this.closest('.maplibregl-map');
     if (viewport && path.includes(viewport)) {
       e.stopPropagation();
       e.preventDefault();

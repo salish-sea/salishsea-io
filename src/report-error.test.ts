@@ -60,6 +60,12 @@ describe('reportError', () => {
     expect(captured.cause).toBe(cause);
   });
 
+  it('groups by the fingerprint it is given', () => {
+    const cause = new Error('no WebGL2');
+    reportError(document.body, 'No map here.', {cause, fingerprint: ['maplibre-no-webgl2']});
+    expect(captureException).toHaveBeenCalledWith(cause, {fingerprint: ['maplibre-no-webgl2']});
+  });
+
   it('with capture off, tells the user and not Sentry', () => {
     const el = document.createElement('div');
     const seen = listenOn(el);

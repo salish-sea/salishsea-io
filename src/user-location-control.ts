@@ -1,16 +1,15 @@
-import Control from "ol/control/Control.js";
+import type { IControl } from "maplibre-gl";
 import { locateMeIcon } from "./icons.ts";
 import { html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { geolocationMessage } from "./geolocation-message.ts";
 
-type SuperOptions = ConstructorParameters<typeof Control>[0];
-type Options = SuperOptions & {
+type Options = {
   onLocationUpdated: (coordinates: {longitude: number; latitude: number}) => void;
   onLocationInactive: () => void;
   /**
-   * The control is an OpenLayers `Control`, not a Lit component, and its
-   * element is grafted into the map's overlay container rather than rendered
+   * The control is a MapLibre control, not a Lit component, and its
+   * element is grafted into the map's control container rather than rendered
    * from a template — so it hands the failure back to `<obs-map>`, which is a
    * component and can report it. The tooltip below still carries the reason for
    * anyone who comes back to the reddened button later.
@@ -26,13 +25,17 @@ type State = {
   state: 'error';
   error: string
 };
-export default class UserLocationControl extends Control {
-  constructor({onLocationUpdated, onLocationInactive, onLocationError, ...options}: Options) {
+export default class UserLocationControl implements IControl {
+  readonly #container = document.createElement('div');
+  /** Stops watching, if it is: what taking the control off the map has to do. */
+  readonly #stop: () => void;
+
+  constructor({onLocationUpdated, onLocationInactive, onLocationError}: Options) {
     let state: State = {state: 'inactive'};
     const element = document.createElement('user-location-control');
     element.stateObject = state;
-
-    super({element, ...options})
+    this.#container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    this.#container.append(element);
 
     element.addEventListener('click', () => {
       if (state.state === 'active') {
@@ -52,6 +55,22 @@ export default class UserLocationControl extends Control {
         state = element.stateObject = {state: 'active', watchID};
       }
     });
+
+    this.#stop = () => {
+      if (state.state !== 'active') return;
+      navigator.geolocation.clearWatch(state.watchID);
+      state = element.stateObject = {state: 'inactive'};
+      onLocationInactive();
+    };
+  }
+
+  onAdd() {
+    return this.#container;
+  }
+
+  onRemove() {
+    this.#stop();
+    this.#container.remove();
   }
 }
 
@@ -66,7 +85,7 @@ class UserLocationControlElement extends LitElement {
   set stateObject(value: State) {
     this.state = value.state;
     this.error = value.state === 'error' ? value.error : undefined;
-    this.className = `ol-unselectable ol-control ${value.state}`;
+    this.className = value.state;
   }
 
   protected override createRenderRoot() { return this; }

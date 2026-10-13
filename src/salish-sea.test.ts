@@ -65,6 +65,31 @@ vi.mock('./write-api.ts', async (importOriginal) => {
   };
 });
 
+// jsdom has no WebGL, so MapLibre can't make a map there. A map that draws nothing
+// stands in for it: <obs-map> still takes its occurrences and moves, and nothing here
+// looks at the drawing.
+vi.mock('maplibre-gl', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('maplibre-gl')>()),
+  Map: class {
+    touchZoomRotate = {disableRotation() {}};
+    keyboard = {disableRotation() {}};
+    #container: HTMLElement;
+    constructor({container}: {container: HTMLElement}) { this.#container = container; }
+    addControl() {}
+    on() {}
+    once() {}
+    off() {}
+    jumpTo() {}
+    fitBounds() {}
+    easeTo() {}
+    getBounds() { return {contains: () => true}; }
+    getCenter() { return {lng: -123, lat: 48.5}; }
+    getZoom() { return 8; }
+    remove() {}
+    getContainer() { return this.#container; }
+  },
+}));
+
 vi.mock('@sentry/browser', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@sentry/browser')>()),
   captureException: () => {},
@@ -87,12 +112,6 @@ test('dateFromObservedAt: 08:01 UTC = 00:01 PDT, just past midnight Pacific', ()
   // 2024-07-16T08:01:00Z is 00:01 PDT on July 16 — July 16 in Pacific time
   expect(dateFromObservedAt('2024-07-16T08:01:00Z')).toBe('2024-07-16');
 });
-
-// jsdom lacks ResizeObserver (used by OpenLayers in obs-map) — stub it globally so
-// instantiating <salish-sea> doesn't throw before tests can run.
-if (!globalThis.ResizeObserver) {
-  globalThis.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
-}
 
 beforeEach(() => {
   occurrenceQuery.rows = [];

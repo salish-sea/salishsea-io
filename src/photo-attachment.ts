@@ -1,7 +1,5 @@
 import { css, html, LitElement, type TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { Coordinate } from 'ol/coordinate.js';
-import { fromLonLat } from 'ol/proj.js';
 import { v7 } from 'uuid';
 import { uploadPhoto as uploadThroughApi } from './write-api.ts';
 
@@ -33,11 +31,11 @@ export const newPhotoId = (): string => v7();
 export async function readExif(file: File) {
   const {load} = await import('exifreader');
   const {exif, gps} = await load(file, {async: true, expanded: true});
-  let coordinates: Coordinate | undefined;
+  let coordinates: [number, number] | undefined;
 
   // signed decimals
   if (gps && gps.Latitude && gps.Longitude) {
-    coordinates = fromLonLat([gps.Longitude, gps.Latitude]);
+    coordinates = [gps.Longitude, gps.Latitude];
   }
 
   // e.g. '2025:05:09 15:05:20'
