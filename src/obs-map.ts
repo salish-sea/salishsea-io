@@ -516,7 +516,7 @@ const bounds = ([west, south, east, north]: Extent): LngLatBoundsLike => [[west,
 
 function occurrenceFeature(occurrence: Occurrence): Feature | undefined {
   const {lat, lon} = occurrence.location;
-  if (!lon || !lat) {
+  if (lon == null || lat == null) {
     console.error(`Occurrence ${occurrence.id} missing location: ${JSON.stringify(occurrence.location)}`);
     return undefined;
   }
