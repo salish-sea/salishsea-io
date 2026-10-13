@@ -201,13 +201,16 @@ user-location-control.inactive svg { color: #333; }
     this.#pendingFrame = null;
     let map: MapLibreMap;
     try {
-      map = this.#map = this.#createMap(frame);
+      map = this.#map = this.#createMap();
     } catch (err) {
       // MapLibre needs WebGL2; without it the rest of the page still works.
       reportError(this, "This browser can't draw the map. The list of sightings still works.", {cause: err, capture: false});
       return;
     }
 
+    // A region asked for before the map existed, framed once it has a size.
+    if (frame)
+      this.frameExtentWhenReady(frame);
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
     map.addControl(new NavigationControl({showCompass: false}), 'top-left');
@@ -220,8 +223,12 @@ user-location-control.inactive svg { color: #333; }
       }), 'top-left');
     map.addControl(this.layerControl, 'top-right');
     map.addControl(new AttributionControl({compact: true}), 'bottom-right');
-    // Folded behind its button from the start, as OpenLayers' was; MapLibre opens it on a wide map.
-    map.once('idle', () => map.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
+    // Folded behind its button from the start, as OpenLayers' was. MapLibre opens
+    // it on a wide map; its own button closes it, keeping its ARIA state right.
+    map.once('load', () => {
+      if (map.getContainer().querySelector('.maplibregl-compact-show'))
+        map.getContainer().querySelector<HTMLButtonElement>('.maplibregl-ctrl-attrib-button')?.click();
+    });
 
     map.on('load', () => {
       this.#loaded = true;
@@ -248,14 +255,13 @@ user-location-control.inactive svg { color: #333; }
     this.loadReferenceLayer('salmon', () => import('./assets/orcasalmon-counting-sites.geojson?raw'));
   }
 
-  #createMap(frame: Extent | null): MapLibreMap {
+  #createMap(): MapLibreMap {
     return new MapLibreMap({
       container: this.mapRef.value!,
       // Absolute, and not built with URL(), which would escape the braces MapLibre fills in.
       style: baseStyle(`${location.origin}${import.meta.env.BASE_URL}glyphs/{fontstack}/{range}.pbf`),
       center: toLonLat([this.centerX, this.centerY]),
       zoom: mapZoom(this.zoom),
-      ...(frame ? {bounds: bounds(frame)} : {}),
       attributionControl: false,
       // A north-up map, as it has always been: nothing here reads a rotation.
       dragRotate: false,
@@ -279,7 +285,7 @@ user-location-control.inactive svg { color: #333; }
   }
 
   protected onClick(evt: MapMouseEvent) {
-    if (this.drafts.takeClick() || evt.originalEvent.altKey)
+    if (this.drafts.takeClick())
       return;
     // The topmost feature only: a sighting drawn over a site is the sighting's
     // click, and a site under a sighting is not opened by it.
@@ -466,7 +472,7 @@ user-location-control.inactive svg { color: #333; }
 
   /**
    * Like {@link zoomToExtent}, but safe to call before the map is on screen:
-   * before it exists, the frame is where it starts; before its element has
+   * before it exists, the frame waits for it; before its element has
    * been laid out, the frame waits for the first size, since fitting to a
    * viewport of no size fits nothing.
    */

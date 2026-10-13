@@ -74,6 +74,10 @@ export class SightingDrafts {
     map.on('mouseup', e => this.#up(e));
     map.on('touchend', e => this.#up(e));
     map.on('touchcancel', e => this.#up(e));
+    // The map hears a mouse released only over itself. Released anywhere else,
+    // or with the window losing focus mid-drag, the drag ends where it is.
+    window.addEventListener('mouseup', () => this.#stop());
+    window.addEventListener('blur', () => this.#stop());
     this.render();
   }
 
@@ -122,7 +126,6 @@ export class SightingDrafts {
   #down(e: MapMouseEvent | MapTouchEvent) {
     // A drag ends without a click; only the click that ends a placement may be swallowed.
     this.#suppressClick = false;
-    if ((e.originalEvent as MouseEvent).altKey) return;
     const target = this.#placing ?? this.#nearest(e.point);
     if (!target) return;
     // No pan or box zoom: this gesture is ours.
@@ -244,7 +247,12 @@ function draftFeatures(draft: SightingDraft): Feature[] {
     const bearing = (getBearing(observer, subject) + 360) % 360;
     const distance = getDistance(observer, subject);
     features.push({type: 'Feature', geometry: {type: 'LineString', coordinates: [observer, subject]},
-      properties: {id: `${draft.id}/bearing`, kind: 'Bearing', label: `${distance.toFixed(3)} km at ${bearing.toFixed(0)}°`}});
+      properties: {id: `${draft.id}/bearing`, kind: 'Bearing'}});
+    // The label is a point of its own at the middle, not placed along the line:
+    // MapLibre won't place a label along a line shorter than the label.
+    features.push({type: 'Feature',
+      geometry: {type: 'Point', coordinates: [(observer[0] + subject[0]) / 2, (observer[1] + subject[1]) / 2]},
+      properties: {id: `${draft.id}/bearing-label`, kind: 'BearingLabel', label: `${distance.toFixed(3)} km at ${bearing.toFixed(0)}°`}});
   }
   return features;
 }

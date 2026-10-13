@@ -1,4 +1,4 @@
-import type { ExpressionSpecification, LayerSpecification, Map as MapLibreMap } from 'maplibre-gl';
+import type { ExpressionSpecification, LayerSpecification, Map as MapLibreMap, SymbolLayerSpecification } from 'maplibre-gl';
 import travelArrowIcon from './assets/travel-arrow.svg?url';
 import hydrophoneIcon from './assets/hydrophone-default.svg?url';
 import salmonCountingSiteIcon from './assets/salmon-counting-site.svg?url';
@@ -337,6 +337,11 @@ const LAYERS: LayerSpecification[] = [
   {id: 'selected-dot', type: 'circle', source: 'selected',
     paint: {'circle-radius': 9, 'circle-color': 'rgba(255, 255, 0, 0.5)',
       'circle-stroke-color': yellow, 'circle-stroke-width': 3}},
+  // Its label too, and it never gives way: the occurrence you just picked keeps its name.
+  ...occurrenceLayers('selected', 'selected').filter(({id}) => id === 'selected-label').map(layer => ({
+    ...layer,
+    layout: {...(layer as SymbolLayerSpecification).layout, 'text-allow-overlap': true, 'icon-allow-overlap': true},
+  }) as SymbolLayerSpecification),
 
   {id: 'user-location', type: 'circle', source: 'user-location',
     paint: {'circle-radius': 8, 'circle-color': 'rgba(51, 153, 255, 0.8)',
@@ -346,9 +351,8 @@ const LAYERS: LayerSpecification[] = [
   // dashed blue with "x km at y°" at its middle.
   {id: 'bearing', type: 'line', source: 'drawing', filter: ['==', ['get', 'kind'], 'Bearing'],
     paint: {'line-color': '#0000ff', 'line-width': 1.5, 'line-dasharray': [2, 4]}},
-  {id: 'bearing-label', type: 'symbol', source: 'drawing', filter: ['==', ['get', 'kind'], 'Bearing'],
-    layout: {'symbol-placement': 'line-center', 'text-rotation-alignment': 'viewport', 'icon-rotation-alignment': 'viewport',
-      'text-field': ['get', 'label'], 'text-font': sans, 'text-size': 10,
+  {id: 'bearing-label', type: 'symbol', source: 'drawing', filter: ['==', ['get', 'kind'], 'BearingLabel'],
+    layout: {'text-field': ['get', 'label'], 'text-font': sans, 'text-size': 10,
       'icon-image': 'bearing-label', 'icon-text-fit': 'both',
       'text-allow-overlap': true, 'icon-allow-overlap': true}},
   ...occurrenceLayers('drawing', 'draft', ['==', ['get', 'kind'], 'Sighting']),
