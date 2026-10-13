@@ -1,5 +1,5 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
-import { customElement, property, query } from "lit/decorators.js";
+import { customElement, property, query, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import { licenseCodes, acartiaExtent } from './constants.ts';
 import { Temporal } from "temporal-polyfill";
@@ -190,7 +190,10 @@ export default class SightingForm extends LitElement {
   @property({attribute: false, type: Object})
   initialValues: Partial<SightingFormData> = {}
 
-  @consume({context: sightingDraftsContext})
+  // Subscribed, so the form doesn't depend on <obs-map> having handed over its
+  // drafts before the form first renders.
+  @consume({context: sightingDraftsContext, subscribe: true})
+  @state()
   private drafts: SightingDrafts | undefined
 
   /** This sighting's observer and subject on the map. */
@@ -791,18 +794,37 @@ export default class SightingForm extends LitElement {
         this.#form.api.setFieldValue(typedField, typedValue);
       }
     }
-    this.#draft = this.drafts?.create(this.sightingId, this.onPointsChanged.bind(this), {
-      observer: parseLonLat(this.initialValues.observer_location || ''),
-      subject: parseLonLat(this.initialValues.subject_location || ''),
+    this.#startDraft();
+    this.#form.api.baseStore.subscribe(this.updateSubjectProps.bind(this));
+  }
+
+  protected updated(changed: PropertyValues): void {
+    if (changed.has('drafts'))
+      this.#startDraft();
+  }
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    if (this.hasUpdated)
+      this.#startDraft();
+  }
+
+  /** Put this sighting on the map, where its inputs say, once there is a map to put it on. */
+  #startDraft() {
+    if (this.#draft || !this.drafts || !this.hasUpdated)
+      return;
+    const values = this.#form.api.baseStore.state.values;
+    this.#draft = this.drafts.create(this.sightingId, this.onPointsChanged.bind(this), {
+      observer: parseLonLat(values.observer_location),
+      subject: parseLonLat(values.subject_location),
     });
     this.updateSubjectProps();
-
-    this.#form.api.baseStore.subscribe(this.updateSubjectProps.bind(this));
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
     this.#draft?.remove();
+    this.#draft = undefined;
   }
 
   updateSubjectProps() {
