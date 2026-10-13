@@ -64,9 +64,16 @@ describe("saving a sighting, as upsert_observation and its row-level security di
         expect(photos()).toEqual([{seq: 1, href: 'https://salishsea.io/media/c.jpg'}]);
     });
 
-    test('an empty body is none, and accuracy is not stored, as Postgres did', () => {
+    test('an empty body is none', () => {
         saveSighting(store, owner, ID, input({body: '   '}));
-        expect(row()).toMatchObject({body: null, accuracy: null});
+        expect(row()).toMatchObject({body: null});
+    });
+
+    test('accuracy is stored, and changed or cleared by a later save (decision 077)', () => {
+        saveSighting(store, owner, ID, input());
+        expect(row()).toMatchObject({accuracy: 50});
+        saveSighting(store, owner, ID, input({accuracy: null}));
+        expect(row()).toMatchObject({accuracy: null});
     });
 
     test.each([
@@ -76,6 +83,9 @@ describe("saving a sighting, as upsert_observation and its row-level security di
         [{location: {lon: 200, lat: 0}}, /location/],
         [{observed_at: 'yesterday'}, /a time/],
         [{photos: [{src: 'javascript:alert(1)', license: 'cc-by'}]}, /https URL/],
+        [{accuracy: 0}, /metres/],
+        [{accuracy: 12.5}, /metres/],
+        [{accuracy: 200_000}, /metres/],
     ])('a sighting that Postgres would refuse is refused: %j', (over, error) => {
         expect(() => input(over)).toThrow(error);
     });

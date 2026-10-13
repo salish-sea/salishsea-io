@@ -7,8 +7,9 @@
  * made and never changes, so an editor's correction leaves it attributed to whoever saw
  * it. The body is trimmed, and an empty one is none. Photos are the sighting's photos in
  * order, merged by position from 1: a photo at a position kept is updated, one past the
- * end added, one no longer sent removed. `accuracy` is accepted and, as Postgres did,
- * not stored.
+ * end added, one no longer sent removed. `accuracy` is how far the animal may have been
+ * from `location`, in metres, as its author says (decision 077); Postgres accepted it and
+ * dropped it, and now it is stored.
  *
  * The browser makes a sighting's id, as it did for Postgres, so a save it retries is the
  * same sighting.
@@ -24,6 +25,8 @@ const MAX_PHOTOS = 20;
 /** Postgres's varchar limits on these columns, which the store's schema doesn't repeat. */
 const MAX_TEXT = 2000;
 const MAX_LICENSE = 20;
+/** The widest ring a reporter may draw around a sighting: beyond it, the position says little. */
+const MAX_ACCURACY_M = 100_000;
 
 /** A time as ISO 8601 in UTC with microseconds, the form the copy from Postgres writes. */
 export const isoMicros = (date: Date) => date.toISOString().replace(/Z$/, '000Z');
@@ -47,6 +50,7 @@ export type SightingInput = {
     photos: {src: string, license: string}[],
     entity_id: string,
     url: string | null,
+    accuracy: number | null,
 };
 
 const bad = (message: string) => new Refused(400, message);
@@ -78,6 +82,9 @@ export function parseSighting(body: Record<string, unknown>): SightingInput {
         throw bad('direction must be a compass point');
     const entity = body['entity_id'];
     if (typeof entity !== 'string' || !/^SSA:[0-9]{7}$/.test(entity)) throw bad('entity_id must be an SSA identifier');
+    const accuracy = body['accuracy'] ?? null;
+    if (accuracy !== null && (typeof accuracy !== 'number' || !Number.isInteger(accuracy) || accuracy < 1 || accuracy > MAX_ACCURACY_M))
+        throw bad(`accuracy must be a whole number of metres from 1 to ${MAX_ACCURACY_M}`);
     const photos = body['photos'] ?? [];
     if (!Array.isArray(photos) || photos.length > MAX_PHOTOS) throw bad(`photos must be a list of at most ${MAX_PHOTOS}`);
     return {
@@ -99,6 +106,7 @@ export function parseSighting(body: Record<string, unknown>): SightingInput {
         entity_id: entity,
         // an empty url is none: the form sends '' when there is no link
         url: optionalText(body['url'], 'url')?.trim() || null,
+        accuracy: accuracy as number | null,
     };
 }
 
@@ -120,17 +128,17 @@ export function saveSighting(store: DatabaseSync, who: Me, id: string, input: Si
         if (may === 'no') throw new Refused(403, 'only its owner or an editor may change a sighting');
         const values = [input.observed_at, input.location.lon, input.location.lat,
             input.observed_from?.lon ?? null, input.observed_from?.lat ?? null,
-            body, input.count, input.url, input.direction, input.entity_id, stamp] as const;
+            body, input.count, input.url, input.direction, input.entity_id, input.accuracy, stamp] as const;
         if (may === 'absent') {
             store.prepare(`INSERT INTO observations
                 (observed_at, subject_lon, subject_lat, observer_lon, observer_lat, body, count, url, direction, entity_id,
-                 updated_at, id, created_at, contributor_id, user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                 accuracy, updated_at, id, created_at, contributor_id, user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
                 .run(...values, id, stamp, who.contributor.id, who.user_id);
         } else {
             store.prepare(`UPDATE observations SET
                 observed_at = ?, subject_lon = ?, subject_lat = ?, observer_lon = ?, observer_lat = ?, body = ?, count = ?,
-                url = ?, direction = ?, entity_id = ?, updated_at = ?
+                url = ?, direction = ?, entity_id = ?, accuracy = ?, updated_at = ?
                 WHERE id = ?`).run(...values, id);
         }
         // photos by position from 1, as the MERGE in upsert_observation did
@@ -161,7 +169,7 @@ const MAX_SPAN_MS = 400 * 24 * 60 * 60_000;
 
 export type OwnSighting = {
     id: string, observed_at: string, location: LonLat, observed_from: LonLat | null, body: string | null,
-    count: number | null, direction: string | null, url: string | null, entity_id: string,
+    count: number | null, direction: string | null, url: string | null, entity_id: string, accuracy: number | null,
     photos: {src: string, license: string}[], contributor_id: number, updated_at: string,
 };
 
@@ -184,11 +192,11 @@ export function ownSightings(store: DatabaseSync, contributorId: number, since: 
 }
 
 const SELECT_SIGHTING = `SELECT id, observed_at, subject_lon, subject_lat, observer_lon, observer_lat, body, count,
-            direction, url, entity_id, contributor_id, updated_at`;
+            direction, url, entity_id, accuracy, contributor_id, updated_at`;
 type SightingRow = {
     id: string, observed_at: string, subject_lon: number, subject_lat: number, observer_lon: number | null,
     observer_lat: number | null, body: string | null, count: number | null, direction: string | null,
-    url: string | null, entity_id: string, contributor_id: number, updated_at: string};
+    url: string | null, entity_id: string, accuracy: number | null, contributor_id: number, updated_at: string};
 
 function sightingFromRow(store: DatabaseSync, r: SightingRow): OwnSighting {
     const photos = store.prepare('SELECT href, license_code FROM observation_photos WHERE observation_id = ? ORDER BY seq')
@@ -197,7 +205,7 @@ function sightingFromRow(store: DatabaseSync, r: SightingRow): OwnSighting {
         id: r.id, observed_at: r.observed_at,
         location: {lon: r.subject_lon, lat: r.subject_lat},
         observed_from: r.observer_lon === null || r.observer_lat === null ? null : {lon: r.observer_lon, lat: r.observer_lat},
-        body: r.body, count: r.count, direction: r.direction, url: r.url, entity_id: r.entity_id,
+        body: r.body, count: r.count, direction: r.direction, url: r.url, entity_id: r.entity_id, accuracy: r.accuracy,
         photos: photos.map(p => ({src: p.href, license: p.license_code})),
         contributor_id: r.contributor_id, updated_at: r.updated_at,
     };

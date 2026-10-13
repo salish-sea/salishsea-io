@@ -16,6 +16,8 @@ export type OwnSighting = {
   id: string, observed_at: string, location: {lon: number, lat: number},
   observed_from: {lon: number, lat: number} | null, body: string | null, count: number | null,
   direction: string | null, url: string | null, entity_id: string,
+  /** Absent from an API older than decision 077. */
+  accuracy?: number | null,
   photos: {src: string, license: string}[], contributor_id: number, updated_at: string,
 };
 
@@ -39,7 +41,7 @@ export function ownOccurrence(sighting: OwnSighting, contributor: Pick<Contribut
     count: sighting.count,
     direction: sighting.direction as Occurrence['direction'],
     location: sighting.location,
-    accuracy: null,
+    accuracy: sighting.accuracy ?? null,
     photos: sighting.photos.map(p => ({src: p.src, thumb: null, license: p.license as Occurrence['photos'][number]['license'],
       mimetype: null, attribution: 'someone'})),
     observed_at: sighting.observed_at,
