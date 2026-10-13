@@ -440,7 +440,10 @@ user-location-control.inactive svg { color: #333; }
     const placed = segments.flatMap(placeInSegment);
     this.#occurrences = new Map(placed.map(occurrence => [occurrence.id, occurrence]));
     this.#setData('occurrences', {type: 'FeatureCollection', features: compactMap(placed, occurrenceFeature)});
-    this.#setData('uncertainty', {type: 'FeatureCollection', features: compactMap(placed, uncertaintyRing)});
+    // One ring per place, radius and colour: a hydrophone that heard several bouts in a
+    // day would otherwise stack their rings into a darker one, claiming nothing more.
+    const rings = new Map(compactMap(placed, uncertaintyRing).map(ring => [JSON.stringify([ring.geometry, ring.properties]), ring]));
+    this.#setData('uncertainty', {type: 'FeatureCollection', features: [...rings.values()]});
 
     this.#travelLines = compactMap(segments, segment2travelLine);
     this.#setData('travel', {type: 'FeatureCollection', features: this.#travelLines});
