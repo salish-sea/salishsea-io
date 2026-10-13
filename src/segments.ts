@@ -1,11 +1,10 @@
 import { distance } from '@turf/distance';
-import { LineString, Point } from 'ol/geom.js';
-import Feature from 'ol/Feature.js';
-import { fromLonLat } from 'ol/proj.js';
+import { circle } from '@turf/circle';
+import type { Feature, LineString, Point, Polygon } from 'geojson';
 import type { Occurrence } from './types.ts';
 import { travelSpeedFor } from './constants.ts';
-import { occurrence2feature } from './occurrence.ts';
 import { labelForSegment } from './symbology.ts';
+import { fromLonLat } from './map-view.ts';
 
 const hour_in_ms = 60 * 60 * 1000;
 
@@ -113,30 +112,29 @@ function ecotypesConflict(candidate: Occurrence, occurrences: Occurrence[]): boo
 }
 
 /**
- * The segment's points as map features, with the head told what it stands for.
+ * The segment's occurrences, each told where it sits in the segment, and the
+ * head told what it stands for.
  *
  * Decision 029 puts one label on each segment head and lets it speak for the
  * whole track — "Humpback / Seen 3× over 10h" — so the head needs the track's
  * size, span and pooled identifiers. They are attached here rather than in the
  * map component because this is where a segment is still an object; by the time
- * obs-map has a flat list of features, recovering which ones belonged together
+ * the map has a flat list of points, recovering which ones belonged together
  * means matching ids back up.
  *
  * The head is the LAST occurrence. That is the most recent position, which is
  * both what a reader wants and the point the old red `isLast` ring already
  * emphasised.
  */
-export function segment2features(segment: Segment): Feature<Point>[] {
+export function placeInSegment(segment: Segment): Occurrence[] {
   const {occurrences} = segment;
   if (occurrences.length === 0)
     throw new Error("Segment had no occurrences");
-  const features = occurrences.map(occurrence2feature);
-  const head = features[features.length - 1]!;
-  features[0]!.set('isFirst', true);
-  head.set('isLast', true);
-
+  const placed: Occurrence[] = occurrences.map(occurrence => ({...occurrence}));
+  placed[0]!.isFirst = true;
   const identifiers = new Set(occurrences.flatMap(occurrence => occurrence.identifiers ?? []));
-  head.setProperties({
+  Object.assign(placed[placed.length - 1]!, {
+    isLast: true,
     // Pooled, not read off the head: the pod is usually named in one sighting's
     // prose, and it is rarely the last one.
     segmentIdentity: labelForSegment(occurrences),
@@ -145,19 +143,75 @@ export function segment2features(segment: Segment): Feature<Point>[] {
     segmentSpanHours:
       (occurrences[occurrences.length - 1]!.observed_at_ms - occurrences[0]!.observed_at_ms) / hour_in_ms,
   });
-  return features;
+  return placed;
 }
 
-export function segment2travelLine({occurrences, ...segment}: Segment): Feature<LineString> | null {
+export type TravelLineProperties = {
+  expectedTravelSpeedKmph: number | null;
+  lastOccurrenceAt: number;
+};
+
+export function segment2travelLine({occurrences, expectedTravelSpeedKmph, lastOccurrenceAt}: Segment): Feature<LineString, TravelLineProperties> | null {
   if (occurrences.length < 2)
     return null;
-  const feature = new Feature(new LineString(occurrences.map(occurrence => fromLonLat(coord(occurrence)))));
-  const firstPoint = occurrences[0]!;
-  feature.setId(`line-from-${firstPoint.id}`);
-  feature.setProperties(segment);
-  return feature;
+  return {
+    type: 'Feature',
+    id: `line-from-${occurrences[0]!.id}`,
+    geometry: {type: 'LineString', coordinates: occurrences.map(coord)},
+    properties: {expectedTravelSpeedKmph, lastOccurrenceAt: lastOccurrenceAt.valueOf()},
+  };
 }
 
-function coord({location: {lat, lon}}: Occurrence) {
+/**
+ * An arrow at the middle of each hop of a track, turned to point along it. The
+ * angle is measured on the Mercator map, clockwise from east, since that is the
+ * way the hop is drawn.
+ */
+export function travelArrows(line: Feature<LineString>): Feature<Point, {rotation: number}>[] {
+  const points = line.geometry.coordinates as [number, number][];
+  return points.slice(1).map((end, i) => {
+    const start = points[i]!;
+    const [x0, y0] = fromLonLat(start);
+    const [x1, y1] = fromLonLat(end);
+    return {
+      type: 'Feature',
+      geometry: {type: 'Point', coordinates: [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2]},
+      properties: {rotation: -Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI},
+    };
+  });
+}
+
+/**
+ * Where a track's animals might be now, and in half an hour, if they kept to
+ * their species' usual speed: two rings around the last sighting, fainter the
+ * older the guess, each labelled at its top. Nothing for a track whose last
+ * sighting is six hours old or more.
+ */
+export function imputedPositions(line: Feature<LineString, TravelLineProperties>, now: number): Feature<LineString | Point, {opacity: number} | {label: string}>[] {
+  const speed = line.properties.expectedTravelSpeedKmph;
+  if (!speed)
+    return [];
+  const ageHours = (now - line.properties.lastOccurrenceAt) / hour_in_ms;
+  if (ageHours >= 6)
+    return [];
+  const last = line.geometry.coordinates[line.geometry.coordinates.length - 1] as [number, number];
+  return [ageHours, ageHours + 0.5].flatMap(delayHours => {
+    const radiusKm = delayHours * speed;
+    const opacity = 3 / (3 + 4 * delayHours * ageHours);
+    const ring = circle(last, Math.max(radiusKm, 0.001), {steps: 64, units: 'kilometers'}) as Feature<Polygon>;
+    const outline = ring.geometry.coordinates[0]!;
+    return [
+      {type: 'Feature', geometry: {type: 'LineString', coordinates: outline}, properties: {opacity}},
+      {
+        type: 'Feature',
+        // The ring's northernmost point: turf starts its circle due north.
+        geometry: {type: 'Point', coordinates: outline[0]!},
+        properties: {label: delayHours === ageHours ? `now at ${speed}km/h` : `in 30min`},
+      },
+    ];
+  });
+}
+
+function coord({location: {lat, lon}}: Occurrence): [number, number] {
   return [lon, lat];
 }

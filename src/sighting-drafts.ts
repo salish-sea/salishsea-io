@@ -1,0 +1,226 @@
+import { createContext } from '@lit/context';
+import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent, MapTouchEvent, PointLike } from 'maplibre-gl';
+import type { Feature } from 'geojson';
+import { bearing as getBearing } from '@turf/bearing';
+import { distance as getDistance } from '@turf/distance';
+import { occurrenceProperties } from './style.ts';
+import type { Occurrence } from './types.ts';
+
+export type LonLat = [number, number];
+export type DraftPoint = 'observer' | 'subject';
+
+/** What a form hears whenever one of its points moves, however it was moved. */
+export type DraftPoints = Record<DraftPoint, LonLat | null>;
+
+/** How close, in pixels, the pointer has to come to a point to grab it: OpenLayers' `Modify` default. */
+const GRAB_TOLERANCE = 10;
+
+/**
+ * The sightings being drawn on the map by open sighting forms: each one's
+ * observer, subject, and the bearing between them, which can be dragged, or
+ * placed with a click or tap after the form's "Locate on map" button.
+ *
+ * OpenLayers gave us this as its `Modify` interaction and a small pointer
+ * interaction of our own; MapLibre has neither, so it is written out here
+ * (decision 076). `<obs-map>` owns one, attaches it once its map has loaded,
+ * and hands it to the forms through {@link sightingDraftsContext}.
+ */
+export class SightingDrafts {
+  #map: MapLibreMap | undefined;
+  readonly #drafts = new Set<SightingDraft>();
+  /** The point being dragged, or placed, while a gesture is under way. */
+  #dragging: {draft: SightingDraft, which: DraftPoint} | null = null;
+  /** The point to place with the next click or tap. */
+  #placing: {draft: SightingDraft, which: DraftPoint} | null = null;
+  #hover: string | null = null;
+  #suppressClick = false;
+
+  create(id: string, onChange: (points: DraftPoints) => void): SightingDraft {
+    const draft = new SightingDraft(this, id, onChange);
+    this.#drafts.add(draft);
+    return draft;
+  }
+
+  /** @internal */
+  remove(draft: SightingDraft) {
+    this.#drafts.delete(draft);
+    if (this.#placing?.draft === draft) this.#placing = null;
+    if (this.#dragging?.draft === draft) this.#dragging = null;
+    this.render();
+  }
+
+  attach(map: MapLibreMap) {
+    this.#map = map;
+    map.on('mousedown', e => this.#down(e));
+    // Fingers land one at a time: a second one during a drag makes it a pinch,
+    // so the drag stops where it is and the map's own pinch zoom takes over.
+    map.on('touchstart', e => {
+      if (e.points.length === 1) this.#down(e);
+      else this.#stop();
+    });
+    map.on('mousemove', e => this.#move(e));
+    map.on('touchmove', e => { if (e.points.length === 1) this.#move(e); });
+    map.on('mouseup', e => this.#up(e));
+    map.on('touchend', e => this.#up(e));
+    map.on('touchcancel', e => this.#up(e));
+    this.render();
+  }
+
+  /** True once after a drag or a placement, so the click it ends in doesn't also select an occurrence. */
+  takeClick(): boolean {
+    const suppress = this.#suppressClick;
+    this.#suppressClick = false;
+    return suppress;
+  }
+
+  /** While a point is being dragged or placed, the map's own hovering and clicking stand aside. */
+  get busy(): boolean {
+    return !!(this.#dragging || this.#placing);
+  }
+
+  /** @internal Start placing a point, or stop if any placement is under way. */
+  place(draft: SightingDraft, which: DraftPoint) {
+    this.#placing = this.#placing ? null : {draft, which};
+    this.#cursor();
+  }
+
+  #nearest(point: PointLike): {draft: SightingDraft, which: DraftPoint} | null {
+    const [px, py] = Array.isArray(point) ? point : [point.x, point.y];
+    let best: {draft: SightingDraft, which: DraftPoint} | null = null;
+    let bestDistance = GRAB_TOLERANCE;
+    for (const draft of this.#drafts) {
+      for (const which of ['subject', 'observer'] as const) {
+        const lonLat = draft[which];
+        if (!lonLat) continue;
+        const {x, y} = this.#map!.project(lonLat);
+        const d = Math.hypot(x - px, y - py);
+        if (d <= bestDistance) {
+          best = {draft, which};
+          bestDistance = d;
+        }
+      }
+    }
+    return best;
+  }
+
+  #down(e: MapMouseEvent | MapTouchEvent) {
+    // A drag ends without a click; only the click that ends a placement may be swallowed.
+    this.#suppressClick = false;
+    if ((e.originalEvent as MouseEvent).altKey) return;
+    const target = this.#placing ?? this.#nearest(e.point);
+    if (!target) return;
+    // No pan or box zoom: this gesture is ours.
+    e.preventDefault();
+    this.#dragging = target;
+    target.draft.set(target.which, e.lngLat.toArray());
+    this.#cursor();
+  }
+
+  #move(e: MapMouseEvent | MapTouchEvent) {
+    if (this.#dragging) {
+      this.#dragging.draft.set(this.#dragging.which, e.lngLat.toArray());
+      return;
+    }
+    if (e.type !== 'mousemove') return;
+    if (this.#placing) {
+      this.#placing.draft.set(this.#placing.which, e.lngLat.toArray());
+      return;
+    }
+    const near = this.#nearest(e.point);
+    const hover = near ? featureId(near.draft, near.which) : null;
+    if (hover !== this.#hover) {
+      if (this.#hover) this.#map!.setFeatureState({source: 'drawing', id: this.#hover}, {hover: false});
+      if (hover) this.#map!.setFeatureState({source: 'drawing', id: hover}, {hover: true});
+      this.#hover = hover;
+      this.#cursor();
+    }
+  }
+
+  #up(e: MapMouseEvent | MapTouchEvent) {
+    if (!this.#dragging) return;
+    if (e.lngLat) this.#dragging.draft.set(this.#dragging.which, e.lngLat.toArray());
+    this.#dragging = null;
+    this.#placing = null;
+    this.#suppressClick = true;
+    this.#cursor();
+  }
+
+  #stop() {
+    if (!this.#dragging) return;
+    this.#dragging = null;
+    this.#placing = null;
+    this.#cursor();
+  }
+
+  #cursor() {
+    if (!this.#map) return;
+    this.#map.getCanvas().style.cursor =
+      this.#dragging ? 'grabbing' : this.#placing ? 'crosshair' : this.#hover ? 'grab' : '';
+  }
+
+  /** @internal Redraw every draft. */
+  render() {
+    const source = this.#map?.getSource<GeoJSONSource>('drawing');
+    if (!source) return;
+    source.setData({type: 'FeatureCollection', features: [...this.#drafts].flatMap(draftFeatures)});
+  }
+}
+
+/** One open form's sighting, as the map draws it. */
+export class SightingDraft {
+  observer: LonLat | null = null;
+  subject: LonLat | null = null;
+  /** What the subject's dot is drawn from: its taxon, direction and identifiers. */
+  subjectOccurrence: Partial<Occurrence> = {};
+
+  constructor(
+    private readonly drafts: SightingDrafts,
+    readonly id: string,
+    private readonly onChange: (points: DraftPoints) => void,
+  ) {}
+
+  /** Move a point, or take it off the map with `null`. The form hears about it either way. */
+  set(which: DraftPoint, lonLat: LonLat | null) {
+    this[which] = lonLat;
+    this.drafts.render();
+    this.onChange({observer: this.observer, subject: this.subject});
+  }
+
+  setSubjectOccurrence(occurrence: Partial<Occurrence>) {
+    this.subjectOccurrence = occurrence;
+    this.drafts.render();
+  }
+
+  /** The "Locate on map" button: the next click or tap places this point. Pressed again, it cancels. */
+  place(which: DraftPoint) {
+    this.drafts.place(this, which);
+  }
+
+  remove() {
+    this.drafts.remove(this);
+  }
+}
+
+const featureId = (draft: SightingDraft, which: DraftPoint) => `${draft.id}/${which}`;
+
+function draftFeatures(draft: SightingDraft): Feature[] {
+  const {observer, subject} = draft;
+  const features: Feature[] = [];
+  if (observer)
+    features.push({type: 'Feature', geometry: {type: 'Point', coordinates: observer},
+      properties: {id: featureId(draft, 'observer'), kind: 'Sighter'}});
+  if (subject) {
+    const occurrence = {taxon: {scientific_name: null}, ...draft.subjectOccurrence, id: featureId(draft, 'subject')} as Occurrence;
+    features.push({type: 'Feature', geometry: {type: 'Point', coordinates: subject},
+      properties: {...occurrenceProperties(occurrence), kind: 'Sighting'}});
+  }
+  if (observer && subject) {
+    const bearing = (getBearing(observer, subject) + 360) % 360;
+    const distance = getDistance(observer, subject);
+    features.push({type: 'Feature', geometry: {type: 'LineString', coordinates: [observer, subject]},
+      properties: {id: `${draft.id}/bearing`, kind: 'Bearing', label: `${distance.toFixed(3)} km at ${bearing.toFixed(0)}°`}});
+  }
+  return features;
+}
+
+export const sightingDraftsContext = createContext<SightingDrafts | undefined>('sighting-drafts');

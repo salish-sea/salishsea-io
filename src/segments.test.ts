@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { ecotypesOf, occurrences2segments, segment2features, segment2travelLine } from './segments.ts';
+import { ecotypesOf, occurrences2segments, placeInSegment, segment2travelLine } from './segments.ts';
 import type { Occurrence } from './types.ts';
 
 function loadOccurrences(): Occurrence[] {
@@ -57,12 +57,12 @@ describe('occurrences2segments grouping', () => {
   });
 });
 
-describe('segment2features', () => {
+describe('placeInSegment', () => {
   test('flags first and last features', () => {
     for (const seg of segments) {
-      const features = segment2features(seg);
-      expect(features[0]?.get('isFirst')).toBe(true);
-      expect(features[features.length - 1]?.get('isLast')).toBe(true);
+      const features = placeInSegment(seg);
+      expect(features[0]?.isFirst).toBe(true);
+      expect(features[features.length - 1]?.isLast).toBe(true);
     }
   });
 });
@@ -75,7 +75,7 @@ describe('segment2travelLine', () => {
         expect(line).toBeNull();
       } else {
         expect(line).not.toBeNull();
-        expect(line!.getId()).toBe(`line-from-${seg.occurrences[0]!.id}`);
+        expect(line!.id).toBe(`line-from-${seg.occurrences[0]!.id}`);
       }
     }
   });
@@ -155,24 +155,24 @@ describe('a sighting whose species has no scientific name', () => {
   });
 });
 
-describe('segment2features head metadata', () => {
+describe('placeInSegment head metadata', () => {
   // Decision 029 puts one label on each segment head and lets it speak for the
   // whole track, so the head has to carry what the track knows.
   const multiPoint = segments.find(s => s.occurrences.length > 1)!;
 
   test('the head is the last point, not the first', () => {
-    const features = segment2features(multiPoint);
-    expect(features[features.length - 1]!.get('isLast')).toBe(true);
-    expect(features[0]!.get('isFirst')).toBe(true);
-    expect(features[0]!.get('isLast')).toBeUndefined();
+    const features = placeInSegment(multiPoint);
+    expect(features[features.length - 1]!.isLast).toBe(true);
+    expect(features[0]!.isFirst).toBe(true);
+    expect(features[0]!.isLast).toBeUndefined();
   });
 
   test('the head knows the size and span of its track', () => {
-    const features = segment2features(multiPoint);
+    const features = placeInSegment(multiPoint);
     const head = features[features.length - 1]!;
     const occurrences = multiPoint.occurrences;
-    expect(head.get('segmentLength')).toBe(occurrences.length);
-    expect(head.get('segmentSpanHours')).toBeCloseTo(
+    expect(head.segmentLength).toBe(occurrences.length);
+    expect(head.segmentSpanHours).toBeCloseTo(
       (occurrences[occurrences.length - 1]!.observed_at_ms - occurrences[0]!.observed_at_ms) / 3600000,
     );
   });
@@ -180,26 +180,26 @@ describe('segment2features head metadata', () => {
   test('identifiers are pooled over the track, deduplicated and sorted', () => {
     // A pod reported on one sighting of an encounter and not the next still
     // names the whole track.
-    const features = segment2features(multiPoint);
-    const pooled = features[features.length - 1]!.get('segmentIdentifiers') as string[];
+    const features = placeInSegment(multiPoint);
+    const pooled = features[features.length - 1]!.segmentIdentifiers as string[];
     const expected = [...new Set(multiPoint.occurrences.flatMap(o => o.identifiers ?? []))].sort();
     expect(pooled).toEqual(expected);
   });
 
   test('the head carries an identity pooled from the whole track', () => {
-    const features = segment2features(multiPoint);
+    const features = placeInSegment(multiPoint);
     const head = features[features.length - 1]!;
-    expect(typeof head.get('segmentIdentity')).toBe('string');
-    expect((head.get('segmentIdentity') as string).length).toBeGreaterThan(0);
+    expect(typeof head.segmentIdentity).toBe('string');
+    expect((head.segmentIdentity as string).length).toBeGreaterThan(0);
   });
 
   test('a singleton is a segment of one, and is its own head', () => {
     const singleton = segments.find(s => s.occurrences.length === 1)!;
-    const [only] = segment2features(singleton);
-    expect(only!.get('isFirst')).toBe(true);
-    expect(only!.get('isLast')).toBe(true);
-    expect(only!.get('segmentLength')).toBe(1);
-    expect(only!.get('segmentSpanHours')).toBe(0);
+    const [only] = placeInSegment(singleton);
+    expect(only!.isFirst).toBe(true);
+    expect(only!.isLast).toBe(true);
+    expect(only!.segmentLength).toBe(1);
+    expect(only!.segmentSpanHours).toBe(0);
   });
 });
 
