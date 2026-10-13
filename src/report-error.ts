@@ -20,7 +20,7 @@ export interface ErrorReport {
 export function reportError(
   source: EventTarget,
   message: string,
-  {cause, persist = false, capture = true}: {
+  {cause, persist = false, capture = true, fingerprint}: {
     cause?: unknown;
     persist?: boolean;
     /**
@@ -31,13 +31,24 @@ export function reportError(
      * rather not hear about. Decision 031 records the one exception.
      */
     capture?: boolean;
+    /**
+     * Sentry's grouping, when one issue should collect every report of a
+     * condition whatever its stack or release, so its volume can be read and
+     * the issue ignored until it escalates.
+     */
+    fingerprint?: string[];
   } = {},
 ): void {
   // A cause that isn't an Error — a GeolocationPositionError, a plain result
   // object — reaches Sentry as `Error: [object Whatever]` with no stack and
   // nothing to read. Wrap it so the report says what the person saw.
-  if (capture)
-    captureException(cause instanceof Error ? cause : new Error(message, cause === undefined ? undefined : {cause}));
+  if (capture) {
+    const error = cause instanceof Error ? cause : new Error(message, cause === undefined ? undefined : {cause});
+    if (fingerprint)
+      captureException(error, {fingerprint});
+    else
+      captureException(error);
+  }
   source.dispatchEvent(new CustomEvent<ErrorReport>('report-error', {
     bubbles: true,
     composed: true,

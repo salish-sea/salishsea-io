@@ -45,6 +45,7 @@ The plan was to run the benchmark on an older Android phone before deciding. The
 
 ## Consequences
 
+- A browser without WebGL2 gets no map, where OpenLayers' plain canvas drew one everywhere. caniuse puts WebGL2 at about 97% of browsers; the rest are mostly ones with graphics acceleration off or blocked, and phones too old for iOS 15. Such a visitor is told so and keeps the list of sightings. Each case goes to Sentry as one issue (fingerprint `maplibre-no-webgl2`), ignored until it escalates, so its share can be read off the volume.
 - The map page downloads about 270 KB more script, gzipped. It still loads sooner, but the cost lands on every visit, including those that never look at a map.
 - 074's plan to read our own basemap through `ol-pmtiles` and `ol-mapbox-style` changes: MapLibre reads PMTiles through the `pmtiles` package, and the style is MapLibre's own format, so no translation is needed.
 - The trial port and the benchmark are kept outside the repository, at `~/.claude/projects/-Users-rainhead-dev-salishsea-io/maplibre-edit-spike` and `renderer-bench` on Peter's machine.

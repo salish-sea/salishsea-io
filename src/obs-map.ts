@@ -203,10 +203,12 @@ user-location-control.inactive svg { color: #333; }
     try {
       map = this.#map = this.#createMap();
     } catch (err) {
-      // MapLibre needs WebGL2; without it the rest of the page still works, and
-      // the browser is no fault of ours. Any other failure here is.
+      // MapLibre needs WebGL2; without it the rest of the page still works. The
+      // browser is no fault of ours, but how many visitors it leaves without a map
+      // is worth knowing (OpenLayers drew on a plain canvas, which every browser
+      // has), so it goes to Sentry as one issue, ignored until it escalates.
       if (err instanceof GPUInitializationError)
-        reportError(this, "This browser can't draw the map. The list of sightings still works.", {cause: err, capture: false});
+        reportError(this, "This browser can't draw the map. The list of sightings still works.", {cause: err, fingerprint: ['maplibre-no-webgl2']});
       else
         reportError(this, "Couldn't draw the map. The list of sightings still works.", {cause: err});
       return;
