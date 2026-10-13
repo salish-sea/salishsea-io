@@ -129,13 +129,19 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
     else cells.set(`${cx},${cy}`, { x: cx, y: cy, dot, count: 1 });
   }
   // Out of the tab order: a busy page would otherwise put hundreds of stops before
-  // the next link, and the presence table and the line under the map reach the
-  // same days. Each carries an invisible circle wider than the dot, so a dot stays
-  // easy to tap when the picture is scaled down to a phone's width.
-  const link = (dot: MapDot, count: number, x: number, y: number, circleMarkup: string) =>
-    `<a href="${escape(mapUrl(dot))}" tabindex="-1"><title>${escape(dotTitle(dot, count))}</title>${circleMarkup}<circle class="hit" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="12"></circle></a>`;
-  const olderMarkup = [...cells.values()].map(({ x, y, dot, count }) =>
-    link(dot, count, x, y, `<circle class="dot" cx="${x}" cy="${y}" r="5" fill-opacity="${(1 - (1 - DOT_OPACITY) ** count).toFixed(2)}"></circle>`));
+  // the next link. The old map's canvas had no keyboard route to these days
+  // either; the line under the map links the newest.
+  const link = (dot: MapDot, count: number, circleMarkup: string) =>
+    `<a href="${escape(mapUrl(dot))}" tabindex="-1"><title>${escape(dotTitle(dot, count))}</title>${circleMarkup}</a>`;
+  // A tap target wider than each dot, so a dot stays easy to tap when the picture
+  // is scaled down to a phone's width. They are a layer of their own under the
+  // dots: a pointer right on a dot takes that dot, and only a near miss falls to
+  // a target, which may be a neighbour's.
+  const hit = (dot: MapDot, x: number, y: number) =>
+    `<a href="${escape(mapUrl(dot))}" tabindex="-1" aria-hidden="true"><circle class="hit" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="12"></circle></a>`;
+  const olderCells = [...cells.values()];
+  const olderMarkup = olderCells.map(({ x, y, dot, count }) =>
+    link(dot, count, `<circle class="dot" cx="${x}" cy="${y}" r="5" fill-opacity="${(1 - (1 - DOT_OPACITY) ** count).toFixed(2)}"></circle>`));
 
   const siteMarkup = site ? (() => {
     const path = ring.map(([lon, lat], i) => `${i ? 'L' : 'M'}${at(lon, lat).map(v => v.toFixed(1)).join(' ')}`).join('') + 'Z';
@@ -143,12 +149,14 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
     return { ring: `<path class="site" d="${path}"></path>`, centre: `<circle class="site-centre" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"></circle>` };
   })() : null;
 
-  const newestMarkup = newest ? (() => {
-    const [x, y] = at(newest.location.lon, newest.location.lat);
-    return link(newest, newestCount, x, y, `<circle class="newest" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7"></circle>`);
-  })() : '';
+  const newestAt = newest ? at(newest.location.lon, newest.location.lat) : null;
+  const newestMarkup = newest && newestAt
+    ? link(newest, newestCount, `<circle class="newest" cx="${newestAt[0].toFixed(1)}" cy="${newestAt[1].toFixed(1)}" r="7"></circle>`)
+    : '';
+  // The newest's target last, so a near miss between it and another goes to the newest.
+  const hits = [...olderCells.map(({ x, y, dot }) => hit(dot, x, y)), ...(newest && newestAt ? [hit(newest, ...newestAt)] : [])];
 
-  return tiles.join('') + olderMarkup.join('') + (siteMarkup?.ring ?? '') + newestMarkup + (siteMarkup?.centre ?? '');
+  return tiles.join('') + hits.join('') + olderMarkup.join('') + (siteMarkup?.ring ?? '') + newestMarkup + (siteMarkup?.centre ?? '');
 }
 
 export const profileMapStyles = css`
@@ -178,6 +186,10 @@ export const profileMapStyles = css`
   figure.profile-map a:hover circle:not(.hit) {
     stroke: #ffff00;
     stroke-width: 3;
+  }
+  /* The site's radius and centre are drawn over the reports but take no clicks. */
+  figure.profile-map .site, figure.profile-map .site-centre {
+    pointer-events: none;
   }
   figure.profile-map .site {
     fill: rgba(230, 81, 0, 0.10);

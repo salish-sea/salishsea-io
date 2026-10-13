@@ -58,15 +58,22 @@ describe('profileMapSvg', () => {
 
   it('keeps the dots out of the tab order, each with a tap target wider than itself', () => {
     const svg = profileMapSvg([dot('a', -123, 48.5), dot('b', -122.3, 47.6)]);
-    expect(svg.match(/<a /g)).toHaveLength(2);
-    expect(svg.match(/tabindex="-1"/g)).toHaveLength(2);
+    expect(svg.match(/<a [^>]*><title>/g)).toHaveLength(2);
+    expect(svg.match(/<a [^>]*tabindex="-1"/g)).toHaveLength(4);
     expect(svg.match(/class="hit"[^>]*r="12"/g)).toHaveLength(2);
+    // Every target under every dot, so one dot's target never covers another dot.
+    expect(svg.lastIndexOf('class="hit"')).toBeLessThan(svg.indexOf('class="dot"'));
   });
 
   it('wraps tile columns across the antimeridian', () => {
     const svg = profileMapSvg([dot('a', 179.9, 52), dot('b', -179.9, 52)]);
     const columns = [...svg.matchAll(/tile\/(\d+)\/\d+\/(-?\d+)"/g)].map(m => [Number(m[1]), Number(m[2])]);
     expect(columns.every(([z, x]) => x! >= 0 && x! < 2 ** z!)).toBe(true);
+  });
+
+  it('lets clicks through the site\'s radius to the reports inside it', () => {
+    const svg = profileMapSvg([dot('a', -123, 48.5)], { lon: -123, lat: 48.5, radius_m: 500 });
+    expect(svg.indexOf('class="site"')).toBeGreaterThan(-1);
   });
 
   it('closes every element, since the server renderer parses it as HTML', () => {

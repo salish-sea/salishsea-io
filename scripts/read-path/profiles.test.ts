@@ -375,7 +375,7 @@ describe('assembleHaulouts and renderHauloutPage', () => {
     test('the map is drawn into the page: the site\'s radius and centre, and each dot a link to its day', () => {
         expect(doc()).toContain('<path class="site"');
         expect(doc()).toContain('<circle class="site-centre"');
-        expect(doc()).toContain('<a href="/?d=2026-05-01&amp;o=inat%3A1">');
+        expect(doc()).toContain('<a href="/?d=2026-05-01&amp;o=inat%3A1" tabindex="-1"><title>');
         expect(doc()).not.toContain('individual-map');
     });
 
