@@ -13,8 +13,6 @@ const pnpm = (name: string, file = 'index.js') =>
 describe('vendorChunk', () => {
   it.each([
     ['maplibre-gl', 'vendor-maplibre'],
-    ['ol', 'vendor-ol'],
-    ['rbush', 'vendor-ol'],
     ['lit-html', 'vendor-lit'],
     ['@lit/reactive-element', 'vendor-lit'],
     ['@sentry/browser', 'vendor-sentry'],
@@ -26,7 +24,7 @@ describe('vendorChunk', () => {
   });
 
   it('reads the package, not a directory inside it', () => {
-    expect(vendorChunk(pnpm('ol', 'layer/Vector.js'))).toBe('vendor-ol');
+    expect(vendorChunk(pnpm('lit-html', 'directives/repeat.js'))).toBe('vendor-lit');
   });
 
   it('leaves our own code to Rolldown', () => {
@@ -52,15 +50,13 @@ describe('devProfilePage', () => {
       default-src 'self';
       upgrade-insecure-requests;
     ">
-    <script type="module" crossorigin src="/assets/map-island-Bx1_9z.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/vendor-ol-map-D3m.js">
-    <link rel="stylesheet" crossorigin href="/assets/map-island-C4.css">
     <script type="module" crossorigin src="/assets/site-search-a1B2.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-lit-D3m.js">
+    <link rel="stylesheet" crossorigin href="/assets/site-search-C4.css">
   </head>`;
 
   it('loads each island from its source, drops the built preloads and styles, and lets http stay http', () => {
     const dev = devProfilePage(built);
-    expect(dev).toContain('<script type="module" src="/src/map-island.ts"></script>');
     expect(dev).toContain('<script type="module" src="/src/site-search.ts"></script>');
     expect(dev).not.toContain('/assets/');
     expect(dev).not.toContain('upgrade-insecure-requests');

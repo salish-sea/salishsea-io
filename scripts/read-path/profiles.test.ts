@@ -126,7 +126,7 @@ describe('renderIndividualPage', () => {
         expect(doc).toContain('<title>Fingers (T065A) · SalishSea.io</title>');
         expect(doc).toContain('<h1>Fingers</h1>');
         expect(doc).toContain('T065A2');
-        expect(doc).toContain('src="/read-path/profiles/individuals/0010001.links.json"');
+        expect(doc).toContain('<figure class="profile-map">');
     });
 
     test('depends on the data alone: shuffled snapshot rows render the same bytes', () => {
@@ -183,7 +183,7 @@ describe('renderMatrilinePage', () => {
         expect(doc()).toContain('<title>The Fingers Family (T065A matriline) · SalishSea.io</title>');
         expect(doc()).toContain(`<meta name="description" content="Members, naming, and sighting history of the T065A matriline of Bigg's killer whales in the Salish Sea.">`);
         expect(doc()).toContain('<link rel="canonical" href="https://salishsea.io/matrilines/0020001/T065As">');
-        expect(doc()).toContain('src="/read-path/profiles/matrilines/0020001.links.json"');
+        expect(doc()).toContain('<figure class="profile-map">');
     });
 
     test('never the group\'s notes (D-21)', () => {
@@ -319,7 +319,7 @@ describe("a community's population page, and the Southern Residents' chain benea
         expect(doc).toContain('<div class="designation-kicker">Pod</div>');
         expect(doc).toContain('<h1>J pod</h1>');
         expect(doc).toContain('<a href="/populations/0000010/Southern-Resident">Southern Resident killer whales</a>');
-        expect(doc).toContain('src="/read-path/profiles/pods/0000020.links.json"');
+        expect(doc).toContain('<figure class="profile-map">');
         expect(doc).toContain('href="/matrilines/0003011/J31s"');
         expect(doc).not.toContain('Pods:');
     });
@@ -372,9 +372,11 @@ describe('assembleHaulouts and renderHauloutPage', () => {
         expect(doc()).toContain('<link rel="canonical" href="https://salishsea.io/haulouts/12/Protection-Island">');
     });
 
-    test('the map is handed its site and its dots\' file, as attributes a prerendered page can carry', () => {
-        expect(doc()).toContain('src="/read-path/profiles/haulouts/12.links.json"');
-        expect(doc()).toContain('site="{&quot;lon&quot;:-122.92,&quot;lat&quot;:48.12,&quot;radius_m&quot;:500}"');
+    test('the map is drawn into the page: the site\'s radius and centre, and each dot a link to its day', () => {
+        expect(doc()).toContain('<path class="site"');
+        expect(doc()).toContain('<circle class="site-centre"');
+        expect(doc()).toContain('<a href="/?d=2026-05-01&amp;o=inat%3A1">');
+        expect(doc()).not.toContain('individual-map');
     });
 
     test('the story as markdown, the photo strip at medium size, the grid ending on the snapshot\'s year', () => {

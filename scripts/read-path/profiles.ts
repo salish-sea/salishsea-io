@@ -6,7 +6,8 @@
  * <kind> is individuals, matrilines, populations, pods or haulouts. Writes $EXPORT_DIR/profiles/<kind>/<id>.html
  * for every subject of that kind (<id> is its register identifier's seven digits, or a
  * haul-out site's id: the register holds animals, not places),
- * and beside it <id>.links.json, the sighting links its map loads. The page itself is
+ * and beside it <id>.links.json, its sighting links as data (scripts/segments/compare.ts reads
+ * them; the page draws its map from the same links, decision 076). The page itself is
  * the kind's templates (src/individual-profile.ts and its siblings), given data assembled
  * from the snapshot's documents in the shapes src/catalog.ts declares. Each kind reads only its own tables, which is
  * what the Stelis task running it declares as its inputs.
@@ -27,7 +28,7 @@ import {
     dedupeOccurrenceLinks, descendantMatrilines, displayName, groupChain, hauloutReport, hauloutSite, isPopulation,
     HAULOUT_SITES_FILE, type CatalogGroup, type Haulout, type HauloutOccurrence, type HauloutSite, type OccurrenceLink,
 } from '../../src/catalog.ts';
-import type { MapDot } from '../../src/individual-map.ts';
+import type { MapDot } from '../../src/profile-map.ts';
 import { profileStyles, renderProfileFrame } from '../../src/profile-shared.ts';
 import {
     individualPreview, individualStyles, renderIndividualProfile, renderIndividualSightings,
@@ -196,12 +197,11 @@ export function assembleIndividuals(t: Pick<Tables, (typeof INDIVIDUAL_TABLES)[n
 }
 
 /** Where a page's map loads its points: served from the export by the read path. */
-export const linksUrl = (kind: Kind, id: string) => `/read-path/profiles/${kind}/${id}.links.json`;
 
 export function renderIndividualPage(shell: string, page: IndividualPage, currentYear: number, islands: Island[] = []): string {
     const {data, links} = page;
     const sightings = renderIndividualSightings(data.profile.primary_designation, links,
-        {mapSrc: linksUrl('individuals', page.id), currentYear});
+        {currentYear});
     return renderDocument(shell, 'individual-page', [profileStyles, individualStyles],
         individualPreview(data), renderProfileFrame(renderIndividualProfile(data, sightings)), islands);
 }
@@ -247,7 +247,7 @@ export function assembleMatrilines(t: Pick<Tables, (typeof MATRILINE_TABLES)[num
 export function renderMatrilinePage(shell: string, page: MatrilinePage, currentYear: number, islands: Island[] = []): string {
     const {data, links} = page;
     const sightings = renderMatrilineSightings(data.group.designation, links,
-        {mapSrc: linksUrl('matrilines', page.id), currentYear});
+        {currentYear});
     return renderDocument(shell, 'matriline-page', [profileStyles],
         matrilinePreview(data), renderProfileFrame(renderMatrilineProfile(data, sightings)), islands);
 }
@@ -303,7 +303,7 @@ export const assemblePods = (t: Pick<Tables, (typeof ECOTYPE_TABLES)[number]>): 
 const renderGroupPage = (kind: 'populations' | 'pods') =>
     (shell: string, page: EcotypePage, currentYear: number, islands: Island[] = []): string => {
         const {data, links} = page;
-        const sightings = renderEcotypeSightings(links, {mapSrc: linksUrl(kind, page.id), currentYear},
+        const sightings = renderEcotypeSightings(links, {currentYear},
             kind === 'pods' ? 'pod' : 'population');
         return renderDocument(shell, 'ecotype-page', [profileStyles, ...ecotypeStyles],
             ecotypePreview(data), renderProfileFrame(renderEcotypeProfile(data, sightings)), islands);
@@ -346,7 +346,6 @@ export function renderHauloutPage(shell: string, page: HauloutPage, currentYear:
         vitals: renderHauloutVitals(site, reports),
         dots: reports.filter(r => r.location),
         reports: renderHauloutReports(site, reports, currentYear),
-        mapSrc: linksUrl('haulouts', page.id),
     });
     return renderDocument(shell, 'haulout-page', [profileStyles, hauloutStyles],
         hauloutPreview(page.data), renderProfileFrame(body), islands);
@@ -354,13 +353,10 @@ export function renderHauloutPage(shell: string, page: HauloutPage, currentYear:
 
 // --- Writing a kind's pages -----------------------------------------------------------
 
-/** The map island's entry, as vite.config.js names it. */
-export const MAP_ISLAND = 'src/map-island.ts';
-
 type File = [name: string, content: string];
 
 /**
- * A kind's pages as files: each page, and beside it the links its map loads. A
+ * A kind's pages as files: each page, and beside it its sighting links. A
  * kind may also write files about all its subjects at once, beside the pages.
  */
 const pagesOf = <T extends Table, P extends ProfilePage<unknown>>(
@@ -397,8 +393,7 @@ export async function writeProfiles(kind: Kind, snapshot: string, exportDir: str
     await recoverDir(outDir);
     const shell = await readFile(path.join(dist, KINDS[kind].shell), 'utf8');
     const manifest = JSON.parse(await readFile(path.join(dist, '.vite', 'manifest.json'), 'utf8'));
-    const islands = [islandFromManifest(manifest, MAP_ISLAND, 'individual-map'),
-        islandFromManifest(manifest, SEARCH_ISLAND, 'site-search')];
+    const islands = [islandFromManifest(manifest, SEARCH_ISLAND, 'site-search')];
     const {pages, index} = await KINDS[kind].pages(snapshot, shell, islands);
     await replaceDir(outDir, [...pages.flat(), ...index]);
     return {pages: pages.length};

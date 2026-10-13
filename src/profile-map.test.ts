@@ -1,0 +1,64 @@
+import { describe, expect, it } from 'vitest';
+import { profileMapSvg, project, type MapDot } from './profile-map.ts';
+
+const dot = (id: string, lon: number, lat: number, observed_at = '2026-09-20T18:00:00Z'): MapDot =>
+  ({ occurrence_id: id, observed_at, location: { lon, lat } });
+
+describe('profileMapSvg', () => {
+  it('draws nothing when no report has a location and there is no site', () => {
+    expect(profileMapSvg([{ occurrence_id: 'a', observed_at: '2026-09-20T18:00:00Z', location: null }])).toBe('');
+  });
+
+  it('frames one report at zoom 10, as close as the interactive map came', () => {
+    const svg = profileMapSvg([dot('a', -123, 48.5)]);
+    expect(svg).toMatch(/tile\/10\/\d+\/\d+"/);
+    expect(svg).not.toMatch(/tile\/11\//);
+  });
+
+  it('comes in to zoom 15 for a haul-out site, to show its radius', () => {
+    const svg = profileMapSvg([], { lon: -122.92, lat: 48.12, radius_m: 50 });
+    expect(svg).toMatch(/tile\/15\//);
+    expect(svg).toContain('<path class="site"');
+  });
+
+  it('fits reports far apart, from a lower zoom', () => {
+    const svg = profileMapSvg([dot('a', -123, 48.5), dot('b', -122.3, 47.6)]);
+    const zooms = [...svg.matchAll(/tile\/(\d+)\//g)].map(m => Number(m[1]));
+    expect(Math.max(...zooms)).toBeLessThan(10);
+  });
+
+  it('links each dot to its day on the main map, escaped for markup', () => {
+    const svg = profileMapSvg([dot('inat:1', -123, 48.5), dot('maplify:2', -122.3, 47.6, '2026-09-19T18:00:00Z')]);
+    expect(svg).toContain('<a href="/?d=2026-09-20&amp;o=inat%3A1">');
+    expect(svg).toContain('<a href="/?d=2026-09-19&amp;o=maplify%3A2">');
+  });
+
+  it('draws the newest report last, so it is on top', () => {
+    const svg = profileMapSvg([dot('new', -123, 48.5), dot('old', -122.3, 47.6, '2026-09-19T18:00:00Z')]);
+    expect(svg.lastIndexOf('class="newest"')).toBeGreaterThan(svg.lastIndexOf('class="dot"'));
+  });
+
+  it('draws reports on the same spot as one dot, darker, linking to the newest of them', () => {
+    const svg = profileMapSvg([
+      dot('newest', -122.3, 47.6),
+      dot('b', -123, 48.5, '2026-09-19T18:00:00Z'),
+      dot('c', -123, 48.5, '2026-09-18T18:00:00Z'),
+      dot('d', -123, 48.5, '2026-09-17T18:00:00Z'),
+    ]);
+    expect(svg.match(/class="dot"/g)).toHaveLength(1);
+    expect(svg).toContain('o=b"><title>3 reports, the newest on Sep 19, 2026</title>');
+    expect(svg).toMatch(/fill-opacity="0\.91"/);
+  });
+
+  it('closes every element, since the server renderer parses it as HTML', () => {
+    const svg = profileMapSvg([dot('a', -123, 48.5), dot('b', -122.3, 47.6)], { lon: -123, lat: 48.5, radius_m: 500 });
+    expect(svg).not.toMatch(/\/>/);
+  });
+});
+
+describe('project', () => {
+  it('puts the antimeridian and equator where the tiles do', () => {
+    expect(project(-180, 0, 0)).toEqual([0, 128]);
+    expect(project(0, 0, 1)).toEqual([256, 256]);
+  });
+});

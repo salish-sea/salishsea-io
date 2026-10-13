@@ -17,7 +17,7 @@ import * as path from 'node:path';
 import { DuckDBInstance } from '@duckdb/node-api';
 
 import { POPULATION_KINDS, populationLabel, populationPath } from '../../src/catalog.ts';
-import type { MapDot } from '../../src/individual-map.ts';
+import type { MapDot } from '../../src/profile-map.ts';
 import { profileStyles, renderProfileFrame } from '../../src/profile-shared.ts';
 import { renderWhales, whalesPreview, whalesStyles, type WhaleSpecies, type WhalesData } from '../../src/whales.ts';
 import { budget } from './duckdb-budget.ts';

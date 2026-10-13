@@ -57,7 +57,7 @@ const DOT_OPACITY = 0.55;
 /** Escaped for an attribute or text in markup Lit is told not to escape. */
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
-/** "20 Sep 2026", and how many more if a dot stands for several reports. */
+/** "Reported Sep 20, 2026", or how many reports a dot stands for and the newest's date. */
 function dotTitle(newest: MapDot, count: number): string {
   const date = formatDate(observedDate(newest.observed_at), { day: 'numeric', month: 'short', year: 'numeric' });
   return count > 1 ? `${count} reports, the newest on ${date}` : `Reported ${date}`;

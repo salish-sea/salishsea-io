@@ -63,10 +63,10 @@ describe('renderDocument', () => {
     });
 
     test('an island\'s tags at the end of the head, in place of the shell\'s script, only when the page has its element', () => {
-        const island = {element: 'individual-map', tags: '<script type="module" src="/assets/map.js"></script>'};
+        const island = {element: 'site-search', tags: '<script type="module" src="/assets/search.js"></script>'};
         const withMap = renderDocument(SHELL, 'individual-page', [], HEAD,
-            html`<individual-map src="/read-path/x.links.json"></individual-map>`, [island]);
-        expect(withMap).toContain('<link rel="icon" href="/favicon.svg">\n    <script type="module" src="/assets/map.js"></script>\n  </head>');
+            html`<site-search></site-search>`, [island]);
+        expect(withMap).toContain('<link rel="icon" href="/favicon.svg">\n    <script type="module" src="/assets/search.js"></script>\n  </head>');
         expect(withMap).not.toContain('individual-abc.js');
         const without = renderDocument(SHELL, 'individual-page', [], HEAD, html`<p>No sightings.</p>`, [island]);
         expect(without).not.toContain('<script');

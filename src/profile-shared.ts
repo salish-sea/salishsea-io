@@ -7,6 +7,7 @@ import {
   type CatalogGroup, type GroupMember, type OccurrenceLink,
 } from './catalog.ts';
 import { formatDate } from './date-format.ts';
+import { profileMapStyles, renderProfileMap } from './profile-map.ts';
 import { renderSiteNav, siteNavStyles, type NavPage } from './site-nav.ts';
 
 // Shared rendering for the profile pages (individual-page, matriline-page).
@@ -150,10 +151,6 @@ const profileOwnStyles = css`
     font-size: 0.875rem;
     margin: 0.75rem 0 0;
   }
-  individual-map {
-    display: block;
-    margin-top: 1.5rem;
-  }
   .placeholder {
     color: #64748b;
   }
@@ -163,7 +160,7 @@ const profileOwnStyles = css`
 `;
 
 /** The profile pages' common rules, the nav's among them. */
-export const profileStyles = css`${siteNavStyles}${profileOwnStyles}`;
+export const profileStyles = css`${siteNavStyles}${profileOwnStyles}${profileMapStyles}`;
 
 export function renderRelative(relative: { entity_id: string | null; primary_designation: string; nicknames?: { name: string; status: string | null }[] }) {
   const name = relative.nicknames ? displayName(relative.nicknames) : null;
@@ -302,12 +299,10 @@ export function renderProfileFrame(content: unknown, current: NavPage | null = n
 }
 
 /**
- * Where a prerendered page's map loads its points from, and the year its presence
- * table ends on (decision 057). A client-rendered page passes neither: it hands the
- * map its links, and the table ends on this year.
+ * The year a prerendered page's presence table ends on (decision 057), which is the
+ * build's year rather than the reader's; without it, the table ends on this year.
  */
 export interface SightingsOptions {
-  mapSrc?: string;
   currentYear?: number;
 }
 
@@ -319,7 +314,7 @@ export interface SightingsOptions {
 export function renderSightingsSummary(
   links: OccurrenceLink[] | null,
   empty: TemplateResult,
-  { mapSrc, currentYear }: SightingsOptions = {},
+  { currentYear }: SightingsOptions = {},
 ) {
   if (!links?.length)
     return empty;
@@ -327,7 +322,7 @@ export function renderSightingsSummary(
   const located = links.filter(l => l.location).length;
   return html`
     ${renderPresenceTable(links, undefined, undefined, currentYear)}
-    ${when(located, () => html`<individual-map .links=${links} src=${mapSrc ?? nothing}></individual-map>`)}
+    ${when(located, () => renderProfileMap(links))}
     <p class="sightings-note">
       Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}
       · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} a dot above; the newest located report is solid. Click one to see that day on the map.`)}

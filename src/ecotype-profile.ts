@@ -15,7 +15,7 @@ import {
   podLabel, podPath, populationLabel, populationPath, matrilinePath,
   type EcotypeProfile, type OccurrenceLink, type SocialGroup,
 } from './catalog.ts';
-import type { MapDot } from './individual-map.ts';
+import type { MapDot } from './profile-map.ts';
 import { renderSightingsSummary, type SightingsOptions } from './profile-shared.ts';
 import { renderSmallMaps, smallMapStyles } from './small-multiples.ts';
 
