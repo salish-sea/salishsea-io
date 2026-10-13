@@ -19,7 +19,7 @@ CREATE TABLE inaturalist.observations(id BIGINT, description VARCHAR, location_l
 CREATE TABLE inaturalist.observation_photos(id BIGINT, observation_id BIGINT, seq SMALLINT, attribution VARCHAR, hidden BOOLEAN, license VARCHAR, url VARCHAR);;
 CREATE TABLE inaturalist.taxa(id INTEGER, parent_id INTEGER, scientific_name VARCHAR, vernacular_name VARCHAR, rank VARCHAR, current_taxon_id INTEGER);;
 CREATE TABLE maplify.sightings(id INTEGER, "name" VARCHAR, scientific_name VARCHAR, location_lon DOUBLE, location_lat DOUBLE, number_sighted INTEGER, created_at TIMESTAMP, photo_url VARCHAR, "comments" VARCHAR, is_test BOOLEAN, "source" VARCHAR, usernm VARCHAR, provider_id INTEGER, collection_id INTEGER, source_url VARCHAR, entity_id VARCHAR, "trusted" BOOLEAN);;
-CREATE TABLE public.acoustic_bouts(id VARCHAR, feed_name VARCHAR, title VARCHAR, location_lon DOUBLE, location_lat DOUBLE, started_at TIMESTAMP WITH TIME ZONE, ended_at TIMESTAMP WITH TIME ZONE, provider_id INTEGER, collection_id INTEGER);;
+CREATE TABLE public.acoustic_bouts(id VARCHAR, feed_name VARCHAR, title VARCHAR, location_lon DOUBLE, location_lat DOUBLE, started_at TIMESTAMP WITH TIME ZONE, ended_at TIMESTAMP WITH TIME ZONE, provider_id INTEGER, collection_id INTEGER, feed_id VARCHAR);;
 CREATE TABLE public.acoustic_bout_entities(bout_id VARCHAR, entity_id VARCHAR, certainty VARCHAR);;
 CREATE TABLE public.contributors(id INTEGER, "name" VARCHAR, orcid VARCHAR);;
 CREATE TABLE public.identifications(occurrence_id VARCHAR, individual_id INTEGER, social_group_id INTEGER, is_present BOOLEAN, evidence VARCHAR, status VARCHAR, code VARCHAR, certainty VARCHAR);;

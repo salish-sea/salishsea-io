@@ -1,8 +1,9 @@
 /**
  * The reference tables, read from checked-in data rather than from Postgres (decision
  * 064, salish-9uu.2.1): the providers, organizations and collections a sighting is
- * attributed to, the rules that file a Maplify sighting under a collection, and the
- * declared order of the enums the derivation compares by.
+ * attributed to, the rules that file a Maplify sighting under a collection, the
+ * declared order of the enums the derivation compares by, and how far each Orcasound
+ * hydrophone can hear (decision 077).
  *
  *   node scripts/read-path/reference.ts <snapshot.duckdb>
  *
@@ -37,6 +38,13 @@ const ENUMS = [
 ];
 
 export const REFERENCE: readonly ReferenceTable[] = [
+    {
+        // How far each Orcasound hydrophone can hear: a bout's ring on the map until
+        // orcasite states one per bout (decision 077, orcasound/orcasite#1080). Ours,
+        // and an estimate.
+        table: 'public.hydrophones', file: 'hydrophones.tsv',
+        columns: [['feed_id', 'VARCHAR'], ['slug', 'VARCHAR'], ['name', 'VARCHAR'], ['hearing_range_m', 'INTEGER']],
+    },
     {
         table: 'public.providers', file: 'providers.tsv',
         columns: [['id', 'INTEGER'], ['slug', 'VARCHAR'], ['name', 'VARCHAR']],

@@ -47,7 +47,7 @@ CREATE OR REPLACE TEMP VIEW source_inaturalist_observation_photos AS
 -- name no organism); the mirror holds every category, and the scope rule is applied
 -- here, as Maplify's and iNaturalist's are (salish-xv35.18).
 CREATE OR REPLACE TEMP VIEW source_acoustic_bouts AS
-  SELECT id, feed_name, title, CAST(lon AS DOUBLE) AS location_lon, CAST(lat AS DOUBLE) AS location_lat,
+  SELECT id, feed_id, feed_name, title, CAST(lon AS DOUBLE) AS location_lon, CAST(lat AS DOUBLE) AS location_lat,
          CAST(started_at AS TIMESTAMPTZ) AS started_at, CAST(ended_at AS TIMESTAMPTZ) AS ended_at,
          (SELECT id FROM public.providers WHERE slug = 'orcasound') AS provider_id,
          (SELECT id FROM public.collections WHERE slug = 'orcasound') AS collection_id

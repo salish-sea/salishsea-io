@@ -44,7 +44,7 @@ export const ARM_INPUTS: Readonly<Record<Source, readonly string[]>> = {
     inaturalist: ['inaturalist_mirror.observations', 'inaturalist_mirror.observation_photos'],
     happywhale: ['happywhale.encounters', 'happywhale.users', 'happywhale.individuals', 'happywhale.species', 'happywhale.media'],
     native: ['public.observations', 'public.observation_photos', 'public.contributors'],
-    orcasound: ['orcasound.bouts', 'orcasound.bout_entities'],
+    orcasound: ['orcasound.bouts', 'orcasound.bout_entities', 'public.hydrophones'],
 };
 
 /**
