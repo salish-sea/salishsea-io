@@ -17,6 +17,7 @@ import {
 } from './catalog.ts';
 import { formatDate } from './date-format.ts';
 import { renderPresenceTable } from './profile-shared.ts';
+import { renderProfileMap } from './profile-map.ts';
 
 // How many years of presence grid a site draws: its own history, not a constant.
 //
@@ -175,7 +176,7 @@ export const hauloutStyles = css`
       padding: 0.5rem 0.75rem;
       margin: 0.75rem 0;
     }
-    individual-map {
+    figure.profile-map {
       margin: 1rem 0;
     }
     h3 {
@@ -205,26 +206,26 @@ export function hauloutPreview({ site }: Pick<HauloutProfileData, 'site'>) {
 /**
  * The parts of the page that come from the site's reports: the masthead's vitals
  * line, the map's dots, and the Reports section's content. The client page fills
- * them as its reports load; the build, with the reports in hand. `mapSrc` is where
- * a prerendered page's map loads its dots from.
+ * them as its reports load; the build, with the reports in hand.
  */
 export interface HauloutReportParts {
   vitals: unknown;
   dots: HauloutReport[];
   reports: unknown;
-  mapSrc?: string;
 }
 
 /** The page's content. */
-export function renderHauloutProfile({ site, siblings, neighbours }: HauloutProfileData, { vitals, dots, reports, mapSrc }: HauloutReportParts) {
-  const mapSite = { lon: site.location.lon!, lat: site.location.lat!, radius_m: site.radius_m };
+export function renderHauloutProfile({ site, siblings, neighbours }: HauloutProfileData, { vitals, dots, reports }: HauloutReportParts) {
+  const mapSite = site.location.lon != null && site.location.lat != null
+    ? { lon: site.location.lon, lat: site.location.lat, radius_m: site.radius_m }
+    : null;
   return html`
     <header class="masthead">
       <div class="designation-kicker">Haul-out site${site.region ? html` · ${site.region}` : nothing}</div>
       <h1>${site.name}</h1>
       ${vitals}
     </header>
-    <individual-map .links=${dots} .site=${mapSite} src=${mapSrc ?? nothing} site=${mapSrc ? JSON.stringify(mapSite) : nothing}></individual-map>
+    ${renderProfileMap(dots, mapSite)}
     ${renderAtlas(site, siblings)}
     <section>
       <h2>Reports</h2>

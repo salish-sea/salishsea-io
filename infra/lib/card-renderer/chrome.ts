@@ -6,7 +6,7 @@ import { project, type LonLat, type Viewport } from './mercator.js';
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 630;
 
-// Matches the marker the app draws for an occurrence (src/individual-map.ts).
+// Matches the marker a profile page's map draws for a report (src/profile-map.ts).
 const MARKER_BLUE = '#1565c0';
 
 // DejaVu Sans is bundled with the Lambda (see fonts/fonts.conf) because the

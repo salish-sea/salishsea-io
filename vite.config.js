@@ -28,10 +28,7 @@ function releaseSha() {
 // for vite-config.test.ts.
 export const VENDOR_CHUNKS = [
   ['vendor-sentry', name => name.startsWith('@sentry/')],
-  // MapLibre draws the map page; OpenLayers still draws the profile pages' small
-  // map, until that becomes a picture (decision 076).
   ['vendor-maplibre', name => name === 'maplibre-gl'],
-  ['vendor-ol', name => ['ol', 'rbush', 'quickselect'].includes(name)],
   ['vendor-lit', name => ['lit', 'lit-html', 'lit-element'].includes(name) || name.startsWith('@lit/')],
   ['vendor-form', name => name.startsWith('@tanstack/')],
   ['vendor-dompurify', name => name === 'dompurify'],
@@ -66,7 +63,7 @@ const PROFILE_FAMILY_RE = /^\/(individuals|matrilines|populations|pods|haulouts)
 
 export function devProfilePage(html) {
   return html
-    .replace(/<script type="module" crossorigin src="\/assets\/(map-island|site-search)-[^"]+\.js"><\/script>/g,
+    .replace(/<script type="module" crossorigin src="\/assets\/(site-search)-[^"]+\.js"><\/script>/g,
       '<script type="module" src="/src/$1.ts"></script>')
     .replace(/\s*<link rel="(modulepreload|stylesheet)" crossorigin href="\/assets\/[^"]+">/g, '')
     .replace(/\s*upgrade-insecure-requests;?/g, '');
@@ -176,11 +173,9 @@ export default defineConfig({
         whales: resolve(__dirname, 'whales.html'),
         'not-published': resolve(__dirname, 'not-published.html'),
         'not-in-catalog': resolve(__dirname, 'not-in-catalog.html'),
-        // The map on a prerendered profile page, its only script (decision 057).
-        // Not an HTML page, so the read-path build finds its files through the
-        // manifest below, and writes the tags for them itself.
-        'map-island': resolve(__dirname, 'src/map-island.ts'),
-        // The search field in the nav (GH #640), an island on every prerendered page.
+        // The search field in the nav (GH #640), an island on every prerendered page and
+        // its only script (decision 057, amended by 076). Not an HTML page, so the
+        // read-path build finds its files through the manifest, and writes the tags itself.
         'site-search': resolve(__dirname, 'src/site-search.ts'),
       },
       output: {
@@ -191,9 +186,9 @@ export default defineConfig({
         // re-downloaded both. Libraries loaded lazily (exifreader, marked) are not
         // listed: a group would pull them into the first load.
         // Split each library by sharing: the modules more than one entry uses, and the
-        // ones only the map page's editing tools use. One chunk per library handed the
-        // profile pages' map island all of OpenLayers' editing modules, 30 KB they
-        // never run (decision 057 keeps those pages light).
+        // ones only the map page uses. One chunk per library once handed the profile
+        // pages' map island all of OpenLayers' editing modules, 30 KB it never ran
+        // (decision 057 keeps those pages light).
         codeSplitting: {groups: [
           {name: vendorChunk, minShareCount: 2, priority: 1},
           {name: id => vendorChunk(id) && `${vendorChunk(id)}-map`},

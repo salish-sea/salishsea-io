@@ -6,7 +6,7 @@ import { TILE, type Viewport, tilesFor } from './mercator.js';
  * constant.**
  *
  * This is the same Esri "World Ocean Base" layer the app itself draws
- * (`src/obs-map.ts`, `src/individual-map.ts`), chosen because a side-by-side
+ * (`src/style.ts`, `src/profile-map.ts`), chosen because a side-by-side
  * prototype showed its muted bathymetric styling reads far better at card size
  * than a coastline we draw ourselves (decision 020).
  *

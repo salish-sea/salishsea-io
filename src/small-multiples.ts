@@ -12,7 +12,7 @@
 
 import { css, html, nothing } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
-import type { MapDot } from './individual-map.ts';
+import { project as projectAt, TILE, TILE_URL, type MapDot } from './profile-map.ts';
 
 /**
  * The Salish Sea, as the maps all show it. It holds 8,764 of the 8,832 located reports
@@ -24,8 +24,6 @@ export const SMALL_MAP_EXTENT = { west: -124.3, east: -122.1, south: 47.05, nort
 // Zoom 8 puts the extent about 400 tiles-pixels wide: sharp at twice the width a map is
 // drawn at, which is what a high-density screen asks for.
 const ZOOM = 8;
-const TILE = 256;
-const TILE_URL = 'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile';
 
 /**
  * Radius and opacity of one report, in the map's own units (about 0.4 of a CSS pixel).
@@ -43,14 +41,7 @@ const DOT_GRID = 2;
 const DENSE = 1500;
 
 /** Web Mercator pixel coordinates at ZOOM. */
-function project(lon: number, lat: number): [number, number] {
-  const size = TILE * 2 ** ZOOM;
-  const sin = Math.sin(lat * Math.PI / 180);
-  return [
-    (lon + 180) / 360 * size,
-    (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * size,
-  ];
-}
+const project = (lon: number, lat: number) => projectAt(lon, lat, ZOOM);
 
 const [X0, Y0] = project(SMALL_MAP_EXTENT.west, SMALL_MAP_EXTENT.north).map(Math.floor) as [number, number];
 const [X1, Y1] = project(SMALL_MAP_EXTENT.east, SMALL_MAP_EXTENT.south).map(Math.ceil) as [number, number];
