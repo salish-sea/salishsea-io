@@ -183,6 +183,13 @@ export const profileMapStyles = css`
   figure.profile-map .hit {
     fill: transparent;
   }
+  /* Scaled down to a phone's width, a 12-unit target is about 6 pixels; this keeps
+     it near the old map's 9-pixel reach. */
+  @media (max-width: 600px) {
+    figure.profile-map .hit {
+      r: 20px;
+    }
+  }
   figure.profile-map a:hover circle:not(.hit) {
     stroke: #ffff00;
     stroke-width: 3;
