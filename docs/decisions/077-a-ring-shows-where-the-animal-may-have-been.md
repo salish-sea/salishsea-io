@@ -20,6 +20,8 @@ Both objections are about values that describe the reporter. A bout's hearing ra
 - **Our own sightings**, whose author can say how far the animal may have been from the point they placed. The form takes it as a distance in metres, and on the map as a ring around the subject with a handle to drag its radius. Empty means not stated. The write API stores it (it used to accept the value and drop it, as Postgres had), and the export carries it as `coordinateUncertaintyInMeters`, which in Darwin Core describes the location of the occurrence, the same sense.
 - **Orcasound bouts**, whose ring is the hydrophone's hearing range.
 
+**A new sighting suggests a value, a quarter of the distance from observer to subject.** Someone judging range by eye over water is often 20 to 30% out, and a bearing 10° out puts the animal about a sixth of the distance to one side, so a quarter is about right and doesn't sound alarming: an orca seen 2 km from shore gets a 500 m ring. It is rounded to two significant figures and never less than 20 m, about how well a phone knows its own position. The suggestion is only made once both points are placed, follows them while they move, and is shown as one, lighter in the field with a line saying how it was worked out. Once the author types a value, drags the handle, or clears the field, the value is theirs and stays. A suggestion left in place is saved, because the author saw it and let it stand. Editing a saved sighting suggests nothing, so a sighting saved without a value keeps none.
+
 iNaturalist's and HappyWhale's values stay in the data and in the export as they are, and are not drawn. 029's reasoning stands for them.
 
 **One field, decided by source.** Every occurrence already carries `accuracy` in metres. Whether the map draws it depends on the provider: ours (`direct`) and Orcasound's (`orcasound`). The rule lives in one place in the map's code.
@@ -37,6 +39,8 @@ iNaturalist's and HappyWhale's values stay in the data and in the export as they
 - **Replacing the dot with the ring.** It would say more honestly that there is no precise point, but the dot is what the label, the track and the click all hang on.
 - **A blurred halo.** It reads as "somewhere around here", but the radius, which is the claim, can't be read off it.
 - **One fixed range for every bout, in the code.** A per-hydrophone file costs little more and is where Orcasound's numbers will land feed by feed.
+- **No suggestion, so a value is only ever typed or dragged.** Most authors would leave the field empty, and the map would draw most of our own sightings as more precise than anyone believes they are.
+- **Saving the suggestion as not stated**, or in a field of its own. The author saw the value on the form and on the map, and could change it; one they accept is as much theirs as one they type. A separate field would be a distinction the export has no way to carry.
 - **No ring for bouts until Orcasound states a range.** Bouts are the case that prompted this, and a labelled estimate is better than a dot that says the animals were at the hydrophone.
 
 ## Consequences

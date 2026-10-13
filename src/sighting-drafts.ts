@@ -23,6 +23,8 @@ type Grip = DraftPoint | 'radius';
 export type DraftPoints = Record<DraftPoint, LonLat | null> & {
   /** How far the animal may have been from the subject, in metres (decision 077); null when not stated. */
   accuracy: number | null;
+  /** True while `accuracy` is our suggestion, which follows the points until the author changes it. */
+  suggested: boolean;
 };
 
 /**
@@ -48,9 +50,27 @@ export function roundRadius(metres: number): number {
   return Math.min(MAX_ACCURACY_M, Math.max(1, Math.round(metres / scale) * scale));
 }
 
+/**
+ * How far off a new sighting's animal may have been when its author hasn't said: a
+ * quarter of the distance from observer to subject, since a range judged by eye over
+ * water is often 20 to 30% out and a bearing 10° out adds about a sixth sideways. Never
+ * under 20 m, about what a phone knows of its own position. Null without both points.
+ */
+export function suggestedAccuracy(observer: LonLat | null, subject: LonLat | null): number | null {
+  if (!observer || !subject) return null;
+  return roundRadius(Math.max(SUGGESTED_MIN_M, getDistance(observer, subject) * 1000 * SUGGESTED_FRACTION));
+}
+export const SUGGESTED_FRACTION = 0.25;
+const SUGGESTED_MIN_M = 20;
+
 /** "±250 m", "±1.2 km". */
 export function radiusLabel(metres: number): string {
   return metres < 1000 ? `±${metres} m` : `±${(metres / 1000).toLocaleString('en-US', {maximumFractionDigits: 1})} km`;
+}
+
+/** "450 m", "2.0 km": a distance as the form's hint says it. */
+export function distanceLabel(metres: number): string {
+  return metres < 1000 ? `${roundRadius(metres)} m` : `${(metres / 1000).toFixed(1)} km`;
 }
 
 /** The point `metres` due east of `[lon, lat]`. */
@@ -86,7 +106,8 @@ export class SightingDrafts {
     const draft = new SightingDraft(this, id, onChange);
     draft.observer = initial.observer ?? null;
     draft.subject = initial.subject ?? null;
-    draft.accuracy = initial.accuracy ?? null;
+    draft.suggested = initial.suggested ?? false;
+    draft.accuracy = draft.suggested ? suggestedAccuracy(draft.observer, draft.subject) : initial.accuracy ?? null;
     this.#drafts.add(draft);
     this.render();
     return draft;
@@ -278,6 +299,11 @@ export class SightingDraft {
   subject: LonLat | null = null;
   /** How far the animal may have been from the subject, in metres; null when not stated. */
   accuracy: number | null = null;
+  /**
+   * True while `accuracy` is ours, not the author's: a new sighting suggests one from
+   * the distance between its points, and follows them, until the author sets or clears it.
+   */
+  suggested = false;
   /** What the subject's dot is drawn from: its taxon, direction and identifiers. */
   subjectOccurrence: SubjectOccurrence = {};
 
@@ -294,19 +320,26 @@ export class SightingDraft {
   /** Move a point, or take it off the map with `null`. The form hears about it either way. */
   set(which: DraftPoint, lonLat: LonLat | null) {
     this[which] = lonLat;
+    if (this.suggested) this.accuracy = suggestedAccuracy(this.observer, this.subject);
     this.#changed();
   }
 
-  /** Ring the subject with `metres`, or take the ring away with `null`. The form hears about it either way. */
+  /**
+   * Ring the subject with `metres`, or take the ring away with `null`; either way the
+   * radius is now the author's. Setting the radius it already has changes nothing, so
+   * the form writing a suggestion into its field doesn't adopt it. The form hears about
+   * any change.
+   */
   setAccuracy(metres: number | null) {
     if (metres === this.accuracy) return;
     this.accuracy = metres;
+    this.suggested = false;
     this.#changed();
   }
 
   #changed() {
     this.drafts.render();
-    this.onChange({observer: this.observer, subject: this.subject, accuracy: this.accuracy});
+    this.onChange({observer: this.observer, subject: this.subject, accuracy: this.accuracy, suggested: this.suggested});
   }
 
   setSubjectOccurrence(occurrence: SubjectOccurrence) {
@@ -327,7 +360,7 @@ export class SightingDraft {
 const featureId = (draft: SightingDraft, which: Grip) => `${draft.id}/${which}`;
 
 function draftFeatures(draft: SightingDraft, handle: LonLat | null): Feature[] {
-  const {observer, subject, accuracy} = draft;
+  const {observer, subject, accuracy, suggested} = draft;
   const features: Feature[] = [];
   if (observer)
     features.push({type: 'Feature', geometry: {type: 'Point', coordinates: observer},
@@ -349,7 +382,7 @@ function draftFeatures(draft: SightingDraft, handle: LonLat | null): Feature[] {
       properties: {...properties, kind: 'Sighting'}});
     if (handle)
       features.push({type: 'Feature', geometry: {type: 'Point', coordinates: handle},
-        properties: {id: featureId(draft, 'radius'), kind: 'RadiusHandle', set: !!accuracy, label: accuracy ? radiusLabel(accuracy) : ''}});
+        properties: {id: featureId(draft, 'radius'), kind: 'RadiusHandle', set: !!accuracy, label: accuracy ? `${suggested ? 'suggested ' : ''}${radiusLabel(accuracy)}` : ''}});
   }
   if (observer && subject) {
     const bearing = (getBearing(observer, subject) + 360) % 360;
