@@ -51,7 +51,7 @@ vi.mock('./photo-attachment.ts', async (importOriginal) => {
 });
 
 const { captureException } = await import('@sentry/browser');
-const { default: VectorSource } = await import('ol/source/Vector.js');
+const { SightingDrafts } = await import('./sighting-drafts.ts');
 await import('./sighting-form.ts');
 /**
  * The surface these tests drive. `appendPhotos` and `removePhoto` are the
@@ -78,11 +78,10 @@ beforeEach(async () => {
   vi.mocked(captureException).mockClear();
   el = document.createElement('sighting-form') as unknown as Form;
   el.sightingId = 'sighting-under-test';
-  // firstUpdated puts the observer/subject/bearing features into the map's
-  // drawing source, normally supplied by <obs-map> through context. Nothing
-  // here touches the map, but the component will not reach first render
-  // without one.
-  (el as unknown as {drawingSource: unknown}).drawingSource = new VectorSource();
+  // firstUpdated starts drawing the sighting on the map, through the drafts
+  // <obs-map> normally supplies by context. Nothing here touches the map, which
+  // a SightingDrafts never attached to one stands in for.
+  (el as unknown as {drafts: unknown}).drafts = new SightingDrafts();
   document.body.appendChild(el);
   await (el as unknown as {updateComplete: Promise<unknown>}).updateComplete;
 });

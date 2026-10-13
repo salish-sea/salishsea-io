@@ -42,9 +42,13 @@ export class SightingDrafts {
   #hover: string | null = null;
   #suppressClick = false;
 
-  create(id: string, onChange: (points: DraftPoints) => void): SightingDraft {
+  /** Start drawing a form's sighting, at the points it already holds. `onChange` hears of every later move. */
+  create(id: string, onChange: (points: DraftPoints) => void, initial: Partial<DraftPoints> = {}): SightingDraft {
     const draft = new SightingDraft(this, id, onChange);
+    draft.observer = initial.observer ?? null;
+    draft.subject = initial.subject ?? null;
     this.#drafts.add(draft);
+    this.render();
     return draft;
   }
 

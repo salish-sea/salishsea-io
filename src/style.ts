@@ -179,13 +179,20 @@ function occurrenceLayers(source: string, prefix: string, filter?: ExpressionSpe
 export const TRAVEL_DETAIL_MIN_ZOOM = Math.log2(156543.03392804097 / 100) - 1;
 
 /**
- * Viewpoint and haul-out names, and haul-out rings, show from here: it's the
- * labels, not the markers, that clutter the map at low zoom.
+ * Just past a zoom level. OpenLayers showed a layer only above its minimum zoom;
+ * MapLibre shows it at its minimum too, which at the whole-number zooms a
+ * permalink opens on would show it a level early.
  */
-export const SITE_LABEL_MIN_ZOOM = 11;
+const past = (zoom: number) => zoom + 0.001;
+
+/**
+ * Viewpoint and haul-out names, and haul-out rings, show past this zoom: it's
+ * the labels, not the markers, that clutter the map at low zoom.
+ */
+export const SITE_LABEL_MIN_ZOOM = past(11);
 
 /** Viewpoint markers show from a level earlier than their names. */
-export const VIEWPOINT_MIN_ZOOM = 10;
+export const VIEWPOINT_MIN_ZOOM = past(10);
 
 /**
  * The out-of-region mask shows at this zoom and further out, where the region's

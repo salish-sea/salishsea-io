@@ -19,7 +19,7 @@ This codebase was started by Peter Abrahamsen. My goals for the codebase are to 
 - [Stelis](https://github.com/rainhead/stelis), [DuckDB](https://duckdb.org/) and SQLite for building the site's data from its sources, and a small write API for what people submit
 - [vite](https://vite.dev/) for building out assets
 - [lit](https://lit.dev/) for templating and scoped styles
-- [openlayers](https://openlayers.org/) for drawing and interacting with a map in the browser
+- [MapLibre GL](https://maplibre.org/) for drawing and interacting with a map in the browser ([decision 076](docs/decisions/076-the-map-moves-to-maplibre.md))
 - [temporal-polyfill](https://www.npmjs.com/package/temporal-polyfill) for early access to the sane date/time manipulation interface [Temporal](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal)
 - [turf](https://turfjs.org/) for a few GIS utility functions
 

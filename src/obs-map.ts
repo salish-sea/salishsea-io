@@ -220,6 +220,8 @@ user-location-control.inactive svg { color: #333; }
       }), 'top-left');
     map.addControl(this.layerControl, 'top-right');
     map.addControl(new AttributionControl({compact: true}), 'bottom-right');
+    // Folded behind its button from the start, as OpenLayers' was; MapLibre opens it on a wide map.
+    map.once('idle', () => map.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
 
     map.on('load', () => {
       this.#loaded = true;
@@ -249,7 +251,8 @@ user-location-control.inactive svg { color: #333; }
   #createMap(frame: Extent | null): MapLibreMap {
     return new MapLibreMap({
       container: this.mapRef.value!,
-      style: baseStyle(new URL(`${import.meta.env.BASE_URL}glyphs/{fontstack}/{range}.pbf`, location.href).href),
+      // Absolute, and not built with URL(), which would escape the braces MapLibre fills in.
+      style: baseStyle(`${location.origin}${import.meta.env.BASE_URL}glyphs/{fontstack}/{range}.pbf`),
       center: toLonLat([this.centerX, this.centerY]),
       zoom: mapZoom(this.zoom),
       ...(frame ? {bounds: bounds(frame)} : {}),

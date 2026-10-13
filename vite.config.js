@@ -28,6 +28,8 @@ function releaseSha() {
 // for vite-config.test.ts.
 export const VENDOR_CHUNKS = [
   ['vendor-sentry', name => name.startsWith('@sentry/')],
+  ['vendor-maplibre', name => name === 'maplibre-gl'],
+  // Only the profile pages' map until it becomes a picture (decision 076).
   ['vendor-ol', name => ['ol', 'rbush', 'quickselect'].includes(name)],
   ['vendor-lit', name => ['lit', 'lit-html', 'lit-element'].includes(name) || name.startsWith('@lit/')],
   ['vendor-form', name => name.startsWith('@tanstack/')],

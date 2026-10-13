@@ -12,6 +12,7 @@ const pnpm = (name: string, file = 'index.js') =>
 
 describe('vendorChunk', () => {
   it.each([
+    ['maplibre-gl', 'vendor-maplibre'],
     ['ol', 'vendor-ol'],
     ['rbush', 'vendor-ol'],
     ['lit-html', 'vendor-lit'],

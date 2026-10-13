@@ -77,6 +77,7 @@ vi.mock('maplibre-gl', async (importOriginal) => ({
     constructor({container}: {container: HTMLElement}) { this.#container = container; }
     addControl() {}
     on() {}
+    once() {}
     off() {}
     jumpTo() {}
     fitBounds() {}

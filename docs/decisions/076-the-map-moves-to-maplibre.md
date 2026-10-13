@@ -29,7 +29,7 @@ The plan was to run the benchmark on an older Android phone before deciding. The
 - **The boxed two-line labels of 029 are kept**, as text over a stretchable image fitted to it (`icon-text-fit`).
 - **The editing tools are hand-written**, starting from the trial port. MapLibre has no equivalent of OpenLayers' `Select`, `Modify` or pointer interactions.
 - **Circles measured in metres on the ground**, such as a haul-out site's radius or the "now at" estimate on a travel line, are drawn as polygons computed in longitude and latitude, as the haul-out ring already is. MapLibre's own circles are sized in screen pixels.
-- **Labels now avoid one another across layers**, so a sighting's label no longer prints over a hydrophone's. OpenLayers kept labels apart only within a layer, which 068 listed as a reason to reopen.
+- **Labels now avoid one another across layers**, so a sighting's label and a viewing location's name no longer print over each other: the sighting's label wins, because MapLibre places the labels of the layers drawn on top first. OpenLayers kept labels apart only within a layer, which 068 listed as a reason to reopen.
 
 **The profile pages' map becomes a static picture, prerendered with the page, as the ecotype page's small maps already are (067).** That map neither pans nor zooms: it shows where an animal or group has been reported, and a dot links to the main map. Its renderer is the only script a profile page loads (057), so moving it to MapLibre would put 445 KB on every profile page to draw a fixed picture. Drawn as SVG with Esri's tiles, as `src/small-multiples.ts` draws the small maps, it needs no script at all. Each picture still fits its own reports, and a haul-out's still shows the site's radius.
 

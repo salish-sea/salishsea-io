@@ -791,10 +791,11 @@ export default class SightingForm extends LitElement {
         this.#form.api.setFieldValue(typedField, typedValue);
       }
     }
-    this.#draft = this.drafts?.create(this.sightingId, this.onPointsChanged.bind(this));
+    this.#draft = this.drafts?.create(this.sightingId, this.onPointsChanged.bind(this), {
+      observer: parseLonLat(this.initialValues.observer_location || ''),
+      subject: parseLonLat(this.initialValues.subject_location || ''),
+    });
     this.updateSubjectProps();
-    this.onObserverInputChange(this.initialValues.observer_location || '');
-    this.onSubjectInputChange(this.initialValues.subject_location || '');
 
     this.#form.api.baseStore.subscribe(this.updateSubjectProps.bind(this));
   }
