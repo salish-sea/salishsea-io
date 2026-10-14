@@ -23,7 +23,7 @@ The coastline comes from OpenStreetMap, not from any of these grids: their verti
 
 **The relief is shaded lightly, and set in the style, not baked into the tiles.** ~~The tiles hold a full-strength relief; the map draws it at about half opacity, and how much can vary by zoom.~~ Tuning it is then a style edit, not a rebuild.
 
-*Amended 2026-10-13:* the tiles hold elevations, and MapLibre shades the relief from them in the browser, at about half strength. Image tiles of baked shading were five times the archive for the same area, and every change to how the relief looked needed a rebuild. Reasons and measurements are in the basemap's decision [002](https://github.com/salish-sea/basemap/blob/main/decisions/002-the-relief-is-shaded-by-maplibre.md).
+*Amended 2026-10-13:* the tiles hold elevations, and MapLibre shades the relief from them in the browser, at a strength set in the style (a quarter, after the first build). Image tiles of baked shading were five times the archive for the same area, and every change to how the relief looked needed a rebuild. Reasons and measurements are in the basemap's decision [002](https://github.com/salish-sea/basemap/blob/main/decisions/002-the-relief-is-shaded-by-maplibre.md).
 
 ## Rejected, for now
 
