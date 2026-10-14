@@ -17,7 +17,7 @@ The 10 m looked best: less harsh, less heavy. Measured over the same seafloor an
 - CRM Volume 8 (2025) covers 44–49°N to 127°W, ~~across the border in the Salish Sea~~.
 - ~~North of 49°N and west of 127°W,~~ Natural Resources Canada's West Coast topo-bathy DEM is resampled from 10 m to 30 m. It is under the Open Government Licence – Canada.
 
-*Amended 2026-10-13:* NRCan's grid is used wherever it has data, which is everywhere north of about 47.4°N, Puget Sound included, and NOAA's grids fill in everywhere else. NOAA's grid has seams between survey patches in the Salish Sea that NRCan's doesn't. NRCan's grid is measured from chart datum, a low-water level, so its depths read 1–2 m shallower than NOAA's where they meet; each is kept as published. Reasons and measurements are in the basemap's decision [001](https://github.com/salish-sea/basemap/blob/main/decisions/001-canadas-depth-grid-comes-first.md).
+*Amended 2026-10-13:* NRCan's grid is used wherever it has data, which is north of about 48.06°N (the Strait of Juan de Fuca, Haro Strait, the San Juan Islands and the north end of Admiralty Inlet), and NOAA's grids fill in everywhere else, Puget Sound included. NOAA's grid has seams between survey patches in the Salish Sea that NRCan's doesn't. NRCan's grid is measured from chart datum, a low-water level, so its depths read 1–2 m shallower than NOAA's where they meet; each is kept as published. Reasons and measurements are in the basemap's decision [001](https://github.com/salish-sea/basemap/blob/main/decisions/001-canadas-depth-grid-comes-first.md).
 
 The coastline comes from OpenStreetMap, not from any of these grids: their vertical datums differ.
 
