@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { occurrenceProperties } from './style.ts';
+import { BASEMAP_VERSION, baseStyle, occurrenceProperties, SOURCES } from './style.ts';
 import { GROUPS } from './symbology.ts';
 import type { Occurrence } from './types.ts';
 
@@ -37,5 +37,30 @@ describe('occurrenceProperties', () => {
   it('turns a direction of travel into degrees clockwise from east', () => {
     expect(occurrenceProperties(humpback({direction: 'south'})).directionDeg).toBeCloseTo(90);
     expect(occurrenceProperties(humpback()).directionDeg).toBeUndefined();
+  });
+});
+
+describe('baseStyle', () => {
+  const style = baseStyle();
+
+  it('draws the basemap first and our layers on top of it', () => {
+    const ours = style.layers.findIndex(layer => 'source' in layer && (SOURCES as readonly string[]).includes(layer.source));
+    const basemapLayers = style.layers.filter(layer => 'source' in layer && !(SOURCES as readonly string[]).includes(layer.source));
+    expect(ours).toBeGreaterThan(0);
+    expect(basemapLayers.length).toBeGreaterThan(0);
+    expect(style.layers.indexOf(basemapLayers.at(-1)!)).toBeLessThan(ours);
+  });
+
+  it('fetches nothing from any host but tiles.salishsea.io, which index.html allows', () => {
+    const urls = [
+      style.glyphs, style.sprite,
+      ...Object.values(style.sources).map(source => 'url' in source ? source.url : undefined),
+    ].filter((url): url is string => typeof url === 'string');
+    expect(urls.length).toBeGreaterThan(2);
+    for (const url of urls) expect(url.replace(/^pmtiles:\/\//, '')).toMatch(/^https:\/\/tiles\.salishsea\.io\//);
+  });
+
+  it('names the basemap version it was copied from', () => {
+    expect(BASEMAP_VERSION).toMatch(/^\d{4}\.\d{2}\.\d+$/);
   });
 });
