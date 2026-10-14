@@ -1,6 +1,6 @@
 # 073 — The basemap's depths are 30 m everywhere, shaded lightly
 
-**Status:** accepted · **Decided:** 2026-10-08 · **Context:** `salish-3zok` (our own basemap; its notes hold the prototype's findings) · **Follows:** [068](068-the-map-stays-on-openlayers.md), which left bathymetry to this work
+**Status:** accepted; amended 2026-10-13 by the basemap's decisions [001](https://github.com/salish-sea/basemap/blob/main/decisions/001-canadas-depth-grid-comes-first.md) (Canada's grid wherever it has data) and [002](https://github.com/salish-sea/basemap/blob/main/decisions/002-the-relief-is-shaded-by-maplibre.md) (relief shaded by MapLibre) · **Decided:** 2026-10-08 · **Context:** `salish-3zok` (our own basemap; its notes hold the prototype's findings) · **Follows:** [068](068-the-map-stays-on-openlayers.md), which left bathymetry to this work
 
 ## Context
 
@@ -14,12 +14,16 @@ The 10 m looked best: less harsh, less heavy. Measured over the same seafloor an
 
 - NOAA's Southern California CRM v2 covers 31–37°N, which takes in southern Monterey Bay.
 - CRM Volume 7 (2025) covers 37–44°N.
-- CRM Volume 8 (2025) covers 44–49°N to 127°W, across the border in the Salish Sea.
-- North of 49°N and west of 127°W, Natural Resources Canada's West Coast topo-bathy DEM is resampled from 10 m to 30 m. It is under the Open Government Licence – Canada.
+- CRM Volume 8 (2025) covers 44–49°N to 127°W, ~~across the border in the Salish Sea~~.
+- ~~North of 49°N and west of 127°W,~~ Natural Resources Canada's West Coast topo-bathy DEM is resampled from 10 m to 30 m. It is under the Open Government Licence – Canada.
+
+*Amended 2026-10-13:* NRCan's grid is used wherever it has data, which is north of about 48.06°N (the Strait of Juan de Fuca, Haro Strait, the San Juan Islands and the north end of Admiralty Inlet), and NOAA's grids fill in everywhere else, Puget Sound included. NOAA's grid has seams between survey patches in the Salish Sea that NRCan's doesn't. NRCan's grid is measured from chart datum, a low-water level, so its depths read 1–2 m shallower than NOAA's where they meet; each is kept as published. Reasons and measurements are in the basemap's decision [001](https://github.com/salish-sea/basemap/blob/main/decisions/001-canadas-depth-grid-comes-first.md).
 
 The coastline comes from OpenStreetMap, not from any of these grids: their vertical datums differ.
 
-**The relief is shaded lightly, and set in the style, not baked into the tiles.** The tiles hold a full-strength relief; the map draws it at about half opacity, and how much can vary by zoom. Tuning it is then a style edit, not a rebuild.
+**The relief is shaded lightly, and set in the style, not baked into the tiles.** ~~The tiles hold a full-strength relief; the map draws it at about half opacity, and how much can vary by zoom.~~ Tuning it is then a style edit, not a rebuild.
+
+*Amended 2026-10-13:* the tiles hold elevations, and MapLibre shades the relief from them in the browser, at a strength set in the style (a quarter, after the first build). Image tiles of baked shading were five times the archive for the same area, and every change to how the relief looked needed a rebuild. Reasons and measurements are in the basemap's decision [002](https://github.com/salish-sea/basemap/blob/main/decisions/002-the-relief-is-shaded-by-maplibre.md).
 
 ## Rejected, for now
 
