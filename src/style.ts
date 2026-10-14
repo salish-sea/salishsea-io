@@ -1,4 +1,5 @@
-import type { ExpressionSpecification, LayerSpecification, Map as MapLibreMap, SymbolLayerSpecification } from 'maplibre-gl';
+import type { ExpressionSpecification, LayerSpecification, Map as MapLibreMap, StyleSpecification, SymbolLayerSpecification } from 'maplibre-gl';
+import basemap from './basemap-style.json' with { type: 'json' };
 import travelArrowIcon from './assets/travel-arrow.svg?url';
 import hydrophoneIcon from './assets/hydrophone-default.svg?url';
 import salmonCountingSiteIcon from './assets/salmon-counting-site.svg?url';
@@ -236,8 +237,6 @@ export const REFERENCE_LAYER_IDS = {
   salmon: ['salmon'],
 } as const;
 
-const empty = {type: 'FeatureCollection', features: []} as const;
-
 /** The map's sources, all GeoJSON in longitude and latitude, empty until filled. */
 export const SOURCES = [
   'mask', 'haulouts', 'haulout-rings', 'viewpoints', 'hydrophones', 'salmon',
@@ -245,46 +244,39 @@ export const SOURCES = [
 ] as const;
 export type SourceId = typeof SOURCES[number];
 
-export const ESRI_ATTRIBUTION = 'Base map by Esri and its data providers';
+/**
+ * The basemap's style, one published version of salish-sea/basemap, copied in by
+ * scripts/update-basemap.ts. A published version never changes, so the copy is that
+ * version exactly; the map is drawn from it, with our sources and layers on top.
+ */
+export const BASEMAP_VERSION: string = basemap.metadata['salishsea:basemap-version'];
 
-/** The style the map starts with: Esri's ocean basemap and every source, empty. */
-export function baseStyle(glyphs: string) {
+/** Where the basemap draws anything: 136–120°W, 36–54.8°N (salish-sea/basemap's decision 011). */
+export const BASEMAP_BOUNDS: [[number, number], [number, number]] = [[-136.0, 36.0], [-120.0, 54.8]];
+/** Its depths start at MapLibre's zoom 5; below that, the sea is a flat tint. */
+export const BASEMAP_MIN_ZOOM = 5;
+
+/** The style the map starts with: the basemap, and every one of our sources, empty, on top. */
+export function baseStyle(): StyleSpecification {
+  const style = basemap as unknown as StyleSpecification;
   return {
-    version: 8 as const,
-    glyphs,
+    ...style,
     sources: {
-      'esri-base': {
-        type: 'raster' as const,
-        tileSize: 256,
-        attribution: ESRI_ATTRIBUTION,
-        tiles: [
-          'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
-          'https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
-        ],
-      },
-      // NB: this source is unmaintained
-      'esri-reference': {
-        type: 'raster' as const,
-        tileSize: 256,
-        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}'],
-      },
+      ...style.sources,
       ...Object.fromEntries(SOURCES.map(id => [id, {
         type: 'geojson' as const,
-        data: empty,
+        data: {type: 'FeatureCollection' as const, features: []},
         // Feature state (selection, hovering) is keyed by the `id` property.
         ...(id === 'occurrences' || id === 'drawing' ? {promoteId: 'id'} : {}),
         ...(id === 'haulouts' ? {attribution: 'Haul-out sites after Jeffries et al. 2000, <i>Atlas of Seal and Sea Lion Haulout Sites in Washington</i>, WDFW.'} : {}),
         ...(id === 'viewpoints' ? {attribution: 'Sighting Viewpoints by Thorsten Lisker and Alisa Lemire Brooks of Orca Network.'} : {}),
       }])),
     },
-    layers: LAYERS,
+    layers: [...style.layers, ...LAYERS],
   };
 }
 
 const LAYERS: LayerSpecification[] = [
-  {id: 'esri-base', type: 'raster', source: 'esri-base'},
-  {id: 'esri-reference', type: 'raster', source: 'esri-reference'},
-
   // Shading for the map outside the active region. Deliberately a wash rather
   // than a heavy scrim: it has to say "we are not showing you data here" while
   // leaving the coastline legible, because the shaded area is still the map you
