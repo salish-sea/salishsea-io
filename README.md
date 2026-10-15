@@ -54,7 +54,7 @@ Before committing, try building with `pnpm build`.
 - [iNaturalist](https://www.inaturalist.org/) observations and taxonomy
 - [Conserve](https://conserve.io) aggregates sightings from various places, including Orca Network's [Facebook group](https://www.facebook.com/groups/564701038927716)
 - [Happywhale](https://happywhale.com) seems particularly tapped into the community, who add observations of various cetaceans
-- The map page is drawn on our own basemap, [salish-sea/basemap](https://github.com/salish-sea/basemap), built from OpenStreetMap, NOAA, Natural Resources Canada and GEBCO and served from tiles.salishsea.io. The profile pages' maps, the ecotype page's small maps and the preview cards still use Esri's ocean basemap, until the basemap publishes image tiles ([decision 074](docs/decisions/074-the-basemap-is-its-own-project-and-the-cards-draw-on-it.md))
+- The map page is drawn on our own basemap, [salish-sea/basemap](https://github.com/salish-sea/basemap), built from OpenStreetMap, NOAA, Natural Resources Canada and GEBCO and served from tiles.salishsea.io. The profile pages' maps, the ecotype page's small maps and the preview cards are stitched from its image tiles ([decision 074](docs/decisions/074-the-basemap-is-its-own-project-and-the-cards-draw-on-it.md))
 - Viewing locations are defined by [Orca Network](https://www.orcanetwork.org/)
 
 ## Data

@@ -2,37 +2,19 @@ import sharp from 'sharp';
 import { TILE, type Viewport, tilesFor } from './mercator.js';
 
 /**
- * Where basemap tiles come from. **This is the licensing seam — keep it one
- * constant.**
+ * Where basemap tiles come from: the image tiles of our own basemap, salish-sea/basemap
+ * (decisions 074 and 076; the basemap's decision 014). They are the map's own style
+ * without its labels, so a card looks like the map it links to. Each is a 256-pixel tile
+ * drawn at 512, for high-density screens, so it is shrunk to 256 here. Cards ask for
+ * zooms 8 and 9, which the tiles cover wherever SalishSea.io has data.
  *
- * This is the same Esri "World Ocean Base" layer the app itself draws
- * (`src/style.ts`, `src/profile-map.ts`), chosen because a side-by-side
- * prototype showed its muted bathymetric styling reads far better at card size
- * than a coastline we draw ourselves (decision 020).
- *
- * What we do here: fetch tiles over HTTPS per request, composite them into one
- * image, render Esri's required attribution into it, and serve it online through
- * our CDN. We do not redistribute tiles, and nothing is packaged for offline use.
- *
- * Esri also publishes **World Ocean Base (for Export)**
- * (item `5d85d897aee241f884158aa514954443`), described as intended for exporting
- * imagery for *offline use in ArcGIS applications*; it requires an ArcGIS
- * Location Platform or Developer account and app credentials.
- *
- * Keeping the source in one constant is what makes moving to that layer — or any
- * other basemap — a config change plus a token in `fetchTile`, rather than a
- * rewrite. Nothing else in the renderer knows where tiles come from. See
- * decision 020 for the reasoning and its limits.
- *
- * Path order is Esri's: /{z}/{y}/{x}, not the usual /{z}/{x}/{y}.
+ * The same set as `IMAGE_TILES` in src/profile-map.ts, which src/style.test.ts checks;
+ * scripts/update-basemap.ts rewrites both.
  */
-export const TILE_HOSTS = [
-  'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile',
-  'https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile',
-];
+export const IMAGE_TILES = 'https://tiles.salishsea.io/images/0000000000000000/{z}/{x}/{y}.webp';
 
-/** Required on every card by the basemap's terms; matches the service's copyrightText. */
-export const BASEMAP_ATTRIBUTION = 'Esri, Garmin, GEBCO, NOAA NGDC, and other contributors';
+/** What the basemap's sources ask to be credited with: OpenStreetMap's licence requires it. */
+export const BASEMAP_ATTRIBUTION = '© OpenStreetMap contributors; depths from NOAA, Natural Resources Canada, GEBCO';
 
 /** Painted where a tile is missing so a gap reads as ocean, not as a hole. */
 const SEA = { r: 0xc4, g: 0xda, b: 0xea };
@@ -40,22 +22,18 @@ const SEA = { r: 0xc4, g: 0xda, b: 0xea };
 const TILE_TIMEOUT_MS = 4000;
 
 /**
- * One tile, or null if every host refused. The app lists two Esri hosts and so do
- * we: a single flaky host shouldn't blank a card. A null is survivable — the
- * mosaic keeps the sea-coloured background there.
+ * One tile, at TILE pixels, or null if it couldn't be fetched. A null is survivable:
+ * the mosaic keeps the sea-coloured background there.
  */
 async function fetchTile(z: number, x: number, y: number): Promise<Buffer | null> {
-  for (const host of TILE_HOSTS) {
-    try {
-      const res = await fetch(`${host}/${z}/${y}/${x}`, {
-        signal: AbortSignal.timeout(TILE_TIMEOUT_MS),
-      });
-      if (res.ok) return Buffer.from(await res.arrayBuffer());
-    } catch {
-      // Try the next host.
-    }
+  const url = IMAGE_TILES.replace('{z}', String(z)).replace('{x}', String(x)).replace('{y}', String(y));
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(TILE_TIMEOUT_MS) });
+    if (!res.ok) return null;
+    return await sharp(Buffer.from(await res.arrayBuffer())).resize(TILE, TILE).png().toBuffer();
+  } catch {
+    return null;
   }
-  return null;
 }
 
 /**

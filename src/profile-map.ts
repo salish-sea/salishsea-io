@@ -3,8 +3,8 @@
  * picture, drawn into the page when it is prerendered, with no script.
  *
  * It replaces an OpenLayers map that neither panned nor zoomed, so nothing is lost
- * by drawing it once: it frames its own reports, Esri's ocean tiles are `<image>`s
- * under them (decision 020's basemap and terms), and each dot is still a link to
+ * by drawing it once: it frames its own reports, the basemap's image tiles are
+ * `<image>`s under them (decision 074), and each dot is still a link to
  * that day on the main map. Like the small maps it shares its projection with
  * (`src/small-multiples.ts`), nothing here touches the window, the document, or
  * the network.
@@ -27,9 +27,22 @@ export interface MapSite {
 }
 
 export const TILE = 256;
-export const TILE_URL = 'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile';
+/**
+ * The basemap's image tiles (salish-sea/basemap's decision 014): the map without its
+ * labels, in 256-pixel tiles drawn at 512 for high-density screens, close in (zooms 11 to
+ * 15) only along the Salish Sea's shore. This is the set src/basemap-style.json names in
+ * its metadata; scripts/update-basemap.ts rewrites this line, and src/style.test.ts checks
+ * that the two agree.
+ */
+export const IMAGE_TILES = 'https://tiles.salishsea.io/images/0000000000000000/{z}/{x}/{y}.webp';
+/** What the basemap's sources ask to be credited with, wherever its tiles appear. */
+export const BASEMAP_CREDIT = 'Base map © OpenStreetMap contributors; depths from NOAA, Natural Resources Canada and GEBCO';
 
-/** Web Mercator pixel coordinates at `zoom`, counting 256-pixel tiles, as Esri's tiles do. */
+/** The URL of one image tile. */
+export const tileUrl = (z: number, x: number, y: number) =>
+  IMAGE_TILES.replace('{z}', String(z)).replace('{x}', String(x)).replace('{y}', String(y));
+
+/** Web Mercator pixel coordinates at `zoom`, counting 256-pixel tiles, as the image tiles do. */
 export function project(lon: number, lat: number, zoom: number): [number, number] {
   const size = TILE * 2 ** zoom;
   const sin = Math.sin(lat * Math.PI / 180);
@@ -105,7 +118,7 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
   const tiles: string[] = [];
   for (let ty = Math.max(0, Math.floor(top / tileSize)); ty * tileSize < top + HEIGHT && ty <= lastTile; ty++)
     for (let tx = Math.floor(left / tileSize); tx * tileSize < left + WIDTH; tx++)
-      tiles.push(`<image href="${TILE_URL}/${tileZoom}/${ty}/${((tx % (lastTile + 1)) + lastTile + 1) % (lastTile + 1)}" x="${(tx * tileSize - left).toFixed(1)}" y="${(ty * tileSize - top).toFixed(1)}" width="${tileSize.toFixed(1)}" height="${tileSize.toFixed(1)}"></image>`);
+      tiles.push(`<image href="${tileUrl(tileZoom, ((tx % (lastTile + 1)) + lastTile + 1) % (lastTile + 1), ty)}" x="${(tx * tileSize - left).toFixed(1)}" y="${(ty * tileSize - top).toFixed(1)}" width="${tileSize.toFixed(1)}" height="${tileSize.toFixed(1)}"></image>`);
 
   // Every element is closed explicitly: Lit's server renderer parses this markup
   // as HTML, where a self-closing <circle/> doesn't close (src/small-multiples.ts).
@@ -217,8 +230,8 @@ export const profileMapStyles = css`
 `;
 
 /**
- * The map, framed on its reports, with the basemap's credit under it, which its
- * terms require (decision 020). Nothing when no report has a location and there is
+ * The map, framed on its reports, with the basemap's credit under it, which
+ * OpenStreetMap's licence requires. Nothing when no report has a location and there is
  * no site to show.
  */
 export function renderProfileMap(dots: readonly MapDot[], site: MapSite | null = null) {
@@ -229,7 +242,7 @@ export function renderProfileMap(dots: readonly MapDot[], site: MapSite | null =
     <figure class="profile-map">
       <svg viewBox="0 0 ${WIDTH} ${HEIGHT}" width=${WIDTH} height=${HEIGHT}
         aria-label="Map of where these reports were made. Each dot links to its day on the main map.">${unsafeSVG(svg)}</svg>
-      <figcaption>Base map by Esri and its data providers</figcaption>
+      <figcaption>${BASEMAP_CREDIT}</figcaption>
     </figure>
   `;
 }

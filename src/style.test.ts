@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import basemapStyle from './basemap-style.json' with { type: 'json' };
+import { IMAGE_TILES } from './profile-map.ts';
 import { BASEMAP_VERSION, baseStyle, occurrenceProperties, SOURCES } from './style.ts';
 import { GROUPS } from './symbology.ts';
 import type { Occurrence } from './types.ts';
@@ -62,5 +65,14 @@ describe('baseStyle', () => {
 
   it('names the basemap version it was copied from', () => {
     expect(BASEMAP_VERSION).toMatch(/^\d{4}\.\d{2}\.\d+$/);
+  });
+
+  // The profile maps, the small maps and the preview cards stitch the version's image
+  // tiles; scripts/update-basemap.ts writes their URL into both places.
+  it('has the pictures stitch the image tiles of the same version', () => {
+    const named = (basemapStyle.metadata as Record<string, string>)['salishsea:images'];
+    expect(named).toMatch(/^https:\/\/tiles\.salishsea\.io\/images\/[0-9a-f]{16}\/\{z\}\/\{x\}\/\{y\}\.webp$/);
+    expect(IMAGE_TILES).toBe(named);
+    expect(readFileSync('infra/lib/card-renderer/basemap.ts', 'utf8')).toContain(`export const IMAGE_TILES = '${named}';`);
   });
 });

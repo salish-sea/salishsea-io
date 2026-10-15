@@ -3,16 +3,15 @@
  * scale, so they can be compared at a glance (decision 067). The ecotype page draws one
  * per matriline.
  *
- * Static SVG, with no script: the basemap is Esri's ocean tiles as <image>s, the same
- * layer and terms as the interactive maps (decision 020), and the reports are circles
- * over it. Every map shares one extent and zoom, so they all ask for the same dozen
+ * Static SVG, with no script: the basemap is its image tiles as <image>s, as on the
+ * profile pages (src/profile-map.ts), and the reports are circles over it. Every map shares one extent and zoom, so they all ask for the same dozen
  * tiles and the browser fetches each once. Like the templates that use it, nothing here
  * touches the window, the document, or the network.
  */
 
 import { css, html, nothing } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
-import { project as projectAt, TILE, TILE_URL, type MapDot } from './profile-map.ts';
+import { BASEMAP_CREDIT, project as projectAt, TILE, tileUrl, type MapDot } from './profile-map.ts';
 
 /**
  * The Salish Sea, as the maps all show it. It holds 8,764 of the 8,832 located reports
@@ -49,7 +48,7 @@ const WIDTH = X1 - X0;
 const HEIGHT = Y1 - Y0;
 
 /**
- * The basemap every small map shares, as SVG. Path order is Esri's: /z/y/x. Every element
+ * The basemap every small map shares, as SVG. Every element
  * here and in the dots is closed explicitly: Lit's server renderer parses this markup as
  * HTML, where a self-closing <circle/> doesn't close, so each would nest in the last and a
  * map of thousands overflows the stack.
@@ -58,7 +57,7 @@ const BASEMAP = (() => {
   const tiles: string[] = [];
   for (let ty = Math.floor(Y0 / TILE); ty * TILE < Y1; ty++)
     for (let tx = Math.floor(X0 / TILE); tx * TILE < X1; tx++)
-      tiles.push(`<image href="${TILE_URL}/${ZOOM}/${ty}/${tx}" x="${tx * TILE - X0}" y="${ty * TILE - Y0}" width="${TILE}" height="${TILE}"></image>`);
+      tiles.push(`<image href="${tileUrl(ZOOM, tx, ty)}" x="${tx * TILE - X0}" y="${ty * TILE - Y0}" width="${TILE}" height="${TILE}"></image>`);
   return tiles.join('');
 })();
 
@@ -149,9 +148,9 @@ export const smallMapStyles = css`
   }
 `;
 
-/** Required wherever the maps appear, by the basemap's terms (decision 020). */
+/** Required wherever the maps appear, by OpenStreetMap's licence. */
 export const renderSmallMapsCredit = () =>
-  html`<p class="small-maps-credit">Base maps by Esri and its data providers</p>`;
+  html`<p class="small-maps-credit">${BASEMAP_CREDIT}</p>`;
 
 /**
  * One small map of these reports, and how many of them it draws. `subject` finishes
