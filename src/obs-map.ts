@@ -1,7 +1,8 @@
 import { LitElement, css, html } from 'lit'
 import type { PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js'
-import { AttributionControl, GPUInitializationError, Map as MapLibreMap, NavigationControl, setWorkerUrl } from 'maplibre-gl';
+import { addProtocol, AttributionControl, GPUInitializationError, Map as MapLibreMap, NavigationControl, setWorkerUrl } from 'maplibre-gl';
+import { Protocol } from 'pmtiles';
 import type { GeoJSONSource, LngLatBoundsLike, MapGeoJSONFeature, MapMouseEvent, PointLike } from 'maplibre-gl';
 import maplibreCSS from 'maplibre-gl/dist/maplibre-gl.css?url';
 import maplibreWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
@@ -11,7 +12,7 @@ import { Temporal } from 'temporal-polyfill';
 import './obs-panel.ts';
 import './obs-summary.ts';
 
-import { addImages, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, ringColours, uncertaintyRadius, type SourceId } from './style.ts';
+import { addImages, BASEMAP_BOUNDS, BASEMAP_MIN_ZOOM, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, ringColours, uncertaintyRadius, type SourceId } from './style.ts';
 import type { Occurrence } from './types.ts';
 import { imputedPositions, occurrences2segments, placeInSegment, segment2travelLine, travelArrows, type TravelLineProperties } from './segments.ts';
 import { createRef, ref } from 'lit/directives/ref.js';
@@ -28,6 +29,8 @@ import { fromLonLat, mapZoom, permalinkZoom, toLonLat } from './map-view.ts';
 import { SightingDrafts } from './sighting-drafts.ts';
 
 setWorkerUrl(maplibreWorker);
+// The basemap's tiles are read from PMTiles archives on tiles.salishsea.io.
+addProtocol('pmtiles', new Protocol().tile);
 
 export type LayersChangeDetail = Set<ReferenceLayer>;
 
@@ -278,8 +281,11 @@ user-location-control.inactive svg { color: #333; }
   #createMap(): MapLibreMap {
     return new MapLibreMap({
       container: this.mapRef.value!,
-      // Absolute, and not built with URL(), which would escape the braces MapLibre fills in.
-      style: baseStyle(`${location.origin}${import.meta.env.BASE_URL}glyphs/{fontstack}/{range}.pbf`),
+      style: baseStyle(),
+      // Past the basemap's coarse map, and zoomed out further than it goes, it draws
+      // nothing, and the map would look broken there.
+      maxBounds: BASEMAP_BOUNDS,
+      minZoom: BASEMAP_MIN_ZOOM,
       center: toLonLat([this.centerX, this.centerY]),
       zoom: mapZoom(this.zoom),
       attributionControl: false,

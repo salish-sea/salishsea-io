@@ -9,7 +9,7 @@
       style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/;
       img-src 'self' https: data:;
       font-src 'self';
-      connect-src 'self' https://services.arcgisonline.com https://server.arcgisonline.com https://accounts.google.com https://o4509634382331904.ingest.us.sentry.io;
+      connect-src 'self' https://tiles.salishsea.io https://accounts.google.com https://o4509634382331904.ingest.us.sentry.io;
       frame-src https://accounts.google.com/;
       object-src 'none';
       media-src 'self';
@@ -32,9 +32,8 @@
     <link href="/favicon.svg" rel="icon" type="image/svg+xml">
     <link href="/favicon.ico" rel="icon" sizes="48x48">
     <link href="/apple-touch-icon.png" rel="apple-touch-icon">
-    <!-- The basemap's tile hosts: connecting while the scripts download saves the tiles about three round trips. -->
-    <link rel="preconnect" href="https://services.arcgisonline.com">
-    <link rel="preconnect" href="https://server.arcgisonline.com">
+    <!-- The basemap's host: connecting while the scripts download saves the tiles about three round trips. It is fetched with CORS, so the connection must be one made for that. -->
+    <link rel="preconnect" href="https://tiles.salishsea.io" crossorigin>
     <link rel="stylesheet" href="src/index.css" />
     <script type="module" src="src/salish-sea.ts"></script>
   </head>

@@ -54,14 +54,14 @@ Before committing, try building with `pnpm build`.
 - [iNaturalist](https://www.inaturalist.org/) observations and taxonomy
 - [Conserve](https://conserve.io) aggregates sightings from various places, including Orca Network's [Facebook group](https://www.facebook.com/groups/564701038927716)
 - [Happywhale](https://happywhale.com) seems particularly tapped into the community, who add observations of various cetaceans
-- ESRI provides a nice but unmaintained base map with coarse ocean depth
+- The map page is drawn on our own basemap, [salish-sea/basemap](https://github.com/salish-sea/basemap), built from OpenStreetMap, NOAA, Natural Resources Canada and GEBCO and served from tiles.salishsea.io. The profile pages' maps, the ecotype page's small maps and the preview cards still use Esri's ocean basemap, until the basemap publishes image tiles ([decision 074](docs/decisions/074-the-basemap-is-its-own-project-and-the-cards-draw-on-it.md))
 - Viewing locations are defined by [Orca Network](https://www.orcanetwork.org/)
 
 ## Data
 
 The fetch reaches [Acartia](https://github.com/salish-sea/acartia/wiki/1.-Context-for-SSEMMI-&-Acartia#spatial-boundaries-related-to-acartia)'s boundaries — the full range of Southern Resident Killer Whales — but what we keep is narrower: killer whales from that whole range, everything else only from the Salish Sea and the Strait of Juan de Fuca ([decision 036](docs/decisions/036-ingest-scope-killer-whales-range-wide.md)). That rule is applied to Maplify and iNaturalist alike ([decision 044](docs/decisions/044-inat-ingest-scope.md)); HappyWhale ingest is off.
 
-Geographic coordinates are decimal longitudes and latitudes with respect to WGS84. The projection is [EPSG:3857](https://spatialreference.org/ref/epsg/3857/) (Pseudo-Merctaor). Switching to [EPSG:32610](https://spatialreference.org/ref/epsg/32610/) (UTM 10N) might be nicer, but would require custom raster maps.
+Geographic coordinates are decimal longitudes and latitudes with respect to WGS84. The map is drawn in Web Mercator ([EPSG:3857](https://spatialreference.org/ref/epsg/3857/)), the projection the basemap's tiles are in. UTM zone 10N ([EPSG:32610](https://spatialreference.org/ref/epsg/32610/)) was once considered, but MapLibre can't draw it and it fits only 126–120°W ([basemap decision 013](https://github.com/salish-sea/basemap/blob/main/decisions/013-the-tiles-are-in-web-mercator.md)).
 
 Temporal coordinates are UNIX Epoch time—integer seconds since midnight, January 1, 1970, GMT. This format is widely supported, and allows for cheap calculation of intervals in SQL queries.
 

@@ -32,6 +32,7 @@
     "lit": "^3.3.3",
     "maplibre-gl": "6.13.0",
     "marked": "18.0.7",
+    "pmtiles": "4.5.0",
     "temporal-polyfill": "^0.3",
     "uuid": "^14.0.1",
     "vite": "^8.1.5",
