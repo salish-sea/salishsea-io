@@ -11,7 +11,7 @@ import { TILE, type Viewport, tilesFor } from './mercator.js';
  * The same set as `IMAGE_TILES` in src/profile-map.ts, which src/style.test.ts checks;
  * scripts/update-basemap.ts rewrites both.
  */
-export const IMAGE_TILES = 'https://tiles.salishsea.io/images/e3c770d7366d9fcd/{z}/{x}/{y}.webp';
+export const IMAGE_TILES = 'https://tiles.salishsea.io/images/86f8ccd15381ab0e/{z}/{x}/{y}.webp';
 
 /** What the basemap's sources ask to be credited with: OpenStreetMap's licence requires it. */
 export const BASEMAP_ATTRIBUTION = '© OpenStreetMap contributors; depths from NOAA, Natural Resources Canada, GEBCO';
