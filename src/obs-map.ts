@@ -282,7 +282,7 @@ user-location-control.inactive svg { color: #333; }
     return new MapLibreMap({
       container: this.mapRef.value!,
       style: baseStyle(),
-      // Past the basemap's edges, and below the zoom its depths start at, it draws
+      // Past the basemap's coarse map, and zoomed out further than it goes, it draws
       // nothing, and the map would look broken there.
       maxBounds: BASEMAP_BOUNDS,
       minZoom: BASEMAP_MIN_ZOOM,

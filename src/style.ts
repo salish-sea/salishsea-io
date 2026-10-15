@@ -251,10 +251,13 @@ export type SourceId = typeof SOURCES[number];
  */
 export const BASEMAP_VERSION: string = basemap.metadata['salishsea:basemap-version'];
 
-/** Where the basemap draws anything: 136–120°W, 36–54.8°N (salish-sea/basemap's decision 011). */
-export const BASEMAP_BOUNDS: [[number, number], [number, number]] = [[-136.0, 36.0], [-120.0, 54.8]];
-/** Its depths start at MapLibre's zoom 5; below that, the sea is a flat tint. */
-export const BASEMAP_MIN_ZOOM = 5;
+/**
+ * Where the basemap draws something at every zoom from 3: its coarse map of the Northeast
+ * Pacific, 180–90°W and 15–70°N, around its detailed coast, 136–120°W and 36–54.8°N
+ * (salish-sea/basemap's decisions 011 and 012).
+ */
+export const BASEMAP_BOUNDS: [[number, number], [number, number]] = [[-180, 15], [-90, 70]];
+export const BASEMAP_MIN_ZOOM = 3;
 
 /** The style the map starts with: the basemap, and every one of our sources, empty, on top. */
 export function baseStyle(): StyleSpecification {
@@ -330,7 +333,7 @@ const LAYERS: LayerSpecification[] = [
     paint: {'line-color': ['get', 'edge'], 'line-width': 1, 'line-dasharray': [3, 3]}},
 
   // A casing under the line, not a heavier line. 2px alone disappears into the
-  // Esri basemap's coastline, which is the other half of #271; a white halo
+  // basemap's coastline (Esri's, when #271 was filed), which is the other half of #271; a white halo
   // separates the track from whatever it crosses without making it louder.
   // Decision 029: the track is supporting, not the subject.
   //

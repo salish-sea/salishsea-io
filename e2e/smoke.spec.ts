@@ -10,6 +10,9 @@ test('production smoke', async ({ page }) => {
   });
 
   page.on('requestfailed', request => {
+    // A request the page cancelled is not a failure: MapLibre cancels the basemap's
+    // tile reads that a move of the map made unnecessary.
+    if (request.failure()?.errorText === 'net::ERR_ABORTED') return;
     failedRequests.push(`${request.failure()?.errorText} ${request.url()}`);
   });
 
