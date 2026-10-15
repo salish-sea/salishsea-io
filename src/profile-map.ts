@@ -122,7 +122,8 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
 
   // Tiles from the next zoom up, so they are never stretched much; each drawn at its
   // scaled size. A zoom a hair past a whole one takes that one's tiles, stretched a
-  // little, rather than four times as many from the next.
+  // little, rather than four times as many from the next. Closer than COVERED_ZOOM, that
+  // zoom's tiles go underneath first.
   const tileZoom = Math.ceil(zoom - 0.1);
   const tiles: string[] = [];
   const layer = (z: number) => {
@@ -241,6 +242,9 @@ export const profileMapStyles = css`
     color: #94a3b8;
     font-size: 0.75rem;
     margin: 0.25rem 0 0;
+  }
+  figure.profile-map figcaption a {
+    color: inherit;
   }
 `;
 

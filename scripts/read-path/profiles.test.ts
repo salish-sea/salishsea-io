@@ -257,7 +257,7 @@ describe('assembleEcotypes and renderEcotypePage', () => {
         expect(circles[0]![0]).toContain('fill-opacity="0.88"');
         expect(doc).toMatch(/Not reported yet:.*href="\/matrilines\/0020003\/T046s">T046</s);
         expect(doc).toMatch(/tiles\.salishsea\.io\/images\/[0-9a-f]{16}\/8\/\d+\/\d+\.webp/);
-        expect(doc).toMatch(/© <a href="https:\/\/www\.openstreetmap\.org\/copyright">OpenStreetMap<\/a>(<!--.*?-->)? contributors/);
+        expect(doc).toMatch(/© <a href="https:\/\/www\.openstreetmap\.org\/copyright">OpenStreetMap<\/a> contributors/);
     });
 
     test('the ecotype\'s own sightings first, the long run of matrilines after', () => {

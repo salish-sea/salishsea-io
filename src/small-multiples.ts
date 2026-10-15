@@ -146,6 +146,9 @@ export const smallMapStyles = css`
     font-size: 0.75rem;
     margin: 0.75rem 0 0;
   }
+  .small-maps-credit a {
+    color: inherit;
+  }
 `;
 
 /** Required wherever the maps appear, by OpenStreetMap's licence. */

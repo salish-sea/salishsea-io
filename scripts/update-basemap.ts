@@ -29,15 +29,15 @@ if (typeof images !== 'string' || !/^https:\/\/tiles\.salishsea\.io\/images\/[0-
   process.exit(1);
 }
 style.metadata = { ...style.metadata, 'salishsea:basemap-version': version };
-writeFileSync('src/basemap-style.json', JSON.stringify(style) + '\n');
-console.log(`src/basemap-style.json is now version ${version}`);
-for (const file of ['src/profile-map.ts', 'infra/lib/card-renderer/basemap.ts']) {
+const updates = ['src/profile-map.ts', 'infra/lib/card-renderer/basemap.ts'].map((file) => {
   const source = readFileSync(file, 'utf8');
   const updated: string = source.replace(/^export const IMAGE_TILES = '[^']*';$/m, `export const IMAGE_TILES = '${images}';`);
   if (updated === source && !source.includes(images)) {
     console.error(`${file} has no IMAGE_TILES line to update`);
     process.exit(1);
   }
-  writeFileSync(file, updated);
-}
-console.log(`the pictures use ${images}`);
+  return [file, updated] as const;
+});
+writeFileSync('src/basemap-style.json', JSON.stringify(style) + '\n');
+for (const [file, updated] of updates) writeFileSync(file, updated);
+console.log(`src/basemap-style.json is now version ${version}; the pictures use ${images}`);
