@@ -25,8 +25,8 @@ export type GroupKey =
 
 /**
  * The palette is Okabe–Ito, chosen for separation under the common forms of
- * colour vision deficiency and for holding up against the pale Esri ocean
- * basemap. Orca is near-black because that is what an orca looks like.
+ * colour vision deficiency and for holding up against the basemap's pale
+ * ocean. Orca is near-black because that is what an orca looks like.
  *
  * `label` is the fallback display name for an animal identified no further than
  * its group, and the accessible name for the marker. It is deliberately a

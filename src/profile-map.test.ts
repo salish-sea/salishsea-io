@@ -11,19 +11,29 @@ describe('profileMapSvg', () => {
 
   it('frames one report at zoom 10, as close as the interactive map came', () => {
     const svg = profileMapSvg([dot('a', -123, 48.5)]);
-    expect(svg).toMatch(/tile\/10\/\d+\/\d+"/);
-    expect(svg).not.toMatch(/tile\/11\//);
+    expect(svg).toMatch(/\/images\/\w+\/10\/\d+\/\d+\.webp"/);
+    expect(svg).not.toMatch(/\/images\/\w+\/11\//);
   });
 
   it('comes in to zoom 15 for a haul-out site, to show its radius', () => {
     const svg = profileMapSvg([], { lon: -122.92, lat: 48.12, radius_m: 50 });
-    expect(svg).toMatch(/tile\/15\//);
+    expect(svg).toMatch(/\/images\/\w+\/15\//);
     expect(svg).toContain('<path class="site"');
+  });
+
+  // Close tiles exist only along the shore (the basemap's decision 014): a buoy in open water
+  // shows the zoom-10 tiles laid under them.
+  it('lays zoom-10 tiles under a close-up, first, so a missing close tile shows the sea', () => {
+    const svg = profileMapSvg([], { lon: -122.4, lat: 47.9, radius_m: 500 });
+    const zooms = [...svg.matchAll(/\/images\/\w+\/(\d+)\//g)].map(m => Number(m[1]));
+    expect(zooms[0]).toBe(10);
+    expect(zooms.at(-1)).toBe(15);
+    expect(new Set(zooms)).toEqual(new Set([10, 15]));
   });
 
   it('fits reports far apart, from a lower zoom', () => {
     const svg = profileMapSvg([dot('a', -123, 48.5), dot('b', -122.3, 47.6)]);
-    const zooms = [...svg.matchAll(/tile\/(\d+)\//g)].map(m => Number(m[1]));
+    const zooms = [...svg.matchAll(/\/images\/\w+\/(\d+)\//g)].map(m => Number(m[1]));
     expect(Math.max(...zooms)).toBeLessThan(10);
   });
 
@@ -67,7 +77,7 @@ describe('profileMapSvg', () => {
 
   it('wraps tile columns across the antimeridian', () => {
     const svg = profileMapSvg([dot('a', 179.9, 52), dot('b', -179.9, 52)]);
-    const columns = [...svg.matchAll(/tile\/(\d+)\/\d+\/(-?\d+)"/g)].map(m => [Number(m[1]), Number(m[2])]);
+    const columns = [...svg.matchAll(/\/images\/\w+\/(\d+)\/(-?\d+)\/\d+\.webp"/g)].map(m => [Number(m[1]), Number(m[2])]);
     expect(columns.every(([z, x]) => x! >= 0 && x! < 2 ** z!)).toBe(true);
   });
 

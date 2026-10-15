@@ -3,8 +3,8 @@
  * picture, drawn into the page when it is prerendered, with no script.
  *
  * It replaces an OpenLayers map that neither panned nor zoomed, so nothing is lost
- * by drawing it once: it frames its own reports, Esri's ocean tiles are `<image>`s
- * under them (decision 020's basemap and terms), and each dot is still a link to
+ * by drawing it once: it frames its own reports, the basemap's image tiles are
+ * `<image>`s under them (decision 074), and each dot is still a link to
  * that day on the main map. Like the small maps it shares its projection with
  * (`src/small-multiples.ts`), nothing here touches the window, the document, or
  * the network.
@@ -27,9 +27,33 @@ export interface MapSite {
 }
 
 export const TILE = 256;
-export const TILE_URL = 'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile';
+/**
+ * The basemap's image tiles (salish-sea/basemap's decision 014): the map without its
+ * labels, in 256-pixel tiles drawn at 512 for high-density screens, close in (zooms 11 to
+ * 15) only along the Salish Sea's shore. This is the set src/basemap-style.json names in
+ * its metadata; scripts/update-basemap.ts rewrites this line, and src/style.test.ts checks
+ * that the two agree.
+ */
+export const IMAGE_TILES = 'https://tiles.salishsea.io/images/e3c770d7366d9fcd/{z}/{x}/{y}.webp';
+/**
+ * What the basemap's sources ask to be credited with, wherever its tiles appear. OpenStreetMap's
+ * licence asks that its name link to its copyright page, which says the data is under the ODbL.
+ */
+export const basemapCredit = () =>
+  html`Base map © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors; depths from NOAA, Natural Resources Canada and GEBCO`;
+/**
+ * The deepest zoom the image tiles cover everywhere a picture can be framed. Closer in they
+ * cover only the shore (the basemap's decision 014), so a closer picture lays this zoom's
+ * tiles under its own: where a close tile is missing, such as over a buoy in open water, the
+ * coarser one shows through rather than a flat colour.
+ */
+const COVERED_ZOOM = 10;
 
-/** Web Mercator pixel coordinates at `zoom`, counting 256-pixel tiles, as Esri's tiles do. */
+/** The URL of one image tile. */
+export const tileUrl = (z: number, x: number, y: number) =>
+  IMAGE_TILES.replace('{z}', String(z)).replace('{x}', String(x)).replace('{y}', String(y));
+
+/** Web Mercator pixel coordinates at `zoom`, counting 256-pixel tiles, as the image tiles do. */
 export function project(lon: number, lat: number, zoom: number): [number, number] {
   const size = TILE * 2 ** zoom;
   const sin = Math.sin(lat * Math.PI / 180);
@@ -98,14 +122,19 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
 
   // Tiles from the next zoom up, so they are never stretched much; each drawn at its
   // scaled size. A zoom a hair past a whole one takes that one's tiles, stretched a
-  // little, rather than four times as many from the next.
+  // little, rather than four times as many from the next. Closer than COVERED_ZOOM, that
+  // zoom's tiles go underneath first.
   const tileZoom = Math.ceil(zoom - 0.1);
-  const tileSize = TILE * 2 ** (zoom - tileZoom);
-  const lastTile = 2 ** tileZoom - 1;
   const tiles: string[] = [];
-  for (let ty = Math.max(0, Math.floor(top / tileSize)); ty * tileSize < top + HEIGHT && ty <= lastTile; ty++)
-    for (let tx = Math.floor(left / tileSize); tx * tileSize < left + WIDTH; tx++)
-      tiles.push(`<image href="${TILE_URL}/${tileZoom}/${ty}/${((tx % (lastTile + 1)) + lastTile + 1) % (lastTile + 1)}" x="${(tx * tileSize - left).toFixed(1)}" y="${(ty * tileSize - top).toFixed(1)}" width="${tileSize.toFixed(1)}" height="${tileSize.toFixed(1)}"></image>`);
+  const layer = (z: number) => {
+    const tileSize = TILE * 2 ** (zoom - z);
+    const lastTile = 2 ** z - 1;
+    for (let ty = Math.max(0, Math.floor(top / tileSize)); ty * tileSize < top + HEIGHT && ty <= lastTile; ty++)
+      for (let tx = Math.floor(left / tileSize); tx * tileSize < left + WIDTH; tx++)
+        tiles.push(`<image href="${tileUrl(z, ((tx % (lastTile + 1)) + lastTile + 1) % (lastTile + 1), ty)}" x="${(tx * tileSize - left).toFixed(1)}" y="${(ty * tileSize - top).toFixed(1)}" width="${tileSize.toFixed(1)}" height="${tileSize.toFixed(1)}"></image>`);
+  };
+  if (tileZoom > COVERED_ZOOM) layer(COVERED_ZOOM);
+  layer(tileZoom);
 
   // Every element is closed explicitly: Lit's server renderer parses this markup
   // as HTML, where a self-closing <circle/> doesn't close (src/small-multiples.ts).
@@ -164,7 +193,7 @@ export const profileMapStyles = css`
     margin: 1.5rem 0 0;
   }
   figure.profile-map svg {
-    background: #c4daea;
+    background: #c3deeb;
     border: 1px solid #e2e8f0;
     display: block;
     height: auto;
@@ -214,11 +243,14 @@ export const profileMapStyles = css`
     font-size: 0.75rem;
     margin: 0.25rem 0 0;
   }
+  figure.profile-map figcaption a {
+    color: inherit;
+  }
 `;
 
 /**
- * The map, framed on its reports, with the basemap's credit under it, which its
- * terms require (decision 020). Nothing when no report has a location and there is
+ * The map, framed on its reports, with the basemap's credit under it, which
+ * OpenStreetMap's licence requires. Nothing when no report has a location and there is
  * no site to show.
  */
 export function renderProfileMap(dots: readonly MapDot[], site: MapSite | null = null) {
@@ -229,7 +261,7 @@ export function renderProfileMap(dots: readonly MapDot[], site: MapSite | null =
     <figure class="profile-map">
       <svg viewBox="0 0 ${WIDTH} ${HEIGHT}" width=${WIDTH} height=${HEIGHT}
         aria-label="Map of where these reports were made. Each dot links to its day on the main map.">${unsafeSVG(svg)}</svg>
-      <figcaption>Base map by Esri and its data providers</figcaption>
+      <figcaption>${basemapCredit()}</figcaption>
     </figure>
   `;
 }
