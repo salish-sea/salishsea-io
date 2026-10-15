@@ -34,7 +34,7 @@ export const TILE = 256;
  * its metadata; scripts/update-basemap.ts rewrites this line, and src/style.test.ts checks
  * that the two agree.
  */
-export const IMAGE_TILES = 'https://tiles.salishsea.io/images/0000000000000000/{z}/{x}/{y}.webp';
+export const IMAGE_TILES = 'https://tiles.salishsea.io/images/e3c770d7366d9fcd/{z}/{x}/{y}.webp';
 /** What the basemap's sources ask to be credited with, wherever its tiles appear. */
 export const BASEMAP_CREDIT = 'Base map © OpenStreetMap contributors; depths from NOAA, Natural Resources Canada and GEBCO';
 

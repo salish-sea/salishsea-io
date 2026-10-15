@@ -26,14 +26,14 @@ console.log(`src/basemap-style.json is now version ${version}`);
 
 // The pictures stitched from tiles use the version's image tiles (its decision 014): the
 // profile maps and small maps, and the preview cards, each of which names them once.
-const images = style.metadata['salishsea:images'];
+const images: unknown = style.metadata['salishsea:images'];
 if (typeof images !== 'string' || !/^https:\/\/tiles\.salishsea\.io\/images\/[0-9a-f]{16}\/\{z\}\/\{x\}\/\{y\}\.webp$/.test(images)) {
   console.error(`version ${version} names no image tiles`);
   process.exit(1);
 }
 for (const file of ['src/profile-map.ts', 'infra/lib/card-renderer/basemap.ts']) {
   const source = readFileSync(file, 'utf8');
-  const updated = source.replace(/^export const IMAGE_TILES = '[^']*';$/m, `export const IMAGE_TILES = '${images}';`);
+  const updated: string = source.replace(/^export const IMAGE_TILES = '[^']*';$/m, `export const IMAGE_TILES = '${images}';`);
   if (updated === source && !source.includes(images)) {
     console.error(`${file} has no IMAGE_TILES line to update`);
     process.exit(1);
