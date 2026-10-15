@@ -73,6 +73,6 @@ describe('baseStyle', () => {
     const named = (basemapStyle.metadata as Record<string, string>)['salishsea:images'];
     expect(named).toMatch(/^https:\/\/tiles\.salishsea\.io\/images\/[0-9a-f]{16}\/\{z\}\/\{x\}\/\{y\}\.webp$/);
     expect(IMAGE_TILES).toBe(named);
-    expect(readFileSync('infra/lib/card-renderer/basemap.ts', 'utf8')).toContain(`export const IMAGE_TILES = '${named}';`);
+    expect(readFileSync(new URL('../infra/lib/card-renderer/basemap.ts', import.meta.url), 'utf8')).toContain(`export const IMAGE_TILES = '${named}';`);
   });
 });

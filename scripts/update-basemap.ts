@@ -20,17 +20,17 @@ if (!response.ok) {
   process.exit(1);
 }
 const style = await response.json();
-style.metadata = { ...style.metadata, 'salishsea:basemap-version': version };
-writeFileSync('src/basemap-style.json', JSON.stringify(style) + '\n');
-console.log(`src/basemap-style.json is now version ${version}`);
-
 // The pictures stitched from tiles use the version's image tiles (its decision 014): the
-// profile maps and small maps, and the preview cards, each of which names them once.
-const images: unknown = style.metadata['salishsea:images'];
+// profile maps and small maps, and the preview cards, each of which names them once. A
+// version without them is refused before anything is written.
+const images: unknown = style.metadata?.['salishsea:images'];
 if (typeof images !== 'string' || !/^https:\/\/tiles\.salishsea\.io\/images\/[0-9a-f]{16}\/\{z\}\/\{x\}\/\{y\}\.webp$/.test(images)) {
   console.error(`version ${version} names no image tiles`);
   process.exit(1);
 }
+style.metadata = { ...style.metadata, 'salishsea:basemap-version': version };
+writeFileSync('src/basemap-style.json', JSON.stringify(style) + '\n');
+console.log(`src/basemap-style.json is now version ${version}`);
 for (const file of ['src/profile-map.ts', 'infra/lib/card-renderer/basemap.ts']) {
   const source = readFileSync(file, 'utf8');
   const updated: string = source.replace(/^export const IMAGE_TILES = '[^']*';$/m, `export const IMAGE_TILES = '${images}';`);

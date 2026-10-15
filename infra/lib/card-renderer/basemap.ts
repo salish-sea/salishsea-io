@@ -17,7 +17,7 @@ export const IMAGE_TILES = 'https://tiles.salishsea.io/images/e3c770d7366d9fcd/{
 export const BASEMAP_ATTRIBUTION = '© OpenStreetMap contributors; depths from NOAA, Natural Resources Canada, GEBCO';
 
 /** Painted where a tile is missing so a gap reads as ocean, not as a hole. */
-const SEA = { r: 0xc4, g: 0xda, b: 0xea };
+const SEA = { r: 0xc3, g: 0xde, b: 0xeb };
 
 const TILE_TIMEOUT_MS = 4000;
 

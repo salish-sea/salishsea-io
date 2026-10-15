@@ -35,8 +35,19 @@ export const TILE = 256;
  * that the two agree.
  */
 export const IMAGE_TILES = 'https://tiles.salishsea.io/images/e3c770d7366d9fcd/{z}/{x}/{y}.webp';
-/** What the basemap's sources ask to be credited with, wherever its tiles appear. */
-export const BASEMAP_CREDIT = 'Base map © OpenStreetMap contributors; depths from NOAA, Natural Resources Canada and GEBCO';
+/**
+ * What the basemap's sources ask to be credited with, wherever its tiles appear. OpenStreetMap's
+ * licence asks that its name link to its copyright page, which says the data is under the ODbL.
+ */
+export const basemapCredit = () =>
+  html`Base map © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors; depths from NOAA, Natural Resources Canada and GEBCO`;
+/**
+ * The deepest zoom the image tiles cover everywhere a picture can be framed. Closer in they
+ * cover only the shore (the basemap's decision 014), so a closer picture lays this zoom's
+ * tiles under its own: where a close tile is missing, such as over a buoy in open water, the
+ * coarser one shows through rather than a flat colour.
+ */
+const COVERED_ZOOM = 10;
 
 /** The URL of one image tile. */
 export const tileUrl = (z: number, x: number, y: number) =>
@@ -113,12 +124,16 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
   // scaled size. A zoom a hair past a whole one takes that one's tiles, stretched a
   // little, rather than four times as many from the next.
   const tileZoom = Math.ceil(zoom - 0.1);
-  const tileSize = TILE * 2 ** (zoom - tileZoom);
-  const lastTile = 2 ** tileZoom - 1;
   const tiles: string[] = [];
-  for (let ty = Math.max(0, Math.floor(top / tileSize)); ty * tileSize < top + HEIGHT && ty <= lastTile; ty++)
-    for (let tx = Math.floor(left / tileSize); tx * tileSize < left + WIDTH; tx++)
-      tiles.push(`<image href="${tileUrl(tileZoom, ((tx % (lastTile + 1)) + lastTile + 1) % (lastTile + 1), ty)}" x="${(tx * tileSize - left).toFixed(1)}" y="${(ty * tileSize - top).toFixed(1)}" width="${tileSize.toFixed(1)}" height="${tileSize.toFixed(1)}"></image>`);
+  const layer = (z: number) => {
+    const tileSize = TILE * 2 ** (zoom - z);
+    const lastTile = 2 ** z - 1;
+    for (let ty = Math.max(0, Math.floor(top / tileSize)); ty * tileSize < top + HEIGHT && ty <= lastTile; ty++)
+      for (let tx = Math.floor(left / tileSize); tx * tileSize < left + WIDTH; tx++)
+        tiles.push(`<image href="${tileUrl(z, ((tx % (lastTile + 1)) + lastTile + 1) % (lastTile + 1), ty)}" x="${(tx * tileSize - left).toFixed(1)}" y="${(ty * tileSize - top).toFixed(1)}" width="${tileSize.toFixed(1)}" height="${tileSize.toFixed(1)}"></image>`);
+  };
+  if (tileZoom > COVERED_ZOOM) layer(COVERED_ZOOM);
+  layer(tileZoom);
 
   // Every element is closed explicitly: Lit's server renderer parses this markup
   // as HTML, where a self-closing <circle/> doesn't close (src/small-multiples.ts).
@@ -177,7 +192,7 @@ export const profileMapStyles = css`
     margin: 1.5rem 0 0;
   }
   figure.profile-map svg {
-    background: #c4daea;
+    background: #c3deeb;
     border: 1px solid #e2e8f0;
     display: block;
     height: auto;
@@ -242,7 +257,7 @@ export function renderProfileMap(dots: readonly MapDot[], site: MapSite | null =
     <figure class="profile-map">
       <svg viewBox="0 0 ${WIDTH} ${HEIGHT}" width=${WIDTH} height=${HEIGHT}
         aria-label="Map of where these reports were made. Each dot links to its day on the main map.">${unsafeSVG(svg)}</svg>
-      <figcaption>${BASEMAP_CREDIT}</figcaption>
+      <figcaption>${basemapCredit()}</figcaption>
     </figure>
   `;
 }

@@ -3,15 +3,15 @@
  * scale, so they can be compared at a glance (decision 067). The ecotype page draws one
  * per matriline.
  *
- * Static SVG, with no script: the basemap is its image tiles as <image>s, as on the
- * profile pages (src/profile-map.ts), and the reports are circles over it. Every map shares one extent and zoom, so they all ask for the same dozen
- * tiles and the browser fetches each once. Like the templates that use it, nothing here
+ * Static SVG, with no script: our basemap's image tiles are <image>s, as on the profile
+ * pages (src/profile-map.ts), and the reports are circles over them. Every map shares one
+ * extent and zoom, so they all ask for the same dozen tiles and the browser fetches each once. Like the templates that use it, nothing here
  * touches the window, the document, or the network.
  */
 
 import { css, html, nothing } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
-import { BASEMAP_CREDIT, project as projectAt, TILE, tileUrl, type MapDot } from './profile-map.ts';
+import { basemapCredit, project as projectAt, TILE, tileUrl, type MapDot } from './profile-map.ts';
 
 /**
  * The Salish Sea, as the maps all show it. It holds 8,764 of the 8,832 located reports
@@ -131,7 +131,7 @@ export const smallMapStyles = css`
     margin-left: 0.25rem;
   }
   svg.small-map {
-    background: #c4daea;
+    background: #c3deeb;
     border: 1px solid #e2e8f0;
     display: block;
     height: auto;
@@ -150,7 +150,7 @@ export const smallMapStyles = css`
 
 /** Required wherever the maps appear, by OpenStreetMap's licence. */
 export const renderSmallMapsCredit = () =>
-  html`<p class="small-maps-credit">${BASEMAP_CREDIT}</p>`;
+  html`<p class="small-maps-credit">${basemapCredit()}</p>`;
 
 /**
  * One small map of these reports, and how many of them it draws. `subject` finishes
