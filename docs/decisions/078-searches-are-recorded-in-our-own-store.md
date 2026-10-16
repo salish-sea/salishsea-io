@@ -23,7 +23,14 @@ The search field finds animals, groups, haul-out sites, regions, hydrophones and
 
 ## Consequences
 
-- To read it: `sqlite3 /data/store/salishsea.db "SELECT query, results, chosen_kind, chosen_label FROM searches ORDER BY id DESC LIMIT 50"` on the Fly machine (`fly ssh console -a salishsea-io`). The store is replicated by Litestream with everything else in it.
+- To read it, on the Fly machine (`fly ssh console -a salishsea-io`), which has Node's SQLite but no `sqlite3` command:
+
+  ```sh
+  node -e "const db = new (require('node:sqlite').DatabaseSync)('/data/store/salishsea.db', {readOnly: true});
+    console.table(db.prepare('SELECT created_at, query, results, chosen_kind, chosen_label, page FROM searches ORDER BY id DESC LIMIT 50').all())"
+  ```
+
+  The store is replicated by Litestream with everything else in it, so a restored copy can be read the same way anywhere.
 - The read-path snapshot reads only the tables it names (`scripts/read-path/snapshot.ts`, `FROM_STORE`), so searches are never published.
 - Records are stamped to the microsecond, so a run of them from one page in a few seconds can be read as one person's searches. Nothing ties a run to a person, but "without who searched" is not "unlinkable".
 - A middle-click on a result records it as chosen; a choice that leaves the page in an old browser without `keepalive` (Firefox before 133) may be lost.
