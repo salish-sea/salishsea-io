@@ -181,6 +181,8 @@ export class SiteSearch extends LitElement {
   @state() private query = '';
   @state() private entries: SearchEntry[] | null = null;
   @state() private failed = false;
+  /** Whether the places are still on their way, after the index has come: the list says so, rather than "Nothing by that name". */
+  @state() private placesLoading = false;
   @state() private active = -1;
   @state() private open = false;
   /** Where the popover sits, in px from the button's own left edge, and how wide. */
@@ -249,8 +251,10 @@ export class SiteSearch extends LitElement {
     loadIndex().then(entries => {
       this.entries = entries;
       this.failed = false;
+      this.placesLoading = true;
       return loadPlaces().then(places => {
         if (places.length) this.entries = [...entries, ...places];
+        this.placesLoading = false;
       });
     }, () => {
       this.failed = true;
@@ -306,7 +310,8 @@ export class SiteSearch extends LitElement {
   private renderList(options: Option[]) {
     if (this.failed) return html`<ul id="results" role="listbox"><li class="message" role="presentation">Search isn't available right now.</li></ul>`;
     if (!this.entries) return html`<ul id="results" role="listbox"><li class="message" role="presentation">Loading…</li></ul>`;
-    if (!options.length) return html`<ul id="results" role="listbox"><li class="message" role="presentation">Nothing by that name.</li></ul>`;
+    const loadingPlaces = this.placesLoading ? html`<li class="message" role="presentation">Loading places…</li>` : nothing;
+    if (!options.length) return html`<ul id="results" role="listbox">${this.placesLoading ? loadingPlaces : html`<li class="message" role="presentation">Nothing by that name.</li>`}</ul>`;
     // mousedown would take focus from the field, and the list would close before the click landed.
     return html`<ul id="results" role="listbox" aria-label="Results" @mousedown=${(e: MouseEvent) => e.preventDefault()}>
       ${options.map((option, i) => html`
@@ -318,6 +323,7 @@ export class SiteSearch extends LitElement {
             : html`<a href=${option.href} tabindex="-1"><span class="label">${option.entry.label}</span>
                 <span class="note">${option.entry.note || KIND_LABELS[option.entry.kind]}</span></a>`}
         </li>`)}
+      ${loadingPlaces}
     </ul>`;
   }
 }
