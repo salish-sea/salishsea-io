@@ -4,7 +4,8 @@
  * (src/site-search.ts) share one definition, and a test can hold both to it.
  *
  * Search is a way in for someone who already knows a name: a designation (T65A, J31),
- * a nickname, a matriline (T065As), a pod (J pod), a population, a region of the map, a haul-out site.
+ * a nickname, a matriline (T065As), a pod (J pod), a population, a region of the map, a haul-out site,
+ * a place the basemap labels (src/places.ts).
  * Each result is a place to go. An animal offers two: its page, and its most recent
  * sighting on the map, the day it was reported with the report focused (Peter,
  * 2026-10-07). A region is a view, so it opens the map filtered to it.
@@ -12,7 +13,7 @@
 
 import { fold } from './fold.ts';
 
-export type SearchKind = 'individual' | 'matriline' | 'pod' | 'population' | 'haulout' | 'region';
+export type SearchKind = 'individual' | 'matriline' | 'pod' | 'population' | 'haulout' | 'region' | 'place';
 
 /** One thing the field can find, as the build writes it. */
 export interface SearchEntry {
@@ -35,23 +36,39 @@ export interface SearchIndex {
 }
 
 /** Which kind shows first among results that match equally well: animals before places. */
-const KIND_ORDER: readonly SearchKind[] = ['individual', 'matriline', 'pod', 'population', 'region', 'haulout'];
+const KIND_ORDER: readonly SearchKind[] = ['individual', 'matriline', 'pod', 'population', 'region', 'haulout', 'place'];
+
+/**
+ * Whether each word of the query begins a word of the name, in order, as "lime point" does
+ * "Lime Kiln Point" and "s juan isl" does "San Juan Island": people shorten names as they type them.
+ */
+function wordsBegin(key: string, parts: readonly string[]): boolean {
+  const words = key.split(' ');
+  let i = 0;
+  for (const part of parts) {
+    while (i < words.length && !words[i]!.startsWith(part)) i++;
+    if (i === words.length) return false;
+    i++;
+  }
+  return true;
+}
 
 /**
  * The entries a query finds, best first: a name matched whole, then one it begins, then
- * one it begins a word of, then one it is inside; equally good matches by kind, then by
+ * one whose words each word of it begins, then one it is inside; equally good matches by kind, then by
  * label. Nothing for a blank query.
  */
 export function search(entries: readonly SearchEntry[], query: string, limit = 8): SearchEntry[] {
   const q = fold(query);
   if (!q) return [];
+  const parts = q.split(' ');
   const scored: { entry: SearchEntry; score: number }[] = [];
   for (const entry of entries) {
     let score = Infinity;
     for (const key of entry.keys) {
       if (key === q) score = Math.min(score, 0);
       else if (key.startsWith(q)) score = Math.min(score, 1);
-      else if (key.includes(` ${q}`)) score = Math.min(score, 2);
+      else if (wordsBegin(key, parts)) score = Math.min(score, 2);
       else if (key.includes(q)) score = Math.min(score, 3);
     }
     if (score < Infinity) scored.push({ entry, score });

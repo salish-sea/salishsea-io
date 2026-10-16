@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import basemapStyle from './basemap-style.json' with { type: 'json' };
+import { PLACE_LISTS } from './places.ts';
 import { IMAGE_TILES } from './profile-map.ts';
 import { BASEMAP_VERSION, baseStyle, occurrenceProperties, SOURCES } from './style.ts';
 import { GROUPS } from './symbology.ts';
@@ -72,9 +73,16 @@ describe('baseStyle', () => {
   // The profile maps, the small maps and the preview cards stitch the version's image
   // tiles; scripts/update-basemap.ts writes their URL into both places.
   it('has the pictures stitch the image tiles of the same version', () => {
-    const named = (basemapStyle.metadata as Record<string, string>)['salishsea:images'];
+    const named = (basemapStyle.metadata as Record<string, unknown>)['salishsea:images'];
     expect(named).toMatch(/^https:\/\/tiles\.salishsea\.io\/images\/[0-9a-f]{16}\/\{z\}\/\{x\}\/\{y\}\.webp$/);
     expect(IMAGE_TILES).toBe(named);
     expect(readFileSync(new URL('../infra/lib/card-renderer/basemap.ts', import.meta.url), 'utf8')).toContain(`export const IMAGE_TILES = '${named}';`);
+  });
+
+  // The search finds the places the version labels; scripts/update-basemap.ts writes their lists' URLs.
+  it('has the search read the place lists of the same version', () => {
+    const named = (basemapStyle.metadata as Record<string, unknown>)['salishsea:places'] as Record<string, string>;
+    expect(Object.keys(named).sort()).toEqual(['gazetteers', 'osm']);
+    expect(PLACE_LISTS).toEqual(Object.values(named));
   });
 });

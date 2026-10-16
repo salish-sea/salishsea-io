@@ -4,7 +4,8 @@
 // A published version never changes (salish-sea/basemap's decision 007), so the copy
 // can't drift from what tiles.salishsea.io serves; moving to a new version is a run of
 // this and a reviewed diff. The version is kept in the style's own metadata. It also
-// writes the version's image tiles into the two places that stitch pictures from them.
+// writes the version's image tiles into the two places that stitch pictures from them,
+// and its lists of place names into the search (src/places.ts).
 
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -28,16 +29,30 @@ if (typeof images !== 'string' || !/^https:\/\/tiles\.salishsea\.io\/images\/[0-
   console.error(`version ${version} names no image tiles`);
   process.exit(1);
 }
+// The search finds the places the map labels, from the version's lists (its decision 018).
+// They are named by what they hold; the search reads both.
+const named: unknown = style.metadata?.['salishsea:places'];
+const PLACE_LIST = /^https:\/\/tiles\.salishsea\.io\/places\/places-[a-z]+-[0-9a-f]{16}\.json$/;
+const places = named && typeof named === 'object' ? Object.values(named) : [];
+if (!places.length || !places.every((url) => typeof url === 'string' && PLACE_LIST.test(url))) {
+  console.error(`version ${version} names no lists of places`);
+  process.exit(1);
+}
 style.metadata = { ...style.metadata, 'salishsea:basemap-version': version };
-const updates = ['src/profile-map.ts', 'infra/lib/card-renderer/basemap.ts'].map((file) => {
+/** A file with its one `export const <name>…= <value>;` line set to the value, or an exit if it has none. */
+const rewrite = (file: string, name: string, value: string) => {
   const source = readFileSync(file, 'utf8');
-  const updated: string = source.replace(/^export const IMAGE_TILES = '[^']*';$/m, `export const IMAGE_TILES = '${images}';`);
-  if (updated === source && !source.includes(images)) {
-    console.error(`${file} has no IMAGE_TILES line to update`);
+  const line = new RegExp(`^(export const ${name}(?::[^=]*)?) = .*;$`, 'm');
+  if (!line.test(source)) {
+    console.error(`${file} has no ${name} line to update`);
     process.exit(1);
   }
-  return [file, updated] as const;
-});
+  return [file, source.replace(line, (_, start: string) => `${start} = ${value};`)] as const;
+};
+const updates = [
+  ...['src/profile-map.ts', 'infra/lib/card-renderer/basemap.ts'].map((file) => rewrite(file, 'IMAGE_TILES', `'${images}'`)),
+  rewrite('src/places.ts', 'PLACE_LISTS', JSON.stringify(places).replaceAll('"', "'").replaceAll(',', ', ')),
+];
 writeFileSync('src/basemap-style.json', JSON.stringify(style) + '\n');
 for (const [file, updated] of updates) writeFileSync(file, updated);
-console.log(`src/basemap-style.json is now version ${version}; the pictures use ${images}`);
+console.log(`src/basemap-style.json is now version ${version}; the pictures use ${images}; the search, ${places.length} lists of places`);

@@ -4,8 +4,9 @@
  * the index the read-path build writes (scripts/read-path/search-index.ts), fetched the
  * first time the search is opened, so a page that is never searched never loads it.
  *
- * A result is a link. An animal offers two: its page, and beneath it its most recent
- * sighting on the map (Peter, 2026-10-07); one never sighted offers only its page. The
+ * A result is a link. A place the basemap labels opens the map there (src/places.ts). An
+ * animal offers two: its page, and beneath it its most recent sighting on the map (Peter,
+ * 2026-10-07); one never sighted offers only its page. The
  * list is an ARIA combobox: arrows move through every link, Enter follows the one
  * marked, Escape closes the search.
  *
@@ -19,6 +20,7 @@
 
 import { css, html, LitElement, nothing, svg } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
+import { loadPlaceEntries } from './places.ts';
 import { search, type SearchEntry, type SearchIndex } from './search.ts';
 
 /** Where the build's files are served: src/read-path.ts's READ_PATH_BASE, not imported, to keep this island small. */
@@ -29,9 +31,11 @@ type Option = { entry: SearchEntry; latest: boolean; href: string };
 
 const KIND_LABELS: Record<SearchEntry['kind'], string> = {
   individual: 'Whale', matriline: 'Matriline', pod: 'Pod', population: 'Population', haulout: 'Haul-out site', region: 'Map region',
+  place: 'Place',
 };
 
 let indexRequest: Promise<SearchEntry[]> | null = null;
+let placesRequest: Promise<SearchEntry[]> | null = null;
 
 /** The index, fetched once per page however many fields there are; a failure is retried on the next focus. */
 function loadIndex(): Promise<SearchEntry[]> {
@@ -46,6 +50,28 @@ function loadIndex(): Promise<SearchEntry[]> {
       throw error;
     });
   return indexRequest;
+}
+
+/**
+ * The basemap's places (src/places.ts), fetched once per page. They are larger than the
+ * index and arrive after it, so whales are found meanwhile; a list that fails is left out.
+ */
+function loadPlaces(): Promise<SearchEntry[]> {
+  placesRequest ??= loadPlaceEntries();
+  return placesRequest;
+}
+
+/**
+ * A place's link, keeping the day the map shows and the reference layers it draws: someone
+ * looking at a day's sightings who searches for a place wants that day's sightings there,
+ * not today's. The day is the map's own, which a link to one sighting doesn't put in the URL.
+ */
+function keepView(href: string): string {
+  if (window.location.pathname !== '/') return href;
+  const params = new URLSearchParams(window.location.search);
+  const day = document.querySelector<HTMLElement & { date?: string }>('salish-sea')?.date ?? params.get('d');
+  const layers = params.get('l');
+  return href + (day ? `&d=${encodeURIComponent(day)}` : '') + (layers ? `&l=${encodeURIComponent(layers)}` : '');
 }
 
 /** "Oct 6, 2026", from a Pacific calendar date. Noon, so no time zone moves it to another day. */
@@ -155,6 +181,8 @@ export class SiteSearch extends LitElement {
   @state() private query = '';
   @state() private entries: SearchEntry[] | null = null;
   @state() private failed = false;
+  /** Whether the places are still on their way, after the index has come: the list says so, rather than "Nothing by that name". */
+  @state() private placesLoading = false;
   @state() private active = -1;
   @state() private open = false;
   /** Where the popover sits, in px from the button's own left edge, and how wide. */
@@ -162,10 +190,18 @@ export class SiteSearch extends LitElement {
 
   @query('input') private input?: HTMLInputElement;
 
+  /**
+   * The last query's results, so that redrawing the list, as hovering does, doesn't search
+   * every place again. The links are made fresh, since a place's keeps the map's current day.
+   */
+  private found: { query: string; entries: SearchEntry[]; results: SearchEntry[] } | null = null;
+
   private get options(): Option[] {
     if (!this.entries) return [];
-    return search(this.entries, this.query).flatMap(entry => [
-      { entry, latest: false, href: entry.href },
+    if (this.found?.query !== this.query || this.found.entries !== this.entries)
+      this.found = { query: this.query, entries: this.entries, results: search(this.entries, this.query) };
+    return this.found.results.flatMap(entry => [
+      { entry, latest: false, href: entry.kind === 'place' ? keepView(entry.href) : entry.href },
       ...(entry.latest ? [{ entry, latest: true, href: entry.latest.href }] : []),
     ]);
   }
@@ -215,6 +251,16 @@ export class SiteSearch extends LitElement {
     loadIndex().then(entries => {
       this.entries = entries;
       this.failed = false;
+      this.placesLoading = true;
+      // Whatever happens to the places, the list stops saying they are coming.
+      void loadPlaces()
+        .then(places => {
+          if (places.length) this.entries = [...entries, ...places];
+        })
+        .catch(() => {})
+        .finally(() => {
+          this.placesLoading = false;
+        });
     }, () => {
       this.failed = true;
     });
@@ -269,7 +315,8 @@ export class SiteSearch extends LitElement {
   private renderList(options: Option[]) {
     if (this.failed) return html`<ul id="results" role="listbox"><li class="message" role="presentation">Search isn't available right now.</li></ul>`;
     if (!this.entries) return html`<ul id="results" role="listbox"><li class="message" role="presentation">Loading…</li></ul>`;
-    if (!options.length) return html`<ul id="results" role="listbox"><li class="message" role="presentation">Nothing by that name.</li></ul>`;
+    const loadingPlaces = this.placesLoading ? html`<li class="message" role="presentation">Loading places…</li>` : nothing;
+    if (!options.length) return html`<ul id="results" role="listbox">${this.placesLoading ? loadingPlaces : html`<li class="message" role="presentation">Nothing by that name.</li>`}</ul>`;
     // mousedown would take focus from the field, and the list would close before the click landed.
     return html`<ul id="results" role="listbox" aria-label="Results" @mousedown=${(e: MouseEvent) => e.preventDefault()}>
       ${options.map((option, i) => html`
@@ -281,6 +328,7 @@ export class SiteSearch extends LitElement {
             : html`<a href=${option.href} tabindex="-1"><span class="label">${option.entry.label}</span>
                 <span class="note">${option.entry.note || KIND_LABELS[option.entry.kind]}</span></a>`}
         </li>`)}
+      ${loadingPlaces}
     </ul>`;
   }
 }
