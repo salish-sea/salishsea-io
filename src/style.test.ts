@@ -55,8 +55,10 @@ describe('baseStyle', () => {
   });
 
   it('fetches nothing from any host but tiles.salishsea.io, which index.html allows', () => {
+    // A style may name one sprite or several; since 2026.10.8 the basemap's landmarks have their own.
+    const sprites = Array.isArray(style.sprite) ? style.sprite.map(sprite => sprite.url) : [style.sprite];
     const urls = [
-      style.glyphs, style.sprite,
+      style.glyphs, ...sprites,
       ...Object.values(style.sources).map(source => 'url' in source ? source.url : undefined),
     ].filter((url): url is string => typeof url === 'string');
     expect(urls.length).toBeGreaterThan(2);
