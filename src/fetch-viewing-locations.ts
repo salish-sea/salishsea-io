@@ -14,7 +14,12 @@ const map: Kml = parser.parse(await mapResponse.text());
 const attribution = map.kml.Document.description;
 console.info(`Attribution line is:\n${attribution}`);
 
-const features: Feature[] = map.kml.Document.Folder.Placemark.map(placemark => {
+// Orca Network's map also marks hydrophones ("Hydrophone - Orcasound Lab"). They are not
+// places to watch from, and the hydrophone layer draws the ones that stream
+// (src/fetch-hydrophones.ts). Its "Seattle Aquarium Hydrophone" is not among Orcasound's
+// feeds as of 2026-10.
+const viewpoints = map.kml.Document.Folder.Placemark.filter(placemark => !/hydrophone/i.test(placemark.name));
+const features: Feature[] = viewpoints.map(placemark => {
   const [longitude, latitude] = placemark.Point.coordinates.split(',').map(parseFloat);
   const name = placemark.name.replace(/ \(.+\).*$/, '');
   return {
