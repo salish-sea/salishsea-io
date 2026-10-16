@@ -29,6 +29,8 @@
  *                                             answers {url}, at salishsea.io/media/
  *   POST   /api/feedback        a message       anyone (039), a few per sender per window;
  *                                             notifier.ts files it as a GitHub issue
+ *   POST   /api/searches        a search        anyone (078), what the search field found and
+ *                                             what was chosen (searches.ts); a cap per sender
  *
  * A change to a sighting wakes the build (BUILD_COMMAND: the snapshot and what derives from
  * it, fly/start.sh) at once, so the published files follow within about twenty seconds; a
@@ -52,6 +54,7 @@ import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './googl
 import { startNotifier, storeQueue } from './notifier.ts';
 import { MAX_PHOTO_BYTES, PHOTO_CACHE_CONTROL, photoFolder, photoName, photoType } from './photos.ts';
 import { putObject } from './s3.ts';
+import { parseSearch, recordSearch } from './searches.ts';
 import { Refused, deleteSighting, ownSightings, parseSighting, publicSighting, saveSighting } from './sightings.ts';
 import { cookie, mint, readCookie, signingKey, verifySession } from './session.ts';
 import { openStore } from './store/store.ts';
@@ -66,6 +69,8 @@ export type Api = {
     changed?: () => void,
     /** Whether a sender may send feedback now. */
     feedbackAllowed?: (sender: string) => boolean,
+    /** Whether a sender may record another search now. */
+    searchesAllowed?: (sender: string) => boolean,
     /** The species names the build published, for a public sighting read; none without it. */
     names?: NamesLookup,
     /**
@@ -248,6 +253,13 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
             submitFeedback(api.store, currentUser(api, req)?.user_id ?? null, message);
             return send(res, 201, {received: true});
         }
+        if (url.pathname === '/api/searches' && method === 'POST') {
+            const search = parseSearch(await json(req));
+            if (api.searchesAllowed && !api.searchesAllowed(sender(req, api.edgeSecret)))
+                throw new HttpError(429, 'too many searches; try again later');
+            recordSearch(api.store, search);
+            return send(res, 201, {received: true});
+        }
         throw new HttpError(404, 'no such route');
     } catch (error) {
         if (error instanceof HttpError || error instanceof Refused) return send(res, error.status, {error: error.message});
@@ -320,6 +332,8 @@ if (import.meta.main) {
         store: db, key, keys: googleKeys(), origins,
         changed: coalescer ? () => coalescer.changed() : undefined,
         feedbackAllowed: rateLimiter(),
+        // Generous: a search is a few seconds' typing, and a cap only stops a script.
+        searchesAllowed: rateLimiter(120, 10 * 60_000),
         names: exportDir ? animalNames(exportDir) : undefined,
         edgeSecret,
         photos: bucket ? {

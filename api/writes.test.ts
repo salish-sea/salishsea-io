@@ -7,6 +7,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
+import { parseSearch, recordSearch } from './searches.ts';
 import { sender, serve } from './server.ts';
 import { mint } from './session.ts';
 import { deleteSighting, isoMicros, ownSightings, parseSighting, publicSighting, saveSighting } from './sightings.ts';
@@ -171,6 +172,26 @@ describe('feedback (039)', () => {
     });
 });
 
+describe('searches (078)', () => {
+    test('a hit and a miss are kept with nothing about who searched', () => {
+        recordSearch(store, parseSearch({query: ' lime kiln ', results: 1, chosen_kind: 'place', chosen_label: 'Lime Kiln Point', page: 'map'}));
+        recordSearch(store, parseSearch({query: 'jeff head', results: 0, page: 'individuals'}));
+        expect(store.prepare('SELECT query, results, chosen_kind, chosen_label, page FROM searches ORDER BY id').all()).toEqual([
+            {query: 'lime kiln', results: 1, chosen_kind: 'place', chosen_label: 'Lime Kiln Point', page: 'map'},
+            {query: 'jeff head', results: 0, chosen_kind: null, chosen_label: null, page: 'individuals'},
+        ]);
+        expect(store.prepare("SELECT name FROM pragma_table_info('searches')").all().map(c => (c as {name: string}).name))
+            .toEqual(['id', 'created_at', 'query', 'results', 'chosen_kind', 'chosen_label', 'page']);
+    });
+
+    test('no query, no count, half a choice, or a query too long, is refused', () => {
+        expect(() => parseSearch({query: ' ', results: 0})).toThrow(/query/);
+        expect(() => parseSearch({query: 'x', results: -1})).toThrow(/query/);
+        expect(() => parseSearch({query: 'x', results: 1, chosen_kind: 'place'})).toThrow(/kind and its label/);
+        expect(() => recordSearch(store, parseSearch({query: 'x'.repeat(201), results: 0}))).toThrow(/too long/);
+    });
+});
+
 describe("a feedback sender is the client's address, as the edge saw it", () => {
     const req = (headers: Record<string, string>) => ({headers, socket: {remoteAddress: '10.0.0.1'}}) as never;
     test("CloudFront's viewer address only with CloudFront's secret; otherwise Fly's client address", () => {
@@ -227,7 +248,7 @@ describe('a sighting anyone may read by id (salish-9uu.5)', () => {
 });
 
 describe('the writes over HTTP', () => {
-    test('signed out is 401; a save is 201 then 200 and wakes the build; feedback is open; a flood is 429', async () => {
+    test('signed out is 401; a save is 201 then 200 and wakes the build; feedback and searches are open; a flood is 429', async () => {
         let woken = 0;
         const key = Buffer.alloc(32, 2);
         const server = serve({store, key, keys: async () => new Map(), origins: new Set(['https://salishsea.io']),
@@ -243,6 +264,10 @@ describe('the writes over HTTP', () => {
         const feedback = () => fetch(`${base}/api/feedback`, {
             method: 'POST', headers: {'content-type': 'application/json', origin: 'https://salishsea.io'},
             body: JSON.stringify({name: 'Ann', message: 'Hi'}),
+        });
+        const searched = (origin?: string) => fetch(`${base}/api/searches`, {
+            method: 'POST', headers: {'content-type': 'application/json', ...(origin ? {origin} : {})},
+            body: JSON.stringify({query: 'orcas', results: 3, chosen_kind: 'place', chosen_label: 'Orcas Island', page: 'map'}),
         });
         try {
             expect((await put()).status).toBe(401);
@@ -260,6 +285,10 @@ describe('the writes over HTTP', () => {
             expect((await fetch(`${base}/api/sightings?since=x&until=y`, {headers: {cookie: session}})).status).toBe(400);
             expect((await feedback()).status).toBe(201);
             expect((await feedback()).status).toBe(429);
+            // A search is open to anyone from the site, and kept; from elsewhere it is refused.
+            expect((await searched('https://salishsea.io')).status).toBe(201);
+            expect((await searched()).status).toBe(403);
+            expect(store.prepare('SELECT count(*) AS n FROM searches').get()).toEqual({n: 1});
             const malformed = await fetch(`${base}/api/sightings/%E0%A4%A`, {method: 'DELETE', headers: {origin: 'https://salishsea.io', cookie: session}});
             expect(malformed.status).toBe(400);
         } finally {

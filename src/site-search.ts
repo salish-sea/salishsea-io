@@ -18,9 +18,10 @@
  * client-rendered pages import it.
  */
 
-import { css, html, LitElement, nothing, svg } from 'lit';
+import { css, html, LitElement, nothing, type PropertyValues, svg } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import { loadPlaceEntries } from './places.ts';
+import { pageKind, SearchRecorder } from './search-log.ts';
 import { search, type SearchEntry, type SearchIndex } from './search.ts';
 
 /** Where the build's files are served: src/read-path.ts's READ_PATH_BASE, not imported, to keep this island small. */
@@ -206,16 +207,42 @@ export class SiteSearch extends LitElement {
     ]);
   }
 
+  /** What the field tells the write API about each search (decision 078). */
+  private recorder = new SearchRecorder(pageKind(window.location.pathname));
+
+  /** How many results the query lists, at most eight. */
+  private get resultCount(): number {
+    return this.options.filter(option => !option.latest).length;
+  }
+
   connectedCallback() {
     super.connectedCallback();
     document.addEventListener('click', this.onDocumentClick);
     window.addEventListener('resize', this.place);
+    window.addEventListener('pagehide', this.onPageHide);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     document.removeEventListener('click', this.onDocumentClick);
     window.removeEventListener('resize', this.place);
+    window.removeEventListener('pagehide', this.onPageHide);
+    this.recorder.gaveUp();
+  }
+
+  /** Leaving the page with a query in the field gives it up. */
+  private onPageHide = () => this.recorder.gaveUp();
+
+  protected updated(changed: PropertyValues) {
+    // Closing the field, however it closes, gives up the query left in it.
+    if (changed.has('open') && changed.get('open') === true && !this.open) this.recorder.gaveUp();
+    // The places arriving can change what a query finds.
+    if (changed.has('entries')) this.recorder.found(this.resultCount);
+  }
+
+  /** Someone chose a result: tell the recorder, before the link leaves the page. */
+  private chose(option: Option) {
+    this.recorder.chose(this.query, this.resultCount, option.latest ? 'latest-sighting' : option.entry.kind, option.entry.label);
   }
 
   /**
@@ -269,6 +296,7 @@ export class SiteSearch extends LitElement {
   private onInput(event: InputEvent) {
     this.query = (event.target as HTMLInputElement).value;
     this.active = this.query.trim() ? 0 : -1;
+    this.recorder.typed(this.query, this.resultCount);
   }
 
   private onKeydown(event: KeyboardEvent) {
@@ -285,6 +313,7 @@ export class SiteSearch extends LitElement {
       const option = options[this.active] ?? options[0];
       if (option) {
         event.preventDefault();
+        this.chose(option);
         window.location.assign(option.href);
       }
     } else if (event.key === 'Escape') {
@@ -323,9 +352,9 @@ export class SiteSearch extends LitElement {
         <li id=${`option-${i}`} role="option" aria-selected=${i === this.active ? 'true' : 'false'}
           @mouseenter=${() => { this.active = i; }}>
           ${option.latest
-            ? html`<a class="latest" href=${option.href} tabindex="-1"
+            ? html`<a class="latest" href=${option.href} tabindex="-1" @click=${() => this.chose(option)}
                 aria-label=${`${option.entry.label}'s latest sighting, ${formatDay(option.entry.latest!.date)}`}>Latest sighting · ${formatDay(option.entry.latest!.date)}</a>`
-            : html`<a href=${option.href} tabindex="-1"><span class="label">${option.entry.label}</span>
+            : html`<a href=${option.href} tabindex="-1" @click=${() => this.chose(option)}><span class="label">${option.entry.label}</span>
                 <span class="note">${option.entry.note || KIND_LABELS[option.entry.kind]}</span></a>`}
         </li>`)}
       ${loadingPlaces}
