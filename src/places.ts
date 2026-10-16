@@ -1,12 +1,13 @@
 /**
- * The places the search field finds: the names the basemap labels, from the two lists each
- * basemap version publishes beside its tiles (salish-sea/basemap's decision 018). One holds
- * the water bodies and points from the US and Canadian gazetteers, the other the islands,
- * towns and ferry terminals OpenStreetMap names. Choosing a place opens the map there.
+ * The places the search field finds: the Salish Sea's larger places the basemap labels, from
+ * the two lists each basemap version publishes beside its tiles (salish-sea/basemap's
+ * decision 018). One holds the larger water bodies and points from the US and Canadian
+ * gazetteers, the other the larger islands, the cities, towns and villages, and the ferry
+ * terminals OpenStreetMap names. Choosing a place opens the map there.
  *
- * The lists are fetched the first time the search is opened, as the search index is
- * (src/site-search.ts), and each is about 150 KB gzipped, so a page that is never searched
- * never loads them.
+ * The lists are fetched the first time the search is opened, after the search index
+ * (src/site-search.ts). Together they are about 32 KB gzipped, and a page that is never
+ * searched never loads them.
  */
 
 import { fold } from './fold.ts';
@@ -14,7 +15,7 @@ import { fromLonLat, permalinkZoom } from './map-view.ts';
 import type { SearchEntry } from './search.ts';
 
 /** The lists, as the basemap version in src/basemap-style.json names them; scripts/update-basemap.ts rewrites this line. */
-export const PLACE_LISTS: readonly string[] = ['https://tiles.salishsea.io/places/places-gazetteers-9603e9429b65b2fb.json', 'https://tiles.salishsea.io/places/places-osm-b5776957bcdad5b0.json'];
+export const PLACE_LISTS: readonly string[] = ['https://tiles.salishsea.io/places/places-gazetteers-6ebc4b7473854290.json', 'https://tiles.salishsea.io/places/places-osm-c356e8a3b37250a1.json'];
 
 /** One list as the basemap writes it: its places as rows of its columns. */
 export interface PlaceList {

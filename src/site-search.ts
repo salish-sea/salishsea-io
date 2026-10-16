@@ -32,7 +32,7 @@ type Option = { entry: SearchEntry; latest: boolean; href: string };
 
 const KIND_LABELS: Record<SearchEntry['kind'], string> = {
   individual: 'Whale', matriline: 'Matriline', pod: 'Pod', population: 'Population', haulout: 'Haul-out site', region: 'Map region',
-  place: 'Place',
+  hydrophone: 'Hydrophone', place: 'Place',
 };
 
 let indexRequest: Promise<SearchEntry[]> | null = null;
@@ -54,8 +54,8 @@ function loadIndex(): Promise<SearchEntry[]> {
 }
 
 /**
- * The basemap's places (src/places.ts), fetched once per page. They are larger than the
- * index and arrive after it, so whales are found meanwhile; a list that fails is left out.
+ * The basemap's places (src/places.ts), fetched once per page. They come from another site
+ * and arrive after the index, so whales are found meanwhile; a list that fails is left out.
  */
 function loadPlaces(): Promise<SearchEntry[]> {
   placesRequest ??= loadPlaceEntries();
@@ -202,7 +202,7 @@ export class SiteSearch extends LitElement {
     if (this.found?.query !== this.query || this.found.entries !== this.entries)
       this.found = { query: this.query, entries: this.entries, results: search(this.entries, this.query) };
     return this.found.results.flatMap(entry => [
-      { entry, latest: false, href: entry.kind === 'place' ? keepView(entry.href) : entry.href },
+      { entry, latest: false, href: entry.kind === 'place' || entry.kind === 'hydrophone' ? keepView(entry.href) : entry.href },
       ...(entry.latest ? [{ entry, latest: true, href: entry.latest.href }] : []),
     ]);
   }

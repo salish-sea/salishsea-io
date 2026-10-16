@@ -20,6 +20,8 @@ const features: Feature[] = body.data
       geometry: {type: 'Point', coordinates: [lng, lat]},
       properties: {
         kind: 'Hydrophone',
+        name: feed.attributes.name,
+        operator: 'Orcasound',
         url: `https://live.orcasound.net/listen/${feed.attributes.slug}`,
       },
       type: 'Feature',
@@ -30,6 +32,8 @@ features.push({
   geometry: {type: 'Point', coordinates: [-123.153, 48.516]},
   properties: {
     kind: 'Hydrophone',
+    name: 'Lime Kiln',
+    operator: 'The Whale Museum',
     url: 'https://www.youtube.com/thewhalemuseum/live',
   },
   type: 'Feature',
@@ -39,6 +43,8 @@ features.push({
   geometry: {type: 'Point', coordinates: [-123.086, 48.766]},
   properties: {
     kind: 'Hydrophone',
+    name: 'Monarch Head',
+    operator: 'SIMRES',
     url: 'https://simres.ca/',
   },
   type: 'Feature',
@@ -48,6 +54,8 @@ features.push({
   geometry: {type: 'Point', coordinates: [-123.237, 48.737]},
   properties: {
     kind: 'Hydrophone',
+    name: 'Pender Island',
+    operator: 'Raincoast Conservation Foundation',
     url: 'https://www.youtube.com/live/v6YhBAIJqGM',
   },
   type: 'Feature',
@@ -57,6 +65,8 @@ features.push({
   geometry: {type: 'Point', coordinates: [-124, 49.525]},
   properties: {
     kind: 'Hydrophone',
+    name: 'Mary Gordon Listening Station',
+    operator: 'Raincoast Conservation Foundation',
     url: 'https://www.youtube.com/live/U8mgGY9KOdw',
   },
   type: 'Feature',

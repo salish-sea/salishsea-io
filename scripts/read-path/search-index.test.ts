@@ -136,4 +136,12 @@ describe('the search index (GH #640)', () => {
         expect(find('San Juans')).toMatchObject({kind: 'region', href: '/?r=san-juans'});
         expect(index.entries.map(e => e.label)).not.toContain('Everywhere');
     });
+
+    test('the map\'s hydrophones, by name, which open the map where each listens', () => {
+        const bush = find('Bush Point');
+        expect(bush).toMatchObject({kind: 'hydrophone', note: 'Hydrophone · Orcasound'});
+        expect(bush.keys).toContain('bush point hydrophone');
+        expect(bush.href).toMatch(/^\/\?x=-\d+&y=\d+&z=14$/);
+        expect(find('Lime Kiln')).toMatchObject({kind: 'hydrophone', note: 'Hydrophone · The Whale Museum'});
+    });
 });

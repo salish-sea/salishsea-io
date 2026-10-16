@@ -1,6 +1,7 @@
 /**
  * The site search field's index (GH #640): every animal, matriline, pod, population and
- * haul-out site with a page, and the map's regions, each with the names it answers to.
+ * haul-out site with a page, the map's regions and its hydrophones, each with the names it
+ * answers to.
  *
  *   EXPORT_DIR=… node scripts/read-path/search-index.ts <snapshot.duckdb>
  *
@@ -19,6 +20,7 @@
  * so no result points at a page that isn't there.
  */
 
+import { readFileSync } from 'node:fs';
 import { rename, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -30,6 +32,7 @@ import {
 } from '../../src/catalog.ts';
 import { REGIONS } from '../../src/constants.ts';
 import { fold } from '../../src/fold.ts';
+import { fromLonLat, permalinkZoom } from '../../src/map-view.ts';
 import type { SearchEntry, SearchIndex } from '../../src/search.ts';
 import { budget } from './duckdb-budget.ts';
 import type { Doc } from './snapshot-tables.ts';
@@ -96,6 +99,13 @@ export async function readInputs(snapshot: string): Promise<Inputs> {
         db.closeSync();
     }
 }
+
+/** The map's hydrophones (src/fetch-hydrophones.ts writes them), each with its name and who runs it. */
+type Hydrophone = {properties: {name: string, operator: string}, geometry: {coordinates: [number, number]}};
+const HYDROPHONES = (JSON.parse(readFileSync(new URL('../../src/assets/orcasound-hydrophones.geojson', import.meta.url), 'utf8')) as
+    {features: Hydrophone[]}).features;
+/** The zoom a hydrophone opens the map at, in MapLibre's terms: close enough to see the shore it listens from. */
+const HYDROPHONE_ZOOM = 13;
 
 const keysOf = (...names: (string | null | undefined)[]) =>
     [...new Set(names.filter((n): n is string => !!n).map(fold).filter(Boolean))];
@@ -190,7 +200,19 @@ export function buildSearchIndex(t: Inputs): SearchIndex {
         keys: keysOf(r.label),
         href: `/?r=${r.slug}`,
     }));
-    return {entries: [...individuals, ...matrilines, ...pods, ...populations, ...haulouts, ...regions]};
+    // A hydrophone is a place on the map, where the map draws it; choosing one opens the map there.
+    const hydrophones: SearchEntry[] = HYDROPHONES.map(h => {
+        const {name, operator} = h.properties;
+        const [x, y] = fromLonLat(h.geometry.coordinates);
+        return {
+            kind: 'hydrophone',
+            label: name,
+            note: `Hydrophone · ${operator}`,
+            keys: keysOf(name, `${name} hydrophone`),
+            href: `/?x=${Math.round(x)}&y=${Math.round(y)}&z=${permalinkZoom(HYDROPHONE_ZOOM)}`,
+        };
+    });
+    return {entries: [...individuals, ...matrilines, ...pods, ...populations, ...haulouts, ...regions, ...hydrophones]};
 }
 
 export async function writeSearchIndex(snapshot: string, exportDir: string): Promise<SearchIndex> {
@@ -212,7 +234,7 @@ async function main(): Promise<void> {
     const {entries} = await writeSearchIndex(snapshot, exportDir);
     const count = (kind: string) => entries.filter(e => e.kind === kind).length;
     console.log(`search-index.json: ${count('individual')} individuals, ${count('matriline')} matrilines, ${count('pod')} pods, `
-        + `${count('population')} populations, ${count('haulout')} haul-out sites, ${count('region')} regions; `
+        + `${count('population')} populations, ${count('haulout')} haul-out sites, ${count('region')} regions, ${count('hydrophone')} hydrophones; `
         + `${entries.filter(e => e.latest).length} with a latest sighting`);
 }
 
