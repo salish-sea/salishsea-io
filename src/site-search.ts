@@ -252,10 +252,15 @@ export class SiteSearch extends LitElement {
       this.entries = entries;
       this.failed = false;
       this.placesLoading = true;
-      return loadPlaces().then(places => {
-        if (places.length) this.entries = [...entries, ...places];
-        this.placesLoading = false;
-      });
+      // Whatever happens to the places, the list stops saying they are coming.
+      void loadPlaces()
+        .then(places => {
+          if (places.length) this.entries = [...entries, ...places];
+        })
+        .catch(() => {})
+        .finally(() => {
+          this.placesLoading = false;
+        });
     }, () => {
       this.failed = true;
     });
