@@ -40,6 +40,16 @@ export function sendSearch(record: SearchRecord): void {
 }
 
 /**
+ * Whether two queries are one search going on: one begins the other ("lime" and "lime kiln",
+ * either way, for a backspace), or they begin with the same word ("lime kikn" corrected to
+ * "lime kiln"). "jeff head" and "jefferson" are two searches.
+ */
+export function sameSearch(a: string, b: string): boolean {
+  const first = (q: string) => q.split(/\s+/)[0];
+  return a.startsWith(b) || b.startsWith(a) || first(a) === first(b);
+}
+
+/**
  * Turns what the field sees, a query at a time, into records. A query is recorded once.
  */
 export class SearchRecorder {
@@ -60,8 +70,9 @@ export class SearchRecorder {
   typed(query: string, results: number | null): void {
     clearTimeout(this.timer);
     const q = query.trim();
-    // Other words after a pause give up the query paused on; carrying on typing it doesn't.
-    if (this.pending?.paused && !q.startsWith(this.pending.query)) this.gaveUp();
+    // Other words after a pause give up the query paused on; carrying on typing it, or
+    // backspacing and correcting it, doesn't.
+    if (this.pending?.paused && q && !sameSearch(q, this.pending.query)) this.gaveUp();
     this.pending = q ? { query: q, results, paused: false } : null;
     if (this.pending) this.timer = setTimeout(() => { if (this.pending) this.pending.paused = true; }, this.wait);
   }

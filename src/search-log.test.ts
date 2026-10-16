@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { pageKind, SearchRecorder, type SearchRecord } from './search-log.ts';
+import { pageKind, sameSearch, SearchRecorder, type SearchRecord } from './search-log.ts';
 
 describe('what the search field records (decision 078)', () => {
   let sent: SearchRecord[];
@@ -35,6 +35,16 @@ describe('what the search field records (decision 078)', () => {
     expect(sent.map(r => [r.query, r.chosen_label])).toEqual([['jeff head', null], ['jefferson', 'Point Jefferson'], ['lime kiln', 'Lime Kiln Point']]);
   });
 
+  test('backspacing or correcting after a pause is the same search', () => {
+    recorder.typed('lime kiln', 1);
+    vi.advanceTimersByTime(3000);
+    recorder.typed('lime kil', 1);
+    recorder.typed('lime kikn', 0);
+    recorder.typed('lime kiln', 1);
+    recorder.chose('lime kiln', 1, 'place', 'Lime Kiln Point');
+    expect(sent.map(r => r.chosen_label)).toEqual(['Lime Kiln Point']);
+  });
+
   test('a pause alone records nothing; other words without a pause give nothing up', () => {
     recorder.typed('coon', 2);
     vi.advanceTimersByTime(60_000);
@@ -63,6 +73,11 @@ describe('what the search field records (decision 078)', () => {
     recorder.typed('j35', null);
     recorder.gaveUp();
     expect(sent).toEqual([miss('mud bay', 7), miss('j35', null)]);
+  });
+
+  test('one search going on, or two', () => {
+    expect([sameSearch('lime kiln', 'lime'), sameSearch('lime', 'lime kiln'), sameSearch('lime kikn', 'lime kiln')]).toEqual([true, true, true]);
+    expect([sameSearch('jefferson', 'jeff head'), sameSearch('cutts', 'coon')]).toEqual([false, false]);
   });
 
   test('the kind of page is the path\'s first part', () => {
