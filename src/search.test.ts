@@ -16,6 +16,8 @@ const ENTRIES = [
   entry('population', 'Southern Resident killer whales', 'Southern Resident', 'SRKW'),
   entry('haulout', 'Protection Island'),
   entry('region', 'San Juans'),
+  entry('place', 'Jefferson Head'),
+  entry('place', 'Edmonds'),
 ];
 
 const labels = (query: string, limit?: number) => search(ENTRIES, query, limit).map(e => e.label);
@@ -37,6 +39,13 @@ describe('search (GH #640)', () => {
     expect(labels('fingers')).toEqual(['T065A']);
     expect(labels('Tahlequah')).toEqual(['J35']);
     expect(labels('SRKW')).toEqual(['Southern Resident killer whales']);
+  });
+
+  test('each word of a query may begin a word of the name, as sighting reports shorten names', () => {
+    expect(labels('jeff head')).toEqual(['Jefferson Head']);
+    expect(labels('edm')).toEqual(['Edmonds']);
+    expect(labels('head jeff')).toEqual([]);
+    expect(labels('southern whales')).toEqual(['Southern Resident killer whales']);
   });
 
   test('places too, and nothing for a blank query; the limit holds', () => {

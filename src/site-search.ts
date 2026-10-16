@@ -4,8 +4,9 @@
  * the index the read-path build writes (scripts/read-path/search-index.ts), fetched the
  * first time the search is opened, so a page that is never searched never loads it.
  *
- * A result is a link. An animal offers two: its page, and beneath it its most recent
- * sighting on the map (Peter, 2026-10-07); one never sighted offers only its page. The
+ * A result is a link. A place the basemap labels opens the map there (src/places.ts). An
+ * animal offers two: its page, and beneath it its most recent sighting on the map (Peter,
+ * 2026-10-07); one never sighted offers only its page. The
  * list is an ARIA combobox: arrows move through every link, Enter follows the one
  * marked, Escape closes the search.
  *
@@ -19,6 +20,7 @@
 
 import { css, html, LitElement, nothing, svg } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
+import { loadPlaceEntries } from './places.ts';
 import { search, type SearchEntry, type SearchIndex } from './search.ts';
 
 /** Where the build's files are served: src/read-path.ts's READ_PATH_BASE, not imported, to keep this island small. */
@@ -29,23 +31,41 @@ type Option = { entry: SearchEntry; latest: boolean; href: string };
 
 const KIND_LABELS: Record<SearchEntry['kind'], string> = {
   individual: 'Whale', matriline: 'Matriline', pod: 'Pod', population: 'Population', haulout: 'Haul-out site', region: 'Map region',
+  place: 'Place',
 };
 
 let indexRequest: Promise<SearchEntry[]> | null = null;
 
-/** The index, fetched once per page however many fields there are; a failure is retried on the next focus. */
+/**
+ * The index and the basemap's places (src/places.ts), fetched once per page however many
+ * fields there are. A failure of the index is retried on the next focus; the places are
+ * left out if they fail, so whales are still found.
+ */
 function loadIndex(): Promise<SearchEntry[]> {
-  indexRequest ??= fetch(INDEX_URL)
-    .then(response => {
-      if (!response.ok) throw new Error(`${INDEX_URL}: ${response.status}`);
-      return response.json() as Promise<SearchIndex>;
-    })
-    .then(index => index.entries)
+  indexRequest ??= Promise.all([
+    fetch(INDEX_URL)
+      .then(response => {
+        if (!response.ok) throw new Error(`${INDEX_URL}: ${response.status}`);
+        return response.json() as Promise<SearchIndex>;
+      })
+      .then(index => index.entries),
+    loadPlaceEntries(),
+  ])
+    .then(([entries, places]) => [...entries, ...places])
     .catch(error => {
       indexRequest = null;
       throw error;
     });
   return indexRequest;
+}
+
+/**
+ * A place's link, keeping the day the map shows: someone looking at a day's sightings who
+ * searches for a place wants that day's sightings there, not today's.
+ */
+function keepDate(href: string): string {
+  const day = window.location.pathname === '/' ? new URLSearchParams(window.location.search).get('d') : null;
+  return day ? `${href}&d=${encodeURIComponent(day)}` : href;
 }
 
 /** "Oct 6, 2026", from a Pacific calendar date. Noon, so no time zone moves it to another day. */
@@ -165,7 +185,7 @@ export class SiteSearch extends LitElement {
   private get options(): Option[] {
     if (!this.entries) return [];
     return search(this.entries, this.query).flatMap(entry => [
-      { entry, latest: false, href: entry.href },
+      { entry, latest: false, href: entry.kind === 'place' ? keepDate(entry.href) : entry.href },
       ...(entry.latest ? [{ entry, latest: true, href: entry.latest.href }] : []),
     ]);
   }
