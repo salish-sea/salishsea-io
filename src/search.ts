@@ -39,8 +39,8 @@ export interface SearchIndex {
 const KIND_ORDER: readonly SearchKind[] = ['individual', 'matriline', 'pod', 'population', 'region', 'haulout', 'place'];
 
 /**
- * Whether each word of the query begins a word of the name, in order, as "jeff head" does
- * "Jefferson Head": sighting reports shorten names, and people type them as they write them.
+ * Whether each word of the query begins a word of the name, in order, as "lime point" does
+ * "Lime Kiln Point" and "s juan isl" does "San Juan Island": people shorten names as they type them.
  */
 function wordsBegin(key: string, parts: readonly string[]): boolean {
   const words = key.split(' ');

@@ -16,7 +16,8 @@ const ENTRIES = [
   entry('population', 'Southern Resident killer whales', 'Southern Resident', 'SRKW'),
   entry('haulout', 'Protection Island'),
   entry('region', 'San Juans'),
-  entry('place', 'Jefferson Head'),
+  entry('place', 'Lime Kiln Point'),
+  entry('place', 'San Juan Island'),
   entry('place', 'Edmonds'),
 ];
 
@@ -32,7 +33,7 @@ describe('search (GH #640)', () => {
     expect(labels('j31')).toEqual(['J31', 'J31s']);
     expect(labels('resident')).toEqual(['Southern Resident killer whales']);
     expect(labels('ection')).toEqual(['Protection Island']);
-    expect(labels('island')).toEqual(['Protection Island']);
+    expect(labels('island')).toEqual(['Protection Island', 'San Juan Island']);
   });
 
   test('a nickname or the register\'s search name finds the animal or group', () => {
@@ -42,9 +43,10 @@ describe('search (GH #640)', () => {
   });
 
   test('each word of a query may begin a word of the name, as sighting reports shorten names', () => {
-    expect(labels('jeff head')).toEqual(['Jefferson Head']);
+    expect(labels('lime point')).toEqual(['Lime Kiln Point']);
+    expect(labels('s juan isl')).toEqual(['San Juan Island']);
     expect(labels('edm')).toEqual(['Edmonds']);
-    expect(labels('head jeff')).toEqual([]);
+    expect(labels('point lime')).toEqual([]);
     expect(labels('southern whales')).toEqual(['Southern Resident killer whales']);
   });
 
