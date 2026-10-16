@@ -25,7 +25,7 @@ describe('the store (decision 065)', () => {
         expect(Number((first.prepare('PRAGMA user_version').get() as {user_version: number}).user_version)).toBe(migrations().length);
         first.close();
         const again = openStore(file);
-        expect(again.prepare(`SELECT count(*) AS n FROM sqlite_master WHERE type = 'table'`).get()).toMatchObject({n: 7});
+        expect(again.prepare(`SELECT count(*) AS n FROM sqlite_master WHERE type = 'table'`).get()).toMatchObject({n: 8});
         again.close();
     });
 
