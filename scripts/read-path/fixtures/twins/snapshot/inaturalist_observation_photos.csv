@@ -1,2 +1,4 @@
 id,observation_id,seq,attribution,hidden,license,url
 8000001,9000001,1,"(c) synthetic_observer, some rights reserved (CC BY)",false,cc-by,https://static.inaturalist.org/photos/8000001/square.jpg
+8000002,9000002,1,"(c) synthetic_observer, some rights reserved (CC0)",false,cc0,https://www.inaturalist.org/assets/copyright-infringement-square.png
+8000003,9000002,2,"(c) synthetic_observer, some rights reserved (CC0)",false,cc0,https://www.inaturalist.org/assets/artificially-generated-content-square.png

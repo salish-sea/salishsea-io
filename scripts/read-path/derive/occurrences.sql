@@ -97,7 +97,11 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
            SELECT list({'src': p.url, 'thumb': CAST(NULL AS VARCHAR), 'license': p.license,
                         'mimetype': CAST(NULL AS VARCHAR), 'attribution': p.attribution} ORDER BY p.seq)
            FROM source_inaturalist_observation_photos p
+           -- A photo flagged for copyright infringement or as AI-generated keeps `hidden`
+           -- false, but iNaturalist points its URL at a placeholder of its own, which it
+           -- doesn't let other sites load (Photo#sized_url in iNaturalist's app/models/photo.rb).
            WHERE p.observation_id = o.id AND NOT p.hidden AND p.license IS NOT NULL
+             AND NOT regexp_matches(p.url, '/assets/(copyright-infringement|artificially-generated-content|media-hidden)-')
          ), []) AS photos,
          o.observed_at,
          CAST(NULL AS STRUCT(lat DOUBLE, lon DOUBLE)) AS observed_from,
