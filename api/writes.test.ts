@@ -176,9 +176,11 @@ describe('searches (078)', () => {
     test('a hit and a miss are kept with nothing about who searched', () => {
         recordSearch(store, parseSearch({query: ' lime kiln ', results: 1, chosen_kind: 'place', chosen_label: 'Lime Kiln Point', page: 'map'}));
         recordSearch(store, parseSearch({query: 'jeff head', results: 0, page: 'individuals'}));
+        recordSearch(store, parseSearch({query: 'j35', results: null, page: 'map'}));
         expect(store.prepare('SELECT query, results, chosen_kind, chosen_label, page FROM searches ORDER BY id').all()).toEqual([
             {query: 'lime kiln', results: 1, chosen_kind: 'place', chosen_label: 'Lime Kiln Point', page: 'map'},
             {query: 'jeff head', results: 0, chosen_kind: null, chosen_label: null, page: 'individuals'},
+            {query: 'j35', results: null, chosen_kind: null, chosen_label: null, page: 'map'},
         ]);
         expect(store.prepare("SELECT name FROM pragma_table_info('searches')").all().map(c => (c as {name: string}).name))
             .toEqual(['id', 'created_at', 'query', 'results', 'chosen_kind', 'chosen_label', 'page']);
@@ -187,6 +189,7 @@ describe('searches (078)', () => {
     test('no query, no count, half a choice, or a query too long, is refused', () => {
         expect(() => parseSearch({query: ' ', results: 0})).toThrow(/query/);
         expect(() => parseSearch({query: 'x', results: -1})).toThrow(/query/);
+        expect(() => parseSearch({query: 'x'})).toThrow(/query/);
         expect(() => parseSearch({query: 'x', results: 1, chosen_kind: 'place'})).toThrow(/kind and its label/);
         expect(() => recordSearch(store, parseSearch({query: 'x'.repeat(201), results: 0}))).toThrow(/too long/);
     });

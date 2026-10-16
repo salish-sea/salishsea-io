@@ -210,9 +210,9 @@ export class SiteSearch extends LitElement {
   /** What the field tells the write API about each search (decision 078). */
   private recorder = new SearchRecorder(pageKind(window.location.pathname));
 
-  /** How many results the query lists, at most eight. */
-  private get resultCount(): number {
-    return this.options.filter(option => !option.latest).length;
+  /** How many results the query lists, at most eight; null while the index is loading. */
+  private get resultCount(): number | null {
+    return this.entries ? this.options.filter(option => !option.latest).length : null;
   }
 
   connectedCallback() {
@@ -353,8 +353,10 @@ export class SiteSearch extends LitElement {
           @mouseenter=${() => { this.active = i; }}>
           ${option.latest
             ? html`<a class="latest" href=${option.href} tabindex="-1" @click=${() => this.chose(option)}
+                @auxclick=${(e: MouseEvent) => { if (e.button === 1) this.chose(option); }}
                 aria-label=${`${option.entry.label}'s latest sighting, ${formatDay(option.entry.latest!.date)}`}>Latest sighting · ${formatDay(option.entry.latest!.date)}</a>`
-            : html`<a href=${option.href} tabindex="-1" @click=${() => this.chose(option)}><span class="label">${option.entry.label}</span>
+            : html`<a href=${option.href} tabindex="-1" @click=${() => this.chose(option)}
+                @auxclick=${(e: MouseEvent) => { if (e.button === 1) this.chose(option); }}><span class="label">${option.entry.label}</span>
                 <span class="note">${option.entry.note || KIND_LABELS[option.entry.kind]}</span></a>`}
         </li>`)}
       ${loadingPlaces}

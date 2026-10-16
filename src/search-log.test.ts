@@ -12,38 +12,57 @@ describe('what the search field records (decision 078)', () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  test('a choice is recorded with what was typed', () => {
+  const miss = (query: string, results: number | null) => ({ query, results, chosen_kind: null, chosen_label: null, page: 'map' });
+
+  test('a choice is recorded once, with what was typed, however long the list was read', () => {
     recorder.typed('l', 8);
     recorder.typed('lime k', 1);
-    recorder.chose('lime k', 1, 'place', 'Lime Kiln Point');
     vi.advanceTimersByTime(10_000);
+    recorder.chose('lime k', 1, 'place', 'Lime Kiln Point');
+    recorder.gaveUp();
     expect(sent).toEqual([{ query: 'lime k', results: 1, chosen_kind: 'place', chosen_label: 'Lime Kiln Point', page: 'map' }]);
   });
 
-  test('a pause of three seconds gives up, once, and closing after it adds nothing', () => {
-    recorder.typed('jeff hea', 0);
-    vi.advanceTimersByTime(2999);
-    expect(sent).toEqual([]);
-    vi.advanceTimersByTime(1);
-    recorder.gaveUp();
-    expect(sent).toEqual([{ query: 'jeff hea', results: 0, chosen_kind: null, chosen_label: null, page: 'map' }]);
+  test('other words after a pause give up the query paused on; more of the same words do not', () => {
+    recorder.typed('jeff head', 0);
+    vi.advanceTimersByTime(3000);
+    recorder.typed('jefferson', 1);
+    recorder.chose('jefferson', 1, 'place', 'Point Jefferson');
+    recorder.typed('lime', 2);
+    vi.advanceTimersByTime(3000);
+    recorder.typed('lime kiln', 1);
+    recorder.chose('lime kiln', 1, 'place', 'Lime Kiln Point');
+    expect(sent.map(r => [r.query, r.chosen_label])).toEqual([['jeff head', null], ['jefferson', 'Point Jefferson'], ['lime kiln', 'Lime Kiln Point']]);
   });
 
-  test('closing the field gives up the query in it; an emptied field records nothing', () => {
+  test('a pause alone records nothing; other words without a pause give nothing up', () => {
     recorder.typed('coon', 2);
+    vi.advanceTimersByTime(60_000);
+    expect(sent).toEqual([]);
+    recorder.typed('cutts', 0);
+    recorder.typed('day island', 1);
+    recorder.gaveUp();
+    // "coon" was paused on, so other words gave it up; "cutts" was not, so they didn't.
+    expect(sent).toEqual([miss('coon', 2), miss('day island', 1)]);
+  });
+
+  test('closing the field gives up the query in it, once; an emptied field records nothing', () => {
+    recorder.typed('coon', 2);
+    recorder.gaveUp();
     recorder.gaveUp();
     recorder.typed('x', 1);
     recorder.typed('', 0);
     recorder.gaveUp();
-    vi.advanceTimersByTime(10_000);
-    expect(sent.map(r => r.query)).toEqual(['coon']);
+    expect(sent).toEqual([miss('coon', 2)]);
   });
 
-  test('places arriving update the count of a query not yet recorded', () => {
-    recorder.typed('mud bay', 1);
+  test('a count not known while the index loads is filled in when it arrives', () => {
+    recorder.typed('mud bay', null);
     recorder.found(7);
-    vi.advanceTimersByTime(3000);
-    expect(sent[0]?.results).toBe(7);
+    recorder.gaveUp();
+    recorder.typed('j35', null);
+    recorder.gaveUp();
+    expect(sent).toEqual([miss('mud bay', 7), miss('j35', null)]);
   });
 
   test('the kind of page is the path\'s first part', () => {

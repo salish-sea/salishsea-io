@@ -10,7 +10,7 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { isoMicros, Refused } from './sightings.ts';
 
-export type SearchInput = {query: string, results: number, chosen_kind: string | null, chosen_label: string | null,
+export type SearchInput = {query: string, results: number | null, chosen_kind: string | null, chosen_label: string | null,
     page: string | null};
 
 const optional = (value: unknown): string | null => typeof value === 'string' && value.trim() ? value.trim() : null;
@@ -18,12 +18,13 @@ const optional = (value: unknown): string | null => typeof value === 'string' &&
 export function parseSearch(body: Record<string, unknown>): SearchInput {
     const query = optional(body['query']);
     const results = body['results'];
-    if (!query || typeof results !== 'number' || !Number.isInteger(results) || results < 0)
+    // How many results: null when the field's index hadn't loaded, so the count isn't known.
+    if (!query || (results !== null && (typeof results !== 'number' || !Number.isInteger(results) || results < 0)))
         throw new Refused(400, 'a search needs its query and how many results it found');
     const chosen_kind = optional(body['chosen_kind']);
     const chosen_label = optional(body['chosen_label']);
     if ((chosen_kind === null) !== (chosen_label === null)) throw new Refused(400, 'a choice needs its kind and its label');
-    return {query, results, chosen_kind, chosen_label, page: optional(body['page'])};
+    return {query, results: results as number | null, chosen_kind, chosen_label, page: optional(body['page'])};
 }
 
 export function recordSearch(store: DatabaseSync, input: SearchInput, now = new Date()): void {

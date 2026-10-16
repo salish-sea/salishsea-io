@@ -6,7 +6,7 @@ CREATE TABLE searches (
   id            INTEGER PRIMARY KEY,
   created_at    TEXT    NOT NULL,
   query         TEXT    NOT NULL CHECK (length(query) BETWEEN 1 AND 200),
-  results       INTEGER NOT NULL CHECK (results >= 0),
+  results       INTEGER CHECK (results IS NULL OR results >= 0),  -- null: the index hadn't loaded
   chosen_kind   TEXT    CHECK (chosen_kind IS NULL OR length(chosen_kind) BETWEEN 1 AND 40),
   chosen_label  TEXT    CHECK (chosen_label IS NULL OR length(chosen_label) BETWEEN 1 AND 200),
   page          TEXT    CHECK (page IS NULL OR length(page) BETWEEN 1 AND 40)

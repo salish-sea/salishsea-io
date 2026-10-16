@@ -1,24 +1,28 @@
 /**
  * What the search field tells the write API about each search (decision 078): one record
- * when someone chooses a result, or when they give up, by closing the field or pausing
- * for a few seconds without choosing. Misses are the point as much as hits: a search that
- * found nothing, or found something nobody chose, says what is missing.
+ * when someone chooses a result, or when they give up on what they typed. They give it up
+ * by closing the field or leaving the page, or by pausing for a few seconds and then
+ * typing other words: "jeff head", a pause, then "jefferson" and a choice records the miss
+ * and the hit. A pause alone records nothing, since reading the results takes a few seconds
+ * too. Misses are the point as much as hits: a search that found nothing, or found
+ * something nobody chose, says what is missing.
  *
- * Nothing that identifies a person is sent: the words, how many results they found, what
- * was chosen, and the kind of page the field was on. A failure is ignored; search works
- * the same whether or not it is recorded.
+ * Nothing that identifies a person is sent: the words, how many results they found (none
+ * known while the index is loading), what was chosen, and the kind of page the field was
+ * on. A failure is ignored; search works the same whether or not it is recorded.
  */
 
 /** One search, as api/searches.ts takes it. */
 export interface SearchRecord {
   query: string;
-  results: number;
+  /** How many results it listed, or null if the index hadn't loaded. */
+  results: number | null;
   chosen_kind: string | null;
   chosen_label: string | null;
   page: string;
 }
 
-/** How long a pause, in milliseconds, counts as giving up. */
+/** How long a pause, in milliseconds, before other words give up the query paused on. */
 export const GIVE_UP_AFTER = 3000;
 
 /** The kind of page the field is on: the path's first part ("individuals"), or "map" for the map. */
@@ -36,14 +40,12 @@ export function sendSearch(record: SearchRecord): void {
 }
 
 /**
- * Turns what the field sees, a query at a time, into records. A query is recorded once:
- * pausing on "lime" and then closing the field sends one record, not two.
+ * Turns what the field sees, a query at a time, into records. A query is recorded once.
  */
 export class SearchRecorder {
-  private pending: { query: string; results: number } | null = null;
+  private pending: { query: string; results: number | null; paused: boolean } | null = null;
   private last: string | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
-
   private readonly page: string;
   private readonly send: (record: SearchRecord) => void;
   private readonly wait: number;
@@ -54,21 +56,23 @@ export class SearchRecorder {
     this.wait = wait;
   }
 
-  /** The field now holds this query, which finds this many results. */
-  typed(query: string, results: number): void {
+  /** The field now holds this query, which lists this many results (null: not known yet). */
+  typed(query: string, results: number | null): void {
     clearTimeout(this.timer);
     const q = query.trim();
-    this.pending = q ? { query: q, results } : null;
-    if (this.pending) this.timer = setTimeout(() => this.gaveUp(), this.wait);
+    // Other words after a pause give up the query paused on; carrying on typing it doesn't.
+    if (this.pending?.paused && !q.startsWith(this.pending.query)) this.gaveUp();
+    this.pending = q ? { query: q, results, paused: false } : null;
+    if (this.pending) this.timer = setTimeout(() => { if (this.pending) this.pending.paused = true; }, this.wait);
   }
 
-  /** The results for the query changed without typing, as when places arrive. */
-  found(results: number): void {
+  /** The results for the query changed without typing, as when the index or the places arrive. */
+  found(results: number | null): void {
     if (this.pending) this.pending.results = results;
   }
 
-  /** Someone chose a result. */
-  chose(query: string, results: number, kind: string, label: string): void {
+  /** Someone chose a result: one record, whatever pauses came before it. */
+  chose(query: string, results: number | null, kind: string, label: string): void {
     clearTimeout(this.timer);
     this.pending = null;
     const q = query.trim();

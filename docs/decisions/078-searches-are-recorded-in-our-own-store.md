@@ -10,9 +10,9 @@ The search field finds animals, groups, haul-out sites, regions, hydrophones and
 
 **The field sends the write API one record per search, and the API keeps it in its store** ([`src/search-log.ts`](../../src/search-log.ts), [`api/searches.ts`](../../api/searches.ts), the `searches` table). Like feedback (039), it goes to our own store, not a third party's, so an ad blocker that blocks Sentry doesn't hide it, and it is kept as long as we choose. It is read with SQL on the store; nothing reads it back through the API.
 
-**A search is recorded when it ends:** when someone chooses a result, with what they typed and what they chose; or when they give up, by closing the field, leaving the page, or pausing three seconds without choosing, with what they typed and that nothing was chosen. Peter chose to record the misses too, because a search that found nothing, or found something nobody chose, says what is missing. A query is recorded once, so pausing on it and then closing the field sends one record. Someone who pauses partway and goes on typing sends the partial query as a miss, then the whole one.
+**A search is recorded when it ends:** when someone chooses a result, with what they typed and what they chose; or when they give up, with what they typed and that nothing was chosen. Peter chose to record the misses too, because a search that found nothing, or found something nobody chose, says what is missing. They give up by closing the field or leaving the page, or by pausing three seconds and then typing other words: "jeff head", a pause, then "jefferson" and a choice records the miss and then the hit. Going on to type more of the same words gives nothing up. Peter first chose "pausing three seconds without choosing" as giving up; review showed that reading the results takes that long too, so a pause followed by a choice would have recorded one search twice, as a miss and a hit. A pause alone now records nothing. A query is recorded once.
 
-**Each record holds only the words typed, how many results they listed (at most eight), the kind and name of the result chosen, if any, and the kind of page the field was on** ("map", "individuals"). No account, address, cookie or browser is kept. The API sees the sender's address only to cap how many searches one address may send, 120 in ten minutes, in memory.
+**Each record holds only the words typed, how many results they listed (at most eight, or none known if the index hadn't loaded yet), the kind and name of the result chosen, if any, and the kind of page the field was on** ("map", "individuals"). No account, address, cookie or browser is kept. The API sees the sender's address only to cap how many searches one address may send, 120 in ten minutes, in memory.
 
 ## Rejected
 
@@ -25,4 +25,6 @@ The search field finds animals, groups, haul-out sites, regions, hydrophones and
 
 - To read it: `sqlite3 /data/store/salishsea.db "SELECT query, results, chosen_kind, chosen_label FROM searches ORDER BY id DESC LIMIT 50"` on the Fly machine (`fly ssh console -a salishsea-io`). The store is replicated by Litestream with everything else in it.
 - The read-path snapshot reads only the tables it names (`scripts/read-path/snapshot.ts`, `FROM_STORE`), so searches are never published.
+- Records are stamped to the microsecond, so a run of them from one page in a few seconds can be read as one person's searches. Nothing ties a run to a person, but "without who searched" is not "unlinkable".
+- A middle-click on a result records it as chosen; a choice that leaves the page in an old browser without `keepalive` (Firefox before 133) may be lost.
 - The site says nowhere what it records. Whether the About page should say so is open.
