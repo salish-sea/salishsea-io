@@ -34,4 +34,4 @@ The search field finds animals, groups, haul-out sites, regions, hydrophones and
 - The read-path snapshot reads only the tables it names (`scripts/read-path/snapshot.ts`, `FROM_STORE`), so searches are never published.
 - Records are stamped to the microsecond, so a run of them from one page in a few seconds can be read as one person's searches. Nothing ties a run to a person, but "without who searched" is not "unlinkable".
 - A middle-click on a result records it as chosen; a choice that leaves the page in an old browser without `keepalive` (Firefox before 133) may be lost.
-- The site says nowhere what it records. Whether the About page should say so is open.
+- The About page now says what the site records (Peter, the same day): searches, as here; Sentry's error reports and page timings, which carry the visitor's IP address and browser; CloudFront's request logs, kept 90 days; and, for someone signed in, their Google email and what they send.
