@@ -35,23 +35,16 @@ const KIND_LABELS: Record<SearchEntry['kind'], string> = {
 };
 
 let indexRequest: Promise<SearchEntry[]> | null = null;
+let placesRequest: Promise<SearchEntry[]> | null = null;
 
-/**
- * The index and the basemap's places (src/places.ts), fetched once per page however many
- * fields there are. A failure of the index is retried on the next focus; the places are
- * left out if they fail, so whales are still found.
- */
+/** The index, fetched once per page however many fields there are; a failure is retried on the next focus. */
 function loadIndex(): Promise<SearchEntry[]> {
-  indexRequest ??= Promise.all([
-    fetch(INDEX_URL)
-      .then(response => {
-        if (!response.ok) throw new Error(`${INDEX_URL}: ${response.status}`);
-        return response.json() as Promise<SearchIndex>;
-      })
-      .then(index => index.entries),
-    loadPlaceEntries(),
-  ])
-    .then(([entries, places]) => [...entries, ...places])
+  indexRequest ??= fetch(INDEX_URL)
+    .then(response => {
+      if (!response.ok) throw new Error(`${INDEX_URL}: ${response.status}`);
+      return response.json() as Promise<SearchIndex>;
+    })
+    .then(index => index.entries)
     .catch(error => {
       indexRequest = null;
       throw error;
@@ -60,12 +53,25 @@ function loadIndex(): Promise<SearchEntry[]> {
 }
 
 /**
- * A place's link, keeping the day the map shows: someone looking at a day's sightings who
- * searches for a place wants that day's sightings there, not today's.
+ * The basemap's places (src/places.ts), fetched once per page. They are larger than the
+ * index and arrive after it, so whales are found meanwhile; a list that fails is left out.
  */
-function keepDate(href: string): string {
-  const day = window.location.pathname === '/' ? new URLSearchParams(window.location.search).get('d') : null;
-  return day ? `${href}&d=${encodeURIComponent(day)}` : href;
+function loadPlaces(): Promise<SearchEntry[]> {
+  placesRequest ??= loadPlaceEntries();
+  return placesRequest;
+}
+
+/**
+ * A place's link, keeping the day the map shows and the reference layers it draws: someone
+ * looking at a day's sightings who searches for a place wants that day's sightings there,
+ * not today's. The day is the map's own, which a link to one sighting doesn't put in the URL.
+ */
+function keepView(href: string): string {
+  if (window.location.pathname !== '/') return href;
+  const params = new URLSearchParams(window.location.search);
+  const day = document.querySelector<HTMLElement & { date?: string }>('salish-sea')?.date ?? params.get('d');
+  const layers = params.get('l');
+  return href + (day ? `&d=${encodeURIComponent(day)}` : '') + (layers ? `&l=${encodeURIComponent(layers)}` : '');
 }
 
 /** "Oct 6, 2026", from a Pacific calendar date. Noon, so no time zone moves it to another day. */
@@ -182,10 +188,18 @@ export class SiteSearch extends LitElement {
 
   @query('input') private input?: HTMLInputElement;
 
+  /**
+   * The last query's results, so that redrawing the list, as hovering does, doesn't search
+   * every place again. The links are made fresh, since a place's keeps the map's current day.
+   */
+  private found: { query: string; entries: SearchEntry[]; results: SearchEntry[] } | null = null;
+
   private get options(): Option[] {
     if (!this.entries) return [];
-    return search(this.entries, this.query).flatMap(entry => [
-      { entry, latest: false, href: entry.kind === 'place' ? keepDate(entry.href) : entry.href },
+    if (this.found?.query !== this.query || this.found.entries !== this.entries)
+      this.found = { query: this.query, entries: this.entries, results: search(this.entries, this.query) };
+    return this.found.results.flatMap(entry => [
+      { entry, latest: false, href: entry.kind === 'place' ? keepView(entry.href) : entry.href },
       ...(entry.latest ? [{ entry, latest: true, href: entry.latest.href }] : []),
     ]);
   }
@@ -235,6 +249,9 @@ export class SiteSearch extends LitElement {
     loadIndex().then(entries => {
       this.entries = entries;
       this.failed = false;
+      return loadPlaces().then(places => {
+        if (places.length) this.entries = [...entries, ...places];
+      });
     }, () => {
       this.failed = true;
     });

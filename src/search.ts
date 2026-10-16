@@ -42,10 +42,10 @@ const KIND_ORDER: readonly SearchKind[] = ['individual', 'matriline', 'pod', 'po
  * Whether each word of the query begins a word of the name, in order, as "jeff head" does
  * "Jefferson Head": sighting reports shorten names, and people type them as they write them.
  */
-function wordsBegin(key: string, q: string): boolean {
+function wordsBegin(key: string, parts: readonly string[]): boolean {
   const words = key.split(' ');
   let i = 0;
-  for (const part of q.split(' ')) {
+  for (const part of parts) {
     while (i < words.length && !words[i]!.startsWith(part)) i++;
     if (i === words.length) return false;
     i++;
@@ -61,13 +61,14 @@ function wordsBegin(key: string, q: string): boolean {
 export function search(entries: readonly SearchEntry[], query: string, limit = 8): SearchEntry[] {
   const q = fold(query);
   if (!q) return [];
+  const parts = q.split(' ');
   const scored: { entry: SearchEntry; score: number }[] = [];
   for (const entry of entries) {
     let score = Infinity;
     for (const key of entry.keys) {
       if (key === q) score = Math.min(score, 0);
       else if (key.startsWith(q)) score = Math.min(score, 1);
-      else if (wordsBegin(key, q)) score = Math.min(score, 2);
+      else if (wordsBegin(key, parts)) score = Math.min(score, 2);
       else if (key.includes(q)) score = Math.min(score, 3);
     }
     if (score < Infinity) scored.push({ entry, score });
