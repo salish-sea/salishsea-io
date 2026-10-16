@@ -20,6 +20,8 @@ All of it is synthetic or public. The snapshot was taken (`snapshot.ts --answers
 
 Neither SQL file runs any more; they are the record of how the rows were made.
 
+One input row was added by hand after Postgres retired: photo 8000002 in `inaturalist_observation_photos.csv`, whose URL is iNaturalist's placeholder for a photo flagged for copyright infringement. Postgres never saw it, so its answers show observation 9000002 without a photo, which is what the build must derive (`salish-87oq`).
+
 ## When a derivation changes on purpose
 
 The test then fails, naming the rows that differ. With no Postgres to ask, the new answer is the build's: check that the difference is the one you meant, then edit the expected rows in `snapshot/` to match, as a reviewed change.

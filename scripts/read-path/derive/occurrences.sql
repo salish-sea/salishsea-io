@@ -97,7 +97,10 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
            SELECT list({'src': p.url, 'thumb': CAST(NULL AS VARCHAR), 'license': p.license,
                         'mimetype': CAST(NULL AS VARCHAR), 'attribution': p.attribution} ORDER BY p.seq)
            FROM source_inaturalist_observation_photos p
+           -- A photo flagged for copyright infringement keeps `hidden` false, but iNaturalist
+           -- points its URL at a placeholder of its own, which it doesn't let other sites load.
            WHERE p.observation_id = o.id AND NOT p.hidden AND p.license IS NOT NULL
+             AND p.url NOT LIKE 'https://www.inaturalist.org/assets/copyright-infringement%'
          ), []) AS photos,
          o.observed_at,
          CAST(NULL AS STRUCT(lat DOUBLE, lon DOUBLE)) AS observed_from,
