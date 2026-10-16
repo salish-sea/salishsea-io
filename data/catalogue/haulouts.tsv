@@ -26,23 +26,23 @@ id	name	region	lat	lon	radius_m	atlas_code	atlas_species	atlas_count	atlas_tidal
 194	Striped Peak Area	Strait of Juan de Fuca-West	48.16	-123.66083	500	6.10	PV	<100	LOW	Intertidal ledges north of Striped Peak.		false	2026-09-19T01:06:00.46634+00:00
 195	Port Angeles Area	Strait of Juan de Fuca-West	48.11783	-123.41117	500	6.11	PV	<100	LOW	Log booms off the ITT-Rayonier mill site (mill closed in 1997)		false	2026-09-19T01:06:00.46634+00:00
 196	Port Angeles Area	Strait of Juan de Fuca-West	48.13683	-123.45767	500	6.12	PV	<100	LOW	Log booms on inside of Ediz Hook in Port Angeles harbor.		false	2026-09-19T01:06:00.46634+00:00
-197	Rocks E of Pysht River	Strait of Juan de Fuca-West	48.19767	-123.0875	500	6.13	PV	<100	LOW	Scattered intertidal rocks and reef areas east of the Pysht River.		false	2026-09-19T01:06:00.46634+00:00
+197	Rocks E of Pysht River	Strait of Juan de Fuca-West	48.19767	-124.0875	500	6.13	PV	<100	LOW	Scattered intertidal rocks and reef areas east of the Pysht River.		false	2026-09-19T01:06:00.46634+00:00
 198	Twin River Area	Strait of Juan de Fuca-West	48.16267	-123.91767	500	6.14	PV	<100	LOW	Scattered intertidal rocks and reef areas near Twin Rivers.		false	2026-09-19T01:06:00.46634+00:00
 199	Twin River Area	Strait of Juan de Fuca-West	48.16367	-123.87817	500	6.14	PV	<100	LOW	Scattered intertidal rocks and reef areas near Twin Rivers.		false	2026-09-19T01:06:00.46634+00:00
 200	Seabird Rocks	Strait of Juan de Fuca-West	48.7485	-125.15533	500	6.15	PV	<100	LOW	Intertidal rocks and reef areas around Seabird Rocks.		false	2026-09-19T01:06:00.46634+00:00
-201	Sombrio Point Reef	Strait of Juan de Fuca-West	48.49533	-123.29983	500	6.16	PV	<100	LOW	Intertidal rocks and reef areas around Sombrio Point.		false	2026-09-19T01:06:00.46634+00:00
-202	Sombrio Point	Strait of Juan de Fuca-West	48.48517	-123.2875	500	6.16	PV,ZC	<100	LOW	Intertidal ledges near Sombrio Point.		false	2026-09-19T01:06:00.46634+00:00
-203	Rock W of Carmanah Point	Strait of Juan de Fuca-West	48.616	-123.76033	500	6.17	EJ	100-500	LOW	Rock W of Carmanah Point.		false	2026-09-19T01:06:00.46634+00:00
-204	Dare Point Reef	Strait of Juan de Fuca-West	48.644	-123.80183	500	6.18	PV	<100	LOW	Reef area off Dare Point.		false	2026-09-19T01:06:00.46634+00:00
+201	Sombrio Point Reef	Strait of Juan de Fuca-West	48.49533	-124.29983	500	6.16	PV	<100	LOW	Intertidal rocks and reef areas around Sombrio Point.		false	2026-09-19T01:06:00.46634+00:00
+202	Sombrio Point	Strait of Juan de Fuca-West	48.48517	-124.2875	500	6.16	PV,ZC	<100	LOW	Intertidal ledges near Sombrio Point.		false	2026-09-19T01:06:00.46634+00:00
+203	Rock W of Carmanah Point	Strait of Juan de Fuca-West	48.616	-124.76033	500	6.17	EJ	100-500	LOW	Rock W of Carmanah Point.		false	2026-09-19T01:06:00.46634+00:00
+204	Dare Point Reef	Strait of Juan de Fuca-West	48.644	-124.80183	500	6.18	PV	<100	LOW	Reef area off Dare Point.		false	2026-09-19T01:06:00.46634+00:00
 205	Sooke Harbor	Strait of Juan de Fuca-West	48.35533	-123.72383	500	6.19	PV	<100	LOW	Sooke Harbor area.		false	2026-09-19T01:06:00.46634+00:00
 206	Sooke Harbor	Strait of Juan de Fuca-West	48.371	-123.715	500	6.19	PV	<100	LOW	Intertidal area off Sooke Harbor.		false	2026-09-19T01:06:00.46634+00:00
 207	Otter Point	Strait of Juan de Fuca-West	48.358	-123.82383	500	6.21	PV	<100	LOW	Intertidal rocks and reef areas off Otter Point.		false	2026-09-19T01:06:00.46634+00:00
 208	NW of Church Point	Strait of Juan de Fuca-West	48.31317	-123.59	500	6.22	PV	<100	LOW	Intertidal rocks and reef areas off Church Point.		false	2026-09-19T01:06:00.46634+00:00
 209	Becher Bay	Strait of Juan de Fuca-West	48.328	-123.60917	500	6.23	PV	<100	LOW	Intertidal rocks and reef areas around small island in Becher Bay.		false	2026-09-19T01:06:00.46634+00:00
 210	Muir Point	Strait of Juan de Fuca-West	48.37917	-123.87083	500	6.24	PV	<100	LOW	Intertidal rocks and reef areas off Muir Point.		false	2026-09-19T01:06:00.46634+00:00
-211	E San Simon Point	Strait of Juan de Fuca-West	48.43367	-123.09133	500	6.25	PV	<100	LOW	Intertidal ledges and rocks east of San Simon Point.		false	2026-09-19T01:06:00.46634+00:00
-212	Owen Point	Strait of Juan de Fuca-West	48.54467	-123.49983	500	6.26	PV	<100	LOW	Intertidal ledges and rocks off Owen Point.		false	2026-09-19T01:06:00.46634+00:00
-213	W Tsuquanah Point	Strait of Juan de Fuca-West	48.67333	-123.88183	500	6.27	PV	<100	LOW	Intertidal rocks and reef areas west of Tsuquanah Point.		false	2026-09-19T01:06:00.46634+00:00
+211	E San Simon Point	Strait of Juan de Fuca-West	48.43367	-124.09133	500	6.25	PV	<100	LOW	Intertidal ledges and rocks east of San Simon Point.		false	2026-09-19T01:06:00.46634+00:00
+212	Owen Point	Strait of Juan de Fuca-West	48.54467	-124.49983	500	6.26	PV	<100	LOW	Intertidal ledges and rocks off Owen Point.		false	2026-09-19T01:06:00.46634+00:00
+213	W Tsuquanah Point	Strait of Juan de Fuca-West	48.67333	-124.88183	500	6.27	PV	<100	LOW	Intertidal rocks and reef areas west of Tsuquanah Point.		false	2026-09-19T01:06:00.46634+00:00
 214	Pachena Point	Strait of Juan de Fuca-West	48.72017	-125.08017	500	6.28	PV,EJ	<100	LOW	Intertidal rocks and reef areas around Pachena Point.		false	2026-09-19T01:06:00.46634+00:00
 215	E of Cape Beale	Strait of Juan de Fuca-West	48.78383	-125.17517	500	6.29	PV	<100	LOW	Intertidal rocks and reef areas east of Cape Beale.		false	2026-09-19T01:06:00.46634+00:00
 216	Cullite Cove	Strait of Juan de Fuca-West	48.56867	-124.61833	500	6.30	PV	<100	LOW	Intertidal rocks and reef areas off Cullite Cove.		false	2026-09-19T01:06:00.46634+00:00
@@ -86,13 +86,13 @@ id	name	region	lat	lon	radius_m	atlas_code	atlas_species	atlas_count	atlas_tidal
 254	Dabob Bay/Broad Spit	Hood Canal	47.819	-122.82217	500	08.12	PV	<100	HIGH	Beach and floats at Long Spit during high tides.		false	2026-09-19T01:06:00.46634+00:00
 255	Dabob Bay/Broad Spit	Hood Canal	47.819	-122.82217	500	08.12	PV			On rafts and floats on east side of Bolton Peninsula at Broad Spit.		false	2026-09-19T01:06:00.46634+00:00
 256	Dabob Bay/Pulali Point	Hood Canal	47.737	-122.85733	500	08.13	PV	<100	HIGH	Intertidal rocks off Pulali Point in Dabob Bay.		false	2026-09-19T01:06:00.46634+00:00
-257	Point Roberts/SE Rocks	Eastern Bays (Boundary Bay to Port Gardner)	49.97433	-123.01883	500	09.02	PV	<100	LOW	Scattered intertidal rocks off southeast corner of Point Roberts		false	2026-09-19T01:06:00.46634+00:00
+257	Point Roberts/SE Rocks	Eastern Bays (Boundary Bay to Port Gardner)	48.97433	-123.01883	500	09.02	PV	<100	LOW	Scattered intertidal rocks off southeast corner of Point Roberts		false	2026-09-19T01:06:00.46634+00:00
 258	West Boundary Bay	Eastern Bays (Boundary Bay to Port Gardner)	49.04383	-123.00517	500	09.03	PV	<100	LOW	Along channels in northwest Boundary Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
 259	Boundary Bay, off Runway	Eastern Bays (Boundary Bay to Port Gardner)	49.04083	-122.9895	500	09.04	PV	500>	LOW	Main channel south of Boundary Bay airport. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
 260	E Boundary Bay (Mud Bay)	Eastern Bays (Boundary Bay to Port Gardner)	49.04717	-122.92617	500	09.05	PV	100-500	LOW	Channels northwest of Cresent Beach in Mud Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
 261	E Boundary Bay (Mud Bay)	Eastern Bays (Boundary Bay to Port Gardner)	49.06983	-122.89633	500	09.05	PV	<100	LOW	Channels in Mud Bay. Nursery area.		false	2026-09-19T01:06:00.46634+00:00
 262	Rocks off Kwomais Point	Eastern Bays (Boundary Bay to Port Gardner)	49.029	-122.87533	500	09.06	PV	<100	LOW	Scattered intertidal rocks off Kwomais Point.		false	2026-09-19T01:06:00.46634+00:00
-263	Drayton Harbor	Eastern Bays (Boundary Bay to Port Gardner)	49.97167	-122.73333	500	09.07	PV	<100	LOW	Channels along Dakota Creek in Drayton Harbor.		false	2026-09-19T01:06:00.46634+00:00
+263	Drayton Harbor	Eastern Bays (Boundary Bay to Port Gardner)	48.97167	-122.73333	500	09.07	PV	<100	LOW	Channels along Dakota Creek in Drayton Harbor.		false	2026-09-19T01:06:00.46634+00:00
 264	Drayton Harbor	Eastern Bays (Boundary Bay to Port Gardner)	48.97883	-122.75117	500	09.07	PV	<100	LOW	On intertidal shoals and tideflats in central Drayton Harbor.		false	2026-09-19T01:06:00.46634+00:00
 265	Drayton Harbor	Eastern Bays (Boundary Bay to Port Gardner)	48.98517	-122.77367	500	09.08	PV	100-500	ALL	On floats at Semiahmoo Marina in Drayton Harbor.		false	2026-09-19T01:06:00.46634+00:00
 266	Rocks off Birch Point	Eastern Bays (Boundary Bay to Port Gardner)	48.94867	-122.82067	500	09.09	PV	<100	LOW	Scattered intertidal rocks off Birch Point.		false	2026-09-19T01:06:00.46634+00:00
