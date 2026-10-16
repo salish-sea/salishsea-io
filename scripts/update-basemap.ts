@@ -30,9 +30,11 @@ if (typeof images !== 'string' || !/^https:\/\/tiles\.salishsea\.io\/images\/[0-
   process.exit(1);
 }
 // The search finds the places the map labels, from the version's lists (its decision 018).
-const places: unknown = style.metadata?.['salishsea:places'];
+// They are named by what they hold; the search reads both.
+const named: unknown = style.metadata?.['salishsea:places'];
 const PLACE_LIST = /^https:\/\/tiles\.salishsea\.io\/places\/places-[a-z]+-[0-9a-f]{16}\.json$/;
-if (!Array.isArray(places) || !places.length || !places.every((url) => typeof url === 'string' && PLACE_LIST.test(url))) {
+const places = named && typeof named === 'object' ? Object.values(named) : [];
+if (!places.length || !places.every((url) => typeof url === 'string' && PLACE_LIST.test(url))) {
   console.error(`version ${version} names no lists of places`);
   process.exit(1);
 }
