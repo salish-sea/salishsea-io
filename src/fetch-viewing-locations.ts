@@ -14,7 +14,10 @@ const map: Kml = parser.parse(await mapResponse.text());
 const attribution = map.kml.Document.description;
 console.info(`Attribution line is:\n${attribution}`);
 
-const features: Feature[] = map.kml.Document.Folder.Placemark.map(placemark => {
+// Orca Network's map also marks hydrophones ("Hydrophone - Orcasound Lab"). They are not
+// places to watch from, and the hydrophone layer already draws Orcasound's own.
+const viewpoints = map.kml.Document.Folder.Placemark.filter(placemark => !/hydrophone/i.test(placemark.name));
+const features: Feature[] = viewpoints.map(placemark => {
   const [longitude, latitude] = placemark.Point.coordinates.split(',').map(parseFloat);
   const name = placemark.name.replace(/ \(.+\).*$/, '');
   return {
