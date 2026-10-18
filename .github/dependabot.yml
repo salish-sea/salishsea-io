@@ -3,7 +3,7 @@
 # updates; security updates have their own fixed limit of 10 and are switched on in the
 # repository's "Code security" settings. The entries stay so that security
 # updates still find infra/ and use the settings here. To bring version updates
-# back, raise the limits.
+# back, raise the limits. Why: docs/decisions/079-dependabot-opens-security-updates-only.md.
 # See https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
 updates:
