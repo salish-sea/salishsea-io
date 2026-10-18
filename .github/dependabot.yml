@@ -62,6 +62,16 @@ updates:
     cooldown:
       default-days: 10
     open-pull-requests-limit: 3
+    ignore:
+      # TypeScript 7 no longer includes the JavaScript compiler API, which ts-jest
+      # (the tests) and ts-node (cdk.json's app) both need (#711). Lift this once
+      # neither is in use.
+      - dependency-name: typescript
+        versions: [">=7"]
+      # The type definitions follow the Lambda runtime, NODEJS_24_X in
+      # lib/infra-stack.ts. Move this bound when the runtime moves.
+      - dependency-name: "@types/node"
+        versions: [">=25"]
     groups:
       all:
         patterns:
