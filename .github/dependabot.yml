@@ -1,6 +1,10 @@
-# Automatically opens PRs for dependency updates.
-# Can be turned on and off for org or repository via "Code security and analysis" tab .
-# See https://docs.github.com/en/code-security/dependabot/dependabot-alerts/configuring-dependabot-alerts
+# Dependabot opens pull requests for security updates only. Every entry below
+# sets `open-pull-requests-limit: 0`, which turns off the scheduled version
+# updates; security updates have their own fixed limit of 10 and are switched on in the
+# repository's "Code security" settings. The entries stay so that security
+# updates still find infra/ and use the settings here. To bring version updates
+# back, raise the limits.
+# See https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
 updates:
   # Updates GHA dependencies
@@ -16,7 +20,7 @@ updates:
       actions:
         patterns:
           - "*"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 0
 
   # Updates JavaScript dependencies. `npm` is also Dependabot's name for the pnpm
   # and yarn ecosystems; what it needs from us is a lockfile format it groks, and
@@ -33,7 +37,7 @@ updates:
       timezone: America/Los_Angeles
     cooldown:
       default-days: 10
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 0
     groups:
       all:
         patterns:
@@ -45,8 +49,7 @@ updates:
   # alerts were against infra/package-lock.json while the root got monthly updates.
   #
   # A second entry rather than `directories: ["/", "/infra"]` so the two projects
-  # get independent PR limits: sharing one limit of 3 would let a busy month at the
-  # root starve infra of updates entirely, which is the failure being fixed here.
+  # could have independent PR limits, back when version updates were on.
   #
   # Keep infra/pnpm-workspace.yaml non-empty. Dependabot indexes that file without
   # a nil guard, and a comments-only YAML document parses to `null`, so stripping
@@ -61,7 +64,7 @@ updates:
       timezone: America/Los_Angeles
     cooldown:
       default-days: 10
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 0
     ignore:
       # TypeScript 7 no longer includes the JavaScript compiler API, which ts-jest
       # (the tests) and ts-node (cdk.json's app) both need (#711). Lift this once
