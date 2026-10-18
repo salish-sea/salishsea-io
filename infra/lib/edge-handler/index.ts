@@ -39,14 +39,13 @@ export const WARMUP_WAIT_MS = 1000;
 
 // Floor on what's left for a fetch. A sighting's lookup is up to three fetches
 // against ONE deadline (the id index, the day file, and for a sighting saved here
-// since the last build, Supabase), so a later fetch can find the deadline nearly
+// since the last build, the write API), so a later fetch can find the deadline nearly
 // spent; a near-zero budget would abort instantly and fail open, which is worse
 // than slightly overrunning. Worst case 3s + 2 × 0.5s, well inside the 5s kill.
 const MIN_FETCH_BUDGET_MS = 500;
 
 // Where the read-path build's files are served (decisions 056, 061): through this
-// same distribution, so a lookup is usually an edge cache hit. The sightings are
-// there, not in Supabase, since Postgres stopped ingesting the upstream sources.
+// same distribution, so a lookup is usually an edge cache hit.
 const READ_PATH = 'https://salishsea.io/read-path/';
 // The write API (decision 065), through the same distribution.
 const API = 'https://salishsea.io/api/';

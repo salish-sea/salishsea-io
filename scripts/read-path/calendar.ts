@@ -22,13 +22,6 @@
  * region is absent from that region's map. Months, not days, because the
  * calendar draws six weeks at a time: at most three files per view, and a new
  * sighting today rewrites only this month's.
- *
- * Beside it, $EXPORT_DIR/calendar/<YYYY-MM>.native.json counts, in the same
- * shape, only the sightings contributors saved here (decision 061's overlay): a
- * signed-in tab subtracts them and adds what Supabase says now, so a sighting
- * saved since the build has its circle and an edited one isn't counted twice. A
- * native sighting is one with a contributor; no upstream source has one. A month
- * with none has no native file.
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
@@ -51,7 +44,6 @@ export async function writeCalendar(snapshot: string, exportDir: string): Promis
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     const months = new Map<string, MonthCounts>();
-    const nativeMonths = new Map<string, MonthCounts>();
     try {
         // Measured on 63,762 occurrences: runs out at 32 MB, completes at 64; uncapped it
         // peaked at 275 MB, and at 96 MB it peaks at 239.
@@ -61,32 +53,26 @@ export async function writeCalendar(snapshot: string, exportDir: string): Promis
             CREATE TEMP TABLE located AS
             SELECT ${dayOf('observed_at')} AS day,
                    json_extract(doc, '$.location.lon')::DOUBLE AS lon,
-                   json_extract(doc, '$.location.lat')::DOUBLE AS lat,
-                   json_extract_string(doc, '$.contributor_id') IS NOT NULL AS native
+                   json_extract(doc, '$.location.lat')::DOUBLE AS lat
             FROM store.build.occurrences
         `);
         for (const region of REGIONS) {
             const [minLon, minLat, maxLon, maxLat] = region.extent ?? WORLD;
             const reader = await conn.runAndReadAll(`
-                SELECT day, count(*)::INTEGER, count(*) FILTER (native)::INTEGER
+                SELECT day, count(*)::INTEGER
                 FROM located
                 WHERE lon BETWEEN ${minLon} AND ${maxLon} AND lat BETWEEN ${minLat} AND ${maxLat}
                 GROUP BY day
                 ORDER BY day
             `);
-            for (const [day, count, native] of reader.getRows() as [string, number, number][]) {
+            for (const [day, count] of reader.getRows() as [string, number][])
                 tally(months, region.slug, day, count);
-                if (native > 0) tally(nativeMonths, region.slug, day, native);
-            }
         }
     } finally {
         conn.closeSync();
     }
 
-    await replaceDir(outDir, [
-        ...[...months].map(([month, counts]) => [`${month}.json`, JSON.stringify(counts)] as [string, string]),
-        ...[...nativeMonths].map(([month, counts]) => [`${month}.native.json`, JSON.stringify(counts)] as [string, string]),
-    ]);
+    await replaceDir(outDir, [...months].map(([month, counts]) => [`${month}.json`, JSON.stringify(counts)] as [string, string]));
     return {months: months.size};
 }
 
