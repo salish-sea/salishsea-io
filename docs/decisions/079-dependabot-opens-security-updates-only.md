@@ -22,6 +22,7 @@ Peter's reasons: the version-update pull requests were noise, and upgrading isn'
 
 ## Consequences
 
-- Between roundups, dependencies age. Security fixes still arrive as pull requests, and other fixes wait for the next roundup unless one is needed sooner.
+- Between roundups, dependencies age. Other fixes wait for the next roundup unless one is needed sooner.
+- Security fixes arrive as pull requests only for packages we depend on directly. For a package that comes in through another one, which is where most alerts land, Dependabot's security update fails with `security_update_not_possible`: on 2026-10-18 all 12 open alerts were of that kind, and none had a pull request. So the open alerts (Security → Dependabot) are part of every roundup, and a high-severity one is worth acting on without waiting. `pnpm update <name>` moves such a package within its parents' ranges in the site's project. In `infra/` it didn't move them, so `infra/pnpm-workspace.yaml` forces them with `overrides`.
 - A roundup has more to absorb than a monthly pull request did, so major versions are more likely to arrive together. Splitting out the ones that need code changes keeps them reviewable.
 - Raising the limits in `.github/dependabot.yml` brings version updates back, if this proves wrong.
