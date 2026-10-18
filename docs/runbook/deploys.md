@@ -69,29 +69,17 @@ Two things to know when reading a red run:
 
 An open `deploy-failed` issue means a run failed and has not been followed by a green one. **Read its first bold line before assuming production is broken** — the issue states whether the run got past the deploy job's point of no return (`Production may be partially updated`) or failed before it (`Production was not touched`). Either way the next green deploy closes it, so it should not need manual triage-and-close.
 
-## Gotcha 1 — `DELETE_FAILED` on an old Lambda@Edge version
+## Gotcha 1 — `DELETE_FAILED` on an old Lambda@Edge version (fixed)
 
-**Symptom.** During deploy, the `edge-lambda-stack-*` support stack logs:
+Every change to the edge handler publishes a new version of the function, and CloudFront replicates it to its edge locations. Lambda refuses to delete the *old* version until those replicas drain, which takes a few hours after nothing references it. CloudFormation used to try the delete straight away, in the update's cleanup phase. It retried for about six minutes, then gave up with `DELETE_FAILED … because it is a replicated function` and left the stack `UPDATE_COMPLETE`, so the deploy was slower but not broken.
 
-> `DELETE_FAILED … AWS::Lambda::Version … Lambda was unable to delete … because it is a replicated function.`
-
-**Why.** Every edge-code change mints a new function version; CloudFront replicates it to edge locations. Lambda refuses to delete the *old* version until its replicas drain, which takes a few hours after nothing references it. CloudFormation tries to delete it immediately during the update's cleanup phase.
-
-**Is it fatal?** Usually no. The delete fails during the post-update *cleanup* phase, after the new version is already live, so the stack still reaches `UPDATE_COMPLETE` — the old version just lingers, orphaned and harmless. Confirm with:
+Since `salish-v6xq` the version has a `Retain` removal policy ([`infra/lib/infra-stack.ts`](../../infra/lib/infra-stack.ts)), so CloudFormation never attempts the delete. The first deploy with it may still hit the failure once, because the version it replaces was created under the old template, without the policy. Old versions now pile up, as they did before. Prune them now and then, keeping the newest few. A delete fails while replicas remain, which is harmless:
 
 ```sh
-aws cloudformation describe-stacks --stack-name <edge-lambda-stack-…> \
-  --query 'Stacks[0].StackStatus' --profile <profile> --region us-east-1
+aws lambda list-versions-by-function --function-name <edge-lambda-stack-…-OgMetaFunction…> \
+  --region us-east-1 --profile orcasound --query 'Versions[].Version' --output text
+aws lambda delete-function --function-name <…> --qualifier <N> --region us-east-1 --profile orcasound
 ```
-
-**If it *did* wedge a rollback** (`UPDATE_ROLLBACK_FAILED`, because the rollback also can't delete the replica): continue the rollback while skipping the stuck version, then re-deploy a few hours later once replicas have drained:
-
-```sh
-aws cloudformation continue-update-rollback --stack-name <edge-lambda-stack-…> \
-  --resources-to-skip <OgMetaFunctionCurrentVersion…> --region us-east-1
-```
-
-The churn is inherent to `cloudfront.experimental.EdgeFunction` (a new version per deploy); there is no clean CDK knob to retain old versions.
 
 ## Gotcha 2 — "Cannot update bucket policy of an imported bucket" (retired)
 
