@@ -29,11 +29,16 @@ allowBuilds:
   '@parcel/watcher': false
   unrs-resolver: false
 
-# Force patched versions of jest-toolchain transitives past their dependents'
-# stale ranges (Dependabot alerts 148, 149, 150, 155 — all dev-scope):
-# js-yaml 3.x < 3.15.1 has quadratic-CPU DoS issues; @babel/core <= 7.29.0 has
-# an arbitrary-file-read via sourceMappingURL. Both are only reachable through
-# jest here, so drop these once the toolchain's own ranges catch up.
+# Force patched versions of jest-toolchain transitives (all dev-scope, only
+# reachable through jest here). Dependabot can't open security updates for
+# these, and `pnpm update <name>` leaves them where they are, so an override is
+# the way to move them. Drop each once the toolchain's own ranges resolve past it.
+#   js-yaml 3.x < 3.15.2: CPU denial of service (alerts 148, 149, 150, 180)
+#   @babel/core <= 7.29.0: arbitrary file read via sourceMappingURL (alert 155)
+#   browserslist <= 4.28.6: crash or prototype write on untrusted queries (alert 165)
+#   baseline-browser-mapping < 2.11.0: process exit on invalid input (alert 179)
 overrides:
-  'js-yaml@<3.15.1': '>=3.15.1 <4'
+  'js-yaml@<3.15.2': '>=3.15.2 <4'
   '@babel/core@<=7.29.0': '>=7.29.6 <8'
+  'browserslist@<4.28.7': '>=4.28.7 <5'
+  'baseline-browser-mapping@<2.11.0': '>=2.11.0 <3'
