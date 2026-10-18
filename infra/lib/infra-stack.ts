@@ -594,7 +594,7 @@ export class InfraStack extends cdk.Stack {
         },
       },
     });
-    cloudfrontLogsTable.addDependency(logsDatabase);
+    cloudfrontLogsTable.addResourceDependency(logsDatabase);
 
     // Dedicated workgroup so monitoring queries write results to the bucket above by default.
     const workgroup = new athena.CfnWorkGroup(this, 'MonitoringWorkGroup', {
@@ -620,7 +620,7 @@ export class InfraStack extends cdk.Stack {
         queryString: fs.readFileSync(path.join(athenaDir, file), 'utf8'),
         workGroup: workgroup.name,
       });
-      namedQuery.addDependency(workgroup);
+      namedQuery.addResourceDependency(workgroup);
     }
   }
 }
