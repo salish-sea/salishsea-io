@@ -14,9 +14,10 @@ export const sentryClient = new BrowserClient({
   stackParser: defaultStackParser,
   tracesSampleRate: 1.0,
   // No `dataCollection`: Sentry 11's default is what `sendDefaultPii: true` gave
-  // us in 10. Of its categories, only `userInfo` reaches anything we install
-  // (Sentry infers the sender's IP); the browser SDK collects no bodies or
-  // cookies through the integrations below.
+  // us in 10. Two of its categories reach what we install: `userInfo` (Sentry
+  // infers the sender's IP) and `urlQueryParams` (tracing records the query
+  // strings of the requests it times, minus Sentry's sensitive keys). The
+  // browser SDK collects no bodies or cookies through the integrations below.
   // What we decline to send, and why: src/sentry-noise.ts (decision 046). The
   // rules live there as pure, tested predicates rather than inline literals,
   // because each one is a claim about a specific third party that has to stay
