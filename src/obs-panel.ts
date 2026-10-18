@@ -358,9 +358,9 @@ export class ObsPanel extends LitElement {
     this.showForm = false;
     this.sightingForForm = {...newSighting(), id: v7()};
     this.sightingIsNew = true;
-    // The new sighting belongs to some day's volume; drop the cached counts so
-    // its circle grows straight away.
-    this.calendarRef.value?.refresh();
+    // The calendar's circle for the new sighting grows when the short build its
+    // save starts is published (revalidateCalendar); until then the month's file
+    // doesn't count it, so there is nothing to refetch.
   }
 
   // Both steppers guard as well as disable. The upper bound moves while the page

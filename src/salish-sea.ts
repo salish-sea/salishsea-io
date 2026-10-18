@@ -236,7 +236,6 @@ export default class SalishSea extends LitElement {
   #isRestoringFromHistory = false
   #isFocusingOccurrence = false
   #mapMoveDebounceTimer: ReturnType<typeof setTimeout> | null = null
-  /** A refetch owed to a realtime broadcast, not yet run — see the channel handler. */
 
   @property({attribute: false})
   private focusedOccurrenceId: string | null = initialParams.occurrenceId;
@@ -400,12 +399,9 @@ export default class SalishSea extends LitElement {
     });
     this.addEventListener('sighting-deleted', (evt) => {
       const id = (evt as CustomEvent<string>).detail;
-      // Drop the row now rather than waiting on the realtime broadcast that
-      // usually removes it: a missed broadcast otherwise leaves a sighting on
-      // screen that the server has already deleted, and clicking it again is
-      // the only way to find out. The refetch behind it reconciles the rest of
-      // the list; this just makes the row's disappearance a consequence of the
-      // click that asked for it.
+      // Drop the row now rather than waiting on the refetch behind it, so the
+      // row's disappearance is a consequence of the click that asked for it.
+      // The refetch reconciles the rest of the list.
       this.#listRevision++;
       this.sightings = this.sightings.filter(sighting => sighting.id !== id);
       this.mapRef.value?.setOccurrences(this.sightings);
@@ -631,8 +627,7 @@ export default class SalishSea extends LitElement {
 
   /**
    * Fire-and-forget {@link fetchOccurrences}, for the callers that have no
-   * `await` to hang a failure from — property setters, event listeners, the
-   * realtime subscription.
+   * `await` to hang a failure from — property setters and event listeners.
    *
    * A failed *query* already reports itself from inside `fetchOccurrences`,
    * with the staleness guard that decides whether it is still worth saying.

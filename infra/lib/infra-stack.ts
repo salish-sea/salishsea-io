@@ -133,6 +133,11 @@ export class InfraStack extends cdk.Stack {
       // (FETCH_TIMEOUT_MS) must stay comfortably below it (salish-g9e)
       timeout: cdk.Duration.seconds(5),
       logGroup: ogLogGroup,
+      // Keep each published version when the next replaces it. CloudFormation's
+      // delete of the old one fails while CloudFront still holds its replicas,
+      // and it retried for six minutes on every deploy before giving up
+      // (salish-v6xq). Old versions are pruned by hand once the replicas clear.
+      currentVersionOptions: { removalPolicy: cdk.RemovalPolicy.RETAIN },
     });
 
     // --- Card renderer: map images for link previews (decision 020) ---

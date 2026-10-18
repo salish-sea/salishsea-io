@@ -150,6 +150,11 @@ describe('InfraStack', () => {
     template.resourceCountIs('AWS::Lambda::Function', 2);
   });
 
+  // CloudFormation can't delete a version CloudFront still replicates (salish-v6xq).
+  it("keeps the OG meta function's old versions rather than trying to delete them", () => {
+    template.hasResource('AWS::Lambda::Version', { DeletionPolicy: 'Retain', UpdateReplacePolicy: 'Retain' });
+  });
+
   it("creates salishsea.io's distribution and dev.salishsea.io's", () => {
     template.resourceCountIs('AWS::CloudFront::Distribution', 2);
   });

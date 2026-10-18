@@ -24,17 +24,19 @@ on:
         - cron: '*/30 * * * *'
     workflow_dispatch:
 
+# A check reads only public URLs and repeats nothing on rerun, so a newer one may
+# replace an older one still running. It binds no environment: it needs no secret,
+# and a deployment GitHub lost on one would hold every later run (salish-7tkc).
 concurrency:
     group: ingest-heartbeat
-    cancel-in-progress: false
+    cancel-in-progress: true
 
 jobs:
     check:
         runs-on: ubuntu-latest
-        environment: production
         permissions:
             contents: read
-            issues: write  # failure issue, dwca-nightly pattern
+            issues: write  # the failure issue
         env:
             FRESHNESS_MINUTES: '30'  # ingest cron fires every 5 min → 6 misses
             STUCK_MINUTES: '15'      # an ingest run takes minutes at most
@@ -53,7 +55,7 @@ jobs:
               uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
             - name: Setup Node
-              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
               with:
                   node-version-file: package.json
                   cache: pnpm
@@ -62,9 +64,8 @@ jobs:
               run: pnpm install --frozen-lockfile
 
             # Pre-seed the failure-issue body so content-filepath always exists even
-            # when the job dies before heartbeat.ts runs (DSN/secret issue, install error,
-            # DB unreachable). heartbeat.ts overwrites it with real findings on trip.
-            # Same pattern and rationale as dwca-nightly.yml.
+            # when the job dies before heartbeat.ts runs (an install error, say).
+            # heartbeat.ts overwrites it with real findings on trip.
             - name: Seed default failure-issue body
               run: |
                   mkdir -p dist/ingest
@@ -79,8 +80,6 @@ jobs:
                   the last of which means the Fly app is down, so treat this issue as a real alert.
                   EOF
 
-            # Same DSN assembly as dwca-nightly.yml (see the rationale there): URL-encode
-            # the password, mask it, connect via the IPv4 session pooler on port 5432.
             - name: Check ingest heartbeat
               run: pnpm exec tsx scripts/ingest/heartbeat.ts
 

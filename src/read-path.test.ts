@@ -185,19 +185,13 @@ describe('fetchCalendarCounts', () => {
     '2025-10': {'salish-sea': {'2025-10-04': 3, '2025-10-20': 9}},
   };
 
-  // What the build counted again as saved here (calendar/<month>.native.json).
-  const nativeFiles: Record<string, unknown> = {
-    '2025-08': {'salish-sea': {'2025-08-31': 2}},
-    '2025-09': {'salish-sea': {'2025-09-15': 1}},
-  };
-
   function serveCalendar(manifest: Manifest | null, missing: string[] = []) {
     return vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
       const u = String(url);
       if (u.endsWith('manifest.json'))
         return new Response(manifest && JSON.stringify(manifest), {status: manifest ? 200 : 404});
-      const [, month, native] = u.match(/calendar\/(\d{4}-\d{2})(\.native)?\.json$/)!;
-      const body = missing.includes(month!) ? undefined : (native ? nativeFiles : files)[month!];
+      const [, month] = u.match(/calendar\/(\d{4}-\d{2})\.json$/)!;
+      const body = missing.includes(month!) ? undefined : files[month!];
       return new Response(body ? JSON.stringify(body) : null, {status: body ? 200 : 404});
     });
   }
@@ -231,12 +225,6 @@ describe('fetchCalendarCounts', () => {
   test('with nothing built, it throws rather than draw an empty month', async () => {
     serveCalendar(null);
     await expect(fetchCalendarCounts('2025-09-01', '2025-09-30', 'salish-sea')).rejects.toThrow(/nothing built/);
-  });
-
-  test('the native files are not fetched', async () => {
-    const fetch = serveCalendar(manifest('2025-10-31'));
-    await fetchCalendarCounts('2025-08-31', '2025-10-11', 'salish-sea');
-    expect(fetch.mock.calls.map(([u]) => String(u)).filter(u => u.includes('.native.'))).toEqual([]);
   });
 });
 
