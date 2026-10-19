@@ -17,10 +17,15 @@ import type { SearchEntry } from './search.ts';
 /** The lists, as the basemap version in src/basemap-style.json names them; scripts/update-basemap.ts rewrites this line. */
 export const PLACE_LISTS: readonly string[] = ['https://tiles.salishsea.io/places/places-gazetteers-6ebc4b7473854290.json', 'https://tiles.salishsea.io/places/places-osm-c356e8a3b37250a1.json'];
 
-/** One list as the basemap writes it: its places as rows of its columns. */
+/**
+ * One list as the basemap writes it: its places as rows of its columns. The OpenStreetMap
+ * list also says which island each of the gazetteers' places that shares its name with
+ * another is on, found from OpenStreetMap's outlines, so it is under the ODbL with them.
+ */
 export interface PlaceList {
   columns: string[];
   places: unknown[][];
+  gazetteer_islands?: { columns: string[]; rows: unknown[][] };
 }
 
 /** A place as a list gives it. Its zoom is MapLibre's, which counts 512-pixel tiles. */
@@ -31,6 +36,8 @@ export interface Place {
   lat: number;
   zoom: number;
   otherNames: string[];
+  /** The island it is on or beside, where a list says so. */
+  island?: string;
 }
 
 /** What a result says a place is. A kind the lists add later is still found, and says "Place". */
@@ -39,8 +46,15 @@ const KIND_NOTES: Record<string, string> = {
   hamlet: 'Hamlet', suburb: 'Neighborhood', quarter: 'Neighborhood', neighbourhood: 'Neighborhood', ferry_terminal: 'Ferry terminal',
 };
 
-/** The places that tell apart two of one name: "Mud Bay · Water · near Lopez Island". */
-const LANDMARK_KINDS = new Set(['island', 'city', 'town', 'village']);
+/** The places that tell apart two of one name when no island does: "Rocky Point · Point · near Oak Harbor". */
+const TOWN_KINDS = new Set(['city', 'town', 'village']);
+
+/**
+ * The closest zoom at which an island too big to tell two places apart fits the map:
+ * Vancouver Island (6) and Whidbey Island (8) each hold several Mud Bays or Rocky Points.
+ * Saltspring Island fits at 9, and San Juan Island at 10.
+ */
+const LARGEST_TELLING_ISLAND = 9;
 
 /**
  * Bounds on the zoom a place opens at. Straits are labelled from zoom 6, which shows the
@@ -66,6 +80,17 @@ export function readPlaces(list: PlaceList): Place[] {
     otherNames: Array.isArray(row[otherNames]) ? (row[otherNames] as unknown[]).map(String) : [],
   }));
 }
+
+/** The islands a list names for the gazetteers' places, by each place's name and position. */
+export function readIslands(list: PlaceList): Map<string, string> {
+  const table = list.gazetteer_islands;
+  if (!table) return new Map();
+  const [name, lon, lat, island] = ['name', 'lon', 'lat', 'island'].map(c => table.columns.indexOf(c));
+  if ([name, lon, lat, island].some(i => i! < 0)) throw new Error('a table of islands without the columns it needs');
+  return new Map(table.rows.map(row => [islandKey(String(row[name!]), Number(row[lon!]), Number(row[lat!])), String(row[island!])]));
+}
+
+const islandKey = (name: string, lon: number, lat: number) => `${name} ${lon} ${lat}`;
 
 /** The map, centred on a place at its zoom, in the permalink's terms (src/map-view.ts). */
 export function placeHref(place: Place): string {
@@ -112,24 +137,34 @@ class Grid {
 
 /**
  * The places as search results. Where two places of one kind share a name, as the several
- * Mud Bays do, each says which island or town it is nearest. Friday Harbor the bay, the
- * town and the ferry terminal are told apart by their kinds already.
+ * Mud Bays do, each says the island it is on, or else the town it is nearest. Friday
+ * Harbor the bay, the town and the ferry terminal are told apart by their kinds already.
  */
 export function placeEntries(places: readonly Place[]): SearchEntry[] {
   const key = (p: Place) => `${p.kind} ${fold(p.name)}`;
-  const counts = new Map<string, number>();
-  for (const p of places) counts.set(key(p), (counts.get(key(p)) ?? 0) + 1);
-  const grid = new Grid(places.filter(p => LANDMARK_KINDS.has(p.kind)));
-  return places.map(place => {
-    const near = (counts.get(key(place)) ?? 0) > 1 ? grid.nearest(place) : undefined;
-    return {
-      kind: 'place',
-      label: place.name,
-      note: [KIND_NOTES[place.kind] ?? 'Place', near && `near ${near.name}`].filter(Boolean).join(' · '),
-      keys: [...new Set([place.name, ...place.otherNames].map(fold))],
-      href: placeHref(place),
-    };
-  });
+  const namesakes = new Map<string, Place[]>();
+  for (const p of places) namesakes.set(key(p), [...namesakes.get(key(p)) ?? [], p]);
+  const islandZooms = new Map(places.filter(p => p.kind === 'island').map(p => [p.name, p.zoom]));
+  const towns = new Grid(places.filter(p => TOWN_KINDS.has(p.kind)));
+  const where = (place: Place): string | undefined => {
+    if (place.island && (islandZooms.get(place.island) ?? 0) >= LARGEST_TELLING_ISLAND) return `on ${place.island}`;
+    const town = towns.nearest(place);
+    return town && `near ${town.name}`;
+  };
+  // A note that doesn't tell a place from its namesakes says nothing, so it is left off.
+  const notes = new Map<Place, string | undefined>();
+  for (const same of namesakes.values()) {
+    if (same.length < 2) continue;
+    const wheres = same.map(where);
+    same.forEach((p, i) => notes.set(p, wheres.filter(w => w === wheres[i]).length > 1 ? undefined : wheres[i]));
+  }
+  return places.map(place => ({
+    kind: 'place',
+    label: place.name,
+    note: [KIND_NOTES[place.kind] ?? 'Place', notes.get(place)].filter(Boolean).join(' · '),
+    keys: [...new Set([place.name, ...place.otherNames].map(fold))],
+    href: placeHref(place),
+  }));
 }
 
 /** Every list's places as search results; a list that fails to load is left out, so the rest are still found. */
@@ -137,7 +172,13 @@ export async function loadPlaceEntries(lists: readonly string[] = PLACE_LISTS): 
   const loaded = await Promise.allSettled(lists.map(async url => {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`${url}: ${response.status}`);
-    return readPlaces(await response.json() as PlaceList);
+    const list = await response.json() as PlaceList;
+    return { places: readPlaces(list), islands: readIslands(list) };
   }));
-  return placeEntries(loaded.flatMap(result => result.status === 'fulfilled' ? result.value : []));
+  const read = loaded.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
+  const islands = new Map(read.flatMap(r => [...r.islands]));
+  return placeEntries(read.flatMap(r => r.places).map(p => {
+    const island = islands.get(islandKey(p.name, p.lon, p.lat));
+    return island ? { ...p, island } : p;
+  }));
 }
