@@ -15,7 +15,7 @@ import { fromLonLat, permalinkZoom } from './map-view.ts';
 import type { SearchEntry } from './search.ts';
 
 /** The lists, as the basemap version in src/basemap-style.json names them; scripts/update-basemap.ts rewrites this line. */
-export const PLACE_LISTS: readonly string[] = ['https://tiles.salishsea.io/places/places-gazetteers-6ebc4b7473854290.json', 'https://tiles.salishsea.io/places/places-osm-c356e8a3b37250a1.json'];
+export const PLACE_LISTS: readonly string[] = ['https://tiles.salishsea.io/places/places-gazetteers-6ebc4b7473854290.json', 'https://tiles.salishsea.io/places/places-osm-c2e7cd37c8651122.json'];
 
 /**
  * One list as the basemap writes it: its places as rows of its columns. The OpenStreetMap
