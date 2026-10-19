@@ -10,7 +10,8 @@
 
 import { renderDayCard, renderOccurrenceCard } from './cards.js';
 import { fetchDayOccurrences, fetchOccurrence } from './data.js';
-import { MISS as MISS_CACHE, cacheControlForDate, cacheControlForInstant } from './cache-control.js';
+import { INCOMPLETE, MISS as MISS_CACHE, cacheControlForDate, cacheControlForInstant } from './cache-control.js';
+import type { Card } from './cards.js';
 import { isValidDate, pacificDayRange } from './pacific-day.js';
 
 // Cache lifetimes are keyed on how recent the card's subject is — see
@@ -31,9 +32,10 @@ interface Result {
   isBase64Encoded?: boolean;
 }
 
-const image = (jpeg: Buffer, cacheControl: string): Result => ({
+/** A card, cached as its subject allows, or briefly if some of its basemap tiles failed. */
+const image = ({ jpeg, failedTiles }: Card, cacheControl: string): Result => ({
   statusCode: 200,
-  headers: { 'content-type': 'image/jpeg', 'cache-control': cacheControl },
+  headers: { 'content-type': 'image/jpeg', 'cache-control': failedTiles > 0 ? INCOMPLETE : cacheControl },
   body: jpeg.toString('base64'),
   isBase64Encoded: true,
 });
@@ -57,11 +59,12 @@ export const handler = async (event: FunctionUrlEvent): Promise<Result> => {
         console.log(JSON.stringify({ msg: 'card-miss', kind: 'occurrence', id }));
         return miss('no such occurrence, or it has no location');
       }
-      const jpeg = await renderOccurrenceCard(occ);
+      const card = await renderOccurrenceCard(occ);
       console.log(JSON.stringify({
-        msg: 'card', kind: 'occurrence', id, ms: Date.now() - started, bytes: jpeg.length,
+        msg: 'card', kind: 'occurrence', id, ms: Date.now() - started, bytes: card.jpeg.length,
+        failedTiles: card.failedTiles,
       }));
-      return image(jpeg, cacheControlForInstant(occ.observedAt));
+      return image(card, cacheControlForInstant(occ.observedAt));
     }
 
     const dayMatch = path.match(DAY_PATH);
@@ -70,12 +73,12 @@ export const handler = async (event: FunctionUrlEvent): Promise<Result> => {
       if (!isValidDate(date)) return miss('not a calendar date');
       const { endIso } = pacificDayRange(date);
       const occurrences = await fetchDayOccurrences(date);
-      const jpeg = await renderDayCard(occurrences, date);
+      const card = await renderDayCard(occurrences, date);
       console.log(JSON.stringify({
         msg: 'card', kind: 'day', date, fetched: occurrences.length,
-        ms: Date.now() - started, bytes: jpeg.length,
+        ms: Date.now() - started, bytes: card.jpeg.length, failedTiles: card.failedTiles,
       }));
-      return image(jpeg, cacheControlForDate(date, endIso));
+      return image(card, cacheControlForDate(date, endIso));
     }
 
     return miss('unrecognized card path');

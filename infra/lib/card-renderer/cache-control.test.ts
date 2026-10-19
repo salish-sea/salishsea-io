@@ -1,5 +1,5 @@
 import {
-  FRESH, FRESH_WINDOW_DAYS, MISS, SETTLED, cacheControlForDate, cacheControlForInstant,
+  FRESH, FRESH_WINDOW_DAYS, INCOMPLETE, MISS, SETTLED, cacheControlForDate, cacheControlForInstant,
 } from './cache-control';
 import { pacificDayRange } from './pacific-day';
 
@@ -15,7 +15,7 @@ describe('the policies themselves', () => {
   it('never marks a card immutable', () => {
     // Curation can revise an old record; `immutable` would make every such
     // correction depend on someone remembering to invalidate CloudFront.
-    for (const policy of [FRESH, SETTLED, MISS]) {
+    for (const policy of [FRESH, SETTLED, MISS, INCOMPLETE]) {
       expect(policy).not.toContain('immutable');
     }
   });

@@ -34,6 +34,13 @@ export const FRESH = 'public, max-age=300, must-revalidate';
 export const SETTLED = 'public, max-age=2592000';
 
 /**
+ * A card drawn while some of its basemap tiles didn't arrive, because tiles.salishsea.io
+ * was down or slow past the renderer's timeout, so it has sea-coloured holes. Whatever its
+ * subject, it is kept only as long as a recent one, so that it is drawn again soon.
+ */
+export const INCOMPLETE = FRESH;
+
+/**
  * A 404. Long enough that a crawler storm over one bad id doesn't hammer the
  * write API, short enough that a genuinely new occurrence isn't 404-locked.
  * A sighting saved here is answered by the API from the moment it is saved

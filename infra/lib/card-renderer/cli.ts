@@ -33,7 +33,7 @@ async function main(): Promise<number> {
       species: 'Orca',
       count: 3,
     };
-    writeFileSync(out, await renderOccurrenceCard(synthetic));
+    writeFileSync(out, (await renderOccurrenceCard(synthetic)).jpeg);
     console.log(`wrote ${out}`);
     return 0;
   }
@@ -43,7 +43,7 @@ async function main(): Promise<number> {
     if (!id || !out) throw new Error('usage: occurrence <id> <out.jpg>');
     const occ = await fetchOccurrence(id);
     if (!occ) throw new Error(`no occurrence ${id}`);
-    writeFileSync(out, await renderOccurrenceCard(occ));
+    writeFileSync(out, (await renderOccurrenceCard(occ)).jpeg);
     console.log(`wrote ${out} (${occ.species}, ${occ.location?.lon}, ${occ.location?.lat})`);
     return 0;
   }
@@ -52,7 +52,7 @@ async function main(): Promise<number> {
     const [date, out] = rest;
     if (!date || !out) throw new Error('usage: day <YYYY-MM-DD> <out.jpg>');
     const occurrences = await fetchDayOccurrences(date);
-    writeFileSync(out, await renderDayCard(occurrences, date));
+    writeFileSync(out, (await renderDayCard(occurrences, date)).jpeg);
     console.log(`wrote ${out} (${occurrences.length} occurrences fetched for ${date})`);
     return 0;
   }
