@@ -22,17 +22,44 @@ const SEA = { r: 0xc3, g: 0xde, b: 0xeb };
 const TILE_TIMEOUT_MS = 4000;
 
 /**
- * One tile, at TILE pixels; 'absent' if the basemap has no file for it, since its image
- * tiles cover only some of the map and S3 answers 403 for a file it doesn't hold; or
- * 'failed' if it didn't arrive, by a timeout, a network error or a server error. Either is
- * survivable: the mosaic keeps the sea-coloured background there. Only a failure would be
- * filled in by drawing the card again.
+ * The tiles the basemap has, as "z x y", from the list it publishes beside them (the
+ * basemap's decision 014): its image tiles cover only some of the map, and S3 answers a
+ * request for one it doesn't hold with 403, the same answer it would give if its
+ * permissions broke. Fetched once for each Lambda instance; a fetch that fails is tried
+ * again on the next card, and until then the list is unknown.
  */
-async function fetchTile(z: number, x: number, y: number): Promise<Buffer | 'absent' | 'failed'> {
+let held: Promise<Set<string>> | undefined;
+async function heldTiles(): Promise<Set<string> | undefined> {
+  held ??= (async () => {
+    const res = await fetch(IMAGE_TILES.replace('{z}/{x}/{y}.webp', 'tiles.txt'), { signal: AbortSignal.timeout(TILE_TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`tiles.txt: ${res.status}`);
+    return new Set((await res.text()).split('\n').filter(Boolean));
+  })();
+  try {
+    return await held;
+  } catch {
+    held = undefined;
+    return undefined;
+  }
+}
+
+/** For tests: forget the list of tiles, so that the next card fetches it again. */
+export function forgetHeldTiles(): void {
+  held = undefined;
+}
+
+/**
+ * One tile, at TILE pixels; 'absent' if the basemap's list says it has no such tile; or
+ * 'failed' if it didn't arrive, by a timeout, a network error or any answer but a tile.
+ * Either is survivable: the mosaic keeps the sea-coloured background there. Only a failure
+ * would be filled in by drawing the card again. When the list is unknown, every tile is
+ * asked for, and any that doesn't arrive counts as failed.
+ */
+async function fetchTile(z: number, x: number, y: number, list: Set<string> | undefined): Promise<Buffer | 'absent' | 'failed'> {
+  if (list && !list.has(`${z} ${x} ${y}`)) return 'absent';
   const url = IMAGE_TILES.replace('{z}', String(z)).replace('{x}', String(x)).replace('{y}', String(y));
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(TILE_TIMEOUT_MS) });
-    if (res.status === 403 || res.status === 404) return 'absent';
     if (!res.ok) return 'failed';
     return await sharp(Buffer.from(await res.arrayBuffer())).resize(TILE, TILE).png().toBuffer();
   } catch {
@@ -49,8 +76,9 @@ async function fetchTile(z: number, x: number, y: number): Promise<Buffer | 'abs
 export async function renderBasemap(v: Viewport): Promise<{ image: Buffer; failed: number }> {
   const { tiles, mosaicWidth, mosaicHeight, mosaicOffset } = tilesFor(v);
 
+  const list = await heldTiles();
   const fetched = await Promise.all(
-    tiles.map(async t => ({ t, tile: await fetchTile(t.z, t.x, t.y) })),
+    tiles.map(async t => ({ t, tile: await fetchTile(t.z, t.x, t.y, list) })),
   );
 
   const composites = fetched.flatMap(({ t, tile }) =>
