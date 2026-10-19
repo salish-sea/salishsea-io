@@ -40,16 +40,23 @@ export function normalizeInstant(iso: string): string {
   return /(?:Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`;
 }
 
-async function compose(v: Viewport, chrome: Parameters<typeof chromeSvg>[0]): Promise<Buffer> {
-  const { image } = await renderBasemap(v);
-  return await sharp(image)
+/** A card's JPEG, and how many of its basemap tiles failed to arrive, leaving sea-coloured holes. */
+export interface Card {
+  jpeg: Buffer;
+  failedTiles: number;
+}
+
+async function compose(v: Viewport, chrome: Parameters<typeof chromeSvg>[0]): Promise<Card> {
+  const { image, failed } = await renderBasemap(v);
+  const jpeg = await sharp(image)
     .composite([{ input: chromeSvg(chrome, v) }])
     .jpeg({ quality: 86, mozjpeg: true })
     .toBuffer();
+  return { jpeg, failedTiles: failed };
 }
 
 /** A card for one sighting: the marker centred, species and date beneath. */
-export async function renderOccurrenceCard(occ: Occurrence): Promise<Buffer> {
+export async function renderOccurrenceCard(occ: Occurrence): Promise<Card> {
   if (!occ.location) throw new Error(`occurrence ${occ.id} has no location`);
   const v = viewport(occ.location, OCCURRENCE_ZOOM, CARD_WIDTH, CARD_HEIGHT);
   const count = occ.count ?? 1;
@@ -68,7 +75,7 @@ export async function renderOccurrenceCard(occ: Occurrence): Promise<Buffer> {
  * only see what is in frame, and a number that includes dots outside it would be
  * a caption that lies about its own picture.
  */
-export async function renderDayCard(occurrences: Occurrence[], date: string): Promise<Buffer> {
+export async function renderDayCard(occurrences: Occurrence[], date: string): Promise<Card> {
   const v = viewport(SALISH_SEA_CENTER, DAY_ZOOM, CARD_WIDTH, CARD_HEIGHT);
   const markers: Marker[] = occurrences
     .filter(o => o.location && isVisible(o.location, v))

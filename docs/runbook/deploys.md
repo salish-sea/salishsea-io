@@ -140,7 +140,7 @@ Dropping `-e FONTCONFIG_PATH` reproduces the boxes, which is the check that the 
 
 ### Cached cards after a rendering change
 
-Cards are cached by how recent their subject is ([decision 020](../decisions/020-map-preview-cards.md)): a sighting or day within four days revalidates every five minutes, anything older is cached for 30 days. So a change to how cards *look* reaches recent cards within minutes and older ones over a month.
+Cards are cached by how recent their subject is ([decision 020](../decisions/020-map-preview-cards.md)): a sighting or day within four days revalidates every five minutes, anything older is cached for 30 days. A card drawn while some of its basemap tiles failed to arrive from tiles.salishsea.io, so that it has sea-coloured holes, is kept for only five minutes, whatever its subject. So a change to how cards *look* reaches recent cards within minutes and older ones over a month.
 
 **A deploy does not clear them** — the deploy step invalidates only `/` and `/index.html`. If a rendering change needs to take effect everywhere at once (or a bad card shipped), invalidate explicitly:
 
