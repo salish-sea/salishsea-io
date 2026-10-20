@@ -17,11 +17,13 @@ Over the production mirror on 2026-10-20:
 
 Peter then asked whether we should show anything iNaturalist grades Casual. Of the 1,158 Casual observations in the Salish Sea box on 2026-10-20, the grade means quite different things:
 
+Each observation is counted once, in the first row that applies to it:
+
 | Why iNaturalist grades it Casual | Observations |
 |---|---|
 | No photo or sound | 834 |
-| Its community voted that the animal isn't wild (iNaturalist calls these captive) | 183 |
-| Its community voted that the location, date or evidence is wrong, or not of one subject, or not recent | 69 |
+| Voted not wild (iNaturalist calls these captive) | 183 |
+| Voted that the location, date or evidence is wrong, or not of one subject, or not recent | 67 |
 | No date (already out, [043](043-undated-observations-are-out-of-scope.md)) | 68 |
 | Other | 6 |
 
@@ -36,6 +38,8 @@ The 834 with no photo or sound are mostly birders logging marine mammals as they
 The reason is what the takedown says about the observation, not about the photo. A copied photo means the observer is showing someone else's evidence, and an AI-generated one means the evidence was made. Either way the report can't be taken as a firsthand sighting, whatever else the observation says. 075 treats an observation as its evidence plus its identifications; when the evidence is discredited, the identifications of it count for nothing.
 
 **An iNaturalist observation that its community voted wrong is left out too.** iNaturalist asks voters a set of data-quality questions: is the organism wild, do the location and date seem accurate, is there evidence of the organism, is the evidence recent and of a single subject, does it depict the organism accurately. A question fails when fewer than half the votes on it agree, a tie passing, which is iNaturalist's own rule ([`Observation#passes_quality_metric?`](https://github.com/inaturalist/inaturalist/blob/0e15a4a4bd64b914672be1e4e6492c272a79fa9a/app/models/observation.rb#L1504-L1507)). An observation with any failing question is left out. The "wild" question is how iNaturalist marks an observation captive: the 183 captive observations are exactly the ones whose "wild" question fails. A sea otter at the aquarium is not a wild sighting, and a vote that the place or day is wrong is people who looked saying the sighting is mistaken.
+
+Not every "wild" vote is a person's. iNaturalist casts one of its own, with no voter, when an observation is "probably captive": more than ten observations of that taxon in the county, state or country it is in, at least 80% of them captive ([`Observation#probably_captive?`](https://github.com/inaturalist/inaturalist/blob/0e15a4a4bd64b914672be1e4e6492c272a79fa9a/app/models/observation.rb#L3415-L3452)), and it withdraws the vote once that stops holding ([`update_quality_metrics`](https://github.com/inaturalist/inaturalist/blob/0e15a4a4bd64b914672be1e4e6492c272a79fa9a/app/models/observation.rb#L2436-L2461)). We count that vote as iNaturalist does. Of the 183 captive observations, 11 rest on it alone, all sea otters, nearly all at the Vancouver Aquarium or on Seattle's waterfront. It can't fire for whales here, since few whale observations anywhere near are captive. A wild sea otter seen near the aquarium would be caught by it too, but one person voting that it is wild makes a tie, which passes, and the observation comes back.
 
 **What stays: the observations Casual only because they have no photo or sound.** They are shown as unconfirmed under [080](080-a-sighting-is-unconfirmed-until-someone-else-agrees.md), as an unchecked Maplify report is. Hiding them would adopt iNaturalist's grade as our verdict, which [075](075-an-inaturalist-observation-is-evidence-and-identifications.md) rejected, and would hide reports nobody has said are wrong.
 
