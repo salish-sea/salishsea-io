@@ -14,7 +14,7 @@ The map and the sidebar draw every sighting the same way, whether several people
 
 - **iNaturalist:** confirmed when someone other than the observer has a current identification of the species we show, or of a taxon within it, and no current identification names a different branch. Otherwise unconfirmed. An identification only to a broader group, such as "toothed whales", neither confirms nor disputes.
   - *Example:* someone posts a photo as a harbour porpoise and nobody else has looked. That's unconfirmed. A second person agrees, and it's confirmed. A second person suggests Dall's porpoise instead, and it's unconfirmed, because the identifications disagree.
-  - *Over the mirror on 2026-10-19:* 82,337 of 88,818 observations are confirmed, 5,759 unconfirmed and 722 disputed. Of 2026's 16,303, 1,634 are unconfirmed, about 10%.
+  - *Over the mirror on 2026-10-19:* of 88,818 observations, 82,337 are confirmed and 6,481 unconfirmed, 722 of those disputed. Of 2026's 16,303, 1,634 are unconfirmed, about 10%.
 - **Maplify:** unconfirmed when Maplify doesn't mark the report trusted. Its `trusted` flag is an input here, as 008 allows, not the meaning of the word. That's 14,938 of 47,542 reports, and 2,672 of 2026's 8,472. The Darwin Core archive already takes only trusted reports, and still does.
 - **Orcasound:** a bout whose species is tagged `possible` (054) is unconfirmed. A `possible` tag on a pod or an animal below the species keeps its trailing `?` and doesn't make the sighting unconfirmed.
 
