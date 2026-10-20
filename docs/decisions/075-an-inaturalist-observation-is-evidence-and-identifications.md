@@ -21,7 +21,7 @@ Today the build's iNaturalist arm takes the observation's current taxon and noth
 
 ## Not decided here
 
-- **How confidence is computed** from the evidence, the identifications and the identifiers' reputations. That's a rule we write, and it gets its own record.
+- **How confidence is computed** from the evidence, the identifications and the identifiers' reputations. That's a rule we write, and it gets its own record. *(The first rule, whether a sighting is confirmed at all, is [080](080-a-sighting-is-unconfirmed-until-someone-else-agrees.md); reputation is still open.)*
 - **Where expertise comes from**: a curated list, a register of identifiers, something else. 014 left reputation unmodelled, and it still is.
 - **How a person is linked across platforms.** An iNaturalist login, a Maplify username and a SalishSea.io contributor are three identities until something joins them.
 - **What the Darwin Core archive says.** Once there is a confidence of ours, `identificationVerificationStatus` and `identificationQualifier` come from it (054's rule for hedges still holds). iNaturalist records stay out of the archive regardless ([005](005-export-exclusion-src-01.md)).
