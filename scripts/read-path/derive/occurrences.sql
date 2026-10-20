@@ -97,11 +97,12 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
            SELECT list({'src': p.url, 'thumb': CAST(NULL AS VARCHAR), 'license': p.license,
                         'mimetype': CAST(NULL AS VARCHAR), 'attribution': p.attribution} ORDER BY p.seq)
            FROM source_inaturalist_observation_photos p
-           -- A photo flagged for copyright infringement or as AI-generated keeps `hidden`
-           -- false, but iNaturalist points its URL at a placeholder of its own, which it
-           -- doesn't let other sites load (Photo#sized_url in iNaturalist's app/models/photo.rb).
+           -- A photo its moderators hid keeps `hidden` false, but iNaturalist points its URL
+           -- at a placeholder of its own, which it doesn't let other sites load
+           -- (Photo#sized_url in iNaturalist's app/models/photo.rb). Its copyright and
+           -- AI-generated placeholders take the whole observation out, below (decision 081).
            WHERE p.observation_id = o.id AND NOT p.hidden AND p.license IS NOT NULL
-             AND NOT regexp_matches(p.url, '/assets/(copyright-infringement|artificially-generated-content|media-hidden)-')
+             AND NOT regexp_matches(p.url, '/assets/media-hidden-')
          ), []) AS photos,
          o.observed_at,
          CAST(NULL AS STRUCT(lat DOUBLE, lon DOUBLE)) AS observed_from,
@@ -132,7 +133,15 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
   LEFT JOIN public.organizations org ON org.id = col.organization_id
   -- Out of the map's scope by the ingest's isIngestable, decided in the build because the
   -- mirror keeps the whole fetch box (salish-xv35.8, derive/inaturalist-scope.ts).
-  WHERE o.id NOT IN (SELECT id FROM memory.inaturalist_out_of_scope);
+  WHERE o.id NOT IN (SELECT id FROM memory.inaturalist_out_of_scope)
+    -- A photo iNaturalist took down as a copyright infringement or as AI-generated means
+    -- the observer showed someone else's evidence, or made it, so the sighting it backs
+    -- can't be trusted either. The observation itself stays up there, often without even
+    -- a flag of its own (decision 081).
+    AND NOT EXISTS (
+      SELECT 1 FROM source_inaturalist_observation_photos p
+      WHERE p.observation_id = o.id
+        AND regexp_matches(p.url, '/assets/(copyright-infringement|artificially-generated-content)-'));
 
 -- arm: happywhale
 -- derived.happywhale_instant(local_time, zone): an encounter's local date and time as an
