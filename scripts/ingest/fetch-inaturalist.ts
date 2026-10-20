@@ -94,7 +94,9 @@ const OBSERVATION_FIELDS =
     // decision 075: who identified it as what, and what anyone wrote (rights-policy §5.5)
     'identifications:(id:!t,body:!t,created_at:!t,current:!t,own_observation:!t,disagreement:!t,' +
     'hidden:!t,vision:!t,user:(id:!t,login:!t,orcid:!t),taxon:(id:!t)),' +
-    'comments:(id:!t,body:!t,created_at:!t,hidden:!t,user:(id:!t,login:!t,orcid:!t)))';
+    'comments:(id:!t,body:!t,created_at:!t,hidden:!t,user:(id:!t,login:!t,orcid:!t)),' +
+    // decision 081: the community's votes on iNaturalist's data-quality questions
+    'quality_metrics:(id:!t,metric:!t,agree:!t))';
 
 // v2 `/taxa` field selection (copied from inaturalist.fetch_taxa in migration
 // 20250904165159_fetch_data.sql; matches parseInatTaxa's schema).
@@ -209,6 +211,10 @@ function observationsUrl(query: ObservationQuery, idAbove: number): string {
         taxon_id: INAT_ROOT_TAXON_IDS.join(','),
         geoprivacy: 'open',
         taxon_geoprivacy: 'open',
+        // iNaturalist hides an observation flagged as spam from its own pages, but its
+        // search returns it unless asked not to (decision 081). A reconciled window then
+        // deletes one flagged after we stored it.
+        spam: 'false',
         order_by: 'id',
         order: 'asc',
         id_above: String(idAbove),

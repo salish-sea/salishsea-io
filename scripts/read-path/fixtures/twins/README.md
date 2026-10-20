@@ -20,7 +20,7 @@ All of it is synthetic or public. The snapshot was taken (`snapshot.ts --answers
 
 Neither SQL file runs any more; they are the record of how the rows were made.
 
-Two input rows were added by hand after Postgres retired: photos 8000002 and 8000003 in `inaturalist_observation_photos.csv`, whose URLs are iNaturalist's placeholders for a photo flagged for copyright infringement and one flagged as AI-generated. Postgres never saw them, so its answers show observation 9000002 without a photo, which is what the build must derive (`salish-87oq`).
+Four input rows were added by hand after Postgres retired, none of which Postgres saw: observations 9000003 and 9000004 in `inaturalist_observations.csv`, and their photos 8000002 and 8000003 in `inaturalist_observation_photos.csv`, whose URLs are iNaturalist's placeholders for a photo flagged for copyright infringement and one flagged as AI-generated. Postgres's answers have neither observation, which is what the build must derive: such a photo takes its observation off the site (decision 081, which replaced `salish-87oq`'s rule of dropping only the photo).
 
 ## When a derivation changes on purpose
 

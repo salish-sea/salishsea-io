@@ -33,7 +33,7 @@ export async function mirrorsFromSnapshot(snapshot: string, dir: string): Promis
             CREATE TABLE inaturalist.observations AS
               SELECT id, description, location_lon AS lon, location_lat AS lat,
                      CAST(observed_at AS VARCHAR) AS observed_at, uri, username AS login, taxon_id,
-                     public_positional_accuracy
+                     public_positional_accuracy, quality_metrics
               FROM store.inaturalist.observations;
             CREATE TABLE inaturalist.observation_photos AS
               SELECT id, observation_id, seq, attribution, CAST(hidden AS INTEGER) AS hidden, license, url

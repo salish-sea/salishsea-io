@@ -32,6 +32,7 @@ function record(id: number) {
         user: { id: 1, login: 'observer' },
         identifications: [],
         comments: [],
+        quality_metrics: [],
     };
 }
 
@@ -87,6 +88,7 @@ describe('fetchAllObservationPages sweeps the window by ascending id', () => {
         expect(url.searchParams.get('id')).toBe('1,2');
         expect(url.searchParams.get('licensed')).toBe('true');
         expect(url.searchParams.get('geoprivacy')).toBe('open');
+        expect(url.searchParams.get('spam')).toBe('false');
         expect(url.searchParams.has('d1')).toBe(false);
         expect(url.searchParams.get('fields')).toContain('identifications:(');
     });
@@ -265,7 +267,7 @@ describe('resolveTaxonClosure over a retired taxon', () => {
         id: 1, description: null, lon: -123, lat: 48, observedAt: '2026-07-04T13:08:00-07:00',
         licenseCode: 'cc-by-nc', uri: 'https://inat/1', login: 'u', orcid: null,
         taxonId, ancestorIds, publicPositionalAccuracy: null,
-        updatedAt: '2026-07-05T20:08:06-07:00', photos: [], identifications: [], comments: [],
+        updatedAt: '2026-07-05T20:08:06-07:00', photos: [], identifications: [], comments: [], qualityMetrics: [],
     });
 
     it('asks by the path form, not the retired-taxon-hiding id= query param', async () => {

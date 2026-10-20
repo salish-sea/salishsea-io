@@ -32,7 +32,7 @@ const observation = (over: Partial<NormalizedObservation> & {id: number}): Norma
     description: null, lon: -123, lat: 48.5, observedAt: '2026-07-03T10:00:00-07:00', licenseCode: 'cc-by-nc',
     uri: 'https://www.inaturalist.org/observations/x', login: 'test_inat_a', orcid: null, taxonId: 2000000002,
     ancestorIds: [2000000001, 2000000002], publicPositionalAccuracy: 10, updatedAt: '2026-07-05T10:00:00-07:00',
-    photos: [], identifications: [], comments: [], ...over,
+    photos: [], identifications: [], comments: [], qualityMetrics: [], ...over,
 });
 const WINDOW: IngestWindow = {start: '2026-07-01', end: '2026-07-05'};
 
@@ -136,6 +136,24 @@ describe('the mirror', () => {
         expect(applyFetch(db, [{...bare, identifications: [identification({id: 9200000010})]}], [], null).written).toBe(1);
         db.close();
         expect(rows(path.join(dir, 'gains.sqlite')).identifications.map(i => i.id)).toEqual([9200000010]);
+    });
+
+    test('a mirror from before the votes were kept gains them when an observation is fetched again', () => {
+        const file = path.join(dir, 'votes.sqlite');
+        const old = openMirror(file);
+        const bare = observation({id: 9000000035});
+        applyFetch(old, [bare], taxa, null);
+        old.exec('ALTER TABLE observations DROP COLUMN quality_metrics');
+        old.close();
+        const db = openMirror(file);
+        expect(rows(file).observations[0]!.quality_metrics).toBeNull();
+        // the same upstream copy, same updated_at, now asked with its votes
+        const captive = {...bare, qualityMetrics: [{id: 2, metric: 'wild', agree: false}, {id: 1, metric: 'wild', agree: true}]};
+        expect(applyFetch(db, [captive], [], null).written).toBe(1);
+        expect(applyFetch(db, [captive], [], null).written).toBe(0);
+        db.close();
+        expect(JSON.parse(rows(file).observations[0]!.quality_metrics!)).toEqual(
+            [{id: 1, metric: 'wild', agree: true}, {id: 2, metric: 'wild', agree: false}]);
     });
 
     test('the backfill asks about observations without identifications, a page at a time, never the same twice', () => {
