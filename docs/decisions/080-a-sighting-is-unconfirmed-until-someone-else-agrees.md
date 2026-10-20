@@ -1,6 +1,6 @@
 # 080 — A sighting is unconfirmed until someone other than its reporter agrees, and the map shows it so
 
-**Status:** accepted · **Decided:** 2026-10-19, by Peter · **Answers:** the first rule [075](075-an-inaturalist-observation-is-evidence-and-identifications.md) left open ("how confidence is computed") · **Relates:** [008](008-source-schemas-are-upstream-mirrors.md) (upstream flags are parsed, not adopted), [054](054-certainty-is-the-asserters-status-is-ours.md) (certainty and status), [029](029-map-symbology.md) and [077](077-a-ring-shows-where-the-animal-may-have-been.md) (what the map's marks mean)
+**Status:** accepted · **Decided:** 2026-10-19, by Peter · **Work:** bd `salish-bwma` · **Answers:** the first rule [075](075-an-inaturalist-observation-is-evidence-and-identifications.md) left open ("how confidence is computed") · **Relates:** [008](008-source-schemas-are-upstream-mirrors.md) (upstream flags are parsed, not adopted), [054](054-certainty-is-the-asserters-status-is-ours.md) (certainty and status), [029](029-map-symbology.md) and [077](077-a-ring-shows-where-the-animal-may-have-been.md) (what the map's marks mean)
 
 ## Context
 
