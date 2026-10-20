@@ -209,6 +209,10 @@ function observationsUrl(query: ObservationQuery, idAbove: number): string {
         taxon_id: INAT_ROOT_TAXON_IDS.join(','),
         geoprivacy: 'open',
         taxon_geoprivacy: 'open',
+        // iNaturalist hides an observation flagged as spam from its own pages, but its
+        // search returns it unless asked not to (decision 081). A reconciled window then
+        // deletes one flagged after we stored it.
+        spam: 'false',
         order_by: 'id',
         order: 'asc',
         id_above: String(idAbove),

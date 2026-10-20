@@ -87,6 +87,7 @@ describe('fetchAllObservationPages sweeps the window by ascending id', () => {
         expect(url.searchParams.get('id')).toBe('1,2');
         expect(url.searchParams.get('licensed')).toBe('true');
         expect(url.searchParams.get('geoprivacy')).toBe('open');
+        expect(url.searchParams.get('spam')).toBe('false');
         expect(url.searchParams.has('d1')).toBe(false);
         expect(url.searchParams.get('fields')).toContain('identifications:(');
     });
