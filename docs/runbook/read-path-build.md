@@ -134,13 +134,13 @@ The operator build log, the same history as one page, is written after every bui
 
 ## Backfilling a mirror
 
-The ingests fetch a window each run (Maplify: 30 days plus one sampled older month; iNaturalist: what changed since the last run, the last ten days, and one older month). A mirror lost or newly created gets the rest by running the same script by hand with a window, under the lock so no build writes beside it. A manual run fails loudly rather than keeping the last good copy, and records itself in the run log as `manual`:
+The ingests fetch a window each run (Maplify: 30 days plus one sampled older month; iNaturalist: what changed since the last run, the last ten days, and one older month). A mirror lost or newly created gets the rest by running the same script by hand with a window, under the lock so no build writes beside it. It runs as `app`, as the build does (`fly/start.sh`): `fly ssh console` is root, and a file a root run creates, such as a mirror recreated from nothing, belongs to root, so the build can't write it afterwards. A manual run fails loudly rather than keeping the last good copy, and records itself in the run log as `manual`:
 
 ```sh
 # Maplify, one month; serves history, so any window works
-fly ssh console -a salishsea-io -C "sh -c 'cd /app && flock /data/build.lock node scripts/read-path/ingest-maplify.ts /data/mirrors/maplify.sqlite 2026-01-01 2026-01-31'"
+fly ssh console -a salishsea-io -C "sh -c 'cd /app && flock /data/build.lock setpriv --reuid=app --regid=app --init-groups env HOME=/home/app node scripts/read-path/ingest-maplify.ts /data/mirrors/maplify.sqlite 2026-01-01 2026-01-31'"
 # iNaturalist, likewise — but it asks for at most 60 requests a minute (decision 041), so a year takes hours; do it a month at a time
-fly ssh console -a salishsea-io -C "sh -c 'cd /app && flock /data/build.lock node scripts/read-path/ingest-inaturalist.ts /data/mirrors/inaturalist.sqlite 2026-01-01 2026-01-31'"
+fly ssh console -a salishsea-io -C "sh -c 'cd /app && flock /data/build.lock setpriv --reuid=app --regid=app --init-groups env HOME=/home/app node scripts/read-path/ingest-inaturalist.ts /data/mirrors/inaturalist.sqlite 2026-01-01 2026-01-31'"
 ```
 
 Orcasound is read whole every run, so its mirror needs no backfill. A scheduled Maplify run refuses to delete more than a tenth of a window's stored sightings in one go (a response cut short would otherwise read as a month of retractions) and fails instead; the run log's error names the window. If Maplify really did retract them, a backfill of that window by hand applies the deletes — the manual run has no floor. The iNaturalist mirror's taxa refresh themselves (thirty a run) and pick up what the register names on the next scheduled run. Its observations' identifications and comments (decision 075) backfill themselves too: each scheduled run asks about the next 200 observations that have no identification, by ascending id past a cursor in the mirror's `sync` table (`identifications_backfilled_through`). A whole mirror takes about a day and a half of builds, and the run log names each batch. A comment added to an old observation doesn't move its `updated_at`, so the mirror has it only once that observation is fetched again.
