@@ -468,6 +468,28 @@ The repository also carries a GPL-3 `LICENSE.md`, and its `DESCRIPTION` declares
 
 **Not covered.** Nicknames and naming stories (The Whale Museum, the Samish Indian Nation and others) are not in this file. They get their own entry when a source is chosen, on D-21's terms: naming facts are used, and creative prose is restated, not reproduced. The same export caveat as §7.1 applies.
 
+### 7.3 Which Salmon Run in Which River: WDFW and NWIFC's SWIFD, and DFO's NuSEDS (D-24)
+
+*Added 2026-10-19, by Peter.*
+
+**Use.** The basemap labels each named river near its mouth with the salmon and steelhead runs that use it, such as "Chinook (spring, summer, fall) · coho · chum · pink (odd years) · sockeye · steelhead (summer, winter)", to suggest why resident killer whales might be off a river mouth at a given season. The labels are distilled per river from two datasets; neither dataset is republished.
+
+**Sources.**
+- **Washington: SWIFD**, the Statewide Washington Integrated Fish Distribution, co-stewarded by WDFW and the Northwest Indian Fisheries Commission (NWIFC) for the western Washington treaty tribes. One record per stream reach, species, run and use (spawning, rearing, presence), about 73,000 reaches. Its stated terms, in the licence field of [WDFW's ArcGIS Online item](https://www.arcgis.com/home/item.html?id=4ed1382bad264555b018cc8c934f1c01), are "The dataset is open for public consumption", with editing limited to invited participants. No licence is named, and as Washington state works are not public domain by statute, the dataset's status alone doesn't settle reuse.
+- **British Columbia: NuSEDS**, Fisheries and Oceans Canada's New Salmon Escapement Database, under the [Open Government Licence – Canada](https://open.canada.ca/en/open-government-licence-canada), as published on [open.canada.ca](https://open.canada.ca/data/en/dataset/c48669a3-045b-400d-b730-48aafe8c5ee6). Its census sites give each population's stream, species and location.
+
+**Determination (D-24).** Both are used without asking permission:
+
+1. **What we take is facts.** That coho, fall chum and odd-year pink use a river is a fact about the river, not copyrightable (*Feist*), the ground D-21 and D-22 stand on. A label per named river is a summary of those facts.
+2. **The compilation is not reproduced.** We don't publish SWIFD's or NuSEDS's records, reaches or geometry, only the runs per named river, as D-21's compilation carve-out requires.
+3. **SWIFD's stated terms open it to the public,** and NuSEDS's licence permits reuse with attribution.
+
+**Credit.** Wherever the labels appear, the map's attribution credits "Salmon runs: WDFW and NWIFC; Fisheries and Oceans Canada". NuSEDS's licence requires its credit; SWIFD's is D-02's include-and-attribute default, as D-22 applies it.
+
+**Courtesy notes.** WDFW's Fish Program (Science Division, named as SWIFD's contact) and NWIFC are told what we use and how, as a courtesy; as in D-22, the note doesn't hold up the work.
+
+**Not covered.** Steelhead in British Columbia are not in NuSEDS, which holds the five Pacific salmon; another source would need its own entry.
+
 ---
 
 ## Decision Index
@@ -499,6 +521,7 @@ All D-numbers are cited in the sections above. For reference:
 | D-21 | 7.1 | Bigg's reference sheet: factual content (designations, genealogy, nickname etymology) is uncopyrightable and used freely; creative story prose stated as fact, not reproduced; compilation credited, not republished; ingest-side reference — any future export gets its own rights pass. |
 | D-22 | 7.2 | NOAA NWFSC `srkw-status` census file: a U.S. government work (17 U.S.C. §105) of facts, used without asking permission; the repo's GPL-3 covers its code, not the data; CWR credited as observer and NOAA as publisher; nicknames not covered; same export caveat as D-21. |
 | D-23 | 5.5 | iNaturalist identifications (identifier, taxon, when, current, own, disagreement, vision, hidden, text) and comments are mirrored to derive our own confidence (075) and read the animals people name, never republished; text hidden by iNaturalist's moderators is not kept; basis is iNaturalist's default CC BY-NC for content without a license choice; showing any of it to visitors needs its own rights pass. |
+| D-24 | 7.3 | Salmon runs per named river, distilled from WDFW and NWIFC's SWIFD (stated terms: "open for public consumption") and DFO's NuSEDS (Open Government Licence – Canada): facts used without asking permission (*Feist*), the compilations not reproduced, both credited in the map's attribution; courtesy notes to WDFW and NWIFC don't gate the work |
 
 ---
 
@@ -508,5 +531,6 @@ All D-numbers are cited in the sections above. For reference:
 *§7 (Reference & Catalog Source Rights) and D-21 (Bigg's reference sheet) added: 2026-07-07*
 *§7.2 and D-22 (NOAA NWFSC Southern Resident census file) added: 2026-09-29; adopted: 2026-10-06*
 *§5.5 and D-23 (iNaturalist identifications and comments mirrored, not published) added: 2026-10-10*
+*§7.3 and D-24 (salmon runs per river from SWIFD and NuSEDS) added: 2026-10-19*
 *Phase: 04-rights-data-model-policy-gate*
 *Document home: `docs/rights-policy.md` (authored as `.planning/phases/04-rights-data-model-policy-gate/04-POLICY.md` in the v1.2 policy-gate phase; moved here in the 2026-07 GSD migration)*
