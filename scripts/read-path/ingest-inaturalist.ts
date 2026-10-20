@@ -64,11 +64,13 @@ import { boundaryReceipt, recordedRun } from './ingest-runs.ts';
 export const FIRST_UPDATED_DAYS = 30;
 
 const SCHEMA = `
+    -- quality_metrics: the votes on iNaturalist's data-quality questions, as JSON (decision 081)
     CREATE TABLE IF NOT EXISTS observations (
         id INTEGER PRIMARY KEY, description TEXT, lon REAL NOT NULL, lat REAL NOT NULL,
         observed_at TEXT NOT NULL, observed_ms INTEGER NOT NULL, license_code TEXT,
         uri TEXT NOT NULL, login TEXT NOT NULL, orcid TEXT, taxon_id INTEGER NOT NULL,
-        ancestor_ids TEXT NOT NULL, public_positional_accuracy INTEGER, updated_at TEXT NOT NULL
+        ancestor_ids TEXT NOT NULL, public_positional_accuracy INTEGER, updated_at TEXT NOT NULL,
+        quality_metrics TEXT
     );
     CREATE INDEX IF NOT EXISTS observations_observed_ms ON observations (observed_ms);
     CREATE TABLE IF NOT EXISTS observation_photos (
@@ -107,6 +109,7 @@ export type ObservationRow = {
     id: number, description: string | null, lon: number, lat: number, observed_at: string,
     observed_ms: number, license_code: string | null, uri: string, login: string, orcid: string | null,
     taxon_id: number, ancestor_ids: string, public_positional_accuracy: number | null, updated_at: string,
+    quality_metrics: string | null,
 };
 
 /** A photo as the mirror stores it. */
@@ -140,6 +143,7 @@ export function observationRow(o: NormalizedObservation): ObservationRow {
         observed_ms: Date.parse(o.observedAt), license_code: o.licenseCode, uri: o.uri, login: o.login,
         orcid: o.orcid, taxon_id: o.taxonId, ancestor_ids: JSON.stringify(o.ancestorIds),
         public_positional_accuracy: o.publicPositionalAccuracy, updated_at: o.updatedAt,
+        quality_metrics: JSON.stringify([...o.qualityMetrics].sort((a, b) => a.id - b.id)),
     };
 }
 
@@ -188,6 +192,11 @@ export function openMirror(path: string): DatabaseSync {
     // taxon in it is then due, and the refresh works through them a run at a time.
     if (db.prepare("SELECT 1 FROM pragma_table_info('taxa') WHERE name = 'checked_at'").get() === undefined)
         db.exec('ALTER TABLE taxa ADD COLUMN checked_at TEXT');
+    // A mirror from before decision 081 holds no votes. Its observations then differ from
+    // what any fetch returns, so each is rewritten, votes and all, when next fetched. The
+    // column comes last in both the table and the row, as the comparison needs.
+    if (db.prepare("SELECT 1 FROM pragma_table_info('observations') WHERE name = 'quality_metrics'").get() === undefined)
+        db.exec('ALTER TABLE observations ADD COLUMN quality_metrics TEXT');
     return db;
 }
 

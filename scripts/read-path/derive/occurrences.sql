@@ -141,7 +141,16 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
     AND NOT EXISTS (
       SELECT 1 FROM source_inaturalist_observation_photos p
       WHERE p.observation_id = o.id
-        AND regexp_matches(p.url, '/assets/(copyright-infringement|artificially-generated-content)-'));
+        AND regexp_matches(p.url, '/assets/(copyright-infringement|artificially-generated-content)-'))
+    -- Nor is one whose community said it isn't a wild animal (iNaturalist's "captive"), or
+    -- that its location, date or evidence is wrong: any data-quality question on which fewer
+    -- than half the votes agree, a tie passing, as iNaturalist's own rule has it
+    -- (Observation#passes_quality_metric?). A missing photo, which also makes an observation
+    -- Casual there, doesn't take it out here (decision 081).
+    AND NOT EXISTS (
+      SELECT 1 FROM (SELECT unnest(o.quality_metrics) AS v)
+      GROUP BY v.metric
+      HAVING 2 * count_if(v.agree) < count(*));
 
 -- arm: happywhale
 -- derived.happywhale_instant(local_time, zone): an encounter's local date and time as an

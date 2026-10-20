@@ -176,6 +176,16 @@ const InatCommentSchema = z.object({
     user: InatAuthorSchema,
 });
 
+// One person's answer to one of iNaturalist's data-quality questions about an observation
+// (is the organism wild, does the location seem accurate, ...): `metric` names the
+// question. REQUIRED, like identifications: an empty list is ordinary, an absent one means
+// the field selection drifted, and decision 081 hides an observation by these votes.
+const InatQualityMetricSchema = z.object({
+    id: z.number().int(),
+    metric: z.string(),
+    agree: z.boolean(),
+});
+
 export const InatObservationSchema = z.object({
     id: z.number().int(),
     description: z.string().nullish(),
@@ -193,6 +203,7 @@ export const InatObservationSchema = z.object({
     user: InatUserSchema,
     identifications: z.array(InatIdentificationSchema),
     comments: z.array(InatCommentSchema),
+    quality_metrics: z.array(InatQualityMetricSchema),
 });
 
 export const InatResponseSchema = z.object({
@@ -295,6 +306,8 @@ export type NormalizedObservation = {
     readonly photos: readonly NormalizedPhoto[];
     readonly identifications: readonly NormalizedIdentification[];
     readonly comments: readonly NormalizedComment[];
+    /** Every vote on iNaturalist's data-quality questions, by id. */
+    readonly qualityMetrics: readonly {readonly id: number, readonly metric: string, readonly agree: boolean}[];
 };
 
 /** One normalized taxon row (the taxa closure the shell resolves before persist). */
@@ -359,6 +372,7 @@ export function normalizeObservation(
             id: c.id, userId: c.user?.id ?? null, login: c.user?.login ?? null, orcid: blankToNull(c.user?.orcid),
             body: c.hidden ? null : blankToNull(c.body), createdAt: c.created_at, hidden: c.hidden,
         })),
+        qualityMetrics: r.quality_metrics.map(q => ({id: q.id, metric: q.metric, agree: q.agree})),
     };
 }
 

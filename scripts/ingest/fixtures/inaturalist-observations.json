@@ -139,7 +139,8 @@
           "body": null
         }
       ],
-      "comments": []
+      "comments": [],
+      "quality_metrics": []
     },
     {
       "id": 378638325,
@@ -218,7 +219,8 @@
           "body": null
         }
       ],
-      "comments": []
+      "comments": [],
+      "quality_metrics": []
     },
     {
       "id": 378610508,
@@ -296,7 +298,8 @@
           "body": null
         }
       ],
-      "comments": []
+      "comments": [],
+      "quality_metrics": []
     },
     {
       "id": 378550282,
@@ -374,7 +377,8 @@
           "body": null
         }
       ],
-      "comments": []
+      "comments": [],
+      "quality_metrics": []
     },
     {
       "id": 378638904,
@@ -438,7 +442,8 @@
           "body": null
         }
       ],
-      "comments": []
+      "comments": [],
+      "quality_metrics": []
     },
     {
       "id": 378638874,
@@ -531,7 +536,8 @@
           "body": null
         }
       ],
-      "comments": []
+      "comments": [],
+      "quality_metrics": []
     }
   ]
 }

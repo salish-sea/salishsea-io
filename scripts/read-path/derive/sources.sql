@@ -26,6 +26,8 @@ CREATE OR REPLACE TEMP VIEW source_maplify_sightings AS
   FROM maplify_mirror.sightings;
 
 -- inaturalist.observations. observed_at is iNaturalist's ISO 8601 with its offset.
+-- quality_metrics is NULL for an observation not fetched since the mirror began keeping
+-- the votes (decision 081).
 CREATE OR REPLACE TEMP VIEW source_inaturalist_observations AS
   SELECT CAST(id AS BIGINT) AS id, description,
          CAST(lon AS DOUBLE) AS location_lon, CAST(lat AS DOUBLE) AS location_lat,
@@ -34,7 +36,8 @@ CREATE OR REPLACE TEMP VIEW source_inaturalist_observations AS
          CAST(public_positional_accuracy AS INTEGER) AS public_positional_accuracy,
          (SELECT id FROM public.providers WHERE slug = 'inaturalist') AS provider_id,
          (SELECT id FROM public.collections WHERE slug = 'inaturalist') AS collection_id,
-         uri AS source_url
+         uri AS source_url,
+         from_json(quality_metrics, '[{"metric": "VARCHAR", "agree": "BOOLEAN"}]') AS quality_metrics
   FROM inaturalist_mirror.observations;
 
 CREATE OR REPLACE TEMP VIEW source_inaturalist_observation_photos AS
