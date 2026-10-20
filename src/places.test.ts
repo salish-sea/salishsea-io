@@ -57,6 +57,17 @@ describe('place lists (basemap decision 018)', () => {
     expect(entries.slice(0, 2).map(e => e.note)).toEqual(['Point · near Langley', 'Point · near Oak Harbor']);
   });
 
+  test('namesakes on one island say the town each is nearest instead', () => {
+    const entries = placeEntries([
+      { ...place('North Bay', 'water', -123.009, 48.514), island: 'San Juan Island' },
+      { ...place('North Bay', 'water', -123.15, 48.62), island: 'San Juan Island' },
+      place('San Juan Island', 'island', -123.06809, 48.53714, 10),
+      place('Friday Harbor', 'village', -123.017, 48.534),
+      place('Roche Harbor', 'village', -123.155, 48.609),
+    ]);
+    expect(entries.slice(0, 2).map(e => e.note)).toEqual(['Water · near Friday Harbor', 'Water · near Roche Harbor']);
+  });
+
   test('namesakes that would get the same note get none, since it would not tell them apart', () => {
     const entries = placeEntries([
       place('Kiapot Point', 'point', -123.04073, 48.07954),

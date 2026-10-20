@@ -146,16 +146,19 @@ export function placeEntries(places: readonly Place[]): SearchEntry[] {
   for (const p of places) namesakes.set(key(p), [...namesakes.get(key(p)) ?? [], p]);
   const islandZooms = new Map(places.filter(p => p.kind === 'island').map(p => [p.name, p.zoom]));
   const towns = new Grid(places.filter(p => TOWN_KINDS.has(p.kind)));
-  const where = (place: Place): string | undefined => {
-    if (place.island && (islandZooms.get(place.island) ?? 0) >= LARGEST_TELLING_ISLAND) return `on ${place.island}`;
+  const onIsland = (place: Place): string | undefined =>
+    place.island && (islandZooms.get(place.island) ?? 0) >= LARGEST_TELLING_ISLAND ? `on ${place.island}` : undefined;
+  const nearTown = (place: Place): string | undefined => {
     const town = towns.nearest(place);
     return town && `near ${town.name}`;
   };
-  // A note that doesn't tell a place from its namesakes says nothing, so it is left off.
+  // An island two namesakes are both on doesn't tell them apart, so they say a town instead;
+  // and a note that still doesn't tell a place from its namesakes says nothing, so it is left off.
   const notes = new Map<Place, string | undefined>();
   for (const same of namesakes.values()) {
     if (same.length < 2) continue;
-    const wheres = same.map(where);
+    const islands = same.map(onIsland);
+    const wheres = same.map((p, i) => islands[i] && islands.indexOf(islands[i]) === islands.lastIndexOf(islands[i]) ? islands[i] : nearTown(p));
     same.forEach((p, i) => notes.set(p, wheres.filter(w => w === wheres[i]).length > 1 ? undefined : wheres[i]));
   }
   return places.map(place => ({
