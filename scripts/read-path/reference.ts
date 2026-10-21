@@ -37,7 +37,7 @@ export type ReferenceTable = {
 /** The enum types the build reads: the derivation's, and the catalogue's vocabularies. */
 const ENUMS = [
     'inaturalist.rank', 'public.identification_certainty', 'public.travel_direction',
-    'public.license', 'public.sex', 'happywhale.accuracy',
+    'public.license', 'public.sex',
     // the catalogue's vocabularies, which catalogue.ts holds its files to (salish-9uu.2.3)
     'public.designation_scheme', 'public.designation_status', 'public.parentage_certainty',
     'public.nickname_status', 'public.party_kind', 'public.social_group_kind',

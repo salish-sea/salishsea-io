@@ -17,8 +17,7 @@
  * Postgres is no longer the way back. The rest of what the build reads comes from
  * elsewhere: Maplify, iNaturalist and Orcasound from its own mirrors (salish-xv35.9), the
  * reference tables and the catalogue from checked-in files (reference.ts, catalogue.ts,
- * decision 064), the register from its own release (ingest-register.ts), and
- * Happywhale's frozen tables from a file (happywhale.ts).
+ * decision 064), and the register from its own release (ingest-register.ts).
  *
  * Until salish-9uu.11 this could also read a local Postgres, with Postgres's own derived
  * answers, for the twin tests; those read a checked-in fixture instead (twin-fixture.ts).
@@ -31,20 +30,6 @@ import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 
 import { budget } from './duckdb-budget.ts';
 import { DAY_ZONE } from './pacific-day.ts';
-
-/**
- * Happywhale's tables, frozen: nothing has written them since their in-database loader
- * stopped being called (decision 061). The build reads them from one file on the volume
- * (happywhale.ts, decision 064, salish-9uu.2.4), exported once from Postgres
- * (happywhale-export.ts), each with the columns Postgres's snapshot read.
- */
-export const HAPPYWHALE_TABLES: readonly {table: string}[] = [
-    {table: 'happywhale.encounters'},
-    {table: 'happywhale.users'},
-    {table: 'happywhale.individuals'},
-    {table: 'happywhale.species'},
-    {table: 'happywhale.media'},
-];
 
 /**
  * What users write, read from the store (decision 065): the tables the occurrences and the

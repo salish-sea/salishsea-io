@@ -2,11 +2,6 @@ COPY derived.occurrence_identifier_candidates FROM '{dir}/derived_occurrence_ide
 COPY dwc.export_coverage FROM '{dir}/dwc_export_coverage.csv' (FORMAT 'csv', quote '"', delimiter ',', header 1);
 COPY dwc.multimedia FROM '{dir}/dwc_multimedia.csv' (FORMAT 'csv', quote '"', delimiter ',', header 1);
 COPY dwc.occurrences FROM '{dir}/dwc_occurrences.csv' (FORMAT 'csv', quote '"', delimiter ',', header 1);
-COPY happywhale.encounters FROM '{dir}/happywhale_encounters.csv' (FORMAT 'csv', quote '"', delimiter ',', header 1);
-COPY happywhale.individuals FROM '{dir}/happywhale_individuals.csv' (FORMAT 'csv', quote '"', delimiter ',', header 1);
-COPY happywhale.media FROM '{dir}/happywhale_media.csv' (FORMAT 'csv', quote '"', delimiter ',', header 1);
-COPY happywhale.species FROM '{dir}/happywhale_species.csv' (FORMAT 'csv', quote '"', delimiter ',', header 1);
-COPY happywhale.users FROM '{dir}/happywhale_users.csv' (FORMAT 'csv', quote '"', delimiter ',', header 1);
 COPY inaturalist.observations FROM '{dir}/inaturalist_observations.csv' (FORMAT 'csv', quote '"', delimiter ',', header 1);
 COPY inaturalist.observation_photos FROM '{dir}/inaturalist_observation_photos.csv' (FORMAT 'csv', quote '"', delimiter ',', header 1);
 COPY inaturalist.taxa FROM '{dir}/inaturalist_taxa.csv' (FORMAT 'csv', quote '"', delimiter ',', header 1);

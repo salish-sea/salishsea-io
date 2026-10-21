@@ -2,11 +2,11 @@
 
 The read-path build derives the occurrences, their identifier candidates, the catalogue's views over the register, the profile pages' links and the Darwin Core relations in DuckDB, as twins of what Postgres's views computed (decision 061). Postgres was the twins' only oracle. These files are what it answered, captured once on 2026-10-09 before it retired (`salish-9uu.11`), so the twins stay checked without it.
 
-- **`snapshot/`**: a read-path snapshot, the inputs and Postgres's answers together, as DuckDB's `EXPORT DATABASE` writes one in CSV, each table's rows sorted. [`twin-fixture.ts`](../../twin-fixture.ts) loads it; [`derive-occurrences.test.ts`](../../derive-occurrences.test.ts) derives from it and compares each derivation with Postgres's answer beside it (the `compare-*.ts` files). The inputs are the tables the build reads, under their Postgres names: what users write, the source tables the mirrors are written from (`derive/mirrors-from-snapshot.ts`), Happywhale's, the register and the catalogue's documents. The answers are `snapshot.occurrences`, the link views under `snapshot.`, `snapshot.<view>_answer` for the catalogue's three views, `derived.occurrence_identifier_candidates` and `dwc.*`. The reference tables aren't in it: the test loads them from `data/reference/`, as the build does.
+- **`snapshot/`**: a read-path snapshot, the inputs and Postgres's answers together, as DuckDB's `EXPORT DATABASE` writes one in CSV, each table's rows sorted. [`twin-fixture.ts`](../../twin-fixture.ts) loads it; [`derive-occurrences.test.ts`](../../derive-occurrences.test.ts) derives from it and compares each derivation with Postgres's answer beside it (the `compare-*.ts` files). The inputs are the tables the build reads, under their Postgres names: what users write, the source tables the mirrors are written from (`derive/mirrors-from-snapshot.ts`), the register and the catalogue's documents. The answers are `snapshot.occurrences`, the link views under `snapshot.`, `snapshot.<view>_answer` for the catalogue's three views, `derived.occurrence_identifier_candidates` and `dwc.*`. The reference tables aren't in it: the test loads them from `data/reference/`, as the build does.
 - **`haulout-distance.tsv`**: `public.haulout_distance_m` around three haul-out sites, for `derive/haulout-distance.test.ts`.
 - **`ingest-*.json`**: what Postgres's ingest stored for each ingest test's recorded response, for the "mirror stores what Postgres stored" tests.
 
-The smaller twins' answers (the text extractions, Happywhale's instants, the register's fold) are written into their tests.
+The smaller twins' answers (the text extractions, the register's fold) are written into their tests.
 
 ## Where the rows came from
 

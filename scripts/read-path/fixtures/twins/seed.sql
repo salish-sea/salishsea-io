@@ -56,20 +56,6 @@ INSERT INTO public.acoustic_bout_entities (bout_id, entity_id, certainty) VALUES
     ('bout_twin0000000000000001', 'SSA:0000020', 'probable'),
     ('bout_twin0000000000000001', 'SSA:0000001', 'probable');
 
--- Happywhale (provider 4, collection 9): T065A, encountered in local time and zone.
-INSERT INTO happywhale.species (id, code, name, plural, scientific)
-VALUES (1, 'killer_whale', 'Killer whale', 'Killer whales', 'Orcinus orca');
-INSERT INTO happywhale.individuals (id, species, primary_id, nickname, sex) VALUES (1, 1, 'T065A', NULL, 'female');
-INSERT INTO happywhale.users (id, display_name) VALUES (1, 'Synthetic Contributor');
-INSERT INTO happywhale.encounters (
-    id, start_date, start_time, timezone, verbatim_location, location, individual_id, species_id, min_count,
-    comments, public, fetched_at, user_id, provider_id, collection_id
-) VALUES (1, '2026-09-17', '13:01:38', 'America/Vancouver', 'Off Turn Point',
-          gis.ST_Point(-123.24, 48.69)::gis.geography, 1, 1, 4, 'Mother and calf', TRUE,
-          '2026-09-18 00:00:00', 1, 4, 9);
-INSERT INTO happywhale.media (id, encounter_id, thumb_url, url, user_id, license_level, mimetype, public)
-VALUES (1, 1, 'https://happywhale.com/media/1/thumb.jpg', 'https://happywhale.com/media/1.jpg', 1, 'cc-by', 'image/jpeg', TRUE);
-
 -- A second native sighting (provider 1), with text the extraction reads and an
 -- identification asserted on it; and one rejecting an animal the Maplify text names.
 DO $$
