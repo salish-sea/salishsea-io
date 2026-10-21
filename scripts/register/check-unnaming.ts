@@ -9,10 +9,12 @@
  *     --baseline https://salishsea.io/status/maplify-names.json \
  *     --allow data/maplify-unnamed.tsv
  *
- * The baseline is the read-path build's own: every (name, scientific name) pair its
- * Maplify mirror holds and the entity the build resolved it to, published from the build
- * machine. The build's gate (read-path/check-maplify-names.ts) judges each build against
- * the same file with the same rule, and stays as the backstop for an edition that reached
+ * The baseline is the read-path build's own: every (name, scientific name) pair a passing
+ * build resolved and the entity it resolved it to, checked in as data/maplify-names.json
+ * (decision 083). The URL above is the build's report of what that file should become,
+ * with the pairs no pull request has added yet, so it is the stricter one to ask. The
+ * build's gate (read-path/check-maplify-names.ts) judges each build against the checked-in
+ * file with the same rule, and stays as the backstop for an edition that reached
  * Postgres without passing here (a hand `--emit-sql` load). Both read the same allow-list.
  *
  * The edition is read the way the build reads a register: its TSVs into DuckDB, the
@@ -20,11 +22,11 @@
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
-import { readFileSync, rmSync } from 'node:fs';
+import { rmSync } from 'node:fs';
 import path from 'node:path';
 
 import { resolveEntity, type NormalizedSighting } from '../ingest/maplify.ts';
-import { judge, type Named, type Unnamed } from '../read-path/check-maplify-names.ts';
+import { judge, type Named, readBaseline, type Unnamed } from '../read-path/check-maplify-names.ts';
 import { fetchEdition } from './edition.ts';
 import { buildNameIndex, NAME_INDEX_SQL, type RegisterName } from './name-index.ts';
 import { readUnnamed } from './unnamed.ts';
@@ -62,19 +64,6 @@ export async function checkEdition(
         conn.closeSync();
         db.closeSync();
     }
-}
-
-async function readBaseline(source: string): Promise<Named[]> {
-    const text = /^https?:\/\//.test(source)
-        ? await (async () => {
-            const res = await fetch(source, {signal: AbortSignal.timeout(30_000)});
-            if (!res.ok) throw new Error(`${res.status} fetching ${source}`);
-            return res.text();
-        })()
-        : readFileSync(source, 'utf8');
-    const parsed = JSON.parse(text) as {pairs?: unknown};
-    if (!Array.isArray(parsed.pairs)) throw new Error(`${source}: not a baseline ({pairs: [...]})`);
-    return parsed.pairs as Named[];
 }
 
 async function main(): Promise<void> {

@@ -1,0 +1,539 @@
+{
+ "pairs": [
+  {
+   "name": "Baird's Beaked Whale Sighting:",
+   "scientific_name": "Berardius bairdii",
+   "entity_id": "SSA:0000924"
+  },
+  {
+   "name": "Baird's Beaked Whale",
+   "scientific_name": "Berardius bairdii",
+   "entity_id": "SSA:0000924"
+  },
+  {
+   "name": "Baleine grise",
+   "scientific_name": "",
+   "entity_id": "SSA:0000905"
+  },
+  {
+   "name": "Ballena Azul",
+   "scientific_name": "",
+   "entity_id": "SSA:0000919"
+  },
+  {
+   "name": "Ballena jorobada",
+   "scientific_name": "",
+   "entity_id": "SSA:0000901"
+  },
+  {
+   "name": "Beluga",
+   "scientific_name": "Delphinapterus leucas",
+   "entity_id": "SSA:0000953"
+  },
+  {
+   "name": "Blue Whale Sighting:",
+   "scientific_name": "Balaenoptera musculus",
+   "entity_id": "SSA:0000919"
+  },
+  {
+   "name": "Blue Whale",
+   "scientific_name": "Balaenoptera musculus",
+   "entity_id": "SSA:0000919"
+  },
+  {
+   "name": "Bottlenose Dolphin",
+   "scientific_name": "Tursiops truncatus",
+   "entity_id": "SSA:0000927"
+  },
+  {
+   "name": "Bottlenose Whale",
+   "scientific_name": "Hyperoodon",
+   "entity_id": "SSA:0000955"
+  },
+  {
+   "name": "California Sea Lion",
+   "scientific_name": "",
+   "entity_id": "SSA:0000903"
+  },
+  {
+   "name": "Common Dolphin",
+   "scientific_name": "Delphinus",
+   "entity_id": "SSA:0000942"
+  },
+  {
+   "name": "Common Long-Beaked Dolphin",
+   "scientific_name": "Delphinus capensis",
+   "entity_id": "SSA:0000928"
+  },
+  {
+   "name": "Common Short-Beaked Dolphin",
+   "scientific_name": "Delphinus delphis",
+   "entity_id": "SSA:0000928"
+  },
+  {
+   "name": "Cuvier's Beaked Whale Sighting:",
+   "scientific_name": "Ziphius cavirostris",
+   "entity_id": "SSA:0000925"
+  },
+  {
+   "name": "Dall's Porpoise Sighting:",
+   "scientific_name": "Phocoenoides dalli",
+   "entity_id": "SSA:0000913"
+  },
+  {
+   "name": "Dall's Porpoise",
+   "scientific_name": "Phocoenoides dalli",
+   "entity_id": "SSA:0000913"
+  },
+  {
+   "name": "Dall's porpoise",
+   "scientific_name": "Phocoenoides dalli",
+   "entity_id": "SSA:0000913"
+  },
+  {
+   "name": "Dwarf Sperm Whale",
+   "scientific_name": "Kogia sima",
+   "entity_id": "SSA:0000923"
+  },
+  {
+   "name": "Fin Whale Sighting:",
+   "scientific_name": "Balaenoptera physalus",
+   "entity_id": "SSA:0000916"
+  },
+  {
+   "name": "Fin Whale",
+   "scientific_name": "Balaenoptera physalus",
+   "entity_id": "SSA:0000916"
+  },
+  {
+   "name": "Fin whale",
+   "scientific_name": "Balaenoptera physalus",
+   "entity_id": "SSA:0000916"
+  },
+  {
+   "name": "Finback Whale",
+   "scientific_name": "",
+   "entity_id": "SSA:0000916"
+  },
+  {
+   "name": "Finback Whale",
+   "scientific_name": "Balaenoptera acutorostrata",
+   "entity_id": "SSA:0000916"
+  },
+  {
+   "name": "Finback Whale",
+   "scientific_name": "Balaenoptera physalus",
+   "entity_id": "SSA:0000916"
+  },
+  {
+   "name": "Finback Whale",
+   "scientific_name": "N/A",
+   "entity_id": "SSA:0000916"
+  },
+  {
+   "name": "Gray Whale Sighting:",
+   "scientific_name": "Eschrichtius robustus",
+   "entity_id": "SSA:0000905"
+  },
+  {
+   "name": "Gray Whale",
+   "scientific_name": "",
+   "entity_id": "SSA:0000905"
+  },
+  {
+   "name": "Gray Whale",
+   "scientific_name": "Eschrichtius robustus",
+   "entity_id": "SSA:0000905"
+  },
+  {
+   "name": "Gray Whale",
+   "scientific_name": "Megaptera novaeangliae",
+   "entity_id": "SSA:0000905"
+  },
+  {
+   "name": "Gray Whale",
+   "scientific_name": "N/A",
+   "entity_id": "SSA:0000905"
+  },
+  {
+   "name": "Gray",
+   "scientific_name": "",
+   "entity_id": "SSA:0000905"
+  },
+  {
+   "name": "Grey whale",
+   "scientific_name": "",
+   "entity_id": "SSA:0000905"
+  },
+  {
+   "name": "Grey",
+   "scientific_name": "",
+   "entity_id": "SSA:0000905"
+  },
+  {
+   "name": "Harbor Porpoise Sighting:",
+   "scientific_name": "Phocoena phocoena",
+   "entity_id": "SSA:0000912"
+  },
+  {
+   "name": "Harbor Porpoise",
+   "scientific_name": "",
+   "entity_id": "SSA:0000912"
+  },
+  {
+   "name": "Harbor Porpoise",
+   "scientific_name": "Phocoena phocoena",
+   "entity_id": "SSA:0000912"
+  },
+  {
+   "name": "Humpback Sighting:",
+   "scientific_name": "Megaptera novaeangliae",
+   "entity_id": "SSA:0000901"
+  },
+  {
+   "name": "Humpback Whale",
+   "scientific_name": "Megaptera novaeangliae",
+   "entity_id": "SSA:0000901"
+  },
+  {
+   "name": "Humpback whale",
+   "scientific_name": "Megaptera novaeangliae",
+   "entity_id": "SSA:0000901"
+  },
+  {
+   "name": "Humpback",
+   "scientific_name": "",
+   "entity_id": "SSA:0000901"
+  },
+  {
+   "name": "Humpback",
+   "scientific_name": "Eschrichtius robustus",
+   "entity_id": "SSA:0000901"
+  },
+  {
+   "name": "Humpback",
+   "scientific_name": "Megaptera novaeangliae",
+   "entity_id": "SSA:0000901"
+  },
+  {
+   "name": "Humpback",
+   "scientific_name": "N/A",
+   "entity_id": "SSA:0000901"
+  },
+  {
+   "name": "Humpback",
+   "scientific_name": "Orcinus orca",
+   "entity_id": "SSA:0000901"
+  },
+  {
+   "name": "Killer Whale (Orca) Sighting:",
+   "scientific_name": "Orcinus orca",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Killer Whale (Orca)",
+   "scientific_name": "",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Killer Whale (Orca)",
+   "scientific_name": "Eubalaena",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Killer Whale (Orca)",
+   "scientific_name": "N/A",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Killer Whale (Orca)",
+   "scientific_name": "Orcinus orca",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Killer Whale Sighting:",
+   "scientific_name": "Orcinus orca",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Killer Whale",
+   "scientific_name": "Orcinus orca",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Killer whale",
+   "scientific_name": "Orcinus orca",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Long-beaked Common Dolphin Sighting:",
+   "scientific_name": "Delphinus capensis",
+   "entity_id": "SSA:0000928"
+  },
+  {
+   "name": "Long-beaked Common Dolphin",
+   "scientific_name": "Delphinus capensis",
+   "entity_id": "SSA:0000928"
+  },
+  {
+   "name": "Marsouin commun",
+   "scientific_name": "Phocoena phocoena",
+   "entity_id": "SSA:0000912"
+  },
+  {
+   "name": "Minke Whale Sighting:",
+   "scientific_name": "Balaenoptera acutorostrata",
+   "entity_id": "SSA:0000915"
+  },
+  {
+   "name": "Minke Whale",
+   "scientific_name": "",
+   "entity_id": "SSA:0000915"
+  },
+  {
+   "name": "Minke Whale",
+   "scientific_name": "Balaenoptera acutorostrata",
+   "entity_id": "SSA:0000915"
+  },
+  {
+   "name": "Minke Whale",
+   "scientific_name": "Megaptera novaeangliae",
+   "entity_id": "SSA:0000915"
+  },
+  {
+   "name": "Minke Whale",
+   "scientific_name": "N/A",
+   "entity_id": "SSA:0000915"
+  },
+  {
+   "name": "Minke whale",
+   "scientific_name": "Balaenoptera acutorostrata",
+   "entity_id": "SSA:0000915"
+  },
+  {
+   "name": "Northern Fur Seal",
+   "scientific_name": "Callorhinus ursinus",
+   "entity_id": "SSA:0000933"
+  },
+  {
+   "name": "Northern Right Whale Dolphin Sighting:",
+   "scientific_name": "Lissodelphis borealis",
+   "entity_id": "SSA:0000929"
+  },
+  {
+   "name": "Northern Right Whale Dolphin",
+   "scientific_name": "Lissodelphis borealis",
+   "entity_id": "SSA:0000929"
+  },
+  {
+   "name": "Northern right whale dolphin",
+   "scientific_name": "Lissodelphis borealis",
+   "entity_id": "SSA:0000929"
+  },
+  {
+   "name": "Northern right-whale Dolphin",
+   "scientific_name": "",
+   "entity_id": "SSA:0000929"
+  },
+  {
+   "name": "Orca (ballena asesina)",
+   "scientific_name": "",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Orca Sighting:",
+   "scientific_name": "Orcinus orca",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Orca",
+   "scientific_name": "",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Orca",
+   "scientific_name": "Orcinus orca",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Pacific White-Sided Dolphin",
+   "scientific_name": "Lagenorhynchus obliquidens",
+   "entity_id": "SSA:0000914"
+  },
+  {
+   "name": "Pacific White-sided Dolphin Sighting:",
+   "scientific_name": "Lagenorhynchus obliquidens",
+   "entity_id": "SSA:0000914"
+  },
+  {
+   "name": "Pacific White-sided Dolphin",
+   "scientific_name": "Lagenorhynchus obliquidens",
+   "entity_id": "SSA:0000914"
+  },
+  {
+   "name": "Pacific white-sided dolphin",
+   "scientific_name": "Lagenorhynchus obliquidens",
+   "entity_id": "SSA:0000914"
+  },
+  {
+   "name": "Pygmy Sperm Whale",
+   "scientific_name": "Kogia breviceps",
+   "entity_id": "SSA:0000922"
+  },
+  {
+   "name": "Right Whale Sighting:",
+   "scientific_name": "Eubalaena",
+   "entity_id": "SSA:0000954"
+  },
+  {
+   "name": "Right Whale",
+   "scientific_name": "Eubalaena",
+   "entity_id": "SSA:0000954"
+  },
+  {
+   "name": "Risso's Dolphin Sighting:",
+   "scientific_name": "Grampus griseus",
+   "entity_id": "SSA:0000926"
+  },
+  {
+   "name": "Risso's Dolphin",
+   "scientific_name": "Grampus griseus",
+   "entity_id": "SSA:0000926"
+  },
+  {
+   "name": "Risso's dolphin",
+   "scientific_name": "Grampus griseus",
+   "entity_id": "SSA:0000926"
+  },
+  {
+   "name": "Rissoâs dolphin",
+   "scientific_name": "",
+   "entity_id": "SSA:0000926"
+  },
+  {
+   "name": "Sea Otter",
+   "scientific_name": "Enhydra lutris",
+   "entity_id": "SSA:0000918"
+  },
+  {
+   "name": "Sei Whale Sighting:",
+   "scientific_name": "Balaenoptera borealis",
+   "entity_id": "SSA:0000920"
+  },
+  {
+   "name": "Sei Whale",
+   "scientific_name": "Balaenoptera borealis",
+   "entity_id": "SSA:0000920"
+  },
+  {
+   "name": "Short Finned Pilot Whale",
+   "scientific_name": "Globicephala macrorhynchus",
+   "entity_id": "SSA:0000931"
+  },
+  {
+   "name": "Southern Resident Killer Whale Sighting:",
+   "scientific_name": "Orcinus orca",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Southern Resident Killer Whale",
+   "scientific_name": "",
+   "entity_id": "SSA:0000010"
+  },
+  {
+   "name": "Southern Resident Killer Whale",
+   "scientific_name": "Balaenoptera acutorostrata",
+   "entity_id": "SSA:0000010"
+  },
+  {
+   "name": "Southern Resident Killer Whale",
+   "scientific_name": "Eubalaena",
+   "entity_id": "SSA:0000010"
+  },
+  {
+   "name": "Southern Resident Killer Whale",
+   "scientific_name": "N/A",
+   "entity_id": "SSA:0000010"
+  },
+  {
+   "name": "Southern Resident Killer Whale",
+   "scientific_name": "Orcinus orca",
+   "entity_id": "SSA:0000010"
+  },
+  {
+   "name": "Sperm Whale Sighting:",
+   "scientific_name": "Physeter macrocephalus",
+   "entity_id": "SSA:0000921"
+  },
+  {
+   "name": "Sperm Whale",
+   "scientific_name": "Physeter macrocephalus",
+   "entity_id": "SSA:0000921"
+  },
+  {
+   "name": "Sperm whale",
+   "scientific_name": "Physeter macrocephalus",
+   "entity_id": "SSA:0000921"
+  },
+  {
+   "name": "Striped Dolphin",
+   "scientific_name": "Stenella coeruleoalba",
+   "entity_id": "SSA:0000930"
+  },
+  {
+   "name": "Unknown Whale",
+   "scientific_name": "Megaptera novaeangliae",
+   "entity_id": "SSA:0000901"
+  },
+  {
+   "name": "Unspecified",
+   "scientific_name": "Balaenoptera acutorostrata",
+   "entity_id": "SSA:0000915"
+  },
+  {
+   "name": "Unspecified",
+   "scientific_name": "Balaenoptera musculus",
+   "entity_id": "SSA:0000919"
+  },
+  {
+   "name": "Unspecified",
+   "scientific_name": "Balaenoptera physalus",
+   "entity_id": "SSA:0000916"
+  },
+  {
+   "name": "Unspecified",
+   "scientific_name": "Eschrichtius robustus",
+   "entity_id": "SSA:0000905"
+  },
+  {
+   "name": "Unspecified",
+   "scientific_name": "Eubalaena",
+   "entity_id": "SSA:0000954"
+  },
+  {
+   "name": "Unspecified",
+   "scientific_name": "Megaptera novaeangliae",
+   "entity_id": "SSA:0000901"
+  },
+  {
+   "name": "Unspecified",
+   "scientific_name": "Orcinus orca",
+   "entity_id": "SSA:0000900"
+  },
+  {
+   "name": "Unspecified",
+   "scientific_name": "Phocoena phocoena",
+   "entity_id": "SSA:0000912"
+  },
+  {
+   "name": "Unspecified",
+   "scientific_name": "Phocoenoides dalli",
+   "entity_id": "SSA:0000913"
+  },
+  {
+   "name": "steller sealion",
+   "scientific_name": "Eumetopias jubatus",
+   "entity_id": "SSA:0000902"
+  }
+ ]
+}
