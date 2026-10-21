@@ -51,7 +51,7 @@ Tracked as bd issues; the durable statements:
 ### Out of Scope
 
 - **Native mobile app** — web-first; mobile web is sufficient for in-the-moment sighting
-- **Real-time push notifications** — not needed for current use cases
+- **Real-time push notifications** — not needed for current use cases; for machines too, until a named subscriber asks. What we know now is a file to poll ([decision 086](docs/decisions/086-what-we-know-now-is-a-file-to-poll.md))
 - **Marine species outside the PSEMP Marine Mammal Working Group scope** — no fish, seabirds, or invertebrates. Taxonomic scope is Salish Sea marine mammals (cetaceans, pinnipeds, mustelids), all of which are already ingested via iNaturalist.
 
 ## Constraints
