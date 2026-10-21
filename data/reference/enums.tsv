@@ -1,7 +1,4 @@
 type	label	position
-happywhale.accuracy	GENERAL	1
-happywhale.accuracy	APPROX	2
-happywhale.accuracy	PRECISE	3
 inaturalist.rank	infrahybrid	1
 inaturalist.rank	form	2
 inaturalist.rank	variety	3

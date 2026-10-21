@@ -166,7 +166,7 @@ function buildOgHtml(tags: OgTags): string {
 const SITE_TITLE = 'Salish Sea — Whale & Orca Sightings Map';
 const SITE_DESCRIPTION =
   'An interactive map of whale and marine-mammal sightings across the Salish Sea, ' +
-  'gathered from community sources like Whale Alert, Orca Network, and HappyWhale.';
+  'gathered from community sources like Whale Alert, Orca Network, and iNaturalist.';
 
 // What a card shows, in order of preference: an image OF THE THING SHARED (an
 // open-licensed photo, else a rendered map of where it was seen), and failing

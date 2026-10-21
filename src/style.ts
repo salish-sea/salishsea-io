@@ -102,8 +102,8 @@ export function occurrenceProperties(occurrence: Occurrence): OccurrenceProperti
  * Sources whose `accuracy` says how far the animal may have been from its point, not
  * how well the observer's phone knew where the observer was (decision 077): our own
  * sightings, whose author states it, and Orcasound's bouts, whose hydrophone's hearing
- * range it is. Only these are drawn as a ring; iNaturalist's and HappyWhale's values,
- * which describe the observer or the coordinates' precision, are not (decision 029).
+ * range it is. Only these are drawn as a ring; iNaturalist's value, which describes
+ * the observer or the coordinates' precision, is not (decision 029).
  */
 const ANIMAL_POSITION_SOURCES = new Set(['direct', 'orcasound']);
 

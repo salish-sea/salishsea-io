@@ -88,10 +88,13 @@ for:
 - **Included:** native SalishSea.io submissions (`public.observations`) and
   Maplify / conserve.io records (`maplify.sightings`), the latter restricted to
   trusted records.
-- **Excluded:** **iNaturalist** and **HappyWhale**. Both already publish their
-  records to GBIF through their own canonical datasets; re-exporting them here
-  would duplicate records. They are still modeled internally (for on-site credit,
-  filtering, and linking) but emit nothing to the archive.
+- **Excluded:** **iNaturalist**, which already publishes its records to GBIF
+  through its own canonical dataset; re-exporting them here would duplicate
+  records. They are still modeled internally (for on-site credit, filtering, and
+  linking) but emit nothing to the archive. **HappyWhale** was excluded for the
+  same reason while the site carried its records; it left the build with
+  decision [082](decisions/082-happywhale-leaves-the-build.md), and the rule
+  stands for when a live feed brings it back.
 
 This exclusion is enforced **by construction** — the export view is the union of
 exactly the two included branches, and a row-count gate in the nightly build

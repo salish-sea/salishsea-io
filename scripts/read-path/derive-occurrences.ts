@@ -1,7 +1,7 @@
 /**
  * Derive the occurrences in the build (decision 061, salish-xv35.2): Maplify, iNaturalist
  * and Orcasound from the build's own mirrors (salish-xv35.9, derive/sources.sql), and
- * the rest (native sightings, Happywhale, the register, the reference tables) from the
+ * the rest (native sightings, the register, the reference tables) from the
  * snapshot's copies of Postgres's tables.
  *
  *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite>
@@ -28,7 +28,7 @@ import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
 
-export const SOURCES = ['maplify', 'inaturalist', 'happywhale', 'native', 'orcasound'] as const;
+export const SOURCES = ['maplify', 'inaturalist', 'native', 'orcasound'] as const;
 export type Source = typeof SOURCES[number];
 
 /**
@@ -42,7 +42,6 @@ export type Source = typeof SOURCES[number];
 export const ARM_INPUTS: Readonly<Record<Source, readonly string[]>> = {
     maplify: ['maplify_mirror.sightings', 'maplify.collection_rule', 'maplify-names-hold'],
     inaturalist: ['inaturalist_mirror.observations', 'inaturalist_mirror.observation_photos'],
-    happywhale: ['happywhale.encounters', 'happywhale.users', 'happywhale.individuals', 'happywhale.species', 'happywhale.media'],
     native: ['public.observations', 'public.observation_photos', 'public.contributors'],
     orcasound: ['orcasound.bouts', 'orcasound.bout_entities', 'public.hydrophones'],
 };
@@ -64,7 +63,7 @@ export function armsFor(changed: readonly string[] | null): Arms {
 
 /**
  * occurrences.sql in its parts: the comment preamble, one section per arm (its view, and
- * the macro happywhale's needs), and the shared tail (the build schema and the document
+ * any macro only it needs), and the shared tail (the build schema and the document
  * macro). Marked in the file with `-- arm: <source>` and `-- shared` lines, so the script
  * runs the shared part first and then each arm it re-derives, and no other: DuckDB binds
  * a view's tables at CREATE, so an arm's view must follow the memory tables its arm
