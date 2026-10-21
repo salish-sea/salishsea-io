@@ -16,7 +16,7 @@ on:
 
 jobs:
   smoke:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     # Run in Playwright's official image: browsers and system deps are pre-baked,
     # so there is no `playwright install` step to download/extract (it hangs

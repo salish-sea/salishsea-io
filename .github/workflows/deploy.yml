@@ -39,7 +39,7 @@ jobs:
   # switch below is what could ship one.
   image:
     name: Build the Fly image
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: production
     timeout-minutes: 40
     permissions:
@@ -64,7 +64,7 @@ jobs:
   deploy:
     name: Deploy
     needs: [test, image]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: production
     permissions:
       id-token: write
@@ -157,7 +157,7 @@ jobs:
   fly:
     name: Switch the Fly app
     needs: [deploy, image]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: production
     timeout-minutes: 20
     permissions:
@@ -216,7 +216,7 @@ jobs:
   watch:
     name: Watch for a lost deployment
     needs: [test, image]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     permissions:
       actions: write  # dispatch the retry, cancel this run
@@ -331,7 +331,7 @@ jobs:
     # skipped is otherwise skipped itself, which is precisely the case when an
     # early job failed and took the rest of the graph with it.
     if: ${{ !cancelled() && contains(needs.*.result, 'failure') }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       issues: write
@@ -455,7 +455,7 @@ jobs:
     name: Resolve failure issue
     needs: [test, image, deploy, fly, smoke, watch]
     if: ${{ success() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       issues: write
     steps:
