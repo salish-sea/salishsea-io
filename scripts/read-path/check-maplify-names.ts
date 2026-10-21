@@ -1,7 +1,8 @@
 /**
- * Does the register still name every Maplify sighting the last build named? (salish-xv35.9)
+ * Does the register still name every Maplify sighting a passing build named? (salish-xv35.9)
  *
- *   node scripts/read-path/check-maplify-names.ts <snapshot.duckdb> <maplify.sqlite>
+ *   node scripts/read-path/check-maplify-names.ts <snapshot.duckdb> <maplify.sqlite> \
+ *     --baseline data/maplify-names.json [--allow data/maplify-unnamed.tsv]
  *
  * The build resolves a Maplify sighting's animal from the register it was given
  * (derive/maplify-entities.ts), so a register edition that loses a name would quietly
@@ -12,25 +13,27 @@
  *
  * It asks the build's own rule, resolveEntity over the snapshot's register, about every
  * (name, scientific name) pair the Maplify mirror holds, and compares the answers with
- * the last passing build's, kept beside the mirrors in maplify-names.json. A pair that
- * was named and now resolves to nothing fails the build, naming it; the baseline is then
- * left as it was, so the build keeps failing until the register names it again, as
- * Postgres's refusal did. A pair moving to another entity is a register edit doing its
- * job. On a pass the baseline becomes this build's answers, keeping the named pairs the
- * mirror doesn't hold at the moment.
+ * the baseline: every pair a passing build has named, and to what, checked in as
+ * data/maplify-names.json (decision 083). A pair that was named and now resolves to
+ * nothing fails the build, naming it, so the build keeps failing until the register names
+ * it again, as Postgres's refusal did. A pair moving to another entity is a register edit
+ * doing its job.
  *
- * Before the first pass there is no baseline file, and the first pass seeds it with this
- * build's answers (until 2026-10-05 Postgres's stored answer stood in, while its own
- * ingest still resolved Maplify); the build's register fetch refuses an edition that
- * would un-name a pair the mirror holds before adopting it, so this gate is the backstop.
+ * On a pass it writes what the baseline should become, this build's answers plus the
+ * named pairs the mirror doesn't hold at the moment, as a report beside the mirrors,
+ * served as /status/maplify-names.json. The report is derived, rewritten by every pass;
+ * the baseline changes only by a pull request, which refresh-maplify-names.ts prepares
+ * from the report. A new pair is guarded once it is in the checked-in file; until then
+ * the register fetch's own refusal (ingest-register.ts) covers it for as long as the
+ * mirror holds it. Until decision 083 the baseline was this file on the volume, which
+ * each pass rewrote and nothing could regenerate.
  *
- * The baseline is operational state outside the graph, like the ingest run log: the
- * gate's inputs are the register and the mirror, and a build whose inputs are unchanged
- * has nothing new to judge.
+ * No baseline file is a configuration error, not an empty baseline: the build must not
+ * run unguarded because a path was wrong.
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { resolveEntity, type NormalizedSighting } from '../ingest/maplify.ts';
@@ -72,16 +75,39 @@ export function judge(
     return {unnamed, next};
 }
 
-/** Where the last passing build's answers are kept: beside the Maplify mirror. */
-export const baselineFile = (mirror: string) => join(dirname(mirror), 'maplify-names.json');
+/**
+ * A baseline, or a report of what one should become, from a file or a URL: the checked-in
+ * data/maplify-names.json, or the served /status/maplify-names.json. The same shape
+ * either way, so check-unnaming.ts and refresh-maplify-names.ts read both with this.
+ */
+export async function readBaseline(source: string): Promise<Named[]> {
+    const text = /^https?:\/\//.test(source)
+        ? await (async () => {
+            const res = await fetch(source, {signal: AbortSignal.timeout(30_000)});
+            if (!res.ok) throw new Error(`${res.status} fetching ${source}`);
+            return res.text();
+        })()
+        : readFileSync(source, 'utf8');
+    const parsed = JSON.parse(text) as {pairs?: unknown};
+    if (!Array.isArray(parsed.pairs)) throw new Error(`${source}: not a baseline ({pairs: [...]})`);
+    return parsed.pairs as Named[];
+}
 
-/** Check the mirror's pairs against the baseline; on a pass, write the new baseline. */
-export async function checkNames(snapshot: string, mirror: string, allow?: string): Promise<Unnamed[]> {
+/** Where a pass writes what the baseline should become: beside the Maplify mirror. */
+export const reportFile = (mirror: string) => join(dirname(mirror), 'maplify-names.json');
+
+/** Check the mirror's pairs against the checked-in baseline; on a pass, write the report. */
+export async function checkNames(snapshot: string, mirror: string, baselineFile: string, allow?: string): Promise<Unnamed[]> {
     const allowed = readUnnamed(allow);
+    let baseline: Named[];
+    try {
+        baseline = await readBaseline(baselineFile);
+    } catch (e) {
+        throw new Error(`the name guard's baseline could not be read from ${baselineFile}: ${(e as Error).message}`, {cause: e});
+    }
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     let current: Pair[];
-    let baseline: Named[];
     try {
         await budget(conn, snapshot, '64MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
@@ -97,16 +123,13 @@ export async function checkNames(snapshot: string, mirror: string, allow?: strin
         current = pairs.map(p => ({
             ...p, entity_id: resolveEntity({name: p.name, scientificName: p.scientific_name} as NormalizedSighting, index),
         }));
-        baseline = existsSync(baselineFile(mirror))
-            ? (JSON.parse(readFileSync(baselineFile(mirror), 'utf8')) as {pairs: Named[]}).pairs
-            : [];
     } finally {
         conn.closeSync();
         db.closeSync();
     }
     const {unnamed, next} = judge(baseline, current, allowed);
     if (unnamed.length === 0) {
-        const file = baselineFile(mirror);
+        const file = reportFile(mirror);
         const temp = `${file}.${process.pid}.tmp`;
         writeFileSync(temp, `${JSON.stringify({pairs: next}, null, 1)}\n`);
         renameSync(temp, file);
@@ -116,21 +139,26 @@ export async function checkNames(snapshot: string, mirror: string, allow?: strin
 
 export async function main(): Promise<void> {
     const args = process.argv.slice(2);
-    const at = args.indexOf('--allow');
-    const allow = at >= 0 ? args[at + 1] : undefined;
-    if (at >= 0) args.splice(at, 2);
+    const option = (flag: string) => {
+        const at = args.indexOf(flag);
+        const value = at >= 0 ? args[at + 1] : undefined;
+        if (at >= 0) args.splice(at, 2);
+        return value;
+    };
+    const baseline = option('--baseline');
+    const allow = option('--allow');
     const [snapshot, mirror] = args;
-    if (!snapshot || !mirror || (at >= 0 && !allow)) {
-        console.error('usage: check-maplify-names.ts <snapshot.duckdb> <maplify.sqlite> [--allow <maplify-unnamed.tsv>]');
+    if (!snapshot || !mirror || !baseline) {
+        console.error('usage: check-maplify-names.ts <snapshot.duckdb> <maplify.sqlite> --baseline <maplify-names.json> [--allow <maplify-unnamed.tsv>]');
         process.exit(2);
     }
-    const unnamed = await checkNames(snapshot, mirror, allow);
+    const unnamed = await checkNames(snapshot, mirror, baseline, allow);
     if (unnamed.length === 0) {
-        console.log('every Maplify name the last build resolved still resolves');
+        console.log('every Maplify name the baseline resolves still resolves');
         return;
     }
     const total = unnamed.reduce((n, u) => n + u.sightings, 0);
-    console.error(`the register no longer names ${total} Maplify sightings the last build named:`);
+    console.error(`the register no longer names ${total} Maplify sightings the baseline names:`);
     for (const u of unnamed)
         console.error(`  ${JSON.stringify(u.name)} / ${JSON.stringify(u.scientific_name)} (was ${u.was}): ${u.sightings}`);
     process.exit(1);

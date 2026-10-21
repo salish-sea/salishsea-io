@@ -86,7 +86,7 @@ Rehearsed on 2026-10-05 against the bucket, with a copy of production's rows und
 |---|---|---|
 | `/data/mirrors/{maplify,inaturalist,orcasound}.sqlite` | the upstream mirrors, holding only what each source said | derived: a lost one is rebuilt by a backfill (below) |
 | `/data/mirrors/runs.sqlite` → `/status/ingest-runs.json` | each ingest run's outcome; what the heartbeat reads | log |
-| `/data/mirrors/maplify-names.json` → `/status/maplify-names.json` | the name guard's baseline: every Maplify (name, scientific name) pair and what the last passing build resolved it to | **authoritative** — forward-only, nothing regenerates it once Postgres stops resolving Maplify |
+| `/data/mirrors/maplify-names.json` → `/status/maplify-names.json` | the name guard's report: what its checked-in baseline (`data/maplify-names.json`, decision 083) should become, every Maplify (name, scientific name) pair the last passing build resolved and what it resolved to | derived: rewritten by each passing build; `node scripts/read-path/refresh-maplify-names.ts` copies it into the checkout for a pull request |
 | `/data/read-path.duckdb` | the store's snapshot of what users write, the register release the build holds (`register.edition` says which), the reference tables from `data/reference/`, the catalogue from `data/catalogue/` and the rows it generates from the register (decision 070), with its views over the register, and the build's own derived relations | derived |
 | `/data/store/salishsea.db` | what users write (decision 065): sightings, photos' URLs, contributors, sign-ins, feedback | **authoritative** — the write API's alone; replicated by Litestream (above) |
 | `/data/stelis/` | Stelis's build history (30 days) and content-addressed blocks | log |
@@ -155,7 +155,7 @@ fly machine update 82973dc7675348 -a salishsea-io --env REGISTER_TAG= -y        
 
 ## When the name guard holds
 
-`maplify-names` fails when a register edition stops naming a pair the last passing build named; every published file then stays as it was, and the Sentry cron monitor opens an issue within half an hour (the heartbeat's `unpublished` check too, whenever it next runs). This should not happen: the build's register fetch refuses such an edition before adopting it. The guard still catches a pair the Maplify mirror didn't hold when the edition was judged. The fix is in the register (name the pair again) or, for an un-naming meant on purpose, a row in `data/maplify-unnamed.tsv` in a pull request — never an edit to `maplify-names.json` on the volume.
+`maplify-names` fails when a register edition stops naming a pair the last passing build named; every published file then stays as it was, and the Sentry cron monitor opens an issue within half an hour (the heartbeat's `unpublished` check too, whenever it next runs). This should not happen: the build's register fetch refuses such an edition before adopting it. The guard still catches a pair the Maplify mirror didn't hold when the edition was judged. The fix is in the register (name the pair again) or, for an un-naming meant on purpose, a row in `data/maplify-unnamed.tsv` in a pull request — never an edit to `maplify-names.json` on the volume, which is only the last pass's report. The baseline the guard judges against is `data/maplify-names.json` in git (decision 083): a pair is guarded once it is there, and `node scripts/read-path/refresh-maplify-names.ts` copies the served report over it for a pull request whenever new pairs have appeared.
 
 ## Measuring a task
 

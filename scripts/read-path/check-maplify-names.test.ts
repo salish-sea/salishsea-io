@@ -13,7 +13,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { baselineFile, checkNames, judge } from './check-maplify-names.ts';
+import { checkNames, judge, type Named, reportFile } from './check-maplify-names.ts';
 
 let dir: string;
 
@@ -112,25 +112,44 @@ describe('judge', () => {
 });
 
 describe('checkNames', () => {
-    test('with no baseline, the first pass has nothing to judge against and seeds it with its own answers', async () => {
-        const file = await snapshot('bootstrap.duckdb',
+    /** The checked-in baseline (data/maplify-names.json), as a file in the scratch dir. */
+    function baseline(file: string, pairs: Named[]): string {
+        const target = path.join(dir, file);
+        mkdirSync(path.dirname(target), {recursive: true});
+        writeFileSync(target, `${JSON.stringify({pairs}, null, 1)}\n`);
+        return target;
+    }
+
+    test('a pass writes what the baseline should become beside the mirror, and leaves the baseline as it is', async () => {
+        const file = await snapshot('pass.duckdb',
             [['SSA:1', 'Orcinus orca'], ['SSA:2', 'Balaenoptera borealis']],
             // Postgres's stored answer no longer counts (salish-xv35.9): it would have named a pair this register does not
             [['Gray', 'Eschrichtius robustus', 'SSA:3']]);
-        const m = mirror('bootstrap/maplify.sqlite', [['Orca', 'Orcinus orca'], ['Sei Whale', 'Balaenoptera borealis'], ['Gray', 'Eschrichtius robustus']]);
-        expect(existsSync(baselineFile(m))).toBe(false);
-        expect(await checkNames(file, m)).toEqual([]);
-        expect(JSON.parse(readFileSync(baselineFile(m), 'utf8')).pairs.map((p: {entity_id: string}) => p.entity_id).sort())
+        const m = mirror('pass/maplify.sqlite', [['Orca', 'Orcinus orca'], ['Sei Whale', 'Balaenoptera borealis'], ['Gray', 'Eschrichtius robustus']]);
+        // in the checkout, not beside the mirror where the report goes
+        const b = baseline('pass/data/maplify-names.json', [{name: 'Orca', scientific_name: 'Orcinus orca', entity_id: 'SSA:1'}]);
+        const before = readFileSync(b, 'utf8');
+        expect(await checkNames(file, m, b)).toEqual([]);
+        expect(readFileSync(b, 'utf8')).toBe(before);
+        expect(JSON.parse(readFileSync(reportFile(m), 'utf8')).pairs.map((p: {entity_id: string}) => p.entity_id).sort())
             .toEqual(['SSA:1', 'SSA:2']);
     });
 
-    test('once there is a baseline it is what counts, and a failure leaves it as it was', async () => {
-        // Postgres named nothing; the last build named the Sei whale; this register doesn't.
-        const file = await snapshot('baseline.duckdb', [['SSA:1', 'Orcinus orca']], []);
-        const m = mirror('baseline/maplify.sqlite', [['Sei Whale', 'Balaenoptera borealis']]);
-        const before = `${JSON.stringify({pairs: [{name: 'Sei Whale', scientific_name: 'Balaenoptera borealis', entity_id: 'SSA:2'}]})}\n`;
-        writeFileSync(baselineFile(m), before);
-        expect((await checkNames(file, m)).map(u => u.was)).toEqual(['SSA:2']);
-        expect(readFileSync(baselineFile(m), 'utf8')).toBe(before);
+    test('a failure names the pair, writes no report, and leaves the baseline as it was', async () => {
+        // the baseline names the Sei whale; this register doesn't
+        const file = await snapshot('fail.duckdb', [['SSA:1', 'Orcinus orca']], []);
+        const m = mirror('fail/maplify.sqlite', [['Sei Whale', 'Balaenoptera borealis']]);
+        const b = baseline('fail/data/maplify-names.json', [{name: 'Sei Whale', scientific_name: 'Balaenoptera borealis', entity_id: 'SSA:2'}]);
+        const before = readFileSync(b, 'utf8');
+        expect((await checkNames(file, m, b)).map(u => u.was)).toEqual(['SSA:2']);
+        expect(readFileSync(b, 'utf8')).toBe(before);
+        expect(existsSync(reportFile(m))).toBe(false);
+    });
+
+    test('without a baseline file the build does not run unguarded', async () => {
+        const file = await snapshot('unguarded.duckdb', [['SSA:1', 'Orcinus orca']], []);
+        const m = mirror('unguarded/maplify.sqlite', [['Orca', 'Orcinus orca']]);
+        await expect(checkNames(file, m, path.join(dir, 'unguarded/missing.json'))).rejects.toThrow(/baseline/);
+        expect(existsSync(reportFile(m))).toBe(false);
     });
 });
