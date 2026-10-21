@@ -44,58 +44,48 @@ RUN apt-get update \
 # node, the same version the site was built with; the read-path scripts run on it.
 COPY --from=site /usr/local/bin/node /usr/local/bin/node
 
-# Racket 9.3 CS (Stelis's racket-version), minimal, plus the two collections in
-# Stelis's racket-deps.txt: the buster build, whose published SHA256 this is.
-# download.racket-lang.org redirects to Northwestern's mirror, whose certificate
-# chains to an emSign root that Mozilla's list, and so Ubuntu's, no longer carries
-# (October 2026). So two of Racket's other mirrors are tried first, the nearest
-# first. A mirror is used only if its file matches the checksum; one that fails
-# it, refuses the connection or stalls (under 10 kB/s for a minute) is skipped
-# for the next. --no-docs: datalog's dependencies carry documentation whose build
-# needs SQLite, and the engine never reads it.
-RUN for url in \
-      https://users.cs.utah.edu/plt/installers/9.3/racket-minimal-9.3-x86_64-linux-buster-cs.sh \
-      https://mirror.csclub.uwaterloo.ca/racket/racket-installers/9.3/racket-minimal-9.3-x86_64-linux-buster-cs.sh \
-      https://download.racket-lang.org/installers/9.3/racket-minimal-9.3-x86_64-linux-buster-cs.sh; do \
-      curl -fsSL --connect-timeout 20 --speed-limit 10000 --speed-time 60 -o /tmp/racket.sh "$url" \
-        && echo "7a1cc4b14a746add95eec2e549df54e5154b7dc94938a86330ce6a02ec7f75ce  /tmp/racket.sh" | sha256sum -c - \
-        && break; \
-    done \
+# Every binary below is pinned by sha256 in fly/downloads.tsv and fetched by
+# fly/fetch.sh: from our own mirror first (salishsea.io/downloads/<sha256>, decision
+# 084), then upstream, and only a file matching the checksum counts. So an upstream
+# host being down or distrusted (#727: Racket's host redirected to a mirror whose
+# certificate Debian doesn't trust) is not a failed deploy, and no host can change
+# what is installed.
+COPY fly/fetch.sh fly/downloads.tsv /tmp/fetch/
+
+# Racket 9.3 CS (Stelis's racket-version), minimal: the buster build. Its packages
+# are installed with Stelis below, from the pins Stelis declares.
+RUN /tmp/fetch/fetch.sh racket /tmp/racket.sh \
  && sh /tmp/racket.sh --unix-style --dest /usr/local --create-dir \
- && rm /tmp/racket.sh \
- && raco pkg install --auto --batch --no-docs --scope installation datalog sha
+ && rm /tmp/racket.sh
 
 # The DuckDB CLI Stelis content-addresses relations with, pinned as in its CI.
-RUN curl -fsSL -o /tmp/duckdb.zip \
-      https://github.com/duckdb/duckdb/releases/download/v1.5.5/duckdb_cli-linux-amd64.zip \
- && echo "08c0ca117111fcede14239d0093792352befdc174218c344d232c13279643d05  /tmp/duckdb.zip" | sha256sum -c - \
+RUN /tmp/fetch/fetch.sh duckdb /tmp/duckdb.zip \
  && unzip -q /tmp/duckdb.zip -d /usr/local/bin && rm /tmp/duckdb.zip
 
-# Caddy serves the site and the files; supercronic runs the build every five minutes.
-RUN curl -fsSL -o /tmp/caddy.tgz \
-      https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_linux_amd64.tar.gz \
- && echo "527fbf917c39189a1e3b31d34fa955601680b2d5c8055d2a87b8b9588dec7bb9  /tmp/caddy.tgz" | sha256sum -c - \
+# Caddy serves the site and the files; supercronic runs the build every five minutes;
+# Litestream replicates the write API's store to S3 (decision 065).
+RUN /tmp/fetch/fetch.sh caddy /tmp/caddy.tgz \
  && tar -xzf /tmp/caddy.tgz -C /usr/local/bin caddy && rm /tmp/caddy.tgz
-# Litestream replicates the write API's store to S3 (decision 065); its checksum is the
-# one the release publishes in checksums.txt.
-RUN curl -fsSL -o /tmp/litestream.tgz \
-      https://github.com/benbjohnson/litestream/releases/download/v0.5.17/litestream-0.5.17-linux-x86_64.tar.gz \
- && echo "cfb371176d164437ae869f8351cfde49bd1804ae71c61923f75c9cba9c9c006d  /tmp/litestream.tgz" | sha256sum -c - \
+RUN /tmp/fetch/fetch.sh litestream /tmp/litestream.tgz \
  && tar -xzf /tmp/litestream.tgz -C /usr/local/bin litestream && rm /tmp/litestream.tgz
-RUN curl -fsSL -o /usr/local/bin/supercronic \
-      https://github.com/aptible/supercronic/releases/download/v0.2.49/supercronic-linux-amd64 \
- && echo "a53ae236602c7338aba3fbaff40bda6300eae3b9fedb8261eb06cfe3724430c1  /usr/local/bin/supercronic" | sha256sum -c - \
+RUN /tmp/fetch/fetch.sh supercronic /usr/local/bin/supercronic \
  && chmod +x /usr/local/bin/supercronic
 
 # Stelis, pinned. A change spanning both repos ships only when this pin moves,
-# which makes it atomic rather than coincidental (beeatlas ADR 0042). The last step
-# checks the pin carries --downstream (Stelis f364281, st-wzk), which the
-# save-triggered build passes (fly/start.sh, salish-9uu.6): an older pin would refuse
-# it on every save, and the coalescer only logs that, so the image fails instead.
+# which makes it atomic rather than coincidental (beeatlas ADR 0042). Its Racket
+# packages come from the sources its racket-deps.txt pins (Stelis st-8u3): datalog
+# from the 9.3 release catalog, sha from a git commit, read from that file so the pin
+# is declared once. --no-docs: datalog's dependencies carry documentation whose build
+# needs SQLite, and the engine never reads it. preflight.sh then proves both load.
+# The last step checks the pin carries --downstream (Stelis f364281, st-wzk), which
+# the save-triggered build passes (fly/start.sh, salish-9uu.6): an older pin would
+# refuse it on every save, and the coalescer only logs that, so the image fails instead.
 ARG STELIS_SHA
 RUN test -n "$STELIS_SHA" \
  && curl -fsSL "https://github.com/rainhead/stelis/archive/${STELIS_SHA}.tar.gz" | tar -xz -C /opt \
  && mv "/opt/stelis-${STELIS_SHA}" /opt/stelis \
+ && raco pkg install --auto --batch --no-docs --scope installation datalog \
+      "$(awk '$1 == "sha" {print $2}' /opt/stelis/racket-deps.txt)" \
  && bash /opt/stelis/scripts/preflight.sh \
  && raco make /opt/stelis/src/main.rkt \
  && (racket /opt/stelis/src/main.rkt --help 2>&1 | grep -q -- '--downstream' \

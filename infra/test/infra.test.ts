@@ -4,8 +4,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import {
-  DEV_SITE_BUCKET_NAME, InfraStack, MEDIA_BUCKET_NAME, STORE_REPLICA_BUCKET_NAME, assertEdgeHandlerBuilt, cardRendererSource,
-  edgeSecretFromContext, stubAllowedFromContext,
+  DEV_SITE_BUCKET_NAME, DOWNLOADS_BUCKET_NAME, InfraStack, MEDIA_BUCKET_NAME, STORE_REPLICA_BUCKET_NAME, assertEdgeHandlerBuilt,
+  cardRendererSource, edgeSecretFromContext, stubAllowedFromContext,
 } from '../lib/infra-stack';
 
 const EDGE_SECRET = 'test-edge-secret-0123456789abcdef0123';
@@ -182,10 +182,11 @@ describe('InfraStack', () => {
   it('has no /dwca/* behavior and no origin in the site bucket: the Fly app serves the archive under the default', () => {
     const config = distConfig();
     expect((config.CacheBehaviors ?? []).find((b: any) => b.PathPattern === '/dwca/*')).toBeUndefined();
-    // the only S3 origin is the photo bucket's, reached through /media/*
+    // the S3 origins are the photo bucket's (/media/*) and the downloads mirror's
+    // (/downloads/*, decision 084), and nothing else
     const s3Origins = config.Origins.filter((o: any) => o.S3OriginConfig !== undefined);
-    expect(s3Origins).toHaveLength(1);
-    expect(behavior('/media/*').TargetOriginId).toBe(s3Origins[0].Id);
+    expect(s3Origins.map((o: any) => o.Id).sort())
+      .toEqual([behavior('/downloads/*').TargetOriginId, behavior('/media/*').TargetOriginId].sort());
   });
 
   describe('the write API (decision 065)', () => {
@@ -258,6 +259,31 @@ describe('InfraStack', () => {
 
     it('creates no access key: the secret is made by hand and never passes through CloudFormation', () => {
       template.resourceCountIs('AWS::IAM::AccessKey', 0);
+    });
+  });
+
+  describe("the image build's downloads mirror (decision 084)", () => {
+    it('serves /downloads/* from its bucket through origin access control, GET and HEAD only, with no edge function', () => {
+      const downloads = behavior('/downloads/*');
+      expect(downloads.AllowedMethods).toEqual(['GET', 'HEAD']);
+      expect(downloads.LambdaFunctionAssociations).toBeUndefined();
+      expect(downloads.TargetOriginId).not.toBe(behavior('/media/*').TargetOriginId);
+    });
+
+    it('keeps the bucket private and past a teardown, and unversioned: a key is its content', () => {
+      const [id, bucket] = Object.entries(template.findResources('AWS::S3::Bucket'))
+        .find(([, b]: [string, any]) => b.Properties.BucketName === DOWNLOADS_BUCKET_NAME) as [string, any];
+      expect(id).toBeDefined();
+      expect(bucket.DeletionPolicy).toBe('Retain');
+      expect(bucket.Properties.VersioningConfiguration).toBeUndefined();
+      expect(bucket.Properties.PublicAccessBlockConfiguration).toEqual({
+        BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true,
+      });
+    });
+
+    it('nothing but CloudFront may read it: no user or role policy names the bucket', () => {
+      const policies = JSON.stringify(template.findResources('AWS::IAM::Policy'));
+      expect(policies).not.toContain('DownloadsBucket');
     });
   });
 

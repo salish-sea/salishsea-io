@@ -81,6 +81,12 @@ export const STORE_REPLICA_BUCKET_NAME = 'salishsea-io-store-replica';
 export const STORE_REPLICA_PREFIX = 'store';
 /** Where `scripts/deploy-dev.sh` puts the site dev.salishsea.io serves (decision 072). */
 export const DEV_SITE_BUCKET_NAME = 'salishsea-io-dev-site';
+/**
+ * Our mirror of the files the Fly image downloads at build time (decision 084), each
+ * under downloads/<sha256>, served at salishsea.io/downloads/<sha256>; fly/downloads.tsv
+ * lists them and scripts/downloads/mirror.sh fills it.
+ */
+export const DOWNLOADS_BUCKET_NAME = 'salishsea-io-downloads';
 
 /**
  * The secret CloudFront sends the Fly app on /api/* requests as `x-origin-verify`, the
@@ -288,6 +294,21 @@ export class InfraStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
+    // The mirror of the image build's downloads (decision 084): Racket, DuckDB, Caddy,
+    // Litestream, supercronic, each under downloads/<sha256>. Private like the others
+    // and read through CloudFront at salishsea.io/downloads/<sha256>, the first place
+    // fly/fetch.sh looks before any upstream host. Not versioned: a key is its
+    // content's hash, so an object is only ever added, never changed. Filled by hand
+    // with scripts/downloads/mirror.sh.
+    const downloadsBucket = new s3.Bucket(this, 'DownloadsBucket', {
+      bucketName: DOWNLOADS_BUCKET_NAME,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      lifecycleRules: [{ id: 'abort-stalled-uploads', abortIncompleteMultipartUploadAfter: cdk.Duration.days(7) }],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
     // The Fly machine's identity for both: it may add photos and keep the replica, and
     // nothing else. A user, not a role, because Fly has no AWS identity to assume one
     // from. Its access key is made by hand and set as Fly secrets, so the secret never
@@ -442,6 +463,16 @@ export class InfraStack extends cdk.Stack {
         // handler names pages, not images. JPEG is already compressed.
         '/media/*': {
           origin: origins.S3BucketOrigin.withOriginAccessControl(mediaBucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          compress: false,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        },
+        // The image build's downloads, from their bucket (decision 084), the same way.
+        // Content-addressed, so a miss means "not mirrored yet" and fetch.sh goes
+        // upstream; it never means a stale copy.
+        '/downloads/*': {
+          origin: origins.S3BucketOrigin.withOriginAccessControl(downloadsBucket),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           compress: false,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
