@@ -45,11 +45,18 @@ RUN apt-get update \
 COPY --from=site /usr/local/bin/node /usr/local/bin/node
 
 # Racket 9.3 CS (Stelis's racket-version), minimal, plus the two collections in
-# Stelis's racket-deps.txt. The URL is an alias of the buster build, whose
-# published SHA256 this is. --no-docs: datalog's dependencies carry
-# documentation whose build needs SQLite, and the engine never reads it.
-RUN curl -fsSL -o /tmp/racket.sh \
-      https://download.racket-lang.org/installers/9.3/racket-minimal-9.3-x86_64-linux-cs.sh \
+# Stelis's racket-deps.txt: the buster build, whose published SHA256 this is.
+# download.racket-lang.org redirects to Northwestern's mirror, whose certificate
+# chains to an emSign root that Mozilla's list, and so Ubuntu's, no longer carries
+# (October 2026). So two of Racket's other mirrors are tried first, the nearest
+# first; the checksum makes any of them safe. --no-docs: datalog's dependencies
+# carry documentation whose build needs SQLite, and the engine never reads it.
+RUN for url in \
+      https://users.cs.utah.edu/plt/installers/9.3/racket-minimal-9.3-x86_64-linux-buster-cs.sh \
+      https://mirror.csclub.uwaterloo.ca/racket/racket-installers/9.3/racket-minimal-9.3-x86_64-linux-buster-cs.sh \
+      https://download.racket-lang.org/installers/9.3/racket-minimal-9.3-x86_64-linux-buster-cs.sh; do \
+      curl -fsSL -o /tmp/racket.sh "$url" && break; \
+    done \
  && echo "7a1cc4b14a746add95eec2e549df54e5154b7dc94938a86330ce6a02ec7f75ce  /tmp/racket.sh" | sha256sum -c - \
  && sh /tmp/racket.sh --unix-style --dest /usr/local --create-dir \
  && rm /tmp/racket.sh \
