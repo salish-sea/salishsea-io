@@ -13,8 +13,12 @@
 # To move a pin: change the sha256 and the URL here, run scripts/downloads/mirror.sh,
 # and deploy. A sha256 the bucket doesn't hold falls back to upstream, so the mirror
 # step can also follow the deploy; it just isn't a mirror until then.
+#
+# Racket is not here: Stelis installs its own (its scripts/install-racket.sh and
+# racket-downloads.tsv, the same format as this file, at the commit fly/stelis-commit
+# pins), with this mirror first. mirror.sh reads that file too, so the bucket holds
+# the Racket that commit installs.
 
-racket	7a1cc4b14a746add95eec2e549df54e5154b7dc94938a86330ce6a02ec7f75ce	https://users.cs.utah.edu/plt/installers/9.3/racket-minimal-9.3-x86_64-linux-buster-cs.sh https://mirror.csclub.uwaterloo.ca/racket/racket-installers/9.3/racket-minimal-9.3-x86_64-linux-buster-cs.sh https://download.racket-lang.org/installers/9.3/racket-minimal-9.3-x86_64-linux-buster-cs.sh
 duckdb	08c0ca117111fcede14239d0093792352befdc174218c344d232c13279643d05	https://github.com/duckdb/duckdb/releases/download/v1.5.5/duckdb_cli-linux-amd64.zip
 caddy	527fbf917c39189a1e3b31d34fa955601680b2d5c8055d2a87b8b9588dec7bb9	https://github.com/caddyserver/caddy/releases/download/v2.11.4/caddy_2.11.4_linux_amd64.tar.gz
 litestream	cfb371176d164437ae869f8351cfde49bd1804ae71c61923f75c9cba9c9c006d	https://github.com/benbjohnson/litestream/releases/download/v0.5.17/litestream-0.5.17-linux-x86_64.tar.gz
