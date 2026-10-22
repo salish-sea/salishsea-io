@@ -9,6 +9,11 @@
 export type License = 'cc0' | 'cc-by' | 'cc-by-nc' | 'cc-by-sa' | 'cc-by-nd' | 'cc-by-nc-sa' | 'cc-by-nc-nd' | 'none';
 export type TravelDirection = 'north' | 'northeast' | 'east' | 'southeast' | 'south' | 'southwest' | 'west' | 'northwest';
 export type IdentificationCertainty = 'possible' | 'probable' | 'certain';
+/**
+ * Whether anyone but its reporter agrees with what a sighting is shown as (decision 080).
+ * Disputed is an iNaturalist observation whose identifications disagree.
+ */
+export type Confirmation = 'confirmed' | 'unconfirmed' | 'disputed';
 
 /** Who is signed in, as GET /api/me names their contributor (decision 065). */
 export type Contributor = {id: number, name: string, picture: string | null, editor: boolean, orcid: string | null};
@@ -35,6 +40,7 @@ export type Occurrence = {
   accuracy: number | null;
   certainty: IdentificationCertainty | null;
   collection: string | null;
+  confirmation: Confirmation;
   contributor_id: number | null;
   count: number | null;
   direction: TravelDirection | null;

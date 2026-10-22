@@ -7,3 +7,8 @@ export function canEdit(occurrence: Occurrence, contributor: Contributor): boole
     return true;
   return false;
 }
+
+/** Whether a sighting is drawn and labelled as unconfirmed; disputed is a kind of it (decision 080). */
+export function isUnconfirmed({confirmation}: Pick<Occurrence, 'confirmation'>): boolean {
+  return confirmation === 'unconfirmed' || confirmation === 'disputed';
+}

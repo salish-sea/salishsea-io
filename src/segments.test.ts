@@ -106,6 +106,7 @@ function makeOrca(id: string, isoUtc: string, lon: number, lat: number): Occurre
     observed_from: null,
     observed_until: null,
     certainty: null,
+    confirmation: 'confirmed',
     taxon: {scientific_name: 'Orcinus orca ater', vernacular_name: 'Resident Killer Whale', species_id: 41521, entity_id: null},
     identifiers: [],
     contributor_id: 7,

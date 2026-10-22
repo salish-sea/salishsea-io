@@ -14,7 +14,7 @@ import { guard } from "lit/directives/guard.js";
 import { Temporal } from "temporal-polyfill";
 import { deleteSighting } from './write-api.ts';
 import type { Contributor, Occurrence } from "./types.ts";
-import { canEdit } from "./occurrence.ts";
+import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
 import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes } from './individual-links.ts';
 
@@ -134,6 +134,16 @@ export class ObsSummary extends LitElement {
       text-decoration: none;
       width: 0.75rem;
     }
+    /* An unconfirmed sighting's dot is outlined, as on the map (decision 080). */
+    .focus-occurrence.unconfirmed {
+      background-color: #ffffff;
+      border-color: var(--taxon-color);
+    }
+    .confirmation {
+      color: #64748b;
+      font-size: 0.75rem;
+      font-style: italic;
+    }
     .focus-occurrence:hover {
       box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.55);
     }
@@ -191,7 +201,7 @@ export class ObsSummary extends LitElement {
     // change) can fire before it is assigned; render nothing rather than throw.
     if (!this.sighting) return nothing;
     const {
-      body, count, observed_at, photos, provider_slug, taxon, url
+      body, confirmation, count, observed_at, photos, provider_slug, taxon, url
     } = this.sighting;
     // The same dot, in the same colour, as the marker on the map — which is the
     // whole point of decision 029's palette. It used to be a letter, and the
@@ -199,15 +209,17 @@ export class ObsSummary extends LitElement {
     const group = GROUPS[taxonGroup(taxon.scientific_name)];
     const name = displayNameFor(taxon);
     const editable = this.contributor && canEdit(this.sighting, this.contributor) || false;
+    const unconfirmed = isUnconfirmed(this.sighting);
 
     return html`
       <header>
         <div class="species-info">
-          <a class="focus-occurrence" @click="${this.focusSighting}" href="#"
+          <a class="focus-occurrence ${unconfirmed ? 'unconfirmed' : ''}" @click="${this.focusSighting}" href="#"
              aria-label="Focus this ${group.label.toLowerCase()} on the map"
-             title="Focus on map" style="background-color: ${group.color}"></a>
+             title="Focus on map" style="background-color: ${group.color}; --taxon-color: ${group.color}"></a>
           <b>${name}</b>
           ${when(count && count > 0, () => html`<span class="count">×${count}</span>`)}
+          ${when(unconfirmed, () => html`<span class="confirmation" title=${CONFIRMATION_NOTE[confirmation]}>${confirmation === 'disputed' ? 'Disputed' : 'Unconfirmed'}</span>`)}
         </div>
         <time>${guard([observed_at], () => html`${
           Temporal.Instant.from(observed_at).toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
@@ -333,6 +345,13 @@ export class ObsSummary extends LitElement {
     this.dispatchEvent(new CustomEvent('edit-observation', {bubbles: true, composed: true, detail: this.sighting}));
   }
 }
+
+// What the word beside an unconfirmed sighting means (decision 080).
+const CONFIRMATION_NOTE: Record<Occurrence['confirmation'], string> = {
+  confirmed: '',
+  unconfirmed: 'Nobody but the person who reported it has agreed with it yet',
+  disputed: 'The people who identified it disagree about what it is',
+};
 
 // Maplify comments embed the same provenance signals the resolver parses into
 // the structured collection (see maplify.resolve_collection): a leading

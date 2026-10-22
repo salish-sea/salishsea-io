@@ -149,3 +149,27 @@ describe('deleting a sighting', () => {
     expect(deleted).toEqual([]);
   });
 });
+
+describe('an unconfirmed sighting', () => {
+  const rendered = async (confirmation: Occurrence['confirmation']) => {
+    const el = document.createElement('obs-summary') as ObsSummary;
+    (el as unknown as {sighting: Partial<Occurrence>}).sighting = {
+      id: 'inaturalist:1', body: null, confirmation, count: null, observed_at: '2026-09-15T18:00:00+00:00',
+      photos: [], provider_slug: 'inaturalist', provider: 'iNaturalist', collection: 'iNaturalist',
+      observer: 'someone', source_url: null, organization_url: null, url: null, attribution: null,
+      taxon: {scientific_name: 'Megaptera novaeangliae', vernacular_name: 'Humpback whale', species_id: 41566, entity_id: null},
+    };
+    document.body.append(el);
+    await el.updateComplete;
+    const root = el.shadowRoot!;
+    el.remove();
+    return {word: root.querySelector('.confirmation')?.textContent ?? null,
+            outlined: root.querySelector('.focus-occurrence')!.classList.contains('unconfirmed')};
+  };
+
+  it('says so beside its name, and its dot is outlined as on the map (decision 080)', async () => {
+    expect(await rendered('unconfirmed')).toEqual({word: 'Unconfirmed', outlined: true});
+    expect(await rendered('disputed')).toEqual({word: 'Disputed', outlined: true});
+    expect(await rendered('confirmed')).toEqual({word: null, outlined: false});
+  });
+});
