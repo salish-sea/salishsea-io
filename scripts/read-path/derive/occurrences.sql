@@ -67,7 +67,8 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          CAST(NULL AS VARCHAR) AS certainty,
          -- Maplify's trusted flag read as an input to ours, as 008 allows (decision 080)
          CASE WHEN s.trusted THEN 'confirmed' ELSE 'unconfirmed' END AS confirmation,
-         CAST(NULL AS BIGINT) AS disagreements
+         CAST(NULL AS BIGINT) AS disagreements,
+         CAST(NULL AS VARCHAR) AS vitality
   FROM source_maplify_sightings s
   LEFT JOIN memory.maplify_entity me
     ON me.name IS NOT DISTINCT FROM s.name AND me.scientific_name = s.scientific_name
@@ -133,6 +134,26 @@ CREATE OR REPLACE TABLE memory.main.inaturalist_confirmation AS
   FROM (SELECT id, count_if(agrees) AS agreeing, count_if(disagrees) AS disagreements
         FROM claim GROUP BY id);
 
+-- Whether the animal was alive, from iNaturalist's "Alive or Dead" annotation (attribute
+-- 17: Alive 18, Dead 19, Cannot Be Determined 20; salish-1y8), read as iNaturalist reads
+-- it: an annotation counts unless its votes' net score is negative. The one with the
+-- highest score says; two counting annotations that disagree at the same score leave it
+-- undetermined. No counting annotation is no answer, NULL, not "alive".
+CREATE OR REPLACE TABLE memory.main.inaturalist_vitality AS
+  WITH counted AS (
+    SELECT id, a.value, a.voteScore AS score
+    FROM (SELECT o.id, unnest(o.annotations) AS a FROM source_inaturalist_observations o)
+    WHERE a.attribute = 17 AND a.voteScore >= 0
+    QUALIFY rank() OVER (PARTITION BY id ORDER BY a.voteScore DESC) = 1
+  )
+  SELECT id,
+         CASE WHEN min(value) <> max(value) THEN 'undetermined'
+              WHEN min(value) = 18 THEN 'alive'
+              WHEN min(value) = 19 THEN 'dead'
+              ELSE 'undetermined' END AS vitality
+  FROM counted
+  GROUP BY id;
+
 -- derived.inaturalist_occurrences
 CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
   SELECT 'inaturalist:' || o.id AS id,
@@ -174,9 +195,11 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          -- no identification at all is nobody else agreeing
          coalesce(c.confirmation, 'unconfirmed') AS confirmation,
          -- how many other people's identifications name another branch (decision 080)
-         coalesce(c.disagreements, 0) AS disagreements
+         coalesce(c.disagreements, 0) AS disagreements,
+         v.vitality
   FROM source_inaturalist_observations o
   LEFT JOIN memory.inaturalist_confirmation c ON c.id = o.id
+  LEFT JOIN memory.inaturalist_vitality v ON v.id = o.id
   JOIN taxa t_recorded ON o.taxon_id = t_recorded.id
   JOIN taxa t ON t.id = coalesce(t_recorded.current_taxon_id, t_recorded.id)
   LEFT JOIN inaturalist_taxon_name reg ON reg.inat_taxon_id = t.id
@@ -244,7 +267,8 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
          CAST(NULL AS VARCHAR) AS certainty,
          -- our own sightings are shown as confirmed until decided otherwise (decision 080)
          'confirmed' AS confirmation,
-         CAST(NULL AS BIGINT) AS disagreements
+         CAST(NULL AS BIGINT) AS disagreements,
+         CAST(NULL AS VARCHAR) AS vitality
   FROM public.observations o
   JOIN public.contributors con ON con.id = o.contributor_id
   LEFT JOIN inaturalist_taxon xw ON xw.entity_id = o.entity_id
@@ -314,7 +338,8 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
          b.ended_at AS observed_until,
          tx.certainty,
          CASE WHEN tx.species_certainty = 'possible' THEN 'unconfirmed' ELSE 'confirmed' END AS confirmation,
-         CAST(NULL AS BIGINT) AS disagreements
+         CAST(NULL AS BIGINT) AS disagreements,
+         CAST(NULL AS VARCHAR) AS vitality
   FROM source_acoustic_bouts b
   JOIN per_species tx ON tx.bout_id = b.id
   LEFT JOIN public.hydrophones h ON h.feed_id = b.feed_id
@@ -348,6 +373,7 @@ CREATE OR REPLACE TEMP MACRO occurrence_doc(o) AS CAST(to_json({
            'location': pg_lon_lat(o.location),
            'observer': o.observer,
            'provider': o.provider,
+           'vitality': o.vitality,
            'certainty': o.certainty,
            'direction': o.direction,
            'collection': o.collection,

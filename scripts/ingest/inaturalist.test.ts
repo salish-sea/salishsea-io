@@ -77,13 +77,14 @@ const rawObs = {
     }],
     comments: [],
     quality_metrics: [],
+    annotations: [],
 };
 
 const obs = (over: Partial<NormalizedObservation> = {}): NormalizedObservation => ({
     id: 1, description: null, lon: -123, lat: 48, observedAt: '2026-07-04T13:08:00-07:00',
     licenseCode: 'cc-by-nc', uri: 'https://inat/1', login: 'u', orcid: null, taxonId: 41553,
     ancestorIds: [48460, 1, 41553], publicPositionalAccuracy: null,
-    updatedAt: '2026-07-05T20:08:06-07:00', photos: [], identifications: [], comments: [], qualityMetrics: [], ...over,
+    updatedAt: '2026-07-05T20:08:06-07:00', photos: [], identifications: [], comments: [], qualityMetrics: [], annotations: [], ...over,
 });
 
 /** A minimal valid upstream taxon, for targeted mutation. */

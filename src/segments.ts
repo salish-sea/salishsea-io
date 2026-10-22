@@ -24,14 +24,17 @@ export type Segment = {
  * usually travels in the time since, so a segment seen recently beats a
  * slightly nearer one seen hours ago. A report that names an ecotype never
  * joins a segment that names another: residents and Bigg's don't travel
- * together.
+ * together. A dead animal is a segment of its own (salish-1y8): a carcass is
+ * not part of a travelling group's path, and nothing joins it.
  */
 export function occurrences2segments(occurrences: Occurrence[]): Segment[] {
   const segments: Segment[] = [];
   for (const occurrence of occurrences.toSorted((a, b) => a.observed_at_ms - b.observed_at_ms)) {
     let best: Segment | null = null;
     let bestScore = Infinity;
-    for (const segment of segments) {
+    // A segment with no travel speed takes nothing (joinScore), so a dead one stays alone.
+    const dead = occurrence.vitality === 'dead';
+    for (const segment of dead ? [] : segments) {
       const score = joinScore(segment, occurrence);
       if (score < bestScore) {
         best = segment;
@@ -44,7 +47,7 @@ export function occurrences2segments(occurrences: Occurrence[]): Segment[] {
       best.taxon = occurrence.taxon;
     } else {
       segments.push({
-        expectedTravelSpeedKmph: travelSpeedFor(occurrence.taxon.scientific_name) || null,
+        expectedTravelSpeedKmph: dead ? null : travelSpeedFor(occurrence.taxon.scientific_name) || null,
         lastOccurrenceAt: new Date(occurrence.observed_at_ms),
         occurrences: [occurrence],
         taxon: occurrence.taxon,

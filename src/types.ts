@@ -14,6 +14,7 @@ export type IdentificationCertainty = 'possible' | 'probable' | 'certain';
  * Disputed is an iNaturalist observation whose identifications disagree.
  */
 export type Confirmation = 'confirmed' | 'unconfirmed' | 'disputed';
+export type Vitality = 'alive' | 'dead' | 'undetermined';
 
 /** Who is signed in, as GET /api/me names their contributor (decision 065). */
 export type Contributor = {id: number, name: string, picture: string | null, editor: boolean, orcid: string | null};
@@ -43,6 +44,8 @@ export type Occurrence = {
   confirmation: Confirmation;
   /** How many other people's identifications name another branch; null for a source without identifications (decision 080). */
   disagreements: number | null;
+  /** Whether the animal was alive, from iNaturalist's annotation; null when no annotation counts, none made or all voted down (salish-1y8). */
+  vitality: Vitality | null;
   contributor_id: number | null;
   count: number | null;
   direction: TravelDirection | null;

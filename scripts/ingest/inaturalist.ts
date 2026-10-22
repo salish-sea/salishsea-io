@@ -186,6 +186,17 @@ const InatQualityMetricSchema = z.object({
     agree: z.boolean(),
 });
 
+// An annotation: an answer to one of iNaturalist's controlled questions, such as "Alive or
+// Dead" (attribute 17: Alive 18, Dead 19, Cannot Be Determined 20), with the net score of
+// the votes on it. REQUIRED, like the quality metrics: an empty list is ordinary, an
+// absent one means the field selection drifted (salish-1y8).
+const InatAnnotationSchema = z.object({
+    uuid: z.string(),
+    controlled_attribute_id: z.number().int(),
+    controlled_value_id: z.number().int(),
+    vote_score: z.number().int(),
+});
+
 export const InatObservationSchema = z.object({
     id: z.number().int(),
     description: z.string().nullish(),
@@ -204,6 +215,7 @@ export const InatObservationSchema = z.object({
     identifications: z.array(InatIdentificationSchema),
     comments: z.array(InatCommentSchema),
     quality_metrics: z.array(InatQualityMetricSchema),
+    annotations: z.array(InatAnnotationSchema),
 });
 
 export const InatResponseSchema = z.object({
@@ -308,6 +320,12 @@ export type NormalizedObservation = {
     readonly comments: readonly NormalizedComment[];
     /** Every vote on iNaturalist's data-quality questions, by id. */
     readonly qualityMetrics: readonly {readonly id: number, readonly metric: string, readonly agree: boolean}[];
+    /** Every annotation, as iNaturalist states it: the question, the answer, the votes' net score. */
+    readonly annotations: readonly NormalizedAnnotation[];
+};
+
+export type NormalizedAnnotation = {
+    readonly uuid: string, readonly attribute: number, readonly value: number, readonly voteScore: number,
 };
 
 /** One normalized taxon row (the taxa closure the shell resolves before persist). */
@@ -373,6 +391,9 @@ export function normalizeObservation(
             body: c.hidden ? null : blankToNull(c.body), createdAt: c.created_at, hidden: c.hidden,
         })),
         qualityMetrics: r.quality_metrics.map(q => ({id: q.id, metric: q.metric, agree: q.agree})),
+        annotations: r.annotations.map(a => ({
+            uuid: a.uuid, attribute: a.controlled_attribute_id, value: a.controlled_value_id, voteScore: a.vote_score,
+        })),
     };
 }
 
