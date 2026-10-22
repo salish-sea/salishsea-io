@@ -351,7 +351,7 @@ export function confirmationNote({confirmation, provider_slug}: Pick<Occurrence,
   if (confirmation === 'disputed') return 'The people who identified it on iNaturalist disagree about what it is';
   switch (provider_slug) {
     case 'inaturalist': return 'Nobody but the observer has identified it as this on iNaturalist yet';
-    case 'maplify': return "Not from one of Maplify's trusted observers";
+    case 'maplify': return "Maplify hasn't marked this report trusted";
     case 'orcasound': return "Orcasound's moderators tagged the species as only possibly heard";
     default: return 'Nobody but the person who reported it has agreed with it yet';
   }

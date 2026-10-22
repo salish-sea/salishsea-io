@@ -33,5 +33,5 @@ So our uses already make different judgments. We just don't name them.
 ## Not decided
 
 - Whether to adopt this at all, and what to call the assessor in what we publish ("SalishSea.io", a rule's name, or something else).
-- The shape of a verdict in the day files and in 086's file. Until this is settled, 080's `confirmation` should not be promised to outside consumers as a stable field. It is recomputed on every build and stored nowhere, so renaming it later costs one build.
+- The shape of a verdict in the day files and in 086's file. Until this is settled, 080's `confirmation` should not be promised to outside consumers as a stable field. Today only our own frontend reads it, from the day files, and the two ship in the same deploy; it is recomputed on every build and stored nowhere, so renaming it costs one build. 086's file isn't built yet (#738). Once it is published, its schema is a contract, and renaming the field there needs a new schema version or its consumers' agreement.
 - How a vessel alert's verdict is calibrated, and who decides its threshold, given that both a miss and a false alarm are expensive.
