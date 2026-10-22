@@ -22,6 +22,16 @@ Sightings entered on SalishSea.io itself, and HappyWhale's, are shown as confirm
 
 **How it looks.** On the map, an unconfirmed sighting is an outlined dot: a white centre with an edge in the species' colour, at the size of a confirmed dot. It is not a ring in 077's sense, which is a large faint area to the radius the animal may have been within. In the sidebar, its entry says "Unconfirmed", or "Disputed" for an iNaturalist observation whose identifications disagree. Profile pages list it marked the same way. Nothing is hidden.
 
+## How the iNaturalist rule is applied
+
+Writing the rule down as a query (`salish-bwma`, `scripts/read-path/derive/occurrences.sql`) needed three readings the text above leaves open:
+
+- **The taxon we show** is the observation's species, or, for one identified only to a genus or above, that taxon itself. Someone's identification of a subspecies of it agrees.
+- **The observer's own identification counts against it** when it names another branch, as the rule says of any current identification. That is the case where the community has overruled the observer.
+- **An identification of a taxon the mirror doesn't hold** neither confirms nor disputes, because its place in the tree is unknown. The ingest fetches every such taxon on its next scheduled run, so this lasts a few minutes. On 2026-10-22 there were 24 such identifications by people other than the observer, among them a gull, a giraffe, and three subspecies of species we show.
+
+A sighting's document in the day files carries the result as `confirmation`: `confirmed`, `unconfirmed` or `disputed`.
+
 ## Not decided here
 
 - **A higher bar for surprising sightings.** Peter's direction for later: a sighting that is unusual where or when it was made, or of a rare species, might need more than one other person's agreement, or a curator's. That needs a notion of what is expected, which we don't have yet.
