@@ -41,7 +41,7 @@ export type Source = typeof SOURCES[number];
  */
 export const ARM_INPUTS: Readonly<Record<Source, readonly string[]>> = {
     maplify: ['maplify_mirror.sightings', 'maplify.collection_rule', 'maplify-names-hold'],
-    inaturalist: ['inaturalist_mirror.observations', 'inaturalist_mirror.observation_photos'],
+    inaturalist: ['inaturalist_mirror.observations', 'inaturalist_mirror.observation_photos', 'inaturalist_mirror.identifications'],
     native: ['public.observations', 'public.observation_photos', 'public.contributors'],
     orcasound: ['orcasound.bouts', 'orcasound.bout_entities', 'public.hydrophones'],
 };
