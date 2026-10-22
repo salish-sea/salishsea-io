@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { fetchPublicSighting, overlayOwn, ownOccurrence, sightingBody, type OwnSighting } from './write-api.ts';
 import type { UpsertObservationArgs } from './types.ts';
+import { parseSighting } from '../api/sightings.ts';
 
 const sighting = (over: Partial<OwnSighting> = {}): OwnSighting => ({
   id: '01977c2a-b313-77a9-8433-ffccbd56bf57', observed_at: '2026-10-05T17:00:00.000000Z',
@@ -43,6 +44,21 @@ describe('a save, as the API is sent it', () => {
     const sent = sightingBody(args);
     expect(sent.photos).toEqual([{src: 'https://salishsea.io/media/7/x/a.jpg', license: 'cc-by'}]);
     expect(JSON.stringify(sent).length).toBeLessThan(1000);
+  });
+  test('every field the API reads is sent, the accuracy among them: it went missing between the form and the API (#742)', () => {
+    const args: UpsertObservationArgs = {
+      id: '01a15be7-4af5-737d-a45e-ce1d74cf7e31', body: '[WSSJI] SRKW', count: 27, direction: 'northeast',
+      observed_at: '2026-10-20T19:00:00Z', observed_from: null, location: {lon: -123.2879, lat: 48.4029},
+      accuracy: 1200, entity_id: 'SSA:0000003', url: '', photos: [],
+    };
+    const body = sightingBody(args);
+    expect(Object.keys(body).sort()).toEqual(
+      ['accuracy', 'body', 'count', 'direction', 'entity_id', 'location', 'observed_at', 'observed_from', 'photos', 'url']);
+    // Through the API's own parser, as a save is read on the other side: a radius arrives
+    // as the radius, and a cleared one as null, never as a key the API would take as
+    // "unchanged" (api/sightings.ts, saveSighting).
+    expect(parseSighting(body).accuracy).toBe(1200);
+    expect(parseSighting(sightingBody({...args, accuracy: null})).accuracy).toBeNull();
   });
 });
 

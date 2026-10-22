@@ -69,8 +69,8 @@ export const signOut = () => call<unknown>('DELETE', '/api/session');
  * would take a save with one photo past the API's 64 KB limit on a request.
  */
 export function sightingBody(sighting: UpsertObservationArgs) {
-  const {body, count, direction, observed_at, observed_from, location, entity_id, url, photos} = sighting;
-  return {body, count, direction, observed_at, observed_from, location, entity_id, url,
+  const {body, count, direction, observed_at, observed_from, location, accuracy, entity_id, url, photos} = sighting;
+  return {body, count, direction, observed_at, observed_from, location, accuracy, entity_id, url,
     photos: photos.map(({src, license}) => ({src, license}))};
 }
 
