@@ -136,7 +136,6 @@ export class ObsSummary extends LitElement {
     }
     /* An unconfirmed sighting's dot is outlined, as on the map (decision 080). */
     .focus-occurrence.unconfirmed {
-      background-color: #ffffff;
       border-color: var(--taxon-color);
     }
     .confirmation {
@@ -216,7 +215,7 @@ export class ObsSummary extends LitElement {
         <div class="species-info">
           <a class="focus-occurrence ${unconfirmed ? 'unconfirmed' : ''}" @click="${this.focusSighting}" href="#"
              aria-label="Focus this ${group.label.toLowerCase()} on the map"
-             title="Focus on map" style="background-color: ${group.color}; --taxon-color: ${group.color}"></a>
+             title="Focus on map" style="background-color: ${unconfirmed ? '#ffffff' : group.color}; --taxon-color: ${group.color}"></a>
           <b>${name}</b>
           ${when(count && count > 0, () => html`<span class="count">×${count}</span>`)}
           ${when(unconfirmed, () => html`<span class="confirmation" title=${CONFIRMATION_NOTE[confirmation]}>${confirmation === 'disputed' ? 'Disputed' : 'Unconfirmed'}</span>`)}

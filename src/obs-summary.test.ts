@@ -163,8 +163,10 @@ describe('an unconfirmed sighting', () => {
     await el.updateComplete;
     const root = el.shadowRoot!;
     el.remove();
+    // what the dot is filled with, not only its class: an inline fill once overrode the class's
+    const dot = root.querySelector<HTMLElement>('.focus-occurrence')!;
     return {word: root.querySelector('.confirmation')?.textContent ?? null,
-            outlined: root.querySelector('.focus-occurrence')!.classList.contains('unconfirmed')};
+            outlined: dot.classList.contains('unconfirmed') && dot.style.backgroundColor === 'rgb(255, 255, 255)'};
   };
 
   it('says so beside its name, and its dot is outlined as on the map (decision 080)', async () => {
