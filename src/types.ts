@@ -44,7 +44,7 @@ export type Occurrence = {
   confirmation: Confirmation;
   /** How many other people's identifications name another branch; null for a source without identifications (decision 080). */
   disagreements: number | null;
-  /** Whether the animal was alive, from iNaturalist's annotation; null when nobody said (salish-1y8). */
+  /** Whether the animal was alive, from iNaturalist's annotation; null when no annotation counts, none made or all voted down (salish-1y8). */
   vitality: Vitality | null;
   contributor_id: number | null;
   count: number | null;
