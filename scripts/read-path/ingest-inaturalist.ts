@@ -65,12 +65,14 @@ export const FIRST_UPDATED_DAYS = 30;
 
 const SCHEMA = `
     -- quality_metrics: the votes on iNaturalist's data-quality questions, as JSON (decision 081)
+    -- annotations: its answers to controlled questions such as Alive or Dead, each with
+    -- its votes' net score, as JSON (salish-1y8)
     CREATE TABLE IF NOT EXISTS observations (
         id INTEGER PRIMARY KEY, description TEXT, lon REAL NOT NULL, lat REAL NOT NULL,
         observed_at TEXT NOT NULL, observed_ms INTEGER NOT NULL, license_code TEXT,
         uri TEXT NOT NULL, login TEXT NOT NULL, orcid TEXT, taxon_id INTEGER NOT NULL,
         ancestor_ids TEXT NOT NULL, public_positional_accuracy INTEGER, updated_at TEXT NOT NULL,
-        quality_metrics TEXT
+        quality_metrics TEXT, annotations TEXT
     );
     CREATE INDEX IF NOT EXISTS observations_observed_ms ON observations (observed_ms);
     CREATE TABLE IF NOT EXISTS observation_photos (
@@ -111,6 +113,7 @@ export type ObservationRow = {
     observed_ms: number, license_code: string | null, uri: string, login: string, orcid: string | null,
     taxon_id: number, ancestor_ids: string, public_positional_accuracy: number | null, updated_at: string,
     quality_metrics: string | null,
+    annotations: string | null,
 };
 
 /** A photo as the mirror stores it. */
@@ -145,6 +148,7 @@ export function observationRow(o: NormalizedObservation): ObservationRow {
         orcid: o.orcid, taxon_id: o.taxonId, ancestor_ids: JSON.stringify(o.ancestorIds),
         public_positional_accuracy: o.publicPositionalAccuracy, updated_at: o.updatedAt,
         quality_metrics: JSON.stringify([...o.qualityMetrics].sort((a, b) => a.id - b.id)),
+        annotations: JSON.stringify([...o.annotations].sort((a, b) => a.uuid < b.uuid ? -1 : a.uuid > b.uuid ? 1 : 0)),
     };
 }
 
@@ -198,6 +202,10 @@ export function openMirror(path: string): DatabaseSync {
     // column comes last in both the table and the row, as the comparison needs.
     if (db.prepare("SELECT 1 FROM pragma_table_info('observations') WHERE name = 'quality_metrics'").get() === undefined)
         db.exec('ALTER TABLE observations ADD COLUMN quality_metrics TEXT');
+    // Likewise annotations (salish-1y8), after the votes: an observation gains its own
+    // when next fetched, as it gained its votes.
+    if (db.prepare("SELECT 1 FROM pragma_table_info('observations') WHERE name = 'annotations'").get() === undefined)
+        db.exec('ALTER TABLE observations ADD COLUMN annotations TEXT');
     return db;
 }
 

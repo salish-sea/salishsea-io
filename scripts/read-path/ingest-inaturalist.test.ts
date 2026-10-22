@@ -32,7 +32,7 @@ const observation = (over: Partial<NormalizedObservation> & {id: number}): Norma
     description: null, lon: -123, lat: 48.5, observedAt: '2026-07-03T10:00:00-07:00', licenseCode: 'cc-by-nc',
     uri: 'https://www.inaturalist.org/observations/x', login: 'test_inat_a', orcid: null, taxonId: 2000000002,
     ancestorIds: [2000000001, 2000000002], publicPositionalAccuracy: 10, updatedAt: '2026-07-05T10:00:00-07:00',
-    photos: [], identifications: [], comments: [], qualityMetrics: [], ...over,
+    photos: [], identifications: [], comments: [], qualityMetrics: [], annotations: [], ...over,
 });
 const WINDOW: IngestWindow = {start: '2026-07-01', end: '2026-07-05'};
 
@@ -143,7 +143,8 @@ describe('the mirror', () => {
         const old = openMirror(file);
         const bare = observation({id: 9000000035});
         applyFetch(old, [bare], taxa, null);
-        old.exec('ALTER TABLE observations DROP COLUMN quality_metrics');
+        // a mirror that old had no annotations either (salish-1y8)
+        old.exec('ALTER TABLE observations DROP COLUMN annotations; ALTER TABLE observations DROP COLUMN quality_metrics');
         old.close();
         const db = openMirror(file);
         expect(rows(file).observations[0]!.quality_metrics).toBeNull();
@@ -154,6 +155,25 @@ describe('the mirror', () => {
         db.close();
         expect(JSON.parse(rows(file).observations[0]!.quality_metrics!)).toEqual(
             [{id: 1, metric: 'wild', agree: true}, {id: 2, metric: 'wild', agree: false}]);
+    });
+
+    test('a mirror from before annotations were kept gains them when an observation is fetched again', () => {
+        const file = path.join(dir, 'annotations.sqlite');
+        const old = openMirror(file);
+        const bare = observation({id: 9000000036});
+        applyFetch(old, [bare], taxa, null);
+        old.exec('ALTER TABLE observations DROP COLUMN annotations');
+        old.close();
+        const db = openMirror(file);
+        expect(rows(file).observations[0]!.annotations).toBeNull();
+        // the same upstream copy, same updated_at, now asked with its annotations
+        const dead = {...bare, annotations: [
+            {uuid: 'b', attribute: 22, value: 24, voteScore: 0}, {uuid: 'a', attribute: 17, value: 19, voteScore: 1}]};
+        expect(applyFetch(db, [dead], [], null).written).toBe(1);
+        expect(applyFetch(db, [dead], [], null).written).toBe(0);
+        db.close();
+        expect(JSON.parse(rows(file).observations[0]!.annotations!)).toEqual(
+            [{uuid: 'a', attribute: 17, value: 19, voteScore: 1}, {uuid: 'b', attribute: 22, value: 24, voteScore: 0}]);
     });
 
     test('the backfill asks about observations without identifications, a page at a time, never the same twice', () => {
