@@ -287,6 +287,32 @@ describe('InfraStack', () => {
     });
   });
 
+  describe('security headers (salish-isn)', () => {
+    it('sends HSTS for a year on this host only, refuses framing, and forbids MIME sniffing', () => {
+      template.hasResourceProperties('AWS::CloudFront::ResponseHeadersPolicy', {
+        ResponseHeadersPolicyConfig: Match.objectLike({
+          Name: 'salishsea-security',
+          SecurityHeadersConfig: Match.objectLike({
+            StrictTransportSecurity: {
+              AccessControlMaxAgeSec: 31536000, IncludeSubdomains: false, Preload: false, Override: true,
+            },
+            FrameOptions: { FrameOption: 'DENY', Override: true },
+            ContentSecurityPolicy: { ContentSecurityPolicy: "frame-ancestors 'none'", Override: true },
+            ContentTypeOptions: { Override: true },
+          }),
+        }),
+      });
+    });
+
+    it('is on every behavior, whichever origin answers', () => {
+      const behaviors = [distConfig().DefaultCacheBehavior, ...distConfig().CacheBehaviors];
+      expect(behaviors.length).toBeGreaterThanOrEqual(5);
+      const ids = new Set(behaviors.map((b: any) => JSON.stringify(b.ResponseHeadersPolicyId)));
+      expect(ids.size).toBe(1);
+      expect([...ids][0]).toContain('SecurityHeaders');
+    });
+  });
+
   describe('dev.salishsea.io (decision 072)', () => {
     const dev = () => distFor('dev.salishsea.io');
     const devBehavior = (pattern: string) => dev().CacheBehaviors.find((b: any) => b.PathPattern === pattern);
