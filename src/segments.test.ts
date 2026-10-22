@@ -108,6 +108,7 @@ function makeOrca(id: string, isoUtc: string, lon: number, lat: number): Occurre
     certainty: null,
     confirmation: 'confirmed',
     disagreements: null,
+    vitality: null,
     taxon: {scientific_name: 'Orcinus orca ater', vernacular_name: 'Resident Killer Whale', species_id: 41521, entity_id: null},
     identifiers: [],
     contributor_id: 7,
@@ -138,6 +139,23 @@ describe('orca short-window transit regression', () => {
     const segs = occurrences2segments([prev, gap, next]);
     expect(segs).toHaveLength(1);
     expect(segs[0]!.occurrences.map(o => o.id)).toEqual(['019d3d0b', '019d3d1d', '019d3d12']);
+  });
+});
+
+describe('a dead animal (salish-1y8)', () => {
+  // A carcass between two sightings of a travelling group, where it would otherwise join.
+  const before = makeOrca('before', '2026-03-30T01:12:00Z', -123.2363, 48.6177);
+  const after = makeOrca('after', '2026-03-30T01:30:00Z', -123.2285, 48.5466);
+  const carcass: Occurrence = {...makeOrca('carcass', '2026-03-30T01:20:00Z', -123.2363, 48.6177), vitality: 'dead'};
+
+  test('is a segment of its own, and the track goes past it', () => {
+    const segs = occurrences2segments([before, carcass, after]);
+    expect(segs.map(s => s.occurrences.map(o => o.id))).toEqual([['before', 'after'], ['carcass']]);
+  });
+
+  test('nothing after it joins it', () => {
+    const later = makeOrca('later', '2026-03-30T01:25:00Z', -123.2363, 48.6177);
+    expect(occurrences2segments([carcass, later]).map(s => s.occurrences.map(o => o.id))).toEqual([['carcass'], ['later']]);
   });
 });
 

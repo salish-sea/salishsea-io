@@ -24,6 +24,8 @@ Four input rows were added by hand after Postgres retired, none of which Postgre
 
 Decision 080's confirmation rule added more, which Postgres never saw either: the `inaturalist.identifications` table, which Postgres's copy didn't hold (`inaturalist_identifications.csv`), with identifications that confirm observation 9000001 two to one though its observer calls it a humpback, leave 9000002 unconfirmed (only a broader taxon, a hidden one and a withdrawn one from anyone but its observer) and dispute a new observation, 9000007; and a second bout, `bout_twin0000000000000002`, whose species is tagged only `possible`. The expected occurrences for all of them, and the `confirmation` key on every one, are the build's answer, checked by hand.
 
+iNaturalist's annotations (salish-1y8) came after Postgres too: an `annotations` column on `inaturalist_observations.csv`, where 9000002 carries a Dead annotation that counts and 9000001 an Alive one voted down, which doesn't. The expected occurrences' `vitality` key is the build's answer, checked by hand.
+
 ## When a derivation changes on purpose
 
 The test then fails, naming the rows that differ. With no Postgres to ask, the new answer is the build's: check that the difference is the one you meant, then edit the expected rows in `snapshot/` to match, as a reviewed change.

@@ -151,10 +151,11 @@ describe('deleting a sighting', () => {
 });
 
 describe('an unconfirmed sighting', () => {
-  const rendered = async (confirmation: Occurrence['confirmation'], disagreements: number | null = null) => {
+  const rendered = async (confirmation: Occurrence['confirmation'], disagreements: number | null = null,
+                          vitality: Occurrence['vitality'] = null) => {
     const el = document.createElement('obs-summary') as ObsSummary;
     (el as unknown as {sighting: Partial<Occurrence>}).sighting = {
-      id: 'inaturalist:1', body: null, confirmation, disagreements, count: null, observed_at: '2026-09-15T18:00:00+00:00',
+      id: 'inaturalist:1', body: null, confirmation, disagreements, vitality, count: null, observed_at: '2026-09-15T18:00:00+00:00',
       photos: [], provider_slug: 'inaturalist', provider: 'iNaturalist', collection: 'iNaturalist',
       observer: 'someone', source_url: null, organization_url: null, url: null, attribution: null,
       taxon: {scientific_name: 'Megaptera novaeangliae', vernacular_name: 'Humpback whale', species_id: 41566, entity_id: null},
@@ -165,7 +166,7 @@ describe('an unconfirmed sighting', () => {
     el.remove();
     // what the dot is filled with, not only its class: an inline fill once overrode the class's
     const dot = root.querySelector<HTMLElement>('.focus-occurrence')!;
-    return {word: root.querySelector('.confirmation')?.textContent ?? null,
+    return {word: [...root.querySelectorAll('.confirmation')].map(e => e.textContent).join(' · ') || null,
             outlined: dot.classList.contains('unconfirmed') && dot.style.backgroundColor === 'rgb(255, 255, 255)'};
   };
 
@@ -179,6 +180,13 @@ describe('an unconfirmed sighting', () => {
     expect(await rendered('confirmed', 1)).toEqual({word: '1 identifier disagrees', outlined: false});
     expect(await rendered('confirmed', 2)).toEqual({word: '2 identifiers disagree', outlined: false});
     expect(await rendered('confirmed', 0)).toEqual({word: null, outlined: false});
+  });
+
+  it('a dead animal says so (salish-1y8); alive and undetermined say nothing', async () => {
+    expect(await rendered('confirmed', null, 'dead')).toEqual({word: 'Dead', outlined: false});
+    expect(await rendered('unconfirmed', null, 'dead')).toEqual({word: 'Unconfirmed · Dead', outlined: true});
+    expect(await rendered('confirmed', null, 'alive')).toEqual({word: null, outlined: false});
+    expect(await rendered('confirmed', null, 'undetermined')).toEqual({word: null, outlined: false});
   });
 });
 
