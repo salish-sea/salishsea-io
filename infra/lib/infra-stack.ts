@@ -367,6 +367,28 @@ export class InfraStack extends cdk.Stack {
       customHeaders: { 'x-origin-verify': edgeSecretFromContext(this.node.tryGetContext('edgeSecret')) },
     });
 
+    // Security headers on every response, whichever origin answered (salish-isn). The
+    // pages' content security policy is a <meta> tag, which browsers ignore for
+    // frame-ancestors, so the one directive a header must carry is sent here; a header
+    // CSP and a meta one are both enforced, so this adds that and takes nothing away.
+    // Nothing frames the site, and since Google sign-in and the write API arrived a page
+    // that could be framed is a clickjacking target, so framing is refused outright.
+    // HSTS for a year, this host only: the subdomains are HTTPS today, but the header
+    // would bind any future one too, and it isn't submitted for preloading.
+    const securityHeaders = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
+      responseHeadersPolicyName: 'salishsea-security',
+      comment: 'salishsea.io: HSTS, no framing, no MIME sniffing',
+      securityHeadersBehavior: {
+        strictTransportSecurity: {
+          accessControlMaxAge: cdk.Duration.days(365), includeSubdomains: false, preload: false, override: true,
+        },
+        frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+        contentSecurityPolicy: { contentSecurityPolicy: "frame-ancestors 'none'", override: true },
+        contentTypeOptions: { override: true },
+        referrerPolicy: { referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN, override: true },
+      },
+    });
+
     // CloudFront Distribution — reconstructed to match production config
     new cloudfront.Distribution(this, 'SalishSeaDist', {
       logBucket,
@@ -382,6 +404,7 @@ export class InfraStack extends cdk.Stack {
       defaultBehavior: {
         origin: flyOrigin,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        responseHeadersPolicy: securityHeaders,
         compress: true,
         cachePolicy: cloudfront.CachePolicy.fromCachePolicyId(
           this, 'CachePolicy', '658327ea-f89d-4fab-a63d-7e88639e58f6',
@@ -404,6 +427,7 @@ export class InfraStack extends cdk.Stack {
         '/cards/*': {
           origin: cardOrigin,
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          responseHeadersPolicy: securityHeaders,
           // JPEG is already compressed; re-compressing costs CPU for nothing.
           compress: false,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
@@ -445,6 +469,7 @@ export class InfraStack extends cdk.Stack {
         '/api/*': {
           origin: apiOrigin,
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+          responseHeadersPolicy: securityHeaders,
           // CachingDisabled turns CloudFront's compression off anyway; Caddy compresses.
           compress: false,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
@@ -464,6 +489,7 @@ export class InfraStack extends cdk.Stack {
         '/media/*': {
           origin: origins.S3BucketOrigin.withOriginAccessControl(mediaBucket),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          responseHeadersPolicy: securityHeaders,
           compress: false,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
@@ -474,6 +500,7 @@ export class InfraStack extends cdk.Stack {
         '/downloads/*': {
           origin: origins.S3BucketOrigin.withOriginAccessControl(downloadsBucket),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          responseHeadersPolicy: securityHeaders,
           compress: false,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
