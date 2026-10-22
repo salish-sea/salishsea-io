@@ -1,6 +1,6 @@
 # 084 — The image build's downloads come from our own mirror first
 
-**Status:** accepted · **Decided:** 2026-10-21, by Peter · **Relates:** [056](056-one-fly-machine.md) (the Fly image), [#727](https://github.com/salish-sea/salishsea-io/pull/727) (the outage this answers), Stelis `st-8u3` (its Racket packages pinned the same way)
+**Status:** accepted; amended by [085](085-stelis-arrives-as-an-image-pinned-by-digest.md) (Racket and its packages leave the image build altogether: the one unmirrored download below is gone) · **Decided:** 2026-10-21, by Peter · **Relates:** [056](056-one-fly-machine.md) (the Fly image), [#727](https://github.com/salish-sea/salishsea-io/pull/727) (the outage this answers), Stelis `st-8u3` (its Racket packages pinned the same way)
 
 ## Context
 
@@ -18,13 +18,15 @@ A bucket of ours, `salishsea-io-downloads`, holds every file the image build dow
 
 The order matters for what a failure means. A mirror miss falls through to upstream, so the mirror can be filled after a pin moves, or after this ships; until then the build is what it was. A checksum mismatch anywhere is skipped, not fatal, so a host serving the wrong file costs a retry, not a deploy.
 
-Racket is the one of the five that is not ours to pin: it is the engine's interpreter, and the same day Stelis took over installing it (`st-2t1`: its `scripts/install-racket.sh`, with the build pinned in its `racket-downloads.tsv`, the same format as ours). The Dockerfile runs that script at the pinned Stelis commit with this mirror first, so `racket` left `fly/downloads.tsv`, and `mirror.sh` reads Stelis's file at that commit to keep the bucket holding the Racket it installs. One download that script makes is outside the mirror: the two Racket packages and their dependencies, pinned (`datalog` by the 9.3 release catalog's checksum, `sha` by git commit) but fetched from Racket's package host and GitHub on every image build. Mirroring those means mirroring a package catalog, which a Stelis image built once per Stelis commit (its `st-9ov`) makes unnecessary, so that is where it goes rather than here.
+**Amended by [085](085-stelis-arrives-as-an-image-pinned-by-digest.md), later the same day:** Racket, its packages and the engine are not downloaded by the image build at all. They come out of the Stelis image by digest, so `fly/downloads.tsv` lists only the four binaries above, `mirror.sh` reads only that file, and the one unmirrored download is gone rather than mirrored. What follows is how it stood between the two decisions.
 
-Not mirrored: the Stelis tarball, which GitHub serves by commit and which the deploy already depends on GitHub for; and DuckDB's extensions, which the Dockerfile installs at build time through DuckDB's own `INSTALL` from `extensions.duckdb.org`. Those are the next candidates if either host fails the way Racket's did.
+~~Racket is the one of the five that is not ours to pin: it is the engine's interpreter, and the same day Stelis took over installing it (`st-2t1`: its `scripts/install-racket.sh`, with the build pinned in its `racket-downloads.tsv`, the same format as ours). The Dockerfile runs that script at the pinned Stelis commit with this mirror first, so `racket` left `fly/downloads.tsv`, and `mirror.sh` reads Stelis's file at that commit to keep the bucket holding the Racket it installs. One download that script makes is outside the mirror: the two Racket packages and their dependencies, pinned (`datalog` by the 9.3 release catalog's checksum, `sha` by git commit) but fetched from Racket's package host and GitHub on every image build. Mirroring those means mirroring a package catalog, which a Stelis image built once per Stelis commit (its `st-9ov`) makes unnecessary, so that is where it goes rather than here.~~
+
+Not mirrored: ~~the Stelis tarball, which GitHub serves by commit and which the deploy already depends on GitHub for~~ (gone with 085: the engine arrives inside the Stelis image); and DuckDB's extensions, which the Dockerfile installs at build time through DuckDB's own `INSTALL` from `extensions.duckdb.org`. That is the next candidate if its host fails the way Racket's did.
 
 ## Consequences
 
 - A deploy depends on our bucket and CloudFront, which the site already depends on, and on upstream hosts only for a file the bucket lacks.
 - The sha256 in the TSV is the only thing that decides what is installed. Neither the mirror nor any upstream can change it.
 - Moving a pin is a change to the TSV, then `scripts/downloads/mirror.sh`, then a deploy. The runbook says so.
-- Stelis's Racket packages install from the sources its own `racket-deps.txt` pins, read from the pinned checkout rather than copied here, so moving that pin is Stelis's change alone.
+- Stelis is pinned by image digest since 085; moving that pin is `fly/pin-stelis.sh` and a PR, and no longer a reason to run the mirror script. ~~Stelis's Racket packages install from the sources its own `racket-deps.txt` pins, read from the pinned checkout rather than copied here, so moving that pin is Stelis's change alone.~~

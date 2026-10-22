@@ -11,18 +11,20 @@
 # The Deploy workflow runs `build` beside its tests and `switch` after the database is
 # migrated (salish-t3g.10); by hand, the bare command does both.
 #
-# The Stelis commit the image pins is fly/stelis-commit (salish-t3g.9): moving it is a
-# PR here, so a change spanning both repos ships when that PR deploys, and the commit
-# a release names says which Stelis it ran.
+# The Stelis commit the image pins is fly/stelis-commit (salish-t3g.9), and the digest
+# of the Stelis image built from it is fly/stelis-digest (decision 085); fly/pin-stelis.sh
+# writes both. Moving the pin is a PR here, so a change spanning both repos ships when
+# that PR deploys, and the commit a release names says which Stelis it ran.
 #
 # The pin must be at or past f364281 (--downstream, which the save-triggered build
 # passes, salish-9uu.6); the Dockerfile refuses an older one.
 #
 # flyctl by that name: the Deploy workflow's setup-flyctl installs no `fly` alias.
 #
-# The image builds on Fly's remote builder, which is fly deploy's default and the
-# only builder that works: Racket CS won't run under Docker's x86_64 emulation on
-# Apple silicon ("error reading from petite"), so a local build fails.
+# The image builds on Fly's remote builder, which is fly deploy's default. On Apple
+# silicon it is also the only builder that works: Racket CS won't run under Docker's
+# x86_64 emulation ("error reading from petite"), and the Dockerfile still runs it
+# once, to check the copied engine loads. On an x86_64 host `docker build` works.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -41,6 +43,12 @@ if ! [[ "$STELIS_SHA" =~ ^[0-9a-f]{40}$ ]]; then
     echo "fly/stelis-commit must hold one full 40-character Stelis commit, not '$STELIS_SHA'" >&2
     exit 1
 fi
+STELIS_DIGEST=$(tr -d '[:space:]' < fly/stelis-digest)
+if ! [[ "$STELIS_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+    echo "fly/stelis-digest must hold one sha256:<64 hex> image digest, not '$STELIS_DIGEST'; run fly/pin-stelis.sh" >&2
+    exit 1
+fi
+STELIS_IMAGE="ghcr.io/rainhead/stelis@$STELIS_DIGEST"
 if [ -n "$(git status --porcelain)" ]; then
     echo "refusing to deploy uncommitted work: the image would not match any commit" >&2
     exit 1
@@ -64,7 +72,8 @@ build() {
     flyctl deploy --build-only --push --image-label "$LABEL" "${secrets[@]}" \
         --build-arg GITHUB_SHA="$SHA" \
         --build-arg SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
-        --build-arg STELIS_SHA="$STELIS_SHA"
+        --build-arg STELIS_SHA="$STELIS_SHA" \
+        --build-arg STELIS_IMAGE="$STELIS_IMAGE"
 }
 
 switch() {

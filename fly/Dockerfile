@@ -12,8 +12,20 @@
 #   SOURCE_DATE_EPOCH  that commit's time: Stelis's build clock (its ADR 0004),
 #       which it would otherwise read from git, and the image carries no .git
 #   STELIS_SHA         the Stelis commit this image pins, from fly/stelis-commit
+#   STELIS_IMAGE       the Stelis image built from that commit, by digest, from
+#       fly/stelis-digest (fly/pin-stelis.sh writes both files)
 
 ARG NODE_VERSION=24.13
+
+# --- Stelis, the image its own CI built from the pinned commit ----------------
+# Racket at /opt/racket and the engine compiled at /opt/stelis, with its test suite
+# run inside the image before it was published (Stelis ADR 0017, decision 085). The
+# machine stage copies those two trees out; nothing Stelis needs is downloaded or
+# compiled here any more.
+# The default is a tag that does not exist, so a build that forgot the arg fails
+# naming it rather than pulling some other Stelis.
+ARG STELIS_IMAGE=ghcr.io/rainhead/stelis:set-STELIS_IMAGE-from-fly-stelis-digest
+FROM ${STELIS_IMAGE} AS stelis
 
 # --- the site, built to read the read-path files -----------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS site
@@ -37,39 +49,44 @@ RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN \
 
 # --- the machine --------------------------------------------------------------
 FROM debian:bookworm-slim
+# libssl3 is what the Stelis trees ask of this base: the engine's sha package opens
+# libcrypto through Racket's FFI (Stelis ADR 0017). The CA store pulls it in anyway;
+# naming it keeps that from being an accident.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl unzip util-linux \
+ && apt-get install -y --no-install-recommends ca-certificates curl libssl3 unzip util-linux \
  && rm -rf /var/lib/apt/lists/*
 
 # node, the same version the site was built with; the read-path scripts run on it.
 COPY --from=site /usr/local/bin/node /usr/local/bin/node
 
-# Every binary below is pinned by sha256 and fetched from our own mirror first
-# (salishsea.io/downloads/<sha256>, decision 084), then upstream, and only a file
-# matching the checksum counts. So an upstream host being down or distrusted (#727:
-# Racket's host redirected to a mirror whose certificate Debian doesn't trust) is
-# not a failed deploy, and no host can change what is installed.
+# Stelis, pinned: the two trees out of the image its own CI built from the commit in
+# fly/stelis-commit, named by digest (fly/stelis-digest). A change spanning both
+# repos ships only when the pin moves, which makes it atomic rather than
+# coincidental (beeatlas ADR 0042). The pin is checked both ways: fly/pin-stelis.sh
+# refused a digest whose image is not labelled with the commit, and here the image
+# must carry the commit it was pinned as, so a digest pasted from the wrong commit
+# fails the build rather than running the wrong engine. preflight.sh proves the
+# copied Racket loads the engine on this base, and the last step checks the pin
+# carries --downstream (Stelis f364281, st-wzk), which the save-triggered build
+# passes (fly/start.sh, salish-9uu.6): an older pin would refuse it on every save,
+# and the coalescer only logs that, so the image fails instead.
 ARG STELIS_SHA
+COPY --from=stelis /opt/racket /opt/racket
+COPY --from=stelis /opt/stelis /opt/stelis
+ENV PATH=/opt/racket/bin:$PATH
+RUN test -n "$STELIS_SHA" \
+ && { test "$(cat /opt/stelis/commit)" = "$STELIS_SHA" \
+      || { echo "fly/stelis-digest names a Stelis image built from $(cat /opt/stelis/commit), not fly/stelis-commit's $STELIS_SHA; run fly/pin-stelis.sh" >&2; exit 1; }; } \
+ && bash /opt/stelis/scripts/preflight.sh \
+ && (racket /opt/stelis/src/main.rkt --help 2>&1 | grep -q -- '--downstream' \
+     || { echo "Stelis ${STELIS_SHA} predates --downstream, which the save-triggered build needs (salish-9uu.6)" >&2; exit 1; })
 
-# Racket, by Stelis's own install script at the pinned commit (Stelis st-2t1): the
-# minimal build its racket-downloads.tsv pins, from our mirror first, and the
-# packages from the sources its racket-deps.txt pins, into /usr/local. The packages
-# are the one download here the mirror does not cover: pinned (datalog by the 9.3
-# release catalog's checksum, sha by git commit) but fetched from Racket's catalog
-# host and GitHub each build. A Stelis image (its st-9ov) is what removes that.
-# These files are added by content, so this layer is cached across Stelis bumps
-# that leave them unchanged, while the engine itself is fetched and compiled
-# further down.
-ADD https://raw.githubusercontent.com/rainhead/stelis/${STELIS_SHA}/scripts/install-racket.sh /tmp/stelis-racket/scripts/install-racket.sh
-ADD https://raw.githubusercontent.com/rainhead/stelis/${STELIS_SHA}/scripts/preflight.sh /tmp/stelis-racket/scripts/preflight.sh
-ADD https://raw.githubusercontent.com/rainhead/stelis/${STELIS_SHA}/racket-version /tmp/stelis-racket/racket-version
-ADD https://raw.githubusercontent.com/rainhead/stelis/${STELIS_SHA}/racket-deps.txt /tmp/stelis-racket/racket-deps.txt
-ADD https://raw.githubusercontent.com/rainhead/stelis/${STELIS_SHA}/racket-downloads.tsv /tmp/stelis-racket/racket-downloads.tsv
-RUN STELIS_DOWNLOAD_MIRROR=https://salishsea.io/downloads \
-      bash /tmp/stelis-racket/scripts/install-racket.sh --prefix /usr/local \
- && rm -rf /tmp/stelis-racket
-
-# The rest, pinned by sha256 in fly/downloads.tsv and fetched by fly/fetch.sh.
+# Every binary below is pinned by sha256 in fly/downloads.tsv and fetched by
+# fly/fetch.sh from our own mirror first (salishsea.io/downloads/<sha256>, decision
+# 084), then upstream, and only a file matching the checksum counts. So an upstream
+# host being down or distrusted (#727: Racket's host redirected to a mirror whose
+# certificate Debian doesn't trust) is not a failed deploy, and no host can change
+# what is installed.
 COPY fly/fetch.sh fly/downloads.tsv /tmp/fetch/
 
 # The DuckDB CLI Stelis content-addresses relations with, pinned as in its CI.
@@ -84,21 +101,6 @@ RUN /tmp/fetch/fetch.sh litestream /tmp/litestream.tgz \
  && tar -xzf /tmp/litestream.tgz -C /usr/local/bin litestream && rm /tmp/litestream.tgz
 RUN /tmp/fetch/fetch.sh supercronic /usr/local/bin/supercronic \
  && chmod +x /usr/local/bin/supercronic
-
-# Stelis, pinned. A change spanning both repos ships only when this pin moves,
-# which makes it atomic rather than coincidental (beeatlas ADR 0042). Its Racket and
-# packages were installed above by its own script at the same commit; preflight.sh
-# proves this checkout loads on them. The last step checks the pin carries
-# --downstream (Stelis f364281, st-wzk), which the save-triggered build passes
-# (fly/start.sh, salish-9uu.6): an older pin would refuse it on every save, and the
-# coalescer only logs that, so the image fails instead.
-RUN test -n "$STELIS_SHA" \
- && curl -fsSL "https://github.com/rainhead/stelis/archive/${STELIS_SHA}.tar.gz" | tar -xz -C /opt \
- && mv "/opt/stelis-${STELIS_SHA}" /opt/stelis \
- && bash /opt/stelis/scripts/preflight.sh \
- && raco make /opt/stelis/src/main.rkt \
- && (racket /opt/stelis/src/main.rkt --help 2>&1 | grep -q -- '--downstream' \
-     || { echo "Stelis ${STELIS_SHA} predates --downstream, which the save-triggered build needs (salish-9uu.6)" >&2; exit 1; })
 
 # Everything runs as `app`; start.sh drops to it after taking ownership of the
 # volume, which Fly mounts owned by root.

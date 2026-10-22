@@ -9,10 +9,9 @@
 # uploaded as downloads/<sha256>, which CloudFront serves at
 # https://salishsea.io/downloads/<sha256>, the first place fly/fetch.sh looks. A file
 # the bucket already holds is skipped: an object's key is its content, so there is
-# never anything to update, only to add. Run it after changing a pin in the TSV, or
-# after moving fly/stelis-commit: Racket is pinned in Stelis's racket-downloads.tsv
-# (the same format), read here at that commit, so the bucket holds the Racket its
-# install script asks this mirror for.
+# never anything to update, only to add. Run it after changing a pin in the TSV.
+# Racket is not in the TSV: it arrives inside the Stelis image, by digest (decision
+# 085), so moving fly/stelis-commit no longer calls for a mirror run.
 
 set -euo pipefail
 
@@ -23,11 +22,7 @@ profile=${AWS_PROFILE:-orcasound}
 
 [[ -r "$tsv" ]] || { echo "mirror.sh: cannot read $tsv" >&2; exit 2; }
 tmp=$(mktemp)
-stelis_tsv=$(mktemp)
-trap 'rm -f "$tmp" "$stelis_tsv"' EXIT
-stelis_sha=$(tr -d '[:space:]' < fly/stelis-commit)
-curl -fsSL -o "$stelis_tsv" "https://raw.githubusercontent.com/rainhead/stelis/$stelis_sha/racket-downloads.tsv" \
-    || { echo "mirror.sh: cannot read Stelis $stelis_sha's racket-downloads.tsv" >&2; exit 1; }
+trap 'rm -f "$tmp"' EXIT
 
 failed=0
 while read -r name sha urls; do
@@ -55,6 +50,6 @@ while read -r name sha urls; do
         --content-type application/octet-stream \
         --metadata "name=$name,source=$got"
     echo "$name: mirrored from $got"
-done < <(cat "$tsv" "$stelis_tsv")
+done < "$tsv"
 
 exit $failed
