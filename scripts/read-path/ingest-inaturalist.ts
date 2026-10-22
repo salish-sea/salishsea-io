@@ -82,7 +82,8 @@ const SCHEMA = `
     -- Who identified an observation as what, and what anyone wrote on it (decision 075;
     -- rights-policy §5.5): kept to derive a confidence of ours and the animals people
     -- name, never published. taxon_id is not held to the taxa: someone else's
-    -- identification can name a taxon no observation reaches. A body hidden by
+    -- identification can name a taxon no observation reaches, which the next run's
+    -- danglingTaxonIds fetches. A body hidden by
     -- iNaturalist's moderators is not kept.
     CREATE TABLE IF NOT EXISTS identifications (
         id INTEGER PRIMARY KEY, observation_id INTEGER NOT NULL, user_id INTEGER,
@@ -246,14 +247,20 @@ export async function registerTaxonIds(snapshot: string): Promise<number[]> {
 }
 
 /**
- * Taxa the mirror's rows point at (a parent, a replacement) that it does not hold. None,
- * normally: a fetch closes over what it reaches. But a refresh commits its rows before
- * the closure fetches what they newly reference, so an upstream failure in between leaves
- * a pointer at nothing; each run asks for these again rather than waiting a week.
+ * Taxa the mirror's rows point at (a parent, a replacement, what someone identified an
+ * observation as) that it does not hold. A fetch closes over its observations' own taxa,
+ * but not over the identifications', which may name anything: a gull, a giraffe, or a
+ * subspecies of the observation's species. The derivation needs each one's ancestry to
+ * tell agreement from dispute (decision 080), so each run fetches those it lacks. A
+ * refresh, too, commits its rows before the closure fetches what they newly reference,
+ * so an upstream failure in between leaves a pointer at nothing; each run asks for these
+ * again rather than waiting a week.
  */
 export function danglingTaxonIds(db: DatabaseSync): number[] {
     return (db.prepare(`
-        SELECT DISTINCT r FROM (SELECT parent_id AS r FROM taxa UNION SELECT current_taxon_id AS r FROM taxa)
+        SELECT DISTINCT r FROM (
+            SELECT parent_id AS r FROM taxa UNION SELECT current_taxon_id AS r FROM taxa
+            UNION SELECT taxon_id AS r FROM identifications)
         WHERE r IS NOT NULL AND r NOT IN (SELECT id FROM taxa) ORDER BY r`).all() as {r: number}[]).map(x => x.r);
 }
 
