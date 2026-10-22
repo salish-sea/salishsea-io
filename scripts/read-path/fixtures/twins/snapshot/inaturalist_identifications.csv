@@ -8,3 +8,5 @@ id,observation_id,taxon_id,current,own_observation,hidden
 6000007,9000007,41566,true,true,false
 6000008,9000007,41566,true,false,false
 6000009,9000007,41708,true,false,false
+6000010,9000001,41521,true,false,false
+6000011,9000001,41566,true,false,false

@@ -41,6 +41,8 @@ export type Occurrence = {
   certainty: IdentificationCertainty | null;
   collection: string | null;
   confirmation: Confirmation;
+  /** How many other people's identifications name another branch; null for a source without identifications (decision 080). */
+  disagreements: number | null;
   contributor_id: number | null;
   count: number | null;
   direction: TravelDirection | null;

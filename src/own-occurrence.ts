@@ -68,5 +68,6 @@ export function ownOccurrence(sighting: OwnSighting, contributor: Pick<Contribut
     certainty: null,
     // as the build shows our own sightings, for now (decision 080)
     confirmation: 'confirmed',
+    disagreements: null,
   };
 }

@@ -151,10 +151,10 @@ describe('deleting a sighting', () => {
 });
 
 describe('an unconfirmed sighting', () => {
-  const rendered = async (confirmation: Occurrence['confirmation']) => {
+  const rendered = async (confirmation: Occurrence['confirmation'], disagreements: number | null = null) => {
     const el = document.createElement('obs-summary') as ObsSummary;
     (el as unknown as {sighting: Partial<Occurrence>}).sighting = {
-      id: 'inaturalist:1', body: null, confirmation, count: null, observed_at: '2026-09-15T18:00:00+00:00',
+      id: 'inaturalist:1', body: null, confirmation, disagreements, count: null, observed_at: '2026-09-15T18:00:00+00:00',
       photos: [], provider_slug: 'inaturalist', provider: 'iNaturalist', collection: 'iNaturalist',
       observer: 'someone', source_url: null, organization_url: null, url: null, attribution: null,
       taxon: {scientific_name: 'Megaptera novaeangliae', vernacular_name: 'Humpback whale', species_id: 41566, entity_id: null},
@@ -173,6 +173,12 @@ describe('an unconfirmed sighting', () => {
     expect(await rendered('unconfirmed')).toEqual({word: 'Unconfirmed', outlined: true});
     expect(await rendered('disputed')).toEqual({word: 'Disputed', outlined: true});
     expect(await rendered('confirmed')).toEqual({word: null, outlined: false});
+  });
+
+  it('a confirmed sighting someone was outvoted on says so quietly, with a solid dot', async () => {
+    expect(await rendered('confirmed', 1)).toEqual({word: '1 identifier disagrees', outlined: false});
+    expect(await rendered('confirmed', 2)).toEqual({word: '2 identifiers disagree', outlined: false});
+    expect(await rendered('confirmed', 0)).toEqual({word: null, outlined: false});
   });
 });
 

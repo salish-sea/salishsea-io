@@ -200,7 +200,7 @@ export class ObsSummary extends LitElement {
     // change) can fire before it is assigned; render nothing rather than throw.
     if (!this.sighting) return nothing;
     const {
-      body, confirmation, count, observed_at, photos, provider_slug, taxon, url
+      body, confirmation, count, disagreements, observed_at, photos, provider_slug, taxon, url
     } = this.sighting;
     // The same dot, in the same colour, as the marker on the map — which is the
     // whole point of decision 029's palette. It used to be a letter, and the
@@ -219,6 +219,7 @@ export class ObsSummary extends LitElement {
           <b>${name}</b>
           ${when(count && count > 0, () => html`<span class="count">×${count}</span>`)}
           ${when(unconfirmed, () => html`<span class="confirmation" title=${confirmationNote(this.sighting)}>${confirmation === 'disputed' ? 'Disputed' : 'Unconfirmed'}</span>`)}
+          ${when(!unconfirmed && disagreements, () => html`<span class="confirmation" title="Confirmed: at least two thirds of the others who identified it agree">${disagreements === 1 ? '1 identifier disagrees' : `${disagreements} identifiers disagree`}</span>`)}
         </div>
         <time>${guard([observed_at], () => html`${
           Temporal.Instant.from(observed_at).toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})

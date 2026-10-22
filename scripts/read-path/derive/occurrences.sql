@@ -66,7 +66,8 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          CAST(NULL AS TIMESTAMPTZ) AS observed_until,
          CAST(NULL AS VARCHAR) AS certainty,
          -- Maplify's trusted flag read as an input to ours, as 008 allows (decision 080)
-         CASE WHEN s.trusted THEN 'confirmed' ELSE 'unconfirmed' END AS confirmation
+         CASE WHEN s.trusted THEN 'confirmed' ELSE 'unconfirmed' END AS confirmation,
+         CAST(NULL AS BIGINT) AS disagreements
   FROM source_maplify_sightings s
   LEFT JOIN memory.maplify_entity me
     ON me.name IS NOT DISTINCT FROM s.name AND me.scientific_name = s.scientific_name
@@ -85,16 +86,18 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
     AND s.id NOT IN (SELECT id FROM memory.maplify_out_of_scope);
 
 -- arm: inaturalist
--- Whether anyone but the observer agrees with what an observation is shown as (decision
--- 080): not a twin, since Postgres never decided it. The taxon shown is the species, or
--- the taxon itself when it is above species. Each current identification of it, or of a
--- taxon within it, agrees; one of a taxon above it, such as "toothed whales", says
--- nothing; anyone else's anywhere else disputes it. The observer's own never does: when
--- the others have overruled the observer, the sighting is what they agree it is. An
--- observation is confirmed when someone other than the observer agrees and nobody else
--- disputes. A taxon
--- the mirror doesn't hold can't be placed, so says nothing; the ingest fetches every
--- taxon an identification names (danglingTaxonIds), so that lasts a run at most.
+-- Whether people other than the observer agree with what an observation is shown as
+-- (decision 080): not a twin, since Postgres never decided it. The taxon shown is the
+-- species, or the taxon itself when it is above species. Only other people's current
+-- identifications vote; the observer's is the claim being checked. One of the taxon shown,
+-- or of a taxon within it, agrees; one of a taxon above it, such as "toothed whales", says
+-- nothing; one anywhere else disagrees. Confirmed when someone agrees and at least two
+-- thirds of the votes that take a side agree, so three to one is settled; disputed when
+-- someone disagrees and it isn't; otherwise unconfirmed. How many disagreed is kept
+-- either way, since a confirmed sighting someone disagreed with is still worth saying so
+-- about. A taxon the mirror doesn't hold can't be placed, so says nothing; the ingest
+-- fetches every taxon an identification names (danglingTaxonIds), so that lasts a run at
+-- most.
 -- Written to a table once, so the INSERT below holds only the photos' joins.
 CREATE OR REPLACE TABLE memory.main.inaturalist_confirmation AS
   WITH RECURSIVE lineage(taxon_id, ancestor_id) AS (
@@ -112,22 +115,23 @@ CREATE OR REPLACE TABLE memory.main.inaturalist_confirmation AS
     JOIN taxa t ON t.id = coalesce(t_recorded.current_taxon_id, t_recorded.id)
   ),
   claim AS (
-    SELECT s.id, i.own_observation,
+    SELECT s.id,
            within.taxon_id IS NOT NULL AS agrees,
-           NOT i.own_observation AND named.id IS NOT NULL AND within.taxon_id IS NULL AND above.taxon_id IS NULL AS disputes
+           named.id IS NOT NULL AND within.taxon_id IS NULL AND above.taxon_id IS NULL AS disagrees
     FROM shown s
-    JOIN source_inaturalist_identifications i ON i.observation_id = s.id
+    JOIN source_inaturalist_identifications i ON i.observation_id = s.id AND NOT i.own_observation
     LEFT JOIN source_inaturalist_taxa recorded ON recorded.id = i.taxon_id
     LEFT JOIN source_inaturalist_taxa named ON named.id = coalesce(recorded.current_taxon_id, recorded.id)
     LEFT JOIN lineage within ON within.taxon_id = named.id AND within.ancestor_id = s.taxon_id
     LEFT JOIN lineage above ON above.taxon_id = s.taxon_id AND above.ancestor_id = named.id
   )
   SELECT id,
-         CASE WHEN bool_or(disputes) THEN 'disputed'
-              WHEN bool_or(agrees AND NOT own_observation) THEN 'confirmed'
-              ELSE 'unconfirmed' END AS confirmation
-  FROM claim
-  GROUP BY id;
+         CASE WHEN agreeing > 0 AND 3 * agreeing >= 2 * (agreeing + disagreements) THEN 'confirmed'
+              WHEN disagreements > 0 THEN 'disputed'
+              ELSE 'unconfirmed' END AS confirmation,
+         disagreements
+  FROM (SELECT id, count_if(agrees) AS agreeing, count_if(disagrees) AS disagreements
+        FROM claim GROUP BY id);
 
 -- derived.inaturalist_occurrences
 CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
@@ -168,7 +172,9 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          CAST(NULL AS TIMESTAMPTZ) AS observed_until,
          CAST(NULL AS VARCHAR) AS certainty,
          -- no identification at all is nobody else agreeing
-         coalesce(c.confirmation, 'unconfirmed') AS confirmation
+         coalesce(c.confirmation, 'unconfirmed') AS confirmation,
+         -- how many other people's identifications name another branch (decision 080)
+         coalesce(c.disagreements, 0) AS disagreements
   FROM source_inaturalist_observations o
   LEFT JOIN memory.inaturalist_confirmation c ON c.id = o.id
   JOIN taxa t_recorded ON o.taxon_id = t_recorded.id
@@ -237,7 +243,8 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
          CAST(NULL AS TIMESTAMPTZ) AS observed_until,
          CAST(NULL AS VARCHAR) AS certainty,
          -- our own sightings are shown as confirmed until decided otherwise (decision 080)
-         'confirmed' AS confirmation
+         'confirmed' AS confirmation,
+         CAST(NULL AS BIGINT) AS disagreements
   FROM public.observations o
   JOIN public.contributors con ON con.id = o.contributor_id
   LEFT JOIN inaturalist_taxon xw ON xw.entity_id = o.entity_id
@@ -306,7 +313,8 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
          prov.slug AS provider_slug,
          b.ended_at AS observed_until,
          tx.certainty,
-         CASE WHEN tx.species_certainty = 'possible' THEN 'unconfirmed' ELSE 'confirmed' END AS confirmation
+         CASE WHEN tx.species_certainty = 'possible' THEN 'unconfirmed' ELSE 'confirmed' END AS confirmation,
+         CAST(NULL AS BIGINT) AS disagreements
   FROM source_acoustic_bouts b
   JOIN per_species tx ON tx.bout_id = b.id
   LEFT JOIN public.hydrophones h ON h.feed_id = b.feed_id
@@ -349,6 +357,7 @@ CREATE OR REPLACE TEMP MACRO occurrence_doc(o) AS CAST(to_json({
            'observed_at': pg_ts(o.observed_at),
            'confirmation': o.confirmation,
            'organization': o.organization,
+           'disagreements': o.disagreements,
            'observed_from': pg_lon_lat(o.observed_from),
            'provider_slug': o.provider_slug,
            'contributor_id': o.contributor_id,
