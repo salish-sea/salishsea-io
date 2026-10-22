@@ -95,6 +95,6 @@ export type UpsertObservationArgs = {
   observed_from: LonLat | null;
   photos: OccurrencePhoto[];
   url: string;
-  /** Accepted and never stored, as Postgres's function did. */
+  /** How far the animal may have been from `location`, in metres; null when the author didn't say (decision 077). */
   accuracy: number | null;
 };
