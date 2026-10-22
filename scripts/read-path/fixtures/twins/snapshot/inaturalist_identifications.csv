@@ -1,0 +1,12 @@
+id,observation_id,taxon_id,current,own_observation,hidden
+6000001,9000001,41566,true,true,false
+6000002,9000001,41521,true,false,false
+6000003,9000002,41566,true,true,false
+6000004,9000002,424321,true,false,false
+6000005,9000002,41708,true,false,true
+6000006,9000002,41708,false,false,false
+6000007,9000007,41566,true,true,false
+6000008,9000007,41566,true,false,false
+6000009,9000007,41708,true,false,false
+6000010,9000001,41521,true,false,false
+6000011,9000001,41566,true,false,false

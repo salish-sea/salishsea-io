@@ -5,6 +5,7 @@ import hydrophoneIcon from './assets/hydrophone-default.svg?url';
 import salmonCountingSiteIcon from './assets/salmon-counting-site.svg?url';
 import viewingLocationIcon from './assets/viewing-location.svg?url';
 import { directionToRads } from './direction.ts';
+import { isUnconfirmed } from './occurrence.ts';
 import type { Occurrence } from './types.ts';
 import { GROUPS, labelFor, taxonGroup, trackSummary } from './symbology.ts';
 
@@ -42,6 +43,8 @@ export type OccurrenceProperties = {
   ring: string;
   /** The segment's head: larger, ringed in white, and labelled. */
   head: boolean;
+  /** Nobody but its reporter has agreed with it yet (decision 080): an outlined dot. */
+  unconfirmed: boolean;
   label?: string;
   /** Clockwise from east, in degrees, when the report gives a direction of travel. */
   directionDeg?: number;
@@ -67,12 +70,17 @@ export function occurrenceProperties(occurrence: Occurrence): OccurrenceProperti
   const {direction, isLast, segmentIdentifiers, segmentIdentity, segmentLength, segmentSpanHours} = occurrence;
   const {color} = GROUPS[taxonGroup(occurrence.taxon.scientific_name)];
   const head = !!isLast;
+  // An unconfirmed sighting is an outlined dot, white inside and edged in its taxon's
+  // colour, the size of a confirmed one (decision 080): not faded, which reads as older
+  // or less important, and not 077's ring, which means "somewhere in here".
+  const unconfirmed = isUnconfirmed(occurrence);
   const properties: OccurrenceProperties = {
     id: occurrence.id,
     color,
-    fill: rgba(color, head ? 0.95 : 0.75),
-    ring: head ? '#ffffff' : rgba(color, 0.9),
+    fill: unconfirmed ? '#ffffff' : rgba(color, head ? 0.95 : 0.75),
+    ring: unconfirmed ? color : head ? '#ffffff' : rgba(color, 0.9),
     head,
+    unconfirmed,
   };
 
   if (head) {
@@ -119,6 +127,7 @@ export function ringColours(color: string) {
 
 const selected: ExpressionSpecification = ['boolean', ['feature-state', 'selected'], false];
 const hovered: ExpressionSpecification = ['boolean', ['feature-state', 'hover'], false];
+const outlined: ExpressionSpecification = ['boolean', ['get', 'unconfirmed'], false];
 
 /**
  * An occurrence's dot, its label, and its direction arrow, read from
@@ -134,10 +143,12 @@ function occurrenceLayers(source: string, prefix: string, filter?: ExpressionSpe
       paint: {
         // A dot never gives way to a label, since hiding a marker would hide a
         // sighting; circles take no part in MapLibre's collisions at all.
-        'circle-radius': ['case', ['get', 'head'], 7, 4.5],
+        // An unconfirmed dot trades half a pixel of radius for a thicker edge, so the
+        // two are the same size overall and the edge still shows its colour.
+        'circle-radius': ['case', ['get', 'head'], ['case', outlined, 6.5, 7], ['case', outlined, 4, 4.5]],
         'circle-color': ['get', 'fill'],
         'circle-stroke-color': ['get', 'ring'],
-        'circle-stroke-width': ['case', ['get', 'head'], 2, 1],
+        'circle-stroke-width': ['case', ['get', 'head'], ['case', outlined, 2.5, 2], ['case', outlined, 1.5, 1]],
         // The selected occurrence is drawn again on top, in the selection's style
         // (see selectedLayers), so it isn't covered by its neighbours.
         'circle-opacity': ['case', selected, 0, 1],

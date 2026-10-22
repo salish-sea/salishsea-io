@@ -45,6 +45,15 @@ CREATE OR REPLACE TEMP VIEW source_inaturalist_observation_photos AS
          CAST(seq AS SMALLINT) AS seq, attribution, hidden <> 0 AS hidden, license, url
   FROM inaturalist_mirror.observation_photos;
 
+-- Each person's identification of an observation, for whether anyone but its observer
+-- agrees with it (decision 080). Only what that rule reads: a current one that
+-- iNaturalist's moderators haven't hidden, its taxon, and whether it is the observer's.
+CREATE OR REPLACE TEMP VIEW source_inaturalist_identifications AS
+  SELECT CAST(observation_id AS BIGINT) AS observation_id, CAST(taxon_id AS INTEGER) AS taxon_id,
+         own_observation <> 0 AS own_observation
+  FROM inaturalist_mirror.identifications
+  WHERE current <> 0 AND hidden = 0;
+
 -- public.acoustic_bouts and its entities, as Orcasound's moderators published them.
 -- Postgres's ingest kept biophony bouts only (decision 013: the other two categories
 -- name no organism); the mirror holds every category, and the scope rule is applied

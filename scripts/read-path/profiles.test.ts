@@ -33,7 +33,7 @@ const report = (hauloutId: number, id: string, observedAt: string, extra: Record
     taxon: {entity_id: null, species_id: 41755, scientific_name: 'Phoca vitulina', vernacular_name: 'Harbor Seal'},
     photos: [], accuracy: 10, location: {lon: -122.92, lat: 48.12}, observer: 'someone', distance_m: 120,
     haulout_id: hauloutId, attribution: '(c) someone', observed_at: observedAt, species_name: 'Harbor Seal',
-    occurrence_id: id, ...extra,
+    occurrence_id: id, confirmation: 'confirmed', ...extra,
 });
 
 function tables(): Tables {
@@ -84,7 +84,7 @@ function tables(): Tables {
         haulout_occurrences: [
             report(12, 'inat:2', '2026-05-01T18:00:00+00:00', {photos: [{src: 'https://static.inaturalist.org/photos/7/square.jpg', thumb: null, license: null, mimetype: null, attribution: '(c) someone'}]}),
             report(12, 'inat:1', '2026-05-01T18:00:00+00:00'),
-            report(12, 'inat:3', '2024-03-01T18:00:00+00:00', {location: null, accuracy: 2000}),
+            report(12, 'inat:3', '2024-03-01T18:00:00+00:00', {location: null, accuracy: 2000, confirmation: 'unconfirmed'}),
             report(11, 'inat:9', '2026-01-01T18:00:00+00:00', {distance_m: null}),
         ],
     };
@@ -385,6 +385,10 @@ describe('assembleHaulouts and renderHauloutPage', () => {
         expect(doc()).toContain('src="https://static.inaturalist.org/photos/7/medium.jpg"');
         expect(doc()).toMatch(/<th scope="row">2026<\/th>/);
         expect(doc()).toContain('3 reports from 1 observer, March 2024 to May 2026');
+    });
+
+    test('a report nobody else has agreed with is marked so in the list (decision 080)', () => {
+        expect(doc().match(/>unconfirmed<\/span>/g)).toHaveLength(1);
     });
 
     test('depends on the data alone: shuffled snapshot rows render the same bytes', () => {

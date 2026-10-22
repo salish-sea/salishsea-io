@@ -14,7 +14,7 @@ vi.mock('./individual-links.ts', async (importOriginal) => ({
   loadCatalogCodes: async () => new Map(),
 }));
 
-import { buildShareUrl, stripResolvedProvenance, ObsSummary } from './obs-summary.ts';
+import { buildShareUrl, confirmationNote, stripResolvedProvenance, ObsSummary } from './obs-summary.ts';
 import type { Occurrence } from './types.ts';
 
 describe('buildShareUrl', () => {
@@ -147,5 +147,46 @@ describe('deleting a sighting', () => {
     expect(reported).toEqual(["Couldn't delete that sighting. Please try again."]);
     // Announcing here would remove the row for a sighting that is still there.
     expect(deleted).toEqual([]);
+  });
+});
+
+describe('an unconfirmed sighting', () => {
+  const rendered = async (confirmation: Occurrence['confirmation'], disagreements: number | null = null) => {
+    const el = document.createElement('obs-summary') as ObsSummary;
+    (el as unknown as {sighting: Partial<Occurrence>}).sighting = {
+      id: 'inaturalist:1', body: null, confirmation, disagreements, count: null, observed_at: '2026-09-15T18:00:00+00:00',
+      photos: [], provider_slug: 'inaturalist', provider: 'iNaturalist', collection: 'iNaturalist',
+      observer: 'someone', source_url: null, organization_url: null, url: null, attribution: null,
+      taxon: {scientific_name: 'Megaptera novaeangliae', vernacular_name: 'Humpback whale', species_id: 41566, entity_id: null},
+    };
+    document.body.append(el);
+    await el.updateComplete;
+    const root = el.shadowRoot!;
+    el.remove();
+    // what the dot is filled with, not only its class: an inline fill once overrode the class's
+    const dot = root.querySelector<HTMLElement>('.focus-occurrence')!;
+    return {word: root.querySelector('.confirmation')?.textContent ?? null,
+            outlined: dot.classList.contains('unconfirmed') && dot.style.backgroundColor === 'rgb(255, 255, 255)'};
+  };
+
+  it('says so beside its name, and its dot is outlined as on the map (decision 080)', async () => {
+    expect(await rendered('unconfirmed')).toEqual({word: 'Unconfirmed', outlined: true});
+    expect(await rendered('disputed')).toEqual({word: 'Disputed', outlined: true});
+    expect(await rendered('confirmed')).toEqual({word: null, outlined: false});
+  });
+
+  it('a confirmed sighting someone was outvoted on says so quietly, with a solid dot', async () => {
+    expect(await rendered('confirmed', 1)).toEqual({word: '1 identifier disagrees', outlined: false});
+    expect(await rendered('confirmed', 2)).toEqual({word: '2 identifiers disagree', outlined: false});
+    expect(await rendered('confirmed', 0)).toEqual({word: null, outlined: false});
+  });
+});
+
+describe('confirmationNote', () => {
+  it("explains each source's own rule, not person-to-person agreement where that isn't the rule (decision 080)", () => {
+    expect(confirmationNote({confirmation: 'unconfirmed', provider_slug: 'inaturalist'})).toMatch(/observer/);
+    expect(confirmationNote({confirmation: 'disputed', provider_slug: 'inaturalist'})).toMatch(/disagree/);
+    expect(confirmationNote({confirmation: 'unconfirmed', provider_slug: 'maplify'})).toMatch(/marked this report trusted/);
+    expect(confirmationNote({confirmation: 'unconfirmed', provider_slug: 'orcasound'})).toMatch(/possibly heard/);
   });
 });

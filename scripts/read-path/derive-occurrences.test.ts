@@ -90,6 +90,7 @@ describe('armsFor', () => {
         'maplify-names-hold': null,
         'inaturalist_mirror.observations': 'source_inaturalist_observations',
         'inaturalist_mirror.observation_photos': 'source_inaturalist_observation_photos',
+        'inaturalist_mirror.identifications': 'source_inaturalist_identifications',
         'public.observations': 'public.observations', 'public.observation_photos': 'public.observation_photos',
         'public.contributors': 'public.contributors',
         'orcasound.bouts': 'source_acoustic_bouts', 'orcasound.bout_entities': 'source_acoustic_bout_entities', 'public.hydrophones': 'public.hydrophones',
@@ -103,8 +104,13 @@ describe('armsFor', () => {
     function readGraph(sql: string): Map<string, Set<string>> {
         const graph = new Map<string, Set<string>>();
         // one fragment per definition: a `;` can sit inside a macro's body
-        for (const statement of sql.split(/(?=CREATE OR REPLACE TEMP )/)) {
-            const defined = [...statement.matchAll(/CREATE OR REPLACE TEMP VIEW (\w+)/g)].map(m => m[1]!);
+        // A table an arm writes into `memory` first, as the iNaturalist arm's confirmations
+        // are, counts as a view under the name the arm reads it by.
+        for (const statement of sql.split(/(?=CREATE OR REPLACE (?:TEMP |TABLE memory\.))/)) {
+            const defined = [
+                ...[...statement.matchAll(/CREATE OR REPLACE TEMP VIEW (\w+)/g)].map(m => m[1]!),
+                ...[...statement.matchAll(/CREATE OR REPLACE TABLE memory\.main\.(\w+)/g)].map(m => `memory.${m[1]!}`),
+            ];
             const reads = new Set([...statement.matchAll(/\b(?:FROM|JOIN)\s+([a-z_][\w.]*)/gi)].map(m => m[1]!));
             for (const name of defined) graph.set(name, new Set([...(graph.get(name) ?? []), ...reads]));
         }

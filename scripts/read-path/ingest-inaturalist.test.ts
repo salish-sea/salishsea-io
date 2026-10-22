@@ -245,6 +245,15 @@ describe('the mirror', () => {
         db.close();
     });
 
+    test("a taxon only someone's identification names is one to fetch, so its ancestry is known", () => {
+        const db = fresh('identified.sqlite');
+        applyFetch(db, [observation({id: 1, identifications: [identification({id: 11, taxonId: 2000000004})]})], taxa, null);
+        expect(danglingTaxonIds(db)).toEqual([2000000004]);
+        applyFetch(db, [], [{...taxa[1]!, id: 2000000004, ancestorIds: [2000000001, 2000000004]}], null);
+        expect(danglingTaxonIds(db)).toEqual([]);
+        db.close();
+    });
+
     test('a mirror from before the refresh gains its checked_at column, with every taxon due', () => {
         const file = path.join(dir, 'old.sqlite');
         const old = new DatabaseSync(file);

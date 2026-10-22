@@ -260,7 +260,7 @@ CREATE OR REPLACE TABLE build.haulout_occurrences AS
   WITH kept AS (
     SELECT d.haulout_id, d.distance_m, o.id AS occurrence_id,
            json_extract(o.doc, ['$.url', '$.body', '$.taxon', '$.photos', '$.accuracy', '$.location',
-                                '$.observer', '$.attribution', '$.observed_at']) AS f
+                                '$.observer', '$.attribution', '$.observed_at', '$.confirmation']) AS f
     FROM memory.haulout_distance d
     JOIN build.occurrences o ON o.id = d.occurrence_id
     WHERE d.distance_m <= d.radius_m
@@ -277,6 +277,7 @@ CREATE OR REPLACE TABLE build.haulout_occurrences AS
            'haulout_id': haulout_id,
            'attribution': f[8],
            'observed_at': f[9],
+           'confirmation': f[10],
            'species_name': coalesce(sp.vernacular_name, sp.scientific_name,
                                     f[3]->>'vernacular_name', f[3]->>'scientific_name'),
            'occurrence_id': occurrence_id

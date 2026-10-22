@@ -1,4 +1,5 @@
 import { fold } from './fold.ts';
+import type { Confirmation } from './types.ts';
 import { Temporal } from 'temporal-polyfill';
 
 // The catalogue as its pages read it, written out by hand since Postgres stopped being
@@ -353,6 +354,7 @@ export type HauloutOccurrence = {
   attribution: string | null;
   observer: string | null;
   body: string | null;
+  confirmation: Confirmation;
 };
 
 // A report the haulout_occurrences view attributed to a site, with the fields
@@ -371,6 +373,7 @@ export interface HauloutReport {
   attribution: string | null;
   observer: string | null;
   body: string | null;
+  confirmation: Confirmation;
 }
 
 // The atlas's species codes (Jeffries et al. 2000, table legend).
@@ -414,6 +417,7 @@ export function hauloutReport(row: HauloutOccurrence): HauloutReport[] {
     attribution: row.attribution,
     observer: row.observer,
     body: row.body,
+    confirmation: row.confirmation,
   }];
 }
 

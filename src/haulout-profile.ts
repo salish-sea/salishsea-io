@@ -15,6 +15,7 @@ import {
   ATLAS_SPECIES, distanceKm, hauloutPath, mapUrl, mediumPhotoUrl, observedDate,
   type Haulout, type HauloutReport,
 } from './catalog.ts';
+import { isUnconfirmed } from './occurrence.ts';
 import { formatDate } from './date-format.ts';
 import { renderPresenceTable } from './profile-shared.ts';
 import { renderProfileMap } from './profile-map.ts';
@@ -333,6 +334,7 @@ function renderReport(r: HauloutReport, site: Haulout): TemplateResult {
     <li>
       <a href=${mapUrl(r)}>${formatDate(observedDate(r.observed_at), { month: 'short', day: 'numeric', year: 'numeric' })}</a>
       · ${r.species_name ?? 'pinniped'}
+      ${isUnconfirmed(r) ? html`· <span class="muted">${r.confirmation === 'disputed' ? 'disputed' : 'unconfirmed'}</span>` : nothing}
       ${r.attribution ? html`· <span class="muted">${r.attribution}</span>` : nothing}
       · <span class="muted">${r.distance_m} m away</span>
       ${approx ? html`· <span class="approx">location approximate (±${r.accuracy} m)</span>` : nothing}

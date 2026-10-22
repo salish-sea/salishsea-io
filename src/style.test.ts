@@ -38,6 +38,16 @@ describe('occurrenceProperties', () => {
     expect(label).toBe('Humpback? · BCY0409');
   });
 
+  it('draws an unconfirmed or disputed sighting as a white dot edged in its colour (decision 080)', () => {
+    for (const confirmation of ['unconfirmed', 'disputed'] as const)
+      for (const isLast of [undefined, true] as const)
+        expect(occurrenceProperties(humpback({confirmation, isLast}))).toMatchObject(
+          {unconfirmed: true, fill: '#ffffff', ring: GROUPS.baleen.color});
+    const confirmed = occurrenceProperties(humpback({confirmation: 'confirmed'}));
+    expect(confirmed.unconfirmed).toBe(false);
+    expect(confirmed.fill).not.toBe('#ffffff');
+  });
+
   it('turns a direction of travel into degrees clockwise from east', () => {
     expect(occurrenceProperties(humpback({direction: 'south'})).directionDeg).toBeCloseTo(90);
     expect(occurrenceProperties(humpback()).directionDeg).toBeUndefined();
