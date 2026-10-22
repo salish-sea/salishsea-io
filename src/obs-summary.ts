@@ -218,7 +218,7 @@ export class ObsSummary extends LitElement {
              title="Focus on map" style="background-color: ${unconfirmed ? '#ffffff' : group.color}; --taxon-color: ${group.color}"></a>
           <b>${name}</b>
           ${when(count && count > 0, () => html`<span class="count">×${count}</span>`)}
-          ${when(unconfirmed, () => html`<span class="confirmation" title=${CONFIRMATION_NOTE[confirmation]}>${confirmation === 'disputed' ? 'Disputed' : 'Unconfirmed'}</span>`)}
+          ${when(unconfirmed, () => html`<span class="confirmation" title=${confirmationNote(this.sighting)}>${confirmation === 'disputed' ? 'Disputed' : 'Unconfirmed'}</span>`)}
         </div>
         <time>${guard([observed_at], () => html`${
           Temporal.Instant.from(observed_at).toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
@@ -345,12 +345,16 @@ export class ObsSummary extends LitElement {
   }
 }
 
-// What the word beside an unconfirmed sighting means (decision 080).
-const CONFIRMATION_NOTE: Record<Occurrence['confirmation'], string> = {
-  confirmed: '',
-  unconfirmed: 'Nobody but the person who reported it has agreed with it yet',
-  disputed: 'The people who identified it disagree about what it is',
-};
+// What the word beside an unconfirmed sighting means, by the source's own rule (decision 080).
+export function confirmationNote({confirmation, provider_slug}: Pick<Occurrence, 'confirmation' | 'provider_slug'>): string {
+  if (confirmation === 'disputed') return 'The people who identified it on iNaturalist disagree about what it is';
+  switch (provider_slug) {
+    case 'inaturalist': return 'Nobody but the observer has identified it as this on iNaturalist yet';
+    case 'maplify': return "Not from one of Maplify's trusted observers";
+    case 'orcasound': return "Orcasound's moderators tagged the species as only possibly heard";
+    default: return 'Nobody but the person who reported it has agreed with it yet';
+  }
+}
 
 // Maplify comments embed the same provenance signals the resolver parses into
 // the structured collection (see maplify.resolve_collection): a leading

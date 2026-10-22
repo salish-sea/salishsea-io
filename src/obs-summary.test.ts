@@ -14,7 +14,7 @@ vi.mock('./individual-links.ts', async (importOriginal) => ({
   loadCatalogCodes: async () => new Map(),
 }));
 
-import { buildShareUrl, stripResolvedProvenance, ObsSummary } from './obs-summary.ts';
+import { buildShareUrl, confirmationNote, stripResolvedProvenance, ObsSummary } from './obs-summary.ts';
 import type { Occurrence } from './types.ts';
 
 describe('buildShareUrl', () => {
@@ -173,5 +173,14 @@ describe('an unconfirmed sighting', () => {
     expect(await rendered('unconfirmed')).toEqual({word: 'Unconfirmed', outlined: true});
     expect(await rendered('disputed')).toEqual({word: 'Disputed', outlined: true});
     expect(await rendered('confirmed')).toEqual({word: null, outlined: false});
+  });
+});
+
+describe('confirmationNote', () => {
+  it("explains each source's own rule, not person-to-person agreement where that isn't the rule (decision 080)", () => {
+    expect(confirmationNote({confirmation: 'unconfirmed', provider_slug: 'inaturalist'})).toMatch(/observer/);
+    expect(confirmationNote({confirmation: 'disputed', provider_slug: 'inaturalist'})).toMatch(/disagree/);
+    expect(confirmationNote({confirmation: 'unconfirmed', provider_slug: 'maplify'})).toMatch(/trusted observers/);
+    expect(confirmationNote({confirmation: 'unconfirmed', provider_slug: 'orcasound'})).toMatch(/possibly heard/);
   });
 });
