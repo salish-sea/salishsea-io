@@ -70,6 +70,13 @@ export type RunsFile = {
     last_success: Partial<Record<Source, string>>,
 };
 
+/**
+ * How the error of a run killed before it recorded an outcome begins (by a deploy
+ * restarting the machine, or by running out of memory). Not a defect: the heartbeat's
+ * stuck check is what reports a run that never finishes.
+ */
+export const INTERRUPTED = 'interrupted:';
+
 const KEEP_DAYS = 7;
 const PUBLISH_HOURS = 48;
 
@@ -128,10 +135,9 @@ export async function recordedRun(
         // machine or by running out of memory. The next run says so, so an unfinished
         // row the heartbeat sees means nothing has run since: our side has stopped.
         db.prepare(
-            `UPDATE runs SET finished_at = ?, outcome = 'failed', transient = 0,
-                 error = 'interrupted: no outcome recorded before the next run started'
+            `UPDATE runs SET finished_at = ?, outcome = 'failed', transient = 0, error = ?
              WHERE source = ? AND finished_at IS NULL`,
-        ).run(at, source);
+        ).run(at, `${INTERRUPTED} no outcome recorded before the next run started`, source);
         return Number(db.prepare('INSERT INTO runs (source, trigger, started_at) VALUES (?, ?, ?)')
             .run(source, trigger, at).lastInsertRowid);
     });

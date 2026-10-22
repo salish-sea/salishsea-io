@@ -492,8 +492,8 @@ describe('heartbeatInput (the build\'s run log)', () => {
             // upstream down: these are signs of life, not successes
             run('inaturalist', 31, 30, 'failed', true),
             run('inaturalist', 16, 15, 'failed', true),
-            // a defect, or a run interrupted by a restart: not a sign of life
-            run('inaturalist', 11, 10, 'failed', false),
+            // a run interrupted by a restart: not a sign of life, and not a defect either
+            {...run('inaturalist', 11, 10, 'failed', false), error: 'interrupted: no outcome recorded before the next run started'},
             run('maplify', 5, 4, 'success'),
             run('orcasound', 5, 4, 'success'),
             run('register', 5, 4, 'success'),
@@ -503,6 +503,37 @@ describe('heartbeatInput (the build\'s run log)', () => {
             .sort((a, b) => (b[1] as number) - (a[1] as number));
         expect(ages).toEqual([['inaturalist', 30], ['inaturalist', 15]]);
         // 45m without success, but our side was alive 15m ago: not stale.
+        expect(evaluateHeartbeat(input, THRESHOLDS)).toEqual([]);
+    });
+
+    test('a scheduled run that failed for a reason of ours is a defect, though runs either side succeeded (decision 042)', () => {
+        const input = heartbeatInput(file([
+            run('inaturalist', 21, 20, 'success'),
+            {...run('inaturalist', 16, 15, 'failed', false), error: 'pagination incomplete: 180 of 200'},
+            {...run('inaturalist', 11, 10, 'failed', false), error: 'parse failed: photo.width is null'},
+            run('inaturalist', 6, 5, 'success'),
+            run('maplify', 5, 4, 'success'),
+            run('orcasound', 5, 4, 'success'),
+            run('register', 5, 4, 'success'),
+        ]), NOW, 120);
+        const findings = evaluateHeartbeat(input, THRESHOLDS);
+        expect(findings.map((f) => [f.kind, f.source])).toEqual([['defect', 'inaturalist']]);
+        expect(findings[0]!.message).toContain('2 scheduled inaturalist runs failed');
+        expect(findings[0]!.message).toContain('parse failed: photo.width is null');
+    });
+
+    test('not a defect: an upstream failure, a manual run, a restart, or one older than the lookback', () => {
+        const input = heartbeatInput(file([
+            run('maplify', 30, 29, 'failed', true),
+            {...run('maplify', 25, 24, 'failed', false), trigger: 'manual'},
+            {...run('maplify', 20, 19, 'failed', false), error: 'interrupted: no outcome recorded before the next run started'},
+            run('maplify', 200, 199, 'failed', false),
+            run('maplify', 5, 4, 'success'),
+            run('inaturalist', 5, 4, 'success'),
+            run('orcasound', 5, 4, 'success'),
+            run('register', 5, 4, 'success'),
+        ]), NOW, 120);
+        expect(input.recentDefects).toEqual([]);
         expect(evaluateHeartbeat(input, THRESHOLDS)).toEqual([]);
     });
 

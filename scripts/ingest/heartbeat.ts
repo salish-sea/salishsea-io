@@ -31,6 +31,11 @@
  *             which is not news until it has lasted long enough for the map to
  *             look stale (decision 060). Reported ongoing or healed, like the
  *             stale/gap pair above.
+ *   - DEFECT: within the last LOOKBACK_MINUTES, a scheduled run failed for a
+ *             reason of ours: not marked transient, and not killed by a restart.
+ *             A defect that fails some runs while others succeed trips none of
+ *             the checks above, and those are the failures decision 042 keeps
+ *             reported (salish-849s).
  *
  * STALE and GAP measure OUR pipeline, so a transient failure counts as a sign
  * of life there: the cron fired, the function ran, it recorded an outcome, and
@@ -48,7 +53,7 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-import type { RunsFile } from '../read-path/ingest-runs.ts';
+import { INTERRUPTED, type RunsFile } from '../read-path/ingest-runs.ts';
 
 // ---------------------------------------------------------------------------
 // Constants (env-overridable; the workflow sets both explicitly)
@@ -132,6 +137,9 @@ export type SuccessAt = {
 /** A failed run the fetch layer classified as transient (decision 042). */
 export type TransientFailureAt = SuccessAt;
 
+/** A scheduled run that failed for a reason of ours, with what it said. */
+export type DefectAt = SuccessAt & {readonly id: number, readonly error: string};
+
 export type LastSuccess = {
     readonly source: string;
     readonly finishedAt: Date;
@@ -165,6 +173,13 @@ export type HeartbeatInput = {
      */
     readonly recentTransientFailures: readonly TransientFailureAt[];
     /**
+     * Every scheduled run inside the lookback window that failed for a reason of ours:
+     * not marked transient, and not the marker a restart leaves on a run it killed. These
+     * are the failures decision 042 keeps reported, which come between successes and so
+     * trip no other check. Absent when not checked.
+     */
+    readonly recentDefects?: readonly DefectAt[];
+    /**
      * When the build last published: the manifest's snapshot time, which the build
      * writes after every other file. Null when nothing is published; absent when not
      * checked.
@@ -176,7 +191,7 @@ export type HeartbeatInput = {
 
 export type Finding = {
     readonly kind: 'never_succeeded' | 'stale' | 'stuck' | 'gap' | 'upstream_outage' | 'unpublished' | 'archive_stale'
-        | 'maintenance_overrun';
+        | 'maintenance_overrun' | 'defect';
     readonly source: string;
     readonly message: string;
 };
@@ -304,6 +319,24 @@ export function evaluateHeartbeat(input: HeartbeatInput, thresholds: Thresholds)
         }
     }
 
+    // A defect fails some runs while others succeed, as the pagination bug did 32 times
+    // in five days without ever failing twice in a row (decision 042), so nothing above
+    // sees it. One finding per source, naming the newest; the run log has the rest.
+    for (const source of SOURCES) {
+        const defects = (input.recentDefects ?? []).filter((d) => d.source === source)
+            .sort((a, b) => a.finishedAt.getTime() - b.finishedAt.getTime());
+        const newest = defects.at(-1);
+        if (newest === undefined) continue;
+        findings.push({
+            kind: 'defect',
+            source,
+            message:
+                `${defects.length} scheduled ${source} run${defects.length === 1 ? '' : 's'} failed for a reason ` +
+                `of ours in the lookback window; the newest, #${newest.id}, ` +
+                `${minutesBetween(newest.finishedAt, input.now)}m ago: ${newest.error.slice(0, 300)}`,
+        });
+    }
+
     for (const orphan of input.orphans) {
         const ageMinutes = minutesBetween(orphan.startedAt, input.now);
         if (ageMinutes > thresholds.stuckMinutes) {
@@ -395,6 +428,12 @@ export function heartbeatInput(file: RunsFile, now: Date, lookbackMinutes = LOOK
         })),
         recentSuccesses: finishes(r => r.outcome === 'success'),
         recentTransientFailures: finishes(r => r.outcome === 'failed' && r.transient === true),
+        // A manual run fails loudly at the person running it, so only the schedule's count.
+        recentDefects: file.runs
+            .filter(r => r.trigger === 'cron' && r.outcome === 'failed' && r.transient === false
+                && r.finished_at !== null && new Date(r.finished_at).getTime() > windowStart
+                && !(r.error ?? '').startsWith(INTERRUPTED))
+            .map(r => ({source: r.source, finishedAt: new Date(r.finished_at!), id: r.id, error: r.error ?? ''})),
     };
 }
 
@@ -449,7 +488,11 @@ function reportBody(findings: readonly Finding[], input: HeartbeatInput): string
         `register) or a task failed. The map is frozen at the last published build until it\n` +
         `passes; \`fly logs -a salishsea-io\` names the task.\n` +
         `archive_stale: the Darwin Core archive (the dwca task) has not been rebuilt in over\n` +
-        `a day, though it is at least daily; \`fly logs -a salishsea-io\` names why.\n\n` +
+        `a day, though it is at least daily; \`fly logs -a salishsea-io\` names why.\n` +
+        `defect: a scheduled run failed for a reason of ours, not the source's: a bug, a\n` +
+        `response we can't parse, or the register refusing an edition. Runs either side of it\n` +
+        `may have succeeded, which is why nothing else reports it (decision 042). It keeps\n` +
+        `tripping until it is older than the lookback window.\n\n` +
         `Diagnose: ${RUNS_URL} lists the runs, with each failure's error;\n` +
         `\`fly logs -a salishsea-io\` shows the builds. Each source's next successful run\n` +
         `re-fetches its whole window, so nothing is lost once the cause is fixed.\n`
