@@ -27,7 +27,7 @@ Sightings entered on SalishSea.io itself, and HappyWhale's, are shown as confirm
 Writing the rule down as a query (`salish-bwma`, `scripts/read-path/derive/occurrences.sql`) needed three readings the text above leaves open:
 
 - **The taxon we show** is the observation's species, or, for one identified only to a genus or above, that taxon itself. Someone's identification of a subspecies of it agrees.
-- **The observer's own identification counts against it** when it names another branch, as the rule says of any current identification. That is the case where the community has overruled the observer.
+- **The observer's own identification never disputes it**, though the rule above says "no current identification". When others agree on the species and only the observer names another, the community has overruled the observer, and the sighting is confirmed as what they agree on. Peter chose this on 2026-10-22: of 208 observations the literal reading made disputed, 152 were disputed only by their observer, such as [409581771](https://www.inaturalist.org/observations/409581771), a humpback to three identifiers and a sperm whale to the person who saw it.
 - **An identification of a taxon the mirror doesn't hold** neither confirms nor disputes, because its place in the tree is unknown. The ingest fetches every such taxon on its next scheduled run, so this lasts a few minutes. On 2026-10-22 there were 24 such identifications by people other than the observer, among them a gull, a giraffe, and three subspecies of species we show.
 
 A sighting's document in the day files carries the result as `confirmation`: `confirmed`, `unconfirmed` or `disputed`.

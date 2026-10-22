@@ -89,8 +89,10 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
 -- 080): not a twin, since Postgres never decided it. The taxon shown is the species, or
 -- the taxon itself when it is above species. Each current identification of it, or of a
 -- taxon within it, agrees; one of a taxon above it, such as "toothed whales", says
--- nothing; one anywhere else disputes it, the observer's own included. An observation
--- is confirmed when someone other than the observer agrees and nobody disputes. A taxon
+-- nothing; anyone else's anywhere else disputes it. The observer's own never does: when
+-- the others have overruled the observer, the sighting is what they agree it is. An
+-- observation is confirmed when someone other than the observer agrees and nobody else
+-- disputes. A taxon
 -- the mirror doesn't hold can't be placed, so says nothing; the ingest fetches every
 -- taxon an identification names (danglingTaxonIds), so that lasts a run at most.
 -- Written to a table once, so the INSERT below holds only the photos' joins.
@@ -112,7 +114,7 @@ CREATE OR REPLACE TABLE memory.main.inaturalist_confirmation AS
   claim AS (
     SELECT s.id, i.own_observation,
            within.taxon_id IS NOT NULL AS agrees,
-           named.id IS NOT NULL AND within.taxon_id IS NULL AND above.taxon_id IS NULL AS disputes
+           NOT i.own_observation AND named.id IS NOT NULL AND within.taxon_id IS NULL AND above.taxon_id IS NULL AS disputes
     FROM shown s
     JOIN source_inaturalist_identifications i ON i.observation_id = s.id
     LEFT JOIN source_inaturalist_taxa recorded ON recorded.id = i.taxon_id
