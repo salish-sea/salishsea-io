@@ -45,6 +45,8 @@ export type OccurrenceProperties = {
   head: boolean;
   /** Nobody but its reporter has agreed with it yet (decision 080): an outlined dot. */
   unconfirmed: boolean;
+  /** A dead animal (salish-1y8): a bone in place of the dot. */
+  dead: boolean;
   label?: string;
   /** Clockwise from east, in degrees, when the report gives a direction of travel. */
   directionDeg?: number;
@@ -81,6 +83,7 @@ export function occurrenceProperties(occurrence: Occurrence): OccurrenceProperti
     ring: unconfirmed ? color : head ? '#ffffff' : rgba(color, 0.9),
     head,
     unconfirmed,
+    dead: occurrence.vitality === 'dead',
   };
 
   if (head) {
@@ -93,7 +96,8 @@ export function occurrenceProperties(occurrence: Occurrence): OccurrenceProperti
     // An occurrence whose species is only possibly what it says carries the same mark a
     // hedged identifier does (decision 054): "Humpback whale?", never dropped, never plain.
     const hedge = occurrence.certainty === 'possible' ? '?' : '';
-    const name = (segmentIdentity ?? labelFor(occurrence)) + hedge;
+    // A dead animal is a segment of its own (segments.ts), so its label speaks for it alone.
+    const name = (segmentIdentity ?? labelFor(occurrence)) + hedge + (properties.dead ? ' · dead' : '');
     const identity = identifiers?.length ? `${name} · ${identifiers.join(', ')}` : name;
     const points = segmentLength ?? 1;
     // One label over one or two lines, so the two lines share a box and are
@@ -128,6 +132,7 @@ export function ringColours(color: string) {
 const selected: ExpressionSpecification = ['boolean', ['feature-state', 'selected'], false];
 const hovered: ExpressionSpecification = ['boolean', ['feature-state', 'hover'], false];
 const outlined: ExpressionSpecification = ['boolean', ['get', 'unconfirmed'], false];
+const dead: ExpressionSpecification = ['boolean', ['get', 'dead'], false];
 
 /**
  * An occurrence's dot, its label, and its direction arrow, read from
@@ -139,7 +144,7 @@ function occurrenceLayers(source: string, prefix: string, filter?: ExpressionSpe
   return [
     {
       id: `${prefix}-dot`, type: 'circle', source,
-      ...(filter ? {filter} : {}),
+      filter: and(['!', dead]),
       paint: {
         // A dot never gives way to a label, since hiding a marker would hide a
         // sighting; circles take no part in MapLibre's collisions at all.
@@ -154,6 +159,20 @@ function occurrenceLayers(source: string, prefix: string, filter?: ExpressionSpe
         'circle-opacity': ['case', selected, 0, 1],
         'circle-stroke-opacity': ['case', selected, 0, 1],
       },
+    },
+    // A dead animal is drawn as a bone in its taxon's colour instead of a dot (salish-1y8):
+    // solid, or white edged in colour when unconfirmed, as the dots are, and the dot's size.
+    {
+      id: `${prefix}-bone`, type: 'symbol', source,
+      filter: and(dead),
+      layout: {
+        'icon-image': ['concat', ['case', outlined, 'bone-outline-', 'bone-'], ['get', 'color']],
+        'icon-size': ['case', ['get', 'head'], 1.4, 1],
+        // Never given way to a label, as a dot never is: hiding it would hide a sighting.
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+      },
+      paint: {'icon-opacity': ['case', selected, 0, 1]},
     },
     {
       id: `${prefix}-label`, type: 'symbol', source,
@@ -419,7 +438,7 @@ const LAYERS: LayerSpecification[] = [
 ];
 
 /** The layers whose features a click on the map can select. */
-export const OCCURRENCE_LAYERS = ['occurrence-dot', 'occurrence-label'];
+export const OCCURRENCE_LAYERS = ['occurrence-dot', 'occurrence-bone', 'occurrence-label'];
 /** The reference layers whose features a click opens. */
 export const CLICKABLE_REFERENCE_LAYERS = ['hydrophone', 'salmon', 'haulout-marker'];
 
@@ -496,6 +515,33 @@ function diamond() {
   return pixels(element);
 }
 
+/**
+ * A bone, corner to corner, the size of a dot: a shaft with two knobs at each end, drawn
+ * once in the edge colour and a little wider, then in the fill colour on top. Exported so a
+ * legend can be drawn from it, as the PR's was.
+ */
+export function bone(fill: string, edge: string) {
+  const [element, context] = canvas(18, 18);
+  const draw = (grow: number, style: string) => {
+    context.strokeStyle = style;
+    context.fillStyle = style;
+    context.lineCap = 'round';
+    context.lineWidth = 3.2 + 2 * grow;
+    context.beginPath();
+    context.moveTo(5.5, 12.5);
+    context.lineTo(12.5, 5.5);
+    context.stroke();
+    for (const [x, y] of [[3.7, 12.1], [5.9, 14.3], [12.1, 3.7], [14.3, 5.9]] as const) {
+      context.beginPath();
+      context.arc(x, y, 2.3 + grow, 0, 2 * Math.PI);
+      context.fill();
+    }
+  };
+  draw(1.1, edge);
+  draw(0, fill);
+  return pixels(element);
+}
+
 /** An SVG drawn at its own size, sharp at the screen's pixel density. */
 async function svgImage(url: string) {
   const image = new Image();
@@ -512,6 +558,8 @@ export async function addImages(map: MapLibreMap): Promise<void> {
   for (const {color} of Object.values(GROUPS)) {
     map.addImage(`arrow-${color}`, glyph(' ⇢', '15px monospace', color), {pixelRatio: ratio});
     map.addImage(`label-${color}`, ...box('rgba(255, 255, 255, 0.96)', rgba(color, 0.5)));
+    map.addImage(`bone-${color}`, bone(color, '#ffffff'), {pixelRatio: ratio});
+    map.addImage(`bone-outline-${color}`, bone('#ffffff', color), {pixelRatio: ratio});
   }
   map.addImage('bearing-label', ...box('rgba(240, 240, 240, 0.85)'));
   map.addImage('now-label', ...box('rgba(255, 255, 255, 0.4)'));

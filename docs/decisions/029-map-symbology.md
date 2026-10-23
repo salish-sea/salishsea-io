@@ -6,6 +6,8 @@
 **Depends on:** bd `salish-ayb` — adopting the [animals register](https://github.com/salish-sea/animals). See "Sequencing" below; this record cannot be implemented well before it lands. **Satisfied 2026-08-29**: adoption landed in #398 and its reasoning is [033](033-register-names-the-animals.md).
 **Prototype:** branch `prototype/map-symbology` (four variants behind `?variant=`), retained as the primary source.
 
+*Amended 2026-10-23 (`salish-1y8`), by Peter:* a dead animal is drawn as a **bone** in place of its dot: a silhouette in the taxon's colour, the dot's size, larger as a track's head, and solid or white edged in colour as the dots are for confirmed and unconfirmed (decision [080](080-a-sighting-is-unconfirmed-until-someone-else-agrees.md)). Its label adds "· dead". Colour still carries the taxon; the shape says what happened to the animal. Rejected: a bone emoji, which is beige, drops the taxon's colour and is drawn differently on every platform; and the † that profile pages use for a deceased individual, which at map size is a few thin pixels lost against the depth shading. The dagger stays in text.
+
 ## Problem
 
 `symbolFor()` renders each occurrence as a single letter inside a bubble. Outside killer whales it fails, and not merely by being opaque — it is **ambiguous**. Across 61,411 occurrences the scheme collapses to 18 glyphs. The five carrying the most records:
