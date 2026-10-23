@@ -62,9 +62,11 @@ jobs:
       - name: Screenshot dev and production without WebDriver (trial)
         run: |
           mkdir -p e2e/screenshots
-          for site in dev.salishsea.io salishsea.io; do
+          xcrun simctl openurl "$SIMULATOR_UDID" "https://example.com/"
+          sleep 20
+          for site in salishsea.io dev.salishsea.io; do
             xcrun simctl openurl "$SIMULATOR_UDID" "https://$site/"
-            sleep 25
+            sleep 40
             xcrun simctl io "$SIMULATOR_UDID" screenshot "e2e/screenshots/ios-simctl-$site.png"
           done
 
