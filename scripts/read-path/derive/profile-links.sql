@@ -19,7 +19,7 @@
 -- --- What the views read ----------------------------------------------------------------
 
 CREATE OR REPLACE TEMP VIEW occurrence AS
-  SELECT id, observed_at, location FROM build.occurrences;
+  SELECT id, observed_at, location, json_extract_string(doc, '$.vitality') AS vitality FROM build.occurrences;
 
 -- derived.occurrence_identifier_candidates. Its location is a lon_lat there, never NULL.
 CREATE OR REPLACE TEMP VIEW candidate AS
@@ -115,7 +115,7 @@ CREATE OR REPLACE TABLE build.individual_occurrences AS
     SELECT coalesce(s.individual_id, mm.individual_id) AS individual_id,
            s.occurrence_id, o.observed_at, o.location, s.is_present, s.status, s.evidence, s.code,
            CASE WHEN s.individual_id IS NULL THEN g.designation END AS via_group,
-           s.certainty
+           s.certainty, o.vitality
     FROM identification s
     LEFT JOIN living_member mm ON s.individual_id IS NULL AND mm.group_id = s.social_group_id
     LEFT JOIN social_group g ON g.id = s.social_group_id
@@ -125,10 +125,11 @@ CREATE OR REPLACE TABLE build.individual_occurrences AS
     SELECT coalesce(c.individual_id, mm.individual_id),
            c.occurrence_id, c.observed_at, c.location, true, 'candidate', 'text_mention', c.code,
            CASE WHEN c.individual_id IS NULL THEN g.designation END,
-           CAST(NULL AS VARCHAR)
+           CAST(NULL AS VARCHAR), o.vitality
     FROM candidate c
     LEFT JOIN living_member mm ON c.individual_id IS NULL AND mm.group_id = c.social_group_id
     LEFT JOIN social_group g ON g.id = c.social_group_id
+    LEFT JOIN occurrence o ON o.id = c.occurrence_id
     WHERE (c.individual_id IS NOT NULL OR c.social_group_id IS NOT NULL)
       AND coalesce(c.individual_id, mm.individual_id) IS NOT NULL
       AND NOT EXISTS (
@@ -140,7 +141,7 @@ CREATE OR REPLACE TABLE build.individual_occurrences AS
     SELECT coalesce(a.individual_id, mm.individual_id),
            a.occurrence_id, o.observed_at, o.location, true, 'candidate', 'acoustic', a.code,
            CASE WHEN a.individual_id IS NULL THEN g.designation END,
-           a.certainty
+           a.certainty, o.vitality
     FROM acoustic_identification a
     LEFT JOIN living_member mm ON a.individual_id IS NULL AND mm.group_id = a.social_group_id
     LEFT JOIN social_group g ON g.id = a.social_group_id
@@ -157,6 +158,8 @@ CREATE OR REPLACE TABLE build.individual_occurrences AS
            'status': status,
            'evidence': evidence,
            'location': pg_lon_lat(location),
+           -- whether the animal was dead (salish-1y8): its earliest such record is its last sighting
+           'vitality': vitality,
            'certainty': certainty,
            'via_group': via_group,
            'is_present': is_present,

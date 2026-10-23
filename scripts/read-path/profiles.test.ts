@@ -151,6 +151,29 @@ describe('renderIndividualPage', () => {
         const members = [...doc.matchAll(/individuals\/\d+\/(T065A[0-9B]*)/g)].map(m => m[1]);
         expect(members.indexOf('T065A2')).toBeLessThan(members.indexOf('T065A2B'));
     });
+
+    // salish-1y8: a carcass reported again later doesn't make the animal seen later.
+    test('an animal found dead was last reported at its earliest record as dead', () => {
+        const t = tables();
+        const row = (id: string, at: string, vitality: string | null, via_group: string | null = null) => ({
+            individual_id: 1, occurrence_id: id, observed_at: at, location: {lon: -123, lat: 48.5},
+            is_present: true, status: 'candidate', via_group, vitality});
+        t.individual_occurrences.push(
+            row('inat:30', '2026-09-30T20:00:00+00:00', 'dead'),
+            row('inat:20', '2026-09-20T20:00:00+00:00', 'dead'),
+            row('inat:10', '2026-09-10T20:00:00+00:00', null));
+        const doc = renderIndividualPage(SHELL, assembleIndividuals(t).find(p => p.data.profile.primary_designation === 'T065A')!, 2026);
+        expect(doc).toMatch(/Last reported <a href="\/\?d=2026-09-20&amp;o=inat%3A20">September 20, 2026<\/a>(<!--[^>]*-->)*, dead/);
+    });
+
+    test('a dead record that names only its matriline says nothing of each member', () => {
+        const t = tables();
+        t.individual_occurrences.push({individual_id: 1, occurrence_id: 'inat:40', observed_at: '2026-09-25T20:00:00+00:00',
+            location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate', via_group: 'T065As', vitality: 'dead'} as never);
+        const doc = renderIndividualPage(SHELL, assembleIndividuals(t).find(p => p.data.profile.primary_designation === 'T065A')!, 2026);
+        expect(doc).toMatch(/Last reported <a[^>]*>September 25, 2026<\/a> \(as T065As\)/);
+        expect(doc).not.toMatch(/Last reported <a[^>]*>[^<]*<\/a>[^·]*, dead/);
+    });
 });
 
 

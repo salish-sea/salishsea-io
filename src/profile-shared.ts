@@ -318,13 +318,17 @@ export function renderSightingsSummary(
 ) {
   if (!links?.length)
     return empty;
-  const latest = links[0]!;
+  // A dead animal isn't seen after its earliest record as dead, whatever is reported of
+  // the carcass later (salish-1y8). Only a sighting that names it directly counts: a
+  // matriline's sighting is each living member's, and a carcass is one animal.
+  const death = links.filter(l => l.vitality === 'dead' && !l.via_group).at(-1);
+  const latest = death ?? links[0]!;
   const located = links.filter(l => l.location).length;
   return html`
     ${renderPresenceTable(links, undefined, undefined, currentYear)}
     ${when(located, () => renderProfileMap(links))}
     <p class="sightings-note">
-      Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}
+      Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}${death ? html`, dead` : nothing}
       · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} on the map above, where reports at one spot share a dot; the newest is solid. Click a dot to see its day on the map.`)}
     </p>
   `;
