@@ -44,8 +44,8 @@ jobs:
             const {devices} = JSON.parse(require("fs").readFileSync(0, "utf8"));
             const runtimes = Object.keys(devices).filter(r => r.includes("iOS")).sort((a, b) => a.localeCompare(b, "en", {numeric: true}));
             // A numbered iPhone, one screen: iOS 27.1 also has a two-screen "iPhone Duo", which
-            // simctl will not screenshot without being told which screen, and on some of the
-            // image's machines it is the only iPhone that runtime has. So the newest runtime
+            // simctl will not screenshot without being told which screen, and on some machines
+            // of the image it is the only iPhone that runtime has. So the newest runtime
             // with a numbered iPhone.
             for (const runtime of runtimes.reverse()) {
               const phone = devices[runtime].find(d => /^iPhone \d+/.test(d.name));
