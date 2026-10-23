@@ -3,6 +3,8 @@
 **Status:** accepted (2026-07-30)
 **Context:** bd `salish-dq2`.
 
+*Amended 2026-10-22 (`salish-dvd`), by Peter:* when the panel sits under the map, as on a phone held upright, the month grid folds away behind the date readout between the day arrows. A chevron beside the date says it opens; tapping it shows the month, and picking a day folds it again. On a 390 × 844 screen the map took half the height and the grid most of the rest, so the day's first sighting started 1,151 px down, a full screen below the fold; folded, it starts at 811 px. The arrows step a day as before, so the common move costs no tap more, and the grid's picture of the season is one tap away. Beside the map the grid always shows, and the readout still opens a typed date. Rejected: smaller cells, since six rows at the smallest comfortable tap size are still about 260 px.
+
 The sidebar picked the observation date with `<input type="date">` plus ◀/▶ day
 buttons. It said nothing about *when there is anything to look at*: a visitor
 stepping back through days had no way to tell a blank day from a busy one

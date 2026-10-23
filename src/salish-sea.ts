@@ -207,6 +207,7 @@ export default class SalishSea extends LitElement {
       width: 25rem;
     }
 
+    /* COMPACT_LAYOUT in obs-panel.ts, which folds the month grid away in this layout. */
     @media (max-aspect-ratio: 1) {
       main {
         flex-direction: column;
