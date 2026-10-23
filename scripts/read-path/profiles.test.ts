@@ -166,6 +166,8 @@ describe('renderIndividualPage', () => {
         expect(doc).toMatch(/Last reported <a href="\/\?d=2026-09-20&amp;o=inat%3A20">September 20, 2026<\/a>(<!--[^>]*-->)*, dead/);
     });
 
+    // The build doesn't link such a record to the members at all (profile-links.sql); were one
+    // to arrive, it is still no death of each member.
     test('a dead record that names only its matriline says nothing of each member', () => {
         const t = tables();
         t.individual_occurrences.push({individual_id: 1, occurrence_id: 'inat:40', observed_at: '2026-09-25T20:00:00+00:00',

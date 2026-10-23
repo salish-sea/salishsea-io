@@ -319,8 +319,8 @@ export function renderSightingsSummary(
   if (!links?.length)
     return empty;
   // A dead animal isn't seen after its earliest record as dead, whatever is reported of
-  // the carcass later (salish-1y8). Only a sighting that names it directly counts: a
-  // matriline's sighting is each living member's, and a carcass is one animal.
+  // the carcass later (decision 088). The build links a dead record only to an individual
+  // it names, never to a matriline's members; the via_group check is a second guard.
   const death = links.filter(l => l.vitality === 'dead' && !l.via_group).at(-1);
   const latest = death ?? links[0]!;
   const located = links.filter(l => l.location).length;

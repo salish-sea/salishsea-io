@@ -108,7 +108,9 @@ CREATE OR REPLACE TABLE build.group_occurrences AS
   FROM link;
 
 -- --- public.individual_occurrences -------------------------------------------------------
--- A sighting of a matriline is a sighting of each of its living members, named via_group.
+-- A sighting of a matriline is a sighting of each of its living members, named via_group;
+-- but not a dead animal's (decision 088): a carcass is one animal, and naming its matriline
+-- doesn't say which, so a dead record links only to an individual it names.
 
 CREATE OR REPLACE TABLE build.individual_occurrences AS
   WITH link AS (
@@ -121,6 +123,7 @@ CREATE OR REPLACE TABLE build.individual_occurrences AS
     LEFT JOIN social_group g ON g.id = s.social_group_id
     JOIN occurrence o ON o.id = s.occurrence_id
     WHERE coalesce(s.individual_id, mm.individual_id) IS NOT NULL
+      AND (s.individual_id IS NOT NULL OR o.vitality IS DISTINCT FROM 'dead')
     UNION ALL
     SELECT coalesce(c.individual_id, mm.individual_id),
            c.occurrence_id, c.observed_at, c.location, true, 'candidate', 'text_mention', c.code,
@@ -132,6 +135,7 @@ CREATE OR REPLACE TABLE build.individual_occurrences AS
     LEFT JOIN occurrence o ON o.id = c.occurrence_id
     WHERE (c.individual_id IS NOT NULL OR c.social_group_id IS NOT NULL)
       AND coalesce(c.individual_id, mm.individual_id) IS NOT NULL
+      AND (c.individual_id IS NOT NULL OR o.vitality IS DISTINCT FROM 'dead')
       AND NOT EXISTS (
         SELECT 1 FROM identification s
         WHERE s.occurrence_id = c.occurrence_id
@@ -147,6 +151,7 @@ CREATE OR REPLACE TABLE build.individual_occurrences AS
     LEFT JOIN social_group g ON g.id = a.social_group_id
     JOIN occurrence o ON o.id = a.occurrence_id
     WHERE coalesce(a.individual_id, mm.individual_id) IS NOT NULL
+      AND (a.individual_id IS NOT NULL OR o.vitality IS DISTINCT FROM 'dead')
       AND NOT EXISTS (
         SELECT 1 FROM identification s
         WHERE s.occurrence_id = a.occurrence_id
