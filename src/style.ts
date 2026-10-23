@@ -167,7 +167,9 @@ function occurrenceLayers(source: string, prefix: string, filter?: ExpressionSpe
       filter: and(dead),
       layout: {
         'icon-image': ['concat', ['case', outlined, 'bone-outline-', 'bone-'], ['get', 'color']],
-        'icon-size': ['case', ['get', 'head'], 1.4, 1],
+        // The 18px image at a head dot's 18px, or scaled to an ordinary dot's 11px. A dead
+        // animal is a segment of its own, so in practice it is always a head.
+        'icon-size': ['case', ['get', 'head'], 1, 11 / 18],
         // Never given way to a label, as a dot never is: hiding it would hide a sighting.
         'icon-allow-overlap': true,
         'icon-ignore-placement': true,
