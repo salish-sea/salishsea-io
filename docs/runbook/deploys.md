@@ -64,6 +64,8 @@ The run is these jobs ([decision 024](../decisions/024-deploy-gating-and-alertin
 | **Watch** | Watches the jobs that bind the `production` environment (Deploy, Fly app). When one waits fifteen minutes with no runner, GitHub has lost it: see [gotcha 4](#gotcha-4--a-deploy-stuck-waiting-holds-every-later-one). |
 | **Alert / Resolve** | On failure, opens or updates the single `deploy-failed` issue; on a fully green run, closes it. |
 
+**Mobile Safari** is checked separately, not in the deploy run: [`ios-safari-smoke.yml`](../../.github/workflows/ios-safari-smoke.yml) runs daily on a macOS runner, opening the map and a profile page in Safari in Apple's iOS Simulator and failing on a blank page. It exists because Safari on iOS 27 refused a time-zone name Chromium accepts, and the page was white on iPhones for eleven days while the smoke test above passed (`SALISHSEA-IO-44`). The simulator has to be as new as the phones (iOS 26.5's accepted the same name), so move the job's `runs-on` to GitHub's newest Xcode image when Apple ships an iOS. A Sentry alert covers what it can't: any unhandled error reaching three visitors in a week emails, once a day per issue.
+
 Two things to know when reading a red run:
 
 - **A red Deploy does not imply production changed.** If *Test* or *Fly image* failed, the deploy job never ran and production was untouched — that is the gate working. The failure issue says which case it is.
