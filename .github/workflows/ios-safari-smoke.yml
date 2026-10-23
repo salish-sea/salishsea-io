@@ -59,11 +59,14 @@ jobs:
           for _ in $(seq 30); do curl -sf http://localhost:4444/status >/dev/null && exit 0; sleep 1; done
           echo "safaridriver did not start" >&2; exit 1
 
-      - name: Probe capabilities (trial)
+      - name: Screenshot dev and production without WebDriver (trial)
         run: |
-          xcrun simctl list runtimes | grep -i ios
-          safaridriver --version || true
-          node e2e/ios-safari-probe.ts
+          mkdir -p e2e/screenshots
+          for site in dev.salishsea.io salishsea.io; do
+            xcrun simctl openurl "$SIMULATOR_UDID" "https://$site/"
+            sleep 25
+            xcrun simctl io "$SIMULATOR_UDID" screenshot "e2e/screenshots/ios-simctl-$site.png"
+          done
 
       - name: Run Mobile Safari smoke test
         timeout-minutes: 12
