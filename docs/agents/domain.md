@@ -8,7 +8,9 @@ exploring the codebase.
 - **`CONTEXT.md`** at the repo root — the domain glossary.
 - **`PRODUCT.md`** — audiences, requirements and their rationale, scope.
 - **`docs/decisions/`** — numbered decision records touching the area you're about
-  to work in. (This repo uses `docs/decisions/`, not the default `docs/adr/`.)
+  to work in. (This repo uses `docs/decisions/`, not the default `docs/adr/`.) What
+  belongs there, and what goes to `docs/research/` or `CONTEXT.md` instead, is in its
+  README.
 
 If any of these don't exist, **proceed silently**. Don't flag their absence; the
 producer skill (`/grill-with-docs`) creates them lazily when terms or decisions
