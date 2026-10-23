@@ -23,8 +23,11 @@ const base = (process.argv[2] ?? 'https://salishsea.io').replace(/\/$/, '');
 const udid = process.env['SIMULATOR_UDID'];
 const shots = path.join(import.meta.dirname, 'screenshots');
 
-/** Below this share of non-white pixels the page is taken as blank; a white page gives 0, the map about 0.6. */
-export const BLANK_BELOW = 0.05;
+/**
+ * Below this share of non-white pixels the page is taken as blank. The white page gave
+ * exactly 0; the map about 0.55, and a profile page, mostly text on white, about 0.055.
+ */
+export const BLANK_BELOW = 0.01;
 
 const CHECKS = [
     // Today, with no date in the URL: the page that went white.
