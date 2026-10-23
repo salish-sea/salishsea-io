@@ -24,7 +24,7 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [018](018-inat-id-keyset-pagination.md) | iNaturalist ingest paginates by id-keyset, not page number (amends 011) | accepted |
 | [019](019-no-fallback-preview-image.md) | No fallback link-preview image: `og:image` only for a photo of the thing shared | superseded by 026 |
 | [020](020-map-preview-cards.md) | Map-rendered link preview cards; Esri basemap, day cards, basemap sourcing | accepted (amended by 074: the cards' map moved to image tiles from our own basemap on 2026-10-14) |
-| [021](021-calendar-date-picker.md) | Calendar date picker; day circles sized by sighting volume | accepted (amended by 022, 055, and 2026-10-12: counts come from the build's monthly files) |
+| [021](021-calendar-date-picker.md) | Calendar date picker; day circles sized by sighting volume | accepted (amended by 022, 055, 2026-10-12: counts come from the build's monthly files, and 2026-10-22: under the map, the grid folds behind the date) |
 | [022](022-regions-filter-data.md) | Regions filter the data (map, list, calendar); map outside the active region is shaded | accepted |
 | [023](023-region-framing-vs-filtering.md) | A region's framing is not its filter; frame the region on load (supersedes part of 022) | accepted |
 | [024](024-deploy-gating-and-alerting.md) | Deploys gate on the full test suite, verify themselves, and alert by labeled issue | accepted |

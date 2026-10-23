@@ -3,6 +3,8 @@
 **Status:** accepted (2026-07-30)
 **Context:** bd `salish-dq2`.
 
+*Amended 2026-10-22 (`salish-dvd`), by Peter:* when the panel sits under the map, as on a phone held upright, the month grid folds away behind the date readout between the day arrows. A chevron beside the date says it opens; tapping it shows the month, and picking a day folds it again. On a 390 × 844 screen the map took half the height and the grid most of the rest, so the day's first sighting started 1,151 px down, a full screen below the fold; folded, it starts at 811 px. The arrows step a day as before, so the common move costs no tap more, and the grid's picture of the season is one tap away. Under the map, the open grid offers "Type a date" beneath it, so a date years back is still a few keystrokes rather than a month at a time. Beside the map the grid always shows, and the readout still opens a typed date. Rejected: smaller cells, since six rows at the smallest comfortable tap size are still about 260 px.
+
 The sidebar picked the observation date with `<input type="date">` plus ◀/▶ day
 buttons. It said nothing about *when there is anything to look at*: a visitor
 stepping back through days had no way to tell a blank day from a busy one
@@ -113,10 +115,11 @@ one screen-reader label away.
 
 - One extra request per month viewed, cached client-side; paging back and forth
   doesn't refetch. A failed request leaves a bare but working date picker.
-- The calendar occupies ~330px of sidebar height. On narrow screens it fills the
+- The calendar occupies ~330px of sidebar height. ~~On narrow screens it fills the
   panel above the fold, so the observation list needs a scroll to reach — the
   previous date input cost one row. Accepted for now; bd `salish-dvd` holds the
-  open question of whether to collapse it on mobile.
+  open question of whether to collapse it on mobile.~~ Settled by the amendment at
+  the top: under the map, the grid folds behind the date.
 - `occurrence_days` is a new public read surface. It exposes only counts of
   records that are already anon-readable.
 

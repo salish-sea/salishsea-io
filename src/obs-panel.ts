@@ -1,4 +1,4 @@
-import { css, html, LitElement } from "lit";
+import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { keyed } from 'lit/directives/keyed.js';
 import { Temporal } from "temporal-polyfill";
@@ -21,6 +21,9 @@ const SELECTED_DATE_LABEL = {weekday: 'short', month: 'short', day: 'numeric', y
 
 // Regions live in constants.ts — they are the scope of the query now, not a
 // list of places to look at, so the map and the occurrence fetch need them too.
+
+/** The layout that puts the panel under the map, as salish-sea.ts lays the page out. */
+export const COMPACT_LAYOUT = '(max-aspect-ratio: 1)';
 
 @customElement('obs-panel')
 export class ObsPanel extends LitElement {
@@ -83,6 +86,42 @@ export class ObsPanel extends LitElement {
       padding: 0.125rem 0.25rem;
       text-align: center;
       white-space: nowrap;
+    }
+    /* Says the readout opens the month, when it folds away: pointing down, and up once open. */
+    .day-nav .selected-date .fold svg {
+      fill: currentColor;
+      height: 1rem;
+      margin-left: 0.125rem;
+      rotate: 90deg;
+      vertical-align: -0.2rem;
+      width: 1rem;
+    }
+    .day-nav .selected-date .fold.open svg {
+      rotate: -90deg;
+    }
+    /* Under the open grid, when it folds: a quiet way to a date far from this month. */
+    .type-date {
+      align-self: center;
+      background: none;
+      border: 0;
+      border-radius: 4px;
+      color: #1976d2;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8125rem;
+      padding: 0.125rem 0.5rem;
+    }
+    .type-date:hover {
+      background: #f1f5f9;
+    }
+    .type-date:focus-visible {
+      outline: 2px solid #1976d2;
+      outline-offset: 1px;
+    }
+    /* The calendar's own :host rule says display: block, which beats the browser's
+       rule for [hidden]; this one, outside its shadow root, beats that. */
+    date-calendar[hidden] {
+      display: none;
     }
     .day-nav .selected-date:hover {
       background: #f1f5f9;
@@ -247,6 +286,34 @@ export class ObsPanel extends LitElement {
   private seekingDate = false;
 
   /**
+   * Whether the panel sits under the map, as it does on a phone held upright: the map
+   * then takes half the screen, and a month grid the rest, which put the day's sightings
+   * a whole screen down (salish-dvd). There the grid folds away behind the date readout,
+   * which opens it; the same media query lays the page out (salish-sea.ts).
+   */
+  @state()
+  private compact = false;
+
+  /** Whether the month grid is showing, when compact; otherwise it always is. */
+  @state()
+  private calendarOpen = false;
+
+  #layout: MediaQueryList | undefined;
+  #onLayoutChange = () => { this.compact = this.#layout?.matches ?? false; };
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.#layout = window.matchMedia?.(COMPACT_LAYOUT);
+    this.#layout?.addEventListener('change', this.#onLayoutChange);
+    this.#onLayoutChange();
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.#layout?.removeEventListener('change', this.#onLayoutChange);
+  }
+
+  /**
    * Set when the seek editor is dismissed from the keyboard — by Escape, or by
    * committing a typed date. Removing the input drops focus to the body, which
    * strands a keyboard user; blur is excluded because they moved focus on purpose.
@@ -266,7 +333,8 @@ export class ObsPanel extends LitElement {
     return html`
       <header>
         <h2>Marine Mammal Observations</h2>
-        <date-calendar ${ref(this.calendarRef)} date=${this.date} regionSlug=${this.regionSlug}></date-calendar>
+        <date-calendar ${ref(this.calendarRef)} date=${this.date} regionSlug=${this.regionSlug}
+          ?hidden=${this.compact && !this.calendarOpen} @date-selected=${this.onCalendarDateSelected}></date-calendar>
         <div class="day-nav">
           <button class="step" @click=${this.onGotoYesterday} type="button" name="yesterday" ?disabled=${atEarliest} aria-label="Previous day">${stepIcon(chevronLeftIcon)}</button>
           ${this.seekingDate ? html`
@@ -285,12 +353,17 @@ export class ObsPanel extends LitElement {
             <button
               class="selected-date"
               type="button"
-              title="Jump to a date"
-              @click=${this.startSeekingDate}
-            >${Temporal.PlainDate.from(this.date).toLocaleString(undefined, SELECTED_DATE_LABEL)}</button>
+              title=${this.compact ? (this.calendarOpen ? 'Hide the month' : 'Show the month') : 'Jump to a date'}
+              aria-expanded=${this.compact ? String(this.calendarOpen) : nothing}
+              @click=${this.compact ? this.toggleCalendar : this.startSeekingDate}
+            >${Temporal.PlainDate.from(this.date).toLocaleString(undefined, SELECTED_DATE_LABEL)}${this.compact
+              ? html`<span class=${classMap({fold: true, open: this.calendarOpen})}>${stepIcon(chevronRightIcon)}</span>` : nothing}</button>
           `}
           <button class="step" @click=${this.onGotoTomorrow} type="button" name="tomorrow" ?disabled=${atToday} aria-label="Next day">${stepIcon(chevronRightIcon)}</button>
         </div>
+        ${this.compact && this.calendarOpen && !this.seekingDate ? html`
+          <button class="type-date" type="button" @click=${this.startSeekingDate}>Type a date</button>
+        ` : nothing}
         <div class="go-to" role="group" aria-labelledby="go-to-label">
           <span id="go-to-label">Showing:</span>
           ${REGIONS.map(({slug, label}) => html`
@@ -383,8 +456,25 @@ export class ObsPanel extends LitElement {
     this.dispatchEvent(new CustomEvent('date-selected', {bubbles: true, composed: true, detail: date.toString()}));
   }
 
+  private toggleCalendar() {
+    this.calendarOpen = !this.calendarOpen;
+  }
+
+  /**
+   * A day picked from the grid; folded away again when compact, as the day is chosen.
+   * The day's button goes with it, so a keyboard user's focus goes back to the readout
+   * that opened the grid, as it does from the typed date (updated()).
+   */
+  private onCalendarDateSelected() {
+    if (this.compact && this.calendarOpen)
+      this.#returnFocusToReadout = true;
+    this.calendarOpen = false;
+  }
+
   private startSeekingDate() {
     this.seekingDate = true;
+    // Under the map, the typed date takes the grid's place rather than sitting under it.
+    this.calendarOpen = false;
     // Focus once the input exists, so typing can start straight away. The native
     // picker is left to its own indicator rather than opened from here: it would
     // cover our calendar with a second one, and typing a distant date is the
