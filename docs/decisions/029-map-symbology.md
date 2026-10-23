@@ -6,6 +6,8 @@
 **Depends on:** bd `salish-ayb` — adopting the [animals register](https://github.com/salish-sea/animals). See "Sequencing" below; this record cannot be implemented well before it lands. **Satisfied 2026-08-29**: adoption landed in #398 and its reasoning is [033](033-register-names-the-animals.md).
 **Prototype:** branch `prototype/map-symbology` (four variants behind `?variant=`), retained as the primary source.
 
+*Amended 2026-10-23 (`salish-1y8`), by Peter:* a dead animal is drawn as a **bone** in place of its dot: a silhouette in the taxon's colour, the size of the dot it replaces (18 px, since a dead animal is always the head of a track of its own). Confirmed, it is solid with a thin white edge, as a track's head dot is ringed in white to stand off the water; unconfirmed, it is white edged in the taxon's colour, as an unconfirmed dot is (decision [080](080-a-sighting-is-unconfirmed-until-someone-else-agrees.md)). Its label adds "· dead". Colour still carries the taxon; the shape says what happened to the animal. Rejected: a bone emoji, which is beige, drops the taxon's colour and is drawn differently on every platform; and the † that profile pages use for a deceased individual, which at map size is a few thin pixels lost against the depth shading. The dagger stays in text.
+
 ## Problem
 
 `symbolFor()` renders each occurrence as a single letter inside a bubble. Outside killer whales it fails, and not merely by being opaque — it is **ambiguous**. Across 61,411 occurrences the scheme collapses to 18 glyphs. The five carrying the most records:
@@ -29,7 +31,7 @@ The trigger was "N" for a river otter. The scheme's real failure is that it cann
 
 **Colour carries the taxon group. The label carries the specifics. The track is supporting, not the subject.**
 
-1. **Every occurrence is a uniform dot**, filled by taxon group from a colourblind-safe palette. No letters.
+1. **Every occurrence is a dot, or a bone if the animal is dead** (amended 2026-10-23, above), filled by taxon group from a colourblind-safe palette. No letters. *(As first decided: ~~Every occurrence is a uniform dot~~.)*
 2. **Each segment head carries a label.** Because a singleton is a segment of one, that means in practice every occurrence is labelled — see "Why labelling everything is affordable".
 3. **The label is up to two lines in one box**: identity on line one, and for multi-point tracks only, a track summary on line two.
 4. **Killer whales keep their pod letter** — `J pod`, `Biggs`, `SRKW`. That part of the existing scheme is real information to the audience and survives.

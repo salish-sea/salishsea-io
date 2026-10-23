@@ -48,6 +48,25 @@ describe('occurrenceProperties', () => {
     expect(confirmed.fill).not.toBe('#ffffff');
   });
 
+  it('marks a dead animal, and says so in its label (salish-1y8)', () => {
+    expect(occurrenceProperties(humpback({vitality: 'dead'})).dead).toBe(true);
+    expect(occurrenceProperties(humpback({vitality: 'alive'})).dead).toBe(false);
+    expect(occurrenceProperties(humpback()).dead).toBe(false);
+    expect(occurrenceProperties(humpback({vitality: 'dead', isLast: true, segmentIdentity: 'Humpback'})).label).toBe('Humpback · dead');
+  });
+
+  it('draws a dead animal as a bone, never as a dot as well', () => {
+    const layers = baseStyle().layers;
+    const dot = layers.find(l => l.id === 'occurrence-dot') as {filter: unknown};
+    const bone = layers.find(l => l.id === 'occurrence-bone') as {filter: unknown, layout: Record<string, unknown>};
+    expect(dot.filter).toEqual(['!', ['boolean', ['get', 'dead'], false]]);
+    expect(bone.filter).toEqual(['boolean', ['get', 'dead'], false]);
+    expect(JSON.stringify(bone.layout['icon-image'])).toContain('bone-outline-');
+    // a selected carcass keeps its bone, drawn over the selection's circle
+    const ids = layers.map(l => l.id);
+    expect(ids.indexOf('selected-bone')).toBeGreaterThan(ids.indexOf('selected-dot'));
+  });
+
   it('turns a direction of travel into degrees clockwise from east', () => {
     expect(occurrenceProperties(humpback({direction: 'south'})).directionDeg).toBeCloseTo(90);
     expect(occurrenceProperties(humpback()).directionDeg).toBeUndefined();
