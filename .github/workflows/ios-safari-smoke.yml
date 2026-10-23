@@ -51,12 +51,6 @@ jobs:
           xcrun simctl launch "$udid" com.apple.mobilesafari
           echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
 
-      # TRIAL: dev.salishsea.io still has the PST8PDT bug, so the test must fail there.
-      - name: Prove it fails on the bug (trial)
-        run: |
-          if node e2e/ios-safari-smoke.ts https://dev.salishsea.io; then echo "passed on a known-blank site" >&2; exit 1; fi
-          echo "failed on dev, as it should"
-
       - name: Run Mobile Safari smoke test
         timeout-minutes: 12
         run: node e2e/ios-safari-smoke.ts https://salishsea.io
