@@ -62,7 +62,7 @@ jobs:
 
       - name: Run Mobile Safari smoke test
         timeout-minutes: 12
-        run: node e2e/ios-safari-smoke.ts https://dev.salishsea.io  # TRIAL: dev still has PST8PDT; must fail
+        run: node e2e/ios-safari-smoke.ts https://salishsea.io
 
       - name: Upload screenshots
         if: always()
