@@ -51,34 +51,59 @@ const CHECKS: Check[] = [
     {name: 'profile', path: '/individuals/0010193/T065A', selector: 'h1', what: "the profile's heading"},
 ];
 
-async function main(): Promise<void> {
-    mkdirSync(shots, {recursive: true});
-    const {sessionId, capabilities} = await call<{sessionId: string, capabilities: Record<string, unknown>}>('POST', '/session', {
-        capabilities: {alwaysMatch: {
-            browserName: 'Safari', platformName: 'iOS',
-            'safari:useSimulator': true, 'safari:deviceType': 'iPhone',
-            // The simulator the workflow booted, when it says which.
-            ...(process.env['SIMULATOR_UDID'] ? {'safari:deviceUDID': process.env['SIMULATOR_UDID']} : {}),
-        }},
-    });
-    console.log(`Safari ${capabilities['browserVersion']} on ${capabilities['platformName']} ${capabilities['safari:platformVersion'] ?? ''}`);
-    const failures: string[] = [];
+const CAPABILITIES = {alwaysMatch: {
+    browserName: 'Safari', platformName: 'iOS',
+    'safari:useSimulator': true, 'safari:deviceType': 'iPhone',
+    // The simulator the workflow booted, when it says which.
+    ...(process.env['SIMULATOR_UDID'] ? {'safari:deviceUDID': process.env['SIMULATOR_UDID']} : {}),
+}};
+
+/**
+ * One page in a session of its own: an iOS session can end between pages (the first run
+ * lost its session after the first screenshot), and a fresh one per page keeps one
+ * page's trouble from hiding another's result. A line saying how it went, and whether
+ * it passed.
+ */
+async function checkPage(check: Check): Promise<{line: string, ok: boolean}> {
+    let sessionId: string;
     try {
-        for (const check of CHECKS) {
-            await call('POST', `/session/${sessionId}/url`, {url: `${base}${check.path}`});
-            let found = 0;
-            for (let waited = 0; waited < 60_000 && found === 0; waited += 1000) {
-                found = await call<number>('POST', `/session/${sessionId}/execute/sync`, {script: DEEP_COUNT, args: [check.selector]});
-                if (found === 0) await new Promise(resolve => setTimeout(resolve, 1000));
-            }
+        const session = await call<{sessionId: string, capabilities: Record<string, unknown>}>('POST', '/session', {capabilities: CAPABILITIES});
+        sessionId = session.sessionId;
+        if (check === CHECKS[0])
+            console.log(`Safari ${session.capabilities['browserVersion']} on ${session.capabilities['platformName']} ${session.capabilities['safari:platformVersion'] ?? ''}`);
+    } catch (error) {
+        return {line: `${check.name}: no Safari session: ${(error as Error).message}`, ok: false};
+    }
+    try {
+        await call('POST', `/session/${sessionId}/url`, {url: `${base}${check.path}`});
+        let found = 0;
+        for (let waited = 0; waited < 60_000 && found === 0; waited += 1000) {
+            found = await call<number>('POST', `/session/${sessionId}/execute/sync`, {script: DEEP_COUNT, args: [check.selector]});
+            if (found === 0) await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        try {
             const png = await call<string>('GET', `/session/${sessionId}/screenshot`);
             writeFileSync(path.join(shots, `ios-${check.name}.png`), Buffer.from(png, 'base64'));
-            const line = `${check.name} (${check.path}): ${found > 0 ? `ok, ${found} × ${check.selector}` : `no ${check.what} within a minute`}`;
-            console.log(line);
-            if (found === 0) failures.push(line);
+        } catch (error) {
+            console.log(`${check.name}: no screenshot (${(error as Error).message})`);
         }
+        return found > 0
+            ? {line: `${check.name} (${check.path}): ok, ${found} × ${check.selector}`, ok: true}
+            : {line: `${check.name} (${check.path}): no ${check.what} within a minute`, ok: false};
+    } catch (error) {
+        return {line: `${check.name} (${check.path}): ${(error as Error).message}`, ok: false};
     } finally {
         await call('DELETE', `/session/${sessionId}`).catch(() => {});
+    }
+}
+
+async function main(): Promise<void> {
+    mkdirSync(shots, {recursive: true});
+    const failures: string[] = [];
+    for (const check of CHECKS) {
+        const {line, ok} = await checkPage(check);
+        console.log(line);
+        if (!ok) failures.push(line);
     }
     if (failures.length > 0) {
         console.error(`Mobile Safari smoke failed:\n${failures.join('\n')}`);
