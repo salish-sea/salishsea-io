@@ -212,6 +212,17 @@ describe('parseInatResponse', () => {
         expect(r.observations).toHaveLength(obsFixture.results.length - 1);
     });
 
+    // Heartbeat issue #750: iNaturalist leaves the field out where nobody has annotated, and
+    // requiring it failed every page holding such an observation.
+    test('an observation without an annotations field has none, and the page still parses', () => {
+        const {annotations: _, ...bare} = rawObs;
+        const r = parseInatResponse({ total_results: 2, results: [bare, {...rawObs, id: 2,
+            annotations: [{uuid: 'a', controlled_attribute_id: 17, controlled_value_id: 19, vote_score: 1}]}] });
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        expect(r.observations.map(o => o.annotations)).toEqual([[], [{uuid: 'a', attribute: 17, value: 19, voteScore: 1}]]);
+    });
+
     test('normalizes coordinates as lon/lat, carries the ancestor chain', () => {
         const r = parseInatResponse({ total_results: 1, results: [rawObs] });
         expect(r.ok).toBe(true);

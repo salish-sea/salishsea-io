@@ -188,8 +188,8 @@ const InatQualityMetricSchema = z.object({
 
 // An annotation: an answer to one of iNaturalist's controlled questions, such as "Alive or
 // Dead" (attribute 17: Alive 18, Dead 19, Cannot Be Determined 20), with the net score of
-// the votes on it. REQUIRED, like the quality metrics: an empty list is ordinary, an
-// absent one means the field selection drifted (salish-1y8).
+// the votes on it (salish-1y8). OPTIONAL, unlike the quality metrics: iNaturalist leaves the
+// field out of an observation nobody has annotated, so absent is read as none.
 const InatAnnotationSchema = z.object({
     uuid: z.string(),
     controlled_attribute_id: z.number().int(),
@@ -215,7 +215,9 @@ export const InatObservationSchema = z.object({
     identifications: z.array(InatIdentificationSchema),
     comments: z.array(InatCommentSchema),
     quality_metrics: z.array(InatQualityMetricSchema),
-    annotations: z.array(InatAnnotationSchema),
+    // Absent, not empty, on an observation nobody has annotated, at least among older ones:
+    // requiring it failed every page holding one (heartbeat issue #750).
+    annotations: z.array(InatAnnotationSchema).optional(),
 });
 
 export const InatResponseSchema = z.object({
@@ -391,7 +393,7 @@ export function normalizeObservation(
             body: c.hidden ? null : blankToNull(c.body), createdAt: c.created_at, hidden: c.hidden,
         })),
         qualityMetrics: r.quality_metrics.map(q => ({id: q.id, metric: q.metric, agree: q.agree})),
-        annotations: r.annotations.map(a => ({
+        annotations: (r.annotations ?? []).map(a => ({
             uuid: a.uuid, attribute: a.controlled_attribute_id, value: a.controlled_value_id, voteScore: a.vote_score,
         })),
     };
