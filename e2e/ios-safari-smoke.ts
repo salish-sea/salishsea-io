@@ -7,7 +7,8 @@
  *
  *   node e2e/ios-safari-smoke.ts [https://salishsea.io]
  *
- * Expects safaridriver listening on WEBDRIVER_URL (default http://localhost:4444).
+ * Expects safaridriver listening on WEBDRIVER_URL (default http://localhost:4444), and,
+ * in CI, a booted simulator named by SIMULATOR_UDID.
  * Plain WebDriver over fetch, so it needs nothing installed beyond Node.
  *
  * An error thrown while a page's scripts load can't be caught from here once the page
@@ -56,6 +57,8 @@ async function main(): Promise<void> {
         capabilities: {alwaysMatch: {
             browserName: 'Safari', platformName: 'iOS',
             'safari:useSimulator': true, 'safari:deviceType': 'iPhone',
+            // The simulator the workflow booted, when it says which.
+            ...(process.env['SIMULATOR_UDID'] ? {'safari:deviceUDID': process.env['SIMULATOR_UDID']} : {}),
         }},
     });
     console.log(`Safari ${capabilities['browserVersion']} on ${capabilities['platformName']} ${capabilities['safari:platformVersion'] ?? ''}`);

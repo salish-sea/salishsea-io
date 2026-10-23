@@ -35,6 +35,23 @@ jobs:
         with:
           node-version-file: package.json
 
+      # safaridriver doesn't launch a simulator of its own on the runner: it times out
+      # "finding or launching a compatible remote Safari". So boot an iPhone on the newest
+      # iOS runtime, open Safari in it, and name the device to the session. Remote
+      # Automation needs no switching on in a simulator, unlike on a phone.
+      - name: Boot an iPhone simulator
+        run: |
+          udid=$(xcrun simctl list devices available -j | node -e '
+            const {devices} = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            const runtimes = Object.keys(devices).filter(r => r.includes("iOS")).sort((a, b) => a.localeCompare(b, "en", {numeric: true}));
+            const phone = devices[runtimes.at(-1)].find(d => d.name.startsWith("iPhone"));
+            console.error(`${phone.name} on ${runtimes.at(-1)}`);
+            console.log(phone.udid);')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl launch "$udid" com.apple.mobilesafari
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+
       # safaridriver refuses to automate until it is enabled, which needs root once.
       - name: Start safaridriver
         run: |
