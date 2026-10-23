@@ -47,14 +47,26 @@ describe('the month grid, when the panel sits under the map', () => {
     expect(readout().getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('folds away again once a day is picked from it', async () => {
+  it('folds away again once a day is picked from it, and gives focus back to the date', async () => {
     stubLayout(true);
-    const {el, calendar, readout} = await panel();
+    const {el, root, calendar, readout} = await panel();
     readout().click();
     await el.updateComplete;
     calendar().dispatchEvent(new CustomEvent('date-selected', {bubbles: true, composed: true, detail: '2026-09-27'}));
     await el.updateComplete;
     expect(calendar().hidden).toBe(true);
+    expect(root.activeElement).toBe(readout());
+  });
+
+  it('offers a typed date under the open grid, for a day far from this month', async () => {
+    stubLayout(true);
+    const {el, root, readout} = await panel();
+    expect(root.querySelector('.type-date')).toBeNull();
+    readout().click();
+    await el.updateComplete;
+    root.querySelector<HTMLButtonElement>('.type-date')!.click();
+    await el.updateComplete;
+    expect(root.querySelector('input[type=date]')).not.toBeNull();
   });
 });
 

@@ -99,6 +99,25 @@ export class ObsPanel extends LitElement {
     .day-nav .selected-date .fold.open svg {
       rotate: -90deg;
     }
+    /* Under the open grid, when it folds: a quiet way to a date far from this month. */
+    .type-date {
+      align-self: center;
+      background: none;
+      border: 0;
+      border-radius: 4px;
+      color: #1976d2;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8125rem;
+      padding: 0.125rem 0.5rem;
+    }
+    .type-date:hover {
+      background: #f1f5f9;
+    }
+    .type-date:focus-visible {
+      outline: 2px solid #1976d2;
+      outline-offset: 1px;
+    }
     /* The calendar's own :host rule says display: block, which beats the browser's
        rule for [hidden]; this one, outside its shadow root, beats that. */
     date-calendar[hidden] {
@@ -342,6 +361,9 @@ export class ObsPanel extends LitElement {
           `}
           <button class="step" @click=${this.onGotoTomorrow} type="button" name="tomorrow" ?disabled=${atToday} aria-label="Next day">${stepIcon(chevronRightIcon)}</button>
         </div>
+        ${this.compact && this.calendarOpen && !this.seekingDate ? html`
+          <button class="type-date" type="button" @click=${this.startSeekingDate}>Type a date</button>
+        ` : nothing}
         <div class="go-to" role="group" aria-labelledby="go-to-label">
           <span id="go-to-label">Showing:</span>
           ${REGIONS.map(({slug, label}) => html`
@@ -438,13 +460,21 @@ export class ObsPanel extends LitElement {
     this.calendarOpen = !this.calendarOpen;
   }
 
-  /** A day picked from the grid; folded away again when compact, as the day is chosen. */
+  /**
+   * A day picked from the grid; folded away again when compact, as the day is chosen.
+   * The day's button goes with it, so a keyboard user's focus goes back to the readout
+   * that opened the grid, as it does from the typed date (updated()).
+   */
   private onCalendarDateSelected() {
+    if (this.compact && this.calendarOpen)
+      this.#returnFocusToReadout = true;
     this.calendarOpen = false;
   }
 
   private startSeekingDate() {
     this.seekingDate = true;
+    // Under the map, the typed date takes the grid's place rather than sitting under it.
+    this.calendarOpen = false;
     // Focus once the input exists, so typing can start straight away. The native
     // picker is left to its own indicator rather than opened from here: it would
     // cover our calendar with a second one, and typing a distant date is the
