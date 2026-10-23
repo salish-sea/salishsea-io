@@ -394,8 +394,10 @@ const LAYERS: LayerSpecification[] = [
   {id: 'selected-dot', type: 'circle', source: 'selected',
     paint: {'circle-radius': 9, 'circle-color': 'rgba(255, 255, 0, 0.5)',
       'circle-stroke-color': yellow, 'circle-stroke-width': 3}},
-  // Its label too, and it never gives way: the occurrence you just picked keeps its name.
-  ...occurrenceLayers('selected', 'selected').filter(({id}) => id === 'selected-label').map(layer => ({
+  // A dead animal's bone on top of the selection's circle, so a picked carcass still looks
+  // like one; and its label, which never gives way: the occurrence you just picked keeps its
+  // name. The selection's source carries no feature state, so the bone shows in full.
+  ...occurrenceLayers('selected', 'selected').filter(({id}) => id === 'selected-bone' || id === 'selected-label').map(layer => ({
     ...layer,
     layout: {...(layer as SymbolLayerSpecification).layout, 'text-allow-overlap': true, 'icon-allow-overlap': true},
   }) as SymbolLayerSpecification),

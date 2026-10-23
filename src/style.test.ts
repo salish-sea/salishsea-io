@@ -62,6 +62,9 @@ describe('occurrenceProperties', () => {
     expect(dot.filter).toEqual(['!', ['boolean', ['get', 'dead'], false]]);
     expect(bone.filter).toEqual(['boolean', ['get', 'dead'], false]);
     expect(JSON.stringify(bone.layout['icon-image'])).toContain('bone-outline-');
+    // a selected carcass keeps its bone, drawn over the selection's circle
+    const ids = layers.map(l => l.id);
+    expect(ids.indexOf('selected-bone')).toBeGreaterThan(ids.indexOf('selected-dot'));
   });
 
   it('turns a direction of travel into degrees clockwise from east', () => {

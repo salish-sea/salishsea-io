@@ -31,7 +31,7 @@ The trigger was "N" for a river otter. The scheme's real failure is that it cann
 
 **Colour carries the taxon group. The label carries the specifics. The track is supporting, not the subject.**
 
-1. **Every occurrence is a uniform dot**, filled by taxon group from a colourblind-safe palette. No letters.
+1. **Every occurrence is a dot, or a bone if the animal is dead** (amended 2026-10-23, above), filled by taxon group from a colourblind-safe palette. No letters. *(As first decided: ~~Every occurrence is a uniform dot~~.)*
 2. **Each segment head carries a label.** Because a singleton is a segment of one, that means in practice every occurrence is labelled — see "Why labelling everything is affordable".
 3. **The label is up to two lines in one box**: identity on line one, and for multi-point tracks only, a track summary on line two.
 4. **Killer whales keep their pod letter** — `J pod`, `Biggs`, `SRKW`. That part of the existing scheme is real information to the audience and survives.
