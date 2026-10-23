@@ -2,6 +2,21 @@
 
 Product and technical decisions with rationale and rejected alternatives. Add a new numbered record when a decision is made; mark superseded records rather than deleting them.
 
+## What belongs here
+
+A record holds a **choice**: one option taken over others that are named, for reasons a later reader would otherwise have to rediscover, or would be tempted to undo. Write one when such a choice is made, in conversation or in review, before moving on. It says what was chosen, why, and what was rejected.
+
+These don't belong here, and have homes of their own:
+
+- **A framing or analysis that chooses nothing.** Put it in [docs/research](../research/); the decisions it informs cite it. 087 was one, and was withdrawn.
+- **A term.** Put it in [CONTEXT.md](../../CONTEXT.md).
+- **A question still open, or work in flight.** Put it in a bd issue, or a GitHub issue if it is customer-facing. A record is written when the question is settled; until then the issue can say which record will settle it.
+- **How to operate something.** Put it in [docs/runbook](../runbook/).
+
+*Proposed* means a specific choice is written and awaits approval, not that a question is open. When a decision changes in part, amend its record: lead with the current rule, strike through the wording it replaces, and say why. When it is replaced whole, mark it superseded and link the record that replaces it.
+
+## The records
+
 | # | Decision | Status |
 |---|----------|--------|
 | [001](001-product-framing.md) | Two audiences, web-first, cetaceans only, Google-only auth | accepted (scope superseded by 009) |
@@ -90,4 +105,4 @@ Product and technical decisions with rationale and rejected alternatives. Add a 
 | [084](084-the-image-builds-downloads-come-from-our-own-mirror-first.md) | The Fly image build's downloads (pinned by sha256 in `fly/downloads.tsv`) come from our own bucket first, `salishsea.io/downloads/<sha256>`, then upstream; only a checksum match counts | accepted (amended by 085: Racket and its packages are no longer downloaded at all) |
 | [085](085-stelis-arrives-as-an-image-pinned-by-digest.md) | Stelis arrives as the image its own CI built from the pinned commit, `ghcr.io/rainhead/stelis` by digest (`fly/stelis-digest`, written by `fly/pin-stelis.sh` beside `fly/stelis-commit`); the Dockerfile copies Racket and the compiled engine out of it and checks the image's commit against the pin | accepted |
 | [086](086-what-we-know-now-is-a-file-to-poll.md) | What we know now is a versioned file of the last seven days' occurrences beside the day files, Acartia's open endpoint's window and fields mapped, polled with the manifest as the change signal; asked for by the Marine Exchange's PortLink; nothing is pushed (no SNS topic) until a subscriber needs push; our own sightings are CC-BY, which nobody had been asked to agree to and which the archive misstated as CC-BY-NC; agreement is asked in the app, and unagreed sightings are held back from publication beyond the site, not the map (#739) | accepted |
-| [087](087-our-judgment-is-separate-from-the-data.md) | Proposed, not decided: keep three layers apart — the claims people and sources make, the verdicts a named and versioned rule of ours draws from them ("the system"), and the uses that act on a verdict (the map, the archive, 086's file, a vessel alert), each choosing the verdict it relies on, since a missed whale and a false alarm to ships both cost a lot. Until settled, 080's `confirmation` isn't promised to outside consumers | proposed |
+| [087](087-our-judgment-is-separate-from-the-data.md) | Withdrawn: a framing, not a decision. The analysis of claims, our verdicts on them, and their uses moved to [docs/research](../research/our-judgment-and-the-claims-it-judges.md) | withdrawn |
