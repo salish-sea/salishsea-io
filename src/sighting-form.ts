@@ -364,7 +364,7 @@ export default class SightingForm extends LitElement {
               return;
             try {
               const observedAt = Temporal.PlainDate.from(this.date)
-                .toZonedDateTime({timeZone: 'PST8PDT', plainTime: str});
+                .toZonedDateTime({timeZone: 'America/Los_Angeles', plainTime: str});
               if (Temporal.ZonedDateTime.compare(observedAt, Temporal.Now.zonedDateTimeISO()) > 0) {
                 return "Must be in the past";
               }

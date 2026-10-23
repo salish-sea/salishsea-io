@@ -112,11 +112,11 @@ test('sorts deduped links newest first', () => {
   expect(dedupeOccurrenceLinks(rows).map(l => l.occurrence_id)).toEqual(['new', 'old']);
 });
 
-test('aggregates presence by PST8PDT calendar month', () => {
+test('aggregates presence by America/Los_Angeles calendar month', () => {
   const at = (occurrence_id: string, observed_at: string): OccurrenceLink =>
     ({ occurrence_id, observed_at, location: null, is_present: true, status: 'candidate', via_group: null });
   const links: OccurrenceLink[] = [
-    // 2026-01-01T02:00Z is still 2025-12-31 in PST8PDT
+    // 2026-01-01T02:00Z is still 2025-12-31 in America/Los_Angeles
     at('a', '2026-01-01T02:00:00+00:00'),
     at('b', '2026-06-14T17:36:00+00:00'),
     at('c', '2026-06-20T17:36:00+00:00'),

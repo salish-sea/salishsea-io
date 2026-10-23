@@ -11,7 +11,7 @@
  * What the calendar's `occurrence_days` call returns today, for every region at
  * once: a day's count of occurrences inside the region's box. The same rules, so
  * the circles don't change size when the source does:
- *   - a day is a Pacific day (PST8PDT)
+ *   - a day is a Pacific day (America/Los_Angeles)
  *   - the box is inclusive on every side
  *   - a row without a location is not counted, not even for "Everywhere", whose
  *     function bounds are the whole world and so exclude only a missing one.

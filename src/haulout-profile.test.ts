@@ -33,7 +33,7 @@ describe('presenceYearsFor', () => {
   });
 
   test('dates are read in Pacific time, like every other date the app shows', () => {
-    // 2025-01-01T04:00Z is still 2024-12-31 in PST8PDT. Reading it as UTC would
+    // 2025-01-01T04:00Z is still 2024-12-31 in America/Los_Angeles. Reading it as UTC would
     // give the grid an extra year at one end for no reason.
     expect(presenceYearsFor([{ observed_at: '2025-01-01T04:00:00Z' }], 2026)).toBe(3);
   });

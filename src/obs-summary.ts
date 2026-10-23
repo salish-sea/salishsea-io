@@ -223,7 +223,7 @@ export class ObsSummary extends LitElement {
           ${when(!unconfirmed && disagreements, () => html`<span class="confirmation" title="Confirmed: at least two thirds of the others who identified it agree">${disagreements === 1 ? '1 identifier disagrees' : `${disagreements} identifiers disagree`}</span>`)}
         </div>
         <time>${guard([observed_at], () => html`${
-          Temporal.Instant.from(observed_at).toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
+          Temporal.Instant.from(observed_at).toZonedDateTimeISO('America/Los_Angeles').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
         }`)}</time>
       </header>
       ${this.renderProvenance()}

@@ -98,7 +98,7 @@ vi.mock('@sentry/browser', async (importOriginal) => ({
 import SalishSea, { dateFromObservedAt } from './salish-sea.ts';
 import type { Occurrence } from './types.ts';
 
-test('dateFromObservedAt: UTC midnight in PST8PDT is still the same calendar day', () => {
+test('dateFromObservedAt: UTC midnight in America/Los_Angeles is still the same calendar day', () => {
   // 2024-07-15T18:23:00Z is 11:23 PDT — still July 15 in Pacific time
   expect(dateFromObservedAt('2024-07-15T18:23:00Z')).toBe('2024-07-15');
 });

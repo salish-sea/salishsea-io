@@ -51,7 +51,7 @@ let nowOverride: number | null = null;
   const t = params.get('t');
   if (d && t) {
     try {
-      nowOverride = Temporal.PlainDate.from(d).toZonedDateTime({timeZone: 'PST8PDT', plainTime: t}).epochMilliseconds;
+      nowOverride = Temporal.PlainDate.from(d).toZonedDateTime({timeZone: 'America/Los_Angeles', plainTime: t}).epochMilliseconds;
     } catch (e) {
       console.error(e);
     }

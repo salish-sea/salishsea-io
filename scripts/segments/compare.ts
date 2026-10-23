@@ -106,7 +106,7 @@ async function pooled<T, U>(items: readonly T[], f: (item: T) => Promise<U>): Pr
 
 function months(since: string): string[] {
   const out: string[] = [];
-  const last = Temporal.Now.plainDateISO('PST8PDT').toPlainYearMonth();
+  const last = Temporal.Now.plainDateISO('America/Los_Angeles').toPlainYearMonth();
   for (let m = Temporal.PlainYearMonth.from(since.slice(0, 7)); Temporal.PlainYearMonth.compare(m, last) <= 0; m = m.add({months: 1}))
     out.push(m.toString());
   return out;
@@ -144,7 +144,7 @@ async function load(since: string): Promise<Row[]> {
       id: o.id,
       observed_at_ms: at.epochMilliseconds,
       day: pacificDay(o.observed_at),
-      time: at.toZonedDateTimeISO('PST8PDT').toPlainTime().toString({smallestUnit: 'minute'}),
+      time: at.toZonedDateTimeISO('America/Los_Angeles').toPlainTime().toString({smallestUnit: 'minute'}),
       location: {lat: o.location.lat, lon: o.location.lon},
       taxon: {species_id: o.taxon.species_id, scientific_name: name},
       identifiers: o.identifiers ?? [],

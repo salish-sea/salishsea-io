@@ -23,7 +23,7 @@ type Located = {location: {lon: number | null, lat: number | null} | null};
 
 /** The Pacific day an instant falls on, as the files and occurrence_days date it. */
 export function pacificDay(observedAt: string): string {
-  return Temporal.Instant.from(observedAt).toZonedDateTimeISO('PST8PDT').toPlainDate().toString();
+  return Temporal.Instant.from(observedAt).toZonedDateTimeISO('America/Los_Angeles').toPlainDate().toString();
 }
 
 /**
