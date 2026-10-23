@@ -257,7 +257,7 @@ export function renderPresenceTable(
   links: Pick<OccurrenceLink, 'observed_at'>[],
   years = PRESENCE_YEARS,
   note = 'Reports per month. Most are unverified mentions in sighting text, not confirmed identifications.',
-  currentYear = Temporal.Now.zonedDateTimeISO('PST8PDT').year,
+  currentYear = Temporal.Now.zonedDateTimeISO('America/Los_Angeles').year,
 ) {
   const grid = monthlyPresence(links, years, currentYear);
   if (grid.every(row => row.months.every(count => count === 0))) return nothing;

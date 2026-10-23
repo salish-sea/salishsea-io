@@ -3,7 +3,7 @@
  *
  * The map asks for "the sightings on 2025-03-09" and gets one file, so the
  * build and the browser must draw the midnight line in the same place. The
- * browser draws it with Temporal in PST8PDT (`dateFromObservedAt`); the build
+ * browser draws it with Temporal in America/Los_Angeles (`dateFromObservedAt`); the build
  * draws it in DuckDB. They are two implementations of one rule, and the place
  * they could part is at a daylight-saving change, where Pacific midnight moves
  * from 08:00 to 07:00 UTC. So the fixture sits on both sides of midnight on
@@ -23,7 +23,7 @@ import { dayFiles, PARTIAL_LIMIT, rebuildKeys, writeDays } from './occurrence-da
 /** The frontend's definition of a day (src/salish-sea.ts, dateFromObservedAt). */
 function frontendDay(observedAt: string): string {
     return Temporal.Instant.from(observedAt)
-        .toZonedDateTimeISO('PST8PDT')
+        .toZonedDateTimeISO('America/Los_Angeles')
         .toPlainDate()
         .toString();
 }

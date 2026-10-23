@@ -7,7 +7,7 @@ import { type Extent, acartiaExtent, pugetSoundExtent, sanJuansExtent, srkwExten
  * export, and `occurrence_days`. A viewer in Tokyo asking for July 30 means the
  * region's July 30.
  */
-export const OBSERVATION_TIME_ZONE = 'PST8PDT';
+export const OBSERVATION_TIME_ZONE = 'America/Los_Angeles';
 
 /**
  * Today, in the zone above.

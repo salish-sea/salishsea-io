@@ -108,7 +108,7 @@ export function newSighting(): SightingFormData {
   };
 }
 export function observationToFormData(observation: Occurrence): SightingFormData & {id: string} {
-  const observedAt = Temporal.Instant.from(observation.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDateTime();
+  const observedAt = Temporal.Instant.from(observation.observed_at).toZonedDateTimeISO('America/Los_Angeles').toPlainDateTime();
   return {
     body: observation.body || '',
     count: observation.count || NaN,
@@ -166,7 +166,7 @@ export type SightingContext = {
 export function sightingPayload(value: SightingFormData, {id, date, observer, subject, photos}: SightingContext): UpsertObservationArgs {
   if (!subject)
     throw new Error("Subject coordinates not set");
-  const observedAt = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: value.observed_time});
+  const observedAt = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'America/Los_Angeles', plainTime: value.observed_time});
   return {
     id,
     body: value.body,

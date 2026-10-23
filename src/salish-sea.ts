@@ -611,7 +611,7 @@ export default class SalishSea extends LitElement {
       // user day-change and clear the focus we just set.
       this.#isFocusingOccurrence = true;
       try {
-        this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('PST8PDT').toPlainDate().toString();
+        this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('America/Los_Angeles').toPlainDate().toString();
       } finally {
         this.#isFocusingOccurrence = false;
       }
@@ -662,7 +662,7 @@ export default class SalishSea extends LitElement {
     // for the revision — see #listRevision.
     const region = this.#region;
     const revision = this.#listRevision;
-    const startOfDay = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'PST8PDT', plainTime: '00:00:00'});
+    const startOfDay = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'America/Los_Angeles', plainTime: '00:00:00'});
     const endOfDay = startOfDay.add({days: 1});
     type Row = Omit<Occurrence, 'observed_at_ms'>;
     let data;

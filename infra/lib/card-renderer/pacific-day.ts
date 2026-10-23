@@ -2,7 +2,7 @@
 //
 // A `d=` URL parameter names a Pacific calendar date, and the app resolves it to
 // [midnight, +1 day) in Pacific time (`src/salish-sea.ts`, via Temporal's
-// PST8PDT). Node has no Temporal, so the same boundary is derived here from
+// America/Los_Angeles). Node has no Temporal, so the same boundary is derived here from
 // Intl. Getting this wrong shifts a whole day's sightings by up to 8 hours, so it
 // lives in one module with its own tests rather than inline at each call site.
 

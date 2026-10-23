@@ -13,7 +13,7 @@
  * change to how the day files are written doesn't rerun the tasks that only share the day.
  */
 
-export const DAY_ZONE = 'PST8PDT';
+export const DAY_ZONE = 'America/Los_Angeles';
 
 /** DuckDB SQL for the Pacific day of a timestamptz column, as YYYY-MM-DD. */
 export function dayOf(column: string): string {

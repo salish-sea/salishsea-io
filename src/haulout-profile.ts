@@ -269,7 +269,7 @@ export function renderHauloutVitals(site: Haulout, reports: HauloutReport[] | nu
 export function renderHauloutReports(
   site: Haulout,
   reports: HauloutReport[] | null,
-  currentYear = Temporal.Now.zonedDateTimeISO('PST8PDT').year,
+  currentYear = Temporal.Now.zonedDateTimeISO('America/Los_Angeles').year,
 ) {
   if (!reports?.length)
     return html`<p class="placeholder">No pinniped reports within ${site.radius_m} m of this point. The atlas listed it; nobody on iNaturalist has reported animals here in anything we hold.</p>`;
