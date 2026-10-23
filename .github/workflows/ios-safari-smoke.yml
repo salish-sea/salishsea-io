@@ -1,0 +1,55 @@
+name: Mobile Safari Smoke Test
+
+# The site in Mobile Safari, in Apple's iOS Simulator, on a macOS runner. The Chromium
+# smoke test (smoke.yml) passed for eleven days while every iPhone got a white page:
+# Safari refused the time-zone name PST8PDT, which Chromium accepts (SALISHSEA-IO-44).
+# This drives Safari itself, through Apple's safaridriver, against production.
+#
+# macOS minutes cost nothing on a public repository, but a macOS job is slower to
+# start, so this runs beside the Chromium test rather than gating the deploy: after
+# each deploy (Deploy calls it), daily, by hand, and on a pull request that changes it.
+on:
+  workflow_call:
+  schedule:
+    - cron: '10 14 * * *'  # daily at 14:10 UTC, after smoke.yml's 14:00
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - e2e/ios-safari-smoke.ts
+      - .github/workflows/ios-safari-smoke.yml
+
+jobs:
+  ios-safari:
+    # The runner image with iOS 26's simulators, the version current iPhones run.
+    runs-on: macos-26
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The script uses Node's built-ins alone, so nothing is installed.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: package.json
+
+      # safaridriver refuses to automate until it is enabled, which needs root once.
+      - name: Start safaridriver
+        run: |
+          sudo safaridriver --enable
+          safaridriver --port 4444 &
+          for _ in $(seq 30); do curl -sf http://localhost:4444/status >/dev/null && exit 0; sleep 1; done
+          echo "safaridriver did not start" >&2; exit 1
+
+      - name: Run Mobile Safari smoke test
+        timeout-minutes: 12
+        run: node e2e/ios-safari-smoke.ts https://salishsea.io
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-safari-screenshots
+          path: e2e/screenshots/ios-*.png
