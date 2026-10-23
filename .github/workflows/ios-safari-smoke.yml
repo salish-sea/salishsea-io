@@ -1,0 +1,69 @@
+name: Mobile Safari Smoke Test
+
+# The site in Mobile Safari, in Apple's iOS Simulator, on a macOS runner. The Chromium
+# smoke test (smoke.yml) passed for eleven days while iPhones on iOS 27 got a white
+# page: Safari there refused the time-zone name PST8PDT, which Chromium accepts
+# (SALISHSEA-IO-44). iOS 26.5's simulator accepted it too, so this runs the newest iOS
+# the runner offers; the script screenshots each page and fails on a blank one.
+#
+# macOS minutes cost nothing on a public repository, but a macOS job is slow to start,
+# so this runs beside the Chromium test rather than gating the deploy: daily, by hand,
+# and on a pull request that changes it.
+on:
+  schedule:
+    - cron: '10 14 * * *'  # daily at 14:10 UTC, after smoke.yml's 14:00
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - e2e/ios-safari-smoke.ts
+      - .github/workflows/ios-safari-smoke.yml
+
+jobs:
+  ios-safari:
+    # GitHub's image with Xcode 27 and its iOS 27 simulators, a preview since
+    # 2026-09-16 (actions/runner-images#14404). Move to the next one when Apple
+    # ships the next iOS: the simulator has to be as new as the phones.
+    runs-on: xcode-27
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The script uses Node's built-ins alone, so nothing is installed.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: package.json
+
+      # A numbered iPhone on the newest iOS runtime the image has, booted, with Safari open.
+      - name: Boot an iPhone simulator
+        run: |
+          udid=$(xcrun simctl list devices available -j | node -e '
+            const {devices} = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            const runtimes = Object.keys(devices).filter(r => r.includes("iOS")).sort((a, b) => a.localeCompare(b, "en", {numeric: true}));
+            // A numbered iPhone, one screen: iOS 27.1 also has a two-screen "iPhone Duo", which
+            // simctl will not screenshot without being told which screen, and on some machines
+            // of the image it is the only iPhone that runtime has. So the newest runtime
+            // with a numbered iPhone.
+            for (const runtime of runtimes.reverse()) {
+              const phone = devices[runtime].find(d => /^iPhone \d+/.test(d.name));
+              if (phone) { console.error(`${phone.name} on ${runtime}`); console.log(phone.udid); process.exit(0); }
+            }
+            console.error("no numbered iPhone on any iOS runtime"); process.exit(1);')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl launch "$udid" com.apple.mobilesafari
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+
+      - name: Run Mobile Safari smoke test
+        timeout-minutes: 12
+        run: node e2e/ios-safari-smoke.ts https://salishsea.io
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-safari-screenshots
+          path: e2e/screenshots/ios-*.png
