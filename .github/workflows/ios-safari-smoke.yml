@@ -37,13 +37,15 @@ jobs:
         with:
           node-version-file: package.json
 
-      # An iPhone on the newest iOS runtime the image has, booted, with Safari open.
+      # A numbered iPhone on the newest iOS runtime the image has, booted, with Safari open.
       - name: Boot an iPhone simulator
         run: |
           udid=$(xcrun simctl list devices available -j | node -e '
             const {devices} = JSON.parse(require("fs").readFileSync(0, "utf8"));
             const runtimes = Object.keys(devices).filter(r => r.includes("iOS")).sort((a, b) => a.localeCompare(b, "en", {numeric: true}));
-            const phone = devices[runtimes.at(-1)].find(d => d.name.startsWith("iPhone"));
+            // A numbered iPhone, one screen: the iOS 27.1 image also has a two-screen "iPhone Duo",
+            // which simctl won't screenshot without being told which screen.
+            const phone = devices[runtimes.at(-1)].find(d => /^iPhone \d+/.test(d.name));
             console.error(`${phone.name} on ${runtimes.at(-1)}`);
             console.log(phone.udid);')
           xcrun simctl boot "$udid"
