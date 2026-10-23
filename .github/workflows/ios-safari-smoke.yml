@@ -44,7 +44,7 @@ jobs:
             const {devices} = JSON.parse(require("fs").readFileSync(0, "utf8"));
             const runtimes = Object.keys(devices).filter(r => r.includes("iOS")).sort((a, b) => a.localeCompare(b, "en", {numeric: true}));
             // A numbered iPhone, one screen: the iOS 27.1 image also has a two-screen "iPhone Duo",
-            // which simctl won't screenshot without being told which screen.
+            // which simctl will not screenshot without being told which screen.
             const phone = devices[runtimes.at(-1)].find(d => /^iPhone \d+/.test(d.name));
             console.error(`${phone.name} on ${runtimes.at(-1)}`);
             console.log(phone.udid);')
