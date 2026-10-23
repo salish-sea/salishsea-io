@@ -1,109 +1,83 @@
 /**
- * Smoke test in Mobile Safari, in Apple's iOS Simulator (.github/workflows/ios-safari-smoke.yml). Chromium accepted what Safari refused: the
- * legacy zone name PST8PDT threw while the app's first script read its URL, and the
- * page stayed white on every iPhone for eleven days (SALISHSEA-IO-44) while the
- * Chromium smoke test passed. This drives Safari itself, through Apple's safaridriver,
- * which speaks WebDriver and can run Safari in a simulator.
+ * Smoke test in Mobile Safari, in Apple's iOS Simulator (.github/workflows/ios-safari-smoke.yml).
+ * Chromium accepted what Safari on iOS 27 refused: the legacy zone name PST8PDT threw
+ * while the app's first script read its URL, and the page stayed white on iPhones for
+ * eleven days (SALISHSEA-IO-44) while the Chromium smoke test passed.
  *
- *   node e2e/ios-safari-smoke.ts [https://salishsea.io]
+ *   SIMULATOR_UDID=… node e2e/ios-safari-smoke.ts [https://salishsea.io]
  *
- * Expects safaridriver listening on WEBDRIVER_URL (default http://localhost:4444), and,
- * in CI, a booted simulator named by SIMULATOR_UDID.
- * Plain WebDriver over fetch, so it needs nothing installed beyond Node.
- *
- * An error thrown while a page's scripts load can't be caught from here once the page
- * has loaded, so each check is that the page rendered what only a working app renders.
+ * Each page is opened in the booted simulator's Safari, given time to load, and
+ * screenshotted; it passes when the page area isn't blank, which is the symptom that
+ * failure had. No WebDriver: Apple's safaridriver couldn't attach to iOS 27's simulated
+ * Safari on GitHub's runner (2026-10-22), and a screenshot needs only the simulator.
+ * iOS 26.5's simulator accepted PST8PDT, so the iOS version matters; the workflow boots
+ * the newest one the runner has. macOS-only: it reads the screenshot through sips.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const base = (process.argv[2] ?? 'https://salishsea.io').replace(/\/$/, '');
-const driver = process.env['WEBDRIVER_URL'] ?? 'http://localhost:4444';
+const udid = process.env['SIMULATOR_UDID'];
 const shots = path.join(import.meta.dirname, 'screenshots');
 
-async function call<T>(method: string, route: string, body?: unknown): Promise<T> {
-    const response = await fetch(`${driver}${route}`, {
-        method,
-        headers: body === undefined ? {} : {'Content-Type': 'application/json'},
-        body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    const json = await response.json() as {value: T & {error?: string, message?: string}};
-    if (!response.ok) throw new Error(`${method} ${route}: ${json.value?.error ?? response.status} ${json.value?.message ?? ''}`);
-    return json.value;
-}
+/** Below this share of non-white pixels the page is taken as blank; a white page gives 0, the map about 0.6. */
+export const BLANK_BELOW = 0.05;
 
-/** How many elements match `selector`, looking inside every shadow root on the page. */
-const DEEP_COUNT = `
-    const selector = arguments[0];
-    const count = root => [...root.querySelectorAll('*')]
-        .reduce((n, el) => n + (el.shadowRoot ? count(el.shadowRoot) : 0), root.querySelectorAll(selector).length);
-    return count(document);`;
-
-type Check = {name: string, path: string, selector: string, what: string};
-
-const CHECKS: Check[] = [
-    // Today, with no date in the URL: the page that went white, at the line that threw.
-    {name: 'map-today', path: '/', selector: 'obs-panel', what: "the map's panel"},
-    // A busy day, so the sightings themselves have to arrive and render.
-    {name: 'map-sightings', path: '/?d=2026-09-29', selector: 'obs-summary', what: 'a sighting in the panel'},
-    // A prerendered profile page, whose script adds the page's map.
-    {name: 'profile', path: '/individuals/0010193/T065A', selector: 'h1', what: "the profile's heading"},
+const CHECKS = [
+    // Today, with no date in the URL: the page that went white.
+    {name: 'map-today', path: '/'},
+    // A busy day, so the sightings themselves load and render.
+    {name: 'map-sightings', path: '/?d=2026-09-29'},
+    // A prerendered profile page.
+    {name: 'profile', path: '/individuals/0010193/T065A'},
 ];
 
-const CAPABILITIES = {alwaysMatch: {
-    browserName: 'Safari', platformName: 'iOS',
-    'safari:useSimulator': true, 'safari:deviceType': 'iPhone',
-    // The simulator the workflow booted, when it says which.
-    ...(process.env['SIMULATOR_UDID'] ? {'safari:deviceUDID': process.env['SIMULATOR_UDID']} : {}),
-}};
-
 /**
- * One page in a session of its own: an iOS session can end between pages (the first run
- * lost its session after the first screenshot), and a fresh one per page keeps one
- * page's trouble from hiding another's result. A line saying how it went, and whether
- * it passed.
+ * The share of the page area that isn't near-white, from a 24- or 32-bit BMP (what sips
+ * writes): the band between the status bar and Safari's address bar, every fourth pixel.
  */
-async function checkPage(check: Check): Promise<{line: string, ok: boolean}> {
-    let sessionId: string;
-    try {
-        const session = await call<{sessionId: string, capabilities: Record<string, unknown>}>('POST', '/session', {capabilities: CAPABILITIES});
-        sessionId = session.sessionId;
-        if (check === CHECKS[0])
-            console.log(`Safari ${session.capabilities['browserVersion']} on ${session.capabilities['platformName']} ${session.capabilities['safari:platformVersion'] ?? ''}`);
-    } catch (error) {
-        return {line: `${check.name}: no Safari session: ${(error as Error).message}`, ok: false};
-    }
-    try {
-        await call('POST', `/session/${sessionId}/url`, {url: `${base}${check.path}`});
-        let found = 0;
-        for (let waited = 0; waited < 60_000 && found === 0; waited += 1000) {
-            found = await call<number>('POST', `/session/${sessionId}/execute/sync`, {script: DEEP_COUNT, args: [check.selector]});
-            if (found === 0) await new Promise(resolve => setTimeout(resolve, 1000));
+export function inkFraction(bmp: Buffer): number {
+    const offset = bmp.readUInt32LE(10);
+    const width = bmp.readInt32LE(18);
+    const height = Math.abs(bmp.readInt32LE(22));
+    const bytes = bmp.readUInt16LE(28) / 8;
+    const stride = Math.ceil(width * bytes / 4) * 4;
+    let ink = 0, seen = 0;
+    for (let y = Math.floor(height * 0.08); y < height * 0.85; y += 4)
+        for (let x = 0; x < width; x += 4) {
+            const i = offset + y * stride + x * bytes;
+            // BGR(A); the band is near enough symmetric top to bottom that the row order doesn't matter
+            if (Math.min(bmp[i]!, bmp[i + 1]!, bmp[i + 2]!) < 235) ink++;
+            seen++;
         }
-        try {
-            const png = await call<string>('GET', `/session/${sessionId}/screenshot`);
-            writeFileSync(path.join(shots, `ios-${check.name}.png`), Buffer.from(png, 'base64'));
-        } catch (error) {
-            console.log(`${check.name}: no screenshot (${(error as Error).message})`);
-        }
-        return found > 0
-            ? {line: `${check.name} (${check.path}): ok, ${found} × ${check.selector}`, ok: true}
-            : {line: `${check.name} (${check.path}): no ${check.what} within a minute`, ok: false};
-    } catch (error) {
-        return {line: `${check.name} (${check.path}): ${(error as Error).message}`, ok: false};
-    } finally {
-        await call('DELETE', `/session/${sessionId}`).catch(() => {});
-    }
+    return seen === 0 ? 0 : ink / seen;
 }
 
+const wait = (seconds: number) => new Promise(resolve => setTimeout(resolve, seconds * 1000));
+const simctl = (...args: string[]) => execFileSync('xcrun', ['simctl', ...args], {stdio: ['ignore', 'ignore', 'inherit']});
+
 async function main(): Promise<void> {
+    if (!udid) throw new Error('SIMULATOR_UDID names no simulator');
     mkdirSync(shots, {recursive: true});
+    const scratch = mkdtempSync(path.join(tmpdir(), 'ios-smoke-'));
+    // The first URL opened in a freshly booted simulator lands on Safari's start page.
+    simctl('openurl', udid, 'https://example.com/');
+    await wait(20);
     const failures: string[] = [];
     for (const check of CHECKS) {
-        const {line, ok} = await checkPage(check);
+        simctl('openurl', udid, `${base}${check.path}`);
+        await wait(40);
+        const png = path.join(shots, `ios-${check.name}.png`);
+        simctl('io', udid, 'screenshot', png);
+        const bmp = path.join(scratch, `${check.name}.bmp`);
+        execFileSync('sips', ['-s', 'format', 'bmp', png, '--out', bmp], {stdio: 'ignore'});
+        const ink = inkFraction(readFileSync(bmp));
+        const line = `${check.name} (${check.path}): ${ink >= BLANK_BELOW ? 'ok' : 'BLANK'}, ${(ink * 100).toFixed(1)}% of the page drawn`;
         console.log(line);
-        if (!ok) failures.push(line);
+        if (ink < BLANK_BELOW) failures.push(line);
     }
     if (failures.length > 0) {
         console.error(`Mobile Safari smoke failed:\n${failures.join('\n')}`);

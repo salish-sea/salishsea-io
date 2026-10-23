@@ -1,15 +1,15 @@
 name: Mobile Safari Smoke Test
 
 # The site in Mobile Safari, in Apple's iOS Simulator, on a macOS runner. The Chromium
-# smoke test (smoke.yml) passed for eleven days while every iPhone got a white page:
-# Safari refused the time-zone name PST8PDT, which Chromium accepts (SALISHSEA-IO-44).
-# This drives Safari itself, through Apple's safaridriver, against production.
+# smoke test (smoke.yml) passed for eleven days while iPhones on iOS 27 got a white
+# page: Safari there refused the time-zone name PST8PDT, which Chromium accepts
+# (SALISHSEA-IO-44). iOS 26.5's simulator accepted it too, so this runs the newest iOS
+# the runner offers; the script screenshots each page and fails on a blank one.
 #
-# macOS minutes cost nothing on a public repository, but a macOS job is slower to
-# start, so this runs beside the Chromium test rather than gating the deploy: after
-# each deploy (Deploy calls it), daily, by hand, and on a pull request that changes it.
+# macOS minutes cost nothing on a public repository, but a macOS job is slow to start,
+# so this runs beside the Chromium test rather than gating the deploy: daily, by hand,
+# and on a pull request that changes it.
 on:
-  workflow_call:
   schedule:
     - cron: '10 14 * * *'  # daily at 14:10 UTC, after smoke.yml's 14:00
   workflow_dispatch:
@@ -20,6 +20,9 @@ on:
 
 jobs:
   ios-safari:
+    # GitHub's image with Xcode 27 and its iOS 27 simulators, a preview since
+    # 2026-09-16 (actions/runner-images#14404). Move to the next one when Apple
+    # ships the next iOS: the simulator has to be as new as the phones.
     runs-on: xcode-27
     timeout-minutes: 20
     permissions:
@@ -34,10 +37,7 @@ jobs:
         with:
           node-version-file: package.json
 
-      # safaridriver doesn't launch a simulator of its own on the runner: it times out
-      # "finding or launching a compatible remote Safari". So boot an iPhone on the newest
-      # iOS runtime, open Safari in it, and name the device to the session. Remote
-      # Automation needs no switching on in a simulator, unlike on a phone.
+      # An iPhone on the newest iOS runtime the image has, booted, with Safari open.
       - name: Boot an iPhone simulator
         run: |
           udid=$(xcrun simctl list devices available -j | node -e '
@@ -51,28 +51,15 @@ jobs:
           xcrun simctl launch "$udid" com.apple.mobilesafari
           echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
 
-      # safaridriver refuses to automate until it is enabled, which needs root once.
-      - name: Start safaridriver
+      # TRIAL: dev.salishsea.io still has the PST8PDT bug, so the test must fail there.
+      - name: Prove it fails on the bug (trial)
         run: |
-          sudo safaridriver --enable
-          safaridriver --port 4444 &
-          for _ in $(seq 30); do curl -sf http://localhost:4444/status >/dev/null && exit 0; sleep 1; done
-          echo "safaridriver did not start" >&2; exit 1
-
-      - name: Screenshot dev and production without WebDriver (trial)
-        run: |
-          mkdir -p e2e/screenshots
-          xcrun simctl openurl "$SIMULATOR_UDID" "https://example.com/"
-          sleep 20
-          for site in salishsea.io dev.salishsea.io; do
-            xcrun simctl openurl "$SIMULATOR_UDID" "https://$site/"
-            sleep 40
-            xcrun simctl io "$SIMULATOR_UDID" screenshot "e2e/screenshots/ios-simctl-$site.png"
-          done
+          if node e2e/ios-safari-smoke.ts https://dev.salishsea.io; then echo "passed on a known-blank site" >&2; exit 1; fi
+          echo "failed on dev, as it should"
 
       - name: Run Mobile Safari smoke test
         timeout-minutes: 12
-        run: node e2e/ios-safari-smoke.ts https://dev.salishsea.io  # TRIAL: dev still has PST8PDT; must fail
+        run: node e2e/ios-safari-smoke.ts https://salishsea.io
 
       - name: Upload screenshots
         if: always()
