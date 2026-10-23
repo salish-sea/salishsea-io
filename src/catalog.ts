@@ -1,5 +1,5 @@
 import { fold } from './fold.ts';
-import type { Confirmation } from './types.ts';
+import type { Confirmation, Vitality } from './types.ts';
 import { Temporal } from 'temporal-polyfill';
 
 // The catalogue as its pages read it, written out by hand since Postgres stopped being
@@ -55,6 +55,8 @@ export type IndividualOccurrence = {
   status: IdentificationStatus | null;
   certainty: IdentificationCertainty | null;
   via_group: string | null;
+  /** The sighting's vitality (salish-1y8), on an individual's links only. */
+  vitality?: Vitality | null;
 };
 
 type Party = { name: string; url: string | null };
@@ -70,6 +72,8 @@ export interface OccurrenceLink {
   is_present: boolean;
   status: IdentificationStatus;
   via_group: string | null;
+  /** Set when the sighting says whether the animal was alive (salish-1y8). */
+  vitality?: Vitality;
 }
 
 export function observedDate(observedAt: string): Temporal.PlainDate {
@@ -167,7 +171,7 @@ export function podPath(group: { entity_id: string | null; designation: string }
 // The shared shape of individual_occurrences and group_occurrences rows;
 // group rows carry no via_group (a group claim is always direct).
 type OccurrenceRow =
-  Pick<IndividualOccurrence, 'occurrence_id' | 'observed_at' | 'location' | 'is_present' | 'status'>
+  Pick<IndividualOccurrence, 'occurrence_id' | 'observed_at' | 'location' | 'is_present' | 'status' | 'vitality'>
   & { via_group?: string | null };
 
 // Collapse view rows to at most one link per occurrence, preferring a direct
@@ -177,7 +181,7 @@ type OccurrenceRow =
 export function dedupeOccurrenceLinks(rows: OccurrenceRow[]): OccurrenceLink[] {
   const byOccurrence = new Map<string, OccurrenceLink>();
   for (const row of rows) {
-    const { occurrence_id, observed_at, location, is_present, status, via_group } = row;
+    const { occurrence_id, observed_at, location, is_present, status, via_group, vitality } = row;
     if (!occurrence_id || !observed_at || !status) continue;
     if (is_present === false || status === 'rejected') continue;
     const existing = byOccurrence.get(occurrence_id);
@@ -193,6 +197,7 @@ export function dedupeOccurrenceLinks(rows: OccurrenceRow[]): OccurrenceLink[] {
       is_present: is_present ?? true,
       status,
       via_group: via_group ?? null,
+      ...(vitality ? {vitality} : {}),
     });
   }
   return [...byOccurrence.values()]
