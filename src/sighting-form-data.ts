@@ -19,7 +19,13 @@ import type { License, Occurrence, TravelDirection, UpsertObservationArgs } from
  * at runtime (public.animal_names), so nothing here names an animal: decision 033 keys on
  * `SSA:`, never on a name, and a list of our own labels drifts from the register the first
  * time it renames something. The group headings are ours — a way of laying out a menu, not
- * a claim about taxonomy ("Baleen whales" holds a sperm whale).
+ * a claim about taxonomy ("Whales" holds a sperm whale beside the baleen whales).
+ *
+ * A group starts with the broadest thing an observer can say about it, where the register
+ * holds one and the map can draw it, so someone who saw "a baleen whale" can say only that
+ * (decision 089, #761). Pinnipeds are left out: the register's crosswalk takes Pinnipedia to
+ * iNaturalist's Phocoidea, which the map draws as an unknown animal. Northern Residents wait
+ * for the register to hold them (salish-sea/animals#4).
  *
  * Harbour seal, Steller sea lion and sea otter were iNaturalist subspecies here until the
  * register became the dictionary; it holds the species, so that is what a sighting records.
@@ -40,8 +46,10 @@ export const ENTITY_OPTIONS: Readonly<Record<string, readonly string[]>> = {
     "SSA:0000900", // Orcinus orca, ecotype unknown
     "SSA:0000002", // Bigg's
     "SSA:0000003", // Resident
+    "SSA:0000010", // Southern Resident, a community of the Resident ecotype
   ],
-  "Baleen whales": [
+  "Whales": [
+    "SSA:0000935", // Mysticeti, species unknown
     "SSA:0000901", // Megaptera novaeangliae
     "SSA:0000905", // Eschrichtius robustus
     "SSA:0000915", // Balaenoptera acutorostrata
@@ -49,6 +57,7 @@ export const ENTITY_OPTIONS: Readonly<Record<string, readonly string[]>> = {
     "SSA:0000921", // Physeter macrocephalus
   ],
   "Otters": [
+    "SSA:0000939", // Lutrinae, species unknown
     "SSA:0000906", // Lontra canadensis
     "SSA:0000918", // Enhydra lutris
   ],

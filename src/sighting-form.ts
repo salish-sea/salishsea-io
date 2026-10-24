@@ -337,7 +337,7 @@ export default class SightingForm extends LitElement {
         `)}
         ${this.#form.field({name: 'entity_id'}, field => html`
           <label>
-            <span class="label">Species</span>
+            <span class="label">Animal</span>
             <select name="${field.name}" @change=${(e: Event) => {
               const entityId = (e.target as HTMLSelectElement).value;
               field.handleChange(entityId);
