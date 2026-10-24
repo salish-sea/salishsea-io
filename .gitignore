@@ -47,19 +47,13 @@ e2e/screenshots
 *.db
 .beads-credential-key
 
-# .beads/issues.jsonl is deliberately TRACKED. It is bd's passive export, not
-# the issue store — Dolt is — and not a full backup: `bd import` rebuilds the
-# issues from it, but Dolt's own history does not survive the round trip. It
-# is the recovery floor, and worth having because while this line ignored it,
-# bd's auto-export failed silently on every write (its `git add` was refused)
-# and beads existed nowhere but one laptop — until a stray rm -rf on
-# 2026-07-27 took it out.
-#
-# Kept current by .beads/hooks/pre-commit, below bd's managed markers, because
-# bd's own auto-export stopped running on 2026-08-04 and nothing noticed for
-# three weeks (salish-ck8). Note that git hooks ARE enabled here: core.hooksPath
-# points at .beads/hooks.
-.beads/interactions.jsonl
+# bd's JSONL export and audit log are not tracked (2026-10-23). The export was
+# tracked from 2026-07-27 as a recovery floor, after a stray rm -rf took out a
+# Dolt store that existed on one laptop only. Since then every change reaches
+# refs/dolt/data on GitHub with `bd dolt push`, which is the off-machine copy;
+# the tracked export only duplicated it and conflicted whenever two branches
+# carried it. `bd export -o <file>` writes one on demand.
+.beads/*.jsonl
 
 # Private strategy notes — the honest version of the uptake stall; not for the public repo.
 docs/strategy/private-notes.md

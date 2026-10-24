@@ -18,25 +18,15 @@ Two trackers, routed by audience:
   the bd push leaves them on one laptop. This has happened before, under the
   older JSONL-export layout, for the same underlying reason.
 
-  JSONL is not the interchange format — so do not expect an issue to reach
-  anyone through a diff or a code review. Two JSONL artefacts exist, and they
-  are not the same thing: `.beads/backup/` holds bd's own `.darc` snapshots and
-  is gitignored, while `.beads/issues.jsonl` **is tracked**, deliberately, as
-  the recovery floor beneath the Dolt DB. `bd import` rebuilds the issues from
-  it; Dolt's history does not survive that round trip.
-
-  It is kept current by an export step in
-  [`.beads/hooks/pre-commit`](../../.beads/hooks/pre-commit), added below bd's
-  managed markers after bd's own auto-export was found to have stopped on
-  2026-08-04 and gone unnoticed for three weeks (salish-ck8). If you export by
-  hand, `bd export` writes to **stdout** — it must be `bd export -o
-  .beads/issues.jsonl`, or the file silently stays stale.
-
-  One edge the hook cannot cover: a commit whose *only* content would be beads
-  changes. The export has not run yet, so the tree still looks clean and git
-  short-circuits before the hook fires. Either let the change ride along with
-  the next real commit — `bd dolt push` has already shared it, so nothing is
-  lost — or run the export by hand first to make the commit non-empty.
+  JSONL is not the interchange format, and none is tracked: `.beads/*.jsonl`
+  is gitignored (2026-10-23), so an issue never reaches anyone through a diff or
+  a code review. From 2026-07-27 the export was tracked as a recovery floor,
+  kept current by a pre-commit hook (salish-ck8); it went once every change
+  was reaching `refs/dolt/data` with `bd dolt push`, because it only duplicated
+  that copy and conflicted whenever two branches carried it. `.beads/backup/`
+  holds bd's own local `.darc` snapshots and is gitignored too. To write an
+  export on demand, use `bd export -o <file>`: a bare `bd export` writes to
+  stdout.
 
 **Issue ids are `salish-<suffix>`** (e.g. `salish-g9e`). They were
 `salishsea-io-<suffix>` until 2026-07-27; the suffix never changed, so an old id
