@@ -23,9 +23,10 @@ import type { License, Occurrence, TravelDirection, UpsertObservationArgs } from
  *
  * A group starts with the broadest thing an observer can say about it, where the register
  * holds one and the map can draw it, so someone who saw "a baleen whale" can say only that
- * (decision 089, #761). Pinnipeds are left out: the register's crosswalk takes Pinnipedia to
- * iNaturalist's Phocoidea, which the map draws as an unknown animal. Northern Residents wait
- * for the register to hold them (salish-sea/animals#4).
+ * (decision 089, #761). The seals and sea lions have no such first option: "Pinniped"
+ * (SSA:0000938) is left out because the register's crosswalk takes it to iNaturalist's
+ * Phocoidea, which the map draws as an unknown animal. Northern Residents wait for the
+ * register to hold them (salish-sea/animals#4).
  *
  * Harbour seal, Steller sea lion and sea otter were iNaturalist subspecies here until the
  * register became the dictionary; it holds the species, so that is what a sighting records.
