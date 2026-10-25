@@ -94,7 +94,7 @@ Node version is pinned in `.nvmrc`. The derivations' tests compare against answe
 
 **More than one agent at a time means one worktree each.** Sharing a working directory is how uncommitted work gets swept into someone else's commit — on 2026-08-13 a decision record's index row and forward pointer landed in an unrelated PR while the record itself, being untracked, stayed behind, leaving two dangling links on `main`.
 
-Use `bd worktree create <name>`, not `git worktree add` — it shares the main repo's beads database via git's common directory, so the issue tracker stays single. Then, before working:
+Create the worktree beside the checkout, not inside it: `bd worktree create ../salishsea-io-<name>`. (`git worktree add ../salishsea-io-<name>` works as well: either way the worktree shares the main repo's beads database through git's common directory, so the issue tracker stays single.) For a worktree inside the checkout, bd adds a line to `.gitignore` that then sits uncommitted, and a bare `pnpm test` in the main checkout runs the worktree's tests too. Then, before working:
 
 - **`pnpm install` in the worktree, and again in `infra/`** — a separate pnpm project with its own lockfile. Cheap: pnpm's global store hardlinks rather than copies.
 
