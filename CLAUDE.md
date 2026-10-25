@@ -20,9 +20,9 @@ bd close <id>         # Complete work
 
 - Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
 - Run `bd prime` for detailed command reference and session close protocol
-- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
+- Don't use `bd remember`: this repo is public, so everything in beads, memories included, can be read by anyone from `refs/dolt/data`. Keep persistent knowledge in Claude's file memory.
 
-**Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote (`bd dolt push` — `git push` does not carry issues); nothing under `.beads/` is committed when an issue changes, and `.beads/*.jsonl` is ignored. See [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md). See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
+**Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote (`bd sync` — `git push` does not carry issues); nothing under `.beads/` is committed when an issue changes, and `.beads/*.jsonl` is ignored. See [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md). See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
 
 ## Session Completion
 
