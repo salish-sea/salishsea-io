@@ -261,15 +261,22 @@ user-location-control.inactive svg { color: #333; }
         // An icon that arrived after the map was taken off the page has nowhere to go.
         if (map === this.#map) console.error('Failed to load map icons:', err);
       });
-      for (const [id, data] of this.#data)
-        map.getSource<GeoJSONSource>(id)!.setData(data);
-      this.#applyVisibility();
-      this.#select(this.#selectedId);
+      this.#drawAll(map);
       this.drafts.attach(map);
       // OpenLayers announced the first view as a move, which is what first
       // writes a position into the URL; keep that.
       this.onMoveEnd();
     });
+    // A phone takes back a background tab's WebGL context. MapLibre drops the
+    // style with it, sources and all, and given the context back rebuilds the
+    // style from a copy saved at the loss, a frame or more later. Data set in
+    // between waits in #data, and everything is drawn again once the style is back.
+    map.on('webglcontextlost', () => { this.#loaded = false; });
+    map.on('webglcontextrestored', () => map.once('style.load', () => {
+      this.#loaded = true;
+      this.#drawAll(map);
+      this.drafts.render();
+    }));
     map.on('click', this.onClick.bind(this));
     map.on('mousemove', this.onPointerMove.bind(this));
     map.on('moveend', this.onMoveEnd.bind(this));
@@ -322,6 +329,14 @@ user-location-control.inactive svg { color: #333; }
     map.remove();
     this.#map = undefined;
     this.#loaded = false;
+  }
+
+  /** Everything set on the element, drawn on a map whose style has just loaded. */
+  #drawAll(map: MapLibreMap) {
+    for (const [id, data] of this.#data)
+      map.getSource<GeoJSONSource>(id)!.setData(data);
+    this.#applyVisibility();
+    this.#select(this.#selectedId);
   }
 
   #setData(id: SourceId, data: FeatureCollection) {
