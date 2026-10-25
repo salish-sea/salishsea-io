@@ -506,6 +506,42 @@ describe('heartbeatInput (the build\'s run log)', () => {
         expect(evaluateHeartbeat(input, THRESHOLDS)).toEqual([]);
     });
 
+    test('a transient failure older than the newest success before the window is no sign of a gap (#764)', () => {
+        // Maplify timed out twice at 2026-10-23 19:51 and 19:56 and succeeded every five
+        // minutes after. Keeping that failure as well as the newest success before the
+        // window, but none of the successes between, made a gap from it to the window's
+        // start that grew every hour until the failure left the log.
+        const input = heartbeatInput(file([
+            run('maplify', 201, 200, 'failed', true),
+            ...[195, 190, 185, 180, 175, 170, 165, 160, 155, 150, 145, 140, 135, 130, 125, 120, 115]
+                .map((m) => run('maplify', m + 1, m, 'success')),
+            run('maplify', 5, 4, 'success'),
+            run('inaturalist', 5, 4, 'success'),
+            run('orcasound', 5, 4, 'success'),
+            run('register', 5, 4, 'success'),
+        ]), NOW, 118);
+        expect(evaluateHeartbeat(input, THRESHOLDS).map((f) => [f.kind, f.source]))
+            .toEqual([['gap', 'maplify']]);
+        expect(evaluateHeartbeat(input, THRESHOLDS)[0]!.message).toContain('for 111m');
+        expect(input.recentTransientFailures).toEqual([]);
+    });
+
+    test('transient failures since the newest success before the window are all kept', () => {
+        // An upstream outage straddling the window's start: the source failed every five
+        // minutes from 175m ago. Only the newest of those would leave a hole between the
+        // success at 180m and it, and blame our side for the source's outage.
+        const input = heartbeatInput(file([
+            run('inaturalist', 181, 180, 'success'),
+            ...[175, 170, 165, 160, 155, 150, 145, 140, 135, 130, 125, 120, 115, 110]
+                .map((m) => run('inaturalist', m + 1, m, 'failed', true)),
+            ...Array.from({length: 22}, (_, i) => run('inaturalist', 106 - i * 5, 105 - i * 5, 'success')),
+            run('maplify', 5, 4, 'success'),
+            run('orcasound', 5, 4, 'success'),
+            run('register', 5, 4, 'success'),
+        ]), NOW, 118);
+        expect(evaluateHeartbeat(input, THRESHOLDS)).toEqual([]);
+    });
+
     test('a scheduled run that failed for a reason of ours is a defect, though runs either side succeeded (decision 042)', () => {
         const input = heartbeatInput(file([
             run('inaturalist', 21, 20, 'success'),

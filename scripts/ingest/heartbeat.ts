@@ -167,9 +167,10 @@ export type HeartbeatInput = {
      */
     readonly recentSuccesses: readonly SuccessAt[];
     /**
-     * Every transient non-dry-run failure inside the lookback window, plus the
-     * newest one before it per source — the same shape as recentSuccesses, so
-     * the newest of either is always present.
+     * Every transient non-dry-run failure since the earliest success in
+     * recentSuccesses for its source, or, for a source with no success before
+     * the window, inside the window plus the newest one before it. Together the
+     * two lists hold every sign of life from one point on, without holes.
      */
     readonly recentTransientFailures: readonly TransientFailureAt[];
     /**
@@ -419,6 +420,27 @@ export function heartbeatInput(file: RunsFile, now: Date, lookbackMinutes = LOOK
         }
         return [...inside, ...before.values()];
     };
+    const successes = finishes(r => r.outcome === 'success');
+    // Signs of life are measured from the newest success before the window, so every
+    // transient failure since it is kept, not just the newest. With only the newest, an
+    // older failure sat beside that success with the successes between them dropped,
+    // which read as a gap (#764); and failures straddling the window's start left a hole
+    // between the success and the newest of them.
+    const anchor = new Map(successes
+        .filter(s => s.finishedAt.getTime() <= windowStart)
+        .map(s => [s.source, s.finishedAt.getTime()]));
+    const transientFailures = file.runs
+        .filter(r => r.finished_at !== null && r.outcome === 'failed' && r.transient === true)
+        .map(r => ({source: r.source, finishedAt: new Date(r.finished_at!)}));
+    const newestFailureBefore = new Map<string, SuccessAt>();
+    for (const r of transientFailures.filter(r => r.finishedAt.getTime() <= windowStart && !anchor.has(r.source))) {
+        const seen = newestFailureBefore.get(r.source);
+        if (!seen || seen.finishedAt < r.finishedAt) newestFailureBefore.set(r.source, r);
+    }
+    const recentTransientFailures = [
+        ...transientFailures.filter(r => r.finishedAt.getTime() > (anchor.get(r.source) ?? windowStart)),
+        ...newestFailureBefore.values(),
+    ];
     return {
         now,
         lastSuccesses: Object.entries(file.last_success)
@@ -426,8 +448,8 @@ export function heartbeatInput(file: RunsFile, now: Date, lookbackMinutes = LOOK
         orphans: file.runs.filter(r => r.finished_at === null).map(r => ({
             id: r.id, source: r.source, trigger: r.trigger, dryRun: false, startedAt: new Date(r.started_at),
         })),
-        recentSuccesses: finishes(r => r.outcome === 'success'),
-        recentTransientFailures: finishes(r => r.outcome === 'failed' && r.transient === true),
+        recentSuccesses: successes,
+        recentTransientFailures,
         // A manual run fails loudly at the person running it, so only the schedule's count.
         recentDefects: file.runs
             .filter(r => r.trigger === 'cron' && r.outcome === 'failed' && r.transient === false
