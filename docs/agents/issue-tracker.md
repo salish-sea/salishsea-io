@@ -13,7 +13,7 @@ Two trackers, routed by audience:
   config and hooks are tracked as ordinary files; see
   [.beads/.gitignore](../../.beads/.gitignore) for what is deliberately excluded.
 
-  The consequence that bites: **nothing reaches anyone else until `bd dolt push`
+  The consequence that bites: **nothing reaches anyone else until `bd sync`
   runs.** A `git push` does not carry issues, and a session that closes without
   the bd push leaves them on one laptop. This has happened before, under the
   older JSONL-export layout, for the same underlying reason.
@@ -53,8 +53,10 @@ if it's how we build and track the work, it's beads.**
 - Frontier: `bd ready` · Show: `bd show <id>` · List: `bd list --status open --json`
 - Update/close: `bd update <id> --status <state>` · `bd close <id> --reason "..."`
 - Link/provenance: `bd dep add <blocked> <blocker>` · `--deps discovered-from:<id>`
-- Sync: `bd dolt push` · `bd dolt pull` — publish/fetch via `refs/dolt/data` on
-  the git remote. Required before a session ends; `git push` does not carry issues.
+- Sync: `bd sync` — pulls, stops on a conflict it can't settle, and pushes via
+  `refs/dolt/data` on the git remote. Run it without asking; it is required before
+  a session ends, and the SessionStart hook runs it too. `git push` does not carry
+  issues.
 
 ## When a skill says "publish to the issue tracker"
 
