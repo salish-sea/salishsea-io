@@ -48,8 +48,13 @@ kill_timeout = 60
 # every machine start resets; four shared vCPUs combine to 20 ms in 80, about six
 # CPU-hours a day, against a measured ~1.6-2.4 for today's ~95 builds a day
 # (https://docs.fly.io/machines/cpu-performance). Builds are single-threaded (DuckDB is
-# pinned to one thread), so the extra vCPUs buy quota, not parallelism, and memory stays
-# at 1 GB. Chosen on 2026-10-02 as relief while the build's own CPU is cut.
+# pinned to one thread), so the extra vCPUs buy quota, not parallelism. Chosen on
+# 2026-10-02 as relief while the build's own CPU is cut.
+#
+# 2 GB since 2026-10-26 (decision 091), when the ingests began running beside a save's
+# build: measured on this machine, the services idle leave ~615 MB of the old 1 GB, the
+# ingest build peaks at ~165 MB, and a derive build that re-derives every arm at ~505 MB,
+# so the two together did not fit.
 [[vm]]
   size = "shared-cpu-4x"
-  memory = "1gb"
+  memory = "2gb"

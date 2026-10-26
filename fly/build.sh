@@ -6,29 +6,27 @@
 # on. The schedule builds both, the ingests first; a build with arguments, which is how
 # the write API's build after a save is scoped to the store and what derives from it
 # (--downstream snapshot, salish-9uu.6), builds only salishsea, and the arguments go to
-# Stelis. For now both run under the one lock, one after the other (salish-mee7); the
-# ingests moving outside it is salish-uh0y.
+# Stelis.
 #
-# Under a lock, because the build assumes one writer: the day files are swapped
-# into place with two renames, and two builds interleaving would each move the
-# other's directory, and the snapshot DuckDB file can be open for writing in one
-# process only. The two kinds of build take the lock differently (Stelis ADR 0018,
-# salish-vpru):
+# Two locks, so that a save never waits for an ingest (salish-uh0y, decision 091):
 #
-# - A save's build (one with arguments) asks the running build to let go: it creates
-#   the yield request file in both projects' state dirs, since either may be running,
-#   waits for the lock, and removes the requests once it holds the lock. A running
-#   build finishes the task it is on, records the rest as yielded, and exits 3, so a
-#   save waits for one task, not for the whole scheduled build. If the lock isn't free
-#   within LOCK_WAIT (a deploy or an operator holds it, or an ingest task runs long),
-#   the build exits 75 (EX_TEMPFAIL), and the write API's coalescer (api/server.ts)
-#   retries.
-# - The scheduled build skips rather than queues: when the lock is held it exits 75 and
-#   leaves the work for the next run.
-#
-# Any build, when Stelis exits 3, waits for the lock again and reruns until a build
-# completes; the tasks that ran before the yield are current and skip. A yield during the
-# ingests reruns the ingests, and the salishsea build follows as usual.
+# - /data/ingest.lock is the schedule's. A scheduled build holds it from start to finish,
+#   so one never starts while the last is still running (it exits 75, EX_TEMPFAIL, and
+#   leaves the work for the next), and a deploy (fly/deploy.sh) can wait out a running
+#   ingest. The ingests run under it alone: they write only their own mirrors, which
+#   are SQLite in write-ahead-log mode or replaced by rename, and the register's file,
+#   replaced by rename, so a build reading them beside an ingest never waits for it.
+# - /data/build.lock is salishsea's, because that build assumes one writer: the day files
+#   are swapped into place with two renames, and two builds interleaving would each move
+#   the other's directory, and the snapshot DuckDB file can be open for writing in one
+#   process only. A save's build asks a running one to let go: it creates the yield
+#   request in salishsea's state dir, waits for the lock, and removes the request once
+#   it holds it. The running build finishes the task it is on, records the rest as
+#   yielded, and exits 3, and its caller waits for the lock again and reruns it; the
+#   tasks that ran before the yield are current and skip (Stelis ADR 0018, salish-vpru).
+#   The scheduled build waits for the lock after its ingests, since a save's build is
+#   short. Either one that doesn't have the lock within LOCK_WAIT (a deploy or an operator
+#   holds it) exits 75; the write API's coalescer (api/server.ts) retries a save's.
 #
 # The scheduled build reports to a Sentry cron monitor (decision 012, amended;
 # salish-d7tr): ok when it published, which is when manifest.json was rewritten, since
@@ -44,32 +42,17 @@ YIELDED=3
 
 ingest_state_dir="$STELIS_STATE_DIR-ingest"
 mkdir -p "$STELIS_STATE_DIR" "$ingest_state_dir" "$READ_PATH_EXPORT_DIR"
-yield_requests=("$STELIS_STATE_DIR/yield" "$ingest_state_dir/yield")
-exec 9> /data/build.lock
+yield_request="$STELIS_STATE_DIR/yield"
+manifest="$READ_PATH_EXPORT_DIR/manifest.json"
 
-if [ $# -gt 0 ]; then
-    touch "${yield_requests[@]}"
-    if ! flock -w "$LOCK_WAIT" 9; then
-        rm -f "${yield_requests[@]}"
-        echo "read-path build: the lock wasn't free within ${LOCK_WAIT}s; skipping this one"
-        exit 75
-    fi
-    rm -f "${yield_requests[@]}"
-elif ! flock -n 9; then
-    echo "read-path build: another build holds the lock; skipping this one"
-    exit 75
-fi
-
-cd /opt/stelis
-# One project's build under the lock, rerun while Stelis yields; sets built to its exit.
+# salishsea's build, holding the build lock on descriptor 9, rerun while Stelis yields;
+# sets built to its exit.
 build() {
-    local state_dir=$1 project=$2; shift 2
     while :; do
         built=0
-        STELIS_STATE_DIR=$state_dir racket src/main.rkt --project "$project" --build --all \
-            --export-dir "$READ_PATH_EXPORT_DIR" "$@" || built=$?
+        racket src/main.rkt --project salishsea --build --all --export-dir "$READ_PATH_EXPORT_DIR" "$@" || built=$?
         [ "$built" -eq "$YIELDED" ] || return 0
-        echo "read-path build: $project yielded to another build; rerunning once it has finished"
+        echo "read-path build: yielded to another build; rerunning once it has finished"
         flock -u 9
         # flock wakes waiters but doesn't queue them, so taking the lock straight back
         # could beat the waiting build to it. A second is far longer than the waiter needs.
@@ -80,19 +63,42 @@ build() {
     done
 }
 
-manifest="$READ_PATH_EXPORT_DIR/manifest.json"
-before=$(stat -c %Y "$manifest" 2>/dev/null || echo 0)
-ingested=0
-if [ $# -eq 0 ]; then
-    build "$ingest_state_dir" salishsea-ingest
-    ingested=$built
+if [ $# -gt 0 ]; then
+    exec 9> /data/build.lock
+    touch "$yield_request"
+    if ! flock -w "$LOCK_WAIT" 9; then
+        rm -f "$yield_request"
+        echo "read-path build: the build lock wasn't free within ${LOCK_WAIT}s; skipping this one"
+        exit 75
+    fi
+    rm -f "$yield_request"
+    cd /opt/stelis
+    build "$@"
+    exit "$built"
 fi
+
+exec 8> /data/ingest.lock
+if ! flock -n 8; then
+    echo "read-path build: the last scheduled build is still running; skipping this one"
+    exit 75
+fi
+cd /opt/stelis
+ingested=0
+STELIS_STATE_DIR=$ingest_state_dir racket src/main.rkt --project salishsea-ingest --build --all \
+    --export-dir "$READ_PATH_EXPORT_DIR" || ingested=$?
+
 # The ingests' failure doesn't stop the rest: the mirrors are as the last good fetch
 # left them, and a save's sighting or a new day still deserves its files.
-build "$STELIS_STATE_DIR" salishsea "$@"
+exec 9> /data/build.lock
+if ! flock -w "$LOCK_WAIT" 9; then
+    echo "read-path build: the build lock wasn't free within ${LOCK_WAIT}s; skipping the rest of this one"
+    exit 75
+fi
+before=$(stat -c %Y "$manifest" 2>/dev/null || echo 0)
+build
 if [ "$built" -eq 0 ]; then built=$ingested; fi
 
-if [ $# -gt 0 ] || [ -z "${SENTRY_CRONS:-}" ]; then exit "$built"; fi
+if [ -z "${SENTRY_CRONS:-}" ]; then exit "$built"; fi
 after=$(stat -c %Y "$manifest" 2>/dev/null || echo 0)
 status=error
 if [ "$after" -gt "$before" ] && [ "$ingested" -eq 0 ]; then status=ok; fi

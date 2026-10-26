@@ -120,6 +120,10 @@ export function reconcileWindow(
     mkdirSync(dirname(path), {recursive: true});
     const db = new DatabaseSync(path);
     try {
+        // Write-ahead logging, so a build reading the mirror while this run writes it reads the
+        // last commit rather than waiting out this one: the derive build runs beside the ingest
+        // build (salish-uh0y). It stays set in the file.
+        db.exec('PRAGMA journal_mode = WAL');
         db.exec(SCHEMA);
         const stored = new Map(
             (db.prepare('SELECT * FROM sightings WHERE created_at >= ? AND created_at < ?')
