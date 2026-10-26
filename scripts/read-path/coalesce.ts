@@ -15,7 +15,7 @@
  * Nothing is dropped. A change that arrives while a build runs may have missed
  * its snapshot, so it earns exactly one more build afterwards, however many
  * changes arrive. A build that couldn't start because another holds the lock
- * (the schedule's) is retried after `busyRetryMs`, not forgotten.
+ * is retried after `busyRetryMs`, not forgotten.
  *
  * And builds are spaced at least `minIntervalMs` apart, whatever arrives. The
  * signal is a public broadcast, which anyone holding the publishable key can
@@ -46,18 +46,21 @@ export const DEFAULT_OPTIONS: CoalescerOptions = {
 /**
  * The write API's options (salish-9uu.6). A save is one signal from this process, so
  * there is no burst to wait out: the build starts at once, and a visitor who has just
- * saved can share the link about twenty seconds later. The signal is an authenticated
- * PUT, not a public broadcast, so the spacing is not against forgery; it bounds what a
- * signed-in user saving in quick succession can cost the 1 GB machine — at most two
- * builds a minute, each a build of the store and what derives from it — while a
- * correction made right after a save follows within about half a minute. The lock
- * retry is the schedule's build finishing.
+ * saved can share the link a few seconds later. The signal is an authenticated PUT, not
+ * a public broadcast, so the spacing is not against forgery. It was 30 s while a save's
+ * build took twenty; that build now takes about five, and runs one at a time with the
+ * changes made during it folded into one more, so a few seconds is enough to keep a
+ * signed-in user saving in quick succession from keeping the 1 GB machine building
+ * without a pause. A build no longer finds the lock held merely because the schedule's
+ * build is running: build.sh asks that build to yield and waits for one task
+ * (salish-vpru), so 'busy' means a deploy or an operator held the lock past build.sh's
+ * wait, and the retry is theirs finishing.
  */
 export const SAVE_OPTIONS: CoalescerOptions = {
     quietMs: 0,
     maxWaitMs: 0,
     busyRetryMs: 30_000,
-    minIntervalMs: 30_000,
+    minIntervalMs: 5_000,
 };
 
 export class BuildCoalescer {

@@ -33,8 +33,9 @@
  *                                             what was chosen (searches.ts); a cap per sender
  *
  * A change to a sighting wakes the build (BUILD_COMMAND: the snapshot and what derives from
- * it, fly/start.sh) at once, so the published files follow within about twenty seconds; a
- * second save within half a minute follows once that spacing has passed (coalesce.ts's
+ * it, fly/start.sh) at once, so the published files follow within seconds: a running
+ * scheduled build yields to it after its current task (fly/build.sh), and a second save
+ * follows once the first build is done and a few seconds have passed (coalesce.ts's
  * SAVE_OPTIONS). Until the files carry it, GET /api/sightings/<id> answers for it.
  *
  * Anything that changes state must come from an allowed origin: the cookie is SameSite=Lax,
