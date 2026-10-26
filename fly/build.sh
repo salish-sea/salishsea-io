@@ -15,12 +15,13 @@
 #   request once it holds the lock. A running build finishes the task it is on, records
 #   the rest as yielded, and exits 3, so a save waits for one task, not for the whole
 #   scheduled build. If the lock isn't free within LOCK_WAIT (a deploy or an operator
-#   holds it), the build exits 75 (EX_TEMPFAIL), and the write API's coalescer
-#   (api/server.ts) retries.
+#   holds it, or an ingest task runs long), the build exits 75 (EX_TEMPFAIL), and the
+#   write API's coalescer (api/server.ts) retries.
 # - The scheduled build skips rather than queues: when the lock is held it exits 75 and
-#   leaves the work for the next run. When Stelis exits 3, it waits for the lock again
-#   and reruns, until a build completes; the tasks that ran before the yield are
-#   current and skip.
+#   leaves the work for the next run.
+#
+# Either kind, when Stelis exits 3, waits for the lock again and reruns until a build
+# completes; the tasks that ran before the yield are current and skip.
 #
 # The scheduled build reports to a Sentry cron monitor (decision 012, amended;
 # salish-d7tr): ok when it published, which is when manifest.json was rewritten, since
@@ -45,11 +46,7 @@ if [ $# -gt 0 ]; then
         exit 75
     fi
     rm -f "$yield_request"
-    cd /opt/stelis
-    exec racket src/main.rkt --project salishsea --build --all --export-dir "$READ_PATH_EXPORT_DIR" "$@"
-fi
-
-if ! flock -n 9; then
+elif ! flock -n 9; then
     echo "read-path build: another build holds the lock; skipping this one"
     exit 75
 fi
@@ -57,20 +54,21 @@ fi
 cd /opt/stelis
 manifest="$READ_PATH_EXPORT_DIR/manifest.json"
 while :; do
-    # Measured for each run, because the save's build in between rewrites the manifest too.
+    # Measured for each run, because the build that preempted this one rewrites the
+    # manifest too.
     before=$(stat -c %Y "$manifest" 2>/dev/null || echo 0)
     built=0
-    racket src/main.rkt --project salishsea --build --all --export-dir "$READ_PATH_EXPORT_DIR" || built=$?
+    racket src/main.rkt --project salishsea --build --all --export-dir "$READ_PATH_EXPORT_DIR" "$@" || built=$?
     [ "$built" -eq "$YIELDED" ] || break
-    echo "read-path build: yielded to a save's build; rerunning once it has finished"
+    echo "read-path build: yielded to another build; rerunning once it has finished"
     flock -u 9
     # flock wakes waiters but doesn't queue them, so taking the lock straight back
-    # could beat the save's build to it. A second is far longer than the waiter needs.
+    # could beat the waiting build to it. A second is far longer than the waiter needs.
     sleep 1
     flock 9
 done
 
-if [ -z "${SENTRY_CRONS:-}" ]; then exit "$built"; fi
+if [ $# -gt 0 ] || [ -z "${SENTRY_CRONS:-}" ]; then exit "$built"; fi
 after=$(stat -c %Y "$manifest" 2>/dev/null || echo 0)
 status=error
 if [ "$after" -gt "$before" ]; then status=ok; fi
