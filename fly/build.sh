@@ -3,7 +3,9 @@
 # changed. Since Stelis's ADR 0019 these are two Stelis projects, each with a state dir
 # of its own (the engine refuses one that holds another project's builds):
 # salishsea-ingest, the four source ingests, and salishsea, everything from the snapshot
-# on. The schedule builds both, the ingests first; a build with arguments, which is how
+# on. Both graphs live in this repository, stelis/salishsea.rkt and
+# stelis/salishsea-ingest.rkt, and Stelis loads each by its module path (decision 092,
+# Stelis ADR 0020). The schedule builds both, the ingests first; a build with arguments, which is how
 # the write API's build after a save is scoped to the store and what derives from it
 # (--downstream snapshot, salish-9uu.6), builds only salishsea, and the arguments go to
 # Stelis.
@@ -50,7 +52,7 @@ manifest="$READ_PATH_EXPORT_DIR/manifest.json"
 build() {
     while :; do
         built=0
-        racket src/main.rkt --project salishsea --build --all --export-dir "$READ_PATH_EXPORT_DIR" "$@" || built=$?
+        racket src/main.rkt --project /app/stelis/salishsea.rkt --build --all --export-dir "$READ_PATH_EXPORT_DIR" "$@" || built=$?
         [ "$built" -eq "$YIELDED" ] || return 0
         echo "read-path build: yielded to another build; rerunning once it has finished"
         flock -u 9
@@ -84,7 +86,7 @@ if ! flock -n 8; then
 fi
 cd /opt/stelis
 ingested=0
-STELIS_STATE_DIR=$ingest_state_dir racket src/main.rkt --project salishsea-ingest --build --all \
+STELIS_STATE_DIR=$ingest_state_dir racket src/main.rkt --project /app/stelis/salishsea-ingest.rkt --build --all \
     --export-dir "$READ_PATH_EXPORT_DIR" || ingested=$?
 
 # The ingests' failure doesn't stop the rest: the mirrors are as the last good fetch

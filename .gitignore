@@ -61,3 +61,6 @@ docs/strategy/private-notes.md
 
 # Stelis build state for the read-path build (history, cache)
 .stelis/
+
+# Racket compiles the read-path graphs (stelis/, decision 092) on demand; the Fly image compiles its own copy
+stelis/compiled/
