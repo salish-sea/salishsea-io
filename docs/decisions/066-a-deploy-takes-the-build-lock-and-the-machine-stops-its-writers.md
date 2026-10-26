@@ -42,3 +42,5 @@ It doesn't wait for a build. Under `fly/deploy.sh` there isn't one running. Unde
 - A deploy is now two `fly deploy` calls, and an image's tag names its commit and its Stelis pin, so `fly deploy --image` with that tag redeploys any earlier one. [The deploys runbook](../runbook/deploys.md) says so.
 - Under the lock, a deploy's switch costs the site about as long as the new machine takes to boot and pass its health check. The old machine's shutdown, waiting for the API and Litestream, adds seconds.
 - `salish-t3g.5`'s workflow calls `fly/deploy.sh` rather than restating it, so hand deploys and CI take the same lock.
+
+*Amended 2026-10-26 ([090](090-the-read-path-build-is-two-stelis-projects.md), `salish-mee7`):* the lock now covers two Stelis builds in a row, the ingests and then the rest, so a deploy that takes it waits for both. Once the ingests run outside the lock, a deploy that takes it will no longer wait for them; how a deploy treats a running ingest is for `salish-uh0y` to decide.
