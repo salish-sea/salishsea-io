@@ -79,7 +79,9 @@ RUN test -n "$STELIS_SHA" \
       || { echo "fly/stelis-digest names a Stelis image built from $(cat /opt/stelis/commit), not fly/stelis-commit's $STELIS_SHA; run fly/pin-stelis.sh" >&2; exit 1; }; } \
  && bash /opt/stelis/scripts/preflight.sh \
  && (racket /opt/stelis/src/main.rkt --help 2>&1 | grep -q -- '--downstream' \
-     || { echo "Stelis ${STELIS_SHA} predates --downstream, which the save-triggered build needs (salish-9uu.6)" >&2; exit 1; })
+     || { echo "Stelis ${STELIS_SHA} predates --downstream, which the save-triggered build needs (salish-9uu.6)" >&2; exit 1; }) \
+ && (racket -l racket/base -e '(require stelis/project)' \
+     || { echo "Stelis ${STELIS_SHA} predates the stelis collection, which the graphs in stelis/ require (decision 092)" >&2; exit 1; })
 
 # Every binary below is pinned by sha256 in fly/downloads.tsv and fetched by
 # fly/fetch.sh from our own mirror first (salishsea.io/downloads/<sha256>, decision
@@ -108,8 +110,16 @@ RUN useradd --create-home --uid 1000 app
 ENV HOME=/home/app
 
 # The salishsea checkout the Stelis graph points at: its scripts, pins and
-# dependencies, and the built site.
+# dependencies, and the built site. The graphs themselves are in it, stelis/ (decision
+# 092): compiled here against the engine, as the engine was, and loaded by path
+# (fly/build.sh). Dry-running each is the check that the pin and the graphs agree
+# before anything is published: a graph requiring what this engine does not provide,
+# or a script a recipe names that the checkout lacks, fails the image build.
 COPY --from=site /app /app
+RUN raco make /app/stelis/salishsea.rkt /app/stelis/salishsea-ingest.rkt \
+ && cd /opt/stelis \
+ && racket src/main.rkt --project /app/stelis/salishsea.rkt --commands --all > /dev/null \
+ && racket src/main.rkt --project /app/stelis/salishsea-ingest.rkt --commands --all > /dev/null
 # The DuckDB extensions the build loads, fetched now (into app's home, where DuckDB
 # looks) rather than on the first build after every restart.
 USER app

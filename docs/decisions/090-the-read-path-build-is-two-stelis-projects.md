@@ -23,6 +23,6 @@ Stelis's unit of one writer is the state dir: two builds that may overlap need a
 ## Consequences
 
 - Latency is unchanged until `salish-uh0y`: the ingests still hold the lock while they run.
-- Operator commands about an ingest name its project and its state dir: `STELIS_STATE_DIR=/data/stelis-ingest racket src/main.rkt --project salishsea-ingest --explain --last` ([runbook](../runbook/read-path-build.md#looking-at-the-machine-take-a-lock-first)).
+- Operator commands about an ingest name its project and its state dir: `STELIS_STATE_DIR=/data/stelis-ingest racket src/main.rkt --project /app/stelis/salishsea-ingest.rkt --explain --last` ([runbook](../runbook/read-path-build.md#looking-at-the-machine-take-a-lock-first)).
 - In `salishsea`, `--why` stops at a mirror ("maplify_mirror.sightings changed"); the ingest project's history says why the mirror changed. Following a why across the cut is Stelis `st-mxr.1.3`.
 - The first scheduled build after the deploy starts `salishsea-ingest` with an empty history. The ingests fetch on every run anyway, so it costs nothing.

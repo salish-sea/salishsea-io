@@ -41,6 +41,16 @@ jobs:
       # No database: the derivations are checked against saved answers (salish-9uu.11).
       - name: Run tests
         run: pnpm test
+      # The read-path graphs (stelis/, decision 092) and their tests run inside the Stelis
+      # image this repo pins, which carries Racket, the engine as the `stelis` collection
+      # and nothing else: the structural tests run in full; the one that needs the DuckDB
+      # CLI and the esbuild comparison skip here and run in the Fly image build, which has
+      # both. SALISHSEA_DIR points the graph at this checkout.
+      - name: Test the read-path graphs in the pinned Stelis image
+        run: |
+          docker run --rm --user 1000:1000 -e HOME=/tmp -e SALISHSEA_DIR=/app -v "$PWD:/app" -w /app \
+            --entrypoint raco "ghcr.io/rainhead/stelis@$(cat fly/stelis-digest)" \
+            test stelis/salishsea-test.rkt stelis/salishsea-checkout-test.rkt stelis/salishsea-keys-test.rkt stelis/ts-imports-test.rkt
 
       # `infra/` is a separate pnpm project with its own lockfile, so it needs
       # its own install — the root one does not reach it.
