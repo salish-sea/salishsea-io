@@ -19,6 +19,7 @@ import { readFile } from 'node:fs/promises';
 
 import { attachTaxa } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
+import { attachRegister, registerFile } from './register-file.ts';
 
 export const CATALOGUE_VIEWS = ['group_parents', 'matriline_members', 'animal_names'] as const;
 
@@ -32,6 +33,7 @@ export async function deriveCatalogue(snapshot: string, inaturalist: string): Pr
         await conn.run('SET preserve_insertion_order = false');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
+        await attachRegister(conn, registerFile(snapshot));
         await attachTaxa(conn, inaturalist);
         await conn.run(await sql('shared.sql'));
         await conn.run(await sql('lookups.sql'));

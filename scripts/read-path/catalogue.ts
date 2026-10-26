@@ -40,6 +40,7 @@ import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { fold } from '../../src/fold.ts';
 import { budget } from './duckdb-budget.ts';
 import { assertHeader, readTsv } from './reference.ts';
+import { attachRegister, registerFile } from './register-file.ts';
 
 export const CATALOGUE_DIR = path.join(import.meta.dirname, '..', '..', 'data', 'catalogue');
 
@@ -153,16 +154,16 @@ export async function generatedRows(conn: DuckDBConnection): Promise<void> {
     const roots = GENERATED_POPULATIONS.map(id => `'${id}'`).join(', ');
     await conn.run(`CREATE TEMP VIEW gen_members AS
         SELECT entity_id FROM (
-            SELECT entity_id FROM store.register.ancestor WHERE ancestor_id IN (${roots})
+            SELECT entity_id FROM register.ancestor WHERE ancestor_id IN (${roots})
             UNION SELECT unnest([${roots}]) AS entity_id)
-        WHERE entity_id NOT IN (SELECT entity_id FROM store.register.deprecations)`);
+        WHERE entity_id NOT IN (SELECT entity_id FROM register.deprecations)`);
     await conn.run(`CREATE TEMP VIEW gen_individuals AS
         SELECT ${generatedId('e.entity_id')} AS id, e.entity_id, e.label AS primary_designation,
                ${generatedId('p.parent_id')} AS mother_id, 'presumed' AS maternity_certainty,
                CAST(NULL AS INTEGER) AS father_id, CAST(NULL AS VARCHAR) AS paternity_certainty
-        FROM store.register.entities e
+        FROM register.entities e
         JOIN gen_members USING (entity_id)
-        LEFT JOIN store.register.parentage p ON p.child_id = e.entity_id AND p.role = 'mother'
+        LEFT JOIN register.parentage p ON p.child_id = e.entity_id AND p.role = 'mother'
             AND p.parent_id IN (SELECT entity_id FROM gen_members)
         WHERE e.kind = 'individual'`);
     await conn.run(`CREATE TEMP VIEW gen_designations AS
@@ -180,12 +181,12 @@ export async function generatedRows(conn: DuckDBConnection): Promise<void> {
                e.entity_id,
                CASE WHEN r.rank = 'matriline' THEN ${generatedId('matriarch.entity_id')} END AS anchor_individual_id,
                CAST(NULL AS VARCHAR) AS notes
-        FROM store.register.entities e
+        FROM register.entities e
         JOIN gen_members USING (entity_id)
-        JOIN store.register.group_ranks r USING (entity_id)
-        LEFT JOIN store.register.matriarchs m ON m.matriline_id = e.entity_id
+        JOIN register.group_ranks r USING (entity_id)
+        LEFT JOIN register.matriarchs m ON m.matriline_id = e.entity_id
             AND m.matriarch_id IN (SELECT entity_id FROM gen_members)
-        LEFT JOIN store.register.entities matriarch ON matriarch.entity_id = m.matriarch_id
+        LEFT JOIN register.entities matriarch ON matriarch.entity_id = m.matriarch_id
         WHERE e.kind = 'group' AND r.rank IN (${GENERATED_GROUP_KINDS.map(k => `'${k}'`).join(', ')})`);
 }
 
@@ -265,7 +266,7 @@ export function documents(table: string, rows: readonly Row[], vitals: ReadonlyM
  * instead, since every release carries them.
  */
 async function registerVitals(conn: DuckDBConnection, individuals: string): Promise<Map<number, Row>> {
-    const statuses = await conn.runAndReadAll('SELECT count(*) FROM store.register.current_status');
+    const statuses = await conn.runAndReadAll('SELECT count(*) FROM register.current_status');
     if (Number(statuses.getRows()[0]![0]) === 0) throw new Error('register.current_status is empty: no life status to give any individual');
     const reader = await conn.runAndReadAll(`
         SELECT i.id,
@@ -277,8 +278,8 @@ async function registerVitals(conn: DuckDBConnection, individuals: string): Prom
                CASE s.status WHEN 'alive' THEN 'alive' WHEN 'dead' THEN 'deceased'
                              WHEN 'presumed_dead' THEN 'presumed_deceased' ELSE 'unknown' END AS life_status
         FROM ${individuals} i
-        JOIN store.register.vitals v ON v.entity_id = i.entity_id
-        LEFT JOIN store.register.current_status s ON s.entity_id = i.entity_id`);
+        JOIN register.vitals v ON v.entity_id = i.entity_id
+        LEFT JOIN register.current_status s ON s.entity_id = i.entity_id`);
     return new Map(reader.getRowObjectsJS().map(r => {
         const {id, ...vitals} = r as Row;
         return [Number(id), vitals];
@@ -292,6 +293,7 @@ export async function loadCatalogue(snapshot: string, dir = CATALOGUE_DIR): Prom
     try {
         await budget(conn, snapshot, '64MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
+        await attachRegister(conn, registerFile(snapshot));
         const read = (table: string) => readTsv(path.join(dir, CATALOGUE[table]!.file), CATALOGUE[table]!.columns);
         await generatedRows(conn);
         for (const [table, {file, columns}] of Object.entries(CATALOGUE)) {

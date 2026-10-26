@@ -22,6 +22,7 @@ import { readFile } from 'node:fs/promises';
 import { writeHauloutDistances } from './derive/haulout-distance.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
+import { attachRegister, registerFile } from './register-file.ts';
 
 const RELATIONS = [
     'individual_occurrences', 'group_occurrences', 'ecotype_occurrences', 'haulout_occurrences',
@@ -39,6 +40,7 @@ export async function deriveProfileLinks(snapshot: string, mirrors: Mirrors): Pr
         await conn.run('SET preserve_insertion_order = false');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
+        await attachRegister(conn, registerFile(snapshot));
         await attachSources(conn, mirrors);
         await conn.run(await sql('shared.sql'));
         await conn.run(await sql('haulout-nearby.sql'));

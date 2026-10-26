@@ -36,6 +36,7 @@ import { fromLonLat, permalinkZoom } from '../../src/map-view.ts';
 import type { SearchEntry, SearchIndex } from '../../src/search.ts';
 import { budget } from './duckdb-budget.ts';
 import type { Doc } from './snapshot-tables.ts';
+import { attachRegister, registerFile } from './register-file.ts';
 
 /** What the index is built from, row for row. */
 export type Inputs = {
@@ -70,6 +71,7 @@ export async function readInputs(snapshot: string): Promise<Inputs> {
     try {
         await budget(conn, snapshot, '64MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+        await attachRegister(conn, registerFile(snapshot));
         const docs = async (table: string) =>
             ((await conn.runAndReadAll(`SELECT doc FROM store.snapshot.${table}`)).getRows() as [string][]).map(([d]) => JSON.parse(d) as Doc);
         const rows = async <T>(sql: string) => (await conn.runAndReadAll(sql)).getRowObjectsJS() as unknown as T[];
@@ -81,10 +83,10 @@ export async function readInputs(snapshot: string): Promise<Inputs> {
             group_parents: await docs('group_parents'),
             matriline_members: await docs('matriline_members'),
             haulouts: await docs('haulouts'),
-            names: await rows(`SELECT entity_id, name, type FROM store.register.names WHERE type IN ('historical', 'hidden')`),
+            names: await rows(`SELECT entity_id, name, type FROM register.names WHERE type IN ('historical', 'hidden')`),
             populationOf: await rows(`
                 SELECT a.entity_id, CAST(json_extract_string(g.doc, '$.id') AS INTEGER) AS group_id
-                FROM store.register.ancestor a
+                FROM register.ancestor a
                 JOIN store.snapshot.social_groups g ON json_extract_string(g.doc, '$.entity_id') = a.ancestor_id
                 WHERE json_extract_string(g.doc, '$.kind') IN (${POPULATION_KINDS.map(k => `'${k}'`).join(', ')})
                 ORDER BY a.entity_id, a.depth`),

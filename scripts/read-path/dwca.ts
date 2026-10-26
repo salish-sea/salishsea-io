@@ -29,6 +29,7 @@ import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
+import { attachRegister, registerFile } from './register-file.ts';
 
 /**
  * Run `use` on a connection holding the archive's relations under `pgdb` (derive/dwc.sql),
@@ -45,6 +46,7 @@ export async function withDwc<T>(
         await conn.run(`INSTALL icu; LOAD icu; SET TimeZone = 'UTC'`);
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         await conn.run('USE store');
+        await attachRegister(conn, registerFile(snapshot));
         await attachSources(conn, mirrors);
         await conn.run(await sql('extract.sql'));
         await conn.run(await sql('shared.sql'));
