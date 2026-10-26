@@ -193,6 +193,10 @@ const insert = (db: DatabaseSync, table: string, row: Record<string, unknown>, v
 export function openMirror(path: string): DatabaseSync {
     mkdirSync(dirname(path), {recursive: true});
     const db = new DatabaseSync(path);
+    // Write-ahead logging, so a build reading the mirror while this run writes it reads the
+    // last commit rather than waiting out this one: the derive build runs beside the ingest
+    // build (salish-uh0y). It stays set in the file.
+    db.exec('PRAGMA journal_mode = WAL');
     db.exec(SCHEMA);
     // A mirror from before the rolling refresh (salish-xv35.9.3) has no checked_at; every
     // taxon in it is then due, and the refresh works through them a run at a time.

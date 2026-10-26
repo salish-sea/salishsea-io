@@ -2,8 +2,7 @@
  * The animals register, fetched by the read-path build itself (decision 064, salish-9uu.2.2),
  * as it fetches Maplify, iNaturalist and Orcasound.
  *
- *   node scripts/read-path/ingest-register.ts <register.duckdb> <maplify.sqlite> --allow <maplify-unnamed.tsv>
- *       [--tag <tag>] [--retire-from <snapshot.duckdb>]
+ *   node scripts/read-path/ingest-register.ts <register.duckdb> <maplify.sqlite> --allow <maplify-unnamed.tsv> [--tag <tag>]
  *
  * Each run asks which release is newest — the tag GitHub's `releases/latest` redirects to,
  * one request with nothing downloaded — and stops there if the build already holds it. A
@@ -13,12 +12,6 @@
  * rest, the file attached as `register`), typed as the snapshot read them, so the
  * derivation reads them unchanged; `register.edition` records which. The file is written
  * beside and renamed over, so a build reading the register keeps the edition it opened.
- *
- * `--retire-from` names the snapshot file the register lived in before it had its own
- * (salish-vedj). While the snapshot still holds it, a run first moves it out: copies its
- * tables into the register file, if there is none yet, and drops them from the snapshot,
- * whose `register` schema would otherwise make every `register.` name ambiguous. Local
- * disk only, so the move happens even when GitHub doesn't answer.
  *
  * An edition that would un-name a Maplify sighting is refused BEFORE it is adopted, as
  * register-refresh.yml (retired 2026-10-09) refused it before loading Postgres (salish-xv35.9.2): the build keeps
@@ -108,17 +101,13 @@ export async function latestTag(): Promise<string> {
     return decodeURIComponent(tag);
 }
 
-/** The tables of an attached database's schema; empty when it has none. */
-async function tablesOf(conn: DuckDBConnection, catalog: string, schema: string): Promise<string[]> {
-    const r = await conn.runAndReadAll(
-        `SELECT table_name FROM information_schema.tables WHERE table_catalog = '${catalog}' AND table_schema = '${schema}'
-         ORDER BY table_name`,
-    );
-    return (r.getRows() as [string][]).map(([t]) => t);
-}
-
+/** Whether the register attached as `register` has `table`; false when none is attached. */
 async function tableExists(conn: DuckDBConnection, table: string): Promise<boolean> {
-    return (await tablesOf(conn, 'register', 'main')).includes(table);
+    const r = await conn.runAndReadAll(
+        `SELECT count(*) FROM information_schema.tables
+         WHERE table_catalog = 'register' AND table_schema = 'main' AND table_name = '${table}'`,
+    );
+    return Number(r.getRows()[0]![0]) > 0;
 }
 
 /**
@@ -144,35 +133,6 @@ async function replaceFile(conn: DuckDBConnection, file: string, fill: () => Pro
     if (Number(attached) > 0) await conn.run('DETACH register');
     renameSync(fresh, file);
     await attachRegister(conn, file);
-}
-
-/**
- * Move the register out of the snapshot it lived in before salish-vedj, if it is still there:
- * its tables into the register file, unless that already exists, then dropped from the
- * snapshot. Says what it did; nothing when there was nothing to move.
- */
-export async function retire(snapshot: string, file: string, say: (msg: string) => void): Promise<void> {
-    if (!existsSync(snapshot)) return;
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
-        await budget(conn, snapshot, '64MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
-        const tables = await tablesOf(conn, 'store', 'register');
-        if (tables.length === 0) return;
-        if (!existsSync(file)) {
-            await replaceFile(conn, file, async () => {
-                for (const table of tables)
-                    await conn.run(`CREATE TABLE fresh.${table} AS SELECT * FROM store.register.${table}`);
-            });
-            say(`register: moved ${tables.length} table(s) from the snapshot into ${file}`);
-        }
-        await conn.run('DROP SCHEMA store.register CASCADE');
-        say('register: dropped from the snapshot');
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
 }
 
 /**
@@ -212,8 +172,7 @@ async function adopt(conn: DuckDBConnection, file: string, dir: string, tag: str
 export async function main(): Promise<void> {
     const args = process.argv.slice(2);
     function usage(): never {
-        console.error('usage: ingest-register.ts <register.duckdb> <maplify.sqlite> --allow <maplify-unnamed.tsv> '
-            + '[--tag <tag>] [--retire-from <snapshot.duckdb>]');
+        console.error('usage: ingest-register.ts <register.duckdb> <maplify.sqlite> --allow <maplify-unnamed.tsv> [--tag <tag>]');
         process.exit(2);
     }
     // An option's value is the next argument, and never another option.
@@ -227,13 +186,11 @@ export async function main(): Promise<void> {
     };
     const allow = option('--allow');
     const pinned = option('--tag') ?? (process.env['REGISTER_TAG'] || undefined);
-    const retireFrom = option('--retire-from');
     const [file, mirror] = args;
     if (!file || !mirror || !allow || args.length !== 2) usage();
     const say = (msg: string) => console.log(msg);
 
     const run = await recordedRun(mirror, 'register', pinned ? 'manual' : 'cron', async () => {
-        if (retireFrom) await retire(retireFrom, file, say);
         const tag = pinned ?? await latestTag();
         const db = await DuckDBInstance.create(':memory:');
         const conn = await db.connect();

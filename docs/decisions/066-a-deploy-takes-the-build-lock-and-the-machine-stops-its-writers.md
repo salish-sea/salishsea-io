@@ -44,3 +44,5 @@ It doesn't wait for a build. Under `fly/deploy.sh` there isn't one running. Unde
 - `salish-t3g.5`'s workflow calls `fly/deploy.sh` rather than restating it, so hand deploys and CI take the same lock.
 
 *Amended 2026-10-26 ([090](090-the-read-path-build-is-two-stelis-projects.md), `salish-mee7`):* the lock now covers two Stelis builds in a row, the ingests and then the rest, so a deploy that takes it waits for both. Once the ingests run outside the lock, a deploy that takes it will no longer wait for them; how a deploy treats a running ingest is for `salish-uh0y` to decide.
+
+*Amended 2026-10-26 ([091](091-a-save-never-waits-for-an-ingest.md), `salish-uh0y`):* the ingests run under a lock of their own, `/data/ingest.lock`, outside the build lock, and a deploy takes that lock first and then the build lock, as a scheduled build takes them, so it waits out a running ingest as well as a running build.

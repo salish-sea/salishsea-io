@@ -6,7 +6,7 @@
 # Everything here, and every build step Stelis runs, is plain node: it strips
 # the scripts' TypeScript types itself (the tsconfig keeps them erasable), and
 # tsx would add a wrapper process and an esbuild service, ~30 MB, beside each
-# one on a 1 GB machine.
+# one, and the machine's memory is budgeted (decision 091).
 #
 # If any of the four exits, so does this, with a failure, and Fly restarts
 # the machine. The boot build is not watched: a failed build leaves the last good

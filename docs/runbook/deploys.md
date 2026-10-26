@@ -14,7 +14,7 @@ CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../dec
 fly/deploy.sh      # build, then switch; `build` or `switch` alone. See its header.
 ```
 
-The job authenticates with `FLY_API_TOKEN`, a secret in the `production` environment holding an app-scoped deploy token. That token can also `fly ssh` to the machine, which is how the build lock is taken. The **Fly image** job uses it first, so a missing or broken token fails the run there, before anything changes. To rotate it:
+The job authenticates with `FLY_API_TOKEN`, a secret in the `production` environment holding an app-scoped deploy token. That token can also `fly ssh` to the machine, which is how the machine's locks are taken. The **Fly image** job uses it first, so a missing or broken token fails the run there, before anything changes. To rotate it:
 
 ```sh
 fly tokens create deploy -a salishsea-io --name "GitHub Actions deploy" \
@@ -26,7 +26,7 @@ The Stelis commit the image runs is [`fly/stelis-commit`](../../fly/stelis-commi
 
 The binaries the image downloads (the DuckDB CLI, Caddy, Litestream, supercronic) are pinned by sha256 in [`fly/downloads.tsv`](../../fly/downloads.tsv) and fetched by [`fly/fetch.sh`](../../fly/fetch.sh) from our own mirror first, `salishsea.io/downloads/<sha256>` (the `salishsea-io-downloads` bucket, [decision 084](../decisions/084-the-image-builds-downloads-come-from-our-own-mirror-first.md)), then from the upstream URLs the TSV lists; only a file matching the checksum counts. To move a pin, change the sha256 and URL in the TSV, run `scripts/downloads/mirror.sh` with the `orcasound` AWS profile (it uploads what the bucket lacks and skips the rest), and deploy. A pin the bucket doesn't hold yet falls back to upstream, so a forgotten mirror step costs nothing until that upstream fails. Racket, its packages and the engine are not downloaded by the image build at all: they come out of the Stelis image by digest (above), so the hosts that build depends on for Stelis are ghcr.io and nothing else.
 
-The script builds and pushes the image first, tagged with the commit and the Stelis pin, while the machine goes on serving and building. It then takes the machine's build lock, waiting out a running build so the switch doesn't kill one, and deploys that image ([decision 066](../decisions/066-a-deploy-takes-the-build-lock-and-the-machine-stops-its-writers.md)). On the stop signal the old machine stops the write API and lets Litestream make its final sync before it goes. If the lock can't be had within five minutes, a build is probably stuck. The deploy then fails with production untouched, and the image is already pushed for a rerun.
+The script builds and pushes the image first, tagged with the commit and the Stelis pin, while the machine goes on serving and building. It then takes the machine's locks, the ingests' and then the build's, waiting out a running ingest and a running build so the switch doesn't kill one, and deploys that image ([decision 066](../decisions/066-a-deploy-takes-the-build-lock-and-the-machine-stops-its-writers.md)). On the stop signal the old machine stops the write API and lets Litestream make its final sync before it goes. If the lock can't be had within five minutes, a build is probably stuck. The deploy then fails with production untouched, and the image is already pushed for a rerun.
 
 A green Deploy run therefore means the merged commit is what salishsea.io serves, and its smoke job tested that image. Check with `curl -s https://salishsea.io/release.json`.
 
@@ -37,7 +37,7 @@ fly releases -a salishsea-io --image                      # pick the last good o
 fly deploy -a salishsea-io --image <the image reference from that list>
 ```
 
-Images deployed since decision 066 are tagged with their commit and Stelis's. Earlier ones carry `deployment-<id>`. `fly deploy --image` by hand skips `fly/deploy.sh`'s build lock, so a running build may be killed. The next build repairs that.
+Images deployed since decision 066 are tagged with their commit and Stelis's. Earlier ones carry `deployment-<id>`. `fly deploy --image` by hand skips `fly/deploy.sh`'s locks, so a running ingest or build may be killed. The next build repairs that.
 
 The image carries the site bundle, the read-path scripts and the pinned Stelis together, so rolling it back rolls all three back; the data on the volume (`/data`: the snapshot, the mirrors, the build history) stays as it is, and the next build at the old pin runs over it. Two things a release does not carry: `fly deploy --image` applies the `fly.toml` of the checkout you run it from, so check out the release's commit first (the `GITHUB_SHA` build arg in `fly/deploy.sh` is how an image names its commit); and Fly secrets, which are set on the app, not in a release.
 
@@ -59,7 +59,7 @@ The run is these jobs ([decision 024](../decisions/024-deploy-gating-and-alertin
 | **Test** | Calls [`build.yml`](../../.github/workflows/build.yml) — the same suite PRs run (type drift, build, unit tests, infra tests) against the commit being deployed. Nothing reaches production without it. |
 | **Fly image** | `fly/deploy.sh build`: builds the image on Fly's remote builder and pushes it, tagged with the commit and the Stelis pin, alongside Test (`salish-t3g.10`). Nothing in production changes. The build uploads the bundle's source maps to Sentry. An image that won't build, or a `FLY_API_TOKEN` that can't, stops the run here, before anything changes. |
 | **Deploy** | `cdk deploy`. Waits for both Test and Fly image. |
-| **Fly app** | `fly/deploy.sh switch` after the deploy job: takes the machine's build lock, then deploys the pushed image (decision 066). A failure here leaves the previous image serving behind the newly deployed stacks; `fly/deploy.sh switch` from that commit retries it. |
+| **Fly app** | `fly/deploy.sh switch` after the deploy job: takes the machine's locks, then deploys the pushed image (decisions 066 and 091). A failure here leaves the previous image serving behind the newly deployed stacks; `fly/deploy.sh switch` from that commit retries it. |
 | **Smoke** | Calls [`smoke.yml`](../../.github/workflows/smoke.yml) against `https://salishsea.io`, after the Fly app job, or after the deploy job alone if the Fly job failed: the previous image behind new infrastructure is what most needs checking. A production that doesn't answer correctly fails the deploy run. The OG specs first wait up to five minutes for the edge handler to replicate; a new Lambda@Edge version is not at every edge location the moment `cdk deploy` returns. |
 | **Watch** | Watches the jobs that bind the `production` environment (Deploy, Fly app). When one waits fifteen minutes with no runner, GitHub has lost it: see [gotcha 4](#gotcha-4--a-deploy-stuck-waiting-holds-every-later-one). |
 | **Alert / Resolve** | On failure, opens or updates the single `deploy-failed` issue; on a fully green run, closes it. |

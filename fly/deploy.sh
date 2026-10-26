@@ -6,7 +6,7 @@
 #
 #   fly/deploy.sh          build the image, then switch the machine to it
 #   fly/deploy.sh build    build and push the image only; production is untouched
-#   fly/deploy.sh switch   take the build lock and deploy the image `build` pushed
+#   fly/deploy.sh switch   take the machine's locks and deploy the image `build` pushed
 #
 # The Deploy workflow runs `build` beside its tests and `switch` after the database is
 # migrated (salish-t3g.10); by hand, the bare command does both.
@@ -68,7 +68,7 @@ build() {
     [ -z "${SENTRY_AUTH_TOKEN:-}" ] || secrets=(--build-secret "SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN")
 
     # Build and push the image while the machine goes on building: the remote build takes
-    # minutes, and the build lock (in switch) is held only for the switch.
+    # minutes, and the machine's locks (in switch) are held only for the switch.
     flyctl deploy --build-only --push --image-label "$LABEL" "${secrets[@]}" \
         --build-arg GITHUB_SHA="$SHA" \
         --build-arg SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
@@ -77,8 +77,9 @@ build() {
 }
 
 switch() {
-    # Take the build lock on the machine (decision 066), waiting out a running build,
-    # so that none is running when the machine stops: the machine's own stop doesn't wait
+    # Take the machine's locks (decision 066), the schedule's and then the build's, as a
+    # scheduled build takes them (fly/build.sh, decision 091), waiting out a running
+    # ingest and a running build, so that none is running when the machine stops: the machine's own stop doesn't wait
     # for one, because Fly has stopped routing to it by then. It is held by a session that
     # outlives this one: killing the local `fly ssh` leaves the remote side running. So it
     # lets go by itself after HOLD seconds, and a deploy that fails before the machine is
@@ -88,7 +89,7 @@ switch() {
     HOLDER="deploy-hold-$SHA-$$"   # names this deploy's hold alone, to release it
     lock_log=$(mktemp)
     flyctl ssh console -a "$APP" \
-        -C "flock -o -w $LOCK_WAIT /data/build.lock timeout $HOLD sh -c 'echo held; sleep $HOLD' $HOLDER" \
+        -C "flock -o -w $LOCK_WAIT /data/ingest.lock flock -o -w $LOCK_WAIT /data/build.lock timeout $HOLD sh -c 'echo held; sleep $HOLD' $HOLDER" \
         > "$lock_log" 2>&1 &
     hold_pid=$!
     deployed=
@@ -101,7 +102,7 @@ switch() {
     until grep -q '^held' "$lock_log"; do
         if ! kill -0 "$hold_pid" 2>/dev/null; then
             cat "$lock_log" >&2
-            echo "couldn't take the build lock within ${LOCK_WAIT}s; is a build stuck? The image is pushed: rerun fly/deploy.sh switch" >&2
+            echo "couldn't take the machine's locks within ${LOCK_WAIT}s each; is a build stuck? The image is pushed: rerun fly/deploy.sh switch" >&2
             exit 1
         fi
         sleep 2
