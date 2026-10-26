@@ -51,3 +51,5 @@ Who may change a sighting: its owner, or anyone whose contributor row has `edito
 - The machine runs one more resident process, plus Litestream. Measured before each ships; a bigger machine only as a deliberate, measured decision.
 - Restoring the store from its replica is rehearsed before the cutover, not after.
 - The withheld catalogue text that 064 left in Postgres (an individual's sheet notes, a nickname's story) needs a home before Postgres goes; it is curated, not user-written, so it is not the store's by this record's rule, and is decided separately. *(Amended 2026-10-12: decided by [064](064-what-users-do-not-write-leaves-postgres-first.md)'s 2026-10-09 amendment. The text was already in [`data/biggs-ids.tsv`](../../data/biggs-ids.tsv), the Bigg's sheet's mirror, which became its home.)*
+
+*Amended 2026-10-26 ([090](090-the-read-path-build-is-two-stelis-projects.md), `salish-mee7`):* the build a save wakes is a build of the Stelis project `salishsea`, which holds the snapshot and everything after it; the ingests are a project of their own that a save never runs.
