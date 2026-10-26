@@ -59,6 +59,7 @@ import { defaultWindow } from '../ingest/window.ts';
 import { budget } from './duckdb-budget.ts';
 import { addDays, antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
 import { boundaryReceipt, recordedRun } from './ingest-runs.ts';
+import { attachRegister } from './register-file.ts';
 
 /** How far back the first `updated_since` reaches, before the mirror has seen anything. */
 export const FIRST_UPDATED_DAYS = 30;
@@ -233,17 +234,18 @@ export const REFRESH_PER_RUN = 30;
 
 /**
  * Every iNaturalist taxon the register's mappings name (the same test as
- * derive/lookups.sql's inaturalist_mapping), read from the snapshot's copy of the register.
+ * derive/lookups.sql's inaturalist_mapping), read from the register's own file
+ * (register-file.ts), which ingest-register writes before this runs.
  */
-export async function registerTaxonIds(snapshot: string): Promise<number[]> {
+export async function registerTaxonIds(file: string): Promise<number[]> {
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
-        await budget(conn, snapshot, '64MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+        await budget(conn, file, '64MB');
+        await attachRegister(conn, file);
         const reader = await conn.runAndReadAll(`
             SELECT DISTINCT CAST(split_part(object_id, ':', 2) AS INTEGER) AS id
-            FROM store.register.mappings
+            FROM register.mappings
             WHERE predicate_id IN ('skos:exactMatch', 'skos:closeMatch')
               AND regexp_full_match(object_id, 'inaturalist\\.taxon:[0-9]{1,9}')
             ORDER BY id`);
@@ -479,14 +481,14 @@ const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, m
 
 export async function main(): Promise<void> {
     const args = process.argv.slice(2);
-    // --register <snapshot.duckdb>: the register's copy to read the taxa it names from.
+    // --register <register.duckdb>: the register's file (register-file.ts), to read the taxa it names from.
     // Without it a run fetches no register taxa and refreshes none (a backfill by hand).
     const at = args.indexOf('--register');
     const register = at >= 0 ? args[at + 1] : undefined;
     if (at >= 0) args.splice(at, 2);
     const [path, start, end] = args;
     if (!path || (start === undefined) !== (end === undefined) || (at >= 0 && !register)) {
-        console.error('usage: ingest-inaturalist.ts <inaturalist.sqlite> [--register <snapshot.duckdb>] [<start> <end>]');
+        console.error('usage: ingest-inaturalist.ts <inaturalist.sqlite> [--register <register.duckdb>] [<start> <end>]');
         process.exit(2);
     }
     const log = (msg: string, extra?: Record<string, unknown>) =>

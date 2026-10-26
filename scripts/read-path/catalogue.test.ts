@@ -1,4 +1,4 @@
-import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
@@ -7,9 +7,10 @@ import { describe, expect, test } from 'vitest';
 
 import { CATALOGUE, CATALOGUE_DIR, documents, generatedRows, jsonbOrdered, loadCatalogue } from './catalogue.ts';
 import { loadReference, readTsv } from './reference.ts';
+import { registerFile } from './register-file.ts';
 
 /**
- * The register tables the catalogue reads, in `store.register`, holding `rows`: a small
+ * The register tables the catalogue reads, in the database attached as `register`, holding `rows`: a small
  * Southern Resident community by default. Each entity is [id, kind, rank, label].
  */
 async function registerFixture(conn: DuckDBConnection, {
@@ -21,10 +22,9 @@ async function registerFixture(conn: DuckDBConnection, {
 } = {}): Promise<void> {
     const q = (v: string | null) => (v === null ? 'NULL' : `'${v.replaceAll("'", "''")}'`);
     const fill = async (table: string, columns: string, rows: (string | null)[][]) => {
-        await conn.run(`CREATE TABLE store.register.${table} (${columns})`);
-        if (rows.length) await conn.run(`INSERT INTO store.register.${table} VALUES ${rows.map(r => `(${r.map(q).join(', ')})`).join(', ')}`);
+        await conn.run(`CREATE TABLE register.${table} (${columns})`);
+        if (rows.length) await conn.run(`INSERT INTO register.${table} VALUES ${rows.map(r => `(${r.map(q).join(', ')})`).join(', ')}`);
     };
-    await conn.run('CREATE SCHEMA store.register');
     await fill('entities', 'entity_id VARCHAR, kind VARCHAR, label VARCHAR', entities.map(([id, kind, , label]) => [id, kind, label]));
     await fill('group_ranks', 'entity_id VARCHAR, rank VARCHAR', entities.map(([id, , rank]) => [id, rank]));
     await fill('ancestor', 'entity_id VARCHAR, ancestor_id VARCHAR', ancestor);
@@ -59,6 +59,7 @@ describe("the Southern Residents' rows are generated from the register (decision
         const conn = await (await DuckDBInstance.create(':memory:')).connect();
         try {
             await conn.run(`ATTACH ':memory:' AS store`);
+            await conn.run(`ATTACH ':memory:' AS register`);
             await registerFixture(conn, SOUTHERN_RESIDENTS);
             await generatedRows(conn);
             const rows = async (view: string) => (await conn.runAndReadAll(`SELECT * FROM ${view} ORDER BY id`)).getRowObjectsJS();
@@ -133,6 +134,8 @@ describe('the catalogue as documents (decision 064)', () => {
             await conn.run(`ATTACH '${snapshot}' AS store`);
             await loadReference(conn, 'store');
             // A register with no Southern Residents: only the files' own rows are held to account.
+            await mkdir(path.dirname(registerFile(snapshot)), {recursive: true});
+            await conn.run(`ATTACH '${registerFile(snapshot)}' AS register`);
             await registerFixture(conn);
             conn.closeSync();
             for (const {file} of Object.values(CATALOGUE)) await copyFile(path.join(CATALOGUE_DIR, file), path.join(dir, file));

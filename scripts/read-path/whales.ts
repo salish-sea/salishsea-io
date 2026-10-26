@@ -22,6 +22,7 @@ import { profileStyles, renderProfileFrame } from '../../src/profile-shared.ts';
 import { renderWhales, whalesPreview, whalesStyles, type WhaleSpecies, type WhalesData } from '../../src/whales.ts';
 import { budget } from './duckdb-budget.ts';
 import { islandFromManifest, renderDocument, SEARCH_ISLAND, type Island } from './profile-document.ts';
+import { attachRegister, registerFile } from './register-file.ts';
 
 /** Cetacea, as the register identifies it. */
 export const CETACEA = 'SSA:0000934';
@@ -44,18 +45,18 @@ export type Inputs = {
 const ENTITY_TAXON = `
     SELECT e.entity_id,
            CASE WHEN e.kind = 'taxon' THEN e.entity_id
-                ELSE (SELECT arg_min(a.ancestor_id, a.depth) FROM store.register.ancestor a
+                ELSE (SELECT arg_min(a.ancestor_id, a.depth) FROM register.ancestor a
                       WHERE a.entity_id = e.entity_id AND a.ancestor_kind = 'taxon') END AS taxon_entity_id
-    FROM store.register.entities e`;
+    FROM register.entities e`;
 
 /** The register's taxa under Cetacea, Cetacea included, with their rank. */
 const CETACEAN_TAXA = `
     SELECT c.entity_id, c.scientific_name, c.taxon_rank
-    FROM store.register.classification c
-    JOIN store.register.entities e ON e.entity_id = c.entity_id AND e.kind = 'taxon'
+    FROM register.classification c
+    JOIN register.entities e ON e.entity_id = c.entity_id AND e.kind = 'taxon'
     WHERE c.taxon_id IN (
-        SELECT a.taxon_id FROM store.register.taxon_ancestor a
-        WHERE a.ancestor_id = (SELECT taxon_id FROM store.register.classification WHERE entity_id = '${CETACEA}'))`;
+        SELECT a.taxon_id FROM register.taxon_ancestor a
+        WHERE a.ancestor_id = (SELECT taxon_id FROM register.classification WHERE entity_id = '${CETACEA}'))`;
 
 export async function readInputs(snapshot: string): Promise<Inputs> {
     const db = await DuckDBInstance.create(':memory:');
@@ -66,6 +67,7 @@ export async function readInputs(snapshot: string): Promise<Inputs> {
         // with the page's rendering. The first production build ran out at 64.
         await budget(conn, snapshot, '128MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+        await attachRegister(conn, registerFile(snapshot));
         await conn.run(`CREATE TEMP TABLE entity_taxon AS ${ENTITY_TAXON}`);
         await conn.run(`CREATE TEMP TABLE cetacean_taxa AS ${CETACEAN_TAXA}`);
         const rows = async <T>(sql: string) => (await conn.runAndReadAll(sql)).getRowObjectsJS() as unknown as T[];

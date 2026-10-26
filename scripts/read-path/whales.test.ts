@@ -3,7 +3,7 @@
  * how a report reaches its species, and what the page says (salish-nkbq).
  */
 
-import { mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
@@ -11,6 +11,7 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import { beforeAll, describe, expect, test } from 'vitest';
 
 import { assembleWhales, readInputs, renderWhalesPage, type Inputs } from './whales.ts';
+import { registerFile } from './register-file.ts';
 
 const shell = `<!DOCTYPE html><html><head><title>x</title><meta name="description" content="x">
 <meta property="og:title" content="x"><meta property="og:description" content="x">
@@ -67,15 +68,17 @@ beforeAll(async () => {
     const conn = await db.connect();
     const q = (s: string) => `'${s.replaceAll("'", "''")}'`;
     await conn.run(`ATTACH '${snapshot}' AS store`);
-    for (const schema of ['register', 'snapshot', 'build']) await conn.run(`CREATE SCHEMA store.${schema}`);
-    await conn.run('CREATE TABLE store.register.entities (entity_id VARCHAR, kind VARCHAR, label VARCHAR)');
-    await conn.run(`INSERT INTO store.register.entities VALUES ${ENTITIES.map(r => `(${r.map(q).join(', ')})`).join(', ')}`);
-    await conn.run('CREATE TABLE store.register.classification (entity_id VARCHAR, taxon_id VARCHAR, scientific_name VARCHAR, taxon_rank VARCHAR)');
-    await conn.run(`INSERT INTO store.register.classification VALUES ${CLASSIFICATION.map(r => `(${r.map(q).join(', ')})`).join(', ')}`);
-    await conn.run('CREATE TABLE store.register.taxon_ancestor (taxon_id VARCHAR, ancestor_id VARCHAR, depth INTEGER)');
-    await conn.run(`INSERT INTO store.register.taxon_ancestor VALUES ${TAXON_ANCESTOR.map(([t, a, d]) => `(${q(t)}, ${q(a)}, ${d})`).join(', ')}`);
-    await conn.run('CREATE TABLE store.register.ancestor (entity_id VARCHAR, ancestor_id VARCHAR, depth INTEGER, ancestor_kind VARCHAR)');
-    await conn.run(`INSERT INTO store.register.ancestor VALUES ${ANCESTOR.map(([e, a, d, k]) => `(${q(e)}, ${q(a)}, ${d}, ${q(k)})`).join(', ')}`);
+    for (const schema of ['snapshot', 'build']) await conn.run(`CREATE SCHEMA store.${schema}`);
+    await mkdir(path.dirname(registerFile(snapshot)), {recursive: true});
+    await conn.run(`ATTACH '${registerFile(snapshot)}' AS register`);
+    await conn.run('CREATE TABLE register.entities (entity_id VARCHAR, kind VARCHAR, label VARCHAR)');
+    await conn.run(`INSERT INTO register.entities VALUES ${ENTITIES.map(r => `(${r.map(q).join(', ')})`).join(', ')}`);
+    await conn.run('CREATE TABLE register.classification (entity_id VARCHAR, taxon_id VARCHAR, scientific_name VARCHAR, taxon_rank VARCHAR)');
+    await conn.run(`INSERT INTO register.classification VALUES ${CLASSIFICATION.map(r => `(${r.map(q).join(', ')})`).join(', ')}`);
+    await conn.run('CREATE TABLE register.taxon_ancestor (taxon_id VARCHAR, ancestor_id VARCHAR, depth INTEGER)');
+    await conn.run(`INSERT INTO register.taxon_ancestor VALUES ${TAXON_ANCESTOR.map(([t, a, d]) => `(${q(t)}, ${q(a)}, ${d})`).join(', ')}`);
+    await conn.run('CREATE TABLE register.ancestor (entity_id VARCHAR, ancestor_id VARCHAR, depth INTEGER, ancestor_kind VARCHAR)');
+    await conn.run(`INSERT INTO register.ancestor VALUES ${ANCESTOR.map(([e, a, d, k]) => `(${q(e)}, ${q(a)}, ${d}, ${q(k)})`).join(', ')}`);
     await conn.run('CREATE TABLE store.snapshot.animal_names (doc VARCHAR)');
     for (const [entity_id, common_name] of [['SSA:0000900', 'Killer whale'], ['SSA:0000901', 'Humpback whale']])
         await conn.run(`INSERT INTO store.snapshot.animal_names VALUES (${q(JSON.stringify({entity_id, common_name}))})`);

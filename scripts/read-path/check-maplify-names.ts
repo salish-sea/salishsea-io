@@ -40,6 +40,7 @@ import { resolveEntity, type NormalizedSighting } from '../ingest/maplify.ts';
 import { buildNameIndex, NAME_INDEX_SQL, type RegisterName } from '../register/name-index.ts';
 import { pairKey, readUnnamed } from '../register/unnamed.ts';
 import { budget } from './duckdb-budget.ts';
+import { attachRegister, registerFile } from './register-file.ts';
 
 /** A (name, scientific name) pair and the entity it resolves to. */
 export type Named = {name: string | null, scientific_name: string, entity_id: string};
@@ -112,6 +113,7 @@ export async function checkNames(snapshot: string, mirror: string, baselineFile:
         await budget(conn, snapshot, '64MB');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         await conn.run('USE store');
+        await attachRegister(conn, registerFile(snapshot));
         await conn.run('INSTALL sqlite; LOAD sqlite');
         await conn.run(`ATTACH '${mirror.replaceAll("'", "''")}' AS maplify_mirror (TYPE sqlite, READ_ONLY)`);
         const index = buildNameIndex((await conn.runAndReadAll(NAME_INDEX_SQL)).getRowObjectsJS() as unknown as RegisterName[]);

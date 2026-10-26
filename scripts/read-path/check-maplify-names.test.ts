@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { checkNames, judge, type Named, reportFile } from './check-maplify-names.ts';
+import { registerFile } from './register-file.ts';
 
 let dir: string;
 
@@ -43,21 +44,25 @@ async function snapshot(
     entities: [id: string, label: string][],
     sightings: [name: string | null, scientific: string, entity: string | null][],
 ): Promise<string> {
-    const target = path.join(dir, file);
+    // a directory each: the register file sits beside its snapshot (register-file.ts)
+    const target = path.join(dir, path.basename(file, '.duckdb'), 'snapshot.duckdb');
+    mkdirSync(path.dirname(registerFile(target)), {recursive: true});
     const conn = await (await DuckDBInstance.create(':memory:')).connect();
     await conn.run(`ATTACH '${target}' AS s`);
+    await conn.run(`ATTACH '${registerFile(target)}' AS register`);
     await conn.run(`
-        CREATE SCHEMA s.register; CREATE SCHEMA s.maplify;
-        CREATE TABLE s.register.entities (entity_id VARCHAR, kind VARCHAR, label VARCHAR);
-        CREATE TABLE s.register.names (entity_id VARCHAR, name VARCHAR, type VARCHAR, language VARCHAR);
-        CREATE TABLE s.register.ancestor (entity_id VARCHAR, ancestor_id VARCHAR, depth INTEGER, ancestor_kind VARCHAR);
-        CREATE TABLE s.register.deprecations (entity_id VARCHAR, replaced_by VARCHAR);
+        CREATE SCHEMA s.maplify;
+        CREATE TABLE register.entities (entity_id VARCHAR, kind VARCHAR, label VARCHAR);
+        CREATE TABLE register.names (entity_id VARCHAR, name VARCHAR, type VARCHAR, language VARCHAR);
+        CREATE TABLE register.ancestor (entity_id VARCHAR, ancestor_id VARCHAR, depth INTEGER, ancestor_kind VARCHAR);
+        CREATE TABLE register.deprecations (entity_id VARCHAR, replaced_by VARCHAR);
         CREATE TABLE s.maplify.sightings (name VARCHAR, scientific_name VARCHAR, entity_id VARCHAR)`);
     for (const [id, label] of entities)
-        await conn.run(`INSERT INTO s.register.entities VALUES ('${id}', 'taxon', '${label}')`);
+        await conn.run(`INSERT INTO register.entities VALUES ('${id}', 'taxon', '${label}')`);
     for (const [name, scientific, entity] of sightings)
         await conn.run(`INSERT INTO s.maplify.sightings VALUES (${name === null ? 'NULL' : `'${name}'`}, '${scientific}', ${entity === null ? 'NULL' : `'${entity}'`})`);
     await conn.run('DETACH s');
+    await conn.run('DETACH register');
     conn.closeSync();
     return target;
 }

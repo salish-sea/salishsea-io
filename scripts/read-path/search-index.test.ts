@@ -1,4 +1,4 @@
-import { mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
@@ -6,6 +6,7 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import { beforeAll, describe, expect, test } from 'vitest';
 
 import { buildSearchIndex, readInputs } from './search-index.ts';
+import { registerFile } from './register-file.ts';
 import type { SearchIndex } from '../../src/search.ts';
 
 /** Bigg's T065A, Fingers, in the T065As; J31 in the J31s, in J pod, in the Southern Residents; J56, never reported. */
@@ -73,17 +74,19 @@ beforeAll(async () => {
     const conn = await db.connect();
     const q = (s: string) => `'${s.replaceAll("'", "''")}'`;
     await conn.run(`ATTACH '${snapshot}' AS store`);
-    for (const schema of ['snapshot', 'build', 'register']) await conn.run(`CREATE SCHEMA store.${schema}`);
+    for (const schema of ['snapshot', 'build']) await conn.run(`CREATE SCHEMA store.${schema}`);
+    await mkdir(path.dirname(registerFile(snapshot)), {recursive: true});
+    await conn.run(`ATTACH '${registerFile(snapshot)}' AS register`);
     for (const [schema, tables] of [['snapshot', DOCS], ['build', LINKS]] as const)
         for (const [table, rows] of Object.entries(tables)) {
             await conn.run(`CREATE TABLE store.${schema}.${table} (doc VARCHAR)`);
             for (const row of rows) await conn.run(`INSERT INTO store.${schema}.${table} VALUES (${q(JSON.stringify(row))})`);
         }
-    await conn.run('CREATE TABLE store.register.names (entity_id VARCHAR, name VARCHAR, type VARCHAR, language VARCHAR)');
-    await conn.run(`INSERT INTO store.register.names VALUES ('SSA:0000010', 'SRKW', 'hidden', 'en'), ('SSA:0000010', 'Southern Residents', 'common', 'en')`);
+    await conn.run('CREATE TABLE register.names (entity_id VARCHAR, name VARCHAR, type VARCHAR, language VARCHAR)');
+    await conn.run(`INSERT INTO register.names VALUES ('SSA:0000010', 'SRKW', 'hidden', 'en'), ('SSA:0000010', 'Southern Residents', 'common', 'en')`);
     // J3, in no matriline of ours, is still beneath the Southern Residents.
-    await conn.run('CREATE TABLE store.register.ancestor (entity_id VARCHAR, ancestor_id VARCHAR, depth INTEGER)');
-    await conn.run(`INSERT INTO store.register.ancestor VALUES ('SSA:0020003', 'SSA:0000020', 1), ('SSA:0020003', 'SSA:0000010', 2), ('SSA:0010193', 'SSA:0000002', 2)`);
+    await conn.run('CREATE TABLE register.ancestor (entity_id VARCHAR, ancestor_id VARCHAR, depth INTEGER)');
+    await conn.run(`INSERT INTO register.ancestor VALUES ('SSA:0020003', 'SSA:0000020', 1), ('SSA:0020003', 'SSA:0000010', 2), ('SSA:0010193', 'SSA:0000002', 2)`);
     conn.closeSync();
     db.closeSync();
     index = buildSearchIndex(await readInputs(snapshot));

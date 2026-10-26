@@ -27,6 +27,7 @@ import { writeInaturalistOutOfScope } from './derive/inaturalist-scope.ts';
 import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
+import { attachRegister, registerFile } from './register-file.ts';
 
 export const SOURCES = ['maplify', 'inaturalist', 'native', 'orcasound'] as const;
 export type Source = typeof SOURCES[number];
@@ -140,6 +141,7 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
         await conn.run('SET preserve_insertion_order = false');
         await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
+        await attachRegister(conn, registerFile(snapshot));
         await attachSources(conn, mirrors);
         await conn.run(extract);
         await conn.run(shared);
