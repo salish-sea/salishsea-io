@@ -138,20 +138,34 @@ describe('BuildCoalescer', () => {
         });
 
         test('a save during the build waits for the spacing, not the quiet period, and earns one build', async () => {
+            const build = fakeBuild(3_000);
+            const c = new BuildCoalescer(build, SAVE_OPTIONS, Date.now);
+            c.changed();
+            await vi.advanceTimersByTimeAsync(0);
+            await vi.advanceTimersByTimeAsync(1_000);
+            c.changed();
+            c.changed();
+            await vi.advanceTimersByTimeAsync(2_000);    // the first build finishes at 3 s
+            expect(build).toHaveBeenCalledTimes(1);
+            await vi.advanceTimersByTimeAsync(1_999);    // 5 s after the first started
+            expect(build).toHaveBeenCalledTimes(1);
+            await vi.advanceTimersByTimeAsync(1);
+            expect(build).toHaveBeenCalledTimes(2);
+            await vi.advanceTimersByTimeAsync(120_000);
+            expect(build).toHaveBeenCalledTimes(2);
+        });
+
+        test('a save during a build longer than the spacing builds as soon as that one finishes', async () => {
             const build = fakeBuild(20_000);
             const c = new BuildCoalescer(build, SAVE_OPTIONS, Date.now);
             c.changed();
             await vi.advanceTimersByTimeAsync(0);
             await vi.advanceTimersByTimeAsync(5_000);
             c.changed();
-            c.changed();
-            await vi.advanceTimersByTimeAsync(15_000);   // the first build finishes at 20 s
+            await vi.advanceTimersByTimeAsync(14_999);
             expect(build).toHaveBeenCalledTimes(1);
-            await vi.advanceTimersByTimeAsync(9_999);    // 30 s after the first started
-            expect(build).toHaveBeenCalledTimes(1);
-            await vi.advanceTimersByTimeAsync(1);
-            expect(build).toHaveBeenCalledTimes(2);
-            await vi.advanceTimersByTimeAsync(120_000);
+            await vi.advanceTimersByTimeAsync(1);        // it finishes at 20 s; the spacing has passed
+            await vi.advanceTimersByTimeAsync(1);        // and a zero-delay timer fires a millisecond later
             expect(build).toHaveBeenCalledTimes(2);
         });
 
