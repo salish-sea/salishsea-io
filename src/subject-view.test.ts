@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { occurrenceFromHref, SubjectView } from './subject-view.ts';
+import type { SubjectView } from './subject-view.ts';
+import './subject-view.ts';
+import { occurrenceFromHref } from './subject.ts';
 
 describe('a link to a day and a sighting on the map', () => {
   const base = 'https://salishsea.io/individuals/0000101/J035';
@@ -76,6 +78,28 @@ describe("the sidebar's subject view", () => {
     view.shadowRoot!.lastElementChild!.dispatchEvent(fromCard);
     // 00:40 UTC on the 26th is the evening of the 25th in the Salish Sea.
     expect(events).toEqual(['go-to-occurrence {"date":"2026-10-25","occurrenceId":"maplify:262674"}']);
+  });
+
+  it('removes its card when the sighting is deleted from it', async () => {
+    const {view} = await mounted();
+    (view as unknown as {latest: unknown}).latest = {id: 'maplify:1'};
+    view.dispatchEvent(new CustomEvent('sighting-deleted', {bubbles: true, composed: true, detail: 'maplify:2'}));
+    expect((view as unknown as {latest: unknown}).latest).toEqual({id: 'maplify:1'});
+    view.dispatchEvent(new CustomEvent('sighting-deleted', {bubbles: true, composed: true, detail: 'maplify:1'}));
+    expect((view as unknown as {latest: unknown}).latest).toBeNull();
+  });
+
+  it('keeps what it loaded while hidden, so showing the same subject again fetches nothing', async () => {
+    const {view} = await mounted();
+    const fetches = (fetch as unknown as {mock: {calls: unknown[]}}).mock.calls.length;
+    view.subject = null;
+    await view.updateComplete;
+    view.subject = {kind: 'individuals', id: '0000101'};
+    await view.updateComplete;
+    expect((fetch as unknown as {mock: {calls: unknown[]}}).mock.calls.length).toBe(fetches);
+    view.subject = {kind: 'matrilines', id: '0002163'};
+    await view.updateComplete;
+    expect((fetch as unknown as {mock: {calls: unknown[]}}).mock.calls.length).toBeGreaterThan(fetches);
   });
 
   it('asks to close from its Back button', async () => {

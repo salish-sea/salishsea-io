@@ -1,6 +1,7 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import {
-  decodeSubjectData, encodeSubjectData, parseSubject, readableSubject, sameSubject, subjectFromHref, subjectParam,
+  decodeSubjectData, encodeSubjectData, interceptableAnchor, parseSubject, readableSubject, sameSubject, subjectFromHref, subjectParam,
 } from './subject.ts';
 
 describe('the subject in the URL', () => {
@@ -63,5 +64,42 @@ describe("a page's data as JSON", () => {
   it('leaves an ordinary object with a $map-like key alone unless it is exactly the encoding', () => {
     const data = {note: {$map: 'not an array'}, other: {$map: [], extra: 1}};
     expect(decodeSubjectData(encodeSubjectData(data))).toEqual(data);
+  });
+});
+
+describe('which clicks the page takes over', () => {
+  const click = (a: HTMLElement, init: MouseEventInit = {}) => {
+    let anchor: HTMLAnchorElement | null = null;
+    const listener = (e: Event) => { anchor = interceptableAnchor(e as MouseEvent); };
+    document.body.addEventListener('click', listener);
+    a.dispatchEvent(new MouseEvent('click', {bubbles: true, composed: true, cancelable: true, ...init}));
+    document.body.removeEventListener('click', listener);
+    return anchor;
+  };
+  const link = (attrs: Record<string, string> = {}) => {
+    const a = document.createElement('a');
+    a.href = '/individuals/0010082/T037';
+    for (const [k, v] of Object.entries(attrs)) a.setAttribute(k, v);
+    const span = document.createElement('span');
+    a.append(span);
+    document.body.append(a);
+    return {a, span};
+  };
+
+  it('a plain click on a link, or on something inside one', () => {
+    const {a, span} = link();
+    expect(click(a)).toBe(a);
+    expect(click(span)).toBe(a);
+  });
+
+  it('not a click with a modifier key or another button, nor on a link for a new tab or a download', () => {
+    const {a} = link();
+    for (const init of [{metaKey: true}, {ctrlKey: true}, {shiftKey: true}, {altKey: true}, {button: 1}])
+      expect(click(a, init), JSON.stringify(init)).toBeNull();
+    expect(click(link({target: '_blank'}).a)).toBeNull();
+    expect(click(link({download: ''}).a)).toBeNull();
+    const notLink = document.createElement('button');
+    document.body.append(notLink);
+    expect(click(notLink)).toBeNull();
   });
 });

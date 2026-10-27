@@ -495,3 +495,38 @@ test('a new build makes a signed-out tab refetch its day', async () => {
   }
 });
 
+
+// The sidebar's subject (decision 093, salish-7ds1.1).
+test('a subject opened on the page is in the URL, readably, and remembers it was opened here through a map move', async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const el = await mountWithSightings(occurrenceFixture('aaa', '2024-07-15T18:23:00Z'));
+  el.shadowRoot!.querySelector('main')!.dispatchEvent(new CustomEvent('open-subject', {bubbles: true, composed: true,
+    detail: {kind: 'individuals', id: '0010082'}}));
+  await el.updateComplete;
+  expect(window.location.search).toContain('s=individuals/0010082');
+  expect(el.shadowRoot!.querySelector('obs-panel')!.hidden).toBe(true);
+  expect(el.shadowRoot!.querySelector('subject-view')!.hidden).toBe(false);
+  // A map move rewrites the URL in place, as this does; the entry must still say the subject
+  // was opened here, so the sidebar's Back steps back rather than taking it out of the URL.
+  const {setQueryParams} = await import('./salish-sea.ts');
+  setQueryParams({x: '1', y: '2', z: '9'}, {replace: true});
+  expect((window.history.state as {subjectOpenedHere?: boolean}).subjectOpenedHere).toBe(true);
+  expect(window.location.search).toContain('s=individuals/0010082');
+});
+
+test('focusing a sighting, from a dot on the map, closes the subject in the same history entry', async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const sighting = occurrenceFixture('aaa', '2024-07-15T18:23:00Z');
+  const el = await mountWithSightings(sighting);
+  // A subject in the URL, as a link or the browser's Back would put it there.
+  window.history.pushState({}, '', '/?d=2024-07-15&s=individuals/0010082');
+  window.dispatchEvent(new PopStateEvent('popstate'));
+  await el.updateComplete;
+  expect(el.shadowRoot!.querySelector('subject-view')!.hidden).toBe(false);
+  el.focusOccurrence(sighting);
+  await el.updateComplete;
+  const params = new URLSearchParams(window.location.search);
+  expect(params.get('o')).toBe('aaa');
+  expect(params.get('s')).toBeNull();
+  expect(el.shadowRoot!.querySelector('obs-panel')!.hidden).toBe(false);
+});

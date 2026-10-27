@@ -1,38 +1,24 @@
 import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { individualPath, matrilinePath, type OccurrenceLink } from './catalog.ts';
-import { individualStyles, renderIndividualProfile, renderIndividualSightings, type IndividualProfileData } from './individual-profile.ts';
+import { matrilineTitle } from './matriline-profile.ts';
+import { individualStyles, individualTitle, renderIndividualProfile, renderIndividualSightings, type IndividualProfileData } from './individual-profile.ts';
 import { renderMatrilineProfile, renderMatrilineSightings, type MatrilineProfileData } from './matriline-profile.ts';
 import { latestLink, profileStyles } from './profile-shared.ts';
-import { findOccurrence, pacificDay, READ_PATH_BASE } from './read-path.ts';
+import { fetchManifest, findOccurrence, pacificDay, READ_PATH_BASE } from './read-path.ts';
 import type { Occurrence } from './types.ts';
 import './obs-summary.ts';
-import { decodeSubjectData, sameSubject, subjectDataPath, subjectFromHref, subjectLinksPath, type Subject } from './subject.ts';
+import {
+  decodeSubjectData, interceptableAnchor, occurrenceFromHref, sameSubject, subjectDataPath, subjectFromHref, subjectLinksPath,
+  type OccurrenceTarget, type Subject,
+} from './subject.ts';
+
+export type { OccurrenceTarget } from './subject.ts';
 
 /** A subject's page data and sighting links, once both have arrived. */
 type Loaded =
-  | {kind: 'individuals', subject: Subject, data: IndividualProfileData, links: OccurrenceLink[]}
-  | {kind: 'matrilines', subject: Subject, data: MatrilineProfileData, links: OccurrenceLink[]};
-
-/** Where a "Last reported" link points: a day on the map, and the sighting to select. */
-export interface OccurrenceTarget {
-  date: string;
-  occurrenceId: string;
-}
-
-/** A link on the map page to a day and a sighting, as `mapUrl` writes them: `/?d=2026-10-24&o=maplify%3A1`. */
-export function occurrenceFromHref(href: string, base = window.location.origin): OccurrenceTarget | null {
-  let url: URL;
-  try {
-    url = new URL(href, base);
-  } catch {
-    return null;
-  }
-  if (url.origin !== new URL(base).origin || url.pathname !== '/') return null;
-  const date = url.searchParams.get('d');
-  const occurrenceId = url.searchParams.get('o');
-  return date && /^\d{4}-\d{2}-\d{2}$/.test(date) && occurrenceId ? {date, occurrenceId} : null;
-}
+  | {kind: 'individuals', subject: Subject, data: IndividualProfileData, links: OccurrenceLink[], currentYear?: number}
+  | {kind: 'matrilines', subject: Subject, data: MatrilineProfileData, links: OccurrenceLink[], currentYear?: number};
 
 /**
  * The map page's sidebar showing one subject, an animal or a matriline, in place of the
@@ -138,7 +124,21 @@ export class SubjectView extends LitElement {
     super();
     this.addEventListener('click', this.onClick);
     this.addEventListener('focus-occurrence', this.onCardFocus);
+    this.addEventListener('sighting-deleted', this.onCardDeleted);
   }
+
+  /** What the subject is called, as its page's title has it; null until it has loaded. */
+  get subjectTitle(): string | null {
+    const loaded = this.loaded;
+    if (!loaded || !sameSubject(loaded.subject, this.subject)) return null;
+    return loaded.kind === 'individuals' ? individualTitle(loaded.data) : matrilineTitle(loaded.data);
+  }
+
+  // Deleted from its own card here: the card goes. The page's handler drops it from the
+  // day's list too, as the event carries on up.
+  private onCardDeleted = (event: Event) => {
+    if ((event as CustomEvent<string>).detail === this.latest?.id) this.latest = null;
+  };
 
   // The card's dot asks to focus its sighting. Here that means going to its day on the
   // map, as "Last reported" does, not focusing it under a sidebar that stays open.
@@ -150,25 +150,35 @@ export class SubjectView extends LitElement {
       detail: {date: pacificDay(occurrence.observed_at), occurrenceId: occurrence.id}}));
   };
 
+  /** The subject last shown, so that hiding the view and showing it again keeps what it had loaded. */
+  #shown: Subject | null = null;
+
   protected willUpdate(changed: PropertyValues<this>): void {
-    if (changed.has('subject') && !sameSubject(this.subject, this.loaded?.subject ?? null)) {
+    // Hidden (no subject), the view keeps what it loaded: Back to the same subject, after
+    // "Last reported" for one, shows it at once, where it was scrolled to.
+    if (changed.has('subject') && this.subject && !sameSubject(this.subject, this.#shown)) {
       this.loaded = null;
       this.failed = false;
       this.latest = undefined;
-      if (this.subject) void this.load(this.subject);
+      void this.load(this.subject);
     }
   }
 
   protected updated(changed: PropertyValues<this>): void {
-    // A new subject starts at its top, not where the last one was scrolled to.
-    if (changed.has('subject')) this.scrollTop = 0;
+    // A different subject starts at its top, not where the last one was scrolled to.
+    if (changed.has('subject') && this.subject && !sameSubject(this.subject, this.#shown)) {
+      this.scrollTop = 0;
+      this.#shown = this.subject;
+    }
   }
 
   private async load(subject: Subject): Promise<void> {
     try {
-      const [dataResponse, linksResponse] = await Promise.all([
+      const [dataResponse, linksResponse, manifest] = await Promise.all([
         fetch(`${READ_PATH_BASE}${subjectDataPath(subject)}`),
         fetch(`${READ_PATH_BASE}${subjectLinksPath(subject)}`),
+        // The presence table ends on the build's year, as the page's does, not the browser's.
+        fetchManifest().catch(() => null),
       ]);
       if (!dataResponse.ok) throw new Error(`${subjectDataPath(subject)}: ${dataResponse.status}`);
       const data = decodeSubjectData<IndividualProfileData & MatrilineProfileData>(await dataResponse.text());
@@ -176,7 +186,8 @@ export class SubjectView extends LitElement {
       const links: OccurrenceLink[] = linksResponse.ok ? await linksResponse.json() : [];
       // Only if this is still the subject asked for: a quick second click can overtake the first.
       if (!sameSubject(subject, this.subject)) return;
-      this.loaded = {kind: subject.kind, subject, data, links} as Loaded;
+      const currentYear = manifest ? Number(manifest.covered_through.slice(0, 4)) : undefined;
+      this.loaded = {kind: subject.kind, subject, data, links, currentYear} as Loaded;
       void this.loadLatest(subject, links);
     } catch {
       if (sameSubject(subject, this.subject)) this.failed = true;
@@ -216,7 +227,7 @@ export class SubjectView extends LitElement {
     if (!loaded) return html`<p class="status">Loading…</p>`;
     const latestCard = this.latest === undefined ? html`<p class="status">Loading the sighting…</p>`
       : this.latest ? html`<obs-summary .sighting=${this.latest}></obs-summary>` : nothing;
-    const options = {map: false, latestCard};
+    const options = {map: false, latestCard, currentYear: loaded.currentYear};
     const body = loaded.kind === 'individuals'
       ? renderIndividualProfile(loaded.data, renderIndividualSightings(loaded.data.profile.primary_designation, loaded.links, options))
       : renderMatrilineProfile(loaded.data, renderMatrilineSightings(loaded.data.group.designation, loaded.links, options));
@@ -234,10 +245,9 @@ export class SubjectView extends LitElement {
   // itself are taken over here. A click with a modifier key, or with any button but the
   // first, still opens the page, in whatever tab or window the visitor asked for.
   private onClick = (event: MouseEvent) => {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const anchor = event.composedPath().find((n): n is HTMLAnchorElement => n instanceof HTMLAnchorElement);
+    const anchor = interceptableAnchor(event);
     // The links to the subject's own page are meant to leave the map.
-    if (!anchor || anchor.target === '_blank' || anchor.classList.contains('full-page') || anchor.classList.contains('full-page-link')) return;
+    if (!anchor || anchor.classList.contains('full-page') || anchor.classList.contains('full-page-link')) return;
     const href = anchor.getAttribute('href') ?? '';
     const subject = subjectFromHref(href);
     if (subject) {

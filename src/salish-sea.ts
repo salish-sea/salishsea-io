@@ -29,7 +29,7 @@ import lockupUrl from "./assets/lockup-dark.svg?url";
 import { renderSiteNav } from './site-nav.ts';
 import './site-search.ts';
 import './subject-view.ts';
-import type { OccurrenceTarget } from './subject-view.ts';
+import type { OccurrenceTarget, SubjectView } from './subject-view.ts';
 import { parseSubject, readableSubject, sameSubject, SUBJECT_PARAM, subjectParam, type Subject } from './subject.ts';
 
 initSentry();
@@ -327,14 +327,25 @@ export default class SalishSea extends LitElement {
   @state()
   private subject: Subject | null = initialParams.subject;
 
+  private subjectViewRef = createRef<SubjectView>();
+
   #openSubject = (evt: Event) => {
     const subject = (evt as CustomEvent<Subject>).detail;
     if (sameSubject(subject, this.subject)) return;
+    // What the sidebar's Back will return to: the subject open now, by name, or the day.
+    const backTo = this.subject ? this.subjectViewRef.value?.subjectTitle ?? null : null;
     this.subject = subject;
     // Marked as opened here, so the sidebar's Back can step back through history to
     // exactly where the visitor was, list or subject.
-    setQueryParams({[SUBJECT_PARAM]: subjectParam(subject)}, {state: {subjectOpenedHere: true}});
+    setQueryParams({[SUBJECT_PARAM]: subjectParam(subject)}, {state: {subjectOpenedHere: true, backTo}});
   };
+
+  /** Close the subject without a history entry of its own, for an act that needs the day's list: editing, cloning. */
+  #leaveSubject() {
+    if (!this.subject) return;
+    this.subject = null;
+    setQueryParams({}, {remove: [SUBJECT_PARAM], replace: true});
+  }
 
   #closeSubject = () => {
     if ((window.history.state as {subjectOpenedHere?: boolean} | null)?.subjectOpenedHere) {
@@ -349,12 +360,19 @@ export default class SalishSea extends LitElement {
 
   // "Last reported" in a subject's view: the map moves to that day and selects the
   // sighting, which closes the subject. One history entry, so Back returns to it.
+  // Only once the sighting is found: the URL and the screen must not disagree about the day.
   #goToOccurrence = (evt: Event) => {
     const {date, occurrenceId} = (evt as CustomEvent<OccurrenceTarget>).detail;
-    this.subject = null;
-    setQueryParams({d: date, o: occurrenceId}, {remove: [SUBJECT_PARAM]});
     this.hydrateFromOccurrenceId(occurrenceId)
-      .then(() => this.requestUpdate())
+      .then(found => {
+        if (!found) {
+          reportError(this, "That sighting is no longer on the map.", {capture: false});
+          return;
+        }
+        this.subject = null;
+        setQueryParams({d: date, o: occurrenceId}, {remove: [SUBJECT_PARAM]});
+        this.requestUpdate();
+      })
       .catch(err => reportError(this, "Couldn't find that sighting.", {cause: err}));
   };
 
@@ -468,12 +486,15 @@ export default class SalishSea extends LitElement {
     });
     this.addEventListener('clone-sighting', (evt) => {
       const sighting = (evt as CloneSightingEvent).detail;
+      // The form opens in the day's list, which the subject's view covers.
+      this.#leaveSubject();
       const clone = {...sighting, id: v7()};
       this.panelRef.value!.editObservation(clone, {copy: true})
         .catch(err => reportError(this, "Couldn't open a copy of that sighting. Please try again.", {cause: err}));
     });
     this.addEventListener('edit-observation', (evt) => {
       const sighting = (evt as EditSightingEvent).detail;
+      this.#leaveSubject();
       this.panelRef.value!.editObservation(sighting)
         .catch(err => reportError(this, "Couldn't open that sighting for editing. Please try again.", {cause: err}));
     });
@@ -543,8 +564,9 @@ export default class SalishSea extends LitElement {
             `;
           })}
         </obs-panel>
-        <subject-view ?hidden=${!this.subject} .subject=${this.subject}
-          back-label=${Temporal.PlainDate.from(this.date).toLocaleString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})}></subject-view>
+        <subject-view ${ref(this.subjectViewRef)} ?hidden=${!this.subject} .subject=${this.subject}
+          back-label=${(window.history.state as {backTo?: string | null} | null)?.backTo
+            ?? Temporal.PlainDate.from(this.date).toLocaleString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})}></subject-view>
         <error-toast ${ref(this.errorToastRef)}></error-toast>
         <feedback-form></feedback-form>
       </main>
@@ -664,6 +686,10 @@ export default class SalishSea extends LitElement {
 
   focusOccurrence(occurrence: Occurrence | null) {
     this.focusedOccurrenceId = occurrence?.id || null;
+    // A sighting is shown in the day's list, so focusing one (a dot on the map, your last
+    // sighting from the account menu) closes the subject the sidebar shows; one history entry.
+    const leaving = !!occurrence && !!this.subject;
+    if (leaving) this.subject = null;
     if (occurrence) {
       // Focusing may change the date; flag it so the date setter doesn't treat this as a
       // user day-change and clear the focus we just set.
@@ -677,7 +703,7 @@ export default class SalishSea extends LitElement {
 
     if (!this.#isRestoringFromHistory) {
       if (this.focusedOccurrenceId) {
-        setQueryParams({o: this.focusedOccurrenceId});
+        setQueryParams({o: this.focusedOccurrenceId}, leaving ? {remove: [SUBJECT_PARAM]} : {});
       } else {
         removeQueryParam('o');
       }
@@ -796,10 +822,10 @@ export default class SalishSea extends LitElement {
    * active region may well exclude it, which is what {@link #permalinkOccurrence}
    * is for.
    *
-   * Rejects when the lookup fails; resolves, having done nothing, when the id
-   * names no sighting we have.
+   * Rejects when the lookup fails; resolves false, having done nothing, when the id
+   * names no sighting we have, and true once it has moved to the sighting.
    */
-  private async hydrateFromOccurrenceId(id: string): Promise<void> {
+  private async hydrateFromOccurrenceId(id: string): Promise<boolean> {
     // From the read-path files: the id index says which day, and the day's file has
     // the sighting (decision 056). An error throws; an id we don't have resolves to null.
     let occurrence = await findOccurrence<Occurrence>(id);
@@ -809,7 +835,7 @@ export default class SalishSea extends LitElement {
     // comes with the build or not at all.
     if (!occurrence && !id.includes(':'))
       occurrence = await fetchPublicSighting(id);
-    if (!occurrence) return; // not found — silent fallback per decisions
+    if (!occurrence) return false; // not found — silent fallback per decisions
 
     const date = dateFromObservedAt(occurrence.observed_at);
     // Set before fetching: the fetch's own response is the first one that has
@@ -827,6 +853,7 @@ export default class SalishSea extends LitElement {
     const coord = fromLonLat([lon, lat]);
     this.mapRef.value!.setView(coord[0]!, coord[1]!, 12, {skipEvent: true});
     this.focusedOccurrenceId = id;
+    return true;
   }
 }
 
@@ -834,7 +861,8 @@ export function dateFromObservedAt(observedAt: string): string {
   return pacificDay(observedAt);
 }
 
-function setQueryParams(params: {[k: string]: string}, options: {replace?: boolean, remove?: string[], state?: object} = {}) {
+/** Write the page's URL; exported for its tests. */
+export function setQueryParams(params: {[k: string]: string}, options: {replace?: boolean, remove?: string[], state?: object} = {}) {
     const url = new URL(window.location.href);
     for (const [k, v] of Object.entries(params)) {
       url.searchParams.set(k, v);
@@ -843,7 +871,9 @@ function setQueryParams(params: {[k: string]: string}, options: {replace?: boole
       url.searchParams.delete(k);
     }
     if (options.replace) {
-      window.history.replaceState(options.state ?? {}, '', readableSubject(url));
+      // Replacing keeps the entry's own state unless given another: a map move rewrites
+      // the URL, and must not forget that the subject on screen was opened here.
+      window.history.replaceState(options.state ?? window.history.state ?? {}, '', readableSubject(url));
     } else {
       window.history.pushState(options.state ?? {}, '', readableSubject(url));
     }

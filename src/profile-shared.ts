@@ -312,7 +312,8 @@ export interface SightingsOptions {
   /**
    * The newest sighting's card, which puts "Last reported" at the top of the section with
    * the card beneath it, ahead of the table: the map page's sidebar, where the card is a
-   * live component (salish-7ds1.1). `nothing` while the card is still loading.
+   * live component (salish-7ds1.1). `nothing` when there is no card to show, as when the
+   * sighting can't be found: the line still comes first, with no box under it.
    */
   latestCard?: unknown;
 }
@@ -353,7 +354,7 @@ export function renderSightingsSummary(
   if (latestCard !== undefined)
     return html`
       ${note}
-      <div class="latest-card">${latestCard}</div>
+      ${latestCard === nothing ? nothing : html`<div class="latest-card">${latestCard}</div>`}
       ${renderPresenceTable(links, undefined, undefined, currentYear)}
     `;
   return html`

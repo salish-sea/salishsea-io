@@ -61,6 +61,38 @@ export function subjectFromHref(href: string, base = window.location.origin): Su
   return match && isKind(match[1]!) ? {kind: match[1], id: match[2]!} : null;
 }
 
+/**
+ * The anchor a click landed on, if the page may handle the click itself: a plain click
+ * with the first button and no modifier key, not already handled, on a link that isn't
+ * meant for a new tab. Otherwise null, and the click opens the link as any click does.
+ * The sighting cards and the subject view both use it, so they can't disagree.
+ */
+export function interceptableAnchor(event: MouseEvent): HTMLAnchorElement | null {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null;
+  const anchor = event.composedPath().find((n): n is HTMLAnchorElement => n instanceof HTMLAnchorElement);
+  return anchor && anchor.target !== '_blank' && !anchor.hasAttribute('download') ? anchor : null;
+}
+
+/** Where a "Last reported" link points: a day on the map, and the sighting to select. */
+export interface OccurrenceTarget {
+  date: string;
+  occurrenceId: string;
+}
+
+/** A link on the map page to a day and a sighting, as `mapUrl` writes them: `/?d=2026-10-24&o=maplify%3A1`. */
+export function occurrenceFromHref(href: string, base = window.location.origin): OccurrenceTarget | null {
+  let url: URL;
+  try {
+    url = new URL(href, base);
+  } catch {
+    return null;
+  }
+  if (url.origin !== new URL(base).origin || url.pathname !== '/') return null;
+  const date = url.searchParams.get('d');
+  const occurrenceId = url.searchParams.get('o');
+  return date && /^\d{4}-\d{2}-\d{2}$/.test(date) && occurrenceId ? {date, occurrenceId} : null;
+}
+
 /** Where the build writes a subject's page data and its sighting links, under the read-path files. */
 export function subjectDataPath({kind, id}: Subject): string {
   return `profiles/${kind}/${id}.json`;

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import type { OccurrenceLink } from './catalog.ts';
 import { latestLink } from './profile-shared.ts';
 
 describe('the sighting a profile reports as its last', () => {
-  const link = (id: string, extra: {vitality?: string | null, via_group?: string | null} = {}) =>
-    ({occurrence_id: id, vitality: null, via_group: null, ...extra});
+  const link = (id: string, extra: Partial<Pick<OccurrenceLink, 'vitality' | 'via_group'>> = {}) =>
+    ({occurrence_id: id, via_group: null, ...extra}) as Pick<OccurrenceLink, 'occurrence_id' | 'vitality' | 'via_group'>;
 
   it('is the newest, links coming newest first', () => {
     expect(latestLink([link('b'), link('a')])).toEqual({latest: link('b'), dead: false});
