@@ -198,3 +198,167 @@ describe('confirmationNote', () => {
     expect(confirmationNote({confirmation: 'unconfirmed', provider_slug: 'orcasound'})).toMatch(/possibly heard/);
   });
 });
+
+describe("a card's actions menu", () => {
+  const mounted = async () => {
+    const el = document.createElement('obs-summary') as ObsSummary;
+    (el as unknown as {sighting: Partial<Occurrence>}).sighting = {
+      id: 'inaturalist:1', body: null, confirmation: 'confirmed', disagreements: null, vitality: null, count: null,
+      observed_at: '2026-09-15T18:00:00+00:00', photos: [], provider_slug: 'inaturalist', provider: 'iNaturalist',
+      collection: 'iNaturalist', observer: 'someone', source_url: null, organization_url: null, url: null, attribution: null,
+      identifiers: null,
+      taxon: {scientific_name: 'Megaptera novaeangliae', vernacular_name: 'Humpback whale', species_id: 41566, entity_id: null},
+    };
+    document.body.append(el);
+    await el.updateComplete;
+    const root = el.shadowRoot!;
+    const button = root.querySelector<HTMLButtonElement>('button.more')!;
+    const items = () => [...root.querySelectorAll<HTMLButtonElement>('.menu [role="menuitem"]')];
+    const settle = async () => { await el.updateComplete; await el.updateComplete; };
+    return {el, root, button, items, settle};
+  };
+  afterEach(() => { document.body.replaceChildren(); });
+
+  it('is closed until its button is pressed, and then offers what anyone may do', async () => {
+    const {button, items, settle} = await mounted();
+    expect(items()).toEqual([]);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    button.click();
+    await settle();
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    // Signed out, and not one's own sighting: only the link to it.
+    expect(items().map(i => i.textContent)).toEqual(['Copy link']);
+    // Out of the Tab order, as a menu's items are: the arrows move between them, and
+    // Tab leaves the menu rather than landing on an item about to be removed.
+    expect(items().map(i => i.tabIndex)).toEqual([-1]);
+  });
+
+  it('closes on Escape and gives focus back to its button', async () => {
+    const {root, button, items, settle} = await mounted();
+    button.click();
+    await settle();
+    expect(root.activeElement).toBe(items()[0]);
+    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+    await settle();
+    expect(items()).toEqual([]);
+    expect(root.activeElement).toBe(button);
+  });
+
+  it('closes on a click elsewhere on the page, but not on a click inside it', async () => {
+    const {root, button, items, settle} = await mounted();
+    button.click();
+    await settle();
+    root.querySelector<HTMLElement>('.menu')!.click();
+    await settle();
+    expect(items().length).toBe(1);
+    document.body.click();
+    await settle();
+    expect(items()).toEqual([]);
+  });
+
+  it("closes when another card's menu opens", async () => {
+    const first = await mounted();
+    const second = await mounted();
+    first.button.click();
+    await first.settle();
+    second.button.click();
+    await first.settle();
+    await second.settle();
+    expect(first.items()).toEqual([]);
+    expect(second.items().length).toBe(1);
+  });
+
+  it('closes once focus has moved out of it, as Tab moves it, and leaves focus where it went', async () => {
+    const {el, root, button, items, settle} = await mounted();
+    const elsewhere = document.createElement('button');
+    document.body.append(elsewhere);
+    button.click();
+    await settle();
+    // Tab is not handled: the menu's items are out of the Tab order, so the browser
+    // takes focus past the menu, and only then does the menu close.
+    root.querySelector('.menu')!.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', bubbles: true, composed: true}));
+    await settle();
+    expect(items().length).toBe(1);
+    elsewhere.focus();
+    items()[0]!.dispatchEvent(new FocusEvent('focusout', {relatedTarget: elsewhere, bubbles: true, composed: true}));
+    await settle();
+    expect(items()).toEqual([]);
+    expect(document.activeElement).toBe(elsewhere);
+    // A focusout with nowhere to go is left to the page's click listener.
+    button.click();
+    await settle();
+    items()[0]!.dispatchEvent(new FocusEvent('focusout', {relatedTarget: null, bubbles: true, composed: true}));
+    await settle();
+    expect(items().length).toBe(1);
+    el.remove();
+  });
+
+  it('gives focus back to its button when Copy link closes it, rather than to the page', async () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', {value: {writeText}, configurable: true});
+    try {
+      const {root, button, items, settle} = await mounted();
+      button.click();
+      await settle();
+      items()[0]!.focus();
+      items()[0]!.click();
+      await settle();
+      expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\?o=inaturalist:1$/));
+      expect(items()[0]!.textContent).toBe('Copied!');
+      await vi.advanceTimersByTimeAsync(1200);
+      await settle();
+      expect(items()).toEqual([]);
+      expect(root.activeElement).toBe(button);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('closes on a click elsewhere on its own card', async () => {
+    const {root, button, items, settle} = await mounted();
+    button.click();
+    await settle();
+    root.querySelector<HTMLElement>('header b')!.click();
+    await settle();
+    expect(items()).toEqual([]);
+  });
+
+  it('closes, and stays closed, when its button is pressed while an item has focus', async () => {
+    const {button, items, settle} = await mounted();
+    button.click();
+    await settle();
+    items()[0]!.focus();
+    // A press moves focus from the item to the button before the click arrives.
+    button.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, composed: true}));
+    button.focus();
+    items()[0]!.dispatchEvent(new FocusEvent('focusout', {relatedTarget: button, bubbles: true, composed: true}));
+    await settle();
+    button.click();
+    await settle();
+    expect(items()).toEqual([]);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('closes when Shift+Tab takes focus from an item back to its button', async () => {
+    const {button, items, settle} = await mounted();
+    button.click();
+    await settle();
+    items()[0]!.focus();
+    button.focus();
+    items()[0]!.dispatchEvent(new FocusEvent('focusout', {relatedTarget: button, bubbles: true, composed: true}));
+    await settle();
+    expect(items()).toEqual([]);
+  });
+
+  it('stops listening to the page once closed', async () => {
+    const {button, settle} = await mounted();
+    const removed = vi.spyOn(document, 'removeEventListener');
+    button.click();
+    await settle();
+    button.click();
+    await settle();
+    expect(removed.mock.calls.map(([type]) => type).sort()).toEqual(['click', 'keydown']);
+    removed.mockRestore();
+  });
+});

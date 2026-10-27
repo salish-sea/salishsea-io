@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { ecotypeCodes, injectIndividualLinks, matrilineCodes, setCatalogCodes } from './individual-links.ts';
+import { ecotypeCodes, injectIndividualLinks, matrilineCodes, namedAnimals, setCatalogCodes } from './individual-links.ts';
 
 // Links carry the register identifier and the designation as its slug (034).
 const T065A5 = { entity_id: 'SSA:0010197', primary_designation: 'T065A5' };
@@ -105,4 +105,60 @@ test('rows from either source build the lookup the links are made from', () => {
   expect(injectIndividualLinks('T65A and the T65As, with T046A, among transients; X9 too',
     byCode, matrilineCodes()!, ecotypeCodes()!)).toBe(
     '[T65A](/individuals/0010193/T065A) and the [T65As](/matrilines/0002163/T065As), with [T046A](/individuals/0010368/T122), among [transients](/populations/0000002/Biggs); X9 too');
+});
+
+test('a sighting\'s named animals become chips, each once, in the order its text names them', () => {
+  // As the build extracts them from a real report: a code can repeat, and the
+  // same animal can be written two ways.
+  expect(namedAnimals(['T65A5', 'T65As', 'T065A5', 'T65A5'], codes, matrilines)).toEqual([
+    { label: 'T65A5', href: '/individuals/0010197/T065A5', possibly: false },
+    { label: 'T65As', href: '/matrilines/0002163/T065As', possibly: false },
+  ]);
+});
+
+test('a chip links a superseded code to the individual that now carries it', () => {
+  expect(namedAnimals(['T46A'], codes, matrilines)).toEqual([{ label: 'T46A', href: '/individuals/0010368/T122', possibly: false }]);
+});
+
+test('a code the catalogue does not know stays as a chip without a link', () => {
+  // Still what the observer wrote; linking is a navigation aid, not an identification.
+  expect(namedAnimals(['CRC338', 'T46Bs', 'T999s'], codes, matrilines)).toEqual([
+    { label: 'CRC338', href: null, possibly: false },
+    { label: 'T46Bs', href: '/matrilines/0002149/T046Bs', possibly: false },
+    { label: 'T999s', href: null, possibly: false },
+  ]);
+});
+
+test('a sighting that names no animal has no chips', () => {
+  expect(namedAnimals(null, codes, matrilines)).toEqual([]);
+  expect(namedAnimals([], codes, matrilines)).toEqual([]);
+});
+
+test("an Orcasound bout's tags become chips too: a tag only possibly heard says so, a population links by name", () => {
+  // Bout identifiers are the register's labels, not codes read from text (decision 054).
+  const populations = new Map([
+    ['biggs', { entity_id: 'SSA:0000002', designation: 'Biggs' }],
+    ['southern resident', { entity_id: 'SSA:0000010', designation: 'Southern Resident' }],
+  ]);
+  expect(namedAnimals(['T65A5?', "Bigg's", 'Southern Resident', 'J pod'], codes, matrilines, populations)).toEqual([
+    { label: 'T65A5', href: '/individuals/0010197/T065A5', possibly: true },
+    { label: "Bigg's", href: '/populations/0000002/Biggs', possibly: false },
+    { label: 'Southern Resident', href: '/populations/0000010/Southern-Resident', possibly: false },
+    // Pods aren't in the catalogue file yet (salish-fwyt.3).
+    { label: 'J pod', href: null, possibly: false },
+  ]);
+});
+
+test('names for one animal are one chip, under the first name written; heard outranks possibly heard', () => {
+  // T46A was renamed T122: the same individual, one page.
+  expect(namedAnimals(['T46A', 'T122'], codes, matrilines)).toEqual([
+    { label: 'T46A', href: '/individuals/0010368/T122', possibly: false },
+  ]);
+  // Two moderators, one sure and one hedging (decision 054).
+  expect(namedAnimals(['T65A5?', 'T65A5'], codes, matrilines)).toEqual([
+    { label: 'T65A5', href: '/individuals/0010197/T065A5', possibly: false },
+  ]);
+  expect(namedAnimals(['CRC338?', 'CRC338?'], codes, matrilines)).toEqual([
+    { label: 'CRC338', href: null, possibly: true },
+  ]);
 });
