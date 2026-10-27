@@ -41,7 +41,6 @@ export class SubjectView extends LitElement {
     :host {
       box-sizing: border-box;
       display: block;
-      font-family: Mukta, Helvetica, Arial, sans-serif;
       overflow-y: auto;
       overscroll-behavior: contain;
       padding: 0 0.75rem 5.5rem;
@@ -62,7 +61,7 @@ export class SubjectView extends LitElement {
       color: #1976d2;
       cursor: pointer;
       font: inherit;
-      font-weight: 600;
+      font-weight: 400;
       min-height: 36px;
       padding: 0.25rem 0.5rem;
     }
@@ -78,10 +77,10 @@ export class SubjectView extends LitElement {
       margin-bottom: 0.75rem;
     }
     h1 {
-      font-size: 1.75rem;
+      font-size: var(--fs-h5);
     }
     .vitals {
-      font-size: 1rem;
+      font-size: var(--fs-body1);
     }
     section {
       margin-top: 1.25rem;
@@ -97,7 +96,7 @@ export class SubjectView extends LitElement {
       border: 1px solid #1976d2;
       border-radius: 4px;
       display: inline-block;
-      font-weight: 600;
+      font-weight: 400;
       margin-top: 1.5rem;
       padding: 0.375rem 0.75rem;
       text-decoration: none;

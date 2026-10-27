@@ -80,9 +80,11 @@ export class ObsSummary extends LitElement {
       flex-grow: 1;
       gap: 0.5rem;
     }
+    /* The name's companions on the heading line, its count, its standing and its
+       time, share one size (salish-hdhv). */
     time {
       color: #64748b;
-      font-size: 0.75rem;
+      font-size: var(--fs-body2);
       white-space: nowrap;
     }
     a {
@@ -97,7 +99,7 @@ export class ObsSummary extends LitElement {
     cite {
       color: #64748b;
       display: block;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
       font-style: normal;
       margin-top: 0.5rem;
     }
@@ -120,7 +122,7 @@ export class ObsSummary extends LitElement {
       border-radius: 12px;
       box-sizing: border-box;
       color: rgba(0, 0, 0, 0.87);
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
       line-height: 22px;
       padding: 0 8px;
       white-space: nowrap;
@@ -164,7 +166,7 @@ export class ObsSummary extends LitElement {
     .provider {
       color: #64748b;
       display: block;
-      font-size: 0.75rem;
+      font-size: var(--fs-caption);
       font-style: normal;
       margin-top: 0.125rem;
     }
@@ -176,7 +178,7 @@ export class ObsSummary extends LitElement {
     }
     .count {
       color: #64748b;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
     }
     .focus-occurrence {
       /* The taxon colour is set inline, per occurrence. The white ring is what
@@ -197,7 +199,7 @@ export class ObsSummary extends LitElement {
     }
     .confirmation {
       color: #64748b;
-      font-size: 0.75rem;
+      font-size: var(--fs-body2);
       font-style: italic;
     }
     .focus-occurrence:hover {
@@ -266,7 +268,8 @@ export class ObsSummary extends LitElement {
       cursor: pointer;
       display: block;
       font: inherit;
-      font-size: 0.875rem;
+      font-size: var(--fs-body2);
+      font-weight: 400;
       min-height: 40px;
       padding: 8px 16px;
       text-align: left;

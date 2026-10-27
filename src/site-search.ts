@@ -135,7 +135,7 @@ export class SiteSearch extends LitElement {
       box-sizing: border-box;
       color: #0f172a;
       font: inherit;
-      font-size: 0.9375rem;
+      font-size: var(--fs-body1);
       padding: 8px 10px;
       width: 100%;
     }
@@ -158,23 +158,23 @@ export class SiteSearch extends LitElement {
     }
     li a.latest {
       color: #1565c0;
-      font-size: 0.875rem;
+      font-size: var(--fs-body2);
       padding: 0.1rem 12px 0.45rem 28px;
     }
     li[aria-selected="true"] a {
       background: #e3f2fd;
     }
     .label {
-      font-weight: 600;
+      font-weight: 400;
     }
     .note {
       color: #64748b;
       display: block;
-      font-size: 0.8rem;
+      font-size: var(--fs-caption);
     }
     .message {
       color: #64748b;
-      font-size: 0.875rem;
+      font-size: var(--fs-body2);
       padding: 0.4rem 12px;
     }
   `;

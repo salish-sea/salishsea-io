@@ -240,7 +240,7 @@ export const profileMapStyles = css`
   }
   figure.profile-map figcaption {
     color: #94a3b8;
-    font-size: 0.75rem;
+    font-size: var(--fs-caption);
     margin: 0.25rem 0 0;
   }
   figure.profile-map figcaption a {

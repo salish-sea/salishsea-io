@@ -87,8 +87,8 @@ export class AccountMenu extends LitElement {
     .identity {
       align-items: center;
       display: flex;
-      font-size: 1rem;
-      font-weight: 600;
+      font-size: var(--fs-body1);
+      font-weight: 400;
       gap: 8px;
       line-height: 1.4;
       padding: 6px 16px 10px;
@@ -103,7 +103,7 @@ export class AccountMenu extends LitElement {
       border: 1px solid #ddd;
       border-radius: 999px;
       color: #767676;
-      font-size: 0.7rem;
+      font-size: var(--fs-caption);
       font-weight: 400;
       padding: 0.1rem 0.5rem;
     }
@@ -116,7 +116,7 @@ export class AccountMenu extends LitElement {
       cursor: pointer;
       display: flex;
       font: inherit;
-      font-size: 0.875rem;
+      font-size: var(--fs-body2);
       gap: 8px;
       line-height: 1.5;
       min-height: 44px;
@@ -140,7 +140,7 @@ export class AccountMenu extends LitElement {
     }
     .status {
       color: #767676;
-      font-size: 0.75rem;
+      font-size: var(--fs-caption);
       line-height: 1.4;
       padding: 2px 16px 6px;
     }

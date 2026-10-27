@@ -98,9 +98,6 @@ export const draftIsEmpty = (draft: Draft): boolean =>
 @customElement('feedback-form')
 export default class FeedbackForm extends LitElement {
   static styles = css`
-    :host {
-      font-family: Mukta, Helvetica, Arial, sans-serif;
-    }
     .trigger {
       position: fixed;
       right: 1rem;
@@ -113,7 +110,7 @@ export default class FeedbackForm extends LitElement {
       box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
       cursor: pointer;
       font-family: inherit;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
       min-height: 44px;
       padding: 0.5rem 0.75rem;
     }
@@ -130,7 +127,8 @@ export default class FeedbackForm extends LitElement {
       background: rgb(0 0 0 / 0.4);
     }
     h2 {
-      font-size: 1rem;
+      font-size: var(--fs-body1);
+      font-weight: 400;
       margin: 0 0 0.75rem;
     }
     label {
@@ -139,8 +137,8 @@ export default class FeedbackForm extends LitElement {
     }
     label > span {
       display: block;
-      font-size: 0.8125rem;
-      font-weight: 500;
+      font-size: var(--fs-body2);
+      font-weight: 400;
       margin-bottom: 0.25rem;
     }
     label:has([required]) > span::after {
@@ -152,7 +150,7 @@ export default class FeedbackForm extends LitElement {
       border: 1px solid var(--slate-300, #cbd5e1);
       border-radius: 4px;
       font-family: inherit;
-      font-size: 1rem;
+      font-size: var(--fs-body1);
       padding: 0.5rem;
       width: 100%;
     }
@@ -162,7 +160,7 @@ export default class FeedbackForm extends LitElement {
     }
     .note {
       color: #475569;
-      font-size: 0.75rem;
+      font-size: var(--fs-caption);
       line-height: 1.4;
       margin: 0 0 0.75rem;
     }
@@ -170,13 +168,13 @@ export default class FeedbackForm extends LitElement {
       background: rgb(253, 237, 237);
       border-left: 4px solid rgb(229, 115, 115);
       border-radius: 4px;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
       line-height: 1.4;
       margin: 0 0 0.75rem;
       padding: 0.5rem 0.625rem;
     }
     .sent {
-      font-size: 0.875rem;
+      font-size: var(--fs-body2);
       line-height: 1.4;
       margin: 0 0 0.75rem;
     }
@@ -189,7 +187,7 @@ export default class FeedbackForm extends LitElement {
       border-radius: 4px;
       cursor: pointer;
       font-family: inherit;
-      font-size: 0.875rem;
+      font-size: var(--fs-body2);
       min-height: 44px;
       padding: 0.5rem 0.875rem;
     }

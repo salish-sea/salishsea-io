@@ -53,11 +53,9 @@ export const whalesStyles = [smallMapStyles, css`
   }
   ol.species h2 {
     border: none;
-    font-size: 1.375rem;
-    letter-spacing: normal;
+    font-size: var(--fs-h6);
     margin: 0;
     padding: 0;
-    text-transform: none;
   }
   .scientific {
     color: #64748b;

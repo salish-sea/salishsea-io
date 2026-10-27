@@ -28,7 +28,6 @@ const profileOwnStyles = css`
   }
   a {
     color: #1976d2;
-    font-weight: 500;
     text-decoration: none;
   }
   a:hover {
@@ -39,41 +38,39 @@ const profileOwnStyles = css`
   }
   .designation-kicker {
     color: #64748b;
-    font-size: 0.9375rem;
+    font-size: var(--fs-body1);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
   h1 {
-    font-size: clamp(2.25rem, 6vw, 3.25rem);
-    font-weight: 600;
+    font-size: var(--fs-h4);
+    font-weight: 700;
     line-height: 1.1;
     margin: 0.25rem 0 0.5rem;
   }
   .vitals {
     color: #475569;
-    font-size: 1.0625rem;
+    font-size: var(--fs-body1);
     margin: 0;
   }
   .lineage {
     color: #64748b;
-    font-size: 0.9375rem;
+    font-size: var(--fs-body1);
     margin: 0.5rem 0 0;
   }
   .lineage b {
     color: #475569;
-    font-weight: 600;
+    font-weight: 400;
   }
   section {
     margin-top: 2.5rem;
   }
   h2 {
     border-bottom: 1px solid #e2e8f0;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
+    font-size: var(--fs-h6);
+    font-weight: 400;
     margin: 0 0 1rem;
     padding-bottom: 0.375rem;
-    text-transform: uppercase;
   }
   dl.sub-lineages {
     display: grid;
@@ -104,7 +101,7 @@ const profileOwnStyles = css`
     color: #64748b;
   }
   .self {
-    font-weight: 600;
+    font-weight: 400;
   }
   article.nickname {
     margin-bottom: 1.25rem;
@@ -116,7 +113,7 @@ const profileOwnStyles = css`
     margin: 0;
   }
   .nickname-line b {
-    font-weight: 600;
+    font-weight: 400;
   }
   table.presence {
     border-collapse: collapse;
@@ -124,8 +121,8 @@ const profileOwnStyles = css`
   }
   table.presence th {
     color: #94a3b8;
-    font-size: 0.75rem;
-    font-weight: 500;
+    font-size: var(--fs-caption);
+    font-weight: 400;
     padding: 0.125rem;
     text-align: center;
   }
@@ -137,7 +134,7 @@ const profileOwnStyles = css`
   table.presence td {
     border: 1px solid #f1f5f9;
     color: #1e3a5f;
-    font-size: 0.8125rem;
+    font-size: var(--fs-body2);
     height: 1.75rem;
     min-width: 1.75rem;
     padding: 0;
@@ -148,7 +145,7 @@ const profileOwnStyles = css`
   table.presence td.p3 { background: #90caf9; }
   .presence-note, .sightings-note {
     color: #64748b;
-    font-size: 0.875rem;
+    font-size: var(--fs-body2);
     margin: 0.75rem 0 0;
   }
   .placeholder {

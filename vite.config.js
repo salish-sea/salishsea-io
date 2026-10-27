@@ -281,9 +281,10 @@ ${urls}
       // all nine, Vite's manifest names them, and a lazily loaded chunk may still ask
       // for one, so deleting them would leave those pointing at nothing (salish-74v6).
       //
-      // It also preloads the regular Latin Mukta file, so the header's labels, set on
-      // Mukta's baseline (salish-sea.ts), don't first draw in the fallback font and
-      // then jump when Mukta arrives.
+      // It also preloads the Latin Work Sans files for the Regular labels in the header,
+      // which are set on the font's baseline (salish-sea.ts), and for the Light text
+      // around them, so neither first draws in the fallback font and then jumps when
+      // Work Sans arrives (salish-hdhv).
       name: 'inline-critical-css',
       apply: 'build',
       enforce: 'post',
@@ -300,9 +301,10 @@ ${urls}
             : Buffer.from(asset.source).toString('utf8');
           out = out.replace(linkRE, () => `<style>${css}</style>`);
         }
-        const regular = Object.keys(ctx.bundle).find(f => /\/mukta-latin-400-normal-[^/]+\.woff2$/.test(f));
-        if (regular && out.includes('Mukta'))
-          out = out.replace(/<head(\s[^>]*)?>/, head => `${head}\n    <link rel="preload" href="/${regular}" as="font" type="font/woff2" crossorigin>`);
+        const faces = Object.keys(ctx.bundle).filter(f => /\/work-sans-latin-(300|400)-normal-[^/]+\.woff2$/.test(f)).sort();
+        if (faces.length && out.includes('Work Sans'))
+          out = out.replace(/<head(\s[^>]*)?>/, head => head + faces.map(face =>
+            `\n    <link rel="preload" href="/${face}" as="font" type="font/woff2" crossorigin>`).join(''));
         return out;
       },
     },

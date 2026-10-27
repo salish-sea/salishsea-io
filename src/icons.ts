@@ -6,7 +6,7 @@ export const clickTargetIcon = svg`<path d="M468-240q-96-5-162-74t-66-166q0-100 
 export const locateMeIcon = svg`<path d="M440-42v-80q-125-14-214.5-103.5T122-440H42v-80h80q14-125 103.5-214.5T440-838v-80h80v80q125 14 214.5 103.5T838-520h80v80h-80q-14 125-103.5 214.5T520-122v80h-80Zm40-158q116 0 198-82t82-198q0-116-82-198t-198-82q-116 0-198 82t-82 198q0 116 82 198t198 82Zm0-120q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T560-480q0-33-23.5-56.5T480-560q-33 0-56.5 23.5T400-480q0 33 23.5 56.5T480-400Zm0-80Z"/>`;
 export const linkIcon = svg`<path d="M440-280H280q-83 0-141.5-58.5T80-480q0-83 58.5-141.5T280-680h160v80H280q-50 0-85 35t-35 85q0 50 35 85t85 35h160v80ZM320-440v-80h320v80H320Zm200 160v-80h160q50 0 85-35t35-85q0-50-35-85t-85-35H520v-80h160q83 0 141.5 58.5T880-480q0 83-58.5 141.5T680-280H520Z"/>`;
 // Stepper arrows for the date picker. Drawn rather than set as ◀/▶ (U+25C0 /
-// U+25B6): neither Mukta nor Helvetica carries those glyphs, so each fell
+// U+25B6): neither the site's typeface nor Helvetica carries those glyphs, so each fell
 // through to a per-glyph font fallback that differs by machine and gave the two
 // arrows different advance widths (12px vs 10.56px at 12px in Chromium). These
 // are exact mirrors of each other on every platform.

@@ -1,15 +1,52 @@
 /*
- * Mukta, the typeface every page names (salish-74v6). Until this file the site asked
- * for it without loading it, so visitors saw Helvetica or Arial. The font files come
- * from the @fontsource/mukta package and are served from this site, as orcasite serves
- * them (ui/src/styles/theme.ts there): no request goes to a font service. Each weight's
- * stylesheet declares a face per script with its unicode-range, so a browser fetches
- * only the Latin files an English page uses.
+ * The site's typography, after Orcasound's: one typeface, Work Sans, with weight
+ * rather than family carrying the hierarchy (Orcasound's 2023 brand guidelines,
+ * github.com/orcasound/orca-branding, and its design system; salish-hdhv).
  *
- * The weights are the ones our styles use: 400, 500, 600, and 700 for bold.
- * Linked from every page; the build inlines it into each (vite.config.js).
+ *   Light 300    running text: paragraphs, descriptions, captions, the default.
+ *   Regular 400  labels, buttons, headings, emphasised text (<b> and <strong>).
+ *   Bold 700     titles only: large text, the single most important thing.
+ *
+ * Sizes come from the scale below, which is Orcasound's (Material UI's): a component
+ * names one of these rather than a size of its own, so text that sits side by side
+ * matches. A shadow root inherits them, as it inherits the font.
+ *
+ * The font files come from the @fontsource/work-sans package and are served from
+ * this site: no request goes to a font service. Each weight's stylesheet declares a
+ * face per script with its unicode-range, so a browser fetches only the Latin files
+ * an English page uses. Linked from every page; the build inlines it into each
+ * (vite.config.js).
  */
-@import "@fontsource/mukta/400.css";
-@import "@fontsource/mukta/500.css";
-@import "@fontsource/mukta/600.css";
-@import "@fontsource/mukta/700.css";
+@import "@fontsource/work-sans/300.css";
+@import "@fontsource/work-sans/400.css";
+@import "@fontsource/work-sans/700.css";
+
+:root {
+  font-family: "Work Sans", Helvetica, Arial, sans-serif;
+  font-weight: 300;
+  line-height: 1.5;
+
+  --fs-h4: 2.125rem;
+  --fs-h5: 1.5rem;
+  --fs-h6: 1.25rem;
+  --fs-body1: 1rem;
+  --fs-body2: 0.875rem;
+  --fs-caption: 0.75rem;
+}
+
+/* Emphasis is Regular over Light, never Bold at text size. */
+b, strong {
+  font-weight: 400;
+}
+
+/* A page's title is its one Bold line; a section's heading is Regular. A component
+   sets its own, in its shadow root. */
+h1 {
+  font-size: var(--fs-h4);
+  font-weight: 700;
+  line-height: 1.2;
+}
+h2 {
+  font-size: var(--fs-h6);
+  font-weight: 400;
+}
