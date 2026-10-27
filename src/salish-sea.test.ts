@@ -610,3 +610,17 @@ test('opening a subject from a link moves focus to its Back button, and closing 
   await el.updateComplete;
   expect(el.shadowRoot!.activeElement ?? document.activeElement).toBe(link);
 });
+
+test('closing the subject by focusing a sighting leaves focus where the page put it, not on the opening link', async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const sighting = occurrenceFixture('aaa', '2024-07-15T18:23:00Z');
+  const el = await mountWithSightings(sighting);
+  const link = document.createElement('a');
+  link.href = '/individuals/0010082/T037';
+  el.shadowRoot!.querySelector('obs-panel')!.append(link);
+  await openSubjectFrom(el, link);
+  const focus = vi.spyOn(link, 'focus');
+  el.focusOccurrence(sighting);
+  await el.updateComplete;
+  expect(focus).not.toHaveBeenCalled();
+});

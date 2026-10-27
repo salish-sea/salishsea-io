@@ -335,6 +335,12 @@ export default class SalishSea extends LitElement {
   #focusView = false;
   /** Set while the sidebar's Back waits for the browser to step back, so a second press can't step again. */
   #closing = false;
+  /**
+   * Set when the visitor goes back from the subject, by either Back, so focus returns to
+   * the link it was opened from. Closed any other way (a dot on the map, Edit, "Last
+   * reported"), the page has put the visitor somewhere else, and focus stays put.
+   */
+  #restoreFocus = false;
 
   #openSubject = (evt: Event) => {
     const subject = (evt as CustomEvent<Subject>).detail;
@@ -360,9 +366,10 @@ export default class SalishSea extends LitElement {
       this.#focusView = false;
       this.subjectViewRef.value?.updateComplete.then(() => this.subjectViewRef.value?.focusBack());
     } else if (!this.subject && changed.get('subject')) {
-      // Closed, however: focus goes back to the link it was opened from, if it's still there.
-      const back = this.#returnFocus;
+      // Gone back from: focus returns to the link it was opened from, if it's still there.
+      const back = this.#restoreFocus ? this.#returnFocus : null;
       this.#returnFocus = null;
+      this.#restoreFocus = false;
       if (back?.isConnected) back.focus();
     }
   }
@@ -377,6 +384,7 @@ export default class SalishSea extends LitElement {
 
   #closeSubject = () => {
     if (this.#closing) return;
+    this.#restoreFocus = true;
     const state = window.history.state as {subjectOpenedHere?: boolean, stepsBack?: number} | null;
     if (state?.subjectOpenedHere) {
       // Back to where the subject was opened, however many entries ago: deselecting a
@@ -426,6 +434,8 @@ export default class SalishSea extends LitElement {
 
   #handlePopState = () => {
     this.#closing = false;
+    // The browser's Back or Forward: if it takes the subject away, that is going back from it.
+    if (this.subject && !parseSubject(new URLSearchParams(window.location.search).get(SUBJECT_PARAM))) this.#restoreFocus = true;
     this.#isRestoringFromHistory = true;
     if (this.#mapMoveDebounceTimer) {
       clearTimeout(this.#mapMoveDebounceTimer);
