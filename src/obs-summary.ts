@@ -17,6 +17,7 @@ import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
 import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, populationCodes } from './individual-links.ts';
+import { subjectFromHref, type Subject } from './subject.ts';
 
 const domPurify = createDOMPurify(window as any);
 
@@ -288,6 +289,23 @@ export class ObsSummary extends LitElement {
 
   @consume({context: contributorContext, subscribe: true})
   private contributor: Contributor | undefined;
+
+  constructor() {
+    super();
+    this.addEventListener('click', this.onAnimalLink);
+  }
+
+  // A link to an animal or a matriline, a chip or one in the text, opens it in the map
+  // page's sidebar rather than leaving the map (salish-7ds1.1). With a modifier key, or a
+  // button other than the first, it opens the page as any link does.
+  private onAnimalLink = (event: MouseEvent) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const anchor = event.composedPath().find((n): n is HTMLAnchorElement => n instanceof HTMLAnchorElement);
+    const subject = anchor && anchor.target !== '_blank' ? subjectFromHref(anchor.getAttribute('href') ?? '') : null;
+    if (!subject) return;
+    event.preventDefault();
+    this.dispatchEvent(new CustomEvent<Subject>('open-subject', {bubbles: true, composed: true, detail: subject}));
+  };
 
   connectedCallback(): void {
     super.connectedCallback();

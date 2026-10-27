@@ -9,8 +9,8 @@ import { decodeSubjectData, sameSubject, subjectDataPath, subjectFromHref, subje
 
 /** A subject's page data and sighting links, once both have arrived. */
 type Loaded =
-  | {subject: Subject & {kind: 'individuals'}, data: IndividualProfileData, links: OccurrenceLink[]}
-  | {subject: Subject & {kind: 'matrilines'}, data: MatrilineProfileData, links: OccurrenceLink[]};
+  | {kind: 'individuals', subject: Subject, data: IndividualProfileData, links: OccurrenceLink[]}
+  | {kind: 'matrilines', subject: Subject, data: MatrilineProfileData, links: OccurrenceLink[]};
 
 /** Where a "Last reported" link points: a day on the map, and the sighting to select. */
 export interface OccurrenceTarget {
@@ -154,7 +154,7 @@ export class SubjectView extends LitElement {
       // A subject without its links still shows, as one with no sightings yet.
       const links: OccurrenceLink[] = linksResponse.ok ? await linksResponse.json() : [];
       // Only if this is still the subject asked for: a quick second click can overtake the first.
-      if (sameSubject(subject, this.subject)) this.loaded = {subject, data, links} as Loaded;
+      if (sameSubject(subject, this.subject)) this.loaded = {kind: subject.kind, subject, data, links} as Loaded;
     } catch {
       if (sameSubject(subject, this.subject)) this.failed = true;
     }
@@ -163,7 +163,7 @@ export class SubjectView extends LitElement {
   private pagePath(): string | null {
     const loaded = this.loaded;
     if (!loaded) return null;
-    return loaded.subject.kind === 'individuals' ? individualPath(loaded.data.profile) : matrilinePath(loaded.data.group);
+    return loaded.kind === 'individuals' ? individualPath(loaded.data.profile) : matrilinePath(loaded.data.group);
   }
 
   protected render() {
@@ -177,9 +177,9 @@ export class SubjectView extends LitElement {
   private renderBody() {
     const loaded = this.loaded;
     if (this.failed)
-      return html`<p class="status">Couldn't load this ${this.subject!.kind === 'individuals' ? 'animal' : 'matriline'}. <a href=${`/${this.subject!.kind}/${this.subject!.id}`}>Open its page</a> instead.</p>`;
+      return html`<p class="status">Couldn't load this ${this.subject!.kind === 'individuals' ? 'animal' : 'matriline'}. <a class="full-page-link" href=${`/${this.subject!.kind}/${this.subject!.id}`}>Open its page</a> instead.</p>`;
     if (!loaded) return html`<p class="status">Loading…</p>`;
-    const body = loaded.subject.kind === 'individuals'
+    const body = loaded.kind === 'individuals'
       ? renderIndividualProfile(loaded.data, renderIndividualSightings(loaded.data.profile.primary_designation, loaded.links, {map: false}))
       : renderMatrilineProfile(loaded.data, renderMatrilineSightings(loaded.data.group.designation, loaded.links, {map: false}));
     return html`
@@ -198,7 +198,8 @@ export class SubjectView extends LitElement {
   private onClick = (event: MouseEvent) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const anchor = event.composedPath().find((n): n is HTMLAnchorElement => n instanceof HTMLAnchorElement);
-    if (!anchor || anchor.target === '_blank' || anchor.classList.contains('full-page')) return;
+    // The links to the subject's own page are meant to leave the map.
+    if (!anchor || anchor.target === '_blank' || anchor.classList.contains('full-page') || anchor.classList.contains('full-page-link')) return;
     const href = anchor.getAttribute('href') ?? '';
     const subject = subjectFromHref(href);
     if (subject) {

@@ -362,3 +362,36 @@ describe("a card's actions menu", () => {
     removed.mockRestore();
   });
 });
+
+describe("a card's links to animals (salish-7ds1.1)", () => {
+  afterEach(() => { document.body.replaceChildren(); });
+
+  it('open the animal in the sidebar on a plain click, and its page with a modifier key', async () => {
+    const el = document.createElement('obs-summary') as ObsSummary;
+    (el as unknown as {sighting: Partial<Occurrence>}).sighting = {
+      id: 'maplify:1', body: null, confirmation: 'confirmed', disagreements: null, vitality: null, count: null,
+      observed_at: '2026-10-24T17:20:00+00:00', photos: [], provider_slug: 'maplify', provider: 'Maplify',
+      collection: 'Orca Network', observer: null, source_url: null, organization_url: null, url: null, attribution: null,
+      identifiers: null,
+      taxon: {scientific_name: 'Orcinus orca', vernacular_name: 'Killer whale', species_id: 41521, entity_id: null},
+    };
+    document.body.append(el);
+    await el.updateComplete;
+    // A link as a chip or the text would hold it.
+    const a = document.createElement('a');
+    a.href = '/individuals/0010082/T037';
+    el.shadowRoot!.append(a);
+    const opened: unknown[] = [];
+    document.body.addEventListener('open-subject', e => opened.push((e as CustomEvent).detail));
+
+    const plain = new MouseEvent('click', {bubbles: true, composed: true, cancelable: true});
+    a.dispatchEvent(plain);
+    expect(opened).toEqual([{kind: 'individuals', id: '0010082'}]);
+    expect(plain.defaultPrevented).toBe(true);
+
+    const withMeta = new MouseEvent('click', {bubbles: true, composed: true, cancelable: true, metaKey: true});
+    a.dispatchEvent(withMeta);
+    expect(opened.length).toBe(1);
+    expect(withMeta.defaultPrevented).toBe(false);
+  });
+});

@@ -28,6 +28,9 @@ import type { Contributor, Occurrence } from "./types.ts";
 import lockupUrl from "./assets/lockup-dark.svg?url";
 import { renderSiteNav } from './site-nav.ts';
 import './site-search.ts';
+import './subject-view.ts';
+import type { OccurrenceTarget } from './subject-view.ts';
+import { parseSubject, sameSubject, SUBJECT_PARAM, subjectParam, type Subject } from './subject.ts';
 
 initSentry();
 
@@ -55,9 +58,13 @@ function parseUrlParams(searchParams: URLSearchParams) {
 
   const layers = parseLayersParam(searchParams.get(LAYERS_PARAM));
 
+  // The animal or matriline the sidebar shows in place of the day's list (salish-7ds1.1).
+  const subject = parseSubject(searchParams.get(SUBJECT_PARAM));
+
   return {
     date,
     layers,
+    subject,
     occurrenceId,
     region,
     mapPosition: hasValidMapPosition
@@ -206,6 +213,16 @@ export default class SalishSea extends LitElement {
       padding: 0.5rem 0.5rem 5.5rem 0.5rem;
       width: 25rem;
     }
+    /* The sidebar's view of one animal or matriline, in the panel's place (salish-7ds1.1). */
+    subject-view {
+      border-left: 1px solid #cccccc;
+      flex-shrink: 0;
+      width: 25rem;
+    }
+    /* Each sets its own display, which would otherwise outrank the hidden attribute. */
+    obs-panel[hidden], subject-view[hidden] {
+      display: none;
+    }
 
     /* COMPACT_LAYOUT in obs-panel.ts, which folds the month grid away in this layout. */
     @media (max-aspect-ratio: 1) {
@@ -219,7 +236,7 @@ export default class SalishSea extends LitElement {
         flex-shrink: 0;
         height: 50svh;
       }
-      obs-panel {
+      obs-panel, subject-view {
         border-left: 0;
         border-top: 1px solid #cccccc;
         flex-grow: 1;
@@ -303,6 +320,44 @@ export default class SalishSea extends LitElement {
   @property({attribute: false})
   private sightings: Occurrence[] = []
 
+  /**
+   * The animal or matriline the sidebar shows in place of the day's list, or null for
+   * the list (salish-7ds1.1). In the URL as `s=`, so a link opens it and Back leaves it.
+   */
+  @state()
+  private subject: Subject | null = initialParams.subject;
+
+  #openSubject = (evt: Event) => {
+    const subject = (evt as CustomEvent<Subject>).detail;
+    if (sameSubject(subject, this.subject)) return;
+    this.subject = subject;
+    // Marked as opened here, so the sidebar's Back can step back through history to
+    // exactly where the visitor was, list or subject.
+    setQueryParams({[SUBJECT_PARAM]: subjectParam(subject)}, {state: {subjectOpenedHere: true}});
+  };
+
+  #closeSubject = () => {
+    if ((window.history.state as {subjectOpenedHere?: boolean} | null)?.subjectOpenedHere) {
+      window.history.back();
+    } else {
+      // Opened from a link: there is nothing of ours to step back to, so the subject is
+      // taken out of this entry, and the browser's Back still leaves the site.
+      this.subject = null;
+      setQueryParams({}, {remove: [SUBJECT_PARAM], replace: true});
+    }
+  };
+
+  // "Last reported" in a subject's view: the map moves to that day and selects the
+  // sighting, which closes the subject. One history entry, so Back returns to it.
+  #goToOccurrence = (evt: Event) => {
+    const {date, occurrenceId} = (evt as CustomEvent<OccurrenceTarget>).detail;
+    this.subject = null;
+    setQueryParams({d: date, o: occurrenceId}, {remove: [SUBJECT_PARAM]});
+    this.hydrateFromOccurrenceId(occurrenceId)
+      .then(() => this.requestUpdate())
+      .catch(err => reportError(this, "Couldn't find that sighting.", {cause: err}));
+  };
+
   /** The map's reference layers switched on (GH #453). Replaces the URL entry rather than adding one: it is a view setting, not a place to go Back to. */
   @state()
   private layers: ReadonlySet<ReferenceLayer> = initialParams.layers;
@@ -327,6 +382,7 @@ export default class SalishSea extends LitElement {
       this.region = params.region;
       this.date = params.date;
       this.layers = params.layers;
+      this.subject = params.subject;
       this.focusedOccurrenceId = params.occurrenceId;
       this.mapRef.value?.setView(
         params.mapPosition.x,
@@ -476,9 +532,9 @@ export default class SalishSea extends LitElement {
         ${renderSiteNav('map')}
         <account-menu .lastOwnOccurrence=${this.lastOwnOccurrence}></account-menu>
       </header>
-      <main>
+      <main @open-subject=${this.#openSubject} @close-subject=${this.#closeSubject} @go-to-occurrence=${this.#goToOccurrence}>
         <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId} .maskExtent=${this.region.extent} .visibleLayers=${this.layers} @layers-change=${this.#onLayersChange}></obs-map>
-        <obs-panel ${ref(this.panelRef)} date=${this.date} regionSlug=${this.region.slug} .lastOwnOccurrence=${this.lastOwnOccurrence}>
+        <obs-panel ${ref(this.panelRef)} ?hidden=${!!this.subject} date=${this.date} regionSlug=${this.region.slug} .lastOwnOccurrence=${this.lastOwnOccurrence}>
           ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
             const id = sighting.id;
             const classes = {focused: id === this.focusedOccurrenceId};
@@ -487,6 +543,8 @@ export default class SalishSea extends LitElement {
             `;
           })}
         </obs-panel>
+        <subject-view ?hidden=${!this.subject} .subject=${this.subject}
+          back-label=${Temporal.PlainDate.from(this.date).toLocaleString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})}></subject-view>
         <error-toast ${ref(this.errorToastRef)}></error-toast>
         <feedback-form></feedback-form>
       </main>
@@ -776,7 +834,7 @@ export function dateFromObservedAt(observedAt: string): string {
   return pacificDay(observedAt);
 }
 
-function setQueryParams(params: {[k: string]: string}, options: {replace?: boolean, remove?: string[]} = {}) {
+function setQueryParams(params: {[k: string]: string}, options: {replace?: boolean, remove?: string[], state?: object} = {}) {
     const url = new URL(window.location.href);
     for (const [k, v] of Object.entries(params)) {
       url.searchParams.set(k, v);
@@ -785,9 +843,9 @@ function setQueryParams(params: {[k: string]: string}, options: {replace?: boole
       url.searchParams.delete(k);
     }
     if (options.replace) {
-      window.history.replaceState({}, '', url.toString());
+      window.history.replaceState(options.state ?? {}, '', url.toString());
     } else {
-      window.history.pushState({}, '', url.toString());
+      window.history.pushState(options.state ?? {}, '', url.toString());
     }
 }
 
