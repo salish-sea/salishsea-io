@@ -102,9 +102,9 @@ export const THIRD_PARTY_FRAME_FUNCTIONS: readonly string[] = [
  * issue exists to give about real visitors. Facebook's link-preview fetcher,
  * `facebookexternalhit`, never runs a script, so it is not here.
  *
- * Sentry's own crawler filter covers this agent too, but only for events that
- * carry a user agent, and only while the project setting is on. This rule
- * holds whatever that setting is.
+ * Sentry's own crawler filter, which is on for this project, covers this
+ * agent too, but only for events that carry a user agent. This rule holds even
+ * if that setting changes.
  */
 export const CRAWLER_USER_AGENTS: readonly RegExp[] = [
   /\bmeta-externalagent\//i,
