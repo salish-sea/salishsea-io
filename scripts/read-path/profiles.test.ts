@@ -10,6 +10,7 @@ import {
     renderEcotypePage, renderHauloutPage, renderIndividualPage, renderMatrilinePage, renderPodPage,
     type Tables,
 } from './profiles.ts';
+import { decodeSubjectData, encodeSubjectData } from '../../src/subject.ts';
 
 const shellFor = (element: string) => `<!DOCTYPE html><html><head><title>x</title><meta name="description" content="x">
 <meta property="og:title" content="x"><meta property="og:description" content="x">
@@ -429,5 +430,21 @@ describe('assembleHauloutSites', () => {
         const sites = assembleHauloutSites(tables());
         expect(sites.map(s => s.id)).toEqual([11, 12, 13, 14]);
         expect(sites[1]).toEqual({id: 12, name: 'Protection Island', location: {lon: -122.92, lat: 48.12}, radius_m: 500});
+    });
+});
+
+describe("the data the map page's sidebar reads (salish-7ds1.1)", () => {
+    // The build writes each individual's and matriline's page data beside the page, and the
+    // sidebar renders it with the page's own templates, so what it reads back must be the
+    // data the page was rendered from, maps included.
+    test("an individual's and a matriline's data come back as they were written", () => {
+        const individual = assembleIndividuals(tables()).find(p => p.data.matriline)!;
+        expect(individual).toBeDefined();
+        const back = decodeSubjectData<typeof individual.data>(encodeSubjectData(individual.data));
+        expect(back.groups).toBeInstanceOf(Map);
+        expect(back).toEqual(individual.data);
+
+        const matriline = assembleMatrilines(tables())[0]!;
+        expect(decodeSubjectData(encodeSubjectData(matriline.data))).toEqual(matriline.data);
     });
 });
