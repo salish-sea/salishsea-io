@@ -332,7 +332,7 @@ export class ObsSummary extends LitElement {
           Temporal.Instant.from(observed_at).toZonedDateTimeISO('America/Los_Angeles').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
         }`)}</time>
         <button class="more" type="button" aria-haspopup="menu" aria-expanded=${this.menuOpen ? 'true' : 'false'}
-          aria-label="Actions for this sighting" title="Actions" @click=${this.toggleMenu}>
+          aria-label="Actions for this sighting" title="Actions" @pointerdown=${this.onTriggerPress} @click=${this.toggleMenu}>
           <svg class="dots" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="20" height="20" fill="currentColor" aria-hidden="true">
             <circle cx="4" cy="10" r="1.6"></circle><circle cx="10" cy="10" r="1.6"></circle><circle cx="16" cy="10" r="1.6"></circle>
           </svg>
@@ -388,9 +388,18 @@ export class ObsSummary extends LitElement {
   // The page is listened to only while this card's menu is open: a day can hold
   // a hundred cards, and each would otherwise hear every click.
   // The click is left to reach the page, so another card's open menu hears it and
-  // closes; this card's own listener ignores clicks inside the card.
+  // closes; this card's own listener ignores clicks on its menu and its button.
   private toggleMenu = () => {
+    this.triggerPressed = false;
     this.setMenuOpen(!this.menuOpen);
+  };
+
+  // A press on the button moves focus from an item to the button before its click
+  // arrives. The menu leaves the closing to that click, which would otherwise find
+  // the menu already closed by the focus move and open it again.
+  private triggerPressed = false;
+  private onTriggerPress = () => {
+    this.triggerPressed = true;
   };
 
   // Closing removes the menu, and a focused element that is removed leaves focus on
@@ -419,8 +428,12 @@ export class ObsSummary extends LitElement {
     return [...this.shadowRoot?.querySelectorAll<HTMLButtonElement>('.menu [role="menuitem"]') ?? []];
   }
 
+  // Any click but one on the menu or its button closes it, elsewhere on this card included.
   private onDocumentClick = (event: MouseEvent) => {
-    if (!event.composedPath().includes(this)) this.setMenuOpen(false);
+    const path = event.composedPath();
+    const menu = this.shadowRoot?.querySelector('.menu');
+    const trigger = this.shadowRoot?.querySelector('.more');
+    if (!(menu && path.includes(menu)) && !(trigger && path.includes(trigger))) this.setMenuOpen(false);
   };
 
   private onDocumentKeydown = (event: KeyboardEvent) => {
@@ -446,7 +459,9 @@ export class ObsSummary extends LitElement {
   // on an item in a browser that doesn't focus buttons would close the menu first.
   private onMenuFocusout = (event: FocusEvent) => {
     const to = event.relatedTarget as Node | null;
-    if (to && !(event.currentTarget as HTMLElement).contains(to)) this.setMenuOpen(false, false);
+    if (!to || (event.currentTarget as HTMLElement).contains(to)) return;
+    if (this.triggerPressed && to === this.shadowRoot?.querySelector('.more')) return;
+    this.setMenuOpen(false, false);
   };
 
   disconnectedCallback(): void {

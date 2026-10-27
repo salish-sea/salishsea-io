@@ -315,6 +315,42 @@ describe("a card's actions menu", () => {
     }
   });
 
+  it('closes on a click elsewhere on its own card', async () => {
+    const {root, button, items, settle} = await mounted();
+    button.click();
+    await settle();
+    root.querySelector<HTMLElement>('header b')!.click();
+    await settle();
+    expect(items()).toEqual([]);
+  });
+
+  it('closes, and stays closed, when its button is pressed while an item has focus', async () => {
+    const {button, items, settle} = await mounted();
+    button.click();
+    await settle();
+    items()[0]!.focus();
+    // A press moves focus from the item to the button before the click arrives.
+    button.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, composed: true}));
+    button.focus();
+    items()[0]!.dispatchEvent(new FocusEvent('focusout', {relatedTarget: button, bubbles: true, composed: true}));
+    await settle();
+    button.click();
+    await settle();
+    expect(items()).toEqual([]);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('closes when Shift+Tab takes focus from an item back to its button', async () => {
+    const {button, items, settle} = await mounted();
+    button.click();
+    await settle();
+    items()[0]!.focus();
+    button.focus();
+    items()[0]!.dispatchEvent(new FocusEvent('focusout', {relatedTarget: button, bubbles: true, composed: true}));
+    await settle();
+    expect(items()).toEqual([]);
+  });
+
   it('stops listening to the page once closed', async () => {
     const {button, settle} = await mounted();
     const removed = vi.spyOn(document, 'removeEventListener');
