@@ -51,6 +51,10 @@ The 2007 Puget Sound Update, from PSEMP's predecessor (the Puget Sound Ambient M
 - **Coverage.** Washington waters only, from Cape Flattery (124.78°W) to Olympia, and north to the border at 49°N. Every water point I tested in US waters fell in a basin.
 - **Licence.** Not stated. The item's licence field is empty, and its credit and copyright read "WDFW".
 
+![The nine basins of PSEMP's marine bird survey, each in its own colour, from Neah Bay to Olympia and north to the border](../images/subregions-psemp-basins.webp)
+
+*The bird survey's nine basins. The service splits each basin into depth bands, which this picture merges. The fills look patchy close to shore because the bands don't reach every inlet. The service spells one basin "Admirality Inlet"; the map corrects it. The maps in this document are pictures drawn for it on 2026-10-27, over SalishSea.io's basemap, from the services cited; the boundary data itself is not kept in this repository.*
+
 ### Other work groups
 
 PSEMP has ten active work groups: Diseases, Forage Fish and Food Webs, Marine Birds, Marine Mammals, Marine Waters, Nearshore, Salmonids, Spatial Data, Stormwater and Toxics (from a search summary of a [November 2025 PSEMP overview presentation](https://www.ezview.wa.gov/Portals/_1962/Documents/StormwaterWorkGroup/SWG%20PSEMP%20Overview%20Presentation%2011.12.25.pdf)). The Puget Sound Partnership's [2025 call for work-group coordinators](https://omwbe.wa.gov/node/24554) (verified; it closed 2025-04-30) named six of them: Forage Fish and Food Webs, Marine Birds, Marine Mammals, Marine Waters, Salmonids and Spatial Data. The same kind of contract may be the work SalishSea.io could bid on.
@@ -68,6 +72,10 @@ PSEMP has ten active work groups: Diseases, Forage Fish and Food Webs, Marine Bi
 - **The Puget Sound Nearshore Ecosystem Restoration Project's sub-basins**, republished by the Partnership ([item](https://www.arcgis.com/home/item.html?id=600cc7e57fa44da4a717f6816044fa45), verified). Seven: Whidbey, South Puget Sound, Strait of Juan de Fuca, Hood Canal, San Juan Islands and Georgia Strait, North Central Puget Sound, South Central Puget Sound. These are the same seven names as Ecology's "Oceanographic Subbasins" in the earlier survey. Land and water. No licence is stated.
 - **The Partnership's Nearshore Basins**, derived from NOAA's salmon habitat monitoring ([item](https://www.arcgis.com/home/item.html?id=86ecddf86243496fbb880fc8cafc3e43)). Five: North Puget Sound, Strait of Juan de Fuca, Whidbey, Hood Canal, South Central Puget Sound. These are drawn around shorelines, for salmon populations.
 - **The oceanographers' Puget Sound.** The Encyclopedia of Puget Sound defines it as Hood Canal, the Main Basin (Admiralty Inlet and the Central Basin), the South Basin and the Whidbey Basin ([article](https://www.eopugetsound.org/articles/geographic-boundaries-puget-sound-and-salish-sea); search summary only).
+
+![Ecology's eight Salish Sea Model basins in the same frame as the bird survey's: one Strait of Juan de Fuca, a Strait of Georgia that takes in the San Juan Islands, Northern Bays, Admiralty Basin, Whidbey Basin, Main Basin, Hood Canal and South Sound](../images/subregions-ecology-basins.webp)
+
+*Ecology's eight Salish Sea Model basins, in the same frame as the bird survey's above. It has one Strait of Juan de Fuca where the survey has two, and no San Juan Islands basin.*
 
 ### Where they agree and differ
 
@@ -96,6 +104,10 @@ I tested points in the water against each service. A dash means the point fell o
 - **The Partnership's Action Areas are not a basin scheme for water.** Their lines follow counties and planning areas, so Admiralty Inlet comes out as "Whidbey", Port Townsend as "Hood Canal" and Tacoma Narrows as "North Central Puget Sound". The Nearshore project's sub-basins likewise put Possession Sound in "South Central Puget Sound". Neither suits a description of where a whale was.
 - **WDFW's catch areas mostly nest within the bird survey's basins:** area 7 holds the San Juan Islands and the US Strait of Georgia, area 9 is Admiralty Inlet, 8-1 and 8-2 together are Whidbey Basin, area 12 is Hood Canal and area 13 is South Sound. The exceptions are 10 and 11, which divide Central Puget Sound along a different line than the bird survey's boundary with South Sound, and 5 and 6, which divide the strait at a different meridian. I did not compare the edges, only points.
 
+![The northern basins compared: the bird survey's San Juan Islands and Strait of Georgia filled, with Ecology's boundaries dashed over them](../images/subregions-north-compared.webp)
+
+*Where the two schemes differ, in the north. The fills are the bird survey's basins, and the dashed lines and italic names are Ecology's. Ecology's "Strait of Georgia" reaches south through the San Juans' channels, which the survey calls the San Juan Islands basin, and its "Northern Bays" takes Bellingham, Samish and Padilla Bays out of the survey's Strait of Georgia.*
+
 ## 3. The Canadian side
 
 - **DFO's federal marine bioregions** ([open.canada.ca record](https://open.canada.ca/data/en/dataset/23eb8b56-dac8-4efc-be7c-b8fa11ba62e9), verified: [Open Government Licence – Canada](https://open.canada.ca/en/open-government-licence-canada)). These are the framework for Canada's network of marine protected areas, and they are coarse. The "Strait of Georgia" bioregion covers the strait, Boundary Pass and the inside waters. Canada's half of the Strait of Juan de Fuca, and, at the point I tested, Canada's side of Haro Strait, fall in the "Southern Shelf" bioregion with the west coast of Vancouver Island. The record says the boundaries "are fuzzy". Useful only as an outer frame.
@@ -106,6 +118,10 @@ I tested points in the water against each service. A dash means the point fell o
 - **Salish Sea Ecosystem Conference.** I found no partition. Not checked further.
 
 **Result: there is no Canadian equivalent of PSEMP's basins to line up with.** The names Canadian scientists use (Juan de Fuca Strait, Haro Strait, Boundary Pass, the southern, central and northern Strait of Georgia, Howe Sound, the Gulf Islands) are the same features that the Canadian geographical names database outlines under the Open Government Licence, as the earlier survey found.
+
+![Fishing areas on both sides of the border: WDFW's numbered and named marine areas in Washington and DFO's numbered Pacific Fishery Management Areas in British Columbia, meeting at the border](../images/subregions-fishing-areas.webp)
+
+*The fishing areas, the one division that covers both countries: WDFW's catch-record areas, numbered and named, in Washington, and DFO's Pacific Fishery Management Areas, numbered only, in British Columbia, merged here from their subareas. They meet at the border, so they partition the whole Salish Sea between them, but they are drawn for managing catch, and several of WDFW's names, such as "Seattle-Bremerton Area", are not places.*
 
 ## 4. Programs focused on Southern Resident killer whales
 
