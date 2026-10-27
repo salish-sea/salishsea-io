@@ -274,9 +274,16 @@ ${urls}
       },
     },
     {
-      // Inline the tiny global stylesheet into <style> so it isn't a render-blocking
-      // request. CSP allows it (style-src has 'unsafe-inline'). Only touches CSS that
-      // has a <link> in index.html (main.css); JS-loaded CSS like OpenLayers' is untouched.
+      // Inline the tiny linked stylesheets into <style> so they aren't render-blocking
+      // requests. CSP allows it (style-src has 'unsafe-inline'). Touches only CSS a page
+      // links: index.html's index.css, and src/fonts.css, which every page links. The
+      // stylesheet files are left in the build, unused by the pages: one is shared by
+      // all nine, Vite's manifest names them, and a lazily loaded chunk may still ask
+      // for one, so deleting them would leave those pointing at nothing (salish-74v6).
+      //
+      // It also preloads the regular Latin Mukta file, so the header's labels, set on
+      // Mukta's baseline (salish-sea.ts), don't first draw in the fallback font and
+      // then jump when Mukta arrives.
       name: 'inline-critical-css',
       apply: 'build',
       enforce: 'post',
@@ -291,9 +298,11 @@ ${urls}
           const css = typeof asset.source === 'string'
             ? asset.source
             : Buffer.from(asset.source).toString('utf8');
-          out = out.replace(linkRE, `<style>${css}</style>`);
-          delete ctx.bundle[fileName];
+          out = out.replace(linkRE, () => `<style>${css}</style>`);
         }
+        const regular = Object.keys(ctx.bundle).find(f => /\/mukta-latin-400-normal-[^/]+\.woff2$/.test(f));
+        if (regular && out.includes('Mukta'))
+          out = out.replace(/<head(\s[^>]*)?>/, head => `${head}\n    <link rel="preload" href="/${regular}" as="font" type="font/woff2" crossorigin>`);
         return out;
       },
     },
