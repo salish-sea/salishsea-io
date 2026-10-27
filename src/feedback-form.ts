@@ -161,6 +161,7 @@ export default class FeedbackForm extends LitElement {
     .note {
       color: #475569;
       font-size: var(--fs-caption);
+      font-weight: 400;
       line-height: 1.4;
       margin: 0 0 0.75rem;
     }

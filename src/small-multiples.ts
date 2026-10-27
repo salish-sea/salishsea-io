@@ -144,6 +144,7 @@ export const smallMapStyles = css`
   .small-maps-credit {
     color: #94a3b8;
     font-size: var(--fs-caption);
+    font-weight: 400;
     margin: 0.75rem 0 0;
   }
   .small-maps-credit a {

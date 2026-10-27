@@ -141,6 +141,7 @@ export class AccountMenu extends LitElement {
     .status {
       color: #767676;
       font-size: var(--fs-caption);
+      font-weight: 400;
       line-height: 1.4;
       padding: 2px 16px 6px;
     }

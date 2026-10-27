@@ -7,6 +7,10 @@
  *   Regular 400  labels, buttons, headings, emphasised text (<b> and <strong>).
  *   Bold 700     titles only: large text, the single most important thing.
  *
+ * Two departures, for a sidebar denser than anything Orcasound sets: text at caption
+ * size is Regular, never Light, which is too thin at 12px; and a list of many, the
+ * day's sightings, is set a step down the scale, at body2 (src/obs-summary.ts).
+ *
  * Machine values, a time or a coordinate, are set in Noto Sans Mono, the design
  * system's one other face: it means "a value", never decoration.
  *

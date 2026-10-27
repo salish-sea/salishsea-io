@@ -171,6 +171,7 @@ export class SiteSearch extends LitElement {
       color: #64748b;
       display: block;
       font-size: var(--fs-caption);
+      font-weight: 400;
     }
     .message {
       color: #64748b;

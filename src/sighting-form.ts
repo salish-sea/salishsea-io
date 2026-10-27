@@ -123,6 +123,7 @@ export default class SightingForm extends LitElement {
       background: white;
       font-family: inherit;
       font-size: var(--fs-caption);
+      font-weight: 400;
     }
     button:hover:not(:disabled) {
       background: #f5f5f5;
@@ -223,11 +224,13 @@ export default class SightingForm extends LitElement {
     .field-hint {
       color: var(--slate-500, #64748b);
       font-size: var(--fs-caption);
+      font-weight: 400;
       margin-top: 0.25rem;
     }
     .field-error {
       color: #d32f2f;
       font-size: var(--fs-caption);
+      font-weight: 400;
       margin-top: 0.25rem;
     }
     photo-attachment {

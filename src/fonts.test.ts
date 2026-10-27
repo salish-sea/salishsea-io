@@ -35,6 +35,13 @@ describe('every style takes its type from src/fonts.css', () => {
     expect(sizes.filter(s => !/^var\(--fs-(h4|h5|h6|body1|body2|caption|mono)\)$/.test(s))).toEqual([]);
   });
 
+  // Light is too thin at 12px; caption text is Regular (src/fonts.css).
+  it.each(sources)('%s sets caption text in Regular', file => {
+    const text = fs.readFileSync(path.join(process.cwd(), file), 'utf-8');
+    const blocks = [...text.matchAll(/\{[^{}]*font-size:\s*var\(--fs-caption\)[^{}]*\}/g)].map(m => m[0]);
+    expect(blocks.filter(b => !/font-weight:\s*400;/.test(b))).toEqual([]);
+  });
+
   it.each(sources)('%s names no typeface', file => {
     const text = fs.readFileSync(path.join(process.cwd(), file), 'utf-8');
     const families = [...text.matchAll(/font-family:\s*([^;}]+)/g)].map(m => m[1]!.trim());
