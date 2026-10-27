@@ -102,6 +102,31 @@ describe("the sidebar's subject view", () => {
     expect((fetch as unknown as {mock: {calls: unknown[]}}).mock.calls.length).toBeGreaterThan(fetches);
   });
 
+  it('hidden before its data arrives, shows the outcome when shown again rather than loading for ever', async () => {
+    const waiting: ((r: Response) => void)[] = [];
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(resolve => { waiting.push(resolve); })));
+    const answer = (r: () => Response) => { for (const resolve of waiting.splice(0)) resolve(r()); };
+    const view = document.createElement('subject-view') as SubjectView;
+    view.subject = {kind: 'individuals', id: '0000101'};
+    document.body.append(view);
+    await view.updateComplete;
+    view.subject = null;                       // closed while the fetches are out
+    await view.updateComplete;
+    answer(() => new Response('', {status: 404}));   // they come back while it's hidden
+    await new Promise(r => setTimeout(r, 0));
+    view.subject = {kind: 'individuals', id: '0000101'};
+    await view.updateComplete;
+    expect(view.shadowRoot!.textContent).not.toMatch(/Loading…/);
+    expect(view.shadowRoot!.textContent).toMatch(/Couldn't load this animal/);
+  });
+
+  it('names where Back goes for a screen reader too', async () => {
+    const {view} = await mounted();
+    view.backLabel = 'Sat, Oct 24';
+    await view.updateComplete;
+    expect(view.shadowRoot!.querySelector('nav.back button')!.getAttribute('aria-label')).toBe('Back to Sat, Oct 24');
+  });
+
   it('asks to close from its Back button', async () => {
     const {view, events} = await mounted();
     view.shadowRoot!.querySelector<HTMLButtonElement>('nav.back button')!.click();

@@ -545,3 +545,68 @@ test('cloning from the sidebar closes the subject in place, and the entry no lon
   expect(window.history.state).toEqual({});
   expect(el.shadowRoot!.querySelector('obs-panel')!.hidden).toBe(false);
 });
+
+const openSubjectFrom = async (el: SalishSea, origin: Element, subject = {kind: 'individuals', id: '0010082'}) => {
+  origin.dispatchEvent(new CustomEvent('open-subject', {bubbles: true, composed: true, detail: subject}));
+  await el.updateComplete;
+};
+
+test("the sidebar's Back steps back past a deselected sighting to where the subject was opened, once however often it's pressed", async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const el = await mountWithSightings(occurrenceFixture('aaa', '2024-07-15T18:23:00Z'));
+  await openSubjectFrom(el, el.shadowRoot!.querySelector('main')!);
+  // Clicking empty water deselects, which pushes an entry with the subject still open.
+  el.focusOccurrence(null);
+  expect((window.history.state as {stepsBack?: number}).stepsBack).toBe(2);
+  const go = vi.spyOn(window.history, 'go').mockImplementation(() => {});
+  const back = el.shadowRoot!.querySelector('subject-view')!.shadowRoot!.querySelector<HTMLButtonElement>('nav.back button');
+  el.shadowRoot!.querySelector('subject-view')!.dispatchEvent(new Event('close-subject', {bubbles: true, composed: true}));
+  el.shadowRoot!.querySelector('subject-view')!.dispatchEvent(new Event('close-subject', {bubbles: true, composed: true}));
+  expect(go.mock.calls).toEqual([[-2]]);
+  expect(back).not.toBeNull();
+  go.mockRestore();
+  window.dispatchEvent(new PopStateEvent('popstate'));
+});
+
+test('"Last reported" moves to the day the sighting is found on, and leaves the subject open when it is gone', async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const el = await mountWithSightings(occurrenceFixture('aaa', '2024-07-15T18:23:00Z'));
+  await openSubjectFrom(el, el.shadowRoot!.querySelector('main')!);
+  const view = el.shadowRoot!.querySelector('subject-view')!;
+
+  occurrenceQuery.single = {data: null, error: null};
+  view.dispatchEvent(new CustomEvent('go-to-occurrence', {bubbles: true, composed: true, detail: {date: '2024-07-15', occurrenceId: 'gone'}}));
+  await new Promise(r => setTimeout(r, 0));
+  await el.updateComplete;
+  expect(new URLSearchParams(window.location.search).get('s')).toBe('individuals/0010082');
+  expect(await toastText(el)).toMatch(/no longer on the map/);
+
+  // The link says the 16th; the sighting, edited since the build, is on the 15th.
+  occurrenceQuery.single = {data: occurrenceFixture('bbb', '2024-07-15T20:00:00Z'), error: null};
+  view.dispatchEvent(new CustomEvent('go-to-occurrence', {bubbles: true, composed: true, detail: {date: '2024-07-16', occurrenceId: 'bbb'}}));
+  await new Promise(r => setTimeout(r, 0));
+  await el.updateComplete;
+  const params = new URLSearchParams(window.location.search);
+  expect([params.get('d'), params.get('o'), params.get('s')]).toEqual(['2024-07-15', 'bbb', null]);
+  occurrenceQuery.single = {data: null, error: null};
+});
+
+test('opening a subject from a link moves focus to its Back button, and closing it returns focus to the link', async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const el = await mountWithSightings(occurrenceFixture('aaa', '2024-07-15T18:23:00Z'));
+  const link = document.createElement('a');
+  link.href = '/individuals/0010082/T037';
+  link.textContent = 'T37';
+  el.shadowRoot!.querySelector('obs-panel')!.append(link);
+  link.focus();
+  await openSubjectFrom(el, link);
+  const view = el.shadowRoot!.querySelector('subject-view')!;
+  await view.updateComplete;
+  await new Promise(r => setTimeout(r, 0));
+  expect(view.shadowRoot!.activeElement).toBe(view.shadowRoot!.querySelector('nav.back button'));
+  // Closed from a link's entry: the subject leaves the URL in place, and focus goes home.
+  window.history.replaceState({}, '', window.location.href);
+  view.dispatchEvent(new Event('close-subject', {bubbles: true, composed: true}));
+  await el.updateComplete;
+  expect(el.shadowRoot!.activeElement ?? document.activeElement).toBe(link);
+});

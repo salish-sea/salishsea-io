@@ -152,16 +152,30 @@ export class SubjectView extends LitElement {
 
   /** The subject last shown, so that hiding the view and showing it again keeps what it had loaded. */
   #shown: Subject | null = null;
+  /**
+   * The subject whose data is being loaded or was last loaded. A load's result is kept if
+   * it is still this one, even while the view is hidden: hidden before its data arrived,
+   * the same subject shown again must not wait on a load that was thrown away.
+   */
+  #requested: Subject | null = null;
 
   protected willUpdate(changed: PropertyValues<this>): void {
     // Hidden (no subject), the view keeps what it loaded: Back to the same subject, after
-    // "Last reported" for one, shows it at once, where it was scrolled to.
-    if (changed.has('subject') && this.subject && !sameSubject(this.subject, this.#shown)) {
+    // "Last reported" for one, shows it at once, where it was scrolled to. It is not
+    // refetched, so an edit made meanwhile, or a new build, shows only once another
+    // subject has been opened or the page reloaded.
+    if (changed.has('subject') && this.subject && !sameSubject(this.subject, this.#requested)) {
+      this.#requested = this.subject;
       this.loaded = null;
       this.failed = false;
       this.latest = undefined;
       void this.load(this.subject);
     }
+  }
+
+  /** Put keyboard focus on the Back button, as the view opens. */
+  focusBack(): void {
+    this.renderRoot.querySelector<HTMLButtonElement>('nav.back button')?.focus();
   }
 
   protected updated(changed: PropertyValues<this>): void {
@@ -185,12 +199,12 @@ export class SubjectView extends LitElement {
       // A subject without its links still shows, as one with no sightings yet.
       const links: OccurrenceLink[] = linksResponse.ok ? await linksResponse.json() : [];
       // Only if this is still the subject asked for: a quick second click can overtake the first.
-      if (!sameSubject(subject, this.subject)) return;
+      if (!sameSubject(subject, this.#requested)) return;
       const currentYear = manifest ? Number(manifest.covered_through.slice(0, 4)) : undefined;
       this.loaded = {kind: subject.kind, subject, data, links, currentYear} as Loaded;
       void this.loadLatest(subject, links);
     } catch {
-      if (sameSubject(subject, this.subject)) this.failed = true;
+      if (sameSubject(subject, this.#requested)) this.failed = true;
     }
   }
 
@@ -203,7 +217,7 @@ export class SubjectView extends LitElement {
     } catch {
       // Without its card the section still says when it was last reported, with the link.
     }
-    if (sameSubject(subject, this.subject)) this.latest = latest;
+    if (sameSubject(subject, this.#requested)) this.latest = latest;
   }
 
   private pagePath(): string | null {
@@ -215,7 +229,7 @@ export class SubjectView extends LitElement {
   protected render() {
     if (!this.subject) return nothing;
     return html`
-      <nav class="back"><button type="button" @click=${this.onBack}>‹ ${this.backLabel}</button></nav>
+      <nav class="back"><button type="button" aria-label=${`Back to ${this.backLabel}`} @click=${this.onBack}>‹ ${this.backLabel}</button></nav>
       ${this.renderBody()}
     `;
   }
@@ -252,7 +266,8 @@ export class SubjectView extends LitElement {
     const subject = subjectFromHref(href);
     if (subject) {
       event.preventDefault();
-      this.dispatchEvent(new CustomEvent<Subject>('open-subject', {bubbles: true, composed: true, detail: subject}));
+      // From the link, so the page knows where focus goes when the subject closes.
+      anchor.dispatchEvent(new CustomEvent<Subject>('open-subject', {bubbles: true, composed: true, detail: subject}));
       return;
     }
     const occurrence = occurrenceFromHref(href);

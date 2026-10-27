@@ -329,9 +329,21 @@ export default class SalishSea extends LitElement {
 
   private subjectViewRef = createRef<SubjectView>();
 
+  /** The link a subject was opened from, out of the day's list, which gets focus back when it closes. */
+  #returnFocus: HTMLElement | null = null;
+  /** Set when a subject was opened by a click or a key, so the view takes focus once it renders. */
+  #focusView = false;
+  /** Set while the sidebar's Back waits for the browser to step back, so a second press can't step again. */
+  #closing = false;
+
   #openSubject = (evt: Event) => {
     const subject = (evt as CustomEvent<Subject>).detail;
     if (sameSubject(subject, this.subject)) return;
+    if (!this.subject) {
+      const origin = evt.composedPath()[0];
+      this.#returnFocus = origin instanceof HTMLElement ? origin : null;
+    }
+    this.#focusView = true;
     // What the sidebar's Back will return to: the subject open now, by name, or the day.
     const backTo = this.subject ? this.subjectViewRef.value?.subjectTitle ?? null : null;
     this.subject = subject;
@@ -339,6 +351,21 @@ export default class SalishSea extends LitElement {
     // exactly where the visitor was, list or subject.
     setQueryParams({[SUBJECT_PARAM]: subjectParam(subject)}, {state: {subjectOpenedHere: true, backTo}});
   };
+
+  protected updated(changed: PropertyValues): void {
+    super.updated(changed);
+    if (!changed.has('subject')) return;
+    if (this.subject && this.#focusView) {
+      // Opened by the visitor: focus moves into the view, to its Back button.
+      this.#focusView = false;
+      this.subjectViewRef.value?.updateComplete.then(() => this.subjectViewRef.value?.focusBack());
+    } else if (!this.subject && changed.get('subject')) {
+      // Closed, however: focus goes back to the link it was opened from, if it's still there.
+      const back = this.#returnFocus;
+      this.#returnFocus = null;
+      if (back?.isConnected) back.focus();
+    }
+  }
 
   /** Close the subject without a history entry of its own, for an act that needs the day's list: editing, cloning. */
   #leaveSubject() {
@@ -349,8 +376,13 @@ export default class SalishSea extends LitElement {
   }
 
   #closeSubject = () => {
-    if ((window.history.state as {subjectOpenedHere?: boolean} | null)?.subjectOpenedHere) {
-      window.history.back();
+    if (this.#closing) return;
+    const state = window.history.state as {subjectOpenedHere?: boolean, stepsBack?: number} | null;
+    if (state?.subjectOpenedHere) {
+      // Back to where the subject was opened, however many entries ago: deselecting a
+      // sighting with the subject open adds one (setQueryParams counts them).
+      this.#closing = true;
+      window.history.go(-(state.stepsBack ?? 1));
     } else {
       // Opened from a link: there is nothing of ours to step back to, so the subject is
       // taken out of this entry, and the browser's Back still leaves the site.
@@ -363,7 +395,7 @@ export default class SalishSea extends LitElement {
   // sighting, which closes the subject. One history entry, so Back returns to it.
   // Only once the sighting is found: the URL and the screen must not disagree about the day.
   #goToOccurrence = (evt: Event) => {
-    const {date, occurrenceId} = (evt as CustomEvent<OccurrenceTarget>).detail;
+    const {occurrenceId} = (evt as CustomEvent<OccurrenceTarget>).detail;
     this.hydrateFromOccurrenceId(occurrenceId)
       .then(found => {
         if (!found) {
@@ -371,7 +403,9 @@ export default class SalishSea extends LitElement {
           return;
         }
         this.subject = null;
-        setQueryParams({d: date, o: occurrenceId}, {remove: [SUBJECT_PARAM]});
+        // The day the sighting was found on, which can differ from the link's for a
+        // sighting edited since the last build: the URL says what the screen shows.
+        setQueryParams({d: this.date, o: occurrenceId}, {remove: [SUBJECT_PARAM]});
         this.requestUpdate();
       })
       .catch(err => reportError(this, "Couldn't find that sighting.", {cause: err}));
@@ -391,6 +425,7 @@ export default class SalishSea extends LitElement {
   };
 
   #handlePopState = () => {
+    this.#closing = false;
     this.#isRestoringFromHistory = true;
     if (this.#mapMoveDebounceTimer) {
       clearTimeout(this.#mapMoveDebounceTimer);
@@ -871,19 +906,25 @@ export function setQueryParams(params: {[k: string]: string}, options: {replace?
     for (const k of options.remove ?? []) {
       url.searchParams.delete(k);
     }
+    // A new entry while a subject opened here stays open (deselecting a sighting, say)
+    // carries the subject's state on, one step further from where it was opened, so the
+    // sidebar's Back still lands there.
+    const current = window.history.state as {subjectOpenedHere?: boolean, stepsBack?: number} | null;
+    const pushState = options.state
+      ?? (current?.subjectOpenedHere && url.searchParams.has(SUBJECT_PARAM)
+        ? {...current, stepsBack: (current.stepsBack ?? 1) + 1}
+        : {});
     if (options.replace) {
       // Replacing keeps the entry's own state unless given another: a map move rewrites
       // the URL, and must not forget that the subject on screen was opened here.
       window.history.replaceState(options.state ?? window.history.state ?? {}, '', readableSubject(url));
     } else {
-      window.history.pushState(options.state ?? {}, '', readableSubject(url));
+      window.history.pushState(pushState, '', readableSubject(url));
     }
 }
 
 function removeQueryParam(key: string) {
-    const url = new URL(window.location.href);
-    url.searchParams.delete(key);
-    window.history.pushState({}, '', readableSubject(url));
+    setQueryParams({}, {remove: [key]});
 }
 
 

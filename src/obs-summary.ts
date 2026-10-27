@@ -303,7 +303,8 @@ export class ObsSummary extends LitElement {
     const subject = anchor ? subjectFromHref(anchor.getAttribute('href') ?? '') : null;
     if (!subject) return;
     event.preventDefault();
-    this.dispatchEvent(new CustomEvent<Subject>('open-subject', {bubbles: true, composed: true, detail: subject}));
+    // From the link, so the page knows where focus goes when the subject closes.
+    anchor!.dispatchEvent(new CustomEvent<Subject>('open-subject', {bubbles: true, composed: true, detail: subject}));
   };
 
   connectedCallback(): void {

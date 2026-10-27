@@ -7,7 +7,7 @@ import { describe, expect, test } from 'vitest';
 
 import {
     assembleEcotypes, assembleHaulouts, assembleHauloutSites, assembleIndividuals, assembleMatrilines, assemblePods,
-    renderEcotypePage, renderHauloutPage, renderIndividualPage, renderMatrilinePage, renderPodPage,
+    renderEcotypePage, renderHauloutPage, renderIndividualPage, renderMatrilinePage, renderPodPage, sidebarData,
     type Tables,
 } from './profiles.ts';
 import { decodeSubjectData, encodeSubjectData } from '../../src/subject.ts';
@@ -446,5 +446,28 @@ describe("the data the map page's sidebar reads (salish-7ds1.1)", () => {
 
         const matriline = assembleMatrilines(tables())[0]!;
         expect(decodeSubjectData(encodeSubjectData(matriline.data))).toEqual(matriline.data);
+    });
+});
+
+describe("the sidebar's data keeps only the groups the templates use (decision 093)", () => {
+    test('a page rendered from it is the page rendered from the full data', () => {
+        for (const page of assembleIndividuals(tables())) {
+            const side = decodeSubjectData<typeof page.data>(encodeSubjectData(sidebarData(page.data, page.data.matriline?.id ?? null)));
+            expect(renderIndividualPage(SHELL, {...page, data: side}, 2026), page.id).toBe(renderIndividualPage(SHELL, page, 2026));
+        }
+        const MSHELL = shellFor('matriline-page');
+        for (const page of assembleMatrilines(tables())) {
+            const side = decodeSubjectData<typeof page.data>(encodeSubjectData(sidebarData(page.data, page.data.group.id)));
+            expect(renderMatrilinePage(MSHELL, {...page, data: side}, 2026), page.id).toBe(renderMatrilinePage(MSHELL, page, 2026));
+        }
+    });
+
+    test("never a group's notes (D-21), even if the snapshot carried them", () => {
+        const t = tables();
+        t.social_groups = t.social_groups.map(g => ({...g, notes: 'VERBATIM SHEET TEXT'}));
+        for (const page of assembleIndividuals(t))
+            expect(encodeSubjectData(sidebarData(page.data, page.data.matriline?.id ?? null)), page.id).not.toContain('VERBATIM SHEET TEXT');
+        for (const page of assembleMatrilines(t))
+            expect(encodeSubjectData(sidebarData(page.data, page.data.group.id)), page.id).not.toContain('VERBATIM SHEET TEXT');
     });
 });
