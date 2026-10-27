@@ -68,6 +68,16 @@ describe("the sidebar's subject view", () => {
     expect(link?.getAttribute('href')).toBe('/individuals/0000101');
   });
 
+  it("sends its card's dot to that day on the map, rather than focusing it under the open sidebar", async () => {
+    const {view, events} = await mounted();
+    const fromCard = new CustomEvent('focus-occurrence', {bubbles: true, composed: true,
+      detail: {id: 'maplify:262674', observed_at: '2026-10-26T00:40:00+00:00'}});
+    view.shadowRoot!.append(document.createElement('div'));
+    view.shadowRoot!.lastElementChild!.dispatchEvent(fromCard);
+    // 00:40 UTC on the 26th is the evening of the 25th in the Salish Sea.
+    expect(events).toEqual(['go-to-occurrence {"date":"2026-10-25","occurrenceId":"maplify:262674"}']);
+  });
+
   it('asks to close from its Back button', async () => {
     const {view, events} = await mounted();
     view.shadowRoot!.querySelector<HTMLButtonElement>('nav.back button')!.click();

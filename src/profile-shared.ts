@@ -309,6 +309,24 @@ export interface SightingsOptions {
    * since the big map is beside it (salish-7ds1.1).
    */
   map?: boolean;
+  /**
+   * The newest sighting's card, which puts "Last reported" at the top of the section with
+   * the card beneath it, ahead of the table: the map page's sidebar, where the card is a
+   * live component (salish-7ds1.1). `nothing` while the card is still loading.
+   */
+  latestCard?: unknown;
+}
+
+/**
+ * The sighting a profile reports as its last: a dead animal's earliest record as dead,
+ * since it isn't seen after that whatever is reported of the carcass later (decision
+ * 088); otherwise the newest. The build links a dead record only to an individual it
+ * names, never to a matriline's members; the via_group check is a second guard.
+ */
+export function latestLink<L extends Pick<OccurrenceLink, 'vitality' | 'via_group'>>(links: L[]): {latest: L, dead: boolean} | null {
+  if (!links.length) return null;
+  const death = links.filter(l => l.vitality === 'dead' && !l.via_group).at(-1);
+  return {latest: death ?? links[0]!, dead: !!death};
 }
 
 /**
@@ -319,22 +337,28 @@ export interface SightingsOptions {
 export function renderSightingsSummary(
   links: OccurrenceLink[] | null,
   empty: TemplateResult,
-  { currentYear, map = true }: SightingsOptions = {},
+  { currentYear, map = true, latestCard }: SightingsOptions = {},
 ) {
-  if (!links?.length)
+  const last = latestLink(links ?? []);
+  if (!links?.length || !last)
     return empty;
-  // A dead animal isn't seen after its earliest record as dead, whatever is reported of
-  // the carcass later (decision 088). The build links a dead record only to an individual
-  // it names, never to a matriline's members; the via_group check is a second guard.
-  const death = links.filter(l => l.vitality === 'dead' && !l.via_group).at(-1);
-  const latest = death ?? links[0]!;
+  const {latest, dead} = last;
   const located = links.filter(l => l.location).length;
+  const note = html`
+    <p class="sightings-note">
+      Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}${dead ? html`, dead` : nothing}
+      · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(map && located, () => html` — ${located === links.length ? 'each' : `${located} of them`} on the map above, where reports at one spot share a dot; the newest is solid. Click a dot to see its day on the map.`)}
+    </p>
+  `;
+  if (latestCard !== undefined)
+    return html`
+      ${note}
+      <div class="latest-card">${latestCard}</div>
+      ${renderPresenceTable(links, undefined, undefined, currentYear)}
+    `;
   return html`
     ${renderPresenceTable(links, undefined, undefined, currentYear)}
     ${when(map && located, () => renderProfileMap(links))}
-    <p class="sightings-note">
-      Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}${death ? html`, dead` : nothing}
-      · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(map && located, () => html` — ${located === links.length ? 'each' : `${located} of them`} on the map above, where reports at one spot share a dot; the newest is solid. Click a dot to see its day on the map.`)}
-    </p>
+    ${note}
   `;
 }

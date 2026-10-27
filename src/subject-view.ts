@@ -3,8 +3,10 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { individualPath, matrilinePath, type OccurrenceLink } from './catalog.ts';
 import { individualStyles, renderIndividualProfile, renderIndividualSightings, type IndividualProfileData } from './individual-profile.ts';
 import { renderMatrilineProfile, renderMatrilineSightings, type MatrilineProfileData } from './matriline-profile.ts';
-import { profileStyles } from './profile-shared.ts';
-import { READ_PATH_BASE } from './read-path.ts';
+import { latestLink, profileStyles } from './profile-shared.ts';
+import { findOccurrence, pacificDay, READ_PATH_BASE } from './read-path.ts';
+import type { Occurrence } from './types.ts';
+import './obs-summary.ts';
 import { decodeSubjectData, sameSubject, subjectDataPath, subjectFromHref, subjectLinksPath, type Subject } from './subject.ts';
 
 /** A subject's page data and sighting links, once both have arrived. */
@@ -38,8 +40,10 @@ export function occurrenceFromHref(href: string, base = window.location.origin):
  * renders the subject's own page from, and draws it with the page's own templates, so the
  * two can't drift apart; the page's small map is left out, since the big one is beside it.
  *
- * A link to another animal or matriline opens it here; "Last reported" moves the map to
- * that day and selects the sighting, which closes the subject. Any other link, and any
+ * Its Sightings section starts with "Last reported" and that sighting's full card, as on
+ * the map, then the table (Peter, 2026-10-27). A link to another animal or matriline opens
+ * it here; "Last reported", or the card's dot, moves the map to that day and selects the
+ * sighting, which closes the subject. Any other link, and any
  * link opened in a new tab or window, behaves as a link does.
  *
  * Events, all bubbling out of the shadow root: `close-subject` from its Back button,
@@ -100,6 +104,9 @@ export class SubjectView extends LitElement {
       color: #64748b;
       padding: 1rem 0;
     }
+    .latest-card {
+      margin: 0.5rem 0 1rem;
+    }
     a.full-page {
       border: 1px solid #1976d2;
       border-radius: 4px;
@@ -124,16 +131,30 @@ export class SubjectView extends LitElement {
 
   @state() private loaded: Loaded | null = null;
   @state() private failed = false;
+  /** The newest sighting, for its card; undefined while it loads, null if it can't be found. */
+  @state() private latest: Occurrence | null | undefined = undefined;
 
   constructor() {
     super();
     this.addEventListener('click', this.onClick);
+    this.addEventListener('focus-occurrence', this.onCardFocus);
   }
+
+  // The card's dot asks to focus its sighting. Here that means going to its day on the
+  // map, as "Last reported" does, not focusing it under a sidebar that stays open.
+  private onCardFocus = (event: Event) => {
+    const occurrence = (event as CustomEvent<Occurrence | null>).detail;
+    if (!occurrence) return;
+    event.stopPropagation();
+    this.dispatchEvent(new CustomEvent<OccurrenceTarget>('go-to-occurrence', {bubbles: true, composed: true,
+      detail: {date: pacificDay(occurrence.observed_at), occurrenceId: occurrence.id}}));
+  };
 
   protected willUpdate(changed: PropertyValues<this>): void {
     if (changed.has('subject') && !sameSubject(this.subject, this.loaded?.subject ?? null)) {
       this.loaded = null;
       this.failed = false;
+      this.latest = undefined;
       if (this.subject) void this.load(this.subject);
     }
   }
@@ -154,10 +175,24 @@ export class SubjectView extends LitElement {
       // A subject without its links still shows, as one with no sightings yet.
       const links: OccurrenceLink[] = linksResponse.ok ? await linksResponse.json() : [];
       // Only if this is still the subject asked for: a quick second click can overtake the first.
-      if (sameSubject(subject, this.subject)) this.loaded = {kind: subject.kind, subject, data, links} as Loaded;
+      if (!sameSubject(subject, this.subject)) return;
+      this.loaded = {kind: subject.kind, subject, data, links} as Loaded;
+      void this.loadLatest(subject, links);
     } catch {
       if (sameSubject(subject, this.subject)) this.failed = true;
     }
+  }
+
+  private async loadLatest(subject: Subject, links: OccurrenceLink[]): Promise<void> {
+    const last = latestLink(links);
+    let latest: Occurrence | null = null;
+    try {
+      const found = last ? await findOccurrence<Omit<Occurrence, 'observed_at_ms'>>(last.latest.occurrence_id) : null;
+      latest = found ? {...found, observed_at_ms: Date.parse(found.observed_at)} as Occurrence : null;
+    } catch {
+      // Without its card the section still says when it was last reported, with the link.
+    }
+    if (sameSubject(subject, this.subject)) this.latest = latest;
   }
 
   private pagePath(): string | null {
@@ -179,9 +214,12 @@ export class SubjectView extends LitElement {
     if (this.failed)
       return html`<p class="status">Couldn't load this ${this.subject!.kind === 'individuals' ? 'animal' : 'matriline'}. <a class="full-page-link" href=${`/${this.subject!.kind}/${this.subject!.id}`}>Open its page</a> instead.</p>`;
     if (!loaded) return html`<p class="status">Loading…</p>`;
+    const latestCard = this.latest === undefined ? html`<p class="status">Loading the sighting…</p>`
+      : this.latest ? html`<obs-summary .sighting=${this.latest}></obs-summary>` : nothing;
+    const options = {map: false, latestCard};
     const body = loaded.kind === 'individuals'
-      ? renderIndividualProfile(loaded.data, renderIndividualSightings(loaded.data.profile.primary_designation, loaded.links, {map: false}))
-      : renderMatrilineProfile(loaded.data, renderMatrilineSightings(loaded.data.group.designation, loaded.links, {map: false}));
+      ? renderIndividualProfile(loaded.data, renderIndividualSightings(loaded.data.profile.primary_designation, loaded.links, options))
+      : renderMatrilineProfile(loaded.data, renderMatrilineSightings(loaded.data.group.designation, loaded.links, options));
     return html`
       ${body}
       <a class="full-page" href=${this.pagePath()!}>Open the full page →</a>
