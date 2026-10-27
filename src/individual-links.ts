@@ -79,6 +79,42 @@ export function injectIndividualLinks(
     .join('');
 }
 
+/** One of the animals or groups a sighting names, and its page when the catalogue knows it. */
+export interface NamedAnimal {
+  label: string;
+  href: string | null;
+}
+
+/**
+ * The animals and matrilines a sighting names, once each, in the order its text
+ * names them, for the row of chips on its card. Each links to its page by the same
+ * fold and the same lookups the links in the text use. A code the catalogue doesn't
+ * know stays, unlinked: it is still what the observer wrote.
+ */
+export function namedAnimals(
+  identifiers: readonly string[] | null,
+  codes: Map<string, IndividualRef>,
+  matrilines: Map<string, GroupRef> = new Map(),
+): NamedAnimal[] {
+  const seen = new Set<string>();
+  const named: NamedAnimal[] = [];
+  for (const label of identifiers ?? []) {
+    const folded = fold(label);
+    if (seen.has(folded)) continue;
+    seen.add(folded);
+    let href: string | null = null;
+    if (folded.endsWith('s')) {
+      const group = matrilines.get(folded);
+      if (group) href = matrilinePath(group);
+    } else {
+      const individual = codes.get(folded);
+      if (individual) href = individualPath(individual);
+    }
+    named.push({label, href});
+  }
+  return named;
+}
+
 let codeMap: Map<string, IndividualRef> | null = null;
 let matrilineMap: Map<string, GroupRef> | null = null;
 let ecotypeMap: Map<string, GroupRef> | null = null;

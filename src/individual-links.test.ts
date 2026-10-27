@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { ecotypeCodes, injectIndividualLinks, matrilineCodes, setCatalogCodes } from './individual-links.ts';
+import { ecotypeCodes, injectIndividualLinks, matrilineCodes, namedAnimals, setCatalogCodes } from './individual-links.ts';
 
 // Links carry the register identifier and the designation as its slug (034).
 const T065A5 = { entity_id: 'SSA:0010197', primary_designation: 'T065A5' };
@@ -105,4 +105,31 @@ test('rows from either source build the lookup the links are made from', () => {
   expect(injectIndividualLinks('T65A and the T65As, with T046A, among transients; X9 too',
     byCode, matrilineCodes()!, ecotypeCodes()!)).toBe(
     '[T65A](/individuals/0010193/T065A) and the [T65As](/matrilines/0002163/T065As), with [T046A](/individuals/0010368/T122), among [transients](/populations/0000002/Biggs); X9 too');
+});
+
+test('a sighting\'s named animals become chips, each once, in the order its text names them', () => {
+  // As the build extracts them from a real report: a code can repeat, and the
+  // same animal can be written two ways.
+  expect(namedAnimals(['T65A5', 'T65As', 'T065A5', 'T65A5'], codes, matrilines)).toEqual([
+    { label: 'T65A5', href: '/individuals/0010197/T065A5' },
+    { label: 'T65As', href: '/matrilines/0002163/T065As' },
+  ]);
+});
+
+test('a chip links a superseded code to the individual that now carries it', () => {
+  expect(namedAnimals(['T46A'], codes, matrilines)).toEqual([{ label: 'T46A', href: '/individuals/0010368/T122' }]);
+});
+
+test('a code the catalogue does not know stays as a chip without a link', () => {
+  // Still what the observer wrote; linking is a navigation aid, not an identification.
+  expect(namedAnimals(['CRC338', 'T46Bs', 'T999s'], codes, matrilines)).toEqual([
+    { label: 'CRC338', href: null },
+    { label: 'T46Bs', href: '/matrilines/0002149/T046Bs' },
+    { label: 'T999s', href: null },
+  ]);
+});
+
+test('a sighting that names no animal has no chips', () => {
+  expect(namedAnimals(null, codes, matrilines)).toEqual([]);
+  expect(namedAnimals([], codes, matrilines)).toEqual([]);
 });

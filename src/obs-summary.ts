@@ -16,7 +16,7 @@ import { deleteSighting } from './write-api.ts';
 import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
-import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes } from './individual-links.ts';
+import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals } from './individual-links.ts';
 
 const domPurify = createDOMPurify(window as any);
 
@@ -48,20 +48,22 @@ export class ObsSummary extends LitElement {
   @state() private catalogLoaded = catalogCodes() !== null;
 
   static styles = css`
+    /* A card: each sighting one bordered object, the panel's gap between them
+       (salish-fwyt.1, after the sidebar mockup). */
     :host {
-      border-left: 3px solid #cbd5e1;
+      background-color: white;
+      border: 1px solid #d9dde3;
+      border-radius: 6px;
       display: block;
       line-height: 1.5;
-      margin-left: -0.5rem;
-      margin-right: -0.5rem;
-      padding: 1rem 0.5rem 1rem calc(0.5rem - 3px);
+      padding: 0.625rem 0.75rem;
     }
     :host([own-observation]) {
       background-color: rgba(128, 128, 128, 0.1);
     }
     :host(.focused) {
       background-color: #e3f2fd;
-      border-left-color: #1976d2;
+      border-color: #1976d2;
     }
     header {
       align-items: baseline;
@@ -88,11 +90,41 @@ export class ObsSummary extends LitElement {
     a:hover {
       color: #1565c0;
     }
+    /* Who saw it and through whom, quietly at the foot of the card. */
     cite {
       color: #64748b;
       display: block;
       font-size: 0.8125rem;
-      margin-top: 0.25rem;
+      font-style: normal;
+      margin-top: 0.5rem;
+    }
+    /* The animals and matrilines the sighting names, as chips. */
+    ul.animals {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      list-style: none;
+      margin: 0.375rem 0 0;
+      padding: 0;
+    }
+    ul.animals li {
+      border: 1px solid #c8d6e0;
+      border-radius: 999px;
+      color: #64748b;
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      padding: 0 0.55rem;
+    }
+    ul.animals li:has(a) {
+      padding: 0;
+    }
+    ul.animals a {
+      border-radius: 999px;
+      display: block;
+      padding: 0 0.55rem;
+    }
+    ul.animals a:hover {
+      background: #eef6f9;
     }
     cite a {
       color: inherit;
@@ -200,7 +232,7 @@ export class ObsSummary extends LitElement {
     // change) can fire before it is assigned; render nothing rather than throw.
     if (!this.sighting) return nothing;
     const {
-      body, confirmation, count, disagreements, observed_at, photos, provider_slug, taxon, url, vitality
+      body, confirmation, count, disagreements, identifiers, observed_at, photos, provider_slug, taxon, url, vitality
     } = this.sighting;
     // The same dot, in the same colour, as the marker on the map — which is the
     // whole point of decision 029's palette. It used to be a letter, and the
@@ -226,7 +258,11 @@ export class ObsSummary extends LitElement {
           Temporal.Instant.from(observed_at).toZonedDateTimeISO('America/Los_Angeles').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
         }`)}</time>
       </header>
-      ${this.renderProvenance()}
+      ${guard([identifiers, this.catalogLoaded], () => {
+        const animals = namedAnimals(identifiers, catalogCodes() ?? new Map(), matrilineCodes() ?? new Map());
+        return animals.length ? html`<ul class="animals">${animals.map(({label, href}) =>
+          html`<li>${href ? html`<a href=${href}>${label}</a>` : label}</li>`)}</ul>` : nothing;
+      })}
       ${guard([body, this.catalogLoaded], () => html`${
         unsafeHTML(domPurify.sanitize(
           marked.parse(
@@ -248,6 +284,7 @@ export class ObsSummary extends LitElement {
           `)
         }</ul>`
       : undefined}
+      ${this.renderProvenance()}
       <ul class="actions">
         <li><a href="#" @click=${this.onCopyLink}>${this.copied ? 'Copied!' : 'Copy link'}</a></li>
         ${when(this.user, () => html`
