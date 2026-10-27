@@ -164,6 +164,12 @@ export default class SightingForm extends LitElement {
     input[type="number"] {
       width: 5em;
     }
+    /* Values a machine reads, as on a sighting's card. */
+    input[type="time"],
+    input[name$="_location"] {
+      font-family: var(--font-mono);
+      font-size: var(--fs-mono);
+    }
     input[type="text"],
     input[type="url"],
     input[type="time"],

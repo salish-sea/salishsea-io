@@ -19,8 +19,8 @@ describe('every page links the stylesheet that names and loads the font', () => 
 
 // Text set side by side matches only if every size comes from one scale (salish-hdhv):
 // the count beside a sighting's name was 13px and the time beside it 12px. A style
-// names a step of src/fonts.css's scale, and the family is named there alone, so a
-// component inherits it rather than restating it.
+// names a step of src/fonts.css's scale, and the families are named there alone, so
+// a component inherits Work Sans or asks for the mono face by its property.
 describe('every style takes its type from src/fonts.css', () => {
   const sources = [
     ...fs.readdirSync(process.cwd()).filter(f => f.endsWith('.html')),
@@ -31,13 +31,13 @@ describe('every style takes its type from src/fonts.css', () => {
 
   it.each(sources)('%s sizes text from the scale', file => {
     const text = fs.readFileSync(path.join(process.cwd(), file), 'utf-8');
-    const sizes = [...text.matchAll(/font-size:\s*([^;}]+)/g)].map(m => m[1].trim());
-    expect(sizes.filter(s => !/^var\(--fs-(h4|h5|h6|body1|body2|caption)\)$/.test(s))).toEqual([]);
+    const sizes = [...text.matchAll(/font-size:\s*([^;}]+)/g)].map(m => m[1]!.trim());
+    expect(sizes.filter(s => !/^var\(--fs-(h4|h5|h6|body1|body2|caption|mono)\)$/.test(s))).toEqual([]);
   });
 
   it.each(sources)('%s names no typeface', file => {
     const text = fs.readFileSync(path.join(process.cwd(), file), 'utf-8');
-    const families = [...text.matchAll(/font-family:\s*([^;}]+)/g)].map(m => m[1].trim());
-    expect(families.filter(f => f !== 'inherit')).toEqual([]);
+    const families = [...text.matchAll(/font-family:\s*([^;}]+)/g)].map(m => m[1]!.trim());
+    expect(families.filter(f => f !== 'inherit' && f !== 'var(--font-mono)')).toEqual([]);
   });
 });

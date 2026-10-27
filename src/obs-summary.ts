@@ -84,7 +84,8 @@ export class ObsSummary extends LitElement {
        time, share one size (salish-hdhv). */
     time {
       color: #64748b;
-      font-size: var(--fs-body2);
+      font-family: var(--font-mono);
+      font-size: var(--fs-mono);
       white-space: nowrap;
     }
     a {
