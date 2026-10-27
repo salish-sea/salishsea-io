@@ -1,4 +1,4 @@
-import { svg } from "lit";
+import { css, svg, unsafeCSS } from "lit";
 
 
 export const cameraAddIcon = svg`<path d="M440-440ZM120-120q-33 0-56.5-23.5T40-200v-480q0-33 23.5-56.5T120-760h126l74-80h240v80H355l-73 80H120v480h640v-360h80v360q0 33-23.5 56.5T760-120H120Zm640-560v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80ZM440-260q75 0 127.5-52.5T620-440q0-75-52.5-127.5T440-620q-75 0-127.5 52.5T260-440q0 75 52.5 127.5T440-260Zm0-80q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t29 71q0 42-29 71t-71 29Z"/>`;
@@ -14,3 +14,22 @@ export const chevronLeftIcon = svg`<path d="M560-240 320-480l240-240 56 56-184 1
 export const chevronRightIcon = svg`<path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/>`;
 // Material Symbols "layers": the map's reference-layer switch (layer-control.ts).
 export const layersIcon = svg`<path d="M480-118 120-398l66-50 294 228 294-228 66 50-360 280Zm0-202L120-600l360-280 360 280-360 280Zm0-280Zm0 178 230-178-230-178-230 178 230 178Z"/>`;
+
+// Material Symbols "open_in_new", after a link that leaves the site for a new tab, so
+// a link reads as one without an underline (salish-hdhv). A link around a photo needs
+// no mark. about.html, plain HTML, restates the rule by hand.
+const openInNewPath = 'M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z';
+const openInNewMask = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="${openInNewPath}"/></svg>`)}")`;
+export const offsiteLinkStyles = css`
+  a[target="_blank"]:not(:has(img))::after {
+    background-color: currentColor;
+    content: "";
+    content: "" / " (opens in a new tab)";
+    display: inline-block;
+    height: 0.85em;
+    margin-left: 0.2em;
+    mask: ${unsafeCSS(openInNewMask)} center / contain no-repeat;
+    vertical-align: -0.05em;
+    width: 0.85em;
+  }
+`;

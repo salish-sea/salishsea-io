@@ -18,6 +18,7 @@ import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
 import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, populationCodes } from './individual-links.ts';
 import { interceptableAnchor, subjectFromHref, type Subject } from './subject.ts';
+import { offsiteLinkStyles } from './icons.ts';
 
 const domPurify = createDOMPurify(window as any);
 
@@ -49,7 +50,7 @@ export class ObsSummary extends LitElement {
   // with individual-profile links; until then codes show as plain text.
   @state() private catalogLoaded = catalogCodes() !== null;
 
-  static styles = css`
+  static styles = [offsiteLinkStyles, css`
     /* A card: each sighting one bordered object, the panel's gap between them
        (salish-fwyt.1, after the sidebar mockup). Set a step down the scale, at body2,
        as a list of many is: the sidebar is denser than anything Orcasound's design
@@ -105,10 +106,12 @@ export class ObsSummary extends LitElement {
     }
     /* Who saw it and through whom, quietly at the foot of the card. */
     cite {
-      color: #64748b;
+      /* Light at 12px, the one exception to Regular there, in a darker grey that
+         keeps its contrast: the lines read as thinner rather than paler (salish-hdhv). */
+      color: #475569;
       display: block;
       font-size: var(--fs-caption);
-      font-weight: 400;
+      font-weight: 300;
       font-style: normal;
       margin-top: 0.5rem;
     }
@@ -162,21 +165,23 @@ export class ObsSummary extends LitElement {
       outline: 2px solid #1976d2;
       outline-offset: 1px;
     }
+    /* Quiet until pointed at, as the site's links are not underlined (salish-hdhv). */
     cite a {
       color: inherit;
-      text-decoration: underline;
     }
     cite a:hover {
       color: #1976d2;
+      text-decoration: underline;
     }
     cite .observer {
       color: #475569;
     }
     .provider {
-      color: #64748b;
+      /* Light at 12px, as cite is. */
+      color: #475569;
       display: block;
       font-size: var(--fs-caption);
-      font-weight: 400;
+      font-weight: 300;
       font-style: normal;
       margin-top: 0.125rem;
     }
@@ -295,7 +300,7 @@ export class ObsSummary extends LitElement {
     .menu button.danger {
       color: #b91c1c;
     }
-  `;
+  `];
 
   @consume({context: userContext, subscribe: true})
   private user: User | undefined;

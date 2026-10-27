@@ -104,6 +104,18 @@
         margin-top: 0.25rem;
         opacity: 0.8;
       }
+      /* src/icons.ts's offsiteLinkStyles, by hand: a link that leaves for a new tab. */
+      a[target="_blank"]:not(:has(img))::after {
+        background-color: currentColor;
+        content: "";
+        content: "" / " (opens in a new tab)";
+        display: inline-block;
+        height: 0.85em;
+        margin-left: 0.2em;
+        mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%20-960%20960%20960%22%3E%3Cpath%20d%3D%22M200-120q-33%200-56.5-23.5T120-200v-560q0-33%2023.5-56.5T200-840h280v80H200v560h560v-280h80v280q0%2033-23.5%2056.5T760-120H200Zm188-212-56-56%20372-372H560v-80h280v280h-80v-144L388-332Z%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat;
+        vertical-align: -0.05em;
+        width: 0.85em;
+      }
     </style>
     <script type="module" src="src/about.ts"></script>
   </head>
