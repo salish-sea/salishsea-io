@@ -116,6 +116,7 @@ export const smallMapStyles = css`
   }
   ul.small-maps a {
     display: block;
+    text-decoration: none;
   }
   /* One line, so the maps in a row line up. */
   ul.small-maps .label {

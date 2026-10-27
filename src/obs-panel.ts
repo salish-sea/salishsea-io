@@ -5,7 +5,7 @@ import { Temporal } from "temporal-polyfill";
 import './sighting-form.ts';
 import './date-calendar.ts';
 import { stepButtonStyles, stepIcon, type DateCalendar } from './date-calendar.ts';
-import { cameraAddIcon, chevronLeftIcon, chevronRightIcon } from "./icons.ts";
+import { cameraAddIcon, chevronLeftIcon, chevronRightIcon, linkStyles } from "./icons.ts";
 import { consume } from "@lit/context";
 import { userContext, type User } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
@@ -27,7 +27,7 @@ export const COMPACT_LAYOUT = '(max-aspect-ratio: 1)';
 
 @customElement('obs-panel')
 export class ObsPanel extends LitElement {
-  static styles = [stepButtonStyles, css`
+  static styles = [stepButtonStyles, linkStyles, css`
     :host {
       box-sizing: border-box;
       display: flex;
@@ -246,7 +246,6 @@ export class ObsPanel extends LitElement {
     .contribute-pitch a {
       color: #1976d2;
       font-weight: 400;
-      text-decoration: none;
       white-space: nowrap;
     }
     .hide {

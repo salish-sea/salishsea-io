@@ -15,12 +15,25 @@ export const chevronRightIcon = svg`<path d="M504-480 320-664l56-56 240 240-240 
 // Material Symbols "layers": the map's reference-layer switch (layer-control.ts).
 export const layersIcon = svg`<path d="M480-118 120-398l66-50 294 228 294-228 66 50-360 280Zm0-202L120-600l360-280 360 280-360 280Zm0-280Zm0 178 230-178-230-178-230 178 230 178Z"/>`;
 
-// Material Symbols "open_in_new", after a link that leaves the site for a new tab, so
-// a link reads as one without an underline (salish-hdhv). A link around a photo needs
-// no mark. about.html, plain HTML, restates the rule by hand.
-const openInNewPath = 'M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z';
+// The site's links (docs/style-guide.md, rule 8). A link in running text needs a cue
+// besides its colour, which is only 2.7:1 against the text around it: an underline, or,
+// for a link that leaves the site in a new tab, Material Symbols' "open in new" mark. A
+// link that stands on its own (nav, a chip, a list of links) sets text-decoration: none
+// itself. A link around a photo needs no mark. src/fonts.css restates this for the
+// plain pages, outside any shadow root; a test keeps the two marks alike.
+export const openInNewPath = 'M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z';
 const openInNewMask = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="${openInNewPath}"/></svg>`)}")`;
-export const offsiteLinkStyles = css`
+export const linkStyles = css`
+  a {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+  a[target="_blank"] {
+    text-decoration: none;
+  }
+  a[target="_blank"]:hover {
+    text-decoration: underline;
+  }
   a[target="_blank"]:not(:has(img))::after {
     background-color: currentColor;
     content: "";

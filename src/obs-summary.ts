@@ -18,7 +18,7 @@ import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
 import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, populationCodes } from './individual-links.ts';
 import { interceptableAnchor, subjectFromHref, type Subject } from './subject.ts';
-import { offsiteLinkStyles } from './icons.ts';
+import { linkStyles } from './icons.ts';
 
 const domPurify = createDOMPurify(window as any);
 
@@ -50,7 +50,7 @@ export class ObsSummary extends LitElement {
   // with individual-profile links; until then codes show as plain text.
   @state() private catalogLoaded = catalogCodes() !== null;
 
-  static styles = [offsiteLinkStyles, css`
+  static styles = [linkStyles, css`
     /* A card: each sighting one bordered object, the panel's gap between them
        (salish-fwyt.1, after the sidebar mockup). Set a step down the scale, at body2,
        as a list of many is: the sidebar is denser than anything Orcasound's design
@@ -98,7 +98,6 @@ export class ObsSummary extends LitElement {
     }
     a {
       color: #1976d2;
-      text-decoration: none;
       word-break: break-word;
     }
     a:hover {
@@ -156,6 +155,7 @@ export class ObsSummary extends LitElement {
       color: inherit;
       display: block;
       padding: 0 8px;
+      text-decoration: none;
     }
     ul.animals a:hover {
       background: rgba(0, 0, 0, 0.06);
@@ -165,13 +165,13 @@ export class ObsSummary extends LitElement {
       outline: 2px solid #1976d2;
       outline-offset: 1px;
     }
-    /* Quiet until pointed at, as the site's links are not underlined (salish-hdhv). */
+    /* The text's own grey, blue when pointed at; they leave the site, so the mark
+       says they are links (linkStyles). */
     cite a {
       color: inherit;
     }
     cite a:hover {
       color: #1976d2;
-      text-decoration: underline;
     }
     cite .observer {
       color: #475569;

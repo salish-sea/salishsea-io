@@ -30,7 +30,6 @@
       }
       a {
         color: #1976d2;
-        text-decoration: inherit;
       }
       a:hover {
         color: #1565c0;
@@ -104,18 +103,6 @@
         margin-top: 0.25rem;
         opacity: 0.8;
       }
-      /* src/icons.ts's offsiteLinkStyles, by hand: a link that leaves for a new tab. */
-      a[target="_blank"]:not(:has(img))::after {
-        background-color: currentColor;
-        content: "";
-        content: "" / " (opens in a new tab)";
-        display: inline-block;
-        height: 0.85em;
-        margin-left: 0.2em;
-        mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%20-960%20960%20960%22%3E%3Cpath%20d%3D%22M200-120q-33%200-56.5-23.5T120-200v-560q0-33%2023.5-56.5T200-840h280v80H200v560h560v-280h80v280q0%2033-23.5%2056.5T760-120H200Zm188-212-56-56%20372-372H560v-80h280v280h-80v-144L388-332Z%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat;
-        vertical-align: -0.05em;
-        width: 0.85em;
-      }
     </style>
     <script type="module" src="src/about.ts"></script>
   </head>
@@ -126,9 +113,9 @@
       <p>Communities throughout the Salish Sea are working to monitor and protect the diversity of life it supports. This site serves as a portal into their efforts.</p>
       <p>We currently show:</p>
       <ul>
-        <li><a href="https://www.inaturalist.org/">iNaturalist</a> observations of cetaceans, pinnipeds, and otters</li>
-        <li>Sightings submitted to the <a href="https://www.whalealert.org/">Whale Alert</a> mobile app by the public</li>
-        <li>Sightings from the <a href="https://www.orcanetwork.org/">Orca Network</a> community</li>
+        <li><a href="https://www.inaturalist.org/" target="_blank" rel="noopener noreferrer">iNaturalist</a> observations of cetaceans, pinnipeds, and otters</li>
+        <li>Sightings submitted to the <a href="https://www.whalealert.org/" target="_blank" rel="noopener noreferrer">Whale Alert</a> mobile app by the public</li>
+        <li>Sightings from the <a href="https://www.orcanetwork.org/" target="_blank" rel="noopener noreferrer">Orca Network</a> community</li>
       </ul>
       <h2>Data download</h2>
       <p>
@@ -153,15 +140,15 @@
       <h2>What this site records</h2>
       <ul>
         <li><strong>What you search for.</strong> When you choose a search result, or give up on a search, the site keeps the words you typed, how many results they found, and what you chose. It does not keep who you are or where you searched from.</li>
-        <li><strong>Errors and page timings.</strong> Your browser reports errors, and how long each page took to load, to <a href="https://sentry.io/">Sentry</a>, a service that tells us when the site is broken. These reports include your IP address, your browser, the address of the page and the address of the page that linked to it.</li>
+        <li><strong>Errors and page timings.</strong> Your browser reports errors, and how long each page took to load, to <a href="https://sentry.io/" target="_blank" rel="noopener noreferrer">Sentry</a>, a service that tells us when the site is broken. These reports include your IP address, your browser, the address of the page and the address of the page that linked to it.</li>
         <li><strong>Requests.</strong> Our hosting, Amazon CloudFront, keeps the usual record of each request for 90 days: the address it came from, the page, and the page that linked to it.</li>
         <li><strong>If you sign in</strong> with Google, the email address on your account, to tie your sightings to you, and what you send: sightings, photos and feedback.</li>
       </ul>
       <p>There are no ads, and nothing here follows you to other sites. The only cookie this site sets keeps you signed in.</p>
       <p>
         If you have any feedback, use the Feedback button on the map, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>.
-        This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io">open source code</a> pioneered by Peter Abrahamsen
-        and is funded in 2025-26 by <a href="https://beamreach.blue/">Beam Reach</a>.
+        This free, open access, site is based on <a href="https://github.com/salish-sea/salishsea-io" target="_blank" rel="noopener noreferrer">open source code</a> pioneered by Peter Abrahamsen
+        and is funded in 2025-26 by <a href="https://beamreach.blue/" target="_blank" rel="noopener noreferrer">Beam Reach</a>.
       </p>
     </main>
   </body>

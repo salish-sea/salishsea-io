@@ -7,7 +7,7 @@ import {
   type CatalogGroup, type GroupMember, type OccurrenceLink,
 } from './catalog.ts';
 import { formatDate } from './date-format.ts';
-import { offsiteLinkStyles } from './icons.ts';
+import { linkStyles } from './icons.ts';
 import { profileMapStyles, renderProfileMap } from './profile-map.ts';
 import { renderSiteNav, siteNavStyles, type NavPage } from './site-nav.ts';
 
@@ -29,6 +29,10 @@ const profileOwnStyles = css`
   }
   a {
     color: #1976d2;
+  }
+  /* Links that stand on their own, needing no underline: a heading, a list of names, a
+     relative named in the family list. */
+  h2 a, dt a, dd > a, ul.people a {
     text-decoration: none;
   }
   a:hover {
@@ -158,7 +162,7 @@ const profileOwnStyles = css`
 `;
 
 /** The profile pages' common rules, the nav's among them. */
-export const profileStyles = css`${siteNavStyles}${offsiteLinkStyles}${profileOwnStyles}${profileMapStyles}`;
+export const profileStyles = css`${siteNavStyles}${linkStyles}${profileOwnStyles}${profileMapStyles}`;
 
 export function renderRelative(relative: { entity_id: string | null; primary_designation: string; nicknames?: { name: string; status: string | null }[] }) {
   const name = relative.nicknames ? displayName(relative.nicknames) : null;

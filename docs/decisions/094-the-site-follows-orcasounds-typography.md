@@ -20,7 +20,7 @@ Orcasound's [2023 brand guidelines](https://github.com/orcasound/orca-branding/b
 
 - A sighting card is set at `--fs-body2`. Its name, count and standing are one run of text, so a long name has the count's room; the time keeps the heading's right edge on the first line, since the right-aligned times are what make the list read as a timeline (Peter).
 - Text at 12px is Regular, not Light, which is too thin there, except a card's two source lines ("via Orca Network", "Added via Maplify"), which are Light in a darker grey so they read as thinner rather than paler and still pass WCAG AA on every card background.
-- Links aren't underlined, as before, so a link that leaves the site for a new tab ends in Material Symbols' "open in new" mark ([`src/icons.ts`](../../src/icons.ts)).
+- A link in running text needs a cue besides colour, since our blue is only 2.7:1 against our body text: a link to another of our pages is underlined, and a link that leaves the site ends in Material Symbols' "open in new" mark instead ([`src/icons.ts`](../../src/icons.ts)). Links that stand on their own (nav, chips, lists of names) have neither.
 
 Tests in [`src/fonts.test.ts`](../../src/fonts.test.ts) hold every size to the scale, keep the families in `src/fonts.css`, and keep 12px text Regular unless its rule says why.
 

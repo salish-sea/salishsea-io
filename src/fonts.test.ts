@@ -49,3 +49,14 @@ describe('every style takes its type from src/fonts.css', () => {
     expect(families.filter(f => f !== 'inherit' && f !== 'var(--font-mono)')).toEqual([]);
   });
 });
+
+// The plain pages' link mark (src/fonts.css) is a copy of the components' (src/icons.ts).
+describe('the link mark is the same inside and outside a shadow root', () => {
+  it('src/fonts.css draws the path src/icons.ts names', () => {
+    const icons = fs.readFileSync(path.join(process.cwd(), 'src/icons.ts'), 'utf-8');
+    const fonts = fs.readFileSync(path.join(process.cwd(), 'src/fonts.css'), 'utf-8');
+    const openInNew = icons.match(/openInNewPath = '([^']+)'/)?.[1];
+    expect(openInNew).toBeTruthy();
+    expect(fonts).toContain(encodeURIComponent(openInNew!));
+  });
+});

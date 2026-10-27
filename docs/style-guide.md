@@ -1,6 +1,6 @@
 # Style guide
 
-How SalishSea.io sets text and links. Read it before changing anything a visitor sees. Each rule gives its reason, so a case it doesn't cover can be decided the same way. The values live in [`src/fonts.css`](../src/fonts.css) and [`src/icons.ts`](../src/icons.ts); [`src/fonts.test.ts`](../src/fonts.test.ts) fails a build that breaks the rules it can check. Why we follow Orcasound, and what was rejected: [decision 094](decisions/094-the-site-follows-orcasounds-typography.md).
+How SalishSea.io sets text and links. Read it before changing anything a visitor sees. Each rule gives its reason, so a case it doesn't cover can be decided the same way. The values live in [`src/fonts.css`](../src/fonts.css), and the link rule in [`src/icons.ts`](../src/icons.ts) as well; [`src/fonts.test.ts`](../src/fonts.test.ts) fails a build that breaks the rules it can check. Why we follow Orcasound, and what was rejected: [decision 094](decisions/094-the-site-follows-orcasounds-typography.md).
 
 Not yet covered: colour, spacing, and icons other than the link mark. Until they are, match what the component's neighbours do.
 
@@ -13,7 +13,7 @@ Not yet covered: colour, spacing, and icons other than the link mark. Until they
 5. Text at 12px is Regular, except text meant to be passed over, which is Light in a darker grey.
 6. Values a machine produced (times, coordinates) are Noto Sans Mono at `--fs-mono`. Counts and estimates are not.
 7. Headings are in sentence case. Capitals only for a kicker, the label above a page's title.
-8. Links are coloured, not underlined. A link that leaves the site opens a new tab and ends in the "open in new" mark.
+8. A link in running text is underlined, or, if it leaves the site, ends in the "open in new" mark instead. A link that stands on its own is neither. A link that leaves the site opens a new tab.
 
 ## Typeface and weight
 
@@ -67,6 +67,10 @@ Headings are in sentence case. Capitals, letter-spaced 0.08em, are kept for a ki
 
 ## Links (rule 8)
 
-A link is blue (`#1976d2`) and not underlined; it is underlined on hover. In grey secondary text, a link takes the text's grey and turns blue on hover.
+A link is blue (`#1976d2`). Inside running text, colour alone doesn't mark it: our blue is only 2.7:1 against our body text (`#213547`), and WCAG asks for 3:1 or a cue besides colour. No blue reaches 3:1 against that text while keeping 4.5:1 against white, so the cue is an underline, or the mark:
 
-Why: underlines in dense text add weight and clutter. Colour marks a link in running text. Where colour can't (grey text), and wherever a link leaves the site, the "open in new" mark does: `offsiteLinkStyles` in `src/icons.ts` adds it to every link with `target="_blank"` and text. A link to a page on SalishSea.io opens in the same tab and has no mark. A component with such links includes `offsiteLinkStyles`, as `src/obs-summary.ts` and the profile pages' styles do; a plain HTML page copies the rule, as `about.html` does.
+- **A link to another page of SalishSea.io, in running text,** is underlined, a little below the baseline (`text-underline-offset: 0.15em`): "Biggs T65A5" in a sighting's comment, "Last reported October 27" on a profile.
+- **A link that leaves the site** opens a new tab and ends in Material Symbols' "open in new" mark instead of an underline, so the visitor knows they are leaving; it is underlined on hover. In grey secondary text, such as a card's "via Orca Network", it takes the text's grey, turns blue on hover, and the mark alone says it is a link.
+- **A link that stands on its own,** where its place says it is a link (the nav, a chip, a heading, a list of names, a button-like "Open the full page →"), has no underline and no mark. Its rule sets `text-decoration: none`.
+
+`linkStyles` in `src/icons.ts` sets the first two for a component; include it, as `src/obs-summary.ts`, `src/obs-panel.ts` and the profile pages' styles do. `src/fonts.css` sets them for the plain pages, outside any shadow root, and a test keeps its mark the same as `src/icons.ts`'s.
