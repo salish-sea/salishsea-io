@@ -496,6 +496,17 @@ test('a new build makes a signed-out tab refetch its day', async () => {
 });
 
 
+
+/** Focusing a sighting scrolls its card into view, which jsdom doesn't implement. */
+async function withScroll(run: () => Promise<void>) {
+  Element.prototype.scrollIntoView = () => {};
+  try {
+    await run();
+  } finally {
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+  }
+}
+
 // The sidebar's subject (decision 093, salish-7ds1.1).
 test('a subject opened on the page is in the URL, readably, and remembers it was opened here through a map move', async () => {
   window.history.replaceState({}, '', '/?d=2024-07-15');
@@ -515,20 +526,22 @@ test('a subject opened on the page is in the URL, readably, and remembers it was
 });
 
 test('focusing a sighting, from a dot on the map, closes the subject in the same history entry', async () => {
-  window.history.replaceState({}, '', '/?d=2024-07-15');
-  const sighting = occurrenceFixture('aaa', '2024-07-15T18:23:00Z');
-  const el = await mountWithSightings(sighting);
-  // A subject in the URL, as a link or the browser's Back would put it there.
-  window.history.pushState({}, '', '/?d=2024-07-15&s=individuals/0010082');
-  window.dispatchEvent(new PopStateEvent('popstate'));
-  await el.updateComplete;
-  expect(el.shadowRoot!.querySelector('subject-view')!.hidden).toBe(false);
-  el.focusOccurrence(sighting);
-  await el.updateComplete;
-  const params = new URLSearchParams(window.location.search);
-  expect(params.get('o')).toBe('aaa');
-  expect(params.get('s')).toBeNull();
-  expect(el.shadowRoot!.querySelector('obs-panel')!.hidden).toBe(false);
+  await withScroll(async () => {
+    window.history.replaceState({}, '', '/?d=2024-07-15');
+    const sighting = occurrenceFixture('aaa', '2024-07-15T18:23:00Z');
+    const el = await mountWithSightings(sighting);
+    // A subject in the URL, as a link or the browser's Back would put it there.
+    window.history.pushState({}, '', '/?d=2024-07-15&s=individuals/0010082');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('subject-view')!.hidden).toBe(false);
+    el.focusOccurrence(sighting);
+    await el.updateComplete;
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get('o')).toBe('aaa');
+    expect(params.get('s')).toBeNull();
+    expect(el.shadowRoot!.querySelector('obs-panel')!.hidden).toBe(false);
+  });
 });
 
 test('cloning from the sidebar closes the subject in place, and the entry no longer claims one was opened here', async () => {
@@ -612,15 +625,17 @@ test('opening a subject from a link moves focus to its Back button, and closing 
 });
 
 test('closing the subject by focusing a sighting leaves focus where the page put it, not on the opening link', async () => {
-  window.history.replaceState({}, '', '/?d=2024-07-15');
-  const sighting = occurrenceFixture('aaa', '2024-07-15T18:23:00Z');
-  const el = await mountWithSightings(sighting);
-  const link = document.createElement('a');
-  link.href = '/individuals/0010082/T037';
-  el.shadowRoot!.querySelector('obs-panel')!.append(link);
-  await openSubjectFrom(el, link);
-  const focus = vi.spyOn(link, 'focus');
-  el.focusOccurrence(sighting);
-  await el.updateComplete;
-  expect(focus).not.toHaveBeenCalled();
+  await withScroll(async () => {
+    window.history.replaceState({}, '', '/?d=2024-07-15');
+    const sighting = occurrenceFixture('aaa', '2024-07-15T18:23:00Z');
+    const el = await mountWithSightings(sighting);
+    const link = document.createElement('a');
+    link.href = '/individuals/0010082/T037';
+    el.shadowRoot!.querySelector('obs-panel')!.append(link);
+    await openSubjectFrom(el, link);
+    const focus = vi.spyOn(link, 'focus');
+    el.focusOccurrence(sighting);
+    await el.updateComplete;
+    expect(focus).not.toHaveBeenCalled();
+  });
 });
