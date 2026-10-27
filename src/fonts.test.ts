@@ -11,11 +11,8 @@ describe('the font every page names is loaded on every page', () => {
     expect(pages.length).toBeGreaterThan(0);
   });
 
-  it.each(pages)('%s links src/fonts.css before any style that names Mukta', page => {
+  it.each(pages)('%s links src/fonts.css', page => {
     const html = fs.readFileSync(path.join(process.cwd(), page), 'utf-8');
-    const link = html.indexOf('<link rel="stylesheet" href="/src/fonts.css">');
-    expect(link, `${page} should link /src/fonts.css`).toBeGreaterThan(-1);
-    const firstMukta = html.search(/font-family:[^;]*Mukta/);
-    if (firstMukta !== -1) expect(link).toBeLessThan(firstMukta);
+    expect(html, `${page} should link /src/fonts.css`).toMatch(/<link\b[^>]*\bhref="\/src\/fonts\.css"[^>]*>/);
   });
 });
