@@ -7,7 +7,9 @@
  * for every subject of that kind (<id> is its register identifier's seven digits, or a
  * haul-out site's id: the register holds animals, not places),
  * and beside it <id>.links.json, its sighting links as data (scripts/segments/compare.ts reads
- * them; the page draws its map from the same links, decision 076). The page itself is
+ * them; the page draws its map from the same links, decision 076). An individual or a
+ * matriline also gets <id>.json, the data its page is rendered from, which the map page's
+ * sidebar reads to show the same subject in place of the day's list (salish-7ds1.1). The page itself is
  * the kind's templates (src/individual-profile.ts and its siblings), given data assembled
  * from the snapshot's documents in the shapes src/catalog.ts declares. Each kind reads only its own tables, which is
  * what the Stelis task running it declares as its inputs.
@@ -26,7 +28,7 @@ import * as path from 'node:path';
 
 import {
     dedupeOccurrenceLinks, descendantMatrilines, displayName, groupChain, hauloutReport, hauloutSite, isPopulation,
-    HAULOUT_SITES_FILE, type CatalogGroup, type Haulout, type HauloutOccurrence, type HauloutSite, type OccurrenceLink,
+    HAULOUT_SITES_FILE, type CatalogGroup, type GroupMember, type Haulout, type HauloutOccurrence, type HauloutSite, type OccurrenceLink,
 } from '../../src/catalog.ts';
 import type { MapDot } from '../../src/profile-map.ts';
 import { profileStyles, renderProfileFrame } from '../../src/profile-shared.ts';
@@ -47,6 +49,7 @@ import {
 import { islandFromManifest, renderDocument, SEARCH_ISLAND, type Island } from './profile-document.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 import { readSnapshot, type Doc, type Table, type Tables } from './snapshot-tables.ts';
+import { encodeSubjectData } from '../../src/subject.ts';
 
 export type { Tables } from './snapshot-tables.ts';
 
@@ -351,31 +354,71 @@ export function renderHauloutPage(shell: string, page: HauloutPage, currentYear:
         hauloutPreview(page.data), renderProfileFrame(body), islands);
 }
 
+// --- The sidebar's data (decision 093) ------------------------------------------------
+
+/**
+ * A page's data as the map page's sidebar reads it: the same, but with only the groups
+ * the templates look up. Those are the chain above the subject's own group (renderChain,
+ * the population a preview names) and the chain from each member's innermost group
+ * (renderMemberList's sub-lineages). The whole table, in every file, cost about 50 KB a
+ * subject. A group's notes are left out: they are never published (D-21), and the table
+ * only happens to carry none.
+ */
+export function sidebarData<D extends {groups: Map<number, CatalogGroup>, members: GroupMember[]}>(data: D, groupId: number | null): D {
+    const withoutNotes = <G extends object>(g: G): G => {
+        const {notes: _notes, ...published} = g as G & {notes?: unknown};
+        return published as G;
+    };
+    const used = new Map<number, CatalogGroup>();
+    const keep = (id: number | null) => {
+        if (id === null) return;
+        for (const g of groupChain(id, data.groups)) {
+            if (used.has(g.id)) break;
+            used.set(g.id, withoutNotes(g));
+        }
+    };
+    keep(groupId);
+    for (const member of data.members) keep(member.innermost_group_id);
+    // The subject's own group also sits outside the table: an individual's matriline, a
+    // matriline page's group.
+    const own: Record<string, unknown> = {};
+    for (const field of ['matriline', 'group'] as const) {
+        const g = (data as Record<string, unknown>)[field];
+        if (g && typeof g === 'object') own[field] = withoutNotes(g);
+    }
+    return {...data, ...own, groups: used};
+}
+
 // --- Writing a kind's pages -----------------------------------------------------------
 
 type File = [name: string, content: string];
 
 /**
- * A kind's pages as files: each page, and beside it its sighting links. A
- * kind may also write files about all its subjects at once, beside the pages.
+ * A kind's pages as files: each page, and beside it its sighting links, and, for a kind
+ * the map page's sidebar shows, the data the page is rendered from. A kind may also write
+ * files about all its subjects at once, beside the pages.
  */
 const pagesOf = <T extends Table, P extends ProfilePage<unknown>>(
     names: readonly T[],
     assemble: (t: Pick<Tables, T>) => P[],
     render: (shell: string, page: P, currentYear: number, islands: Island[]) => string,
     index: (t: Pick<Tables, T>) => File[] = () => [],
+    {sidebar}: {sidebar?: (page: P) => unknown} = {},
 ) => async (snapshot: string, shell: string, islands: Island[]): Promise<{pages: File[][], index: File[]}> => {
     const {tables, currentYear} = await readSnapshot(snapshot, async s => ({tables: await s.tables(names), currentYear: await s.year()}));
     const pages = assemble(tables).map((page): File[] => [
         [`${page.id}.html`, render(shell, page, currentYear, islands)],
         [`${page.id}.links.json`, JSON.stringify(page.links)],
+        ...(sidebar ? [[`${page.id}.json`, encodeSubjectData(sidebar(page))] as File] : []),
     ]);
     return {pages, index: index(tables)};
 };
 
 const KINDS = {
-    individuals: {shell: 'individual.html', pages: pagesOf(INDIVIDUAL_TABLES, assembleIndividuals, renderIndividualPage)},
-    matrilines: {shell: 'matriline.html', pages: pagesOf(MATRILINE_TABLES, assembleMatrilines, renderMatrilinePage)},
+    individuals: {shell: 'individual.html', pages: pagesOf(INDIVIDUAL_TABLES, assembleIndividuals, renderIndividualPage, undefined,
+        {sidebar: page => sidebarData(page.data, page.data.matriline?.id ?? null)})},
+    matrilines: {shell: 'matriline.html', pages: pagesOf(MATRILINE_TABLES, assembleMatrilines, renderMatrilinePage, undefined,
+        {sidebar: page => sidebarData(page.data, page.data.group.id)})},
     populations: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assembleEcotypes, renderEcotypePage)},
     // A pod's page is a population's a level down, in the same shell (decision 070).
     pods: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assemblePods, renderPodPage)},

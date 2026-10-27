@@ -495,3 +495,147 @@ test('a new build makes a signed-out tab refetch its day', async () => {
   }
 });
 
+
+
+/** Focusing a sighting scrolls its card into view, which jsdom doesn't implement. */
+async function withScroll(run: () => Promise<void>) {
+  Element.prototype.scrollIntoView = () => {};
+  try {
+    await run();
+  } finally {
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+  }
+}
+
+// The sidebar's subject (decision 093, salish-7ds1.1).
+test('a subject opened on the page is in the URL, readably, and remembers it was opened here through a map move', async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const el = await mountWithSightings(occurrenceFixture('aaa', '2024-07-15T18:23:00Z'));
+  el.shadowRoot!.querySelector('main')!.dispatchEvent(new CustomEvent('open-subject', {bubbles: true, composed: true,
+    detail: {kind: 'individuals', id: '0010082'}}));
+  await el.updateComplete;
+  expect(window.location.search).toContain('s=individuals/0010082');
+  expect(el.shadowRoot!.querySelector('obs-panel')!.hidden).toBe(true);
+  expect(el.shadowRoot!.querySelector('subject-view')!.hidden).toBe(false);
+  // A map move rewrites the URL in place, as this does; the entry must still say the subject
+  // was opened here, so the sidebar's Back steps back rather than taking it out of the URL.
+  const {setQueryParams} = await import('./salish-sea.ts');
+  setQueryParams({x: '1', y: '2', z: '9'}, {replace: true});
+  expect((window.history.state as {subjectOpenedHere?: boolean}).subjectOpenedHere).toBe(true);
+  expect(window.location.search).toContain('s=individuals/0010082');
+});
+
+test('focusing a sighting, from a dot on the map, closes the subject in the same history entry', async () => {
+  await withScroll(async () => {
+    window.history.replaceState({}, '', '/?d=2024-07-15');
+    const sighting = occurrenceFixture('aaa', '2024-07-15T18:23:00Z');
+    const el = await mountWithSightings(sighting);
+    // A subject in the URL, as a link or the browser's Back would put it there.
+    window.history.pushState({}, '', '/?d=2024-07-15&s=individuals/0010082');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('subject-view')!.hidden).toBe(false);
+    el.focusOccurrence(sighting);
+    await el.updateComplete;
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get('o')).toBe('aaa');
+    expect(params.get('s')).toBeNull();
+    expect(el.shadowRoot!.querySelector('obs-panel')!.hidden).toBe(false);
+  });
+});
+
+test('cloning from the sidebar closes the subject in place, and the entry no longer claims one was opened here', async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const sighting = occurrenceFixture('aaa', '2024-07-15T18:23:00Z');
+  const el = await mountWithSightings(sighting);
+  el.shadowRoot!.querySelector('main')!.dispatchEvent(new CustomEvent('open-subject', {bubbles: true, composed: true,
+    detail: {kind: 'individuals', id: '0010082'}}));
+  await el.updateComplete;
+  expect((window.history.state as {subjectOpenedHere?: boolean}).subjectOpenedHere).toBe(true);
+  el.dispatchEvent(new CustomEvent('clone-sighting', {bubbles: true, composed: true, detail: sighting}));
+  await el.updateComplete;
+  expect(new URLSearchParams(window.location.search).get('s')).toBeNull();
+  expect(window.history.state).toEqual({});
+  expect(el.shadowRoot!.querySelector('obs-panel')!.hidden).toBe(false);
+});
+
+const openSubjectFrom = async (el: SalishSea, origin: Element, subject = {kind: 'individuals', id: '0010082'}) => {
+  origin.dispatchEvent(new CustomEvent('open-subject', {bubbles: true, composed: true, detail: subject}));
+  await el.updateComplete;
+};
+
+test("the sidebar's Back steps back past a deselected sighting to where the subject was opened, once however often it's pressed", async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const el = await mountWithSightings(occurrenceFixture('aaa', '2024-07-15T18:23:00Z'));
+  await openSubjectFrom(el, el.shadowRoot!.querySelector('main')!);
+  // Clicking empty water deselects, which pushes an entry with the subject still open.
+  el.focusOccurrence(null);
+  expect((window.history.state as {stepsBack?: number}).stepsBack).toBe(2);
+  const go = vi.spyOn(window.history, 'go').mockImplementation(() => {});
+  const back = el.shadowRoot!.querySelector('subject-view')!.shadowRoot!.querySelector<HTMLButtonElement>('nav.back button');
+  el.shadowRoot!.querySelector('subject-view')!.dispatchEvent(new Event('close-subject', {bubbles: true, composed: true}));
+  el.shadowRoot!.querySelector('subject-view')!.dispatchEvent(new Event('close-subject', {bubbles: true, composed: true}));
+  expect(go.mock.calls).toEqual([[-2]]);
+  expect(back).not.toBeNull();
+  go.mockRestore();
+  window.dispatchEvent(new PopStateEvent('popstate'));
+});
+
+test('"Last reported" moves to the day the sighting is found on, and leaves the subject open when it is gone', async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const el = await mountWithSightings(occurrenceFixture('aaa', '2024-07-15T18:23:00Z'));
+  await openSubjectFrom(el, el.shadowRoot!.querySelector('main')!);
+  const view = el.shadowRoot!.querySelector('subject-view')!;
+
+  occurrenceQuery.single = {data: null, error: null};
+  view.dispatchEvent(new CustomEvent('go-to-occurrence', {bubbles: true, composed: true, detail: {date: '2024-07-15', occurrenceId: 'gone'}}));
+  await new Promise(r => setTimeout(r, 0));
+  await el.updateComplete;
+  expect(new URLSearchParams(window.location.search).get('s')).toBe('individuals/0010082');
+  expect(await toastText(el)).toMatch(/no longer on the map/);
+
+  // The link says the 16th; the sighting, edited since the build, is on the 15th.
+  occurrenceQuery.single = {data: occurrenceFixture('bbb', '2024-07-15T20:00:00Z'), error: null};
+  view.dispatchEvent(new CustomEvent('go-to-occurrence', {bubbles: true, composed: true, detail: {date: '2024-07-16', occurrenceId: 'bbb'}}));
+  await new Promise(r => setTimeout(r, 0));
+  await el.updateComplete;
+  const params = new URLSearchParams(window.location.search);
+  expect([params.get('d'), params.get('o'), params.get('s')]).toEqual(['2024-07-15', 'bbb', null]);
+  occurrenceQuery.single = {data: null, error: null};
+});
+
+test('opening a subject from a link moves focus to its Back button, and closing it returns focus to the link', async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const el = await mountWithSightings(occurrenceFixture('aaa', '2024-07-15T18:23:00Z'));
+  const link = document.createElement('a');
+  link.href = '/individuals/0010082/T037';
+  link.textContent = 'T37';
+  el.shadowRoot!.querySelector('obs-panel')!.append(link);
+  link.focus();
+  await openSubjectFrom(el, link);
+  const view = el.shadowRoot!.querySelector('subject-view')!;
+  await view.updateComplete;
+  await new Promise(r => setTimeout(r, 0));
+  expect(view.shadowRoot!.activeElement).toBe(view.shadowRoot!.querySelector('nav.back button'));
+  // Closed from a link's entry: the subject leaves the URL in place, and focus goes home.
+  window.history.replaceState({}, '', window.location.href);
+  view.dispatchEvent(new Event('close-subject', {bubbles: true, composed: true}));
+  await el.updateComplete;
+  expect(el.shadowRoot!.activeElement ?? document.activeElement).toBe(link);
+});
+
+test('closing the subject by focusing a sighting leaves focus where the page put it, not on the opening link', async () => {
+  await withScroll(async () => {
+    window.history.replaceState({}, '', '/?d=2024-07-15');
+    const sighting = occurrenceFixture('aaa', '2024-07-15T18:23:00Z');
+    const el = await mountWithSightings(sighting);
+    const link = document.createElement('a');
+    link.href = '/individuals/0010082/T037';
+    el.shadowRoot!.querySelector('obs-panel')!.append(link);
+    await openSubjectFrom(el, link);
+    const focus = vi.spyOn(link, 'focus');
+    el.focusOccurrence(sighting);
+    await el.updateComplete;
+    expect(focus).not.toHaveBeenCalled();
+  });
+});

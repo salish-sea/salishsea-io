@@ -7,9 +7,10 @@ import { describe, expect, test } from 'vitest';
 
 import {
     assembleEcotypes, assembleHaulouts, assembleHauloutSites, assembleIndividuals, assembleMatrilines, assemblePods,
-    renderEcotypePage, renderHauloutPage, renderIndividualPage, renderMatrilinePage, renderPodPage,
+    renderEcotypePage, renderHauloutPage, renderIndividualPage, renderMatrilinePage, renderPodPage, sidebarData,
     type Tables,
 } from './profiles.ts';
+import { decodeSubjectData, encodeSubjectData } from '../../src/subject.ts';
 
 const shellFor = (element: string) => `<!DOCTYPE html><html><head><title>x</title><meta name="description" content="x">
 <meta property="og:title" content="x"><meta property="og:description" content="x">
@@ -429,5 +430,44 @@ describe('assembleHauloutSites', () => {
         const sites = assembleHauloutSites(tables());
         expect(sites.map(s => s.id)).toEqual([11, 12, 13, 14]);
         expect(sites[1]).toEqual({id: 12, name: 'Protection Island', location: {lon: -122.92, lat: 48.12}, radius_m: 500});
+    });
+});
+
+describe("the data the map page's sidebar reads (salish-7ds1.1)", () => {
+    // The build writes each individual's and matriline's page data beside the page, and the
+    // sidebar renders it with the page's own templates, so what it reads back must be the
+    // data the page was rendered from, maps included.
+    test("an individual's and a matriline's data come back as they were written", () => {
+        const individual = assembleIndividuals(tables()).find(p => p.data.matriline)!;
+        expect(individual).toBeDefined();
+        const back = decodeSubjectData<typeof individual.data>(encodeSubjectData(individual.data));
+        expect(back.groups).toBeInstanceOf(Map);
+        expect(back).toEqual(individual.data);
+
+        const matriline = assembleMatrilines(tables())[0]!;
+        expect(decodeSubjectData(encodeSubjectData(matriline.data))).toEqual(matriline.data);
+    });
+});
+
+describe("the sidebar's data keeps only the groups the templates use (decision 093)", () => {
+    test('a page rendered from it is the page rendered from the full data', () => {
+        for (const page of assembleIndividuals(tables())) {
+            const side = decodeSubjectData<typeof page.data>(encodeSubjectData(sidebarData(page.data, page.data.matriline?.id ?? null)));
+            expect(renderIndividualPage(SHELL, {...page, data: side}, 2026), page.id).toBe(renderIndividualPage(SHELL, page, 2026));
+        }
+        const MSHELL = shellFor('matriline-page');
+        for (const page of assembleMatrilines(tables())) {
+            const side = decodeSubjectData<typeof page.data>(encodeSubjectData(sidebarData(page.data, page.data.group.id)));
+            expect(renderMatrilinePage(MSHELL, {...page, data: side}, 2026), page.id).toBe(renderMatrilinePage(MSHELL, page, 2026));
+        }
+    });
+
+    test("never a group's notes (D-21), even if the snapshot carried them", () => {
+        const t = tables();
+        t.social_groups = t.social_groups.map(g => ({...g, notes: 'VERBATIM SHEET TEXT'}));
+        for (const page of assembleIndividuals(t))
+            expect(encodeSubjectData(sidebarData(page.data, page.data.matriline?.id ?? null)), page.id).not.toContain('VERBATIM SHEET TEXT');
+        for (const page of assembleMatrilines(t))
+            expect(encodeSubjectData(sidebarData(page.data, page.data.group.id)), page.id).not.toContain('VERBATIM SHEET TEXT');
     });
 });
