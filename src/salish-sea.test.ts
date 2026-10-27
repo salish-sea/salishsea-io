@@ -530,3 +530,18 @@ test('focusing a sighting, from a dot on the map, closes the subject in the same
   expect(params.get('s')).toBeNull();
   expect(el.shadowRoot!.querySelector('obs-panel')!.hidden).toBe(false);
 });
+
+test('cloning from the sidebar closes the subject in place, and the entry no longer claims one was opened here', async () => {
+  window.history.replaceState({}, '', '/?d=2024-07-15');
+  const sighting = occurrenceFixture('aaa', '2024-07-15T18:23:00Z');
+  const el = await mountWithSightings(sighting);
+  el.shadowRoot!.querySelector('main')!.dispatchEvent(new CustomEvent('open-subject', {bubbles: true, composed: true,
+    detail: {kind: 'individuals', id: '0010082'}}));
+  await el.updateComplete;
+  expect((window.history.state as {subjectOpenedHere?: boolean}).subjectOpenedHere).toBe(true);
+  el.dispatchEvent(new CustomEvent('clone-sighting', {bubbles: true, composed: true, detail: sighting}));
+  await el.updateComplete;
+  expect(new URLSearchParams(window.location.search).get('s')).toBeNull();
+  expect(window.history.state).toEqual({});
+  expect(el.shadowRoot!.querySelector('obs-panel')!.hidden).toBe(false);
+});

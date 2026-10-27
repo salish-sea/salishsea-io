@@ -344,7 +344,8 @@ export default class SalishSea extends LitElement {
   #leaveSubject() {
     if (!this.subject) return;
     this.subject = null;
-    setQueryParams({}, {remove: [SUBJECT_PARAM], replace: true});
+    // A fresh state: this entry no longer shows a subject, opened here or not.
+    setQueryParams({}, {remove: [SUBJECT_PARAM], replace: true, state: {}});
   }
 
   #closeSubject = () => {
@@ -354,7 +355,7 @@ export default class SalishSea extends LitElement {
       // Opened from a link: there is nothing of ours to step back to, so the subject is
       // taken out of this entry, and the browser's Back still leaves the site.
       this.subject = null;
-      setQueryParams({}, {remove: [SUBJECT_PARAM], replace: true});
+      setQueryParams({}, {remove: [SUBJECT_PARAM], replace: true, state: {}});
     }
   };
 
