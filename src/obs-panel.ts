@@ -246,6 +246,7 @@ export class ObsPanel extends LitElement {
     .contribute-pitch a {
       color: #1976d2;
       font-weight: 400;
+      text-decoration: none;
       white-space: nowrap;
     }
     .hide {

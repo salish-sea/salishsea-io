@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-10-27, by Peter · **Work:** bd `salish-hdhv` · **Amends:** the choice of Mukta made in `salish-74v6` (#781)
 
+The rules themselves, with their reasons, are in the [style guide](../style-guide.md); this record says why we adopted them.
+
 ## Context
 
 SalishSea.io was set in Mukta, the base face of orcasite's theme, which it named from the start but only began loading in #781. Each component set its own sizes: 16 of them, most between 11px and 17px, so text set side by side didn't match. A sighting card put its count (×4) at 13px beside its time at 12px. Some buttons, "Add a Sighting" among them, didn't take the page's font at all and drew in the browser's default.

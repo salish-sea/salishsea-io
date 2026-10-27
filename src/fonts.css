@@ -1,29 +1,12 @@
 /*
- * The site's typography, after Orcasound's: one typeface, Work Sans, with weight
- * rather than family carrying the hierarchy (Orcasound's 2023 brand guidelines,
- * github.com/orcasound/orca-branding, and its design system; salish-hdhv).
+ * The site's typography: Work Sans, Noto Sans Mono for values a machine produced, and
+ * one scale of sizes as custom properties, which shadow roots inherit as they inherit
+ * the font. The rules for using them, and why: docs/style-guide.md (salish-hdhv).
  *
- *   Light 300    running text: paragraphs, descriptions, captions, the default.
- *   Regular 400  labels, buttons, headings, emphasised text (<b> and <strong>).
- *   Bold 700     titles only: large text, the single most important thing.
- *
- * Two departures, for a sidebar denser than anything Orcasound sets: text at caption
- * size is Regular, since Light is too thin at 12px (but for a sighting card's source
- * lines, which say so, set darker to make up for it); and a list of many, the
- * day's sightings, is set a step down the scale, at body2 (src/obs-summary.ts).
- *
- * Machine values, a time or a coordinate, are set in Noto Sans Mono, the design
- * system's one other face: it means "a value", never decoration.
- *
- * Sizes come from the scale below, which is Orcasound's (Material UI's): a component
- * names one of these rather than a size of its own, so text that sits side by side
- * matches. A shadow root inherits them, as it inherits the font.
- *
- * The font files come from the @fontsource packages and are served from
- * this site: no request goes to a font service. Each weight's stylesheet declares a
- * face per script with its unicode-range, so a browser fetches only the Latin files
- * an English page uses. Linked from every page; the build inlines it into each
- * (vite.config.js).
+ * The font files come from the @fontsource packages and are served from this site: no
+ * request goes to a font service. Each weight's stylesheet declares a face per script
+ * with its unicode-range, so a browser fetches only the Latin files an English page
+ * uses. Linked from every page; the build inlines it into each (vite.config.js).
  */
 @import "@fontsource/work-sans/300.css";
 @import "@fontsource/work-sans/400.css";
@@ -43,8 +26,7 @@
   --fs-body1: 1rem;
   --fs-body2: 0.875rem;
   --fs-caption: 0.75rem;
-  /* The design system's size for mono, a step under body2: its glyphs are wider and
-     taller than Work Sans's at one size, so this is the size that matches body2. */
+  /* Mono's lowercase is 9% taller than Work Sans's: 13px matches body2 (style guide). */
   --fs-mono: 0.8125rem;
 }
 
