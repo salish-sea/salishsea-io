@@ -2,9 +2,11 @@ import { describe, expect, test } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
 import {
+  CRAWLER_USER_AGENTS,
   DENY_URLS,
   dropThirdPartyNoise,
   IGNORE_ERRORS,
+  isCrawler,
   isThirdPartyFrame,
   THIRD_PARTY_FRAME_FUNCTIONS,
   type NoiseCandidate,
@@ -91,6 +93,43 @@ describe('dropThirdPartyNoise', () => {
       { filename: 'https://salishsea.io/assets/main-abc.js', function: 'fetchOccurrences' },
     );
     expect(dropThirdPartyNoise(networkFailure)).toBe(networkFailure);
+  });
+});
+
+/** An event as `httpContextIntegration` leaves it, from a browser with this user agent. */
+const fromBrowser = (userAgent: string): NoiseCandidate => ({
+  request: { headers: { 'User-Agent': userAgent } },
+});
+
+// Verbatim from CloudFront's logs, 2026-10-26.
+const META_EXTERNALAGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 (compatible; meta-externalagent/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler))';
+
+describe('isCrawler', () => {
+  test('SALISHSEA-IO-4B: Meta\'s crawler, which runs our scripts without WebGL2', () => {
+    expect(isCrawler(fromBrowser(META_EXTERNALAGENT))).toBe(true);
+    expect(dropThirdPartyNoise(fromBrowser(META_EXTERNALAGENT))).toBeNull();
+  });
+
+  test('a visitor\'s browser, on the same Chrome, still reports', () => {
+    // The same browser string with the crawler's suffix removed: what a person on
+    // Windows sends. Only the suffix names a crawler.
+    const visitor = fromBrowser('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36');
+    expect(isCrawler(visitor)).toBe(false);
+    expect(dropThirdPartyNoise(visitor)).toBe(visitor);
+    // Facebook's in-app browser is a person reading a shared link.
+    expect(isCrawler(fromBrowser('Mozilla/5.0 (Linux; Android 15; SM-S901U1) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/145.0.0.0 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/520.0.0.0;]'))).toBe(false);
+  });
+
+  test('an event with no request or no user agent is not a crawler', () => {
+    expect(isCrawler({})).toBe(false);
+    expect(isCrawler({ request: {} })).toBe(false);
+    expect(isCrawler({ request: { headers: {} } })).toBe(false);
+  });
+
+  test('each pattern names one crawler, not a word a browser might contain', () => {
+    for (const re of CRAWLER_USER_AGENTS) {
+      expect(re.test('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6 Safari/605.1.15'), String(re)).toBe(false);
+    }
   });
 });
 

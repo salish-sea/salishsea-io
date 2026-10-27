@@ -11,7 +11,7 @@
  * recognised by whoever opens the list, and stops applying the moment a new
  * release re-fingerprints the same error into a new group.
  *
- * Three mechanisms, because the noise arrives three ways:
+ * Four mechanisms, because the noise arrives four ways:
  *
  *   1. `DENY_URLS` — the error's own frames point at a scheme that is not the
  *      web page: an in-app browser's injected bridge (`iabjs:`) or a browser
@@ -22,6 +22,8 @@
  *   3. `isThirdPartyFrame` in `beforeSend` — the message is too generic to
  *      match on ("Maximum call stack size exceeded"), but a frame names a
  *      function that is provably not in our bundle.
+ *   4. `isCrawler` in `beforeSend` — the error is real, but the browser that
+ *      had it is a crawler, so it says nothing about any visitor.
  *
  * Every entry is evidenced by an issue we actually received; none is
  * speculative. Adding one without an observed event is how a filter starts
@@ -89,8 +91,31 @@ export const THIRD_PARTY_FRAME_FUNCTIONS: readonly string[] = [
   'sendPageShowMessage',
 ];
 
+/**
+ * User agents of crawlers that run our scripts, whose errors describe the
+ * crawler rather than any visitor.
+ *
+ * `meta-externalagent` is Meta's crawler: a headless Chrome without WebGL2, so
+ * every page it renders reports that the map can't be drawn (SALISHSEA-IO-4B).
+ * On 2026-10-26 it loaded the map page 133 times between 20:00 and 23:46 UTC,
+ * by CloudFront's logs, and set that issue escalating, which is the signal the
+ * issue exists to give about real visitors. Facebook's link-preview fetcher,
+ * `facebookexternalhit`, never runs a script, so it is not here.
+ *
+ * Sentry's own crawler filter, which is on for this project, covers this
+ * agent too, but only for events that carry a user agent. This rule holds even
+ * if that setting changes.
+ */
+export const CRAWLER_USER_AGENTS: readonly RegExp[] = [
+  /\bmeta-externalagent\//i,
+];
+
 /** The minimum of Sentry's event shape these predicates read. */
 export type NoiseCandidate = {
+  /** Set by `httpContextIntegration`, from the browser's own `navigator.userAgent`. */
+  readonly request?: {
+    readonly headers?: Readonly<Record<string, string>>;
+  };
   readonly exception?: {
     readonly values?: readonly {
       readonly stacktrace?: {
@@ -117,6 +142,16 @@ export function isThirdPartyFrame(event: NoiseCandidate): boolean {
 }
 
 /**
+ * Whether the browser that had the error is a crawler. Reads the user agent
+ * `httpContextIntegration` puts on the event, so without that integration this
+ * is always false; `src/sentry-wiring.test.ts` checks the two meet.
+ */
+export function isCrawler(event: NoiseCandidate): boolean {
+  const userAgent = event.request?.headers?.['User-Agent'];
+  return userAgent !== undefined && CRAWLER_USER_AGENTS.some((re) => re.test(userAgent));
+}
+
+/**
  * The `beforeSend` hook: drop the event (return null) or send it unchanged.
  *
  * Deliberately NOT a place to drop network failures. `TypeError: Failed to
@@ -127,5 +162,5 @@ export function isThirdPartyFrame(event: NoiseCandidate): boolean {
  * keeps sending them and Sentry keeps them ignored-until-escalating.
  */
 export function dropThirdPartyNoise<T extends NoiseCandidate>(event: T): T | null {
-  return isThirdPartyFrame(event) ? null : event;
+  return isThirdPartyFrame(event) || isCrawler(event) ? null : event;
 }
