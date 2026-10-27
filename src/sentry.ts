@@ -1,4 +1,4 @@
-import {BrowserClient, breadcrumbsIntegration, dedupeIntegration, defaultStackParser, eventFiltersIntegration, getCurrentScope, globalHandlersIntegration, makeFetchTransport, linkedErrorsIntegration, browserTracingIntegration} from "@sentry/browser";
+import {BrowserClient, breadcrumbsIntegration, dedupeIntegration, defaultStackParser, eventFiltersIntegration, getCurrentScope, globalHandlersIntegration, httpContextIntegration, makeFetchTransport, linkedErrorsIntegration, browserTracingIntegration} from "@sentry/browser";
 import { DENY_URLS, dropThirdPartyNoise, IGNORE_ERRORS } from "./sentry-noise.ts";
 import { release } from "./release.ts";
 
@@ -16,8 +16,10 @@ export const sentryClient = new BrowserClient({
   // No `dataCollection`: Sentry 11's default is what `sendDefaultPii: true` gave
   // us in 10. Two of its categories reach what we install: `userInfo` (Sentry
   // infers the sender's IP) and `urlQueryParams` (tracing records the query
-  // strings of the requests it times, minus Sentry's sensitive keys). The
-  // browser SDK collects no bodies or cookies through the integrations below.
+  // strings of the requests it times, minus Sentry's sensitive keys).
+  // `httpContextIntegration` below adds the page's address, the referring page
+  // and the user agent, which the about page lists. The browser SDK collects no
+  // bodies or cookies through the integrations below.
   // What we decline to send, and why: src/sentry-noise.ts (decision 046). The
   // rules live there as pure, tested predicates rather than inline literals,
   // because each one is a claim about a specific third party that has to stay
@@ -43,6 +45,12 @@ export const sentryClient = new BrowserClient({
     // portal is enough that it cannot; on 2026-09-08 a report naming three real
     // bugs died in the form because of it.
     globalHandlersIntegration(),
+    // Also a default, so also lost to the explicit array until salish-flzd. It
+    // puts the page's address and the browser's user agent on each event.
+    // Without the user agent, Sentry can't name the browser, its inbound
+    // crawler filter has nothing to match, and neither has `isCrawler` in
+    // `beforeSend`: Meta's crawler reached Sentry as 68 visitors (SALISHSEA-IO-4B).
+    httpContextIntegration(),
     linkedErrorsIntegration(),
     dedupeIntegration(),
   ],

@@ -2,6 +2,8 @@
 
 **Status:** accepted · **Decided:** 2026-09-18 · **Extends:** [037](037-sentry-transmits-from-production-only.md) · **Answers:** `salish-leg`
 
+*Amended 2026-10-26:* Errors from a crawler are dropped too: a fourth mechanism, `isCrawler`, which reads the user agent. Meta's crawler, `meta-externalagent`, runs our scripts in a headless Chrome without WebGL2. Every page it renders reports that the map can't be drawn, and on 2026-10-26 it set [SALISHSEA-IO-4B](https://beam-reach.sentry.io/issues/SALISHSEA-IO-4B) escalating. That issue counts the visitors who lose the map ([076](076-the-map-moves-to-maplibre.md)), so a crawler in it spoils the count. The events carried no user agent at all, because `httpContextIntegration` is another default the explicit array had dropped (see the trap below). It is now in the array, and Sentry's own inbound filter for web crawlers, whose list includes `meta-`, can match these events. `isCrawler` still drops them in the browser, whatever that project setting is (`salish-flzd`).
+
 *Amended 2026-10-12:* Supabase has retired ([065](065-the-store-and-write-api.md); the browser stopped calling it on 2026-10-09, #663), so the network failures kept on purpose are now those against our own host. The rule and its reason are unchanged. `SALISHSEA-IO-3J`'s ingest Edge Function retired on 2026-10-05 ([061](061-ingest-and-derivation-move-into-the-build.md)).
 
 ## Decision
@@ -29,6 +31,7 @@ Every rule is anchored to an issue we actually received. Counts are the 90 days 
 | [SALISHSEA-IO-3F](https://beam-reach.sentry.io/issues/SALISHSEA-IO-3F) | `undefined is not an object (evaluating 'window.webkit.messageHandlers')` | 1 / 1 | `ignoreErrors` |
 | [SALISHSEA-IO-Q](https://beam-reach.sentry.io/issues/SALISHSEA-IO-Q) | `Script error.` | 3 / 3 | `ignoreErrors` |
 | [SALISHSEA-IO-36](https://beam-reach.sentry.io/issues/SALISHSEA-IO-36) | `RangeError: Maximum call stack size exceeded.` | 9 / 2 | `beforeSend`, by frame name |
+| [SALISHSEA-IO-4B](https://beam-reach.sentry.io/issues/SALISHSEA-IO-4B) | `GPUInitializationError: WebGL2 is required to display this map.` | 142 / 69, all but 6 from Meta, to 2026-10-26 | `beforeSend`, by user agent |
 
 SALISHSEA-IO-3E is the worked example. Its frames are:
 
@@ -40,11 +43,13 @@ iabjs://navigation_performance_logger_android:1:10025 (sendDataToNative)
 
 Someone in Seattle opened a link to salishsea.io inside an Android app. The app's own performance logger tried to talk to its native host after the page had gone, failed, and the browser reported it against whatever page was on screen — ours. Nothing in that stack is ours and nothing about it is actionable by us.
 
-## Three mechanisms, because the noise arrives three ways
+## Four mechanisms, because the noise arrives four ways
 
 - **`denyUrls`** matches the top frame's URL. It works when the third party has its own scheme, as `iabjs:` and the extension schemes do.
 - **`ignoreErrors`** matches the message. It is necessary because an in-app browser injects its bridge *into our document*, so the script's origin is `salishsea.io` and `denyUrls` never sees it. The message is then the only distinguishing thing left, and `window.webkit.messageHandlers`, `sendDataToNative` and `sendPageShowMessage` name host APIs that do not exist in a browser and appear nowhere in our source.
 - **`beforeSend`** matches a frame's *function name*. SALISHSEA-IO-36 needs it: `findTopmostVisibleElement` is an injected translation widget recursing through fifty identical frames, filed against `https://salishsea.io/:188` because it is inline in our document — but its message, "Maximum call stack size exceeded", is one our own code could genuinely produce. Matching that message would hide a real defect. Matching the function name cannot, and [src/sentry-noise.test.ts](../../src/sentry-noise.test.ts) asserts that none of the filtered names appears anywhere in our source, so the claim stays true rather than being trusted.
+
+- **`beforeSend`** also matches the *user agent*, for a crawler that runs our scripts (added 2026-10-26). The error is real, but it happened in the crawler's browser, so it tells us nothing about any visitor's. A user agent is a fact about where the event came from, like a scheme or a frame name.
 
 `beforeSend` also reads *every* frame rather than the topmost, which is the one thing `denyUrls` cannot do: an injected script that calls into itself can put one of our frames on top.
 
@@ -63,6 +68,8 @@ This is the line the record draws: **filter on provenance, never on plausibility
 `denyUrls` and `ignoreErrors` are not client behaviour. They are implemented by `eventFiltersIntegration`, which ships in Sentry's *default* integrations — and passing an explicit `integrations` array, as this client does, **replaces the defaults rather than extending them**. Set the two options without that integration and they are accepted, type-checked, present in the options object, and completely inert, with no warning anywhere.
 
 So `eventFiltersIntegration()` is now in the array, and [src/sentry-wiring.test.ts](../../src/sentry-wiring.test.ts) fails if it is removed — verified by removing it.
+
+The same trap took `httpContextIntegration`, unnoticed until 2026-10-26. Without it an event carries no page address and no user agent, so Sentry can't name the browser, and nothing can tell a crawler from a visitor. It is in the array now, and the wiring test runs it and checks that `isCrawler` reads the header it writes.
 
 ## Consequences
 
