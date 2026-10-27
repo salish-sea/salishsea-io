@@ -133,3 +133,18 @@ test('a sighting that names no animal has no chips', () => {
   expect(namedAnimals(null, codes, matrilines)).toEqual([]);
   expect(namedAnimals([], codes, matrilines)).toEqual([]);
 });
+
+test("an Orcasound bout's tags become chips too: a hedged tag keeps its '?', a population links by name", () => {
+  // Bout identifiers are the register's labels, not codes read from text (decision 054).
+  const populations = new Map([
+    ['biggs', { entity_id: 'SSA:0000002', designation: 'Biggs' }],
+    ['southern resident', { entity_id: 'SSA:0000010', designation: 'Southern Resident' }],
+  ]);
+  expect(namedAnimals(['T65A5?', "Bigg's", 'Southern Resident', 'J pod'], codes, matrilines, populations)).toEqual([
+    { label: 'T65A5?', href: '/individuals/0010197/T065A5' },
+    { label: "Bigg's", href: '/populations/0000002/Biggs' },
+    { label: 'Southern Resident', href: '/populations/0000010/Southern-Resident' },
+    // Pods aren't in the catalogue file yet (salish-fwyt.3).
+    { label: 'J pod', href: null },
+  ]);
+});

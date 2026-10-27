@@ -1,4 +1,4 @@
-import { populationPath, individualPath, matrilinePath } from './catalog.ts';
+import { isPopulation, populationPath, individualPath, matrilinePath } from './catalog.ts';
 import { fold } from './fold.ts';
 import { READ_PATH_BASE } from './read-path.ts';
 
@@ -86,30 +86,35 @@ export interface NamedAnimal {
 }
 
 /**
- * The animals and matrilines a sighting names, once each, in the order its text
- * names them, for the row of chips on its card. Each links to its page by the same
- * fold and the same lookups the links in the text use. A code the catalogue doesn't
- * know stays, unlinked: it is still what the observer wrote.
+ * The animals and groups a sighting names, once each, in the order they come, for
+ * the row of chips on its card. Two kinds of name arrive here: the catalogue codes
+ * the build reads from a report's text (T65A5, T34As), and the register's labels an
+ * Orcasound bout is tagged with (J35, J pod, Bigg's), where a tag only possibly heard
+ * ends in '?' (decision 054). Each is looked up by the register's fold, a hedge set
+ * aside and kept on the chip, and links to its page: an individual, a matriline, or
+ * a population by its name. A name the catalogue doesn't know stays, unlinked: it is
+ * still what was written. Pods aren't in the catalogue file yet, so a pod stays
+ * unlinked too (salish-fwyt.3).
  */
 export function namedAnimals(
   identifiers: readonly string[] | null,
   codes: Map<string, IndividualRef>,
   matrilines: Map<string, GroupRef> = new Map(),
+  populations: Map<string, GroupRef> = new Map(),
 ): NamedAnimal[] {
   const seen = new Set<string>();
   const named: NamedAnimal[] = [];
   for (const label of identifiers ?? []) {
-    const folded = fold(label);
-    if (seen.has(folded)) continue;
-    seen.add(folded);
-    let href: string | null = null;
-    if (folded.endsWith('s')) {
-      const group = matrilines.get(folded);
-      if (group) href = matrilinePath(group);
-    } else {
-      const individual = codes.get(folded);
-      if (individual) href = individualPath(individual);
-    }
+    const folded = fold(label.replace(/\?$/, ''));
+    if (seen.has(fold(label))) continue;
+    seen.add(fold(label));
+    const matriline = matrilines.get(folded);
+    const individual = codes.get(folded);
+    const population = populations.get(folded);
+    const href = matriline ? matrilinePath(matriline)
+      : individual ? individualPath(individual)
+      : population ? populationPath(population)
+      : null;
     named.push({label, href});
   }
   return named;
@@ -118,6 +123,7 @@ export function namedAnimals(
 let codeMap: Map<string, IndividualRef> | null = null;
 let matrilineMap: Map<string, GroupRef> | null = null;
 let ecotypeMap: Map<string, GroupRef> | null = null;
+let populationMap: Map<string, GroupRef> | null = null;
 let loading: Promise<Map<string, IndividualRef>> | null = null;
 
 /**
@@ -135,6 +141,7 @@ export function setCatalogCodes({ designations, groups }: CatalogCodeRows): Map<
   codeMap = new Map(designations.flatMap(({ code, individual }) => individual ? [[fold(code), individual]] : []));
   matrilineMap = new Map(groups.filter(g => g.kind === 'matriline').map(g => [fold(`${g.designation}s`), g]));
   ecotypeMap = new Map(groups.filter(g => g.kind === 'ecotype').map(g => [g.designation, g]));
+  populationMap = new Map(groups.filter(isPopulation).map(g => [fold(g.designation), g]));
   return codeMap;
 }
 
@@ -171,4 +178,9 @@ export function matrilineCodes(): Map<string, GroupRef> | null {
 
 export function ecotypeCodes(): Map<string, GroupRef> | null {
   return ecotypeMap;
+}
+
+/** The populations a bout's tags can name, ecotypes and communities, keyed by their folded designation. */
+export function populationCodes(): Map<string, GroupRef> | null {
+  return populationMap;
 }

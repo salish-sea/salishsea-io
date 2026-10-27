@@ -16,7 +16,7 @@ import { deleteSighting } from './write-api.ts';
 import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
-import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals } from './individual-links.ts';
+import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, populationCodes } from './individual-links.ts';
 
 const domPurify = createDOMPurify(window as any);
 
@@ -318,7 +318,7 @@ export class ObsSummary extends LitElement {
         ${this.menuOpen ? this.renderMenu(editable) : nothing}
       </header>
       ${guard([identifiers, this.catalogLoaded], () => {
-        const animals = namedAnimals(identifiers, catalogCodes() ?? new Map(), matrilineCodes() ?? new Map());
+        const animals = namedAnimals(identifiers, catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map());
         return animals.length ? html`<ul class="animals">${animals.map(({label, href}) =>
           html`<li>${href ? html`<a href=${href}>${label}</a>` : label}</li>`)}</ul>` : nothing;
       })}
@@ -351,11 +351,11 @@ export class ObsSummary extends LitElement {
   private renderMenu(editable: boolean) {
     return html`
       <div class="menu" role="menu" aria-label="Actions for this sighting" @keydown=${this.onMenuKeydown}>
-        <button type="button" role="menuitem" @click=${this.onCopyLink}>${this.copied ? 'Copied!' : 'Copy link'}</button>
-        ${when(this.user, () => html`<button type="button" role="menuitem" @click=${this.onClone}>Clone</button>`)}
+        <button type="button" role="menuitem" tabindex="-1" @click=${this.onCopyLink}>${this.copied ? 'Copied!' : 'Copy link'}</button>
+        ${when(this.user, () => html`<button type="button" role="menuitem" tabindex="-1" @click=${this.onClone}>Clone</button>`)}
         ${when(editable, () => html`
-          <button type="button" role="menuitem" @click=${this.onEdit}>Edit</button>
-          <button type="button" role="menuitem" class="danger" @click=${this.onDelete}>Delete</button>
+          <button type="button" role="menuitem" tabindex="-1" @click=${this.onEdit}>Edit</button>
+          <button type="button" role="menuitem" tabindex="-1" class="danger" @click=${this.onDelete}>Delete</button>
         `)}
       </div>
     `;
@@ -395,7 +395,9 @@ export class ObsSummary extends LitElement {
     if (event.key === 'Escape') this.setMenuOpen(false, true);
   };
 
-  // Up and down move between the items, wrapping; Home and End go to the ends; Tab leaves.
+  // Up and down move between the items, wrapping; Home and End go to the ends. The
+  // items are out of the Tab order, as a menu's are, so Tab moves focus past the menu
+  // before it closes, rather than onto an item about to be removed.
   private onMenuKeydown = (event: KeyboardEvent) => {
     const items = this.menuItems();
     const at = items.indexOf(this.shadowRoot?.activeElement as HTMLButtonElement);

@@ -228,6 +228,9 @@ describe("a card's actions menu", () => {
     expect(button.getAttribute('aria-expanded')).toBe('true');
     // Signed out, and not one's own sighting: only the link to it.
     expect(items().map(i => i.textContent)).toEqual(['Copy link']);
+    // Out of the Tab order, as a menu's items are: the arrows move between them, and
+    // Tab leaves the menu rather than landing on an item about to be removed.
+    expect(items().map(i => i.tabIndex)).toEqual([-1]);
   });
 
   it('closes on Escape and gives focus back to its button', async () => {
