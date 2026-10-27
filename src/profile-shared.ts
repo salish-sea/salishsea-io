@@ -304,6 +304,11 @@ export function renderProfileFrame(content: unknown, current: NavPage | null = n
  */
 export interface SightingsOptions {
   currentYear?: number;
+  /**
+   * Whether to draw the small map of the sightings. The map page's sidebar leaves it out,
+   * since the big map is beside it (salish-7ds1.1).
+   */
+  map?: boolean;
 }
 
 /**
@@ -314,7 +319,7 @@ export interface SightingsOptions {
 export function renderSightingsSummary(
   links: OccurrenceLink[] | null,
   empty: TemplateResult,
-  { currentYear }: SightingsOptions = {},
+  { currentYear, map = true }: SightingsOptions = {},
 ) {
   if (!links?.length)
     return empty;
@@ -326,10 +331,10 @@ export function renderSightingsSummary(
   const located = links.filter(l => l.location).length;
   return html`
     ${renderPresenceTable(links, undefined, undefined, currentYear)}
-    ${when(located, () => renderProfileMap(links))}
+    ${when(map && located, () => renderProfileMap(links))}
     <p class="sightings-note">
       Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}${death ? html`, dead` : nothing}
-      · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(located, () => html` — ${located === links.length ? 'each' : `${located} of them`} on the map above, where reports at one spot share a dot; the newest is solid. Click a dot to see its day on the map.`)}
+      · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(map && located, () => html` — ${located === links.length ? 'each' : `${located} of them`} on the map above, where reports at one spot share a dot; the newest is solid. Click a dot to see its day on the map.`)}
     </p>
   `;
 }
