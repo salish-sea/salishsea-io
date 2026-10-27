@@ -42,6 +42,7 @@ export class ObsSummary extends LitElement {
   protected ownObservation = false
 
   @state() private copied = false;
+  @state() private menuOpen = false;
 
   // Flips once the catalog code lookup arrives so guarded bodies re-render
   // with individual-profile links; until then codes show as plain text.
@@ -70,6 +71,7 @@ export class ObsSummary extends LitElement {
       display: flex;
       gap: 0.5rem;
       justify-content: space-between;
+      position: relative;
     }
     .species-info {
       align-items: baseline;
@@ -186,26 +188,76 @@ export class ObsSummary extends LitElement {
       margin: 1rem 0 0 0;
       padding: 0;
     }
-    ul.actions {
+    /* The card's actions, behind a button right of the time (salish-fwyt.1). The
+       button keeps its 44px touch target while sitting on the heading's baseline. */
+    .more {
+      align-self: center;
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      color: #64748b;
+      cursor: pointer;
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      justify-content: flex-end;
-      list-style: none;
-      margin: 1rem 0 0 0;
+      flex: none;
+      margin: -12px -12px -12px -6px;
+      min-height: 44px;
+      min-width: 44px;
+      align-items: center;
+      justify-content: center;
       padding: 0;
     }
-    ul.actions a {
-      background: white;
-      border: 1px solid #cbd5e1;
-      border-radius: 4px;
-      color: #334155;
-      font-size: 0.8125rem;
-      padding: 0.25rem 0.5rem;
-    }
-    ul.actions a:hover {
-      background: #f1f5f9;
+    .more:hover, .more[aria-expanded="true"] {
       color: #1e293b;
+    }
+    .more:hover .dots, .more[aria-expanded="true"] .dots {
+      background: rgba(0, 0, 0, 0.06);
+    }
+    .more:focus-visible {
+      outline: 2px solid #1976d2;
+      outline-offset: -6px;
+    }
+    .dots {
+      border-radius: 4px;
+      display: block;
+      padding: 2px;
+    }
+    /* The account menu's surface (src/account-menu.ts), smaller. */
+    .menu {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+      box-sizing: border-box;
+      min-width: 10rem;
+      padding: 6px 0;
+      position: absolute;
+      right: -6px;
+      top: calc(100% + 6px);
+      z-index: 1000;
+    }
+    .menu button {
+      background: transparent;
+      border: 0;
+      box-sizing: border-box;
+      color: #213547;
+      cursor: pointer;
+      display: block;
+      font: inherit;
+      font-size: 0.875rem;
+      min-height: 40px;
+      padding: 8px 16px;
+      text-align: left;
+      width: 100%;
+    }
+    .menu button:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    .menu button:focus-visible {
+      outline: 2px solid #1976d2;
+      outline-offset: -2px;
+    }
+    .menu button.danger {
+      color: #b91c1c;
     }
   `;
 
@@ -257,6 +309,13 @@ export class ObsSummary extends LitElement {
         <time>${guard([observed_at], () => html`${
           Temporal.Instant.from(observed_at).toZonedDateTimeISO('America/Los_Angeles').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
         }`)}</time>
+        <button class="more" type="button" aria-haspopup="menu" aria-expanded=${this.menuOpen ? 'true' : 'false'}
+          aria-label="Actions for this sighting" title="Actions" @click=${this.toggleMenu}>
+          <svg class="dots" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <circle cx="4" cy="10" r="1.6"></circle><circle cx="10" cy="10" r="1.6"></circle><circle cx="16" cy="10" r="1.6"></circle>
+          </svg>
+        </button>
+        ${this.menuOpen ? this.renderMenu(editable) : nothing}
       </header>
       ${guard([identifiers, this.catalogLoaded], () => {
         const animals = namedAnimals(identifiers, catalogCodes() ?? new Map(), matrilineCodes() ?? new Map());
@@ -285,17 +344,73 @@ export class ObsSummary extends LitElement {
         }</ul>`
       : undefined}
       ${this.renderProvenance()}
-      <ul class="actions">
-        <li><a href="#" @click=${this.onCopyLink}>${this.copied ? 'Copied!' : 'Copy link'}</a></li>
-        ${when(this.user, () => html`
-          <li><a href="#" @click=${this.onClone}>Clone</a></li>
-        `)}
-        ${when(editable, () => html`
-          <li><a href="#" @click=${this.onEdit}>Edit</a></li>
-          <li><a href="#" @click=${this.onDelete}>Delete</a></li>
-        `)}
-      </ul>
     `
+  }
+
+  /** The card's actions: copying its link for anyone, cloning for the signed in, and editing and deleting for whoever may. */
+  private renderMenu(editable: boolean) {
+    return html`
+      <div class="menu" role="menu" aria-label="Actions for this sighting" @keydown=${this.onMenuKeydown}>
+        <button type="button" role="menuitem" @click=${this.onCopyLink}>${this.copied ? 'Copied!' : 'Copy link'}</button>
+        ${when(this.user, () => html`<button type="button" role="menuitem" @click=${this.onClone}>Clone</button>`)}
+        ${when(editable, () => html`
+          <button type="button" role="menuitem" @click=${this.onEdit}>Edit</button>
+          <button type="button" role="menuitem" class="danger" @click=${this.onDelete}>Delete</button>
+        `)}
+      </div>
+    `;
+  }
+
+  // The page is listened to only while this card's menu is open: a day can hold
+  // a hundred cards, and each would otherwise hear every click.
+  // The click is left to reach the page, so another card's open menu hears it and
+  // closes; this card's own listener ignores clicks inside the card.
+  private toggleMenu = () => {
+    this.setMenuOpen(!this.menuOpen);
+  };
+
+  private setMenuOpen(open: boolean, returnFocus = false) {
+    if (open === this.menuOpen) return;
+    this.menuOpen = open;
+    if (open) {
+      document.addEventListener('click', this.onDocumentClick);
+      document.addEventListener('keydown', this.onDocumentKeydown);
+      this.updateComplete.then(() => this.menuItems()[0]?.focus());
+    } else {
+      document.removeEventListener('click', this.onDocumentClick);
+      document.removeEventListener('keydown', this.onDocumentKeydown);
+      if (returnFocus) this.shadowRoot?.querySelector<HTMLButtonElement>('.more')?.focus();
+    }
+  }
+
+  private menuItems(): HTMLButtonElement[] {
+    return [...this.shadowRoot?.querySelectorAll<HTMLButtonElement>('.menu [role="menuitem"]') ?? []];
+  }
+
+  private onDocumentClick = (event: MouseEvent) => {
+    if (!event.composedPath().includes(this)) this.setMenuOpen(false);
+  };
+
+  private onDocumentKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') this.setMenuOpen(false, true);
+  };
+
+  // Up and down move between the items, wrapping; Home and End go to the ends; Tab leaves.
+  private onMenuKeydown = (event: KeyboardEvent) => {
+    const items = this.menuItems();
+    const at = items.indexOf(this.shadowRoot?.activeElement as HTMLButtonElement);
+    const to = {ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: items.length - 1}[event.key];
+    if (to !== undefined) {
+      event.preventDefault();
+      items[(to + items.length) % items.length]?.focus();
+    } else if (event.key === 'Tab') {
+      this.setMenuOpen(false);
+    }
+  };
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.setMenuOpen(false);
   }
 
   // Renders the provenance line(s) from the v1.3 provenance graph:
@@ -346,7 +461,7 @@ export class ObsSummary extends LitElement {
     const url = buildShareUrl(this.sighting.id);
     await navigator.clipboard.writeText(url);
     this.copied = true;
-    setTimeout(() => { this.copied = false; }, 2000);
+    setTimeout(() => { this.copied = false; this.setMenuOpen(false); }, 1200);
   }
 
   private focusSighting(interaction: Event) {
@@ -362,11 +477,13 @@ export class ObsSummary extends LitElement {
 
   private async onClone(e: Event) {
     e.preventDefault();
+    this.setMenuOpen(false);
     this.dispatchEvent(new CustomEvent('clone-sighting', {bubbles: true, composed: true, detail: this.sighting}));
   }
 
   private async onDelete(e: Event) {
     e.preventDefault();
+    this.setMenuOpen(false);
     try {
       await deleteSighting(this.sighting.id);
     } catch (error) {
@@ -380,6 +497,7 @@ export class ObsSummary extends LitElement {
 
   private async onEdit(e: Event) {
     e.preventDefault();
+    this.setMenuOpen(false);
     this.dispatchEvent(new CustomEvent('edit-observation', {bubbles: true, composed: true, detail: this.sighting}));
   }
 }

@@ -166,7 +166,7 @@ export class ObsPanel extends LitElement {
       color: #64748b;
       font-size: 0.8125rem;
     }
-    /* obs-summary's action buttons, rounded off — same tokens, bubble shape. */
+    /* Small rounded buttons, as the region choices are. */
     .bubble {
       background: white;
       border: 1px solid #cbd5e1;

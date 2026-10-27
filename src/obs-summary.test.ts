@@ -198,3 +198,81 @@ describe('confirmationNote', () => {
     expect(confirmationNote({confirmation: 'unconfirmed', provider_slug: 'orcasound'})).toMatch(/possibly heard/);
   });
 });
+
+describe("a card's actions menu", () => {
+  const mounted = async () => {
+    const el = document.createElement('obs-summary') as ObsSummary;
+    (el as unknown as {sighting: Partial<Occurrence>}).sighting = {
+      id: 'inaturalist:1', body: null, confirmation: 'confirmed', disagreements: null, vitality: null, count: null,
+      observed_at: '2026-09-15T18:00:00+00:00', photos: [], provider_slug: 'inaturalist', provider: 'iNaturalist',
+      collection: 'iNaturalist', observer: 'someone', source_url: null, organization_url: null, url: null, attribution: null,
+      identifiers: null,
+      taxon: {scientific_name: 'Megaptera novaeangliae', vernacular_name: 'Humpback whale', species_id: 41566, entity_id: null},
+    };
+    document.body.append(el);
+    await el.updateComplete;
+    const root = el.shadowRoot!;
+    const button = root.querySelector<HTMLButtonElement>('button.more')!;
+    const items = () => [...root.querySelectorAll<HTMLButtonElement>('.menu [role="menuitem"]')];
+    const settle = async () => { await el.updateComplete; await el.updateComplete; };
+    return {el, root, button, items, settle};
+  };
+  afterEach(() => { document.body.replaceChildren(); });
+
+  it('is closed until its button is pressed, and then offers what anyone may do', async () => {
+    const {button, items, settle} = await mounted();
+    expect(items()).toEqual([]);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    button.click();
+    await settle();
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    // Signed out, and not one's own sighting: only the link to it.
+    expect(items().map(i => i.textContent)).toEqual(['Copy link']);
+  });
+
+  it('closes on Escape and gives focus back to its button', async () => {
+    const {root, button, items, settle} = await mounted();
+    button.click();
+    await settle();
+    expect(root.activeElement).toBe(items()[0]);
+    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+    await settle();
+    expect(items()).toEqual([]);
+    expect(root.activeElement).toBe(button);
+  });
+
+  it('closes on a click elsewhere on the page, but not on a click inside it', async () => {
+    const {root, button, items, settle} = await mounted();
+    button.click();
+    await settle();
+    root.querySelector<HTMLElement>('.menu')!.click();
+    await settle();
+    expect(items().length).toBe(1);
+    document.body.click();
+    await settle();
+    expect(items()).toEqual([]);
+  });
+
+  it("closes when another card's menu opens", async () => {
+    const first = await mounted();
+    const second = await mounted();
+    first.button.click();
+    await first.settle();
+    second.button.click();
+    await first.settle();
+    await second.settle();
+    expect(first.items()).toEqual([]);
+    expect(second.items().length).toBe(1);
+  });
+
+  it('stops listening to the page once closed', async () => {
+    const {button, settle} = await mounted();
+    const removed = vi.spyOn(document, 'removeEventListener');
+    button.click();
+    await settle();
+    button.click();
+    await settle();
+    expect(removed.mock.calls.map(([type]) => type).sort()).toEqual(['click', 'keydown']);
+    removed.mockRestore();
+  });
+});
