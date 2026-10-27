@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  decodeSubjectData, encodeSubjectData, parseSubject, sameSubject, subjectFromHref, subjectParam,
+  decodeSubjectData, encodeSubjectData, parseSubject, readableSubject, sameSubject, subjectFromHref, subjectParam,
 } from './subject.ts';
 
 describe('the subject in the URL', () => {
@@ -13,6 +13,18 @@ describe('the subject in the URL', () => {
   it('ignores anything else, so a stale or mistyped link still shows the map', () => {
     for (const value of [null, '', 'individuals', 'individuals/101', 'individuals/J35', 'pods/0000020', 'haulouts/0000340', 'individuals/0000101/J035'])
       expect(parseSubject(value), String(value)).toBeNull();
+  });
+
+  it('is written with its slash as a slash, wherever it sits among the parameters', () => {
+    const url = new URL('https://salishsea.io/?d=2026-10-24');
+    url.searchParams.set('s', 'individuals/0010082');
+    expect(readableSubject(url)).toBe('https://salishsea.io/?d=2026-10-24&s=individuals/0010082');
+    url.searchParams.set('o', 'maplify:1');
+    expect(readableSubject(url)).toBe('https://salishsea.io/?d=2026-10-24&s=individuals/0010082&o=maplify%3A1');
+    // and read back the same
+    expect(parseSubject(new URL(readableSubject(url)).searchParams.get('s'))).toEqual({kind: 'individuals', id: '0010082'});
+    // Another parameter's escaped slash is left as it is.
+    expect(readableSubject(new URL('https://salishsea.io/?q=a%2Fb'))).toBe('https://salishsea.io/?q=a%2Fb');
   });
 
   it('compares subjects by kind and identifier', () => {

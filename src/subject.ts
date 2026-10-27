@@ -30,6 +30,15 @@ export function subjectParam({kind, id}: Subject): string {
   return `${kind}/${id}`;
 }
 
+/**
+ * A URL's address with the subject's slash left as a slash: `s=individuals/0010082`, not
+ * the `s=individuals%2F0010082` that URLSearchParams writes. A slash needs no escaping in
+ * a query, and a link people read or paste should look like the page's own address.
+ */
+export function readableSubject(url: URL): string {
+  return url.toString().replace(new RegExp(`([?&]${SUBJECT_PARAM}=[a-z]+)%2F(\\d{7})(?=&|#|$)`), '$1/$2');
+}
+
 export function sameSubject(a: Subject | null, b: Subject | null): boolean {
   return a === b || (!!a && !!b && a.kind === b.kind && a.id === b.id);
 }

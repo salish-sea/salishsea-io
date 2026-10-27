@@ -30,7 +30,7 @@ import { renderSiteNav } from './site-nav.ts';
 import './site-search.ts';
 import './subject-view.ts';
 import type { OccurrenceTarget } from './subject-view.ts';
-import { parseSubject, sameSubject, SUBJECT_PARAM, subjectParam, type Subject } from './subject.ts';
+import { parseSubject, readableSubject, sameSubject, SUBJECT_PARAM, subjectParam, type Subject } from './subject.ts';
 
 initSentry();
 
@@ -843,16 +843,16 @@ function setQueryParams(params: {[k: string]: string}, options: {replace?: boole
       url.searchParams.delete(k);
     }
     if (options.replace) {
-      window.history.replaceState(options.state ?? {}, '', url.toString());
+      window.history.replaceState(options.state ?? {}, '', readableSubject(url));
     } else {
-      window.history.pushState(options.state ?? {}, '', url.toString());
+      window.history.pushState(options.state ?? {}, '', readableSubject(url));
     }
 }
 
 function removeQueryParam(key: string) {
     const url = new URL(window.location.href);
     url.searchParams.delete(key);
-    window.history.pushState({}, '', url.toString());
+    window.history.pushState({}, '', readableSubject(url));
 }
 
 
