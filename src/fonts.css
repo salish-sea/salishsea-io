@@ -1,0 +1,15 @@
+/*
+ * Mukta, the typeface every page names (salish-74v6). Until this file the site asked
+ * for it without loading it, so visitors saw Helvetica or Arial. The font files come
+ * from the @fontsource/mukta package and are served from this site, as orcasite serves
+ * them (ui/src/styles/theme.ts there): no request goes to a font service. Each weight's
+ * stylesheet declares a face per script with its unicode-range, so a browser fetches
+ * only the Latin files an English page uses.
+ *
+ * The weights are the ones our styles use: 400, 500, 600, and 700 for bold.
+ * Linked from every page; the build inlines it into each (vite.config.js).
+ */
+@import "@fontsource/mukta/400.css";
+@import "@fontsource/mukta/500.css";
+@import "@fontsource/mukta/600.css";
+@import "@fontsource/mukta/700.css";

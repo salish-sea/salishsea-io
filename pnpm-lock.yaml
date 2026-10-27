@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@fontsource/mukta':
+        specifier: 5.3.0
+        version: 5.3.0
       '@formatjs/intl-datetimeformat':
         specifier: ^7.8.1
         version: 7.8.1
@@ -455,6 +458,9 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@fontsource/mukta@5.3.0':
+    resolution: {integrity: sha512-BIM9rx9SmHOcVR8cmOba9LnaFwhfiaFcclwgKV9rH4DIdCmD/tBBhtY02GGukuayxSbqfZ6pXzSO88IigTewDw==}
 
   '@formatjs/bigdecimal@0.2.7':
     resolution: {integrity: sha512-B4+XY/e4u5v261r3a37Kq2ax91gPZSKGyVpx8X5dygAggLlUz+6MeBpmAhaBFGB8WQ4JB1qD+QtKHk9aJkEb9Q==}
@@ -2210,6 +2216,8 @@ snapshots:
   '@exodus/bytes@1.16.0(@noble/hashes@1.8.0)':
     optionalDependencies:
       '@noble/hashes': 1.8.0
+
+  '@fontsource/mukta@5.3.0': {}
 
   '@formatjs/bigdecimal@0.2.7': {}
 

@@ -273,30 +273,43 @@ ${urls}
         });
       },
     },
-    {
-      // Inline the tiny global stylesheet into <style> so it isn't a render-blocking
-      // request. CSP allows it (style-src has 'unsafe-inline'). Only touches CSS that
-      // has a <link> in index.html (main.css); JS-loaded CSS like OpenLayers' is untouched.
-      name: 'inline-critical-css',
-      apply: 'build',
-      enforce: 'post',
-      transformIndexHtml(html, ctx) {
-        if (!ctx?.bundle) return html;
-        let out = html;
-        for (const [fileName, asset] of Object.entries(ctx.bundle)) {
-          if (asset.type !== 'asset' || !fileName.endsWith('.css')) continue;
-          const escaped = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const linkRE = new RegExp(`<link[^>]*href="[^"]*${escaped}"[^>]*>`);
-          if (!linkRE.test(out)) continue;
-          const css = typeof asset.source === 'string'
-            ? asset.source
-            : Buffer.from(asset.source).toString('utf8');
-          out = out.replace(linkRE, `<style>${css}</style>`);
-          delete ctx.bundle[fileName];
-        }
-        return out;
-      },
-    },
+    (() => {
+      // Inline the tiny linked stylesheets into <style> so they aren't render-blocking
+      // requests. CSP allows it (style-src has 'unsafe-inline'). Touches only CSS a page
+      // links: index.html's index.css, and src/fonts.css, which every page links;
+      // JS-loaded CSS is untouched. A stylesheet linked from several pages is one asset,
+      // so it is deleted only once every page has been written, not by the first page
+      // to inline it, which would leave the rest linking to a file that isn't there.
+      const inlined = new Set();
+      return {
+        name: 'inline-critical-css',
+        apply: 'build',
+        enforce: 'post',
+        transformIndexHtml(html, ctx) {
+          if (!ctx?.bundle) return html;
+          let out = html;
+          for (const [fileName, asset] of Object.entries(ctx.bundle)) {
+            if (asset.type !== 'asset' || !fileName.endsWith('.css')) continue;
+            const escaped = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const linkRE = new RegExp(`<link[^>]*href="[^"]*${escaped}"[^>]*>`);
+            if (!linkRE.test(out)) continue;
+            const css = typeof asset.source === 'string'
+              ? asset.source
+              : Buffer.from(asset.source).toString('utf8');
+            out = out.replace(linkRE, () => `<style>${css}</style>`);
+            inlined.add(fileName);
+          }
+          return out;
+        },
+        generateBundle: {
+          order: 'post',
+          handler(_options, bundle) {
+            for (const fileName of inlined) delete bundle[fileName];
+            inlined.clear();
+          },
+        },
+      };
+    })(),
     preloadReadPathManifest(),
     sentryVitePlugin({
       // The plugin would otherwise write the release into every chunk, which is
