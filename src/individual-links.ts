@@ -94,8 +94,10 @@ export interface NamedAnimal {
  * Orcasound bout is tagged with (J35, J pod, Bigg's), where a tag only possibly heard
  * ends in '?' (decision 054). Each is looked up by the register's fold with the '?'
  * set aside and reported as `possibly`, and links to its page: an individual, a matriline, or
- * a population by its name. A name the catalogue doesn't know stays, unlinked: it is
- * still what was written. Pods aren't in the catalogue file yet, so a pod stays
+ * a population by its name. Names for one animal are one chip, under the first name
+ * written: T46A and T122 are the same individual, and a tag given both as heard and
+ * as possibly heard counts as heard. A name the catalogue doesn't know stays,
+ * unlinked: it is still what was written. Pods aren't in the catalogue file yet, so a pod stays
  * unlinked too (salish-fwyt.3).
  */
 export function namedAnimals(
@@ -104,14 +106,11 @@ export function namedAnimals(
   matrilines: Map<string, GroupRef> = new Map(),
   populations: Map<string, GroupRef> = new Map(),
 ): NamedAnimal[] {
-  const seen = new Set<string>();
-  const named: NamedAnimal[] = [];
+  const byKey = new Map<string, NamedAnimal>();
   for (const identifier of identifiers ?? []) {
     const possibly = identifier.endsWith('?');
     const label = possibly ? identifier.slice(0, -1) : identifier;
     const folded = fold(label);
-    if (seen.has(fold(identifier))) continue;
-    seen.add(fold(identifier));
     const matriline = matrilines.get(folded);
     const individual = codes.get(folded);
     const population = populations.get(folded);
@@ -119,9 +118,12 @@ export function namedAnimals(
       : individual ? individualPath(individual)
       : population ? populationPath(population)
       : null;
-    named.push({label, href, possibly});
+    const key = href ?? folded;
+    const already = byKey.get(key);
+    if (already) already.possibly &&= possibly;
+    else byKey.set(key, {label, href, possibly});
   }
-  return named;
+  return [...byKey.values()];
 }
 
 let codeMap: Map<string, IndividualRef> | null = null;

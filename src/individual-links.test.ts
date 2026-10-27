@@ -148,3 +148,17 @@ test("an Orcasound bout's tags become chips too: a tag only possibly heard says 
     { label: 'J pod', href: null, possibly: false },
   ]);
 });
+
+test('names for one animal are one chip, under the first name written; heard outranks possibly heard', () => {
+  // T46A was renamed T122: the same individual, one page.
+  expect(namedAnimals(['T46A', 'T122'], codes, matrilines)).toEqual([
+    { label: 'T46A', href: '/individuals/0010368/T122', possibly: false },
+  ]);
+  // Two moderators, one sure and one hedging (decision 054).
+  expect(namedAnimals(['T65A5?', 'T65A5'], codes, matrilines)).toEqual([
+    { label: 'T65A5', href: '/individuals/0010197/T065A5', possibly: false },
+  ]);
+  expect(namedAnimals(['CRC338?', 'CRC338?'], codes, matrilines)).toEqual([
+    { label: 'CRC338', href: null, possibly: true },
+  ]);
+});
