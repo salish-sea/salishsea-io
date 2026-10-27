@@ -268,6 +268,53 @@ describe("a card's actions menu", () => {
     expect(second.items().length).toBe(1);
   });
 
+  it('closes once focus has moved out of it, as Tab moves it, and leaves focus where it went', async () => {
+    const {el, root, button, items, settle} = await mounted();
+    const elsewhere = document.createElement('button');
+    document.body.append(elsewhere);
+    button.click();
+    await settle();
+    // Tab is not handled: the menu's items are out of the Tab order, so the browser
+    // takes focus past the menu, and only then does the menu close.
+    root.querySelector('.menu')!.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', bubbles: true, composed: true}));
+    await settle();
+    expect(items().length).toBe(1);
+    elsewhere.focus();
+    items()[0]!.dispatchEvent(new FocusEvent('focusout', {relatedTarget: elsewhere, bubbles: true, composed: true}));
+    await settle();
+    expect(items()).toEqual([]);
+    expect(document.activeElement).toBe(elsewhere);
+    // A focusout with nowhere to go is left to the page's click listener.
+    button.click();
+    await settle();
+    items()[0]!.dispatchEvent(new FocusEvent('focusout', {relatedTarget: null, bubbles: true, composed: true}));
+    await settle();
+    expect(items().length).toBe(1);
+    el.remove();
+  });
+
+  it('gives focus back to its button when Copy link closes it, rather than to the page', async () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', {value: {writeText}, configurable: true});
+    try {
+      const {root, button, items, settle} = await mounted();
+      button.click();
+      await settle();
+      items()[0]!.focus();
+      items()[0]!.click();
+      await settle();
+      expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\?o=inaturalist:1$/));
+      expect(items()[0]!.textContent).toBe('Copied!');
+      await vi.advanceTimersByTimeAsync(1200);
+      await settle();
+      expect(items()).toEqual([]);
+      expect(root.activeElement).toBe(button);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('stops listening to the page once closed', async () => {
     const {button, settle} = await mounted();
     const removed = vi.spyOn(document, 'removeEventListener');

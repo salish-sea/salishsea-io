@@ -83,6 +83,8 @@ export function injectIndividualLinks(
 export interface NamedAnimal {
   label: string;
   href: string | null;
+  /** Tagged as only possibly heard: a bout's tag that ends in '?' (decision 054). */
+  possibly: boolean;
 }
 
 /**
@@ -90,8 +92,8 @@ export interface NamedAnimal {
  * the row of chips on its card. Two kinds of name arrive here: the catalogue codes
  * the build reads from a report's text (T65A5, T34As), and the register's labels an
  * Orcasound bout is tagged with (J35, J pod, Bigg's), where a tag only possibly heard
- * ends in '?' (decision 054). Each is looked up by the register's fold, a hedge set
- * aside and kept on the chip, and links to its page: an individual, a matriline, or
+ * ends in '?' (decision 054). Each is looked up by the register's fold with the '?'
+ * set aside and reported as `possibly`, and links to its page: an individual, a matriline, or
  * a population by its name. A name the catalogue doesn't know stays, unlinked: it is
  * still what was written. Pods aren't in the catalogue file yet, so a pod stays
  * unlinked too (salish-fwyt.3).
@@ -104,10 +106,12 @@ export function namedAnimals(
 ): NamedAnimal[] {
   const seen = new Set<string>();
   const named: NamedAnimal[] = [];
-  for (const label of identifiers ?? []) {
-    const folded = fold(label.replace(/\?$/, ''));
-    if (seen.has(fold(label))) continue;
-    seen.add(fold(label));
+  for (const identifier of identifiers ?? []) {
+    const possibly = identifier.endsWith('?');
+    const label = possibly ? identifier.slice(0, -1) : identifier;
+    const folded = fold(label);
+    if (seen.has(fold(identifier))) continue;
+    seen.add(fold(identifier));
     const matriline = matrilines.get(folded);
     const individual = codes.get(folded);
     const population = populations.get(folded);
@@ -115,7 +119,7 @@ export function namedAnimals(
       : individual ? individualPath(individual)
       : population ? populationPath(population)
       : null;
-    named.push({label, href});
+    named.push({label, href, possibly});
   }
   return named;
 }

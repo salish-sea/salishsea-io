@@ -111,21 +111,21 @@ test('a sighting\'s named animals become chips, each once, in the order its text
   // As the build extracts them from a real report: a code can repeat, and the
   // same animal can be written two ways.
   expect(namedAnimals(['T65A5', 'T65As', 'T065A5', 'T65A5'], codes, matrilines)).toEqual([
-    { label: 'T65A5', href: '/individuals/0010197/T065A5' },
-    { label: 'T65As', href: '/matrilines/0002163/T065As' },
+    { label: 'T65A5', href: '/individuals/0010197/T065A5', possibly: false },
+    { label: 'T65As', href: '/matrilines/0002163/T065As', possibly: false },
   ]);
 });
 
 test('a chip links a superseded code to the individual that now carries it', () => {
-  expect(namedAnimals(['T46A'], codes, matrilines)).toEqual([{ label: 'T46A', href: '/individuals/0010368/T122' }]);
+  expect(namedAnimals(['T46A'], codes, matrilines)).toEqual([{ label: 'T46A', href: '/individuals/0010368/T122', possibly: false }]);
 });
 
 test('a code the catalogue does not know stays as a chip without a link', () => {
   // Still what the observer wrote; linking is a navigation aid, not an identification.
   expect(namedAnimals(['CRC338', 'T46Bs', 'T999s'], codes, matrilines)).toEqual([
-    { label: 'CRC338', href: null },
-    { label: 'T46Bs', href: '/matrilines/0002149/T046Bs' },
-    { label: 'T999s', href: null },
+    { label: 'CRC338', href: null, possibly: false },
+    { label: 'T46Bs', href: '/matrilines/0002149/T046Bs', possibly: false },
+    { label: 'T999s', href: null, possibly: false },
   ]);
 });
 
@@ -134,17 +134,17 @@ test('a sighting that names no animal has no chips', () => {
   expect(namedAnimals([], codes, matrilines)).toEqual([]);
 });
 
-test("an Orcasound bout's tags become chips too: a hedged tag keeps its '?', a population links by name", () => {
+test("an Orcasound bout's tags become chips too: a tag only possibly heard says so, a population links by name", () => {
   // Bout identifiers are the register's labels, not codes read from text (decision 054).
   const populations = new Map([
     ['biggs', { entity_id: 'SSA:0000002', designation: 'Biggs' }],
     ['southern resident', { entity_id: 'SSA:0000010', designation: 'Southern Resident' }],
   ]);
   expect(namedAnimals(['T65A5?', "Bigg's", 'Southern Resident', 'J pod'], codes, matrilines, populations)).toEqual([
-    { label: 'T65A5?', href: '/individuals/0010197/T065A5' },
-    { label: "Bigg's", href: '/populations/0000002/Biggs' },
-    { label: 'Southern Resident', href: '/populations/0000010/Southern-Resident' },
+    { label: 'T65A5', href: '/individuals/0010197/T065A5', possibly: true },
+    { label: "Bigg's", href: '/populations/0000002/Biggs', possibly: false },
+    { label: 'Southern Resident', href: '/populations/0000010/Southern-Resident', possibly: false },
     // Pods aren't in the catalogue file yet (salish-fwyt.3).
-    { label: 'J pod', href: null },
+    { label: 'J pod', href: null, possibly: false },
   ]);
 });

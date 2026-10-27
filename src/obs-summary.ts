@@ -100,7 +100,11 @@ export class ObsSummary extends LitElement {
       font-style: normal;
       margin-top: 0.5rem;
     }
-    /* The animals and matrilines the sighting names, as chips. */
+    /* The animals and groups the sighting names, as chips. They look like the
+       tags on an Orcasound bout (orcasite's BoutTags, MUI's small chip): filled grey,
+       or outlined and dashed for a tag only possibly heard, its hedge in words. There
+       they are controls; here they are links to the animal's page, or plain where
+       the catalogue has none. */
     ul.animals {
       display: flex;
       flex-wrap: wrap;
@@ -110,23 +114,41 @@ export class ObsSummary extends LitElement {
       padding: 0;
     }
     ul.animals li {
-      border: 1px solid #c8d6e0;
-      border-radius: 999px;
-      color: #64748b;
+      background: rgba(0, 0, 0, 0.08);
+      border: 1px solid transparent;
+      border-radius: 12px;
+      box-sizing: border-box;
+      color: rgba(0, 0, 0, 0.87);
       font-size: 0.8125rem;
-      line-height: 1.6;
-      padding: 0 0.55rem;
+      line-height: 22px;
+      padding: 0 8px;
+      white-space: nowrap;
+    }
+    ul.animals li.possibly {
+      background: transparent;
+      border: 1px dashed #bdbdbd;
     }
     ul.animals li:has(a) {
       padding: 0;
     }
+    /* A name with no page reads quieter than one that leads somewhere, since
+       here, unlike on orcasite, a chip is a link only sometimes. */
+    ul.animals li:not(:has(a)) {
+      color: rgba(0, 0, 0, 0.6);
+    }
     ul.animals a {
-      border-radius: 999px;
+      border-radius: 12px;
+      color: inherit;
       display: block;
-      padding: 0 0.55rem;
+      padding: 0 8px;
     }
     ul.animals a:hover {
-      background: #eef6f9;
+      background: rgba(0, 0, 0, 0.06);
+      color: inherit;
+    }
+    ul.animals a:focus-visible {
+      outline: 2px solid #1976d2;
+      outline-offset: 1px;
     }
     cite a {
       color: inherit;
@@ -319,8 +341,10 @@ export class ObsSummary extends LitElement {
       </header>
       ${guard([identifiers, this.catalogLoaded], () => {
         const animals = namedAnimals(identifiers, catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map());
-        return animals.length ? html`<ul class="animals">${animals.map(({label, href}) =>
-          html`<li>${href ? html`<a href=${href}>${label}</a>` : label}</li>`)}</ul>` : nothing;
+        return animals.length ? html`<ul class="animals">${animals.map(({label, href, possibly}) => {
+          const text = possibly ? `${label} (possibly)` : label;
+          return html`<li class=${possibly ? 'possibly' : ''}>${href ? html`<a href=${href}>${text}</a>` : text}</li>`;
+        })}</ul>` : nothing;
       })}
       ${guard([body, this.catalogLoaded], () => html`${
         unsafeHTML(domPurify.sanitize(
@@ -350,7 +374,7 @@ export class ObsSummary extends LitElement {
   /** The card's actions: copying its link for anyone, cloning for the signed in, and editing and deleting for whoever may. */
   private renderMenu(editable: boolean) {
     return html`
-      <div class="menu" role="menu" aria-label="Actions for this sighting" @keydown=${this.onMenuKeydown}>
+      <div class="menu" role="menu" aria-label="Actions for this sighting" @keydown=${this.onMenuKeydown} @focusout=${this.onMenuFocusout}>
         <button type="button" role="menuitem" tabindex="-1" @click=${this.onCopyLink}>${this.copied ? 'Copied!' : 'Copy link'}</button>
         ${when(this.user, () => html`<button type="button" role="menuitem" tabindex="-1" @click=${this.onClone}>Clone</button>`)}
         ${when(editable, () => html`
@@ -369,7 +393,10 @@ export class ObsSummary extends LitElement {
     this.setMenuOpen(!this.menuOpen);
   };
 
-  private setMenuOpen(open: boolean, returnFocus = false) {
+  // Closing removes the menu, and a focused element that is removed leaves focus on
+  // the page, so a keyboard user would lose their place: when focus is in the menu
+  // as it closes, it goes back to the menu's button.
+  private setMenuOpen(open: boolean, returnFocus = this.focusInMenu()) {
     if (open === this.menuOpen) return;
     this.menuOpen = open;
     if (open) {
@@ -381,6 +408,11 @@ export class ObsSummary extends LitElement {
       document.removeEventListener('keydown', this.onDocumentKeydown);
       if (returnFocus) this.shadowRoot?.querySelector<HTMLButtonElement>('.more')?.focus();
     }
+  }
+
+  private focusInMenu(): boolean {
+    const focused = this.shadowRoot?.activeElement;
+    return !!focused && !!this.shadowRoot?.querySelector('.menu')?.contains(focused);
   }
 
   private menuItems(): HTMLButtonElement[] {
@@ -396,8 +428,7 @@ export class ObsSummary extends LitElement {
   };
 
   // Up and down move between the items, wrapping; Home and End go to the ends. The
-  // items are out of the Tab order, as a menu's are, so Tab moves focus past the menu
-  // before it closes, rather than onto an item about to be removed.
+  // items are out of the Tab order, as a menu's are, so Tab takes focus past the menu.
   private onMenuKeydown = (event: KeyboardEvent) => {
     const items = this.menuItems();
     const at = items.indexOf(this.shadowRoot?.activeElement as HTMLButtonElement);
@@ -405,9 +436,17 @@ export class ObsSummary extends LitElement {
     if (to !== undefined) {
       event.preventDefault();
       items[(to + items.length) % items.length]?.focus();
-    } else if (event.key === 'Tab') {
-      this.setMenuOpen(false);
     }
+  };
+
+  // The menu closes once focus has gone somewhere else, as Tab takes it: after the
+  // move, not on the key, which would remove the focused item before the browser
+  // could move focus on. A focusout with nowhere to go, as when a click lands on
+  // something that takes no focus, is left to the page's click listener, or a click
+  // on an item in a browser that doesn't focus buttons would close the menu first.
+  private onMenuFocusout = (event: FocusEvent) => {
+    const to = event.relatedTarget as Node | null;
+    if (to && !(event.currentTarget as HTMLElement).contains(to)) this.setMenuOpen(false, false);
   };
 
   disconnectedCallback(): void {
