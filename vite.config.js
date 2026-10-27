@@ -302,7 +302,7 @@ ${urls}
         }
         const regular = Object.keys(ctx.bundle).find(f => /\/mukta-latin-400-normal-[^/]+\.woff2$/.test(f));
         if (regular && out.includes('Mukta'))
-          out = out.replace(/<head[^>]*>/, head => `${head}\n    <link rel="preload" href="/${regular}" as="font" type="font/woff2" crossorigin>`);
+          out = out.replace(/<head(\s[^>]*)?>/, head => `${head}\n    <link rel="preload" href="/${regular}" as="font" type="font/woff2" crossorigin>`);
         return out;
       },
     },
