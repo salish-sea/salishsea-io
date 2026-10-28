@@ -6,7 +6,7 @@
 
 An animal's view in the sidebar ([096](096-a-subjects-view-is-a-list-of-its-events.md)) was to summarize its sightings over spans of time rather than list every report, after the card the day's list shows for a travel segment ([097](097-a-travel-segment-is-one-card-in-the-days-list.md)). Which spans, and what a span's summary says, were open.
 
-T065A5 Elsie has 1,821 reports on 324 days. Run through the map's own travel segments ([063](063-segments-join-by-space-and-time-and-never-across-ecotypes.md)), they make 397 encounters: 63 of those days hold two or three. Sometimes that is one group seen twice (Saratoga Passage twice on 24 October 2026), sometimes two places 40 km apart (North Bay and Dalco Passage on 1 October). A mockup from her published reports settled the design (https://desktop-wsl.tail5d2e45.ts.net/subject-timeline/, on Peter's tailnet).
+T065A5 Elsie has 1,821 reports on 324 days. Run through the map's own travel segments ([063](063-segments-join-by-space-and-time-and-never-across-ecotypes.md)), they make 397 encounters: 63 of those days hold two or three. Sometimes that is one group seen twice (Saratoga Passage twice on 24 October 2026), sometimes two places 40 km apart (North Bay and Dalco Passage on 1 October). A mockup from T065A5's published reports settled the design (https://desktop-wsl.tail5d2e45.ts.net/subject-timeline/, on Peter's tailnet).
 
 ## Decision
 
@@ -16,7 +16,7 @@ T065A5 Elsie has 1,821 reports on 324 days. Run through the map's own travel seg
 
 **A month's card says:** how many days and encounters; where, as the places with how many days in each, and how far apart its two most distant encounters were; who else, as chips counting the encounters that name each other animal or group ("T137s 5 of 18", as 097's chips count reports); its photos; how many reports name the subject itself and how many reach it through its matriline (T065As); its sources; and, where it applies, "First report of 2026" or "First report in 28 days". Peter: all of it is good, and "Scott will love this."
 
-**The switch filters the list as it does the map:** Past 12 months shows that year's months; All time adds a card per earlier year, saying the same things, which opens to its months. This settles 096's question of whether the switch filters the list (Peter: "the map should mirror the list").
+**The switch filters the list as it does the map:** Past 12 months shows this month and the eleven before it, whole, on the Pacific clock, so no month is split between the list's two parts (the map drew the 12 months back from the moment before); All time adds a card per earlier year, saying the same things, which opens to its months. This settles 096's question of whether the switch filters the list (Peter: "the map should mirror the list").
 
 **The list replaces the presence table** (the grid of reports by year and month) in the sidebar.
 
