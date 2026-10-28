@@ -27,8 +27,9 @@ Watersheds will have dated events and news written by us (bd `salish-7ds1.3`); a
 - Whether the switch also filters the sidebar's list, or only the map.
 - How news items are written and stored: the same format as a watershed's (`salish-7ds1.3`), not yet designed.
 - Which register facts make life events: a calf's birth year is known, an animal's own death year is not in the page data yet.
+- Whether a group's view gathers its members' reports too, perhaps by a second control: the group's own, or the group with its members (Peter, unsure).
 
 ## Consequences
 
 - The glossary gains **Event** in this sense, as a working name.
-- A group's sightings are the ones its page's small map draws: reports of the group, which aren't all of its members' (T065As has 1,261 in its file, its member T065A5 1,827 in hers). Whether a group's view should gather its members' too is a question for its own view.
+- A group's sightings are the ones its page's small map draws: reports of the group, which aren't all of its members' (T065As has 1,261 in its file, its member T065A5 1,827 in hers).

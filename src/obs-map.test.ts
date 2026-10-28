@@ -51,7 +51,7 @@ vi.mock('maplibre-gl', async (importOriginal) => ({
   Map: FakeMap,
 }));
 
-import { ObsMap } from './obs-map.ts';
+import { ObsMap, subjectFeatures } from './obs-map.ts';
 import { MASK_MAX_ZOOM } from './style.ts';
 import { mapZoom } from './map-view.ts';
 
@@ -94,5 +94,28 @@ describe('the out-of-region mask', () => {
     const shownAt = (zoom: number) => mapZoom(zoom) < MASK_MAX_ZOOM;
     expect([7, 8.14, 9].map(shownAt)).toEqual([true, true, true]);
     expect([9.01, 12].map(shownAt)).toEqual([false, false]);
+  });
+});
+
+describe("an open subject's sightings on the map (decision 096)", () => {
+  const sightings = [
+    {occurrence_id: 'newest', observed_at: '2026-10-25T00:40:00Z', lon: -123, lat: 48.5},
+    {occurrence_id: 'middle', observed_at: '2024-04-28T12:20:00Z', lon: -123.1, lat: 48.6},
+    {occurrence_id: 'oldest', observed_at: '2021-11-01T00:00:00Z', lon: -123.2, lat: 48.7},
+  ];
+
+  it('fade from the newest, larger, to the oldest, and each goes to its own day', () => {
+    const [newest, middle, oldest] = subjectFeatures(sightings, '#1a1a1a').map(f => f.properties!);
+    expect(newest).toMatchObject({id: 'newest', newest: true, opacity: 0.95, color: '#1a1a1a'});
+    // The day is the Pacific one, as the map's date is: 00:40 UTC on the 25th is the 24th there.
+    expect(newest!['date']).toBe('2026-10-24');
+    expect(newest!['title']).toBe('Reported Oct 24, 2026');
+    expect(middle!['newest']).toBe(false);
+    expect(middle!['opacity']).toBeCloseTo(0.6, 2);
+    expect(oldest).toMatchObject({newest: false, opacity: 0.25});
+  });
+
+  it('are drawn whole when there is only one', () => {
+    expect(subjectFeatures(sightings.slice(0, 1), '#1a1a1a')[0]!.properties).toMatchObject({newest: true, opacity: 0.95});
   });
 });
