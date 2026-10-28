@@ -14,7 +14,7 @@ Watersheds will have dated events and news written by us (bd `salish-7ds1.3`); a
 
 **The sidebar lists the subject's events, newest first.** An event is one dated thing in a subject's story: a sighting, a life event from the register (a birth, a calf's birth, a death), or a news item we wrote. Sightings are the first kind; the others join the same list, so a reader sees a life in order, and the list a watershed shows (`salish-7ds1.3`) is the same list with other kinds of event (Peter: "occurrences will get generalized to events in the sidebar, so we can include news items").
 
-*Amended 2026-10-28 (Peter):* the list doesn't list every report. A zoomed-out view summarizes its sightings over spans of time, and the precedent is a card the day's list will show for each travel segment, summarizing the sightings the map draws as one track (bd `salish-fwyt.5`); an animal's timeline follows it (`salish-fwyt.6`), not a table of years by months. "Sightings are the first kind" of event above means these summaries.
+*Amended 2026-10-28 (Peter):* the list doesn't list every report. A zoomed-out view summarizes its sightings over spans of time, and the precedent is a card the day's list will show for each travel segment, summarizing the sightings the map draws as one track (bd `salish-fwyt.5`); an animal's timeline follows it (`salish-fwyt.6`, [098](098-an-animals-timeline-is-months-of-encounters.md): months of encounters), not a table of years by months. "Sightings are the first kind" of event above means these summaries.
 
 **Notable sightings are marked:** the first report of a calf, the first report of the year, and a report with photos (Peter, all three). A sighting far from the subject's usual range is notable too, but waits: knowing a usual range is work of its own.
 
@@ -26,7 +26,7 @@ Watersheds will have dated events and news written by us (bd `salish-7ds1.3`); a
 ## Undecided
 
 - The name: "event" is a working name, since Darwin Core's Event means a sampling event; to be settled when the list is built (Peter).
-- Whether the switch also filters the sidebar's list, or only the map.
+- ~~Whether the switch also filters the sidebar's list, or only the map.~~ It does: [098](098-an-animals-timeline-is-months-of-encounters.md).
 - How news items are written and stored: the same format as a watershed's (`salish-7ds1.3`), not yet designed.
 - Which register facts make life events: a calf's birth year is known, an animal's own death year is not in the page data yet.
 - Whether a group's view gathers its members' reports too, perhaps by a second control: the group's own, or the group with its members (Peter, unsure).
