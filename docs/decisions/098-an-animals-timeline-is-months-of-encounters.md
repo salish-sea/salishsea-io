@@ -35,5 +35,5 @@ T065A5 Elsie has 1,821 reports on 324 days. Run through the map's own travel seg
 
 ## Consequences
 
-- An encounter needs every report of its day, not only the subject's, so the read-path build writes a subject's encounters, already summarized, beside its links (`profiles/<kind>/<id>.encounters.json`). The browser fetching the day files instead would cost Elsie's 324 files, 14 MB.
+- An encounter needs every report of its day, not only the subject's, so the read-path build writes each subject's encounters, already summarized (`encounters/<kind>/<id>.json`, [scripts/read-path/encounters.ts](../../scripts/read-path/encounters.ts)). The browser fetching the day files instead would cost Elsie's 324 files, 14 MB.
 - The glossary gains **Encounter**.

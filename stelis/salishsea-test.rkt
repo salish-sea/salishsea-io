@@ -51,10 +51,11 @@
 (check-equal? ordered '(maplify-names reference snapshot derive-occurrences occurrence-days)
               (string-append "the day files need the name guard, the reference files, the snapshot "
                              "and the derivation; the mirrors and the register arrive from the ingest graph"))
-(check-equal? (set-count pruned) 17
+(check-equal? (set-count pruned) 18
               (string-append "the calendar, the id index, the candidates and links, the catalogue and its "
-                             "register views, the pages, the whales page, the profile index, the search index, "
-                             "the quiet days, the manifest and the Darwin Core archive are off the path to days"))
+                             "register views, the pages, the whales page, the encounters, the profile index, "
+                             "the search index, the quiet days, the manifest and the Darwin Core archive are "
+                             "off the path to days"))
 
 ;; The catalogue's views over the register are the build's (salishsea decision 064,
 ;; salish-9uu.2.3): derive-catalogue produces them under the snapshot's names, from the
@@ -220,6 +221,13 @@
 (check-not-false (memq 'register.taxon_ancestor
                        (task-outputs (hash-ref (graph-tasks salishsea-ingest-graph) 'ingest-register)))
                  "the build loads the register's taxon lineage")
+;; A subject's encounters join every report of its days into segments (decision 098), so
+;; they read every occurrence; a failure there must not hold the map's files back.
+(check-equal? (sort (inputs-of 'encounters) symbol<?)
+              '(build.group_occurrences build.individual_occurrences build.occurrences individuals-snapshot
+                social-groups-snapshot)
+              "the encounters' inputs are what encounters.ts reads")
+(check-false (memq 'encounters manifest-plan) "the manifest doesn't wait on the encounters")
 ;; The ecotype's links pooled, and each matriline's for its small map (decision 067).
 (check-equal? (sort (inputs-of 'ecotype-pages) symbol<?)
               '(build.ecotype_occurrences build.group_occurrences group-parents-snapshot snapshot-year
