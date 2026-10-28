@@ -162,6 +162,10 @@ export default defineConfig({
   assetsInclude: ['**/*.geojson'],
 
   build: {
+    // A font is never inlined as a data: URL, however small: the pages' CSP allows
+    // fonts only from 'self', so the browser refuses one. Noto Sans Mono's Vietnamese
+    // file is under the 4 KB limit and was inlined, and blocked (salish-hdhv).
+    assetsInlineLimit: filePath => /\.woff2?$/.test(filePath) ? false : undefined,
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
@@ -299,6 +303,9 @@ ${urls}
           const css = typeof asset.source === 'string'
             ? asset.source
             : Buffer.from(asset.source).toString('utf8');
+          // The CSP refuses a font from a data: URL; stop the build rather than ship one.
+          if (/url\(\s*["']?data:font/.test(css))
+            throw new Error(`${fileName} inlines a font as a data: URL, which the CSP's font-src 'self' blocks`);
           out = out.replace(linkRE, () => `<style>${css}</style>`);
         }
         const faces = Object.keys(ctx.bundle).filter(f => /\/work-sans-latin-(300|400)-normal-[^/]+\.woff2$/.test(f)).sort();
