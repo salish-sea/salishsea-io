@@ -82,9 +82,6 @@ export class DateCalendar extends LitElement {
   static styles = [stepButtonStyles, css`
     :host {
       display: block;
-      /* Restated rather than inherited: this is the panel's face, and a shadow
-         root that silently changed font with its host would be a trap. */
-      font-family: Mukta, Helvetica, Arial, sans-serif;
       user-select: none;
     }
 
@@ -103,8 +100,8 @@ export class DateCalendar extends LitElement {
     h3 {
       color: #1e293b;
       flex-grow: 1;
-      font-size: 0.9375rem;
-      font-weight: 600;
+      font-size: var(--fs-body1);
+      font-weight: 400;
       margin: 0;
       text-align: center;
     }
@@ -125,8 +122,8 @@ export class DateCalendar extends LitElement {
     }
     .weekdays {
       color: #94a3b8;
-      font-size: 0.75rem;
-      font-weight: 500;
+      font-size: var(--fs-caption);
+      font-weight: 400;
       padding: 0.25rem 0 0.125rem;
       text-align: center;
     }
@@ -141,7 +138,7 @@ export class DateCalendar extends LitElement {
       cursor: pointer;
       display: flex;
       font-family: inherit;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
       justify-content: center;
       padding: 0;
       position: relative;
@@ -183,14 +180,14 @@ export class DateCalendar extends LitElement {
       box-shadow: inset 0 0 0 1px #cbd5e1;
     }
     .today .numeral {
-      font-weight: 600;
+      font-weight: 700;
     }
     .selected {
       box-shadow: inset 0 0 0 2px #1976d2;
       color: #1565c0;
     }
     .selected .numeral {
-      font-weight: 600;
+      font-weight: 700;
     }
     .day:hover.selected {
       box-shadow: inset 0 0 0 2px #1565c0;

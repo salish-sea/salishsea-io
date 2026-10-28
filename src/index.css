@@ -1,7 +1,4 @@
 :root {
-  font-family: Mukta,Helvetica,Arial,sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
 
   color: #213547;
   background-color: #ffffff;
@@ -13,9 +10,7 @@
 }
 
 a {
-  font-weight: 500;
   color: #1976d2;
-  text-decoration: inherit;
 }
 a:hover {
   color: #1565c0;

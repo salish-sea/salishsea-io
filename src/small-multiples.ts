@@ -116,6 +116,7 @@ export const smallMapStyles = css`
   }
   ul.small-maps a {
     display: block;
+    text-decoration: none;
   }
   /* One line, so the maps in a row line up. */
   ul.small-maps .label {
@@ -126,7 +127,7 @@ export const smallMapStyles = css`
   }
   ul.small-maps .count {
     color: #64748b;
-    font-size: 0.8125rem;
+    font-size: var(--fs-body2);
     font-weight: 400;
     margin-left: 0.25rem;
   }
@@ -143,7 +144,8 @@ export const smallMapStyles = css`
   }
   .small-maps-credit {
     color: #94a3b8;
-    font-size: 0.75rem;
+    font-size: var(--fs-caption);
+    font-weight: 400;
     margin: 0.75rem 0 0;
   }
   .small-maps-credit a {

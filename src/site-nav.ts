@@ -54,7 +54,7 @@ export const siteNavStyles = css`
     box-sizing: border-box;
     color: #213547;
     display: inline-flex;
-    font-weight: 500;
+    font-weight: 400;
     gap: 6px;
     justify-content: center;
     min-height: 44px;

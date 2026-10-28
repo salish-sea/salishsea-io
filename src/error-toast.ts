@@ -35,8 +35,7 @@ export default class ErrorToast extends LitElement {
       box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
       color: white;
       display: flex;
-      font-family: Mukta, Helvetica, Arial, sans-serif;
-      font-size: 0.875rem;
+      font-size: var(--fs-body2);
       gap: 0.5rem;
       max-width: min(24rem, calc(100vw - 2rem));
       padding: 0.625rem 0.75rem;
@@ -57,7 +56,7 @@ export default class ErrorToast extends LitElement {
       color: inherit;
       cursor: pointer;
       flex-shrink: 0;
-      font-size: 1rem;
+      font-size: var(--fs-body1);
       line-height: 1.4;
       opacity: 0.7;
       padding: 0;

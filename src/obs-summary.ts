@@ -18,6 +18,7 @@ import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
 import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, populationCodes } from './individual-links.ts';
 import { interceptableAnchor, subjectFromHref, type Subject } from './subject.ts';
+import { linkStyles } from './icons.ts';
 
 const domPurify = createDOMPurify(window as any);
 
@@ -49,14 +50,17 @@ export class ObsSummary extends LitElement {
   // with individual-profile links; until then codes show as plain text.
   @state() private catalogLoaded = catalogCodes() !== null;
 
-  static styles = css`
+  static styles = [linkStyles, css`
     /* A card: each sighting one bordered object, the panel's gap between them
-       (salish-fwyt.1, after the sidebar mockup). */
+       (salish-fwyt.1, after the sidebar mockup). Set a step down the scale, at body2,
+       as a list of many is: the sidebar is denser than anything Orcasound's design
+       system sets, so this extends it (salish-hdhv). */
     :host {
       background-color: white;
       border: 1px solid #d9dde3;
       border-radius: 6px;
       display: block;
+      font-size: var(--fs-body2);
       line-height: 1.5;
       padding: 0.625rem 0.75rem;
     }
@@ -70,7 +74,7 @@ export class ObsSummary extends LitElement {
     header {
       align-items: baseline;
       display: flex;
-      gap: 0.5rem;
+      gap: 0.375rem;
       justify-content: space-between;
       position: relative;
     }
@@ -78,16 +82,22 @@ export class ObsSummary extends LitElement {
       align-items: baseline;
       display: flex;
       flex-grow: 1;
-      gap: 0.5rem;
+      gap: 0.375rem;
+    }
+    /* The name, its count and its standing are one run of text, which wraps as a
+       sentence does, so a long name has the count's room as well. The time keeps the
+       heading's first line, on the right, where the cards line up as a timeline. */
+    .title > :not(b) {
+      white-space: nowrap;
     }
     time {
       color: #64748b;
-      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-size: var(--fs-mono);
       white-space: nowrap;
     }
     a {
       color: #1976d2;
-      text-decoration: none;
       word-break: break-word;
     }
     a:hover {
@@ -95,9 +105,12 @@ export class ObsSummary extends LitElement {
     }
     /* Who saw it and through whom, quietly at the foot of the card. */
     cite {
-      color: #64748b;
+      /* Light at 12px, the one exception to Regular there, in a darker grey that
+         keeps its contrast: the lines read as thinner rather than paler (salish-hdhv). */
+      color: #475569;
       display: block;
-      font-size: 0.8125rem;
+      font-size: var(--fs-caption);
+      font-weight: 300;
       font-style: normal;
       margin-top: 0.5rem;
     }
@@ -120,7 +133,7 @@ export class ObsSummary extends LitElement {
       border-radius: 12px;
       box-sizing: border-box;
       color: rgba(0, 0, 0, 0.87);
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
       line-height: 22px;
       padding: 0 8px;
       white-space: nowrap;
@@ -142,6 +155,7 @@ export class ObsSummary extends LitElement {
       color: inherit;
       display: block;
       padding: 0 8px;
+      text-decoration: none;
     }
     ul.animals a:hover {
       background: rgba(0, 0, 0, 0.06);
@@ -151,9 +165,10 @@ export class ObsSummary extends LitElement {
       outline: 2px solid #1976d2;
       outline-offset: 1px;
     }
+    /* The text's own grey, blue when pointed at; they leave the site, so the mark
+       says they are links (linkStyles). */
     cite a {
       color: inherit;
-      text-decoration: underline;
     }
     cite a:hover {
       color: #1976d2;
@@ -162,9 +177,11 @@ export class ObsSummary extends LitElement {
       color: #475569;
     }
     .provider {
-      color: #64748b;
+      /* Light at 12px, as cite is. */
+      color: #475569;
       display: block;
-      font-size: 0.75rem;
+      font-size: var(--fs-caption);
+      font-weight: 300;
       font-style: normal;
       margin-top: 0.125rem;
     }
@@ -176,7 +193,6 @@ export class ObsSummary extends LitElement {
     }
     .count {
       color: #64748b;
-      font-size: 0.8125rem;
     }
     .focus-occurrence {
       /* The taxon colour is set inline, per occurrence. The white ring is what
@@ -187,7 +203,9 @@ export class ObsSummary extends LitElement {
       display: inline-block;
       flex-shrink: 0;
       height: 0.75rem;
-      align-self: center;
+      /* Centred on the heading's first line, however many it takes. */
+      align-self: flex-start;
+      margin-top: calc((1.5em - 1rem) / 2);
       text-decoration: none;
       width: 0.75rem;
     }
@@ -197,7 +215,6 @@ export class ObsSummary extends LitElement {
     }
     .confirmation {
       color: #64748b;
-      font-size: 0.75rem;
       font-style: italic;
     }
     .focus-occurrence:hover {
@@ -212,9 +229,9 @@ export class ObsSummary extends LitElement {
       padding: 0;
     }
     /* The card's actions, behind a button right of the time (salish-fwyt.1). The
-       button keeps its 44px touch target while sitting on the heading's baseline. */
+       button keeps its 44px touch target while centred on the heading's first line. */
     .more {
-      align-self: center;
+      align-self: flex-start;
       background: transparent;
       border: 0;
       border-radius: 4px;
@@ -266,7 +283,8 @@ export class ObsSummary extends LitElement {
       cursor: pointer;
       display: block;
       font: inherit;
-      font-size: 0.875rem;
+      font-size: var(--fs-body2);
+      font-weight: 400;
       min-height: 40px;
       padding: 8px 16px;
       text-align: left;
@@ -282,7 +300,7 @@ export class ObsSummary extends LitElement {
     .menu button.danger {
       color: #b91c1c;
     }
-  `;
+  `];
 
   @consume({context: userContext, subscribe: true})
   private user: User | undefined;
@@ -340,11 +358,11 @@ export class ObsSummary extends LitElement {
           <a class="focus-occurrence ${unconfirmed ? 'unconfirmed' : ''}" @click="${this.focusSighting}" href="#"
              aria-label="Focus this ${group.label.toLowerCase()} on the map"
              title="Focus on map" style="background-color: ${unconfirmed ? '#ffffff' : group.color}; --taxon-color: ${group.color}"></a>
-          <b>${name}</b>
-          ${when(count && count > 0, () => html`<span class="count">×${count}</span>`)}
-          ${when(unconfirmed, () => html`<span class="confirmation" title=${confirmationNote(this.sighting)}>${confirmation === 'disputed' ? 'Disputed' : 'Unconfirmed'}</span>`)}
-          ${when(vitality === 'dead', () => html`<span class="confirmation" title="Annotated dead on iNaturalist: a stranded or floating animal, not one travelling">Dead</span>`)}
-          ${when(!unconfirmed && disagreements, () => html`<span class="confirmation" title="Confirmed: at least two thirds of the others who identified it agree">${disagreements === 1 ? '1 identifier disagrees' : `${disagreements} identifiers disagree`}</span>`)}
+          <span class="title"><b>${name}</b>${
+            when(count && count > 0, () => html` <span class="count">×${count}</span>`)}${
+            when(unconfirmed, () => html` <span class="confirmation" title=${confirmationNote(this.sighting)}>${confirmation === 'disputed' ? 'Disputed' : 'Unconfirmed'}</span>`)}${
+            when(vitality === 'dead', () => html` <span class="confirmation" title="Annotated dead on iNaturalist: a stranded or floating animal, not one travelling">Dead</span>`)}${
+            when(!unconfirmed && disagreements, () => html` <span class="confirmation" title="Confirmed: at least two thirds of the others who identified it agree">${disagreements === 1 ? '1 identifier disagrees' : `${disagreements} identifiers disagree`}</span>`)}</span>
         </div>
         <time>${guard([observed_at], () => html`${
           Temporal.Instant.from(observed_at).toZonedDateTimeISO('America/Los_Angeles').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})

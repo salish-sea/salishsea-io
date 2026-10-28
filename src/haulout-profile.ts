@@ -182,7 +182,7 @@ export const hauloutStyles = css`
     }
     h3 {
       margin: 1rem 0 0.25rem;
-      font-size: 1rem;
+      font-size: var(--fs-body1);
     }
     .neighbours {
       padding-left: 1.25rem;

@@ -113,25 +113,25 @@ export default class SalishSea extends LitElement {
       box-sizing: border-box;
       color: white;
       display: inline-flex;
-      font-size: 0.95rem;
+      font-size: var(--fs-body1);
+      font-weight: 400;
       gap: 6px;
       justify-content: center;
       min-width: 44px;
       opacity: 0.6;
       padding: 0 10px;
     }
-    /* A label centred in the header puts Mukta's baseline 0.237em below the middle,
+    /* A label centred in the header puts Work Sans's baseline 0.25em below the middle,
        measured; it drops the rest of the way to the wordmark's. The icon stays centred. */
     nav.site-nav .nav-label {
       position: relative;
-      top: calc(var(--wordmark-drop) - 0.237em);
+      top: calc(var(--wordmark-drop) - 0.25em);
     }
     nav.site-nav a:hover {
       opacity: 0.9;
     }
     nav.site-nav a[aria-current="page"] {
       border-bottom-color: #4bd6dd;
-      font-weight: 600;
       opacity: 1;
     }
     nav.site-nav site-search {
@@ -188,7 +188,7 @@ export default class SalishSea extends LitElement {
     h1 {
       align-items: center;
       display: flex;
-      font-size: 1.2rem;
+      font-size: var(--fs-h6);
       gap: 0.5rem;
       margin: 0;
     }

@@ -5,7 +5,7 @@ import { Temporal } from "temporal-polyfill";
 import './sighting-form.ts';
 import './date-calendar.ts';
 import { stepButtonStyles, stepIcon, type DateCalendar } from './date-calendar.ts';
-import { cameraAddIcon, chevronLeftIcon, chevronRightIcon } from "./icons.ts";
+import { cameraAddIcon, chevronLeftIcon, chevronRightIcon, linkStyles } from "./icons.ts";
 import { consume } from "@lit/context";
 import { userContext, type User } from "./identity.ts";
 import { classMap } from "lit/directives/class-map.js";
@@ -27,12 +27,11 @@ export const COMPACT_LAYOUT = '(max-aspect-ratio: 1)';
 
 @customElement('obs-panel')
 export class ObsPanel extends LitElement {
-  static styles = [stepButtonStyles, css`
+  static styles = [stepButtonStyles, linkStyles, css`
     :host {
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
-      font-family: Mukta,Helvetica,Arial,sans-serif;
       gap: 1rem;
       overflow-x: hidden;
       overflow-y: auto;
@@ -53,7 +52,7 @@ export class ObsPanel extends LitElement {
       text-align: center;
     }
     h2 {
-      font-size: 1.5rem;
+      font-size: var(--fs-h5);
       font-weight: 400;
       margin-bottom: 0;
       margin-top: 1rem;
@@ -81,7 +80,7 @@ export class ObsPanel extends LitElement {
       cursor: pointer;
       flex-grow: 1;
       font-family: inherit;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
       font-variant-numeric: tabular-nums;
       padding: 0.125rem 0.25rem;
       text-align: center;
@@ -108,7 +107,7 @@ export class ObsPanel extends LitElement {
       color: #1976d2;
       cursor: pointer;
       font-family: inherit;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
       padding: 0.125rem 0.5rem;
     }
     .type-date:hover {
@@ -141,7 +140,7 @@ export class ObsPanel extends LitElement {
       color: #1e293b;
       flex-grow: 1;
       font-family: inherit;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
       font-variant-numeric: tabular-nums;
       min-width: 0;
       padding: 0.0625rem 0.25rem;
@@ -164,7 +163,7 @@ export class ObsPanel extends LitElement {
     }
     #go-to-label {
       color: #64748b;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
     }
     /* Small rounded buttons, as the region choices are. */
     .bubble {
@@ -174,7 +173,7 @@ export class ObsPanel extends LitElement {
       color: #334155;
       cursor: pointer;
       font-family: inherit;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
       line-height: 1.4;
       padding: 0.1875rem 0.625rem;
       white-space: nowrap;
@@ -196,7 +195,6 @@ export class ObsPanel extends LitElement {
       background: #0369a1;
       border-color: #0369a1;
       color: white;
-      font-weight: 600;
     }
     .bubble.selected:hover:not(:disabled) {
       background: #075985;
@@ -224,7 +222,8 @@ export class ObsPanel extends LitElement {
       border-radius: 4px;
       color: white;
       fill: white;
-      font-size: 0.875rem;
+      font-family: inherit;
+      font-size: var(--fs-body2);
       padding: 0.5rem 1rem;
     }
     button[name=show]:hover {
@@ -239,17 +238,14 @@ export class ObsPanel extends LitElement {
       border-left: 3px solid #1976d2;
       border-radius: 4px;
       color: #1f2d3d;
-      font-size: 0.9375rem;
+      font-size: var(--fs-body1);
       line-height: 1.45;
       margin: 0;
       padding: 0.625rem 0.75rem;
     }
-    .contribute-pitch strong {
-      font-weight: 600;
-    }
     .contribute-pitch a {
       color: #1976d2;
-      font-weight: 600;
+      font-weight: 400;
       white-space: nowrap;
     }
     .hide {

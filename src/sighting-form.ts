@@ -105,7 +105,6 @@ export default class SightingForm extends LitElement {
   static styles = css`
     :host {
       display: block;
-      font-family: Mukta,Helvetica,Arial,sans-serif;
     }
     form {
       line-height: 1.4;
@@ -122,7 +121,9 @@ export default class SightingForm extends LitElement {
       border: 1px solid var(--slate-300);
       border-radius: 4px;
       background: white;
-      font-size: 0.75rem;
+      font-family: inherit;
+      font-size: var(--fs-caption);
+      font-weight: 400;
     }
     button:hover:not(:disabled) {
       background: #f5f5f5;
@@ -139,8 +140,8 @@ export default class SightingForm extends LitElement {
       margin-bottom: 0.5rem;
     }
     label > span {
-      font-weight: 500;
-      font-size: 0.8125rem;
+      font-weight: 400;
+      font-size: var(--fs-body2);
       padding-top: 0.375rem;
     }
     label:has(input[required]) .label::after {
@@ -159,10 +160,16 @@ export default class SightingForm extends LitElement {
       border: 1px solid var(--slate-300);
       border-radius: 4px;
       font-family: inherit;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
     }
     input[type="number"] {
       width: 5em;
+    }
+    /* Values a machine reads, as on a sighting's card. */
+    input[type="time"],
+    input[name$="_location"] {
+      font-family: var(--font-mono);
+      font-size: var(--fs-mono);
     }
     input[type="text"],
     input[type="url"],
@@ -199,7 +206,7 @@ export default class SightingForm extends LitElement {
     .input-with-buttons .unit {
       color: var(--slate-500, #64748b);
       flex-shrink: 0;
-      font-size: 0.875rem;
+      font-size: var(--fs-body2);
     }
     .thumbnails {
       display: flex;
@@ -216,12 +223,14 @@ export default class SightingForm extends LitElement {
     }
     .field-hint {
       color: var(--slate-500, #64748b);
-      font-size: 0.6875rem;
+      font-size: var(--fs-caption);
+      font-weight: 400;
       margin-top: 0.25rem;
     }
     .field-error {
       color: #d32f2f;
-      font-size: 0.6875rem;
+      font-size: var(--fs-caption);
+      font-weight: 400;
       margin-top: 0.25rem;
     }
     photo-attachment {
@@ -240,7 +249,7 @@ export default class SightingForm extends LitElement {
       border-top: 1px solid #eee;
     }
     .actions button {
-      font-size: 0.875rem;
+      font-size: var(--fs-body2);
       padding: 0.5rem 1rem;
     }
     .actions button[type="submit"] {
@@ -257,7 +266,7 @@ export default class SightingForm extends LitElement {
     }
     output {
       display: block;
-      font-size: 0.8125rem;
+      font-size: var(--fs-body2);
       margin-bottom: 0.5rem;
     }
     output.error {

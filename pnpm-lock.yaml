@@ -8,7 +8,10 @@ importers:
 
   .:
     dependencies:
-      '@fontsource/mukta':
+      '@fontsource/noto-sans-mono':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/work-sans':
         specifier: 5.3.0
         version: 5.3.0
       '@formatjs/intl-datetimeformat':
@@ -459,8 +462,11 @@ packages:
       '@noble/hashes':
         optional: true
 
-  '@fontsource/mukta@5.3.0':
-    resolution: {integrity: sha512-BIM9rx9SmHOcVR8cmOba9LnaFwhfiaFcclwgKV9rH4DIdCmD/tBBhtY02GGukuayxSbqfZ6pXzSO88IigTewDw==}
+  '@fontsource/noto-sans-mono@5.3.0':
+    resolution: {integrity: sha512-DPZ+/Ng9HP5UKiALCKtoeGfA7zJzEjHFB/18OU/c3+4I9zZ3eMVAuFZb0SqzT89Yj7KNhJFYnYjyDaVKhdRuUg==}
+
+  '@fontsource/work-sans@5.3.0':
+    resolution: {integrity: sha512-3cKV28+bEiLGdyOl0VgEGCFWE1XdZJu/K+nH4Jt76XC3T//XrRtm2EF7jA61GSMIy8sYp6ZFTE01nD3lLaBV9A==}
 
   '@formatjs/bigdecimal@0.2.7':
     resolution: {integrity: sha512-B4+XY/e4u5v261r3a37Kq2ax91gPZSKGyVpx8X5dygAggLlUz+6MeBpmAhaBFGB8WQ4JB1qD+QtKHk9aJkEb9Q==}
@@ -2217,7 +2223,9 @@ snapshots:
     optionalDependencies:
       '@noble/hashes': 1.8.0
 
-  '@fontsource/mukta@5.3.0': {}
+  '@fontsource/noto-sans-mono@5.3.0': {}
+
+  '@fontsource/work-sans@5.3.0': {}
 
   '@formatjs/bigdecimal@0.2.7': {}
 

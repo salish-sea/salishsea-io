@@ -161,8 +161,8 @@ layer-control .layer-menu {
 }
 layer-control legend {
   float: left;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: var(--fs-caption);
+  font-weight: 400;
   padding: 0 0 0.2em;
   width: 100%;
 }
@@ -171,7 +171,7 @@ layer-control label {
   clear: both;
   cursor: pointer;
   display: flex;
-  font-size: 0.85rem;
+  font-size: var(--fs-body2);
   gap: 0.4em;
   padding: 0.2em 0;
 }
@@ -190,7 +190,7 @@ user-location-control.error svg { color: red; }
 user-location-control.inactive svg { color: #333; }
 @media (pointer: coarse) {
   layer-control label {
-    font-size: 1rem;
+    font-size: var(--fs-body1);
     padding: 0.45em 0;
   }
 }

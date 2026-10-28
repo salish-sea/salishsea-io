@@ -1,4 +1,4 @@
-import { svg } from "lit";
+import { css, svg, unsafeCSS } from "lit";
 
 
 export const cameraAddIcon = svg`<path d="M440-440ZM120-120q-33 0-56.5-23.5T40-200v-480q0-33 23.5-56.5T120-760h126l74-80h240v80H355l-73 80H120v480h640v-360h80v360q0 33-23.5 56.5T760-120H120Zm640-560v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80ZM440-260q75 0 127.5-52.5T620-440q0-75-52.5-127.5T440-620q-75 0-127.5 52.5T260-440q0 75 52.5 127.5T440-260Zm0-80q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t29 71q0 42-29 71t-71 29Z"/>`;
@@ -6,7 +6,7 @@ export const clickTargetIcon = svg`<path d="M468-240q-96-5-162-74t-66-166q0-100 
 export const locateMeIcon = svg`<path d="M440-42v-80q-125-14-214.5-103.5T122-440H42v-80h80q14-125 103.5-214.5T440-838v-80h80v80q125 14 214.5 103.5T838-520h80v80h-80q-14 125-103.5 214.5T520-122v80h-80Zm40-158q116 0 198-82t82-198q0-116-82-198t-198-82q-116 0-198 82t-82 198q0 116 82 198t198 82Zm0-120q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T560-480q0-33-23.5-56.5T480-560q-33 0-56.5 23.5T400-480q0 33 23.5 56.5T480-400Zm0-80Z"/>`;
 export const linkIcon = svg`<path d="M440-280H280q-83 0-141.5-58.5T80-480q0-83 58.5-141.5T280-680h160v80H280q-50 0-85 35t-35 85q0 50 35 85t85 35h160v80ZM320-440v-80h320v80H320Zm200 160v-80h160q50 0 85-35t35-85q0-50-35-85t-85-35H520v-80h160q83 0 141.5 58.5T880-480q0 83-58.5 141.5T680-280H520Z"/>`;
 // Stepper arrows for the date picker. Drawn rather than set as ◀/▶ (U+25C0 /
-// U+25B6): neither Mukta nor Helvetica carries those glyphs, so each fell
+// U+25B6): neither the site's typeface nor Helvetica carries those glyphs, so each fell
 // through to a per-glyph font fallback that differs by machine and gave the two
 // arrows different advance widths (12px vs 10.56px at 12px in Chromium). These
 // are exact mirrors of each other on every platform.
@@ -14,3 +14,35 @@ export const chevronLeftIcon = svg`<path d="M560-240 320-480l240-240 56 56-184 1
 export const chevronRightIcon = svg`<path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/>`;
 // Material Symbols "layers": the map's reference-layer switch (layer-control.ts).
 export const layersIcon = svg`<path d="M480-118 120-398l66-50 294 228 294-228 66 50-360 280Zm0-202L120-600l360-280 360 280-360 280Zm0-280Zm0 178 230-178-230-178-230 178 230 178Z"/>`;
+
+// The site's links (docs/style-guide.md, rule 8). A link in running text needs a cue
+// besides its colour, which is only 2.7:1 against the text around it: an underline, or,
+// for a link that leaves the site in a new tab, Material Symbols' "open in new" mark. A
+// link that stands on its own (nav, a chip, a list of links) sets text-decoration: none
+// itself. A link around a photo needs no mark. src/fonts.css restates this for the
+// plain pages, outside any shadow root; a test keeps the two marks alike.
+export const openInNewPath = 'M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z';
+const openInNewMask = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="${openInNewPath}"/></svg>`)}")`;
+export const linkStyles = css`
+  a {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+  a[target="_blank"] {
+    text-decoration: none;
+  }
+  a[target="_blank"]:hover {
+    text-decoration: underline;
+  }
+  a[target="_blank"]:not(:has(img))::after {
+    background-color: currentColor;
+    content: "";
+    content: "" / " (opens in a new tab)";
+    display: inline-block;
+    height: 0.85em;
+    margin-left: 0.2em;
+    mask: ${unsafeCSS(openInNewMask)} center / contain no-repeat;
+    vertical-align: -0.05em;
+    width: 0.85em;
+  }
+`;
