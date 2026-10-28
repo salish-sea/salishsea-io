@@ -55,7 +55,7 @@ export class AccountMenu extends LitElement {
       padding: 10px;
     }
     .account[aria-expanded="true"] {
-      border-bottom-color: var(--account-menu-accent, #1976d2);
+      border-bottom-color: var(--account-menu-accent, var(--color-primary));
     }
     /* A small ring in the header's white around your picture. */
     .avatar {
@@ -70,11 +70,11 @@ export class AccountMenu extends LitElement {
     /* The search popover's surface, rows full-bleed. */
     .menu {
       background: white;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--color-border);
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+      box-shadow: var(--shadow-popover);
       box-sizing: border-box;
-      color: #213547;
+      color: var(--color-text);
       max-width: min(22rem, calc(100vw - 1rem));
       min-width: 240px;
       width: max-content;
@@ -100,9 +100,9 @@ export class AccountMenu extends LitElement {
       width: 28px;
     }
     .badge {
-      border: 1px solid #ddd;
+      border: 1px solid var(--color-border);
       border-radius: 999px;
-      color: #767676;
+      color: var(--color-text-muted);
       font-size: var(--fs-caption);
       font-weight: 400;
       padding: 0.1rem 0.5rem;
@@ -112,7 +112,7 @@ export class AccountMenu extends LitElement {
       background: transparent;
       border: 0;
       box-sizing: border-box;
-      color: #213547;
+      color: var(--color-text);
       cursor: pointer;
       display: flex;
       font: inherit;
@@ -126,20 +126,20 @@ export class AccountMenu extends LitElement {
       width: 100%;
     }
     .row:hover {
-      background: rgba(0, 0, 0, 0.05);
+      background: var(--color-fill);
     }
     .row:active {
-      background: rgba(0, 0, 0, 0.09);
+      background: var(--color-fill-strong);
     }
     .row:focus-visible {
-      outline: 2px solid #1976d2;
+      outline: 2px solid var(--color-primary);
       outline-offset: -2px;
     }
     .row svg {
       flex: none;
     }
     .status {
-      color: #767676;
+      color: var(--color-text-muted);
       font-size: var(--fs-caption);
       font-weight: 400;
       line-height: 1.4;

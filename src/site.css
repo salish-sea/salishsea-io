@@ -18,6 +18,8 @@
   font-family: "Work Sans", Helvetica, Arial, sans-serif;
   font-weight: 300;
   line-height: 1.5;
+  color: var(--color-text);
+  background-color: var(--color-surface);
 
   --font-mono: "Noto Sans Mono", ui-monospace, monospace;
 
@@ -29,6 +31,43 @@
   --fs-caption: 0.75rem;
   /* Mono's lowercase is 9% taller than Work Sans's: 13px matches body2 (style guide). */
   --fs-mono: 0.8125rem;
+
+  /* Orcasound's palette. */
+  --orca-black: #000000;
+  --deep-blue: #002f49;
+  --kelp-green: #a4d3d1;
+  --pacific-teal: #258dad;
+
+  /* Colours, by role, and why each is what it is: docs/style-guide.md, "Colour". */
+  --color-text: var(--orca-black);
+  --color-text-secondary: #475569;
+  --color-text-muted: #607086;
+  --color-text-disabled: #cbd5e1;
+  --color-primary: #1f7893;
+  --color-primary-hover: var(--deep-blue);
+  --color-primary-tint: #eff7f7;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f1f5f9;
+  --color-surface-tint: rgba(128, 128, 128, 0.1);
+  --color-fill: rgba(0, 0, 0, 0.06);
+  --color-fill-strong: rgba(0, 0, 0, 0.09);
+  --color-border: rgba(0, 0, 0, 0.12);
+  --color-border-strong: rgba(0, 0, 0, 0.32);
+  --color-border-field: #7f8ca0;
+  --color-chrome: var(--orca-black);
+  --color-chrome-accent: var(--kelp-green);
+  --color-error: #d81f2b;
+  --color-error-border: #e9222f;
+  --color-error-tint: #fdedee;
+  --color-warning: #9f5e22;
+  --color-warning-border: #f79234;
+  --color-warning-tint: #fef6ef;
+  --color-success: #007f48;
+  --color-scrim: rgb(0 0 0 / 0.4);
+
+  --shadow-popover: 0 4px 12px rgb(0 0 0 / 0.18);
+  --shadow-float: 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-dialog: 0 4px 24px rgb(0 0 0 / 0.35);
 }
 
 /* Emphasis is Regular over Light, never Bold at text size. */
@@ -50,8 +89,12 @@ h2 {
 
 /* Links (style guide, rule 8): src/icons.ts's linkStyles, for the plain pages. */
 a {
+  color: var(--color-primary);
   text-decoration: underline;
   text-underline-offset: 0.15em;
+}
+a:hover {
+  color: var(--color-primary-hover);
 }
 a[target="_blank"] {
   text-decoration: none;

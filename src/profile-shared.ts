@@ -27,22 +27,16 @@ const profileOwnStyles = css`
     max-width: 44rem;
     padding: 1rem 1rem 4rem;
   }
-  a {
-    color: #1976d2;
-  }
   /* Links that stand on their own, needing no underline: a heading, a list of names, a
      relative named in the family list. */
   h2 a, dt a, dd > a, ul.people a {
     text-decoration: none;
   }
-  a:hover {
-    color: #1565c0;
-  }
   header.masthead {
     margin-bottom: 2.5rem;
   }
   .designation-kicker {
-    color: #64748b;
+    color: var(--color-text-muted);
     font-size: var(--fs-body1);
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -54,24 +48,24 @@ const profileOwnStyles = css`
     margin: 0.25rem 0 0.5rem;
   }
   .vitals {
-    color: #475569;
+    color: var(--color-text-secondary);
     font-size: var(--fs-body1);
     margin: 0;
   }
   .lineage {
-    color: #64748b;
+    color: var(--color-text-muted);
     font-size: var(--fs-body1);
     margin: 0.5rem 0 0;
   }
   .lineage b {
-    color: #475569;
+    color: var(--color-text-secondary);
     font-weight: 400;
   }
   section {
     margin-top: 2.5rem;
   }
   h2 {
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--color-border);
     font-size: var(--fs-h6);
     font-weight: 400;
     margin: 0 0 1rem;
@@ -100,10 +94,10 @@ const profileOwnStyles = css`
   }
   ul.people li:not(:last-child)::after {
     content: " · ";
-    color: #94a3b8;
+    color: var(--color-text-muted);
   }
   .muted {
-    color: #64748b;
+    color: var(--color-text-muted);
   }
   .self {
     font-weight: 400;
@@ -125,39 +119,41 @@ const profileOwnStyles = css`
     font-variant-numeric: tabular-nums;
   }
   table.presence th {
-    color: #94a3b8;
+    color: var(--color-text-muted);
     font-size: var(--fs-caption);
     font-weight: 400;
     padding: 0.125rem;
     text-align: center;
   }
   table.presence th[scope="row"] {
-    color: #64748b;
+    color: var(--color-text-muted);
     padding-right: 0.625rem;
     text-align: right;
   }
   table.presence td {
-    border: 1px solid #f1f5f9;
-    color: #1e3a5f;
+    border: 1px solid var(--color-surface-subtle);
+    color: var(--color-text);
     font-size: var(--fs-body2);
     height: 1.75rem;
     min-width: 1.75rem;
     padding: 0;
     text-align: center;
   }
-  table.presence td.p1 { background: #e3f2fd; }
-  table.presence td.p2 { background: #bbdefb; }
-  table.presence td.p3 { background: #90caf9; }
+  /* Data colours: the presence ramp, light to dark with volume, the interface's teal
+     (--color-primary) over white at 15%, 30% and 50%. */
+  table.presence td.p1 { background: #ddebef; }
+  table.presence td.p2 { background: #bcd6df; }
+  table.presence td.p3 { background: #8fbcc9; }
   .presence-note, .sightings-note {
-    color: #64748b;
+    color: var(--color-text-muted);
     font-size: var(--fs-body2);
     margin: 0.75rem 0 0;
   }
   .placeholder {
-    color: #64748b;
+    color: var(--color-text-muted);
   }
   .error {
-    color: #b71c1c;
+    color: var(--color-error);
   }
 `;
 

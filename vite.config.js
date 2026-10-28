@@ -280,7 +280,7 @@ ${urls}
     {
       // Inline the tiny linked stylesheets into <style> so they aren't render-blocking
       // requests. CSP allows it (style-src has 'unsafe-inline'). Touches only CSS a page
-      // links: index.html's index.css, and src/fonts.css, which every page links. The
+      // links: index.html's index.css, and src/site.css, which every page links. The
       // stylesheet files are left in the build, unused by the pages: one is shared by
       // all nine, Vite's manifest names them, and a lazily loaded chunk may still ask
       // for one, so deleting them would leave those pointing at nothing (salish-74v6).

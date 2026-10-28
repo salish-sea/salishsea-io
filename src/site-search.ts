@@ -112,16 +112,16 @@ export class SiteSearch extends LitElement {
       opacity: 0.9;
     }
     .toggle[aria-expanded="true"] {
-      border-bottom-color: var(--site-search-accent, #1976d2);
+      border-bottom-color: var(--site-search-accent, var(--color-primary));
       opacity: 1;
     }
     .popover {
       background: white;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--color-border);
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+      box-shadow: var(--shadow-popover);
       box-sizing: border-box;
-      color: #213547;
+      color: var(--color-text);
       padding: 12px;
       /* Its left edge and width are set when it opens (place()), to stay on screen. */
       position: absolute;
@@ -130,17 +130,17 @@ export class SiteSearch extends LitElement {
     }
     input {
       background: white;
-      border: 1px solid #cbd5e1;
+      border: 1px solid var(--color-border-field);
       border-radius: 4px;
       box-sizing: border-box;
-      color: #0f172a;
+      color: var(--color-text);
       font: inherit;
       font-size: var(--fs-body1);
       padding: 8px 10px;
       width: 100%;
     }
     input:focus-visible {
-      outline: 2px solid #1976d2;
+      outline: 2px solid var(--color-primary);
       outline-offset: -1px;
     }
     ul {
@@ -151,30 +151,30 @@ export class SiteSearch extends LitElement {
       padding: 0;
     }
     li a {
-      color: #0f172a;
+      color: var(--color-text);
       display: block;
       padding: 0.4rem 12px;
       text-decoration: none;
     }
     li a.latest {
-      color: #1565c0;
+      color: var(--color-primary-hover);
       font-size: var(--fs-body2);
       padding: 0.1rem 12px 0.45rem 28px;
     }
     li[aria-selected="true"] a {
-      background: #e3f2fd;
+      background: var(--color-primary-tint);
     }
     .label {
       font-weight: 400;
     }
     .note {
-      color: #64748b;
+      color: var(--color-text-muted);
       display: block;
       font-size: var(--fs-caption);
       font-weight: 400;
     }
     .message {
-      color: #64748b;
+      color: var(--color-text-muted);
       font-size: var(--fs-body2);
       padding: 0.4rem 12px;
     }

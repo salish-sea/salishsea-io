@@ -47,7 +47,7 @@ export class SubjectView extends LitElement {
     }
     nav.back {
       background: white;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid var(--color-border);
       margin: 0 -0.75rem 0.75rem;
       padding: 0.375rem 0.5rem;
       position: sticky;
@@ -58,7 +58,7 @@ export class SubjectView extends LitElement {
       background: transparent;
       border: 0;
       border-radius: 4px;
-      color: #1976d2;
+      color: var(--color-primary);
       cursor: pointer;
       font: inherit;
       font-weight: 400;
@@ -66,10 +66,10 @@ export class SubjectView extends LitElement {
       padding: 0.25rem 0.5rem;
     }
     nav.back button:hover {
-      background: #f1f5f9;
+      background: var(--color-surface-subtle);
     }
     nav.back button:focus-visible {
-      outline: 2px solid #1976d2;
+      outline: 2px solid var(--color-primary);
       outline-offset: 1px;
     }
     /* The page's masthead, sized for a sidebar 25rem wide. */
@@ -86,14 +86,14 @@ export class SubjectView extends LitElement {
       margin-top: 1.25rem;
     }
     .status {
-      color: #64748b;
+      color: var(--color-text-muted);
       padding: 1rem 0;
     }
     .latest-card {
       margin: 0.5rem 0 1rem;
     }
     a.full-page {
-      border: 1px solid #1976d2;
+      border: 1px solid var(--color-primary);
       border-radius: 4px;
       display: inline-block;
       font-weight: 400;
@@ -102,7 +102,7 @@ export class SubjectView extends LitElement {
       text-decoration: none;
     }
     a.full-page:hover {
-      background: #e3f2fd;
+      background: var(--color-primary-tint);
     }
   `];
 

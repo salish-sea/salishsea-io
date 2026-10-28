@@ -76,7 +76,7 @@ export class ObsPanel extends LitElement {
       background: none;
       border: 0;
       border-radius: 4px;
-      color: #475569;
+      color: var(--color-text-secondary);
       cursor: pointer;
       flex-grow: 1;
       font-family: inherit;
@@ -104,17 +104,17 @@ export class ObsPanel extends LitElement {
       background: none;
       border: 0;
       border-radius: 4px;
-      color: #1976d2;
+      color: var(--color-primary);
       cursor: pointer;
       font-family: inherit;
       font-size: var(--fs-body2);
       padding: 0.125rem 0.5rem;
     }
     .type-date:hover {
-      background: #f1f5f9;
+      background: var(--color-surface-subtle);
     }
     .type-date:focus-visible {
-      outline: 2px solid #1976d2;
+      outline: 2px solid var(--color-primary);
       outline-offset: 1px;
     }
     /* The calendar's own :host rule says display: block, which beats the browser's
@@ -123,21 +123,21 @@ export class ObsPanel extends LitElement {
       display: none;
     }
     .day-nav .selected-date:hover {
-      background: #f1f5f9;
-      color: #1e293b;
+      background: var(--color-surface-subtle);
+      color: var(--color-text);
     }
     .day-nav .selected-date:focus-visible {
-      outline: 2px solid #1976d2;
+      outline: 2px solid var(--color-primary);
       outline-offset: 1px;
     }
     /* Occupies the readout's slot so swapping between them doesn't shift the
        arrows either side. */
     .day-nav input[type=date] {
       background: white;
-      border: 1px solid #cbd5e1;
+      border: 1px solid var(--color-border-field);
       border-radius: 4px;
       box-sizing: border-box;
-      color: #1e293b;
+      color: var(--color-text);
       flex-grow: 1;
       font-family: inherit;
       font-size: var(--fs-body2);
@@ -147,8 +147,8 @@ export class ObsPanel extends LitElement {
       text-align: center;
     }
     .day-nav input[type=date]:focus-visible {
-      border-color: #1976d2;
-      outline: 2px solid #1976d2;
+      border-color: var(--color-primary);
+      outline: 2px solid var(--color-primary);
       outline-offset: 1px;
     }
     /* The destinations are laid out rather than hidden behind a select: there
@@ -162,15 +162,15 @@ export class ObsPanel extends LitElement {
       margin-top: 0.875rem;
     }
     #go-to-label {
-      color: #64748b;
+      color: var(--color-text-muted);
       font-size: var(--fs-body2);
     }
     /* Small rounded buttons, as the region choices are. */
     .bubble {
       background: white;
-      border: 1px solid #cbd5e1;
+      border: 1px solid var(--color-border-strong);
       border-radius: 999px;
-      color: #334155;
+      color: var(--color-text);
       cursor: pointer;
       font-family: inherit;
       font-size: var(--fs-body2);
@@ -179,9 +179,9 @@ export class ObsPanel extends LitElement {
       white-space: nowrap;
     }
     .bubble:hover:not(:disabled) {
-      background: #f1f5f9;
-      border-color: #94a3b8;
-      color: #1e293b;
+      background: var(--color-surface-subtle);
+      border-color: var(--color-text-muted);
+      color: var(--color-text);
     }
     /* The selected region is the one piece of state in this row: it says what
        the map, the list and the calendar are all scoped to. Filled rather than
@@ -192,22 +192,22 @@ export class ObsPanel extends LitElement {
        specificity — so on equal terms the later rule wins, and put first these
        would lose the fill exactly while the pointer is on them. */
     .bubble.selected {
-      background: #0369a1;
-      border-color: #0369a1;
+      background: var(--color-primary);
+      border-color: var(--color-primary);
       color: white;
     }
     .bubble.selected:hover:not(:disabled) {
-      background: #075985;
-      border-color: #075985;
+      background: var(--color-primary-hover);
+      border-color: var(--color-primary-hover);
       color: white;
     }
     .bubble:disabled {
-      border-color: #e2e8f0;
-      color: #cbd5e1;
+      border-color: var(--color-border);
+      color: var(--color-text-disabled);
       cursor: default;
     }
     .bubble:focus-visible {
-      outline: 2px solid #1976d2;
+      outline: 2px solid var(--color-primary);
       outline-offset: 1px;
     }
     button[name=show] {
@@ -217,8 +217,8 @@ export class ObsPanel extends LitElement {
       display: inline-flex;
       gap: 0.5rem;
       vertical-align: middle;
-      background: #1976d2;
-      border: 1px solid #1976d2;
+      background: var(--color-primary);
+      border: 1px solid var(--color-primary);
       border-radius: 4px;
       color: white;
       fill: white;
@@ -227,24 +227,24 @@ export class ObsPanel extends LitElement {
       padding: 0.5rem 1rem;
     }
     button[name=show]:hover {
-      background: #1565c0;
-      border-color: #1565c0;
+      background: var(--color-primary-hover);
+      border-color: var(--color-primary-hover);
     }
     sighting-form {
-      background-color: rgba(128, 128, 128, 0.1);
+      background-color: var(--color-surface-tint);
     }
     .contribute-pitch {
-      background: rgba(25, 118, 210, 0.08);
-      border-left: 3px solid #1976d2;
+      background: var(--color-primary-tint);
+      border-left: 3px solid var(--color-primary);
       border-radius: 4px;
-      color: #1f2d3d;
+      color: var(--color-text);
       font-size: var(--fs-body1);
       line-height: 1.45;
       margin: 0;
       padding: 0.625rem 0.75rem;
     }
     .contribute-pitch a {
-      color: #1976d2;
+      color: var(--color-primary);
       font-weight: 400;
       white-space: nowrap;
     }

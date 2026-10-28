@@ -1,8 +1,8 @@
 # Style guide
 
-How SalishSea.io sets text and links. Read it before changing anything a visitor sees. Each rule gives its reason, so a case it doesn't cover can be decided the same way. The values live in [`src/fonts.css`](../src/fonts.css), and the link rule in [`src/icons.ts`](../src/icons.ts) as well; [`src/fonts.test.ts`](../src/fonts.test.ts) fails a build that breaks the rules it can check. Why we follow Orcasound, and what was rejected: [decision 094](decisions/094-the-site-follows-orcasounds-typography.md).
+How SalishSea.io sets text, links, colour and space. Read it before changing anything a visitor sees. Each rule gives its reason, so a case it doesn't cover can be decided the same way. The values live in [`src/site.css`](../src/site.css), and the link rule in [`src/icons.ts`](../src/icons.ts) as well; [`src/style-guide.test.ts`](../src/style-guide.test.ts) fails a build that breaks the rules it can check. Why we follow Orcasound, and what was rejected: [decision 094](decisions/094-the-site-follows-orcasounds-typography.md).
 
-Not yet covered: colour, spacing, and icons other than the link mark. Until they are, match what the component's neighbours do.
+Not yet covered: icons other than the link mark, and motion. Until they are, match what the component's neighbours do.
 
 ## The rules in brief
 
@@ -14,6 +14,10 @@ Not yet covered: colour, spacing, and icons other than the link mark. Until they
 6. Values a machine produced (times, coordinates) are Noto Sans Mono at `--fs-mono`. Counts and estimates are not.
 7. Headings are in sentence case. Capitals only for a kicker, the label above a page's title.
 8. A link in running text is underlined, or, if it leaves the site, ends in the "open in new" mark instead. A link that stands on its own is neither. A link that leaves the site opens a new tab.
+9. A component names a colour's role (`var(--color-text-muted)`), never its value. Only a colour that encodes data says its value, and says why.
+10. Text a visitor must read is at least 4.5:1 against every background it can sit on (white, the pale grey, and the teal and grey washes); a field's edge, at least 3:1.
+11. Space between components is a multiple of 8px; space inside one, a multiple of 4px, or of 2px on a dense line. Corners are 4px for a control, 8px for a card or dialog, round for a pill or a dot.
+12. Anything a visitor taps is at least 44px each way.
 
 ## Typeface and weight
 
@@ -39,7 +43,7 @@ A component never names a typeface: it inherits Work Sans, or asks for `var(--fo
 | `--fs-caption` | 12px | attribution, hints, field errors, table headings |
 | `--fs-mono` | 13px | times and coordinates (rule 6) |
 
-These are Orcasound's (Material UI's) steps, plus `--fs-mono`. Text set side by side takes the same step: a sighting's count and the time beside it once differed by a pixel, and it showed. If nothing fits, the design is asking for a new step; add it to `src/fonts.css` with its reason, rather than writing a size in place.
+These are Orcasound's (Material UI's) steps, plus `--fs-mono`. Text set side by side takes the same step: a sighting's count and the time beside it once differed by a pixel, and it showed. If nothing fits, the design is asking for a new step; add it to `src/site.css` with its reason, rather than writing a size in place.
 
 ## A list of records is set smaller than prose (rule 4)
 
@@ -73,4 +77,37 @@ A link is blue (`#1976d2`). Inside running text, colour alone doesn't mark it: o
 - **A link that leaves the site** opens a new tab and ends in Material Symbols' "open in new" mark instead of an underline, so the visitor knows they are leaving; it is underlined on hover. In grey secondary text, such as a card's "via Orca Network", it takes the text's grey, turns blue on hover, and the mark alone says it is a link.
 - **A link that stands on its own,** where its place says it is a link (the nav, a chip, a heading, a list of names, a button-like "Open the full page →"), has no underline and no mark. Its rule sets `text-decoration: none`.
 
-`linkStyles` in `src/icons.ts` sets the first two for a component; include it, as `src/obs-summary.ts`, `src/obs-panel.ts` and the profile pages' styles do. `src/fonts.css` sets them for the plain pages, outside any shadow root, and a test keeps its mark the same as `src/icons.ts`'s.
+`linkStyles` in `src/icons.ts` sets the first two for a component; include it, as `src/obs-summary.ts`, `src/obs-panel.ts` and the profile pages' styles do. `src/site.css` sets them for the plain pages, outside any shadow root, and a test keeps its mark the same as `src/icons.ts`'s.
+
+## Colour (rules 9 and 10)
+
+Every colour is a custom property in `src/site.css`, named by its role. A component names the role, so a change of palette is one edit and two shades can't drift apart doing one job; a test fails a component that writes a colour of its own. The palette is Orcasound's where it passes the contrast rule (rule 10), and adjusted where it doesn't:
+
+| Role | Value | Why |
+|---|---|---|
+| `--color-text` | Orca Black | Most contrast for Light, the thinnest weight. |
+| `--color-text-secondary`, `--color-text-muted` | slate `#475569`, `#607086` | Orcasound's only grey, Seal Grey, is 2.8:1 on white: too light for text. The muted grey is the lightest slate that passes on the washes as well as on white. |
+| `--color-text-disabled` | `#cbd5e1` | A disabled control is exempt from the contrast rule, and should look unavailable. |
+| `--color-primary` | `#1f7893`, Pacific Teal darkened | One colour for everything a visitor can act on: links, buttons, the focus ring, a selection. It is the lightest Pacific Teal that passes 4.5:1 on every background a link sits on, and it is 4.2:1 against black text, so a link reads as one by colour as well as by its underline; white on it, for a button's label, is 5.0:1. Deep Blue, Orcasound's choice for links, is 1.5:1 against black text: a link in it is told apart by nothing but its underline, and a list of names can't show which are links. |
+| `--color-primary-hover` | Deep Blue | Darker on hover, as the brand's other blue. |
+| `--color-primary-tint` | `#eff7f7`, Kelp Green at 18% | Behind a selection or a highlighted card. Light enough for teal text on it to pass 4.5:1. |
+| `--color-chrome`, `--color-chrome-accent` | Orca Black, Kelp Green | The header and the controls that float over the map; Kelp Green, 12.8:1 on black, marks the current page. Orcasound's own pairing for dark surfaces. |
+| `--color-border` | black at 12% | Dividers and cards: hairlines, not boxes, as Orcasound has them. |
+| `--color-border-strong` | black at 32% | Outlined buttons and chips. Their label shows they are there, so their edge needn't pass 3:1. |
+| `--color-border-field` | `#7f8ca0` (3.4:1 on white, 3.0:1 on the form's grey) | An empty field shows nothing but its edge, so its edge is the one border held to 3:1 (WCAG 1.4.11). |
+| `--color-error`, `--color-warning`, `--color-success` | `#d81f2b`, `#9f5e22`, `#007f48` | Orcasound's state colours, darkened just enough to pass 4.5:1 as text on every background: as given they are 4.4:1, 2.3:1 and 2.3:1 on white, and a field's error sits on the form's grey. The originals are `--color-error-border` and `--color-warning-border`, for borders, which carry no text. |
+| `--color-surface`, `-subtle`, `-tint`, `--color-fill`, `--color-scrim` | white; pale greys; black at 40% | Backgrounds, from the page to a hovered row to the shade behind a dialog. |
+
+**Data colours** are not interface colours: the map's symbols for each kind of animal ([`src/symbology.ts`](../src/symbology.ts), [decision 029](decisions/029-map-symbology.md)), the maps drawn on profile and species pages, and encodings such as the calendar's activity dots and a profile's presence table. They keep their values in place, with a comment saying "data colour" and why. Where an encoding echoes the interface, it takes the interface's teal: the calendar's dots, and the presence table's steps (teal over white at 15%, 30% and 50%).
+
+## Space and corners (rules 11 and 12)
+
+Space is written in `rem` (or `px` for a hairline nudge), never named: unlike a colour, a step of space has no role beyond its size, so a name would only hide the number.
+
+- **Between components and sections: multiples of 8px** (`0.5rem`, `1rem`, `1.5rem`, `2rem`, …). Orcasound's grid; a coarse step keeps the rhythm of a page visible.
+- **Inside a component: multiples of 4px,** because 8px is too coarse beside 14px text on a 21px line. **2px** is allowed where a dense line needs it or to align something optically: the gaps on a sighting card's heading are 6px, because 8px wraps "Southern Resident killer whale ×27" and 4px crowds it.
+- **Corners:** 4px for a control (a button, a field), 8px for a card or a dialog (Orcasound's two), `999px` for a pill (a region button, a chip), `50%` for a dot.
+- **Touch targets:** 44px each way at least, by padding or by `min-height`/`min-width`, even where the visible control is smaller (a card's "…" button is 44px around a 20px mark).
+
+The test holds every margin, padding and gap to whole steps of 2px, and every corner to the four above. Values written before the rule, which it lists, are converted when their component is next changed; the list only shrinks. Whether a gap sits between components or inside one, the test can't tell, so the 8px rule is the reviewer's.
+

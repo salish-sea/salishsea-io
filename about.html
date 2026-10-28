@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <link rel="stylesheet" href="/src/fonts.css">
+    <link rel="stylesheet" href="/src/site.css">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self' https://tiles.salishsea.io; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
     <title>About SalishSea.io</title>
     <meta name="description" content="About SalishSea.io — an interactive map of whale and marine-mammal sightings across the Salish Sea, with open data downloads.">
@@ -21,18 +21,10 @@
     <link href="/apple-touch-icon.png" rel="apple-touch-icon">
     <style>
       :root {
-        color: #213547;
-        background-color: #ffffff;
         font-synthesis: style;
         text-rendering: optimizeLegibility;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-      }
-      a {
-        color: #1976d2;
-      }
-      a:hover {
-        color: #1565c0;
       }
       body {
         margin: 0;
@@ -53,7 +45,7 @@
         align-items: center;
         border-bottom: 2px solid transparent;
         box-sizing: border-box;
-        color: #213547;
+        color: var(--color-text);
         display: inline-flex;
         font-weight: 400;
         gap: 6px;
@@ -68,11 +60,11 @@
         opacity: 0.9;
       }
       nav.site-nav a[aria-current="page"] {
-        border-bottom-color: #1976d2;
+        border-bottom-color: var(--color-primary);
         opacity: 1;
       }
       nav.site-nav site-search {
-        color: #213547;
+        color: var(--color-text);
         margin-left: auto;
         margin-right: -10px;
       }

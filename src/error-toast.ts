@@ -29,10 +29,10 @@ export default class ErrorToast extends LitElement {
     }
     .toast {
       align-items: start;
-      background: rgb(8, 13, 38);
-      border-left: 4px solid rgb(229, 115, 115);
+      background: var(--color-chrome);
+      border-left: 4px solid var(--color-error-border);
       border-radius: 4px;
-      box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
+      box-shadow: var(--shadow-float);
       color: white;
       display: flex;
       font-size: var(--fs-body2);
@@ -42,7 +42,7 @@ export default class ErrorToast extends LitElement {
       pointer-events: auto;
     }
     .icon {
-      color: rgb(229, 115, 115);
+      color: var(--color-error-border);
       flex-shrink: 0;
       line-height: 1.4;
     }

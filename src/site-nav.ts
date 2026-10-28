@@ -52,7 +52,7 @@ export const siteNavStyles = css`
     align-items: center;
     border-bottom: 2px solid transparent;
     box-sizing: border-box;
-    color: #213547;
+    color: var(--color-text);
     display: inline-flex;
     font-weight: 400;
     gap: 6px;
@@ -67,11 +67,11 @@ export const siteNavStyles = css`
     opacity: 0.9;
   }
   nav.site-nav a[aria-current="page"] {
-    border-bottom-color: #1976d2;
+    border-bottom-color: var(--color-primary);
     opacity: 1;
   }
   nav.site-nav site-search {
-    color: #213547;
+    color: var(--color-text);
     margin-left: auto;
     margin-right: -10px;
   }

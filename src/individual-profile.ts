@@ -62,7 +62,7 @@ export const individualStyles = css`
     margin: 0;
   }
   dl.family dt {
-    color: #64748b;
+    color: var(--color-text-muted);
   }
   dl.family dd {
     margin: 0;
@@ -71,7 +71,7 @@ export const individualStyles = css`
     color: inherit;
   }
   h2 a:hover {
-    color: #1976d2;
+    color: var(--color-primary);
   }
   `;
 

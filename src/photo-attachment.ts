@@ -83,7 +83,7 @@ export default class PhotoAttachment extends LitElement {
       line-height: initial;
     }
     .remove span {
-      background: rgba(0,0,0,0.5);
+      background: var(--color-scrim);
       padding: 2px;
       display: block;
       position: absolute;
