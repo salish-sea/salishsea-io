@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { ecotypeCodes, injectIndividualLinks, matrilineCodes, namedAnimals, setCatalogCodes } from './individual-links.ts';
+import { ecotypeCodes, injectIndividualLinks, matrilineCodes, namedAnimals, pooledAnimals, setCatalogCodes } from './individual-links.ts';
 
 // Links carry the register identifier and the designation as its slug (034).
 const T065A5 = { entity_id: 'SSA:0010197', primary_designation: 'T065A5' };
@@ -162,5 +162,23 @@ test('names for one animal are one chip, under the first name written; heard out
   ]);
   expect(namedAnimals(['CRC338?', 'CRC338?'], codes, matrilines)).toEqual([
     { label: 'CRC338', href: null, possibly: true },
+  ]);
+});
+
+test("a segment's reports pool into one set of chips, each saying how many reports name it (salish-fwyt.5)", () => {
+  const pods = new Map([['j pod', { entity_id: 'SSA:0000020', designation: 'J' }]]);
+  const reports = [['J pod'], null, [], ['T65A5?'], ['T65A5', 'T46A'], ['T122']];
+  expect(pooledAnimals(reports, codes, matrilines, new Map(), pods)).toEqual([
+    { label: 'J pod', href: '/pods/0000020/J-pod', possibly: false, support: 1 },
+    // Possibly heard once, heard once: heard, by two reports.
+    { label: 'T65A5', href: '/individuals/0010197/T065A5', possibly: false, support: 2 },
+    // T46A and T122 are one animal, under the first name written.
+    { label: 'T46A', href: '/individuals/0010368/T122', possibly: false, support: 2 },
+  ]);
+});
+
+test('a chip only ever possibly heard stays possibly', () => {
+  expect(pooledAnimals([['T65A5?'], ['T65A5?']], codes)).toEqual([
+    { label: 'T65A5', href: '/individuals/0010197/T065A5', possibly: true, support: 2 },
   ]);
 });

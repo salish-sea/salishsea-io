@@ -88,6 +88,32 @@ function joinScore(segment: Segment, candidate: Occurrence): number {
 export type Ecotype = 'resident' | 'biggs';
 
 /**
+ * How a travel segment moved, as its card says it (salish-fwyt.5): the length of the
+ * path through its reports, oldest first; how far its last report is from its first;
+ * the hours between them; and the direction the last report that gives one says. From
+ * where reporters placed the animals, so a zigzag may be partly theirs. Whether it
+ * travelled or stayed in one area is not judged here (salish-jdl2).
+ */
+export interface SegmentMovement {
+  pathKm: number;
+  netKm: number;
+  hours: number;
+  lastDirection: Occurrence['direction'];
+}
+
+export function segmentMovement(occurrences: readonly Occurrence[]): SegmentMovement {
+  const placed = occurrences.filter(o => o.location?.lon != null && o.location?.lat != null);
+  let pathKm = 0;
+  for (let i = 1; i < placed.length; i++)
+    pathKm += distance(coord(placed[i - 1]!), coord(placed[i]!), {units: 'kilometers'});
+  const netKm = placed.length > 1 ? distance(coord(placed[0]!), coord(placed[placed.length - 1]!), {units: 'kilometers'}) : 0;
+  const first = occurrences[0], last = occurrences[occurrences.length - 1];
+  const hours = first && last ? (last.observed_at_ms - first.observed_at_ms) / hour_in_ms : 0;
+  const lastDirection = occurrences.findLast(o => o.direction)?.direction ?? null;
+  return {pathKm, netKm, hours, lastDirection};
+}
+
+/**
  * The ecotypes a report names, from its subspecies or from a named pod, ID or
  * ecotype: J, K and L are residents, T is Bigg's. Empty when it names neither.
  * `ater` is residents generally, not Southern Residents (see labelForSegment),

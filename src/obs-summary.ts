@@ -17,7 +17,7 @@ import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
 import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, podCodes, populationCodes } from './individual-links.ts';
-import { interceptableAnchor, subjectFromHref, type Subject } from './subject.ts';
+import { openAnimalLinkInSidebar } from './subject.ts';
 import { linkStyles } from './icons.ts';
 
 const domPurify = createDOMPurify(window as any);
@@ -31,6 +31,26 @@ markedRenderer.link = ({ href, text }: { href: string; text: string }) =>
   href.startsWith('/') && !href.startsWith('//')
     ? `<a href="${href}">${text}</a>`
     : `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+
+/**
+ * A sighting's text as a card shows it: Maplify's provenance taken out once it has been
+ * read, partner and animal links put in, Markdown rendered and the result sanitized. A
+ * segment's card shows its latest report's text the same way (salish-fwyt.5).
+ */
+export function sightingText(body: string | null | undefined, providerSlug: string | null | undefined) {
+  return unsafeHTML(domPurify.sanitize(
+    marked.parse(
+      injectIndividualLinks(
+        injectPartnerLinks(stripResolvedProvenance((body || '').replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n'), providerSlug ?? null)),
+        catalogCodes() ?? new Map(),
+        matrilineCodes() ?? new Map(),
+        ecotypeCodes() ?? new Map()
+      ),
+      { async: false, renderer: markedRenderer }
+    ),
+    { ADD_ATTR: ['target', 'rel'] }
+  ));
+}
 
 @customElement('obs-summary')
 export class ObsSummary extends LitElement {
@@ -308,20 +328,8 @@ export class ObsSummary extends LitElement {
 
   constructor() {
     super();
-    this.addEventListener('click', this.onAnimalLink);
+    this.addEventListener('click', openAnimalLinkInSidebar);
   }
-
-  // A link to an animal or a matriline, a chip or one in the text, opens it in the map
-  // page's sidebar rather than leaving the map (salish-7ds1.1). With a modifier key, or a
-  // button other than the first, it opens the page as any link does.
-  private onAnimalLink = (event: MouseEvent) => {
-    const anchor = interceptableAnchor(event);
-    const subject = anchor ? subjectFromHref(anchor.getAttribute('href') ?? '') : null;
-    if (!subject) return;
-    event.preventDefault();
-    // From the link, so the page knows where focus goes when the subject closes.
-    anchor!.dispatchEvent(new CustomEvent<Subject>('open-subject', {bubbles: true, composed: true, detail: subject}));
-  };
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -380,20 +388,7 @@ export class ObsSummary extends LitElement {
           return html`<li class=${possibly ? 'possibly' : ''}>${href ? html`<a href=${href}>${text}</a>` : text}</li>`;
         })}</ul>` : nothing;
       })}
-      ${guard([body, this.catalogLoaded], () => html`${
-        unsafeHTML(domPurify.sanitize(
-          marked.parse(
-            injectIndividualLinks(
-              injectPartnerLinks(stripResolvedProvenance((body || '').replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n'), provider_slug)),
-              catalogCodes() ?? new Map(),
-              matrilineCodes() ?? new Map(),
-              ecotypeCodes() ?? new Map()
-            ),
-            { async: false, renderer: markedRenderer }
-          ),
-          { ADD_ATTR: ['target', 'rel'] }
-        ))
-      }`)}
+      ${guard([body, this.catalogLoaded], () => html`${sightingText(body, provider_slug)}`)}
       ${photos?.length ?
         html`<ul class="photos">${
           repeat(photos, photo => photo.src, ({attribution, src, thumb}) => html`
