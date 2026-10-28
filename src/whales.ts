@@ -58,16 +58,16 @@ export const whalesStyles = [smallMapStyles, css`
     padding: 0;
   }
   .scientific {
-    color: #64748b;
+    color: var(--color-text-muted);
     font-style: italic;
     margin: 0 0 0.5rem;
   }
   .facts {
-    color: #475569;
+    color: var(--color-text-secondary);
     margin: 0 0 0.375rem;
   }
   .unidentified {
-    color: #64748b;
+    color: var(--color-text-muted);
   }
 `];
 

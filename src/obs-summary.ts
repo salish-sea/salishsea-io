@@ -57,7 +57,7 @@ export class ObsSummary extends LitElement {
        system sets, so this extends it (salish-hdhv). */
     :host {
       background-color: white;
-      border: 1px solid #d9dde3;
+      border: 1px solid var(--color-border);
       border-radius: 6px;
       display: block;
       font-size: var(--fs-body2);
@@ -65,11 +65,11 @@ export class ObsSummary extends LitElement {
       padding: 0.625rem 0.75rem;
     }
     :host([own-observation]) {
-      background-color: rgba(128, 128, 128, 0.1);
+      background-color: var(--color-surface-tint);
     }
     :host(.focused) {
-      background-color: #e3f2fd;
-      border-color: #1976d2;
+      background-color: var(--color-primary-tint);
+      border-color: var(--color-primary);
     }
     header {
       align-items: baseline;
@@ -91,23 +91,19 @@ export class ObsSummary extends LitElement {
       white-space: nowrap;
     }
     time {
-      color: #64748b;
+      color: var(--color-text-muted);
       font-family: var(--font-mono);
       font-size: var(--fs-mono);
       white-space: nowrap;
     }
     a {
-      color: #1976d2;
       word-break: break-word;
-    }
-    a:hover {
-      color: #1565c0;
     }
     /* Who saw it and through whom, quietly at the foot of the card. */
     cite {
       /* Light at 12px, the one exception to Regular there, in a darker grey that
          keeps its contrast: the lines read as thinner rather than paler (salish-hdhv). */
-      color: #475569;
+      color: var(--color-text-secondary);
       display: block;
       font-size: var(--fs-caption);
       font-weight: 300;
@@ -128,11 +124,11 @@ export class ObsSummary extends LitElement {
       padding: 0;
     }
     ul.animals li {
-      background: rgba(0, 0, 0, 0.08);
+      background: var(--color-fill);
       border: 1px solid transparent;
       border-radius: 12px;
       box-sizing: border-box;
-      color: rgba(0, 0, 0, 0.87);
+      color: var(--color-text);
       font-size: var(--fs-body2);
       line-height: 22px;
       padding: 0 8px;
@@ -140,7 +136,7 @@ export class ObsSummary extends LitElement {
     }
     ul.animals li.possibly {
       background: transparent;
-      border: 1px dashed #bdbdbd;
+      border: 1px dashed var(--color-border-control);
     }
     ul.animals li:has(a) {
       padding: 0;
@@ -148,7 +144,7 @@ export class ObsSummary extends LitElement {
     /* A name with no page reads quieter than one that leads somewhere, since
        here, unlike on orcasite, a chip is a link only sometimes. */
     ul.animals li:not(:has(a)) {
-      color: rgba(0, 0, 0, 0.6);
+      color: var(--color-text-muted);
     }
     ul.animals a {
       border-radius: 12px;
@@ -158,11 +154,11 @@ export class ObsSummary extends LitElement {
       text-decoration: none;
     }
     ul.animals a:hover {
-      background: rgba(0, 0, 0, 0.06);
+      background: var(--color-fill);
       color: inherit;
     }
     ul.animals a:focus-visible {
-      outline: 2px solid #1976d2;
+      outline: 2px solid var(--color-primary);
       outline-offset: 1px;
     }
     /* The text's own grey, blue when pointed at; they leave the site, so the mark
@@ -171,14 +167,14 @@ export class ObsSummary extends LitElement {
       color: inherit;
     }
     cite a:hover {
-      color: #1976d2;
+      color: var(--color-primary);
     }
     cite .observer {
-      color: #475569;
+      color: var(--color-text-secondary);
     }
     .provider {
       /* Light at 12px, as cite is. */
-      color: #475569;
+      color: var(--color-text-secondary);
       display: block;
       font-size: var(--fs-caption);
       font-weight: 300;
@@ -192,11 +188,12 @@ export class ObsSummary extends LitElement {
       margin-bottom: 0;
     }
     .count {
-      color: #64748b;
+      color: var(--color-text-muted);
     }
     .focus-occurrence {
       /* The taxon colour is set inline, per occurrence. The white ring is what
-         keeps a near-black orca dot from reading as a hole in the panel. */
+         keeps a near-black orca dot from reading as a hole in the panel: the map's
+         symbol, so its colours are data colours, not the interface's. */
       border: 2px solid #ffffff;
       border-radius: 50%;
       box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.25);
@@ -214,10 +211,11 @@ export class ObsSummary extends LitElement {
       border-color: var(--taxon-color);
     }
     .confirmation {
-      color: #64748b;
+      color: var(--color-text-muted);
       font-style: italic;
     }
     .focus-occurrence:hover {
+      /* The symbol's ring, darker: a data colour. */
       box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.55);
     }
     ul.photos {
@@ -235,7 +233,7 @@ export class ObsSummary extends LitElement {
       background: transparent;
       border: 0;
       border-radius: 4px;
-      color: #64748b;
+      color: var(--color-text-muted);
       cursor: pointer;
       display: flex;
       flex: none;
@@ -247,13 +245,13 @@ export class ObsSummary extends LitElement {
       padding: 0;
     }
     .more:hover, .more[aria-expanded="true"] {
-      color: #1e293b;
+      color: var(--color-text);
     }
     .more:hover .dots, .more[aria-expanded="true"] .dots {
-      background: rgba(0, 0, 0, 0.06);
+      background: var(--color-fill);
     }
     .more:focus-visible {
-      outline: 2px solid #1976d2;
+      outline: 2px solid var(--color-primary);
       outline-offset: -6px;
     }
     .dots {
@@ -264,9 +262,9 @@ export class ObsSummary extends LitElement {
     /* The account menu's surface (src/account-menu.ts), smaller. */
     .menu {
       background: white;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--color-border);
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+      box-shadow: var(--shadow-popover);
       box-sizing: border-box;
       min-width: 10rem;
       padding: 6px 0;
@@ -279,7 +277,7 @@ export class ObsSummary extends LitElement {
       background: transparent;
       border: 0;
       box-sizing: border-box;
-      color: #213547;
+      color: var(--color-text);
       cursor: pointer;
       display: block;
       font: inherit;
@@ -291,14 +289,14 @@ export class ObsSummary extends LitElement {
       width: 100%;
     }
     .menu button:hover {
-      background: rgba(0, 0, 0, 0.05);
+      background: var(--color-fill);
     }
     .menu button:focus-visible {
-      outline: 2px solid #1976d2;
+      outline: 2px solid var(--color-primary);
       outline-offset: -2px;
     }
     .menu button.danger {
-      color: #b91c1c;
+      color: var(--color-error);
     }
   `];
 

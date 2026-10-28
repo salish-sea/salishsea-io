@@ -18,6 +18,8 @@
   font-family: "Work Sans", Helvetica, Arial, sans-serif;
   font-weight: 300;
   line-height: 1.5;
+  color: var(--color-text);
+  background-color: var(--color-surface);
 
   --font-mono: "Noto Sans Mono", ui-monospace, monospace;
 
@@ -29,6 +31,36 @@
   --fs-caption: 0.75rem;
   /* Mono's lowercase is 9% taller than Work Sans's: 13px matches body2 (style guide). */
   --fs-mono: 0.8125rem;
+
+  /* Colours, by role (style guide). */
+  --color-text: #213547;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-text-disabled: #cbd5e1;
+  --color-primary: #1976d2;
+  --color-primary-hover: #1565c0;
+  --color-primary-tint: #e3f2fd;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f1f5f9;
+  --color-surface-tint: rgba(128, 128, 128, 0.1);
+  --color-fill: rgba(0, 0, 0, 0.06);
+  --color-fill-strong: rgba(0, 0, 0, 0.09);
+  --color-border: #e2e8f0;
+  --color-border-control: #cbd5e1;
+  --color-chrome: #080d26;
+  --color-chrome-accent: #4bd6dd;
+  --color-error: #d32f2f;
+  --color-error-border: #e57373;
+  --color-error-tint: #fdeded;
+  --color-warning: #b45309;
+  --color-warning-border: #f59e0b;
+  --color-warning-tint: #fff7ed;
+  --color-success: #2e7d32;
+  --color-scrim: rgb(0 0 0 / 0.4);
+
+  --shadow-popover: 0 4px 12px rgb(0 0 0 / 0.18);
+  --shadow-float: 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-dialog: 0 4px 24px rgb(0 0 0 / 0.35);
 }
 
 /* Emphasis is Regular over Light, never Bold at text size. */
@@ -50,8 +82,12 @@ h2 {
 
 /* Links (style guide, rule 8): src/icons.ts's linkStyles, for the plain pages. */
 a {
+  color: var(--color-primary);
   text-decoration: underline;
   text-underline-offset: 0.15em;
+}
+a:hover {
+  color: var(--color-primary-hover);
 }
 a[target="_blank"] {
   text-decoration: none;

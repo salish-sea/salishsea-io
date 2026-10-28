@@ -25,8 +25,12 @@ export const openInNewPath = 'M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56
 const openInNewMask = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="${openInNewPath}"/></svg>`)}")`;
 export const linkStyles = css`
   a {
+    color: var(--color-primary);
     text-decoration: underline;
     text-underline-offset: 0.15em;
+  }
+  a:hover {
+    color: var(--color-primary-hover);
   }
   a[target="_blank"] {
     text-decoration: none;

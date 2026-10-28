@@ -103,11 +103,11 @@ export default class FeedbackForm extends LitElement {
       right: 1rem;
       bottom: 1rem;
       z-index: 3;
-      background: rgb(8, 13, 38);
+      background: var(--color-chrome);
       color: white;
       border: none;
       border-radius: 4px;
-      box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
+      box-shadow: var(--shadow-float);
       cursor: pointer;
       font-family: inherit;
       font-size: var(--fs-body2);
@@ -117,14 +117,14 @@ export default class FeedbackForm extends LitElement {
     dialog {
       border: none;
       border-radius: 6px;
-      box-shadow: 0 4px 24px rgb(0 0 0 / 0.35);
+      box-shadow: var(--shadow-dialog);
       font-family: inherit;
       max-width: min(28rem, calc(100vw - 2rem));
       padding: 1rem;
       width: 100%;
     }
     dialog::backdrop {
-      background: rgb(0 0 0 / 0.4);
+      background: var(--color-scrim);
     }
     h2 {
       font-size: var(--fs-body1);
@@ -143,11 +143,11 @@ export default class FeedbackForm extends LitElement {
     }
     label:has([required]) > span::after {
       content: ' *';
-      color: #d32f2f;
+      color: var(--color-error);
     }
     input, textarea {
       box-sizing: border-box;
-      border: 1px solid var(--slate-300, #cbd5e1);
+      border: 1px solid var(--color-border-control);
       border-radius: 4px;
       font-family: inherit;
       font-size: var(--fs-body1);
@@ -159,15 +159,15 @@ export default class FeedbackForm extends LitElement {
       resize: vertical;
     }
     .note {
-      color: #475569;
+      color: var(--color-text-secondary);
       font-size: var(--fs-caption);
       font-weight: 400;
       line-height: 1.4;
       margin: 0 0 0.75rem;
     }
     .failed {
-      background: rgb(253, 237, 237);
-      border-left: 4px solid rgb(229, 115, 115);
+      background: var(--color-error-tint);
+      border-left: 4px solid var(--color-error-border);
       border-radius: 4px;
       font-size: var(--fs-body2);
       line-height: 1.4;
@@ -193,8 +193,8 @@ export default class FeedbackForm extends LitElement {
       padding: 0.5rem 0.875rem;
     }
     .send {
-      background: rgb(8, 13, 38);
-      border: 1px solid rgb(8, 13, 38);
+      background: var(--color-chrome);
+      border: 1px solid var(--color-chrome);
       color: white;
     }
     .send:disabled {
@@ -203,7 +203,7 @@ export default class FeedbackForm extends LitElement {
     }
     .cancel {
       background: white;
-      border: 1px solid var(--slate-300, #cbd5e1);
+      border: 1px solid var(--color-border-control);
     }
   `;
 

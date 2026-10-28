@@ -145,7 +145,7 @@ export const hauloutStyles = css`
       height: 8rem;
       overflow: hidden;
       border-radius: 4px;
-      background: #eef2f7;
+      background: var(--color-surface-subtle);
     }
     .strip img {
       width: 100%;
@@ -160,20 +160,20 @@ export const hauloutStyles = css`
     }
     .reports li {
       padding: 0.35rem 0;
-      border-bottom: 1px solid #eef2f7;
+      border-bottom: 1px solid var(--color-surface-subtle);
     }
     .approx {
-      color: #b45309;
+      color: var(--color-warning);
     }
     blockquote {
       margin: 0.5rem 0;
       padding-left: 1rem;
-      border-left: 3px solid #e2e8f0;
-      color: #475569;
+      border-left: 3px solid var(--color-border);
+      color: var(--color-text-secondary);
     }
     .caveat {
-      background: #fff7ed;
-      border-left: 3px solid #f59e0b;
+      background: var(--color-warning-tint);
+      border-left: 3px solid var(--color-warning-border);
       padding: 0.5rem 0.75rem;
       margin: 0.75rem 0;
     }

@@ -40,7 +40,7 @@ export const stepButtonStyles = css`
     background: none;
     border: 0;
     border-radius: 4px;
-    color: #64748b;
+    color: var(--color-text-muted);
     cursor: pointer;
     display: flex;
     flex: 0 0 auto;
@@ -56,15 +56,15 @@ export const stepButtonStyles = css`
     width: 1.25rem;
   }
   .step:hover:not(:disabled) {
-    background: #f1f5f9;
-    color: #1e293b;
+    background: var(--color-surface-subtle);
+    color: var(--color-text);
   }
   .step:disabled {
-    color: #cbd5e1;
+    color: var(--color-text-disabled);
     cursor: default;
   }
   .step:focus-visible {
-    outline: 2px solid #1976d2;
+    outline: 2px solid var(--color-primary);
     outline-offset: 1px;
   }
 `;
@@ -98,7 +98,7 @@ export class DateCalendar extends LitElement {
       max-width: 21rem;
     }
     h3 {
-      color: #1e293b;
+      color: var(--color-text);
       flex-grow: 1;
       font-size: var(--fs-body1);
       font-weight: 400;
@@ -121,7 +121,7 @@ export class DateCalendar extends LitElement {
       width: 100%;
     }
     .weekdays {
-      color: #94a3b8;
+      color: var(--color-text-muted);
       font-size: var(--fs-caption);
       font-weight: 400;
       padding: 0.25rem 0 0.125rem;
@@ -134,7 +134,7 @@ export class DateCalendar extends LitElement {
       background: none;
       border: 0;
       border-radius: 50%;
-      color: #1e3a5f;
+      color: var(--color-text);
       cursor: pointer;
       display: flex;
       font-family: inherit;
@@ -145,7 +145,8 @@ export class DateCalendar extends LitElement {
       width: 100%;
     }
 
-    /* The encoding: one hue, constant opacity, size alone carrying volume. */
+    /* The encoding: one hue, constant opacity, size alone carrying volume. A data
+       colour, the profile pages' presence ramp's hue, not an interface colour. */
     .volume {
       aspect-ratio: 1;
       background: #1976d2;
@@ -164,36 +165,36 @@ export class DateCalendar extends LitElement {
     /* Days spilling in from the neighbouring months: present and clickable, but
        clearly not part of this month. */
     .outside {
-      color: #94a3b8;
+      color: var(--color-text-muted);
     }
     .outside .volume {
       opacity: 0.16;
     }
     .day:disabled {
-      color: #cbd5e1;
+      color: var(--color-text-disabled);
       cursor: default;
     }
 
     /* ---- states --------------------------------------------------------- */
 
     .day:hover:not(:disabled) {
-      box-shadow: inset 0 0 0 1px #cbd5e1;
+      box-shadow: inset 0 0 0 1px var(--color-border-control);
     }
     .today .numeral {
       font-weight: 700;
     }
     .selected {
-      box-shadow: inset 0 0 0 2px #1976d2;
-      color: #1565c0;
+      box-shadow: inset 0 0 0 2px var(--color-primary);
+      color: var(--color-primary-hover);
     }
     .selected .numeral {
       font-weight: 700;
     }
     .day:hover.selected {
-      box-shadow: inset 0 0 0 2px #1565c0;
+      box-shadow: inset 0 0 0 2px var(--color-primary-hover);
     }
     .day:focus-visible {
-      outline: 2px solid #1976d2;
+      outline: 2px solid var(--color-primary);
       outline-offset: 1px;
     }
   `];

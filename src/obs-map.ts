@@ -149,9 +149,9 @@ layer-control {
 }
 layer-control .layer-menu {
   background: white;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-popover);
   margin: 0.3em 0 0;
   padding: 0.4em 0.6em 0.5em;
   position: absolute;
@@ -185,9 +185,9 @@ layer-control .marker img, layer-control .marker svg {
   max-height: 16px;
   max-width: 16px;
 }
-user-location-control.active svg { color: rgb(51, 153, 255); }
-user-location-control.error svg { color: red; }
-user-location-control.inactive svg { color: #333; }
+user-location-control.active svg { color: var(--color-primary); }
+user-location-control.error svg { color: var(--color-error); }
+user-location-control.inactive svg { color: var(--color-text); }
 @media (pointer: coarse) {
   layer-control label {
     font-size: var(--fs-body1);

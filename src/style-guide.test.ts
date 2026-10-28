@@ -60,3 +60,30 @@ describe('the link mark is the same inside and outside a shadow root', () => {
     expect(fonts).toContain(encodeURIComponent(openInNew!));
   });
 });
+
+// Colours are named by role in src/site.css (style guide, "Colour"); a component names
+// the role, so a change of palette is one edit and nothing drifts. A colour that
+// encodes data or draws the map's symbols keeps its literal and says so ("data
+// colour"). The modules that draw the maps themselves are left out.
+describe('interface colours come from src/site.css', () => {
+  const mapDrawing = new Set(['style.ts', 'symbology.ts', 'profile-map.ts', 'small-multiples.ts']);
+  const styleText = (file: string, text: string): string[] =>
+    file.endsWith('.ts') ? [...text.matchAll(/css`([\s\S]*?)`/g)].map(m => m[1]!)
+    : file.endsWith('.html') ? [...text.matchAll(/<style>([\s\S]*?)<\/style>/g)].map(m => m[1]!)
+    : [text];
+  const sources = [
+    ...fs.readdirSync(process.cwd()).filter(f => f.endsWith('.html')),
+    ...fs.readdirSync(path.join(process.cwd(), 'src'))
+      .filter(f => /\.(ts|css)$/.test(f) && !f.endsWith('.test.ts') && f !== 'site.css' && !mapDrawing.has(f))
+      .map(f => path.join('src', f)),
+  ];
+
+  it.each(sources)('%s names its colours by role', file => {
+    const text = fs.readFileSync(path.join(process.cwd(), file), 'utf-8');
+    const literals = styleText(file, text).flatMap(css =>
+      [...css.matchAll(/#[0-9a-fA-F]{3,8}\b|rgba?\(\s*\d[^)]*\)/g)]
+        .filter(m => !/data\s+colour/i.test(css.slice(Math.max(0, m.index! - 400), m.index! + 200)))
+        .map(m => m[0]));
+    expect(literals).toEqual([]);
+  });
+});

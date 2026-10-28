@@ -131,14 +131,14 @@ export default class SalishSea extends LitElement {
       opacity: 0.9;
     }
     nav.site-nav a[aria-current="page"] {
-      border-bottom-color: #4bd6dd;
+      border-bottom-color: var(--color-chrome-accent);
       opacity: 1;
     }
     nav.site-nav site-search {
       align-self: stretch;
       color: white;
       margin-left: auto;
-      --site-search-accent: #4bd6dd;
+      --site-search-accent: var(--color-chrome-accent);
     }
     /* The account button and its menu (src/account-menu.ts), last in the row: the
        nav's icon button at full strength, underlined in the teal while its menu is open. */
@@ -146,7 +146,7 @@ export default class SalishSea extends LitElement {
       align-self: stretch;
       color: white;
       flex-shrink: 0;
-      --account-menu-accent: #4bd6dd;
+      --account-menu-accent: var(--color-chrome-accent);
     }
     /* A phone: the lockup's mark without its wordmark, and the nav's icons without
        their names, so the mark, three links, search and the account button share 360
@@ -169,7 +169,7 @@ export default class SalishSea extends LitElement {
 
     header {
       align-items: center;
-      background-color: rgb(8, 13, 38);
+      background-color: var(--color-chrome);
       box-sizing: border-box;
       color: white;
       display: flex;
@@ -208,14 +208,14 @@ export default class SalishSea extends LitElement {
       overflow: hidden;
     }
     obs-panel {
-      border-left: 1px solid #cccccc;
+      border-left: 1px solid var(--color-border);
       border-top: 0;
       padding: 0.5rem 0.5rem 5.5rem 0.5rem;
       width: 25rem;
     }
     /* The sidebar's view of one animal or matriline, in the panel's place (salish-7ds1.1). */
     subject-view {
-      border-left: 1px solid #cccccc;
+      border-left: 1px solid var(--color-border);
       flex-shrink: 0;
       width: 25rem;
     }
@@ -238,7 +238,7 @@ export default class SalishSea extends LitElement {
       }
       obs-panel, subject-view {
         border-left: 0;
-        border-top: 1px solid #cccccc;
+        border-top: 1px solid var(--color-border);
         flex-grow: 1;
         min-height: 0;
         overflow: auto;

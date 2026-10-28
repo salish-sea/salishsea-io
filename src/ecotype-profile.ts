@@ -22,7 +22,7 @@ import { renderSmallMaps, smallMapStyles } from './small-multiples.ts';
 /** The ecotype page's own styles, after profileStyles. */
 export const ecotypeStyles = [smallMapStyles, css`
   .unreported {
-    color: #475569;
+    color: var(--color-text-secondary);
     margin-top: 1.5rem;
   }
 `];

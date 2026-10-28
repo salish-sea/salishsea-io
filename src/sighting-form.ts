@@ -126,7 +126,7 @@ export default class SightingForm extends LitElement {
       font-weight: 400;
     }
     button:hover:not(:disabled) {
-      background: #f5f5f5;
+      background: var(--color-surface-subtle);
     }
     button:disabled {
       opacity: 0.5;
@@ -146,7 +146,7 @@ export default class SightingForm extends LitElement {
     }
     label:has(input[required]) .label::after {
       content: ' *';
-      color: #d32f2f;
+      color: var(--color-error);
     }
     input[type="text"],
     input[type="url"],
@@ -204,7 +204,7 @@ export default class SightingForm extends LitElement {
       flex-shrink: 0;
     }
     .input-with-buttons .unit {
-      color: var(--slate-500, #64748b);
+      color: var(--color-text-muted);
       flex-shrink: 0;
       font-size: var(--fs-body2);
     }
@@ -218,17 +218,17 @@ export default class SightingForm extends LitElement {
       max-width: 100%;
     }
     input.suggested {
-      color: var(--slate-500, #64748b);
+      color: var(--color-text-muted);
       font-style: italic;
     }
     .field-hint {
-      color: var(--slate-500, #64748b);
+      color: var(--color-text-muted);
       font-size: var(--fs-caption);
       font-weight: 400;
       margin-top: 0.25rem;
     }
     .field-error {
-      color: #d32f2f;
+      color: var(--color-error);
       font-size: var(--fs-caption);
       font-weight: 400;
       margin-top: 0.25rem;
@@ -246,19 +246,19 @@ export default class SightingForm extends LitElement {
       text-align: right;
       margin-top: 0.5rem;
       padding-top: 0.5rem;
-      border-top: 1px solid #eee;
+      border-top: 1px solid var(--color-border);
     }
     .actions button {
       font-size: var(--fs-body2);
       padding: 0.5rem 1rem;
     }
     .actions button[type="submit"] {
-      background: #1976d2;
+      background: var(--color-primary);
       color: white;
-      border-color: #1976d2;
+      border-color: var(--color-primary);
     }
     .actions button[type="submit"]:hover:not(:disabled) {
-      background: #1565c0;
+      background: var(--color-primary-hover);
     }
     .actions button[type="submit"]:disabled {
       background: var(--slate-300);
@@ -270,10 +270,10 @@ export default class SightingForm extends LitElement {
       margin-bottom: 0.5rem;
     }
     output.error {
-      color: #d32f2f;
+      color: var(--color-error);
     }
     output.success {
-      color: #2e7d32;
+      color: var(--color-success);
     }
   `;
 
