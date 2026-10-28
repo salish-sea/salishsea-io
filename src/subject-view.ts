@@ -6,6 +6,7 @@ import { individualStyles, individualTitle, renderIndividualProfile, renderIndiv
 import { renderMatrilineProfile, renderMatrilineSightings, type MatrilineProfileData } from './matriline-profile.ts';
 import { latestLink, profileStyles } from './profile-shared.ts';
 import { fetchManifest, findOccurrence, pacificDay, READ_PATH_BASE } from './read-path.ts';
+import { Temporal } from 'temporal-polyfill';
 import type { Occurrence } from './types.ts';
 import type { SubjectSighting } from './obs-map.ts';
 import './obs-summary.ts';
@@ -338,15 +339,17 @@ export class SubjectView extends LitElement {
   };
 }
 
-const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
-
 /**
  * The sightings the map draws for a subject: the reports that place it somewhere, as
- * present, within the switch's span of `now` (decision 096).
+ * present, within the switch's span of `now` (decision 096). The past 12 months are
+ * calendar months on the Pacific clock the map's days keep, not 365 days, which a leap
+ * day would shorten.
  */
 export function mapSightings(links: readonly OccurrenceLink[], scope: 'year' | 'all', now: number): SubjectSighting[] {
+  const since = Temporal.Instant.fromEpochMilliseconds(now).toZonedDateTimeISO('America/Los_Angeles')
+    .subtract({months: 12}).epochMilliseconds;
   return links.flatMap(({occurrence_id, observed_at, location, is_present}) =>
-    is_present && location && (scope === 'all' || Date.parse(observed_at) >= now - YEAR_MS)
+    is_present && location && (scope === 'all' || Date.parse(observed_at) >= since)
       ? [{occurrence_id, observed_at, lon: location.lon, lat: location.lat}]
       : []);
 }
