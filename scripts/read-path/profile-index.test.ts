@@ -6,7 +6,7 @@ import { describe, expect, test } from 'vitest';
 
 import { buildAnimalNames, buildCatalogCodes, buildRedirects, buildSitemap, profilePaths } from './profile-index.ts';
 import { redirectFor } from './redirect.ts';
-import { matrilineCodes, setCatalogCodes } from '../../src/individual-links.ts';
+import { matrilineCodes, namedAnimals, podCodes, setCatalogCodes } from '../../src/individual-links.ts';
 import { individualPath, matrilinePath } from '../../src/catalog.ts';
 
 const animal = (id: number, entityId: string | null, designation: string) =>
@@ -158,6 +158,8 @@ describe('buildCatalogCodes', () => {
             ],
             groups: [
                 {kind: 'matriline', designation: 'T065A2', entity_id: null},
+                // A pod, so a bout tagged 'J pod' links its chip (salish-fwyt.3).
+                {kind: 'pod', designation: 'J', entity_id: 'SSA:0000020'},
                 {kind: 'ecotype', designation: 'Biggs', entity_id: 'SSA:0000002'},
                 {kind: 'matriline', designation: 'T065A', entity_id: 'SSA:0002163'},
             ],
@@ -197,6 +199,14 @@ describe('buildCatalogCodes', () => {
         const group = matrilineCodes()!.get('t65as')!;
         expect(matrilinePath(group)).toBe(buildRedirects(t).matrilines['t65a']);
         expect(matrilinePath(group)).toBe('/matrilines/0002163/T065As'); // the lowest-id published group
+    });
+
+    test("a bout's 'J pod' tag finds the pod's page the build publishes (salish-fwyt.3)", () => {
+        const t = tables();
+        setCatalogCodes(buildCatalogCodes(t));
+        const [chip] = namedAnimals(['J pod'], new Map(), new Map(), new Map(), podCodes()!);
+        expect(chip!.href).toBe('/pods/0000020/J-pod');
+        expect(profilePaths(t)).toContain(chip!.href);
     });
 });
 

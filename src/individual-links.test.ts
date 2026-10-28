@@ -134,18 +134,20 @@ test('a sighting that names no animal has no chips', () => {
   expect(namedAnimals([], codes, matrilines)).toEqual([]);
 });
 
-test("an Orcasound bout's tags become chips too: a tag only possibly heard says so, a population links by name", () => {
+test("an Orcasound bout's tags become chips too: a tag only possibly heard says so, a population links by name, a pod by its label", () => {
   // Bout identifiers are the register's labels, not codes read from text (decision 054).
   const populations = new Map([
     ['biggs', { entity_id: 'SSA:0000002', designation: 'Biggs' }],
     ['southern resident', { entity_id: 'SSA:0000010', designation: 'Southern Resident' }],
   ]);
-  expect(namedAnimals(['T65A5?', "Bigg's", 'Southern Resident', 'J pod'], codes, matrilines, populations)).toEqual([
+  const pods = new Map([['j pod', { entity_id: 'SSA:0000020', designation: 'J' }]]);
+  expect(namedAnimals(['T65A5?', "Bigg's", 'Southern Resident', 'J pod', 'Q pod'], codes, matrilines, populations, pods)).toEqual([
     { label: 'T65A5', href: '/individuals/0010197/T065A5', possibly: true },
     { label: "Bigg's", href: '/populations/0000002/Biggs', possibly: false },
     { label: 'Southern Resident', href: '/populations/0000010/Southern-Resident', possibly: false },
-    // Pods aren't in the catalogue file yet (salish-fwyt.3).
-    { label: 'J pod', href: null, possibly: false },
+    { label: 'J pod', href: '/pods/0000020/J-pod', possibly: false },
+    // A pod the register doesn't have stays what was written.
+    { label: 'Q pod', href: null, possibly: false },
   ]);
 });
 
