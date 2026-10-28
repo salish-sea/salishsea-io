@@ -1,8 +1,8 @@
 # Style guide
 
-How SalishSea.io sets text, links and colour. Read it before changing anything a visitor sees. Each rule gives its reason, so a case it doesn't cover can be decided the same way. The values live in [`src/site.css`](../src/site.css), and the link rule in [`src/icons.ts`](../src/icons.ts) as well; [`src/style-guide.test.ts`](../src/style-guide.test.ts) fails a build that breaks the rules it can check. Why we follow Orcasound, and what was rejected: [decision 094](decisions/094-the-site-follows-orcasounds-typography.md).
+How SalishSea.io sets text, links, colour and space. Read it before changing anything a visitor sees. Each rule gives its reason, so a case it doesn't cover can be decided the same way. The values live in [`src/site.css`](../src/site.css), and the link rule in [`src/icons.ts`](../src/icons.ts) as well; [`src/style-guide.test.ts`](../src/style-guide.test.ts) fails a build that breaks the rules it can check. Why we follow Orcasound, and what was rejected: [decision 094](decisions/094-the-site-follows-orcasounds-typography.md).
 
-Not yet covered: spacing, and icons other than the link mark. Until they are, match what the component's neighbours do.
+Not yet covered: icons other than the link mark, and motion. Until they are, match what the component's neighbours do.
 
 ## The rules in brief
 
@@ -16,6 +16,8 @@ Not yet covered: spacing, and icons other than the link mark. Until they are, ma
 8. A link in running text is underlined, or, if it leaves the site, ends in the "open in new" mark instead. A link that stands on its own is neither. A link that leaves the site opens a new tab.
 9. A component names a colour's role (`var(--color-text-muted)`), never its value. Only a colour that encodes data says its value, and says why.
 10. Text a visitor must read is at least 4.5:1 against every background it can sit on (white, the pale grey, and the teal and grey washes); a field's edge, at least 3:1.
+11. Space between components is a multiple of 8px; space inside one, a multiple of 4px, or of 2px on a dense line. Corners are 4px for a control, 8px for a card or dialog, round for a pill or a dot.
+12. Anything a visitor taps is at least 44px each way.
 
 ## Typeface and weight
 
@@ -97,4 +99,15 @@ Every colour is a custom property in `src/site.css`, named by its role. A compon
 | `--color-surface`, `-subtle`, `-tint`, `--color-fill`, `--color-scrim` | white; pale greys; black at 40% | Backgrounds, from the page to a hovered row to the shade behind a dialog. |
 
 **Data colours** are not interface colours: the map's symbols for each kind of animal ([`src/symbology.ts`](../src/symbology.ts), [decision 029](decisions/029-map-symbology.md)), the maps drawn on profile and species pages, and encodings such as the calendar's activity dots and a profile's presence table. They keep their values in place, with a comment saying "data colour" and why. Where an encoding echoes the interface, it takes the interface's teal: the calendar's dots, and the presence table's steps (teal over white at 15%, 30% and 50%).
+
+## Space and corners (rules 11 and 12)
+
+Space is written in `rem` (or `px` for a hairline nudge), never named: unlike a colour, a step of space has no role beyond its size, so a name would only hide the number.
+
+- **Between components and sections: multiples of 8px** (`0.5rem`, `1rem`, `1.5rem`, `2rem`, …). Orcasound's grid; a coarse step keeps the rhythm of a page visible.
+- **Inside a component: multiples of 4px,** because 8px is too coarse beside 14px text on a 21px line. **2px** is allowed where a dense line needs it or to align something optically: the gaps on a sighting card's heading are 6px, because 8px wraps "Southern Resident killer whale ×27" and 4px crowds it.
+- **Corners:** 4px for a control (a button, a field), 8px for a card or a dialog (Orcasound's two), `999px` for a pill (a region button, a chip), `50%` for a dot.
+- **Touch targets:** 44px each way at least, by padding or by `min-height`/`min-width`, even where the visible control is smaller (a card's "…" button is 44px around a 20px mark).
+
+The test holds every margin, padding and gap to whole steps of 2px, and every corner to the four above. Values written before the rule, which it lists, are converted when their component is next changed; the list only shrinks. Whether a gap sits between components or inside one, the test can't tell, so the 8px rule is the reviewer's.
 

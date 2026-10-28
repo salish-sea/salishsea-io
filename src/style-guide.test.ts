@@ -153,3 +153,42 @@ describe('the palette passes its contrast rules', () => {
     expect(contrast('--color-primary', '--color-text')).toBeGreaterThanOrEqual(3);
   });
 });
+
+// Space and corners (style guide, "Space and corners").
+describe('space and corners keep to their steps', () => {
+  const sources = [
+    ...fs.readdirSync(process.cwd()).filter(f => f.endsWith('.html')),
+    ...fs.readdirSync(path.join(process.cwd(), 'src'))
+      .filter(f => /\.(ts|css)$/.test(f) && !f.endsWith('.test.ts') && !['style.ts', 'symbology.ts'].includes(f))
+      .map(f => path.join('src', f)),
+  ];
+  // Spacing written before the rule, off even its 2px floor; each goes when its
+  // component is next changed. Don't add to it.
+  const before: Record<string, string[]> = {
+    'src/account-menu.ts': ['0.1rem'],
+    'src/haulout-profile.ts': ['0.35rem'],
+    'src/icons.ts': ['0.2em'],
+    'src/site.css': ['0.2em'],
+    'src/obs-map.ts': ['0.3em', '0.4em', '0.6em', '0.5em', '0.2em', '0.4em', '0.2em', '0.45em'],
+    'src/obs-panel.ts': ['0.0625rem', '0.1875rem'],
+    'src/obs-summary.ts': ['0.3rem'],
+    'src/site-search.ts': ['0.4rem', '0.1rem', '0.45rem', '0.4rem'],
+  };
+  const px = (v: string) => v.endsWith('rem') ? parseFloat(v) * 16 : v.endsWith('px') ? parseFloat(v) : NaN;
+
+  it.each(sources)('%s spaces in whole steps of 2px', file => {
+    const text = fs.readFileSync(path.join(process.cwd(), file), 'utf-8');
+    const values = [...text.matchAll(/^\s*(?:margin|padding|gap|row-gap|column-gap)(?:-[a-z]+)?\s*:\s*([^;]+);/gm)]
+      // A calc() centres or aligns by computing, not by a step of space.
+      .filter(m => !m[1]!.includes('calc('))
+      .flatMap(m => m[1]!.match(/\d*\.?\d+(?:rem|px|em)/g) ?? []);
+    const off = values.filter(v => !(px(v) % 2 === 0));
+    expect(off).toEqual(before[file] ?? []);
+  });
+
+  it.each(sources)('%s rounds corners by 4px, 8px, a pill or a circle', file => {
+    const text = fs.readFileSync(path.join(process.cwd(), file), 'utf-8');
+    const radii = [...text.matchAll(/border-radius\s*:\s*([^;]+);/g)].map(m => m[1]!.trim());
+    expect(radii.filter(r => !['0', '4px', '8px', '999px', '50%'].includes(r))).toEqual([]);
+  });
+});

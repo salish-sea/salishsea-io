@@ -116,7 +116,7 @@ export default class FeedbackForm extends LitElement {
     }
     dialog {
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       box-shadow: var(--shadow-dialog);
       font-family: inherit;
       max-width: min(28rem, calc(100vw - 2rem));

@@ -58,7 +58,7 @@ export class ObsSummary extends LitElement {
     :host {
       background-color: white;
       border: 1px solid var(--color-border);
-      border-radius: 6px;
+      border-radius: 8px;
       display: block;
       font-size: var(--fs-body2);
       line-height: 1.5;
@@ -126,7 +126,7 @@ export class ObsSummary extends LitElement {
     ul.animals li {
       background: var(--color-fill);
       border: 1px solid transparent;
-      border-radius: 12px;
+      border-radius: 999px;
       box-sizing: border-box;
       color: var(--color-text);
       font-size: var(--fs-body2);
@@ -147,7 +147,7 @@ export class ObsSummary extends LitElement {
       color: var(--color-text-muted);
     }
     ul.animals a {
-      border-radius: 12px;
+      border-radius: 999px;
       color: inherit;
       display: block;
       padding: 0 8px;
