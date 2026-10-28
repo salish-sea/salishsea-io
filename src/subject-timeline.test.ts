@@ -153,6 +153,7 @@ describe("an encounter's card", () => {
     document.body.appendChild(card);
     await vi.waitFor(() => expect(card.shadowRoot!.querySelector('obs-summary')).not.toBeNull());
     card.encounter = encounter('2026-10-25', {ids: ['2026-10-25']});
-    await vi.waitFor(() => expect(card.shadowRoot!.querySelector('obs-summary')?.sighting?.id).toBe('2026-10-25'));
+    const shown = () => (card.shadowRoot!.querySelector('obs-summary') as unknown as {sighting?: {id: string}} | null)?.sighting?.id;
+    await vi.waitFor(() => expect(shown()).toBe('2026-10-25'));
   });
 });
