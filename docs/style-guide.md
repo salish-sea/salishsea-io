@@ -1,6 +1,6 @@
 # Style guide
 
-How SalishSea.io sets text and links. Read it before changing anything a visitor sees. Each rule gives its reason, so a case it doesn't cover can be decided the same way. The values live in [`src/fonts.css`](../src/fonts.css), and the link rule in [`src/icons.ts`](../src/icons.ts) as well; [`src/fonts.test.ts`](../src/fonts.test.ts) fails a build that breaks the rules it can check. Why we follow Orcasound, and what was rejected: [decision 094](decisions/094-the-site-follows-orcasounds-typography.md).
+How SalishSea.io sets text and links. Read it before changing anything a visitor sees. Each rule gives its reason, so a case it doesn't cover can be decided the same way. The values live in [`src/site.css`](../src/site.css), and the link rule in [`src/icons.ts`](../src/icons.ts) as well; [`src/style-guide.test.ts`](../src/style-guide.test.ts) fails a build that breaks the rules it can check. Why we follow Orcasound, and what was rejected: [decision 094](decisions/094-the-site-follows-orcasounds-typography.md).
 
 Not yet covered: colour, spacing, and icons other than the link mark. Until they are, match what the component's neighbours do.
 
@@ -39,7 +39,7 @@ A component never names a typeface: it inherits Work Sans, or asks for `var(--fo
 | `--fs-caption` | 12px | attribution, hints, field errors, table headings |
 | `--fs-mono` | 13px | times and coordinates (rule 6) |
 
-These are Orcasound's (Material UI's) steps, plus `--fs-mono`. Text set side by side takes the same step: a sighting's count and the time beside it once differed by a pixel, and it showed. If nothing fits, the design is asking for a new step; add it to `src/fonts.css` with its reason, rather than writing a size in place.
+These are Orcasound's (Material UI's) steps, plus `--fs-mono`. Text set side by side takes the same step: a sighting's count and the time beside it once differed by a pixel, and it showed. If nothing fits, the design is asking for a new step; add it to `src/site.css` with its reason, rather than writing a size in place.
 
 ## A list of records is set smaller than prose (rule 4)
 
@@ -73,4 +73,4 @@ A link is blue (`#1976d2`). Inside running text, colour alone doesn't mark it: o
 - **A link that leaves the site** opens a new tab and ends in Material Symbols' "open in new" mark instead of an underline, so the visitor knows they are leaving; it is underlined on hover. In grey secondary text, such as a card's "via Orca Network", it takes the text's grey, turns blue on hover, and the mark alone says it is a link.
 - **A link that stands on its own,** where its place says it is a link (the nav, a chip, a heading, a list of names, a button-like "Open the full page →"), has no underline and no mark. Its rule sets `text-decoration: none`.
 
-`linkStyles` in `src/icons.ts` sets the first two for a component; include it, as `src/obs-summary.ts`, `src/obs-panel.ts` and the profile pages' styles do. `src/fonts.css` sets them for the plain pages, outside any shadow root, and a test keeps its mark the same as `src/icons.ts`'s.
+`linkStyles` in `src/icons.ts` sets the first two for a component; include it, as `src/obs-summary.ts`, `src/obs-panel.ts` and the profile pages' styles do. `src/site.css` sets them for the plain pages, outside any shadow root, and a test keeps its mark the same as `src/icons.ts`'s.

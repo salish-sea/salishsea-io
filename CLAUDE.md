@@ -108,7 +108,7 @@ Static SPA (Lit web components + Vite + TypeScript, MapLibre GL maps; the profil
 
 ## Conventions & Patterns
 
-- Before changing anything a visitor sees, read [docs/style-guide.md](docs/style-guide.md): type, sizes and links, each rule with its reason; `src/fonts.test.ts` enforces what it can.
+- Before changing anything a visitor sees, read [docs/style-guide.md](docs/style-guide.md): type, sizes and links, each rule with its reason; `src/style-guide.test.ts` enforces what it can.
 - Coordinates: decimal lon/lat WGS84, map projection EPSG:3857. Time: UNIX epoch seconds.
 - URL state: `d` (date), `x/y/z` (map: EPSG:3857 metres, and `z` in OpenLayers' numbering, one above MapLibre's — `src/map-view.ts` converts, decision 076), `o` (occurrence), `s` (the subject the sidebar shows in place of the day's list, as `individuals/<7-digit register id>` or `matrilines/…`, decision 093); profile pages at `/individuals/<7-digit register id>/<designation slug>`, `/matrilines/<id>/<slug>`, `/populations/<id>/<slug>` (a population's top page, an ecotype's or a community's; `/ecotypes/…` `301`s there, decision 070) and `/pods/<id>/<slug>` (a Southern Resident pod, 070) — the slug is never read; a legacy `/<family>/<designation>` path is looked up once and `301`s to that form (decision 034).
 - Postgres is retired (`salish-9uu.14`): its migrations were deleted with it. A comment citing `supabase/migrations/<file>@6898775` means `git show 6898775:supabase/migrations/<file>`; its final dump is `s3://salishsea-io-backups/final/postgres-2026-10-09/`.

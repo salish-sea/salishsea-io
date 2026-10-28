@@ -14,7 +14,7 @@ Orcasound's [2023 brand guidelines](https://github.com/orcasound/orca-branding/b
 
 **Work Sans, with weight carrying the hierarchy.** Running text is Light, labels, buttons, headings and emphasis are Regular, and only titles are Bold. Times and coordinates are Noto Sans Mono. Both are served from this site from the @fontsource packages, as Mukta was.
 
-**One scale, defined once.** [`src/fonts.css`](../../src/fonts.css) defines the design system's sizes as custom properties (`--fs-h4` 34px, `--fs-h5` 24px, `--fs-h6` 20px, `--fs-body1` 16px, `--fs-body2` 14px, `--fs-caption` 12px, and `--fs-mono` 13px, the design system's size for mono, which looks as large as 14px Work Sans). Every component names a step; a shadow root inherits them as it inherits the font. A page's title is Bold at `--fs-h4`; a section's heading is Regular at `--fs-h6`, in sentence case, since the design system keeps capitals for the mobile menu.
+**One scale, defined once.** [`src/fonts.css`](../../src/site.css) (renamed `src/site.css` in salish-0v8h) defines the design system's sizes as custom properties (`--fs-h4` 34px, `--fs-h5` 24px, `--fs-h6` 20px, `--fs-body1` 16px, `--fs-body2` 14px, `--fs-caption` 12px, and `--fs-mono` 13px, the design system's size for mono, which looks as large as 14px Work Sans). Every component names a step; a shadow root inherits them as it inherits the font. A page's title is Bold at `--fs-h4`; a section's heading is Regular at `--fs-h6`, in sentence case, since the design system keeps capitals for the mobile menu.
 
 **A denser register for the sidebar.** Orcasound's app is not content-heavy, so its system has nothing as dense as a day's sightings (Peter: "I wouldn't rule out extending that system to fit our needs"). Work Sans is about 15% wider than Mukta, and at the design system's sizes "Southern Resident killer whale" wrapped. Three departures:
 
@@ -22,7 +22,7 @@ Orcasound's [2023 brand guidelines](https://github.com/orcasound/orca-branding/b
 - Text at 12px is Regular, not Light, which is too thin there, except a card's two source lines ("via Orca Network", "Added via Maplify"), which are Light in a darker grey so they read as thinner rather than paler and still pass WCAG AA on every card background.
 - A link in running text needs a cue besides colour, since our blue is only 2.7:1 against our body text: a link to another of our pages is underlined, and a link that leaves the site ends in Material Symbols' "open in new" mark instead ([`src/icons.ts`](../../src/icons.ts)). Links that stand on their own (nav, chips, lists of names) have neither.
 
-Tests in [`src/fonts.test.ts`](../../src/fonts.test.ts) hold every size to the scale, keep the families in `src/fonts.css`, and keep 12px text Regular unless its rule says why.
+Tests in [`src/fonts.test.ts`](../../src/style-guide.test.ts) (now `src/style-guide.test.ts`) hold every size to the scale, keep the families in `src/fonts.css`, and keep 12px text Regular unless its rule says why.
 
 ## Rejected
 
