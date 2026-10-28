@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { Encounter } from './encounter.ts';
 import { setCatalogCodes } from './individual-links.ts';
-import { reportsLine, scopeStart, summarizeSpan, type SubjectTimeline } from './subject-timeline.ts';
+import { reportsLine, scopeStart, summarizeSpan, type EncounterCard, type SubjectTimeline } from './subject-timeline.ts';
 
 setCatalogCodes({
   designations: [
@@ -130,5 +130,29 @@ describe('the timeline', () => {
     line.dispatchEvent(new Event('toggle'));
     await card.updateComplete;
     expect(card.lazy).toBe(false);
+  });
+});
+
+describe("an encounter's card", () => {
+  afterEach(() => { document.body.replaceChildren(); vi.unstubAllGlobals(); });
+
+  // A day's file holding one report, whose id is the day's.
+  const dayFile = (day: string) => [{
+    id: day, observed_at: `${day}T19:00:00+00:00`, body: day, count: 1, identifiers: [], photos: [], url: null,
+    location: {lon: -122.5, lat: 47.3}, taxon: {scientific_name: 'Orcinus orca rectipinnus'}, provider_slug: 'maplify',
+    collection: 'Orca Network', vitality: null, direction: null, confirmation: 'confirmed',
+  }];
+
+  test('shows the reports of the encounter it now holds, when reused for another', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const day = /days\/(.*)\.json/.exec(url)?.[1];
+      return day ? Response.json(dayFile(day)) : new Response('', {status: 404});
+    }));
+    const card = document.createElement('encounter-card') as EncounterCard;
+    card.encounter = encounter('2026-10-03', {ids: ['2026-10-03']});
+    document.body.appendChild(card);
+    await vi.waitFor(() => expect(card.shadowRoot!.querySelector('obs-summary')).not.toBeNull());
+    card.encounter = encounter('2026-10-25', {ids: ['2026-10-25']});
+    await vi.waitFor(() => expect(card.shadowRoot!.querySelector('obs-summary')?.sighting?.id).toBe('2026-10-25'));
   });
 });

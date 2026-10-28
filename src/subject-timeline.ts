@@ -375,12 +375,13 @@ export class EncounterCard extends LitElement {
   @state() private reports: Occurrence[] | null | undefined = undefined;
 
   protected willUpdate(changed: PropertyValues<this>): void {
+    // A card Lit reuses for another encounter drops the reports of the one before.
+    if (changed.has('encounter')) this.reports = undefined;
     if ((changed.has('encounter') || changed.has('lazy')) && this.encounter && !this.lazy && this.reports === undefined)
       void this.load(this.encounter);
   }
 
   private async load(encounter: Encounter): Promise<void> {
-    this.reports = undefined;
     let reports: Occurrence[] | null = null;
     try {
       reports = segmentHolding(await dayRows(encounter.day), encounter.ids[0]!);
