@@ -12,7 +12,7 @@ import { Temporal } from 'temporal-polyfill';
 import './obs-panel.ts';
 import './obs-summary.ts';
 
-import { addImages, BASEMAP_BOUNDS, BASEMAP_MIN_ZOOM, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, ringColours, uncertaintyRadius, type SourceId } from './style.ts';
+import { addImages, BASEMAP_BOUNDS, BASEMAP_MIN_ZOOM, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, ringColours, SUBJECT_LAYERS, uncertaintyRadius, type SourceId } from './style.ts';
 import type { Occurrence } from './types.ts';
 import { imputedPositions, occurrences2segments, placeInSegment, segment2travelLine, travelArrows, type TravelLineProperties } from './segments.ts';
 import { createRef, ref } from 'lit/directives/ref.js';
@@ -21,7 +21,8 @@ import type { Extent } from './constants.ts';
 import UserLocationControl from './user-location-control.ts';
 import LayerControl from './layer-control.ts';
 import { DEFAULT_LAYERS, type ReferenceLayer } from './reference-layers.ts';
-import { hauloutPath, type HauloutSite } from './catalog.ts';
+import { hauloutPath, observedDate, type HauloutSite } from './catalog.ts';
+import { formatDate } from './date-format.ts';
 import { fetchStaticHauloutSites } from './read-path.ts';
 import { reportError } from './report-error.ts';
 import { geolocationErrorIsReportable } from './geolocation-message.ts';
@@ -351,8 +352,14 @@ user-location-control.inactive svg { color: var(--color-text); }
     // The topmost feature only: a sighting drawn over a site is the sighting's
     // click, and a site under a sighting is not opened by it.
     const [top] = this.#map!.queryRenderedFeatures(around(evt.point, 2), {
-      layers: [...OCCURRENCE_LAYERS, ...CLICKABLE_REFERENCE_LAYERS],
+      layers: [...SUBJECT_LAYERS, ...OCCURRENCE_LAYERS, ...CLICKABLE_REFERENCE_LAYERS],
     });
+    // One of an open subject's sightings: to its day, selected, which closes the subject.
+    if (top && SUBJECT_LAYERS.includes(top.layer.id)) {
+      const detail = {date: top.properties['date'], occurrenceId: top.properties['id']};
+      this.dispatchEvent(new CustomEvent('go-to-occurrence', {bubbles: true, composed: true, detail}));
+      return;
+    }
     const occurrence = top && OCCURRENCE_LAYERS.includes(top.layer.id)
       ? this.#occurrences.get(top.properties['id'])
       : undefined;
@@ -378,7 +385,7 @@ user-location-control.inactive svg { color: var(--color-text); }
 
   #featureAt(point: {x: number, y: number}): MapGeoJSONFeature | undefined {
     return this.#map!.queryRenderedFeatures(around(point, 2), {
-      layers: [...OCCURRENCE_LAYERS, ...CLICKABLE_REFERENCE_LAYERS],
+      layers: [...SUBJECT_LAYERS, ...OCCURRENCE_LAYERS, ...CLICKABLE_REFERENCE_LAYERS],
     })[0];
   }
 
@@ -390,7 +397,10 @@ user-location-control.inactive svg { color: var(--color-text); }
       return;
     const feature = this.#featureAt(evt.point);
     this.#map!.getCanvas().style.cursor = feature ? 'pointer' : '';
-    target.title = CLICKABLE_REFERENCE_LAYERS.includes(feature?.layer.id ?? '') ? feature!.properties['name'] ?? '' : '';
+    const layer = feature?.layer.id ?? '';
+    target.title = CLICKABLE_REFERENCE_LAYERS.includes(layer) ? feature!.properties['name'] ?? ''
+      : SUBJECT_LAYERS.includes(layer) ? feature!.properties['title'] ?? ''
+      : '';
   }
 
   private skipNextMoveEvent = false;
@@ -519,6 +529,21 @@ user-location-control.inactive svg { color: var(--color-text); }
     }
   }
 
+  /**
+   * An animal's or group's sightings, drawn in place of the day's while it is open in the
+   * sidebar (decision 096), or null to take them off. Older reports are fainter; the
+   * newest is larger. When none of them is in view, the map frames them.
+   */
+  public setSubjectSightings(sightings: readonly SubjectSighting[] | null, color: string) {
+    this.#setData('subject', {type: 'FeatureCollection', features: sightings ? subjectFeatures(sightings, color) : []});
+    const map = this.#map;
+    if (!map || !sightings?.length || sightings.some(({lon, lat}) => map.getBounds().contains([lon, lat])))
+      return;
+    const lons = sightings.map(s => s.lon), lats = sightings.map(s => s.lat);
+    map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+      {padding: 40, maxZoom: mapZoom(12), animate: false});
+  }
+
   /** Bring a point into view, zooming in to zoom 12 (in the permalinks' numbering) to show it, if it is off screen. */
   public ensureInViewport(lonLat: [number, number]) {
     const map = this.#map;
@@ -606,6 +631,37 @@ function uncertaintyRing(occurrence: Occurrence): Feature | undefined {
     return undefined;
   const ring = circle([lon, lat], radius / 1000, {steps: 64, units: 'kilometers'});
   return {...ring, properties: ringColours(occurrenceProperties(occurrence).color)};
+}
+
+/** One of an open subject's sightings: which report, when, and where (decision 096). */
+export interface SubjectSighting {
+  occurrence_id: string;
+  observed_at: string;
+  lon: number;
+  lat: number;
+}
+
+/** The subject's sightings as the map draws them: faded from the newest to the oldest. */
+export function subjectFeatures(sightings: readonly SubjectSighting[], color: string): Feature[] {
+  const times = sightings.map(s => Date.parse(s.observed_at));
+  const newest = Math.max(...times), oldest = Math.min(...times);
+  const span = newest - oldest;
+  return sightings.map((s, i) => {
+    const date = observedDate(s.observed_at);
+    return {
+      type: 'Feature',
+      geometry: {type: 'Point', coordinates: [s.lon, s.lat]},
+      properties: {
+        id: s.occurrence_id,
+        date: date.toString(),
+        title: `Reported ${formatDate(date, {day: 'numeric', month: 'short', year: 'numeric'})}`,
+        color,
+        // From a quarter for the oldest to nearly whole for the newest, so the newest read first.
+        opacity: span ? 0.25 + 0.7 * (times[i]! - oldest) / span : 0.95,
+        newest: times[i] === newest,
+      },
+    };
+  });
 }
 
 function hauloutFeature({id, name, location}: HauloutSite): Feature {

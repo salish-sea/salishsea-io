@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SubjectView } from './subject-view.ts';
 import './subject-view.ts';
 import { occurrenceFromHref } from './subject.ts';
+import { mapSightings } from './subject-view.ts';
+import type { OccurrenceLink } from './catalog.ts';
 
 describe('a link to a day and a sighting on the map', () => {
   const base = 'https://salishsea.io/individuals/0000101/J035';
@@ -131,5 +133,38 @@ describe("the sidebar's subject view", () => {
     const {view, events} = await mounted();
     view.shadowRoot!.querySelector<HTMLButtonElement>('nav.back button')!.click();
     expect(events).toEqual(['close-subject null']);
+  });
+});
+
+describe("the sightings the map draws while a subject is open (decision 096)", () => {
+  const now = Date.parse('2026-10-28T12:00:00Z');
+  const link = (id: string, observed_at: string, extra: Partial<OccurrenceLink> = {}): OccurrenceLink =>
+    ({occurrence_id: id, observed_at, location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate', via_group: null, ...extra});
+  const links = [
+    link('recent', '2026-10-25T00:40:00Z'),
+    link('eleven-months', '2025-12-01T00:00:00Z'),
+    link('old', '2019-07-04T18:00:00Z'),
+    // Neither places the animal anywhere it was seen.
+    link('absent', '2026-10-20T00:00:00Z', {is_present: false}),
+    link('nowhere', '2026-10-21T00:00:00Z', {location: null}),
+  ];
+
+  it('are the past 12 months of reports that place it somewhere, by default', () => {
+    expect(mapSightings(links, 'year', now).map(s => s.occurrence_id)).toEqual(['recent', 'eleven-months']);
+  });
+
+  it('reach back twelve calendar months, past a leap day', () => {
+    // Noon on 1 March 2028, Pacific: 365 days back is 2 March 2027, a day short.
+    const leapNow = Date.parse('2028-03-01T20:00:00Z');
+    const year = mapSightings([link('a year ago today', '2027-03-01T20:00:00Z'), link('a day more', '2027-02-28T20:00:00Z')], 'year', leapNow);
+    expect(year.map(s => s.occurrence_id)).toEqual(['a year ago today']);
+  });
+
+  it('are every such report, all time', () => {
+    expect(mapSightings(links, 'all', now)).toEqual([
+      {occurrence_id: 'recent', observed_at: '2026-10-25T00:40:00Z', lon: -123, lat: 48.5},
+      {occurrence_id: 'eleven-months', observed_at: '2025-12-01T00:00:00Z', lon: -123, lat: 48.5},
+      {occurrence_id: 'old', observed_at: '2019-07-04T18:00:00Z', lon: -123, lat: 48.5},
+    ]);
   });
 });

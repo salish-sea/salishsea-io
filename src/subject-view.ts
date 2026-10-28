@@ -6,7 +6,9 @@ import { individualStyles, individualTitle, renderIndividualProfile, renderIndiv
 import { renderMatrilineProfile, renderMatrilineSightings, type MatrilineProfileData } from './matriline-profile.ts';
 import { latestLink, profileStyles } from './profile-shared.ts';
 import { fetchManifest, findOccurrence, pacificDay, READ_PATH_BASE } from './read-path.ts';
+import { Temporal } from 'temporal-polyfill';
 import type { Occurrence } from './types.ts';
+import type { SubjectSighting } from './obs-map.ts';
 import './obs-summary.ts';
 import {
   decodeSubjectData, interceptableAnchor, occurrenceFromHref, sameSubject, subjectDataPath, subjectFromHref, subjectLinksPath,
@@ -32,8 +34,12 @@ type Loaded =
  * sighting, which closes the subject. Any other link, and any
  * link opened in a new tab or window, behaves as a link does.
  *
+ * While it is open the map shows its sightings in place of the day's, the past 12 months'
+ * or all of them, by a switch in the calendar's place (decision 096).
+ *
  * Events, all bubbling out of the shadow root: `close-subject` from its Back button,
- * `open-subject` with a {@link Subject}, `go-to-occurrence` with an {@link OccurrenceTarget}.
+ * `open-subject` with a {@link Subject}, `go-to-occurrence` with an {@link OccurrenceTarget},
+ * and `subject-sightings` with the {@link SubjectSighting}s the map should draw.
  */
 @customElement('subject-view')
 export class SubjectView extends LitElement {
@@ -46,15 +52,52 @@ export class SubjectView extends LitElement {
       padding: 0 0.75rem 5.5rem;
     }
     nav.back {
-      background: white;
+      align-items: center;
+      background: var(--color-surface);
       border-bottom: 1px solid var(--color-border);
+      display: flex;
+      gap: 0.5rem;
+      justify-content: space-between;
       margin: 0 -0.75rem 0.75rem;
       padding: 0.375rem 0.5rem;
       position: sticky;
       top: 0;
       z-index: 1;
     }
-    nav.back button {
+    /* Which of the subject's sightings the map draws, in the calendar's place (decision 096):
+       two halves of one pill, the chosen one filled, as a selected region button is. */
+    .scope {
+      border: 1px solid var(--color-border-strong);
+      border-radius: 999px;
+      display: inline-flex;
+      flex: none;
+      overflow: hidden;
+    }
+    .scope button {
+      background: transparent;
+      border: 0;
+      color: var(--color-text);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: var(--fs-body2);
+      min-height: 44px;
+      padding: 0 0.75rem;
+    }
+    .scope button + button {
+      border-left: 1px solid var(--color-border-strong);
+    }
+    .scope button:hover:not([aria-pressed="true"]) {
+      background: var(--color-surface-subtle);
+    }
+    .scope button[aria-pressed="true"] {
+      background: var(--color-primary);
+      color: var(--color-surface);
+    }
+    .scope button:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: -2px;
+    }
+    nav.back > button {
       background: transparent;
       border: 0;
       border-radius: 4px;
@@ -62,13 +105,13 @@ export class SubjectView extends LitElement {
       cursor: pointer;
       font: inherit;
       font-weight: 400;
-      min-height: 36px;
+      min-height: 44px;
       padding: 0.25rem 0.5rem;
     }
-    nav.back button:hover {
+    nav.back > button:hover {
       background: var(--color-surface-subtle);
     }
-    nav.back button:focus-visible {
+    nav.back > button:focus-visible {
       outline: 2px solid var(--color-primary);
       outline-offset: 1px;
     }
@@ -149,6 +192,9 @@ export class SubjectView extends LitElement {
       detail: {date: pacificDay(occurrence.observed_at), occurrenceId: occurrence.id}}));
   };
 
+  /** Which of the subject's sightings the map draws (decision 096): the past 12 months' by default. */
+  @state() private scope: 'year' | 'all' = 'year';
+
   /** The subject last shown, so that hiding the view and showing it again keeps what it had loaded. */
   #shown: Subject | null = null;
   /**
@@ -165,6 +211,7 @@ export class SubjectView extends LitElement {
     // subject has been opened or the page reloaded.
     if (changed.has('subject') && this.subject && !sameSubject(this.subject, this.#requested)) {
       this.#requested = this.subject;
+      this.scope = 'year';
       this.loaded = null;
       this.failed = false;
       this.latest = undefined;
@@ -174,10 +221,19 @@ export class SubjectView extends LitElement {
 
   /** Put keyboard focus on the Back button, as the view opens. */
   focusBack(): void {
-    this.renderRoot.querySelector<HTMLButtonElement>('nav.back button')?.focus();
+    this.renderRoot.querySelector<HTMLButtonElement>('nav.back > button')?.focus();
   }
 
   protected updated(changed: PropertyValues<this>): void {
+    // The map's sightings: whenever the subject shown, what it has loaded or the switch changes.
+    const loaded = this.loaded;
+    // `loaded` and `scope` are private, so not keys of PropertyValues<this>.
+    const changedHere = changed as PropertyValues;
+    if ((changed.has('subject') || changedHere.has('loaded') || changedHere.has('scope'))
+        && this.subject && loaded && sameSubject(loaded.subject, this.subject))
+      this.dispatchEvent(new CustomEvent<SubjectSighting[]>('subject-sightings', {
+        bubbles: true, composed: true, detail: mapSightings(loaded.links, this.scope, Date.now()),
+      }));
     // A different subject starts at its top, not where the last one was scrolled to.
     if (changed.has('subject') && this.subject && !sameSubject(this.subject, this.#shown)) {
       this.scrollTop = 0;
@@ -228,7 +284,13 @@ export class SubjectView extends LitElement {
   protected render() {
     if (!this.subject) return nothing;
     return html`
-      <nav class="back"><button type="button" aria-label=${`Back to ${this.backLabel}`} @click=${this.onBack}>‹ ${this.backLabel}</button></nav>
+      <nav class="back">
+        <button type="button" aria-label=${`Back to ${this.backLabel}`} @click=${this.onBack}>‹ ${this.backLabel}</button>
+        <div class="scope" role="group" aria-label="Sightings on the map">
+          <button type="button" aria-pressed=${this.scope === 'year'} @click=${() => { this.scope = 'year'; }}>Past 12 months</button>
+          <button type="button" aria-pressed=${this.scope === 'all'} @click=${() => { this.scope = 'all'; }}>All time</button>
+        </div>
+      </nav>
       ${this.renderBody()}
     `;
   }
@@ -275,6 +337,21 @@ export class SubjectView extends LitElement {
       this.dispatchEvent(new CustomEvent<OccurrenceTarget>('go-to-occurrence', {bubbles: true, composed: true, detail: occurrence}));
     }
   };
+}
+
+/**
+ * The sightings the map draws for a subject: the reports that place it somewhere, as
+ * present, within the switch's span of `now` (decision 096). The past 12 months are
+ * calendar months on the Pacific clock the map's days keep, not 365 days, which a leap
+ * day would shorten.
+ */
+export function mapSightings(links: readonly OccurrenceLink[], scope: 'year' | 'all', now: number): SubjectSighting[] {
+  const since = Temporal.Instant.fromEpochMilliseconds(now).toZonedDateTimeISO('America/Los_Angeles')
+    .subtract({months: 12}).epochMilliseconds;
+  return links.flatMap(({occurrence_id, observed_at, location, is_present}) =>
+    is_present && location && (scope === 'all' || Date.parse(observed_at) >= since)
+      ? [{occurrence_id, observed_at, lon: location.lon, lat: location.lat}]
+      : []);
 }
 
 declare global {

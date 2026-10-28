@@ -8,7 +8,8 @@ import { Temporal } from "temporal-polyfill";
 import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
 import { sightingDraftsContext, type SightingDrafts } from "./sighting-drafts.ts";
-import type { LayersChangeDetail, MapMoveDetail, ObsMap } from "./obs-map.ts";
+import type { LayersChangeDetail, MapMoveDetail, ObsMap, SubjectSighting } from "./obs-map.ts";
+import { GROUPS } from './symbology.ts';
 import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from "./reference-layers.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchDayOccurrences, fetchStaticAnimalNames, findOccurrence, NotBuiltYet, pacificDay, watchManifest, withinExtent } from "./read-path.ts";
@@ -31,6 +32,10 @@ import './site-search.ts';
 import './subject-view.ts';
 import type { OccurrenceTarget, SubjectView } from './subject-view.ts';
 import { parseSubject, readableSubject, sameSubject, SUBJECT_PARAM, subjectParam, type Subject } from './subject.ts';
+
+// Every animal and group the sidebar opens is a killer whale (the register's catalogue
+// holds no other species), so its sightings take the killer whale's colour (decision 029).
+const SUBJECT_COLOR = GROUPS.orca.color;
 
 initSentry();
 
@@ -358,9 +363,37 @@ export default class SalishSea extends LitElement {
     setQueryParams({[SUBJECT_PARAM]: subjectParam(subject)}, {state: {subjectOpenedHere: true, backTo}});
   };
 
+  /** The open subject's sightings, as its view last sent them; null until they arrive. */
+  #subjectSightings: SubjectSighting[] | null = null;
+
+  #onSubjectSightings = (evt: Event) => {
+    this.#subjectSightings = (evt as CustomEvent<SubjectSighting[]>).detail;
+    if (this.subject) this.mapRef.value?.setSubjectSightings(this.#subjectSightings, SUBJECT_COLOR);
+  };
+
+  /** What the map shows: an open subject's sightings in place of the day's (decision 096), or the day's. */
+  #drawMap() {
+    const map = this.mapRef.value;
+    if (!map) return;
+    if (this.subject) {
+      map.setOccurrences([]);
+      map.setSubjectSightings(this.#subjectSightings, SUBJECT_COLOR);
+    } else {
+      map.setSubjectSightings(null, SUBJECT_COLOR);
+      map.setOccurrences(this.sightings);
+    }
+  }
+
+  protected willUpdate(changed: PropertyValues): void {
+    super.willUpdate(changed);
+    // Another subject's sightings, or none: the last one's go before its view sends these.
+    if (changed.has('subject')) this.#subjectSightings = null;
+  }
+
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
     if (!changed.has('subject')) return;
+    this.#drawMap();
     if (this.subject && this.#focusView) {
       // Opened by the visitor: focus moves into the view, to its Back button.
       this.#focusView = false;
@@ -525,7 +558,7 @@ export default class SalishSea extends LitElement {
       // The refetch reconciles the rest of the list.
       this.#listRevision++;
       this.sightings = this.sightings.filter(sighting => sighting.id !== id);
-      this.mapRef.value?.setOccurrences(this.sightings);
+      if (!this.subject) this.mapRef.value?.setOccurrences(this.sightings);
       if (this.focusedOccurrenceId === id)
         this.focusOccurrence(null);
       this.refetchOccurrences(this.date);
@@ -599,7 +632,7 @@ export default class SalishSea extends LitElement {
         ${renderSiteNav('map')}
         <account-menu .lastOwnOccurrence=${this.lastOwnOccurrence}></account-menu>
       </header>
-      <main @open-subject=${this.#openSubject} @close-subject=${this.#closeSubject} @go-to-occurrence=${this.#goToOccurrence}>
+      <main @open-subject=${this.#openSubject} @close-subject=${this.#closeSubject} @go-to-occurrence=${this.#goToOccurrence} @subject-sightings=${this.#onSubjectSightings}>
         <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId} .maskExtent=${this.region.extent} .visibleLayers=${this.layers} @layers-change=${this.#onLayersChange}></obs-map>
         <obs-panel ${ref(this.panelRef)} ?hidden=${!!this.subject} date=${this.date} regionSlug=${this.region.slug} .lastOwnOccurrence=${this.lastOwnOccurrence}>
           ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
@@ -727,7 +760,8 @@ export default class SalishSea extends LitElement {
       : occurrences;
 
     this.sightings = merged;
-    this.mapRef.value!.setOccurrences(merged);
+    // While a subject is open the map shows its sightings; the day's wait for it to close.
+    if (!this.subject) this.mapRef.value!.setOccurrences(merged);
   }
 
   focusOccurrence(occurrence: Occurrence | null) {

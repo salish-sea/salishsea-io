@@ -272,7 +272,7 @@ export const REFERENCE_LAYER_IDS = {
 /** The map's sources, all GeoJSON in longitude and latitude, empty until filled. */
 export const SOURCES = [
   'mask', 'haulouts', 'haulout-rings', 'viewpoints', 'hydrophones', 'salmon',
-  'uncertainty', 'travel', 'travel-arrows', 'travel-now', 'occurrences', 'selected', 'user-location', 'drawing',
+  'uncertainty', 'travel', 'travel-arrows', 'travel-now', 'occurrences', 'subject', 'selected', 'user-location', 'drawing',
 ] as const;
 export type SourceId = typeof SOURCES[number];
 
@@ -392,6 +392,16 @@ const LAYERS: LayerSpecification[] = [
 
   ...occurrenceLayers('occurrences', 'occurrence'),
 
+  // An animal's or group's sightings while it is open in the sidebar, in place of the
+  // day's (decision 096): one colour, its species', faded with age, and the newest
+  // larger and ringed in white, as the head of a day's track is. No labels: they are all
+  // the one subject.
+  {id: 'subject-dot', type: 'circle', source: 'subject',
+    paint: {'circle-color': ['get', 'color'], 'circle-opacity': ['get', 'opacity'],
+      'circle-radius': ['case', ['get', 'newest'], 7, 4],
+      'circle-stroke-color': '#ffffff', 'circle-stroke-width': ['case', ['get', 'newest'], 2, 0.5],
+      'circle-stroke-opacity': ['get', 'opacity']}},
+
   // The selected occurrence, drawn over everything else so it is never hidden.
   {id: 'selected-dot', type: 'circle', source: 'selected',
     paint: {'circle-radius': 9, 'circle-color': 'rgba(255, 255, 0, 0.5)',
@@ -443,6 +453,9 @@ const LAYERS: LayerSpecification[] = [
 
 /** The layers whose features a click on the map can select. */
 export const OCCURRENCE_LAYERS = ['occurrence-dot', 'occurrence-bone', 'occurrence-label'];
+
+/** An open subject's sightings, each of which a click takes to its day (decision 096). */
+export const SUBJECT_LAYERS = ['subject-dot'];
 /** The reference layers whose features a click opens. */
 export const CLICKABLE_REFERENCE_LAYERS = ['hydrophone', 'salmon', 'haulout-marker'];
 
