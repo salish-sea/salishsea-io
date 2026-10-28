@@ -136,7 +136,7 @@ export class ObsSummary extends LitElement {
     }
     ul.animals li.possibly {
       background: transparent;
-      border: 1px dashed var(--color-border-control);
+      border: 1px dashed var(--color-border-strong);
     }
     ul.animals li:has(a) {
       padding: 0;

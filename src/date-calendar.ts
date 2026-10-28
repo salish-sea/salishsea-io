@@ -146,10 +146,11 @@ export class DateCalendar extends LitElement {
     }
 
     /* The encoding: one hue, constant opacity, size alone carrying volume. A data
-       colour, the profile pages' presence ramp's hue, not an interface colour. */
+       colour, though it takes the interface's teal, as the profile pages' presence
+       ramp does. */
     .volume {
       aspect-ratio: 1;
-      background: #1976d2;
+      background: var(--color-primary);
       border-radius: 50%;
       left: 50%;
       opacity: 0.32;
@@ -178,7 +179,7 @@ export class DateCalendar extends LitElement {
     /* ---- states --------------------------------------------------------- */
 
     .day:hover:not(:disabled) {
-      box-shadow: inset 0 0 0 1px var(--color-border-control);
+      box-shadow: inset 0 0 0 1px var(--color-border-strong);
     }
     .today .numeral {
       font-weight: 700;

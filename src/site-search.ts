@@ -130,7 +130,7 @@ export class SiteSearch extends LitElement {
     }
     input {
       background: white;
-      border: 1px solid var(--color-border-control);
+      border: 1px solid var(--color-border-field);
       border-radius: 4px;
       box-sizing: border-box;
       color: var(--color-text);

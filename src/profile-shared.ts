@@ -139,10 +139,11 @@ const profileOwnStyles = css`
     padding: 0;
     text-align: center;
   }
-  /* Data colours: the presence ramp, light to dark with volume. */
-  table.presence td.p1 { background: #e3f2fd; }
-  table.presence td.p2 { background: #bbdefb; }
-  table.presence td.p3 { background: #90caf9; }
+  /* Data colours: the presence ramp, light to dark with volume, the interface's teal
+     (--color-primary) over white at 15%, 30% and 50%. */
+  table.presence td.p1 { background: #ddebef; }
+  table.presence td.p2 { background: #bcd6df; }
+  table.presence td.p3 { background: #8fbcc9; }
   .presence-note, .sightings-note {
     color: var(--color-text-muted);
     font-size: var(--fs-body2);

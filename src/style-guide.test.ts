@@ -87,3 +87,69 @@ describe('interface colours come from src/site.css', () => {
     expect(literals).toEqual([]);
   });
 });
+
+// A var() naming a custom property nothing defines is dropped by the browser, and the
+// rule with it: the sighting form's fields had no border for that reason (--slate-300).
+describe('every custom property a style uses is defined', () => {
+  const sources = [
+    ...fs.readdirSync(process.cwd()).filter(f => f.endsWith('.html')),
+    ...fs.readdirSync(path.join(process.cwd(), 'src'))
+      .filter(f => /\.(ts|css)$/.test(f) && !f.endsWith('.test.ts')).map(f => path.join('src', f)),
+  ];
+  const texts = sources.map(f => fs.readFileSync(path.join(process.cwd(), f), 'utf-8'));
+  // Defined in a stylesheet, or set from script (style.setProperty, an inline style).
+  const defined = new Set(texts.flatMap(t => [...t.matchAll(/(--[\w-]+)\s*:|setProperty\(\s*['"](--[\w-]+)/g)].map(m => m[1] ?? m[2])));
+
+  it.each(sources)('%s uses only defined properties, or gives a fallback', file => {
+    const text = fs.readFileSync(path.join(process.cwd(), file), 'utf-8');
+    const undefinedUses = [...text.matchAll(/var\(\s*(--[\w-]+)\s*\)/g)].map(m => m[1]!).filter(name => !defined.has(name));
+    expect(undefinedUses).toEqual([]);
+  });
+});
+
+// The palette's contrast (style guide, rule 10), from the values src/site.css gives.
+describe('the palette passes its contrast rules', () => {
+  const css = fs.readFileSync(path.join(process.cwd(), 'src/site.css'), 'utf-8');
+  const vars = Object.fromEntries([...css.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(m => [m[1]!, m[2]!.trim()]));
+  const value = (name: string): string => {
+    let v = vars[name]!;
+    while (v.startsWith('var(')) v = vars[v.slice(4, -1)]!;
+    return v;
+  };
+  // An opaque colour as [r, g, b]; a translucent one laid over white.
+  const rgb = (colour: string): number[] => {
+    const hex = colour.match(/^#([0-9a-f]{6})$/i);
+    if (hex) return [0, 2, 4].map(i => parseInt(hex[1]!.slice(i, i + 2), 16));
+    const [r, g, b, a = 1] = colour.match(/[\d.]+/g)!.map(Number);
+    return [r!, g!, b!].map(c => c * a + 255 * (1 - a));
+  };
+  const luminance = (colour: string) => {
+    const [r, g, b] = rgb(colour).map(c => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+  };
+  const contrast = (a: string, b: string) => {
+    const [hi, lo] = [luminance(value(a)), luminance(value(b))].sort((x, y) => y - x);
+    return (hi! + 0.05) / (lo! + 0.05);
+  };
+
+  // Every background text can sit on: the page, the pale grey, and the two washes (a
+  // highlighted card's teal, the grey behind one's own sightings and the form).
+  const backgrounds = ['--color-surface', '--color-surface-subtle', '--color-primary-tint', '--color-surface-tint'];
+  const text = ['--color-text', '--color-text-secondary', '--color-text-muted', '--color-primary',
+    '--color-error', '--color-warning', '--color-success'];
+  it.each([
+    ...text.flatMap(fg => backgrounds.map(bg => [fg, bg])),
+    ['--color-surface', '--color-primary'],
+    ['--color-chrome-accent', '--color-chrome'], ['--color-surface', '--color-chrome'],
+  ])('text in %s on %s is at least 4.5:1', (fg, bg) => {
+    expect(contrast(fg, bg)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('a field’s edge is at least 3:1 on white', () => {
+    expect(contrast('--color-border-field', '--color-surface')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('a link is at least 3:1 against the text around it', () => {
+    expect(contrast('--color-primary', '--color-text')).toBeGreaterThanOrEqual(3);
+  });
+});

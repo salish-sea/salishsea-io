@@ -134,7 +134,7 @@ export class ObsPanel extends LitElement {
        arrows either side. */
     .day-nav input[type=date] {
       background: white;
-      border: 1px solid var(--color-border-control);
+      border: 1px solid var(--color-border-field);
       border-radius: 4px;
       box-sizing: border-box;
       color: var(--color-text);
@@ -168,7 +168,7 @@ export class ObsPanel extends LitElement {
     /* Small rounded buttons, as the region choices are. */
     .bubble {
       background: white;
-      border: 1px solid var(--color-border-control);
+      border: 1px solid var(--color-border-strong);
       border-radius: 999px;
       color: var(--color-text);
       cursor: pointer;

@@ -147,7 +147,7 @@ export default class FeedbackForm extends LitElement {
     }
     input, textarea {
       box-sizing: border-box;
-      border: 1px solid var(--color-border-control);
+      border: 1px solid var(--color-border-field);
       border-radius: 4px;
       font-family: inherit;
       font-size: var(--fs-body1);
@@ -203,7 +203,7 @@ export default class FeedbackForm extends LitElement {
     }
     .cancel {
       background: white;
-      border: 1px solid var(--color-border-control);
+      border: 1px solid var(--color-border-strong);
     }
   `;
 
