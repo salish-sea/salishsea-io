@@ -314,6 +314,11 @@ export interface SightingsOptions {
    * sighting can't be found: the line still comes first, with no box under it.
    */
   latestCard?: unknown;
+  /**
+   * Whether to show the presence table. The sidebar's timeline replaces it (decision 098),
+   * standing where the latest card would.
+   */
+  table?: boolean;
 }
 
 /**
@@ -336,7 +341,7 @@ export function latestLink<L extends Pick<OccurrenceLink, 'vitality' | 'via_grou
 export function renderSightingsSummary(
   links: OccurrenceLink[] | null,
   empty: TemplateResult,
-  { currentYear, map = true, latestCard }: SightingsOptions = {},
+  { currentYear, map = true, latestCard, table = true }: SightingsOptions = {},
 ) {
   const last = latestLink(links ?? []);
   if (!links?.length || !last)
@@ -353,7 +358,7 @@ export function renderSightingsSummary(
     return html`
       ${note}
       ${latestCard === nothing ? nothing : html`<div class="latest-card">${latestCard}</div>`}
-      ${renderPresenceTable(links, undefined, undefined, currentYear)}
+      ${table ? renderPresenceTable(links, undefined, undefined, currentYear) : nothing}
     `;
   return html`
     ${renderPresenceTable(links, undefined, undefined, currentYear)}
