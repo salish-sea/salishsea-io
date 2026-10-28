@@ -10,6 +10,7 @@ import { segmentMovement, type SegmentMovement } from './segments.ts';
 import { displayNameFor, GROUPS, taxonGroup } from './symbology.ts';
 import type { Occurrence } from './types.ts';
 import { sightingText } from './obs-summary.ts';
+import { openAnimalLinkInSidebar } from './subject.ts';
 import './obs-summary.ts';
 
 /** A segment becomes one card from this many reports up; fewer stay cards of their own (Peter, 2026-10-28). */
@@ -179,6 +180,12 @@ export class SegmentSummary extends LitElement {
   @state() private open = false;
   @state() private catalogLoaded = catalogCodes() !== null;
 
+  constructor() {
+    super();
+    // A chip or an animal in the latest report's text opens in the sidebar, as on a sighting's card.
+    this.addEventListener('click', openAnimalLinkInSidebar);
+  }
+
   protected willUpdate(changed: PropertyValues<this>): void {
     if (!this.catalogLoaded)
       loadCatalogCodes().then(() => { this.catalogLoaded = true; }, () => { /* codes stay plain text */ });
@@ -198,7 +205,8 @@ export class SegmentSummary extends LitElement {
     const count = Math.max(0, ...reports.map(r => r.count ?? 0));
     const animals = pooledAnimals(reports.map(r => r.identifiers), catalogCodes() ?? new Map(),
       matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map());
-    const latest = reports.findLast(r => r.body?.trim()) ?? null;
+    // The newest report's own words; an older report's would not be "latest" (decision 097).
+    const latest = head.body?.trim() ? head : null;
     const photos = reports.flatMap(r => (r.photos ?? []).map(photo => ({photo, sighting: r})));
     return html`
       <header>

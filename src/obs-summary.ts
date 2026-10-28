@@ -17,7 +17,7 @@ import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
 import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, podCodes, populationCodes } from './individual-links.ts';
-import { interceptableAnchor, subjectFromHref, type Subject } from './subject.ts';
+import { openAnimalLinkInSidebar } from './subject.ts';
 import { linkStyles } from './icons.ts';
 
 const domPurify = createDOMPurify(window as any);
@@ -328,20 +328,8 @@ export class ObsSummary extends LitElement {
 
   constructor() {
     super();
-    this.addEventListener('click', this.onAnimalLink);
+    this.addEventListener('click', openAnimalLinkInSidebar);
   }
-
-  // A link to an animal or a matriline, a chip or one in the text, opens it in the map
-  // page's sidebar rather than leaving the map (salish-7ds1.1). With a modifier key, or a
-  // button other than the first, it opens the page as any link does.
-  private onAnimalLink = (event: MouseEvent) => {
-    const anchor = interceptableAnchor(event);
-    const subject = anchor ? subjectFromHref(anchor.getAttribute('href') ?? '') : null;
-    if (!subject) return;
-    event.preventDefault();
-    // From the link, so the page knows where focus goes when the subject closes.
-    anchor!.dispatchEvent(new CustomEvent<Subject>('open-subject', {bubbles: true, composed: true, detail: subject}));
-  };
 
   connectedCallback(): void {
     super.connectedCallback();

@@ -88,12 +88,6 @@ function joinScore(segment: Segment, candidate: Occurrence): number {
 export type Ecotype = 'resident' | 'biggs';
 
 /**
- * The ecotypes a report names, from its subspecies or from a named pod, ID or
- * ecotype: J, K and L are residents, T is Bigg's. Empty when it names neither.
- * `ater` is residents generally, not Southern Residents (see labelForSegment),
- * which is all the join needs: residents and Bigg's don't travel together.
- */
-/**
  * How a travel segment moved, as its card says it (salish-fwyt.5): the length of the
  * path through its reports, oldest first; how far its last report is from its first;
  * the hours between them; and the direction the last report that gives one says. From
@@ -119,6 +113,12 @@ export function segmentMovement(occurrences: readonly Occurrence[]): SegmentMove
   return {pathKm, netKm, hours, lastDirection};
 }
 
+/**
+ * The ecotypes a report names, from its subspecies or from a named pod, ID or
+ * ecotype: J, K and L are residents, T is Bigg's. Empty when it names neither.
+ * `ater` is residents generally, not Southern Residents (see labelForSegment),
+ * which is all the join needs: residents and Bigg's don't travel together.
+ */
 export function ecotypesOf({taxon, identifiers}: {taxon: Pick<Occurrence['taxon'], 'scientific_name'>, identifiers: Occurrence['identifiers']}): Set<Ecotype> {
   const out = new Set<Ecotype>();
   const subspecies = taxon.scientific_name?.split(' ')[2];

@@ -73,6 +73,21 @@ export function interceptableAnchor(event: MouseEvent): HTMLAnchorElement | null
   return anchor && anchor.target !== '_blank' && !anchor.hasAttribute('download') ? anchor : null;
 }
 
+/**
+ * A click on a link to an animal or a matriline, a chip or one in a report's text, opens
+ * it in the map page's sidebar rather than leaving the map (salish-7ds1.1). With a
+ * modifier key, or a button other than the first, it opens the page as any link does.
+ * The sighting cards and a segment's card both listen with it (salish-fwyt.5).
+ */
+export function openAnimalLinkInSidebar(event: MouseEvent): void {
+  const anchor = interceptableAnchor(event);
+  const subject = anchor ? subjectFromHref(anchor.getAttribute('href') ?? '') : null;
+  if (!subject) return;
+  event.preventDefault();
+  // From the link, so the page knows where focus goes when the subject closes.
+  anchor!.dispatchEvent(new CustomEvent<Subject>('open-subject', {bubbles: true, composed: true, detail: subject}));
+}
+
 /** Where a "Last reported" link points: a day on the map, and the sighting to select. */
 export interface OccurrenceTarget {
   date: string;
