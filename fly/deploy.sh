@@ -99,10 +99,14 @@ switch() {
     UNREACHABLE='tunnel unavailable|Error contacting Fly.io API|context deadline exceeded'
     lock_log=$(mktemp)
     hold_pid=
+    held=
     deployed=
     release() {
         [ -z "$hold_pid" ] || kill "$hold_pid" 2>/dev/null || true
-        [ -n "$deployed" ] || flyctl ssh console -a "$APP" -C "sh -c 'kill \$(cat $PIDFILE) 2>/dev/null; rm -f $PIDFILE'" > /dev/null 2>&1 || true
+        # Only a hold that was confirmed has anything to let go of; with the machine
+        # unreachable, another `fly ssh` would only put off the failure. A hold whose
+        # confirmation was lost on the way lets go by itself after HOLD seconds.
+        [ -z "$held" ] || [ -n "$deployed" ] || flyctl ssh console -a "$APP" -C "sh -c 'kill \$(cat $PIDFILE) 2>/dev/null; rm -f $PIDFILE'" > /dev/null 2>&1 || true
         rm -f "$lock_log"
     }
     trap release EXIT
@@ -115,7 +119,10 @@ switch() {
         while ! grep -q '^held' "$lock_log" && kill -0 "$hold_pid" 2>/dev/null; do
             sleep 2
         done
-        grep -q '^held' "$lock_log" && break
+        if grep -q '^held' "$lock_log"; then
+            held=1
+            break
+        fi
         cat "$lock_log" >&2
         if ! grep -qE "$UNREACHABLE" "$lock_log"; then
             echo "couldn't take the machine's locks within ${LOCK_WAIT}s each; is a build stuck? The image is pushed: rerun fly/deploy.sh switch" >&2
