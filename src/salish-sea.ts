@@ -10,6 +10,9 @@ import { classMap } from "lit/directives/class-map.js";
 import { sightingDraftsContext, type SightingDrafts } from "./sighting-drafts.ts";
 import type { LayersChangeDetail, MapMoveDetail, ObsMap, SubjectSighting } from "./obs-map.ts";
 import { GROUPS } from './symbology.ts';
+import { occurrences2segments } from './segments.ts';
+import { SEGMENT_CARD_MIN } from './segment-summary.ts';
+import './segment-summary.ts';
 import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from "./reference-layers.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
 import { fetchDayOccurrences, fetchStaticAnimalNames, findOccurrence, NotBuiltYet, pacificDay, watchManifest, withinExtent } from "./read-path.ts";
@@ -32,6 +35,24 @@ import './site-search.ts';
 import './subject-view.ts';
 import type { OccurrenceTarget, SubjectView } from './subject-view.ts';
 import { parseSubject, readableSubject, sameSubject, SUBJECT_PARAM, subjectParam, type Subject } from './subject.ts';
+
+/**
+ * The day's list, in the order the sightings came (newest first): a travel segment of
+ * SEGMENT_CARD_MIN reports or more as one card in the place of its first-listed report,
+ * the map's own segments (salish-fwyt.5), and every other sighting as its own. Keyed by
+ * a segment's oldest report, which stays its oldest as later reports join it.
+ */
+type DayItem = {key: string, at: number} & ({reports: Occurrence[], sighting?: never} | {sighting: Occurrence, reports?: never});
+
+function dayList(sightings: Occurrence[]): DayItem[] {
+  const position = new Map(sightings.map((s, i) => [s.id, i]));
+  return occurrences2segments(sightings).flatMap((segment): DayItem[] => {
+    const reports = segment.occurrences;
+    return reports.length >= SEGMENT_CARD_MIN
+      ? [{key: `segment-${reports[0]!.id}`, at: Math.min(...reports.map(r => position.get(r.id)!)), reports}]
+      : reports.map(sighting => ({key: sighting.id, at: position.get(sighting.id)!, sighting}));
+  }).sort((a, b) => a.at - b.at);
+}
 
 // Every animal and group the sidebar opens is a killer whale (the register's catalogue
 // holds no other species), so its sightings take the killer whale's colour (decision 029).
@@ -635,11 +656,13 @@ export default class SalishSea extends LitElement {
       <main @open-subject=${this.#openSubject} @close-subject=${this.#closeSubject} @go-to-occurrence=${this.#goToOccurrence} @subject-sightings=${this.#onSubjectSightings}>
         <obs-map ${ref(this.mapRef)} centerX=${initialX} centerY=${initialY} zoom=${initialZ} focusedOccurrenceId=${this.focusedOccurrenceId} .maskExtent=${this.region.extent} .visibleLayers=${this.layers} @layers-change=${this.#onLayersChange}></obs-map>
         <obs-panel ${ref(this.panelRef)} ?hidden=${!!this.subject} date=${this.date} regionSlug=${this.region.slug} .lastOwnOccurrence=${this.lastOwnOccurrence}>
-          ${repeat(this.sightings, sighting => sighting.id, (sighting) => {
-            const id = sighting.id;
+          ${repeat(dayList(this.sightings), item => item.key, item => {
+            if (item.reports)
+              return html`<segment-summary .sightings=${item.reports} .focusedId=${this.focusedOccurrenceId}></segment-summary>`;
+            const id = item.sighting.id;
             const classes = {focused: id === this.focusedOccurrenceId};
             return html`
-              <obs-summary class=${classMap(classes)} id=${`summary-${id}`} ?focused=${classes.focused} .sighting=${sighting}></obs-summary>
+              <obs-summary class=${classMap(classes)} id=${`summary-${id}`} ?focused=${classes.focused} .sighting=${item.sighting}></obs-summary>
             `;
           })}
         </obs-panel>

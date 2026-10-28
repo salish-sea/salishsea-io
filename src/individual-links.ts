@@ -128,6 +128,40 @@ export function namedAnimals(
   return [...byKey.values()];
 }
 
+/** An animal a segment's reports name, and how many of them name it (salish-fwyt.5). */
+export interface PooledAnimal extends NamedAnimal {
+  /** How many of the reports name it: the start of a reliability mark (salish-0420). */
+  support: number;
+}
+
+/**
+ * The animals a travel segment's reports name, as one set of chips: each animal once,
+ * in the order first named, with how many reports name it. Heard by any report outranks
+ * possibly heard, as within one report (namedAnimals).
+ */
+export function pooledAnimals(
+  reports: readonly (readonly string[] | null)[],
+  codes: Map<string, IndividualRef>,
+  matrilines: Map<string, GroupRef> = new Map(),
+  populations: Map<string, GroupRef> = new Map(),
+  pods: Map<string, GroupRef> = new Map(),
+): PooledAnimal[] {
+  const byKey = new Map<string, PooledAnimal>();
+  for (const identifiers of reports) {
+    for (const animal of namedAnimals(identifiers, codes, matrilines, populations, pods)) {
+      const key = animal.href ?? fold(animal.label);
+      const already = byKey.get(key);
+      if (already) {
+        already.support++;
+        already.possibly &&= animal.possibly;
+      } else {
+        byKey.set(key, {...animal, support: 1});
+      }
+    }
+  }
+  return [...byKey.values()];
+}
+
 let codeMap: Map<string, IndividualRef> | null = null;
 let matrilineMap: Map<string, GroupRef> | null = null;
 let ecotypeMap: Map<string, GroupRef> | null = null;

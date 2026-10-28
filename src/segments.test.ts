@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { ecotypesOf, occurrences2segments, placeInSegment, segment2travelLine } from './segments.ts';
+import { ecotypesOf, occurrences2segments, placeInSegment, segment2travelLine, segmentMovement } from './segments.ts';
 import type { Occurrence } from './types.ts';
 
 function loadOccurrences(): Occurrence[] {
@@ -324,5 +324,27 @@ describe('ecotypesOf', () => {
   });
   test('a report that contradicts itself names both', () => {
     expect(ecotypesOf(orca('Orcinus orca ater', ['T65As'])).size).toBe(2);
+  });
+});
+
+describe("a segment's movement, as its card says it (salish-fwyt.5)", () => {
+  const at = (minutes: number, lon: number, lat: number, direction: Occurrence['direction'] = null) =>
+    ({observed_at_ms: Date.parse('2026-10-20T19:00:00Z') + minutes * 60_000, location: {lon, lat}, direction}) as Occurrence;
+
+  test('the path through its reports, how far the last is from the first, the hours between, the last direction given', () => {
+    // North 0.1 degrees (about 11.1 km), then back south 0.05 (about 5.6 km): a path of
+    // about 16.7 km, ending about 5.6 km north of the start, over two hours.
+    const m = segmentMovement([at(0, -123, 48.5, 'north'), at(60, -123, 48.6, 'north'), at(120, -123, 48.55)]);
+    expect(m.pathKm).toBeCloseTo(16.7, 1);
+    expect(m.netKm).toBeCloseTo(5.6, 1);
+    expect(m.hours).toBe(2);
+    expect(m.lastDirection).toBe('north');
+  });
+
+  test('a report placed nowhere adds no distance', () => {
+    const nowhere = {...at(30, 0, 0), location: {lon: null, lat: null}} as unknown as Occurrence;
+    const m = segmentMovement([at(0, -123, 48.5), nowhere, at(60, -123, 48.6)]);
+    expect(m.pathKm).toBeCloseTo(11.1, 1);
+    expect(m.lastDirection).toBeNull();
   });
 });

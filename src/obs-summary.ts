@@ -32,6 +32,26 @@ markedRenderer.link = ({ href, text }: { href: string; text: string }) =>
     ? `<a href="${href}">${text}</a>`
     : `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 
+/**
+ * A sighting's text as a card shows it: Maplify's provenance taken out once it has been
+ * read, partner and animal links put in, Markdown rendered and the result sanitized. A
+ * segment's card shows its latest report's text the same way (salish-fwyt.5).
+ */
+export function sightingText(body: string | null | undefined, providerSlug: string | null | undefined) {
+  return unsafeHTML(domPurify.sanitize(
+    marked.parse(
+      injectIndividualLinks(
+        injectPartnerLinks(stripResolvedProvenance((body || '').replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n'), providerSlug ?? null)),
+        catalogCodes() ?? new Map(),
+        matrilineCodes() ?? new Map(),
+        ecotypeCodes() ?? new Map()
+      ),
+      { async: false, renderer: markedRenderer }
+    ),
+    { ADD_ATTR: ['target', 'rel'] }
+  ));
+}
+
 @customElement('obs-summary')
 export class ObsSummary extends LitElement {
   @property({attribute: false})
@@ -380,20 +400,7 @@ export class ObsSummary extends LitElement {
           return html`<li class=${possibly ? 'possibly' : ''}>${href ? html`<a href=${href}>${text}</a>` : text}</li>`;
         })}</ul>` : nothing;
       })}
-      ${guard([body, this.catalogLoaded], () => html`${
-        unsafeHTML(domPurify.sanitize(
-          marked.parse(
-            injectIndividualLinks(
-              injectPartnerLinks(stripResolvedProvenance((body || '').replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n'), provider_slug)),
-              catalogCodes() ?? new Map(),
-              matrilineCodes() ?? new Map(),
-              ecotypeCodes() ?? new Map()
-            ),
-            { async: false, renderer: markedRenderer }
-          ),
-          { ADD_ATTR: ['target', 'rel'] }
-        ))
-      }`)}
+      ${guard([body, this.catalogLoaded], () => html`${sightingText(body, provider_slug)}`)}
       ${photos?.length ?
         html`<ul class="photos">${
           repeat(photos, photo => photo.src, ({attribution, src, thumb}) => html`

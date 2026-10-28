@@ -639,3 +639,38 @@ test('closing the subject by focusing a sighting leaves focus where the page put
     expect(focus).not.toHaveBeenCalled();
   });
 });
+
+test("a travel segment of three reports is one card in the day's list, opened at the report focused on the map (salish-fwyt.5)", async () => {
+  Element.prototype.scrollIntoView = () => {};
+  try {
+    // Joined into one track: the same species, an hour apart, at the same place.
+    const orca = (id: string, at: string) =>
+      ({...occurrenceFixture(id, at), taxon: {scientific_name: 'Orcinus orca', species_id: 41521}}) as unknown as Occurrence;
+    const el = await mountWithSightings(
+      orca('c', '2024-07-15T20:23:00Z'), orca('b', '2024-07-15T19:23:00Z'), orca('a', '2024-07-15T18:23:00Z'),
+      occurrenceFixture('lone', '2024-07-15T17:00:00Z'),
+    );
+    const cards = [...el.shadowRoot!.querySelectorAll('segment-summary')];
+    expect(cards).toHaveLength(1);
+    // The lone sighting keeps its own card; the three are inside the segment's, closed.
+    expect(summaryIds(el)).toEqual(['summary-lone']);
+    const inside = () => [...cards[0]!.shadowRoot!.querySelectorAll('obs-summary')].map(n => n.id);
+    expect(inside()).toEqual([]);
+
+    el.focusOccurrence(orca('b', '2024-07-15T19:23:00Z'));
+    await el.updateComplete;
+    await cards[0]!.updateComplete;
+    expect(inside()).toEqual(['summary-c', 'summary-b', 'summary-a']);
+    expect(cards[0]!.shadowRoot!.querySelector('obs-summary.focused')?.id).toBe('summary-b');
+  } finally {
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+  }
+});
+
+test('two reports stay two cards', async () => {
+  const orca = (id: string, at: string) =>
+    ({...occurrenceFixture(id, at), taxon: {scientific_name: 'Orcinus orca', species_id: 41521}}) as unknown as Occurrence;
+  const el = await mountWithSightings(orca('b', '2024-07-15T19:23:00Z'), orca('a', '2024-07-15T18:23:00Z'));
+  expect(el.shadowRoot!.querySelectorAll('segment-summary')).toHaveLength(0);
+  expect(summaryIds(el)).toEqual(['summary-b', 'summary-a']);
+});
