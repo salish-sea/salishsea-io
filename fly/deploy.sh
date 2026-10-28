@@ -85,27 +85,56 @@ switch() {
     # lets go by itself after HOLD seconds, and a deploy that fails before the machine is
     # replaced lets go at once. A build that runs for LOCK_WAIT seconds is likely stuck,
     # and fails the deploy rather than being killed by it.
-    HOLD=600 LOCK_WAIT=300
-    HOLDER="deploy-hold-$SHA-$$"   # names this deploy's hold alone, to release it
+    #
+    # `fly ssh` sometimes can't reach the machine at all ("tunnel unavailable … timed
+    # out", run 40753955923; Beeline met it too). That is tried again, ATTEMPTS times in
+    # all, with the local Fly agent restarted between, which is what cleared it for
+    # Beeline (salish-6x65). A lock that can't be had is not tried again: it means a
+    # build is stuck, and waiting longer won't free it.
+    HOLD=600 LOCK_WAIT=300 ATTEMPTS=3
+    HOLDER="deploy-hold-$SHA-$$"   # names this deploy's hold alone
+    # The hold's own pid, so it can be let go by that: the image has no pkill, and
+    # matching a command line would match the shell doing the matching too.
+    PIDFILE="/tmp/$HOLDER.pid"
+    UNREACHABLE='tunnel unavailable|Error contacting Fly.io API|context deadline exceeded'
     lock_log=$(mktemp)
-    flyctl ssh console -a "$APP" \
-        -C "flock -o -w $LOCK_WAIT /data/ingest.lock flock -o -w $LOCK_WAIT /data/build.lock timeout $HOLD sh -c 'echo held; sleep $HOLD' $HOLDER" \
-        > "$lock_log" 2>&1 &
-    hold_pid=$!
+    hold_pid=
+    held=
     deployed=
     release() {
-        kill "$hold_pid" 2>/dev/null || true
-        [ -n "$deployed" ] || flyctl ssh console -a "$APP" -C "pkill -f $HOLDER" > /dev/null 2>&1 || true
+        [ -z "$hold_pid" ] || kill "$hold_pid" 2>/dev/null || true
+        # Only a hold that was confirmed has anything to let go of; with the machine
+        # unreachable, another `fly ssh` would only put off the failure. A hold whose
+        # confirmation was lost on the way lets go by itself after HOLD seconds.
+        [ -z "$held" ] || [ -n "$deployed" ] || flyctl ssh console -a "$APP" -C "sh -c 'kill \$(cat $PIDFILE) 2>/dev/null; rm -f $PIDFILE'" > /dev/null 2>&1 || true
         rm -f "$lock_log"
     }
     trap release EXIT
-    until grep -q '^held' "$lock_log"; do
-        if ! kill -0 "$hold_pid" 2>/dev/null; then
-            cat "$lock_log" >&2
+    for attempt in $(seq "$ATTEMPTS"); do
+        : > "$lock_log"
+        flyctl ssh console -a "$APP" \
+            -C "flock -o -w $LOCK_WAIT /data/ingest.lock flock -o -w $LOCK_WAIT /data/build.lock timeout $HOLD sh -c 'echo \$\$ > $PIDFILE; echo held; sleep $HOLD' $HOLDER" \
+            > "$lock_log" 2>&1 &
+        hold_pid=$!
+        while ! grep -q '^held' "$lock_log" && kill -0 "$hold_pid" 2>/dev/null; do
+            sleep 2
+        done
+        if grep -q '^held' "$lock_log"; then
+            held=1
+            break
+        fi
+        cat "$lock_log" >&2
+        if ! grep -qE "$UNREACHABLE" "$lock_log"; then
             echo "couldn't take the machine's locks within ${LOCK_WAIT}s each; is a build stuck? The image is pushed: rerun fly/deploy.sh switch" >&2
             exit 1
         fi
-        sleep 2
+        if [ "$attempt" -eq "$ATTEMPTS" ]; then
+            echo "couldn't reach the machine through fly ssh in $ATTEMPTS tries. The image is pushed: rerun fly/deploy.sh switch" >&2
+            exit 1
+        fi
+        echo "couldn't reach the machine through fly ssh (try $attempt of $ATTEMPTS); restarting the Fly agent and trying again in $((attempt * 15))s" >&2
+        flyctl agent restart > /dev/null 2>&1 || true
+        sleep $((attempt * 15))
     done
 
     flyctl deploy --ha=false --image "$IMAGE"

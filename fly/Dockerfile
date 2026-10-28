@@ -51,9 +51,10 @@ RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN \
 FROM debian:bookworm-slim
 # libssl3 is what the Stelis trees ask of this base: the engine's sha package opens
 # libcrypto through Racket's FFI (Stelis ADR 0017). The CA store pulls it in anyway;
-# naming it keeps that from being an accident.
+# naming it keeps that from being an accident. procps gives an operator ps and pgrep on
+# the machine, which a slim base lacks (salish-6x65); fly/deploy.sh doesn't rely on it.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl libssl3 unzip util-linux \
+ && apt-get install -y --no-install-recommends ca-certificates curl libssl3 procps unzip util-linux \
  && rm -rf /var/lib/apt/lists/*
 
 # node, the same version the site was built with; the read-path scripts run on it.
