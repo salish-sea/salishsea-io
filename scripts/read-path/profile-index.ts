@@ -122,7 +122,7 @@ export function buildCatalogCodes(t: IndexTables): CatalogCodeRows {
                 return {code: d['code'], individual: i ? {entity_id: i['entity_id'], primary_designation: i['primary_designation']} : null};
             }),
         groups: [...t.social_groups]
-            .filter(g => g['kind'] === 'matriline' || isPopulation({kind: g['kind']}))
+            .filter(g => g['kind'] === 'matriline' || g['kind'] === 'pod' || isPopulation({kind: g['kind']}))
             .sort((a, b) => (a['entity_id'] ? 1 : 0) - (b['entity_id'] ? 1 : 0) || b['id'] - a['id'])
             .map(g => ({kind: g['kind'], designation: g['designation'], entity_id: g['entity_id']})),
     };

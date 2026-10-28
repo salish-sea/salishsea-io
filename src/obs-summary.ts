@@ -16,7 +16,7 @@ import { deleteSighting } from './write-api.ts';
 import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
-import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, populationCodes } from './individual-links.ts';
+import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, podCodes, populationCodes } from './individual-links.ts';
 import { interceptableAnchor, subjectFromHref, type Subject } from './subject.ts';
 import { linkStyles } from './icons.ts';
 
@@ -374,7 +374,7 @@ export class ObsSummary extends LitElement {
         ${this.menuOpen ? this.renderMenu(editable) : nothing}
       </header>
       ${guard([identifiers, this.catalogLoaded], () => {
-        const animals = namedAnimals(identifiers, catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map());
+        const animals = namedAnimals(identifiers, catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map());
         return animals.length ? html`<ul class="animals">${animals.map(({label, href, possibly}) => {
           const text = possibly ? `${label} (possibly)` : label;
           return html`<li class=${possibly ? 'possibly' : ''}>${href ? html`<a href=${href}>${text}</a>` : text}</li>`;

@@ -1,4 +1,4 @@
-import { isPopulation, populationPath, individualPath, matrilinePath } from './catalog.ts';
+import { isPopulation, populationPath, individualPath, matrilinePath, podLabel, podPath } from './catalog.ts';
 import { fold } from './fold.ts';
 import { READ_PATH_BASE } from './read-path.ts';
 
@@ -93,18 +93,18 @@ export interface NamedAnimal {
  * the build reads from a report's text (T65A5, T34As), and the register's labels an
  * Orcasound bout is tagged with (J35, J pod, Bigg's), where a tag only possibly heard
  * ends in '?' (decision 054). Each is looked up by the register's fold with the '?'
- * set aside and reported as `possibly`, and links to its page: an individual, a matriline, or
- * a population by its name. Names for one animal are one chip, under the first name
- * written: T46A and T122 are the same individual, and a tag given both as heard and
- * as possibly heard counts as heard. A name the catalogue doesn't know stays,
- * unlinked: it is still what was written. Pods aren't in the catalogue file yet, so a pod stays
- * unlinked too (salish-fwyt.3).
+ * set aside and reported as `possibly`, and links to its page: an individual, a matriline, a
+ * population by its name, or a pod by its label ("J pod", salish-fwyt.3). Names for one
+ * animal are one chip, under the first name written: T46A and T122 are the same
+ * individual, and a tag given both as heard and as possibly heard counts as heard. A
+ * name the catalogue doesn't know stays, unlinked: it is still what was written.
  */
 export function namedAnimals(
   identifiers: readonly string[] | null,
   codes: Map<string, IndividualRef>,
   matrilines: Map<string, GroupRef> = new Map(),
   populations: Map<string, GroupRef> = new Map(),
+  pods: Map<string, GroupRef> = new Map(),
 ): NamedAnimal[] {
   const byKey = new Map<string, NamedAnimal>();
   for (const identifier of identifiers ?? []) {
@@ -114,9 +114,11 @@ export function namedAnimals(
     const matriline = matrilines.get(folded);
     const individual = codes.get(folded);
     const population = populations.get(folded);
+    const pod = pods.get(folded);
     const href = matriline ? matrilinePath(matriline)
       : individual ? individualPath(individual)
       : population ? populationPath(population)
+      : pod ? podPath(pod)
       : null;
     const key = href ?? folded;
     const already = byKey.get(key);
@@ -130,12 +132,13 @@ let codeMap: Map<string, IndividualRef> | null = null;
 let matrilineMap: Map<string, GroupRef> | null = null;
 let ecotypeMap: Map<string, GroupRef> | null = null;
 let populationMap: Map<string, GroupRef> | null = null;
+let podMap: Map<string, GroupRef> | null = null;
 let loading: Promise<Map<string, IndividualRef>> | null = null;
 
 /**
  * The rows the lookup is built from, in the shape the Supabase query returns and the
  * read-path build writes to `catalog-codes.json` (decision 057): every designation an
- * individual has carried, and the matriline and ecotype designations.
+ * individual has carried, and the matriline, population and pod designations.
  */
 export interface CatalogCodeRows {
   designations: { code: string; individual: IndividualRef | null }[];
@@ -148,6 +151,7 @@ export function setCatalogCodes({ designations, groups }: CatalogCodeRows): Map<
   matrilineMap = new Map(groups.filter(g => g.kind === 'matriline').map(g => [fold(`${g.designation}s`), g]));
   ecotypeMap = new Map(groups.filter(g => g.kind === 'ecotype').map(g => [g.designation, g]));
   populationMap = new Map(groups.filter(isPopulation).map(g => [fold(g.designation), g]));
+  podMap = new Map(groups.filter(g => g.kind === 'pod').map(g => [fold(podLabel(g)), g]));
   return codeMap;
 }
 
@@ -189,4 +193,9 @@ export function ecotypeCodes(): Map<string, GroupRef> | null {
 /** The populations a bout's tags can name, ecotypes and communities, keyed by their folded designation. */
 export function populationCodes(): Map<string, GroupRef> | null {
   return populationMap;
+}
+
+/** The Southern Resident pods, keyed by their folded label as a bout's tags give it ("j pod"). */
+export function podCodes(): Map<string, GroupRef> | null {
+  return podMap;
 }
