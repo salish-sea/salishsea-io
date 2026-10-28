@@ -460,7 +460,9 @@ export function summarizeSpan(list: readonly Encounter[], {placeOf, ownPaths, co
     named.push({name, at: e.location});
   }
   let farthest: SpanSummary['farthest'] = null;
+  // Between two places: "From Haro Strait to Haro Strait" says nothing.
   for (let i = 0; i < named.length; i++) for (let j = i + 1; j < named.length; j++) {
+    if (named[i]!.name === named[j]!.name) continue;
     const d = distance([named[i]!.at.lon, named[i]!.at.lat], [named[j]!.at.lon, named[j]!.at.lat], {units: 'kilometers'});
     if (!farthest || d > farthest.km) farthest = {from: named[i]!.name, to: named[j]!.name, km: d};
   }

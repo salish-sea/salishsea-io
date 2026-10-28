@@ -50,6 +50,11 @@ describe("a span's summary", () => {
     expect(s.farthest!.km).toBeGreaterThan(80);
   });
 
+  test('names no range within one place, however far apart its encounters were', () => {
+    const one = summarizeSpan(list, {placeOf: () => 'Puget Sound', ownPaths: OWN, codes: [...codes]});
+    expect(one.farthest).toBeNull();
+  });
+
   test("counts the encounters naming each other animal, leaving out the subject, its groups and its population", () => {
     expect(s.others.map(({label, encounters, possibly}) => [label, encounters, possibly])).toEqual([
       ['T137s', 2, false], ['T37', 1, false],
