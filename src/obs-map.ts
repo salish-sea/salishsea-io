@@ -377,6 +377,9 @@ user-location-control.inactive svg { color: var(--color-text); }
     const [top] = this.#map!.queryRenderedFeatures(around(evt.point, 2), {
       layers: [...SUBJECT_LAYERS, ...OCCURRENCE_LAYERS, ...CLICKABLE_REFERENCE_LAYERS],
     });
+    // A phone has no pointer to hover with: a tap on open water names its region, and a tap
+    // on anything else clears the name.
+    this.regionName = top ? null : this.#regionAt(evt.point);
     // One of an open subject's sightings: to its day, selected, which closes the subject.
     if (top && SUBJECT_LAYERS.includes(top.layer.id)) {
       const detail = {date: top.properties['date'], occurrenceId: top.properties['id']};
@@ -397,8 +400,6 @@ user-location-control.inactive svg { color: var(--color-text); }
       this.#select(null);
       this.dispatchEvent(new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: null}));
     }
-    // A phone has no pointer to hover with: a tap on open water names its region.
-    if (!top) this.regionName = this.#regionAt(evt.point);
     const kind = top?.properties['kind'];
     if (kind === 'Hydrophone' || kind === 'SalmonCountingSite')
       window.open(top!.properties['url'], '_blank');
