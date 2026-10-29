@@ -13,7 +13,7 @@
  * and `l=` with nothing after it means every layer off.
  */
 
-export type ReferenceLayer = 'viewpoints' | 'hydrophones' | 'salmon' | 'haulouts';
+export type ReferenceLayer = 'viewpoints' | 'hydrophones' | 'salmon' | 'haulouts' | 'regions';
 
 export const REFERENCE_LAYERS: readonly {id: ReferenceLayer, label: string, visibleByDefault: boolean}[] = [
   {id: 'viewpoints', label: 'Viewing locations', visibleByDefault: true},
@@ -22,6 +22,10 @@ export const REFERENCE_LAYERS: readonly {id: ReferenceLayer, label: string, visi
   // Off by default: 362 sites along every shoreline would bury the sightings,
   // and the question they answer ("is this a known haul-out?") is occasional.
   {id: 'haulouts', label: 'Haul-out sites', visibleByDefault: false},
+  // The basemap's water regions, one per water name it labels (its decision 027), off by
+  // default: shown to review the names a sighting will be given (salish-fwyt.2). Offered only
+  // by a basemap version that has them.
+  {id: 'regions', label: 'Water regions', visibleByDefault: false},
 ];
 
 export const LAYERS_PARAM = 'l';

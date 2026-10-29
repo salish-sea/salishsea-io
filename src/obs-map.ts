@@ -20,7 +20,7 @@ import { compactMap } from './utils.ts';
 import type { Extent } from './constants.ts';
 import UserLocationControl from './user-location-control.ts';
 import LayerControl from './layer-control.ts';
-import { DEFAULT_LAYERS, type ReferenceLayer } from './reference-layers.ts';
+import { DEFAULT_LAYERS, REFERENCE_LAYERS, type ReferenceLayer } from './reference-layers.ts';
 import { hauloutPath, observedDate, type HauloutSite } from './catalog.ts';
 import { formatDate } from './date-format.ts';
 import { fetchStaticHauloutSites } from './read-path.ts';
@@ -263,6 +263,10 @@ user-location-control.inactive svg { color: var(--color-text); }
         if (map === this.#map) console.error('Failed to load map icons:', err);
       });
       this.#drawAll(map);
+      // The menu offers a layer only when the style has it: the water regions come with a
+      // basemap version that has them.
+      this.layerControl.available = new Set(REFERENCE_LAYERS.map(l => l.id)
+        .filter(id => REFERENCE_LAYER_IDS[id].some(layer => map.getLayer(layer))));
       this.drafts.attach(map);
       // OpenLayers announced the first view as a move, which is what first
       // writes a position into the URL; keep that.
@@ -508,7 +512,9 @@ user-location-control.inactive svg { color: var(--color-text); }
     if (!this.#loaded) return;
     for (const [layer, ids] of Object.entries(REFERENCE_LAYER_IDS))
       for (const id of ids)
-        this.#map!.setLayoutProperty(id, 'visibility', this.visibleLayers.has(layer as ReferenceLayer) ? 'visible' : 'none');
+        // A basemap layer is there only in a version that has it, such as the water regions.
+        if (this.#map!.getLayer(id))
+          this.#map!.setLayoutProperty(id, 'visibility', this.visibleLayers.has(layer as ReferenceLayer) ? 'visible' : 'none');
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {

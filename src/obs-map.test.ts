@@ -35,6 +35,7 @@ const {FakeMap, maps} = vi.hoisted(() => {
     }
     addControl() {}
     addImage() {}
+    getLayer() { return {}; }
     setLayoutProperty() {}
     setFeatureState() {}
     getCenter() { return {lng: -123, lat: 48.5}; }
