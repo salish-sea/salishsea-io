@@ -151,8 +151,10 @@ export class SubjectTimeline extends LitElement {
       border-top: 1px solid var(--color-border);
     }
     details.encounter > summary {
+      align-items: center;
       color: inherit;
-      display: block;
+      display: flex;
+      gap: 0.5rem;
       line-height: 1.5;
       list-style: none;
       min-height: 44px;
@@ -165,25 +167,43 @@ export class SubjectTimeline extends LitElement {
       background: var(--color-surface-subtle);
       color: inherit;
     }
-    .when {
-      display: flex;
-      justify-content: space-between;
+    .text {
+      flex: 1;
     }
-    .when b {
+    .text b {
       font-weight: 400;
     }
-    details.encounter[open] .when b {
+    details.encounter[open] .text b {
       color: var(--color-primary);
-    }
-    time {
-      color: var(--color-text-muted);
-      font-family: var(--font-mono);
-      font-size: var(--fs-mono);
-      white-space: nowrap;
     }
     .what {
       color: var(--color-text-secondary);
       display: block;
+    }
+    .photo {
+      flex: none;
+      position: relative;
+    }
+    .photo img {
+      border-radius: 4px;
+      display: block;
+      height: 40px;
+      max-width: 64px;
+      object-fit: cover;
+    }
+    /* How many photos, over the first one's corner. */
+    .photo .count {
+      /* Solid, not a scrim: white over a pale photo through 40% black fails contrast. */
+      background: var(--color-chrome);
+      border-radius: 999px;
+      bottom: 2px;
+      color: var(--color-surface);
+      font-size: var(--fs-caption);
+      font-weight: 400;
+      line-height: 16px;
+      padding: 0 4px;
+      position: absolute;
+      right: 2px;
     }
     encounter-card {
       margin: 0.25rem 0 0.5rem;
@@ -312,13 +332,16 @@ export class SubjectTimeline extends LitElement {
       where,
       `${plural(e.reports, 'report')}${naming}`,
       others ? `with ${plural(others, 'other')}` : null,
-      e.photos.length ? plural(e.photos.length, 'photo') : null,
     ].filter(Boolean);
+    // Its first photo, where the time of day was: which encounters have photos matters more
+    // when scanning a month than when in the day they were seen (Peter, 2026-10-28).
+    const photo = e.photos[0];
     return html`
       <details class="encounter" @toggle=${this.onToggle}>
         <summary>
-          <span class="when"><b>${shortDay(e.day)}</b><time>${clock(e.start)}–${clock(e.end)}</time></span>
-          <span class="what">${parts.join(' · ')}</span>
+          <span class="text"><b>${shortDay(e.day)}</b><span class="what">${parts.join(' · ')}</span></span>
+          ${photo ? html`<span class="photo"><img alt=${plural(e.photos.length, 'photo')} height="40" loading="lazy" src=${photo.thumb || photo.src}>${
+            e.photos.length > 1 ? html`<span class="count">${e.photos.length}</span>` : nothing}</span>` : nothing}
         </summary>
         <encounter-card .encounter=${e} lazy></encounter-card>
       </details>
@@ -562,10 +585,6 @@ const monthName = (month: string) => formatDate(Temporal.PlainDate.from(`${month
 const shortDay = (day: string) => formatDate(Temporal.PlainDate.from(day), {weekday: 'short', month: 'short', day: 'numeric'});
 
 const daysBetween = (from: string, to: string) => Temporal.PlainDate.from(from).until(to).days;
-
-/** A report's time on the Pacific clock the day's list keeps. */
-const clock = (at: string) => Temporal.Instant.from(at).toZonedDateTimeISO('America/Los_Angeles').toPlainTime()
-  .toString({smallestUnit: 'minute', roundingMode: 'halfCeil'});
 
 /** "No reports in July to August 2026", between a newer month and an older one with reports. */
 export function gapLine(newer: string, older: string) {

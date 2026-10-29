@@ -121,6 +121,21 @@ describe('the timeline', () => {
     expect(titles(root)).toEqual(['October 2026', 'July 2026', 'January 2026', '2025', '2023']);
   });
 
+  test("shows an encounter's first photo on its line, with how many when there are more, and no time of day", async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', {status: 500})));
+    const timeline = document.createElement('subject-timeline') as SubjectTimeline;
+    const photo = (n: number) => ({src: `https://example.org/${n}.jpg`, thumb: null, attribution: null, href: 'https://example.org/'});
+    timeline.encounters = [encounter('2026-10-25', {photos: [photo(1), photo(2), photo(3)]}), encounter('2026-10-24')];
+    timeline.now = Date.parse('2026-10-28T12:00:00Z');
+    document.body.appendChild(timeline);
+    await timeline.updateComplete;
+    const [withPhotos, without] = [...timeline.shadowRoot!.querySelectorAll('details.encounter > summary')];
+    expect(withPhotos!.querySelector('img')?.getAttribute('src')).toBe('https://example.org/1.jpg');
+    expect(withPhotos!.querySelector('.count')?.textContent).toBe('3');
+    expect(without!.querySelector('.photo')).toBeNull();
+    expect(withPhotos!.querySelector('time')).toBeNull();
+  });
+
   test("opens an encounter's line to its card", async () => {
     const root = await mount('year');
     const line = root.querySelector<HTMLDetailsElement>('details.encounter')!;
