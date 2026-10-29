@@ -111,7 +111,8 @@ describe('baseStyle', () => {
   // The search finds the places the version labels; scripts/update-basemap.ts writes their lists' URLs.
   it('has the search read the place lists of the same version', () => {
     const named = (basemapStyle.metadata as Record<string, unknown>)['salishsea:places'] as Record<string, string>;
-    expect(Object.keys(named).sort()).toEqual(['gazetteers', 'osm']);
-    expect(PLACE_LISTS).toEqual(Object.values(named));
+    // The version also names its water regions' list there, which isn't for search.
+    expect(Object.keys(named).sort()).toEqual(['gazetteers', 'osm', 'regions']);
+    expect(PLACE_LISTS).toEqual([named['gazetteers'], named['osm']]);
   });
 });

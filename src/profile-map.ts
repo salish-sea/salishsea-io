@@ -34,7 +34,7 @@ export const TILE = 256;
  * its metadata; scripts/update-basemap.ts rewrites this line, and src/style.test.ts checks
  * that the two agree.
  */
-export const IMAGE_TILES = 'https://tiles.salishsea.io/images/793227eae743c28b/{z}/{x}/{y}.webp';
+export const IMAGE_TILES = 'https://tiles.salishsea.io/images/847eeee11300d439/{z}/{x}/{y}.webp';
 /**
  * What the basemap's sources ask to be credited with, wherever its tiles appear. OpenStreetMap's
  * licence asks that its name link to its copyright page, which says the data is under the ODbL.
