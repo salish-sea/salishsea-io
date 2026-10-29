@@ -142,12 +142,13 @@ export class ObsMap extends LitElement {
   box-shadow: var(--shadow-float);
   font-size: var(--fs-body2);
   font-weight: 400;
+  /* Bottom left: the zoom and location buttons hold the top left, the attribution the bottom right. */
+  bottom: 0.5rem;
   left: 0.5rem;
   max-width: calc(100% - 4rem);
   padding: 0.25rem 0.5rem;
   pointer-events: none;
   position: absolute;
-  top: 0.5rem;
   z-index: 2;
 }
 #map {
