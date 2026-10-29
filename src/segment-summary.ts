@@ -6,6 +6,7 @@ import { Temporal } from 'temporal-polyfill';
 import { linkStyles } from './icons.ts';
 import { catalogCodes, loadCatalogCodes, matrilineCodes, podCodes, pooledAnimals, populationCodes } from './individual-links.ts';
 import { isUnconfirmed } from './occurrence.ts';
+import { channelOf } from './encounter.ts';
 import { segmentMovement, type SegmentMovement } from './segments.ts';
 import { displayNameFor, GROUPS, taxonGroup } from './symbology.ts';
 import type { Occurrence } from './types.ts';
@@ -275,11 +276,7 @@ export function movementLine({pathKm, netKm, hours, lastDirection}: SegmentMovem
 /** "21 reports · via Orca Network ×19 · Orcasound · SalishSea.io", busiest channel first. */
 export function sourcesLine(reports: readonly Occurrence[]): string {
   const channels = new Map<string, number>();
-  for (const r of reports) {
-    // Our own sightings are "SalishSea.io", as a card says of them, not "SalishSea.io Direct".
-    const channel = r.provider_slug === 'direct' ? 'SalishSea.io' : r.collection || r.provider || 'another source';
-    channels.set(channel, (channels.get(channel) ?? 0) + 1);
-  }
+  for (const r of reports) channels.set(channelOf(r), (channels.get(channelOf(r)) ?? 0) + 1);
   const via = [...channels].sort((a, b) => b[1] - a[1]).map(([c, n]) => n > 1 ? `${c} ×${n}` : c).join(' · ');
   return `${reports.length} reports · via ${via}`;
 }

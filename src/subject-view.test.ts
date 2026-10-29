@@ -153,11 +153,10 @@ describe("the sightings the map draws while a subject is open (decision 096)", (
     expect(mapSightings(links, 'year', now).map(s => s.occurrence_id)).toEqual(['recent', 'eleven-months']);
   });
 
-  it('reach back twelve calendar months, past a leap day', () => {
-    // Noon on 1 March 2028, Pacific: 365 days back is 2 March 2027, a day short.
-    const leapNow = Date.parse('2028-03-01T20:00:00Z');
-    const year = mapSightings([link('a year ago today', '2027-03-01T20:00:00Z'), link('a day more', '2027-02-28T20:00:00Z')], 'year', leapNow);
-    expect(year.map(s => s.occurrence_id)).toEqual(['a year ago today']);
+  it('reach back to the first of the month eleven months before, on the Pacific clock', () => {
+    // 28 October 2026: the past 12 months begin at Pacific midnight on 1 November 2025.
+    const year = mapSightings([link('first of November', '2025-11-01T07:00:00Z'), link('the night before', '2025-11-01T06:59:00Z')], 'year', now);
+    expect(year.map(s => s.occurrence_id)).toEqual(['first of November']);
   });
 
   it('are every such report, all time', () => {

@@ -45,6 +45,8 @@ export async function replaceDir(
         // Written as they arrive, so a caller can produce them one at a time
         // rather than hold every file in memory at once.
         for await (const [name, contents] of files) {
+            // A name may hold a directory, as encounters/'s individuals/<id>.json does.
+            if (path.dirname(name) !== '.') await mkdir(path.join(staging, path.dirname(name)), {recursive: true});
             await writeFile(path.join(staging, name), contents);
         }
         const hadPrevious = await rename(outDir, previous).then(() => true, (err: NodeJS.ErrnoException) => {

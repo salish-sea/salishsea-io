@@ -1,6 +1,7 @@
 import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { individualPath, matrilinePath, type OccurrenceLink } from './catalog.ts';
+import { groupChain, individualPath, matrilinePath, type CatalogGroup, type OccurrenceLink } from './catalog.ts';
+import type { Encounter } from './encounter.ts';
 import { matrilineTitle } from './matriline-profile.ts';
 import { individualStyles, individualTitle, renderIndividualProfile, renderIndividualSightings, type IndividualProfileData } from './individual-profile.ts';
 import { renderMatrilineProfile, renderMatrilineSightings, type MatrilineProfileData } from './matriline-profile.ts';
@@ -10,17 +11,21 @@ import { Temporal } from 'temporal-polyfill';
 import type { Occurrence } from './types.ts';
 import type { SubjectSighting } from './obs-map.ts';
 import './obs-summary.ts';
+import { scopeStart, type Scope } from './subject-timeline.ts';
 import {
-  decodeSubjectData, interceptableAnchor, occurrenceFromHref, sameSubject, subjectDataPath, subjectFromHref, subjectLinksPath,
+  decodeSubjectData, interceptableAnchor, occurrenceFromHref, sameSubject, subjectDataPath, subjectEncountersPath, subjectFromHref, subjectLinksPath,
   type OccurrenceTarget, type Subject,
 } from './subject.ts';
 
 export type { OccurrenceTarget } from './subject.ts';
 
-/** A subject's page data and sighting links, once both have arrived. */
-type Loaded =
-  | {kind: 'individuals', subject: Subject, data: IndividualProfileData, links: OccurrenceLink[], currentYear?: number}
-  | {kind: 'matrilines', subject: Subject, data: MatrilineProfileData, links: OccurrenceLink[], currentYear?: number};
+/**
+ * A subject's page data, sighting links and encounters, once they have arrived. Without its
+ * encounters (a build before decision 098's wrote none), it shows the page's presence table.
+ */
+type Loaded = {subject: Subject, links: OccurrenceLink[], encounters: Encounter[] | null, currentYear?: number} & (
+  | {kind: 'individuals', data: IndividualProfileData}
+  | {kind: 'matrilines', data: MatrilineProfileData});
 
 /**
  * The map page's sidebar showing one subject, an animal or a matriline, in place of the
@@ -28,14 +33,16 @@ type Loaded =
  * renders the subject's own page from, and draws it with the page's own templates, so the
  * two can't drift apart; the page's small map is left out, since the big one is beside it.
  *
- * Its Sightings section starts with "Last reported" and that sighting's full card, as on
- * the map, then the table (Peter, 2026-10-27). A link to another animal or matriline opens
+ * Its Sightings section starts with "Last reported", then the subject's timeline: its latest
+ * encounter's card and a card per month (decision 098, src/subject-timeline.ts), in place
+ * of the page's table of reports by month. A link to another animal or matriline opens
  * it here; "Last reported", or the card's dot, moves the map to that day and selects the
  * sighting, which closes the subject. Any other link, and any
  * link opened in a new tab or window, behaves as a link does.
  *
  * While it is open the map shows its sightings in place of the day's, the past 12 months'
- * or all of them, by a switch in the calendar's place (decision 096).
+ * or all of them, by a switch in the calendar's place (decision 096), which filters the
+ * timeline as well (decision 098).
  *
  * Events, all bubbling out of the shadow root: `close-subject` from its Back button,
  * `open-subject` with a {@link Subject}, `go-to-occurrence` with an {@link OccurrenceTarget},
@@ -193,7 +200,7 @@ export class SubjectView extends LitElement {
   };
 
   /** Which of the subject's sightings the map draws (decision 096): the past 12 months' by default. */
-  @state() private scope: 'year' | 'all' = 'year';
+  @state() private scope: Scope = 'year';
 
   /** The subject last shown, so that hiding the view and showing it again keeps what it had loaded. */
   #shown: Subject | null = null;
@@ -243,9 +250,10 @@ export class SubjectView extends LitElement {
 
   private async load(subject: Subject): Promise<void> {
     try {
-      const [dataResponse, linksResponse, manifest] = await Promise.all([
+      const [dataResponse, linksResponse, encountersResponse, manifest] = await Promise.all([
         fetch(`${READ_PATH_BASE}${subjectDataPath(subject)}`),
         fetch(`${READ_PATH_BASE}${subjectLinksPath(subject)}`),
+        fetch(`${READ_PATH_BASE}${subjectEncountersPath(subject)}`).catch(() => null),
         // The presence table ends on the build's year, as the page's does, not the browser's.
         fetchManifest().catch(() => null),
       ]);
@@ -253,11 +261,13 @@ export class SubjectView extends LitElement {
       const data = decodeSubjectData<IndividualProfileData & MatrilineProfileData>(await dataResponse.text());
       // A subject without its links still shows, as one with no sightings yet.
       const links: OccurrenceLink[] = linksResponse.ok ? await linksResponse.json() : [];
+      const encounters: Encounter[] | null = encountersResponse?.ok ? await encountersResponse.json().catch(() => null) : null;
       // Only if this is still the subject asked for: a quick second click can overtake the first.
       if (!sameSubject(subject, this.#requested)) return;
       const currentYear = manifest ? Number(manifest.covered_through.slice(0, 4)) : undefined;
-      this.loaded = {kind: subject.kind, subject, data, links, currentYear} as Loaded;
-      void this.loadLatest(subject, links);
+      this.loaded = {kind: subject.kind, subject, data, links, encounters, currentYear} as Loaded;
+      // The timeline's first card is the latest encounter's; without one, the latest report's.
+      if (!encounters) void this.loadLatest(subject, links);
     } catch {
       if (sameSubject(subject, this.#requested)) this.failed = true;
     }
@@ -300,9 +310,11 @@ export class SubjectView extends LitElement {
     if (this.failed)
       return html`<p class="status">Couldn't load this ${this.subject!.kind === 'individuals' ? 'animal' : 'matriline'}. <a class="full-page-link" href=${`/${this.subject!.kind}/${this.subject!.id}`}>Open its page</a> instead.</p>`;
     if (!loaded) return html`<p class="status">Loading…</p>`;
-    const latestCard = this.latest === undefined ? html`<p class="status">Loading the sighting…</p>`
-      : this.latest ? html`<obs-summary .sighting=${this.latest}></obs-summary>` : nothing;
-    const options = {map: false, latestCard, currentYear: loaded.currentYear};
+    const options = loaded.encounters
+      ? {map: false, table: false, latestCard: this.renderTimeline(loaded, loaded.encounters), currentYear: loaded.currentYear}
+      : {map: false, currentYear: loaded.currentYear, latestCard: this.latest === undefined
+        ? html`<p class="status">Loading the sighting…</p>`
+        : this.latest ? html`<obs-summary .sighting=${this.latest}></obs-summary>` : nothing};
     const body = loaded.kind === 'individuals'
       ? renderIndividualProfile(loaded.data, renderIndividualSightings(loaded.data.profile.primary_designation, loaded.links, options))
       : renderMatrilineProfile(loaded.data, renderMatrilineSightings(loaded.data.group.designation, loaded.links, options));
@@ -310,6 +322,18 @@ export class SubjectView extends LitElement {
       ${body}
       <a class="full-page" href=${this.pagePath()!}>Open the full page →</a>
     `;
+  }
+
+  private renderTimeline(loaded: Loaded, encounters: Encounter[]) {
+    // The chips of the subject and of the groups it is in aren't "who else".
+    const chain = (groupId: number | null, groups: Map<number, CatalogGroup>) => groupId === null ? []
+      : groupChain(groupId, groups).filter(g => g.kind === 'matriline').map(matrilinePath);
+    const [designation, ownPaths] = loaded.kind === 'individuals'
+      ? [loaded.data.profile.primary_designation,
+        [individualPath(loaded.data.profile), ...chain(loaded.data.matriline?.id ?? null, loaded.data.groups)]]
+      : [`${loaded.data.group.designation}s`, [matrilinePath(loaded.data.group), ...chain(loaded.data.group.id, loaded.data.groups)]];
+    return html`<subject-timeline .encounters=${encounters} .scope=${this.scope} designation=${designation}
+      .ownPaths=${ownPaths}></subject-timeline>`;
   }
 
   private onBack = () => {
@@ -341,13 +365,12 @@ export class SubjectView extends LitElement {
 
 /**
  * The sightings the map draws for a subject: the reports that place it somewhere, as
- * present, within the switch's span of `now` (decision 096). The past 12 months are
- * calendar months on the Pacific clock the map's days keep, not 365 days, which a leap
- * day would shorten.
+ * present, within the switch's span of `now` (decision 096). The past 12 months are this
+ * month and the eleven before it, whole, on the Pacific clock the map's days keep, as the
+ * timeline lists them (decision 098).
  */
-export function mapSightings(links: readonly OccurrenceLink[], scope: 'year' | 'all', now: number): SubjectSighting[] {
-  const since = Temporal.Instant.fromEpochMilliseconds(now).toZonedDateTimeISO('America/Los_Angeles')
-    .subtract({months: 12}).epochMilliseconds;
+export function mapSightings(links: readonly OccurrenceLink[], scope: Scope, now: number): SubjectSighting[] {
+  const since = Temporal.PlainDate.from(scopeStart(now)).toZonedDateTime('America/Los_Angeles').epochMilliseconds;
   return links.flatMap(({occurrence_id, observed_at, location, is_present}) =>
     is_present && location && (scope === 'all' || Date.parse(observed_at) >= since)
       ? [{occurrence_id, observed_at, lon: location.lon, lat: location.lat}]

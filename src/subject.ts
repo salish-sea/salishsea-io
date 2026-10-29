@@ -117,6 +117,11 @@ export function subjectLinksPath({kind, id}: Subject): string {
   return `profiles/${kind}/${id}.links.json`;
 }
 
+/** Its encounters, as the build writes them for its timeline (decision 098). */
+export function subjectEncountersPath({kind, id}: Subject): string {
+  return `encounters/${kind}/${id}.json`;
+}
+
 /**
  * A page's data as JSON. The pages' data holds `Map`s (a profile's groups by id), which
  * JSON has no form for, so a map is written as `{"$map": [[key, value], …]}` and read

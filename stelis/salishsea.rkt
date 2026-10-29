@@ -43,6 +43,7 @@
 ;;       │                              pod-pages ───────▶ profiles/pods/
 ;;       │                              haulout-pages ───▶ profiles/haulouts/
 ;;       │                              whales-page ─────▶ whales.html
+;;       │                              encounters ──────▶ encounters/
 ;;       │                              profile-index ───▶ redirects.json,
 ;;       │                                                  sitemap.xml,
 ;;       │                                                  catalog-codes.json,
@@ -410,6 +411,10 @@
    (make-artifact 'ecotype-pages 'dir)
    (make-artifact 'pod-pages 'dir)
    (make-artifact 'haulout-pages 'dir)
+   ;; Each animal's and matriline's encounters, the day's travel segments that hold a
+   ;; report of it, summarized for its timeline in the sidebar (salishsea decision 098):
+   ;; encounters/individuals/ and encounters/matrilines/.
+   (make-artifact 'encounters 'dir)
    ;; Where the profiles live, for what finds them rather than renders them
    ;; (salishsea decision 057, step 5): each designation, folded, to its page —
    ;; the redirect server on Fly answers legacy /individuals/T65A links from it —
@@ -578,6 +583,17 @@
                                    ;; which names the search field's island, the page's one script
                                    "dist/.vite/manifest.json")
                                  (list SNAPSHOT-DB (path->string (in-checkout "dist")))))
+   ;; A subject's encounters (salishsea decision 098): every report of each day a subject
+   ;; was reported on, joined into segments as the map joins a day's file, so it reruns
+   ;; whenever the occurrences change, as the whales page does. Not a manifest input: a
+   ;; failure leaves the timelines a build behind and must not hold the map's files back.
+   (make-task 'encounters 'transform
+              #:inputs (append (map snapshot-relation '("individuals" "social_groups"))
+                               '(build.occurrences build.individual_occurrences build.group_occurrences))
+              #:outputs '(encounters)
+              #:invoke (node-script/code "scripts/read-path/encounters.ts"
+                                 '()
+                                 (list SNAPSHOT-DB)))
    ;; The search field's index (salishsea GH #640). Its own task, not the profile
    ;; index's: it carries each animal's newest report, so it moves with every build
    ;; that brings one, while the profile index cuts off when the catalogue holds still.
@@ -828,6 +844,7 @@
     [(ecotype-pages) (build-path export-dir "profiles" "populations")]
     [(pod-pages) (build-path export-dir "profiles" "pods")]
     [(haulout-pages) (build-path export-dir "profiles" "haulouts")]
+    [(encounters) (build-path export-dir "encounters")]
     [(redirects.json) (build-path export-dir "redirects.json")]
     [(sitemap.xml) (build-path export-dir "sitemap.xml")]
     [(catalog-codes.json) (build-path export-dir "catalog-codes.json")]
