@@ -1,6 +1,6 @@
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html, nothing } from 'lit'
 import type { PropertyValues } from 'lit';
-import { customElement, property } from 'lit/decorators.js'
+import { customElement, property, state } from 'lit/decorators.js'
 import { addProtocol, AttributionControl, GPUInitializationError, Map as MapLibreMap, NavigationControl, setWorkerUrl } from 'maplibre-gl';
 import { Protocol } from 'pmtiles';
 import type { GeoJSONSource, LngLatBoundsLike, MapGeoJSONFeature, MapMouseEvent, PointLike } from 'maplibre-gl';
@@ -12,7 +12,7 @@ import { Temporal } from 'temporal-polyfill';
 import './obs-panel.ts';
 import './obs-summary.ts';
 
-import { addImages, BASEMAP_BOUNDS, BASEMAP_MIN_ZOOM, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, ringColours, SUBJECT_LAYERS, uncertaintyRadius, type SourceId } from './style.ts';
+import { addImages, BASEMAP_BOUNDS, BASEMAP_MIN_ZOOM, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, REGION_FILL, ringColours, SUBJECT_LAYERS, uncertaintyRadius, type SourceId } from './style.ts';
 import type { Occurrence } from './types.ts';
 import { imputedPositions, occurrences2segments, placeInSegment, segment2travelLine, travelArrows, type TravelLineProperties } from './segments.ts';
 import { createRef, ref } from 'lit/directives/ref.js';
@@ -20,7 +20,7 @@ import { compactMap } from './utils.ts';
 import type { Extent } from './constants.ts';
 import UserLocationControl from './user-location-control.ts';
 import LayerControl from './layer-control.ts';
-import { DEFAULT_LAYERS, type ReferenceLayer } from './reference-layers.ts';
+import { DEFAULT_LAYERS, REFERENCE_LAYERS, type ReferenceLayer } from './reference-layers.ts';
 import { hauloutPath, observedDate, type HauloutSite } from './catalog.ts';
 import { formatDate } from './date-format.ts';
 import { fetchStaticHauloutSites } from './read-path.ts';
@@ -132,6 +132,24 @@ export class ObsMap extends LitElement {
   flex-direction: row;
   flex-grow: 1;
   overflow: hidden;
+  position: relative;
+}
+/* The water region under the pointer, or tapped, while the regions are shown: the name a
+   sighting there would be given (the basemap's decision 027). */
+.region-name {
+  background: var(--color-surface);
+  border-radius: 8px;
+  box-shadow: var(--shadow-float);
+  font-size: var(--fs-body2);
+  font-weight: 400;
+  /* Bottom left: the zoom and location buttons hold the top left, the attribution the bottom right. */
+  bottom: 0.5rem;
+  left: 0.5rem;
+  max-width: calc(100% - 4rem);
+  padding: 0.25rem 0.5rem;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
 }
 #map {
   flex-grow: 1;
@@ -201,6 +219,7 @@ user-location-control.inactive svg { color: var(--color-text); }
     return html`
       <link rel="stylesheet" href="${maplibreCSS}" type="text/css" />
       <div ${ref(this.mapRef)} id="map"></div>
+      ${this.regionName ? html`<div class="region-name" role="status">${this.regionName}</div>` : nothing}
     `;
   }
 
@@ -263,6 +282,10 @@ user-location-control.inactive svg { color: var(--color-text); }
         if (map === this.#map) console.error('Failed to load map icons:', err);
       });
       this.#drawAll(map);
+      // The menu offers a layer only when the style has it: the water regions come with a
+      // basemap version that has them.
+      this.layerControl.available = new Set(REFERENCE_LAYERS.map(l => l.id)
+        .filter(id => REFERENCE_LAYER_IDS[id].some(layer => map.getLayer(layer))));
       this.drafts.attach(map);
       // OpenLayers announced the first view as a move, which is what first
       // writes a position into the URL; keep that.
@@ -280,6 +303,7 @@ user-location-control.inactive svg { color: var(--color-text); }
     }));
     map.on('click', this.onClick.bind(this));
     map.on('mousemove', this.onPointerMove.bind(this));
+    map.on('mouseout', () => { this.regionName = null; });
     map.on('moveend', this.onMoveEnd.bind(this));
 
     // The arrows' imputed positions say where the animals are now, so they move on with the clock.
@@ -354,6 +378,9 @@ user-location-control.inactive svg { color: var(--color-text); }
     const [top] = this.#map!.queryRenderedFeatures(around(evt.point, 2), {
       layers: [...SUBJECT_LAYERS, ...OCCURRENCE_LAYERS, ...CLICKABLE_REFERENCE_LAYERS],
     });
+    // A phone has no pointer to hover with: a tap on open water names its region, and a tap
+    // on anything else clears the name.
+    this.regionName = top ? null : this.#regionAt(evt.point);
     // One of an open subject's sightings: to its day, selected, which closes the subject.
     if (top && SUBJECT_LAYERS.includes(top.layer.id)) {
       const detail = {date: top.properties['date'], occurrenceId: top.properties['id']};
@@ -383,6 +410,15 @@ user-location-control.inactive svg { color: var(--color-text); }
       window.location.assign(hauloutPath({id: top!.properties['id'], name: top!.properties['name']}));
   }
 
+  /** The water region's name at a point, as a card would say it, while the regions are shown. */
+  @state() private regionName: string | null = null;
+
+  #regionAt(point: {x: number, y: number}): string | null {
+    if (!this.visibleLayers.has('regions') || !this.#map?.getLayer(REGION_FILL)) return null;
+    const [region] = this.#map.queryRenderedFeatures([point.x, point.y], {layers: [REGION_FILL]});
+    return (region?.properties['name'] as string | undefined) ?? null;
+  }
+
   #featureAt(point: {x: number, y: number}): MapGeoJSONFeature | undefined {
     return this.#map!.queryRenderedFeatures(around(point, 2), {
       layers: [...SUBJECT_LAYERS, ...OCCURRENCE_LAYERS, ...CLICKABLE_REFERENCE_LAYERS],
@@ -401,6 +437,7 @@ user-location-control.inactive svg { color: var(--color-text); }
     target.title = CLICKABLE_REFERENCE_LAYERS.includes(layer) ? feature!.properties['name'] ?? ''
       : SUBJECT_LAYERS.includes(layer) ? feature!.properties['title'] ?? ''
       : '';
+    this.regionName = this.#regionAt(evt.point);
   }
 
   private skipNextMoveEvent = false;
@@ -508,12 +545,15 @@ user-location-control.inactive svg { color: var(--color-text); }
     if (!this.#loaded) return;
     for (const [layer, ids] of Object.entries(REFERENCE_LAYER_IDS))
       for (const id of ids)
-        this.#map!.setLayoutProperty(id, 'visibility', this.visibleLayers.has(layer as ReferenceLayer) ? 'visible' : 'none');
+        // A basemap layer is there only in a version that has it, such as the water regions.
+        if (this.#map!.getLayer(id))
+          this.#map!.setLayoutProperty(id, 'visibility', this.visibleLayers.has(layer as ReferenceLayer) ? 'visible' : 'none');
   }
 
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('visibleLayers')) {
       this.#applyVisibility();
+      if (!this.visibleLayers.has('regions')) this.regionName = null;
       this.layerControl.visible = this.visibleLayers;
       if (this.visibleLayers.has('haulouts'))
         this.loadHaulouts();

@@ -267,7 +267,12 @@ export const REFERENCE_LAYER_IDS = {
   viewpoints: ['viewpoint-marker', 'viewpoint-label'],
   hydrophones: ['hydrophone'],
   salmon: ['salmon'],
+  // The basemap's own layers (its decision 027), hidden in its style until shown.
+  regions: ['water_regions_fill', 'water_regions_line'],
 } as const;
+
+/** The basemap's layer of water regions, whose feature under the pointer names the region. */
+export const REGION_FILL = REFERENCE_LAYER_IDS.regions[0];
 
 /** The map's sources, all GeoJSON in longitude and latitude, empty until filled. */
 export const SOURCES = [

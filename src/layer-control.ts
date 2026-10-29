@@ -47,6 +47,11 @@ export default class LayerControl implements IControl {
   set visible(visible: ReadonlySet<ReferenceLayer>) {
     this.#element.visible = visible;
   }
+
+  /** The layers the map's style has, which are the ones the menu offers. */
+  set available(available: ReadonlySet<ReferenceLayer>) {
+    this.#element.available = available;
+  }
 }
 
 const markers: Record<ReferenceLayer, unknown> = {
@@ -54,12 +59,18 @@ const markers: Record<ReferenceLayer, unknown> = {
   hydrophones: html`<img src=${hydrophoneIcon} alt="">`,
   salmon: html`<img src=${salmonCountingSiteIcon} alt="">`,
   haulouts: html`<svg viewBox="0 0 16 16" aria-hidden="true">${svg`<path d="M8 2 14 8 8 14 2 8Z" fill="white" stroke=${HAULOUT_COLOR} stroke-width="2"/>`}</svg>`,
+  // Two regions side by side, in hues as the basemap draws them: data colours, each region's own.
+  regions: html`<svg viewBox="0 0 16 16" aria-hidden="true">${svg`<path d="M2 3h6v10H2Z" fill="hsl(200 65% 55% / 0.45)" stroke="#1f3a5f" stroke-width="0.7"/><path d="M8 3h6v10H8Z" fill="hsl(337 65% 55% / 0.45)" stroke="#1f3a5f" stroke-width="0.7"/>`}</svg>`,
 };
 
 @customElement('layer-control')
 class LayerControlElement extends LitElement {
   @property({attribute: false})
   visible: ReadonlySet<ReferenceLayer> = new Set();
+
+  /** The layers to offer: every one, until the map says which its style has. */
+  @property({attribute: false})
+  available: ReadonlySet<ReferenceLayer> = new Set(REFERENCE_LAYERS.map(l => l.id));
 
   onChange: (visible: Set<ReferenceLayer>) => void = () => {};
 
@@ -124,7 +135,7 @@ class LayerControlElement extends LitElement {
       ${this.open ? html`
         <fieldset id="layer-menu" class="layer-menu">
           <legend>Map layers</legend>
-          ${REFERENCE_LAYERS.map(({id, label}) => html`
+          ${REFERENCE_LAYERS.filter(({id}) => this.available.has(id)).map(({id, label}) => html`
             <label>
               <input type="checkbox" .checked=${this.visible.has(id)}
                   @change=${(e: Event) => this.#toggle(id, (e.target as HTMLInputElement).checked)}>

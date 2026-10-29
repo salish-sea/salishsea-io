@@ -33,7 +33,11 @@ if (typeof images !== 'string' || !/^https:\/\/tiles\.salishsea\.io\/images\/[0-
 // They are named by what they hold; the search reads both.
 const named: unknown = style.metadata?.['salishsea:places'];
 const PLACE_LIST = /^https:\/\/tiles\.salishsea\.io\/places\/places-[a-z]+-[0-9a-f]{16}\.json$/;
-const places = named && typeof named === 'object' ? Object.values(named) : [];
+// The search reads the place lists only: a version also names its water regions' list there
+// (the basemap's decision 027), which is GeoJSON, for naming a sighting's water, not for search.
+const places = named && typeof named === 'object'
+  ? Object.entries(named).filter(([list]) => list !== 'regions').map(([, url]) => url)
+  : [];
 if (!places.length || !places.every((url) => typeof url === 'string' && PLACE_LIST.test(url))) {
   console.error(`version ${version} names no lists of places`);
   process.exit(1);

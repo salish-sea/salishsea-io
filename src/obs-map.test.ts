@@ -26,8 +26,14 @@ const {FakeMap, maps} = vi.hoisted(() => {
       };
       this.on(type, once);
     }
-    fire(type: string) {
-      for (const listener of this.#listeners.get(type) ?? []) listener();
+    fire(type: string, ...args: unknown[]) {
+      for (const listener of this.#listeners.get(type) ?? []) listener(...args);
+    }
+    /** A water region under every point, in the basemap's layer; nothing in any other. */
+    queryRenderedFeatures(_at: unknown, {layers}: {layers: string[]}) {
+      return layers.includes('water_regions_fill')
+        ? [{layer: {id: 'water_regions_fill'}, properties: {name: 'Mud Bay (Sucia Island)'}}]
+        : [];
     }
     getSource(id: string) {
       const style = this.style;
@@ -35,6 +41,7 @@ const {FakeMap, maps} = vi.hoisted(() => {
     }
     addControl() {}
     addImage() {}
+    getLayer() { return {}; }
     setLayoutProperty() {}
     setFeatureState() {}
     getCenter() { return {lng: -123, lat: 48.5}; }
@@ -52,10 +59,36 @@ vi.mock('maplibre-gl', async (importOriginal) => ({
 }));
 
 import { ObsMap, subjectFeatures } from './obs-map.ts';
+import type { ReferenceLayer } from './reference-layers.ts';
 import { MASK_MAX_ZOOM } from './style.ts';
 import { mapZoom } from './map-view.ts';
 
 describe('ObsMap', () => {
+  it("names the water region under the pointer while the regions are shown, and not once they're hidden", async () => {
+    const el = document.createElement('obs-map') as ObsMap;
+    el.visibleLayers = new Set<ReferenceLayer>(['regions']);
+    document.body.append(el);
+    await el.updateComplete;
+    const map = maps.at(-1)!;
+    map.fire('load');
+    const named = () => el.shadowRoot!.querySelector('.region-name')?.textContent ?? null;
+
+    map.fire('mousemove', {point: {x: 10, y: 10}, originalEvent: {buttons: 0}});
+    await el.updateComplete;
+    expect(named()).toBe('Mud Bay (Sucia Island)');
+
+    map.fire('mouseout');
+    await el.updateComplete;
+    expect(named()).toBeNull();
+
+    el.visibleLayers = new Set();
+    await el.updateComplete;
+    map.fire('mousemove', {point: {x: 10, y: 10}, originalEvent: {buttons: 0}});
+    await el.updateComplete;
+    expect(named()).toBeNull();
+    el.remove();
+  });
+
   it('constructs without throwing', () => {
     expect(() => document.createElement('obs-map')).not.toThrow();
   });
