@@ -1,6 +1,6 @@
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html, nothing } from 'lit'
 import type { PropertyValues } from 'lit';
-import { customElement, property } from 'lit/decorators.js'
+import { customElement, property, state } from 'lit/decorators.js'
 import { addProtocol, AttributionControl, GPUInitializationError, Map as MapLibreMap, NavigationControl, setWorkerUrl } from 'maplibre-gl';
 import { Protocol } from 'pmtiles';
 import type { GeoJSONSource, LngLatBoundsLike, MapGeoJSONFeature, MapMouseEvent, PointLike } from 'maplibre-gl';
@@ -12,7 +12,7 @@ import { Temporal } from 'temporal-polyfill';
 import './obs-panel.ts';
 import './obs-summary.ts';
 
-import { addImages, BASEMAP_BOUNDS, BASEMAP_MIN_ZOOM, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, ringColours, SUBJECT_LAYERS, uncertaintyRadius, type SourceId } from './style.ts';
+import { addImages, BASEMAP_BOUNDS, BASEMAP_MIN_ZOOM, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, REGION_FILL, ringColours, SUBJECT_LAYERS, uncertaintyRadius, type SourceId } from './style.ts';
 import type { Occurrence } from './types.ts';
 import { imputedPositions, occurrences2segments, placeInSegment, segment2travelLine, travelArrows, type TravelLineProperties } from './segments.ts';
 import { createRef, ref } from 'lit/directives/ref.js';
@@ -132,6 +132,23 @@ export class ObsMap extends LitElement {
   flex-direction: row;
   flex-grow: 1;
   overflow: hidden;
+  position: relative;
+}
+/* The water region under the pointer, or tapped, while the regions are shown: the name a
+   sighting there would be given (the basemap's decision 027). */
+.region-name {
+  background: var(--color-surface);
+  border-radius: 8px;
+  box-shadow: var(--shadow-float);
+  font-size: var(--fs-body2);
+  font-weight: 400;
+  left: 0.5rem;
+  max-width: calc(100% - 4rem);
+  padding: 0.25rem 0.5rem;
+  pointer-events: none;
+  position: absolute;
+  top: 0.5rem;
+  z-index: 2;
 }
 #map {
   flex-grow: 1;
@@ -201,6 +218,7 @@ user-location-control.inactive svg { color: var(--color-text); }
     return html`
       <link rel="stylesheet" href="${maplibreCSS}" type="text/css" />
       <div ${ref(this.mapRef)} id="map"></div>
+      ${this.regionName ? html`<div class="region-name" role="status">${this.regionName}</div>` : nothing}
     `;
   }
 
@@ -284,6 +302,7 @@ user-location-control.inactive svg { color: var(--color-text); }
     }));
     map.on('click', this.onClick.bind(this));
     map.on('mousemove', this.onPointerMove.bind(this));
+    map.on('mouseout', () => { this.regionName = null; });
     map.on('moveend', this.onMoveEnd.bind(this));
 
     // The arrows' imputed positions say where the animals are now, so they move on with the clock.
@@ -378,6 +397,8 @@ user-location-control.inactive svg { color: var(--color-text); }
       this.#select(null);
       this.dispatchEvent(new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: null}));
     }
+    // A phone has no pointer to hover with: a tap on open water names its region.
+    if (!top) this.regionName = this.#regionAt(evt.point);
     const kind = top?.properties['kind'];
     if (kind === 'Hydrophone' || kind === 'SalmonCountingSite')
       window.open(top!.properties['url'], '_blank');
@@ -385,6 +406,15 @@ user-location-control.inactive svg { color: var(--color-text); }
     // in the URL, and Back returns to it.
     else if (kind === 'Haulout')
       window.location.assign(hauloutPath({id: top!.properties['id'], name: top!.properties['name']}));
+  }
+
+  /** The water region's name at a point, as a card would say it, while the regions are shown. */
+  @state() private regionName: string | null = null;
+
+  #regionAt(point: {x: number, y: number}): string | null {
+    if (!this.visibleLayers.has('regions') || !this.#map?.getLayer(REGION_FILL)) return null;
+    const [region] = this.#map.queryRenderedFeatures([point.x, point.y], {layers: [REGION_FILL]});
+    return (region?.properties['name'] as string | undefined) ?? null;
   }
 
   #featureAt(point: {x: number, y: number}): MapGeoJSONFeature | undefined {
@@ -405,6 +435,7 @@ user-location-control.inactive svg { color: var(--color-text); }
     target.title = CLICKABLE_REFERENCE_LAYERS.includes(layer) ? feature!.properties['name'] ?? ''
       : SUBJECT_LAYERS.includes(layer) ? feature!.properties['title'] ?? ''
       : '';
+    this.regionName = this.#regionAt(evt.point);
   }
 
   private skipNextMoveEvent = false;
@@ -520,6 +551,7 @@ user-location-control.inactive svg { color: var(--color-text); }
   protected willUpdate(changedProperties: PropertyValues): void {
     if (changedProperties.has('visibleLayers')) {
       this.#applyVisibility();
+      if (!this.visibleLayers.has('regions')) this.regionName = null;
       this.layerControl.visible = this.visibleLayers;
       if (this.visibleLayers.has('haulouts'))
         this.loadHaulouts();
