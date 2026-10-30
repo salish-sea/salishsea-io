@@ -31,6 +31,18 @@ describe('waterRegions', () => {
         expect(regions.regionAt(-110, 40)).toBeNull();
     });
 
+    test('a place borders the region it is in, or one whose edge is close enough', () => {
+        expect(regions.borders('Mud Bay', -122.98, 48.1, 0.5)).toBe(true);
+        // on Mud Bay's eastern shore, about 0.37 km east of its edge at 48.1°N
+        expect(regions.borders('Mud Bay', -122.795, 48.1, 0.5)).toBe(true);
+        expect(regions.borders('Mud Bay', -122.795, 48.1, 0.3)).toBe(false);
+        // on the island inside the bay, which the bay's water surrounds
+        expect(regions.borders('Mud Bay', -122.9, 48.1, 0.5)).toBe(false);
+        expect(regions.borders('Mud Bay', -122.851, 48.1, 0.5)).toBe(true);
+        expect(regions.borders('Haro Strait', -122.98, 48.1, 0.5)).toBe(false);
+        expect(regions.borders('No Such Water', -122.98, 48.1, 0.5)).toBe(false);
+    });
+
     test('a region that spans many grid cells is found from each', () => {
         const wide = waterRegions({features: [
             {properties: {name: 'Strait of Georgia'}, geometry: {type: 'Polygon', coordinates: [square(-125, 49, -123, 50)]}}]});

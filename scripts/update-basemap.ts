@@ -5,9 +5,13 @@
 // can't drift from what tiles.salishsea.io serves; moving to a new version is a run of
 // this and a reviewed diff. The version is kept in the style's own metadata. It also
 // writes the version's image tiles into the two places that stitch pictures from them,
-// and its lists of place names into the search (src/places.ts).
+// and its lists of place names into the search (src/places.ts). Last, it names the
+// landmarks (data/reference/landmarks.tsv, decision 100) that the version's lists no longer
+// have a place for, so the same pull request fixes their rows.
 
 import { readFileSync, writeFileSync } from 'node:fs';
+
+import { parseLandmarks, placesOf, resolveLandmarks, type PlaceList } from './read-path/landmarks.ts';
 
 const version = process.argv[2];
 if (!version || !/^\d{4}\.(0[1-9]|1[0-2])\.[1-9]\d*$/.test(version)) {
@@ -60,3 +64,25 @@ const updates = [
 writeFileSync('src/basemap-style.json', JSON.stringify(style) + '\n');
 for (const [file, updated] of updates) writeFileSync(file, updated);
 console.log(`src/basemap-style.json is now version ${version}; the pictures use ${images}; the search, ${places.length} lists of places`);
+
+// A landmark row the version's lists have no place for: an OpenStreetMap row by its name
+// and kind, a gazetteer row by its name, kind and position. The build skips such a row.
+const list = async (key: string): Promise<PlaceList> => {
+  const at = (named as Record<string, string>)[key]!;
+  const answer = await fetch(at);
+  if (!answer.ok) {
+    console.error(`${at} answered ${answer.status}`);
+    process.exit(1);
+  }
+  return await answer.json() as PlaceList;
+};
+const rows = parseLandmarks(readFileSync('data/reference/landmarks.tsv', 'utf8'));
+const gazetteers = new Set(placesOf(await list('gazetteers')).map((p) => `${p.kind}\t${p.name}\t${p.lon}\t${p.lat}`));
+const lost = [
+  ...resolveLandmarks(rows, await list('osm')).unmatched,
+  ...rows.filter((r) => r.source === 'gazetteers' && !gazetteers.has(`${r.kind}\t${r.name}\t${r.lon}\t${r.lat}`)),
+];
+if (lost.length) {
+  console.warn(`data/reference/landmarks.tsv: version ${version} has no place for ${lost.length} row(s), which the build will skip; fix them here:`);
+  for (const r of lost) console.warn(`  ${r.name} (${r.kind}, ${r.source}${r.lon === null ? '' : ` at ${r.lon}, ${r.lat}`})`);
+}

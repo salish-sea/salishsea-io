@@ -59,6 +59,9 @@ describe('armsFor', () => {
         expect(armsFor(['public.observations', 'inaturalist_mirror.taxa'])).toEqual({all: 'inaturalist_mirror.taxa is read by every arm, or unknown here'});
         // a new basemap version's water regions move every arm's places (salish-fwyt.2)
         expect(armsFor(['water-regions.json'])).toEqual({all: 'water-regions.json is read by every arm, or unknown here'});
+        // and so does a change to the landmarks, or to the list that places them (decision 100)
+        expect(armsFor(['reference/landmarks.tsv'])).toHaveProperty('all');
+        expect(armsFor(['places-osm.json'])).toHaveProperty('all');
         expect(armsFor(['public.observations', 'types.enums'])).toHaveProperty('all');
         expect(armsFor(['something.declared.later'])).toHaveProperty('all');
     });
@@ -243,6 +246,31 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
             // one arm re-derived: the others keep the places they were given
             await deriveOccurrences(snapshot, mirrors, ['public.observations'], regions);
             expect(await places()).toEqual([inside, inside, total]);
+            // Given the landmarks too (decision 100), a document with a place names the one
+            // within 5 km of its point, and the comparison with Postgres still agrees. A
+            // point of land at one occurrence's own position stands for the list.
+            const query = async (sql: string) => {
+                const db = await DuckDBInstance.create(':memory:');
+                const conn = await db.connect();
+                try {
+                    await conn.run(`ATTACH '${snapshot}' AS store (READ_ONLY)`);
+                    return (await conn.runAndReadAll(sql)).getRows();
+                } finally { conn.closeSync(); db.closeSync(); }
+            };
+            const [[id, lon, lat]] = await query(`SELECT id, location.lon, location.lat FROM store.build.occurrences
+                WHERE doc->>'place' = 'The Sea' ORDER BY id LIMIT 1`) as [string, number, number][];
+            const landmarksTsv = path.join(dir, 'landmarks.tsv');
+            await writeFile(landmarksTsv, `name\tkind\tsource\tlon\tlat\treports\tsays\nHere Point\tpoint\tgazetteers\t${lon}\t${lat}\t1\tHere\n`);
+            const osm = path.join(dir, 'places-osm.json');
+            await writeFile(osm, JSON.stringify({columns: ['name', 'kind', 'lon', 'lat', 'zoom', 'other_names'], places: []}));
+            await deriveOccurrences(snapshot, mirrors, null, regions, {list: landmarksTsv, osm});
+            const [[here, far, keyed]] = (await query(`
+                SELECT count(*) FILTER (id = '${id}' AND (doc->>'landmark') = 'Here'),
+                       count(*) FILTER ((doc->>'landmark') = 'Here' AND abs(location.lat - ${lat}) > 0.05),
+                       count(*) FILTER (json_exists(doc, '$.landmark'))
+                FROM store.build.occurrences`)).map(r => r.map(Number));
+            expect([here, far, keyed]).toEqual([1, 0, total]);
+            expect(await compare(snapshot)).toBe(true);
             await deriveIdentifierCandidates(snapshot);
             expect(await compareCandidates(snapshot)).toBe(true);
             // The catalogue's views over the register (salish-9uu.2.3), which the profile
