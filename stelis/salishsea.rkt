@@ -135,6 +135,7 @@
 ;; which one process at a time may hold for writing. Attached as `register', its tables
 ;; keep the names they had as a schema of the snapshot (register.entities and the rest).
 (define register-db (build-path mirror-dir "register.duckdb"))
+(define water-regions-file (build-path mirror-dir "water-regions.json"))
 (define REGISTER-DB (path->string register-db))
 
 ;; --- Runtime ----------------------------------------------------------------
@@ -467,6 +468,13 @@
      ;; — so an acceptance clears the hold by a declared input moving. Producerless and
      ;; forward-only: ADR 0013's other 'authoritative arm.
      (make-artifact 'maplify-unnamed.tsv 'file #:provenance 'authoritative)
+     ;; The basemap's style as the site uses it (src/basemap-style.json): checked in, moved
+     ;; to a new basemap version by a pull request (scripts/update-basemap.ts). It names the
+     ;; water regions' list, which the derivation names each occurrence's place from.
+     (make-artifact 'basemap-style.json 'file #:provenance 'authoritative)
+     ;; That list (salish-fwyt.2), fetched beside the mirrors from the URL the style names,
+     ;; which is named for its contents: derived from the style, so a lost copy is fetched again.
+     (make-artifact 'water-regions.json 'file)
      ;; The reference tables' files (decision 064): checked in, edited by a curator's
      ;; pull request, so producerless and forward-only like the allow-list above.
      (make-artifact 'reference/providers.tsv 'file #:provenance 'authoritative)
@@ -656,12 +664,22 @@
    ;; resolveEntity over the register's name index (salish-xv35.11). The code list is
    ;; the script's esbuild import closure; the SQL is read, not imported, so it is
    ;; listed by hand.
+   ;; Each occurrence's place is the basemap water region its point is in (salish-fwyt.2):
+   ;; the list the style names, fetched once for each basemap version the site moves to.
+   (make-task 'water-regions 'transform
+              #:inputs '(basemap-style.json)
+              #:outputs '(water-regions.json)
+              #:invoke (node-script/code "scripts/read-path/fetch-water-regions.ts"
+                                 '()
+                                 (list (path->string (in-checkout "src" "basemap-style.json"))
+                                       (path->string water-regions-file))))
    (make-task 'derive-occurrences 'transform
-              #:inputs occurrence-derivation-inputs
+              #:inputs (append occurrence-derivation-inputs '(water-regions.json))
               #:outputs '(build.occurrences)
               #:invoke (node-script/code "scripts/read-path/derive-occurrences.ts"
                                  '()
-                                 (list* SNAPSHOT-DB MIRRORS)))
+                                 (append (list* SNAPSHOT-DB MIRRORS)
+                                         (list "--regions" (path->string water-regions-file)))))
    ;; Postgres's derived.identifier_candidates as DuckDB SQL: each designation an
    ;; occurrence names, paired with the catalogue's individual or matriline. Reads the
    ;; occurrences the build derived, so it is a port of the whole chain;
@@ -855,6 +873,8 @@
     [(maplify-names.json) (build-path SALISHSEA "data" "maplify-names.json")]
     [(status/maplify-names.json) (build-path mirror-dir "maplify-names.json")]
     [(maplify-unnamed.tsv) (build-path SALISHSEA "data" "maplify-unnamed.tsv")]
+    [(basemap-style.json) (build-path SALISHSEA "src" "basemap-style.json")]
+    [(water-regions.json) water-regions-file]
     [(catalogue/individuals.tsv) (build-path SALISHSEA "data" "catalogue" "individuals.tsv")]
     [(catalogue/designations.tsv) (build-path SALISHSEA "data" "catalogue" "designations.tsv")]
     [(catalogue/nicknames.tsv) (build-path SALISHSEA "data" "catalogue" "nicknames.tsv")]

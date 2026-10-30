@@ -48,9 +48,10 @@
 ;; Orcasound and the snapshot of what Postgres still holds. The ingests themselves are
 ;; the other graph's, so here the mirrors are leaves.
 (define-values (ordered pruned) (plan salishsea-graph 'days))
-(check-equal? ordered '(maplify-names reference snapshot derive-occurrences occurrence-days)
-              (string-append "the day files need the name guard, the reference files, the snapshot "
-                             "and the derivation; the mirrors and the register arrive from the ingest graph"))
+(check-equal? ordered '(maplify-names reference snapshot water-regions derive-occurrences occurrence-days)
+              (string-append "the day files need the name guard, the reference files, the snapshot, "
+                             "the water regions (each occurrence's place, salish-fwyt.2) and the derivation; "
+                             "the mirrors and the register arrive from the ingest graph"))
 (check-equal? (set-count pruned) 18
               (string-append "the calendar, the id index, the candidates and links, the catalogue and its "
                              "register views, the pages, the whales page, the encounters, the profile index, "
@@ -128,6 +129,13 @@
 ;; derivation, so the last good files stay published.
 (check-not-false (memq 'maplify-names-hold (inputs-of 'derive-occurrences))
                  "the derivation waits on the guard")
+;; The water regions name each occurrence's place (salish-fwyt.2): fetched from the URL the
+;; checked-in style names, so a pull request moving the site to a new basemap version is
+;; what moves them, and every arm reads them (derive-occurrences.ts's ARM_INPUTS lists them
+;; under none, so a new list re-derives every arm).
+(check-not-false (memq 'water-regions.json (inputs-of 'derive-occurrences)))
+(check-eq? (producer-of salishsea-graph 'water-regions.json) 'water-regions)
+(check-eq? (artifact-provenance (hash-ref (graph-artifacts salishsea-graph) 'basemap-style.json)) 'authoritative)
 (define-values (guard-plan _gp) (plan salishsea-graph 'maplify-names-hold))
 (check-equal? guard-plan '(maplify-names)
               "the guard reads the register the ingest graph fetched, for the pairs the mirror holds")

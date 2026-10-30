@@ -362,11 +362,14 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
 -- by derive-occurrences.ts, which chooses the sources: all of them, or, when the build
 -- says which inputs changed (Stelis ADR 0015), only the arms that read one.
 CREATE SCHEMA IF NOT EXISTS build;
-CREATE OR REPLACE TEMP MACRO occurrence_doc(o) AS CAST(to_json({
+-- `place`, the water region its point is in (salish-fwyt.2), is the one key Postgres never
+-- derived: looked up in node, it comes in beside the row (derive-occurrences.ts).
+CREATE OR REPLACE TEMP MACRO occurrence_doc(o, place) AS CAST(to_json({
            'id': o.id,
            'url': o.url,
            'body': o.body,
            'count': o.count,
+           'place': place,
            'taxon': o.taxon,
            'photos': o.photos,
            'accuracy': o.accuracy,

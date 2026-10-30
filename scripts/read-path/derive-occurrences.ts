@@ -4,13 +4,18 @@
  * the rest (native sightings, the register, the reference tables) from the
  * snapshot's copies of Postgres's tables.
  *
- *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite>
+ *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json>]
  *
  * Writes `build.occurrences` into the snapshot: id, observed_at and the document,
  * the shape of `snapshot.occurrences`, which holds Postgres's answer. The SQL is
  * derive/occurrences.sql, twins of the five Postgres views, after derive/shared.sql;
  * the two text extractions they call are macros from derive/extract.sql.
  * compare-occurrences.ts checks the result against Postgres's.
+ *
+ * Each document also names the water region its point is in (`place`, salish-fwyt.2),
+ * which Postgres never derived: looked up here in node, in the basemap's regions list
+ * that --regions names (water-regions.ts), arm by arm, and joined in as the arm's rows
+ * are written. Without the list, every place is null.
  *
  * One source at a time, and only the sources whose inputs changed when the build says
  * which (STELIS_CHANGED_INPUTS, Stelis ADR 0015; salish-9uu.8.1): a sighting saved here
@@ -20,7 +25,7 @@
  * which name species for every source), the whole table is rebuilt as before.
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
+import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 
 import { writeInaturalistOutOfScope } from './derive/inaturalist-scope.ts';
@@ -28,6 +33,7 @@ import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
 import { attachRegister, registerFile } from './register-file.ts';
+import { waterRegions, type WaterRegions } from './water-regions.ts';
 
 export const SOURCES = ['maplify', 'inaturalist', 'native', 'orcasound'] as const;
 export type Source = typeof SOURCES[number];
@@ -107,19 +113,46 @@ export function changedInputs(env: NodeJS.ProcessEnv = process.env): string[] | 
  * from — one list, so the CREATE TABLE and the INSERTs cannot disagree.
  */
 const COLUMNS: readonly {name: string, type: string, from: (source: Source) => string}[] = [
-    {name: 'id', type: 'VARCHAR', from: () => 'id'},
-    {name: 'observed_at', type: 'TIMESTAMPTZ', from: () => 'observed_at'},
-    {name: 'doc', type: 'VARCHAR', from: () => 'occurrence_doc(o)'},
+    {name: 'id', type: 'VARCHAR', from: () => 'o.id'},
+    {name: 'observed_at', type: 'TIMESTAMPTZ', from: () => 'o.observed_at'},
+    {name: 'doc', type: 'VARCHAR', from: () => 'occurrence_doc(o, p.place)'},
     {name: 'source', type: 'VARCHAR', from: source => `'${source}'`},
-    {name: 'identifiers', type: 'VARCHAR[]', from: () => 'identifiers'},
-    {name: 'location', type: 'STRUCT(lat DOUBLE, lon DOUBLE)', from: () => 'location'},
+    {name: 'identifiers', type: 'VARCHAR[]', from: () => 'o.identifiers'},
+    {name: 'location', type: 'STRUCT(lat DOUBLE, lon DOUBLE)', from: () => 'o.location'},
 ];
 const CREATE_TABLE = `CREATE OR REPLACE TABLE build.occurrences (${COLUMNS.map(c => `${c.name} ${c.type}`).join(', ')})`;
 const insertArm = (source: Source) =>
-    `INSERT INTO build.occurrences SELECT ${COLUMNS.map(c => c.from(source)).join(', ')} FROM ${source}_occurrences o`;
+    `INSERT INTO build.occurrences SELECT ${COLUMNS.map(c => c.from(source)).join(', ')}
+     FROM ${source}_occurrences o LEFT JOIN memory.main.occurrence_place p ON p.id = o.id`;
+
+/**
+ * Write `occurrence_place(id, place)` into the connection's in-memory catalog: the water
+ * region of each of the arm's occurrences, by its point (not where it was seen from).
+ */
+async function writePlaces(conn: DuckDBConnection, source: Source, regions: WaterRegions | null): Promise<void> {
+    const appender = await conn.createAppender('occurrence_place', 'main', 'memory');
+    try {
+        if (regions) {
+            const rows = (await conn.runAndReadAll(
+                `SELECT id, location.lon, location.lat FROM ${source}_occurrences`)).getRows() as [string, number, number][];
+            for (const [id, lon, lat] of rows) {
+                const place = regions.regionAt(lon, lat);
+                if (place === null) continue;
+                appender.appendVarchar(id);
+                appender.appendVarchar(place);
+                appender.endRow();
+            }
+        }
+        appender.flushSync();
+    } finally {
+        appender.closeSync();
+    }
+}
 
 export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
-    changed: readonly string[] | null = changedInputs()): Promise<{rows: number, arms: readonly Source[] | 'all'}> {
+    changed: readonly string[] | null = changedInputs(),
+    regionsPath: string | null = null): Promise<{rows: number, arms: readonly Source[] | 'all'}> {
+    const regions = regionsPath ? waterRegions(JSON.parse(await readFile(regionsPath, 'utf8'))) : null;
     const extract = await readFile(new URL('./derive/extract.sql', import.meta.url), 'utf8');
     const shared = await readFile(new URL('./derive/shared.sql', import.meta.url), 'utf8');
     const lookups = await readFile(new URL('./derive/lookups.sql', import.meta.url), 'utf8');
@@ -170,10 +203,12 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
         // writeInaturalistOutOfScope), and all of it BEFORE any transaction below: a DuckDB
         // transaction may write one attached database, and these write `memory`, while
         // the rows go to the store.
+        await conn.run('CREATE OR REPLACE TABLE memory.main.occurrence_place (id VARCHAR, place VARCHAR)');
         for (const source of arms) {
             if (source === 'maplify') await writeMaplifyEntities(conn);
             if (source === 'inaturalist') await writeInaturalistOutOfScope(conn);
             await conn.run(parts.arms[source]);
+            await writePlaces(conn, source, regions);
         }
         // A full run REPLACES the table, so a column added here reaches the file on the
         // volume; a partial one replaces its arms' rows in place.
@@ -218,13 +253,16 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
 }
 
 export async function main(): Promise<void> {
-    const [snapshot, ...rest] = process.argv.slice(2);
+    const args = process.argv.slice(2);
+    const flag = args.indexOf('--regions');
+    const regions = flag >= 0 ? args.splice(flag, 2)[1] : undefined;
+    const [snapshot, ...rest] = args;
     const mirrors = mirrorArgs(rest);
-    if (!snapshot || !mirrors) {
-        console.error('usage: derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite>');
+    if (!snapshot || !mirrors || (flag >= 0 && !regions)) {
+        console.error('usage: derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json>]');
         process.exit(2);
     }
-    const {rows, arms} = await deriveOccurrences(snapshot, mirrors);
+    const {rows, arms} = await deriveOccurrences(snapshot, mirrors, changedInputs(), regions ?? null);
     console.log(`build.occurrences: ${rows} rows${arms === 'all' ? '' : ` (${arms.join(', ')} re-derived; the rest as they were)`}`);
 }
 
