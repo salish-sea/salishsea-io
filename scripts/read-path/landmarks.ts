@@ -42,7 +42,7 @@ export function parseLandmarks(tsv: string): LandmarkRow[] {
         if ((source === 'gazetteers') !== (lon !== null && lat !== null))
             throw new Error(`landmarks.tsv: ${name}: a gazetteer row has a position and an OpenStreetMap row has none`);
         return {name, kind, source, lon: lon === null ? null : Number(lon), lat: lat === null ? null : Number(lat),
-            reports: Number(reports ?? 0), says};
+            reports: Number(reports ?? 0), says: says ?? null};
     });
 }
 

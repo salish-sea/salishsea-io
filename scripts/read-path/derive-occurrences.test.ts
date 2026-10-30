@@ -257,18 +257,18 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
                     return (await conn.runAndReadAll(sql)).getRows();
                 } finally { conn.closeSync(); db.closeSync(); }
             };
-            const [[id, lon, lat]] = await query(`SELECT id, location.lon, location.lat FROM store.build.occurrences
-                WHERE doc->>'place' = 'The Sea' ORDER BY id LIMIT 1`) as [string, number, number][];
+            const [id, lon, lat] = (await query(`SELECT id, location.lon, location.lat FROM store.build.occurrences
+                WHERE doc->>'place' = 'The Sea' ORDER BY id LIMIT 1`))[0] as [string, number, number];
             const landmarksTsv = path.join(dir, 'landmarks.tsv');
             await writeFile(landmarksTsv, `name\tkind\tsource\tlon\tlat\treports\tsays\nHere Point\tpoint\tgazetteers\t${lon}\t${lat}\t1\tHere\n`);
             const osm = path.join(dir, 'places-osm.json');
             await writeFile(osm, JSON.stringify({columns: ['name', 'kind', 'lon', 'lat', 'zoom', 'other_names'], places: []}));
             await deriveOccurrences(snapshot, mirrors, null, regions, {list: landmarksTsv, osm});
-            const [[here, far, keyed]] = (await query(`
+            const [here, far, keyed] = (await query(`
                 SELECT count(*) FILTER (id = '${id}' AND (doc->>'landmark') = 'Here'),
                        count(*) FILTER ((doc->>'landmark') = 'Here' AND abs(location.lat - ${lat}) > 0.05),
                        count(*) FILTER (json_exists(doc, '$.landmark'))
-                FROM store.build.occurrences`)).map(r => r.map(Number));
+                FROM store.build.occurrences`))[0]!.map(Number);
             expect([here, far, keyed]).toEqual([1, 0, total]);
             expect(await compare(snapshot)).toBe(true);
             await deriveIdentifierCandidates(snapshot);
