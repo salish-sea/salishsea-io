@@ -31,7 +31,8 @@ export async function fetchWaterRegions(stylePath: string, out: string): Promise
     const {url, hash} = regionsUrl(JSON.parse(readFileSync(stylePath, 'utf8')));
     if (existsSync(out) && sha16(readFileSync(out)) === hash) return 'unchanged';
     for (let attempt = 1; ; attempt++) {
-        const response = await fetch(url);
+        // A stalled server fails the task, which the next build retries, rather than holding up this one.
+        const response = await fetch(url, {signal: AbortSignal.timeout(60_000)});
         if (response.ok) {
             const bytes = new Uint8Array(await response.arrayBuffer());
             if (sha16(bytes) !== hash) throw new Error(`${url}: its contents don't match its name (${sha16(bytes)})`);
