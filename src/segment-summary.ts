@@ -13,6 +13,7 @@ import type { Occurrence } from './types.ts';
 import { sightingText } from './obs-summary.ts';
 import { openAnimalLinkInSidebar } from './subject.ts';
 import './obs-summary.ts';
+import { placeSpan } from './place.ts';
 
 /** A segment becomes one card from this many reports up; fewer stay cards of their own (Peter, 2026-10-28). */
 export const SEGMENT_CARD_MIN = 3;
@@ -115,6 +116,11 @@ export class SegmentSummary extends LitElement {
     .movement {
       color: var(--color-text-secondary);
     }
+    /* Where it began and ended, under the name, as a report's card says where it was (salish-fwyt.2). */
+    p.place {
+      color: var(--color-text-secondary);
+      margin-top: 0.25rem;
+    }
     .latest .label {
       color: var(--color-text-muted);
     }
@@ -209,6 +215,7 @@ export class SegmentSummary extends LitElement {
     // The newest report's own words; an older report's would not be "latest" (decision 097).
     const latest = head.body?.trim() ? head : null;
     const photos = reports.flatMap(r => (r.photos ?? []).map(photo => ({photo, sighting: r})));
+    const where = placeSpan(reports);
     return html`
       <header>
         <a class="dot ${unconfirmed ? 'unconfirmed' : ''}" href="#" @click=${this.focusHead}
@@ -217,6 +224,7 @@ export class SegmentSummary extends LitElement {
         <span class="title"><b>${displayNameFor(head.taxon)}</b>${count ? html` <span class="count">×${count}</span>` : nothing}</span>
         <time>${clock(first)}–${clock(head)}</time>
       </header>
+      ${where ? html`<p class="place">${where}</p>` : nothing}
       ${animals.length ? html`<ul class="animals">${animals.map(({label, href, possibly, support}) => {
         const text = possibly ? `${label} (possibly)` : label;
         return html`<li class=${possibly ? 'possibly' : ''}>${href ? html`<a href=${href}>${text}</a>` : text}<span class="support"

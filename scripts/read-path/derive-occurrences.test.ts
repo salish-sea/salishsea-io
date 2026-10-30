@@ -1,9 +1,10 @@
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, test } from 'vitest';
+import { DuckDBInstance } from '@duckdb/node-api';
 
 import { compare as compareCandidates } from './compare-identifier-candidates.ts';
 import { compare, differences, sourceOf } from './compare-occurrences.ts';
@@ -56,6 +57,8 @@ describe('armsFor', () => {
     test('an input every arm reads, or one unknown here, rebuilds everything, and is named', () => {
         expect(armsFor(['register.names'])).toEqual({all: 'register.names is read by every arm, or unknown here'});
         expect(armsFor(['public.observations', 'inaturalist_mirror.taxa'])).toEqual({all: 'inaturalist_mirror.taxa is read by every arm, or unknown here'});
+        // a new basemap version's water regions move every arm's places (salish-fwyt.2)
+        expect(armsFor(['water-regions.json'])).toEqual({all: 'water-regions.json is read by every arm, or unknown here'});
         expect(armsFor(['public.observations', 'types.enums'])).toHaveProperty('all');
         expect(armsFor(['something.declared.later'])).toHaveProperty('all');
     });
@@ -213,6 +216,33 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
             expect((await deriveOccurrences(snapshot, mirrors, ['inaturalist_mirror.observations', 'maplify_mirror.sightings'])).arms)
                 .toEqual(['maplify', 'inaturalist']);
             expect(await compare(snapshot)).toBe(true);
+            // Given the water regions (salish-fwyt.2), each document names the one its point
+            // is in, and only that: the comparison with Postgres, which never had a place,
+            // still agrees. One region over the Salish Sea stands in for the basemap's list.
+            const regions = path.join(dir, 'water-regions.json');
+            const [w, s, e, n] = [-125.5, 47, -122, 50.5];
+            await writeFile(regions, JSON.stringify({features: [{properties: {name: 'The Sea'},
+                geometry: {type: 'Polygon', coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]]}}]}));
+            const places = async () => {
+                const db = await DuckDBInstance.create(':memory:');
+                const conn = await db.connect();
+                try {
+                    await conn.run(`ATTACH '${snapshot}' AS store (READ_ONLY)`);
+                    return (await conn.runAndReadAll(`
+                        SELECT count(*) FILTER (doc->>'place' = 'The Sea'),
+                               count(*) FILTER (location.lon BETWEEN ${w} AND ${e} AND location.lat BETWEEN ${s} AND ${n}),
+                               count(*) FILTER (json_exists(doc, '$.place'))
+                        FROM store.build.occurrences`)).getRows()[0]!.map(Number);
+                } finally { conn.closeSync(); db.closeSync(); }
+            };
+            const [, inside, total] = await places();
+            expect(inside).toBeGreaterThan(0);
+            expect((await deriveOccurrences(snapshot, mirrors, null, regions)).arms).toBe('all');
+            expect(await places()).toEqual([inside, inside, total]);
+            expect(await compare(snapshot)).toBe(true);
+            // one arm re-derived: the others keep the places they were given
+            await deriveOccurrences(snapshot, mirrors, ['public.observations'], regions);
+            expect(await places()).toEqual([inside, inside, total]);
             await deriveIdentifierCandidates(snapshot);
             expect(await compareCandidates(snapshot)).toBe(true);
             // The catalogue's views over the register (salish-9uu.2.3), which the profile
