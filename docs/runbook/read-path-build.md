@@ -88,6 +88,7 @@ Rehearsed on 2026-10-05 against the bucket, with a copy of production's rows und
 | `/data/mirrors/runs.sqlite` → `/status/ingest-runs.json` | each ingest run's outcome; what the heartbeat reads | log |
 | `/data/mirrors/maplify-names.json` → `/status/maplify-names.json` | the name guard's report: what its checked-in baseline (`data/maplify-names.json`, decision 083) should become, every Maplify (name, scientific name) pair the last passing build resolved and what it resolved to | derived: rewritten by each passing build; `node scripts/read-path/refresh-maplify-names.ts` copies it into the checkout for a pull request |
 | `/data/mirrors/water-regions.json` | the basemap's water regions, which name each sighting's place (decision 099), fetched by `water-regions` from the URL `src/basemap-style.json` names | derived: a lost one is fetched again by the next build |
+| `/data/mirrors/places-osm.json` | the basemap's OpenStreetMap place list, which places the landmarks named from OpenStreetMap (decision 100), fetched by `water-regions` beside the regions | derived: a lost one is fetched again by the next build |
 | `/data/mirrors/register.duckdb` | the register release the build holds (`register.edition` says which), written whole by `ingest-register` and renamed into place | derived: a lost one is fetched again by the next build |
 | `/data/read-path.duckdb` | the store's snapshot of what users write, the reference tables from `data/reference/`, the catalogue from `data/catalogue/` and the rows it generates from the register (decision 070), and the build's own derived relations | derived |
 | `/data/store/salishsea.db` | what users write (decision 065): sightings, photos' URLs, contributors, sign-ins, feedback | **authoritative** — the write API's alone; replicated by Litestream (above) |
@@ -139,6 +140,19 @@ fly ssh console -a salishsea-io -C "sh -c 'cd /opt/stelis && flock /data/ingest.
 ```
 
 The operator build log, the same history as one page, is written after every build to the state dir.
+
+## Refreshing the landmarks
+
+The landmarks a card names (decision 100) are `data/reference/landmarks.tsv`, which [scripts/propose-landmarks.ts](../../scripts/propose-landmarks.ts) proposes from the reports in the Maplify mirror. To refresh it, copy the mirror under the ingest lock, so no ingest writes it mid-copy (at worst one scheduled ingest skips a tick), then run the script on the copy and review the diff in a pull request:
+
+```sh
+fly ssh console -a salishsea-io -C "flock -w 60 /data/ingest.lock cp /data/mirrors/maplify.sqlite /tmp/maplify-copy.sqlite"
+fly ssh sftp get -a salishsea-io /tmp/maplify-copy.sqlite maplify.sqlite
+fly ssh console -a salishsea-io -C "rm /tmp/maplify-copy.sqlite"
+node scripts/propose-landmarks.ts maplify.sqlite
+```
+
+The script adds the places reports newly name and updates each row's count, and keeps every row the file had, with its `says`. To strike a name out, empty its `says`; a refresh leaves it so.
 
 ## Backfilling a mirror
 
