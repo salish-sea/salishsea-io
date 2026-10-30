@@ -4,7 +4,7 @@
 // plain static HTML so it is fully crawlable and readable with JavaScript
 // disabled. This script only *upgrades* two things:
 //   1. the download section — fills in archive file sizes and replaces the
-//      static "Updated nightly at 09:00 UTC." line with a relative timestamp,
+//      static "Updated as new sightings arrive." line with a relative timestamp,
 //      via a pair of HEAD requests (see download-info.ts);
 //   2. the nav's Map link — restores the map permalink the visitor came
 //      from (?d/?x/?y/?z/?o) instead of dropping them at the default map view.
