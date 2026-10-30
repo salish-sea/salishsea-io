@@ -207,11 +207,10 @@ export class ObsSummary extends LitElement {
     p:last-child {
       margin-bottom: 0;
     }
-    /* Where it was, under the name: the water region the build named (salish-fwyt.2),
-       Regular since it labels the record, in grey since the name leads. */
+    /* Where it was, under the name: the water region the build named (salish-fwyt.2), in
+       the grey and Light of the card's other secondary lines, so its place sets it apart. */
     p.place {
       color: var(--color-text-secondary);
-      font-weight: 400;
       margin-top: 0.25rem;
     }
     .count {

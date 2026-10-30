@@ -119,7 +119,6 @@ export class SegmentSummary extends LitElement {
     /* Where it began and ended, under the name, as a report's card says where it was (salish-fwyt.2). */
     p.place {
       color: var(--color-text-secondary);
-      font-weight: 400;
       margin-top: 0.25rem;
     }
     .latest .label {
