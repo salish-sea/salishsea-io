@@ -9,6 +9,15 @@ import type { Occurrence } from './types.ts';
  */
 type Placed = Pick<Occurrence, 'place'>;
 
+/**
+ * Where a report was, as its card says it: the region, then the landmark that narrows it
+ * down (decision 100), "Haro Strait, off Lime Kiln". A landmark comes only with a region.
+ */
+export function placeLine({place, landmark}: Pick<Occurrence, 'place' | 'landmark'>): string | null {
+  if (!place) return null;
+  return landmark ? `${place}, off ${landmark}` : place;
+}
+
 /** The place most of the reports were in, ties going to the earliest; null when none has one. */
 export function mainPlace(reports: readonly Placed[]): string | null {
   const counts = new Map<string, number>();

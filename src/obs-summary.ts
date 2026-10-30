@@ -19,6 +19,7 @@ import { injectPartnerLinks } from './partner-links.ts';
 import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, podCodes, populationCodes } from './individual-links.ts';
 import { openAnimalLinkInSidebar } from './subject.ts';
 import { linkStyles } from './icons.ts';
+import { placeLine } from './place.ts';
 
 const domPurify = createDOMPurify(window as any);
 
@@ -207,7 +208,8 @@ export class ObsSummary extends LitElement {
     p:last-child {
       margin-bottom: 0;
     }
-    /* Where it was, under the name: the water region the build named (salish-fwyt.2), in
+    /* Where it was, under the name: the water region the build named (salish-fwyt.2) and
+       the landmark in it (decision 100), in
        the grey and Light of the card's other secondary lines, so its place sets it apart. */
     p.place {
       color: var(--color-text-secondary);
@@ -354,8 +356,9 @@ export class ObsSummary extends LitElement {
     // change) can fire before it is assigned; render nothing rather than throw.
     if (!this.sighting) return nothing;
     const {
-      body, confirmation, count, disagreements, identifiers, observed_at, photos, place, provider_slug, taxon, url, vitality
+      body, confirmation, count, disagreements, identifiers, observed_at, photos, provider_slug, taxon, url, vitality
     } = this.sighting;
+    const place = placeLine(this.sighting);
     // The same dot, in the same colour, as the marker on the map — which is the
     // whole point of decision 029's palette. It used to be a letter, and the
     // letter was ambiguous: `H` was both humpback and harbour porpoise.
