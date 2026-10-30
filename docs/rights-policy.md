@@ -85,7 +85,7 @@ For records from `public.sightings` (SalishSea.io native contributions):
 - **`rightsHolder`** = `contributors.name` (the individual contributor's display name). Per-record value. This exposes contributor identity as the rights holder; this is accepted as an intentional design choice per **D-09**. *Superseded 2026-10-30 (`salish-8gd.1`): [decision 006](decisions/006-provenance-graph.md), decided after this policy and reaffirmed on 2026-10-12, fixed `rightsHolder` as `SalishSea.io` on every record, the publisher of the aggregated archive (the aggregator pattern); the observer is credited in `recordedBy` and the source in `datasetName` and `dynamicProperties`. The archive has always followed 006.*
 - **`recordedBy`** = same contributor display name (`contributors.name`).
 
-When the contributor display name is absent (NULL), both fields are omitted from the record rather than filled with a placeholder.
+When the contributor display name is absent (NULL), `recordedBy` is omitted from the record rather than filled with a placeholder; `rightsHolder` stays `SalishSea.io` (decision 006, above).
 
 ### 2.2 Third-Party Records — `recordedBy`, `rightsHolder`, `datasetName` (D-10, D-11)
 
