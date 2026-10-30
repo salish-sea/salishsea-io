@@ -1,14 +1,15 @@
 /**
- * Brings the basemap's water regions to the build (salish-fwyt.2), from the URL the
- * site's style names (src/basemap-style.json, `salishsea:places`.regions):
+ * Brings the basemap's water regions to the build (salish-fwyt.2), and its OpenStreetMap
+ * place list, which says where the landmarks it names are (decision 100), from the URLs
+ * the site's style names (src/basemap-style.json, `salishsea:places`.regions and .osm):
  *
- *   node scripts/read-path/fetch-water-regions.ts <basemap-style.json> <water-regions.json>
+ *   node scripts/read-path/fetch-water-regions.ts <basemap-style.json> <water-regions.json> [<places-osm.json>]
  *
- * The URL is named for the list's contents (places-regions-<the first 16 hex digits of
+ * Each URL is named for the list's contents (places-<key>-<the first 16 hex digits of
  * its SHA-256>.json, basemap decision 018), so a file already holding those contents is
  * left alone, and a download that doesn't match is refused. Written beside and renamed
- * over, so the derivation never reads half a list. A new basemap version moves the URL,
- * which is how the build learns the regions changed.
+ * over, so the derivation never reads half a list. A new basemap version moves the URLs,
+ * which is how the build learns the lists changed.
  */
 
 import { createHash } from 'node:crypto';
@@ -18,17 +19,22 @@ import { isRetryableStatus, MAX_ATTEMPTS, retryDelayMs } from '../ingest/retry.t
 
 const sha16 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex').slice(0, 16);
 
-/** The regions list's URL and the hash its name promises; refuses a style that names none. */
-export function regionsUrl(style: {metadata?: Record<string, unknown>}): {url: string, hash: string} {
+const LISTS = {regions: 'water regions', osm: 'OpenStreetMap places', gazetteers: 'gazetteer places'} as const;
+export type ListKey = keyof typeof LISTS;
+
+/** A place list's URL and the hash its name promises; refuses a style that names none. */
+export function placeListUrl(style: {metadata?: Record<string, unknown>}, key: ListKey): {url: string, hash: string} {
     const places = style.metadata?.['salishsea:places'] as Record<string, string> | undefined;
-    const url = places?.['regions'];
+    const url = places?.[key];
     const hash = url?.match(/-([0-9a-f]{16})\.json$/)?.[1];
-    if (!url || !hash) throw new Error(`the style names no water regions list named for its contents: ${JSON.stringify(url)}`);
+    if (!url || !hash) throw new Error(`the style names no ${LISTS[key]} list named for its contents: ${JSON.stringify(url)}`);
     return {url, hash};
 }
 
-export async function fetchWaterRegions(stylePath: string, out: string): Promise<'unchanged' | 'fetched'> {
-    const {url, hash} = regionsUrl(JSON.parse(readFileSync(stylePath, 'utf8')));
+export const regionsUrl = (style: {metadata?: Record<string, unknown>}) => placeListUrl(style, 'regions');
+
+export async function fetchPlaceList(stylePath: string, key: ListKey, out: string): Promise<'unchanged' | 'fetched'> {
+    const {url, hash} = placeListUrl(JSON.parse(readFileSync(stylePath, 'utf8')), key);
     if (existsSync(out) && sha16(readFileSync(out)) === hash) return 'unchanged';
     for (let attempt = 1; ; attempt++) {
         // A stalled server fails the task, which the next build retries, rather than holding up this one.
@@ -46,10 +52,11 @@ export async function fetchWaterRegions(stylePath: string, out: string): Promise
 }
 
 if (import.meta.main) {
-    const [style, out] = process.argv.slice(2);
-    if (!style || !out) {
-        console.error('usage: fetch-water-regions.ts <basemap-style.json> <water-regions.json>');
+    const [style, regions, osm, ...rest] = process.argv.slice(2);
+    if (!style || !regions || rest.length) {
+        console.error('usage: fetch-water-regions.ts <basemap-style.json> <water-regions.json> [<places-osm.json>]');
         process.exit(2);
     }
-    console.log(`water regions: ${await fetchWaterRegions(style, out)}`);
+    console.log(`water regions: ${await fetchPlaceList(style, 'regions', regions)}`);
+    if (osm) console.log(`OpenStreetMap places: ${await fetchPlaceList(style, 'osm', osm)}`);
 }

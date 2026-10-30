@@ -61,6 +61,12 @@ export type Occurrence = {
    * Null where no region is; absent from a sighting the build hasn't seen yet.
    */
   place?: string | null;
+  /**
+   * The name reporters use nearest its point, in that region, as a card writes it after
+   * "off" ("Lime Kiln Point", "Mukilteo"), named by the build from data/reference/landmarks.tsv
+   * (decision 100). Null where none is within 5 km or there is no place; absent likewise.
+   */
+  landmark?: string | null;
   organization: string | null;
   organization_url: string | null;
   photos: OccurrencePhoto[];

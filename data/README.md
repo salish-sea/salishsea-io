@@ -5,11 +5,11 @@ seeding is reproducible. Three kinds of file are ours instead, and are the sourc
 they hold: `maplify-unnamed.tsv`, the reference tables under `reference/`, and the
 catalogue under `catalogue/` ([decision 064](../docs/decisions/064-what-users-do-not-write-leaves-postgres-first.md)).
 
-## `reference/` — providers, organizations, collections, Maplify's collection rules, enum orders, hydrophones
+## `reference/` — providers, organizations, collections, Maplify's collection rules, enum orders, hydrophones, landmarks
 
 Ours, and the source the read-path build reads ([decision 064](../docs/decisions/064-what-users-do-not-write-leaves-postgres-first.md), `salish-9uu.2.1`): who a sighting is attributed to ([decision 006](../docs/decisions/006-provenance-graph.md)), the rules that file a Maplify sighting under a collection by the bracketed source in its comment, the declared order of the enums the derivation compares by, and how far each Orcasound hydrophone can hear, which is a bout's ring on the map until Orcasound states one per bout ([decision 077](../docs/decisions/077-a-ring-shows-where-the-animal-may-have-been.md); every feed starts at our 5 km estimate). [`reference.ts`](../scripts/read-path/reference.ts) loads them into the build under their Postgres names; the format is described there. Whitespace is kept exactly, so a quoted value with a leading space means it.
 
-Migrations wrote these tables once; Postgres is retired, so these files are their only copy.
+Migrations wrote these tables once; Postgres is retired, so these files are their only copy. `landmarks.tsv` is newer: the names reporters use for places on the shore, which a card writes after a sighting's water region ([decision 100](../docs/decisions/100-a-sightings-landmark-is-a-name-reporters-use.md)). [scripts/propose-landmarks.ts](../scripts/propose-landmarks.ts) proposes its rows from the Maplify reports and a pull request reviews them; `says` is what a card writes, and an empty one strikes the name out. A gazetteer row has a position; an OpenStreetMap row has none, so that the file stays out of the ODbL, and the build places it from the basemap's OpenStreetMap list.
 
 ## `catalogue/` — the individuals, their designations and nicknames, the social groups, the parties, the haul-out sites
 

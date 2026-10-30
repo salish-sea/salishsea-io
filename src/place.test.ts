@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { mainPlace, placeSpan } from './place.ts';
+import { mainPlace, placeLine, placeSpan } from './place.ts';
 
 const at = (...places: (string | null | undefined)[]) => places.map(place => ({place}));
 
@@ -31,5 +31,18 @@ describe('placeSpan', () => {
 
   it('is null when no report has a place', () => {
     expect(placeSpan(at(null))).toBeNull();
+  });
+});
+
+describe('placeLine', () => {
+  it('names the region, then the landmark in it', () => {
+    expect(placeLine({place: 'Haro Strait', landmark: 'Lime Kiln Point'})).toBe('Haro Strait, off Lime Kiln Point');
+    expect(placeLine({place: 'Mud Bay (Lopez Sound)', landmark: null})).toBe('Mud Bay (Lopez Sound)');
+    expect(placeLine({place: 'off Oregon'})).toBe('off Oregon');
+  });
+
+  it('is null without a region', () => {
+    expect(placeLine({place: null, landmark: null})).toBeNull();
+    expect(placeLine({})).toBeNull();
   });
 });

@@ -41,14 +41,42 @@ function inside(rings: readonly Float64Array[], lon: number, lat: number): boole
     return odd;
 }
 
+/** Kilometres per degree of latitude, and of longitude at the equator. */
+const KM_PER_DEGREE = 111.2;
+
+/**
+ * How far the point is from the rings' nearest edge, in km, measured on a plane through
+ * the point, which is close enough over the few km it is asked about.
+ */
+function edgeKm(rings: readonly Float64Array[], lon: number, lat: number): number {
+    const kx = KM_PER_DEGREE * Math.cos(lat * Math.PI / 180), ky = KM_PER_DEGREE;
+    let best = Infinity;
+    for (const ring of rings) {
+        for (let i = 2; i < ring.length; i += 2) {
+            const ax = (ring[i - 2]! - lon) * kx, ay = (ring[i - 1]! - lat) * ky;
+            const dx = (ring[i]! - lon) * kx - ax, dy = (ring[i + 1]! - lat) * ky - ay;
+            const t = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (dx * dx + dy * dy || 1)));
+            best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+        }
+    }
+    return best;
+}
+
 export type WaterRegions = {
     /** The name of the region the point is in, or null when it is in none. */
     regionAt(lon: number, lat: number): string | null,
+    /**
+     * Whether the point is in the named region or within `km` of its edge: whether a
+     * place on the shore is on that region's water (decision 100). False for a name that
+     * is no region's.
+     */
+    borders(name: string, lon: number, lat: number, km: number): boolean,
     size: number,
 };
 
 export function waterRegions(list: RegionList): WaterRegions {
     const grid = new Map<string, Region[]>();
+    const byName = new Map<string, Region>();
     let order = 0;
     for (const {properties, geometry} of list.features) {
         const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
@@ -59,6 +87,7 @@ export function waterRegions(list: RegionList): WaterRegions {
             s = Math.min(s, ring[i + 1]!); n = Math.max(n, ring[i + 1]!);
         }
         const region: Region = {name: properties.name, order: order++, bbox: [w, s, e, n], rings};
+        byName.set(region.name, region);
         for (let x = Math.floor(w / CELL); x <= Math.floor(e / CELL); x++)
             for (let y = Math.floor(s / CELL); y <= Math.floor(n / CELL); y++) {
                 const key = cellKey(x, y);
@@ -74,6 +103,14 @@ export function waterRegions(list: RegionList): WaterRegions {
                 if (lon >= w && lon <= e && lat >= s && lat <= n && inside(r.rings, lon, lat)) return r.name;
             }
             return null;
+        },
+        borders(name, lon, lat, km) {
+            const r = byName.get(name);
+            if (!r) return false;
+            const [w, s, e, n] = r.bbox;
+            const dLat = km / KM_PER_DEGREE, dLon = dLat / Math.cos(lat * Math.PI / 180);
+            if (lon < w - dLon || lon > e + dLon || lat < s - dLat || lat > n + dLat) return false;
+            return inside(r.rings, lon, lat) || edgeKm(r.rings, lon, lat) <= km;
         },
     };
 }

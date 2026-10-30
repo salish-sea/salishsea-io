@@ -136,6 +136,7 @@
 ;; keep the names they had as a schema of the snapshot (register.entities and the rest).
 (define register-db (build-path mirror-dir "register.duckdb"))
 (define water-regions-file (build-path mirror-dir "water-regions.json"))
+(define places-osm-file (build-path mirror-dir "places-osm.json"))
 (define REGISTER-DB (path->string register-db))
 
 ;; --- Runtime ----------------------------------------------------------------
@@ -475,6 +476,12 @@
      ;; That list (salish-fwyt.2), fetched beside the mirrors from the URL the style names,
      ;; which is named for its contents: derived from the style, so a lost copy is fetched again.
      (make-artifact 'water-regions.json 'file)
+     ;; The basemap's OpenStreetMap place list, fetched with it, which says where the
+     ;; landmarks named from OpenStreetMap are (decision 100).
+     (make-artifact 'places-osm.json 'file)
+     ;; The landmarks a card may name (decision 100): checked in, proposed from the reports
+     ;; by scripts/propose-landmarks.ts and reviewed in a pull request.
+     (make-artifact 'reference/landmarks.tsv 'file #:provenance 'authoritative)
      ;; The reference tables' files (decision 064): checked in, edited by a curator's
      ;; pull request, so producerless and forward-only like the allow-list above.
      (make-artifact 'reference/providers.tsv 'file #:provenance 'authoritative)
@@ -664,22 +671,29 @@
    ;; resolveEntity over the register's name index (salish-xv35.11). The code list is
    ;; the script's esbuild import closure; the SQL is read, not imported, so it is
    ;; listed by hand.
-   ;; Each occurrence's place is the basemap water region its point is in (salish-fwyt.2):
-   ;; the list the style names, fetched once for each basemap version the site moves to.
+   ;; Each occurrence's place is the basemap water region its point is in (salish-fwyt.2),
+   ;; and its landmark the nearest name reporters use (decision 100), placed by the
+   ;; basemap's OpenStreetMap list where the name is OpenStreetMap's: the lists the style
+   ;; names, fetched once for each basemap version the site moves to.
    (make-task 'water-regions 'transform
               #:inputs '(basemap-style.json)
-              #:outputs '(water-regions.json)
+              #:outputs '(water-regions.json places-osm.json)
               #:invoke (node-script/code "scripts/read-path/fetch-water-regions.ts"
                                  '()
                                  (list (path->string (in-checkout "src" "basemap-style.json"))
-                                       (path->string water-regions-file))))
+                                       (path->string water-regions-file)
+                                       (path->string places-osm-file))))
    (make-task 'derive-occurrences 'transform
-              #:inputs (append occurrence-derivation-inputs '(water-regions.json))
+              #:inputs (append occurrence-derivation-inputs
+                               '(water-regions.json places-osm.json reference/landmarks.tsv))
               #:outputs '(build.occurrences)
               #:invoke (node-script/code "scripts/read-path/derive-occurrences.ts"
                                  '()
                                  (append (list* SNAPSHOT-DB MIRRORS)
-                                         (list "--regions" (path->string water-regions-file)))))
+                                         (list "--regions" (path->string water-regions-file)
+                                               "--landmarks"
+                                               (path->string (in-checkout "data" "reference" "landmarks.tsv"))
+                                               (path->string places-osm-file)))))
    ;; Postgres's derived.identifier_candidates as DuckDB SQL: each designation an
    ;; occurrence names, paired with the catalogue's individual or matriline. Reads the
    ;; occurrences the build derived, so it is a port of the whole chain;
@@ -875,6 +889,8 @@
     [(maplify-unnamed.tsv) (build-path SALISHSEA "data" "maplify-unnamed.tsv")]
     [(basemap-style.json) (build-path SALISHSEA "src" "basemap-style.json")]
     [(water-regions.json) water-regions-file]
+    [(places-osm.json) places-osm-file]
+    [(reference/landmarks.tsv) (build-path SALISHSEA "data" "reference" "landmarks.tsv")]
     [(catalogue/individuals.tsv) (build-path SALISHSEA "data" "catalogue" "individuals.tsv")]
     [(catalogue/designations.tsv) (build-path SALISHSEA "data" "catalogue" "designations.tsv")]
     [(catalogue/nicknames.tsv) (build-path SALISHSEA "data" "catalogue" "nicknames.tsv")]

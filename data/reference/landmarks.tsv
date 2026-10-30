@@ -1,0 +1,298 @@
+name	kind	source	lon	lat	reports	says
+Admiralty Head	point	gazetteers	-122.67933	48.15537	8	Admiralty Head
+Agate Point	point	gazetteers	-122.54875	47.72037	9	Agate Point
+Alki Point	point	gazetteers	-122.41985	47.57593	25	Alki Point
+Allyn	village	osm			16	Allyn
+Anacortes	ferry_terminal	osm			10	Anacortes
+Anacortes	town	osm			10	Anacortes
+Anderson Island	ferry_terminal	osm			17	Anderson Island
+Anderson Island	island	osm			17	Anderson Island
+Anderson Point	point	gazetteers	-122.53346	47.43899	1	Anderson Point
+Apple Cove Point	point	gazetteers	-122.48319	47.81565	1	Apple Cove Point
+Arbutus Point	point	gazetteers	-123.58833	48.82083	1	Arbutus Point
+Arcadia Point	point	gazetteers	-122.93848	47.19843	2	Arcadia Point
+Ayock Point	point	gazetteers	-123.0546	47.50731	3	Ayock Point
+Bainbridge	ferry_terminal	osm			40	Bainbridge
+Bainbridge Island	island	osm			18	Bainbridge Island
+Beaver Point	point	gazetteers	-123.36667	48.77139	1	Beaver Point
+Beckett Point	point	gazetteers	-122.89045	48.07648	2	Beckett Point
+Beechey Head	point	gazetteers	-123.65417	48.31361	2	Beechey Head
+Bellingham	city	osm			9	Bellingham
+Bellingham	ferry_terminal	osm			9	Bellingham
+Birch Bay	village	osm			1	Birch Bay
+Blaine	village	osm			1	Blaine
+Blake Island	island	osm			24	Blake Island
+Blakely Island	island	osm			4	Blakely Island
+Bowen Island	island	osm			12	Bowen Island
+Bremerton	city	osm			33	Bremerton
+Bremerton	ferry_terminal	osm			33	Bremerton
+Browns Point	point	gazetteers	-122.44374	47.30565	10	Browns Point
+Browns Point	village	osm			10	Browns Point
+Buckley Bay	ferry_terminal	osm			1	Buckley Bay
+Burien	town	osm			1	Burien
+Burrows Island	island	osm			2	Burrows Island
+Bush Point	point	gazetteers	-122.60682	48.03093	53	Bush Point
+Cadboro Point	point	gazetteers	-123.26444	48.45139	1	Cadboro Point
+Camano Head	point	gazetteers	-122.35681	48.05704	37	Camano Head
+Camano Island	island	osm			51	Camano Island
+Cap Sante	point	gazetteers	-122.59934	48.51733	1	Cap Sante
+Cape Beale	point	gazetteers	-125.21722	48.7875	2	Cape Beale
+Cape George	point	gazetteers	-122.88462	48.1037	1	Cape George
+Cape Roger Curtis	point	gazetteers	-123.43111	49.34028	1	Cape Roger Curtis
+Cape Saint Mary	point	gazetteers	-122.80101	48.44732	1	Cape Saint Mary
+Cattle Point	point	gazetteers	-123.29167	48.43833	1	Cattle Point
+Cattle Point	point	gazetteers	-122.96295	48.45038	5	Cattle Point
+Chemainus	ferry_terminal	osm			2	Chemainus
+Clinton	ferry_terminal	osm			39	Clinton
+Clinton	village	osm			39	Clinton
+Coal Island	island	osm			1	Coal Island
+Coal Point	point	gazetteers	-123.48889	48.67722	1	Coal Point
+Cole Point	point	gazetteers	-122.67624	47.14315	1	Cole Point
+Cortes Island	island	osm			2	Cortes Island
+Coupeville	ferry_terminal	osm			8	Coupeville
+Coupeville	town	osm			9	Coupeville
+Crane Point	point	gazetteers	-122.74156	48.04898	1	Crane Point
+Crofton	ferry_terminal	osm			1	Crofton
+Cypress Island	island	osm			2	Cypress Island
+Dash Point	point	gazetteers	-122.42874	47.31982	12	Dash Point
+Dash Point	village	osm			12	Dash Point
+Decatur Head	point	gazetteers	-122.7849	48.51121	2	Decatur Head
+Decatur Island	island	osm			2	Decatur Island
+Denman Island	island	osm			1	Denman Island
+Departure Bay Ferry Terminal	ferry_terminal	osm			2	Departure Bay
+Des Moines	town	osm			7	Des Moines
+Diamond Point	point	gazetteers	-122.91462	48.09398	4	Diamond Point
+Dines Point	point	gazetteers	-122.54682	48.07565	1	Dines Point
+Dolphin Point	point	gazetteers	-122.45152	47.50288	2	Dolphin Point
+Dorcas Point	point	gazetteers	-124.18583	49.31278	2	Dorcas Point
+Dover Point	point	gazetteers	-122.8957	47.14621	1	Dover Point
+Dungeness Spit	point	gazetteers	-123.14768	48.17482	1	Dungeness Spit
+Eagle Point	point	gazetteers	-123.03657	48.45843	13	Eagle Point
+East Point	point	gazetteers	-122.4921	48.09648	4	East Point
+East Point	point	gazetteers	-123.04528	48.785	33	East Point
+Ediz Hook	point	gazetteers	-123.43741	48.14148	3	Ediz Hook
+Edmonds	ferry_terminal	osm			44	Edmonds
+Edmonds	town	osm			44	Edmonds
+Ekins Point	point	gazetteers	-123.38056	49.535	7	Ekins Point
+Eliza Island	island	osm			3	Eliza Island
+Erlands Point	point	gazetteers	-122.68653	47.60593	1	Erlands Point
+Everett	city	osm			17	Everett
+Fauntleroy	ferry_terminal	osm			12	Fauntleroy
+Flapjack Point	point	gazetteers	-122.95542	47.10787	1	Flapjack Point
+Foster Point	point	gazetteers	-122.88851	48.58844	1	Foster Point
+Fox Island	island	osm			20	Fox Island
+Fox Island	village	osm			20	Fox Island
+Fox Point	point	gazetteers	-122.58985	47.23704	3	Fox Point
+Freeland	village	osm			8	Freeland
+Friday Harbor	ferry_terminal	osm			12	Friday Harbor
+Friday Harbor	village	osm			9	Friday Harbor
+Gabriola	town	osm			2	Gabriola
+Gabriola Island	island	osm			1	Gabriola Island
+Gabriola Island Ferry Terminal	ferry_terminal	osm			1	Gabriola Island
+Galiano	village	osm			3	Galiano
+Galiano Island	island	osm			8	Galiano Island
+Gibsons	town	osm			3	Gibsons
+Gig Harbor	town	osm			12	Gig Harbor
+Gooseberry Point	point	gazetteers	-122.67212	48.73205	1	Gooseberry Point
+Gooseberry Point	ferry_terminal	osm			1	Gooseberry Point
+Gowlland Point	point	gazetteers	-123.18389	48.73583	3	Gowlland Point
+Green Point	point	gazetteers	-122.69374	47.28093	2	Green Point
+Green Point	point	gazetteers	-122.70184	48.49816	1	Green Point
+Grief Point	point	gazetteers	-124.52639	49.80417	2	Grief Point
+Guemes	village	osm			3	Guemes
+Guemes Island	ferry_terminal	osm			4	Guemes Island
+Guemes Island	island	osm			4	Guemes Island
+Halfmoon Bay	village	osm			1	Halfmoon Bay
+Hankin Point	point	gazetteers	-122.90407	48.58093	1	Hankin Point
+Hansville	village	osm			2	Hansville
+Harbor Island	island	osm			2	Harbor Island
+Hardwicke Island	island	osm			1	Hardwicke Island
+Harstine Island	island	osm			24	Harstine Island
+Hat Island	island	osm			49	Hat Island
+Hazel Point	point	gazetteers	-122.77099	47.69315	1	Hazel Point
+Heriot Bay	village	osm			1	Heriot Bay
+Hermosa Point	point	gazetteers	-122.29348	48.06232	1	Hermosa Point
+Hernando Island	island	osm			1	Hernando Island
+Herron Island	island	osm			3	Herron Island
+Hoodsport	village	osm			1	Hoodsport
+Hornby Island	island	osm			3	Hornby Island
+Hunter Point	point	gazetteers	-122.91931	47.17343	1	Hunter Point
+Indian Island	island	osm			1	Indian Island
+Indianola	village	osm			1	Indianola
+Johnson Point	point	gazetteers	-122.81486	47.17787	10	Johnson Point
+Kala Point	point	gazetteers	-122.76628	48.05704	2	Kala Point
+Kayak Point	point	gazetteers	-122.36821	48.13538	4	Kayak Point
+Keats Island	island	osm			5	Keats Island
+Ketron Island	ferry_terminal	osm			8	Ketron Island
+Ketron Island	island	osm			8	Ketron Island
+Kingston	ferry_terminal	osm			31	Kingston
+Kingston	town	osm			31	Kingston
+Lagoon Point	point	gazetteers	-122.61266	48.07259	12	Lagoon Point
+Langdale	village	osm			1	Langdale
+Langdale Ferry Terminal	ferry_terminal	osm			1	Langdale
+Langley	town	osm			49	Langley
+Laura Point	point	gazetteers	-123.305	48.86444	2	Laura Point
+Lime Kiln Point	point	gazetteers	-123.15245	48.51587	33	Lime Kiln Point
+Limestone Point	point	gazetteers	-123.10741	48.62232	1	Limestone Point
+Long Point	point	gazetteers	-122.64795	48.22677	9	Long Point
+Lonsdale Quay	ferry_terminal	osm			1	Lonsdale Quay
+Lopez Island	ferry_terminal	osm			10	Lopez Island
+Lopez Island	island	osm			10	Lopez Island
+Lummi Island	ferry_terminal	osm			5	Lummi Island
+Lummi Island	island	osm			5	Lummi Island
+Lummi Point	point	gazetteers	-122.68879	48.734	2	Lummi Point
+Lund	village	osm			1	Lund
+Manchester	village	osm			9	Manchester
+Marrowstone Island	island	osm			5	Marrowstone Island
+Marrowstone Point	point	gazetteers	-122.68794	48.10121	3	Marrowstone Point
+Matia Island	island	osm			1	Matia Island
+Maury Island	island	osm			15	Maury Island
+Mayne	village	osm			4	Mayne
+Mayne Island	island	osm			3	Mayne Island
+McNeil Island	island	osm			11	McNeil Island
+Meadow Point	point	gazetteers	-122.40569	47.69399	1	Meadow Point
+Mill Point	point	gazetteers	-122.85684	48.01703	1	Mill Point
+Monarch Head	point	gazetteers	-123.09361	48.76444	5	Monarch Head
+Moresby Island	island	osm			1	Moresby Island
+Mouat Point	point	gazetteers	-123.31917	48.77861	3	Mouat Point
+Mukilteo	town	osm			36	Mukilteo
+Mukilteo Ferry Terminal	ferry_terminal	osm			36	Mukilteo
+Nanaimo	city	osm			3	Nanaimo
+Nanaimo	ferry_terminal	osm			3	Nanaimo
+Nanoose Bay	village	osm			1	Nanoose Bay
+Neck Point	point	gazetteers	-123.96444	49.23639	1	Neck Point
+Nodule Point	point	gazetteers	-122.66933	48.03231	1	Nodule Point
+North Pender Island	island	osm			4	North Pender Island
+North Vancouver	city	osm			2	North Vancouver
+Norwegian Point	point	gazetteers	-122.54765	47.91843	3	Norwegian Point
+Oak Harbor	town	osm			2	Oak Harbor
+Olele Point	point	gazetteers	-122.68266	47.97203	4	Olele Point
+Olympia	city	osm			3	Olympia
+Onamac Point	point	gazetteers	-122.53655	48.18399	3	Onamac Point
+Orcas Island	ferry_terminal	osm			14	Orcas Island
+Orcas Island	island	osm			13	Orcas Island
+Otter Bay Ferry Terminal	ferry_terminal	osm			3	Otter Bay
+Otter Point	point	gazetteers	-123.82222	48.35694	1	Otter Point
+Parksville	city	osm			3	Parksville
+Patos Island	island	osm			4	Patos Island
+Penelakut Island	island	osm			1	Penelakut Island
+Penrose Point	point	gazetteers	-122.73708	47.2651	2	Penrose Point
+Phillimore Point	point	gazetteers	-123.39222	48.87194	4	Phillimore Point
+Picnic Point	point	gazetteers	-122.33347	47.88037	6	Picnic Point
+Pile Point	point	gazetteers	-123.09407	48.48232	9	Pile Point
+Piner Point	point	gazetteers	-122.4529	47.34343	2	Piner Point
+Point Atkinson	point	gazetteers	-123.265	49.32972	4	Point Atkinson
+Point Caution	point	gazetteers	-123.01712	48.56204	3	Point Caution
+Point Dalco	point	gazetteers	-122.51902	47.33399	2	Point Dalco
+Point Defiance	point	gazetteers	-122.54624	47.31788	38	Point Defiance
+Point Defiance	ferry_terminal	osm			38	Point Defiance
+Point Evans	point	gazetteers	-122.54791	47.28538	2	Point Evans
+Point George	point	gazetteers	-122.98851	48.56121	1	Point George
+Point Glover	point	gazetteers	-122.55458	47.5901	1	Point Glover
+Point Hudson	point	gazetteers	-122.74944	48.11722	3	Point Hudson
+Point Jefferson	point	gazetteers	-122.47347	47.74815	4	Point Jefferson
+Point Monroe	point	gazetteers	-122.51152	47.70815	1	Point Monroe
+Point No Point	point	gazetteers	-122.52598	47.91204	23	Point No Point
+Point Richmond	point	gazetteers	-122.53874	47.37676	2	Point Richmond
+Point Roberts	village	osm			3	Point Roberts
+Point Robinson	point	gazetteers	-122.37429	47.38815	31	Point Robinson
+Point Southworth	point	gazetteers	-122.49541	47.51038	1	Point Southworth
+Point White	point	gazetteers	-122.56764	47.59093	3	Point White
+Point Williams	point	gazetteers	-122.40096	47.53038	1	Point Williams
+Point Wilson	point	gazetteers	-122.75434	48.14398	11	Point Wilson
+Polnell Point	point	gazetteers	-122.5585	48.2726	12	Polnell Point
+Port Angeles	ferry_terminal	osm			4	Port Angeles
+Port Angeles	town	osm			4	Port Angeles
+Port Ludlow	village	osm			2	Port Ludlow
+Port Orchard	ferry_terminal	osm			7	Port Orchard
+Port Orchard	town	osm			7	Port Orchard
+Port Townsend	ferry_terminal	osm			17	Port Townsend
+Port Townsend	town	osm			17	Port Townsend
+Portage Island	island	osm			1	Portage Island
+Possession Point	point	gazetteers	-122.38875	47.90593	34	Possession Point
+Powell River	city	osm			3	Powell River
+President Point	point	gazetteers	-122.47208	47.76593	6	President Point
+Prevost Island	island	osm			1	Prevost Island
+Priest Point	point	gazetteers	-122.2268	48.03232	1	Priest Point
+Priest Point	village	osm			1	Priest Point
+Protection Island	island	osm			4	Protection Island
+Quadra Island	island	osm			3	Quadra Island
+Qualicum Beach	town	osm			4	Qualicum Beach
+Quilcene	village	osm			2	Quilcene
+Restoration Point	point	gazetteers	-122.47902	47.58371	16	Restoration Point
+Rocky Point	point	gazetteers	-122.66792	47.60371	1	Rocky Point
+Rocky Point	point	gazetteers	-122.52432	48.09648	1	Rocky Point
+Rocky Point	point	gazetteers	-122.52992	48.25028	3	Rocky Point
+Rocky Point	point	gazetteers	-122.69989	48.32816	1	Rocky Point
+Ruston	village	osm			9	Ruston
+Salamanca Point	point	gazetteers	-123.34472	48.90472	1	Salamanca Point
+Salsbury Point	point	gazetteers	-122.60793	47.85648	1	Salsbury Point
+Saltspring Island	island	osm			5	Saltspring Island
+San Juan Island	island	osm			3	San Juan Island
+Sandy Point	point	gazetteers	-122.3757	48.03454	45	Sandy Point
+Saturna Island	island	osm			18	Saturna Island
+Saturna Point	point	gazetteers	-123.20139	48.79806	3	Saturna Point
+Seattle	city	osm			27	Seattle
+Seattle	ferry_terminal	osm			27	Seattle
+Sechelt	town	osm			4	Sechelt
+Sekiu	village	osm			1	Sekiu
+Shaw Island	ferry_terminal	osm			4	Shaw Island
+Shaw Island	island	osm			3	Shaw Island
+Shelton	town	osm			5	Shelton
+Shoreline	town	osm			3	Shoreline
+Sidney	ferry_terminal	osm			1	Sidney
+Sidney	town	osm			1	Sidney
+Sidney Island	island	osm			2	Sidney Island
+Sidney Spit	point	gazetteers	-123.33694	48.6475	1	Sidney Spit
+Silverdale	town	osm			7	Silverdale
+Sisters Point	point	gazetteers	-123.04126	47.35871	1	Sisters Point
+Skiff Point	point	gazetteers	-122.49847	47.66204	2	Skiff Point
+Snatelum Point	point	gazetteers	-122.62822	48.2226	4	Snatelum Point
+Sooke	town	osm			5	Sooke
+South Pender Island	island	osm			6	South Pender Island
+Southworth	ferry_terminal	osm			8	Southworth
+Spieden Island	island	osm			2	Spieden Island
+Squamish	city	osm			1	Squamish
+Squaxin Island	island	osm			6	Squaxin Island
+Stanley Point	point	gazetteers	-123.32722	48.81861	1	Stanley Point
+Stanwood	village	osm			1	Stanwood
+Steilacoom	ferry_terminal	osm			6	Steilacoom
+Steilacoom	village	osm			6	Steilacoom
+Stretch Island	island	osm			8	Stretch Island
+Stuart Island	island	osm			6	Stuart Island
+Sturdies Bay Ferry Terminal	ferry_terminal	osm			2	Sturdies Bay
+Sucia Island	island	osm			4	Sucia Island
+Suquamish	village	osm			2	Suquamish
+Tacoma	city	osm			28	Tacoma
+Tahlequah	ferry_terminal	osm			7	Tahlequah
+Taylor Point	point	gazetteers	-123.13139	48.76389	4	Taylor Point
+Ten Mile Point	point	gazetteers	-123.26556	48.45556	3	Ten Mile Point
+Three Tree Point	point	gazetteers	-122.38235	47.45038	1	Three Tree Point
+Tilly Point	point	gazetteers	-123.20722	48.73222	4	Tilly Point
+Tinson Point	point	gazetteers	-123.85333	49.19972	1	Tinson Point
+Tracyton	village	osm			3	Tracyton
+Tsawwassen Ferry Terminal	ferry_terminal	osm			2	Tsawwassen
+Tumbo Island	island	osm			2	Tumbo Island
+Tumbo Point	point	gazetteers	-123.05111	48.79361	1	Tumbo Point
+Turn Point	point	gazetteers	-123.23714	48.68843	2	Turn Point
+Union	village	osm			6	Union
+Utsalady Point	point	gazetteers	-122.50322	48.25704	5	Utsalady Point
+Vancouver	city	osm			6	Vancouver
+Vashon	town	osm			96	Vashon
+Vashon Island	ferry_terminal	osm			33	Vashon Island
+Vashon Island	island	osm			62	Vashon Island
+Victoria	city	osm			6	Victoria
+Victoria	ferry_terminal	osm			6	Victoria
+Village Bay Ferry Terminal	ferry_terminal	osm			1	Village Bay
+Wallace Point	point	gazetteers	-123.23139	48.73639	2	Wallace Point
+Warm Beach	village	osm			3	Warm Beach
+West Point	point	gazetteers	-122.43707	47.66176	17	West Point
+West Point	point	gazetteers	-122.66406	48.40177	4	West Point
+West Vancouver	city	osm			3	West Vancouver
+Whaletown	village	osm			1	Whaletown
+Whidbey Island	island	osm			24	Whidbey Island
+White Rock	city	osm			1	White Rock
+Whitney Point	point	gazetteers	-122.85127	47.76037	1	Whitney Point
+Windy Point	point	gazetteers	-122.96626	47.16898	2	Windy Point
+Wing Point	point	gazetteers	-122.49097	47.62038	2	Wing Point
+Yeomalt Point	point	gazetteers	-122.48985	47.63315	2	Yeomalt Point

@@ -135,6 +135,12 @@
 ;; under none, so a new list re-derives every arm).
 (check-not-false (memq 'water-regions.json (inputs-of 'derive-occurrences)))
 (check-eq? (producer-of salishsea-graph 'water-regions.json) 'water-regions)
+;; The landmarks (decision 100): the checked-in list, placed by the OpenStreetMap list
+;; that the same task fetches, and read by every arm likewise.
+(check-not-false (memq 'reference/landmarks.tsv (inputs-of 'derive-occurrences)))
+(check-not-false (memq 'places-osm.json (inputs-of 'derive-occurrences)))
+(check-eq? (producer-of salishsea-graph 'places-osm.json) 'water-regions)
+(check-eq? (artifact-provenance (hash-ref (graph-artifacts salishsea-graph) 'reference/landmarks.tsv)) 'authoritative)
 (check-eq? (artifact-provenance (hash-ref (graph-artifacts salishsea-graph) 'basemap-style.json)) 'authoritative)
 (define-values (guard-plan _gp) (plan salishsea-graph 'maplify-names-hold))
 (check-equal? guard-plan '(maplify-names)

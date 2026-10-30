@@ -4,7 +4,7 @@
  * the rest (native sightings, the register, the reference tables) from the
  * snapshot's copies of Postgres's tables.
  *
- *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json>]
+ *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json> [--landmarks <landmarks.tsv> <places-osm.json>]]
  *
  * Writes `build.occurrences` into the snapshot: id, observed_at and the document,
  * the shape of `snapshot.occurrences`, which holds Postgres's answer. The SQL is
@@ -15,7 +15,10 @@
  * Each document also names the water region its point is in (`place`, salish-fwyt.2),
  * which Postgres never derived: looked up here in node, in the basemap's regions list
  * that --regions names (water-regions.ts), arm by arm, and joined in as the arm's rows
- * are written. Without the list, every place is null.
+ * are written. Without the list, every place is null. Given the landmarks too
+ * (`landmark`, decision 100: data/reference/landmarks.tsv, placed by the basemap's
+ * OpenStreetMap list; landmarks.ts), a document with a place also names the nearest
+ * landmark reporters use, or null.
  *
  * One source at a time, and only the sources whose inputs changed when the build says
  * which (STELIS_CHANGED_INPUTS, Stelis ADR 0015; salish-9uu.8.1): a sighting saved here
@@ -33,6 +36,7 @@ import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
 import { attachRegister, registerFile } from './register-file.ts';
+import { landmarks as landmarksNear, parseLandmarks, resolveLandmarks, type Landmarks, type PlaceList } from './landmarks.ts';
 import { waterRegions, type WaterRegions } from './water-regions.ts';
 
 export const SOURCES = ['maplify', 'inaturalist', 'native', 'orcasound'] as const;
@@ -115,7 +119,7 @@ export function changedInputs(env: NodeJS.ProcessEnv = process.env): string[] | 
 const COLUMNS: readonly {name: string, type: string, from: (source: Source) => string}[] = [
     {name: 'id', type: 'VARCHAR', from: () => 'o.id'},
     {name: 'observed_at', type: 'TIMESTAMPTZ', from: () => 'o.observed_at'},
-    {name: 'doc', type: 'VARCHAR', from: () => 'occurrence_doc(o, p.place)'},
+    {name: 'doc', type: 'VARCHAR', from: () => 'occurrence_doc(o, p.place, p.landmark)'},
     {name: 'source', type: 'VARCHAR', from: source => `'${source}'`},
     {name: 'identifiers', type: 'VARCHAR[]', from: () => 'o.identifiers'},
     {name: 'location', type: 'STRUCT(lat DOUBLE, lon DOUBLE)', from: () => 'o.location'},
@@ -126,10 +130,12 @@ const insertArm = (source: Source) =>
      FROM ${source}_occurrences o LEFT JOIN memory.main.occurrence_place p ON p.id = o.id`;
 
 /**
- * Write `occurrence_place(id, place)` into the connection's in-memory catalog: the water
- * region of each of the arm's occurrences, by its point (not where it was seen from).
+ * Write `occurrence_place(id, place, landmark)` into the connection's in-memory catalog:
+ * the water region of each of the arm's occurrences, by its point (not where it was seen
+ * from), and the landmark near it in that region.
  */
-async function writePlaces(conn: DuckDBConnection, source: Source, regions: WaterRegions | null): Promise<void> {
+async function writePlaces(conn: DuckDBConnection, source: Source, regions: WaterRegions | null,
+    landmarks: Landmarks | null): Promise<void> {
     const appender = await conn.createAppender('occurrence_place', 'main', 'memory');
     try {
         if (regions) {
@@ -138,8 +144,10 @@ async function writePlaces(conn: DuckDBConnection, source: Source, regions: Wate
             for (const [id, lon, lat] of rows) {
                 const place = regions.regionAt(lon, lat);
                 if (place === null) continue;
+                const landmark = landmarks?.landmarkAt(lon, lat, place) ?? null;
                 appender.appendVarchar(id);
                 appender.appendVarchar(place);
+                if (landmark === null) appender.appendNull(); else appender.appendVarchar(landmark);
                 appender.endRow();
             }
         }
@@ -151,8 +159,20 @@ async function writePlaces(conn: DuckDBConnection, source: Source, regions: Wate
 
 export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
     changed: readonly string[] | null = changedInputs(),
-    regionsPath: string | null = null): Promise<{rows: number, arms: readonly Source[] | 'all'}> {
+    regionsPath: string | null = null,
+    landmarkPaths: {list: string, osm: string} | null = null): Promise<{rows: number, arms: readonly Source[] | 'all'}> {
     const regions = regionsPath ? waterRegions(JSON.parse(await readFile(regionsPath, 'utf8'))) : null;
+    let landmarks: Landmarks | null = null;
+    if (regions && landmarkPaths) {
+        const rows = parseLandmarks(await readFile(landmarkPaths.list, 'utf8'));
+        const osm = JSON.parse(await readFile(landmarkPaths.osm, 'utf8')) as PlaceList;
+        const resolved = resolveLandmarks(rows, osm);
+        // A basemap version that renamed a place leaves its row without one: named, not
+        // fatal, since every other landmark still stands (update-basemap.ts reports it too).
+        if (resolved.unmatched.length)
+            console.warn(`landmarks: the OpenStreetMap list has no place for ${resolved.unmatched.map(r => `${r.name} (${r.kind})`).join(', ')}`);
+        landmarks = landmarksNear(resolved.landmarks, regions);
+    }
     const extract = await readFile(new URL('./derive/extract.sql', import.meta.url), 'utf8');
     const shared = await readFile(new URL('./derive/shared.sql', import.meta.url), 'utf8');
     const lookups = await readFile(new URL('./derive/lookups.sql', import.meta.url), 'utf8');
@@ -203,12 +223,12 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
         // writeInaturalistOutOfScope), and all of it BEFORE any transaction below: a DuckDB
         // transaction may write one attached database, and these write `memory`, while
         // the rows go to the store.
-        await conn.run('CREATE OR REPLACE TABLE memory.main.occurrence_place (id VARCHAR, place VARCHAR)');
+        await conn.run('CREATE OR REPLACE TABLE memory.main.occurrence_place (id VARCHAR, place VARCHAR, landmark VARCHAR)');
         for (const source of arms) {
             if (source === 'maplify') await writeMaplifyEntities(conn);
             if (source === 'inaturalist') await writeInaturalistOutOfScope(conn);
             await conn.run(parts.arms[source]);
-            await writePlaces(conn, source, regions);
+            await writePlaces(conn, source, regions, landmarks);
         }
         // A full run REPLACES the table, so a column added here reaches the file on the
         // volume; a partial one replaces its arms' rows in place.
@@ -256,13 +276,16 @@ export async function main(): Promise<void> {
     const args = process.argv.slice(2);
     const flag = args.indexOf('--regions');
     const regions = flag >= 0 ? args.splice(flag, 2)[1] : undefined;
+    const lflag = args.indexOf('--landmarks');
+    const [list, osm] = lflag >= 0 ? args.splice(lflag, 3).slice(1) : [];
     const [snapshot, ...rest] = args;
     const mirrors = mirrorArgs(rest);
-    if (!snapshot || !mirrors || (flag >= 0 && !regions)) {
-        console.error('usage: derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json>]');
+    if (!snapshot || !mirrors || (flag >= 0 && !regions) || (lflag >= 0 && (!list || !osm || !regions))) {
+        console.error('usage: derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json> [--landmarks <landmarks.tsv> <places-osm.json>]]');
         process.exit(2);
     }
-    const {rows, arms} = await deriveOccurrences(snapshot, mirrors, changedInputs(), regions ?? null);
+    const {rows, arms} = await deriveOccurrences(snapshot, mirrors, changedInputs(), regions ?? null,
+        list && osm ? {list, osm} : null);
     console.log(`build.occurrences: ${rows} rows${arms === 'all' ? '' : ` (${arms.join(', ')} re-derived; the rest as they were)`}`);
 }
 
