@@ -82,7 +82,7 @@ This exclusion is a gap resolution for GAP-04. Cross-reference Section 3 (gap ta
 
 For records from `public.sightings` (SalishSea.io native contributions):
 
-- **`rightsHolder`** = `contributors.name` (the individual contributor's display name). Per-record value. This exposes contributor identity as the rights holder; this is accepted as an intentional design choice per **D-09**.
+- **`rightsHolder`** = `contributors.name` (the individual contributor's display name). Per-record value. This exposes contributor identity as the rights holder; this is accepted as an intentional design choice per **D-09**. *Superseded 2026-10-30 (`salish-8gd.1`): [decision 006](decisions/006-provenance-graph.md), decided after this policy and reaffirmed on 2026-10-12, fixed `rightsHolder` as `SalishSea.io` on every record, the publisher of the aggregated archive (the aggregator pattern); the observer is credited in `recordedBy` and the source in `datasetName` and `dynamicProperties`. The archive has always followed 006.*
 - **`recordedBy`** = same contributor display name (`contributors.name`).
 
 When the contributor display name is absent (NULL), both fields are omitted from the record rather than filled with a placeholder.
@@ -93,7 +93,7 @@ For records from `maplify.sightings` (Whale Alert / Maplify via the WASEAK feed)
 
 - **`recordedBy`** = `maplify.sightings.usernm` (the original observer's username), when non-NULL per **D-10**. Omitted when NULL.
 - **`datasetName`** = a human-readable sub-source name derived from the `maplify.sightings.source` column per **D-10**. This is a mapping table from source code to display name (e.g., `orca_network` → "Orca Network"). The exact mapping is built in Phase 5 against `SELECT DISTINCT source FROM maplify.sightings` (see Assumption A2). Known values include `orca_network` and `cascadia`; `rwsas` is excluded at ingest and will not appear.
-- **`rightsHolder`** = the originating sub-source organization (e.g., "Orca Network", "Cascadia Research Collective") when known from the `source` column mapping, falling back to `"Whale Alert / Maplify"` when the source is unrecognized per **D-11**.
+- **`rightsHolder`** = the originating sub-source organization (e.g., "Orca Network", "Cascadia Research Collective") when known from the `source` column mapping, falling back to `"Whale Alert / Maplify"` when the source is unrecognized per **D-11**. *Superseded 2026-10-30 (`salish-8gd.1`): [decision 006](decisions/006-provenance-graph.md), decided after this policy and reaffirmed on 2026-10-12, fixed `rightsHolder` as `SalishSea.io` on every record, the publisher of the aggregated archive (the aggregator pattern); the observer is credited in `recordedBy` and the source in `datasetName` and `dynamicProperties`. The archive has always followed 006.*
 - **`license`** = `https://creativecommons.org/licenses/by/4.0/legalcode` (CC-BY 4.0) for all Maplify records, per §1.1 (D-20). The license is asserted upstream at Acartia (contributor registration) and applies to all records reaching SalishSea.io via the WASEAK feed.
 
 The Whale Alert → sub-source aggregation chain is carried in `dynamicProperties` (see Section 2.3).
@@ -506,9 +506,9 @@ All D-numbers are cited in the sections above. For reference:
 | D-06 | 4.1 | Native records may be publicly linked independently of third-party conferral |
 | D-07 | 4.1 | OPEN: native-only archive variant question for Phase 7/8 planner |
 | D-08 | 1.3 | Native consent basis: platform policy + submission-form notice going forward |
-| D-09 | 2.1 | Native `rightsHolder` = `recordedBy` = contributor display name |
+| D-09 | 2.1 | Native `rightsHolder` = `recordedBy` = contributor display name (`rightsHolder` superseded by decision 006: `SalishSea.io`) |
 | D-10 | 2.2, 3.2 | Third-party `recordedBy` = `usernm`; `datasetName` = sub-source; aggregator chain in `dynamicProperties` |
-| D-11 | 2.2, 3.2 | Third-party `rightsHolder` = sub-source org when known; else "Whale Alert / Maplify" |
+| D-11 | 2.2, 3.2 | Third-party `rightsHolder` = sub-source org when known; else "Whale Alert / Maplify" (superseded by decision 006: `SalishSea.io`) |
 | D-12 | 3.4 | `occurrenceStatus = present` constant on all in-scope records |
 | D-13 | 3.5 | `individualCount` emitted only when a real count exists; sparse column |
 | D-14 | 5.2 | Min-count flagging applies to HappyWhale `min_count` only; no-op for v1.2 (HappyWhale excluded); CONTEXT.md D-14 wording corrected |

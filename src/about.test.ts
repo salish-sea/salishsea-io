@@ -11,7 +11,7 @@ function makeAboutRoot(): HTMLElement {
       <li><a href="/dwca/salishsea-occurrences-v1.zip" download>zip</a><small data-size="zip"></small></li>
       <li><a href="/dwca/salishsea-occurrences-v1.parquet" download>parquet</a><small data-size="parquet"></small></li>
     </ul>
-    <p class="freshness">Updated nightly at 09:00 UTC.</p>
+    <p class="freshness">Updated as new sightings arrive.</p>
   `;
   return root;
 }
@@ -94,5 +94,5 @@ test('leaves the static fallbacks untouched on HEAD failure', async () => {
   // Sizes stay empty, freshness keeps its static copy
   expect(root.querySelector('[data-size="zip"]')!.textContent).toBe('');
   expect(root.querySelector('[data-size="parquet"]')!.textContent).toBe('');
-  expect(root.querySelector('.freshness')!.textContent!.trim()).toBe('Updated nightly at 09:00 UTC.');
+  expect(root.querySelector('.freshness')!.textContent!.trim()).toBe('Updated as new sightings arrive.');
 });

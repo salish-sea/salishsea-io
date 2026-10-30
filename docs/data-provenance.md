@@ -1,7 +1,7 @@
 # Data provenance & attribution
 
 How a sighting reaches SalishSea.io, and how its provenance is expressed in the
-public **DarwinCore Archive (DwC-A)** that we regenerate nightly and publish at
+public **DarwinCore Archive (DwC-A)** that we regenerate as new sightings arrive and publish at
 **<https://salishsea.io/dwca/>** (linked from the site's About modal, with a
 GeoParquet sidecar and sha256 checksums).
 
@@ -72,6 +72,7 @@ the dataset-level metadata (`eml.xml`) is built by
 | `recordedBy` | observer's **name** (a human-readable string) | Who observed it. For aggregated records this is parsed from the source text where a name is present, and is **empty when no observer name is available** — it is never an opaque source code. |
 | `recordedByID` | observer's **ORCID** as a full `https://orcid.org/…` URI | The same observer as `recordedBy`, as a resolvable identifier rather than a name. Empty unless we hold an ORCID for that contributor, which today is almost never — an identifier is never inferred from a name. |
 | `occurrenceID` | `{source}:{id}` (e.g. `salishsea:…`, `maplify:…`) | Stable per-record identifier; its prefix also encodes which source the row came from. |
+| `eventDate` | ISO 8601 in UTC, e.g. `2026-09-24T00:03:00Z` | When the animal was seen. Before 2026-10-30, Maplify / Whale Alert records gave only the UTC date, so a sighting in the evening, Pacific time, carried the next day's date (about one record in six). |
 | `license` | per record | Native records: **CC-BY-NC 4.0**. Maplify / Whale Alert records: **CC-BY 4.0** via the Acartia data cooperative. The dataset-level license in `eml.xml` is CC-BY-NC 4.0; the per-record `license` column is authoritative. |
 | `coordinateUncertaintyInMeters` | present, often empty | Emitted where a defensible value is known; **left empty (NULL) rather than guessed** when it isn't. Most current records have no captured accuracy, so this is frequently empty by design. |
 
@@ -97,7 +98,7 @@ for:
   stands for when a live feed brings it back.
 
 This exclusion is enforced **by construction** — the export view is the union of
-exactly the two included branches, and a row-count gate in the nightly build
+exactly the two included branches, and a row-count gate in the build
 fails if the export ever exceeds that baseline. (See the `dwc.occurrences` view
 and [`scripts/dwca/guard.ts`](../scripts/dwca/guard.ts).)
 
@@ -112,7 +113,7 @@ crosswalk to iNaturalist and its NCBI lineage
 ([decisions 047–049](decisions/)). About three percent of admitted Maplify
 records carry no identification today. The `dwc.export_coverage` view counts,
 per branch, what was admitted, what was exported, and what each join dropped;
-the nightly build logs those counts on every run and fails if a branch exports
+the build logs those counts on every run and fails if a branch exports
 nothing it had records for, so a shrinking archive is a number in the log rather
 than a surprise.
 

@@ -145,7 +145,9 @@ CREATE OR REPLACE TEMP MACRO maplify_recorded_by(comments) AS (
 CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
   SELECT 'maplify:' || CAST(s.id AS VARCHAR) AS "occurrenceID",
          'HumanObservation' AS "basisOfRecord",
-         strftime(s.created_at, '%Y-%m-%d') AS "eventDate",
+         -- the moment, in UTC as Maplify gives it: cut to a date, a sighting in the
+         -- evening, Pacific, was dated the next day (salish-8gd.1)
+         strftime(s.created_at, '%Y-%m-%dT%H:%M:%SZ') AS "eventDate",
          tc.scientific_name AS "scientificName",
          tc.taxon_rank AS "taxonRank",
          tc.kingdom, tc.phylum, tc.class, tc.order_ AS "order", tc.family, tc.genus,
