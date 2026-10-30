@@ -63,7 +63,7 @@ export type Occurrence = {
   place?: string | null;
   /**
    * The name reporters use nearest its point, in that region, as a card writes it after
-   * "off" ("Lime Kiln", "Mukilteo"), named by the build from data/reference/landmarks.tsv
+   * "off" ("Lime Kiln Point", "Mukilteo"), named by the build from data/reference/landmarks.tsv
    * (decision 100). Null where none is within 5 km or there is no place; absent likewise.
    */
   landmark?: string | null;

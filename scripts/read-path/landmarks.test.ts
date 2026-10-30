@@ -35,7 +35,7 @@ describe('parseLandmarks', () => {
 
 describe('landmarks', () => {
     const rows = parseLandmarks(tsv(
-        ['Lime Kiln Point', 'point', 'gazetteers', '-123.08', '48.1', '9', 'Lime Kiln'],
+        ['Lime Kiln Point', 'point', 'gazetteers', '-123.08', '48.1', '9', 'Lime Kiln Point'],
         // in the East Strait, 2.2 km from the West Strait's edge
         ['Cattle Point', 'point', 'gazetteers', '-122.97', '48.1', '2', 'Cattle Point'],
         ['Stuart Island', 'island', 'osm', '', '', '4', 'Stuart Island'],
@@ -46,13 +46,13 @@ describe('landmarks', () => {
     const near = landmarks(list, regions);
 
     test('names the nearest landmark within 5 km, as a card writes it', () => {
-        expect(near.landmarkAt(-123.14, 48.1, 'West Strait')).toBe('Lime Kiln');
+        expect(near.landmarkAt(-123.14, 48.1, 'West Strait')).toBe('Lime Kiln Point');
         expect(near.landmarkAt(-122.97, 48.2, 'East Strait')).toBe('Mukilteo');
     });
 
     test('a point on another region\'s shore is passed over for one on the sighting\'s own', () => {
         // Cattle Point is 3.7 km away and Lime Kiln 4.5, but Cattle Point is on the East Strait
-        expect(near.landmarkAt(-123.02, 48.1, 'West Strait')).toBe('Lime Kiln');
+        expect(near.landmarkAt(-123.02, 48.1, 'West Strait')).toBe('Lime Kiln Point');
         expect(near.landmarkAt(-122.99, 48.1, 'East Strait')).toBe('Cattle Point');
     });
 

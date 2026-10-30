@@ -1,6 +1,6 @@
 /**
  * The landmark near a sighting (decision 100): the nearest name reporters use within 5 km
- * of its point, which a card writes after the water region, "Haro Strait, off Lime Kiln".
+ * of its point, which a card writes after the water region, "Haro Strait, off Lime Kiln Point".
  *
  * The names are data/reference/landmarks.tsv, which scripts/propose-landmarks.ts writes
  * from the Maplify reports and a pull request reviews. A gazetteer row carries its

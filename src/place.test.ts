@@ -36,7 +36,7 @@ describe('placeSpan', () => {
 
 describe('placeLine', () => {
   it('names the region, then the landmark in it', () => {
-    expect(placeLine({place: 'Haro Strait', landmark: 'Lime Kiln'})).toBe('Haro Strait, off Lime Kiln');
+    expect(placeLine({place: 'Haro Strait', landmark: 'Lime Kiln Point'})).toBe('Haro Strait, off Lime Kiln Point');
     expect(placeLine({place: 'Mud Bay (Lopez Sound)', landmark: null})).toBe('Mud Bay (Lopez Sound)');
     expect(placeLine({place: 'off Oregon'})).toBe('off Oregon');
   });
