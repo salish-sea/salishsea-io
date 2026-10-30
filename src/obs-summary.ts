@@ -207,6 +207,13 @@ export class ObsSummary extends LitElement {
     p:last-child {
       margin-bottom: 0;
     }
+    /* Where it was, under the name: the water region the build named (salish-fwyt.2),
+       Regular since it labels the record, in grey since the name leads. */
+    p.place {
+      color: var(--color-text-secondary);
+      font-weight: 400;
+      margin-top: 0.25rem;
+    }
     .count {
       color: var(--color-text-muted);
     }
@@ -348,7 +355,7 @@ export class ObsSummary extends LitElement {
     // change) can fire before it is assigned; render nothing rather than throw.
     if (!this.sighting) return nothing;
     const {
-      body, confirmation, count, disagreements, identifiers, observed_at, photos, provider_slug, taxon, url, vitality
+      body, confirmation, count, disagreements, identifiers, observed_at, photos, place, provider_slug, taxon, url, vitality
     } = this.sighting;
     // The same dot, in the same colour, as the marker on the map — which is the
     // whole point of decision 029's palette. It used to be a letter, and the
@@ -381,6 +388,7 @@ export class ObsSummary extends LitElement {
         </button>
         ${this.menuOpen ? this.renderMenu(editable) : nothing}
       </header>
+      ${place ? html`<p class="place">${place}</p>` : nothing}
       ${guard([identifiers, this.catalogLoaded], () => {
         const animals = namedAnimals(identifiers, catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map());
         return animals.length ? html`<ul class="animals">${animals.map(({label, href, possibly}) => {

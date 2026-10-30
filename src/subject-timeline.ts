@@ -6,7 +6,6 @@ import { formatDate } from './date-format.ts';
 import type { Encounter } from './encounter.ts';
 import { linkStyles } from './icons.ts';
 import { catalogCodes, loadCatalogCodes, matrilineCodes, podCodes, pooledAnimals, populationCodes } from './individual-links.ts';
-import { PLACE_LISTS, readPlaces, type Place, type PlaceList } from './places.ts';
 import { fetchDayOccurrences } from './read-path.ts';
 import { SEGMENT_CARD_MIN } from './segment-summary.ts';
 import { occurrences2segments } from './segments.ts';
@@ -238,7 +237,6 @@ export class SubjectTimeline extends LitElement {
   /** The moment the past 12 months end at; now, but for a test. */
   @property({attribute: false}) now = Date.now();
 
-  @state() private places: Place[] | null = null;
   @state() private catalogLoaded = catalogCodes() !== null;
 
   constructor() {
@@ -247,11 +245,9 @@ export class SubjectTimeline extends LitElement {
     this.addEventListener('click', openAnimalLinkInSidebar);
   }
 
-  protected willUpdate(changed: PropertyValues<this>): void {
+  protected willUpdate(): void {
     if (!this.catalogLoaded)
       loadCatalogCodes().then(() => { this.catalogLoaded = true; }, () => { /* chips stay unlinked */ });
-    if (changed.has('encounters') && this.encounters.length && !this.places)
-      loadWaters().then(places => { this.places = places; }, () => { /* rows say no place */ });
   }
 
   protected render() {
@@ -348,14 +344,8 @@ export class SubjectTimeline extends LitElement {
     `;
   }
 
-  /** Where an encounter was, once the places have loaded: worked out once each. */
-  #placeNames = new WeakMap<Encounter, string | null>();
-  private placeOf = (e: Encounter): string | null => {
-    if (!this.places || !e.location) return null;
-    let name = this.#placeNames.get(e);
-    if (name === undefined) this.#placeNames.set(e, name = nearestName(this.places, e.location));
-    return name;
-  };
+  /** Where an encounter was: the water region most of its reports were in (salish-fwyt.2). */
+  private placeOf = (e: Encounter): string | null => e.place ?? null;
 
   private codes(): Codes {
     return [catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map()];
@@ -434,11 +424,6 @@ const LONG_GAP = 21;
 const FAR_APART_KM = 10;
 const MAX_CHIPS = 6;
 const MAX_PHOTOS = 4;
-/**
- * Water bodies this large or larger name where an encounter was: the basemap labels them
- * by zoom 10. A stand-in for a better place name (salish-fwyt.2).
- */
-const WATER_ZOOM = 10;
 
 type Codes = Parameters<typeof pooledAnimals> extends [unknown, ...infer Rest] ? Rest : never;
 
@@ -523,30 +508,6 @@ export function reportsLine(designation: string, {naming, asSelf, reports}: Pick
   const which = naming === reports ? (reports === 1 ? 'The one report' : `All ${plural(reports, 'report')}`) : `${naming.toLocaleString('en-US')} of ${plural(reports, 'report')}`;
   return `${which} ${naming === 1 ? 'names' : 'name'} ${designation}${
     through ? `, ${through === naming ? (naming === 1 ? 'through' : 'all through') : `${through} of them through`} a group it is in` : ''}`;
-}
-
-/** The name of the larger water body nearest a point (WATER_ZOOM). */
-export function nearestName(places: readonly Place[], {lon, lat}: {lon: number, lat: number}): string | null {
-  let best: Place | null = null;
-  let bestKm = Infinity;
-  for (const p of places) {
-    const d = distance([lon, lat], [p.lon, p.lat], {units: 'kilometers'});
-    if (d < bestKm) { best = p; bestKm = d; }
-  }
-  return best?.name ?? null;
-}
-
-let waters: Promise<Place[]> | null = null;
-
-/** The basemap's larger water bodies, fetched once: the lists the search field loads too. */
-function loadWaters(): Promise<Place[]> {
-  waters ??= Promise.all(PLACE_LISTS.map(async url => {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${url}: ${response.status}`);
-    return readPlaces(await response.json() as PlaceList);
-  })).then(lists => lists.flat().filter(p => p.kind === 'water' && p.zoom <= WATER_ZOOM));
-  waters.catch(() => { waters = null; });
-  return waters;
 }
 
 const days = new Map<string, Promise<Occurrence[]>>();

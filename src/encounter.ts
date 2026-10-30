@@ -1,3 +1,4 @@
+import { mainPlace } from './place.ts';
 import { occurrences2segments } from './segments.ts';
 import type { Occurrence, OccurrencePhoto, SegmentPlacement } from './types.ts';
 
@@ -24,6 +25,8 @@ export interface Encounter {
   identifiers: string[][];
   /** Where its middle report was placed, of those that were; null when none was. */
   location: {lon: number, lat: number} | null;
+  /** The water region most of its reports were in (salish-fwyt.2); null when none was in one, absent from a file written before places. */
+  place?: string | null;
   /** Its reports' photos, oldest first, each with the page of the report it came with. */
   photos: (Pick<OccurrencePhoto, 'src' | 'thumb' | 'attribution'> & {href: string})[];
   /** How many reports came through each channel, busiest first, as a segment's card names them. */
@@ -76,6 +79,7 @@ export function dayEncounters<K>(
       reports: reports.length,
       identifiers: reports.flatMap(r => r.identifiers?.length ? [r.identifiers] : []),
       location: middle ? {lon: middle.location.lon, lat: middle.location.lat} : null,
+      place: mainPlace(reports),
       photos: reports.flatMap(r => (r.photos ?? []).map(({src, thumb, attribution}) =>
         ({src, thumb, attribution, href: r.url || src}))),
       // Ties by name, so the same day always writes the same bytes.
