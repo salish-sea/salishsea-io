@@ -111,7 +111,7 @@ export class TermsPrompt extends LitElement {
           so researchers and ships can use them, with credit to you. Our
           <a href=${TERMS_PATH} target="_blank" rel="noopener">terms of use</a> say what that means.
         </p>
-        <p>Your sightings stay on the map either way. They join the open data download once you agree.</p>
+        <p>Agreeing covers the sightings you've already submitted, too. They stay on the map either way, and join the open data download once you agree.</p>
         ${this.status === 'failed'
           ? html`<p class="failed" role="alert">That didn't reach us. Check your connection and try again.</p>`
           : nothing}

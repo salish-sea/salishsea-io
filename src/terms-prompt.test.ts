@@ -36,6 +36,7 @@ describe('the terms prompt', () => {
     const {root, dialog} = await opened();
     expect(dialog.open).toBe(true);
     expect(root.textContent).toMatch(/published under\s+CC BY 4\.0/);
+    expect(root.textContent).toMatch(/covers the sightings you've already submitted/);
     expect(root.textContent).toMatch(/stay on the map either way/);
     expect(root.querySelector('a[href="/terms.html"]')).not.toBeNull();
   });

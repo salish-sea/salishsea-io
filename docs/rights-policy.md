@@ -235,7 +235,7 @@ The column is sparse: omitting it means "count unknown," not "count = 0." This i
 - **Mechanism:** Nightly job (Phase 7) publishes the archive to the stable `/dwca/` URL as designed. Only the frontend link (Phase 8) is suppressed. State = "unlisted," not private.
 - **Exit criteria:** Both (a) QA pass on Maplify records, and (b) courtesy notifications sent (acknowledgment not required for the secondary rationale — sent + reasonable response window is sufficient).
 
-**Native-only public eligibility (D-06):** Native records may be publicly linked independently of the Maplify QA gate, subject to the D-08 consent notice (§1.3) being in place. Unchanged by D-20. *Amended 2026-10-30: a native record is published once its contributor has agreed to the terms of use (§1.3, as replaced).*
+**Native-only public eligibility (D-06):** Native records may be publicly linked independently of the Maplify QA gate, once their contributor has agreed to the terms of use (§1.3). *Amended 2026-10-30: the condition was the D-08 consent notice, which never shipped and is replaced.*
 
 **Open question — D-07 (flagged for Phase 7/8 planner):** Unchanged. D-06 still implies a possible native-only archive variant; the implementation choice (separate archive vs. build-time filter) is for the Phase 7/8 planner.
 
