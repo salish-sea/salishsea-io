@@ -27,7 +27,7 @@ import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import {
-    dedupeOccurrenceLinks, descendantMatrilines, displayName, groupChain, hauloutReport, hauloutSite, isPopulation,
+    dedupeOccurrenceLinks, descendantMatrilines, newestFirst, displayName, groupChain, hauloutReport, hauloutSite, isPopulation,
     HAULOUT_SITES_FILE, type CatalogGroup, type GroupMember, type Haulout, type HauloutOccurrence, type HauloutSite, type OccurrenceLink,
 } from '../../src/catalog.ts';
 import type { MapDot } from '../../src/profile-map.ts';
@@ -326,7 +326,7 @@ export function assembleHaulouts(t: Pick<Tables, (typeof HAULOUT_TABLES)[number]
     const all = [...t.haulouts].sort(byId) as Haulout[];
     // observed_at newest first, then occurrence_id, as fetchHauloutReports orders.
     const reportsOf = groupBy(t.haulout_occurrences, 'haulout_id', (a, b) =>
-        b['observed_at'].localeCompare(a['observed_at']) || a['occurrence_id'].localeCompare(b['occurrence_id']));
+        newestFirst(a['observed_at'], b['observed_at']) || a['occurrence_id'].localeCompare(b['occurrence_id']));
     return all.map(site => {
         const reports = (reportsOf.get(site.id) ?? []).flatMap(r => hauloutReport(r as HauloutOccurrence));
         return {
