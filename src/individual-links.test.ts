@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { injectIndividualLinks, matrilineCodes, namedAnimals, podCodes, pooledAnimals, populationCodes, setCatalogCodes } from './individual-links.ts';
+import { injectIndividualLinks, matrilineCodes, populationPage, namedAnimals, podCodes, pooledAnimals, populationCodes, setCatalogCodes } from './individual-links.ts';
 
 // Links carry the register identifier and the designation as its slug (034).
 const T065A5 = { entity_id: 'SSA:0010197', primary_designation: 'T065A5' };
@@ -125,6 +125,22 @@ test('a bare pod letter, a lowercase plural and a matriline code are not pods', 
 test('the pod and population passes leave links alone, made earlier or in the source', () => {
   const linked = 'see [J pod and SRKWs](https://example.com/j-pod) and [Js](https://example.com/js)';
   expect(injectIndividualLinks(linked, codes, matrilines, populations, pods)).toBe(linked);
+});
+
+test('reference links are links too, and a bracketed tag ahead of a link is not part of it', () => {
+  expect(injectIndividualLinks('see [Biggs][source] and [J pod][2]', codes, matrilines, populations, pods))
+    .toBe('see [Biggs][source] and [J pod][2]');
+  expect(injectIndividualLinks('[Orca Network] SRKWs, see [map](https://example.com/m)', codes, matrilines, populations, pods))
+    .toBe('[Orca Network] [SRKWs](/populations/0000010/Southern-Resident), see [map](https://example.com/m)');
+});
+
+test("a taxon that is a population with a page links to it; any other taxon doesn't", () => {
+  expect(populationPage('SSA:0000010', populations)).toBe('/populations/0000010/Southern-Resident');
+  expect(populationPage('SSA:0000002', populations)).toBe('/populations/0000002/Biggs');
+  // The Resident ecotype has no page (decision 070), nor does a species.
+  expect(populationPage('SSA:0000003', populations)).toBeNull();
+  expect(populationPage('SSA:0000901', populations)).toBeNull();
+  expect(populationPage(null, populations)).toBeNull();
 });
 
 // The read-path build writes the same rows the Supabase query returns (decision 056),

@@ -33,8 +33,11 @@ const POD_RE = /\b([jkl])[- ]?pods?\b/gi;
 const POD_PLURAL_RE = /\b([JKL])['’]?s\b/g;
 
 // Splits body into alternating segments: [plain text, existing-link, plain text, ...]
-// Odd-indexed segments are existing markdown links — leave them untouched.
-const EXISTING_LINK_RE = /(\[.*?\]\(.*?\))/g;
+// Odd-indexed segments are existing markdown links, inline ("[text](url)") or by
+// reference ("[text][ref]") — leave them untouched. Neither part crosses a closing
+// bracket, so a bracketed provenance tag ("[Orca Network] SRKWs ...") ahead of a link
+// doesn't make the text between them part of it.
+const EXISTING_LINK_RE = /(\[[^\]]*\]\([^)]*\)|\[[^\]]*\]\[[^\]]*\])/g;
 
 // Applies a replacement to the text outside markdown links only, so that each pass
 // leaves alone what the source linked and what an earlier pass linked.
@@ -98,6 +101,18 @@ export function injectIndividualLinks(
   });
   linked = replaceOutsideLinks(linked, POD_RE, linkPod);
   return replaceOutsideLinks(linked, POD_PLURAL_RE, linkPod);
+}
+
+/**
+ * The page of the population a sighting's taxon is, when it is one with a page: an SRKW
+ * report's taxon is the Southern Resident community (SSA:0000010), so its card's name
+ * links there, whatever its text says. Only what the record asserts is linked.
+ */
+export function populationPage(entityId: string | null, populations: Map<string, GroupRef>): string | null {
+  if (!entityId) return null;
+  for (const population of populations.values())
+    if (population.entity_id === entityId) return populationPath(population);
+  return null;
 }
 
 /** One of the animals or groups a sighting names, and its page when the catalogue knows it. */
