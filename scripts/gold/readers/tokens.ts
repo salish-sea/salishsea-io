@@ -131,9 +131,15 @@ const MILLING = /\b(milling|stalled|directional changes|multi ?-?directional|shu
 const UNKNOWN = /direction (?:unknown|unconfirmed|not given)|no direction/i;
 const CHANGE = /\b(now|then|turned|flipped|changed direction|committed to)\b/gi;
 
+// "south and east bound": one direction from two words.
+const COMPOUND = /\b(north|south)\s+and\s+(east|west)\s*-?\s*bound\b/gi;
+
 function mentions(text: string): {at: number, dir: string}[] {
     const out: {at: number, dir: string}[] = [];
+    const compounds = [...text.matchAll(COMPOUND)].map(m => ({at: m.index!, end: m.index! + m[0].length, dir: `${m[1]!.toLowerCase()}${m[2]!.toLowerCase()}`}));
+    out.push(...compounds);
     for (const m of text.matchAll(COMPASS)) {
+        if (compounds.some(c => m.index! >= c.at && m.index! < c.end)) continue;
         const word = m[1]!;
         const before = text.slice(0, m.index!);
         const after = text.slice(m.index! + word.length);
@@ -155,10 +161,7 @@ function mentions(text: string): {at: number, dir: string}[] {
 
 export function readDirection(text: string): string | null {
     if (UNKNOWN.test(text)) return 'unknown';
-    // "south and east bound": one direction from two words.
-    const two = /\b(north|south)\s+and\s+(east|west)\s*-?\s*bound\b/i.exec(text);
-    if (two) return `${two[1]!.toLowerCase()}${two[2]!.toLowerCase()}`;
-    const all = mentions(text);
+    const all = mentions(text).sort((a, b) => a.at - b.at);
     let cueEnd = -1;
     for (const c of text.matchAll(CHANGE)) cueEnd = c.index! + c[0].length;
     if (cueEnd >= 0) {

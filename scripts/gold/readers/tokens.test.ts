@@ -44,5 +44,7 @@ describe('the token reader', () => {
         expect(readTokens('J, K, and L pods spread out northbound').pods).toEqual(['J', 'K', 'L']);
         expect(readTokens('Js and Ks southbound, possibly Ls').pods).toEqual(['J', 'K', 'L']);
         expect(readDirection('SRKWs very spread N to S, leaders SW bound')).toBe('southwest');
+        expect(readDirection('kpod, very spread out south and east bound')).toBe('southeast');
+        expect(readDirection('south and east bound, then turned northbound')).toBe('north');
     });
 });

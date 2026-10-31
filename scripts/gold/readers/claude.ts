@@ -5,8 +5,8 @@
  * of the fields and a dictionary from the checked-in catalogue (codes, matrilines and
  * nicknames), cached across requests; the user turn is the report text. The answer is
  * structured output against READING below. Every reading is cached in
- * scripts/gold/readings/<model>.json by the text's hash, so a rerun costs nothing and
- * the readings can be reviewed and diffed; delete an entry to read it again.
+ * scripts/gold/readings/<model>.json by the text's hash and the prompt's, so a rerun costs
+ * nothing until the text, the prompt or the schema changes; delete an entry to read it again.
  *
  * Credentials: the SDK's zero-argument client reads an `ant auth login` profile (the
  * Anthropic CLI, ~/.config/anthropic) or ANTHROPIC_API_KEY. The comments sent are public
@@ -73,7 +73,10 @@ Answer with the structured fields and nothing else.
 ${dictionary()}`;
 
 const cachePath = (model: string) => new URL(`../readings/${model}.json`, import.meta.url);
-type CacheEntry = {text: string, sha256: string, reading: ModelReading, usage: {input: number, output: number, cache_read: number}};
+type CacheEntry = {text: string, sha256: string, prompt_sha256: string, reading: ModelReading, usage: {input: number, output: number, cache_read: number}};
+
+/** A reading is valid only for the prompt and schema it was made with. */
+const PROMPT_SHA256 = createHash('sha256').update(SYSTEM).update(JSON.stringify(zodOutputFormat(READING))).digest('hex');
 
 /** A reader for one model, answering from its cache where the text has not changed. */
 export function claudeReader(model: string) {
@@ -81,7 +84,7 @@ export function claudeReader(model: string) {
         const path = cachePath(model);
         const cache: Record<string, CacheEntry> = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {};
         const client = new Anthropic();
-        const pending = rows.filter(r => cache[r.maplify_id]?.sha256 !== sha(reportText(r.comment)));
+        const pending = rows.filter(r => cache[r.maplify_id]?.sha256 !== sha(reportText(r.comment)) || cache[r.maplify_id]?.prompt_sha256 !== PROMPT_SHA256);
         if (pending.length) console.error(`${model}: reading ${pending.length} of ${rows.length} reports`);
         let n = 0;
         await Promise.all(Array.from({length: 4}, async () => {
@@ -97,7 +100,7 @@ export function claudeReader(model: string) {
                 });
                 if (response.stop_reason === 'refusal') throw new Error(`row ${r.row}: refused: ${JSON.stringify(response.stop_details)}`);
                 if (!response.parsed_output) throw new Error(`row ${r.row}: no parsed output (${response.stop_reason})`);
-                cache[r.maplify_id] = {text, sha256: sha(text), reading: response.parsed_output, usage: {
+                cache[r.maplify_id] = {text, sha256: sha(text), prompt_sha256: PROMPT_SHA256, reading: response.parsed_output, usage: {
                     input: response.usage.input_tokens, output: response.usage.output_tokens,
                     cache_read: response.usage.cache_read_input_tokens ?? 0,
                 }};
