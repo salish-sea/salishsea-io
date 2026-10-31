@@ -108,8 +108,9 @@ CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
          tc.scientific_name AS "scientificName",
          tc.taxon_rank AS "taxonRank",
          tc.kingdom, tc.phylum, tc.class, tc.order_ AS "order", tc.family, tc.genus,
-         o.subject_location_lat AS "decimalLatitude",
-         o.subject_location_lon AS "decimalLongitude",
+         -- six decimal places, about 10 cm: GBIF rounds finer positions and flags them (salish-aglv)
+         round(o.subject_location_lat, 6) AS "decimalLatitude",
+         round(o.subject_location_lon, 6) AS "decimalLongitude",
          'WGS84' AS "geodeticDatum",
          nullif(o.accuracy, 0) AS "coordinateUncertaintyInMeters",
          CAST(o.count AS INTEGER) AS "individualCount",
@@ -165,8 +166,9 @@ CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
          tc.scientific_name AS "scientificName",
          tc.taxon_rank AS "taxonRank",
          tc.kingdom, tc.phylum, tc.class, tc.order_ AS "order", tc.family, tc.genus,
-         s.location_lat AS "decimalLatitude",
-         s.location_lon AS "decimalLongitude",
+         -- six decimal places, as for native records above
+         round(s.location_lat, 6) AS "decimalLatitude",
+         round(s.location_lon, 6) AS "decimalLongitude",
          'WGS84' AS "geodeticDatum",
          CAST(NULL AS INTEGER) AS "coordinateUncertaintyInMeters",
          s.number_sighted AS "individualCount",
