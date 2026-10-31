@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { describe, expect, test } from 'vitest';
 
-import { CATALOGUE, CATALOGUE_DIR, documents, generatedRows, jsonbOrdered, loadCatalogue } from './catalogue.ts';
+import { CATALOGUE, CATALOGUE_DIR, documents, generatedRows, jsonbOrdered, loadCatalogue, registerVitals } from './catalogue.ts';
 import { loadReference, readTsv } from './reference.ts';
 import { registerFile } from './register-file.ts';
 
@@ -171,6 +171,34 @@ describe('the catalogue as documents (decision 064)', () => {
             expect(error).toMatch(/haulouts rows must have a radius from 50 to 5,000 metres/);
         } finally {
             await rm(dir, {recursive: true, force: true});
+        }
+    });
+});
+
+describe("an individual's vitals from the register", () => {
+    // salish-fwyt.4.3: the year of a death is the year its status took effect, when that is a date;
+    // the Bigg's deaths read '../2026-07', dead by the sheet's snapshot, which dates nothing.
+    test('a dated death gives its year, an undated one none, and a living animal none', async () => {
+        const conn = await (await DuckDBInstance.create(':memory:')).connect();
+        try {
+            await conn.run("ATTACH ':memory:' AS register");
+            await conn.run(`CREATE TABLE register.vitals AS SELECT * FROM (VALUES
+                ('SSA:0020001', 'F', '1971'), ('SSA:0020002', 'M', '2004'), ('SSA:0010003', 'F', '../1985'),
+                ('SSA:0020004', 'F', '2019'), ('SSA:0020005', 'M', '1990-05')) v(entity_id, sex, born)`);
+            await conn.run(`CREATE TABLE register.current_status AS SELECT * FROM (VALUES
+                ('SSA:0020001', 'presumed_dead'), ('SSA:0020002', 'dead'), ('SSA:0010003', 'dead'),
+                ('SSA:0020004', 'alive'), ('SSA:0020005', 'presumed_dead')) s(entity_id, status)`);
+            await conn.run(`CREATE TABLE register.status_dates AS SELECT * FROM (VALUES
+                ('SSA:0020001', '2016'), ('SSA:0020002', '2023-08-14'), ('SSA:0010003', '../2026-07'),
+                ('SSA:0020004', '2019'), ('SSA:0020005', NULL)) d(entity_id, effective)`);
+            await conn.run(`CREATE TABLE individuals AS SELECT * FROM (VALUES
+                (1, 'SSA:0020001'), (2, 'SSA:0020002'), (3, 'SSA:0010003'), (4, 'SSA:0020004'), (5, 'SSA:0020005')) i(id, entity_id)`);
+            const vitals = await registerVitals(conn, 'individuals');
+            const died = Object.fromEntries([...vitals].map(([id, v]) => [id, v['died']]));
+            expect(died).toEqual({1: 2016, 2: 2023, 3: null, 4: null, 5: null});
+            expect(vitals.get(1)).toMatchObject({life_status: 'presumed_deceased', born_earliest: 1971});
+        } finally {
+            conn.closeSync();
         }
     });
 });

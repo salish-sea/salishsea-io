@@ -185,10 +185,15 @@ export function canonicalize(path: string) {
   link.href = new URL(path, origin).href;
 }
 
-export function renderDagger(lifeStatus: string) {
-  return lifeStatus === 'deceased' || lifeStatus === 'presumed_deceased'
-    ? html`<span class="muted" title=${lifeStatus === 'deceased' ? 'deceased' : 'presumed deceased'}>&dagger;</span>`
-    : nothing;
+/** A dead animal's mark beside its name, and the year it died when the register dates it: "† 2016". */
+export function renderDagger(lifeStatus: string, died?: number | null) {
+  if (lifeStatus !== 'deceased' && lifeStatus !== 'presumed_deceased') return nothing;
+  const status = lifeStatus === 'deceased' ? (died ? 'died' : 'deceased') : (died ? 'presumed dead' : 'presumed deceased');
+  // A dated mark stands apart from the birth year before it, which it would otherwise read
+  // as part of: "b. 2000 † 2000", not "b. 2000† 2000".
+  return died
+    ? html` <span class="muted" title=${`${status} in ${died}`}>&dagger;&thinsp;${died}</span>`
+    : html`<span class="muted" title=${status}>&dagger;</span>`;
 }
 
 // The sub-lineage of `groupId` a member belongs to: the step on her chain of
@@ -240,7 +245,7 @@ function renderPeople(members: GroupMember[], selfId?: number) {
         <li class=${m.individual!.id === selfId ? 'self' : ''}>
           ${m.individual!.id === selfId
             ? html`${m.individual!.primary_designation}`
-            : renderRelative(m.individual!)}${m.individual!.born_earliest ? html` <span class="muted">b.&thinsp;${m.individual!.born_earliest}</span>` : nothing}${renderDagger(m.individual!.life_status)}
+            : renderRelative(m.individual!)}${m.individual!.born_earliest ? html` <span class="muted">b.&thinsp;${m.individual!.born_earliest}</span>` : nothing}${renderDagger(m.individual!.life_status, m.individual!.died)}
         </li>
       `)}
     </ul>

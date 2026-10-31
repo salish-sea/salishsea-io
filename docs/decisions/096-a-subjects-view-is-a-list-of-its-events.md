@@ -16,6 +16,8 @@ Watersheds will have dated events and news written by us (bd `salish-7ds1.3`); a
 
 *Amended 2026-10-28 (Peter):* the list doesn't list every report. A zoomed-out view summarizes its sightings over spans of time, and the precedent is a card the day's list will show for each travel segment, summarizing the sightings the map draws as one track (bd `salish-fwyt.5`); an animal's timeline follows it (`salish-fwyt.6`, [098](098-an-animals-timeline-is-months-of-encounters.md): months of encounters), not a table of years by months. "Sightings are the first kind" of event above means these summaries.
 
+*Amended 2026-10-31 (Peter):* life events don't join the list. The register dates a birth to its year, and a death to its year at best (every Bigg's death reads only "dead by July 2026", when the community's sheet was imported), while the list is made of months; a year-dated fact has no month to sit in. They stay where the subject's page already puts them, above the list: the animal's birth and death in the line under its name ("born 1971 · presumed dead 2016"), its calves with their birth years under Family, and a matriline's members with theirs. The year of a death is new (bd `salish-fwyt.4.3`): the build reads when the register's status took effect and shows it beside the dagger ("† 2016"); a death the register doesn't date says only that it happened, as before. News items may still join the list.
+
 **Notable sightings are marked:** the first report of a calf, the first report of the year, and a report with photos (Peter, all three). A sighting far from the subject's usual range is notable too, but waits: knowing a usual range is work of its own.
 
 ## Rejected
@@ -28,7 +30,7 @@ Watersheds will have dated events and news written by us (bd `salish-7ds1.3`); a
 - The name: "event" is a working name, since Darwin Core's Event means a sampling event; to be settled when the list is built (Peter).
 - ~~Whether the switch also filters the sidebar's list, or only the map.~~ It does: [098](098-an-animals-timeline-is-months-of-encounters.md).
 - How news items are written and stored: the same format as a watershed's (`salish-7ds1.3`), not yet designed.
-- Which register facts make life events: a calf's birth year is known, an animal's own death year is not in the page data yet.
+- ~~Which register facts make life events: a calf's birth year is known, an animal's own death year is not in the page data yet.~~ None join the list; births and deaths stay above it, with the year of a death now shown (amendment of 2026-10-31).
 - Whether a group's view gathers its members' reports too, perhaps by a second control: the group's own, or the group with its members (Peter, unsure).
 
 ## Consequences

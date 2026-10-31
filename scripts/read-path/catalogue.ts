@@ -261,11 +261,13 @@ export function documents(table: string, rows: readonly Row[], vitals: ReadonlyM
 /**
  * Each individual's sex, birth years and life status from the register the build holds:
  * public.refresh_individual_vitals, twinned. A birth is 'YYYY', 'YYYY-MM', or '../YYYY'
- * (born by then); a status the register doesn't record is 'unknown'. Postgres keeps an
+ * (born by then); a status the register doesn't record is 'unknown'. Beyond the twin, the
+ * year of a death (salish-fwyt.4.3): when a dead or presumed dead status took effect, if the
+ * register dates it. '../2026-07', dead by then, gives no year; the Bigg's deaths all read so. Postgres keeps an
  * individual's old values when the register holds no statuses at all; this refuses
  * instead, since every release carries them.
  */
-async function registerVitals(conn: DuckDBConnection, individuals: string): Promise<Map<number, Row>> {
+export async function registerVitals(conn: DuckDBConnection, individuals: string): Promise<Map<number, Row>> {
     const statuses = await conn.runAndReadAll('SELECT count(*) FROM register.current_status');
     if (Number(statuses.getRows()[0]![0]) === 0) throw new Error('register.current_status is empty: no life status to give any individual');
     const reader = await conn.runAndReadAll(`
@@ -276,10 +278,13 @@ async function registerVitals(conn: DuckDBConnection, individuals: string): Prom
                     WHEN regexp_full_match(v.born, '\\.\\./\\d{4}(-\\d{2})?') THEN CAST(substr(v.born, 4, 4) AS INTEGER)
                END AS born_latest,
                CASE s.status WHEN 'alive' THEN 'alive' WHEN 'dead' THEN 'deceased'
-                             WHEN 'presumed_dead' THEN 'presumed_deceased' ELSE 'unknown' END AS life_status
+                             WHEN 'presumed_dead' THEN 'presumed_deceased' ELSE 'unknown' END AS life_status,
+               CASE WHEN s.status IN ('dead', 'presumed_dead') AND regexp_full_match(d.effective, '\\d{4}(-\\d{2}){0,2}')
+                    THEN CAST(left(d.effective, 4) AS INTEGER) END AS died
         FROM ${individuals} i
         JOIN register.vitals v ON v.entity_id = i.entity_id
-        LEFT JOIN register.current_status s ON s.entity_id = i.entity_id`);
+        LEFT JOIN register.current_status s ON s.entity_id = i.entity_id
+        LEFT JOIN register.status_dates d ON d.entity_id = i.entity_id`);
     return new Map(reader.getRowObjectsJS().map(r => {
         const {id, ...vitals} = r as Row;
         return [Number(id), vitals];
