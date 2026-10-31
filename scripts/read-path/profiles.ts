@@ -115,6 +115,7 @@ function individualCatalogue(t: Pick<Tables, 'individuals' | 'nicknames' | 'matr
         return member ? [{innermost_group_id: m['innermost_group_id'], individual: {
             id: member['id'], entity_id: member['entity_id'], primary_designation: member['primary_designation'],
             sex: member['sex'], born_earliest: member['born_earliest'], life_status: member['life_status'],
+            died: member['died'] ?? null,
             nicknames: briefNicknames(member['id']),
         }}] : [];
     });
@@ -148,7 +149,7 @@ export function assembleIndividuals(t: Pick<Tables, (typeof INDIVIDUAL_TABLES)[n
     const parent = (id: number | null) => {
         const i = id === null ? undefined : individuals.get(id);
         return i ? {id: i['id'], entity_id: i['entity_id'], primary_designation: i['primary_designation'],
-            life_status: i['life_status'], nicknames: briefNicknames(i['id'])} : null;
+            life_status: i['life_status'], died: i['died'] ?? null, nicknames: briefNicknames(i['id'])} : null;
     };
     const offspringOf = (id: number) => t.individuals
         .filter(i => i['mother_id'] === id || i['father_id'] === id)
@@ -156,7 +157,7 @@ export function assembleIndividuals(t: Pick<Tables, (typeof INDIVIDUAL_TABLES)[n
         .sort((a, b) => (a['born_earliest'] ?? -Infinity) - (b['born_earliest'] ?? -Infinity) || a['id'] - b['id'])
         .map(i => ({id: i['id'], entity_id: i['entity_id'], primary_designation: i['primary_designation'],
             sex: i['sex'], born_earliest: i['born_earliest'], born_latest: i['born_latest'],
-            life_status: i['life_status'], nicknames: briefNicknames(i['id'])}));
+            life_status: i['life_status'], died: i['died'] ?? null, nicknames: briefNicknames(i['id'])}));
 
     const groups = catalogGroups(t, individuals);
     const innermostOf = new Map<number, number>();
@@ -172,7 +173,7 @@ export function assembleIndividuals(t: Pick<Tables, (typeof INDIVIDUAL_TABLES)[n
             const profile = {
                 id: i['id'], entity_id: i['entity_id'], primary_designation: i['primary_designation'],
                 sex: i['sex'], born_earliest: i['born_earliest'], born_latest: i['born_latest'],
-                life_status: i['life_status'], maternity_certainty: i['maternity_certainty'],
+                life_status: i['life_status'], died: i['died'] ?? null, maternity_certainty: i['maternity_certainty'],
                 paternity_certainty: i['paternity_certainty'],
                 designations: (designationsOf.get(i['id']) ?? []).map(d => ({
                     code: d['code'], scheme: d['scheme'], is_primary: d['is_primary'], status: d['status'],
@@ -238,6 +239,7 @@ export function assembleMatrilines(t: Pick<Tables, (typeof MATRILINE_TABLES)[num
                 })),
                 anchor: anchor ? {id: anchor['id'], entity_id: anchor['entity_id'],
                     primary_designation: anchor['primary_designation'], life_status: anchor['life_status'],
+                    died: anchor['died'] ?? null,
                     nicknames: briefNicknames(anchor['id'])} : null,
             };
             const data = {

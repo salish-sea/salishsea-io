@@ -65,6 +65,10 @@ export const REGISTER_TABLES: readonly {table: string, dir: 'data' | 'dist', fil
     // (refresh_individual_vitals); the build's catalogue derives them (catalogue.ts).
     {table: 'vitals', dir: 'data', file: 'entities', select: 'entity_id, sex, born'},
     {table: 'current_status', dir: 'dist', select: 'entity_id, status'},
+    // When each animal's current status took effect: the year a death is dated to
+    // (salish-fwyt.4.3). A table of its own, not a column added to current_status, so that
+    // a build holding an edition without it adopts that edition again (main, below).
+    {table: 'status_dates', dir: 'dist', file: 'current_status', select: 'entity_id, effective'},
     // Each taxon's lineage up to its kingdom: what makes a species a cetacean, for the
     // whales page (salish-nkbq). classification stops at order, and a whale's order is
     // Artiodactyla, which deer share.

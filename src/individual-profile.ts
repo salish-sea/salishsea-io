@@ -31,7 +31,7 @@ const SCHEME_LABELS: Record<string, string> = {
  */
 export type ProfileIndividual = Pick<IndividualProfile,
   'id' | 'entity_id' | 'primary_designation' | 'sex' | 'born_earliest' | 'born_latest'
-  | 'life_status' | 'maternity_certainty' | 'paternity_certainty' | 'designations' | 'nicknames'>;
+  | 'life_status' | 'died' | 'maternity_certainty' | 'paternity_certainty' | 'designations' | 'nicknames'>;
 
 export interface IndividualProfileData {
   profile: ProfileIndividual;
@@ -85,10 +85,12 @@ function bornPhrase(earliest: number | null, latest: number | null): string | nu
   return null;
 }
 
-function lifeStatusPhrase(status: ProfileIndividual['life_status']): string | null {
+// "born 1998 · presumed dead 2016", in the form of the birth beside it, when the register
+// dates the death (salish-fwyt.4.3); without a year, the status alone.
+function lifeStatusPhrase(status: ProfileIndividual['life_status'], died: number | null | undefined): string | null {
   switch (status) {
-    case 'deceased': return 'deceased';
-    case 'presumed_deceased': return 'presumed deceased';
+    case 'deceased': return died ? `died ${died}` : 'deceased';
+    case 'presumed_deceased': return died ? `presumed dead ${died}` : 'presumed deceased';
     default: return null; // 'alive' is the unremarkable case; 'unknown' says nothing
   }
 }
@@ -100,7 +102,7 @@ export function renderIndividualProfile(
   const vitals = [
     profile.sex === 'female' ? 'Female' : profile.sex === 'male' ? 'Male' : null,
     bornPhrase(profile.born_earliest, profile.born_latest),
-    lifeStatusPhrase(profile.life_status),
+    lifeStatusPhrase(profile.life_status, profile.died),
   ].filter(Boolean).join(' · ');
   const chain = matriline ? groupChain(matriline.id, groups) : [];
 
@@ -183,7 +185,7 @@ export function renderFamily(profile: ProfileIndividual, mother: Parent | null, 
           <dd>
             <ul class="people">
               ${repeat(offspring, calf => calf.id, calf => html`
-                <li>${renderRelative(calf)}${calf.born_earliest ? html` <span class="muted">b.&thinsp;${calf.born_earliest}</span>` : nothing}${renderDagger(calf.life_status)}</li>
+                <li>${renderRelative(calf)}${calf.born_earliest ? html` <span class="muted">b.&thinsp;${calf.born_earliest}</span>` : nothing}${renderDagger(calf.life_status, calf.died)}</li>
               `)}
             </ul>
           </dd>

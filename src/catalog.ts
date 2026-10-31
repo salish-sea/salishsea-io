@@ -26,6 +26,11 @@ export type Individual = {
   born_earliest: number | null;
   born_latest: number | null;
   life_status: LifeStatus;
+  /**
+   * The year it died or was presumed dead, when the register dates it (salish-fwyt.4.3).
+   * Absent from page data a build before it wrote.
+   */
+  died?: number | null;
   mother_id: number | null;
   maternity_certainty: ParentageCertainty;
   father_id: number | null;
@@ -278,8 +283,8 @@ export type IndividualProfile = Individual & {
     in_catalog: boolean; authority: Party | null }[];
   nicknames: Nickname[];
 };
-export type Parent = Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'life_status'> & { nicknames: NicknameBrief[] };
-export type Offspring = Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'sex' | 'born_earliest' | 'born_latest' | 'life_status'>
+export type Parent = Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'life_status' | 'died'> & { nicknames: NicknameBrief[] };
+export type Offspring = Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'sex' | 'born_earliest' | 'born_latest' | 'life_status' | 'died'>
   & { nicknames: NicknameBrief[] };
 
 // A group row plus what a page needs to link its anchor individual: the
@@ -293,7 +298,7 @@ export type CatalogGroup = SocialGroup & {
 // matriline, which is how a page groups them by sub-lineage.
 export type GroupMember = {
   innermost_group_id: number | null;
-  individual: Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'sex' | 'born_earliest' | 'life_status'>
+  individual: Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'sex' | 'born_earliest' | 'life_status' | 'died'>
     & { nicknames: NicknameBrief[] };
 };
 
@@ -310,7 +315,7 @@ export function matrilineDesignation(typed: string): string {
 // What a matriline's page shows of it: the group, its nicknames, and its anchor.
 export type MatrilineProfile = SocialGroupRow & {
   nicknames: Nickname[];
-  anchor: (Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'life_status'> & { nicknames: NicknameBrief[] }) | null;
+  anchor: (Pick<Individual, 'id' | 'entity_id' | 'primary_designation' | 'life_status' | 'died'> & { nicknames: NicknameBrief[] }) | null;
 };
 // A population has no anchor individual and no group nicknames today, but the shape
 // mirrors the matriline's so the masthead can grow. Facts only (D-21).
