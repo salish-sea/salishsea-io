@@ -2,6 +2,7 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 
+import { linkStyles } from './icons.ts';
 import { TERMS_PATH } from './terms.ts';
 import { agreeToTerms, type Me } from './write-api.ts';
 
@@ -16,7 +17,7 @@ import { agreeToTerms, type Me } from './write-api.ts';
  */
 @customElement('terms-prompt')
 export class TermsPrompt extends LitElement {
-  static styles = css`
+  static styles = [linkStyles, css`
     dialog {
       border: none;
       border-radius: 8px;
@@ -71,7 +72,7 @@ export class TermsPrompt extends LitElement {
       background: white;
       border: 1px solid var(--color-border-strong);
     }
-  `;
+  `];
 
   @state() private status: 'asking' | 'agreeing' | 'failed' = 'asking';
 

@@ -8,7 +8,7 @@ import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
 import { distance as getDistance } from "@turf/distance";
 import {createRef, ref} from 'lit/directives/ref.js';
-import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
+import { cameraAddIcon, clickTargetIcon, linkStyles, locateMeIcon } from "./icons.ts";
 import {Task} from '@lit/task';
 import './photo-attachment.ts';
 import { TanStackFormController } from '@tanstack/lit-form';
@@ -117,7 +117,7 @@ export default class SightingForm extends LitElement {
   @state()
   private suggestedFrom: number | null = null
 
-  static styles = css`
+  static styles = [linkStyles, css`
     :host {
       display: block;
     }
@@ -301,7 +301,7 @@ export default class SightingForm extends LitElement {
     output.success {
       color: var(--color-success);
     }
-  `;
+  `];
 
   @query('input[name=observed_time]', true)
   private timeInput: HTMLInputElement | undefined
