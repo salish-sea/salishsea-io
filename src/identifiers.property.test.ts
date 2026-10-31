@@ -15,9 +15,21 @@ import { detectIndividuals } from './identifiers.ts';
 const PIECES = [
     'T', 't', 'J', 'K', 'L', 'CRC', 'crc', 'X',
     '0', '00', '1', '2', '6', '5', '65', '065', '137', 'a', 'A', 'b', 'c', 'f', 'g', 's', 'S',
-    '-', ' ', ', ', '.', '/', '(', ')', '_', '\n', 'and', 'é', '٢',
+    '-', ' ', ', ', '.', '/', '(', ')', '_', '\n', 'and',
 ];
-const text = fc.array(fc.constantFrom(...PIECES), {maxLength: 10}).map(parts => parts.join(''));
+// Non-ASCII letters and digits are left out: derive/extract.sql documents where its \b and
+// \p{Nd} part from JavaScript's, and they would drown everything else.
+const junk = fc.array(fc.constantFrom(...PIECES), {maxLength: 4}).map(parts => parts.join(''));
+// Built to be designation-shaped, so most cases name one: a pod, a separator, leading
+// zeros, a digit, more digits or hex, a matriline's s.
+const designation = fc.tuple(
+    fc.constantFrom('T', 't', 'J', 'K', 'L', 'CRC', 'crc'), fc.constantFrom('', '', '-', ' ', '--'),
+    fc.constantFrom('', '0', '00', '000'), fc.stringMatching(/^[0-9a-fA-F]{0,4}$/), fc.constantFrom('', '', 's', 'S'),
+).map(parts => parts.join(''));
+const text = fc.oneof(
+    fc.array(fc.constantFrom(...PIECES), {maxLength: 10}).map(parts => parts.join('')),
+    fc.array(fc.oneof(junk, designation), {maxLength: 5}).map(parts => parts.join(' ')),
+);
 const comparable = (ids: readonly string[] | null) => [...new Set((ids ?? []).map(fold))].sort();
 
 describe('detectIndividuals (discovery)', () => {
@@ -26,7 +38,7 @@ describe('detectIndividuals (discovery)', () => {
         const disagreements = new Map<string, [string[], string[]]>();
         let nonEmpty = 0;
         await fc.assert(fc.asyncProperty(text, async body => {
-            const sql = comparable(await query('SELECT extract_identifiers($body)', {body}) as string[] | null);
+            const sql = comparable(JSON.parse(await query('SELECT CAST(to_json(extract_identifiers($body)) AS VARCHAR)', {body}) as string ?? 'null'));
             const ts = comparable(detectIndividuals(body));
             if (sql.length) nonEmpty++;
             if (JSON.stringify(sql) !== JSON.stringify(ts)) disagreements.set(JSON.stringify(body), [ts, sql]);
