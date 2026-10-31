@@ -215,6 +215,8 @@ The column is sparse: omitting it means "count unknown," not "count = 0." This i
 
 ## 4. Third-Party Redistribution Status
 
+*Amended 2026-10-31 ([decision 101](decisions/101-the-data-download-is-public.md)): the hold below (D-05) has ended. The data check is done, and the courtesy notifications are no longer a condition: an agent added them on 2026-06-17 as what was left of an earlier permission request, which CC BY already answers, and nobody decided on them. The archive is public with every source. The notification texts in §4.2–4.4 are kept as written, for the record.*
+
 *Closes GAP-04 (redistribution policy component). Reframed 2026-06-17: per D-20 (§1.1), the rights basis for Maplify records is now resolved upstream via the Acartia data cooperative's CC-BY assertion. The hold-but-unlinked posture (D-05) is preserved but its rationale shifts from rights-gating to data-QA-gating-with-courtesy-notification.*
 
 ### 4.1 Holding Rule (D-01, D-02, D-03, D-05, D-06) — Reframed
@@ -237,7 +239,7 @@ The column is sparse: omitting it means "count unknown," not "count = 0." This i
 
 **Native-only public eligibility (D-06):** Native records may be publicly linked independently of the Maplify QA gate, once their contributor has agreed to the terms of use (§1.3). *Amended 2026-10-30: the condition was the D-08 consent notice, which never shipped and is replaced.*
 
-**Open question — D-07 (flagged for Phase 7/8 planner):** Unchanged. D-06 still implies a possible native-only archive variant; the implementation choice (separate archive vs. build-time filter) is for the Phase 7/8 planner.
+**Open question — D-07 (flagged for Phase 7/8 planner):** Unchanged. D-06 still implies a possible native-only archive variant; the implementation choice (separate archive vs. build-time filter) is for the Phase 7/8 planner. *Closed 2026-10-31 ([decision 101](decisions/101-the-data-download-is-public.md)): one archive, its native records filtered at build time by each contributor's agreement to the terms of use.*
 
 ### 4.2 Whale Alert / Conserve.IO (Maplify data platform operator)
 
@@ -286,6 +288,8 @@ The column is sparse: omitting it means "count unknown," not "count = 0." This i
 **Current status:** Rights resolved (Acartia CC-BY). **Hold remains** under D-05's reframed rationale.
 
 ### 4.5 Hold Exit — Data QA + Courtesy Window
+
+*Exited 2026-10-31 ([decision 101](decisions/101-the-data-download-is-public.md)): the data check was done on 2026-10-30 and its one systematic finding fixed (#805, #806); the courtesy window is no longer a condition. The text below is as it was.*
 
 The hold-but-unlinked posture (D-05, reframed) exits when both conditions are met:
 
@@ -506,9 +510,9 @@ All D-numbers are cited in the sections above. For reference:
 | D-02 | 4.1 | Include-and-attribute default; retreat only on requested removal or QA finding (reframed by D-20 — was: explicit prohibition or conferral "no") |
 | D-03 | 4.1 | Per-`maplify.source` drop granularity (now a QA/courtesy switch, not a rights switch, post-D-20) |
 | D-04 | 4.2, 4.3, 4.4 | Originally: frame conferral questions, do not assert permission. Reframed by D-20: §4.2–4.4 now contain courtesy notifications, not conferral questions; D-04's "do not assert permission absent" caution no longer binds since CC-BY is asserted upstream. |
-| D-05 | 4.1, 4.5 | Hosted-but-unlinked hold preserved; rationale reframed by D-20 from rights-gating to data-QA-gating (primary) + courtesy notification (secondary). Exit: QA pass + notification window. |
+| D-05 | 4.1, 4.5 | Hosted-but-unlinked hold preserved; rationale reframed by D-20 from rights-gating to data-QA-gating (primary) + courtesy notification (secondary). Exit: QA pass + notification window. **Ended 2026-10-31 (decision 101): QA done; the courtesy condition dropped.** |
 | D-06 | 4.1 | Native records may be publicly linked independently of third-party conferral |
-| D-07 | 4.1 | OPEN: native-only archive variant question for Phase 7/8 planner |
+| D-07 | 4.1 | ~~OPEN~~ Closed 2026-10-31 (decision 101): no native-only variant; native records are filtered at build time by agreement to the terms of use |
 | D-08 | 1.3 | Native consent basis: platform policy + submission-form notice going forward (replaced 2026-10-30: agreement to the terms of use in the app, decision 086) |
 | D-09 | 2.1 | Native `rightsHolder` = `recordedBy` = contributor display name (`rightsHolder` superseded by decision 006: `SalishSea.io`) |
 | D-10 | 2.2, 3.2 | Third-party `recordedBy` = `usernm`; `datasetName` = sub-source; aggregator chain in `dynamicProperties` |
