@@ -200,8 +200,10 @@ export function dedupeOccurrenceLinks(rows: OccurrenceRow[]): OccurrenceLink[] {
       ...(vitality ? {vitality} : {}),
     });
   }
+  // By code unit, not localeCompare: its collation puts '.' before '+', so a time on the
+  // second sorted after one a fraction of a second into it.
   return [...byOccurrence.values()]
-    .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
+    .sort((a, b) => a.observed_at < b.observed_at ? 1 : a.observed_at > b.observed_at ? -1 : 0);
 }
 
 export interface PresenceYear {
