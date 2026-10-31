@@ -175,3 +175,15 @@ test('upgrades a mirrored iNaturalist thumbnail to the medium size, and only on 
   expect(mediumPhotoUrl('https://static.inaturalist.org/photos/1/square.jpeg')).toBe('https://static.inaturalist.org/photos/1/medium.jpeg');
   expect(mediumPhotoUrl('https://evil.example/photos/1/square.jpg')).toBe('https://evil.example/photos/1/square.jpg');
 });
+
+// The build trims a time's fraction of a second (scripts/read-path/derive/shared.sql's
+// pg_ts), so a report half a second into a minute is a longer string than one on it.
+test('links are newest first when one time in a second has a fraction and another has none', () => {
+  const link = (occurrence_id: string, observed_at: string) =>
+    ({occurrence_id, observed_at, location: null, is_present: true, status: 'candidate' as const});
+  const links = dedupeOccurrenceLinks([
+    link('inaturalist:1', '2026-10-20T19:41:54+00:00'),
+    link('orcasound:2', '2026-10-20T19:41:54.458+00:00'),
+  ]);
+  expect(links.map(l => l.occurrence_id)).toEqual(['orcasound:2', 'inaturalist:1']);
+});

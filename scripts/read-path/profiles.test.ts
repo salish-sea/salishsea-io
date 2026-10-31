@@ -389,6 +389,13 @@ describe('assembleHaulouts and renderHauloutPage', () => {
         ]);
     });
 
+    test('reports newest first when one time in a second has a fraction and another has none', () => {
+        const t = tables();
+        t.haulout_occurrences.push(report(12, 'inat:4', '2026-05-01T18:00:00.5+00:00'));
+        const reports = assembleHaulouts(t).find(p => p.id === '12')!.data.reports;
+        expect(reports.map(r => r.occurrence_id)).toEqual(['inat:4', 'inat:1', 'inat:2', 'inat:3']);
+    });
+
     test('a row the page cannot use is dropped, as the client drops it', () => {
         expect(assembleHaulouts(tables()).find(p => p.id === '11')!.data.reports).toEqual([]);
     });
