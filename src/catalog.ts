@@ -201,7 +201,17 @@ export function dedupeOccurrenceLinks(rows: OccurrenceRow[]): OccurrenceLink[] {
     });
   }
   return [...byOccurrence.values()]
-    .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
+    .sort((a, b) => newestFirst(a.observed_at, b.observed_at));
+}
+
+/**
+ * A sort order for times as the build writes them, newest first. By code unit, not
+ * localeCompare: the build trims a time's fraction of a second (derive/shared.sql's
+ * pg_ts), and localeCompare's collation puts '.' before '+', so it sorted
+ * `…:54+00:00` as newer than `…:54.458+00:00`.
+ */
+export function newestFirst(a: string, b: string): number {
+  return a < b ? 1 : a > b ? -1 : 0;
 }
 
 export interface PresenceYear {

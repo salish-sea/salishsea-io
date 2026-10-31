@@ -21,7 +21,7 @@
 import { DuckDBInstance } from '@duckdb/node-api';
 import * as path from 'node:path';
 
-import { dedupeOccurrenceLinks } from '../../src/catalog.ts';
+import { dedupeOccurrenceLinks, newestFirst as newer } from '../../src/catalog.ts';
 import { dayEncounters, type DayOccurrence, type Encounter, type SubjectReport } from '../../src/encounter.ts';
 import { budget } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
@@ -130,7 +130,7 @@ export async function writeEncounters(snapshot: string, exportDir: string): Prom
         db.closeSync();
     }
     // Newest first, as the timeline lists them.
-    const newestFirst = (a: Encounter, b: Encounter) => b.end.localeCompare(a.end) || b.start.localeCompare(a.start);
+    const newestFirst = (a: Encounter, b: Encounter) => newer(a.end, b.end) || newer(a.start, b.start);
     await replaceDir(outDir, files.map(f => [f, JSON.stringify(bySubject.get(f)!.sort(newestFirst))]));
     return counts;
 }
