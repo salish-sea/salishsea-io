@@ -97,12 +97,6 @@ export class BuildCoalescer {
         this.#schedule(Math.max(debounced, this.#notBefore) - now);
     }
 
-    /** Stop any scheduled build; a running one finishes. */
-    stop(): void {
-        if (this.#timer) clearTimeout(this.#timer);
-        this.#timer = null;
-    }
-
     #schedule(delayMs: number): void {
         if (this.#timer) clearTimeout(this.#timer);
         this.#timer = setTimeout(() => void this.#run(), Math.max(0, delayMs));

@@ -159,6 +159,26 @@ describe('a dead animal (salish-1y8)', () => {
   });
 });
 
+describe('two reports at the same instant (salish-gnk3)', () => {
+  // A track that names no ecotype, then a Bigg's report and a resident report at the same
+  // moment beside it. Whichever is offered first joins the track and gives it an ecotype,
+  // so the other can't. Offered in input order, the map and a profile page's timeline,
+  // which pass the day in different orders, drew different tracks.
+  const orca = (id: string, iso: string, identifiers: string[]): Occurrence => ({
+    ...makeOrca(id, iso, -123.2363, 48.6177), identifiers,
+    taxon: {scientific_name: 'Orcinus orca', vernacular_name: 'Killer Whale', species_id: 41521, entity_id: null},
+  });
+  const start = orca('m', '2026-03-30T01:12:00Z', []);
+  const biggs = orca('b', '2026-03-30T01:30:00Z', ['T65A']);
+  const resident = orca('r', '2026-03-30T01:30:00Z', ['J27']);
+
+  test('are taken in order of id, whatever order they arrive in', () => {
+    const grouping = (os: Occurrence[]) => occurrences2segments(os).map(s => s.occurrences.map(o => o.id));
+    expect(grouping([start, biggs, resident])).toEqual([['m', 'b'], ['r']]);
+    expect(grouping([start, resident, biggs])).toEqual([['m', 'b'], ['r']]);
+  });
+});
+
 describe('a sighting whose species has no scientific name', () => {
   // salish-jrmt: a signed-in tab's own sighting has no scientific name when the page's
   // names fail to load (ownOccurrence), and the build publishes none for an entity that

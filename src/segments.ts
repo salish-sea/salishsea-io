@@ -26,10 +26,14 @@ export type Segment = {
  * joins a segment that names another: residents and Bigg's don't travel
  * together. A dead animal is a segment of its own (salish-1y8): a carcass is
  * not part of a travelling group's path, and nothing joins it.
+ *
+ * Reports at the same instant go in order of id, so the grouping doesn't depend
+ * on the order the caller passes them in: the map, the day's list and the
+ * encounter timeline each get them from somewhere else (salish-gnk3).
  */
 export function occurrences2segments(occurrences: Occurrence[]): Segment[] {
   const segments: Segment[] = [];
-  for (const occurrence of occurrences.toSorted((a, b) => a.observed_at_ms - b.observed_at_ms)) {
+  for (const occurrence of occurrences.toSorted(oldestFirst)) {
     let best: Segment | null = null;
     let bestScore = Infinity;
     // A segment with no travel speed takes nothing (joinScore), so a dead one stays alone.
@@ -55,6 +59,11 @@ export function occurrences2segments(occurrences: Occurrence[]): Segment[] {
     }
   }
   return segments;
+}
+
+/** Oldest first; at the same instant, by id, compared by code unit. */
+function oldestFirst(a: Occurrence, b: Occurrence): number {
+  return a.observed_at_ms - b.observed_at_ms || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 }
 
 /**
