@@ -16,7 +16,7 @@ import { deleteSighting } from './write-api.ts';
 import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
-import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, podCodes, populationCodes } from './individual-links.ts';
+import { catalogCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, podCodes, populationCodes, populationPage } from './individual-links.ts';
 import { openAnimalLinkInSidebar } from './subject.ts';
 import { linkStyles } from './icons.ts';
 import { placeLine } from './place.ts';
@@ -45,7 +45,8 @@ export function sightingText(body: string | null | undefined, providerSlug: stri
         injectPartnerLinks(stripResolvedProvenance((body || '').replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n'), providerSlug ?? null)),
         catalogCodes() ?? new Map(),
         matrilineCodes() ?? new Map(),
-        ecotypeCodes() ?? new Map()
+        populationCodes() ?? new Map(),
+        podCodes() ?? new Map(),
       ),
       { async: false, renderer: markedRenderer }
     ),
@@ -110,6 +111,14 @@ export class ObsSummary extends LitElement {
        heading's first line, on the right, where the cards line up as a timeline. */
     .title > :not(b) {
       white-space: nowrap;
+    }
+    /* The species name links to its population's page when the taxon is one
+       (salish-l796): a heading's link, so no underline until pointed at (rule 8). */
+    .title a {
+      text-decoration: none;
+    }
+    .title a:hover {
+      text-decoration: underline;
     }
     time {
       color: var(--color-text-muted);
@@ -364,6 +373,7 @@ export class ObsSummary extends LitElement {
     // letter was ambiguous: `H` was both humpback and harbour porpoise.
     const group = GROUPS[taxonGroup(taxon.scientific_name)];
     const name = displayNameFor(taxon);
+    const namePage = populationPage(taxon.entity_id, populationCodes() ?? new Map());
     const editable = this.contributor && canEdit(this.sighting, this.contributor) || false;
     const unconfirmed = isUnconfirmed(this.sighting);
 
@@ -373,7 +383,7 @@ export class ObsSummary extends LitElement {
           <a class="focus-occurrence ${unconfirmed ? 'unconfirmed' : ''}" @click="${this.focusSighting}" href="#"
              aria-label="Focus this ${group.label.toLowerCase()} on the map"
              title="Focus on map" style="background-color: ${unconfirmed ? '#ffffff' : group.color}; --taxon-color: ${group.color}"></a>
-          <span class="title"><b>${name}</b>${
+          <span class="title"><b>${namePage ? html`<a href=${namePage}>${name}</a>` : name}</b>${
             when(count && count > 0, () => html` <span class="count">×${count}</span>`)}${
             when(unconfirmed, () => html` <span class="confirmation" title=${confirmationNote(this.sighting)}>${confirmation === 'disputed' ? 'Disputed' : 'Unconfirmed'}</span>`)}${
             when(vitality === 'dead', () => html` <span class="confirmation" title="Annotated dead on iNaturalist: a stranded or floating animal, not one travelling">Dead</span>`)}${

@@ -4,7 +4,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { Temporal } from 'temporal-polyfill';
 import { linkStyles } from './icons.ts';
-import { catalogCodes, loadCatalogCodes, matrilineCodes, podCodes, pooledAnimals, populationCodes } from './individual-links.ts';
+import { catalogCodes, loadCatalogCodes, matrilineCodes, podCodes, pooledAnimals, populationCodes, populationPage } from './individual-links.ts';
 import { isUnconfirmed } from './occurrence.ts';
 import { channelOf } from './encounter.ts';
 import { segmentMovement, type SegmentMovement } from './segments.ts';
@@ -70,6 +70,14 @@ export class SegmentSummary extends LitElement {
     }
     .title > :not(b) {
       white-space: nowrap;
+    }
+    /* The species name links to its population's page when the taxon is one
+       (salish-l796): a heading's link, so no underline until pointed at (rule 8). */
+    .title a {
+      text-decoration: none;
+    }
+    .title a:hover {
+      text-decoration: underline;
     }
     .count {
       color: var(--color-text-muted);
@@ -215,6 +223,8 @@ export class SegmentSummary extends LitElement {
     const group = GROUPS[taxonGroup(head.taxon.scientific_name)];
     const unconfirmed = isUnconfirmed(head);
     const count = Math.max(0, ...reports.map(r => r.count ?? 0));
+    const name = displayNameFor(head.taxon);
+    const namePage = populationPage(head.taxon.entity_id, populationCodes() ?? new Map());
     const animals = pooledAnimals(reports.map(r => r.identifiers), catalogCodes() ?? new Map(),
       matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map());
     // The newest report's own words; an older report's would not be "latest" (decision 097).
@@ -226,7 +236,7 @@ export class SegmentSummary extends LitElement {
         <a class="dot ${unconfirmed ? 'unconfirmed' : ''}" href="#" @click=${this.focusHead}
            aria-label="Focus this ${group.label.toLowerCase()} on the map" title="Focus on map"
            style="background-color: ${unconfirmed ? '#ffffff' : group.color}; --taxon-color: ${group.color}"></a>
-        <span class="title"><b>${displayNameFor(head.taxon)}</b>${count ? html` <span class="count">×${count}</span>` : nothing}</span>
+        <span class="title"><b>${namePage ? html`<a href=${namePage}>${name}</a>` : name}</b>${count ? html` <span class="count">×${count}</span>` : nothing}</span>
         <time>${clock(first)}–${clock(head)}</time>
       </header>
       ${where ? html`<p class="place">${where}</p>` : nothing}

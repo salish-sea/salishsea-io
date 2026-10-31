@@ -9,21 +9,44 @@ import { READ_PATH_BASE } from './read-path.ts';
 // as the embedded individual code.
 const CODE_RE = /\b(j|k|l|t|crc)[- ]?0*(\d[\da-f]+)(s?)\b/gi;
 
-// Ecotype names written out in sighting prose ("Biggs T46Bs southbound"). Unlike
-// codes these aren't in the catalog as designations, so the small set of known
-// terms maps to an ecotype designation in code (mirrors ECOTYPE_LABELS in
-// ecotype-page.ts / the edge handler). Straight and curly apostrophes both.
-const ECOTYPE_TERM_RE = /\b(bigg['’]?s|transients?)\b/gi;
+// Population names written out in sighting prose ("Biggs T46Bs southbound", "SRKWs
+// northbound"). Unlike codes these aren't in the catalog as designations, so the small
+// set of known terms maps to a population's designation in code (mirrors
+// POPULATION_LABELS in catalog.ts). "Resident" alone names no population the catalogue
+// has: the Northern Residents are residents too. Straight and curly apostrophes both.
+const POPULATION_TERM_RE = /\b(bigg['’]?s|transients?|srkw(?:['’]?s)?|southern residents?)\b/gi;
 
-function ecotypeForTerm(term: string): string | null {
-  const t = term.toLowerCase().replace(/[’]/g, "'");
-  if (t === 'biggs' || t === "bigg's" || t === 'transient' || t === 'transients') return 'Biggs';
+function populationForTerm(term: string): string | null {
+  const t = fold(term);
+  if (t === 'biggs' || t === 'transient' || t === 'transients') return 'biggs';
+  if (t.startsWith('srkw') || t.startsWith('southern resident')) return 'southern resident';
   return null;
 }
 
+// A Southern Resident pod by its letter: "J pod", "J-pod", "Jpod", "K pods". The word
+// pod is what makes it a pod, so "J" alone is a letter, and "J31s" is a matriline that
+// CODE_RE has already linked.
+const POD_RE = /\b([jkl])[- ]?pods?\b/gi;
+
+// The pods' plural shorthand, "Js and Ks", in capitals only, so that "ls" and "js"
+// in ordinary text stay text.
+const POD_PLURAL_RE = /\b([JKL])['’]?s\b/g;
+
 // Splits body into alternating segments: [plain text, existing-link, plain text, ...]
-// Odd-indexed segments are existing markdown links — leave them untouched.
-const EXISTING_LINK_RE = /(\[.*?\]\(.*?\))/g;
+// Odd-indexed segments are existing markdown links, inline ("[text](url)") or by
+// reference ("[text][ref]") — leave them untouched. Neither part crosses a closing
+// bracket, so a bracketed provenance tag ("[Orca Network] SRKWs ...") ahead of a link
+// doesn't make the text between them part of it.
+const EXISTING_LINK_RE = /(\[[^\]]*\]\([^)]*\)|\[[^\]]*\]\[[^\]]*\])/g;
+
+// Applies a replacement to the text outside markdown links only, so that each pass
+// leaves alone what the source linked and what an earlier pass linked.
+function replaceOutsideLinks(body: string, re: RegExp, replacer: (match: string, ...groups: string[]) => string): string {
+  return body
+    .split(EXISTING_LINK_RE)
+    .map((segment, i) => i % 2 === 1 ? segment : segment.replace(re, replacer))
+    .join('');
+}
 
 // What a link needs to know about its target: the register identifier that
 // keys the URL (decision 034) and the designation that becomes its slug.
@@ -32,7 +55,7 @@ export interface IndividualRef {
   primary_designation: string;
 }
 
-// A matriline or an ecotype: the register identifier, and our designation.
+// A matriline, a population or a pod: the register identifier, and our designation.
 export interface GroupRef {
   entity_id: string | null;
   designation: string;
@@ -40,43 +63,56 @@ export interface GroupRef {
 
 // Turn catalog-resolvable identifier codes in a markdown body into links to the
 // individual's profile page, matriline codes ("T65As") into links to the
-// matriline's page, and ecotype names in prose ("Biggs", "transients") into
-// links to the ecotype page. Codes are compared by the register's fold
-// (animals ADR-0019): `codes` maps a folded designation (e.g. 't65a5') to the
-// individual it names; `matrilines` maps a folded group code (e.g. 't65as') to
-// the matriline; `ecotypes` maps an ecotype designation ('Biggs') to the ecotype. Codes and
-// terms that resolve to nothing (SRKW, CRC, uncataloged) pass through as plain
-// text — linking is a navigation aid, never an identification claim.
+// matriline's page, population names in prose ("Biggs", "transients", "SRKWs") into
+// links to the population's page, and pod names ("J pod", "Ks") into links to the
+// pod's page. Codes are compared by the register's fold (animals ADR-0019): `codes`
+// maps a folded designation (e.g. 't65a5') to the individual it names; `matrilines`
+// maps a folded group code (e.g. 't65as') to the matriline; `populations` maps a
+// folded population designation ('biggs', 'southern resident') to the population;
+// `pods` maps a folded pod label ('j pod') to the pod. Codes and terms that resolve to
+// nothing (CRC, uncataloged) pass through as plain text — linking is a navigation
+// aid, never an identification claim.
 export function injectIndividualLinks(
   body: string,
   codes: Map<string, IndividualRef>,
   matrilines: Map<string, GroupRef> = new Map(),
-  ecotypes: Map<string, GroupRef> = new Map(),
+  populations: Map<string, GroupRef> = new Map(),
+  pods: Map<string, GroupRef> = new Map(),
 ): string {
-  return body
-    .split(EXISTING_LINK_RE)
-    .map((segment, i) => {
-      if (i % 2 === 1) return segment;
-      const linked = segment.replace(CODE_RE, (match, prefix: string, block: string, matriline: string) => {
-        // Separator and leading zeros dropped, as public.extract_identifiers does,
-        // then folded; the s stays, so a matriline code only ever finds a group.
-        const folded = fold(`${prefix}${block}${matriline}`);
-        if (matriline) {
-          const group = matrilines.get(folded);
-          return group ? `[${match}](${matrilinePath(group)})` : match;
-        }
-        const individual = codes.get(folded);
-        return individual ? `[${match}](${individualPath(individual)})` : match;
-      });
-      // Codes never contain an ecotype word and ecotype links never contain a
-      // code, so this second pass can't collide with the one above.
-      return linked.replace(ECOTYPE_TERM_RE, match => {
-        const designation = ecotypeForTerm(match);
-        const ecotype = designation ? ecotypes.get(designation) : undefined;
-        return ecotype ? `[${match}](${populationPath(ecotype)})` : match;
-      });
-    })
-    .join('');
+  const linkPod = (match: string, letter: string) => {
+    const pod = pods.get(fold(`${letter} pod`));
+    return pod ? `[${match}](${podPath(pod)})` : match;
+  };
+  let linked = replaceOutsideLinks(body, CODE_RE, (match, prefix, block, matriline) => {
+    // Separator and leading zeros dropped, as public.extract_identifiers does,
+    // then folded; the s stays, so a matriline code only ever finds a group.
+    const folded = fold(`${prefix}${block}${matriline}`);
+    if (matriline) {
+      const group = matrilines.get(folded);
+      return group ? `[${match}](${matrilinePath(group)})` : match;
+    }
+    const individual = codes.get(folded);
+    return individual ? `[${match}](${individualPath(individual)})` : match;
+  });
+  linked = replaceOutsideLinks(linked, POPULATION_TERM_RE, match => {
+    const designation = populationForTerm(match);
+    const population = designation ? populations.get(designation) : undefined;
+    return population ? `[${match}](${populationPath(population)})` : match;
+  });
+  linked = replaceOutsideLinks(linked, POD_RE, linkPod);
+  return replaceOutsideLinks(linked, POD_PLURAL_RE, linkPod);
+}
+
+/**
+ * The page of the population a sighting's taxon is, when it is one with a page: an SRKW
+ * report's taxon is the Southern Resident community (SSA:0000010), so its card's name
+ * links there, whatever its text says. Only what the record asserts is linked.
+ */
+export function populationPage(entityId: string | null, populations: Map<string, GroupRef>): string | null {
+  if (!entityId) return null;
+  for (const population of populations.values())
+    if (population.entity_id === entityId) return populationPath(population);
+  return null;
 }
 
 /** One of the animals or groups a sighting names, and its page when the catalogue knows it. */
@@ -164,7 +200,6 @@ export function pooledAnimals(
 
 let codeMap: Map<string, IndividualRef> | null = null;
 let matrilineMap: Map<string, GroupRef> | null = null;
-let ecotypeMap: Map<string, GroupRef> | null = null;
 let populationMap: Map<string, GroupRef> | null = null;
 let podMap: Map<string, GroupRef> | null = null;
 let loading: Promise<Map<string, IndividualRef>> | null = null;
@@ -183,7 +218,6 @@ export interface CatalogCodeRows {
 export function setCatalogCodes({ designations, groups }: CatalogCodeRows): Map<string, IndividualRef> {
   codeMap = new Map(designations.flatMap(({ code, individual }) => individual ? [[fold(code), individual]] : []));
   matrilineMap = new Map(groups.filter(g => g.kind === 'matriline').map(g => [fold(`${g.designation}s`), g]));
-  ecotypeMap = new Map(groups.filter(g => g.kind === 'ecotype').map(g => [g.designation, g]));
   populationMap = new Map(groups.filter(isPopulation).map(g => [fold(g.designation), g]));
   podMap = new Map(groups.filter(g => g.kind === 'pod').map(g => [fold(podLabel(g)), g]));
   return codeMap;
@@ -197,8 +231,8 @@ async function fetchCatalogCodeRows(): Promise<CatalogCodeRows> {
   return await response.json() as CatalogCodeRows;
 }
 
-// Fetch the designation -> individual lookup (plus the matriline and ecotype
-// designations) once per session. The whole catalog is ~1k tiny rows; callers
+// Fetch the designation -> individual lookup (plus the matriline, population and
+// pod designations) once per session. The whole catalog is ~1k tiny rows; callers
 // re-render when the promise settles.
 export function loadCatalogCodes(): Promise<Map<string, IndividualRef>> {
   loading ??= (async () => {
@@ -220,11 +254,7 @@ export function matrilineCodes(): Map<string, GroupRef> | null {
   return matrilineMap;
 }
 
-export function ecotypeCodes(): Map<string, GroupRef> | null {
-  return ecotypeMap;
-}
-
-/** The populations a bout's tags can name, ecotypes and communities, keyed by their folded designation. */
+/** The populations a bout's tags and a sighting's text can name, ecotypes and communities, keyed by their folded designation. */
 export function populationCodes(): Map<string, GroupRef> | null {
   return populationMap;
 }
