@@ -104,6 +104,11 @@ export class SegmentSummary extends LitElement {
       color: inherit;
       text-decoration: none;
     }
+    /* A name with no page reads quieter than one that leads somewhere, as on a
+       sighting's card (obs-summary.ts). */
+    ul.animals li:not(:has(a)) {
+      color: var(--color-text-muted);
+    }
     .support {
       color: var(--color-text-muted);
       font-size: var(--fs-caption);
