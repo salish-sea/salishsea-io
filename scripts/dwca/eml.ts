@@ -219,6 +219,7 @@ export function buildEml(input: EmlInput): string {
     </keywordSet>
     <intellectualRights>
       <para>This work is licensed under a <ulink url="${xmlEsc(d.intellectual_rights)}"><citetitle>Creative Commons Attribution (CC-BY) 4.0 License</citetitle></ulink>. Per-record license is encoded in the occurrence data file (native records: CC-BY 4.0 under the SalishSea.io terms of use; Maplify/Whale Alert records: CC-BY 4.0 via the Acartia data cooperative).</para>
+      <para>Each record's locality is the name of the water region its position is in, from the SalishSea.io basemap's water regions (https://github.com/salish-sea/basemap). Contains information licensed under the Open Government Licence – Canada and the Open Government Licence – British Columbia.</para>
     </intellectualRights>
     <coverage>
       <geographicCoverage>

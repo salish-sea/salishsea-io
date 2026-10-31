@@ -36,6 +36,7 @@ import { writeArchive } from './build.ts';
 import { OCCURRENCE_FIELDS, MULTIMEDIA_FIELDS } from './fields.ts';
 import { mirrorsFromSnapshot } from '../read-path/derive/mirrors-from-snapshot.ts';
 import { withDwc } from '../read-path/dwca.ts';
+import { deriveOccurrences } from '../read-path/derive-occurrences.ts';
 import { fixtureSnapshot } from '../read-path/twin-fixture.ts';
 
 // ---------------------------------------------------------------------------
@@ -58,6 +59,8 @@ describe('writeArchive integration (DWCA-01..04/06)', () => {
         // The reference tables are checked-in files, as in the build (decision 064).
         execFileSync('node', [path.resolve(__dirname, '../read-path/reference.ts'), snapshot]);
         const mirrors = await mirrorsFromSnapshot(snapshot, SCRATCH);
+        // The archive reads each record's locality from the derived occurrences, as the build's dwca task does.
+        await deriveOccurrences(snapshot, mirrors, null);
         written = await withDwc(snapshot, mirrors, conn => writeArchive(conn, DIST));
     }, 60_000);
 

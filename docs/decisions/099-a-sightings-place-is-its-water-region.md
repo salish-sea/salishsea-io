@@ -23,7 +23,7 @@ A sighting carries only its coordinates, so a card couldn't say where it was. Th
 ## Undecided
 
 - **Landmarks** ("off Bush Point", "near Suquamish"): within 3 km of 76% of sightings, but many are names few people know (Skiou Point). *Decided 2026-10-30 in [100](100-a-sightings-landmark-is-a-name-reporters-use.md):* the nearest name reporters use, written after the region ("Haro Strait, off Lime Kiln").
-- **Darwin Core's `locality`:** the place belongs there, once the rights policy credits the regions' Canadian and British Columbian sources (`salish-fwyt.2.1`).
+- **Darwin Core's `locality`:** *settled 2026-10-31:* each archive record's `locality` is its place, now that the rights policy's §7.4 (D-25) credits the regions' Canadian and British Columbian sources. ~~The place belongs there, once the rights policy credits the regions' Canadian and British Columbian sources (`salish-fwyt.2.1`).~~
 - **A sighting just saved** has no place until the next build, a few minutes later.
 
 ## Consequences

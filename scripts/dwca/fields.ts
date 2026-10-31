@@ -75,6 +75,8 @@ export const OCCURRENCE_FIELDS = [
     { name: 'dynamicProperties',     termUri: 'http://rs.tdwg.org/dwc/terms/dynamicProperties' },     // 24 (was 23)
     { name: 'informationWithheld',   termUri: 'http://rs.tdwg.org/dwc/terms/informationWithheld' },   // 25 (was 24)
     { name: 'recordedByID',          termUri: 'http://rs.tdwg.org/dwc/terms/recordedByID' },          // 26 APPENDED
+    // the water region the record's point is in (decision 099, rights policy §7.4)
+    { name: 'locality',              termUri: 'http://rs.tdwg.org/dwc/terms/locality' },              // 27 APPENDED
 ] as const satisfies readonly OccurrenceField[];
 
 /**

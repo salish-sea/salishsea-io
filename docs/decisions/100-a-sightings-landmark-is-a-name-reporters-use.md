@@ -41,7 +41,7 @@ A landmark should narrow the region down, so it should be on that region's shore
 ## Undecided
 
 - **Wording for a sighting far from any name reporters use.** It has its region alone (Peter, 2026-10-30: no idea yet).
-- **Darwin Core's `locality`:** as for the region (099), once the rights policy credits the sources (`salish-fwyt.2.1`). An OpenStreetMap name there would bring the ODbL's terms with it.
+- **Darwin Core's `locality`:** *settled 2026-10-31 (rights policy §7.4, D-25):* the archive's `locality` is the region alone, and the landmark stays out of the archive, since an OpenStreetMap name there would bring the ODbL's terms with it. ~~As for the region (099), once the rights policy credits the sources (`salish-fwyt.2.1`).~~
 - **Canadian waters have fewer landmarks:** most reports that name places come from Orca Network's observers around Puget Sound.
 
 ## Consequences

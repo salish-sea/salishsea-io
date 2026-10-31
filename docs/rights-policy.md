@@ -498,6 +498,25 @@ The repository also carries a GPL-3 `LICENSE.md`, and its `DESCRIPTION` declares
 
 **Not covered.** Steelhead in British Columbia are not in NuSEDS, which holds the five Pacific salmon; another source would need its own entry.
 
+### 7.4 Which Water a Sighting Was In: the Basemap's Water Regions (D-25)
+
+*Added 2026-10-31, by Peter (`salish-fwyt.2.1`).*
+
+**Use.** Each sighting's place is the name of the water region its point is in, such as "Haro Strait" or "Mud Bay (Lopez Sound)" ([decision 099](decisions/099-a-sightings-place-is-its-water-region.md)). The site's cards show it, and the Darwin Core archive gives it as each record's `locality`. The regions are the SalishSea.io basemap's ([its decision 027](https://github.com/salish-sea/basemap/blob/90569a0/decisions/027-every-water-name-has-a-region-and-the-regions-cover-the-water.md)): one for each water name the map labels, covering the water from 42°N to 51.5°N.
+
+**Sources.** Government data only, by Peter's choice when the regions were built:
+- **The names and outlines of US waters,** from the USGS's Geographic Names Information System, and **the land as NOAA's charts draw it:** US government works, in the public domain.
+- **The names and outlines of Canadian waters,** from Natural Resources Canada's Canadian Geographical Names Database, under the [Open Government Licence – Canada](https://open.canada.ca/en/open-government-licence-canada).
+- **British Columbia's shore,** the province's terrestrial boundary, under the [Open Government Licence – British Columbia](https://www2.gov.bc.ca/gov/content/data/open-data/open-government-licence-bc).
+
+Nothing in the regions comes from OpenStreetMap.
+
+**Determination (D-25).** Used without asking permission: two of the sources are in the public domain, and both open government licences permit any use, commercial included, given the attribution statement each specifies. What reaches a record is a name, which is a fact, chosen by a point-in-region lookup; the outlines are not republished.
+
+**Credit.** Both licences ask for the same kind of sentence wherever their information is used. The archive's metadata (`eml.xml`, its intellectual rights) says that each record's locality comes from the basemap's water regions and "contains information licensed under the Open Government Licence – Canada and the Open Government Licence – British Columbia". On the site, where every sighting's card names its region, the About page carries the same statement; the map's attribution also names the sources ("Water regions: USGS GNIS, Natural Resources Canada, NOAA, Province of British Columbia") while the regions layer is shown.
+
+**Not covered.** A sighting's landmark ([decision 100](decisions/100-a-sightings-landmark-is-a-name-reporters-use.md)) is not in the archive: some landmarks' names and positions are OpenStreetMap's, under the ODbL, which the archive keeps out.
+
 ---
 
 ## Decision Index
@@ -530,6 +549,7 @@ All D-numbers are cited in the sections above. For reference:
 | D-22 | 7.2 | NOAA NWFSC `srkw-status` census file: a U.S. government work (17 U.S.C. §105) of facts, used without asking permission; the repo's GPL-3 covers its code, not the data; CWR credited as observer and NOAA as publisher; nicknames not covered; same export caveat as D-21. |
 | D-23 | 5.5 | iNaturalist identifications (identifier, taxon, when, current, own, disagreement, vision, hidden, text) and comments are mirrored to derive our own confidence (075) and read the animals people name, never republished; text hidden by iNaturalist's moderators is not kept; basis is iNaturalist's default CC BY-NC for content without a license choice; showing any of it to visitors needs its own rights pass. |
 | D-24 | 7.3 | Salmon runs per named river, distilled from WDFW and NWIFC's SWIFD (stated terms: "open for public consumption") and DFO's NuSEDS (Open Government Licence – Canada): facts used without asking permission (*Feist*), the compilations not reproduced, both credited in the map's attribution; courtesy notes to WDFW and NWIFC don't gate the work |
+| D-25 | 7.4 | A sighting's water region, from the basemap's government data (USGS and NOAA public domain; Canada's names and outlines under the Open Government Licence – Canada; British Columbia's shore under the Open Government Licence – British Columbia), is each archive record's `locality`; credited in the archive's metadata and on the map; the landmark stays out (ODbL) |
 
 ---
 

@@ -135,6 +135,9 @@
 ;; under none, so a new list re-derives every arm).
 (check-not-false (memq 'water-regions.json (inputs-of 'derive-occurrences)))
 (check-eq? (producer-of salishsea-graph 'water-regions.json) 'water-regions)
+;; The archive names each record's water region, as its locality, from the derived
+;; occurrences (rights policy §7.4), so a new regions list rewrites it too.
+(check-not-false (memq 'build.occurrences (inputs-of 'dwca)))
 ;; The landmarks (decision 100): the checked-in list, placed by the OpenStreetMap list
 ;; that the same task fetches, and read by every arm likewise.
 (check-not-false (memq 'reference/landmarks.tsv (inputs-of 'derive-occurrences)))

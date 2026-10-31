@@ -794,8 +794,10 @@
    ;; sightings would drop them from the archive too. It reads Maplify and native
    ;; sightings only (iNaturalist publishes to GBIF itself), so its mirror is not an
    ;; input. Dated by the snapshot's day.
+   ;; build.occurrences for each record's locality, the water region the occurrences
+   ;; step named (decision 099, rights policy §7.4)
    (make-task 'dwca 'transform
-              #:inputs '(snapshot-day maplify-names-hold
+              #:inputs '(snapshot-day maplify-names-hold build.occurrences
                          maplify_mirror.sightings maplify.collection_rule
                          inaturalist_mirror.taxa
                          public.observations public.observation_photos public.contributors

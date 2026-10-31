@@ -93,6 +93,13 @@ CREATE OR REPLACE TABLE pgdb.public.observations AS SELECT * FROM public.observa
 CREATE OR REPLACE TABLE pgdb.public.collections AS SELECT * FROM public.collections;
 CREATE OR REPLACE TABLE pgdb.public.organizations AS SELECT * FROM public.organizations;
 
+-- Each record's locality: the water region its point is in, as the occurrences step named
+-- it (decision 099; place in build.occurrences), from the basemap's government data (rights
+-- policy §7.4, D-25). A native occurrence's id there is its bare uuid. Never the landmark,
+-- whose names are partly OpenStreetMap's (decision 100).
+CREATE OR REPLACE TEMP VIEW occurrence_locality AS
+  SELECT id, json_extract_string(doc, '$.place') AS locality FROM build.occurrences;
+
 -- --- dwc._native_occurrences --------------------------------------------------------------
 CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
   SELECT 'salishsea:' || CAST(o.id AS VARCHAR) AS "occurrenceID",
@@ -120,8 +127,10 @@ CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
            pg_jsonb_list_member('unvalidatedIdentifiers', nullif(extract_identifiers(o.body), []))
          ]) AS "dynamicProperties",
          CAST(NULL AS VARCHAR) AS "informationWithheld",
-         c.orcid AS "recordedByID"
+         c.orcid AS "recordedByID",
+         loc.locality AS "locality"
   FROM public.observations o
+  LEFT JOIN occurrence_locality loc ON loc.id = CAST(o.id AS VARCHAR)
   JOIN public.contributors c ON c.id = o.contributor_id
   JOIN inaturalist_taxon xw ON xw.entity_id = o.entity_id
   JOIN dwc_taxa_classification tc ON tc.taxon_id = xw.inaturalist_taxon_id
@@ -176,8 +185,10 @@ CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
            pg_jsonb_list_member('unvalidatedIdentifiers', nullif(extract_identifiers(s.comments), []))
          ]) AS "dynamicProperties",
          CAST(NULL AS VARCHAR) AS "informationWithheld",
-         CAST(NULL AS VARCHAR) AS "recordedByID"
+         CAST(NULL AS VARCHAR) AS "recordedByID",
+         loc.locality AS "locality"
   FROM pgdb.maplify.sightings s
+  LEFT JOIN occurrence_locality loc ON loc.id = 'maplify:' || CAST(s.id AS VARCHAR)
   JOIN inaturalist_taxon xw ON xw.entity_id = s.entity_id
   JOIN dwc_taxa_classification tc ON tc.taxon_id = xw.inaturalist_taxon_id
   LEFT JOIN public.collections c_coll ON c_coll.id = s.collection_id

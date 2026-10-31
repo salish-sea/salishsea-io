@@ -146,6 +146,8 @@ describe('buildEml — required elements present', () => {
             '<ulink url="https://creativecommons.org/licenses/by/4.0/legalcode">',
         );
         expect(xml).toContain('<citetitle>Creative Commons Attribution (CC-BY) 4.0 License</citetitle>');
+        // the credit the water regions' Canadian and British Columbian sources ask for (rights policy §7.4)
+        expect(xml).toContain('Contains information licensed under the Open Government Licence – Canada and the Open Government Licence – British Columbia.');
         expect(xml).toContain('Per-record license is encoded in the occurrence data file');
     });
 });
