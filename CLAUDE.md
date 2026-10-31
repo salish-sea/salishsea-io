@@ -88,7 +88,7 @@ pnpm exec playwright test  # e2e
 READ_PATH_DIR=/path/to/export pnpm dev  # the site reads a read-path build's files (decision 056); without it the map has nothing to show
 ```
 
-Node version is pinned in `.nvmrc`. The derivations' tests compare against answers Postgres gave once, saved in [`scripts/read-path/fixtures/twins/`](scripts/read-path/fixtures/twins/README.md); when a derivation changes on purpose, the expected rows change with it, as a reviewed edit.
+Node version is pinned in `.nvmrc`. The derivations' tests compare against answers Postgres gave once, saved in [`scripts/read-path/fixtures/twins/`](scripts/read-path/fixtures/twins/README.md); when a derivation changes on purpose, the expected rows change with it, as a reviewed edit. The text extractions are also scored against a hand-read gold set in [`scripts/read-path/fixtures/gold/`](scripts/read-path/fixtures/gold/README.md) (decision 102); a change to them moves rows in `derive/extract-gold.test.ts`'s pinned lists, reviewed the same way.
 
 ## Parallel agents
 
