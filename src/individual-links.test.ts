@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { ecotypeCodes, injectIndividualLinks, matrilineCodes, namedAnimals, pooledAnimals, setCatalogCodes } from './individual-links.ts';
+import { injectIndividualLinks, matrilineCodes, namedAnimals, podCodes, pooledAnimals, populationCodes, setCatalogCodes } from './individual-links.ts';
 
 // Links carry the register identifier and the designation as its slug (034).
 const T065A5 = { entity_id: 'SSA:0010197', primary_designation: 'T065A5' };
@@ -19,8 +19,16 @@ const matrilines = new Map([
   ['t46bs', { entity_id: 'SSA:0002149', designation: 'T046B' }],
 ]);
 
-const ecotypes = new Map([
-  ['Biggs', { entity_id: 'SSA:0000002', designation: 'Biggs' }],
+// Keyed by the folded designation, as setCatalogCodes builds them.
+const populations = new Map([
+  ['biggs', { entity_id: 'SSA:0000002', designation: 'Biggs' }],
+  ['southern resident', { entity_id: 'SSA:0000010', designation: 'Southern Resident' }],
+]);
+
+const pods = new Map([
+  ['j pod', { entity_id: 'SSA:0000020', designation: 'J' }],
+  ['k pod', { entity_id: 'SSA:0000021', designation: 'K' }],
+  ['l pod', { entity_id: 'SSA:0000022', designation: 'L' }],
 ]);
 
 test('links resolvable codes to individual pages', () => {
@@ -67,13 +75,13 @@ test('normalizes case and separators', () => {
 });
 
 test('links ecotype names in prose to the ecotype page', () => {
-  expect(injectIndividualLinks('Biggs T46Bs southbound', codes, matrilines, ecotypes))
+  expect(injectIndividualLinks('Biggs T46Bs southbound', codes, matrilines, populations))
     .toBe('[Biggs](/populations/0000002/Biggs) [T46Bs](/matrilines/0002149/T046Bs) southbound');
   // apostrophe variants and "transient(s)" all resolve to the same ecotype
-  expect(injectIndividualLinks("Bigg's transients milling", codes, matrilines, ecotypes))
+  expect(injectIndividualLinks("Bigg's transients milling", codes, matrilines, populations))
     .toBe("[Bigg's](/populations/0000002/Biggs) [transients](/populations/0000002/Biggs) milling");
   // curly apostrophe
-  expect(injectIndividualLinks('Bigg’s northbound', codes, matrilines, ecotypes))
+  expect(injectIndividualLinks('Bigg’s northbound', codes, matrilines, populations))
     .toBe('[Bigg’s](/populations/0000002/Biggs) northbound');
 });
 
@@ -84,7 +92,39 @@ test('leaves ecotype names alone when the catalog has no ecotype for them', () =
 
 test('does not link ecotype names inside existing markdown links', () => {
   const linked = 'see [Biggs report](https://example.com/biggs) for details';
-  expect(injectIndividualLinks(linked, codes, matrilines, ecotypes)).toBe(linked);
+  expect(injectIndividualLinks(linked, codes, matrilines, populations)).toBe(linked);
+});
+
+test('links the Southern Residents in prose to the community page', () => {
+  expect(injectIndividualLinks('SRKWs northbound, visible on webcam', codes, matrilines, populations))
+    .toBe('[SRKWs](/populations/0000010/Southern-Resident) northbound, visible on webcam');
+  expect(injectIndividualLinks("SRKW and the srkw’s calls; Southern Residents again, a Southern Resident's breach", codes, matrilines, populations))
+    .toBe("[SRKW](/populations/0000010/Southern-Resident) and the [srkw’s](/populations/0000010/Southern-Resident) calls; [Southern Residents](/populations/0000010/Southern-Resident) again, a [Southern Resident](/populations/0000010/Southern-Resident)'s breach");
+});
+
+test('"Resident" alone links nothing: the Northern Residents are residents too', () => {
+  expect(injectIndividualLinks('Residents off Swiftsure; Northern Residents too', codes, matrilines, populations))
+    .toBe('Residents off Swiftsure; Northern Residents too');
+});
+
+test('links pod names to the pod page', () => {
+  expect(injectIndividualLinks('Faint J pod calls (Andrews Bay)', codes, matrilines, populations, pods))
+    .toBe('Faint [J pod](/pods/0000020/J-pod) calls (Andrews Bay)');
+  expect(injectIndividualLinks('J-pod, kpod and L Pod', codes, matrilines, populations, pods))
+    .toBe('[J-pod](/pods/0000020/J-pod), [kpod](/pods/0000021/K-pod) and [L Pod](/pods/0000022/L-pod)');
+  expect(injectIndividualLinks("Js and K's westbound", codes, matrilines, populations, pods))
+    .toBe("[Js](/pods/0000020/J-pod) and [K's](/pods/0000021/K-pod) westbound");
+});
+
+test('a bare pod letter, a lowercase plural and a matriline code are not pods', () => {
+  const j31s = new Map([['j31s', { entity_id: 'SSA:0002001', designation: 'J031' }]]);
+  expect(injectIndividualLinks('Plan J, ls -l, the J31s', codes, j31s, populations, pods))
+    .toBe('Plan J, ls -l, the [J31s](/matrilines/0002001/J031s)');
+});
+
+test('the pod and population passes leave links alone, made earlier or in the source', () => {
+  const linked = 'see [J pod and SRKWs](https://example.com/j-pod) and [Js](https://example.com/js)';
+  expect(injectIndividualLinks(linked, codes, matrilines, populations, pods)).toBe(linked);
 });
 
 // The read-path build writes the same rows the Supabase query returns (decision 056),
@@ -99,12 +139,16 @@ test('rows from either source build the lookup the links are made from', () => {
     groups: [
       { kind: 'matriline', designation: 'T065A', entity_id: 'SSA:0002163' },
       { kind: 'ecotype', designation: 'Biggs', entity_id: 'SSA:0000002' },
+      { kind: 'community', designation: 'Southern Resident', entity_id: 'SSA:0000010' },
+      { kind: 'pod', designation: 'J', entity_id: 'SSA:0000020' },
     ],
   });
   expect([...byCode.keys()]).toEqual(['t65a', 't46a']);
   expect(injectIndividualLinks('T65A and the T65As, with T046A, among transients; X9 too',
-    byCode, matrilineCodes()!, ecotypeCodes()!)).toBe(
+    byCode, matrilineCodes()!, populationCodes()!)).toBe(
     '[T65A](/individuals/0010193/T065A) and the [T65As](/matrilines/0002163/T065As), with [T046A](/individuals/0010368/T122), among [transients](/populations/0000002/Biggs); X9 too');
+  expect(injectIndividualLinks('SRKWs: J pod', byCode, matrilineCodes()!, populationCodes()!, podCodes()!)).toBe(
+    '[SRKWs](/populations/0000010/Southern-Resident): [J pod](/pods/0000020/J-pod)');
 });
 
 test('a sighting\'s named animals become chips, each once, in the order its text names them', () => {

@@ -16,7 +16,7 @@ import { deleteSighting } from './write-api.ts';
 import type { Contributor, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
-import { catalogCodes, ecotypeCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, podCodes, populationCodes } from './individual-links.ts';
+import { catalogCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, podCodes, populationCodes } from './individual-links.ts';
 import { openAnimalLinkInSidebar } from './subject.ts';
 import { linkStyles } from './icons.ts';
 import { placeLine } from './place.ts';
@@ -45,7 +45,8 @@ export function sightingText(body: string | null | undefined, providerSlug: stri
         injectPartnerLinks(stripResolvedProvenance((body || '').replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n'), providerSlug ?? null)),
         catalogCodes() ?? new Map(),
         matrilineCodes() ?? new Map(),
-        ecotypeCodes() ?? new Map()
+        populationCodes() ?? new Map(),
+        podCodes() ?? new Map(),
       ),
       { async: false, renderer: markedRenderer }
     ),
