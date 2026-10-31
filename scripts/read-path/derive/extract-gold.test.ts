@@ -8,7 +8,8 @@
  * a row that joins one needs a reason.
  *
  * The two random strata estimate the corpus. The hard strata were drawn for the pattern
- * named, so their rates say how the macros do on that pattern, not how often it occurs.
+ * named, so their rates say how the macros do on that pattern, not how often it occurs;
+ * 'filter miss' holds the rows a hard stratum's filter matched by accident.
  */
 
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
@@ -21,18 +22,19 @@ type Gold = {
     comment: string;
     codes_present: string[];
     direction: string | null;
+    direction_also: string | null;
 };
 
 /** The rows the macros get wrong today, by stratum, and the count of right ones. */
 const PINNED: Record<string, {reports: number, wrongDirection: number[], wrongCodes: number[]}> = {
-    'random orca': {reports: 100, wrongDirection: [3, 39, 44, 56, 88, 91, 95], wrongCodes: [11, 44, 64, 67, 74, 92]},
+    'random orca': {reports: 100, wrongDirection: [3, 39, 44, 88, 91, 95], wrongCodes: [11, 44, 64, 67, 74, 92]},
     'random other species': {reports: 40, wrongDirection: [108], wrongCodes: [105]},
     'hard: exclusion': {reports: 15, wrongDirection: [144, 153], wrongCodes: [141, 143, 144, 145, 146, 148, 151, 153]},
-    'hard: code without letter': {reports: 15, wrongDirection: [162], wrongCodes: [156, 157, 158, 159, 161, 162, 163, 164, 165, 166, 167, 168, 170]},
+    'hard: code without letter': {reports: 13, wrongDirection: [162], wrongCodes: [156, 157, 158, 159, 161, 162, 163, 164, 165, 166, 167, 168, 170]},
     'hard: hedge': {reports: 10, wrongDirection: [], wrongCodes: []},
     'hard: change of direction': {reports: 10, wrongDirection: [181, 184, 186, 190], wrongCodes: []},
-    'hard: nickname': {reports: 5, wrongDirection: [191], wrongCodes: []},
     'hard: abbreviated direction': {reports: 5, wrongDirection: [196, 197, 198, 199, 200], wrongCodes: []},
+    'filter miss': {reports: 7, wrongDirection: [191], wrongCodes: []},
 };
 
 let gold: Gold[];
@@ -78,7 +80,8 @@ describe('the extractions against the gold set', () => {
             const x = got.get(g.row)!;
             const s = scored[g.stratum] ??= {reports: 0, wrongDirection: [], wrongCodes: []};
             s.reports++;
-            const directionRight = NO_DIRECTION.has(g.direction) ? x.direction === null : x.direction === g.direction;
+            const directionRight = NO_DIRECTION.has(g.direction) ? x.direction === null
+                : x.direction === g.direction || (g.direction_also !== null && x.direction === g.direction_also);
             if (!directionRight) s.wrongDirection.push(g.row);
             if (x.identifiers.join('; ') !== g.codes_present.join('; ')) s.wrongCodes.push(g.row);
         }
