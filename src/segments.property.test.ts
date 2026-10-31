@@ -133,16 +133,21 @@ describe('occurrences2segments', () => {
   });
 
   // Not a promise of the contract, measured: with ties, does the grouping depend on input order?
-  test.skip('(measurement) ties in observed_at make the grouping depend on input order', () => {
+  (process.env['MEASURE'] ? test : test.skip)('(measurement) ties in observed_at make the grouping depend on input order', () => {
     let differs = 0;
     fc.assert(fc.property(day, fc.infiniteStream(fc.nat()), (occurrences, randoms) => {
       const shuffled = occurrences.map(o => [randoms.next().value, o] as const).sort((a, b) => a[0] - b[0]).map(([, o]) => o);
       if (JSON.stringify(canonical(grouping(occurrences2segments(shuffled)))) !== JSON.stringify(canonical(grouping(occurrences2segments(occurrences))))) differs++;
     }), {numRuns: 2000});
-    console.log('order-dependent groupings with ties:', differs, '/ 2000');
+    process.stderr.write(`MEASURE order-dependent groupings with ties: ${differs} / 2000\n`);
+    const witness = fc.check(fc.property(day, occurrences => {
+      const reversed = occurrences.toReversed();
+      return JSON.stringify(canonical(grouping(occurrences2segments(reversed)))) === JSON.stringify(canonical(grouping(occurrences2segments(occurrences))));
+    }), {numRuns: 5000});
+    if (witness.failed) process.stderr.write(`MEASURE witness ${JSON.stringify(witness.counterexample![0]!.map(o => [o.id, o.observed_at.slice(11, 16), o.location, o.taxon.scientific_name, o.identifiers]))}\n`);
   });
 
-  test.skip('(measurement) segments holding both a resident-only and a Bigg\'s-only report', () => {
+  (process.env['MEASURE'] ? test : test.skip)('(measurement) segments holding both a resident-only and a Bigg\'s-only report', () => {
     let mixed = 0;
     fc.assert(fc.property(day, occurrences => {
       for (const {occurrences: m} of occurrences2segments(occurrences)) {
@@ -150,6 +155,11 @@ describe('occurrences2segments', () => {
         if (sets.some(s => s.size === 1 && s.has('resident')) && sets.some(s => s.size === 1 && s.has('biggs'))) { mixed++; break; }
       }
     }), {numRuns: 2000});
-    console.log('days with a mixed segment:', mixed, '/ 2000');
+    process.stderr.write(`MEASURE days with a mixed segment: ${mixed} / 2000\n`);
+    const witness = fc.check(fc.property(day, occurrences => occurrences2segments(occurrences).every(({occurrences: m}) => {
+      const sets = m.map(o => ecotypesOf(o));
+      return !(sets.some(s => s.size === 1 && s.has('resident')) && sets.some(s => s.size === 1 && s.has('biggs')));
+    })), {numRuns: 5000});
+    if (witness.failed) process.stderr.write(`MEASURE witness ${JSON.stringify(witness.counterexample![0]!.map(o => [o.id, o.observed_at.slice(11, 16), o.location, o.taxon.scientific_name, o.identifiers]))}\n`);
   });
 });
