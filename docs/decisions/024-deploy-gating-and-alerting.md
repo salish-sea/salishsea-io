@@ -1,6 +1,6 @@
 # 024 — Deploys gate on the full test suite, verify themselves, and alert by issue
 
-**Status:** accepted · **Decided:** 2026-08-04
+**Status:** accepted · **Decided:** 2026-08-04 · **Amended:** 2026-10-12, 2026-10-31
 
 ## Context
 
@@ -43,9 +43,13 @@ manual dispatch are unchanged.
 naming which job failed and whether production was touched; the next fully green deploy
 comments and closes it. One channel for all three of this repo's automated alarms.
 
-**Alerts are suppressed when the run has been superseded *and changed nothing*.** Two merges
+**Alerts are suppressed when the run has been superseded *and changed nothing*.** *Since
+the [2026-10-31 amendment](#amendment-2026-10-31--an-overtaken-run-ends-cancelled), the older
+of two merges in quick succession cancels itself at the `require-current-tip` guard rather
+than failing, and the alert job skips a cancelled run; the rule below still covers a
+superseded run that fails, such as one whose tests fail.* ~~Two merges
 in quick succession make the older run fail the `require-current-tip` guard by design
-(gotcha 3 in the runbook). That failure is expected and self-correcting, so the alert job
+(gotcha 3 in the runbook).~~ That failure is expected and self-correcting, so the alert job
 re-asks "is this run's commit still the tip of `main`?" and stays quiet if not — but only
 while the run never got past the deploy job's first remote change. The deploy job sets a
 `mutation_started` output immediately before that point; once it is set, a failure has left
@@ -99,6 +103,14 @@ Rejected: `timeout-minutes`, because it counts from when a runner takes the job,
 ## Amendment, 2026-10-12 — the sequence the gate guards has changed
 
 The test gate, the smoke job inside the run, the `deploy-failed` issue and its silence for superseded runs all stand. A deploy now builds the Fly image beside the tests, deploys the CDK stacks, then switches the Fly app to the new image ([`fly/deploy.sh`](../../fly/deploy.sh), [066](066-a-deploy-takes-the-build-lock-and-the-machine-stops-its-writers.md)). There is no Edge Function step, no `supabase db push` and no S3 sync, because Postgres and the S3 site are retired, and the suite has started no database since #669. Rolling back means switching the Fly app to an earlier image ([runbook](../runbook/deploys.md)). The nightly archive workflow cited below as the alert channel's precedent retired on 2026-10-04 ([061](061-ingest-and-derivation-move-into-the-build.md)); the link is to its last version.
+
+## Amendment, 2026-10-31 — an overtaken run ends cancelled
+
+When two merges land close together, the older merge's run used to end red. It reached the superseded-commit guard after the newer merge had moved `main`, and failed, although the run of the newer commit, queued behind it, deploys both, or fails red itself if it can't. The alert job already kept quiet about it, but the red mark stayed in the Actions tab and on the commit, where it looked like a broken deploy (2026-10-31: `a109868`, from #810, overtaken by #811's merge).
+
+Now the guard tells the two cases apart. On a first attempt, if a Deploy run of the newer commit exists and wasn't cancelled, the run writes a summary saying so and cancels itself, so it ends grey, and that newer run decides whether the deploy happens: GitHub's own mark for a run that a newer one replaced, and one the alert job already skips. A re-run of an old commit, the rollback this guard was built for, still fails red, as does a moved tip that has no Deploy run of its own, since then nothing is set to deploy it. The guard only ever stops a run before its first change to production, so a cancelled run has changed nothing.
+
+Rejected: ending green with the deploy steps skipped, as PNW Moths does. A green run that did nothing is how the 2026-07-27 rollback went unnoticed. Rejected: leaving it red. Red that needs no action teaches people to ignore red. Rejected: `cancel-in-progress: true`, for the reason above. The rule is shared across Peter's projects in the workbench's `practices/deploys.md`. Issue: `salish-6bkm`.
 
 ## Reference
 

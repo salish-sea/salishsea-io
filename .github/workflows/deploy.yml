@@ -69,6 +69,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      actions: write  # require-current-tip cancels a run a newer push overtook
     # Read by the alert job to decide whether silence is safe. Set by a step, so
     # it survives this job failing: everything after that step can leave
     # production changed.
@@ -85,9 +86,11 @@ jobs:
       # can be overtaken by a later merge before it ever starts.
       #
       # Either way the commit in hand is no longer what main says to ship, so
-      # refuse rather than deploy backwards. Loud on purpose: this should be rare,
-      # and a green "nothing happened" is how the rollback went unnoticed the
-      # first time. If a newer deploy is green, this failure is safe to ignore.
+      # refuse rather than deploy backwards. How the run ends depends on which:
+      # a first attempt overtaken by a newer push, with a run of that commit to
+      # deploy it, cancels itself (grey); a re-run, or a moved tip with no run
+      # behind it, fails (red). Loud on purpose there: a green "nothing happened"
+      # is how the rollback went unnoticed the first time. Never green.
       #
       # Checked twice: once here (cheap, catches the stale re-run immediately) and
       # again immediately before the first remote mutation, so a merge landing
