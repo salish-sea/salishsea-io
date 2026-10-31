@@ -1,8 +1,8 @@
 # The gold set for reading sighting text
 
-[`sighting-text.json`](sighting-text.json) holds 200 Maplify reports with what each one says, read by hand (decision [102](../../../../docs/decisions/102-reading-sighting-text-is-measured-against-a-gold-set.md)). It is the measure for any change to how the build reads free text: the regex macros in [`derive/extract.sql`](../../derive/extract.sql) today, a token grammar or a model's reading later. [`derive/extract-gold.test.ts`](../../derive/extract-gold.test.ts) runs the macros over every row and pins, by stratum, which rows they get wrong.
+[`sighting-text.json`](sighting-text.json) holds 200 Maplify reports with what each one says, read by hand (decision [102](../../../../docs/decisions/102-reading-sighting-text-is-measured-against-a-gold-set.md)). It is the measure for any change to how the build reads free text: the regex macros in [`derive/extract.sql`](../../derive/extract.sql) today, a token grammar or a model's reading later. [`derive/extract-gold.test.ts`](../../derive/extract-gold.test.ts) runs the macros over every row and records, by stratum, which rows they get wrong today.
 
-The labels are the truth here, not the macros' output. A row's labels change only when someone rereads the text and disagrees. The pinned lists in the test change whenever the extraction does, as a reviewed edit.
+The labels are the truth here, not the macros' output. A row's labels change only when someone rereads the text and disagrees. The lists in the test change whenever the extraction does, as a reviewed edit.
 
 ## How the rows were drawn
 

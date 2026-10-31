@@ -1,8 +1,8 @@
 /**
  * The two text extractions scored against the gold set (decision 102): 200 Maplify
  * reports read by hand, in scripts/read-path/fixtures/gold/sighting-text.json. The
- * fixture is the truth; what is pinned here is how the regex macros in extract.sql do
- * against it today, by stratum, with the rows they get wrong. A change to the macros
+ * fixture is the truth; what is recorded here is how the regex macros in extract.sql do
+ * against it today: by stratum, the rows they get wrong. A change to the macros
  * shows here as rows moving between right and wrong, to be reviewed like a twin fixture's
  * rows (fixtures/twins/README.md): an improvement should take rows off these lists, and
  * a row that joins one needs a reason.
@@ -25,8 +25,8 @@ type Gold = {
     direction_also: string | null;
 };
 
-/** The rows the macros get wrong today, by stratum, and the count of right ones. */
-const PINNED: Record<string, {reports: number, wrongDirection: number[], wrongCodes: number[]}> = {
+/** The rows the macros get wrong today, by stratum, with each stratum's size. */
+const WRONG_TODAY: Record<string, {reports: number, wrongDirection: number[], wrongCodes: number[]}> = {
     'random orca': {reports: 100, wrongDirection: [3, 39, 44, 88, 91, 95], wrongCodes: [11, 44, 64, 67, 74, 92]},
     'random other species': {reports: 40, wrongDirection: [108], wrongCodes: [105]},
     'hard: exclusion': {reports: 15, wrongDirection: [144, 153], wrongCodes: [141, 143, 144, 145, 146, 148, 151, 153]},
@@ -70,12 +70,12 @@ describe('the extractions against the gold set', () => {
         expect(gold.map(g => g.row)).toEqual(gold.map((_, i) => i + 1));
         const counts: Record<string, number> = {};
         for (const g of gold) counts[g.stratum] = (counts[g.stratum] ?? 0) + 1;
-        expect(counts).toEqual(Object.fromEntries(Object.entries(PINNED).map(([k, v]) => [k, v.reports])));
+        expect(counts).toEqual(Object.fromEntries(Object.entries(WRONG_TODAY).map(([k, v]) => [k, v.reports])));
     });
 
     test('which rows the macros get wrong, by stratum', async () => {
         const got = await extractAll();
-        const scored: typeof PINNED = {};
+        const scored: typeof WRONG_TODAY = {};
         for (const g of gold) {
             const x = got.get(g.row)!;
             const s = scored[g.stratum] ??= {reports: 0, wrongDirection: [], wrongCodes: []};
@@ -85,6 +85,6 @@ describe('the extractions against the gold set', () => {
             if (!directionRight) s.wrongDirection.push(g.row);
             if (x.identifiers.join('; ') !== g.codes_present.join('; ')) s.wrongCodes.push(g.row);
         }
-        expect(scored).toEqual(PINNED);
+        expect(scored).toEqual(WRONG_TODAY);
     });
 });
