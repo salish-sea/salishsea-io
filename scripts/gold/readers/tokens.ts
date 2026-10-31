@@ -113,7 +113,7 @@ export function readTokens(text: string): Reading {
     // Pods.
     const pods = new Set<string>();
     for (const m of text.matchAll(/\b([JKL])(?:s|'s)\b/g)) pods.add(m[1]!);
-    for (const m of text.matchAll(/\b((?:[jklJKL]\s*(?:,|and|&|\+)?\s*)+)-?\s?pods?\b/gi)) {
+    for (const m of text.matchAll(/\b([JKLjkl](?:\s*(?:,\s*and|,|and|&|\+)\s*[JKLjkl])*)\s*-?\s?pods?\b/g)) {
         for (const l of m[1]!.toUpperCase().match(/[JKL]/g) ?? []) pods.add(l);
     }
 

@@ -101,10 +101,10 @@ export function claudeReader(model: string) {
                     input: response.usage.input_tokens, output: response.usage.output_tokens,
                     cache_read: response.usage.cache_read_input_tokens ?? 0,
                 }};
-                writeFileSync(path, JSON.stringify(cache, Object.keys(cache).sort(), 1));
+                save(path, cache);
             }
         }));
-        writeFileSync(path, JSON.stringify(cache, Object.keys(cache).sort(), 1));
+        save(path, cache);
         return new Map(rows.map(r => {
             const m = cache[r.maplify_id]!.reading;
             return [r.row, {codes_present: m.codes_present, codes_absent: m.codes_absent, codes_hedged: m.codes_hedged, pods: m.pods, direction: m.direction}];
@@ -113,3 +113,9 @@ export function claudeReader(model: string) {
 }
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
+
+/** The cache on disk, one entry per line, in id order, so a rerun's diff is readable. */
+function save(path: URL, cache: Record<string, CacheEntry>): void {
+    const ids = Object.keys(cache).sort((a, b) => Number(a) - Number(b));
+    writeFileSync(path, '{\n' + ids.map(id => `${JSON.stringify(id)}: ${JSON.stringify(cache[id])}`).join(',\n') + '\n}\n');
+}

@@ -26,8 +26,10 @@ export type Field = typeof FIELDS[number];
 
 const NO_DIRECTION = new Set<string | null>([null, 'milling', 'unknown']);
 
+/** A code as the register compares it: case folded, hyphens and spaces dropped, leading zeros dropped (its ADR-0019). */
+const foldCode = (x: string) => x.toUpperCase().replace(/[-\s]/g, '').replace(/(^|\D)0+(?=\d)/g, '$1');
 const sameSet = (a: string[], b: string[]) => {
-    const fold = (xs: string[]) => [...new Set(xs.map(x => x.toUpperCase()))].sort().join(';');
+    const fold = (xs: string[]) => [...new Set(xs.map(foldCode))].sort().join(';');
     return fold(a) === fold(b);
 };
 
