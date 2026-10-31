@@ -43,3 +43,9 @@ The rule is `spaceTimeEcotype` in [`scripts/segments/rules.ts`](../../scripts/se
 - **Preferring a segment that names the same animals.** It fixes both disputed sightings where space and time lost on names. It changes segments on 50 days relative to this rule, and those days have not been read. This is `salish-71m7`'s work.
 - **Routing around land and shallows.** Scott expects a distance measured by sea to favour the nearer segment more often. This decision is worth revisiting once that measure exists.
 - **Explaining a segment on a sighting's card, and editing segments by hand.** Scott (2026-10-04) sees neither as worth building yet, and expects most corrections to come from identifications added to sightings after the fact. 062 records how an edit would be stored, not when it is built.
+
+## Amendment, 2026-10-31 — reports at the same instant go in order of id
+
+"In time order" left ties to whatever order the caller passed the reports in, and the map, the day's list, the encounter timeline and the subject timeline each get theirs from somewhere else. Order can matter: when a Bigg's report and a resident report arrive at the same moment beside a track that names no ecotype, whichever is offered first joins it, and the other has to start its own. On 65 of the 569 days since 2022 with two reports at the same instant, reversing the order changed the tracks. Reports at the same instant now go in order of their id, so every view draws the same tracks. The day files already list them that way, so the map's tracks don't change: none of the 1,738 days drew differently (`salish-gnk3`, found by the property tests of `salish-us33`).
+
+Also asked by those tests, and left as decided: a report that names both ecotypes, joining a track, lets a later report of either ecotype join it too. That is the rule as written above ("a different one and none of its own"), and it accounts for the 2 mixed segments this record counts.
