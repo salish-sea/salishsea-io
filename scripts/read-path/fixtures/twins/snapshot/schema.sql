@@ -16,7 +16,7 @@ CREATE TABLE inaturalist.taxa(id INTEGER, parent_id INTEGER, scientific_name VAR
 CREATE TABLE maplify.sightings(id INTEGER, "name" VARCHAR, scientific_name VARCHAR, location_lon DOUBLE, location_lat DOUBLE, number_sighted INTEGER, created_at TIMESTAMP, photo_url VARCHAR, "comments" VARCHAR, is_test BOOLEAN, "source" VARCHAR, usernm VARCHAR, provider_id INTEGER, collection_id INTEGER, source_url VARCHAR, entity_id VARCHAR, "trusted" BOOLEAN);;
 CREATE TABLE public.acoustic_bouts(id VARCHAR, feed_name VARCHAR, title VARCHAR, location_lon DOUBLE, location_lat DOUBLE, started_at TIMESTAMP WITH TIME ZONE, ended_at TIMESTAMP WITH TIME ZONE, provider_id INTEGER, collection_id INTEGER, feed_id VARCHAR);;
 CREATE TABLE public.acoustic_bout_entities(bout_id VARCHAR, entity_id VARCHAR, certainty VARCHAR);;
-CREATE TABLE public.contributors(id INTEGER, "name" VARCHAR, orcid VARCHAR);;
+CREATE TABLE public.contributors(id INTEGER, "name" VARCHAR, orcid VARCHAR, terms_version INTEGER);;
 CREATE TABLE public.identifications(occurrence_id VARCHAR, individual_id INTEGER, social_group_id INTEGER, is_present BOOLEAN, evidence VARCHAR, status VARCHAR, code VARCHAR, certainty VARCHAR);;
 CREATE TABLE public.observations(id UUID, url VARCHAR, body VARCHAR, count SMALLINT, direction VARCHAR, subject_location_lon DOUBLE, subject_location_lat DOUBLE, observer_location_lon DOUBLE, observer_location_lat DOUBLE, observed_at TIMESTAMP WITH TIME ZONE, entity_id VARCHAR, contributor_id INTEGER, provider_id INTEGER, collection_id INTEGER, source_url VARCHAR, accuracy INTEGER);;
 CREATE TABLE public.observation_photos(id INTEGER, observation_id UUID, seq SMALLINT, href VARCHAR, license_code VARCHAR);;

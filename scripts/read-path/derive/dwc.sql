@@ -113,7 +113,8 @@ CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
          'SalishSea.io' AS "rightsHolder",
          'SalishSea.io — ' || c_coll.name AS "datasetName",
          'https://salishsea.io/datasets/occurrences-v1' AS "datasetID",
-         'https://creativecommons.org/licenses/by-nc/4.0/legalcode' AS license,
+         -- the terms of use the contributor agreed to (decision 086, #739)
+         'https://creativecommons.org/licenses/by/4.0/legalcode' AS license,
          pg_jsonb_object([
            pg_jsonb_member('travelDirection', o.direction),
            pg_jsonb_list_member('unvalidatedIdentifiers', nullif(extract_identifiers(o.body), []))
@@ -124,7 +125,9 @@ CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
   JOIN public.contributors c ON c.id = o.contributor_id
   JOIN inaturalist_taxon xw ON xw.entity_id = o.entity_id
   JOIN dwc_taxa_classification tc ON tc.taxon_id = xw.inaturalist_taxon_id
-  JOIN public.collections c_coll ON c_coll.id = o.collection_id;
+  JOIN public.collections c_coll ON c_coll.id = o.collection_id
+  -- published beyond the site only once its contributor has agreed to the terms (#739)
+  WHERE c.terms_version >= 1;
 
 -- --- dwc._maplify_occurrences -------------------------------------------------------------
 -- recordedBy: the observer in the parenthetical of the comments' first <br> segment,
@@ -206,6 +209,9 @@ CREATE OR REPLACE TABLE pgdb.dwc.multimedia AS
   JOIN public.observations o ON o.id = op.observation_id
   JOIN public.contributors c ON c.id = o.contributor_id
   WHERE op.license_code IS NOT NULL AND op.license_code <> 'none'
+    -- only the photos of records the archive holds: none of a contributor who hasn't
+    -- agreed to the terms (#739), nor of a record dropped for its taxon or collection
+    AND EXISTS (SELECT 1 FROM dwc_native_occurrences n WHERE n."occurrenceID" = 'salishsea:' || CAST(o.id AS VARCHAR))
   ORDER BY op.observation_id, op.seq;
 
 -- --- dwc.export_coverage ------------------------------------------------------------------
