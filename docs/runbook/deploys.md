@@ -95,9 +95,12 @@ This was about the `salishsea-io` site bucket as a CloudFront origin. Since 2026
 
 **Why.** A re-run checks out its **original** `head_sha`, not the current tip. Deploys are also serialized (`concurrency: deploy-production`, `cancel-in-progress: false`), so the re-run waits its turn and can land *after* a newer commit has already deployed — overwriting it. This happened on 2026-07-27: a re-run of `007b738` finished ten minutes after `7a66891` and reverted it (bd `salish-i74`).
 
-**What now happens.** The Deploy job compares `github.sha` against the current tip of `main` and fails with `Refusing to deploy <sha> …: main is now <sha>` if they differ ([`require-current-tip`](../../.github/actions/require-current-tip/action.yml)). It runs twice: after checkout, and again immediately before the first remote change.
+**What now happens.** The Deploy job compares `github.sha` against the current tip of `main` ([`require-current-tip`](../../.github/actions/require-current-tip/action.yml)). It runs twice: after checkout, and again immediately before the first remote change. If they differ, the run ships nothing, and how it ends says why:
 
-**Is it fatal?** No — it means *this* run shipped nothing. If a newer Deploy is green, production is already correct and the red run is safe to ignore.
+- **Cancelled (grey):** a first attempt that a newer merge overtook while it waited or tested, with a Deploy of the newer commit queued behind it or already run. That run deploys both. This is the usual case, two merges in quick succession, and needs nothing from you ([decision 024, amended 2026-10-31](../decisions/024-deploy-gating-and-alerting.md#amendment-2026-10-31--an-overtaken-run-ends-cancelled)).
+- **Failed (red), `Refusing to deploy <sha> …: main is now <sha>`:** a re-run of an old commit, which this check exists to stop; or a moved tip with no Deploy run of its own, so nothing is set to deploy it.
+
+**Is a red one fatal?** No — it means *this* run shipped nothing. If a newer Deploy is green, production is already correct and the red run is safe to ignore. If the run's summary says no run of the tip was found, production may be behind: dispatch one (`gh workflow run deploy.yml --ref main`).
 
 **If production really is behind**, re-running the run that just failed the check won't help: it holds the same commit and will stop at the same place. Either re-run the Deploy **whose commit is the current tip of `main`** (this is the recovery that worked on 2026-07-27, when the tip's own deploy had been overwritten), or push a commit to trigger a fresh run.
 
