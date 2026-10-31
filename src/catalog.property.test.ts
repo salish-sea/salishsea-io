@@ -24,15 +24,21 @@ const epochMicros = (ts: string) => {
   return Date.parse(`${m[1]}Z`) * 1000 + Number((m[2] ?? '').padEnd(6, '0'));
 };
 
-const row = fc.record({
-  occurrence_id: fc.constantFrom('a', 'b', 'c', 'd'),
+// What an occurrence carries is the same on every row of it; only the claim differs.
+const occurrenceFacts = fc.record({
   observed_at: instant,
   location: fc.constantFrom(null, {lon: -123, lat: 48.5}, {lon: null, lat: 48.5}),
+  vitality: fc.constantFrom(undefined, 'dead', 'alive'),
+});
+const rows = (maxLength: number) => fc.tuple(fc.array(occurrenceFacts, {minLength: 4, maxLength: 4}), fc.array(fc.record({
+  occurrence: fc.integer({min: 0, max: 3}),
   is_present: fc.constantFrom(true, true, false, null),
   status: fc.constantFrom('candidate', 'confirmed', 'rejected'),
   via_group: fc.constantFrom(null, null, undefined, 'T065As', 'T065A2s', 'J pod'),
-  vitality: fc.constantFrom(undefined, 'dead', 'alive'),
-}, {requiredKeys: ['occurrence_id', 'observed_at', 'location', 'is_present', 'status']});
+}), {maxLength})).map(([facts, claims]) => claims.map(({occurrence, via_group, ...claim}) => {
+  const {vitality, ...fact} = facts[occurrence]!;
+  return {occurrence_id: 'abcd'[occurrence]!, ...fact, ...claim, ...(via_group === undefined ? {} : {via_group}), ...(vitality ? {vitality} : {})};
+})) as unknown as fc.Arbitrary<Row[]>;
 type Row = Parameters<typeof dedupeOccurrenceLinks>[0][number];
 
 /** The comment's rule, written out: present and unrejected; a direct claim, else the first group A–Z. */
@@ -49,7 +55,7 @@ function modelDedupe(rows: Row[]) {
 
 describe('dedupeOccurrenceLinks', () => {
   test('keeps one link per occurrence, the one the comment says, newest first', () => {
-    fc.assert(fc.property(fc.array(row, {maxLength: 12}) as fc.Arbitrary<Row[]>, rows => {
+    fc.assert(fc.property(rows(12), rows => {
       const links = dedupeOccurrenceLinks(rows);
       const model = modelDedupe(rows);
       expect(links.map(l => l.occurrence_id).sort()).toEqual(model.map(m => m.id).sort());
@@ -67,18 +73,18 @@ describe('dedupeOccurrenceLinks', () => {
   });
 
   test('is idempotent', () => {
-    fc.assert(fc.property(fc.array(row, {maxLength: 12}) as fc.Arbitrary<Row[]>, rows => {
+    fc.assert(fc.property(rows(12), rows => {
       const once = dedupeOccurrenceLinks(rows);
       expect(dedupeOccurrenceLinks(once)).toEqual(once);
     }), {numRuns: 1000});
   });
 
-  test('row order does not choose the link when each occurrence has at most one direct claim', () => {
-    const rows = fc.array(row, {maxLength: 12}).map(rs => {
-      const direct = new Set<string>();
-      return rs.filter(r => r.via_group || (!direct.has(r.occurrence_id) && direct.add(r.occurrence_id)));
-    }) as fc.Arbitrary<Row[]>;
-    fc.assert(fc.property(rows, rs => {
+  test('row order does not choose the link when no two claims share an occurrence and a group', () => {
+    // One claim per (occurrence, group): two claims through the same group, or two direct
+    // ones, are left to row order, which the comment doesn't rule out (see the measurement).
+    const distinct = rows(12).map(rs => rs.filter((r, i) =>
+      rs.findIndex(q => q.occurrence_id === r.occurrence_id && (q.via_group ?? null) === (r.via_group ?? null)) === i));
+    fc.assert(fc.property(distinct, rs => {
       const key = (ls: ReturnType<typeof dedupeOccurrenceLinks>) => ls.map(l => JSON.stringify(l)).sort();
       expect(key(dedupeOccurrenceLinks(rs.toReversed()))).toEqual(key(dedupeOccurrenceLinks(rs)));
     }), {numRuns: 2000});
