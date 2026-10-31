@@ -29,7 +29,7 @@ export const detectPod = (text: Readonly<string>) => {
 }
 
 const normalizeIndividual = (name: string) => {
-  return name.replace(/^(J|K|L|T|CRC)-?0+/, '$1');
+  return name.replace(/^(J|K|L|T|CRC)0+(?=\d)/, '$1');
 }
 
 // return an array of identifiers like 'Biggs', 'Transient', 'J', 'K37', etc.
