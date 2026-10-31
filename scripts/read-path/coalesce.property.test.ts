@@ -15,6 +15,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { BuildCoalescer, DEFAULT_OPTIONS, SAVE_OPTIONS, type CoalescerOptions } from './coalesce.ts';
 
 const NUM_RUNS = Number(process.env['NUM_RUNS'] ?? 500);
+/** Long runs outlast vitest's 5 s default, and a test cut off mid-run leaks its fake clock into the next. */
+const TIMEOUT = Math.max(5_000, NUM_RUNS * 5);
 
 type Result = 'done' | 'busy' | 'throw';
 /** A wait or a duration, picked relative to the options so boundaries are hit: options[k] + delta, or a raw small number. */
@@ -153,17 +155,39 @@ function checkContract(c: Case, log: Event[], {strictStop = false} = {}): void {
         else expect(next.t - prev.t, `build ${next.n} is spaced from ${prev.n}`).toBeGreaterThanOrEqual(o.minIntervalMs);
     }
 
-    // Quiet: a build that follows a build that ran (or none) starts no sooner than quietMs after
-    // the last change before it, or maxWaitMs after the first change it covers.
+    // Quiet, and no longer than it needs: a build starts no sooner than quietMs after the last
+    // change it covers or maxWaitMs after the first, whichever is earlier, nor later than that or
+    // the spacing (the previous start plus minIntervalMs, or a 'busy' end plus busyRetryMs),
+    // give or take the millisecond a timer set inside another's callback waits. A change during a
+    // build counts from that build's end; one during a build that found the lock held stays
+    // pending from when it first was. The 'busy' retry itself ignores the quiet period.
     let first: number | null = null, last: number | null = null;
-    let afterBusy = false;
+    let duringRun = false, running = false, afterBusy = false;
+    let notBefore = -Infinity;
     for (const e of log) {
-        if (e.kind === 'change') { first ??= e.t; last = e.t; }
-        else if (e.kind === 'start') {
-            if (!afterBusy && first !== null && last !== null)
-                expect(e.t, `build ${e.n} waits for quiet`).toBeGreaterThanOrEqual(Math.min(last + o.quietMs, first + o.maxWaitMs));
-            first = last = null;
-        } else if (e.kind === 'end') afterBusy = e.result === 'busy';
+        if (e.kind === 'change') {
+            if (running) duringRun = true;
+            else { first ??= e.t; last = e.t; }
+        } else if (e.kind === 'stop') {
+            continue;
+        } else if (e.kind === 'start') {
+            const debounce = first !== null && last !== null ? Math.min(last + o.quietMs, first + o.maxWaitMs) : -Infinity;
+            if (!afterBusy) expect(e.t, `build ${e.n} waits for quiet`).toBeGreaterThanOrEqual(debounce);
+            const stopped = log.slice(0, log.indexOf(e)).some(r => r.kind === 'stop');
+            if (!stopped) expect(e.t, `build ${e.n} starts once due`).toBeLessThanOrEqual(Math.max(debounce, notBefore) + 1);
+            running = true;
+            notBefore = e.t + o.minIntervalMs;
+        } else {
+            running = false;
+            afterBusy = e.result === 'busy';
+            if (afterBusy) {
+                first ??= e.t;
+                notBefore = e.t + o.busyRetryMs;
+            } else {
+                first = last = duringRun ? e.t : null;
+            }
+            duringRun = false;
+        }
     }
 }
 
@@ -182,10 +206,13 @@ function modelStarts(c: Case): number[] {
     let pendingSince: number | null = null;
     let carried = false;
     let notBefore = -Infinity;
-    const change = () => {
+    // A timer set while a timer's callback runs fires no sooner than a millisecond later, in
+    // fake time as in Node; one set from outside (a change() op) may fire at once.
+    const schedule = (at: number, inTick: boolean) => { due = Math.max(at, t + (inTick ? 1 : 0)); };
+    const change = (inTick = false) => {
         if (run) { carried = true; return; }
         pendingSince ??= t;
-        due = Math.max(t, Math.max(Math.min(t + o.quietMs, pendingSince + o.maxWaitMs), notBefore));
+        schedule(Math.max(Math.min(t + o.quietMs, pendingSince + o.maxWaitMs), notBefore), inTick);
     };
     const settle = (until: number) => {
         for (;;) {
@@ -199,10 +226,10 @@ function modelStarts(c: Case): number[] {
                     pendingSince ??= t;
                     notBefore = t + o.busyRetryMs;
                     carried = false;
-                    due = t + o.busyRetryMs;
+                    schedule(t + o.busyRetryMs, true);
                 } else {
                     pendingSince = null;
-                    if (carried) { carried = false; change(); }
+                    if (carried) { carried = false; change(true); }
                 }
             } else {
                 due = null;
@@ -247,14 +274,14 @@ describe('BuildCoalescer properties', () => {
             checkContract(c, log);
         }), {numRuns: NUM_RUNS});
         if (process.env['COVERAGE']) console.log(Object.fromEntries(coverage));
-    });
+    }, TIMEOUT);
 
     test('starts builds exactly when the timing model says', async () => {
         await fc.assert(fc.asyncProperty(caseArb, async c => {
             const log = await runCase(c);
             expect(log.filter(e => e.kind === 'start').map(e => e.t)).toEqual(modelStarts(c));
         }), {numRuns: NUM_RUNS});
-    });
+    }, TIMEOUT);
 
     // Ambiguity, not a promise the doc comment makes plainly: see the report. Skipped so the
     // suite stays green; run with STRICT_STOP=1.
@@ -262,5 +289,44 @@ describe('BuildCoalescer properties', () => {
         await fc.assert(fc.asyncProperty(caseArb, async c => {
             checkContract(c, await runCase(c), {strictStop: true});
         }), {numRuns: NUM_RUNS});
+    }, TIMEOUT);
+});
+
+/**
+ * What stop() does today in two cases its doc comment ("Stop any scheduled build; a running one
+ * finishes") leaves open. Pinned as current behaviour, not as a promise: nothing in production
+ * calls stop() (api/server.ts never does), so neither is a live defect.
+ */
+describe('stop(): current behaviour where the contract is open', () => {
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    test('a build that finds the lock held after stop() still schedules its retry', async () => {
+        const starts: number[] = [];
+        const t0 = Date.now();
+        const c = new BuildCoalescer(() => {
+            starts.push(Date.now() - t0);
+            return new Promise(resolve => setTimeout(() => resolve('busy'), 1_000));
+        }, {quietMs: 0, maxWaitMs: 0, busyRetryMs: 10_000, minIntervalMs: 0}, Date.now);
+        c.changed();
+        await vi.advanceTimersByTimeAsync(0);     // build 1 starts
+        c.stop();                                 // while it runs
+        await vi.advanceTimersByTimeAsync(11_000); // it ends 'busy' at 1 s; the retry is at 11 s
+        expect(starts).toEqual([0, 11_000]);
+        c.stop();
+    });
+
+    test('a change after stop() is debounced from the burst stop() abandoned', async () => {
+        const starts: number[] = [];
+        const t0 = Date.now();
+        const c = new BuildCoalescer(async () => { starts.push(Date.now() - t0); return 'done'; },
+            {quietMs: 10_000, maxWaitMs: 60_000, busyRetryMs: 30_000, minIntervalMs: 0}, Date.now);
+        c.changed();                               // at 0
+        await vi.advanceTimersByTimeAsync(5_000);
+        c.stop();                                  // the build due at 10 s is cancelled
+        await vi.advanceTimersByTimeAsync(55_000);
+        c.changed();                               // at 60 s: maxWait from 0 has already passed
+        await vi.advanceTimersByTimeAsync(0);
+        expect(starts).toEqual([60_000]);          // at once, not after 10 s of quiet
     });
 });
