@@ -6,6 +6,7 @@ import { expect, test } from 'vitest';
 import { renderSiteNav, siteNavStyles } from './site-nav.ts';
 
 const about = readFileSync(new URL('../about.html', import.meta.url), 'utf8');
+const terms = readFileSync(new URL('../terms.html', import.meta.url), 'utf8');
 const collapse = (s: string) => s.replace(/\s+/g, ' ').trim();
 
 test('about.html carries, by hand, the nav the template renders for it, icons and search button included', () => {
@@ -18,6 +19,12 @@ test('about.html carries, by hand, the nav the template renders for it, icons an
 
 test('and its styles', () => {
   expect(collapse(about)).toContain(collapse(siteNavStyles.cssText));
+});
+
+test('terms.html carries the nav too, with no page marked as the one you are on (#739)', () => {
+  const handWritten = terms.match(/<nav class="site-nav"[^>]*>.*?<\/nav>/s)![0];
+  expect(handWritten).toBe(collectResultSync(render(renderSiteNav(null))).replace(/<!--[^>]*-->/g, ''));
+  expect(collapse(terms)).toContain(collapse(siteNavStyles.cssText));
 });
 
 test('each link keeps its name when its label is hidden (GH #640)', () => {
