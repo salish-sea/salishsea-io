@@ -30,10 +30,10 @@ runs:
 
         # Overtaken, not replayed: on a first attempt the branch moved on while this run
         # waited or tested, and a run of the newer commit, queued behind this one or
-        # already done, deploys everything this one would have. Grey, as GitHub marks a
-        # run a newer one replaced; red would be noise that teaches people to ignore red,
-        # and green would claim a deploy that didn't happen. Any run of the newer commit
-        # counts unless it was cancelled: if it fails, its own red says so.
+        # already done, ships everything this one would have, or fails red itself. Grey,
+        # as GitHub marks a run a newer one replaced; red would be noise that teaches
+        # people to ignore red, and green would claim a deploy that didn't happen. Any run
+        # of the newer commit counts unless it was cancelled.
         # GITHUB_WORKFLOW_REF is owner/repo/.github/workflows/<file>@<ref>.
         workflow_file=$(basename "${GITHUB_WORKFLOW_REF%@*}")
         newer_runs=0
@@ -47,7 +47,7 @@ runs:
             echo ""
             echo "Checked ${PHASE}. \`${GITHUB_REF_NAME}\` moved on to \`${head_sha}\` while this run"
             echo "held \`${GITHUB_SHA}\`. That commit's own run deploys both, so this one stopped"
-            echo "before changing anything."
+            echo "before changing anything. If that run fails, its own red says so."
           } >> "${GITHUB_STEP_SUMMARY}"
           echo "::notice::Superseded by ${head_sha}, whose run deploys it; cancelling."
           gh run cancel "${GITHUB_RUN_ID}"
