@@ -167,6 +167,23 @@ describe('renderIndividualPage', () => {
         expect(doc).toMatch(/Last reported <a href="\/\?d=2026-09-20&amp;o=inat%3A20">September 20, 2026<\/a>(<!--[^>]*-->)*, dead/);
     });
 
+    // salish-fwyt.4.3: the year of a death, where the register dates it, beside the animal
+    // and beside it as a calf or a member; undated, the status alone, as before.
+    test('a death the register dates gives its year; an undated one says only that it happened', () => {
+        const t = tables();
+        t.individuals.push(
+            person(5, 'T065A2B', {mother_id: 1, born_earliest: 2006, born_latest: 2006, life_status: 'presumed_deceased', died: 2016}),
+            person(6, 'T065A2C', {mother_id: 1, born_earliest: 2008, born_latest: 2008, life_status: 'deceased', died: null}));
+        t.matriline_members.push({group_id: 100, individual_id: 5, innermost_group_id: 100});
+        const mother = renderIndividualPage(SHELL, assembleIndividuals(t).find(p => p.data.profile.primary_designation === 'T065A')!, 2026);
+        expect(mother).toMatch(/T065A2B<\/a>(<!--[^>]*-->)* <span class="muted">b.&thinsp;(<!--[^>]*-->)*2006(<!--[^>]*-->)*<\/span>(<!--[^>]*-->)* <span class="muted" title="presumed dead in 2016">&dagger;&thinsp;(<!--[^>]*-->)*2016/);
+        expect(mother).toMatch(/<span class="muted" title="deceased">&dagger;(<!--[^>]*-->)*<\/span>/);
+        const calf = renderIndividualPage(SHELL, assembleIndividuals(t).find(p => p.data.profile.primary_designation === 'T065A2B')!, 2026);
+        expect(calf).toMatch(/born 2006 · presumed dead 2016/);
+        const other = renderIndividualPage(SHELL, assembleIndividuals(t).find(p => p.data.profile.primary_designation === 'T065A2C')!, 2026);
+        expect(other).toMatch(/born 2008 · deceased/);
+    });
+
     // The build doesn't link such a record to the members at all (profile-links.sql); were one
     // to arrive, it is still no death of each member.
     test('a dead record that names only its matriline says nothing of each member', () => {
@@ -193,7 +210,7 @@ describe('assembleMatrilines', () => {
         expect(group.nicknames).toEqual([{name: 'The Fingers Family', theme: null, status: 'official', named_year: 2015,
             namer: {name: 'Some Researcher', url: 'https://example.org'}}]);
         expect(group.anchor).toEqual({id: 1, entity_id: 'SSA:0010001', primary_designation: 'T065A', life_status: 'alive',
-            nicknames: [{name: 'Old Name', status: 'deprecated'}, {name: 'Fingers', status: 'official'}]});
+            died: null, nicknames: [{name: 'Old Name', status: 'deprecated'}, {name: 'Fingers', status: 'official'}]});
         expect(members.map(m => m.individual.primary_designation)).toEqual(['T065A', 'T065A2', 'T065A3', 'T065A5']);
     });
 

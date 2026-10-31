@@ -257,6 +257,8 @@
     ;; what an individual's sex, birth years and life status are derived from (decision
     ;; 051, salish-9uu.2.3), which the catalogue task reads
     "register.vitals" "register.current_status"
+    ;; when each current status took effect: the year of a death (salish-fwyt.4.3)
+    "register.status_dates"
     ;; each taxon's lineage to its kingdom: what makes a species a cetacean, for the
     ;; whales page (salish-nkbq)
     "register.taxon_ancestor"
@@ -720,7 +722,7 @@
               ;; and the register's entities, ancestry, deprecations, group ranks, mothers
               ;; and matriarchs: what the Southern Residents' rows are generated from
               ;; (salishsea decision 070, salish-lzi.3)
-              #:inputs (append catalogue-files '(register.vitals register.current_status types.enums
+              #:inputs (append catalogue-files '(register.vitals register.current_status register.status_dates types.enums
                                                  register.entities register.ancestor register.deprecations
                                                  register.group_ranks register.parentage register.matriarchs))
               #:outputs catalogue-file-relations

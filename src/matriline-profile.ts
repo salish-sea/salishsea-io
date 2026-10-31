@@ -59,7 +59,7 @@ export function renderMatrilineProfile({ group, groups, members, name }: Matrili
       <div class="designation-kicker">${name ? `${group.designation} matriline` : population ? `${populationNoun(population)} matriline` : 'Matriline'}</div>
       <h1>${name ?? `The ${group.designation} matriline`}</h1>
       <p class="vitals">
-        ${anchor ? html`Matriline of ${renderRelative(anchor)}${renderDagger(anchor.life_status)}` : nothing}${anchor && current.length ? ' · ' : nothing}${current.length ? `${current.length} current member${current.length === 1 ? '' : 's'}` : nothing}
+        ${anchor ? html`Matriline of ${renderRelative(anchor)}${renderDagger(anchor.life_status, anchor.died)}` : nothing}${anchor && current.length ? ' · ' : nothing}${current.length ? `${current.length} current member${current.length === 1 ? '' : 's'}` : nothing}
       </p>
       ${when(renderChain(chain) !== nothing, () => html`<p class="lineage">${renderChain(chain)}</p>`)}
     </header>

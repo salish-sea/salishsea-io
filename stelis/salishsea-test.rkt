@@ -76,6 +76,8 @@
 (check-false (hash-ref (graph-artifacts salishsea-graph) 'happywhale.encounters #f) "no relation holds it")
 (check-not-false (memq 'register.vitals (inputs-of 'catalogue))
                  "an individual's vitals are the register's")
+(check-not-false (memq 'register.status_dates (inputs-of 'catalogue))
+                 "the year of a death is the register's")
 ;; The Southern Residents' rows are generated from the register (salishsea decision 070).
 (for ([t (in-list '(register.entities register.ancestor register.deprecations
                     register.group_ranks register.parentage register.matriarchs))])
