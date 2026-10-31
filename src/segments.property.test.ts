@@ -74,7 +74,9 @@ describe('occurrences2segments', () => {
       cases++;
       const segments = occurrences2segments(occurrences);
       expect(segments.flatMap(s => s.occurrences.map(o => o.id)).sort()).toEqual(occurrences.map(o => o.id).sort());
-      for (const {occurrences: members, expectedTravelSpeedKmph} of segments) {
+      for (const {occurrences: members, expectedTravelSpeedKmph, taxon, lastOccurrenceAt} of segments) {
+        expect(taxon).toBe(members.at(-1)!.taxon);
+        expect(lastOccurrenceAt.getTime()).toBe(members.at(-1)!.observed_at_ms);
         if (members.length > 1) joined++;
         const first = members[0]!;
         // A segment with no speed (a dead animal, a seal, no name) takes nothing.
