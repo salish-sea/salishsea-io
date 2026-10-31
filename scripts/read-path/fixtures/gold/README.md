@@ -15,9 +15,9 @@ From the Maplify mirror on 2026-10-31: every report received in the year to 2026
 | hard: exclusion | 15 | killer whale reports whose text excludes an animal: `(-D)`, `(-T46D)`, `minus T137A` |
 | hard: code without letter | 13 | killer whale reports with a code written without its letter: `T36/36Bs`, `65A5` |
 | hard: hedge | 10 | killer whale reports with *likely*, *possibly*, *presumed* or `?` |
-| hard: change of direction | 10 | reports with *previously*, *flipped*, *turned*, *now* and a direction word |
+| hard: change of direction | 5 | reports with *previously*, *flipped*, *turned*, *now* and a direction word |
 | hard: abbreviated direction | 5 | reports with `NB`, `SB`, `EB`, `WB` or `N bound` |
-| filter miss | 7 | rows a hard stratum's filter matched by accident, moved here so they don't count for the pattern: five drawn for a catalogue nickname where the filter matched a common word, and two drawn for a code without its letter where it matched ", 10 orcas" and a date |
+| filter miss | 12 | rows a hard stratum's filter matched by accident, moved here so they don't count for the pattern: five drawn for a catalogue nickname where the filter matched a common word, two drawn for a code without its letter where it matched ", 10 orcas" and a date, and five drawn for a change of direction where it matched *now* or *earlier* in a report that changes none |
 
 Every comment is public Maplify data as the mirror holds it, reporter names included, as the twin fixture's Maplify rows are.
 
@@ -30,7 +30,7 @@ Each row is one report. `comment` is the comment as Maplify sent it, which the b
 The labels say what the text says, not what is true of the animals:
 
 - `codes_present`: catalogue codes of animals and matrilines the text says were there, in text order, in the form the macro emits (letter upper case, digits as written, a matriline's `s` lower case). A code written without its letter is written with it. A hedged code is still present.
-- `codes_absent`: codes the text says were not there. A short form such as `(-D)` after `T46s` means `T46D`.
+- `codes_absent`: codes the text says were not there. A short form such as `(-D)` after `T46s` means `T46D`. Only what the text names: where it excludes an animal it fails to name (*T46s minus T46s*), nothing is labelled absent.
 - `codes_hedged`: codes whose presence the text hedges: *likely T36A1s*, *maybe T65A5*; every code the report names when the whole identification is hedged, *possibly Biggs T99s and T65A3*.
 - `pods`: Southern Resident pods named, as `J`, `K`, `L`.
 - `ecotype`: `Biggs` when the text says so or names a T code; `SRKW` when it says so or names J, K or L; otherwise null.

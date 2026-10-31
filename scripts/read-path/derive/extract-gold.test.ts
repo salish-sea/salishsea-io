@@ -32,9 +32,9 @@ const PINNED: Record<string, {reports: number, wrongDirection: number[], wrongCo
     'hard: exclusion': {reports: 15, wrongDirection: [144, 153], wrongCodes: [141, 143, 144, 145, 146, 148, 151, 153]},
     'hard: code without letter': {reports: 13, wrongDirection: [162], wrongCodes: [156, 157, 158, 159, 161, 162, 163, 164, 165, 166, 167, 168, 170]},
     'hard: hedge': {reports: 10, wrongDirection: [], wrongCodes: []},
-    'hard: change of direction': {reports: 10, wrongDirection: [181, 184, 186, 190], wrongCodes: []},
+    'hard: change of direction': {reports: 5, wrongDirection: [181, 184, 186], wrongCodes: []},
     'hard: abbreviated direction': {reports: 5, wrongDirection: [196, 197, 198, 199, 200], wrongCodes: []},
-    'filter miss': {reports: 7, wrongDirection: [191], wrongCodes: []},
+    'filter miss': {reports: 12, wrongDirection: [190, 191], wrongCodes: []},
 };
 
 let gold: Gold[];
