@@ -145,9 +145,11 @@ CREATE OR REPLACE TEMP MACRO maplify_recorded_by(comments) AS (
 CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
   SELECT 'maplify:' || CAST(s.id AS VARCHAR) AS "occurrenceID",
          'HumanObservation' AS "basisOfRecord",
-         -- the moment, in UTC as Maplify gives it: cut to a date, a sighting in the
-         -- evening, Pacific, was dated the next day (salish-8gd.1)
-         strftime(s.created_at, '%Y-%m-%dT%H:%M:%SZ') AS "eventDate",
+         -- The day Maplify received the report, in Pacific time, the day the map files it
+         -- under (pacific-day.ts). A day only: Maplify records when it received a report,
+         -- not when the animals were seen (rights policy ALIGN-05). The UTC day, as this
+         -- was until salish-8gd.3, put a report from the evening on the next day.
+         strftime(timezone('America/Los_Angeles', timezone('UTC', s.created_at)), '%Y-%m-%d') AS "eventDate",
          tc.scientific_name AS "scientificName",
          tc.taxon_rank AS "taxonRank",
          tc.kingdom, tc.phylum, tc.class, tc.order_ AS "order", tc.family, tc.genus,
