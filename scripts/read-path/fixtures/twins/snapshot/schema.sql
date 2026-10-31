@@ -6,7 +6,7 @@ CREATE SCHEMA public;;
 CREATE SCHEMA register;;
 CREATE SCHEMA "snapshot";;
 CREATE TABLE derived.occurrence_identifier_candidates(occurrence_id VARCHAR, code VARCHAR, individual_id INTEGER, social_group_id INTEGER, observed_at TIMESTAMP WITH TIME ZONE, location_lon DOUBLE, location_lat DOUBLE);;
-CREATE TABLE dwc.export_coverage(branch VARCHAR, source_rows BIGINT, exported_rows BIGINT, no_contributor BIGINT, no_taxon BIGINT, no_collection BIGINT);;
+CREATE TABLE dwc.export_coverage(branch VARCHAR, source_rows BIGINT, exported_rows BIGINT, no_contributor BIGINT, no_taxon BIGINT, no_collection BIGINT, no_agreement BIGINT);;
 CREATE TABLE dwc.multimedia(coreId VARCHAR, "type" VARCHAR, identifier VARCHAR, license VARCHAR, rightsHolder VARCHAR, creator VARCHAR);;
 CREATE TABLE dwc.occurrences(occurrenceID VARCHAR, basisOfRecord VARCHAR, eventDate VARCHAR, scientificName VARCHAR, taxonRank VARCHAR, kingdom VARCHAR, phylum VARCHAR, "class" VARCHAR, "order" VARCHAR, "family" VARCHAR, genus VARCHAR, decimalLatitude DOUBLE, decimalLongitude DOUBLE, geodeticDatum VARCHAR, coordinateUncertaintyInMeters INTEGER, individualCount INTEGER, occurrenceStatus VARCHAR, occurrenceRemarks VARCHAR, recordedBy VARCHAR, institutionCode VARCHAR, rightsHolder VARCHAR, datasetName VARCHAR, datasetID VARCHAR, license VARCHAR, dynamicProperties VARCHAR, informationWithheld VARCHAR, recordedByID VARCHAR);;
 CREATE TABLE inaturalist.observations(id BIGINT, description VARCHAR, location_lon DOUBLE, location_lat DOUBLE, observed_at TIMESTAMP WITH TIME ZONE, uri VARCHAR, username VARCHAR, taxon_id INTEGER, public_positional_accuracy INTEGER, provider_id INTEGER, collection_id INTEGER, source_url VARCHAR, quality_metrics VARCHAR, annotations VARCHAR);;

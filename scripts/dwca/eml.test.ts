@@ -30,7 +30,7 @@ const mockDatasets: DatasetsRow = {
         'DarwinCore-aligned columns.',
     pub_date: '2026-06-17',
     language: 'en',
-    intellectual_rights: 'https://creativecommons.org/licenses/by-nc/4.0/legalcode',
+    intellectual_rights: 'https://creativecommons.org/licenses/by/4.0/legalcode',
     creator_name: 'SalishSea.io',
     creator_email: 'rainhead@gmail.com',
     creator_role: 'originator',
@@ -143,9 +143,9 @@ describe('buildEml — required elements present', () => {
         const xml = buildEml(mockInput);
         expect(xml).toContain('<intellectualRights>');
         expect(xml).toContain(
-            '<ulink url="https://creativecommons.org/licenses/by-nc/4.0/legalcode">',
+            '<ulink url="https://creativecommons.org/licenses/by/4.0/legalcode">',
         );
-        expect(xml).toContain('<citetitle>Creative Commons Attribution Non Commercial (CC-BY-NC) 4.0 License</citetitle>');
+        expect(xml).toContain('<citetitle>Creative Commons Attribution (CC-BY) 4.0 License</citetitle>');
         expect(xml).toContain('Per-record license is encoded in the occurrence data file');
     });
 });

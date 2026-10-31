@@ -222,6 +222,17 @@ describe('assertBranchCoverage / describeCoverage', () => {
         expect(() => assertBranchCoverage([empty, maplify])).not.toThrow();
     });
 
+    test('a branch whose every row is withheld for want of agreement has nothing to export, which is no failure (#739)', () => {
+        const withheld: BranchCoverage = {
+            branch: 'native', sourceRows: 672n, exportedRows: 0n,
+            droppedBy: { no_contributor: 0n, no_taxon: 0n, no_collection: 0n, no_agreement: 672n },
+        };
+        expect(() => assertBranchCoverage([withheld, maplify])).not.toThrow();
+        // but one with a row it may publish, and none exported, still fails
+        expect(() => assertBranchCoverage([{...withheld, droppedBy: {...withheld.droppedBy, no_agreement: 671n}}, maplify]))
+            .toThrow('Export branch "native" dropped every row');
+    });
+
     test('a branch missing from the coverage rows is a failure', () => {
         expect(() => assertBranchCoverage([native])).toThrow('no row for branch "maplify"');
     });

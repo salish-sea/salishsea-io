@@ -222,7 +222,10 @@ CREATE OR REPLACE TABLE pgdb.dwc.export_coverage AS
            count(*) FILTER (WHERE NOT EXISTS (
              SELECT 1 FROM dwc_taxa_classification tc
              WHERE tc.taxon_id = (SELECT xw.inaturalist_taxon_id FROM inaturalist_taxon xw WHERE xw.entity_id = o.entity_id))) AS no_taxon,
-           count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM public.collections cc WHERE cc.id = o.collection_id)) AS no_collection
+           count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM public.collections cc WHERE cc.id = o.collection_id)) AS no_collection,
+           -- withheld rather than dropped: the contributor hasn't agreed to the terms (#739)
+           count(*) FILTER (WHERE EXISTS (SELECT 1 FROM public.contributors c
+                                          WHERE c.id = o.contributor_id AND coalesce(c.terms_version, 0) < 1)) AS no_agreement
     FROM public.observations o
   ), maplify AS (
     SELECT count(*) AS source_rows,
@@ -233,11 +236,11 @@ CREATE OR REPLACE TABLE pgdb.dwc.export_coverage AS
     WHERE NOT s.is_test AND s.number_sighted BETWEEN 1 AND 1000 AND s.source <> 'rwsas' AND s.trusted
   )
   SELECT 'native' AS branch, source_rows, (SELECT count(*) FROM dwc_native_occurrences) AS exported_rows,
-         no_contributor, no_taxon, no_collection
+         no_contributor, no_taxon, no_collection, no_agreement
   FROM native
   UNION ALL
   SELECT 'maplify', source_rows, (SELECT count(*) FROM dwc_maplify_occurrences),
-         CAST(NULL AS BIGINT), no_taxon, CAST(NULL AS BIGINT)
+         CAST(NULL AS BIGINT), no_taxon, CAST(NULL AS BIGINT), CAST(NULL AS BIGINT)
   FROM maplify;
 
 -- --- dwc.datasets -------------------------------------------------------------------------
@@ -249,7 +252,8 @@ CREATE OR REPLACE TABLE pgdb.dwc.datasets AS
          'Native and Maplify/Whale Alert marine mammal sighting records from the Salish Sea region. Authored from observation tables in the SalishSea.io database, expressed as DarwinCore-aligned columns. In practice the archive is overwhelmingly cetacean; see the taxonomic coverage statement for why.' AS abstract,
          CAST(getvariable('pub_date') AS VARCHAR) AS pub_date,
          'en' AS language,
-         'https://creativecommons.org/licenses/by-nc/4.0/legalcode' AS intellectual_rights,
+         -- every record is CC BY 4.0: ours under the terms of use (#739), Maplify's through Acartia
+         'https://creativecommons.org/licenses/by/4.0/legalcode' AS intellectual_rights,
          'SalishSea.io' AS creator_name,
          'rainhead@gmail.com' AS creator_email,
          'originator' AS creator_role,

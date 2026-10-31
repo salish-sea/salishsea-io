@@ -170,8 +170,10 @@ export function buildEml(input: EmlInput): string {
         'by authenticated contributors using Google Sign-In. Each record includes a species ' +
         'identification, geographic location (WGS84 coordinate pair), observation timestamp ' +
         '(full UTC precision), optional individual count, optional free-text body, and ' +
-        'optional photographs. Contributors hold copyright over their observations and photos ' +
-        "under CC-BY-NC 4.0 as a condition of the platform's data sharing policy.";
+        'optional photographs. Contributors publish their observations under CC-BY 4.0 by ' +
+        "agreeing to the platform's terms of use (https://salishsea.io/terms.html), and only " +
+        "observations from contributors who have agreed are included; each photo carries the " +
+        'license its contributor chose for it.';
 
     const methodsPara2 =
         'Maplify/Whale Alert records are ingested from the WASEAK API operated by ' +
@@ -216,7 +218,7 @@ export function buildEml(input: EmlInput): string {
       <keywordThesaurus>n/a</keywordThesaurus>
     </keywordSet>
     <intellectualRights>
-      <para>This work is licensed under a <ulink url="${xmlEsc(d.intellectual_rights)}"><citetitle>Creative Commons Attribution Non Commercial (CC-BY-NC) 4.0 License</citetitle></ulink>. Per-record license is encoded in the occurrence data file (native records: CC-BY-NC 4.0; Maplify/Whale Alert records: CC-BY 4.0 via the Acartia data cooperative).</para>
+      <para>This work is licensed under a <ulink url="${xmlEsc(d.intellectual_rights)}"><citetitle>Creative Commons Attribution (CC-BY) 4.0 License</citetitle></ulink>. Per-record license is encoded in the occurrence data file (native records: CC-BY 4.0 under the SalishSea.io terms of use; Maplify/Whale Alert records: CC-BY 4.0 via the Acartia data cooperative).</para>
     </intellectualRights>
     <coverage>
       <geographicCoverage>
