@@ -233,13 +233,13 @@ The column is sparse: omitting it means "count unknown," not "count = 0." This i
 
 **Hosted-but-unlinked hold (D-05), reframed as data-QA gate:** The gate is preserved but its rationale changes:
 - **New primary rationale:** A QA pass on the projected Maplify records before public surfacing. The data was fetched for situational awareness (per WASEAK terms-of-use); republishing it as a research-grade archive raises the quality bar. The hold gives time to verify schema mapping, coordinate sanity, identifier handling, and absence of systematic data issues against `dwc.occurrences` output.
-- **Secondary rationale:** Courtesy notification to Whale Alert/Conserve.IO, Orca Network, and Cascadia Research — informing them that SalishSea.io will republish their Acartia-licensed records, gathering attribution preferences, surfacing concerns.
-- **Mechanism:** Nightly job (Phase 7) publishes the archive to the stable `/dwca/` URL as designed. Only the frontend link (Phase 8) is suppressed. State = "unlisted," not private.
-- **Exit criteria:** Both (a) QA pass on Maplify records, and (b) courtesy notifications sent (acknowledgment not required for the secondary rationale — sent + reasonable response window is sufficient).
+- ~~**Secondary rationale:** Courtesy notification to Whale Alert/Conserve.IO, Orca Network, and Cascadia Research — informing them that SalishSea.io will republish their Acartia-licensed records, gathering attribution preferences, surfacing concerns.~~ *Dropped 2026-10-31 ([decision 101](decisions/101-the-data-download-is-public.md)).*
+- ~~**Mechanism:** Nightly job (Phase 7) publishes the archive to the stable `/dwca/` URL as designed. Only the frontend link (Phase 8) is suppressed. State = "unlisted," not private.~~ The archive has been linked from the About page since 2026-06-18.
+- **Exit criteria:** *Ended 2026-10-31 ([decision 101](decisions/101-the-data-download-is-public.md)): the QA pass is done, and the notifications are no longer a condition.* ~~Both (a) QA pass on Maplify records, and (b) courtesy notifications sent (acknowledgment not required for the secondary rationale — sent + reasonable response window is sufficient).~~
 
 **Native-only public eligibility (D-06):** Native records may be publicly linked independently of the Maplify QA gate, once their contributor has agreed to the terms of use (§1.3). *Amended 2026-10-30: the condition was the D-08 consent notice, which never shipped and is replaced.*
 
-**Open question — D-07 (flagged for Phase 7/8 planner):** Unchanged. D-06 still implies a possible native-only archive variant; the implementation choice (separate archive vs. build-time filter) is for the Phase 7/8 planner. *Closed 2026-10-31 ([decision 101](decisions/101-the-data-download-is-public.md)): one archive, its native records filtered at build time by each contributor's agreement to the terms of use.*
+**D-07 — Closed 2026-10-31 ([decision 101](decisions/101-the-data-download-is-public.md)):** one archive, its native records filtered at build time by each contributor's agreement to the terms of use. ~~Open question — D-07 (flagged for Phase 7/8 planner): Unchanged. D-06 still implies a possible native-only archive variant; the implementation choice (separate archive vs. build-time filter) is for the Phase 7/8 planner.~~
 
 ### 4.2 Whale Alert / Conserve.IO (Maplify data platform operator)
 
@@ -257,7 +257,7 @@ The column is sparse: omitting it means "count unknown," not "count = 0." This i
 
 > "SalishSea.io fetches whale sighting records from your WASEAK API (maplify.com/waseak) as part of our citizen science platform. We are preparing to republish these records in a DarwinCore Archive under the CC-BY 4.0 terms asserted upstream at Acartia (acartia.io/register), with structured attribution to each sub-source. As a courtesy: we want to flag this before our public link goes live, share attribution language we plan to use (e.g., `datasetName` and `rightsHolder` set to the originating sub-source), and ask whether you have preferences on attribution wording or contact-of-record for the Conserve.IO-managed aggregator surface."
 
-**Current status:** Rights resolved (Acartia CC-BY). **Hold remains** under D-05's reframed rationale — primary gate is now Maplify data QA, secondary is this courtesy notification window.
+**Current status:** Rights resolved (Acartia CC-BY). The hold has ended and no notification is a condition ([decision 101](decisions/101-the-data-download-is-public.md)). ~~**Hold remains** under D-05's reframed rationale — primary gate is now Maplify data QA, secondary is this courtesy notification window.~~
 
 ### 4.3 Orca Network
 
@@ -271,7 +271,7 @@ The column is sparse: omitting it means "count unknown," not "count = 0." This i
 
 > "SalishSea.io receives sighting records attributed to Orca Network via the Maplify/Whale Alert WASEAK feed, which is part of the Acartia data cooperative. We are preparing to republish these records in a public DarwinCore Archive under the CC-BY 4.0 terms asserted at Acartia, with `datasetName = 'Orca Network'` and `rightsHolder = 'Orca Network'`. As a courtesy notification: do you have preferred attribution language, a different rightsHolder string, or a contact-of-record we should cite?"
 
-**Current status:** Rights resolved (Acartia CC-BY). **Hold remains** under D-05's reframed rationale.
+**Current status:** Rights resolved (Acartia CC-BY). The hold has ended and no notification is a condition ([decision 101](decisions/101-the-data-download-is-public.md)). ~~**Hold remains** under D-05's reframed rationale.~~
 
 ### 4.4 Cascadia Research Collective
 
@@ -285,18 +285,18 @@ The column is sparse: omitting it means "count unknown," not "count = 0." This i
 
 > "We receive sightings attributed to Cascadia Research via the Maplify/Whale Alert WASEAK feed, which is part of the Acartia data cooperative. We are preparing to republish these records in a public DarwinCore Archive under the CC-BY 4.0 terms asserted at Acartia, with `datasetName = 'Cascadia Research Collective'` and `rightsHolder = 'Cascadia Research Collective'`. As a courtesy: do you have a preferred attribution string, a citable contact-of-record, or any concerns about this republication?"
 
-**Current status:** Rights resolved (Acartia CC-BY). **Hold remains** under D-05's reframed rationale.
+**Current status:** Rights resolved (Acartia CC-BY). The hold has ended and no notification is a condition ([decision 101](decisions/101-the-data-download-is-public.md)). ~~**Hold remains** under D-05's reframed rationale.~~
 
 ### 4.5 Hold Exit — Data QA + Courtesy Window
 
 *Exited 2026-10-31 ([decision 101](decisions/101-the-data-download-is-public.md)): the data check was done on 2026-10-30 and its one systematic finding fixed (#805, #806); the courtesy window is no longer a condition. The text below is as it was.*
 
-The hold-but-unlinked posture (D-05, reframed) exits when both conditions are met:
+~~The hold-but-unlinked posture (D-05, reframed) exits when both conditions are met:~~ As written, the hold was to exit when both conditions below were met; the first was, and the second was dropped:
 
 1. **Data QA pass:** A reviewer has examined `dwc.occurrences` output for Maplify records and confirmed it does not have systematic issues that would embarrass a downstream researcher (e.g., bad coordinates, malformed identifiers, schema-mapping errors). Specific QA criteria are out of scope for this policy doc — defined per the Phase 5/6 verification workflow. This is the primary gate.
-2. **Courtesy notification window:** Notifications per §4.2/4.3/4.4 have been sent and a reasonable response window has elapsed (defined informally — typically 2–4 weeks). Acknowledgment is welcomed but not required. This is the secondary gate.
+2. ~~**Courtesy notification window:** Notifications per §4.2/4.3/4.4 have been sent and a reasonable response window has elapsed (defined informally — typically 2–4 weeks). Acknowledgment is welcomed but not required. This is the secondary gate.~~ *Dropped.*
 
-Both gates are out-of-band, non-engineering tasks — tracked here, not in the roadmap as code phases. When both clear, the frontend link (Phase 8) is updated to include third-party records. If a sub-source asks to be excluded during the courtesy window, Phase 5's per-source filter (D-03) is activated for that sub-source.
+~~Both gates are out-of-band, non-engineering tasks — tracked here, not in the roadmap as code phases. When both clear, the frontend link (Phase 8) is updated to include third-party records.~~ If a sub-source asks to be excluded, at any time, the per-source filter (D-03) is activated for that sub-source.
 
 ---
 

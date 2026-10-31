@@ -18,7 +18,7 @@ All rights, licensing, and attribution questions were resolved in a single polic
 - **`coordinateUncertaintyInMeters`: emit when known, omit when NULL, never 0** (invalid per TDWG).
 - **Unvalidated whale IDs (e.g. T065S) are never emitted as `organismID`/`catalogNumber`** — at most listed in `dynamicProperties.unvalidatedIdentifiers`.
 - **Publisher identity:** creator/metadataProvider = SalishSea.io; individual contact lives in `dwc.datasets`, deliberately not committed to docs.
-- **Hosted-but-unlinked hold reframed** from a rights gate to a data-QA gate plus a 2–4 week courtesy-notification window to Conserve.IO/Orca Network/Cascadia. *Ended 2026-10-31 by [101](101-the-data-download-is-public.md): the check is done, and the courtesy notifications are no longer a condition.*
+- *Ended 2026-10-31 by [101](101-the-data-download-is-public.md): the check is done, and the courtesy notifications are no longer a condition.* ~~**Hosted-but-unlinked hold reframed** from a rights gate to a data-QA gate plus a 2–4 week courtesy-notification window to Conserve.IO/Orca Network/Cascadia.~~
 
 ## Why policy-first
 
