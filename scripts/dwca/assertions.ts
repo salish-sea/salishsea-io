@@ -187,6 +187,13 @@ export interface BranchCoverage {
 export const EXPORT_BRANCHES: readonly string[] = ['native', 'maplify'];
 
 /**
+ * Causes that withhold a row rather than drop it: the archive may not publish it yet, as
+ * a native sighting whose contributor hasn't agreed to the terms of use (#739). A branch
+ * whose every row is withheld has nothing it may export, which is not a failure.
+ */
+export const WITHHELD_BY: readonly string[] = ['no_agreement'];
+
+/**
  * One log line per branch: what came in, what went out, and what each join
  * dropped. Always logged, tripped or not — the number that matters is the
  * one that moved since last night.
@@ -205,10 +212,11 @@ export function describeCoverage(rows: readonly BranchCoverage[]): string[] {
 }
 
 /**
- * Throws when a branch is missing from the coverage rows, or has source rows
- * and exported none of them. A branch that drops *some* rows is logged, not
- * failed: an unclassifiable sighting is a defensible exclusion, and how many
- * there are is a number to watch rather than a reason to withhold the archive.
+ * Throws when a branch is missing from the coverage rows, or has source rows it may
+ * publish and exported none of them. A branch that drops *some* rows is logged, not
+ * failed: an unclassifiable sighting is a defensible exclusion, and how many there are
+ * is a number to watch rather than a reason to withhold the archive. Rows withheld
+ * (WITHHELD_BY) don't count as rows it may publish.
  */
 export function assertBranchCoverage(rows: readonly BranchCoverage[]): void {
     const byBranch = new Map(rows.map((row) => [row.branch, row]));
@@ -217,7 +225,8 @@ export function assertBranchCoverage(rows: readonly BranchCoverage[]): void {
         if (row === undefined) {
             throw new Error(`Export coverage has no row for branch "${branch}"`);
         }
-        if (row.sourceRows > 0n && row.exportedRows === 0n) {
+        const withheld = WITHHELD_BY.reduce((n, cause) => n + (row.droppedBy[cause] ?? 0n), 0n);
+        if (row.sourceRows - withheld > 0n && row.exportedRows === 0n) {
             throw new Error(
                 `Export branch "${branch}" dropped every row: ${row.sourceRows} source rows, 0 exported ` +
                     `(${Object.entries(row.droppedBy).map(([cause, n]) => `${cause}=${n}`).join(', ')})`,

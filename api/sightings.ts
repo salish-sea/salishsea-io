@@ -17,7 +17,8 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 
-import type { Me } from './users.ts';
+import { agreedToCurrent, TERMS_VERSION } from '../src/terms.ts';
+import { agreeToTerms, type Me } from './users.ts';
 
 const DIRECTIONS = new Set(['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -52,6 +53,8 @@ export type SightingInput = {
     url: string | null,
     /** Metres, or null to clear it; undefined when the request didn't say, which leaves it as it was. */
     accuracy?: number | null,
+    /** The version of the terms of use the contributor agrees to with this save, if they haven't yet (#739). */
+    agree_terms?: number,
 };
 
 const bad = (message: string) => new Refused(400, message);
@@ -88,6 +91,8 @@ export function parseSighting(body: Record<string, unknown>): SightingInput {
     const accuracy = body['accuracy'];
     if (accuracy !== undefined && accuracy !== null && (typeof accuracy !== 'number' || !Number.isInteger(accuracy) || accuracy < 1 || accuracy > MAX_ACCURACY_M))
         throw bad(`accuracy must be a whole number of metres from 1 to ${MAX_ACCURACY_M}`);
+    const agree = body['agree_terms'];
+    if (agree !== undefined && agree !== TERMS_VERSION) throw bad(`agree_terms must be the current version, ${TERMS_VERSION}`);
     const photos = body['photos'] ?? [];
     if (!Array.isArray(photos) || photos.length > MAX_PHOTOS) throw bad(`photos must be a list of at most ${MAX_PHOTOS}`);
     return {
@@ -110,6 +115,7 @@ export function parseSighting(body: Record<string, unknown>): SightingInput {
         // an empty url is none: the form sends '' when there is no link
         url: optionalText(body['url'], 'url')?.trim() || null,
         accuracy: accuracy as number | null | undefined,
+        ...(agree === undefined ? {} : {agree_terms: TERMS_VERSION}),
     };
 }
 
@@ -133,6 +139,12 @@ export function saveSighting(store: DatabaseSync, who: Me, id: string, input: Si
             input.observed_from?.lon ?? null, input.observed_from?.lat ?? null,
             body, input.count, input.url, input.direction, input.entity_id, stamp] as const;
         if (may === 'absent') {
+            // A new sighting is published under the terms of use, so its contributor must
+            // have agreed to them, or agree with this save (#739). Editing one doesn't ask.
+            if (!agreedToCurrent(who.contributor.terms_version)) {
+                if (input.agree_terms !== TERMS_VERSION) throw new Refused(403, 'agree to the terms of use first');
+                agreeToTerms(store, who, TERMS_VERSION, now);
+            }
             store.prepare(`INSERT INTO observations
                 (observed_at, subject_lon, subject_lat, observer_lon, observer_lat, body, count, url, direction, entity_id,
                  updated_at, id, created_at, contributor_id, user_id, accuracy)

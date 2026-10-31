@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="stylesheet" href="/src/site.css">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self' https://tiles.salishsea.io; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
+    <title>Terms of use · SalishSea.io</title>
+    <meta name="description" content="The terms under which sightings submitted to SalishSea.io are published: CC BY 4.0, and what we ask of the people who submit them.">
+    <meta property="og:site_name" content="SalishSea.io">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://salishsea.io/terms.html">
+    <meta property="og:title" content="SalishSea.io terms of use">
+    <meta property="og:description" content="The terms under which sightings submitted to SalishSea.io are published: CC BY 4.0, and what we ask of the people who submit them.">
+    <meta property="og:image" content="https://salishsea.io/social-card.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <link href="/favicon.svg" rel="icon" type="image/svg+xml">
+    <link href="/favicon.ico" rel="icon" sizes="48x48">
+    <link href="/apple-touch-icon.png" rel="apple-touch-icon">
+    <style>
+      :root {
+        font-synthesis: style;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      body {
+        margin: 0;
+      }
+      main.about {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 1rem;
+      }
+      /* src/site-nav.ts's siteNavStyles, by hand: this page is plain HTML. */
+      nav.site-nav {
+        align-items: center;
+        display: flex;
+        gap: 4px;
+        margin: 0 0 2rem -10px;
+      }
+      nav.site-nav a {
+        align-items: center;
+        border-bottom: 2px solid transparent;
+        box-sizing: border-box;
+        color: var(--color-text);
+        display: inline-flex;
+        font-weight: 400;
+        gap: 6px;
+        justify-content: center;
+        min-height: 44px;
+        min-width: 44px;
+        opacity: 0.6;
+        padding: 0 10px;
+        text-decoration: none;
+      }
+      nav.site-nav a:hover {
+        opacity: 0.9;
+      }
+      nav.site-nav a[aria-current="page"] {
+        border-bottom-color: var(--color-primary);
+        opacity: 1;
+      }
+      nav.site-nav site-search {
+        color: var(--color-text);
+        margin-left: auto;
+        margin-right: -10px;
+      }
+      /* When the row runs out of room, the icons speak for themselves. */
+      @media (max-width: 40rem) {
+        nav.site-nav {
+          gap: 0;
+        }
+        nav.site-nav .nav-label {
+          display: none;
+        }
+      }
+      .version,
+      .credit {
+        font-size: var(--fs-body2);
+        opacity: 0.8;
+      }
+    </style>
+    <script type="module" src="src/terms-page.ts"></script>
+  </head>
+  <body>
+    <main class="about">
+      <nav class="site-nav" aria-label="Site"><a class="about-link" href="/about.html" aria-current="false" aria-label="About" title="About"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"></path></svg><span class="nav-label">About</span></a><a class="map-link" href="/" aria-current="false" aria-label="Map" title="Map"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"></path></svg><span class="nav-label">Map</span></a><a class="whales-link" href="/whales" aria-current="false" aria-label="Whales" title="Whales"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true"><g transform="translate(0, 2.25)"><rect x="8.5" y="2" width="7" height="4.5" rx="0.75"></rect><path stroke-linecap="round" d="M12 6.5v3M6.5 9.5H17.5M6.5 9.5v3.5M17.5 9.5v3.5"></path><rect x="3" y="13" width="7" height="4.5" rx="0.75"></rect><rect x="14" y="13" width="7" height="4.5" rx="0.75"></rect></g></svg><span class="nav-label">Whales</span></a><site-search></site-search></nav>
+      <h1>Terms of use</h1>
+      <p class="version">Version 1, 30 October 2026</p>
+      <p>SalishSea.io is a free, open map of marine mammal sightings around the Salish Sea, and a project of <a href="https://beamreach.blue/" target="_blank" rel="noopener noreferrer">Beam Reach LLC</a> (“we”). These terms cover what happens to the sightings you submit, and what we ask of you. If you only look at the map, or download its data, the data’s licenses below are all that apply.</p>
+      <h2>When you submit a sighting</h2>
+      <ul>
+        <li><strong>You publish it under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.</strong> Anyone may copy, share and adapt it, for any purpose, including commercial ones such as helping ships avoid whales, as long as they credit you and SalishSea.io. Agreeing to these terms also publishes, under the same license, the sightings you submitted before you agreed.</li>
+        <li><strong>What becomes public:</strong> your display name, what you saw, when, where the animals were (and where you were, if you give it), and your notes.</li>
+        <li><strong>Your photos keep the license you choose for each one.</strong> We show every photo on SalishSea.io. Only photos with a Creative Commons license or CC0 go into the data download.</li>
+        <li><strong>Where your sightings go:</strong> onto the map; into SalishSea.io’s open data download, which GBIF and others may index; and to partners that share sightings for conservation and safety, such as the <a href="https://acartia.io/" target="_blank" rel="noopener noreferrer">Acartia</a> data cooperative and the systems ports use to warn ships.</li>
+        <li><strong>You can delete a sighting.</strong> It leaves the map and the next data download. Copies others made while it was public keep the license you gave them.</li>
+        <li><strong>Submit only what you saw yourself, or have permission to share,</strong> and only photos you took or have the right to share.</li>
+      </ul>
+      <h2>Watching responsibly</h2>
+      <p>Follow the <a href="https://www.bewhalewise.org/" target="_blank" rel="noopener noreferrer">Be Whale Wise</a> guidelines and US and Canadian law. Never approach or disturb an animal to get a sighting or a photo. Report honestly what you saw, where and when, and say when you’re unsure.</p>
+      <h2>Using SalishSea.io’s data</h2>
+      <p>Sightings made on SalishSea.io are CC BY 4.0: credit the observer and SalishSea.io. Sightings that reach us through the Acartia data cooperative are CC BY 4.0 too: credit <a href="https://acartia.io/" target="_blank" rel="noopener noreferrer">acartia.io</a> and each data provider, and keep each sighting’s record of where it came from. iNaturalist observations carry the license each observer chose there. We ask that you use the data to promote marine conservation and responsible behavior around wildlife.</p>
+      <h2>Your account</h2>
+      <p>You sign in with Google, and you’re responsible for what’s submitted from your account. Accounts are for people, not bots. We may remove sightings, photos or accounts that break these terms or that we judge harmful, such as one that would expose an animal to disturbance.</p>
+      <h2>No guarantees</h2>
+      <p>Sightings are reports from the public and from partners, and some are wrong. Don’t rely on SalishSea.io for navigation or safety decisions. We provide the site as it is, without warranty, and we aren’t liable for losses that come from using it or from not being able to.</p>
+      <h2>Changes</h2>
+      <p>We may update these terms; the version and date above will change. If a change affects the license of what you submit, we’ll ask you to agree again before your new sightings are published under it. Sightings you’ve already submitted keep the terms you agreed to.</p>
+      <p>Questions: use the Feedback button on the map, or email <a href="mailto:rainhead@gmail.com">rainhead@gmail.com</a>.</p>
+      <p class="credit">These terms adapt the Acartia data cooperative’s <a href="https://github.com/salish-sea/acartia" target="_blank" rel="noopener noreferrer">community rules</a> (MIT License) and <a href="https://github.com/basecamp/policies" target="_blank" rel="noopener noreferrer">Basecamp’s open-source policies</a> (CC BY 4.0).</p>
+    </main>
+  </body>
+</html>

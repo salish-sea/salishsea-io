@@ -8,12 +8,14 @@ import { repeat } from "lit/directives/repeat.js";
 import { classMap } from "lit/directives/class-map.js";
 import { distance as getDistance } from "@turf/distance";
 import {createRef, ref} from 'lit/directives/ref.js';
-import { cameraAddIcon, clickTargetIcon, locateMeIcon } from "./icons.ts";
+import { cameraAddIcon, clickTargetIcon, linkStyles, locateMeIcon } from "./icons.ts";
 import {Task} from '@lit/task';
 import './photo-attachment.ts';
 import { TanStackFormController } from '@tanstack/lit-form';
 import { detectIndividuals } from "./identifiers.ts";
-import { type License, type TravelDirection, type UpsertObservationArgs } from "./types.ts";
+import { type Contributor, type License, type TravelDirection, type UpsertObservationArgs } from "./types.ts";
+import { contributorContext } from "./identity.ts";
+import { agreedToCurrent, TERMS_PATH, TERMS_VERSION } from "./terms.ts";
 import { fetchStaticAnimalNames } from "./read-path.ts";
 import { saveSighting } from "./write-api.ts";
 import { reportError } from "./report-error.ts";
@@ -88,6 +90,19 @@ export default class SightingForm extends LitElement {
   @state()
   private drafts: SightingDrafts | undefined
 
+  @consume({context: contributorContext, subscribe: true})
+  @state()
+  private contributor: Contributor | undefined
+
+  /** Whether the contributor has ticked the box agreeing to the terms of use with this save (#739). */
+  @state()
+  private agreeing = false
+
+  /** A new sighting from a contributor who hasn't agreed to the terms of use needs their agreement (#739). */
+  private get mustAgree(): boolean {
+    return this.isNew && !!this.contributor && !agreedToCurrent(this.contributor.terms_version);
+  }
+
   /** This sighting's observer and subject on the map. */
   #draft: SightingDraft | undefined
 
@@ -102,7 +117,7 @@ export default class SightingForm extends LitElement {
   @state()
   private suggestedFrom: number | null = null
 
-  static styles = css`
+  static styles = [linkStyles, css`
     :host {
       display: block;
     }
@@ -242,6 +257,17 @@ export default class SightingForm extends LitElement {
       padding: 0.25rem;
       justify-content: center;
     }
+    /* The terms of use (GitHub issue 739): a box to tick before a first sighting, then one quiet line. */
+    .terms {
+      display: block;
+      font-size: var(--fs-body2);
+      line-height: 1.4;
+      margin: 0.75rem 0 0;
+    }
+    .terms input {
+      margin: 0 0.375rem 0 0;
+      vertical-align: -0.125em;
+    }
     .actions {
       text-align: right;
       margin-top: 0.5rem;
@@ -275,7 +301,7 @@ export default class SightingForm extends LitElement {
     output.success {
       color: var(--color-success);
     }
-  `;
+  `];
 
   @query('input[name=observed_time]', true)
   private timeInput: HTMLInputElement | undefined
@@ -298,10 +324,25 @@ export default class SightingForm extends LitElement {
         id: this.sightingId, date: this.date, photos: this.photos,
         observer: this.#draft?.observer ?? null, subject: this.#draft?.subject ?? null,
       });
-      this._saveTask.run([payload]);
+      this._saveTask.run([this.mustAgree && this.agreeing ? {...payload, agree_terms: TERMS_VERSION} : payload]);
       rememberEntityChoice(value.entity_id);
     },
   })
+
+  /** The terms of use, as this contributor needs them (#739): a box to tick, a line, or nothing to a stranger. */
+  private renderTerms() {
+    const terms = html`<a href=${TERMS_PATH} target="_blank" rel="noopener">terms of use</a>`;
+    const license = html`<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>`;
+    if (this.mustAgree) return html`
+      <label class="terms">
+        <input type="checkbox" required .checked=${this.agreeing}
+          @change=${(e: Event) => { this.agreeing = (e.target as HTMLInputElement).checked; }}>
+        I agree to the ${terms}: my sightings are published under ${license}.
+      </label>`;
+    if (this.contributor && agreedToCurrent(this.contributor.terms_version))
+      return html`<p class="terms">Published under ${license}, as the ${terms} say.</p>`;
+    return html``;
+  }
 
   constructor() {
     super();
@@ -314,7 +355,8 @@ export default class SightingForm extends LitElement {
   protected render() {
     const {canSubmit, isPristine, isValid} = this.#form.api.state;
     const enableSubmit = canSubmit && isValid && !isPristine
-      && this.photos.filter(photo => photo.state === 'failed' || photo.state === 'uploading').length === 0;
+      && this.photos.filter(photo => photo.state === 'failed' || photo.state === 'uploading').length === 0
+      && (!this.mustAgree || this.agreeing);
     return html`
       <input ${ref(this.photosInputRef)} @change=${this.onFilesChanged} type="file" name="photos" accept="image/jpeg" multiple>
       <form
@@ -500,6 +542,7 @@ export default class SightingForm extends LitElement {
             </select>
           </label>
         `)}
+        ${this.renderTerms()}
         <div class="actions">
           ${this._saveTask.render({
             initial: () => html`

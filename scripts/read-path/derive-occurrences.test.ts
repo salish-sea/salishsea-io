@@ -293,6 +293,22 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
                 return out;
             });
             expect(unmatched).toEqual({occurrences: 0, multimedia: 0, export_coverage: 0});
+            // A contributor who hasn't agreed to the terms of use (#739): their sightings and
+            // photos stay out of the archive, counted as withheld, which the guard accepts.
+            {
+                const db = await DuckDBInstance.create(':memory:');
+                const conn = await db.connect();
+                try {
+                    await conn.run(`ATTACH '${snapshot}' AS store`);
+                    await conn.run('UPDATE store.public.contributors SET terms_version = NULL');
+                } finally { conn.closeSync(); db.closeSync(); }
+            }
+            const withheld = await withDwc(snapshot, mirrors, async conn => (await conn.runAndReadAll(`
+                SELECT (SELECT count(*) FROM pgdb.dwc.occurrences WHERE "occurrenceID" LIKE 'salishsea:%'),
+                       (SELECT count(*) FROM pgdb.dwc.multimedia),
+                       (SELECT no_agreement FROM pgdb.dwc.export_coverage WHERE branch = 'native'),
+                       (SELECT exported_rows FROM pgdb.dwc.export_coverage WHERE branch = 'maplify')`)).getRows()[0]!.map(Number));
+            expect(withheld).toEqual([0, 0, 2, 5]);
         } finally {
             await rm(dir, {recursive: true, force: true});
         }

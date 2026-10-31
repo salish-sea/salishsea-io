@@ -55,9 +55,13 @@ export const FROM_STORE: readonly {table: string, query: string}[] = [
                CAST(seq AS SMALLINT) AS seq, href, license_code
         FROM copy.observation_photos`},
     // Name and ORCID only: everything the snapshot holds can be published, and a
-    // contributor's picture, email and editor flag must not be (065, salish-8wh).
+    // contributor's picture, email and editor flag must not be (065, salish-8wh). And the
+    // version of the terms of use they last agreed to, or null: the archive publishes a
+    // contributor's sightings only once they have agreed (#739).
     {table: 'public.contributors', query: `
-        SELECT CAST(id AS INTEGER) AS id, name, orcid FROM copy.contributors`},
+        SELECT CAST(c.id AS INTEGER) AS id, c.name, c.orcid,
+               CAST((SELECT max(t.version) FROM copy.terms_agreements t WHERE t.contributor_id = c.id) AS INTEGER) AS terms_version
+        FROM copy.contributors c`},
     {table: 'public.identifications', query: `
         SELECT occurrence_id, CAST(individual_id AS INTEGER) AS individual_id,
                CAST(social_group_id AS INTEGER) AS social_group_id, is_present = 1 AS is_present,

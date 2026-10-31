@@ -22,6 +22,9 @@ import { promptGoogleSignIn } from "./google-signin.ts";
 import './error-toast.ts';
 import type ErrorToast from './error-toast.ts';
 import './feedback-form.ts';
+import './terms-prompt.ts';
+import type { TermsPrompt } from './terms-prompt.ts';
+import { agreedToCurrent } from './terms.ts';
 import { reportError, type ErrorReport } from './report-error.ts';
 import { v7 } from "uuid";
 import { fromLonLat } from './map-view.ts';
@@ -287,6 +290,7 @@ export default class SalishSea extends LitElement {
   private mapRef = createRef<ObsMap>();
   private panelRef = createRef<ObsPanel>();
   private errorToastRef = createRef<ErrorToast>();
+  private termsPromptRef = createRef<TermsPrompt>();
 
   @state()
   private lastOwnOccurrence: Occurrence | null = null;
@@ -567,10 +571,16 @@ export default class SalishSea extends LitElement {
     });
     this.addEventListener('sighting-saved', (evt) => {
       const occurrence = (evt as CustomEvent<Occurrence>).detail;
+      // A first sighting carries the contributor's agreement to the terms of use (#739).
+      const agreed = (evt as CustomEvent<{agree_terms?: number}>).detail.agree_terms;
+      if (agreed !== undefined && this.contributor) this.contributor = {...this.contributor, terms_version: agreed};
       this.focusOccurrence(occurrence);
       // focusOccurrence only triggers fetchOccurrences when the date changes.
       // Explicitly refresh so a newly saved sighting for the current date appears immediately.
       this.refetchOccurrences(this.date);
+    });
+    this.addEventListener('terms-agreed', (evt) => {
+      this.contributor = (evt as CustomEvent<Me>).detail.contributor as Contributor;
     });
     this.addEventListener('sighting-deleted', (evt) => {
       const id = (evt as CustomEvent<string>).detail;
@@ -671,6 +681,7 @@ export default class SalishSea extends LitElement {
             ?? Temporal.PlainDate.from(this.date).toLocaleString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})}></subject-view>
         <error-toast ${ref(this.errorToastRef)}></error-toast>
         <feedback-form></feedback-form>
+        <terms-prompt ${ref(this.termsPromptRef)}></terms-prompt>
       </main>
     `;
   }
@@ -719,7 +730,10 @@ export default class SalishSea extends LitElement {
 
   public async receiveIdToken(token: string, nonce: string) {
     try {
-      this.#signedInAs(await apiSignIn(token, nonce));
+      const me = await apiSignIn(token, nonce);
+      this.#signedInAs(me);
+      // Asked once, as they sign in, if they haven't agreed to the terms of use (#739).
+      if (!agreedToCurrent(me.contributor.terms_version)) this.termsPromptRef.value?.open();
     } catch (err) {
       reportError(this, "Couldn't sign you in with Google. Please try again.", {cause: err});
     }

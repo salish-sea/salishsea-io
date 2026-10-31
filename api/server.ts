@@ -48,6 +48,7 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { WORKFLOW_AUTHOR } from '../scripts/feedback/filing.ts';
 import { ownOccurrence } from '../src/own-occurrence.ts';
+import { TERMS_VERSION } from '../src/terms.ts';
 import { BuildCoalescer, commandBuild, SAVE_OPTIONS } from '../scripts/read-path/coalesce.ts';
 import { animalNames, type NamesLookup } from './animal-names.ts';
 import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
@@ -59,7 +60,7 @@ import { parseSearch, recordSearch } from './searches.ts';
 import { Refused, deleteSighting, ownSightings, parseSighting, publicSighting, saveSighting } from './sightings.ts';
 import { cookie, mint, readCookie, signingKey, verifySession } from './session.ts';
 import { openStore } from './store/store.ts';
-import { me, sessionEpoch, signIn, signOut, type Me } from './users.ts';
+import { agreeToTerms, me, sessionEpoch, signIn, signOut, type Me } from './users.ts';
 
 export const DEFAULT_ORIGINS = ['https://salishsea.io', 'https://salishsea-io.fly.dev'];
 const MAX_BODY = 64 * 1024;
@@ -191,6 +192,16 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
         if (url.pathname === '/api/me' && method === 'GET') {
             const who = currentUser(api, req);
             return send(res, 200, who);
+        }
+        if (url.pathname === '/api/terms' && method === 'POST') {
+            // Agreeing to the terms of use apart from a save: asked at sign-in (#739).
+            const who = currentUser(api, req);
+            if (who === null) throw new HttpError(401, 'sign in first');
+            const {version} = await json(req);
+            if (version !== TERMS_VERSION) throw new HttpError(400, `send {version: ${TERMS_VERSION}}, the current version`);
+            agreeToTerms(api.store, who, TERMS_VERSION);
+            api.changed?.();
+            return send(res, 200, me(api.store, who.user_id));
         }
         if (url.pathname === '/api/sightings' && method === 'GET') {
             const who = currentUser(api, req);

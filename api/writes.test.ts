@@ -12,7 +12,8 @@ import { sender, serve } from './server.ts';
 import { mint } from './session.ts';
 import { deleteSighting, isoMicros, ownSightings, parseSighting, publicSighting, saveSighting } from './sightings.ts';
 import { openStore } from './store/store.ts';
-import { me, signIn, type Me } from './users.ts';
+import { TERMS_VERSION } from '../src/terms.ts';
+import { agreeToTerms, me, signIn, type Me } from './users.ts';
 
 let dir: string;
 let store: DatabaseSync;
@@ -20,8 +21,12 @@ let owner: Me, stranger: Me, editor: Me;
 beforeEach(async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'writes-'));
     store = openStore(path.join(dir, 'store.db'));
-    const user = (sub: string, name: string) =>
-        me(store, signIn(store, {sub, name, email: null, email_verified: false, picture: null}))!;
+    // Each has agreed to the terms of use, as anyone saving a new sighting must (#739).
+    const user = (sub: string, name: string) => {
+        const who = me(store, signIn(store, {sub, name, email: null, email_verified: false, picture: null}))!;
+        agreeToTerms(store, who, TERMS_VERSION);
+        return me(store, who.user_id)!;
+    };
     owner = user('g1', 'Owner');
     stranger = user('g2', 'Stranger');
     editor = user('g3', 'Editor');
@@ -109,6 +114,44 @@ describe("saving a sighting, as upsert_observation and its row-level security di
 
     test('a sighting id must be a UUID', () => {
         expect(() => saveSighting(store, owner, 'not-a-uuid', input())).toThrow(/UUID/);
+    });
+});
+
+describe('the terms of use (#739)', () => {
+    const newcomer = () => me(store, signIn(store, {sub: 'g9', name: 'Newcomer', email: null, email_verified: false, picture: null}))!;
+    const agreements = (who: Me) => store.prepare('SELECT version, user_id FROM terms_agreements WHERE contributor_id = ?').all(who.contributor.id);
+
+    test('a contributor who hasn\'t agreed is named so, and may not save a new sighting', () => {
+        const who = newcomer();
+        expect(who.contributor.terms_version).toBeNull();
+        expect(owner.contributor.terms_version).toBe(TERMS_VERSION);
+        expect(() => saveSighting(store, who, ID, input())).toThrow(/agree to the terms of use first/);
+        expect(row()).toBeUndefined();
+    });
+
+    test('agreeing with the save records the agreement, from the saving account, and saves', () => {
+        const who = newcomer();
+        expect(saveSighting(store, who, ID, input({agree_terms: TERMS_VERSION}))).toBe('created');
+        expect(agreements(who)).toEqual([{version: TERMS_VERSION, user_id: who.user_id}]);
+        expect(me(store, who.user_id)!.contributor.terms_version).toBe(TERMS_VERSION);
+    });
+
+    test('only the current version may be agreed to', () => {
+        expect(() => input({agree_terms: TERMS_VERSION + 1})).toThrow(/agree_terms must be the current version/);
+        expect(() => input({agree_terms: 'yes'})).toThrow(/agree_terms/);
+    });
+
+    test('editing a sighting asks nothing: its owner agreed, or it predates the terms', () => {
+        saveSighting(store, owner, ID, input());
+        store.prepare('DELETE FROM terms_agreements WHERE contributor_id = ?').run(owner.contributor.id);
+        expect(saveSighting(store, me(store, owner.user_id)!, ID, input({count: 5}))).toBe('updated');
+    });
+
+    test('agreeing twice records one agreement', () => {
+        const who = newcomer();
+        agreeToTerms(store, who, TERMS_VERSION);
+        agreeToTerms(store, who, TERMS_VERSION);
+        expect(agreements(who)).toHaveLength(1);
     });
 });
 
@@ -292,6 +335,19 @@ describe('the writes over HTTP', () => {
             expect((await searched('https://salishsea.io')).status).toBe(201);
             expect((await searched()).status).toBe(403);
             expect(store.prepare('SELECT count(*) AS n FROM searches').get()).toEqual({n: 1});
+            // Agreeing to the terms apart from a save, as the sign-in prompt does (#739).
+            const fresh = me(store, signIn(store, {sub: 'g8', name: 'Fresh', email: null, email_verified: false, picture: null}))!;
+            const terms = (version: unknown, cookie?: string) => fetch(`${base}/api/terms`, {
+                method: 'POST',
+                headers: {'content-type': 'application/json', origin: 'https://salishsea.io', ...(cookie ? {cookie} : {})},
+                body: JSON.stringify({version}),
+            });
+            const freshSession = `salishsea_session=${mint(key, fresh.user_id, 0)}`;
+            expect((await terms(TERMS_VERSION)).status).toBe(401);
+            expect((await terms(TERMS_VERSION + 1, freshSession)).status).toBe(400);
+            const agreed = await terms(TERMS_VERSION, freshSession);
+            expect(agreed.status).toBe(200);
+            expect((await agreed.json()).contributor.terms_version).toBe(TERMS_VERSION);
             const malformed = await fetch(`${base}/api/sightings/%E0%A4%A`, {method: 'DELETE', headers: {origin: 'https://salishsea.io', cookie: session}});
             expect(malformed.status).toBe(400);
         } finally {

@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { openStore } from '../../api/store/store.ts';
 import { parseSighting, saveSighting } from '../../api/sightings.ts';
 import { me, signIn } from '../../api/users.ts';
+import { TERMS_VERSION } from '../../src/terms.ts';
 import { snapshotStore } from './snapshot.ts';
 
 let dir: string;
@@ -40,7 +41,8 @@ const columns = (file: string) => query(file, `
 
 /** The four tables as the Postgres read gives them: production's types (DuckDB's postgres scanner). */
 const POSTGRES_TYPES = {
-    'public.contributors': ['id INTEGER', 'name VARCHAR', 'orcid VARCHAR'],
+    // and, Postgres never having had it, the version of the terms of use agreed to (#739)
+    'public.contributors': ['id INTEGER', 'name VARCHAR', 'orcid VARCHAR', 'terms_version INTEGER'],
     'public.identifications': ['occurrence_id VARCHAR', 'individual_id INTEGER', 'social_group_id INTEGER',
         'is_present BOOLEAN', 'evidence VARCHAR', 'status VARCHAR', 'code VARCHAR', 'certainty VARCHAR'],
     'public.observation_photos': ['id INTEGER', 'observation_id UUID', 'seq SMALLINT', 'href VARCHAR', 'license_code VARCHAR'],
@@ -63,7 +65,10 @@ describe('the snapshot from the store', () => {
             observed_at: '2026-10-05T17:00:00.123Z', location: {lon: -123.12345678901234, lat: 48.5},
             observed_from: {lon: -123.2, lat: 48.6}, entity_id: 'SSA:0000900', count: 3, direction: 'north',
             body: 'Three heading north', photos: [{src: 'https://salishsea.io/media/1/a.jpg', license: 'cc-by'}],
+            agree_terms: TERMS_VERSION,
         }));
+        // one who has signed in and never agreed
+        signIn(store, {sub: 'g2', name: 'Lurker', email: null, email_verified: false, picture: null});
         store.close();
 
         const snapshot = path.join(dir, 'snapshot.duckdb');
@@ -81,6 +86,8 @@ describe('the snapshot from the store', () => {
             id, count: 3, direction: 'north', subject_location_lon: -123.12345678901234, observer_location_lat: 48.6,
             observed_at: String(Date.parse('2026-10-05T17:00:00.123Z')), contributor_id: owner.contributor.id, provider_id: 1, collection_id: 10,
         }]);
+        expect(await query(snapshot, 'SELECT name, terms_version FROM s.public.contributors ORDER BY id'))
+            .toEqual([{name: 'Owner', terms_version: TERMS_VERSION}, {name: 'Lurker', terms_version: null}]);
         expect(await query(snapshot, 'SELECT seq, href FROM s.public.observation_photos'))
             .toEqual([{seq: 1, href: 'https://salishsea.io/media/1/a.jpg'}]);
         const [{taken}] = await query(snapshot, 'SELECT epoch_ms(taken_at) AS taken FROM s.snapshot.meta') as [{taken: string}];

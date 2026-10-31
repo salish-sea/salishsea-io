@@ -170,6 +170,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         about: resolve(__dirname, 'about.html'),
+        terms: resolve(__dirname, 'terms.html'),
         individual: resolve(__dirname, 'individual.html'),
         matriline: resolve(__dirname, 'matriline.html'),
         ecotype: resolve(__dirname, 'ecotype.html'),
@@ -258,6 +259,7 @@ export default defineConfig({
         const pages = [
           { loc: 'https://salishsea.io/', changefreq: 'daily', priority: '1.0' },
           { loc: 'https://salishsea.io/about.html', changefreq: 'monthly', priority: '0.5' },
+          { loc: 'https://salishsea.io/terms.html', changefreq: 'yearly', priority: '0.3' },
           { loc: 'https://salishsea.io/whales', changefreq: 'daily', priority: '0.6' },
         ];
         const urls = pages.map(p => `  <url>

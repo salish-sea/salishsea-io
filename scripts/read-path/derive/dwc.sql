@@ -113,7 +113,8 @@ CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
          'SalishSea.io' AS "rightsHolder",
          'SalishSea.io — ' || c_coll.name AS "datasetName",
          'https://salishsea.io/datasets/occurrences-v1' AS "datasetID",
-         'https://creativecommons.org/licenses/by-nc/4.0/legalcode' AS license,
+         -- the terms of use the contributor agreed to (decision 086, #739)
+         'https://creativecommons.org/licenses/by/4.0/legalcode' AS license,
          pg_jsonb_object([
            pg_jsonb_member('travelDirection', o.direction),
            pg_jsonb_list_member('unvalidatedIdentifiers', nullif(extract_identifiers(o.body), []))
@@ -124,7 +125,9 @@ CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
   JOIN public.contributors c ON c.id = o.contributor_id
   JOIN inaturalist_taxon xw ON xw.entity_id = o.entity_id
   JOIN dwc_taxa_classification tc ON tc.taxon_id = xw.inaturalist_taxon_id
-  JOIN public.collections c_coll ON c_coll.id = o.collection_id;
+  JOIN public.collections c_coll ON c_coll.id = o.collection_id
+  -- published beyond the site only once its contributor has agreed to the terms (#739)
+  WHERE c.terms_version >= 1;
 
 -- --- dwc._maplify_occurrences -------------------------------------------------------------
 -- recordedBy: the observer in the parenthetical of the comments' first <br> segment,
@@ -206,6 +209,9 @@ CREATE OR REPLACE TABLE pgdb.dwc.multimedia AS
   JOIN public.observations o ON o.id = op.observation_id
   JOIN public.contributors c ON c.id = o.contributor_id
   WHERE op.license_code IS NOT NULL AND op.license_code <> 'none'
+    -- only the photos of records the archive holds: none of a contributor who hasn't
+    -- agreed to the terms (#739), nor of a record dropped for its taxon or collection
+    AND EXISTS (SELECT 1 FROM dwc_native_occurrences n WHERE n."occurrenceID" = 'salishsea:' || CAST(o.id AS VARCHAR))
   ORDER BY op.observation_id, op.seq;
 
 -- --- dwc.export_coverage ------------------------------------------------------------------
@@ -216,7 +222,10 @@ CREATE OR REPLACE TABLE pgdb.dwc.export_coverage AS
            count(*) FILTER (WHERE NOT EXISTS (
              SELECT 1 FROM dwc_taxa_classification tc
              WHERE tc.taxon_id = (SELECT xw.inaturalist_taxon_id FROM inaturalist_taxon xw WHERE xw.entity_id = o.entity_id))) AS no_taxon,
-           count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM public.collections cc WHERE cc.id = o.collection_id)) AS no_collection
+           count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM public.collections cc WHERE cc.id = o.collection_id)) AS no_collection,
+           -- withheld rather than dropped: the contributor hasn't agreed to the terms (#739)
+           count(*) FILTER (WHERE EXISTS (SELECT 1 FROM public.contributors c
+                                          WHERE c.id = o.contributor_id AND coalesce(c.terms_version, 0) < 1)) AS no_agreement
     FROM public.observations o
   ), maplify AS (
     SELECT count(*) AS source_rows,
@@ -227,11 +236,11 @@ CREATE OR REPLACE TABLE pgdb.dwc.export_coverage AS
     WHERE NOT s.is_test AND s.number_sighted BETWEEN 1 AND 1000 AND s.source <> 'rwsas' AND s.trusted
   )
   SELECT 'native' AS branch, source_rows, (SELECT count(*) FROM dwc_native_occurrences) AS exported_rows,
-         no_contributor, no_taxon, no_collection
+         no_contributor, no_taxon, no_collection, no_agreement
   FROM native
   UNION ALL
   SELECT 'maplify', source_rows, (SELECT count(*) FROM dwc_maplify_occurrences),
-         CAST(NULL AS BIGINT), no_taxon, CAST(NULL AS BIGINT)
+         CAST(NULL AS BIGINT), no_taxon, CAST(NULL AS BIGINT), CAST(NULL AS BIGINT)
   FROM maplify;
 
 -- --- dwc.datasets -------------------------------------------------------------------------
@@ -243,7 +252,8 @@ CREATE OR REPLACE TABLE pgdb.dwc.datasets AS
          'Native and Maplify/Whale Alert marine mammal sighting records from the Salish Sea region. Authored from observation tables in the SalishSea.io database, expressed as DarwinCore-aligned columns. In practice the archive is overwhelmingly cetacean; see the taxonomic coverage statement for why.' AS abstract,
          CAST(getvariable('pub_date') AS VARCHAR) AS pub_date,
          'en' AS language,
-         'https://creativecommons.org/licenses/by-nc/4.0/legalcode' AS intellectual_rights,
+         -- every record is CC BY 4.0: ours under the terms of use (#739), Maplify's through Acartia
+         'https://creativecommons.org/licenses/by/4.0/legalcode' AS intellectual_rights,
          'SalishSea.io' AS creator_name,
          'rainhead@gmail.com' AS creator_email,
          'originator' AS creator_role,

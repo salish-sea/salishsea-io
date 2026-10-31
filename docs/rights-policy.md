@@ -19,12 +19,14 @@ The `license` field is **per-source**, not a single constant across the archive 
 
 | Source | License URI | Basis |
 |--------|-------------|-------|
-| Native (`public.observations` via contributors) | `https://creativecommons.org/licenses/by-nc/4.0/legalcode` | REQUIREMENTS.md upstream decision + native contributor consent basis (§1.3, D-08). |
+| Native (`public.observations` via contributors) | `https://creativecommons.org/licenses/by/4.0/legalcode` | The [terms of use](https://salishsea.io/terms.html) the contributor agreed to (§1.3). *Amended 2026-10-30 ([decision 086](decisions/086-what-we-know-now-is-a-file-to-poll.md), #739): was CC-BY-NC 4.0, citing a REQUIREMENTS.md upstream decision; no such file ever existed in this repository, and CC BY was the intention from the start.* |
 | Maplify / Whale Alert (`maplify.sightings`) | `https://creativecommons.org/licenses/by/4.0/legalcode` | All Maplify records reach SalishSea.io via the Acartia data cooperative (Conserve.IO operates the WASEAK API on Acartia's stack). Contributors to Acartia assert CC-BY at registration (acartia.io/register). The CC-BY assertion is upstream of SalishSea.io and applies transitively to records republished here. |
 
 Both URIs are the canonical `/legalcode` form required by GBIF's occurrence license parser (not the human-readable deed URL `/4.0/`).
 
 **Note on scope of the Acartia CC-BY assertion (Maplify branch):** The CC-BY claim is asserted by *contributors* to Acartia (Whale Alert/Conserve.IO operates the platform; Orca Network, Cascadia Research, and others are sub-source contributors whose records flow through it). Because the assertion is made at contribution time and applies cooperative-wide, it covers all `maplify.sightings` records SalishSea.io fetches from WASEAK — regardless of the `source` value on a given record. This is why §4.2/§4.3/§4.4 conferral shifts from rights-gating to courtesy notification + attribution preference (see §4.1, reframed).
+
+*Amended 2026-10-30 ([decision 086](decisions/086-what-we-know-now-is-a-file-to-poll.md), #739): native records are CC-BY 4.0 too, so every record is, and the dataset row's `intellectual_rights` is CC-BY 4.0. The two paragraphs below describe the v1.2 state.*
 
 **Reconciliation with §6.6:** §6.2's `dwc.datasets` schema carries `intellectual_rights` per row. In v1.2 there is one row with the native (CC-BY-NC) URI, and per-record `license` diverges for Maplify rows via the lookup in this section. When (if) Maplify is reified as a separate constituent row in `dwc.datasets`, the per-record `license` for Maplify rows joins from the constituent's `intellectual_rights` and this section's table collapses to a description of that join.
 
@@ -56,7 +58,9 @@ Both states **exclude the photo from the Multimedia extension** in v1.2 (per §1
 
 ### 1.3 Native Contributor Consent Basis (D-08)
 
-The consent basis for publishing native SalishSea.io contributions under CC-BY-NC 4.0 is a two-part assertion per **D-08**:
+*Replaced 2026-10-30 ([decision 086](decisions/086-what-we-know-now-is-a-file-to-poll.md), #739).* The consent basis is the [terms of use](https://salishsea.io/terms.html), which say that sightings submitted to SalishSea.io are published under CC-BY 4.0. A contributor agrees to them in the app: with their first new sighting, which the write API refuses without the agreement, or when asked as they sign in. The store records each agreement (the version of the terms, when, and from which signed-in account), and the archive includes a contributor's sightings, and their photos, only once they have agreed; the rest stay on the map. Neither part of D-08 below ever existed: the platform policy was never written, and the notice never shipped.
+
+As written for v1.2: the consent basis for publishing native SalishSea.io contributions under CC-BY-NC 4.0 is a two-part assertion per **D-08**:
 
 1. **Platform-policy assertion for existing records:** Contributions already submitted to SalishSea.io are published under the platform's stated policy that sighting data is shared for conservation purposes. This is the consent basis for records in the database at the time of DwC-A publication.
 
@@ -160,7 +164,7 @@ This is a GAP-04 resolution. Cross-reference Section 1.4 (license-less photo exc
 | `scientificName` etc. | `taxon_id` (FK) | Hierarchy walk needed | Resolved by walking `inaturalist.taxa` parent hierarchy (Phase 5). |
 | `basisOfRecord` | (none) | Not stored | Constant: `HumanObservation` (locked upstream). |
 | `occurrenceStatus` | (none) | Not stored | Constant: `present` (D-12). All in-scope records are positive sightings. |
-| `license` | (none) | Not stored | Constant for native branch: `https://creativecommons.org/licenses/by-nc/4.0/legalcode` (CC-BY-NC 4.0, GAP-02, §1.1, D-20). |
+| `license` | (none) | Not stored | Constant for native branch: `https://creativecommons.org/licenses/by/4.0/legalcode` (CC-BY 4.0 under the terms of use, §1.1, §1.3; CC-BY-NC 4.0 until 2026-10-30). |
 | `geodeticDatum` | (none) | Not stored | Constant: `WGS84` (locked upstream). |
 
 ### 3.2 Gap Table: `maplify.sightings` (Whale Alert / Maplify Records)
@@ -231,7 +235,7 @@ The column is sparse: omitting it means "count unknown," not "count = 0." This i
 - **Mechanism:** Nightly job (Phase 7) publishes the archive to the stable `/dwca/` URL as designed. Only the frontend link (Phase 8) is suppressed. State = "unlisted," not private.
 - **Exit criteria:** Both (a) QA pass on Maplify records, and (b) courtesy notifications sent (acknowledgment not required for the secondary rationale — sent + reasonable response window is sufficient).
 
-**Native-only public eligibility (D-06):** Native records may be publicly linked independently of the Maplify QA gate, subject to the D-08 consent notice (§1.3) being in place. Unchanged by D-20.
+**Native-only public eligibility (D-06):** Native records may be publicly linked independently of the Maplify QA gate, once their contributor has agreed to the terms of use (§1.3). *Amended 2026-10-30: the condition was the D-08 consent notice, which never shipped and is replaced.*
 
 **Open question — D-07 (flagged for Phase 7/8 planner):** Unchanged. D-06 still implies a possible native-only archive variant; the implementation choice (separate archive vs. build-time filter) is for the Phase 7/8 planner.
 
@@ -365,7 +369,7 @@ The schema must be sized for future per-source constituents (native, Maplify agg
 - `dataset_id` — primary identifier (URI; see §6.3)
 - `parent_dataset_id` — nullable self-FK; NULL for v1.2's single row
 - `title`, `abstract`, `pub_date`, `language`
-- `intellectual_rights` — license URI per dataset (the single v1.2 row carries the CC-BY-NC 4.0 URI from §1.1)
+- `intellectual_rights` — license URI per dataset (the single v1.2 row carries the CC-BY-NC 4.0 URI from §1.1; CC-BY 4.0 since 2026-10-30)
 - `creator_name`, `creator_email`, `creator_role`
 - `metadata_provider_name`, `metadata_provider_email`
 - `contact_name`, `contact_email`, `contact_role`
@@ -505,7 +509,7 @@ All D-numbers are cited in the sections above. For reference:
 | D-05 | 4.1, 4.5 | Hosted-but-unlinked hold preserved; rationale reframed by D-20 from rights-gating to data-QA-gating (primary) + courtesy notification (secondary). Exit: QA pass + notification window. |
 | D-06 | 4.1 | Native records may be publicly linked independently of third-party conferral |
 | D-07 | 4.1 | OPEN: native-only archive variant question for Phase 7/8 planner |
-| D-08 | 1.3 | Native consent basis: platform policy + submission-form notice going forward |
+| D-08 | 1.3 | Native consent basis: platform policy + submission-form notice going forward (replaced 2026-10-30: agreement to the terms of use in the app, decision 086) |
 | D-09 | 2.1 | Native `rightsHolder` = `recordedBy` = contributor display name (`rightsHolder` superseded by decision 006: `SalishSea.io`) |
 | D-10 | 2.2, 3.2 | Third-party `recordedBy` = `usernm`; `datasetName` = sub-source; aggregator chain in `dynamicProperties` |
 | D-11 | 2.2, 3.2 | Third-party `rightsHolder` = sub-source org when known; else "Whale Alert / Maplify" (superseded by decision 006: `SalishSea.io`) |
@@ -517,7 +521,7 @@ All D-numbers are cited in the sections above. For reference:
 | D-17 | 6.3 | `datasetID` URI scheme: `https://salishsea.io/datasets/{slug}` |
 | D-18 | 6.4 | Publisher = SalishSea.io (organizational); Contact = Peter Abrahamsen (individual); contact email lives in `dwc.datasets`, not this document |
 | D-19 | 1.2, 1.4 | `license_code = 'none'` and `IS NULL` are semantically distinct (`none` = "no license" terminal; NULL = "unknown" non-terminal); both excluded in v1.2; Phase 5 emits separate CASE branches |
-| D-20 | 1.1, 2.2, 3.2, 4.1–4.5 | Per-record `license` is per-source: native = CC-BY-NC 4.0; Maplify = CC-BY 4.0 (asserted upstream at Acartia cooperative). Resolves the rights gate for the Maplify branch; reframes §4 conferral as courtesy + reframes D-05 hold as data-QA gate. |
+| D-20 | 1.1, 2.2, 3.2, 4.1–4.5 | Per-record `license` is per-source: native = CC-BY-NC 4.0 (CC-BY 4.0 since 2026-10-30, decision 086); Maplify = CC-BY 4.0 (asserted upstream at Acartia cooperative). Resolves the rights gate for the Maplify branch; reframes §4 conferral as courtesy + reframes D-05 hold as data-QA gate. |
 | D-21 | 7.1 | Bigg's reference sheet: factual content (designations, genealogy, nickname etymology) is uncopyrightable and used freely; creative story prose stated as fact, not reproduced; compilation credited, not republished; ingest-side reference — any future export gets its own rights pass. |
 | D-22 | 7.2 | NOAA NWFSC `srkw-status` census file: a U.S. government work (17 U.S.C. §105) of facts, used without asking permission; the repo's GPL-3 covers its code, not the data; CWR credited as observer and NOAA as publisher; nicknames not covered; same export caveat as D-21. |
 | D-23 | 5.5 | iNaturalist identifications (identifier, taxon, when, current, own, disagreement, vision, hidden, text) and comments are mirrored to derive our own confidence (075) and read the animals people name, never republished; text hidden by iNaturalist's moderators is not kept; basis is iNaturalist's default CC BY-NC for content without a license choice; showing any of it to visitors needs its own rights pass. |

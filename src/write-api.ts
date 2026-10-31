@@ -6,12 +6,14 @@
  * and the CSP's connect-src 'self' already admits it.
  */
 
+import { TERMS_VERSION } from './terms.ts';
 import type { Occurrence, UpsertObservationArgs } from './types.ts';
 
 /** Who is signed in, as GET /api/me answers. */
 export type Me = {
   user_id: string,
-  contributor: {id: number, name: string, picture: string | null, editor: boolean, orcid: string | null},
+  contributor: {id: number, name: string, picture: string | null, editor: boolean, orcid: string | null,
+    terms_version: number | null},
 };
 
 import type { OwnSighting } from './own-occurrence.ts';
@@ -69,14 +71,18 @@ export const signOut = () => call<unknown>('DELETE', '/api/session');
  * would take a save with one photo past the API's 64 KB limit on a request.
  */
 export function sightingBody(sighting: UpsertObservationArgs) {
-  const {body, count, direction, observed_at, observed_from, location, accuracy, entity_id, url, photos} = sighting;
+  const {body, count, direction, observed_at, observed_from, location, accuracy, entity_id, url, photos, agree_terms} = sighting;
   return {body, count, direction, observed_at, observed_from, location, accuracy, entity_id, url,
-    photos: photos.map(({src, license}) => ({src, license}))};
+    photos: photos.map(({src, license}) => ({src, license})),
+    ...(agree_terms === undefined ? {} : {agree_terms})};
 }
 
 export const saveSighting = (sighting: UpsertObservationArgs) =>
   call<{id: string, outcome: 'created' | 'updated'}>('PUT', `/api/sightings/${encodeURIComponent(sighting.id)}`,
     {json: sightingBody(sighting)});
+
+/** Agree to the current terms of use apart from a save, as the prompt at sign-in asks (#739). */
+export const agreeToTerms = () => call<Me>('POST', '/api/terms', {json: {version: TERMS_VERSION}});
 
 export const deleteSighting = (id: string) => call<unknown>('DELETE', `/api/sightings/${encodeURIComponent(id)}`);
 

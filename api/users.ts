@@ -17,7 +17,9 @@ import type { GoogleIdentity } from './google.ts';
 
 export type Me = {
     user_id: string,
-    contributor: {id: number, name: string, picture: string | null, editor: boolean, orcid: string | null},
+    /** `terms_version`: the latest version of the terms of use the contributor agreed to, or null (#739). */
+    contributor: {id: number, name: string, picture: string | null, editor: boolean, orcid: string | null,
+        terms_version: number | null},
 };
 
 /** A user's session epoch, or null if the user is gone. */
@@ -34,14 +36,26 @@ export function signOut(store: DatabaseSync, userId: string): void {
 /** The user and contributor a session names, or null if the user is gone. */
 export function me(store: DatabaseSync, userId: string): Me | null {
     const row = store.prepare(`
-        SELECT u.id AS user_id, c.id, c.name, c.picture, c.editor, c.orcid
+        SELECT u.id AS user_id, c.id, c.name, c.picture, c.editor, c.orcid,
+               (SELECT max(version) FROM terms_agreements t WHERE t.contributor_id = c.id) AS terms_version
         FROM users u JOIN contributors c ON c.id = u.contributor_id WHERE u.id = ?`).get(userId) as
-        {user_id: string, id: number, name: string, picture: string | null, editor: number, orcid: string | null} | undefined;
+        {user_id: string, id: number, name: string, picture: string | null, editor: number, orcid: string | null,
+         terms_version: number | null} | undefined;
     if (!row) return null;
     return {
         user_id: row.user_id,
-        contributor: {id: row.id, name: row.name, picture: row.picture, editor: row.editor === 1, orcid: row.orcid},
+        contributor: {id: row.id, name: row.name, picture: row.picture, editor: row.editor === 1, orcid: row.orcid,
+            terms_version: row.terms_version},
     };
+}
+
+/**
+ * Record that `who`'s contributor agreed to `version` of the terms of use (#739), from
+ * `who`'s account. Agreeing again to a version already agreed changes nothing.
+ */
+export function agreeToTerms(store: DatabaseSync, who: Pick<Me, 'user_id' | 'contributor'>, version: number, now = new Date()): void {
+    store.prepare(`INSERT INTO terms_agreements (contributor_id, version, agreed_at, user_id) VALUES (?, ?, ?, ?)
+        ON CONFLICT (contributor_id, version) DO NOTHING`).run(who.contributor.id, version, now.toISOString(), who.user_id);
 }
 
 /** The user for a verified Google identity, made if this is its first sign-in. Returns its id. */
