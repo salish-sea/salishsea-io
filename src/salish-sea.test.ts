@@ -318,7 +318,7 @@ const ownSighting = (id: string, observedAt: string) => ({
   id, observed_at: observedAt, location: {lon: -123.0, lat: 48.5}, observed_from: null, body: 'Two orcas heading north',
   count: 2, direction: null, url: null, entity_id: 'SSA:0000002', photos: [], contributor_id: 7, updated_at: observedAt,
 });
-const CONTRIBUTOR = {id: 7, name: 'Contributor', picture: null, editor: false, orcid: null};
+const CONTRIBUTOR = {id: 7, name: 'Contributor', picture: null, editor: false, orcid: null, terms_version: 1};
 
 // Decisions 056 and 065: the day comes from the read-path file. A signed-in
 // contributor's tab overlays their own sightings from the write API, because the

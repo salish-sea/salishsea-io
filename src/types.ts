@@ -17,7 +17,9 @@ export type Confirmation = 'confirmed' | 'unconfirmed' | 'disputed';
 export type Vitality = 'alive' | 'dead' | 'undetermined';
 
 /** Who is signed in, as GET /api/me names their contributor (decision 065). */
-export type Contributor = {id: number, name: string, picture: string | null, editor: boolean, orcid: string | null};
+export type Contributor = {id: number, name: string, picture: string | null, editor: boolean, orcid: string | null,
+  /** The latest version of the terms of use they agreed to, or null (#739, src/terms.ts). */
+  terms_version: number | null};
 
 type LonLat = {lat: number; lon: number;};
 export type OccurrencePhoto = {
@@ -120,4 +122,6 @@ export type UpsertObservationArgs = {
   url: string;
   /** How far the animal may have been from `location`, in metres; null when the author didn't say (decision 077). */
   accuracy: number | null;
+  /** The version of the terms of use the contributor agrees to with this save, if they haven't yet (#739). */
+  agree_terms?: number;
 };
