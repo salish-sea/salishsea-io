@@ -73,7 +73,7 @@ the dataset-level metadata (`eml.xml`) is built by
 | `recordedByID` | observer's **ORCID** as a full `https://orcid.org/…` URI | The same observer as `recordedBy`, as a resolvable identifier rather than a name. Empty unless we hold an ORCID for that contributor, which today is almost never — an identifier is never inferred from a name. |
 | `occurrenceID` | `{source}:{id}` (e.g. `salishsea:…`, `maplify:…`) | Stable per-record identifier; its prefix also encodes which source the row came from. |
 | `eventDate` | a time, or a day | For SalishSea.io's own sightings, when the animal was seen, in UTC (e.g. `2026-09-18T20:15:00Z`). For Maplify / Whale Alert records, a day only (e.g. `2026-09-24`): Maplify records when it received a report, not when the animals were seen, so the archive gives the day the report arrived, in Pacific time. Until 30 October 2026 it gave the day in UTC, the next day for a report that arrived after about 4 or 5 p.m. Pacific (about one in six), and on 30 October briefly gave the time of arrival, which is not the time of the sighting. |
-| `license` | per record | Native records: **CC-BY-NC 4.0**. Maplify / Whale Alert records: **CC-BY 4.0** via the Acartia data cooperative. The dataset-level license in `eml.xml` is CC-BY-NC 4.0; the per-record `license` column is authoritative. |
+| `license` | per record | **CC-BY 4.0** for every record: SalishSea.io's own sightings under the [terms of use](https://salishsea.io/terms.html) their contributors agreed to, and Maplify / Whale Alert records via the Acartia data cooperative. The dataset-level license in `eml.xml` is CC-BY 4.0 too. Until 30 October 2026 SalishSea.io's own were CC-BY-NC 4.0. |
 | `coordinateUncertaintyInMeters` | present, often empty | Emitted where a defensible value is known; **left empty (NULL) rather than guessed** when it isn't. Most current records have no captured accuracy, so this is frequently empty by design. |
 
 **Upstream organizations** are credited in the archive's dataset metadata
@@ -116,6 +116,12 @@ per branch, what was admitted, what was exported, and what each join dropped;
 the build logs those counts on every run and fails if a branch exports
 nothing it had records for, so a shrinking archive is a number in the log rather
 than a surprise.
+
+A SalishSea.io sighting is also held back, rather than dropped, until its
+contributor has agreed to the [terms of use](https://salishsea.io/terms.html),
+which publish it under CC-BY 4.0; its photos are held back with it. The coverage
+view counts these as `no_agreement`, and a branch whose every record is held back
+doesn't fail the build: it has nothing it may publish yet.
 
 ## How a record's provenance is resolved
 
