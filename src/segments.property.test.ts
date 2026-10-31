@@ -106,6 +106,47 @@ describe('occurrences2segments', () => {
     expect(joined / cases).toBeGreaterThan(0.3);
   });
 
+  // Completeness as well as soundness: the comment's greedy rule, written out again, joins
+  // exactly what the implementation joins (a mutant that refuses admissible joins passes the
+  // checks above).
+  test('groups as the greedy rule in the comment does', () => {
+    const named = (o: Occurrence) => {
+      const out = new Set<string>();
+      const sub = o.taxon.scientific_name?.split(' ')[2];
+      if (sub === 'ater') out.add('resident');
+      if (sub === 'rectipinnus') out.add('biggs');
+      for (const id of o.identifiers ?? []) {
+        if (/^[JKL](\d|\s*pod|$)/i.test(id) || /resident/i.test(id)) out.add('resident');
+        else if (/^T\d/.test(id) || /bigg/i.test(id)) out.add('biggs');
+      }
+      return out;
+    };
+    const model = (occurrences: Occurrence[]) => {
+      const tracks: {speed: number | null, members: Occurrence[]}[] = [];
+      for (const o of occurrences.toSorted((a, b) => a.observed_at_ms - b.observed_at_ms)) {
+        let best: (typeof tracks)[number] | null = null, bestScore = Infinity;
+        if (o.vitality !== 'dead') for (const track of tracks) {
+          const first = track.members[0]!, last = track.members.at(-1)!;
+          if (!track.speed || first.taxon.species_id === null || first.taxon.species_id !== o.taxon.species_id) continue;
+          const hours = (o.observed_at_ms - last.observed_at_ms) / HOUR;
+          const m = metres(last, o);
+          if (hours > 12 || m > 20_000) continue;
+          if (Math.max(0, m - 3000) / hours > 3 * track.speed * 1000) continue;
+          const mine = named(o), theirs = new Set(track.members.flatMap(p => [...named(p)]));
+          if (mine.size && theirs.size && ![...mine].some(e => theirs.has(e))) continue;
+          const score = m / 1000 + track.speed * hours;
+          if (score < bestScore) { best = track; bestScore = score; }
+        }
+        if (best) best.members.push(o);
+        else tracks.push({speed: o.vitality === 'dead' ? null : speeds[o.taxon.scientific_name ?? ''] ?? null, members: [o]});
+      }
+      return tracks.map(t => t.members.map(o => o.id));
+    };
+    fc.assert(fc.property(day, occurrences => {
+      expect(grouping(occurrences2segments(occurrences))).toEqual(model(occurrences));
+    }), {numRuns: 3000});
+  });
+
   test('the order of the input does not matter when no two reports share an instant', () => {
     const distinct = fc.uniqueArray(shape, {selector: s => s.minutes, maxLength: 14}).map(s => s.map(occurrence));
     fc.assert(fc.property(distinct, fc.infiniteStream(fc.nat()), (occurrences, randoms) => {
