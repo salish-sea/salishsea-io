@@ -77,7 +77,10 @@ describe('windows (discovery)', () => {
             const last = dayString(e + span - 1);
             const now = new Date(`${dayString(e + span + ageDays)}T12:00:00Z`);
             const w = antiEntropyWindow(earliest, before, now, random);
-            if (span < 1) return expect(w).toBeNull();
+            if (span < 1) {
+                expect(w).toBeNull();
+                return;
+            }
             // The model's months: from earliest's month to last's, each 1st to its last day.
             const months: {start: string, end: string}[] = [];
             for (let m = dayNumber(`${earliest.slice(0, 7)}-01`); m <= dayNumber(last);) {
