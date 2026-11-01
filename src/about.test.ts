@@ -2,7 +2,7 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { enhanceAboutDownloads, restoreMapBackLink } from './about.ts';
 
-// Mirrors the static markup in about.html that the enhancement script upgrades.
+// Mirrors the static markup in dataset.html that the enhancement script upgrades.
 function makeAboutRoot(): HTMLElement {
   const root = document.createElement('div');
   root.innerHTML = `
@@ -96,3 +96,4 @@ test('leaves the static fallbacks untouched on HEAD failure', async () => {
   expect(root.querySelector('[data-size="parquet"]')!.textContent).toBe('');
   expect(root.querySelector('.freshness')!.textContent!.trim()).toBe('Updated as new sightings arrive.');
 });
+

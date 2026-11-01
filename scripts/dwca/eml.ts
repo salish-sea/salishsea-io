@@ -4,8 +4,8 @@
  * Generates the `eml.xml` document that accompanies the DarwinCore Archive
  * zip, per the GBIF EML profile. Includes title, creator, metadata provider,
  * pubDate, language, abstract, keyword set, intellectual rights, three-axis
- * coverage (geographic / temporal / taxonomic), contact, and a two-paragraph
- * methods description.
+ * coverage (geographic / temporal / taxonomic), contact, a two-paragraph
+ * methods description, and the citation we recommend for the dataset.
  *
  * Inputs:
  *   - `datasets`: a row from the `dwc.datasets` view (19 columns mirroring
@@ -116,6 +116,26 @@ const xmlEsc = (s: string | null | undefined): string => {
 };
 
 /**
+ * The archive's geographic coverage, Acartia's box (CONTEXT.md E-02), in degrees.
+ * The dataset's page (dataset.html) gives the same box to search engines;
+ * src/dataset.test.ts holds the two together.
+ */
+export const BOUNDING_BOX = {west: -136, east: -120, north: 54, south: 36} as const;
+
+/**
+ * The citation we recommend for the dataset (decision 104), as it stood on the day
+ * this archive was built: the archive is rewritten as sightings arrive, so the
+ * date says which version was used. The address is the datasetID every record
+ * carries, where the dataset's page (dataset.html) is served. That page gives the
+ * same citation for a reader to complete with the day they downloaded it;
+ * src/dataset.test.ts holds the two to the same title and address.
+ */
+export function datasetCitation(d: DatasetsRow): string {
+    return `${d.creator_name} (${d.pub_date.slice(0, 4)}). ${d.title}. ` +
+        `Darwin Core Archive, version of ${d.pub_date}. ${d.dataset_id}`;
+}
+
+/**
  * Build the EML 2.1.1 metadata document as a UTF-8 string.
  *
  * Deterministic: identical input yields byte-identical output. No `Date.now()`
@@ -217,18 +237,18 @@ export function buildEml(input: EmlInput): string {
       <keyword>occurrence</keyword>
       <keywordThesaurus>n/a</keywordThesaurus>
     </keywordSet>
+    <!-- One <para>: the GBIF profile's schema allows no more here. -->
     <intellectualRights>
-      <para>This work is licensed under a <ulink url="${xmlEsc(d.intellectual_rights)}"><citetitle>Creative Commons Attribution (CC-BY) 4.0 License</citetitle></ulink>. Per-record license is encoded in the occurrence data file (native records: CC-BY 4.0 under the SalishSea.io terms of use; Maplify/Whale Alert records: CC-BY 4.0 via the Acartia data cooperative).</para>
-      <para>Each record's locality is the name of the water region its position is in, from the SalishSea.io basemap's water regions (https://github.com/salish-sea/basemap). Contains information licensed under the Open Government Licence – Canada and the Open Government Licence – British Columbia.</para>
+      <para>This work is licensed under a <ulink url="${xmlEsc(d.intellectual_rights)}"><citetitle>Creative Commons Attribution (CC-BY) 4.0 License</citetitle></ulink>. Per-record license is encoded in the occurrence data file (native records: CC-BY 4.0 under the SalishSea.io terms of use; Maplify/Whale Alert records: CC-BY 4.0 via the Acartia data cooperative). Each record's locality is the name of the water region its position is in, from the SalishSea.io basemap's water regions (https://github.com/salish-sea/basemap). Contains information licensed under the Open Government Licence – Canada and the Open Government Licence – British Columbia.</para>
     </intellectualRights>
     <coverage>
       <geographicCoverage>
         <geographicDescription>${xmlEsc(geographicDescription)}</geographicDescription>
         <boundingCoordinates>
-          <westBoundingCoordinate>-136</westBoundingCoordinate>
-          <eastBoundingCoordinate>-120</eastBoundingCoordinate>
-          <northBoundingCoordinate>54</northBoundingCoordinate>
-          <southBoundingCoordinate>36</southBoundingCoordinate>
+          <westBoundingCoordinate>${BOUNDING_BOX.west}</westBoundingCoordinate>
+          <eastBoundingCoordinate>${BOUNDING_BOX.east}</eastBoundingCoordinate>
+          <northBoundingCoordinate>${BOUNDING_BOX.north}</northBoundingCoordinate>
+          <southBoundingCoordinate>${BOUNDING_BOX.south}</southBoundingCoordinate>
         </boundingCoordinates>
       </geographicCoverage>
       <temporalCoverage>
@@ -288,6 +308,15 @@ export function buildEml(input: EmlInput): string {
       </methodStep>
     </methods>
   </dataset>
+  <additionalMetadata>
+    <metadata>
+      <gbif>
+        <!-- The GBIF profile requires a dateStamp in this block; the build's day keeps the document deterministic. -->
+        <dateStamp>${xmlEsc(d.pub_date)}T00:00:00</dateStamp>
+        <citation identifier="${xmlEsc(d.dataset_id)}">${xmlEsc(datasetCitation(d))}</citation>
+      </gbif>
+    </metadata>
+  </additionalMetadata>
 </eml:eml>
 `;
 }

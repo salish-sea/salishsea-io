@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { buildEml } from './eml.ts';
+import { buildEml, datasetCitation } from './eml.ts';
 import type { DatasetsRow, EmlInput } from './eml.ts';
 
 /**
@@ -336,5 +336,35 @@ describe('buildEml — associatedParty (ATTR-04)', () => {
         });
         expect(xml).toContain('<organizationName>Org &amp; Co</organizationName>');
         expect(xml).toContain('<onlineUrl>https://example.com/?a=1&amp;b=2</onlineUrl>');
+    });
+});
+
+describe('buildEml — recommended citation (salish-8ws)', () => {
+    test('names the creator, the build year, the title, the version and the datasetID', () => {
+        expect(datasetCitation(mockDatasets)).toBe(
+            'SalishSea.io (2026). SalishSea.io Marine Mammal Occurrences (v1.3). ' +
+            'Darwin Core Archive, version of 2026-06-17. https://salishsea.io/datasets/occurrences-v1',
+        );
+    });
+
+    test('goes in the GBIF block after </dataset>, after the dateStamp the profile requires', () => {
+        const xml = buildEml(mockInput);
+        const datasetEnd = xml.indexOf('</dataset>');
+        const stamp = xml.indexOf('<dateStamp>2026-06-17T00:00:00</dateStamp>');
+        const citation = xml.indexOf(
+            '<citation identifier="https://salishsea.io/datasets/occurrences-v1">' +
+            `${datasetCitation(mockDatasets)}</citation>`,
+        );
+        expect(stamp).toBeGreaterThan(datasetEnd);
+        expect(citation).toBeGreaterThan(stamp);
+        expect(xml.indexOf('</eml:eml>')).toBeGreaterThan(citation);
+    });
+});
+
+describe('buildEml — GBIF profile limits', () => {
+    test('<intellectualRights> holds one <para>, as the profile schema requires', () => {
+        const xml = buildEml(mockInput);
+        const block = xml.slice(xml.indexOf('<intellectualRights>'), xml.indexOf('</intellectualRights>'));
+        expect((block.match(/<para>/g) ?? []).length).toBe(1);
     });
 });
