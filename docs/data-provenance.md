@@ -15,6 +15,25 @@ restating volatile specifics that drift over time.
 > upstream sources. We are an **aggregator/publisher**, not the originator of
 > most records — the model below exists so that credit lands in the right place.
 
+## Citing the dataset
+
+We recommend this citation ([decision 104](decisions/104-the-dataset-is-cited-as-salishsea-io-at-its-datasetid.md)), with the day you downloaded the archive, because the
+archive changes as sightings arrive:
+
+> SalishSea.io (*year*). SalishSea.io Marine Mammal Occurrences (v1.3). Darwin Core
+> Archive, version of *date*. https://salishsea.io/datasets/occurrences-v1
+
+The address is the `datasetID` every record carries; it leads to the "Data download"
+section of the [About page](https://salishsea.io/about.html#data-download), which gives
+the same citation. Each archive's `eml.xml` carries the citation filled in with the day
+that archive was built, in the GBIF block after the dataset description; it is written by
+`datasetCitation` in [`scripts/dwca/eml.ts`](../scripts/dwca/eml.ts), from the dataset
+row in [`scripts/read-path/derive/dwc.sql`](../scripts/read-path/derive/dwc.sql).
+
+Citing the dataset credits SalishSea.io as its publisher. Most records came to us
+through another organization, which each record names in `datasetName` (below); when you
+use their records, credit those organizations as well.
+
 ## The aggregator pattern
 
 Every exported record carries the same publisher identity:
@@ -168,8 +187,9 @@ the same change:
 - Attribution mapping or new DwC terms → keep the table above in sync with
   [`scripts/dwca/fields.ts`](../scripts/dwca/fields.ts) and `dwc.occurrences` in
   [`scripts/read-path/derive/dwc.sql`](../scripts/read-path/derive/dwc.sql).
-- Dataset metadata / `associatedParty` / contacts → track
-  [`scripts/dwca/eml.ts`](../scripts/dwca/eml.ts).
+- Dataset metadata / `associatedParty` / contacts / the recommended citation → track
+  [`scripts/dwca/eml.ts`](../scripts/dwca/eml.ts). The About page types the citation by hand;
+  `src/about.test.ts` fails when its title or address no longer matches the dataset row.
 - Included/excluded sources → track the export view's branches and
   [`scripts/dwca/guard.ts`](../scripts/dwca/guard.ts).
 - Resolution rules → track

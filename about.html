@@ -90,6 +90,9 @@
         margin-left: 0.5rem;
         opacity: 0.65;
       }
+      .citation {
+        padding-left: 1.25rem;
+      }
       .freshness {
         font-size: var(--fs-body2);
         margin-top: 0.25rem;
@@ -109,7 +112,7 @@
         <li>Sightings submitted to the <a href="https://www.whalealert.org/" target="_blank" rel="noopener noreferrer">Whale Alert</a> mobile app by the public</li>
         <li>Sightings from the <a href="https://www.orcanetwork.org/" target="_blank" rel="noopener noreferrer">Orca Network</a> community</li>
       </ul>
-      <h2>Data download</h2>
+      <h2 id="data-download">Data download</h2>
       <p>
         The full observation dataset is published as a
         <a href="https://dwc.tdwg.org/" target="_blank" rel="noopener noreferrer">Darwin Core Archive</a>, with a GeoParquet sidecar for
@@ -133,6 +136,17 @@
         </li>
       </ul>
       <p class="freshness">Updated as new sightings arrive.</p>
+      <p>
+        To cite the dataset, give the day you downloaded it, because the archive changes as sightings arrive:
+      </p>
+      <p class="citation">
+        SalishSea.io (<var>year</var>). SalishSea.io Marine Mammal Occurrences (v1.3).
+        Darwin Core Archive, version of <var>date</var>. https://salishsea.io/datasets/occurrences-v1
+      </p>
+      <p>
+        Each record names the organization it came through, such as Orca Network, in its <code>datasetName</code>.
+        When you use their records, credit those organizations as well.
+      </p>
       <h2>What this site records</h2>
       <ul>
         <li><strong>What you search for.</strong> When you choose a search result, or give up on a search, the site keeps the words you typed, how many results they found, and what you chose. It does not keep who you are or where you searched from.</li>

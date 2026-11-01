@@ -4,8 +4,8 @@
  * Generates the `eml.xml` document that accompanies the DarwinCore Archive
  * zip, per the GBIF EML profile. Includes title, creator, metadata provider,
  * pubDate, language, abstract, keyword set, intellectual rights, three-axis
- * coverage (geographic / temporal / taxonomic), contact, and a two-paragraph
- * methods description.
+ * coverage (geographic / temporal / taxonomic), contact, a two-paragraph
+ * methods description, and the citation we recommend for the dataset.
  *
  * Inputs:
  *   - `datasets`: a row from the `dwc.datasets` view (19 columns mirroring
@@ -114,6 +114,20 @@ const xmlEsc = (s: string | null | undefined): string => {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
 };
+
+/**
+ * The citation we recommend for the dataset (decision 104), as it stood on the day
+ * this archive was built: the archive is rewritten as sightings arrive, so the
+ * date says which version was used. The address is the datasetID every record
+ * carries, which redirects to the About page's "Data download" section
+ * (fly/Caddyfile). The About page gives the same citation for a reader to
+ * complete with the day they downloaded it; src/about.test.ts holds the two to
+ * the same title and address.
+ */
+export function datasetCitation(d: DatasetsRow): string {
+    return `${d.creator_name} (${d.pub_date.slice(0, 4)}). ${d.title}. ` +
+        `Darwin Core Archive, version of ${d.pub_date}. ${d.dataset_id}`;
+}
 
 /**
  * Build the EML 2.1.1 metadata document as a UTF-8 string.
@@ -288,6 +302,15 @@ export function buildEml(input: EmlInput): string {
       </methodStep>
     </methods>
   </dataset>
+  <additionalMetadata>
+    <metadata>
+      <gbif>
+        <!-- The GBIF profile requires a dateStamp in this block; the build's day keeps the document deterministic. -->
+        <dateStamp>${xmlEsc(d.pub_date)}T00:00:00</dateStamp>
+        <citation identifier="${xmlEsc(d.dataset_id)}">${xmlEsc(datasetCitation(d))}</citation>
+      </gbif>
+    </metadata>
+  </additionalMetadata>
 </eml:eml>
 `;
 }
