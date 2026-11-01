@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const captureException = vi.fn();
 vi.mock('@sentry/browser', () => ({captureException: (...args: unknown[]) => captureException(...args)}));
 
-const { reportError } = await import('./report-error.ts');
+const { isNetworkFailure, reportError } = await import('./report-error.ts');
 import type { ErrorReport } from './report-error.ts';
 
 describe('reportError', () => {
@@ -79,5 +79,19 @@ describe('reportError', () => {
     const seen = listenOn(el);
     reportError(el, 'Sightings did not load', {persist: true});
     expect(seen[0]!.persist).toBe(true);
+  });
+});
+
+describe('isNetworkFailure', () => {
+  it.each(['Failed to fetch', 'Failed to fetch (salishsea.io)', 'Load failed', 'NetworkError when attempting to fetch resource.'])(
+    'is the TypeError fetch throws when no response came: %s', message => {
+      expect(isNetworkFailure(new TypeError(message))).toBe(true);
+    });
+
+  it('is not an HTTP error, another TypeError, or the same words on another kind of error', () => {
+    expect(isNetworkFailure(new Error('https://salishsea.io/days/2024-07-16.json: HTTP 503'))).toBe(false);
+    expect(isNetworkFailure(new TypeError("Cannot read properties of null (reading 'map')"))).toBe(false);
+    expect(isNetworkFailure(new Error('Failed to fetch'))).toBe(false);
+    expect(isNetworkFailure('Failed to fetch')).toBe(false);
   });
 });
