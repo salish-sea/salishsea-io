@@ -175,11 +175,16 @@
 	redir /whales.html /whales permanent
 	redir /whales/ /whales permanent
 
-	# Every record in the Darwin Core archive names its dataset by this address
-	# (datasetID), and the citation on the About page gives it. It has no page of its
-	# own yet, so it sends the reader to the About page's "Data download" section.
-	# Temporary, so that a page of its own can take the address later (decision 104).
-	redir /datasets/occurrences-v1 /about.html#data-download
+	# The archive's own page, at the address every record in it names as its
+	# datasetID and its citation gives (decision 104).
+	handle /datasets/occurrences-v1 {
+		header Cache-Control "no-cache"
+		root * /app/dist
+		rewrite * /dataset.html
+		file_server
+	}
+	redir /dataset.html /datasets/occurrences-v1 permanent
+	redir /datasets/occurrences-v1/ /datasets/occurrences-v1 permanent
 
 	# The sitemap the build writes, with every profile in it; the site's own,
 	# from the image, until the first build has run.

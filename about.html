@@ -77,27 +77,6 @@
           display: none;
         }
       }
-      .downloads {
-        margin-top: 0.25rem;
-        padding-left: 1.25rem;
-      }
-      .downloads li {
-        margin-bottom: 0.25rem;
-      }
-      .sha-link {
-        font-size: var(--fs-caption);
-        font-weight: 400;
-        margin-left: 0.5rem;
-        opacity: 0.65;
-      }
-      .citation {
-        padding-left: 1.25rem;
-      }
-      .freshness {
-        font-size: var(--fs-body2);
-        margin-top: 0.25rem;
-        opacity: 0.8;
-      }
     </style>
     <script type="module" src="src/about.ts"></script>
   </head>
@@ -114,38 +93,10 @@
       </ul>
       <h2 id="data-download">Data download</h2>
       <p>
-        The full observation dataset is published as a
-        <a href="https://dwc.tdwg.org/" target="_blank" rel="noopener noreferrer">Darwin Core Archive</a>, with a GeoParquet sidecar for
-        spatial tools. Native SalishSea.io observations and Maplify / Whale Alert sightings
-        (including Orca Network and Cascadia) are included; iNaturalist observations are
-        excluded — those are already published to GBIF by iNaturalist itself. Every record is
-        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>:
-        SalishSea.io's own sightings as their contributors grant under our <a href="/terms.html">terms of use</a>,
-        and the Maplify / Whale Alert sightings as their contributors grant through the
-        <a href="https://acartia.io/" target="_blank" rel="noopener noreferrer">Acartia</a> data cooperative.
-        A contributor's sightings are included once they have agreed to the terms.
-      </p>
-      <ul class="downloads">
-        <li>
-          <a href="/dwca/salishsea-occurrences-v1.zip" download>salishsea-occurrences-v1.zip</a><small data-size="zip"></small>
-          <a href="/dwca/salishsea-occurrences-v1.zip.sha256" class="sha-link" download>sha256</a>
-        </li>
-        <li>
-          <a href="/dwca/salishsea-occurrences-v1.parquet" download>salishsea-occurrences-v1.parquet</a><small data-size="parquet"></small>
-          <a href="/dwca/salishsea-occurrences-v1.parquet.sha256" class="sha-link" download>sha256</a>
-        </li>
-      </ul>
-      <p class="freshness">Updated as new sightings arrive.</p>
-      <p>
-        To cite the dataset, give the day you downloaded it, because the archive changes as sightings arrive:
-      </p>
-      <p class="citation">
-        SalishSea.io (<var>year</var>). SalishSea.io Marine Mammal Occurrences (v1.3).
-        Darwin Core Archive, version of <var>date</var>. https://salishsea.io/datasets/occurrences-v1
-      </p>
-      <p>
-        Each record names the organization it came through, such as Orca Network, in its <code>datasetName</code>.
-        When you use their records, credit those organizations as well.
+        The sightings we publish, except iNaturalist's, can be downloaded under
+        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>
+        as a <a href="https://dwc.tdwg.org/" target="_blank" rel="noopener noreferrer">Darwin Core Archive</a> or a GeoParquet file.
+        <a href="/datasets/occurrences-v1">SalishSea.io Marine Mammal Occurrences</a> has the files, where they come from, and how to cite them.
       </p>
       <h2>What this site records</h2>
       <ul>

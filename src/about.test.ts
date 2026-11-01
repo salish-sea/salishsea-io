@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { enhanceAboutDownloads, restoreMapBackLink } from './about.ts';
 
-// Mirrors the static markup in about.html that the enhancement script upgrades.
+// Mirrors the static markup in dataset.html that the enhancement script upgrades.
 function makeAboutRoot(): HTMLElement {
   const root = document.createElement('div');
   root.innerHTML = `
@@ -99,21 +97,3 @@ test('leaves the static fallbacks untouched on HEAD failure', async () => {
   expect(root.querySelector('.freshness')!.textContent!.trim()).toBe('Updated as new sightings arrive.');
 });
 
-// The page's citation is typed by hand; the archive's comes from the dataset row the
-// build writes (scripts/dwca/eml.ts, datasetCitation). A new version of the dataset
-// changes the row's title, and this keeps the page from citing the old one.
-test('the citation on about.html names the dataset as the build does', () => {
-  const read = (file: string) => readFileSync(path.join(process.cwd(), file), 'utf-8');
-  const sql = read('scripts/read-path/derive/dwc.sql');
-  const row = sql.slice(sql.indexOf('CREATE OR REPLACE TABLE pgdb.dwc.datasets'));
-  const title = row.match(/'([^']+)' AS title/)?.[1];
-  const datasetId = row.match(/'([^']+)' AS dataset_id/)?.[1];
-  expect(title).toBeTruthy();
-  expect(datasetId).toBeTruthy();
-
-  const page = document.createElement('div');
-  page.innerHTML = read('about.html');
-  const citation = page.querySelector('.citation')?.textContent?.replace(/\s+/g, ' ');
-  expect(citation).toContain(`. ${title}. `);
-  expect(citation).toContain(datasetId);
-});

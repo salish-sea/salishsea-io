@@ -360,3 +360,11 @@ describe('buildEml — recommended citation (salish-8ws)', () => {
         expect(xml.indexOf('</eml:eml>')).toBeGreaterThan(citation);
     });
 });
+
+describe('buildEml — GBIF profile limits', () => {
+    test('<intellectualRights> holds one <para>, as the profile schema requires', () => {
+        const xml = buildEml(mockInput);
+        const block = xml.slice(xml.indexOf('<intellectualRights>'), xml.indexOf('</intellectualRights>'));
+        expect((block.match(/<para>/g) ?? []).length).toBe(1);
+    });
+});
