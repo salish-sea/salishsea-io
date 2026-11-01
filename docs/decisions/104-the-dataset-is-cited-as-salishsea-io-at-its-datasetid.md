@@ -24,7 +24,11 @@ The block names as `isBasedOn` the Whale Alert feed shared through Acartia and t
 - **Peter as a personal author.** It ties the dataset to one person rather than the project that publishes it.
 - **The block on the About page, the `datasetID` redirecting there.** Less to build, but the canonical page would be a page about the whole site, and the identifier would land mid-page.
 - **Citing the zip directly.** It lands a reader on a download rather than a description.
-- **A w3id.org address for the dataset, now.** Peter asked whether the `datasetID` should use the `w3id.org/salish-sea/` namespace being registered for the animals register ([perma-id/w3id.org#7039](https://github.com/perma-id/w3id.org/pull/7039)). It would outlive a change of domain, but the namespace isn't merged, adding the dataset to that pull request would widen a review under way, and a GBIF DOI (`salish-1bb`) would be the dataset's lasting identifier anyway. Changing the `datasetID` later changes every record, so if it is to move it should move before GBIF registration.
+- **A w3id.org address for the dataset, now.** The namespace `w3id.org/salish-sea/` isn't merged yet ([perma-id/w3id.org#7039](https://github.com/perma-id/w3id.org/pull/7039)), and adding the dataset to that pull request would widen a review under way. Deferred rather than rejected: see the next section.
+
+## Deferred: the w3id.org address
+
+Peter asked whether the `datasetID` should use the `w3id.org/salish-sea/` namespace being registered for the animals register. It should: an identifier there outlives a change of domain or host, and with no GBIF registration planned soon there is no DOI to be the dataset's lasting identifier instead. Every citation printed with the `salishsea.io` address keeps it, so the move is worth making early. Once #7039 merges, a second w3id pull request adds `/salish-sea/datasets/occurrences-v1`, redirecting to this page; then the `datasetID`, the citation and the page's `@id` and `identifier` change to the w3id address together. The page stays at `https://salishsea.io/datasets/occurrences-v1` as the redirect's target and its own canonical URL. Tracked in bd `salish-a249`.
 
 ## Consequences
 
