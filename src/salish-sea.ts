@@ -25,7 +25,7 @@ import './feedback-form.ts';
 import './terms-prompt.ts';
 import type { TermsPrompt } from './terms-prompt.ts';
 import { agreedToCurrent } from './terms.ts';
-import { reportError, type ErrorReport } from './report-error.ts';
+import { isNetworkFailure, reportError, type ErrorReport } from './report-error.ts';
 import { v7 } from "uuid";
 import { fromLonLat } from './map-view.ts';
 import { DEFAULT_REGION_SLUG, type Extent, isExtent, observationToday, regionBySlug, type Region } from "./constants.ts";
@@ -916,8 +916,16 @@ export default class SalishSea extends LitElement {
       // complete list is incomplete.
       // Persist: an empty list is indistinguishable from a quiet day, so a
       // message that times out would leave the map lying about the water.
+      // A dropped connection is reported under one fingerprint, whichever code
+      // asked for the day: otherwise every change to the callers starts a new
+      // Sentry issue for it (SALISHSEA-IO-3Q, -3R, -4H), and the one number that
+      // tells an outage from ordinary lost signal is split across them.
       if (date === this.date && region.slug === this.#region.slug && revision === this.#listRevision)
-        reportError(this, "Couldn't load sightings. The list may be incomplete.", {cause: err, persist: true});
+        reportError(this, "Couldn't load sightings. The list may be incomplete.", {
+          cause: err,
+          persist: true,
+          fingerprint: isNetworkFailure(err) ? ['day-file-network-failure'] : undefined,
+        });
       return false;
     }
 
