@@ -1,9 +1,10 @@
-// Progressive enhancement for the static /about.html page.
+// Progressive enhancement for the static /about.html page and the dataset's page
+// (dataset.html, served at /datasets/occurrences-v1).
 //
 // The page content (prose, links, download list, the nav's Map link) is
 // plain static HTML so it is fully crawlable and readable with JavaScript
 // disabled. This script only *upgrades* two things:
-//   1. the download section — fills in archive file sizes and replaces the
+//   1. the dataset page's downloads — fills in archive file sizes and replaces the
 //      static "Updated as new sightings arrive." line with a relative timestamp,
 //      via a pair of HEAD requests (see download-info.ts);
 //   2. the nav's Map link — restores the map permalink the visitor came

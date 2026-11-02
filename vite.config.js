@@ -45,9 +45,11 @@ export function vendorChunk(id) {
   return VENDOR_CHUNKS.find(([, matches]) => matches(name))?.[0] ?? null;
 }
 
-// The whales page's shell, client-rendered until the build has written the page.
+// The whales page's shell, client-rendered until the build has written the page; and
+// the archive's page, at its datasetID (decision 104).
 function whalesRewrite(req, _res, next) {
   if (/^\/whales\/?(\?.*)?$/.test(req.url ?? '')) req.url = '/whales.html';
+  else if (/^\/datasets\/occurrences-v1(\?.*)?$/.test(req.url ?? '')) req.url = '/dataset.html';
   next();
 }
 
@@ -170,6 +172,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         about: resolve(__dirname, 'about.html'),
+        dataset: resolve(__dirname, 'dataset.html'),
         terms: resolve(__dirname, 'terms.html'),
         individual: resolve(__dirname, 'individual.html'),
         matriline: resolve(__dirname, 'matriline.html'),
@@ -259,6 +262,7 @@ export default defineConfig({
         const pages = [
           { loc: 'https://salishsea.io/', changefreq: 'daily', priority: '1.0' },
           { loc: 'https://salishsea.io/about.html', changefreq: 'monthly', priority: '0.5' },
+          { loc: 'https://salishsea.io/datasets/occurrences-v1', changefreq: 'daily', priority: '0.5' },
           { loc: 'https://salishsea.io/terms.html', changefreq: 'yearly', priority: '0.3' },
           { loc: 'https://salishsea.io/whales', changefreq: 'daily', priority: '0.6' },
         ];

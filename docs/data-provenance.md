@@ -2,8 +2,8 @@
 
 How a sighting reaches SalishSea.io, and how its provenance is expressed in the
 public **DarwinCore Archive (DwC-A)** that we regenerate as new sightings arrive and publish at
-**<https://salishsea.io/dwca/>** (linked from the site's About modal, with a
-GeoParquet sidecar and sha256 checksums).
+**<https://salishsea.io/dwca/>**, with a GeoParquet sidecar and sha256 checksums. The
+archive's own page, **<https://salishsea.io/datasets/occurrences-v1>**, links them all.
 
 This document is for **people who consume that archive** — researchers,
 aggregators, and anyone deciding how to credit or cite our records. It explains
@@ -14,6 +14,24 @@ restating volatile specifics that drift over time.
 > SalishSea.io aggregates cetacean sightings for the Salish Sea from several
 > upstream sources. We are an **aggregator/publisher**, not the originator of
 > most records — the model below exists so that credit lands in the right place.
+
+## Citing the dataset
+
+We recommend this citation ([decision 104](decisions/104-the-dataset-is-cited-as-salishsea-io-at-its-datasetid.md)), with the day you downloaded the archive, because the
+archive changes as sightings arrive:
+
+> SalishSea.io (*year*). SalishSea.io Marine Mammal Occurrences (v1.3). Darwin Core
+> Archive, version of *date*. https://salishsea.io/datasets/occurrences-v1
+
+The address is the `datasetID` every record carries, and the archive's own page, which
+gives the same citation. Each archive's `eml.xml` carries the citation filled in with the
+day that archive was built, in the GBIF block after the dataset description; it is
+written by `datasetCitation` in [`scripts/dwca/eml.ts`](../scripts/dwca/eml.ts), from the
+dataset row in [`scripts/read-path/derive/dwc.sql`](../scripts/read-path/derive/dwc.sql).
+
+Citing the dataset credits SalishSea.io as its publisher. Most records came to us
+through another organization, which each record names in `datasetName` (below); when you
+use their records, credit those organizations as well.
 
 ## The aggregator pattern
 
@@ -168,8 +186,10 @@ the same change:
 - Attribution mapping or new DwC terms → keep the table above in sync with
   [`scripts/dwca/fields.ts`](../scripts/dwca/fields.ts) and `dwc.occurrences` in
   [`scripts/read-path/derive/dwc.sql`](../scripts/read-path/derive/dwc.sql).
-- Dataset metadata / `associatedParty` / contacts → track
-  [`scripts/dwca/eml.ts`](../scripts/dwca/eml.ts).
+- Dataset metadata / `associatedParty` / contacts / the recommended citation → track
+  [`scripts/dwca/eml.ts`](../scripts/dwca/eml.ts). The dataset's page ([`dataset.html`](../dataset.html))
+  is typed by hand, schema.org block included; `src/dataset.test.ts` fails when it no
+  longer matches the dataset row or `eml.ts`.
 - Included/excluded sources → track the export view's branches and
   [`scripts/dwca/guard.ts`](../scripts/dwca/guard.ts).
 - Resolution rules → track
