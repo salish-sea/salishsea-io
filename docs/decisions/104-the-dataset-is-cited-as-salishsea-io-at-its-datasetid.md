@@ -10,7 +10,7 @@ Neither the About page, the archive's metadata (`eml.xml`) nor [data-provenance.
 
 **The citation names SalishSea.io as the author**, as the archive's metadata already names it creator and every record names it `rightsHolder`. The recommended form is:
 
-> SalishSea.io (*year*). SalishSea.io Marine Mammal Occurrences (v1.3). Darwin Core Archive, version of *date*. https://salishsea.io/datasets/occurrences-v1
+> SalishSea.io (*year*). SalishSea.io Marine Mammal Occurrences (v1.3). Darwin Core Archive, version of *date*. https://w3id.org/salish-sea/datasets/occurrences-v1
 
 The date is the day the reader downloaded the archive, because the build rewrites it as sightings arrive. Each `eml.xml` carries the citation filled in with the day it was built, in GBIF's `<citation>` element.
 
@@ -28,7 +28,7 @@ The block names as `isBasedOn` the Whale Alert feed shared through Acartia and t
 
 ## Deferred: the w3id.org address
 
-Peter asked whether the `datasetID` should use the `w3id.org/salish-sea/` namespace being registered for the animals register. It should: an identifier there outlives a change of domain or host, and with no GBIF registration planned soon there is no DOI to be the dataset's lasting identifier instead. Every citation printed with the `salishsea.io` address keeps it, so the move is worth making early. Once #7039 merges, a second w3id pull request adds `/salish-sea/datasets/occurrences-v1`, redirecting to this page; then the `datasetID`, the citation and the page's `@id` and `identifier` change to the w3id address together. The page stays at `https://salishsea.io/datasets/occurrences-v1` as the redirect's target and its own canonical URL. Tracked in bd `salish-a249`.
+Peter asked whether the `datasetID` should use the `w3id.org/salish-sea/` namespace being registered for the animals register. It should: an identifier there outlives a change of domain or host, and with no GBIF registration planned soon there is no DOI to be the dataset's lasting identifier instead. Every citation printed with the `salishsea.io` address keeps it, so the move is worth making early. Once #7039 merges, a second w3id pull request adds `/salish-sea/datasets/occurrences-v1`, redirecting to this page; then the `datasetID`, the citation and the page's `@id` and `identifier` change to the w3id address together. The page stays at `https://salishsea.io/datasets/occurrences-v1` as the redirect's target and its own canonical URL. *Done 2026-11-02:* [perma-id/w3id.org#7054](https://github.com/perma-id/w3id.org/pull/7054) added the address (and fixed the namespace's catch-all, whose `#` Apache had escaped), and the `datasetID`, the citation and the page's `@id` and `identifier` are now `https://w3id.org/salish-sea/datasets/occurrences-v1` (bd `salish-a249`).
 
 ## Consequences
 

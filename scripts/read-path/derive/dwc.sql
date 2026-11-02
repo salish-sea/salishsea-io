@@ -120,7 +120,7 @@ CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
          'SalishSea' AS "institutionCode",
          'SalishSea.io' AS "rightsHolder",
          'SalishSea.io — ' || c_coll.name AS "datasetName",
-         'https://salishsea.io/datasets/occurrences-v1' AS "datasetID",
+         'https://w3id.org/salish-sea/datasets/occurrences-v1' AS "datasetID",
          -- the terms of use the contributor agreed to (decision 086, #739)
          'https://creativecommons.org/licenses/by/4.0/legalcode' AS license,
          pg_jsonb_object([
@@ -178,7 +178,7 @@ CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
          'SalishSea' AS "institutionCode",
          'SalishSea.io' AS "rightsHolder",
          'SalishSea.io — ' || coalesce(c_coll.name, 'Whale Alert (Global)') AS "datasetName",
-         'https://salishsea.io/datasets/occurrences-v1' AS "datasetID",
+         'https://w3id.org/salish-sea/datasets/occurrences-v1' AS "datasetID",
          'https://creativecommons.org/licenses/by/4.0/legalcode' AS license,
          pg_jsonb_object([
            pg_jsonb_member('aggregatorChain', 'Whale Alert / Maplify (WASEAK) > ' || coalesce(c_coll.name, 'Whale Alert (Global)')),
@@ -258,8 +258,10 @@ CREATE OR REPLACE TABLE pgdb.dwc.export_coverage AS
 
 -- --- dwc.datasets -------------------------------------------------------------------------
 -- The one row (decision 027's text), dated by the build rather than CURRENT_DATE.
+-- dataset_id is the dataset's w3id.org address, which redirects to its page at
+-- https://salishsea.io/datasets/occurrences-v1 (decision 104).
 CREATE OR REPLACE TABLE pgdb.dwc.datasets AS
-  SELECT 'https://salishsea.io/datasets/occurrences-v1' AS dataset_id,
+  SELECT 'https://w3id.org/salish-sea/datasets/occurrences-v1' AS dataset_id,
          CAST(NULL AS VARCHAR) AS parent_dataset_id,
          'SalishSea.io Marine Mammal Occurrences (v1.3)' AS title,
          'Native and Maplify/Whale Alert marine mammal sighting records from the Salish Sea region. Authored from observation tables in the SalishSea.io database, expressed as DarwinCore-aligned columns. In practice the archive is overwhelmingly cetacean; see the taxonomic coverage statement for why.' AS abstract,
