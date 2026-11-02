@@ -261,6 +261,13 @@ describe('writeArchive integration (DWCA-01..04/06)', () => {
             const parquetN = parquetCountReader.getRowObjects()[0]!['n'];
             expect(Number(parquetN)).toBe(written);
             expect(written).toBeGreaterThan(0);
+
+            // (5) Every column chunk is Zstandard (salish-pdau): Snappy left the
+            // parquet heavier than the zip.
+            const codecReader = await conn.runAndReadAll(
+                `SELECT DISTINCT compression FROM parquet_metadata('${PARQUET}')`,
+            );
+            expect(codecReader.getRowObjects().map((r) => String(r['compression']))).toEqual(['ZSTD']);
         } finally {
             conn.closeSync();
         }

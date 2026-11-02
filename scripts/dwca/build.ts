@@ -211,12 +211,18 @@ export async function writeArchive(conn: DuckDBConnection, outDir: string): Prom
     // BLOB) — per §R1, this is the configuration under which DuckDB
     // 1.5.4-r.1 auto-emits the GeoParquet `geo` kv-metadata. We verify
     // the metadata is actually present in step 12 below.
+    //
+    // Zstandard at level 9, not Snappy (salish-pdau): on the 2026-11-01 archive
+    // Snappy made the parquet 1.57 MB, heavier than the zip (0.97 MB), because it
+    // barely shrinks the sighting text. Level 9 gives 0.86 MB in 84 ms; level 19
+    // saves another 10% for a second more on every build. GDAL, geopandas, R's
+    // arrow and DuckDB all read Zstandard.
     const plainOccList = OCCURRENCE_FIELDS.map((f) => `"${f.name}"`).join(
         ', ',
     );
     await conn.run(
         `COPY (SELECT ${plainOccList}, ST_Point("decimalLongitude", "decimalLatitude") AS geometry ` +
-            `FROM pgdb.dwc.occurrences) TO '${OUT_PARQUET}' (FORMAT parquet, COMPRESSION snappy)`,
+            `FROM pgdb.dwc.occurrences) TO '${OUT_PARQUET}' (FORMAT parquet, COMPRESSION zstd, COMPRESSION_LEVEL 9)`,
     );
 
     // Step 12: R1 empirical GeoParquet metadata verification. Read the
