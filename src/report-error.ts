@@ -17,6 +17,18 @@ export interface ErrorReport {
  * The event bubbles composed to `<salish-sea>`, which owns the toast. Call it
  * from anywhere in the tree; nothing in between has to know.
  */
+/**
+ * Whether `err` is the browser saying a request never got a response: the
+ * connection dropped, the device is offline, or the server couldn't be reached.
+ * Each engine words it its own way, and all three throw a TypeError from `fetch`:
+ * Chromium "Failed to fetch", WebKit "Load failed", Gecko "NetworkError when
+ * attempting to fetch resource." An HTTP error status is a response, so it isn't one.
+ */
+export function isNetworkFailure(err: unknown): boolean {
+  return err instanceof TypeError
+    && /^(Failed to fetch|Load failed|NetworkError when attempting to fetch resource)/.test(err.message);
+}
+
 export function reportError(
   source: EventTarget,
   message: string,
