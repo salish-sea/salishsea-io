@@ -74,7 +74,7 @@ describe('buildEml — required elements present', () => {
 
     test('packageId, system, scope, xml:lang attributes', () => {
         const xml = buildEml(mockInput);
-        expect(xml).toContain('packageId="https://w3id.org/salish-sea/datasets/occurrences-v1/eml-1.xml"');
+        expect(xml).toContain('packageId="https://w3id.org/salish-sea/datasets/occurrences-v1"');
         expect(xml).toContain('system="gbif"');
         expect(xml).toContain('scope="system"');
         expect(xml).toContain('xml:lang="en"');

@@ -206,7 +206,10 @@ export function buildEml(input: EmlInput): string {
         'Cascadia Research Collective. Records are published under CC-BY 4.0 as asserted ' +
         'by contributors to the Acartia cooperative at registration.';
 
-    const packageId = `${d.dataset_id}/eml-1.xml`;
+    // The package is the dataset with its metadata, so it takes the dataset's own
+    // identifier, whose -v1 is the version. It used to append /eml-1.xml, an address
+    // that would land on the animals register's README under w3id (decision 104).
+    const packageId = d.dataset_id;
 
     // Hardcoded contact individual name parts per POLICY §6.4 D-18.
     const contactGivenName = 'Peter';
