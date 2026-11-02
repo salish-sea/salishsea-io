@@ -5,17 +5,17 @@
 
 import { describe, expect, test } from 'vitest';
 import { loadGold, reportText } from '../gold.ts';
-import { FIELDS, scoreRow, type Field } from '../score.ts';
+import { absent, FIELDS, hedged, present, scoreRow, type Field } from '../score.ts';
 import { readDirection, readTokens } from './tokens.ts';
 
-/** Row 143 excludes an animal it fails to name ("T46s minus T46s"); row 136 names a calf's mother as context. */
+/** Row 143 excludes an animal it fails to name ("T46s minus T46s"); row 136 names a calf's mother as context, which costs it codes present and certainty alike. */
 const WRONG_TODAY: Record<Field, number[]> = {
-    direction: [], codes_present: [136], codes_absent: [143], codes_hedged: [], pods: [],
+    direction: [], codes_present: [136], codes_absent: [143], codes_hedged: [], certainty: [136], pods: [],
 };
 
 describe('the token reader', () => {
     test('which gold rows it gets wrong, by field', () => {
-        const wrong: Record<Field, number[]> = {direction: [], codes_present: [], codes_absent: [], codes_hedged: [], pods: []};
+        const wrong: Record<Field, number[]> = {direction: [], codes_present: [], codes_absent: [], codes_hedged: [], certainty: [], pods: []};
         for (const row of loadGold()) {
             const scores = scoreRow(row, readTokens(reportText(row.comment)));
             for (const f of FIELDS) if (!scores[f]) wrong[f].push(row.row);
@@ -32,12 +32,25 @@ describe('the token reader', () => {
         ['blows of SRKWs seen north of Alki', [], [], [], null],
         ['K pod, some spread, some facing west', [], [], [], null],
         ['T65-A3 and T49-A2', ['T65A3', 'T49A2'], [], [], null],
-    ] as const)('%j', (text, present, absent, hedged, direction) => {
+    ] as const)('%j', (text, wantPresent, wantAbsent, wantHedged, direction) => {
         const got = readTokens(text);
-        expect(got.codes_present).toEqual(present);
-        expect(got.codes_absent).toEqual(absent);
-        expect(got.codes_hedged).toEqual(hedged);
+        expect(present(got)).toEqual(wantPresent);
+        expect(absent(got)).toEqual(wantAbsent);
+        expect(hedged(got)).toEqual(wantHedged);
         expect(got.direction).toBe(direction);
+    });
+
+    test('a hedge word gives its certainty', () => {
+        const claims = readTokens('Biggs T137s and likely T36A1s, maybe T65A5, northbound').claims;
+        expect(claims).toEqual([
+            {code: 'T137s', presence: 'present', certainty: 'certain'},
+            {code: 'T36A1s', presence: 'present', certainty: 'probable'},
+            {code: 'T65A5', presence: 'present', certainty: 'possible'},
+        ]);
+        expect(readTokens('T46s (-D) northbound').claims).toEqual([
+            {code: 'T46s', presence: 'present', certainty: 'certain'},
+            {code: 'T46D', presence: 'absent', certainty: 'certain'},
+        ]);
     });
 
     test('a pod list', () => {

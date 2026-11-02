@@ -1,47 +1,59 @@
 /**
  * How a reading of a sighting's text is scored against its gold row.
  *
- * A reader answers the fields the gold set labels and an extraction could be asked for:
- * the codes present, absent and hedged, the pods, and the direction. Each is scored as
- * right or wrong per report. Codes are compared as sets, so order doesn't matter, but a
- * listed absent animal, a missed code or an invented one each make the field wrong.
- * Direction is right when it matches the label or its `direction_also`, with `milling`,
- * `unknown` and null all meaning "no compass direction": a reader that answers `milling`
- * where the label is null is counted right on direction, since the regex macros, which
- * cannot say `milling`, would otherwise be favoured.
+ * A reader answers claims, one per code the text names: the code, whether the text says
+ * the animal was present or absent, and how sure the reporter was (decision 054's
+ * certainty: certain, probable, possible); plus the pods named and the direction. Six
+ * fields are scored, each right or wrong per report. Codes are compared as sets after the
+ * register's fold (T065A5 is T65A5), so order and zero padding don't matter, but a listed
+ * absent animal, a missed code or an invented one each make the field wrong. Certainty is
+ * right when every present code carries the gold's level: the hedge level for a hedged
+ * code, certain for the rest. Direction is right when it matches the label or its
+ * `direction_also`, with `milling`, `unknown` and null all meaning "no compass direction":
+ * a reader that answers `milling` where the label is null is counted right on direction,
+ * since the regex macros, which cannot say `milling`, would otherwise be favoured.
  */
 
 import type { GoldRow } from './gold.ts';
 
+export type Certainty = 'certain' | 'probable' | 'possible';
+export type Claim = {code: string, presence: 'present' | 'absent', certainty: Certainty};
+
 export type Reading = {
-    codes_present: string[];
-    codes_absent: string[];
-    codes_hedged: string[];
+    claims: Claim[];
     pods: string[];
     direction: string | null;
 };
 
-export const FIELDS = ['direction', 'codes_present', 'codes_absent', 'codes_hedged', 'pods'] as const;
+export const FIELDS = ['direction', 'codes_present', 'codes_absent', 'codes_hedged', 'certainty', 'pods'] as const;
 export type Field = typeof FIELDS[number];
 
 const NO_DIRECTION = new Set<string | null>([null, 'milling', 'unknown']);
 
 /** A code as the register compares it: case folded, hyphens and spaces dropped, leading zeros dropped (its ADR-0019). */
-const foldCode = (x: string) => x.toUpperCase().replace(/[-\s]/g, '').replace(/(^|\D)0+(?=\d)/g, '$1');
+export const foldCode = (x: string) => x.toUpperCase().replace(/[-\s]/g, '').replace(/(^|\D)0+(?=\d)/g, '$1');
 const sameSet = (a: string[], b: string[]) => {
     const fold = (xs: string[]) => [...new Set(xs.map(foldCode))].sort().join(';');
     return fold(a) === fold(b);
 };
 
+export const present = (r: Reading) => r.claims.filter(c => c.presence === 'present').map(c => c.code);
+export const absent = (r: Reading) => r.claims.filter(c => c.presence === 'absent').map(c => c.code);
+export const hedged = (r: Reading) => r.claims.filter(c => c.presence === 'present' && c.certainty !== 'certain').map(c => c.code);
+
 export function scoreRow(gold: GoldRow, reading: Reading): Record<Field, boolean> {
     const direction = NO_DIRECTION.has(gold.direction)
         ? NO_DIRECTION.has(reading.direction)
         : reading.direction === gold.direction || (gold.direction_also !== null && reading.direction === gold.direction_also);
+    const goldCertainty = gold.codes_present.map(code =>
+        `${foldCode(code)}:${gold.codes_hedged.some(h => foldCode(h) === foldCode(code)) ? gold.hedge_level : 'certain'}`);
+    const readCertainty = reading.claims.filter(c => c.presence === 'present').map(c => `${foldCode(c.code)}:${c.certainty}`);
     return {
         direction,
-        codes_present: sameSet(reading.codes_present, gold.codes_present),
-        codes_absent: sameSet(reading.codes_absent, gold.codes_absent),
-        codes_hedged: sameSet(reading.codes_hedged, gold.codes_hedged),
+        codes_present: sameSet(present(reading), gold.codes_present),
+        codes_absent: sameSet(absent(reading), gold.codes_absent),
+        codes_hedged: sameSet(hedged(reading), gold.codes_hedged),
+        certainty: sameSet(readCertainty, goldCertainty),
         pods: sameSet(reading.pods, gold.pods),
     };
 }

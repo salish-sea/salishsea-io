@@ -25,9 +25,11 @@ import { reportText, type GoldRow } from '../gold.ts';
 import type { Reading } from '../score.ts';
 
 export const READING = z.object({
-    codes_present: z.array(z.string()).describe('Catalogue codes of the animals and matrilines the text says were there, in the form T65A5, T36Bs, CRC531.'),
-    codes_absent: z.array(z.string()).describe('Codes the text says were not there.'),
-    codes_hedged: z.array(z.string()).describe('Codes among codes_present whose presence the text hedges.'),
+    claims: z.array(z.object({
+        code: z.string().describe('A catalogue code of an animal or matriline the text names, in the form T65A5, T36Bs, CRC531.'),
+        presence: z.enum(['present', 'absent']).describe('Whether the text says the animal was there or not there.'),
+        certainty: z.enum(['certain', 'probable', 'possible']).describe('How sure the reporter was: certain when stated flat; probable for likely, presumably, probably; possible for possibly, maybe, unconfirmed or a question mark.'),
+    })).describe('One claim per code the text names.'),
     pods: z.array(z.enum(['J', 'K', 'L'])).describe('Southern Resident pods the text names.'),
     direction: z.enum(['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'milling', 'unknown']).nullable()
         .describe('The direction of travel at the time of the report, or milling, or unknown, or null when the text says nothing about travel.'),
@@ -64,7 +66,7 @@ export const SYSTEM = `You read one report of a whale sighting from the Salish S
 - "Biggs" means Bigg's (transient) killer whales; their codes begin with T. "SRKW" is the Southern Resident killer whales, whose pods are J, K and L. "Js", "Ks", "Ls", "J pod", "Jpod" name a pod. CRC codes are gray whales, BCX codes are humpbacks.
 - A code with a trailing s is a matriline (T36Bs). A code may be written without its letter after a slash or comma: "T36/36Bs" names T36 and T36Bs; "T36A1s, 65A5, and 137s" names T36A1s, T65A5 and T137s; "68Cs, 69A4" after "Biggs" are T68Cs and T69A4. A hyphen may sit inside a code: "T65-A3" is T65A3.
 - An exclusion names animals that were NOT there: "T46s (-D)" means the T46s were there but T46D was not; "(-T46D)" the same; "T124As (-A4s)" means the T124A4s were absent; "T137s (-A)" or "T137s minus T137A" means T137A was absent; "T65As (minus A5)" means T65A5 was absent; "T60s minus T60D&E" means T60D and T60E were absent.
-- A hedge ("likely", "possibly", "maybe", "presumably", "?") marks the codes it applies to as hedged; they are still listed as present. "Likely Biggs T137s and T36A1s" hedges both.
+- A hedge sets a code's certainty: "likely", "presumably", "probably" make it probable; "possibly", "maybe", "unconfirmed" and "?" make it possible; a code stated flat is certain. The animal is still present. "Likely Biggs T137s and T36A1s" makes both probable; "Biggs T137s and likely T36A1s" makes only T36A1s probable.
 - Direction is the travel direction at the time of the report, as one of eight compass points. "NB", "SB", "EB", "WB", "NE bound", "SW bound", "heading in a SE direction", "trending N" count. A bearing from a landmark ("north of Alki", "1/2 mile southeast of Polnell Point", "W of mid channel") is a position, not a direction. A place name ("West Point", "North Beach") is not a direction. A spread ("spread north to south", "N to S", "wide north-south spread") is not a direction. "Facing west" is not travel. When the text narrates a change ("had been northbound, now stalled"; "southbound then turned west"), answer the direction now. "milling", "stalled", "directional changes", "multidirectional" with no net travel is "milling". "direction unknown" is "unknown". Say null only when the text says nothing about travel.
 - Only what the text states. Do not infer an absent animal the text does not name, do not add behaviour the text does not describe, and take a count only from the text ("at least two orcas" is 2; "4-6 orcas" is 4).
 
@@ -110,7 +112,7 @@ export function claudeReader(model: string) {
         save(path, cache);
         return new Map(rows.map(r => {
             const m = cache[r.maplify_id]!.reading;
-            return [r.row, {codes_present: m.codes_present, codes_absent: m.codes_absent, codes_hedged: m.codes_hedged, pods: m.pods, direction: m.direction}];
+            return [r.row, {claims: m.claims, pods: m.pods, direction: m.direction}];
         }));
     };
 }

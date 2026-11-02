@@ -32,6 +32,7 @@ The labels say what the text says, not what is true of the animals:
 - `codes_present`: catalogue codes of animals and matrilines the text says were there, in text order, in the form the macro emits (letter upper case, digits as written, a matriline's `s` lower case). A code written without its letter is written with it. A hedged code is still present.
 - `codes_absent`: codes the text says were not there. A short form such as `(-D)` after `T46s` means `T46D`. Only what the text names: where it excludes an animal it fails to name (*T46s minus T46s*), nothing is labelled absent.
 - `codes_hedged`: codes whose presence the text hedges: *likely T36A1s*, *maybe T65A5*; every code the report names when the whole identification is hedged, *possibly Biggs T99s and T65A3*.
+- `hedge_level`: how strong the hedge on `codes_hedged` is, as decision 054's certainty: `probable` for *likely*, *presumably*, *probably*; `possible` for *possibly*, *maybe*, *unconfirmed*, `?`. Null when nothing is hedged. One level per report; no report in the set hedges two codes differently.
 - `pods`: Southern Resident pods named, as `J`, `K`, `L`.
 - `ecotype`: `Biggs` when the text says so or names a T code; `SRKW` when it says so or names J, K or L; otherwise null.
 - `nicknames`: animals named by nickname rather than code, not resolved.

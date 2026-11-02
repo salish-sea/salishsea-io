@@ -8,8 +8,9 @@
  * which takes the letter of the code before it or T when the text says Biggs; a hyphen
  * inside a code ("T65-A3"); and an exclusion, "(-D)", "(-T46D)", "minus T137A", "minus
  * T60D&E", whose animals are absent, a short form resolved against the matriline before
- * it. A hedge word, "likely", "possibly", "maybe", "presumed", marks the codes that
- * follow it up to the next comma as hedged. Pods are "J pod", "Jpod", "Js", "J and K
+ * it. A hedge word marks the codes that follow it up to the next comma: "likely" and
+ * "presumably" make them probable, "possibly", "maybe" and "?" possible. Each code comes
+ * back as a claim, present or absent, with that certainty. Pods are "J pod", "Jpod", "Js", "J and K
  * pods". The direction is a compass word or abbreviation, "NB", "SW bound", "trending N",
  * ignoring a bearing ("north of Alki", "1/2 mile southeast of"), a place name ("West
  * Point"), a spread ("north to south", "N to S") and "facing"; after "now", "then" or
@@ -19,10 +20,13 @@
  */
 
 import { reportText, type GoldRow } from '../gold.ts';
-import type { Reading } from '../score.ts';
+import type { Certainty, Claim, Reading } from '../score.ts';
 
 const CODE = /\b(?:([TJKL]|CRC|BCX)\s?-?\s?)?(\d{1,5})(?:-?((?:[A-Za-z]\d*)+))?(s)?\b/g;
 const HEDGE = /\b(likely|possibly|possible|maybe|presumably|presumed|probably|probable|unconfirmed)\b|\?/gi;
+/** Decision 054's certainty for a hedge word: a strong hedge is probable, a weak one possible. */
+const LEVEL: Record<string, Certainty> = {likely: 'probable', presumably: 'probable', presumed: 'probable', probably: 'probable', probable: 'probable',
+    possibly: 'possible', possible: 'possible', maybe: 'possible', unconfirmed: 'possible', '?': 'possible'};
 const EXCLUDE = /\(\s*-\s*|\bminus\b|(?<=[A-Za-z0-9]s)\s+-(?=[A-Z])/g;
 
 type Code = {start: number, end: number, text: string, letter: string | null, suffix: string, matriline: boolean};
@@ -102,13 +106,21 @@ export function readTokens(text: string): Reading {
     const present: string[] = [];
     named.forEach((t, i) => { if (!excludedIdx.has(i) && !present.includes(t.text)) present.push(t.text); });
 
-    // Hedges: the codes after a hedge word, up to the next comma, period or closing bracket.
-    const hedged = new Set<string>();
+    // Hedges: the codes after a hedge word, up to the next comma, period or closing bracket,
+    // carry the word's certainty; a code under two hedges takes the weaker.
+    const certainty = new Map<string, Certainty>();
     for (const h of text.matchAll(HEDGE)) {
+        const level = LEVEL[h[0].toLowerCase()]!;
         const end = text.slice(h.index!).search(/[,.;)]|\bbut\b/);
         const stop = end < 0 ? text.length : h.index! + end;
-        for (const t of named) if (t.start >= h.index! && t.end <= stop && present.includes(t.text)) hedged.add(t.text);
+        for (const t of named) {
+            if (t.start >= h.index! && t.end <= stop && present.includes(t.text) && certainty.get(t.text) !== 'possible') certainty.set(t.text, level);
+        }
     }
+    const claims: Claim[] = [
+        ...present.map(code => ({code, presence: 'present' as const, certainty: certainty.get(code) ?? 'certain'})),
+        ...[...absent].map(code => ({code, presence: 'absent' as const, certainty: 'certain' as const})),
+    ];
 
     // Pods.
     const pods = new Set<string>();
@@ -117,7 +129,7 @@ export function readTokens(text: string): Reading {
         for (const l of m[1]!.toUpperCase().match(/[JKL]/g) ?? []) pods.add(l);
     }
 
-    return {codes_present: present, codes_absent: [...absent], codes_hedged: [...hedged], pods: [...pods], direction: readDirection(text)};
+    return {claims, pods: [...pods], direction: readDirection(text)};
 }
 
 const FULL: Record<string, string> = {
