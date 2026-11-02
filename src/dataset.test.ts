@@ -35,13 +35,18 @@ test('the citation names the dataset as the build does', () => {
   expect(citation).toContain(datasetId);
 });
 
-test('the page has one Dataset block, at the datasetID, its canonical address', () => {
+// The page's own address. The datasetID is a w3id.org address that redirects here
+// (decision 104), so the two differ.
+const PAGE = 'https://salishsea.io/datasets/occurrences-v1';
+
+test('the page has one Dataset block, identified by the datasetID, at the page\'s own address', () => {
   expect(blocks).toHaveLength(1);
   expect(dataset['@type']).toBe('Dataset');
+  expect(datasetId).toMatch(/^https:\/\/w3id\.org\/salish-sea\/datasets\//);
   expect(dataset['@id']).toBe(datasetId);
-  expect(dataset.url).toBe(datasetId);
   expect(dataset.identifier).toBe(datasetId);
-  expect(page.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(datasetId);
+  expect(dataset.url).toBe(PAGE);
+  expect(page.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(PAGE);
 });
 
 test("the block's name, version and description are the archive's and the page's", () => {

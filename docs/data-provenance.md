@@ -21,10 +21,11 @@ We recommend this citation ([decision 104](decisions/104-the-dataset-is-cited-as
 archive changes as sightings arrive:
 
 > SalishSea.io (*year*). SalishSea.io Marine Mammal Occurrences (v1.3). Darwin Core
-> Archive, version of *date*. https://salishsea.io/datasets/occurrences-v1
+> Archive, version of *date*. https://w3id.org/salish-sea/datasets/occurrences-v1
 
-The address is the `datasetID` every record carries, and the archive's own page, which
-gives the same citation. Each archive's `eml.xml` carries the citation filled in with the
+The address is the `datasetID` every record carries, a [w3id.org](https://w3id.org/)
+address that redirects to the archive's own page, so it keeps working if the site moves.
+The page gives the same citation. Each archive's `eml.xml` carries the citation filled in with the
 day that archive was built, in the GBIF block after the dataset description; it is
 written by `datasetCitation` in [`scripts/dwca/eml.ts`](../scripts/dwca/eml.ts), from the
 dataset row in [`scripts/read-path/derive/dwc.sql`](../scripts/read-path/derive/dwc.sql).

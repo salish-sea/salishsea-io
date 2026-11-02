@@ -21,7 +21,7 @@ import type { DatasetsRow, EmlInput } from './eml.ts';
  * authored text for these per E-01 / E-03.
  */
 const mockDatasets: DatasetsRow = {
-    dataset_id: 'https://salishsea.io/datasets/occurrences-v1',
+    dataset_id: 'https://w3id.org/salish-sea/datasets/occurrences-v1',
     parent_dataset_id: null,
     title: 'SalishSea.io Marine Mammal Occurrences (v1.3)',
     abstract:
@@ -74,7 +74,7 @@ describe('buildEml — required elements present', () => {
 
     test('packageId, system, scope, xml:lang attributes', () => {
         const xml = buildEml(mockInput);
-        expect(xml).toContain('packageId="https://salishsea.io/datasets/occurrences-v1/eml-1.xml"');
+        expect(xml).toContain('packageId="https://w3id.org/salish-sea/datasets/occurrences-v1"');
         expect(xml).toContain('system="gbif"');
         expect(xml).toContain('scope="system"');
         expect(xml).toContain('xml:lang="en"');
@@ -343,7 +343,7 @@ describe('buildEml — recommended citation (salish-8ws)', () => {
     test('names the creator, the build year, the title, the version and the datasetID', () => {
         expect(datasetCitation(mockDatasets)).toBe(
             'SalishSea.io (2026). SalishSea.io Marine Mammal Occurrences (v1.3). ' +
-            'Darwin Core Archive, version of 2026-06-17. https://salishsea.io/datasets/occurrences-v1',
+            'Darwin Core Archive, version of 2026-06-17. https://w3id.org/salish-sea/datasets/occurrences-v1',
         );
     });
 
@@ -352,7 +352,7 @@ describe('buildEml — recommended citation (salish-8ws)', () => {
         const datasetEnd = xml.indexOf('</dataset>');
         const stamp = xml.indexOf('<dateStamp>2026-06-17T00:00:00</dateStamp>');
         const citation = xml.indexOf(
-            '<citation identifier="https://salishsea.io/datasets/occurrences-v1">' +
+            '<citation identifier="https://w3id.org/salish-sea/datasets/occurrences-v1">' +
             `${datasetCitation(mockDatasets)}</citation>`,
         );
         expect(stamp).toBeGreaterThan(datasetEnd);

@@ -1,6 +1,8 @@
-# 104 — The dataset is cited as SalishSea.io's, at the address every record already names, which is now its page
+# 104 — The dataset is cited as SalishSea.io's, at the w3id.org address every record names, which leads to its own page
 
-**Status:** accepted · **Decided:** 2026-11-01, by Peter · **Work:** bd `salish-8ws`, `salish-rine`
+**Status:** accepted · **Decided:** 2026-11-01, by Peter · **Amended:** 2026-11-02, the `datasetID` moves to w3id.org · **Work:** bd `salish-8ws`, `salish-rine`, `salish-a249`
+
+*Amended 2026-11-02:* the `datasetID` is now `https://w3id.org/salish-sea/datasets/occurrences-v1`, which redirects to the archive's page at `https://salishsea.io/datasets/occurrences-v1`. The page's address is unchanged. This was first deferred until the namespace existed; see "The w3id.org address" below. Wording this amendment replaces is struck through.
 
 ## Context
 
@@ -10,11 +12,11 @@ Neither the About page, the archive's metadata (`eml.xml`) nor [data-provenance.
 
 **The citation names SalishSea.io as the author**, as the archive's metadata already names it creator and every record names it `rightsHolder`. The recommended form is:
 
-> SalishSea.io (*year*). SalishSea.io Marine Mammal Occurrences (v1.3). Darwin Core Archive, version of *date*. https://salishsea.io/datasets/occurrences-v1
+> SalishSea.io (*year*). SalishSea.io Marine Mammal Occurrences (v1.3). Darwin Core Archive, version of *date*. https://w3id.org/salish-sea/datasets/occurrences-v1
 
 The date is the day the reader downloaded the archive, because the build rewrites it as sightings arrive. Each `eml.xml` carries the citation filled in with the day it was built, in GBIF's `<citation>` element.
 
-**The address is the `datasetID`, and it is now the archive's own page** (`dataset.html`, served there by `fly/Caddyfile`): what the archive holds and leaves out, its downloads, its licence, the citation, and a schema.org `Dataset` block for search engines. The About page's "Data download" section shrinks to a sentence that links it. One page about exactly this dataset is what a dataset index expects as the block's home, and it gives the identifier every record carries somewhere to lead.
+**The `datasetID` is a w3id.org address, `https://w3id.org/salish-sea/datasets/occurrences-v1`, and it leads to the archive's own page,** `https://salishsea.io/datasets/occurrences-v1`. ~~The address is the `datasetID`, and it is now the archive's own page~~ The page is `dataset.html`, served there by `fly/Caddyfile`: what the archive holds and leaves out, its downloads, its licence, the citation, and a schema.org `Dataset` block for search engines. The About page's "Data download" section shrinks to a sentence that links it. One page about exactly this dataset is what a dataset index expects as the block's home, and it gives the identifier every record carries somewhere to lead.
 
 The block names as `isBasedOn` the Whale Alert feed shared through Acartia and the animals register, not each organization the archive credits: that list follows the data (the archive's `eml.xml` credits only organizations with records in it), and a hand-kept copy would fall behind. If the archive is registered with GBIF (`salish-1bb`), its DOI goes into the block as `identifier` and `sameAs`, so that the index doesn't list GBIF's page and ours as two datasets.
 
@@ -24,11 +26,11 @@ The block names as `isBasedOn` the Whale Alert feed shared through Acartia and t
 - **Peter as a personal author.** It ties the dataset to one person rather than the project that publishes it.
 - **The block on the About page, the `datasetID` redirecting there.** Less to build, but the canonical page would be a page about the whole site, and the identifier would land mid-page.
 - **Citing the zip directly.** It lands a reader on a download rather than a description.
-- **A w3id.org address for the dataset, now.** The namespace `w3id.org/salish-sea/` isn't merged yet ([perma-id/w3id.org#7039](https://github.com/perma-id/w3id.org/pull/7039)), and adding the dataset to that pull request would widen a review under way. Deferred rather than rejected: see the next section.
+- ~~**A w3id.org address for the dataset, now.** The namespace `w3id.org/salish-sea/` isn't merged yet ([perma-id/w3id.org#7039](https://github.com/perma-id/w3id.org/pull/7039)), and adding the dataset to that pull request would widen a review under way. Deferred rather than rejected: see the next section.~~ Adopted on 2026-11-02, once the namespace existed; see the next section.
 
-## Deferred: the w3id.org address
+## The w3id.org address (deferred on 2026-11-01, done on 2026-11-02)
 
-Peter asked whether the `datasetID` should use the `w3id.org/salish-sea/` namespace being registered for the animals register. It should: an identifier there outlives a change of domain or host, and with no GBIF registration planned soon there is no DOI to be the dataset's lasting identifier instead. Every citation printed with the `salishsea.io` address keeps it, so the move is worth making early. Once #7039 merges, a second w3id pull request adds `/salish-sea/datasets/occurrences-v1`, redirecting to this page; then the `datasetID`, the citation and the page's `@id` and `identifier` change to the w3id address together. The page stays at `https://salishsea.io/datasets/occurrences-v1` as the redirect's target and its own canonical URL. Tracked in bd `salish-a249`.
+Peter asked whether the `datasetID` should use the `w3id.org/salish-sea/` namespace being registered for the animals register. It should: an identifier there outlives a change of domain or host, and with no GBIF registration planned soon there is no DOI to be the dataset's lasting identifier instead. Every citation printed with the `salishsea.io` address keeps it, so the move is worth making early. Once #7039 merges, a second w3id pull request adds `/salish-sea/datasets/occurrences-v1`, redirecting to this page; then the `datasetID`, the citation and the page's `@id` and `identifier` change to the w3id address together. The page stays at `https://salishsea.io/datasets/occurrences-v1` as the redirect's target and its own canonical URL. *Done 2026-11-02:* [perma-id/w3id.org#7054](https://github.com/perma-id/w3id.org/pull/7054) added the address (and fixed the namespace's catch-all, whose `#` Apache had escaped), and the `datasetID`, the citation and the page's `@id` and `identifier` are now `https://w3id.org/salish-sea/datasets/occurrences-v1` (bd `salish-a249`). `eml.xml`'s `packageId` is the same address: it identifies the package, the dataset with its metadata. It used to append `/eml-1.xml`, which under w3id would fall through to the animals register's README.
 
 ## Consequences
 

@@ -126,7 +126,8 @@ export const BOUNDING_BOX = {west: -136, east: -120, north: 54, south: 36} as co
  * The citation we recommend for the dataset (decision 104), as it stood on the day
  * this archive was built: the archive is rewritten as sightings arrive, so the
  * date says which version was used. The address is the datasetID every record
- * carries, where the dataset's page (dataset.html) is served. That page gives the
+ * carries, a w3id.org address that redirects to the dataset's page (dataset.html,
+ * served at https://salishsea.io/datasets/occurrences-v1). That page gives the
  * same citation for a reader to complete with the day they downloaded it;
  * src/dataset.test.ts holds the two to the same title and address.
  */
@@ -205,7 +206,10 @@ export function buildEml(input: EmlInput): string {
         'Cascadia Research Collective. Records are published under CC-BY 4.0 as asserted ' +
         'by contributors to the Acartia cooperative at registration.';
 
-    const packageId = `${d.dataset_id}/eml-1.xml`;
+    // The package is the dataset with its metadata, so it takes the dataset's own
+    // identifier, whose -v1 is the version. It used to append /eml-1.xml, an address
+    // that would land on the animals register's README under w3id (decision 104).
+    const packageId = d.dataset_id;
 
     // Hardcoded contact individual name parts per POLICY §6.4 D-18.
     const contactGivenName = 'Peter';
