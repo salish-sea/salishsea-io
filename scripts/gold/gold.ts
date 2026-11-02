@@ -17,6 +17,7 @@ export type GoldRow = {
     codes_present: string[];
     codes_absent: string[];
     codes_hedged: string[];
+    hedge_level: 'probable' | 'possible' | null;
     pods: string[];
     ecotype: string | null;
     nicknames: string[];

@@ -41,3 +41,17 @@ Two things to know before relying on a model reading in the build. The models sp
 - **The regexes' misses are patterns, and rules fix them.** On the five fields the gold set labels, a deterministic reader does as well as either model, costs nothing, runs in the build without a network and gives the same answer every time. Codes, exclusions, hedges, pods and directions should stay deterministic, as decision 102 expected.
 - **A model earns its place beyond these fields.** The gold set also labels counts, calves, behaviour words, places, who identified and later edits, which no reader here answers yet and which rules will fit less well; the model reader already returns a count and a calf flag that nobody has scored. That is the next measurement.
 - **An exclusion needs somewhere to go.** Every reader but the regexes can say an animal was absent, and the build has no column for it: a candidate identifier is a bare code. Peter's question on 2026-10-31, "we need schema work to do exclusions", is bd `salish-uh38`.
+
+## Addendum, 2026-11-02: claims with presence and certainty
+
+An agent building the reader into the build asked for certainty and absence as the build's candidates will store them (bd `salish-uh38`): one claim per code, present or absent, with the reporter's certainty as decision 054 defines it. The readers now answer that shape (bd `salish-ghic`): a hedge word sets the certainty of the codes it covers, *likely* and *presumably* to probable, *possibly*, *maybe* and *?* to possible, and the gold set labels the level on the nine reports that hedge a code. Scored as a sixth field, right when every present code carries the gold's level:
+
+| reader | certainty right, random orca (100) | hedge stratum (10) |
+|---|---|---|
+| the build's regexes | 90 | 6 |
+| token reader | 100 | 10 |
+| Claude Haiku 5.5 | 99 | 10 |
+| Claude Sonnet 5.5 | 100 | 10 |
+
+The models were read again, since the schema changed, at the same cost as before. Haiku's one miss resolves the nickname *Indy* to a code and calls it probable, where the label keeps nicknames apart from codes. Nothing else moved.
+
