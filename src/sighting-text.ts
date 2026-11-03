@@ -197,7 +197,7 @@ const FULL: Record<string, string> = {
 // A compass word, or a compass abbreviation that the words around it make a direction.
 const COMPASS = /\b((?:north[- ]?(?:east|west)|south[- ]?(?:east|west)|north|south|east|west)(?:\s?-?bound)?|(?:NB|SB|EB|WB)|(?<=\b(?:heading|headed|trending|trend|going|moving|traveling|travelling|drifting|continuing|direction)\s+)(?:NE|NW|SE|SW|N|S|E|W)|(?:NE|NW|SE|SW|N|S|E|W)(?=\s*-?\s*(?:bound|direction|toward)))\b/gi;
 const MILLING = /\b(milling|stalled|directional changes|multi ?-?directional|shuffling|foraging)\b/i;
-const TRAVEL_WORD = /^(?:heading|headed|traveling|travelling|moving|going|swimming|trending|continuing|now|then|turned|direction)$/i;
+const TRAVEL_WORD = /^(?:heading|headed|traveling|travelling|moving|going|swimming|trending|continuing|tracking|turning|now|then|turned|direction)$/i;
 const UNKNOWN = /direction (?:unknown|unconfirmed|not given)|no direction/i;
 const CHANGE = /\b(now|then|turned|flipped|changed direction|committed to)\b/gi;
 
@@ -225,7 +225,7 @@ function mentions(text: string): {at: number, dir: string}[] {
         if (/^\s+[A-Z][a-z]/.test(after) && /^(north|south|east|west)$/i.test(word)) continue; // West Point, North Beach
         // Steve East, Katie West, Off East Sooke Park: a name, unless the word before says it travels (Heading South)
         const capitalBefore = /\b([A-Z][a-z]+)\s+$/.exec(before);
-        if (/^[A-Z][a-z]/.test(word) && capitalBefore && !TRAVEL_WORD.test(capitalBefore[1]!)) continue;
+        if (/^(North|South|East|West)$/.test(word) && capitalBefore && !TRAVEL_WORD.test(capitalBefore[1]!)) continue;
         if (/\d\s*(?:mile|miles|mi|km|nm|yards?)\s*$/i.test(before)) continue;   // 1/2 mile southeast of
         out.push({at: m.index!, dir});
     }

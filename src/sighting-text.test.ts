@@ -103,5 +103,6 @@ describe('reading sighting text', () => {
         expect(readText('Biggs T65As southbound (Steve East)').direction).toBe('south');
         expect(readText('Biggs. Off East Sooke Park near shore').direction).toBe(null);
         expect(readText('Heading South between Long Point and Snake').direction).toBe('south');
+        expect(readText('Biggs Southbound (Randy Witter)').direction).toBe('south');
     });
 });
