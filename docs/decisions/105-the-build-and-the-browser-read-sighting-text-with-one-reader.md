@@ -55,12 +55,12 @@ Reading comments on iNaturalist observations ([106](106-a-comment-can-name-the-a
 - *not only*, *not just* and *no doubt* affirm, and *never mind* negates nothing;
 - a negated question, "Isn't it T65A?", makes its codes possible rather than absent.
 
-Over every production text on 2026-11-02, 14 of about 66,000 read differently:
-- 3 of 38,900 Maplify reports: "one not CRC 2440", "Not seeing T65A2 & A3" and "Did not see T37A or T137";
+Over every production text on 2026-11-02, 15 of about 66,000 read differently:
+- 4 of 38,900 Maplify reports: "one not CRC 2440", "Not seeing T65A2 & A3", "Did not see T37A or T137" and "have not seen T46D and T46E";
 - 7 of 16,079 iNaturalist descriptions, such as "T060s (no T060D T060E)";
 - 4 remarks: the two found in 106's sample, and "I don't see T124C".
 
-13 of them are now right. The 14th is a link whose address contains "no" and "?", which turns a code read out of the address from certain to possible, and which was never a real reading anyway. The gold rows the reader gets wrong are unchanged.
+14 of them are now right. The 15th is a link whose address contains "no" and "?", which turns a code read out of the address from certain to possible, and which was never a real reading anyway. The gold rows the reader gets wrong are unchanged.
 
 ## Rejected
 

@@ -92,7 +92,7 @@ const EXCLUDE = /\(\s*-\s*|\bminus\b|(?<=[A-Za-z0-9]s)\s+-(?=[A-Z])/g;
 const NEGATION = /\b(?:not(?!\s+(?:sure|certain|positive|100\s*%?|only|just)\b)|no(?!\s+doubt\b)|never(?!\s+mind\b)|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\b/gi;
 // What may stand between a negation and the first code it governs: a few words of the
 // same clause, "the", "any", "think this is", "recognize this as any", and no punctuation.
-const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['’]s|is|was|are|were|be|as|actually|from|in|part|recognize|think|believe|see|seeing|either|even|quite|just))*\s+$/i;
+const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['’]s|is|was|are|were|be|as|actually|from|in|part|recognize|think|believe|see|seen|seeing|either|even|quite|just))*\s+$/i;
 // What may stand between two codes a negation governs, matched at the start of the rest: a
 // list over a comma, a slash, "&", "and", "or", "nor" or only a space ("no T060D T060E").
 const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
@@ -183,8 +183,10 @@ export function readText(text: string): Reading {
     const questioned = new Set<string>();
     for (const cue of text.matchAll(NEGATION)) {
         // a question ("Isn't it T65A?"): its codes are possible, not absent. The "?" must end
-        // the negation's own clause, not a later one ("No T65A, but is it T65B?").
-        const question = /^(?:(?!\bbut\b)[^.;!?])*\?/i.exec(text.slice(cue.index!));
+        // the negation's own clause, not a later one that "but" or a comma and a question word
+        // begins ("No T65A, but is it T65B?", "No T65A, is it T65B?").
+        const question = /^(?:(?!\bbut\b|,\s*(?:is|are|was|were|could|can|would|do|does|did|isn['’]t|aren['’]t)\b)[^.;!?])*\?/i
+            .exec(text.slice(cue.index!));
         if (question) {
             const end = cue.index! + question[0].length;
             for (const t of named) if (t.start >= cue.index! && t.end <= end) questioned.add(t.text);

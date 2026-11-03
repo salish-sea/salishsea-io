@@ -132,15 +132,18 @@ describe('reading sighting text', () => {
         expect(readText("Isn't it T65A?").claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
         expect(absent(readText("It isn't T65A. Maybe T65B?"))).toEqual(['T65A']);
         // a later question doesn't cancel an earlier negation
-        const later = readText('No T65A, but is it T65B?');
-        expect(absent(later)).toEqual(['T65A']);
-        expect(present(later)).toEqual(['T65B']);
+        for (const text of ['No T65A, but is it T65B?', 'No T65A, is it T65B?']) {
+            expect(absent(readText(text))).toEqual(['T65A']);
+            expect(present(readText(text))).toEqual(['T65B']);
+        }
         expect(readText("Isn't it T65A, or T65B?").claims.map(c => [c.code, c.presence, c.certainty]))
             .toEqual([['T65A', 'present', 'possible'], ['T65B', 'present', 'possible']]);
     });
 
     test('more negations: a verb of seeing, a letter alone in a list, and not a word', () => {
         expect(absent(readText("I don't see T65A here"))).toEqual(['T65A']);
+        expect(absent(readText('Not seen T65A today'))).toEqual(['T65A']);
+        expect(absent(readText('Never seen T65A2 with them'))).toEqual(['T65A2']);
         expect(absent(readText('No T65A & B today'))).toEqual(['T65A', 'T65B']);
         // "I" is a word, not T65I
         const word = readText('not T65A, I think');
