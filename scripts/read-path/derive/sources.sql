@@ -60,10 +60,10 @@ CREATE OR REPLACE TEMP VIEW source_inaturalist_identifications AS
 
 -- What people wrote on an iNaturalist observation besides its description: each comment,
 -- and what each identifier wrote with an identification they still hold, read for the
--- animals they name (salish-4s42). Not a withdrawn identification's, whose author took it
--- back; not what iNaturalist's moderators hid, whose text the mirror doesn't keep anyway;
--- and not what an account iNaturalist deleted wrote (decision 081). Kept to read, never
--- shown (rights-policy §5.5).
+-- animals and pods they name (salish-4s42, decision 106). Not a withdrawn identification's,
+-- whose author took it back; not what iNaturalist's moderators hid, whose text the mirror
+-- doesn't keep anyway; and not what an account iNaturalist deleted wrote (decision 081).
+-- The codes and pods are shown as the sighting's; the words never are (rights-policy §5.5).
 CREATE OR REPLACE TEMP VIEW source_inaturalist_remarks AS
   SELECT CAST(observation_id AS BIGINT) AS observation_id, 'comment' AS origin, CAST(id AS BIGINT) AS origin_id, body
   FROM inaturalist_mirror.comments

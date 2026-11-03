@@ -176,6 +176,25 @@ describe('armsFor', () => {
         expect(parts.shared).not.toMatch(/INSERT INTO|CREATE OR REPLACE TABLE/);
     });
 
+    test("a remark adds the codes the observer's text doesn't name, present or absent (decision 106)", async () => {
+        const parts = parseArms(await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8'));
+        const db = await DuckDBInstance.create(':memory:');
+        const conn = await db.connect();
+        try {
+            await conn.run(parts.shared.split(/^-- --- The store/m)[0]!);
+            const code = (c: string, origin = 'comment', id = 1) => `{'code': '${c}', 'origin': '${origin}', 'origin_id': ${id}}`;
+            const claim = (c: string, presence: string) => `{'code': '${c}', 'presence': '${presence}', 'certainty': 'certain'}`;
+            const added = async (codes: string, claims: string) => (await conn.runAndReadAll(
+                `SELECT list_transform(remark_codes(${codes}, ${claims}), x -> x.code)`)).getRows()[0]![0];
+            // the observer names T46s and says T46D was absent; a comment names all three
+            expect(await added(`[${code('T46s')}, ${code('T46D')}, ${code('T46B')}]`,
+                `[${claim('T46s', 'present')}, ${claim('T46D', 'absent')}]`)).toEqual({items: ['T46B']});
+            // no description, or no remarks
+            expect(await added(`[${code('T19B', 'identification')}]`, 'NULL')).toEqual({items: ['T19B']});
+            expect(await added('NULL', `[${claim('T46s', 'present')}]`)).toEqual({items: []});
+        } finally { conn.closeSync(); db.closeSync(); }
+    });
+
     test('a marker twice, an arm missing, or a statement above the first marker is a parse error, not a silently dropped section', () => {
         expect(() => parseArms('-- arm: native\nx;\n-- arm: native\ny;\n-- shared\nz;')).toThrow(/twice/);
         expect(() => parseArms('-- arm: native\nx;\n-- shared\nz;')).toThrow(/no '-- arm: maplify'/);
@@ -233,7 +252,9 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
                     const docs = (await conn.runAndReadAll('SELECT doc FROM store.build.occurrences')).getRows()
                         .map(([doc]) => JSON.parse(doc as string) as Record<string, unknown>);
                     expect(docs.length).toBeGreaterThan(0);
-                    expect(docs.filter(doc => (doc['pods'] as string[]).length).map(doc => doc['pods'])).toEqual([['L']]);
+                    // and one comment, on 9000001, names J pod, which joins that observation's (decision 106)
+                    expect(docs.filter(doc => (doc['pods'] as string[]).length)
+                        .map(doc => [doc['id'], doc['pods']]).sort()).toEqual([['inaturalist:9000001', ['J']], ['maplify:13', ['L']]]);
                     for (const doc of docs) {
                         const keys = Object.keys(doc);
                         expect(keys[keys.indexOf('body') + 1]).toBe('pods');
@@ -302,8 +323,8 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
             expect(await compare(snapshot)).toBe(true);
             await deriveIdentifierCandidates(snapshot);
             expect(await compareCandidates(snapshot)).toBe(true);
-            // Where each iNaturalist candidate was read (salish-4s42), which Postgres never
-            // recorded. 9000001's T137A is its observer's, though a comment names it too.
+            // Where each iNaturalist candidate was read (salish-4s42, decision 106), which
+            // Postgres never recorded. 9000001's T137A is its observer's, though a comment names it too.
             // 9000002 has no description: one comment names T137B and T137A, and an
             // identification's remark T137s. Its other remarks name nothing that counts: a
             // deleted account's comment, a hidden one, and a withdrawn identification's.
@@ -315,9 +336,10 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
                 ['inaturalist:9000002', 'T137B', 'comment', 8000001n],
                 ['inaturalist:9000002', 'T137s', 'identification', 6000004n],
             ]);
-            // and none of them reaches the occurrence's own identifiers, which the map and the archive read
+            // and they are the occurrence's own identifiers too, which its card and the map
+            // label show: the observer's first (none here), then the remarks' in the order read
             expect(await query(`SELECT identifiers FROM store.build.occurrences WHERE id = 'inaturalist:9000002'`))
-                .toEqual([[{items: []}]]);
+                .toEqual([[{items: ['T137B', 'T137A', 'T137s']}]]);
             // The catalogue's views over the register (salish-9uu.2.3), which the profile
             // links read, derived as the build derives them and checked against Postgres's.
             await deriveCatalogue(snapshot, mirrors.inaturalist);

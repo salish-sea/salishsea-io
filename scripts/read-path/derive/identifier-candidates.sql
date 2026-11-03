@@ -8,14 +8,13 @@
 -- location, and the catalogue as the snapshot holds it (documents). Checked against the
 -- stored candidates by compare-identifier-candidates.ts.
 --
--- Where each candidate was read (salish-4s42), which Postgres never recorded: `origin` is
--- 'report' for the occurrence's own text, or 'comment' or 'identification' for what
--- someone wrote on an iNaturalist observation (remark_identifiers), with `origin_id` the
--- comment's or identification's iNaturalist id. A code named in both is the report's, and
--- one named only in remarks is the first remark's, comments before identifications, so
--- the confidence decision 075 derives can weigh someone else's word apart from the
--- observer's. A candidate read from a remark links a sighting to a profile page as any
--- other does; the page never shows the remark or who wrote it (rights-policy §5.5).
+-- Where each candidate was read (salish-4s42, decision 106), which Postgres never
+-- recorded: `origin` is 'report' for the occurrence's own text, or 'comment' or
+-- 'identification' for what someone wrote on an iNaturalist observation, with
+-- `origin_id` that comment's or identification's iNaturalist id, as the occurrence's
+-- identifier_origins says: one entry for each identifier, in the same order, or null
+-- when every code is the report's. Kept so the confidence decision 075 leaves open can weigh
+-- someone else's word apart from the observer's; nothing reads it yet.
 
 -- register.fold(name), the register's name-comparison rule (its ADR-0019, src/fold.ts):
 -- lowercased, apostrophes and hyphens dropped, whitespace collapsed and trimmed, and every
@@ -30,16 +29,17 @@ CREATE OR REPLACE TEMP MACRO register_fold(name) AS
     '(^|[^0-9])0+([0-9])', '\1\2', 'g');
 
 CREATE OR REPLACE TABLE build.occurrence_identifier_candidates AS
-  WITH ident AS (
-    SELECT o.id AS occurrence_id, code, 'report' AS origin, CAST(NULL AS BIGINT) AS origin_id,
-           0 AS rank, o.observed_at, o.location
-    FROM build.occurrences o, unnest(o.identifiers) AS t(code)
+  WITH named AS (
+    -- the two lists side by side: a null list of origins pads with nulls
+    SELECT o.id AS occurrence_id, unnest(o.identifiers) AS code, unnest(o.identifier_origins) AS x,
+           o.observed_at, o.location
+    FROM build.occurrences o
     -- Bouts carry register identifiers, not text; see public.acoustic_identifications.
     WHERE o.source <> 'orcasound'
-    UNION ALL
-    SELECT o.id, r.code, r.origin, r.origin_id, CASE r.origin WHEN 'comment' THEN 1 ELSE 2 END,
-           o.observed_at, o.location
-    FROM build.occurrences o, unnest(o.remark_identifiers) AS t(r)
+  ),
+  ident AS (
+    SELECT occurrence_id, code, coalesce(x.origin, 'report') AS origin, x.origin_id, observed_at, location
+    FROM named
   ),
   matriline AS (
     SELECT CAST(doc->>'id' AS INTEGER) AS id, doc->>'designation_folded' AS designation_folded
@@ -63,4 +63,4 @@ CREATE OR REPLACE TABLE build.occurrence_identifier_candidates AS
     ON regexp_matches(i.code, 's$') AND g.designation_folded || 's' = register_fold(i.code)
   LEFT JOIN designation d
     ON NOT regexp_matches(i.code, 's$') AND d.code_folded = register_fold(i.code)
-  ORDER BY i.occurrence_id, i.code, i.rank, i.origin_id NULLS FIRST, d.individual_id NULLS LAST, g.id NULLS LAST;
+  ORDER BY i.occurrence_id, i.code, d.individual_id NULLS LAST, g.id NULLS LAST;

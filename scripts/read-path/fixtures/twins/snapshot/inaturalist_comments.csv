@@ -2,4 +2,4 @@ id,observation_id,user_id,body,hidden
 8000001,9000002,7000002,"Looks like T137B to me, with T137A nearby",false
 8000002,9000002,,Visit my site for T65A,false
 8000003,9000002,7000003,T65A2,true
-8000004,9000001,7000002,Great shot of T137A,false
+8000004,9000001,7000002,"Great shot of T137A, with J pod nearby",false
