@@ -15,15 +15,10 @@
  */
 
 import type { GoldRow } from './gold.ts';
+import { absent, hedged, present, type Reading } from '../../src/sighting-text.ts';
 
-export type Certainty = 'certain' | 'probable' | 'possible';
-export type Claim = {code: string, presence: 'present' | 'absent', certainty: Certainty};
-
-export type Reading = {
-    claims: Claim[];
-    pods: string[];
-    direction: string | null;
-};
+export type { Certainty, Claim, Reading } from '../../src/sighting-text.ts';
+export { absent, hedged, present } from '../../src/sighting-text.ts';
 
 export const FIELDS = ['direction', 'codes_present', 'codes_absent', 'codes_hedged', 'certainty', 'pods'] as const;
 export type Field = typeof FIELDS[number];
@@ -37,9 +32,6 @@ const sameSet = (a: string[], b: string[]) => {
     return fold(a) === fold(b);
 };
 
-export const present = (r: Reading) => r.claims.filter(c => c.presence === 'present').map(c => c.code);
-export const absent = (r: Reading) => r.claims.filter(c => c.presence === 'absent').map(c => c.code);
-export const hedged = (r: Reading) => r.claims.filter(c => c.presence === 'present' && c.certainty !== 'certain').map(c => c.code);
 
 export function scoreRow(gold: GoldRow, reading: Reading): Record<Field, boolean> {
     const direction = NO_DIRECTION.has(gold.direction)
