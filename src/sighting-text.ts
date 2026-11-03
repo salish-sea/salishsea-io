@@ -107,14 +107,18 @@ const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
 // end, at "but", or at a comma that doesn't continue a list ("or", "and", "nor", "&" or a
 // code), so a later question ("No T65A, is it T65B?") or a distant "?" doesn't touch it.
 // A sentence ends at a semicolon, "!", or a full stop before a capital or the end; an
-// ellipsis, "i.e." and "e.g." don't end it.
-const SENTENCE_END = String.raw`[;!]|(?<!\.|\b[ie]\.[eg])\.(?!\.)(?=\s+[A-Z]|\s*$)`;
+// ellipsis, "i.e.", "e.g." and an abbreviation such as "Pt." or "approx." don't end it.
+// A question asked with an auxiliary and a pronoun is one even without its "?" ("Isn't
+// it T65A, that's for sure"): it never makes its codes absent.
+const SENTENCE_END = String.raw`[;!]|(?<!\.|\b[ie]\.[eg]|\b(?:Pt|Mt|St|Ft|Is|Mr|Dr|No|approx|ca|vs))\.(?!\.)(?=\s+[A-Z]|\s*$)`;
 const QUESTION = new RegExp(String.raw`^(?:(?!\b[Bb]ut\b|${SENTENCE_END}|,(?!\s*(?:[Oo]r|[Aa]nd|[Nn]or|&)\b|\s*(?:[TJKL]|CRC|BCX)\s?-?\d))[^?])*\?`);
 const QUESTION_SENTENCE = new RegExp(String.raw`^(?:(?!${SENTENCE_END})[^?])*\?`);
 const ASKS = /^(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\s+(?:it|that|this|these|those|they|he|she|you)\b/i;
-// A code's possessive is about something of the animal's ("not T65A's usual range"), not
-// whether it was there; a plural written with an apostrophe ("No T124D's today") is not one.
-const POSSESSIVE = /^['’]s\s+(?:usual|normal|typical|range|territory|area|home|haunt|mom|mother|calf|calves|offspring|family|pod|group|matriline|dorsal|fin|saddle|markings?|behaviou?r)\b/i;
+// A code with "'s" is a plural written with an apostrophe when punctuation, the end, or a
+// word of time or place follows ("No T124D's today", "no T46B's, T46C's"); otherwise it is
+// a possessive, about something of the animal's ("not T65A's usual range", "not T65A's
+// son"), and says nothing about whether the animal was there.
+const PLURAL_APOSTROPHE = /^['’]s(?=\s*(?:[.,;:!?)&\/]|$)|\s+(?:and|or|nor|today|tonight|seen|here|there|with|in|at|on|around|near|yet|present|anywhere|either|this|that|these|those)\b)/i;
 
 type Code = {start: number, end: number, text: string, letter: string | null, suffix: string, matriline: boolean};
 
@@ -202,19 +206,24 @@ export function readText(text: string): Reading {
     const questioned = new Set<string>();
     for (const cue of text.matchAll(NEGATION)) {
         const rest = text.slice(cue.index!);
-        const question = (ASKS.test(rest) ? QUESTION_SENTENCE : QUESTION).exec(rest);
+        const asks = ASKS.test(rest);
+        const question = (asks ? QUESTION_SENTENCE : QUESTION).exec(rest);
         if (question) {
             const end = cue.index! + question[0].length;
             for (const t of named) if (t.start >= cue.index! && t.end <= end) questioned.add(t.text);
             continue;
         }
+        if (asks) continue;
         const first = named.find(t => t.start >= cue.index! + cue[0].length);
         if (!first || !NEGATED_GAP.test(text.slice(cue.index! + cue[0].length, first.start) || ' ')) continue;
         // "not T65A's usual range" is about the animal's range, not whether it was there
-        if (POSSESSIVE.test(text.slice(first.end))) continue;
+        if (/^['’]s\b/.test(text.slice(first.end)) && !PLURAL_APOSTROPHE.test(text.slice(first.end))) continue;
         // inside a parenthesis that opens before the negation and is still open
         const open = text.lastIndexOf('(', cue.index!);
-        const inParens = open > text.lastIndexOf(')', cue.index!) && !/[.!?;]\s/.test(text.slice(open, cue.index!));
+        const inParens = open > text.lastIndexOf(')', cue.index!) && !new RegExp(SENTENCE_END).test(text.slice(open, cue.index!));
+        // a bare "not" followed by a comma is a correction ("Not T090s, T030Bs or T037s");
+        // after "no" or a negative verb, a comma list ending in "or" is one list
+        const bareNot = /^not$/i.test(cue[0]);
         let previousAbsent: string | null = null;
         let pos = first.start;
         for (;;) {
@@ -223,9 +232,13 @@ export function readText(text: string): Reading {
             const bareComma = gap.includes(',') && !/[\/&+]|\b(?:and|or|nor)\b/i.test(gap);
             const tok: Code | undefined = named.find(t => t.start === at);
             // "no T65A, T65B or T65C": a comma list that ends in "or" or "nor" is one list
-            const orList = bareComma && /^(?:[A-Z]+\s?-?\d[\w]*\s*,\s*)*[A-Z]+\s?-?\d[\w]*\s*,?\s+(?:or|nor)\s/i.test(text.slice(at));
+            const orList = bareComma && !bareNot
+                && /^(?:[A-Z]+\s?-?\d\w*(?:['’]s)?\s*,\s*)*[A-Z]+\s?-?\d\w*(?:['’]s)?\s*,?\s+(?:or|nor)\s+(?:[A-Z]+\s?-?\d|[A-H]\b)/.test(text.slice(at));
             if (tok && (!bareComma || inParens || orList)) {
-                absent.add(tok.text); excludedIdx.add(named.indexOf(tok)); previousAbsent = tok.text; pos = tok.end; continue;
+                absent.add(tok.text); excludedIdx.add(named.indexOf(tok)); previousAbsent = tok.text;
+                // step over a plural's apostrophe ("no T46B's, T46C's")
+                pos = tok.end + (PLURAL_APOSTROPHE.test(text.slice(tok.end)) ? 2 : 0);
+                continue;
             }
             if (tok) break;
             // a short form with a digit ("& A3"), or a matriline's letter alone after a list
