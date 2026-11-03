@@ -79,6 +79,25 @@ CREATE OR REPLACE TEMP VIEW source_inaturalist_remarks AS
   FROM inaturalist_mirror.identifications
   WHERE current <> 0 AND hidden = 0 AND user_id IS NOT NULL AND body IS NOT NULL AND trim(body) <> '';
 
+-- The same comments and identifications as a card shows them (salish-065b, decision 107):
+-- each with its author, as iNaturalist credits them (their display name, else their
+-- login), and when they wrote it; an identification with the taxon it names, and its
+-- remark if it has one. The same rows are left out as above: a withdrawn identification,
+-- what the moderators hid, and what a deleted account wrote.
+CREATE OR REPLACE TEMP VIEW source_inaturalist_activity AS
+  SELECT CAST(c.observation_id AS BIGINT) AS observation_id, 'comment' AS kind, CAST(c.id AS BIGINT) AS id,
+         CAST(c.created_at AS TIMESTAMPTZ) AS created_at, coalesce(nullif(trim(c.name), ''), c.login) AS author,
+         c.login IS NOT DISTINCT FROM o.login AS by_observer, CAST(NULL AS INTEGER) AS taxon_id, c.body
+  FROM inaturalist_mirror.comments c
+  JOIN inaturalist_mirror.observations o ON o.id = c.observation_id
+  WHERE c.hidden = 0 AND c.user_id IS NOT NULL AND c.body IS NOT NULL AND trim(c.body) <> ''
+  UNION ALL
+  SELECT CAST(observation_id AS BIGINT), 'identification', CAST(id AS BIGINT),
+         CAST(created_at AS TIMESTAMPTZ), coalesce(nullif(trim(name), ''), login),
+         own_observation <> 0, CAST(taxon_id AS INTEGER), nullif(trim(body), '')
+  FROM inaturalist_mirror.identifications
+  WHERE current <> 0 AND hidden = 0 AND user_id IS NOT NULL;
+
 -- public.acoustic_bouts and its entities, as Orcasound's moderators published them.
 -- Postgres's ingest kept biophony bouts only (decision 013: the other two categories
 -- name no organism); the mirror holds every category, and the scope rule is applied

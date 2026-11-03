@@ -10,7 +10,8 @@
  * the files would hold the same bytes: each is parsed and re-serialized as the day
  * files are, so Postgres's spacing doesn't count, but key order, every value and
  * every timestamp string do. The build's `place` (salish-fwyt.2), `landmark` (decision
- * 100) and `pods` (decision 105), which Postgres never derived, are left out of the
+ * 100), `pods` (decision 105), and `activity` and `identified_as` (decision 107), which
+ * Postgres never derived, are left out of the
  * comparison: JSON merge-patch removes a key patched to null.
  *
  * Exits 1 on any disagreement, after naming it: ids only one side has, and for ids
@@ -59,7 +60,7 @@ export async function compare(snapshot: string): Promise<boolean> {
             SELECT coalesce(p.id, b.id) AS id, p.doc AS postgres, b.doc AS build
             FROM store.snapshot.occurrences p
             FULL JOIN store.build.occurrences b ON b.id = p.id
-            WHERE CAST(json(p.doc) AS VARCHAR) IS DISTINCT FROM CAST(json_merge_patch(b.doc, '{"place":null,"landmark":null,"pods":null}') AS VARCHAR)
+            WHERE CAST(json(p.doc) AS VARCHAR) IS DISTINCT FROM CAST(json_merge_patch(b.doc, '{"place":null,"landmark":null,"pods":null,"activity":null,"identified_as":null}') AS VARCHAR)
         `);
         const onlyPostgres: string[] = [];
         const onlyBuild: string[] = [];
@@ -71,7 +72,7 @@ export async function compare(snapshot: string): Promise<boolean> {
                 if (buildDoc === null) { onlyPostgres.push(id); continue; }
                 if (postgresDoc === null) { onlyBuild.push(id); continue; }
                 const postgres = JSON.parse(postgresDoc) as Doc;
-                const {place: _, landmark: _l, pods: _p, ...build} = JSON.parse(buildDoc) as Doc;
+                const {place: _, landmark: _l, pods: _p, activity: _a, identified_as: _i, ...build} = JSON.parse(buildDoc) as Doc;
                 const differing = differences(postgres, build);
                 if (differing.length === 0) continue;
                 const source = sourceOf(id);
