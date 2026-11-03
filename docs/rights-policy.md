@@ -124,22 +124,22 @@ The canonical `dynamicProperties` schema for this archive is:
 
 | Key | Type | Source | Present when |
 |-----|------|--------|--------------|
-| `travelDirection` | string (enum) | `public.sightings.direction` or `maplify.sightings.comments` (via `extract_travel_direction`) | Non-NULL direction. Omitted when NULL. |
+| `travelDirection` | string (enum) | `public.sightings.direction`, or for Maplify the direction the build read from `maplify.sightings.comments` (decision 105) | Non-NULL direction. Omitted when NULL. |
 | `aggregatorSource` | string | Human-readable value from `maplify.source` mapping | All Maplify records. |
 | `aggregatorChain` | string | Structured provenance chain text | All Maplify records. Encodes the full aggregation path: e.g., `"Whale Alert SE Alaska (Maplify) > Orca Network"`. |
 | `countIsMinimum` | boolean | `true` when count is a known lower-bound | HappyWhale records only (see D-14, Section 5). Not emitted for exact counts or when HappyWhale is out of scope. |
-| `unvalidatedIdentifiers` | array of strings | `extract_identifiers(body)` result | Non-empty identifier extraction only. See Section 2.4. |
+| `unvalidatedIdentifiers` | array of strings | the codes the build read from the body as present (decision 105) | Non-empty only. See Section 2.4. |
 
 Native records without Maplify provenance omit `aggregatorSource` and `aggregatorChain`. All keys are omitted when their value is NULL or inapplicable.
 
 ### 2.4 Unvalidated Whale Identifier Handling (GAP-04)
 
-The function `extract_identifiers(body)` extracts identifier-like strings (e.g., `T065S`, `T002`) from free-text observation bodies using regex matching.
+The build reads identifier-like strings (e.g., `T65As`, `T2`) from free-text observation bodies with a deterministic reader of the words, [`src/sighting-text.ts`](../src/sighting-text.ts) (decision 105; until then a regular expression, `extract_identifiers`). Only codes the text says were present are kept; one it says was absent, as in *T46s (-D)*, is not.
 
 These extracted strings are:
 - **Never** emitted as `organismID`, `catalogNumber`, or any other DwC identity term. (Locked upstream — confirmed in REQUIREMENTS.md Out of Scope table.)
-- **At most** listed in `dynamicProperties.unvalidatedIdentifiers` as an array, clearly labeled as unvalidated regex extractions pending individual validation.
-- The `informationWithheld` term may optionally note: "Regex-extracted whale identifiers present in source text but excluded from identity terms pending individual validation."
+- **At most** listed in `dynamicProperties.unvalidatedIdentifiers` as an array, clearly labeled as unvalidated readings of the text pending individual validation.
+- The `informationWithheld` term may optionally note: "Whale identifiers read from the source text but excluded from identity terms pending individual validation."
 
 This is a GAP-04 resolution. Cross-reference Section 1.4 (license-less photo exclusion) as the other GAP-04 exclusion.
 

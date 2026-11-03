@@ -10,8 +10,8 @@ node scripts/gold/measure.ts tokens --show 23 40       # a reader's answer and t
 
 ## The readers
 
-- **`readers/regex.ts`**: the build's own two macros in [`derive/extract.sql`](../read-path/derive/extract.sql), run over the full comment. They answer codes and a direction only.
-- **`readers/tokens.ts`**: a deterministic reader over the words: the macro's codes plus codes written without their letter, hyphens inside a code, exclusions, hedges, pods, and a direction that knows abbreviations, bearings, place names, spreads and a narrated change. It was written against the gold set's hard strata and the first half of each random stratum; the second half is held out, and `measure.ts` reports it separately.
+- **`readers/regex.ts`**: the two macros the build ran until decision [105](../../docs/decisions/105-the-build-and-the-browser-read-sighting-text-with-one-reader.md), kept in [`readers/regex.sql`](readers/regex.sql) and run over the full comment. They answer codes and a direction only.
+- **`readers/tokens.ts`**: the reader the build and the browser run, [`src/sighting-text.ts`](../../src/sighting-text.ts), given each row's report text. A deterministic reader over the words: the macro's codes plus codes written without their letter, hyphens inside a code, exclusions, hedges, pods, and a direction that knows abbreviations, bearings, place names, spreads and a narrated change. It was written against the gold set's hard strata and the first half of each random stratum; the second half is held out, and `measure.ts` reports it separately.
 - **`readers/claude.ts`**: a Claude model, one request per report, with the gold set's definitions and the catalogue's codes, matrilines and nicknames as a cached system prompt, answering structured output. Readings are cached in `readings/<model>.json` by the text's hash and checked in, so a rerun costs nothing and a reviewer can read what the model said. Credentials come from an `ant auth login` profile or `ANTHROPIC_API_KEY`; the reports sent are ones the project already publishes (decision [101](../../docs/decisions/101-the-data-download-is-public.md)).
 
 ## The score
