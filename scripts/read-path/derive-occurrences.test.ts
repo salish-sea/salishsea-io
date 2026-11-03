@@ -218,6 +218,24 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
             const mirrors = await mirrorsFromSnapshot(snapshot, dir);
             expect((await deriveOccurrences(snapshot, mirrors, null)).arms).toBe('all');
             expect(await compare(snapshot)).toBe(true);
+            // Every document says which pods its text names (decision 105), which Postgres never
+            // did, so the comparison leaves it out: one text here names one ("J35 and J47 with
+            // Ls"), and the key is in jsonb's order, after the body.
+            {
+                const db = await DuckDBInstance.create(':memory:');
+                const conn = await db.connect();
+                try {
+                    await conn.run(`ATTACH '${snapshot}' AS store (READ_ONLY)`);
+                    const docs = (await conn.runAndReadAll('SELECT doc FROM store.build.occurrences')).getRows()
+                        .map(([doc]) => JSON.parse(doc as string) as Record<string, unknown>);
+                    expect(docs.length).toBeGreaterThan(0);
+                    expect(docs.filter(doc => (doc['pods'] as string[]).length).map(doc => doc['pods'])).toEqual([['L']]);
+                    for (const doc of docs) {
+                        const keys = Object.keys(doc);
+                        expect(keys[keys.indexOf('body') + 1]).toBe('pods');
+                    }
+                } finally { conn.closeSync(); db.closeSync(); }
+            }
             // told the store's tables changed: the native arm re-derived over the same
             // rows, the others untouched, and the whole still agrees with Postgres
             expect((await deriveOccurrences(snapshot, mirrors, ['public.observations'])).arms).toEqual(['native']);
