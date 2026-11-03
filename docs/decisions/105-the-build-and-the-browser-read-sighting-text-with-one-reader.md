@@ -52,46 +52,14 @@ The pass costs about half a second, 4.7 s against 4.15 s for the whole derive st
 
 Reading comments on iNaturalist observations ([106](106-a-comment-can-name-the-animal-a-sighting-was.md)) showed the reader taking "not the T090s actually" as naming the T90s. People correcting each other write *not*, and some observers write "T100s (no T100E)". The reader now makes absent the codes a negation governs:
 - **A negation** is *not*, *no* or a negative verb (*isn't*, *don't*, *did not see*, …), followed within a few words of the same clause by a code ("not the T090s", "I don't recognize this as any T077").
-- **A list after it is governed too**, over *and*, *or*, *nor*, *&*, a slash or only a space ("no T060D T060E"), and so are short forms ("Not seeing T65A2 & A3", "No T65A & B"). A comma continues the list only inside a parenthesis the negation is in ("(no T049A1, T049A2)") or before a short form. Elsewhere a comma starts a correction, so "Not T090s, T030Bs" makes only the T90s absent.
+- **A list after it is governed too**, over *and*, *or*, *nor*, *&*, a slash or only a space ("no T060D T060E"), and so are short forms ("Not seeing T65A2 & A3", "No T65A & B"). A letter alone is a short form only after a list separator and not before a bearing ("No T65A, E of Lime Kiln" names no T65E). A comma continues the list only inside a parenthesis the negation is in ("(no T049A1, T049A2)"), before a short form, or in a list that ends in *or* or *nor* ("no T65A, T65B or T65C"). Elsewhere a comma starts a correction, so "Not T090s, T030Bs" makes only the T90s absent.
 
 These are not negations:
 - *not sure*, *not certain* and *not positive* are hedges that make a code possible;
 - *not only*, *not just* and *no doubt* affirm, and *whether or not* and *if not* say nothing either way;
+- a possessive is about something of the animal's, not whether it was there: "not T65A's usual range". A plural written with an apostrophe is still negated: "No T124D's today";
 - *never* is left out, because "never seen the T65As this far north before" is said of animals that are there;
-- a negated question, "Isn't it T65A?", makes its codes possible rather than absent. The question is the negation's own clause. A full stop before a capital, *but*, or a comma that doesn't continue a list ends it, so "No T65A, is it T65B?" still makes T65A absent. An ellipsis doesn't end it.
-
-Over every production text on 2026-11-02, the old reading and the new were compared occurrence by occurrence: 62,137 occurrences, 30,993 with text. One report in ten with text reads differently (3,045). By kind, with an example of each:
-
-| change | count | example |
-|---|---|---|
-| a humpback's BC catalogue code is now read | 1,112 codes | *BCY0458 Raptor and BCX1068 Split Fluke circling* gains BCX1068 |
-| a direction where there was none | 637 | *Biggs T46Bs NB* gains north |
-| a different direction | 560 | *L pod was eastbound, now trending west*: east becomes west |
-| a direction dropped: a bearing, a place, *facing* | 417 | *2 miles east of location*: east becomes none |
-| a code written without its letter | 303 codes | *Bigg's T36, 36Bs, T99s NB* gains T36Bs |
-| a code the text says was absent, no longer listed | 167 codes | *Biggs T137s (minus T137D) Northbound* loses T137D |
-| a direction dropped: the text says milling | 119 | *still milling around at 12:43 off Burfoot* |
-| a code listed twice, now once | 76 | |
-| a direction dropped: the text says it is unknown | 19 | *Direction unknown* |
-| a code read where there was none, other | 24 codes | *the greater L4s* gains L4s; *T37-A* is T37A, where the old reading had T37 (5 such) |
-
-The comparison caught four mistakes the gold set could not, because none of its 200 reports had the pattern. All four are fixed in the reader, and the gold rows it gets right are unchanged:
-
-- From 2020 to early 2022 Orca Network wrote the whole report inside its tag, *[Orca Network: T65As northbound]* (258 reports), and the reader was given nothing to read. The report is now what follows the colon.
-- Codes written in lower case, *t46s* and *crc22*, were not read. Now they are, when the letter touches its number.
-- A number without its letter was read as a Bigg's code anywhere in a report that said Biggs, so *spread in 1s to 4s* named T1s and T4s. Now such a number counts only in a list after a code (*T36, 36Bs*), or right after *Biggs*.
-- A reporter's surname was read as a direction: *(Steve East)*. A capitalised compass word right after another capitalised word is now part of a name, unless that word is a verb of travel, as in *Heading South*.
-
-One known wrong reading remains: *J2* in a parenthesis is a boat whose AIS track a reporter followed, and is read as the whale J2 (five reports). A rule against one-letter, one-digit codes would also drop T007, a code in our catalogue.
-
-The pass costs about half a second, 4.7 s against 4.15 s for the whole derive step on Hostess. Its memory is lost in the noise between runs, about 770 MB at peak either way on Hostess, which allocates more freely than the 2 GB Fly machine. Appending each reading's claims as lists of structs through DuckDB's Node API had cost 110 MB and 0.3 s more. Writing each reading as JSON text and letting DuckDB parse it costs neither.
-
-## Amended 2026-11-02: a negation in a sentence (bd `salish-sepv`)
-
-Reading comments on iNaturalist observations ([106](106-a-comment-can-name-the-animal-a-sighting-was.md)) showed the reader taking "not the T090s actually" as naming the T90s. People correcting each other write *not*, and some observers write "T100s (no T100E)". The reader now makes absent the codes a negation governs. A negation is *not*, *no*, *never* or a negative verb (*isn't*, *don't*, *did not see*, …), followed within a few words of the same clause by a code, then any codes listed after it, as *(-D)*'s list is read ("No T65A & B" makes both absent). These are not negations:
-- *not sure*, *not certain* and *not positive* are hedges that make a code possible;
-- *not only*, *not just* and *no doubt* affirm, and *never mind* negates nothing;
-- a negated question, "Isn't it T65A?", makes its codes possible rather than absent.
+- a negated question, "Isn't it T65A?", makes its codes possible rather than absent. One asked with an auxiliary and a pronoun (*isn't it*, *aren't they*) runs to the end of its sentence, commas and all ("Isn't it T65A, the one with the notch?"). Any other question is the negation's own clause: *but*, or a comma that doesn't continue a list, ends it, so "No T65A, is it T65B?" still makes T65A absent. A sentence ends at a full stop before a capital, a semicolon or *!*; an ellipsis, *i.e.* and *e.g.* don't end it.
 
 Over every production text on 2026-11-02, 15 of about 66,000 read differently:
 - 4 of 38,900 Maplify reports: "one not CRC 2440", "Not seeing T65A2 & A3", "Did not see T37A or T137" and "have not seen T46D and T46E";

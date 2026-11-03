@@ -90,7 +90,7 @@ const EXCLUDE = /\(\s*-\s*|\bminus\b|(?<=[A-Za-z0-9]s)\s+-(?=[A-Z])/g;
 // HEDGE); "not only", "not just" and "no doubt" affirm; "whether or not" and "if not" say
 // nothing either way. "Never" is not a negation here: "never seen the T65As this far north
 // before" is said of animals that are there.
-const NEGATION = /\b(?:(?<!\b(?:or|if)\s+)not(?!\s+(?:sure|certain|positive|100\s*%?|only|just)\b)|no(?!\s+doubt\b)|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\b/gi;
+const NEGATION = /\b(?:(?<!\b(?:whether\s+or|if)\s+)not(?!\s+(?:sure|certain|positive|100\s*%?|only|just)\b)|no(?!\s+doubt\b)|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\b/gi;
 // What may stand between a negation and the first code it governs: a few words of the
 // same clause, "the", "any", "think this is", "recognize this as any", and no punctuation.
 const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['’]s|is|was|are|were|be|as|actually|from|in|part|recognize|think|believe|see|seen|seeing|either|even|quite|just))*\s+$/i;
@@ -101,11 +101,20 @@ const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['
 // T030Bs"), whose codes are present.
 const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
 // A negated question ("Isn't it T65A?") asks rather than says, so its codes are possible,
-// not absent. The question is the negation's own clause: it ends at a full stop before a
-// capital, a semicolon or "!", at "but", or at a comma that doesn't continue a list ("or",
-// "and", "nor", "&" or a code), so a later question ("No T65A, is it T65B?") or a distant
-// "?" doesn't touch it. An ellipsis or "i.e." doesn't end it.
-const QUESTION = /^(?:(?!\b[Bb]ut\b|\.(?=\s+[A-Z]|\s*$)|[;!]|,(?!\s*(?:[Oo]r|[Aa]nd|[Nn]or|&)\b|\s*(?:[TJKL]|CRC|BCX)\s?-?\d))[^?])*\?/;
+// not absent. A question asked with an auxiliary and a pronoun ("isn't it", "aren't they")
+// runs to the end of its sentence, commas and all ("Isn't it T65A, the one with the
+// notch?"). Otherwise the question is the negation's own clause: it ends at a sentence's
+// end, at "but", or at a comma that doesn't continue a list ("or", "and", "nor", "&" or a
+// code), so a later question ("No T65A, is it T65B?") or a distant "?" doesn't touch it.
+// A sentence ends at a semicolon, "!", or a full stop before a capital or the end; an
+// ellipsis, "i.e." and "e.g." don't end it.
+const SENTENCE_END = String.raw`[;!]|(?<!\.|\b[ie]\.[eg])\.(?!\.)(?=\s+[A-Z]|\s*$)`;
+const QUESTION = new RegExp(String.raw`^(?:(?!\b[Bb]ut\b|${SENTENCE_END}|,(?!\s*(?:[Oo]r|[Aa]nd|[Nn]or|&)\b|\s*(?:[TJKL]|CRC|BCX)\s?-?\d))[^?])*\?`);
+const QUESTION_SENTENCE = new RegExp(String.raw`^(?:(?!${SENTENCE_END})[^?])*\?`);
+const ASKS = /^(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\s+(?:it|that|this|these|those|they|he|she|you)\b/i;
+// A code's possessive is about something of the animal's ("not T65A's usual range"), not
+// whether it was there; a plural written with an apostrophe ("No T124D's today") is not one.
+const POSSESSIVE = /^['’]s\s+(?:usual|normal|typical|range|territory|area|home|haunt|mom|mother|calf|calves|offspring|family|pod|group|matriline|dorsal|fin|saddle|markings?|behaviou?r)\b/i;
 
 type Code = {start: number, end: number, text: string, letter: string | null, suffix: string, matriline: boolean};
 
@@ -192,7 +201,8 @@ export function readText(text: string): Reading {
     // & A3"), as an exclusion's does.
     const questioned = new Set<string>();
     for (const cue of text.matchAll(NEGATION)) {
-        const question = QUESTION.exec(text.slice(cue.index!));
+        const rest = text.slice(cue.index!);
+        const question = (ASKS.test(rest) ? QUESTION_SENTENCE : QUESTION).exec(rest);
         if (question) {
             const end = cue.index! + question[0].length;
             for (const t of named) if (t.start >= cue.index! && t.end <= end) questioned.add(t.text);
@@ -201,9 +211,10 @@ export function readText(text: string): Reading {
         const first = named.find(t => t.start >= cue.index! + cue[0].length);
         if (!first || !NEGATED_GAP.test(text.slice(cue.index! + cue[0].length, first.start) || ' ')) continue;
         // "not T65A's usual range" is about the animal's range, not whether it was there
-        if (/^['’]s\b/.test(text.slice(first.end))) continue;
+        if (POSSESSIVE.test(text.slice(first.end))) continue;
         // inside a parenthesis that opens before the negation and is still open
-        const inParens = text.lastIndexOf('(', cue.index!) > text.lastIndexOf(')', cue.index!);
+        const open = text.lastIndexOf('(', cue.index!);
+        const inParens = open > text.lastIndexOf(')', cue.index!) && !/[.!?;]\s/.test(text.slice(open, cue.index!));
         let previousAbsent: string | null = null;
         let pos = first.start;
         for (;;) {
@@ -211,7 +222,9 @@ export function readText(text: string): Reading {
             const gap = text.slice(pos, at);
             const bareComma = gap.includes(',') && !/[\/&+]|\b(?:and|or|nor)\b/i.test(gap);
             const tok: Code | undefined = named.find(t => t.start === at);
-            if (tok && (!bareComma || inParens)) {
+            // "no T65A, T65B or T65C": a comma list that ends in "or" or "nor" is one list
+            const orList = bareComma && /^(?:[A-Z]+\s?-?\d[\w]*\s*,\s*)*[A-Z]+\s?-?\d[\w]*\s*,?\s+(?:or|nor)\s/i.test(text.slice(at));
+            if (tok && (!bareComma || inParens || orList)) {
                 absent.add(tok.text); excludedIdx.add(named.indexOf(tok)); previousAbsent = tok.text; pos = tok.end; continue;
             }
             if (tok) break;

@@ -170,6 +170,18 @@ describe('reading sighting text', () => {
         // an ellipsis or "i.e." stays inside the question
         expect(readText("Isn't it T65A... or T65B?").claims.map(c => [c.code, c.presence, c.certainty]))
             .toEqual([['T65A', 'present', 'possible'], ['T65B', 'present', 'possible']]);
+        // a question with an auxiliary and a pronoun runs to its "?", past commas, "i.e." and an ellipsis
+        for (const text of ["Isn't it T65A, the one with the notch?", "Isn't that the T65As, Peter?",
+                            "Isn't it T65A i.e. T65A2's mom?", "Isn't it T65A... Or T65B?"]) {
+            expect(absent(readText(text)), text).toEqual([]);
+        }
+        // an apostrophe plural is still negated; "not T65A or not T65B" negates both
+        expect(absent(readText("No T124D's with them today"))).toEqual(['T124D']);
+        expect(absent(readText('Not T65A or not T65B'))).toEqual(['T65A', 'T65B']);
+        // a comma list ending in "or" is one list
+        expect(absent(readText('no T65A, T65B or T65C seen'))).toEqual(['T65A', 'T65B', 'T65C']);
+        // a parenthesis left open in an earlier sentence doesn't make a later comma a list
+        expect(present(readText('(T65As seen. Not T090s, T030Bs'))).toEqual(['T65As', 'T30Bs']);
         // a distant "?" in a later clause neither cancels the negation nor hedges other codes
         const distant = readText('No T65A today, lots of T137s though, anyone know who else?');
         expect(absent(distant)).toEqual(['T65A']);
