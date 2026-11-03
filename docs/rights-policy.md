@@ -345,6 +345,8 @@ The build's iNaturalist mirror keeps each observation's identifications and comm
 
 **What is not stored:** the text of an identification or comment that iNaturalist's moderators have hidden; the row and its `hidden` flag are kept, so we know it existed, but not what iNaturalist took out of view. Nor iNaturalist's `category` (an identification's standing against the community taxon), a derived value 075 declines to adopt.
 
+**Reading an animal out of a comment is not republishing it.** Peter ruled so on 2026-10-12: a code someone names in a comment or an identification becomes one of the sighting's, shown on its card and linking it to the animal's profile page, as a code in the observer's description does ([decision 106](decisions/106-a-comment-can-name-the-animal-a-sighting-was.md)). Visitors see the code, not the comment, and nothing says who named the animal.
+
 **What would need a new rights pass:** showing an identifier's or commenter's name, an identification, or a comment's text anywhere a visitor sees it, including an animal named in a comment shown with its words. That is a credit question under CC BY-NC, decided when there is a reason to show one.
 
 ---

@@ -208,7 +208,8 @@
 ;; iNaturalist's, attached as inaturalist_mirror for the same reason.
 (define inaturalist-relations
   '(inaturalist_mirror.observations inaturalist_mirror.observation_photos inaturalist_mirror.taxa
-    inaturalist_mirror.identifications inaturalist_mirror.covered_days inaturalist_mirror.sync))
+    inaturalist_mirror.identifications inaturalist_mirror.comments inaturalist_mirror.covered_days
+    inaturalist_mirror.sync))
 
 (define (snapshot-relation table)
   (string->symbol (string-append (string-replace table "_" "-") "-snapshot")))
@@ -296,10 +297,12 @@
 ;; upstream about a few of the longest-unchecked each run. iNaturalist's identifications
 ;; too: whether anyone but the observer agrees with an observation is derived from them
 ;; (salishsea decision 080), so a new identification alone re-derives the iNaturalist arm.
+;; And its comments: the animals people name in them, and in identifications' remarks,
+;; become identifier candidates (salish-4s42), so a new comment re-derives that arm too.
 (define mirror-source-relations
   '(maplify_mirror.sightings
     inaturalist_mirror.observations inaturalist_mirror.observation_photos inaturalist_mirror.taxa
-    inaturalist_mirror.identifications
+    inaturalist_mirror.identifications inaturalist_mirror.comments
     orcasound.bouts orcasound.bout_entities))
 
 ;; What derive-occurrences reads: the mirrors for the three sources, the snapshot for the
@@ -510,11 +513,13 @@
      (make-artifact 'maplify_mirror.sightings 'db-relation)
      (make-artifact 'maplify_mirror.covered_days 'db-relation)
      ;; iNaturalist's observations as the build fetches them (salish-xv35.8): every one in
-     ;; the fetch box, their photos, who identified them as what, the taxa they reach,
+     ;; the fetch box, their photos, who identified them as what and what anyone wrote on
+     ;; them, the taxa they reach,
      ;; the days reconciled, and how far the changes sweep has read (sync).
      (make-artifact 'inaturalist_mirror.observations 'db-relation)
      (make-artifact 'inaturalist_mirror.observation_photos 'db-relation)
      (make-artifact 'inaturalist_mirror.identifications 'db-relation)
+     (make-artifact 'inaturalist_mirror.comments 'db-relation)
      (make-artifact 'inaturalist_mirror.taxa 'db-relation)
      (make-artifact 'inaturalist_mirror.covered_days 'db-relation)
      (make-artifact 'inaturalist_mirror.sync 'db-relation)

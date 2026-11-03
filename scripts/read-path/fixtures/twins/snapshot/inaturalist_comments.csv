@@ -1,0 +1,6 @@
+id,observation_id,user_id,login,body,hidden
+8000001,9000002,7000002,synthetic_identifier,"Looks like T137B to me, with T137A nearby",false
+8000002,9000002,,,Visit my site for T65A,false
+8000003,9000002,7000003,synthetic_commenter,T65A2,true
+8000004,9000001,7000002,synthetic_identifier,"Great shot of T137A, with J pod nearby",false
+8000005,9000002,7000001,synthetic_observer,T137s (-B),false
