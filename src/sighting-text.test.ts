@@ -100,6 +100,114 @@ describe('reading sighting text', () => {
         expect(present(readText('Biggs T46s and T87directional changes'))).toEqual(['T46s']);
     });
 
+    test('a negation in a sentence makes the codes it governs absent (salish-sepv)', () => {
+        // as people correct each other in comments on iNaturalist
+        const corrected = readText('@ms104 - not the T090s actually. This was the T030Bs, the T117Bs and T124C');
+        expect(present(corrected)).toEqual(['T30Bs', 'T117Bs', 'T124C']);
+        expect(absent(corrected)).toEqual(['T90s']);
+        const unknown = readText("I don't recognize this as any T077 orca. Possibly T065A5.");
+        expect(present(unknown)).toEqual(['T65A5']);
+        expect(absent(unknown)).toEqual(['T77']);
+        // a list after the negation is governed by it; "but" starts what is present
+        const listed = readText('Not T137A or T137B, but T137D');
+        expect(absent(listed)).toEqual(['T137A', 'T137B']);
+        expect(present(listed)).toEqual(['T137D']);
+        expect(absent(readText("Biggs T65As, no T65A5"))).toEqual(['T65A5']);
+        // a list with only a space between, and a short form after a code
+        expect(absent(readText('T060s (no T060D T060E)'))).toEqual(['T60D', 'T60E']);
+        const shortForm = readText('T65A, A4, A6 grouped circling. Not seeing T65A2 & A3');
+        expect(absent(shortForm)).toEqual(['T65A2', 'T65A3']);
+        // too far from the negation, or past a comma, is not governed by it
+        expect(present(readText('No IDs yet, T65As heading north'))).toEqual(['T65As']);
+        expect(present(readText('not seen since the encounter with T49As'))).toEqual(['T49As']);
+    });
+
+    test('"not sure" is a hedge, and "no doubt" and "not only" affirm', () => {
+        expect(readText('not sure but maybe T65A').claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
+        expect(readText("Not sure if it's T65A").claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
+        expect(readText('No doubt T19B Galiano').claims).toEqual([{code: 'T19B', presence: 'present', certainty: 'certain'}]);
+        expect(present(readText('Not only T19B but T19C too'))).toEqual(['T19B', 'T19C']);
+        expect(present(readText('Not just T65A but T65B'))).toEqual(['T65A', 'T65B']);
+        // a question asks; its "?" hedges
+        expect(readText("Isn't it T65A?").claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
+        expect(absent(readText("It isn't T65A. Maybe T65B?"))).toEqual(['T65A']);
+        // a later question doesn't cancel an earlier negation
+        for (const text of ['No T65A, but is it T65B?', 'No T65A, is it T65B?']) {
+            expect(absent(readText(text))).toEqual(['T65A']);
+            expect(present(readText(text))).toEqual(['T65B']);
+        }
+        expect(readText("Isn't it T65A, or T65B?").claims.map(c => [c.code, c.presence, c.certainty]))
+            .toEqual([['T65A', 'present', 'possible'], ['T65B', 'present', 'possible']]);
+    });
+
+    test('more negations: a verb of seeing, a letter alone in a list, and not a word', () => {
+        expect(absent(readText("I don't see T65A here"))).toEqual(['T65A']);
+        expect(absent(readText('Not seen T65A today'))).toEqual(['T65A']);
+        // "never seen" is said of animals that are there
+        expect(present(readText('Have never seen the T65As this far north before!'))).toEqual(['T65As']);
+        expect(absent(readText('No T65A & B today'))).toEqual(['T65A', 'T65B']);
+        // "I" is a word, not T65I, and "E of" a bearing, not T65E
+        expect(absent(readText('not T65A, I think'))).toEqual(['T65A']);
+        expect(absent(readText('No T65A, E of Lime Kiln'))).toEqual(['T65A']);
+    });
+
+    test('a correction after a comma is present; a list in a parenthesis is not', () => {
+        for (const [text, gone, there] of [
+            ['Not T090s, T030Bs', ['T90s'], ['T30Bs']],
+            ['not the T65As, the T65Bs', ['T65As'], ['T65Bs']],
+            ['T49As (no T049A1, T049A2)', ['T49A1', 'T49A2'], ['T49As']],
+            ['no T65A, A4 and A6 either', ['T65A', 'T65A4', 'T65A6'], []],
+        ] as const) {
+            expect(absent(readText(text)), text).toEqual(gone);
+            expect(present(readText(text)), text).toEqual(there);
+        }
+    });
+
+    test('what is not a negation of the code after it', () => {
+        expect(present(readText('Unsure whether or not T65A2 was with them'))).toEqual(['T65A2']);
+        expect(present(readText('If not T65A, then T65B'))).toEqual(['T65A', 'T65B']);
+        expect(present(readText("This is not T65A's usual range"))).toEqual(['T65A']);
+        // an ellipsis or "i.e." stays inside the question
+        expect(readText("Isn't it T65A... or T65B?").claims.map(c => [c.code, c.presence, c.certainty]))
+            .toEqual([['T65A', 'present', 'possible'], ['T65B', 'present', 'possible']]);
+        // a question with an auxiliary and a pronoun runs to its "?", past commas, "i.e." and an ellipsis
+        for (const text of ["Isn't it T65A, the one with the notch?", "Isn't that the T65As, Peter?",
+                            "Isn't it T65A i.e. T65A2's mom?", "Isn't it T65A... Or T65B?"]) {
+            expect(absent(readText(text)), text).toEqual([]);
+        }
+        // an apostrophe plural is still negated; "not T65A or not T65B" negates both
+        expect(absent(readText("No T124D's with them today"))).toEqual(['T124D']);
+        expect(absent(readText('Not T65A or not T65B'))).toEqual(['T65A', 'T65B']);
+        // a bare "not" before a comma is a correction, even with alternatives after "or"
+        expect(present(readText('Not T090s, T030Bs or T037s'))).toEqual(['T30Bs', 'T37s']);
+        expect(present(readText('Not T65A, T65B or something like that'))).toEqual(['T65B']);
+        // any possessive is about something of the animal's
+        for (const text of ["Not T65A's son", "not T65A's new calf", "isn't T65A's boy"]) {
+            expect(absent(readText(text)), text).toEqual([]);
+        }
+        expect(absent(readText("no T46B's, T46C's or T46D's"))).toEqual(['T46B', 'T46C', 'T46D']);
+        for (const text of ["no T65A's spotted", "no T65A's yesterday", "No T65A's were seen", "no T65A's off Lime Kiln"]) {
+            expect(absent(readText(text)), text).toEqual(['T65A']);
+        }
+        // "nor" makes a list even after a bare "not"; a determiner may come before the last code
+        expect(absent(readText('Not T65A, T65B nor T65C'))).toEqual(['T65A', 'T65B', 'T65C']);
+        expect(absent(readText('No T65A, T65B or the T65Cs'))).toEqual(['T65A', 'T65B', 'T65Cs']);
+        // an abbreviation doesn't end a sentence
+        expect(absent(readText('(approx. 10 whales, no T65A, T65B)'))).toEqual(['T65A', 'T65B']);
+        expect(absent(readText("Isn't that T65A off Pt. Roberts?"))).toEqual([]);
+        // a question in form, without its "?"
+        expect(absent(readText("Isn't it T65A, that's for sure"))).toEqual([]);
+        expect(absent(readText("It isn't T65A, that's for sure"))).toEqual(['T65A']);
+        // after "no", a comma list ending in "or" is one list
+        expect(absent(readText('no T65A, T65B or T65C seen'))).toEqual(['T65A', 'T65B', 'T65C']);
+        // a parenthesis left open in an earlier sentence doesn't make a later comma a list
+        expect(present(readText('(T65As seen. Not T090s, T030Bs'))).toEqual(['T65As', 'T30Bs']);
+        // a distant "?" in a later clause neither cancels the negation nor hedges other codes
+        const distant = readText('No T65A today, lots of T137s though, anyone know who else?');
+        expect(absent(distant)).toEqual(['T65A']);
+        expect(distant.claims.find(c => c.code === 'T137s')).toEqual({code: 'T137s', presence: 'present', certainty: 'certain'});
+    });
+
     test("a compass word in a reporter's name is not a direction", () => {
         expect(readText('Likely Jpod, spread out moving south, southeast (Katie West)').direction).toBe('southeast');
         expect(readText('Biggs T65As southbound (Steve East)').direction).toBe('south');

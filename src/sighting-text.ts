@@ -12,10 +12,13 @@
  * a slash or comma ("T36/36Bs", "T36A1s, 65A5"), which takes the letter of the code before
  * it or T when the text says Biggs; a hyphen inside a code ("T65-A3"); and an exclusion,
  * "(-D)", "(-T46D)", "minus T137A", "minus T60D&E", whose animals are absent, a short form
- * resolved against the matriline before it. A code's leading zeros are dropped while a
- * digit follows ("T065A" is "T65A"), as the register's fold compares codes. A hedge word
- * marks the codes that follow it up to the next comma: "likely" and "presumably" make
- * them probable, "possibly", "maybe" and "?" possible (decision 054's certainty). Pods
+ * resolved against the matriline before it. A negation in a sentence makes absent the
+ * codes it governs: "no T100E", "not the T090s actually", "I don't recognize this as any
+ * T077", and a list after it ("no T060D T060E", "Not seeing T65A2 & A3"). A code's leading
+ * zeros are dropped while a digit follows ("T065A" is "T65A"), as the register's fold
+ * compares codes. A hedge word marks the codes that follow it up to the next comma:
+ * "likely" and "presumably" make them probable, "possibly", "maybe", "not sure" and "?"
+ * possible (decision 054's certainty). Pods
  * are "J pod", "Jpod", "Js", "J and K pods". The direction is a compass word or
  * abbreviation, "NB", "SW bound", "trending N", ignoring a bearing ("north of Alki",
  * "1/2 mile southeast of"), a place name ("West Point"), a spread ("north to south", "N to
@@ -75,11 +78,47 @@ const CODE = /\b(?:([TJKL]|CRC|BCX)\s?-?\s?|([tjkl]|[Cc]rc\s?)(?=\d))?(\d{1,5})(
 const LIST_GAP = /^\s*(?:(?:[,\/&+]|and)\s*)+$/i;
 // "Biggs 36Bs": a code without its letter right after the ecotype's name is a Bigg's code.
 const AFTER_BIGGS = /\b(?:biggs?|bigg['’]s|transients?)[\s:,]*$/i;
-const HEDGE = /\b(likely|possibly|possible|maybe|presumably|presumed|probably|probable|unconfirmed)\b|\?/gi;
+const HEDGE = /\b(likely|possibly|possible|maybe|presumably|presumed|probably|probable|unconfirmed|not (?:sure|certain|positive|100\s*%?))\b|\?/gi;
 /** Decision 054's certainty for a hedge word: a strong hedge is probable, a weak one possible. */
 const LEVEL: Record<string, Certainty> = {likely: 'probable', presumably: 'probable', presumed: 'probable', probably: 'probable', probable: 'probable',
     possibly: 'possible', possible: 'possible', maybe: 'possible', unconfirmed: 'possible', '?': 'possible'};
+const levelOf = (hedge: string): Certainty => LEVEL[hedge.toLowerCase()] ?? 'possible';
 const EXCLUDE = /\(\s*-\s*|\bminus\b|(?<=[A-Za-z0-9]s)\s+-(?=[A-Z])/g;
+// A negation in a sentence, as people write in comments on iNaturalist ("not the T090s
+// actually", "I don't recognize this as any T077 orca"): the codes it governs are absent.
+// "Not sure", "not certain", "not positive" and "not 100%" are hedges, not negations (see
+// HEDGE); "not only", "not just" and "no doubt" affirm; "whether or not" and "if not" say
+// nothing either way. "Never" is not a negation here: "never seen the T65As this far north
+// before" is said of animals that are there.
+const NEGATION = /\b(?:(?<!\b(?:whether\s+or|if)\s+)not(?!\s+(?:sure|certain|positive|100\s*%?|only|just)\b)|no(?!\s+doubt\b)|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\b/gi;
+// What may stand between a negation and the first code it governs: a few words of the
+// same clause, "the", "any", "think this is", "recognize this as any", and no punctuation.
+const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['’]s|is|was|are|were|be|as|actually|from|in|part|recognize|think|believe|see|seen|seeing|either|even|quite|just))*\s+$/i;
+// What may stand between two codes a negation governs, matched at the start of the rest:
+// a slash, "&", "and", "or", "nor", only a space ("no T060D T060E"), or a comma. A comma
+// continues the list only inside a parenthesis the negation is in ("(no T049A1, T049A2)")
+// or before a short form ("no T65A, A4"); elsewhere it starts a correction ("Not T090s,
+// T030Bs"), whose codes are present.
+const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
+// A negated question ("Isn't it T65A?") asks rather than says, so its codes are possible,
+// not absent. A question asked with an auxiliary and a pronoun ("isn't it", "aren't they")
+// runs to the end of its sentence, commas and all ("Isn't it T65A, the one with the
+// notch?"). Otherwise the question is the negation's own clause: it ends at a sentence's
+// end, at "but", or at a comma that doesn't continue a list ("or", "and", "nor", "&" or a
+// code), so a later question ("No T65A, is it T65B?") or a distant "?" doesn't touch it.
+// A sentence ends at a semicolon, "!", or a full stop before a capital or the end; an
+// ellipsis, "i.e.", "e.g." and an abbreviation such as "Pt." or "approx." don't end it.
+// A question asked with an auxiliary and a pronoun is one even without its "?" ("Isn't
+// it T65A, that's for sure"): it never makes its codes absent.
+const SENTENCE_END = String.raw`[;!]|(?<!\.|\b[ie]\.[eg]|\b(?:Pt|Mt|St|Ft|Is|Mr|Dr|No|approx|ca|vs))\.(?!\.)(?=\s+[A-Z]|\s*$)`;
+const QUESTION = new RegExp(String.raw`^(?:(?!\b[Bb]ut\b|${SENTENCE_END}|,(?!\s*(?:[Oo]r|[Aa]nd|[Nn]or|&)\b|\s*(?:[TJKL]|CRC|BCX)\s?-?\d))[^?])*\?`);
+const QUESTION_SENTENCE = new RegExp(String.raw`^(?:(?!${SENTENCE_END})[^?])*\?`);
+const ASKS = /^(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\s+(?:it|that|this|these|those|they|he|she|you)\b/i;
+// A code with "'s" is a possessive when a word for the animal's kin, body, range or habits
+// follows, perhaps after one adjective ("not T65A's usual range", "not T65A's new calf",
+// "isn't T65A's boy"): it says nothing about whether the animal was there. Otherwise it
+// is a plural written with an apostrophe ("No T124D's today", "no T65A's spotted").
+const POSSESSIVE = /^['’]s\s+(?:[a-z]+\s+)?(?:son|daughter|boy|girl|calf|calves|baby|kid|offspring|mom|mother|sister|brother|siblings?|family|pod|group|matriline|youngest|oldest|eldest|newest|usual|normal|typical|range|territory|area|home|haunt|dorsal|fin|saddle|markings?|behaviou?r)\b/i;
 
 type Code = {start: number, end: number, text: string, letter: string | null, suffix: string, matriline: boolean};
 
@@ -142,7 +181,7 @@ export function readText(text: string): Reading {
             // A list of absent animals continues over a comma or an ampersand; "and" starts the next present group.
             const gap = /^[\s,&]*/.exec(rest)![0];
             const at = pos + gap.length;
-            const tok = named.find(t => t.start === at);
+            const tok: Code | undefined = named.find(t => t.start === at);
             if (tok) {
                 absent.add(tok.text); excludedIdx.add(named.indexOf(tok)); previousAbsent = tok.text; pos = tok.end; continue;
             }
@@ -161,14 +200,66 @@ export function readText(text: string): Reading {
             break;
         }
     }
+    // Negations: the first code within a few words of the same clause, then the codes listed
+    // after it, a short form taking its matriline from the code before it ("Not seeing T65A2
+    // & A3"), as an exclusion's does.
+    const questioned = new Set<string>();
+    for (const cue of text.matchAll(NEGATION)) {
+        const rest = text.slice(cue.index!);
+        const asks = ASKS.test(rest);
+        const question = (asks ? QUESTION_SENTENCE : QUESTION).exec(rest);
+        if (question) {
+            const end = cue.index! + question[0].length;
+            for (const t of named) if (t.start >= cue.index! && t.end <= end) questioned.add(t.text);
+            continue;
+        }
+        if (asks) continue;
+        const first = named.find(t => t.start >= cue.index! + cue[0].length);
+        if (!first || !NEGATED_GAP.test(text.slice(cue.index! + cue[0].length, first.start) || ' ')) continue;
+        // "not T65A's usual range" is about the animal's range, not whether it was there
+        if (POSSESSIVE.test(text.slice(first.end))) continue;
+        // inside a parenthesis that opens before the negation and is still open
+        const open = text.lastIndexOf('(', cue.index!);
+        const inParens = open > text.lastIndexOf(')', cue.index!) && !new RegExp(SENTENCE_END).test(text.slice(open, cue.index!));
+        // a bare "not" followed by a comma is a correction ("Not T090s, T030Bs or T037s");
+        // after "no" or a negative verb, a comma list ending in "or" or "nor" is one list
+        const bareNot = /^not$/i.test(cue[0]);
+        let previousAbsent: string | null = null;
+        let pos = first.start;
+        for (;;) {
+            const at: number = previousAbsent === null ? pos : pos + NEGATED_LIST.exec(text.slice(pos))![0].length;
+            const gap = text.slice(pos, at);
+            const bareComma = gap.includes(',') && !/[\/&+]|\b(?:and|or|nor)\b/i.test(gap);
+            const tok: Code | undefined = named.find(t => t.start === at);
+            // "no T65A, T65B or T65C": a comma list that ends in "or" or "nor" is one list
+            // "nor" can't start a correction, so it makes a list even after a bare "not"
+            const orList = bareComma
+                && new RegExp(String.raw`^(?:[A-Z]+\s?-?\d\w*(?:['’]s)?\s*,\s*)*[A-Z]+\s?-?\d\w*(?:['’]s)?\s*,?\s+(?:${bareNot ? 'nor' : 'or|nor'})\s+(?:(?:the|any|any of the|either)\s+)?(?:[A-Z]+\s?-?\d|[A-H]\b)`).test(text.slice(at));
+            if (tok && (!bareComma || inParens || orList)) {
+                absent.add(tok.text); excludedIdx.add(named.indexOf(tok)); previousAbsent = tok.text;
+                // step over a plural's apostrophe ("no T46B's, T46C's")
+                pos = tok.end + (/^['’]s\b/.test(text.slice(tok.end)) && !POSSESSIVE.test(text.slice(tok.end)) ? 2 : 0);
+                continue;
+            }
+            if (tok) break;
+            // a short form with a digit ("& A3"), or a matriline's letter alone after a list
+            // separator ("& B"), but not a word such as "I" or a direction ("E of Lime Kiln")
+            const listed = /[,\/&+]|\b(?:and|or|nor)\b/i.test(gap);
+            const short: RegExpExecArray | null = previousAbsent === null ? null
+                : /^([A-Z]\d+s?)(?![A-Za-z0-9])/.exec(text.slice(at))
+                    ?? (listed ? /^([A-H])(?![A-Za-z0-9'’])(?!\s*-?\s*(?:of|bound|side|end|shore)\b)/.exec(text.slice(at)) : null);
+            if (short) { const code: string = base(previousAbsent!, true) + short[1]!; absent.add(code); previousAbsent = code; pos = at + short[1]!.length; continue; }
+            break;
+        }
+    }
     const present: string[] = [];
     named.forEach((t, i) => { if (!excludedIdx.has(i) && !present.includes(t.text)) present.push(t.text); });
 
     // Hedges: the codes after a hedge word, up to the next comma, period or closing bracket,
     // carry the word's certainty; a code under two hedges takes the weaker.
-    const certainty = new Map<string, Certainty>();
+    const certainty = new Map<string, Certainty>([...questioned].map(code => [code, 'possible' as const]));
     for (const h of text.matchAll(HEDGE)) {
-        const level = LEVEL[h[0].toLowerCase()]!;
+        const level = levelOf(h[0]);
         const end = text.slice(h.index!).search(/[,.;)]|\bbut\b/);
         const stop = end < 0 ? text.length : h.index! + end;
         for (const t of named) {
