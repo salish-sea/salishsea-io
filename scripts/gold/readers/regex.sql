@@ -1,4 +1,7 @@
--- The two text extractions the occurrence views call, as the build runs them (decision
+-- RETIRED from the build by decision 105, which reads text with src/sighting-text.ts;
+-- kept here so scripts/gold/measure.ts can still score the regexes the build used to run.
+--
+-- The two text extractions the occurrence views called, as the build ran them (decision
 -- 061, salish-xv35.17): twins of Postgres's extract_travel_direction and
 -- extract_identifiers, which read a sighting's free text for a travel direction and for
 -- the designations it names. Temp macros, created by derive-occurrences.ts and dwca.ts
@@ -10,7 +13,7 @@
 -- non-ASCII letter or digit touches a match: Postgres sees "éT65A" as one word and finds
 -- no identifier, RE2 sees a boundary after é and finds T65A. Over every production text
 -- on 2026-10-04 (52,988, of which 911 hold a non-ASCII character) the two answered the
--- same on all; derive/extract.test.ts pins the corpus strings where they do not.
+-- same on all; derive/extract.test.ts, since retired, held the corpus strings where they did not.
 -- Until then these ran as JavaScript, which could spell the boundaries out, at the cost of
 -- streaming every text out of DuckDB and back and leaving the process 65 MB larger.
 --

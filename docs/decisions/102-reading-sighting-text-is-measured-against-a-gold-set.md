@@ -1,7 +1,9 @@
 # 102 — Reading sighting text is measured against a checked-in gold set
 
-**Status:** accepted · **Decided:** 2026-10-31, by Peter · **Work:** bd `salish-2otb`; feeds `salish-26fp` (a model reads sighting text) and `salish-2ua9` (behaviour tags) · **Builds on:** [061](061-ingest-and-derivation-move-into-the-build.md) (the text extractions run in the build as twins of Postgres's)
+**Status:** accepted · **Decided:** 2026-10-31, by Peter · **Amended:** 2026-11-02 by [105](105-the-build-and-the-browser-read-sighting-text-with-one-reader.md) · **Work:** bd `salish-2otb`; feeds `salish-26fp` (a model reads sighting text) and `salish-2ua9` (behaviour tags) · **Builds on:** [061](061-ingest-and-derivation-move-into-the-build.md) (the text extractions run in the build as twins of Postgres's)
 
+
+*Amended 2026-11-02 ([105](105-the-build-and-the-browser-read-sighting-text-with-one-reader.md)):* the build no longer runs the regular expressions this record describes. It reads text with the token reader the measurement found best, [`src/sighting-text.ts`](../../src/sighting-text.ts), which the browser runs too. `derive/extract-gold.test.ts` retired with the regular expressions, which are kept in [`scripts/gold/readers/regex.sql`](../../scripts/gold/readers/regex.sql) for comparison, and [`src/sighting-text.test.ts`](../../src/sighting-text.test.ts) now records which gold rows the reader gets wrong. What this record says about the gold set stands.
 ## Context
 
 The build reads a sighting's free text in two places, both regular expressions in [`scripts/read-path/derive/extract.sql`](../../scripts/read-path/derive/extract.sql): a travel direction, and the catalogue codes it names, which become the occurrence's identifier candidates and the archive's `unvalidatedIdentifiers`. The client has sibling regexes for ecotype and pod. They were ported from Postgres as twins, quirks included, and tested as twins: the question the tests ask is whether DuckDB answers what Postgres answered, not whether either reads the text right.

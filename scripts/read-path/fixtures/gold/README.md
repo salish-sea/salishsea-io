@@ -1,8 +1,8 @@
 # The gold set for reading sighting text
 
-[`sighting-text.json`](sighting-text.json) holds 200 Maplify reports with what each one says, read by hand (decision [102](../../../../docs/decisions/102-reading-sighting-text-is-measured-against-a-gold-set.md)). It is the measure for any change to how the build reads free text: the regex macros in [`derive/extract.sql`](../../derive/extract.sql) today, a token grammar or a model's reading later. [`derive/extract-gold.test.ts`](../../derive/extract-gold.test.ts) runs the macros over every row and records, by stratum, which rows they get wrong today.
+[`sighting-text.json`](sighting-text.json) holds 200 Maplify reports with what each one says, read by hand (decision [102](../../../../docs/decisions/102-reading-sighting-text-is-measured-against-a-gold-set.md)). It is the measure for any change to how the site reads free text: the reader in [`src/sighting-text.ts`](../../../../src/sighting-text.ts), which the build and the browser share (decision [105](../../../../docs/decisions/105-the-build-and-the-browser-read-sighting-text-with-one-reader.md)), or a model's reading later. [`src/sighting-text.test.ts`](../../../../src/sighting-text.test.ts) runs the reader over every row and records which rows it gets wrong today, field by field.
 
-The labels are the truth here, not the macros' output. A row's labels change only when someone rereads the text and disagrees. The lists in the test change whenever the extraction does, as a reviewed edit.
+The labels are the truth here, not the reader's output. A row's labels change only when someone rereads the text and disagrees. The lists in the test change whenever the reader does, as a reviewed edit.
 
 ## How the rows were drawn
 
@@ -50,6 +50,6 @@ The labels say what the text says, not what is true of the animals:
 - `later_edit`: the text is or contains a later edit: *EDIT: K pod*, *Edit by Alisa LB*.
 - `notes`: why a label is what it is, and anything odd about the text.
 
-## How the test scores the macros
+## How a reading is scored
 
-A direction is right when the macro answers the labelled compass point (or `direction_also`), or NULL where the label is null, `milling` or `unknown`. A code list is right when the macro's list, in order, equals `codes_present`, so a listed absent code, a missed code and a repeated code are each wrong. Nothing else the labels hold is scored yet; a reading that extracts pods, hedges, counts or behaviour gets its own scoring when it exists.
+[`scripts/gold/score.ts`](../../../gold/score.ts) scores six fields per row, each right or wrong: the direction, the codes present, absent and hedged, the certainty of each present code, and the pods; [`scripts/gold/README.md`](../../../gold/README.md) says how. Counts, behaviour and the other labels are not scored yet. The regular expressions the build ran until decision 105 are kept in [`scripts/gold/readers/regex.sql`](../../../gold/readers/regex.sql), so a reader can still be compared with them.

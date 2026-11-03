@@ -667,10 +667,10 @@
                                        "--allow" (path->string (build-path SALISHSEA "data" "maplify-unnamed.tsv")))))
    ;; The five per-source Postgres views behind derived.occurrences, as DuckDB SQL
    ;; (salishsea decision 061), reading Maplify, iNaturalist and Orcasound from the
-   ;; build's mirrors (salish-xv35.9) through derive/sources.sql. Its two regex
-   ;; extractions run in node first, since RE2 can't express Postgres's word
-   ;; boundaries, and so does Maplify's entity resolution, which is the ingest's own
-   ;; resolveEntity over the register's name index (salish-xv35.11). The code list is
+   ;; build's mirrors (salish-xv35.9) through derive/sources.sql. What each sighting's
+   ;; text says is read in node first by src/sighting-text.ts, the module the browser
+   ;; runs (salishsea decision 105), and so is Maplify's entity resolution, which is the
+   ;; ingest's own resolveEntity over the register's name index (salish-xv35.11). The code list is
    ;; the script's esbuild import closure; the SQL is read, not imported, so it is
    ;; listed by hand.
    ;; Each occurrence's place is the basemap water region its point is in (salish-fwyt.2),
@@ -797,7 +797,8 @@
    ;; sightings only (iNaturalist publishes to GBIF itself), so its mirror is not an
    ;; input. Dated by the snapshot's day.
    ;; build.occurrences for each record's locality, the water region the occurrences
-   ;; step named (decision 099, rights policy §7.4)
+   ;; step named (decision 099, rights policy §7.4), and for the codes and direction its
+   ;; text names, as that step read them (decision 105)
    (make-task 'dwca 'transform
               #:inputs '(snapshot-day maplify-names-hold build.occurrences
                          maplify_mirror.sightings maplify.collection_rule
@@ -808,7 +809,7 @@
                          register.deprecations register.classification types.enums)
               #:outputs '(dwca)
               #:invoke (node-script/code "scripts/read-path/dwca.ts"
-                                 '("scripts/read-path/derive/dwc.sql" "scripts/read-path/derive/extract.sql"
+                                 '("scripts/read-path/derive/dwc.sql"
                                    "scripts/read-path/derive/lookups.sql" "scripts/read-path/derive/maplify-collection.sql"
                                    "scripts/read-path/derive/shared.sql")
                                  (list* SNAPSHOT-DB MIRRORS)))

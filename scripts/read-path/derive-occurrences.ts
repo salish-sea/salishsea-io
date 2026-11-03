@@ -9,7 +9,8 @@
  * Writes `build.occurrences` into the snapshot: id, observed_at and the document,
  * the shape of `snapshot.occurrences`, which holds Postgres's answer. The SQL is
  * derive/occurrences.sql, twins of the five Postgres views, after derive/shared.sql;
- * the two text extractions they call are macros from derive/extract.sql.
+ * what each sighting's text says is read here in node by src/sighting-text.ts, the module
+ * the browser runs (derive/readings.ts, decision 105), and joined in.
  * compare-occurrences.ts checks the result against Postgres's.
  *
  * Each document also names the water region its point is in (`place`, salish-fwyt.2),
@@ -33,6 +34,7 @@ import { readFile } from 'node:fs/promises';
 
 import { writeInaturalistOutOfScope } from './derive/inaturalist-scope.ts';
 import { writeMaplifyEntities } from './derive/maplify-entities.ts';
+import { CREATE_READING, readsText, writeReadings } from './derive/readings.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
 import { attachRegister, registerFile } from './register-file.ts';
@@ -173,7 +175,6 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
             console.warn(`landmarks: the OpenStreetMap list has no place for ${resolved.unmatched.map(r => `${r.name} (${r.kind})`).join(', ')}`);
         landmarks = landmarksNear(resolved.landmarks, regions);
     }
-    const extract = await readFile(new URL('./derive/extract.sql', import.meta.url), 'utf8');
     const shared = await readFile(new URL('./derive/shared.sql', import.meta.url), 'utf8');
     const lookups = await readFile(new URL('./derive/lookups.sql', import.meta.url), 'utf8');
     const maplifyCollection = await readFile(new URL('./derive/maplify-collection.sql', import.meta.url), 'utf8');
@@ -196,7 +197,6 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
         await conn.run('USE store');
         await attachRegister(conn, registerFile(snapshot));
         await attachSources(conn, mirrors);
-        await conn.run(extract);
         await conn.run(shared);
         await conn.run(lookups);
         await conn.run(maplifyCollection);
@@ -224,9 +224,11 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
         // transaction may write one attached database, and these write `memory`, while
         // the rows go to the store.
         await conn.run('CREATE OR REPLACE TABLE memory.main.occurrence_place (id VARCHAR, place VARCHAR, landmark VARCHAR)');
+        await conn.run(CREATE_READING);
         for (const source of arms) {
             if (source === 'maplify') await writeMaplifyEntities(conn);
             if (source === 'inaturalist') await writeInaturalistOutOfScope(conn);
+            if (readsText(source)) await writeReadings(conn, source);
             await conn.run(parts.arms[source]);
             await writePlaces(conn, source, regions, landmarks);
         }
@@ -243,8 +245,8 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
             try {
                 if (!all) await conn.run(`DELETE FROM build.occurrences WHERE source = '${source}'`);
                 await conn.run(insertArm(source));
-                // Postgres casts the extracted direction to its enum and fails on anything
-                // else; the pattern can only yield these eight, so this is the cast's
+                // Postgres cast the extracted direction to its enum and failed on anything
+                // else; reading_direction can only yield these eight, so this is the cast's
                 // refusal, kept — over the rows just written, before they are committed.
                 const odd = await conn.runAndReadAll(`
                     SELECT count(*) FROM (
@@ -252,7 +254,7 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
                       FROM build.occurrences WHERE source = '${source}')
                     WHERE direction IS NOT NULL AND direction NOT IN
                       ('north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest')`);
-                if (Number(odd.getRows()[0]![0]) > 0) throw new Error(`extract_travel_direction answered outside the enum (${source})`);
+                if (Number(odd.getRows()[0]![0]) > 0) throw new Error(`a direction outside the enum (${source})`);
                 await conn.run('COMMIT');
             } catch (error) {
                 // the failure is the thing to report; a rollback that fails too (a connection

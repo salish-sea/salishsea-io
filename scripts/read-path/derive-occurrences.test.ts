@@ -18,6 +18,7 @@ import { deriveProfileLinks } from './derive-profile-links.ts';
 import { mirrorsFromSnapshot } from './derive/mirrors-from-snapshot.ts';
 import { withDwc } from './dwca.ts';
 import { fixtureSnapshot } from './twin-fixture.ts';
+import { readsText, TEXTS } from './derive/readings.ts';
 
 describe('compare-occurrences', () => {
     test('a document agrees with itself however it is spaced', () => {
@@ -102,7 +103,7 @@ describe('armsFor', () => {
         'orcasound.bouts': 'source_acoustic_bouts', 'orcasound.bout_entities': 'source_acoustic_bout_entities', 'public.hydrophones': 'public.hydrophones',
     };
 
-    const HELPERS = ['sources.sql', 'shared.sql', 'lookups.sql', 'maplify-collection.sql', 'extract.sql'];
+    const HELPERS = ['sources.sql', 'shared.sql', 'lookups.sql', 'maplify-collection.sql'];
     // the two arms whose views bind to tables a TypeScript writer resolves first: what it reads counts as the arm's
     const WRITERS: Partial<Record<Source, string>> = {maplify: 'maplify-entities.ts', inaturalist: 'inaturalist-scope.ts'};
 
@@ -138,6 +139,12 @@ describe('armsFor', () => {
         for (const [source, file] of Object.entries(WRITERS) as [Source, string][]) {
             const code = await readFile(new URL(file, dir), 'utf8');
             const reads = [...code.matchAll(/\b(?:FROM|JOIN)\s+([a-z_][\w.]*)/gi)].map(m => m[1]!);
+            graph.set(`${source}_occurrences`, new Set([...(graph.get(`${source}_occurrences`) ?? []), ...reads]));
+        }
+        // each text-reading arm's texts, which derive/readings.ts reads for it into memory.reading
+        for (const source of SOURCES) {
+            if (!readsText(source)) continue;
+            const reads = [...TEXTS[source].matchAll(/\b(?:FROM|JOIN)\s+([a-z_][\w.]*)/gi)].map(m => m[1]!);
             graph.set(`${source}_occurrences`, new Set([...(graph.get(`${source}_occurrences`) ?? []), ...reads]));
         }
         const reads = Object.fromEntries(SOURCES.map(s => [s, reaches(graph, `${s}_occurrences`)])) as Record<Source, Set<string>>;
@@ -211,6 +218,24 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
             const mirrors = await mirrorsFromSnapshot(snapshot, dir);
             expect((await deriveOccurrences(snapshot, mirrors, null)).arms).toBe('all');
             expect(await compare(snapshot)).toBe(true);
+            // Every document says which pods its text names (decision 105), which Postgres never
+            // did, so the comparison leaves it out: one text here names one ("J35 and J47 with
+            // Ls"), and the key is in jsonb's order, after the body.
+            {
+                const db = await DuckDBInstance.create(':memory:');
+                const conn = await db.connect();
+                try {
+                    await conn.run(`ATTACH '${snapshot}' AS store (READ_ONLY)`);
+                    const docs = (await conn.runAndReadAll('SELECT doc FROM store.build.occurrences')).getRows()
+                        .map(([doc]) => JSON.parse(doc as string) as Record<string, unknown>);
+                    expect(docs.length).toBeGreaterThan(0);
+                    expect(docs.filter(doc => (doc['pods'] as string[]).length).map(doc => doc['pods'])).toEqual([['L']]);
+                    for (const doc of docs) {
+                        const keys = Object.keys(doc);
+                        expect(keys[keys.indexOf('body') + 1]).toBe('pods');
+                    }
+                } finally { conn.closeSync(); db.closeSync(); }
+            }
             // told the store's tables changed: the native arm re-derived over the same
             // rows, the others untouched, and the whole still agrees with Postgres
             expect((await deriveOccurrences(snapshot, mirrors, ['public.observations'])).arms).toEqual(['native']);

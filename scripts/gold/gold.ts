@@ -42,18 +42,8 @@ export function loadGold(): GoldRow[] {
     return JSON.parse(readFileSync(GOLD_PATH, 'utf8'));
 }
 
-/**
- * The part of a Maplify comment a reader should read: the collection tag at the front
- * ("[Orca Network] "), the trailing "Submitted by …" attribution and any HTML removed,
- * whitespace collapsed. The same cut the fixture's `text` column was made with.
- */
-export function reportText(comment: string): string {
-    let text = comment.replace(/<br><br>Submitted by .*$/s, '').replace(/<[^>]+>/g, ' ')
-        .replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
-    const tag = /^\[([^\]]+)\]/.exec(text);
-    if (tag) text = text.slice(tag[0].length).trim();
-    return text;
-}
+/** The text a reader is given: src/sighting-text.ts's cut, which the fixture's `text` column was made with. */
+export { reportText } from '../../src/sighting-text.ts';
 
 /**
  * Which rows a reader may be developed against, and which it is judged on. The hard

@@ -1,7 +1,10 @@
+import { present, readSighting } from './sighting-text.ts';
+
 // The plural is the ordinary form — "transients in Haro Strait", "southern
 // residents foraging" — and \b after the singular refuses it, because there is
 // no word boundary between 'transient' and its 's'. Missed silently until
 // decision 029 put the ecotype on the map label rather than behind a letter.
+// The reader in sighting-text.ts doesn't name ecotypes, so this stays a pattern of its own.
 const ecotypeRE = /\b(srkw|southern resident|transient|biggs)s?\b/gi;
 export const detectEcotype = (text: Readonly<string>) => {
   for (const [, ecotype] of text.matchAll(ecotypeRE)) {
@@ -15,35 +18,27 @@ export const detectEcotype = (text: Readonly<string>) => {
   return null;
 }
 
-const podCleanerRE = /\s*(\+|,|&|AND|-)\s*/g;
-const podRE = /\b([JKLT]+)\s?(POD|\d)/g;
+/**
+ * The pod a sighting's text names, as a letter: a pod it names outright ("J pod", "Js"),
+ * else the letter of the first code it says was there ("K37" is K, "T65A" is T, the
+ * Bigg's old pod letter), else T when it says Biggs. Read by the same reader as the build
+ * (decision 105), so a code the text says was absent names no pod.
+ */
 export const detectPod = (text: Readonly<string>) => {
-  for (const [, pods] of text.toUpperCase().replaceAll(podCleanerRE, '').matchAll(podRE)) {
-    for (const pod of [...pods!]) {
-      return pod;
-    }
+  const reading = readSighting(text);
+  if (reading.pods.length) return reading.pods[0]!;
+  for (const code of present(reading)) {
+    const letter = /^[JKLT](?=\d)/.exec(code)?.[0];
+    if (letter) return letter;
   }
   if (detectEcotype(text) === 'Biggs')
     return 'T';
   return null;
 }
 
-const normalizeIndividual = (name: string) => {
-  return name.replace(/^(J|K|L|T|CRC)0+(?=\d)/, '$1');
-}
-
-// return an array of identifiers like 'Biggs', 'Transient', 'J', 'K37', etc.
-const individualRE = /\b(t|j|k|l|t|crc)[- ]?(\d[\da-f]+)(s?)\b/gi;
-export const detectIndividuals = (text: Readonly<string>) => {
-  const matches = new Set<string>();
-  for (let [, pod, individual, matriline] of text.matchAll(individualRE)) {
-    pod = pod!.toUpperCase();
-    const id = normalizeIndividual(`${pod}${individual!.toUpperCase()}`);
-    if (matriline) {
-      matches.add(`${id}s`);
-    } else {
-      matches.add(id);
-    }
-  }
-  return [...matches].sort();
-}
+/**
+ * The codes a sighting's text says were there, as the build reads them into an
+ * occurrence's identifiers (decision 105): 'T65A5', 'J27s', 'CRC56', in sorted order.
+ * A contributor's own sighting carries these until a build publishes it.
+ */
+export const detectIndividuals = (text: Readonly<string>) => [...new Set(present(readSighting(text)))].sort();
