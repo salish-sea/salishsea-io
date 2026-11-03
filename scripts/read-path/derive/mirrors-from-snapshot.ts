@@ -40,7 +40,7 @@ export async function mirrorsFromSnapshot(snapshot: string, dir: string): Promis
               FROM store.inaturalist.observation_photos;
             CREATE TABLE inaturalist.identifications AS
               SELECT id, observation_id, taxon_id, CAST("current" AS INTEGER) AS "current",
-                     CAST(own_observation AS INTEGER) AS own_observation, CAST(hidden AS INTEGER) AS hidden
+                     CAST(own_observation AS INTEGER) AS own_observation, CAST(hidden AS INTEGER) AS hidden, user_id
               FROM store.inaturalist.identifications;
             CREATE TABLE inaturalist.taxa AS
               SELECT id, parent_id, scientific_name, vernacular_name, rank, current_taxon_id
