@@ -363,8 +363,9 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
 -- shared
 -- --- What the text says ---------------------------------------------------------------
 -- From memory.reading (derive/readings.ts; decision 105). A direction is one of the
--- eight compass points the document's enum holds; the reader's `milling` and `unknown`
--- have no place in it yet, so they are null, as no direction is. The identifiers are the
+-- eight compass points the document's enum holds. The reader's `milling` is a behaviour,
+-- not a direction (behaviour tags are salish-2ua9), and its `unknown` is no direction, so
+-- both are null. The identifiers are the
 -- codes the text says were present, hedged or not, in the order it names them; a code it
 -- says was absent is not one (salish-uh38 will store it). No reading is no identifiers.
 CREATE OR REPLACE TEMP MACRO reading_direction(direction) AS

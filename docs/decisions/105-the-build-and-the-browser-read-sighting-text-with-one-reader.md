@@ -13,7 +13,7 @@ Until now the build read a sighting's free text with two regular expressions por
 **In the build, a pass in node writes what each text says into a table the occurrence views join.** [`derive/readings.ts`](../../scripts/read-path/derive/readings.ts) streams each source's texts out of DuckDB (Maplify's comments, iNaturalist's descriptions, our own sightings' bodies), reads them, and writes `memory.reading(id, direction, claims, pods)`, as the water region and Maplify's entity are already written. The views in [`derive/occurrences.sql`](../../scripts/read-path/derive/occurrences.sql) take from it:
 
 - **`identifiers`** are the codes the text says were present, hedged or not, as before. A code the text says was absent is no longer one of them. Storing absence and certainty is `salish-uh38`'s work.
-- **`direction`** is one of the eight compass points, as the document's vocabulary allows. The reader's `milling` and `unknown` become null there for now, as no direction does.
+- **`direction`** is one of the eight compass points, as the document's vocabulary allows. When the reader answers `milling` or `unknown`, the direction is null. Milling is a behaviour, not a direction, and belongs with the behaviour tags of bd `salish-2ua9`. *Direction unknown* says there is none.
 - **`pods`** is a new key in every document: the pod letters the text names, such as `["J", "K"]`. A bout's is empty, since its pods are among its identifiers, from its tags.
 
 **The archive takes each record's codes and direction from the occurrences the build derived,** as it already took the water region, rather than reading the text a second time. The map and the archive can't disagree on what a report says.
@@ -53,5 +53,5 @@ The pass costs about half a second, 4.7 s against 4.15 s for the whole derive st
 - **Patching the regular expressions instead.** The measurement in decision 102 showed the misses are patterns that rules over the words fix. Patterns over characters cannot say that *(-D)* removes an animal named before it.
 - **Keeping the browser's own patterns.** A contributor's sighting would carry one set of codes until the build published it, then another.
 - **Reading the text again in the archive's step.** The archive would need its own pass and could disagree with the map. It already reads `build.occurrences` for the place.
-- **Storing `milling` and `unknown` as directions now.** The document's direction is a vocabulary of eight compass points that the site's types, the archive's `travelDirection` and the map's heading all assume. Widening it is a change of its own.
+- **Storing `milling` and `unknown` as directions.** Milling is something the animals are doing, not a heading, and *unknown* is the absence of one. The document's direction stays the eight compass points that the site's types, the archive's `travelDirection` and the map's heading assume.
 - **Appending the claims through the Node API as typed lists.** This was measured and rejected: see above.
