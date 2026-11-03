@@ -72,7 +72,10 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          CASE WHEN s.trusted THEN 'confirmed' ELSE 'unconfirmed' END AS confirmation,
          CAST(NULL AS BIGINT) AS disagreements,
          CAST(NULL AS VARCHAR) AS vitality,
-         coalesce(r.pods, []) AS pods
+         coalesce(r.pods, []) AS pods,
+         -- only an iNaturalist observation has comments and identifications to show (decision 107)
+         CAST([] AS STRUCT(kind VARCHAR, id BIGINT, "at" VARCHAR, author VARCHAR, by_observer BOOLEAN, taxon VARCHAR, body VARCHAR)[]) AS activity,
+         CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as
   FROM source_maplify_sightings s
   LEFT JOIN memory.reading r ON r.id = 'maplify:' || s.id
   LEFT JOIN memory.maplify_entity me
@@ -196,6 +199,40 @@ CREATE OR REPLACE TABLE memory.main.inaturalist_remarks AS
   SELECT id, codes.codes, absent.absent, pods.pods
   FROM pods LEFT JOIN codes USING (id) LEFT JOIN absent USING (id);
 
+-- What people said on an observation, as its card shows it (salish-065b, decision 107):
+-- `identified_as`, how many people identified it as each taxon, most first, without what
+-- they wrote; and `activity`, each comment and each identification that has a remark,
+-- oldest first, with its author, when they wrote it and, for an identification, its
+-- taxon. A taxon is named as the observation's own is: as the taxon iNaturalist now calls
+-- it (decision 032), by the register's common name where it has one. Written to a table
+-- once, as the remarks are.
+CREATE OR REPLACE TABLE memory.main.inaturalist_activity AS
+  WITH said AS (
+    SELECT a.*, coalesce(reg.common_name, t.vernacular_name, t.scientific_name) AS taxon
+    FROM source_inaturalist_activity a
+    LEFT JOIN taxa t_recorded ON t_recorded.id = a.taxon_id
+    LEFT JOIN taxa t ON t.id = coalesce(t_recorded.current_taxon_id, t_recorded.id)
+    LEFT JOIN inaturalist_taxon_name reg ON reg.inat_taxon_id = t.id
+  ),
+  per_taxon AS (
+    SELECT observation_id, taxon, count(*) AS people, min(created_at) AS first
+    FROM said WHERE kind = 'identification' AND taxon IS NOT NULL
+    GROUP BY observation_id, taxon
+  ),
+  identified AS (
+    SELECT observation_id, list({'taxon': taxon, 'people': people} ORDER BY people DESC, first, taxon) AS identified_as
+    FROM per_taxon GROUP BY observation_id
+  ),
+  activity AS (
+    SELECT observation_id,
+           list({'kind': kind, 'id': id, 'at': pg_ts(created_at), 'author': author, 'by_observer': by_observer,
+                 'taxon': CASE WHEN kind = 'identification' THEN taxon END, 'body': body}
+                ORDER BY created_at, id) AS activity
+    FROM said WHERE body IS NOT NULL GROUP BY observation_id
+  )
+  SELECT observation_id, coalesce(a.activity, []) AS activity, coalesce(i.identified_as, []) AS identified_as
+  FROM identified i FULL JOIN activity a USING (observation_id);
+
 -- derived.inaturalist_occurrences
 CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
   SELECT 'inaturalist:' || o.id AS id,
@@ -245,8 +282,12 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          -- where each of those identifiers was read, in the same order
          list_transform(reading_identifiers(r.claims),
                         lambda own: {'code': own, 'origin': 'report', 'origin_id': CAST(NULL AS BIGINT), 'by_observer': true})
-           || remark_codes(rm.codes, r.claims, rm.absent) AS identifier_origins
+           || remark_codes(rm.codes, r.claims, rm.absent) AS identifier_origins,
+         -- what people said on it, shown on its card (decision 107)
+         coalesce(ac.activity, []) AS activity,
+         coalesce(ac.identified_as, []) AS identified_as
   FROM source_inaturalist_observations o
+  LEFT JOIN memory.inaturalist_activity ac ON ac.observation_id = o.id
   LEFT JOIN memory.reading r ON r.id = 'inaturalist:' || o.id
   LEFT JOIN memory.inaturalist_remarks rm ON rm.id = 'inaturalist:' || o.id
   LEFT JOIN memory.inaturalist_confirmation c ON c.id = o.id
@@ -320,7 +361,10 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
          'confirmed' AS confirmation,
          CAST(NULL AS BIGINT) AS disagreements,
          CAST(NULL AS VARCHAR) AS vitality,
-         coalesce(r.pods, []) AS pods
+         coalesce(r.pods, []) AS pods,
+         -- only an iNaturalist observation has comments and identifications to show (decision 107)
+         CAST([] AS STRUCT(kind VARCHAR, id BIGINT, "at" VARCHAR, author VARCHAR, by_observer BOOLEAN, taxon VARCHAR, body VARCHAR)[]) AS activity,
+         CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as
   FROM public.observations o
   LEFT JOIN memory.reading r ON r.id = CAST(o.id AS VARCHAR)
   JOIN public.contributors con ON con.id = o.contributor_id
@@ -394,7 +438,10 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
          CAST(NULL AS BIGINT) AS disagreements,
          CAST(NULL AS VARCHAR) AS vitality,
          -- the pods a text names; a bout's are among its identifiers, from its tags
-         CAST([] AS VARCHAR[]) AS pods
+         CAST([] AS VARCHAR[]) AS pods,
+         -- only an iNaturalist observation has comments and identifications to show (decision 107)
+         CAST([] AS STRUCT(kind VARCHAR, id BIGINT, "at" VARCHAR, author VARCHAR, by_observer BOOLEAN, taxon VARCHAR, body VARCHAR)[]) AS activity,
+         CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as
   FROM source_acoustic_bouts b
   JOIN per_species tx ON tx.bout_id = b.id
   LEFT JOIN public.hydrophones h ON h.feed_id = b.feed_id
@@ -454,6 +501,7 @@ CREATE OR REPLACE TEMP MACRO occurrence_doc(o, place, landmark) AS CAST(to_json(
            'taxon': o.taxon,
            'photos': o.photos,
            'accuracy': o.accuracy,
+           'activity': o.activity,
            'location': pg_lon_lat(o.location),
            'observer': o.observer,
            'provider': o.provider,
@@ -468,6 +516,7 @@ CREATE OR REPLACE TEMP MACRO occurrence_doc(o, place, landmark) AS CAST(to_json(
            'confirmation': o.confirmation,
            'organization': o.organization,
            'disagreements': o.disagreements,
+           'identified_as': o.identified_as,
            'observed_from': pg_lon_lat(o.observed_from),
            'provider_slug': o.provider_slug,
            'contributor_id': o.contributor_id,

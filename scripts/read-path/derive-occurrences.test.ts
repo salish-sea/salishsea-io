@@ -257,6 +257,25 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
                     // and one comment, on 9000001, names J pod, which joins that observation's (decision 106)
                     expect(docs.filter(doc => (doc['pods'] as string[]).length)
                         .map(doc => [doc['id'], doc['pods']]).sort()).toEqual([['inaturalist:9000001', ['J']], ['maplify:13', ['L']]]);
+                    // What people said on an iNaturalist observation, as its card shows it (decision
+                    // 107): its identifications grouped by taxon, and its comments and remarks, oldest
+                    // first. Not the hidden identification (6000005) or comment (8000003), the
+                    // withdrawn identification (6000006), nor what deleted accounts wrote (6000012,
+                    // 8000002). The observer's own comment says so; a comment's author is their
+                    // display name, else their login.
+                    const said = docs.find(doc => doc['id'] === 'inaturalist:9000002')!;
+                    expect(said['identified_as']).toEqual([{taxon: 'Humpback whale', people: 1}, {taxon: 'Baleen Whales', people: 1}]);
+                    expect(said['activity']).toEqual([
+                        {kind: 'identification', id: 6000004, at: '2026-09-12T16:13:00+00:00', author: 'Synthetic Identifier',
+                         by_observer: false, taxon: 'Baleen Whales', body: 'T137s, I think'},
+                        {kind: 'comment', id: 8000001, at: '2026-09-12T17:15:00+00:00', author: 'Synthetic Identifier',
+                         by_observer: false, taxon: null, body: 'Looks like T137B to me, with T137A nearby'},
+                        {kind: 'comment', id: 8000005, at: '2026-09-12T19:00:00+00:00', author: 'synthetic_observer',
+                         by_observer: true, taxon: null, body: 'T137s (-B)'},
+                    ]);
+                    // and no other source has any
+                    expect(docs.filter(doc => !String(doc['id']).startsWith('inaturalist:'))
+                        .every(doc => (doc['activity'] as unknown[]).length === 0 && (doc['identified_as'] as unknown[]).length === 0)).toBe(true);
                     for (const doc of docs) {
                         const keys = Object.keys(doc);
                         expect(keys[keys.indexOf('body') + 1]).toBe('pods');
