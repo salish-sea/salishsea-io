@@ -7,6 +7,15 @@
 -- Reads build.occurrences, which carries each occurrence's source, identifiers and exact
 -- location, and the catalogue as the snapshot holds it (documents). Checked against the
 -- stored candidates by compare-identifier-candidates.ts.
+--
+-- Where each candidate was read (salish-4s42), which Postgres never recorded: `origin` is
+-- 'report' for the occurrence's own text, or 'comment' or 'identification' for what
+-- someone wrote on an iNaturalist observation (remark_identifiers), with `origin_id` the
+-- comment's or identification's iNaturalist id. A code named in both is the report's, and
+-- one named only in remarks is the first remark's, comments before identifications, so
+-- the confidence decision 075 derives can weigh someone else's word apart from the
+-- observer's. A candidate read from a remark links a sighting to a profile page as any
+-- other does; the page never shows the remark or who wrote it (rights-policy §5.5).
 
 -- register.fold(name), the register's name-comparison rule (its ADR-0019, src/fold.ts):
 -- lowercased, apostrophes and hyphens dropped, whitespace collapsed and trimmed, and every
@@ -22,10 +31,15 @@ CREATE OR REPLACE TEMP MACRO register_fold(name) AS
 
 CREATE OR REPLACE TABLE build.occurrence_identifier_candidates AS
   WITH ident AS (
-    SELECT o.id AS occurrence_id, code, o.observed_at, o.location
+    SELECT o.id AS occurrence_id, code, 'report' AS origin, CAST(NULL AS BIGINT) AS origin_id,
+           0 AS rank, o.observed_at, o.location
     FROM build.occurrences o, unnest(o.identifiers) AS t(code)
     -- Bouts carry register identifiers, not text; see public.acoustic_identifications.
     WHERE o.source <> 'orcasound'
+    UNION ALL
+    SELECT o.id, r.code, r.origin, r.origin_id, CASE r.origin WHEN 'comment' THEN 1 ELSE 2 END,
+           o.observed_at, o.location
+    FROM build.occurrences o, unnest(o.remark_identifiers) AS t(r)
   ),
   matriline AS (
     SELECT CAST(doc->>'id' AS INTEGER) AS id, doc->>'designation_folded' AS designation_folded
@@ -43,10 +57,10 @@ CREATE OR REPLACE TABLE build.occurrence_identifier_candidates AS
   -- bytes (Stelis's determinism rule), whatever the data comes to hold (salish-xv35.20).
   SELECT DISTINCT ON (i.occurrence_id, i.code)
          i.occurrence_id, i.code, d.individual_id, g.id AS social_group_id, i.observed_at,
-         i.location.lon AS location_lon, i.location.lat AS location_lat
+         i.location.lon AS location_lon, i.location.lat AS location_lat, i.origin, i.origin_id
   FROM ident i
   LEFT JOIN matriline g
     ON regexp_matches(i.code, 's$') AND g.designation_folded || 's' = register_fold(i.code)
   LEFT JOIN designation d
     ON NOT regexp_matches(i.code, 's$') AND d.code_folded = register_fold(i.code)
-  ORDER BY i.occurrence_id, i.code, d.individual_id NULLS LAST, g.id NULLS LAST;
+  ORDER BY i.occurrence_id, i.code, i.rank, i.origin_id NULLS FIRST, d.individual_id NULLS LAST, g.id NULLS LAST;

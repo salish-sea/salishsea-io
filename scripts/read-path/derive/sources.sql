@@ -58,6 +58,21 @@ CREATE OR REPLACE TEMP VIEW source_inaturalist_identifications AS
   FROM inaturalist_mirror.identifications
   WHERE current <> 0 AND hidden = 0 AND user_id IS NOT NULL;
 
+-- What people wrote on an iNaturalist observation besides its description: each comment,
+-- and what each identifier wrote with an identification they still hold, read for the
+-- animals they name (salish-4s42). Not a withdrawn identification's, whose author took it
+-- back; not what iNaturalist's moderators hid, whose text the mirror doesn't keep anyway;
+-- and not what an account iNaturalist deleted wrote (decision 081). Kept to read, never
+-- shown (rights-policy §5.5).
+CREATE OR REPLACE TEMP VIEW source_inaturalist_remarks AS
+  SELECT CAST(observation_id AS BIGINT) AS observation_id, 'comment' AS origin, CAST(id AS BIGINT) AS origin_id, body
+  FROM inaturalist_mirror.comments
+  WHERE hidden = 0 AND user_id IS NOT NULL AND body IS NOT NULL AND trim(body) <> ''
+  UNION ALL
+  SELECT CAST(observation_id AS BIGINT), 'identification', CAST(id AS BIGINT), body
+  FROM inaturalist_mirror.identifications
+  WHERE current <> 0 AND hidden = 0 AND user_id IS NOT NULL AND body IS NOT NULL AND trim(body) <> '';
+
 -- public.acoustic_bouts and its entities, as Orcasound's moderators published them.
 -- Postgres's ingest kept biophony bouts only (decision 013: the other two categories
 -- name no organism); the mirror holds every category, and the scope rule is applied

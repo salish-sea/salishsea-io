@@ -11,11 +11,17 @@
  * absent and how sure the reporter was; the views take the present codes as the
  * occurrence's identifiers, and presence and certainty wait for salish-uh38 to be stored.
  * A text that names nothing has no row.
+ *
+ * `remark_claims(id, origin, origin_id, claims)`: the same reading of what other people
+ * wrote on an iNaturalist observation, each comment and each identification's remark
+ * read alone (salish-4s42). It stays apart from `reading`, which is the observation's
+ * own text: a direction or a pod comes only from the observer, and a code a commenter
+ * names reaches the identifier candidates, not the occurrence's identifiers.
  */
 
 import type { DuckDBConnection } from '@duckdb/node-api';
 
-import { readSighting, type Reading } from '../../../src/sighting-text.ts';
+import { readSighting, readText, type Reading } from '../../../src/sighting-text.ts';
 
 /** Each source's texts, by the id its occurrence view gives it. */
 export const TEXTS = {
@@ -31,6 +37,53 @@ const READING_SHAPE = JSON.stringify({direction: 'VARCHAR', claims: [{code: 'VAR
 export const CREATE_READING = `CREATE OR REPLACE TABLE memory.main.reading (
     id VARCHAR, direction VARCHAR,
     claims STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR)[], pods VARCHAR[])`;
+
+/**
+ * What people wrote on an iNaturalist observation besides its description, as
+ * derive/sources.sql's source_inaturalist_remarks gives it, keyed as `reading` is.
+ */
+export const REMARKS = `SELECT 'inaturalist:' || observation_id, origin, origin_id, body FROM source_inaturalist_remarks`;
+
+const CLAIMS_SHAPE = JSON.stringify([{code: 'VARCHAR', presence: 'VARCHAR', certainty: 'VARCHAR'}]);
+
+export const CREATE_REMARK_CLAIMS = `CREATE OR REPLACE TABLE memory.main.remark_claims (
+    id VARCHAR, origin VARCHAR, origin_id BIGINT,
+    claims STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR)[])`;
+
+/**
+ * Append the claims in each remark that names an animal to memory.main.remark_claims,
+ * which CREATE_REMARK_CLAIMS made, as writeReadings does. A remark is read exactly as
+ * written (readText): it has neither the collection tag nor the "Submitted by" tail that
+ * readSighting strips from a report.
+ */
+export async function writeRemarkClaims(conn: DuckDBConnection): Promise<number> {
+    const result = await conn.stream(REMARKS);
+    const found: [string, string, bigint, Reading['claims']][] = [];
+    for await (const rows of result.yieldRows() as AsyncIterable<[string, string, bigint, string][]>) {
+        for (const [id, origin, originId, body] of rows) {
+            const {claims} = readText(body);
+            if (claims.length) found.push([id, origin, originId, claims]);
+        }
+    }
+    await conn.run('CREATE OR REPLACE TABLE memory.main.remark_text (id VARCHAR, origin VARCHAR, origin_id BIGINT, claims VARCHAR)');
+    const appender = await conn.createAppender('remark_text', 'main', 'memory');
+    try {
+        for (const [id, origin, originId, claims] of found) {
+            appender.appendVarchar(id);
+            appender.appendVarchar(origin);
+            appender.appendBigInt(originId);
+            appender.appendVarchar(JSON.stringify(claims));
+            appender.endRow();
+        }
+        appender.flushSync();
+    } finally {
+        appender.closeSync();
+    }
+    await conn.run(`INSERT INTO memory.main.remark_claims
+        SELECT id, origin, origin_id, from_json(claims, '${CLAIMS_SHAPE}') FROM memory.main.remark_text`);
+    await conn.run('DROP TABLE memory.main.remark_text');
+    return found.length;
+}
 
 /**
  * Append one source's readings to memory.main.reading, which CREATE_READING made. The

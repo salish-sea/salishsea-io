@@ -34,7 +34,7 @@ import { readFile } from 'node:fs/promises';
 
 import { writeInaturalistOutOfScope } from './derive/inaturalist-scope.ts';
 import { writeMaplifyEntities } from './derive/maplify-entities.ts';
-import { CREATE_READING, readsText, writeReadings } from './derive/readings.ts';
+import { CREATE_READING, CREATE_REMARK_CLAIMS, readsText, writeReadings, writeRemarkClaims } from './derive/readings.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
 import { budget } from './duckdb-budget.ts';
 import { attachRegister, registerFile } from './register-file.ts';
@@ -54,7 +54,8 @@ export type Source = typeof SOURCES[number];
  */
 export const ARM_INPUTS: Readonly<Record<Source, readonly string[]>> = {
     maplify: ['maplify_mirror.sightings', 'maplify.collection_rule', 'maplify-names-hold'],
-    inaturalist: ['inaturalist_mirror.observations', 'inaturalist_mirror.observation_photos', 'inaturalist_mirror.identifications'],
+    inaturalist: ['inaturalist_mirror.observations', 'inaturalist_mirror.observation_photos', 'inaturalist_mirror.identifications',
+                  'inaturalist_mirror.comments'],
     native: ['public.observations', 'public.observation_photos', 'public.contributors'],
     orcasound: ['orcasound.bouts', 'orcasound.bout_entities', 'public.hydrophones'],
 };
@@ -125,6 +126,10 @@ const COLUMNS: readonly {name: string, type: string, from: (source: Source) => s
     {name: 'source', type: 'VARCHAR', from: source => `'${source}'`},
     {name: 'identifiers', type: 'VARCHAR[]', from: () => 'o.identifiers'},
     {name: 'location', type: 'STRUCT(lat DOUBLE, lon DOUBLE)', from: () => 'o.location'},
+    // The codes other people's remarks name, which only iNaturalist's arm has (salish-4s42):
+    // read into the identifier candidates, never into the document.
+    {name: 'remark_identifiers', type: 'STRUCT(code VARCHAR, origin VARCHAR, origin_id BIGINT)[]',
+     from: source => source === 'inaturalist' ? 'o.remark_identifiers' : 'NULL'},
 ];
 const CREATE_TABLE = `CREATE OR REPLACE TABLE build.occurrences (${COLUMNS.map(c => `${c.name} ${c.type}`).join(', ')})`;
 const insertArm = (source: Source) =>
@@ -225,9 +230,13 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
         // the rows go to the store.
         await conn.run('CREATE OR REPLACE TABLE memory.main.occurrence_place (id VARCHAR, place VARCHAR, landmark VARCHAR)');
         await conn.run(CREATE_READING);
+        await conn.run(CREATE_REMARK_CLAIMS);
         for (const source of arms) {
             if (source === 'maplify') await writeMaplifyEntities(conn);
-            if (source === 'inaturalist') await writeInaturalistOutOfScope(conn);
+            if (source === 'inaturalist') {
+                await writeInaturalistOutOfScope(conn);
+                await writeRemarkClaims(conn);
+            }
             if (readsText(source)) await writeReadings(conn, source);
             await conn.run(parts.arms[source]);
             await writePlaces(conn, source, regions, landmarks);

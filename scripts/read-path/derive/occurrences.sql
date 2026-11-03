@@ -159,6 +159,21 @@ CREATE OR REPLACE TABLE memory.main.inaturalist_vitality AS
   FROM counted
   GROUP BY id;
 
+-- The codes people name in what they wrote on an observation besides its description
+-- (salish-4s42): each comment's and each identification's remark, read by
+-- derive/readings.ts into memory.remark_claims. As in reading_identifiers, a code the
+-- remark says was absent is not one. Each keeps where it was read, comments before
+-- identifications and each kind in the order iNaturalist numbered them, so the
+-- identifier candidates can tell them from the observer's own words. Written to a table
+-- once, as the confirmations are.
+CREATE OR REPLACE TABLE memory.main.inaturalist_remark_identifiers AS
+  SELECT id,
+         flatten(list(list_transform(list_filter(claims, c -> c.presence = 'present'),
+                                     c -> {'code': c.code, 'origin': origin, 'origin_id': origin_id})
+                      ORDER BY origin, origin_id)) AS identifiers
+  FROM memory.remark_claims
+  GROUP BY id;
+
 -- derived.inaturalist_occurrences
 CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
   SELECT 'inaturalist:' || o.id AS id,
@@ -202,9 +217,11 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          -- how many other people's identifications name another branch (decision 080)
          coalesce(c.disagreements, 0) AS disagreements,
          v.vitality,
-         coalesce(r.pods, []) AS pods
+         coalesce(r.pods, []) AS pods,
+         coalesce(rm.identifiers, []) AS remark_identifiers
   FROM source_inaturalist_observations o
   LEFT JOIN memory.reading r ON r.id = 'inaturalist:' || o.id
+  LEFT JOIN memory.inaturalist_remark_identifiers rm ON rm.id = 'inaturalist:' || o.id
   LEFT JOIN memory.inaturalist_confirmation c ON c.id = o.id
   LEFT JOIN memory.inaturalist_vitality v ON v.id = o.id
   JOIN taxa t_recorded ON o.taxon_id = t_recorded.id

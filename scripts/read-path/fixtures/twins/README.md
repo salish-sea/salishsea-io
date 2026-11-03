@@ -26,6 +26,8 @@ Decision 080's confirmation rule added more, which Postgres never saw either: th
 
 iNaturalist's annotations (salish-1y8) came after Postgres too: an `annotations` column on `inaturalist_observations.csv`, where 9000002 carries a Dead annotation that counts and 9000001 an Alive one voted down, which doesn't. The expected occurrences' `vitality` key is the build's answer, checked by hand.
 
+Reading the animals people name in iNaturalist comments and identifications (salish-4s42, decision 106) added `inaturalist_comments.csv` and a `body` column on `inaturalist_identifications.csv`. Observation 9000002, which has no description, gains three identifier candidates: T137A and T137B from a comment, and T137s from an identification's remark. A deleted account's comment, a hidden comment and a withdrawn identification's remark each name an animal, and none counts. 9000001's T137A stays its observer's, though a comment names it too. The new rows in `derived_occurrence_identifier_candidates.csv` and the profile links they make (`snapshot_individual_occurrences.csv`, `snapshot_group_occurrences.csv`, `snapshot_ecotype_occurrences.csv`) are the build's answer, checked by hand.
+
 ## When a derivation changes on purpose
 
 The test then fails, naming the rows that differ. With no Postgres to ask, the new answer is the build's: check that the difference is the one you meant, then edit the expected rows in `snapshot/` to match, as a reviewed change.

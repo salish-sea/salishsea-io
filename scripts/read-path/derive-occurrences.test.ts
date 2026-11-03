@@ -18,7 +18,7 @@ import { deriveProfileLinks } from './derive-profile-links.ts';
 import { mirrorsFromSnapshot } from './derive/mirrors-from-snapshot.ts';
 import { withDwc } from './dwca.ts';
 import { fixtureSnapshot } from './twin-fixture.ts';
-import { readsText, TEXTS } from './derive/readings.ts';
+import { readsText, REMARKS, TEXTS } from './derive/readings.ts';
 
 describe('compare-occurrences', () => {
     test('a document agrees with itself however it is spaced', () => {
@@ -98,6 +98,7 @@ describe('armsFor', () => {
         'inaturalist_mirror.observations': 'source_inaturalist_observations',
         'inaturalist_mirror.observation_photos': 'source_inaturalist_observation_photos',
         'inaturalist_mirror.identifications': 'source_inaturalist_identifications',
+        'inaturalist_mirror.comments': 'inaturalist_mirror.comments',
         'public.observations': 'public.observations', 'public.observation_photos': 'public.observation_photos',
         'public.contributors': 'public.contributors',
         'orcasound.bouts': 'source_acoustic_bouts', 'orcasound.bout_entities': 'source_acoustic_bout_entities', 'public.hydrophones': 'public.hydrophones',
@@ -147,6 +148,9 @@ describe('armsFor', () => {
             const reads = [...TEXTS[source].matchAll(/\b(?:FROM|JOIN)\s+([a-z_][\w.]*)/gi)].map(m => m[1]!);
             graph.set(`${source}_occurrences`, new Set([...(graph.get(`${source}_occurrences`) ?? []), ...reads]));
         }
+        // and the remarks on iNaturalist's observations, which it reads into memory.remark_claims
+        const remarks = [...REMARKS.matchAll(/\b(?:FROM|JOIN)\s+([a-z_][\w.]*)/gi)].map(m => m[1]!);
+        graph.set('inaturalist_occurrences', new Set([...(graph.get('inaturalist_occurrences') ?? []), ...remarks]));
         const reads = Object.fromEntries(SOURCES.map(s => [s, reaches(graph, `${s}_occurrences`)])) as Record<Source, Set<string>>;
         for (const source of SOURCES)
             for (const input of ARM_INPUTS[source]) {
@@ -298,6 +302,22 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
             expect(await compare(snapshot)).toBe(true);
             await deriveIdentifierCandidates(snapshot);
             expect(await compareCandidates(snapshot)).toBe(true);
+            // Where each iNaturalist candidate was read (salish-4s42), which Postgres never
+            // recorded. 9000001's T137A is its observer's, though a comment names it too.
+            // 9000002 has no description: one comment names T137B and T137A, and an
+            // identification's remark T137s. Its other remarks name nothing that counts: a
+            // deleted account's comment, a hidden one, and a withdrawn identification's.
+            expect(await query(`SELECT occurrence_id, code, origin, origin_id FROM store.build.occurrence_identifier_candidates
+                WHERE occurrence_id LIKE 'inaturalist:%' ORDER BY occurrence_id, code`)).toEqual([
+                ['inaturalist:9000001', 'T137A', 'report', null],
+                ['inaturalist:9000001', 'T137B', 'report', null],
+                ['inaturalist:9000002', 'T137A', 'comment', 8000001n],
+                ['inaturalist:9000002', 'T137B', 'comment', 8000001n],
+                ['inaturalist:9000002', 'T137s', 'identification', 6000004n],
+            ]);
+            // and none of them reaches the occurrence's own identifiers, which the map and the archive read
+            expect(await query(`SELECT identifiers FROM store.build.occurrences WHERE id = 'inaturalist:9000002'`))
+                .toEqual([[{items: []}]]);
             // The catalogue's views over the register (salish-9uu.2.3), which the profile
             // links read, derived as the build derives them and checked against Postgres's.
             await deriveCatalogue(snapshot, mirrors.inaturalist);
