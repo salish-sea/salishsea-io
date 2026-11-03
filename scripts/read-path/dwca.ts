@@ -9,8 +9,8 @@
  * floors).
  * The archive writer is the nightly's own (scripts/dwca/build.ts's writeArchive); what
  * changes is where `pgdb.dwc.*` comes from: derive/dwc.sql's twins of Postgres's views,
- * over the snapshot and the build's mirrors, with the same lookups and extractions the
- * occurrences use. The directory is replaced whole, so a reader never sees half an
+ * over the snapshot and the build's mirrors, with the same lookups the occurrences use,
+ * and each record's place, identifiers and direction as the occurrences step wrote them. The directory is replaced whole, so a reader never sees half an
  * archive.
  *
  * Dated by the snapshot's UTC day (snapshot.day), as Postgres's CURRENT_DATE dated it:
@@ -48,7 +48,6 @@ export async function withDwc<T>(
         await conn.run('USE store');
         await attachRegister(conn, registerFile(snapshot));
         await attachSources(conn, mirrors);
-        await conn.run(await sql('extract.sql'));
         await conn.run(await sql('shared.sql'));
         await conn.run(await sql('lookups.sql'));
         await conn.run(await sql('maplify-collection.sql'));

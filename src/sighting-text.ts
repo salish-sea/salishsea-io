@@ -48,13 +48,15 @@ export const hedged = (r: Reading) => r.claims.filter(c => c.presence === 'prese
 /**
  * The part of a sighting's body a reader should read: the collection tag at the front
  * ("[Orca Network] "), Maplify's trailing "Submitted by …" attribution and any HTML
- * removed, whitespace collapsed. The gold set's `text` column was cut the same way.
+ * removed, whitespace collapsed. The gold set's `text` column was cut the same way. From
+ * 2020 to early 2022 Orca Network wrote the whole report inside the tag, after a colon
+ * ("[Orca Network: T65As northbound]"), and then the report is what follows the colon.
  */
 export function reportText(body: string): string {
     let text = body.replace(/<br><br>Submitted by .*$/s, '').replace(/<[^>]+>/g, ' ')
         .replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
-    const tag = /^\[([^\]]+)\]/.exec(text);
-    if (tag) text = text.slice(tag[0].length).trim();
+    const tag = /^\[([^\]:]+)(?::([^\]]*))?\]+/.exec(text);
+    if (tag) text = ((tag[2] ?? '') + ' ' + text.slice(tag[0].length)).trim();
     return text;
 }
 
@@ -63,7 +65,15 @@ export function readSighting(body: string): Reading {
     return readText(reportText(body));
 }
 
-const CODE = /\b(?:([TJKL]|CRC|BCX)\s?-?\s?)?(\d{1,5})(?:-?((?:[A-Za-z]\d*)+))?(s)?\b/g;
+// A letter in capitals may stand apart from its number ("T 65", "CRC-56"); one in lower case
+// only touching it ("t46s", "crc22"), or "crc " before one, so a word ending in t or l
+// before a number is not read as a code. A suffix is at most three letter groups ("A1B2s"),
+// so words run together ("T49A1Southbound") are not one.
+const CODE = /\b(?:([TJKL]|CRC|BCX)\s?-?\s?|([tjkl]|[Cc]rc\s?)(?=\d))?(\d{1,5})(?:-?((?:[A-Za-z]\d*){1,3}))?(s)?\b/g;
+// What may stand between two codes of one list, so a code without its letter takes the letter of the one before.
+const LIST_GAP = /^\s*(?:(?:[,\/&+]|and)\s*)+$/i;
+// "Biggs 36Bs": a code without its letter right after the ecotype's name is a Bigg's code.
+const AFTER_BIGGS = /\b(?:biggs?|bigg['’]s|transients?)[\s:,]*$/i;
 const HEDGE = /\b(likely|possibly|possible|maybe|presumably|presumed|probably|probable|unconfirmed)\b|\?/gi;
 /** Decision 054's certainty for a hedge word: a strong hedge is probable, a weak one possible. */
 const LEVEL: Record<string, Certainty> = {likely: 'probable', presumably: 'probable', presumed: 'probable', probably: 'probable', probable: 'probable',
@@ -76,7 +86,8 @@ type Code = {start: number, end: number, text: string, letter: string | null, su
 function codeTokens(text: string): Code[] {
     const out: Code[] = [];
     for (const m of text.matchAll(CODE)) {
-        let [, letter, digits, suffix = '', s] = m;
+        let [, upper, lower, digits, suffix = '', s] = m;
+        const letter = (upper ?? lower)?.trim().toUpperCase();
         digits = digits!.replace(/^0+(?=\d)/, '');
         const whole = m[0];
         // The suffix pattern eats a trailing matriline s; give it back.
@@ -88,7 +99,7 @@ function codeTokens(text: string): Code[] {
         // allowed only when the token's letter is known from context (resolved later).
         if (!letter && /^[a-z]/.test(suffix)) continue;
         const code = (letter ?? '') + digits + suffix.toUpperCase() + (matriline ? 's' : '');
-        out.push({start: m.index!, end: m.index! + whole.length, text: code, letter: letter ? letter.toUpperCase() : null, suffix: suffix.toUpperCase(), matriline});
+        out.push({start: m.index!, end: m.index! + whole.length, text: code, letter: letter ?? null, suffix: suffix.toUpperCase(), matriline});
     }
     return out;
 }
@@ -102,15 +113,18 @@ const base = (code: string, dropLastGroup: boolean) => {
 
 /** The text a reader should read (reportText), read. */
 export function readText(text: string): Reading {
-    const biggs = /\b(biggs?|bigg's|transients?|\bT\d)/i.test(text);
     const tokens = codeTokens(text);
-    // Give a letterless code the letter of the code before it, or T when the text says Biggs.
-    let lastLetter: string | null = null;
+    // A code without its letter takes the letter of the code before it in a list ("T36,
+    // 36Bs", "T36/36Bs", "CRC 21 and 22"), or T right after the text says Biggs. Anywhere
+    // else it is a count ("spread in 1s to 4s").
+    let previous: Code | null = null;
     for (const t of tokens) {
-        if (t.letter) { lastLetter = t.letter; continue; }
-        const letter = lastLetter ?? (biggs ? 'T' : null);
+        if (t.letter) { previous = t; continue; }
+        const listed = previous !== null && LIST_GAP.test(text.slice(previous.end, t.start));
+        const letter = listed ? previous!.letter : AFTER_BIGGS.test(text.slice(0, t.start)) ? 'T' : null;
         if (!letter) { t.text = ''; continue; }
         t.letter = letter; t.text = letter + t.text;
+        previous = t;
     }
     const named = tokens.filter(t => t.text);
 
@@ -183,6 +197,7 @@ const FULL: Record<string, string> = {
 // A compass word, or a compass abbreviation that the words around it make a direction.
 const COMPASS = /\b((?:north[- ]?(?:east|west)|south[- ]?(?:east|west)|north|south|east|west)(?:\s?-?bound)?|(?:NB|SB|EB|WB)|(?<=\b(?:heading|headed|trending|trend|going|moving|traveling|travelling|drifting|continuing|direction)\s+)(?:NE|NW|SE|SW|N|S|E|W)|(?:NE|NW|SE|SW|N|S|E|W)(?=\s*-?\s*(?:bound|direction|toward)))\b/gi;
 const MILLING = /\b(milling|stalled|directional changes|multi ?-?directional|shuffling|foraging)\b/i;
+const TRAVEL_WORD = /^(?:heading|headed|traveling|travelling|moving|going|swimming|trending|continuing|now|then|turned|direction)$/i;
 const UNKNOWN = /direction (?:unknown|unconfirmed|not given)|no direction/i;
 const CHANGE = /\b(now|then|turned|flipped|changed direction|committed to)\b/gi;
 
@@ -208,6 +223,9 @@ function mentions(text: string): {at: number, dir: string}[] {
         if (/^\s*-\s*(north|south|east|west)\b/i.test(after)) continue;          // north-south spread
         if (/\bto\s*$/i.test(before) && /\b(north|south|east|west|N|S|E|W)\s+to\s*$/.test(before)) continue;
         if (/^\s+[A-Z][a-z]/.test(after) && /^(north|south|east|west)$/i.test(word)) continue; // West Point, North Beach
+        // Steve East, Katie West, Off East Sooke Park: a name, unless the word before says it travels (Heading South)
+        const capitalBefore = /\b([A-Z][a-z]+)\s+$/.exec(before);
+        if (/^[A-Z][a-z]/.test(word) && capitalBefore && !TRAVEL_WORD.test(capitalBefore[1]!)) continue;
         if (/\d\s*(?:mile|miles|mi|km|nm|yards?)\s*$/i.test(before)) continue;   // 1/2 mile southeast of
         out.push({at: m.index!, dir});
     }

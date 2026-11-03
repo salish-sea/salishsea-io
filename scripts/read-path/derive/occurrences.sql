@@ -16,9 +16,12 @@
 -- rule, which the Darwin Core export reads too), writes
 -- memory.maplify_entity (each Maplify name pair's register entity, and with it
 -- memory.maplify_out_of_scope, derive/maplify-entities.ts) and
--- memory.inaturalist_out_of_scope (derive/inaturalist-scope.ts). The two text
--- extractions the Postgres views call, extract_travel_direction and extract_identifiers,
--- are temp macros from derive/extract.sql, called where the Postgres view calls them.
+-- memory.inaturalist_out_of_scope (derive/inaturalist-scope.ts). What a sighting's text
+-- says, which Postgres read with two regular expressions, is read in node by
+-- src/sighting-text.ts, the module the browser runs, into memory.reading
+-- (derive/readings.ts), and joined here (decision 105); reading_direction and
+-- reading_identifiers, in the shared part below, take a view's columns from it. The views
+-- stop being twins there.
 
 -- --- The five sources --------------------------------------------------------------------
 -- Each the same columns as public.occurrences, in its order; the document is built from
@@ -41,7 +44,7 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          s.usernm || ' on ' || s.source AS attribution,
          s.comments AS body,
          CASE WHEN s.number_sighted >= 1 AND s.number_sighted <= 1000 THEN s.number_sighted END AS count,
-         extract_travel_direction(s.comments) AS direction,
+         reading_direction(r.direction) AS direction,
          {'lat': s.location_lat, 'lon': s.location_lon} AS location,
          CAST(NULL AS INTEGER) AS accuracy,
          CASE WHEN s.photo_url IS NOT NULL
@@ -54,7 +57,7 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
           'species_id': t.species_id,
           'scientific_name': coalesce(t.scientific_name, s.scientific_name),
           'vernacular_name': coalesce(cn.name, t.vernacular_name)} AS taxon,
-         coalesce(extract_identifiers(s.comments), []) AS identifiers,
+         reading_identifiers(r.claims) AS identifiers,
          CAST(NULL AS INTEGER) AS contributor_id,
          CAST(NULL AS VARCHAR) AS observer,
          col.name AS collection,
@@ -68,8 +71,10 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          -- Maplify's trusted flag read as an input to ours, as 008 allows (decision 080)
          CASE WHEN s.trusted THEN 'confirmed' ELSE 'unconfirmed' END AS confirmation,
          CAST(NULL AS BIGINT) AS disagreements,
-         CAST(NULL AS VARCHAR) AS vitality
+         CAST(NULL AS VARCHAR) AS vitality,
+         coalesce(r.pods, []) AS pods
   FROM source_maplify_sightings s
+  LEFT JOIN memory.reading r ON r.id = 'maplify:' || s.id
   LEFT JOIN memory.maplify_entity me
     ON me.name IS NOT DISTINCT FROM s.name AND me.scientific_name = s.scientific_name
   LEFT JOIN maplify_collection mc ON mc.id = s.id
@@ -161,7 +166,7 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          o.username || ' on iNaturalist' AS attribution,
          o.description AS body,
          CAST(NULL AS INTEGER) AS count,
-         extract_travel_direction(o.description) AS direction,
+         reading_direction(r.direction) AS direction,
          {'lat': o.location_lat, 'lon': o.location_lon} AS location,
          o.public_positional_accuracy AS accuracy,
          coalesce((
@@ -181,7 +186,7 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
           'species_id': t.species_id,
           'scientific_name': t.scientific_name,
           'vernacular_name': coalesce(reg.common_name, par.common_name, t.vernacular_name)} AS taxon,
-         coalesce(extract_identifiers(o.description), []) AS identifiers,
+         reading_identifiers(r.claims) AS identifiers,
          CAST(NULL AS INTEGER) AS contributor_id,
          o.username AS observer,
          col.name AS collection,
@@ -196,8 +201,10 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          coalesce(c.confirmation, 'unconfirmed') AS confirmation,
          -- how many other people's identifications name another branch (decision 080)
          coalesce(c.disagreements, 0) AS disagreements,
-         v.vitality
+         v.vitality,
+         coalesce(r.pods, []) AS pods
   FROM source_inaturalist_observations o
+  LEFT JOIN memory.reading r ON r.id = 'inaturalist:' || o.id
   LEFT JOIN memory.inaturalist_confirmation c ON c.id = o.id
   LEFT JOIN memory.inaturalist_vitality v ON v.id = o.id
   JOIN taxa t_recorded ON o.taxon_id = t_recorded.id
@@ -254,7 +261,7 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
           'species_id': t.species_id,
           'scientific_name': t.scientific_name,
           'vernacular_name': coalesce(cn.name, t.vernacular_name)} AS taxon,
-         coalesce(extract_identifiers(o.body), []) AS identifiers,
+         reading_identifiers(r.claims) AS identifiers,
          o.contributor_id,
          con.name AS observer,
          col.name AS collection,
@@ -268,8 +275,10 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
          -- our own sightings are shown as confirmed until decided otherwise (decision 080)
          'confirmed' AS confirmation,
          CAST(NULL AS BIGINT) AS disagreements,
-         CAST(NULL AS VARCHAR) AS vitality
+         CAST(NULL AS VARCHAR) AS vitality,
+         coalesce(r.pods, []) AS pods
   FROM public.observations o
+  LEFT JOIN memory.reading r ON r.id = CAST(o.id AS VARCHAR)
   JOIN public.contributors con ON con.id = o.contributor_id
   LEFT JOIN inaturalist_taxon xw ON xw.entity_id = o.entity_id
   LEFT JOIN taxa t_recorded ON t_recorded.id = xw.inaturalist_taxon_id
@@ -339,7 +348,9 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
          tx.certainty,
          CASE WHEN tx.species_certainty = 'possible' THEN 'unconfirmed' ELSE 'confirmed' END AS confirmation,
          CAST(NULL AS BIGINT) AS disagreements,
-         CAST(NULL AS VARCHAR) AS vitality
+         CAST(NULL AS VARCHAR) AS vitality,
+         -- the pods a text names; a bout's are among its identifiers, from its tags
+         CAST([] AS VARCHAR[]) AS pods
   FROM source_acoustic_bouts b
   JOIN per_species tx ON tx.bout_id = b.id
   LEFT JOIN public.hydrophones h ON h.feed_id = b.feed_id
@@ -350,6 +361,18 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
   WHERE tx.taxon_entity_id IS NOT NULL;
 
 -- shared
+-- --- What the text says ---------------------------------------------------------------
+-- From memory.reading (derive/readings.ts; decision 105). A direction is one of the
+-- eight compass points the document's enum holds; the reader's `milling` and `unknown`
+-- have no place in it yet, so they are null, as no direction is. The identifiers are the
+-- codes the text says were present, hedged or not, in the order it names them; a code it
+-- says was absent is not one (salish-uh38 will store it). No reading is no identifiers.
+CREATE OR REPLACE TEMP MACRO reading_direction(direction) AS
+  CASE WHEN direction IN ('north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest')
+       THEN direction END;
+CREATE OR REPLACE TEMP MACRO reading_identifiers(claims) AS
+  coalesce(list_transform(list_filter(claims, c -> c.presence = 'present'), c -> c.code), []);
+
 -- --- The store ---------------------------------------------------------------------------
 -- As snapshot.occurrences holds Postgres's: id, observed_at, and the document; and, as
 -- derived.occurrences holds them, the source, the identifiers and the exact location,
@@ -369,6 +392,7 @@ CREATE OR REPLACE TEMP MACRO occurrence_doc(o, place, landmark) AS CAST(to_json(
            'id': o.id,
            'url': o.url,
            'body': o.body,
+           'pods': o.pods,
            'count': o.count,
            'place': place,
            'landmark': landmark,

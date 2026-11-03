@@ -73,4 +73,35 @@ describe('reading sighting text', () => {
     test('leading zeros go while a digit follows', () => {
         expect(present(readText('T065A5, T001 and J00'))).toEqual(['T65A5', 'T1', 'J0']);
     });
+
+    test('a report Orca Network wrote inside its tag', () => {
+        expect(reportText('[Orca Network: Biggs T68s, 68Bs, 68Cs Pt Marrowstone]<br><br>Submitted by a Trusted Observer'))
+            .toBe('Biggs T68s, 68Bs, 68Cs Pt Marrowstone');
+        expect(reportText('[Orca Network: CRC53 Little Patch still feeding]]')).toBe('CRC53 Little Patch still feeding');
+        expect(reportText('[Orca Network] J pod SB')).toBe('J pod SB');
+    });
+
+    test('codes in lower case, when they touch their number', () => {
+        expect(present(readText('Biggs t71b1, t71b2 northbound'))).toEqual(['T71B1', 'T71B2']);
+        // a bare number is a count, even in a list
+        expect(present(readText('crc 21 and 22 eastbound'))).toEqual(['CRC21']);
+        expect(present(readText('at 3 pm, all 4 whales'))).toEqual([]);
+    });
+
+    test('a number without its letter is a code only in a list of codes or right after Biggs', () => {
+        expect(present(readText('T46s, T87, T124A2s spread in 1s to 4s southbound'))).toEqual(['T46s', 'T87', 'T124A2s']);
+        expect(present(readText('Biggs 36Bs northbound'))).toEqual(['T36Bs']);
+    });
+
+    test('words run together are not a code', () => {
+        expect(present(readText('Biggs T124A2s and T49A1Southbound'))).toEqual(['T124A2s']);
+        expect(present(readText('Biggs T46s and T87directional changes'))).toEqual(['T46s']);
+    });
+
+    test("a compass word in a reporter's name is not a direction", () => {
+        expect(readText('Likely Jpod, spread out moving south, southeast (Katie West)').direction).toBe('southeast');
+        expect(readText('Biggs T65As southbound (Steve East)').direction).toBe('south');
+        expect(readText('Biggs. Off East Sooke Park near shore').direction).toBe(null);
+        expect(readText('Heading South between Long Point and Snake').direction).toBe('south');
+    });
 });

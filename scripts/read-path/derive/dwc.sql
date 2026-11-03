@@ -6,7 +6,7 @@
 -- (derive-occurrences.test.ts, which checks the archive's relations beside the occurrences').
 --
 -- Run by scripts/read-path/dwca.ts after derive/sources.sql, derive/shared.sql and
--- derive/extract.sql, derive/shared.sql and derive/lookups.sql, and after
+-- derive/lookups.sql, and after
 -- memory.maplify_entity is written, as for derive/occurrences.sql. The archive's
 -- publication date is the variable pub_date.
 
@@ -96,9 +96,13 @@ CREATE OR REPLACE TABLE pgdb.public.organizations AS SELECT * FROM public.organi
 -- Each record's locality: the water region its point is in, as the occurrences step named
 -- it (decision 099; place in build.occurrences), from the basemap's government data (rights
 -- policy §7.4, D-25). A native occurrence's id there is its bare uuid. Never the landmark,
--- whose names are partly OpenStreetMap's (decision 100).
+-- whose names are partly OpenStreetMap's (decision 100). And what its text says, as the
+-- occurrences step read it (decision 105): the codes it names as present, and for a
+-- Maplify report the direction, so the archive and the map never disagree on either.
 CREATE OR REPLACE TEMP VIEW occurrence_locality AS
-  SELECT id, json_extract_string(doc, '$.place') AS locality FROM build.occurrences;
+  SELECT id, json_extract_string(doc, '$.place') AS locality,
+         identifiers, json_extract_string(doc, '$.direction') AS direction
+  FROM build.occurrences;
 
 -- --- dwc._native_occurrences --------------------------------------------------------------
 CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
@@ -125,7 +129,7 @@ CREATE OR REPLACE TEMP VIEW dwc_native_occurrences AS
          'https://creativecommons.org/licenses/by/4.0/legalcode' AS license,
          pg_jsonb_object([
            pg_jsonb_member('travelDirection', o.direction),
-           pg_jsonb_list_member('unvalidatedIdentifiers', nullif(extract_identifiers(o.body), []))
+           pg_jsonb_list_member('unvalidatedIdentifiers', nullif(loc.identifiers, []))
          ]) AS "dynamicProperties",
          CAST(NULL AS VARCHAR) AS "informationWithheld",
          c.orcid AS "recordedByID",
@@ -182,9 +186,9 @@ CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
          'https://creativecommons.org/licenses/by/4.0/legalcode' AS license,
          pg_jsonb_object([
            pg_jsonb_member('aggregatorChain', 'Whale Alert / Maplify (WASEAK) > ' || coalesce(c_coll.name, 'Whale Alert (Global)')),
-           pg_jsonb_member('travelDirection', extract_travel_direction(s.comments)),
+           pg_jsonb_member('travelDirection', loc.direction),
            pg_jsonb_member('aggregatorSource', coalesce(c_coll.name, 'Whale Alert (Global)')),
-           pg_jsonb_list_member('unvalidatedIdentifiers', nullif(extract_identifiers(s.comments), []))
+           pg_jsonb_list_member('unvalidatedIdentifiers', nullif(loc.identifiers, []))
          ]) AS "dynamicProperties",
          CAST(NULL AS VARCHAR) AS "informationWithheld",
          CAST(NULL AS VARCHAR) AS "recordedByID",
