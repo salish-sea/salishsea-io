@@ -128,10 +128,11 @@ const COLUMNS: readonly {name: string, type: string, from: (source: Source) => s
     {name: 'location', type: 'STRUCT(lat DOUBLE, lon DOUBLE)', from: () => 'o.location'},
     // Where each of the identifiers was read, one for each and in the same order: the
     // occurrence's own text ('report'), or a comment or an identification on an iNaturalist
-    // observation (salish-4s42, decision 106). Only iNaturalist's arm can read a code
+    // observation (salish-4s42, decision 106), and whether the observer wrote it. Only
+    // iNaturalist's arm can read a code
     // elsewhere, so the others leave it null, which means every code is the report's. Read
     // by the identifier candidates; not in the document.
-    {name: 'identifier_origins', type: 'STRUCT(code VARCHAR, origin VARCHAR, origin_id BIGINT)[]',
+    {name: 'identifier_origins', type: 'STRUCT(code VARCHAR, origin VARCHAR, origin_id BIGINT, by_observer BOOLEAN)[]',
      from: source => source === 'inaturalist' ? 'o.identifier_origins' : 'NULL'},
 ];
 const CREATE_TABLE = `CREATE OR REPLACE TABLE build.occurrences (${COLUMNS.map(c => `${c.name} ${c.type}`).join(', ')})`;

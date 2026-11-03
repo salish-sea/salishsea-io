@@ -12,7 +12,7 @@
  * occurrence's identifiers, and presence and certainty wait for salish-uh38 to be stored.
  * A text that names nothing has no row.
  *
- * `remark_claims(id, origin, origin_id, claims, pods)`: the same reading of what people
+ * `remark_claims(id, origin, origin_id, by_observer, claims, pods)`: the same reading of what people
  * wrote on an iNaturalist observation besides its description, each comment and each
  * identification's remark read alone (salish-4s42, decision 106). The codes and pods it
  * names join the occurrence's own; its direction is not read, since a direction is the
@@ -43,12 +43,12 @@ export const CREATE_READING = `CREATE OR REPLACE TABLE memory.main.reading (
  * What people wrote on an iNaturalist observation besides its description, as
  * derive/sources.sql's source_inaturalist_remarks gives it, keyed as `reading` is.
  */
-export const REMARKS = `SELECT 'inaturalist:' || observation_id, origin, origin_id, body FROM source_inaturalist_remarks`;
+export const REMARKS = `SELECT 'inaturalist:' || observation_id, origin, origin_id, by_observer, body FROM source_inaturalist_remarks`;
 
 const REMARK_SHAPE = JSON.stringify({claims: [{code: 'VARCHAR', presence: 'VARCHAR', certainty: 'VARCHAR'}], pods: ['VARCHAR']});
 
 export const CREATE_REMARK_CLAIMS = `CREATE OR REPLACE TABLE memory.main.remark_claims (
-    id VARCHAR, origin VARCHAR, origin_id BIGINT,
+    id VARCHAR, origin VARCHAR, origin_id BIGINT, by_observer BOOLEAN,
     claims STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR)[], pods VARCHAR[])`;
 
 /**
@@ -59,20 +59,21 @@ export const CREATE_REMARK_CLAIMS = `CREATE OR REPLACE TABLE memory.main.remark_
  */
 export async function writeRemarkClaims(conn: DuckDBConnection): Promise<number> {
     const result = await conn.stream(REMARKS);
-    const found: [string, string, bigint, Pick<Reading, 'claims' | 'pods'>][] = [];
-    for await (const rows of result.yieldRows() as AsyncIterable<[string, string, bigint, string][]>) {
-        for (const [id, origin, originId, body] of rows) {
+    const found: [string, string, bigint, boolean, Pick<Reading, 'claims' | 'pods'>][] = [];
+    for await (const rows of result.yieldRows() as AsyncIterable<[string, string, bigint, boolean, string][]>) {
+        for (const [id, origin, originId, byObserver, body] of rows) {
             const {claims, pods} = readText(body);
-            if (claims.length || pods.length) found.push([id, origin, originId, {claims, pods}]);
+            if (claims.length || pods.length) found.push([id, origin, originId, byObserver, {claims, pods}]);
         }
     }
-    await conn.run('CREATE OR REPLACE TABLE memory.main.remark_text (id VARCHAR, origin VARCHAR, origin_id BIGINT, reading VARCHAR)');
+    await conn.run('CREATE OR REPLACE TABLE memory.main.remark_text (id VARCHAR, origin VARCHAR, origin_id BIGINT, by_observer BOOLEAN, reading VARCHAR)');
     const appender = await conn.createAppender('remark_text', 'main', 'memory');
     try {
-        for (const [id, origin, originId, reading] of found) {
+        for (const [id, origin, originId, byObserver, reading] of found) {
             appender.appendVarchar(id);
             appender.appendVarchar(origin);
             appender.appendBigInt(originId);
+            appender.appendBoolean(byObserver);
             appender.appendVarchar(JSON.stringify(reading));
             appender.endRow();
         }
@@ -81,8 +82,8 @@ export async function writeRemarkClaims(conn: DuckDBConnection): Promise<number>
         appender.closeSync();
     }
     await conn.run(`INSERT INTO memory.main.remark_claims
-        SELECT id, origin, origin_id, r.claims, r.pods
-        FROM (SELECT id, origin, origin_id, from_json(reading, '${REMARK_SHAPE}') AS r FROM memory.main.remark_text)`);
+        SELECT id, origin, origin_id, by_observer, r.claims, r.pods
+        FROM (SELECT id, origin, origin_id, by_observer, from_json(reading, '${REMARK_SHAPE}') AS r FROM memory.main.remark_text)`);
     await conn.run('DROP TABLE memory.main.remark_text');
     return found.length;
 }

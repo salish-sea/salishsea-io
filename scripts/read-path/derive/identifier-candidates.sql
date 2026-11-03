@@ -11,7 +11,8 @@
 -- Where each candidate was read (salish-4s42, decision 106), which Postgres never
 -- recorded: `origin` is 'report' for the occurrence's own text, or 'comment' or
 -- 'identification' for what someone wrote on an iNaturalist observation, with
--- `origin_id` that comment's or identification's iNaturalist id, as the occurrence's
+-- `origin_id` that comment's or identification's iNaturalist id, and `by_observer` whether
+-- the observer wrote it (always, for the report), as the occurrence's
 -- identifier_origins says: one entry for each identifier, in the same order, or null
 -- when every code is the report's. Kept so the confidence decision 075 leaves open can weigh
 -- someone else's word apart from the observer's; nothing reads it yet.
@@ -38,7 +39,8 @@ CREATE OR REPLACE TABLE build.occurrence_identifier_candidates AS
     WHERE o.source <> 'orcasound'
   ),
   ident AS (
-    SELECT occurrence_id, code, coalesce(x.origin, 'report') AS origin, x.origin_id, observed_at, location
+    SELECT occurrence_id, code, coalesce(x.origin, 'report') AS origin, x.origin_id,
+           coalesce(x.by_observer, true) AS by_observer, observed_at, location
     FROM named
   ),
   matriline AS (
@@ -57,7 +59,7 @@ CREATE OR REPLACE TABLE build.occurrence_identifier_candidates AS
   -- bytes (Stelis's determinism rule), whatever the data comes to hold (salish-xv35.20).
   SELECT DISTINCT ON (i.occurrence_id, i.code)
          i.occurrence_id, i.code, d.individual_id, g.id AS social_group_id, i.observed_at,
-         i.location.lon AS location_lon, i.location.lat AS location_lat, i.origin, i.origin_id
+         i.location.lon AS location_lon, i.location.lat AS location_lat, i.origin, i.origin_id, i.by_observer
   FROM ident i
   LEFT JOIN matriline g
     ON regexp_matches(i.code, 's$') AND g.designation_folded || 's' = register_fold(i.code)

@@ -176,7 +176,7 @@ describe('armsFor', () => {
         expect(parts.shared).not.toMatch(/INSERT INTO|CREATE OR REPLACE TABLE/);
     });
 
-    test("a remark adds the codes the observer's text doesn't name, present or absent (decision 106)", async () => {
+    test("a remark adds the codes the observer doesn't name, present or absent (decision 106)", async () => {
         const parts = parseArms(await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8'));
         const db = await DuckDBInstance.create(':memory:');
         const conn = await db.connect();
@@ -184,14 +184,16 @@ describe('armsFor', () => {
             await conn.run(parts.shared.split(/^-- --- The store/m)[0]!);
             const code = (c: string, origin = 'comment', id = 1) => `{'code': '${c}', 'origin': '${origin}', 'origin_id': ${id}}`;
             const claim = (c: string, presence: string) => `{'code': '${c}', 'presence': '${presence}', 'certainty': 'certain'}`;
-            const added = async (codes: string, claims: string) => (await conn.runAndReadAll(
-                `SELECT list_transform(remark_codes(${codes}, ${claims}), x -> x.code)`)).getRows()[0]![0];
+            const added = async (codes: string, claims: string, absent = 'NULL') => (await conn.runAndReadAll(
+                `SELECT list_transform(remark_codes(${codes}, ${claims}, ${absent}), x -> x.code)`)).getRows()[0]![0];
             // the observer names T46s and says T46D was absent; a comment names all three
             expect(await added(`[${code('T46s')}, ${code('T46D')}, ${code('T46B')}]`,
                 `[${claim('T46s', 'present')}, ${claim('T46D', 'absent')}]`)).toEqual({items: ['T46B']});
             // no description, or no remarks
             expect(await added(`[${code('T19B', 'identification')}]`, 'NULL')).toEqual({items: ['T19B']});
             expect(await added('NULL', `[${claim('T46s', 'present')}]`)).toEqual({items: []});
+            // no description, but the observer's own comment says T46D was absent
+            expect(await added(`[${code('T46D')}, ${code('T46B')}]`, 'NULL', "['T46D']")).toEqual({items: ['T46B']});
         } finally { conn.closeSync(); db.closeSync(); }
     });
 
@@ -324,22 +326,28 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
             await deriveIdentifierCandidates(snapshot);
             expect(await compareCandidates(snapshot)).toBe(true);
             // Where each iNaturalist candidate was read (salish-4s42, decision 106), which
-            // Postgres never recorded. 9000001's T137A is its observer's, though a comment names it too.
-            // 9000002 has no description: one comment names T137B and T137A, and an
-            // identification's remark T137s. Its other remarks name nothing that counts: a
-            // deleted account's comment, a hidden one, and a withdrawn identification's.
-            expect(await query(`SELECT occurrence_id, code, origin, origin_id FROM store.build.occurrence_identifier_candidates
+            // Postgres never recorded. 9000001's T137A is its observer's, though a comment
+            // names it too. 9000002 has no description. Its observer commented "T137s (-B)",
+            // so T137s is theirs and T137B was absent, which outweighs another person's
+            // comment naming T137B and T137A; an identification's remark naming T137s again
+            // adds nothing. A deleted account's comment, a hidden one and a withdrawn
+            // identification's remark name animals too, and count for nothing.
+            expect(await query(`SELECT occurrence_id, code, origin, origin_id, by_observer
+                FROM store.build.occurrence_identifier_candidates
                 WHERE occurrence_id LIKE 'inaturalist:%' ORDER BY occurrence_id, code`)).toEqual([
-                ['inaturalist:9000001', 'T137A', 'report', null],
-                ['inaturalist:9000001', 'T137B', 'report', null],
-                ['inaturalist:9000002', 'T137A', 'comment', 8000001n],
-                ['inaturalist:9000002', 'T137B', 'comment', 8000001n],
-                ['inaturalist:9000002', 'T137s', 'identification', 6000004n],
+                ['inaturalist:9000001', 'T137A', 'report', null, true],
+                ['inaturalist:9000001', 'T137B', 'report', null, true],
+                ['inaturalist:9000002', 'T137A', 'comment', 8000001n, false],
+                ['inaturalist:9000002', 'T137s', 'comment', 8000005n, true],
             ]);
+            // every other source's candidates are their reports'
+            expect(await query(`SELECT DISTINCT origin, origin_id IS NULL, by_observer
+                FROM store.build.occurrence_identifier_candidates WHERE occurrence_id NOT LIKE 'inaturalist:%'`))
+                .toEqual([['report', true, true]]);
             // and they are the occurrence's own identifiers too, which its card and the map
-            // label show: the observer's first (none here), then the remarks' in the order read
+            // label show: the observer's first, then other people's, in the order read
             expect(await query(`SELECT identifiers FROM store.build.occurrences WHERE id = 'inaturalist:9000002'`))
-                .toEqual([[{items: ['T137B', 'T137A', 'T137s']}]]);
+                .toEqual([[{items: ['T137s', 'T137A']}]]);
             // The catalogue's views over the register (salish-9uu.2.3), which the profile
             // links read, derived as the build derives them and checked against Postgres's.
             await deriveCatalogue(snapshot, mirrors.inaturalist);
