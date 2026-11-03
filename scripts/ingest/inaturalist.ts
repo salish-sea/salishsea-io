@@ -142,7 +142,9 @@ const InatTaxonRefSchema = z.object({
 // once, so a strict author would let one entry from a deleted account refuse the page,
 // and the backfill would meet that page on every run (as null photo dimensions once
 // stopped the history backfill, decision 041).
-const InatAuthorSchema = z.object({id: z.number().int(), login: z.string(), orcid: z.string().nullish()}).nullish();
+const InatAuthorSchema = z.object({
+    id: z.number().int(), login: z.string(), name: z.string().nullish(), orcid: z.string().nullish(),
+}).nullish();
 
 // One identification of an observation: who said which taxon, when, whether it is still
 // theirs, and what they wrote with it (decision 075; rights-policy §5.5). REQUIRED on the
@@ -272,6 +274,8 @@ export type NormalizedIdentification = {
     /** null, with login, when iNaturalist names no author (a deleted account). */
     readonly userId: number | null;
     readonly login: string | null;
+    /** The display name the person gave iNaturalist; null when they gave none. */
+    readonly name: string | null;
     readonly orcid: string | null;
     readonly taxonId: number;
     /** ISO8601 with offset, verbatim from created_at. */
@@ -291,6 +295,8 @@ export type NormalizedComment = {
     /** null, with login, when iNaturalist names no author (a deleted account). */
     readonly userId: number | null;
     readonly login: string | null;
+    /** The display name the person gave iNaturalist; null when they gave none. */
+    readonly name: string | null;
     readonly orcid: string | null;
     /** null when hidden by iNaturalist's moderators: we keep that the comment existed, not what it said. */
     readonly body: string | null;
@@ -310,6 +316,8 @@ export type NormalizedObservation = {
     readonly licenseCode: (typeof LICENSE_CODES)[number] | null;
     readonly uri: string;
     readonly login: string;
+    /** The display name the person gave iNaturalist; null when they gave none. */
+    readonly name: string | null;
     readonly orcid: string | null;
     readonly taxonId: number;
     /** Full root→self ancestor chain, for taxon-closure resolution. */
@@ -376,6 +384,7 @@ export function normalizeObservation(
         licenseCode: r.license_code,
         uri: r.uri,
         login: r.user.login,
+        name: blankToNull(r.user.name),
         orcid: blankToNull(r.user.orcid),
         taxonId: r.taxon.id,
         ancestorIds: r.taxon.ancestor_ids,
@@ -383,13 +392,15 @@ export function normalizeObservation(
         updatedAt: r.updated_at,
         photos: r.observation_photos.map(normalizePhoto),
         identifications: r.identifications.map(i => ({
-            id: i.id, userId: i.user?.id ?? null, login: i.user?.login ?? null, orcid: blankToNull(i.user?.orcid),
+            id: i.id, userId: i.user?.id ?? null, login: i.user?.login ?? null, name: blankToNull(i.user?.name),
+            orcid: blankToNull(i.user?.orcid),
             taxonId: i.taxon.id, createdAt: i.created_at, current: i.current,
             ownObservation: i.own_observation, disagreement: i.disagreement, hidden: i.hidden,
             vision: i.vision, body: i.hidden ? null : blankToNull(i.body),
         })),
         comments: r.comments.map(c => ({
-            id: c.id, userId: c.user?.id ?? null, login: c.user?.login ?? null, orcid: blankToNull(c.user?.orcid),
+            id: c.id, userId: c.user?.id ?? null, login: c.user?.login ?? null, name: blankToNull(c.user?.name),
+            orcid: blankToNull(c.user?.orcid),
             body: c.hidden ? null : blankToNull(c.body), createdAt: c.created_at, hidden: c.hidden,
         })),
         qualityMetrics: r.quality_metrics.map(q => ({id: q.id, metric: q.metric, agree: q.agree})),

@@ -68,12 +68,14 @@ const SCHEMA = `
     -- quality_metrics: the votes on iNaturalist's data-quality questions, as JSON (decision 081)
     -- annotations: its answers to controlled questions such as Alive or Dead, each with
     -- its votes' net score, as JSON (salish-1y8)
+    -- name: the display name the observer gave iNaturalist, as the identifications' and
+    -- comments' name is their author's (salish-n98s)
     CREATE TABLE IF NOT EXISTS observations (
         id INTEGER PRIMARY KEY, description TEXT, lon REAL NOT NULL, lat REAL NOT NULL,
         observed_at TEXT NOT NULL, observed_ms INTEGER NOT NULL, license_code TEXT,
         uri TEXT NOT NULL, login TEXT NOT NULL, orcid TEXT, taxon_id INTEGER NOT NULL,
         ancestor_ids TEXT NOT NULL, public_positional_accuracy INTEGER, updated_at TEXT NOT NULL,
-        quality_metrics TEXT, annotations TEXT
+        quality_metrics TEXT, annotations TEXT, name TEXT
     );
     CREATE INDEX IF NOT EXISTS observations_observed_ms ON observations (observed_ms);
     CREATE TABLE IF NOT EXISTS observation_photos (
@@ -92,12 +94,12 @@ const SCHEMA = `
         id INTEGER PRIMARY KEY, observation_id INTEGER NOT NULL, user_id INTEGER,
         login TEXT, orcid TEXT, taxon_id INTEGER NOT NULL, created_at TEXT NOT NULL,
         current INTEGER NOT NULL, own_observation INTEGER NOT NULL, disagreement INTEGER,
-        hidden INTEGER NOT NULL, vision INTEGER NOT NULL, body TEXT
+        hidden INTEGER NOT NULL, vision INTEGER NOT NULL, body TEXT, name TEXT
     );
     CREATE INDEX IF NOT EXISTS identifications_observation ON identifications (observation_id);
     CREATE TABLE IF NOT EXISTS comments (
         id INTEGER PRIMARY KEY, observation_id INTEGER NOT NULL, user_id INTEGER,
-        login TEXT, orcid TEXT, body TEXT, created_at TEXT NOT NULL, hidden INTEGER NOT NULL
+        login TEXT, orcid TEXT, body TEXT, created_at TEXT NOT NULL, hidden INTEGER NOT NULL, name TEXT
     );
     CREATE INDEX IF NOT EXISTS comments_observation ON comments (observation_id);
     CREATE TABLE IF NOT EXISTS taxa (
@@ -115,6 +117,7 @@ export type ObservationRow = {
     taxon_id: number, ancestor_ids: string, public_positional_accuracy: number | null, updated_at: string,
     quality_metrics: string | null,
     annotations: string | null,
+    name: string | null,
 };
 
 /** A photo as the mirror stores it. */
@@ -127,13 +130,13 @@ export type PhotoRow = {
 export type IdentificationRow = {
     id: number, observation_id: number, user_id: number | null, login: string | null, orcid: string | null,
     taxon_id: number, created_at: string, current: number, own_observation: number,
-    disagreement: number | null, hidden: number, vision: number, body: string | null,
+    disagreement: number | null, hidden: number, vision: number, body: string | null, name: string | null,
 };
 
 /** A comment as the mirror stores it. */
 export type CommentRow = {
     id: number, observation_id: number, user_id: number | null, login: string | null, orcid: string | null,
-    body: string | null, created_at: string, hidden: number,
+    body: string | null, created_at: string, hidden: number, name: string | null,
 };
 
 /** A taxon as the mirror stores it. */
@@ -150,6 +153,7 @@ export function observationRow(o: NormalizedObservation): ObservationRow {
         public_positional_accuracy: o.publicPositionalAccuracy, updated_at: o.updatedAt,
         quality_metrics: JSON.stringify([...o.qualityMetrics].sort((a, b) => a.id - b.id)),
         annotations: JSON.stringify([...o.annotations].sort((a, b) => a.uuid < b.uuid ? -1 : a.uuid > b.uuid ? 1 : 0)),
+        name: o.name,
     };
 }
 
@@ -165,14 +169,14 @@ export function identificationRows(o: NormalizedObservation): IdentificationRow[
         id: i.id, observation_id: o.id, user_id: i.userId, login: i.login, orcid: i.orcid,
         taxon_id: i.taxonId, created_at: i.createdAt, current: Number(i.current),
         own_observation: Number(i.ownObservation), disagreement: i.disagreement === null ? null : Number(i.disagreement),
-        hidden: Number(i.hidden), vision: Number(i.vision), body: i.body,
+        hidden: Number(i.hidden), vision: Number(i.vision), body: i.body, name: i.name,
     }));
 }
 
 export function commentRows(o: NormalizedObservation): CommentRow[] {
     return o.comments.map(c => ({
         id: c.id, observation_id: o.id, user_id: c.userId, login: c.login, orcid: c.orcid,
-        body: c.body, created_at: c.createdAt, hidden: Number(c.hidden),
+        body: c.body, created_at: c.createdAt, hidden: Number(c.hidden), name: c.name,
     }));
 }
 
@@ -211,6 +215,11 @@ export function openMirror(path: string): DatabaseSync {
     // when next fetched, as it gained its votes.
     if (db.prepare("SELECT 1 FROM pragma_table_info('observations') WHERE name = 'annotations'").get() === undefined)
         db.exec('ALTER TABLE observations ADD COLUMN annotations TEXT');
+    // Likewise each person's display name (salish-n98s), last in each of the three tables:
+    // a row gains its author's name when its observation is next fetched.
+    for (const table of ['observations', 'identifications', 'comments'])
+        if (db.prepare(`SELECT 1 FROM pragma_table_info('${table}') WHERE name = 'name'`).get() === undefined)
+            db.exec(`ALTER TABLE ${table} ADD COLUMN name TEXT`);
     return db;
 }
 

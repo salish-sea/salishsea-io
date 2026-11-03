@@ -93,8 +93,8 @@ const OBSERVATION_FIELDS =
     'user:(id:!t,login:!t,name:!t,orcid:!t),' +
     // decision 075: who identified it as what, and what anyone wrote (rights-policy §5.5)
     'identifications:(id:!t,body:!t,created_at:!t,current:!t,own_observation:!t,disagreement:!t,' +
-    'hidden:!t,vision:!t,user:(id:!t,login:!t,orcid:!t),taxon:(id:!t)),' +
-    'comments:(id:!t,body:!t,created_at:!t,hidden:!t,user:(id:!t,login:!t,orcid:!t)),' +
+    'hidden:!t,vision:!t,user:(id:!t,login:!t,name:!t,orcid:!t),taxon:(id:!t)),' +
+    'comments:(id:!t,body:!t,created_at:!t,hidden:!t,user:(id:!t,login:!t,name:!t,orcid:!t)),' +
     // decision 081: the community's votes on iNaturalist's data-quality questions
     'quality_metrics:(id:!t,metric:!t,agree:!t),' +
     // salish-1y8: annotations, such as Alive or Dead, with the votes' net score

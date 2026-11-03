@@ -1,6 +1,6 @@
 # 081 — What iNaturalist takes down, or its community votes wrong, SalishSea.io takes down too
 
-**Status:** accepted · **Decided:** 2026-10-20, by Peter · **Relates:** [075](075-an-inaturalist-observation-is-evidence-and-identifications.md) (an observation is its evidence and its identifications), [080](080-a-sighting-is-unconfirmed-until-someone-else-agrees.md) (unconfirmed sightings, which are shown, not hidden)
+**Status:** accepted · **Decided:** 2026-10-20, by Peter · **Amended:** 2026-11-02, by Peter (identifications and comments from deleted accounts) · **Relates:** [075](075-an-inaturalist-observation-is-evidence-and-identifications.md) (an observation is its evidence and its identifications), [080](080-a-sighting-is-unconfirmed-until-someone-else-agrees.md) (unconfirmed sightings, which are shown, not hidden)
 
 ## Context
 
@@ -46,6 +46,8 @@ Not every "wild" vote is a person's. iNaturalist casts one of its own, with no v
 The mirror keeps every vote on an observation, as JSON in a column of `observations`, and the derivation applies the rule, so an observation that comes back to passing comes back here. A mirror from before this decision holds no votes, so an observation's votes arrive when it is next fetched in a reconciled window, or at once by a manual backfill of its dates.
 
 The signal for a photo takedown is the photo's URL, which iNaturalist points at `/assets/copyright-infringement-…` or `/assets/artificially-generated-content-…`, while the photo's `hidden` flag stays false. The mirror already stores that URL, so this rule is a condition in the occurrence derivation (`scripts/read-path/derive/occurrences.sql`), not a filter on the fetch: the observation leaves the site on the first build after the mirror sees the new URL, and if a curator resolves the flag and the photo comes back, the observation comes back with it.
+
+**An identification or comment whose account iNaturalist has deleted is not used** *(added 2026-11-02)*. Such a row doesn't vote on whether a sighting is confirmed ([080](080-a-sighting-is-unconfirmed-until-someone-else-agrees.md)), and its text isn't read for the animals it names (bd `salish-4s42`). Peter's reason: many deleted accounts will have been spammers', and a row with no author can't be weighed by who wrote it, as 075 means confidence to be. iNaturalist names no author for such a row, so the mirror holds it with `user_id` and `login` null and keeps it as iNaturalist said it; the derivation leaves it out (`source_inaturalist_identifications` in `scripts/read-path/derive/sources.sql`). This is a guard more than a change: on 2026-11-02 the production mirror held no such row among 313,898 identifications and 7,126 comments, so iNaturalist appears to delete them with the account.
 
 ## Not decided here
 
