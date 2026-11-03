@@ -224,7 +224,7 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
           'scientific_name': t.scientific_name,
           'vernacular_name': coalesce(reg.common_name, par.common_name, t.vernacular_name)} AS taxon,
          -- the observer's codes, then any a comment or an identification adds (decision 106)
-         reading_identifiers(r.claims) || list_transform(remark_codes(rm.codes, r.claims, rm.absent), remark -> remark.code) AS identifiers,
+         reading_identifiers(r.claims) || list_transform(remark_codes(rm.codes, r.claims, rm.absent), lambda remark: remark.code) AS identifiers,
          CAST(NULL AS INTEGER) AS contributor_id,
          o.username AS observer,
          col.name AS collection,
@@ -241,10 +241,10 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          coalesce(c.disagreements, 0) AS disagreements,
          v.vitality,
          -- the observer's pods, then any a remark adds
-         coalesce(r.pods, []) || list_filter(coalesce(rm.pods, []), pod -> NOT list_contains(coalesce(r.pods, []), pod)) AS pods,
+         coalesce(r.pods, []) || list_filter(coalesce(rm.pods, []), lambda pod: NOT list_contains(coalesce(r.pods, []), pod)) AS pods,
          -- where each of those identifiers was read, in the same order
          list_transform(reading_identifiers(r.claims),
-                        own -> {'code': own, 'origin': 'report', 'origin_id': CAST(NULL AS BIGINT), 'by_observer': true})
+                        lambda own: {'code': own, 'origin': 'report', 'origin_id': CAST(NULL AS BIGINT), 'by_observer': true})
            || remark_codes(rm.codes, r.claims, rm.absent) AS identifier_origins
   FROM source_inaturalist_observations o
   LEFT JOIN memory.reading r ON r.id = 'inaturalist:' || o.id
@@ -416,7 +416,7 @@ CREATE OR REPLACE TEMP MACRO reading_direction(direction) AS
   CASE WHEN direction IN ('north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest')
        THEN direction END;
 CREATE OR REPLACE TEMP MACRO reading_identifiers(claims) AS
-  coalesce(list_transform(list_filter(claims, claim -> claim.presence = 'present'), claim -> claim.code), []);
+  coalesce(list_transform(list_filter(claims, lambda claim: claim.presence = 'present'), lambda claim: claim.code), []);
 -- The codes a comment or an identification adds to an iNaturalist observation's own
 -- (decision 106), from memory.inaturalist_remarks's `codes`: those the observer doesn't
 -- name either way, in the description (`claims`) or as absent in a remark of their own
@@ -425,7 +425,7 @@ CREATE OR REPLACE TEMP MACRO reading_identifiers(claims) AS
 -- names are ones no view aliases a table as: a qualified name binds to the table first.
 CREATE OR REPLACE TEMP MACRO remark_codes(codes, claims, absent) AS
   list_filter(coalesce(codes, []),
-              remark -> NOT list_contains(coalesce(list_transform(claims, claim -> claim.code), []), remark.code)
+              lambda remark: NOT list_contains(coalesce(list_transform(claims, lambda claim: claim.code), []), remark.code)
                     AND NOT list_contains(coalesce(absent, []), remark.code));
 
 -- --- The store ---------------------------------------------------------------------------

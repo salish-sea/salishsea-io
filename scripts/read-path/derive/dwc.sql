@@ -24,10 +24,10 @@ CREATE OR REPLACE TEMP MACRO pg_jsonb_member(k, v) AS
 CREATE OR REPLACE TEMP MACRO pg_jsonb_list_member(k, l) AS
   CASE WHEN l IS NULL THEN NULL
        ELSE CAST(to_json(k) AS VARCHAR) || ': ['
-            || array_to_string(list_transform(l, x -> CAST(to_json(x) AS VARCHAR)), ', ') || ']' END;
+            || array_to_string(list_transform(l, lambda x: CAST(to_json(x) AS VARCHAR)), ', ') || ']' END;
 CREATE OR REPLACE TEMP MACRO pg_jsonb_object(members) AS
-  CASE WHEN len(list_filter(members, m -> m IS NOT NULL)) = 0 THEN NULL
-       ELSE '{' || array_to_string(list_filter(members, m -> m IS NOT NULL), ', ') || '}' END;
+  CASE WHEN len(list_filter(members, lambda m: m IS NOT NULL)) = 0 THEN NULL
+       ELSE '{' || array_to_string(list_filter(members, lambda m: m IS NOT NULL), ', ') || '}' END;
 
 -- --- dwc.taxa_classification ---------------------------------------------------------------
 -- iNaturalist's own ancestry, resolving retired taxa on the way up, as the fallback; the

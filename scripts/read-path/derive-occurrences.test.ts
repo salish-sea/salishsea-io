@@ -185,7 +185,7 @@ describe('armsFor', () => {
             const code = (c: string, origin = 'comment', id = 1) => `{'code': '${c}', 'origin': '${origin}', 'origin_id': ${id}}`;
             const claim = (c: string, presence: string) => `{'code': '${c}', 'presence': '${presence}', 'certainty': 'certain'}`;
             const added = async (codes: string, claims: string, absent = 'NULL') => (await conn.runAndReadAll(
-                `SELECT list_transform(remark_codes(${codes}, ${claims}, ${absent}), x -> x.code)`)).getRows()[0]![0];
+                `SELECT list_transform(remark_codes(${codes}, ${claims}, ${absent}), lambda x: x.code)`)).getRows()[0]![0];
             // the observer names T46s and says T46D was absent; a comment names all three
             expect(await added(`[${code('T46s')}, ${code('T46D')}, ${code('T46B')}]`,
                 `[${claim('T46s', 'present')}, ${claim('T46D', 'absent')}]`)).toEqual({items: ['T46B']});
