@@ -186,6 +186,12 @@ describe('reading sighting text', () => {
             expect(absent(readText(text)), text).toEqual([]);
         }
         expect(absent(readText("no T46B's, T46C's or T46D's"))).toEqual(['T46B', 'T46C', 'T46D']);
+        for (const text of ["no T65A's spotted", "no T65A's yesterday", "No T65A's were seen", "no T65A's off Lime Kiln"]) {
+            expect(absent(readText(text)), text).toEqual(['T65A']);
+        }
+        // "nor" makes a list even after a bare "not"; a determiner may come before the last code
+        expect(absent(readText('Not T65A, T65B nor T65C'))).toEqual(['T65A', 'T65B', 'T65C']);
+        expect(absent(readText('No T65A, T65B or the T65Cs'))).toEqual(['T65A', 'T65B', 'T65Cs']);
         // an abbreviation doesn't end a sentence
         expect(absent(readText('(approx. 10 whales, no T65A, T65B)'))).toEqual(['T65A', 'T65B']);
         expect(absent(readText("Isn't that T65A off Pt. Roberts?"))).toEqual([]);
