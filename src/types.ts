@@ -75,6 +75,14 @@ export type Occurrence = {
    * identifiers; absent from a sighting the build hasn't seen yet.
    */
   pods?: string[];
+  /**
+   * What people said on an iNaturalist observation, as its card shows it (decision 107):
+   * each comment, and each identification with a remark, oldest first. Empty for every
+   * other source; absent from a sighting the build hasn't seen yet.
+   */
+  activity?: ActivityEntry[];
+  /** How many people identified an iNaturalist observation as each taxon, most first (decision 107). */
+  identified_as?: IdentifiedAs[];
   organization: string | null;
   organization_url: string | null;
   photos: OccurrencePhoto[];
@@ -131,3 +139,24 @@ export type UpsertObservationArgs = {
   /** The version of the terms of use the contributor agrees to with this save, if they haven't yet (#739). */
   agree_terms?: number;
 };
+
+/** A comment, or an identification with a remark, on an iNaturalist observation (decision 107). */
+export interface ActivityEntry {
+  kind: 'comment' | 'identification';
+  /** iNaturalist's id for the comment or the identification. */
+  id: number;
+  /** When it was written, as an ISO 8601 instant. */
+  at: string;
+  /** Its author as iNaturalist credits them: their display name, else their login. */
+  author: string;
+  by_observer: boolean;
+  /** The taxon an identification names; null for a comment. */
+  taxon: string | null;
+  body: string;
+}
+
+/** The people who identified an observation as one taxon. */
+export interface IdentifiedAs {
+  taxon: string;
+  people: number;
+}

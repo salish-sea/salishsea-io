@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, test, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const deleteResult = vi.hoisted(() => ({error: null as unknown}));
 vi.mock('@sentry/browser', () => ({captureException: () => {}}));
@@ -14,7 +14,7 @@ vi.mock('./individual-links.ts', async (importOriginal) => ({
   loadCatalogCodes: async () => new Map(),
 }));
 
-import { buildShareUrl, confirmationNote, stripResolvedProvenance, ObsSummary } from './obs-summary.ts';
+import { buildShareUrl, confirmationNote, entryHeading, identifiedLine, stripResolvedProvenance, ObsSummary } from './obs-summary.ts';
 import type { Occurrence } from './types.ts';
 
 describe('buildShareUrl', () => {
@@ -393,5 +393,25 @@ describe("a card's links to animals (salish-7ds1.1)", () => {
     a.dispatchEvent(withMeta);
     expect(opened.length).toBe(1);
     expect(withMeta.defaultPrevented).toBe(false);
+  });
+});
+
+describe('what people said on iNaturalist (decision 107)', () => {
+  test('the identifications, grouped by taxon', () => {
+    expect(identifiedLine([{taxon: 'Orca', people: 13}])).toBe('Identified as Orca by 13 people on iNaturalist');
+    expect(identifiedLine([{taxon: 'Orca', people: 1}])).toBe('Identified as Orca by 1 person on iNaturalist');
+    expect(identifiedLine([{taxon: 'Orca', people: 12}, {taxon: "Bigg's killer whale", people: 1}]))
+      .toBe("Identified on iNaturalist as Orca by 12 people and Bigg's killer whale by 1 person");
+    expect(identifiedLine([{taxon: 'Orca', people: 3}, {taxon: 'Humpback whale', people: 2}, {taxon: 'Baleen Whales', people: 1}]))
+      .toBe('Identified on iNaturalist as Orca by 3 people, Humpback whale by 2 people and Baleen Whales by 1 person');
+  });
+
+  test('whose each entry is, and its Pacific day', () => {
+    const base = {id: 1, by_observer: false, body: 'x'};
+    expect(entryHeading({...base, kind: 'identification', at: '2022-05-09T16:05:15+00:00', author: 'marsidae', taxon: 'Orca'}))
+      .toBe('marsidae · identified it as Orca · May 9, 2022');
+    // 05:00 UTC is the evening before in Seattle
+    expect(entryHeading({...base, kind: 'comment', at: '2022-05-10T05:00:00+00:00', author: 'sjmurray55', taxon: null, by_observer: true}))
+      .toBe('sjmurray55, the observer · May 9, 2022');
   });
 });

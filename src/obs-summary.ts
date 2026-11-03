@@ -13,7 +13,7 @@ import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
 import { Temporal } from "temporal-polyfill";
 import { deleteSighting } from './write-api.ts';
-import type { Contributor, Occurrence } from "./types.ts";
+import type { ActivityEntry, Contributor, IdentifiedAs, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
 import { catalogCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, podCodes, populationCodes, populationPage } from './individual-links.ts';
@@ -263,6 +263,35 @@ export class ObsSummary extends LitElement {
       margin: 1rem 0 0 0;
       padding: 0;
     }
+    /* What people said on an iNaturalist observation (decision 107), under its photos and
+       a hairline: the identifications' tally and each author line in the grey caption of
+       the card's other secondary lines, Regular because they are read letter by letter
+       (rule 5); what each person wrote in the Light of the report's own text. */
+    section.activity {
+      border-top: 1px solid var(--color-border);
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+    }
+    section.activity .identified, section.activity .who {
+      color: var(--color-text-secondary);
+      font-size: var(--fs-caption);
+      font-weight: 400;
+      margin: 0;
+    }
+    section.activity ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    section.activity li {
+      margin-top: 0.5rem;
+    }
+    section.activity .said > :first-child {
+      margin-top: 0.125rem;
+    }
+    section.activity .said > :last-child {
+      margin-bottom: 0;
+    }
     /* The card's actions, behind a button right of the time (salish-fwyt.1). The
        button keeps its 44px touch target while centred on the heading's first line. */
     .more {
@@ -416,8 +445,29 @@ export class ObsSummary extends LitElement {
           `)
         }</ul>`
       : undefined}
+      ${this.renderActivity()}
       ${this.renderProvenance()}
     `
+  }
+
+  /**
+   * What people said on an iNaturalist observation (decision 107): how many identified it
+   * as what, then each comment and each identification's remark, credited to its author
+   * and dated, its codes linked as a report's are. A curator weighs a sighting by these.
+   */
+  private renderActivity() {
+    const {activity, identified_as} = this.sighting;
+    if (!activity?.length && !identified_as?.length) return nothing;
+    return html`
+      <section class="activity" aria-label="On iNaturalist">
+        ${identified_as?.length ? html`<p class="identified">${identifiedLine(identified_as)}</p>` : nothing}
+        ${activity?.length ? html`<ul>${repeat(activity, entry => `${entry.kind}:${entry.id}`, entry => html`
+          <li>
+            <p class="who">${entryHeading(entry)}</p>
+            <div class="said">${guard([entry.body, this.catalogLoaded], () => sightingText(entry.body, null))}</div>
+          </li>`)}</ul>` : nothing}
+      </section>
+    `;
   }
 
   /** The card's actions: copying its link for anyone, cloning for the signed in, and editing and deleting for whoever may. */
@@ -660,4 +710,31 @@ declare global {
   interface HTMLElementTagNameMap {
     "obs-summary": ObsSummary;
   }
+}
+
+const people = (n: number) => n === 1 ? '1 person' : `${n} people`;
+
+/**
+ * How many people identified an iNaturalist observation as what, in one line: "Identified
+ * as Orca by 13 people on iNaturalist", or with several taxa, "Identified on iNaturalist as
+ * Orca by 12 people and Bigg's killer whale by 1 person".
+ */
+export function identifiedLine(groups: readonly IdentifiedAs[]): string {
+  if (groups.length === 1) return `Identified as ${groups[0]!.taxon} by ${people(groups[0]!.people)} on iNaturalist`;
+  const parts = groups.map(g => `${g.taxon} by ${people(g.people)}`);
+  return `Identified on iNaturalist as ${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
+}
+
+/**
+ * Whose a comment or a remark is, and when: "marsidae · identified it as Orca · May 9,
+ * 2022". The observer is named as such, since their word on their own sighting weighs
+ * differently. The date is the Pacific day, as the cards' times are.
+ */
+export function entryHeading(entry: ActivityEntry): string {
+  const who = entry.by_observer ? `${entry.author}, the observer` : entry.author;
+  const day = Temporal.Instant.from(entry.at).toZonedDateTimeISO('America/Los_Angeles').toPlainDate()
+    .toLocaleString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+  return entry.kind === 'identification' && entry.taxon
+    ? `${who} · identified it as ${entry.taxon} · ${day}`
+    : `${who} · ${day}`;
 }
