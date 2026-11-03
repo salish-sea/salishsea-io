@@ -45,4 +45,4 @@ CREATE OR REPLACE TEMP MACRO extract_identifiers(body) AS (
     list_zip(regexp_extract_all(body, '\b([jJ]|[kK]|[lL]|[tT]|[cC][rR][cC])[- ]?0*(\p{Nd}[\p{Nd}a-fA-F]+)([sS]?)\b', 1),
              regexp_extract_all(body, '\b([jJ]|[kK]|[lL]|[tT]|[cC][rR][cC])[- ]?0*(\p{Nd}[\p{Nd}a-fA-F]+)([sS]?)\b', 2),
              regexp_extract_all(body, '\b([jJ]|[kK]|[lL]|[tT]|[cC][rR][cC])[- ]?0*(\p{Nd}[\p{Nd}a-fA-F]+)([sS]?)\b', 3)),
-    x -> upper(x[1]) || x[2] || lower(x[3])) AS ids));
+    lambda x: upper(x[1]) || x[2] || lower(x[3])) AS ids));
