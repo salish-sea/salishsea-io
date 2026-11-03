@@ -21,7 +21,7 @@ From the Maplify mirror on 2026-10-31: every report received in the year to 2026
 
 Every comment is public Maplify data as the mirror holds it, reporter names included, as the twin fixture's Maplify rows are.
 
-The two random strata estimate the corpus. The hard strata say how an extraction does on the pattern named, not how often it occurs. The same 200 rows, with the labels in columns, are in Peter's Google Sheet "Sighting text gold set", where they were reviewed.
+The two random strata estimate the corpus. The hard strata say how an extraction does on the pattern named, not how often it occurs. The same 200 rows, with the labels in columns and the regexes scored by formula, are in Peter's Google Sheet [Sighting text gold set](https://docs.google.com/spreadsheets/d/1m3gk46RfjPeYmawpS6Z5ZOeGXDl-Qsthq0izNpTA14E/edit?usp=sharing), readable by anyone with the link and open to comments, where they were reviewed. The fixture is what the tests read and the sheet is where a person reads and edits; a change to one is made in the other.
 
 ## The columns
 
