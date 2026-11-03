@@ -182,8 +182,9 @@ export function readText(text: string): Reading {
     // & A3"), as an exclusion's does.
     const questioned = new Set<string>();
     for (const cue of text.matchAll(NEGATION)) {
-        // a question ("Isn't it T65A?"): its codes are possible, not absent
-        const question = /^[^.;!?]*\?/.exec(text.slice(cue.index!));
+        // a question ("Isn't it T65A?"): its codes are possible, not absent. The "?" must end
+        // the negation's own clause, not a later one ("No T65A, but is it T65B?").
+        const question = /^(?:(?!\bbut\b)[^.;!?])*\?/i.exec(text.slice(cue.index!));
         if (question) {
             const end = cue.index! + question[0].length;
             for (const t of named) if (t.start >= cue.index! && t.end <= end) questioned.add(t.text);

@@ -131,6 +131,12 @@ describe('reading sighting text', () => {
         // a question asks; its "?" hedges
         expect(readText("Isn't it T65A?").claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
         expect(absent(readText("It isn't T65A. Maybe T65B?"))).toEqual(['T65A']);
+        // a later question doesn't cancel an earlier negation
+        const later = readText('No T65A, but is it T65B?');
+        expect(absent(later)).toEqual(['T65A']);
+        expect(present(later)).toEqual(['T65B']);
+        expect(readText("Isn't it T65A, or T65B?").claims.map(c => [c.code, c.presence, c.certainty]))
+            .toEqual([['T65A', 'present', 'possible'], ['T65B', 'present', 'possible']]);
     });
 
     test('more negations: a verb of seeing, a letter alone in a list, and not a word', () => {
