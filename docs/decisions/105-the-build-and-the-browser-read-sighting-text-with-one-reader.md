@@ -1,6 +1,6 @@
 # 105 — The build and the browser read sighting text with one reader, which replaces the regular expressions
 
-**Status:** proposed: accepted when its pull request merges · **Decided:** 2026-11-01, by Peter (the plan, in bd `salish-2n60`); the details below were settled while building it, 2026-11-02 · **Work:** bd `salish-2n60`; `salish-uh38` stores what this leaves out · **Amends:** [102](102-reading-sighting-text-is-measured-against-a-gold-set.md) (its test of the regular expressions retires with them) · **Builds on:** [061](061-ingest-and-derivation-move-into-the-build.md), [054](054-certainty-is-the-asserters-status-is-ours.md)
+**Status:** accepted (merged as PR [#828](https://github.com/salish-sea/salishsea-io/pull/828), 2026-11-02) · **Decided:** 2026-11-01, by Peter (the plan, in bd `salish-2n60`); the details below were settled while building it, 2026-11-02 · **Work:** bd `salish-2n60`; `salish-uh38` stores what this leaves out · **Amends:** [102](102-reading-sighting-text-is-measured-against-a-gold-set.md) (its test of the regular expressions retires with them) · **Builds on:** [061](061-ingest-and-derivation-move-into-the-build.md), [054](054-certainty-is-the-asserters-status-is-ours.md)
 
 ## Context
 
