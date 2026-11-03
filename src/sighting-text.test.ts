@@ -79,6 +79,8 @@ describe('reading sighting text', () => {
             .toBe('Biggs T68s, 68Bs, 68Cs Pt Marrowstone');
         expect(reportText('[Orca Network: CRC53 Little Patch still feeding]]')).toBe('CRC53 Little Patch still feeding');
         expect(reportText('[Orca Network] J pod SB')).toBe('J pod SB');
+        // a bracket that holds a code is the report's own, not a collection's tag
+        expect(present(readSighting('[T65A5] heading north'))).toEqual(['T65A5']);
     });
 
     test('codes in lower case, when they touch their number', () => {

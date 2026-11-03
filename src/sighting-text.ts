@@ -56,7 +56,8 @@ export function reportText(body: string): string {
     let text = body.replace(/<br><br>Submitted by .*$/s, '').replace(/<[^>]+>/g, ' ')
         .replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
     const tag = /^\[([^\]:]+)(?::([^\]]*))?\]+/.exec(text);
-    if (tag) text = ((tag[2] ?? '') + ' ' + text.slice(tag[0].length)).trim();
+    // A collection's name has no digits; "[T65A5] heading north" is a note, and is read.
+    if (tag && !/\d/.test(tag[1]!)) text = ((tag[2] ?? '') + ' ' + text.slice(tag[0].length)).trim();
     return text;
 }
 
