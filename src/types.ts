@@ -69,6 +69,12 @@ export type Occurrence = {
    * (decision 100). Null where none is within 5 km or there is no place; absent likewise.
    */
   landmark?: string | null;
+  /**
+   * The Southern Resident pods its text names, as letters (["J", "K"]), read by the build
+   * with src/sighting-text.ts (decision 105). Empty for a bout, whose pods are among its
+   * identifiers; absent from a sighting the build hasn't seen yet.
+   */
+  pods?: string[];
   organization: string | null;
   organization_url: string | null;
   photos: OccurrencePhoto[];
