@@ -73,7 +73,7 @@ const rawObs = {
     identifications: [{
         id: 700, created_at: '2026-07-04T14:00:00-07:00', current: true, own_observation: true,
         disagreement: null, hidden: false, vision: false, body: null,
-        user: { id: 5, login: 'obs_user', orcid: null }, taxon: { id: 41553 },
+        user: { id: 5, login: 'obs_user', name: 'Obs User', orcid: null }, taxon: { id: 41553 },
     }],
     comments: [],
     quality_metrics: [],
@@ -82,7 +82,7 @@ const rawObs = {
 
 const obs = (over: Partial<NormalizedObservation> = {}): NormalizedObservation => ({
     id: 1, description: null, lon: -123, lat: 48, observedAt: '2026-07-04T13:08:00-07:00',
-    licenseCode: 'cc-by-nc', uri: 'https://inat/1', login: 'u', orcid: null, taxonId: 41553,
+    licenseCode: 'cc-by-nc', uri: 'https://inat/1', login: 'u', name: null, orcid: null, taxonId: 41553,
     ancestorIds: [48460, 1, 41553], publicPositionalAccuracy: null,
     updatedAt: '2026-07-05T20:08:06-07:00', photos: [], identifications: [], comments: [], qualityMetrics: [], annotations: [], ...over,
 });
@@ -237,7 +237,7 @@ describe('parseInatResponse', () => {
 
     test('keeps what people wrote, except what iNaturalist\'s moderators hid', () => {
         const identification = rawObs.identifications[0]!;
-        const user = { id: 9, login: 'commenter', orcid: null };
+        const user = { id: 9, login: 'commenter', name: 'A Commenter', orcid: null };
         const r = parseInatResponse({ total_results: 1, results: [{
             ...rawObs,
             identifications: [
@@ -256,9 +256,9 @@ describe('parseInatResponse', () => {
         expect(o.identifications.map(i => [i.id, i.body, i.hidden])).toEqual(
             [[700, 'Saddle patch matches T049A1', false], [701, null, true], [702, null, false]]);
         expect(o.comments).toEqual([
-            { id: 800, userId: 9, login: 'commenter', orcid: null, body: 'Seen from the ferry too',
+            { id: 800, userId: 9, login: 'commenter', name: 'A Commenter', orcid: null, body: 'Seen from the ferry too',
               createdAt: '2026-07-04T15:00:00-07:00', hidden: false },
-            { id: 801, userId: 9, login: 'commenter', orcid: null, body: null,
+            { id: 801, userId: 9, login: 'commenter', name: 'A Commenter', orcid: null, body: null,
               createdAt: '2026-07-04T16:00:00-07:00', hidden: true },
         ]);
     });

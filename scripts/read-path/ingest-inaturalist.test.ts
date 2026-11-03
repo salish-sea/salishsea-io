@@ -25,12 +25,12 @@ const photo = (over: Partial<NormalizedPhoto> & {id: number}): NormalizedPhoto =
     url: 'https://example.com/p.jpg', ...over,
 });
 const identification = (over: Partial<NormalizedIdentification> & {id: number}): NormalizedIdentification => ({
-    userId: 7, login: 'test_identifier', orcid: null, taxonId: 2000000002, createdAt: '2026-07-04T09:00:00-07:00',
+    userId: 7, login: 'test_identifier', name: 'Test Identifier', orcid: null, taxonId: 2000000002, createdAt: '2026-07-04T09:00:00-07:00',
     current: true, ownObservation: false, disagreement: false, hidden: false, vision: false, body: null, ...over,
 });
 const observation = (over: Partial<NormalizedObservation> & {id: number}): NormalizedObservation => ({
     description: null, lon: -123, lat: 48.5, observedAt: '2026-07-03T10:00:00-07:00', licenseCode: 'cc-by-nc',
-    uri: 'https://www.inaturalist.org/observations/x', login: 'test_inat_a', orcid: null, taxonId: 2000000002,
+    uri: 'https://www.inaturalist.org/observations/x', login: 'test_inat_a', name: null, orcid: null, taxonId: 2000000002,
     ancestorIds: [2000000001, 2000000002], publicPositionalAccuracy: 10, updatedAt: '2026-07-05T10:00:00-07:00',
     photos: [], identifications: [], comments: [], qualityMetrics: [], annotations: [], ...over,
 });
@@ -117,7 +117,7 @@ describe('the mirror', () => {
 
     test('keeps the comments on an observation, and picks up a new one whenever the observation is fetched again', () => {
         const db = fresh('comments.sqlite');
-        const comment = {id: 9300000001, userId: 9, login: 'test_commenter', orcid: null, body: 'Seen from the ferry too',
+        const comment = {id: 9300000001, userId: 9, login: 'test_commenter', name: 'Test Commenter', orcid: null, body: 'Seen from the ferry too',
                          createdAt: '2026-07-04T15:00:00-07:00', hidden: false};
         const first = observation({id: 9000000032, comments: [comment]});
         applyFetch(db, [first], taxa, null);
@@ -143,8 +143,8 @@ describe('the mirror', () => {
         const old = openMirror(file);
         const bare = observation({id: 9000000035});
         applyFetch(old, [bare], taxa, null);
-        // a mirror that old had no annotations either (salish-1y8)
-        old.exec('ALTER TABLE observations DROP COLUMN annotations; ALTER TABLE observations DROP COLUMN quality_metrics');
+        // a mirror that old had no annotations (salish-1y8) or names (salish-n98s) either
+        old.exec('ALTER TABLE observations DROP COLUMN name; ALTER TABLE observations DROP COLUMN annotations; ALTER TABLE observations DROP COLUMN quality_metrics');
         old.close();
         const db = openMirror(file);
         expect(rows(file).observations[0]!.quality_metrics).toBeNull();
@@ -162,7 +162,8 @@ describe('the mirror', () => {
         const old = openMirror(file);
         const bare = observation({id: 9000000036});
         applyFetch(old, [bare], taxa, null);
-        old.exec('ALTER TABLE observations DROP COLUMN annotations');
+        // nor names (salish-n98s), which came later
+        old.exec('ALTER TABLE observations DROP COLUMN name; ALTER TABLE observations DROP COLUMN annotations');
         old.close();
         const db = openMirror(file);
         expect(rows(file).observations[0]!.annotations).toBeNull();
@@ -194,7 +195,7 @@ describe('the mirror', () => {
         const db = fresh('window.sqlite');
         const inside = observation({id: 9000000005, observedAt: '2026-07-03T10:00:00-07:00', photos: [photo({id: 9100000005})],
                                     identifications: [identification({id: 9200000005})],
-                                    comments: [{id: 9300000005, userId: 9, login: 'c', orcid: null, body: 'x',
+                                    comments: [{id: 9300000005, userId: 9, login: 'c', name: null, orcid: null, body: 'x',
                                                 createdAt: '2026-07-03T11:00:00-07:00', hidden: false}]});
         const lastEvening = observation({id: 9000000006, observedAt: '2026-07-05T23:30:00Z'});
         const dayAfter = observation({id: 9000000007, observedAt: '2026-07-06T00:30:00Z'});
