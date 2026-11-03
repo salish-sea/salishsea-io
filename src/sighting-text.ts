@@ -87,11 +87,12 @@ const EXCLUDE = /\(\s*-\s*|\bminus\b|(?<=[A-Za-z0-9]s)\s+-(?=[A-Z])/g;
 // A negation in a sentence, as people write in comments on iNaturalist ("not the T090s
 // actually", "I don't recognize this as any T077 orca"): the codes it governs are absent.
 // "Not sure", "not certain", "not positive" and "not 100%" are hedges, not negations (see
-// HEDGE), and "not only" and "no doubt" affirm.
-const NEGATION = /\b(?:not(?!\s+(?:sure|certain|positive|100\s*%?|only)\b)|no(?!\s+doubt\b)|never|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\b/gi;
+// HEDGE), "not only", "not just" and "no doubt" affirm, "never mind" negates nothing, and a question ("Isn't it T65A?")
+// asks rather than says, so its "?" hedges the code instead.
+const NEGATION = /\b(?:not(?!\s+(?:sure|certain|positive|100\s*%?|only|just)\b)|no(?!\s+doubt\b)|never(?!\s+mind\b)|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\b/gi;
 // What may stand between a negation and the first code it governs: a few words of the
 // same clause, "the", "any", "think this is", "recognize this as any", and no punctuation.
-const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['’]s|is|was|are|were|be|as|actually|from|in|part|recognize|think|believe|seeing|either|even|quite|just))*\s+$/i;
+const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['’]s|is|was|are|were|be|as|actually|from|in|part|recognize|think|believe|see|seeing|either|even|quite|just))*\s+$/i;
 // What may stand between two codes a negation governs, matched at the start of the rest: a
 // list over a comma, a slash, "&", "and", "or", "nor" or only a space ("no T060D T060E").
 const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
@@ -179,7 +180,15 @@ export function readText(text: string): Reading {
     // Negations: the first code within a few words of the same clause, then the codes listed
     // after it, a short form taking its matriline from the code before it ("Not seeing T65A2
     // & A3"), as an exclusion's does.
+    const questioned = new Set<string>();
     for (const cue of text.matchAll(NEGATION)) {
+        // a question ("Isn't it T65A?"): its codes are possible, not absent
+        const question = /^[^.;!?]*\?/.exec(text.slice(cue.index!));
+        if (question) {
+            const end = cue.index! + question[0].length;
+            for (const t of named) if (t.start >= cue.index! && t.end <= end) questioned.add(t.text);
+            continue;
+        }
         const first = named.find(t => t.start >= cue.index! + cue[0].length);
         if (!first || !NEGATED_GAP.test(text.slice(cue.index! + cue[0].length, first.start) || ' ')) continue;
         let previousAbsent: string | null = null;
@@ -188,7 +197,11 @@ export function readText(text: string): Reading {
             const at: number = previousAbsent === null ? pos : pos + NEGATED_LIST.exec(text.slice(pos))![0].length;
             const tok: Code | undefined = named.find(t => t.start === at);
             if (tok) { absent.add(tok.text); excludedIdx.add(named.indexOf(tok)); previousAbsent = tok.text; pos = tok.end; continue; }
-            const short: RegExpExecArray | null = previousAbsent !== null ? /^([A-Z]\d+s?)(?![A-Za-z0-9])/.exec(text.slice(at)) : null;
+            // a short form with a digit ("& A3"), or a matriline's letter alone after a list
+            // separator ("& B"), but not a word such as "I"
+            const listed = /[,\/&+]|\b(?:and|or|nor)\b/i.test(text.slice(pos, at));
+            const short: RegExpExecArray | null = previousAbsent === null ? null
+                : /^([A-Z]\d+s?)(?![A-Za-z0-9])/.exec(text.slice(at)) ?? (listed ? /^([A-H])(?![A-Za-z0-9'’])/.exec(text.slice(at)) : null);
             if (short) { const code: string = base(previousAbsent!, true) + short[1]!; absent.add(code); previousAbsent = code; pos = at + short[1]!.length; continue; }
             break;
         }
@@ -198,7 +211,7 @@ export function readText(text: string): Reading {
 
     // Hedges: the codes after a hedge word, up to the next comma, period or closing bracket,
     // carry the word's certainty; a code under two hedges takes the weaker.
-    const certainty = new Map<string, Certainty>();
+    const certainty = new Map<string, Certainty>([...questioned].map(code => [code, 'possible' as const]));
     for (const h of text.matchAll(HEDGE)) {
         const level = levelOf(h[0]);
         const end = text.slice(h.index!).search(/[,.;)]|\bbut\b/);

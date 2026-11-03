@@ -50,9 +50,17 @@ The pass costs about half a second, 4.7 s against 4.15 s for the whole derive st
 
 ## Amended 2026-11-02: a negation in a sentence (bd `salish-sepv`)
 
-Reading comments on iNaturalist observations ([106](106-a-comment-can-name-the-animal-a-sighting-was.md)) showed the reader taking "not the T090s actually" as naming the T90s. People correcting each other write *not*, and some observers write "T100s (no T100E)". The reader now makes absent the codes a negation governs. A negation is *not*, *no*, *never* or a negative verb (*isn't*, *don't*, …), followed within a few words of the same clause by a code, then any codes listed after it, as *(-D)*'s list is read. *Not sure*, *not certain* and *not positive* are hedges that make a code possible, and *not only* and *no doubt* affirm.
+Reading comments on iNaturalist observations ([106](106-a-comment-can-name-the-animal-a-sighting-was.md)) showed the reader taking "not the T090s actually" as naming the T90s. People correcting each other write *not*, and some observers write "T100s (no T100E)". The reader now makes absent the codes a negation governs. A negation is *not*, *no*, *never* or a negative verb (*isn't*, *don't*, *did not see*, …), followed within a few words of the same clause by a code, then any codes listed after it, as *(-D)*'s list is read ("No T65A & B" makes both absent). These are not negations:
+- *not sure*, *not certain* and *not positive* are hedges that make a code possible;
+- *not only*, *not just* and *no doubt* affirm, and *never mind* negates nothing;
+- a negated question, "Isn't it T65A?", makes its codes possible rather than absent.
 
-Over every production text on 2026-11-02, 11 of about 66,000 read differently, and all 11 are now right. They are 2 of 38,900 Maplify reports ("one not CRC 2440", "Not seeing T65A2 & A3"), 7 of 16,079 iNaturalist descriptions ("T060s (no T060D T060E)"), and the 2 remarks found in 106's sample. The gold rows it gets wrong are unchanged.
+Over every production text on 2026-11-02, 14 of about 66,000 read differently:
+- 3 of 38,900 Maplify reports: "one not CRC 2440", "Not seeing T65A2 & A3" and "Did not see T37A or T137";
+- 7 of 16,079 iNaturalist descriptions, such as "T060s (no T060D T060E)";
+- 4 remarks: the two found in 106's sample, and "I don't see T124C".
+
+13 of them are now right. The 14th is a link whose address contains "no" and "?", which turns a code read out of the address from certain to possible, and which was never a real reading anyway. The gold rows the reader gets wrong are unchanged.
 
 ## Rejected
 

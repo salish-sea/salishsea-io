@@ -127,6 +127,18 @@ describe('reading sighting text', () => {
         expect(readText("Not sure if it's T65A").claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
         expect(readText('No doubt T19B Galiano').claims).toEqual([{code: 'T19B', presence: 'present', certainty: 'certain'}]);
         expect(present(readText('Not only T19B but T19C too'))).toEqual(['T19B', 'T19C']);
+        expect(present(readText('Not just T65A but T65B'))).toEqual(['T65A', 'T65B']);
+        // a question asks; its "?" hedges
+        expect(readText("Isn't it T65A?").claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
+        expect(absent(readText("It isn't T65A. Maybe T65B?"))).toEqual(['T65A']);
+    });
+
+    test('more negations: a verb of seeing, a letter alone in a list, and not a word', () => {
+        expect(absent(readText("I don't see T65A here"))).toEqual(['T65A']);
+        expect(absent(readText('No T65A & B today'))).toEqual(['T65A', 'T65B']);
+        // "I" is a word, not T65I
+        const word = readText('not T65A, I think');
+        expect(absent(word)).toEqual(['T65A']);
     });
 
     test("a compass word in a reporter's name is not a direction", () => {
