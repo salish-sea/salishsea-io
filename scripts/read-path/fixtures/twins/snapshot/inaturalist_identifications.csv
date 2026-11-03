@@ -1,13 +1,13 @@
-id,observation_id,taxon_id,current,own_observation,hidden,user_id,body
-6000001,9000001,41566,true,true,false,7000001,
-6000002,9000001,41521,true,false,false,7000002,
-6000003,9000002,41566,true,true,false,7000003,
-6000004,9000002,424321,true,false,false,7000002,"T137s, I think"
-6000005,9000002,41708,true,false,true,7000004,
-6000006,9000002,41708,false,false,false,7000005,Maybe T65A2
-6000007,9000007,41566,true,true,false,7000006,
-6000008,9000007,41566,true,false,false,7000002,
-6000009,9000007,41708,true,false,false,7000004,
-6000010,9000001,41521,true,false,false,7000005,
-6000011,9000001,41566,true,false,false,7000007,
-6000012,9000002,41566,true,false,false,,
+id,observation_id,taxon_id,current,own_observation,hidden,user_id,body,login,name,created_at
+6000001,9000001,41566,true,true,false,7000001,,synthetic_observer,,2026-09-11T08:10:00-07:00
+6000002,9000001,41521,true,false,false,7000002,,synthetic_identifier,Synthetic Identifier,2026-09-12T09:11:00-07:00
+6000003,9000002,41566,true,true,false,7000003,,synthetic_commenter,,2026-09-11T08:12:00-07:00
+6000004,9000002,424321,true,false,false,7000002,"T137s, I think",synthetic_identifier,Synthetic Identifier,2026-09-12T09:13:00-07:00
+6000005,9000002,41708,true,false,true,7000004,,synthetic_disputer,,2026-09-11T08:14:00-07:00
+6000006,9000002,41708,false,false,false,7000005,Maybe T65A2,synthetic_withdrawer,,2026-09-12T09:15:00-07:00
+6000007,9000007,41566,true,true,false,7000006,,synthetic_observer_two,,2026-09-11T08:16:00-07:00
+6000008,9000007,41566,true,false,false,7000002,,synthetic_identifier,Synthetic Identifier,2026-09-12T09:17:00-07:00
+6000009,9000007,41708,true,false,false,7000004,,synthetic_disputer,,2026-09-11T08:18:00-07:00
+6000010,9000001,41521,true,false,false,7000005,,synthetic_withdrawer,,2026-09-12T09:19:00-07:00
+6000011,9000001,41566,true,false,false,7000007,,synthetic_agreer,,2026-09-11T08:20:00-07:00
+6000012,9000002,41566,true,false,false,,,,,2026-09-12T09:21:00-07:00
