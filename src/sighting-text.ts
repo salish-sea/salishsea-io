@@ -12,10 +12,13 @@
  * a slash or comma ("T36/36Bs", "T36A1s, 65A5"), which takes the letter of the code before
  * it or T when the text says Biggs; a hyphen inside a code ("T65-A3"); and an exclusion,
  * "(-D)", "(-T46D)", "minus T137A", "minus T60D&E", whose animals are absent, a short form
- * resolved against the matriline before it. A code's leading zeros are dropped while a
- * digit follows ("T065A" is "T65A"), as the register's fold compares codes. A hedge word
- * marks the codes that follow it up to the next comma: "likely" and "presumably" make
- * them probable, "possibly", "maybe" and "?" possible (decision 054's certainty). Pods
+ * resolved against the matriline before it. A negation in a sentence makes absent the
+ * codes it governs: "no T100E", "not the T090s actually", "I don't recognize this as any
+ * T077", and a list after it ("no T060D T060E", "Not seeing T65A2 & A3"). A code's leading
+ * zeros are dropped while a digit follows ("T065A" is "T65A"), as the register's fold
+ * compares codes. A hedge word marks the codes that follow it up to the next comma:
+ * "likely" and "presumably" make them probable, "possibly", "maybe", "not sure" and "?"
+ * possible (decision 054's certainty). Pods
  * are "J pod", "Jpod", "Js", "J and K pods". The direction is a compass word or
  * abbreviation, "NB", "SW bound", "trending N", ignoring a bearing ("north of Alki",
  * "1/2 mile southeast of"), a place name ("West Point"), a spread ("north to south", "N to
@@ -75,11 +78,23 @@ const CODE = /\b(?:([TJKL]|CRC|BCX)\s?-?\s?|([tjkl]|[Cc]rc\s?)(?=\d))?(\d{1,5})(
 const LIST_GAP = /^\s*(?:(?:[,\/&+]|and)\s*)+$/i;
 // "Biggs 36Bs": a code without its letter right after the ecotype's name is a Bigg's code.
 const AFTER_BIGGS = /\b(?:biggs?|bigg['’]s|transients?)[\s:,]*$/i;
-const HEDGE = /\b(likely|possibly|possible|maybe|presumably|presumed|probably|probable|unconfirmed)\b|\?/gi;
+const HEDGE = /\b(likely|possibly|possible|maybe|presumably|presumed|probably|probable|unconfirmed|not (?:sure|certain|positive|100\s*%?))\b|\?/gi;
 /** Decision 054's certainty for a hedge word: a strong hedge is probable, a weak one possible. */
 const LEVEL: Record<string, Certainty> = {likely: 'probable', presumably: 'probable', presumed: 'probable', probably: 'probable', probable: 'probable',
     possibly: 'possible', possible: 'possible', maybe: 'possible', unconfirmed: 'possible', '?': 'possible'};
+const levelOf = (hedge: string): Certainty => LEVEL[hedge.toLowerCase()] ?? 'possible';
 const EXCLUDE = /\(\s*-\s*|\bminus\b|(?<=[A-Za-z0-9]s)\s+-(?=[A-Z])/g;
+// A negation in a sentence, as people write in comments on iNaturalist ("not the T090s
+// actually", "I don't recognize this as any T077 orca"): the codes it governs are absent.
+// "Not sure", "not certain", "not positive" and "not 100%" are hedges, not negations (see
+// HEDGE), and "not only" and "no doubt" affirm.
+const NEGATION = /\b(?:not(?!\s+(?:sure|certain|positive|100\s*%?|only)\b)|no(?!\s+doubt\b)|never|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\b/gi;
+// What may stand between a negation and the first code it governs: a few words of the
+// same clause, "the", "any", "think this is", "recognize this as any", and no punctuation.
+const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['’]s|is|was|are|were|be|as|actually|from|in|part|recognize|think|believe|seeing|either|even|quite|just))*\s+$/i;
+// What may stand between two codes a negation governs, matched at the start of the rest: a
+// list over a comma, a slash, "&", "and", "or", "nor" or only a space ("no T060D T060E").
+const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
 
 type Code = {start: number, end: number, text: string, letter: string | null, suffix: string, matriline: boolean};
 
@@ -142,7 +157,7 @@ export function readText(text: string): Reading {
             // A list of absent animals continues over a comma or an ampersand; "and" starts the next present group.
             const gap = /^[\s,&]*/.exec(rest)![0];
             const at = pos + gap.length;
-            const tok = named.find(t => t.start === at);
+            const tok: Code | undefined = named.find(t => t.start === at);
             if (tok) {
                 absent.add(tok.text); excludedIdx.add(named.indexOf(tok)); previousAbsent = tok.text; pos = tok.end; continue;
             }
@@ -161,6 +176,23 @@ export function readText(text: string): Reading {
             break;
         }
     }
+    // Negations: the first code within a few words of the same clause, then the codes listed
+    // after it, a short form taking its matriline from the code before it ("Not seeing T65A2
+    // & A3"), as an exclusion's does.
+    for (const cue of text.matchAll(NEGATION)) {
+        const first = named.find(t => t.start >= cue.index! + cue[0].length);
+        if (!first || !NEGATED_GAP.test(text.slice(cue.index! + cue[0].length, first.start) || ' ')) continue;
+        let previousAbsent: string | null = null;
+        let pos = first.start;
+        for (;;) {
+            const at: number = previousAbsent === null ? pos : pos + NEGATED_LIST.exec(text.slice(pos))![0].length;
+            const tok: Code | undefined = named.find(t => t.start === at);
+            if (tok) { absent.add(tok.text); excludedIdx.add(named.indexOf(tok)); previousAbsent = tok.text; pos = tok.end; continue; }
+            const short: RegExpExecArray | null = previousAbsent !== null ? /^([A-Z]\d+s?)(?![A-Za-z0-9])/.exec(text.slice(at)) : null;
+            if (short) { const code: string = base(previousAbsent!, true) + short[1]!; absent.add(code); previousAbsent = code; pos = at + short[1]!.length; continue; }
+            break;
+        }
+    }
     const present: string[] = [];
     named.forEach((t, i) => { if (!excludedIdx.has(i) && !present.includes(t.text)) present.push(t.text); });
 
@@ -168,7 +200,7 @@ export function readText(text: string): Reading {
     // carry the word's certainty; a code under two hedges takes the weaker.
     const certainty = new Map<string, Certainty>();
     for (const h of text.matchAll(HEDGE)) {
-        const level = LEVEL[h[0].toLowerCase()]!;
+        const level = levelOf(h[0]);
         const end = text.slice(h.index!).search(/[,.;)]|\bbut\b/);
         const stop = end < 0 ? text.length : h.index! + end;
         for (const t of named) {

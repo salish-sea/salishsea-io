@@ -100,6 +100,35 @@ describe('reading sighting text', () => {
         expect(present(readText('Biggs T46s and T87directional changes'))).toEqual(['T46s']);
     });
 
+    test('a negation in a sentence makes the codes it governs absent (salish-sepv)', () => {
+        // as people correct each other in comments on iNaturalist
+        const corrected = readText('@ms104 - not the T090s actually. This was the T030Bs, the T117Bs and T124C');
+        expect(present(corrected)).toEqual(['T30Bs', 'T117Bs', 'T124C']);
+        expect(absent(corrected)).toEqual(['T90s']);
+        const unknown = readText("I don't recognize this as any T077 orca. Possibly T065A5.");
+        expect(present(unknown)).toEqual(['T65A5']);
+        expect(absent(unknown)).toEqual(['T77']);
+        // a list after the negation is governed by it; "but" starts what is present
+        const listed = readText('Not T137A or T137B, but T137D');
+        expect(absent(listed)).toEqual(['T137A', 'T137B']);
+        expect(present(listed)).toEqual(['T137D']);
+        expect(absent(readText("Biggs T65As, no T65A5"))).toEqual(['T65A5']);
+        // a list with only a space between, and a short form after a code
+        expect(absent(readText('T060s (no T060D T060E)'))).toEqual(['T60D', 'T60E']);
+        const shortForm = readText('T65A, A4, A6 grouped circling. Not seeing T65A2 & A3');
+        expect(absent(shortForm)).toEqual(['T65A2', 'T65A3']);
+        // too far from the negation, or past a comma, is not governed by it
+        expect(present(readText('No IDs yet, T65As heading north'))).toEqual(['T65As']);
+        expect(present(readText('not seen since the encounter with T49As'))).toEqual(['T49As']);
+    });
+
+    test('"not sure" is a hedge, and "no doubt" and "not only" affirm', () => {
+        expect(readText('not sure but maybe T65A').claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
+        expect(readText("Not sure if it's T65A").claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
+        expect(readText('No doubt T19B Galiano').claims).toEqual([{code: 'T19B', presence: 'present', certainty: 'certain'}]);
+        expect(present(readText('Not only T19B but T19C too'))).toEqual(['T19B', 'T19C']);
+    });
+
     test("a compass word in a reporter's name is not a direction", () => {
         expect(readText('Likely Jpod, spread out moving south, southeast (Katie West)').direction).toBe('southeast');
         expect(readText('Biggs T65As southbound (Steve East)').direction).toBe('south');

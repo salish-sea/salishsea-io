@@ -48,6 +48,12 @@ One known wrong reading remains: *J2* in a parenthesis is a boat whose AIS track
 
 The pass costs about half a second, 4.7 s against 4.15 s for the whole derive step on Hostess. Its memory is lost in the noise between runs, about 770 MB at peak either way on Hostess, which allocates more freely than the 2 GB Fly machine. Appending each reading's claims as lists of structs through DuckDB's Node API had cost 110 MB and 0.3 s more. Writing each reading as JSON text and letting DuckDB parse it costs neither.
 
+## Amended 2026-11-02: a negation in a sentence (bd `salish-sepv`)
+
+Reading comments on iNaturalist observations ([106](106-a-comment-can-name-the-animal-a-sighting-was.md)) showed the reader taking "not the T090s actually" as naming the T90s. People correcting each other write *not*, and some observers write "T100s (no T100E)". The reader now makes absent the codes a negation governs. A negation is *not*, *no*, *never* or a negative verb (*isn't*, *don't*, …), followed within a few words of the same clause by a code, then any codes listed after it, as *(-D)*'s list is read. *Not sure*, *not certain* and *not positive* are hedges that make a code possible, and *not only* and *no doubt* affirm.
+
+Over every production text on 2026-11-02, 11 of about 66,000 read differently, and all 11 are now right. They are 2 of 38,900 Maplify reports ("one not CRC 2440", "Not seeing T65A2 & A3"), 7 of 16,079 iNaturalist descriptions ("T060s (no T060D T060E)"), and the 2 remarks found in 106's sample. The gold rows it gets wrong are unchanged.
+
 ## Rejected
 
 - **Patching the regular expressions instead.** The measurement in decision 102 showed the misses are patterns that rules over the words fix. Patterns over characters cannot say that *(-D)* removes an animal named before it.
