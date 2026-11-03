@@ -143,11 +143,37 @@ describe('reading sighting text', () => {
     test('more negations: a verb of seeing, a letter alone in a list, and not a word', () => {
         expect(absent(readText("I don't see T65A here"))).toEqual(['T65A']);
         expect(absent(readText('Not seen T65A today'))).toEqual(['T65A']);
-        expect(absent(readText('Never seen T65A2 with them'))).toEqual(['T65A2']);
+        // "never seen" is said of animals that are there
+        expect(present(readText('Have never seen the T65As this far north before!'))).toEqual(['T65As']);
         expect(absent(readText('No T65A & B today'))).toEqual(['T65A', 'T65B']);
-        // "I" is a word, not T65I
-        const word = readText('not T65A, I think');
-        expect(absent(word)).toEqual(['T65A']);
+        // "I" is a word, not T65I, and "E of" a bearing, not T65E
+        expect(absent(readText('not T65A, I think'))).toEqual(['T65A']);
+        expect(absent(readText('No T65A, E of Lime Kiln'))).toEqual(['T65A']);
+    });
+
+    test('a correction after a comma is present; a list in a parenthesis is not', () => {
+        for (const [text, gone, there] of [
+            ['Not T090s, T030Bs', ['T90s'], ['T30Bs']],
+            ['not the T65As, the T65Bs', ['T65As'], ['T65Bs']],
+            ['T49As (no T049A1, T049A2)', ['T49A1', 'T49A2'], ['T49As']],
+            ['no T65A, A4 and A6 either', ['T65A', 'T65A4', 'T65A6'], []],
+        ] as const) {
+            expect(absent(readText(text)), text).toEqual(gone);
+            expect(present(readText(text)), text).toEqual(there);
+        }
+    });
+
+    test('what is not a negation of the code after it', () => {
+        expect(present(readText('Unsure whether or not T65A2 was with them'))).toEqual(['T65A2']);
+        expect(present(readText('If not T65A, then T65B'))).toEqual(['T65A', 'T65B']);
+        expect(present(readText("This is not T65A's usual range"))).toEqual(['T65A']);
+        // an ellipsis or "i.e." stays inside the question
+        expect(readText("Isn't it T65A... or T65B?").claims.map(c => [c.code, c.presence, c.certainty]))
+            .toEqual([['T65A', 'present', 'possible'], ['T65B', 'present', 'possible']]);
+        // a distant "?" in a later clause neither cancels the negation nor hedges other codes
+        const distant = readText('No T65A today, lots of T137s though, anyone know who else?');
+        expect(absent(distant)).toEqual(['T65A']);
+        expect(distant.claims.find(c => c.code === 'T137s')).toEqual({code: 'T137s', presence: 'present', certainty: 'certain'});
     });
 
     test("a compass word in a reporter's name is not a direction", () => {
