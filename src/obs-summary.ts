@@ -263,8 +263,8 @@ export class ObsSummary extends LitElement {
       margin: 1rem 0 0 0;
       padding: 0;
     }
-    /* What people said on an iNaturalist observation (decision 107), under its photos and
-       a hairline: the identifications' tally and each author line in the grey caption of
+    /* What people said on an iNaturalist observation (decision 107), after the card has
+       finished with the observation itself, down to who observed it, and a hairline: the identifications' tally and each author line in the grey caption of
        the card's other secondary lines, Regular because they are read letter by letter
        (rule 5); what each person wrote in the Light of the report's own text. */
     section.activity {
@@ -445,13 +445,14 @@ export class ObsSummary extends LitElement {
           `)
         }</ul>`
       : undefined}
-      ${this.renderActivity()}
       ${this.renderProvenance()}
+      ${this.renderActivity()}
     `
   }
 
   /**
-   * What people said on an iNaturalist observation (decision 107): how many identified it
+   * What people said on an iNaturalist observation (decision 107), after the observation
+   * itself and who observed it: how many identified it
    * as what, then each comment and each identification's remark, credited to its author
    * and dated, its codes linked as a report's are. A curator weighs a sighting by these.
    */
