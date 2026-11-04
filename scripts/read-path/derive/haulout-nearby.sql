@@ -31,7 +31,10 @@ CREATE OR REPLACE TEMP TABLE haulout_nearby AS
   report AS (
     SELECT id, location.lat AS lat, location.lon AS lon
     FROM build.occurrences
-    WHERE doc->'taxon'->>'scientific_name' IN (SELECT scientific_name FROM pinniped)
+    -- In parentheses because DuckDB 2.0 reads two arrows followed by an operator as
+    -- doc -> (('taxon' ->> 'scientific_name') IN (...)), which fails to bind; 1.5 read
+    -- the chain first. The parenthesised form means the same in both.
+    WHERE (doc->'taxon'->>'scientific_name') IN (SELECT scientific_name FROM pinniped)
       AND location.lon IS NOT NULL AND location.lat IS NOT NULL
   )
   SELECT h.id AS haulout_id, o.id AS occurrence_id, h.radius_m,
