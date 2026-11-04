@@ -332,7 +332,7 @@ export interface SightingsOptions {
  * 088); otherwise the newest. The build links a dead record only to an individual it
  * names, never to a matriline's members; the via_group check is a second guard.
  */
-export function latestLink<L extends Pick<OccurrenceLink, 'vitality' | 'via_group'>>(links: L[]): {latest: L, dead: boolean} | null {
+export function latestLink<L extends Pick<OccurrenceLink, 'vitality' | 'via_group' | 'possibly'>>(links: L[]): {latest: L, dead: boolean} | null {
   if (!links.length) return null;
   const death = links.filter(l => l.vitality === 'dead' && !l.via_group).at(-1);
   return {latest: death ?? links[0]!, dead: !!death};
@@ -353,9 +353,12 @@ export function renderSightingsSummary(
     return empty;
   const {latest, dead} = last;
   const located = links.filter(l => l.location).length;
+  // "(possibly)" when the report only possibly names it, as its chip says (decision 054);
+  // "(as T137s)" when it names a group the animal is in.
+  const qualifiers = [latest.possibly ? 'possibly' : null, latest.via_group ? `as ${latest.via_group}` : null].filter(Boolean);
   const note = html`
     <p class="sightings-note">
-      Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${latest.via_group ? html` (as ${latest.via_group})` : nothing}${dead ? html`, dead` : nothing}
+      Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${qualifiers.length ? ` (${qualifiers.join(', ')})` : nothing}${dead ? html`, dead` : nothing}
       · ${links.length} report${links.length === 1 ? '' : 's'} in all${when(map && located, () => html` — ${located === links.length ? 'each' : `${located} of them`} on the map above, where reports at one spot share a dot; the newest is solid. Click a dot to see its day on the map.`)}
     </p>
   `;

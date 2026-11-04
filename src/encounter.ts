@@ -21,6 +21,8 @@ export interface Encounter {
   ids: string[];
   /** How many of those name the subject itself, rather than a group it is in (T065As for T065A5). */
   as_self: number;
+  /** How many of those only possibly name it ("possibly T99s", decision 054); absent when none do. */
+  possibly?: number;
   /** The identifiers of each report that has any, for chips that count reports (pooledAnimals). */
   identifiers: string[][];
   /** Where its middle report was placed, of those that were; null when none was. */
@@ -33,10 +35,11 @@ export interface Encounter {
   channels: [channel: string, reports: number][];
 }
 
-/** A report of a subject: which subject, and the group it was reached through, if any. */
+/** A report of a subject: which subject, the group it was reached through, if any, and whether it only possibly names it. */
 export interface SubjectReport<K> {
   subject: K;
   via_group: string | null;
+  possibly?: boolean;
 }
 
 /** What a day's file holds of an occurrence, before the map adds its own fields. */
@@ -61,11 +64,12 @@ export function dayEncounters<K>(
   const out: [K, Encounter][] = [];
   const occurrences = rows.map(r => ({...r, observed_at_ms: Date.parse(r.observed_at)}) as Occurrence);
   for (const {occurrences: reports} of occurrences2segments(occurrences)) {
-    const bySubject = new Map<K, {ids: string[], as_self: number}>();
-    for (const r of reports) for (const {subject, via_group} of reportsOf(r.id)) {
+    const bySubject = new Map<K, {ids: string[], as_self: number, possibly?: number}>();
+    for (const r of reports) for (const {subject, via_group, possibly} of reportsOf(r.id)) {
       const mine = bySubject.get(subject) ?? bySubject.set(subject, {ids: [], as_self: 0}).get(subject)!;
       mine.ids.push(r.id);
       if (!via_group) mine.as_self++;
+      if (possibly) mine.possibly = (mine.possibly ?? 0) + 1;
     }
     if (!bySubject.size) continue;
     const placed = reports.filter(r => r.location?.lon != null && r.location?.lat != null);

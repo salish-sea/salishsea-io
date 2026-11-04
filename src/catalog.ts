@@ -79,6 +79,12 @@ export interface OccurrenceLink {
   via_group: string | null;
   /** Set when the sighting says whether the animal was alive (salish-1y8). */
   vitality?: Vitality;
+  /**
+   * Set when every claim that reaches the sighting only possibly names the animal:
+   * "possibly T99s", or an Orcasound tag marked possible. One plain claim outranks any
+   * number of hedged ones (decision 054).
+   */
+  possibly?: true;
 }
 
 export function observedDate(observedAt: string): Temporal.PlainDate {
@@ -177,18 +183,21 @@ export function podPath(group: { entity_id: string | null; designation: string }
 // group rows carry no via_group (a group claim is always direct).
 type OccurrenceRow =
   Pick<IndividualOccurrence, 'occurrence_id' | 'observed_at' | 'location' | 'is_present' | 'status' | 'vitality'>
-  & { via_group?: string | null };
+  & { via_group?: string | null; certainty?: IndividualOccurrence['certainty'] };
 
 // Collapse view rows to at most one link per occurrence, preferring a direct
 // claim over a via-group inference, and dropping absence claims and rejected
 // identifications — the page lists where the animal was reported, not where a
-// curator ruled it out.
+// curator ruled it out. A link is `possibly` only when every claim that reaches the
+// occurrence is possible (decision 054).
 export function dedupeOccurrenceLinks(rows: OccurrenceRow[]): OccurrenceLink[] {
   const byOccurrence = new Map<string, OccurrenceLink>();
+  const plain = new Set<string>();
   for (const row of rows) {
-    const { occurrence_id, observed_at, location, is_present, status, via_group, vitality } = row;
+    const { occurrence_id, observed_at, location, is_present, status, via_group, vitality, certainty } = row;
     if (!occurrence_id || !observed_at || !status) continue;
     if (is_present === false || status === 'rejected') continue;
+    if (certainty !== 'possible') plain.add(occurrence_id);
     const existing = byOccurrence.get(occurrence_id);
     // A direct claim beats a via-group one; between two groups, the alphabetically
     // first, so the choice doesn't fall to row order (decision 057).
@@ -206,6 +215,7 @@ export function dedupeOccurrenceLinks(rows: OccurrenceRow[]): OccurrenceLink[] {
     });
   }
   return [...byOccurrence.values()]
+    .map(link => plain.has(link.occurrence_id) ? link : {...link, possibly: true as const})
     .sort((a, b) => newestFirst(a.observed_at, b.observed_at));
 }
 
