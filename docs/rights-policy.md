@@ -128,13 +128,13 @@ The canonical `dynamicProperties` schema for this archive is:
 | `aggregatorSource` | string | Human-readable value from `maplify.source` mapping | All Maplify records. |
 | `aggregatorChain` | string | Structured provenance chain text | All Maplify records. Encodes the full aggregation path: e.g., `"Whale Alert SE Alaska (Maplify) > Orca Network"`. |
 | `countIsMinimum` | boolean | `true` when count is a known lower-bound | HappyWhale records only (see D-14, Section 5). Not emitted for exact counts or when HappyWhale is out of scope. |
-| `unvalidatedIdentifiers` | array of strings | the codes the build read from the body as present (decision 105) | Non-empty only. See Section 2.4. |
+| `unvalidatedIdentifiers` | array of strings | the codes the build read from the body as present (decision 105), a possible one ending in `?` (decision 109) | Non-empty only. See Section 2.4. |
 
 Native records without Maplify provenance omit `aggregatorSource` and `aggregatorChain`. All keys are omitted when their value is NULL or inapplicable.
 
 ### 2.4 Unvalidated Whale Identifier Handling (GAP-04)
 
-The build reads identifier-like strings (e.g., `T65As`, `T2`) from free-text observation bodies with a deterministic reader of the words, [`src/sighting-text.ts`](../src/sighting-text.ts) (decision 105; until then a regular expression, `extract_identifiers`). Only codes the text says were present are kept; one it says was absent, as in *T46s (-D)*, is not.
+The build reads identifier-like strings (e.g., `T65As`, `T2`) from free-text observation bodies with a deterministic reader of the words, [`src/sighting-text.ts`](../src/sighting-text.ts) (decision 105; until then a regular expression, `extract_identifiers`). Only codes the text says were present are kept; one it says was absent, as in *T46s (-D)*, is not. A code the reporter says was only possibly there keeps a trailing `?` (`T99s?`), as decision 054 has a hedge carried to every consumer (decision 109).
 
 These extracted strings are:
 - **Never** emitted as `organismID`, `catalogNumber`, or any other DwC identity term. (Locked upstream — confirmed in REQUIREMENTS.md Out of Scope table.)

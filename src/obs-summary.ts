@@ -168,6 +168,26 @@ export class ObsSummary extends LitElement {
       background: transparent;
       border: 1px dashed var(--color-border-strong);
     }
+    /* An animal the report says wasn't there ("T46s (-D)"), outlined and struck through
+       after the ones that were (decision 109). The strike is what a sighted reader sees;
+       the hidden words are what a screen reader says, since it announces no strike. */
+    ul.animals li.absent {
+      background: transparent;
+      border: 1px solid var(--color-border-strong);
+      color: var(--color-text-muted);
+      text-decoration: line-through;
+    }
+    ul.animals li.absent a {
+      text-decoration: inherit;
+    }
+    .visually-hidden {
+      clip-path: inset(50%);
+      height: 1px;
+      overflow: hidden;
+      position: absolute;
+      white-space: nowrap;
+      width: 1px;
+    }
     ul.animals li:has(a) {
       padding: 0;
     }
@@ -394,7 +414,7 @@ export class ObsSummary extends LitElement {
     // change) can fire before it is assigned; render nothing rather than throw.
     if (!this.sighting) return nothing;
     const {
-      body, confirmation, count, disagreements, identifiers, observed_at, photos, provider_slug, taxon, url, vitality
+      absent, body, confirmation, count, disagreements, identifiers, observed_at, photos, provider_slug, taxon, url, vitality
     } = this.sighting;
     const place = placeLine(this.sighting);
     // The same dot, in the same colour, as the marker on the map — which is the
@@ -430,11 +450,18 @@ export class ObsSummary extends LitElement {
         ${this.menuOpen ? this.renderMenu(editable) : nothing}
       </header>
       ${place ? html`<p class="place">${place}</p>` : nothing}
-      ${guard([identifiers, this.catalogLoaded], () => {
-        const animals = namedAnimals(identifiers, catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map());
-        return animals.length ? html`<ul class="animals">${animals.map(({label, href, possibly}) => {
+      ${guard([identifiers, absent, this.catalogLoaded], () => {
+        const lookups = [catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map()] as const;
+        const animals = namedAnimals(identifiers, ...lookups);
+        // The animals the report says weren't there, after the ones that were (decision 109).
+        const named = new Set(animals.map(a => a.href ?? a.label));
+        const missing = namedAnimals(absent ?? [], ...lookups).filter(a => !named.has(a.href ?? a.label));
+        return animals.length || missing.length ? html`<ul class="animals">${animals.map(({label, href, possibly}) => {
           const text = possibly ? `${label} (possibly)` : label;
           return html`<li class=${possibly ? 'possibly' : ''}>${href ? html`<a href=${href}>${text}</a>` : text}</li>`;
+        })}${missing.map(({label, href}) => {
+          const text = html`${label}<span class="visually-hidden"> (not with them)</span>`;
+          return html`<li class="absent" title="The report says ${label} wasn't with them">${href ? html`<a href=${href}>${text}</a>` : text}</li>`;
         })}</ul>` : nothing;
       })}
       ${guard([body, this.catalogLoaded], () => html`${sightingText(body, provider_slug)}`)}

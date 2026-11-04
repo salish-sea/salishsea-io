@@ -415,3 +415,22 @@ describe('what people said on iNaturalist (decision 107)', () => {
       .toBe('sjmurray55, the observer · May 9, 2022');
   });
 });
+
+describe('the animals a sighting names', () => {
+  it('shows one the report says was absent struck through after the others, and says so to a screen reader (decision 109)', async () => {
+    const el = document.createElement('obs-summary') as ObsSummary;
+    (el as unknown as {sighting: Partial<Occurrence>}).sighting = {
+      id: 'maplify:1', body: 'Biggs T46s (-D) and possibly T65A northbound', confirmation: 'confirmed', disagreements: null, vitality: null,
+      count: null, observed_at: '2026-01-26T00:12:00+00:00', photos: [], provider_slug: 'maplify', provider: 'Maplify',
+      collection: 'Orca Network', observer: null, source_url: null, organization_url: null, url: null, attribution: null,
+      identifiers: ['T46s', 'T65A?'], absent: ['T46D', 'T46s'],
+      taxon: {scientific_name: 'Orcinus orca', vernacular_name: 'Killer whale', species_id: 41521, entity_id: null},
+    };
+    document.body.append(el);
+    await el.updateComplete;
+    const chips = [...el.shadowRoot!.querySelectorAll('ul.animals li')].map(li => [li.className, li.textContent!.trim()]);
+    el.remove();
+    // a code also named as present is shown once, as present
+    expect(chips).toEqual([['', 'T46s'], ['possibly', 'T65A (possibly)'], ['absent', 'T46D (not with them)']]);
+  });
+});

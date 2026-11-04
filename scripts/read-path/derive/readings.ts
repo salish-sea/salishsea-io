@@ -8,8 +8,9 @@
  *
  * `reading(id, direction, claims, pods)`, keyed by the occurrence's id as its view spells
  * it. `claims` is every code the text names with whether it says the animal was present or
- * absent and how sure the reporter was; the views take the present codes as the
- * occurrence's identifiers, and presence and certainty wait for salish-uh38 to be stored.
+ * absent and how sure the reporter was; the views write the present codes as the
+ * occurrence's identifiers, a possible one with a '?', the absent ones as its `absent`,
+ * and all of them as its `claims`, which the identifier candidates read (decision 109).
  * A text that names nothing has no row.
  *
  * `remark_claims(id, origin, origin_id, by_observer, claims, pods)`: the same reading of what people
