@@ -30,6 +30,8 @@ Reading the animals people name in iNaturalist comments and identifications (sal
 
 Showing those comments and identifications on a card (salish-065b, decision 107) added each one's author and date: `created_at` and `name` on `inaturalist_comments.csv`, and `login`, `name` and `created_at` on `inaturalist_identifications.csv`, all invented. A blank `name` is an author with no display name, whom the card credits by login. The expected `activity` and `identified_as` keys of observation 9000002 are the build's answer, checked by hand, and asserted in `derive-occurrences.test.ts` rather than kept in the expected rows, since Postgres never had them.
 
+A matriline's report doesn't reach a member before the member's birth year (salish-fwyt.4.2). To show it, T137A's birth years in `snapshot_individuals.csv` were changed by hand from 2002 to 2027, after every sighting here, so the native sighting's "T137s" no longer links to T137A through its matriline; that row is gone from `snapshot_individual_occurrences.csv`. The birth year is invented, as the other hand edits are.
+
 ## When a derivation changes on purpose
 
 The test then fails, naming the rows that differ. With no Postgres to ask, the new answer is the build's: check that the difference is the one you meant, then edit the expected rows in `snapshot/` to match, as a reviewed change.

@@ -176,6 +176,35 @@ describe('the catalogue as documents (decision 064)', () => {
 });
 
 describe("an individual's vitals from the register", () => {
+    // salish-fwyt.4.2: `born` is an EDTF date (the register's docs/glossary.md); every form it
+    // lists gives the years it opens and closes with, so a more precise birth isn't lost.
+    test('a birth in any EDTF form the register uses gives its earliest and latest year', async () => {
+        const conn = await (await DuckDBInstance.create(':memory:')).connect();
+        try {
+            const births = ['1998', '2020-09', '2024-06-14', '1998?', '1979~', '1995/1998', '../1966', '1968/..', '../1985-07', null, 'unknown'];
+            await conn.run("ATTACH ':memory:' AS register");
+            await conn.run(`CREATE TABLE register.vitals (entity_id VARCHAR, sex VARCHAR, born VARCHAR)`);
+            await conn.run(`CREATE TABLE register.current_status (entity_id VARCHAR, status VARCHAR)`);
+            await conn.run(`CREATE TABLE register.status_dates (entity_id VARCHAR, effective VARCHAR)`);
+            await conn.run(`CREATE TABLE individuals (id INTEGER, entity_id VARCHAR)`);
+            for (const [i, born] of births.entries()) {
+                await conn.run(`INSERT INTO register.vitals VALUES ('SSA:00200${i}', 'F', ${born === null ? 'NULL' : `'${born}'`})`);
+                await conn.run(`INSERT INTO register.current_status VALUES ('SSA:00200${i}', 'alive')`);
+                await conn.run(`INSERT INTO individuals VALUES (${i}, 'SSA:00200${i}')`);
+            }
+            const vitals = await registerVitals(conn, 'individuals');
+            const years = births.map((born, i) => [born, vitals.get(i)!['born_earliest'], vitals.get(i)!['born_latest']]);
+            expect(years).toEqual([
+                ['1998', 1998, 1998], ['2020-09', 2020, 2020], ['2024-06-14', 2024, 2024],
+                ['1998?', 1998, 1998], ['1979~', 1979, 1979], ['1995/1998', 1995, 1998],
+                ['../1966', null, 1966], ['1968/..', 1968, null], ['../1985-07', null, 1985],
+                [null, null, null], ['unknown', null, null],
+            ]);
+        } finally {
+            conn.closeSync();
+        }
+    });
+
     // salish-fwyt.4.3: the year of a death is the year its status took effect, when that is a date;
     // the Bigg's deaths read '../2026-07', dead by the sheet's snapshot, which dates nothing.
     test('a dated death gives its year, an undated one none, and a living animal none', async () => {

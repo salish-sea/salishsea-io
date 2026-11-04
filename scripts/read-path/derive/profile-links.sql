@@ -35,7 +35,8 @@ CREATE OR REPLACE TEMP VIEW identification AS
   FROM public.identifications;
 
 CREATE OR REPLACE TEMP VIEW individual AS
-  SELECT CAST(doc->>'id' AS INTEGER) AS id, doc->>'entity_id' AS entity_id, doc->>'life_status' AS life_status
+  SELECT CAST(doc->>'id' AS INTEGER) AS id, doc->>'entity_id' AS entity_id, doc->>'life_status' AS life_status,
+         CAST(doc->>'born_earliest' AS INTEGER) AS born_earliest
   FROM snapshot.individuals;
 
 CREATE OR REPLACE TEMP VIEW social_group AS
@@ -115,7 +116,11 @@ CREATE OR REPLACE TABLE build.group_occurrences AS
 -- but not a dead animal's (decision 088): a carcass is one animal, and naming its matriline
 -- doesn't say which, so a dead record links only to an individual it names. Nor an animal
 -- the same sighting says was absent (decision 109): "T46s (-D)" is a sighting of T46s'
--- living members but T46D, whose own claim, absent, is the one row it has.
+-- living members but T46D, whose own claim, absent, is the one row it has. Nor a member
+-- not yet born (salish-fwyt.4.2): a matriline's report from before the earliest year the
+-- register says the member could have been born, on the Pacific clock, isn't a report of
+-- it. The register gives a year, not a date, so a report from earlier in the birth year
+-- still reaches the calf.
 
 CREATE OR REPLACE TABLE build.individual_occurrences AS
   WITH link AS (
@@ -178,10 +183,13 @@ CREATE OR REPLACE TABLE build.individual_occurrences AS
            'occurrence_id': occurrence_id
          }) AS VARCHAR) AS doc
   FROM link
-  WHERE via_group IS NULL OR NOT is_present
-     OR NOT EXISTS (SELECT 1 FROM link gone
-                    WHERE gone.occurrence_id = link.occurrence_id AND gone.individual_id = link.individual_id
-                      AND gone.via_group IS NULL AND NOT gone.is_present);
+  LEFT JOIN individual born ON born.id = link.individual_id
+  WHERE via_group IS NULL
+     OR ((born.born_earliest IS NULL OR year(timezone('America/Los_Angeles', link.observed_at)) >= born.born_earliest)
+         AND (NOT is_present
+              OR NOT EXISTS (SELECT 1 FROM link gone
+                             WHERE gone.occurrence_id = link.occurrence_id AND gone.individual_id = link.individual_id
+                               AND gone.via_group IS NULL AND NOT gone.is_present)));
 
 -- --- public.ecotype_occurrences ----------------------------------------------------------
 -- A sighting of any group or individual under a population, an ecotype or a community

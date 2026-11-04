@@ -290,14 +290,17 @@ export class SubjectTimeline extends LitElement {
     const before = context.previousDay.get(oldest);
     const gap = before ? daysBetween(before, oldest) : null;
     // A year's card has its months' notes inside it.
-    const notable = months ? null
-      : context.firstOfYear.get(oldest.slice(0, 4)) === oldest
+    const notable = months ? [] : [
+      context.firstOfYear.get(oldest.slice(0, 4)) === oldest
         ? `First report of ${oldest.slice(0, 4)}: ${shortDay(oldest)}${gap && gap > LONG_GAP ? `, after ${plural(gap, 'day')} without one` : ''}`
-        : gap && gap > LONG_GAP ? `First report in ${plural(gap, 'day')}` : null;
+        : gap && gap > LONG_GAP ? `First report in ${plural(gap, 'day')}` : null,
+      // A calf's first report (decision 096): the first that names it, oldest first.
+      ...[...list].reverse().flatMap(e => (e.firsts ?? []).map(f => `${calfFirst(f)}: ${shortDay(e.day)}`)),
+    ].filter(n => n !== null);
     return html`
       <article class="span">
         <header><h3>${title}</h3><span class="tally">${plural(s.days, 'day')} · ${plural(list.length, 'encounter')}</span></header>
-        ${notable ? html`<p class="notable">${notable}</p>` : nothing}
+        ${notable.map(n => html`<p class="notable">${n}</p>`)}
         ${s.waters.length ? html`<p class="where">${s.waters.slice(0, 3).map((w, i) => html`${i ? ', ' : ''}${w.name} <span class="days">${plural(w.days, 'day')}</span>`)}${
           s.waters.length > 3 ? `, and ${plural(s.waters.length - 3, 'other place')}` : ''}.${
           s.farthest && s.farthest.km > FAR_APART_KM ? ` From ${s.farthest.from} to ${s.farthest.to}, ${km(s.farthest.km)} apart.` : ''}</p>` : nothing}
@@ -329,6 +332,7 @@ export class SubjectTimeline extends LitElement {
       where,
       `${plural(e.reports, 'report')}${naming}`,
       others ? `with ${plural(others, 'other')}` : null,
+      ...(e.firsts ?? []).map(f => calfFirst(f).replace(/^F/, 'f')),
     ].filter(Boolean);
     // Its first photo, where the time of day was: which encounters have photos matters more
     // when scanning a month than when in the day they were seen (Peter, 2026-10-28).
@@ -513,6 +517,11 @@ export function reportsLine(designation: string, {naming, asSelf, reports, possi
   return `${which} ${naming === 1 ? 'names' : 'name'} ${designation}${
     through ? `, ${through === naming ? (naming === 1 ? 'through' : 'all through') : `${through} of them through`} a group it is in` : ''}${
     onlyPossibly(possibly, naming)}`;
+}
+
+/** "First report naming T036B1A, born 2025": a calf's first report (decision 096, salish-fwyt.4.2). */
+export function calfFirst({label, born}: {label: string, born: number}): string {
+  return `First report naming ${label}, born ${born}`;
 }
 
 /**

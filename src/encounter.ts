@@ -23,6 +23,12 @@ export interface Encounter {
   as_self: number;
   /** How many of those only possibly name it ("possibly T99s", decision 054); absent when none do. */
   possibly?: number;
+  /**
+   * The calves first named in it: the subject itself, or a member of the matriline that
+   * is the subject, in the first report that names the calf, counted only when the
+   * build holds reports of the calf from its birth year (salish-fwyt.4.2). Absent when none.
+   */
+  firsts?: CalfFirst[];
   /** The identifiers of each report that has any, for chips that count reports (pooledAnimals). */
   identifiers: string[][];
   /** Where its middle report was placed, of those that were; null when none was. */
@@ -33,6 +39,12 @@ export interface Encounter {
   photos: (Pick<OccurrencePhoto, 'src' | 'thumb' | 'attribution'> & {href: string})[];
   /** How many reports came through each channel, busiest first, as a segment's card names them. */
   channels: [channel: string, reports: number][];
+}
+
+/** A calf named for the first time: its designation and the year it was born. */
+export interface CalfFirst {
+  label: string;
+  born: number;
 }
 
 /** A report of a subject: which subject, the group it was reached through, if any, and whether it only possibly names it. */
@@ -60,6 +72,7 @@ export function dayEncounters<K>(
   day: string,
   rows: readonly DayOccurrence[],
   reportsOf: (occurrenceId: string) => readonly SubjectReport<K>[],
+  firstsOf: (occurrenceId: string) => readonly (CalfFirst & {subjects: readonly K[]})[] = () => [],
 ): [K, Encounter][] {
   const out: [K, Encounter][] = [];
   const occurrences = rows.map(r => ({...r, observed_at_ms: Date.parse(r.observed_at)}) as Occurrence);
@@ -89,7 +102,12 @@ export function dayEncounters<K>(
       // Ties by name, so the same day always writes the same bytes.
       channels: [...channels].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
     };
-    for (const [subject, mine] of bySubject) out.push([subject, {...shared, ...mine}]);
+    for (const [subject, mine] of bySubject) {
+      // A calf first named anywhere on the track, for the calf and its matrilines.
+      const firsts = reports.flatMap(r => firstsOf(r.id).filter(f => f.subjects.includes(subject)))
+        .map(({label, born}) => ({label, born}));
+      out.push([subject, {...shared, ...mine, ...(firsts.length ? {firsts} : {})}]);
+    }
   }
   return out;
 }
