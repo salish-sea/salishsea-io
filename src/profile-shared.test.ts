@@ -18,6 +18,9 @@ const lastReported = (links: OccurrenceLink[]) => {
 test('"Last reported" says when the newest report only possibly names it, and through which group (decision 054)', () => {
   expect(lastReported([link()])).toBe('Last reported December 28, 2025');
   expect(lastReported([link({possibly: true})])).toBe('Last reported December 28, 2025 (possibly)');
-  expect(lastReported([link({possibly: true, via_group: 'T099'})])).toBe('Last reported December 28, 2025 (possibly, as T099)');
-  expect(lastReported([link({via_group: 'T099'})])).toBe('Last reported December 28, 2025 (as T099)');
+  // the build writes a group's designation, T099; a page writes the group, T099s
+  expect(lastReported([link({possibly: true, via_group: 'T099'})])).toBe('Last reported December 28, 2025 (possibly, as T099s)');
+  expect(lastReported([link({via_group: 'T099'})])).toBe('Last reported December 28, 2025 (as T099s)');
+  // a matriline's report that names only a member (salish-fwyt.7)
+  expect(lastReported([link({via_member: 'T099A2'})])).toBe('Last reported December 28, 2025 (as T099A2)');
 });

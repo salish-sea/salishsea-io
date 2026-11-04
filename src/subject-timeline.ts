@@ -232,6 +232,8 @@ export class SubjectTimeline extends LitElement {
   @property() scope: Scope = 'year';
   /** What the subject is called in a line about its reports: "T065A5". */
   @property() designation = '';
+  /** Whether the subject is a matriline, whose reports include its sub-lineages' and members' (salish-fwyt.7). */
+  @property({type: Boolean}) matriline = false;
   /** The pages of the subject and the groups it is in, whose chips aren't "who else". */
   @property({attribute: false}) ownPaths: readonly string[] = [];
   /** The moment the past 12 months end at; now, but for a test. */
@@ -312,7 +314,7 @@ export class SubjectTimeline extends LitElement {
         ${s.photos.length ? html`<ul class="photos">${s.photos.slice(0, MAX_PHOTOS).map(p => html`<li><a target="_blank" href=${p.href}><img
           alt=${p.attribution || 'photo of the encounter'} height="56" loading="lazy" src=${p.thumb || p.src}></a></li>`)}${
           s.photos.length > MAX_PHOTOS ? html`<li class="more">+${s.photos.length - MAX_PHOTOS}</li>` : nothing}</ul>` : nothing}
-        <cite>${reportsLine(this.designation, s)} · via ${s.channels.map(([c, n]) => n > 1 ? `${c} ×${n}` : c).join(' · ')}</cite>
+        <cite>${reportsLine(this.designation, s, {matriline: this.matriline})} · via ${s.channels.map(([c, n]) => n > 1 ? `${c} ×${n}` : c).join(' · ')}</cite>
         <details ?open=${open}>
           <summary>${months ? `Show its ${plural(months.length, 'month')}` : `Show the ${plural(list.length, 'encounter')}`}</summary>
           ${months
@@ -324,7 +326,7 @@ export class SubjectTimeline extends LitElement {
   }
 
   private renderRow(e: Encounter) {
-    const naming = (e.ids.length === e.reports ? '' : `, ${e.ids.length} naming ${this.designation}`)
+    const naming = (e.ids.length === e.reports ? '' : `, ${e.ids.length} naming ${this.designation}${this.matriline ? ' or its members' : ''}`)
       + onlyPossibly(e.possibly ?? 0, e.ids.length);
     const others = encounterOthers(e, this.ownPaths, this.codes()).length;
     const where = this.placeOf(e);
@@ -456,9 +458,14 @@ export interface SpanSummary {
   /** The other animals and groups its encounters name, each with how many encounters name it. */
   others: {label: string, href: string, possibly: boolean, encounters: number}[];
   photos: Encounter['photos'];
-  /** How many reports name the subject, how many of those name it itself, how many only possibly, and how many reports in all. */
+  /**
+   * How many reports name the subject, how many of those name it itself, on a matriline's
+   * timeline how many name only its members (salish-fwyt.7), how many only possibly, and
+   * how many reports in all.
+   */
   naming: number;
   asSelf: number;
+  onlyMembers: number;
   possibly: number;
   reports: number;
   channels: [string, number][];
@@ -497,6 +504,7 @@ export function summarizeSpan(list: readonly Encounter[], {placeOf, ownPaths, co
     photos: list.flatMap(e => e.photos),
     naming: list.reduce((n, e) => n + e.ids.length, 0),
     asSelf: list.reduce((n, e) => n + e.as_self, 0),
+    onlyMembers: list.reduce((n, e) => n + (e.only_members ?? 0), 0),
     possibly: list.reduce((n, e) => n + (e.possibly ?? 0), 0),
     reports: list.reduce((n, e) => n + e.reports, 0),
     channels: [...channels].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
@@ -509,12 +517,26 @@ function encounterOthers(e: Encounter, ownPaths: readonly string[], codes: Codes
     a.href && !ownPaths.includes(a.href) && !/^\/(populations|pods)\//.test(a.href) ? [{...a, href: a.href}] : []);
 }
 
-/** "86 of 140 reports name T065A5, 12 of them through a group it is in." */
-export function reportsLine(designation: string, {naming, asSelf, reports, possibly = 0}:
-    Pick<SpanSummary, 'naming' | 'asSelf' | 'reports'> & Partial<Pick<SpanSummary, 'possibly'>>): string {
-  const through = naming - asSelf;
+/**
+ * "86 of 140 reports name T065A5, 12 of them through a group it is in." On a matriline's
+ * timeline, which gathers its sub-lineages' and members' reports (salish-fwyt.7): "86 of
+ * 140 reports name T065s or its members: 6 T065s itself, 50 a sub-lineage, 30 only members."
+ */
+export function reportsLine(designation: string, {naming, asSelf, reports, possibly = 0, onlyMembers}:
+    Pick<SpanSummary, 'naming' | 'asSelf' | 'reports'> & Partial<Pick<SpanSummary, 'possibly' | 'onlyMembers'>>,
+    {matriline = false} = {}): string {
   const which = naming === reports ? (reports === 1 ? 'The one report' : `All ${plural(reports, 'report')}`) : `${naming.toLocaleString('en-US')} of ${plural(reports, 'report')}`;
-  return `${which} ${naming === 1 ? 'names' : 'name'} ${designation}${
+  const verb = naming === 1 ? 'names' : 'name';
+  if (matriline) {
+    const members = onlyMembers ?? 0;
+    const kinds = ([[asSelf, `${designation} itself`, designation], [naming - asSelf - members, 'a sub-lineage', `a sub-lineage of ${designation}`],
+      [members, 'only members', `only members of ${designation}`]] as const).filter(([n]) => n > 0);
+    const what = kinds.length === 1 ? kinds[0]![2]
+      : `${designation} or its members: ${kinds.map(([n, part]) => `${n.toLocaleString('en-US')} ${part}`).join(', ')}`;
+    return `${which} ${verb} ${what}${onlyPossibly(possibly, naming).replace(/^,/, kinds.length > 1 ? ';' : ',')}`;
+  }
+  const through = naming - asSelf;
+  return `${which} ${verb} ${designation}${
     through ? `, ${through === naming ? (naming === 1 ? 'through' : 'all through') : `${through} of them through`} a group it is in` : ''}${
     onlyPossibly(possibly, naming)}`;
 }

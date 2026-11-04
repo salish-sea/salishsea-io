@@ -98,3 +98,32 @@ describe('project', () => {
     expect(project(0, 0, 1)).toEqual([256, 256]);
   });
 });
+
+// A matriline's map draws its reports apart by how they reached it (salish-fwyt.7).
+describe("a matriline's map", () => {
+  const kinded = (id: string, lon: number, kind: MapDot['kind'], observed_at = '2026-09-20T18:00:00Z'): MapDot =>
+    ({ ...dot(id, lon, 48.5, observed_at), kind });
+  const circles = (svg: string) => [...svg.matchAll(/<circle class="(dot|newest)([^"]*)"/g)].map(m => `${m[1]}${m[2]}`);
+
+  it('draws each kind in its own look, the most direct over the others', () => {
+    const svg = profileMapSvg([
+      kinded('newest', -123.4, 'members', '2026-10-01T18:00:00Z'),
+      kinded('own', -123.2, 'own'),
+      kinded('sub', -123.0, 'sub_lineage'),
+      kinded('member', -122.8, 'members'),
+    ]);
+    // the newest keeps its own kind, and is drawn last as always
+    expect(circles(svg)).toEqual(['dot members', 'dot sub-lineage', 'dot', 'newest members']);
+  });
+
+  it('gives a spot the most direct kind of the reports there, linking to the newest', () => {
+    const svg = profileMapSvg([
+      kinded('newest', -122.5, 'own', '2026-10-01T18:00:00Z'),
+      kinded('member-newer', -123.0, 'members', '2026-09-22T18:00:00Z'),
+      kinded('sub-older', -123.0, 'sub_lineage', '2026-09-21T18:00:00Z'),
+    ]);
+    expect(circles(svg)).toEqual(['dot sub-lineage', 'newest']);
+    expect(svg).toContain('member-newer');
+    expect(svg).not.toContain('sub-older');
+  });
+});

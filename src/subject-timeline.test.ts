@@ -80,6 +80,16 @@ describe('the line on how the reports name it', () => {
     [{naming: 1, asSelf: 1, reports: 4, possibly: 1}, '1 of 4 reports names T065A5, only possibly'],
     [{naming: 2, asSelf: 2, reports: 4, possibly: 2}, '2 of 4 reports name T065A5, both only possibly'],
   ])('%o', (counts, line) => expect(reportsLine('T065A5', counts)).toBe(line));
+
+  // A matriline's reports include its sub-lineages' and members' (salish-fwyt.7).
+  test.each([
+    [{naming: 86, asSelf: 6, onlyMembers: 30, reports: 140}, '86 of 140 reports name T065s or its members: 6 T065s itself, 50 a sub-lineage, 30 only members'],
+    [{naming: 30, asSelf: 30, onlyMembers: 0, reports: 30}, 'All 30 reports name T065s'],
+    [{naming: 10, asSelf: 0, onlyMembers: 0, reports: 10}, 'All 10 reports name a sub-lineage of T065s'],
+    [{naming: 1, asSelf: 0, onlyMembers: 1, reports: 4}, '1 of 4 reports names only members of T065s'],
+    [{naming: 1, asSelf: 0, onlyMembers: 1, reports: 4, possibly: 1}, '1 of 4 reports names only members of T065s, only possibly'],
+    [{naming: 12, asSelf: 2, onlyMembers: 10, reports: 12, possibly: 3}, 'All 12 reports name T065s or its members: 2 T065s itself, 10 only members; 3 only possibly'],
+  ])('a matriline: %o', (counts, line) => expect(reportsLine('T065s', counts, {matriline: true})).toBe(line));
 });
 
 describe('the timeline', () => {

@@ -59,6 +59,7 @@ vi.mock('maplibre-gl', async (importOriginal) => ({
 }));
 
 import { ObsMap, subjectFeatures } from './obs-map.ts';
+import { KIND_COLOR } from './profile-map.ts';
 import type { ReferenceLayer } from './reference-layers.ts';
 import { MASK_MAX_ZOOM } from './style.ts';
 import { mapZoom } from './map-view.ts';
@@ -150,5 +151,12 @@ describe("an open subject's sightings on the map (decision 096)", () => {
 
   it('are drawn whole when there is only one', () => {
     expect(subjectFeatures(sightings.slice(0, 1), '#1a1a1a')[0]!.properties).toMatchObject({newest: true, opacity: 0.95});
+  });
+
+  // salish-fwyt.7: a matriline's, as its page's map draws them.
+  it("on a matriline, take each kind's colour, the most direct over the others and the newest over all", () => {
+    const kinds = ['members', 'own', 'sub_lineage'] as const;
+    const features = subjectFeatures(sightings.map((s, i) => ({...s, kind: kinds[i]})), '#1a1a1a').map(f => f.properties!);
+    expect(features.map(f => [f['color'], f['sort']])).toEqual([[KIND_COLOR.members, 3], [KIND_COLOR.own, 2], [KIND_COLOR.sub_lineage, 1]]);
   });
 });

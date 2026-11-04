@@ -16,6 +16,7 @@ import {
 import {
   renderDagger, renderMemberList, renderRelative, renderSightingsSummary, type SightingsOptions,
 } from './profile-shared.ts';
+import { matrilineDot, type MapLegend } from './profile-map.ts';
 
 /**
  * What the page shows of the group itself, named column by column: a group's
@@ -67,17 +68,52 @@ export function renderMatrilineProfile({ group, groups, members, name }: Matrili
     ${renderMembers(group.id, members, groups)}
     <section>
       <h2>Sightings</h2>
-      <p class="sightings-note">Reports that mention the ${group.designation}s as a group. Sightings reported
-      against individual members appear on their own pages instead.</p>
+      <p class="sightings-note">Reports that name the ${group.designation}s, a sub-lineage within the matriline,
+      or only some of its members.</p>
       ${sightings}
     </section>
   `;
 }
 
-/** The Sightings section's content once the links are known. */
+/**
+ * The Sightings section's content once the links are known: its reports drawn apart by
+ * whether they name the matriline, a sub-lineage within it, or only members (salish-fwyt.7).
+ */
 export function renderMatrilineSightings(designation: string, links: OccurrenceLink[] | null, options: SightingsOptions = {}) {
   return renderSightingsSummary(links,
-    html`<p class="placeholder">No sighting reports mention the ${designation}s as a group yet.</p>`, options);
+    html`<p class="placeholder">No sighting reports name the ${designation}s or any of its members yet.</p>`,
+    links ? {...options, mapDots: links.map(matrilineDot), legend: matrilineLegend(designation, links)} : options);
+}
+
+/** "T065As or T065Bs", "T065As, T065Bs or T065Cs". */
+const either = (names: string[]) => names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`;
+
+/**
+ * What the legend under a matriline's map calls each kind of report, with how many there
+ * are: "Reports naming T065s (6)", "Reports naming a sub-lineage, T065As or T065Bs
+ * (1,418)", "Reports naming only members, such as T065A5 (822)". Not "lone": a report that
+ * names T065A5 and no group says nothing about whether the animal was alone.
+ */
+export function matrilineLegend(designation: string, links: readonly OccurrenceLink[]): MapLegend {
+  const count = (n: number) => n.toLocaleString('en-US');
+  // Each name a kind's reports give, most often first; ties by name.
+  const names = (list: (string | null | undefined)[]) => {
+    const n = new Map<string, number>();
+    for (const name of list) if (name) n.set(name, (n.get(name) ?? 0) + 1);
+    return [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
+  };
+  const own = links.filter(l => !l.via_group && !l.via_member);
+  const subs = links.filter(l => l.via_group && !l.via_member);
+  const members = links.filter(l => l.via_member);
+  const subNames = names(subs.map(l => l.via_group)).map(d => `${d}s`);
+  const memberNames = names(members.map(l => l.via_member));
+  return {
+    ...(own.length ? {own: `Reports naming ${designation}s (${count(own.length)})`} : {}),
+    ...(subs.length ? {sub_lineage: `Reports naming a sub-lineage, ${
+      subNames.length > 3 ? `such as ${either(subNames.slice(0, 2))}` : either(subNames)} (${count(subs.length)})`} : {}),
+    ...(members.length ? {members: `Reports naming only ${
+      memberNames.length > 1 ? `members, such as ${memberNames[0]}` : `a member, ${memberNames[0]}`} (${count(members.length)})`} : {}),
+  };
 }
 
 // "Within T065's matriline · Bigg's (transient) killer whales", or "Within J pod ·

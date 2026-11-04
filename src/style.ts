@@ -398,10 +398,12 @@ const LAYERS: LayerSpecification[] = [
   ...occurrenceLayers('occurrences', 'occurrence'),
 
   // An animal's or group's sightings while it is open in the sidebar, in place of the
-  // day's (decision 096): one colour, its species', faded with age, and the newest
+  // day's (decision 096): an animal's in its species' colour, a matriline's in a colour
+  // for each way a report reached it (salish-fwyt.7), faded with age, and the newest
   // larger and ringed in white, as the head of a day's track is. No labels: they are all
   // the one subject.
   {id: 'subject-dot', type: 'circle', source: 'subject',
+    layout: {'circle-sort-key': ['get', 'sort']},
     paint: {'circle-color': ['get', 'color'], 'circle-opacity': ['get', 'opacity'],
       'circle-radius': ['case', ['get', 'newest'], 7, 4],
       'circle-stroke-color': '#ffffff', 'circle-stroke-width': ['case', ['get', 'newest'], 2, 0.5],

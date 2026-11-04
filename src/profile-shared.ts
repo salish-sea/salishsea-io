@@ -8,7 +8,7 @@ import {
 } from './catalog.ts';
 import { formatDate } from './date-format.ts';
 import { linkStyles } from './icons.ts';
-import { profileMapStyles, renderProfileMap } from './profile-map.ts';
+import { profileMapStyles, renderMapLegend, renderProfileMap, type MapDot, type MapLegend } from './profile-map.ts';
 import { renderSiteNav, siteNavStyles, type NavPage } from './site-nav.ts';
 
 // Shared rendering for the profile pages (individual-page, matriline-page).
@@ -324,6 +324,12 @@ export interface SightingsOptions {
    * standing where the latest card would.
    */
   table?: boolean;
+  /**
+   * The small map's dots, when they aren't simply the links: a matriline's, drawn by how
+   * each report reached it, with the legend saying what each kind is (salish-fwyt.7).
+   */
+  mapDots?: MapDot[];
+  legend?: MapLegend;
 }
 
 /**
@@ -346,7 +352,7 @@ export function latestLink<L extends Pick<OccurrenceLink, 'vitality' | 'via_grou
 export function renderSightingsSummary(
   links: OccurrenceLink[] | null,
   empty: TemplateResult,
-  { currentYear, map = true, latestCard, table = true }: SightingsOptions = {},
+  { currentYear, map = true, latestCard, table = true, mapDots, legend }: SightingsOptions = {},
 ) {
   const last = latestLink(links ?? []);
   if (!links?.length || !last)
@@ -354,8 +360,10 @@ export function renderSightingsSummary(
   const {latest, dead} = last;
   const located = links.filter(l => l.location).length;
   // "(possibly)" when the report only possibly names it, as its chip says (decision 054);
-  // "(as T137s)" when it names a group the animal is in.
-  const qualifiers = [latest.possibly ? 'possibly' : null, latest.via_group ? `as ${latest.via_group}` : null].filter(Boolean);
+  // "(as T137s)" when it names a group the animal is in, or on a matriline's page, a
+  // sub-lineage; "(as T065A5)" when it names only a member of the matriline.
+  const via = latest.via_member ?? (latest.via_group ? `${latest.via_group}s` : null);
+  const qualifiers = [latest.possibly ? 'possibly' : null, via ? `as ${via}` : null].filter(Boolean);
   const note = html`
     <p class="sightings-note">
       Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${qualifiers.length ? ` (${qualifiers.join(', ')})` : nothing}${dead ? html`, dead` : nothing}
@@ -365,12 +373,13 @@ export function renderSightingsSummary(
   if (latestCard !== undefined)
     return html`
       ${note}
+      ${map ? nothing : renderMapLegend(legend ?? {})}
       ${latestCard === nothing ? nothing : html`<div class="latest-card">${latestCard}</div>`}
       ${table ? renderPresenceTable(links, undefined, undefined, currentYear) : nothing}
     `;
   return html`
     ${renderPresenceTable(links, undefined, undefined, currentYear)}
-    ${when(map && located, () => renderProfileMap(links))}
+    ${when(map && located, () => renderProfileMap(mapDots ?? links, null, legend))}
     ${note}
   `;
 }
