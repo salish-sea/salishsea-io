@@ -51,7 +51,16 @@ export type Occurrence = {
   contributor_id: number | null;
   count: number | null;
   direction: TravelDirection | null;
+  /**
+   * The codes its text names as present: 'T65A5', 'J27s', one the reporter only says was
+   * possibly there marked 'T65A?' (decision 054, 109); a bout's tags, likewise.
+   */
   identifiers: string[] | null;
+  /**
+   * The codes its text says were absent: "T46s (-D)" makes it ['T46D'] (decision 109).
+   * Empty for a bout; absent from a sighting the build hasn't seen yet.
+   */
+  absent?: string[];
   location: LonLat;
   observed_at: string;
   observed_from: LonLat | null;

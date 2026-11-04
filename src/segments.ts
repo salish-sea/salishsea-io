@@ -170,14 +170,16 @@ export function placeInSegment(segment: Segment): Occurrence[] {
     throw new Error("Segment had no occurrences");
   const placed: Occurrence[] = occurrences.map(occurrence => ({...occurrence}));
   placed[0]!.isFirst = true;
-  const identifiers = new Set(occurrences.flatMap(occurrence => occurrence.identifiers ?? []));
+  // A code one report names plainly and another only possibly ('T65A?') is named (decision 054).
+  const named = new Set(occurrences.flatMap(occurrence => occurrence.identifiers ?? []));
+  const identifiers = [...named].filter(id => !(id.endsWith('?') && named.has(id.slice(0, -1))));
   Object.assign(placed[placed.length - 1]!, {
     isLast: true,
     // Pooled, not read off the head: the pod is usually named in one sighting's
     // prose, and it is rarely the last one.
     segmentIdentity: labelForSegment(occurrences),
     segmentLength: occurrences.length,
-    segmentIdentifiers: [...identifiers].sort(),
+    segmentIdentifiers: identifiers.sort(),
     segmentSpanHours:
       (occurrences[occurrences.length - 1]!.observed_at_ms - occurrences[0]!.observed_at_ms) / hour_in_ms,
   });

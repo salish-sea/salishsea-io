@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { detectIndividuals, detectPod } from './identifiers.ts';
+import { detectAbsent, detectIndividuals, detectPod } from './identifiers.ts';
 
 test('finds individual identifiers', () => {
   const table: [string, string[]][] = [
@@ -44,4 +44,14 @@ test('keeps the zeros a designation needs', () => {
 test('an animal the text says was absent is not among them, and names no pod', () => {
   expect(detectIndividuals('Biggs T46s (-D) northbound')).toEqual(['T46s']);
   expect(detectPod('minus K37, and some humpbacks')).toBe(null);
+});
+
+test('it is among the absent instead, as the build writes them (decision 109)', () => {
+  expect(detectAbsent('Biggs T46s (-D) northbound')).toEqual(['T46D']);
+  expect(detectAbsent('T65A northbound')).toEqual([]);
+});
+
+test('a code only possibly there ends in ?, and a probable one is plain (decision 109)', () => {
+  expect(detectIndividuals('T46s, possibly T65A')).toEqual(['T46s', 'T65A?']);
+  expect(detectIndividuals('T46s, likely T65A')).toEqual(['T46s', 'T65A']);
 });
