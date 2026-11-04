@@ -14,7 +14,8 @@
  * would fetch every day file a subject was reported on: 14 MB for T065A5.
  *
  * A subject's reports are its page's links (build.individual_occurrences and
- * build.group_occurrences, deduplicated as the page's are). The directory is replaced
+ * build.group_occurrences, deduplicated as the page's are): a matriline's include its
+ * sub-lineages' and members' (salish-fwyt.7). The directory is replaced
  * whole each run; it reruns whenever the occurrences do, as the whales page does.
  */
 
@@ -60,8 +61,8 @@ export function subjectReports(
             files.push(file);
             const links = dedupeOccurrenceLinks((bySubject.get(s['id']) ?? []) as never);
             if (kind === 'individuals') rowsOf.set(s['id'], bySubject.get(s['id']) ?? []);
-            for (const {occurrence_id, via_group, possibly} of links) {
-                const report = possibly ? {subject: file, via_group, possibly} : {subject: file, via_group};
+            for (const {occurrence_id, via_group, via_member, possibly} of links) {
+                const report = {subject: file, via_group, ...(via_member ? {via_member} : {}), ...(possibly ? {possibly} : {})};
                 const list = reports.get(occurrence_id);
                 if (list) list.push(report);
                 else reports.set(occurrence_id, [report]);

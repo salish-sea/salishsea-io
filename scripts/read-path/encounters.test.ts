@@ -59,7 +59,14 @@ const INDIVIDUAL_LINKS = [
     {individual_id: 2, ...link('dalco-1', 'T065A')},
     {individual_id: 2, ...link('saratoga-1')},
 ];
-const GROUP_LINKS = [{social_group_id: 10, ...link('dalco-1')}];
+// The matriline's own report, and its members' direct claims, as derive/profile-links.sql
+// writes them (salish-fwyt.7).
+const GROUP_LINKS = [
+    {social_group_id: 10, ...link('dalco-1')},
+    {social_group_id: 10, ...link('dalco-3'), via_member: 'T065A5'},
+    {social_group_id: 10, ...link('saratoga-1'), via_member: 'T065A5', certainty: 'possible'},
+    {social_group_id: 10, ...link('saratoga-1'), via_member: 'T065A6'},
+];
 
 let out: string;
 
@@ -125,14 +132,20 @@ describe('writeEncounters', () => {
         const [saratoga, dalco] = await encounters('individuals/0010198.json');
         expect(saratoga!.firsts).toEqual([{label: 'T065A6', born: 2026}]);
         expect(dalco).not.toHaveProperty('firsts');
-        // the matriline has no encounter at Saratoga, so its timeline doesn't mark one elsewhere
-        expect((await encounters('matrilines/0002163.json')).some(e => e.firsts)).toBe(false);
+        // the matriline holds the Saratoga track through its members' reports, so its
+        // timeline marks the calf there too, and nowhere else
+        expect((await encounters('matrilines/0002163.json')).map(e => e.firsts ?? null))
+            .toEqual([[{label: 'T065A6', born: 2026}], null]);
         // T065A5 has no birth year, so no first report is marked for it
         expect((await encounters('individuals/0010197.json')).some(e => e.firsts)).toBe(false);
     });
 
-    test("a matriline's encounters are the tracks holding a report of the group", async () => {
-        expect((await encounters('matrilines/0002163.json')).map(e => e.ids)).toEqual([['dalco-1']]);
+    test("a matriline's encounters are the tracks holding a report of the group or of its members, each counted by how it named them (salish-fwyt.7)", async () => {
+        const [saratoga, dalco] = await encounters('matrilines/0002163.json');
+        expect(saratoga).toMatchObject({ids: ['saratoga-1'], as_self: 0, only_members: 1});
+        expect(dalco).toMatchObject({ids: ['dalco-1', 'dalco-3'], as_self: 1, only_members: 1});
+        // an animal's timeline never counts members
+        expect((await encounters('individuals/0010197.json')).some(e => 'only_members' in e)).toBe(false);
     });
 });
 
