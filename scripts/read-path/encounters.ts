@@ -111,7 +111,8 @@ export function calfFirsts(
         // The earliest row that names it, plainly, and isn't absent or rejected.
         const first = rows.filter(r => !r['via_group'] && r['certainty'] !== 'possible' && r['is_present'] !== false
                 && r['status'] !== 'rejected' && r['occurrence_id'] && r['observed_at'])
-            .sort((a, b) => newer(b['observed_at'], a['observed_at'])).at(0);
+            // ties by id, so the same input always marks the same report
+            .sort((a, b) => newer(b['observed_at'], a['observed_at']) || (a['occurrence_id'] < b['occurrence_id'] ? -1 : 1)).at(0);
         if (!first) continue;
         const subjects = [`individuals/${localPart(i['entity_id'])}.json`, ...(matrilinesOf.get(i['id']) ?? [])];
         const id = first['occurrence_id'] as string;

@@ -148,8 +148,15 @@ describe('calfFirsts', () => {
         // which the page merges into a plain link that names it; then a plain report naming it
         const rows = [row('hedged', '2025-08-01T20:00:00Z', {via_group: 'T065A'}), row('hedged', '2025-08-01T20:00:00Z', {certainty: 'possible'}),
             row('plain', '2026-04-03T20:00:00Z')];
-        expect(dedupeOccurrenceLinks(rows as never).find(l => l.occurrence_id === 'hedged')).toMatchObject({via_group: null});
+        const merged = dedupeOccurrenceLinks(rows as never).find(l => l.occurrence_id === 'hedged');
+        expect(merged).toMatchObject({via_group: null});
+        expect(merged).not.toHaveProperty('possibly');
         expect([...calfFirsts(t, new Map([[2, rows]]))]).toEqual([['plain', [{label: 'T065A6', born: 2025, subjects}]]]);
+    });
+    test('two first reports at the same moment: the same one, whatever the order', () => {
+        const rows = [row('b', '2025-08-01T20:00:00Z'), row('a', '2025-08-01T20:00:00Z')];
+        expect([...calfFirsts(t, new Map([[2, rows]]))].map(([id]) => id)).toEqual(['a']);
+        expect([...calfFirsts(t, new Map([[2, [...rows].reverse()]]))].map(([id]) => id)).toEqual(['a']);
     });
     test('nothing is marked when the build holds no report of the calf from its birth years', () => {
         expect(calfFirsts(t, new Map([[2, [row('plain', '2026-04-03T20:00:00Z')]]])).size).toBe(0);
