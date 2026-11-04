@@ -22,9 +22,12 @@ CREATE OR REPLACE TEMP VIEW occurrence AS
   SELECT id, observed_at, location, json_extract_string(doc, '$.vitality') AS vitality FROM build.occurrences;
 
 -- derived.occurrence_identifier_candidates. Its location is a lon_lat there, never NULL.
+-- With whether the text says the animal was there and how sure the writer was, which
+-- Postgres never read (decision 109): a hedge reaches the page as 054 says, and an
+-- absence keeps the animal off the sighting, below.
 CREATE OR REPLACE TEMP VIEW candidate AS
   SELECT occurrence_id, code, individual_id, social_group_id, observed_at,
-         {'lat': location_lat, 'lon': location_lon} AS location
+         {'lat': location_lat, 'lon': location_lon} AS location, is_present, certainty
   FROM build.occurrence_identifier_candidates;
 
 CREATE OR REPLACE TEMP VIEW identification AS
@@ -80,7 +83,7 @@ CREATE OR REPLACE TABLE build.group_occurrences AS
     WHERE s.social_group_id IS NOT NULL
     UNION ALL
     SELECT c.social_group_id, c.occurrence_id, c.observed_at, c.location,
-           true, 'candidate', 'text_mention', c.code, CAST(NULL AS VARCHAR)
+           c.is_present, 'candidate', 'text_mention', c.code, c.certainty
     FROM candidate c
     WHERE c.social_group_id IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM identification s
@@ -110,7 +113,9 @@ CREATE OR REPLACE TABLE build.group_occurrences AS
 -- --- public.individual_occurrences -------------------------------------------------------
 -- A sighting of a matriline is a sighting of each of its living members, named via_group;
 -- but not a dead animal's (decision 088): a carcass is one animal, and naming its matriline
--- doesn't say which, so a dead record links only to an individual it names.
+-- doesn't say which, so a dead record links only to an individual it names. Nor an animal
+-- the same sighting says was absent (decision 109): "T46s (-D)" is a sighting of T46s'
+-- living members but T46D, whose own claim, absent, is the one row it has.
 
 CREATE OR REPLACE TABLE build.individual_occurrences AS
   WITH link AS (
@@ -126,9 +131,9 @@ CREATE OR REPLACE TABLE build.individual_occurrences AS
       AND (s.individual_id IS NOT NULL OR o.vitality IS DISTINCT FROM 'dead')
     UNION ALL
     SELECT coalesce(c.individual_id, mm.individual_id),
-           c.occurrence_id, c.observed_at, c.location, true, 'candidate', 'text_mention', c.code,
+           c.occurrence_id, c.observed_at, c.location, c.is_present, 'candidate', 'text_mention', c.code,
            CASE WHEN c.individual_id IS NULL THEN g.designation END,
-           CAST(NULL AS VARCHAR), o.vitality
+           c.certainty, o.vitality
     FROM candidate c
     LEFT JOIN living_member mm ON c.individual_id IS NULL AND mm.group_id = c.social_group_id
     LEFT JOIN social_group g ON g.id = c.social_group_id
@@ -172,7 +177,11 @@ CREATE OR REPLACE TABLE build.individual_occurrences AS
            'individual_id': individual_id,
            'occurrence_id': occurrence_id
          }) AS VARCHAR) AS doc
-  FROM link;
+  FROM link
+  WHERE via_group IS NULL OR NOT is_present
+     OR NOT EXISTS (SELECT 1 FROM link gone
+                    WHERE gone.occurrence_id = link.occurrence_id AND gone.individual_id = link.individual_id
+                      AND gone.via_group IS NULL AND NOT gone.is_present);
 
 -- --- public.ecotype_occurrences ----------------------------------------------------------
 -- A sighting of any group or individual under a population, an ecotype or a community
@@ -197,19 +206,20 @@ CREATE OR REPLACE TABLE build.ecotype_occurrences AS
     JOIN social_group e ON e.entity_id = a.ancestor_id AND e.kind IN ('ecotype', 'community', 'pod')
   ),
   link AS (
+    -- A text's absent animal or group says nothing about its population (decision 109).
     SELECT gte.ecotype_id, c.occurrence_id, c.observed_at, c.location,
-           true AS is_present, 'candidate' AS status, CAST(NULL AS VARCHAR) AS certainty
+           true AS is_present, 'candidate' AS status, c.certainty
     FROM candidate c
     JOIN group_to_ecotype gte ON gte.group_id = c.social_group_id
-    WHERE c.social_group_id IS NOT NULL
+    WHERE c.social_group_id IS NOT NULL AND c.is_present
       AND NOT EXISTS (SELECT 1 FROM identification s
                       WHERE s.occurrence_id = c.occurrence_id AND s.social_group_id = c.social_group_id)
     UNION
     SELECT ite.ecotype_id, c.occurrence_id, c.observed_at, c.location,
-           true, 'candidate', CAST(NULL AS VARCHAR)
+           true, 'candidate', c.certainty
     FROM candidate c
     JOIN individual_to_ecotype ite ON ite.individual_id = c.individual_id
-    WHERE c.individual_id IS NOT NULL
+    WHERE c.individual_id IS NOT NULL AND c.is_present
       AND NOT EXISTS (SELECT 1 FROM identification s
                       WHERE s.occurrence_id = c.occurrence_id AND s.individual_id = c.individual_id)
     UNION

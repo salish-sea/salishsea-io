@@ -12,10 +12,16 @@
 -- recorded: `origin` is 'report' for the occurrence's own text, or 'comment' or
 -- 'identification' for what someone wrote on an iNaturalist observation, with
 -- `origin_id` that comment's or identification's iNaturalist id, and `by_observer` whether
--- the observer wrote it (always, for the report), as the occurrence's
--- identifier_origins says: one entry for each identifier, in the same order, or null
--- when every code is the report's. Kept so the confidence decision 075 leaves open can weigh
--- someone else's word apart from the observer's; nothing reads it yet.
+-- the observer wrote it (always, for the report), as the occurrence's `claims` says.
+-- Kept so the confidence decision 075 leaves open can weigh someone else's word apart
+-- from the observer's; nothing reads it yet.
+--
+-- Whether the text says the animal was there, and how sure the writer was (decision 109):
+-- `is_present` is false for a code the text says was absent ("T46s (-D)" makes T46D one),
+-- and `certainty` is the writer's hedge, decision 054's probable or possible, read by
+-- src/sighting-text.ts. A code with no hedge word has none: the reader calls it certain,
+-- but nobody said so, which is 054's null. A candidate that says an animal was absent is a claim too:
+-- the profile links use it to keep that animal off a sighting its group was named in.
 
 -- register.fold(name), the register's name-comparison rule (its ADR-0019, src/fold.ts):
 -- lowercased, apostrophes and hyphens dropped, whitespace collapsed and trimmed, and every
@@ -31,16 +37,14 @@ CREATE OR REPLACE TEMP MACRO register_fold(name) AS
 
 CREATE OR REPLACE TABLE build.occurrence_identifier_candidates AS
   WITH named AS (
-    -- the two lists side by side: a null list of origins pads with nulls
-    SELECT o.id AS occurrence_id, unnest(o.identifiers) AS code, unnest(o.identifier_origins) AS x,
-           o.observed_at, o.location
+    SELECT o.id AS occurrence_id, unnest(o.claims) AS x, o.observed_at, o.location
     FROM build.occurrences o
     -- Bouts carry register identifiers, not text; see public.acoustic_identifications.
     WHERE o.source <> 'orcasound'
   ),
   ident AS (
-    SELECT occurrence_id, code, coalesce(x.origin, 'report') AS origin, x.origin_id,
-           coalesce(x.by_observer, true) AS by_observer, observed_at, location
+    SELECT occurrence_id, x.code, x.presence = 'present' AS is_present, nullif(x.certainty, 'certain') AS certainty,
+           x.origin, x.origin_id, x.by_observer, observed_at, location
     FROM named
   ),
   matriline AS (
@@ -59,10 +63,12 @@ CREATE OR REPLACE TABLE build.occurrence_identifier_candidates AS
   -- bytes (Stelis's determinism rule), whatever the data comes to hold (salish-xv35.20).
   SELECT DISTINCT ON (i.occurrence_id, i.code)
          i.occurrence_id, i.code, d.individual_id, g.id AS social_group_id, i.observed_at,
-         i.location.lon AS location_lon, i.location.lat AS location_lat, i.origin, i.origin_id, i.by_observer
+         i.location.lon AS location_lon, i.location.lat AS location_lat, i.origin, i.origin_id, i.by_observer,
+         i.is_present, i.certainty
   FROM ident i
   LEFT JOIN matriline g
     ON regexp_matches(i.code, 's$') AND g.designation_folded || 's' = register_fold(i.code)
   LEFT JOIN designation d
     ON NOT regexp_matches(i.code, 's$') AND d.code_folded = register_fold(i.code)
-  ORDER BY i.occurrence_id, i.code, d.individual_id NULLS LAST, g.id NULLS LAST;
+  -- a code named both ways is present: the occurrence's claims list it once each way at most
+  ORDER BY i.occurrence_id, i.code, i.is_present DESC, d.individual_id NULLS LAST, g.id NULLS LAST;
