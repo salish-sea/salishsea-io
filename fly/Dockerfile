@@ -54,7 +54,7 @@ FROM debian:bookworm-slim
 # naming it keeps that from being an accident. procps gives an operator ps and pgrep on
 # the machine, which a slim base lacks (salish-6x65); fly/deploy.sh doesn't rely on it.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl libssl3 procps unzip util-linux \
+ && apt-get install -y --no-install-recommends ca-certificates curl libssl3 procps util-linux \
  && rm -rf /var/lib/apt/lists/*
 
 # node, the same version the site was built with; the read-path scripts run on it.
@@ -93,8 +93,8 @@ RUN test -n "$STELIS_SHA" \
 COPY fly/fetch.sh fly/downloads.tsv /tmp/fetch/
 
 # The DuckDB CLI Stelis content-addresses relations with, pinned as in its CI.
-RUN /tmp/fetch/fetch.sh duckdb /tmp/duckdb.zip \
- && unzip -q /tmp/duckdb.zip -d /usr/local/bin && rm /tmp/duckdb.zip
+RUN /tmp/fetch/fetch.sh duckdb /tmp/duckdb.tar.gz \
+ && tar -xzf /tmp/duckdb.tar.gz -C /usr/local/bin duckdb && rm /tmp/duckdb.tar.gz
 
 # Caddy serves the site and the files; supercronic runs the build every five minutes;
 # Litestream replicates the write API's store to S3 (decision 065).

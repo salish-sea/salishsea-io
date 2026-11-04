@@ -17,8 +17,9 @@
  * Cross-reference:
  *   - 06-RESEARCH.md §T1..§T12 for the DuckDB + COPY + parquet_kv_metadata
  *     details, §R1 for the GeoParquet metadata empirical-verify decision
- *     (GEOMETRY column auto-emits `geo` metadata in DuckDB 1.5.4-r.1; we
- *     verify, not assume), §R5 for the freetext tab-collapse columns.
+ *     (GEOMETRY column auto-emits `geo` metadata in DuckDB 2.0.0-r.1, as in
+ *     1.5.4-r.1 before it; we verify, not assume), §R5 for the freetext
+ *     tab-collapse columns.
  *   - 06-CONTEXT.md F-02 (alignment guard), F-05 (UTF-8 no BOM),
  *     F-06 (constants as columns), G-01 (overridden per §R1: ST_Point not
  *     ST_AsWKB), G-02 (all dwc columns + geometry), G-03 (CRS84 implied), G-04
@@ -209,7 +210,7 @@ export async function writeArchive(conn: DuckDBConnection, outDir: string): Prom
 
     // Step 11: COPY parquet. Use ST_Point GEOMETRY column (NOT ST_AsWKB
     // BLOB) — per §R1, this is the configuration under which DuckDB
-    // 1.5.4-r.1 auto-emits the GeoParquet `geo` kv-metadata. We verify
+    // 2.0.0-r.1 auto-emits the GeoParquet `geo` kv-metadata. We verify
     // the metadata is actually present in step 12 below.
     //
     // Zstandard at level 9, not Snappy (salish-pdau): on the 2026-11-01 archive
