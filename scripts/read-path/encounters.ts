@@ -56,10 +56,11 @@ export function subjectReports(
         for (const s of subjects) {
             const file = `${kind}/${localPart(s['entity_id'])}.json`;
             files.push(file);
-            for (const {occurrence_id, via_group} of dedupeOccurrenceLinks((bySubject.get(s['id']) ?? []) as never)) {
+            for (const {occurrence_id, via_group, possibly} of dedupeOccurrenceLinks((bySubject.get(s['id']) ?? []) as never)) {
+                const report = possibly ? {subject: file, via_group, possibly} : {subject: file, via_group};
                 const list = reports.get(occurrence_id);
-                if (list) list.push({subject: file, via_group});
-                else reports.set(occurrence_id, [{subject: file, via_group}]);
+                if (list) list.push(report);
+                else reports.set(occurrence_id, [report]);
             }
         }
     };

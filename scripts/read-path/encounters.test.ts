@@ -32,8 +32,9 @@ const OCCURRENCES = [
     report('dalco-2', '2026-10-01T17:30:00+00:00', -122.51, 47.34, {provider: 'SalishSea.io', provider_slug: 'direct', collection: null}),
     report('dalco-3', '2026-10-01T18:00:00+00:00', -122.52, 47.35, {identifiers: ['T65A5'],
         photos: [{src: 'https://example.org/p.jpg', thumb: null, attribution: 'A. Observer', mimetype: null, license: null}]}),
-    // The same day, 90 km north in Saratoga Passage: a track of its own.
-    report('saratoga-1', '2026-10-01T19:00:00+00:00', -122.50, 48.15, {identifiers: ['T65A5']}),
+    // The same day, 90 km north in Saratoga Passage: a track of its own, whose report only
+    // possibly names T065A5 ("possibly T65A5").
+    report('saratoga-1', '2026-10-01T19:00:00+00:00', -122.50, 48.15, {identifiers: ['T65A5?']}),
     // 2 October: a report of nobody, on a day no subject was reported.
     report('quiet-1', '2026-10-02T19:00:00+00:00', -123.0, 48.5),
 ];
@@ -47,7 +48,7 @@ const link = (occurrence_id: string, via_group: string | null = null) => ({
 const INDIVIDUAL_LINKS = [
     {individual_id: 1, ...link('dalco-1', 'T065A')},
     {individual_id: 1, ...link('dalco-3')},
-    {individual_id: 1, ...link('saratoga-1')},
+    {individual_id: 1, ...link('saratoga-1'), certainty: 'possible'},
     // Rejected: not a report of it.
     {individual_id: 1, ...link('quiet-1'), status: 'rejected'},
 ];
@@ -93,6 +94,12 @@ describe('writeEncounters', () => {
         const [saratoga, dalco] = await encounters('individuals/0010197.json');
         expect(saratoga).toMatchObject({day: '2026-10-01', reports: 1, ids: ['saratoga-1'], as_self: 1});
         expect(dalco).toMatchObject({day: '2026-10-01', reports: 3, ids: ['dalco-1', 'dalco-3']});
+    });
+
+    test('an encounter counts the reports that only possibly name the subject, and says nothing when none do (decision 054)', async () => {
+        const [saratoga, dalco] = await encounters('individuals/0010197.json');
+        expect(saratoga!.possibly).toBe(1);
+        expect(dalco).not.toHaveProperty('possibly');
     });
 
     test("an encounter counts every report on its track, says how many name the subject itself, and pools what they hold", async () => {

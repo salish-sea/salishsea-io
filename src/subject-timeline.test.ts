@@ -74,6 +74,11 @@ describe('the line on how the reports name it', () => {
     [{naming: 10, asSelf: 0, reports: 10}, 'All 10 reports name T065A5, all through a group it is in'],
     [{naming: 1, asSelf: 1, reports: 1}, 'The one report names T065A5'],
     [{naming: 1, asSelf: 0, reports: 4}, '1 of 4 reports names T065A5, through a group it is in'],
+    // a report that only possibly names it ("possibly T065A5", decision 054)
+    [{naming: 86, asSelf: 74, reports: 140, possibly: 3}, '86 of 140 reports name T065A5, 12 of them through a group it is in, 3 only possibly'],
+    [{naming: 3, asSelf: 3, reports: 3, possibly: 3}, 'All 3 reports name T065A5, all of them only possibly'],
+    [{naming: 1, asSelf: 1, reports: 4, possibly: 1}, '1 of 4 reports names T065A5, only possibly'],
+    [{naming: 2, asSelf: 2, reports: 4, possibly: 2}, '2 of 4 reports name T065A5, both only possibly'],
   ])('%o', (counts, line) => expect(reportsLine('T065A5', counts)).toBe(line));
 });
 

@@ -88,6 +88,20 @@ test('between two via-group claims, the alphabetically first group, whatever the
   expect(dedupeOccurrenceLinks([...rows].reverse())[0]?.via_group).toBe('T068');
 });
 
+test('a link is possibly only when every claim that reaches it is possible (decision 054)', () => {
+  const rows = [
+    link({ occurrence_id: 'a', certainty: 'possible' }),
+    link({ occurrence_id: 'b', certainty: 'possible' }),
+    link({ occurrence_id: 'b', certainty: null, via_group: 'T099s' }),
+    link({ occurrence_id: 'c', certainty: 'probable' }),
+  ];
+  const possibly = Object.fromEntries(dedupeOccurrenceLinks(rows).map(l => [l.occurrence_id, l.possibly ?? false]));
+  // a plain claim through a group outranks a hedged direct one, and a probable one is plain
+  expect(possibly).toEqual({a: true, b: false, c: false});
+  // and the direct claim still names it, not the group
+  expect(dedupeOccurrenceLinks(rows).find(l => l.occurrence_id === 'b')?.via_group).toBeNull();
+});
+
 test('drops absence claims and rejected identifications', () => {
   const rows = [
     link({ occurrence_id: 'a', is_present: false }),

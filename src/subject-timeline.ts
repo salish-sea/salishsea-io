@@ -321,7 +321,8 @@ export class SubjectTimeline extends LitElement {
   }
 
   private renderRow(e: Encounter) {
-    const naming = e.ids.length === e.reports ? '' : `, ${e.ids.length} naming ${this.designation}`;
+    const naming = (e.ids.length === e.reports ? '' : `, ${e.ids.length} naming ${this.designation}`)
+      + onlyPossibly(e.possibly ?? 0, e.ids.length);
     const others = encounterOthers(e, this.ownPaths, this.codes()).length;
     const where = this.placeOf(e);
     const parts = [
@@ -451,9 +452,10 @@ export interface SpanSummary {
   /** The other animals and groups its encounters name, each with how many encounters name it. */
   others: {label: string, href: string, possibly: boolean, encounters: number}[];
   photos: Encounter['photos'];
-  /** How many reports name the subject, how many of those name it itself, and how many reports in all. */
+  /** How many reports name the subject, how many of those name it itself, how many only possibly, and how many reports in all. */
   naming: number;
   asSelf: number;
+  possibly: number;
   reports: number;
   channels: [string, number][];
 }
@@ -491,6 +493,7 @@ export function summarizeSpan(list: readonly Encounter[], {placeOf, ownPaths, co
     photos: list.flatMap(e => e.photos),
     naming: list.reduce((n, e) => n + e.ids.length, 0),
     asSelf: list.reduce((n, e) => n + e.as_self, 0),
+    possibly: list.reduce((n, e) => n + (e.possibly ?? 0), 0),
     reports: list.reduce((n, e) => n + e.reports, 0),
     channels: [...channels].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
   };
@@ -503,11 +506,23 @@ function encounterOthers(e: Encounter, ownPaths: readonly string[], codes: Codes
 }
 
 /** "86 of 140 reports name T065A5, 12 of them through a group it is in." */
-export function reportsLine(designation: string, {naming, asSelf, reports}: Pick<SpanSummary, 'naming' | 'asSelf' | 'reports'>): string {
+export function reportsLine(designation: string, {naming, asSelf, reports, possibly = 0}:
+    Pick<SpanSummary, 'naming' | 'asSelf' | 'reports'> & Partial<Pick<SpanSummary, 'possibly'>>): string {
   const through = naming - asSelf;
   const which = naming === reports ? (reports === 1 ? 'The one report' : `All ${plural(reports, 'report')}`) : `${naming.toLocaleString('en-US')} of ${plural(reports, 'report')}`;
   return `${which} ${naming === 1 ? 'names' : 'name'} ${designation}${
-    through ? `, ${through === naming ? (naming === 1 ? 'through' : 'all through') : `${through} of them through`} a group it is in` : ''}`;
+    through ? `, ${through === naming ? (naming === 1 ? 'through' : 'all through') : `${through} of them through`} a group it is in` : ''}${
+    onlyPossibly(possibly, naming)}`;
+}
+
+/**
+ * ", 3 only possibly": how many of the reports that name the subject only possibly name it
+ * ("possibly T99s", decision 054), after the count of them; nothing when none do.
+ */
+export function onlyPossibly(possibly: number, naming: number): string {
+  if (!possibly) return '';
+  if (possibly === naming) return naming === 1 ? ', only possibly' : naming === 2 ? ', both only possibly' : ', all of them only possibly';
+  return `, ${possibly.toLocaleString('en-US')} only possibly`;
 }
 
 const days = new Map<string, Promise<Occurrence[]>>();
