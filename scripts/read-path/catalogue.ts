@@ -260,8 +260,14 @@ export function documents(table: string, rows: readonly Row[], vitals: ReadonlyM
 
 /**
  * Each individual's sex, birth years and life status from the register the build holds:
- * public.refresh_individual_vitals, twinned. A birth is 'YYYY', 'YYYY-MM', or '../YYYY'
- * (born by then); a status the register doesn't record is 'unknown'. Beyond the twin, the
+ * public.refresh_individual_vitals, at first twinned. A birth is an EDTF date, as the
+ * register's glossary defines `born`: a year, a month or a day ('1998', '2020-09',
+ * '2024-06-14'), perhaps uncertain or approximate ('1998?', '1979~'), or a range
+ * ('1995/1998'), open at one end ('../1966', born by then; '1968/..', born then or
+ * later). `born_earliest` is the year it opens with and `born_latest` the year it closes
+ * with; an open end gives none. Postgres read only the first three forms and gave
+ * nothing for the rest, which would have lost a birth the register records more
+ * precisely (salish-fwyt.4.2). A status the register doesn't record is 'unknown'. Beyond the twin, the
  * year of a death (salish-fwyt.4.3): when a dead or presumed dead status took effect, if the
  * register dates it. '../2026-07', dead by then, gives no year; the Bigg's deaths all read so. Postgres keeps an
  * individual's old values when the register holds no statuses at all; this refuses
@@ -270,13 +276,14 @@ export function documents(table: string, rows: readonly Row[], vitals: ReadonlyM
 export async function registerVitals(conn: DuckDBConnection, individuals: string): Promise<Map<number, Row>> {
     const statuses = await conn.runAndReadAll('SELECT count(*) FROM register.current_status');
     if (Number(statuses.getRows()[0]![0]) === 0) throw new Error('register.current_status is empty: no life status to give any individual');
+    // The year of one end of an EDTF date; none for an open end ('..') or anything else.
+    await conn.run(`CREATE OR REPLACE TEMP MACRO edtf_year(d) AS
+        CASE WHEN regexp_full_match(d, '\\d{4}(-\\d{2}){0,2}[?~%]?') THEN CAST(left(d, 4) AS INTEGER) END`);
     const reader = await conn.runAndReadAll(`
         SELECT i.id,
                CASE v.sex WHEN 'F' THEN 'female' WHEN 'M' THEN 'male' END AS sex,
-               CASE WHEN regexp_full_match(v.born, '\\d{4}(-\\d{2})?') THEN CAST(left(v.born, 4) AS INTEGER) END AS born_earliest,
-               CASE WHEN regexp_full_match(v.born, '\\d{4}(-\\d{2})?') THEN CAST(left(v.born, 4) AS INTEGER)
-                    WHEN regexp_full_match(v.born, '\\.\\./\\d{4}(-\\d{2})?') THEN CAST(substr(v.born, 4, 4) AS INTEGER)
-               END AS born_latest,
+               edtf_year(split_part(v.born, '/', 1)) AS born_earliest,
+               edtf_year(CASE WHEN contains(v.born, '/') THEN split_part(v.born, '/', 2) ELSE v.born END) AS born_latest,
                CASE s.status WHEN 'alive' THEN 'alive' WHEN 'dead' THEN 'deceased'
                              WHEN 'presumed_dead' THEN 'presumed_deceased' ELSE 'unknown' END AS life_status,
                CASE WHEN s.status IN ('dead', 'presumed_dead') AND regexp_full_match(d.effective, '\\d{4}(-\\d{2}){0,2}')
