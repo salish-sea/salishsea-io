@@ -36,7 +36,7 @@ CREATE OR REPLACE TEMP VIEW identification AS
 
 CREATE OR REPLACE TEMP VIEW individual AS
   SELECT CAST(doc->>'id' AS INTEGER) AS id, doc->>'entity_id' AS entity_id, doc->>'life_status' AS life_status,
-         CAST(doc->>'born_earliest' AS INTEGER) AS born_earliest
+         CAST(doc->>'born_earliest' AS INTEGER) AS born_earliest, doc->>'primary_designation' AS designation
   FROM snapshot.individuals;
 
 CREATE OR REPLACE TEMP VIEW social_group AS
@@ -73,10 +73,109 @@ CREATE OR REPLACE TEMP VIEW acoustic_identification AS
 
 CREATE SCHEMA IF NOT EXISTS build;
 
+-- --- public.individual_occurrences -------------------------------------------------------
+-- A sighting of a matriline is a sighting of each of its living members, named via_group;
+-- but not a dead animal's (decision 088): a carcass is one animal, and naming its matriline
+-- doesn't say which, so a dead record links only to an individual it names. Nor an animal
+-- the same sighting says was absent (decision 109): "T46s (-D)" is a sighting of T46s'
+-- living members but T46D, whose own claim, absent, is the one row it has. Nor a member
+-- not yet born (salish-fwyt.4.2): a matriline's report from before the earliest year the
+-- register says the member could have been born, on the Pacific clock, isn't a report of
+-- it. The register gives a year, not a date, so a report from earlier in the birth year
+-- still reaches the calf.
+
+-- Each claim's row, before the birth-year and absence rules below; the group rows read
+-- its direct claims too, for a matriline's members.
+CREATE OR REPLACE TEMP TABLE individual_link AS
+  SELECT coalesce(s.individual_id, mm.individual_id) AS individual_id,
+         s.occurrence_id, o.observed_at, o.location, s.is_present, s.status, s.evidence, s.code,
+         CASE WHEN s.individual_id IS NULL THEN g.designation END AS via_group,
+         s.certainty, o.vitality
+  FROM identification s
+  LEFT JOIN living_member mm ON s.individual_id IS NULL AND mm.group_id = s.social_group_id
+  LEFT JOIN social_group g ON g.id = s.social_group_id
+  JOIN occurrence o ON o.id = s.occurrence_id
+  WHERE coalesce(s.individual_id, mm.individual_id) IS NOT NULL
+    AND (s.individual_id IS NOT NULL OR o.vitality IS DISTINCT FROM 'dead')
+  UNION ALL
+  SELECT coalesce(c.individual_id, mm.individual_id),
+         c.occurrence_id, c.observed_at, c.location, c.is_present, 'candidate', 'text_mention', c.code,
+         CASE WHEN c.individual_id IS NULL THEN g.designation END,
+         c.certainty, o.vitality
+  FROM candidate c
+  LEFT JOIN living_member mm ON c.individual_id IS NULL AND mm.group_id = c.social_group_id
+  LEFT JOIN social_group g ON g.id = c.social_group_id
+  LEFT JOIN occurrence o ON o.id = c.occurrence_id
+  WHERE (c.individual_id IS NOT NULL OR c.social_group_id IS NOT NULL)
+    AND coalesce(c.individual_id, mm.individual_id) IS NOT NULL
+    AND (c.individual_id IS NOT NULL OR o.vitality IS DISTINCT FROM 'dead')
+    AND NOT EXISTS (
+      SELECT 1 FROM identification s
+      WHERE s.occurrence_id = c.occurrence_id
+        AND s.individual_id IS NOT DISTINCT FROM c.individual_id
+        AND s.social_group_id IS NOT DISTINCT FROM c.social_group_id)
+  UNION ALL
+  SELECT coalesce(a.individual_id, mm.individual_id),
+         a.occurrence_id, o.observed_at, o.location, true, 'candidate', 'acoustic', a.code,
+         CASE WHEN a.individual_id IS NULL THEN g.designation END,
+         a.certainty, o.vitality
+  FROM acoustic_identification a
+  LEFT JOIN living_member mm ON a.individual_id IS NULL AND mm.group_id = a.social_group_id
+  LEFT JOIN social_group g ON g.id = a.social_group_id
+  JOIN occurrence o ON o.id = a.occurrence_id
+  WHERE coalesce(a.individual_id, mm.individual_id) IS NOT NULL
+    AND (a.individual_id IS NOT NULL OR o.vitality IS DISTINCT FROM 'dead')
+    AND NOT EXISTS (
+      SELECT 1 FROM identification s
+      WHERE s.occurrence_id = a.occurrence_id
+        AND s.individual_id IS NOT DISTINCT FROM a.individual_id
+        AND s.social_group_id IS NOT DISTINCT FROM a.social_group_id);
+
+CREATE OR REPLACE TABLE build.individual_occurrences AS
+  SELECT CAST(to_json({
+           'code': code,
+           'status': status,
+           'evidence': evidence,
+           'location': pg_lon_lat(location),
+           -- whether the animal was dead (salish-1y8): its earliest such record is its last sighting
+           'vitality': vitality,
+           'certainty': certainty,
+           'via_group': via_group,
+           'is_present': is_present,
+           'observed_at': pg_ts(observed_at),
+           'individual_id': individual_id,
+           'occurrence_id': occurrence_id
+         }) AS VARCHAR) AS doc
+  FROM individual_link link
+  LEFT JOIN individual born ON born.id = link.individual_id
+  WHERE via_group IS NULL
+     OR ((born.born_earliest IS NULL OR year(timezone('America/Los_Angeles', link.observed_at)) >= born.born_earliest)
+         AND (NOT is_present
+              OR NOT EXISTS (SELECT 1 FROM individual_link gone
+                             WHERE gone.occurrence_id = link.occurrence_id AND gone.individual_id = link.individual_id
+                               AND gone.via_group IS NULL AND NOT gone.is_present)));
+
 -- --- public.group_occurrences ------------------------------------------------------------
+-- A group's reports, and a matriline's sub-lineages' and members' too (salish-fwyt.7,
+-- decision 110): the register's membership is genealogical, and reporters write T65As or
+-- T65A5 far more often than T65s, so a page holding only the reports that name T65s
+-- showed 5 encounters where there were about 460. A report of a matriline under it (T65As,
+-- at any depth) is a row with `via_group`, that matriline's designation; a report naming
+-- one of its members (T65A5, a direct claim, not one reached through a group) is a row
+-- with `via_member`, the member's designation. A report can reach a matriline more than
+-- one way; the page keeps the most direct (src/catalog.ts's dedupeOccurrenceLinks), so
+-- a report naming T65s and T65A5 is one of T65s's own.
+
+-- Each matriline and the matrilines under it, at any depth.
+CREATE OR REPLACE TEMP VIEW sub_lineage AS
+  SELECT m.id AS group_id, d.id AS sub_lineage_id, d.designation
+  FROM social_group m
+  JOIN register.ancestor a ON a.ancestor_id = m.entity_id
+  JOIN social_group d ON d.entity_id = a.entity_id AND d.kind = 'matriline'
+  WHERE m.kind = 'matriline';
 
 CREATE OR REPLACE TABLE build.group_occurrences AS
-  WITH link AS (
+  WITH own AS (
     SELECT s.social_group_id, s.occurrence_id, o.observed_at, o.location,
            s.is_present, s.status, s.evidence, s.code, s.certainty
     FROM identification s
@@ -97,6 +196,23 @@ CREATE OR REPLACE TABLE build.group_occurrences AS
     WHERE a.social_group_id IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM identification s
                       WHERE s.occurrence_id = a.occurrence_id AND s.social_group_id = a.social_group_id)
+  ),
+  link AS (
+    SELECT *, NULL::VARCHAR AS via_group, NULL::VARCHAR AS via_member FROM own
+    UNION ALL
+    SELECT sl.group_id, own.occurrence_id, own.observed_at, own.location,
+           own.is_present, own.status, own.evidence, own.code, own.certainty, sl.designation, NULL
+    FROM own
+    JOIN sub_lineage sl ON sl.sub_lineage_id = own.social_group_id
+    UNION ALL
+    -- Only a member's direct claims: one reached through a group is that group's report.
+    SELECT mm.group_id, il.occurrence_id, il.observed_at, il.location,
+           il.is_present, il.status, il.evidence, il.code, il.certainty, NULL, i.designation
+    FROM individual_link il
+    JOIN individual i ON i.id = il.individual_id
+    JOIN (SELECT CAST(doc->>'group_id' AS INTEGER) AS group_id, CAST(doc->>'individual_id' AS INTEGER) AS individual_id
+          FROM snapshot.matriline_members) mm ON mm.individual_id = il.individual_id
+    WHERE il.via_group IS NULL
   )
   SELECT CAST(to_json({
            'code': code,
@@ -104,92 +220,14 @@ CREATE OR REPLACE TABLE build.group_occurrences AS
            'evidence': evidence,
            'location': pg_lon_lat(location),
            'certainty': certainty,
+           'via_group': via_group,
            'is_present': is_present,
+           'via_member': via_member,
            'observed_at': pg_ts(observed_at),
            'occurrence_id': occurrence_id,
            'social_group_id': social_group_id
          }) AS VARCHAR) AS doc
   FROM link;
-
--- --- public.individual_occurrences -------------------------------------------------------
--- A sighting of a matriline is a sighting of each of its living members, named via_group;
--- but not a dead animal's (decision 088): a carcass is one animal, and naming its matriline
--- doesn't say which, so a dead record links only to an individual it names. Nor an animal
--- the same sighting says was absent (decision 109): "T46s (-D)" is a sighting of T46s'
--- living members but T46D, whose own claim, absent, is the one row it has. Nor a member
--- not yet born (salish-fwyt.4.2): a matriline's report from before the earliest year the
--- register says the member could have been born, on the Pacific clock, isn't a report of
--- it. The register gives a year, not a date, so a report from earlier in the birth year
--- still reaches the calf.
-
-CREATE OR REPLACE TABLE build.individual_occurrences AS
-  WITH link AS (
-    SELECT coalesce(s.individual_id, mm.individual_id) AS individual_id,
-           s.occurrence_id, o.observed_at, o.location, s.is_present, s.status, s.evidence, s.code,
-           CASE WHEN s.individual_id IS NULL THEN g.designation END AS via_group,
-           s.certainty, o.vitality
-    FROM identification s
-    LEFT JOIN living_member mm ON s.individual_id IS NULL AND mm.group_id = s.social_group_id
-    LEFT JOIN social_group g ON g.id = s.social_group_id
-    JOIN occurrence o ON o.id = s.occurrence_id
-    WHERE coalesce(s.individual_id, mm.individual_id) IS NOT NULL
-      AND (s.individual_id IS NOT NULL OR o.vitality IS DISTINCT FROM 'dead')
-    UNION ALL
-    SELECT coalesce(c.individual_id, mm.individual_id),
-           c.occurrence_id, c.observed_at, c.location, c.is_present, 'candidate', 'text_mention', c.code,
-           CASE WHEN c.individual_id IS NULL THEN g.designation END,
-           c.certainty, o.vitality
-    FROM candidate c
-    LEFT JOIN living_member mm ON c.individual_id IS NULL AND mm.group_id = c.social_group_id
-    LEFT JOIN social_group g ON g.id = c.social_group_id
-    LEFT JOIN occurrence o ON o.id = c.occurrence_id
-    WHERE (c.individual_id IS NOT NULL OR c.social_group_id IS NOT NULL)
-      AND coalesce(c.individual_id, mm.individual_id) IS NOT NULL
-      AND (c.individual_id IS NOT NULL OR o.vitality IS DISTINCT FROM 'dead')
-      AND NOT EXISTS (
-        SELECT 1 FROM identification s
-        WHERE s.occurrence_id = c.occurrence_id
-          AND s.individual_id IS NOT DISTINCT FROM c.individual_id
-          AND s.social_group_id IS NOT DISTINCT FROM c.social_group_id)
-    UNION ALL
-    SELECT coalesce(a.individual_id, mm.individual_id),
-           a.occurrence_id, o.observed_at, o.location, true, 'candidate', 'acoustic', a.code,
-           CASE WHEN a.individual_id IS NULL THEN g.designation END,
-           a.certainty, o.vitality
-    FROM acoustic_identification a
-    LEFT JOIN living_member mm ON a.individual_id IS NULL AND mm.group_id = a.social_group_id
-    LEFT JOIN social_group g ON g.id = a.social_group_id
-    JOIN occurrence o ON o.id = a.occurrence_id
-    WHERE coalesce(a.individual_id, mm.individual_id) IS NOT NULL
-      AND (a.individual_id IS NOT NULL OR o.vitality IS DISTINCT FROM 'dead')
-      AND NOT EXISTS (
-        SELECT 1 FROM identification s
-        WHERE s.occurrence_id = a.occurrence_id
-          AND s.individual_id IS NOT DISTINCT FROM a.individual_id
-          AND s.social_group_id IS NOT DISTINCT FROM a.social_group_id)
-  )
-  SELECT CAST(to_json({
-           'code': code,
-           'status': status,
-           'evidence': evidence,
-           'location': pg_lon_lat(location),
-           -- whether the animal was dead (salish-1y8): its earliest such record is its last sighting
-           'vitality': vitality,
-           'certainty': certainty,
-           'via_group': via_group,
-           'is_present': is_present,
-           'observed_at': pg_ts(observed_at),
-           'individual_id': individual_id,
-           'occurrence_id': occurrence_id
-         }) AS VARCHAR) AS doc
-  FROM link
-  LEFT JOIN individual born ON born.id = link.individual_id
-  WHERE via_group IS NULL
-     OR ((born.born_earliest IS NULL OR year(timezone('America/Los_Angeles', link.observed_at)) >= born.born_earliest)
-         AND (NOT is_present
-              OR NOT EXISTS (SELECT 1 FROM link gone
-                             WHERE gone.occurrence_id = link.occurrence_id AND gone.individual_id = link.individual_id
-                               AND gone.via_group IS NULL AND NOT gone.is_present)));
 
 -- --- public.ecotype_occurrences ----------------------------------------------------------
 -- A sighting of any group or individual under a population, an ecotype or a community

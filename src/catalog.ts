@@ -76,7 +76,17 @@ export interface OccurrenceLink {
   location: { lon: number; lat: number } | null;
   is_present: boolean;
   status: IdentificationStatus;
+  /**
+   * The group the report named, when it reaches the subject through one: on an animal's
+   * link, a matriline it is in (T065As for T065A5); on a matriline's, a sub-lineage under
+   * it (T065A for T065). Null when the report names the subject itself.
+   */
   via_group: string | null;
+  /**
+   * On a matriline's link only, the member the report named, when it names neither the
+   * matriline nor a sub-lineage of it: T065A5 for T065 (salish-fwyt.7).
+   */
+  via_member?: string;
   /** Set when the sighting says whether the animal was alive (salish-1y8). */
   vitality?: Vitality;
   /**
@@ -179,29 +189,37 @@ export function podPath(group: { entity_id: string | null; designation: string }
   return profilePath('pods', group.entity_id, podLabel(group));
 }
 
-// The shared shape of individual_occurrences and group_occurrences rows;
-// group rows carry no via_group (a group claim is always direct).
+// The shared shape of individual_occurrences and group_occurrences rows. A group's
+// row has a via_group when it is a sub-lineage's report and a via_member when it is a
+// member's (salish-fwyt.7); an individual's never has a via_member.
 type OccurrenceRow =
   Pick<IndividualOccurrence, 'occurrence_id' | 'observed_at' | 'location' | 'is_present' | 'status' | 'vitality'>
-  & { via_group?: string | null; certainty?: IndividualOccurrence['certainty'] };
+  & { via_group?: string | null; via_member?: string | null; certainty?: IndividualOccurrence['certainty'] };
+
+/** How directly a row reaches its subject: naming it, then a group, then a member. */
+const reach = (r: {via_group?: string | null, via_member?: string | null}) => r.via_member ? 2 : r.via_group ? 1 : 0;
 
 // Collapse view rows to at most one link per occurrence, preferring a direct
-// claim over a via-group inference, and dropping absence claims and rejected
-// identifications — the page lists where the animal was reported, not where a
-// curator ruled it out. A link is `possibly` only when every claim that reaches the
-// occurrence is possible (decision 054).
+// claim over a via-group inference, and that over a member's, and dropping absence
+// claims and rejected identifications — the page lists where the animal was reported,
+// not where a curator ruled it out. A link is `possibly` only when every claim that
+// reaches the occurrence is possible (decision 054).
 export function dedupeOccurrenceLinks(rows: OccurrenceRow[]): OccurrenceLink[] {
   const byOccurrence = new Map<string, OccurrenceLink>();
   const plain = new Set<string>();
   for (const row of rows) {
-    const { occurrence_id, observed_at, location, is_present, status, via_group, vitality, certainty } = row;
+    const { occurrence_id, observed_at, location, is_present, status, via_group, via_member, vitality, certainty } = row;
     if (!occurrence_id || !observed_at || !status) continue;
     if (is_present === false || status === 'rejected') continue;
     if (certainty !== 'possible') plain.add(occurrence_id);
     const existing = byOccurrence.get(occurrence_id);
-    // A direct claim beats a via-group one; between two groups, the alphabetically
+    // The most direct claim wins; between two groups or two members, the alphabetically
     // first, so the choice doesn't fall to row order (decision 057).
-    if (existing && !(existing.via_group && (!via_group || via_group < existing.via_group))) continue;
+    if (existing) {
+      const [was, is] = [reach(existing), reach(row)];
+      const name = (r: {via_group?: string | null, via_member?: string | null}) => r.via_member ?? r.via_group ?? '';
+      if (is > was || (is === was && !(is && name(row) < name(existing)))) continue;
+    }
     byOccurrence.set(occurrence_id, {
       occurrence_id,
       observed_at,
@@ -211,6 +229,7 @@ export function dedupeOccurrenceLinks(rows: OccurrenceRow[]): OccurrenceLink[] {
       is_present: is_present ?? true,
       status,
       via_group: via_group ?? null,
+      ...(via_member ? {via_member} : {}),
       ...(vitality ? {vitality} : {}),
     });
   }

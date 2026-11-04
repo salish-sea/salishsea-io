@@ -118,6 +118,27 @@ test('dedupes group_occurrences-shaped rows, which carry no via_group', () => {
   expect(deduped.every(l => l.via_group === null)).toBe(true);
 });
 
+// A matriline's report can arrive as its own, a sub-lineage's and a member's at once
+// (salish-fwyt.7); the page draws it as the most direct of them.
+test("a matriline's link is its own, then a sub-lineage's, then a member's, whatever the row order", () => {
+  const rows = [
+    link({ occurrence_id: 'own', via_member: 'T065A5' }),
+    link({ occurrence_id: 'own', via_group: 'T065A' }),
+    link({ occurrence_id: 'own', via_group: null }),
+    link({ occurrence_id: 'sub', via_member: 'T065A5' }),
+    link({ occurrence_id: 'sub', via_group: 'T065B' }),
+    link({ occurrence_id: 'sub', via_group: 'T065A' }),
+    link({ occurrence_id: 'member', via_member: 'T065A5' }),
+    link({ occurrence_id: 'member', via_member: 'T065A2' }),
+    // a member said to be absent doesn't bring the report in
+    link({ occurrence_id: 'absent', via_member: 'T065A5', is_present: false }),
+  ];
+  for (const order of [rows, [...rows].reverse()]) {
+    const byId = Object.fromEntries(dedupeOccurrenceLinks(order).map(l => [l.occurrence_id, [l.via_group, l.via_member ?? null]]));
+    expect(byId).toEqual({own: [null, null], sub: ['T065A', null], member: [null, 'T065A2']});
+  }
+});
+
 test('sorts deduped links newest first', () => {
   const rows = [
     link({ occurrence_id: 'old', observed_at: '2024-01-01T00:00:00+00:00' }),
