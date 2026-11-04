@@ -18,7 +18,7 @@ import { budget } from './duckdb-budget.ts';
 
 const SHOWN = 10;
 
-const COLUMNS = ['individual_id', 'social_group_id', 'observed_at', 'location_lon', 'location_lat'] as const;
+const COLUMNS = ['individual_id', 'social_group_id', 'observed_at', 'location_lon', 'location_lat', 'is_present', 'certainty'] as const;
 
 export async function compare(snapshot: string): Promise<boolean> {
     const db = await DuckDBInstance.create(':memory:');

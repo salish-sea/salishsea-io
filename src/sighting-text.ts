@@ -47,6 +47,13 @@ export type Reading = {
 export const present = (r: Reading) => r.claims.filter(c => c.presence === 'present').map(c => c.code);
 export const absent = (r: Reading) => r.claims.filter(c => c.presence === 'absent').map(c => c.code);
 export const hedged = (r: Reading) => r.claims.filter(c => c.presence === 'present' && c.certainty !== 'certain').map(c => c.code);
+/**
+ * The present codes as an occurrence's identifiers write them (decision 109): one the
+ * reporter says was only possibly there ends in '?', as a bout's tag does (decision 054),
+ * and a probable one is plain. The build writes the same (derive/occurrences.sql).
+ */
+export const identifierLabels = (r: Reading) =>
+    r.claims.filter(c => c.presence === 'present').map(c => c.certainty === 'possible' ? `${c.code}?` : c.code);
 
 /**
  * The part of a sighting's body a reader should read: the collection tag at the front

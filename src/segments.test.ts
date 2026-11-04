@@ -226,6 +226,13 @@ describe('placeInSegment head metadata', () => {
     expect(pooled).toEqual(expected);
   });
 
+  test('a code one report names and another only possibly names is pooled plainly (decision 054)', () => {
+    const [first, second] = multiPoint.occurrences;
+    const segment = {...multiPoint, occurrences: [{...first!, identifiers: ['T65A?', 'T46s']}, {...second!, identifiers: ['T65A', 'T137A?']}]};
+    const features = placeInSegment(segment);
+    expect(features[features.length - 1]!.segmentIdentifiers).toEqual(['T137A?', 'T46s', 'T65A']);
+  });
+
   test('the head carries an identity pooled from the whole track', () => {
     const features = placeInSegment(multiPoint);
     const head = features[features.length - 1]!;

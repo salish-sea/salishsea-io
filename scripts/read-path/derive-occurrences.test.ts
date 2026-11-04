@@ -193,7 +193,38 @@ describe('armsFor', () => {
             expect(await added(`[${code('T19B', 'identification')}]`, 'NULL')).toEqual({items: ['T19B']});
             expect(await added('NULL', `[${claim('T46s', 'present')}]`)).toEqual({items: []});
             // no description, but the observer's own comment says T46D was absent
-            expect(await added(`[${code('T46D')}, ${code('T46B')}]`, 'NULL', "['T46D']")).toEqual({items: ['T46B']});
+            expect(await added(`[${code('T46D')}, ${code('T46B')}]`, 'NULL', `[${code('T46D')}]`)).toEqual({items: ['T46B']});
+            // and that absence is the occurrence's, unless the description names T46D either way
+            const absent = async (gone: string, claims: string) => (await conn.runAndReadAll(
+                `SELECT list_transform(remark_absent(${gone}, ${claims}), lambda x: x.code)`)).getRows()[0]![0];
+            expect(await absent(`[${code('T46D', 'comment', 5)}]`, 'NULL')).toEqual({items: ['T46D']});
+            expect(await absent(`[${code('T46D', 'comment', 5)}]`, `[${claim('T46D', 'present')}]`)).toEqual({items: []});
+            expect(await absent('NULL', `[${claim('T46s', 'present')}]`)).toEqual({items: []});
+        } finally { conn.closeSync(); db.closeSync(); }
+    });
+
+    test('a code only possibly there is marked with a ?, and an absent code is kept apart (decision 109)', async () => {
+        const parts = parseArms(await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8'));
+        const db = await DuckDBInstance.create(':memory:');
+        const conn = await db.connect();
+        try {
+            await conn.run(parts.shared.split(/^-- --- The store/m)[0]!);
+            const claim = (c: string, presence: string, certainty = 'certain') => `{'code': '${c}', 'presence': '${presence}', 'certainty': '${certainty}'}`;
+            const read = async (macro: string, claims: string) =>
+                (await conn.runAndReadAll(`SELECT ${macro}(${claims})`)).getRows()[0]![0];
+            // "T46s (-D), maybe T65A, likely T137A": probable shows plain, possible with a ?
+            const claims = `[${claim('T46s', 'present')}, ${claim('T65A', 'present', 'possible')}, ${claim('T137A', 'present', 'probable')}, ${claim('T46D', 'absent')}]`;
+            expect(await read('reading_identifiers', claims)).toEqual({items: ['T46s', 'T65A?', 'T137A']});
+            expect(await read('reading_absent', claims)).toEqual({items: ['T46D']});
+            // a code named both ways is present, and only present
+            const both = `[${claim('T46D', 'present')}, ${claim('T46D', 'absent')}]`;
+            expect(await read('reading_identifiers', both)).toEqual({items: ['T46D']});
+            expect(await read('reading_absent', both)).toEqual({items: []});
+            expect((await conn.runAndReadAll(`SELECT list_transform(report_claims(${both}), lambda x: x.presence)`)).getRows()[0]![0])
+                .toEqual({items: ['present']});
+            // no reading is none of them
+            expect(await read('reading_identifiers', 'NULL')).toEqual({items: []});
+            expect(await read('reading_absent', 'NULL')).toEqual({items: []});
         } finally { conn.closeSync(); db.closeSync(); }
     });
 
@@ -350,14 +381,17 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
             // so T137s is theirs and T137B was absent, which outweighs another person's
             // comment naming T137B and T137A; an identification's remark naming T137s again
             // adds nothing. A deleted account's comment, a hidden one and a withdrawn
-            // identification's remark name animals too, and count for nothing.
-            expect(await query(`SELECT occurrence_id, code, origin, origin_id, by_observer
+            // identification's remark name animals too, and count for nothing. T137B is a
+            // candidate all the same, one that says it was absent, read from the observer's
+            // comment (decision 109).
+            expect(await query(`SELECT occurrence_id, code, origin, origin_id, by_observer, is_present
                 FROM store.build.occurrence_identifier_candidates
                 WHERE occurrence_id LIKE 'inaturalist:%' ORDER BY occurrence_id, code`)).toEqual([
-                ['inaturalist:9000001', 'T137A', 'report', null, true],
-                ['inaturalist:9000001', 'T137B', 'report', null, true],
-                ['inaturalist:9000002', 'T137A', 'comment', 8000001n, false],
-                ['inaturalist:9000002', 'T137s', 'comment', 8000005n, true],
+                ['inaturalist:9000001', 'T137A', 'report', null, true, true],
+                ['inaturalist:9000001', 'T137B', 'report', null, true, true],
+                ['inaturalist:9000002', 'T137A', 'comment', 8000001n, false, true],
+                ['inaturalist:9000002', 'T137B', 'comment', 8000005n, true, false],
+                ['inaturalist:9000002', 'T137s', 'comment', 8000005n, true, true],
             ]);
             // every other source's candidates are their reports'
             expect(await query(`SELECT DISTINCT origin, origin_id IS NULL, by_observer
@@ -367,6 +401,12 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
             // label show: the observer's first, then other people's, in the order read
             expect(await query(`SELECT identifiers FROM store.build.occurrences WHERE id = 'inaturalist:9000002'`))
                 .toEqual([[{items: ['T137s', 'T137A']}]]);
+            // and the absent ones are the document's `absent` (decision 109): the native
+            // sighting's "T137s (-B) nearby, possibly T65A2" names T137B as absent and T65A2
+            // with a '?', and 9000002's observer's comment "T137s (-B)" does the same
+            expect(await query(`SELECT id, CAST(json_extract(doc, '$.absent') AS VARCHAR[])
+                FROM store.build.occurrences WHERE json_array_length(json_extract(doc, '$.absent')) > 0 ORDER BY id`))
+                .toEqual([['00000000-0000-4000-a000-000000000002', {items: ['T137B']}], ['inaturalist:9000002', {items: ['T137B']}]]);
             // The catalogue's views over the register (salish-9uu.2.3), which the profile
             // links read, derived as the build derives them and checked against Postgres's.
             await deriveCatalogue(snapshot, mirrors.inaturalist);

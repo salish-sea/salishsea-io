@@ -1,4 +1,4 @@
-import { present, readSighting } from './sighting-text.ts';
+import { absent, identifierLabels, present, readSighting } from './sighting-text.ts';
 
 // The plural is the ordinary form — "transients in Haro Strait", "southern
 // residents foraging" — and \b after the singular refuses it, because there is
@@ -38,7 +38,15 @@ export const detectPod = (text: Readonly<string>) => {
 
 /**
  * The codes a sighting's text says were there, as the build reads them into an
- * occurrence's identifiers (decision 105): 'T65A5', 'J27s', 'CRC56', in sorted order.
+ * occurrence's identifiers (decision 105): 'T65A5', 'J27s', 'CRC56', in sorted order,
+ * one the reporter only says was possibly there marked 'T65A?' (decision 109).
  * A contributor's own sighting carries these until a build publishes it.
  */
-export const detectIndividuals = (text: Readonly<string>) => [...new Set(present(readSighting(text)))].sort();
+export const detectIndividuals = (text: Readonly<string>) => [...new Set(identifierLabels(readSighting(text)))].sort();
+
+/** The codes a sighting's text says were absent, as the build writes them into an occurrence's `absent` (decision 109). */
+export function detectAbsent(text: Readonly<string>): string[] {
+  const reading = readSighting(text);
+  const named = present(reading);
+  return [...new Set(absent(reading))].filter(code => !named.includes(code)).sort();
+}

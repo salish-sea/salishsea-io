@@ -8,7 +8,7 @@
  * No Vite or browser dependency: api/server.ts runs this under node.
  */
 
-import { detectIndividuals } from './identifiers.ts';
+import { detectAbsent, detectIndividuals } from './identifiers.ts';
 import type { Contributor, Occurrence } from './types.ts';
 
 /** A sighting as the store holds it (api/sightings.ts's OwnSighting). */
@@ -54,6 +54,7 @@ export function ownOccurrence(sighting: OwnSighting, contributor: Pick<Contribut
       vernacular_name: species?.common_name ?? species?.taxon_common_name ?? null,
     },
     identifiers: detectIndividuals(sighting.body ?? ''),
+    absent: detectAbsent(sighting.body ?? ''),
     contributor_id: sighting.contributor_id,
     observer: contributor.name,
     collection: null,

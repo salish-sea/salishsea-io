@@ -117,6 +117,24 @@ export class SegmentSummary extends LitElement {
     ul.animals li:not(:has(a)) {
       color: var(--color-text-muted);
     }
+    /* An animal some reports say wasn't there, struck through as on a sighting's card
+       (obs-summary.ts, decision 109); its count, how many say so, is not struck. */
+    ul.animals li.absent {
+      background: transparent;
+      border: 1px solid var(--color-border-strong);
+      color: var(--color-text-muted);
+    }
+    ul.animals li.absent > a, ul.animals li.absent > .name {
+      text-decoration: line-through;
+    }
+    .visually-hidden {
+      clip-path: inset(50%);
+      height: 1px;
+      overflow: hidden;
+      position: absolute;
+      white-space: nowrap;
+      width: 1px;
+    }
     .support {
       color: var(--color-text-muted);
       font-size: var(--fs-caption);
@@ -225,8 +243,10 @@ export class SegmentSummary extends LitElement {
     const count = Math.max(0, ...reports.map(r => r.count ?? 0));
     const name = displayNameFor(head.taxon);
     const namePage = populationPage(head.taxon.entity_id, populationCodes() ?? new Map());
-    const animals = pooledAnimals(reports.map(r => r.identifiers), catalogCodes() ?? new Map(),
-      matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map());
+    const lookups = [catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map()] as const;
+    const animals = pooledAnimals(reports.map(r => r.identifiers), ...lookups);
+    // The animals some reports say weren't there, with how many say so (decision 109).
+    const missing = pooledAnimals(reports.map(r => r.absent ?? []), ...lookups);
     // The newest report's own words; an older report's would not be "latest" (decision 097).
     const latest = head.body?.trim() ? head : null;
     const photos = reports.flatMap(r => (r.photos ?? []).map(photo => ({photo, sighting: r})));
@@ -240,10 +260,14 @@ export class SegmentSummary extends LitElement {
         <time>${clock(first)}–${clock(head)}</time>
       </header>
       ${where ? html`<p class="place">${where}</p>` : nothing}
-      ${animals.length ? html`<ul class="animals">${animals.map(({label, href, possibly, support}) => {
+      ${animals.length || missing.length ? html`<ul class="animals">${animals.map(({label, href, possibly, support}) => {
         const text = possibly ? `${label} (possibly)` : label;
         return html`<li class=${possibly ? 'possibly' : ''}>${href ? html`<a href=${href}>${text}</a>` : text}<span class="support"
           title=${`${support} of the ${reports.length} reports name ${label}`}>${support} of ${reports.length}</span></li>`;
+      })}${missing.map(({label, href, support}) => {
+        const text = html`${label}<span class="visually-hidden"> (not with them)</span>`;
+        return html`<li class="absent">${href ? html`<a href=${href}>${text}</a>` : html`<span class="name">${text}</span>`}<span class="support"
+          title=${`${support} of the ${reports.length} reports say ${label} wasn't with them`}>${support} of ${reports.length}</span></li>`;
       })}</ul>` : nothing}
       <p class="movement">${movementLine(segmentMovement(reports))}</p>
       ${latest ? html`<p class="latest"><span class="label">Latest, ${clock(latest)}:</span>

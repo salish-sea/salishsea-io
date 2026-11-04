@@ -75,7 +75,9 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          coalesce(r.pods, []) AS pods,
          -- only an iNaturalist observation has comments and identifications to show (decision 107)
          CAST([] AS STRUCT(kind VARCHAR, id BIGINT, "at" VARCHAR, author VARCHAR, by_observer BOOLEAN, taxon VARCHAR, body VARCHAR)[]) AS activity,
-         CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as
+         CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as,
+         reading_absent(r.claims) AS absent,
+         report_claims(r.claims) AS claims
   FROM source_maplify_sightings s
   LEFT JOIN memory.reading r ON r.id = 'maplify:' || s.id
   LEFT JOIN memory.maplify_entity me
@@ -165,10 +167,11 @@ CREATE OR REPLACE TABLE memory.main.inaturalist_vitality AS
 -- What people wrote on an observation besides its description (salish-4s42, decision
 -- 106): each comment and each identification's remark, read by derive/readings.ts into
 -- memory.remark_claims. `codes` holds each code a remark says was present, once, with the
--- first remark that names it: the observer's own remarks first, then comments before
--- identifications, each kind in the order iNaturalist numbered them. `absent` holds the
--- codes the observer's own remarks say were absent, which count as the description's
--- do. `pods` holds every pod a remark names. The view below adds the codes and pods to
+-- first remark that names it and how sure that remark was: the observer's own remarks
+-- first, then comments before identifications, each kind in the order iNaturalist
+-- numbered them. `absent` holds the codes the observer's own remarks say were absent,
+-- likewise with the first remark that says so, which count as the description's do
+-- (salish-uh38). `pods` holds every pod a remark names. The view below adds the codes and pods to
 -- the observer's. Written to a table once, as the confirmations are.
 CREATE OR REPLACE TABLE memory.main.inaturalist_remarks AS
   WITH named AS (
@@ -178,19 +181,25 @@ CREATE OR REPLACE TABLE memory.main.inaturalist_remarks AS
     FROM memory.remark_claims
   ),
   first AS (
-    SELECT id, claim.code AS code, origin, origin_id, by_observer, rank, i
+    SELECT id, claim.code AS code, claim.certainty AS certainty, origin, origin_id, by_observer, rank, i
     FROM named
     WHERE claim.presence = 'present'
     QUALIFY row_number() OVER (PARTITION BY id, claim.code ORDER BY rank, origin_id, i) = 1
   ),
   codes AS (
-    SELECT id, list({'code': code, 'origin': origin, 'origin_id': origin_id, 'by_observer': by_observer}
+    SELECT id, list({'code': code, 'certainty': certainty, 'origin': origin, 'origin_id': origin_id, 'by_observer': by_observer}
                     ORDER BY rank, origin_id, i) AS codes
     FROM first GROUP BY id
   ),
+  first_absent AS (
+    SELECT id, claim.code AS code, origin, origin_id, rank, i
+    FROM named
+    WHERE by_observer AND claim.presence = 'absent'
+    QUALIFY row_number() OVER (PARTITION BY id, claim.code ORDER BY rank, origin_id, i) = 1
+  ),
   absent AS (
-    SELECT id, list(DISTINCT claim.code) AS absent
-    FROM named WHERE by_observer AND claim.presence = 'absent' GROUP BY id
+    SELECT id, list({'code': code, 'origin': origin, 'origin_id': origin_id} ORDER BY rank, origin_id, i) AS absent
+    FROM first_absent GROUP BY id
   ),
   pods AS (
     SELECT id, list_sort(list_distinct(flatten(list(pods)))) AS pods
@@ -261,7 +270,8 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
           'scientific_name': t.scientific_name,
           'vernacular_name': coalesce(reg.common_name, par.common_name, t.vernacular_name)} AS taxon,
          -- the observer's codes, then any a comment or an identification adds (decision 106)
-         reading_identifiers(r.claims) || list_transform(remark_codes(rm.codes, r.claims, rm.absent), lambda remark: remark.code) AS identifiers,
+         reading_identifiers(r.claims)
+           || list_transform(remark_codes(rm.codes, r.claims, rm.absent), lambda remark: identifier_label(remark.code, remark.certainty)) AS identifiers,
          CAST(NULL AS INTEGER) AS contributor_id,
          o.username AS observer,
          col.name AS collection,
@@ -279,13 +289,21 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          v.vitality,
          -- the observer's pods, then any a remark adds
          coalesce(r.pods, []) || list_filter(coalesce(rm.pods, []), lambda pod: NOT list_contains(coalesce(r.pods, []), pod)) AS pods,
-         -- where each of those identifiers was read, in the same order
-         list_transform(reading_identifiers(r.claims),
-                        lambda own: {'code': own, 'origin': 'report', 'origin_id': CAST(NULL AS BIGINT), 'by_observer': true})
-           || remark_codes(rm.codes, r.claims, rm.absent) AS identifier_origins,
          -- what people said on it, shown on its card (decision 107)
          coalesce(ac.activity, []) AS activity,
-         coalesce(ac.identified_as, []) AS identified_as
+         coalesce(ac.identified_as, []) AS identified_as,
+         -- the observer's absent codes: the description's, then their remarks' (salish-uh38)
+         reading_absent(r.claims)
+           || list_transform(remark_absent(rm.absent, r.claims), lambda remark: remark.code) AS absent,
+         -- every claim, with where it was read (decision 106): the description's, then the
+         -- codes remarks add, then the absences the observer's remarks add
+         report_claims(r.claims)
+           || list_transform(remark_codes(rm.codes, r.claims, rm.absent),
+                             lambda remark: {'code': remark.code, 'presence': 'present', 'certainty': remark.certainty,
+                                             'origin': remark.origin, 'origin_id': remark.origin_id, 'by_observer': remark.by_observer})
+           || list_transform(remark_absent(rm.absent, r.claims),
+                             lambda remark: {'code': remark.code, 'presence': 'absent', 'certainty': 'certain',
+                                             'origin': remark.origin, 'origin_id': remark.origin_id, 'by_observer': true}) AS claims
   FROM source_inaturalist_observations o
   LEFT JOIN memory.inaturalist_activity ac ON ac.observation_id = o.id
   LEFT JOIN memory.reading r ON r.id = 'inaturalist:' || o.id
@@ -364,7 +382,9 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
          coalesce(r.pods, []) AS pods,
          -- only an iNaturalist observation has comments and identifications to show (decision 107)
          CAST([] AS STRUCT(kind VARCHAR, id BIGINT, "at" VARCHAR, author VARCHAR, by_observer BOOLEAN, taxon VARCHAR, body VARCHAR)[]) AS activity,
-         CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as
+         CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as,
+         reading_absent(r.claims) AS absent,
+         report_claims(r.claims) AS claims
   FROM public.observations o
   LEFT JOIN memory.reading r ON r.id = CAST(o.id AS VARCHAR)
   JOIN public.contributors con ON con.id = o.contributor_id
@@ -441,7 +461,10 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
          CAST([] AS VARCHAR[]) AS pods,
          -- only an iNaturalist observation has comments and identifications to show (decision 107)
          CAST([] AS STRUCT(kind VARCHAR, id BIGINT, "at" VARCHAR, author VARCHAR, by_observer BOOLEAN, taxon VARCHAR, body VARCHAR)[]) AS activity,
-         CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as
+         CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as,
+         -- a bout's claims are its tags (public.acoustic_identifications), not text
+         CAST([] AS VARCHAR[]) AS absent,
+         CAST(NULL AS STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR, origin VARCHAR, origin_id BIGINT, by_observer BOOLEAN)[]) AS claims
   FROM source_acoustic_bouts b
   JOIN per_species tx ON tx.bout_id = b.id
   LEFT JOIN public.hydrophones h ON h.feed_id = b.feed_id
@@ -457,13 +480,30 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
 -- eight compass points the document's enum holds. The reader's `milling` is a behaviour,
 -- not a direction (behaviour tags are salish-2ua9), and its `unknown` is no direction, so
 -- both are null. The identifiers are the
--- codes the text says were present, hedged or not, in the order it names them; a code it
--- says was absent is not one (salish-uh38 will store it). No reading is no identifiers.
+-- codes the text says were present, hedged or not, in the order it names them, a code the
+-- reporter only says was possibly there marked with a '?' as a bout's tag is ("T65A?",
+-- decision 054); `absent` holds the codes it says were absent ("T46s (-D)" makes T46D
+-- absent), unless it also names them as present; and `claims` is every code with its
+-- presence and the reporter's certainty, which the identifier candidates read (decision
+-- 109). No reading is none of them.
 CREATE OR REPLACE TEMP MACRO reading_direction(direction) AS
   CASE WHEN direction IN ('north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest')
        THEN direction END;
+CREATE OR REPLACE TEMP MACRO identifier_label(code, certainty) AS
+  code || CASE WHEN certainty = 'possible' THEN '?' ELSE '' END;
 CREATE OR REPLACE TEMP MACRO reading_identifiers(claims) AS
-  coalesce(list_transform(list_filter(claims, lambda claim: claim.presence = 'present'), lambda claim: claim.code), []);
+  coalesce(list_transform(list_filter(claims, lambda claim: claim.presence = 'present'),
+                          lambda claim: identifier_label(claim.code, claim.certainty)), []);
+CREATE OR REPLACE TEMP MACRO reading_absent(claims) AS
+  coalesce(list_transform(
+    list_filter(claims, lambda claim: claim.presence = 'absent'
+      AND NOT list_contains(list_transform(list_filter(claims, lambda named: named.presence = 'present'), lambda named: named.code), claim.code)),
+    lambda claim: claim.code), []);
+CREATE OR REPLACE TEMP MACRO report_claims(claims) AS
+  coalesce(list_transform(
+    list_filter(claims, lambda claim: claim.presence = 'present' OR list_contains(reading_absent(claims), claim.code)),
+    lambda claim: {'code': claim.code, 'presence': claim.presence, 'certainty': claim.certainty,
+                   'origin': 'report', 'origin_id': CAST(NULL AS BIGINT), 'by_observer': true}), []);
 -- The codes a comment or an identification adds to an iNaturalist observation's own
 -- (decision 106), from memory.inaturalist_remarks's `codes`: those the observer doesn't
 -- name either way, in the description (`claims`) or as absent in a remark of their own
@@ -473,7 +513,12 @@ CREATE OR REPLACE TEMP MACRO reading_identifiers(claims) AS
 CREATE OR REPLACE TEMP MACRO remark_codes(codes, claims, absent) AS
   list_filter(coalesce(codes, []),
               lambda remark: NOT list_contains(coalesce(list_transform(claims, lambda claim: claim.code), []), remark.code)
-                    AND NOT list_contains(coalesce(absent, []), remark.code));
+                    AND NOT list_contains(coalesce(list_transform(absent, lambda gone: gone.code), []), remark.code));
+-- The codes the observer's own remarks say were absent and the description doesn't name
+-- either way (salish-uh38), from memory.inaturalist_remarks's `absent`.
+CREATE OR REPLACE TEMP MACRO remark_absent(absent, claims) AS
+  list_filter(coalesce(absent, []),
+              lambda gone: NOT list_contains(coalesce(list_transform(claims, lambda claim: claim.code), []), gone.code));
 
 -- --- The store ---------------------------------------------------------------------------
 -- As snapshot.occurrences holds Postgres's: id, observed_at, and the document; and, as
@@ -499,6 +544,7 @@ CREATE OR REPLACE TEMP MACRO occurrence_doc(o, place, landmark) AS CAST(to_json(
            'place': place,
            'landmark': landmark,
            'taxon': o.taxon,
+           'absent': o.absent,
            'photos': o.photos,
            'accuracy': o.accuracy,
            'activity': o.activity,

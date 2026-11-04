@@ -50,3 +50,15 @@ test("'Latest' quotes the newest report only, and nothing when it has no words",
   await card.updateComplete;
   expect(card.shadowRoot!.querySelector('.latest .text')!.textContent).toContain('Orcas northbound');
 });
+
+test('an animal some reports say was absent is a struck-through chip after the others, with how many say so (decision 109)', async () => {
+  const absentIn = (r: Occurrence, absent: string[]) => ({...r, absent}) as Occurrence;
+  const card = await mount([absentIn(report('a', 0, 'T46s (-D)', ['T46s']), ['T065A5']), report('b', 30, 'T46s', ['T46s'])]);
+  const chips = [...card.shadowRoot!.querySelectorAll('ul.animals li')];
+  expect(chips.map(li => li.className)).toEqual(['', 'absent']);
+  const absent = chips[1]!;
+  // a screen reader hears the absence, which a strike-through doesn't say
+  expect(absent.querySelector('a')!.textContent).toBe('T065A5 (not with them)');
+  expect(absent.querySelector('.support')!.textContent).toBe('1 of 2');
+  expect(absent.querySelector('.support')!.getAttribute('title')).toBe("1 of the 2 reports say T065A5 wasn't with them");
+});
