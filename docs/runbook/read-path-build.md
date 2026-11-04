@@ -182,7 +182,7 @@ fly machine update 82973dc7675348 -a salishsea-io --env REGISTER_TAG= -y        
 
 ## Measuring a task
 
-There is no `time` on the image. Peak RSS of one task, run alone into a scratch export dir:
+Every build measures each task it runs: the `⏱` line under each task in the build log ends with its peak memory (`peak 412 MB`, or `peak ≥ 412 MB (sampled)` when it is a lower bound), and the build ends with a `⏱ memory:` line naming its largest task. The figures are kept with each build's record, and the operator build log in the state dir shows them beside each task. How Stelis measures, and what each kind of figure means, is in Stelis's [`src/peak-memory.rkt`](https://github.com/rainhead/stelis/blob/9d407d01dbd8c02a9cbb243dbae007a5c78386bd/src/peak-memory.rkt). To measure one task outside a build, there is no `time` on the image. Peak RSS of one task, run alone into a scratch export dir:
 
 ```sh
 # from /app, under the lock; EXPORT_DIR somewhere disposable
