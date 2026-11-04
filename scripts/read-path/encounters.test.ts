@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
 import type { Encounter } from '../../src/encounter.ts';
+import { dedupeOccurrenceLinks } from '../../src/catalog.ts';
 import { calfFirsts, writeEncounters } from './encounters.ts';
 
 const BIGGS = {scientific_name: 'Orcinus orca rectipinnus', vernacular_name: "Bigg's killer whale", species_id: 1, entity_id: null};
@@ -136,19 +137,24 @@ describe('writeEncounters', () => {
 });
 
 describe('calfFirsts', () => {
-    const link = (occurrence_id: string, observed_at: string, more: object = {}) =>
-        ({occurrence_id, observed_at, location: null, is_present: true, status: 'candidate', via_group: null, ...more});
-    const t = {individuals: [{id: 2, entity_id: 'SSA:0010198', primary_designation: 'T065A6', born_earliest: 2025}],
+    // Link rows as derive/profile-links.sql writes them, before the page merges them.
+    const row = (occurrence_id: string, observed_at: string, more: object = {}) =>
+        ({occurrence_id, observed_at, location: null, is_present: true, status: 'candidate', via_group: null, certainty: null, ...more});
+    const t = {individuals: [{id: 2, entity_id: 'SSA:0010198', primary_designation: 'T065A6', born_earliest: 2025, born_latest: 2025}],
         social_groups: [{id: 10, kind: 'matriline', entity_id: 'SSA:0002163'}], matriline_members: [{group_id: 10, individual_id: 2}]};
-    test('a report that only possibly names the calf is not its first report naming it (decision 054)', () => {
-        // newest first, as dedupeOccurrenceLinks returns them
-        const links = [link('plain', '2026-04-03T20:00:00Z'), link('hedged', '2026-02-01T20:00:00Z', {possibly: true}),
-            link('group', '2025-08-01T20:00:00Z', {via_group: 'T065A'})];
-        expect([...calfFirsts(t, new Map([[2, links as never]]))]).toEqual([
-            ['plain', [{label: 'T065A6', born: 2025, subjects: ['individuals/0010198.json', 'matrilines/0002163.json']}]]]);
+    const subjects = ['individuals/0010198.json', 'matrilines/0002163.json'];
+    test('a report that names the matriline plainly and the calf only possibly is not its first report naming it (decision 054)', () => {
+        // "Biggs T65As, possibly T65A6": one plain row through the group and one hedged row naming it,
+        // which the page merges into a plain link that names it; then a plain report naming it
+        const rows = [row('hedged', '2025-08-01T20:00:00Z', {via_group: 'T065A'}), row('hedged', '2025-08-01T20:00:00Z', {certainty: 'possible'}),
+            row('plain', '2026-04-03T20:00:00Z')];
+        expect(dedupeOccurrenceLinks(rows as never).find(l => l.occurrence_id === 'hedged')).toMatchObject({via_group: null});
+        expect([...calfFirsts(t, new Map([[2, rows]]))]).toEqual([['plain', [{label: 'T065A6', born: 2025, subjects}]]]);
     });
-    test('nothing is marked when the build holds no report of the calf from its birth year', () => {
-        const links = [link('plain', '2026-04-03T20:00:00Z')];
-        expect(calfFirsts(t, new Map([[2, links as never]])).size).toBe(0);
+    test('nothing is marked when the build holds no report of the calf from its birth years', () => {
+        expect(calfFirsts(t, new Map([[2, [row('plain', '2026-04-03T20:00:00Z')]]])).size).toBe(0);
+        // a range of birth years: a report in either year counts
+        const ranged = {...t, individuals: [{...t.individuals[0]!, born_earliest: 2024, born_latest: 2025}]};
+        expect([...calfFirsts(ranged, new Map([[2, [row('plain', '2025-04-03T20:00:00Z')]]]))].map(([id]) => id)).toEqual(['plain']);
     });
 });

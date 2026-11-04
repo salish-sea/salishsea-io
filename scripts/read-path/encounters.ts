@@ -46,8 +46,8 @@ export function subjectReports(
 ): {reports: Map<string, SubjectReport<SubjectFile>[]>, files: SubjectFile[], firsts: Map<string, (CalfFirst & {subjects: SubjectFile[]})[]>} {
     const reports = new Map<string, SubjectReport<SubjectFile>[]>();
     const files: SubjectFile[] = [];
-    // Each individual's deduplicated links, for its first report below.
-    const linksOf = new Map<number, ReturnType<typeof dedupeOccurrenceLinks>>();
+    // Each individual's link rows as the build wrote them, for its first report below.
+    const rowsOf = new Map<number, Doc[]>();
     const add = (subjects: Doc[], kind: string, links: Doc[], key: string) => {
         const bySubject = new Map<number, Doc[]>();
         for (const l of links) {
@@ -59,7 +59,7 @@ export function subjectReports(
             const file = `${kind}/${localPart(s['entity_id'])}.json`;
             files.push(file);
             const links = dedupeOccurrenceLinks((bySubject.get(s['id']) ?? []) as never);
-            if (kind === 'individuals') linksOf.set(s['id'], links);
+            if (kind === 'individuals') rowsOf.set(s['id'], bySubject.get(s['id']) ?? []);
             for (const {occurrence_id, via_group, possibly} of links) {
                 const report = possibly ? {subject: file, via_group, possibly} : {subject: file, via_group};
                 const list = reports.get(occurrence_id);
@@ -71,22 +71,26 @@ export function subjectReports(
     add(t.individuals.filter(i => i['entity_id']), 'individuals', t.individual_occurrences, 'individual_id');
     // The matrilines that have pages (profiles.ts's assembleMatrilines).
     add(t.social_groups.filter(g => g['kind'] === 'matriline' && g['entity_id']), 'matrilines', t.group_occurrences, 'social_group_id');
-    return {reports, files: files.sort(), firsts: calfFirsts(t, linksOf)};
+    return {reports, files: files.sort(), firsts: calfFirsts(t, rowsOf)};
 }
 
 /**
  * Each calf's first report (decision 096's notable sighting, salish-fwyt.4.2): the
  * earliest report that names the animal itself rather than its matriline, and not only
- * possibly, for the animal
- * and each matriline with a page that it is in. The register gives a birth year, not a
- * date, and most calves are reported only through their matriline, so this is the first
- * report naming the calf, not the first that saw it. It counts only when the build holds
- * a report of the animal from its birth year: otherwise its first report here may not be
- * its first at all, as for an animal born before the sources begin.
+ * possibly, for the animal and each matriline with a page that it is in. The register
+ * gives a birth year, not a date, and most calves are reported only through their
+ * matriline, so this is the first report naming the calf, not the first that saw it. It
+ * counts only when the build holds a report of the animal from its birth year (or its
+ * birth years, when the register gives a range): otherwise its first report here may not
+ * be its first at all, as for an animal born before the sources begin.
+ *
+ * Read from the link rows, not the page's merged links: a report of the matriline that
+ * says "possibly T036B1A" merges into one plain link, since a plain claim outranks a
+ * hedged one on a page (decision 054), but it doesn't name the calf.
  */
 export function calfFirsts(
     t: {individuals: Doc[], social_groups: Doc[], matriline_members: Doc[]},
-    linksOf: ReadonlyMap<number, ReturnType<typeof dedupeOccurrenceLinks>>,
+    rowsOf: ReadonlyMap<number, readonly Doc[]>,
 ): Map<string, (CalfFirst & {subjects: SubjectFile[]})[]> {
     const pageOf = new Map(t.social_groups.filter(g => g['kind'] === 'matriline' && g['entity_id'])
         .map(g => [g['id'] as number, `matrilines/${localPart(g['entity_id'])}.json`]));
@@ -98,15 +102,20 @@ export function calfFirsts(
     const firsts = new Map<string, (CalfFirst & {subjects: SubjectFile[]})[]>();
     for (const i of t.individuals) {
         const born = i['born_earliest'] as number | null;
-        const links = linksOf.get(i['id']);
-        if (born == null || !i['entity_id'] || !links?.length) continue;
+        const rows = rowsOf.get(i['id']) ?? [];
+        const links = dedupeOccurrenceLinks(rows as never);
+        if (born == null || !i['entity_id'] || !links.length) continue;
         // newest first, so the last is the earliest
-        if (observedDate(links.at(-1)!.observed_at).year !== born) continue;
-        // A report that only possibly names it ("possibly T036B1A", decision 054) doesn't name it.
-        const first = links.filter(l => !l.via_group && !l.possibly).at(-1);
+        const year = observedDate(links.at(-1)!.observed_at).year;
+        if (year < born || year > (i['born_latest'] ?? born)) continue;
+        // The earliest row that names it, plainly, and isn't absent or rejected.
+        const first = rows.filter(r => !r['via_group'] && r['certainty'] !== 'possible' && r['is_present'] !== false
+                && r['status'] !== 'rejected' && r['occurrence_id'] && r['observed_at'])
+            .sort((a, b) => newer(b['observed_at'], a['observed_at'])).at(0);
         if (!first) continue;
         const subjects = [`individuals/${localPart(i['entity_id'])}.json`, ...(matrilinesOf.get(i['id']) ?? [])];
-        const list = firsts.get(first.occurrence_id) ?? firsts.set(first.occurrence_id, []).get(first.occurrence_id)!;
+        const id = first['occurrence_id'] as string;
+        const list = firsts.get(id) ?? firsts.set(id, []).get(id)!;
         list.push({label: i['primary_designation'], born, subjects});
     }
     return firsts;
