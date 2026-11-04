@@ -76,7 +76,8 @@ export function subjectReports(
 
 /**
  * Each calf's first report (decision 096's notable sighting, salish-fwyt.4.2): the
- * earliest report that names the animal itself rather than its matriline, for the animal
+ * earliest report that names the animal itself rather than its matriline, and not only
+ * possibly, for the animal
  * and each matriline with a page that it is in. The register gives a birth year, not a
  * date, and most calves are reported only through their matriline, so this is the first
  * report naming the calf, not the first that saw it. It counts only when the build holds
@@ -101,7 +102,8 @@ export function calfFirsts(
         if (born == null || !i['entity_id'] || !links?.length) continue;
         // newest first, so the last is the earliest
         if (observedDate(links.at(-1)!.observed_at).year !== born) continue;
-        const first = links.filter(l => !l.via_group).at(-1);
+        // A report that only possibly names it ("possibly T036B1A", decision 054) doesn't name it.
+        const first = links.filter(l => !l.via_group && !l.possibly).at(-1);
         if (!first) continue;
         const subjects = [`individuals/${localPart(i['entity_id'])}.json`, ...(matrilinesOf.get(i['id']) ?? [])];
         const list = firsts.get(first.occurrence_id) ?? firsts.set(first.occurrence_id, []).get(first.occurrence_id)!;

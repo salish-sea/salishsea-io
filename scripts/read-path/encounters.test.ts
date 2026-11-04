@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
 import type { Encounter } from '../../src/encounter.ts';
-import { writeEncounters } from './encounters.ts';
+import { calfFirsts, writeEncounters } from './encounters.ts';
 
 const BIGGS = {scientific_name: 'Orcinus orca rectipinnus', vernacular_name: "Bigg's killer whale", species_id: 1, entity_id: null};
 
@@ -132,5 +132,23 @@ describe('writeEncounters', () => {
 
     test("a matriline's encounters are the tracks holding a report of the group", async () => {
         expect((await encounters('matrilines/0002163.json')).map(e => e.ids)).toEqual([['dalco-1']]);
+    });
+});
+
+describe('calfFirsts', () => {
+    const link = (occurrence_id: string, observed_at: string, more: object = {}) =>
+        ({occurrence_id, observed_at, location: null, is_present: true, status: 'candidate', via_group: null, ...more});
+    const t = {individuals: [{id: 2, entity_id: 'SSA:0010198', primary_designation: 'T065A6', born_earliest: 2025}],
+        social_groups: [{id: 10, kind: 'matriline', entity_id: 'SSA:0002163'}], matriline_members: [{group_id: 10, individual_id: 2}]};
+    test('a report that only possibly names the calf is not its first report naming it (decision 054)', () => {
+        // newest first, as dedupeOccurrenceLinks returns them
+        const links = [link('plain', '2026-04-03T20:00:00Z'), link('hedged', '2026-02-01T20:00:00Z', {possibly: true}),
+            link('group', '2025-08-01T20:00:00Z', {via_group: 'T065A'})];
+        expect([...calfFirsts(t, new Map([[2, links as never]]))]).toEqual([
+            ['plain', [{label: 'T065A6', born: 2025, subjects: ['individuals/0010198.json', 'matrilines/0002163.json']}]]]);
+    });
+    test('nothing is marked when the build holds no report of the calf from its birth year', () => {
+        const links = [link('plain', '2026-04-03T20:00:00Z')];
+        expect(calfFirsts(t, new Map([[2, links as never]])).size).toBe(0);
     });
 });
