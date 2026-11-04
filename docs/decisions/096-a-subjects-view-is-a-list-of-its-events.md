@@ -1,6 +1,6 @@
 # 096 — An animal's or group's view lists its events, and the map shows its sightings over the past year or all time
 
-**Status:** accepted · **Decided:** 2026-10-28, by Peter · **Work:** bd `salish-fwyt.4` (epic `salish-fwyt`) · **Builds on:** [093](093-the-sidebar-shows-one-subject-at-a-time.md) (the sidebar shows one subject at a time)
+**Status:** accepted · **Decided:** 2026-10-28, by Peter · **Amended:** 2026-11-04 (a calf's first report) · **Work:** bd `salish-fwyt.4` (epic `salish-fwyt`) · **Builds on:** [093](093-the-sidebar-shows-one-subject-at-a-time.md) (the sidebar shows one subject at a time)
 
 ## Context
 
@@ -19,6 +19,10 @@ Watersheds will have dated events and news written by us (bd `salish-7ds1.3`); a
 *Amended 2026-10-31 (Peter):* life events don't join the list. The register dates a birth to its year, and a death to its year at best (every Bigg's death reads only "dead by July 2026", when the community's sheet was imported), while the list is made of months; a year-dated fact has no month to sit in. They stay where the subject's page already puts them, above the list: the animal's birth and death in the line under its name ("born 1971 · presumed dead 2016"), its calves with their birth years under Family, and a matriline's members with theirs. The year of a death is new (bd `salish-fwyt.4.3`): the build reads when the register's status took effect and shows it beside the dagger ("† 2016"); a death the register doesn't date says only that it happened, as before. News items may still join the list.
 
 **Notable sightings are marked:** the first report of a calf, the first report of the year, and a report with photos (Peter, all three). A sighting far from the subject's usual range is notable too, but waits: knowing a usual range is work of its own.
+
+*Amended 2026-11-04 (bd `salish-fwyt.4.2`, Peter):* **a calf's first report is the first report that names it**, which is narrower than the first that saw it. The register gives a birth year, not a date, and most calves are reported only through their matriline: of the 36 Bigg's calves born since 2023, 12 have ever been named in a report, often a year or more after birth (T036B1A, born 2025, was first named in April 2026). So a timeline marks "First report naming T036B1A, born 2025" on the encounter that holds it, counted only when the build holds a report of the calf from its birth year. Otherwise its first report here may not be its first at all. The mark shows on the calf's timeline, and on a matriline's that holds the same track; most first reports name individuals rather than the group, so matrilines get it with `salish-fwyt.7`, which brings members' reports into a matriline's timeline. Reading "new calf" in a report's text, which would date a calf's first sighting, is `salish-4weg`.
+
+*Also from that work:* a matriline's report no longer reaches a member before the member's birth year (28 of those 36 calves had been linked to sightings from before they were born), and the build reads every EDTF form the register's `born` may take.
 
 ## Rejected
 
