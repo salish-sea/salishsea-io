@@ -150,6 +150,8 @@ sequenceDiagram
 
 So on a first attempt, a moved tip with no Deploy run yet is given five minutes to get one, checked every 15 seconds, before the run fails. The tip is read again at each check, because a further merge makes GitHub cancel the pending run of the merge before it; the run looked for is the current tip's. A run that appears in time ends grey as before. A re-run still fails at once, and a moved tip with no run after five minutes still fails red, with a summary that says so. The wait costs an idle runner, and holds back nothing that exists yet: the waiting run keeps the `deploy-production` concurrency slot, but only until the newer run appears, which it then cancels itself for within 15 seconds.
 
+The wait applies to each of the guard's two checks, so a run can wait ten minutes in all. A push that starts no Deploy run, such as one marked `[skip ci]`, now costs a deploy it overtakes five minutes before the red it used to get at once. While it waits, a lookup that fails counts as no run yet and a failed read of the tip keeps the last one, so a passing GitHub API error doesn't end the step before it writes its summary, and if `main` is reset to the run's own commit meanwhile, the run deploys it (added after a review of the same change in PNW Moths).
+
 Rejected: a longer wait. Two and a half minutes is the one delay measured; five is twice that, and a run that has waited five minutes for something GitHub hasn't created is better reported than waited on. Issue: `salish-1jxd`.
 
 ## Reference

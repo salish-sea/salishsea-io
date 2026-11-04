@@ -44,16 +44,27 @@ runs:
           # failed red a run that #837's then deployed (salish-1jxd). So a tip with no run
           # yet is given WAIT_SECONDS to get one. The tip is read again each time, because
           # a further merge makes GitHub cancel the pending run of the one before it.
-          deadline=$(( $(date +%s) + WAIT_SECONDS ))
+          started=$(date +%s)
+          deadline=$(( started + WAIT_SECONDS ))
           while :; do
+            # A lookup that fails counts as no run yet, so a passing API error is waited
+            # out rather than failing the step before it writes its summary.
             newer_runs=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?head_sha=${head_sha}" \
-              --jq '[.workflow_runs[] | select(.conclusion != "cancelled")] | length')
+              --jq '[.workflow_runs[] | select(.conclusion != "cancelled")] | length') || newer_runs=0
             if [ "${newer_runs}" -gt 0 ] || [ "$(date +%s)" -ge "${deadline}" ]; then
               break
             fi
-            echo "No Deploy run of ${head_sha} yet; waiting for GitHub to create one."
+            echo "No Deploy run of ${head_sha} after $(( $(date +%s) - started )) s; waiting for GitHub to create one."
             sleep 15
-            head_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" --jq .sha)
+            # Keep the last tip if this read fails: an empty sha would match every run.
+            if tip=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" --jq .sha) && [ -n "${tip}" ]; then
+              head_sha=${tip}
+            fi
+            # The branch was reset to this run's commit: it is the tip again, so deploy.
+            if [ "${head_sha}" = "${GITHUB_SHA}" ]; then
+              echo "${GITHUB_SHA} is the tip of ${GITHUB_REF_NAME} again (${PHASE})."
+              exit 0
+            fi
           done
         fi
         if [ "${newer_runs}" -gt 0 ]; then
