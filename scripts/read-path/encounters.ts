@@ -21,8 +21,8 @@
 import { DuckDBInstance } from '@duckdb/node-api';
 import * as path from 'node:path';
 
-import { dedupeOccurrenceLinks, newestFirst as newer } from '../../src/catalog.ts';
-import { dayEncounters, type DayOccurrence, type Encounter, type SubjectReport } from '../../src/encounter.ts';
+import { dedupeOccurrenceLinks, newestFirst as newer, observedDate } from '../../src/catalog.ts';
+import { dayEncounters, type CalfFirst, type DayOccurrence, type Encounter, type SubjectReport } from '../../src/encounter.ts';
 import { budget } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
@@ -42,10 +42,12 @@ const localPart = (entityId: string) => entityId.replace(/^SSA:/, '');
  * with a page is in `files`, so one with no encounters still gets its empty file.
  */
 export function subjectReports(
-    t: {individuals: Doc[], social_groups: Doc[], individual_occurrences: Doc[], group_occurrences: Doc[]},
-): {reports: Map<string, SubjectReport<SubjectFile>[]>, files: SubjectFile[]} {
+    t: {individuals: Doc[], social_groups: Doc[], individual_occurrences: Doc[], group_occurrences: Doc[], matriline_members: Doc[]},
+): {reports: Map<string, SubjectReport<SubjectFile>[]>, files: SubjectFile[], firsts: Map<string, (CalfFirst & {subjects: SubjectFile[]})[]>} {
     const reports = new Map<string, SubjectReport<SubjectFile>[]>();
     const files: SubjectFile[] = [];
+    // Each individual's deduplicated links, for its first report below.
+    const linksOf = new Map<number, ReturnType<typeof dedupeOccurrenceLinks>>();
     const add = (subjects: Doc[], kind: string, links: Doc[], key: string) => {
         const bySubject = new Map<number, Doc[]>();
         for (const l of links) {
@@ -56,7 +58,9 @@ export function subjectReports(
         for (const s of subjects) {
             const file = `${kind}/${localPart(s['entity_id'])}.json`;
             files.push(file);
-            for (const {occurrence_id, via_group, possibly} of dedupeOccurrenceLinks((bySubject.get(s['id']) ?? []) as never)) {
+            const links = dedupeOccurrenceLinks((bySubject.get(s['id']) ?? []) as never);
+            if (kind === 'individuals') linksOf.set(s['id'], links);
+            for (const {occurrence_id, via_group, possibly} of links) {
                 const report = possibly ? {subject: file, via_group, possibly} : {subject: file, via_group};
                 const list = reports.get(occurrence_id);
                 if (list) list.push(report);
@@ -67,14 +71,50 @@ export function subjectReports(
     add(t.individuals.filter(i => i['entity_id']), 'individuals', t.individual_occurrences, 'individual_id');
     // The matrilines that have pages (profiles.ts's assembleMatrilines).
     add(t.social_groups.filter(g => g['kind'] === 'matriline' && g['entity_id']), 'matrilines', t.group_occurrences, 'social_group_id');
-    return {reports, files: files.sort()};
+    return {reports, files: files.sort(), firsts: calfFirsts(t, linksOf)};
+}
+
+/**
+ * Each calf's first report (decision 096's notable sighting, salish-fwyt.4.2): the
+ * earliest report that names the animal itself rather than its matriline, for the animal
+ * and each matriline with a page that it is in. The register gives a birth year, not a
+ * date, and most calves are reported only through their matriline, so this is the first
+ * report naming the calf, not the first that saw it. It counts only when the build holds
+ * a report of the animal from its birth year: otherwise its first report here may not be
+ * its first at all, as for an animal born before the sources begin.
+ */
+export function calfFirsts(
+    t: {individuals: Doc[], social_groups: Doc[], matriline_members: Doc[]},
+    linksOf: ReadonlyMap<number, ReturnType<typeof dedupeOccurrenceLinks>>,
+): Map<string, (CalfFirst & {subjects: SubjectFile[]})[]> {
+    const pageOf = new Map(t.social_groups.filter(g => g['kind'] === 'matriline' && g['entity_id'])
+        .map(g => [g['id'] as number, `matrilines/${localPart(g['entity_id'])}.json`]));
+    const matrilinesOf = new Map<number, SubjectFile[]>();
+    for (const m of t.matriline_members) {
+        const page = pageOf.get(m['group_id']);
+        if (page) (matrilinesOf.get(m['individual_id']) ?? matrilinesOf.set(m['individual_id'], []).get(m['individual_id'])!).push(page);
+    }
+    const firsts = new Map<string, (CalfFirst & {subjects: SubjectFile[]})[]>();
+    for (const i of t.individuals) {
+        const born = i['born_earliest'] as number | null;
+        const links = linksOf.get(i['id']);
+        if (born == null || !i['entity_id'] || !links?.length) continue;
+        // newest first, so the last is the earliest
+        if (observedDate(links.at(-1)!.observed_at).year !== born) continue;
+        const first = links.filter(l => !l.via_group).at(-1);
+        if (!first) continue;
+        const subjects = [`individuals/${localPart(i['entity_id'])}.json`, ...(matrilinesOf.get(i['id']) ?? [])];
+        const list = firsts.get(first.occurrence_id) ?? firsts.set(first.occurrence_id, []).get(first.occurrence_id)!;
+        list.push({label: i['primary_designation'], born, subjects});
+    }
+    return firsts;
 }
 
 export async function writeEncounters(snapshot: string, exportDir: string): Promise<{subjects: number, encounters: number, days: number}> {
     const outDir = path.join(exportDir, 'encounters');
     await recoverDir(outDir);
-    const {reports, files} = await readSnapshot(snapshot, async s =>
-        subjectReports(await s.tables(['individuals', 'social_groups', 'individual_occurrences', 'group_occurrences'] as const)));
+    const {reports, files, firsts} = await readSnapshot(snapshot, async s =>
+        subjectReports(await s.tables(['individuals', 'social_groups', 'individual_occurrences', 'group_occurrences', 'matriline_members'] as const)));
 
     const bySubject = new Map<SubjectFile, Encounter[]>(files.map(f => [f, []]));
     const counts = {subjects: files.length, encounters: 0, days: 0};
@@ -83,7 +123,7 @@ export async function writeEncounters(snapshot: string, exportDir: string): Prom
     try {
         const finish = (d: string, rows: DayOccurrence[]) => {
             counts.days++;
-            for (const [subject, encounter] of dayEncounters(d, rows, id => reports.get(id) ?? [])) {
+            for (const [subject, encounter] of dayEncounters(d, rows, id => reports.get(id) ?? [], id => firsts.get(id) ?? [])) {
                 bySubject.get(subject)!.push(encounter);
                 counts.encounters++;
             }

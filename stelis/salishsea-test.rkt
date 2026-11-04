@@ -241,10 +241,11 @@
                        (task-outputs (hash-ref (graph-tasks salishsea-ingest-graph) 'ingest-register)))
                  "the build loads the register's taxon lineage")
 ;; A subject's encounters join every report of its days into segments (decision 098), so
-;; they read every occurrence; a failure there must not hold the map's files back.
+;; they read every occurrence; a failure there must not hold the map's files back. The
+;; matrilines' members say whose timelines a calf's first report marks (salish-fwyt.4.2).
 (check-equal? (sort (inputs-of 'encounters) symbol<?)
               '(build.group_occurrences build.individual_occurrences build.occurrences individuals-snapshot
-                social-groups-snapshot)
+                matriline-members-snapshot social-groups-snapshot)
               "the encounters' inputs are what encounters.ts reads")
 (check-false (memq 'encounters manifest-plan) "the manifest doesn't wait on the encounters")
 ;; The ecotype's links pooled, and each matriline's for its small map (decision 067).

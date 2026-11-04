@@ -39,7 +39,10 @@ const OCCURRENCES = [
     report('quiet-1', '2026-10-02T19:00:00+00:00', -123.0, 48.5),
 ];
 
-const INDIVIDUALS = [{id: 1, entity_id: 'SSA:0010197'}, {id: 2, entity_id: 'SSA:0010198'}];
+// 2 is a calf born in 2026, a member of matriline 10 (salish-fwyt.4.2).
+const INDIVIDUALS = [{id: 1, entity_id: 'SSA:0010197', primary_designation: 'T065A5', born_earliest: null},
+    {id: 2, entity_id: 'SSA:0010198', primary_designation: 'T065A6', born_earliest: 2026}];
+const MEMBERS = [{group_id: 10, individual_id: 1, innermost_group_id: 10}, {group_id: 10, individual_id: 2, innermost_group_id: 10}];
 const GROUPS = [{id: 10, kind: 'matriline', entity_id: 'SSA:0002163'}, {id: 11, kind: 'pod', entity_id: 'SSA:0000500'}];
 const link = (occurrence_id: string, via_group: string | null = null) => ({
     occurrence_id, observed_at: OCCURRENCES.find(o => o.id === occurrence_id)!.observed_at,
@@ -51,6 +54,9 @@ const INDIVIDUAL_LINKS = [
     {individual_id: 1, ...link('saratoga-1'), certainty: 'possible'},
     // Rejected: not a report of it.
     {individual_id: 1, ...link('quiet-1'), status: 'rejected'},
+    // The calf: reached through its matriline at Dalco Passage, then named itself at Saratoga.
+    {individual_id: 2, ...link('dalco-1', 'T065A')},
+    {individual_id: 2, ...link('saratoga-1')},
 ];
 const GROUP_LINKS = [{social_group_id: 10, ...link('dalco-1')}];
 
@@ -72,6 +78,7 @@ beforeAll(async () => {
     await docs('store.snapshot.social_groups', GROUPS);
     await docs('store.build.individual_occurrences', INDIVIDUAL_LINKS);
     await docs('store.build.group_occurrences', GROUP_LINKS);
+    await docs('store.snapshot.matriline_members', MEMBERS);
     await conn.run('CREATE TABLE store.build.occurrences (id VARCHAR, observed_at TIMESTAMPTZ, doc VARCHAR)');
     for (const o of OCCURRENCES)
         await conn.run(`INSERT INTO store.build.occurrences VALUES ('${o.id}', '${o.observed_at}', '${JSON.stringify(o).replaceAll("'", "''")}')`);
@@ -87,7 +94,7 @@ describe('writeEncounters', () => {
     test('writes a file for every subject with a page, and only those', async () => {
         expect((await readdir(path.join(out, 'individuals'))).sort()).toEqual(['0010197.json', '0010198.json']);
         expect(await readdir(path.join(out, 'matrilines'))).toEqual(['0002163.json']);
-        expect(await encounters('individuals/0010198.json')).toEqual([]);
+        expect((await encounters('individuals/0010198.json')).map(e => e.ids)).toEqual([['saratoga-1'], ['dalco-1']]);
     });
 
     test("a day's two tracks far apart are two encounters, newest first", async () => {
@@ -111,6 +118,16 @@ describe('writeEncounters', () => {
         expect(dalco.location).toEqual({lon: -122.51, lat: 47.34});
         expect(dalco.photos).toEqual([{src: 'https://example.org/p.jpg', thumb: null, attribution: 'A. Observer', href: 'https://example.org/dalco-3'}]);
         expect(dalco.channels).toEqual([['Orca Network', 2], ['SalishSea.io', 1]]);
+    });
+
+    test("a calf's first report naming it marks that encounter, on its own timeline and on its matriline's if the matriline holds it (salish-fwyt.4.2)", async () => {
+        const [saratoga, dalco] = await encounters('individuals/0010198.json');
+        expect(saratoga!.firsts).toEqual([{label: 'T065A6', born: 2026}]);
+        expect(dalco).not.toHaveProperty('firsts');
+        // the matriline has no encounter at Saratoga, so its timeline doesn't mark one elsewhere
+        expect((await encounters('matrilines/0002163.json')).some(e => e.firsts)).toBe(false);
+        // T065A5 has no birth year, so no first report is marked for it
+        expect((await encounters('individuals/0010197.json')).some(e => e.firsts)).toBe(false);
     });
 
     test("a matriline's encounters are the tracks holding a report of the group", async () => {

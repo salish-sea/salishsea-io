@@ -609,8 +609,10 @@
    ;; was reported on, joined into segments as the map joins a day's file, so it reruns
    ;; whenever the occurrences change, as the whales page does. Not a manifest input: a
    ;; failure leaves the timelines a build behind and must not hold the map's files back.
+   ;; The matrilines' members say which matrilines' timelines a calf's first report
+   ;; marks (salish-fwyt.4.2).
    (make-task 'encounters 'transform
-              #:inputs (append (map snapshot-relation '("individuals" "social_groups"))
+              #:inputs (append (map snapshot-relation '("individuals" "social_groups" "matriline_members"))
                                '(build.occurrences build.individual_occurrences build.group_occurrences))
               #:outputs '(encounters)
               #:invoke (node-script/code "scripts/read-path/encounters.ts"
