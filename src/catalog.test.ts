@@ -54,7 +54,8 @@ test('composes population paths the same way', () => {
   expect(populationPath({ entity_id: 'SSA:0000002', designation: "Bigg's" })).toBe('/populations/0000002/Biggs');
 });
 
-const link = (over: Partial<IndividualOccurrence>): IndividualOccurrence => ({
+// An individual's row, or with `via_member`, a matriline's row reaching it through a member (salish-fwyt.7).
+const link = (over: Partial<IndividualOccurrence & {via_member: string}>): IndividualOccurrence & {via_member?: string} => ({
   individual_id: 1,
   occurrence_id: 'maplify:1',
   observed_at: '2026-06-14T17:36:00+00:00',
