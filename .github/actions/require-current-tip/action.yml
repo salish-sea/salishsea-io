@@ -3,8 +3,8 @@ description: >
   Stop unless the commit this run is holding is still the tip of its branch. Guards
   production against deploying a superseded tree — see gotcha 3 in
   docs/runbook/deploys.md and bd salish-i74. A first attempt that a newer push overtook
-  cancels its own run, if a run of the newer commit exists to deploy it; anything else
-  fails (decision 024, amended 2026-10-31).
+  cancels its own run, if a run of the newer commit exists to deploy it or appears within
+  five minutes; anything else fails (decision 024, amended 2026-10-31 and 2026-11-04).
 inputs:
   token:
     description: >
@@ -21,6 +21,7 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.token }}
         PHASE: ${{ inputs.phase }}
+        WAIT_SECONDS: '300'
       run: |
         head_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" --jq .sha)
         if [ "${head_sha}" = "${GITHUB_SHA}" ]; then
@@ -38,8 +39,22 @@ runs:
         workflow_file=$(basename "${GITHUB_WORKFLOW_REF%@*}")
         newer_runs=0
         if [ "${GITHUB_RUN_ATTEMPT}" = "1" ]; then
-          newer_runs=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?head_sha=${head_sha}" \
-            --jq '[.workflow_runs[] | select(.conclusion != "cancelled")] | length')
+          # GitHub can take minutes to create a push's run: on 2026-11-04 #837's merge got
+          # its run two and a half minutes after the push, and this check, finding none,
+          # failed red a run that #837's then deployed (salish-1jxd). So a tip with no run
+          # yet is given WAIT_SECONDS to get one. The tip is read again each time, because
+          # a further merge makes GitHub cancel the pending run of the one before it.
+          deadline=$(( $(date +%s) + WAIT_SECONDS ))
+          while :; do
+            newer_runs=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?head_sha=${head_sha}" \
+              --jq '[.workflow_runs[] | select(.conclusion != "cancelled")] | length')
+            if [ "${newer_runs}" -gt 0 ] || [ "$(date +%s)" -ge "${deadline}" ]; then
+              break
+            fi
+            echo "No Deploy run of ${head_sha} yet; waiting for GitHub to create one."
+            sleep 15
+            head_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" --jq .sha)
+          done
         fi
         if [ "${newer_runs}" -gt 0 ]; then
           {
@@ -65,7 +80,7 @@ runs:
           echo "is now \`${head_sha}\`. Deploying would move production backwards."
           echo ""
           if [ "${GITHUB_RUN_ATTEMPT}" = "1" ]; then
-            echo "No run of \`${head_sha}\` was found to deploy it, so production may be"
+            echo "No run of \`${head_sha}\` appeared within $(( WAIT_SECONDS / 60 )) minutes to deploy it, so production may be"
             echo "behind: dispatch a fresh Deploy (\`gh workflow run ${workflow_file} --ref ${GITHUB_REF_NAME}\`)."
           else
             echo "**Re-running _this_ run will not help** — it would hold \`${GITHUB_SHA}\` again"

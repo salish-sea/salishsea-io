@@ -112,6 +112,46 @@ Now the guard tells the two cases apart. On a first attempt, if a Deploy run of 
 
 Rejected: ending green with the deploy steps skipped, as PNW Moths does. A green run that did nothing is how the 2026-07-27 rollback went unnoticed. Rejected: leaving it red. Red that needs no action teaches people to ignore red. Rejected: `cancel-in-progress: true`, for the reason above. The rule is shared across Peter's projects in the workbench's `practices/deploys.md`. Issue: `salish-6bkm`.
 
+## Amendment, 2026-11-04 — the guard waits for the newer commit's run
+
+The 2026-10-31 rule assumed that by the time a run is overtaken, the newer commit already has a Deploy run. It need not: GitHub creates a push's run when it gets round to it. On 2026-11-04 #836 and #837 merged seven seconds apart. #837's merge got its run two and a half minutes after the push, and #836's run reached the guard 26 seconds before that, found no run of the newer commit, and failed red (run 41883222594), although #837's run then deployed both. In UTC:
+
+```mermaid
+sequenceDiagram
+    participant M as main
+    participant G as GitHub Actions
+    participant A as Deploy of 98cc959 (PR 836)
+    participant B as Deploy of 2fb2041 (PR 837)
+    M->>G: 18:02:54 push 98cc959
+    M->>G: 18:03:01 push 2fb2041
+    G->>A: 18:03:28 creates the run
+    Note over A: tests, Fly image (to 18:04:53)
+    A->>M: 18:05:02 guard: what is the tip?
+    M-->>A: 2fb2041, not this run's commit
+    Note over G,B: the race: 2fb2041 is pushed but has no run yet
+    alt before this amendment
+        A->>G: any Deploy run of the tip?
+        G-->>A: none
+        Note over A: fails red
+        G->>B: 18:05:28 creates the run, 2.5 min after its push
+    else with this amendment
+        loop every 15 s, for up to 5 min, reading the tip again each time
+            A->>G: any Deploy run of the tip?
+            G-->>A: none yet
+        end
+        G->>B: 18:05:28 creates the run
+        A->>G: any Deploy run of the tip?
+        G-->>A: yes
+        A->>G: cancel this run
+        Note over A: ends grey
+    end
+    Note over B: deploys both (live 18:08:51)
+```
+
+So on a first attempt, a moved tip with no Deploy run yet is given five minutes to get one, checked every 15 seconds, before the run fails. The tip is read again at each check, because a further merge makes GitHub cancel the pending run of the merge before it; the run looked for is the current tip's. A run that appears in time ends grey as before. A re-run still fails at once, and a moved tip with no run after five minutes still fails red, with a summary that says so. The wait costs an idle runner, and holds back nothing that exists yet: the waiting run keeps the `deploy-production` concurrency slot, but only until the newer run appears, which it then cancels itself for within 15 seconds.
+
+Rejected: a longer wait. Two and a half minutes is the one delay measured; five is twice that, and a run that has waited five minutes for something GitHub hasn't created is better reported than waited on. Issue: `salish-1jxd`.
+
 ## Reference
 
 Issue: `salish-ior`. Workflows: [`deploy.yml`](../../.github/workflows/deploy.yml),
