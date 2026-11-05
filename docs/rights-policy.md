@@ -171,7 +171,7 @@ This is a GAP-04 resolution. Cross-reference Section 1.4 (license-less photo exc
 
 | DwC Term | Source Column | Gap | Resolution |
 |----------|--------------|-----|------------|
-| `occurrenceID` | `sightings.id` (integer) | No globally scoped prefix | Prefix with `maplify:` → `maplify:{id}`. Stable across runs (ALIGN-06). |
+| `occurrenceID` | `sightings.source` and `sightings.id` (integer) | No globally scoped prefix; and the integer is unique only within a `source`, so two Maplify sources can use the same one | Prefix with `maplify:` and the source → `maplify:{source}:{id}`. Stable across runs (ALIGN-06). *Amended 2026-11-05 ([decision 112](decisions/112-a-maplify-occurrence-is-named-by-its-source-and-its-id.md)):* it was `maplify:{id}` until then. The archive was not yet registered with GBIF, so no external holder of the old ids existed; this is the one change, and stability holds from here. |
 | `eventDate` | `created_at` (timestamp) | **Gap (ALIGN-05): this is report-received time, not sighting time.** Emitting at second precision would falsely imply sighting-time precision. | Emit at **date precision only** (`created_at::date`, e.g., `2024-03-15`). Document the reason: "time reflects report receipt, not observed sighting." Never emit as a false second-level sighting timestamp. |
 | `decimalLatitude` / `decimalLongitude` | `location` (geography Point) | None | Emit `ST_Y` / `ST_X`. |
 | `coordinateUncertaintyInMeters` | (none) | **Gap: no accuracy stored for Maplify records** | **Omit.** Never emit 0 or a fabricated value. |

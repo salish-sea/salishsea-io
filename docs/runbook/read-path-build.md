@@ -168,6 +168,23 @@ fly ssh console -a salishsea-io -C "sh -c 'cd /app && flock /data/ingest.lock se
 
 Orcasound is read whole every run, so its mirror needs no backfill. A scheduled Maplify run refuses to delete more than a tenth of a window's stored sightings in one go (a response cut short would otherwise read as a month of retractions) and fails instead; the run log's error names the window. If Maplify really did retract them, a backfill of that window by hand applies the deletes — the manual run has no floor. The iNaturalist mirror's taxa refresh themselves (thirty a run) and pick up what the register names on the next scheduled run. Its observations' identifications and comments (decision 075) backfill themselves too: each scheduled run asks about the next 200 observations that have no identification, by ascending id past a cursor in the mirror's `sync` table (`identifications_backfilled_through`). A whole mirror takes about a day and a half of builds, and the run log names each batch. A comment added to an old observation doesn't move its `updated_at`, so the mirror has it only once that observation is fetched again. Each scheduled run also fetches any taxon an identification names that the mirror doesn't hold yet, such as a gull someone suggested for a seal, so the derivation can tell an identification that agrees from one that disputes (decision 080); until it arrives, that identification counts for neither. An observation's annotations, such as Alive or Dead (`salish-1y8`), arrive whenever it is next fetched, as its votes did (decision 081); one mirrored before then shows no vitality until the anti-entropy window reaches it or a backfill by hand covers its dates.
 
+### After decision 112: restoring what the old key lost
+
+Until 2026-11-05 the Maplify mirror was keyed on the sighting's number alone, and 657 sightings were overwritten by another source's sighting with the same number ([decision 112](../decisions/112-a-maplify-occurrence-is-named-by-its-source-and-its-id.md)). The mirror is rebuilt keyed on (source, id) by itself, in the first Maplify ingest run after the deploy that carries the change (a fraction of a second; the run's log is unchanged). That keeps every row it had. The overwritten sightings return only when their months are fetched again, so after that deploy, run every month once, from the first one the mirror covers to last month. The current month needs none; the regular run's thirty days cover it. Each run takes the lock for one month, so scheduled ingests interleave. The manual run has no delete floor, and it stops and says so if a month fails to fetch or parse, which ends the loop; rerun from that month.
+
+```sh
+# from a machine with fly and GNU date
+m=2014-04-01
+while [[ "$m" < "2026-11-01" ]]; do
+  end=$(date -d "$m +1 month -1 day" +%F)
+  echo "maplify $m..$end"
+  fly ssh console -a salishsea-io -C "sh -c 'cd /app && flock /data/ingest.lock setpriv --reuid=app --regid=app --init-groups env HOME=/home/app node scripts/read-path/ingest-maplify.ts /data/mirrors/maplify.sqlite $m $end'" || break
+  m=$(date -d "$m +1 month" +%F)
+done
+```
+
+Each month's log line says how many sightings it changed (the restored ones count as added) and, for a month with Whale Alert's legacy duplicates (2019 to 2021), `N repeated within the response, the earlier copy kept`. When it ends, the next build puts the restored sightings on the site, and a month fetched again changes nothing, which is the check that a month is whole.
+
 ## When the build refuses a register edition
 
 Every build asks which release of the animals register is newest and adopts it if it is new — unless it would stop naming a (name, scientific name) pair from the Maplify mirror that the edition the build holds names. Then the build keeps the edition it holds, the `register` run in `/status/ingest-runs.json` fails with the pairs named, and the heartbeat files a `stale` finding for `register` the next time it runs, which GitHub's scheduler makes hours rather than minutes. Everything else keeps publishing. The fix is the same as for the name guard below: name the pair again in the register, or accept the un-naming with a row in `data/maplify-unnamed.tsv`. To hold the build at one edition meanwhile (or roll it back), set it in the machine's environment, which reboots the machine once:
