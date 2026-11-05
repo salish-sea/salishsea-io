@@ -33,6 +33,15 @@ describe("a contributor's own sighting, before a build has it", () => {
   });
 });
 
+describe("a published sighting of the contributor's, overlaid live", () => {
+  test('the live copy keeps the segment the file gave it; a new one has none', () => {
+    const row = (id: string, observed_at: string, segment?: string) => ({id, contributor_id: 7, observed_at, ...(segment ? {segment} : {})});
+    const file = [row('published', '2026-10-05T18:00:00Z', 'oldest')];
+    const own = [row('published', '2026-10-05T18:00:00Z'), row('new', '2026-10-05T19:00:00Z')];
+    expect(overlayOwn(file, own, 7)).toEqual([row('new', '2026-10-05T19:00:00Z'), row('published', '2026-10-05T18:00:00Z', 'oldest')]);
+  });
+});
+
 describe('a save, as the API is sent it', () => {
   test("a photo goes as its URL and license, never the form's thumbnail, so a save stays small", () => {
     const thumb = `data:image/jpeg;base64,${'A'.repeat(500_000)}`;

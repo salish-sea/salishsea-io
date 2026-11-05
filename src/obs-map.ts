@@ -14,7 +14,7 @@ import './obs-summary.ts';
 
 import { addImages, BASEMAP_BOUNDS, BASEMAP_MIN_ZOOM, baseStyle, CLICKABLE_REFERENCE_LAYERS, OCCURRENCE_LAYERS, occurrenceProperties, REFERENCE_LAYER_IDS, REGION_FILL, ringColours, SUBJECT_LAYERS, uncertaintyRadius, type SourceId } from './style.ts';
 import type { Occurrence } from './types.ts';
-import { imputedPositions, occurrences2segments, placeInSegment, segment2travelLine, travelArrows, type TravelLineProperties } from './segments.ts';
+import { daySegments, imputedPositions, placeInSegment, segment2travelLine, travelArrows, type TravelLineProperties } from './segments.ts';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { compactMap } from './utils.ts';
 import type { Extent } from './constants.ts';
@@ -505,7 +505,7 @@ user-location-control.inactive svg { color: var(--color-text); }
   }
 
   public setOccurrences(occurrences: Occurrence[]) {
-    const segments = occurrences2segments(occurrences);
+    const segments = daySegments(occurrences);
     const placed = segments.flatMap(placeInSegment);
     this.#occurrences = new Map(placed.map(occurrence => [occurrence.id, occurrence]));
     this.#setData('occurrences', {type: 'FeatureCollection', features: compactMap(placed, occurrenceFeature)});

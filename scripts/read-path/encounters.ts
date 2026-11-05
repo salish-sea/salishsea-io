@@ -8,10 +8,10 @@
  * one for every subject with a page (<id> is its register identifier's seven digits, as
  * the page's is), newest first: src/encounter.ts's Encounter. An encounter is one of a
  * day's travel segments that holds a report of the subject, so it needs every report of
- * that day, not only the subject's: the days are joined into segments here as the map
- * joins a day's file (src/segments.ts), from the same rows in the same order, and each
- * segment summarized for each subject it holds a report of. The browser doing the same
- * would fetch every day file a subject was reported on: 14 MB for T065A5.
+ * that day, not only the subject's: the days are joined into segments here as the day
+ * files' writer joins them (src/segments.ts, decision 111), from the same rows in the
+ * same order, and each segment summarized for each subject it holds a report of. The
+ * browser doing the same would fetch every day file a subject was reported on: 14 MB for T065A5.
  *
  * A subject's reports are its page's links (build.individual_occurrences and
  * build.group_occurrences, deduplicated as the page's are): a matriline's include its

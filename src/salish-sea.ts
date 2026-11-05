@@ -10,7 +10,7 @@ import { classMap } from "lit/directives/class-map.js";
 import { sightingDraftsContext, type SightingDrafts } from "./sighting-drafts.ts";
 import type { LayersChangeDetail, MapMoveDetail, ObsMap, SubjectSighting } from "./obs-map.ts";
 import { GROUPS } from './symbology.ts';
-import { occurrences2segments } from './segments.ts';
+import { daySegments } from './segments.ts';
 import { SEGMENT_CARD_MIN } from './segment-summary.ts';
 import './segment-summary.ts';
 import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from "./reference-layers.ts";
@@ -49,7 +49,7 @@ type DayItem = {key: string, at: number} & ({reports: Occurrence[], sighting?: n
 
 function dayList(sightings: Occurrence[]): DayItem[] {
   const position = new Map(sightings.map((s, i) => [s.id, i]));
-  return occurrences2segments(sightings).flatMap((segment): DayItem[] => {
+  return daySegments(sightings).flatMap((segment): DayItem[] => {
     const reports = segment.occurrences;
     return reports.length >= SEGMENT_CARD_MIN
       ? [{key: `segment-${reports[0]!.id}`, at: Math.min(...reports.map(r => position.get(r.id)!)), reports}]

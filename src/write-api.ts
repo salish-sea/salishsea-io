@@ -123,8 +123,13 @@ export async function fetchPublicSighting(id: string): Promise<Occurrence | null
  * that is theirs goes (a sighting since deleted or changed must not linger), and their
  * sightings as saved come in, newest first as the files are.
  */
-export function overlayOwn<T extends {contributor_id: number | null, observed_at: string}>(
+export function overlayOwn<T extends {id: string, contributor_id: number | null, observed_at: string, segment?: string}>(
   file: T[], own: T[], contributorId: number): T[] {
-  return [...file.filter(o => o.contributor_id !== contributorId), ...own]
+  // A sighting the build has already published keeps its segment on the live copy
+  // (decision 111), so it stays with the others of its track; a new one has none and
+  // joins them when the day is grouped (daySegments).
+  const published = new Map(file.flatMap(o => o.segment === undefined ? [] : [[o.id, o.segment] as const]));
+  const live = own.map(o => published.has(o.id) ? {...o, segment: published.get(o.id)!} : o);
+  return [...file.filter(o => o.contributor_id !== contributorId), ...live]
     .sort((a, b) => Date.parse(b.observed_at) - Date.parse(a.observed_at));
 }

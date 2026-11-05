@@ -18,7 +18,9 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { Temporal } from 'temporal-polyfill';
 
-import { dayFiles, PARTIAL_LIMIT, rebuildKeys, writeDays } from './occurrence-days.ts';
+import { daySegments, occurrences2segments } from '../../src/segments.ts';
+import type { Occurrence } from '../../src/types.ts';
+import { dayFiles, withSegments, PARTIAL_LIMIT, rebuildKeys, writeDays } from './occurrence-days.ts';
 
 /** The frontend's definition of a day (src/salish-sea.ts, dateFromObservedAt). */
 function frontendDay(observedAt: string): string {
@@ -40,6 +42,14 @@ const ROWS = [
     {id: 'tie-y', observed_at: '2025-03-09T20:00:00Z'},
 ];
 
+/** What the join reads of an occurrence, near enough: one species, one spot. */
+function doc(id: string, observed_at: string, over: Record<string, unknown> = {}) {
+    return {
+        id, observed_at, location: {lon: -123.1, lat: 48.5}, vitality: null, identifiers: null,
+        taxon: {scientific_name: 'Orcinus orca', species_id: 1}, ...over,
+    };
+}
+
 let exportDir: string;
 let snapshot: string;
 
@@ -57,7 +67,7 @@ beforeAll(async () => {
     );
     for (const {id, observed_at} of ROWS) {
         await conn.run(
-            `INSERT INTO store.build.occurrences VALUES ('${id}', '${observed_at}', '${JSON.stringify({id, observed_at})}')`,
+            `INSERT INTO store.build.occurrences VALUES ('${id}', '${observed_at}', '${JSON.stringify(doc(id, observed_at))}')`,
         );
     }
     await conn.run('DETACH store');
@@ -174,21 +184,22 @@ describe('writeDays, told which days', () => {
 describe('dayFiles', () => {
     // Rows arrive in chunks that don't line up with days; each day's file must
     // still hold all of that day, and come out once its last row has arrived.
+    const J = (id: string, at: string) => JSON.stringify(doc(id, at));
     async function* chunks(...cs: [string, string][][]) { yield* cs; }
 
     test('one file per day across chunk boundaries, counted', async () => {
         const counts = {files: 0, occurrences: 0};
         const files = [];
         for await (const file of dayFiles(chunks(
-            [['2026-09-28', '{"id": "a"}'], ['2026-09-29', '{"id": "b"}']],
-            [['2026-09-29', '{"id": "c"}']],
+            [['2026-09-28', J('a', '2026-09-28T20:00:00Z')], ['2026-09-29', J('b', '2026-09-29T21:00:00Z')]],
+            [['2026-09-29', J('c', '2026-09-29T20:00:00Z')]],
             [],
-            [['2026-09-30', '{"id": "d"}']],
+            [['2026-09-30', J('d', '2026-09-30T20:00:00Z')]],
         ), counts)) files.push(file);
-        expect(files).toEqual([
-            ['2026-09-28.json', '[{"id":"a"}]'],
-            ['2026-09-29.json', '[{"id":"b"},{"id":"c"}]'],
-            ['2026-09-30.json', '[{"id":"d"}]'],
+        expect(files.map(([name, body]) => [name, JSON.parse(body).map((o: {id: string}) => o.id)])).toEqual([
+            ['2026-09-28.json', ['a']],
+            ['2026-09-29.json', ['b', 'c']],
+            ['2026-09-30.json', ['d']],
         ]);
         expect(counts).toEqual({files: 3, occurrences: 4});
     });
@@ -196,9 +207,9 @@ describe('dayFiles', () => {
     test('a row with no day is on no file and is not counted', async () => {
         const counts = {files: 0, occurrences: 0};
         const out: [string, string][] = [];
-        for await (const file of dayFiles((async function* () { yield [['2025-01-01', '{"id":"a"}'], [null, '{"id":"no-day"}']] as [string | null, string][]; })(), counts))
+        for await (const file of dayFiles((async function* () { yield [['2025-01-01', J('a', '2025-01-01T20:00:00Z')], [null, J('no-day', '2025-01-01T21:00:00Z')]] as [string | null, string][]; })(), counts))
             out.push(file);
-        expect(out).toEqual([['2025-01-01.json', '[{"id":"a"}]']]);
+        expect(out.map(([name, body]) => [name, JSON.parse(body).map((o: {id: string}) => o.id)])).toEqual([['2025-01-01.json', ['a']]]);
         expect(counts).toEqual({files: 1, occurrences: 1});
     });
 
@@ -206,5 +217,57 @@ describe('dayFiles', () => {
         const files = [];
         for await (const file of dayFiles(chunks())) files.push(file);
         expect(files).toEqual([]);
+    });
+});
+
+// The build decides a day's segments and writes them on the rows (decision 111); the
+// browser's grouping of that file must give exactly what the join gives on the rows.
+describe('the segment each row carries', () => {
+    const asOccurrences = (list: Record<string, unknown>[]) =>
+        list.map(o => ({...o, observed_at_ms: Date.parse(o['observed_at'] as string)}) as unknown as Occurrence);
+    const shape = (segments: {occurrences: {id: string}[]}[]) => segments.map(s => s.occurrences.map(o => o.id));
+
+    test('a day written to disk has a segment on every row: the oldest report of its track', async () => {
+        const rows = await readFile(path.join(exportDir, 'days', '2025-03-09.json'), 'utf8').then(JSON.parse) as {id: string, segment: string}[];
+        // all three are the same species at one place within hours: one track, whose oldest is the 08:00 report
+        expect(rows.map(r => [r.id, r.segment])).toEqual([['tie-y', 'spring-after'], ['tie-z', 'spring-after'], ['spring-after', 'spring-after']]);
+    });
+
+    test('the segment is the last key, and observed_at_ms is not written', () => {
+        const [row] = withSegments([doc('a', '2026-09-28T20:00:00Z')]);
+        expect(Object.keys(row!).at(-1)).toBe('segment');
+        expect(row).not.toHaveProperty('observed_at_ms');
+    });
+
+    // A fixed-seed generator, so a failure reproduces.
+    function rng(seed: number) {
+        return () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
+    }
+
+    test('grouping a built day by its field gives the join exactly, for 300 generated days', () => {
+        const rand = rng(20261104);
+        const pick = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)]!;
+        const taxa = [
+            {scientific_name: 'Orcinus orca', species_id: 1}, {scientific_name: 'Orcinus orca ater', species_id: 1},
+            {scientific_name: 'Megaptera novaeangliae', species_id: 2}, {scientific_name: null, species_id: null},
+        ];
+        for (let n = 0; n < 300; n++) {
+            const size = 1 + Math.floor(rand() * 40);
+            const list = Array.from({length: size}, (_, i) => doc(
+                `r${String(i).padStart(2, '0')}`,
+                // quarter-hours, some in the same instant, so the tie rule is exercised
+                new Date(Date.UTC(2026, 9, 5, 12) + Math.floor(rand() * 40) * 15 * 60_000 * (rand() < 0.2 ? 0 : 1)).toISOString(),
+                {
+                    location: {lon: -123.2 + rand() * 0.5, lat: 48.3 + rand() * 0.5},
+                    taxon: pick(taxa), vitality: rand() < 0.05 ? 'dead' : null,
+                    identifiers: rand() < 0.3 ? [pick(['J35', 'K12', 'T65A', 'L pod', "Bigg's"])] : null,
+                },
+            )).sort((a, b) => Date.parse(b.observed_at) - Date.parse(a.observed_at) || (a.id < b.id ? -1 : 1));
+            const joined = occurrences2segments(asOccurrences(list));
+            const grouped = daySegments(asOccurrences(withSegments(list)));
+            expect(shape(grouped)).toEqual(shape(joined));
+            expect(grouped.map(s => [s.expectedTravelSpeedKmph, s.lastOccurrenceAt.valueOf(), s.taxon]))
+                .toEqual(joined.map(s => [s.expectedTravelSpeedKmph, s.lastOccurrenceAt.valueOf(), s.taxon]));
+        }
     });
 });

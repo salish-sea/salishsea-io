@@ -67,6 +67,12 @@ export type Occurrence = {
   observed_until: string | null;
   observer: string | null;
   /**
+   * The travel segment the build put this report in (decision 111): the id of the
+   * segment's oldest report, the same on every report of the segment. Absent from a
+   * sighting the build hasn't seen yet, and from a day file written before this.
+   */
+  segment?: string;
+  /**
    * The water region its point is in, as a card says it ("Haro Strait", "off Vancouver
    * Island"), named by the read-path build from the basemap's regions (salish-fwyt.2).
    * Null where no region is; absent from a sighting the build hasn't seen yet.
