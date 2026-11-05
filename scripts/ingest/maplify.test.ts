@@ -17,6 +17,7 @@ import {
     isKillerWhale,
     resolveEntity,
     reconcile,
+    oneForEachKey,
     MaplifyRecordSchema,
     type NormalizedSighting,
 } from './maplify.ts';
@@ -392,16 +393,16 @@ describe('matchName', () => {
 describe('reconcile', () => {
     test('upserts everything fetched', () => {
         const fetched = [norm({ id: 1 }), norm({ id: 2 })];
-        expect(reconcile(fetched, [1, 2]).upsert).toEqual(fetched);
+        expect(reconcile(fetched, ['whale_alert:1', 'whale_alert:2']).upsert).toEqual(fetched);
     });
 
-    test('deletes stored ids absent from the fetch', () => {
-        const plan = reconcile([norm({ id: 1 }), norm({ id: 3 })], [1, 2, 3]);
-        expect(plan.delete).toEqual([2]);
+    test('deletes stored keys absent from the fetch', () => {
+        const plan = reconcile([norm({ id: 1 }), norm({ id: 3 })], ['whale_alert:1', 'whale_alert:2', 'whale_alert:3']);
+        expect(plan.delete).toEqual(['whale_alert:2']);
     });
 
     test('empty fetch over a populated window deletes all of it (caller must guard failure)', () => {
-        expect(reconcile([], [10, 11, 12]).delete).toEqual([10, 11, 12]);
+        expect(reconcile([], ['whale_alert:10', 'wras:11']).delete).toEqual(['whale_alert:10', 'wras:11']);
     });
 
     test('empty window yields no deletes', () => {
@@ -409,8 +410,36 @@ describe('reconcile', () => {
     });
 
     test('new ids in the fetch are upserted, not treated as deletes', () => {
-        const plan = reconcile([norm({ id: 1 }), norm({ id: 99 })], [1]);
+        const plan = reconcile([norm({ id: 1 }), norm({ id: 99 })], ['whale_alert:1']);
         expect(plan.upsert.map((s) => s.id)).toEqual([1, 99]);
         expect(plan.delete).toEqual([]);
+    });
+
+    test('the same id from another source is another sighting: it neither keeps nor deletes the stored one', () => {
+        const plan = reconcile([norm({ id: 228809, source: 'wras' })], ['whale_alert:228809']);
+        expect(plan.delete).toEqual(['whale_alert:228809']);
+    });
+});
+
+describe('oneForEachKey', () => {
+    test('keeps the copy created earlier, the original report, wherever it stands in the response', () => {
+        const legacy = norm({ id: 5, name: 'Humpback Sighting:', createdAt: '2020-07-01 21:10:00' });
+        const original = norm({ id: 5, name: 'Humpback', createdAt: '2020-07-01 18:40:00' });
+        const other = norm({ id: 6 });
+        const { kept, duplicates } = oneForEachKey([legacy, other, original]);
+        expect(kept).toEqual([other, original]);
+        expect(duplicates).toBe(1);
+    });
+
+    test('on a tie keeps the first in the response', () => {
+        const a = norm({ id: 5, name: 'first' });
+        const b = norm({ id: 5, name: 'second' });
+        expect(oneForEachKey([a, b]).kept).toEqual([a]);
+    });
+
+    test('the same id under two sources is two sightings, not a duplicate', () => {
+        const a = norm({ id: 5, source: 'whale_alert' });
+        const b = norm({ id: 5, source: 'wras' });
+        expect(oneForEachKey([a, b])).toEqual({ kept: [a, b], duplicates: 0 });
     });
 });
