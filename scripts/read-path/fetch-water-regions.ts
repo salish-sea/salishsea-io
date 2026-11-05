@@ -17,7 +17,7 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 
 import { isRetryableStatus, MAX_ATTEMPTS, retryDelayMs } from '../ingest/retry.ts';
 
-const sha16 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex').slice(0, 16);
+export const sha16 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex').slice(0, 16);
 
 const LISTS = {regions: 'water regions', osm: 'OpenStreetMap places', gazetteers: 'gazetteer places'} as const;
 export type ListKey = keyof typeof LISTS;
@@ -33,8 +33,11 @@ export function placeListUrl(style: {metadata?: Record<string, unknown>}, key: L
 
 export const regionsUrl = (style: {metadata?: Record<string, unknown>}) => placeListUrl(style, 'regions');
 
-export async function fetchPlaceList(stylePath: string, key: ListKey, out: string): Promise<'unchanged' | 'fetched'> {
-    const {url, hash} = placeListUrl(JSON.parse(readFileSync(stylePath, 'utf8')), key);
+/**
+ * Downloads a file named for its contents to `out`, unless `out` already holds them.
+ * Written beside and renamed over; a download that doesn't match its name is refused.
+ */
+export async function fetchNamedFile(url: string, hash: string, out: string): Promise<'unchanged' | 'fetched'> {
     if (existsSync(out) && sha16(readFileSync(out)) === hash) return 'unchanged';
     for (let attempt = 1; ; attempt++) {
         // A stalled server fails the task, which the next build retries, rather than holding up this one.
@@ -49,6 +52,11 @@ export async function fetchPlaceList(stylePath: string, key: ListKey, out: strin
         if (attempt >= MAX_ATTEMPTS || !isRetryableStatus(response.status)) throw new Error(`${url}: ${response.status}`);
         await new Promise(resolve => setTimeout(resolve, retryDelayMs(attempt)));
     }
+}
+
+export async function fetchPlaceList(stylePath: string, key: ListKey, out: string): Promise<'unchanged' | 'fetched'> {
+    const {url, hash} = placeListUrl(JSON.parse(readFileSync(stylePath, 'utf8')), key);
+    return fetchNamedFile(url, hash, out);
 }
 
 if (import.meta.main) {
