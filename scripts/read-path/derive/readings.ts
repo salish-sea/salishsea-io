@@ -27,7 +27,7 @@ import { readSighting, readText, type Reading } from '../../../src/sighting-text
 
 /** Each source's texts, by the id its occurrence view gives it. */
 export const TEXTS = {
-    maplify: `SELECT 'maplify:' || id, comments FROM source_maplify_sightings WHERE comments IS NOT NULL AND comments <> ''`,
+    maplify: `SELECT 'maplify:' || source || ':' || id, comments FROM source_maplify_sightings WHERE comments IS NOT NULL AND comments <> ''`,
     inaturalist: `SELECT 'inaturalist:' || id, description FROM source_inaturalist_observations WHERE description IS NOT NULL AND description <> ''`,
     native: `SELECT CAST(id AS VARCHAR), body FROM public.observations WHERE body IS NOT NULL AND body <> ''`,
 } as const;

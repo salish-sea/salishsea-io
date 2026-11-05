@@ -47,27 +47,28 @@ export async function writeMaplifyEntities(conn: DuckDBConnection): Promise<void
 }
 
 /**
- * Write `maplify_out_of_scope(id)`: the sightings the ingest's own isIngestable rejects
+ * Write `maplify_out_of_scope(source, id)`: the sightings the ingest's own isIngestable rejects
  * (decision 036: an excluded source, or anything but a killer whale outside the Salish
  * Sea), which the derivation leaves off the map. Postgres's ingest drops them before
  * storing; the build's mirror keeps everything Maplify returned, so the rule runs here,
  * over the register the build was given. Per sighting, since it reads the location.
  */
 async function writeOutOfScope(conn: DuckDBConnection, index: NameIndex): Promise<void> {
-    await conn.run('CREATE OR REPLACE TABLE memory.main.maplify_out_of_scope (id INTEGER)');
+    await conn.run('CREATE OR REPLACE TABLE memory.main.maplify_out_of_scope (source VARCHAR, id INTEGER)');
     // Streamed: read whole, the sightings cost the 1 GB machine ~40 MB more at peak.
     const result = await conn.stream(
         'SELECT id, name, scientific_name, location_lon, location_lat, source FROM source_maplify_sightings');
-    const out: number[] = [];
+    const out: [string, number][] = [];
     for await (const rows of result.yieldRows() as AsyncIterable<[number, string | null, string, number, number, string][]>) {
         for (const [id, name, scientificName, lon, lat, source] of rows) {
             // isIngestable reads only these of a sighting's fields.
-            if (!isIngestable({name, scientificName, lon, lat, source} as NormalizedSighting, index)) out.push(id);
+            if (!isIngestable({name, scientificName, lon, lat, source} as NormalizedSighting, index)) out.push([source, id]);
         }
     }
     const appender = await conn.createAppender('maplify_out_of_scope', 'main', 'memory');
     try {
-        for (const id of out) {
+        for (const [source, id] of out) {
+            appender.appendVarchar(source);
             appender.appendInteger(id);
             appender.endRow();
         }

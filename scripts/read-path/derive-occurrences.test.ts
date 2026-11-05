@@ -287,7 +287,7 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
                     expect(docs.length).toBeGreaterThan(0);
                     // and one comment, on 9000001, names J pod, which joins that observation's (decision 106)
                     expect(docs.filter(doc => (doc['pods'] as string[]).length)
-                        .map(doc => [doc['id'], doc['pods']]).sort()).toEqual([['inaturalist:9000001', ['J']], ['maplify:13', ['L']]]);
+                        .map(doc => [doc['id'], doc['pods']]).sort()).toEqual([['inaturalist:9000001', ['J']], ['maplify:acartia:13', ['L']]]);
                     // What people said on an iNaturalist observation, as its card shows it (decision
                     // 107): its identifications grouped by taxon, and its comments and remarks, oldest
                     // first. Not the hidden identification (6000005) or comment (8000003), the
