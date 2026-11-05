@@ -23,6 +23,12 @@
  * as before. The grouping here and the build's key expression are the same by hand
  * (pacific-day.ts's dayOf), and the build checks the directory's files against its keys.
  *
+ * Each occurrence carries `segment`, the travel segment the build put it in (decision
+ * 111): the id of the segment's oldest occurrence, from the day's rows as the file lists
+ * them (src/segments.ts's segmentIds). The browser groups by it rather than joining the
+ * day again. Editing this script or what it imports (the join rule included) changes the
+ * task's address, so the first build after a change rewrites every file.
+ *
  * Deterministic by construction: rows are ordered by observed_at and then id
  * (PostgREST orders by observed_at alone, so ties there fall in no particular
  * order), and each document is re-serialized compactly from its JSON text, whose
@@ -34,6 +40,8 @@ import * as path from 'node:path';
 
 import { access, readdir, rename, rm, writeFile } from 'node:fs/promises';
 
+import type { Occurrence } from '../../src/types.ts';
+import { segmentIds } from '../../src/segments.ts';
 import { budget } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
@@ -173,14 +181,14 @@ export async function* dayFiles(
     counts = {files: 0, occurrences: 0},
 ): AsyncGenerator<[string, string]> {
     let day: string | null = null;
-    let list: unknown[] = [];
+    let list: Record<string, unknown>[] = [];
     for await (const rows of chunks) {
         for (const [rowDay, doc] of rows) {
             if (rowDay === null) continue;
             if (rowDay !== day) {
                 if (day !== null) {
                     counts.files++;
-                    yield [`${day}.json`, JSON.stringify(list)];
+                    yield [`${day}.json`, JSON.stringify(withSegments(list))];
                 }
                 day = rowDay;
                 list = [];
@@ -191,8 +199,18 @@ export async function* dayFiles(
     }
     if (day !== null) {
         counts.files++;
-        yield [`${day}.json`, JSON.stringify(list)];
+        yield [`${day}.json`, JSON.stringify(withSegments(list))];
     }
+}
+
+/**
+ * A day's documents, in the order the file lists them, each with its `segment` last.
+ * The join reads `observed_at_ms`, which the browser adds on reading a file; it is
+ * added here for the join only and not written.
+ */
+export function withSegments(list: Record<string, unknown>[]): Record<string, unknown>[] {
+    const ids = segmentIds(list.map(doc => ({...doc, observed_at_ms: Date.parse(doc['observed_at'] as string)}) as unknown as Occurrence));
+    return list.map(doc => ({...doc, segment: ids.get(doc['id'] as string)}));
 }
 
 export async function main(): Promise<void> {

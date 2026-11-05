@@ -8,7 +8,7 @@ import { linkStyles } from './icons.ts';
 import { catalogCodes, loadCatalogCodes, matrilineCodes, podCodes, pooledAnimals, populationCodes } from './individual-links.ts';
 import { fetchDayOccurrences } from './read-path.ts';
 import { SEGMENT_CARD_MIN } from './segment-summary.ts';
-import { occurrences2segments } from './segments.ts';
+import { daySegments } from './segments.ts';
 import { openAnimalLinkInSidebar } from './subject.ts';
 import type { Occurrence } from './types.ts';
 import './obs-summary.ts';
@@ -572,7 +572,7 @@ function dayRows(day: string): Promise<Occurrence[]> {
 
 /** The reports of the day's segment that holds `id`, oldest first; null if none does. */
 export function segmentHolding(rows: Occurrence[], id: string): Occurrence[] | null {
-  return occurrences2segments(rows).find(s => s.occurrences.some(o => o.id === id))?.occurrences ?? null;
+  return daySegments(rows).find(s => s.occurrences.some(o => o.id === id))?.occurrences ?? null;
 }
 
 // --- Words ----------------------------------------------------------------------------

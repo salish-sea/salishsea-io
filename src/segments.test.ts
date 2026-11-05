@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { ecotypesOf, occurrences2segments, placeInSegment, segment2travelLine, segmentMovement } from './segments.ts';
+import { daySegments, ecotypesOf, occurrences2segments, segmentIds, placeInSegment, segment2travelLine, segmentMovement } from './segments.ts';
 import type { Occurrence } from './types.ts';
 
 function loadOccurrences(): Occurrence[] {
@@ -373,5 +373,62 @@ describe("a segment's movement, as its card says it (salish-fwyt.5)", () => {
     const m = segmentMovement([at(0, -123, 48.5), nowhere, at(60, -123, 48.6)]);
     expect(m.pathKm).toBeCloseTo(11.1, 1);
     expect(m.lastDirection).toBeNull();
+  });
+});
+
+describe('daySegments, grouping by what the day file says (decision 111)', () => {
+  const ids = (segs: {occurrences: {id: string}[]}[]) => segs.map(s => s.occurrences.map(o => o.id));
+  const byId = segmentIds(occurrences);
+  const published = occurrences.map(o => ({...o, segment: byId.get(o.id)!}));
+
+  test('a segment id is the oldest report of its segment, the same on every report', () => {
+    for (const seg of segments)
+      for (const o of seg.occurrences) expect(byId.get(o.id)).toBe(seg.occurrences[0]!.id);
+  });
+
+  test('a published day groups exactly as the join does', () => {
+    expect(ids(daySegments(published))).toEqual(ids(segments));
+  });
+
+  test('a day with no segment on any row is joined whole, as before', () => {
+    expect(ids(daySegments(occurrences))).toEqual(ids(segments));
+  });
+
+  test('published segments are not joined again: the field wins over the rule', () => {
+    // two reports the rule would not join, said by the file to be one track
+    const [a, b] = occurrences.slice(0, 2).map(o => ({...o, segment: occurrences[0]!.id}));
+    const oldestFirst = [a!, b!].toSorted((x, y) => x.observed_at_ms - y.observed_at_ms || (x.id < y.id ? -1 : 1));
+    expect(ids(daySegments([b!, a!]))).toEqual([oldestFirst.map(o => o.id)]);
+  });
+
+  describe("a signed-in tab's own sighting, which the file doesn't have yet", () => {
+    const base: Occurrence = {...occurrences[0]!, id: 'first', taxon: {scientific_name: 'Orcinus orca', vernacular_name: 'Killer whale', species_id: 41521} as Occurrence['taxon'], identifiers: [], vitality: null, location: {lon: -123.1, lat: 48.5}};
+    const at = (ms: number, id: string, over: Partial<Occurrence> = {}): Occurrence =>
+      ({...base, id, observed_at_ms: base.observed_at_ms + ms, observed_at: new Date(base.observed_at_ms + ms).toISOString(), ...over});
+    const file = [{...base, segment: base.id}, {...at(30 * 60_000, 'second'), segment: base.id}];
+
+    test('joins the published segment it follows by the rule', () => {
+      const own = at(60 * 60_000, 'mine');
+      const segs = daySegments([...file, own]);
+      expect(ids(segs)).toEqual([[base.id, 'second', 'mine']]);
+      expect(segs[0]!.lastOccurrenceAt.valueOf()).toBe(own.observed_at_ms);
+    });
+
+    test('starts its own segment when no published one admits it', () => {
+      const own = at(60 * 60_000, 'mine', {location: {lon: -120, lat: 47}});
+      expect(ids(daySegments([...file, own]))).toEqual([[base.id, 'second'], ['mine']]);
+    });
+
+    test('seen before the end of a published segment, it joins as that segment stood at its moment', () => {
+      const own = at(10 * 60_000, 'between');
+      const segs = daySegments([...file, own]);
+      expect(ids(segs)).toEqual([[base.id, 'between', 'second']]);
+      expect(segs[0]!.lastOccurrenceAt.valueOf()).toBe(at(30 * 60_000, 'second').observed_at_ms);
+    });
+
+    test('a day of nothing but own sightings is joined whole', () => {
+      const own = [at(0, 'a'), at(60_000, 'b')];
+      expect(ids(daySegments(own))).toEqual(ids(occurrences2segments(own)));
+    });
   });
 });

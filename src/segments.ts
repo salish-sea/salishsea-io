@@ -33,32 +33,101 @@ export type Segment = {
  */
 export function occurrences2segments(occurrences: Occurrence[]): Segment[] {
   const segments: Segment[] = [];
-  for (const occurrence of occurrences.toSorted(oldestFirst)) {
-    let best: Segment | null = null;
-    let bestScore = Infinity;
-    // A segment with no travel speed takes nothing (joinScore), so a dead one stays alone.
-    const dead = occurrence.vitality === 'dead';
-    for (const segment of dead ? [] : segments) {
-      const score = joinScore(segment, occurrence);
-      if (score < bestScore) {
-        best = segment;
-        bestScore = score;
-      }
-    }
-    if (best) {
-      best.occurrences.push(occurrence);
-      best.lastOccurrenceAt = new Date(occurrence.observed_at_ms);
-      best.taxon = occurrence.taxon;
-    } else {
-      segments.push({
-        expectedTravelSpeedKmph: dead ? null : travelSpeedFor(occurrence.taxon.scientific_name) || null,
-        lastOccurrenceAt: new Date(occurrence.observed_at_ms),
-        occurrences: [occurrence],
-        taxon: occurrence.taxon,
-      });
+  for (const occurrence of occurrences.toSorted(oldestFirst))
+    place(segments, occurrence);
+  return segments;
+}
+
+/** Put `occurrence` in the open segment that admits it with the lowest score, or start a new one. */
+function place(segments: Segment[], occurrence: Occurrence): void {
+  let best: Segment | null = null;
+  let bestScore = Infinity;
+  // A segment with no travel speed takes nothing (joinScore), so a dead one stays alone.
+  const dead = occurrence.vitality === 'dead';
+  for (const segment of dead ? [] : segments) {
+    const score = joinScore(segment, occurrence);
+    if (score < bestScore) {
+      best = segment;
+      bestScore = score;
     }
   }
-  return segments;
+  if (best) {
+    best.occurrences.push(occurrence);
+    best.lastOccurrenceAt = new Date(occurrence.observed_at_ms);
+    best.taxon = occurrence.taxon;
+  } else {
+    segments.push(startSegment(occurrence));
+  }
+}
+
+function startSegment(first: Occurrence): Segment {
+  return {
+    expectedTravelSpeedKmph: first.vitality === 'dead' ? null : travelSpeedFor(first.taxon.scientific_name) || null,
+    lastOccurrenceAt: new Date(first.observed_at_ms),
+    occurrences: [first],
+    taxon: first.taxon,
+  };
+}
+
+/**
+ * Which segment each of a day's occurrences is in, as the day file carries it
+ * (decision 111): the id of the segment's oldest occurrence, the same for every
+ * occurrence in the segment. The build runs this on a day's rows and writes the
+ * answer on each row as `segment`; `daySegments` reads it back.
+ */
+export function segmentIds(occurrences: Occurrence[]): Map<string, string> {
+  const ids = new Map<string, string>();
+  for (const {occurrences: members} of occurrences2segments(occurrences))
+    for (const member of members) ids.set(member.id, members[0]!.id);
+  return ids;
+}
+
+/**
+ * A day's occurrences as travel segments, for the browser (decision 111). The
+ * build has already decided the segments of the published reports and written
+ * each one's `segment` on it, so those are grouped by it, not joined again. An
+ * occurrence without the field is one the day file doesn't have yet (a signed-in
+ * tab's own sighting, from the write API): it joins by `joinScore`, as the
+ * published segments stood at its moment, or starts a segment of its own, until
+ * the next build publishes it. A day no occurrence of which carries the field
+ * (a file written before the build did this) is joined whole, as it always was.
+ */
+export function daySegments(occurrences: Occurrence[]): Segment[] {
+  const sorted = occurrences.toSorted(oldestFirst);
+  if (!sorted.some(o => o.segment !== undefined))
+    return occurrences2segments(occurrences);
+  const bySegment = new Map<string, Segment>();
+  const unpublished: Occurrence[] = [];
+  for (const occurrence of sorted) {
+    if (occurrence.segment === undefined) { unpublished.push(occurrence); continue; }
+    const segment = bySegment.get(occurrence.segment);
+    if (!segment) bySegment.set(occurrence.segment, startSegment(occurrence));
+    else {
+      segment.occurrences.push(occurrence);
+      segment.lastOccurrenceAt = new Date(occurrence.observed_at_ms);
+      segment.taxon = occurrence.taxon;
+    }
+  }
+  const segments = [...bySegment.values()];
+  for (const occurrence of unpublished) {
+    const dead = occurrence.vitality === 'dead';
+    let best: Segment | null = null;
+    let bestScore = Infinity;
+    for (const segment of dead ? [] : segments) {
+      // The segment as it stood when this was seen: a later report doesn't count.
+      const before = segment.occurrences.filter(o => oldestFirst(o, occurrence) < 0);
+      if (before.length === 0) continue;
+      const score = joinScore({...segment, occurrences: before}, occurrence);
+      if (score < bestScore) { best = segment; bestScore = score; }
+    }
+    if (!best) { segments.push(startSegment(occurrence)); continue; }
+    const at = best.occurrences.findIndex(o => oldestFirst(o, occurrence) > 0);
+    best.occurrences.splice(at < 0 ? best.occurrences.length : at, 0, occurrence);
+    const last = best.occurrences[best.occurrences.length - 1]!;
+    best.lastOccurrenceAt = new Date(last.observed_at_ms);
+    best.taxon = last.taxon;
+  }
+  return segments.toSorted((a, b) => oldestFirst(a.occurrences[0]!, b.occurrences[0]!));
 }
 
 /** Oldest first; at the same instant, by id, compared by code unit. */
