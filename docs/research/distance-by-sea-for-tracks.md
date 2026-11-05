@@ -4,7 +4,7 @@
 
 ## Why
 
-On 14 July 2025 the map draws a track through the middle of Saltspring Island ([the day](https://salishsea.io/?d=2025-07-14&o=inaturalist%3A303486024&x=-13728665&y=6262934&z=11)). A Whale Alert report in Trincomali Channel at 19:09 UTC joins the T69s at Maple Bay, in Sansum Narrows, at 20:32. The two points are about 13 km apart in a straight line and about 40 km apart by sea, because Saltspring Island lies between them. Decision 063 measures distance in a straight line, so the join passes its speed check (three times the species' speed, after a 3 km allowance, against 6.8 km/h for killer whales): 10 km in 83 minutes is about 7 km/h. By sea it is about 27 km/h, and the same check refuses it. The straight-line distance also decides which of two tracks a report joins, which Scott expects a distance by sea to get right more often (063, "Open"), and the half-hour ring around a track's last report should be clipped to water and measured along it (decision 103, `salish-2adm`). GitHub [#445](https://github.com/salish-sea/salishsea-io/issues/445) collects the tracks that go wrong.
+On 14 July 2025 the map draws a track through the middle of Saltspring Island ([the day](https://salishsea.io/?d=2025-07-14&o=inaturalist%3A303486024&x=-13728665&y=6262934&z=11)). A Whale Alert report in Trincomali Channel at 19:09 UTC joins the T69s at Maple Bay, in Sansum Narrows, at 20:32. The two points are about 13 km apart in a straight line and about 29 km apart by sea, round the north of Saltspring Island and down Stuart Channel. Decision 063 measures distance in a straight line, so the join passes its speed check (three times the species' speed, after a 3 km allowance, against 6.8 km/h for killer whales): 10 km in 83 minutes is about 7 km/h. By sea the leg is longer than the rule's 20 km limit, which refuses the join; its speed by sea, about 19 km/h after the allowance, would just pass the speed check. The straight-line distance also decides which of two tracks a report joins, which Scott expects a distance by sea to get right more often (063, "Open"), and the half-hour ring around a track's last report should be clipped to water and measured along it (decision 103, `salish-2adm`). GitHub [#445](https://github.com/salish-sea/salishsea-io/issues/445) collects the tracks that go wrong.
 
 A distance by sea is never shorter than the straight line, and equals it whenever the straight line stays in water. So the expensive work is needed only for the pairs of reports with land between them.
 
@@ -50,7 +50,7 @@ No whale-sighting site found routes its tracks around land. Ocean Wise's WhaleRe
 
 ## Unverified
 
-- The 13 km and 40 km figures for the Saltspring leg are read off the map, not computed.
+- The Saltspring leg's 13.6 km straight and 29 km by sea come from the sea-distance module (`src/sea-distance.ts`) on points read off the map near the two reports, not from the reports' own positions.
 - Whether Dodd Narrows and Pole Pass survive in the basemap's 90 m grid.
 - The widths given for Porlier Pass (about 300 m) and Active Pass (about 500 m).
 - The claim that no sightings site routes tracks around land rests on what the research agent could find.
