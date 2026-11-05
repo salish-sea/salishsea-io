@@ -36,8 +36,6 @@ export function calendarDate(flag: string, value: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).toISOString().startsWith(value)) return value;
   throw new Error(`--${flag} must be a calendar date like 2026-09-03, not "${value}"`);
 }
-calendarDate('since', args.since);
-if (args.day) calendarDate('day', args.day);
 
 /**
  * Every sighting of a tracked species with a position, on the days since `since`
