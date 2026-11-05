@@ -53,3 +53,28 @@ Also asked by those tests, and left as decided: a report that names both ecotype
 ## Amendment, 2026-11-04 — the build decides, and the day file carries the answer
 
 The join rule above is unchanged; where it runs changed. [111](111-the-build-decides-a-days-travel-segments-and-the-day-file-carries-them.md): the build joins each day's reports and writes each report's segment into the day file, so the browser groups published reports by that field and applies this rule only to a signed-in tab's own sightings the file does not have yet. That lets the distance in the rule be measured by sea (`salish-20u7`) in the build alone.
+
+## Amendment, 2026-11-05 — the distance is measured by sea
+
+The rule above is unchanged except for how far apart two reports are. The build now measures that by sea (`salish-20u7.3`, [`seaDistanceFor`](../../src/sea-distance.ts)), on the basemap's water mask (basemap decision 028; [CONTEXT.md](../../CONTEXT.md)), and the limits, the speed check and the score are as they were: 12 hours, 20 km, the 3 km allowance, three times the species' speed, distance in kilometres plus the species' speed times the hours since.
+
+**What "by sea" means here.** When the straight line between two reports stays in water, that is the distance, as before. Otherwise it is the shortest route through the water cells, as a swimmer would take it. A report on shore is first moved to the nearest water within 2 km. When no route is within 20 km, the leg cannot join. A report outside the mask's box, or on land with no water within 2 km, has no sea to measure in, so it is measured in a straight line and can still join. The search stops at 22 km rather than 20, because a route counted along grid cells runs up to about 8% longer than the same route once straightened, and the 20 km limit is held to the straightened length (without this, 38 more days changed, nearly all of them routes of 19 to 20 km refused for the grid's bend).
+
+**Where it applies.** In the build, which writes each report's segment into the day file ([111](111-the-build-decides-a-days-travel-segments-and-the-day-file-carries-them.md)) and joins the same days again for the subjects' encounters. Both read the same mask. The browser keeps the straight line for a signed-in tab's own sightings that the file does not have yet; it has no mask, and the next build replaces its guess.
+
+**Effect, measured over the 1,742 days since 2022 with sightings of tracked species** (`WATER_MASK=… pnpm exec tsx scripts/segments/compare.ts --rules current,seaDistance --changed`):
+
+| | stranded | mixed | links over 6 h | links over 10 km | tracks | alone | held-out disagree |
+|---|---|---|---|---|---|---|---|
+| straight line | 24 | 5 | 417 | 2,076 | 5,162 | 6,041 | 59 |
+| by sea | 28 | 4 | 394 | 1,854 | 5,138 | 6,267 | 53 |
+
+237 of the 1,742 days draw different tracks (14%). Most of the change is a join refused: 216 legs have no water route within 20 km and 23 are too fast by sea, against 133 reports that join another track. Segments rise by about one a day on the days that change. "Stranded" rises by 4; those four have not been read.
+
+**Worked example, 14 Jul 2025 (Saltspring).** A Whale Alert report in Trincomali Channel at 12:09 Pacific and the T69s at Maple Bay at 13:32 are 17 km apart in a straight line and joined, and the map drew the track through the middle of the island. By sea it is 33 km, so no join. The T69s start their own segment. The same day two reports an hour apart, 17 km apart in a straight line and 19 km by sea, are refused by the speed check ([map](https://salishsea.io/?d=2025-07-14&o=inaturalist%3A327034040)).
+
+**Still open.**
+- **The 20 km limit is a limit on the sea route, however long the gap.** Of the 216 refusals, 36 were more than six hours after the track's last point, where the animals could easily have swum 25 km. Whether the limit should grow with the time since, or only the speed check decide, is not settled; it was designed for straight lines.
+- **Reports on the wrong side of a narrow island.** Two reports an hour and a quarter apart and 7 km apart in a straight line (at 122.76 and 122.69 degrees west, near 48.25 north, on 14 Mar 2025) are 52 km apart by water, because the mask puts them on opposite sides of Whidbey Island. Either the animals were on the far side or a report is a few kilometres out, and the rule cannot tell.
+- **Scott's annotated days** (`salish-71m7`) should be judged on these same days, together with preferring a segment that names the same animals.
+- **The half-hour ring clipped to water** (`salish-2adm`), **and legs that cross land drawn along the water** (`salish-20u7.4`), which use the same module but do not change which reports join.
