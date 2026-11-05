@@ -12,7 +12,12 @@ const style = (water?: unknown) => ({metadata: water ? {'salishsea:water': water
 describe('waterMaskUrls', () => {
     test('is null for a style that names no mask, so the build goes without', () => {
         expect(waterMaskUrls(style())).toBeNull();
-        expect(waterMaskUrls(JSON.parse(readFileSync(new URL('../../src/basemap-style.json', import.meta.url), 'utf8')))).toBeNull();
+    });
+
+    test("the site's own style names a mask and its grid, each by its contents (basemap 2026.11.1 on)", () => {
+        const urls = waterMaskUrls(JSON.parse(readFileSync(new URL('../../src/basemap-style.json', import.meta.url), 'utf8')));
+        expect(urls?.mask.url).toMatch(/^https:\/\/tiles\.salishsea\.io\/water\/water-mask-[0-9a-f]{16}\.png$/);
+        expect(urls?.grid.url).toMatch(/^https:\/\/tiles\.salishsea\.io\/water\/water-mask-[0-9a-f]{16}\.json$/);
     });
 
     test('reads both files and the hashes their names promise', () => {
