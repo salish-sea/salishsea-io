@@ -321,6 +321,19 @@ const htmlResponse = (tags: OgTags) => ({
  * handler fails open.
  */
 async function readPathOccurrence(id: string, deadline: number): Promise<Occurrence | null> {
+  const found = await indexedOccurrence(id, deadline);
+  if (found || !LEGACY_MAPLIFY_ID.test(id)) return found;
+  // A link written before decision 112 names a Maplify sighting by its number alone; the
+  // build's aliases say which sighting that was where exactly one source uses the number.
+  const alias = await timedFetch('aliases', `${READ_PATH}aliases/${idShard(id)}.json`, deadline);
+  if (alias.status === 404) return null;
+  if (!alias.ok) throw new Error(`read path aliases: HTTP ${alias.status}`);
+  const aliases = await alias.json() as Record<string, unknown>;
+  const current = Object.hasOwn(aliases, id) ? aliases[id] : undefined;
+  return typeof current === 'string' ? indexedOccurrence(current, deadline) : null;
+}
+
+async function indexedOccurrence(id: string, deadline: number): Promise<Occurrence | null> {
   const shard = await timedFetch('ids', `${READ_PATH}ids/${idShard(id)}.json`, deadline);
   if (shard.status === 404) return null;
   if (!shard.ok) throw new Error(`read path ids: HTTP ${shard.status}`);
@@ -332,6 +345,9 @@ async function readPathOccurrence(id: string, deadline: number): Promise<Occurre
   if (!res.ok) throw new Error(`read path day ${day}: HTTP ${res.status}`);
   return (await res.json() as Occurrence[]).find(o => o.id === id) ?? null;
 }
+
+/** The Maplify id form of before decision 112 (`maplify:<number>`); see the card renderer's data.ts. */
+const LEGACY_MAPLIFY_ID = /^maplify:\d+$/;
 
 /**
  * A sighting saved here since the last build, which no file holds yet: the write API
@@ -440,13 +456,13 @@ export const handler = async (event: any): Promise<any> => {
     // lacks a location today; the column allows it, so the code does too.
     const photo = (occ.photos ?? []).find((p: Photo) => OPEN_LICENSES.includes(p.license ?? ''));
     const image = photo ? cardImageUrl(photo.src)
-      : occ.location ? occurrenceCardUrl(occurrenceId)
+      : occ.location ? occurrenceCardUrl(occ.id ?? occurrenceId)
       : null;
 
     const tags: OgTags = {
       'og:site_name': 'SalishSea.io',
       'og:type': 'website',
-      'og:url': `https://salishsea.io/?o=${encodeURIComponent(occurrenceId)}`,
+      'og:url': `https://salishsea.io/?o=${encodeURIComponent(occ.id ?? occurrenceId)}`,
       'og:title': title,
       'og:description': description,
       ...(image

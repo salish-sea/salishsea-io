@@ -71,6 +71,39 @@ describe('fetchOccurrence', () => {
     expect(fetchSpy.mock.calls.map(([u]) => String(u)).some(u => u.startsWith(API))).toBe(false);
   });
 
+  // Decision 112: Maplify numbers sightings within a source, so a link written
+  // `maplify:228809` is followed only where one source uses the number.
+  describe('an old-form Maplify id', () => {
+    const current = 'maplify:whale_alert:228809';
+    const routes = (aliases: Record<string, string>): Routes => ({
+      [`${RP}aliases/${idShard('maplify:228809')}.json`]: aliases,
+      [`${RP}ids/${idShard(current)}.json`]: { [current]: '2025-07-14' },
+      [`${RP}days/2025-07-14.json`]: [row(current)],
+    });
+
+    it('is read through its alias, and the card is for the current id', async () => {
+      serve(routes({ 'maplify:228809': current }));
+      expect(await fetchOccurrence('maplify:228809')).toMatchObject({ id: current, species: 'Orca' });
+    });
+
+    it('with no alias, because two sources use the number, is unknown', async () => {
+      const fetchSpy = serve(routes({}));
+      expect(await fetchOccurrence('maplify:228809')).toBeNull();
+      expect(fetchSpy.mock.calls.map(([u]) => String(u)).some(u => u.startsWith(API))).toBe(false);
+    });
+
+    it('with no aliases built, is unknown', async () => {
+      serve({ [`${RP}ids/`]: {} });
+      expect(await fetchOccurrence('maplify:228809')).toBeNull();
+    });
+
+    it('is not looked up for any other form', async () => {
+      const fetchSpy = serve(routes({ 'maplify:228809': current }));
+      expect(await fetchOccurrence('maplify:wras:228809')).toBeNull();
+      expect(fetchSpy.mock.calls.map(([u]) => String(u)).some(u => u.includes('/aliases/'))).toBe(false);
+    });
+  });
+
   it('an id naming an inherited property is not in the index', async () => {
     serve({ [`${RP}ids/`]: {} });
     expect(await fetchOccurrence('maplify:constructor')).toBeNull();

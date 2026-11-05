@@ -977,7 +977,11 @@ export default class SalishSea extends LitElement {
     const {lon, lat} = occurrence.location as {lon: number; lat: number};
     const coord = fromLonLat([lon, lat]);
     this.mapRef.value!.setView(coord[0]!, coord[1]!, 12, {skipEvent: true});
-    this.focusedOccurrenceId = id;
+    // The occurrence's own id: an old-form Maplify link (decision 112) found it under
+    // another. The link is rewritten to the current form so that one shared again carries it.
+    this.focusedOccurrenceId = occurrence.id;
+    if (occurrence.id !== id && new URLSearchParams(window.location.search).get('o') === id)
+      setQueryParams({o: occurrence.id}, {replace: true});
     return true;
   }
 }

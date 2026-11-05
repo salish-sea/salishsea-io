@@ -9,7 +9,7 @@
 
 import { Temporal } from 'temporal-polyfill';
 import type { Extent } from './extents.ts';
-import { idShard } from './read-path-shard.ts';
+import { idShard, isLegacyMaplifyId } from './read-path-shard.ts';
 import { HAULOUT_SITES_FILE, type AnimalName, type HauloutSite } from './catalog.ts';
 
 /**
@@ -155,8 +155,21 @@ function monthsBetween(from: string, to: string): string[] {
  * outside the region on screen. Null when the id names no sighting the last
  * build has, which the caller treats as it treats an unknown id; an error when
  * nothing has been built or a fetch fails.
+ *
+ * A Maplify id in the form used before decision 112 (`maplify:228809`) that the index
+ * doesn't hold is looked up in the aliases (`aliases/<shard>.json`), which name the
+ * occurrence where one source uses that number. The occurrence returned carries its
+ * current id, which the caller writes back to the link; a number two sources use is
+ * unknown, as any id the build lacks is.
  */
 export async function findOccurrence<T extends Located & {id: string}>(id: string): Promise<T | null> {
+  const found = await findIndexed<T>(id);
+  if (found || !isLegacyMaplifyId(id)) return found;
+  const current = await legacyAlias(id);
+  return current ? findIndexed<T>(current) : null;
+}
+
+async function findIndexed<T extends Located & {id: string}>(id: string): Promise<T | null> {
   const url = `${READ_PATH_BASE}ids/${idShard(id)}.json`;
   const response = await fetch(url);
   if (response.status === 404) {
@@ -172,6 +185,20 @@ export async function findOccurrence<T extends Located & {id: string}>(id: strin
   if (typeof day !== 'string') return null;
   const occurrences = await fetchDayOccurrences<T>(day, null);
   return occurrences.find(o => o.id === id) ?? null;
+}
+
+/** The id the build gives the sighting an old-form Maplify id named, or null. */
+async function legacyAlias(id: string): Promise<string | null> {
+  const url = `${READ_PATH_BASE}aliases/${idShard(id)}.json`;
+  const response = await fetch(url);
+  // A build from before the aliases existed has no such file, and an id with none is unknown.
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  const aliases: unknown = await response.json();
+  const current = aliases && typeof aliases === 'object' && Object.hasOwn(aliases, id)
+    ? (aliases as Record<string, unknown>)[id]
+    : undefined;
+  return typeof current === 'string' ? current : null;
 }
 
 /**
