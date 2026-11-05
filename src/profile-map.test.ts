@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { profileMapSvg, project, type MapDot } from './profile-map.ts';
+import { profileMapSvg, project, renderMapLegend, type MapDot } from './profile-map.ts';
+import { render } from 'lit';
 
 const dot = (id: string, lon: number, lat: number, observed_at = '2026-09-20T18:00:00Z'): MapDot =>
   ({ occurrence_id: id, observed_at, location: { lon, lat } });
@@ -125,5 +127,22 @@ describe("a matriline's map", () => {
     expect(circles(svg)).toEqual(['dot sub-lineage', 'newest']);
     expect(svg).toContain('member-newer');
     expect(svg).not.toContain('sub-older');
+  });
+});
+
+describe("a matriline's legend", () => {
+  const text = (legend: Parameters<typeof renderMapLegend>[0]) => {
+    const el = document.createElement('div');
+    render(renderMapLegend(legend), el);
+    return [...el.querySelectorAll('li')].map(li => `${li.className}: ${li.textContent}`);
+  };
+
+  it('says what each colour means, whenever any dot is not the matriline\'s own', () => {
+    expect(text({own: 'Reports naming T065s (6)', members: 'Reports naming only members, such as T065A5 (3)'}))
+      .toEqual(['own: Reports naming T065s (6)', 'members: Reports naming only members, such as T065A5 (3)']);
+    // a matriline with only its members' reports still says why its dots are grey
+    expect(text({members: 'Reports naming only a member, T137A (1)'})).toEqual(['members: Reports naming only a member, T137A (1)']);
+    // and one whose dots are all its own needs none, as every other map has none
+    expect(text({own: 'Reports naming T065s (6)'})).toEqual([]);
   });
 });

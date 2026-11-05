@@ -336,11 +336,12 @@ export interface SightingsOptions {
  * The sighting a profile reports as its last: a dead animal's earliest record as dead,
  * since it isn't seen after that whatever is reported of the carcass later (decision
  * 088); otherwise the newest. The build links a dead record only to an individual it
- * names, never to a matriline's members; the via_group check is a second guard.
+ * names, never to a matriline's members; the via_group check is a second guard. A
+ * matriline's link to a member's carcass (via_member) doesn't end the matriline's reports.
  */
-export function latestLink<L extends Pick<OccurrenceLink, 'vitality' | 'via_group' | 'possibly'>>(links: L[]): {latest: L, dead: boolean} | null {
+export function latestLink<L extends Pick<OccurrenceLink, 'vitality' | 'via_group' | 'via_member' | 'possibly'>>(links: L[]): {latest: L, dead: boolean} | null {
   if (!links.length) return null;
-  const death = links.filter(l => l.vitality === 'dead' && !l.via_group).at(-1);
+  const death = links.filter(l => l.vitality === 'dead' && !l.via_group && !l.via_member).at(-1);
   return {latest: death ?? links[0]!, dead: !!death};
 }
 
@@ -361,9 +362,11 @@ export function renderSightingsSummary(
   const located = links.filter(l => l.location).length;
   // "(possibly)" when the report only possibly names it, as its chip says (decision 054);
   // "(as T137s)" when it names a group the animal is in, or on a matriline's page, a
-  // sub-lineage; "(as T065A5)" when it names only a member of the matriline.
+  // sub-lineage; "(as T065A5)" when it names only a member of the matriline, and
+  // "(as T065A5, dead)" when that member was dead.
   const via = latest.via_member ?? (latest.via_group ? `${latest.via_group}s` : null);
-  const qualifiers = [latest.possibly ? 'possibly' : null, via ? `as ${via}` : null].filter(Boolean);
+  const qualifiers = [latest.possibly ? 'possibly' : null, via ? `as ${via}` : null,
+    latest.via_member && latest.vitality === 'dead' ? 'dead' : null].filter(Boolean);
   const note = html`
     <p class="sightings-note">
       Last reported <a href=${mapUrl(latest)}>${formatDate(observedDate(latest.observed_at), { month: 'long', day: 'numeric', year: 'numeric' })}</a>${qualifiers.length ? ` (${qualifiers.join(', ')})` : nothing}${dead ? html`, dead` : nothing}

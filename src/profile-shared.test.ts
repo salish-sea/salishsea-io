@@ -2,7 +2,7 @@
 import { html, render } from 'lit';
 import { expect, test } from 'vitest';
 import type { OccurrenceLink } from './catalog.ts';
-import { renderSightingsSummary } from './profile-shared.ts';
+import { latestLink, renderSightingsSummary } from './profile-shared.ts';
 
 const link = (over: Partial<OccurrenceLink> = {}): OccurrenceLink => ({
   occurrence_id: 'maplify:1', observed_at: '2025-12-28T20:33:00+00:00', location: null,
@@ -23,4 +23,8 @@ test('"Last reported" says when the newest report only possibly names it, and th
   expect(lastReported([link({via_group: 'T099'})])).toBe('Last reported December 28, 2025 (as T099s)');
   // a matriline's report that names only a member (salish-fwyt.7)
   expect(lastReported([link({via_member: 'T099A2'})])).toBe('Last reported December 28, 2025 (as T099A2)');
+  // a member's carcass is reported as one, and isn't the matriline's last report as it is the animal's (decision 088)
+  expect(lastReported([link({via_member: 'T099A2', vitality: 'dead'})])).toBe('Last reported December 28, 2025 (as T099A2, dead)');
+  expect(latestLink([link({occurrence_id: 'newer'}), link({occurrence_id: 'carcass', via_member: 'T099A2', vitality: 'dead'})]))
+    .toMatchObject({latest: {occurrence_id: 'newer'}, dead: false});
 });

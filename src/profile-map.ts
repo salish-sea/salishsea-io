@@ -334,12 +334,13 @@ export function renderProfileMap(dots: readonly MapDot[], site: MapSite | null =
 
 /**
  * What each colour of a matriline's dots means, under its page's map or, in the sidebar,
- * for the main map beside it: only the kinds it has reports of, and nothing when there is
- * only one.
+ * for the main map beside it: only the kinds it has reports of, and nothing when all of
+ * them are its own, the one look its dots share with every other map. A matriline with
+ * only its members' reports still says why its dots are grey.
  */
 export function renderMapLegend(legend: MapLegend) {
   const keys = KINDS.filter(k => legend[k]);
-  return keys.length > 1
+  return keys.some(k => k !== 'own')
     ? html`<ul class="map-legend">${keys.map(k => html`<li class=${k.replace('_', '-')}>${legend[k]}</li>`)}</ul>`
     : nothing;
 }
