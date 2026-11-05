@@ -15,7 +15,13 @@
 
 -- maplify.sightings. created_at is Maplify's own 'YYYY-MM-DD HH:MM:SS', the timestamp
 -- without zone Postgres stores.
-CREATE OR REPLACE TEMP VIEW source_maplify_sightings AS
+--
+-- A table, not a view, so the mirror is read once and every join in the derivation reads
+-- a DuckDB table of known size. Read through a view, the Maplify arm's INSERT ran out of
+-- its 128 MB once the mirror was keyed on (source, id) (decision 112): with no INTEGER
+-- PRIMARY KEY on `id`, DuckDB's SQLite scanner gave the planner nothing to size the joins
+-- by, and the old plan that fit in 96 MB no longer fit in 128 (salish-yw6e, 2026-11-05).
+CREATE OR REPLACE TEMP TABLE source_maplify_sightings AS
   SELECT CAST(id AS INTEGER) AS id, name, scientific_name,
          CAST(lon AS DOUBLE) AS location_lon, CAST(lat AS DOUBLE) AS location_lat,
          CAST(number_sighted AS INTEGER) AS number_sighted,
