@@ -654,8 +654,9 @@ export class ObsSummary extends LitElement {
   }
 
   protected updated(changedProperties: PropertyValues): void {
+    // Optional because jsdom, which the tests run in, has no scrollIntoView; every browser does.
     if (changedProperties.has('focused') && this.focused)
-      this.scrollIntoView({block: 'center'});
+      this.scrollIntoView?.({block: 'center'});
   }
 
   private async onClone(e: Event) {

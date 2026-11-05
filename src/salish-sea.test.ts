@@ -484,6 +484,9 @@ test('a link in the old Maplify form opens the sighting and is rewritten to the 
       .hydrateFromOccurrenceId('maplify:228809').catch(() => true)).toBe(true);   // jsdom has no map to centre
     expect(el.date).toBe('2025-07-14');
     expect(new URLSearchParams(window.location.search).get('o')).toBe(current);
+    // The focused card scrolls itself into view in a later update; let it, while the stub stands.
+    await el.updateComplete;
+    await new Promise(resolve => setTimeout(resolve, 0));
   } finally {
     el.remove();
     delete (Element.prototype as Partial<Element>).scrollIntoView;
