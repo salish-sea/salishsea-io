@@ -20,6 +20,8 @@ import { Temporal } from 'temporal-polyfill';
 
 import { daySegments, occurrences2segments } from '../../src/segments.ts';
 import type { Occurrence } from '../../src/types.ts';
+import { loadWaterGrid, waterMaskArgs } from './water-mask.ts';
+import { seaDistanceFor } from '../../src/sea-distance.ts';
 import { dayFiles, withSegments, PARTIAL_LIMIT, rebuildKeys, writeDays } from './occurrence-days.ts';
 
 /** The frontend's definition of a day (src/salish-sea.ts, dateFromObservedAt). */
@@ -269,5 +271,35 @@ describe('the segment each row carries', () => {
             expect(grouped.map(s => [s.expectedTravelSpeedKmph, s.lastOccurrenceAt.valueOf(), s.taxon]))
                 .toEqual(joined.map(s => [s.expectedTravelSpeedKmph, s.lastOccurrenceAt.valueOf(), s.taxon]));
         }
+    });
+});
+
+describe('the day writer with the water mask (salish-20u7.3)', () => {
+    const fixture = (name: string) => new URL(`./fixtures/water-mask/${name}`, import.meta.url).pathname;
+    const mask = fixture('water-mask');
+    // The Saltspring pair of 2025-07-14: 13 km apart in a straight line, 29 km round the island by sea.
+    const trincomali = doc('trincomali', '2025-07-14T19:09:00Z', {location: {lon: -123.46, lat: 48.88}});
+    const mapleBay = doc('maple-bay', '2025-07-14T20:32:00Z', {location: {lon: -123.60, lat: 48.80}});
+    const written = async (distanceM?: ReturnType<typeof seaDistanceFor>) => {
+        // the file lists a day newest first
+        const rows: [string, string][] = [[ '2025-07-14', JSON.stringify(mapleBay)], ['2025-07-14', JSON.stringify(trincomali)]];
+        let body = '';
+        for await (const [, text] of dayFiles((async function* () { yield rows; })(), undefined, distanceM)) body = text;
+        return JSON.parse(body) as {id: string, segment: string}[];
+    };
+
+    test('without a mask the pair share a segment; with it, each has its own', async () => {
+        expect((await written()).map(r => [r.id, r.segment])).toEqual([['maple-bay', 'trincomali'], ['trincomali', 'trincomali']]);
+        const bySea = await written(seaDistanceFor(loadWaterGrid(`${mask}.png`, `${mask}.json`)));
+        expect(bySea.map(r => [r.id, r.segment])).toEqual([['maple-bay', 'maple-bay'], ['trincomali', 'trincomali']]);
+    });
+
+    test('--water-mask <png> <json> is taken out of the arguments and loads the grid', () => {
+        const none = waterMaskArgs(['snapshot.duckdb']);
+        expect(none).toEqual({rest: ['snapshot.duckdb'], distanceM: undefined});
+        const given = waterMaskArgs(['snapshot.duckdb', '--water-mask', `${mask}.png`, `${mask}.json`]);
+        expect(given.rest).toEqual(['snapshot.duckdb']);
+        expect(given.distanceM!([-123.46, 48.88], [-123.60, 48.80])).toBeNull();
+        expect(() => waterMaskArgs(['snapshot.duckdb', '--water-mask', `${mask}.png`])).toThrow(/two paths/);
     });
 });
