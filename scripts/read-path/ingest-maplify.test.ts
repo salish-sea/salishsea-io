@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { isIngestable, parseMaplifyResponse, type NormalizedSighting } from '../ingest/maplify.ts';
 import type { IngestWindow } from '../ingest/window.ts';
 import { buildNameIndex } from '../register/name-index.ts';
-import { DELETE_FLOOR_MIN_STORED, mirrorRow, reconcileWindow, type MirrorRow } from './ingest-maplify.ts';
+import { DELETE_FLOOR_MIN_STORED, migrateSightingsKey, mirrorRow, reconcileWindow, type MirrorRow } from './ingest-maplify.ts';
 import { antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
 
 /**
@@ -58,14 +58,14 @@ describe('the mirror', () => {
         const mirror = path.join(dir, 'all.sqlite');
         const sightings = fetched();
         expect(sightings.filter(s => isIngestable(s, INDEX))).toHaveLength(2);
-        expect(reconcileWindow(mirror, WINDOW, sightings)).toEqual({upserted: 6, deleted: 0, changed: 6});
+        expect(reconcileWindow(mirror, WINDOW, sightings)).toEqual({upserted: 6, deleted: 0, changed: 6, duplicates: 0});
         expect(rowsOf(mirror)).toEqual(sightings.map(mirrorRow).sort((a, b) => a.id - b.id));
     });
 
     test('a window fetched again unchanged writes nothing', () => {
         const mirror = path.join(dir, 'again.sqlite');
         reconcileWindow(mirror, WINDOW, fetched());
-        expect(reconcileWindow(mirror, WINDOW, fetched())).toEqual({upserted: 6, deleted: 0, changed: 0});
+        expect(reconcileWindow(mirror, WINDOW, fetched())).toEqual({upserted: 6, deleted: 0, changed: 0, duplicates: 0});
     });
 
     test('reconciles within the window: an edit is written, a sighting gone from the window deleted, others kept', () => {
@@ -76,7 +76,7 @@ describe('the mirror', () => {
         reconcileWindow(mirror, WINDOW, [first!, ...rest]);
         const edited = {...rest[0]!, comments: 'edited upstream'};
         const result = reconcileWindow(mirror, WINDOW, [edited, ...rest.slice(1)]);
-        expect(result).toEqual({upserted: 5, deleted: 1, changed: 2});
+        expect(result).toEqual({upserted: 5, deleted: 1, changed: 2, duplicates: 0});
         const ids = rowsOf(mirror).map(r => r.id);
         expect(ids).not.toContain(first!.id);
         expect(ids).toContain(before.id);   // outside the window: not this fetch's to delete
@@ -108,6 +108,102 @@ describe('the mirror', () => {
         const five = Array.from({length: 5}, (_, i) => ({...base, id: 940_000_000 + i, createdAt: '2026-07-01T12:00:00Z'}));
         reconcileWindow(mirror, WINDOW, five);
         expect(reconcileWindow(mirror, WINDOW, [])).toMatchObject({deleted: 5});
+    });
+
+    // Decision 112: 228809 is a Whale Alert orca of July 2025 and, in the same range of
+    // numbers, a WRAS porpoise of March 2026. Keyed on the id alone, whichever month was
+    // fetched last overwrote the other.
+    test('two sources sharing an id, fetched in different windows, keep both sightings', () => {
+        const mirror = path.join(dir, 'sources.sqlite');
+        const base = fetched()[0]!;
+        const july: NormalizedSighting = {...base, id: 228809, source: 'whale_alert', createdAt: '2025-07-14 19:07:00'};
+        const march: NormalizedSighting = {...base, id: 228809, source: 'wras', createdAt: '2026-03-25 10:00:00', name: 'Porpoise'};
+        reconcileWindow(mirror, {start: '2025-07-01', end: '2025-07-31'}, [july]);
+        reconcileWindow(mirror, {start: '2026-03-01', end: '2026-03-31'}, [march]);
+        expect(rowsOf(mirror).map(r => [r.source, r.id])).toEqual([['whale_alert', 228809], ['wras', 228809]]);
+        // fetching July again, and unchanged, neither writes nor touches March's
+        expect(reconcileWindow(mirror, {start: '2025-07-01', end: '2025-07-31'}, [july])).toMatchObject({changed: 0});
+        expect(rowsOf(mirror)).toHaveLength(2);
+        // a sighting gone upstream is deleted by its own window, and the other source's stays
+        expect(reconcileWindow(mirror, {start: '2025-07-01', end: '2025-07-31'}, [])).toMatchObject({deleted: 1});
+        expect(rowsOf(mirror).map(r => [r.source, r.id])).toEqual([['wras', 228809]]);
+    });
+
+    test('a sighting sent twice in one response keeps the copy created earlier, and says how many it dropped', () => {
+        const mirror = path.join(dir, 'twice.sqlite');
+        const base = fetched()[0]!;
+        const legacy = {...base, id: 77, source: 'whale_alert', name: 'Humpback Sighting:', createdAt: '2020-07-01 21:10:00'};
+        const original = {...base, id: 77, source: 'whale_alert', name: 'Humpback', createdAt: '2020-07-01 18:40:00'};
+        const window = {start: '2020-07-01', end: '2020-07-31'};
+        expect(reconcileWindow(mirror, window, [legacy, original])).toEqual({upserted: 1, deleted: 0, changed: 1, duplicates: 1});
+        expect(rowsOf(mirror).map(r => [r.name, r.created_at])).toEqual([['Humpback', '2020-07-01 18:40:00']]);
+        // the same response again changes nothing
+        expect(reconcileWindow(mirror, window, [legacy, original])).toMatchObject({changed: 0, duplicates: 1});
+    });
+
+    // The mirror as it stood before decision 112: keyed on id alone.
+    const OLD_SHAPE = `
+        CREATE TABLE sightings (
+            id INTEGER PRIMARY KEY, project_id INTEGER NOT NULL, trip_id INTEGER NOT NULL,
+            name TEXT, scientific_name TEXT NOT NULL, lon REAL NOT NULL, lat REAL NOT NULL,
+            number_sighted INTEGER NOT NULL, created_at TEXT NOT NULL, photo_url TEXT, comments TEXT,
+            in_ocean INTEGER NOT NULL, moderated INTEGER NOT NULL, trusted INTEGER NOT NULL,
+            is_test INTEGER NOT NULL, source TEXT NOT NULL, usernm TEXT
+        );
+        CREATE INDEX sightings_created_at ON sightings (created_at);
+        CREATE TABLE covered_days (day TEXT PRIMARY KEY);`;
+
+    function oldMirror(file: string, sightings: readonly NormalizedSighting[]): void {
+        const db = new DatabaseSync(file);
+        db.exec(OLD_SHAPE);
+        const insert = db.prepare(`INSERT INTO sightings VALUES (${Array(17).fill('?').join(', ')})`);
+        for (const r of sightings.map(mirrorRow))
+            insert.run(r.id, r.project_id, r.trip_id, r.name, r.scientific_name, r.lon, r.lat, r.number_sighted,
+                r.created_at, r.photo_url, r.comments, r.in_ocean, r.moderated, r.trusted, r.is_test, r.source, r.usernm);
+        db.exec(`INSERT INTO covered_days VALUES ('2026-07-01'), ('2026-07-02')`);
+        db.close();
+    }
+
+    test('a mirror keyed on id alone is rebuilt keyed on (source, id), keeping every row and the covered days', () => {
+        const mirror = path.join(dir, 'migrate.sqlite');
+        const sightings = fetched();
+        oldMirror(mirror, sightings);
+        const db = new DatabaseSync(mirror);
+        try {
+            expect(migrateSightingsKey(db)).toBe(true);
+            const key = db.prepare(`SELECT name FROM pragma_table_info('sightings') WHERE pk > 0 ORDER BY pk`).all();
+            expect(key).toEqual([{name: 'source'}, {name: 'id'}]);
+            // idempotent: the second run finds the new shape
+            expect(migrateSightingsKey(db)).toBe(false);
+            expect(db.prepare(`SELECT name FROM sqlite_master WHERE name LIKE 'sightings%' ORDER BY name`).all())
+                .toEqual([{name: 'sightings'}, {name: 'sightings_created_at'}]);
+        } finally {
+            db.close();
+        }
+        expect(rowsOf(mirror)).toEqual(sightings.map(mirrorRow).sort((a, b) => a.id - b.id));
+        const after = new DatabaseSync(mirror, {readOnly: true});
+        expect((after.prepare('SELECT day FROM covered_days ORDER BY day').all() as {day: string}[]).map(r => r.day))
+            .toEqual(['2026-07-01', '2026-07-02']);
+        after.close();
+    });
+
+    test('opening an old mirror to reconcile migrates it, and the restored sighting sits beside the one that overwrote it', () => {
+        const mirror = path.join(dir, 'migrate-reconcile.sqlite');
+        const base = fetched()[0]!;
+        const wras: NormalizedSighting = {...base, id: 228809, source: 'wras', createdAt: '2026-03-25 10:00:00'};
+        oldMirror(mirror, [wras]);
+        const july: NormalizedSighting = {...base, id: 228809, source: 'whale_alert', createdAt: '2025-07-14 19:07:00'};
+        reconcileWindow(mirror, {start: '2025-07-01', end: '2025-07-31'}, [july]);
+        expect(rowsOf(mirror).map(r => r.source).sort()).toEqual(['whale_alert', 'wras']);
+    });
+
+    test('a new mirror is made in the new shape and is left alone by the migration', () => {
+        const mirror = path.join(dir, 'fresh.sqlite');
+        reconcileWindow(mirror, WINDOW, fetched());
+        const db = new DatabaseSync(mirror);
+        expect(migrateSightingsKey(db)).toBe(false);
+        db.close();
+        expect(rowsOf(mirror)).toHaveLength(6);
     });
 
     test('records the days it covered', () => {

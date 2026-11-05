@@ -32,9 +32,15 @@ function makeEvent(userAgent: string, querystring: string = '', uri: string = '/
  * Supabase, asked only for a sighting saved here since the last build, has none.
  */
 function servePublished(...occurrences: { id: string; [field: string]: unknown }[]) {
+  return servePublishedWithAliases({}, ...occurrences);
+}
+
+/** As servePublished, with the build's aliases for old-form Maplify ids (decision 112). */
+function servePublishedWithAliases(aliases: Record<string, string>, ...occurrences: { id: string; [field: string]: unknown }[]) {
   return jest.spyOn(global, 'fetch').mockImplementation(async (input: any) => {
     const url = String(input);
     const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body } as Response);
+    if (url.startsWith('https://salishsea.io/read-path/aliases/')) return json(aliases);
     if (url.startsWith('https://salishsea.io/read-path/ids/'))
       return json(Object.fromEntries(occurrences.map(o => [o.id, '2025-06-03'])));
     if (url === 'https://salishsea.io/read-path/days/2025-06-03.json') return json(occurrences);
@@ -292,6 +298,24 @@ describe('Lambda@Edge OG meta handler', () => {
     const result = await handler(makeEvent('facebookexternalhit/1.1', 'o=maplify:1')) as { body: string };
     expect(result.body).toContain('og:title');
     expect(fetchSpy.mock.calls.map(([u]) => String(u)).some(u => u.includes('/api/'))).toBe(false);
+  });
+
+  // Decision 112: a link written as maplify:<number> names the one sighting that number
+  // belongs to, and the preview says so under the current id.
+  it('an old-form Maplify id previews the sighting its alias names, under its current id', async () => {
+    const current = 'maplify:whale_alert:228809';
+    servePublishedWithAliases({ 'maplify:228809': current }, { ...sampleOccurrence, id: current });
+    const result = await handler(makeEvent('facebookexternalhit/1.1', 'o=maplify:228809')) as { body: string };
+    expect(result.body).toContain('Orca · June 3, 2025');
+    expect(result.body).toContain(`o=${encodeURIComponent(current)}`);
+    expect(result.body).not.toContain('maplify%3A228809"');
+  });
+
+  it('an old-form Maplify id with no alias, because two sources use the number, gets the generic preview', async () => {
+    servePublishedWithAliases({}, { ...sampleOccurrence, id: 'maplify:whale_alert:228809' }, { ...sampleOccurrence, id: 'maplify:wras:228809' });
+    const result = await handler(makeEvent('facebookexternalhit/1.1', 'o=maplify:228809')) as { body: string };
+    expect(result.body).toContain('og:title" content="Salish Sea');
+    expect(result.body).not.toContain('June 3, 2025');
   });
 
   it('an id naming an inherited property is not found in the index', async () => {

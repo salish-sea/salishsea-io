@@ -459,6 +459,42 @@ test('a permalink to a sighting saved since the last build opens it from the API
   }
 });
 
+// Decision 112: a Maplify sighting is named by its source as well as its id. A link shared
+// before then says `maplify:228809`; the build's aliases know which sighting that was, and
+// the page rewrites the link so that one shared again carries the current form.
+test('a link in the old Maplify form opens the sighting and is rewritten to the current id', async () => {
+  occurrenceQuery.files = true;
+  const current = 'maplify:whale_alert:228809';
+  const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
+    const u = String(url);
+    if (u.includes('/read-path/ids/')) return new Response(JSON.stringify({[current]: '2025-07-14'}));
+    if (u.includes('/read-path/aliases/')) return new Response(JSON.stringify({'maplify:228809': current}));
+    if (u.endsWith('/read-path/manifest.json')) return new Response(JSON.stringify({version: 1, covered_through: '2025-07-15'}));
+    if (u.endsWith('/read-path/days/2025-07-14.json'))
+      return new Response(JSON.stringify([occurrenceFixture(current, '2025-07-14T19:07:00Z')]));
+    return new Response(JSON.stringify([]));
+  });
+  window.history.replaceState({}, '', '/?o=maplify%3A228809');
+  const el = document.createElement('salish-sea') as SalishSea;
+  try {
+    document.body.appendChild(el);
+    await el.updateComplete;
+    Element.prototype.scrollIntoView = () => {};
+    expect(await (el as unknown as {hydrateFromOccurrenceId(id: string): Promise<boolean>})
+      .hydrateFromOccurrenceId('maplify:228809').catch(() => true)).toBe(true);   // jsdom has no map to centre
+    expect(el.date).toBe('2025-07-14');
+    expect(new URLSearchParams(window.location.search).get('o')).toBe(current);
+    // The focused card scrolls itself into view in a later update; let it, while the stub stands.
+    await el.updateComplete;
+    await new Promise(resolve => setTimeout(resolve, 0));
+  } finally {
+    el.remove();
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+    window.history.replaceState({}, '', '/');
+    fetchSpy.mockRestore();
+  }
+});
+
 test('a new build makes a signed-in tab refetch its day too', async () => {
   occurrenceQuery.files = true;
   vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']});

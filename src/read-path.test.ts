@@ -265,6 +265,55 @@ describe('findOccurrence', () => {
     await expect(findOccurrence('maplify:42')).rejects.toThrow(/nothing built/);
   });
 
+  describe('an old-form Maplify id (decision 112)', () => {
+    const current = {id: 'maplify:whale_alert:228809', location: {lon: -123.15, lat: 48.51}};
+
+    function serveAliases(aliases: Record<string, string> | null, indexed = true) {
+      return vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
+        const u = String(url);
+        const body = u.endsWith('manifest.json') ? manifest('2025-07-15')
+          : u.includes('/aliases/') ? aliases
+          : u.includes('/ids/') ? (indexed ? {[current.id]: '2025-07-14'} : {})
+          : u.includes('/days/') ? [current]
+          : null;
+        return new Response(body === null ? null : JSON.stringify(body), {status: body === null ? 404 : 200});
+      });
+    }
+
+    test('is found through the alias, and the occurrence returned carries its current id', async () => {
+      const fetch = serveAliases({'maplify:228809': current.id});
+      expect(await findOccurrence<Row & {id: string}>('maplify:228809')).toEqual(current);
+      expect(fetch.mock.calls.map(([u]) => String(u))).toEqual([
+        `/read-path/ids/${idShard('maplify:228809')}.json`,
+        `/read-path/aliases/${idShard('maplify:228809')}.json`,
+        `/read-path/ids/${idShard(current.id)}.json`,
+        '/read-path/days/2025-07-14.json']);
+    });
+
+    test('a number two sources use has no alias, so it is unknown', async () => {
+      serveAliases({'maplify:228810': 'maplify:wras:228810'});
+      expect(await findOccurrence('maplify:228809')).toBeNull();
+    });
+
+    test('with no aliases built yet, it is unknown too', async () => {
+      serveAliases(null);
+      expect(await findOccurrence('maplify:228809')).toBeNull();
+    });
+
+    test('the current form is found at once, without a look at the aliases', async () => {
+      const fetch = serveAliases(null);
+      expect(await findOccurrence<Row & {id: string}>(current.id)).toEqual(current);
+      expect(fetch.mock.calls.some(([u]) => String(u).includes('/aliases/'))).toBe(false);
+    });
+
+    test('an id that is not in the old form is not looked up as one', async () => {
+      const fetch = serveAliases({'maplify:228809': current.id}, false);
+      expect(await findOccurrence('maplify:wras:228809')).toBeNull();
+      expect(await findOccurrence('inaturalist:228809')).toBeNull();
+      expect(fetch.mock.calls.some(([u]) => String(u).includes('/aliases/'))).toBe(false);
+    });
+  });
+
   test('an id naming an inherited property is not found', async () => {
     serveIndex({shard: {'maplify:43': '2025-03-09'}, manifest: manifest('2025-03-09')});
     expect(await findOccurrence('constructor')).toBeNull();

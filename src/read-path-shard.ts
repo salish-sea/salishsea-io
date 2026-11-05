@@ -28,3 +28,32 @@ export function fnv1a32(text: string): number {
 export function idShard(id: string): string {
   return (fnv1a32(id) % ID_SHARDS).toString(16).padStart(2, '0');
 }
+
+/**
+ * Whether an id is a Maplify sighting named the way it was until decision 112: `maplify:`
+ * and the number alone. Maplify numbers sightings within a source, so the number alone can
+ * mean two sightings, and an occurrence is now `maplify:<source>:<number>`. A link written
+ * in the old form is looked up in the aliases (`aliases/<shard>.json`, below) instead.
+ */
+export function isLegacyMaplifyId(id: string): boolean {
+  return /^maplify:\d+$/.test(id);
+}
+
+/**
+ * The aliases for old-form Maplify ids: for each number that exactly one source uses among
+ * `ids`, `maplify:<number>` to the occurrence's id. A number two sources use names nothing
+ * (an old link to it was never safe to follow), and so has no alias. Pure; the build
+ * (scripts/read-path/occurrence-ids.ts) writes them, one file for each shard of the old id.
+ */
+export function legacyMaplifyAliases(ids: Iterable<string>): Map<string, string> {
+  const named = new Map<string, string | null>();
+  for (const id of ids) {
+    const m = /^maplify:(.+):(\d+)$/.exec(id);
+    if (!m) continue;
+    const old = `maplify:${m[2]}`;
+    named.set(old, named.has(old) ? null : id);
+  }
+  const aliases = new Map<string, string>();
+  for (const [old, id] of named) if (id !== null) aliases.set(old, id);
+  return aliases;
+}

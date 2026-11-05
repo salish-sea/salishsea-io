@@ -41,7 +41,7 @@ import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import { fetchMaplify } from '../ingest/fetch-maplify.ts';
-import { parseMaplifyResponse, reconcile, type NormalizedSighting } from '../ingest/maplify.ts';
+import { oneForEachKey, parseMaplifyResponse, reconcile, sightingKey, type NormalizedSighting } from '../ingest/maplify.ts';
 import type { IngestWindow } from '../ingest/window.ts';
 import { defaultWindow } from '../ingest/window.ts';
 import { addDays, antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
@@ -66,14 +66,41 @@ const COLUMNS = [
 
 const SCHEMA = `
     CREATE TABLE IF NOT EXISTS sightings (
-        id INTEGER PRIMARY KEY, project_id INTEGER NOT NULL, trip_id INTEGER NOT NULL,
+        id INTEGER NOT NULL, project_id INTEGER NOT NULL, trip_id INTEGER NOT NULL,
         name TEXT, scientific_name TEXT NOT NULL, lon REAL NOT NULL, lat REAL NOT NULL,
         number_sighted INTEGER NOT NULL, created_at TEXT NOT NULL, photo_url TEXT, comments TEXT,
         in_ocean INTEGER NOT NULL, moderated INTEGER NOT NULL, trusted INTEGER NOT NULL,
-        is_test INTEGER NOT NULL, source TEXT NOT NULL, usernm TEXT
+        is_test INTEGER NOT NULL, source TEXT NOT NULL, usernm TEXT,
+        PRIMARY KEY (source, id)
     );
     CREATE INDEX IF NOT EXISTS sightings_created_at ON sightings (created_at);
     CREATE TABLE IF NOT EXISTS covered_days (day TEXT PRIMARY KEY);`;
+
+/**
+ * Rebuild a mirror whose `sightings` is keyed on `id` alone into the shape keyed on
+ * (source, id), keeping every row and `covered_days` (decision 112). Maplify's ids are unique
+ * only within a source, so the old key let one source's sighting overwrite another's.
+ * The rows it holds are all genuine; only the overwritten ones are missing, and a backfill
+ * restores those. Does nothing on a new mirror, on one already in the new shape, and so
+ * on a second run. One transaction: a failure leaves the old table as it was.
+ */
+export function migrateSightingsKey(db: DatabaseSync): boolean {
+    const key = (db.prepare(`SELECT name FROM pragma_table_info('sightings') WHERE pk > 0 ORDER BY pk`)
+        .all() as {name: string}[]).map(c => c.name);
+    if (key.length === 0 || (key.length === 2 && key[0] === 'source' && key[1] === 'id')) return false;
+    db.exec('BEGIN');
+    try {
+        db.exec('ALTER TABLE sightings RENAME TO sightings_old; DROP INDEX IF EXISTS sightings_created_at');
+        db.exec(SCHEMA);
+        db.exec(`INSERT INTO sightings (${COLUMNS.join(', ')}) SELECT ${COLUMNS.join(', ')} FROM sightings_old;
+                 DROP TABLE sightings_old`);
+        db.exec('COMMIT');
+    } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+    }
+    return true;
+}
 
 /** The row the mirror stores for a normalized sighting. SQLite has no boolean. */
 export function mirrorRow(s: NormalizedSighting): MirrorRow {
@@ -86,7 +113,7 @@ export function mirrorRow(s: NormalizedSighting): MirrorRow {
     };
 }
 
-export type ReconcileResult = {upserted: number, deleted: number, changed: number};
+export type ReconcileResult = {upserted: number, deleted: number, changed: number, duplicates: number};
 
 /**
  * Reconcile one window's complete fetch into the mirror at `path`, creating it if need be.
@@ -114,9 +141,10 @@ export type ReconcileOptions = {
 };
 
 export function reconcileWindow(
-    path: string, window: IngestWindow, fetched: readonly NormalizedSighting[],
+    path: string, window: IngestWindow, response: readonly NormalizedSighting[],
     {maxDeleteShare = DELETE_FLOOR_SHARE}: ReconcileOptions = {},
 ): ReconcileResult {
+    const {kept: fetched, duplicates} = oneForEachKey(response);
     mkdirSync(dirname(path), {recursive: true});
     const db = new DatabaseSync(path);
     try {
@@ -124,11 +152,12 @@ export function reconcileWindow(
         // last commit rather than waiting out this one: the derive build runs beside the ingest
         // build (salish-uh0y). It stays set in the file.
         db.exec('PRAGMA journal_mode = WAL');
+        migrateSightingsKey(db);
         db.exec(SCHEMA);
         const stored = new Map(
             (db.prepare('SELECT * FROM sightings WHERE created_at >= ? AND created_at < ?')
                 .all(window.start, addDays(window.end, 1)) as unknown as MirrorRow[])
-                .map(r => [r.id, JSON.stringify(COLUMNS.map(c => r[c]))]));
+                .map(r => [sightingKey({source: r.source, id: r.id}), JSON.stringify(COLUMNS.map(c => r[c]))]));
         const plan = reconcile(fetched, [...stored.keys()]);
         if (maxDeleteShare !== null && stored.size >= DELETE_FLOOR_MIN_STORED
             && plan.delete.length > maxDeleteShare * stored.size)
@@ -136,20 +165,24 @@ export function reconcileWindow(
                 + `${stored.size} sightings the mirror holds for the window, more than the ${Math.round(maxDeleteShare * 100)}% `
                 + `a scheduled run may delete; nothing written. If Maplify really retracted them, a backfill of the window applies it.`);
         const rows = plan.upsert.map(mirrorRow);
-        const altered = rows.filter(r => stored.get(r.id) !== JSON.stringify(COLUMNS.map(c => r[c])));
+        const altered = rows.filter(r => stored.get(sightingKey(r)) !== JSON.stringify(COLUMNS.map(c => r[c])));
         const days = windowDays(window);
         const covered = (db.prepare(`SELECT count(*) AS n FROM covered_days WHERE day >= ? AND day <= ?`)
             .get(window.start, window.end) as {n: number}).n;
         const changed = altered.length + plan.delete.length;
         if (changed === 0 && covered === days.length)
-            return {upserted: rows.length, deleted: 0, changed: 0};
+            return {upserted: rows.length, deleted: 0, changed: 0, duplicates};
         db.exec('BEGIN');
         try {
             const upsert = db.prepare(
                 `INSERT OR REPLACE INTO sightings (${COLUMNS.join(', ')}) VALUES (${COLUMNS.map(() => '?').join(', ')})`);
             for (const r of altered) upsert.run(...COLUMNS.map(c => r[c]));
-            const remove = db.prepare('DELETE FROM sightings WHERE id = ?');
-            for (const id of plan.delete) remove.run(id);
+            const remove = db.prepare('DELETE FROM sightings WHERE source = ? AND id = ?');
+            for (const key of plan.delete) {
+                // a source is any text, but an id is the digits after the last colon
+                const at = key.lastIndexOf(':');
+                remove.run(key.slice(0, at), Number(key.slice(at + 1)));
+            }
             const cover = db.prepare('INSERT OR IGNORE INTO covered_days (day) VALUES (?)');
             for (const day of days) cover.run(day);
             db.exec('COMMIT');
@@ -157,7 +190,7 @@ export function reconcileWindow(
             db.exec('ROLLBACK');
             throw error;
         }
-        return {upserted: rows.length, deleted: plan.delete.length, changed};
+        return {upserted: rows.length, deleted: plan.delete.length, changed, duplicates};
     } finally {
         db.close();
     }
@@ -194,11 +227,12 @@ export async function main(): Promise<void> {
             const result = parseMaplifyResponse(await fetchMaplify(window, log));
             if (!result.ok) throw new Error(`maplify parse failed: ${result.error}`);
             // a curator's backfill applies what it fetched, floor or no floor (see reconcileWindow)
-            const {upserted, deleted, changed} = reconcileWindow(path, window, result.sightings,
+            const {upserted, deleted, changed, duplicates} = reconcileWindow(path, window, result.sightings,
                 trigger === 'manual' ? {maxDeleteShare: null} : {});
             changedInAll += changed;
             console.log(`maplify ${window.start}..${window.end}: ${result.sightings.length} sightings fetched; `
-                + `${changed === 0 ? 'unchanged' : `${changed} changed (${deleted} deleted)`}; ${upserted} in the window`);
+                + `${changed === 0 ? 'unchanged' : `${changed} changed (${deleted} deleted)`}; ${upserted} in the window`
+                + (duplicates > 0 ? `; ${duplicates} repeated within the response, the earlier copy kept` : ''));
         }
         return changedInAll;
     });

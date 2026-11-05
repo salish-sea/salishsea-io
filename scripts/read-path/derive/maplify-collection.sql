@@ -14,7 +14,7 @@
 -- Resolved in the build rather than read from the column the ingest wrote, so the mirror
 -- holds only what Maplify said (decision 061, salish-xv35.11).
 CREATE OR REPLACE TEMP VIEW maplify_collection AS
-  SELECT s.id,
+  SELECT s.source, s.id,
          coalesce(
            (SELECT r.collection_id FROM maplify.collection_rule r
              WHERE r.match_kind = 'bracket' AND regexp_matches(s.comments, '^\[([^\]]+)\]')

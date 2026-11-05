@@ -39,7 +39,7 @@
 -- (name, scientific name) pair into memory.maplify_entity (derive/maplify-entities.ts),
 -- and the collection by maplify_collection (derive/lookups.sql).
 CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
-  SELECT 'maplify:' || s.id AS id,
+  SELECT 'maplify:' || s.source || ':' || s.id AS id,
          CAST(NULL AS VARCHAR) AS url,
          s.usernm || ' on ' || s.source AS attribution,
          s.comments AS body,
@@ -79,10 +79,10 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          reading_absent(r.claims) AS absent,
          report_claims(r.claims) AS claims
   FROM source_maplify_sightings s
-  LEFT JOIN memory.reading r ON r.id = 'maplify:' || s.id
+  LEFT JOIN memory.reading r ON r.id = 'maplify:' || s.source || ':' || s.id
   LEFT JOIN memory.maplify_entity me
     ON me.name IS NOT DISTINCT FROM s.name AND me.scientific_name = s.scientific_name
-  LEFT JOIN maplify_collection mc ON mc.id = s.id
+  LEFT JOIN maplify_collection mc ON mc.source = s.source AND mc.id = s.id
   LEFT JOIN inaturalist_taxon xw ON xw.entity_id = me.entity_id
   LEFT JOIN taxa t_recorded ON t_recorded.id = xw.inaturalist_taxon_id
   LEFT JOIN taxa t ON t.id = coalesce(t_recorded.current_taxon_id, t_recorded.id)
@@ -94,7 +94,7 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
     -- Out of the map's scope by the ingest's isIngestable, decided in the build because
     -- the mirror keeps all Maplify returned (salish-xv35.7). Against Postgres's store,
     -- which the ingest already filtered, nothing is: 0 of 28,611 on 2026-10-02.
-    AND s.id NOT IN (SELECT id FROM memory.maplify_out_of_scope);
+    AND NOT EXISTS (SELECT 1 FROM memory.maplify_out_of_scope o WHERE o.source = s.source AND o.id = s.id);
 
 -- arm: inaturalist
 -- Whether people other than the observer agree with what an observation is shown as

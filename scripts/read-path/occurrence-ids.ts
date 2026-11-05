@@ -9,6 +9,11 @@
  * shard of src/read-path-shard.ts — the browser computes the same shard from the
  * id it was given, fetches that one file, and then the day's own file. About 250
  * ids a shard, so a few KB, and a new sighting rewrites only its own shard.
+ *
+ * Beside it, $EXPORT_DIR/aliases/<shard>.json, `{"maplify:228809": "maplify:whale_alert:228809", …}`,
+ * lets a link written before decision 112 (`o=maplify:<number>`) find its sighting: the
+ * old id is sharded as any id is, and an entry exists only where exactly one source
+ * uses the number. The id index's own format is untouched, so a cached old page reads it.
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
@@ -17,13 +22,15 @@ import { budget } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
 import * as path from 'node:path';
 
-import { idShard } from '../../src/read-path-shard.ts';
+import { idShard, legacyMaplifyAliases } from '../../src/read-path-shard.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 
 
-export async function writeIds(snapshot: string, exportDir: string): Promise<{shards: number, ids: number}> {
+export async function writeIds(snapshot: string, exportDir: string): Promise<{shards: number, ids: number, aliases: number}> {
     const outDir = path.join(exportDir, 'ids');
+    const aliasDir = path.join(exportDir, 'aliases');
     await recoverDir(outDir);
+    await recoverDir(aliasDir);
 
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
@@ -56,7 +63,18 @@ export async function writeIds(snapshot: string, exportDir: string): Promise<{sh
     }
     await replaceDir(outDir,
         [...shards].map(([shard, ids]) => [`${shard}.json`, JSON.stringify(ids)] as [string, string]));
-    return {shards: shards.size, ids: rows.length};
+
+    const aliases = legacyMaplifyAliases(rows.map(([id]) => id));
+    const aliasShards = new Map<string, Record<string, string>>();
+    for (const [old, id] of aliases) {
+        const shard = idShard(old);
+        let entries = aliasShards.get(shard);
+        if (!entries) aliasShards.set(shard, entries = {});
+        entries[old] = id;
+    }
+    await replaceDir(aliasDir,
+        [...aliasShards].map(([shard, entries]) => [`${shard}.json`, JSON.stringify(entries)] as [string, string]));
+    return {shards: shards.size, ids: rows.length, aliases: aliases.size};
 }
 
 export async function main(): Promise<void> {
@@ -66,8 +84,8 @@ export async function main(): Promise<void> {
         console.error('usage: EXPORT_DIR=… occurrence-ids.ts <snapshot.duckdb>');
         process.exit(2);
     }
-    const {shards, ids} = await writeIds(snapshot, exportDir);
-    console.log(`ids/: ${ids} ids in ${shards} shards`);
+    const {shards, ids, aliases} = await writeIds(snapshot, exportDir);
+    console.log(`ids/: ${ids} ids in ${shards} shards; aliases/: ${aliases} old Maplify ids`);
 }
 
 if (import.meta.main) {

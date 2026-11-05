@@ -86,8 +86,8 @@ CREATE OR REPLACE TABLE pgdb.maplify.sightings AS
   FROM source_maplify_sightings s
   LEFT JOIN memory.maplify_entity me
     ON me.name IS NOT DISTINCT FROM s.name AND me.scientific_name = s.scientific_name
-  LEFT JOIN maplify_collection mc ON mc.id = s.id
-  WHERE s.id NOT IN (SELECT id FROM memory.maplify_out_of_scope);
+  LEFT JOIN maplify_collection mc ON mc.source = s.source AND mc.id = s.id
+  WHERE NOT EXISTS (SELECT 1 FROM memory.maplify_out_of_scope o WHERE o.source = s.source AND o.id = s.id);
 
 CREATE OR REPLACE TABLE pgdb.public.observations AS SELECT * FROM public.observations;
 CREATE OR REPLACE TABLE pgdb.public.collections AS SELECT * FROM public.collections;
@@ -160,7 +160,7 @@ CREATE OR REPLACE TEMP MACRO maplify_recorded_by(comments) AS (
 );
 
 CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
-  SELECT 'maplify:' || CAST(s.id AS VARCHAR) AS "occurrenceID",
+  SELECT 'maplify:' || s.source || ':' || CAST(s.id AS VARCHAR) AS "occurrenceID",
          'HumanObservation' AS "basisOfRecord",
          -- The day Maplify received the report, in Pacific time, the day the map files it
          -- under (pacific-day.ts). A day only: Maplify records when it received a report,
@@ -194,7 +194,7 @@ CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
          CAST(NULL AS VARCHAR) AS "recordedByID",
          loc.locality AS "locality"
   FROM pgdb.maplify.sightings s
-  LEFT JOIN occurrence_locality loc ON loc.id = 'maplify:' || CAST(s.id AS VARCHAR)
+  LEFT JOIN occurrence_locality loc ON loc.id = 'maplify:' || s.source || ':' || CAST(s.id AS VARCHAR)
   JOIN inaturalist_taxon xw ON xw.entity_id = s.entity_id
   JOIN dwc_taxa_classification tc ON tc.taxon_id = xw.inaturalist_taxon_id
   LEFT JOIN public.collections c_coll ON c_coll.id = s.collection_id

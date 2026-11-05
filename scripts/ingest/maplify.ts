@@ -266,28 +266,61 @@ export function parseMaplifyResponse(raw: unknown): ParseResult {
     return { ok: true, sightings: parsed.data.results.map(normalizeRecord) };
 }
 
+/**
+ * A sighting's key in the mirror: its source and its id together. Maplify numbers
+ * sightings within a source (whale_alert, wras, FARPB, …), and the sources' ranges
+ * overlap, so an id alone can mean two sightings (decision 112).
+ */
+export function sightingKey(s: { readonly source: string; readonly id: number }): string {
+    return `${s.source}:${s.id}`;
+}
+
+/**
+ * One sighting for each (source, id) in a response. Maplify sometimes sends a sighting
+ * twice within one response: 216 Whale Alert ids from 2019 to 2021 appear as a legacy copy
+ * named "Humpback Sighting:" beside the same sighting named "Humpback", created two to four
+ * hours earlier. The one created earlier is the original report, so it is kept; on a tie
+ * the first in the response is. Order is otherwise kept. `duplicates` counts the rows dropped.
+ */
+export function oneForEachKey(fetched: readonly NormalizedSighting[]): {
+    readonly kept: readonly NormalizedSighting[];
+    readonly duplicates: number;
+} {
+    const best = new Map<string, NormalizedSighting>();
+    for (const s of fetched) {
+        const key = sightingKey(s);
+        const held = best.get(key);
+        // 'YYYY-MM-DD HH:MM:SS' compares as text the way it does as a time
+        if (!held || s.createdAt < held.createdAt) best.set(key, s);
+    }
+    const kept = fetched.filter((s) => best.get(sightingKey(s)) === s);
+    return { kept, duplicates: fetched.length - kept.length };
+}
+
 export type ReconcilePlan = {
     readonly upsert: readonly NormalizedSighting[];
-    readonly delete: readonly number[];
+    readonly delete: readonly string[];
 };
 
 /**
  * Compute the authoritative reconcile plan for a window, given the complete set
- * of fetched (already-ingestable-filtered) sightings and the ids currently
- * stored in that window. Upsert everything fetched; delete stored ids that the
- * fetch no longer contains. Pure — the safety-critical diff, tested in isolation.
+ * of fetched (already-ingestable-filtered) sightings and the keys (sightingKey)
+ * currently stored in that window. Upsert everything fetched; delete stored keys
+ * that the fetch no longer contains. Pure — the safety-critical diff, tested in
+ * isolation.
  *
  * Precondition (enforced by the shell, not here): only call this with a fetch
- * that parsed ok and is complete. Given an empty `fetched`, every existing id is
- * a delete — which is why the shell must never reach this on a failed fetch.
+ * that parsed ok and is complete, and has one sighting for each key (oneForEachKey).
+ * Given an empty `fetched`, every existing key is a delete — which is why the shell
+ * must never reach this on a failed fetch.
  */
 export function reconcile(
     fetched: readonly NormalizedSighting[],
-    existingWindowIds: readonly number[],
+    existingWindowKeys: readonly string[],
 ): ReconcilePlan {
-    const fetchedIds = new Set(fetched.map((s) => s.id));
+    const fetchedKeys = new Set(fetched.map(sightingKey));
     return {
         upsert: fetched,
-        delete: existingWindowIds.filter((id) => !fetchedIds.has(id)),
+        delete: existingWindowKeys.filter((key) => !fetchedKeys.has(key)),
     };
 }

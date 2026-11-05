@@ -410,6 +410,10 @@
    ;; Which day each occurrence is on, sharded by a hash of its id, so a ?o=
    ;; link opens without asking the database (decision 056).
    (make-artifact 'ids 'dir)
+   ;; Where an old-form Maplify id (maplify:<number>) now lives, sharded by a hash of
+   ;; the old id, for the numbers one source uses (decision 112). Written by the same
+   ;; task as ids/, from the same occurrences.
+   (make-artifact 'aliases 'dir)
    ;; What the last build covered (salish-t3g.4): the frontend reads a missing
    ;; day file as empty only for a covered day, and watches it for new builds.
    ;; It changes every build by design, since the snapshot time does.
@@ -590,7 +594,7 @@
    ;; every id moves, which must rebuild the index.
    (make-task 'occurrence-ids 'transform
               #:inputs '(build.occurrences)
-              #:outputs '(ids)
+              #:outputs '(ids aliases)
               #:invoke (node-script/code "scripts/read-path/occurrence-ids.ts"
                                  '()
                                  (list SNAPSHOT-DB)))
@@ -855,7 +859,7 @@
    ;; manifest must never claim a build whose files are not yet in place, and a
    ;; failed export must leave the last manifest standing. It reads none of them.
    (make-task 'manifest 'transform
-              #:inputs '(snapshot-meta days calendar ids
+              #:inputs '(snapshot-meta days calendar ids aliases
                          individual-pages matriline-pages ecotype-pages pod-pages haulout-pages whales.html
                          redirects.json sitemap.xml catalog-codes.json animal-names.json)
               #:outputs '(manifest.json)
@@ -914,6 +918,7 @@
     [(manifest.json) (build-path export-dir "manifest.json")]
     [(calendar) (build-path export-dir "calendar")]
     [(ids) (build-path export-dir "ids")]
+    [(aliases) (build-path export-dir "aliases")]
     [(individual-pages) (build-path export-dir "profiles" "individuals")]
     [(matriline-pages) (build-path export-dir "profiles" "matrilines")]
     [(ecotype-pages) (build-path export-dir "profiles" "populations")]

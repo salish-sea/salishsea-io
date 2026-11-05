@@ -969,6 +969,10 @@ export default class SalishSea extends LitElement {
       ...occurrence,
       observed_at_ms: Date.parse(occurrence.observed_at),
     };
+    // The occurrence's own id, set before the fetch: an old-form Maplify link (decision 112)
+    // found it under another id, and receiveOccurrences merges the pinned row only when
+    // its id is the focused one.
+    this.focusedOccurrenceId = occurrence.id;
     // Bypass the date setter to avoid writing ?d= to history
     this.#date = date;
     await this.fetchOccurrences(date);
@@ -977,7 +981,9 @@ export default class SalishSea extends LitElement {
     const {lon, lat} = occurrence.location as {lon: number; lat: number};
     const coord = fromLonLat([lon, lat]);
     this.mapRef.value!.setView(coord[0]!, coord[1]!, 12, {skipEvent: true});
-    this.focusedOccurrenceId = id;
+    // The link is rewritten to the current form so that one shared again carries it.
+    if (occurrence.id !== id && new URLSearchParams(window.location.search).get('o') === id)
+      setQueryParams({o: occurrence.id}, {replace: true});
     return true;
   }
 }

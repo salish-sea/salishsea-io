@@ -62,23 +62,50 @@ function toOccurrence(row: OccurrenceRow): Occurrence {
 }
 
 /**
+ * The Maplify id form used before decision 112: `maplify:` and the number alone. Maplify
+ * numbers sightings within a source, so a current id is `maplify:<source>:<number>`; the
+ * build's aliases (`aliases/<shard>.json`) say which current id an old one named, where
+ * exactly one source uses the number. Mirrors isLegacyMaplifyId in src/read-path-shard.ts,
+ * which this bundle cannot import.
+ */
+const LEGACY_MAPLIFY_ID = /^maplify:\d+$/;
+
+/** A sighting the build's files hold: the id index names its day, and the day's file has it. */
+async function fromFiles(id: string): Promise<OccurrenceRow | null> {
+  const shard = await readPath(`ids/${idShard(id)}.json`);
+  if (!shard.ok && shard.status !== 404) throw new Error(`read path ids: HTTP ${shard.status}`);
+  const days = shard.ok ? await shard.json() as Record<string, unknown> : {};
+  // The id comes from the URL: `constructor` must not find an inherited property.
+  const day = Object.hasOwn(days, id) ? days[id] : undefined;
+  return typeof day === 'string' ? (await fetchDay(day)).find(r => r.id === id) ?? null : null;
+}
+
+/** The current id an old-form Maplify id names, or null. */
+async function legacyAlias(id: string): Promise<string | null> {
+  const res = await readPath(`aliases/${idShard(id)}.json`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`read path aliases: HTTP ${res.status}`);
+  const aliases = await res.json() as Record<string, unknown>;
+  const current = Object.hasOwn(aliases, id) ? aliases[id] : undefined;
+  return typeof current === 'string' ? current : null;
+}
+
+/**
  * One occurrence, or null if the id is unknown: from the build's files, where the id
- * index names its day and the day's file holds it; failing that, for a native
+ * index names its day and the day's file holds it; for a Maplify id in the old form
+ * that the index lacks, through the alias to the current id; failing that, for a native
  * sighting (a bare uuid; an upstream id carries its source, `maplify:…`), from the
  * write API, which holds what people save here until a build publishes it. Without
  * that arm a link shared the moment a sighting was saved rendered no card, and the
  * miss was cached for minutes after the files had caught up.
  */
 export async function fetchOccurrence(id: string): Promise<Occurrence | null> {
-  const shard = await readPath(`ids/${idShard(id)}.json`);
-  if (!shard.ok && shard.status !== 404) throw new Error(`read path ids: HTTP ${shard.status}`);
-  const days = shard.ok ? await shard.json() as Record<string, unknown> : {};
-  // The id comes from the URL: `constructor` must not find an inherited property.
-  const day = Object.hasOwn(days, id) ? days[id] : undefined;
-  if (typeof day === 'string') {
-    const row = (await fetchDay(day)).find(r => r.id === id);
-    if (row) return toOccurrence(row);
+  let row = await fromFiles(id);
+  if (!row && LEGACY_MAPLIFY_ID.test(id)) {
+    const current = await legacyAlias(id);
+    if (current) row = await fromFiles(current);
   }
+  if (row) return toOccurrence(row);
   if (id.includes(':')) return null;
   const res = await fetch(`${API}sightings/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   // 404: no such sighting. 400: not a sighting id at all (a native id is a uuid), which is

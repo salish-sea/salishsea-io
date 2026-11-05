@@ -76,7 +76,7 @@ INSERT INTO public.identifications (occurrence_id, individual_id, social_group_i
 VALUES
     ('00000000-0000-4000-a000-000000000002', (SELECT id FROM public.individuals WHERE primary_designation = 'T065A'),
      NULL, TRUE, 'photograph', 'manual', 'validated', 'T65A', 'certain'),
-    ('maplify:11', (SELECT id FROM public.individuals WHERE primary_designation = 'T137A'),
+    ('maplify:whale_alert:11', (SELECT id FROM public.individuals WHERE primary_designation = 'T137A'),
      NULL, FALSE, 'photograph', 'manual', 'rejected', 'T137A', 'certain');
 
 SELECT derived.refresh_all();
