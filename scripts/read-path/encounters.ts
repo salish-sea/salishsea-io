@@ -2,7 +2,7 @@
  * Each animal's and matriline's encounters, for its timeline in the map page's sidebar
  * (decision 098).
  *
- *   EXPORT_DIR=… node scripts/read-path/encounters.ts <snapshot.duckdb>
+ *   EXPORT_DIR=… node scripts/read-path/encounters.ts <snapshot.duckdb> [--water-mask <png> <json>]
  *
  * Writes $EXPORT_DIR/encounters/individuals/<id>.json and encounters/matrilines/<id>.json,
  * one for every subject with a page (<id> is its register identifier's seven digits, as
@@ -11,6 +11,7 @@
  * that day, not only the subject's: the days are joined into segments here as the day
  * files' writer joins them (src/segments.ts, decision 111), from the same rows in the
  * same order, and each segment summarized for each subject it holds a report of. The
+ * Distance is by sea when given the water mask, as the day files' writer is (salish-20u7.3). The
  * browser doing the same would fetch every day file a subject was reported on: 14 MB for T065A5.
  *
  * A subject's reports are its page's links (build.individual_occurrences and
@@ -23,10 +24,12 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import * as path from 'node:path';
 
 import { dedupeOccurrenceLinks, newestFirst as newer, observedDate } from '../../src/catalog.ts';
+import type { DistanceM } from '../../src/segments.ts';
 import { dayEncounters, type CalfFirst, type DayOccurrence, type Encounter, type SubjectReport } from '../../src/encounter.ts';
 import { budget } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
+import { waterMaskArgs } from './water-mask.ts';
 import { readSnapshot, type Doc } from './snapshot-tables.ts';
 
 /** How many days each query sorts and streams. */
@@ -123,7 +126,7 @@ export function calfFirsts(
     return firsts;
 }
 
-export async function writeEncounters(snapshot: string, exportDir: string): Promise<{subjects: number, encounters: number, days: number}> {
+export async function writeEncounters(snapshot: string, exportDir: string, distanceM?: DistanceM): Promise<{subjects: number, encounters: number, days: number}> {
     const outDir = path.join(exportDir, 'encounters');
     await recoverDir(outDir);
     const {reports, files, firsts} = await readSnapshot(snapshot, async s =>
@@ -136,7 +139,7 @@ export async function writeEncounters(snapshot: string, exportDir: string): Prom
     try {
         const finish = (d: string, rows: DayOccurrence[]) => {
             counts.days++;
-            for (const [subject, encounter] of dayEncounters(d, rows, id => reports.get(id) ?? [], id => firsts.get(id) ?? [])) {
+            for (const [subject, encounter] of dayEncounters(d, rows, id => reports.get(id) ?? [], id => firsts.get(id) ?? [], distanceM)) {
                 bySubject.get(subject)!.push(encounter);
                 counts.encounters++;
             }
@@ -190,13 +193,13 @@ export async function writeEncounters(snapshot: string, exportDir: string): Prom
 }
 
 export async function main(): Promise<void> {
-    const [snapshot] = process.argv.slice(2);
+    const {rest: [snapshot, ...extra], distanceM} = waterMaskArgs(process.argv.slice(2));
     const exportDir = process.env['EXPORT_DIR'];
-    if (!snapshot || !exportDir) {
-        console.error('usage: EXPORT_DIR=… encounters.ts <snapshot.duckdb>');
+    if (!snapshot || extra.length || !exportDir) {
+        console.error('usage: EXPORT_DIR=… encounters.ts <snapshot.duckdb> [--water-mask <png> <json>]');
         process.exit(2);
     }
-    const {subjects, encounters, days} = await writeEncounters(snapshot, exportDir);
+    const {subjects, encounters, days} = await writeEncounters(snapshot, exportDir, distanceM);
     console.log(`encounters/: ${encounters} encounters on ${days} days, for ${subjects} subjects`);
 }
 

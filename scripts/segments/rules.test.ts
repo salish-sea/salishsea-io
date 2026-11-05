@@ -1,5 +1,5 @@
 import {describe, expect, test} from 'vitest';
-import {RULES, ecotypesOf, identityPreferred, type Sighting, type Track} from './rules.ts';
+import {RULES, ecotypesOf, identityPreferred, seaDistanceRule, type Sighting, type Track} from './rules.ts';
 
 const orca = 'Orcinus orca';
 const sighting = (id: string, utc: string, lon: number, lat: number, extra: Partial<Sighting> = {}): Sighting => ({
@@ -70,4 +70,17 @@ test('ecotypesOf reads the taxon and named pods and IDs', () => {
   expect([...ecotypesOf(sighting('b', '2026-01-01T00:00:00Z', 0, 0, {identifiers: ['T049A1']}))]).toEqual(['biggs']);
   expect([...ecotypesOf(sighting('c', '2026-01-01T00:00:00Z', 0, 0, biggs))]).toEqual(['biggs']);
   expect(ecotypesOf(sighting('d', '2026-01-01T00:00:00Z', 0, 0)).size).toBe(0);
+});
+
+describe('seaDistanceRule (salish-20u7.3)', () => {
+  const base = new URL('../read-path/fixtures/water-mask/water-mask', import.meta.url).pathname;
+  // The Saltspring pair of 2025-07-14: 13 km apart, 29 km round the island by sea
+  const pair = [
+    sighting('trincomali', '2025-07-14T19:09:00Z', -123.46, 48.88),
+    sighting('maple-bay', '2025-07-14T20:32:00Z', -123.60, 48.80),
+  ];
+  test('refuses the join that crosses the island, which the straight line makes', () => {
+    expect(ids(RULES.current(pair))).toEqual([['trincomali', 'maple-bay']]);
+    expect(ids(seaDistanceRule(base)(pair))).toEqual([['trincomali'], ['maple-bay']]);
+  });
 });

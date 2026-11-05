@@ -9,7 +9,8 @@
 import { crc32, deflateSync, inflateSync } from 'node:zlib';
 import { readFileSync } from 'node:fs';
 
-import { WaterGrid, type WaterGridSpec } from '../../src/sea-distance.ts';
+import type { DistanceM } from '../../src/segments.ts';
+import { WaterGrid, seaDistanceFor, type WaterGridSpec } from '../../src/sea-distance.ts';
 
 const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -128,6 +129,20 @@ export function gridFromPng(png: Uint8Array, json: WaterMaskJson): WaterGrid {
         }
     }
     return new WaterGrid(bits, spec);
+}
+
+/**
+ * The join's distance from a command line that may carry `--water-mask <png> <json>`
+ * (the build always passes it: occurrence-days.ts and encounters.ts must measure the same
+ * way): the distance by sea, with the arguments left over. Without the flag the join
+ * measures in a straight line, as the browser does, which is for hand runs and tests.
+ */
+export function waterMaskArgs(args: readonly string[]): {rest: string[], distanceM: DistanceM | undefined} {
+    const at = args.indexOf('--water-mask');
+    if (at < 0) return {rest: [...args], distanceM: undefined};
+    const [png, json] = [args[at + 1], args[at + 2]];
+    if (!png || !json || png.startsWith('--') || json.startsWith('--')) throw new Error('--water-mask takes two paths: <water-mask.png> <water-mask.json>');
+    return {rest: [...args.slice(0, at), ...args.slice(at + 3)], distanceM: seaDistanceFor(loadWaterGrid(png, json))};
 }
 
 export function loadWaterGrid(pngPath: string, jsonPath: string): WaterGrid {

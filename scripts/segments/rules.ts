@@ -15,6 +15,8 @@
 import {distance} from '@turf/distance';
 import {travelSpeedFor} from '../../src/constants.ts';
 import {ecotypesOf, occurrences2segments} from '../../src/segments.ts';
+import {seaDistanceFor} from '../../src/sea-distance.ts';
+import {loadWaterGrid} from '../read-path/water-mask.ts';
 import type {Occurrence} from '../../src/types.ts';
 
 const hour = 60 * 60 * 1000;
@@ -37,6 +39,17 @@ export const km = (a: Sighting, b: Sighting) =>
 /** The map's rule. It reads a sighting's id, time, place, taxon and identifiers. */
 export const current: Rule = sightings =>
   occurrences2segments(sightings as unknown as Occurrence[]).map(s => s.occurrences as unknown as Track);
+
+/**
+ * `current` with the distance measured by sea on the basemap's water mask, as the build
+ * measures it (salish-20u7.3). `base` is the mask's path without its extension: the picture
+ * is `<base>.png` and its georeference `<base>.json`.
+ */
+export function seaDistanceRule(base: string): Rule {
+  const distanceM = seaDistanceFor(loadWaterGrid(`${base}.png`, `${base}.json`));
+  return sightings =>
+    occurrences2segments(sightings as unknown as Occurrence[], distanceM).map(s => s.occurrences as unknown as Track);
+}
 
 /**
  * The map's rule before decision 063. It builds one track at a time, oldest

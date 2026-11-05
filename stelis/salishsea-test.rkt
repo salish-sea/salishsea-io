@@ -48,9 +48,10 @@
 ;; Orcasound and the snapshot of what Postgres still holds. The ingests themselves are
 ;; the other graph's, so here the mirrors are leaves.
 (define-values (ordered pruned) (plan salishsea-graph 'days))
-(check-equal? ordered '(maplify-names reference snapshot water-regions derive-occurrences occurrence-days)
+(check-equal? ordered '(maplify-names reference snapshot water-mask water-regions derive-occurrences occurrence-days)
               (string-append "the day files need the name guard, the reference files, the snapshot, "
-                             "the water regions (each occurrence's place, salish-fwyt.2) and the derivation; "
+                             "the water mask (the join's distance by sea, salish-20u7.3), the water regions "
+                             "(each occurrence's place, salish-fwyt.2) and the derivation; "
                              "the mirrors and the register arrive from the ingest graph"))
 (check-equal? (set-count pruned) 18
               (string-append "the calendar, the id index, the candidates and links, the catalogue and its "
@@ -86,9 +87,15 @@
                (regexp-match? #rx"-snapshot$" (symbol->string o)))
              "the snapshot copies none of the catalogue")
 (check-not-false (memq 'register.ancestor (inputs-of 'derive-catalogue)))
-(for ([export (in-list '(occurrence-days calendar occurrence-ids))])
+(for ([export (in-list '(calendar occurrence-ids))])
   (check-equal? (inputs-of export) '(build.occurrences)
                 "every occurrence export reads the build's occurrences, and nothing of Postgres's answer"))
+;; The day files join each day into segments by sea (decision 063, amended), so they read the
+;; water mask too; the encounters join the same days and must read it likewise.
+(check-equal? (inputs-of 'occurrence-days) '(build.occurrences water-mask.png water-mask.json)
+              "the day files read the build's occurrences and the water mask")
+(check-eq? (producer-of salishsea-graph 'water-mask.png) 'water-mask)
+(check-eq? (producer-of salishsea-graph 'water-mask.json) 'water-mask)
 
 (define-values (manifest-plan _p) (plan salishsea-graph 'manifest.json))
 
@@ -245,7 +252,7 @@
 ;; matrilines' members say whose timelines a calf's first report marks (salish-fwyt.4.2).
 (check-equal? (sort (inputs-of 'encounters) symbol<?)
               '(build.group_occurrences build.individual_occurrences build.occurrences individuals-snapshot
-                matriline-members-snapshot social-groups-snapshot)
+                matriline-members-snapshot social-groups-snapshot water-mask.json water-mask.png)
               "the encounters' inputs are what encounters.ts reads")
 (check-false (memq 'encounters manifest-plan) "the manifest doesn't wait on the encounters")
 ;; The ecotype's links pooled, and each matriline's for its small map (decision 067).

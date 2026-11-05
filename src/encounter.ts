@@ -1,5 +1,5 @@
 import { mainPlace } from './place.ts';
-import { occurrences2segments } from './segments.ts';
+import { occurrences2segments, type DistanceM } from './segments.ts';
 import type { Occurrence, OccurrencePhoto, SegmentPlacement } from './types.ts';
 
 /**
@@ -77,17 +77,20 @@ export function channelOf(r: Pick<Occurrence, 'provider_slug' | 'collection' | '
  * A day's encounters for every subject its reports name: the day joined into travel
  * segments as the map joins it (src/segments.ts, decision 063), and each segment that
  * holds a report of a subject summarized for that subject. `reportsOf` says which
- * subjects an occurrence is a report of.
+ * subjects an occurrence is a report of. `distanceM` is the join's distance, which the
+ * day files' writer must be given too for the two to agree (the build passes the
+ * distance by sea to both).
  */
 export function dayEncounters<K>(
   day: string,
   rows: readonly DayOccurrence[],
   reportsOf: (occurrenceId: string) => readonly SubjectReport<K>[],
   firstsOf: (occurrenceId: string) => readonly (CalfFirst & {subjects: readonly K[]})[] = () => [],
+  distanceM?: DistanceM,
 ): [K, Encounter][] {
   const out: [K, Encounter][] = [];
   const occurrences = rows.map(r => ({...r, observed_at_ms: Date.parse(r.observed_at)}) as Occurrence);
-  for (const {occurrences: reports} of occurrences2segments(occurrences)) {
+  for (const {occurrences: reports} of occurrences2segments(occurrences, distanceM)) {
     const bySubject = new Map<K, {ids: string[], as_self: number, only_members?: number, possibly?: number}>();
     for (const r of reports) for (const {subject, via_group, via_member, possibly} of reportsOf(r.id)) {
       const mine = bySubject.get(subject) ?? bySubject.set(subject, {ids: [], as_self: 0}).get(subject)!;

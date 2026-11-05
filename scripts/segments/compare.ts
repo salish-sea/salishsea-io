@@ -5,6 +5,7 @@
  *   pnpm exec tsx scripts/segments/compare.ts                 # measures since 2022
  *   pnpm exec tsx scripts/segments/compare.ts --since 2025-01-01
  *   pnpm exec tsx scripts/segments/compare.ts --day 2026-09-03 --rules current,nearestEcotype
+ *   WATER_MASK=/path/to/water-mask pnpm exec tsx scripts/segments/compare.ts --rules current,seaDistance
  *   pnpm exec tsx scripts/segments/compare.ts --refresh       # re-read the files
  *   pnpm exec tsx scripts/segments/compare.ts --from ~/salishsea-export   # a local build
  *
@@ -35,11 +36,13 @@
  *   Groups join and split, so some of these links are right.
  * - days changed: days whose tracks differ from `previous`, the map's rule
  *   before decision 063.
+ * - seaDistance is `current` with the distance by sea (it needs WATER_MASK); to see
+ *   which days differ from `current`, run with `--changed`.
  */
 import {parseArgs} from 'node:util';
 import {travelSpeedFor} from '../../src/constants.ts';
 import {calendarDate, DEFAULT_FROM, loadRows} from './published.ts';
-import {RULES, ecotypesOf, identityPreferred, km, type Rule, type Sighting, type Track} from './rules.ts';
+import {RULES, ecotypesOf, identityPreferred, km, seaDistanceRule, type Rule, type Sighting, type Track} from './rules.ts';
 
 const hour = 60 * 60 * 1000;
 
@@ -48,6 +51,7 @@ const {values: args} = parseArgs({options: {
   day: {type: 'string'},
   rules: {type: 'string'},
   refresh: {type: 'boolean', default: false},
+  changed: {type: 'boolean', default: false},
   from: {type: 'string', default: DEFAULT_FROM},
 }});
 calendarDate('since', args.since);
@@ -69,6 +73,9 @@ const shown = (s: Sighting) => {
 };
 
 const rules: Record<string, Rule> = {...RULES, identityHalfNames: identityPreferred(shown)};
+// `seaDistance` needs the basemap's water mask: WATER_MASK=<path without .png/.json>.
+if (process.env['WATER_MASK']) rules['seaDistance'] = seaDistanceRule(process.env['WATER_MASK']);
+else console.log('seaDistance skipped: set WATER_MASK=<path to water-mask, without .png or .json> to measure by sea');
 const selected = args.rules?.split(',') ?? Object.keys(rules);
 for (const name of selected) if (!(name in rules)) throw new Error(`No rule "${name}". Rules: ${Object.keys(rules).join(', ')}`);
 
@@ -130,3 +137,19 @@ for (const name of selected) {
 }
 console.log(`${rows.length.toLocaleString()} sightings over ${days.size.toLocaleString()} days since ${args.since}`);
 console.table(table);
+
+// The days whose tracks differ between the first selected rule and the second (--changed).
+if (args.changed && selected.length >= 2) {
+  const [a, b] = [selected[0]!, selected[1]!];
+  console.log(`\ndays whose tracks differ between ${a} and ${b}: day, segments (${a} -> ${b}), reports moved`);
+  let changed = 0;
+  for (const [day, sightings] of [...days].toSorted(([x], [y]) => x < y ? -1 : 1)) {
+    const before = rules[a]!(sightings), after = rules[b]!(sightings);
+    const was = membership(before), now = membership(after);
+    const moved = sightings.filter(s => was.get(s.id) !== now.get(s.id)).length;
+    if (!moved) continue;
+    changed++;
+    console.log(`${day}  ${before.length} -> ${after.length}  ${moved}`);
+  }
+  console.log(`${changed} days differ`);
+}

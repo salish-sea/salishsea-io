@@ -3,6 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { daySegments, ecotypesOf, occurrences2segments, segmentIds, placeInSegment, segment2travelLine, segmentMovement } from './segments.ts';
 import type { Occurrence } from './types.ts';
+import { distance } from '@turf/distance';
+import { loadWaterGrid } from '../scripts/read-path/water-mask.ts';
+import { seaDistanceFor, type LonLat } from './sea-distance.ts';
 
 function loadOccurrences(): Occurrence[] {
   const filePath = path.resolve(process.cwd(), 'test/occurrences.json');
@@ -430,5 +433,69 @@ describe('daySegments, grouping by what the day file says (decision 111)', () =>
       const own = [at(0, 'a'), at(60_000, 'b')];
       expect(ids(daySegments(own))).toEqual(ids(occurrences2segments(own)));
     });
+  });
+});
+
+describe('the join rule with a distance of its own (decision 063, amended)', () => {
+  const ids = (segs: {occurrences: {id: string}[]}[]) => segs.map(s => s.occurrences.map(o => o.id));
+  // Two tracks 37 km apart, at 12:00, and a report an hour later 14.7 km from A and 22 km from B in a straight line.
+  const A: LonLat = [-123.0, 48.5], B: LonLat = [-123.5, 48.5];
+  const day = [
+    makeOrca('A', '2026-10-01T12:00:00Z', ...A),
+    makeOrca('B', '2026-10-01T12:00:00Z', ...B),
+    makeOrca('late', '2026-10-01T13:00:00Z', -123.2, 48.5),
+  ];
+
+  test('by default the distance is the straight line: the report joins the nearer track', () => {
+    expect(ids(occurrences2segments(day))).toEqual([['A', 'late'], ['B']]);
+  });
+
+  test('a leg whose distance is null is refused, and the report joins the track that can take it', () => {
+    const distanceM = (a: LonLat, b: LonLat) => [a, b].some(p => p[0] === A[0]) ? null : 6_000;
+    expect(ids(occurrences2segments(day, distanceM))).toEqual([['A'], ['B', 'late']]);
+  });
+
+  test('a report goes to the track nearer by water even when the other is nearer in a straight line', () => {
+    const distanceM = (a: LonLat, b: LonLat) => [a, b].some(p => p[0] === A[0]) ? 15_000 : 6_000;
+    expect(ids(occurrences2segments(day, distanceM))).toEqual([['A'], ['B', 'late']]);
+  });
+
+  test('when no track can take it the report starts its own, and segmentIds says so', () => {
+    const ids2 = segmentIds(day, () => null);
+    expect([...ids2]).toEqual([['A', 'A'], ['B', 'B'], ['late', 'late']]);
+  });
+
+  test('the 20 km limit still applies to the distance given', () => {
+    expect(ids(occurrences2segments(day, () => 20_001))).toEqual([['A'], ['B'], ['late']]);
+    expect(ids(occurrences2segments(day, () => 20_000))).toEqual([['A', 'late'], ['B']]);
+  });
+});
+
+describe('the Saltspring leg of 2025-07-14, on the Salish Sea mask (salish-20u7.3)', () => {
+  const fixture = (name: string) => new URL(`../scripts/read-path/fixtures/water-mask/${name}`, import.meta.url).pathname;
+  const grid = loadWaterGrid(fixture('water-mask.png'), fixture('water-mask.json'));
+  // The Whale Alert report in Trincomali Channel and, 83 minutes later, the T69s at Maple Bay:
+  // 13 km apart in a straight line, 29 km round the north of Saltspring Island.
+  const pair = [
+    makeOrca('trincomali', '2025-07-14T19:09:00Z', -123.46, 48.88),
+    makeOrca('maple-bay', '2025-07-14T20:32:00Z', -123.60, 48.80),
+  ];
+  const ids = (segs: {occurrences: {id: string}[]}[]) => segs.map(s => s.occurrences.map(o => o.id));
+
+  test('join in a straight line, as the map drew them', () => {
+    expect(ids(occurrences2segments(pair))).toEqual([['trincomali', 'maple-bay']]);
+  });
+
+  test('do not join by sea: no route within 20 km', () => {
+    expect(ids(occurrences2segments(pair, seaDistanceFor(grid)))).toEqual([['trincomali'], ['maple-bay']]);
+  });
+
+  test('a report outside the mask, or inland with no water near, is measured in a straight line', () => {
+    const distanceM = seaDistanceFor(grid);
+    const straight = (a: LonLat, b: LonLat) => distance(a, b) * 1000;
+    // west of the mask's box (it ends at 125.5 degrees west)
+    expect(distanceM([-126, 48.5], [-126.05, 48.5])).toBeCloseTo(straight([-126, 48.5], [-126.05, 48.5]), 3);
+    // in the Olympic Mountains, with no water within 2 km of either point
+    expect(distanceM([-123.55, 47.80], [-123.60, 47.82])).toBeCloseTo(straight([-123.55, 47.80], [-123.60, 47.82]), 3);
   });
 });
