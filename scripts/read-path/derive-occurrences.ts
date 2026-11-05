@@ -192,11 +192,14 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
     const conn = await db.connect();
     try {
         // Capped, as snapshot.ts is, for the 1 GB Fly machine: what doesn't fit spills
-        // beside the snapshot. Measured on 63,720 occurrences: it runs out at 64 MB and
-        // completes at 96; at 128 the process peaks at 324 MB on macOS, of which about
-        // 115 is node and DuckDB before any query. Running out fails this task, loudly,
-        // which is the failure to want here, rather than the machine thrashing.
-        await budget(conn, snapshot, '128MB');
+        // beside the snapshot. Measured on 63,720 occurrences: it ran out at 64 MB and
+        // completed at 96; at 128 the process peaked at 324 MB on macOS, of which about
+        // 115 is node and DuckDB before any query. Measured again on 2026-11-05 with the
+        // Maplify mirror keyed on (source, id) and read into a table (sources.sql): 62,218
+        // occurrences run out at 112 MB and complete at 128, so 192 leaves room. Running
+        // out fails this task, loudly, which is the failure to want here, rather than the
+        // machine thrashing.
+        await budget(conn, snapshot, '192MB');
         // Postgres's session: timestamps rendered in UTC, text sorted by ICU's en-US.
         await conn.run(`INSTALL icu; LOAD icu; SET TimeZone = 'UTC'`);
         // The table's row order means nothing (readers order by observed_at and id),
