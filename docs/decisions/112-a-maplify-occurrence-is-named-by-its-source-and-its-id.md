@@ -12,7 +12,7 @@ A full refetch of Maplify (152 months, every one answered) measured the damage. 
 
 There is a second, smaller fault. 216 Whale Alert sightings from 2019 to 2021 appear twice in one month's response: a legacy copy named `Humpback Sighting:` beside the same sighting named `Humpback`, created two to four hours earlier. So even the source and the number together need a rule for a sighting that arrives twice.
 
-The number is also in URLs (`?o=maplify:228809`), in the Darwin Core archive's `occurrenceID`, and in links the register and other sites hold, which is why this was Peter's call and not a repair.
+The number is also in URLs (`?o=maplify:228809`), in the Darwin Core archive's `occurrenceID`, and perhaps in links other people hold (the register cites none), which is why this was Peter's call and not a repair.
 
 ## Decision
 
@@ -32,7 +32,7 @@ The number is also in URLs (`?o=maplify:228809`), in the Darwin Core archive's `
 
 - **Keep `maplify:<id>` for Whale Alert and qualify only the other sources.** It would leave most links and archive rows alone. But the bare form would mean one source for good, a reader could not tell that from the id, and the smaller sources would be renamed anyway. It also treats Whale Alert's ids as safe, which nothing guarantees: if another source's numbers ever reach its range the same fault returns.
 - **Key the mirror on (source, id) and keep the bare id in the name, choosing a winner when two collide.** It throws a real sighting away on every collision, which is the bug.
-- **Rename silently, with no aliases.** Every shared `?o=maplify:` link, in chats, posts and the register, would open nothing.
+- **Rename silently, with no aliases.** Every shared `?o=maplify:` link, in chats and posts, would open nothing.
 - **Alias every old number to its Whale Alert sighting.** That is the guess the old scheme made, and it is wrong for the 657 numbers two sources use.
 
 ## Consequences
