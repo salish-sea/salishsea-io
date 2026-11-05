@@ -198,16 +198,19 @@ CREATE OR REPLACE TABLE build.group_occurrences AS
                       WHERE s.occurrence_id = a.occurrence_id AND s.social_group_id = a.social_group_id)
   ),
   link AS (
-    SELECT *, NULL::VARCHAR AS via_group, NULL::VARCHAR AS via_member FROM own
+    SELECT *, NULL::VARCHAR AS via_group, NULL::VARCHAR AS via_member, NULL::VARCHAR AS vitality FROM own
     UNION ALL
     SELECT sl.group_id, own.occurrence_id, own.observed_at, own.location,
-           own.is_present, own.status, own.evidence, own.code, own.certainty, sl.designation, NULL
+           own.is_present, own.status, own.evidence, own.code, own.certainty, sl.designation, NULL, NULL
     FROM own
     JOIN sub_lineage sl ON sl.sub_lineage_id = own.social_group_id
     UNION ALL
     -- Only a member's direct claims: one reached through a group is that group's report.
+    -- Every member the register lists, the dead too: the matriline is genealogical (050),
+    -- so a member's reports from while it lived are the matriline's. With the report's
+    -- vitality, so a member's carcass reads as one on the matriline's page.
     SELECT mm.group_id, il.occurrence_id, il.observed_at, il.location,
-           il.is_present, il.status, il.evidence, il.code, il.certainty, NULL, i.designation
+           il.is_present, il.status, il.evidence, il.code, il.certainty, NULL, i.designation, il.vitality
     FROM individual_link il
     JOIN individual i ON i.id = il.individual_id
     JOIN (SELECT CAST(doc->>'group_id' AS INTEGER) AS group_id, CAST(doc->>'individual_id' AS INTEGER) AS individual_id
@@ -219,6 +222,8 @@ CREATE OR REPLACE TABLE build.group_occurrences AS
            'status': status,
            'evidence': evidence,
            'location': pg_lon_lat(location),
+           -- a member's report only: whether the animal was dead (salish-1y8)
+           'vitality': vitality,
            'certainty': certainty,
            'via_group': via_group,
            'is_present': is_present,

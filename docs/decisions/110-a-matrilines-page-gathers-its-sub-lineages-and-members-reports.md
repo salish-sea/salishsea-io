@@ -10,7 +10,7 @@ The register's membership is genealogical ([050](050-matriline-membership-is-the
 
 ## Decision
 
-**A matriline's reports are those that name it, a sub-lineage inside it at any depth (T065As or T065Bs for T065s), or one of its members directly (T065A5).** A member reached only through a group doesn't count again: a report of T065As is T065As's, whichever members it reaches. A member a report says was absent ("T65As (-A5)") doesn't bring the report in, as [109](109-a-sighting-keeps-what-its-text-says-was-absent-or-only-possible.md) keeps it off the animal.
+**A matriline's reports are those that name it, a sub-lineage inside it at any depth (T065As or T065Bs for T065s), or one of its members directly (T065A5).** A member reached only through a group doesn't count again: a report of T065As is T065As's, whichever members it reaches. A member a report says was absent ("T65As (-A5)") doesn't bring the report in, as [109](109-a-sighting-keeps-what-its-text-says-was-absent-or-only-possible.md) keeps it off the animal. A member is any animal the register lists in the matriline, the dead too, so a member's reports from while it lived stay the matriline's. A report of a member's carcass is one of the matriline's reports, and says so ("Last reported 3 November (as T065A5, dead)"), but it doesn't end the matriline's reports the way it ends the animal's ([088](088-a-dead-animal-is-shown-as-dead.md)).
 
 **Each report keeps how it reached the matriline, and a report that reaches it more than one way keeps the most direct**: naming the matriline, then a sub-lineage, then only members. A report naming T065s and T065A5 is one of T065s's own.
 
