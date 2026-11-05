@@ -1,0 +1,19 @@
+{
+ "about": "The sea as a grid of about 90 m: a cell is water where the depth grid is below zero, or the ground dries at low tide, less the land NOAA's charts and British Columbia draw, and only where it reaches the open sea without passing a lock. Row 0 of the picture is the northern edge and column 0 the western; a cell is `cell` degrees wide and high, in longitude and latitude. A channel narrower than a cell is land to it.",
+ "bbox": [
+  -125.5,
+  46.999301,
+  -122,
+  50.5004
+ ],
+ "width": 2800,
+ "height": 4203,
+ "cell": [
+  0.00125,
+  0.000833
+ ],
+ "water": 1,
+ "sources": "NOAA's Coastal Relief Model, Natural Resources Canada's West Coast DEM and GEBCO for the depths (decisions 001, 009); the ground that dries at low tide and the land of NOAA's charts, from NOAA; British Columbia's terrestrial boundary, from the province (decision 027)",
+ "licence": "Public domain in the US; Canadian data under the Open Government Licence – Canada; British Columbia's land under the Open Government Licence – British Columbia",
+ "attribution": "Contains information licensed under the Open Government Licence – Canada and the Open Government Licence – British Columbia"
+}

@@ -106,7 +106,7 @@ export function encodePng(image: Greyscale, filter: 0 | 1 | 2 | 3 | 4 = 0): Buff
     header.writeUInt32BE(width, 0);
     header.writeUInt32BE(height, 4);
     header[8] = bitDepth;
-    return Buffer.concat([SIGNATURE, chunk('IHDR', header), chunk('IDAT', deflateSync(raw)), chunk('IEND', new Uint8Array(0))]);
+    return Buffer.concat([SIGNATURE, chunk('IHDR', header), chunk('IDAT', deflateSync(raw, {level: 9})), chunk('IEND', new Uint8Array(0))]);
 }
 
 /** What the JSON beside the picture says; the rest of it (sources, licence) is kept for whoever cuts a fixture. */
@@ -150,5 +150,5 @@ export function cropMask(grid: WaterGrid, json: WaterMaskJson, west: number, sou
     const bbox: [number, number, number, number] = [
         grid.spec.bbox[0] + col0 * dx, grid.spec.bbox[3] - row1 * dy, grid.spec.bbox[0] + col1 * dx, grid.spec.bbox[3] - row0 * dy,
     ];
-    return {png: encodePng({width, height, bitDepth: 1, data}, 4), json: {...json, bbox, width, height}};
+    return {png: encodePng({width, height, bitDepth: 1, data}), json: {...json, bbox, width, height}};
 }
