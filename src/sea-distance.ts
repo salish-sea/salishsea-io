@@ -184,8 +184,8 @@ const NEIGHBOURS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]
 function searchCells(grid: WaterGrid, start: [number, number], goal: [number, number], limitM: number): [number, number][] | null {
     const [mxStart, myM] = grid.metresPerCell(start[1]);
     const mxMin = Math.min(mxStart, grid.metresPerCell(goal[1])[0]);
-    const reachC = Math.ceil((limitM - Math.abs(goal[0] - start[0]) * mxMin) / 2 / mxMin) + 1;
-    const reachR = Math.ceil((limitM - Math.abs(goal[1] - start[1]) * myM) / 2 / myM) + 1;
+    const reachC = Math.max(1, Math.ceil((limitM - Math.abs(goal[0] - start[0]) * mxMin) / 2 / mxMin) + 1);
+    const reachR = Math.max(1, Math.ceil((limitM - Math.abs(goal[1] - start[1]) * myM) / 2 / myM) + 1);
     const c0 = Math.max(0, Math.min(start[0], goal[0]) - reachC), c1 = Math.min(grid.width - 1, Math.max(start[0], goal[0]) + reachC);
     const r0 = Math.max(0, Math.min(start[1], goal[1]) - reachR), r1 = Math.min(grid.height - 1, Math.max(start[1], goal[1]) + reachR);
     const w = c1 - c0 + 1, h = r1 - r0 + 1;
@@ -196,7 +196,7 @@ function searchCells(grid: WaterGrid, start: [number, number], goal: [number, nu
     for (let r = 0; r < h; r++) { mx[r] = grid.metresPerCell(r0 + r)[0]; mxSmallest = Math.min(mxSmallest, mx[r]!); }
     const my = grid.metresPerCell(r0)[1];
 
-    const cost = new Float32Array(w * h).fill(Infinity);
+    const cost = new Float64Array(w * h).fill(Infinity);
     const from = new Int32Array(w * h).fill(-1);
     const idOf = (c: number, r: number) => (r - r0) * w + (c - c0);
     const heuristic = (c: number, r: number) => Math.hypot((c - goal[0]) * mxSmallest, (r - goal[1]) * my);
