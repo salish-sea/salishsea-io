@@ -36,8 +36,12 @@ const rad = (degrees: number) => degrees * Math.PI / 180;
  * in the byte's high bit, which is how a 1-bit PNG lays its rows out.
  */
 export class WaterGrid {
+    readonly bits: Uint8Array;
+    readonly spec: WaterGridSpec;
     readonly stride: number;
-    constructor(readonly bits: Uint8Array, readonly spec: WaterGridSpec) {
+    constructor(bits: Uint8Array, spec: WaterGridSpec) {
+        this.bits = bits;
+        this.spec = spec;
         this.stride = Math.ceil(spec.width / 8);
         if (bits.length !== this.stride * spec.height) {
             throw new Error(`a ${spec.width} by ${spec.height} mask takes ${this.stride * spec.height} bytes, not ${bits.length}`);

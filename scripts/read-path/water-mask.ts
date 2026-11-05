@@ -69,7 +69,7 @@ export function decodePng(png: Uint8Array): Greyscale {
             }
         }
     }
-    return {width, height, bitDepth, data};
+    return {width, height, bitDepth: bitDepth as 1 | 8, data};
 }
 
 function paeth(a: number, b: number, c: number): number {
