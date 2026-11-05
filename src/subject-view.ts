@@ -10,6 +10,7 @@ import { fetchManifest, findOccurrence, pacificDay, READ_PATH_BASE } from './rea
 import { Temporal } from 'temporal-polyfill';
 import type { Occurrence } from './types.ts';
 import type { SubjectSighting } from './obs-map.ts';
+import { kindOf } from './profile-map.ts';
 import './obs-summary.ts';
 import { scopeStart, type Scope } from './subject-timeline.ts';
 import {
@@ -239,7 +240,7 @@ export class SubjectView extends LitElement {
     if ((changed.has('subject') || changedHere.has('loaded') || changedHere.has('scope'))
         && this.subject && loaded && sameSubject(loaded.subject, this.subject))
       this.dispatchEvent(new CustomEvent<SubjectSighting[]>('subject-sightings', {
-        bubbles: true, composed: true, detail: mapSightings(loaded.links, this.scope, Date.now()),
+        bubbles: true, composed: true, detail: mapSightings(loaded.links, this.scope, Date.now(), {matriline: loaded.kind === 'matrilines'}),
       }));
     // A different subject starts at its top, not where the last one was scrolled to.
     if (changed.has('subject') && this.subject && !sameSubject(this.subject, this.#shown)) {
@@ -331,9 +332,13 @@ export class SubjectView extends LitElement {
     const [designation, ownPaths] = loaded.kind === 'individuals'
       ? [loaded.data.profile.primary_designation,
         [individualPath(loaded.data.profile), ...chain(loaded.data.matriline?.id ?? null, loaded.data.groups)]]
-      : [`${loaded.data.group.designation}s`, [matrilinePath(loaded.data.group), ...chain(loaded.data.group.id, loaded.data.groups)]];
+      : [`${loaded.data.group.designation}s`, [matrilinePath(loaded.data.group), ...chain(loaded.data.group.id, loaded.data.groups),
+        // nor, since a matriline's timeline holds its sub-lineages' and members' reports, theirs (salish-fwyt.7)
+        ...[...loaded.data.groups.values()].filter(g => g.kind === 'matriline' && g.id !== loaded.data.group.id
+          && groupChain(g.id, loaded.data.groups).some(a => a.id === loaded.data.group.id)).map(matrilinePath),
+        ...loaded.data.members.map(m => individualPath(m.individual))]];
     return html`<subject-timeline .encounters=${encounters} .scope=${this.scope} designation=${designation}
-      .ownPaths=${ownPaths}></subject-timeline>`;
+      ?matriline=${loaded.kind === 'matrilines'} .ownPaths=${ownPaths}></subject-timeline>`;
   }
 
   private onBack = () => {
@@ -369,12 +374,15 @@ export class SubjectView extends LitElement {
  * month and the eleven before it, whole, on the Pacific clock the map's days keep, as the
  * timeline lists them (decision 098).
  */
-export function mapSightings(links: readonly OccurrenceLink[], scope: Scope, now: number): SubjectSighting[] {
+export function mapSightings(links: readonly OccurrenceLink[], scope: Scope, now: number, {matriline = false} = {}): SubjectSighting[] {
   const since = Temporal.PlainDate.from(scopeStart(now)).toZonedDateTime('America/Los_Angeles').epochMilliseconds;
-  return links.flatMap(({occurrence_id, observed_at, location, is_present}) =>
-    is_present && location && (scope === 'all' || Date.parse(observed_at) >= since)
-      ? [{occurrence_id, observed_at, lon: location.lon, lat: location.lat}]
-      : []);
+  return links.flatMap(link => {
+    const {occurrence_id, observed_at, location, is_present} = link;
+    return is_present && location && (scope === 'all' || Date.parse(observed_at) >= since)
+      // A matriline's, by how the report reached it (salish-fwyt.7).
+      ? [{occurrence_id, observed_at, lon: location.lon, lat: location.lat, ...(matriline ? {kind: kindOf(link)} : {})}]
+      : [];
+  });
 }
 
 declare global {

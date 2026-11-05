@@ -23,6 +23,7 @@ import LayerControl from './layer-control.ts';
 import { DEFAULT_LAYERS, REFERENCE_LAYERS, type ReferenceLayer } from './reference-layers.ts';
 import { hauloutPath, observedDate, type HauloutSite } from './catalog.ts';
 import { formatDate } from './date-format.ts';
+import { KIND_COLOR, KINDS, type DotKind } from './profile-map.ts';
 import { fetchStaticHauloutSites } from './read-path.ts';
 import { reportError } from './report-error.ts';
 import { geolocationErrorIsReportable } from './geolocation-message.ts';
@@ -673,15 +674,23 @@ function uncertaintyRing(occurrence: Occurrence): Feature | undefined {
   return {...ring, properties: ringColours(occurrenceProperties(occurrence).color)};
 }
 
-/** One of an open subject's sightings: which report, when, and where (decision 096). */
+/**
+ * One of an open subject's sightings: which report, when, and where (decision 096), and on
+ * a matriline, how the report reached it (salish-fwyt.7).
+ */
 export interface SubjectSighting {
   occurrence_id: string;
   observed_at: string;
   lon: number;
   lat: number;
+  kind?: DotKind;
 }
 
-/** The subject's sightings as the map draws them: faded from the newest to the oldest. */
+/**
+ * The subject's sightings as the map draws them: faded from the newest to the oldest. A
+ * matriline's are coloured by kind, as its page's map is, and the most direct are drawn
+ * over the others; an animal's take `color`, its species'.
+ */
 export function subjectFeatures(sightings: readonly SubjectSighting[], color: string): Feature[] {
   const times = sightings.map(s => Date.parse(s.observed_at));
   const newest = Math.max(...times), oldest = Math.min(...times);
@@ -695,10 +704,12 @@ export function subjectFeatures(sightings: readonly SubjectSighting[], color: st
         id: s.occurrence_id,
         date: date.toString(),
         title: `Reported ${formatDate(date, {day: 'numeric', month: 'short', year: 'numeric'})}`,
-        color,
+        color: s.kind ? KIND_COLOR[s.kind] : color,
         // From a quarter for the oldest to nearly whole for the newest, so the newest read first.
         opacity: span ? 0.25 + 0.7 * (times[i]! - oldest) / span : 0.95,
         newest: times[i] === newest,
+        // Drawn over lower keys: the newest on top, then the most direct kind.
+        sort: times[i] === newest ? KINDS.length : KINDS.length - 1 - KINDS.indexOf(s.kind ?? 'own'),
       },
     };
   });

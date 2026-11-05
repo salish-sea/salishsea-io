@@ -1,6 +1,6 @@
 # 098 — An animal's timeline is months of encounters, and the list replaces the presence table
 
-**Status:** accepted · **Decided:** 2026-10-28, by Peter · **Work:** bd `salish-fwyt.6` (epic `salish-fwyt`) · **Builds on:** [096](096-a-subjects-view-is-a-list-of-its-events.md) (a subject's view lists its events), [097](097-a-travel-segment-is-one-card-in-the-days-list.md) (a travel segment's card)
+**Status:** accepted · **Decided:** 2026-10-28, by Peter · **Amended:** 2026-11-04, by [110](110-a-matrilines-page-gathers-its-sub-lineages-and-members-reports.md) · **Work:** bd `salish-fwyt.6` (epic `salish-fwyt`) · **Builds on:** [096](096-a-subjects-view-is-a-list-of-its-events.md) (a subject's view lists its events), [097](097-a-travel-segment-is-one-card-in-the-days-list.md) (a travel segment's card)
 
 ## Context
 
@@ -30,7 +30,7 @@ T065A5 Elsie has 1,821 reports on 324 days. Run through the map's own travel seg
 
 - **All time:** it may want to be a view of its own rather than more of the same list (Peter, unsure); it stays as the mockup has it for now.
 - **Place names:** the mockup names the nearest larger water body, which says "Puget Sound" too often. A better name for where an encounter was is `salish-fwyt.2`'s.
-- **A group's timeline:** a matriline's encounters are the ones holding a report of the group; whether its members' reports join them is 096's open question.
+- ~~**A group's timeline:** a matriline's encounters are the ones holding a report of the group; whether its members' reports join them is 096's open question.~~ They join, and a sub-lineage's too; the line under a month says how many named each ([110](110-a-matrilines-page-gathers-its-sub-lineages-and-members-reports.md)).
 - **The full page** keeps its presence table until the timeline is built for it too.
 
 ## Consequences

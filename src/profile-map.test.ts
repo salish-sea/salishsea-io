@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { profileMapSvg, project, type MapDot } from './profile-map.ts';
+import { profileMapSvg, project, renderMapLegend, type MapDot } from './profile-map.ts';
+import { render } from 'lit';
 
 const dot = (id: string, lon: number, lat: number, observed_at = '2026-09-20T18:00:00Z'): MapDot =>
   ({ occurrence_id: id, observed_at, location: { lon, lat } });
@@ -96,5 +98,51 @@ describe('project', () => {
   it('puts the antimeridian and equator where the tiles do', () => {
     expect(project(-180, 0, 0)).toEqual([0, 128]);
     expect(project(0, 0, 1)).toEqual([256, 256]);
+  });
+});
+
+// A matriline's map draws its reports apart by how they reached it (salish-fwyt.7).
+describe("a matriline's map", () => {
+  const kinded = (id: string, lon: number, kind: MapDot['kind'], observed_at = '2026-09-20T18:00:00Z'): MapDot =>
+    ({ ...dot(id, lon, 48.5, observed_at), kind });
+  const circles = (svg: string) => [...svg.matchAll(/<circle class="(dot|newest)([^"]*)"/g)].map(m => `${m[1]}${m[2]}`);
+
+  it('draws each kind in its own look, the most direct over the others', () => {
+    const svg = profileMapSvg([
+      kinded('newest', -123.4, 'members', '2026-10-01T18:00:00Z'),
+      kinded('own', -123.2, 'own'),
+      kinded('sub', -123.0, 'sub_lineage'),
+      kinded('member', -122.8, 'members'),
+    ]);
+    // the newest keeps its own kind, and is drawn last as always
+    expect(circles(svg)).toEqual(['dot members', 'dot sub-lineage', 'dot', 'newest members']);
+  });
+
+  it('gives a spot the most direct kind of the reports there, linking to the newest', () => {
+    const svg = profileMapSvg([
+      kinded('newest', -122.5, 'own', '2026-10-01T18:00:00Z'),
+      kinded('member-newer', -123.0, 'members', '2026-09-22T18:00:00Z'),
+      kinded('sub-older', -123.0, 'sub_lineage', '2026-09-21T18:00:00Z'),
+    ]);
+    expect(circles(svg)).toEqual(['dot sub-lineage', 'newest']);
+    expect(svg).toContain('member-newer');
+    expect(svg).not.toContain('sub-older');
+  });
+});
+
+describe("a matriline's legend", () => {
+  const text = (legend: Parameters<typeof renderMapLegend>[0]) => {
+    const el = document.createElement('div');
+    render(renderMapLegend(legend), el);
+    return [...el.querySelectorAll('li')].map(li => `${li.className}: ${li.textContent}`);
+  };
+
+  it('says what each colour means, whenever any dot is not the matriline\'s own', () => {
+    expect(text({own: 'Reports naming T065s (6)', members: 'Reports naming only members, such as T065A5 (3)'}))
+      .toEqual(['own: Reports naming T065s (6)', 'members: Reports naming only members, such as T065A5 (3)']);
+    // a matriline with only its members' reports still says why its dots are grey
+    expect(text({members: 'Reports naming only a member, T137A (1)'})).toEqual(['members: Reports naming only a member, T137A (1)']);
+    // and one whose dots are all its own needs none, as every other map has none
+    expect(text({own: 'Reports naming T065s (6)'})).toEqual([]);
   });
 });

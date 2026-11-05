@@ -100,6 +100,8 @@ Every colour is a custom property in `src/site.css`, named by its role. A compon
 
 **Data colours** are not interface colours: the map's symbols for each kind of animal ([`src/symbology.ts`](../src/symbology.ts), [decision 029](decisions/029-map-symbology.md)), the maps drawn on profile and species pages, and encodings such as the calendar's activity dots and a profile's presence table. They keep their values in place, with a comment saying "data colour" and why. Where an encoding echoes the interface, it takes the interface's teal: the calendar's dots, and the presence table's steps (teal over white at 15%, 30% and 50%).
 
+A **matriline's reports** are drawn in three data colours by how each reached it ([decision 110](decisions/110-a-matrilines-page-gathers-its-sub-lineages-and-members-reports.md), `KIND_COLOR` in [`src/profile-map.ts`](../src/profile-map.ts)): its own in the profile map's blue, a sub-lineage's in a lighter blue of the same hue, and those naming only members in a blue-grey. Directness is ordered, so the colours step down in strength rather than differing in hue: the most direct reads first, and the least direct, which says least about the matriline, is the quietest. They are the same on the page's map and on the main map while the matriline is open in the sidebar, where they replace the species' colour, so a legend beside either map says what each means.
+
 ## Space and corners (rules 11 and 12)
 
 Space is written in `rem` (or `px` for a hairline nudge), never named: unlike a colour, a step of space has no role beyond its size, so a name would only hide the number.

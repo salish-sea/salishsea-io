@@ -166,4 +166,11 @@ describe("the sightings the map draws while a subject is open (decision 096)", (
       {occurrence_id: 'old', observed_at: '2019-07-04T18:00:00Z', lon: -123, lat: 48.5},
     ]);
   });
+
+  it("on a matriline, say how each report reached it (salish-fwyt.7)", () => {
+    const matriline = [link('own', '2026-10-25T00:40:00Z'), link('sub', '2026-10-24T00:00:00Z', {via_group: 'T065A'}),
+      link('member', '2026-10-23T00:00:00Z', {via_member: 'T065A5'})];
+    expect(mapSightings(matriline, 'all', now, {matriline: true}).map(s => [s.occurrence_id, s.kind]))
+      .toEqual([['own', 'own'], ['sub', 'sub_lineage'], ['member', 'members']]);
+  });
 });

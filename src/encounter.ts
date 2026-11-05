@@ -19,8 +19,14 @@ export interface Encounter {
   reports: number;
   /** The subject's reports in it, oldest first. */
   ids: string[];
-  /** How many of those name the subject itself, rather than a group it is in (T065As for T065A5). */
+  /**
+   * How many of those name the subject itself: for an animal, rather than a group it is in
+   * (T065As for T065A5); for a matriline, rather than a sub-lineage under it (T065As for
+   * T065s) or only its members (salish-fwyt.7).
+   */
   as_self: number;
+  /** On a matriline's encounter, how many of its reports name only members of it (T065A5 for T065s); absent when none do. */
+  only_members?: number;
   /** How many of those only possibly name it ("possibly T99s", decision 054); absent when none do. */
   possibly?: number;
   /**
@@ -47,10 +53,15 @@ export interface CalfFirst {
   born: number;
 }
 
-/** A report of a subject: which subject, the group it was reached through, if any, and whether it only possibly names it. */
+/**
+ * A report of a subject: which subject, the group it was reached through, if any, the
+ * member it was reached through, for a matriline's report that names only members, and
+ * whether it only possibly names it.
+ */
 export interface SubjectReport<K> {
   subject: K;
   via_group: string | null;
+  via_member?: string;
   possibly?: boolean;
 }
 
@@ -77,11 +88,12 @@ export function dayEncounters<K>(
   const out: [K, Encounter][] = [];
   const occurrences = rows.map(r => ({...r, observed_at_ms: Date.parse(r.observed_at)}) as Occurrence);
   for (const {occurrences: reports} of occurrences2segments(occurrences)) {
-    const bySubject = new Map<K, {ids: string[], as_self: number, possibly?: number}>();
-    for (const r of reports) for (const {subject, via_group, possibly} of reportsOf(r.id)) {
+    const bySubject = new Map<K, {ids: string[], as_self: number, only_members?: number, possibly?: number}>();
+    for (const r of reports) for (const {subject, via_group, via_member, possibly} of reportsOf(r.id)) {
       const mine = bySubject.get(subject) ?? bySubject.set(subject, {ids: [], as_self: 0}).get(subject)!;
       mine.ids.push(r.id);
-      if (!via_group) mine.as_self++;
+      if (via_member) mine.only_members = (mine.only_members ?? 0) + 1;
+      else if (!via_group) mine.as_self++;
       if (possibly) mine.possibly = (mine.possibly ?? 0) + 1;
     }
     if (!bySubject.size) continue;

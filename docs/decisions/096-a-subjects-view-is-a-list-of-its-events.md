@@ -1,6 +1,6 @@
 # 096 — An animal's or group's view lists its events, and the map shows its sightings over the past year or all time
 
-**Status:** accepted · **Decided:** 2026-10-28, by Peter · **Amended:** 2026-11-04 (a calf's first report) · **Work:** bd `salish-fwyt.4` (epic `salish-fwyt`) · **Builds on:** [093](093-the-sidebar-shows-one-subject-at-a-time.md) (the sidebar shows one subject at a time)
+**Status:** accepted · **Decided:** 2026-10-28, by Peter · **Amended:** 2026-11-04 (a calf's first report; a group's members' reports, by [110](110-a-matrilines-page-gathers-its-sub-lineages-and-members-reports.md)) · **Work:** bd `salish-fwyt.4` (epic `salish-fwyt`) · **Builds on:** [093](093-the-sidebar-shows-one-subject-at-a-time.md) (the sidebar shows one subject at a time)
 
 ## Context
 
@@ -35,9 +35,9 @@ Watersheds will have dated events and news written by us (bd `salish-7ds1.3`); a
 - ~~Whether the switch also filters the sidebar's list, or only the map.~~ It does: [098](098-an-animals-timeline-is-months-of-encounters.md).
 - How news items are written and stored: the same format as a watershed's (`salish-7ds1.3`), not yet designed.
 - ~~Which register facts make life events: a calf's birth year is known, an animal's own death year is not in the page data yet.~~ None join the list; births and deaths stay above it, with the year of a death now shown (amendment of 2026-10-31).
-- Whether a group's view gathers its members' reports too, perhaps by a second control: the group's own, or the group with its members (Peter, unsure).
+- ~~Whether a group's view gathers its members' reports too, perhaps by a second control: the group's own, or the group with its members (Peter, unsure).~~ It does, with no control: a matriline's view gathers its sub-lineages' and members' reports and draws them apart from its own ([110](110-a-matrilines-page-gathers-its-sub-lineages-and-members-reports.md)).
 
 ## Consequences
 
 - The glossary gains **Event** in this sense, as a working name.
-- A group's sightings are the ones its page's small map draws: reports of the group, which aren't all of its members' (T065As has 1,261 in its file, its member T065A5 1,827 in hers).
+- A group's sightings are the ones its page's small map draws: reports of the group, which aren't all of its members' (T065As has 1,261 in its file, its member T065A5 1,827 in hers). *Since [110](110-a-matrilines-page-gathers-its-sub-lineages-and-members-reports.md),* a matriline's include its sub-lineages' and members'.

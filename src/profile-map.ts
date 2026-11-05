@@ -10,14 +10,42 @@
  * the network.
  */
 
-import { css, html } from 'lit';
+import { css, html, nothing, unsafeCSS } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { circle } from '@turf/circle';
 import { mapUrl, observedDate, type OccurrenceLink } from './catalog.ts';
 import { formatDate } from './date-format.ts';
 
-/** What a dot needs: where, when, and which occurrence to open on the main map. */
-export type MapDot = Pick<OccurrenceLink, 'occurrence_id' | 'observed_at' | 'location'>;
+/**
+ * How a report reached a matriline's page (salish-fwyt.7): it names the matriline, a
+ * sub-lineage inside it, or only some of its members. Every other page's dots are its own.
+ */
+export type DotKind = 'own' | 'sub_lineage' | 'members';
+/** Most direct first: where reports of several kinds share a spot, the dot takes the first. */
+export const KINDS: readonly DotKind[] = ['own', 'sub_lineage', 'members'];
+/**
+ * Data colours (docs/style-guide.md): a matriline's own reports in the profile map's blue,
+ * a sub-lineage's in a lighter blue, and reports naming only members in grey, the quietest
+ * for the least direct (salish-fwyt.7). The main map draws them the same while a matriline
+ * is open in the sidebar.
+ */
+export const KIND_COLOR: Record<DotKind, string> = { own: 'rgb(25, 118, 210)', sub_lineage: '#5c9fd6', members: '#8e9aab' };
+
+/** What a dot needs: where, when, which occurrence to open on the main map, and on a matriline's page, how the report reached it. */
+export type MapDot = Pick<OccurrenceLink, 'occurrence_id' | 'observed_at' | 'location'> & { kind?: DotKind };
+
+/** A matriline's report as a dot of its kind: a sub-lineage's when it names one, a member's when it names only members. */
+export function matrilineDot(link: Pick<OccurrenceLink, 'occurrence_id' | 'observed_at' | 'location' | 'via_group' | 'via_member'>): MapDot {
+  const { occurrence_id, observed_at, location } = link;
+  return { occurrence_id, observed_at, location, kind: kindOf(link) };
+}
+
+/** Which kind a matriline's link is. */
+export const kindOf = (link: Pick<OccurrenceLink, 'via_group' | 'via_member'>): DotKind =>
+  link.via_member ? 'members' : link.via_group ? 'sub_lineage' : 'own';
+
+/** What the legend under a matriline's map calls each kind of report, by how many there are. */
+export type MapLegend = Partial<Record<DotKind, string>>;
 
 /** A place the dots are measured against (a haul-out site): its point and the radius within which a report counts (decision 040). */
 export interface MapSite {
@@ -146,7 +174,8 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
   // Older reports at the newest's spot are counted in its dot, which covers theirs.
   const newestCell = newest ? cellOf(newest).join(',') : null;
   let newestCount = 1;
-  const cells = new Map<string, { x: number, y: number, dot: MapDot, count: number }>();
+  const rank = (dot: MapDot) => KINDS.indexOf(dot.kind ?? 'own');
+  const cells = new Map<string, { x: number, y: number, dot: MapDot, count: number, rank: number }>();
   for (const dot of older) {
     const [cx, cy] = cellOf(dot);
     if (`${cx},${cy}` === newestCell) {
@@ -154,8 +183,9 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
       continue;
     }
     const cell = cells.get(`${cx},${cy}`);
-    if (cell) cell.count++;
-    else cells.set(`${cx},${cy}`, { x: cx, y: cy, dot, count: 1 });
+    // A spot's dot links to its newest report, and takes the most direct kind there.
+    if (cell) { cell.count++; cell.rank = Math.min(cell.rank, rank(dot)); }
+    else cells.set(`${cx},${cy}`, { x: cx, y: cy, dot, count: 1, rank: rank(dot) });
   }
   // Out of the tab order: a busy page would otherwise put hundreds of stops before
   // the next link. The old map's canvas had no keyboard route to these days
@@ -168,9 +198,12 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
   // a target, which may be a neighbour's.
   const hit = (dot: MapDot, x: number, y: number) =>
     `<a href="${escape(mapUrl(dot))}" tabindex="-1" aria-hidden="true"><circle class="hit" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="12"></circle></a>`;
-  const olderCells = [...cells.values()];
-  const olderMarkup = olderCells.map(({ x, y, dot, count }) =>
-    link(dot, count, `<circle class="dot" cx="${x}" cy="${y}" r="5" fill-opacity="${(1 - (1 - DOT_OPACITY) ** count).toFixed(2)}"></circle>`));
+  // The most direct kind drawn last, over the others. Sorted stably, so within a kind
+  // the order stays the reports'.
+  const olderCells = [...cells.values()].sort((a, b) => b.rank - a.rank);
+  const kindClass = (r: number) => r ? ` ${KINDS[r]!.replace('_', '-')}` : '';
+  const olderMarkup = olderCells.map(({ x, y, dot, count, rank: r }) =>
+    link(dot, count, `<circle class="dot${kindClass(r)}" cx="${x}" cy="${y}" r="5" fill-opacity="${(1 - (1 - DOT_OPACITY) ** count).toFixed(2)}"></circle>`));
 
   const siteMarkup = site ? (() => {
     const path = ring.map(([lon, lat], i) => `${i ? 'L' : 'M'}${at(lon, lat).map(v => v.toFixed(1)).join(' ')}`).join('') + 'Z';
@@ -180,7 +213,7 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
 
   const newestAt = newest ? at(newest.location.lon, newest.location.lat) : null;
   const newestMarkup = newest && newestAt
-    ? link(newest, newestCount, `<circle class="newest" cx="${newestAt[0].toFixed(1)}" cy="${newestAt[1].toFixed(1)}" r="7"></circle>`)
+    ? link(newest, newestCount, `<circle class="newest${kindClass(rank(newest))}" cx="${newestAt[0].toFixed(1)}" cy="${newestAt[1].toFixed(1)}" r="7"></circle>`)
     : '';
   // The newest's target last, so a near miss between it and another goes to the newest.
   const hits = [...olderCells.map(({ x, y, dot }) => hit(dot, x, y)), ...(newest && newestAt ? [hit(newest, ...newestAt)] : [])];
@@ -208,6 +241,37 @@ export const profileMapStyles = css`
     fill: #1565c0;
     stroke: #ffffff;
     stroke-width: 2;
+  }
+  /* Data colours: a matriline's reports by kind (KIND_COLOR). */
+  figure.profile-map circle.sub-lineage {
+    fill: ${unsafeCSS(KIND_COLOR.sub_lineage)};
+  }
+  ul.map-legend li.sub-lineage::before {
+    background: ${unsafeCSS(KIND_COLOR.sub_lineage)};
+  }
+  figure.profile-map circle.members {
+    fill: ${unsafeCSS(KIND_COLOR.members)};
+  }
+  ul.map-legend li.members::before {
+    background: ${unsafeCSS(KIND_COLOR.members)};
+  }
+  ul.map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.5rem;
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+  }
+  ul.map-legend li::before {
+    background: ${unsafeCSS(KIND_COLOR.own)};
+    border: 1px solid #ffffff;
+    border-radius: 50%;
+    content: '';
+    display: inline-block;
+    height: 0.625rem;
+    margin-right: 0.5rem;
+    width: 0.625rem;
   }
   figure.profile-map .hit {
     fill: transparent;
@@ -254,7 +318,7 @@ export const profileMapStyles = css`
  * OpenStreetMap's licence requires. Nothing when no report has a location and there is
  * no site to show.
  */
-export function renderProfileMap(dots: readonly MapDot[], site: MapSite | null = null) {
+export function renderProfileMap(dots: readonly MapDot[], site: MapSite | null = null, legend: MapLegend = {}) {
   const svg = profileMapSvg(dots, site);
   if (!svg)
     return html``;
@@ -262,7 +326,21 @@ export function renderProfileMap(dots: readonly MapDot[], site: MapSite | null =
     <figure class="profile-map">
       <svg viewBox="0 0 ${WIDTH} ${HEIGHT}" width=${WIDTH} height=${HEIGHT}
         aria-label="Map of where these reports were made. Each dot links to its day on the main map.">${unsafeSVG(svg)}</svg>
+      ${renderMapLegend(legend)}
       <figcaption>${basemapCredit()}</figcaption>
     </figure>
   `;
+}
+
+/**
+ * What each colour of a matriline's dots means, under its page's map or, in the sidebar,
+ * for the main map beside it: only the kinds it has reports of, and nothing when all of
+ * them are its own, the one look its dots share with every other map. A matriline with
+ * only its members' reports still says why its dots are grey.
+ */
+export function renderMapLegend(legend: MapLegend) {
+  const keys = KINDS.filter(k => legend[k]);
+  return keys.some(k => k !== 'own')
+    ? html`<ul class="map-legend">${keys.map(k => html`<li class=${k.replace('_', '-')}>${legend[k]}</li>`)}</ul>`
+    : nothing;
 }

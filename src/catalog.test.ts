@@ -54,7 +54,8 @@ test('composes population paths the same way', () => {
   expect(populationPath({ entity_id: 'SSA:0000002', designation: "Bigg's" })).toBe('/populations/0000002/Biggs');
 });
 
-const link = (over: Partial<IndividualOccurrence>): IndividualOccurrence => ({
+// An individual's row, or with `via_member`, a matriline's row reaching it through a member (salish-fwyt.7).
+const link = (over: Partial<IndividualOccurrence & {via_member: string}>): IndividualOccurrence & {via_member?: string} => ({
   individual_id: 1,
   occurrence_id: 'maplify:1',
   observed_at: '2026-06-14T17:36:00+00:00',
@@ -116,6 +117,27 @@ test('dedupes group_occurrences-shaped rows, which carry no via_group', () => {
   const deduped = dedupeOccurrenceLinks([groupRow, { ...groupRow, occurrence_id: 'b' }]);
   expect(deduped).toHaveLength(2);
   expect(deduped.every(l => l.via_group === null)).toBe(true);
+});
+
+// A matriline's report can arrive as its own, a sub-lineage's and a member's at once
+// (salish-fwyt.7); the page draws it as the most direct of them.
+test("a matriline's link is its own, then a sub-lineage's, then a member's, whatever the row order", () => {
+  const rows = [
+    link({ occurrence_id: 'own', via_member: 'T065A5' }),
+    link({ occurrence_id: 'own', via_group: 'T065A' }),
+    link({ occurrence_id: 'own', via_group: null }),
+    link({ occurrence_id: 'sub', via_member: 'T065A5' }),
+    link({ occurrence_id: 'sub', via_group: 'T065B' }),
+    link({ occurrence_id: 'sub', via_group: 'T065A' }),
+    link({ occurrence_id: 'member', via_member: 'T065A5' }),
+    link({ occurrence_id: 'member', via_member: 'T065A2' }),
+    // a member said to be absent doesn't bring the report in
+    link({ occurrence_id: 'absent', via_member: 'T065A5', is_present: false }),
+  ];
+  for (const order of [rows, [...rows].reverse()]) {
+    const byId = Object.fromEntries(dedupeOccurrenceLinks(order).map(l => [l.occurrence_id, [l.via_group, l.via_member ?? null]]));
+    expect(byId).toEqual({own: [null, null], sub: ['T065A', null], member: [null, 'T065A2']});
+  }
 });
 
 test('sorts deduped links newest first', () => {

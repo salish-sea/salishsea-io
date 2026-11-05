@@ -64,7 +64,7 @@ function tables(): Tables {
         matriline_members: [1, 2, 3, 4].map(id => ({group_id: 100, individual_id: id, innermost_group_id: 100})),
         animal_names: [{entity_id: 'SSA:0000901', common_name: "Bigg's killer whale", taxon_entity_id: null, taxon_common_name: null, inaturalist_scientific_name: null}],
         individual_occurrences: [
-            {individual_id: 1, occurrence_id: 'maplify:1', observed_at: '2026-09-04T20:00:00+00:00', location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate', via_group: 'T065As'},
+            {individual_id: 1, occurrence_id: 'maplify:1', observed_at: '2026-09-04T20:00:00+00:00', location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate', via_group: 'T065A'},
             {individual_id: 1, occurrence_id: 'maplify:1', observed_at: '2026-09-04T20:00:00+00:00', location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate', via_group: null},
             {individual_id: 1, occurrence_id: 'maplify:2', observed_at: '2026-08-01T20:00:00+00:00', location: null, is_present: false, status: 'candidate', via_group: null},
         ],
@@ -189,7 +189,7 @@ describe('renderIndividualPage', () => {
     test('a dead record that names only its matriline says nothing of each member', () => {
         const t = tables();
         t.individual_occurrences.push({individual_id: 1, occurrence_id: 'inat:40', observed_at: '2026-09-25T20:00:00+00:00',
-            location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate', via_group: 'T065As', vitality: 'dead'} as never);
+            location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate', via_group: 'T065A', vitality: 'dead'} as never);
         const doc = renderIndividualPage(SHELL, assembleIndividuals(t).find(p => p.data.profile.primary_designation === 'T065A')!, 2026);
         expect(doc).toMatch(/Last reported <a[^>]*>September 25, 2026<\/a> \(as T065As\)/);
         expect(doc).not.toMatch(/Last reported <a[^>]*>[^<]*<\/a>[^·]*, dead/);
