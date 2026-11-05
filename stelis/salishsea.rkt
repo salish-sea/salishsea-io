@@ -137,6 +137,10 @@
 (define register-db (build-path mirror-dir "register.duckdb"))
 (define water-regions-file (build-path mirror-dir "water-regions.json"))
 (define places-osm-file (build-path mirror-dir "places-osm.json"))
+;; The basemap's water mask (basemap decision 028), fetched beside them: the sea as a picture
+;; of 90 m cells and the JSON that georeferences it, which the join measures distance by sea on.
+(define water-mask-png (build-path mirror-dir "water-mask.png"))
+(define water-mask-json (build-path mirror-dir "water-mask.json"))
 (define REGISTER-DB (path->string register-db))
 
 ;; --- Runtime ----------------------------------------------------------------
@@ -484,6 +488,11 @@
      ;; The basemap's OpenStreetMap place list, fetched with it, which says where the
      ;; landmarks named from OpenStreetMap are (decision 100).
      (make-artifact 'places-osm.json 'file)
+     ;; The basemap's water mask (decision 028), fetched from the URLs the style names under
+     ;; salishsea:water, named for their contents: derived from the style, so a lost copy is
+     ;; fetched again. The join measures distance by sea on it (salish-20u7.3).
+     (make-artifact 'water-mask.png 'file)
+     (make-artifact 'water-mask.json 'file)
      ;; The landmarks a card may name (decision 100): checked in, proposed from the reports
      ;; by scripts/propose-landmarks.ts and reviewed in a pull request.
      (make-artifact 'reference/landmarks.tsv 'file #:provenance 'authoritative)
@@ -548,12 +557,18 @@
               #:outputs reference-relations
               #:invoke (node-script/code "scripts/read-path/reference.ts" '()
                                  (list SNAPSHOT-DB)))
+   ;; Each day's reports are joined into travel segments here (decision 111), with the
+   ;; distance measured by sea on the water mask (decision 063, amended): a new mask
+   ;; reruns it, and so does the encounters task below, which must join a day alike.
    (make-task 'occurrence-days 'transform
-              #:inputs '(build.occurrences)
+              #:inputs '(build.occurrences water-mask.png water-mask.json)
               #:outputs '(days)
               #:invoke (node-script/code "scripts/read-path/occurrence-days.ts"
                                  '()
-                                 (list SNAPSHOT-DB)))
+                                 (list SNAPSHOT-DB
+                                       "--water-mask"
+                                       (path->string water-mask-png)
+                                       (path->string water-mask-json))))
    ;; Reads the snapshot's moment for the day it covers through, so it runs every
    ;; build; a query over one column and at most thirty tiny files. Not a manifest
    ;; input: the frontend reads a missing covered day as empty anyway, so a failure
@@ -613,11 +628,15 @@
    ;; marks (salish-fwyt.4.2).
    (make-task 'encounters 'transform
               #:inputs (append (map snapshot-relation '("individuals" "social_groups" "matriline_members"))
-                               '(build.occurrences build.individual_occurrences build.group_occurrences))
+                               '(build.occurrences build.individual_occurrences build.group_occurrences
+                                 water-mask.png water-mask.json))
               #:outputs '(encounters)
               #:invoke (node-script/code "scripts/read-path/encounters.ts"
                                  '()
-                                 (list SNAPSHOT-DB)))
+                                 (list SNAPSHOT-DB
+                                       "--water-mask"
+                                       (path->string water-mask-png)
+                                       (path->string water-mask-json))))
    ;; The search field's index (salishsea GH #640). Its own task, not the profile
    ;; index's: it carries each animal's newest report, so it moves with every build
    ;; that brings one, while the profile index cuts off when the catalogue holds still.
@@ -692,6 +711,18 @@
                                  (list (path->string (in-checkout "src" "basemap-style.json"))
                                        (path->string water-regions-file)
                                        (path->string places-osm-file))))
+   ;; The basemap's water mask, from the URLs the same style names (basemap decision 028):
+   ;; once for each basemap version the site moves to. A style that names none makes the
+   ;; script exit 1 (see its header), so a build from before the mask fails here and no
+   ;; day is joined by a mask that is not there.
+   (make-task 'water-mask 'transform
+              #:inputs '(basemap-style.json)
+              #:outputs '(water-mask.png water-mask.json)
+              #:invoke (node-script/code "scripts/read-path/fetch-water-mask.ts"
+                                 '()
+                                 (list (path->string (in-checkout "src" "basemap-style.json"))
+                                       (path->string water-mask-png)
+                                       (path->string water-mask-json))))
    (make-task 'derive-occurrences 'transform
               #:inputs (append occurrence-derivation-inputs
                                '(water-regions.json places-osm.json reference/landmarks.tsv))
@@ -902,6 +933,8 @@
     [(basemap-style.json) (build-path SALISHSEA "src" "basemap-style.json")]
     [(water-regions.json) water-regions-file]
     [(places-osm.json) places-osm-file]
+    [(water-mask.png) water-mask-png]
+    [(water-mask.json) water-mask-json]
     [(reference/landmarks.tsv) (build-path SALISHSEA "data" "reference" "landmarks.tsv")]
     [(catalogue/individuals.tsv) (build-path SALISHSEA "data" "catalogue" "individuals.tsv")]
     [(catalogue/designations.tsv) (build-path SALISHSEA "data" "catalogue" "designations.tsv")]

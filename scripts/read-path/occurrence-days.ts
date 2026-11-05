@@ -2,7 +2,7 @@
  * One file per Pacific calendar day of occurrences, from the occurrences the build
  * derives into the snapshot file, build.occurrences (salish-t3g.1; decision 061).
  *
- *   EXPORT_DIR=… node scripts/read-path/occurrence-days.ts <snapshot.duckdb>
+ *   EXPORT_DIR=… node scripts/read-path/occurrence-days.ts <snapshot.duckdb> [--water-mask <png> <json>]
  *
  * Writes $EXPORT_DIR/days/<YYYY-MM-DD>.json for every day that has at least one
  * occurrence: a JSON array, newest first — what `fetchOccurrences` receives for
@@ -25,7 +25,9 @@
  *
  * Each occurrence carries `segment`, the travel segment the build put it in (decision
  * 111): the id of the segment's oldest occurrence, from the day's rows as the file lists
- * them (src/segments.ts's segmentIds). The browser groups by it rather than joining the
+ * them (src/segments.ts's segmentIds), measuring distance by sea on the basemap's water
+ * mask when told where it is (salish-20u7.3; the build always does, and encounters.ts is
+ * given the same mask so the two join a day alike). The browser groups by it rather than joining the
  * day again. Editing this script or what it imports (the join rule included) changes the
  * task's address, so the first build after a change rewrites every file.
  *
@@ -41,10 +43,11 @@ import * as path from 'node:path';
 import { access, readdir, rename, rm, writeFile } from 'node:fs/promises';
 
 import type { Occurrence } from '../../src/types.ts';
-import { segmentIds } from '../../src/segments.ts';
+import { segmentIds, type DistanceM } from '../../src/segments.ts';
 import { budget } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
+import { waterMaskArgs } from './water-mask.ts';
 
 const exists = (p: string) => access(p).then(() => true, () => false);
 
@@ -84,13 +87,14 @@ export async function writeDays(
     snapshot: string,
     exportDir: string,
     keys: readonly string[] | null,
+    distanceM?: DistanceM,
 ): Promise<{files: number, occurrences: number, mode: 'all' | 'some'}> {
     const outDir = path.join(exportDir, 'days');
     await recoverDir(outDir);
     // a partial run rewrites files in a directory the last run left; with none to
     // rewrite into (a fresh export dir, a hand run), it is a full run
     if (keys !== null && keys.length <= PARTIAL_LIMIT && await exists(outDir))
-        return {...await writeSomeDays(snapshot, outDir, keys), mode: 'some'};
+        return {...await writeSomeDays(snapshot, outDir, keys, distanceM), mode: 'some'};
 
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
@@ -112,7 +116,7 @@ export async function writeDays(
             FROM store.build.occurrences
             ORDER BY day, observed_at DESC, id
         `);
-        await replaceDir(outDir, dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts));
+        await replaceDir(outDir, dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts, distanceM));
     } finally {
         conn.closeSync();
         db.closeSync();
@@ -127,7 +131,7 @@ export async function writeDays(
  * file for a day with no occurrences is what the whole-directory run never leaves.
  */
 async function writeSomeDays(
-    snapshot: string, outDir: string, keys: readonly string[],
+    snapshot: string, outDir: string, keys: readonly string[], distanceM?: DistanceM,
 ): Promise<{files: number, occurrences: number}> {
     const counts = {files: 0, occurrences: 0};
     // a run killed between writing a file beside itself and renaming it leaves the
@@ -153,7 +157,7 @@ async function writeSomeDays(
             ORDER BY day, observed_at DESC, id
         `);
         const written = new Set<string>();
-        for await (const [name, body] of dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts)) {
+        for await (const [name, body] of dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts, distanceM)) {
             const final = path.join(outDir, name);
             const partial = `${final}.partial`;
             await writeFile(partial, body);
@@ -179,6 +183,7 @@ async function writeSomeDays(
 export async function* dayFiles(
     chunks: AsyncIterable<[string | null, string][]>,
     counts = {files: 0, occurrences: 0},
+    distanceM?: DistanceM,
 ): AsyncGenerator<[string, string]> {
     let day: string | null = null;
     let list: Record<string, unknown>[] = [];
@@ -188,7 +193,7 @@ export async function* dayFiles(
             if (rowDay !== day) {
                 if (day !== null) {
                     counts.files++;
-                    yield [`${day}.json`, JSON.stringify(withSegments(list))];
+                    yield [`${day}.json`, JSON.stringify(withSegments(list, distanceM))];
                 }
                 day = rowDay;
                 list = [];
@@ -199,7 +204,7 @@ export async function* dayFiles(
     }
     if (day !== null) {
         counts.files++;
-        yield [`${day}.json`, JSON.stringify(withSegments(list))];
+        yield [`${day}.json`, JSON.stringify(withSegments(list, distanceM))];
     }
 }
 
@@ -208,20 +213,20 @@ export async function* dayFiles(
  * The join reads `observed_at_ms`, which the browser adds on reading a file; it is
  * added here for the join only and not written.
  */
-export function withSegments(list: Record<string, unknown>[]): Record<string, unknown>[] {
-    const ids = segmentIds(list.map(doc => ({...doc, observed_at_ms: Date.parse(doc['observed_at'] as string)}) as unknown as Occurrence));
+export function withSegments(list: Record<string, unknown>[], distanceM?: DistanceM): Record<string, unknown>[] {
+    const ids = segmentIds(list.map(doc => ({...doc, observed_at_ms: Date.parse(doc['observed_at'] as string)}) as unknown as Occurrence), distanceM);
     return list.map(doc => ({...doc, segment: ids.get(doc['id'] as string)}));
 }
 
 export async function main(): Promise<void> {
-    const [snapshot] = process.argv.slice(2);
+    const {rest: [snapshot, ...extra], distanceM} = waterMaskArgs(process.argv.slice(2));
     const exportDir = process.env['EXPORT_DIR'];
-    if (!snapshot || !exportDir) {
-        console.error('usage: EXPORT_DIR=… occurrence-days.ts <snapshot.duckdb>');
+    if (!snapshot || extra.length || !exportDir) {
+        console.error('usage: EXPORT_DIR=… occurrence-days.ts <snapshot.duckdb> [--water-mask <png> <json>]');
         process.exit(2);
     }
     const keys = rebuildKeys(process.env);
-    const {files, occurrences, mode} = await writeDays(snapshot, exportDir, keys);
+    const {files, occurrences, mode} = await writeDays(snapshot, exportDir, keys, distanceM);
     console.log(mode === 'all'
         ? `days/: ${files} files, ${occurrences} occurrences${keys === null ? '' : ` (told ${keys.length} days, past the partial limit: replaced whole)`}`
         : `days/: ${files} of ${keys!.length} named day(s) rewritten in place, ${occurrences} occurrences; the rest as they were`);

@@ -8,8 +8,10 @@
  * Fetched as the place lists are (fetch-water-regions.ts): each URL is named for its
  * file's contents, so a file already holding them is left alone and a download that
  * doesn't match is refused. Unlike the lists, the mask is optional: a style that doesn't
- * name one yet (basemap versions before decision 028) prints "absent" and writes nothing,
- * and a build goes without the distance by sea.
+ * name one yet (basemap versions before decision 028) makes `fetchWaterMask` return
+ * "absent" and write nothing. The command line exits 1 on it: the build's day files are
+ * joined by sea on the mask (salish-20u7.3), so a build with no mask stops here rather
+ * than quietly joining in a straight line.
  */
 import { readFileSync } from 'node:fs';
 
@@ -48,5 +50,10 @@ if (import.meta.main) {
         console.error('usage: fetch-water-mask.ts <basemap-style.json> <water-mask.png> <water-mask.json>');
         process.exit(2);
     }
-    console.log(`water mask: ${await fetchWaterMask(style, png, json)}`);
+    const result = await fetchWaterMask(style, png, json);
+    console.log(`water mask: ${result}`);
+    if (result === 'absent') {
+        console.error(`${style} names no water mask (metadata "salishsea:water"): move the site to a basemap version that publishes one`);
+        process.exit(1);
+    }
 }

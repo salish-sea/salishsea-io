@@ -5,6 +5,7 @@ import type { Occurrence } from './types.ts';
 import { travelSpeedFor } from './constants.ts';
 import { labelForSegment } from './symbology.ts';
 import { fromLonLat } from './map-view.ts';
+import type { LonLat } from './sea-distance.ts';
 
 const hour_in_ms = 60 * 60 * 1000;
 
@@ -14,6 +15,17 @@ export type Segment = {
   occurrences: Occurrence[];
   taxon: Occurrence['taxon'];
 }
+
+/**
+ * How far apart two reports are, in metres, as the join rule measures it, or null
+ * when the animals could not have swum between them within the rule's limit. The
+ * default is the straight line; the build passes the distance by sea
+ * (`seaDistanceFor` in sea-distance.ts), and the browser, which has no water mask,
+ * keeps the straight line for a tab's own unpublished sightings (decision 111).
+ */
+export type DistanceM = (a: LonLat, b: LonLat) => number | null;
+
+const straightLine: DistanceM = (a, b) => distance(a, b, {units: 'meters'});
 
 /**
  * A day's occurrences joined into travel segments (decision 063).
@@ -31,21 +43,21 @@ export type Segment = {
  * on the order the caller passes them in: the map, the day's list and the
  * encounter timeline each get them from somewhere else (salish-gnk3).
  */
-export function occurrences2segments(occurrences: Occurrence[]): Segment[] {
+export function occurrences2segments(occurrences: Occurrence[], distanceM: DistanceM = straightLine): Segment[] {
   const segments: Segment[] = [];
   for (const occurrence of occurrences.toSorted(oldestFirst))
-    place(segments, occurrence);
+    place(segments, occurrence, distanceM);
   return segments;
 }
 
 /** Put `occurrence` in the open segment that admits it with the lowest score, or start a new one. */
-function place(segments: Segment[], occurrence: Occurrence): void {
+function place(segments: Segment[], occurrence: Occurrence, distanceM: DistanceM): void {
   let best: Segment | null = null;
   let bestScore = Infinity;
   // A segment with no travel speed takes nothing (joinScore), so a dead one stays alone.
   const dead = occurrence.vitality === 'dead';
   for (const segment of dead ? [] : segments) {
-    const score = joinScore(segment, occurrence);
+    const score = joinScore(segment, occurrence, distanceM);
     if (score < bestScore) {
       best = segment;
       bestScore = score;
@@ -75,9 +87,9 @@ function startSegment(first: Occurrence): Segment {
  * occurrence in the segment. The build runs this on a day's rows and writes the
  * answer on each row as `segment`; `daySegments` reads it back.
  */
-export function segmentIds(occurrences: Occurrence[]): Map<string, string> {
+export function segmentIds(occurrences: Occurrence[], distanceM: DistanceM = straightLine): Map<string, string> {
   const ids = new Map<string, string>();
-  for (const {occurrences: members} of occurrences2segments(occurrences))
+  for (const {occurrences: members} of occurrences2segments(occurrences, distanceM))
     for (const member of members) ids.set(member.id, members[0]!.id);
   return ids;
 }
@@ -140,8 +152,10 @@ function oldestFirst(a: Occurrence, b: Occurrence): number {
  * plus travel time, or Infinity if the segment may not take it: another
  * species, more than 12 hours or 20 km after its latest point, faster than
  * three times the species' speed after a 3 km allowance, or another ecotype.
+ * The distance is `distanceM`'s; when it says there is no route, the segment may not
+ * take the candidate.
  */
-function joinScore(segment: Segment, candidate: Occurrence): number {
+function joinScore(segment: Segment, candidate: Occurrence, distanceM: DistanceM = straightLine): number {
   const start = segment.occurrences[0]!;
   const last = segment.occurrences[segment.occurrences.length - 1]!;
   const speed = segment.expectedTravelSpeedKmph;
@@ -150,8 +164,8 @@ function joinScore(segment: Segment, candidate: Occurrence): number {
   const delta_hours = (candidate.observed_at_ms - last.observed_at_ms) / hour_in_ms;
   if (delta_hours > 12)
     return Infinity;
-  const delta_meters = distance(coord(candidate), coord(last), {units: 'meters'});
-  if (delta_meters > 20000)
+  const delta_meters = distanceM(coord(candidate), coord(last));
+  if (delta_meters === null || delta_meters > 20000)
     return Infinity;
   // Two occurrences at the same instant give 0/0, which is NaN and so never
   // exceeds the limit: they join.

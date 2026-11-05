@@ -286,3 +286,22 @@ export function seaDistance(grid: WaterGrid, a: LonLat, b: LonLat, options: {lim
     if (onWaterB !== b) path.push(b);
     return {kind: 'routed', distanceM: lengthM(path), path};
 }
+
+/**
+ * The join rule's distance (decision 063, amended): metres by sea, or null when every
+ * route is longer than the 20 km limit. A report outside the mask, or on land with no
+ * water within reach, has no sea to measure in, so it is measured in a straight line
+ * as before and can still join.
+ */
+export function seaDistanceFor(grid: WaterGrid): (a: LonLat, b: LonLat) => number | null {
+    return (a, b) => {
+        const found = seaDistance(grid, a, b, {limitM: 20_000});
+        switch (found.kind) {
+            case 'straight':
+            case 'routed': return found.distanceM;
+            case 'beyond-limit': return null;
+            case 'out-of-range':
+            case 'no-water': return distance(a, b) * 1000;
+        }
+    };
+}
