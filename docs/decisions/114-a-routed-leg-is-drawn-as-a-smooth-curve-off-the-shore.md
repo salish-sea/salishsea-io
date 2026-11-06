@@ -19,7 +19,7 @@
 ## Rejected
 
 - **Curving in the browser.** It has no water map ([111](111-the-build-decides-a-days-travel-segments-and-the-day-file-carries-them.md)), so it could not check a curve against land.
-- **Sampling every 250 or 500 m.** Cheaper: on the five days measured, the files grow 10% and 5% over the days without legs, against 25% at 100 m. But the heaviest day on record, 2026-09-27 with 326 reports, is 458 KB raw and 28 KB gzipped as served, with only 4 routed legs, so the curves add a few KB where it matters least. Peter took the cost.
+- **Sampling every 250 or 500 m.** Cheaper: on the five days measured, the files grow 10% and 5% over the files as they are today, with the route's bends only, against 25% at 100 m. But the heaviest day on record, 2026-09-27 with 326 reports, is 458 KB raw and 28 KB gzipped as served, with only 4 routed legs, so the curves add a few KB where it matters least. Peter took the cost.
 - **A shore cost in the search instead of growing the land.** Left for later.
 
 ## Consequences
