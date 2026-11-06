@@ -298,6 +298,23 @@ const JOIN_LIMIT_M = 20_000;
 const JOIN_SEARCH_M = 22_000;
 
 /**
+ * The path a leg is drawn along (decision 113): the coordinates from `a` to `b`, rounded to
+ * 5 decimals (about a metre), when the straight line between them crosses land and a route
+ * by sea within the join's search limit goes around; null when the straight line is in
+ * water already, or no route is found, or a point is outside the mask or beyond reach of
+ * water, so the leg is drawn straight as before.
+ */
+export type LegOf = (a: LonLat, b: LonLat) => LonLat[] | null;
+
+export function seaLegFor(grid: WaterGrid): LegOf {
+    return (a, b) => {
+        const found = seaDistance(grid, a, b, {limitM: JOIN_SEARCH_M});
+        if (found.kind !== 'routed' || found.distanceM > JOIN_LIMIT_M) return null;
+        return found.path.map(([lon, lat]): LonLat => [Math.round(lon * 1e5) / 1e5, Math.round(lat * 1e5) / 1e5]);
+    };
+}
+
+/**
  * The join rule's distance (decision 063, amended): metres by sea, or null when no route is
  * within the 20 km limit. A report outside the mask, or on land with no water within reach,
  * has no sea to measure in, so it is measured in a straight line as before and can still join.
