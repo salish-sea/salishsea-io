@@ -5,6 +5,7 @@
  * and a sighting as the write API takes it (api/sightings.ts). The vocabularies are the
  * ones checked in at data/reference/enums.tsv (decision 064).
  */
+import type { Reach } from './reach.ts';
 
 export type License = 'cc0' | 'cc-by' | 'cc-by-nc' | 'cc-by-sa' | 'cc-by-nd' | 'cc-by-nc-sa' | 'cc-by-nc-nd' | 'none';
 export type TravelDirection = 'north' | 'northeast' | 'east' | 'southeast' | 'south' | 'southwest' | 'west' | 'northwest';
@@ -80,6 +81,14 @@ export type Occurrence = {
    * report, and from a sighting the build hasn't seen yet.
    */
   leg?: [number, number][];
+  /**
+   * How far it is by water from this report to the sea around it (decision 115), which
+   * the browser draws the ring around a track's last report from. The build writes it
+   * only on the last report of a track of two or more reports, seen in the last 6.5
+   * hours, of a species with a travel speed; absent from every other report and from a
+   * sighting the build hasn't seen yet, and the ring is then a circle.
+   */
+  reach?: Reach;
   /**
    * The water region its point is in, as a card says it ("Haro Strait", "off Vancouver
    * Island"), named by the read-path build from the basemap's regions (salish-fwyt.2).

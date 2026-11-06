@@ -13,6 +13,7 @@
  * drawn leg bends at headlands rather than stepping along the grid.
  */
 import { distance } from '@turf/distance';
+import { FAR, UNIT_M, UNREACHABLE, encodeValues, reachSteps, type Reach } from './reach.ts';
 
 export type LonLat = [lon: number, lat: number];
 
@@ -437,5 +438,102 @@ export function seaDistanceFor(grid: WaterGrid): (a: LonLat, b: LonLat) => numbe
             case 'out-of-range':
             case 'no-water': return distance(a, b) * 1000;
         }
+    };
+}
+
+/** Moves of the reach search: the eight neighbours, and the eight knight's moves, which cut the error of a ring in open water from about 8% to about 2%. */
+const REACH_MOVES: readonly (readonly [number, number])[] = [
+    ...NEIGHBOURS,
+    [-2, -1], [-2, 1], [2, -1], [2, 1], [-1, -2], [1, -2], [-1, 2], [1, 2],
+];
+
+/**
+ * How far it is by water from a point to every cell of the mask within `radiusM` of it
+ * (decision 115): Dijkstra over the cells, with the neighbours' and the knight's moves
+ * and each move's length in metres. A knight's move needs the two cells it passes between
+ * to be water, so it never cuts a corner of land. A point on land is first moved to the
+ * nearest water within SNAP_RADIUS_M, as `seaDistance` does. Returns the distances in
+ * metres over the window of cells that was searched, Infinity where not reached; null when
+ * the point is outside the mask or no water is near it.
+ */
+export function waterDistanceField(grid: WaterGrid, at: LonLat, radiusM: number):
+    {c0: number, r0: number, w: number, h: number, metres: Float32Array} | null {
+    if (!grid.contains(at[0], at[1])) return null;
+    const start = grid.isWater(at[0], at[1]) ? [Math.floor(grid.colAt(at[0])), Math.floor(grid.rowAt(at[1]))] as [number, number] : nearestWaterCell(grid, at[0], at[1], SNAP_RADIUS_M);
+    if (!start) return null;
+    const [mxHere, my] = grid.metresPerCell(start[1]);
+    const reachR = Math.ceil(radiusM / my) + 1;
+    const reachC = Math.ceil(radiusM / mxHere) + 1;
+    const c0 = Math.max(0, start[0] - reachC), c1 = Math.min(grid.width - 1, start[0] + reachC);
+    const r0 = Math.max(0, start[1] - reachR), r1 = Math.min(grid.height - 1, start[1] + reachR);
+    const w = c1 - c0 + 1, h = r1 - r0 + 1;
+    const mx = new Float64Array(h);
+    for (let r = 0; r < h; r++) mx[r] = grid.metresPerCell(r0 + r)[0];
+
+    const metres = new Float32Array(w * h).fill(Infinity);
+    const open: Heap = {f: [], id: []};
+    const startId = (start[1] - r0) * w + (start[0] - c0);
+    metres[startId] = 0;
+    push(open, 0, startId);
+    while (open.f.length > 0) {
+        const f = open.f[0]!;
+        const id = pop(open);
+        if (f > metres[id]!) continue; // a stale entry
+        const c = c0 + id % w, r = r0 + Math.floor(id / w);
+        for (const [dc, dr] of REACH_MOVES) {
+            const nc = c + dc, nr = r + dr;
+            if (nc < c0 || nc > c1 || nr < r0 || nr > r1 || !grid.isWaterCell(nc, nr)) continue;
+            if (Math.abs(dc) === 2 && !(grid.isWaterCell(c + dc / 2, r) && grid.isWaterCell(c + dc / 2, nr))) continue;
+            if (Math.abs(dr) === 2 && !(grid.isWaterCell(c, r + dr / 2) && grid.isWaterCell(nc, r + dr / 2))) continue;
+            const g = f + Math.hypot(dc * (mx[r - r0]! + mx[nr - r0]!) / 2, dr * my);
+            const nid = (nr - r0) * w + (nc - c0);
+            if (g >= metres[nid]! || g > radiusM) continue;
+            metres[nid] = g;
+            push(open, g, nid);
+        }
+    }
+    return {c0, r0, w, h, metres};
+}
+
+export type ReachOf = (at: LonLat, speedKmph: number, observedAtMs: number) => Reach | null;
+
+/** How long a ring is drawn for (segments.ts: nothing from six hours), and half an hour more, which the farther ring reaches. */
+const REACH_HOURS = 6.5;
+/** Metres between a reach's samples. */
+const REACH_CELL_M = 500;
+
+/**
+ * The reach of a track's last report (decision 115): written for a report seen in the last
+ * REACH_HOURS before `now()` that has a travel speed, as a square of samples centred on
+ * the report and reaching speed × REACH_HOURS in every direction. Each sample is the
+ * distance by water to the 90 m cell it falls in, in units of UNIT_M, UNREACHABLE for land
+ * and for water beyond the radius. Null for an older report, a report outside the mask or
+ * far from water.
+ */
+export function seaReachFor(grid: WaterGrid, now: () => number = Date.now): ReachOf {
+    return (at, speedKmph, observedAtMs) => {
+        const ageHours = (now() - observedAtMs) / 3_600_000;
+        if (!(speedKmph > 0) || ageHours > REACH_HOURS) return null;
+        const radiusM = speedKmph * 1000 * REACH_HOURS;
+        const field = waterDistanceField(grid, at, radiusM);
+        if (!field) return null;
+        const half = Math.ceil(radiusM / REACH_CELL_M);
+        const size = 2 * half + 1;
+        const round5 = (x: number) => Math.round(x * 1e5) / 1e5;
+        const lat = reachSteps({cell: REACH_CELL_M, height: size, north: 0}).lat;
+        const north = round5(at[1] + half * lat);
+        const steps = reachSteps({cell: REACH_CELL_M, height: size, north});
+        const west = round5(at[0] - half * steps.lon);
+        const bytes = new Uint8Array(size * size).fill(UNREACHABLE);
+        for (let j = 0; j < size; j++) {
+            for (let i = 0; i < size; i++) {
+                const col = Math.floor(grid.colAt(west + i * steps.lon)), row = Math.floor(grid.rowAt(north - j * steps.lat));
+                if (col < field.c0 || col >= field.c0 + field.w || row < field.r0 || row >= field.r0 + field.h) continue;
+                const metres = field.metres[(row - field.r0) * field.w + (col - field.c0)]!;
+                if (metres === Infinity) continue;
+                bytes[j * size + i] = Math.min(FAR, Math.round(metres / UNIT_M));
+            }
+        }
+        return {cell: REACH_CELL_M, width: size, height: size, west, north, values: encodeValues(bytes)};
     };
 }

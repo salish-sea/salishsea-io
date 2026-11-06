@@ -6,6 +6,7 @@ import { travelSpeedFor } from './constants.ts';
 import { labelForSegment } from './symbology.ts';
 import { fromLonLat } from './map-view.ts';
 import type { LonLat } from './sea-distance.ts';
+import { UNIT_M, loopArea, reachContours, type Reach } from './reach.ts';
 
 const hour_in_ms = 60 * 60 * 1000;
 
@@ -277,6 +278,8 @@ export type TravelLineProperties = {
    * route between them (decision 113); absent when every coordinate is a report.
    */
   reportAt?: number[];
+  /** The last report's reach along water (decision 115), when it carries one. */
+  reach?: Reach;
 };
 
 /**
@@ -311,7 +314,11 @@ export function segment2travelLine({occurrences, expectedTravelSpeedKmph, lastOc
     type: 'Feature',
     id: `line-from-${occurrences[0]!.id}`,
     geometry: {type: 'LineString', coordinates},
-    properties: {expectedTravelSpeedKmph, lastOccurrenceAt: lastOccurrenceAt.valueOf(), ...(bent && {reportAt})},
+    properties: {
+      expectedTravelSpeedKmph, lastOccurrenceAt: lastOccurrenceAt.valueOf(),
+      ...(bent && {reportAt}),
+      ...(occurrences[occurrences.length - 1]!.reach && {reach: occurrences[occurrences.length - 1]!.reach}),
+    },
   };
 }
 
@@ -348,6 +355,11 @@ export function travelArrows(line: Feature<LineString, Partial<TravelLinePropert
  * their species' usual speed: two rings around the last sighting, fainter the
  * older the guess, each labelled at its top. Nothing for a track whose last
  * sighting is six hours old or more.
+ *
+ * A ring is a circle, unless the last report carries its reach along water (decision
+ * 115): then it is the line round the water the animals could have swum to in that
+ * time, which goes round headlands, stops at shores and loops round islands. The label
+ * is at the northernmost point of the largest loop.
  */
 export function imputedPositions(line: Feature<LineString, TravelLineProperties>, now: number): Feature<LineString | Point, {opacity: number} | {label: string}>[] {
   const speed = line.properties.expectedTravelSpeedKmph;
@@ -357,9 +369,20 @@ export function imputedPositions(line: Feature<LineString, TravelLineProperties>
   if (ageHours >= 6)
     return [];
   const last = line.geometry.coordinates[line.geometry.coordinates.length - 1] as [number, number];
+  const reach = line.properties.reach;
   return [ageHours, ageHours + 0.5].flatMap(delayHours => {
     const radiusKm = delayHours * speed;
     const opacity = 3 / (3 + 4 * delayHours * ageHours);
+    const label = delayHours === ageHours ? `now at ${speed}km/h` : `in 30min`;
+    const loops = reach ? reachContours(reach, Math.max(radiusKm * 1000, UNIT_M / 10)) : [];
+    if (loops.length > 0) {
+      const largest = loops.reduce((a, b) => loopArea(b) > loopArea(a) ? b : a);
+      const top = largest.reduce((a, b) => b[1] > a[1] ? b : a);
+      return [
+        ...loops.map((outline): Feature<LineString, {opacity: number}> => ({type: 'Feature', geometry: {type: 'LineString', coordinates: outline}, properties: {opacity}})),
+        {type: 'Feature', geometry: {type: 'Point', coordinates: top}, properties: {label}} as Feature<Point, {label: string}>,
+      ];
+    }
     const ring = circle(last, Math.max(radiusKm, 0.001), {steps: 64, units: 'kilometers'}) as Feature<Polygon>;
     const outline = ring.geometry.coordinates[0]!;
     return [
@@ -368,7 +391,7 @@ export function imputedPositions(line: Feature<LineString, TravelLineProperties>
         type: 'Feature',
         // The ring's northernmost point: turf starts its circle due north.
         geometry: {type: 'Point', coordinates: outline[0]!},
-        properties: {label: delayHours === ageHours ? `now at ${speed}km/h` : `in 30min`},
+        properties: {label},
       },
     ];
   });
