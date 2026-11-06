@@ -43,7 +43,8 @@ import * as path from 'node:path';
 import { access, readdir, rename, rm, writeFile } from 'node:fs/promises';
 
 import type { Occurrence } from '../../src/types.ts';
-import { segmentIds, type DistanceM } from '../../src/segments.ts';
+import { occurrences2segments, type DistanceM } from '../../src/segments.ts';
+import type { LegOf } from '../../src/sea-distance.ts';
 import { budget } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
@@ -88,13 +89,14 @@ export async function writeDays(
     exportDir: string,
     keys: readonly string[] | null,
     distanceM?: DistanceM,
+    legOf?: LegOf,
 ): Promise<{files: number, occurrences: number, mode: 'all' | 'some'}> {
     const outDir = path.join(exportDir, 'days');
     await recoverDir(outDir);
     // a partial run rewrites files in a directory the last run left; with none to
     // rewrite into (a fresh export dir, a hand run), it is a full run
     if (keys !== null && keys.length <= PARTIAL_LIMIT && await exists(outDir))
-        return {...await writeSomeDays(snapshot, outDir, keys, distanceM), mode: 'some'};
+        return {...await writeSomeDays(snapshot, outDir, keys, distanceM, legOf), mode: 'some'};
 
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
@@ -116,7 +118,7 @@ export async function writeDays(
             FROM store.build.occurrences
             ORDER BY day, observed_at DESC, id
         `);
-        await replaceDir(outDir, dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts, distanceM));
+        await replaceDir(outDir, dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts, distanceM, legOf));
     } finally {
         conn.closeSync();
         db.closeSync();
@@ -131,7 +133,7 @@ export async function writeDays(
  * file for a day with no occurrences is what the whole-directory run never leaves.
  */
 async function writeSomeDays(
-    snapshot: string, outDir: string, keys: readonly string[], distanceM?: DistanceM,
+    snapshot: string, outDir: string, keys: readonly string[], distanceM?: DistanceM, legOf?: LegOf,
 ): Promise<{files: number, occurrences: number}> {
     const counts = {files: 0, occurrences: 0};
     // a run killed between writing a file beside itself and renaming it leaves the
@@ -157,7 +159,7 @@ async function writeSomeDays(
             ORDER BY day, observed_at DESC, id
         `);
         const written = new Set<string>();
-        for await (const [name, body] of dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts, distanceM)) {
+        for await (const [name, body] of dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts, distanceM, legOf)) {
             const final = path.join(outDir, name);
             const partial = `${final}.partial`;
             await writeFile(partial, body);
@@ -184,6 +186,7 @@ export async function* dayFiles(
     chunks: AsyncIterable<[string | null, string][]>,
     counts = {files: 0, occurrences: 0},
     distanceM?: DistanceM,
+    legOf?: LegOf,
 ): AsyncGenerator<[string, string]> {
     let day: string | null = null;
     let list: Record<string, unknown>[] = [];
@@ -193,7 +196,7 @@ export async function* dayFiles(
             if (rowDay !== day) {
                 if (day !== null) {
                     counts.files++;
-                    yield [`${day}.json`, JSON.stringify(withSegments(list, distanceM))];
+                    yield [`${day}.json`, JSON.stringify(withSegments(list, distanceM, legOf))];
                 }
                 day = rowDay;
                 list = [];
@@ -204,29 +207,46 @@ export async function* dayFiles(
     }
     if (day !== null) {
         counts.files++;
-        yield [`${day}.json`, JSON.stringify(withSegments(list, distanceM))];
+        yield [`${day}.json`, JSON.stringify(withSegments(list, distanceM, legOf))];
     }
 }
 
 /**
- * A day's documents, in the order the file lists them, each with its `segment` last.
- * The join reads `observed_at_ms`, which the browser adds on reading a file; it is
- * added here for the join only and not written.
+ * A day's documents, in the order the file lists them, each with its `segment` last, and
+ * after it, on a report that the straight line from the segment's previous report does not
+ * reach across water, its `leg`: the route by sea between the two (decision 113; `legOf`,
+ * given only when the build has the water mask). The join reads `observed_at_ms`, which the
+ * browser adds on reading a file; it is added here for the join only and not written.
  */
-export function withSegments(list: Record<string, unknown>[], distanceM?: DistanceM): Record<string, unknown>[] {
-    const ids = segmentIds(list.map(doc => ({...doc, observed_at_ms: Date.parse(doc['observed_at'] as string)}) as unknown as Occurrence), distanceM);
-    return list.map(doc => ({...doc, segment: ids.get(doc['id'] as string)}));
+export function withSegments(list: Record<string, unknown>[], distanceM?: DistanceM, legOf?: LegOf): Record<string, unknown>[] {
+    const segments = occurrences2segments(list.map(doc => ({...doc, observed_at_ms: Date.parse(doc['observed_at'] as string)}) as unknown as Occurrence), distanceM);
+    const ids = new Map<string, string>();
+    const legs = new Map<string, [number, number][]>();
+    for (const {occurrences} of segments) {
+        occurrences.forEach((report, i) => {
+            ids.set(report.id, occurrences[0]!.id);
+            // the segment's reports are already in time order, the order the join took them
+            const leg = i > 0 && legOf ? legOf(coord(occurrences[i - 1]!), coord(report)) : null;
+            if (leg) legs.set(report.id, leg);
+        });
+    }
+    return list.map(doc => {
+        const id = doc['id'] as string;
+        return legs.has(id) ? {...doc, segment: ids.get(id), leg: legs.get(id)} : {...doc, segment: ids.get(id)};
+    });
 }
 
+const coord = ({location: {lon, lat}}: Occurrence): [number, number] => [lon!, lat!];
+
 export async function main(): Promise<void> {
-    const {rest: [snapshot, ...extra], distanceM} = waterMaskArgs(process.argv.slice(2));
+    const {rest: [snapshot, ...extra], distanceM, legOf} = waterMaskArgs(process.argv.slice(2));
     const exportDir = process.env['EXPORT_DIR'];
     if (!snapshot || extra.length || !exportDir) {
         console.error('usage: EXPORT_DIR=… occurrence-days.ts <snapshot.duckdb> [--water-mask <png> <json>]');
         process.exit(2);
     }
     const keys = rebuildKeys(process.env);
-    const {files, occurrences, mode} = await writeDays(snapshot, exportDir, keys, distanceM);
+    const {files, occurrences, mode} = await writeDays(snapshot, exportDir, keys, distanceM, legOf);
     console.log(mode === 'all'
         ? `days/: ${files} files, ${occurrences} occurrences${keys === null ? '' : ` (told ${keys.length} days, past the partial limit: replaced whole)`}`
         : `days/: ${files} of ${keys!.length} named day(s) rewritten in place, ${occurrences} occurrences; the rest as they were`);

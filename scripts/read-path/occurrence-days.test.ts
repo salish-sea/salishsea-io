@@ -21,7 +21,7 @@ import { Temporal } from 'temporal-polyfill';
 import { daySegments, occurrences2segments } from '../../src/segments.ts';
 import type { Occurrence } from '../../src/types.ts';
 import { loadWaterGrid, waterMaskArgs } from './water-mask.ts';
-import { seaDistanceFor } from '../../src/sea-distance.ts';
+import { seaDistanceFor, seaLegFor, straightLineInWater } from '../../src/sea-distance.ts';
 import { dayFiles, withSegments, PARTIAL_LIMIT, rebuildKeys, writeDays } from './occurrence-days.ts';
 
 /** The frontend's definition of a day (src/salish-sea.ts, dateFromObservedAt). */
@@ -301,5 +301,47 @@ describe('the day writer with the water mask (salish-20u7.3)', () => {
         expect(given.rest).toEqual(['snapshot.duckdb']);
         expect(given.distanceM!([-123.46, 48.88], [-123.60, 48.80])).toBeNull();
         expect(() => waterMaskArgs(['snapshot.duckdb', '--water-mask', `${mask}.png`])).toThrow(/two paths/);
+    });
+});
+
+describe('the leg a routed report carries (salish-20u7.4, decision 113)', () => {
+    const base = new URL('./fixtures/water-mask/water-mask', import.meta.url).pathname;
+    const grid = loadWaterGrid(`${base}.png`, `${base}.json`);
+    const [distanceM, legOf] = [seaDistanceFor(grid), seaLegFor(grid)];
+    // Active Pass end to end: 7 km apart in a straight line, a little more by water, and the line crosses Galiano or Mayne.
+    const west = doc('west', '2026-09-19T18:00:00Z', {location: {lon: -123.35, lat: 48.85}});
+    const east = doc('east', '2026-09-19T18:40:00Z', {location: {lon: -123.27, lat: 48.88}});
+    // Two points across open Strait of Georgia.
+    const open1 = doc('open-1', '2026-09-19T18:00:00Z', {location: {lon: -123.45, lat: 49.20}});
+    const open2 = doc('open-2', '2026-09-19T18:40:00Z', {location: {lon: -123.40, lat: 49.25}});
+
+    test('the later report gets the route, ends included, after its segment', () => {
+        expect(straightLineInWater(grid, [-123.35, 48.85], [-123.27, 48.88])).toBe(false);
+        const [first, second] = withSegments([west, east], distanceM, legOf);
+        expect(Object.keys(first!)).not.toContain('leg');
+        expect(Object.keys(second!).slice(-2)).toEqual(['segment', 'leg']);
+        expect(second!['segment']).toBe('west');
+        const leg = second!['leg'] as [number, number][];
+        expect(leg.length).toBeGreaterThan(2);
+        expect(leg[0]).toEqual([-123.35, 48.85]);
+        expect(leg.at(-1)).toEqual([-123.27, 48.88]);
+        for (const point of leg.flat()) expect(point).toBe(Math.round(point * 1e5) / 1e5);
+    });
+
+    test('a leg in open water writes nothing', () => {
+        expect(straightLineInWater(grid, [-123.45, 49.20], [-123.40, 49.25])).toBe(true);
+        const rows = withSegments([open1, open2], distanceM, legOf);
+        expect(rows.map(r => r['segment'])).toEqual(['open-1', 'open-1']);
+        expect(rows.every(r => !('leg' in r))).toBe(true);
+    });
+
+    test('a build without a mask writes no leg', () => {
+        expect(withSegments([west, east]).every(r => !('leg' in r))).toBe(true);
+    });
+
+    test('a pair that does not join (the Saltspring leg) has no leg: each report starts its segment', () => {
+        const trincomali = doc('trincomali', '2025-07-14T19:09:00Z', {location: {lon: -123.46, lat: 48.88}});
+        const mapleBay = doc('maple-bay', '2025-07-14T20:32:00Z', {location: {lon: -123.60, lat: 48.80}});
+        expect(withSegments([trincomali, mapleBay], distanceM, legOf).every(r => !('leg' in r))).toBe(true);
     });
 });

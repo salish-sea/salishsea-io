@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { daySegments, ecotypesOf, occurrences2segments, segmentIds, placeInSegment, segment2travelLine, segmentMovement } from './segments.ts';
+import { daySegments, ecotypesOf, occurrences2segments, segmentIds, placeInSegment, segment2travelLine, segmentMovement, travelArrows } from './segments.ts';
 import type { Occurrence } from './types.ts';
 import { distance } from '@turf/distance';
 import { loadWaterGrid } from '../scripts/read-path/water-mask.ts';
@@ -81,6 +81,50 @@ describe('segment2travelLine', () => {
         expect(line!.id).toBe(`line-from-${seg.occurrences[0]!.id}`);
       }
     }
+  });
+});
+
+describe('a track with a leg drawn around land (decision 113)', () => {
+  const a = makeOrca('a', '2026-10-01T12:00:00Z', -123.0, 48.5);
+  const b = {...makeOrca('b', '2026-10-01T13:00:00Z', -123.1, 48.5), leg: [[-123.0, 48.5], [-123.05, 48.45], [-123.1, 48.5]] as [number, number][]};
+  const c = makeOrca('c', '2026-10-01T14:00:00Z', -123.2, 48.5);
+  const segment = {expectedTravelSpeedKmph: 6, lastOccurrenceAt: new Date(c.observed_at_ms), occurrences: [a, b, c], taxon: a.taxon};
+
+  test('the line takes the leg\'s interior points, in order, between the two reports', () => {
+    const line = segment2travelLine(segment)!;
+    expect(line.geometry.coordinates).toEqual([[-123.0, 48.5], [-123.05, 48.45], [-123.1, 48.5], [-123.2, 48.5]]);
+    expect(line.properties.reportAt).toEqual([0, 2, 3]);
+  });
+
+  test('a leg that starts somewhere other than the report drawn before it is not used: the hop is straight', () => {
+    // b's leg starts at a, but another report, d, comes between them here (a region filter
+    // dropped a from the build's view, or d is the tab's own unpublished sighting)
+    const d = {...a, id: 'd', location: {lon: -123.3, lat: 48.6}};
+    const line = segment2travelLine({...segment, occurrences: [d, b, c]})!;
+    expect(line.geometry.coordinates).toEqual([[-123.3, 48.6], [-123.1, 48.5], [-123.2, 48.5]]);
+    expect(line.properties.reportAt).toBeUndefined();
+  });
+
+  test('a track with no leg is the reports\' locations, as before', () => {
+    const line = segment2travelLine({...segment, occurrences: [a, {...b, leg: undefined}, c]})!;
+    expect(line.geometry.coordinates).toEqual([[-123.0, 48.5], [-123.1, 48.5], [-123.2, 48.5]]);
+    expect(line.properties.reportAt).toBeUndefined();
+  });
+
+  test('an arrow sits on the drawn route, halfway along it, turned along the piece it is on', () => {
+    const arrows = travelArrows(segment2travelLine(segment)!);
+    expect(arrows).toHaveLength(2);
+    // the first hop goes down to (-123.05, 48.45) and back up: its middle is that bend
+    expect(arrows[0]!.geometry.coordinates[0]).toBeCloseTo(-123.05, 3);
+    expect(arrows[0]!.geometry.coordinates[1]).toBeLessThan(48.5);
+    // the second hop is straight: the arrow is at the chord's middle, pointing west
+    expect(arrows[1]!.geometry.coordinates).toEqual([-123.15, 48.5]);
+    expect(Math.abs(arrows[1]!.properties.rotation)).toBeCloseTo(180, 5);
+  });
+
+  test('a straight track has one arrow at the middle of each hop, as before', () => {
+    const arrows = travelArrows(segment2travelLine({...segment, occurrences: [a, {...b, leg: undefined}, c]})!);
+    expect(arrows.map(f => f.geometry.coordinates)).toEqual([[-123.05, 48.5], [-123.15, 48.5]]);
   });
 });
 

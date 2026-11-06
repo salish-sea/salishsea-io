@@ -73,6 +73,14 @@ export type Occurrence = {
    */
   segment?: string;
   /**
+   * How the animals got here from the previous report of the same segment, when the
+   * straight line between the two crosses land (decision 113): the route by sea,
+   * `[lon, lat]` from the previous report to this one, both ends included. The build
+   * writes it only for such a leg; absent for a straight leg, for a segment's first
+   * report, and from a sighting the build hasn't seen yet.
+   */
+  leg?: [number, number][];
+  /**
    * The water region its point is in, as a card says it ("Haro Strait", "off Vancouver
    * Island"), named by the read-path build from the basemap's regions (salish-fwyt.2).
    * Null where no region is; absent from a sighting the build hasn't seen yet.

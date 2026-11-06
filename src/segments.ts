@@ -272,33 +272,72 @@ export function placeInSegment(segment: Segment): Occurrence[] {
 export type TravelLineProperties = {
   expectedTravelSpeedKmph: number | null;
   lastOccurrenceAt: number;
+  /**
+   * Which of the line's coordinates are the reports, when some are points of a drawn
+   * route between them (decision 113); absent when every coordinate is a report.
+   */
+  reportAt?: number[];
 };
+
+/**
+ * A segment's reports as the line the map draws through them. Where a report carries a
+ * `leg`, the route by sea from the previous report (decision 113), its interior points
+ * are put between the two, so the line bends at headlands instead of crossing land. The
+ * reports themselves stay at their own locations. A report without a `leg`, such as a
+ * tab's own unpublished sighting, is joined to the previous one by a straight line.
+ */
+/** Whether the route's first coordinate is the point, within the 5 decimals a leg is written to. */
+function startsAt(leg: readonly [number, number][], point: [number, number]): boolean {
+  const first = leg[0];
+  return first !== undefined && Math.abs(first[0] - point[0]) < 1e-5 && Math.abs(first[1] - point[1]) < 1e-5;
+}
 
 export function segment2travelLine({occurrences, expectedTravelSpeedKmph, lastOccurrenceAt}: Segment): Feature<LineString, TravelLineProperties> | null {
   if (occurrences.length < 2)
     return null;
+  const coordinates: [number, number][] = [];
+  const reportAt: number[] = [];
+  occurrences.forEach((occurrence, i) => {
+    // A leg is the route from the report the build drew before this one. If the one
+    // drawn before it here is another (a region filter dropped the build's, or a tab's
+    // own sighting came between), the leg would start somewhere else: draw the hop straight.
+    if (i > 0 && occurrence.leg && startsAt(occurrence.leg, coord(occurrences[i - 1]!)))
+      coordinates.push(...occurrence.leg.slice(1, -1));
+    reportAt.push(coordinates.length);
+    coordinates.push(coord(occurrence));
+  });
+  const bent = coordinates.length > occurrences.length;
   return {
     type: 'Feature',
     id: `line-from-${occurrences[0]!.id}`,
-    geometry: {type: 'LineString', coordinates: occurrences.map(coord)},
-    properties: {expectedTravelSpeedKmph, lastOccurrenceAt: lastOccurrenceAt.valueOf()},
+    geometry: {type: 'LineString', coordinates},
+    properties: {expectedTravelSpeedKmph, lastOccurrenceAt: lastOccurrenceAt.valueOf(), ...(bent && {reportAt})},
   };
 }
 
 /**
- * An arrow at the middle of each hop of a track, turned to point along it. The
- * angle is measured on the Mercator map, clockwise from east, since that is the
- * way the hop is drawn.
+ * An arrow at the middle of each hop of a track, turned to point along it. A hop is the
+ * drawn line from one report to the next, and its middle is halfway along that line as
+ * drawn, which for a leg routed around land is on the route, not on the chord between
+ * the two reports. The angle is that of the piece of the line the arrow sits on,
+ * measured on the Mercator map, clockwise from east, since that is the way it is drawn.
  */
-export function travelArrows(line: Feature<LineString>): Feature<Point, {rotation: number}>[] {
+export function travelArrows(line: Feature<LineString, Partial<TravelLineProperties>>): Feature<Point, {rotation: number}>[] {
   const points = line.geometry.coordinates as [number, number][];
-  return points.slice(1).map((end, i) => {
-    const start = points[i]!;
-    const [x0, y0] = fromLonLat(start);
-    const [x1, y1] = fromLonLat(end);
+  const reportAt = line.properties?.reportAt ?? points.map((_, i) => i);
+  return reportAt.slice(1).map((end, h) => {
+    const hop = points.slice(reportAt[h]!, end + 1);
+    const xy = hop.map(p => fromLonLat(p));
+    const lengths = xy.slice(1).map(([x, y], i) => Math.hypot(x - xy[i]![0], y - xy[i]![1]));
+    let remaining = lengths.reduce((sum, l) => sum + l, 0) / 2;
+    let piece = 0;
+    while (piece < lengths.length - 1 && remaining > lengths[piece]!) remaining -= lengths[piece++]!;
+    const [start, finish] = [hop[piece]!, hop[piece + 1]!];
+    const along = lengths[piece]! > 0 ? remaining / lengths[piece]! : 0.5;
+    const [x0, y0] = xy[piece]!, [x1, y1] = xy[piece + 1]!;
     return {
       type: 'Feature',
-      geometry: {type: 'Point', coordinates: [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2]},
+      geometry: {type: 'Point', coordinates: [start[0] + (finish[0] - start[0]) * along, start[1] + (finish[1] - start[1]) * along]},
       properties: {rotation: -Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI},
     };
   });
