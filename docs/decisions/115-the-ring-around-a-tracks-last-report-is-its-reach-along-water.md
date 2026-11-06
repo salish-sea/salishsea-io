@@ -22,8 +22,8 @@ The difficulty is time. A ring's radius is the speed times the time since the la
 
 **What keeps the circle.** A report without `reach`: a signed-in tab's own unpublished sighting, a day file written before this, a build without the mask. And a report whose own sample is land (a report on shore, moved up to 2 km to water), where no contour encloses the point.
 
-![The ring around a track last seen in Possession Sound, before: a circle over Whidbey Island and the shore](images/2026-11-05-possession-sound-before-salish-2adm.png)
-![The same ring after: the water the animals could have reached in half an hour and in an hour, round Gedney Island](images/2026-11-05-possession-sound-after-salish-2adm.png)
+![The ring around a track last seen in Possession Sound, before: a circle over Whidbey Island and the shore](../images/2026-11-05-possession-sound-before-salish-2adm.png)
+![The same ring after: the water the animals could have reached in half an hour and in an hour, round Gedney Island](../images/2026-11-05-possession-sound-after-salish-2adm.png)
 
 ## Rejected
 
