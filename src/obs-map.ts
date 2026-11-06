@@ -515,7 +515,8 @@ user-location-control.inactive svg { color: var(--color-text); }
     this.#setData('uncertainty', {type: 'FeatureCollection', features: [...rings.values()]});
 
     this.#travelLines = compactMap(segments, segment2travelLine);
-    this.#setData('travel', {type: 'FeatureCollection', features: this.#travelLines});
+    // The reach is for the rings; the lines' own source has no use for its kilobytes.
+    this.#setData('travel', {type: 'FeatureCollection', features: this.#travelLines.map(({properties: {reach: _, ...properties}, ...line}) => ({...line, properties}))});
     this.#setData('travel-arrows', {type: 'FeatureCollection', features: this.#travelLines.flatMap(travelArrows)});
     this.#drawImputedPositions();
 

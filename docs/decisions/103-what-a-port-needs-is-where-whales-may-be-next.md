@@ -14,7 +14,7 @@
 
 **The basic version is within reach, because the map already draws it.** Around a track's last sighting, the map draws two rings: where its animals might be now, and in half an hour, at their species' typical speed (`imputedPositions` in [src/segments.ts](../../src/segments.ts)), for six hours after that sighting. A forecast for a port starts as that ring, drawn with better information. The directions named, none of them committed to:
 
-- **Water only.** Clip the ring to water, and measure the distance along water rather than across land: a group last seen in Haro Strait can't be on San Juan Island.
+- **Water only.** Clip the ring to water, and measure the distance along water rather than across land: a group last seen in Haro Strait can't be on San Juan Island. *Built 2026-11-06: [115](115-the-ring-around-a-tracks-last-report-is-its-reach-along-water.md).*
 - **Heading.** Stretch the ring along the track's direction of travel, since a group travelling north is likelier to be north of its last position than south of it.
 - **Better speeds.** A typical and a maximum speed, separately, per ecotype or group, each with a source (bd `salish-xz0i`). Today it is one figure per taxon, used as the typical speed and, tripled, as the maximum; the orca figures (the species and both ecotypes) have no recorded source.
 - **Behaviour.** A smaller ring when the reports say foraging or milling, a larger one when they say travelling, from the behaviour words a report's text carries (bd `salish-2ua9`).
