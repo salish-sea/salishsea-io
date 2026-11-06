@@ -286,13 +286,23 @@ export type TravelLineProperties = {
  * reports themselves stay at their own locations. A report without a `leg`, such as a
  * tab's own unpublished sighting, is joined to the previous one by a straight line.
  */
+/** Whether the route's first coordinate is the point, within the 5 decimals a leg is written to. */
+function startsAt(leg: readonly [number, number][], point: [number, number]): boolean {
+  const first = leg[0];
+  return first !== undefined && Math.abs(first[0] - point[0]) < 1e-5 && Math.abs(first[1] - point[1]) < 1e-5;
+}
+
 export function segment2travelLine({occurrences, expectedTravelSpeedKmph, lastOccurrenceAt}: Segment): Feature<LineString, TravelLineProperties> | null {
   if (occurrences.length < 2)
     return null;
   const coordinates: [number, number][] = [];
   const reportAt: number[] = [];
   occurrences.forEach((occurrence, i) => {
-    if (i > 0 && occurrence.leg) coordinates.push(...occurrence.leg.slice(1, -1));
+    // A leg is the route from the report the build drew before this one. If the one
+    // drawn before it here is another (a region filter dropped the build's, or a tab's
+    // own sighting came between), the leg would start somewhere else: draw the hop straight.
+    if (i > 0 && occurrence.leg && startsAt(occurrence.leg, coord(occurrences[i - 1]!)))
+      coordinates.push(...occurrence.leg.slice(1, -1));
     reportAt.push(coordinates.length);
     coordinates.push(coord(occurrence));
   });

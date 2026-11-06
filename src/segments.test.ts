@@ -96,6 +96,15 @@ describe('a track with a leg drawn around land (decision 113)', () => {
     expect(line.properties.reportAt).toEqual([0, 2, 3]);
   });
 
+  test('a leg that starts somewhere other than the report drawn before it is not used: the hop is straight', () => {
+    // b's leg starts at a, but another report, d, comes between them here (a region filter
+    // dropped a from the build's view, or d is the tab's own unpublished sighting)
+    const d = {...a, id: 'd', location: {lon: -123.3, lat: 48.6}};
+    const line = segment2travelLine({...segment, occurrences: [d, b, c]})!;
+    expect(line.geometry.coordinates).toEqual([[-123.3, 48.6], [-123.1, 48.5], [-123.2, 48.5]]);
+    expect(line.properties.reportAt).toBeUndefined();
+  });
+
   test('a track with no leg is the reports\' locations, as before', () => {
     const line = segment2travelLine({...segment, occurrences: [a, {...b, leg: undefined}, c]})!;
     expect(line.geometry.coordinates).toEqual([[-123.0, 48.5], [-123.1, 48.5], [-123.2, 48.5]]);
