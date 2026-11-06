@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'vitest';
 
 import { loadWaterGrid } from '../scripts/read-path/water-mask.ts';
-import { erodedByOneCell, seaDistance, seaLegFor, smoothRoute, straightLineInWater, WaterGrid, type LonLat, type SeaDistance } from './sea-distance.ts';
+import { erodedByOneCell, seaDistance, seaLegFor, seaReachFor, waterDistanceField, smoothRoute, straightLineInWater, WaterGrid, type LonLat, type SeaDistance } from './sea-distance.ts';
 import { distance } from '@turf/distance';
+import { UNREACHABLE, decodeValues, reachSteps } from './reach.ts';
 
 const fixture = (name: string) => new URL(`../scripts/read-path/fixtures/water-mask/${name}`, import.meta.url).pathname;
 const salishSea = loadWaterGrid(fixture('water-mask.png'), fixture('water-mask.json'));
@@ -298,5 +299,81 @@ describe('seaLegFor (salish-84y0)', () => {
         expect(there.at(-1)).toEqual(east);
         expect(legOf(east, west)).toEqual([...there].reverse());
         for (let i = 1; i < there.length; i++) expect(straightLineInWater(salishSea, there[i - 1]!, there[i]!)).toBe(true);
+    });
+});
+
+describe('the reach along water (salish-2adm, decision 115)', () => {
+    /** A grid of 0.001 degree cells (about 75 m each way), all water except what `land` marks. */
+    function sea(cols: number, rows: number, land: (col: number, row: number) => boolean = () => false): WaterGrid {
+        const stride = Math.ceil(cols / 8);
+        const bits = new Uint8Array(stride * rows);
+        for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!land(x, y)) bits[y * stride + (x >> 3)]! |= 0x80 >> (x & 7);
+        return new WaterGrid(bits, {bbox: [-123, 48, -123 + cols * 0.001, 48 + rows * 0.00068], width: cols, height: rows, cell: [0.001, 0.00068]});
+    }
+
+    test('behind a headland a point is farther by water than by air', () => {
+        // A wall of land at column 200 from row 60 to row 140; the point is on its west side, the other behind it.
+        const grid = sea(400, 400, (col, row) => col === 200 && row >= 60 && row <= 140);
+        const field = waterDistanceField(grid, centre(grid, 190, 100), 30_000)!;
+        const at = (col: number, row: number) => field.metres[(row - field.r0) * field.w + (col - field.c0)]!;
+        const [mx] = grid.metresPerCell(100);
+        expect(at(190, 100)).toBe(0);
+        // on the same side, the distance is about the straight one
+        expect(at(170, 100)).toBeGreaterThan(20 * mx * 0.98);
+        expect(at(170, 100)).toBeLessThan(20 * mx * 1.03);
+        // across the wall the air line is 20 cells (1.5 km); round its end it is at least twice the way to row 59 and back
+        const air = 20 * mx;
+        expect(at(210, 100)).toBeGreaterThan(3 * air);
+        expect(at(210, 100)).toBeLessThan(12 * air);
+        // land is not reached
+        expect(at(200, 100)).toBe(Infinity);
+    });
+
+    test('in open water the distance is within 3% of the straight one in every direction', () => {
+        const grid = sea(500, 400);
+        const here: LonLat = centre(grid, 250, 200);
+        const field = waterDistanceField(grid, here, 15_000)!;
+        for (let degrees = 0; degrees < 360; degrees += 7) {
+            const col = Math.round(250 + 120 * Math.sin(degrees * Math.PI / 180)), row = Math.round(200 - 80 * Math.cos(degrees * Math.PI / 180));
+            const metres = field.metres[(row - field.r0) * field.w + (col - field.c0)]!;
+            const air = distance(here, centre(grid, col, row)) * 1000;
+            expect(metres).toBeGreaterThanOrEqual(air * 0.98);
+            expect(metres).toBeLessThan(air * 1.03);
+        }
+    });
+
+    test('nothing past the radius is reached, and a point on land is moved to water within 2 km', () => {
+        const grid = sea(500, 400, (col) => col < 100);
+        const far = waterDistanceField(grid, centre(grid, 250, 200), 5000)!;
+        expect(far.metres.every(m => m === Infinity || m <= 5000)).toBe(true);
+        expect(waterDistanceField(grid, centre(grid, 90, 200), 5000)).not.toBeNull();
+        expect(waterDistanceField(grid, centre(grid, 10, 200), 5000)).toBeNull();
+        expect(waterDistanceField(grid, [-130, 48.1], 5000)).toBeNull();
+    });
+
+    test('seaReachFor writes the header and one byte a sample, only for a recent report with a speed', () => {
+        const grid = sea(700, 500, (col, row) => col >= 400 && col < 408 && row >= 100 && row <= 300);
+        const now = Date.UTC(2026, 10, 5, 20);
+        const reachOf = seaReachFor(grid, () => now);
+        const at: LonLat = centre(grid, 390, 200);
+        const seen = now - 2 * 3_600_000;
+        const reach = reachOf(at, 3, seen)!;
+        // 3 km/h for 6.5 h is 19.5 km: 39 samples of 500 m each side of the middle
+        expect(reach).toMatchObject({cell: 500, width: 79, height: 79});
+        const bytes = decodeValues(reach.values);
+        expect(bytes).toHaveLength(79 * 79);
+        const steps = reachSteps(reach);
+        expect(reach.west + 39 * steps.lon).toBeCloseTo(at[0], 4);
+        expect(reach.north - 39 * steps.lat).toBeCloseTo(at[1], 4);
+        expect(bytes[39 * 79 + 39]).toBe(0);
+        // a sample in the wall is land; a sample one step west of the middle is 500 m, or 2 units
+        const col = (lon: number) => Math.round((lon - reach.west) / steps.lon);
+        expect(bytes[39 * 79 + 38]).toBe(2);
+        expect(bytes[39 * 79 + col(grid.lonOf(403))]).toBe(UNREACHABLE);
+        // sample (i, j) of a corner is farther than 19.5 km: not reached
+        expect(bytes[0]).toBe(UNREACHABLE);
+        expect(reachOf(at, 3, now - 7 * 3_600_000)).toBeNull();
+        expect(reachOf(at, 0, seen)).toBeNull();
+        expect(reachOf([-130, 48.1], 3, seen)).toBeNull();
     });
 });

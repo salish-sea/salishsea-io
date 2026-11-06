@@ -21,7 +21,7 @@ import { Temporal } from 'temporal-polyfill';
 import { daySegments, occurrences2segments } from '../../src/segments.ts';
 import type { Occurrence } from '../../src/types.ts';
 import { loadWaterGrid, waterMaskArgs } from './water-mask.ts';
-import { seaDistanceFor, seaLegFor, straightLineInWater } from '../../src/sea-distance.ts';
+import { seaDistanceFor, seaLegFor, seaReachFor, straightLineInWater } from '../../src/sea-distance.ts';
 import { dayFiles, withSegments, PARTIAL_LIMIT, rebuildKeys, writeDays } from './occurrence-days.ts';
 
 /** The frontend's definition of a day (src/salish-sea.ts, dateFromObservedAt). */
@@ -343,5 +343,44 @@ describe('the leg a routed report carries (salish-20u7.4, decision 113)', () => 
         const trincomali = doc('trincomali', '2025-07-14T19:09:00Z', {location: {lon: -123.46, lat: 48.88}});
         const mapleBay = doc('maple-bay', '2025-07-14T20:32:00Z', {location: {lon: -123.60, lat: 48.80}});
         expect(withSegments([trincomali, mapleBay], distanceM, legOf).every(r => !('leg' in r))).toBe(true);
+    });
+});
+
+describe('the reach a recent track carries (salish-2adm, decision 115)', () => {
+    const base = new URL('./fixtures/water-mask/water-mask', import.meta.url).pathname;
+    const grid = loadWaterGrid(`${base}.png`, `${base}.json`);
+    // The build's clock, fixed: two hours after the last report below.
+    const now = Date.parse('2026-09-19T20:40:00Z');
+    const reachOf = seaReachFor(grid, () => now);
+    const west = doc('west', '2026-09-19T18:00:00Z', {location: {lon: -123.35, lat: 48.85}});
+    const east = doc('east', '2026-09-19T18:40:00Z', {location: {lon: -123.27, lat: 48.88}});
+    const rows = (list: ReturnType<typeof doc>[], at = reachOf) => withSegments(list, seaDistanceFor(grid), seaLegFor(grid), at);
+    type Reach = {cell: number, width: number, height: number, west: number, north: number, values: string};
+
+    test('only the last report of the track has it, after segment and leg, with the header and one byte a sample', () => {
+        const [first, second] = rows([west, east]);
+        expect(first).not.toHaveProperty('reach');
+        expect(Object.keys(second!).slice(-3)).toEqual(['segment', 'leg', 'reach']);
+        const reach = second!['reach'] as Reach;
+        // 6.8 km/h for 6.5 h is 44.2 km: 89 samples of 500 m each side of the report, and the middle one is the report
+        expect(reach).toMatchObject({cell: 500, width: 179, height: 179});
+        const bytes = Buffer.from(reach.values, 'base64');
+        expect(bytes).toHaveLength(179 * 179);
+        expect(bytes[89 * 179 + 89]).toBeLessThanOrEqual(1);
+        // Galiano is land; open water 3 km off is about 12 units of 250 m
+        expect(bytes.some(b => b === 255)).toBe(true);
+        expect(Object.keys(reach)).toEqual(['cell', 'width', 'height', 'west', 'north', 'values']);
+    });
+
+    test('nothing for a track whose last report is older than 6.5 hours, a single report, or a species with no speed', () => {
+        const later = seaReachFor(grid, () => now + 5 * 3_600_000);
+        expect(rows([west, east], later).every(r => !('reach' in r))).toBe(true);
+        expect(rows([east]).every(r => !('reach' in r))).toBe(true);
+        const unknown = {taxon: {scientific_name: 'Delphinus delphis', species_id: 9}};
+        expect(rows([{...west, ...unknown}, {...east, ...unknown}]).every(r => !('reach' in r))).toBe(true);
+    });
+
+    test('a build without the mask writes none', () => {
+        expect(withSegments([west, east]).every(r => !('reach' in r))).toBe(true);
     });
 });

@@ -457,7 +457,7 @@ const REACH_MOVES: readonly (readonly [number, number])[] = [
  * the point is outside the mask or no water is near it.
  */
 export function waterDistanceField(grid: WaterGrid, at: LonLat, radiusM: number):
-    {c0: number, r0: number, w: number, h: number, metres: Float32Array} | null {
+    {c0: number, r0: number, w: number, h: number, metres: Float64Array} | null {
     if (!grid.contains(at[0], at[1])) return null;
     const start = grid.isWater(at[0], at[1]) ? [Math.floor(grid.colAt(at[0])), Math.floor(grid.rowAt(at[1]))] as [number, number] : nearestWaterCell(grid, at[0], at[1], SNAP_RADIUS_M);
     if (!start) return null;
@@ -470,7 +470,7 @@ export function waterDistanceField(grid: WaterGrid, at: LonLat, radiusM: number)
     const mx = new Float64Array(h);
     for (let r = 0; r < h; r++) mx[r] = grid.metresPerCell(r0 + r)[0];
 
-    const metres = new Float32Array(w * h).fill(Infinity);
+    const metres = new Float64Array(w * h).fill(Infinity);
     const open: Heap = {f: [], id: []};
     const startId = (start[1] - r0) * w + (start[0] - c0);
     metres[startId] = 0;
