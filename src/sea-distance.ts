@@ -298,19 +298,127 @@ const JOIN_LIMIT_M = 20_000;
 const JOIN_SEARCH_M = 22_000;
 
 /**
+ * The mask with the land grown by one cell: a cell stays water only if all eight of its
+ * neighbours are water too (a cell off the grid is land). A route found in it keeps a cell,
+ * about 90 m, off the shore, and a pass only one or two cells wide closes. Done a byte at a
+ * time, and only once for a grid.
+ */
+const erodedGrids = new WeakMap<WaterGrid, WaterGrid>();
+export function erodedByOneCell(grid: WaterGrid): WaterGrid {
+    const cached = erodedGrids.get(grid);
+    if (cached) return cached;
+    const {stride, height, width, bits} = grid;
+    const out = new Uint8Array(bits.length);
+    // The bits past the last column of a row are not cells: they must not count as water.
+    const padMask = width % 8 === 0 ? 0xff : (0xff << (8 - width % 8)) & 0xff;
+    const v = new Uint8Array(stride);
+    for (let row = 0; row < height; row++) {
+        for (let x = 0; x < stride; x++) {
+            const up = row > 0 ? bits[(row - 1) * stride + x]! : 0;
+            const down = row < height - 1 ? bits[(row + 1) * stride + x]! : 0;
+            v[x] = bits[row * stride + x]! & up & down & (x === stride - 1 ? padMask : 0xff);
+        }
+        for (let x = 0; x < stride; x++) {
+            const b = v[x]!, before = x > 0 ? v[x - 1]! : 0, after = x < stride - 1 ? v[x + 1]! : 0;
+            // The cell to the east of each bit is the next lower bit; to the west, the next higher.
+            const east = ((b << 1) | (after >> 7)) & 0xff, west = ((b >> 1) | (before << 7)) & 0xff;
+            out[row * stride + x] = b & east & west;
+        }
+    }
+    const eroded = new WaterGrid(out, grid.spec);
+    erodedGrids.set(grid, eroded);
+    return eroded;
+}
+
+/** About how far apart the smoothed route's points are, in metres. */
+const SAMPLE_M = 100;
+
+/**
+ * A smooth line through the route's vertices (salish-84y0): a centripetal Catmull-Rom
+ * spline (alpha 0.5, which does not loop at a sharp bend), sampled about every SAMPLE_M
+ * metres. The curve can swing toward land at a headland, so each stretch between two
+ * vertices is checked, piece by piece, against the plain mask, and a stretch with a piece
+ * in land is left as the straight line between its two vertices, which the straightening
+ * saw across water. Both ends are included.
+ */
+export function smoothRoute(grid: WaterGrid, route: readonly LonLat[]): LonLat[] {
+    if (route.length < 3) return [...route];
+    const lat0 = route[0]![1], lon0 = route[0]![0];
+    const kx = METRES_PER_DEGREE_LON_AT_EQUATOR * Math.cos(rad(lat0));
+    const plane = route.map(([lon, lat]): [number, number] => [(lon - lon0) * kx, (lat - lat0) * METRES_PER_DEGREE_LAT]);
+    const back = ([x, y]: readonly [number, number]): LonLat => [lon0 + x / kx, lat0 + y / METRES_PER_DEGREE_LAT];
+    const reflect = (p: readonly [number, number], q: readonly [number, number]): [number, number] => [2 * p[0] - q[0], 2 * p[1] - q[1]];
+    const out: LonLat[] = [route[0]!];
+    for (let i = 0; i < route.length - 1; i++) {
+        const p1 = plane[i]!, p2 = plane[i + 1]!;
+        const p0 = i > 0 ? plane[i - 1]! : reflect(p1, p2);
+        const p3 = i + 2 < plane.length ? plane[i + 2]! : reflect(p2, p1);
+        const knot = (a: readonly [number, number], b: readonly [number, number]) => Math.max(Math.sqrt(Math.hypot(b[0] - a[0], b[1] - a[1])), 1e-6);
+        const t0 = 0, t1 = t0 + knot(p0, p1), t2 = t1 + knot(p1, p2), t3 = t2 + knot(p2, p3);
+        const mix = (a: readonly [number, number], b: readonly [number, number], ta: number, tb: number, t: number): [number, number] => {
+            const wa = (tb - t) / (tb - ta), wb = (t - ta) / (tb - ta);
+            return [wa * a[0] + wb * b[0], wa * a[1] + wb * b[1]];
+        };
+        const pieces = Math.max(1, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / SAMPLE_M));
+        const sampled: LonLat[] = [];
+        for (let k = 1; k < pieces; k++) {
+            const t = t1 + (t2 - t1) * k / pieces;
+            const a1 = mix(p0, p1, t0, t1, t), a2 = mix(p1, p2, t1, t2, t), a3 = mix(p2, p3, t2, t3, t);
+            const b1 = mix(a1, a2, t0, t2, t), b2 = mix(a2, a3, t1, t3, t);
+            sampled.push(back(mix(b1, b2, t1, t2, t)));
+        }
+        const chain = [route[i]!, ...sampled, route[i + 1]!];
+        let clear = true;
+        for (let k = 1; clear && k < chain.length; k++) clear = straightLineInWater(grid, chain[k - 1]!, chain[k]!);
+        if (clear) out.push(...sampled);
+        out.push(route[i + 1]!);
+    }
+    return out;
+}
+
+/** Whether a goes before b, by longitude and then latitude: a pair is routed from its smaller end. */
+const comesFirst = (a: LonLat, b: LonLat) => a[0] !== b[0] ? a[0] < b[0] : a[1] <= b[1];
+
+/**
+ * Whether every hop of a route is clear across water in the plain mask. A hop to a given
+ * point that is itself on land (an observer on shore) is let through, as the plain route's is.
+ */
+function hopsClear(grid: WaterGrid, path: readonly LonLat[], from: LonLat, to: LonLat): boolean {
+    for (let i = 1; i < path.length; i++) {
+        const a = path[i - 1]!, b = path[i]!;
+        const onShore = (a === from && !grid.isWater(a[0], a[1])) || (b === to && !grid.isWater(b[0], b[1]));
+        if (!onShore && !straightLineInWater(grid, a, b)) return false;
+    }
+    return true;
+}
+
+/**
  * The path a leg is drawn along (decision 113): the coordinates from `a` to `b`, rounded to
  * 5 decimals (about a metre), when the straight line between them crosses land and a route
  * by sea within the join's search limit goes around; null when the straight line is in
  * water already, or no route is found, or a point is outside the mask or beyond reach of
  * water, so the leg is drawn straight as before.
+ *
+ * Since salish-84y0 the path is drawn smooth and off the shore, not only around it: the
+ * route is searched in the mask with the land grown by a cell (and in the plain mask when
+ * that finds none within the limit, as at a pass a cell or two wide), then run through
+ * `smoothRoute`. The pair is routed from its smaller end, so a track going out and back
+ * along one route draws the one line twice. The join's own distance is unchanged.
  */
 export type LegOf = (a: LonLat, b: LonLat) => LonLat[] | null;
 
 export function seaLegFor(grid: WaterGrid): LegOf {
     return (a, b) => {
-        const found = seaDistance(grid, a, b, {limitM: JOIN_SEARCH_M});
+        const forward = comesFirst(a, b);
+        const [from, to] = forward ? [a, b] : [b, a];
+        const found = seaDistance(grid, from, to, {limitM: JOIN_SEARCH_M});
         if (found.kind !== 'routed' || found.distanceM > JOIN_LIMIT_M) return null;
-        return found.path.map(([lon, lat]): LonLat => [Math.round(lon * 1e5) / 1e5, Math.round(lat * 1e5) / 1e5]);
+        let route = found.path;
+        const margin = seaDistance(erodedByOneCell(grid), from, to, {limitM: JOIN_SEARCH_M});
+        if (margin.kind === 'routed' && margin.distanceM <= JOIN_LIMIT_M && hopsClear(grid, margin.path, from, to)) route = margin.path;
+        const smooth = smoothRoute(grid, route).map(([lon, lat]): LonLat => [Math.round(lon * 1e5) / 1e5, Math.round(lat * 1e5) / 1e5]);
+        const leg = smooth.filter((p, i) => i === 0 || p[0] !== smooth[i - 1]![0] || p[1] !== smooth[i - 1]![1]);
+        return forward ? leg : leg.reverse();
     };
 }
 

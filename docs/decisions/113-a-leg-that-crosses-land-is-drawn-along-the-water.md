@@ -30,3 +30,5 @@ The route is already known to the build: [`seaDistance`](../../src/sea-distance.
 - Every day file is rewritten once when this ships, as when 111 shipped.
 - A signed-in tab's own sightings draw straight lines until the next build publishes them, at most five minutes later.
 - The profile maps ([076](076-the-map-moves-to-maplibre.md)) still draw straight legs; they are not changed here.
+
+**Amended 2026-11-06 by [114](114-a-routed-leg-is-drawn-as-a-smooth-curve-off-the-shore.md):** the points of a `leg` are a smooth curve off the shore, not the route's bends, and an out-and-back pair draws the same line; the rejection of smoothing above is reversed, and the size figures above no longer hold.
