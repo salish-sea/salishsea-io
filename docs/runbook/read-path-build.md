@@ -121,7 +121,7 @@ What it doesn't tell you is *why*. For that, read the build's log (`flyctl logs 
 
 ## Looking at the machine: take a lock first
 
-The machine has 2 GB and no swap ([decision 091](../decisions/091-a-save-never-waits-for-an-ingest.md)). The services and the kernel take about 350 MB, the ingest build peaks near 165 MB, and a derive build at what the `⏱ memory` line at the end of its log says: under DuckDB 1.5 on 2026-11-04, `derive-occurrences` at 719 MB. On Hostess, from the same data, [decision 108](../decisions/108-the-build-moves-to-duckdb-2.md) measured that step at 836 MB under 1.5 and 558 MB under 2.0; production's figure under 2.0 is whatever its log says. The two builds can run at once. Anything you run beside them competes with them; a Stelis query run during a build was killed at 137 on 2026-10-04, when the machine had 1 GB. So run operator commands under a lock: `/data/build.lock` for anything about `salishsea` or the snapshot, `/data/ingest.lock` for anything about an ingest or a mirror. The ingests and a save's build can run beside each other, so a measurement that must have the machine to itself takes both. A scheduled build that finds the ingest lock held skips that tick, and one that finds the build lock held waits up to two minutes:
+The machine has 2 GB and no swap ([decision 091](../decisions/091-a-save-never-waits-for-an-ingest.md)). The services and the kernel take about 350 MB. Over the builds from 2026-11-04 to 2026-11-07, the ingest build's largest task peaked at 240 MB (`ingest-inaturalist`), and the derive build's largest at about 475 MB (`encounters`, with `derive-occurrences` close behind at about 460 MB). That leaves about 900 MB free even when both builds are at their peaks at once. Moving to DuckDB 2.0 ([decision 108](../decisions/108-the-build-moves-to-duckdb-2.md)) brought `derive-occurrences` down from about 720 MB. For a later figure, read the `⏱ memory` line at the end of a build's log. The two builds can run at once. Anything you run beside them competes with them; a Stelis query run during a build was killed at 137 on 2026-10-04, when the machine had 1 GB. So run operator commands under a lock: `/data/build.lock` for anything about `salishsea` or the snapshot, `/data/ingest.lock` for anything about an ingest or a mirror. The ingests and a save's build can run beside each other, so a measurement that must have the machine to itself takes both. A scheduled build that finds the ingest lock held skips that tick, and one that finds the build lock held waits up to two minutes:
 
 ```sh
 fly ssh console -a salishsea-io -C "sh -c 'cd /opt/stelis && flock /data/build.lock racket src/main.rkt --project /app/stelis/salishsea.rkt --explain --last'"
@@ -140,7 +140,12 @@ These ask `salishsea`, whose state is in `/data/stelis`, the image's `STELIS_STA
 fly ssh console -a salishsea-io -C "sh -c 'cd /opt/stelis && flock /data/ingest.lock env STELIS_STATE_DIR=/data/stelis-ingest racket src/main.rkt --project /app/stelis/salishsea-ingest.rkt --explain --last'"
 ```
 
-The operator build log, the same history as one page, is written after every build to the state dir.
+The operator build log shows the last 30 builds on one page. Neither project writes it after a build, because drawing it took about six seconds of every build ([Stelis `7f8fef4`](https://github.com/rainhead/stelis/commit/7f8fef43f4e14331457267f33f9e641b2fc0d93e); `#:build-log-after-build? #f` in [`stelis/salishsea.rkt`](../../stelis/salishsea.rkt)). The `build-log.html` in `/data/stelis` is from 2026-10-05. To read the current one, draw it into the state dir, then fetch it:
+
+```sh
+fly ssh console -a salishsea-io -C "sh -c 'cd /opt/stelis && flock /data/build.lock racket src/main.rkt --project /app/stelis/salishsea.rkt --render-log'"
+fly ssh sftp get -a salishsea-io /data/stelis/build-log.html build-log.html
+```
 
 ## Refreshing the landmarks
 
@@ -200,7 +205,7 @@ fly machine update 82973dc7675348 -a salishsea-io --env REGISTER_TAG= -y        
 
 ## Measuring a task
 
-Every build measures each task it runs: the `⏱` line under each task in the build log ends with its peak memory (`peak 412 MB`, or `peak ≥ 412 MB (sampled)` when it is a lower bound), and the build ends with a `⏱ memory:` line naming its largest task. The figures are kept with each build's record, and the operator build log in the state dir shows them beside each task. How Stelis measures, and what each kind of figure means, is in Stelis's [`src/peak-memory.rkt`](https://github.com/rainhead/stelis/blob/9d407d01dbd8c02a9cbb243dbae007a5c78386bd/src/peak-memory.rkt). To measure one task outside a build, there is no `time` on the image. Peak RSS of one task, run alone into a scratch export dir:
+Every build measures each task it runs: the `⏱` line under each task in the build log ends with its peak memory (`peak 412 MB`, or `peak ≥ 412 MB (sampled)` when it is a lower bound), and the build ends with a `⏱ memory:` line naming its largest task. The figures are kept with each build's record, and the operator build log (above) shows them beside each task. How Stelis measures, and what each kind of figure means, is in Stelis's [`src/peak-memory.rkt`](https://github.com/rainhead/stelis/blob/9d407d01dbd8c02a9cbb243dbae007a5c78386bd/src/peak-memory.rkt). To measure one task outside a build, there is no `time` on the image. Peak RSS of one task, run alone into a scratch export dir:
 
 ```sh
 # from /app, under the lock; EXPORT_DIR somewhere disposable
