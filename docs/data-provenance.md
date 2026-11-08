@@ -145,21 +145,25 @@ doesn't fail the build: it has nothing it may publish yet.
 
 ## How a record's provenance is resolved
 
-When a record is ingested, its provider and collection are resolved by the first
-signal that matches, in this order:
+Every source but Maplify brings its records through one collection: iNaturalist's
+observations come through the iNaturalist collection and Orcasound's bouts through
+Orcasound's ([`derive/sources.sql`](../scripts/read-path/derive/sources.sql)), and a
+SalishSea.io sighting keeps the collection it was saved with. Maplify relays reports
+that came through several channels, so the build resolves each Maplify sighting's
+collection from its comments when it derives the occurrences, by the first rule that
+matches, in this order:
 
-1. **`source_url`** — a URL-pattern registry maps a known domain/path to a
-   provider + collection (the preferred signal where a record carries a URL).
-2. **Leading bracket tag** in the source text — e.g. `[Orca Network] …`.
-3. **Trailing attribution line** — e.g. `… Submitted by a Cascadia Trusted
-   Observer`. This names an *organization/channel*, never a person, so it
+1. **Leading bracket tag** in the comments — e.g. `[Orca Network] …`.
+2. **Attribution phrase** anywhere in the comments — e.g. `… Submitted by a Cascadia
+   Trusted Observer`. This names an *organization/channel*, never a person, so it
    resolves a collection/organization — never a contributor.
-4. **Structured source code** on the source record.
-5. Otherwise **unresolved** (the collection is left empty).
+3. **Maplify's source code** for the sighting.
+4. Otherwise **unresolved** (the collection is left empty).
 
-Matching is **exact** (a curated dictionary, including known misspellings of
-channel names) — not fuzzy — so attribution never silently guesses. The resolver
-is [`scripts/ingest/resolve-provider.ts`](../scripts/ingest/resolve-provider.ts).
+Matching is against a curated list (including known misspellings of channel names),
+not fuzzy, so attribution never silently guesses. The rules are
+[`data/reference/maplify-collection-rules.tsv`](../data/reference/maplify-collection-rules.tsv),
+applied by [`derive/maplify-collection.sql`](../scripts/read-path/derive/maplify-collection.sql).
 
 ## Known limitations
 
@@ -194,7 +198,8 @@ the same change:
 - Included/excluded sources → track the export view's branches and
   [`scripts/dwca/guard.ts`](../scripts/dwca/guard.ts).
 - Resolution rules → track
-  [`scripts/ingest/resolve-provider.ts`](../scripts/ingest/resolve-provider.ts).
+  [`data/reference/maplify-collection-rules.tsv`](../data/reference/maplify-collection-rules.tsv)
+  and [`derive/maplify-collection.sql`](../scripts/read-path/derive/maplify-collection.sql).
 
 Prefer linking to those source files over copying their specifics here — counts,
 collection lists, and column indices drift; the concepts above do not.
