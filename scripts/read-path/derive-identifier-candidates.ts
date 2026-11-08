@@ -10,29 +10,21 @@
  * derive-occurrences.test.ts checks it against the rows the fixture expects (fixtures/twins/).
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 
 export async function deriveIdentifierCandidates(snapshot: string): Promise<number> {
     const sql = await readFile(new URL('./derive/identifier-candidates.sql', import.meta.url), 'utf8');
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
-        // As derive-occurrences.ts: capped for the 1 GB Fly machine, spilling beside
-        // the snapshot, one thread as Fly has.
-        await budget(conn, snapshot, '128MB');
+    // As derive-occurrences.ts: capped for the 1 GB Fly machine, spilling beside
+    // the snapshot, one thread as Fly has.
+    return withSnapshot(snapshot, {memory: '128MB', write: true}, async conn => {
         await conn.run('SET preserve_insertion_order = false');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
         await conn.run(sql);
         const reader = await conn.runAndReadAll('SELECT count(*) FROM build.occurrence_identifier_candidates');
         return Number(reader.getRows()[0]![0]);
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
 }
 
 export async function main(): Promise<void> {

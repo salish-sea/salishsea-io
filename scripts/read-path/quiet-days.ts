@@ -19,10 +19,9 @@
  * all for decades nobody browses. An older quiet day still 404s, and still reads as empty.
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
 import * as path from 'node:path';
 
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 
@@ -33,13 +32,8 @@ export const WINDOW_DAYS = 30;
 export async function writeQuietDays(snapshot: string, exportDir: string): Promise<string[]> {
     const outDir = path.join(exportDir, 'quiet-days');
     await recoverDir(outDir);
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    let days: string[];
-    try {
-        // Reads one day's worth of a column; the cap is the scripts' smallest.
-        await budget(conn, snapshot, '64MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+    // Reads one day's worth of a column; the cap is the scripts' smallest.
+    const days = await withSnapshot(snapshot, {memory: '64MB'}, async conn => {
         const metaRows = await conn.runAndReadAll('SELECT count(*) FROM store.snapshot.meta');
         const [[metaCount]] = metaRows.getRows() as [[bigint]];
         if (metaCount !== 1n) throw new Error(`snapshot.meta: expected one row, found ${metaCount}`);
@@ -59,11 +53,8 @@ export async function writeQuietDays(snapshot: string, exportDir: string): Promi
             )
             ORDER BY day
         `);
-        days = (reader.getRows() as [string][]).map(([day]) => day);
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+        return (reader.getRows() as [string][]).map(([day]) => day);
+    });
     await replaceDir(outDir, days.map(day => [`${day}.json`, '[]'] as [string, string]));
     return days;
 }

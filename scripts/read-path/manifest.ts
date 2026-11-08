@@ -27,6 +27,7 @@ import { rename, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { dayOf } from './pacific-day.ts';
+import { sqlString } from './duckdb-budget.ts';
 
 
 export type Manifest = {
@@ -40,7 +41,7 @@ export async function writeManifest(snapshot: string, exportDir: string): Promis
     const conn = await db.connect();
     let row;
     try {
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+        await conn.run(`ATTACH ${sqlString(snapshot)} AS store (READ_ONLY)`);
         const reader = await conn.runAndReadAll(`
             SELECT strftime(taken_at AT TIME ZONE 'UTC', '%Y-%m-%dT%H:%M:%S.%gZ') AS taken_at,
                    ${dayOf('taken_at')} AS covered_through

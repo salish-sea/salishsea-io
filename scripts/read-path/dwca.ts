@@ -17,7 +17,7 @@
  * the same data on the same day is the same bytes.
  */
 
-import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
+import type { DuckDBConnection } from '@duckdb/node-api';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import * as path from 'node:path';
@@ -27,7 +27,7 @@ import { floorsFromEnv } from '../dwca/guard.ts';
 import { verifyArtifact } from '../dwca/verify-artifact.ts';
 import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 import { attachRegister, registerFile } from './register-file.ts';
 
@@ -39,12 +39,8 @@ export async function withDwc<T>(
     snapshot: string, mirrors: Mirrors, use: (conn: DuckDBConnection) => Promise<T>,
 ): Promise<T> {
     const sql = async (file: string) => readFile(new URL(`./derive/${file}`, import.meta.url), 'utf8');
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
-        await budget(conn, snapshot, '128MB');
+    return withSnapshot(snapshot, {memory: '128MB'}, async conn => {
         await conn.run(`INSTALL icu; LOAD icu; SET TimeZone = 'UTC'`);
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         await conn.run('USE store');
         await attachRegister(conn, registerFile(snapshot));
         await attachSources(conn, mirrors);
@@ -58,10 +54,7 @@ export async function withDwc<T>(
         await conn.run(`SET VARIABLE pub_date = '${day}'`);
         await conn.run(await sql('dwc.sql'));
         return await use(conn);
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
 }
 
 /** The published files, at the paths GBIF and the about page already know. */

@@ -16,9 +16,8 @@
  * uses the number. The id index's own format is untouched, so a cached old page reads it.
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
 
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
 import * as path from 'node:path';
 
@@ -32,14 +31,9 @@ export async function writeIds(snapshot: string, exportDir: string): Promise<{sh
     await recoverDir(outDir);
     await recoverDir(aliasDir);
 
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    let rows;
-    try {
-        // Two columns of build.occurrences, read once and sorted; the sort is the only
-        // thing that could grow (salish-xv35.19; measured on Fly: see the bead).
-        await budget(conn, snapshot, '64MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+    // Two columns of build.occurrences, read once and sorted; the sort is the only
+    // thing that could grow (salish-xv35.19; measured on Fly: see the bead).
+    const rows = await withSnapshot(snapshot, {memory: '64MB'}, async conn => {
         const reader = await conn.runAndReadAll(`
             SELECT id, ${dayOf('observed_at')} AS day
             FROM store.build.occurrences
@@ -49,10 +43,8 @@ export async function writeIds(snapshot: string, exportDir: string): Promise<{sh
             WHERE observed_at IS NOT NULL
             ORDER BY id
         `);
-        rows = reader.getRows() as [string, string][];
-    } finally {
-        conn.closeSync();
-    }
+        return reader.getRows() as [string, string][];
+    });
 
     const shards = new Map<string, Record<string, string>>();
     for (const [id, day] of rows) {

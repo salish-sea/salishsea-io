@@ -29,14 +29,14 @@
  * which name species for every source), the whole table is rebuilt as before.
  */
 
-import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
+import type { DuckDBConnection } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 
 import { writeInaturalistOutOfScope } from './derive/inaturalist-scope.ts';
 import { writeMaplifyEntities } from './derive/maplify-entities.ts';
 import { CREATE_READING, CREATE_REMARK_CLAIMS, readsText, writeReadings, writeRemarkClaims } from './derive/readings.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import { attachRegister, registerFile } from './register-file.ts';
 import { landmarks as landmarksNear, parseLandmarks, resolveLandmarks, type Landmarks, type PlaceList } from './landmarks.ts';
 import { waterRegions, type WaterRegions } from './water-regions.ts';
@@ -188,24 +188,20 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
     const lookups = await readFile(new URL('./derive/lookups.sql', import.meta.url), 'utf8');
     const maplifyCollection = await readFile(new URL('./derive/maplify-collection.sql', import.meta.url), 'utf8');
     const sql = await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8');
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
-        // Capped, as snapshot.ts is, for the 1 GB Fly machine: what doesn't fit spills
-        // beside the snapshot. Measured on 63,720 occurrences: it ran out at 64 MB and
-        // completed at 96; at 128 the process peaked at 324 MB on macOS, of which about
-        // 115 is node and DuckDB before any query. Measured again on 2026-11-05 with the
-        // Maplify mirror keyed on (source, id) and read into a table (sources.sql): 62,218
-        // occurrences run out at 112 MB and complete at 128, so 192 leaves room. Running
-        // out fails this task, loudly, which is the failure to want here, rather than the
-        // machine thrashing.
-        await budget(conn, snapshot, '192MB');
+    // Capped, as snapshot.ts is, for the 1 GB Fly machine: what doesn't fit spills
+    // beside the snapshot. Measured on 63,720 occurrences: it ran out at 64 MB and
+    // completed at 96; at 128 the process peaked at 324 MB on macOS, of which about
+    // 115 is node and DuckDB before any query. Measured again on 2026-11-05 with the
+    // Maplify mirror keyed on (source, id) and read into a table (sources.sql): 62,218
+    // occurrences run out at 112 MB and complete at 128, so 192 leaves room. Running
+    // out fails this task, loudly, which is the failure to want here, rather than the
+    // machine thrashing.
+    return withSnapshot(snapshot, {memory: '192MB', write: true}, async conn => {
         // Postgres's session: timestamps rendered in UTC, text sorted by ICU's en-US.
         await conn.run(`INSTALL icu; LOAD icu; SET TimeZone = 'UTC'`);
         // The table's row order means nothing (readers order by observed_at and id),
         // and keeping it would make DuckDB buffer the result.
         await conn.run('SET preserve_insertion_order = false');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
         await attachRegister(conn, registerFile(snapshot));
         await attachSources(conn, mirrors);
@@ -284,10 +280,7 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
         if (!all) await conn.run('CHECKPOINT store');
         const reader = await conn.runAndReadAll('SELECT count(*) FROM build.occurrences');
         return {rows: Number(reader.getRows()[0]![0]), arms: all ? 'all' : arms};
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
 }
 
 export async function main(): Promise<void> {

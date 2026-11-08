@@ -10,6 +10,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { registerFile } from './register-file.ts';
+import { sqlString } from './duckdb-budget.ts';
 
 export const TWIN_FIXTURE = path.join(import.meta.dirname, 'fixtures', 'twins', 'snapshot');
 
@@ -18,7 +19,7 @@ export async function fixtureSnapshot(out: string): Promise<void> {
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
-        await conn.run(`ATTACH '${out.replaceAll("'", "''")}' AS store`);
+        await conn.run(`ATTACH ${sqlString(out)} AS store`);
         await conn.run('USE store');
         await conn.run(await readFile(path.join(TWIN_FIXTURE, 'schema.sql'), 'utf8'));
         // load.sql names each table's file under {dir}, which EXPORT DATABASE wrote absolute.
@@ -29,7 +30,7 @@ export async function fixtureSnapshot(out: string): Promise<void> {
         // fixture is laid out the same way.
         const register = registerFile(out);
         await mkdir(path.dirname(register), {recursive: true});
-        await conn.run(`ATTACH '${register.replaceAll("'", "''")}' AS register_file`);
+        await conn.run(`ATTACH ${sqlString(register)} AS register_file`);
         const tables = await conn.runAndReadAll(`SELECT table_name FROM information_schema.tables
             WHERE table_catalog = 'store' AND table_schema = 'register' ORDER BY table_name`);
         for (const [table] of tables.getRows() as [string][])

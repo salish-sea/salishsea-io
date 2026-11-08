@@ -25,7 +25,7 @@ import { backup, DatabaseSync } from 'node:sqlite';
 
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 
-import { budget } from './duckdb-budget.ts';
+import { budget, sqlString } from './duckdb-budget.ts';
 import { DAY_ZONE } from './pacific-day.ts';
 
 /**
@@ -96,9 +96,9 @@ export async function snapshotStore(out: string, store: string): Promise<void> {
         await conn.run(`CREATE TEMP TABLE taken AS SELECT now() AS taken_at`);
         await backup(source, copy);
         await budget(conn, out, '64MB');
-        await conn.run(`ATTACH '${out.replaceAll("'", "''")}' AS store`);
+        await conn.run(`ATTACH ${sqlString(out)} AS store`);
         await conn.run('INSTALL sqlite; LOAD sqlite;');
-        await conn.run(`ATTACH '${copy.replaceAll("'", "''")}' AS copy (TYPE sqlite, READ_ONLY)`);
+        await conn.run(`ATTACH ${sqlString(copy)} AS copy (TYPE sqlite, READ_ONLY)`);
         for (const schema of ['snapshot', 'public']) await conn.run(`CREATE SCHEMA IF NOT EXISTS store.${schema}`);
         await conn.run('BEGIN');
         await conn.run('CREATE OR REPLACE TABLE store.snapshot.meta AS SELECT taken_at FROM temp.main.taken');

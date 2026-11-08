@@ -14,24 +14,19 @@
  * derive-occurrences.test.ts checks it against the rows the fixture expects (fixtures/twins/).
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 
 import { attachTaxa } from './derive/sources.ts';
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import { attachRegister, registerFile } from './register-file.ts';
 
 export const CATALOGUE_VIEWS = ['group_parents', 'matriline_members', 'animal_names'] as const;
 
 export async function deriveCatalogue(snapshot: string, inaturalist: string): Promise<Record<string, number>> {
     const sql = async (file: string) => readFile(new URL(`./derive/${file}`, import.meta.url), 'utf8');
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
-        await budget(conn, snapshot, '128MB');
+    return withSnapshot(snapshot, {memory: '128MB', write: true}, async conn => {
         await conn.run(`INSTALL icu; LOAD icu; SET TimeZone = 'UTC'`);
         await conn.run('SET preserve_insertion_order = false');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
         await attachRegister(conn, registerFile(snapshot));
         await attachTaxa(conn, inaturalist);
@@ -44,10 +39,7 @@ export async function deriveCatalogue(snapshot: string, inaturalist: string): Pr
             counts[view] = Number(reader.getRows()[0]![0]);
         }
         return counts;
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
 }
 
 export async function main(): Promise<void> {

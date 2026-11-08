@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
+import { sqlString } from './duckdb-budget.ts';
 
 export const REFERENCE_DIR = path.join(import.meta.dirname, '..', '..', 'data', 'reference');
 
@@ -151,7 +152,7 @@ export async function main(): Promise<void> {
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
-        await conn.run(`ATTACH '${arg.replaceAll("'", "''")}' AS store`);
+        await conn.run(`ATTACH ${sqlString(arg)} AS store`);
         await loadReference(conn, 'store');
     } finally {
         conn.closeSync();

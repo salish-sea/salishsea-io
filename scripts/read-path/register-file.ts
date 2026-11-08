@@ -12,6 +12,7 @@
 import path from 'node:path';
 
 import type { DuckDBConnection } from '@duckdb/node-api';
+import { sqlString } from './duckdb-budget.ts';
 
 /**
  * Where the register is for a build whose snapshot is `snapshot`: `mirrors/` beside it, the
@@ -23,5 +24,5 @@ export function registerFile(snapshot: string): string {
 
 /** Attach the register read-only as `register`. */
 export async function attachRegister(conn: DuckDBConnection, file: string): Promise<void> {
-    await conn.run(`ATTACH '${file.replaceAll("'", "''")}' AS register (READ_ONLY)`);
+    await conn.run(`ATTACH ${sqlString(file)} AS register (READ_ONLY)`);
 }

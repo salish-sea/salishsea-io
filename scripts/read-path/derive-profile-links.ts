@@ -16,12 +16,11 @@
  * derive-occurrences.test.ts checks it against the rows the fixture expects (fixtures/twins/).
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
 
 import { writeHauloutDistances } from './derive/haulout-distance.ts';
 import { attachSources, mirrorArgs, type Mirrors } from './derive/sources.ts';
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import { attachRegister, registerFile } from './register-file.ts';
 
 const RELATIONS = [
@@ -30,15 +29,11 @@ const RELATIONS = [
 
 export async function deriveProfileLinks(snapshot: string, mirrors: Mirrors): Promise<Record<string, number>> {
     const sql = async (file: string) => readFile(new URL(`./derive/${file}`, import.meta.url), 'utf8');
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
-        // As derive-occurrences.ts: capped for the 1 GB Fly machine, spilling beside the
-        // snapshot; timestamps rendered in UTC, as Postgres's session renders them.
-        await budget(conn, snapshot, '128MB');
+    // As derive-occurrences.ts: capped for the 1 GB Fly machine, spilling beside the
+    // snapshot; timestamps rendered in UTC, as Postgres's session renders them.
+    return withSnapshot(snapshot, {memory: '128MB', write: true}, async conn => {
         await conn.run(`INSTALL icu; LOAD icu; SET TimeZone = 'UTC'`);
         await conn.run('SET preserve_insertion_order = false');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
         await conn.run('USE store');
         await attachRegister(conn, registerFile(snapshot));
         await attachSources(conn, mirrors);
@@ -52,10 +47,7 @@ export async function deriveProfileLinks(snapshot: string, mirrors: Mirrors): Pr
             counts[relation] = Number(reader.getRows()[0]![0]);
         }
         return counts;
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
 }
 
 export async function main(): Promise<void> {

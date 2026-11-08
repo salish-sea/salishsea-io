@@ -35,10 +35,10 @@
 
 import * as path from 'node:path';
 
-import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
+import type { DuckDBConnection } from '@duckdb/node-api';
 
 import { fold } from '../../src/fold.ts';
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import { assertHeader, readTsv } from './reference.ts';
 import { attachRegister, registerFile } from './register-file.ts';
 
@@ -300,11 +300,7 @@ export async function registerVitals(conn: DuckDBConnection, individuals: string
 
 /** Load every catalogue table into `store.snapshot`, replacing what was there, in one transaction. */
 export async function loadCatalogue(snapshot: string, dir = CATALOGUE_DIR): Promise<Record<string, number>> {
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
-        await budget(conn, snapshot, '64MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store`);
+    return withSnapshot(snapshot, {memory: '64MB', write: true}, async conn => {
         await attachRegister(conn, registerFile(snapshot));
         const read = (table: string) => readTsv(path.join(dir, CATALOGUE[table]!.file), CATALOGUE[table]!.columns);
         await generatedRows(conn);
@@ -335,10 +331,7 @@ export async function loadCatalogue(snapshot: string, dir = CATALOGUE_DIR): Prom
         }
         await conn.run('COMMIT');
         return Object.fromEntries(Object.entries(docs).map(([t, l]) => [t, l.length]));
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
 }
 
 export async function main(): Promise<void> {

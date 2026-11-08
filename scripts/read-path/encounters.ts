@@ -20,13 +20,12 @@
  * whole each run; it reruns whenever the occurrences do, as the whales page does.
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
 import * as path from 'node:path';
 
 import { dedupeOccurrenceLinks, newestFirst as newer, observedDate } from '../../src/catalog.ts';
 import type { DistanceM } from '../../src/segments.ts';
 import { dayEncounters, type CalfFirst, type DayOccurrence, type Encounter, type SubjectReport } from '../../src/encounter.ts';
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 import { waterMaskArgs } from './water-mask.ts';
@@ -134,9 +133,7 @@ export async function writeEncounters(snapshot: string, exportDir: string, dista
 
     const bySubject = new Map<SubjectFile, Encounter[]>(files.map(f => [f, []]));
     const counts = {subjects: files.length, encounters: 0, days: 0};
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
+    await withSnapshot(snapshot, {memory: '128MB'}, async conn => {
         const finish = (d: string, rows: DayOccurrence[]) => {
             counts.days++;
             for (const [subject, encounter] of dayEncounters(d, rows, id => reports.get(id) ?? [], id => firsts.get(id) ?? [], distanceM)) {
@@ -149,8 +146,6 @@ export async function writeEncounters(snapshot: string, exportDir: string, dista
         // sorting them all at once peaked at 470 MB, above the day files' run (about 380);
         // 25 days at a time, at 340 MB and 2.5 s. A lower cap saved nothing more. The ids go
         // in as a table rather than SQL text.
-        await budget(conn, snapshot, '128MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
         await conn.run('CREATE TEMP TABLE reported (id VARCHAR)');
         const appender = await conn.createAppender('reported');
         for (const id of reports.keys()) { appender.appendVarchar(id); appender.endRow(); }
@@ -182,10 +177,7 @@ export async function writeEncounters(snapshot: string, exportDir: string, dista
             }
             if (current !== null) finish(current, rows);
         }
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
     // Newest first, as the timeline lists them.
     const newestFirst = (a: Encounter, b: Encounter) => newer(a.end, b.end) || newer(a.start, b.start);
     await replaceDir(outDir, files.map(f => [f, JSON.stringify(bySubject.get(f)!.sort(newestFirst))]));

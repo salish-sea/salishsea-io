@@ -24,7 +24,6 @@ import { readFileSync } from 'node:fs';
 import { rename, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { DuckDBInstance } from '@duckdb/node-api';
 
 import {
     groupChain, hauloutPath, individualPath, isPopulation, mapUrl, matrilinePath, observedDate, podLabel, podPath,
@@ -34,7 +33,7 @@ import { REGIONS } from '../../src/constants.ts';
 import { fold } from '../../src/fold.ts';
 import { fromLonLat, permalinkZoom } from '../../src/map-view.ts';
 import type { SearchEntry, SearchIndex } from '../../src/search.ts';
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import type { Doc } from './snapshot-tables.ts';
 import { attachRegister, registerFile } from './register-file.ts';
 
@@ -66,11 +65,7 @@ const latestIn = (table: string, idColumn: string, kind: string) => `
     GROUP BY ALL`;
 
 export async function readInputs(snapshot: string): Promise<Inputs> {
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
-        await budget(conn, snapshot, '64MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+    return withSnapshot(snapshot, {memory: '64MB'}, async conn => {
         await attachRegister(conn, registerFile(snapshot));
         const docs = async (table: string) =>
             ((await conn.runAndReadAll(`SELECT doc FROM store.snapshot.${table}`)).getRows() as [string][]).map(([d]) => JSON.parse(d) as Doc);
@@ -96,10 +91,7 @@ export async function readInputs(snapshot: string): Promise<Inputs> {
                 UNION ALL ${latestIn('ecotype_occurrences', 'ecotype_id', 'population')}`))
                 .map(({observed_ms, ...r}) => ({...r, observed_at: new Date(Number(observed_ms)).toISOString()})),
         };
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
 }
 
 /** The map's hydrophones (src/fetch-hydrophones.ts writes them), each with its name and who runs it. */
