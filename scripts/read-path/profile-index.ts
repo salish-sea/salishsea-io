@@ -9,7 +9,7 @@
  * - redirects.json: each profile kind's designations, folded, mapped to the canonical
  *   address. A legacy or typed link (/individuals/T65A, /matrilines/T065As) is
  *   redirected from this by scripts/read-path/redirect.ts, with no database lookup:
- *   the same answers the Lambda@Edge function gives on AWS by asking PostgREST.
+ *   the same answers the Lambda@Edge function gave by asking PostgREST, before the move to Fly.
  * - sitemap.xml: the site's own pages, as Vite writes them into <dist>/sitemap.xml,
  *   and after them every published profile.
  * - catalog-codes.json: the rows the map's sighting cards link designations from
@@ -101,9 +101,9 @@ export function buildAnimalNames(t: Pick<Tables, 'animal_names'>): AnimalName[] 
 }
 
 /**
- * What src/individual-links.ts's Supabase query returns: every designation with the
- * individual carrying it, and the matriline and ecotype designations. Every row, as
- * that query has no filter.
+ * What src/individual-links.ts builds its lookup from (catalog-codes.json): every
+ * designation with the individual carrying it, and the matriline and ecotype
+ * designations. Every row, as the Supabase query this replaced had no filter.
  *
  * The lookup built from these keeps the LAST row for a folded code, so where two
  * subjects' designations fold alike the rows run so that the last is the one the

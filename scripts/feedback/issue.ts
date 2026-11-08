@@ -73,22 +73,6 @@ export function titleFor(row: FeedbackRow): string {
 }
 
 /**
- * The issue body.
- *
- * Two rules, both because this repo is public and the person writing had no
- * say in that beyond the note on the form:
- *
- * **The message goes in a fenced code block, never a blockquote.** Markdown
- * renders inside blockquotes, so a report containing `@someone` would notify a
- * stranger, and one containing an image would embed it. A fence renders none of
- * it — no mentions, no autolinks, no images — which is the correct treatment for
- * text an anonymous person typed into a form.
- *
- * **Name and email never appear.** They stay in the `feedback` table, which no
- * client can read; the row id is here so they can be looked up by someone with
- * database access when a reply is warranted.
- */
-/**
  * The marker that says which row an issue came from.
  *
  * An HTML comment, so it renders as nothing, and machine-readable, so the
@@ -124,6 +108,22 @@ export function filedRowIds(bodies: readonly (string | null | undefined)[]): Set
     return ids;
 }
 
+/**
+ * The issue body.
+ *
+ * Two rules, both because this repo is public and the person writing had no
+ * say in that beyond the note on the form:
+ *
+ * **The message goes in a fenced code block, never a blockquote.** Markdown
+ * renders inside blockquotes, so a report containing `@someone` would notify a
+ * stranger, and one containing an image would embed it. A fence renders none of
+ * it — no mentions, no autolinks, no images — which is the correct treatment for
+ * text an anonymous person typed into a form.
+ *
+ * **Name and email never appear.** They stay in the `feedback` table, which no
+ * client can read; the row id is here so they can be looked up by someone with
+ * database access when a reply is warranted.
+ */
 export function issueForFeedback(row: FeedbackRow): Issue {
     const fence = fenceFor(row.message);
 

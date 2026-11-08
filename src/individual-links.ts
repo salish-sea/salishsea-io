@@ -205,8 +205,8 @@ let podMap: Map<string, GroupRef> | null = null;
 let loading: Promise<Map<string, IndividualRef>> | null = null;
 
 /**
- * The rows the lookup is built from, in the shape the Supabase query returns and the
- * read-path build writes to `catalog-codes.json` (decision 057): every designation an
+ * The rows the lookup is built from, as the read-path build writes them to
+ * `catalog-codes.json` (decision 057), in the shape the Supabase query returned: every designation an
  * individual has carried, and the matriline, population and pod designations.
  */
 export interface CatalogCodeRows {

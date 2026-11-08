@@ -39,7 +39,7 @@ const ROWS = [
     // Fall back, 2025-11-02: Pacific midnight is still 07:00 UTC (PDT).
     {id: 'fall-before', observed_at: '2025-11-02T06:59:59Z'},
     {id: 'fall-after', observed_at: '2025-11-02T07:00:00Z'},
-    // Two at the same instant: PostgREST orders them arbitrarily; the file must not.
+    // Two at the same instant: PostgREST ordered them arbitrarily; the file must not.
     {id: 'tie-z', observed_at: '2025-03-09T20:00:00Z'},
     {id: 'tie-y', observed_at: '2025-03-09T20:00:00Z'},
 ];

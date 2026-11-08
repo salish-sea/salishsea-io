@@ -72,7 +72,7 @@ function groupBy(docs: Doc[], key: string, sort: (a: Doc, b: Doc) => number): Ma
 
 // --- Assembly shared between kinds, mirroring the retired PostgREST fetchers ---------
 
-/** An embedded party (authority, namer), as PostgREST embeds it. */
+/** An embedded party (authority, namer), as PostgREST embedded it. */
 function partyResolver(t: Pick<Tables, 'parties'>) {
     const parties = new Map(t.parties.map(p => [p['id'], p]));
     return (id: number | null) => {
@@ -97,7 +97,7 @@ function catalogGroups(t: Pick<Tables, 'social_groups' | 'group_parents'>, indiv
     }));
 }
 
-/** Sighting links by subject, in occurrence order, as the fetchers ask PostgREST for them. */
+/** Sighting links by subject, in occurrence order, as the retired fetchers asked PostgREST for them. */
 function linksBy(docs: Doc[], key: string): (id: number) => OccurrenceLink[] {
     const bySubject = groupBy(docs, key, (a, b) => a['occurrence_id'].localeCompare(b['occurrence_id']));
     return id => dedupeOccurrenceLinks((bySubject.get(id) ?? []) as never);

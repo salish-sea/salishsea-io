@@ -63,8 +63,9 @@ export function isRetryableStatus(status: number): boolean {
  * only fires when no *successful* run is recent.
  *
  * Marked with a globally-registered symbol rather than a subclass so the check
- * survives the module being bundled more than once (the edge function and the
- * scripts load this file through different paths).
+ * survives the module being loaded more than once. It was, while the retired Supabase
+ * ingest function and the scripts loaded this file through different paths; the
+ * symbol costs nothing to keep.
  */
 const TRANSIENT_UPSTREAM = Symbol.for('salishsea.ingest.transientUpstream');
 

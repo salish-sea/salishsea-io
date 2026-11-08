@@ -2,8 +2,7 @@
  * Maplify ingest — functional core (epic salishsea-io-89d / decision 011).
  *
  * Pure, runtime-agnostic transforms over Maplify's search-all-sightings JSON.
- * No I/O, no DB, no Deno/Node APIs — importable unchanged by the Deno Edge
- * Function shell and by vitest. All effects (fetch, retry, persist, log) live in
+ * No I/O, no DB, no Node APIs, so vitest exercises it directly. All effects (fetch, retry, persist, log) live in
  * the imperative shell; everything here is data-in, data-out and exhaustively
  * unit-tested.
  *

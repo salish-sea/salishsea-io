@@ -29,7 +29,7 @@ function makeEvent(userAgent: string, querystring: string = '', uri: string = '/
 /**
  * The read-path build's files as the edge reads a sighting from them (decisions 056,
  * 061): the id index names each occurrence's day, and that day's file holds it.
- * Supabase, asked only for a sighting saved here since the last build, has none.
+ * The write API, asked only for a sighting saved here since the last build, has none.
  */
 function servePublished(...occurrences: { id: string; [field: string]: unknown }[]) {
   return servePublishedWithAliases({}, ...occurrences);
@@ -237,9 +237,9 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(result.body).toContain('<meta name="description"');
   });
 
-  // decision 061: the sightings are the build's files; Supabase holds only what people
+  // decision 061: the sightings are the build's files; the write API holds only what people
   // save here, and is asked only for one saved since the last build.
-  it('reads a sighting from the id index and its day file, never Supabase', async () => {
+  it('reads a sighting from the id index and its day file, never the write API', async () => {
     const fetchSpy = servePublished(sampleOccurrence);
     const result = await handler(makeEvent('facebookexternalhit/1.1', 'o=abc123')) as { body: string };
     expect(result.body).toContain('Orca · June 3, 2025');
@@ -324,7 +324,7 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(fetchSpy.mock.calls.map(([u]) => String(u)).some(u => u.includes('/days/'))).toBe(false);
   });
 
-  it('returns request (fail-open) when Supabase fetch throws an error', async () => {
+  it('returns request (fail-open) when the lookup throws an error', async () => {
     jest.spyOn(global, 'fetch').mockRejectedValue(new Error('Network timeout'));
     const event = makeEvent('facebookexternalhit/1.1', 'o=abc123');
     const result = await handler(event);
@@ -342,7 +342,7 @@ describe('Lambda@Edge OG meta handler', () => {
     expect(options.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it('fails open to the origin when the Supabase fetch aborts on its deadline', async () => {
+  it('fails open to the origin when the lookup aborts on its deadline', async () => {
     jest.spyOn(global, 'fetch')
       .mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError'));
 
@@ -420,7 +420,7 @@ describe('Lambda@Edge OG meta handler', () => {
       json: async () => [sampleOccurrence],
     } as Response;
 
-    it('waits for an in-flight warmup before issuing the first Supabase fetch', async () => {
+    it('waits for an in-flight warmup before issuing the first lookup', async () => {
       let releaseWarmup: () => void;
       const warmupDone = new Promise<void>(resolve => { releaseWarmup = resolve; });
       const { mod, fetchSpy } = loadInLambda(async () => {

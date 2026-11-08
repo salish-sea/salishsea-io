@@ -32,7 +32,7 @@
  * task's address, so the first build after a change rewrites every file.
  *
  * Deterministic by construction: rows are ordered by observed_at and then id
- * (PostgREST orders by observed_at alone, so ties there fall in no particular
+ * (PostgREST ordered by observed_at alone, so ties there fell in no particular
  * order), and each document is re-serialized compactly from its JSON text, whose
  * key order the derivation fixes as Postgres's to_jsonb did.
  */

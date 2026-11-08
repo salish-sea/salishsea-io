@@ -65,8 +65,8 @@ export function observedClock(instant: string): string {
  */
 export const EARLIEST_OBSERVATION_DATE = Temporal.PlainDate.from('2000-01-01');
 
-// The extents live in a dependency-free module so the ingest core can share
-// them under Deno; re-exported here so callers keep one import.
+// The extents live in a dependency-free module, which the ingest core imports;
+// re-exported here so callers keep one import.
 export {
   type Extent, isExtent,
   acartiaExtent, pugetSoundExtent, sanJuansExtent, srkwExtent, salishSeaExtent, salishSRKWExtent,

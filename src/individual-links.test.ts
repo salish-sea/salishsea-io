@@ -143,8 +143,8 @@ test("a taxon that is a population with a page links to it; any other taxon does
   expect(populationPage(null, populations)).toBeNull();
 });
 
-// The read-path build writes the same rows the Supabase query returns (decision 056),
-// so links built from its file are the links built from the database.
+// The read-path build writes the same rows the Supabase query returned (decision 056),
+// so links built from its file are the links that query's rows built.
 test('rows from either source build the lookup the links are made from', () => {
   const byCode = setCatalogCodes({
     designations: [

@@ -4,7 +4,7 @@
  *
  *   node scripts/read-path/ingest-maplify.ts <maplify.sqlite> [<start> <end>]
  *
- * Fetches windows with the same shell and pure core the Supabase function uses
+ * Fetches windows with the same shell and pure core the retired Supabase function used
  * (scripts/ingest/fetch-maplify.ts, scripts/ingest/maplify.ts), and reconciles each into
  * a SQLite mirror: every sighting fetched is written, and every sighting the mirror holds
  * in the window that the fetch didn't return is deleted. Given a curator's start and end
@@ -116,13 +116,6 @@ export function mirrorRow(s: NormalizedSighting): MirrorRow {
 export type ReconcileResult = {upserted: number, deleted: number, changed: number, duplicates: number};
 
 /**
- * Reconcile one window's complete fetch into the mirror at `path`, creating it if need be.
- * The window is created_at ∈ [start, end + 1 day), as Postgres's fetchWindowIds bounds it;
- * Maplify's timestamps are 'YYYY-MM-DD HH:MM:SS', which compare as text the way they do as
- * times. `changed` counts sightings added, altered or deleted; a window that changed
- * nothing and whose days were already covered writes nothing.
- */
-/**
  * The delete floor (salish-xv35.21): Maplify gives no way to prove a response complete —
  * nothing in it says how many sightings exist — so a response cut short would read as
  * "these sightings are gone" and a month-long anti-entropy window would delete a month in
@@ -140,6 +133,13 @@ export type ReconcileOptions = {
     readonly maxDeleteShare?: number | null;
 };
 
+/**
+ * Reconcile one window's complete fetch into the mirror at `path`, creating it if need be.
+ * The window is created_at ∈ [start, end + 1 day), as Postgres's fetchWindowIds bounded it;
+ * Maplify's timestamps are 'YYYY-MM-DD HH:MM:SS', which compare as text the way they do as
+ * times. `changed` counts sightings added, altered or deleted; a window that changed
+ * nothing and whose days were already covered writes nothing.
+ */
 export function reconcileWindow(
     path: string, window: IngestWindow, response: readonly NormalizedSighting[],
     {maxDeleteShare = DELETE_FLOOR_SHARE}: ReconcileOptions = {},

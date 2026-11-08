@@ -8,16 +8,6 @@ export interface ErrorReport {
 }
 
 /**
- * Tell the user something failed, and tell Sentry. One call does both, on
- * purpose: [decision 030](../docs/decisions/030-google-signin-nonce.md) was a
- * bug that reached neither. Supabase returns auth failures in the result rather
- * than throwing, so an unchecked error was invisible to Sentry *and* to the
- * person clicking the button, and stayed that way for weeks.
- *
- * The event bubbles composed to `<salish-sea>`, which owns the toast. Call it
- * from anywhere in the tree; nothing in between has to know.
- */
-/**
  * Whether `err` is the browser saying a request never got a response: the
  * connection dropped, the device is offline, or the server couldn't be reached.
  * Each engine words it its own way, and all three throw a TypeError from `fetch`:
@@ -29,6 +19,16 @@ export function isNetworkFailure(err: unknown): boolean {
     && /^(Failed to fetch|Load failed|NetworkError when attempting to fetch resource)/.test(err.message);
 }
 
+/**
+ * Tell the user something failed, and tell Sentry. One call does both, on
+ * purpose: [decision 030](../docs/decisions/030-google-signin-nonce.md) was a
+ * bug that reached neither. Supabase, the backend then, returned auth failures in the result
+ * rather than throwing, so an unchecked error was invisible to Sentry *and* to the
+ * person clicking the button, and stayed that way for weeks.
+ *
+ * The event bubbles composed to `<salish-sea>`, which owns the toast. Call it
+ * from anywhere in the tree; nothing in between has to know.
+ */
 export function reportError(
   source: EventTarget,
   message: string,

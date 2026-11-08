@@ -391,17 +391,6 @@ export function evaluateHeartbeat(input: HeartbeatInput, thresholds: Thresholds)
 // ---------------------------------------------------------------------------
 
 /**
- * The five reads behind the predicate. dry_run runs are excluded here
- * (they prove the pipeline runs but write nothing, so they don't make data
- * fresh); a failed run counts only as a transient failure, and only if the
- * fetch layer marked it so (decision 042). The last-success query walks
- * runs_source_finished_idx (partial on outcome = 'success'); so does the
- * recent-success one, as a range on its second column.
- *
- * Accepts a plain connection or a transaction (postgres.js types them as
- * unrelated siblings) so the integration test can call it inside a rollback.
- */
-/**
  * The checks' input from the build's run log, as of `now`: each source's last success,
  * the runs still unfinished, and the successes and transient failures inside the
  * lookback window plus the newest of each before it per source, so the first

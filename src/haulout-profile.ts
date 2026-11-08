@@ -194,7 +194,7 @@ export function hauloutTitle(site: Pick<Haulout, 'name'>): string {
   return `${site.name} haul-out`;
 }
 
-/** What a link preview says about the page, as the Lambda@Edge function says it. */
+/** What a link preview says about the page, from the prerendered page's Open Graph tags. */
 export function hauloutPreview({ site }: Pick<HauloutProfileData, 'site'>) {
   const species = (site.atlas_species ?? []).map(c => ATLAS_SPECIES[c] ?? c);
   return {
