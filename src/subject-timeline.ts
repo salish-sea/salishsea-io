@@ -13,6 +13,7 @@ import { openAnimalLinkInSidebar } from './subject.ts';
 import type { Occurrence } from './types.ts';
 import './obs-summary.ts';
 import './segment-summary.ts';
+import { OBSERVATION_TIME_ZONE } from './constants.ts';
 
 /**
  * An animal's or matriline's timeline in the sidebar (decision 098): its latest encounter's
@@ -445,7 +446,7 @@ interface SpanContext {
  * draws what the list lists (decision 098).
  */
 export function scopeStart(now: number): string {
-  const today = Temporal.Instant.fromEpochMilliseconds(now).toZonedDateTimeISO('America/Los_Angeles').toPlainDate();
+  const today = Temporal.Instant.fromEpochMilliseconds(now).toZonedDateTimeISO(OBSERVATION_TIME_ZONE).toPlainDate();
   return today.toPlainYearMonth().subtract({months: 11}).toPlainDate({day: 1}).toString();
 }
 

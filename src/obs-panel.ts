@@ -407,7 +407,7 @@ export class ObsPanel extends LitElement {
   /** Open the form on a saved sighting, or with `copy`, on a new one copied from it. */
   async editObservation(observation: Occurrence, {copy = false} = {}) {
     await this.doShowForm();
-    // Prefer America/Los_Angeles for consistency with sighting-form validation
+    // Prefer OBSERVATION_TIME_ZONE for consistency with sighting-form validation
     this.sightingForForm = observationToFormData(observation);
     this.sightingIsNew = copy;
     this.formRef.value!.scrollIntoView();

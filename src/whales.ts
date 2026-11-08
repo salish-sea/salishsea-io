@@ -6,7 +6,8 @@
  */
 
 import { css, html, nothing } from 'lit';
-import { observedDate, mapUrl } from './catalog.ts';
+import { mapUrl } from './catalog.ts';
+import { observedDate } from './constants.ts';
 import { formatDate } from './date-format.ts';
 import type { MapDot } from './profile-map.ts';
 import { renderSmallMap, renderSmallMapsCredit, smallMapStyles } from './small-multiples.ts';

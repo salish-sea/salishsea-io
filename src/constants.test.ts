@@ -2,6 +2,8 @@ import { describe, expect, test } from 'vitest';
 import {
   DEFAULT_REGION_SLUG,
   isExtent,
+  observedClock,
+  observedDate,
   pugetSoundExtent,
   REGIONS,
   regionBySlug,
@@ -154,4 +156,25 @@ describe('isExtent', () => {
     expect(isExtent([1, 47, 0, 48])).toBe(false);
     expect(isExtent([-181, 47, 1, 48])).toBe(false);
   });
+});
+
+test('observedDate: UTC midnight in America/Los_Angeles is still the same calendar day', () => {
+  // 2024-07-15T18:23:00Z is 11:23 PDT — still July 15 in Pacific time
+  expect(observedDate('2024-07-15T18:23:00Z').toString()).toBe('2024-07-15');
+});
+
+test('observedDate: 06:00 UTC = 22:00 PST, still the previous calendar day', () => {
+  // 2024-07-16T06:00:00Z is 22:00 PDT on July 15 — still July 15 in Pacific time
+  expect(observedDate('2024-07-16T06:00:00Z').toString()).toBe('2024-07-15');
+});
+
+test('observedDate: 08:01 UTC = 00:01 PDT, just past midnight Pacific', () => {
+  // 2024-07-16T08:01:00Z is 00:01 PDT on July 16 — July 16 in Pacific time
+  expect(observedDate('2024-07-16T08:01:00Z').toString()).toBe('2024-07-16');
+});
+
+test('observedClock: the local time to the minute, a half minute rounding up', () => {
+  // 2024-07-16T01:04:30Z is 18:04:30 PDT on July 15
+  expect(observedClock('2024-07-16T01:04:30Z')).toBe('18:05');
+  expect(observedClock('2024-07-16T01:04:29Z')).toBe('18:04');
 });

@@ -1,6 +1,6 @@
 import { fold } from './fold.ts';
 import type { Confirmation, Vitality } from './types.ts';
-import { Temporal } from 'temporal-polyfill';
+import { inObservationZone, observedDate } from './constants.ts';
 
 // The catalogue as its pages read it, written out by hand since Postgres stopped being
 // its source (salish-9uu.10). The read-path build assembles these shapes from the
@@ -95,10 +95,6 @@ export interface OccurrenceLink {
    * number of hedged ones (decision 054).
    */
   possibly?: true;
-}
-
-export function observedDate(observedAt: string): Temporal.PlainDate {
-  return Temporal.Instant.from(observedAt).toZonedDateTimeISO('America/Los_Angeles').toPlainDate();
 }
 
 // The main map, opened on the link's day and focused on its occurrence.
@@ -253,14 +249,14 @@ export interface PresenceYear {
   months: number[]; // 12 counts, January first
 }
 
-// Distinct-occurrence counts per calendar month (America/Los_Angeles, like the rest of the
+// Distinct-occurrence counts per calendar month (in OBSERVATION_TIME_ZONE, like the rest of the
 // app) for the trailing `years` years ending at `currentYear`, newest first.
 export function monthlyPresence(links: Pick<OccurrenceLink, 'observed_at'>[], years: number, currentYear: number): PresenceYear[] {
   const grid = new Map<number, number[]>();
   for (let y = currentYear; y > currentYear - years; y--)
     grid.set(y, new Array<number>(12).fill(0));
   for (const link of links) {
-    const zoned = Temporal.Instant.from(link.observed_at).toZonedDateTimeISO('America/Los_Angeles');
+    const zoned = inObservationZone(link.observed_at);
     const months = grid.get(zoned.year);
     if (months)
       months[zoned.month - 1]! += 1;

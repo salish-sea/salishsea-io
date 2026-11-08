@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {Temporal} from 'temporal-polyfill';
-import {pacificDay} from '../../src/read-path.ts';
+import {OBSERVATION_TIME_ZONE, observedDate} from '../../src/constants.ts';
 import type {Occurrence} from '../../src/types.ts';
 import type {Sighting} from './rules.ts';
 
@@ -80,7 +80,7 @@ export async function loadRows(since: string, {from = DEFAULT_FROM, refresh = fa
 
   function months(since: string): string[] {
     const out: string[] = [];
-    const last = Temporal.Now.plainDateISO('America/Los_Angeles').toPlainYearMonth();
+    const last = Temporal.Now.plainDateISO(OBSERVATION_TIME_ZONE).toPlainYearMonth();
     for (let m = Temporal.PlainYearMonth.from(since.slice(0, 7)); Temporal.PlainYearMonth.compare(m, last) <= 0; m = m.add({months: 1}))
       out.push(m.toString());
     return out;
@@ -116,8 +116,8 @@ export async function loadRows(since: string, {from = DEFAULT_FROM, refresh = fa
     rows.push({
       id: o.id,
       observed_at_ms: at.epochMilliseconds,
-      day: pacificDay(o.observed_at),
-      time: at.toZonedDateTimeISO('America/Los_Angeles').toPlainTime().toString({smallestUnit: 'minute'}),
+      day: observedDate(o.observed_at).toString(),
+      time: at.toZonedDateTimeISO(OBSERVATION_TIME_ZONE).toPlainTime().toString({smallestUnit: 'minute'}),
       location: {lat: o.location.lat, lon: o.location.lon},
       taxon: {species_id: o.taxon.species_id, scientific_name: name},
       identifiers: o.identifiers ?? [],

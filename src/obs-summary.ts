@@ -11,7 +11,6 @@ import { GROUPS, displayNameFor, taxonGroup } from "./symbology.ts";
 import { marked, Renderer } from 'marked';
 import createDOMPurify from 'dompurify';
 import { guard } from "lit/directives/guard.js";
-import { Temporal } from "temporal-polyfill";
 import { deleteSighting } from './write-api.ts';
 import type { ActivityEntry, Contributor, IdentifiedAs, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
@@ -20,6 +19,7 @@ import { catalogCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, 
 import { openAnimalLinkInSidebar } from './subject.ts';
 import { linkStyles } from './icons.ts';
 import { placeLine } from './place.ts';
+import { observedClock, observedDate } from './constants.ts';
 
 const domPurify = createDOMPurify(window as any);
 
@@ -439,7 +439,7 @@ export class ObsSummary extends LitElement {
             when(!unconfirmed && disagreements, () => html` <span class="confirmation" title="Confirmed: at least two thirds of the others who identified it agree">${disagreements === 1 ? '1 identifier disagrees' : `${disagreements} identifiers disagree`}</span>`)}</span>
         </div>
         <time>${guard([observed_at], () => html`${
-          Temporal.Instant.from(observed_at).toZonedDateTimeISO('America/Los_Angeles').toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'})
+          observedClock(observed_at)
         }`)}</time>
         <button class="more" type="button" aria-haspopup="menu" aria-expanded=${this.menuOpen ? 'true' : 'false'}
           aria-label="Actions for this sighting" title="Actions" @pointerdown=${this.onTriggerPress} @click=${this.toggleMenu}>
@@ -761,7 +761,7 @@ export function identifiedLine(groups: readonly IdentifiedAs[]): string {
  */
 export function entryHeading(entry: ActivityEntry): string {
   const who = entry.by_observer ? `${entry.author}, the observer` : entry.author;
-  const day = Temporal.Instant.from(entry.at).toZonedDateTimeISO('America/Los_Angeles').toPlainDate()
+  const day = observedDate(entry.at)
     .toLocaleString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
   return entry.kind === 'identification' && entry.taxon
     ? `${who} · identified it as ${entry.taxon} · ${day}`

@@ -13,8 +13,9 @@
 import { css, html, nothing, unsafeCSS } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { circle } from '@turf/circle';
-import { mapUrl, observedDate, type OccurrenceLink } from './catalog.ts';
+import { mapUrl, type OccurrenceLink } from './catalog.ts';
 import { formatDate } from './date-format.ts';
+import { observedDate } from './constants.ts';
 
 /**
  * How a report reached a matriline's page (salish-fwyt.7): it names the matriline, a

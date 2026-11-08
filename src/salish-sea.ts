@@ -15,7 +15,7 @@ import { SEGMENT_CARD_MIN } from './segment-summary.ts';
 import './segment-summary.ts';
 import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from "./reference-layers.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
-import { fetchDayOccurrences, fetchStaticAnimalNames, findOccurrence, NotBuiltYet, pacificDay, watchManifest, withinExtent } from "./read-path.ts";
+import { fetchDayOccurrences, fetchStaticAnimalNames, findOccurrence, NotBuiltYet, watchManifest, withinExtent } from "./read-path.ts";
 import { fetchMe, fetchOwnSightings, fetchPublicSighting, overlayOwn, ownOccurrence, signIn as apiSignIn, signOut as apiSignOut, type Me } from "./write-api.ts";
 import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
@@ -28,7 +28,7 @@ import { agreedToCurrent } from './terms.ts';
 import { isNetworkFailure, reportError, type ErrorReport } from './report-error.ts';
 import { v7 } from "uuid";
 import { fromLonLat } from './map-view.ts';
-import { DEFAULT_REGION_SLUG, type Extent, isExtent, observationToday, regionBySlug, type Region } from "./constants.ts";
+import { DEFAULT_REGION_SLUG, type Extent, isExtent, observationToday, regionBySlug, type Region, OBSERVATION_TIME_ZONE, observedDate } from "./constants.ts";
 import { ObsPanel } from "./obs-panel.ts";
 import { createRef, ref } from "lit/directives/ref.js";
 import type { Contributor, Occurrence } from "./types.ts";
@@ -791,7 +791,7 @@ export default class SalishSea extends LitElement {
     const pinned = this.#permalinkOccurrence;
     const merged = pinned
       && pinned.id === this.focusedOccurrenceId
-      && dateFromObservedAt(pinned.observed_at) === forDate
+      && observedDate(pinned.observed_at).toString() === forDate
       && !occurrences.some(o => o.id === pinned.id)
       ? [...occurrences, pinned].sort((a, b) => b.observed_at_ms - a.observed_at_ms)
       : occurrences;
@@ -812,7 +812,7 @@ export default class SalishSea extends LitElement {
       // user day-change and clear the focus we just set.
       this.#isFocusingOccurrence = true;
       try {
-        this.date = Temporal.Instant.from(occurrence.observed_at).toZonedDateTimeISO('America/Los_Angeles').toPlainDate().toString();
+        this.date = observedDate(occurrence.observed_at).toString();
       } finally {
         this.#isFocusingOccurrence = false;
       }
@@ -863,7 +863,7 @@ export default class SalishSea extends LitElement {
     // for the revision — see #listRevision.
     const region = this.#region;
     const revision = this.#listRevision;
-    const startOfDay = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'America/Los_Angeles', plainTime: '00:00:00'});
+    const startOfDay = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: OBSERVATION_TIME_ZONE, plainTime: '00:00:00'});
     const endOfDay = startOfDay.add({days: 1});
     type Row = Omit<Occurrence, 'observed_at_ms'>;
     let data;
@@ -962,7 +962,7 @@ export default class SalishSea extends LitElement {
       occurrence = await fetchPublicSighting(id);
     if (!occurrence) return false; // not found — silent fallback per decisions
 
-    const date = dateFromObservedAt(occurrence.observed_at);
+    const date = observedDate(occurrence.observed_at).toString();
     // Set before fetching: the fetch's own response is the first one that has
     // to carry this occurrence, since the region may well exclude it.
     this.#permalinkOccurrence = {
@@ -986,10 +986,6 @@ export default class SalishSea extends LitElement {
       setQueryParams({o: occurrence.id}, {replace: true});
     return true;
   }
-}
-
-export function dateFromObservedAt(observedAt: string): string {
-  return pacificDay(observedAt);
 }
 
 /** Write the page's URL; exported for its tests. */

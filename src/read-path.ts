@@ -7,7 +7,6 @@
  * they just saved (decision 055).
  */
 
-import { Temporal } from 'temporal-polyfill';
 import type { Extent } from './extents.ts';
 import { idShard, isLegacyMaplifyId } from './read-path-shard.ts';
 import { HAULOUT_SITES_FILE, type AnimalName, type HauloutSite } from './catalog.ts';
@@ -20,11 +19,6 @@ import { HAULOUT_SITES_FILE, type AnimalName, type HauloutSite } from './catalog
 export const READ_PATH_BASE = '/read-path/';
 
 type Located = {location: {lon: number | null, lat: number | null} | null};
-
-/** The Pacific day an instant falls on, as the files and occurrence_days date it. */
-export function pacificDay(observedAt: string): string {
-  return Temporal.Instant.from(observedAt).toZonedDateTimeISO('America/Los_Angeles').toPlainDate().toString();
-}
 
 /**
  * What the last build covered (scripts/read-path/manifest.ts). Every Pacific

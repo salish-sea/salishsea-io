@@ -22,7 +22,8 @@
 
 import * as path from 'node:path';
 
-import { dedupeOccurrenceLinks, newestFirst as newer, observedDate } from '../../src/catalog.ts';
+import { dedupeOccurrenceLinks, newestFirst as newer } from '../../src/catalog.ts';
+import { observedDate } from '../../src/constants.ts';
 import type { DistanceM } from '../../src/segments.ts';
 import { dayEncounters, type CalfFirst, type DayOccurrence, type Encounter, type SubjectReport } from '../../src/encounter.ts';
 import { withSnapshot } from './duckdb-budget.ts';
