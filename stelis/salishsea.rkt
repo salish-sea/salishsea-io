@@ -177,7 +177,7 @@
         (in-checkout "package.json")
         (in-checkout "pnpm-lock.yaml")))
 
-;; node-script/code : a node task running SCRIPT with ARGS, with code files the script
+;; node-script/code : the recipe for a node task running SCRIPT with ARGS, with code files the script
 ;; reads that its imports don't show. A recipe's code is hashed into the task's address, so editing
 ;; any of it reruns the task. The script's own import closure is computed when the
 ;; graph is authored (ts-imports.rkt, st-6i2), so EXTRA-CODE is only what no static
@@ -192,6 +192,10 @@
           (append (map in-checkout (ts-import-closure script))
                   (map in-checkout extra-code)
                   node-code)))
+
+;; snapshot-script : the recipe for a node task running scripts/read-path/SCRIPT over the snapshot alone.
+(define (snapshot-script script)
+  (node-script/code (string-append "scripts/read-path/" script) '() (list SNAPSHOT-DB)))
 
 ;; --- The graph --------------------------------------------------------------
 
@@ -454,6 +458,18 @@
     ;; of the snapshot: the database or the checked-in files hold the originals.
     (for/list ([name (in-list derivation-input-relations)])
       (make-artifact name 'db-relation))
+    ;; The catalogue's and the reference tables' files (decision 064, salish-9uu.2.3):
+    ;; ours, checked in, edited by a curator's pull request, so producerless and
+    ;; forward-only like the allow-list below.
+    (for/list ([name (in-list (append catalogue-files reference-files))])
+      (make-artifact name 'file #:provenance 'authoritative))
+    ;; The sources as the build fetches them itself: Orcasound's bouts (salish-xv35.6);
+    ;; every sighting Maplify returned for each window, in the map's scope or not, and the
+    ;; days fetched (salish-xv35.7); every iNaturalist observation in the fetch box, its
+    ;; photos, who identified it as what and what anyone wrote on it, the taxa they
+    ;; reach, the days reconciled and how far the changes sweep has read (salish-xv35.8).
+    (for/list ([name (in-list (append orcasound-relations maplify-relations inaturalist-relations))])
+      (make-artifact name 'db-relation))
     (list
      ;; The occurrences as the build derives them (salish-xv35.2): id, observed_at
      ;; and the document to_jsonb would write. Written into the snapshot file, under
@@ -498,42 +514,8 @@
      ;; The landmarks a card may name (decision 100): checked in, proposed from the reports
      ;; by scripts/propose-landmarks.ts and reviewed in a pull request.
      (make-artifact 'reference/landmarks.tsv 'file #:provenance 'authoritative)
-     ;; The reference tables' files (decision 064): checked in, edited by a curator's
-     ;; pull request, so producerless and forward-only like the allow-list above.
-     (make-artifact 'reference/providers.tsv 'file #:provenance 'authoritative)
-     ;; The catalogue's files (decision 064, salish-9uu.2.3): ours, checked in, edited by
-     ;; a curator's pull request.
-     (make-artifact 'catalogue/individuals.tsv 'file #:provenance 'authoritative)
-     (make-artifact 'catalogue/designations.tsv 'file #:provenance 'authoritative)
-     (make-artifact 'catalogue/nicknames.tsv 'file #:provenance 'authoritative)
-     (make-artifact 'catalogue/parties.tsv 'file #:provenance 'authoritative)
-     (make-artifact 'catalogue/social-groups.tsv 'file #:provenance 'authoritative)
-     (make-artifact 'catalogue/haulouts.tsv 'file #:provenance 'authoritative)
-     (make-artifact 'reference/organizations.tsv 'file #:provenance 'authoritative)
-     (make-artifact 'reference/collections.tsv 'file #:provenance 'authoritative)
-     (make-artifact 'reference/maplify-collection-rules.tsv 'file #:provenance 'authoritative)
-     (make-artifact 'reference/enums.tsv 'file #:provenance 'authoritative)
-     (make-artifact 'reference/hydrophones.tsv 'file #:provenance 'authoritative)
      ;; Which register release the build holds (salish-9uu.2.2).
      (make-artifact 'register.edition 'db-relation)
-     ;; Orcasound's bouts as the build fetches them itself (salish-xv35.6).
-     (make-artifact 'orcasound.bouts 'db-relation)
-     (make-artifact 'orcasound.bout_entities 'db-relation)
-     ;; Maplify's sightings as the build fetches them (salish-xv35.7): every one Maplify
-     ;; returned for each window, in the map's scope or not, and the days fetched.
-     (make-artifact 'maplify_mirror.sightings 'db-relation)
-     (make-artifact 'maplify_mirror.covered_days 'db-relation)
-     ;; iNaturalist's observations as the build fetches them (salish-xv35.8): every one in
-     ;; the fetch box, their photos, who identified them as what and what anyone wrote on
-     ;; them, the taxa they reach,
-     ;; the days reconciled, and how far the changes sweep has read (sync).
-     (make-artifact 'inaturalist_mirror.observations 'db-relation)
-     (make-artifact 'inaturalist_mirror.observation_photos 'db-relation)
-     (make-artifact 'inaturalist_mirror.identifications 'db-relation)
-     (make-artifact 'inaturalist_mirror.comments 'db-relation)
-     (make-artifact 'inaturalist_mirror.taxa 'db-relation)
-     (make-artifact 'inaturalist_mirror.covered_days 'db-relation)
-     (make-artifact 'inaturalist_mirror.sync 'db-relation)
      ;; Which individual or matriline each designation an occurrence names means
      ;; (salish-xv35.3), as the build derives it.
      (make-artifact 'build.occurrence_identifier_candidates 'db-relation))
@@ -548,17 +530,14 @@
    (make-task 'snapshot 'boundary
               #:outputs (list* 'snapshot-meta 'snapshot-year 'snapshot-day
                                snapshot-input-relations)
-              #:invoke (node-script/code "scripts/read-path/snapshot.ts"
-                                 '()
-                                 (list SNAPSHOT-DB)))
+              #:invoke (snapshot-script "snapshot.ts"))
    ;; The reference tables from their checked-in files (decision 064): a transform, not
    ;; a boundary, since its inputs are declared files. Into the snapshot database, which
    ;; the snapshot attaches rather than recreates, so neither erases the other's tables.
    (make-task 'reference 'transform
               #:inputs reference-files
               #:outputs reference-relations
-              #:invoke (node-script/code "scripts/read-path/reference.ts" '()
-                                 (list SNAPSHOT-DB)))
+              #:invoke (snapshot-script "reference.ts"))
    ;; Each day's reports are joined into travel segments here (decision 111), with the
    ;; distance measured by sea on the water mask (decision 063, amended): a new mask
    ;; reruns it, and so does the encounters task below, which must join a day alike.
@@ -578,24 +557,18 @@
    (make-task 'quiet-days 'transform
               #:inputs '(build.occurrences snapshot-meta)
               #:outputs '(quiet-days)
-              #:invoke (node-script/code "scripts/read-path/quiet-days.ts"
-                                 '()
-                                 (list SNAPSHOT-DB)))
+              #:invoke (snapshot-script "quiet-days.ts"))
    ;; The region boxes are the map's own, so the files they come from are code.
    (make-task 'calendar 'transform
               #:inputs '(build.occurrences)
               #:outputs '(calendar)
-              #:invoke (node-script/code "scripts/read-path/calendar.ts"
-                                 '()
-                                 (list SNAPSHOT-DB)))
+              #:invoke (snapshot-script "calendar.ts"))
    ;; The shard hash is shared with the browser, so it is code: change it and
    ;; every id moves, which must rebuild the index.
    (make-task 'occurrence-ids 'transform
               #:inputs '(build.occurrences)
               #:outputs '(ids aliases)
-              #:invoke (node-script/code "scripts/read-path/occurrence-ids.ts"
-                                 '()
-                                 (list SNAPSHOT-DB)))
+              #:invoke (snapshot-script "occurrence-ids.ts"))
    ;; The profile pages: the shared templates filled from the snapshot, inside
    ;; the shell Vite built (salishsea decision 057).
    (profile-pages-task 'individual-pages "individuals" "individual.html"
@@ -652,9 +625,7 @@
               #:outputs '(search-index.json)
               ;; The map's hydrophones are found too, read from the checked-in asset, so a
               ;; regenerated asset reruns the task as a code change would.
-              #:invoke (node-script/code "scripts/read-path/search-index.ts"
-                                 '()
-                                 (list SNAPSHOT-DB)))
+              #:invoke (snapshot-script "search-index.ts"))
    ;; No snapshot-meta: nothing here depends on when the snapshot was taken, so
    ;; unlike the pages this cuts off whenever the catalogue holds still. Vite's
    ;; sitemap is code, like the pages' shells, for the same reason.
@@ -664,13 +635,6 @@
               #:invoke (node-script/code "scripts/read-path/profile-index.ts"
                                  '("dist/sitemap.xml")
                                  (list SNAPSHOT-DB (path->string (in-checkout "dist")))))
-   ;; A register edition that loses a name would quietly drop every Maplify sighting
-   ;; that used it, since the derivation resolves names from the register it is given.
-   ;; This fails when the build's own rule can no longer name a pair the last passing
-   ;; build named (its baseline, the checked-in data/maplify-names.json), before the derivation, so the last
-   ;; good files stand. Only pairs the mirror still holds count: a sighting Maplify no
-   ;; longer returns isn't on the map to lose. The register-refresh workflow asks the
-   ;; same question of an edition before loading it, so this is the backstop.
    ;; The register from its newest release (decision 064, salish-9uu.2.2): a probe of
    ;; which tag is newest every run, a fetch only when it moved. An edition that would
    ;; un-name a Maplify pair the held edition names is refused before it is adopted — the
@@ -684,6 +648,13 @@
                                  '()
                                  (list REGISTER-DB (path->string maplify-mirror)
                                        "--allow" (path->string (build-path SALISHSEA "data" "maplify-unnamed.tsv")))))
+   ;; A register edition that loses a name would quietly drop every Maplify sighting
+   ;; that used it, since the derivation resolves names from the register it is given.
+   ;; This fails when the build's own rule can no longer name a pair the last passing
+   ;; build named (its baseline, the checked-in data/maplify-names.json), before the derivation, so the last
+   ;; good files stand. Only pairs the mirror still holds count: a sighting Maplify no
+   ;; longer returns isn't on the map to lose. The register-refresh workflow asks the
+   ;; same question of an edition before loading it, so this is the backstop.
    (make-task 'maplify-names 'gate
               #:inputs '(maplify_mirror.sightings register.entities register.names
                          register.ancestor register.deprecations maplify-names.json maplify-unnamed.tsv)
@@ -743,17 +714,7 @@
    (make-task 'derive-identifier-candidates 'transform
               #:inputs '(build.occurrences social-groups-snapshot designations-snapshot)
               #:outputs '(build.occurrence_identifier_candidates)
-              #:invoke (node-script/code "scripts/read-path/derive-identifier-candidates.ts"
-                                 '()
-                                 (list SNAPSHOT-DB)))
-   ;; The four views a profile page's map reads (salish-xv35.13), as DuckDB SQL over the
-   ;; occurrences and candidates the build derived, the identifications people assert,
-   ;; Orcasound's bout entities (from its mirror) and the catalogue. A haul-out report's distance is
-   ;; PostGIS's spheroidal one, measured in node with GeographicLib, which PostGIS
-   ;; calls, rather than with DuckDB's spatial extension on a 1 GB machine.
-   ;; The catalogue's three views over the register (salish-9uu.2.3): twins of Postgres's,
-   ;; over the release the build fetched and the catalogue's own rows, written under the
-   ;; snapshot's names. iNaturalist's taxa come from the mirror.
+              #:invoke (snapshot-script "derive-identifier-candidates.ts"))
    ;; The catalogue from its checked-in files (salish-9uu.2.3), with what Postgres derived
    ;; computed here: the folded codes, and each individual's vitals from the register.
    (make-task 'catalogue 'transform
@@ -766,9 +727,10 @@
                                                  register.entities register.ancestor register.deprecations
                                                  register.group_ranks register.parentage register.matriarchs))
               #:outputs catalogue-file-relations
-              #:invoke (node-script/code "scripts/read-path/catalogue.ts"
-                                 '()
-                                 (list SNAPSHOT-DB)))
+              #:invoke (snapshot-script "catalogue.ts"))
+   ;; The catalogue's three views over the register (salish-9uu.2.3): ported from Postgres's,
+   ;; over the release the build fetched and the catalogue's own rows, written under the
+   ;; snapshot's names. iNaturalist's taxa come from the mirror.
    (make-task 'derive-catalogue 'transform
               #:inputs '(register.entities register.names register.mappings register.ancestor
                          register.deprecations inaturalist_mirror.taxa types.enums
@@ -778,6 +740,11 @@
                                  '("scripts/read-path/derive/catalogue.sql" "scripts/read-path/derive/lookups.sql"
                                    "scripts/read-path/derive/shared.sql")
                                  (list SNAPSHOT-DB (path->string inaturalist-mirror))))
+   ;; The four views a profile page's map reads (salish-xv35.13), as DuckDB SQL over the
+   ;; occurrences and candidates the build derived, the identifications people assert,
+   ;; Orcasound's bout entities (from its mirror) and the catalogue. A haul-out report's distance is
+   ;; PostGIS's spheroidal one, measured in node with GeographicLib, which PostGIS
+   ;; calls, rather than with DuckDB's spatial extension on a 1 GB machine.
    (make-task 'derive-profile-links 'transform
               #:inputs '(build.occurrences build.occurrence_identifier_candidates
                          public.identifications orcasound.bout_entities
@@ -861,9 +828,7 @@
                          individual-pages matriline-pages ecotype-pages pod-pages haulout-pages whales.html
                          redirects.json sitemap.xml catalog-codes.json animal-names.json)
               #:outputs '(manifest.json)
-              #:invoke (node-script/code "scripts/read-path/manifest.ts"
-                                 '()
-                                 (list SNAPSHOT-DB)))))
+              #:invoke (snapshot-script "manifest.ts"))))
 
 ;; --- Two graphs from one list (st-mxr.1.2) ------------------------------------
 ;; Stelis's one-writer unit is the state dir: the history is numbered from the line
