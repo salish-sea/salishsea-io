@@ -4,13 +4,9 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, test } from 'vitest';
-import { DuckDBInstance } from '@duckdb/node-api';
+import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 
-import { compare as compareCandidates } from './compare-identifier-candidates.ts';
-import { compare, differences, sourceOf } from './compare-occurrences.ts';
-import { compare as compareProfileLinks, unmatched } from './compare-profile-links.ts';
-import { compare as compareCatalogue } from './compare-catalogue.ts';
-import { deriveCatalogue } from './derive-catalogue.ts';
+import { CATALOGUE_VIEWS, deriveCatalogue } from './derive-catalogue.ts';
 import { deriveIdentifierCandidates } from './derive-identifier-candidates.ts';
 import { readFile } from 'node:fs/promises';
 import { ARM_INPUTS, armsFor, changedInputs, deriveOccurrences, parseArms, SOURCES, type Source } from './derive-occurrences.ts';
@@ -20,30 +16,41 @@ import { withDwc } from './dwca.ts';
 import { fixtureSnapshot } from './twin-fixture.ts';
 import { readsText, REMARKS, TEXTS } from './derive/readings.ts';
 
-describe('compare-occurrences', () => {
-    test('a document agrees with itself however it is spaced', () => {
-        expect(differences({id: 'a', location: {lat: 1, lon: 2}}, {id: 'a', location: {lat: 1, lon: 2}})).toEqual([]);
-    });
+/** Run `use` on a read-only connection to the snapshot, closed after. */
+async function withStore<T>(snapshot: string, use: (conn: DuckDBConnection) => Promise<T>): Promise<T> {
+    const db = await DuckDBInstance.create(':memory:');
+    const conn = await db.connect();
+    try {
+        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+        return await use(conn);
+    } finally { conn.closeSync(); db.closeSync(); }
+}
 
-    test('names the fields that differ', () => {
-        expect(differences({id: 'a', count: 1, body: 'x'}, {id: 'a', count: 2, body: 'x'})).toEqual(['count']);
-        expect(differences({id: 'a', taxon: {entity_id: 'SSA:1'}}, {id: 'a', taxon: {entity_id: 'SSA:2'}})).toEqual(['taxon']);
-    });
+/**
+ * The documents a query returns, sorted, each parsed and written out again as the day
+ * files write it: spacing and how a number is written ("48.0" or "48") don't count, but
+ * key order and every value do. `omit` drops keys the expected rows don't carry.
+ */
+async function documents(conn: DuckDBConnection, sql: string, omit: string[] = []): Promise<string[]> {
+    return (await conn.runAndReadAll(sql)).getRows().map(([text]) => {
+        const doc = JSON.parse(text as string) as Record<string, unknown>;
+        for (const key of omit) delete doc[key];
+        return JSON.stringify(doc);
+    }).sort();
+}
 
-    test('key order counts, since the files keep it', () => {
-        expect(differences({id: 'a', url: null}, {url: null, id: 'a'})).toEqual(['(key order)']);
-    });
-
-    test('a field only one side has differs', () => {
-        expect(differences({id: 'a', certainty: null}, {id: 'a'})).toEqual(['certainty']);
-    });
-
-    test('an occurrence id names its source; a native sighting is a bare uuid', () => {
-        expect(sourceOf('maplify:236503')).toBe('maplify');
-        expect(sourceOf('orcasound:bout_0312Vs7HxaVxyMlqmK1blR:SSA:0000900')).toBe('orcasound');
-        expect(sourceOf('01977c2a-b313-77a9-8433-ffccbd56bf57')).toBe('native');
-    });
-});
+/**
+ * The rows one query returns and the other doesn't, counting duplicates, each labelled
+ * with its side; none when the two agree. Every column is compared as text.
+ */
+async function rowsOnOneSide(conn: DuckDBConnection, expected: string, derived: string) {
+    const text = (sql: string) => `SELECT COLUMNS(*)::VARCHAR FROM (${sql})`;
+    return (await conn.runAndReadAll(`
+        SELECT 'expected only' AS side, * FROM (${text(expected)} EXCEPT ALL ${text(derived)})
+        UNION ALL
+        SELECT 'derived only', * FROM (${text(derived)} EXCEPT ALL ${text(expected)})
+        ORDER BY ALL`)).getRowObjectsJson();
+}
 
 // Which arms a build's changed inputs re-derive (Stelis ADR 0015, salish-9uu.8.1).
 describe('armsFor', () => {
@@ -243,28 +250,13 @@ describe('armsFor', () => {
     });
 });
 
-describe('compare-profile-links', () => {
-    test('a document agrees with itself however it is spaced or its numbers written', () => {
-        expect(unmatched([['{"a": 1, "b": 48.50}', 1]], [['{"a":1,"b":48.5}', 1]])).toEqual(new Map());
-    });
-
-    test('rows are a multiset: a document twice on one side and once on the other differs', () => {
-        expect(unmatched([['{"a":1}', 2]], [['{"a":1}', 1]])).toEqual(new Map([['{"a":1}', 1]]));
-        expect(unmatched([], [['{"a":1}', 1]])).toEqual(new Map([['{"a":1}', -1]]));
-    });
-
-    test('key order counts, since the pages read documents as written', () => {
-        expect(unmatched([['{"a":1,"b":2}', 1]], [['{"b":2,"a":1}', 1]]).size).toBe(2);
-    });
-});
-
-// The twins against what Postgres's views answered, over the twin fixture (twin-fixture.ts,
-// salish-9uu.11): a change to a derivation under derive/ that changes what it derives from
-// these rows fails here. The build derives from its own mirrors (salish-xv35.9); here the
-// mirrors are written from the fixture's copies of Postgres's tables, so the two
-// derivations read the same rows.
-describe('the build derives what Postgres stored (the twin fixture)', () => {
-    test('snapshot, derive, compare: occurrences, their identifier candidates, the profile links', async () => {
+// Every derivation over the fixture (fixtures/twins/README.md, twin-fixture.ts), against the
+// rows it should derive, which the fixture holds beside its inputs: a change to a derivation
+// under derive/ that changes what it derives from these rows fails here. The build derives
+// from its own mirrors (salish-xv35.9); here the mirrors are written from the fixture's
+// source tables (derive/mirrors-from-snapshot.ts).
+describe('the derivations over the fixture', () => {
+    test('derive and check: occurrences, their identifier candidates, the catalogue, the profile links, the archive', async () => {
         const dir = await mkdtemp(path.join(tmpdir(), 'derive-occurrences-'));
         try {
             const snapshot = path.join(dir, 'snapshot.duckdb');
@@ -272,16 +264,20 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
             // The reference tables are checked-in files, as in the build (decision 064).
             await promisify(execFile)('node', [path.join(import.meta.dirname, 'reference.ts'), snapshot]);
             const mirrors = await mirrorsFromSnapshot(snapshot, dir);
+            // The occurrences against snapshot.occurrences. The expected rows don't carry the
+            // keys asserted on their own below: what each text names (`pods`, `absent`), where
+            // each sighting was (`place`, `landmark`), and what people said on it (`activity`,
+            // `identified_as`).
+            const expectOccurrences = () => withStore(snapshot, async conn => expect(
+                await documents(conn, 'SELECT doc FROM store.build.occurrences',
+                    ['place', 'landmark', 'pods', 'activity', 'identified_as', 'absent']))
+                .toEqual(await documents(conn, 'SELECT doc FROM store.snapshot.occurrences')));
             expect((await deriveOccurrences(snapshot, mirrors, null)).arms).toBe('all');
-            expect(await compare(snapshot)).toBe(true);
-            // Every document says which pods its text names (decision 105), which Postgres never
-            // did, so the comparison leaves it out: one text here names one ("J35 and J47 with
-            // Ls"), and the key is in jsonb's order, after the body.
+            await expectOccurrences();
+            // Every document says which pods its text names (decision 105): one text here names
+            // one ("J35 and J47 with Ls"), and the key is in jsonb's order, after the body.
             {
-                const db = await DuckDBInstance.create(':memory:');
-                const conn = await db.connect();
-                try {
-                    await conn.run(`ATTACH '${snapshot}' AS store (READ_ONLY)`);
+                await withStore(snapshot, async conn => {
                     const docs = (await conn.runAndReadAll('SELECT doc FROM store.build.occurrences')).getRows()
                         .map(([doc]) => JSON.parse(doc as string) as Record<string, unknown>);
                     expect(docs.length).toBeGreaterThan(0);
@@ -311,54 +307,40 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
                         const keys = Object.keys(doc);
                         expect(keys[keys.indexOf('body') + 1]).toBe('pods');
                     }
-                } finally { conn.closeSync(); db.closeSync(); }
+                });
             }
             // told the store's tables changed: the native arm re-derived over the same
-            // rows, the others untouched, and the whole still agrees with Postgres
+            // rows, the others untouched, and the whole still as expected
             expect((await deriveOccurrences(snapshot, mirrors, ['public.observations'])).arms).toEqual(['native']);
-            expect(await compare(snapshot)).toBe(true);
+            await expectOccurrences();
             // the two arms that resolve into memory tables first, re-derived together
             expect((await deriveOccurrences(snapshot, mirrors, ['inaturalist_mirror.observations', 'maplify_mirror.sightings'])).arms)
                 .toEqual(['maplify', 'inaturalist']);
-            expect(await compare(snapshot)).toBe(true);
+            await expectOccurrences();
             // Given the water regions (salish-fwyt.2), each document names the one its point
-            // is in, and only that: the comparison with Postgres, which never had a place,
-            // still agrees. One region over the Salish Sea stands in for the basemap's list.
+            // is in, and only that, and the rest of each document is unchanged. One region
+            // over the Salish Sea stands in for the basemap's list.
             const regions = path.join(dir, 'water-regions.json');
             const [w, s, e, n] = [-125.5, 47, -122, 50.5];
             await writeFile(regions, JSON.stringify({features: [{properties: {name: 'The Sea'},
                 geometry: {type: 'Polygon', coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]]}}]}));
-            const places = async () => {
-                const db = await DuckDBInstance.create(':memory:');
-                const conn = await db.connect();
-                try {
-                    await conn.run(`ATTACH '${snapshot}' AS store (READ_ONLY)`);
-                    return (await conn.runAndReadAll(`
-                        SELECT count(*) FILTER (doc->>'place' = 'The Sea'),
-                               count(*) FILTER (location.lon BETWEEN ${w} AND ${e} AND location.lat BETWEEN ${s} AND ${n}),
-                               count(*) FILTER (json_exists(doc, '$.place'))
-                        FROM store.build.occurrences`)).getRows()[0]!.map(Number);
-                } finally { conn.closeSync(); db.closeSync(); }
-            };
+            const places = () => withStore(snapshot, async conn => (await conn.runAndReadAll(`
+                SELECT count(*) FILTER (doc->>'place' = 'The Sea'),
+                       count(*) FILTER (location.lon BETWEEN ${w} AND ${e} AND location.lat BETWEEN ${s} AND ${n}),
+                       count(*) FILTER (json_exists(doc, '$.place'))
+                FROM store.build.occurrences`)).getRows()[0]!.map(Number));
             const [, inside, total] = await places();
             expect(inside).toBeGreaterThan(0);
             expect((await deriveOccurrences(snapshot, mirrors, null, regions)).arms).toBe('all');
             expect(await places()).toEqual([inside, inside, total]);
-            expect(await compare(snapshot)).toBe(true);
+            await expectOccurrences();
             // one arm re-derived: the others keep the places they were given
             await deriveOccurrences(snapshot, mirrors, ['public.observations'], regions);
             expect(await places()).toEqual([inside, inside, total]);
             // Given the landmarks too (decision 100), a document with a place names the one
-            // within 5 km of its point, and the comparison with Postgres still agrees. A
-            // point of land at one occurrence's own position stands for the list.
-            const query = async (sql: string) => {
-                const db = await DuckDBInstance.create(':memory:');
-                const conn = await db.connect();
-                try {
-                    await conn.run(`ATTACH '${snapshot}' AS store (READ_ONLY)`);
-                    return (await conn.runAndReadAll(sql)).getRows();
-                } finally { conn.closeSync(); db.closeSync(); }
-            };
+            // within 5 km of its point, and the rest of each document is unchanged. A point of
+            // land at one occurrence's own position stands for the list.
+            const query = (sql: string) => withStore(snapshot, async conn => (await conn.runAndReadAll(sql)).getRows());
             const [id, lon, lat] = (await query(`SELECT id, location.lon, location.lat FROM store.build.occurrences
                 WHERE doc->>'place' = 'The Sea' ORDER BY id LIMIT 1`))[0] as [string, number, number];
             const landmarksTsv = path.join(dir, 'landmarks.tsv');
@@ -372,11 +354,16 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
                        count(*) FILTER (json_exists(doc, '$.landmark'))
                 FROM store.build.occurrences`))[0]!.map(Number);
             expect([here, far, keyed]).toEqual([1, 0, total]);
-            expect(await compare(snapshot)).toBe(true);
+            await expectOccurrences();
+            // The identifier candidates against derived.occurrence_identifier_candidates, in
+            // the columns it has.
             await deriveIdentifierCandidates(snapshot);
-            expect(await compareCandidates(snapshot)).toBe(true);
-            // Where each iNaturalist candidate was read (salish-4s42, decision 106), which
-            // Postgres never recorded. 9000001's T137A is its observer's, though a comment
+            const columns = 'occurrence_id, code, individual_id, social_group_id, observed_at, location_lon, location_lat, is_present, certainty';
+            expect(await withStore(snapshot, conn => rowsOnOneSide(conn,
+                `SELECT ${columns} FROM store.derived.occurrence_identifier_candidates`,
+                `SELECT ${columns} FROM store.build.occurrence_identifier_candidates`))).toEqual([]);
+            // Where each iNaturalist candidate was read (salish-4s42, decision 106), which the
+            // expected rows don't carry. 9000001's T137A is its observer's, though a comment
             // names it too. 9000002 has no description. Its observer commented "T137s (-B)",
             // so T137s is theirs and T137B was absent, which outweighs another person's
             // comment naming T137B and T137A; an identification's remark naming T137s again
@@ -408,25 +395,30 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
                 FROM store.build.occurrences WHERE json_array_length(json_extract(doc, '$.absent')) > 0 ORDER BY id`))
                 .toEqual([['00000000-0000-4000-a000-000000000002', {items: ['T137B']}], ['inaturalist:9000002', {items: ['T137B']}]]);
             // The catalogue's views over the register (salish-9uu.2.3), which the profile
-            // links read, derived as the build derives them and checked against Postgres's.
+            // links read, derived as the build derives them: each snapshot.<view> against
+            // snapshot.<view>_answer.
             await deriveCatalogue(snapshot, mirrors.inaturalist);
-            expect(await compareCatalogue(snapshot)).toBe(true);
+            await withStore(snapshot, async conn => {
+                for (const view of CATALOGUE_VIEWS)
+                    expect(await documents(conn, `SELECT doc FROM store.snapshot.${view}`), view)
+                        .toEqual(await documents(conn, `SELECT doc FROM store.snapshot.${view}_answer`));
+            });
+            // The profile links: each build.<view> against snapshot.<view>.
             await deriveProfileLinks(snapshot, mirrors);
-            expect(await compareProfileLinks(snapshot)).toBe(true);
-            // The Darwin Core archive's relations (salish-xv35.9): the twins against
-            // Postgres's dwc views, every column as text, as multisets.
-            const unmatched = await withDwc(snapshot, mirrors, async conn => {
-                const out: Record<string, number> = {};
-                for (const view of ['occurrences', 'multimedia', 'export_coverage']) {
-                    const differ = (a: string, b: string) => `SELECT count(*) FROM (
-                        SELECT COLUMNS(*)::VARCHAR FROM ${a} EXCEPT ALL SELECT COLUMNS(*)::VARCHAR FROM ${b})`;
-                    const ours = (await conn.runAndReadAll(differ(`pgdb.dwc.${view}`, `store.dwc.${view}`))).getRows()[0]![0];
-                    const theirs = (await conn.runAndReadAll(differ(`store.dwc.${view}`, `pgdb.dwc.${view}`))).getRows()[0]![0];
-                    out[view] = Number(ours) + Number(theirs);
-                }
+            await withStore(snapshot, async conn => {
+                for (const view of ['individual_occurrences', 'group_occurrences', 'ecotype_occurrences', 'haulout_occurrences'])
+                    expect(await documents(conn, `SELECT doc FROM store.build.${view}`), view)
+                        .toEqual(await documents(conn, `SELECT doc FROM store.snapshot.${view}`));
+            });
+            // The Darwin Core archive's relations (salish-xv35.9): each against the fixture's
+            // dwc.<view>, every column as text.
+            const unexpected = await withDwc(snapshot, mirrors, async conn => {
+                const out: Record<string, unknown[]> = {};
+                for (const view of ['occurrences', 'multimedia', 'export_coverage'])
+                    out[view] = await rowsOnOneSide(conn, `SELECT * FROM store.dwc.${view}`, `SELECT * FROM archive.dwc.${view}`);
                 return out;
             });
-            expect(unmatched).toEqual({occurrences: 0, multimedia: 0, export_coverage: 0});
+            expect(unexpected).toEqual({occurrences: [], multimedia: [], export_coverage: []});
             // A contributor who hasn't agreed to the terms of use (#739): their sightings and
             // photos stay out of the archive, counted as withheld, which the guard accepts.
             {
@@ -438,10 +430,10 @@ describe('the build derives what Postgres stored (the twin fixture)', () => {
                 } finally { conn.closeSync(); db.closeSync(); }
             }
             const withheld = await withDwc(snapshot, mirrors, async conn => (await conn.runAndReadAll(`
-                SELECT (SELECT count(*) FROM pgdb.dwc.occurrences WHERE "occurrenceID" LIKE 'salishsea:%'),
-                       (SELECT count(*) FROM pgdb.dwc.multimedia),
-                       (SELECT no_agreement FROM pgdb.dwc.export_coverage WHERE branch = 'native'),
-                       (SELECT exported_rows FROM pgdb.dwc.export_coverage WHERE branch = 'maplify')`)).getRows()[0]!.map(Number));
+                SELECT (SELECT count(*) FROM archive.dwc.occurrences WHERE "occurrenceID" LIKE 'salishsea:%'),
+                       (SELECT count(*) FROM archive.dwc.multimedia),
+                       (SELECT no_agreement FROM archive.dwc.export_coverage WHERE branch = 'native'),
+                       (SELECT exported_rows FROM archive.dwc.export_coverage WHERE branch = 'maplify')`)).getRows()[0]!.map(Number));
             expect(withheld).toEqual([0, 0, 2, 5]);
         } finally {
             await rm(dir, {recursive: true, force: true});

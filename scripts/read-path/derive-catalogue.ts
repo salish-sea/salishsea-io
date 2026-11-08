@@ -10,8 +10,8 @@
  * computes them too, over that and the catalogue's rows, writing each under the name the
  * snapshot gave Postgres's view (`snapshot.group_parents` and the others), in the same
  * shape: one document per row. The SQL is derive/catalogue.sql, after the lookups the
- * occurrences use; of the sources it reads only iNaturalist's taxa, from the build's mirror. compare-catalogue.ts
- * checks the result against Postgres's answer.
+ * occurrences use; of the sources it reads only iNaturalist's taxa, from the build's mirror.
+ * derive-occurrences.test.ts checks it against the rows the fixture expects (fixtures/twins/).
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';

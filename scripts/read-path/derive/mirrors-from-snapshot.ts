@@ -1,9 +1,9 @@
 /**
- * For tests: mirrors holding exactly what the twin fixture's copies of Postgres's source
- * tables hold (twin-fixture.ts), in the mirrors' own shape (the ingest scripts' schemas,
- * only the columns derive/sources.sql reads). Deriving from them must give what Postgres
- * stored, which is how the twins of Postgres's views stay checked now that the build
- * derives from its own mirrors (salish-xv35.9) and Postgres is gone (salish-9uu.11).
+ * For tests: mirrors holding exactly what the fixture's source tables hold (twin-fixture.ts,
+ * fixtures/twins/), in the mirrors' own shape (the ingest scripts' schemas, only the
+ * columns derive/sources.sql reads). The fixture was captured from Postgres, which kept
+ * those tables in its own shape; the build derives from its mirrors (salish-xv35.9), so the
+ * tests derive from mirrors too.
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';

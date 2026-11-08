@@ -2,7 +2,7 @@
  * DwC-A build pipeline integration test — Phase 06 Plan 06.
  *
  * Writes the archive with `writeArchive` as the read-path build does (scripts/read-path/
- * dwca.ts's withDwc), over the twin fixture's snapshot and mirrors (salish-9uu.11), then
+ * dwca.ts's withDwc), over the test fixture's snapshot and mirrors (fixtures/twins/), then
  * introspects the produced artifacts in a scratch directory. No database. Covers
  * five of the six DWCA-* requirements automatically:
  *

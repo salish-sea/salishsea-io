@@ -88,7 +88,7 @@ pnpm exec playwright test  # e2e
 READ_PATH_DIR=/path/to/export pnpm dev  # the site reads a read-path build's files (decision 056); without it the map has nothing to show
 ```
 
-Node version is pinned in `.nvmrc`. The derivations' tests compare against answers Postgres gave once, saved in [`scripts/read-path/fixtures/twins/`](scripts/read-path/fixtures/twins/README.md); when a derivation changes on purpose, the expected rows change with it, as a reviewed edit. The reader of sighting text, [`src/sighting-text.ts`](src/sighting-text.ts), which the build and the browser share (decision 105), is also scored against a hand-read gold set in [`scripts/read-path/fixtures/gold/`](scripts/read-path/fixtures/gold/README.md) (decision 102); `src/sighting-text.test.ts` records which rows it gets wrong today, and a change to it changes that list, reviewed the same way.
+Node version is pinned in `.nvmrc`. The derivations are tested against expected rows in [`scripts/read-path/fixtures/twins/`](scripts/read-path/fixtures/twins/README.md), which began as Postgres's answers; when a derivation changes on purpose, the expected rows change with it, as a reviewed edit. The reader of sighting text, [`src/sighting-text.ts`](src/sighting-text.ts), which the build and the browser share (decision 105), is also scored against a hand-read gold set in [`scripts/read-path/fixtures/gold/`](scripts/read-path/fixtures/gold/README.md) (decision 102); `src/sighting-text.test.ts` records which rows it gets wrong today, and a change to it changes that list, reviewed the same way.
 
 ## Parallel agents
 

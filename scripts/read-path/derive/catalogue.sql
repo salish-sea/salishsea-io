@@ -1,6 +1,6 @@
 -- The catalogue's three views over the register (decision 064, salish-9uu.2.3): which
 -- group each group sits inside, which matrilines each individual belongs to, and the names
--- the register gives each entity. Twins of public.group_parents, public.matriline_members
+-- the register gives each entity. Ported from public.group_parents, public.matriline_members
 -- and public.animal_names, which Postgres computes over its copy of the register; here
 -- over the release the build fetched (ingest-register.ts). Run after derive/sources.sql,
 -- derive/shared.sql and derive/lookups.sql, in the same session.

@@ -7,9 +7,9 @@
  *      / `dwc.multimedia` view column list (name AND ordinal) must match the
  *      canonical TS field array in `./fields.ts`. The Plan 02 unit guardrail
  *      catches drift in `fields.ts`; this runtime guardrail catches drift in
- *      the Postgres view (a future migration that adds/removes/reorders a
- *      column without editing `fields.ts` would otherwise silently emit a
- *      wrong-shape archive).
+ *      the derived relation (a change to derive/dwc.sql that adds, removes or
+ *      reorders a column without editing `fields.ts` would otherwise silently
+ *      emit a wrong-shape archive).
  *
  *   2. `assertNonZeroRows` — guards against shipping an archive whose
  *      occurrence file has zero rows (e.g. a stale `dwc.occurrences` view
@@ -39,21 +39,21 @@
 import { stat } from 'node:fs/promises';
 
 /**
- * One column row returned by DuckDB `DESCRIBE pgdb.dwc.occurrences` (or
- * `pgdb.information_schema.columns`). `ordinal` is 1-based to match
+ * One column row returned by DuckDB `DESCRIBE archive.dwc.occurrences` (or
+ * `information_schema.columns`). `ordinal` is 1-based to match
  * `information_schema.columns.ordinal_position`; the diff strings render
  * the 1-based ordinal for human readability.
  *
  * The structural type avoids importing the DuckDB Node bindings here,
  * keeping `assertions.ts` DuckDB-agnostic and trivially mockable in tests.
  */
-export interface PgColumn {
+export interface ViewColumn {
     readonly name: string;
     readonly ordinal: number;
 }
 
 /**
- * Thrown by `assertFieldAlignment` when the Postgres view's column list
+ * Thrown by `assertFieldAlignment` when the derived relation's column list
  * diverges from the canonical TS field array. Carries the offending
  * `table` and a structured `diff` array; the caller can render the diff
  * verbatim (each entry is a one-line human-readable string).
@@ -71,30 +71,30 @@ export class AlignmentError extends Error {
 }
 
 /**
- * F-02 runtime guardrail. Compares the Postgres view's column list
- * (`pgCols`, in column order, 1-based ordinal) to the canonical TS field
+ * F-02 runtime guardrail. Compares the derived relation's column list
+ * (`viewColumns`, in column order, 1-based ordinal) to the canonical TS field
  * array (`tsFields`, in array index order) position-by-position. Returns
  * silently on full alignment; throws `AlignmentError` carrying a
  * structured diff on any name or count mismatch.
  *
  * The diff uses three single-character markers at each divergent index:
- *   - `[+i]` — TS array has an entry; PG view has no column at this ordinal.
- *   - `[-i]` — PG view has a column at this ordinal; TS array ends here.
+ *   - `[+i]` — TS array has an entry; the relation has no column at this ordinal.
+ *   - `[-i]` — the relation has a column at this ordinal; TS array ends here.
  *   - `[~i]` — both sides have an entry but the names differ.
  *
- * `i` is the 0-based loop index (matches the TS array index); the PG
+ * `i` is the 0-based loop index (matches the TS array index); the relation's
  * ordinal (1-based) is embedded in the rendered string for readability.
  */
 export function assertFieldAlignment(
-    pgCols: readonly PgColumn[],
+    viewColumns: readonly ViewColumn[],
     tsFields: readonly { readonly name: string }[],
     table: string,
 ): void {
     const diff: string[] = [];
-    const max = Math.max(pgCols.length, tsFields.length);
+    const max = Math.max(viewColumns.length, tsFields.length);
 
     for (let i = 0; i < max; i++) {
-        const pg = pgCols[i];
+        const pg = viewColumns[i];
         const ts = tsFields[i];
 
         if (pg === undefined && ts !== undefined) {
@@ -138,7 +138,7 @@ export interface CountConnection {
  * if the count is zero.
  *
  * `fullyQualifiedTable` is passed through to the SQL — callers MUST hardcode
- * it (e.g. `'pgdb.dwc.occurrences'`). There is no escaping here because
+ * it (e.g. `'archive.dwc.occurrences'`). There is no escaping here because
  * this is a build-time module fed by hardcoded constants.
  */
 export async function assertNonZeroRows(

@@ -7,10 +7,10 @@
  * deterministic zip via Plan 04's `writeZip`.
  *
  * The read-path build calls `writeArchive` over its own derivation
- * (scripts/read-path/dwca.ts). Until salish-9uu.13 this file was also the
- * nightly's entry point, `pnpm build:dwca`, which attached Postgres as `pgdb`;
- * that path retired with Postgres. The `pgdb` catalog name is the contract the
- * build still supplies.
+ * (scripts/read-path/dwca.ts), which it supplies as a catalog named `archive`
+ * (derive/dwc.sql). Until salish-9uu.13 this file was also the nightly's entry
+ * point, which attached Postgres under the name `pgdb`; that path retired with
+ * Postgres.
  *
  * Throws on any failure (drift, empty, zero-byte, missing geo metadata).
  *
@@ -38,7 +38,7 @@ import {
     assertNoZeroByteFile,
     describeCoverage,
     type BranchCoverage,
-    type PgColumn,
+    type ViewColumn,
 } from './assertions.ts';
 import { buildMetaXml } from './meta-xml.ts';
 import { buildEml, type DatasetsRow, type AssociatedParty } from './eml.ts';
@@ -116,13 +116,13 @@ function buildSelectList(
 }
 
 /**
- * Convert DuckDB `DESCRIBE` result rows into `PgColumn[]`. DESCRIBE returns
+ * Convert DuckDB `DESCRIBE` result rows into `ViewColumn[]`. DESCRIBE returns
  * one row per column with a `column_name` field; the array index +1 is the
  * 1-based ordinal that matches `information_schema.columns.ordinal_position`.
  */
-function describeViewToPgColumns(
+function describeColumns(
     rows: readonly Record<string, unknown>[],
-): PgColumn[] {
+): ViewColumn[] {
     return rows.map((row, i) => {
         const raw = row['column_name'];
         const name = typeof raw === 'string' ? raw : String(raw);
@@ -135,7 +135,7 @@ function describeViewToPgColumns(
 // ---------------------------------------------------------------------------
 
 /**
- * Steps 6-22: write the archive from a DuckDB connection that has a `pgdb` catalog
+ * Steps 6-22: write the archive from a DuckDB connection that has an `archive` catalog
  * holding `dwc.occurrences`, `dwc.multimedia`, `dwc.export_coverage`, `dwc.datasets`,
  * `maplify.sightings`, `public.observations`, `public.collections` and
  * `public.organizations`, into `outDir`. The read-path build supplies those names from
@@ -154,26 +154,26 @@ export async function writeArchive(conn: DuckDBConnection, outDir: string): Prom
 
     // Step 6: F-02 alignment guard for dwc.occurrences. MUST precede any COPY.
     const occDescribeReader = await conn.runAndReadAll(
-        'DESCRIBE pgdb.dwc.occurrences',
+        'DESCRIBE archive.dwc.occurrences',
     );
-    const occPgCols = describeViewToPgColumns(
+    const occColumns = describeColumns(
         occDescribeReader.getRowObjects(),
     );
-    assertFieldAlignment(occPgCols, OCCURRENCE_FIELDS, 'occurrences');
+    assertFieldAlignment(occColumns, OCCURRENCE_FIELDS, 'occurrences');
 
     // Step 7: F-02 alignment guard for dwc.multimedia.
     const mmDescribeReader = await conn.runAndReadAll(
-        'DESCRIBE pgdb.dwc.multimedia',
+        'DESCRIBE archive.dwc.multimedia',
     );
-    const mmPgCols = describeViewToPgColumns(
+    const mmColumns = describeColumns(
         mmDescribeReader.getRowObjects(),
     );
-    assertFieldAlignment(mmPgCols, MULTIMEDIA_FIELDS, 'multimedia');
+    assertFieldAlignment(mmColumns, MULTIMEDIA_FIELDS, 'multimedia');
 
     // Step 8: Non-zero row guard for dwc.occurrences. We do NOT block on
     // empty multimedia — it can legitimately be empty in some local
     // states.
-    const occCount = await assertNonZeroRows(conn, 'pgdb.dwc.occurrences');
+    const occCount = await assertNonZeroRows(conn, 'archive.dwc.occurrences');
 
     // Step 8b: Per-branch coverage. The non-zero guard above cannot see one
     // of the two UNION branches going dark while the other still has rows,
@@ -181,7 +181,7 @@ export async function writeArchive(conn: DuckDBConnection, outDir: string): Prom
     // (salish-lv0). Log what each branch admitted, exported and dropped per
     // join; fail only when a branch exported nothing it had rows for.
     const coverageReader = await conn.runAndReadAll(
-        'SELECT * FROM pgdb.dwc.export_coverage',
+        'SELECT * FROM archive.dwc.export_coverage',
     );
     const coverage = coverageReader.getRowObjects().map(rowToBranchCoverage);
     for (const line of describeCoverage(coverage)) console.log(line);
@@ -194,7 +194,7 @@ export async function writeArchive(conn: DuckDBConnection, outDir: string): Prom
         TAB_COLLAPSE_COLS,
     );
     await conn.run(
-        `COPY (SELECT ${occSelectList} FROM pgdb.dwc.occurrences) ` +
+        `COPY (SELECT ${occSelectList} FROM archive.dwc.occurrences) ` +
             `TO '${OUT_OCCURRENCE}' (FORMAT csv, DELIMITER '\t', HEADER true, QUOTE '', ESCAPE '', NULLSTR '')`,
     );
 
@@ -204,7 +204,7 @@ export async function writeArchive(conn: DuckDBConnection, outDir: string): Prom
         TAB_COLLAPSE_COLS,
     );
     await conn.run(
-        `COPY (SELECT ${mmSelectList} FROM pgdb.dwc.multimedia) ` +
+        `COPY (SELECT ${mmSelectList} FROM archive.dwc.multimedia) ` +
             `TO '${OUT_MULTIMEDIA}' (FORMAT csv, DELIMITER '\t', HEADER true, QUOTE '', ESCAPE '', NULLSTR '')`,
     );
 
@@ -223,7 +223,7 @@ export async function writeArchive(conn: DuckDBConnection, outDir: string): Prom
     );
     await conn.run(
         `COPY (SELECT ${plainOccList}, ST_Point("decimalLongitude", "decimalLatitude") AS geometry ` +
-            `FROM pgdb.dwc.occurrences) TO '${OUT_PARQUET}' (FORMAT parquet, COMPRESSION zstd, COMPRESSION_LEVEL 9)`,
+            `FROM archive.dwc.occurrences) TO '${OUT_PARQUET}' (FORMAT parquet, COMPRESSION zstd, COMPRESSION_LEVEL 9)`,
     );
 
     // Step 12: R1 empirical GeoParquet metadata verification. Read the
@@ -313,7 +313,7 @@ export async function writeArchive(conn: DuckDBConnection, outDir: string): Prom
 
     // Step 15: Compute temporal coverage from MIN/MAX(eventDate).
     const tempReader = await conn.runAndReadAll(
-        'SELECT MIN("eventDate") AS begin, MAX("eventDate") AS end FROM pgdb.dwc.occurrences',
+        'SELECT MIN("eventDate") AS begin, MAX("eventDate") AS end FROM archive.dwc.occurrences',
     );
     const tempRows = tempReader.getRowObjects();
     const firstTempRow = tempRows[0];
@@ -342,23 +342,24 @@ export async function writeArchive(conn: DuckDBConnection, outDir: string): Prom
     // Maplify branch (mirrors the view's WHERE clause) UNION the native branch.
     // ORDER BY name for deterministic/alphabetical output per Q3.
     // T-12-03-CREDIT: only orgs with exported rows are credited (not all seeded orgs).
-    // Tables are read through the DuckDB ATTACH alias `pgdb` (Step 5), so
-    // every Postgres relation MUST be pgdb-qualified — bare `maplify.sightings`
-    // resolves against DuckDB's own catalog and fails (no such schema).
+    // Tables are read through the `archive` catalog, so every relation MUST be
+    // archive-qualified: a bare `maplify.sightings` resolves against the connection's
+    // default catalog, which in production has no such schema
+    // (build-queries.test.ts).
     const partiesReader = await conn.runAndReadAll(`
         SELECT DISTINCT org.name, org.url
-        FROM pgdb.maplify.sightings s
-        JOIN pgdb.public.collections c ON c.id = s.collection_id
-        JOIN pgdb.public.organizations org ON org.id = c.organization_id
+        FROM archive.maplify.sightings s
+        JOIN archive.public.collections c ON c.id = s.collection_id
+        JOIN archive.public.organizations org ON org.id = c.organization_id
         WHERE s.trusted = TRUE
           AND NOT s.is_test
           AND s.number_sighted BETWEEN 1 AND 1000
           AND s.source != 'rwsas'
         UNION
         SELECT DISTINCT org.name, org.url
-        FROM pgdb.public.observations o
-        JOIN pgdb.public.collections c ON c.id = o.collection_id
-        JOIN pgdb.public.organizations org ON org.id = c.organization_id
+        FROM archive.public.observations o
+        JOIN archive.public.collections c ON c.id = o.collection_id
+        JOIN archive.public.organizations org ON org.id = c.organization_id
         ORDER BY name
     `);
     const associatedParties: AssociatedParty[] = partiesReader.getRowObjects().map((row) => ({
@@ -369,7 +370,7 @@ export async function writeArchive(conn: DuckDBConnection, outDir: string): Prom
 
     // Step 16: Read dwc.datasets (exactly 1 row in v1.2 per POLICY §6.2).
     const datasetsReader = await conn.runAndReadAll(
-        'SELECT * FROM pgdb.dwc.datasets LIMIT 1',
+        'SELECT * FROM archive.dwc.datasets LIMIT 1',
     );
     const datasetsRows = datasetsReader.getRowObjects();
     if (datasetsRows.length === 0) {

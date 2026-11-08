@@ -1,19 +1,19 @@
 -- The Darwin Core archive's relations, derived in the build (decision 061, salish-xv35.9):
--- DuckDB twins of Postgres's dwc views, written as tables into a `pgdb` catalog under the
--- names scripts/dwca/build.ts reads, so the archive writer is the same code whether it
--- reads Postgres (the nightly) or the build. Twins, not improvements: each names the
--- Postgres object it ports and keeps its quirks, and the twin test checks them row for row
--- (derive-occurrences.test.ts, which checks the archive's relations beside the occurrences').
+-- ported from Postgres's dwc views, written as tables into an `archive` catalog under the
+-- names scripts/dwca/build.ts reads. Each names the Postgres object it was ported from.
+-- derive-occurrences.test.ts checks them row for row against the fixture's expected rows
+-- (fixtures/twins/), which began as Postgres's answers and now record what this should
+-- derive, so a change to what it derives changes them too, as a reviewed edit.
 --
 -- Run by scripts/read-path/dwca.ts after derive/sources.sql, derive/shared.sql and
 -- derive/lookups.sql, and after
 -- memory.maplify_entity is written, as for derive/occurrences.sql. The archive's
 -- publication date is the variable pub_date.
 
-ATTACH ':memory:' AS pgdb;
-CREATE SCHEMA pgdb.dwc;
-CREATE SCHEMA pgdb.maplify;
-CREATE SCHEMA pgdb.public;
+ATTACH ':memory:' AS archive;
+CREATE SCHEMA archive.dwc;
+CREATE SCHEMA archive.maplify;
+CREATE SCHEMA archive.public;
 
 -- --- How Postgres renders a jsonb as text --------------------------------------------------
 -- Keys shorter first, then bytewise; ", " between members and ": " after a key. Each entry
@@ -79,7 +79,7 @@ CREATE OR REPLACE TEMP VIEW dwc_taxa_classification AS
 -- Postgres's ingest kept only what is in the map's scope, with its entity and collection
 -- resolved; the mirror keeps everything Maplify returned, so the same rules apply here
 -- (memory.maplify_entity, maplify_collection, memory.maplify_out_of_scope).
-CREATE OR REPLACE TABLE pgdb.maplify.sightings AS
+CREATE OR REPLACE TABLE archive.maplify.sightings AS
   SELECT s.id, s.name, s.scientific_name, s.location_lon, s.location_lat, s.number_sighted,
          s.created_at, s.comments, s.is_test, s.trusted, s.source,
          me.entity_id, mc.collection_id
@@ -89,9 +89,9 @@ CREATE OR REPLACE TABLE pgdb.maplify.sightings AS
   LEFT JOIN maplify_collection mc ON mc.source = s.source AND mc.id = s.id
   WHERE NOT EXISTS (SELECT 1 FROM memory.maplify_out_of_scope o WHERE o.source = s.source AND o.id = s.id);
 
-CREATE OR REPLACE TABLE pgdb.public.observations AS SELECT * FROM public.observations;
-CREATE OR REPLACE TABLE pgdb.public.collections AS SELECT * FROM public.collections;
-CREATE OR REPLACE TABLE pgdb.public.organizations AS SELECT * FROM public.organizations;
+CREATE OR REPLACE TABLE archive.public.observations AS SELECT * FROM public.observations;
+CREATE OR REPLACE TABLE archive.public.collections AS SELECT * FROM public.collections;
+CREATE OR REPLACE TABLE archive.public.organizations AS SELECT * FROM public.organizations;
 
 -- Each record's locality: the water region its point is in, as the occurrences step named
 -- it (decision 099; place in build.occurrences), from the basemap's government data (rights
@@ -193,7 +193,7 @@ CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
          CAST(NULL AS VARCHAR) AS "informationWithheld",
          CAST(NULL AS VARCHAR) AS "recordedByID",
          loc.locality AS "locality"
-  FROM pgdb.maplify.sightings s
+  FROM archive.maplify.sightings s
   LEFT JOIN occurrence_locality loc ON loc.id = 'maplify:' || s.source || ':' || CAST(s.id AS VARCHAR)
   JOIN inaturalist_taxon xw ON xw.entity_id = s.entity_id
   JOIN dwc_taxa_classification tc ON tc.taxon_id = xw.inaturalist_taxon_id
@@ -202,12 +202,12 @@ CREATE OR REPLACE TEMP VIEW dwc_maplify_occurrences AS
 
 -- dwc.occurrences: the union, in a fixed order so the archive is the same bytes for the
 -- same data (Postgres left it to the plan).
-CREATE OR REPLACE TABLE pgdb.dwc.occurrences AS
+CREATE OR REPLACE TABLE archive.dwc.occurrences AS
   SELECT * FROM (SELECT * FROM dwc_native_occurrences UNION ALL SELECT * FROM dwc_maplify_occurrences)
   ORDER BY "occurrenceID";
 
 -- --- dwc.multimedia -----------------------------------------------------------------------
-CREATE OR REPLACE TABLE pgdb.dwc.multimedia AS
+CREATE OR REPLACE TABLE archive.dwc.multimedia AS
   SELECT 'salishsea:' || CAST(op.observation_id AS VARCHAR) AS "coreId",
          'StillImage' AS "type",
          op.href AS "identifier",
@@ -232,7 +232,7 @@ CREATE OR REPLACE TABLE pgdb.dwc.multimedia AS
   ORDER BY op.observation_id, op.seq;
 
 -- --- dwc.export_coverage ------------------------------------------------------------------
-CREATE OR REPLACE TABLE pgdb.dwc.export_coverage AS
+CREATE OR REPLACE TABLE archive.dwc.export_coverage AS
   WITH native AS (
     SELECT count(*) AS source_rows,
            count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM public.contributors c WHERE c.id = o.contributor_id)) AS no_contributor,
@@ -249,7 +249,7 @@ CREATE OR REPLACE TABLE pgdb.dwc.export_coverage AS
            count(*) FILTER (WHERE NOT EXISTS (
              SELECT 1 FROM dwc_taxa_classification tc
              WHERE tc.taxon_id = (SELECT xw.inaturalist_taxon_id FROM inaturalist_taxon xw WHERE xw.entity_id = s.entity_id))) AS no_taxon
-    FROM pgdb.maplify.sightings s
+    FROM archive.maplify.sightings s
     WHERE NOT s.is_test AND s.number_sighted BETWEEN 1 AND 1000 AND s.source <> 'rwsas' AND s.trusted
   )
   SELECT 'native' AS branch, source_rows, (SELECT count(*) FROM dwc_native_occurrences) AS exported_rows,
@@ -264,7 +264,7 @@ CREATE OR REPLACE TABLE pgdb.dwc.export_coverage AS
 -- The one row (decision 027's text), dated by the build rather than CURRENT_DATE.
 -- dataset_id is the dataset's w3id.org address, which redirects to its page at
 -- https://salishsea.io/datasets/occurrences-v1 (decision 104).
-CREATE OR REPLACE TABLE pgdb.dwc.datasets AS
+CREATE OR REPLACE TABLE archive.dwc.datasets AS
   SELECT 'https://w3id.org/salish-sea/datasets/occurrences-v1' AS dataset_id,
          CAST(NULL AS VARCHAR) AS parent_dataset_id,
          'SalishSea.io Marine Mammal Occurrences (v1.3)' AS title,

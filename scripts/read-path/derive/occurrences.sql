@@ -1,11 +1,13 @@
--- The occurrences, derived in the build (decision 061, salish-xv35.2): DuckDB twins of the
+-- The occurrences, derived in the build (decision 061, salish-xv35.2): ported from the
 -- five per-source views behind Postgres's derived.occurrences
--- (supabase/migrations/20260928120000_occurrences_stored.sql@6898775), and of the register
--- functions and views they call, reading the snapshot's typed copies of the same tables.
+-- (supabase/migrations/20260928120000_occurrences_stored.sql@6898775), and from the
+-- register functions and views they call, reading the snapshot's typed copies of the same
+-- tables. Each piece below names the Postgres object it was ported from.
 --
--- Twins, not improvements. Each piece below names the Postgres object it ports, and
--- keeps its quirks, because the result is checked against the stored occurrences row
--- for row (compare-occurrences.ts). A fix goes into both, together.
+-- derive-occurrences.test.ts checks the result row for row against the fixture's expected
+-- occurrences (fixtures/twins/), which began as Postgres's answers and now record what the
+-- build should derive, so a change to what this derives changes them too, as a reviewed
+-- edit.
 --
 -- Run by derive-occurrences.ts, which first sets TimeZone to UTC, loads ICU (text sorts
 -- as Postgres's en-US ICU collation does: COLLATE en_us — verified on production
@@ -20,8 +22,8 @@
 -- says, which Postgres read with two regular expressions, is read in node by
 -- src/sighting-text.ts, the module the browser runs, into memory.reading
 -- (derive/readings.ts), and joined here (decision 105); reading_direction and
--- reading_identifiers, in the shared part below, take a view's columns from it. The views
--- stop being twins there.
+-- reading_identifiers, in the shared part below, take a view's columns from it, in place of
+-- Postgres's regular expressions.
 
 -- --- The five sources --------------------------------------------------------------------
 -- Each the same columns as public.occurrences, in its order; the document is built from

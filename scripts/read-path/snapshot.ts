@@ -18,9 +18,6 @@
  * elsewhere: Maplify, iNaturalist and Orcasound from its own mirrors (salish-xv35.9), the
  * reference tables and the catalogue from checked-in files (reference.ts, catalogue.ts,
  * decision 064), and the register from its own release (ingest-register.ts).
- *
- * Until salish-9uu.11 this could also read a local Postgres, with Postgres's own derived
- * answers, for the twin tests; those read a checked-in fixture instead (twin-fixture.ts).
  */
 
 import { rmSync } from 'node:fs';
