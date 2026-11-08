@@ -1022,12 +1022,13 @@
 ;; engine can say which days a save moved and occurrence-days can rewrite those
 ;; alone. The key expression is a hand copy of salishsea's one Pacific day
 ;; (scripts/read-path/pacific-day.ts's dayOf('observed_at'), which occurrence-days and
-;; the other day-keyed scripts import, salish-9uu.8.3), and the store-keyed identity check on days/ is what catches the two
-;; drifting apart. The per-key map is the relation's per-part observation in place of
+;; the other day-keyed scripts import, salish-9uu.8.3); pacific-day.test.ts checks that
+;; this is that copy, and the store-keyed identity check on days/ catches the two
+;; giving different days. The per-key map is the relation's per-part observation in place of
 ;; its per-column one (cache.rkt's artifact-key-parts), recorded by derive-occurrences
 ;; and read live by occurrence-days's decision; held, like the observer's answers,
 ;; until a task writes the relation.
-(define OCCURRENCE-DAY "strftime(timezone('PST8PDT', observed_at), '%Y-%m-%d')")
+(define OCCURRENCE-DAY "strftime(timezone('America/Los_Angeles', observed_at), '%Y-%m-%d')")
 
 ;; What the profile pages read, by the subject each row is about (st-wn4), so that
 ;; `--history individual-pages:<id>.html` can name WHICH rows moved a page and not

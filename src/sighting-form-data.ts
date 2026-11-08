@@ -9,7 +9,7 @@
 
 import { Temporal } from "temporal-polyfill";
 import { convert as parseCoords } from 'geo-coordinates-parser';
-import { acartiaExtent } from './constants.ts';
+import { acartiaExtent, OBSERVATION_TIME_ZONE } from './constants.ts';
 import { MAX_ACCURACY_M, type LonLat } from "./sighting-drafts.ts";
 import { newPhotoId, type Photo } from "./photo-attachment.ts";
 import type { License, Occurrence, TravelDirection, UpsertObservationArgs } from "./types.ts";
@@ -118,7 +118,7 @@ export function newSighting(): SightingFormData {
   };
 }
 export function observationToFormData(observation: Occurrence): SightingFormData & {id: string} {
-  const observedAt = Temporal.Instant.from(observation.observed_at).toZonedDateTimeISO('America/Los_Angeles').toPlainDateTime();
+  const observedAt = Temporal.Instant.from(observation.observed_at).toZonedDateTimeISO(OBSERVATION_TIME_ZONE).toPlainDateTime();
   return {
     body: observation.body || '',
     count: observation.count || NaN,
@@ -176,7 +176,7 @@ export type SightingContext = {
 export function sightingPayload(value: SightingFormData, {id, date, observer, subject, photos}: SightingContext): UpsertObservationArgs {
   if (!subject)
     throw new Error("Subject coordinates not set");
-  const observedAt = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: 'America/Los_Angeles', plainTime: value.observed_time});
+  const observedAt = Temporal.PlainDate.from(date).toZonedDateTime({timeZone: OBSERVATION_TIME_ZONE, plainTime: value.observed_time});
   return {
     id,
     body: value.body,

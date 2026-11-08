@@ -12,13 +12,13 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { marked } from 'marked';
 import { Temporal } from 'temporal-polyfill';
 import {
-  ATLAS_SPECIES, distanceKm, hauloutPath, mapUrl, mediumPhotoUrl, observedDate,
-  type Haulout, type HauloutReport,
+  ATLAS_SPECIES, distanceKm, hauloutPath, mapUrl, mediumPhotoUrl, type Haulout, type HauloutReport,
 } from './catalog.ts';
 import { isUnconfirmed } from './occurrence.ts';
 import { formatDate } from './date-format.ts';
 import { renderPresenceTable } from './profile-shared.ts';
 import { renderProfileMap } from './profile-map.ts';
+import { observedDate, OBSERVATION_TIME_ZONE } from './constants.ts';
 
 // How many years of presence grid a site draws: its own history, not a constant.
 //
@@ -269,7 +269,7 @@ export function renderHauloutVitals(site: Haulout, reports: HauloutReport[] | nu
 export function renderHauloutReports(
   site: Haulout,
   reports: HauloutReport[] | null,
-  currentYear = Temporal.Now.zonedDateTimeISO('America/Los_Angeles').year,
+  currentYear = Temporal.Now.zonedDateTimeISO(OBSERVATION_TIME_ZONE).year,
 ) {
   if (!reports?.length)
     return html`<p class="placeholder">No pinniped reports within ${site.radius_m} m of this point. The atlas listed it; nobody on iNaturalist has reported animals here in anything we hold.</p>`;

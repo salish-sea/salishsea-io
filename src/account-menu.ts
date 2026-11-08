@@ -17,10 +17,10 @@
 import { consume } from '@lit/context';
 import { css, html, LitElement, nothing, svg } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { observedDate } from './catalog.ts';
 import { formatDate } from './date-format.ts';
 import { contributorContext, userContext, type User } from './identity.ts';
 import type { Contributor, Occurrence } from './types.ts';
+import { observedDate } from './constants.ts';
 
 const outline = (paths: ReturnType<typeof svg>, size = 24) =>
   html`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width=${size} height=${size} aria-hidden="true">${paths}</svg>`;

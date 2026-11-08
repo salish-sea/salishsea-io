@@ -6,7 +6,7 @@ import { matrilineTitle } from './matriline-profile.ts';
 import { individualStyles, individualTitle, renderIndividualProfile, renderIndividualSightings, type IndividualProfileData } from './individual-profile.ts';
 import { renderMatrilineProfile, renderMatrilineSightings, type MatrilineProfileData } from './matriline-profile.ts';
 import { latestLink, profileStyles } from './profile-shared.ts';
-import { fetchManifest, findOccurrence, pacificDay, READ_PATH_BASE } from './read-path.ts';
+import { fetchManifest, findOccurrence, READ_PATH_BASE } from './read-path.ts';
 import { Temporal } from 'temporal-polyfill';
 import type { Occurrence } from './types.ts';
 import type { SubjectSighting } from './obs-map.ts';
@@ -17,6 +17,7 @@ import {
   decodeSubjectData, interceptableAnchor, occurrenceFromHref, sameSubject, subjectDataPath, subjectEncountersPath, subjectFromHref, subjectLinksPath,
   type OccurrenceTarget, type Subject,
 } from './subject.ts';
+import { OBSERVATION_TIME_ZONE, observedDate } from './constants.ts';
 
 export type { OccurrenceTarget } from './subject.ts';
 
@@ -197,7 +198,7 @@ export class SubjectView extends LitElement {
     if (!occurrence) return;
     event.stopPropagation();
     this.dispatchEvent(new CustomEvent<OccurrenceTarget>('go-to-occurrence', {bubbles: true, composed: true,
-      detail: {date: pacificDay(occurrence.observed_at), occurrenceId: occurrence.id}}));
+      detail: {date: observedDate(occurrence.observed_at).toString(), occurrenceId: occurrence.id}}));
   };
 
   /** Which of the subject's sightings the map draws (decision 096): the past 12 months' by default. */
@@ -375,7 +376,7 @@ export class SubjectView extends LitElement {
  * timeline lists them (decision 098).
  */
 export function mapSightings(links: readonly OccurrenceLink[], scope: Scope, now: number, {matriline = false} = {}): SubjectSighting[] {
-  const since = Temporal.PlainDate.from(scopeStart(now)).toZonedDateTime('America/Los_Angeles').epochMilliseconds;
+  const since = Temporal.PlainDate.from(scopeStart(now)).toZonedDateTime(OBSERVATION_TIME_ZONE).epochMilliseconds;
   return links.flatMap(link => {
     const {occurrence_id, observed_at, location, is_present} = link;
     return is_present && location && (scope === 'all' || Date.parse(observed_at) >= since)

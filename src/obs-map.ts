@@ -21,7 +21,7 @@ import type { Extent } from './constants.ts';
 import UserLocationControl from './user-location-control.ts';
 import LayerControl from './layer-control.ts';
 import { DEFAULT_LAYERS, REFERENCE_LAYERS, type ReferenceLayer } from './reference-layers.ts';
-import { hauloutPath, observedDate, type HauloutSite } from './catalog.ts';
+import { hauloutPath, type HauloutSite } from './catalog.ts';
 import { formatDate } from './date-format.ts';
 import { KIND_COLOR, KINDS, type DotKind } from './profile-map.ts';
 import { fetchStaticHauloutSites } from './read-path.ts';
@@ -29,6 +29,7 @@ import { reportError } from './report-error.ts';
 import { geolocationErrorIsReportable } from './geolocation-message.ts';
 import { fromLonLat, mapZoom, permalinkZoom, toLonLat } from './map-view.ts';
 import { SightingDrafts } from './sighting-drafts.ts';
+import { observedDate, OBSERVATION_TIME_ZONE } from './constants.ts';
 
 setWorkerUrl(maplibreWorker);
 // The basemap's tiles are read from PMTiles archives on tiles.salishsea.io.
@@ -53,7 +54,7 @@ let nowOverride: number | null = null;
   const t = params.get('t');
   if (d && t) {
     try {
-      nowOverride = Temporal.PlainDate.from(d).toZonedDateTime({timeZone: 'America/Los_Angeles', plainTime: t}).epochMilliseconds;
+      nowOverride = Temporal.PlainDate.from(d).toZonedDateTime({timeZone: OBSERVATION_TIME_ZONE, plainTime: t}).epochMilliseconds;
     } catch (e) {
       console.error(e);
     }

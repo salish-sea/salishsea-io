@@ -26,10 +26,10 @@ import * as path from 'node:path';
 
 
 import {
-    groupChain, hauloutPath, individualPath, isPopulation, mapUrl, matrilinePath, observedDate, podLabel, podPath,
+    groupChain, hauloutPath, individualPath, isPopulation, mapUrl, matrilinePath, podLabel, podPath,
     POPULATION_KINDS, populationLabel, populationNoun, populationPath, type SocialGroup,
 } from '../../src/catalog.ts';
-import { REGIONS } from '../../src/constants.ts';
+import { observedDate, REGIONS } from '../../src/constants.ts';
 import { fold } from '../../src/fold.ts';
 import { fromLonLat, permalinkZoom } from '../../src/map-view.ts';
 import type { SearchEntry, SearchIndex } from '../../src/search.ts';

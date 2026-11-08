@@ -2,7 +2,6 @@ import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { classMap } from 'lit/directives/class-map.js';
-import { Temporal } from 'temporal-polyfill';
 import { linkStyles } from './icons.ts';
 import { catalogCodes, loadCatalogCodes, matrilineCodes, podCodes, pooledAnimals, populationCodes, populationPage } from './individual-links.ts';
 import { isUnconfirmed } from './occurrence.ts';
@@ -14,6 +13,7 @@ import { sightingText } from './obs-summary.ts';
 import { openAnimalLinkInSidebar } from './subject.ts';
 import './obs-summary.ts';
 import { placeSpan } from './place.ts';
+import { observedClock } from './constants.ts';
 
 /** A segment becomes one card from this many reports up; fewer stay cards of their own (Peter, 2026-10-28). */
 export const SEGMENT_CARD_MIN = 3;
@@ -297,10 +297,7 @@ export class SegmentSummary extends LitElement {
 }
 
 /** A report's time on the Pacific clock the day's list keeps, as a card shows it. */
-function clock({observed_at}: Occurrence): string {
-  return Temporal.Instant.from(observed_at).toZonedDateTimeISO('America/Los_Angeles').toPlainTime()
-    .toString({smallestUnit: 'minute', roundingMode: 'halfCeil'});
-}
+const clock = ({observed_at}: Occurrence): string => observedClock(observed_at);
 
 const km = (n: number) => n < 10 ? `${n.toFixed(1)} km` : `${Math.round(n)} km`;
 

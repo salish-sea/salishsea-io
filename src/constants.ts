@@ -20,6 +20,21 @@ export function observationToday(): Temporal.PlainDate {
   return Temporal.Now.plainDateISO(OBSERVATION_TIME_ZONE);
 }
 
+/** An instant, given as ISO 8601, in the zone above. */
+export function inObservationZone(instant: string): Temporal.ZonedDateTime {
+  return Temporal.Instant.from(instant).toZonedDateTimeISO(OBSERVATION_TIME_ZONE);
+}
+
+/** The local date an instant falls on: the day its file, `?d=` and the calendar give it. */
+export function observedDate(instant: string): Temporal.PlainDate {
+  return inObservationZone(instant).toPlainDate();
+}
+
+/** An instant's local clock time to the minute, as a card shows it: "14:05". */
+export function observedClock(instant: string): string {
+  return inObservationZone(instant).toPlainTime().toString({smallestUnit: 'minute', roundingMode: 'halfCeil'});
+}
+
 /**
  * The oldest day the date controls will navigate to — inherited from the `min`
  * on the date input the calendar replaced.

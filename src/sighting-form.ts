@@ -1,7 +1,7 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
-import { licenseCodes } from './constants.ts';
+import { licenseCodes, OBSERVATION_TIME_ZONE } from './constants.ts';
 import { Temporal } from "temporal-polyfill";
 import { distanceLabel, MAX_ACCURACY_M, SUGGESTED_FRACTION, SUGGESTED_MIN_M, sightingDraftsContext, type DraftPoints, type LonLat, type SightingDraft, type SightingDrafts } from "./sighting-drafts.ts";
 import { repeat } from "lit/directives/repeat.js";
@@ -415,7 +415,7 @@ export default class SightingForm extends LitElement {
               return;
             try {
               const observedAt = Temporal.PlainDate.from(this.date)
-                .toZonedDateTime({timeZone: 'America/Los_Angeles', plainTime: str});
+                .toZonedDateTime({timeZone: OBSERVATION_TIME_ZONE, plainTime: str});
               if (Temporal.ZonedDateTime.compare(observedAt, Temporal.Now.zonedDateTimeISO()) > 0) {
                 return "Must be in the past";
               }

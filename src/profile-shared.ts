@@ -3,13 +3,13 @@ import { repeat } from 'lit/directives/repeat.js';
 import { when } from 'lit/directives/when.js';
 import { Temporal } from 'temporal-polyfill';
 import {
-  displayName, groupChain, individualPath, mapUrl, matrilinePath, monthlyPresence, observedDate,
-  type CatalogGroup, type GroupMember, type OccurrenceLink,
+  displayName, groupChain, individualPath, mapUrl, matrilinePath, monthlyPresence, type CatalogGroup, type GroupMember, type OccurrenceLink,
 } from './catalog.ts';
 import { formatDate } from './date-format.ts';
 import { linkStyles } from './icons.ts';
 import { profileMapStyles, renderMapLegend, renderProfileMap, type MapDot, type MapLegend } from './profile-map.ts';
 import { renderSiteNav, siteNavStyles, type NavPage } from './site-nav.ts';
+import { observedDate, OBSERVATION_TIME_ZONE } from './constants.ts';
 
 // Shared rendering for the profile pages (individual-page, matriline-page).
 // Lit styles are scoped per component, so the common rules live here as a
@@ -240,7 +240,7 @@ export function renderPresenceTable(
   links: Pick<OccurrenceLink, 'observed_at'>[],
   years = PRESENCE_YEARS,
   note = 'Reports per month. Most are unverified mentions in sighting text, not confirmed identifications.',
-  currentYear = Temporal.Now.zonedDateTimeISO('America/Los_Angeles').year,
+  currentYear = Temporal.Now.zonedDateTimeISO(OBSERVATION_TIME_ZONE).year,
 ) {
   const grid = monthlyPresence(links, years, currentYear);
   if (grid.every(row => row.months.every(count => count === 0))) return nothing;
