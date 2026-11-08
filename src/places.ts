@@ -12,6 +12,7 @@
 
 import { fold } from './fold.ts';
 import { fromLonLat, permalinkZoom } from './map-view.ts';
+import { requireJson } from './read-path.ts';
 import type { SearchEntry } from './search.ts';
 
 /** The lists, as the basemap version in src/basemap-style.json names them; scripts/update-basemap.ts rewrites this line. */
@@ -173,9 +174,7 @@ export function placeEntries(places: readonly Place[]): SearchEntry[] {
 /** Every list's places as search results; a list that fails to load is left out, so the rest are still found. */
 export async function loadPlaceEntries(lists: readonly string[] = PLACE_LISTS): Promise<SearchEntry[]> {
   const loaded = await Promise.allSettled(lists.map(async url => {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${url}: ${response.status}`);
-    const list = await response.json() as PlaceList;
+    const list = await requireJson<PlaceList>(url);
     return { places: readPlaces(list), islands: readIslands(list) };
   }));
   const read = loaded.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);

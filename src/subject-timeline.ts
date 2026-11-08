@@ -5,7 +5,7 @@ import { Temporal } from 'temporal-polyfill';
 import { formatDate } from './date-format.ts';
 import type { Encounter } from './encounter.ts';
 import { linkStyles } from './icons.ts';
-import { catalogCodes, loadCatalogCodes, matrilineCodes, podCodes, pooledAnimals, populationCodes } from './individual-links.ts';
+import { catalogCodes, type CatalogLookups, catalogLookups, loadCatalogCodes, pooledAnimals } from './individual-links.ts';
 import { fetchDayOccurrences } from './read-path.ts';
 import { SEGMENT_CARD_MIN } from './segment-summary.ts';
 import { daySegments } from './segments.ts';
@@ -355,8 +355,8 @@ export class SubjectTimeline extends LitElement {
   /** Where an encounter was: the water region most of its reports were in (salish-fwyt.2). */
   private placeOf = (e: Encounter): string | null => e.place ?? null;
 
-  private codes(): Codes {
-    return [catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map()];
+  private codes(): CatalogLookups {
+    return catalogLookups();
   }
 
   // An encounter's card loads its day only once its line is opened.
@@ -433,8 +433,6 @@ const FAR_APART_KM = 10;
 const MAX_CHIPS = 6;
 const MAX_PHOTOS = 4;
 
-type Codes = Parameters<typeof pooledAnimals> extends [unknown, ...infer Rest] ? Rest : never;
-
 interface SpanContext {
   firstOfYear: Map<string, string>;
   previousDay: Map<string, string | null>;
@@ -473,7 +471,7 @@ export interface SpanSummary {
 }
 
 export function summarizeSpan(list: readonly Encounter[], {placeOf, ownPaths, codes}:
-    {placeOf: (e: Encounter) => string | null, ownPaths: readonly string[], codes: Codes}): SpanSummary {
+    {placeOf: (e: Encounter) => string | null, ownPaths: readonly string[], codes: CatalogLookups}): SpanSummary {
   const waterDays = new Map<string, Set<string>>();
   const named: {name: string, at: {lon: number, lat: number}}[] = [];
   for (const e of list) {
@@ -513,7 +511,7 @@ export function summarizeSpan(list: readonly Encounter[], {placeOf, ownPaths, co
 }
 
 /** The animals and groups an encounter names besides the subject and its groups: those with pages, not populations or pods. */
-function encounterOthers(e: Encounter, ownPaths: readonly string[], codes: Codes) {
+function encounterOthers(e: Encounter, ownPaths: readonly string[], codes: CatalogLookups) {
   return pooledAnimals(e.identifiers, ...codes).flatMap(a =>
     a.href && !ownPaths.includes(a.href) && !/^\/(populations|pods)\//.test(a.href) ? [{...a, href: a.href}] : []);
 }

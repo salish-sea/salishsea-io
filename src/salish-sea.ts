@@ -15,7 +15,7 @@ import { SEGMENT_CARD_MIN } from './segment-summary.ts';
 import './segment-summary.ts';
 import { LAYERS_PARAM, layersParam, parseLayersParam, type ReferenceLayer } from "./reference-layers.ts";
 import type { CloneSightingEvent, EditSightingEvent } from "./obs-summary.ts";
-import { fetchDayOccurrences, fetchStaticAnimalNames, findOccurrence, NotBuiltYet, watchManifest, withinExtent } from "./read-path.ts";
+import { fetchDayOccurrences, fetchAnimalNames, findOccurrence, NotBuiltYet, watchManifest, withinExtent } from "./read-path.ts";
 import { fetchMe, fetchOwnSightings, fetchPublicSighting, overlayOwn, ownOccurrence, signIn as apiSignIn, signOut as apiSignOut, type Me } from "./write-api.ts";
 import { initSentry } from "./sentry.ts";
 import { promptGoogleSignIn } from "./google-signin.ts";
@@ -712,7 +712,7 @@ export default class SalishSea extends LitElement {
       .then(async own => {
         const last = own[0];
         if (!last) return null;
-        return ownOccurrence(last, contributor, await fetchStaticAnimalNames([last.entity_id]).catch(() => undefined));
+        return ownOccurrence(last, contributor, await fetchAnimalNames([last.entity_id]).catch(() => undefined));
       })
       // A sign-out or another sign-in since makes this answer someone else's.
       .then(occurrence => { if (revision === this.#listRevision) this.lastOwnOccurrence = occurrence; })
@@ -902,7 +902,7 @@ export default class SalishSea extends LitElement {
         ]);
         if (ownFailure && date === this.date && region.slug === this.#region.slug && revision === this.#listRevision)
           reportError(this, "Couldn't load your latest sightings; showing them as last published.", {cause: ownFailure});
-        const names = own?.length ? await fetchStaticAnimalNames(own.map(o => o.entity_id)).catch(() => undefined) : undefined;
+        const names = own?.length ? await fetchAnimalNames(own.map(o => o.entity_id)).catch(() => undefined) : undefined;
         data = contributor && own
           ? overlayOwn(file, withinExtent(own.map(o => ownOccurrence(o, contributor, names)) as unknown as Row[], region.extent), contributor.id)
           : file;

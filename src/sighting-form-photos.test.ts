@@ -22,7 +22,7 @@ const uploads = vi.hoisted(() => ({
 // what these tests are about, and an unanswered fetch would raise a toast of its own.
 vi.mock('./read-path.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./read-path.ts')>()),
-  fetchStaticAnimalNames: async () => new Map(),
+  fetchAnimalNames: async () => new Map(),
 }));
 
 vi.mock('@sentry/browser', async (importOriginal) => ({
