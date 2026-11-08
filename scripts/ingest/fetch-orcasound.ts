@@ -13,15 +13,8 @@
  * it would delete every bout we hold.
  */
 
-import type { Logger } from './log.ts';
+import { fetchJsonWithRetry, type Logger } from './fetch-json.ts';
 import { parseBoutsPage, type NormalizedBout } from './orcasound.ts';
-import {
-    MAX_ATTEMPTS,
-    retryDelayMs,
-    parseRetryAfter,
-    isRetryableStatus,
-    markTransientUpstream,
-} from './retry.ts';
 
 const ORIGIN = 'https://live.orcasound.net';
 /**
@@ -43,60 +36,6 @@ export const FIRST_PAGE_URL =
 /** More pages than the corpus could plausibly need at 250 a page: a runaway `next` link. */
 const MAX_PAGES = 40;
 
-const FETCH_TIMEOUT_MS = 15_000;
-
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-function bodySnippet(text: string, max = 200): string {
-    const oneLine = text.replace(/\s+/g, ' ').trim();
-    if (oneLine.length === 0) return '(empty body)';
-    return oneLine.length > max ? `${oneLine.slice(0, max)}…` : oneLine;
-}
-
-/** GET one URL as JSON with the shared retry policy. Same shape as fetchMaplify. */
-async function fetchJson(url: string, log: Logger): Promise<unknown> {
-    let lastError: unknown;
-
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-        let res: Response;
-        try {
-            res = await fetch(url, { headers: { accept: 'application/vnd.api+json' }, signal: controller.signal });
-            if (res.ok) {
-                const text = await res.text();
-                clearTimeout(timeout);
-                try {
-                    return JSON.parse(text) as unknown;
-                } catch {
-                    throw new Error(
-                        `orcasite returned a non-JSON ${res.status} body (${text.length} chars): ${bodySnippet(text)}`,
-                    );
-                }
-            }
-        } catch (e) {
-            clearTimeout(timeout);
-            lastError = markTransientUpstream(e);
-            if (attempt === MAX_ATTEMPTS) break;
-            const delay = retryDelayMs(attempt);
-            log('orcasound fetch error, retrying', { attempt, delayMs: delay, error: String(e) });
-            await sleep(delay);
-            continue;
-        }
-
-        clearTimeout(timeout);
-        const httpError = new Error(`orcasite HTTP ${res.status}`);
-        lastError = isRetryableStatus(res.status) ? markTransientUpstream(httpError) : httpError;
-        await res.body?.cancel();
-        if (!isRetryableStatus(res.status) || attempt === MAX_ATTEMPTS) break;
-        const delay = retryDelayMs(attempt, parseRetryAfter(res.headers.get('retry-after')));
-        log('orcasound non-2xx, retrying', { attempt, status: res.status, delayMs: delay });
-        await sleep(delay);
-    }
-
-    throw lastError ?? new Error('orcasound fetch failed');
-}
-
 export type BoutsCorpus = {
     /** Every bout upstream holds, all categories, in page order. */
     readonly bouts: readonly NormalizedBout[];
@@ -115,7 +54,7 @@ export async function fetchAllBouts(log: Logger, firstUrl = FIRST_PAGE_URL): Pro
     while (url !== null) {
         if (!url.startsWith(`${ORIGIN}/`)) throw new Error(`orcasite next link left its origin: ${url}`);
         if (pages >= MAX_PAGES) throw new Error(`orcasite pagination exceeded ${MAX_PAGES} pages`);
-        const raw = await fetchJson(url, log);
+        const raw = await fetchJsonWithRetry(url, { name: 'orcasite', accept: 'application/vnd.api+json' }, log);
         const result = parseBoutsPage(raw);
         if (!result.ok) throw new Error(`orcasound parse failed on page ${pages + 1}: ${result.error}`);
         pages++;
