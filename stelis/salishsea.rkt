@@ -176,11 +176,8 @@
         (in-checkout "package.json")
         (in-checkout "pnpm-lock.yaml")))
 
-(define (node-script script . args)
-  (node-script/code script '() args))
-
-;; node-script/code : like node-script, with code files the script reads that its
-;; imports don't show. A recipe's code is hashed into the task's address, so editing
+;; node-script/code : a node task running SCRIPT with ARGS, with code files the script
+;; reads that its imports don't show. A recipe's code is hashed into the task's address, so editing
 ;; any of it reruns the task. The script's own import closure is computed when the
 ;; graph is authored (ts-imports.rkt, st-6i2), so EXTRA-CODE is only what no static
 ;; scan can see: SQL read by a computed name (``new URL(`./derive/${file}`, ...)``)
@@ -315,7 +312,7 @@
 ;; classification, which only the Darwin Core archive reads; and the name
 ;; guard's token, so a register that un-names Maplify sightings stops the derivation.
 (define occurrence-derivation-inputs
-  (append (remq* '(maplify.sightings public.identifications register.classification)
+  (append (remq* '(public.identifications register.classification)
                  derivation-input-relations)
           mirror-source-relations
           '(maplify-names-hold)))
