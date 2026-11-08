@@ -18,18 +18,18 @@
       form-action 'none';
       upgrade-insecure-requests;
     ">
-    <title>Individual — SalishSea.io</title>
-    <meta name="description" content="Profile of an individual whale in the Salish Sea: names and naming stories, family, matriline, and recent sighting reports.">
+    <title>Profile — SalishSea.io</title>
+    <meta name="description" content="A profile on SalishSea.io.">
     <meta property="og:site_name" content="SalishSea.io">
     <meta property="og:type" content="profile">
-    <meta property="og:title" content="Individual — SalishSea.io">
-    <meta property="og:description" content="Profile of an individual whale in the Salish Sea: names and naming stories, family, matriline, and recent sighting reports.">
+    <meta property="og:title" content="Profile — SalishSea.io">
+    <meta property="og:description" content="A profile on SalishSea.io.">
     <meta property="og:image" content="https://salishsea.io/social-card.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
-    <!-- Root-absolute URLs: this shell is served at /individuals/<identifier>/<slug>,
-         so relative paths would resolve under /individuals/. -->
+    <!-- Root-absolute URLs: a profile is served at /<kind>/<identifier>/<slug>, so
+         relative paths would resolve under /<kind>/. -->
     <link href="/favicon.svg" rel="icon" type="image/svg+xml">
     <link href="/favicon.ico" rel="icon" sizes="48x48">
     <link href="/apple-touch-icon.png" rel="apple-touch-icon">
@@ -44,11 +44,13 @@
         margin: 0;
       }
     </style>
-    <!-- A template, not a page: the read-path build renders each profile into it
-         (scripts/read-path/profile-document.ts), with the page's islands added here.
-         Nothing serves the shell itself (fly/Caddyfile). -->
+    <!-- A template, not a page: the read-path build renders every profile into it, an
+         individual's, a matriline's, a population's, a pod's or a haul-out site's
+         (scripts/read-path/profile-document.ts). It replaces the title, description and
+         link-preview tags, adds the page's islands here, and puts the page's own element
+         in place of <profile-page>. Nothing serves the template itself (fly/Caddyfile). -->
   </head>
   <body>
-    <individual-page></individual-page>
+    <profile-page></profile-page>
   </body>
 </html>

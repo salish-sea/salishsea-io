@@ -159,7 +159,7 @@ test('regular browser UA on an individual page receives the page shell', async (
 
   expect(response.status()).toBe(200);
   const body = await response.text();
-  // The page the read-path build prerendered, inside the individual.html shell
+  // The page the read-path build prerendered, inside the profile.html shell
   // (salish-xv35.16; before that, the edge function rewrote to the bare shell).
   expect(body).toContain('<individual-page>');
 });
@@ -210,7 +210,7 @@ test('regular browser UA on a matriline page receives the page shell', async ({ 
 
   expect(response.status()).toBe(200);
   const body = await response.text();
-  // The page the read-path build prerendered, inside the matriline.html shell
+  // The page the read-path build prerendered, inside the profile.html shell
   // (salish-xv35.16; before that, the edge function rewrote to the bare shell).
   expect(body).toContain('<matriline-page>');
 });
@@ -235,7 +235,7 @@ test('regular browser UA on an ecotype page receives the page shell', async ({ r
 
   expect(response.status()).toBe(200);
   const body = await response.text();
-  // The page the read-path build prerendered, inside the ecotype.html shell
+  // The page the read-path build prerendered, inside the profile.html shell
   // (salish-xv35.16; before that, the edge function rewrote to the bare shell).
   expect(body).toContain('<ecotype-page>');
 });

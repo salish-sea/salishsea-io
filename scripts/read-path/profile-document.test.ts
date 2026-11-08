@@ -74,7 +74,7 @@ describe('renderDocument', () => {
 
     test('a shell that has changed shape fails, rather than ship the generic title', () => {
         expect(() => renderDocument(SHELL.replace('<individual-page></individual-page>', ''), 'individual-page', [], HEAD, html``))
-            .toThrow(/exactly one <individual-page> element/);
+            .toThrow(/exactly one empty custom element/);
     });
 });
 

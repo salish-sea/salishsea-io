@@ -206,10 +206,10 @@
 
 		# A profile-shaped path none of the routes above took — a designation with more
 		# after it (/individuals/T65A/photos), a haul-out by name — names nothing we
-		# publish, and says so. So does a profile shell asked for by name: the shells
-		# are the build's templates (scripts/read-path/profile-document.ts), with no
-		# page of their own since the client-rendered pages went (salish-9uu.10).
-		@unpublishedProfile path_regexp ^/((individuals|matrilines|populations|pods|haulouts)(/.*)?|(individual|matriline|ecotype|haulout)\.html)$
+		# publish, and says so. So does the profile shell asked for by name: it is the
+		# build's template (scripts/read-path/profile-document.ts), with no page of its
+		# own since the client-rendered pages went (salish-9uu.10).
+		@unpublishedProfile path_regexp ^/((individuals|matrilines|populations|pods|haulouts)(/.*)?|profile\.html)$
 		handle @unpublishedProfile {
 			header Cache-Control "no-cache"
 			rewrite * /not-in-catalog.html

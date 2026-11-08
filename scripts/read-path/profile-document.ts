@@ -1,11 +1,11 @@
 /**
  * A prerendered profile page as a whole HTML document (decision 057).
  *
- * The document starts from the shell Vite builds for the page (dist/individual.html
- * and its siblings), so its head — the CSP, the icons, the root styles — has one
+ * The document starts from the shell Vite builds for the page (dist/profile.html for
+ * every profile, dist/whales.html for the whales page), so its head — the CSP, the icons, the root styles — has one
  * source, and a change to it reaches the prerendered pages too. Into it go the page's
- * own title, description, link-preview and canonical tags, and in place of the empty
- * custom element, the rendered content as a declarative shadow root: the same styles,
+ * own title, description, link-preview and canonical tags, and in place of the shell's
+ * one empty custom element, the page's own element holding the rendered content as a declarative shadow root: the same styles,
  * applied as a client-rendered element would have them, and no script needed to show it.
  *
  * Every substitution must match exactly once. A shell that has changed shape fails
@@ -30,6 +30,8 @@ export type PageHead = {
     description: string,
     /** Root-relative canonical path, e.g. /individuals/0010193/t065a. */
     path: string,
+    /** The page's og:type, where it isn't the shell's: a haul-out site is a place. */
+    type?: string,
 };
 
 /**
@@ -118,6 +120,9 @@ export function renderDocument(
         'og:title meta');
     html = replaceOnce(html, /<meta property="og:description" content="[^"]*">/,
         `<meta property="og:description" content="${escapeAttr(head.description)}">`, 'og:description meta');
+    if (head.type)
+        html = replaceOnce(html, /<meta property="og:type" content="[^"]*">/,
+            `<meta property="og:type" content="${escapeAttr(head.type)}">`, 'og:type meta');
     const content = renderStatic(body);
     // A prerendered page loads none of the shell's own scripts, only the islands it has
     // an element for, at the end of the head.
@@ -126,8 +131,10 @@ export function renderDocument(
     html = html.replace(/\n\s*<script type="module"[^>]*><\/script>/g, '');
     html = replaceOnce(html, /\s*<\/head>/, `${scripts}\n  </head>`, '</head>');
     const css = styles.map(s => s.cssText).join('\n');
-    html = replaceOnce(html, new RegExp(`<${element}></${element}>`),
+    // The shell's one empty custom element, whatever it is named (profile.html's is a
+    // placeholder), becomes the page's.
+    html = replaceOnce(html, /<([a-z][a-z0-9]*-[a-z0-9-]*)><\/\1>/,
         `<${element}><template shadowrootmode="open"><style>${css}</style>${content}</template></${element}>`,
-        `<${element}> element`);
+        'empty custom element');
     return html;
 }

@@ -19,7 +19,7 @@
  * matriline's members), this fixes one, so the same snapshot always renders the same bytes. The presence table's
  * newest year is the snapshot's, not the clock's.
  *
- * <dist> is the site Vite built: the page's shell (individual.html), and the manifest
+ * <dist> is the site Vite built: the pages' shell (profile.html), and the manifest
  * naming the map island's files, which a page with a map loads and nothing else.
  */
 
@@ -353,7 +353,7 @@ export function renderHauloutPage(shell: string, page: HauloutPage, currentYear:
         reports: renderHauloutReports(site, reports, currentYear),
     });
     return renderDocument(shell, 'haulout-page', [profileStyles, hauloutStyles],
-        hauloutPreview(page.data), renderProfileFrame(body), islands);
+        {...hauloutPreview(page.data), type: 'place'}, renderProfileFrame(body), islands);
 }
 
 // --- The sidebar's data (decision 093) ------------------------------------------------
@@ -416,17 +416,20 @@ const pagesOf = <T extends Table, P extends ProfilePage<unknown>>(
     return {pages, index: index(tables)};
 };
 
+/** Every kind's pages render into the one shell Vite builds from profile.html. */
+export const PROFILE_SHELL = 'profile.html';
+
 const KINDS = {
-    individuals: {shell: 'individual.html', pages: pagesOf(INDIVIDUAL_TABLES, assembleIndividuals, renderIndividualPage, undefined,
+    individuals: {pages: pagesOf(INDIVIDUAL_TABLES, assembleIndividuals, renderIndividualPage, undefined,
         {sidebar: page => sidebarData(page.data, page.data.matriline?.id ?? null)})},
-    matrilines: {shell: 'matriline.html', pages: pagesOf(MATRILINE_TABLES, assembleMatrilines, renderMatrilinePage, undefined,
+    matrilines: {pages: pagesOf(MATRILINE_TABLES, assembleMatrilines, renderMatrilinePage, undefined,
         {sidebar: page => sidebarData(page.data, page.data.group.id)})},
-    populations: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assembleEcotypes, renderEcotypePage)},
-    // A pod's page is a population's a level down, in the same shell (decision 070).
-    pods: {shell: 'ecotype.html', pages: pagesOf(ECOTYPE_TABLES, assemblePods, renderPodPage)},
+    populations: {pages: pagesOf(ECOTYPE_TABLES, assembleEcotypes, renderEcotypePage)},
+    // A pod's page is a population's a level down (decision 070).
+    pods: {pages: pagesOf(ECOTYPE_TABLES, assemblePods, renderPodPage)},
     // The sites' own list, for the main map's layer: a page's id is a number, so
     // it cannot collide with one.
-    haulouts: {shell: 'haulout.html', pages: pagesOf(HAULOUT_TABLES, assembleHaulouts, renderHauloutPage,
+    haulouts: {pages: pagesOf(HAULOUT_TABLES, assembleHaulouts, renderHauloutPage,
         t => [[HAULOUT_SITES_FILE, JSON.stringify(assembleHauloutSites(t))]])},
 };
 export type Kind = keyof typeof KINDS;
@@ -436,7 +439,7 @@ const isKind = (s: string | undefined): s is Kind => s !== undefined && Object.h
 export async function writeProfiles(kind: Kind, snapshot: string, exportDir: string, dist: string): Promise<{pages: number}> {
     const outDir = path.join(exportDir, 'profiles', kind);
     await recoverDir(outDir);
-    const shell = await readFile(path.join(dist, KINDS[kind].shell), 'utf8');
+    const shell = await readFile(path.join(dist, PROFILE_SHELL), 'utf8');
     const manifest = JSON.parse(await readFile(path.join(dist, '.vite', 'manifest.json'), 'utf8'));
     const islands = [islandFromManifest(manifest, SEARCH_ISLAND, 'site-search')];
     const {pages, index} = await KINDS[kind].pages(snapshot, shell, islands);

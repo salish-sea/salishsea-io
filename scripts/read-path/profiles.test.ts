@@ -12,10 +12,10 @@ import {
 } from './profiles.ts';
 import { decodeSubjectData, encodeSubjectData } from '../../src/subject.ts';
 
-const shellFor = (element: string) => `<!DOCTYPE html><html><head><title>x</title><meta name="description" content="x">
-<meta property="og:title" content="x"><meta property="og:description" content="x">
-<script type="module" src="/assets/i.js"></script></head><body><${element}></${element}></body></html>`;
-const SHELL = shellFor('individual-page');
+// profile.html's shape: the tags the prerender replaces, and the placeholder element.
+const SHELL = `<!DOCTYPE html><html><head><title>x</title><meta name="description" content="x">
+<meta property="og:type" content="profile"><meta property="og:title" content="x"><meta property="og:description" content="x">
+<script type="module" src="/assets/i.js"></script></head><body><profile-page></profile-page></body></html>`;
 
 const person = (id: number, designation: string, extra: Record<string, unknown> = {}) => ({
     id, entity_id: `SSA:${String(10000 + id).padStart(7, '0')}`, primary_designation: designation,
@@ -125,6 +125,8 @@ describe('renderIndividualPage', () => {
     test('the page shows the profile, and previews as it', () => {
         const doc = renderIndividualPage(SHELL, fingers(), 2026);
         expect(doc).toContain('<title>Fingers (T065A) · SalishSea.io</title>');
+        expect(doc).toContain('<meta property="og:type" content="profile">');
+        expect(doc).toContain('<individual-page><template shadowrootmode="open">');
         expect(doc).toContain('<h1>Fingers</h1>');
         expect(doc).toContain('T065A2');
         expect(doc).toContain('<figure class="profile-map">');
@@ -220,7 +222,7 @@ describe('assembleMatrilines', () => {
 });
 
 describe('renderMatrilinePage', () => {
-    const doc = () => renderMatrilinePage(shellFor('matriline-page'), t065as(), 2026);
+    const doc = () => renderMatrilinePage(SHELL, t065as(), 2026);
 
     test('the page shows the matriline, and its link preview', () => {
         expect(doc()).toContain('<title>The Fingers Family (T065A matriline) · SalishSea.io</title>');
@@ -237,7 +239,7 @@ describe('renderMatrilinePage', () => {
         const shuffled = tables();
         for (const rows of Object.values(shuffled)) rows.reverse();
         const again = assembleMatrilines(shuffled).find(p => p.data.group.designation === 'T065A')!;
-        expect(renderMatrilinePage(shellFor('matriline-page'), again, 2026)).toBe(doc());
+        expect(renderMatrilinePage(SHELL, again, 2026)).toBe(doc());
     });
 });
 
@@ -251,7 +253,7 @@ describe('assembleEcotypes and renderEcotypePage', () => {
     });
 
     test('the link preview, and no notes', () => {
-        const doc = renderEcotypePage(shellFor('ecotype-page'), biggs(), 2026);
+        const doc = renderEcotypePage(SHELL, biggs(), 2026);
         expect(doc).toContain("<title>Bigg's (transient) killer whales · SalishSea.io</title>");
         expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/populations/0000901/Biggs">');
         expect(doc).toContain('<h1>Bigg&#39;s (transient) killer whales</h1>');
@@ -284,7 +286,7 @@ describe('assembleEcotypes and renderEcotypePage', () => {
     });
 
     test('a small map per reported matriline, most-reported first; the rest listed by name', () => {
-        const doc = renderEcotypePage(shellFor('ecotype-page'), withSiblings(), 2026);
+        const doc = renderEcotypePage(SHELL, withSiblings(), 2026);
         const maps = [...doc.matchAll(/<a href="([^"]+)"><span class="label">(\w+)<span class="count">([^<]+)/g)]
             .map(([, href, label, count]) => [href, label, count]);
         expect(maps).toEqual([
@@ -304,7 +306,7 @@ describe('assembleEcotypes and renderEcotypePage', () => {
     });
 
     test('the ecotype\'s own sightings first, the long run of matrilines after', () => {
-        const doc = renderEcotypePage(shellFor('ecotype-page'), withSiblings(), 2026);
+        const doc = renderEcotypePage(SHELL, withSiblings(), 2026);
         expect(doc.indexOf('<h2>Sightings</h2>')).toBeGreaterThan(-1);
         expect(doc.indexOf('<h2>Sightings</h2>')).toBeLessThan(doc.indexOf('<h2>Matrilines</h2>'));
         expect(doc).toContain('The maps below break it down by matriline.');
@@ -337,7 +339,7 @@ describe("a community's population page, and the Southern Residents' chain benea
         expect(pages.map(p => p.id)).toEqual(['0000901', '0000010']);
         const page = pages[1]!;
         expect(page.data.matrilines.map(g => g.designation)).toEqual(['J31']);
-        const doc = renderEcotypePage(shellFor('ecotype-page'), page, 2026);
+        const doc = renderEcotypePage(SHELL, page, 2026);
         expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/populations/0000010/Southern-Resident">');
         expect(doc).toContain('<div class="designation-kicker">Community</div>');
         expect(doc).toContain('<h1>Southern Resident killer whales</h1>');
@@ -345,7 +347,7 @@ describe("a community's population page, and the Southern Residents' chain benea
     });
 
     test("the Bigg's page names no pods: an ecotype's matrilines sit directly under it", () => {
-        const doc = renderEcotypePage(shellFor('ecotype-page'), assembleEcotypes(withSouthernResidents())[0]!, 2026);
+        const doc = renderEcotypePage(SHELL, assembleEcotypes(withSouthernResidents())[0]!, 2026);
         expect(doc).not.toContain('Pods:');
     });
 
@@ -356,7 +358,7 @@ describe("a community's population page, and the Southern Residents' chain benea
         expect(page.data.matrilines.map(g => g.designation)).toEqual(['J31']);
         expect(page.data.population).toEqual({id: 10000010, entity_id: 'SSA:0000010', designation: 'Southern Resident'});
         expect(page.links.map(l => l.occurrence_id)).toEqual(['maplify:30']);
-        const doc = renderPodPage(shellFor('ecotype-page'), page, 2026);
+        const doc = renderPodPage(SHELL, page, 2026);
         expect(doc).toContain('<title>J pod · Southern Resident killer whales · SalishSea.io</title>');
         expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/pods/0000020/J-pod">');
         expect(doc).toContain('history of J pod of Southern Resident killer whales in the Salish Sea');
@@ -370,7 +372,7 @@ describe("a community's population page, and the Southern Residents' chain benea
 
     test('a matriline names its pod and its population, and previews as one of theirs', () => {
         const page = assembleMatrilines(withSouthernResidents()).find(p => p.id === '0003011')!;
-        const doc = renderMatrilinePage(shellFor('matriline-page'), page, 2026);
+        const doc = renderMatrilinePage(SHELL, page, 2026);
         expect(doc).toContain('Southern Resident killer whale matriline');
         expect(doc).toContain('Within <a href="/pods/0000020/J-pod">J pod</a>');
         expect(doc).toContain('<a href="/populations/0000010/Southern-Resident">Southern Resident killer whales</a>');
@@ -386,7 +388,7 @@ describe("a community's population page, and the Southern Residents' chain benea
 
 describe('assembleHaulouts and renderHauloutPage', () => {
     const protection = () => assembleHaulouts(tables()).find(p => p.id === '12')!;
-    const doc = () => renderHauloutPage(shellFor('haulout-page'), protection(), 2026);
+    const doc = () => renderHauloutPage(SHELL, protection(), 2026);
 
     test('one page per site, named by its id', () => {
         expect(assembleHaulouts(tables()).map(p => p.id)).toEqual(['11', '12', '13', '14']);
@@ -421,6 +423,10 @@ describe('assembleHaulouts and renderHauloutPage', () => {
         expect(doc()).toContain('<title>Protection Island haul-out · SalishSea.io</title>');
         expect(doc()).toContain('<meta name="description" content="Harbor seal haul-out site in the Strait of Juan de Fuca: what the 1999 WDFW atlas recorded, and what people report there now.">');
         expect(doc()).toContain('<link rel="canonical" href="https://salishsea.io/haulouts/12/Protection-Island">');
+        // a site is a place, where the shell says profile
+        expect(doc()).toContain('<meta property="og:type" content="place">');
+        expect(doc()).toContain('<haulout-page><template shadowrootmode="open">');
+        expect(doc()).not.toContain('profile-page');
     });
 
     test('the map is drawn into the page: the site\'s radius and centre, and each dot a link to its day', () => {
@@ -445,7 +451,7 @@ describe('assembleHaulouts and renderHauloutPage', () => {
         const shuffled = tables();
         for (const rows of Object.values(shuffled)) rows.reverse();
         const again = assembleHaulouts(shuffled).find(p => p.id === '12')!;
-        expect(renderHauloutPage(shellFor('haulout-page'), again, 2026)).toBe(doc());
+        expect(renderHauloutPage(SHELL, again, 2026)).toBe(doc());
     });
 });
 
@@ -479,7 +485,7 @@ describe("the sidebar's data keeps only the groups the templates use (decision 0
             const side = decodeSubjectData<typeof page.data>(encodeSubjectData(sidebarData(page.data, page.data.matriline?.id ?? null)));
             expect(renderIndividualPage(SHELL, {...page, data: side}, 2026), page.id).toBe(renderIndividualPage(SHELL, page, 2026));
         }
-        const MSHELL = shellFor('matriline-page');
+        const MSHELL = SHELL;
         for (const page of assembleMatrilines(tables())) {
             const side = decodeSubjectData<typeof page.data>(encodeSubjectData(sidebarData(page.data, page.data.group.id)));
             expect(renderMatrilinePage(MSHELL, {...page, data: side}, 2026), page.id).toBe(renderMatrilinePage(MSHELL, page, 2026));
