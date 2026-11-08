@@ -52,7 +52,7 @@ export const ecotypeLabel = (group: Pick<ProfileEcotype, 'designation' | 'kind'>
 
 const KICKERS: Record<string, string> = { ecotype: 'Ecotype', community: 'Community', pod: 'Pod' };
 
-/** What a link preview says about the page, as the Lambda@Edge function says it. */
+/** What a link preview says about the page, from the prerendered page's Open Graph tags. */
 export function ecotypePreview({ group, population }: Pick<EcotypeProfileData, 'group' | 'population'>) {
   const label = ecotypeLabel(group);
   const of = population ? `${label} of ${populationLabel(population)}` : label;

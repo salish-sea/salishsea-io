@@ -344,8 +344,9 @@ export class InfraStack extends cdk.Stack {
     // archive too, so nothing CloudFront answers comes from the salishsea-io bucket.
     // (Users' photos are a different bucket, above.) The last Supabase-mode site and
     // nightly archive are still in it, but a behavior pointed back at the bucket would
-    // be a DEGRADED fallback, not a rollback: that site reads a Postgres that stopped
-    // following two of the three sources on 2026-10-04 and every write since 2026-10-05.
+    // be no fallback at all: that site read Supabase's Postgres, which stopped following
+    // two of the three sources on 2026-10-04 and every write on 2026-10-05, and has been
+    // paused since 2026-10-10 (salish-9uu).
     // The rollback is a Fly image — docs/runbook/deploys.md.
     // The origin's code is in git (#555, and the change that removed /dwca/*).
 

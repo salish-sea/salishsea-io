@@ -9,8 +9,7 @@
  * but never longer than `maxWaitMs` after the first unhandled change, so a
  * steady trickle can't postpone a build forever. Since the cutover the one signal
  * is the write API's own, one per save, and it runs this with SAVE_OPTIONS below
- * (api/server.ts, salish-9uu.6); DEFAULT_OPTIONS are the retired listener's, kept
- * for the Supabase read path while it is kept.
+ * (api/server.ts, salish-9uu.6).
  *
  * Nothing is dropped. A change that arrives while a build runs may have missed
  * its snapshot, so it earns exactly one more build afterwards, however many
@@ -34,13 +33,6 @@ export type CoalescerOptions = {
     maxWaitMs: number,
     busyRetryMs: number,
     minIntervalMs: number,
-};
-
-export const DEFAULT_OPTIONS: CoalescerOptions = {
-    quietMs: 10_000,
-    maxWaitMs: 60_000,
-    busyRetryMs: 30_000,
-    minIntervalMs: 120_000,
 };
 
 /**
@@ -77,7 +69,7 @@ export class BuildCoalescer {
 
     constructor(
         runBuild: () => Promise<BuildResult>,
-        options: CoalescerOptions = DEFAULT_OPTIONS,
+        options: CoalescerOptions,
         now: () => number = Date.now,
     ) {
         this.#runBuild = runBuild;

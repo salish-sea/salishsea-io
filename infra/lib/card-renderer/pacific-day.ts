@@ -49,8 +49,7 @@ export function isValidDate(date: string): boolean {
 }
 
 /**
- * The half-open instant range covering a Pacific calendar date, as ISO strings
- * ready for a PostgREST `gte`/`lt` filter. The end is computed from the next
+ * The half-open instant range covering a Pacific calendar date, as ISO strings. The end is computed from the next
  * date's own midnight, so a 23- or 25-hour DST day comes out the right length.
  */
 export function pacificDayRange(date: string): { startIso: string; endIso: string } {

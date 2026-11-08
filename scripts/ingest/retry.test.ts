@@ -77,8 +77,8 @@ describe('transient-upstream marking (decision 042)', () => {
     });
 
     test('the marker survives a second copy of the module (global symbol)', () => {
-        // The edge function and the scripts load retry.ts through different
-        // paths; an instanceof-based check would break here.
+        // Two copies of retry.ts (as the retired Supabase ingest function and the
+        // scripts once loaded) would break an instanceof-based check.
         const error = markTransientUpstream(new Error('timeout'));
         const viaRegistry = (error as unknown as Record<PropertyKey, unknown>)[
             Symbol.for('salishsea.ingest.transientUpstream')

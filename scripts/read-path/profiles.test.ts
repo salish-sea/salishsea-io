@@ -222,7 +222,7 @@ describe('assembleMatrilines', () => {
 describe('renderMatrilinePage', () => {
     const doc = () => renderMatrilinePage(shellFor('matriline-page'), t065as(), 2026);
 
-    test('the page shows the matriline, and previews as the edge function does', () => {
+    test('the page shows the matriline, and its link preview', () => {
         expect(doc()).toContain('<title>The Fingers Family (T065A matriline) · SalishSea.io</title>');
         expect(doc()).toContain(`<meta name="description" content="Members, naming, and sighting history of the T065A matriline of Bigg's killer whales in the Salish Sea.">`);
         expect(doc()).toContain('<link rel="canonical" href="https://salishsea.io/matrilines/0020001/T065As">');
@@ -250,7 +250,7 @@ describe('assembleEcotypes and renderEcotypePage', () => {
         expect(biggs().links.map(l => l.occurrence_id)).toEqual(['maplify:3']);
     });
 
-    test('the page previews as the edge function does, and shows no notes', () => {
+    test('the link preview, and no notes', () => {
         const doc = renderEcotypePage(shellFor('ecotype-page'), biggs(), 2026);
         expect(doc).toContain("<title>Bigg's (transient) killer whales · SalishSea.io</title>");
         expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/populations/0000901/Biggs">');
@@ -417,7 +417,7 @@ describe('assembleHaulouts and renderHauloutPage', () => {
         expect(assembleHaulouts(tables()).find(p => p.id === '11')!.data.reports).toEqual([]);
     });
 
-    test('the page previews as the edge function does', () => {
+    test('the link preview', () => {
         expect(doc()).toContain('<title>Protection Island haul-out · SalishSea.io</title>');
         expect(doc()).toContain('<meta name="description" content="Harbor seal haul-out site in the Strait of Juan de Fuca: what the 1999 WDFW atlas recorded, and what people report there now.">');
         expect(doc()).toContain('<link rel="canonical" href="https://salishsea.io/haulouts/12/Protection-Island">');

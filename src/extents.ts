@@ -1,10 +1,10 @@
 /**
  * Geographic extents, `[minx, miny, maxx, maxy]` in decimal lon/lat WGS84.
  *
- * Dependency-free on purpose. The Maplify ingest core
- * ([scripts/ingest/maplify.ts](../scripts/ingest/maplify.ts)) imports this file
- * under Deno, where `constants.ts`'s `temporal-polyfill` import would not
- * resolve — and the scope rule there (decision 036) must use the SAME Salish Sea
+ * Dependency-free, a leftover of the Maplify ingest core
+ * ([scripts/ingest/maplify.ts](../scripts/ingest/maplify.ts)) running under Deno, where
+ * `constants.ts`'s `temporal-polyfill` import would not resolve. The ingest still imports
+ * this file because the scope rule there (decision 036) must use the SAME Salish Sea
  * box the map filters on (decisions 022/023), not a copy that can drift.
  */
 export type Extent = [number, number, number, number];

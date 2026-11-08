@@ -146,7 +146,7 @@ describe('the sitemap', () => {
 });
 
 describe('buildCatalogCodes', () => {
-    test('every designation with the animal carrying it, and the groups, as the Supabase query returns them', () => {
+    test('every designation with the animal carrying it, and the groups, as the Supabase query returned them', () => {
         expect(buildCatalogCodes(tables())).toEqual({
             // Least preferred first, so the lookup's last-row-wins picks what the redirects pick.
             designations: [

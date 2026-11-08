@@ -1,9 +1,10 @@
 #lang racket/base
 
 ;; The salishsea-io build graph (st-ml9): what a logged-out visitor to
-;; salishsea.io reads, built as static files from a snapshot of its Supabase
-;; database — the first step of taking the query API off the site's read path
-;; (salishsea's salish-t3g; the frontend half is salish-t3g.1).
+;; salishsea.io reads, built as static files. It began as a snapshot of the site's
+;; Supabase database, the first step of taking the query API off the read path
+;; (salishsea's salish-t3g); Supabase is retired, and the build now fetches the
+;; sources itself and snapshots the write API's store.
 ;;
 ;; Stelis's second project. The shape, since salishsea's step 3 moved the
 ;; derivation and the upstream ingests into the build (decision 061, salish-xv35):
@@ -790,7 +791,7 @@
                                    "scripts/read-path/derive/shared.sql")
                                  (list* SNAPSHOT-DB MIRRORS)))
    ;; Orcasound's whole corpus, fetched by the build (salishsea decision 061, step B):
-   ;; the same fetch shell and pure core as the Supabase function, written to a SQLite
+   ;; the fetch shell and pure core in scripts/ingest/, written to a SQLite
    ;; mirror whole and atomically, nothing written unless the fetch is complete. A fetch that
    ;; fails leaves the mirror as it was and exits 0, recording the failure in the run log
    ;; beside the mirrors (ingest-runs.ts), so a source being down never stops the build
@@ -1042,8 +1043,8 @@
 ;; group, the member. Nicknames name an individual or a group, never both, so their
 ;; key says which.
 ;;
-;; Every one of these is a single `doc' column, the row as PostgREST serializes it
-;; (the snapshot's to_jsonb), so a key is a field of it. Observed only when the
+;; Every one of these is a single `doc' column, the row as Postgres's to_jsonb wrote it,
+;; so a key is a field of it. Observed only when the
 ;; producer writes the relation, one DuckDB launch each: 30-100 ms on salishsea's
 ;; Fly machine, 2026-10-25.
 (define (doc-field f) (format "json_extract_string(doc, '$.~a')" f))

@@ -211,9 +211,8 @@ export function renderIndividualSightings(designation: string, links: Occurrence
 }
 
 /**
- * What a link preview says about the page: the same title and description the
- * Lambda@Edge function computes for crawlers today, so a prerendered page previews
- * as the live one does.
+ * What a link preview says about the page: its title and description, which the
+ * prerendered page carries in its Open Graph tags.
  */
 export function individualPreview({ profile, name }: Pick<IndividualProfileData, 'profile' | 'name'>) {
   const title = individualTitle({ profile, name });

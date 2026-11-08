@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 //
 // Smoke runs the moment `cdk deploy` returns, but a new Lambda@Edge version takes
 // minutes to replicate, and the first request a cold container answers can blow
-// its 3s Supabase deadline and take decision 015's fail-open path (the bare shell,
+// its 3s lookup deadline and take decision 015's fail-open path (the bare shell,
 // no per-thing OG tags). Neither is a regression; both read as one to an
 // assertion that fires too early. On 2026-08-31 that failed the smoke of a deploy
 // that had not touched the handler at all and filed a spurious deploy-failed issue

@@ -4,7 +4,7 @@
  *
  *   node scripts/read-path/ingest-inaturalist.ts <inaturalist.sqlite> [<start> <end>]
  *
- * The same fetch shell and pure core the Supabase function uses
+ * The same fetch shell and pure core the retired Supabase function used
  * (scripts/ingest/fetch-inaturalist.ts, scripts/ingest/inaturalist.ts) write a SQLite
  * mirror of observations, their photos, and every taxon they reach. Like Maplify's
  * (ingest-maplify.ts), the mirror keeps every observation in the fetch box, in the map's

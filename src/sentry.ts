@@ -23,7 +23,7 @@ export const sentryClient = new BrowserClient({
   // What we decline to send, and why: src/sentry-noise.ts (decision 046). The
   // rules live there as pure, tested predicates rather than inline literals,
   // because each one is a claim about a specific third party that has to stay
-  // checkable — and because "does this match a Supabase network failure?" is a
+  // checkable — and because "does this match a network failure?" is a
   // question worth being able to ask in a test.
   denyUrls: [...DENY_URLS],
   ignoreErrors: [...IGNORE_ERRORS],

@@ -2,8 +2,7 @@
  * iNaturalist ingest — functional core (epic salishsea-io-89d.2 / decision 011).
  *
  * Pure, runtime-agnostic transforms over iNaturalist's v2 `/observations` and
- * `/taxa` JSON. No I/O, no DB, no Deno/Node APIs — importable unchanged by the
- * Deno Edge Function shell and by vitest. All effects (fetch, paginate, retry,
+ * `/taxa` JSON. No I/O, no DB, no Node APIs, so vitest exercises it directly. All effects (fetch, paginate, retry,
  * persist, log) live in the imperative shell; everything here is data-in,
  * data-out and exhaustively unit-tested.
  *

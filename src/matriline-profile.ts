@@ -36,7 +36,7 @@ export function matrilineTitle({ group, name }: Pick<MatrilineProfileData, 'grou
   return name ? `${name} (${group.designation} matriline)` : `The ${group.designation} matriline`;
 }
 
-/** What a link preview says about the page, as the Lambda@Edge function says it. */
+/** What a link preview says about the page, from the prerendered page's Open Graph tags. */
 export function matrilinePreview({ group, groups, name }: Pick<MatrilineProfileData, 'group' | 'groups' | 'name'>) {
   const population = groupChain(group.id, groups).find(isPopulation);
   return {

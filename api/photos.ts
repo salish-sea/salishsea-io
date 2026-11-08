@@ -5,7 +5,7 @@
  * the sighting's, and answers with the photo's URL at salishsea.io/media/, which the
  * sighting then carries when it is saved.
  *
- * Supabase's limits hold: JPEG or JPEG 2000, at most 8 MiB. The type is read from the
+ * The limits are the ones Supabase's bucket had: JPEG or JPEG 2000, at most 8 MiB. The type is read from the
  * bytes as well as the request's Content-Type, and the two must agree, so a file is
  * stored as what it is. A contributor writes only under their own folder, as the storage
  * policy kept each user to theirs; the same name for the same sighting replaces the

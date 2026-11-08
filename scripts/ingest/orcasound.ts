@@ -2,8 +2,7 @@
  * Orcasound ingest — functional core (salish-8vr.26 / decision 013, amended 2026-09-20).
  *
  * Pure, runtime-agnostic transforms over orcasite's `/api/json/bouts` JSON:API pages.
- * No I/O, no DB, no Deno/Node APIs — importable unchanged by the Deno Edge Function
- * shell and by vitest. All effects (fetch, retry, persist, log) live in the shell.
+ * No I/O, no DB, no Node APIs, so vitest exercises it directly. All effects (fetch, retry, persist, log) live in the shell.
  *
  * What a bout is here: one moderator-curated `biophony` bout at one hydrophone, from a
  * start to an end, citing zero or more register entities through its tags. That is the
