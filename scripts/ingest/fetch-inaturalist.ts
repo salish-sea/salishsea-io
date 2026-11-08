@@ -24,17 +24,10 @@
  *      until empty. A taxa-API failure — or a requested taxon the API won't
  *      return — counts against completeness → throw.
  *
- * Every fetch uses an AbortController timeout: Deno's fetch has no built-in
- * timeout, and a hung connection would block the whole edge invocation.
+ * Every request goes through the ingest's retry policy (fetch-json.ts).
  */
 
-import {
-    MAX_ATTEMPTS,
-    retryDelayMs,
-    parseRetryAfter,
-    isRetryableStatus,
-    markTransientUpstream,
-} from './retry.ts';
+import { fetchJsonWithRetry, type Logger } from './fetch-json.ts';
 import {
     FETCH_BBOX,
     INAT_ROOT_TAXON_IDS,
@@ -52,13 +45,10 @@ import {
 } from './inaturalist.ts';
 import type { IngestWindow } from './window.ts';
 
-export type Logger = (msg: string, extra?: Record<string, unknown>) => void;
-
 const OBSERVATIONS_URL = 'https://api.inaturalist.org/v2/observations';
 const TAXA_URL = 'https://api.inaturalist.org/v2/taxa';
 
-// Deno fetch has no built-in timeout; bound each attempt so a hung connection
-// becomes a retryable AbortError instead of blocking the invocation.
+// Each attempt's bound: iNaturalist's pages are the largest the ingest asks for.
 const FETCH_TIMEOUT_MS = 20_000;
 
 // iNat caps a `/taxa` id list at ~30 per request, and the path form's default
@@ -68,7 +58,7 @@ const TAXA_ID_CHUNK = 30;
 
 // id-keyset pagination has no page*per_page cap and no live-window drift, but a
 // pathological window (or a cursor bug) could otherwise loop unbounded and hang
-// the edge invocation. Bound the sweep so a runaway fails loudly instead. The
+// the build's task. Bound the sweep so a runaway fails loudly instead. The
 // 10-day rolling window realistically holds hundreds of records; 1000 pages
 // (200 000 records) is a generous backstop, not an expected limit.
 //
@@ -110,83 +100,13 @@ const TAXA_FIELDS =
     '(id:!t,ancestor_ids:!t,parent_id:!t,rank:!t,name:!t,preferred_common_name:!t,' +
     'is_active:!t,current_synonymous_taxon_ids:!t)';
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-/** Collapse a response body to a single-line snippet for error messages. */
-function bodySnippet(text: string, max = 200): string {
-    const oneLine = text.replace(/\s+/g, ' ').trim();
-    if (oneLine.length === 0) return '(empty body)';
-    return oneLine.length > max ? `${oneLine.slice(0, max)}…` : oneLine;
-}
+/** What iNaturalist's requests are named in errors and log lines, and their bound. */
+const inat = (what: 'observations' | 'taxa') => ({ name: `iNaturalist ${what}`, timeoutMs: FETCH_TIMEOUT_MS });
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
     const out: T[][] = [];
     for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
     return out;
-}
-
-/**
- * GET a URL with the shell's retry policy and a per-attempt timeout, returning
- * the parsed JSON body on a 2xx. Throws after MAX_ATTEMPTS or on a
- * non-retryable status. The caller turns any throw into a `failed` ingest.runs
- * row and writes nothing (decision 011's "abort on a failed fetch").
- */
-async function fetchJsonWithRetry(url: string, label: string, log: Logger): Promise<unknown> {
-    let lastError: unknown;
-
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-        let res: Response;
-        try {
-            res = await fetch(url, {
-                headers: { accept: 'application/json' },
-                signal: controller.signal,
-            });
-            if (res.ok) {
-                // Read the body under the SAME timeout: a server can send headers
-                // and then stall, and reading it would otherwise hang past the
-                // deadline. Clear the timer only once the body is fully consumed.
-                const text = await res.text();
-                clearTimeout(timeout);
-                try {
-                    return JSON.parse(text) as unknown;
-                } catch {
-                    // A 200 with a non-JSON body (upstream error page/proxy blip).
-                    // Throw a snippet of what was actually returned rather than an
-                    // opaque JSON-parse position; still retried like any transient.
-                    throw new Error(
-                        `iNaturalist ${label} returned a non-JSON ${res.status} body ` +
-                            `(${text.length} chars): ${bodySnippet(text)}`,
-                    );
-                }
-            }
-        } catch (e) {
-            // fetch-level failure, abort (timeout), or a stalled/aborted body read
-            clearTimeout(timeout);
-            // Everything the fetch layer retries is transient by definition
-            // (decision 042): aborts, timeouts, refused connections, and the
-            // non-JSON-body throw above all land here.
-            lastError = markTransientUpstream(e);
-            if (attempt === MAX_ATTEMPTS) break;
-            const delay = retryDelayMs(attempt);
-            log('inat fetch error, retrying', { label, attempt, delayMs: delay, error: String(e) });
-            await sleep(delay);
-            continue;
-        }
-
-        // Non-2xx: res is defined and not ok.
-        clearTimeout(timeout);
-        const httpError = new Error(`iNaturalist ${label} HTTP ${res.status}`);
-        lastError = isRetryableStatus(res.status) ? markTransientUpstream(httpError) : httpError;
-        await res.body?.cancel();
-        if (!isRetryableStatus(res.status) || attempt === MAX_ATTEMPTS) break;
-        const delay = retryDelayMs(attempt, parseRetryAfter(res.headers.get('retry-after')));
-        log('inat non-2xx, retrying', { label, attempt, status: res.status, delayMs: delay });
-        await sleep(delay);
-    }
-
-    throw lastError ?? new Error(`iNaturalist ${label} fetch failed`);
 }
 
 // id-keyset page: ascending id, records with id strictly greater than `idAbove`
@@ -303,7 +223,7 @@ export async function fetchAllObservationPages(
             );
         }
 
-        const raw = await fetchJsonWithRetry(observationsUrl(query, cursor), 'observations', log);
+        const raw = await fetchJsonWithRetry(observationsUrl(query, cursor), inat('observations'), log);
         const result = parseInatResponse(raw, {scoped});
         if (!result.ok) {
             throw new Error(
@@ -351,7 +271,7 @@ export async function fetchAllObservationPages(
 export async function fetchTaxa(ids: readonly number[], log: Logger): Promise<NormalizedTaxon[]> {
     const taxa: NormalizedTaxon[] = [];
     for (const some of chunk(ids, TAXA_ID_CHUNK)) {
-        const raw = await fetchJsonWithRetry(taxaUrl(some), 'taxa', log);
+        const raw = await fetchJsonWithRetry(taxaUrl(some), inat('taxa'), log);
         const parsed = parseInatTaxa(raw);
         if (!parsed.ok) throw new Error(`iNaturalist taxa parse failed: ${parsed.error}`);
         taxa.push(...parsed.taxa);
@@ -415,7 +335,7 @@ export async function resolveTaxonClosure(
 
         for (const ids of chunk(toFetch, TAXA_ID_CHUNK)) {
             for (const id of ids) requested.add(id);
-            const raw = await fetchJsonWithRetry(taxaUrl(ids), 'taxa', log);
+            const raw = await fetchJsonWithRetry(taxaUrl(ids), inat('taxa'), log);
             const parsed = parseInatTaxa(raw);
             if (!parsed.ok) {
                 throw new Error(`iNaturalist taxa parse failed: ${parsed.error}`);
