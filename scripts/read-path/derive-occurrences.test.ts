@@ -415,7 +415,7 @@ describe('the derivations over the fixture', () => {
             const unexpected = await withDwc(snapshot, mirrors, async conn => {
                 const out: Record<string, unknown[]> = {};
                 for (const view of ['occurrences', 'multimedia', 'export_coverage'])
-                    out[view] = await rowsOnOneSide(conn, `SELECT * FROM store.dwc.${view}`, `SELECT * FROM pgdb.dwc.${view}`);
+                    out[view] = await rowsOnOneSide(conn, `SELECT * FROM store.dwc.${view}`, `SELECT * FROM archive.dwc.${view}`);
                 return out;
             });
             expect(unexpected).toEqual({occurrences: [], multimedia: [], export_coverage: []});
@@ -430,10 +430,10 @@ describe('the derivations over the fixture', () => {
                 } finally { conn.closeSync(); db.closeSync(); }
             }
             const withheld = await withDwc(snapshot, mirrors, async conn => (await conn.runAndReadAll(`
-                SELECT (SELECT count(*) FROM pgdb.dwc.occurrences WHERE "occurrenceID" LIKE 'salishsea:%'),
-                       (SELECT count(*) FROM pgdb.dwc.multimedia),
-                       (SELECT no_agreement FROM pgdb.dwc.export_coverage WHERE branch = 'native'),
-                       (SELECT exported_rows FROM pgdb.dwc.export_coverage WHERE branch = 'maplify')`)).getRows()[0]!.map(Number));
+                SELECT (SELECT count(*) FROM archive.dwc.occurrences WHERE "occurrenceID" LIKE 'salishsea:%'),
+                       (SELECT count(*) FROM archive.dwc.multimedia),
+                       (SELECT no_agreement FROM archive.dwc.export_coverage WHERE branch = 'native'),
+                       (SELECT exported_rows FROM archive.dwc.export_coverage WHERE branch = 'maplify')`)).getRows()[0]!.map(Number));
             expect(withheld).toEqual([0, 0, 2, 5]);
         } finally {
             await rm(dir, {recursive: true, force: true});

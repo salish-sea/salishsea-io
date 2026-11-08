@@ -8,7 +8,7 @@
  * them from Postgres, after the nightly's own checks (the artifact contract and the
  * floors).
  * The archive writer is the nightly's own (scripts/dwca/build.ts's writeArchive); what
- * changes is where `pgdb.dwc.*` comes from: derive/dwc.sql's twins of Postgres's views,
+ * changes is where `archive.dwc.*` comes from: derive/dwc.sql's ports of Postgres's views,
  * over the snapshot and the build's mirrors, with the same lookups the occurrences use,
  * and each record's place, identifiers and direction as the occurrences step wrote them. The directory is replaced whole, so a reader never sees half an
  * archive.
@@ -32,7 +32,7 @@ import { recoverDir, replaceDir } from './replace-dir.ts';
 import { attachRegister, registerFile } from './register-file.ts';
 
 /**
- * Run `use` on a connection holding the archive's relations under `pgdb` (derive/dwc.sql),
+ * Run `use` on a connection holding the archive's relations under `archive` (derive/dwc.sql),
  * derived from the snapshot and the mirrors.
  */
 export async function withDwc<T>(

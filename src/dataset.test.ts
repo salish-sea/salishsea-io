@@ -12,7 +12,7 @@ import { BOUNDING_BOX } from '../scripts/dwca/eml.ts';
 const read = (file: string) => readFileSync(path.join(process.cwd(), file), 'utf-8');
 
 const sql = read('scripts/read-path/derive/dwc.sql');
-const row = sql.slice(sql.indexOf('CREATE OR REPLACE TABLE pgdb.dwc.datasets'));
+const row = sql.slice(sql.indexOf('CREATE OR REPLACE TABLE archive.dwc.datasets'));
 const fromRow = (column: string) => row.match(new RegExp(`'([^']+)' AS ${column}\\b`))?.[1];
 const title = fromRow('title');
 const datasetId = fromRow('dataset_id');

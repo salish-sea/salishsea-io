@@ -12,7 +12,7 @@ import {
     assertNonZeroRows,
     assertNoZeroByteFile,
     type CountConnection,
-    type PgColumn,
+    type ViewColumn,
 } from './assertions.ts';
 
 /**
@@ -22,7 +22,7 @@ import {
  *
  * No DuckDB connection is required: `assertNonZeroRows` is structurally
  * typed and accepts a plain object mock; `assertFieldAlignment` is fed
- * literal `PgColumn[]` arrays; `assertNoZeroByteFile` operates on a tmp
+ * literal `ViewColumn[]` arrays; `assertNoZeroByteFile` operates on a tmp
  * file written via `fs/promises`.
  */
 
@@ -54,7 +54,7 @@ function mockConn(rows: Record<string, unknown>[]): CountConnection {
 
 describe('assertFieldAlignment', () => {
     test('aligned arrays return silently', () => {
-        const pg: readonly PgColumn[] = [
+        const pg: readonly ViewColumn[] = [
             { name: 'a', ordinal: 1 },
             { name: 'b', ordinal: 2 },
             { name: 'c', ordinal: 3 },
@@ -64,7 +64,7 @@ describe('assertFieldAlignment', () => {
     });
 
     test('extra TS entry surfaces as [+i] with the missing index', () => {
-        const pg: readonly PgColumn[] = [
+        const pg: readonly ViewColumn[] = [
             { name: 'a', ordinal: 1 },
             { name: 'b', ordinal: 2 },
         ];
@@ -81,8 +81,8 @@ describe('assertFieldAlignment', () => {
         expect(e.table).toBe('occurrences');
     });
 
-    test('extra PG column surfaces as [-i] with the trailing ordinal', () => {
-        const pg: readonly PgColumn[] = [
+    test('an extra column surfaces as [-i] with the trailing ordinal', () => {
+        const pg: readonly ViewColumn[] = [
             { name: 'a', ordinal: 1 },
             { name: 'b', ordinal: 2 },
             { name: 'c', ordinal: 3 },
@@ -101,7 +101,7 @@ describe('assertFieldAlignment', () => {
     });
 
     test('name mismatch at same ordinal surfaces as [~i]', () => {
-        const pg: readonly PgColumn[] = [
+        const pg: readonly ViewColumn[] = [
             { name: 'a', ordinal: 1 },
             { name: 'x', ordinal: 2 },
         ];
@@ -118,7 +118,7 @@ describe('assertFieldAlignment', () => {
     });
 
     test('AlignmentError is an Error instance with table and diff readonly props', () => {
-        const pg: readonly PgColumn[] = [{ name: 'a', ordinal: 1 }];
+        const pg: readonly ViewColumn[] = [{ name: 'a', ordinal: 1 }];
         const ts = [{ name: 'b' }] as const;
         let caught: unknown;
         try {
@@ -138,7 +138,7 @@ describe('assertFieldAlignment', () => {
     });
 
     test('multi-error diff collects every mismatch in order', () => {
-        const pg: readonly PgColumn[] = [
+        const pg: readonly ViewColumn[] = [
             { name: 'a', ordinal: 1 },
             { name: 'XX', ordinal: 2 },
             { name: 'c', ordinal: 3 },
@@ -160,19 +160,19 @@ describe('assertFieldAlignment', () => {
 describe('assertNonZeroRows', () => {
     test('returns the bigint count when non-zero', async () => {
         const conn = mockConn([{ n: 5n }]);
-        await expect(assertNonZeroRows(conn, 'pgdb.dwc.occurrences')).resolves.toBe(5n);
+        await expect(assertNonZeroRows(conn, 'archive.dwc.occurrences')).resolves.toBe(5n);
     });
 
     test('rejects with empty-result error mentioning the table name when count is 0', async () => {
         const conn = mockConn([{ n: 0n }]);
         await expect(
-            assertNonZeroRows(conn, 'pgdb.dwc.occurrences'),
-        ).rejects.toThrow(/Empty result.*pgdb\.dwc\.occurrences/);
+            assertNonZeroRows(conn, 'archive.dwc.occurrences'),
+        ).rejects.toThrow(/Empty result.*archive\.dwc\.occurrences/);
     });
 
     test('coerces a non-bigint count (e.g. number) into a bigint', async () => {
         const conn = mockConn([{ n: 42 }]);
-        await expect(assertNonZeroRows(conn, 'pgdb.dwc.multimedia')).resolves.toBe(42n);
+        await expect(assertNonZeroRows(conn, 'archive.dwc.multimedia')).resolves.toBe(42n);
     });
 });
 
