@@ -374,12 +374,12 @@
 ;; snapshot-year is an input: the Pacific year alone, not snapshot-meta's moment,
 ;; so a build in the same year that changed none of a kind's tables skips it
 ;; (salish-xv35.12) rather than rerunning it to identical bytes.
-(define (profile-pages-task name kind shell relations output)
+(define (profile-pages-task name kind relations output)
   (make-task name 'transform
              #:inputs (cons 'snapshot-year relations)
              #:outputs (list output)
              #:invoke (node-script/code "scripts/read-path/profiles.ts"
-                                (list (string-append "dist/" shell) "dist/.vite/manifest.json")
+                                '("dist/profile.html" "dist/.vite/manifest.json")
                                 (list kind SNAPSHOT-DB (path->string (in-checkout "dist"))))))
 
 (define artifacts
@@ -571,19 +571,19 @@
               #:invoke (snapshot-script "occurrence-ids.ts"))
    ;; The profile pages: the shared templates filled from the snapshot, inside
    ;; the shell Vite built (salishsea decision 057).
-   (profile-pages-task 'individual-pages "individuals" "individual.html"
+   (profile-pages-task 'individual-pages "individuals"
                        individual-page-relations 'individual-pages)
-   (profile-pages-task 'matriline-pages "matrilines" "matriline.html"
+   (profile-pages-task 'matriline-pages "matrilines"
                        matriline-page-relations 'matriline-pages)
    ;; Population pages, at /populations/ since salishsea decision 070 (they were
    ;; /ecotypes/); the task keeps its name.
-   (profile-pages-task 'ecotype-pages "populations" "ecotype.html"
+   (profile-pages-task 'ecotype-pages "populations"
                        ecotype-page-relations 'ecotype-pages)
    ;; A Southern Resident pod's page (salishsea decision 070): a population's a level
    ;; down, from the same tables and in the same shell.
-   (profile-pages-task 'pod-pages "pods" "ecotype.html"
+   (profile-pages-task 'pod-pages "pods"
                        ecotype-page-relations 'pod-pages)
-   (profile-pages-task 'haulout-pages "haulouts" "haulout.html"
+   (profile-pages-task 'haulout-pages "haulouts"
                        haulout-page-relations 'haulout-pages)
    ;; The whales page: its code is whales.ts's import closure and its Vite-built shell, as
    ;; a profile kind's is. It reads every occurrence, so it reruns whenever they change.
