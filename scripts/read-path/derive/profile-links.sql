@@ -1,13 +1,14 @@
 -- The profile pages' links to sightings, derived in the build (decision 061,
--- salish-xv35.13): DuckDB twins of the four Postgres views a page reads to place its
+-- salish-xv35.13): ported from the four Postgres views a page read to place its
 -- subject's sightings, as supabase/migrations/20260928120000_occurrences_stored.sql@6898775
 -- (group_, individual_ and ecotype_occurrences) and 20260919010000_haulouts.sql
--- (haulout_occurrences) last define them, and of public.acoustic_identifications, which
+-- (haulout_occurrences) last define them, and from public.acoustic_identifications, which
 -- three of them read.
 --
--- Twins, not improvements: each keeps its view's quirks, because the result is checked
--- against Postgres's own answer, read in the same snapshot (compare-profile-links.ts).
--- Each relation is written as the snapshot holds Postgres's: one `doc` per row, the
+-- derive-occurrences.test.ts checks each relation against the fixture's expected rows
+-- (fixtures/twins/), which began as Postgres's answers and now record what this should
+-- derive, so a change to what it derives changes them too, as a reviewed edit.
+-- Each relation is written as Postgres's view gave it: one `doc` per row, the
 -- document to_jsonb makes of it, keys in jsonb's order (shorter first, then bytewise).
 --
 -- Reads build.occurrences and build.occurrence_identifier_candidates, which the build

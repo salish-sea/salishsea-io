@@ -6,8 +6,8 @@
  *
  * Writes `build.occurrence_identifier_candidates` into the snapshot, from
  * `build.occurrences` (derive-occurrences.ts) and the catalogue. The SQL is
- * derive/identifier-candidates.sql; compare-identifier-candidates.ts checks the
- * result against Postgres's.
+ * derive/identifier-candidates.sql.
+ * derive-occurrences.test.ts checks it against the rows the fixture expects (fixtures/twins/).
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';

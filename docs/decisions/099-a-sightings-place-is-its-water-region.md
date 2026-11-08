@@ -29,5 +29,5 @@ A sighting carries only its coordinates, so a card couldn't say where it was. Th
 ## Consequences
 
 - The build has a `water-regions` task, which fetches the list into `/data/mirrors/water-regions.json`. The derivation takes it with `--regions` ([scripts/read-path/derive-occurrences.ts](../../scripts/read-path/derive-occurrences.ts), [scripts/read-path/water-regions.ts](../../scripts/read-path/water-regions.ts)).
-- Postgres never had a place, so the comparison with its answers leaves `place` out ([scripts/read-path/compare-occurrences.ts](../../scripts/read-path/compare-occurrences.ts)).
+- Postgres never had a place, so the expected occurrences, which began as its answers, leave `place` out ([scripts/read-path/derive-occurrences.test.ts](../../scripts/read-path/derive-occurrences.test.ts)).
 - The glossary gains **Water region**.

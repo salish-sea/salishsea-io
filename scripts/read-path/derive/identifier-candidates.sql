@@ -1,12 +1,12 @@
 -- The identifier candidates, derived in the build (decision 061, salish-xv35.3): a DuckDB
--- twin of Postgres's derived.identifier_candidates, which pairs each designation an
+-- port of Postgres's derived.identifier_candidates, which pairs each designation an
 -- occurrence names (T065A, J27s) with the individual or matriline the catalogue says it
 -- means (supabase/migrations/20260928120000_occurrences_stored.sql@6898775). Postgres keeps them in
 -- derived.occurrence_identifier_candidates, and the profile pages' link views read them.
 --
 -- Reads build.occurrences, which carries each occurrence's source, identifiers and exact
 -- location, and the catalogue as the snapshot holds it (documents). Checked against the
--- stored candidates by compare-identifier-candidates.ts.
+-- fixture's expected candidates by derive-occurrences.test.ts.
 --
 -- Where each candidate was read (salish-4s42, decision 106), which Postgres never
 -- recorded: `origin` is 'report' for the occurrence's own text, or 'comment' or

@@ -10,10 +10,10 @@
  *
  * Writes `build.individual_occurrences`, `build.group_occurrences`,
  * `build.ecotype_occurrences` and `build.haulout_occurrences` into the snapshot, each in
- * the shape of the snapshot's copy of the Postgres view it twins: one document per row.
+ * the shape of the Postgres view it was ported from: one document per row.
  * The SQL is derive/profile-links.sql, after derive/shared.sql; a haul-out report's
  * distance is measured first, in JavaScript (derive/haulout-distance.ts).
- * compare-profile-links.ts checks the result against Postgres's.
+ * derive-occurrences.test.ts checks it against the rows the fixture expects (fixtures/twins/).
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';

@@ -7,11 +7,11 @@
  *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json> [--landmarks <landmarks.tsv> <places-osm.json>]]
  *
  * Writes `build.occurrences` into the snapshot: id, observed_at and the document,
- * the shape of `snapshot.occurrences`, which holds Postgres's answer. The SQL is
- * derive/occurrences.sql, twins of the five Postgres views, after derive/shared.sql;
- * what each sighting's text says is read here in node by src/sighting-text.ts, the module
- * the browser runs (derive/readings.ts, decision 105), and joined in.
- * compare-occurrences.ts checks the result against Postgres's.
+ * the shape Postgres's derived.occurrences had. The SQL is derive/occurrences.sql, ported
+ * from the five Postgres views, after derive/shared.sql; what each sighting's text says is
+ * read here in node by src/sighting-text.ts, the module the browser runs
+ * (derive/readings.ts, decision 105), and joined in.
+ * derive-occurrences.test.ts checks it against the rows the fixture expects (fixtures/twins/).
  *
  * Each document also names the water region its point is in (`place`, salish-fwyt.2),
  * which Postgres never derived: looked up here in node, in the basemap's regions list
