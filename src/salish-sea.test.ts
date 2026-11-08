@@ -48,7 +48,7 @@ vi.mock('./read-path.ts', async (importOriginal) => {
       occurrenceQuery.files ? actual.watchManifest(...args) : () => {}) as typeof actual.watchManifest,
     // The published names, which the sighting form's menu asks for on mount (salish-53t.3)
     // and a contributor's own sightings are named from. Only the fixtures' animal.
-    fetchStaticAnimalNames: async () => new Map([['SSA:0000002',
+    fetchAnimalNames: async () => new Map([['SSA:0000002',
       {common_name: null, taxon_common_name: 'Killer whale', inaturalist_scientific_name: 'Orcinus orca'}]]),
   };
 });

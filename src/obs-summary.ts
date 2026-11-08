@@ -15,7 +15,7 @@ import { deleteSighting } from './write-api.ts';
 import type { ActivityEntry, Contributor, IdentifiedAs, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
-import { catalogCodes, injectIndividualLinks, loadCatalogCodes, matrilineCodes, namedAnimals, podCodes, populationCodes, populationPage } from './individual-links.ts';
+import { catalogCodes, catalogLookups, injectIndividualLinks, loadCatalogCodes, namedAnimals, populationCodes, populationPage } from './individual-links.ts';
 import { openAnimalLinkInSidebar } from './subject.ts';
 import { linkStyles } from './icons.ts';
 import { placeLine } from './place.ts';
@@ -43,10 +43,7 @@ export function sightingText(body: string | null | undefined, providerSlug: stri
     marked.parse(
       injectIndividualLinks(
         injectPartnerLinks(stripResolvedProvenance((body || '').replace(/(<br\s*\/?\s*>\s*)+/gi, '\n\n'), providerSlug ?? null)),
-        catalogCodes() ?? new Map(),
-        matrilineCodes() ?? new Map(),
-        populationCodes() ?? new Map(),
-        podCodes() ?? new Map(),
+        ...catalogLookups(),
       ),
       { async: false, renderer: markedRenderer }
     ),
@@ -451,7 +448,7 @@ export class ObsSummary extends LitElement {
       </header>
       ${place ? html`<p class="place">${place}</p>` : nothing}
       ${guard([identifiers, absent, this.catalogLoaded], () => {
-        const lookups = [catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map()] as const;
+        const lookups = catalogLookups();
         const animals = namedAnimals(identifiers, ...lookups);
         // The animals the report says weren't there, after the ones that were (decision 109).
         const named = new Set(animals.map(a => a.href ?? a.label));

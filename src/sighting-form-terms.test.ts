@@ -8,7 +8,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('./read-path.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./read-path.ts')>()),
-  fetchStaticAnimalNames: async () => new Map(),
+  fetchAnimalNames: async () => new Map(),
 }));
 
 const { contributorContext } = await import('./identity.ts');

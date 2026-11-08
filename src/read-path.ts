@@ -31,21 +31,32 @@ export type Manifest = {
   covered_through: string,
 };
 
-/** The current manifest, or null when nothing has been built yet. */
-export async function fetchManifest(): Promise<Manifest | null> {
-  const url = `${READ_PATH_BASE}manifest.json`;
+/** A file of the build's, parsed, or null when there is no such file. Any other failure throws, naming the file. */
+export async function readJson<T>(url: string): Promise<T | null> {
   const response = await fetch(url);
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-  const manifest = await response.json() as Manifest;
+  return await response.json() as T;
+}
+
+/** As readJson, for a file every build writes: a missing one is an error too. */
+export async function requireJson<T>(url: string): Promise<T> {
+  const parsed = await readJson<T>(url);
+  if (parsed === null) throw new Error(`${url}: HTTP 404`);
+  return parsed;
+}
+
+/** The current manifest, or null when nothing has been built yet. */
+export async function fetchManifest(): Promise<Manifest | null> {
+  const url = `${READ_PATH_BASE}manifest.json`;
+  const manifest = await readJson<Manifest>(url);
+  if (manifest === null) return null;
   if (manifest.version !== 1) throw new Error(`${url}: unknown version ${manifest.version}`);
   return manifest;
 }
 
 /**
- * A day's occurrences, newest first, from `days/<date>.json` — the same rows
- * `fetchOccurrences` gets from PostgREST, with the same region filter applied
- * here instead of in Postgres.
+ * A day's occurrences, newest first, from `days/<date>.json`, inside the region.
  *
  * A day with no sightings has no file, unless it is recent (quiet-days.ts writes an
  * empty one), and neither does a day no build has reached. The manifest tells them apart: a missing day the last build covered
@@ -67,15 +78,14 @@ export async function fetchDayOccurrences<T extends Located>(
   extent: Extent | null,
 ): Promise<T[]> {
   const url = `${READ_PATH_BASE}days/${date}.json`;
-  const response = await fetch(url);
-  if (response.status === 404) {
+  const rows = await readJson<T[]>(url);
+  if (rows === null) {
     const manifest = await fetchManifest();
     // Both are ISO dates, so they compare as strings.
     if (manifest && date <= manifest.covered_through) return [];
     throw new NotBuiltYet(`${url}: not built yet (covered through ${manifest?.covered_through ?? 'nothing'})`);
   }
-  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-  return withinExtent(await response.json() as T[], extent);
+  return withinExtent(rows, extent);
 }
 
 /**
@@ -117,11 +127,8 @@ export async function fetchCalendarCounts(
   const counts = new Map<string, number>();
   for (const month of monthsBetween(from, to)) {
     if (month > coveredMonth) break;
-    const url = `${READ_PATH_BASE}calendar/${month}.json`;
-    const response = await fetch(url);
-    if (response.status === 404) continue;
-    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-    const byRegion = await response.json() as Record<string, Record<string, number>>;
+    const byRegion = await readJson<Record<string, Record<string, number>>>(`${READ_PATH_BASE}calendar/${month}.json`);
+    if (byRegion === null) continue;
     for (const [day, count] of Object.entries(byRegion[regionSlug] ?? {})) {
       if (day >= from && day <= to) counts.set(day, count);
     }
@@ -165,13 +172,11 @@ export async function findOccurrence<T extends Located & {id: string}>(id: strin
 
 async function findIndexed<T extends Located & {id: string}>(id: string): Promise<T | null> {
   const url = `${READ_PATH_BASE}ids/${idShard(id)}.json`;
-  const response = await fetch(url);
-  if (response.status === 404) {
+  const days = await readJson<unknown>(url);
+  if (days === null) {
     if (await fetchManifest()) return null;
     throw new Error(`${url}: nothing built yet`);
   }
-  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-  const days: unknown = await response.json();
   // The id comes from the URL: `constructor` must not find an inherited property.
   const day = days && typeof days === 'object' && Object.hasOwn(days, id)
     ? (days as Record<string, unknown>)[id]
@@ -183,12 +188,8 @@ async function findIndexed<T extends Located & {id: string}>(id: string): Promis
 
 /** The id the build gives the sighting an old-form Maplify id named, or null. */
 async function legacyAlias(id: string): Promise<string | null> {
-  const url = `${READ_PATH_BASE}aliases/${idShard(id)}.json`;
-  const response = await fetch(url);
   // A build from before the aliases existed has no such file, and an id with none is unknown.
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-  const aliases: unknown = await response.json();
+  const aliases = await readJson<unknown>(`${READ_PATH_BASE}aliases/${idShard(id)}.json`);
   const current = aliases && typeof aliases === 'object' && Object.hasOwn(aliases, id)
     ? (aliases as Record<string, unknown>)[id]
     : undefined;
@@ -196,29 +197,19 @@ async function legacyAlias(id: string): Promise<string | null> {
 }
 
 /**
- * Every haul-out site, as the main map's layer draws them: what
- * `fetchHauloutSites` gets from PostgREST, written beside the sites' pages by
- * the build (scripts/read-path/profiles.ts). A missing file is an error, not an
+ * Every haul-out site, as the main map's layer draws them, written beside the sites'
+ * pages by the build (scripts/read-path/profiles.ts). A missing file is an error, not an
  * empty list: the build always writes it, so its absence means nothing is built.
  */
-export async function fetchStaticHauloutSites(): Promise<HauloutSite[]> {
-  const url = `${READ_PATH_BASE}profiles/haulouts/${HAULOUT_SITES_FILE}`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-  return await response.json() as HauloutSite[];
+export async function fetchHauloutSites(): Promise<HauloutSite[]> {
+  return requireJson<HauloutSite[]>(`${READ_PATH_BASE}profiles/haulouts/${HAULOUT_SITES_FILE}`);
 }
 
-/**
- * Names for specific entities, as fetchAnimalNames returns them, from the file the build
- * publishes (scripts/read-path/profile-index.ts) rather than from the database.
- */
-export async function fetchStaticAnimalNames(entityIds: readonly (string | null)[]): Promise<Map<string, AnimalName>> {
+/** Names for specific entities, from the file the build publishes (scripts/read-path/profile-index.ts). */
+export async function fetchAnimalNames(entityIds: readonly (string | null)[]): Promise<Map<string, AnimalName>> {
   const wanted = new Set(entityIds.filter((id): id is string => !!id));
   if (!wanted.size) return new Map();
-  const url = `${READ_PATH_BASE}animal-names.json`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-  const rows = await response.json() as AnimalName[];
+  const rows = await requireJson<AnimalName[]>(`${READ_PATH_BASE}animal-names.json`);
   return new Map(rows.filter(row => wanted.has(row.entity_id)).map(row => [row.entity_id, row]));
 }
 

@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { linkStyles } from './icons.ts';
-import { catalogCodes, loadCatalogCodes, matrilineCodes, podCodes, pooledAnimals, populationCodes, populationPage } from './individual-links.ts';
+import { catalogCodes, catalogLookups, loadCatalogCodes, pooledAnimals, populationCodes, populationPage } from './individual-links.ts';
 import { isUnconfirmed } from './occurrence.ts';
 import { channelOf } from './encounter.ts';
 import { segmentMovement, type SegmentMovement } from './segments.ts';
@@ -243,7 +243,7 @@ export class SegmentSummary extends LitElement {
     const count = Math.max(0, ...reports.map(r => r.count ?? 0));
     const name = displayNameFor(head.taxon);
     const namePage = populationPage(head.taxon.entity_id, populationCodes() ?? new Map());
-    const lookups = [catalogCodes() ?? new Map(), matrilineCodes() ?? new Map(), populationCodes() ?? new Map(), podCodes() ?? new Map()] as const;
+    const lookups = catalogLookups();
     const animals = pooledAnimals(reports.map(r => r.identifiers), ...lookups);
     // The animals some reports say weren't there, with how many say so (decision 109).
     const missing = pooledAnimals(reports.map(r => r.absent ?? []), ...lookups);

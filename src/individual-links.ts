@@ -1,6 +1,6 @@
 import { isPopulation, populationPath, individualPath, matrilinePath, podLabel, podPath } from './catalog.ts';
 import { fold } from './fold.ts';
-import { READ_PATH_BASE } from './read-path.ts';
+import { READ_PATH_BASE, requireJson } from './read-path.ts';
 
 // Same shape as public.extract_identifiers (20250924160210_detect_individuals.sql):
 // pod/catalog prefix, optional separator, leading zeros, digit + hex block, and a
@@ -225,10 +225,7 @@ export function setCatalogCodes({ designations, groups }: CatalogCodeRows): Map<
 
 async function fetchCatalogCodeRows(): Promise<CatalogCodeRows> {
   // The build's file (decision 056), at most one build behind.
-  const url = `${READ_PATH_BASE}catalog-codes.json`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${url}: ${response.status}`);
-  return await response.json() as CatalogCodeRows;
+  return requireJson<CatalogCodeRows>(`${READ_PATH_BASE}catalog-codes.json`);
 }
 
 // Fetch the designation -> individual lookup (plus the matriline, population and
@@ -262,4 +259,14 @@ export function populationCodes(): Map<string, GroupRef> | null {
 /** The Southern Resident pods, keyed by their folded label as a bout's tags give it ("j pod"). */
 export function podCodes(): Map<string, GroupRef> | null {
   return podMap;
+}
+
+/**
+ * The four lookups injectIndividualLinks, namedAnimals and pooledAnimals take after their
+ * first argument, in their order, each empty until the catalogue has loaded:
+ * `namedAnimals(identifiers, ...catalogLookups())`.
+ */
+export type CatalogLookups = readonly [Map<string, IndividualRef>, Map<string, GroupRef>, Map<string, GroupRef>, Map<string, GroupRef>];
+export function catalogLookups(): CatalogLookups {
+  return [codeMap ?? new Map(), matrilineMap ?? new Map(), populationMap ?? new Map(), podMap ?? new Map()];
 }

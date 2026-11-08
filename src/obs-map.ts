@@ -24,7 +24,7 @@ import { DEFAULT_LAYERS, REFERENCE_LAYERS, type ReferenceLayer } from './referen
 import { hauloutPath, type HauloutSite } from './catalog.ts';
 import { formatDate } from './date-format.ts';
 import { KIND_COLOR, KINDS, type DotKind } from './profile-map.ts';
-import { fetchStaticHauloutSites } from './read-path.ts';
+import { fetchHauloutSites } from './read-path.ts';
 import { reportError } from './report-error.ts';
 import { geolocationErrorIsReportable } from './geolocation-message.ts';
 import { fromLonLat, mapZoom, permalinkZoom, toLonLat } from './map-view.ts';
@@ -489,7 +489,7 @@ user-location-control.inactive svg { color: var(--color-text); }
   // Loaded the first time it is switched on (decision 058): hidden by default,
   // so most visits never ask for it.
   private loadHaulouts() {
-    this.#hauloutsLoaded ??= fetchStaticHauloutSites()
+    this.#hauloutsLoaded ??= fetchHauloutSites()
       .then(sites => {
         const located = sites.filter(({location}) => location.lon !== null && location.lat !== null);
         this.#setData('haulouts', {type: 'FeatureCollection', features: located.map(hauloutFeature)});

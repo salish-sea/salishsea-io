@@ -16,7 +16,7 @@ import { detectIndividuals } from "./identifiers.ts";
 import { type Contributor, type License, type TravelDirection, type UpsertObservationArgs } from "./types.ts";
 import { contributorContext } from "./identity.ts";
 import { agreedToCurrent, TERMS_PATH, TERMS_VERSION } from "./terms.ts";
-import { fetchStaticAnimalNames } from "./read-path.ts";
+import { fetchAnimalNames } from "./read-path.ts";
 import { saveSighting } from "./write-api.ts";
 import { reportError } from "./report-error.ts";
 import { geolocationErrorIsReportable, geolocationMessage } from "./geolocation-message.ts";
@@ -55,7 +55,7 @@ export default class SightingForm extends LitElement {
 
   /** The register's names for what the form offers; the menu shows ids until they arrive. */
   private _namesTask = new Task(this, {
-    task: () => fetchStaticAnimalNames([...OFFERED_ENTITIES]),
+    task: () => fetchAnimalNames([...OFFERED_ENTITIES]),
     args: () => [],
     onComplete: () => this.updateSubjectProps(),
     onError: error => reportError(this, "Couldn't load species names; the menu shows identifiers instead.", {cause: error}),
