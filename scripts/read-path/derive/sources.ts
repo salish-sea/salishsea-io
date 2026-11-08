@@ -6,6 +6,7 @@
 
 import type { DuckDBConnection } from '@duckdb/node-api';
 import { readFile } from 'node:fs/promises';
+import { sqlString } from '../duckdb-budget.ts';
 
 /** Each source's SQLite mirror, as the ingest tasks write them. */
 export type Mirrors = {maplify: string, inaturalist: string, orcasound: string};
@@ -16,7 +17,7 @@ const ALIASES = {maplify: 'maplify_mirror', inaturalist: 'inaturalist_mirror', o
 export async function attachSources(conn: DuckDBConnection, mirrors: Mirrors): Promise<void> {
     await conn.run('INSTALL sqlite; LOAD sqlite');
     for (const [source, alias] of Object.entries(ALIASES) as [keyof Mirrors, string][])
-        await conn.run(`ATTACH '${mirrors[source].replaceAll("'", "''")}' AS ${alias} (TYPE sqlite, READ_ONLY)`);
+        await conn.run(`ATTACH ${sqlString(mirrors[source])} AS ${alias} (TYPE sqlite, READ_ONLY)`);
     await conn.run(await readFile(new URL('./sources.sql', import.meta.url), 'utf8'));
     await conn.run(await readFile(new URL('./source-taxa.sql', import.meta.url), 'utf8'));
 }
@@ -28,7 +29,7 @@ export async function attachSources(conn: DuckDBConnection, mirrors: Mirrors): P
  */
 export async function attachTaxa(conn: DuckDBConnection, inaturalist: string): Promise<void> {
     await conn.run('INSTALL sqlite; LOAD sqlite');
-    await conn.run(`ATTACH '${inaturalist.replaceAll("'", "''")}' AS ${ALIASES.inaturalist} (TYPE sqlite, READ_ONLY)`);
+    await conn.run(`ATTACH ${sqlString(inaturalist)} AS ${ALIASES.inaturalist} (TYPE sqlite, READ_ONLY)`);
     await conn.run(await readFile(new URL('./source-taxa.sql', import.meta.url), 'utf8'));
 }
 

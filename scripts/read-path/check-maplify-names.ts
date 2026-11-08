@@ -32,14 +32,13 @@
  * run unguarded because a path was wrong.
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
 import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { resolveEntity, type NormalizedSighting } from '../ingest/maplify.ts';
 import { buildNameIndex, NAME_INDEX_SQL, type RegisterName } from '../register/name-index.ts';
 import { pairKey, readUnnamed } from '../register/unnamed.ts';
-import { budget } from './duckdb-budget.ts';
+import { sqlString, withSnapshot } from './duckdb-budget.ts';
 import { attachRegister, registerFile } from './register-file.ts';
 
 /** A (name, scientific name) pair and the entity it resolves to. */
@@ -106,29 +105,21 @@ export async function checkNames(snapshot: string, mirror: string, baselineFile:
     } catch (e) {
         throw new Error(`the name guard's baseline could not be read from ${baselineFile}: ${(e as Error).message}`, {cause: e});
     }
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    let current: Pair[];
-    try {
-        await budget(conn, snapshot, '64MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+    const current = await withSnapshot(snapshot, {memory: '64MB'}, async (conn): Promise<Pair[]> => {
         await conn.run('USE store');
         await attachRegister(conn, registerFile(snapshot));
         await conn.run('INSTALL sqlite; LOAD sqlite');
-        await conn.run(`ATTACH '${mirror.replaceAll("'", "''")}' AS maplify_mirror (TYPE sqlite, READ_ONLY)`);
+        await conn.run(`ATTACH ${sqlString(mirror)} AS maplify_mirror (TYPE sqlite, READ_ONLY)`);
         const index = buildNameIndex((await conn.runAndReadAll(NAME_INDEX_SQL)).getRowObjectsJS() as unknown as RegisterName[]);
         const pairs = (await conn.runAndReadAll(`
             SELECT name, scientific_name, CAST(count(*) AS INTEGER) AS sightings
             FROM maplify_mirror.sightings
             GROUP BY name, scientific_name`)).getRowObjectsJS() as unknown as Omit<Pair, 'entity_id'>[];
         // resolveEntity reads only these two of a sighting's fields.
-        current = pairs.map(p => ({
+        return pairs.map(p => ({
             ...p, entity_id: resolveEntity({name: p.name, scientificName: p.scientific_name} as NormalizedSighting, index),
         }));
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
     const {unnamed, next} = judge(baseline, current, allowed);
     if (unnamed.length === 0) {
         const file = reportFile(mirror);

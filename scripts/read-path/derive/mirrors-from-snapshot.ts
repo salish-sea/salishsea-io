@@ -10,6 +10,7 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import * as path from 'node:path';
 
 import type { Mirrors } from './sources.ts';
+import { sqlString } from '../duckdb-budget.ts';
 
 export async function mirrorsFromSnapshot(snapshot: string, dir: string): Promise<Mirrors> {
     const mirrors = {
@@ -21,9 +22,9 @@ export async function mirrorsFromSnapshot(snapshot: string, dir: string): Promis
     const conn = await db.connect();
     try {
         await conn.run(`INSTALL icu; LOAD icu; SET TimeZone = 'UTC'; INSTALL sqlite; LOAD sqlite`);
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+        await conn.run(`ATTACH ${sqlString(snapshot)} AS store (READ_ONLY)`);
         for (const [name, file] of Object.entries(mirrors))
-            await conn.run(`ATTACH '${file.replaceAll("'", "''")}' AS ${name} (TYPE sqlite)`);
+            await conn.run(`ATTACH ${sqlString(file)} AS ${name} (TYPE sqlite)`);
         await conn.run(`
             CREATE TABLE maplify.sightings AS
               SELECT id, name, scientific_name, location_lon AS lon, location_lat AS lat, number_sighted,

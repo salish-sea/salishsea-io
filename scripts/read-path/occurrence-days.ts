@@ -37,7 +37,6 @@
  * key order the derivation fixes as Postgres's to_jsonb did.
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
 import * as path from 'node:path';
 
 import { access, readdir, rename, rm, writeFile } from 'node:fs/promises';
@@ -45,7 +44,7 @@ import { access, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import type { Occurrence } from '../../src/types.ts';
 import { occurrences2segments, type DistanceM } from '../../src/segments.ts';
 import type { LegOf } from '../../src/sea-distance.ts';
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 import { waterMaskArgs } from './water-mask.ts';
@@ -98,17 +97,13 @@ export async function writeDays(
     if (keys !== null && keys.length <= PARTIAL_LIMIT && await exists(outDir))
         return {...await writeSomeDays(snapshot, outDir, keys, distanceM, legOf), mode: 'some'};
 
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
     const counts = {files: 0, occurrences: 0};
-    try {
-        // Measured on 63,762 occurrences: runs out at 64 MB; at 128 the process peaks at
-        // ~380 MB on macOS (366 on Fly uncapped). Most of that is outside DuckDB's budget,
-        // in node-api holding the sorted result: the same query peaks at 152 MB in the
-        // DuckDB CLI. Assembling each day's file in DuckDB instead (string_agg) was
-        // byte-identical but peaked at 854 MB, so the cap is what's taken here.
-        await budget(conn, snapshot, '128MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+    // Measured on 63,762 occurrences: runs out at 64 MB; at 128 the process peaks at
+    // ~380 MB on macOS (366 on Fly uncapped). Most of that is outside DuckDB's budget,
+    // in node-api holding the sorted result: the same query peaks at 152 MB in the
+    // DuckDB CLI. Assembling each day's file in DuckDB instead (string_agg) was
+    // byte-identical but peaked at 854 MB, so the cap is what's taken here.
+    await withSnapshot(snapshot, {memory: '128MB'}, async conn => {
         // Streamed, a chunk of rows at a time, in day order: each day's file is
         // finished and written before the next day's rows are read. Reading every
         // row at once held the whole table three times over (DuckDB's result,
@@ -119,10 +114,7 @@ export async function writeDays(
             ORDER BY day, observed_at DESC, id
         `);
         await replaceDir(outDir, dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts, distanceM, legOf));
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
     return {...counts, mode: 'all'};
 }
 
@@ -147,30 +139,26 @@ async function writeSomeDays(
     };
     await sweep();
     if (keys.length === 0) return counts;
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
     try {
-        await budget(conn, snapshot, '128MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
-        const result = await conn.stream(`
-            SELECT ${DAY_EXPR} AS day, doc
-            FROM store.build.occurrences
-            WHERE ${DAY_EXPR} IN (${keys.map(k => `'${k}'`).join(', ')})
-            ORDER BY day, observed_at DESC, id
-        `);
-        const written = new Set<string>();
-        for await (const [name, body] of dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts, distanceM, legOf)) {
-            const final = path.join(outDir, name);
-            const partial = `${final}.partial`;
-            await writeFile(partial, body);
-            await rename(partial, final);
-            written.add(name);
-        }
-        for (const key of keys)
-            if (!written.has(`${key}.json`)) await rm(path.join(outDir, `${key}.json`), {force: true});
+        await withSnapshot(snapshot, {memory: '128MB'}, async conn => {
+            const result = await conn.stream(`
+                SELECT ${DAY_EXPR} AS day, doc
+                FROM store.build.occurrences
+                WHERE ${DAY_EXPR} IN (${keys.map(k => `'${k}'`).join(', ')})
+                ORDER BY day, observed_at DESC, id
+            `);
+            const written = new Set<string>();
+            for await (const [name, body] of dayFiles(result.yieldRows() as AsyncIterable<[string, string][]>, counts, distanceM, legOf)) {
+                const final = path.join(outDir, name);
+                const partial = `${final}.partial`;
+                await writeFile(partial, body);
+                await rename(partial, final);
+                written.add(name);
+            }
+            for (const key of keys)
+                if (!written.has(`${key}.json`)) await rm(path.join(outDir, `${key}.json`), {force: true});
+        });
     } finally {
-        conn.closeSync();
-        db.closeSync();
         await sweep();
     }
     return counts;

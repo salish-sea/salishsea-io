@@ -4,9 +4,8 @@
  * Stelis task running it can declare exactly its inputs.
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
 
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 
 // Snapshot documents, as Postgres serialized them. Loosely typed here and narrowed by
 // what assembly builds from them, which the pages' types check.
@@ -42,14 +41,10 @@ export interface Snapshot {
  * script: DuckDB's Node API says two in one process must not attach the same file.
  */
 export async function readSnapshot<R>(snapshot: string, read: (s: Snapshot) => Promise<R>): Promise<R> {
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
-        // The catalogue and the profile links: whole small tables, read into JS. The cap
-        // is for the day the inputs stop being small (salish-xv35.19; measured on Fly:
-        // see the bead).
-        await budget(conn, snapshot, '64MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+    // The catalogue and the profile links: whole small tables, read into JS. The cap
+    // is for the day the inputs stop being small (salish-xv35.19; measured on Fly:
+    // see the bead).
+    return withSnapshot(snapshot, {memory: '64MB'}, async conn => {
         return await read({
             async tables<T extends Table>(names: readonly T[]) {
                 const tables = {} as Pick<Tables, T>;
@@ -67,8 +62,5 @@ export async function readSnapshot<R>(snapshot: string, read: (s: Snapshot) => P
                 return (reader.getRows() as [number][])[0]![0];
             },
         });
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
 }

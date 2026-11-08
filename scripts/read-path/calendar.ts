@@ -24,11 +24,10 @@
  * sighting today rewrites only this month's.
  */
 
-import { DuckDBInstance } from '@duckdb/node-api';
 import * as path from 'node:path';
 
 import { REGIONS } from '../../src/constants.ts';
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import { dayOf } from './pacific-day.ts';
 import { recoverDir, replaceDir } from './replace-dir.ts';
 
@@ -41,14 +40,10 @@ export async function writeCalendar(snapshot: string, exportDir: string): Promis
     const outDir = path.join(exportDir, 'calendar');
     await recoverDir(outDir);
 
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
     const months = new Map<string, MonthCounts>();
-    try {
-        // Measured on 63,762 occurrences: runs out at 32 MB, completes at 64; uncapped it
-        // peaked at 275 MB, and at 96 MB it peaks at 239.
-        await budget(conn, snapshot, '96MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+    // Measured on 63,762 occurrences: runs out at 32 MB, completes at 64; uncapped it
+    // peaked at 275 MB, and at 96 MB it peaks at 239.
+    await withSnapshot(snapshot, {memory: '96MB'}, async conn => {
         await conn.run(`
             CREATE TEMP TABLE located AS
             SELECT ${dayOf('observed_at')} AS day,
@@ -68,9 +63,7 @@ export async function writeCalendar(snapshot: string, exportDir: string): Promis
             for (const [day, count] of reader.getRows() as [string, number][])
                 tally(months, region.slug, day, count);
         }
-    } finally {
-        conn.closeSync();
-    }
+    });
 
     await replaceDir(outDir, [...months].map(([month, counts]) => [`${month}.json`, JSON.stringify(counts)] as [string, string]));
     return {months: months.size};

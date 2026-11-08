@@ -14,13 +14,12 @@
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { DuckDBInstance } from '@duckdb/node-api';
 
 import { POPULATION_KINDS, populationLabel, populationPath } from '../../src/catalog.ts';
 import type { MapDot } from '../../src/profile-map.ts';
 import { profileStyles, renderProfileFrame } from '../../src/profile-shared.ts';
 import { renderWhales, whalesPreview, whalesStyles, type WhaleSpecies, type WhalesData } from '../../src/whales.ts';
-import { budget } from './duckdb-budget.ts';
+import { withSnapshot } from './duckdb-budget.ts';
 import { islandFromManifest, renderDocument, SEARCH_ISLAND, type Island } from './profile-document.ts';
 import { attachRegister, registerFile } from './register-file.ts';
 
@@ -59,14 +58,10 @@ const CETACEAN_TAXA = `
         WHERE a.ancestor_id = (SELECT taxon_id FROM register.classification WHERE entity_id = '${CETACEA}'))`;
 
 export async function readInputs(snapshot: string): Promise<Inputs> {
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
-    try {
-        // Measured on 64,000 occurrences with documents of 1.3 KB on average (production's
-        // are 1.1): runs out at 64 and 96 MB, completes at 128, peaking at 370 MB resident
-        // with the page's rendering. The first production build ran out at 64.
-        await budget(conn, snapshot, '128MB');
-        await conn.run(`ATTACH '${snapshot.replaceAll("'", "''")}' AS store (READ_ONLY)`);
+    // Measured on 64,000 occurrences with documents of 1.3 KB on average (production's
+    // are 1.1): runs out at 64 and 96 MB, completes at 128, peaking at 370 MB resident
+    // with the page's rendering. The first production build ran out at 64.
+    return withSnapshot(snapshot, {memory: '128MB'}, async conn => {
         await attachRegister(conn, registerFile(snapshot));
         await conn.run(`CREATE TEMP TABLE entity_taxon AS ${ENTITY_TAXON}`);
         await conn.run(`CREATE TEMP TABLE cetacean_taxa AS ${CETACEAN_TAXA}`);
@@ -98,10 +93,7 @@ export async function readInputs(snapshot: string): Promise<Inputs> {
             WHERE json_extract_string(g.doc, '$.kind') IN (${POPULATION_KINDS.map(k => `'${k}'`).join(', ')})
             ORDER BY designation`);
         return {species, reports, populations};
-    } finally {
-        conn.closeSync();
-        db.closeSync();
-    }
+    });
 }
 
 /** The page's data: the species with reports, most-reported first, a tie by name. */

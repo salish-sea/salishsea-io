@@ -16,10 +16,40 @@
  * measurements are in its comment.
  */
 
-import type { DuckDBConnection } from '@duckdb/node-api';
+import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
+
+/** `text` as a SQL string literal, quotes doubled: for a path in an ATTACH or a SET. */
+export const sqlString = (text: string): string => `'${text.replaceAll("'", "''")}'`;
 
 export async function budget(conn: DuckDBConnection, snapshot: string, memoryLimit: string): Promise<void> {
     await conn.run(`SET memory_limit = '${memoryLimit}'`);
     await conn.run('SET threads = 1');
-    await conn.run(`SET temp_directory = '${`${snapshot}.tmp`.replaceAll("'", "''")}'`);
+    await conn.run(`SET temp_directory = ${sqlString(`${snapshot}.tmp`)}`);
+}
+
+export type SnapshotOptions = {
+    /** The step's memory limit: the measured floor for its work, with room above it. */
+    readonly memory: string;
+    /** Whether the step writes into the snapshot; otherwise it is attached read-only. */
+    readonly write?: boolean;
+};
+
+/**
+ * Run `use` on a fresh in-memory DuckDB with the step's budget and the snapshot attached as
+ * `store`, closing both afterwards, whether `use` returns or throws. A step that needs the
+ * snapshot as its default catalog, ICU or the register sets that up first thing in `use`.
+ */
+export async function withSnapshot<T>(
+    snapshot: string, {memory, write = false}: SnapshotOptions, use: (conn: DuckDBConnection) => Promise<T>,
+): Promise<T> {
+    const db = await DuckDBInstance.create(':memory:');
+    const conn = await db.connect();
+    try {
+        await budget(conn, snapshot, memory);
+        await conn.run(`ATTACH ${sqlString(snapshot)} AS store${write ? '' : ' (READ_ONLY)'}`);
+        return await use(conn);
+    } finally {
+        conn.closeSync();
+        db.closeSync();
+    }
 }

@@ -41,7 +41,7 @@ import { fetchEdition, REPO } from '../register/edition.ts';
 import { buildNameIndex, NAME_INDEX_SQL, type RegisterName } from '../register/name-index.ts';
 import { readUnnamed } from '../register/unnamed.ts';
 import type { Named } from './check-maplify-names.ts';
-import { budget } from './duckdb-budget.ts';
+import { budget, sqlString } from './duckdb-budget.ts';
 import { boundaryReceipt, markRefused, recordedRun } from './ingest-runs.ts';
 import { attachRegister } from './register-file.ts';
 
@@ -124,7 +124,7 @@ async function replaceFile(conn: DuckDBConnection, file: string, fill: () => Pro
     rmSync(fresh, {force: true});
     rmSync(`${fresh}.wal`, {force: true});
     mkdirSync(path.dirname(file), {recursive: true});
-    await conn.run(`ATTACH '${fresh.replaceAll("'", "''")}' AS fresh`);
+    await conn.run(`ATTACH ${sqlString(fresh)} AS fresh`);
     try {
         await fill();
         // Every row in the file itself, and no log beside it to travel separately.
@@ -168,7 +168,7 @@ async function adopt(conn: DuckDBConnection, file: string, dir: string, tag: str
             rows += Number((await conn.runAndReadAll(`SELECT count(*) FROM fresh.${table}`)).getRows()[0]![0]);
         }
         await conn.run(`CREATE TABLE fresh.edition AS
-            SELECT '${tag.replaceAll("'", "''")}' AS tag, '${digest}' AS sha256`);
+            SELECT ${sqlString(tag)} AS tag, '${digest}' AS sha256`);
     });
     return rows;
 }
@@ -225,7 +225,7 @@ export async function main(): Promise<void> {
                 return restored;
             }
             await conn.run('INSTALL sqlite; LOAD sqlite');
-            await conn.run(`ATTACH '${mirror.replaceAll("'", "''")}' AS maplify_mirror (TYPE sqlite, READ_ONLY)`);
+            await conn.run(`ATTACH ${sqlString(mirror)} AS maplify_mirror (TYPE sqlite, READ_ONLY)`);
             const baseline = await heldNames(conn);
             const {digest, dir} = await fetchEdition(tag, () => {});
             try {
