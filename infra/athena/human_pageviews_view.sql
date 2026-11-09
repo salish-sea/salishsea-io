@@ -3,8 +3,8 @@
 -- "Page view" = a GET that returned an HTML document (200/304); CloudFront cannot see client-side SPA routes.
 --
 -- A page view counts only from a visitor (an IP, that day) whose browser also asked for one
--- of the page's own files: its scripts and styles (/assets/), the build's data (/read-path/),
--- /release.json or the write API (/api/). Scrapers that pass as Chrome don't: on 2026-10-09,
+-- of the page's own files and got it: its scripts and styles (/assets/), the build's data
+-- (/read-path/), /release.json or the write API (/api/). Scrapers that pass as Chrome don't: on 2026-10-09,
 -- -10, -14 and -30 hundreds of IPs each fetched one profile page and nothing else, and on
 -- 2026-10-11 and -12 about 530 IPs a day fetched / without loading the map. Measured over
 -- 2026-10-16..29, 79% of profile visitors and 65% of others asked for one of those files.
@@ -14,7 +14,9 @@ CREATE OR REPLACE VIEW salishsea_logs.human_pageviews AS
 WITH page_loaders AS (
   SELECT DISTINCT date, request_ip
   FROM salishsea_logs.cloudfront_logs
-  WHERE uri LIKE '/assets/%' OR uri LIKE '/read-path/%' OR uri = '/release.json' OR uri LIKE '/api/%'
+  WHERE (uri LIKE '/assets/%' OR uri LIKE '/read-path/%' OR uri = '/release.json' OR uri LIKE '/api/%')
+    -- answered, so a probe of a path that isn't there (a 404) earns nothing
+    AND (status BETWEEN 200 AND 299 OR status = 304)
 )
 SELECT p.date, p.time, p.request_ip, p.uri, p.query_string, p.referrer, p.user_agent, p.status
 FROM salishsea_logs.cloudfront_logs p
