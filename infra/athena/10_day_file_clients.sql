@@ -5,7 +5,7 @@
 -- someone watching recent sightings, a thousand or more is one client reading the archive.
 -- `not_found` counts the asks for a day with no file: a quiet day, or one no build has reached.
 WITH asks AS (
-  SELECT url_decode(user_agent) AS user_agent, request_ip, uri, status
+  SELECT url_decode(replace(user_agent, '+', '%2B')) AS user_agent, request_ip, uri, status  -- a literal + survives decoding
   FROM salishsea_logs.cloudfront_logs
   WHERE date >= current_date - interval '30' day
     AND uri LIKE '/read-path/days/%'
