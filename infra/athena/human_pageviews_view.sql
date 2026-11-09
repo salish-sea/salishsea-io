@@ -15,8 +15,9 @@ WITH page_loaders AS (
   SELECT DISTINCT date, request_ip
   FROM salishsea_logs.cloudfront_logs
   WHERE (uri LIKE '/assets/%' OR uri LIKE '/read-path/%' OR uri = '/release.json' OR uri LIKE '/api/%')
-    -- answered, so a probe of a path that isn't there (a 404) earns nothing
+    -- answered with the file, so a probe of a path that isn't there (a 404) or a HEAD earns nothing
     AND (status BETWEEN 200 AND 299 OR status = 304)
+    AND method IN ('GET', 'POST', 'PUT')
 )
 SELECT p.date, p.time, p.request_ip, p.uri, p.query_string, p.referrer, p.user_agent, p.status
 FROM salishsea_logs.cloudfront_logs p
