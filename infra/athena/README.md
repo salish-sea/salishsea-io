@@ -24,9 +24,17 @@ All defined in [`../lib/infra-stack.ts`](../lib/infra-stack.ts):
 3. Run any of the numbered queries. All use a rolling 30-day window.
 
 Bots dominate the raw logs (uptime monitors + scanners are the large majority of requests), so the
-"human" queries read from the view, while `07_user_agents` and `08_status` read the raw table to keep
-the bot/health picture visible. When `07_user_agents` surfaces a new bot, add it to the filter in
-`human_pageviews_view.sql`.
+"human" queries read from the view, while `07_user_agents`, `08_status` and `10_day_file_clients`
+read the raw table to keep the bot/health picture visible. When `07_user_agents` surfaces a new
+bot, add it to the filter in `human_pageviews_view.sql`.
+
+The view also drops a visitor whose browser asked for none of the page's own files (scripts,
+styles, the build's data, the write API) that day. User agents alone can't catch scrapers that
+pass as Chrome from rotating addresses: in October 2026 they made the "human" figures look six
+times what they were. The view's header says what the rule misses.
+
+`10_day_file_clients` shows who reads the day files: browsers, search engines rendering the map,
+and other sites and scripts fetching the sightings directly, some of them the whole archive.
 
 "Visitors" = distinct client IP — a rough proxy that overcounts roaming IPs and undercounts shared
 NAT. Geo/country is not available in legacy CloudFront logs.
