@@ -89,6 +89,18 @@ viewer can only see what is in frame; a caption counting dots outside it would b
 a caption that lies about its own picture. A card that says "14 sightings" over
 14 visible dots is honest even though 43 were reported that day worldwide.
 
+*Amended 2026-11-10 (`salish-zqqn`):* a day card draws the day's travel lines as the map
+does, slate on a white casing, with each track's newest report larger, because without
+them its dots were easy to miss. Its caption also says what is in frame, from fields the
+build already writes into the day's file. The title names the water region, or the two
+regions, holding more than half of the sightings in frame ("Puget Sound"), and the count
+moves down beside the date. Where no one or two regions hold that many, the count stays
+the title, so a card of the whole sea doesn't name one corner of it. A second line names
+the animals, a species to an item, most reported first, each with the pods and animals
+its reports name with certainty: "Southern Resident killer whales (J pod) · Humpback
+whales". Items that don't fit are left off whole and "and more" says so. The caption
+reads only what the build wrote, so an animal the text reader missed is missing here too.
+
 ### Rendering is a regional Lambda, not an edge function
 
 The viewer-request function is capped at 128 MB and 5 s and forbidden

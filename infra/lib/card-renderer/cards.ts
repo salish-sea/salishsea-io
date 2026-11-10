@@ -5,6 +5,7 @@ import { BASEMAP_ATTRIBUTION, renderBasemap } from './basemap.js';
 import { CARD_HEIGHT, CARD_WIDTH, chromeSvg, type Marker } from './chrome.js';
 import { isVisible, viewport, type LonLat, type Viewport } from './mercator.js';
 import type { Occurrence } from './data.js';
+import { animalsInFocus, placeInFocus, segmentHeads, travelLines } from './caption.js';
 
 /**
  * Zoom for a single sighting. Nine is the app's own default view
@@ -87,15 +88,22 @@ export async function renderDayCard(
   frame: Frame = { center: SALISH_SEA_CENTER, z: DAY_ZOOM },
 ): Promise<Card> {
   const v = viewport(frame.center, frame.z, CARD_WIDTH, CARD_HEIGHT);
-  const markers: Marker[] = occurrences
-    .filter(o => o.location && isVisible(o.location, v))
-    .map(o => ({ at: o.location!, primary: false }));
+  const inFrame = occurrences.filter(o => o.location && isVisible(o.location, v));
+  const heads = segmentHeads(occurrences);
+  const markers: Marker[] = inFrame.map(o => ({ at: o.location!, primary: false, head: heads.has(o.id) }));
 
-  const title = markers.length === 1 ? '1 sighting' : `${markers.length} sightings`;
+  // The caption names where the sightings in frame were and which animals, when the build
+  // says; the count moves down beside the date when a place takes the title.
+  const count = markers.length === 1 ? '1 sighting' : `${markers.length} sightings`;
+  const place = placeInFocus(inFrame);
+  const day = formatDate(`${date}T12:00:00Z`);
   return compose(v, {
-    title,
-    subtitle: `${formatDate(`${date}T12:00:00Z`)} · SalishSea.io`,
+    title: place ?? count,
+    detail: animalsInFocus(inFrame),
+    subtitle: place ? `${count} · ${day} · SalishSea.io` : `${day} · SalishSea.io`,
     attribution: BASEMAP_ATTRIBUTION,
     markers,
+    // A track whose reports are all out of frame can still cross it, so every one is drawn; the card clips them.
+    tracks: travelLines(occurrences),
   });
 }
