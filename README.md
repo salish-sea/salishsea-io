@@ -73,3 +73,5 @@ The production environment consists of:
 - The `salishsea-io` Fly app: the site, the read-path build that rewrites its data every five minutes, and the write API with its SQLite store ([runbook](docs/runbook/read-path-build.md))
 - A Cloudfront distribution `EQ0KYC2Y6IUYU`
 - An S3 bucket `salishsea-io` in `us-west-2` for assets
+
+How many people use the site, how they find it, and who reads its sightings directly: [docs/site-usage.md](docs/site-usage.md).
