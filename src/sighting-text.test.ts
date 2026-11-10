@@ -8,9 +8,12 @@ import { loadGold } from '../scripts/gold/gold.ts';
 import { FIELDS, scoreRow, type Field } from '../scripts/gold/score.ts';
 import { absent, hedged, present, readDirection, readSighting, readText, reportText } from './sighting-text.ts';
 
-/** Row 143 excludes an animal it fails to name ("T46s minus T46s"); row 136 names a calf's mother as context, which costs it codes present and certainty alike. */
+/**
+ * Row 143 excludes an animal it fails to name ("T46s minus T46s"); row 136 names a calf's mother as context, which costs it
+ * codes present and certainty alike. Rows 201 and 202 write "J Pod" with a capital.
+ */
 const WRONG_TODAY: Record<Field, number[]> = {
-    direction: [], codes_present: [136], codes_absent: [143], codes_hedged: [], certainty: [136], pods: [],
+    direction: [], codes_present: [136], codes_absent: [143], codes_hedged: [], certainty: [136], pods: [201, 202],
 };
 
 describe('reading sighting text', () => {

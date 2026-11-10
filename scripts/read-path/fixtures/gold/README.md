@@ -1,6 +1,6 @@
 # The gold set for reading sighting text
 
-[`sighting-text.json`](sighting-text.json) holds 200 Maplify reports with what each one says, read by hand (decision [102](../../../../docs/decisions/102-reading-sighting-text-is-measured-against-a-gold-set.md)). It is the measure for any change to how the site reads free text: the reader in [`src/sighting-text.ts`](../../../../src/sighting-text.ts), which the build and the browser share (decision [105](../../../../docs/decisions/105-the-build-and-the-browser-read-sighting-text-with-one-reader.md)), or a model's reading later. [`src/sighting-text.test.ts`](../../../../src/sighting-text.test.ts) runs the reader over every row and records which rows it gets wrong today, field by field.
+[`sighting-text.json`](sighting-text.json) holds 202 Maplify reports with what each one says, read by hand (decision [102](../../../../docs/decisions/102-reading-sighting-text-is-measured-against-a-gold-set.md)). It is the measure for any change to how the site reads free text: the reader in [`src/sighting-text.ts`](../../../../src/sighting-text.ts), which the build and the browser share (decision [105](../../../../docs/decisions/105-the-build-and-the-browser-read-sighting-text-with-one-reader.md)), or a model's reading later. [`src/sighting-text.test.ts`](../../../../src/sighting-text.test.ts) runs the reader over every row and records which rows it gets wrong today, field by field.
 
 The labels are the truth here, not the reader's output. A row's labels change only when someone rereads the text and disagrees. The lists in the test change whenever the reader does, as a reviewed edit.
 
@@ -18,6 +18,7 @@ From the Maplify mirror on 2026-10-31: every report received in the year to 2026
 | hard: change of direction | 5 | reports with *previously*, *flipped*, *turned*, *now* and a direction word |
 | hard: abbreviated direction | 5 | reports with `NB`, `SB`, `EB`, `WB` or `N bound` |
 | filter miss | 12 | rows a hard stratum's filter matched by accident, moved here so they don't count for the pattern: five drawn for a catalogue nickname where the filter matched a common word, two drawn for a code without its letter where it matched ", 10 orcas" and a date, and five drawn for a change of direction where it matched *now* or *earlier* in a report that changes none |
+| found in production | 2 | added after the draw, as *Improving the reader* in [`scripts/gold/README.md`](../../../gold/README.md) says: reports the reader was found to misread on the site, labelled the same way. They count toward no estimate. Rows 201 and 202 write "J Pod" with a capital (`salish-vb56`) |
 
 Every comment is public Maplify data as the mirror holds it, reporter names included, as the twin fixture's Maplify rows are.
 
