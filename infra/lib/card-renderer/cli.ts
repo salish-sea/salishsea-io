@@ -12,6 +12,15 @@ import { writeFileSync } from 'node:fs';
 import { renderDayCard, renderOccurrenceCard } from './cards.js';
 import { fetchDayOccurrences, fetchOccurrence, type Occurrence } from './data.js';
 import { fromMetres } from './mercator.js';
+import { VIEW_ZOOMS } from './handler.js';
+
+/** A zoom from the command line, held to the range the card routes accept (handler.ts). */
+function zoomArg(z: string): number {
+  const n = Number(z);
+  if (!Number.isInteger(n) || n < VIEW_ZOOMS.min || n > VIEW_ZOOMS.max)
+    throw new Error(`zoom must be a whole number from ${VIEW_ZOOMS.min} to ${VIEW_ZOOMS.max}, got "${z}"`);
+  return n;
+}
 
 async function main(): Promise<number> {
   const [mode, ...rest] = process.argv.slice(2);
@@ -45,7 +54,7 @@ async function main(): Promise<number> {
     if (!id || !out) throw new Error('usage: occurrence <id> <out.jpg> [<z>]');
     const occ = await fetchOccurrence(id);
     if (!occ) throw new Error(`no occurrence ${id}`);
-    writeFileSync(out, (await renderOccurrenceCard(occ, z ? Number(z) : undefined)).jpeg);
+    writeFileSync(out, (await renderOccurrenceCard(occ, z ? zoomArg(z) : undefined)).jpeg);
     console.log(`wrote ${out} (${occ.species}, ${occ.location?.lon}, ${occ.location?.lat})`);
     return 0;
   }
@@ -53,7 +62,7 @@ async function main(): Promise<number> {
   if (mode === 'day') {
     const [date, out, x, y, z] = rest;
     if (!date || !out) throw new Error('usage: day <YYYY-MM-DD> <out.jpg> [<x> <y> <z>]');
-    const frame = x && y && z ? { center: fromMetres(Number(x), Number(y)), z: Number(z) } : undefined;
+    const frame = x && y && z ? { center: fromMetres(Number(x), Number(y)), z: zoomArg(z) } : undefined;
     const occurrences = await fetchDayOccurrences(date);
     writeFileSync(out, (await renderDayCard(occurrences, date, frame)).jpeg);
     console.log(`wrote ${out} (${occurrences.length} occurrences fetched for ${date})`);
