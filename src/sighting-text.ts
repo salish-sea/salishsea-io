@@ -19,7 +19,7 @@
  * compares codes. A hedge word marks the codes that follow it up to the next comma:
  * "likely" and "presumably" make them probable, "possibly", "maybe", "not sure" and "?"
  * possible (decision 054's certainty). Pods
- * are "J pod", "Jpod", "Js", "J and K pods". The direction is a compass word or
+ * are "J pod", "J Pod", "Jpod", "Js", "J and K pods". The direction is a compass word or
  * abbreviation, "NB", "SW bound", "trending N", ignoring a bearing ("north of Alki",
  * "1/2 mile southeast of"), a place name ("West Point"), a spread ("north to south", "N to
  * S") and "facing"; after "now", "then" or "turned", the direction after the cue wins,
@@ -281,7 +281,8 @@ export function readText(text: string): Reading {
     // Pods.
     const pods = new Set<string>();
     for (const m of text.matchAll(/\b([JKL])(?:s|'s)\b/g)) pods.add(m[1]!);
-    for (const m of text.matchAll(/\b([JKLjkl](?:\s*(?:,\s*and|,|and|&|\+)\s*[JKLjkl])*)\s*-?\s?pods?\b/g)) {
+    // "pod" in any of the cases reporters write it: "J pod", "J Pod" (most of Orca Network's in November 2026), "J POD".
+    for (const m of text.matchAll(/\b([JKLjkl](?:\s*(?:,\s*and|,|and|&|\+)\s*[JKLjkl])*)\s*-?\s?(?:[Pp]ods?|PODS?)\b/g)) {
         for (const l of m[1]!.toUpperCase().match(/[JKL]/g) ?? []) pods.add(l);
     }
 
