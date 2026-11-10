@@ -649,6 +649,31 @@ describe('map cards', () => {
     expect(body).toContain('https://salishsea.io/?d=2026-07-27');
   });
 
+  it('frames the day card on the view a link was shared from', async () => {
+    // The link from salish-hb6z: a bout's track in Puget Sound, previewed as the whole Salish Sea.
+    const body = await bodyFor('d=2026-11-10&x=-13638453&y=6082529&z=11');
+    expect(body).toContain(
+      '<meta property="og:image" content="https://salishsea.io/cards/day/2026-11-10/-13638453,6082529,11.jpg">');
+    expect(body).toContain('https://salishsea.io/?d=2026-11-10&amp;x=-13638453&amp;y=6082529&amp;z=11');
+  });
+
+  it('rounds a view, and brings its zoom into the range the renderer draws', async () => {
+    expect(await bodyFor('d=2026-11-10&x=-13638453.4&y=6082528.6&z=18'))
+      .toContain('/cards/day/2026-11-10/-13638453,6082529,15.jpg');
+    expect(await bodyFor('d=2026-11-10&x=0&y=0&z=1')).toContain('/cards/day/2026-11-10/0,0,3.jpg');
+  });
+
+  it.each([
+    ['x=-13638453&y=6082529', 'no zoom'],
+    ['x=&y=6082529&z=11', 'an empty x'],
+    ['x=west&y=6082529&z=11', 'a word'],
+    ['x=-13638453&y=99999999&z=11', 'a point off the map'],
+    ['x=Infinity&y=6082529&z=11', 'an infinite x'],
+  ])('frames the Salish Sea when the view is unusable: %s (%s)', async (view) => {
+    const body = await bodyFor(`d=2026-11-10&${view}`);
+    expect(body).toContain('<meta property="og:image" content="https://salishsea.io/cards/day/2026-11-10.jpg">');
+  });
+
   it('prefers the occurrence card when both o and d are present', async () => {
     const body = await bodyFor('d=2026-07-27&o=abc123', { ...sampleOccurrence, photos: [] });
     expect(body).toContain('/cards/o/abc123.jpg');

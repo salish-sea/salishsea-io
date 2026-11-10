@@ -3,6 +3,7 @@
 //   node lib/card-renderer/cli.js point -123.09 48.61 out.jpg
 //   node lib/card-renderer/cli.js occurrence 'inaturalist:375544838' out.jpg
 //   node lib/card-renderer/cli.js day 2026-07-27 out.jpg
+//   node lib/card-renderer/cli.js day 2026-11-10 out.jpg -13638453 6082529 11
 //
 // `point` needs no credentials, which makes it the fastest way to eyeball the
 // basemap and chrome. The other two read the published files, and the write API.
@@ -10,6 +11,7 @@
 import { writeFileSync } from 'node:fs';
 import { renderDayCard, renderOccurrenceCard } from './cards.js';
 import { fetchDayOccurrences, fetchOccurrence, type Occurrence } from './data.js';
+import { fromMetres } from './mercator.js';
 
 async function main(): Promise<number> {
   const [mode, ...rest] = process.argv.slice(2);
@@ -49,10 +51,11 @@ async function main(): Promise<number> {
   }
 
   if (mode === 'day') {
-    const [date, out] = rest;
-    if (!date || !out) throw new Error('usage: day <YYYY-MM-DD> <out.jpg>');
+    const [date, out, x, y, z] = rest;
+    if (!date || !out) throw new Error('usage: day <YYYY-MM-DD> <out.jpg> [<x> <y> <z>]');
+    const frame = x && y && z ? { center: fromMetres(Number(x), Number(y)), z: Number(z) } : undefined;
     const occurrences = await fetchDayOccurrences(date);
-    writeFileSync(out, (await renderDayCard(occurrences, date)).jpeg);
+    writeFileSync(out, (await renderDayCard(occurrences, date, frame)).jpeg);
     console.log(`wrote ${out} (${occurrences.length} occurrences fetched for ${date})`);
     return 0;
   }

@@ -3,6 +3,8 @@
 // Routes:
 //   /cards/o/<url-encoded occurrence id>.jpg
 //   /cards/day/<YYYY-MM-DD>.jpg
+//   /cards/day/<YYYY-MM-DD>/<x>,<y>,<z>.jpg  — the day framed on a shared view of the
+//     map: its centre in whole EPSG:3857 metres and its zoom, as the site's URL gives them
 //
 // A miss returns 404 rather than a placeholder image: a crawler that gets no
 // image falls back to a text-only card, which is the honest outcome and matches
@@ -11,14 +13,23 @@
 import { renderDayCard, renderOccurrenceCard } from './cards.js';
 import { fetchDayOccurrences, fetchOccurrence } from './data.js';
 import { INCOMPLETE, MISS as MISS_CACHE, cacheControlForDate, cacheControlForInstant } from './cache-control.js';
-import type { Card } from './cards.js';
+import type { Card, Frame } from './cards.js';
 import { isValidDate, pacificDayRange } from './pacific-day.js';
+import { MERCATOR_EXTENT, fromMetres } from './mercator.js';
 
 // Cache lifetimes are keyed on how recent the card's subject is — see
 // cache-control.ts for why, and for the window.
 
 const OCCURRENCE_PATH = /^\/cards\/o\/(.+)\.jpg$/;
 const DAY_PATH = /^\/cards\/day\/([0-9]{4}-[0-9]{2}-[0-9]{2})\.jpg$/;
+const VIEW_PATH = /^\/cards\/day\/([0-9]{4}-[0-9]{2}-[0-9]{2})\/(-?[0-9]+),(-?[0-9]+),([0-9]+)\.jpg$/;
+
+/**
+ * The zooms a shared view's card is drawn at: the basemap's image tiles go up to 15,
+ * and below 3 a card is wider than the world. The edge handler brings a link's zoom
+ * into this range before it names the card (its MIN_VIEW_ZOOM and MAX_VIEW_ZOOM).
+ */
+export const VIEW_ZOOMS = { min: 3, max: 15 } as const;
 
 interface FunctionUrlEvent {
   rawPath?: string;
@@ -67,16 +78,23 @@ export const handler = async (event: FunctionUrlEvent): Promise<Result> => {
       return image(card, cacheControlForInstant(occ.observedAt));
     }
 
-    const dayMatch = path.match(DAY_PATH);
+    const dayMatch = path.match(DAY_PATH) ?? path.match(VIEW_PATH);
     if (dayMatch) {
       const date = dayMatch[1]!;
       if (!isValidDate(date)) return miss('not a calendar date');
+      let frame: Frame | undefined;
+      if (dayMatch[2] !== undefined) {
+        const [x, y, z] = dayMatch.slice(2, 5).map(Number) as [number, number, number];
+        if (Math.abs(x) > MERCATOR_EXTENT || Math.abs(y) > MERCATOR_EXTENT) return miss('not a point on the map');
+        if (z < VIEW_ZOOMS.min || z > VIEW_ZOOMS.max) return miss('zoom out of range');
+        frame = { center: fromMetres(x, y), z };
+      }
       const { endIso } = pacificDayRange(date);
       const occurrences = await fetchDayOccurrences(date);
-      const card = await renderDayCard(occurrences, date);
+      const card = await renderDayCard(occurrences, date, frame);
       console.log(JSON.stringify({
-        msg: 'card', kind: 'day', date, fetched: occurrences.length,
-        ms: Date.now() - started, bytes: card.jpeg.length, failedTiles: card.failedTiles,
+        msg: 'card', kind: 'day', date, view: frame ? path.slice(path.lastIndexOf('/') + 1, -4) : undefined,
+        fetched: occurrences.length, ms: Date.now() - started, bytes: card.jpeg.length, failedTiles: card.failedTiles,
       }));
       return image(card, cacheControlForDate(date, endIso));
     }

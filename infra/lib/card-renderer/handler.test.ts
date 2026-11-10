@@ -1,5 +1,5 @@
 import { INCOMPLETE, SETTLED } from './cache-control';
-import { renderOccurrenceCard } from './cards.js';
+import { renderDayCard, renderOccurrenceCard } from './cards.js';
 import { handler } from './handler';
 
 jest.mock('./cards.js', () => ({ renderOccurrenceCard: jest.fn(), renderDayCard: jest.fn() }));
@@ -25,5 +25,28 @@ describe('a card for a settled sighting', () => {
   it('is cached only briefly when some of its basemap tiles failed to arrive', async () => {
     drawn(2);
     expect(await cacheControl()).toBe(INCOMPLETE);
+  });
+});
+
+describe('a day card framed on a shared view', () => {
+  beforeEach(() => jest.mocked(renderDayCard).mockReset().mockResolvedValue({ jpeg: Buffer.from('jpeg'), failedTiles: 0 }));
+
+  it('is centred on the view and drawn at its zoom', async () => {
+    const result = await handler({ rawPath: '/cards/day/2026-11-10/-13638453,6082529,11.jpg' });
+    expect(result.statusCode).toBe(200);
+    const frame = jest.mocked(renderDayCard).mock.calls[0]![2]!;
+    expect(frame.z).toBe(11);
+    expect(frame.center.lon).toBeCloseTo(-122.516, 3);
+    expect(frame.center.lat).toBeCloseTo(47.854, 3);
+  });
+
+  it.each([
+    ['/cards/day/2026-11-10/-13638453,6082529,16.jpg', 'a zoom past the basemap'],
+    ['/cards/day/2026-11-10/-13638453,6082529,2.jpg', 'a zoom wider than the world'],
+    ['/cards/day/2026-11-10/-13638453,99999999,11.jpg', 'a point off the map'],
+    ['/cards/day/2026-02-31/0,0,8.jpg', 'a date that does not exist'],
+  ])('is not drawn for %s (%s)', async (rawPath) => {
+    expect((await handler({ rawPath })).statusCode).toBe(404);
+    expect(renderDayCard).not.toHaveBeenCalled();
   });
 });

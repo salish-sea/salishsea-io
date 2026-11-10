@@ -6,7 +6,9 @@ import { TILE, type Viewport, tilesFor } from './mercator.js';
  * (decisions 074 and 076; the basemap's decision 014). They are the map's own style
  * without its labels, so a card looks like the map it links to. Each is a 256-pixel tile
  * drawn at 512, for high-density screens, so it is shrunk to 256 here. Cards ask for
- * zooms 8 and 9, which the tiles cover wherever SalishSea.io has data.
+ * zooms 8 and 9, which the tiles cover wherever SalishSea.io has data, and a card of a
+ * shared view asks for that view's zoom, up to 15 (VIEW_ZOOMS in handler.ts); the deeper
+ * zooms are drawn only along the shore, and a missing tile is painted as sea.
  *
  * The same set as `IMAGE_TILES` in src/profile-map.ts, which src/style.test.ts checks;
  * scripts/update-basemap.ts rewrites both.
