@@ -68,15 +68,25 @@ export async function renderOccurrenceCard(occ: Occurrence): Promise<Card> {
   });
 }
 
+/** Where a card is centred and how far in it is zoomed, in 256-pixel tiles. */
+export interface Frame {
+  center: LonLat;
+  z: number;
+}
+
 /**
- * A card for a day's sightings.
+ * A card for a day's sightings, framed on the Salish Sea, or on `frame` when the
+ * link was shared from a particular view of the map.
  *
  * The caption counts *plotted* markers, never the total fetched. A viewer can
  * only see what is in frame, and a number that includes dots outside it would be
  * a caption that lies about its own picture.
  */
-export async function renderDayCard(occurrences: Occurrence[], date: string): Promise<Card> {
-  const v = viewport(SALISH_SEA_CENTER, DAY_ZOOM, CARD_WIDTH, CARD_HEIGHT);
+export async function renderDayCard(
+  occurrences: Occurrence[], date: string,
+  frame: Frame = { center: SALISH_SEA_CENTER, z: DAY_ZOOM },
+): Promise<Card> {
+  const v = viewport(frame.center, frame.z, CARD_WIDTH, CARD_HEIGHT);
   const markers: Marker[] = occurrences
     .filter(o => o.location && isVisible(o.location, v))
     .map(o => ({ at: o.location!, primary: false }));

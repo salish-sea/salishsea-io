@@ -1,5 +1,5 @@
 import {
-  TILE, isVisible, latToWorldY, lonToWorldX, project, tilesFor, viewport, worldXToLon, worldYToLat,
+  TILE, fromMetres, isVisible, latToWorldY, lonToWorldX, project, tilesFor, viewport, worldXToLon, worldYToLat,
 } from './mercator';
 
 const CARD = { w: 1200, h: 630 };
@@ -103,5 +103,16 @@ describe('tile cover', () => {
       expect(t.y).toBeGreaterThanOrEqual(0);
       expect(t.y).toBeLessThan(span);
     }
+  });
+});
+
+describe('fromMetres', () => {
+  it('reads a point in EPSG:3857 metres as the site writes it, the inverse of src/map-view.ts fromLonLat', () => {
+    // Friday Harbor: lon -123.0130, lat 48.5343 is x -13693765, y 6197420 in the site's URLs.
+    const x = 6378137 * -123.013 * Math.PI / 180;
+    const y = 6378137 * Math.log(Math.tan(Math.PI / 4 + 48.5343 * Math.PI / 360));
+    const { lon, lat } = fromMetres(x, y);
+    expect(lon).toBeCloseTo(-123.013, 6);
+    expect(lat).toBeCloseTo(48.5343, 6);
   });
 });

@@ -35,6 +35,17 @@ export function worldYToLat(y: number, z: number): number {
   return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
 }
 
+/** Half the width of the EPSG:3857 world, in metres. */
+export const MERCATOR_EXTENT = 20037508.342789244;
+
+/** Longitude and latitude for a point in EPSG:3857 metres, as the site's `x` and `y` give it. */
+export function fromMetres(x: number, y: number): LonLat {
+  return {
+    lon: x / MERCATOR_EXTENT * 180,
+    lat: Math.atan(Math.sinh(y / MERCATOR_EXTENT * Math.PI)) * 180 / Math.PI,
+  };
+}
+
 /**
  * The rectangle of world pixels a card covers: `width` x `height` centred on
  * `center` at zoom `z`. Every other calculation hangs off this.

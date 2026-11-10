@@ -253,8 +253,41 @@ function occurrenceCardUrl(id: string): string {
   return `https://salishsea.io/cards/o/${encodeURIComponent(id)}.jpg`;
 }
 
-function dayCardUrl(date: string): string {
-  return `https://salishsea.io/cards/day/${date}.jpg`;
+function dayCardUrl(date: string, view: MapView | null): string {
+  return view
+    ? `https://salishsea.io/cards/day/${date}/${view.x},${view.y},${view.z}.jpg`
+    : `https://salishsea.io/cards/day/${date}.jpg`;
+}
+
+/**
+ * The map view a link was shared from: its `x` and `y` (the centre in EPSG:3857
+ * metres) and `z` (the zoom in 256-pixel tiles, OpenLayers' numbering, which is also
+ * the card renderer's; src/map-view.ts). Rounded to whole metres and a whole zoom so
+ * near-identical views share one cached card, and the zoom brought into the range
+ * the renderer draws (VIEW_ZOOMS in the card renderer's handler.ts, hand-copied
+ * here): a view zoomed in past it still gets a card of that place, not of the
+ * region. Null when any of the three is missing or not a coordinate, and the day
+ * card frames the Salish Sea as before.
+ */
+export interface MapView { x: number; y: number; z: number }
+
+const MIN_VIEW_ZOOM = 3;
+const MAX_VIEW_ZOOM = 15;
+/** Half the width of the EPSG:3857 world, in metres. */
+const MERCATOR_EXTENT = 20037508.342789244;
+
+export function sharedView(qs: URLSearchParams): MapView | null {
+  const [x, y, z] = ['x', 'y', 'z'].map(k => {
+    const value = qs.get(k);
+    return value && value.trim() !== '' ? Number(value) : NaN;
+  }) as [number, number, number];
+  if (![x, y, z].every(Number.isFinite)) return null;
+  if (Math.abs(x) > MERCATOR_EXTENT || Math.abs(y) > MERCATOR_EXTENT) return null;
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+    z: Math.min(MAX_VIEW_ZOOM, Math.max(MIN_VIEW_ZOOM, Math.round(z))),
+  };
 }
 
 // A `d=` parameter names a Pacific calendar date. Only the shape is checked here
@@ -292,15 +325,16 @@ function normalizeInstant(iso: string): string {
   return /(?:Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`;
 }
 
-function dayPreviewTags(date: string): OgTags {
+function dayPreviewTags(date: string, view: MapView | null): OgTags {
+  const at = view ? `&x=${view.x}&y=${view.y}&z=${view.z}` : '';
   return {
     'og:site_name': 'SalishSea.io',
     'og:type': 'website',
-    'og:url': `https://salishsea.io/?d=${encodeURIComponent(date)}`,
+    'og:url': `https://salishsea.io/?d=${encodeURIComponent(date)}${at}`,
     'og:title': `Sightings · ${formatCalendarDate(date)}`,
     'og:description':
       `Whale and marine-mammal sightings reported across the Salish Sea on ${formatCalendarDate(date)}.`,
-    'og:image': dayCardUrl(date),
+    'og:image': dayCardUrl(date, view),
     'twitter:card': 'summary_large_image',
     'fb:app_id': FB_APP_ID,
   };
@@ -385,11 +419,12 @@ export const handler = async (event: any): Promise<any> => {
     const occurrenceId = qs.get('o');
 
     if (!occurrenceId) {
-      // A link shared from a particular day gets that day's map. No lookup here:
-      // the renderer counts and plots the sightings, so this branch costs nothing.
+      // A link shared from a particular day gets that day's map, framed on the view
+      // it was shared from when it carries one (salish-hb6z). No lookup here: the
+      // renderer counts and plots the sightings, so this branch costs nothing.
       const date = qs.get('d');
       if (date && isCalendarDate(date)) {
-        return htmlResponse(dayPreviewTags(date));
+        return htmlResponse(dayPreviewTags(date, sharedView(qs)));
       }
       return {
         status: '200',

@@ -113,6 +113,24 @@ test('bot UA on a dated link receives a day card', async ({ request }) => {
   expect(body).toContain('July 26, 2026');
 });
 
+test('bot UA on a dated link with a map view receives a day card framed on that view', async ({ request }) => {
+  const response = await request.get('/?d=2026-07-26&x=-13693765&y=6197420&z=11', {
+    headers: { 'User-Agent': 'facebookexternalhit/1.1' },
+  });
+
+  expect(response.status()).toBe(200);
+  const body = await response.text();
+  const card = 'https://salishsea.io/cards/day/2026-07-26/-13693765,6197420,11.jpg';
+  expect(body).toContain(card);
+
+  const image = await request.get(new URL(card).pathname, {
+    headers: { 'User-Agent': 'facebookexternalhit/1.1' },
+  });
+  expect(image.status()).toBe(200);
+  expect(image.headers()['content-type']).toBe('image/jpeg');
+  expect((await image.body()).byteLength).toBeGreaterThan(20_000);
+});
+
 // A fixed past date rather than an occurrence id: the card must exist forever,
 // and a day card renders whether or not anything was seen that day.
 test('card images serve bytes, not OG HTML, to the crawler that reads og:image', async ({ request }) => {
