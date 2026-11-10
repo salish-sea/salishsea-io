@@ -22,6 +22,8 @@ export interface Occurrence {
   leg?: [number, number][];
   /** The water region it was in, as the build names it ("Haro Strait", "off Vancouver Island"). */
   place?: string | null;
+  /** The name reporters use nearest it, in that region ("Lime Kiln Point"); only with a place. */
+  landmark?: string | null;
   /** The Southern Resident pods its text names, as letters. */
   pods?: string[];
   /** The animals it names (decision 109): codes, and a bout's tags; a possible one ends in '?'. */
@@ -37,6 +39,7 @@ interface OccurrenceRow {
   segment?: string;
   leg?: [number, number][];
   place?: string | null;
+  landmark?: string | null;
   pods?: string[];
   identifiers?: string[] | null;
 }
@@ -79,6 +82,7 @@ function toOccurrence(row: OccurrenceRow): Occurrence {
     ...(row.segment !== undefined && { segment: row.segment }),
     ...(row.leg && { leg: row.leg }),
     place: row.place ?? null,
+    landmark: row.landmark ?? null,
     pods: row.pods ?? [],
     identifiers: row.identifiers ?? [],
   };

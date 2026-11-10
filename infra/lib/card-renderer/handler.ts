@@ -2,6 +2,7 @@
 //
 // Routes:
 //   /cards/o/<url-encoded occurrence id>.jpg
+//   /cards/o/<url-encoded occurrence id>/<z>.jpg  — at the zoom of a shared view of the map
 //   /cards/day/<YYYY-MM-DD>.jpg
 //   /cards/day/<YYYY-MM-DD>/<x>,<y>,<z>.jpg  — the day framed on a shared view of the
 //     map: its centre in whole EPSG:3857 metres and its zoom, as the site's URL gives them
@@ -20,6 +21,8 @@ import { MERCATOR_EXTENT, fromMetres } from './mercator.js';
 // Cache lifetimes are keyed on how recent the card's subject is — see
 // cache-control.ts for why, and for the window.
 
+// An encoded id has no '/', so a zoom after one can't be part of it; that form is matched first.
+const ZOOMED_OCCURRENCE_PATH = /^\/cards\/o\/([^/]+)\/([0-9]+)\.jpg$/;
 const OCCURRENCE_PATH = /^\/cards\/o\/(.+)\.jpg$/;
 const DAY_PATH = /^\/cards\/day\/([0-9]{4}-[0-9]{2}-[0-9]{2})\.jpg$/;
 const VIEW_PATH = /^\/cards\/day\/([0-9]{4}-[0-9]{2}-[0-9]{2})\/(-?[0-9]+),(-?[0-9]+),([0-9]+)\.jpg$/;
@@ -62,17 +65,19 @@ export const handler = async (event: FunctionUrlEvent): Promise<Result> => {
   const started = Date.now();
 
   try {
-    const occurrenceMatch = path.match(OCCURRENCE_PATH);
+    const occurrenceMatch = path.match(ZOOMED_OCCURRENCE_PATH) ?? path.match(OCCURRENCE_PATH);
     if (occurrenceMatch) {
       const id = decodeURIComponent(occurrenceMatch[1]!);
+      const z = occurrenceMatch[2] === undefined ? undefined : Number(occurrenceMatch[2]);
+      if (z !== undefined && (z < VIEW_ZOOMS.min || z > VIEW_ZOOMS.max)) return miss('zoom out of range');
       const occ = await fetchOccurrence(id);
       if (!occ?.location) {
         console.log(JSON.stringify({ msg: 'card-miss', kind: 'occurrence', id }));
         return miss('no such occurrence, or it has no location');
       }
-      const card = await renderOccurrenceCard(occ);
+      const card = await renderOccurrenceCard(occ, z);
       console.log(JSON.stringify({
-        msg: 'card', kind: 'occurrence', id, ms: Date.now() - started, bytes: card.jpeg.length,
+        msg: 'card', kind: 'occurrence', id, z, ms: Date.now() - started, bytes: card.jpeg.length,
         failedTiles: card.failedTiles,
       }));
       return image(card, cacheControlForInstant(occ.observedAt));

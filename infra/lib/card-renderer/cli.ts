@@ -1,7 +1,7 @@
 // Render a card to a file so it can be looked at without deploying anything.
 //
 //   node lib/card-renderer/cli.js point -123.09 48.61 out.jpg
-//   node lib/card-renderer/cli.js occurrence 'inaturalist:375544838' out.jpg
+//   node lib/card-renderer/cli.js occurrence 'inaturalist:375544838' out.jpg [<z>]
 //   node lib/card-renderer/cli.js day 2026-07-27 out.jpg
 //   node lib/card-renderer/cli.js day 2026-11-10 out.jpg -13638453 6082529 11
 //
@@ -12,6 +12,15 @@ import { writeFileSync } from 'node:fs';
 import { renderDayCard, renderOccurrenceCard } from './cards.js';
 import { fetchDayOccurrences, fetchOccurrence, type Occurrence } from './data.js';
 import { fromMetres } from './mercator.js';
+import { VIEW_ZOOMS } from './handler.js';
+
+/** A zoom from the command line, held to the range the card routes accept (handler.ts). */
+function zoomArg(z: string): number {
+  const n = Number(z);
+  if (!Number.isInteger(n) || n < VIEW_ZOOMS.min || n > VIEW_ZOOMS.max)
+    throw new Error(`zoom must be a whole number from ${VIEW_ZOOMS.min} to ${VIEW_ZOOMS.max}, got "${z}"`);
+  return n;
+}
 
 async function main(): Promise<number> {
   const [mode, ...rest] = process.argv.slice(2);
@@ -41,11 +50,11 @@ async function main(): Promise<number> {
   }
 
   if (mode === 'occurrence') {
-    const [id, out] = rest;
-    if (!id || !out) throw new Error('usage: occurrence <id> <out.jpg>');
+    const [id, out, z] = rest;
+    if (!id || !out) throw new Error('usage: occurrence <id> <out.jpg> [<z>]');
     const occ = await fetchOccurrence(id);
     if (!occ) throw new Error(`no occurrence ${id}`);
-    writeFileSync(out, (await renderOccurrenceCard(occ)).jpeg);
+    writeFileSync(out, (await renderOccurrenceCard(occ, z ? zoomArg(z) : undefined)).jpeg);
     console.log(`wrote ${out} (${occ.species}, ${occ.location?.lon}, ${occ.location?.lat})`);
     return 0;
   }
@@ -53,7 +62,7 @@ async function main(): Promise<number> {
   if (mode === 'day') {
     const [date, out, x, y, z] = rest;
     if (!date || !out) throw new Error('usage: day <YYYY-MM-DD> <out.jpg> [<x> <y> <z>]');
-    const frame = x && y && z ? { center: fromMetres(Number(x), Number(y)), z: Number(z) } : undefined;
+    const frame = x && y && z ? { center: fromMetres(Number(x), Number(y)), z: zoomArg(z) } : undefined;
     const occurrences = await fetchDayOccurrences(date);
     writeFileSync(out, (await renderDayCard(occurrences, date, frame)).jpeg);
     console.log(`wrote ${out} (${occurrences.length} occurrences fetched for ${date})`);

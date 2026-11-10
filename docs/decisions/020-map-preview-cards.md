@@ -17,6 +17,7 @@ Issue #38 has always asked for a rendered map of the sighting. This is that.
 |---|---|
 | `?o=<id>` with a `cc0`/`cc-by` photo | that photo (unchanged, decision 019) |
 | `?o=<id>` without one | `/cards/o/<id>.jpg` — the sighting marked, zoom 9 |
+| `?o=<id>&x=…&y=…&z=…` without one | `/cards/o/<id>/<z>.jpg` — the sighting marked and centred, at the shared view's zoom (amended 2026-11-10, `salish-2rv3`) |
 | `?d=<date>`, no `o` | `/cards/day/<date>.jpg` — that day's sightings |
 | `?d=<date>&x=…&y=…&z=…`, no `o` | `/cards/day/<date>/<x>,<y>,<z>.jpg` — that day's sightings, framed on the shared view (amended 2026-11-10, below) |
 | neither | no image; text-only site card (unchanged) |
@@ -146,6 +147,12 @@ better than a broken image.
 - Profile pages (individual, matriline, ecotype) remain text-only. Plotting a
   subject's whole sighting history is a second data shape and can follow once
   this is proven.
+- *Amended 2026-11-10 (`salish-2rv3`):* a sighting's card and its preview text say
+  where it was, as its card on the site does ("Admiralty Inlet, off Olele Point"), from
+  the region and landmark the build writes. A sighting's card shared from a view of the
+  map is drawn at that view's zoom, but centred on the sighting rather than on the view,
+  so its marker is always in frame. A link zoomed in to 12 had previewed at 9, a picture
+  of most of Puget Sound in which the sighting was a dot.
 - ~~Honouring a shared `x/y/z` viewport is deferred — it multiplies cache keys for
   a rare kind of share.~~ **Amended 2026-11-10 (`salish-hb6z`):** a dated link that
   carries a view now gets a day card framed on that view. The deferral cost a real

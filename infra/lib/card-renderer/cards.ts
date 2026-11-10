@@ -56,13 +56,18 @@ async function compose(v: Viewport, chrome: Parameters<typeof chromeSvg>[0]): Pr
   return { jpeg, failedTiles: failed };
 }
 
-/** A card for one sighting: the marker centred, species and date beneath. */
-export async function renderOccurrenceCard(occ: Occurrence): Promise<Card> {
+/**
+ * A card for one sighting: the marker centred, at `z` when the link was shared from a
+ * view of the map, and the species, where it was and the date beneath. The place is
+ * said as a sighting's card on the site says it (src/place.ts, placeLine).
+ */
+export async function renderOccurrenceCard(occ: Occurrence, z = OCCURRENCE_ZOOM): Promise<Card> {
   if (!occ.location) throw new Error(`occurrence ${occ.id} has no location`);
-  const v = viewport(occ.location, OCCURRENCE_ZOOM, CARD_WIDTH, CARD_HEIGHT);
+  const v = viewport(occ.location, z, CARD_WIDTH, CARD_HEIGHT);
   const count = occ.count ?? 1;
   return compose(v, {
     title: count > 1 ? `${count} ${occ.species}s` : occ.species,
+    detail: occ.place ? (occ.landmark ? `${occ.place}, off ${occ.landmark}` : occ.place) : null,
     subtitle: `${formatDate(occ.observedAt)} · SalishSea.io`,
     attribution: BASEMAP_ATTRIBUTION,
     markers: [{ at: occ.location, primary: true }],
