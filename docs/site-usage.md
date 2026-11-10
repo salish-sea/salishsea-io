@@ -12,7 +12,7 @@ The queries run in **Athena**, the AWS service that answers questions about file
 4. Open the **Saved queries** tab. Click a query's name: it opens in the editor.
 5. Press **Run**. The answer appears below the query within a few seconds, and **Download results** saves it as a spreadsheet (CSV).
 
-Every query covers the 30 calendar days before today, counted in UTC, and today so far. The logs usually arrive within an hour of the requests, occasionally up to a day later, so the last few hours may be missing. Each reads about 170 MB of logs, which costs about a tenth of a cent. Running one changes nothing on the site. If Athena says you don't have permission, ask Peter.
+Every query covers the 30 calendar days before today, counted in UTC, and today so far. The logs usually arrive within an hour of the requests, occasionally up to a day later, so the last few hours may be missing. Each reads about 170 MB of logs, which costs about a tenth of a cent. Running one changes nothing on the site.
 
 You don't need to edit a query, or to run `human_pageviews_view`: that one defines the filter described below, and whoever changes the filter runs it again.
 
