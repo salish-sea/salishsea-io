@@ -44,7 +44,7 @@ An example, from 9 November 2026: `02_summary_human` answered 6,632 page views f
 - Programs that say what they are: anything calling itself a bot, a crawler, a monitor, a link preview, or a scripting tool.
 - Programs that pass themselves off as a browser but behave like none. A browser that loads a page also fetches that page's own files: its styles and scripts, and the map's sightings. A visitor counts only if their browser did that the same day. In October 2026, scrapers posing as Chrome fetched hundreds of profile pages in a day, each from a different address and each fetching nothing else. Before this rule they made daily visitors look like 600; there were between 30 and 90.
 
-What the filter gets wrong: someone who returns to a single profile page with that page's files already saved in their browser fetches nothing else, and isn't counted; and a program that imitates a browser completely, files and all, is counted as a person. Neither is common enough to change the picture.
+What the filter gets wrong: someone who returns to a single profile page with that page's files already saved in their browser fetches nothing else, and isn't counted; and a program that imitates a browser completely, files and all, is counted as a person. How often either happens isn't known. On ordinary days in October 2026, about one profile-page visitor in five fetched nothing but the page, which bounds the first.
 
 **What the logs can't tell you:** where visitors are (the logs record no country), who they are, or what they did inside the map.
 
