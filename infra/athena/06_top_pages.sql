@@ -1,6 +1,6 @@
 -- Most-requested paths among human page views (30 days).
--- NOTE: salishsea.io is a single-page app, so CloudFront sees nearly every page view as "/".
--- Per-view/feature usage needs client-side analytics (Sentry, or a tool like Plausible), not edge logs.
+-- The map is one page, "/", whatever day or sighting it shows; each profile page, the whales page and
+-- the about page has its own path.
 SELECT uri,
        count(*)                   AS page_views,
        count(DISTINCT request_ip) AS visitors
