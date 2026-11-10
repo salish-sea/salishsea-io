@@ -216,6 +216,9 @@ interface Occurrence {
   identifiers?: string[] | null;
   observed_until?: string | null;
   attribution?: string | null;
+  // The water region it was in and the landmark nearest it, as the build names them.
+  place?: string | null;
+  landmark?: string | null;
 }
 
 // Only cc0 and cc-by are unambiguously open for re-use
@@ -249,8 +252,11 @@ function cardImageUrl(src: string): string {
 // A crawler fetching the image it was just told about must get bytes, not another
 // OG document: /cards/* has no edge function at all, and the handler answers only
 // the map page.
-function occurrenceCardUrl(id: string): string {
-  return `https://salishsea.io/cards/o/${encodeURIComponent(id)}.jpg`;
+function occurrenceCardUrl(id: string, view: MapView | null): string {
+  // Only the view's zoom: the card is centred on the sighting, so its marker is always in frame.
+  return view
+    ? `https://salishsea.io/cards/o/${encodeURIComponent(id)}/${view.z}.jpg`
+    : `https://salishsea.io/cards/o/${encodeURIComponent(id)}.jpg`;
 }
 
 function dayCardUrl(date: string, view: MapView | null): string {
@@ -474,9 +480,11 @@ export const handler = async (event: any): Promise<any> => {
       description = `${who} · ${time}${until} · ${where} hydrophone`;
     } else {
       title = `${species} · ${date}`;
-      // Description: "{count} {species}s · {time}" — e.g. "3 Orcas · 2:32 PM"
+      // Description: "{count} {species}s · {time} · {place}" — e.g. "3 Orcas · 2:32 PM ·
+      // Haro Strait, off Lime Kiln Point", the place as a sighting's card on the site says it.
       const count = occ.count ?? 1;
-      description = `${count} ${species}s · ${time}`;
+      const where = occ.place ? ` · ${occ.landmark ? `${occ.place}, off ${occ.landmark}` : occ.place}` : '';
+      description = `${count} ${species}s · ${time}${where}`;
     }
 
     // Image: an open-licensed photo of the animal if there is one, otherwise a
@@ -490,14 +498,15 @@ export const handler = async (event: any): Promise<any> => {
     // case falls through to the brand card, which always resolves. No occurrence
     // lacks a location today; the column allows it, so the code does too.
     const photo = (occ.photos ?? []).find((p: Photo) => OPEN_LICENSES.includes(p.license ?? ''));
+    const view = sharedView(qs);
     const image = photo ? cardImageUrl(photo.src)
-      : occ.location ? occurrenceCardUrl(occ.id ?? occurrenceId)
+      : occ.location ? occurrenceCardUrl(occ.id ?? occurrenceId, view)
       : null;
 
     const tags: OgTags = {
       'og:site_name': 'SalishSea.io',
       'og:type': 'website',
-      'og:url': `https://salishsea.io/?o=${encodeURIComponent(occ.id ?? occurrenceId)}`,
+      'og:url': `https://salishsea.io/?o=${encodeURIComponent(occ.id ?? occurrenceId)}${view ? `&x=${view.x}&y=${view.y}&z=${view.z}` : ''}`,
       'og:title': title,
       'og:description': description,
       ...(image

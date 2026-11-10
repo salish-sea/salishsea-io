@@ -1,7 +1,7 @@
 // Render a card to a file so it can be looked at without deploying anything.
 //
 //   node lib/card-renderer/cli.js point -123.09 48.61 out.jpg
-//   node lib/card-renderer/cli.js occurrence 'inaturalist:375544838' out.jpg
+//   node lib/card-renderer/cli.js occurrence 'inaturalist:375544838' out.jpg [<z>]
 //   node lib/card-renderer/cli.js day 2026-07-27 out.jpg
 //   node lib/card-renderer/cli.js day 2026-11-10 out.jpg -13638453 6082529 11
 //
@@ -41,11 +41,11 @@ async function main(): Promise<number> {
   }
 
   if (mode === 'occurrence') {
-    const [id, out] = rest;
-    if (!id || !out) throw new Error('usage: occurrence <id> <out.jpg>');
+    const [id, out, z] = rest;
+    if (!id || !out) throw new Error('usage: occurrence <id> <out.jpg> [<z>]');
     const occ = await fetchOccurrence(id);
     if (!occ) throw new Error(`no occurrence ${id}`);
-    writeFileSync(out, (await renderOccurrenceCard(occ)).jpeg);
+    writeFileSync(out, (await renderOccurrenceCard(occ, z ? Number(z) : undefined)).jpeg);
     console.log(`wrote ${out} (${occ.species}, ${occ.location?.lon}, ${occ.location?.lat})`);
     return 0;
   }

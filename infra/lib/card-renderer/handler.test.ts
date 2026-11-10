@@ -50,3 +50,25 @@ describe('a day card framed on a shared view', () => {
     expect(renderDayCard).not.toHaveBeenCalled();
   });
 });
+
+describe("a sighting's card at a shared view's zoom", () => {
+  beforeEach(() => drawn(0));
+
+  it('is drawn at that zoom', async () => {
+    jest.mocked(renderOccurrenceCard).mockClear();
+    const result = await handler({ rawPath: '/cards/o/maplify%3Awhale_alert%3A263239/12.jpg' });
+    expect(result.statusCode).toBe(200);
+    expect(jest.mocked(renderOccurrenceCard).mock.calls[0]![0].id).toBe('maplify:whale_alert:263239');
+    expect(jest.mocked(renderOccurrenceCard).mock.calls[0]![1]).toBe(12);
+  });
+
+  it('is drawn at the default zoom without one', async () => {
+    jest.mocked(renderOccurrenceCard).mockClear();
+    await handler({ rawPath: '/cards/o/maplify%3Awhale_alert%3A263239.jpg' });
+    expect(jest.mocked(renderOccurrenceCard).mock.calls[0]![1]).toBeUndefined();
+  });
+
+  it('is not drawn at a zoom past the basemap', async () => {
+    expect((await handler({ rawPath: '/cards/o/abc/16.jpg' })).statusCode).toBe(404);
+  });
+});

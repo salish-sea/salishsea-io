@@ -674,6 +674,20 @@ describe('map cards', () => {
     expect(body).toContain('<meta property="og:image" content="https://salishsea.io/cards/day/2026-11-10.jpg">');
   });
 
+  it("draws a sighting's map card at the zoom of the view it was shared from", async () => {
+    // salish-2rv3: a z=12 link previewed at the card's own zoom 9.
+    const body = await bodyFor('d=2026-11-10&x=-13649453&y=6103847&z=12&o=abc123', { ...sampleOccurrence, photos: [] });
+    expect(body).toContain('<meta property="og:image" content="https://salishsea.io/cards/o/abc123/12.jpg">');
+    expect(body).toContain('https://salishsea.io/?o=abc123&amp;x=-13649453&amp;y=6103847&amp;z=12');
+  });
+
+  it('says where a sighting was, as its card on the site does', async () => {
+    const body = await bodyFor('o=abc123', { ...sampleOccurrence, place: 'Admiralty Inlet', landmark: 'Olele Point' });
+    expect(body).toContain('<meta property="og:description" content="3 Orcas · 7:32 AM · Admiralty Inlet, off Olele Point">');
+    expect(await bodyFor('o=abc123', { ...sampleOccurrence, place: 'Admiralty Inlet', landmark: null }))
+      .toContain('content="3 Orcas · 7:32 AM · Admiralty Inlet"');
+  });
+
   it('prefers the occurrence card when both o and d are present', async () => {
     const body = await bodyFor('d=2026-07-27&o=abc123', { ...sampleOccurrence, photos: [] });
     expect(body).toContain('/cards/o/abc123.jpg');
