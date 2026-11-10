@@ -1,6 +1,6 @@
 # Seeing how salishsea.io is used
 
-How many people visit salishsea.io, how they find it, which pages they read, and who else reads its sightings: every request to salishsea.io is logged, and a set of saved queries in the AWS console turns those logs into answers. Running one takes a few clicks and no programming.
+How many people visit salishsea.io, how they find it, which pages they read, and who else reads its sightings: CloudFront, the AWS service in front of salishsea.io, logs the requests it answers, and a set of saved queries in the AWS console turns those logs into answers. Running one takes a few clicks and no programming. AWS delivers the logs on a best-effort basis, so an occasional request goes unrecorded: the counts are close, not exact.
 
 ## Running a saved query
 
@@ -12,7 +12,7 @@ The queries run in **Athena**, the AWS service that answers questions about file
 4. Open the **Saved queries** tab. Click a query's name: it opens in the editor.
 5. Press **Run**. The answer appears below the query within a few seconds, and **Download results** saves it as a spreadsheet (CSV).
 
-Every query covers the last 30 days, up to the moment you run it. Each reads about 170 MB of logs, which costs about a tenth of a cent. Running one changes nothing on the site. If Athena says you don't have permission, ask Peter.
+Every query covers the 30 calendar days before today, counted in UTC, and today so far. The logs usually arrive within an hour of the requests, occasionally up to a day later, so the last few hours may be missing. Each reads about 170 MB of logs, which costs about a tenth of a cent. Running one changes nothing on the site. If Athena says you don't have permission, ask Peter.
 
 You don't need to edit a query, or to run `human_pageviews_view`: that one defines the filter described below, and whoever changes the filter runs it again.
 
@@ -39,12 +39,12 @@ An example, from 9 November 2026: `02_summary_human` answered 6,632 page views f
 
 **A visitor** is one internet address. That is an approximation: someone who reads on their phone and later on their laptop counts twice, and a household or office sharing one connection counts once. Daily visitor counts don't add up to a monthly total, because someone who visits on two days counts on each.
 
-**Only people are counted.** Most requests to the site come from programs: search engines, uptime monitors, AI crawlers, and scanners looking for weaknesses. So `02` to `06` and `09` count only what passes a filter, `human_pageviews`, which leaves out two kinds of program:
+**The figures estimate people, leaving programs out as far as they can.** Most requests to the site come from programs: search engines, uptime monitors, AI crawlers, and scanners looking for weaknesses. So `02` to `06` and `09` count only what passes a filter, `human_pageviews`, which leaves out two kinds of program:
 
 - Programs that say what they are: anything calling itself a bot, a crawler, a monitor, a link preview, or a scripting tool.
 - Programs that pass themselves off as a browser but behave like none. A browser that loads a page also fetches that page's own files: its styles and scripts, and the map's sightings. A visitor counts only if their browser did that the same day. In October 2026, scrapers posing as Chrome fetched hundreds of profile pages in a day, each from a different address and each fetching nothing else. Before this rule they made daily visitors look like 600; there were between 30 and 90.
 
-What the filter misses: someone who returns to a single profile page with that page's files already saved in their browser fetches nothing else, and isn't counted. So the figures lean slightly low.
+What the filter gets wrong: someone who returns to a single profile page with that page's files already saved in their browser fetches nothing else, and isn't counted; and a program that imitates a browser completely, files and all, is counted as a person. Neither is common enough to change the picture.
 
 **What the logs can't tell you:** where visitors are (the logs record no country), who they are, or what they did inside the map.
 
