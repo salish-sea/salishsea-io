@@ -24,7 +24,7 @@ import {
   accuracyValidator, ENTITY_OPTIONS, latLonInBoundsValidator, newSighting, OFFERED_ENTITIES, parseAccuracy, parseLonLat,
   rememberEntityChoice, rememberPhotoLicense, sightingPayload, type SightingFormData,
 } from './sighting-form-data.ts';
-import PhotoAttachment, { newPhotoId, photoThumbnail, readExif, uploadPhoto, type FailedUploadPhoto, type Photo, type UploadedPhoto } from "./photo-attachment.ts";
+import { newPhotoId, photoThumbnail, readExif, uploadPhoto, type FailedUploadPhoto, type Photo, type UploadedPhoto } from "./photo-attachment.ts";
 
 
 
@@ -344,14 +344,6 @@ export default class SightingForm extends LitElement {
     return html``;
   }
 
-  constructor() {
-    super();
-    this.addEventListener('remove-photo', e => {
-      const photo = (e.target as PhotoAttachment).photo;
-      this.removePhoto(photo);
-    });
-  }
-
   protected render() {
     const {canSubmit, isPristine, isValid} = this.#form.api.state;
     const enableSubmit = canSubmit && isValid && !isPristine
@@ -520,7 +512,7 @@ export default class SightingForm extends LitElement {
           <span>Photos</span>
           <div class="thumbnails">
             ${repeat(this.photos.filter(photo => photo.state !== 'removed'), photo => photo.id, photo => html`
-              <photo-attachment class=${photo.state} .photo=${photo}>
+              <photo-attachment class=${photo.state} .photo=${photo} @remove-photo=${() => this.removePhoto(photo)}>
               </photo-attachment>
             `)}
             <button @click=${this.onUploadClicked} class="upload-photo" type="button" title="Add photo">
