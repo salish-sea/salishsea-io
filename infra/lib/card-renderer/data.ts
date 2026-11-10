@@ -14,6 +14,18 @@ export interface Occurrence {
   observedAt: string;
   species: string;
   count: number | null;
+  /** The taxon's species, so two names of one species ("Killer whale", "Southern Resident killer whale") can be told apart from two species. */
+  speciesId?: number | null;
+  /** The travel segment the build put it in (decision 111): the id of the segment's oldest report. */
+  segment?: string;
+  /** The route by sea from the segment's previous report, `[lon, lat]`, both ends included, where the straight line crosses land (decision 113). */
+  leg?: [number, number][];
+  /** The water region it was in, as the build names it ("Haro Strait", "off Vancouver Island"). */
+  place?: string | null;
+  /** The Southern Resident pods its text names, as letters. */
+  pods?: string[];
+  /** The animals it names (decision 109): codes, and a bout's tags; a possible one ends in '?'. */
+  identifiers?: string[];
 }
 
 interface OccurrenceRow {
@@ -21,7 +33,12 @@ interface OccurrenceRow {
   location: { lon: number; lat: number } | null;
   observed_at: string;
   count: number | null;
-  taxon: { vernacular_name?: string } | null;
+  taxon: { vernacular_name?: string; species_id?: number | null } | null;
+  segment?: string;
+  leg?: [number, number][];
+  place?: string | null;
+  pods?: string[];
+  identifiers?: string[] | null;
 }
 
 const FETCH_TIMEOUT_MS = 4000;
@@ -58,6 +75,12 @@ function toOccurrence(row: OccurrenceRow): Occurrence {
     observedAt: row.observed_at,
     species: row.taxon?.vernacular_name ?? 'Marine mammal',
     count: row.count,
+    speciesId: row.taxon?.species_id ?? null,
+    ...(row.segment !== undefined && { segment: row.segment }),
+    ...(row.leg && { leg: row.leg }),
+    place: row.place ?? null,
+    pods: row.pods ?? [],
+    identifiers: row.identifiers ?? [],
   };
 }
 
