@@ -8,7 +8,10 @@ import { loadGold } from '../scripts/gold/gold.ts';
 import { FIELDS, scoreRow, type Field } from '../scripts/gold/score.ts';
 import { absent, hedged, present, readDirection, readSighting, readText, reportText } from './sighting-text.ts';
 
-/** Row 143 excludes an animal it fails to name ("T46s minus T46s"); row 136 names a calf's mother as context, which costs it codes present and certainty alike. */
+/**
+ * Row 143 excludes an animal it fails to name ("T46s minus T46s"); row 136 names a calf's mother as context, which costs it
+ * codes present and certainty alike.
+ */
 const WRONG_TODAY: Record<Field, number[]> = {
     direction: [], codes_present: [136], codes_absent: [143], codes_hedged: [], certainty: [136], pods: [],
 };
@@ -56,6 +59,9 @@ describe('reading sighting text', () => {
     test('a pod list', () => {
         expect(readText('J, K, and L pods spread out northbound').pods).toEqual(['J', 'K', 'L']);
         expect(readText('Js and Ks southbound, possibly Ls').pods).toEqual(['J', 'K', 'L']);
+        expect(readText('J Pod SB').pods).toEqual(['J']);
+        expect(readText('J POD and K Pod spread out').pods).toEqual(['J', 'K']);
+        expect(readText('J AND K PODS NB').pods).toEqual(['J', 'K']);
         expect(readDirection('SRKWs very spread N to S, leaders SW bound')).toBe('southwest');
         expect(readDirection('kpod, very spread out south and east bound')).toBe('southeast');
         expect(readDirection('south and east bound, then turned northbound')).toBe('north');
