@@ -61,6 +61,7 @@ describe('reading sighting text', () => {
         expect(readText('Js and Ks southbound, possibly Ls').pods).toEqual(['J', 'K', 'L']);
         expect(readText('J Pod SB').pods).toEqual(['J']);
         expect(readText('J POD and K Pod spread out').pods).toEqual(['J', 'K']);
+        expect(readText('J AND K PODS NB').pods).toEqual(['J', 'K']);
         expect(readDirection('SRKWs very spread N to S, leaders SW bound')).toBe('southwest');
         expect(readDirection('kpod, very spread out south and east bound')).toBe('southeast');
         expect(readDirection('south and east bound, then turned northbound')).toBe('north');

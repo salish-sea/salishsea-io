@@ -281,8 +281,9 @@ export function readText(text: string): Reading {
     // Pods.
     const pods = new Set<string>();
     for (const m of text.matchAll(/\b([JKL])(?:s|'s)\b/g)) pods.add(m[1]!);
-    // "pod" in any of the cases reporters write it: "J pod", "J Pod" (most of Orca Network's in November 2026), "J POD".
-    for (const m of text.matchAll(/\b([JKLjkl](?:\s*(?:,\s*and|,|and|&|\+)\s*[JKLjkl])*)\s*-?\s?(?:[Pp]ods?|PODS?)\b/g)) {
+    // "pod", and the "and" of a list, in any of the cases reporters write them: "J pod", "J Pod" (most of Orca
+    // Network's in November 2026), "J AND K PODS".
+    for (const m of text.matchAll(/\b([JKLjkl](?:\s*(?:,\s*(?:[Aa]nd|AND)|,|[Aa]nd|AND|&|\+)\s*[JKLjkl])*)\s*-?\s?(?:[Pp]ods?|PODS?)\b/g)) {
         for (const l of m[1]!.toUpperCase().match(/[JKL]/g) ?? []) pods.add(l);
     }
 
