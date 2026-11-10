@@ -171,6 +171,25 @@ describe('removing photos (salish-jo5)', () => {
     expect(el.photos.find((p) => p.id === middle.id)!.state).toBe('removed');
     expect(el.photos.filter((p) => p.state === 'removed')).toHaveLength(1);
   });
+
+  test("clicking a photo's remove button removes that photo (salish-lwgo)", async () => {
+    // Through the button, as a person does it. The tests above call removePhoto directly,
+    // which is how a listener that read the photo off the event's target went untested:
+    // the <photo-attachment> is in the form's shadow root, so a listener on the form sees
+    // the form itself as the target, and every click threw (Sentry SALISHSEA-IO-3N).
+    await el.appendPhotos([jpeg('one.jpg'), jpeg('two.jpg')]);
+    await settle();
+    await (el as unknown as {updateComplete: Promise<unknown>}).updateComplete;
+    const second = el.photos[1]!;
+    const attachments = el.shadowRoot!.querySelectorAll('photo-attachment');
+    expect(attachments).toHaveLength(2);
+    await (attachments[1] as unknown as {updateComplete: Promise<unknown>}).updateComplete;
+
+    attachments[1]!.shadowRoot!.querySelector<HTMLButtonElement>('button.remove')!.click();
+
+    expect(el.photos.find((p) => p.id === second.id)!.state).toBe('removed');
+    expect(el.photos.filter((p) => p.state === 'removed')).toHaveLength(1);
+  });
 });
 
 describe('a failed upload (salish-16b)', () => {
