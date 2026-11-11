@@ -36,13 +36,14 @@ export const VOCABULARY: Tag[] = [
         ['a kill', /\b(?:kill|predation)\b/i],
         ['attacking', /\battack\w*/i],
         ['eating', /\beat(?:ing|s)?\b/i],
-        ['fishing', /\bfishing\b(?! (?:boat|vessel|fleet|charter|pier|dock|line|gear))/i],
+        // Not "fishing": as often the observer as the animal ("fishing for salmon from my kayak").
         ['lunge feeding', /\blung(?:e|ing)\b/i],
         ['bubble net', /\bbubble[- ]?net\w*/i],
         ['chasing', /\bchas(?:e|ing|ed)\b/i],
     ]},
+    // Not "travelling": it nearly always comes with a heading ("traveling SB"), which
+    // the direction already carries, or means company ("traveling with T124A2").
     {tag: 'travelling', movement: 'keeping a heading', phrases: [
-        ['travelling', /\btravel(?:l)?ing\b(?! (?:slow|quick|fast))/i],
         ['steady', /\bstead(?:y|ily)\b/i],
         ['on a mission', /\bon a mission\b/i],
         ['straight line', /\bstraight (?:line|path|course)\b/i],
@@ -65,7 +66,8 @@ export const VOCABULARY: Tag[] = [
         ['turned around', /\bturn(?:ed|ing)? (?:around|back)\b/i],
         ['flipped', /\bflip(?:ped|ping)?\b/i],
         ['back and forth', /\bback and forth\b/i],
-        ['zigzag', /\bzig[- ]?zag\w*/i],
+        // Lower case only: Zig Zag is a humpback, BCX1193.
+        ['zigzag', /\bzig[- ]?zag\w*/],
     ]},
     {tag: 'spread out', movement: 'the group covers a wide area', phrases: [
         ['spread', /\bspread\b/i],
@@ -73,10 +75,10 @@ export const VOCABULARY: Tag[] = [
         ['strung out', /\bstrung out\b/i],
         ['several groups', /\b(?:two|2|three|3|several|multiple|few|many) (?:sub-?)?groups\b/i],
         ['split up', /\bsplit (?:up|into)\b/i],
-        ['loosely', /\bloose(?:ly)?\b/i],
     ]},
     {tag: 'grouped up', movement: 'the group covers a small area', phrases: [
-        ['grouped', /\bgroup(?:ed|ing) ?up\b|\bgrouped\b/i],
+        // "Loosely grouped" is neither tight nor spread, and is left out of both.
+        ['grouped', /\bgroup(?:ed|ing) ?up\b|(?<!loosely )\bgrouped\b/i],
         ['tight group', /\btight(?:ly)?\b/i],
         ['together', /\b(?:travel(?:l)?ing|close|all|swimming|tight(?:ly)?) together\b/i],
         ['bunched', /\bbunch(?:ed)? up\b|\bbunched\b/i],
@@ -87,7 +89,6 @@ export const VOCABULARY: Tag[] = [
         ['long dives', /\b(?:long|deep) dives?\b/i],
         ['sounded', /\bsound(?:ed|ing)\b(?! like)/i],
         ['fluked', /\bfluk(?:ed|ing)\b|\bfluke[sd]? up\b/],
-        ['dove', /\bdove\b|\bdiving\b/i],
     ]},
     {tag: 'surface active', movement: null, phrases: [
         ['surface active', /\bsurface[- ]activ\w*/i],
@@ -103,12 +104,19 @@ export const VOCABULARY: Tag[] = [
     ]},
 ];
 
+/**
+ * A phrase is not the behaviour now when the words just before it say it is over or
+ * didn't happen: "southbound after feeding" is travelling, "no surface activity" is none.
+ */
+const NOT_NOW = /\b(?:after|finished|done|no|not|without|never)\b[^.,;!?]{0,15}$/i;
+
 /** The tags a text says, and which phrase said each. */
 export function readBehaviour(text: string): Map<string, string> {
     const found = new Map<string, string>();
     for (const {tag, phrases} of VOCABULARY) {
         for (const [name, pattern] of phrases) {
-            if (pattern.test(text)) { found.set(tag, name); break; }
+            const global = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
+            if ([...text.matchAll(global)].some(m => !NOT_NOW.test(text.slice(0, m.index)))) { found.set(tag, name); break; }
         }
     }
     return found;
@@ -205,8 +213,10 @@ function gold() {
     console.log(`labelled phrases no tag takes: ${[...unmapped].map(([p, n]) => n > 1 ? `${p} (${n})` : p).join('; ')}`);
 }
 
-const [dir, flag, ...rest] = process.argv.slice(2);
-if (flag === '--gold') gold();
-else if (!dir) { console.error('usage: node scripts/gold/behaviour.ts <dir of day files> [--examples <tag> [n] | --gold]'); process.exit(2); }
-else if (flag === '--examples') examples(dir, rest[0]!, Number(rest[1] ?? 20));
-else counts(dir);
+if (import.meta.main) {
+    const [dir, flag, ...rest] = process.argv.slice(2);
+    if (flag === '--gold') gold();
+    else if (!dir) { console.error('usage: node scripts/gold/behaviour.ts <dir of day files> [--examples <tag> [n] | --gold]'); process.exit(2); }
+    else if (flag === '--examples') examples(dir, rest[0]!, Number(rest[1] ?? 20));
+    else counts(dir);
+}
