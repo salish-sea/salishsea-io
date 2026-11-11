@@ -1,5 +1,5 @@
 import {BrowserClient, breadcrumbsIntegration, dedupeIntegration, defaultStackParser, eventFiltersIntegration, getCurrentScope, globalHandlersIntegration, httpContextIntegration, makeFetchTransport, linkedErrorsIntegration, browserTracingIntegration} from "@sentry/browser";
-import { DENY_URLS, dropThirdPartyNoise, IGNORE_ERRORS } from "./sentry-noise.ts";
+import { beforeSend, DENY_URLS, IGNORE_ERRORS } from "./sentry-noise.ts";
 import { release } from "./release.ts";
 
 /**
@@ -20,14 +20,15 @@ export const sentryClient = new BrowserClient({
   // `httpContextIntegration` below adds the page's address, the referring page
   // and the user agent, which the about page lists. The browser SDK collects no
   // bodies or cookies through the integrations below.
-  // What we decline to send, and why: src/sentry-noise.ts (decision 046). The
+  // What we decline to send, how network failures are grouped, and why:
+  // src/sentry-noise.ts (decision 046). The
   // rules live there as pure, tested predicates rather than inline literals,
   // because each one is a claim about a specific third party that has to stay
   // checkable — and because "does this match a network failure?" is a
   // question worth being able to ask in a test.
   denyUrls: [...DENY_URLS],
   ignoreErrors: [...IGNORE_ERRORS],
-  beforeSend: dropThirdPartyNoise,
+  beforeSend,
   integrations: [
     browserTracingIntegration(),
     breadcrumbsIntegration(),

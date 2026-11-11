@@ -2,11 +2,15 @@ import { describe, expect, test } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
 import {
+  beforeSend,
   CRAWLER_USER_AGENTS,
   DENY_URLS,
   dropThirdPartyNoise,
+  groupNetworkFailures,
   IGNORE_ERRORS,
   isCrawler,
+  isNetworkFailure,
+  NETWORK_FAILURE_FINGERPRINT,
   isThirdPartyFrame,
   THIRD_PARTY_FRAME_FUNCTIONS,
   type NoiseCandidate,
@@ -103,6 +107,69 @@ const fromBrowser = (userAgent: string): NoiseCandidate => ({
 
 // Verbatim from CloudFront's logs, 2026-10-26.
 const META_EXTERNALAGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 (compatible; meta-externalagent/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler))';
+
+describe('isNetworkFailure', () => {
+  test.each(['Failed to fetch', 'Failed to fetch (salishsea.io)', 'Load failed', 'NetworkError when attempting to fetch resource.'])(
+    'is the TypeError fetch throws when no response came: %s', message => {
+      expect(isNetworkFailure(new TypeError(message))).toBe(true);
+    });
+
+  test('is not an HTTP error, another TypeError, or the same words on another kind of error', () => {
+    expect(isNetworkFailure(new Error('https://salishsea.io/days/2024-07-16.json: HTTP 503'))).toBe(false);
+    expect(isNetworkFailure(new TypeError("Cannot read properties of null (reading 'map')"))).toBe(false);
+    expect(isNetworkFailure(new Error('Failed to fetch'))).toBe(false);
+    expect(isNetworkFailure('Failed to fetch')).toBe(false);
+  });
+});
+
+describe('groupNetworkFailures', () => {
+  // The frames of SALISHSEA-IO-4N and -47, which one page load sent 2 ms apart:
+  // different requests, so Sentry's own grouping split one dropped connection.
+  const animalNames: NoiseCandidate = { exception: { values: [{ stacktrace: { frames: [{ function: 'readJson' }, { function: 'fetchAnimalNames' }] } }] } };
+  const me: NoiseCandidate = { exception: { values: [{ stacktrace: { frames: [{ function: 'call' }, { function: 'fetchMe' }] } }] } };
+
+  test.each(['Failed to fetch', 'Load failed', 'NetworkError when attempting to fetch resource.'])(
+    'files every request that got no response under one fingerprint: %s', message => {
+      const err = new TypeError(message);
+      expect(groupNetworkFailures(animalNames, err).fingerprint).toEqual(NETWORK_FAILURE_FINGERPRINT);
+      expect(groupNetworkFailures(me, err).fingerprint).toEqual(NETWORK_FAILURE_FINGERPRINT);
+    });
+
+  test('finds a network failure wrapped in another error', () => {
+    const wrapped = new Error("Couldn't load the index", { cause: new TypeError('Load failed') });
+    expect(groupNetworkFailures(me, wrapped).fingerprint).toEqual(NETWORK_FAILURE_FINGERPRINT);
+  });
+
+  test('leaves any other error to Sentry\'s own grouping, unchanged', () => {
+    const httpError = new Error('/read-path/animal-names.json: HTTP 503');
+    expect(groupNetworkFailures(animalNames, httpError)).toBe(animalNames);
+    expect(groupNetworkFailures(animalNames, undefined)).toBe(animalNames);
+  });
+
+  test('keeps a fingerprint the caller chose', () => {
+    const chosen = { ...me, fingerprint: ['maplibre-no-webgl2'] };
+    expect(groupNetworkFailures(chosen, new TypeError('Load failed'))).toBe(chosen);
+  });
+
+  test('stops on a cycle of causes', () => {
+    const a = new Error('a');
+    const b = new Error('b', { cause: a });
+    Object.defineProperty(a, 'cause', { value: b });
+    expect(groupNetworkFailures(me, a)).toBe(me);
+  });
+});
+
+describe('beforeSend', () => {
+  test('drops third-party noise before grouping anything', () => {
+    const injected = { exception: { values: [{ stacktrace: { frames: [{ filename: 'iabjs://navigation_performance_logger_android' }] } }] } };
+    expect(beforeSend(injected, { originalException: new TypeError('Load failed') })).toBeNull();
+  });
+
+  test('sends a network failure of ours, grouped', () => {
+    const ours: NoiseCandidate = { exception: { values: [{ stacktrace: { frames: [{ filename: 'https://salishsea.io/assets/index.js', function: 'readJson' }] } }] } };
+    expect(beforeSend(ours, { originalException: new TypeError('Load failed') })?.fingerprint).toEqual(NETWORK_FAILURE_FINGERPRINT);
+  });
+});
 
 describe('isCrawler', () => {
   test('SALISHSEA-IO-4B: Meta\'s crawler, which runs our scripts without WebGL2', () => {

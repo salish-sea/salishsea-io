@@ -8,18 +8,6 @@ export interface ErrorReport {
 }
 
 /**
- * Whether `err` is the browser saying a request never got a response: the
- * connection dropped, the device is offline, or the server couldn't be reached.
- * Each engine words it its own way, and all three throw a TypeError from `fetch`:
- * Chromium "Failed to fetch", WebKit "Load failed", Gecko "NetworkError when
- * attempting to fetch resource." An HTTP error status is a response, so it isn't one.
- */
-export function isNetworkFailure(err: unknown): boolean {
-  return err instanceof TypeError
-    && /^(Failed to fetch|Load failed|NetworkError when attempting to fetch resource)/.test(err.message);
-}
-
-/**
  * Tell the user something failed, and tell Sentry. One call does both, on
  * purpose: [decision 030](../docs/decisions/030-google-signin-nonce.md) was a
  * bug that reached neither. Supabase, the backend then, returned auth failures in the result

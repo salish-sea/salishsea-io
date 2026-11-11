@@ -2,7 +2,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import type { Event } from '@sentry/browser';
 import { sentryClient } from './sentry.ts';
-import { DENY_URLS, IGNORE_ERRORS, dropThirdPartyNoise, isCrawler } from './sentry-noise.ts';
+import { DENY_URLS, IGNORE_ERRORS, beforeSend, isCrawler } from './sentry-noise.ts';
 
 /**
  * The wiring, not the rules — `sentry-noise.test.ts` owns those, and
@@ -59,6 +59,6 @@ describe('the Sentry client is wired to actually filter (decision 046)', () => {
   test('the filter lists reach the client', () => {
     expect(options.denyUrls).toEqual([...DENY_URLS]);
     expect(options.ignoreErrors).toEqual([...IGNORE_ERRORS]);
-    expect(options.beforeSend).toBe(dropThirdPartyNoise);
+    expect(options.beforeSend).toBe(beforeSend);
   });
 });

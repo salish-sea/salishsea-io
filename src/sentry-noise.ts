@@ -11,6 +11,10 @@
  * recognised by whoever opens the list, and stops applying the moment a new
  * release re-fingerprints the same error into a new group.
  *
+ * One thing here sends an event rather than dropping it: {@link beforeSend}
+ * gives every network failure the same fingerprint, so Sentry files them as
+ * one issue (see {@link groupNetworkFailures}).
+ *
  * Four mechanisms, because the noise arrives four ways:
  *
  *   1. `DENY_URLS` — the error's own frames point at a scheme that is not the
@@ -116,6 +120,8 @@ export type NoiseCandidate = {
   readonly request?: {
     readonly headers?: Readonly<Record<string, string>>;
   };
+  /** Sentry's grouping; set here only for a network failure. */
+  readonly fingerprint?: string[];
   readonly exception?: {
     readonly values?: readonly {
       readonly stacktrace?: {
@@ -152,15 +158,64 @@ export function isCrawler(event: NoiseCandidate): boolean {
 }
 
 /**
- * The `beforeSend` hook: drop the event (return null) or send it unchanged.
+ * Drop the event (return null) or send it unchanged.
  *
  * Deliberately NOT a place to drop network failures. `TypeError: Failed to
  * fetch` and `Load failed` against our own host (SALISHSEA-IO-37, -38, -3B,
  * against Supabase when it was the backend: 24 events, 19 users) look like noise
  * one at a time and are the only signal we have that distinguishes a boat losing
  * cell signal from an outage of ours or a botched CSP deploy. Volume is the whole message, so the client
- * keeps sending them and Sentry keeps them ignored-until-escalating.
+ * keeps sending them, {@link groupNetworkFailures} files them as one issue, and
+ * Sentry keeps that issue ignored-until-escalating.
  */
 export function dropThirdPartyNoise<T extends NoiseCandidate>(event: T): T | null {
   return isThirdPartyFrame(event) || isCrawler(event) ? null : event;
+}
+
+/**
+ * Whether `err` is the browser saying a request never got a response: the
+ * connection dropped, the device is offline, or the server couldn't be reached.
+ * Each engine words it its own way, and all three throw a TypeError from `fetch`:
+ * Chromium "Failed to fetch", WebKit "Load failed", Gecko "NetworkError when
+ * attempting to fetch resource." An HTTP error status is a response, so it isn't one.
+ */
+export function isNetworkFailure(err: unknown): boolean {
+  return err instanceof TypeError
+    && /^(Failed to fetch|Load failed|NetworkError when attempting to fetch resource)/.test(err.message);
+}
+
+/** The one Sentry issue every network failure is filed under. */
+export const NETWORK_FAILURE_FINGERPRINT: readonly string[] = ['network-failure'];
+
+/**
+ * File every network failure under one fingerprint, whichever request failed.
+ *
+ * Sentry otherwise groups an error by its stack, so the same dropped connection
+ * became a separate "TypeError: Load failed" issue for each request that can
+ * fail (the day's file, the build's list of files, the id index, `/api/me`:
+ * SALISHSEA-IO-4J, -4N, -4M, -4K, -4P, -47), and a new one whenever a refactor
+ * moved the calling code. One page load that loses its connection fails several
+ * requests at once and opened two of them in the same millisecond. Split like
+ * that, no issue's volume can show an outage. Grouped, one issue's can.
+ *
+ * Which request failed is still on each event: the SDK records it as a `fetch`
+ * breadcrumb, and the stack names the caller.
+ *
+ * Reads the error the browser threw, and the errors it was wrapped in, through
+ * `cause`, a few deep so that a cycle of causes can't hang the hook. A
+ * fingerprint the caller chose stands.
+ */
+export function groupNetworkFailures<T extends NoiseCandidate>(event: T, originalException: unknown): T {
+  if (event.fingerprint) return event;
+  let err = originalException;
+  for (let depth = 0; depth < 5 && err !== undefined; depth++, err = err instanceof Error ? err.cause : undefined) {
+    if (isNetworkFailure(err)) return {...event, fingerprint: [...NETWORK_FAILURE_FINGERPRINT]};
+  }
+  return event;
+}
+
+/** The client's `beforeSend` hook: what is dropped, then how what is kept is grouped. */
+export function beforeSend<T extends NoiseCandidate>(event: T, hint: {originalException?: unknown}): T | null {
+  const kept = dropThirdPartyNoise(event);
+  return kept && groupNetworkFailures(kept, hint.originalException);
 }

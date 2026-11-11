@@ -213,22 +213,7 @@ test('a failed sighting load says so, and says it may be incomplete', async () =
   expect(await toastText(el)).toBe("Couldn't load sightings. The list may be incomplete.");
 });
 
-test.each([
-  ['Chromium', 'Failed to fetch'],
-  ['WebKit', 'Load failed'],
-  ['Gecko', 'NetworkError when attempting to fetch resource.'],
-])("a dropped connection loading the day reaches Sentry under one fingerprint, as %s words it", async (_engine, message) => {
-  occurrenceQuery.error = new TypeError(message);
-  const el = document.createElement('salish-sea') as SalishSea;
-  document.body.appendChild(el);
-  await el.updateComplete;
-  captureException.mockClear();
-  await el.fetchOccurrences(el.date);
-
-  expect(captureException).toHaveBeenCalledWith(occurrenceQuery.error, {fingerprint: ['day-file-network-failure']});
-});
-
-test("any other failure loading the day keeps Sentry's own grouping", async () => {
+test("a failure loading the day reaches Sentry as the error itself", async () => {
   occurrenceQuery.error = new Error('https://salishsea.io/days/2024-07-16.json: HTTP 503');
   const el = document.createElement('salish-sea') as SalishSea;
   document.body.appendChild(el);
