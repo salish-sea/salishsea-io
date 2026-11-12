@@ -30,6 +30,10 @@ describe('readBehaviour', () => {
         expect(readBehaviour('T65As (not T137s) hunting seals')).toEqual(['hunting']);
         expect(readBehaviour('No direction - milling')).toEqual(['milling']);
         expect(readBehaviour('J pod off Point No Point milling (Jane Doe)')).toEqual(['milling']);
+        // but a hyphen inside a word doesn't end it, and "no point" is a denial
+        expect(readBehaviour('no full-body breaches')).toEqual([]);
+        expect(readBehaviour('No sign of J-pod foraging')).toEqual([]);
+        expect(readBehaviour('no point breaching today')).toEqual([]);
         // and only a few words back: a longer reach suppressed only behaviour that was
         // still going on, over a year of reports ("finished feeding at this time and is resting")
         expect(readBehaviour('CRC53 appears to be finished feeding at this time and is resting while slowly making his way north'))
@@ -48,9 +52,20 @@ describe('readBehaviour', () => {
         expect(readBehaviour('T137s NB off Alki (Jim Chase)')).toEqual([]);
         expect(readBehaviour('T99s southbound (Sara Quick)')).toEqual([]);
         expect(readBehaviour('2 orcas SB past Hunts Point (Mary Hunt)')).toEqual([]);
-        // but not at the start of one, or in capitals throughout
-        expect(readBehaviour('Hunted down by transient orcas')).toEqual(['hunting']);
-        expect(readBehaviour('J POD MILLING')).toEqual(['milling']);
+        expect(readBehaviour('Location: Mill Bay')).toEqual([]);
+        expect(readBehaviour('Screenshots from videos by Chase and Sarah.')).toEqual([]);
+        expect(readBehaviour('Screenshots from videos (Chase Gagliardi, Sarah Plane)')).toEqual([]);
+        // elsewhere a capital is just a capital
+        for (const [text, tags] of [
+            ['Hunted down by transient orcas', ['hunting']],
+            ['J POD MILLING', ['milling']],
+            ['J Pod Milling', ['milling']],
+            ['Seen today\nMilling near shore', ['milling']],
+            ['J pod (Milling)', ['milling']],
+            ['milling/Foraging', ['milling', 'foraging']],
+            ['Direction: North, Behavior: Foraging/Feeding', ['foraging', 'feeding']],
+            ['2 orcas, Milling', ['milling']],
+        ] as const) expect(readBehaviour(text), text).toEqual(tags);
     });
 
     test('tail slapping, however it is put', () => {

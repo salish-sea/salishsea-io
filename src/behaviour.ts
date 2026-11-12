@@ -64,11 +64,12 @@ export const PHRASES: readonly Phrase[] = [
 
 /**
  * The words just before a phrase that say the behaviour is over or didn't happen:
- * "southbound after feeding" is travelling, "no surface activity" is none.
+ * "southbound after feeding" is travelling, "no surface activity" is none. The reach is a
+ * few words within the clause, which ends at punctuation, a bracket or a dash set off by
+ * spaces ("not sure of ID - feeding"); a hyphen inside a word ("no full-body breaches")
+ * doesn't end it.
  */
-// A clause ends at punctuation, a parenthesis or a dash ("not sure of ID - feeding"). "No"
-// in Point No Point is a place.
-const NOT_NOW = /(?:\b(?:after|finished|done|not|without|never)\b|(?<!\bPoint )\bno\b(?! Point\b)|n't\b)[^.,;!?()\u2013\u2014-]{0,15}$/i;
+const NOT_NOW = /(?:\b(?:after|finished|done|no|not|without|never)\b|n't\b)(?:(?!\s-\s)[^.,;!?()–—]){0,15}$/i;
 /** A turn that ends what the cue governs: "not milling but feeding" is feeding. */
 const TURN = /\b(?:but|now|then)\b/i;
 
@@ -79,22 +80,36 @@ function notNow(before: string): boolean {
 }
 
 /**
- * Whether a match is a name: capitalised, with lower case after, in the middle of a
- * sentence. "Mill Bay", "Hunts Point", a reporter's credit "(Jim Chase)", and the humpbacks
- * Zig Zag and Split Fluke; but "Milling off the point" starts a sentence, and "J POD
- * MILLING" is shouting.
+ * "No" in Point No Point is a place, not a denial; read with the name joined up. Same
+ * length, so a match's position is the same in both.
+ */
+const unplace = (text: string) => text.replace(/\bPoint No Point\b/g, 'Point_No_Point');
+
+// The places a capitalised word can name, as reports write them: "Mill Bay", "Hunts Point".
+const PLACE_WORD = /^\S*\s+(?:Bay|Point|Pt|Creek|Cove|Island|Harbou?r|Rocks?|Beach|Park|Head|Reef|Inlet|Lake|River|Pass|Spit|Bluff|Marina|Lighthouse)\b/;
+
+/**
+ * Whether a capitalised match is part of a name rather than a behaviour: a place ("Mill
+ * Bay", "Hunts Point"), or a person in a reporter's credit, a run of capitalised words in
+ * brackets ("(Jim Chase)", "(Chase Gagliardi, Sarah Plane)") or after "by". Elsewhere a capital is just
+ * a capital: "Milling off the point", "J Pod Milling", "milling/Foraging".
  */
 function isName(text: string, at: number): boolean {
     if (!/^[A-Z][a-z]/.test(text.slice(at, at + 2))) return false;
-    return !/(?:^|[.!?:;\]\u2013\u2014-])\s*["']?$/.test(text.slice(0, at));
+    if (PLACE_WORD.test(text.slice(at))) return true;
+    if (/\bby\s+$/.test(text.slice(0, at))) return true;           // "videos by Chase and Sarah"
+    const open = text.lastIndexOf('(', at), close = text.lastIndexOf(')', at);
+    if (open <= close) return false;
+    return /[A-Z][a-z]+\s+$/.test(text.slice(open, at)) || /^\S+\s+[A-Z][a-z]/.test(text.slice(at));
 }
 
 /** The tags a text says, in the order of the list. */
 export function readBehaviour(text: string): string[] {
+    const read = unplace(text);
     const tags: string[] = [];
     for (const {tag, pattern} of PHRASES) {
         const every = new RegExp(pattern.source, pattern.flags + 'g');
-        if ([...text.matchAll(every)].some(m => !isName(text, m.index) && !notNow(text.slice(0, m.index))))
+        if ([...read.matchAll(every)].some(m => !isName(read, m.index) && !notNow(read.slice(0, m.index))))
             if (!tags.includes(tag)) tags.push(tag);
     }
     return tags;
@@ -123,6 +138,7 @@ const DENIED_BEFORE = /(?:\b(?:not|never)\b|(?<!\bPoint )\bno\b(?! Point\b)|n't\
  * information.
  */
 export function readGroupPart(text: string): GroupPart | null {
+    text = unplace(text);
     const parts = new Set<GroupPart>();
     for (const m of text.matchAll(PART_HERE)) {
         const between = m[3]!.trim();
