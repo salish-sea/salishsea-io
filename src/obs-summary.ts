@@ -411,7 +411,7 @@ export class ObsSummary extends LitElement {
     // change) can fire before it is assigned; render nothing rather than throw.
     if (!this.sighting) return nothing;
     const {
-      absent, body, confirmation, count, disagreements, identifiers, observed_at, photos, provider_slug, taxon, url, vitality
+      absent, body, confirmation, count, disagreements, group_part, identifiers, observed_at, photos, provider_slug, taxon, url, vitality
     } = this.sighting;
     const place = placeLine(this.sighting);
     // The same dot, in the same colour, as the marker on the map — which is the
@@ -446,7 +446,9 @@ export class ObsSummary extends LitElement {
         </button>
         ${this.menuOpen ? this.renderMenu(editable) : nothing}
       </header>
-      ${place ? html`<p class="place">${place}</p>` : nothing}
+      ${place || group_part ? html`<p class="place">${place}${
+        // whose position the point is, when the report says (decision 116)
+        group_part ? html`${place ? ' · ' : ''}<span class="part">${place ? `the ${group_part}` : `The ${group_part}`}</span>` : nothing}</p>` : nothing}
       ${guard([identifiers, absent, this.catalogLoaded], () => {
         const lookups = catalogLookups();
         const animals = namedAnimals(identifiers, ...lookups);

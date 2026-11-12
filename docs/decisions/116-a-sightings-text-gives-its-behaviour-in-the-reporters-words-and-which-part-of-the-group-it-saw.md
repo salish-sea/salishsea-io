@@ -1,6 +1,6 @@
 # 116 — A sighting's text gives its behaviour in the reporters' own words, and which part of a spread group its position is
 
-**Status:** accepted · **Decided:** 2026-11-12, by Peter · **Work:** bd `salish-2ua9` · **Evidence:** [research note](../research/behaviour-in-sighting-text.md), measured with [`scripts/gold/behaviour.ts`](../../scripts/gold/behaviour.ts) · **Builds on:** [105](105-the-build-and-the-browser-read-sighting-text-with-one-reader.md) (one reader), [102](102-reading-sighting-text-is-measured-against-a-gold-set.md) (the gold set), [103](103-what-a-port-needs-is-where-whales-may-be-next.md) (what a port needs), [097](097-a-travel-segment-is-one-card-in-the-days-list.md) (the segment card)
+**Status:** accepted · **Decided:** 2026-11-12, by Peter; the cards amended the same day · **Work:** bd `salish-2ua9` · **Evidence:** [research note](../research/behaviour-in-sighting-text.md), measured with [`scripts/gold/behaviour.ts`](../../scripts/gold/behaviour.ts) · **Builds on:** [105](105-the-build-and-the-browser-read-sighting-text-with-one-reader.md) (one reader), [102](102-reading-sighting-text-is-measured-against-a-gold-set.md) (the gold set), [103](103-what-a-port-needs-is-where-whales-may-be-next.md) (what a port needs), [097](097-a-travel-segment-is-one-card-in-the-days-list.md) (the segment card)
 
 ## Context
 
@@ -24,11 +24,12 @@ The same reports showed a second thing. A spread group is reported from whicheve
 
 **When the text says which part of a spread group the reported position is, the reader answers it, and the build writes it into the report as `group_part`: `leaders`, `trailers`, or null for not said.** It is a property of the position, not a behaviour. It counts only when the text puts that part *here*: *leaders here*, *trailing group here*, *trailing male milling/foraging here*. The card says it with the position. A forecast grows from the latest leaders' report rather than the latest report of any kind, and a speed or heading is measured between reports of the same part.
 
+**A segment's card says what its reports say the animals were doing, in the order they said it** (*amended 2026-11-12*, Peter: "I'd rather these were ordered chronologically than by frequency"). Reports in a row that share a tag run together, each run with its times: *Spread out 13:32, then milling, foraging and directional changes 13:47–14:50, then spread out 15:46–16:05, then milling and foraging 16:29–16:51.* For a forecast, what they were doing last matters more than what they did most. Tags about what they did at the surface (*surface active*, *breaching*) are left out of the line, which is about movement. The card's *Latest* label says when the newest report is the leaders' or the trailers' (*Latest, 16:51, the trailers:*), and a single report's card says it after its place (*Possession Sound, off Mukilteo · the leaders*). A single report's card shows no tags, since its own words are on it. The options mocked up from 2026-11-09 were a line by frequency, chips like the animals' with *6 of 16*, and this one.
+
 ## Not decided
 
 - **Whether *K pod leaders northbound*, without *here*, means the position is the leaders'.** It may be Orca Network's shorthand for it; only their staff can say. Until then it reads as not said, because a wrong *leaders* would mislead a forecast, while *not said* only loses information.
 - **The other end's position, when the text gives it in words** (*trailers passing Possession Beach*, *trailers 1/2 mile S*). That would give a group's extent, and needs place names matched to positions ([100](100-a-sightings-landmark-is-a-name-reporters-use.md)). Not now.
-- **How a tag looks on a card, and how a segment's card pools them.** To be designed by mockup from real days.
 
 ## Rejected
 

@@ -26,8 +26,9 @@ export const SEGMENT_CARD_MIN = 3;
  * reports' own cards, newest first, and a dot on the map that belongs to the segment
  * opens it at that report's card.
  *
- * Presentation only: behaviour from the reports' words (salish-2ua9), whether they
- * travelled or stayed (salish-jdl2) and marks of reliability (salish-0420) wait.
+ * Its behaviour line says what the reports' words say the animals were doing, in the
+ * order they said it (decision 116). Whether they travelled or stayed, judged from their
+ * movement (salish-jdl2), and marks of reliability (salish-0420) wait.
  */
 @customElement('segment-summary')
 export class SegmentSummary extends LitElement {
@@ -147,6 +148,17 @@ export class SegmentSummary extends LitElement {
     .movement {
       color: var(--color-text-secondary);
     }
+    /* What they were doing, in the order the reports said it (decision 116); its times are
+       values (rule 6), muted so the words lead. */
+    p.behaviour {
+      margin-top: 0.25rem;
+    }
+    p.behaviour time {
+      color: var(--color-text-muted);
+      font-family: var(--font-mono);
+      font-size: var(--fs-mono);
+      white-space: nowrap;
+    }
     /* Where it began and ended, under the name, as a report's card says where it was (salish-fwyt.2). */
     p.place {
       color: var(--color-text-secondary);
@@ -251,6 +263,7 @@ export class SegmentSummary extends LitElement {
     const latest = head.body?.trim() ? head : null;
     const photos = reports.flatMap(r => (r.photos ?? []).map(photo => ({photo, sighting: r})));
     const where = placeSpan(reports);
+    const spells = behaviourSpells(reports);
     return html`
       <header>
         <a class="dot ${unconfirmed ? 'unconfirmed' : ''}" href="#" @click=${this.focusHead}
@@ -270,7 +283,9 @@ export class SegmentSummary extends LitElement {
           title=${`${support} of the ${reports.length} reports say ${label} wasn't with them`}>${support} of ${reports.length}</span></li>`;
       })}</ul>` : nothing}
       <p class="movement">${movementLine(segmentMovement(reports))}</p>
-      ${latest ? html`<p class="latest"><span class="label">Latest, ${clock(latest)}:</span>
+      ${spells.length ? html`<p class="behaviour">${spells.map(({tags, from, to}, i) => html`${
+        i ? ', then ' : ''}${i ? listed(tags) : capitalised(listed(tags))} <time>${clock(from)}${to === from ? '' : `–${clock(to)}`}</time>`)}.</p>` : nothing}
+      ${latest ? html`<p class="latest"><span class="label">Latest, ${clock(latest)}${latest.group_part ? `, the ${latest.group_part}` : ''}:</span>
         <span class="text">${sightingText(latest.body, latest.provider_slug)}</span></p>` : nothing}
       ${photos.length ? html`<ul class="photos">${repeat(photos.slice(0, 4), ({photo}) => photo.src, ({photo, sighting}) => html`
         <li><a target="_blank" href=${sighting.url || photo.src}><img alt=${photo.attribution || 'photo of subject'} height="56" loading="lazy" src=${photo.thumb || photo.src}></a></li>`)}
@@ -295,6 +310,40 @@ export class SegmentSummary extends LitElement {
     this.dispatchEvent(new CustomEvent('focus-occurrence', {bubbles: true, composed: true, detail: head}));
   };
 }
+
+/**
+ * Tags about what the animals did at the surface, not where they were going. The behaviour
+ * line is about movement, and leaves them out; a report's own card still quotes its words.
+ */
+const AT_THE_SURFACE = new Set(['surface active', 'breaching', 'tail slapping', 'pec slapping', 'spyhopping', 'playing']);
+
+/** A stretch of reports in a row that share a behaviour, with every tag they said. */
+export type BehaviourSpell = {tags: string[], from: Occurrence, to: Occurrence};
+
+/**
+ * What a segment's reports say the animals were doing, oldest first (decision 116): each
+ * report with a tag joins the spell before it when they share one, and starts a new spell
+ * when they don't. A report that says nothing about behaviour doesn't break a spell.
+ * "Spread out 08:43, then milling and foraging 09:22, then spread out 09:52–11:20".
+ */
+export function behaviourSpells(reports: readonly Occurrence[]): BehaviourSpell[] {
+  const spells: BehaviourSpell[] = [];
+  for (const r of [...reports].sort((a, b) => a.observed_at.localeCompare(b.observed_at))) {
+    const tags = (r.behaviour ?? []).filter(t => !AT_THE_SURFACE.has(t));
+    if (!tags.length) continue;
+    const spell = spells.at(-1);
+    if (spell && tags.some(t => spell.tags.includes(t))) {
+      for (const t of tags) if (!spell.tags.includes(t)) spell.tags.push(t);
+      spell.to = r;
+    } else spells.push({tags, from: r, to: r});
+  }
+  return spells;
+}
+
+/** "milling, foraging and directional changes" */
+const listed = (words: readonly string[]) =>
+  words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
+const capitalised = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** A report's time on the Pacific clock the day's list keeps, as a card shows it. */
 const clock = ({observed_at}: Occurrence): string => observedClock(observed_at);
