@@ -56,7 +56,7 @@ export const PHRASES: readonly Phrase[] = [
     {tag: 'surface active', pattern: /\bsurface[- ]activ(?:e|ity)\b/i},
     {tag: 'breaching', pattern: /\bbreach(?:ing|ed|es)?\b/i},
     // and "slapping their tails", which one report spells "tales"
-    {tag: 'tail slapping', pattern: /\btail[- ]?slap(?:s|ping)?\b|\bslap(?:s|ping)? (?:their|its|the|her|his) ta(?:i)?les?\b/i},
+    {tag: 'tail slapping', pattern: /\btail[- ]?slap(?:s|ping)?\b|\bslap(?:s|ping)? (?:their|its|the|her|his) (?:tails?|tales?)\b/i},
     {tag: 'pec slapping', pattern: /\bpec(?:toral)?[- ]?(?:fin )?slap(?:s|ping)?\b/i},
     {tag: 'spyhopping', pattern: /\bspy[- ]?hop(?:s|ping)?\b/i},
     {tag: 'playing', pattern: /\bplay(?:ing|ful)\b/i},
@@ -82,10 +82,12 @@ export function readBehaviour(text: string): string[] {
 /** Which part of a spread group a report's position is. */
 export type GroupPart = 'leaders' | 'trailers';
 
-// The part, then up to three words ("trailing male milling/foraging here"), then "here",
-// which is the reported position: "leaders N of here" puts the leaders somewhere else.
-const PART_HERE = /\b(?:(leaders?|lead(?:ing|er)? group)|(trailers?|trailing (?:group|male|female|whales?|orcas?)))\b((?:\s+[\w/,'-]+){0,3}?)\s+here\b/gi;
+// The part, then up to three words in the same clause that name no other part
+// ("trailing male milling/foraging here"), then "here", which is the reported position:
+// "leaders N of here" puts the leaders somewhere else, and "leaders not here" denies it.
+const PART_HERE = /\b(?:(leaders?|lead(?:ing|er)? group)|(trailers?|trailing (?:group|male|female|whales?|orcas?)))\b((?:\s+(?!(?:leaders?|lead|leading|trailers?|trailing)\b)[\w/'-]+){0,3}?)\s+here\b/gi;
 const ELSEWHERE = /\b(?:of|from|past|than|beyond|toward|towards)$/i;
+const DENIED = /\b(?:not|no|never|aren't|isn't|weren't|wasn't)\b/i;
 
 /**
  * The part of a spread group the text puts at the reported position, or null when it
@@ -97,7 +99,8 @@ const ELSEWHERE = /\b(?:of|from|past|than|beyond|toward|towards)$/i;
 export function readGroupPart(text: string): GroupPart | null {
     const parts = new Set<GroupPart>();
     for (const m of text.matchAll(PART_HERE)) {
-        if (ELSEWHERE.test(m[3]!.trim())) continue;
+        const between = m[3]!.trim();
+        if (ELSEWHERE.test(between) || DENIED.test(between)) continue;
         parts.add(m[1] ? 'leaders' : 'trailers');
     }
     return parts.size === 1 ? [...parts][0]! : null;

@@ -21,6 +21,10 @@ describe('readBehaviour', () => {
         expect(readBehaviour('J pod and K pod, spread out, no surface activity')).toEqual(['spread out']);
         // the rule reaches only within its clause
         expect(readBehaviour('No ID yet. Feeding off the point')).toEqual(['feeding']);
+        // and only a few words back: a longer reach suppressed only behaviour that was
+        // still going on, over a year of reports ("finished feeding at this time and is resting")
+        expect(readBehaviour('CRC53 appears to be finished feeding at this time and is resting while slowly making his way north'))
+            .toEqual(['resting', 'slowly']);
     });
 
     test('names and other senses of a word are not behaviour', () => {
@@ -29,6 +33,11 @@ describe('readBehaviour', () => {
         expect(readBehaviour('Biggs T46Bs loosely grouped traveling northwest')).toEqual([]);
         expect(readBehaviour('Orcas passing the fast ferry route')).toEqual([]);
         expect(readBehaviour('It sounded like a blow')).toEqual([]);
+    });
+
+    test('tail slapping, however it is put', () => {
+        for (const text of ['tail slaps', 'slapping their tails', 'slapping its tail', 'slapping their tales in the water'])
+            expect(readBehaviour(text), text).toEqual(['tail slapping']);
     });
 
     test('every tag is a phrase\'s, so the list is the vocabulary', () => {
@@ -48,6 +57,11 @@ describe('readGroupPart', () => {
     test('a part placed somewhere else is not the position\'s', () => {
         expect(readGroupPart('J and K pod leaders N of here, trailing male milling/foraging here before following others NB')).toBe('trailers');
         expect(readGroupPart('J, K, and L pod leaders southbound, trailers spread toward Richmond Beach')).toBeNull();
+        expect(readGroupPart('J pod leaders not here yet')).toBeNull();
+        expect(readGroupPart("Leaders aren't here, still south")).toBeNull();
+        // the leaders are named first, but the trailers are the ones here
+        expect(readGroupPart('J pod leaders northbound, trailers here')).toBe('trailers');
+        expect(readGroupPart('J pod leaders northbound trailers here')).toBe('trailers');
     });
 
     test('without "here" it is not said (decision 116 leaves that question open)', () => {
