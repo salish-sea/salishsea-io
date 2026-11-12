@@ -11,8 +11,13 @@
  * humpback can be called Zig Zag.
  */
 
-/** A tag and the phrases that say it, matched against the report's text. */
-export type Phrase = {tag: string, pattern: RegExp};
+/**
+ * A tag and the phrases that say it, matched against the report's text. `inSentence` is
+ * how a sentence that lists tags says it, when the reporters' word doesn't fit one: a card
+ * writes "then moving quickly and spread out", not "then quickly and spread out". The tag
+ * stays the reporters' word.
+ */
+export type Phrase = {tag: string, pattern: RegExp, inSentence?: string};
 
 export const PHRASES: readonly Phrase[] = [
     {tag: 'milling', pattern: /\bmill(?:ing|ed|s)?\b/i},
@@ -28,28 +33,28 @@ export const PHRASES: readonly Phrase[] = [
     {tag: 'feeding', pattern: /\bfe(?:ed|eds|eding|d)\b/i},
     {tag: 'hunting', pattern: /\bhunt(?:ing|ed|s)?\b/i},
     {tag: 'eating', pattern: /\beat(?:ing|s)?\b/i},
-    {tag: 'kill', pattern: /\bkill\b/i},
+    {tag: 'kill', pattern: /\bkill\b/i, inSentence: 'on a kill'},
     {tag: 'attacking', pattern: /\battack(?:ing|ed|s)?\b/i},
     {tag: 'chasing', pattern: /\bchas(?:e|ing|ed)\b/i},
-    {tag: 'quickly', pattern: /\bquick(?:ly)?\b/i},
-    {tag: 'fast', pattern: /\bfast\b(?! ferry)/i},
+    {tag: 'quickly', pattern: /\bquick(?:ly)?\b/i, inSentence: 'moving quickly'},
+    {tag: 'fast', pattern: /\bfast\b(?! ferry)/i, inSentence: 'moving fast'},
     {tag: 'porpoising', pattern: /\bporpoising\b/i},
-    {tag: 'slowly', pattern: /\bslow(?:ly|ed|ing)?\b/i},
+    {tag: 'slowly', pattern: /\bslow(?:ly|ed|ing)?\b/i, inSentence: 'moving slowly'},
     {tag: 'meandering', pattern: /\bmeander(?:ing|ed|s)?\b/i},
-    {tag: 'directional changes', pattern: /\bdirection(?:al)? changes?\b|\bchang(?:e|ed|ing|es) (?:of )?direction\b/i},
+    {tag: 'directional changes', pattern: /\bdirection(?:al)? changes?\b|\bchang(?:e|ed|ing|es) (?:of )?direction\b/i, inSentence: 'changing direction'},
     {tag: 'flipped', pattern: /\bflip(?:ped|ping)?\b/i},
     {tag: 'turned around', pattern: /\bturn(?:ed|ing)? (?:around|back)\b/i},
-    {tag: 'back and forth', pattern: /\bback and forth\b/i},
+    {tag: 'back and forth', pattern: /\bback and forth\b/i, inSentence: 'going back and forth'},
     // Lower case only, even starting a sentence: Zig Zag (BCX1193) and Zigzag are humpbacks.
-    {tag: 'zigzag', pattern: /\bzig[- ]?zag(?:ging)?\b/},
+    {tag: 'zigzag', pattern: /\bzig[- ]?zag(?:ging)?\b/, inSentence: 'zigzagging'},
     {tag: 'spread out', pattern: /\bspread\b/i},
     {tag: 'in groups', pattern: /\b(?:two|2|three|3|several|multiple|few|many) (?:sub-?)?groups\b/i},
     {tag: 'split up', pattern: /\bsplit (?:up|into)\b/i},
     // "Loosely grouped" is neither tight nor spread, and is left out.
     {tag: 'grouped up', pattern: /\bgroup(?:ed|ing) ?up\b|(?<!loosely )\bgrouped\b/i},
-    {tag: 'together', pattern: /\b(?:travel(?:l)?ing|close|all|swimming|tight(?:ly)?) together\b/i},
-    {tag: 'long down times', pattern: /\blong ?down ?times?\b/i},
-    {tag: 'long dives', pattern: /\b(?:long|deep) dives?\b/i},
+    {tag: 'together', pattern: /\b(?:travel(?:l)?ing|close|all|swimming|tight(?:ly)?) together\b/i, inSentence: 'keeping together'},
+    {tag: 'long down times', pattern: /\blong ?down ?times?\b/i, inSentence: 'with long down times'},
+    {tag: 'long dives', pattern: /\b(?:long|deep) dives?\b/i, inSentence: 'making long dives'},
     {tag: 'sounded', pattern: /\bsound(?:ed|ing)\b(?! like)/i},
     // Lower case only, even starting a sentence: Fluke and Split Fluke are names.
     {tag: 'fluking', pattern: /\bfluk(?:ed|ing)\b|\bfluke[sd]? up\b/},
@@ -113,6 +118,11 @@ export function readBehaviour(text: string): string[] {
             if (!tags.includes(tag)) tags.push(tag);
     }
     return tags;
+}
+
+/** How a sentence says a tag: "moving quickly" for quickly, the tag itself for most. */
+export function inSentence(tag: string): string {
+    return PHRASES.find(p => p.tag === tag)?.inSentence ?? tag;
 }
 
 /** Which part of a spread group a report's position is. */

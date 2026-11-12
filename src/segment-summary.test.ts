@@ -102,9 +102,11 @@ describe('what the reports say the animals were doing (decision 116)', () => {
       said(report('a', 0, 'spread out'), ['spread out']),
       said(report('b', 30, 'milling'), ['milling']),
       said(report('c', 60, 'milling, foraging'), ['milling', 'foraging']),
+      said(report('d', 90, 'quickly northbound, spread'), ['quickly', 'spread out']),
     ]);
+    // each tag in a form a sentence can hold: "quickly" is "moving quickly" (Peter, 2026-11-12)
     expect(card.shadowRoot!.querySelector('p.behaviour')!.textContent!.replace(/\s+/g, ' ').trim())
-      .toBe('Spread out 12:00, then milling and foraging 12:30–13:00.');
+      .toBe('Spread out 12:00, then milling and foraging 12:30–13:00, then moving quickly and spread out 13:30.');
     card.sightings = [report('a', 0, 'Orcas'), report('b', 30, 'Orcas')];
     await card.updateComplete;
     expect(card.shadowRoot!.querySelector('p.behaviour')).toBeNull();

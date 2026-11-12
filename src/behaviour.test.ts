@@ -5,7 +5,7 @@
  */
 import { describe, expect, test } from 'vitest';
 import { loadGold } from '../scripts/gold/gold.ts';
-import { PHRASES, readBehaviour, readGroupPart } from './behaviour.ts';
+import { inSentence, PHRASES, readBehaviour, readGroupPart } from './behaviour.ts';
 
 describe('readBehaviour', () => {
     test('reads the reporters\' own words, normalised only for form', () => {
@@ -76,6 +76,13 @@ describe('readBehaviour', () => {
     test('tail slapping, however it is put', () => {
         for (const text of ['tail slaps', 'slapping their tails', 'slapping its tail', 'slapping their tales in the water'])
             expect(readBehaviour(text), text).toEqual(['tail slapping']);
+    });
+
+    test('a sentence says a tag in a form that fits it, the tag itself where it already does', () => {
+        expect(inSentence('quickly')).toBe('moving quickly');
+        expect(inSentence('directional changes')).toBe('changing direction');
+        expect(inSentence('milling')).toBe('milling');
+        expect(inSentence('flipped')).toBe('flipped');
     });
 
     test('every tag is a phrase\'s, so the list is the vocabulary', () => {

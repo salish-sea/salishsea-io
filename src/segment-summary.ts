@@ -14,6 +14,7 @@ import { openAnimalLinkInSidebar } from './subject.ts';
 import './obs-summary.ts';
 import { placeSpan } from './place.ts';
 import { observedClock } from './constants.ts';
+import { inSentence } from './behaviour.ts';
 
 /** A segment becomes one card from this many reports up; fewer stay cards of their own (Peter, 2026-10-28). */
 export const SEGMENT_CARD_MIN = 3;
@@ -284,7 +285,7 @@ export class SegmentSummary extends LitElement {
       })}</ul>` : nothing}
       <p class="movement">${movementLine(segmentMovement(reports))}</p>
       ${spells.length ? html`<p class="behaviour">${spells.map(({tags, from, to}, i) => html`${
-        i ? ', then ' : ''}${i ? listed(tags) : capitalised(listed(tags))} <time>${clock(from)}${to === from ? '' : `–${clock(to)}`}</time>`)}.</p>` : nothing}
+        i ? ', then ' : ''}${i ? listed(tags.map(inSentence)) : capitalised(listed(tags.map(inSentence)))} <time>${clock(from)}${to === from ? '' : `–${clock(to)}`}</time>`)}.</p>` : nothing}
       ${latest ? html`<p class="latest"><span class="label">Latest, ${clock(latest)}${latest.group_part ? `, the ${latest.group_part}` : ''}:</span>
         <span class="text">${sightingText(latest.body, latest.provider_slug)}</span></p>` : nothing}
       ${photos.length ? html`<ul class="photos">${repeat(photos.slice(0, 4), ({photo}) => photo.src, ({photo, sighting}) => html`
@@ -344,7 +345,7 @@ export function behaviourSpells(reports: readonly Occurrence[]): BehaviourSpell[
   return spells;
 }
 
-/** "milling, foraging and directional changes" */
+/** "milling, foraging and changing direction" */
 const listed = (words: readonly string[]) =>
   words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
 const capitalised = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
