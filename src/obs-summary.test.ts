@@ -434,3 +434,27 @@ describe('the animals a sighting names', () => {
     expect(chips).toEqual([['', 'T46s'], ['possibly', 'T65A (possibly)'], ['absent', 'T46D (not with them)']]);
   });
 });
+
+describe('the part of a spread group', () => {
+  const placeText = async (place: string | null, group_part: Occurrence['group_part']) => {
+    const el = document.createElement('obs-summary') as ObsSummary;
+    (el as unknown as {sighting: Partial<Occurrence>}).sighting = {
+      id: 'maplify:whale_alert:263203', body: 'J and K pod leaders here, NB', confirmation: 'confirmed', count: null,
+      observed_at: '2026-11-09T23:55:00+00:00', photos: [], provider_slug: 'maplify', provider: 'Maplify', collection: 'Orca Network',
+      observer: null, source_url: null, organization_url: null, url: null, attribution: null, place, landmark: null, group_part,
+      taxon: {scientific_name: 'Orcinus orca', vernacular_name: 'Killer whale', species_id: 41521, entity_id: null},
+    } as Partial<Occurrence>;
+    document.body.append(el);
+    await el.updateComplete;
+    const text = el.shadowRoot!.querySelector('p.place')?.textContent ?? null;
+    el.remove();
+    return text;
+  };
+
+  it("says whose position the point is, after the place, when the report says (decision 116)", async () => {
+    expect(await placeText('Possession Sound', 'leaders')).toBe('Possession Sound · the leaders');
+    expect(await placeText(null, 'trailers')).toBe('The trailers');
+    expect(await placeText('Possession Sound', null)).toBe('Possession Sound');
+    expect(await placeText(null, null)).toBeNull();
+  });
+});
