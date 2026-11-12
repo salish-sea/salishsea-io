@@ -82,4 +82,8 @@ What the counts say for a forecast:
 - **What no tag takes:** field marks (*blows visible*, *white lower jaw visible*), headings the direction already reads (*trending north*), positions (*hugging the shore*), and the order of a group (*leaders here*, *moved on one by one*), which is read as the part of the group instead.
 - **Leaders and trailers:** all 31 reports read as putting the leaders or the trailers *here* were read right by hand, including *J and K pod leaders N of here, trailing male milling/foraging here*, which is the trailers.
 
+## Known limits
+
+Two kinds of text the rules read wrongly, found by reviewers' constructed examples; neither appears in the year's reports. A credit outside brackets reads as a behaviour (*Photo: Jim Chase* gives *chasing*). And a behaviour in Title Case inside brackets reads as a name (*(Ks Milling)* gives nothing). Telling a name from a behaviour by its capitals can't settle both, and a rule for one breaks the other. As decision 102 says for any reader, a miss found in production becomes a gold row first and a rule second.
+
 Reproduce with `node scripts/gold/behaviour.ts <dir of day files>`, `--examples <tag>` and `--gold`. The day files are the site's own, `https://salishsea.io/read-path/days/<date>.json`.

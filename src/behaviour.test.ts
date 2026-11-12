@@ -34,6 +34,8 @@ describe('readBehaviour', () => {
         expect(readBehaviour('no full-body breaches')).toEqual([]);
         expect(readBehaviour('No sign of J-pod foraging')).toEqual([]);
         expect(readBehaviour('no point breaching today')).toEqual([]);
+        for (const text of ['Not sure of ID- feeding', 'Not sure of ID -- feeding', 'point no point feeding', 'POINT NO POINT feeding'])
+            expect(readBehaviour(text), text).toEqual(['feeding']);
         // and only a few words back: a longer reach suppressed only behaviour that was
         // still going on, over a year of reports ("finished feeding at this time and is resting")
         expect(readBehaviour('CRC53 appears to be finished feeding at this time and is resting while slowly making his way north'))
@@ -53,6 +55,9 @@ describe('readBehaviour', () => {
         expect(readBehaviour('T99s southbound (Sara Quick)')).toEqual([]);
         expect(readBehaviour('2 orcas SB past Hunts Point (Mary Hunt)')).toEqual([]);
         expect(readBehaviour('Location: Mill Bay')).toEqual([]);
+        // a place word only names the word right before it, not across punctuation
+        for (const text of ['Milling, Point Robinson', 'Milling. Point Robinson.', 'Milling\nPoint Robinson 14:05'])
+            expect(readBehaviour(text), text).toEqual(['milling']);
         expect(readBehaviour('Screenshots from videos by Chase and Sarah.')).toEqual([]);
         expect(readBehaviour('Screenshots from videos (Chase Gagliardi, Sarah Plane)')).toEqual([]);
         // elsewhere a capital is just a capital

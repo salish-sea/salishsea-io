@@ -65,11 +65,11 @@ export const PHRASES: readonly Phrase[] = [
 /**
  * The words just before a phrase that say the behaviour is over or didn't happen:
  * "southbound after feeding" is travelling, "no surface activity" is none. The reach is a
- * few words within the clause, which ends at punctuation, a bracket or a dash set off by
- * spaces ("not sure of ID - feeding"); a hyphen inside a word ("no full-body breaches")
- * doesn't end it.
+ * few words within the clause, which ends at punctuation, a bracket or a dash with a space
+ * on either side or doubled ("not sure of ID - feeding", "ID- feeding"); a hyphen inside a
+ * word ("no full-body breaches") doesn't end it.
  */
-const NOT_NOW = /(?:\b(?:after|finished|done|no|not|without|never)\b|n't\b)(?:(?!\s-\s)[^.,;!?()–—]){0,15}$/i;
+const NOT_NOW = /(?:\b(?:after|finished|done|no|not|without|never)\b|n't\b)(?:(?!\s-|-\s|--)[^.,;!?()–—]){0,15}$/i;
 /** A turn that ends what the cue governs: "not milling but feeding" is feeding. */
 const TURN = /\b(?:but|now|then)\b/i;
 
@@ -83,10 +83,10 @@ function notNow(before: string): boolean {
  * "No" in Point No Point is a place, not a denial; read with the name joined up. Same
  * length, so a match's position is the same in both.
  */
-const unplace = (text: string) => text.replace(/\bPoint No Point\b/g, 'Point_No_Point');
+const unplace = (text: string) => text.replace(/\bPoint (No) Point\b/gi, (whole, no: string) => whole.replace(` ${no} `, `_${no}_`));
 
 // The places a capitalised word can name, as reports write them: "Mill Bay", "Hunts Point".
-const PLACE_WORD = /^\S*\s+(?:Bay|Point|Pt|Creek|Cove|Island|Harbou?r|Rocks?|Beach|Park|Head|Reef|Inlet|Lake|River|Pass|Spit|Bluff|Marina|Lighthouse)\b/;
+const PLACE_WORD = /^[A-Za-z']+[ \t]+(?:Bay|Point|Pt|Creek|Cove|Island|Harbou?r|Rocks?|Beach|Park|Head|Reef|Inlet|Lake|River|Pass|Spit|Bluff|Marina|Lighthouse)\b/;
 
 /**
  * Whether a capitalised match is part of a name rather than a behaviour: a place ("Mill
