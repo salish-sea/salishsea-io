@@ -15,7 +15,7 @@ Full reasoning: [docs/strategy/community-uptake.md](../strategy/community-uptake
 
 ## Rejected
 
-- Cross-post / bridge-both-ways with Facebook (concedes the coordination function).
+- Cross-post / bridge-both-ways with Facebook (concedes the coordination function). *[117](117-sightings-from-a-facebook-group-arrive-when-a-signed-in-person-sends-the-days-post.md) reads from Facebook in one direction; its section on 007 says what that concedes.*
 - Newcomer-onboarding-first (wrong persona; shore regulars carry the signal).
 - Scraping as the lead move (burns the partnership; kept only as fallback).
 
