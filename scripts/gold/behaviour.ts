@@ -25,8 +25,11 @@ type Occurrence = {
 export function kindOf(o: Pick<Occurrence, 'taxon' | 'pods' | 'identifiers'>): string {
     const name = o.taxon?.vernacular_name ?? 'unknown';
     if (/killer whale/i.test(name)) {
-        if (/southern|resident/i.test(name) || o.pods.length || o.identifiers.some(c => /^[JKL]\d|^[JKL]s?$/.test(c))) return 'Southern Resident';
-        if (/bigg/i.test(name) || o.identifiers.some(c => /^T\d/.test(c))) return "Bigg's";
+        // the taxon's own ecotype first, then the codes or pods the report names
+        if (/southern|resident/i.test(name)) return 'Southern Resident';
+        if (/bigg/i.test(name)) return "Bigg's";
+        if (o.pods.length || o.identifiers.some(c => /^[JKL]\d|^[JKL]s?$/.test(c))) return 'Southern Resident';
+        if (o.identifiers.some(c => /^T\d/.test(c))) return "Bigg's";
         return 'orca, ecotype not said';
     }
     if (/humpback/i.test(name)) return 'humpback';

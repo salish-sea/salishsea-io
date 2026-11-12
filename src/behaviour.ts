@@ -67,13 +67,21 @@ export const PHRASES: readonly Phrase[] = [
  * "southbound after feeding" is travelling, "no surface activity" is none.
  */
 const NOT_NOW = /\b(?:after|finished|done|no|not|without|never)\b[^.,;!?]{0,15}$/i;
+/** A turn that ends what the cue governs: "not milling but feeding" is feeding. */
+const TURN = /\b(?:but|now|then)\b/i;
+
+/** Whether the text before a phrase says it is over or didn't happen. */
+function notNow(before: string): boolean {
+    const cue = NOT_NOW.exec(before);
+    return cue !== null && !TURN.test(before.slice(cue.index + 1));
+}
 
 /** The tags a text says, in the order of the list. */
 export function readBehaviour(text: string): string[] {
     const tags: string[] = [];
     for (const {tag, pattern} of PHRASES) {
         const every = new RegExp(pattern.source, pattern.flags + 'g');
-        if ([...text.matchAll(every)].some(m => !NOT_NOW.test(text.slice(0, m.index))))
+        if ([...text.matchAll(every)].some(m => !notNow(text.slice(0, m.index))))
             if (!tags.includes(tag)) tags.push(tag);
     }
     return tags;
@@ -88,6 +96,10 @@ export type GroupPart = 'leaders' | 'trailers';
 const PART_HERE = /\b(?:(leaders?|lead(?:ing|er)? group)|(trailers?|trailing (?:group|male|female|whales?|orcas?)))\b((?:\s+(?!(?:leaders?|lead|leading|trailers?|trailing)\b)[\w/'-]+){0,3}?)\s+here\b/gi;
 const ELSEWHERE = /\b(?:of|from|past|than|beyond|toward|towards)$/i;
 const DENIED = /\b(?:not|no|never|aren't|isn't|weren't|wasn't)\b/i;
+// A part named just before, with "and": "leaders and trailers here" names both.
+const PART_BEFORE = /\b(?:leaders?|lead(?:ing|er)? group|trailers?|trailing (?:group|male|female|whales?|orcas?))\s*(?:and|&|\/)\s*$/i;
+// A denial just before the part: "no leaders here".
+const DENIED_BEFORE = /\b(?:not|no|never)\s+(?:the\s+)?$/i;
 
 /**
  * The part of a spread group the text puts at the reported position, or null when it
@@ -100,7 +112,9 @@ export function readGroupPart(text: string): GroupPart | null {
     const parts = new Set<GroupPart>();
     for (const m of text.matchAll(PART_HERE)) {
         const between = m[3]!.trim();
-        if (ELSEWHERE.test(between) || DENIED.test(between)) continue;
+        const before = text.slice(0, m.index);
+        if (PART_BEFORE.test(before)) return null;
+        if (ELSEWHERE.test(between) || DENIED.test(between) || DENIED_BEFORE.test(before)) continue;
         parts.add(m[1] ? 'leaders' : 'trailers');
     }
     return parts.size === 1 ? [...parts][0]! : null;
