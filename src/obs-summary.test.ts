@@ -458,3 +458,21 @@ describe('the part of a spread group', () => {
     expect(await placeText(null, null)).toBeNull();
   });
 });
+
+describe('the pods a report names (salish-qr32)', () => {
+  it('are chips after its codes, as a bout\'s pod tags are', async () => {
+    const el = document.createElement('obs-summary') as ObsSummary;
+    (el as unknown as {sighting: Partial<Occurrence>}).sighting = {
+      id: 'maplify:whale_alert:263203', body: 'J and K pod leaders here, J27 with them', confirmation: 'confirmed', count: null,
+      observed_at: '2026-11-09T23:55:00+00:00', photos: [], provider_slug: 'maplify', provider: 'Maplify', collection: 'Orca Network',
+      observer: null, source_url: null, organization_url: null, url: null, attribution: null,
+      identifiers: ['J27'], pods: ['J', 'K'],
+      taxon: {scientific_name: 'Orcinus orca', vernacular_name: 'Killer whale', species_id: 41521, entity_id: null},
+    } as Partial<Occurrence>;
+    document.body.append(el);
+    await el.updateComplete;
+    const chips = [...el.shadowRoot!.querySelectorAll('ul.animals li')].map(li => li.textContent!.trim());
+    el.remove();
+    expect(chips).toEqual(['J27', 'J pod', 'K pod']);
+  });
+});

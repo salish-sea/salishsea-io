@@ -116,6 +116,17 @@ test('links pod names to the pod page', () => {
     .toBe("[Js](/pods/0000020/J-pod) and [K's](/pods/0000021/K-pod) westbound");
 });
 
+test('every pod in a list before one "pod" is linked, not only the last (salish-qr32)', () => {
+  const link = (text: string) => injectIndividualLinks(text, codes, matrilines, populations, pods);
+  expect(link('J and K pod leaders here')).toBe('[J](/pods/0000020/J-pod) and [K pod](/pods/0000021/K-pod) leaders here');
+  expect(link('J, K, and L pods NB')).toBe('[J](/pods/0000020/J-pod), [K](/pods/0000021/K-pod), and [L pods](/pods/0000022/L-pod) NB');
+  expect(link('J & K pods')).toBe('[J](/pods/0000020/J-pod) & [K pods](/pods/0000021/K-pod)');
+  expect(link('J+K pod call')).toBe('[J](/pods/0000020/J-pod)+[K pod](/pods/0000021/K-pod) call');
+  expect(link('J/K pods')).toBe('[J](/pods/0000020/J-pod)/[K pods](/pods/0000021/K-pod)');
+  // a letter that isn't in a list ending in "pod" is still not a pod
+  expect(link('Exhibit J and the K pod')).toBe('Exhibit J and the [K pod](/pods/0000021/K-pod)');
+});
+
 test('a bare pod letter, a lowercase plural and a matriline code are not pods', () => {
   const j31s = new Map([['j31s', { entity_id: 'SSA:0002001', designation: 'J031' }]]);
   expect(injectIndividualLinks('Plan J, ls -l, the J31s', codes, j31s, populations, pods))

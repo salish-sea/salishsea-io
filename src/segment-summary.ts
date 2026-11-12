@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { linkStyles } from './icons.ts';
-import { catalogCodes, catalogLookups, loadCatalogCodes, pooledAnimals, populationCodes, populationPage } from './individual-links.ts';
+import { catalogCodes, catalogLookups, loadCatalogCodes, namedInReport, pooledAnimals, populationCodes, populationPage } from './individual-links.ts';
 import { isUnconfirmed } from './occurrence.ts';
 import { channelOf } from './encounter.ts';
 import { segmentMovement, type SegmentMovement } from './segments.ts';
@@ -257,7 +257,7 @@ export class SegmentSummary extends LitElement {
     const name = displayNameFor(head.taxon);
     const namePage = populationPage(head.taxon.entity_id, populationCodes() ?? new Map());
     const lookups = catalogLookups();
-    const animals = pooledAnimals(reports.map(r => r.identifiers), ...lookups);
+    const animals = pooledAnimals(reports.map(namedInReport), ...lookups);
     // The animals some reports say weren't there, with how many say so (decision 109).
     const missing = pooledAnimals(reports.map(r => r.absent ?? []), ...lookups);
     // The newest report's own words; an older report's would not be "latest" (decision 097).

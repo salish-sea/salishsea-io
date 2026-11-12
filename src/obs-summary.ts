@@ -15,7 +15,7 @@ import { deleteSighting } from './write-api.ts';
 import type { ActivityEntry, Contributor, IdentifiedAs, Occurrence } from "./types.ts";
 import { canEdit, isUnconfirmed } from "./occurrence.ts";
 import { injectPartnerLinks } from './partner-links.ts';
-import { catalogCodes, catalogLookups, injectIndividualLinks, loadCatalogCodes, namedAnimals, populationCodes, populationPage } from './individual-links.ts';
+import { catalogCodes, catalogLookups, injectIndividualLinks, loadCatalogCodes, namedAnimals, namedInReport, populationCodes, populationPage } from './individual-links.ts';
 import { openAnimalLinkInSidebar } from './subject.ts';
 import { linkStyles } from './icons.ts';
 import { placeLine } from './place.ts';
@@ -411,7 +411,7 @@ export class ObsSummary extends LitElement {
     // change) can fire before it is assigned; render nothing rather than throw.
     if (!this.sighting) return nothing;
     const {
-      absent, body, confirmation, count, disagreements, group_part, identifiers, observed_at, photos, provider_slug, taxon, url, vitality
+      absent, body, confirmation, count, disagreements, group_part, identifiers, observed_at, photos, pods, provider_slug, taxon, url, vitality
     } = this.sighting;
     const place = placeLine(this.sighting);
     // The same dot, in the same colour, as the marker on the map — which is the
@@ -449,9 +449,9 @@ export class ObsSummary extends LitElement {
       ${place || group_part ? html`<p class="place">${place}${
         // whose position the point is, when the report says (decision 116)
         group_part ? html`${place ? ' · ' : ''}<span class="part">${place ? `the ${group_part}` : `The ${group_part}`}</span>` : nothing}</p>` : nothing}
-      ${guard([identifiers, absent, this.catalogLoaded], () => {
+      ${guard([identifiers, pods, absent, this.catalogLoaded], () => {
         const lookups = catalogLookups();
-        const animals = namedAnimals(identifiers, ...lookups);
+        const animals = namedAnimals(namedInReport({identifiers, pods}), ...lookups);
         // The animals the report says weren't there, after the ones that were (decision 109).
         const named = new Set(animals.map(a => a.href ?? a.label));
         const missing = namedAnimals(absent ?? [], ...lookups).filter(a => !named.has(a.href ?? a.label));

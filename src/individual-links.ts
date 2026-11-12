@@ -28,6 +28,11 @@ function populationForTerm(term: string): string | null {
 // CODE_RE has already linked.
 const POD_RE = /\b([jkl])[- ]?pods?\b/gi;
 
+// Pods listed before one "pod": "J and K pod", "J, K, and L pods", "J & K pods", "J/K pods",
+// "J+K pod". Every letter is a pod, though only the last has the word (salish-qr32).
+const POD_LIST_RE = /\b[jkl](?:\s*(?:,\s*(?:and\s+|&\s*)?|and\s+|&|\/|\+)\s*[jkl])+[- ]?pods?\b/gi;
+const POD_LETTER_RE = /\b[jkl]\b/gi;
+
 // The pods' plural shorthand, "Js and Ks", in capitals only, so that "ls" and "js"
 // in ordinary text stay text.
 const POD_PLURAL_RE = /\b([JKL])['’]?s\b/g;
@@ -99,6 +104,12 @@ export function injectIndividualLinks(
     const population = designation ? populations.get(designation) : undefined;
     return population ? `[${match}](${populationPath(population)})` : match;
   });
+  // A list's last letter keeps its word ("[K pod]"); each letter before it links alone ("[J]").
+  linked = replaceOutsideLinks(linked, POD_LIST_RE, list => {
+    const last = /[jkl][- ]?pods?$/i.exec(list)!;
+    const before = list.slice(0, last.index).replace(POD_LETTER_RE, letter => linkPod(letter, letter));
+    return before + linkPod(last[0], last[0][0]!);
+  });
   linked = replaceOutsideLinks(linked, POD_RE, linkPod);
   return replaceOutsideLinks(linked, POD_PLURAL_RE, linkPod);
 }
@@ -163,6 +174,16 @@ export function namedAnimals(
   }
   return [...byKey.values()];
 }
+
+/**
+ * What a report names, as its chips read it: the codes it names, then the Southern
+ * Resident pods its text names, as "J pod". The day file keeps the pods apart, as
+ * letters (decision 105), so a report that says "J and K pods" names no code; without
+ * them its card, and its segment's, showed no pod at all (salish-qr32). A bout's pods are
+ * already among its tags, and the chip reads them once.
+ */
+export const namedInReport = ({identifiers, pods}: {identifiers: readonly string[] | null, pods?: readonly string[]}): string[] =>
+  [...(identifiers ?? []), ...(pods ?? []).map(letter => `${letter} pod`)];
 
 /** An animal a segment's reports name, and how many of them name it (salish-fwyt.5). */
 export interface PooledAnimal extends NamedAnimal {
