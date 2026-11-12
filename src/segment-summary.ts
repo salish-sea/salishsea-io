@@ -322,20 +322,24 @@ export type BehaviourSpell = {tags: string[], from: Occurrence, to: Occurrence};
 
 /**
  * What a segment's reports say the animals were doing, oldest first (decision 116): each
- * report with a tag joins the spell before it when they share one, and starts a new spell
- * when they don't. A report that says nothing about behaviour doesn't break a spell.
+ * report with a tag joins the spell when it shares a tag with the report before it, and
+ * starts a new spell when it doesn't, so a change shows even when an older report in the
+ * spell said the same ("spread out, then grouped up"). A report that says nothing about
+ * behaviour doesn't break a spell.
  * "Spread out 08:43, then milling and foraging 09:22, then spread out 09:52–11:20".
  */
 export function behaviourSpells(reports: readonly Occurrence[]): BehaviourSpell[] {
   const spells: BehaviourSpell[] = [];
+  let before: string[] = [];
   for (const r of [...reports].sort((a, b) => a.observed_at.localeCompare(b.observed_at))) {
     const tags = (r.behaviour ?? []).filter(t => !AT_THE_SURFACE.has(t));
     if (!tags.length) continue;
     const spell = spells.at(-1);
-    if (spell && tags.some(t => spell.tags.includes(t))) {
+    if (spell && tags.some(t => before.includes(t))) {
       for (const t of tags) if (!spell.tags.includes(t)) spell.tags.push(t);
       spell.to = r;
-    } else spells.push({tags, from: r, to: r});
+    } else spells.push({tags: [...tags], from: r, to: r});
+    before = tags;
   }
   return spells;
 }

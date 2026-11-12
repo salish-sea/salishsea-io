@@ -84,6 +84,19 @@ describe('what the reports say the animals were doing (decision 116)', () => {
     ]);
   });
 
+  test('a report joins the spell by what the report before it said, not anything earlier in the spell', () => {
+    const spells = behaviourSpells([
+      said(report('a', 0, ''), ['milling']),
+      said(report('b', 15, ''), ['milling', 'foraging']),
+      said(report('c', 30, ''), ['foraging']),
+      said(report('d', 45, ''), ['milling']),
+    ]);
+    expect(spells.map(({tags, from, to}) => [tags, from.id, to.id])).toEqual([
+      [['milling', 'foraging'], 'a', 'c'],
+      [['milling'], 'd', 'd'],
+    ]);
+  });
+
   test('the card says it as a sentence, with times, and nothing when no report says anything', async () => {
     const card = await mount([
       said(report('a', 0, 'spread out'), ['spread out']),
