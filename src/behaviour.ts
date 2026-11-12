@@ -66,7 +66,7 @@ export const PHRASES: readonly Phrase[] = [
  * The words just before a phrase that say the behaviour is over or didn't happen:
  * "southbound after feeding" is travelling, "no surface activity" is none.
  */
-const NOT_NOW = /\b(?:after|finished|done|no|not|without|never)\b[^.,;!?]{0,15}$/i;
+const NOT_NOW = /(?:\b(?:after|finished|done|no|not|without|never)\b|n't\b)[^.,;!?]{0,15}$/i;
 /** A turn that ends what the cue governs: "not milling but feeding" is feeding. */
 const TURN = /\b(?:but|now|then)\b/i;
 
@@ -95,11 +95,12 @@ export type GroupPart = 'leaders' | 'trailers';
 // "leaders N of here" puts the leaders somewhere else, and "leaders not here" denies it.
 const PART_HERE = /\b(?:(leaders?|lead(?:ing|er)? group)|(trailers?|trailing (?:group|male|female|whales?|orcas?)))\b((?:\s+(?!(?:leaders?|lead|leading|trailers?|trailing)\b)[\w/'-]+){0,3}?)\s+here\b/gi;
 const ELSEWHERE = /\b(?:of|from|past|than|beyond|toward|towards)$/i;
-const DENIED = /\b(?:not|no|never|aren't|isn't|weren't|wasn't)\b/i;
+const DENIED = /\b(?:not|no|never)\b|n't\b/i;
 // A part named just before, with "and": "leaders and trailers here" names both.
 const PART_BEFORE = /\b(?:leaders?|lead(?:ing|er)? group|trailers?|trailing (?:group|male|female|whales?|orcas?))\s*(?:and|&|\/)\s*$/i;
-// A denial just before the part: "no leaders here".
-const DENIED_BEFORE = /\b(?:not|no|never)\s+(?:the\s+)?$/i;
+// A denial a few words before the part, in its clause: "no leaders here", "no sign of
+// leaders here", "did not see trailers here".
+const DENIED_BEFORE = /(?:\b(?:not|no|never)\b|n't\b)[^.,;!?]{0,15}$/i;
 
 /**
  * The part of a spread group the text puts at the reported position, or null when it

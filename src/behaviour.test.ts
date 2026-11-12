@@ -24,6 +24,8 @@ describe('readBehaviour', () => {
         // and a turn ends it
         expect(readBehaviour('not milling but feeding')).toEqual(['feeding']);
         expect(readBehaviour('no longer milling, now hunting')).toEqual(['hunting']);
+        expect(readBehaviour("J pod isn't feeding")).toEqual([]);
+        expect(readBehaviour("they weren't milling, heading north")).toEqual([]);
         // and only a few words back: a longer reach suppressed only behaviour that was
         // still going on, over a year of reports ("finished feeding at this time and is resting")
         expect(readBehaviour('CRC53 appears to be finished feeding at this time and is resting while slowly making his way north'))
@@ -62,6 +64,9 @@ describe('readGroupPart', () => {
         expect(readGroupPart('J, K, and L pod leaders southbound, trailers spread toward Richmond Beach')).toBeNull();
         expect(readGroupPart('J pod leaders not here yet')).toBeNull();
         expect(readGroupPart('No leaders here, only a few stragglers')).toBeNull();
+        expect(readGroupPart('No sign of leaders here')).toBeNull();
+        expect(readGroupPart('We did not see trailers here')).toBeNull();
+        expect(readGroupPart("Didn't see the leaders here")).toBeNull();
         expect(readGroupPart('J pod leaders and trailers here, all bunched')).toBeNull();
         expect(readGroupPart("Leaders aren't here, still south")).toBeNull();
         // the leaders are named first, but the trailers are the ones here
