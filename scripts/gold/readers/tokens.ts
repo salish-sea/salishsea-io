@@ -3,7 +3,8 @@
  * gold row's report text.
  */
 
-import { readText, type Reading } from '../../../src/sighting-text.ts';
+import { readText } from '../../../src/sighting-text.ts';
+import type { Reading } from '../score.ts';
 import { reportText, type GoldRow } from '../gold.ts';
 
 export async function readWithTokens(rows: GoldRow[]): Promise<Map<number, Reading>> {

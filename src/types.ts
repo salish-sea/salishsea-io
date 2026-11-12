@@ -6,6 +6,8 @@
  * ones checked in at data/reference/enums.tsv (decision 064).
  */
 
+import type { GroupPart } from './behaviour.ts';
+
 export type License = 'cc0' | 'cc-by' | 'cc-by-nc' | 'cc-by-sa' | 'cc-by-nd' | 'cc-by-nc-sa' | 'cc-by-nc-nd' | 'none';
 export type TravelDirection = 'north' | 'northeast' | 'east' | 'southeast' | 'south' | 'southwest' | 'west' | 'northwest';
 export type IdentificationCertainty = 'possible' | 'probable' | 'certain';
@@ -61,6 +63,16 @@ export type Occurrence = {
    * Empty for a bout; absent from a sighting the build hasn't seen yet.
    */
   absent?: string[];
+  /**
+   * What its text says the animals were doing, in the reporters' own words: 'milling',
+   * 'spread out', 'hunting' (decision 116). Absent from a sighting the build hasn't seen yet.
+   */
+  behaviour?: string[];
+  /**
+   * The part of a spread group its text puts at its position, when the text says so
+   * ("leaders here"), else null (decision 116). Absent from a sighting the build hasn't seen yet.
+   */
+  group_part?: GroupPart | null;
   location: LonLat;
   observed_at: string;
   observed_from: LonLat | null;

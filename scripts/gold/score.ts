@@ -15,9 +15,11 @@
  */
 
 import type { GoldRow } from './gold.ts';
-import { absent, hedged, present, type Reading } from '../../src/sighting-text.ts';
+import { absent, hedged, present, type Reading as FullReading } from '../../src/sighting-text.ts';
 
-export type { Certainty, Claim, Reading } from '../../src/sighting-text.ts';
+export type { Certainty, Claim } from '../../src/sighting-text.ts';
+/** What the score reads of a reader's answer: the codes, the pods and the direction. Behaviour is measured by scripts/gold/behaviour.ts. */
+export type Reading = Pick<FullReading, 'claims' | 'pods' | 'direction'>;
 export { absent, hedged, present } from '../../src/sighting-text.ts';
 
 export const FIELDS = ['direction', 'codes_present', 'codes_absent', 'codes_hedged', 'certainty', 'pods'] as const;
