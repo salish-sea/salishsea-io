@@ -14,9 +14,17 @@ What doesn't work:
 - **Scraping.** A program that reads the group logs in as a member and reloads it every few minutes, which is how Facebook recognises a robot. Accounts get challenged or suspended, and when Facebook changes its markup a scraper returns nothing rather than failing, so a gap looks like a quiet day. Meta's terms forbid automated collection by a logged-in member.
 - **Facebook's notifications.** They announce new posts, not comments on a post, and the sightings are comments. Facebook doesn't promise one for every post either.
 
+What the group tells its members matters for what we may take. Its About page discloses that reports shared there may go into Orca Network's Whale Sighting Reports, be shared with researchers and appear on Orca Network's website and social media. Photos and videos are shared with Orca Network for a listed set of its own uses, with credit, and for "any other uses we would ask your permission". Orca Network already publishes observers' names with their reports.
+
 ## Decision
 
 **A person who is reading the group, and is signed in to SalishSea.io with an approved account, sends the day's post with a bookmarklet.** One click sends the whole post as it is on their screen: its own text and every comment loaded on the page. SalishSea.io reads the sightings from it. Sending again later sends the post again, and SalishSea.io keeps what is new.
+
+**The senders are Orca Network's staff, or people it names.** Then each send is Orca Network sharing its sighting reports with us, as it already does through the Cascadia Web Map, which is what the group's disclosure tells members to expect. We don't read the group on our own account.
+
+**We take the text, never the photos or videos.** The group's media permissions cover Orca Network's own uses and leave others to the photographer's permission.
+
+**An observer is credited by name, as Orca Network credits them.** The commenter's name goes into the map and into the archive's `recordedBy`.
 
 **The bookmarklet sends only the post, never the whole page.** The page around it carries the sender's chats, notifications and friends.
 
@@ -29,7 +37,9 @@ Facebook's Content Security Policy doesn't allow a page to `fetch` from any othe
 
 **SalishSea.io reads the HTML, not the bookmarklet.** The code in a bookmark stays as it was when it was saved, while Facebook changes its markup often. Parsing on our side means a fix reaches everyone at once. The prototype found what the reading relies on today: each comment is an element with `role="article"` and an `aria-label` such as *Comment by … 2 hours ago* or *Reply by … to …'s comment*; each carries a `comment_id`, and a reply carries the `reply_comment_id` of the comment it answers; the post's own text is the text outside every comment. When the reading finds nothing, it fails loudly instead of reporting a quiet day.
 
-**Comments are known by `comment_id`, and the post's lines by the time they first appeared.** The post is edited during the day, so each send compares its lines with the ones already seen.
+**Comments are known by `comment_id`, and the post's lines by their text.** The post is edited during the day, so each send compares its lines with the ones already seen: a line whose text is new is a new line, with the time of the send that first carried it; a line that has been reworded counts as new, and the old wording as gone. Lines with no letters or digits (the group uses a lone `.` as a spacer) are ignored, and two lines with the same text in one post are told apart by their order.
+
+**Before sending, the bookmarklet loads the comments Facebook has hidden, and the window says when some are still missing.** It clicks *View more comments* and *View N replies* until none are left. It can't set the comment sort, so the window warns when the sort is not *All comments*, which hides some comments, and when collapsed threads remain. A send that misses a comment doesn't lose it for good: the next complete send carries it, with the time Facebook gives it.
 
 **Desktop Chrome and Firefox only.** Bookmarklets don't run in Facebook's app and are awkward in mobile browsers. The prototype worked in Chrome, and in Firefox 159 with uBlock Origin.
 
@@ -39,8 +49,8 @@ Decision 007 rejected bridging Facebook in both directions, because that leaves 
 
 ## Not decided
 
-- **On what terms members' comments are republished, and whether observers' names appear** in the map and in the archive's `recordedBy`. To be written into the rights policy (bd `salish-i1a.3.9`); the terms themselves are agreed with Orca Network, outside the tracker.
-- **Which accounts may send.** A short list, kept by us; who is on it follows from the conversation with Orca Network.
+- **Orca Network's agreement.** The footing above holds only if Orca Network agrees to send its reports this way, and on terms like Acartia's CC-BY. That is agreed outside the tracker; the rights policy records the result (bd `salish-i1a.3.9`).
+- **Which accounts may send.** A short list, kept by us, of the people Orca Network names.
 - **How a sighting that arrives from Facebook and again through Maplify is shown once** (bd `salish-i1a.3.7`).
 - **How long the raw HTML is kept** so a fix to the reading can be run over recent sends. About a week was suggested; it holds members' names, so not longer than that use needs.
 
@@ -50,10 +60,11 @@ Decision 007 rejected bridging Facebook in both directions, because that leaves 
 - **A script running in a group admin's own browser that forwards posts by itself.** That is automated collection under Meta's terms, and it runs only while that browser is open.
 - **Asking the group's staff to send sightings to us as well as to the Cascadia Web Map.** It doubles their copying.
 - **Sending the whole page.** It carries the sender's private messages.
+- **Reading the group on our own account,** with anyone of ours clicking the bookmarklet. The group's disclosure tells members their reports go to Orca Network and onward through it, not to others who read the group.
 
 ## Consequences
 
 - The write API gains an endpoint for sent posts, open only to approved accounts (bd `salish-i1a.3.3`), and salishsea.io gains a page that offers the bookmarklet and the window it opens (bd `salish-i1a.3.8`).
 - The build derives occurrences from the post's lines and comments with the same reader of sighting text as Maplify reports (105), under a new collection of kind `facebook_group` (bd `salish-i1a.3.6`).
-- How soon a sighting arrives depends on how often someone sends the post. Each send picks up everything posted since the last one.
+- How soon a sighting arrives depends on how often someone sends the post. A complete send carries everything on the post, so it picks up whatever earlier sends missed; an incomplete one says so.
 - When Facebook changes its markup, sightings from the group stop until the reading is fixed. The failure is loud, and old sends can be read again.
