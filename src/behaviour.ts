@@ -19,6 +19,7 @@ export const PHRASES: readonly Phrase[] = [
     {tag: 'stalled', pattern: /\bstall(?:ed|ing)\b/i},
     {tag: 'hanging around', pattern: /\bhang(?:ing)? (?:out|around)\b/i},
     {tag: 'circling', pattern: /\bcircl(?:ing|ed)\b/i},
+    {tag: 'shuffling', pattern: /\bshuffl(?:ing|ed)\b/i},
     {tag: 'drifting', pattern: /\bdrift(?:ing|ed)\b/i},
     {tag: 'resting', pattern: /\brest(?:ing|ed)\b/i},
     {tag: 'logging', pattern: /\blogging\b/i},
@@ -44,7 +45,6 @@ export const PHRASES: readonly Phrase[] = [
     {tag: 'spread out', pattern: /\bspread\b/i},
     {tag: 'in groups', pattern: /\b(?:two|2|three|3|several|multiple|few|many) (?:sub-?)?groups\b/i},
     {tag: 'split up', pattern: /\bsplit (?:up|into)\b/i},
-    {tag: 'strung out', pattern: /\bstrung out\b/i},
     // "Loosely grouped" is neither tight nor spread, and is left out.
     {tag: 'grouped up', pattern: /\bgroup(?:ed|ing) ?up\b|(?<!loosely )\bgrouped\b/i},
     {tag: 'together', pattern: /\b(?:travel(?:l)?ing|close|all|swimming|tight(?:ly)?) together\b/i},
@@ -55,8 +55,8 @@ export const PHRASES: readonly Phrase[] = [
     {tag: 'fluking', pattern: /\bfluk(?:ed|ing)\b|\bfluke[sd]? up\b/},
     {tag: 'surface active', pattern: /\bsurface[- ]activ(?:e|ity)\b/i},
     {tag: 'breaching', pattern: /\bbreach(?:ing|ed|es)?\b/i},
-    {tag: 'tail slapping', pattern: /\btail[- ]?slap(?:s|ping)?\b/i},
-    {tag: 'tail lobbing', pattern: /\btail[- ]?lob(?:s|bing)?\b|\blob[- ]?tail(?:s|ing)?\b/i},
+    // and "slapping their tails", which one report spells "tales"
+    {tag: 'tail slapping', pattern: /\btail[- ]?slap(?:s|ping)?\b|\bslap(?:s|ping)? (?:their|its|the|her|his) ta(?:i)?les?\b/i},
     {tag: 'pec slapping', pattern: /\bpec(?:toral)?[- ]?(?:fin )?slap(?:s|ping)?\b/i},
     {tag: 'spyhopping', pattern: /\bspy[- ]?hop(?:s|ping)?\b/i},
     {tag: 'playing', pattern: /\bplay(?:ing|ful)\b/i},

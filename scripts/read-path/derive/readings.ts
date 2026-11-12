@@ -6,8 +6,9 @@
  * text: Maplify's comments, iNaturalist's descriptions and our own sightings' bodies.
  * Orcasound's bouts carry their identifiers as tags, not text, so they have no reading.
  *
- * `reading(id, direction, claims, pods)`, keyed by the occurrence's id as its view spells
- * it. `claims` is every code the text names with whether it says the animal was present or
+ * `reading(id, direction, claims, pods, behaviour, group_part)`, keyed by the occurrence's id
+ * as its view spells it. `behaviour` is the tags the text says and `group_part` the part of
+ * a spread group it puts at the reported position, `leaders` or `trailers` (decision 116). `claims` is every code the text names with whether it says the animal was present or
  * absent and how sure the reporter was; the views write the present codes as the
  * occurrence's identifiers, a possible one with a '?', the absent ones as its `absent`,
  * and all of them as its `claims`, which the identifier candidates read (decision 109).
@@ -34,11 +35,12 @@ export const TEXTS = {
 export type TextSource = keyof typeof TEXTS;
 export const readsText = (source: string): source is TextSource => source in TEXTS;
 
-const READING_SHAPE = JSON.stringify({direction: 'VARCHAR', claims: [{code: 'VARCHAR', presence: 'VARCHAR', certainty: 'VARCHAR'}], pods: ['VARCHAR']});
+const READING_SHAPE = JSON.stringify({direction: 'VARCHAR', claims: [{code: 'VARCHAR', presence: 'VARCHAR', certainty: 'VARCHAR'}], pods: ['VARCHAR'], behaviour: ['VARCHAR'], groupPart: 'VARCHAR'});
 
 export const CREATE_READING = `CREATE OR REPLACE TABLE memory.main.reading (
     id VARCHAR, direction VARCHAR,
-    claims STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR)[], pods VARCHAR[])`;
+    claims STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR)[], pods VARCHAR[],
+    behaviour VARCHAR[], group_part VARCHAR)`;
 
 /**
  * What people wrote on an iNaturalist observation besides its description, as
@@ -103,7 +105,8 @@ export async function writeReadings(conn: DuckDBConnection, source: TextSource):
     for await (const rows of result.yieldRows() as AsyncIterable<[string, string][]>) {
         for (const [id, body] of rows) {
             const reading = readSighting(body);
-            if (reading.claims.length || reading.pods.length || reading.direction !== null) found.push([id, reading]);
+            if (reading.claims.length || reading.pods.length || reading.direction !== null
+                || reading.behaviour.length || reading.groupPart !== null) found.push([id, reading]);
         }
     }
     await conn.run('CREATE OR REPLACE TABLE memory.main.reading_text (id VARCHAR, reading VARCHAR)');
@@ -119,7 +122,7 @@ export async function writeReadings(conn: DuckDBConnection, source: TextSource):
         appender.closeSync();
     }
     await conn.run(`INSERT INTO memory.main.reading
-        SELECT id, r.direction, r.claims, r.pods
+        SELECT id, r.direction, r.claims, r.pods, r.behaviour, r.groupPart
         FROM (SELECT id, from_json(reading, '${READING_SHAPE}') AS r FROM memory.main.reading_text)`);
     await conn.run('DROP TABLE memory.main.reading_text');
     return found.length;

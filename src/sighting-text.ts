@@ -23,13 +23,16 @@
  * abbreviation, "NB", "SW bound", "trending N", ignoring a bearing ("north of Alki",
  * "1/2 mile southeast of"), a place name ("West Point"), a spread ("north to south", "N to
  * S") and "facing"; after "now", "then" or "turned", the direction after the cue wins,
- * and "stalled" or "milling" there means milling.
+ * and "stalled" or "milling" there means milling. Its behaviour tags and the part of a
+ * spread group its position is come from src/behaviour.ts (decision 116).
  *
  * Measured against the hand-read gold set (scripts/read-path/fixtures/gold/, decision
  * 102), whose hard strata and the first half of its random strata it was developed
  * against; the second half is held out (scripts/gold/gold.ts). sighting-text.test.ts
  * records the rows it gets wrong today.
  */
+
+import { readBehaviour, readGroupPart, type GroupPart } from './behaviour.ts';
 
 export type Certainty = 'certain' | 'probable' | 'possible';
 export type Presence = 'present' | 'absent';
@@ -42,17 +45,21 @@ export type Reading = {
     pods: string[];
     /** A compass direction ("north" … "northwest"), "milling", "unknown", or null. */
     direction: string | null;
+    /** What the text says the animals were doing, in the reporters' words (decision 116). */
+    behaviour: string[];
+    /** The part of a spread group the text puts at the reported position, if it says. */
+    groupPart: GroupPart | null;
 };
 
-export const present = (r: Reading) => r.claims.filter(c => c.presence === 'present').map(c => c.code);
-export const absent = (r: Reading) => r.claims.filter(c => c.presence === 'absent').map(c => c.code);
-export const hedged = (r: Reading) => r.claims.filter(c => c.presence === 'present' && c.certainty !== 'certain').map(c => c.code);
+export const present = (r: Pick<Reading, 'claims'>) => r.claims.filter(c => c.presence === 'present').map(c => c.code);
+export const absent = (r: Pick<Reading, 'claims'>) => r.claims.filter(c => c.presence === 'absent').map(c => c.code);
+export const hedged = (r: Pick<Reading, 'claims'>) => r.claims.filter(c => c.presence === 'present' && c.certainty !== 'certain').map(c => c.code);
 /**
  * The present codes as an occurrence's identifiers write them (decision 109): one the
  * reporter says was only possibly there ends in '?', as a bout's tag does (decision 054),
  * and a probable one is plain. The build writes the same (derive/occurrences.sql).
  */
-export const identifierLabels = (r: Reading) =>
+export const identifierLabels = (r: Pick<Reading, 'claims'>) =>
     r.claims.filter(c => c.presence === 'present').map(c => c.certainty === 'possible' ? `${c.code}?` : c.code);
 
 /**
@@ -287,7 +294,7 @@ export function readText(text: string): Reading {
         for (const l of m[1]!.toUpperCase().match(/[JKL]/g) ?? []) pods.add(l);
     }
 
-    return {claims, pods: [...pods], direction: readDirection(text)};
+    return {claims, pods: [...pods], direction: readDirection(text), behaviour: readBehaviour(text), groupPart: readGroupPart(text)};
 }
 
 const FULL: Record<string, string> = {

@@ -265,12 +265,12 @@ describe('the derivations over the fixture', () => {
             await promisify(execFile)('node', [path.join(import.meta.dirname, 'reference.ts'), snapshot]);
             const mirrors = await mirrorsFromSnapshot(snapshot, dir);
             // The occurrences against snapshot.occurrences. The expected rows don't carry the
-            // keys asserted on their own below: what each text names (`pods`, `absent`), where
-            // each sighting was (`place`, `landmark`), and what people said on it (`activity`,
-            // `identified_as`).
+            // keys asserted on their own below: what each text names (`pods`, `absent`) and says
+            // (`behaviour`, `group_part`), where each sighting was (`place`, `landmark`), and what
+            // people said on it (`activity`, `identified_as`).
             const expectOccurrences = () => withStore(snapshot, async conn => expect(
                 await documents(conn, 'SELECT doc FROM store.build.occurrences',
-                    ['place', 'landmark', 'pods', 'activity', 'identified_as', 'absent']))
+                    ['place', 'landmark', 'pods', 'activity', 'identified_as', 'absent', 'behaviour', 'group_part']))
                 .toEqual(await documents(conn, 'SELECT doc FROM store.snapshot.occurrences')));
             expect((await deriveOccurrences(snapshot, mirrors, null)).arms).toBe('all');
             await expectOccurrences();
@@ -307,6 +307,12 @@ describe('the derivations over the fixture', () => {
                         const keys = Object.keys(doc);
                         expect(keys[keys.indexOf('body') + 1]).toBe('pods');
                     }
+                    // What each text says the animals were doing (decision 116): two texts here say
+                    // something, and no text puts the leaders or the trailers at its position.
+                    expect(docs.filter(doc => (doc['behaviour'] as string[]).length)
+                        .map(doc => [doc['id'], doc['behaviour']]).sort())
+                        .toEqual([['inaturalist:9000001', ['foraging']], ['maplify:whale_alert:12', ['hauled out']]]);
+                    expect(docs.every(doc => doc['group_part'] === null)).toBe(true);
                 });
             }
             // told the store's tables changed: the native arm re-derived over the same

@@ -78,6 +78,10 @@ CREATE OR REPLACE TEMP VIEW maplify_occurrences AS
          -- only an iNaturalist observation has comments and identifications to show (decision 107)
          CAST([] AS STRUCT(kind VARCHAR, id BIGINT, "at" VARCHAR, author VARCHAR, by_observer BOOLEAN, taxon VARCHAR, body VARCHAR)[]) AS activity,
          CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as,
+         -- what the text says the animals were doing, and which part of a spread group the
+         -- position is (decision 116)
+         coalesce(r.behaviour, []) AS behaviour,
+         r.group_part AS group_part,
          reading_absent(r.claims) AS absent,
          report_claims(r.claims) AS claims
   FROM source_maplify_sightings s
@@ -294,6 +298,10 @@ CREATE OR REPLACE TEMP VIEW inaturalist_occurrences AS
          -- what people said on it, shown on its card (decision 107)
          coalesce(ac.activity, []) AS activity,
          coalesce(ac.identified_as, []) AS identified_as,
+         -- what the description says the animals were doing, and which part of a spread group the
+         -- position is (decision 116)
+         coalesce(r.behaviour, []) AS behaviour,
+         r.group_part AS group_part,
          -- the observer's absent codes: the description's, then their remarks' (salish-uh38)
          reading_absent(r.claims)
            || list_transform(remark_absent(rm.absent, r.claims), lambda remark: remark.code) AS absent,
@@ -385,6 +393,10 @@ CREATE OR REPLACE TEMP VIEW native_occurrences AS
          -- only an iNaturalist observation has comments and identifications to show (decision 107)
          CAST([] AS STRUCT(kind VARCHAR, id BIGINT, "at" VARCHAR, author VARCHAR, by_observer BOOLEAN, taxon VARCHAR, body VARCHAR)[]) AS activity,
          CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as,
+         -- what the text says the animals were doing, and which part of a spread group the
+         -- position is (decision 116)
+         coalesce(r.behaviour, []) AS behaviour,
+         r.group_part AS group_part,
          reading_absent(r.claims) AS absent,
          report_claims(r.claims) AS claims
   FROM public.observations o
@@ -464,6 +476,9 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
          -- only an iNaturalist observation has comments and identifications to show (decision 107)
          CAST([] AS STRUCT(kind VARCHAR, id BIGINT, "at" VARCHAR, author VARCHAR, by_observer BOOLEAN, taxon VARCHAR, body VARCHAR)[]) AS activity,
          CAST([] AS STRUCT(taxon VARCHAR, people BIGINT)[]) AS identified_as,
+         -- a bout has no text to say a behaviour or a part of the group (decision 116)
+         CAST([] AS VARCHAR[]) AS behaviour,
+         CAST(NULL AS VARCHAR) AS group_part,
          -- a bout's claims are its tags (public.acoustic_identifications), not text
          CAST([] AS VARCHAR[]) AS absent,
          CAST(NULL AS STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR, origin VARCHAR, origin_id BIGINT, by_observer BOOLEAN)[]) AS claims
@@ -480,7 +495,7 @@ CREATE OR REPLACE TEMP VIEW orcasound_occurrences AS
 -- --- What the text says ---------------------------------------------------------------
 -- From memory.reading (derive/readings.ts; decision 105). A direction is one of the
 -- eight compass points the document's enum holds. The reader's `milling` is a behaviour,
--- not a direction (behaviour tags are salish-2ua9), and its `unknown` is no direction, so
+-- not a direction (it is a behaviour tag, decision 116), and its `unknown` is no direction, so
 -- both are null. The identifiers are the
 -- codes the text says were present, hedged or not, in the order it names them, a code the
 -- reporter only says was possibly there marked with a '?' as a bout's tag is ("T65A?",
@@ -554,9 +569,11 @@ CREATE OR REPLACE TEMP MACRO occurrence_doc(o, place, landmark) AS CAST(to_json(
            'observer': o.observer,
            'provider': o.provider,
            'vitality': o.vitality,
+           'behaviour': o.behaviour,
            'certainty': o.certainty,
            'direction': o.direction,
            'collection': o.collection,
+           'group_part': o.group_part,
            'source_url': o.source_url,
            'attribution': o.attribution,
            'identifiers': o.identifiers,
