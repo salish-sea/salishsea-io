@@ -164,6 +164,16 @@ export function namedAnimals(
   return [...byKey.values()];
 }
 
+/**
+ * What a report names, as its chips read it: the codes it names, then the Southern
+ * Resident pods its text names, as "J pod". The day file keeps the pods apart, as
+ * letters (decision 105), so a report that says "J and K pods" names no code; without
+ * them its card, and its segment's, showed no pod at all (salish-qr32). A bout's pods are
+ * already among its tags, and the chip reads them once.
+ */
+export const namedInReport = ({identifiers, pods}: {identifiers: readonly string[] | null, pods?: readonly string[]}): string[] =>
+  [...(identifiers ?? []), ...(pods ?? []).map(letter => `${letter} pod`)];
+
 /** An animal a segment's reports name, and how many of them name it (salish-fwyt.5). */
 export interface PooledAnimal extends NamedAnimal {
   /** How many of the reports name it: the start of a reliability mark (salish-0420). */

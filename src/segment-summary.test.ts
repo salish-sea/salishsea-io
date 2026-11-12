@@ -117,3 +117,15 @@ describe('what the reports say the animals were doing (decision 116)', () => {
     expect(card.shadowRoot!.querySelector('.latest .label')!.textContent).toBe('Latest, 12:30, the trailers:');
   });
 });
+
+test("a report that names pods without codes counts towards the pods' chips, once each (salish-qr32)", async () => {
+  const withPods = (r: Occurrence, pods: string[]) => ({...r, pods}) as Occurrence;
+  // "J and K pods NB", twice, and a bout whose tags already say J pod
+  const card = await mount([
+    withPods(report('a', 0, 'J and K pods NB'), ['J', 'K']),
+    withPods(report('b', 30, 'J and K pods milling'), ['J', 'K']),
+    withPods(report('c', 60, 'calls', ['J pod']), []),
+  ]);
+  const chips = [...card.shadowRoot!.querySelectorAll('ul.animals li')].map(li => li.textContent!.replace(/\s+/g, ' ').trim());
+  expect(chips).toEqual(['J pod3 of 3', 'K pod2 of 3']);
+});
