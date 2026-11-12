@@ -41,4 +41,4 @@ The same reports showed a second thing. A spread group is reported from whicheve
 
 - The day file gains two keys on every report, `behaviour` and `group_part`; a bout has none of either. The Darwin Core archive is unchanged until a decision says what it carries.
 - The half-hour ring (bd `salish-2adm`) and per-kind speeds (bd `salish-xz0i`) can use both.
-- A humpback's nickname can look like a phrase (*Zig Zag*, BCX1193), so a new phrase is checked against the catalogue's nicknames.
+- A word capitalised in the middle of a sentence is read as a name, not a behaviour: a place (*Mill Bay*) or a reporter's credit (*(Jim Chase)*). A humpback's nickname can still look like a phrase at the start of a report (*Zigzag and Mantis*), so a new phrase is checked against the catalogue's nicknames.

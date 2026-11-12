@@ -26,6 +26,10 @@ describe('readBehaviour', () => {
         expect(readBehaviour('no longer milling, now hunting')).toEqual(['hunting']);
         expect(readBehaviour("J pod isn't feeding")).toEqual([]);
         expect(readBehaviour("they weren't milling, heading north")).toEqual([]);
+        // a parenthesis or a dash ends the clause, and Point No Point is a place
+        expect(readBehaviour('T65As (not T137s) hunting seals')).toEqual(['hunting']);
+        expect(readBehaviour('No direction - milling')).toEqual(['milling']);
+        expect(readBehaviour('J pod off Point No Point milling (Jane Doe)')).toEqual(['milling']);
         // and only a few words back: a longer reach suppressed only behaviour that was
         // still going on, over a year of reports ("finished feeding at this time and is resting")
         expect(readBehaviour('CRC53 appears to be finished feeding at this time and is resting while slowly making his way north'))
@@ -38,6 +42,15 @@ describe('readBehaviour', () => {
         expect(readBehaviour('Biggs T46Bs loosely grouped traveling northwest')).toEqual([]);
         expect(readBehaviour('Orcas passing the fast ferry route')).toEqual([]);
         expect(readBehaviour('It sounded like a blow')).toEqual([]);
+        expect(readBehaviour('Zigzag and Mantis')).toEqual([]);
+        // a capital in the middle of a sentence is a name: a place, or a reporter's credit
+        expect(readBehaviour('T65As off Mill Bay, northbound (Steve Mills)')).toEqual([]);
+        expect(readBehaviour('T137s NB off Alki (Jim Chase)')).toEqual([]);
+        expect(readBehaviour('T99s southbound (Sara Quick)')).toEqual([]);
+        expect(readBehaviour('2 orcas SB past Hunts Point (Mary Hunt)')).toEqual([]);
+        // but not at the start of one, or in capitals throughout
+        expect(readBehaviour('Hunted down by transient orcas')).toEqual(['hunting']);
+        expect(readBehaviour('J POD MILLING')).toEqual(['milling']);
     });
 
     test('tail slapping, however it is put', () => {
@@ -67,6 +80,7 @@ describe('readGroupPart', () => {
         expect(readGroupPart('No sign of leaders here')).toBeNull();
         expect(readGroupPart('We did not see trailers here')).toBeNull();
         expect(readGroupPart("Didn't see the leaders here")).toBeNull();
+        expect(readGroupPart('Passing Point No Point - leaders here, NB')).toBe('leaders');
         expect(readGroupPart('J pod leaders and trailers here, all bunched')).toBeNull();
         expect(readGroupPart("Leaders aren't here, still south")).toBeNull();
         // the leaders are named first, but the trailers are the ones here

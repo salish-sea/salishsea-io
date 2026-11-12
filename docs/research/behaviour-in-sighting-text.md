@@ -35,11 +35,11 @@ The phrases are in [`src/behaviour.ts`](../../src/behaviour.ts). The table count
 | hauled out |  |  |  |  |  | 16 |  | 16 |
 | foraging | 33 |  | 2 | 3 | 1 | 3 | 2 | 44 |
 | feeding |  | 6 | 6 | 18 | 179 | 4 | 9 | 222 |
-| hunting |  | 43 | 35 |  |  | 4 | 4 | 86 |
+| hunting |  | 43 | 35 |  |  | 5 | 4 | 87 |
 | eating |  | 1 | 1 |  |  | 5 | 7 | 14 |
 | kill |  | 6 |  |  |  |  |  | 6 |
 | attacking |  | 2 | 1 |  | 1 |  |  | 4 |
-| chasing | 1 | 2 | 2 |  |  | 1 | 1 | 7 |
+| chasing |  | 2 | 2 |  |  | 1 | 1 | 6 |
 | quickly | 17 | 30 | 14 | 5 | 2 | 1 | 1 | 70 |
 | fast | 3 | 9 | 6 | 1 | 1 | 1 |  | 21 |
 | porpoising | 6 | 2 | 2 |  |  |  |  | 10 |
@@ -77,7 +77,7 @@ What the counts say for a forecast:
 ## How it was checked
 
 - **Precision:** twelve random matches per phrase were read by hand in a first draft, which grouped synonyms. Four rules were wrong and are fixed. *Travelling* nearly always accompanies a heading the direction already carries (*traveling SB*), and sometimes means company (*traveling with T124A2*), so there is no travelling tag. *Dove* and *diving* catch ordinary dives, so only long ones count. *Loosely grouped* had counted as both spread out and grouped up, and now counts as neither. *Fishing* is as often the observer (*fishing for salmon from my kayak*) as the animal.
-- **Names:** *Zig Zag* is a humpback (BCX1193), and *Fluke* and *Split Fluke* are names, so *zigzag* and *fluking* match only in lower case. Humpback nicknames are the main hazard for a list of phrases, and any new phrase should be checked against them.
+- **Names:** a word capitalised in the middle of a sentence is a name, not a behaviour: places (*Mill Bay*, *Hunts Point*) and reporters' credits (*(Jim Chase)*, *(Sara Quick)*). One at the start of a sentence still counts (*Hunted down by transient orcas*), as does a report in capitals. *Zig Zag*, *Zigzag*, *Fluke* and *Split Fluke* are humpbacks, so *zigzag* and *fluking* match only in lower case, even starting a sentence. *No* in *Point No Point* is not a denial. Humpback nicknames are the main hazard for a list of phrases, and any new phrase should be checked against them.
 - **The gold set:** each report's hand-read behaviour phrases are put through the same list and compared with what the reader finds in the full text; [`src/behaviour.test.ts`](../../src/behaviour.test.ts) records the rows that disagree. Of the three, two are the reader being right where the label is literal (*after feeding*; *changed direction*, which the labeller didn't record), and one is a miss (*two traveling north together*).
 - **What no tag takes:** field marks (*blows visible*, *white lower jaw visible*), headings the direction already reads (*trending north*), positions (*hugging the shore*), and the order of a group (*leaders here*, *moved on one by one*), which is read as the part of the group instead.
 - **Leaders and trailers:** all 31 reports read as putting the leaders or the trailers *here* were read right by hand, including *J and K pod leaders N of here, trailing male milling/foraging here*, which is the trailers.

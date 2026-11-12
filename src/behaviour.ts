@@ -40,7 +40,7 @@ export const PHRASES: readonly Phrase[] = [
     {tag: 'flipped', pattern: /\bflip(?:ped|ping)?\b/i},
     {tag: 'turned around', pattern: /\bturn(?:ed|ing)? (?:around|back)\b/i},
     {tag: 'back and forth', pattern: /\bback and forth\b/i},
-    // Lower case only: Zig Zag is a humpback, BCX1193.
+    // Lower case only, even starting a sentence: Zig Zag (BCX1193) and Zigzag are humpbacks.
     {tag: 'zigzag', pattern: /\bzig[- ]?zag(?:ging)?\b/},
     {tag: 'spread out', pattern: /\bspread\b/i},
     {tag: 'in groups', pattern: /\b(?:two|2|three|3|several|multiple|few|many) (?:sub-?)?groups\b/i},
@@ -51,7 +51,7 @@ export const PHRASES: readonly Phrase[] = [
     {tag: 'long down times', pattern: /\blong ?down ?times?\b/i},
     {tag: 'long dives', pattern: /\b(?:long|deep) dives?\b/i},
     {tag: 'sounded', pattern: /\bsound(?:ed|ing)\b(?! like)/i},
-    // Lower case only: Fluke and Split Fluke are names.
+    // Lower case only, even starting a sentence: Fluke and Split Fluke are names.
     {tag: 'fluking', pattern: /\bfluk(?:ed|ing)\b|\bfluke[sd]? up\b/},
     {tag: 'surface active', pattern: /\bsurface[- ]activ(?:e|ity)\b/i},
     {tag: 'breaching', pattern: /\bbreach(?:ing|ed|es)?\b/i},
@@ -66,7 +66,9 @@ export const PHRASES: readonly Phrase[] = [
  * The words just before a phrase that say the behaviour is over or didn't happen:
  * "southbound after feeding" is travelling, "no surface activity" is none.
  */
-const NOT_NOW = /(?:\b(?:after|finished|done|no|not|without|never)\b|n't\b)[^.,;!?]{0,15}$/i;
+// A clause ends at punctuation, a parenthesis or a dash ("not sure of ID - feeding"). "No"
+// in Point No Point is a place.
+const NOT_NOW = /(?:\b(?:after|finished|done|not|without|never)\b|(?<!\bPoint )\bno\b(?! Point\b)|n't\b)[^.,;!?()\u2013\u2014-]{0,15}$/i;
 /** A turn that ends what the cue governs: "not milling but feeding" is feeding. */
 const TURN = /\b(?:but|now|then)\b/i;
 
@@ -76,12 +78,23 @@ function notNow(before: string): boolean {
     return cue !== null && !TURN.test(before.slice(cue.index + 1));
 }
 
+/**
+ * Whether a match is a name: capitalised, with lower case after, in the middle of a
+ * sentence. "Mill Bay", "Hunts Point", a reporter's credit "(Jim Chase)", and the humpbacks
+ * Zig Zag and Split Fluke; but "Milling off the point" starts a sentence, and "J POD
+ * MILLING" is shouting.
+ */
+function isName(text: string, at: number): boolean {
+    if (!/^[A-Z][a-z]/.test(text.slice(at, at + 2))) return false;
+    return !/(?:^|[.!?:;\]\u2013\u2014-])\s*["']?$/.test(text.slice(0, at));
+}
+
 /** The tags a text says, in the order of the list. */
 export function readBehaviour(text: string): string[] {
     const tags: string[] = [];
     for (const {tag, pattern} of PHRASES) {
         const every = new RegExp(pattern.source, pattern.flags + 'g');
-        if ([...text.matchAll(every)].some(m => !notNow(text.slice(0, m.index))))
+        if ([...text.matchAll(every)].some(m => !isName(text, m.index) && !notNow(text.slice(0, m.index))))
             if (!tags.includes(tag)) tags.push(tag);
     }
     return tags;
@@ -100,7 +113,7 @@ const DENIED = /\b(?:not|no|never)\b|n't\b/i;
 const PART_BEFORE = /\b(?:leaders?|lead(?:ing|er)? group|trailers?|trailing (?:group|male|female|whales?|orcas?))\s*(?:and|&|\/)\s*$/i;
 // A denial a few words before the part, in its clause: "no leaders here", "no sign of
 // leaders here", "did not see trailers here".
-const DENIED_BEFORE = /(?:\b(?:not|no|never)\b|n't\b)[^.,;!?]{0,15}$/i;
+const DENIED_BEFORE = /(?:\b(?:not|never)\b|(?<!\bPoint )\bno\b(?! Point\b)|n't\b)[^.,;!?()\u2013\u2014-]{0,15}$/i;
 
 /**
  * The part of a spread group the text puts at the reported position, or null when it
