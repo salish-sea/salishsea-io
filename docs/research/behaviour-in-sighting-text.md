@@ -48,13 +48,8 @@ What the counts say for a forecast:
 - **The gold set:** each report's hand-read behaviour phrases were put through the same vocabulary and compared with what the reader finds in the full text. Of the four disagreements, three are the reader being right where the label is literal (*after feeding*; *changed direction* and *steadily*, which the labeller didn't record), and one is a miss (*two traveling north together*).
 - **What no tag takes:** field marks (*blows visible*, *white lower jaw visible*), headings the direction already reads (*trending north*), positions (*hugging the shore*), and the order of a group (*leaders here*, *lead group*, *moved on one by one*).
 
-## Open questions
+## What was decided
 
-These are curation choices, not measurements, and none is settled:
-
-1. **Leaders and trailers.** 87 reports mention a group's leaders, trailers or lead group, and many say which part of the group the position is (*leaders here*). That bears directly on a forecast, since the group extends behind the point. Is it a tag, or a property of the position?
-2. **Travelling.** With only *steady* left, the tag catches fifteen reports. Keep it, or let a direction with no milling or foraging stand for travelling?
-3. **Resting and hauled out.** Both mean staying put. Are they tags of their own, or forms of milling?
-4. **Wording per kind.** One *foraging* tag, shown as *hunting* for Bigg's and *feeding* for baleen whales, or the words as each community uses them?
+[Decision 116](../decisions/116-a-sightings-text-gives-its-behaviour-in-the-reporters-words-and-which-part-of-the-group-it-saw.md) settles the four curation questions this note raised. Tags keep the reporters' own words. Resting and hauled out are tags of their own. There is no travelling tag: a heading without a tag for staying put counts as travelling. Leaders and trailers are a property of the report's position, read when the text puts them *here*.
 
 Reproduce with `node scripts/gold/behaviour.ts <dir of day files>`, `--examples <tag>` and `--gold`. The day files are the site's own, `https://salishsea.io/read-path/days/<date>.json`.
