@@ -35,6 +35,8 @@ deploy)
   ' $DATA/config.json"
   remote "cat > $WEB/.htaccess" <<EOF
 # The demo's Node server (tools/facebook-demo in salish-sea/salishsea-io).
+# Without this, Apache asks the server for /index.html when /fb-demo/ itself is requested.
+DirectoryIndex disabled
 RewriteEngine On
 RewriteRule ^(.*)\$ http://127.0.0.1:$PORT/\$1 [P,L]
 LimitRequestBody 5242880
