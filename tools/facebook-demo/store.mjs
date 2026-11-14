@@ -35,7 +35,9 @@ export function recordSend(db, { at, sender, postId, url, title, bytes, read, ag
       first_seen, last_seen, seq, text, clock, reading, places)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const touch = db.prepare('UPDATE items SET last_seen = ?, gone = 0, ago = ?, post_title = ? WHERE key = ?');
-  const rewrite = db.prepare('UPDATE items SET last_seen = ?, gone = 0, ago = ?, post_title = ?, text = ?, clock = ?, reading = ?, places = ? WHERE key = ?');
+  // An edited text clears its mark: whoever marked it checked the old wording.
+  const rewrite = db.prepare(`UPDATE items SET last_seen = ?, gone = 0, ago = ?, post_title = ?, text = ?, clock = ?, reading = ?, places = ?,
+      mark = NULL, note = NULL, marked_by = NULL, marked_at = NULL WHERE key = ?`);
 
   let added = 0, changed = 0, gone = 0;
   const keys = [];

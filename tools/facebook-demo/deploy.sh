@@ -27,6 +27,8 @@ deploy)
   rsync -a --delete src/ "$HOST:fb-demo/src/"
   rsync -a --delete --exclude node_modules --exclude data tools/facebook-demo/ "$HOST:fb-demo/tools/facebook-demo/"
   remote "cd $APP/tools/facebook-demo && PATH=\$(dirname $NODE):\$PATH ~/.local/bin/pnpm install --frozen-lockfile --prod >/dev/null"
+  # src/ looks for its packages (temporal-polyfill) beside itself, not in this folder.
+  remote "ln -sfn tools/facebook-demo/node_modules $APP/node_modules"
   remote "test -f $DATA/config.json || $NODE -e '
     const fs = require(\"node:fs\");
     fs.writeFileSync(process.argv[1], JSON.stringify({ base: \"$BASE\", port: $PORT, viewToken: $token, senders: { [$token]: \"Peter\" } }, null, 2), { mode: 0o600 });
@@ -60,12 +62,13 @@ EOF
   ;;
 sender)
   name="${2:?usage: deploy.sh sender NAME}"
-  remote "$NODE -e '
-    const fs = require(\"node:fs\"); const [path, name] = process.argv.slice(1);
+  # The name goes over standard input, so no shell on Maderas reads it.
+  printf '%s' "$name" | remote "$NODE -e '
+    const fs = require(\"node:fs\"); const [path] = process.argv.slice(1); const name = fs.readFileSync(0, \"utf8\");
     const c = JSON.parse(fs.readFileSync(path, \"utf8\")); const t = $token;
     c.senders[t] = name; fs.writeFileSync(path, JSON.stringify(c, null, 2), { mode: 0o600 });
     console.log(c.base + \"/install?s=\" + t);
-  ' $DATA/config.json \"$name\" && systemctl --user restart fb-demo.service"
+  ' $DATA/config.json && systemctl --user restart fb-demo.service"
   ;;
 view)
   remote "$NODE -e 'const c = JSON.parse(require(\"node:fs\").readFileSync(process.argv[1], \"utf8\")); console.log(c.base + \"/?k=\" + c.viewToken)' $DATA/config.json"

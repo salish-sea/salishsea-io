@@ -8,6 +8,7 @@
     "test": "node --test"
   },
   "dependencies": {
-    "linkedom": "0.18.15"
+    "linkedom": "0.18.15",
+    "temporal-polyfill": "0.3.2"
   }
 }

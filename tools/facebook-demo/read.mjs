@@ -8,20 +8,19 @@ import { parseHTML } from 'linkedom';
 
 // What hides part of a post: collapsed comments and replies, and a long comment cut short.
 // The bookmarklet clicks the same buttons (server.mjs); keep the two in step.
-export const EXPANDERS = /^(view (more|all|previous|\d+ (more )?)(comments?|repl(y|ies))|\d+ (more )?repl(y|ies)|see more$)/i;
+export const EXPANDERS = /^(view ((more|all|previous) (\d+ )?|\d+ (more )?)(comments?|repl(y|ies))|\d+ (more )?repl(y|ies)|see more$)/i;
 const LABEL = /^(Comment|Reply) by (.+?)(?: to (.+?)'s (?:comment|reply))? ((?:about )?(?:an?|\d+) (?:second|minute|hour|day|week|month|year)s? ago|just now|yesterday)$/i;
 
 /** @param {string} html the post's element, as the bookmarklet sent it */
 export function readPost(html) {
   const { document } = parseHTML(`<!doctype html><html><body>${html}</body></html>`);
-  const articles = [...document.querySelectorAll('[role="article"]')];
+  // Only comments are labelled so; the post itself may be an article too, holding them.
+  const articles = [...document.querySelectorAll('[role="article"]')].filter((a) => LABEL.test(a.getAttribute('aria-label') ?? ''));
 
   const comments = [];
   for (const a of articles) {
-    const label = a.getAttribute('aria-label') ?? '';
-    const m = LABEL.exec(label);
-    if (!m) continue;
-    const nested = [...a.querySelectorAll('[role="article"]')];
+    const m = LABEL.exec(a.getAttribute('aria-label'));
+    const nested = articles.filter((x) => x !== a && a.contains(x));
     const inNested = (n) => nested.some((x) => x.contains(n));
     let commentId = null, replyId = null;
     for (const link of a.querySelectorAll('a[href*="comment_id="]')) {
@@ -60,10 +59,25 @@ export function readPost(html) {
 
 const outermost = (nodes) => nodes.filter((n) => !nodes.some((o) => o !== n && o.contains(n)));
 
-// A block's text with its own line breaks: each line of a post is a block inside the outer one.
+// A block's text in document order, with a line break at each block inside it and at each
+// <br>: each line of a post is a block inside the outer one, but text can sit between them.
+const BLOCKS = new Set(['DIV', 'P', 'LI', 'UL', 'OL', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
 function textOf(n) {
-  const kids = [...n.querySelectorAll('div[dir="auto"], div[style*="text-align"]')];
-  return (kids.length ? kids.map((k) => k.textContent.trim()) : [n.textContent.trim()]).filter(Boolean).join('\n');
+  let out = '';
+  const walk = (node) => {
+    for (const c of node.childNodes) {
+      if (c.nodeType === 3) out += c.textContent;
+      else if (c.nodeType === 1) {
+        if (c.tagName === 'BR') { out += '\n'; continue; }
+        const block = BLOCKS.has(c.tagName);
+        if (block) out += '\n';
+        walk(c);
+        if (block) out += '\n';
+      }
+    }
+  };
+  walk(n);
+  return out.split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
 }
 
 const UNITS = { second: 1, minute: 60, hour: 3600, day: 86400, week: 604800, month: 2592000, year: 31536000 };

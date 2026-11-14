@@ -4,7 +4,7 @@
 // production. Run behind Apache on Maderas; see README.md.
 import { createServer } from 'node:http';
 import { readFile, writeFile, readdir, stat, unlink, mkdir } from 'node:fs/promises';
-import { timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { readSighting } from '../../src/sighting-text.ts';
@@ -228,9 +228,8 @@ async function capture(req) {
   const title = String(form.get('title') ?? '').slice(0, 300);
 
   const read = readPost(html);
-  await writeFile(join(RAW, `${now}-${id}.html`), html);
+  await writeFile(join(RAW, `${now}-${id}-${randomUUID().slice(0, 8)}.html`), html, { flag: 'wx' });
   const result = recordSend(db, { at: now, sender, postId: id, url, title, bytes: html.length, read, agoToTime, enrich });
-  sweepRaw(now).catch((e) => console.error('sweep', e));
 
   const send = { sort: read.sort, collapsed: read.collapsed, lines: read.lines.length, comments: read.comments.length };
   const keys = new Set(result.keys);
@@ -245,6 +244,11 @@ ${w.map((x) => `<p class="warn">${x}</p>`).join('')}
   console.log(new Date().toISOString(), 'send', sender, id, `${html.length} bytes`, JSON.stringify(result));
   return [200, JSON.stringify({ ...result, keys: undefined, html: out }), 'application/json'];
 }
+
+// Posts as sent are kept for RAW_DAYS, so a fix to the reading can be checked against them.
+const sweep = () => sweepRaw(Math.floor(Date.now() / 1000)).catch((e) => console.error('sweep', e));
+sweep();
+setInterval(sweep, 3600 * 1000).unref();
 
 async function sweepRaw(now) {
   for (const f of await readdir(RAW)) {

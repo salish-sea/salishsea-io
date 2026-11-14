@@ -3,7 +3,7 @@
 // members' names.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readPost, clockTime, agoToTime, postId } from './read.mjs';
+import { readPost, clockTime, agoToTime, postId, EXPANDERS } from './read.mjs';
 import { openStore, recordSend } from './store.mjs';
 import { placeFinder } from './places.mjs';
 
@@ -96,6 +96,37 @@ test('place names, with the generic word dropped and whale words left alone', ()
   assert.deepEqual(names('They have turned west at Camano Head.'), ['Camano Head']);
   assert.deepEqual(names('Orcas off Point No Point'), ['Point No Point']);
   assert.deepEqual(names('heading to the point'), []);
+});
+
+test('the buttons that hide comments', () => {
+  for (const t of ['View more comments', 'View all comments', 'View previous comments', 'View 2 replies', 'View all 5 replies', 'View 3 more replies', '4 replies', 'See more'])
+    assert.ok(EXPANDERS.test(t), t);
+  for (const t of ['All comments', 'Most relevant', 'Reply', 'See more photos']) assert.ok(!EXPANDERS.test(t), t);
+});
+
+test('a post that is itself an article keeps its lines', () => {
+  const html = `<div role="main"><div role="article"><div dir="auto">10:30 Orcas off Camano</div>
+    <div role="article" aria-label="Comment by Pat Example 5 minutes ago">${link(7)}<div dir="auto">Still there</div></div></div></div>`;
+  const r = readPost(html);
+  assert.deepEqual(r.lines, ['10:30 Orcas off Camano']);
+  assert.deepEqual(r.comments.map((c) => c.text), ['Still there']);
+});
+
+test('text beside a nested block is kept, once, in order', () => {
+  const r = readPost('<div role="main"><div dir="auto">10:30 Orcas<div dir="auto">off Camano</div>heading south<br>WSF</div></div>');
+  assert.deepEqual(r.lines, ['10:30 Orcas', 'off Camano', 'heading south', 'WSF']);
+});
+
+test('an edited comment loses the mark made on its old wording', () => {
+  const db = openStore(':memory:');
+  const enrich = () => ({ clock: null, reading: {}, places: [] });
+  const send = (at, html) => recordSend(db, { at, sender: 'T', postId: '2', url: 'u', title: 't', bytes: 1, read: readPost(html), agoToTime, enrich });
+  send(1, post());
+  db.prepare("UPDATE items SET mark = 'right', note = 'ok', marked_by = 'Scott' WHERE key = 'c:101'").run();
+  send(2, post());
+  assert.equal(db.prepare("SELECT mark FROM items WHERE key = 'c:101'").get().mark, 'right');
+  send(3, post({ commentText: '1145 Exiting Port Susan. Currently NB.' }));
+  assert.deepEqual({ ...db.prepare("SELECT mark, note, marked_by FROM items WHERE key = 'c:101'").get() }, { mark: null, note: null, marked_by: null });
 });
 
 const pick = ({ added, changed, gone }) => ({ added, changed, gone });
