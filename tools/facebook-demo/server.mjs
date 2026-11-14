@@ -4,7 +4,7 @@
 // production. Run behind Apache on Maderas; see README.md.
 import { createServer } from 'node:http';
 import { readFile, writeFile, readdir, stat, unlink, mkdir } from 'node:fs/promises';
-import { timingSafeEqual, randomUUID } from 'node:crypto';
+import { timingSafeEqual, randomUUID, createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { readSighting } from '../../src/sighting-text.ts';
@@ -23,6 +23,11 @@ const findPlaces = await loadPlaces();
 const MAX_BYTES = 4 * 1024 * 1024; // a busy post was 0.4 MB
 const RAW_DAYS = 7;
 const SENDS_PER_10_MIN = 30;
+
+// Which wording a mark judged: a mark sent for older text than the row now has is refused.
+const version = (text) => createHash('sha1').update(text).digest('hex').slice(0, 12);
+// How the page and the CSV write the reader's whale identifiers: "T65A?" possible, "(absent)" said not to be there.
+const claimLabel = (c) => c.code + (c.presence === 'absent' ? ' (absent)' : c.certainty !== 'certain' ? '?' : '');
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const same = (a, b) => typeof a === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -86,12 +91,12 @@ function rowHtml(r, { marks = false, newKeys = new Set(), standing = new Set() }
   }
   const reading = JSON.parse(r.reading ?? '{}');
   const places = JSON.parse(r.places ?? '[]');
-  const codes = (reading.claims ?? []).map((c) => esc(c.code + (c.presence === 'absent' ? ' (absent)' : c.certainty !== 'certain' ? '?' : '')));
+  const codes = (reading.claims ?? []).map((c) => esc(claimLabel(c)));
   const pods = (reading.pods ?? []).map((p) => esc(p + ' pod'));
   const placeChips = places.map((p) => `<a href="https://salishsea.io${esc(p.href)}" title="${esc(p.kind)} ${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}${p.alike > 1 ? ` (one of ${p.alike} with this name)` : ''}">${esc(p.name)}${p.alike > 1 ? ` ×${p.alike}` : ''}</a>`);
   const when = r.kind === 'line' ? 'post' : r.kind === 'reply' ? `↳ reply` : 'comment';
   const time = new Date(r.first_seen * 1000).toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false });
-  const markCell = marks ? `<td class="mark"><select data-key="${esc(r.key)}" aria-label="Did the reader get it right?">
+  const markCell = marks ? `<td class="mark"><select data-key="${esc(r.key)}" data-v="${version(r.text)}" aria-label="Did the reader get it right?">
 ${['', 'right', 'partly', 'wrong', 'not a sighting'].map((m) => `<option value="${m}"${(r.mark ?? '') === m ? ' selected' : ''}>${m || '—'}</option>`).join('')}</select>
 <input data-note="${esc(r.key)}" value="${esc(r.note)}" placeholder="note" size="10">${r.marked_by ? `<div class="muted">${esc(r.marked_by)}</div>` : ''}</td>` : '';
   return `<tr class="${newKeys.has(r.key) ? 'new' : ''}${r.gone ? ' gone' : ''}">
@@ -168,7 +173,9 @@ ${sections.join('') || '<p class="muted">Nothing has been sent yet.</p>'}
 const k=${JSON.stringify(k)};const who=document.getElementById('who');
 try{who.value=localStorage.getItem('who')||''}catch{}
 who.addEventListener('change',()=>{try{localStorage.setItem('who',who.value)}catch{}});
-const save=(key)=>fetch('mark',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({k,key,mark:document.querySelector('select[data-key="'+CSS.escape(key)+'"]').value,note:document.querySelector('input[data-note="'+CSS.escape(key)+'"]').value,who:who.value})}).then(r=>{if(!r.ok)alert('Not saved: '+r.status)});
+const save=(key)=>{const sel=document.querySelector('select[data-key="'+CSS.escape(key)+'"]');
+fetch('mark',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({k,key,v:sel.dataset.v,mark:sel.value,note:document.querySelector('input[data-note="'+CSS.escape(key)+'"]').value,who:who.value})})
+.then(r=>{if(r.status===409)alert('That text has changed since this page was loaded. Reload the page and mark it again.');else if(!r.ok)alert('Not saved: '+r.status)});};
 document.addEventListener('change',(e)=>{const key=e.target.dataset.key||e.target.dataset.note;if(key)save(key);});
 </script>`);
 }
@@ -258,22 +265,29 @@ async function sweepRaw(now) {
 }
 
 function mark(body) {
-  const { k, key, mark, note, who } = JSON.parse(body);
+  const { k, key, v, mark, note, who } = JSON.parse(body);
   if (!same(String(k ?? ''), viewToken)) return [403, 'no'];
   if (!['', 'right', 'partly', 'wrong', 'not a sighting'].includes(mark)) return [400, 'bad mark'];
-  const r = db.prepare('UPDATE items SET mark = ?, note = ?, marked_by = ?, marked_at = ? WHERE key = ?')
+  const row = db.prepare('SELECT text FROM items WHERE key = ?').get(String(key));
+  if (!row) return [404, 'no such row'];
+  if (v !== version(row.text)) return [409, 'the text has changed'];
+  db.prepare('UPDATE items SET mark = ?, note = ?, marked_by = ?, marked_at = ? WHERE key = ?')
     .run(mark || null, String(note ?? '').slice(0, 500) || null, String(who ?? '').slice(0, 60) || null, Math.floor(Date.now() / 1000), String(key));
-  return r.changes ? [204, ''] : [404, 'no such row'];
+  return [204, ''];
 }
 
 function csv() {
   const cols = ['post_id', 'post_title', 'kind', 'comment_id', 'reply_to', 'author', 'ago', 'est_time', 'first_seen', 'last_seen', 'gone', 'text', 'clock', 'whales', 'pods', 'direction', 'behaviour', 'places', 'mark', 'note', 'marked_by'];
-  const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  // A cell that starts like a formula is written as text, so a comment can't run in a spreadsheet.
+  const q = (v) => {
+    const t = String(v ?? '');
+    return `"${(/^[=+\-@\t\r]/.test(t) ? `'${t}` : t).replace(/"/g, '""')}"`;
+  };
   const iso = (t) => (t ? new Date(t * 1000).toISOString() : '');
   const lines = db.prepare('SELECT * FROM items ORDER BY post_id, first_seen, seq').all().map((r) => {
     const reading = JSON.parse(r.reading ?? '{}');
     const row = { ...r, est_time: iso(r.est_time), first_seen: iso(r.first_seen), last_seen: iso(r.last_seen),
-      whales: (reading.claims ?? []).map((c) => c.code).join(' '), pods: (reading.pods ?? []).join(' '), direction: reading.direction,
+      whales: (reading.claims ?? []).map(claimLabel).join(' '), pods: (reading.pods ?? []).join(' '), direction: reading.direction,
       behaviour: (reading.behaviour ?? []).join(' '), places: JSON.parse(r.places ?? '[]').map((p) => `${p.name} (${p.lat.toFixed(4)}, ${p.lon.toFixed(4)})`).join('; ') };
     return cols.map((c) => q(row[c])).join(',');
   });
