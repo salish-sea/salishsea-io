@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { readFile, writeFile, readdir, stat, unlink, mkdir } from 'node:fs/promises';
 import { timingSafeEqual, randomUUID, createHash } from 'node:crypto';
 import { join } from 'node:path';
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { readSighting } from '../../src/sighting-text.ts';
 import { readPost, agoToTime, clockTime, postId, EXPANDERS } from './read.mjs';
 import { openStore, recordSend } from './store.mjs';
@@ -107,9 +107,12 @@ ${['', 'right', 'partly', 'wrong', 'not a sighting'].map((m) => `<option value="
 <td>${chips((reading.behaviour ?? []).map(esc))}</td><td>${chips(placeChips)}</td>${markCell}</tr>`;
 }
 
-// Orca Network's standing text (the laws, the viewpoints map) is in every day's post. Text
-// that has appeared in two posts or more is shown folded and left out of the figures.
-const standingTexts = () => new Set(db.prepare('SELECT text FROM items GROUP BY text HAVING count(DISTINCT post_id) >= 2').all().map((r) => r.text));
+// Orca Network's standing text (the laws, the viewpoints map) is in every day's post. Long
+// text that has appeared in two posts or more is shown folded and left out of the figures;
+// a short report can repeat word for word ("Still there") and must stay open to marking.
+const STANDING_MIN_CHARS = 60;
+const standingTexts = () => new Set(db.prepare(
+  'SELECT text FROM items WHERE length(text) >= ? GROUP BY text HAVING count(DISTINCT post_id) >= 2').all(STANDING_MIN_CHARS).map((r) => r.text));
 
 // A post's heading: the page title without the group's name, or the post's first line.
 function heading(title, rows) {
@@ -175,7 +178,8 @@ try{who.value=localStorage.getItem('who')||''}catch{}
 who.addEventListener('change',()=>{try{localStorage.setItem('who',who.value)}catch{}});
 const save=(key)=>{const sel=document.querySelector('select[data-key="'+CSS.escape(key)+'"]');
 fetch('mark',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({k,key,v:sel.dataset.v,mark:sel.value,note:document.querySelector('input[data-note="'+CSS.escape(key)+'"]').value,who:who.value})})
-.then(r=>{if(r.status===409)alert('That text has changed since this page was loaded. Reload the page and mark it again.');else if(!r.ok)alert('Not saved: '+r.status)});};
+.then(r=>{if(r.status===409)alert('That text has changed since this page was loaded. Reload the page and mark it again.');else if(!r.ok)alert('Not saved: '+r.status)})
+.catch(()=>alert('Not saved: the connection failed. Check it and change the mark again.'));};
 document.addEventListener('change',(e)=>{const key=e.target.dataset.key||e.target.dataset.note;if(key)save(key);});
 </script>`);
 }
@@ -219,7 +223,21 @@ const recent = new Map(); // sender -> times of their sends in the last ten minu
 async function capture(req) {
   const len = Number(req.headers['content-length'] ?? 0);
   if (len > MAX_BYTES) return [413, 'That page is too large.'];
-  const form = await new Request('http://x/', { method: 'POST', headers: { 'content-type': req.headers['content-type'] ?? '' }, body: Readable.toWeb(req), duplex: 'half' }).formData();
+  // Count the bytes as they arrive: a request need not declare its size.
+  let seen = 0;
+  const capped = req.pipe(new Transform({
+    transform(chunk, _, done) {
+      seen += chunk.length;
+      done(seen > MAX_BYTES ? Object.assign(new Error('That page is too large.'), { status: 413 }) : null, chunk);
+    },
+  }));
+  let form;
+  try {
+    form = await new Request('http://x/', { method: 'POST', headers: { 'content-type': req.headers['content-type'] ?? '' }, body: Readable.toWeb(capped), duplex: 'half' }).formData();
+  } catch (e) {
+    if (seen > MAX_BYTES) return [413, 'That page is too large.'];
+    throw e;
+  }
   const sender = senderFor(String(form.get('s') ?? ''));
   if (!sender) return [403, 'This button is not recognised. Ask Peter for a new one.'];
   const now = Math.floor(Date.now() / 1000);
@@ -234,9 +252,11 @@ async function capture(req) {
   if (!id || !/^https:\/\/(www\.|web\.)?facebook\.com\//.test(url)) return [400, 'That is not a Facebook post. Open the day’s post and try again.'];
   const title = String(form.get('title') ?? '').slice(0, 300);
 
+  // Record the send before anything else can wait, so two sends of one post are recorded
+  // in the order they arrived; the copy on disk is only for checking the reading later.
   const read = readPost(html);
-  await writeFile(join(RAW, `${now}-${id}-${randomUUID().slice(0, 8)}.html`), html, { flag: 'wx' });
   const result = recordSend(db, { at: now, sender, postId: id, url, title, bytes: html.length, read, agoToTime, enrich });
+  await writeFile(join(RAW, `${now}-${id}-${randomUUID().slice(0, 8)}.html`), html, { flag: 'wx' });
 
   const send = { sort: read.sort, collapsed: read.collapsed, lines: read.lines.length, comments: read.comments.length };
   const keys = new Set(result.keys);
