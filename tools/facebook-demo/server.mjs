@@ -13,6 +13,7 @@ import { openStore, recordSend, rereadAll } from './store.mjs';
 import { loadPlaces } from './places.mjs';
 import { contextFor } from './context.mjs';
 import { classifyPost, stripMention, staffTime, REPORT_KINDS } from './classify.mjs';
+import { threadFor } from './thread.mjs';
 
 const DATA = process.env.FB_DEMO_DATA ?? new URL('./data/', import.meta.url).pathname;
 const config = JSON.parse(await readFile(join(DATA, 'config.json'), 'utf8'));
@@ -28,8 +29,13 @@ const SENDS_PER_10_MIN = 30;
 
 // Which wording, and which reading of it, a mark judged: a mark sent for an older version
 // than the row now has is refused, whether the text changed, the reader did, or the animals
-// the row takes from its post.
-const version = (r, info = {}) => createHash('sha1').update(JSON.stringify([r.text, r.clock, r.reading, r.places, info.ctx ?? null, info.kind ?? null, info.staffTime ?? null, info.title?.kind ?? null, info.title?.date ?? null])).digest('hex').slice(0, 12);
+// the row takes from its post, or what its author adds in replies. (What the replies add is
+// appended only when there is some, so marks made before replies were read keep their version.)
+const version = (r, info = {}) => {
+  const parts = [r.text, r.clock, r.reading, r.places, info.ctx ?? null, info.kind ?? null, info.staffTime ?? null, info.title?.kind ?? null, info.title?.date ?? null];
+  if (info.thread) parts.push(info.thread);
+  return createHash('sha1').update(JSON.stringify(parts)).digest('hex').slice(0, 12);
+};
 // How the page and the CSV write the reader's whale identifiers: "T65A?" possible, "(absent)" said not to be there.
 const claimLabel = (c) => c.code + (c.presence === 'absent' ? ' (absent)' : c.certainty !== 'certain' ? '?' : '');
 
@@ -121,16 +127,20 @@ function rowHtml(r, { marks = false, newKeys = new Set(), postUrl = null, info =
   const places = JSON.parse(r.places ?? '[]');
   const codes = (reading.claims ?? []).map((c) => esc(claimLabel(c)));
   const pods = (reading.pods ?? []).map((p) => esc(p + ' pod'));
-  const placeChips = places.map((p) => p.unknown
+  const placeChip = (p) => (p.unknown
     ? `<span class="unknown" title="Not in the site's gazetteers, so it can't be put on the map">${esc(p.name)}?</span>`
     : `<a href="https://salishsea.io${esc(p.href)}" title="${esc(p.kind)} ${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}${p.alike > 1 ? ` (one of ${p.alike} with this name)` : ''}">${esc(p.name)}${p.abbreviation ? ` (${esc(p.abbreviation)})` : ''}${p.alike > 1 ? ` ×${p.alike}` : ''}</a>`);
+  const placeChips = places.map(placeChip);
   const where = r.kind === 'line' ? 'post' : r.kind === 'reply' ? `↳ reply` : 'comment';
   const time = new Date(r.first_seen * 1000).toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false });
-  const { ctx, kind, report, staffTime: st, title } = info;
+  const { ctx, kind, report, staffTime: st, title, thread } = info;
+  const fromReply = '<div class="muted">from their reply</div>';
   const whales = codes.length || pods.length ? chips([...codes, ...pods])
-    : ctx ? `${chips(ctx.labels.map(esc), 'ctx')}<div class="muted">from the ${ctx.from === 'post' ? 'post' : 'comment it answers'}</div>`
+    : ctx ? `${chips(ctx.labels.map(esc), 'ctx')}<div class="muted">${ctx.from === 'reply' ? 'from their reply' : `from the ${ctx.from === 'post' ? 'post' : 'comment it answers'}`}</div>`
     : title?.kind ? `${chips([esc(title.kind)], 'ctx')}<div class="muted">from the post's title</div>` : chips([]);
-  const clock = r.clock ? esc(r.clock) : st ? `${esc(st)}<div class="muted">from Orca Network's reply</div>` : '';
+  const clock = r.clock ? esc(r.clock) : st ? `${esc(st)}<div class="muted">from Orca Network's reply</div>` : thread?.clock ? `${chips([esc(thread.clock)], 'ctx')}${fromReply}` : '';
+  const direction = reading.direction ? esc(reading.direction) : thread?.direction ? `${chips([esc(thread.direction)], 'ctx')}${fromReply}` : '<span class="none">—</span>';
+  const placeCell = thread?.places.length ? `${placeChips.length ? chips(placeChips) : ''}${chips(thread.places.map(placeChip), 'ctx')}${fromReply}` : chips(placeChips);
   const m = markOf(r, info);
   const stale = r.mark && !m.mark;
   const markCell = marks ? `<td class="mark"><select data-key="${esc(r.key)}" data-v="${version(r, info)}" aria-label="Did the reader get it right?">
@@ -147,8 +157,8 @@ ${['', 'right', 'partly', 'wrong', 'not a sighting'].map((o) => `<option value="
   return `<tr class="${newKeys.has(r.key) ? 'new' : ''}${r.gone ? ' gone' : ''}">${from}
 <td>${clock}<div class="muted" title="when this first arrived (Pacific)">seen ${time}</div></td>
 <td class="text">${esc(r.text)}</td>
-<td>${whales}</td><td>${esc(reading.direction ?? '') || '<span class="none">—</span>'}</td>
-<td>${chips((reading.behaviour ?? []).map(esc))}</td><td>${chips(placeChips)}</td>${markCell}</tr>`;
+<td>${whales}</td><td>${direction}</td>
+<td>${chips((reading.behaviour ?? []).map(esc))}</td><td>${placeCell}</td>${markCell}</tr>`;
 }
 
 // Orca Network's standing text (the laws, the viewpoints map) is in every day's post. Long
@@ -159,15 +169,16 @@ const standingTexts = () => new Set(db.prepare(
   'SELECT text FROM items WHERE length(text) >= ? GROUP BY text HAVING count(DISTINCT post_id) >= 2').all(STANDING_MIN_CHARS).map((r) => r.text));
 
 // Everything worked out about one post's rows when a page is drawn: each row's kind
-// (classify.mjs), the post's title, the animals a report borrows (reports only), and the time
-// a staff reply gives the comment it answers.
+// (classify.mjs), the post's title, the animals a report borrows (reports only), the time
+// a staff reply gives the comment it answers, and what a report's author adds in replies (thread.mjs).
 function analysePost(rows, standing) {
   const { title, kinds } = classifyPost(rows, standing);
   const reports = new Set(rows.filter((r) => REPORT_KINDS.has(kinds.get(r.key))).map((r) => r.key));
-  const context = contextFor(rows, standing, reports);
+  const threads = threadFor(rows, kinds, reports);
+  const context = contextFor(rows, standing, reports, threads);
   const staffTimes = new Map();
   for (const r of rows) { const t = staffTime(r); if (t && !staffTimes.has(r.reply_to)) staffTimes.set(r.reply_to, t); }
-  return { title, kinds, reports, context, staffTimes };
+  return { title, kinds, reports, context, staffTimes, threads };
 }
 function analyseAll(rows, standing = standingTexts()) {
   const posts = new Map([...Map.groupBy(rows, (r) => r.post_id)].map(([id, rs]) => [id, analysePost(rs, standing)]));
@@ -175,7 +186,10 @@ function analyseAll(rows, standing = standingTexts()) {
     posts,
     infoOf: (r) => {
       const a = posts.get(r.post_id);
-      return { kind: a.kinds.get(r.key), report: a.reports.has(r.key), ctx: a.context.get(r.key), staffTime: r.comment_id ? a.staffTimes.get(r.comment_id) : null, title: a.title };
+      const t = a.threads.get(r.key);
+      // What the replies add besides animals, which the row's borrowed animals (ctx) carry.
+      const thread = t && (t.clock || t.direction || t.places.length) ? { clock: t.clock, direction: t.direction, places: t.places, from: t.from } : null;
+      return { kind: a.kinds.get(r.key), report: a.reports.has(r.key), ctx: a.context.get(r.key), staffTime: r.comment_id ? a.staffTimes.get(r.comment_id) : null, title: a.title, thread };
     },
   };
 }
@@ -233,12 +247,13 @@ function stats(rows, infoOf) {
 <li><b>${pct(has(own))}</b>name whales</li>
 <li><b>${pct(has((r) => !own(r) && infoOf(r).ctx))}</b>mean whales named earlier</li>
 <li><b>${pct(has((r) => !own(r) && !infoOf(r).ctx && infoOf(r).title?.kind))}</b>only the post's title says what</li>
-<li><b>${pct(has((r) => reading(r).direction))}</b>give a heading</li>
-<li><b>${pct(has((r) => r.clock || infoOf(r).staffTime))}</b>give a clock time</li>
-<li><b>${pct(has((r) => JSON.parse(r.places ?? '[]').some((p) => !p.unknown)))}</b>name a place we know</li>
+<li><b>${pct(has((r) => reading(r).direction || infoOf(r).thread?.direction))}</b>give a heading</li>
+<li><b>${pct(has((r) => r.clock || infoOf(r).staffTime || infoOf(r).thread?.clock))}</b>give a clock time</li>
+<li><b>${pct(has((r) => [...JSON.parse(r.places ?? '[]'), ...(infoOf(r).thread?.places ?? [])].some((p) => !p.unknown)))}</b>name a place we know</li>
 <li><b>${pct(has((r) => JSON.parse(r.places ?? '[]').some((p) => p.unknown)))}</b>name a place we don't</li>
+<li><b>${has((r) => infoOf(r).thread || infoOf(r).ctx?.from === 'reply')}</b>gain something from their author's replies</li>
 <li><b>${marked.length}</b>checked: ${count('right')} right, ${count('partly')} partly, ${count('wrong')} wrong, ${count('not a sighting')} not sightings</li></ul>
-<p class="muted">Not read as reports: ${esc(other)}. The percentages are of reports.</p>`;
+<p class="muted">Not read as reports: ${esc(other)}. The percentages are of reports, and count what a report's own replies and Orca Network's time replies add.</p>`;
 }
 
 function listPage(k) {
@@ -386,8 +401,10 @@ function mark(body) {
   return [204, ''];
 }
 
+const placeList = (places) => places.map((p) => (p.unknown ? `${p.name} (unknown)` : `${p.name} (${p.lat.toFixed(4)}, ${p.lon.toFixed(4)})`)).join('; ');
+
 function csv() {
-  const cols = ['post_id', 'post_date', 'post_kind', 'post_group', 'post_region', 'post_title', 'post_media', 'row_kind', 'time_from_staff', 'kind', 'comment_id', 'reply_to', 'author', 'ago', 'est_time', 'first_seen', 'last_seen', 'gone', 'text', 'clock', 'whales', 'pods', 'whales_from_context', 'context_from', 'direction', 'behaviour', 'places', 'media', 'mark', 'note', 'marked_by'];
+  const cols = ['post_id', 'post_date', 'post_kind', 'post_group', 'post_region', 'post_title', 'post_media', 'row_kind', 'time_from_staff', 'kind', 'comment_id', 'reply_to', 'author', 'ago', 'est_time', 'first_seen', 'last_seen', 'gone', 'text', 'clock', 'whales', 'pods', 'whales_from_context', 'context_from', 'direction', 'behaviour', 'places', 'clock_from_reply', 'direction_from_reply', 'places_from_reply', 'media', 'mark', 'note', 'marked_by'];
   const items = db.prepare('SELECT * FROM items ORDER BY post_id, first_seen, seq').all();
   const postMedia = new Map(db.prepare('SELECT post_id, media FROM posts').all().map((p) => [p.post_id, JSON.parse(p.media ?? '[]').join(' ')]));
   const { infoOf } = analyseAll(items);
@@ -407,7 +424,8 @@ function csv() {
       behaviour: (reading.behaviour ?? []).join(' '), media: JSON.parse(r.media ?? '[]').join(' '), post_media: postMedia.get(r.post_id) ?? '',
       post_date: info.title?.date ?? '', post_kind: info.title?.kind ?? '', post_group: info.title?.group ?? '', post_region: info.title?.region ?? '',
       row_kind: info.kind ?? '', time_from_staff: info.staffTime ?? '',
-      whales_from_context: ctx?.labels.join(' ') ?? '', context_from: ctx?.from ?? '', mark: m.mark, note: m.note, marked_by: m.marked_by, places: JSON.parse(r.places ?? '[]').map((p) => (p.unknown ? `${p.name} (unknown)` : `${p.name} (${p.lat.toFixed(4)}, ${p.lon.toFixed(4)})`)).join('; ') };
+      whales_from_context: ctx?.labels.join(' ') ?? '', context_from: ctx?.from ?? '', mark: m.mark, note: m.note, marked_by: m.marked_by, places: placeList(JSON.parse(r.places ?? '[]')),
+      clock_from_reply: info.thread?.clock ?? '', direction_from_reply: info.thread?.direction ?? '', places_from_reply: placeList(info.thread?.places ?? []) };
     return cols.map((c) => q(row[c])).join(',');
   });
   return [cols.join(','), ...lines].join('\r\n');

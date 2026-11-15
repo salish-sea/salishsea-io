@@ -39,11 +39,13 @@ function saysSighting(row) {
 
 /**
  * For one post's rows, the animals each row means but doesn't name, by row key:
- * { labels, from: 'post' | 'comment' }. Only rows that say something a sighting says get
- * one: "Thank you" means no animals. `standing` is the set of standing texts to skip;
- * `eligible`, if given, the keys of the rows that are reports.
+ * { labels, from: 'post' | 'comment' | 'reply' }. Only rows that say something a sighting
+ * says get one: "Thank you" means no animals. `standing` is the set of standing texts to
+ * skip; `eligible`, if given, the keys of the rows that are reports; `thread`, if given,
+ * threadFor's result, whose animals a comment takes from its author's replies ("Js so far")
+ * before the post's.
  */
-export function contextFor(rows, standing = new Set(), eligible = null) {
+export function contextFor(rows, standing = new Set(), eligible = null, thread = new Map()) {
   const live = rows.filter((r) => !standing.has(r.text));
   const postNames = live.filter((r) => r.kind === 'line' && !r.gone).flatMap(ownNames);
   const kinds = new Set(postNames.map((n) => n.kind));
@@ -56,7 +58,9 @@ export function contextFor(rows, standing = new Set(), eligible = null) {
     if ((eligible && !eligible.has(r.key)) || namesAny(r) || !saysSighting(r)) continue;
     const parent = r.kind === 'reply' ? byComment.get(r.reply_to) : null;
     const parentNames = parent ? [...new Set(ownNames(parent).map((n) => n.label))] : [];
+    const replyNames = thread.get(r.key)?.animals ?? [];
     if (parentNames.length) out.set(r.key, { labels: parentNames, from: 'comment' });
+    else if (replyNames.length) out.set(r.key, { labels: replyNames, from: 'reply' });
     else if (fromPost.length) out.set(r.key, { labels: fromPost, from: 'post' });
   }
   return out;
