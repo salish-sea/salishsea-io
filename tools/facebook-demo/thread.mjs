@@ -6,7 +6,7 @@
 // may be a different sighting.
 
 import { mentionOf } from './classify.mjs';
-import { ownNames } from './context.mjs';
+import { ownNames, namesAny } from './context.mjs';
 
 const YES = /^\W*(yes|yep|yeah|yup|correct|confirmed)\b/i;
 // A question that offers a choice ("north or south?") proposes nothing a "yes" confirms.
@@ -35,8 +35,9 @@ export function threadFor(rows, kinds, reports) {
     const own = readingOf(c);
     const got = { clock: null, direction: null, places: [], animals: [], from: [] };
     const seen = new Set(placesOf(c).map((p) => p.name));
-    // The comment's own animals already show; only a comment that names none gains them.
-    const namesOwn = ownNames(c).length > 0;
+    // The comment's own animals already show, and one that rules animals out ("no Js")
+    // keeps to what it says: only a comment that names none gains them.
+    const namesOwn = namesAny(c);
     const take = (src, via) => {
       let gave = false;
       const x = readingOf(src);
@@ -48,12 +49,13 @@ export function threadFor(rows, kinds, reports) {
     };
     thread.forEach((r, i) => {
       if (r.author !== c.author) return;
-      // Only what reports: "12:20 no sign of them" gives no time to the sighting.
-      if (!ADDS.has(kinds.get(r.key))) return;
-      // The reply's own words first; a question it confirms fills only what they leave out.
-      take(r, r);
+      const k = kinds.get(r.key);
+      // The reply's own words first, if it reports: "12:20 no sign of them" gives no time to
+      // the sighting. A question it confirms fills only what they leave out, even when the
+      // rest of the reply is filed as something else ("yes, lost sight of them now").
+      if (ADDS.has(k)) take(r, r);
       const { name, rest } = mentionOf(r.text, names);
-      if (YES.test(rest)) {
+      if (k !== 'question' && YES.test(rest)) {
         // The question it answers: the latest before it by the person it names, or else the latest by anyone.
         const asked = thread.slice(0, i).reverse().filter((q) => q.author !== c.author && kinds.get(q.key) === 'question');
         const q = asked.find((q) => q.author === name) ?? asked[0];

@@ -372,6 +372,12 @@ test('a report gains what its author adds in replies, and what a question they a
     row('comment', 'Bo Beach', 'Orcas off the lighthouse', { places: [{ name: 'Lime Kiln Point', lat: 48.52, lon: -123.15 }] }),
     row('reply', 'Orca Network', 'Bo Beach were they heading south at 09:00?', { reply_to: '18', clock: '09:00', reading: { direction: 'south' } }),
     row('reply', 'Bo Beach', 'Orca Network yes, at 09:30', { reply_to: '18', clock: '09:30' }),
+    row('reply', 'Lee Listener', '10:15 seeing orcas from the park, heading north', { reply_to: '11', clock: '10:15', reading: { direction: 'north' } }),
+    row('comment', 'Cy Ferry', 'Orcas off the dock, no Js', { reading: { claims: [{ code: 'J', presence: 'absent', certainty: 'certain' }] }, places: [{ name: 'Edmonds', lat: 47.8, lon: -122.4 }] }),
+    row('reply', 'Cy Ferry', 'Ks so far', { reply_to: '22', reading: { pods: ['K'] } }),
+    row('comment', 'Di Point', 'Orcas off the bluff', { places: [{ name: 'Point Robinson', lat: 47.39, lon: -122.37 }] }),
+    row('reply', 'Orca Network', 'Di Point heading south?', { reply_to: '24', reading: { direction: 'south' } }),
+    row('reply', 'Di Point', 'Orca Network yes, lost sight of them now', { reply_to: '24' }),
   ];
   const { kinds } = classifyPost(rows);
   assert.equal(kinds.get('t13'), 'talk'); // a link's "?" is not a question
@@ -388,11 +394,16 @@ test('a report gains what its author adds in replies, and what a question they a
   const ctx = contextFor([...rows, row('line', null, 'EDIT W/ IDs - T137s', { reading: { claims: [{ code: 'T137s', presence: 'present', certainty: 'certain' }] } })], new Set(), reports, t);
   assert.deepEqual(ctx.get('t11'), { labels: ['J pod'], from: 'reply' });
   // A later reply means the animals its comment gained, not the post's.
-  assert.deepEqual(ctx.get('t15'), { labels: ['J pod'], from: 'comment' });
+  assert.deepEqual(ctx.get('t15'), { labels: ['J pod'], from: 'reply' });
+  // Someone else's reply may be about other animals: it takes the post's, not the thread's.
+  assert.deepEqual(ctx.get('t21'), { labels: ['T137s'], from: 'post' });
   // "No sign of them" gives no time; a "yes" with its own time keeps it over the question's.
   assert.equal(t.get('t16'), undefined);
   assert.equal(t.get('t18').clock, '09:30');
   assert.equal(t.get('t18').direction, 'south');
+  // A comment that rules animals out gains none; a "yes" filed as "nothing seen" still confirms.
+  assert.equal(t.get('t22'), undefined);
+  assert.equal(t.get('t24').direction, 'south');
 });
 
 const pick = ({ added, changed, gone }) => ({ added, changed, gone });
