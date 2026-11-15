@@ -96,6 +96,14 @@ describe('reading sighting text', () => {
         expect(present(readText('at 3 pm, all 4 whales'))).toEqual([]);
     });
 
+    test("all three prefixes of the BC humpback catalogue, a nickname after the code left alone", () => {
+        expect(present(readText('12:20, BCY0141 Falcon is feeding around Richmond Beach'))).toEqual(['BCY141']);
+        expect(present(readText('BCY0458 Raptor and BCX1068 Split Fluke circling'))).toEqual(['BCY458', 'BCX1068']);
+        expect(present(readText('BCX1856 Honu, BCZ0338 Geometry'))).toEqual(['BCX1856', 'BCZ338']);
+        // only X, Y and Z: other letters after BC are not the catalogue's
+        expect(present(readText('BCA0141 and BC0141'))).toEqual([]);
+    });
+
     test('a number without its letter is a code only in a list of codes or right after Biggs', () => {
         expect(present(readText('T46s, T87, T124A2s spread in 1s to 4s southbound'))).toEqual(['T46s', 'T87', 'T124A2s']);
         expect(present(readText('Biggs 36Bs northbound'))).toEqual(['T36Bs']);
