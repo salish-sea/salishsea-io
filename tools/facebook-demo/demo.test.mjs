@@ -323,6 +323,13 @@ test('fixes from review: full names kept, questions with times, credit lines, ti
   const { title, kinds } = classifyPost(rows);
   assert.equal(title.kind, 'humpbacks');
   assert.deepEqual(rows.map((r) => kinds.get(r.key)), ['edited away', 'title', 'report', 'report', 'question', 'report']);
+  const more = [rows[1],
+    row('line', '11:30 - calls loud and clear on Sunset Bay'),
+    row('line', '11:40 - visible on LK livestream'),
+    row('comment', '11:30am northbound, any IDs?', { comment_id: '9', author: 'Lee', clock: '11:30', reading: JSON.stringify({ direction: 'north' }) }),
+    row('comment', '11am still here, any IDs?', { comment_id: '10', author: 'Lee', clock: '11:00' })];
+  const k2 = classifyPost(more).kinds;
+  assert.deepEqual(more.slice(1).map((r) => k2.get(r.key)), ['hydrophone', 'webcam', 'report', 'report']);
 });
 
 test('a send that adds a name to the thread reads the thread again', () => {
