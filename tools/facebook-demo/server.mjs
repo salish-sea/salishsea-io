@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { readSighting } from '../../src/sighting-text.ts';
 import { readPost, agoToTime, clockTime, postId, EXPANDERS } from './read.mjs';
-import { openStore, recordSend } from './store.mjs';
+import { openStore, recordSend, rereadAll } from './store.mjs';
 import { loadPlaces } from './places.mjs';
 
 const DATA = process.env.FB_DEMO_DATA ?? new URL('./data/', import.meta.url).pathname;
@@ -36,6 +36,8 @@ const enrich = (text) => {
   const r = readSighting(text);
   return { clock: clockTime(text), reading: r, places: findPlaces(text) };
 };
+
+console.log('rows read again with the current reader:', rereadAll(db, enrich));
 
 // --- the bookmarklet ---------------------------------------------------------------
 
@@ -73,7 +75,7 @@ a{color:var(--accent)}h1{font-size:1.4rem}h2{font-size:1.1rem;margin-top:2rem}.m
 table{border-collapse:collapse;width:100%;font-size:14px}th,td{border-top:1px solid var(--line);padding:.4rem .45rem;vertical-align:top;text-align:left}
 th{font-weight:600;white-space:nowrap}td.text{white-space:pre-wrap;min-width:16rem}tr.new td{background:var(--soft)}tr.gone td.text{text-decoration:line-through;color:var(--muted)}
 .chip{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 .3rem;margin:0 .2rem .2rem 0;font-size:13px;white-space:nowrap}
-.none{color:var(--muted)}.warn{border-left:4px solid var(--bad);padding:.4rem .8rem;background:var(--soft)}
+.none{color:var(--muted)}.unknown{color:var(--bad)}.warn{border-left:4px solid var(--bad);padding:.4rem .8rem;background:var(--soft)}
 .stats{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;padding:0;list-style:none}.stats b{font-size:1.2rem;display:block}
 a.bm{display:inline-block;padding:.5rem .9rem;border:2px solid var(--accent);border-radius:8px;text-decoration:none;font-weight:600}
 select,input{font:inherit;font-size:13px}td.mark{min-width:9rem}
@@ -93,7 +95,9 @@ function rowHtml(r, { marks = false, newKeys = new Set(), standing = new Set() }
   const places = JSON.parse(r.places ?? '[]');
   const codes = (reading.claims ?? []).map((c) => esc(claimLabel(c)));
   const pods = (reading.pods ?? []).map((p) => esc(p + ' pod'));
-  const placeChips = places.map((p) => `<a href="https://salishsea.io${esc(p.href)}" title="${esc(p.kind)} ${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}${p.alike > 1 ? ` (one of ${p.alike} with this name)` : ''}">${esc(p.name)}${p.alike > 1 ? ` ×${p.alike}` : ''}</a>`);
+  const placeChips = places.map((p) => p.unknown
+    ? `<span class="unknown" title="Not in the site's gazetteers, so it can't be put on the map">${esc(p.name)}?</span>`
+    : `<a href="https://salishsea.io${esc(p.href)}" title="${esc(p.kind)} ${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}${p.alike > 1 ? ` (one of ${p.alike} with this name)` : ''}">${esc(p.name)}${p.alike > 1 ? ` ×${p.alike}` : ''}</a>`);
   const when = r.kind === 'line' ? 'post' : r.kind === 'reply' ? `↳ reply` : 'comment';
   const time = new Date(r.first_seen * 1000).toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false });
   const markCell = marks ? `<td class="mark"><select data-key="${esc(r.key)}" data-v="${version(r.text)}" aria-label="Did the reader get it right?">
@@ -153,7 +157,8 @@ function stats(rows) {
 <li><b>${pct(has((r) => reading(r).claims?.length || reading(r).pods?.length))}</b>name whales</li>
 <li><b>${pct(has((r) => reading(r).direction))}</b>give a heading</li>
 <li><b>${pct(has((r) => r.clock))}</b>give a clock time</li>
-<li><b>${pct(has((r) => JSON.parse(r.places ?? '[]').length))}</b>name a place we know</li>
+<li><b>${pct(has((r) => JSON.parse(r.places ?? '[]').some((p) => !p.unknown)))}</b>name a place we know</li>
+<li><b>${pct(has((r) => JSON.parse(r.places ?? '[]').some((p) => p.unknown)))}</b>name a place we don't</li>
 <li><b>${marked.length}</b>checked: ${count('right')} right, ${count('partly')} partly, ${count('wrong')} wrong, ${count('not a sighting')} not sightings</li></ul>`;
 }
 
@@ -308,7 +313,7 @@ function csv() {
     const reading = JSON.parse(r.reading ?? '{}');
     const row = { ...r, est_time: iso(r.est_time), first_seen: iso(r.first_seen), last_seen: iso(r.last_seen),
       whales: (reading.claims ?? []).map(claimLabel).join(' '), pods: (reading.pods ?? []).join(' '), direction: reading.direction,
-      behaviour: (reading.behaviour ?? []).join(' '), places: JSON.parse(r.places ?? '[]').map((p) => `${p.name} (${p.lat.toFixed(4)}, ${p.lon.toFixed(4)})`).join('; ') };
+      behaviour: (reading.behaviour ?? []).join(' '), places: JSON.parse(r.places ?? '[]').map((p) => (p.unknown ? `${p.name} (unknown)` : `${p.name} (${p.lat.toFixed(4)}, ${p.lon.toFixed(4)})`)).join('; ') };
     return cols.map((c) => q(row[c])).join(',');
   });
   return [cols.join(','), ...lines].join('\r\n');

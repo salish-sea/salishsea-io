@@ -23,6 +23,32 @@ export function openStore(path) {
   return db;
 }
 
+/**
+ * Reads every stored text again, so a change to the reader or the place finder shows on
+ * rows already collected. A row whose result changes loses its mark: the mark judged the
+ * old result. Returns how many rows changed.
+ */
+export function rereadAll(db, enrich) {
+  const update = db.prepare(`UPDATE items SET clock = ?, reading = ?, places = ?,
+      mark = NULL, note = NULL, marked_by = NULL, marked_at = NULL WHERE key = ?`);
+  let changed = 0;
+  db.exec('BEGIN');
+  try {
+    for (const r of db.prepare('SELECT key, text, clock, reading, places FROM items').all()) {
+      const e = enrich(r.text);
+      const [reading, places] = [JSON.stringify(e.reading), JSON.stringify(e.places)];
+      if (e.clock === r.clock && reading === r.reading && places === r.places) continue;
+      update.run(e.clock, reading, places, r.key);
+      changed++;
+    }
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+  return changed;
+}
+
 const lineKey = (postId, text, n) => `l:${postId}:${createHash('sha1').update(text).digest('hex').slice(0, 16)}:${n}`;
 
 /**

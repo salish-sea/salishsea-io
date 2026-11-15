@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readPost, clockTime, agoToTime, postId, EXPANDERS } from './read.mjs';
-import { openStore, recordSend } from './store.mjs';
+import { openStore, recordSend, rereadAll } from './store.mjs';
 import { placeFinder } from './places.mjs';
 
 const link = (c, r) => `<a href="https://www.facebook.com/groups/1/posts/2/?comment_id=${c}${r ? `&amp;reply_comment_id=${r}` : ''}&amp;__cft__=x">1h</a>`;
@@ -96,6 +96,26 @@ test('place names, with the generic word dropped and whale words left alone', ()
   assert.deepEqual(names('They have turned west at Camano Head.'), ['Camano Head']);
   assert.deepEqual(names('Orcas off Point No Point'), ['Point No Point']);
   assert.deepEqual(names('heading to the point'), []);
+});
+
+test('a named place the gazetteers lack is unknown, not a shorter name inside it', () => {
+  const place = (name, kind = 'city') => ({ name, kind, lon: -123.1, lat: 49.2, zoom: 11, otherNames: [] });
+  const find = placeFinder([place('Richmond'), place('Alki Point', 'point'), place('Elliott Bay', 'water')]);
+  const names = (t) => find(t).map((p) => p.name + (p.unknown ? '?' : ''));
+  assert.deepEqual(names('12:20, BCY0141 Falcon is feeding around Richmond Beach'), ['Richmond Beach?']);
+  assert.deepEqual(names('Off Alki Point heading to Elliott Bay'), ['Elliott Bay', 'Alki Point']);
+  assert.deepEqual(names('Seen from Richmond, heading north'), ['Richmond']);
+});
+
+test('reading stored rows again updates their results and clears marks on the ones that change', () => {
+  const db = openStore(':memory:');
+  const html = '<div role="main"><div dir="auto"><div dir="auto">BCY0141 off Richmond Beach</div><div dir="auto">12:00 T137s</div></div></div>';
+  recordSend(db, { at: 1, sender: 'T', postId: '5', url: 'u', title: 't', bytes: 1, read: readPost(html), agoToTime, enrich: (t) => ({ clock: null, reading: { claims: [] }, places: [] }) });
+  db.prepare("UPDATE items SET mark = 'wrong'").run();
+  const better = (t) => ({ clock: null, reading: { claims: t.startsWith('BCY') ? [{ code: 'BCY141' }] : [] }, places: [] });
+  assert.equal(rereadAll(db, better), 1);
+  assert.deepEqual(db.prepare('SELECT text, mark FROM items ORDER BY seq').all().map((r) => [r.text, r.mark]),
+    [['BCY0141 off Richmond Beach', null], ['12:00 T137s', 'wrong']]);
 });
 
 test('the buttons that hide comments', () => {

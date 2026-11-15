@@ -38,6 +38,16 @@ export function placeFinder(places) {
   return (text) => {
     const hay = ` ${words(text)} `;
     const found = [];
+    // A name the text gives that ends in a word for a kind of place ("Richmond Beach") but
+    // that the gazetteers lack is shown as unknown, not as a shorter name inside it ("Richmond").
+    for (const m of text.matchAll(NAMED_PLACE)) {
+      // A capitalised word before the name is often the start of a sentence: "Off Alki Point".
+      const name = m[0].replace(/\s+/g, ' ').split(' ');
+      while (name.length > 2 && LEADING.has(name[0].toLowerCase())) name.shift();
+      const key = words(name.join(' '));
+      if (byName.has(key) || found.some((f) => f.key === key)) continue;
+      found.push({ key, name: name.join(' '), unknown: true });
+    }
     for (const key of keys) {
       if (!hay.includes(` ${key} `)) continue;
       // One word must be capitalised in the text, as a name is: "Camano", not "point".
@@ -48,9 +58,16 @@ export function placeFinder(places) {
       const p = where[0];
       found.push({ key, name: p.name, kind: p.kind, lon: p.lon, lat: p.lat, href: placeHref(p), alike: where.length });
     }
-    return found.map(({ key, ...rest }) => rest);
+    // Known names first, in the order found; unknown ones after.
+    return found.sort((a, b) => !!a.unknown - !!b.unknown).map(({ key, ...rest }) => rest);
   };
 }
+
+// One to three capitalised words, then a capitalised word for a kind of place.
+const KINDS = 'Beach|Point|Pt|Bay|Park|Head|Harbor|Harbour|Island|Spit|Reef|Rocks?|Light|Lighthouse|Pass|Passage|Narrows|Cove|Inlet|Landing|Marina|Pier|Dock|Creek|River|Lagoon|Ferry|Terminal|Sound|Channel|Strait|Lake';
+const NAMED_PLACE = new RegExp(`(?<![\\p{L}])(?:\\p{Lu}[\\p{L}'’.]*\\s+){1,3}(?:${KINDS})(?![\\p{L}])`, 'gu');
+
+const LEADING = new Set(['off', 'at', 'near', 'in', 'on', 'from', 'by', 'of', 'the', 'to', 'past', 'around', 'toward', 'towards', 'between', 'just', 'north', 'south', 'east', 'west', 'heading', 'headed', 'passing', 'leaving', 'entering', 'inside', 'outside', 'and', 'still', 'now']);
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
