@@ -57,6 +57,8 @@ export function contextFor(rows, standing = new Set(), eligible = null, thread =
     // Only a report borrows (classify.mjs): a question or a credit line means no animals.
     if ((eligible && !eligible.has(r.key)) || namesAny(r) || !saysSighting(r)) continue;
     const parent = r.kind === 'reply' ? byComment.get(r.reply_to) : null;
+    // A reply under a comment that rules animals out ("no Js") keeps to that: it borrows none.
+    if (parent && namesAny(parent) && !ownNames(parent).length) continue;
     const parentNames = parent ? [...new Set(ownNames(parent).map((n) => n.label))] : [];
     // What the comment's author named in its thread: for the comment itself, and for the
     // author's own other replies. Someone else's reply may be about other animals.

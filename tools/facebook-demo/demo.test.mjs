@@ -378,6 +378,7 @@ test('a report gains what its author adds in replies, and what a question they a
     row('comment', 'Di Point', 'Orcas off the bluff', { places: [{ name: 'Point Robinson', lat: 47.39, lon: -122.37 }] }),
     row('reply', 'Orca Network', 'Di Point heading south?', { reply_to: '24', reading: { direction: 'south' } }),
     row('reply', 'Di Point', 'Orca Network yes, lost sight of them now', { reply_to: '24' }),
+    row('reply', 'Cy Ferry', '11:05 still heading north', { reply_to: '22', clock: '11:05', reading: { direction: 'north' } }),
   ];
   const { kinds } = classifyPost(rows);
   assert.equal(kinds.get('t13'), 'talk'); // a link's "?" is not a question
@@ -402,7 +403,8 @@ test('a report gains what its author adds in replies, and what a question they a
   assert.equal(t.get('t18').clock, '09:30');
   assert.equal(t.get('t18').direction, 'south');
   // A comment that rules animals out gains none; a "yes" filed as "nothing seen" still confirms.
-  assert.equal(t.get('t22'), undefined);
+  assert.deepEqual(t.get('t22').animals, []);
+  assert.equal(ctx.get('t27'), undefined); // and its replies don't take the post's T137s
   assert.equal(t.get('t24').direction, 'south');
 });
 
