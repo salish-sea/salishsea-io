@@ -12,6 +12,7 @@ import { readPost, agoToTime, clockTime, postId, EXPANDERS } from './read.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
 import { loadPlaces } from './places.mjs';
 import { contextFor } from './context.mjs';
+import { classifyPost, stripMention, staffTime, REPORT_KINDS } from './classify.mjs';
 
 const DATA = process.env.FB_DEMO_DATA ?? new URL('./data/', import.meta.url).pathname;
 const config = JSON.parse(await readFile(join(DATA, 'config.json'), 'utf8'));
@@ -28,16 +29,18 @@ const SENDS_PER_10_MIN = 30;
 // Which wording, and which reading of it, a mark judged: a mark sent for an older version
 // than the row now has is refused, whether the text changed, the reader did, or the animals
 // the row takes from its post.
-const version = (r, ctx) => createHash('sha1').update(JSON.stringify([r.text, r.clock, r.reading, r.places, ctx ?? null])).digest('hex').slice(0, 12);
+const version = (r, info = {}) => createHash('sha1').update(JSON.stringify([r.text, r.clock, r.reading, r.places, info.ctx ?? null, info.kind ?? null, info.staffTime ?? null])).digest('hex').slice(0, 12);
 // How the page and the CSV write the reader's whale identifiers: "T65A?" possible, "(absent)" said not to be there.
 const claimLabel = (c) => c.code + (c.presence === 'absent' ? ' (absent)' : c.certainty !== 'certain' ? '?' : '');
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const same = (a, b) => typeof a === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const senderFor = (token) => Object.entries(senders).find(([t]) => same(token, t))?.[1] ?? null;
-const enrich = (text) => {
-  const r = readSighting(text);
-  return { clock: clockTime(text), reading: r, places: findPlaces(text) };
+// What the reader makes of a text, skipping a reply's leading name (the person it answers),
+// which is not part of the report: "Dana Smith thanks" must not find Dana Passage.
+const enrich = (text, names = []) => {
+  const t = stripMention(text, names);
+  return { clock: clockTime(t), reading: readSighting(t), places: findPlaces(t) };
 };
 
 console.log('rows read again with the current reader:', rereadAll(db, enrich));
@@ -45,11 +48,7 @@ console.log('rows read again with the current reader:', rereadAll(db, enrich));
 // A mark counts only for the version of its row it judged: what the row's text says, how it
 // was read, and what it takes from its post. When any of these change (a new send edits the
 // post's IDs, a better reader reads it again) the mark stops showing and must be made again.
-const currentContext = () => {
-  const standing = standingTexts();
-  return new Map([...Map.groupBy(db.prepare('SELECT * FROM items').all(), (r) => r.post_id).values()].flatMap((rs) => [...contextFor(rs, standing)]));
-};
-const markOf = (r, ctx) => (r.mark && r.marked_version === version(r, ctx) ? r : { mark: null, note: null, marked_by: null });
+const markOf = (r, info) => (r.mark && r.marked_version === version(r, info) ? r : { mark: null, note: null, marked_by: null });
 
 // --- the bookmarklet ---------------------------------------------------------------
 
@@ -91,7 +90,7 @@ th{font-weight:600;white-space:nowrap}td.text{white-space:pre-wrap;min-width:16r
 .stats{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;padding:0;list-style:none}.stats b{font-size:1.2rem;display:block}
 a.bm{display:inline-block;padding:.5rem .9rem;border:2px solid var(--accent);border-radius:8px;text-decoration:none;font-weight:600}
 select,input{font:inherit;font-size:13px}td.mark{min-width:9rem}
-.scroll{overflow-x:auto}details summary{cursor:pointer}tr.standing td{font-size:13px}
+.scroll{overflow-x:auto}tr.aside td{color:var(--muted)}tr.aside td.text{color:var(--ink)}.kind{font-size:12px;font-style:italic}details summary{cursor:pointer}tr.standing td{font-size:13px}
 </style><body>${body}</body></html>`;
 
 function chips(list, cls = '') {
@@ -113,8 +112,8 @@ function commentHref(postUrl, r) {
   return u.href;
 }
 
-function rowHtml(r, { marks = false, newKeys = new Set(), standing = new Set(), postUrl = null, context = new Map() } = {}) {
-  if (standing.has(r.text)) {
+function rowHtml(r, { marks = false, newKeys = new Set(), postUrl = null, info = {} } = {}) {
+  if (info.kind === 'standing') {
     return `<tr class="standing"><td>${r.kind === 'line' ? 'post' : 'comment'}<div class="muted">${esc(r.author ?? '')}</div></td><td></td>
 <td colspan="${marks ? 6 : 5}" class="muted"><details><summary>Standing text, in every post: ${esc(r.text.split('\n')[0].slice(0, 80))}…</summary><div class="text">${esc(r.text)}</div></details></td></tr>`;
   }
@@ -125,21 +124,28 @@ function rowHtml(r, { marks = false, newKeys = new Set(), standing = new Set(), 
   const placeChips = places.map((p) => p.unknown
     ? `<span class="unknown" title="Not in the site's gazetteers, so it can't be put on the map">${esc(p.name)}?</span>`
     : `<a href="https://salishsea.io${esc(p.href)}" title="${esc(p.kind)} ${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}${p.alike > 1 ? ` (one of ${p.alike} with this name)` : ''}">${esc(p.name)}${p.abbreviation ? ` (${esc(p.abbreviation)})` : ''}${p.alike > 1 ? ` ×${p.alike}` : ''}</a>`);
-  const when = r.kind === 'line' ? 'post' : r.kind === 'reply' ? `↳ reply` : 'comment';
+  const where = r.kind === 'line' ? 'post' : r.kind === 'reply' ? `↳ reply` : 'comment';
   const time = new Date(r.first_seen * 1000).toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false });
-  const ctx = context.get(r.key);
+  const { ctx, kind, report, staffTime: st, title } = info;
   const whales = codes.length || pods.length ? chips([...codes, ...pods])
-    : ctx ? `${chips(ctx.labels.map(esc), 'ctx')}<div class="muted">from the ${ctx.from === 'post' ? 'post' : 'comment it answers'}</div>` : chips([]);
-  const m = markOf(r, ctx);
+    : ctx ? `${chips(ctx.labels.map(esc), 'ctx')}<div class="muted">from the ${ctx.from === 'post' ? 'post' : 'comment it answers'}</div>`
+    : title?.kind ? `${chips([esc(title.kind)], 'ctx')}<div class="muted">from the post's title</div>` : chips([]);
+  const clock = r.clock ? esc(r.clock) : st ? `${esc(st)}<div class="muted">from Orca Network's reply</div>` : '';
+  const m = markOf(r, info);
   const stale = r.mark && !m.mark;
-  const markCell = marks ? `<td class="mark"><select data-key="${esc(r.key)}" data-v="${version(r, ctx)}" aria-label="Did the reader get it right?">
+  const markCell = marks ? `<td class="mark"><select data-key="${esc(r.key)}" data-v="${version(r, info)}" aria-label="Did the reader get it right?">
 ${['', 'right', 'partly', 'wrong', 'not a sighting'].map((o) => `<option value="${o}"${(m.mark ?? '') === o ? ' selected' : ''}>${o || '—'}</option>`).join('')}</select>
 <input data-note="${esc(r.key)}" value="${esc(m.note)}" placeholder="note" size="10">${m.marked_by ? `<div class="muted">${esc(m.marked_by)}</div>` : ''}${stale ? `<div class="muted" title="It was “${esc(r.mark)}” from ${esc(r.marked_by ?? 'someone')}">changed since it was marked</div>` : ''}</td>` : '';
   const href = commentHref(postUrl, r);
   const media = mediaLinks(r.media);
-  return `<tr class="${newKeys.has(r.key) ? 'new' : ''}${r.gone ? ' gone' : ''}">
-<td>${href ? `<a href="${esc(href)}" rel="noreferrer">${when}</a>` : when}<div class="muted">${esc(r.author ?? '')}</div>${media ? `<div>${media}</div>` : ''}</td>
-<td>${esc(r.clock ?? '')}<div class="muted" title="when this first arrived (Pacific)">seen ${time}</div></td>
+  const from = `<td>${href ? `<a href="${esc(href)}" rel="noreferrer">${where}</a>` : where}<div class="muted">${esc(r.author ?? '')}</div>${media ? `<div>${media}</div>` : ''}${report ? '' : `<div class="kind">${esc(kind ?? '')}</div>`}</td>`;
+  // Only a report is read: for anything else the columns stay empty, and its kind says why.
+  if (!report) {
+    return `<tr class="aside${newKeys.has(r.key) ? ' new' : ''}${r.gone ? ' gone' : ''}">${from}<td><div class="muted" title="when this first arrived (Pacific)">seen ${time}</div></td>
+<td class="text">${esc(r.text)}</td><td colspan="4" class="muted">not read: ${esc(kind ?? 'not a report')}</td>${markCell}</tr>`;
+  }
+  return `<tr class="${newKeys.has(r.key) ? 'new' : ''}${r.gone ? ' gone' : ''}">${from}
+<td>${clock}<div class="muted" title="when this first arrived (Pacific)">seen ${time}</div></td>
 <td class="text">${esc(r.text)}</td>
 <td>${whales}</td><td>${esc(reading.direction ?? '') || '<span class="none">—</span>'}</td>
 <td>${chips((reading.behaviour ?? []).map(esc))}</td><td>${chips(placeChips)}</td>${markCell}</tr>`;
@@ -151,6 +157,38 @@ ${['', 'right', 'partly', 'wrong', 'not a sighting'].map((o) => `<option value="
 const STANDING_MIN_CHARS = 60;
 const standingTexts = () => new Set(db.prepare(
   'SELECT text FROM items WHERE length(text) >= ? GROUP BY text HAVING count(DISTINCT post_id) >= 2').all(STANDING_MIN_CHARS).map((r) => r.text));
+
+// Everything worked out about one post's rows when a page is drawn: each row's kind
+// (classify.mjs), the post's title, the animals a report borrows (reports only), and the time
+// a staff reply gives the comment it answers.
+function analysePost(rows, standing) {
+  const { title, kinds } = classifyPost(rows, standing);
+  const reports = new Set(rows.filter((r) => REPORT_KINDS.has(kinds.get(r.key))).map((r) => r.key));
+  const context = contextFor(rows, standing, reports);
+  const staffTimes = new Map();
+  for (const r of rows) { const t = staffTime(r); if (t && !staffTimes.has(r.reply_to)) staffTimes.set(r.reply_to, t); }
+  return { title, kinds, reports, context, staffTimes };
+}
+function analyseAll(rows, standing = standingTexts()) {
+  const posts = new Map([...Map.groupBy(rows, (r) => r.post_id)].map(([id, rs]) => [id, analysePost(rs, standing)]));
+  return {
+    posts,
+    infoOf: (r) => {
+      const a = posts.get(r.post_id);
+      return { kind: a.kinds.get(r.key), report: a.reports.has(r.key), ctx: a.context.get(r.key), staffTime: r.comment_id ? a.staffTimes.get(r.comment_id) : null, title: a.title };
+    },
+  };
+}
+
+const DAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+// A post's heading: its title's date, animals and region; or the page title, or its first line.
+function postHeading(post, a, rows) {
+  if (a?.title) {
+    const t = a.title;
+    return [DAY.format(new Date(`${t.date}T12:00:00Z`)), t.kind ?? 'animals', t.group ? `group ${t.group.toLowerCase()}` : null, t.region].filter(Boolean).join(' · ');
+  }
+  return `Not a day post: ${heading(post.title, rows)}`;
+}
 
 // A post's heading: the page title without the group's name, or the post's first line.
 function heading(title, rows) {
@@ -179,22 +217,28 @@ function warnings(send) {
   return out;
 }
 
-function stats(rows, context = new Map()) {
-  const n = rows.length || 1;
+function stats(rows, infoOf) {
+  const reports = rows.filter((r) => infoOf(r).report);
+  const n = reports.length || 1;
   const pct = (k) => `${Math.round((100 * k) / n)}%`;
-  const has = (f) => rows.filter(f).length;
+  const has = (f) => reports.filter(f).length;
   const reading = (r) => JSON.parse(r.reading ?? '{}');
-  const marked = rows.map((r) => markOf(r, context.get(r.key))).filter((m) => m.mark);
+  const own = (r) => reading(r).claims?.length || reading(r).pods?.length;
+  const marked = rows.map((r) => markOf(r, infoOf(r))).filter((m) => m.mark);
   const count = (m) => marked.filter((r) => r.mark === m).length;
+  const kinds = Map.groupBy(rows.filter((r) => !infoOf(r).report), (r) => infoOf(r).kind);
+  const other = [...kinds].sort((a, b) => b[1].length - a[1].length).map(([k, rs]) => `${rs.length} ${k}`).join(', ');
   return `<ul class="stats">
-<li><b>${rows.length}</b>lines and comments, besides standing text</li>
-<li><b>${pct(has((r) => reading(r).claims?.length || reading(r).pods?.length))}</b>name whales</li>
-<li><b>${pct(has((r) => context.has(r.key)))}</b>mean whales named earlier</li>
+<li><b>${reports.length}</b>reports, of ${rows.length} lines and comments</li>
+<li><b>${pct(has(own))}</b>name whales</li>
+<li><b>${pct(has((r) => !own(r) && infoOf(r).ctx))}</b>mean whales named earlier</li>
+<li><b>${pct(has((r) => !own(r) && !infoOf(r).ctx && infoOf(r).title?.kind))}</b>only the post's title says what</li>
 <li><b>${pct(has((r) => reading(r).direction))}</b>give a heading</li>
-<li><b>${pct(has((r) => r.clock))}</b>give a clock time</li>
+<li><b>${pct(has((r) => r.clock || infoOf(r).staffTime))}</b>give a clock time</li>
 <li><b>${pct(has((r) => JSON.parse(r.places ?? '[]').some((p) => !p.unknown)))}</b>name a place we know</li>
 <li><b>${pct(has((r) => JSON.parse(r.places ?? '[]').some((p) => p.unknown)))}</b>name a place we don't</li>
-<li><b>${marked.length}</b>checked: ${count('right')} right, ${count('partly')} partly, ${count('wrong')} wrong, ${count('not a sighting')} not sightings</li></ul>`;
+<li><b>${marked.length}</b>checked: ${count('right')} right, ${count('partly')} partly, ${count('wrong')} wrong, ${count('not a sighting')} not sightings</li></ul>
+<p class="muted">Not read as reports: ${esc(other)}. The percentages are of reports.</p>`;
 }
 
 function listPage(k) {
@@ -204,16 +248,16 @@ function listPage(k) {
   const sends = db.prepare('SELECT * FROM sends ORDER BY at DESC LIMIT 30').all();
   const byPost = Map.groupBy(rows, (r) => r.post_id);
   const standing = standingTexts();
-  const context = new Map([...byPost.values()].flatMap((rs) => [...contextFor(rs, standing)]));
-  const sections = posts.map((p) => `<h2 id="p${esc(p.post_id)}">${esc(heading(p.title, byPost.get(p.post_id) ?? []))}</h2>
+  const { posts: analyses, infoOf } = analyseAll(rows, standing);
+  const sections = posts.map((p) => `<h2 id="p${esc(p.post_id)}">${esc(postHeading(p, analyses.get(p.post_id), byPost.get(p.post_id) ?? []))}</h2>
 ${p.url ? `<p class="muted"><a href="${esc(p.url)}" rel="noreferrer">The post on Facebook</a>${mediaLinks(p.media) ? ` · its ${mediaLinks(p.media)}` : ''}</p>` : ''}
-<div class="scroll"><table>${HEAD}<th>Right?</th></tr>${ordered(byPost.get(p.post_id) ?? []).map((r) => rowHtml(r, { marks: true, standing, postUrl: p.url, context })).join('')}</table></div>`);
-  const sendRows = sends.map((s) => `<tr><td>${new Date(s.at * 1000).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</td><td>${esc(s.sender)}</td><td>${esc(heading(s.title, byPost.get(s.post_id) ?? []))}</td><td>${s.added} new, ${s.changed} changed, ${s.gone} gone</td><td>${warnings(s).length ? '<span title="' + esc(warnings(s).join(' ')) + '">incomplete</span>' : 'complete'}</td></tr>`).join('');
+<div class="scroll"><table>${HEAD}<th>Right?</th></tr>${ordered(byPost.get(p.post_id) ?? []).map((r) => rowHtml(r, { marks: true, postUrl: p.url, info: infoOf(r) })).join('')}</table></div>`);
+  const sendRows = sends.map((s) => `<tr><td>${new Date(s.at * 1000).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</td><td>${esc(s.sender)}</td><td>${esc(analyses.has(s.post_id) ? postHeading(s, analyses.get(s.post_id), byPost.get(s.post_id)) : heading(s.title, []))}</td><td>${s.added} new, ${s.changed} changed, ${s.gone} gone</td><td>${warnings(s).length ? '<span title="' + esc(warnings(s).join(' ')) + '">incomplete</span>' : 'complete'}</td></tr>`).join('');
   return page('Facebook sightings demo', `<h1>Sightings read from Orca Network's Community Group</h1>
 <p class="muted">A trial of SalishSea.io's <a href="https://github.com/salish-sea/salishsea-io/blob/main/docs/decisions/117-sightings-from-a-facebook-group-arrive-when-a-signed-in-person-sends-the-days-post.md">decision 117</a>. Each line of a day's post and each comment, as it arrived, with what SalishSea.io's reader of sighting text found in it. Nothing here is published. Please mark whether the reader got each one right. <a href="export.csv?k=${esc(k)}">Download all as CSV</a>.</p>
-<p class="muted">A dashed whale code is one the report doesn't name itself but means, taken from the post or from the comment it answers: Orca Network's staff add the identifications to the post as they learn them. Please mark whether that's right too.</p>
+<p class="muted">Only reports are read. Each other line or comment says what it is instead (a question, thanks, a credit line, a hydrophone detection…), and if that's wrong, mark it. A dashed whale code is one the report doesn't name itself but means, taken from the post or from the comment it answers: Orca Network's staff add the identifications to the post as they learn them. Please mark whether that's right too.</p>
 <p><label>Your name, for your marks: <input id="who" size="16"></label></p>
-${stats(rows.filter((r) => !standing.has(r.text)), context)}
+${stats(rows.filter((r) => infoOf(r).kind !== 'standing'), infoOf)}
 ${sections.join('') || '<p class="muted">Nothing has been sent yet.</p>'}
 <h2>Recent sends</h2><div class="scroll"><table><tr><th>When</th><th>Sender</th><th>Post</th><th>Rows</th><th>Complete?</th></tr>${sendRows}</table></div>
 <script>
@@ -307,12 +351,12 @@ async function capture(req) {
   const all = db.prepare('SELECT * FROM items WHERE post_id = ? ORDER BY first_seen, seq').all(id);
   const rows = all.filter((r) => keys.has(r.key));
   const fresh = new Set(rows.filter((r) => r.first_seen === now).map((r) => r.key));
-  const standing = standingTexts();
-  const context = contextFor(all, standing);
+  const a = analysePost(all, standingTexts());
+  const infoOf = (r) => ({ kind: a.kinds.get(r.key), report: a.reports.has(r.key), ctx: a.context.get(r.key), staffTime: r.comment_id ? a.staffTimes.get(r.comment_id) : null, title: a.title });
   const w = warnings(send);
-  const out = `<p><b>Thank you.</b> ${read.lines.length} lines of the post and ${read.comments.length} comments read: ${result.added} new, ${result.changed} changed${result.gone ? `, ${result.gone} lines gone from the post` : ''}. New ones are shaded.</p>
+  const out = `<p><b>Thank you.</b> ${a.title ? '' : '<b>This is not a day post</b>, so nothing in it is read as a sighting. '}${rows.filter((r) => a.reports.has(r.key)).length} reports among ${read.lines.length} lines of the post and ${read.comments.length} comments: ${result.added} new, ${result.changed} changed${result.gone ? `, ${result.gone} lines gone from the post` : ''}. New ones are shaded.</p>
 ${w.map((x) => `<p class="warn">${x}</p>`).join('')}
-<div class="scroll"><table>${HEAD}</tr>${ordered(rows).map((r) => rowHtml(r, { newKeys: fresh, standing, postUrl: url, context })).join('')}</table></div>`;
+<div class="scroll"><table>${HEAD}</tr>${ordered(rows).map((r) => rowHtml(r, { newKeys: fresh, postUrl: url, info: infoOf(r) })).join('')}</table></div>`;
   console.log(new Date().toISOString(), 'send', sender, id, `${html.length} bytes`, JSON.stringify(result));
   return [200, JSON.stringify({ ...result, keys: undefined, html: out }), 'application/json'];
 }
@@ -333,21 +377,20 @@ function mark(body) {
   const { k, key, v, mark, note, who } = JSON.parse(body);
   if (!same(String(k ?? ''), viewToken)) return [403, 'no'];
   if (!['', 'right', 'partly', 'wrong', 'not a sighting'].includes(mark)) return [400, 'bad mark'];
-  const row = db.prepare('SELECT key, post_id, text, clock, reading, places FROM items WHERE key = ?').get(String(key));
+  const row = db.prepare('SELECT * FROM items WHERE key = ?').get(String(key));
   if (!row) return [404, 'no such row'];
-  const ctx = contextFor(db.prepare('SELECT * FROM items WHERE post_id = ?').all(row.post_id), standingTexts()).get(row.key);
-  if (v !== version(row, ctx)) return [409, 'the text or its reading has changed'];
+  const info = analyseAll(db.prepare('SELECT * FROM items WHERE post_id = ?').all(row.post_id)).infoOf(row);
+  if (v !== version(row, info)) return [409, 'the text or its reading has changed'];
   db.prepare('UPDATE items SET mark = ?, note = ?, marked_by = ?, marked_at = ?, marked_version = ? WHERE key = ?')
     .run(mark || null, String(note ?? '').slice(0, 500) || null, String(who ?? '').slice(0, 60) || null, Math.floor(Date.now() / 1000), mark ? v : null, String(key));
   return [204, ''];
 }
 
 function csv() {
-  const cols = ['post_id', 'post_title', 'post_media', 'kind', 'comment_id', 'reply_to', 'author', 'ago', 'est_time', 'first_seen', 'last_seen', 'gone', 'text', 'clock', 'whales', 'pods', 'whales_from_context', 'context_from', 'direction', 'behaviour', 'places', 'media', 'mark', 'note', 'marked_by'];
+  const cols = ['post_id', 'post_date', 'post_kind', 'post_group', 'post_region', 'post_title', 'post_media', 'row_kind', 'time_from_staff', 'kind', 'comment_id', 'reply_to', 'author', 'ago', 'est_time', 'first_seen', 'last_seen', 'gone', 'text', 'clock', 'whales', 'pods', 'whales_from_context', 'context_from', 'direction', 'behaviour', 'places', 'media', 'mark', 'note', 'marked_by'];
   const items = db.prepare('SELECT * FROM items ORDER BY post_id, first_seen, seq').all();
   const postMedia = new Map(db.prepare('SELECT post_id, media FROM posts').all().map((p) => [p.post_id, JSON.parse(p.media ?? '[]').join(' ')]));
-  const standing = standingTexts();
-  const context = new Map([...Map.groupBy(items, (r) => r.post_id).values()].flatMap((rs) => [...contextFor(rs, standing)]));
+  const { infoOf } = analyseAll(items);
   // A cell that starts like a formula is written as text, so a comment can't run in a spreadsheet.
   const q = (v) => {
     const t = String(v ?? '');
@@ -356,11 +399,14 @@ function csv() {
   const iso = (t) => (t ? new Date(t * 1000).toISOString() : '');
   const lines = items.map((r) => {
     const reading = JSON.parse(r.reading ?? '{}');
-    const ctx = context.get(r.key);
-    const m = markOf(r, ctx);
+    const info = infoOf(r);
+    const ctx = info.ctx;
+    const m = markOf(r, info);
     const row = { ...r, est_time: iso(r.est_time), first_seen: iso(r.first_seen), last_seen: iso(r.last_seen),
       whales: (reading.claims ?? []).map(claimLabel).join(' '), pods: (reading.pods ?? []).join(' '), direction: reading.direction,
       behaviour: (reading.behaviour ?? []).join(' '), media: JSON.parse(r.media ?? '[]').join(' '), post_media: postMedia.get(r.post_id) ?? '',
+      post_date: info.title?.date ?? '', post_kind: info.title?.kind ?? '', post_group: info.title?.group ?? '', post_region: info.title?.region ?? '',
+      row_kind: info.kind ?? '', time_from_staff: info.staffTime ?? '',
       whales_from_context: ctx?.labels.join(' ') ?? '', context_from: ctx?.from ?? '', mark: m.mark, note: m.note, marked_by: m.marked_by, places: JSON.parse(r.places ?? '[]').map((p) => (p.unknown ? `${p.name} (unknown)` : `${p.name} (${p.lat.toFixed(4)}, ${p.lon.toFixed(4)})`)).join('; ') };
     return cols.map((c) => q(row[c])).join(',');
   });
@@ -378,9 +424,9 @@ async function body(req, limit = 64 * 1024) {
 
 {
   // Marks made before versions were kept judged the row as it is now.
-  const ctx = currentContext();
+  const { infoOf } = analyseAll(db.prepare('SELECT * FROM items').all());
   for (const r of db.prepare('SELECT * FROM items WHERE mark IS NOT NULL AND marked_version IS NULL').all())
-    db.prepare('UPDATE items SET marked_version = ? WHERE key = ?').run(version(r, ctx.get(r.key)), r.key);
+    db.prepare('UPDATE items SET marked_version = ? WHERE key = ?').run(version(r, infoOf(r)), r.key);
 }
 
 createServer(async (req, res) => {
