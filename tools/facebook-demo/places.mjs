@@ -4,6 +4,13 @@
 import { readFileSync } from 'node:fs';
 import { PLACE_LISTS, placeHref, readPlaces } from '../../src/places.ts';
 
+/** The ferry routes reporters name by one of their terminals (data/ferry-routes.tsv): {name, route, terminals}. */
+export function readFerryRoutes(path = new URL('../../data/ferry-routes.tsv', import.meta.url)) {
+  const [head, ...rows] = readFileSync(path, 'utf8').trim().split('\n').map((l) => l.split('\t'));
+  const at = (c) => head.indexOf(c);
+  return rows.map((r) => ({ name: r[at('name')], route: r[at('route')], terminals: r[at('terminals')].split('|') }));
+}
+
 /** The place abbreviations a person has confirmed (data/abbreviations.tsv): {abbreviation, place}. */
 export function readAbbreviations(path = new URL('../../data/abbreviations.tsv', import.meta.url)) {
   const [head, ...rows] = readFileSync(path, 'utf8').trim().split('\n').map((l) => l.split('\t'));
@@ -23,11 +30,11 @@ export async function loadPlaces(fetchImpl = fetch) {
     if (!res.ok) throw new Error(`${url}: ${res.status}`);
     return res.json();
   }));
-  return placeFinder(lists.flatMap(readPlaces), readAbbreviations());
+  return placeFinder(lists.flatMap(readPlaces), readAbbreviations(), readFerryRoutes());
 }
 
 /** @param {import('../../src/places.ts').Place[]} places */
-export function placeFinder(places, abbreviations = []) {
+export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
   const byName = new Map();
   for (const p of places) {
     for (const name of [p.name, ...p.otherNames]) {
@@ -42,6 +49,9 @@ export function placeFinder(places, abbreviations = []) {
     }
   }
   const keys = [...byName.keys()].sort((a, b) => b.length - a.length);
+  // A ferry route as a line between its terminals, found among the places listed as ferry terminals.
+  const terminal = (name) => places.find((p) => p.kind === 'ferry_terminal' && p.name === name);
+  const routes = ferryRoutes.map((f) => ({ ...f, ends: f.terminals.map(terminal) })).filter((f) => f.ends.every(Boolean));
 
   return (text) => {
     const hay = ` ${words(text)} `;
@@ -49,6 +59,18 @@ export function placeFinder(places, abbreviations = []) {
     const taken = []; // [start, end) of each mention already accounted for
     const overlaps = (a, b) => taken.some(([s, e]) => a < e && s < b);
     const known = (p, where, extra = {}) => ({ name: p.name, kind: p.kind, lon: p.lon, lat: p.lat, href: placeHref(p), alike: where.length, ...extra });
+    // "Kingston ferry" is the boat on the Edmonds–Kingston route, so somewhere along that
+    // crossing, not the town; "Kingston ferry terminal" or "dock" is the terminal itself.
+    for (const f of routes) {
+      const re = new RegExp(`(?<![\\p{L}])${escape(f.name)}[ \\t]+ferr(?:y|ies)(?![ \\t]+(?:terminal|dock))(?![\\p{L}])`, 'giu');
+      const spans = [...text.matchAll(re)].map((m) => [m.index, m.index + m[0].length]).filter(([a, b]) => !overlaps(a, b));
+      if (!spans.length) continue;
+      taken.push(...spans); // every mention, even of a route already found by its other terminal
+      if (found.some((x) => x.route === f.route)) continue;
+      const lon = f.ends.reduce((a, e) => a + e.lon, 0) / f.ends.length, lat = f.ends.reduce((a, e) => a + e.lat, 0) / f.ends.length;
+      found.push({ key: `route:${f.route}`, name: `${f.route} ferry`, kind: 'ferry route', route: f.route, line: f.ends.map((e) => [e.lon, e.lat]),
+        lon, lat, href: placeHref({ lon, lat, zoom: 11 }), alike: 1 });
+    }
     // A confirmed abbreviation, in capitals as written: "PNP" for Point No Point.
     for (const { abbreviation, place } of abbreviations) {
       const where = byName.get(words(place));
@@ -65,6 +87,7 @@ export function placeFinder(places, abbreviations = []) {
       // A known name at its end is the place, and the words before it are the sentence's:
       // "Hugging Camano Island", "North Pender Island". The known names are found below.
       if (name.some((_, i) => byName.has(words(name.slice(i).join(' '))))) continue;
+      if (overlaps(m.index, m.index + m[0].length)) continue; // a route or an abbreviation already found there
       // A capitalised word before an unknown name is often the start of a sentence: "Off Richmond Beach".
       let dropped = 0;
       while (name.length > 2 && LEADING.has(name[0].toLowerCase())) dropped += name.shift().length + 1;

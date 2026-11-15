@@ -31,6 +31,10 @@ Unlike the rest of this directory, ours: a decision record in table form. A Mapl
 
 Ours: the abbreviations Orca Network's staff and observers use in reports (*PNP* for Point No Point), each with what it means, its kind (`place` or `species`), the gazetteer name a place abbreviation stands for, who confirmed it and when, and the evidence they saw. A row is added only when a person who knows has confirmed it: an abbreviation that could mean two things stays out. Candidates were drawn from a year of Orca Network's published reports (bd `salish-i1a.3.10`). Today only the Facebook demo ([`tools/facebook-demo/places.mjs`](../tools/facebook-demo/places.mjs)) reads it; the reader of sighting text may later.
 
+## `ferry-routes.tsv` — the ferry route a reporter means by "X ferry"
+
+Ours: reporters name a ferry by one of its terminals, and mean the boat on that route, so somewhere along the crossing, not the terminal or the town ("Kingston Ferry" is the Edmonds–Kingston route; Peter, 2026-11-15). Each row is a name as reporters write it, the route, its terminals by their names in the site's gazetteers (separated by `|`), and the source. A name that fits more than one route ("Seattle", "Anacortes") is left out. Today only the Facebook demo reads it.
+
 ## `biggs-ids.tsv` — Bigg's killer whale designations & nicknames
 
 - **Source:** [Bigg's Orca/Killer Whale Nick Names](https://docs.google.com/spreadsheets/d/1fj3sA2R8LGw68-Rxb0dL6jwTKkc4AkhGKuk-jt9zmis/edit?gid=0) (Google Sheet, `gid=0`)
