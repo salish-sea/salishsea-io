@@ -25,6 +25,12 @@ export function kindOf(code) {
   return letters;
 }
 
+/** Whether a row's text names any animal, present or absent: such a row keeps to what it says. */
+function namesAny(row) {
+  const reading = JSON.parse(row.reading ?? '{}');
+  return !!(reading.claims?.length || reading.pods?.length);
+}
+
 /** Whether a row says anything a sighting says: a time, a heading, a behaviour or a place. */
 function saysSighting(row) {
   const reading = JSON.parse(row.reading ?? '{}');
@@ -45,7 +51,7 @@ export function contextFor(rows, standing = new Set()) {
 
   const out = new Map();
   for (const r of live) {
-    if (ownNames(r).length || !saysSighting(r)) continue;
+    if (namesAny(r) || !saysSighting(r)) continue;
     const parent = r.kind === 'reply' ? byComment.get(r.reply_to) : null;
     const parentNames = parent ? [...new Set(ownNames(parent).map((n) => n.label))] : [];
     if (parentNames.length) out.set(r.key, { labels: parentNames, from: 'comment' });

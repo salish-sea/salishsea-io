@@ -27,6 +27,10 @@ The sheet is no longer the catalogue's source; these files are. Postgres's copy 
 
 Unlike the rest of this directory, ours: a decision record in table form. A Maplify sighting carries a common name and a scientific name, and the map shows it under the register entity those resolve to ([decision 049](../docs/decisions/049-maplify-keyed-on-the-register.md)). A register edition that stops naming a pair would silently drop every sighting carrying it, so two checks refuse such an edition — the read-path build's register fetch before it adopts one, and its gate before it derives — unless the pair is listed here ([decision 061](../docs/decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.9.2`). A row says: these sightings are *meant* to show under no animal from now on, and why. An empty `name` means the sighting carries none. Add a row in the same pull request as the register release that needs it, and leave it: the pair may come back.
 
+## `abbreviations.tsv` — abbreviations in sighting reports, confirmed by a person
+
+Ours: the abbreviations Orca Network's staff and observers use in reports (*PNP* for Point No Point), each with what it means, its kind (`place` or `species`), the gazetteer name a place abbreviation stands for, who confirmed it and when, and the evidence they saw. A row is added only when a person who knows has confirmed it: an abbreviation that could mean two things stays out. Candidates were drawn from a year of Orca Network's published reports (bd `salish-i1a.3.10`). Today only the Facebook demo ([`tools/facebook-demo/places.mjs`](../tools/facebook-demo/places.mjs)) reads it; the reader of sighting text may later.
+
 ## `biggs-ids.tsv` — Bigg's killer whale designations & nicknames
 
 - **Source:** [Bigg's Orca/Killer Whale Nick Names](https://docs.google.com/spreadsheets/d/1fj3sA2R8LGw68-Rxb0dL6jwTKkc4AkhGKuk-jt9zmis/edit?gid=0) (Google Sheet, `gid=0`)

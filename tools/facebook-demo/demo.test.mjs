@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readPost, clockTime, agoToTime, postId, EXPANDERS } from './read.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
-import { placeFinder } from './places.mjs';
+import { placeFinder, readAbbreviations } from './places.mjs';
 import { contextFor, kindOf } from './context.mjs';
 
 const link = (c, r) => `<a href="https://www.facebook.com/groups/1/posts/2/?comment_id=${c}${r ? `&amp;reply_comment_id=${r}` : ''}&amp;__cft__=x">1h</a>`;
@@ -205,9 +205,26 @@ test('the animals a report means but does not name', () => {
   // A post that names animals of two kinds gives none.
   const mixed = [row('l2', 'line', 'J pod and T137s', { reading: { claims: [claim('T137s')], pods: ['J'] } }), rows[1]];
   assert.equal(contextFor(mixed).get('c1'), undefined);
+  // A row that says an animal was absent keeps to what it says, and borrows nothing.
+  const absent = row('c4', 'comment', '12:40 T137A not with them, heading north', { comment_id: '5', clock: '12:40',
+    reading: { claims: [{ code: 'T137A', presence: 'absent', certainty: 'certain' }], direction: 'north' } });
+  assert.equal(contextFor([rows[0], absent]).get('c4'), undefined);
   assert.equal(kindOf('BCY141'), kindOf('BCX1068'));
   assert.equal(kindOf('J27'), kindOf('L119'));
   assert.notEqual(kindOf('T137s'), kindOf('J27'));
+});
+
+test('confirmed abbreviations, and no name across a line break', () => {
+  const place = (name, kind = 'point') => ({ name, kind, lon: -122.5, lat: 47.9, zoom: 11, otherNames: [] });
+  const find = placeFinder([place('Point No Point'), place('Camano Island', 'island'), place('Richmond', 'city')],
+    [{ abbreviation: 'PNP', place: 'Point No Point' }]);
+  const names = (t) => find(t).map((p) => p.name + (p.abbreviation ? ` (${p.abbreviation})` : '') + (p.unknown ? '?' : ''));
+  assert.deepEqual(names('Humpbacks N of PNP SE bound'), ['Point No Point (PNP)']);
+  assert.deepEqual(names('pnp is not it'), []);
+  assert.deepEqual(names('Camano Island\nRichmond Beach'), ['Camano Island', 'Richmond Beach?']);
+  const confirmed = readAbbreviations();
+  assert.ok(confirmed.some((a) => a.abbreviation === 'PNP' && a.place === 'Point No Point'));
+  assert.ok(!confirmed.some((a) => a.abbreviation === 'HB'), 'only place abbreviations');
 });
 
 const pick = ({ added, changed, gone }) => ({ added, changed, gone });

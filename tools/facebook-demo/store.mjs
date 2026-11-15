@@ -21,7 +21,10 @@ export function openStore(path) {
     CREATE INDEX IF NOT EXISTS items_post ON items (post_id, first_seen, seq);
     CREATE TABLE IF NOT EXISTS posts (post_id TEXT PRIMARY KEY, url TEXT NOT NULL, media TEXT);
   `);
-  if (!db.prepare('PRAGMA table_info(items)').all().some((c) => c.name === 'media')) db.exec('ALTER TABLE items ADD COLUMN media TEXT');
+  const columns = db.prepare('PRAGMA table_info(items)').all().map((c) => c.name);
+  if (!columns.includes('media')) db.exec('ALTER TABLE items ADD COLUMN media TEXT');
+  // The version of the row a mark judged (server.mjs): a mark whose row has changed since is not shown.
+  if (!columns.includes('marked_version')) db.exec('ALTER TABLE items ADD COLUMN marked_version TEXT');
   return db;
 }
 

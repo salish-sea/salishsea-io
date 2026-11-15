@@ -42,6 +42,15 @@ const enrich = (text) => {
 
 console.log('rows read again with the current reader:', rereadAll(db, enrich));
 
+// A mark counts only for the version of its row it judged: what the row's text says, how it
+// was read, and what it takes from its post. When any of these change (a new send edits the
+// post's IDs, a better reader reads it again) the mark stops showing and must be made again.
+const currentContext = () => {
+  const standing = standingTexts();
+  return new Map([...Map.groupBy(db.prepare('SELECT * FROM items').all(), (r) => r.post_id).values()].flatMap((rs) => [...contextFor(rs, standing)]));
+};
+const markOf = (r, ctx) => (r.mark && r.marked_version === version(r, ctx) ? r : { mark: null, note: null, marked_by: null });
+
 // --- the bookmarklet ---------------------------------------------------------------
 
 // Sends the open post (a dialog over the feed, or the post's own page), never the whole
@@ -115,15 +124,17 @@ function rowHtml(r, { marks = false, newKeys = new Set(), standing = new Set(), 
   const pods = (reading.pods ?? []).map((p) => esc(p + ' pod'));
   const placeChips = places.map((p) => p.unknown
     ? `<span class="unknown" title="Not in the site's gazetteers, so it can't be put on the map">${esc(p.name)}?</span>`
-    : `<a href="https://salishsea.io${esc(p.href)}" title="${esc(p.kind)} ${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}${p.alike > 1 ? ` (one of ${p.alike} with this name)` : ''}">${esc(p.name)}${p.alike > 1 ? ` ×${p.alike}` : ''}</a>`);
+    : `<a href="https://salishsea.io${esc(p.href)}" title="${esc(p.kind)} ${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}${p.alike > 1 ? ` (one of ${p.alike} with this name)` : ''}">${esc(p.name)}${p.abbreviation ? ` (${esc(p.abbreviation)})` : ''}${p.alike > 1 ? ` ×${p.alike}` : ''}</a>`);
   const when = r.kind === 'line' ? 'post' : r.kind === 'reply' ? `↳ reply` : 'comment';
   const time = new Date(r.first_seen * 1000).toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false });
   const ctx = context.get(r.key);
   const whales = codes.length || pods.length ? chips([...codes, ...pods])
     : ctx ? `${chips(ctx.labels.map(esc), 'ctx')}<div class="muted">from the ${ctx.from === 'post' ? 'post' : 'comment it answers'}</div>` : chips([]);
+  const m = markOf(r, ctx);
+  const stale = r.mark && !m.mark;
   const markCell = marks ? `<td class="mark"><select data-key="${esc(r.key)}" data-v="${version(r, ctx)}" aria-label="Did the reader get it right?">
-${['', 'right', 'partly', 'wrong', 'not a sighting'].map((m) => `<option value="${m}"${(r.mark ?? '') === m ? ' selected' : ''}>${m || '—'}</option>`).join('')}</select>
-<input data-note="${esc(r.key)}" value="${esc(r.note)}" placeholder="note" size="10">${r.marked_by ? `<div class="muted">${esc(r.marked_by)}</div>` : ''}</td>` : '';
+${['', 'right', 'partly', 'wrong', 'not a sighting'].map((o) => `<option value="${o}"${(m.mark ?? '') === o ? ' selected' : ''}>${o || '—'}</option>`).join('')}</select>
+<input data-note="${esc(r.key)}" value="${esc(m.note)}" placeholder="note" size="10">${m.marked_by ? `<div class="muted">${esc(m.marked_by)}</div>` : ''}${stale ? `<div class="muted" title="It was “${esc(r.mark)}” from ${esc(r.marked_by ?? 'someone')}">changed since it was marked</div>` : ''}</td>` : '';
   const href = commentHref(postUrl, r);
   const media = mediaLinks(r.media);
   return `<tr class="${newKeys.has(r.key) ? 'new' : ''}${r.gone ? ' gone' : ''}">
@@ -173,7 +184,7 @@ function stats(rows, context = new Map()) {
   const pct = (k) => `${Math.round((100 * k) / n)}%`;
   const has = (f) => rows.filter(f).length;
   const reading = (r) => JSON.parse(r.reading ?? '{}');
-  const marked = rows.filter((r) => r.mark);
+  const marked = rows.map((r) => markOf(r, context.get(r.key))).filter((m) => m.mark);
   const count = (m) => marked.filter((r) => r.mark === m).length;
   return `<ul class="stats">
 <li><b>${rows.length}</b>lines and comments, besides standing text</li>
@@ -326,8 +337,8 @@ function mark(body) {
   if (!row) return [404, 'no such row'];
   const ctx = contextFor(db.prepare('SELECT * FROM items WHERE post_id = ?').all(row.post_id), standingTexts()).get(row.key);
   if (v !== version(row, ctx)) return [409, 'the text or its reading has changed'];
-  db.prepare('UPDATE items SET mark = ?, note = ?, marked_by = ?, marked_at = ? WHERE key = ?')
-    .run(mark || null, String(note ?? '').slice(0, 500) || null, String(who ?? '').slice(0, 60) || null, Math.floor(Date.now() / 1000), String(key));
+  db.prepare('UPDATE items SET mark = ?, note = ?, marked_by = ?, marked_at = ?, marked_version = ? WHERE key = ?')
+    .run(mark || null, String(note ?? '').slice(0, 500) || null, String(who ?? '').slice(0, 60) || null, Math.floor(Date.now() / 1000), mark ? v : null, String(key));
   return [204, ''];
 }
 
@@ -346,10 +357,11 @@ function csv() {
   const lines = items.map((r) => {
     const reading = JSON.parse(r.reading ?? '{}');
     const ctx = context.get(r.key);
+    const m = markOf(r, ctx);
     const row = { ...r, est_time: iso(r.est_time), first_seen: iso(r.first_seen), last_seen: iso(r.last_seen),
       whales: (reading.claims ?? []).map(claimLabel).join(' '), pods: (reading.pods ?? []).join(' '), direction: reading.direction,
       behaviour: (reading.behaviour ?? []).join(' '), media: JSON.parse(r.media ?? '[]').join(' '), post_media: postMedia.get(r.post_id) ?? '',
-      whales_from_context: ctx?.labels.join(' ') ?? '', context_from: ctx?.from ?? '', places: JSON.parse(r.places ?? '[]').map((p) => (p.unknown ? `${p.name} (unknown)` : `${p.name} (${p.lat.toFixed(4)}, ${p.lon.toFixed(4)})`)).join('; ') };
+      whales_from_context: ctx?.labels.join(' ') ?? '', context_from: ctx?.from ?? '', mark: m.mark, note: m.note, marked_by: m.marked_by, places: JSON.parse(r.places ?? '[]').map((p) => (p.unknown ? `${p.name} (unknown)` : `${p.name} (${p.lat.toFixed(4)}, ${p.lon.toFixed(4)})`)).join('; ') };
     return cols.map((c) => q(row[c])).join(',');
   });
   return [cols.join(','), ...lines].join('\r\n');
@@ -362,6 +374,13 @@ async function body(req, limit = 64 * 1024) {
     if (s.length > limit) throw Object.assign(new Error('too large'), { status: 413 });
   }
   return s;
+}
+
+{
+  // Marks made before versions were kept judged the row as it is now.
+  const ctx = currentContext();
+  for (const r of db.prepare('SELECT * FROM items WHERE mark IS NOT NULL AND marked_version IS NULL').all())
+    db.prepare('UPDATE items SET marked_version = ? WHERE key = ?').run(version(r, ctx.get(r.key)), r.key);
 }
 
 createServer(async (req, res) => {
