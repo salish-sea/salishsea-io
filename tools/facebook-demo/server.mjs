@@ -29,7 +29,7 @@ const SENDS_PER_10_MIN = 30;
 // Which wording, and which reading of it, a mark judged: a mark sent for an older version
 // than the row now has is refused, whether the text changed, the reader did, or the animals
 // the row takes from its post.
-const version = (r, info = {}) => createHash('sha1').update(JSON.stringify([r.text, r.clock, r.reading, r.places, info.ctx ?? null, info.kind ?? null, info.staffTime ?? null])).digest('hex').slice(0, 12);
+const version = (r, info = {}) => createHash('sha1').update(JSON.stringify([r.text, r.clock, r.reading, r.places, info.ctx ?? null, info.kind ?? null, info.staffTime ?? null, info.title?.kind ?? null, info.title?.date ?? null])).digest('hex').slice(0, 12);
 // How the page and the CSV write the reader's whale identifiers: "T65A?" possible, "(absent)" said not to be there.
 const claimLabel = (c) => c.code + (c.presence === 'absent' ? ' (absent)' : c.certainty !== 'certain' ? '?' : '');
 

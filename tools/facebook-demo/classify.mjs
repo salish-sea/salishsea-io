@@ -12,6 +12,8 @@ export const REPORT_KINDS = new Set(['report']);
 
 const TIME_THEN_DASH = /^\W*(?:\d{1,2}[:.]\d{2}|\d{3,4})\s*(?:[ap]\.?m\.?)?\s*[-–—]/i;
 const STAFF = /^orca network$/i;
+// A text that starts with a time: "1150", "11:30", "11:30am", "11am".
+const STARTS_WITH_TIME = /^\W*(?:\d{1,2}[:.]?\d{2}|\d{1,2}\s*[ap]\.?m\.?)(?![\d])/i;
 // Words that say something was seen, so a row using them is a report even when the reader
 // finds no place or time in it ("Just saw his blow directly out from stamm").
 const SEEN = /\b(see|seen|saw|seeing|visible|fins?|blows?|breach\w*|spotted|surfac\w*|spyhop\w*|tail ?slap\w*|fluke\w*|dorsals?|viewing|watching)\b/i;
@@ -56,9 +58,10 @@ export function classifyPost(rows, standing = new Set()) {
     else if (r === first) k = 'title';
     else if (/^\W*(big |huge |many )?(thanks|thank you|appreciations|shout ?out)/i.test(r.text)) k = 'thanks';
     else if (/^\W*edit\b/i.test(r.text)) k = 'staff edit';
-    else if (TIME_THEN_DASH.test(r.text)) k = 'report';
+    // A detection is a detection even when it starts with its time ("11:30 - calls loud and clear").
     else if (WEBCAM.test(r.text)) k = 'webcam';
     else if (HYDROPHONE.test(r.text) && !SEEN.test(r.text)) k = 'hydrophone';
+    else if (TIME_THEN_DASH.test(r.text)) k = 'report';
     else if (afterReport && r.text.split(/\s+/).length <= 6 && !/\d/.test(r.text) && !says(r) && !SEEN.test(r.text)) k = 'credit';
     else k = says(r) || SEEN.test(r.text) ? 'report' : 'note';
     afterReport = k === 'report' || (afterReport && k === 'credit');
@@ -77,7 +80,7 @@ export function classifyPost(rows, standing = new Set()) {
     else if (staffTime(r)) k = 'staff time';
     // A question, even one that gives a time ("Were they off Camano at 11:30?"); but a report
     // that starts with its time and ends by asking something ("1150 northbound, any IDs?") is a report.
-    else if (/\?/.test(t) && !/^\W*\d{1,2}[:.]?\d{2}\b/.test(t)) k = 'question';
+    else if (/\?/.test(t) && !STARTS_WITH_TIME.test(t)) k = 'question';
     else if (/\b(no sign|nothing seen|nothing yet|haven'?t seen|have not seen|not seeing|no visuals?|no luck|lost (sight|them))\b/i.test(t)) k = 'nothing seen';
     else if (WEBCAM.test(t)) k = 'webcam';
     else if (HYDROPHONE.test(t) && !SEEN.test(t)) k = 'hydrophone';
