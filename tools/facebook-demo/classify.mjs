@@ -20,12 +20,15 @@ const SEEN = /\b(see|seen|saw|seeing|visible|fins?|blows?|breach\w*|spotted|surf
 const HYDROPHONE = /\b(calls?|calling|hydro(phone)?s?|audible|vocals?|vocalizing|clicks|echolocation|heard)\b/i;
 const WEBCAM = /\b(live ?stream|webcam|web cam|cam)\b/i;
 
-/** The name a reply starts with: the person it answers, as Facebook writes it. */
-export function stripMention(text, names) {
+/** The name a reply starts with (the person it answers, as Facebook writes it) and the text after it. */
+export function mentionOf(text, names) {
   const sorted = [...new Set(names)].filter(Boolean).sort((a, b) => b.length - a.length);
-  for (const n of sorted) if (text.startsWith(n) && /^[\s,:–—-]/.test(text.slice(n.length))) return text.slice(n.length).replace(/^[\s,:–—-]+/, '');
-  return text;
+  for (const n of sorted) if (text.startsWith(n) && /^[\s,:–—-]/.test(text.slice(n.length))) return { name: n, rest: text.slice(n.length).replace(/^[\s,:–—-]+/, '') };
+  return { name: null, rest: text };
 }
+
+/** A reply's text without the name it starts with. */
+export const stripMention = (text, names) => mentionOf(text, names).rest;
 
 /** A staff reply giving a comment the time it lacked: "thanks! time, 9:22", "time 1:15pm". */
 export function staffTime(row) {
@@ -72,7 +75,8 @@ export function classifyPost(rows, standing = new Set()) {
   const byId = new Map(rows.filter((r) => r.comment_id).map((r) => [r.comment_id, r]));
   const names = rows.map((r) => r.author).filter(Boolean);
   for (const r of rows.filter((r) => r.kind !== 'line')) {
-    const t = stripMention(r.text, names);
+    // A link's query string ("salishsea.io/?d=…") is not a question mark.
+    const t = stripMention(r.text, names).replace(/\bhttps?:\/\/\S+/g, '');
     const parent = r.reply_to ? byId.get(r.reply_to) : null;
     let k;
     if (standing.has(r.text)) k = 'standing';

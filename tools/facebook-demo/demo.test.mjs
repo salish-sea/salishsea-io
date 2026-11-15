@@ -9,6 +9,7 @@ import { placeFinder, readAbbreviations, readFerryRoutes } from './places.mjs';
 import { contextFor, kindOf } from './context.mjs';
 import { classifyPost, stripMention, staffTime } from './classify.mjs';
 import { parseTitle } from './title.mjs';
+import { threadFor } from './thread.mjs';
 
 const link = (c, r) => `<a href="https://www.facebook.com/groups/1/posts/2/?comment_id=${c}${r ? `&amp;reply_comment_id=${r}` : ''}&amp;__cft__=x">1h</a>`;
 const post = ({ extraLine = '', commentText = '1145 Exiting Port Susan close to Camano. Currently SB.', collapsed = true } = {}) => `
@@ -342,6 +343,69 @@ test('a send that adds a name to the thread reads the thread again', () => {
   assert.equal(db.prepare("SELECT places FROM items WHERE key = 'c:2'").get().places, '[{"name":"Dana Passage"}]');
   recordSend(db, { at: 2, sender: 'T', postId: '4', url: 'u', title: 't', bytes: 1, read: readPost(later), agoToTime, enrich });
   assert.equal(db.prepare("SELECT places FROM items WHERE key = 'c:2'").get().places, '[]');
+});
+
+test('a report gains what its author adds in replies, and what a question they answer "yes" proposed', () => {
+  let n = 0;
+  const row = (kind, author, text, extra = {}) => ({ key: `t${++n}`, kind, author, text, seq: n, first_seen: 1000 + n, gone: 0, comment_id: String(n), reply_to: null, clock: null,
+    ...extra, reading: JSON.stringify(extra.reading ?? {}), places: JSON.stringify(extra.places ?? []) });
+  const stamm = { name: 'Stamm', unknown: true };
+  const ferry = { name: 'Mukilteo–Clinton ferry', lat: 47.96, lon: -122.33 };
+  const rows = [
+    row('line', null, 'Thursday, November 12th - ORCAS (Possession Sound)'),
+    row('comment', 'Pat Example', '0900 two humpbacks south of Point No Point', { clock: '09:00', places: [{ name: 'Point No Point', lat: 47.91, lon: -122.53 }] }),
+    row('reply', 'Pat Example', 'Viewing from stamm', { reply_to: '2', places: [stamm] }),
+    row('reply', 'Lee Listener', 'Pat Example east of the yellow buoy 11am', { reply_to: '2', clock: '11:00', reading: { direction: 'east' } }),
+    row('comment', 'Sam Sample', 'They just headed through the ferry lanes, at least 11 of them. 8:57', { clock: '08:57' }),
+    row('reply', 'Orca Network', 'Sam Sample did you see them traveling south through the Clinton-Mukilteo ferry lanes??', { reply_to: '5', reading: { direction: 'south' }, places: [ferry] }),
+    row('reply', 'Sam Sample', 'Orca Network yes.', { reply_to: '5' }),
+    row('comment', 'Kim Watcher', '16:00 still visible from the lighthouse', { clock: '16:00' }),
+    row('reply', 'Chris Q', 'Kim Watcher are they going north or south?', { reply_to: '8', reading: { direction: 'north' } }),
+    row('reply', 'Kim Watcher', 'Chris Q yes', { reply_to: '8' }),
+    row('comment', 'Jo Boat', '9:05 just getting on scene with southbound orcas', { clock: '09:05', reading: { direction: 'south' } }),
+    row('reply', 'Jo Boat', 'Js so far', { reply_to: '11', reading: { pods: ['J'] } }),
+    row('reply', 'Lee Listener', 'Kim Watcher the park is just south of the point https://salishsea.io/?d=2026-11-08&x=1', { reply_to: '8' }),
+    row('reply', 'Mo Other', 'Jo Boat thanks!', { reply_to: '11' }),
+    row('reply', 'Jo Boat', '09:10 still visible heading south', { reply_to: '11', clock: '09:10', reading: { direction: 'south' } }),
+    row('comment', 'Ana Shore', 'Orcas off the point heading south'),
+    row('reply', 'Ana Shore', '12:20 no sign of them', { reply_to: '16', clock: '12:20' }),
+    row('comment', 'Bo Beach', 'Orcas off the lighthouse', { places: [{ name: 'Lime Kiln Point', lat: 48.52, lon: -123.15 }] }),
+    row('reply', 'Orca Network', 'Bo Beach were they heading south at 09:00?', { reply_to: '18', clock: '09:00', reading: { direction: 'south' } }),
+    row('reply', 'Bo Beach', 'Orca Network yes, at 09:30', { reply_to: '18', clock: '09:30' }),
+    row('reply', 'Lee Listener', '10:15 seeing orcas from the park, heading north', { reply_to: '11', clock: '10:15', reading: { direction: 'north' } }),
+    row('comment', 'Cy Ferry', 'Orcas off the dock, no Js', { reading: { claims: [{ code: 'J', presence: 'absent', certainty: 'certain' }] }, places: [{ name: 'Edmonds', lat: 47.8, lon: -122.4 }] }),
+    row('reply', 'Cy Ferry', 'Ks so far', { reply_to: '22', reading: { pods: ['K'] } }),
+    row('comment', 'Di Point', 'Orcas off the bluff', { places: [{ name: 'Point Robinson', lat: 47.39, lon: -122.37 }] }),
+    row('reply', 'Orca Network', 'Di Point heading south?', { reply_to: '24', reading: { direction: 'south' } }),
+    row('reply', 'Di Point', 'Orca Network yes, lost sight of them now', { reply_to: '24' }),
+    row('reply', 'Cy Ferry', '11:05 still heading north', { reply_to: '22', clock: '11:05', reading: { direction: 'north' } }),
+  ];
+  const { kinds } = classifyPost(rows);
+  assert.equal(kinds.get('t13'), 'talk'); // a link's "?" is not a question
+  const reports = new Set(rows.filter((r) => kinds.get(r.key) === 'report').map((r) => r.key));
+  const t = threadFor(rows, kinds, reports);
+  // Their own reply adds a place; someone else's buoy and 11am are not theirs.
+  assert.deepEqual(t.get('t2'), { clock: null, direction: null, places: [stamm], animals: [], from: ['t3'] });
+  // "yes" confirms the heading and place the staff's question proposed.
+  assert.deepEqual(t.get('t5'), { clock: null, direction: 'south', places: [ferry], animals: [], from: ['t7'] });
+  // A "yes" to "north or south?" confirms nothing.
+  assert.equal(t.get('t8'), undefined);
+  // "Js so far" names the animals of a report that named none, ahead of the post's.
+  assert.deepEqual(t.get('t11').animals, ['J pod']);
+  const ctx = contextFor([...rows, row('line', null, 'EDIT W/ IDs - T137s', { reading: { claims: [{ code: 'T137s', presence: 'present', certainty: 'certain' }] } })], new Set(), reports, t);
+  assert.deepEqual(ctx.get('t11'), { labels: ['J pod'], from: 'reply' });
+  // A later reply means the animals its comment gained, not the post's.
+  assert.deepEqual(ctx.get('t15'), { labels: ['J pod'], from: 'reply' });
+  // Someone else's reply may be about other animals: it takes the post's, not the thread's.
+  assert.deepEqual(ctx.get('t21'), { labels: ['T137s'], from: 'post' });
+  // "No sign of them" gives no time; a "yes" with its own time keeps it over the question's.
+  assert.equal(t.get('t16'), undefined);
+  assert.equal(t.get('t18').clock, '09:30');
+  assert.equal(t.get('t18').direction, 'south');
+  // A comment that rules animals out gains none; a "yes" filed as "nothing seen" still confirms.
+  assert.deepEqual(t.get('t22').animals, []);
+  assert.equal(ctx.get('t27'), undefined); // and its replies don't take the post's T137s
+  assert.equal(t.get('t24').direction, 'south');
 });
 
 const pick = ({ added, changed, gone }) => ({ added, changed, gone });

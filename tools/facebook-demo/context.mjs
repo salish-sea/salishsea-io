@@ -26,7 +26,7 @@ export function kindOf(code) {
 }
 
 /** Whether a row's text names any animal, present or absent: such a row keeps to what it says. */
-function namesAny(row) {
+export function namesAny(row) {
   const reading = JSON.parse(row.reading ?? '{}');
   return !!(reading.claims?.length || reading.pods?.length);
 }
@@ -39,11 +39,13 @@ function saysSighting(row) {
 
 /**
  * For one post's rows, the animals each row means but doesn't name, by row key:
- * { labels, from: 'post' | 'comment' }. Only rows that say something a sighting says get
- * one: "Thank you" means no animals. `standing` is the set of standing texts to skip;
- * `eligible`, if given, the keys of the rows that are reports.
+ * { labels, from: 'post' | 'comment' | 'reply' }. Only rows that say something a sighting
+ * says get one: "Thank you" means no animals. `standing` is the set of standing texts to
+ * skip; `eligible`, if given, the keys of the rows that are reports; `thread`, if given,
+ * threadFor's result: a comment that names no animals takes those its author names in
+ * replies ("Js so far") before the post's, and so do its author's other replies, from: 'reply'.
  */
-export function contextFor(rows, standing = new Set(), eligible = null) {
+export function contextFor(rows, standing = new Set(), eligible = null, thread = new Map()) {
   const live = rows.filter((r) => !standing.has(r.text));
   const postNames = live.filter((r) => r.kind === 'line' && !r.gone).flatMap(ownNames);
   const kinds = new Set(postNames.map((n) => n.kind));
@@ -55,8 +57,14 @@ export function contextFor(rows, standing = new Set(), eligible = null) {
     // Only a report borrows (classify.mjs): a question or a credit line means no animals.
     if ((eligible && !eligible.has(r.key)) || namesAny(r) || !saysSighting(r)) continue;
     const parent = r.kind === 'reply' ? byComment.get(r.reply_to) : null;
+    // A reply under a comment that rules animals out ("no Js") keeps to that: it borrows none.
+    if (parent && namesAny(parent) && !ownNames(parent).length) continue;
     const parentNames = parent ? [...new Set(ownNames(parent).map((n) => n.label))] : [];
+    // What the comment's author named in its thread: for the comment itself, and for the
+    // author's own other replies. Someone else's reply may be about other animals.
+    const replyNames = (parent ? (parent.author === r.author && !namesAny(parent) ? thread.get(parent.key)?.animals : null) : thread.get(r.key)?.animals) ?? [];
     if (parentNames.length) out.set(r.key, { labels: parentNames, from: 'comment' });
+    else if (replyNames.length) out.set(r.key, { labels: replyNames, from: 'reply' });
     else if (fromPost.length) out.set(r.key, { labels: fromPost, from: 'post' });
   }
   return out;
