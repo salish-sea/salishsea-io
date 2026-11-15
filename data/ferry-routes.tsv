@@ -1,0 +1,14 @@
+name	route	terminals	source
+Edmonds	Edmonds–Kingston	Edmonds|Kingston	Peter, 2026-11-15: "Kingston Ferry usually means a ferry from Edmonds to Kingston"
+Kingston	Edmonds–Kingston	Edmonds|Kingston	Peter, 2026-11-15
+Mukilteo	Mukilteo–Clinton	Mukilteo Ferry Terminal|Clinton	WSDOT route map, https://wsdot.wa.gov/sites/default/files/2021-04/WashingtonStateFerries-RouteMap.pdf
+Clinton	Mukilteo–Clinton	Mukilteo Ferry Terminal|Clinton	WSDOT route map, https://wsdot.wa.gov/sites/default/files/2021-04/WashingtonStateFerries-RouteMap.pdf
+Fauntleroy	Fauntleroy–Vashon–Southworth	Fauntleroy|Vashon Island|Southworth	WSDOT route map, https://wsdot.wa.gov/sites/default/files/2021-04/WashingtonStateFerries-RouteMap.pdf
+Vashon	Fauntleroy–Vashon–Southworth	Fauntleroy|Vashon Island|Southworth	WSDOT route map, https://wsdot.wa.gov/sites/default/files/2021-04/WashingtonStateFerries-RouteMap.pdf
+Southworth	Fauntleroy–Vashon–Southworth	Fauntleroy|Vashon Island|Southworth	WSDOT route map, https://wsdot.wa.gov/sites/default/files/2021-04/WashingtonStateFerries-RouteMap.pdf
+Point Defiance	Point Defiance–Tahlequah	Point Defiance|Tahlequah	WSDOT route map, https://wsdot.wa.gov/sites/default/files/2021-04/WashingtonStateFerries-RouteMap.pdf
+Tahlequah	Point Defiance–Tahlequah	Point Defiance|Tahlequah	WSDOT route map, https://wsdot.wa.gov/sites/default/files/2021-04/WashingtonStateFerries-RouteMap.pdf
+Port Townsend	Port Townsend–Coupeville	Port Townsend|Coupeville	WSDOT route map, https://wsdot.wa.gov/sites/default/files/2021-04/WashingtonStateFerries-RouteMap.pdf
+Coupeville	Port Townsend–Coupeville	Port Townsend|Coupeville	WSDOT route map, https://wsdot.wa.gov/sites/default/files/2021-04/WashingtonStateFerries-RouteMap.pdf
+Bainbridge	Seattle–Bainbridge	Seattle|Bainbridge	WSDOT route map, https://wsdot.wa.gov/sites/default/files/2021-04/WashingtonStateFerries-RouteMap.pdf
+Bremerton	Seattle–Bremerton	Seattle|Bremerton	WSDOT route map, https://wsdot.wa.gov/sites/default/files/2021-04/WashingtonStateFerries-RouteMap.pdf

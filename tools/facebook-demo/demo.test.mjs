@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readPost, clockTime, agoToTime, postId, EXPANDERS } from './read.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
-import { placeFinder, readAbbreviations } from './places.mjs';
+import { placeFinder, readAbbreviations, readFerryRoutes } from './places.mjs';
 import { contextFor, kindOf } from './context.mjs';
 
 const link = (c, r) => `<a href="https://www.facebook.com/groups/1/posts/2/?comment_id=${c}${r ? `&amp;reply_comment_id=${r}` : ''}&amp;__cft__=x">1h</a>`;
@@ -225,6 +225,24 @@ test('confirmed abbreviations, and no name across a line break', () => {
   const confirmed = readAbbreviations();
   assert.ok(confirmed.some((a) => a.abbreviation === 'PNP' && a.place === 'Point No Point'));
   assert.ok(!confirmed.some((a) => a.abbreviation === 'HB'), 'only place abbreviations');
+});
+
+test('a named ferry is its route, and a ferry terminal is the terminal', () => {
+  const t = (name, lon, lat) => ({ name, kind: 'ferry_terminal', lon, lat, zoom: 13, otherNames: [] });
+  const town = (name) => ({ name, kind: 'town', lon: -122.49, lat: 47.79, zoom: 12, otherNames: [] });
+  const find = placeFinder([t('Edmonds', -122.385, 47.813), t('Kingston', -122.495, 47.795), town('Kingston'), { name: 'Point Jefferson', kind: 'point', lon: -122.473, lat: 47.748, zoom: 13, otherNames: [] }],
+    [{ abbreviation: 'Jeff Head', place: 'Point Jefferson' }],
+    [{ name: 'Kingston', route: 'Edmonds–Kingston', terminals: ['Edmonds', 'Kingston'] }, { name: 'Edmonds', route: 'Edmonds–Kingston', terminals: ['Edmonds', 'Kingston'] }]);
+  const names = (txt) => find(txt).map((p) => p.name + (p.unknown ? '?' : ''));
+  assert.deepEqual(names('humpback north of the Kingston Ferry'), ['Edmonds–Kingston ferry']);
+  assert.deepEqual(names('seen from the Edmonds ferry and the Kingston ferry'), ['Edmonds–Kingston ferry']);
+  assert.deepEqual(names('at the Kingston ferry terminal'), ['Kingston']);
+  assert.deepEqual(names('at the Kingston Ferry Terminal'), ['Kingston']);
+  assert.deepEqual(names('the Kingston ferry docking at Edmonds'), ['Edmonds–Kingston ferry', 'Edmonds']);
+  assert.deepEqual(names('midchannel off E Jeff Head!'), ['Point Jefferson']);
+  const route = find('the Kingston ferry')[0];
+  assert.deepEqual(route.line, [[-122.385, 47.813], [-122.495, 47.795]]);
+  assert.ok(readFerryRoutes().some((r) => r.name === 'Clinton' && r.route === 'Mukilteo–Clinton'));
 });
 
 const pick = ({ added, changed, gone }) => ({ added, changed, gone });

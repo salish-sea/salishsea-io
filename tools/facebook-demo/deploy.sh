@@ -25,7 +25,7 @@ case "${1:-deploy}" in
 deploy)
   remote "mkdir -p $APP/tools $DATA $WEB && chmod 700 $DATA"
   rsync -a --delete src/ "$HOST:fb-demo/src/"
-  remote "mkdir -p $APP/data" && rsync -a data/abbreviations.tsv "$HOST:fb-demo/data/"
+  remote "mkdir -p $APP/data" && rsync -a data/abbreviations.tsv data/ferry-routes.tsv "$HOST:fb-demo/data/"
   rsync -a --delete --exclude node_modules --exclude data tools/facebook-demo/ "$HOST:fb-demo/tools/facebook-demo/"
   remote "cd $APP/tools/facebook-demo && PATH=\$(dirname $NODE):\$PATH ~/.local/bin/pnpm install --frozen-lockfile --prod >/dev/null"
   # src/ looks for its packages (temporal-polyfill) beside itself, not in this folder.
