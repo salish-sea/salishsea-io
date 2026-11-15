@@ -237,6 +237,8 @@ test('a named ferry is its route, and a ferry terminal is the terminal', () => {
   assert.deepEqual(names('humpback north of the Kingston Ferry'), ['Edmonds–Kingston ferry']);
   assert.deepEqual(names('seen from the Edmonds ferry and the Kingston ferry'), ['Edmonds–Kingston ferry']);
   assert.deepEqual(names('at the Kingston ferry terminal'), ['Kingston']);
+  assert.deepEqual(names('at the Kingston Ferry Terminal'), ['Kingston']);
+  assert.deepEqual(names('the Kingston ferry docking at Edmonds'), ['Edmonds–Kingston ferry', 'Edmonds']);
   assert.deepEqual(names('midchannel off E Jeff Head!'), ['Point Jefferson']);
   const route = find('the Kingston ferry')[0];
   assert.deepEqual(route.line, [[-122.385, 47.813], [-122.495, 47.795]]);

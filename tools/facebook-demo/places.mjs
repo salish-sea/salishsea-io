@@ -62,7 +62,7 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
     // "Kingston ferry" is the boat on the Edmonds–Kingston route, so somewhere along that
     // crossing, not the town; "Kingston ferry terminal" or "dock" is the terminal itself.
     for (const f of routes) {
-      const re = new RegExp(`(?<![\\p{L}])${escape(f.name)}[ \\t]+ferr(?:y|ies)(?![ \\t]+(?:terminal|dock))(?![\\p{L}])`, 'giu');
+      const re = new RegExp(`(?<![\\p{L}])${escape(f.name)}[ \\t]+ferr(?:y|ies)(?![ \\t]+(?:terminal|dock)(?![\\p{L}]))(?![\\p{L}])`, 'giu');
       const spans = [...text.matchAll(re)].map((m) => [m.index, m.index + m[0].length]).filter(([a, b]) => !overlaps(a, b));
       if (!spans.length) continue;
       taken.push(...spans); // every mention, even of a route already found by its other terminal
@@ -70,6 +70,15 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
       const lon = f.ends.reduce((a, e) => a + e.lon, 0) / f.ends.length, lat = f.ends.reduce((a, e) => a + e.lat, 0) / f.ends.length;
       found.push({ key: `route:${f.route}`, name: `${f.route} ferry`, kind: 'ferry route', route: f.route, line: f.ends.map((e) => [e.lon, e.lat]),
         lon, lat, href: placeHref({ lon, lat, zoom: 11 }), alike: 1 });
+    }
+    // "Kingston Ferry Terminal" or "dock": the terminal, before it can look like an unknown name.
+    for (const t of places.filter((p) => p.kind === 'ferry_terminal')) {
+      const re = new RegExp(`(?<![\\p{L}])${escape(t.name)}[ \\t]+ferr(?:y|ies)[ \\t]+(?:terminal|dock)(?![\\p{L}])`, 'giu');
+      const spans = [...text.matchAll(re)].map((m) => [m.index, m.index + m[0].length]).filter(([a, b]) => !overlaps(a, b));
+      if (!spans.length) continue;
+      taken.push(...spans);
+      const key = words(t.name);
+      if (!found.some((x) => x.key === key)) found.push({ key, ...known(t, byName.get(key) ?? [t]) });
     }
     // A confirmed abbreviation, in capitals as written: "PNP" for Point No Point.
     for (const { abbreviation, place } of abbreviations) {
