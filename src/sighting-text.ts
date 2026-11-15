@@ -87,7 +87,7 @@ export function readSighting(body: string): Reading {
 // only touching it ("t46s", "crc22"), or "crc " before one, so a word ending in t or l
 // before a number is not read as a code. A suffix is at most three letter groups ("A1B2s"),
 // so words run together ("T49A1Southbound") are not one.
-const CODE = /\b(?:([TJKL]|CRC|BCX)\s?-?\s?|([tjkl]|[Cc]rc\s?)(?=\d))?(\d{1,5})(?:-?((?:[A-Za-z]\d*){1,3}))?(s)?\b/g;
+const CODE = /\b(?:([TJKL]|CRC|BC[XYZ])\s?-?\s?|([tjkl]|[Cc]rc\s?)(?=\d))?(\d{1,5})(?:-?((?:[A-Za-z]\d*){1,3}))?(s)?\b/g;
 // What may stand between two codes of one list, so a code without its letter takes the letter of the one before.
 const LIST_GAP = /^\s*(?:(?:[,\/&+]|and)\s*)+$/i;
 // "Biggs 36Bs": a code without its letter right after the ecotype's name is a Bigg's code.
@@ -125,7 +125,7 @@ const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
 // A question asked with an auxiliary and a pronoun is one even without its "?" ("Isn't
 // it T65A, that's for sure"): it never makes its codes absent.
 const SENTENCE_END = String.raw`[;!]|(?<!\.|\b[ie]\.[eg]|\b(?:Pt|Mt|St|Ft|Is|Mr|Dr|No|approx|ca|vs))\.(?!\.)(?=\s+[A-Z]|\s*$)`;
-const QUESTION = new RegExp(String.raw`^(?:(?!\b[Bb]ut\b|${SENTENCE_END}|,(?!\s*(?:[Oo]r|[Aa]nd|[Nn]or|&)\b|\s*(?:[TJKL]|CRC|BCX)\s?-?\d))[^?])*\?`);
+const QUESTION = new RegExp(String.raw`^(?:(?!\b[Bb]ut\b|${SENTENCE_END}|,(?!\s*(?:[Oo]r|[Aa]nd|[Nn]or|&)\b|\s*(?:[TJKL]|CRC|BC[XYZ])\s?-?\d))[^?])*\?`);
 const QUESTION_SENTENCE = new RegExp(String.raw`^(?:(?!${SENTENCE_END})[^?])*\?`);
 const ASKS = /^(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\s+(?:it|that|this|these|those|they|he|she|you)\b/i;
 // A code with "'s" is a possessive when a word for the animal's kin, body, range or habits
