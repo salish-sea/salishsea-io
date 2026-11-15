@@ -38,6 +38,8 @@ export function placeFinder(places) {
   return (text) => {
     const hay = ` ${words(text)} `;
     const found = [];
+    const taken = []; // [start, end) of each mention already accounted for
+    const overlaps = (a, b) => taken.some(([s, e]) => a < e && s < b);
     // A name the text gives that ends in a word for a kind of place ("Richmond Beach") but
     // that the gazetteers lack is shown as unknown, not as a shorter name inside it ("Richmond").
     for (const m of text.matchAll(NAMED_PLACE)) {
@@ -46,17 +48,24 @@ export function placeFinder(places) {
       // "Hugging Camano Island", "North Pender Island". The known names are found below.
       if (name.some((_, i) => byName.has(words(name.slice(i).join(' '))))) continue;
       // A capitalised word before an unknown name is often the start of a sentence: "Off Richmond Beach".
-      while (name.length > 2 && LEADING.has(name[0].toLowerCase())) name.shift();
+      let dropped = 0;
+      while (name.length > 2 && LEADING.has(name[0].toLowerCase())) dropped += name.shift().length + 1;
+      taken.push([m.index + dropped, m.index + m[0].length]);
       const key = words(name.join(' '));
       if (found.some((f) => f.key === key)) continue;
       found.push({ key, name: name.join(' '), unknown: true });
     }
     for (const key of keys) {
       if (!hay.includes(` ${key} `)) continue;
+      // A mention counts unless a longer name already covers it ("Camano" in "Camano Head",
+      // "Richmond" in "Richmond Beach"); another mention of it elsewhere in the text still counts.
       // One word must be capitalised in the text, as a name is: "Camano", not "point".
-      if (!key.includes(' ') && !capitalised(text, key)) continue;
-      // A name inside a longer one already found ("Camano" in "Camano Head") is the same mention.
-      if (found.some((f) => ` ${f.key} `.includes(` ${key} `))) continue;
+      const spans = [...text.matchAll(mentionOf(key))]
+        .filter((m) => key.includes(' ') || /\p{Lu}/u.test(m[0][0]))
+        .map((m) => [m.index, m.index + m[0].length])
+        .filter(([a, b]) => !overlaps(a, b));
+      if (!spans.length) continue;
+      taken.push(...spans);
       const where = byName.get(key);
       const p = where[0];
       found.push({ key, name: p.name, kind: p.kind, lon: p.lon, lat: p.lat, href: placeHref(p), alike: where.length });
@@ -66,19 +75,23 @@ export function placeFinder(places) {
   };
 }
 
+// The text's mentions of a name, as words() reads it: any punctuation between its words,
+// and an apostrophe allowed inside one ("Smiths" is "Smith's").
+function mentionOf(key) {
+  const word = (w) => [...w].map(escape).join("['’]?");
+  return new RegExp(`(?<![\\p{L}\\p{N}])${key.split(' ').map(word).join('[^\\p{L}\\p{N}]+')}(?![\\p{L}\\p{N}])`, 'giu');
+}
+
 // One to three capitalised words, then a word for a kind of place: capitalised, or in lower
 // case if it nearly always ends a name ("Boston harbor"), but not "ferry" or "dock", which
 // often follow a town's name ("Clinton ferry").
 const KINDS = 'Beach|Point|Pt|Bay|Park|Head|Harbor|Harbour|Island|Spit|Reef|Rocks?|Light|Lighthouse|Pass|Passage|Narrows|Cove|Inlet|Landing|Marina|Pier|Dock|Creek|River|Lagoon|Ferry|Terminal|Sound|Channel|Strait|Lake';
 const LOWER_KINDS = 'beach|point|bay|head|harbor|harbour|island|spit|reef|passage|narrows|cove|inlet|lagoon|sound|channel|strait';
-const NAMED_PLACE = new RegExp(`(?<![\\p{L}])(?:\\p{Lu}[\\p{L}'’.]*\\s+){1,3}(?:${KINDS}|${LOWER_KINDS})(?![\\p{L}])`, 'gu');
+// A full stop ends a sentence, so it can't join two names ("Richmond Beach. Alki Point."),
+// except in "St.".
+const NAMED_PLACE = new RegExp(`(?<![\\p{L}])(?:(?:St\\.|\\p{Lu}[\\p{L}'’]*)\\s+){1,3}(?:${KINDS}|${LOWER_KINDS})(?![\\p{L}])`, 'gu');
 
 const LEADING = new Set(['off', 'at', 'near', 'in', 'on', 'from', 'by', 'of', 'the', 'to', 'past', 'around', 'toward', 'towards', 'between', 'just', 'north', 'south', 'east', 'west', 'heading', 'headed', 'passing', 'leaving', 'entering', 'inside', 'outside', 'and', 'still', 'now']);
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-function capitalised(text, key) {
-  const re = new RegExp(`(?<![\\p{L}\\p{N}])${escape(key)}(?![\\p{L}\\p{N}])`, 'giu');
-  for (const m of text.matchAll(re)) if (/\p{Lu}/u.test(m[0][0])) return true;
-  return false;
-}

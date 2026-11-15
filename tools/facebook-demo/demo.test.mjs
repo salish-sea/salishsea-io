@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readPost, clockTime, agoToTime, postId, EXPANDERS } from './read.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
 import { placeFinder } from './places.mjs';
+import { contextFor, kindOf } from './context.mjs';
 
 const link = (c, r) => `<a href="https://www.facebook.com/groups/1/posts/2/?comment_id=${c}${r ? `&amp;reply_comment_id=${r}` : ''}&amp;__cft__=x">1h</a>`;
 const post = ({ extraLine = '', commentText = '1145 Exiting Port Susan close to Camano. Currently SB.', collapsed = true } = {}) => `
@@ -174,6 +175,39 @@ test('an edited comment loses the mark made on its old wording', () => {
   assert.equal(db.prepare("SELECT mark FROM items WHERE key = 'c:101'").get().mark, 'right');
   send(3, post({ commentText: '1145 Exiting Port Susan. Currently NB.' }));
   assert.deepEqual({ ...db.prepare("SELECT mark, note, marked_by FROM items WHERE key = 'c:101'").get() }, { mark: null, note: null, marked_by: null });
+});
+
+test('a mention elsewhere in the text, and names across a full stop, are each their own', () => {
+  const place = (name, kind = 'city') => ({ name, kind, lon: -123.1, lat: 49.2, zoom: 11, otherNames: [] });
+  const find = placeFinder([place('Richmond'), place('Alki Point', 'point')]);
+  const names = (t) => find(t).map((p) => p.name + (p.unknown ? '?' : ''));
+  assert.deepEqual(names('Richmond Beach; later seen from Richmond'), ['Richmond', 'Richmond Beach?']);
+  assert.deepEqual(names('Richmond Beach. Alki Point.'), ['Alki Point', 'Richmond Beach?']);
+});
+
+test('the animals a report means but does not name', () => {
+  const row = (key, kind, text, extra = {}) => ({ key, kind, text, gone: 0, comment_id: null, reply_to: null, clock: null,
+    reading: JSON.stringify({ claims: [], pods: [], direction: null, behaviour: [], ...(extra.reading ?? {}) }), places: '[]', ...extra, ...{ reading: JSON.stringify({ claims: [], pods: [], direction: null, behaviour: [], ...(extra.reading ?? {}) }) } });
+  const claim = (code) => ({ code, presence: 'present', certainty: 'certain' });
+  const rows = [
+    row('l1', 'line', 'EDIT W/ IDs - T137s', { reading: { claims: [claim('T137s')] } }),
+    row('c1', 'comment', 'They have turned west at Camano Head.', { comment_id: '1', reading: { direction: 'west' } }),
+    row('c2', 'comment', 'Thank you', { comment_id: '2' }),
+    row('c3', 'comment', 'T137A heading north 11:50', { comment_id: '3', clock: '11:50', reading: { claims: [claim('T137A')], direction: 'north' } }),
+    row('r1', 'reply', 'still northbound', { comment_id: '4', reply_to: '3', reading: { direction: 'north' } }),
+  ];
+  const ctx = contextFor(rows);
+  assert.deepEqual(ctx.get('c1'), { labels: ['T137s'], from: 'post' });
+  assert.equal(ctx.get('c2'), undefined); // says nothing a sighting says
+  assert.equal(ctx.get('c3'), undefined); // names its own
+  assert.deepEqual(ctx.get('r1'), { labels: ['T137A'], from: 'comment' });
+
+  // A post that names animals of two kinds gives none.
+  const mixed = [row('l2', 'line', 'J pod and T137s', { reading: { claims: [claim('T137s')], pods: ['J'] } }), rows[1]];
+  assert.equal(contextFor(mixed).get('c1'), undefined);
+  assert.equal(kindOf('BCY141'), kindOf('BCX1068'));
+  assert.equal(kindOf('J27'), kindOf('L119'));
+  assert.notEqual(kindOf('T137s'), kindOf('J27'));
 });
 
 const pick = ({ added, changed, gone }) => ({ added, changed, gone });
