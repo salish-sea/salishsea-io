@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readPost, clockTime, agoToTime, postId, EXPANDERS } from './read.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
-import { placeFinder, readAbbreviations, readFerryRoutes } from './places.mjs';
+import { placeFinder, readAbbreviations, readFerryRoutes, withinOneEdit } from './places.mjs';
 import { contextFor, kindOf } from './context.mjs';
 import { classifyPost, stripMention, staffTime } from './classify.mjs';
 import { parseTitle } from './title.mjs';
@@ -140,6 +140,23 @@ test('a known name at the end of a capitalised run is found, with nothing unknow
   const names = (t) => find(t).map((p) => p.name + (p.unknown ? '?' : ''));
   assert.deepEqual(names('Hugging Camano Island'), ['Camano Island']);
   assert.deepEqual(names('North Pender Island, heading east'), ['North Pender Island']);
+});
+
+test('a listed name written with Pt, a lower-case start, more words after it, or a slip of spelling', () => {
+  const place = (name, kind) => ({ name, kind, lon: -122.4, lat: 47.6, zoom: 11, otherNames: [] });
+  const find = placeFinder([place('Alki Point', 'point'), place('Elliott Bay', 'water'), place('Harstine Island', 'island'), place('Port Angeles Harbor', 'water'),
+    place('Dana Passage', 'water'), place('Port Angeles', 'town'), place('Sandy Point', 'point'), place('Sands Point', 'point'), place('Ozzy Point', 'point')]);
+  const found = (t) => find(t).map((p) => p.name + (p.unknown ? '?' : '') + (p.written ? ` as ${p.written}` : ''));
+  assert.deepEqual(found('10:59 passing Alki Pt continuing northbound'), ['Alki Point as Alki Pt']);
+  assert.deepEqual(found('sea lions spotted here in Elliot Bay'), ['Elliott Bay as Elliot Bay']);
+  assert.deepEqual(found('hunting between Harsteine Island and Johnson Point'), ['Harstine Island as Harsteine Island', 'Johnson Point?']);
+  assert.deepEqual(found('2 orcas inbound into port Angeles harbor'), ['Port Angeles Harbor']);
+  assert.deepEqual(found('Orcas heading east in Dana Passage Mid Channel, across from Henderson Inlet'), ['Dana Passage', 'Henderson Inlet?']);
+  // A name as close to two listed names, or a short one spelled differently, is not guessed at.
+  assert.deepEqual(found('off Sandi Point'), ['Sandi Point?']);
+  assert.deepEqual(found('off Ozzi Point'), ['Ozzi Point?']);
+  assert.ok(withinOneEdit('elliot', 'elliott') && withinOneEdit('eglon', 'elgon') && withinOneEdit('harsteine', 'harstine'));
+  assert.ok(!withinOneEdit('marine', 'marina park') && !withinOneEdit('boston', 'bolton x'));
 });
 
 test('reading stored rows again updates their results and clears marks on the ones that change', () => {

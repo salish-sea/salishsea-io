@@ -129,7 +129,7 @@ function rowHtml(r, { marks = false, newKeys = new Set(), postUrl = null, info =
   const pods = (reading.pods ?? []).map((p) => esc(p + ' pod'));
   const placeChip = (p) => (p.unknown
     ? `<span class="unknown" title="Not in the site's gazetteers, so it can't be put on the map">${esc(p.name)}?</span>`
-    : `<a href="https://salishsea.io${esc(p.href)}" title="${esc(p.kind)} ${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}${p.alike > 1 ? ` (one of ${p.alike} with this name)` : ''}">${esc(p.name)}${p.abbreviation ? ` (${esc(p.abbreviation)})` : ''}${p.alike > 1 ? ` ×${p.alike}` : ''}</a>`);
+    : `<a href="https://salishsea.io${esc(p.href)}" title="${esc(p.kind)} ${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}${p.alike > 1 ? ` (one of ${p.alike} with this name)` : ''}">${esc(p.name)}${p.abbreviation ? ` (${esc(p.abbreviation)})` : ''}${p.written ? ` (“${esc(p.written)}”)` : ''}${p.alike > 1 ? ` ×${p.alike}` : ''}</a>`);
   const placeChips = places.map(placeChip);
   const where = r.kind === 'line' ? 'post' : r.kind === 'reply' ? `↳ reply` : 'comment';
   const time = new Date(r.first_seen * 1000).toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false });

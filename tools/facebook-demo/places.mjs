@@ -65,6 +65,22 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
   const terminal = (name) => places.find((p) => p.kind === 'ferry_terminal' && p.name === name);
   const routes = ferryRoutes.map((f) => ({ ...f, ends: f.terminals.map(terminal) })).filter((f) => f.ends.every(Boolean));
 
+  // A listed name that an unknown one is a spelling of: the same word for a kind of place
+  // ("Pt" is "Point"), and the words before it the same but for one letter added, dropped,
+  // changed or swapped, in a name of five letters or more ("Harsteine Island", "Elliot Bay").
+  // Only when exactly one listed name is that close.
+  const byKind = Map.groupBy(places.filter((p) => / /.test(p.name)), (p) => kindWord(p.name));
+  const spelledAlike = (written) => {
+    const kind = kindWord(written);
+    const rest = words(written).split(' ').slice(0, -1).join(' ');
+    const near = (byKind.get(kind) ?? []).filter((p) => {
+      const r = words(p.name).split(' ').slice(0, -1).join(' ');
+      return rest === r || (r.length >= 5 && withinOneEdit(rest, r));
+    });
+    const names = new Set(near.map((p) => p.name));
+    return names.size === 1 ? near[0] : null;
+  };
+
   return (text) => {
     const hay = ` ${words(text)} `;
     const found = [];
@@ -116,14 +132,30 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
       // A known name at its end is the place, and the words before it are the sentence's:
       // "Hugging Camano Island", "North Pender Island". The known names are found below.
       if (name.some((_, i) => byName.has(words(name.slice(i).join(' '))))) continue;
+      // Nor is it unknown when it ends a known name whose first words are in lower case
+      // ("port Angeles harbor"), or begins with a whole known name of a kind of place, the
+      // rest being the sentence's ("Dana Passage Mid Channel").
+      const before = text.slice(0, m.index).match(/(?:\p{L}+[ \t]+){1,2}$/u)?.[0] ?? '';
+      const lower = before.trim().split(/\s+/).filter(Boolean);
+      if (lower.some((_, i) => byName.has(words([...lower.slice(i), ...name].join(' '))))) continue;
+      if (name.some((_, i) => i >= 1 && i < name.length - 1 && KIND_WORD.test(name[i]) && byName.has(words(name.slice(0, i + 1).join(' '))))) continue;
       if (overlaps(m.index, m.index + m[0].length)) continue; // a route or an abbreviation already found there
       // A capitalised word before an unknown name is often the start of a sentence: "Off Richmond Beach".
       let dropped = 0;
       while (name.length > 2 && LEADING.has(name[0].toLowerCase())) dropped += name.shift().length + 1;
+      const written = name.join(' ');
+      const key = words(written);
+      // "Alki Pt" is Alki Point, and "Elliot Bay" is Elliott Bay: a listed name spelled a little differently.
+      const alike = spelledAlike(written);
+      if (alike) {
+        taken.push([m.index + dropped, m.index + m[0].length]);
+        const k = words(alike.name);
+        if (!found.some((f) => f.key === k)) found.push({ key: k, ...known(alike, byName.get(k) ?? [alike], { written }) });
+        continue;
+      }
       taken.push([m.index + dropped, m.index + m[0].length]);
-      const key = words(name.join(' '));
       if (found.some((f) => f.key === key)) continue;
-      found.push({ key, name: name.join(' '), unknown: true });
+      found.push({ key, name: written, unknown: true });
     }
     for (const key of keys) {
       if (!hay.includes(` ${key} `)) continue;
@@ -163,6 +195,19 @@ const LOWER_KINDS = 'beach|point|bay|head|harbor|harbour|island|spit|reef|passag
 const NAMED_PLACE = new RegExp(`(?<![\\p{L}])(?:(?:St\\.|\\p{Lu}[\\p{L}'’]*)[ \\t]+){1,3}(?:${KINDS}|${LOWER_KINDS})(?![\\p{L}])`, 'gu');
 
 const LEADING = new Set(['off', 'at', 'near', 'in', 'on', 'from', 'by', 'of', 'the', 'to', 'past', 'around', 'toward', 'towards', 'between', 'just', 'north', 'south', 'east', 'west', 'heading', 'headed', 'passing', 'leaving', 'entering', 'inside', 'outside', 'and', 'still', 'now']);
+
+const KIND_WORD = new RegExp(`^(?:${KINDS})$`, 'i');
+// The word for a kind of place that ends a name, as one spelling: "Pt" and "Pt." are "point".
+const kindWord = (name) => { const w = words(name).split(' ').at(-1); return w === 'pt' ? 'point' : w === 'harbour' ? 'harbor' : w; };
+
+/** Whether two words differ by one letter added, dropped, changed, or two neighbours swapped. */
+export function withinOneEdit(a, b) {
+  if (a === b || Math.abs(a.length - b.length) > 1) return a === b;
+  let i = 0;
+  while (i < a.length && a[i] === b[i]) i++;
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+}
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
