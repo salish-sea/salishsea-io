@@ -11,11 +11,12 @@ export function readFerryRoutes(path = new URL('../../data/ferry-routes.tsv', im
   return rows.map((r) => ({ name: r[at('name')], route: r[at('route')], terminals: r[at('terminals')].split('|') }));
 }
 
-/** The place abbreviations a person has confirmed (data/abbreviations.tsv): {abbreviation, place}. */
+/** The place abbreviations a person has confirmed (data/abbreviations.tsv): {abbreviation, place, terminal}. */
 export function readAbbreviations(path = new URL('../../data/abbreviations.tsv', import.meta.url)) {
   const [head, ...rows] = readFileSync(path, 'utf8').trim().split('\n').map((l) => l.split('\t'));
   const at = (c) => head.indexOf(c);
-  return rows.filter((r) => r[at('kind')] === 'place').map((r) => ({ abbreviation: r[at('abbreviation')], place: r[at('place')] }));
+  return rows.filter((r) => ['place', 'ferry terminal'].includes(r[at('kind')]))
+    .map((r) => ({ abbreviation: r[at('abbreviation')], place: r[at('place')], terminal: r[at('kind')] === 'ferry terminal' }));
 }
 
 // Words a sighting uses for something else: "Orcas" is the whales far more often than Orcas Island.
@@ -81,13 +82,18 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
       if (!found.some((x) => x.key === key)) found.push({ key, ...known(t, byName.get(key) ?? [t]) });
     }
     // A confirmed abbreviation, in capitals as written: "PNP" for Point No Point.
-    for (const { abbreviation, place } of abbreviations) {
+    // A code in capitals must be written so ("LPZ"); one with lower case is a phrase, in any case ("the hook").
+    for (const { abbreviation, place, terminal } of abbreviations) {
       const where = byName.get(words(place));
-      if (!where) continue;
-      const spans = [...text.matchAll(new RegExp(`(?<![\\p{L}\\p{N}])${escape(abbreviation)}(?![\\p{L}\\p{N}])`, 'gu'))].map((m) => [m.index, m.index + m[0].length]);
+      // A terminal's code means the terminal, not the town or island of its name.
+      const p = terminal ? where?.find((x) => x.kind === 'ferry_terminal') : where?.[0];
+      if (!p) continue;
+      const flags = /\p{Ll}/u.test(abbreviation) ? 'giu' : 'gu';
+      const spans = [...text.matchAll(new RegExp(`(?<![\\p{L}\\p{N}])${escape(abbreviation)}(?![\\p{L}\\p{N}])`, flags))]
+        .map((m) => [m.index, m.index + m[0].length]).filter(([a, b]) => !overlaps(a, b));
       if (!spans.length) continue;
       taken.push(...spans);
-      found.push({ key: words(place), ...known(where[0], where, { abbreviation }) });
+      if (!found.some((x) => x.key === words(place) && x.kind === p.kind)) found.push({ key: words(place), ...known(p, where, { abbreviation }) });
     }
     // A name the text gives that ends in a word for a kind of place ("Richmond Beach") but
     // that the gazetteers lack is shown as unknown, not as a shorter name inside it ("Richmond").
@@ -114,8 +120,9 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
         .filter((m) => key.includes(' ') || /\p{Lu}/u.test(m[0][0]))
         .map((m) => [m.index, m.index + m[0].length])
         .filter(([a, b]) => !overlaps(a, b));
-      if (!spans.length || found.some((f) => f.key === key)) continue;
-      taken.push(...spans);
+      if (!spans.length) continue;
+      taken.push(...spans); // a mention of a name already found still covers its shorter names ("Lopez" in "Lopez Island")
+      if (found.some((f) => f.key === key)) continue;
       const where = byName.get(key);
       found.push({ key, ...known(where[0], where) });
     }
