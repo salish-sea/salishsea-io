@@ -24,8 +24,9 @@ const MAX_BYTES = 4 * 1024 * 1024; // a busy post was 0.4 MB
 const RAW_DAYS = 7;
 const SENDS_PER_10_MIN = 30;
 
-// Which wording a mark judged: a mark sent for older text than the row now has is refused.
-const version = (text) => createHash('sha1').update(text).digest('hex').slice(0, 12);
+// Which wording, and which reading of it, a mark judged: a mark sent for an older version
+// than the row now has is refused, whether the text changed or the reader did.
+const version = (r) => createHash('sha1').update(JSON.stringify([r.text, r.clock, r.reading, r.places])).digest('hex').slice(0, 12);
 // How the page and the CSV write the reader's whale identifiers: "T65A?" possible, "(absent)" said not to be there.
 const claimLabel = (c) => c.code + (c.presence === 'absent' ? ' (absent)' : c.certainty !== 'certain' ? '?' : '');
 
@@ -86,7 +87,22 @@ function chips(list, cls = '') {
   return list.length ? list.map((x) => `<span class="chip ${cls}">${x}</span>`).join('') : '<span class="none">—</span>';
 }
 
-function rowHtml(r, { marks = false, newKeys = new Set(), standing = new Set() } = {}) {
+const mediaLinks = (json) => {
+  const media = JSON.parse(json ?? '[]');
+  return media.map((m, i) => `<a href="${esc(m)}" rel="noreferrer">${/photo/.test(m) ? 'photo' : 'video'}${media.length > 1 ? ` ${i + 1}` : ''}</a>`).join(' ');
+};
+
+// A comment on Facebook, for checking a row in place.
+function commentHref(postUrl, r) {
+  if (!postUrl || !r.comment_id) return null;
+  const u = new URL(postUrl);
+  u.search = '';
+  u.searchParams.set('comment_id', r.reply_to ?? r.comment_id);
+  if (r.reply_to) u.searchParams.set('reply_comment_id', r.comment_id);
+  return u.href;
+}
+
+function rowHtml(r, { marks = false, newKeys = new Set(), standing = new Set(), postUrl = null } = {}) {
   if (standing.has(r.text)) {
     return `<tr class="standing"><td>${r.kind === 'line' ? 'post' : 'comment'}<div class="muted">${esc(r.author ?? '')}</div></td><td></td>
 <td colspan="${marks ? 6 : 5}" class="muted"><details><summary>Standing text, in every post: ${esc(r.text.split('\n')[0].slice(0, 80))}…</summary><div class="text">${esc(r.text)}</div></details></td></tr>`;
@@ -100,11 +116,13 @@ function rowHtml(r, { marks = false, newKeys = new Set(), standing = new Set() }
     : `<a href="https://salishsea.io${esc(p.href)}" title="${esc(p.kind)} ${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}${p.alike > 1 ? ` (one of ${p.alike} with this name)` : ''}">${esc(p.name)}${p.alike > 1 ? ` ×${p.alike}` : ''}</a>`);
   const when = r.kind === 'line' ? 'post' : r.kind === 'reply' ? `↳ reply` : 'comment';
   const time = new Date(r.first_seen * 1000).toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false });
-  const markCell = marks ? `<td class="mark"><select data-key="${esc(r.key)}" data-v="${version(r.text)}" aria-label="Did the reader get it right?">
+  const markCell = marks ? `<td class="mark"><select data-key="${esc(r.key)}" data-v="${version(r)}" aria-label="Did the reader get it right?">
 ${['', 'right', 'partly', 'wrong', 'not a sighting'].map((m) => `<option value="${m}"${(r.mark ?? '') === m ? ' selected' : ''}>${m || '—'}</option>`).join('')}</select>
 <input data-note="${esc(r.key)}" value="${esc(r.note)}" placeholder="note" size="10">${r.marked_by ? `<div class="muted">${esc(r.marked_by)}</div>` : ''}</td>` : '';
+  const href = commentHref(postUrl, r);
+  const media = mediaLinks(r.media);
   return `<tr class="${newKeys.has(r.key) ? 'new' : ''}${r.gone ? ' gone' : ''}">
-<td>${when}<div class="muted">${esc(r.author ?? '')}</div></td>
+<td>${href ? `<a href="${esc(href)}" rel="noreferrer">${when}</a>` : when}<div class="muted">${esc(r.author ?? '')}</div>${media ? `<div>${media}</div>` : ''}</td>
 <td>${esc(r.clock ?? '')}<div class="muted" title="when this first arrived (Pacific)">seen ${time}</div></td>
 <td class="text">${esc(r.text)}</td>
 <td>${chips([...codes, ...pods])}</td><td>${esc(reading.direction ?? '') || '<span class="none">—</span>'}</td>
@@ -163,13 +181,15 @@ function stats(rows) {
 }
 
 function listPage(k) {
-  const posts = db.prepare(`SELECT post_id, max(post_title) AS title, min(first_seen) AS first FROM items GROUP BY post_id ORDER BY first DESC`).all();
+  const posts = db.prepare(`SELECT i.post_id, max(i.post_title) AS title, min(i.first_seen) AS first, p.url, p.media
+    FROM items i LEFT JOIN posts p USING (post_id) GROUP BY i.post_id ORDER BY first DESC`).all();
   const rows = db.prepare('SELECT * FROM items ORDER BY first_seen, seq').all();
   const sends = db.prepare('SELECT * FROM sends ORDER BY at DESC LIMIT 30').all();
   const byPost = Map.groupBy(rows, (r) => r.post_id);
   const standing = standingTexts();
   const sections = posts.map((p) => `<h2 id="p${esc(p.post_id)}">${esc(heading(p.title, byPost.get(p.post_id) ?? []))}</h2>
-<div class="scroll"><table>${HEAD}<th>Right?</th></tr>${ordered(byPost.get(p.post_id) ?? []).map((r) => rowHtml(r, { marks: true, standing })).join('')}</table></div>`);
+${p.url ? `<p class="muted"><a href="${esc(p.url)}" rel="noreferrer">The post on Facebook</a>${mediaLinks(p.media) ? ` · its ${mediaLinks(p.media)}` : ''}</p>` : ''}
+<div class="scroll"><table>${HEAD}<th>Right?</th></tr>${ordered(byPost.get(p.post_id) ?? []).map((r) => rowHtml(r, { marks: true, standing, postUrl: p.url })).join('')}</table></div>`);
   const sendRows = sends.map((s) => `<tr><td>${new Date(s.at * 1000).toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</td><td>${esc(s.sender)}</td><td>${esc(heading(s.title, byPost.get(s.post_id) ?? []))}</td><td>${s.added} new, ${s.changed} changed, ${s.gone} gone</td><td>${warnings(s).length ? '<span title="' + esc(warnings(s).join(' ')) + '">incomplete</span>' : 'complete'}</td></tr>`).join('');
   return page('Facebook sightings demo', `<h1>Sightings read from Orca Network's Community Group</h1>
 <p class="muted">A trial of SalishSea.io's <a href="https://github.com/salish-sea/salishsea-io/blob/main/docs/decisions/117-sightings-from-a-facebook-group-arrive-when-a-signed-in-person-sends-the-days-post.md">decision 117</a>. Each line of a day's post and each comment, as it arrived, with what SalishSea.io's reader of sighting text found in it. Nothing here is published. Please mark whether the reader got each one right. <a href="export.csv?k=${esc(k)}">Download all as CSV</a>.</p>
@@ -272,7 +292,7 @@ async function capture(req) {
   const w = warnings(send);
   const out = `<p><b>Thank you.</b> ${read.lines.length} lines of the post and ${read.comments.length} comments read: ${result.added} new, ${result.changed} changed${result.gone ? `, ${result.gone} lines gone from the post` : ''}. New ones are shaded.</p>
 ${w.map((x) => `<p class="warn">${x}</p>`).join('')}
-<div class="scroll"><table>${HEAD}</tr>${ordered(rows).map((r) => rowHtml(r, { newKeys: fresh, standing })).join('')}</table></div>`;
+<div class="scroll"><table>${HEAD}</tr>${ordered(rows).map((r) => rowHtml(r, { newKeys: fresh, standing, postUrl: url })).join('')}</table></div>`;
   console.log(new Date().toISOString(), 'send', sender, id, `${html.length} bytes`, JSON.stringify(result));
   return [200, JSON.stringify({ ...result, keys: undefined, html: out }), 'application/json'];
 }
@@ -293,16 +313,16 @@ function mark(body) {
   const { k, key, v, mark, note, who } = JSON.parse(body);
   if (!same(String(k ?? ''), viewToken)) return [403, 'no'];
   if (!['', 'right', 'partly', 'wrong', 'not a sighting'].includes(mark)) return [400, 'bad mark'];
-  const row = db.prepare('SELECT text FROM items WHERE key = ?').get(String(key));
+  const row = db.prepare('SELECT text, clock, reading, places FROM items WHERE key = ?').get(String(key));
   if (!row) return [404, 'no such row'];
-  if (v !== version(row.text)) return [409, 'the text has changed'];
+  if (v !== version(row)) return [409, 'the text or its reading has changed'];
   db.prepare('UPDATE items SET mark = ?, note = ?, marked_by = ?, marked_at = ? WHERE key = ?')
     .run(mark || null, String(note ?? '').slice(0, 500) || null, String(who ?? '').slice(0, 60) || null, Math.floor(Date.now() / 1000), String(key));
   return [204, ''];
 }
 
 function csv() {
-  const cols = ['post_id', 'post_title', 'kind', 'comment_id', 'reply_to', 'author', 'ago', 'est_time', 'first_seen', 'last_seen', 'gone', 'text', 'clock', 'whales', 'pods', 'direction', 'behaviour', 'places', 'mark', 'note', 'marked_by'];
+  const cols = ['post_id', 'post_title', 'kind', 'comment_id', 'reply_to', 'author', 'ago', 'est_time', 'first_seen', 'last_seen', 'gone', 'text', 'clock', 'whales', 'pods', 'direction', 'behaviour', 'places', 'media', 'mark', 'note', 'marked_by'];
   // A cell that starts like a formula is written as text, so a comment can't run in a spreadsheet.
   const q = (v) => {
     const t = String(v ?? '');
@@ -313,7 +333,7 @@ function csv() {
     const reading = JSON.parse(r.reading ?? '{}');
     const row = { ...r, est_time: iso(r.est_time), first_seen: iso(r.first_seen), last_seen: iso(r.last_seen),
       whales: (reading.claims ?? []).map(claimLabel).join(' '), pods: (reading.pods ?? []).join(' '), direction: reading.direction,
-      behaviour: (reading.behaviour ?? []).join(' '), places: JSON.parse(r.places ?? '[]').map((p) => (p.unknown ? `${p.name} (unknown)` : `${p.name} (${p.lat.toFixed(4)}, ${p.lon.toFixed(4)})`)).join('; ') };
+      behaviour: (reading.behaviour ?? []).join(' '), media: JSON.parse(r.media ?? '[]').join(' '), places: JSON.parse(r.places ?? '[]').map((p) => (p.unknown ? `${p.name} (unknown)` : `${p.name} (${p.lat.toFixed(4)}, ${p.lon.toFixed(4)})`)).join('; ') };
     return cols.map((c) => q(row[c])).join(',');
   });
   return [cols.join(','), ...lines].join('\r\n');

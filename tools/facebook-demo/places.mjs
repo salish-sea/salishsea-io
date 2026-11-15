@@ -41,11 +41,14 @@ export function placeFinder(places) {
     // A name the text gives that ends in a word for a kind of place ("Richmond Beach") but
     // that the gazetteers lack is shown as unknown, not as a shorter name inside it ("Richmond").
     for (const m of text.matchAll(NAMED_PLACE)) {
-      // A capitalised word before the name is often the start of a sentence: "Off Alki Point".
       const name = m[0].replace(/\s+/g, ' ').split(' ');
+      // A known name at its end is the place, and the words before it are the sentence's:
+      // "Hugging Camano Island", "North Pender Island". The known names are found below.
+      if (name.some((_, i) => byName.has(words(name.slice(i).join(' '))))) continue;
+      // A capitalised word before an unknown name is often the start of a sentence: "Off Richmond Beach".
       while (name.length > 2 && LEADING.has(name[0].toLowerCase())) name.shift();
       const key = words(name.join(' '));
-      if (byName.has(key) || found.some((f) => f.key === key)) continue;
+      if (found.some((f) => f.key === key)) continue;
       found.push({ key, name: name.join(' '), unknown: true });
     }
     for (const key of keys) {
@@ -63,9 +66,12 @@ export function placeFinder(places) {
   };
 }
 
-// One to three capitalised words, then a capitalised word for a kind of place.
+// One to three capitalised words, then a word for a kind of place: capitalised, or in lower
+// case if it nearly always ends a name ("Boston harbor"), but not "ferry" or "dock", which
+// often follow a town's name ("Clinton ferry").
 const KINDS = 'Beach|Point|Pt|Bay|Park|Head|Harbor|Harbour|Island|Spit|Reef|Rocks?|Light|Lighthouse|Pass|Passage|Narrows|Cove|Inlet|Landing|Marina|Pier|Dock|Creek|River|Lagoon|Ferry|Terminal|Sound|Channel|Strait|Lake';
-const NAMED_PLACE = new RegExp(`(?<![\\p{L}])(?:\\p{Lu}[\\p{L}'’.]*\\s+){1,3}(?:${KINDS})(?![\\p{L}])`, 'gu');
+const LOWER_KINDS = 'beach|point|bay|head|harbor|harbour|island|spit|reef|passage|narrows|cove|inlet|lagoon|sound|channel|strait';
+const NAMED_PLACE = new RegExp(`(?<![\\p{L}])(?:\\p{Lu}[\\p{L}'’.]*\\s+){1,3}(?:${KINDS}|${LOWER_KINDS})(?![\\p{L}])`, 'gu');
 
 const LEADING = new Set(['off', 'at', 'near', 'in', 'on', 'from', 'by', 'of', 'the', 'to', 'past', 'around', 'toward', 'towards', 'between', 'just', 'north', 'south', 'east', 'west', 'heading', 'headed', 'passing', 'leaving', 'entering', 'inside', 'outside', 'and', 'still', 'now']);
 

@@ -34,9 +34,20 @@ test('reads the post\'s lines, comments and replies', () => {
   assert.equal(r.sort, 'All comments');
 });
 
+test('photos and videos, in the post and in a comment, as links to Facebook', () => {
+  const html = `<div role="dialog"><div dir="auto">10:30 Orcas</div>
+    <a href="https://www.facebook.com/photo/?fbid=111&amp;set=gm.1&amp;__cft__=x"><img src="https://scontent.xx.fbcdn.net/a.jpg"></a>
+    <div role="article" aria-label="Comment by Pat Example 5 minutes ago">${link(7)}<div dir="auto">Here they are</div>
+      <a href="https://www.facebook.com/photo.php?fbid=222&amp;set=p.222&amp;__tn__=x"><img src="https://scontent.xx.fbcdn.net/b.jpg"></a>
+      <a href="https://www.facebook.com/Someone/videos/333/?__cft__=x">video</a></div></div>`;
+  const r = readPost(html);
+  assert.deepEqual(r.media, ['https://www.facebook.com/photo/?fbid=111']);
+  assert.deepEqual(r.comments[0].media, ['https://www.facebook.com/photo/?fbid=222', 'https://www.facebook.com/Someone/videos/333']);
+});
+
 test('a page with no comments or lines reads as empty, not as an error', () => {
   const r = readPost('<div role="main"><p>Something else</p></div>');
-  assert.deepEqual([r.lines, r.comments, r.collapsed, r.sort], [[], [], 0, null]);
+  assert.deepEqual([r.lines, r.comments, r.collapsed, r.sort, r.media], [[], [], 0, null, []]);
 });
 
 test('clock times', () => {
@@ -105,6 +116,16 @@ test('a named place the gazetteers lack is unknown, not a shorter name inside it
   assert.deepEqual(names('12:20, BCY0141 Falcon is feeding around Richmond Beach'), ['Richmond Beach?']);
   assert.deepEqual(names('Off Alki Point heading to Elliott Bay'), ['Elliott Bay', 'Alki Point']);
   assert.deepEqual(names('Seen from Richmond, heading north'), ['Richmond']);
+  assert.deepEqual(names('Viewing from Boston harbor 9:19 heading north'), ['Boston harbor?']);
+  assert.deepEqual(names('just north of Richmond ferry'), ['Richmond']);
+});
+
+test('a known name at the end of a capitalised run is found, with nothing unknown', () => {
+  const place = (name) => ({ name, kind: 'island', lon: -123, lat: 48.8, zoom: 11, otherNames: [] });
+  const find = placeFinder([place('Camano Island'), place('North Pender Island')]);
+  const names = (t) => find(t).map((p) => p.name + (p.unknown ? '?' : ''));
+  assert.deepEqual(names('Hugging Camano Island'), ['Camano Island']);
+  assert.deepEqual(names('North Pender Island, heading east'), ['North Pender Island']);
 });
 
 test('reading stored rows again updates their results and clears marks on the ones that change', () => {

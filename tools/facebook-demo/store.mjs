@@ -19,7 +19,9 @@ export function openStore(path) {
       seq INTEGER NOT NULL, text TEXT NOT NULL, clock TEXT, reading TEXT, places TEXT,
       mark TEXT, note TEXT, marked_by TEXT, marked_at INTEGER);
     CREATE INDEX IF NOT EXISTS items_post ON items (post_id, first_seen, seq);
+    CREATE TABLE IF NOT EXISTS posts (post_id TEXT PRIMARY KEY, url TEXT NOT NULL, media TEXT);
   `);
+  if (!db.prepare('PRAGMA table_info(items)').all().some((c) => c.name === 'media')) db.exec('ALTER TABLE items ADD COLUMN media TEXT');
   return db;
 }
 
@@ -58,11 +60,11 @@ const lineKey = (postId, text, n) => `l:${postId}:${createHash('sha1').update(te
 export function recordSend(db, { at, sender, postId, url, title, bytes, read, agoToTime, enrich }) {
   const get = db.prepare('SELECT text FROM items WHERE key = ?');
   const insert = db.prepare(`INSERT INTO items (key, post_id, post_title, kind, comment_id, reply_to, author, ago, est_time,
-      first_seen, last_seen, seq, text, clock, reading, places)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  const touch = db.prepare('UPDATE items SET last_seen = ?, gone = 0, ago = ?, post_title = ? WHERE key = ?');
+      first_seen, last_seen, seq, text, clock, reading, places, media)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const touch = db.prepare('UPDATE items SET last_seen = ?, gone = 0, ago = ?, post_title = ?, media = ? WHERE key = ?');
   // An edited text clears its mark: whoever marked it checked the old wording.
-  const rewrite = db.prepare(`UPDATE items SET last_seen = ?, gone = 0, ago = ?, post_title = ?, text = ?, clock = ?, reading = ?, places = ?,
+  const rewrite = db.prepare(`UPDATE items SET last_seen = ?, gone = 0, ago = ?, post_title = ?, media = ?, text = ?, clock = ?, reading = ?, places = ?,
       mark = NULL, note = NULL, marked_by = NULL, marked_at = NULL WHERE key = ?`);
 
   let added = 0, changed = 0, gone = 0;
@@ -73,15 +75,16 @@ export function recordSend(db, { at, sender, postId, url, title, bytes, read, ag
       keys.push(key);
       const old = get.get(key);
       const e = enrich(row.text);
+      const media = row.media?.length ? JSON.stringify(row.media) : null;
       if (!old) {
         insert.run(key, postId, title, row.kind, row.commentId ?? null, row.replyTo ?? null, row.author ?? null, row.ago ?? null,
-          row.ago ? agoToTime(row.ago, at) : null, at, at, seq, row.text, e.clock, JSON.stringify(e.reading), JSON.stringify(e.places));
+          row.ago ? agoToTime(row.ago, at) : null, at, at, seq, row.text, e.clock, JSON.stringify(e.reading), JSON.stringify(e.places), media);
         added++;
       } else if (old.text !== row.text) {
-        rewrite.run(at, row.ago ?? null, title, row.text, e.clock, JSON.stringify(e.reading), JSON.stringify(e.places), key);
+        rewrite.run(at, row.ago ?? null, title, media, row.text, e.clock, JSON.stringify(e.reading), JSON.stringify(e.places), key);
         changed++;
       } else {
-        touch.run(at, row.ago ?? null, title, key);
+        touch.run(at, row.ago ?? null, title, media, key);
       }
     };
 
@@ -91,7 +94,9 @@ export function recordSend(db, { at, sender, postId, url, title, bytes, read, ag
       seen.set(text, n + 1);
       put(lineKey(postId, text, n), { kind: 'line', text }, i);
     });
-    read.comments.forEach((c, i) => put(`c:${c.id}`, { kind: c.kind, commentId: c.id, replyTo: c.replyTo, author: c.author, ago: c.ago, text: c.text }, 1000 + i));
+    read.comments.forEach((c, i) => put(`c:${c.id}`, { kind: c.kind, commentId: c.id, replyTo: c.replyTo, author: c.author, ago: c.ago, text: c.text, media: c.media }, 1000 + i));
+    db.prepare('INSERT INTO posts (post_id, url, media) VALUES (?, ?, ?) ON CONFLICT (post_id) DO UPDATE SET url = excluded.url, media = excluded.media')
+      .run(postId, url, JSON.stringify(read.media ?? []));
 
     // A line of the post that this send no longer carries has been edited away. Only lines:
     // a comment missing from one send may just not have been loaded on the page.
