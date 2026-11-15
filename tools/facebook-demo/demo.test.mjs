@@ -45,6 +45,12 @@ test('photos and videos, in the post and in a comment, as links to Facebook', ()
   assert.deepEqual(r.comments[0].media, ['https://www.facebook.com/photo/?fbid=222', 'https://www.facebook.com/Someone/videos/333']);
 });
 
+test('a malformed link does not lose the send', () => {
+  const r = readPost(`<div role="main"><div dir="auto">10:30 Orcas</div><a href="http://[">x</a>
+    <div role="article" aria-label="Comment by Pat Example 5 minutes ago"><a href="http://[?comment_id=1">x</a>${link(8)}<div dir="auto">Still there</div></div></div>`);
+  assert.deepEqual([r.lines, r.comments.map((c) => c.id), r.media], [['10:30 Orcas'], ['8'], []]);
+});
+
 test('a page with no comments or lines reads as empty, not as an error', () => {
   const r = readPost('<div role="main"><p>Something else</p></div>');
   assert.deepEqual([r.lines, r.comments, r.collapsed, r.sort, r.media], [[], [], 0, null, []]);

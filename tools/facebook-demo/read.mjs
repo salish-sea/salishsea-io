@@ -25,7 +25,12 @@ export function readPost(html) {
     let commentId = null, replyId = null;
     for (const link of a.querySelectorAll('a[href*="comment_id="]')) {
       if (inNested(link)) continue;
-      const u = new URL(link.getAttribute('href'), 'https://www.facebook.com');
+      let u;
+      try {
+        u = new URL(link.getAttribute('href'), 'https://www.facebook.com');
+      } catch {
+        continue;
+      }
       commentId ??= u.searchParams.get('comment_id');
       replyId ??= u.searchParams.get('reply_comment_id');
     }
@@ -67,7 +72,12 @@ export function readPost(html) {
 function mediaIn(links) {
   const out = new Set();
   for (const a of links) {
-    const u = new URL(a.getAttribute('href'), 'https://www.facebook.com');
+    let u;
+    try {
+      u = new URL(a.getAttribute('href'), 'https://www.facebook.com');
+    } catch {
+      continue; // a malformed link elsewhere on the page must not lose the send
+    }
     if (!/(^|\.)facebook\.com$/.test(u.hostname)) continue;
     const fbid = u.searchParams.get('fbid');
     if (/^\/photo(\.php)?\/?$/.test(u.pathname) && fbid) out.add(`https://www.facebook.com/photo/?fbid=${fbid}`);
