@@ -39,8 +39,11 @@ export function rereadAll(db, enrich) {
   let changed = 0;
   db.exec('BEGIN');
   try {
-    for (const r of db.prepare('SELECT key, text, clock, reading, places FROM items').all()) {
-      const e = enrich(r.text);
+    const names = new Map();
+    for (const x of db.prepare('SELECT DISTINCT post_id, author FROM items WHERE author IS NOT NULL').all())
+      names.set(x.post_id, [...(names.get(x.post_id) ?? []), x.author]);
+    for (const r of db.prepare('SELECT key, post_id, text, clock, reading, places FROM items').all()) {
+      const e = enrich(r.text, names.get(r.post_id) ?? []);
       const [reading, places] = [JSON.stringify(e.reading), JSON.stringify(e.places)];
       if (e.clock === r.clock && reading === r.reading && places === r.places) continue;
       update.run(e.clock, reading, places, r.key);
@@ -70,6 +73,9 @@ export function recordSend(db, { at, sender, postId, url, title, bytes, read, ag
   const rewrite = db.prepare(`UPDATE items SET last_seen = ?, gone = 0, ago = ?, post_title = ?, media = ?, text = ?, clock = ?, reading = ?, places = ?,
       mark = NULL, note = NULL, marked_by = NULL, marked_at = NULL WHERE key = ?`);
 
+  // The people in the thread, so a reply's leading name (the person it answers) isn't read as text.
+  const names = [...new Set([...read.comments.map((c) => c.author),
+    ...db.prepare('SELECT DISTINCT author FROM items WHERE post_id = ? AND author IS NOT NULL').all(postId).map((x) => x.author)])];
   let added = 0, changed = 0, gone = 0;
   const keys = [];
   db.exec('BEGIN');
@@ -77,7 +83,7 @@ export function recordSend(db, { at, sender, postId, url, title, bytes, read, ag
     const put = (key, row, seq) => {
       keys.push(key);
       const old = get.get(key);
-      const e = enrich(row.text);
+      const e = enrich(row.text, names);
       const media = row.media?.length ? JSON.stringify(row.media) : null;
       if (!old) {
         insert.run(key, postId, title, row.kind, row.commentId ?? null, row.replyTo ?? null, row.author ?? null, row.ago ?? null,

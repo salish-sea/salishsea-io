@@ -20,6 +20,15 @@ export function readAbbreviations(path = new URL('../../data/abbreviations.tsv',
 }
 
 // Words a sighting uses for something else: "Orcas" is the whales far more often than Orcas Island.
+// Words that are left when "Island" or "Passage" is dropped but that a report uses as words:
+// "from Boston Harbor" is not Harbor Island, "East of mid" is not East Passage.
+const COMMON_WORDS = new Set(['harbor', 'harbour', 'sea', 'east', 'west', 'north', 'south', 'mid', 'middle', 'main', 'long', 'big', 'little',
+  'sand', 'rock', 'center', 'centre', 'port', 'bay', 'point', 'head', 'river', 'lake', 'deer', 'bird', 'seal', 'orca', 'whale', 'sunset', 'twin', 'false']);
+
+// Organisations whose names hold place-like words: "Puget Sound Express" is a whale-watching
+// company (and a ferry terminal in OpenStreetMap), "Pacific Whale Watch Association" is not Pacific.
+const ORGANISATIONS = ['Puget Sound Express', 'Pacific Whale Watch Association', 'Orca Network', 'Orca Behavior Institute', 'Center for Whale Research', 'Sound Action', 'Puget Sound Whale Watchers', 'Island Adventures', 'San Juan Safaris'];
+
 const NOT_PLACES = new Set(['orca', 'orcas', 'whale', 'whales', 'humpback', 'humpbacks', 'gray', 'grey', 'minke', 'transient', 'transients', 'resident', 'residents']);
 
 const words = (s) => s.toLowerCase().replace(/['’]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -40,7 +49,10 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
   for (const p of places) {
     for (const name of [p.name, ...p.otherNames]) {
       // Reporters drop the generic word: "Camano" for Camano Island, "Saratoga" for Saratoga Passage.
-      const short = /^(.+) (island|passage)$/i.exec(name)?.[1];
+      // Only from a place's own name, never a ferry terminal's (its other names include whole
+      // island names: "San Juan Island"), and never when what is left is an ordinary word.
+      const short = name === p.name && p.kind !== 'ferry_terminal' ? /^(.+) (island|passage)$/i.exec(name)?.[1] : null;
+      if (short && COMMON_WORDS.has(words(short))) continue;
       for (const key of [words(name), short && words(short)]) {
         if (!key || NOT_PLACES.has(key)) continue;
         const list = byName.get(key) ?? [];
@@ -59,6 +71,9 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
     const found = [];
     const taken = []; // [start, end) of each mention already accounted for
     const overlaps = (a, b) => taken.some(([s, e]) => a < e && s < b);
+    // An organisation's name is not a place; hide it first.
+    for (const o of ORGANISATIONS)
+      for (const m of text.matchAll(new RegExp(`(?<![\\p{L}])${escape(o)}(?![\\p{L}])`, 'giu'))) taken.push([m.index, m.index + m[0].length]);
     const known = (p, where, extra = {}) => ({ name: p.name, kind: p.kind, lon: p.lon, lat: p.lat, href: placeHref(p), alike: where.length, ...extra });
     // "Kingston ferry" is the boat on the Edmonds–Kingston route, so somewhere along that
     // crossing, not the town; "Kingston ferry terminal" or "dock" is the terminal itself.

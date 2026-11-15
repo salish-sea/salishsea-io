@@ -129,7 +129,10 @@ export function agoToTime(ago, sentAt) {
 export function clockTime(text) {
   const colon = /(?<![\d:])([01]?\d|2[0-3])[:.]([0-5]\d)(?![\d:])\s*([ap]\.?m\.?)?/i.exec(text);
   const lead = /^\W*([01]\d|2[0-3])([0-5]\d)(?!\d)\s*([ap]\.?m\.?)?/i.exec(text);
-  const m = colon ?? lead;
+  // "11am", "2 pm"; and four or three digits ending the text ("Viewing from constellation 1055").
+  const ampm = /(?<![\w:.])(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*([ap])\.?m\.?(?![a-z])/i.exec(text);
+  const trail = /(?<![\w:.])([01]?\d|2[0-3])([0-5]\d)\W*$/.exec(text);
+  const m = colon ?? lead ?? (ampm ? [ampm[0], ampm[1], ampm[2] ?? '00', `${ampm[3]}m`] : null) ?? trail;
   if (!m) return null;
   let h = Number(m[1]);
   if (m[3] && /^p/i.test(m[3]) && h < 12) h += 12;

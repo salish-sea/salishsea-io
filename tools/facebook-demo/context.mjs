@@ -40,9 +40,10 @@ function saysSighting(row) {
 /**
  * For one post's rows, the animals each row means but doesn't name, by row key:
  * { labels, from: 'post' | 'comment' }. Only rows that say something a sighting says get
- * one: "Thank you" means no animals. `standing` is the set of standing texts to skip.
+ * one: "Thank you" means no animals. `standing` is the set of standing texts to skip;
+ * `eligible`, if given, the keys of the rows that are reports.
  */
-export function contextFor(rows, standing = new Set()) {
+export function contextFor(rows, standing = new Set(), eligible = null) {
   const live = rows.filter((r) => !standing.has(r.text));
   const postNames = live.filter((r) => r.kind === 'line' && !r.gone).flatMap(ownNames);
   const kinds = new Set(postNames.map((n) => n.kind));
@@ -51,7 +52,8 @@ export function contextFor(rows, standing = new Set()) {
 
   const out = new Map();
   for (const r of live) {
-    if (namesAny(r) || !saysSighting(r)) continue;
+    // Only a report borrows (classify.mjs): a question or a credit line means no animals.
+    if ((eligible && !eligible.has(r.key)) || namesAny(r) || !saysSighting(r)) continue;
     const parent = r.kind === 'reply' ? byComment.get(r.reply_to) : null;
     const parentNames = parent ? [...new Set(ownNames(parent).map((n) => n.label))] : [];
     if (parentNames.length) out.set(r.key, { labels: parentNames, from: 'comment' });

@@ -7,6 +7,8 @@ import { readPost, clockTime, agoToTime, postId, EXPANDERS } from './read.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
 import { placeFinder, readAbbreviations, readFerryRoutes } from './places.mjs';
 import { contextFor, kindOf } from './context.mjs';
+import { classifyPost, stripMention, staffTime } from './classify.mjs';
+import { parseTitle } from './title.mjs';
 
 const link = (c, r) => `<a href="https://www.facebook.com/groups/1/posts/2/?comment_id=${c}${r ? `&amp;reply_comment_id=${r}` : ''}&amp;__cft__=x">1h</a>`;
 const post = ({ extraLine = '', commentText = '1145 Exiting Port Susan close to Camano. Currently SB.', collapsed = true } = {}) => `
@@ -64,6 +66,10 @@ test('clock times', () => {
   assert.equal(clockTime('Humpbacks at 2:05 pm off Alki'), '14:05');
   assert.equal(clockTime('T137s heading west'), null); // the digits of a designation are not a time
   assert.equal(clockTime('3-4. Including a male.'), null);
+  assert.equal(clockTime('east of yellow buoy 11am'), '11:00');
+  assert.equal(clockTime('Viewing from constellation 1055'), '10:55');
+  assert.equal(clockTime('614am heading north'), null); // three digits before am: left alone
+  assert.equal(clockTime('T137 pod'), null);
 });
 
 test('Facebook\'s relative times', () => {
@@ -256,6 +262,46 @@ test('a terminal code is the terminal, and a phrase matches in any case', () => 
   assert.deepEqual(got('lpz dock'), []); // a code in capitals must be written so
   const rows = readAbbreviations();
   assert.ok(rows.find((r) => r.abbreviation === 'FAU')?.terminal);
+});
+
+test('a day post\'s title gives its date, animals, group and region', () => {
+  const nov = Date.UTC(2026, 10, 15) / 1000;
+  assert.deepEqual(parseTitle('❤️🍎❤️Thursday, November 12th - ORCAS (Port Susan)', nov), { date: '2026-11-12', kind: 'orcas', group: null, region: 'Port Susan' });
+  assert.deepEqual(parseTitle('Tuesday, November 10th - GROUP TWO ORCAS (Possession Sound)', nov), { date: '2026-11-10', kind: 'orcas', group: 'TWO', region: 'Possession Sound' });
+  assert.equal(parseTitle('Monday, November 9th - SOUTHERN RESIDENT ORCAS (North Puget Sound)', nov).kind, 'Southern Resident orcas');
+  assert.equal(parseTitle('Sunday, November 8 - Baleen whale post for today ~', nov).kind, 'baleen whales');
+  assert.equal(parseTitle('Over the past few weeks many of you have been able to spend some time', nov), null);
+  assert.equal(parseTitle('Wednesday, December 30th - ORCAS', Date.UTC(2027, 0, 2) / 1000).date, '2026-12-30');
+});
+
+test('each row of a post gets a kind, and only reports are read', () => {
+  let n = 0;
+  const row = (kind, text, extra = {}) => ({ key: `k${++n}`, kind, text, seq: n, first_seen: Date.UTC(2026, 10, 12) / 1000, gone: 0, comment_id: null, reply_to: null, author: null,
+    clock: null, reading: JSON.stringify(extra.reading ?? {}), places: JSON.stringify(extra.places ?? []), ...extra, ...{ reading: JSON.stringify(extra.reading ?? {}), places: JSON.stringify(extra.places ?? []) } });
+  const rows = [
+    row('line', 'Thursday, November 12th - ORCAS (Port Susan)'),
+    row('line', 'Appreciations to ON staff member Rachel Haight for relaying this report!'),
+    row('line', 'EDIT W/ IDs - T137s per Orca Behavior Institute', { reading: { claims: [{ code: 'T137s', presence: 'present', certainty: 'certain' }] } }),
+    row('line', '10:30 - Orcas, Tillicum Beach [Camano] heading south.', { clock: '10:30', reading: { direction: 'south' } }),
+    row('line', 'Patrick [PSWW chat]'),
+    row('comment', 'Are they north or south of the ferry lanes?', { comment_id: '1', author: 'Pat Example', reading: { direction: 'north' } }),
+    row('comment', '1145 Exiting Port Susan close to Camano. Currently SB.', { comment_id: '2', author: 'Sam Sample', clock: '11:45', reading: { direction: 'south' } }),
+    row('reply', 'Sam Sample thanks! time, 9:22', { comment_id: '3', reply_to: '2', author: 'Orca Network' }),
+    row('reply', 'Just saw his blow directly out from stamm', { comment_id: '4', reply_to: '2', author: 'Sam Sample' }),
+    row('comment', 'calls loud and clear on Sunset Bay', { comment_id: '5', author: 'Lee Listener' }),
+    row('comment', 'Pat Example thank you', { comment_id: '6', author: 'Orca Network' }),
+    row('comment', '12:20 no sign of them', { comment_id: '7', author: 'Pat Example', clock: '12:20' }),
+  ];
+  const { title, kinds } = classifyPost(rows);
+  assert.equal(title.date, '2026-11-12');
+  assert.deepEqual(rows.map((r) => kinds.get(r.key)),
+    ['title', 'thanks', 'staff edit', 'report', 'credit', 'question', 'report', 'staff time', 'report', 'hydrophone', 'thanks', 'nothing seen']);
+  assert.equal(staffTime(rows[7]), '9:22');
+  assert.equal(stripMention('Mica Samuelle- Across from Burfoot.', ['Mica Samuelle']), 'Across from Burfoot.');
+  // A post that isn't a day post: nothing in it is a report.
+  const announcement = classifyPost([row('line', 'Over the past few weeks many of you have…'), row('line', 'Falcon will soon be heading south', { reading: { direction: 'south' } })]);
+  assert.equal(announcement.title, null);
+  assert.deepEqual([...announcement.kinds.values()], ['other post', 'other post']);
 });
 
 const pick = ({ added, changed, gone }) => ({ added, changed, gone });
