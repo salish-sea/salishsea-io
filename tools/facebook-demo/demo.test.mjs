@@ -245,4 +245,17 @@ test('a named ferry is its route, and a ferry terminal is the terminal', () => {
   assert.ok(readFerryRoutes().some((r) => r.name === 'Clinton' && r.route === 'Mukilteo–Clinton'));
 });
 
+test('a terminal code is the terminal, and a phrase matches in any case', () => {
+  const pl = (name, kind) => ({ name, kind, lon: -122.88, lat: 48.57, zoom: 12, otherNames: [] });
+  const find = placeFinder([pl('Lopez Island', 'island'), pl('Lopez Island', 'ferry_terminal'), pl('Ediz Hook', 'point')],
+    [{ abbreviation: 'LPZ', place: 'Lopez Island', terminal: true }, { abbreviation: 'the hook', place: 'Ediz Hook', terminal: false }]);
+  const got = (t) => find(t).map((p) => `${p.name} ${p.kind}`);
+  assert.deepEqual(got('LPZ [Lopez Island] dock'), ['Lopez Island ferry_terminal']);
+  assert.deepEqual(got('viewed from the hook with binos'), ['Ediz Hook point']);
+  assert.deepEqual(got('The hook again'), ['Ediz Hook point']);
+  assert.deepEqual(got('lpz dock'), []); // a code in capitals must be written so
+  const rows = readAbbreviations();
+  assert.ok(rows.find((r) => r.abbreviation === 'FAU')?.terminal);
+});
+
 const pick = ({ added, changed, gone }) => ({ added, changed, gone });
