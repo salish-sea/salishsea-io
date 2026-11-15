@@ -132,27 +132,39 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
       // A known name at its end is the place, and the words before it are the sentence's:
       // "Hugging Camano Island", "North Pender Island". The known names are found below.
       if (name.some((_, i) => byName.has(words(name.slice(i).join(' '))))) continue;
-      // Nor is it unknown when it ends a known name whose first words are in lower case
-      // ("port Angeles harbor"), or begins with a whole known name of a kind of place, the
-      // rest being the sentence's ("Dana Passage Mid Channel").
+      // Nor is it unknown when it begins with a whole known name of a kind of place and the
+      // rest only says where on it ("Dana Passage Mid Channel"); "Elliott Bay Marina" is another place.
+      if (name.some((_, i) => i >= 1 && i < name.length - 1 && KIND_WORD.test(name[i]) && byName.has(words(name.slice(0, i + 1).join(' ')))
+        && name.slice(i + 1).every((w) => WHERE_ON.has(w.toLowerCase())))) continue;
+      if (overlaps(m.index, m.index + m[0].length)) continue; // a route or an abbreviation already found there
+      // The listed name it may be: with its first words in lower case before the run ("port
+      // Angeles harbor"), or a tail of the run after the sentence's words ("Hugging Camamo
+      // Island"), and written a little differently ("Alki Pt", "Elliot Bay"). The longest wins.
       const before = text.slice(0, m.index).match(/(?:\p{L}+[ \t]+){1,2}$/u)?.[0] ?? '';
       const lower = before.trim().split(/\s+/).filter(Boolean);
-      if (lower.some((_, i) => byName.has(words([...lower.slice(i), ...name].join(' '))))) continue;
-      if (name.some((_, i) => i >= 1 && i < name.length - 1 && KIND_WORD.test(name[i]) && byName.has(words(name.slice(0, i + 1).join(' '))))) continue;
-      if (overlaps(m.index, m.index + m[0].length)) continue; // a route or an abbreviation already found there
+      const lowerAt = starts(before, lower).map((o) => m.index - before.length + o);
+      const runAt = starts(m[0], name).map((o) => m.index + o);
+      const tails = [...lower.map((_, i) => ({ said: [...lower.slice(i), ...name], at: lowerAt[i] })),
+        ...name.slice(0, -1).map((_, j) => ({ said: name.slice(j), at: runAt[j] }))];
+      let reading = null;
+      for (const { said, at } of tails) {
+        const w = said.join(' ');
+        if (byName.has(words(w))) { reading = 'listed'; break; } // found as a listed name below
+        const alike = spelledAlike(w);
+        if (alike) { reading = { alike, written: w, at }; break; }
+      }
+      if (reading === 'listed') continue;
+      if (reading) {
+        taken.push([reading.at, m.index + m[0].length]);
+        const k = words(reading.alike.name);
+        if (!found.some((f) => f.key === k)) found.push({ key: k, ...known(reading.alike, byName.get(k) ?? [reading.alike], { written: reading.written }) });
+        continue;
+      }
       // A capitalised word before an unknown name is often the start of a sentence: "Off Richmond Beach".
       let dropped = 0;
       while (name.length > 2 && LEADING.has(name[0].toLowerCase())) dropped += name.shift().length + 1;
       const written = name.join(' ');
       const key = words(written);
-      // "Alki Pt" is Alki Point, and "Elliot Bay" is Elliott Bay: a listed name spelled a little differently.
-      const alike = spelledAlike(written);
-      if (alike) {
-        taken.push([m.index + dropped, m.index + m[0].length]);
-        const k = words(alike.name);
-        if (!found.some((f) => f.key === k)) found.push({ key: k, ...known(alike, byName.get(k) ?? [alike], { written }) });
-        continue;
-      }
       taken.push([m.index + dropped, m.index + m[0].length]);
       if (found.some((f) => f.key === key)) continue;
       found.push({ key, name: written, unknown: true });
@@ -196,6 +208,10 @@ const NAMED_PLACE = new RegExp(`(?<![\\p{L}])(?:(?:St\\.|\\p{Lu}[\\p{L}'’]*)[ 
 
 const LEADING = new Set(['off', 'at', 'near', 'in', 'on', 'from', 'by', 'of', 'the', 'to', 'past', 'around', 'toward', 'towards', 'between', 'just', 'north', 'south', 'east', 'west', 'heading', 'headed', 'passing', 'leaving', 'entering', 'inside', 'outside', 'and', 'still', 'now']);
 
+// Words after a whole name that say where on it, not another place: "Dana Passage Mid Channel".
+const WHERE_ON = new Set(['mid', 'middle', 'center', 'centre', 'channel', 'side', 'shore', 'end', 'north', 'south', 'east', 'west']);
+// Where each of a string's words starts in it, taking them in order.
+const starts = (str, ws) => { let o = 0; return ws.map((w) => (o = str.indexOf(w, o), o += w.length, o - w.length)); };
 const KIND_WORD = new RegExp(`^(?:${KINDS})$`, 'i');
 // The word for a kind of place that ends a name, as one spelling: "Pt" and "Pt." are "point".
 const kindWord = (name) => { const w = words(name).split(' ').at(-1); return w === 'pt' ? 'point' : w === 'harbour' ? 'harbor' : w; };
