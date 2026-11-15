@@ -52,8 +52,7 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
       // Only from a place's own name, never a ferry terminal's (its other names include whole
       // island names: "San Juan Island"), and never when what is left is an ordinary word.
       const short = name === p.name && p.kind !== 'ferry_terminal' ? /^(.+) (island|passage)$/i.exec(name)?.[1] : null;
-      if (short && COMMON_WORDS.has(words(short))) continue;
-      for (const key of [words(name), short && words(short)]) {
+      for (const key of [words(name), short && !COMMON_WORDS.has(words(short)) && words(short)]) {
         if (!key || NOT_PLACES.has(key)) continue;
         const list = byName.get(key) ?? [];
         if (!list.includes(p)) list.push(p);

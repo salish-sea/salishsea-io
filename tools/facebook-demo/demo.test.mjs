@@ -304,4 +304,37 @@ test('each row of a post gets a kind, and only reports are read', () => {
   assert.deepEqual([...announcement.kinds.values()], ['other post', 'other post']);
 });
 
+test('fixes from review: full names kept, questions with times, credit lines, titles, bad dates', () => {
+  const pl = (name, kind = 'island') => ({ name, kind, lon: -122.35, lat: 47.58, zoom: 12, otherNames: [] });
+  assert.deepEqual(placeFinder([pl('Harbor Island')])('off Harbor Island now').map((p) => p.name), ['Harbor Island']);
+  assert.deepEqual(placeFinder([pl('Harbor Island')])('from Boston Harbor').map((p) => p.name), ['Boston Harbor']);
+  assert.equal(parseTitle('Thursday, November 32nd - ORCAS', Date.UTC(2026, 10, 15) / 1000), null);
+
+  let n = 0;
+  const row = (kind, text, extra = {}) => ({ key: `r${++n}`, kind, text, seq: extra.seq ?? n, first_seen: Date.UTC(2026, 10, 12) / 1000, gone: 0, comment_id: null, reply_to: null, author: null, clock: null, reading: '{}', places: '[]', ...extra });
+  const rows = [
+    row('line', 'Thursday, November 12th - ORCAS (Port Susan)', { seq: 0, gone: 1 }),
+    row('line', 'Thursday, November 12th - HUMPBACKS (Port Susan)', { seq: 0 }),
+    row('line', '10:30 - Orcas, Tillicum Beach heading south.', { clock: '10:30', reading: JSON.stringify({ direction: 'south' }) }),
+    row('line', 'Just saw a blow'),
+    row('comment', 'Were they off Camano at 11:30?', { comment_id: '1', author: 'Pat', clock: '11:30', places: JSON.stringify([{ name: 'Camano Island' }]) }),
+    row('comment', '1150 northbound, any IDs?', { comment_id: '2', author: 'Sam', clock: '11:50', reading: JSON.stringify({ direction: 'north' }) }),
+  ];
+  const { title, kinds } = classifyPost(rows);
+  assert.equal(title.kind, 'humpbacks');
+  assert.deepEqual(rows.map((r) => kinds.get(r.key)), ['edited away', 'title', 'report', 'report', 'question', 'report']);
+});
+
+test('a send that adds a name to the thread reads the thread again', () => {
+  const db = openStore(':memory:');
+  const enrich = (text, names) => ({ clock: null, reading: {}, places: stripMention(text, names).startsWith('Dana') ? [{ name: 'Dana Passage' }] : [] });
+  const reply = `<div role="article" aria-label="Reply by Orca Network to Pat Example's comment 5 minutes ago">${link(1, 2)}<div dir="auto">Dana Smith thanks</div></div>`;
+  const first = `<div role="main">${reply}</div>`;
+  const later = `<div role="main"><div role="article" aria-label="Comment by Dana Smith 9 minutes ago">${link(3)}<div dir="auto">nice</div></div>${reply}</div>`;
+  recordSend(db, { at: 1, sender: 'T', postId: '4', url: 'u', title: 't', bytes: 1, read: readPost(first), agoToTime, enrich });
+  assert.equal(db.prepare("SELECT places FROM items WHERE key = 'c:2'").get().places, '[{"name":"Dana Passage"}]');
+  recordSend(db, { at: 2, sender: 'T', postId: '4', url: 'u', title: 't', bytes: 1, read: readPost(later), agoToTime, enrich });
+  assert.equal(db.prepare("SELECT places FROM items WHERE key = 'c:2'").get().places, '[]');
+});
+
 const pick = ({ added, changed, gone }) => ({ added, changed, gone });

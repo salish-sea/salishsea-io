@@ -19,7 +19,10 @@ export function parseTitle(line, sentAt) {
   const sent = new Date(sentAt * 1000);
   // A title from late December sent in early January belongs to the year before.
   const year = sent.getUTCFullYear() - (month === 11 && sent.getUTCMonth() === 0 ? 1 : 0);
-  const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(Number(m[2])).padStart(2, '0')}`;
+  const day = Number(m[2]);
+  // "November 32nd" is a typo, not a date: such a post has no title we can read.
+  if (new Date(Date.UTC(year, month, day)).getUTCDate() !== day) return null;
+  const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   const rest = m[3];
   const kind = /baleen/i.test(rest) ? 'baleen whales'
     : /southern resident|srkw/i.test(rest) ? 'Southern Resident orcas'

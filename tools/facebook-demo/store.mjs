@@ -34,25 +34,34 @@ export function openStore(path) {
  * old result. Returns how many rows changed.
  */
 export function rereadAll(db, enrich) {
-  const update = db.prepare(`UPDATE items SET clock = ?, reading = ?, places = ?,
-      mark = NULL, note = NULL, marked_by = NULL, marked_at = NULL WHERE key = ?`);
-  let changed = 0;
   db.exec('BEGIN');
   try {
-    const names = new Map();
-    for (const x of db.prepare('SELECT DISTINCT post_id, author FROM items WHERE author IS NOT NULL').all())
-      names.set(x.post_id, [...(names.get(x.post_id) ?? []), x.author]);
-    for (const r of db.prepare('SELECT key, post_id, text, clock, reading, places FROM items').all()) {
-      const e = enrich(r.text, names.get(r.post_id) ?? []);
-      const [reading, places] = [JSON.stringify(e.reading), JSON.stringify(e.places)];
-      if (e.clock === r.clock && reading === r.reading && places === r.places) continue;
-      update.run(e.clock, reading, places, r.key);
-      changed++;
-    }
+    const changed = reread(db, enrich, null);
     db.exec('COMMIT');
+    return changed;
   } catch (e) {
     db.exec('ROLLBACK');
     throw e;
+  }
+}
+
+// Reads stored rows again (all, or one post's), inside the caller's transaction. A row's
+// reading depends on its text and on the names in its thread, which a later send can add.
+function reread(db, enrich, postId) {
+  const update = db.prepare(`UPDATE items SET clock = ?, reading = ?, places = ?,
+      mark = NULL, note = NULL, marked_by = NULL, marked_at = NULL WHERE key = ?`);
+  const where = postId == null ? '' : ' WHERE post_id = ?';
+  const args = postId == null ? [] : [postId];
+  const names = new Map();
+  for (const x of db.prepare(`SELECT DISTINCT post_id, author FROM items${where ? where + ' AND' : ' WHERE'} author IS NOT NULL`).all(...args))
+    names.set(x.post_id, [...(names.get(x.post_id) ?? []), x.author]);
+  let changed = 0;
+  for (const r of db.prepare(`SELECT key, post_id, text, clock, reading, places FROM items${where}`).all(...args)) {
+    const e = enrich(r.text, names.get(r.post_id) ?? []);
+    const [reading, places] = [JSON.stringify(e.reading), JSON.stringify(e.places)];
+    if (e.clock === r.clock && reading === r.reading && places === r.places) continue;
+    update.run(e.clock, reading, places, r.key);
+    changed++;
   }
   return changed;
 }
@@ -118,6 +127,9 @@ export function recordSend(db, { at, sender, postId, url, title, bytes, read, ag
         }
       }
     }
+
+    // The thread may now have names it lacked, so a row sent earlier may read differently.
+    reread(db, enrich, postId);
 
     db.prepare(`INSERT INTO sends (at, sender, post_id, url, title, bytes, lines, comments, added, changed, gone, collapsed, sort)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)

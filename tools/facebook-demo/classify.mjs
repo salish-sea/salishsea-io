@@ -37,7 +37,8 @@ export function staffTime(row) {
  * kind, by key. `reading(row)` gives the stored reading, `places(row)` the stored places.
  */
 export function classifyPost(rows, standing = new Set()) {
-  const lines = rows.filter((r) => r.kind === 'line').sort((a, b) => a.seq - b.seq);
+  // The post as it stands: a line edited away (a title staff have since changed) is not its text.
+  const lines = rows.filter((r) => r.kind === 'line' && !r.gone).sort((a, b) => a.seq - b.seq);
   const first = lines[0];
   const title = first ? parseTitle(first.text, first.first_seen) : null;
   const kinds = new Map();
@@ -58,11 +59,12 @@ export function classifyPost(rows, standing = new Set()) {
     else if (TIME_THEN_DASH.test(r.text)) k = 'report';
     else if (WEBCAM.test(r.text)) k = 'webcam';
     else if (HYDROPHONE.test(r.text) && !SEEN.test(r.text)) k = 'hydrophone';
-    else if (afterReport && r.text.split(/\s+/).length <= 6 && !/\d/.test(r.text)) k = 'credit';
+    else if (afterReport && r.text.split(/\s+/).length <= 6 && !/\d/.test(r.text) && !says(r) && !SEEN.test(r.text)) k = 'credit';
     else k = says(r) || SEEN.test(r.text) ? 'report' : 'note';
     afterReport = k === 'report' || (afterReport && k === 'credit');
     kinds.set(r.key, k);
   }
+  for (const r of rows.filter((r) => r.kind === 'line' && r.gone)) kinds.set(r.key, 'edited away');
 
   const byId = new Map(rows.filter((r) => r.comment_id).map((r) => [r.comment_id, r]));
   const names = rows.map((r) => r.author).filter(Boolean);
@@ -73,7 +75,9 @@ export function classifyPost(rows, standing = new Set()) {
     if (standing.has(r.text)) k = 'standing';
     else if (!title) k = 'other post';
     else if (staffTime(r)) k = 'staff time';
-    else if (/\?/.test(t) && !r.clock) k = 'question';
+    // A question, even one that gives a time ("Were they off Camano at 11:30?"); but a report
+    // that starts with its time and ends by asking something ("1150 northbound, any IDs?") is a report.
+    else if (/\?/.test(t) && !/^\W*\d{1,2}[:.]?\d{2}\b/.test(t)) k = 'question';
     else if (/\b(no sign|nothing seen|nothing yet|haven'?t seen|have not seen|not seeing|no visuals?|no luck|lost (sight|them))\b/i.test(t)) k = 'nothing seen';
     else if (WEBCAM.test(t)) k = 'webcam';
     else if (HYDROPHONE.test(t) && !SEEN.test(t)) k = 'hydrophone';
