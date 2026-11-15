@@ -11,6 +11,9 @@ import { ownNames } from './context.mjs';
 const YES = /^\W*(yes|yep|yeah|yup|correct|confirmed)\b/i;
 // A question that offers a choice ("north or south?") proposes nothing a "yes" confirms.
 const CHOICE = /\bor\b/i;
+// The kinds of the author's replies that can add to their report (classify.mjs): a
+// continuation is what says nothing on its own, such as "Orca Network yes."
+const ADDS = new Set(['report', 'continuation']);
 
 const readingOf = (r) => JSON.parse(r.reading ?? '{}');
 const placesOf = (r) => JSON.parse(r.places ?? '[]');
@@ -45,8 +48,10 @@ export function threadFor(rows, kinds, reports) {
     };
     thread.forEach((r, i) => {
       if (r.author !== c.author) return;
-      const k = kinds.get(r.key);
-      if (k === 'question' || k === 'thanks' || k === 'standing') return;
+      // Only what reports: "12:20 no sign of them" gives no time to the sighting.
+      if (!ADDS.has(kinds.get(r.key))) return;
+      // The reply's own words first; a question it confirms fills only what they leave out.
+      take(r, r);
       const { name, rest } = mentionOf(r.text, names);
       if (YES.test(rest)) {
         // The question it answers: the latest before it by the person it names, or else the latest by anyone.
@@ -54,7 +59,6 @@ export function threadFor(rows, kinds, reports) {
         const q = asked.find((q) => q.author === name) ?? asked[0];
         if (q && !CHOICE.test(mentionOf(q.text, names).rest)) take(q, r);
       }
-      take(r, r);
     });
     if (got.clock || got.direction || got.places.length || got.animals.length) out.set(c.key, got);
   }

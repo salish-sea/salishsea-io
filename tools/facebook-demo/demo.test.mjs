@@ -365,6 +365,13 @@ test('a report gains what its author adds in replies, and what a question they a
     row('comment', 'Jo Boat', '9:05 just getting on scene with southbound orcas', { clock: '09:05', reading: { direction: 'south' } }),
     row('reply', 'Jo Boat', 'Js so far', { reply_to: '11', reading: { pods: ['J'] } }),
     row('reply', 'Lee Listener', 'Kim Watcher the park is just south of the point https://salishsea.io/?d=2026-11-08&x=1', { reply_to: '8' }),
+    row('reply', 'Mo Other', 'Jo Boat thanks!', { reply_to: '11' }),
+    row('reply', 'Jo Boat', '09:10 still visible heading south', { reply_to: '11', clock: '09:10', reading: { direction: 'south' } }),
+    row('comment', 'Ana Shore', 'Orcas off the point heading south'),
+    row('reply', 'Ana Shore', '12:20 no sign of them', { reply_to: '16', clock: '12:20' }),
+    row('comment', 'Bo Beach', 'Orcas off the lighthouse', { places: [{ name: 'Lime Kiln Point', lat: 48.52, lon: -123.15 }] }),
+    row('reply', 'Orca Network', 'Bo Beach were they heading south at 09:00?', { reply_to: '18', clock: '09:00', reading: { direction: 'south' } }),
+    row('reply', 'Bo Beach', 'Orca Network yes, at 09:30', { reply_to: '18', clock: '09:30' }),
   ];
   const { kinds } = classifyPost(rows);
   assert.equal(kinds.get('t13'), 'talk'); // a link's "?" is not a question
@@ -380,6 +387,12 @@ test('a report gains what its author adds in replies, and what a question they a
   assert.deepEqual(t.get('t11').animals, ['J pod']);
   const ctx = contextFor([...rows, row('line', null, 'EDIT W/ IDs - T137s', { reading: { claims: [{ code: 'T137s', presence: 'present', certainty: 'certain' }] } })], new Set(), reports, t);
   assert.deepEqual(ctx.get('t11'), { labels: ['J pod'], from: 'reply' });
+  // A later reply means the animals its comment gained, not the post's.
+  assert.deepEqual(ctx.get('t15'), { labels: ['J pod'], from: 'comment' });
+  // "No sign of them" gives no time; a "yes" with its own time keeps it over the question's.
+  assert.equal(t.get('t16'), undefined);
+  assert.equal(t.get('t18').clock, '09:30');
+  assert.equal(t.get('t18').direction, 'south');
 });
 
 const pick = ({ added, changed, gone }) => ({ added, changed, gone });

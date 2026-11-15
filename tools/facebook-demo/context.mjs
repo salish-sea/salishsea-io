@@ -57,7 +57,9 @@ export function contextFor(rows, standing = new Set(), eligible = null, thread =
     // Only a report borrows (classify.mjs): a question or a credit line means no animals.
     if ((eligible && !eligible.has(r.key)) || namesAny(r) || !saysSighting(r)) continue;
     const parent = r.kind === 'reply' ? byComment.get(r.reply_to) : null;
+    // A reply means what its comment names, or what the comment's author named in its thread.
     const parentNames = parent ? [...new Set(ownNames(parent).map((n) => n.label))] : [];
+    if (parent && !parentNames.length) parentNames.push(...(thread.get(parent.key)?.animals ?? []));
     const replyNames = thread.get(r.key)?.animals ?? [];
     if (parentNames.length) out.set(r.key, { labels: parentNames, from: 'comment' });
     else if (replyNames.length) out.set(r.key, { labels: replyNames, from: 'reply' });
