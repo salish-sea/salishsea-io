@@ -25,11 +25,17 @@ export function readPost(html) {
     let commentId = null, replyId = null;
     for (const link of a.querySelectorAll('a[href*="comment_id="]')) {
       if (inNested(link)) continue;
-      const u = new URL(link.getAttribute('href'), 'https://www.facebook.com');
+      let u;
+      try {
+        u = new URL(link.getAttribute('href'), 'https://www.facebook.com');
+      } catch {
+        continue;
+      }
       commentId ??= u.searchParams.get('comment_id');
       replyId ??= u.searchParams.get('reply_comment_id');
     }
     if (!commentId) continue;
+    const media = mediaIn([...a.querySelectorAll('a[href]')].filter((n) => !inNested(n)));
     const blocks = [...a.querySelectorAll('div[dir="auto"]')].filter((n) => !inNested(n));
     const text = outermost(blocks).map(textOf).filter(Boolean).join('\n');
     comments.push({
@@ -39,6 +45,7 @@ export function readPost(html) {
       author: m[2],
       ago: m[4],
       text,
+      media,
     });
   }
 
@@ -51,10 +58,33 @@ export function readPost(html) {
   const buttons = [...document.querySelectorAll('[role="button"]')].map((b) => b.textContent.trim());
   return {
     lines,
+    media: mediaIn([...document.querySelectorAll('a[href]')].filter((n) => !articles.some((a) => a.contains(n)))),
     comments,
     collapsed: buttons.filter((t) => EXPANDERS.test(t)).length,
     sort: buttons.find((t) => /^(most relevant|all comments|newest)$/i.test(t)) ?? null,
   };
+}
+
+/**
+ * Links to the photos and videos among some links, on Facebook, without its tracking
+ * parameters. SalishSea.io keeps no copy: the group's media permissions are Orca Network's.
+ */
+function mediaIn(links) {
+  const out = new Set();
+  for (const a of links) {
+    let u;
+    try {
+      u = new URL(a.getAttribute('href'), 'https://www.facebook.com');
+    } catch {
+      continue; // a malformed link elsewhere on the page must not lose the send
+    }
+    if (!/(^|\.)facebook\.com$/.test(u.hostname)) continue;
+    const fbid = u.searchParams.get('fbid');
+    if (/^\/photo(\.php)?\/?$/.test(u.pathname) && fbid) out.add(`https://www.facebook.com/photo/?fbid=${fbid}`);
+    else if (/\/(videos|reel)\/\d+/.test(u.pathname)) out.add(`https://www.facebook.com${u.pathname.replace(/\/$/, '')}`);
+    else if (u.pathname === '/watch/' && u.searchParams.get('v')) out.add(`https://www.facebook.com/watch/?v=${u.searchParams.get('v')}`);
+  }
+  return [...out];
 }
 
 const outermost = (nodes) => nodes.filter((n) => !nodes.some((o) => o !== n && o.contains(n)));
