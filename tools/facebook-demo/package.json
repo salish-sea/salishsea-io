@@ -1,0 +1,14 @@
+{
+  "name": "facebook-demo",
+  "private": true,
+  "type": "module",
+  "description": "A week's trial of decision 117 on Maderas: see README.md",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "linkedom": "0.18.15",
+    "temporal-polyfill": "0.3.2"
+  }
+}

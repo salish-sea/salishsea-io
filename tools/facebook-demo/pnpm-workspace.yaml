@@ -1,0 +1,3 @@
+# A separate pnpm project, like infra/: its own lockfile, not a member of the site's.
+# linkedom and its dependencies run no install scripts.
+allowBuilds: {}
