@@ -20,6 +20,9 @@ kill_timeout = 60
 [env]
   API_ENABLED = "1"
   READ_PATH_STORE = "/data/store/salishsea.db"
+  # The HTML of posts sent from Facebook, kept a week (a month if unreadable) beside the
+  # store, not in it (api/facebook-sends.ts, decision 117)
+  FACEBOOK_SENDS_DIR = "/data/facebook-sends"
 
 # One machine, always running: it holds the volume and the hourly schedule, so it
 # cannot stop when idle, and there is no second machine to share the volume with.

@@ -4,7 +4,7 @@
  */
 import { describe, expect, test } from 'vitest';
 
-import { agoToTime, EXPANDERS, postId, readFacebookPost, UnreadablePost } from './facebook-post.ts';
+import { agoToTime, EXPANDERS, NotOnePost, permalinkAddress, postAddress, postId, readFacebookPost, UnreadablePost } from './facebook-post.ts';
 
 const SENT = 1_794_000_000;
 const link = (c: number, r?: number) =>
@@ -38,11 +38,12 @@ describe('readFacebookPost', () => {
         ]);
         expect(r.comments[0]!.text).toBe('1145 Exiting Port Susan close to Camano. Currently SB.');
         expect([r.collapsed, r.sort]).toEqual([1, 'All comments']);
+        expect(r.address).toEqual({group: '1', post: '2'});
     });
 
     test('a post with no comments yet is read', () => {
         const r = readFacebookPost(post('', {collapsed: false}), SENT);
-        expect([r.lines.length, r.comments, r.collapsed]).toEqual([2, [], 0]);
+        expect([r.lines.length, r.comments, r.collapsed, r.address]).toEqual([2, [], 0, null]);
     });
 
     test('a comment\'s line breaks and <br>s become lines; a photo-only comment has no text', () => {
@@ -96,6 +97,22 @@ describe('readFacebookPost', () => {
         expect(r.comments.map(c => [c.id, c.text])).toEqual([['1', 'Mine'], ['2', 'Theirs']]);
     });
 
+    test('comments from two posts are the sender\'s mistake, not a change to Facebook\'s markup', () => {
+        const other = '<a href="https://www.facebook.com/groups/1/posts/3/?comment_id=9">1h</a>';
+        expect(() => readFacebookPost(post(comment('Comment by Pat Example 2 hours ago', link(1), 'x')
+            + comment('Comment by Sam Sample 2 hours ago', other, 'y')), SENT)).toThrow(NotOnePost);
+        // even when a label on the page can't be read
+        expect(() => readFacebookPost(post(comment('Kommentar von Pat', link(1), 'x')
+            + comment('Comment by Sam Sample 2 hours ago', other, 'y')), SENT)).toThrow(NotOnePost);
+    });
+
+    test('the post most permalinks name, read from text the reader may not be able to read', () => {
+        const unreadable = '<div role="article" aria-label="Kommentar">' + link(1) + link(2)
+            + '<a href="https://www.facebook.com/groups/1/posts/7/?comment_id=3">pasted</a></div>';
+        expect(permalinkAddress(unreadable)).toEqual({group: '1', post: '2'});
+        expect(permalinkAddress('<div>nothing</div>')).toBeNull();
+    });
+
     describe('fails loudly when Facebook\'s markup has changed', () => {
         test('every comment reads as empty', () => {
             const html = post([1, 2].map(n => `<div role="article" aria-label="Comment by Pat Example 2 hours ago">${link(n)}<p>11:45 off Alki</p></div>`).join(''));
@@ -114,7 +131,12 @@ describe('readFacebookPost', () => {
         test('an article whose label is not a comment\'s, without naming the member', () => {
             const html = post(comment('Comment by Pat Example 2 hrs', link(1), 'x'));
             expect(() => readFacebookPost(html, SENT)).toThrow(UnreadablePost);
-            expect(() => readFacebookPost(html, SENT)).toThrow(/^an article's label isn't a comment's or a reply's: "C… b… P… E… 2 h…"$/);
+            expect(() => readFacebookPost(html, SENT)).toThrow(/^an article's label isn't a comment's or a reply's: "Comment by …", 6 words, ending "2 hrs"$/);
+            const indic = post(comment('Reply by देवनागरी नाम to Pat Example\'s comment 2 hrs', link(1, 2), 'x'));
+            expect(() => readFacebookPost(indic, SENT)).toThrow(/: "Reply by …", 10 words, ending "2 hrs"$/);
+            // a name made of words labels use is still a name
+            const plain = post(comment('Comment by An Day', link(1), 'x'));
+            expect(() => readFacebookPost(plain, SENT)).toThrow(/: "Comment by …", 4 words, with no time at its end$/);
         });
 
         test('a comment without its comment_id', () => {
@@ -149,4 +171,13 @@ test('post ids from the post\'s address', () => {
     expect(postId('https://www.facebook.com/groups/564701038927716/permalink/1490225183041959/')).toBe('1490225183041959');
     expect(postId('https://www.facebook.com/groups/564701038927716/posts/1489227859808358')).toBe('1489227859808358');
     expect(postId('https://www.facebook.com/groups/564701038927716')).toBeNull();
+});
+
+test('the group and post an address names, on Facebook only', () => {
+    expect(postAddress('https://web.facebook.com/groups/564701038927716/posts/1489227859808358/?__cft__=x'))
+        .toEqual({group: '564701038927716', post: '1489227859808358'});
+    expect(postAddress('https://m.facebook.com/groups/orca.network/permalink/14/')).toEqual({group: 'orca.network', post: '14'});
+    for (const url of ['http://www.facebook.com/groups/1/posts/2', 'https://facebook.com.example/groups/1/posts/2',
+        'https://www.facebook.com/groups/1/', 'https://www.facebook.com/groups/1/posts/2/photos', 'not an address'])
+        expect(postAddress(url)).toBeNull();
 });

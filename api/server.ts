@@ -31,6 +31,13 @@
  *                                             notifier.ts files it as a GitHub issue
  *   POST   /api/searches        a search        anyone (078), what the search field found and
  *                                             what was chosen (searches.ts); a cap per sender
+ *   POST   /api/facebook-posts  {html, url, sent_at}
+ *                                             a post from the Orca Network Community Group,
+ *                                             sent by the bookmarklet's window (117,
+ *                                             facebook-sends.ts): 401 signed out, 403 not a
+ *                                             sender; 201 {send_id, post_id, lines, comments,
+ *                                             collapsed, sort} read, 422 {send_id, error} not
+ *                                             (the 201's fields may change with salish-i1a.3.5)
  *
  * A change to a sighting wakes the build (BUILD_COMMAND: the snapshot and what derives from
  * it, fly/start.sh) at once, so the published files follow within seconds: a running
@@ -51,6 +58,7 @@ import { ownOccurrence } from '../src/own-occurrence.ts';
 import { TERMS_VERSION } from '../src/terms.ts';
 import { BuildCoalescer, commandBuild, SAVE_OPTIONS } from '../scripts/read-path/coalesce.ts';
 import { animalNames, type NamesLookup } from './animal-names.ts';
+import { isFacebookSender, MAX_SEND_BYTES, parseSend, receiveSend, sweepSends } from './facebook-sends.ts';
 import { parseFeedback, rateLimiter, submitFeedback } from './feedback.ts';
 import { googleKeys, InvalidToken, verifyIdToken, type KeySource } from './google.ts';
 import { startNotifier, storeQueue } from './notifier.ts';
@@ -73,6 +81,11 @@ export type Api = {
     feedbackAllowed?: (sender: string) => boolean,
     /** Whether a sender may record another search now. */
     searchesAllowed?: (sender: string) => boolean,
+    /**
+     * Where the HTML of posts sent from Facebook is kept, and whether a user may send
+     * another now. Without it, a send answers 503.
+     */
+    facebookSends?: {dir: string, allowed?: (userId: string) => boolean},
     /** The species names the build published, for a public sighting read; none without it. */
     names?: NamesLookup,
     /**
@@ -133,9 +146,9 @@ async function bytes(req: IncomingMessage, max: number): Promise<Buffer<ArrayBuf
     return Buffer.concat(chunks);
 }
 
-async function json(req: IncomingMessage): Promise<Record<string, unknown>> {
+async function json(req: IncomingMessage, max = MAX_BODY): Promise<Record<string, unknown>> {
     if (!/^application\/json\b/.test(req.headers['content-type'] ?? '')) throw new HttpError(415, 'send JSON');
-    const raw = await bytes(req, MAX_BODY);
+    const raw = await bytes(req, max);
     try {
         const body = JSON.parse(raw.toString('utf8'));
         if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new Error();
@@ -272,6 +285,19 @@ export async function handle(api: Api, req: IncomingMessage, res: ServerResponse
             recordSearch(api.store, search);
             return send(res, 201, {received: true});
         }
+        if (url.pathname === '/api/facebook-posts' && method === 'POST') {
+            const who = currentUser(api, req);
+            if (who === null) throw new HttpError(401, 'sign in first');
+            if (!isFacebookSender(api.store, who)) throw new HttpError(403, 'this account may not send posts from Facebook');
+            if (!api.facebookSends) throw new HttpError(503, 'sending posts from Facebook is not configured');
+            const body = await json(req, MAX_SEND_BYTES);
+            const receivedAt = new Date();
+            const input = parseSend(body, receivedAt);
+            if (api.facebookSends.allowed && !api.facebookSends.allowed(who.user_id))
+                throw new HttpError(429, 'too many sends; try again in a few minutes');
+            const answer = await receiveSend(api.store, api.facebookSends.dir, who, input, receivedAt);
+            return send(res, answer.status, answer.body);
+        }
         throw new HttpError(404, 'no such route');
     } catch (error) {
         if (error instanceof HttpError || error instanceof Refused) return send(res, error.status, {error: error.message});
@@ -329,6 +355,10 @@ if (import.meta.main) {
     // SAVE_OPTIONS (salish-9uu.6): no quiet period — a save is one signal, and a visitor
     // who has just saved is about to share the link — and a spacing that bounds the
     // machine's work, not forgery.
+    // Where the HTML of posts sent from Facebook is kept (facebook-sends.ts); without it,
+    // a send answers 503.
+    const facebookSendsDir = process.env['FACEBOOK_SENDS_DIR'] || undefined;
+    if (!facebookSendsDir) console.warn('api: FACEBOOK_SENDS_DIR is not set, so posts sent from Facebook answer 503');
     const coalescer = build.length > 0 ? new BuildCoalescer(commandBuild(build), SAVE_OPTIONS) : null;
     const db = openStore(store);
     if (githubToken && issueAuthor) {
@@ -348,12 +378,20 @@ if (import.meta.main) {
         searchesAllowed: rateLimiter(120, 10 * 60_000),
         names: exportDir ? animalNames(exportDir) : undefined,
         edgeSecret,
+        // Up to five posts a day, each sent again every few minutes while they grow (117):
+        // 300 an hour leaves room for that, and only stops a loop.
+        facebookSends: facebookSendsDir ? {dir: facebookSendsDir, allowed: rateLimiter(300, 60 * 60_000)} : undefined,
         photos: bucket ? {
             put: (key, body, meta) => putObject(bucket, key, body, meta),
             base: process.env['MEDIA_BASE_URL'] ?? 'https://salishsea.io',
         } : undefined,
     }, port);
     console.log(`api: listening on 127.0.0.1:${port}`);
+    if (facebookSendsDir) {
+        const sweep = () => sweepSends(facebookSendsDir).catch(error => console.error('api: sweeping sent posts:', error));
+        void sweep();
+        setInterval(sweep, 60 * 60_000).unref();
+    }
     // The machine stopping (decision 066): Litestream passes on SIGTERM. Finish the requests
     // in flight, so the final sync Litestream makes once this exits carries their writes. Ten
     // seconds at most, inside fly.toml's kill_timeout with the sync's own thirty.

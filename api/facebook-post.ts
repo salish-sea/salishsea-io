@@ -47,11 +47,21 @@ export type FacebookPost = {
     collapsed: number,
     /** How the comments were sorted, as Facebook's button says ("All comments"), or null if it isn't there. */
     sort: string | null,
+    /** The group and post its comments' permalinks name, or null when it has no comments. */
+    address: PostAddress | null,
 };
+
+/** A group's post, by Facebook's ids: the group's may be its number or its chosen name. */
+export type PostAddress = {group: string, post: string};
 
 /** The post doesn't have the shape this reader knows: Facebook has probably changed its markup. */
 export class UnreadablePost extends Error {
     override name = 'UnreadablePost';
+}
+
+/** What was sent holds comments from more than one post: a feed, say, not a post. The sender's mistake, not Facebook's. */
+export class NotOnePost extends Error {
+    override name = 'NotOnePost';
 }
 
 /**
@@ -70,26 +80,33 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
     const {document} = parseHTML(`<!doctype html><html><body>${html}</body></html>`);
     const articles = [...document.querySelectorAll('[role="article"]')];
 
+    // Each article's own part, and its permalinks: every link with a comment_id outside its
+    // text (the "2h" beside its name). A link to another comment that a member pastes into
+    // their text is not the comment's own.
+    const parts = articles.map(a => {
+        const nested = articles.filter(x => x !== a && a.contains(x));
+        const own = <T extends Element>(nodes: Iterable<T>) => [...nodes].filter(n => !nested.some(x => x.contains(n)));
+        const permalinks = own(a.querySelectorAll('a[href*="comment_id="]')).flatMap(link => {
+            const block = link.closest('div[dir="auto"]');
+            const u = block && a.contains(block) ? null : urlOf(link);
+            return u?.searchParams.get('comment_id') ? [u] : [];
+        });
+        return {a, own, permalinks};
+    });
+    // The bookmarklet sends one post; comments from two would be a page it shouldn't have
+    // sent. Asked first, so that a page of two posts is the sender's mistake even when
+    // something on it can't be read.
+    const addresses = new Set(parts.flatMap(p => p.permalinks.map(u => postAddress(u.href)))
+        .flatMap(address => address ? [JSON.stringify([address.group, address.post])] : []));
+    if (addresses.size > 1) throw new NotOnePost('its comments belong to more than one post');
+
     const comments: FacebookComment[] = [];
-    for (const a of articles) {
+    for (const {a, own, permalinks} of parts) {
         const label = a.getAttribute('aria-label') ?? '';
         const m = LABEL.exec(label);
         if (!m) throw new UnreadablePost(`an article's label isn't a comment's or a reply's: ${shapeOf(label)}`);
         const [, kind = '', author = '', , ago = ''] = m;
-        const nested = articles.filter(x => x !== a && a.contains(x));
-        const own = <T extends Element>(nodes: Iterable<T>) => [...nodes].filter(n => !nested.some(x => x.contains(n)));
-
-        // Its own ids, from its permalink (the "2h" beside its name): every link with a
-        // comment_id outside its text, which must agree. A link to another comment that a
-        // member pastes into their text is not the comment's own.
-        const ids = new Set<string>();
-        for (const link of own(a.querySelectorAll('a[href*="comment_id="]'))) {
-            const block = link.closest('div[dir="auto"]');
-            if (block && a.contains(block)) continue;
-            const u = urlOf(link);
-            const commentId = u?.searchParams.get('comment_id');
-            if (commentId) ids.add(JSON.stringify([commentId, u?.searchParams.get('reply_comment_id') ?? null]));
-        }
+        const ids = new Set(permalinks.map(u => JSON.stringify([u.searchParams.get('comment_id'), u.searchParams.get('reply_comment_id') ?? null])));
         const kindName = kind.toLowerCase();
         if (ids.size !== 1) throw new UnreadablePost(`a ${kindName} has ${ids.size ? 'links to more than one comment_id' : 'no link with its comment_id'} beside its text`);
         const [commentId, replyId] = JSON.parse([...ids][0]!) as [string, string | null];
@@ -113,6 +130,7 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
         .flatMap(n => textOf(n).split('\n'))
         .map(l => l.trim())
         .filter(l => /[\p{L}\p{N}]/u.test(l));
+    const [group, post] = addresses.size ? JSON.parse([...addresses][0]!) as [string, string] : [];
     // Even a post with no comments yet has its title.
     if (!lines.length) throw new UnreadablePost('found no text outside the comments');
     // A comment may be only a photo or a sticker, but a change to Facebook's markup changes
@@ -126,11 +144,39 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
         comments,
         collapsed: buttons.filter(t => EXPANDERS.test(t)).length,
         sort: buttons.find(t => SORTS.test(t)) ?? null,
+        address: group && post ? {group, post} : null,
     };
 }
 
-/** A label's shape with its words reduced to their first letters, for an error that names no member. */
-const shapeOf = (label: string) => JSON.stringify(label.replace(/(\p{L})\p{L}*/gu, '$1…').slice(0, 60));
+/**
+ * A label's shape for an error, which becomes a public issue. Nothing between its start
+ * and its time is kept, since that is where the names are, and no list of the words labels
+ * use can tell a name from them ("An Day"): only whether it starts as a comment's or a
+ * reply's does, how many words it has, and the time it ends with, if any.
+ */
+const shapeOf = (label: string) => {
+    const start = /^(comment|reply) by\b/i.exec(label)?.[0];
+    const time = /(?:^|\s)(\d+\s?[a-z]{0,7}(?:\s+ago)?|just now|yesterday)$/i.exec(label)?.[1];
+    const words = label.split(/\s+/).filter(Boolean).length;
+    return `${start ? `"${start} …"` : 'not "Comment by" or "Reply by"'}, ${words} words, ${time ? `ending "${time}"` : 'with no time at its end'}`;
+};
+
+/**
+ * The group and post that most of the comment permalinks in some HTML name, read from the
+ * text without parsing it: for a post the reader couldn't read, whose group must still be
+ * known before it is kept.
+ */
+export function permalinkAddress(html: string): PostAddress | null {
+    const counts = new Map<string, number>();
+    for (const m of html.matchAll(/href="(https:\/\/(?:www\.|web\.|m\.)?facebook\.com\/groups\/[\w.]+\/(?:posts|permalink)\/\d+\/?)\?[^"]*comment_id=/g)) {
+        const address = postAddress(m[1]!);
+        if (address) counts.set(JSON.stringify([address.group, address.post]), (counts.get(JSON.stringify([address.group, address.post])) ?? 0) + 1);
+    }
+    const best = [...counts].sort((a, b) => b[1] - a[1])[0];
+    if (!best) return null;
+    const [group, post] = JSON.parse(best[0]) as [string, string];
+    return {group, post};
+}
 
 function urlOf(a: Element): URL | null {
     try {
@@ -159,7 +205,14 @@ function mediaIn(links: Element[]): string[] {
     return [...out];
 }
 
-const outermost = <T extends Element>(nodes: T[]) => nodes.filter(n => !nodes.some(o => o !== n && o.contains(n)));
+// The nodes not inside another of them. They come in document order, as querySelectorAll
+// gives them, so a node's ancestor among them is the last one kept before it, if any:
+// linear, where comparing every pair was quadratic in a post's thousands of blocks.
+const outermost = <T extends Element>(nodes: T[]) => {
+    const kept: T[] = [];
+    for (const n of nodes) if (!kept.at(-1)?.contains(n)) kept.push(n);
+    return kept;
+};
 
 // A block's text in document order, with a line break at each block inside it and at each
 // <br>: each line of a post is a block inside the outer one, but text can sit between them.
@@ -199,5 +252,21 @@ export function agoToTime(ago: string, sentAt: number): number {
 
 /** The post's id from its address: /groups/<group>/posts/<id> or /permalink/<id>. */
 export function postId(url: string): string | null {
-    return /\/(?:posts|permalink)\/(\d+)/.exec(url)?.[1] ?? null;
+    return postAddress(url)?.post ?? null;
+}
+
+/**
+ * The group and post an address on Facebook names, /groups/<group>/posts/<id> or
+ * /groups/<group>/permalink/<id>, on www., web. or m.facebook.com; null for any other.
+ */
+export function postAddress(url: string): PostAddress | null {
+    let u: URL;
+    try {
+        u = new URL(url);
+    } catch {
+        return null;
+    }
+    if (u.protocol !== 'https:' || !/^(www\.|web\.|m\.)?facebook\.com$/.test(u.hostname)) return null;
+    const m = /^\/groups\/([\w.]+)\/(?:posts|permalink)\/(\d+)\/?$/.exec(u.pathname);
+    return m ? {group: m[1]!, post: m[2]!} : null;
 }
