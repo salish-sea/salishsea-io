@@ -30,6 +30,9 @@ describe('parseLandmarks', () => {
     test('a gazetteer row has a position and an OpenStreetMap row has none', () => {
         expect(() => parseLandmarks(tsv(['Bush Point', 'point', 'gazetteers', '', '', '3', 'Bush Point']))).toThrow(/has a position/);
         expect(() => parseLandmarks(tsv(['Langley', 'town', 'osm', '-122.4', '48.04', '3', 'Langley']))).toThrow(/has a position/);
+        // A small community from GNIS carries its position, as a gazetteer row does (decision 119).
+        expect(() => parseLandmarks(tsv(['Eglon', 'community', 'gnis', '', '', '3', 'Eglon']))).toThrow(/has a position/);
+        expect(parseLandmarks(tsv(['Eglon', 'community', 'gnis', '-122.51', '47.86', '3', 'Eglon']))[0]).toMatchObject({source: 'gnis', lon: -122.51});
     });
 });
 
@@ -41,6 +44,10 @@ describe('landmarks', () => {
         ['Stuart Island', 'island', 'osm', '', '', '4', 'Stuart Island'],
         ['Mukilteo Ferry Terminal', 'ferry_terminal', 'osm', '', '', '10', 'Mukilteo'],
         ['Skiou Point', 'point', 'gazetteers', '-123.19', '48.05', '1', ''],
+        // a small community from GNIS, at its own position, 2.6 km from the West Strait's edge
+        ['Eglon', 'community', 'gnis', '-123.24', '48.35', '3', 'Eglon'],
+        // a community nearer Stuart Island's point than the island's is, which the island still wins
+        ['Prevost', 'community', 'gnis', '-123.11', '48.29', '2', 'Prevost'],
     ));
     const {landmarks: list, unmatched} = resolveLandmarks(rows, osm);
     const near = landmarks(list, regions);
@@ -58,7 +65,13 @@ describe('landmarks', () => {
 
     test('a town or island counts by distance alone, and distance chooses between namesakes', () => {
         expect(near.landmarkAt(-123.1, 48.28, 'East Strait')).toBe('Stuart Island');
+        // so does a small community (decision 119), placed by its own position, where nothing else is near
+        expect(near.landmarkAt(-123.19, 48.36, 'West Strait')).toBe('Eglon');
         expect(list.filter(l => l.says === 'Stuart Island')).toHaveLength(2);
+    });
+
+    test('a small community only fills a gap: a nearer one doesn\'t replace another landmark', () => {
+        expect(near.landmarkAt(-123.115, 48.288, 'East Strait')).toBe('Stuart Island');
     });
 
     test('nothing within 5 km, or only a name the review struck out, is no landmark', () => {
