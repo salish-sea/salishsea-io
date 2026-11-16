@@ -47,7 +47,12 @@ export type FacebookPost = {
     collapsed: number,
     /** How the comments were sorted, as Facebook's button says ("All comments"), or null if it isn't there. */
     sort: string | null,
+    /** The group and post its comments' permalinks name, or null when it has no comments. */
+    address: PostAddress | null,
 };
+
+/** A group's post, by Facebook's ids: the group's may be its number or its chosen name. */
+export type PostAddress = {group: string, post: string};
 
 /** The post doesn't have the shape this reader knows: Facebook has probably changed its markup. */
 export class UnreadablePost extends Error {
@@ -71,6 +76,7 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
     const articles = [...document.querySelectorAll('[role="article"]')];
 
     const comments: FacebookComment[] = [];
+    const addresses = new Set<string>();
     for (const a of articles) {
         const label = a.getAttribute('aria-label') ?? '';
         const m = LABEL.exec(label);
@@ -88,7 +94,10 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
             if (block && a.contains(block)) continue;
             const u = urlOf(link);
             const commentId = u?.searchParams.get('comment_id');
-            if (commentId) ids.add(JSON.stringify([commentId, u?.searchParams.get('reply_comment_id') ?? null]));
+            if (!u || !commentId) continue;
+            ids.add(JSON.stringify([commentId, u.searchParams.get('reply_comment_id') ?? null]));
+            const address = postAddress(u.href);
+            if (address) addresses.add(JSON.stringify([address.group, address.post]));
         }
         const kindName = kind.toLowerCase();
         if (ids.size !== 1) throw new UnreadablePost(`a ${kindName} has ${ids.size ? 'links to more than one comment_id' : 'no link with its comment_id'} beside its text`);
@@ -113,6 +122,9 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
         .flatMap(n => textOf(n).split('\n'))
         .map(l => l.trim())
         .filter(l => /[\p{L}\p{N}]/u.test(l));
+    // The bookmarklet sends one post; comments from two would be a page it shouldn't have sent.
+    if (addresses.size > 1) throw new UnreadablePost('its comments belong to more than one post');
+    const [group, post] = addresses.size ? JSON.parse([...addresses][0]!) as [string, string] : [];
     // Even a post with no comments yet has its title.
     if (!lines.length) throw new UnreadablePost('found no text outside the comments');
     // A comment may be only a photo or a sticker, but a change to Facebook's markup changes
@@ -126,6 +138,7 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
         comments,
         collapsed: buttons.filter(t => EXPANDERS.test(t)).length,
         sort: buttons.find(t => SORTS.test(t)) ?? null,
+        address: group && post ? {group, post} : null,
     };
 }
 
@@ -199,5 +212,21 @@ export function agoToTime(ago: string, sentAt: number): number {
 
 /** The post's id from its address: /groups/<group>/posts/<id> or /permalink/<id>. */
 export function postId(url: string): string | null {
-    return /\/(?:posts|permalink)\/(\d+)/.exec(url)?.[1] ?? null;
+    return postAddress(url)?.post ?? null;
+}
+
+/**
+ * The group and post an address on Facebook names, /groups/<group>/posts/<id> or
+ * /groups/<group>/permalink/<id>, on www., web. or m.facebook.com; null for any other.
+ */
+export function postAddress(url: string): PostAddress | null {
+    let u: URL;
+    try {
+        u = new URL(url);
+    } catch {
+        return null;
+    }
+    if (u.protocol !== 'https:' || !/^(www\.|web\.|m\.)?facebook\.com$/.test(u.hostname)) return null;
+    const m = /^\/groups\/([\w.]+)\/(?:posts|permalink)\/(\d+)\/?$/.exec(u.pathname);
+    return m ? {group: m[1]!, post: m[2]!} : null;
 }
