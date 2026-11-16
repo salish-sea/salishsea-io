@@ -194,8 +194,10 @@ test('a shore park is found by its name, what reporters call it, or a short form
   const point = { name: 'Alki Point', kind: 'point', lon: -122.42, lat: 47.576, zoom: 12, otherNames: [] };
   const find = placeFinder([point, ...parks]);
   const found = (t) => find(t).map((p) => p.name + (p.unknown ? '?' : ''));
-  assert.deepEqual(found('Just saw his blow directly out from stamm'), ['Stamm Overlook Park']);
-  assert.deepEqual(found('Viewing from constellation 1055'), ['Charles Richey Senior Viewpoint']);
+  assert.deepEqual(found('Just saw his blow directly out from Stamm'), ['Stamm Overlook Park']);
+  assert.deepEqual(found('10:50 from Constellation seeing at least 7'), ['Charles Richey Senior Viewpoint']);
+  // In lower case a short form is too often an ordinary word or a name: not found.
+  assert.deepEqual(found('Watching from the seawall, first time in washington, from stamm'), []);
   assert.deepEqual(found('Location Constellation Park West Seattle'), ['Charles Richey Senior Viewpoint']);
   assert.deepEqual(found('the stamm family'), []);
   assert.deepEqual(found('within the alki beach park area, a marine park'), []);

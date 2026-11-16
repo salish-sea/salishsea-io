@@ -33,7 +33,7 @@ const OUT = new URL('../data/reference/landmarks.tsv', import.meta.url);
 
 /** The kinds that can be a landmark, by list: places on land, not the water's own names. */
 const KINDS = {gazetteers: new Set(['point']), osm: new Set(['city', 'town', 'village', 'island', 'ferry_terminal']),
-    parks: new Set(['park', 'nature_reserve'])};
+    parks: new Set(['park', 'nature_reserve', 'national_park'])};
 const MENTION_KM = 15;
 /** The last words a reporter drops: "off Lime Kiln", "near Vashon". */
 const GENERIC = /^(.+) (Point|Head|Spit|Bluff|Island|Ferry Terminal)$/;

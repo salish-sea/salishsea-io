@@ -43,7 +43,9 @@ const PARK_WORDS = new Set(['state', 'county', 'beach', 'waterfront', 'marine', 
  * placed by name and kind from the basemap's list of them (`parks`, a list as the basemap
  * publishes it), at each park of that name. What reporters call a park (`says`, such as
  * Constellation Park for Charles Richey Senior Viewpoint) is another of its names, and its
- * short forms are found after a word that places something, in either case: "from stamm".
+ * short forms are found when capitalised, after a word that places something: "from Stamm".
+ * In lower case they misfire ("in Washington", "from the seawall", "photo by Lincoln"); a
+ * lower-case form reporters use ("from stamm") belongs in data/abbreviations.tsv, confirmed.
  */
 export function readParks(parks, path = new URL('../../data/reference/landmarks.tsv', import.meta.url)) {
   const [head, ...rows] = readFileSync(path, 'utf8').trim().split('\n').map((l) => l.split('\t'));
@@ -53,7 +55,7 @@ export function readParks(parks, path = new URL('../../data/reference/landmarks.
     const [name, kind, says] = [r[at('name')], r[at('kind')], r[at('says')]];
     const shortNames = [...new Set([name, says].flatMap((n) => [PARK_GENERIC.exec(n)?.[1], PARK_LAST.exec(n)?.[1]]).filter(Boolean))];
     return listed.filter((p) => p.name === name && p.kind === kind)
-      .map((p) => ({ ...p, park: true, otherNames: says !== name ? [says] : [], shortNames }));
+      .map((p) => ({ ...p, park: true, otherNames: [...p.otherNames, ...(says !== name ? [says] : [])], shortNames }));
   });
 }
 
@@ -152,8 +154,8 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
   return (text) => {
     const placed = (i) => /\p{Lu}/u.test(text[i]) && PLACING.test(text.slice(Math.max(0, i - 40), i));
     // Whether a listed name at this point of the text counts: a community's only where placed,
-    // and a park's short form only after a placing word, though in either case ("from stamm").
-    const counts = (key, i) => shortKeys.has(key) ? PLACING.test(text.slice(Math.max(0, i - 40), i)) : !community(key) || placed(i);
+    // and so is a park's short form ("from Stamm").
+    const counts = (key, i) => !(community(key) || shortKeys.has(key)) || placed(i);
     const hay = ` ${words(text)} `;
     const found = [];
     const taken = []; // [start, end) of each mention already accounted for
@@ -249,7 +251,7 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
       // One word must be capitalised in the text, as a name is: "Camano", not "point".
       const spans = [...text.matchAll(mentionOf(key))]
         // A park's full name is capitalised as written ("Marine Park", not "a marine park"); a short form after a placing word needn't be.
-        .filter((m) => ((key.includes(' ') && !parkName(key)) || shortKeys.has(key) || /\p{Lu}/u.test(m[0][0])) && counts(key, m.index)
+        .filter((m) => ((key.includes(' ') && !parkName(key)) || /\p{Lu}/u.test(m[0][0])) && counts(key, m.index)
           // and a short form followed by a capitalised word is part of a longer name: "Lions Gate".
           && !(shortKeys.has(key) && /^[ \t]+\p{Lu}/u.test(text.slice(m.index + m[0].length))))
         .map((m) => [m.index, m.index + m[0].length])

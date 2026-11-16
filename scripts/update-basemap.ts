@@ -79,10 +79,16 @@ const list = async (key: string): Promise<PlaceList> => {
   return await answer.json() as PlaceList;
 };
 const rows = parseLandmarks(readFileSync('data/reference/landmarks.tsv', 'utf8'));
+// The build fetches the shore parks' list (decision 119) and fails without it, so a version that
+// names none is refused here, before anything else is checked: roll back the park rows first.
+if (!('parks' in (named as object))) {
+  console.error(`version ${version} names no list of shore parks, which the build needs to place the park rows of data/reference/landmarks.tsv`);
+  process.exit(1);
+}
 const gazetteers = new Set(placesOf(await list('gazetteers')).map((p) => `${p.kind}\t${p.name}\t${p.lon}\t${p.lat}`));
 const lost = [
-  // Park rows are placed from the version's shore parks' list (decision 119); a version without one places none.
-  ...resolveLandmarks(rows, await list('osm'), 'parks' in (named as object) ? await list('parks') : null).unmatched,
+  // Park rows are placed from the version's shore parks' list (decision 119).
+  ...resolveLandmarks(rows, await list('osm'), await list('parks')).unmatched,
   ...rows.filter((r) => r.source === 'gazetteers' && !gazetteers.has(`${r.kind}\t${r.name}\t${r.lon}\t${r.lat}`)),
 ];
 if (lost.length) {
