@@ -83,7 +83,30 @@ describe('readFacebookPost', () => {
         expect(r.comments.map(c => [c.id, c.replyTo, c.text])).toEqual([['1', null, 'Mine'], ['2', '1', 'Theirs']]);
     });
 
+    test('a link to another comment in a comment\'s text is not its own id', () => {
+        const r = readFacebookPost(post(comment('Comment by Pat Example 2 hours ago', link(101),
+            `Same group as <a href="https://www.facebook.com/groups/1/posts/2/?comment_id=999">this one</a>`)), SENT);
+        expect(r.comments.map(c => [c.id, c.text])).toEqual([['101', 'Same group as this one']]);
+    });
+
+    test('a comment inside a block of another\'s text is not part of that text', () => {
+        const r = readFacebookPost(post(
+            `<div role="article" aria-label="Comment by Pat Example 2 hours ago">${link(1)}<div dir="auto">Mine
+               ${comment('Reply by Sam Sample to Pat Example\'s comment an hour ago', link(1, 2), 'Theirs')}</div></div>`), SENT);
+        expect(r.comments.map(c => [c.id, c.text])).toEqual([['1', 'Mine'], ['2', 'Theirs']]);
+    });
+
     describe('fails loudly when Facebook\'s markup has changed', () => {
+        test('every comment reads as empty', () => {
+            const html = post([1, 2].map(n => `<div role="article" aria-label="Comment by Pat Example 2 hours ago">${link(n)}<p>11:45 off Alki</p></div>`).join(''));
+            expect(() => readFacebookPost(html, SENT)).toThrow(/no text in any comment/);
+        });
+
+        test('a comment whose permalinks disagree', () => {
+            expect(() => readFacebookPost(post(comment('Comment by Pat Example 2 hours ago', link(1) + link(2), 'x')), SENT))
+                .toThrow(/links to more than one comment_id/);
+        });
+
         test('a page with no post text', () => {
             expect(() => readFacebookPost('<div role="main"><p>Something else</p></div>', SENT)).toThrow(UnreadablePost);
         });

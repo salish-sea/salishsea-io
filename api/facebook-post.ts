@@ -9,7 +9,8 @@
  * - each comment and reply is an element with role="article" and an aria-label such as
  *   "Comment by <name> 2 hours ago" or "Reply by <name> to <name>'s comment 1 hour ago";
  *   no other element on the post has that role;
- * - its links carry comment_id, and a reply's also reply_comment_id, the reply's own id;
+ * - its permalink, the "2h" beside its name and outside its text, carries comment_id, and
+ *   a reply's also reply_comment_id, the reply's own id;
  * - replies are not nested inside the comment they answer;
  * - the post's own text is the dir="auto" blocks outside every comment.
  *
@@ -78,14 +79,21 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
         const nested = articles.filter(x => x !== a && a.contains(x));
         const own = <T extends Element>(nodes: Iterable<T>) => [...nodes].filter(n => !nested.some(x => x.contains(n)));
 
-        let commentId: string | null = null, replyId: string | null = null;
+        // Its own ids, from its permalink (the "2h" beside its name): every link with a
+        // comment_id outside its text, which must agree. A link to another comment that a
+        // member pastes into their text is not the comment's own.
+        const ids = new Set<string>();
         for (const link of own(a.querySelectorAll('a[href*="comment_id="]'))) {
+            const block = link.closest('div[dir="auto"]');
+            if (block && a.contains(block)) continue;
             const u = urlOf(link);
-            commentId ??= u?.searchParams.get('comment_id') ?? null;
-            replyId ??= u?.searchParams.get('reply_comment_id') ?? null;
+            const commentId = u?.searchParams.get('comment_id');
+            if (commentId) ids.add(JSON.stringify([commentId, u?.searchParams.get('reply_comment_id') ?? null]));
         }
-        const isReply = kind.toLowerCase() === 'reply';
-        if (!commentId) throw new UnreadablePost(`a ${kind.toLowerCase()} has no link with its comment_id`);
+        const kindName = kind.toLowerCase();
+        if (ids.size !== 1) throw new UnreadablePost(`a ${kindName} has ${ids.size ? 'links to more than one comment_id' : 'no link with its comment_id'} beside its text`);
+        const [commentId, replyId] = JSON.parse([...ids][0]!) as [string, string | null];
+        const isReply = kindName === 'reply';
         if (isReply && !replyId) throw new UnreadablePost('a reply has no link with its reply_comment_id');
 
         comments.push({
@@ -107,6 +115,9 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
         .filter(l => /[\p{L}\p{N}]/u.test(l));
     // Even a post with no comments yet has its title.
     if (!lines.length) throw new UnreadablePost('found no text outside the comments');
+    // A comment may be only a photo or a sticker, but a change to Facebook's markup changes
+    // every comment at once, so a post whose comments all read as empty is one we can't read.
+    if (comments.length && comments.every(c => !c.text)) throw new UnreadablePost('found no text in any comment');
 
     const buttons = [...document.querySelectorAll('[role="button"]')].map(b => (b.textContent ?? '').trim());
     return {
@@ -152,6 +163,7 @@ const outermost = <T extends Element>(nodes: T[]) => nodes.filter(n => !nodes.so
 
 // A block's text in document order, with a line break at each block inside it and at each
 // <br>: each line of a post is a block inside the outer one, but text can sit between them.
+// It stops at a comment inside the block, whose text is that comment's own.
 const BLOCKS = new Set(['DIV', 'P', 'LI', 'UL', 'OL', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
 function textOf(n: Node): string {
     let out = '';
@@ -161,6 +173,7 @@ function textOf(n: Node): string {
             else if (c.nodeType === 1) {
                 const tag = (c as Element).tagName;
                 if (tag === 'BR') { out += '\n'; continue; }
+                if ((c as Element).getAttribute('role') === 'article') continue;
                 const block = BLOCKS.has(tag);
                 if (block) out += '\n';
                 walk(c);
