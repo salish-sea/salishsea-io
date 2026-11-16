@@ -1,6 +1,6 @@
 # 100 — A sighting's landmark is the nearest name reporters use, on its region's shore
 
-**Status:** accepted · **Decided:** 2026-10-30, by Peter · **Work:** bd `salish-fwyt.2.3` (under `salish-fwyt.2`) · **Builds on:** [099](099-a-sightings-place-is-its-water-region.md) (a sighting's place is its water region), [basemap decision 018](https://github.com/salish-sea/basemap/blob/90569a0/decisions/018-the-names-the-map-labels-are-published-as-lists.md) (the place lists)
+**Status:** accepted; amended by [119](119-the-parks-and-small-communities-reporters-watch-from-are-landmarks.md) (2026-11-15: parks and small communities reporters name are rows too) · **Decided:** 2026-10-30, by Peter · **Work:** bd `salish-fwyt.2.3` (under `salish-fwyt.2`) · **Builds on:** [099](099-a-sightings-place-is-its-water-region.md) (a sighting's place is its water region), [basemap decision 018](https://github.com/salish-sea/basemap/blob/90569a0/decisions/018-the-names-the-map-labels-are-published-as-lists.md) (the place lists)
 
 ## Context
 
