@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readPost, clockTime, agoToTime, postId, EXPANDERS } from './read.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
-import { placeFinder, readAbbreviations, readFerryRoutes, withinOneEdit } from './places.mjs';
+import { placeFinder, readAbbreviations, readFerryRoutes, readCommunities, withinOneEdit } from './places.mjs';
 import { contextFor, kindOf } from './context.mjs';
 import { classifyPost, stripMention, staffTime } from './classify.mjs';
 import { parseTitle } from './title.mjs';
@@ -162,6 +162,21 @@ test('a listed name written with Pt, a lower-case start, more words after it, or
   assert.deepEqual(found('off Ozzi Point'), ['Ozzi Point?']);
   assert.ok(withinOneEdit('elliot', 'elliott') && withinOneEdit('eglon', 'elgon') && withinOneEdit('harsteine', 'harstine'));
   assert.ok(!withinOneEdit('marine', 'marina park') && !withinOneEdit('boston', 'bolton x'));
+});
+
+test('a small community counts only when capitalised and placed, and a compass-word name not at all', () => {
+  const community = (name) => ({ name, kind: 'community', lon: -122.5, lat: 47.8, zoom: 14, otherNames: [], community: true });
+  const find = placeFinder([community('Eglon'), community('Eldon'), community('Richmond Beach'), community('Pebble Beach')]);
+  const found = (t) => find(t).map((p) => p.name + (p.unknown ? '?' : ''));
+  assert.deepEqual(found('heading southwest toward Eglon'), ['Eglon']);
+  assert.deepEqual(found('Thanks Eldon! Great photos'), []);
+  assert.deepEqual(found('At Richmond beach and have not seen anything yet'), ['Richmond Beach']);
+  // Not placed: shown as a name we don't know, as before the list had it.
+  assert.deepEqual(found('Richmond Beach, 12:20, two orcas'), ['Richmond Beach?']);
+  assert.deepEqual(found('Bean Hollow pebble beach in California'), []);
+  const rows = readCommunities();
+  assert.ok(['Richmond Beach', 'West Seattle'].every((n) => rows.some((r) => r.name === n)) && rows.every((r) => r.community));
+  assert.ok(!rows.some((r) => ['South Beach', 'West Beach', 'Waldron', 'Birchwood'].includes(r.name)));
 });
 
 test('reading stored rows again updates their results and clears marks on the ones that change', () => {

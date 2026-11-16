@@ -25,7 +25,7 @@ Belfair	community	gnis	-122.8273657	47.4506495	3	Belfair
 Bellingham	city	osm			9	Bellingham
 Bellingham	ferry_terminal	osm			9	Bellingham
 Bells Beach	community	gnis	-122.4690392	48.0767616	11	Bells Beach
-Beverly Beach	community	gnis	-122.5126515	48.0609275	3	Beverly Beach
+Beverly Beach	community	gnis	-122.5126515	48.0609275	2	Beverly Beach
 Birch Bay	village	osm			1	Birch Bay
 Birchwood	community	gnis	-122.5126702	48.773442	1	
 Blaine	village	osm			1	Blaine
@@ -219,7 +219,7 @@ Otter Bay Ferry Terminal	ferry_terminal	osm			3	Otter Bay
 Otter Point	point	gazetteers	-123.82222	48.35694	1	Otter Point
 Parksville	city	osm			3	Parksville
 Patos Island	island	osm			4	Patos Island
-Pebble Beach	community	gnis	-122.3873687	48.0664842	11	Pebble Beach
+Pebble Beach	community	gnis	-122.3873687	48.0664842	9	Pebble Beach
 Penelakut Island	island	osm			1	Penelakut Island
 Penrose Point	point	gazetteers	-122.73708	47.2651	2	Penrose Point
 Phillimore Point	point	gazetteers	-123.39222	48.87194	4	Phillimore Point
@@ -262,11 +262,11 @@ Prevost Island	island	osm			1	Prevost Island
 Priest Point	point	gazetteers	-122.2268	48.03232	1	Priest Point
 Priest Point	village	osm			1	Priest Point
 Protection Island	island	osm			4	Protection Island
-Purdy	community	gnis	-122.6254103	47.3889853	9	Purdy
+Purdy	community	gnis	-122.6254103	47.3889853	7	Purdy
 Quadra Island	island	osm			3	Quadra Island
 Qualicum Beach	town	osm			4	Qualicum Beach
 Quilcene	village	osm			2	Quilcene
-Redondo	community	gnis	-122.3234561	47.348433	6	Redondo
+Redondo	community	gnis	-122.3234561	47.348433	5	Redondo
 Restoration Point	point	gazetteers	-122.47902	47.58371	16	Restoration Point
 Richmond Beach	community	gnis	-122.3901313	47.7695415	11	Richmond Beach
 Rocky Point	point	gazetteers	-122.66792	47.60371	1	Rocky Point
@@ -284,8 +284,8 @@ Sandy Point	point	gazetteers	-122.3757	48.03454	46	Sandy Point
 Saturna Island	island	osm			18	Saturna Island
 Saturna Point	point	gazetteers	-123.20139	48.79806	3	Saturna Point
 Seahurst	community	gnis	-122.3620699	47.4692655	1	Seahurst
-Seattle	city	osm			25	Seattle
-Seattle	ferry_terminal	osm			25	Seattle
+Seattle	city	osm			26	Seattle
+Seattle	ferry_terminal	osm			26	Seattle
 Sechelt	town	osm			4	Sechelt
 Sekiu	village	osm			1	Sekiu
 Shaw Island	ferry_terminal	osm			4	Shaw Island
@@ -330,7 +330,7 @@ Ten Mile Point	point	gazetteers	-123.26556	48.45556	3	Ten Mile Point
 Three Tree Point	point	gazetteers	-122.38235	47.45038	1	Three Tree Point
 Tilly Point	point	gazetteers	-123.20722	48.73222	4	Tilly Point
 Tinson Point	point	gazetteers	-123.85333	49.19972	1	Tinson Point
-Titlow	community	gnis	-122.5529043	47.246487	6	Titlow
+Titlow	community	gnis	-122.5529043	47.246487	5	Titlow
 Tracyton	village	osm			3	Tracyton
 Tsawwassen Ferry Terminal	ferry_terminal	osm			2	Tsawwassen
 Tulare Beach	community	gnis	-122.343202	48.1017631	2	Tulare Beach
@@ -349,7 +349,7 @@ Victor	community	gnis	-122.8159739	47.3775947	1	Victor
 Victoria	city	osm			6	Victoria
 Victoria	ferry_terminal	osm			6	Victoria
 Village Bay Ferry Terminal	ferry_terminal	osm			1	Village Bay
-Waldron	community	gnis	-123.0368533	48.6876027	2	
+Waldron	community	gnis	-123.0368533	48.6876027	1	
 Walkers Landing	community	gnis	-122.9254227	47.2825952	1	Walkers Landing
 Wallace Point	point	gazetteers	-123.23139	48.73639	2	Wallace Point
 Warm Beach	village	osm			3	Warm Beach
@@ -357,7 +357,7 @@ Waterman Point	community	gnis	-122.5698581	47.5845408	2	Waterman Point
 West Beach	community	gnis	-122.957685	48.6873259	1	West Beach
 West Point	point	gazetteers	-122.43707	47.66176	17	West Point
 West Point	point	gazetteers	-122.66406	48.40177	4	West Point
-West Seattle	community	gnis	-122.3865166	47.5709315	3	West Seattle
+West Seattle	community	gnis	-122.3865166	47.5709315	2	West Seattle
 West Vancouver	city	osm			3	West Vancouver
 Westwood	community	gnis	-122.5756929	47.6189851	1	Westwood
 Whaletown	village	osm			1	Whaletown

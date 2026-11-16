@@ -15,12 +15,17 @@ export function readFerryRoutes(path = new URL('../../data/ferry-routes.tsv', im
  * The small communities reporters name that the lists lack (data/reference/landmarks.tsv,
  * decision 119): its GNIS rows, at their own positions, found by name or by what reporters
  * call them (`says`). A row the review struck out (empty `says`) was a misreading, such as
- * Waldron for Waldron Island, and is left out.
+ * Waldron for Waldron Island, and is left out. So is a name made only of a compass word and
+ * a word for a kind of place: "South Beach" in a report is San Juan Island's beach more often
+ * than the community on Bainbridge that GNIS lists. A community is found only after a word
+ * that places something (placeFinder).
  */
 export function readCommunities(path = new URL('../../data/reference/landmarks.tsv', import.meta.url)) {
   const [head, ...rows] = readFileSync(path, 'utf8').trim().split('\n').map((l) => l.split('\t'));
   const at = (c) => head.indexOf(c);
-  return rows.filter((r) => r[at('source')] === 'gnis' && r[at('says')]).map((r) => ({
+  const generic = /^(?:north|south|east|west)\s+(?:beach|point|bay|cove|harbor|harbour|spit|head|shore|side|end)$/i;
+  return rows.filter((r) => r[at('source')] === 'gnis' && r[at('says')] && !generic.test(r[at('name')])).map((r) => ({
+    community: true,
     name: r[at('name')], kind: r[at('kind')], lon: Number(r[at('lon')]), lat: Number(r[at('lat')]), zoom: 14,
     otherNames: r[at('says')] && r[at('says')] !== r[at('name')] ? [r[at('says')]] : [],
   }));
@@ -84,7 +89,10 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
   // ("Pt" is "Point"), and the words before it the same but for one letter added, dropped,
   // changed or swapped, in a name of five letters or more ("Harsteine Island", "Elliot Bay").
   // Only when exactly one listed name is that close.
-  const byKind = Map.groupBy(places.filter((p) => / /.test(p.name)), (p) => kindWord(p.name));
+  const byKind = Map.groupBy(places.filter((p) => / /.test(p.name) && !p.community), (p) => kindWord(p.name));
+  // A small community's name is often a person's ("Thanks Eldon!", "Victor saw them"), so it
+  // counts only when capitalised and after a word that places something: "toward Eglon", "at Richmond beach".
+  const community = (key) => !!byName.get(key)?.every((p) => p.community);
   const spelledAlike = (written) => {
     const kind = kindWord(written);
     const rest = words(written).split(' ').slice(0, -1).join(' ');
@@ -97,6 +105,9 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
   };
 
   return (text) => {
+    const placed = (i) => /\p{Lu}/u.test(text[i]) && PLACING.test(text.slice(Math.max(0, i - 40), i));
+    // Whether a listed name at this point of the text counts: a community's only where placed.
+    const counts = (key, i) => !community(key) || placed(i);
     const hay = ` ${words(text)} `;
     const found = [];
     const taken = []; // [start, end) of each mention already accounted for
@@ -146,7 +157,8 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
       const name = m[0].replace(/\s+/g, ' ').split(' ');
       // A known name at its end is the place, and the words before it are the sentence's:
       // "Hugging Camano Island", "North Pender Island". The known names are found below.
-      if (name.some((_, i) => byName.has(words(name.slice(i).join(' '))))) continue;
+      const runAt = starts(m[0], name).map((o) => m.index + o);
+      if (name.some((_, i) => byName.has(words(name.slice(i).join(' '))) && counts(words(name.slice(i).join(' ')), runAt[i]))) continue;
       // Nor is it unknown when it begins with a whole known name of a kind of place and the
       // rest only says where on it ("Dana Passage Mid Channel"); "Elliott Bay Marina" is another place.
       if (name.some((_, i) => i >= 1 && i < name.length - 1 && KIND_WORD.test(name[i]) && byName.has(words(name.slice(0, i + 1).join(' ')))
@@ -158,13 +170,13 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
       const before = text.slice(0, m.index).match(/(?:\p{L}+[ \t]+){1,2}$/u)?.[0] ?? '';
       const lower = before.trim().split(/\s+/).filter(Boolean);
       const lowerAt = starts(before, lower).map((o) => m.index - before.length + o);
-      const runAt = starts(m[0], name).map((o) => m.index + o);
       const tails = [...lower.map((_, i) => ({ said: [...lower.slice(i), ...name], at: lowerAt[i] })),
         ...name.slice(0, -1).map((_, j) => ({ said: name.slice(j), at: runAt[j] }))];
       let reading = null;
       for (const { said, at } of tails) {
         const w = said.join(' ');
-        if (byName.has(words(w))) { reading = 'listed'; break; } // found as a listed name below
+        if (byName.has(words(w)) && counts(words(w), at)) { reading = 'listed'; break; } // found as a listed name below
+        if (byName.has(words(w))) continue; // a community not placed: an unknown name, as before it was listed
         const alike = spelledAlike(w);
         if (alike) { reading = { alike, written: w, at }; break; }
       }
@@ -190,7 +202,7 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
       // "Richmond" in "Richmond Beach"); another mention of it elsewhere in the text still counts.
       // One word must be capitalised in the text, as a name is: "Camano", not "point".
       const spans = [...text.matchAll(mentionOf(key))]
-        .filter((m) => key.includes(' ') || /\p{Lu}/u.test(m[0][0]))
+        .filter((m) => (key.includes(' ') || /\p{Lu}/u.test(m[0][0])) && counts(key, m.index))
         .map((m) => [m.index, m.index + m[0].length])
         .filter(([a, b]) => !overlaps(a, b));
       if (!spans.length) continue;
@@ -227,6 +239,8 @@ const LEADING = new Set(['off', 'at', 'near', 'in', 'on', 'from', 'by', 'of', 't
 const WHERE_ON = new Set(['mid', 'middle', 'center', 'centre', 'channel', 'side', 'shore', 'end', 'north', 'south', 'east', 'west']);
 // Where each of a string's words starts in it, taking them in order.
 const starts = (str, ws) => { let o = 0; return ws.map((w) => (o = str.indexOf(w, o), o += w.length, o - w.length)); };
+// A word that places what follows it, then perhaps "the", at the end of the text before a name.
+const PLACING = /(?:^|[^\p{L}])(?:off|near|at|from|past|by|of|around|rounding|between|and|to|toward|towards|outside|passing|passed|abeam|in|into|across)[ \t]+(?:the[ \t]+)?$/iu;
 const KIND_WORD = new RegExp(`^(?:${KINDS})$`, 'i');
 // The word for a kind of place that ends a name, as one spelling: "Pt" and "Pt." are "point".
 const kindWord = (name) => { const w = words(name).split(' ').at(-1); return w === 'pt' ? 'point' : w === 'harbour' ? 'harbor' : w; };

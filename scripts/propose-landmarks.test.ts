@@ -33,6 +33,7 @@ describe('small communities from GNIS (decision 119)', () => {
         const eglon = found.filter(c => c.name === 'Eglon');
         expect(named('heading southwest toward Eglon', eglon)).toHaveLength(1);
         expect(named('off Eglon Creek', eglon)).toEqual([]);
+        expect(named('behind Eglon island', eglon)).toEqual([]);
         expect(named('north of Eglonville', eglon)).toEqual([]);
     });
 });

@@ -100,7 +100,7 @@ export function gnisCandidates(text: string, taken: ReadonlySet<string>): Candid
         .map(l => ({name: l[name]!, lon: Number(l[lon]), lat: Number(l[lat])}))
         .filter(p => p.lon >= REGION.west && p.lon <= REGION.east && p.lat >= REGION.south && p.lat <= REGION.north)
         .map(p => ({source: 'gnis' as const, name: p.name, kind: 'community', lon: p.lon, lat: p.lat,
-            full: new RegExp(String.raw`(?<![\w])${escape(p.name)}(?![\w])(?![ \t]+(?:${PLACE_WORDS})\b)`, 'g'), short: null}));
+            full: new RegExp(String.raw`(?<![\w])${escape(p.name)}(?![\w])(?![ \t]+(?i:${PLACE_WORDS})\b)`, 'g'), short: null}));
 }
 
 function km(lon1: number, lat1: number, lon2: number, lat2: number): number {
