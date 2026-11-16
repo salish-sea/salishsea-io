@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { readSighting } from '../../src/sighting-text.ts';
 import { readPost, agoToTime, clockTime, postId, EXPANDERS } from './read.mjs';
+import { bookmarkletFor } from './bookmarklet.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
 import { loadPlaces } from './places.mjs';
 import { contextFor } from './context.mjs';
@@ -58,26 +59,7 @@ const markOf = (r, info) => (r.mark && r.marked_version === version(r, info) ? r
 
 // --- the bookmarklet ---------------------------------------------------------------
 
-// Sends the open post (a dialog over the feed, or the post's own page), never the whole
-// page, which carries the sender's chats. If Facebook is hiding comments, it opens them
-// and asks for another click instead: the pop-up must open within a few seconds of the click.
-const sendSource = (token) => `void (async()=>{
-const say=(t)=>{const d=document.createElement('div');d.textContent=t;Object.assign(d.style,{position:'fixed',top:'72px',left:'50%',transform:'translateX(-50%)',zIndex:2147483647,background:'#1d3c78',color:'#fff',padding:'12px 18px',borderRadius:'8px',font:'15px system-ui,sans-serif',maxWidth:'34em'});document.body.appendChild(d);setTimeout(()=>d.remove(),7000);};
-const ds=[...document.querySelectorAll('[role=dialog]')].filter(d=>d.querySelector('[role=article]'));
-const el=ds.pop()||document.querySelector('[role=main]');
-if(!el){say('SalishSea: open the day\\'s post first.');return;}
-const re=new RegExp(${JSON.stringify(EXPANDERS.source)},'i');
-const hidden=[...el.querySelectorAll('[role=button]')].filter(b=>re.test(b.textContent.trim()));
-if(hidden.length){hidden.forEach(b=>b.click());say('SalishSea: opening '+hidden.length+' hidden comments. Click Send again when they have loaded.');return;}
-const msg=JSON.stringify({html:el.outerHTML,url:location.href,title:document.title,sent_at:new Date().toISOString()});
-const gz=new Uint8Array(await new Response(new Blob([msg]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
-let bin='';for(let i=0;i<gz.length;i+=32768)bin+=String.fromCharCode.apply(null,gz.subarray(i,i+32768));
-const data=btoa(bin).replace(/[+]/g,'-').replace(/[/]/g,'_').replace(/=+$/,'');
-const w=window.open('${base}/receive#s=${token}&d='+data,'_blank','popup,width=1000,height=760');
-if(!w)say('SalishSea: the window was blocked. Allow pop-ups for facebook.com and click Send again.');
-})()`;
-
-const bookmarklet = (src) => 'javascript:' + encodeURIComponent(src.replace(/\n/g, ''));
+const sendSource = (token) => bookmarkletFor(`${base}/receive#s=${token}`);
 
 // --- pages ---------------------------------------------------------------------------
 
@@ -226,7 +208,7 @@ const HEAD = `<tr><th>From</th><th>Time</th><th>Text</th><th>Whales</th><th>Head
 function warnings(send) {
   const out = [];
   if (send.sort && !/^all comments$/i.test(send.sort)) out.push(`Facebook was showing “${esc(send.sort)}”, which hides some comments. Choose “All comments” and send again.`);
-  if (send.collapsed) out.push(`${send.collapsed} comments or replies were still collapsed. Click Send again to open them.`);
+  if (send.collapsed) out.push(`${send.collapsed} comments or replies were still collapsed. Click Send to SalishSea again to open them.`);
   if (!send.lines && !send.comments) out.push('Nothing was read from this page. Is it a day post? If it is, Facebook may have changed its page, so tell Peter.');
   return out;
 }
@@ -291,12 +273,18 @@ function installPage(token, label) {
   return page('Send Facebook posts to SalishSea.io', `<h1>Send Facebook posts to SalishSea.io</h1>
 <p>Hello ${esc(label)}. This is a trial: what you send is kept for Peter, Scott and Orca Network to look at, and is not published.</p>
 <ol><li>On a computer, in Chrome or Firefox, show the bookmarks bar (Ctrl+Shift+B, or ⌘⇧B on a Mac).</li>
-<li>Drag this button onto it: <a class="bm" href="${esc(bookmarklet(sendSource(token)))}">Send to SalishSea</a></li>
-<li>In Orca Network's Community Group, open the day's post, and set the comments to “All comments”.</li>
-<li>Click <b>Send to SalishSea</b> in the bookmarks bar. If some comments are hidden, it opens them and asks you to click again. Then a small window shows what was read.</li></ol>
+<li>Drag this button onto it: <a class="bm" href="${esc(sendSource(token))}">Send to SalishSea</a></li>
+<li>In Orca Network's Community Group, open the day's post.</li>
+<li>Click <b>Send to SalishSea</b> in the bookmarks bar. A blue box on the post shows it choosing all comments and opening the hidden ones and their replies, which can take a minute on a busy day. Then click <b>Send them to SalishSea</b> in the box, and a window shows what was read.</li></ol>
+<p class="muted">If you installed an earlier button, drag this one in its place: it opens hidden comments itself.</p>
 <p class="muted">The button is yours alone; please don't share it. Send as often as you like: each send adds only what's new.</p>`);
 }
 
+// The window a loader opened, for the one day a bookmarklet was one (2026-11-16): Facebook
+// cut it off from the tab, so it can only ask for the button to be installed again.
+const sendPage = page('Install the button again', `<h1>Install the button again</h1><p>This Send to SalishSea button can't work with Facebook. Open your install page again and drag the new button in its place. Sorry for the trouble.</p>`);
+
+// The window the bookmarklet opens, with the post in its address.
 const receivePage = page('Sending to SalishSea…', `<h1>Sending to SalishSea…</h1><div id="out"><p id="s">Reading the post…</p></div>
 <script>
 (async()=>{
@@ -352,7 +340,7 @@ async function capture(req) {
   if (html.length > MAX_BYTES) return [413, 'That page is too large.'];
   const url = String(form.get('url') ?? '');
   const id = postId(url);
-  if (!id || !/^https:\/\/(www\.|web\.)?facebook\.com\//.test(url)) return [400, 'That is not a Facebook post. Open the day’s post and try again.'];
+  if (!id || !/^https:\/\/(www\.|web\.|m\.)?facebook\.com\//.test(url)) return [400, 'That is not a Facebook post. Open the day’s post and try again.'];
   const title = String(form.get('title') ?? '').slice(0, 300);
 
   // Record the send before anything else can wait, so two sends of one post are recorded
@@ -458,6 +446,7 @@ createServer(async (req, res) => {
     if (req.method === 'POST' && u.pathname === '/capture') return send(...(await capture(req)));
     if (req.method === 'POST' && u.pathname === '/mark') return send(...mark(await body(req)));
     if (req.method === 'GET' && u.pathname === '/receive') return send(200, receivePage, 'text/html; charset=utf-8');
+    if (req.method === 'GET' && u.pathname === '/send') return send(200, sendPage, 'text/html; charset=utf-8');
     if (req.method === 'GET' && u.pathname === '/healthz') return send(200, 'ok');
     if (req.method === 'GET' && u.pathname === '/install') {
       const token = u.searchParams.get('s') ?? '';

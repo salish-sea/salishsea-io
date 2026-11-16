@@ -10,6 +10,7 @@ import { contextFor, kindOf } from './context.mjs';
 import { classifyPost, stripMention, staffTime } from './classify.mjs';
 import { parseTitle } from './title.mjs';
 import { threadFor } from './thread.mjs';
+import { bookmarkletFor } from './bookmarklet.mjs';
 
 const link = (c, r) => `<a href="https://www.facebook.com/groups/1/posts/2/?comment_id=${c}${r ? `&amp;reply_comment_id=${r}` : ''}&amp;__cft__=x">1h</a>`;
 const post = ({ extraLine = '', commentText = '1145 Exiting Port Susan close to Camano. Currently SB.', collapsed = true } = {}) => `
@@ -475,3 +476,12 @@ test('a report gains what its author adds in replies, and what a question they a
 });
 
 const pick = ({ added, changed, gone }) => ({ added, changed, gone });
+
+test('the bookmarklet is one line of JavaScript that compiles', () => {
+  const href = bookmarkletFor('https://example.org/fb-demo/receive#s=secret');
+  const src = decodeURIComponent(href.replace(/^javascript:/, ''));
+  assert.doesNotMatch(src, /\n/);
+  // A line comment inside sendPost would swallow the rest of the line, and so of the bookmarklet.
+  assert.doesNotThrow(() => new Function(src));
+  assert.match(src, /"https:\/\/example\.org\/fb-demo\/receive#s=secret"\)$/);
+});
