@@ -1,0 +1,190 @@
+/**
+ * Reads a Facebook group's post, as the bookmarklet sends it, into the post's own lines and
+ * its comments and replies (decision 117, bd salish-i1a.3.4). The demo's reader
+ * (tools/facebook-demo/read.mjs), made strict.
+ *
+ * It relies on what Facebook's markup gave from 2026-11-08 to 2026-11-16, in all 34 posts
+ * sent to the demo:
+ *
+ * - each comment and reply is an element with role="article" and an aria-label such as
+ *   "Comment by <name> 2 hours ago" or "Reply by <name> to <name>'s comment 1 hour ago";
+ *   no other element on the post has that role;
+ * - its links carry comment_id, and a reply's also reply_comment_id, the reply's own id;
+ * - replies are not nested inside the comment they answer;
+ * - the post's own text is the dir="auto" blocks outside every comment.
+ *
+ * Facebook changes its markup often. When the post departs from that, this throws
+ * UnreadablePost rather than leave out what it couldn't read: a send that reads as a quiet
+ * day, or as a day short of a comment, would be wrong without anyone knowing.
+ */
+
+import { parseHTML } from 'linkedom';
+
+export type FacebookComment = {
+    /** Facebook's comment_id, or for a reply its reply_comment_id. */
+    id: string,
+    /** For a reply, the id of the comment it answers. */
+    replyTo: string | null,
+    kind: 'comment' | 'reply',
+    author: string,
+    /** Facebook's relative time, as it showed it: "2 hours ago", "a day ago". */
+    ago: string,
+    /** That time from when the post was sent, epoch seconds; no more precise than `ago`'s unit. */
+    at: number,
+    /** The comment's text, a line for each block; empty for a comment that is only a photo. */
+    text: string,
+    /** Links to its photos and videos on Facebook (see mediaIn). */
+    media: string[],
+};
+
+export type FacebookPost = {
+    /** The post's own text outside every comment, line by line, without lines of punctuation only. */
+    lines: string[],
+    media: string[],
+    comments: FacebookComment[],
+    /** How many buttons still hide comments or replies, or the rest of a long comment. */
+    collapsed: number,
+    /** How the comments were sorted, as Facebook's button says ("All comments"), or null if it isn't there. */
+    sort: string | null,
+};
+
+/** The post doesn't have the shape this reader knows: Facebook has probably changed its markup. */
+export class UnreadablePost extends Error {
+    override name = 'UnreadablePost';
+}
+
+/**
+ * What hides part of a post: collapsed comments and replies, and a long comment cut short.
+ * The bookmarklet (bd salish-i1a.3.8) clicks the same buttons; keep the two in step.
+ */
+export const EXPANDERS = /^(view ((more|all|previous) (\d+ )?|\d+ (more )?)(comments?|repl(y|ies))|\d+ (more )?repl(y|ies)|see more$)/i;
+const SORTS = /^(most relevant|all comments|newest)$/i;
+const LABEL = /^(Comment|Reply) by (.+?)(?: to (.+?)'s (?:comment|reply))? ((?:about )?(?:an?|\d+) (?:second|minute|hour|day|week|month|year)s? ago|just now|yesterday)$/i;
+
+/**
+ * @param html the post's element, as the bookmarklet sent it
+ * @param sentAt when it was sent, epoch seconds: the time Facebook's "2 hours ago" counts back from
+ */
+export function readFacebookPost(html: string, sentAt: number): FacebookPost {
+    const {document} = parseHTML(`<!doctype html><html><body>${html}</body></html>`);
+    const articles = [...document.querySelectorAll('[role="article"]')];
+
+    const comments: FacebookComment[] = [];
+    for (const a of articles) {
+        const label = a.getAttribute('aria-label') ?? '';
+        const m = LABEL.exec(label);
+        if (!m) throw new UnreadablePost(`an article's label isn't a comment's or a reply's: ${shapeOf(label)}`);
+        const [, kind = '', author = '', , ago = ''] = m;
+        const nested = articles.filter(x => x !== a && a.contains(x));
+        const own = <T extends Element>(nodes: Iterable<T>) => [...nodes].filter(n => !nested.some(x => x.contains(n)));
+
+        let commentId: string | null = null, replyId: string | null = null;
+        for (const link of own(a.querySelectorAll('a[href*="comment_id="]'))) {
+            const u = urlOf(link);
+            commentId ??= u?.searchParams.get('comment_id') ?? null;
+            replyId ??= u?.searchParams.get('reply_comment_id') ?? null;
+        }
+        const isReply = kind.toLowerCase() === 'reply';
+        if (!commentId) throw new UnreadablePost(`a ${kind.toLowerCase()} has no link with its comment_id`);
+        if (isReply && !replyId) throw new UnreadablePost('a reply has no link with its reply_comment_id');
+
+        comments.push({
+            id: replyId ?? commentId,
+            replyTo: isReply ? commentId : null,
+            kind: isReply ? 'reply' : 'comment',
+            author,
+            ago,
+            at: agoToTime(ago, sentAt),
+            text: outermost(own(a.querySelectorAll('div[dir="auto"]'))).map(textOf).filter(Boolean).join('\n'),
+            media: mediaIn(own(a.querySelectorAll('a[href]'))),
+        });
+    }
+
+    const outside = <T extends Element>(nodes: Iterable<T>) => [...nodes].filter(n => !articles.some(a => a.contains(n)));
+    const lines = outermost(outside(document.querySelectorAll('div[dir="auto"]')))
+        .flatMap(n => textOf(n).split('\n'))
+        .map(l => l.trim())
+        .filter(l => /[\p{L}\p{N}]/u.test(l));
+    // Even a post with no comments yet has its title.
+    if (!lines.length) throw new UnreadablePost('found no text outside the comments');
+
+    const buttons = [...document.querySelectorAll('[role="button"]')].map(b => (b.textContent ?? '').trim());
+    return {
+        lines,
+        media: mediaIn(outside(document.querySelectorAll('a[href]'))),
+        comments,
+        collapsed: buttons.filter(t => EXPANDERS.test(t)).length,
+        sort: buttons.find(t => SORTS.test(t)) ?? null,
+    };
+}
+
+/** A label's shape with its words reduced to their first letters, for an error that names no member. */
+const shapeOf = (label: string) => JSON.stringify(label.replace(/(\p{L})\p{L}*/gu, '$1…').slice(0, 60));
+
+function urlOf(a: Element): URL | null {
+    try {
+        return new URL(a.getAttribute('href') ?? '', 'https://www.facebook.com');
+    } catch {
+        return null; // a malformed link elsewhere on the page must not lose the send
+    }
+}
+
+/**
+ * Links to the photos and videos among some links, on Facebook, without its tracking
+ * parameters. SalishSea.io keeps no copy: the group's media permissions are Orca Network's
+ * (decision 117).
+ */
+function mediaIn(links: Element[]): string[] {
+    const out = new Set<string>();
+    for (const a of links) {
+        const u = urlOf(a);
+        if (!u || !/(^|\.)facebook\.com$/.test(u.hostname)) continue;
+        const fbid = u.searchParams.get('fbid');
+        const v = u.searchParams.get('v');
+        if (/^\/photo(\.php)?\/?$/.test(u.pathname) && fbid) out.add(`https://www.facebook.com/photo/?fbid=${fbid}`);
+        else if (/\/(videos|reel)\/\d+/.test(u.pathname)) out.add(`https://www.facebook.com${u.pathname.replace(/\/$/, '')}`);
+        else if (u.pathname === '/watch/' && v) out.add(`https://www.facebook.com/watch/?v=${v}`);
+    }
+    return [...out];
+}
+
+const outermost = <T extends Element>(nodes: T[]) => nodes.filter(n => !nodes.some(o => o !== n && o.contains(n)));
+
+// A block's text in document order, with a line break at each block inside it and at each
+// <br>: each line of a post is a block inside the outer one, but text can sit between them.
+const BLOCKS = new Set(['DIV', 'P', 'LI', 'UL', 'OL', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
+function textOf(n: Node): string {
+    let out = '';
+    const walk = (node: Node) => {
+        for (const c of node.childNodes) {
+            if (c.nodeType === 3) out += c.textContent;
+            else if (c.nodeType === 1) {
+                const tag = (c as Element).tagName;
+                if (tag === 'BR') { out += '\n'; continue; }
+                const block = BLOCKS.has(tag);
+                if (block) out += '\n';
+                walk(c);
+                if (block) out += '\n';
+            }
+        }
+    };
+    walk(n);
+    return out.split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+}
+
+const UNITS = {second: 1, minute: 60, hour: 3600, day: 86400, week: 604800, month: 2592000, year: 31536000};
+
+/** Facebook's "2 hours ago", counted back from `sentAt`, in epoch seconds. */
+export function agoToTime(ago: string, sentAt: number): number {
+    if (/just now/i.test(ago)) return sentAt;
+    if (/yesterday/i.test(ago)) return sentAt - UNITS.day;
+    const m = /(an?|\d+) (second|minute|hour|day|week|month|year)/i.exec(ago);
+    if (!m) throw new UnreadablePost(`a relative time this reader doesn't know: ${JSON.stringify(ago)}`);
+    const n = /^an?$/i.test(m[1]!) ? 1 : Number(m[1]);
+    return sentAt - n * UNITS[m[2]!.toLowerCase() as keyof typeof UNITS];
+}
+
+/** The post's id from its address: /groups/<group>/posts/<id> or /permalink/<id>. */
+export function postId(url: string): string | null {
+    return /\/(?:posts|permalink)\/(\d+)/.exec(url)?.[1] ?? null;
+}
