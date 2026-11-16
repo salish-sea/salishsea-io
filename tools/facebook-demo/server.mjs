@@ -453,7 +453,7 @@ async function capture(req) {
   if (html.length > MAX_BYTES) return [413, 'That page is too large.'];
   const url = String(form.get('url') ?? '');
   const id = postId(url);
-  if (!id || !/^https:\/\/(www\.|web\.)?facebook\.com\//.test(url)) return [400, 'That is not a Facebook post. Open the day’s post and try again.'];
+  if (!id || !/^https:\/\/(www\.|web\.|m\.)?facebook\.com\//.test(url)) return [400, 'That is not a Facebook post. Open the day’s post and try again.'];
   const title = String(form.get('title') ?? '').slice(0, 300);
 
   // Record the send before anything else can wait, so two sends of one post are recorded
