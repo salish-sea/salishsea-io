@@ -1,9 +1,10 @@
 /**
  * Brings the basemap's water regions to the build (salish-fwyt.2), and its OpenStreetMap
- * place list, which says where the landmarks it names are (decision 100), from the URLs
- * the site's style names (src/basemap-style.json, `salishsea:places`.regions and .osm):
+ * place list and list of shore parks, which say where the landmarks named from them are
+ * (decisions 100 and 119), from the URLs the site's style names (src/basemap-style.json,
+ * `salishsea:places`.regions, .osm and .parks):
  *
- *   node scripts/read-path/fetch-water-regions.ts <basemap-style.json> <water-regions.json> [<places-osm.json>]
+ *   node scripts/read-path/fetch-water-regions.ts <basemap-style.json> <water-regions.json> [<places-osm.json> [<places-parks.json>]]
  *
  * Each URL is named for the list's contents (places-<key>-<the first 16 hex digits of
  * its SHA-256>.json, basemap decision 018), so a file already holding those contents is
@@ -60,11 +61,12 @@ export async function fetchPlaceList(stylePath: string, key: ListKey, out: strin
 }
 
 if (import.meta.main) {
-    const [style, regions, osm, ...rest] = process.argv.slice(2);
-    if (!style || !regions || rest.length) {
-        console.error('usage: fetch-water-regions.ts <basemap-style.json> <water-regions.json> [<places-osm.json>]');
+    const [style, regions, osm, parks, ...rest] = process.argv.slice(2);
+    if (!style || !regions || rest.length || (parks && !osm)) {
+        console.error('usage: fetch-water-regions.ts <basemap-style.json> <water-regions.json> [<places-osm.json> [<places-parks.json>]]');
         process.exit(2);
     }
     console.log(`water regions: ${await fetchPlaceList(style, 'regions', regions)}`);
     if (osm) console.log(`OpenStreetMap places: ${await fetchPlaceList(style, 'osm', osm)}`);
+    if (parks) console.log(`shore parks: ${await fetchPlaceList(style, 'parks', parks)}`);
 }

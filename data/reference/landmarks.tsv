@@ -1,7 +1,8 @@
 name	kind	source	lon	lat	reports	says
 Admiralty Head	point	gazetteers	-122.67933	48.15537	8	Admiralty Head
 Agate Point	point	gazetteers	-122.54875	47.72037	9	Agate Point
-Alki Point	point	gazetteers	-122.41985	47.57593	25	Alki Point
+Alki Beach Park	park	parks			2	Alki Beach Park
+Alki Point	point	gazetteers	-122.41985	47.57593	23	Alki Point
 Allyn	village	osm			16	Allyn
 Ambleside Park	park	parks			1	Ambleside Park
 Anacortes	ferry_terminal	osm			10	Anacortes
@@ -24,7 +25,7 @@ Beaver Point	point	gazetteers	-123.36667	48.77139	1	Beaver Point
 Beckett Point	point	gazetteers	-122.89045	48.07648	2	Beckett Point
 Beechey Head	point	gazetteers	-123.65417	48.31361	2	Beechey Head
 Belfair	community	gnis	-122.8273657	47.4506495	3	Belfair
-Belfair State Park	park	parks			4	Belfair State Park
+Belfair State Park	park	parks			1	Belfair State Park
 Bellhouse Provincial Park	park	parks			1	Bellhouse Provincial Park
 Bellingham	city	osm			9	Bellingham
 Bellingham	ferry_terminal	osm			9	Bellingham
@@ -36,12 +37,11 @@ Blaine	village	osm			1	Blaine
 Blake Island	island	osm			26	Blake Island
 Blakely Island	island	osm			4	Blakely Island
 Boston Harbor	community	gnis	-122.9009743	47.1384293	8	Boston Harbor
-Boulevard Park	park	parks			1	Boulevard Park
 Bowen Island	island	osm			12	Bowen Island
 Bremerton	city	osm			33	Bremerton
 Bremerton	ferry_terminal	osm			33	Bremerton
 Brinnon	community	gnis	-122.8982142	47.679259	2	Brinnon
-Brooks Point Regional Park	park	parks			3	Brooks Point Regional Park
+Brooks Point Regional Park	park	parks			2	Brooks Point Regional Park
 Browns Point	point	gazetteers	-122.44374	47.30565	10	Browns Point
 Browns Point	village	osm			10	Browns Point
 Brownsville	community	gnis	-122.6165308	47.6556509	1	Brownsville
@@ -52,7 +52,7 @@ Burien	town	osm			1	Burien
 Burrows Island	island	osm			2	Burrows Island
 Bush Point	point	gazetteers	-122.60682	48.03093	60	Bush Point
 Cadboro Point	point	gazetteers	-123.26444	48.45139	1	Cadboro Point
-Cama Beach State Park	nature_reserve	parks			6	Cama Beach State Park
+Cama Beach State Park	nature_reserve	parks			4	Cama Beach State Park
 Camano Head	point	gazetteers	-122.35681	48.05704	37	Camano Head
 Camano Island	island	osm			40	Camano Island
 Camano Island State Park	nature_reserve	parks			11	Camano Island State Park
@@ -62,14 +62,14 @@ Cape Beale	point	gazetteers	-125.21722	48.7875	2	Cape Beale
 Cape George	point	gazetteers	-122.88462	48.1037	1	Cape George
 Cape Roger Curtis	point	gazetteers	-123.43111	49.34028	1	Cape Roger Curtis
 Cape Saint Mary	point	gazetteers	-122.80101	48.44732	1	Cape Saint Mary
-Carkeek Park	park	parks			7	Carkeek Park
+Carkeek Park	park	parks			6	Carkeek Park
 Carrington Bay Regional Park	nature_reserve	parks			1	Carrington Bay Regional Park
 Cates Park/Whey-ah-wichen	park	parks			1	Cates Park/Whey-ah-wichen
 Cattle Point	point	gazetteers	-123.29167	48.43833	1	Cattle Point
 Cattle Point	point	gazetteers	-122.96295	48.45038	6	Cattle Point
 Centennial Park	park	parks			1	Centennial Park
+Charles Richey Senior Viewpoint	park	parks			2	Constellation Park
 Chemainus	ferry_terminal	osm			2	Chemainus
-Chinese Reconciliation Park	park	parks			1	Chinese Reconciliation Park
 Clinton	ferry_terminal	osm			40	Clinton
 Clinton	village	osm			40	Clinton
 Coal Island	island	osm			1	Coal Island
@@ -84,10 +84,10 @@ Cypress Island	island	osm			2	Cypress Island
 Dash Point	point	gazetteers	-122.42874	47.31982	11	Dash Point
 Dash Point	village	osm			11	Dash Point
 Dash Point State Park	nature_reserve	parks			2	Dash Point State Park
-Dave Mackie Park	park	parks			3	Dave Mackie Park
+Dave Mackie Park	park	parks			2	Dave Mackie Park
 Decatur Head	point	gazetteers	-122.7849	48.51121	2	Decatur Head
 Decatur Island	island	osm			2	Decatur Island
-Deception Pass State Park	nature_reserve	parks			7	Deception Pass State Park
+Deception Pass State Park	nature_reserve	parks			6	Deception Pass State Park
 Denman Island	island	osm			1	Denman Island
 Departure Bay Ferry Terminal	ferry_terminal	osm			2	Departure Bay
 Des Moines	town	osm			9	Des Moines
@@ -96,7 +96,6 @@ Dickman Mill Park	park	parks			1	Dickman Mill Park
 Dines Point	point	gazetteers	-122.54682	48.07565	1	Dines Point
 Discovery Park	park	parks			4	Discovery Park
 Dockton	community	gnis	-122.4592932	47.3717652	1	Dockton
-Dockton Park	park	parks			1	Dockton Park
 Dolphin Point	point	gazetteers	-122.45152	47.50288	2	Dolphin Point
 Dorcas Point	point	gazetteers	-124.18583	49.31278	2	Dorcas Point
 Dosewallips State Park	nature_reserve	parks			1	Dosewallips State Park
@@ -124,12 +123,9 @@ Fauntleroy	ferry_terminal	osm			14	Fauntleroy
 Fay Bainbridge Park	park	parks			7	Fay Bainbridge Park
 Flapjack Point	point	gazetteers	-122.95542	47.10787	1	Flapjack Point
 Fort Casey	community	gnis	-122.6787777	48.1642631	7	Fort Casey
-Fort Casey State Park	nature_reserve	parks			4	Fort Casey State Park
 Fort Ebey State Park	nature_reserve	parks			5	Fort Ebey State Park
 Fort Flagler	community	gnis	-122.6951649	48.0967605	2	Fort Flagler
-Fort Flagler State Park	nature_reserve	parks			2	Fort Flagler State Park
 Fort Ward	community	gnis	-122.5151324	47.5809306	4	Fort Ward
-Fort Ward Park	park	parks			4	Fort Ward Park
 Foster Point	point	gazetteers	-122.88851	48.58844	1	Foster Point
 Fox Island	island	osm			19	Fox Island
 Fox Island	village	osm			19	Fox Island
@@ -148,8 +144,7 @@ Gibsons	town	osm			3	Gibsons
 Gig Harbor	town	osm			12	Gig Harbor
 Glen Acres	community	gnis	-122.446517	47.4756538	1	Glen Acres
 Glendale	community	gnis	-122.3584722	47.9395392	10	Glendale
-Glendale Beach Preserve	park	parks			7	Glendale Beach Preserve
-Golden Gardens Park	park	parks			11	Golden Gardens Park
+Golden Gardens Park	park	parks			9	Golden Gardens Park
 Gooseberry Point	point	gazetteers	-122.67212	48.73205	1	Gooseberry Point
 Gooseberry Point	ferry_terminal	osm			1	Gooseberry Point
 Gorst	community	gnis	-122.704863	47.5253721	2	Gorst
@@ -181,13 +176,12 @@ Hornby Island	island	osm			3	Hornby Island
 Howarth Park	park	parks			1	Howarth Park
 Hunter Point	point	gazetteers	-122.91931	47.17343	1	Hunter Point
 Illahee	community	gnis	-122.5968054	47.6128736	3	Illahee
-Illahee State Park	park	parks			3	Illahee State Park
 Indian Beach	community	gnis	-122.5212685	48.1631525	3	Indian Beach
 Indian Island	island	osm			1	Indian Island
 Indianola	village	osm			1	Indianola
-Jarrell Cove State Park	nature_reserve	parks			3	Jarrell Cove State Park
+Jarrell Cove State Park	nature_reserve	parks			2	Jarrell Cove State Park
 Jericho Beach Park	park	parks			1	Jericho Beach Park
-Jetty Island Park	park	parks			6	Jetty Island Park
+Jetty Island Park	park	parks			4	Jetty Island Park
 Johnson Landing	community	gnis	-122.6904082	47.1839856	1	Johnson Landing
 Johnson Point	point	gazetteers	-122.81486	47.17787	10	Johnson Point
 Joseph Whidbey State Park	nature_reserve	parks			1	Joseph Whidbey State Park
@@ -227,10 +221,11 @@ Lummi Point	point	gazetteers	-122.68879	48.734	3	Lummi Point
 Lund	village	osm			1	Lund
 Lyle Point	point	gazetteers	-122.69346	47.12982	1	Lyle Point
 Mabana	community	gnis	-122.415149	48.0945402	29	Mabana
-Magnolia Park	park	parks			4	Magnolia Park
+Magnolia Park	park	parks			2	Magnolia Park
 Manchester	village	osm			10	Manchester
 Manchester State Park	nature_reserve	parks			1	Manchester State Park
 Manette	community	gnis	-122.6123603	47.5712068	10	Manette
+Marina Beach Park	park	parks			1	Marina Beach Park
 Marine Park	park	parks			1	Marine Park
 Marine View Park	park	parks			1	Marine View Park
 Marrowstone Island	island	osm			5	Marrowstone Island
@@ -248,7 +243,6 @@ Miller Peninsula State Park	nature_reserve	parks			1	Miller Peninsula State Park
 Minter	community	gnis	-122.687634	47.3620402	2	Minter
 Mission Beach	community	gnis	-122.2729188	48.0487069	1	Mission Beach
 Monarch Head	point	gazetteers	-123.09361	48.76444	5	Monarch Head
-Monroe Landing Park	park	parks			1	Monroe Landing Park
 Moran State Park	nature_reserve	parks			1	Moran State Park
 Moresby Island	island	osm			1	Moresby Island
 Mouat Point	point	gazetteers	-123.31917	48.77861	3	Mouat Point
@@ -263,7 +257,6 @@ Neck Point	point	gazetteers	-123.96444	49.23639	1	Neck Point
 Neck Point Park	park	parks			1	Neck Point Park
 New Brighton Park	park	parks			1	New Brighton Park
 Nodule Point	point	gazetteers	-122.66933	48.03231	1	Nodule Point
-North Beach County Park	park	parks			1	North Beach County Park
 North Pender Island	island	osm			4	North Pender Island
 North Vancouver	city	osm			2	North Vancouver
 Norwegian Point	point	gazetteers	-122.54765	47.91843	2	Norwegian Point
@@ -271,7 +264,6 @@ Norwegian Point Park	park	parks			1	Norwegian Point Park
 Oak Harbor	town	osm			3	Oak Harbor
 Odlin County Park	park	parks			1	Odlin County Park
 Olalla	community	gnis	-122.545686	47.429264	3	Olalla
-Olalla Beach Preserve	nature_reserve	parks			2	Olalla Beach Preserve
 Olele Point	point	gazetteers	-122.68266	47.97203	5	Olele Point
 Olympia	city	osm			3	Olympia
 Onamac Point	point	gazetteers	-122.53655	48.18399	3	Onamac Point
@@ -321,7 +313,8 @@ Port Orchard	town	osm			7	Port Orchard
 Port Townsend	ferry_terminal	osm			17	Port Townsend
 Port Townsend	town	osm			17	Port Townsend
 Portage Island	island	osm			1	Portage Island
-Possession Point	point	gazetteers	-122.38875	47.90593	38	Possession Point
+Possession Beach Park	park	parks			1	Possession Beach Park
+Possession Point	point	gazetteers	-122.38875	47.90593	37	Possession Point
 Potlatch State Park	nature_reserve	parks			1	Potlatch State Park
 Powell River	city	osm			3	Powell River
 President Point	point	gazetteers	-122.47208	47.76593	6	President Point
@@ -338,7 +331,6 @@ Restoration Point	point	gazetteers	-122.47902	47.58371	16	Restoration Point
 Reuben Tarte Park	park	parks			1	Reuben Tarte Park
 Richmond Beach	community	gnis	-122.3901313	47.7695415	10	Richmond Beach
 Richmond Beach Saltwater Park	park	parks			1	Richmond Beach Saltwater Park
-Rockaway Beach	nature_reserve	parks			1	Rockaway Beach
 Rockaway Beach Park	park	parks			1	Rockaway Beach Park
 Rocky Point	point	gazetteers	-122.66792	47.60371	1	Rocky Point
 Rocky Point	point	gazetteers	-122.52432	48.09648	1	Rocky Point
@@ -357,7 +349,7 @@ San Juan Island	island	osm			3	San Juan Island
 Sandy Point	point	gazetteers	-122.3757	48.03454	46	Sandy Point
 Saturna Island	island	osm			18	Saturna Island
 Saturna Point	point	gazetteers	-123.20139	48.79806	3	Saturna Point
-Scenic Beach State Park	park	parks			2	Scenic Beach State Park
+Scenic Beach State Park	park	parks			1	Scenic Beach State Park
 Seahurst	community	gnis	-122.3620699	47.4692655	1	Seahurst
 Seattle	city	osm			26	Seattle
 Seattle	ferry_terminal	osm			26	Seattle
@@ -368,7 +360,6 @@ Shaw Island	ferry_terminal	osm			4	Shaw Island
 Shaw Island	island	osm			3	Shaw Island
 Shelton	town	osm			5	Shelton
 Sheridan Park	community	gnis	-122.6359734	47.5848175	3	Sheridan Park
-Sheridan Park	park	parks			3	Sheridan Park
 Shore Acres	community	gnis	-122.5715175	47.3103754	1	Shore Acres
 Shore Acres	community	gnis	-122.4481814	47.3548209	1	Shore Acres
 Shoreline	town	osm			3	Shoreline
@@ -389,7 +380,7 @@ Spee-Bi-Dah	community	gnis	-122.3232007	48.0914853	2	Spee-Bi-Dah
 Spieden Island	island	osm			2	Spieden Island
 Squamish	city	osm			1	Squamish
 Squaxin Island	island	osm			6	Squaxin Island
-Stamm Overlook Park	park	parks			4	Stamm Overlook Park
+Stamm Overlook Park	park	parks			3	Stamm Overlook Park
 Stanley Park	park	parks			2	Stanley Park
 Stanley Point	point	gazetteers	-123.32722	48.81861	1	Stanley Point
 Stanwood	village	osm			1	Stanwood
@@ -400,9 +391,7 @@ Stuart Island	island	osm			6	Stuart Island
 Sturdies Bay Ferry Terminal	ferry_terminal	osm			2	Sturdies Bay
 Sucia Island	island	osm			4	Sucia Island
 Sunny Shores	community	gnis	-122.3462581	48.1084299	1	Sunny Shores
-Sunnyside Beach Park	park	parks			1	Sunnyside Beach Park
 Sunrise Beach	community	gnis	-122.6979109	47.3234293	3	Sunrise Beach
-Sunrise Beach Park	park	parks			1	Sunrise Beach Park
 Sunset Hill	community	gnis	-122.3984629	47.6756532	2	Sunset Hill
 Suquamish	village	osm			2	Suquamish
 Tacoma	city	osm			28	Tacoma
@@ -414,7 +403,6 @@ Three Tree Point	point	gazetteers	-122.38235	47.45038	1	Three Tree Point
 Tilly Point	point	gazetteers	-123.20722	48.73222	4	Tilly Point
 Tinson Point	point	gazetteers	-123.85333	49.19972	1	Tinson Point
 Titlow	community	gnis	-122.5529043	47.246487	5	Titlow
-Titlow Park	park	parks			4	Titlow Park
 Tolmie State Park	nature_reserve	parks			5	Tolmie State Park
 Tracyton	village	osm			3	Tracyton
 Trafalgar Park	park	parks			5	Trafalgar Park
@@ -423,7 +411,7 @@ Tulare Beach	community	gnis	-122.343202	48.1017631	2	Tulare Beach
 Tumbo Island	island	osm			2	Tumbo Island
 Tumbo Point	point	gazetteers	-123.05111	48.79361	1	Tumbo Point
 Turn Point	point	gazetteers	-123.23714	48.68843	2	Turn Point
-Twanoh State Park	park	parks			2	Twanoh State Park
+Twanoh State Park	park	parks			1	Twanoh State Park
 Twin Spits	community	gnis	-122.6109856	47.9264813	1	Twin Spits
 Tyee Beach	community	gnis	-122.3857033	48.092596	2	Tyee Beach
 Union	village	osm			6	Union
@@ -441,7 +429,7 @@ Walker Park	park	parks			4	Walker Park
 Walkers Landing	community	gnis	-122.9254227	47.2825952	1	Walkers Landing
 Wallace Point	point	gazetteers	-123.23139	48.73639	2	Wallace Point
 Warm Beach	village	osm			3	Warm Beach
-Washington Park	park	parks			4	Washington Park
+Washington Park	park	parks			3	Washington Park
 Waterman Point	community	gnis	-122.5698581	47.5845408	2	Waterman Point
 Weather Watch Park	park	parks			1	Weather Watch Park
 West Beach	community	gnis	-122.957685	48.6873259	1	West Beach

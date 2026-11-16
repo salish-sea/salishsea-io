@@ -70,6 +70,7 @@ describe('armsFor', () => {
         // and so does a change to the landmarks, or to the list that places them (decision 100)
         expect(armsFor(['reference/landmarks.tsv'])).toHaveProperty('all');
         expect(armsFor(['places-osm.json'])).toHaveProperty('all');
+        expect(armsFor(['places-parks.json'])).toHaveProperty('all');
         expect(armsFor(['public.observations', 'types.enums'])).toHaveProperty('all');
         expect(armsFor(['something.declared.later'])).toHaveProperty('all');
     });
@@ -353,7 +354,9 @@ describe('the derivations over the fixture', () => {
             await writeFile(landmarksTsv, `name\tkind\tsource\tlon\tlat\treports\tsays\nHere Point\tpoint\tgazetteers\t${lon}\t${lat}\t1\tHere\n`);
             const osm = path.join(dir, 'places-osm.json');
             await writeFile(osm, JSON.stringify({columns: ['name', 'kind', 'lon', 'lat', 'zoom', 'other_names'], places: []}));
-            await deriveOccurrences(snapshot, mirrors, null, regions, {list: landmarksTsv, osm});
+            const parks = path.join(dir, 'places-parks.json');
+            await writeFile(parks, JSON.stringify({columns: ['name', 'kind', 'lon', 'lat', 'zoom', 'other_names'], places: []}));
+            await deriveOccurrences(snapshot, mirrors, null, regions, {list: landmarksTsv, osm, parks});
             const [here, far, keyed] = (await query(`
                 SELECT count(*) FILTER (id = '${id}' AND (doc->>'landmark') = 'Here'),
                        count(*) FILTER ((doc->>'landmark') = 'Here' AND abs(location.lat - ${lat}) > 0.05),

@@ -152,6 +152,9 @@
 (check-not-false (memq 'reference/landmarks.tsv (inputs-of 'derive-occurrences)))
 (check-not-false (memq 'places-osm.json (inputs-of 'derive-occurrences)))
 (check-eq? (producer-of salishsea-graph 'places-osm.json) 'water-regions)
+;; and the shore parks' list (decision 119), fetched by the same task.
+(check-not-false (memq 'places-parks.json (inputs-of 'derive-occurrences)))
+(check-eq? (producer-of salishsea-graph 'places-parks.json) 'water-regions)
 (check-eq? (artifact-provenance (hash-ref (graph-artifacts salishsea-graph) 'reference/landmarks.tsv)) 'authoritative)
 (check-eq? (artifact-provenance (hash-ref (graph-artifacts salishsea-graph) 'basemap-style.json)) 'authoritative)
 (define-values (guard-plan _gp) (plan salishsea-graph 'maplify-names-hold))

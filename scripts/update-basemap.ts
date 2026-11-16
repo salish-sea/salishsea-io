@@ -81,7 +81,8 @@ const list = async (key: string): Promise<PlaceList> => {
 const rows = parseLandmarks(readFileSync('data/reference/landmarks.tsv', 'utf8'));
 const gazetteers = new Set(placesOf(await list('gazetteers')).map((p) => `${p.kind}\t${p.name}\t${p.lon}\t${p.lat}`));
 const lost = [
-  ...resolveLandmarks(rows, await list('osm')).unmatched,
+  // Park rows are placed from the version's shore parks' list (decision 119); a version without one places none.
+  ...resolveLandmarks(rows, await list('osm'), 'parks' in (named as object) ? await list('parks') : null).unmatched,
   ...rows.filter((r) => r.source === 'gazetteers' && !gazetteers.has(`${r.kind}\t${r.name}\t${r.lon}\t${r.lat}`)),
 ];
 if (lost.length) {

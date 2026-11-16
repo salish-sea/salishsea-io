@@ -4,7 +4,7 @@
  * the rest (native sightings, the register, the reference tables) from the
  * snapshot's copies of Postgres's tables.
  *
- *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json> [--landmarks <landmarks.tsv> <places-osm.json>]]
+ *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json> [--landmarks <landmarks.tsv> <places-osm.json> <places-parks.json>]]
  *
  * Writes `build.occurrences` into the snapshot: id, observed_at and the document,
  * the shape Postgres's derived.occurrences had. The SQL is derive/occurrences.sql, ported
@@ -171,17 +171,18 @@ async function writePlaces(conn: DuckDBConnection, source: Source, regions: Wate
 export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
     changed: readonly string[] | null = changedInputs(),
     regionsPath: string | null = null,
-    landmarkPaths: {list: string, osm: string} | null = null): Promise<{rows: number, arms: readonly Source[] | 'all'}> {
+    landmarkPaths: {list: string, osm: string, parks: string} | null = null): Promise<{rows: number, arms: readonly Source[] | 'all'}> {
     const regions = regionsPath ? waterRegions(JSON.parse(await readFile(regionsPath, 'utf8'))) : null;
     let landmarks: Landmarks | null = null;
     if (regions && landmarkPaths) {
         const rows = parseLandmarks(await readFile(landmarkPaths.list, 'utf8'));
         const osm = JSON.parse(await readFile(landmarkPaths.osm, 'utf8')) as PlaceList;
-        const resolved = resolveLandmarks(rows, osm);
+        const parks = JSON.parse(await readFile(landmarkPaths.parks, 'utf8')) as PlaceList;
+        const resolved = resolveLandmarks(rows, osm, parks);
         // A basemap version that renamed a place leaves its row without one: named, not
         // fatal, since every other landmark still stands (update-basemap.ts reports it too).
         if (resolved.unmatched.length)
-            console.warn(`landmarks: the OpenStreetMap list has no place for ${resolved.unmatched.map(r => `${r.name} (${r.kind})`).join(', ')}`);
+            console.warn(`landmarks: the OpenStreetMap or parks list has no place for ${resolved.unmatched.map(r => `${r.name} (${r.kind})`).join(', ')}`);
         landmarks = landmarksNear(resolved.landmarks, regions);
     }
     const shared = await readFile(new URL('./derive/shared.sql', import.meta.url), 'utf8');
@@ -288,15 +289,15 @@ export async function main(): Promise<void> {
     const flag = args.indexOf('--regions');
     const regions = flag >= 0 ? args.splice(flag, 2)[1] : undefined;
     const lflag = args.indexOf('--landmarks');
-    const [list, osm] = lflag >= 0 ? args.splice(lflag, 3).slice(1) : [];
+    const [list, osm, parks] = lflag >= 0 ? args.splice(lflag, 4).slice(1) : [];
     const [snapshot, ...rest] = args;
     const mirrors = mirrorArgs(rest);
-    if (!snapshot || !mirrors || (flag >= 0 && !regions) || (lflag >= 0 && (!list || !osm || !regions))) {
-        console.error('usage: derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json> [--landmarks <landmarks.tsv> <places-osm.json>]]');
+    if (!snapshot || !mirrors || (flag >= 0 && !regions) || (lflag >= 0 && (!list || !osm || !parks || !regions))) {
+        console.error('usage: derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json> [--landmarks <landmarks.tsv> <places-osm.json> <places-parks.json>]]');
         process.exit(2);
     }
     const {rows, arms} = await deriveOccurrences(snapshot, mirrors, changedInputs(), regions ?? null,
-        list && osm ? {list, osm} : null);
+        list && osm && parks ? {list, osm, parks} : null);
     console.log(`build.occurrences: ${rows} rows${arms === 'all' ? '' : ` (${arms.join(', ')} re-derived; the rest as they were)`}`);
 }
 

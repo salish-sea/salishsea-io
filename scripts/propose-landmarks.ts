@@ -7,6 +7,8 @@
  *
  * With GNIS's file of Washington's names, the small communities it records (populated
  * places) that the lists don't hold are proposed too, with their GNIS positions (decision 119).
+ * The shore parks reporters name are proposed from the basemap's list of them, without
+ * positions, by full name or by a short form after a word that places something.
  *
  * A place is proposed once a report within 15 km of it names it. Names are matched as
  * written, in capitals, after the reporter's own name in parentheses is taken out, so that
@@ -37,7 +39,10 @@ const MENTION_KM = 15;
 const GENERIC = /^(.+) (Point|Head|Spit|Bluff|Island|Ferry Terminal)$/;
 /** Words that are no park's short name: "East" for East Park would be every "off East Point". */
 const DIRECTIONS = /^(?:North|South|East|West|Upper|Lower|Old|New)$/;
+/** The generic words PARK_GENERIC leaves, which are no park's short name: "Marine" for Marine Park. */
+const PARK_WORDS = /^(?:State|County|Beach|Waterfront|Marine|Overlook|Memorial|Regional|City|Park)$/;
 /** A park's name without its generic words: "Stamm" for Stamm Overlook Park, "Carkeek" for Carkeek Park. */
+const PARK_LAST = /^(.+) (?:Park|Preserve|Viewpoint|Overlook|Natural Area|Reserve)$/;
 const PARK_GENERIC = /^(.+?) (?:(?:State|County|Beach|Waterfront|Marine|Overlook|Memorial|Regional|City) )?(?:Park|Preserve|Viewpoint|Overlook|Natural Area|Reserve)$/;
 const PLACING = String.raw`(?:off|near|at|from|past|by|of|around|rounding|between|and|to|toward|towards|outside|passing|passed|abeam)\s+(?:the\s+)?`;
 
@@ -66,13 +71,16 @@ function candidates(list: PlaceList, source: 'gazetteers' | 'osm' | 'parks', lis
     const [name, kind, lon, lat, other] = [i('name'), i('kind'), i('lon'), i('lat'), i('other_names')];
     const park = source === 'parks';
     const after = park ? String.raw`(?![ \t]+(?i:${PLACE_WORDS})\b)` : '';
+    // A short form followed by another capitalised word is part of a longer name: "Lions Gate", "Magnolia Marina".
+    const shortAfter = park ? String.raw`${after}(?![ \t]+[A-Z])` : '';
     return list.places.filter(p => KINDS[source].has(p[kind] as string) && !(park && listed.has(p[name] as string))).map(p => {
         const names = [p[name] as string, ...((p[other] as string[] | undefined) ?? [])];
-        const short = names.map(n => n.match(park ? PARK_GENERIC : GENERIC)?.[1])
-            .filter((n): n is string => !!n && !(park && (listed.has(n) || DIRECTIONS.test(n) || new RegExp(`^(?:${PLACE_WORDS})$`).test(n))));
+        // A park is also named without only its last word: "Stamm Overlook" as well as "Stamm".
+        const short = names.flatMap(n => park ? [n.match(PARK_GENERIC)?.[1], n.match(PARK_LAST)?.[1]] : [n.match(GENERIC)?.[1]])
+            .filter((n): n is string => !!n && !(park && (listed.has(n) || DIRECTIONS.test(n) || PARK_WORDS.test(n) || new RegExp(`^(?:${PLACE_WORDS})$`).test(n))));
         return {source, name: p[name] as string, kind: p[kind] as string, lon: p[lon] as number, lat: p[lat] as number,
             full: new RegExp(String.raw`(?<![\w])(?:${alternation(names.flatMap(n => fullForms(n, p[kind] as string)))})(?![\w])${after}`, 'g'),
-            short: short.length ? new RegExp(String.raw`\b${PLACING}(${alternation(short)})(?![\w])${after}`, 'g') : null};
+            short: short.length ? new RegExp(String.raw`\b${PLACING}(${alternation(short)})(?![\w])${shortAfter}`, 'g') : null};
     });
 }
 
@@ -164,8 +172,10 @@ if (import.meta.main) {
     }
     const [gazetteers, osm, parks] = [await list('gazetteers'), await list('osm'), await list('parks')];
     const listed = listedNames([gazetteers, osm].flatMap(l => l.places.map(p => p[l.columns.indexOf('name')] as string)));
-    const all = [...candidates(gazetteers, 'gazetteers'), ...candidates(osm, 'osm'), ...candidates(parks, 'parks', listed),
-        ...(gnis ? gnisCandidates(readFileSync(gnis, 'utf8'), listed) : [])];
+    const communities = gnis ? gnisCandidates(readFileSync(gnis, 'utf8'), listed) : [];
+    // A park's short form may not be a small community's name either: "Glendale" is the community, not Glendale Beach Preserve.
+    const notParks = new Set([...listed, ...communities.map(c => c.name)]);
+    const all = [...candidates(gazetteers, 'gazetteers'), ...candidates(osm, 'osm'), ...candidates(parks, 'parks', notParks), ...communities];
     const db = new DatabaseSync(mirror, {readOnly: true});
     const reports = db.prepare(`SELECT lon, lat, comments FROM sightings WHERE comments IS NOT NULL AND comments != '' AND is_test = 0`)
         .all() as {lon: number, lat: number, comments: string}[];
