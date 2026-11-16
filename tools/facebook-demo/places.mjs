@@ -207,8 +207,11 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
         .filter(([a, b]) => !overlaps(a, b));
       if (!spans.length) continue;
       taken.push(...spans); // a mention of a name already found still covers its shorter names ("Lopez" in "Lopez Island")
-      if (found.some((f) => f.key === key)) continue;
       const where = byName.get(key);
+      // A name shown as unknown where it wasn't placed is known once a later mention places it.
+      const had = found.findIndex((f) => f.key === key);
+      if (had >= 0 && found[had].unknown) found[had] = { key, ...known(where[0], where) };
+      if (had >= 0) continue;
       found.push({ key, ...known(where[0], where) });
     }
     // Known names first, in the order found; unknown ones after.
@@ -240,7 +243,8 @@ const WHERE_ON = new Set(['mid', 'middle', 'center', 'centre', 'channel', 'side'
 // Where each of a string's words starts in it, taking them in order.
 const starts = (str, ws) => { let o = 0; return ws.map((w) => (o = str.indexOf(w, o), o += w.length, o - w.length)); };
 // A word that places what follows it, then perhaps "the", at the end of the text before a name.
-const PLACING = /(?:^|[^\p{L}])(?:off|near|at|from|past|by|of|around|rounding|between|and|to|toward|towards|outside|passing|passed|abeam|in|into|across)[ \t]+(?:the[ \t]+)?$/iu;
+// "And" places only in "between X and": "Thanks Pat and Eldon" names people.
+const PLACING = /(?:^|[^\p{L}])(?:off|near|at|from|past|by|of|around|rounding|between|to|toward|towards|outside|passing|passed|abeam|in|into|across|between[ \t]+\S+(?:[ \t]+\S+){0,2}[ \t]+and)[ \t]+(?:the[ \t]+)?$/iu;
 const KIND_WORD = new RegExp(`^(?:${KINDS})$`, 'i');
 // The word for a kind of place that ends a name, as one spelling: "Pt" and "Pt." are "point".
 const kindWord = (name) => { const w = words(name).split(' ').at(-1); return w === 'pt' ? 'point' : w === 'harbour' ? 'harbor' : w; };

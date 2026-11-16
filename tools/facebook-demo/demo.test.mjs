@@ -170,6 +170,9 @@ test('a small community counts only when capitalised and placed, and a compass-w
   const found = (t) => find(t).map((p) => p.name + (p.unknown ? '?' : ''));
   assert.deepEqual(found('heading southwest toward Eglon'), ['Eglon']);
   assert.deepEqual(found('Thanks Eldon! Great photos'), []);
+  assert.deepEqual(found('Thanks Pat and Eldon! Great photos'), []);
+  assert.deepEqual(found('spread between Richmond Beach and Eglon'), ['Richmond Beach', 'Eglon']);
+  assert.deepEqual(found('Richmond Beach; later off Richmond Beach'), ['Richmond Beach']);
   assert.deepEqual(found('At Richmond beach and have not seen anything yet'), ['Richmond Beach']);
   // Not placed: shown as a name we don't know, as before the list had it.
   assert.deepEqual(found('Richmond Beach, 12:20, two orcas'), ['Richmond Beach?']);
