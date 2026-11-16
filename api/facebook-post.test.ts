@@ -101,6 +101,9 @@ describe('readFacebookPost', () => {
         const other = '<a href="https://www.facebook.com/groups/1/posts/3/?comment_id=9">1h</a>';
         expect(() => readFacebookPost(post(comment('Comment by Pat Example 2 hours ago', link(1), 'x')
             + comment('Comment by Sam Sample 2 hours ago', other, 'y')), SENT)).toThrow(NotOnePost);
+        // even when a label on the page can't be read
+        expect(() => readFacebookPost(post(comment('Kommentar von Pat', link(1), 'x')
+            + comment('Comment by Sam Sample 2 hours ago', other, 'y')), SENT)).toThrow(NotOnePost);
     });
 
     test('the post most permalinks name, read from text the reader may not be able to read', () => {
@@ -128,9 +131,12 @@ describe('readFacebookPost', () => {
         test('an article whose label is not a comment\'s, without naming the member', () => {
             const html = post(comment('Comment by Pat Example 2 hrs', link(1), 'x'));
             expect(() => readFacebookPost(html, SENT)).toThrow(UnreadablePost);
-            expect(() => readFacebookPost(html, SENT)).toThrow(/^an article's label isn't a comment's or a reply's: "Comment by … 2 hrs"$/);
+            expect(() => readFacebookPost(html, SENT)).toThrow(/^an article's label isn't a comment's or a reply's: "Comment by …", 6 words, ending "2 hrs"$/);
             const indic = post(comment('Reply by देवनागरी नाम to Pat Example\'s comment 2 hrs', link(1, 2), 'x'));
-            expect(() => readFacebookPost(indic, SENT)).toThrow(/: "Reply by … to …'s comment 2 hrs"$/);
+            expect(() => readFacebookPost(indic, SENT)).toThrow(/: "Reply by …", 10 words, ending "2 hrs"$/);
+            // a name made of words labels use is still a name
+            const plain = post(comment('Comment by An Day', link(1), 'x'));
+            expect(() => readFacebookPost(plain, SENT)).toThrow(/: "Comment by …", 4 words, with no time at its end$/);
         });
 
         test('a comment without its comment_id', () => {

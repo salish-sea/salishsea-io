@@ -80,30 +80,33 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
     const {document} = parseHTML(`<!doctype html><html><body>${html}</body></html>`);
     const articles = [...document.querySelectorAll('[role="article"]')];
 
+    // Each article's own part, and its permalinks: every link with a comment_id outside its
+    // text (the "2h" beside its name). A link to another comment that a member pastes into
+    // their text is not the comment's own.
+    const parts = articles.map(a => {
+        const nested = articles.filter(x => x !== a && a.contains(x));
+        const own = <T extends Element>(nodes: Iterable<T>) => [...nodes].filter(n => !nested.some(x => x.contains(n)));
+        const permalinks = own(a.querySelectorAll('a[href*="comment_id="]')).flatMap(link => {
+            const block = link.closest('div[dir="auto"]');
+            const u = block && a.contains(block) ? null : urlOf(link);
+            return u?.searchParams.get('comment_id') ? [u] : [];
+        });
+        return {a, own, permalinks};
+    });
+    // The bookmarklet sends one post; comments from two would be a page it shouldn't have
+    // sent. Asked first, so that a page of two posts is the sender's mistake even when
+    // something on it can't be read.
+    const addresses = new Set(parts.flatMap(p => p.permalinks.map(u => postAddress(u.href)))
+        .flatMap(address => address ? [JSON.stringify([address.group, address.post])] : []));
+    if (addresses.size > 1) throw new NotOnePost('its comments belong to more than one post');
+
     const comments: FacebookComment[] = [];
-    const addresses = new Set<string>();
-    for (const a of articles) {
+    for (const {a, own, permalinks} of parts) {
         const label = a.getAttribute('aria-label') ?? '';
         const m = LABEL.exec(label);
         if (!m) throw new UnreadablePost(`an article's label isn't a comment's or a reply's: ${shapeOf(label)}`);
         const [, kind = '', author = '', , ago = ''] = m;
-        const nested = articles.filter(x => x !== a && a.contains(x));
-        const own = <T extends Element>(nodes: Iterable<T>) => [...nodes].filter(n => !nested.some(x => x.contains(n)));
-
-        // Its own ids, from its permalink (the "2h" beside its name): every link with a
-        // comment_id outside its text, which must agree. A link to another comment that a
-        // member pastes into their text is not the comment's own.
-        const ids = new Set<string>();
-        for (const link of own(a.querySelectorAll('a[href*="comment_id="]'))) {
-            const block = link.closest('div[dir="auto"]');
-            if (block && a.contains(block)) continue;
-            const u = urlOf(link);
-            const commentId = u?.searchParams.get('comment_id');
-            if (!u || !commentId) continue;
-            ids.add(JSON.stringify([commentId, u.searchParams.get('reply_comment_id') ?? null]));
-            const address = postAddress(u.href);
-            if (address) addresses.add(JSON.stringify([address.group, address.post]));
-        }
+        const ids = new Set(permalinks.map(u => JSON.stringify([u.searchParams.get('comment_id'), u.searchParams.get('reply_comment_id') ?? null])));
         const kindName = kind.toLowerCase();
         if (ids.size !== 1) throw new UnreadablePost(`a ${kindName} has ${ids.size ? 'links to more than one comment_id' : 'no link with its comment_id'} beside its text`);
         const [commentId, replyId] = JSON.parse([...ids][0]!) as [string, string | null];
@@ -127,8 +130,6 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
         .flatMap(n => textOf(n).split('\n'))
         .map(l => l.trim())
         .filter(l => /[\p{L}\p{N}]/u.test(l));
-    // The bookmarklet sends one post; comments from two would be a page it shouldn't have sent.
-    if (addresses.size > 1) throw new NotOnePost('its comments belong to more than one post');
     const [group, post] = addresses.size ? JSON.parse([...addresses][0]!) as [string, string] : [];
     // Even a post with no comments yet has its title.
     if (!lines.length) throw new UnreadablePost('found no text outside the comments');
@@ -148,13 +149,17 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
 }
 
 /**
- * A label's shape for an error, which becomes a public issue: the words a label is made of
- * kept, and every other word, a member's name among them, replaced by "…".
+ * A label's shape for an error, which becomes a public issue. Nothing between its start
+ * and its time is kept, since that is where the names are, and no list of the words labels
+ * use can tell a name from them ("An Day"): only whether it starts as a comment's or a
+ * reply's does, how many words it has, and the time it ends with, if any.
  */
-const LABEL_WORDS = /^(comment|reply|by|to|'s|about|an?|ago|just|now|yesterday|\d+\w{0,3}|(second|minute|hour|day|week|month|year|sec|min|hr|wk|mo|yr)s?)$/i;
-const shapeOf = (label: string) => JSON.stringify(label.split(/\s+/)
-    .flatMap(w => /.'s$/.test(w) ? ['…', "'s"] : [LABEL_WORDS.test(w) ? w : '…'])
-    .join(' ').replace(/ '/g, "'").replace(/(… )+…/g, '…').slice(0, 80));
+const shapeOf = (label: string) => {
+    const start = /^(comment|reply) by\b/i.exec(label)?.[0];
+    const time = /(?:^|\s)(\d+\s?[a-z]{0,7}(?:\s+ago)?|just now|yesterday)$/i.exec(label)?.[1];
+    const words = label.split(/\s+/).filter(Boolean).length;
+    return `${start ? `"${start} …"` : 'not "Comment by" or "Reply by"'}, ${words} words, ${time ? `ending "${time}"` : 'with no time at its end'}`;
+};
 
 /**
  * The group and post that most of the comment permalinks in some HTML name, read from the

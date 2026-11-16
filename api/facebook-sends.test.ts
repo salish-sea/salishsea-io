@@ -123,7 +123,9 @@ describe('receiveSend', () => {
         expect(answer).toMatchObject({status: 422, body: {send_id: 1, error: expect.stringMatching(/couldn't read this post: an article's label/)}});
         expect(rows()[0]).toMatchObject({lines: null, comments: null, post_id: POST, error: expect.stringMatching(/^an article's label/)});
         expect((await readdir(sends))[0]).toMatch(/-unreadable-/);
-        await receiveSend(store, sends, sender, input({html: UNREADABLE}), new Date(NOW.getTime() + 3_600_000));
+        // twelve hours on, not reported; and that unreported send doesn't put off the next day's report
+        const later = new Date(NOW.getTime() + 12 * 3_600_000);
+        await receiveSend(store, sends, sender, input({html: UNREADABLE, capturedAt: later}), later);
         expect(feedback()).toHaveLength(1);
         expect(feedback()[0]!.message).not.toMatch(/Pat|Example/);
         await receiveSend(store, sends, sender, input({html: UNREADABLE, capturedAt: new Date(NOW.getTime() + 25 * 3_600_000)}),
@@ -135,6 +137,13 @@ describe('receiveSend', () => {
         const answer = await receiveSend(store, sends, sender, input({html: UNREADABLE, url: 'https://www.facebook.com/'}), NOW);
         expect(answer.status).toBe(422);
         expect(rows()[0]).toMatchObject({group_id: GROUP, post_id: POST});
+    });
+
+    test('two unreadable sends at once make one report, not none', async () => {
+        await Promise.all([receiveSend(store, sends, sender, input({html: UNREADABLE}), NOW),
+            receiveSend(store, sends, sender, input({html: UNREADABLE}), NOW)]);
+        expect(feedback()).toHaveLength(1);
+        expect(rows().map(r => r['reported']).sort()).toEqual([0, 1]);
     });
 
     test('feedback written under the reporter\'s name by anyone does not silence the report', async () => {

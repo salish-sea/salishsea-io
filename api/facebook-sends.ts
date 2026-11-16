@@ -126,18 +126,29 @@ export async function receiveSend(store: DatabaseSync, dir: string, who: Me, inp
     await writeFile(temporary, await gzip(html));
     await rename(temporary, path.join(dir, file));
 
-    const {id} = store.prepare(`INSERT INTO facebook_sends (received_at, captured_at, user_id, url, group_id, post_id,
-            html_bytes, html_sha256, file, lines, comments, error)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(
-        isoMicros(receivedAt), isoMicros(input.capturedAt), who.user_id, input.url, group, postId,
-        html.length, createHash('sha256').update(html).digest('hex'), file,
-        read?.lines.length ?? null, read?.comments.length ?? null, error) as {id: number};
+    // The row, and whether this is the day's first report of an unreadable send, together:
+    // with nothing awaited between them, two sends at once can't each leave it to the other.
+    let id: number;
+    store.exec('BEGIN IMMEDIATE');
+    try {
+        const report = error !== null && !reportedSince(store, new Date(receivedAt.getTime() - DAY_MS));
+        ({id} = store.prepare(`INSERT INTO facebook_sends (received_at, captured_at, user_id, url, group_id, post_id,
+                html_bytes, html_sha256, file, lines, comments, error, reported)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`).get(
+            isoMicros(receivedAt), isoMicros(input.capturedAt), who.user_id, input.url, group, postId,
+            html.length, createHash('sha256').update(html).digest('hex'), file,
+            read?.lines.length ?? null, read?.comments.length ?? null, error, report ? 1 : 0) as {id: number});
+        if (report) reportUnreadable(store, error!, receivedAt);
+        store.exec('COMMIT');
+    } catch (e) {
+        store.exec('ROLLBACK');
+        throw e;
+    }
 
     // Each write is followed by a sweep, so the cap holds however fast sends come.
     await sweepSends(dir, receivedAt).catch(e => console.error('api: sweeping sent posts:', e));
 
     if (!read) {
-        reportUnreadable(store, id, error!, receivedAt);
         return {status: 422, body: {send_id: id, error: `SalishSea.io couldn't read this post: ${error}. Facebook may have changed its page; we've been told.`}};
     }
     return {status: 201, body: {send_id: id, post_id: postId!, lines: read.lines.length, comments: read.comments.length,
@@ -156,13 +167,19 @@ function groupIn(url: string): string | null {
 }
 
 /**
- * The first unreadable send in a day becomes feedback, which the notifier files as a public
- * GitHub issue. The message carries the reader's error, which names no member. Known by the
- * sends themselves, since anyone may write feedback under any name.
+ * Whether an unreadable send has been reported since `since`. Known by the sends that were
+ * reported, not by feedback, which anyone may write under any name, nor by every unreadable
+ * send, which would let unreported ones put the next report off for ever.
  */
-function reportUnreadable(store: DatabaseSync, sendId: number, error: string, now: Date): void {
-    const since = isoMicros(new Date(now.getTime() - DAY_MS));
-    if (store.prepare('SELECT 1 FROM facebook_sends WHERE error IS NOT NULL AND id <> ? AND received_at > ?').get(sendId, since)) return;
+function reportedSince(store: DatabaseSync, since: Date): boolean {
+    return store.prepare('SELECT 1 FROM facebook_sends WHERE reported = 1 AND received_at > ?').get(isoMicros(since)) !== undefined;
+}
+
+/**
+ * Feedback, which the notifier files as a public GitHub issue, for the first unreadable
+ * send in a day. The message carries the reader's error, which names no member.
+ */
+function reportUnreadable(store: DatabaseSync, error: string, now: Date): void {
     store.prepare('INSERT INTO feedback (created_at, name, message) VALUES (?, ?, ?)').run(isoMicros(now), REPORTER,
         `A post sent from Facebook couldn't be read: ${error}. Facebook has probably changed its markup, so every send ` +
         'will fail until api/facebook-post.ts is fixed (bd salish-i1a.3.4). The sends are kept on the Fly volume, under ' +

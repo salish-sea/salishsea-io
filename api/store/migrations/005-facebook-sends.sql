@@ -25,5 +25,7 @@ CREATE TABLE facebook_sends (
   lines        INTEGER CHECK (lines >= 0),      -- what the reader found, or null when it couldn't read it
   comments     INTEGER CHECK (comments >= 0),
   error        TEXT,                            -- why it couldn't, or null
+  reported     INTEGER NOT NULL DEFAULT 0 CHECK (reported IN (0, 1)),  -- 1: this send's error was filed as feedback,
+                                                -- as the first unreadable send in a day is
   CHECK ((error IS NULL) = (lines IS NOT NULL AND comments IS NOT NULL))
 ) STRICT;
