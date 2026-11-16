@@ -44,7 +44,10 @@ const PARK_WORDS = /^(?:State|County|Beach|Waterfront|Marine|Overlook|Memorial|R
 /** A park's name without its generic words: "Stamm" for Stamm Overlook Park, "Carkeek" for Carkeek Park. */
 const PARK_LAST = /^(.+) (?:Park|Preserve|Viewpoint|Overlook|Natural Area|Reserve)$/;
 const PARK_GENERIC = /^(.+?) (?:(?:State|County|Beach|Waterfront|Marine|Overlook|Memorial|Regional|City) )?(?:Park|Preserve|Viewpoint|Overlook|Natural Area|Reserve)$/;
-const PLACING = String.raw`(?:off|near|at|from|past|by|of|around|rounding|between|and|to|toward|towards|outside|passing|passed|abeam)\s+(?:the\s+)?`;
+// In any case, as a sentence may start with one ("From Stamm"); the name after it keeps its own case.
+const PLACING = String.raw`(?i:off|near|at|from|past|by|of|around|rounding|between|and|to|toward|towards|outside|passing|passed|abeam)\s+(?:the\s+)?`;
+/** Directions written in capitals after a name, which don't make it part of a longer one: "from Stamm SE bound". */
+const DIRECTION_ABBREVIATIONS = String.raw`(?:[NSEW]|NE|NW|SE|SW|NB|SB|EB|WB|NNE|NNW|SSE|SSW|ENE|ESE|WNW|WSW)\b`;
 
 type Candidate = {source: 'gazetteers' | 'osm' | 'gnis' | 'parks', name: string, kind: string, lon: number, lat: number,
     full: RegExp, short: RegExp | null};
@@ -66,13 +69,16 @@ export function fullForms(name: string, kind: string): string[] {
  * place is (a park called "Bush Point"), and a short form that is one ("Alki" for Alki Beach
  * Park is Alki Point); and a mention followed by a word that ends a place's name is that place's.
  */
+/** The shore parks' list as candidates, for tests. */
+export const parkCandidates = (list: PlaceList, listed: ReadonlySet<string>) => candidates(list, 'parks', listed);
+
 function candidates(list: PlaceList, source: 'gazetteers' | 'osm' | 'parks', listed: ReadonlySet<string> = new Set()): Candidate[] {
     const i = (c: string) => list.columns.indexOf(c);
     const [name, kind, lon, lat, other] = [i('name'), i('kind'), i('lon'), i('lat'), i('other_names')];
     const park = source === 'parks';
     const after = park ? String.raw`(?![ \t]+(?i:${PLACE_WORDS})\b)` : '';
     // A short form followed by another capitalised word is part of a longer name: "Lions Gate", "Magnolia Marina".
-    const shortAfter = park ? String.raw`${after}(?![ \t]+[A-Z])` : '';
+    const shortAfter = park ? String.raw`${after}(?![ \t]+(?!${DIRECTION_ABBREVIATIONS})[A-Z])` : '';
     return list.places.filter(p => KINDS[source].has(p[kind] as string) && !(park && listed.has(p[name] as string))).map(p => {
         const names = [p[name] as string, ...((p[other] as string[] | undefined) ?? [])];
         // A park is also named without only its last word: "Stamm Overlook" as well as "Stamm".

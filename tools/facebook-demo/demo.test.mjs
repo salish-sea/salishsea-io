@@ -202,6 +202,7 @@ test('a shore park is found by its name, what reporters call it, or a short form
   assert.deepEqual(found('the stamm family'), []);
   assert.deepEqual(found('within the alki beach park area, a marine park'), []);
   assert.deepEqual(found('from Stamm Hall, report harassment of Marine Mammals'), []);
+  assert.deepEqual(found('from Stamm SE bound'), ['Stamm Overlook Park']);
   // A short form that is a listed place's name without its last word isn't the park's: "off Alki" is Alki Point's
   // (which the finder doesn't read from "Alki" alone), never Alki Beach Park.
   assert.deepEqual(found('heading off Alki'), []);

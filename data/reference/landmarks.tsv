@@ -41,7 +41,7 @@ Bowen Island	island	osm			12	Bowen Island
 Bremerton	city	osm			33	Bremerton
 Bremerton	ferry_terminal	osm			33	Bremerton
 Brinnon	community	gnis	-122.8982142	47.679259	2	Brinnon
-Brooks Point Regional Park	park	parks			2	Brooks Point Regional Park
+Brooks Point Regional Park	park	parks			3	Brooks Point Regional Park
 Browns Point	point	gazetteers	-122.44374	47.30565	10	Browns Point
 Browns Point	village	osm			10	Browns Point
 Brownsville	community	gnis	-122.6165308	47.6556509	1	Brownsville
@@ -53,8 +53,8 @@ Burrows Island	island	osm			2	Burrows Island
 Bush Point	point	gazetteers	-122.60682	48.03093	60	Bush Point
 Cadboro Point	point	gazetteers	-123.26444	48.45139	1	Cadboro Point
 Cama Beach State Park	nature_reserve	parks			4	Cama Beach State Park
-Camano Head	point	gazetteers	-122.35681	48.05704	37	Camano Head
-Camano Island	island	osm			40	Camano Island
+Camano Head	point	gazetteers	-122.35681	48.05704	38	Camano Head
+Camano Island	island	osm			43	Camano Island
 Camano Island State Park	nature_reserve	parks			11	Camano Island State Park
 Camp Diana	community	gnis	-122.4309836	48.1059293	1	Camp Diana
 Cap Sante	point	gazetteers	-122.59934	48.51733	1	Cap Sante
@@ -165,7 +165,7 @@ Harbor Island	island	osm			2	Harbor Island
 Harborview Park	park	parks			1	Harborview Park
 Hardwicke Island	island	osm			1	Hardwicke Island
 Harstine Island	island	osm			26	Harstine Island
-Hat Island	island	osm			51	Hat Island
+Hat Island	island	osm			53	Hat Island
 Hazel Point	point	gazetteers	-122.77099	47.69315	1	Hazel Point
 Heriot Bay	village	osm			1	Heriot Bay
 Hermosa Point	point	gazetteers	-122.29348	48.06232	1	Hermosa Point
@@ -204,7 +204,7 @@ Laura Point	point	gazetteers	-123.305	48.86444	2	Laura Point
 Lent Landing Park	park	parks			1	Lent Landing Park
 Libbey Beach County Park	park	parks			1	Libbey Beach County Park
 Lighthouse Park	park	parks			1	Lighthouse Park
-Lime Kiln Point	point	gazetteers	-123.15245	48.51587	37	Lime Kiln Point
+Lime Kiln Point	point	gazetteers	-123.15245	48.51587	38	Lime Kiln Point
 Limestone Point	point	gazetteers	-123.10741	48.62232	1	Limestone Point
 Lincoln Park	park	parks			6	Lincoln Park
 Lions Park	park	parks			7	Lions Park
@@ -433,7 +433,7 @@ Washington Park	park	parks			3	Washington Park
 Waterman Point	community	gnis	-122.5698581	47.5845408	2	Waterman Point
 Weather Watch Park	park	parks			1	Weather Watch Park
 West Beach	community	gnis	-122.957685	48.6873259	1	West Beach
-West Point	point	gazetteers	-122.43707	47.66176	17	West Point
+West Point	point	gazetteers	-122.43707	47.66176	18	West Point
 West Point	point	gazetteers	-122.66406	48.40177	4	West Point
 West Seattle	community	gnis	-122.3865166	47.5709315	2	West Seattle
 West Vancouver	city	osm			3	West Vancouver

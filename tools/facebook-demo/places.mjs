@@ -253,7 +253,7 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
         // A park's full name is capitalised as written ("Marine Park", not "a marine park"); a short form after a placing word needn't be.
         .filter((m) => ((key.includes(' ') && !parkName(key)) || /\p{Lu}/u.test(m[0][0])) && counts(key, m.index)
           // and a short form followed by a capitalised word is part of a longer name: "Lions Gate".
-          && !(shortKeys.has(key) && /^[ \t]+\p{Lu}/u.test(text.slice(m.index + m[0].length))))
+          && !(shortKeys.has(key) && /^[ \t]+(?!(?:[NSEW]|NE|NW|SE|SW|NB|SB|EB|WB|NNE|NNW|SSE|SSW|ENE|ESE|WNW|WSW)\b)\p{Lu}/u.test(text.slice(m.index + m[0].length))))
         .map((m) => [m.index, m.index + m[0].length])
         .filter(([a, b]) => !overlaps(a, b));
       if (!spans.length) continue;
