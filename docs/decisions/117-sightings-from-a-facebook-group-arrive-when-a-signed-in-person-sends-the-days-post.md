@@ -1,6 +1,6 @@
 # 117 — Sightings from a Facebook group arrive when a signed-in person sends the day's post
 
-**Status:** accepted · **Decided:** 2026-11-12, by Peter, after a prototype in Chrome and Firefox · **Amended:** 2026-11-15, a day has a post for each group of animals, not one post (bd `salish-i1a.3.11`) · **Work:** bd `salish-i1a.3` (the build-out is `salish-i1a.3.3` to `.9`; the prototype was `salish-i1a.3.1`) · **Relates to:** [007](007-community-uptake-strategy.md) (partnership-first; see below), [004](004-rights-and-licensing.md) and the [rights policy](../rights-policy.md), [105](105-the-build-and-the-browser-read-sighting-text-with-one-reader.md) (one reader of sighting text)
+**Status:** accepted · **Decided:** 2026-11-12, by Peter, after a prototype in Chrome and Firefox · **Amended:** 2026-11-15, a day has a post for each group of animals, not one post (bd `salish-i1a.3.11`); 2026-11-16, who may send and how long a send's HTML is kept, under *Settled since* (bd `salish-i1a.3.3`) · **Work:** bd `salish-i1a.3` (the build-out is `salish-i1a.3.3` to `.9`; the prototype was `salish-i1a.3.1`) · **Relates to:** [007](007-community-uptake-strategy.md) (partnership-first; see below), [004](004-rights-and-licensing.md) and the [rights policy](../rights-policy.md), [105](105-the-build-and-the-browser-read-sighting-text-with-one-reader.md) (one reader of sighting text)
 
 ## Context
 
@@ -50,9 +50,16 @@ Decision 007 rejected bridging Facebook in both directions, because that leaves 
 ## Not decided
 
 - **Orca Network's agreement.** The footing above holds only if Orca Network agrees to send its reports this way, and on terms like Acartia's CC-BY. That is agreed outside the tracker; the rights policy records the result (bd `salish-i1a.3.9`).
-- **Which accounts may send.** A short list, kept by us, of the people Orca Network names.
 - **How a sighting that arrives from Facebook and again through Maplify is shown once** (bd `salish-i1a.3.7`).
-- **How long the raw HTML is kept** so a fix to the reading can be run over recent sends. About a week was suggested; it holds members' names, so not longer than that use needs.
+
+## Settled since
+
+*Added 2026-11-16, with the write API's endpoint (bd `salish-i1a.3.3`).* These were open above.
+
+- **Which accounts may send.** A contributor marked `facebook_sender` in the store, granted by hand on the machine ([runbook](../runbook/read-path-build.md#the-write-api)). The mark is its own: `editor` may change anyone's sightings, and [decision 120](120-curators-review-a-days-reports-from-every-source-and-facebook-points-wait-for-them.md)'s curators need not be senders.
+- **How long the raw HTML is kept.** A week for a send that was read, and a month for one that couldn't be, since that is the send a fixed reader is for; never more than 200 MB in all. It is kept as gzipped files on the volume, not in the store. A busy post is 700 KB, and the build copies the whole store every five minutes while Litestream keeps its pages for 30 days. The files also hold what the store never needs: comments from members who report nothing, and the sender's own name in Facebook's page around the post.
+- **What the sender learns.** The window is told at once whether the post could be read. A post that can't be read is refused with a reason, and the first such send in a day files an issue through the feedback notifier, since every send will fail until the reader is fixed.
+- **Whose clock dates a comment.** Facebook's *2 hours ago* counts back from when the bookmarklet took the post, by the sender's clock. A send that arrives more than ten minutes after that is refused, and the sender sends it again, rather than dating every comment from a moment we can't trust.
 
 ## Rejected
 
