@@ -138,6 +138,8 @@
 (define register-db (build-path mirror-dir "register.duckdb"))
 (define water-regions-file (build-path mirror-dir "water-regions.json"))
 (define places-osm-file (build-path mirror-dir "places-osm.json"))
+;; The basemap's shore parks (decision 119), which place the landmarks named from it.
+(define places-parks-file (build-path mirror-dir "places-parks.json"))
 ;; The basemap's water mask (basemap decision 028), fetched beside them: the sea as a picture
 ;; of 90 m cells and the JSON that georeferences it, which the join measures distance by sea on.
 (define water-mask-png (build-path mirror-dir "water-mask.png"))
@@ -506,6 +508,9 @@
      ;; The basemap's OpenStreetMap place list, fetched with it, which says where the
      ;; landmarks named from OpenStreetMap are (decision 100).
      (make-artifact 'places-osm.json 'file)
+     ;; And its list of the parks on the shore, which place the park landmarks (decision 119).
+     ;; The site's search never reads it.
+     (make-artifact 'places-parks.json 'file)
      ;; The basemap's water mask (decision 028), fetched from the URLs the style names under
      ;; salishsea:water, named for their contents: derived from the style, so a lost copy is
      ;; fetched again. The join measures distance by sea on it (salish-20u7.3).
@@ -678,12 +683,13 @@
    ;; names, fetched once for each basemap version the site moves to.
    (make-task 'water-regions 'transform
               #:inputs '(basemap-style.json)
-              #:outputs '(water-regions.json places-osm.json)
+              #:outputs '(water-regions.json places-osm.json places-parks.json)
               #:invoke (node-script/code "scripts/read-path/fetch-water-regions.ts"
                                  '()
                                  (list (path->string (in-checkout "src" "basemap-style.json"))
                                        (path->string water-regions-file)
-                                       (path->string places-osm-file))))
+                                       (path->string places-osm-file)
+                                       (path->string places-parks-file))))
    ;; The basemap's water mask, from the URLs the same style names (basemap decision 028):
    ;; once for each basemap version the site moves to. A style that names none makes the
    ;; script exit 1 (see its header), so a build from before the mask fails here and no
@@ -698,7 +704,7 @@
                                        (path->string water-mask-json))))
    (make-task 'derive-occurrences 'transform
               #:inputs (append occurrence-derivation-inputs
-                               '(water-regions.json places-osm.json reference/landmarks.tsv))
+                               '(water-regions.json places-osm.json places-parks.json reference/landmarks.tsv))
               #:outputs '(build.occurrences)
               #:invoke (node-script/code "scripts/read-path/derive-occurrences.ts"
                                  '()
@@ -706,7 +712,8 @@
                                          (list "--regions" (path->string water-regions-file)
                                                "--landmarks"
                                                (path->string (in-checkout "data" "reference" "landmarks.tsv"))
-                                               (path->string places-osm-file)))))
+                                               (path->string places-osm-file)
+                                               (path->string places-parks-file)))))
    ;; Postgres's derived.identifier_candidates as DuckDB SQL: each designation an
    ;; occurrence names, paired with the catalogue's individual or matriline. Reads the
    ;; occurrences the build derived, so it is a port of the whole chain;
@@ -901,6 +908,7 @@
     [(basemap-style.json) (build-path SALISHSEA "src" "basemap-style.json")]
     [(water-regions.json) water-regions-file]
     [(places-osm.json) places-osm-file]
+    [(places-parks.json) places-parks-file]
     [(water-mask.png) water-mask-png]
     [(water-mask.json) water-mask-json]
     [(reference/landmarks.tsv) (build-path SALISHSEA "data" "reference" "landmarks.tsv")]

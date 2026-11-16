@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readPost, clockTime, agoToTime, postId, EXPANDERS } from './read.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
-import { placeFinder, readAbbreviations, readFerryRoutes, readCommunities, withinOneEdit } from './places.mjs';
+import { placeFinder, readAbbreviations, readFerryRoutes, readCommunities, readParks, withinOneEdit } from './places.mjs';
 import { contextFor, kindOf } from './context.mjs';
 import { classifyPost, stripMention, staffTime } from './classify.mjs';
 import { parseTitle } from './title.mjs';
@@ -180,6 +180,32 @@ test('a small community counts only when capitalised and placed, and a compass-w
   const rows = readCommunities();
   assert.ok(['Richmond Beach', 'West Seattle'].every((n) => rows.some((r) => r.name === n)) && rows.every((r) => r.community));
   assert.ok(!rows.some((r) => ['South Beach', 'West Beach', 'Waldron', 'Birchwood'].includes(r.name)));
+});
+
+test('a shore park is found by its name, what reporters call it, or a short form after a placing word', () => {
+  const list = { columns: ['name', 'kind', 'lon', 'lat', 'zoom', 'other_names'], places: [
+    ['Stamm Overlook Park', 'park', -122.359, 47.834, 16, []],
+    ['Charles Richey Senior Viewpoint', 'park', -122.417, 47.574, 15, []],
+    ['Alki Beach Park', 'park', -122.4, 47.587, 15, []],
+    ['Marine Park', 'park', -122.51, 48.72, 15, []],
+  ] };
+  const parks = readParks(list);
+  assert.ok(parks.some((p) => p.name === 'Charles Richey Senior Viewpoint' && p.otherNames.includes('Constellation Park')));
+  const point = { name: 'Alki Point', kind: 'point', lon: -122.42, lat: 47.576, zoom: 12, otherNames: [] };
+  const find = placeFinder([point, ...parks]);
+  const found = (t) => find(t).map((p) => p.name + (p.unknown ? '?' : ''));
+  assert.deepEqual(found('Just saw his blow directly out from Stamm'), ['Stamm Overlook Park']);
+  assert.deepEqual(found('10:50 from Constellation seeing at least 7'), ['Charles Richey Senior Viewpoint']);
+  // In lower case a short form is too often an ordinary word or a name: not found.
+  assert.deepEqual(found('Watching from the seawall, first time in washington, from stamm'), []);
+  assert.deepEqual(found('Location Constellation Park West Seattle'), ['Charles Richey Senior Viewpoint']);
+  assert.deepEqual(found('the stamm family'), []);
+  assert.deepEqual(found('within the alki beach park area, a marine park'), []);
+  assert.deepEqual(found('from Stamm Hall, report harassment of Marine Mammals'), []);
+  assert.deepEqual(found('from Stamm SE bound'), ['Stamm Overlook Park']);
+  // A short form that is a listed place's name without its last word isn't the park's: "off Alki" is Alki Point's
+  // (which the finder doesn't read from "Alki" alone), never Alki Beach Park.
+  assert.deepEqual(found('heading off Alki'), []);
 });
 
 test('reading stored rows again updates their results and clears marks on the ones that change', () => {

@@ -37,3 +37,15 @@ describe('small communities from GNIS (decision 119)', () => {
         expect(named('north of Eglonville', eglon)).toEqual([]);
     });
 });
+
+describe('shore parks (decision 119)', () => {
+    test('a short form after a placing word in any case, and before a direction, counts', async () => {
+        const {parkCandidates} = await import('./propose-landmarks.ts');
+        const [stamm] = parkCandidates({columns: ['name', 'kind', 'lon', 'lat', 'zoom', 'other_names'],
+            places: [['Stamm Overlook Park', 'park', -122.36, 47.83, 16, []]]}, new Set());
+        expect(named('From Stamm we saw whales', [stamm!])).toHaveLength(1);
+        expect(named('from Stamm SE bound', [stamm!])).toHaveLength(1);
+        expect(named('from Stamm Hall', [stamm!])).toEqual([]);
+        expect(named('Stamm said hello', [stamm!])).toEqual([]);
+    });
+});

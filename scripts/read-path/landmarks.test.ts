@@ -80,6 +80,39 @@ describe('landmarks', () => {
         expect(list.some(l => l.says === 'Skiou Point')).toBe(false);
     });
 
+    test('a park row is placed from the shore parks\' list, on its region\'s shore, and only fills a gap', () => {
+        const parks: PlaceList = {columns: osm.columns, places: [
+            ['Bluff Park', 'park', -123.16, 48.38, 15, []], // in the West Strait's reach, as a park on its shore is
+            ['Kiln Park', 'park', -123.09, 48.11, 15, []], // 0.6 km from the test point, nearer than Lime Kiln Point's 1.6 km
+            ['Far Shore Park', 'park', -122.97, 48.25, 15, []], // in the East Strait, 2.2 km from the West Strait's edge
+        ]};
+        const parkRows = parseLandmarks(tsv(
+            ['Lime Kiln Point', 'point', 'gazetteers', '-123.08', '48.1', '9', 'Lime Kiln Point'],
+            ['Bluff Park', 'park', 'parks', '', '', '3', 'Bluff Park'],
+            ['Kiln Park', 'park', 'parks', '', '', '2', 'Kiln Park'],
+            ['Far Shore Park', 'park', 'parks', '', '', '1', 'Far Shore Park'],
+            ['Gone Park', 'park', 'parks', '', '', '1', 'Gone Park'],
+        ));
+        const resolved = resolveLandmarks(parkRows, osm, parks);
+        expect(resolved.unmatched.map(r => r.name)).toEqual(['Gone Park']);
+        expect(resolved.landmarks.find(l => l.says === 'Bluff Park')).toMatchObject({lon: -123.16, gapOnly: true});
+        const parkNear = landmarks(resolved.landmarks, regions);
+        expect(parkNear.landmarkAt(-123.17, 48.37, 'West Strait')).toBe('Bluff Park');
+        // Kiln Park is nearer, but a park doesn't displace a point
+        expect(parkNear.landmarkAt(-123.095, 48.115, 'West Strait')).toBe('Lime Kiln Point');
+        // a park on another region's shore is no landmark there, though nothing else is near
+        expect(parkNear.landmarkAt(-123.02, 48.25, 'West Strait')).toBeNull();
+        expect(parkNear.landmarkAt(-122.99, 48.25, 'East Strait')).toBe('Far Shore Park');
+        expect(() => parseLandmarks(tsv(['Bluff Park', 'park', 'parks', '-123.16', '48.38', '3', 'Bluff Park']))).toThrow(/has a position/);
+        // half a position is refused either way
+        expect(() => parseLandmarks(tsv(['Bluff Park', 'park', 'parks', '-123.16', '', '3', 'Bluff Park']))).toThrow(/has a position/);
+        expect(() => parseLandmarks(tsv(['Eglon', 'community', 'gnis', '-122.51', '', '3', 'Eglon']))).toThrow(/has a position/);
+        // a national park, which the list may come to hold, has the shore check too
+        const national = landmarks(resolveLandmarks(parseLandmarks(tsv(['Far Shore Park', 'national_park', 'parks', '', '', '1', 'Far Shore Park'])), osm,
+            {columns: osm.columns, places: [['Far Shore Park', 'national_park', -122.97, 48.25, 12, []]]}).landmarks, regions);
+        expect(national.landmarkAt(-123.02, 48.25, 'West Strait')).toBeNull();
+    });
+
     test('an OpenStreetMap row the list has no place for is reported, not guessed', () => {
         expect(unmatched).toEqual([]);
         const gone = resolveLandmarks(parseLandmarks(tsv(['Langley', 'town', 'osm', '', '', '3', 'Langley'])), osm);

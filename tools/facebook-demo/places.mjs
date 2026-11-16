@@ -31,6 +31,34 @@ export function readCommunities(path = new URL('../../data/reference/landmarks.t
   }));
 }
 
+// A park's name without its generic words, as scripts/propose-landmarks.ts reads it: "Stamm"
+// and "Stamm Overlook" for Stamm Overlook Park, "Carkeek" for Carkeek Park.
+const PARK_GENERIC = /^(.+?) (?:(?:State|County|Beach|Waterfront|Marine|Overlook|Memorial|Regional|City) )?(?:Park|Preserve|Viewpoint|Overlook|Natural Area|Reserve)$/;
+const PARK_LAST = /^(.+) (?:Park|Preserve|Viewpoint|Overlook|Natural Area|Reserve)$/;
+// The generic words those leave, which are no park's short name: "Marine" for Marine Park would be "of Marine Mammals".
+const PARK_WORDS = new Set(['state', 'county', 'beach', 'waterfront', 'marine', 'overlook', 'memorial', 'regional', 'city', 'park']);
+
+/**
+ * The shore parks reporters name (data/reference/landmarks.tsv's `parks` rows, decision 119),
+ * placed by name and kind from the basemap's list of them (`parks`, a list as the basemap
+ * publishes it), at each park of that name. What reporters call a park (`says`, such as
+ * Constellation Park for Charles Richey Senior Viewpoint) is another of its names, and its
+ * short forms are found when capitalised, after a word that places something: "from Stamm".
+ * In lower case they misfire ("in Washington", "from the seawall", "photo by Lincoln"); a
+ * lower-case form reporters use ("from stamm") belongs in data/abbreviations.tsv, confirmed.
+ */
+export function readParks(parks, path = new URL('../../data/reference/landmarks.tsv', import.meta.url)) {
+  const [head, ...rows] = readFileSync(path, 'utf8').trim().split('\n').map((l) => l.split('\t'));
+  const at = (c) => head.indexOf(c);
+  const listed = readPlaces(parks);
+  return rows.filter((r) => r[at('source')] === 'parks' && r[at('says')]).flatMap((r) => {
+    const [name, kind, says] = [r[at('name')], r[at('kind')], r[at('says')]];
+    const shortNames = [...new Set([name, says].flatMap((n) => [PARK_GENERIC.exec(n)?.[1], PARK_LAST.exec(n)?.[1]]).filter(Boolean))];
+    return listed.filter((p) => p.name === name && p.kind === kind)
+      .map((p) => ({ ...p, park: true, otherNames: [...p.otherNames, ...(says !== name ? [says] : [])], shortNames }));
+  });
+}
+
 /** The place abbreviations a person has confirmed (data/abbreviations.tsv): {abbreviation, place, terminal}. */
 export function readAbbreviations(path = new URL('../../data/abbreviations.tsv', import.meta.url)) {
   const [head, ...rows] = readFileSync(path, 'utf8').trim().split('\n').map((l) => l.split('\t'));
@@ -55,12 +83,17 @@ const words = (s) => s.toLowerCase().replace(/['’]/g, '').replace(/[^\p{L}\p{N
 
 /** Loads the lists and returns a function from a text to the places it names. */
 export async function loadPlaces(fetchImpl = fetch) {
-  const lists = await Promise.all(PLACE_LISTS.map(async (url) => {
+  const get = async (url) => {
     const res = await fetchImpl(url);
     if (!res.ok) throw new Error(`${url}: ${res.status}`);
     return res.json();
-  }));
-  return placeFinder([...lists.flatMap(readPlaces), ...readCommunities()], readAbbreviations(), readFerryRoutes());
+  };
+  const lists = await Promise.all(PLACE_LISTS.map(get));
+  // The shore parks' list, which the site's search doesn't load, from the style the site uses.
+  const style = JSON.parse(readFileSync(new URL('../../src/basemap-style.json', import.meta.url), 'utf8'));
+  const parksUrl = style.metadata?.['salishsea:places']?.parks;
+  const parks = parksUrl ? readParks(await get(parksUrl)) : [];
+  return placeFinder([...lists.flatMap(readPlaces), ...readCommunities(), ...parks], readAbbreviations(), readFerryRoutes());
 }
 
 /** @param {import('../../src/places.ts').Place[]} places */
@@ -80,7 +113,21 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
       }
     }
   }
+  // A park's short forms ("stamm", "constellation"), where no listed place already has the name.
+  const shortKeys = new Set();
+  // "Alki" is Alki Point's, though only islands' and passages' short names are found: a park may not take it.
+  const stems = new Set(places.filter((p) => !p.park).map((p) => words(p.name).split(' ').slice(0, -1).join(' ')).filter(Boolean));
+  for (const p of places.filter((p) => p.park))
+    for (const n of p.shortNames) {
+      const key = words(n);
+      if (NOT_PLACES.has(key) || COMMON_WORDS.has(key) || PARK_WORDS.has(key) || DIRECTION_WORDS.has(key) || stems.has(key) || (byName.has(key) && !shortKeys.has(key))) continue;
+      const list = byName.get(key) ?? [];
+      if (!list.includes(p)) list.push(p);
+      byName.set(key, list);
+      shortKeys.add(key);
+    }
   const keys = [...byName.keys()].sort((a, b) => b.length - a.length);
+  const parkName = (key) => !shortKeys.has(key) && !!byName.get(key)?.every((p) => p.park);
   // A ferry route as a line between its terminals, found among the places listed as ferry terminals.
   const terminal = (name) => places.find((p) => p.kind === 'ferry_terminal' && p.name === name);
   const routes = ferryRoutes.map((f) => ({ ...f, ends: f.terminals.map(terminal) })).filter((f) => f.ends.every(Boolean));
@@ -89,7 +136,7 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
   // ("Pt" is "Point"), and the words before it the same but for one letter added, dropped,
   // changed or swapped, in a name of five letters or more ("Harsteine Island", "Elliot Bay").
   // Only when exactly one listed name is that close.
-  const byKind = Map.groupBy(places.filter((p) => / /.test(p.name) && !p.community), (p) => kindWord(p.name));
+  const byKind = Map.groupBy(places.filter((p) => / /.test(p.name) && !p.community && !p.park), (p) => kindWord(p.name));
   // A small community's name is often a person's ("Thanks Eldon!", "Victor saw them"), so it
   // counts only when capitalised and after a word that places something: "toward Eglon", "at Richmond beach".
   const community = (key) => !!byName.get(key)?.every((p) => p.community);
@@ -106,8 +153,9 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
 
   return (text) => {
     const placed = (i) => /\p{Lu}/u.test(text[i]) && PLACING.test(text.slice(Math.max(0, i - 40), i));
-    // Whether a listed name at this point of the text counts: a community's only where placed.
-    const counts = (key, i) => !community(key) || placed(i);
+    // Whether a listed name at this point of the text counts: a community's only where placed,
+    // and so is a park's short form ("from Stamm").
+    const counts = (key, i) => !(community(key) || shortKeys.has(key)) || placed(i);
     const hay = ` ${words(text)} `;
     const found = [];
     const taken = []; // [start, end) of each mention already accounted for
@@ -202,7 +250,10 @@ export function placeFinder(places, abbreviations = [], ferryRoutes = []) {
       // "Richmond" in "Richmond Beach"); another mention of it elsewhere in the text still counts.
       // One word must be capitalised in the text, as a name is: "Camano", not "point".
       const spans = [...text.matchAll(mentionOf(key))]
-        .filter((m) => (key.includes(' ') || /\p{Lu}/u.test(m[0][0])) && counts(key, m.index))
+        // A park's full name is capitalised as written ("Marine Park", not "a marine park"); a short form after a placing word needn't be.
+        .filter((m) => ((key.includes(' ') && !parkName(key)) || /\p{Lu}/u.test(m[0][0])) && counts(key, m.index)
+          // and a short form followed by a capitalised word is part of a longer name: "Lions Gate".
+          && !(shortKeys.has(key) && /^[ \t]+(?!(?:[NSEW]|NE|NW|SE|SW|NB|SB|EB|WB|NNE|NNW|SSE|SSW|ENE|ESE|WNW|WSW)\b)\p{Lu}/u.test(text.slice(m.index + m[0].length))))
         .map((m) => [m.index, m.index + m[0].length])
         .filter(([a, b]) => !overlaps(a, b));
       if (!spans.length) continue;
@@ -245,6 +296,7 @@ const starts = (str, ws) => { let o = 0; return ws.map((w) => (o = str.indexOf(w
 // A word that places what follows it, then perhaps "the", at the end of the text before a name.
 // "And" places only in "between X and": "Thanks Pat and Eldon" names people.
 const PLACING = /(?:^|[^\p{L}])(?:off|near|at|from|past|by|of|around|rounding|between|to|toward|towards|outside|passing|passed|abeam|in|into|across|between[ \t]+\S+(?:[ \t]+\S+){0,2}[ \t]+and)[ \t]+(?:the[ \t]+)?$/iu;
+const DIRECTION_WORDS = new Set(['north', 'south', 'east', 'west', 'upper', 'lower', 'old', 'new']);
 const KIND_WORD = new RegExp(`^(?:${KINDS})$`, 'i');
 // The word for a kind of place that ends a name, as one spelling: "Pt" and "Pt." are "point".
 const kindWord = (name) => { const w = words(name).split(' ').at(-1); return w === 'pt' ? 'point' : w === 'harbour' ? 'harbor' : w; };
