@@ -58,57 +58,45 @@ const markOf = (r, info) => (r.mark && r.marked_version === version(r, info) ? r
 
 // --- the bookmarklet ---------------------------------------------------------------
 
-// The bookmarklet is only a loader, so that it need never be installed again: the code in
-// a bookmark stays as it was saved, while Facebook's page and our reading of it change.
-// On the click it opens the sending window here, which hands it the current sending code
-// (sendingCode, below) by postMessage; the loader runs that in Facebook's page as a blob:
-// script, which Facebook's Content Security Policy allows, or by eval where blob: isn't.
-// It trusts only a message from the window it opened, at this server's origin. Opening the
-// window at the click keeps the pop-up allowed however long the comments take to open.
-// Keep it small and change it only if it must: every change means every sender installs
-// the button again. ?v= says which loader a window was opened by.
-function loader(origin, path) {
-  const w = window.open(origin + path + '&o=' + encodeURIComponent(location.origin), 'salishsea-send', 'popup,width=560,height=480');
-  if (!w) { alert('SalishSea: allow pop-ups for facebook.com, then click Send to SalishSea again.'); return; }
-  const h = (e) => {
-    if (e.source !== w || e.origin !== origin || !e.data || e.data.type !== 'salishsea:code') return;
-    removeEventListener('message', h);
-    window.__salishsea = { w, origin };
-    const run = () => { try { (0, eval)(e.data.code); } catch (x) { w.postMessage({ type: 'salishsea:failed', error: 'Facebook would not run the sending code: ' + x }, origin); } };
-    const s = document.createElement('script');
-    s.onerror = run;
-    s.src = URL.createObjectURL(new Blob([e.data.code], { type: 'text/javascript' }));
-    document.head.append(s);
-  };
-  addEventListener('message', h);
-  setTimeout(() => removeEventListener('message', h), 60000);
-}
-
-// Runs in Facebook's page, sent fresh on every click. It opens what Facebook hides (more
-// comments, replies, the rest of a long comment), asks for all comments where Facebook
-// shows only the most relevant, waits until the comments stop changing, and then hands the
-// open post (a dialog over the feed, or the post's own page; never the whole page, which
-// carries the sender's chats) to the window. It gives up waiting after 90 seconds and sends
-// what it has, which the window then warns about.
-async function sendPost(expanders) {
-  const { w, origin } = window.__salishsea ?? {};
-  if (!w) return;
-  const tell = (m) => w.postMessage(m, origin);
-  const status = (text) => tell({ type: 'salishsea:status', text });
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  if (window.__salishseaBusy) return status('Still opening comments from the last click: wait for it.');
+// The bookmarklet runs in Facebook's page. It asks for all comments where Facebook shows
+// only the most relevant, opens what Facebook hides (more comments, replies, the rest of a
+// long comment) until nothing is left and the comments stop changing (90 seconds at most),
+// and then offers a button in the page that sends the open post (a dialog over the feed,
+// or the post's own page; never the whole page, which carries the sender's chats).
+//
+// Why that second click: a window may open only within a few seconds of a click, and
+// opening the comments takes longer. Why the post travels in the window's address (117):
+// signed in, Facebook's Cross-Origin-Opener-Policy cuts a window off from the tab that
+// opened it, and its Content Security Policy allows no request to any other server, so
+// nothing can pass between the two afterwards (found 2026-11-16). For the same reason the
+// code in a bookmark can't be updated from here: a change means installing it again.
+async function sendPost(expanders, receive) {
+  if (window.__salishseaBusy) return;
   window.__salishseaBusy = true;
+  const box = document.createElement('div');
+  Object.assign(box.style, { position: 'fixed', top: '72px', left: '50%', transform: 'translateX(-50%)', zIndex: 2147483647, background: '#1d3c78', color: '#fff', padding: '12px 18px', borderRadius: '8px', font: '15px system-ui,sans-serif', maxWidth: '34em', boxShadow: '0 2px 12px rgba(0,0,0,.3)' });
+  document.body.append(box);
+  const say = (text, ...more) => { box.replaceChildren(text, ...more); };
+  const button = (label, onclick) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    Object.assign(b.style, { display: 'block', marginTop: '10px', font: 'inherit', fontWeight: '600', padding: '6px 12px', borderRadius: '6px', border: '0', background: '#fff', color: '#1d3c78', cursor: 'pointer' });
+    b.onclick = onclick;
+    return b;
+  };
+  const close = () => { box.remove(); window.__salishseaBusy = false; };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   try {
     const find = () => [...document.querySelectorAll('[role=dialog]')].filter((d) => d.querySelector('[role=article]')).pop()
       ?? document.querySelector('[role=main]');
-    if (!find()) return tell({ type: 'salishsea:failed', error: 'Open the day’s post first, then click Send to SalishSea.' });
+    if (!find()) { say('SalishSea: open the day’s post first.', button('Close', close)); return; }
     const re = new RegExp(expanders, 'i');
     const buttons = (el) => [...el.querySelectorAll('[role=button]')];
     const text = (b) => (b.textContent ?? '').trim();
 
     const sort = buttons(find()).find((b) => /^(most relevant|newest)$/i.test(text(b)));
     if (sort) {
-      status('Asking Facebook for all comments…');
+      say('SalishSea: asking Facebook for all comments…');
       sort.click();
       await sleep(1000);
       const all = [...document.querySelectorAll('[role=menuitem]')].find((m) => /^all comments/i.test(text(m)));
@@ -127,21 +115,27 @@ async function sendPost(expanders) {
       quiet = !hidden.length && !waiting && n === last ? quiet + 1 : 0;
       if (quiet >= 2) break;
       last = n;
-      status(`Opening hidden comments: ${n} so far…`);
+      say(`SalishSea: opening hidden comments, ${n} so far…`, button('Stop', close));
       await sleep(1500);
     }
+
     const el = find();
-    tell({ type: 'salishsea:post', html: el.outerHTML, url: location.href, title: document.title, sent_at: new Date().toISOString() });
+    const n = el.querySelectorAll('[role=article]').length;
+    const msg = JSON.stringify({ html: el.outerHTML, url: location.href, title: document.title, sent_at: new Date().toISOString() });
+    const gz = new Uint8Array(await new Response(new Blob([msg]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < gz.length; i += 32768) bin += String.fromCharCode.apply(null, gz.subarray(i, i + 32768));
+    const data = btoa(bin).replace(/[+]/g, '-').replace(/[/]/g, '_').replace(/=+$/, '');
+    say(`SalishSea: ${n} comments and replies are open.`, button(`Send them to SalishSea`, () => {
+      const w = window.open(receive + '&d=' + data, '_blank', 'popup,width=1000,height=760');
+      if (w) close(); else say('SalishSea: the window was blocked. Allow pop-ups for facebook.com, then click Send to SalishSea again.', button('Close', close));
+    }), button('Cancel', close));
   } catch (x) {
-    tell({ type: 'salishsea:failed', error: String(x) });
-  } finally {
-    window.__salishseaBusy = false;
+    say('SalishSea: something went wrong: ' + x, button('Close', close));
   }
 }
 
-const LOADER_VERSION = 1;
-const sendingCode = `(${sendPost})(${JSON.stringify(EXPANDERS.source)})`;
-const loaderSource = (token) => `(${loader})(${JSON.stringify(new URL(base).origin)},${JSON.stringify(`${new URL(base).pathname.replace(/\/$/, '')}/send?v=${LOADER_VERSION}#s=${token}`)})`;
+const sendSource = (token) => `(${sendPost})(${JSON.stringify(EXPANDERS.source)},${JSON.stringify(`${base}/receive#s=${token}`)})`;
 const bookmarklet = (src) => 'javascript:' + encodeURIComponent(`void ${src.replace(/\s*\n\s*/g, ' ')}`);
 
 // --- pages ---------------------------------------------------------------------------
@@ -356,48 +350,18 @@ function installPage(token, label) {
   return page('Send Facebook posts to SalishSea.io', `<h1>Send Facebook posts to SalishSea.io</h1>
 <p>Hello ${esc(label)}. This is a trial: what you send is kept for Peter, Scott and Orca Network to look at, and is not published.</p>
 <ol><li>On a computer, in Chrome or Firefox, show the bookmarks bar (Ctrl+Shift+B, or ⌘⇧B on a Mac).</li>
-<li>Drag this button onto it: <a class="bm" href="${esc(bookmarklet(loaderSource(token)))}">Send to SalishSea</a></li>
+<li>Drag this button onto it: <a class="bm" href="${esc(bookmarklet(sendSource(token)))}">Send to SalishSea</a></li>
 <li>In Orca Network's Community Group, open the day's post.</li>
-<li>Click <b>Send to SalishSea</b> in the bookmarks bar. A small window opens. Leave the post where it is while the button opens any hidden comments and replies, which can take a minute on a busy day; then the window shows what was read.</li></ol>
-<p class="muted">If you installed the button before 17 November, drag this one in its place: it no longer asks you to click twice, and it will keep up with Facebook's changes by itself.</p>
+<li>Click <b>Send to SalishSea</b> in the bookmarks bar. A blue box on the post shows it choosing all comments and opening the hidden ones and their replies, which can take a minute on a busy day. Then click <b>Send them to SalishSea</b> in the box, and a window shows what was read.</li></ol>
+<p class="muted">If you installed an earlier button, drag this one in its place: it opens hidden comments itself.</p>
 <p class="muted">The button is yours alone; please don't share it. Send as often as you like: each send adds only what's new.</p>`);
 }
 
-// The window the loader opens: it hands the loader the sending code, shows its progress,
-// and sends the post it gets back. ?v= is the loader's version, for a day it must change.
-const sendPage = page('Sending to SalishSea…', `<h1>Sending to SalishSea…</h1><div id="out"><p id="s">Waiting for Facebook…</p></div>
-<script>
-(()=>{
-  const s=document.getElementById('s');
-  const params=new URLSearchParams(location.hash.slice(1)),token=params.get('s'),from=params.get('o');
-  history.replaceState(null,'',location.pathname);
-  const fb=/^https:\\/\\/(www|web|m)\\.facebook\\.com$/;
-  if(!token||!window.opener||!fb.test(from??'')){s.textContent='Failed: open this from the Send to SalishSea button, on the day’s post on Facebook.';return;}
-  let done=false;
-  const quiet=setTimeout(()=>{if(!done)s.textContent='Nothing has come from Facebook. Is the day’s post open in the tab you clicked from? Try the button again.';},20000);
-  addEventListener('message',async(e)=>{
-    if(e.source!==window.opener||e.origin!==from||!e.data)return;
-    const m=e.data;
-    if(m.type==='salishsea:status'){clearTimeout(quiet);s.textContent=m.text;return;}
-    if(m.type==='salishsea:failed'){done=true;clearTimeout(quiet);s.textContent='Failed: '+m.error;return;}
-    if(m.type!=='salishsea:post'||done)return;
-    done=true;clearTimeout(quiet);
-    try{
-      s.textContent='Sending…';
-      const fd=new FormData();fd.append('s',token);for(const k of ['html','url','title','sent_at'])fd.append(k,String(m[k]??''));
-      const r=await fetch('capture',{method:'POST',body:fd});
-      if(!r.ok)throw new Error(await r.text());
-      document.getElementById('out').innerHTML=(await r.json()).html;
-      document.title='Sent to SalishSea';
-    }catch(err){s.textContent='Failed: '+err.message;}
-  });
-  const code=${JSON.stringify(sendingCode).replace(/</g, '\\u003c')};
-  window.opener.postMessage({type:'salishsea:code',code},from);
-})();
-</script>`);
+// The window a loader opened, for the one day a bookmarklet was one (2026-11-16): Facebook
+// cut it off from the tab, so it can only ask for the button to be installed again.
+const sendPage = page('Install the button again', `<h1>Install the button again</h1><p>This Send to SalishSea button can't work with Facebook. Open your install page again and drag the new button in its place. Sorry for the trouble.</p>`);
 
-// The window the first bookmarklets opened, with the post in its address: kept so a button
-// installed before the loader still works.
+// The window the bookmarklet opens, with the post in its address.
 const receivePage = page('Sending to SalishSea…', `<h1>Sending to SalishSea…</h1><div id="out"><p id="s">Reading the post…</p></div>
 <script>
 (async()=>{
