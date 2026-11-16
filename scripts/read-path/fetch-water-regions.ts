@@ -19,7 +19,7 @@ import { isRetryableStatus, MAX_ATTEMPTS, retryDelayMs } from '../ingest/retry.t
 
 export const sha16 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex').slice(0, 16);
 
-const LISTS = {regions: 'water regions', osm: 'OpenStreetMap places', gazetteers: 'gazetteer places'} as const;
+const LISTS = {regions: 'water regions', osm: 'OpenStreetMap places', gazetteers: 'gazetteer places', parks: 'shore parks'} as const;
 export type ListKey = keyof typeof LISTS;
 
 /** A place list's URL and the hash its name promises; refuses a style that names none. */

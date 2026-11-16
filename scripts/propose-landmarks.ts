@@ -30,13 +30,18 @@ const STYLE = new URL('../src/basemap-style.json', import.meta.url);
 const OUT = new URL('../data/reference/landmarks.tsv', import.meta.url);
 
 /** The kinds that can be a landmark, by list: places on land, not the water's own names. */
-const KINDS = {gazetteers: new Set(['point']), osm: new Set(['city', 'town', 'village', 'island', 'ferry_terminal'])};
+const KINDS = {gazetteers: new Set(['point']), osm: new Set(['city', 'town', 'village', 'island', 'ferry_terminal']),
+    parks: new Set(['park', 'nature_reserve'])};
 const MENTION_KM = 15;
 /** The last words a reporter drops: "off Lime Kiln", "near Vashon". */
 const GENERIC = /^(.+) (Point|Head|Spit|Bluff|Island|Ferry Terminal)$/;
+/** Words that are no park's short name: "East" for East Park would be every "off East Point". */
+const DIRECTIONS = /^(?:North|South|East|West|Upper|Lower|Old|New)$/;
+/** A park's name without its generic words: "Stamm" for Stamm Overlook Park, "Carkeek" for Carkeek Park. */
+const PARK_GENERIC = /^(.+?) (?:(?:State|County|Beach|Waterfront|Marine|Overlook|Memorial|Regional|City) )?(?:Park|Preserve|Viewpoint|Overlook|Natural Area|Reserve)$/;
 const PLACING = String.raw`(?:off|near|at|from|past|by|of|around|rounding|between|and|to|toward|towards|outside|passing|passed|abeam)\s+(?:the\s+)?`;
 
-type Candidate = {source: 'gazetteers' | 'osm' | 'gnis', name: string, kind: string, lon: number, lat: number,
+type Candidate = {source: 'gazetteers' | 'osm' | 'gnis' | 'parks', name: string, kind: string, lon: number, lat: number,
     full: RegExp, short: RegExp | null};
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -50,15 +55,24 @@ export function fullForms(name: string, kind: string): string[] {
     return forms;
 }
 
-function candidates(list: PlaceList, source: 'gazetteers' | 'osm'): Candidate[] {
+/**
+ * A list's places as candidates. A park (decision 119) must not take another listed place's
+ * mentions, so `listed` (listedNames of the other lists) rules out a park named as a listed
+ * place is (a park called "Bush Point"), and a short form that is one ("Alki" for Alki Beach
+ * Park is Alki Point); and a mention followed by a word that ends a place's name is that place's.
+ */
+function candidates(list: PlaceList, source: 'gazetteers' | 'osm' | 'parks', listed: ReadonlySet<string> = new Set()): Candidate[] {
     const i = (c: string) => list.columns.indexOf(c);
     const [name, kind, lon, lat, other] = [i('name'), i('kind'), i('lon'), i('lat'), i('other_names')];
-    return list.places.filter(p => KINDS[source].has(p[kind] as string)).map(p => {
+    const park = source === 'parks';
+    const after = park ? String.raw`(?![ \t]+(?i:${PLACE_WORDS})\b)` : '';
+    return list.places.filter(p => KINDS[source].has(p[kind] as string) && !(park && listed.has(p[name] as string))).map(p => {
         const names = [p[name] as string, ...((p[other] as string[] | undefined) ?? [])];
-        const short = names.map(n => n.match(GENERIC)?.[1]).filter((n): n is string => !!n);
+        const short = names.map(n => n.match(park ? PARK_GENERIC : GENERIC)?.[1])
+            .filter((n): n is string => !!n && !(park && (listed.has(n) || DIRECTIONS.test(n) || new RegExp(`^(?:${PLACE_WORDS})$`).test(n))));
         return {source, name: p[name] as string, kind: p[kind] as string, lon: p[lon] as number, lat: p[lat] as number,
-            full: new RegExp(String.raw`(?<![\w])(?:${alternation(names.flatMap(n => fullForms(n, p[kind] as string)))})(?![\w])`, 'g'),
-            short: short.length ? new RegExp(String.raw`\b${PLACING}(${alternation(short)})(?![\w])`, 'g') : null};
+            full: new RegExp(String.raw`(?<![\w])(?:${alternation(names.flatMap(n => fullForms(n, p[kind] as string)))})(?![\w])${after}`, 'g'),
+            short: short.length ? new RegExp(String.raw`\b${PLACING}(${alternation(short)})(?![\w])${after}`, 'g') : null};
     });
 }
 
@@ -128,15 +142,16 @@ export function named(text: string, near: readonly Candidate[]): Candidate[] {
     return [...new Set(spans.filter(span => !inside(span)).map(([c]) => c))];
 }
 
-async function list(key: 'gazetteers' | 'osm'): Promise<PlaceList> {
+async function list(key: 'gazetteers' | 'osm' | 'parks'): Promise<PlaceList> {
     const {url} = placeListUrl(JSON.parse(readFileSync(STYLE, 'utf8')), key);
     const response = await fetch(url, {signal: AbortSignal.timeout(60_000)});
     if (!response.ok) throw new Error(`${url}: ${response.status}`);
     return await response.json() as PlaceList;
 }
 
+// A row with a position is known by it; one placed from a list by name (osm, parks) by its name and kind.
 const rowKey = (r: {source: string, kind: string, name: string, lon: number | null, lat: number | null}) =>
-    r.source !== 'osm' ? `${r.source}\t${r.kind}\t${r.name}\t${r.lon}\t${r.lat}` : `${r.source}\t${r.kind}\t${r.name}`;
+    r.source === 'gazetteers' || r.source === 'gnis' ? `${r.source}\t${r.kind}\t${r.name}\t${r.lon}\t${r.lat}` : `${r.source}\t${r.kind}\t${r.name}`;
 
 /** What a card writes for a proposed place: its name, and a ferry landing by its town's. */
 export const says = (name: string, kind: string) => kind === 'ferry_terminal' ? name.replace(/ Ferry Terminal$/, '') : name;
@@ -147,9 +162,9 @@ if (import.meta.main) {
         console.error('usage: propose-landmarks.ts <maplify.sqlite> [<DomesticNames_WA.txt>]');
         process.exit(2);
     }
-    const [gazetteers, osm] = [await list('gazetteers'), await list('osm')];
+    const [gazetteers, osm, parks] = [await list('gazetteers'), await list('osm'), await list('parks')];
     const listed = listedNames([gazetteers, osm].flatMap(l => l.places.map(p => p[l.columns.indexOf('name')] as string)));
-    const all = [...candidates(gazetteers, 'gazetteers'), ...candidates(osm, 'osm'),
+    const all = [...candidates(gazetteers, 'gazetteers'), ...candidates(osm, 'osm'), ...candidates(parks, 'parks', listed),
         ...(gnis ? gnisCandidates(readFileSync(gnis, 'utf8'), listed) : [])];
     const db = new DatabaseSync(mirror, {readOnly: true});
     const reports = db.prepare(`SELECT lon, lat, comments FROM sightings WHERE comments IS NOT NULL AND comments != '' AND is_test = 0`)
@@ -159,7 +174,7 @@ if (import.meta.main) {
     const proposed = new Map<string, LandmarkRow>();
     for (const c of all) {
         const row: LandmarkRow = {name: c.name, kind: c.kind, source: c.source,
-            lon: c.source !== 'osm' ? c.lon : null, lat: c.source !== 'osm' ? c.lat : null,
+            lon: c.source === 'gazetteers' || c.source === 'gnis' ? c.lon : null, lat: c.source === 'gazetteers' || c.source === 'gnis' ? c.lat : null,
             reports: 0, says: says(c.name, c.kind)};
         if (!proposed.has(rowKey(row))) proposed.set(rowKey(row), row);
     }
