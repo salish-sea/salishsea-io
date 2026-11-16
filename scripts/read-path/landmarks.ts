@@ -39,7 +39,7 @@ export type Landmark = {says: string, kind: string, lon: number, lat: number, ga
 const RADIUS_KM = 5;
 const SHORE_KM = 0.5;
 /** The kinds that sit on the shore, and so can be checked against the region. */
-const ON_SHORE = new Set(['point', 'ferry_terminal', 'park', 'nature_reserve']);
+const ON_SHORE = new Set(['point', 'ferry_terminal', 'park', 'nature_reserve', 'national_park']);
 
 export function parseLandmarks(tsv: string): LandmarkRow[] {
     return parseTsv(tsv, LANDMARK_COLUMNS).map(([name, kind, source, lon, lat, reports, says]) => {
@@ -47,7 +47,7 @@ export function parseLandmarks(tsv: string): LandmarkRow[] {
             throw new Error(`landmarks.tsv: a row needs a name, a kind and a source of gazetteers, gnis, osm or parks: ${name}`);
         // A row placed by a list of OpenStreetMap's (osm, or the shore parks') carries no position, to keep the file out of the ODbL.
         const placed = source === 'gazetteers' || source === 'gnis';
-        if (placed !== (lon !== null && lat !== null))
+        if (placed ? lon === null || lat === null : lon !== null || lat !== null)
             throw new Error(`landmarks.tsv: ${name}: a gazetteer or GNIS row has a position and an OpenStreetMap or park row has none`);
         return {name, kind, source: source as LandmarkRow['source'], lon: lon === null ? null : Number(lon), lat: lat === null ? null : Number(lat),
             reports: Number(reports ?? 0), says: says ?? null};

@@ -104,6 +104,13 @@ describe('landmarks', () => {
         expect(parkNear.landmarkAt(-123.02, 48.25, 'West Strait')).toBeNull();
         expect(parkNear.landmarkAt(-122.99, 48.25, 'East Strait')).toBe('Far Shore Park');
         expect(() => parseLandmarks(tsv(['Bluff Park', 'park', 'parks', '-123.16', '48.38', '3', 'Bluff Park']))).toThrow(/has a position/);
+        // half a position is refused either way
+        expect(() => parseLandmarks(tsv(['Bluff Park', 'park', 'parks', '-123.16', '', '3', 'Bluff Park']))).toThrow(/has a position/);
+        expect(() => parseLandmarks(tsv(['Eglon', 'community', 'gnis', '-122.51', '', '3', 'Eglon']))).toThrow(/has a position/);
+        // a national park, which the list may come to hold, has the shore check too
+        const national = landmarks(resolveLandmarks(parseLandmarks(tsv(['Far Shore Park', 'national_park', 'parks', '', '', '1', 'Far Shore Park'])), osm,
+            {columns: osm.columns, places: [['Far Shore Park', 'national_park', -122.97, 48.25, 12, []]]}).landmarks, regions);
+        expect(national.landmarkAt(-123.02, 48.25, 'West Strait')).toBeNull();
     });
 
     test('an OpenStreetMap row the list has no place for is reported, not guessed', () => {

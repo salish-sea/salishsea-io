@@ -48,6 +48,12 @@ if (places.length !== SEARCHED.length || !places.every((url) => typeof url === '
   console.error(`version ${version} names no lists of places`);
   process.exit(1);
 }
+// The build fetches the shore parks' list (decision 119) and fails without it, so a version that
+// names none is refused before anything is written: roll back the park rows first.
+if (!('parks' in (named as object))) {
+  console.error(`version ${version} names no list of shore parks, which the build needs to place the park rows of data/reference/landmarks.tsv`);
+  process.exit(1);
+}
 style.metadata = { ...style.metadata, 'salishsea:basemap-version': version };
 /** A file with its one `export const <name>…= <value>;` line set to the value, or an exit if it has none. */
 const rewrite = (file: string, name: string, value: string) => {
@@ -79,12 +85,6 @@ const list = async (key: string): Promise<PlaceList> => {
   return await answer.json() as PlaceList;
 };
 const rows = parseLandmarks(readFileSync('data/reference/landmarks.tsv', 'utf8'));
-// The build fetches the shore parks' list (decision 119) and fails without it, so a version that
-// names none is refused here, before anything else is checked: roll back the park rows first.
-if (!('parks' in (named as object))) {
-  console.error(`version ${version} names no list of shore parks, which the build needs to place the park rows of data/reference/landmarks.tsv`);
-  process.exit(1);
-}
 const gazetteers = new Set(placesOf(await list('gazetteers')).map((p) => `${p.kind}\t${p.name}\t${p.lon}\t${p.lat}`));
 const lost = [
   // Park rows are placed from the version's shore parks' list (decision 119).
