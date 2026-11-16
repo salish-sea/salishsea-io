@@ -3,7 +3,10 @@
  * that reporters name, from a copy of the Maplify mirror, written over
  * data/reference/landmarks.tsv for a pull request to review.
  *
- *   node scripts/propose-landmarks.ts <maplify.sqlite>
+ *   node scripts/propose-landmarks.ts <maplify.sqlite> [<DomesticNames_WA.txt>]
+ *
+ * With GNIS's file of Washington's names, the small communities it records (populated
+ * places) that the lists don't hold are proposed too, with their GNIS positions (decision 119).
  *
  * A place is proposed once a report within 15 km of it names it. Names are matched as
  * written, in capitals, after the reporter's own name in parentheses is taken out, so that
@@ -33,7 +36,7 @@ const MENTION_KM = 15;
 const GENERIC = /^(.+) (Point|Head|Spit|Bluff|Island|Ferry Terminal)$/;
 const PLACING = String.raw`(?:off|near|at|from|past|by|of|around|rounding|between|and|to|toward|towards|outside|passing|passed|abeam)\s+(?:the\s+)?`;
 
-type Candidate = {source: 'gazetteers' | 'osm', name: string, kind: string, lon: number, lat: number,
+type Candidate = {source: 'gazetteers' | 'osm' | 'gnis', name: string, kind: string, lon: number, lat: number,
     full: RegExp, short: RegExp | null};
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -57,6 +60,47 @@ function candidates(list: PlaceList, source: 'gazetteers' | 'osm'): Candidate[] 
             full: new RegExp(String.raw`(?<![\w])(?:${alternation(names.flatMap(n => fullForms(n, p[kind] as string)))})(?![\w])`, 'g'),
             short: short.length ? new RegExp(String.raw`\b${PLACING}(${alternation(short)})(?![\w])`, 'g') : null};
     });
+}
+
+/** The Salish Sea region the basemap's lists cover (its decision 018). */
+const REGION = {west: -126, east: -122, south: 47, north: 50.5};
+
+/** The words that end a place's name; a community's name followed by one is that place ("Saratoga Passage"). */
+const PLACE_WORDS = 'Island|Islands|Passage|Pass|Point|Pt|Sound|Head|Bay|Harbor|Inlet|Spit|Waterway|Channel|Strait|Lake|River|Creek|Lagoon|Cove|Narrows|Reach|Rocks?|Light|Lighthouse|Ferry|State Park|Park|Beach';
+
+/** The names a community may not have: each listed name, and each without its last word ("Camano" for Camano Island). */
+export function listedNames(names: Iterable<string>): Set<string> {
+    const out = new Set<string>();
+    for (const n of names) {
+        out.add(n);
+        const short = n.match(new RegExp(`^(.+) (?:${PLACE_WORDS})$`))?.[1];
+        if (short) out.add(short);
+    }
+    return out;
+}
+
+/**
+ * GNIS's populated places in the region whose names the lists don't already give, as
+ * candidates of kind `community`: Richmond Beach, Boston Harbor, Eglon. GNIS is in the
+ * public domain, so the rows carry its positions (decision 119). `taken` is listedNames'
+ * result: a community named as an island is, such as Camano, would take that island's
+ * mentions. A mention followed by a word that ends a place's name is another place's.
+ */
+export function gnisCandidates(text: string, taken: ReadonlySet<string>): Candidate[] {
+    const [head, ...lines] = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean).map(l => l.split('|'));
+    const at = (c: string) => {
+        const i = head!.indexOf(c);
+        if (i < 0) throw new Error(`GNIS file has no ${c} column`);
+        return i;
+    };
+    const [name, cls, lon, lat] = [at('feature_name'), at('feature_class'), at('prim_long_dec'), at('prim_lat_dec')];
+    // A community named only by such a word ("Beach", "Cove") would match every beach and cove.
+    const placeWord = new RegExp(`^(?:${PLACE_WORDS})$`);
+    return lines.filter(l => l[cls] === 'Populated Place' && !taken.has(l[name]!) && !placeWord.test(l[name]!))
+        .map(l => ({name: l[name]!, lon: Number(l[lon]), lat: Number(l[lat])}))
+        .filter(p => p.lon >= REGION.west && p.lon <= REGION.east && p.lat >= REGION.south && p.lat <= REGION.north)
+        .map(p => ({source: 'gnis' as const, name: p.name, kind: 'community', lon: p.lon, lat: p.lat,
+            full: new RegExp(String.raw`(?<![\w])${escape(p.name)}(?![\w])(?![ \t]+(?:${PLACE_WORDS})\b)`, 'g'), short: null}));
 }
 
 function km(lon1: number, lat1: number, lon2: number, lat2: number): number {
@@ -92,18 +136,21 @@ async function list(key: 'gazetteers' | 'osm'): Promise<PlaceList> {
 }
 
 const rowKey = (r: {source: string, kind: string, name: string, lon: number | null, lat: number | null}) =>
-    r.source === 'gazetteers' ? `${r.source}\t${r.kind}\t${r.name}\t${r.lon}\t${r.lat}` : `${r.source}\t${r.kind}\t${r.name}`;
+    r.source !== 'osm' ? `${r.source}\t${r.kind}\t${r.name}\t${r.lon}\t${r.lat}` : `${r.source}\t${r.kind}\t${r.name}`;
 
 /** What a card writes for a proposed place: its name, and a ferry landing by its town's. */
 export const says = (name: string, kind: string) => kind === 'ferry_terminal' ? name.replace(/ Ferry Terminal$/, '') : name;
 
 if (import.meta.main) {
-    const [mirror] = process.argv.slice(2);
+    const [mirror, gnis] = process.argv.slice(2);
     if (!mirror) {
-        console.error('usage: propose-landmarks.ts <maplify.sqlite>');
+        console.error('usage: propose-landmarks.ts <maplify.sqlite> [<DomesticNames_WA.txt>]');
         process.exit(2);
     }
-    const all = [...candidates(await list('gazetteers'), 'gazetteers'), ...candidates(await list('osm'), 'osm')];
+    const [gazetteers, osm] = [await list('gazetteers'), await list('osm')];
+    const listed = listedNames([gazetteers, osm].flatMap(l => l.places.map(p => p[l.columns.indexOf('name')] as string)));
+    const all = [...candidates(gazetteers, 'gazetteers'), ...candidates(osm, 'osm'),
+        ...(gnis ? gnisCandidates(readFileSync(gnis, 'utf8'), listed) : [])];
     const db = new DatabaseSync(mirror, {readOnly: true});
     const reports = db.prepare(`SELECT lon, lat, comments FROM sightings WHERE comments IS NOT NULL AND comments != '' AND is_test = 0`)
         .all() as {lon: number, lat: number, comments: string}[];
@@ -112,7 +159,7 @@ if (import.meta.main) {
     const proposed = new Map<string, LandmarkRow>();
     for (const c of all) {
         const row: LandmarkRow = {name: c.name, kind: c.kind, source: c.source,
-            lon: c.source === 'gazetteers' ? c.lon : null, lat: c.source === 'gazetteers' ? c.lat : null,
+            lon: c.source !== 'osm' ? c.lon : null, lat: c.source !== 'osm' ? c.lat : null,
             reports: 0, says: says(c.name, c.kind)};
         if (!proposed.has(rowKey(row))) proposed.set(rowKey(row), row);
     }

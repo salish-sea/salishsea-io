@@ -155,10 +155,11 @@ The landmarks a card names (decision 100) are `data/reference/landmarks.tsv`, wh
 fly ssh console -a salishsea-io -C "flock -w 60 /data/ingest.lock cp /data/mirrors/maplify.sqlite /tmp/maplify-copy.sqlite"
 fly ssh sftp get -a salishsea-io /tmp/maplify-copy.sqlite maplify.sqlite
 fly ssh console -a salishsea-io -C "rm /tmp/maplify-copy.sqlite"
-node scripts/propose-landmarks.ts maplify.sqlite
+curl -sSfL https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/DomesticNames/DomesticNames_WA_Text.zip | bsdtar -xOf - Text/DomesticNames_WA.txt > gnis_WA.txt
+node scripts/propose-landmarks.ts maplify.sqlite gnis_WA.txt
 ```
 
-The script adds the places reports newly name and updates each row's count, and keeps every row the file had, with its `says`. To strike a name out, empty its `says`; a refresh leaves it so.
+The GNIS file of Washington's names, the one the basemap's build uses (on Hostess it is cached in `~/basemap-data/cache/gnis_WA.txt`), lets the script propose small communities the place lists lack, such as Richmond Beach, at their GNIS positions ([decision 119](../decisions/119-the-parks-and-small-communities-reporters-watch-from-are-landmarks.md)). Without it the script proposes only places on the lists. A community whose name is a listed place's without its last word (Camano, for Camano Island) is not proposed, and a review should strike any that a report names in another sense (Waldron for Waldron Island). The script adds the places reports newly name and updates each row's count, and keeps every row the file had, with its `says`. To strike a name out, empty its `says`; a refresh leaves it so.
 
 ## Backfilling a mirror
 

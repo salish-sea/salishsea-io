@@ -11,6 +11,21 @@ export function readFerryRoutes(path = new URL('../../data/ferry-routes.tsv', im
   return rows.map((r) => ({ name: r[at('name')], route: r[at('route')], terminals: r[at('terminals')].split('|') }));
 }
 
+/**
+ * The small communities reporters name that the lists lack (data/reference/landmarks.tsv,
+ * decision 119): its GNIS rows, at their own positions, found by name or by what reporters
+ * call them (`says`). A row the review struck out (empty `says`) was a misreading, such as
+ * Waldron for Waldron Island, and is left out.
+ */
+export function readCommunities(path = new URL('../../data/reference/landmarks.tsv', import.meta.url)) {
+  const [head, ...rows] = readFileSync(path, 'utf8').trim().split('\n').map((l) => l.split('\t'));
+  const at = (c) => head.indexOf(c);
+  return rows.filter((r) => r[at('source')] === 'gnis' && r[at('says')]).map((r) => ({
+    name: r[at('name')], kind: r[at('kind')], lon: Number(r[at('lon')]), lat: Number(r[at('lat')]), zoom: 14,
+    otherNames: r[at('says')] && r[at('says')] !== r[at('name')] ? [r[at('says')]] : [],
+  }));
+}
+
 /** The place abbreviations a person has confirmed (data/abbreviations.tsv): {abbreviation, place, terminal}. */
 export function readAbbreviations(path = new URL('../../data/abbreviations.tsv', import.meta.url)) {
   const [head, ...rows] = readFileSync(path, 'utf8').trim().split('\n').map((l) => l.split('\t'));
@@ -40,7 +55,7 @@ export async function loadPlaces(fetchImpl = fetch) {
     if (!res.ok) throw new Error(`${url}: ${res.status}`);
     return res.json();
   }));
-  return placeFinder(lists.flatMap(readPlaces), readAbbreviations(), readFerryRoutes());
+  return placeFinder([...lists.flatMap(readPlaces), ...readCommunities()], readAbbreviations(), readFerryRoutes());
 }
 
 /** @param {import('../../src/places.ts').Place[]} places */

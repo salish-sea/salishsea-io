@@ -12,6 +12,8 @@
  * A point of land or a ferry landing sits on the shore, so it counts only if it is on the
  * sighting's own water: within 0.5 km of its region's edge. A town, village, city or
  * island has only a point near its middle in the list, so it counts by distance alone.
+ * A small community from GNIS (decision 119) counts by distance too, but only where no
+ * other landmark is within reach, so "off Bremerton" doesn't become "off Sheridan Park".
  */
 
 import { parseTsv } from '../register/edition.ts';
@@ -21,14 +23,15 @@ export const LANDMARK_COLUMNS = ['name', 'kind', 'source', 'lon', 'lat', 'report
 
 /** A row of landmarks.tsv. `says` is what a card writes; an empty one is never a landmark. */
 export type LandmarkRow = {
-    name: string, kind: string, source: 'gazetteers' | 'osm',
+    name: string, kind: string, source: 'gazetteers' | 'osm' | 'gnis',
     lon: number | null, lat: number | null, reports: number, says: string | null,
 };
 
 /** A place list as the basemap publishes it (basemap decision 018): named columns, then rows. */
 export type PlaceList = {columns: string[], places: unknown[][]};
 
-export type Landmark = {says: string, kind: string, lon: number, lat: number};
+/** `gapOnly`: a small community from GNIS, named only where no other landmark is near (decision 119). */
+export type Landmark = {says: string, kind: string, lon: number, lat: number, gapOnly?: boolean};
 
 const RADIUS_KM = 5;
 const SHORE_KM = 0.5;
@@ -37,10 +40,10 @@ const ON_SHORE = new Set(['point', 'ferry_terminal']);
 
 export function parseLandmarks(tsv: string): LandmarkRow[] {
     return parseTsv(tsv, LANDMARK_COLUMNS).map(([name, kind, source, lon, lat, reports, says]) => {
-        if (!name || !kind || (source !== 'gazetteers' && source !== 'osm'))
-            throw new Error(`landmarks.tsv: a row needs a name, a kind and a source of gazetteers or osm: ${name}`);
-        if ((source === 'gazetteers') !== (lon !== null && lat !== null))
-            throw new Error(`landmarks.tsv: ${name}: a gazetteer row has a position and an OpenStreetMap row has none`);
+        if (!name || !kind || (source !== 'gazetteers' && source !== 'osm' && source !== 'gnis'))
+            throw new Error(`landmarks.tsv: a row needs a name, a kind and a source of gazetteers, gnis or osm: ${name}`);
+        if ((source !== 'osm') !== (lon !== null && lat !== null))
+            throw new Error(`landmarks.tsv: ${name}: a gazetteer or GNIS row has a position and an OpenStreetMap row has none`);
         return {name, kind, source, lon: lon === null ? null : Number(lon), lat: lat === null ? null : Number(lat),
             reports: Number(reports ?? 0), says: says ?? null};
     });
@@ -72,8 +75,9 @@ export function resolveLandmarks(rows: readonly LandmarkRow[], osm: PlaceList): 
     const landmarks: Landmark[] = [];
     const unmatched: LandmarkRow[] = [];
     for (const row of rows) {
-        if (row.source === 'gazetteers') {
-            if (row.says) landmarks.push({says: row.says, kind: row.kind, lon: row.lon!, lat: row.lat!});
+        // A gazetteer or GNIS row carries its own position (decision 119 for GNIS's small communities).
+        if (row.source !== 'osm') {
+            if (row.says) landmarks.push({says: row.says, kind: row.kind, lon: row.lon!, lat: row.lat!, ...(row.source === 'gnis' ? {gapOnly: true} : {})});
             continue;
         }
         const at = byName.get(`${row.kind}\t${row.name}`);
@@ -116,8 +120,10 @@ export function landmarks(list: readonly Landmark[], regions: WaterRegions): Lan
                 if (d <= RADIUS_KM) near.push([d, i]);
             });
             near.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-            for (const [, i] of near)
-                if (!ON_SHORE.has(list[i]!.kind) || onRegion(i, region)) return list[i]!.says;
+            // A small community fills a gap: it is named only when no other landmark is (decision 119).
+            for (const gapOnly of [false, true])
+                for (const [, i] of near)
+                    if (!!list[i]!.gapOnly === gapOnly && (!ON_SHORE.has(list[i]!.kind) || onRegion(i, region))) return list[i]!.says;
             return null;
         },
     };
