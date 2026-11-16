@@ -15,12 +15,14 @@ import { EXPANDERS } from './read.mjs';
 // nothing can pass between the two afterwards (found 2026-11-16). For the same reason the
 // code in a bookmark can't be updated from here: a change means installing it again.
 //
-// Stop, Cancel or Close ends a run: it checks after every wait, and does nothing more.
+// Stop, Cancel or Close ends a run: it checks after every wait, and does nothing more. A
+// click on the bookmark while its box shows does nothing; a click after the page lost the
+// box ends that run and starts another. A blocked window leaves Send in the box, to retry.
 // No comments inside this function: the bookmarklet joins its lines into one, so a line
 // comment would swallow the rest (demo.test.mjs checks).
 export async function sendPost(expanders, receive) {
-  if (window.__salishseaBusy) return;
-  window.__salishseaBusy = true;
+  if (window.__salishseaBox?.isConnected) return;
+  window.__salishseaStop?.();
   const box = document.createElement('div');
   Object.assign(box.style, { position: 'fixed', top: '72px', left: '50%', transform: 'translateX(-50%)', zIndex: 2147483647, background: '#1d3c78', color: '#fff', padding: '12px 18px', borderRadius: '8px', font: '15px system-ui,sans-serif', maxWidth: '34em', boxShadow: '0 2px 12px rgba(0,0,0,.3)' });
   document.body.append(box);
@@ -33,7 +35,9 @@ export async function sendPost(expanders, receive) {
     return b;
   };
   let stopped = false;
-  const close = () => { stopped = true; box.remove(); window.__salishseaBusy = false; };
+  const close = () => { stopped = true; box.remove(); };
+  window.__salishseaBox = box;
+  window.__salishseaStop = close;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   try {
     const find = () => [...document.querySelectorAll('[role=dialog]')].filter((d) => d.querySelector('[role=article]')).pop()
@@ -45,7 +49,7 @@ export async function sendPost(expanders, receive) {
 
     const sort = buttons(find()).find((b) => /^(most relevant|newest)$/i.test(text(b)));
     if (sort) {
-      say('SalishSea: asking Facebook for all comments…');
+      say('SalishSea: asking Facebook for all comments…', button('Stop', close));
       sort.click();
       await sleep(1000);
       if (stopped) return;
@@ -79,10 +83,11 @@ export async function sendPost(expanders, receive) {
     for (let i = 0; i < gz.length; i += 32768) bin += String.fromCharCode.apply(null, gz.subarray(i, i + 32768));
     const data = btoa(bin).replace(/[+]/g, '-').replace(/[/]/g, '_').replace(/=+$/, '');
     if (stopped) return;
-    say(`SalishSea: ${n} comments and replies are open.`, button(`Send them to SalishSea`, () => {
+    const send = () => {
       const w = window.open(receive + '&d=' + data, '_blank', 'popup,width=1000,height=760');
-      if (w) close(); else say('SalishSea: the window was blocked. Allow pop-ups for facebook.com, then click Send to SalishSea again.', button('Close', close));
-    }), button('Cancel', close));
+      if (w) close(); else say('SalishSea: the window was blocked. Allow pop-ups for facebook.com, then click Send again.', button('Send them to SalishSea', send), button('Close', close));
+    };
+    say(`SalishSea: ${n} comments and replies are open.`, button('Send them to SalishSea', send), button('Cancel', close));
   } catch (x) {
     say('SalishSea: something went wrong: ' + x, button('Close', close));
   }
