@@ -4,7 +4,7 @@
  */
 import { describe, expect, test } from 'vitest';
 
-import { agoToTime, EXPANDERS, postAddress, postId, readFacebookPost, UnreadablePost } from './facebook-post.ts';
+import { agoToTime, EXPANDERS, NotOnePost, permalinkAddress, postAddress, postId, readFacebookPost, UnreadablePost } from './facebook-post.ts';
 
 const SENT = 1_794_000_000;
 const link = (c: number, r?: number) =>
@@ -97,16 +97,23 @@ describe('readFacebookPost', () => {
         expect(r.comments.map(c => [c.id, c.text])).toEqual([['1', 'Mine'], ['2', 'Theirs']]);
     });
 
+    test('comments from two posts are the sender\'s mistake, not a change to Facebook\'s markup', () => {
+        const other = '<a href="https://www.facebook.com/groups/1/posts/3/?comment_id=9">1h</a>';
+        expect(() => readFacebookPost(post(comment('Comment by Pat Example 2 hours ago', link(1), 'x')
+            + comment('Comment by Sam Sample 2 hours ago', other, 'y')), SENT)).toThrow(NotOnePost);
+    });
+
+    test('the post most permalinks name, read from text the reader may not be able to read', () => {
+        const unreadable = '<div role="article" aria-label="Kommentar">' + link(1) + link(2)
+            + '<a href="https://www.facebook.com/groups/1/posts/7/?comment_id=3">pasted</a></div>';
+        expect(permalinkAddress(unreadable)).toEqual({group: '1', post: '2'});
+        expect(permalinkAddress('<div>nothing</div>')).toBeNull();
+    });
+
     describe('fails loudly when Facebook\'s markup has changed', () => {
         test('every comment reads as empty', () => {
             const html = post([1, 2].map(n => `<div role="article" aria-label="Comment by Pat Example 2 hours ago">${link(n)}<p>11:45 off Alki</p></div>`).join(''));
             expect(() => readFacebookPost(html, SENT)).toThrow(/no text in any comment/);
-        });
-
-        test('comments from two posts', () => {
-            const other = '<a href="https://www.facebook.com/groups/1/posts/3/?comment_id=9">1h</a>';
-            expect(() => readFacebookPost(post(comment('Comment by Pat Example 2 hours ago', link(1), 'x')
-                + comment('Comment by Sam Sample 2 hours ago', other, 'y')), SENT)).toThrow(/more than one post/);
         });
 
         test('a comment whose permalinks disagree', () => {
@@ -121,7 +128,9 @@ describe('readFacebookPost', () => {
         test('an article whose label is not a comment\'s, without naming the member', () => {
             const html = post(comment('Comment by Pat Example 2 hrs', link(1), 'x'));
             expect(() => readFacebookPost(html, SENT)).toThrow(UnreadablePost);
-            expect(() => readFacebookPost(html, SENT)).toThrow(/^an article's label isn't a comment's or a reply's: "C… b… P… E… 2 h…"$/);
+            expect(() => readFacebookPost(html, SENT)).toThrow(/^an article's label isn't a comment's or a reply's: "Comment by … 2 hrs"$/);
+            const indic = post(comment('Reply by देवनागरी नाम to Pat Example\'s comment 2 hrs', link(1, 2), 'x'));
+            expect(() => readFacebookPost(indic, SENT)).toThrow(/: "Reply by … to …'s comment 2 hrs"$/);
         });
 
         test('a comment without its comment_id', () => {

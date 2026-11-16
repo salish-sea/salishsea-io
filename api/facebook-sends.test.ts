@@ -15,6 +15,7 @@ import { KEEP_READ_MS, KEEP_UNREADABLE_MS, parseSend, receiveSend, sweepSends } 
 import { rateLimiter } from './feedback.ts';
 import { serve } from './server.ts';
 import { mint } from './session.ts';
+import { isoMicros } from './sightings.ts';
 import { openStore } from './store/store.ts';
 import { me, signIn, type Me } from './users.ts';
 
@@ -54,9 +55,10 @@ describe('parseSend', () => {
     test('takes the time the bookmarklet took the post', () => {
         expect(parseSend(body('2026-11-16T19:55:00Z'), NOW).capturedAt).toEqual(new Date('2026-11-16T19:55:00Z'));
     });
-    test('refuses a post taken more than ten minutes before, or later than a minute after', () => {
+    test('refuses a post taken more than ten minutes before arriving, or after, by a clock that far out', () => {
         expect(() => parseSend(body('2026-11-16T19:49:00Z'), NOW)).toThrow(/send it again/);
-        expect(() => parseSend(body('2026-11-16T20:02:00Z'), NOW)).toThrow(/future/);
+        expect(() => parseSend(body('2026-11-16T20:11:00Z'), NOW)).toThrow(/future/);
+        expect(parseSend(body('2026-11-16T20:03:00Z'), NOW).capturedAt).toEqual(new Date('2026-11-16T20:03:00Z'));
     });
     test('refuses what isn\'t a send', () => {
         expect(() => parseSend({html: '', url: PAGE, sent_at: NOW.toISOString()}, NOW)).toThrow(/send \{html, url, sent_at\}/);
@@ -96,6 +98,16 @@ describe('receiveSend', () => {
         await expect(readdir(sends)).rejects.toThrow();
     });
 
+    test('refuses the whole feed, without a dialog, and a page of two posts, and reports neither', async () => {
+        const feed = `https://www.facebook.com/groups/${GROUP}/`;
+        await expect(receiveSend(store, sends, sender, input({url: feed, html: html().replace('role="dialog"', 'role="main"')}), NOW))
+            .rejects.toThrow(/open the post on its own page/);
+        const two = html(`<div role="article" aria-label="Comment by Pat Example 2 hours ago">${permalink(1)}<div dir="auto">x</div></div>`
+            + `<div role="article" aria-label="Comment by Sam Sample 2 hours ago">${permalink(2, '99')}<div dir="auto">y</div></div>`);
+        await expect(receiveSend(store, sends, sender, input({url: feed, html: two}), NOW)).rejects.toThrow(/more than one post/);
+        expect([rows(), feedback()]).toEqual([[], []]);
+    });
+
     test('refuses an address and permalinks that name different posts', async () => {
         await expect(receiveSend(store, sends, sender, input({url: `https://www.facebook.com/groups/${GROUP}/posts/1/`}), NOW))
             .rejects.toThrow(/different post/);
@@ -116,6 +128,18 @@ describe('receiveSend', () => {
         expect(feedback()[0]!.message).not.toMatch(/Pat|Example/);
         await receiveSend(store, sends, sender, input({html: UNREADABLE, capturedAt: new Date(NOW.getTime() + 25 * 3_600_000)}),
             new Date(NOW.getTime() + 25 * 3_600_000));
+        expect(feedback()).toHaveLength(2);
+    });
+
+    test('an unreadable post opened over the feed is known by the permalinks in its text, and kept', async () => {
+        const answer = await receiveSend(store, sends, sender, input({html: UNREADABLE, url: 'https://www.facebook.com/'}), NOW);
+        expect(answer.status).toBe(422);
+        expect(rows()[0]).toMatchObject({group_id: GROUP, post_id: POST});
+    });
+
+    test('feedback written under the reporter\'s name by anyone does not silence the report', async () => {
+        store.prepare("INSERT INTO feedback (created_at, name, message) VALUES (?, 'SalishSea.io write API', 'hi')").run(isoMicros(NOW));
+        await receiveSend(store, sends, sender, input({html: UNREADABLE}), NOW);
         expect(feedback()).toHaveLength(2);
     });
 });

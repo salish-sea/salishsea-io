@@ -25,7 +25,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { promisify } from 'node:util';
 import { gzip as gzipCallback } from 'node:zlib';
 
-import { postAddress, readFacebookPost, UnreadablePost, type FacebookPost } from './facebook-post.ts';
+import { NotOnePost, permalinkAddress, postAddress, readFacebookPost, UnreadablePost, type FacebookPost } from './facebook-post.ts';
 import { isoMicros, Refused } from './sightings.ts';
 import type { Me } from './users.ts';
 
@@ -44,15 +44,14 @@ export const KEEP_UNREADABLE_MS = 30 * DAY_MS;
 export const MAX_KEPT_BYTES = 200 * 1024 * 1024;
 
 /**
- * How far the time the bookmarklet took the post may be from when it arrives. Ten minutes
- * before allows for a sender who has to sign in first; later than that, Facebook's "2
- * hours ago" would be counted from a moment we can't trust, so the sender is asked to send
- * again. One minute after allows for a clock a little fast.
+ * How far the time the bookmarklet took the post, by the sender's clock, may be from when
+ * it arrives. Ten minutes allows for a sender who has to sign in first, or a clock that is
+ * a few minutes out; beyond that, Facebook's "2 hours ago" would be counted from a moment
+ * we can't trust, so the sender is asked to send again.
  */
-const CAPTURED_BEFORE_MS = 10 * 60_000;
-const CAPTURED_AFTER_MS = 60_000;
+const CAPTURED_WITHIN_MS = 10 * 60_000;
 
-/** Who reports an unreadable send, in the feedback table, and so in the issue's title. */
+/** The name an unreadable send is reported under, in the feedback table; the issue doesn't show it. */
 const REPORTER = 'SalishSea.io write API';
 
 export type SendInput = {html: string, url: string, capturedAt: Date};
@@ -76,8 +75,8 @@ export function parseSend(body: Record<string, unknown>, receivedAt: Date): Send
     const capturedAt = new Date(sentAt);
     if (Number.isNaN(capturedAt.getTime())) throw new Refused(400, 'sent_at is not a time');
     const early = receivedAt.getTime() - capturedAt.getTime();
-    if (early > CAPTURED_BEFORE_MS) throw new Refused(400, 'this post was taken from Facebook more than ten minutes ago: send it again');
-    if (early < -CAPTURED_AFTER_MS) throw new Refused(400, 'sent_at is in the future: check the clock of the computer that sent it');
+    if (early > CAPTURED_WITHIN_MS) throw new Refused(400, 'this post was taken from Facebook more than ten minutes ago: send it again');
+    if (early < -CAPTURED_WITHIN_MS) throw new Refused(400, 'sent_at is in the future: check the clock of the computer that sent it');
     return {html, url, capturedAt};
 }
 
@@ -87,11 +86,15 @@ export function parseSend(body: Record<string, unknown>, receivedAt: Date): Send
  */
 export async function receiveSend(store: DatabaseSync, dir: string, who: Me, input: SendInput,
     receivedAt: Date): Promise<SendAnswer> {
+    // "2 hours ago" counts back from when the post was taken, by the sender's clock; a
+    // clock that is a little fast must not date comments in the future.
+    const takenAt = Math.min(input.capturedAt.getTime(), receivedAt.getTime());
     let read: FacebookPost | null = null;
     let error: string | null = null;
     try {
-        read = readFacebookPost(input.html, Math.floor(input.capturedAt.getTime() / 1000));
+        read = readFacebookPost(input.html, Math.floor(takenAt / 1000));
     } catch (e) {
+        if (e instanceof NotOnePost) throw new Refused(400, 'this page shows more than one post: open the post itself, and send it again');
         if (!(e instanceof UnreadablePost)) throw e;
         error = e.message;
     }
@@ -99,14 +102,20 @@ export async function receiveSend(store: DatabaseSync, dir: string, who: Me, inp
     // The comments' permalinks say which post this is better than the page's address,
     // which is the feed when the post was opened over it, and may name the group by a
     // chosen name rather than its number. The address is the fallback, and must agree.
+    // A post that can't be read still has permalinks, read from its text.
     const fromUrl = postAddress(input.url);
-    if (read?.address && fromUrl && read.address.post !== fromUrl.post)
+    const fromPermalinks = read ? read.address : permalinkAddress(input.html);
+    if (fromPermalinks && fromUrl && fromPermalinks.post !== fromUrl.post)
         throw new Refused(400, 'the page\'s address names a different post from its comments');
-    const group = read?.address?.group ?? fromUrl?.group ?? groupIn(input.url);
-    const postId = read?.address?.post ?? fromUrl?.post ?? null;
+    const group = fromPermalinks?.group ?? fromUrl?.group ?? groupIn(input.url);
+    const postId = fromPermalinks?.post ?? fromUrl?.post ?? null;
     if (!group || !READ_GROUPS.has(group))
         throw new Refused(400, 'SalishSea.io reads only the Orca Network Community Group, from the post\'s own page');
     if (read && !postId) throw new Refused(400, 'open the post on its own page, and send it again');
+    // Over the feed, the bookmarklet takes the post's dialog; without one it took the whole
+    // feed, whose lines are every post's.
+    if (!fromUrl && !/^\s*<\w+[^>]*\brole="dialog"/.test(input.html))
+        throw new Refused(400, 'open the post on its own page, and send it again');
 
     const html = Buffer.from(input.html, 'utf8');
     const file = `${receivedAt.toISOString().replace(/[-:]|\.\d+/g, '')}-${postId ?? 'unknown'}-${read ? 'read' : 'unreadable'}-${randomUUID().slice(0, 8)}.html.gz`;
@@ -124,8 +133,11 @@ export async function receiveSend(store: DatabaseSync, dir: string, who: Me, inp
         html.length, createHash('sha256').update(html).digest('hex'), file,
         read?.lines.length ?? null, read?.comments.length ?? null, error) as {id: number};
 
+    // Each write is followed by a sweep, so the cap holds however fast sends come.
+    await sweepSends(dir, receivedAt).catch(e => console.error('api: sweeping sent posts:', e));
+
     if (!read) {
-        reportUnreadable(store, error!, receivedAt);
+        reportUnreadable(store, id, error!, receivedAt);
         return {status: 422, body: {send_id: id, error: `SalishSea.io couldn't read this post: ${error}. Facebook may have changed its page; we've been told.`}};
     }
     return {status: 201, body: {send_id: id, post_id: postId!, lines: read.lines.length, comments: read.comments.length,
@@ -145,11 +157,12 @@ function groupIn(url: string): string | null {
 
 /**
  * The first unreadable send in a day becomes feedback, which the notifier files as a public
- * GitHub issue. The message carries the reader's error, which names no member.
+ * GitHub issue. The message carries the reader's error, which names no member. Known by the
+ * sends themselves, since anyone may write feedback under any name.
  */
-function reportUnreadable(store: DatabaseSync, error: string, now: Date): void {
+function reportUnreadable(store: DatabaseSync, sendId: number, error: string, now: Date): void {
     const since = isoMicros(new Date(now.getTime() - DAY_MS));
-    if (store.prepare('SELECT 1 FROM feedback WHERE name = ? AND created_at > ?').get(REPORTER, since)) return;
+    if (store.prepare('SELECT 1 FROM facebook_sends WHERE error IS NOT NULL AND id <> ? AND received_at > ?').get(sendId, since)) return;
     store.prepare('INSERT INTO feedback (created_at, name, message) VALUES (?, ?, ?)').run(isoMicros(now), REPORTER,
         `A post sent from Facebook couldn't be read: ${error}. Facebook has probably changed its markup, so every send ` +
         'will fail until api/facebook-post.ts is fixed (bd salish-i1a.3.4). The sends are kept on the Fly volume, under ' +
@@ -171,7 +184,13 @@ export async function sweepSends(dir: string, now = new Date(), maxBytes = MAX_K
     }
     const files = [];
     for (const name of names) {
-        const {mtimeMs, size} = await stat(path.join(dir, name));
+        let mtimeMs: number, size: number;
+        try {
+            ({mtimeMs, size} = await stat(path.join(dir, name)));
+        } catch (e) {
+            if ((e as NodeJS.ErrnoException).code === 'ENOENT') continue; // renamed or deleted since the listing
+            throw e;
+        }
         const keep = name.endsWith('.tmp') ? 3_600_000 : name.includes('-unreadable-') ? KEEP_UNREADABLE_MS : KEEP_READ_MS;
         files.push({name, mtimeMs, size, expired: now.getTime() - mtimeMs > keep});
     }

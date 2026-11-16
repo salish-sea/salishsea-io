@@ -59,6 +59,11 @@ export class UnreadablePost extends Error {
     override name = 'UnreadablePost';
 }
 
+/** What was sent holds comments from more than one post: a feed, say, not a post. The sender's mistake, not Facebook's. */
+export class NotOnePost extends Error {
+    override name = 'NotOnePost';
+}
+
 /**
  * What hides part of a post: collapsed comments and replies, and a long comment cut short.
  * The bookmarklet (bd salish-i1a.3.8) clicks the same buttons; keep the two in step.
@@ -123,7 +128,7 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
         .map(l => l.trim())
         .filter(l => /[\p{L}\p{N}]/u.test(l));
     // The bookmarklet sends one post; comments from two would be a page it shouldn't have sent.
-    if (addresses.size > 1) throw new UnreadablePost('its comments belong to more than one post');
+    if (addresses.size > 1) throw new NotOnePost('its comments belong to more than one post');
     const [group, post] = addresses.size ? JSON.parse([...addresses][0]!) as [string, string] : [];
     // Even a post with no comments yet has its title.
     if (!lines.length) throw new UnreadablePost('found no text outside the comments');
@@ -142,8 +147,31 @@ export function readFacebookPost(html: string, sentAt: number): FacebookPost {
     };
 }
 
-/** A label's shape with its words reduced to their first letters, for an error that names no member. */
-const shapeOf = (label: string) => JSON.stringify(label.replace(/(\p{L})\p{L}*/gu, '$1…').slice(0, 60));
+/**
+ * A label's shape for an error, which becomes a public issue: the words a label is made of
+ * kept, and every other word, a member's name among them, replaced by "…".
+ */
+const LABEL_WORDS = /^(comment|reply|by|to|'s|about|an?|ago|just|now|yesterday|\d+\w{0,3}|(second|minute|hour|day|week|month|year|sec|min|hr|wk|mo|yr)s?)$/i;
+const shapeOf = (label: string) => JSON.stringify(label.split(/\s+/)
+    .flatMap(w => /.'s$/.test(w) ? ['…', "'s"] : [LABEL_WORDS.test(w) ? w : '…'])
+    .join(' ').replace(/ '/g, "'").replace(/(… )+…/g, '…').slice(0, 80));
+
+/**
+ * The group and post that most of the comment permalinks in some HTML name, read from the
+ * text without parsing it: for a post the reader couldn't read, whose group must still be
+ * known before it is kept.
+ */
+export function permalinkAddress(html: string): PostAddress | null {
+    const counts = new Map<string, number>();
+    for (const m of html.matchAll(/href="(https:\/\/(?:www\.|web\.|m\.)?facebook\.com\/groups\/[\w.]+\/(?:posts|permalink)\/\d+\/?)\?[^"]*comment_id=/g)) {
+        const address = postAddress(m[1]!);
+        if (address) counts.set(JSON.stringify([address.group, address.post]), (counts.get(JSON.stringify([address.group, address.post])) ?? 0) + 1);
+    }
+    const best = [...counts].sort((a, b) => b[1] - a[1])[0];
+    if (!best) return null;
+    const [group, post] = JSON.parse(best[0]) as [string, string];
+    return {group, post};
+}
 
 function urlOf(a: Element): URL | null {
     try {
@@ -172,7 +200,14 @@ function mediaIn(links: Element[]): string[] {
     return [...out];
 }
 
-const outermost = <T extends Element>(nodes: T[]) => nodes.filter(n => !nodes.some(o => o !== n && o.contains(n)));
+// The nodes not inside another of them. They come in document order, as querySelectorAll
+// gives them, so a node's ancestor among them is the last one kept before it, if any:
+// linear, where comparing every pair was quadratic in a post's thousands of blocks.
+const outermost = <T extends Element>(nodes: T[]) => {
+    const kept: T[] = [];
+    for (const n of nodes) if (!kept.at(-1)?.contains(n)) kept.push(n);
+    return kept;
+};
 
 // A block's text in document order, with a line break at each block inside it and at each
 // <br>: each line of a post is a block inside the outer one, but text can sit between them.
