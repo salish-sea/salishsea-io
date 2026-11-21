@@ -18,6 +18,7 @@ export function readPost(html) {
   const articles = [...document.querySelectorAll('[role="article"]')].filter((a) => LABEL.test(a.getAttribute('aria-label') ?? ''));
 
   const comments = [];
+  const posts = new Set(); // the posts the comments' own permalinks name
   for (const a of articles) {
     const m = LABEL.exec(a.getAttribute('aria-label'));
     const nested = articles.filter((x) => x !== a && a.contains(x));
@@ -33,6 +34,9 @@ export function readPost(html) {
       }
       commentId ??= u.searchParams.get('comment_id');
       replyId ??= u.searchParams.get('reply_comment_id');
+      // its permalink, beside its name, not a link to another comment pasted into its text
+      const block = link.closest('div[dir="auto"]');
+      if (u.searchParams.get('comment_id') && !(block && a.contains(block)) && postId(u.pathname)) posts.add(postId(u.pathname));
     }
     if (!commentId) continue;
     const media = mediaIn([...a.querySelectorAll('a[href]')].filter((n) => !inNested(n)));
@@ -60,6 +64,7 @@ export function readPost(html) {
     lines,
     media: mediaIn([...document.querySelectorAll('a[href]')].filter((n) => !articles.some((a) => a.contains(n)))),
     comments,
+    posts: [...posts],
     collapsed: buttons.filter((t) => EXPANDERS.test(t)).length,
     sort: buttons.find((t) => /^(most relevant|all comments|newest)$/i.test(t)) ?? null,
   };
@@ -144,4 +149,28 @@ export function clockTime(text) {
 export function postId(url) {
   const m = /\/(?:posts|permalink)\/(\d+)/.exec(url ?? '');
   return m ? m[1] : null;
+}
+
+/** Whether the bookmarklet sent a post's dialog, not the page's main column. */
+export const fromDialog = (html) => /^\s*<\w+[^>]*\brole="dialog"/.test(String(html));
+
+/**
+ * The post a sent page shows, or null, or 'several'. Its address names it on the post's own
+ * page (/posts/<id>), or as the post pinned to the top of the group's feed
+ * (?multi_permalinks=<id>); the comments' own permalinks (readPost's `posts`) name it
+ * too, and must agree. Comments from more than one post are 'several', for the sender to
+ * open the post on its own. A send of the whole feed, without the post's dialog, is
+ * refused before this (fromDialog): its other posts' text would pass for this one's.
+ */
+export function sentPostId(url, posts) {
+  let fromUrl = postId(url);
+  if (!fromUrl) {
+    try {
+      const pinned = new URL(url).searchParams.get('multi_permalinks') ?? '';
+      if (/^\d+$/.test(pinned)) fromUrl = pinned;
+    } catch {}
+  }
+  const fromComments = new Set(posts);
+  if (fromComments.size > 1 || (fromUrl && fromComments.size && !fromComments.has(fromUrl))) return 'several';
+  return fromUrl ?? [...fromComments][0] ?? null;
 }

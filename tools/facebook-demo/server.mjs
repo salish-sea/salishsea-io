@@ -8,7 +8,7 @@ import { timingSafeEqual, randomUUID, createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { readSighting } from '../../src/sighting-text.ts';
-import { readPost, agoToTime, clockTime, postId, EXPANDERS } from './read.mjs';
+import { readPost, agoToTime, clockTime, postId, sentPostId, fromDialog, EXPANDERS } from './read.mjs';
 import { bookmarkletFor } from './bookmarklet.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
 import { loadPlaces } from './places.mjs';
@@ -339,13 +339,18 @@ async function capture(req) {
   const html = String(form.get('html') ?? '');
   if (html.length > MAX_BYTES) return [413, 'That page is too large.'];
   const url = String(form.get('url') ?? '');
-  const id = postId(url);
-  if (!id || !/^https:\/\/(www\.|web\.|m\.)?facebook\.com\//.test(url)) return [400, 'That is not a Facebook post. Open the day’s post and try again.'];
+  if (!/^https:\/\/(www\.|web\.|m\.)?facebook\.com\//.test(url)) return [400, 'That is not a Facebook post. Open the day’s post and try again.'];
+  // Off the post's own page, the bookmarklet takes the post's dialog if one is open, and
+  // otherwise the whole feed, whose other posts' text would be recorded as this one's.
+  if (!postId(url) && !fromDialog(html)) return [400, 'This page shows the group’s feed, not one post. Click the time under the poster’s name to open the day’s post on its own, then send it again.'];
+  const read = readPost(html);
+  const id = sentPostId(url, read.posts);
+  if (id === 'several') return [400, 'This page shows more than one post. Click the time under the poster’s name to open the day’s post on its own, then send it again.'];
+  if (!id) return [400, 'That is not a Facebook post. Open the day’s post and try again.'];
   const title = String(form.get('title') ?? '').slice(0, 300);
 
   // Record the send before anything else can wait, so two sends of one post are recorded
   // in the order they arrived; the copy on disk is only for checking the reading later.
-  const read = readPost(html);
   const result = recordSend(db, { at: now, sender, postId: id, url, title, bytes: html.length, read, agoToTime, enrich });
   await writeFile(join(RAW, `${now}-${id}-${randomUUID().slice(0, 8)}.html`), html, { flag: 'wx' });
 
