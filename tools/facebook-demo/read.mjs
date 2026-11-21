@@ -145,3 +145,23 @@ export function postId(url) {
   const m = /\/(?:posts|permalink)\/(\d+)/.exec(url ?? '');
   return m ? m[1] : null;
 }
+
+/**
+ * The post a sent page shows, or null, or 'several'. Its address names it on the post's own
+ * page (/posts/<id>), or as the post pinned to the top of the group's feed
+ * (?multi_permalinks=<id>); the comments' own links name it too, and must agree. With no
+ * post dialog open, the bookmarklet sends the whole feed, which may hold other posts and
+ * their comments: that is 'several', for the sender to open the post on its own.
+ */
+export function sentPostId(url, html) {
+  let fromUrl = postId(url);
+  if (!fromUrl) {
+    try {
+      const pinned = new URL(url).searchParams.get('multi_permalinks') ?? '';
+      if (/^\d+$/.test(pinned)) fromUrl = pinned;
+    } catch {}
+  }
+  const fromComments = new Set([...String(html).matchAll(/\/groups\/[\w.]+\/(?:posts|permalink)\/(\d+)\/?\?[^"]*comment_id=/g)].map((m) => m[1]));
+  if (fromComments.size > 1 || (fromUrl && fromComments.size && !fromComments.has(fromUrl))) return 'several';
+  return fromUrl ?? [...fromComments][0] ?? null;
+}

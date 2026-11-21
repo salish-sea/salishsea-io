@@ -3,7 +3,7 @@
 // members' names.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readPost, clockTime, agoToTime, postId, EXPANDERS } from './read.mjs';
+import { readPost, clockTime, agoToTime, postId, sentPostId, EXPANDERS } from './read.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
 import { placeFinder, readAbbreviations, readFerryRoutes, readCommunities, readParks, withinOneEdit } from './places.mjs';
 import { contextFor, kindOf } from './context.mjs';
@@ -484,4 +484,17 @@ test('the bookmarklet is one line of JavaScript that compiles', () => {
   // A line comment inside sendPost would swallow the rest of the line, and so of the bookmarklet.
   assert.doesNotThrow(() => new Function(src));
   assert.match(src, /"https:\/\/example\.org\/fb-demo\/receive#s=secret"\)$/);
+});
+
+test('the post a sent page shows: its own page, pinned to the feed, or only its comments', () => {
+  const comment = (post) => `<a href="https://www.facebook.com/groups/564701038927716/posts/${post}/?comment_id=1&amp;__cft__=x">2h</a>`;
+  const pinned = 'https://www.facebook.com/groups/564701038927716/?multi_permalinks=1498803798850764&hoisted_section_header_type=recently_seen';
+  assert.equal(sentPostId('https://www.facebook.com/groups/564701038927716/posts/1489227859808358', ''), '1489227859808358');
+  assert.equal(sentPostId(pinned, comment('1498803798850764')), '1498803798850764');
+  assert.equal(sentPostId(pinned, ''), '1498803798850764');
+  assert.equal(sentPostId('https://www.facebook.com/groups/564701038927716/', comment('77')), '77');
+  // the feed below the pinned post: other posts' comments
+  assert.equal(sentPostId(pinned, comment('1498803798850764') + comment('77')), 'several');
+  assert.equal(sentPostId('https://www.facebook.com/groups/564701038927716/posts/5', comment('77')), 'several');
+  assert.equal(sentPostId('https://www.facebook.com/groups/564701038927716/', ''), null);
 });
