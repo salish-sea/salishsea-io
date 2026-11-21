@@ -340,14 +340,14 @@ async function capture(req) {
   if (html.length > MAX_BYTES) return [413, 'That page is too large.'];
   const url = String(form.get('url') ?? '');
   if (!/^https:\/\/(www\.|web\.|m\.)?facebook\.com\//.test(url)) return [400, 'That is not a Facebook post. Open the day’s post and try again.'];
-  const id = sentPostId(url, html);
+  const read = readPost(html);
+  const id = sentPostId(url, read.posts);
   if (id === 'several') return [400, 'This page shows more than one post. Click the time under the poster’s name to open the day’s post on its own, then send it again.'];
   if (!id) return [400, 'That is not a Facebook post. Open the day’s post and try again.'];
   const title = String(form.get('title') ?? '').slice(0, 300);
 
   // Record the send before anything else can wait, so two sends of one post are recorded
   // in the order they arrived; the copy on disk is only for checking the reading later.
-  const read = readPost(html);
   const result = recordSend(db, { at: now, sender, postId: id, url, title, bytes: html.length, read, agoToTime, enrich });
   await writeFile(join(RAW, `${now}-${id}-${randomUUID().slice(0, 8)}.html`), html, { flag: 'wx' });
 
