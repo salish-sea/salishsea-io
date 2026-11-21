@@ -8,7 +8,7 @@ import { timingSafeEqual, randomUUID, createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { readSighting } from '../../src/sighting-text.ts';
-import { readPost, agoToTime, clockTime, sentPostId, EXPANDERS } from './read.mjs';
+import { readPost, agoToTime, clockTime, postId, sentPostId, fromDialog, EXPANDERS } from './read.mjs';
 import { bookmarkletFor } from './bookmarklet.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
 import { loadPlaces } from './places.mjs';
@@ -340,6 +340,9 @@ async function capture(req) {
   if (html.length > MAX_BYTES) return [413, 'That page is too large.'];
   const url = String(form.get('url') ?? '');
   if (!/^https:\/\/(www\.|web\.|m\.)?facebook\.com\//.test(url)) return [400, 'That is not a Facebook post. Open the day’s post and try again.'];
+  // Off the post's own page, the bookmarklet takes the post's dialog if one is open, and
+  // otherwise the whole feed, whose other posts' text would be recorded as this one's.
+  if (!postId(url) && !fromDialog(html)) return [400, 'This page shows the group’s feed, not one post. Click the time under the poster’s name to open the day’s post on its own, then send it again.'];
   const read = readPost(html);
   const id = sentPostId(url, read.posts);
   if (id === 'several') return [400, 'This page shows more than one post. Click the time under the poster’s name to open the day’s post on its own, then send it again.'];

@@ -3,7 +3,7 @@
 // members' names.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readPost, clockTime, agoToTime, postId, sentPostId, EXPANDERS } from './read.mjs';
+import { readPost, clockTime, agoToTime, postId, sentPostId, fromDialog, EXPANDERS } from './read.mjs';
 import { openStore, recordSend, rereadAll } from './store.mjs';
 import { placeFinder, readAbbreviations, readFerryRoutes, readCommunities, readParks, withinOneEdit } from './places.mjs';
 import { contextFor, kindOf } from './context.mjs';
@@ -501,4 +501,10 @@ test('the post a sent page shows: its own page, pinned to the feed, or only its 
   // a link to another post's comment, pasted into a comment's text, is not that comment's post
   const pasted = article('5', 'same group as <a href="https://www.facebook.com/groups/564701038927716/posts/77/?comment_id=9">this</a>');
   assert.equal(sentPostId('https://www.facebook.com/groups/564701038927716/posts/5', posts(pasted)), '5');
+});
+
+test('a send from a dialog, which holds one post, not the feed\'s main column', () => {
+  assert.equal(fromDialog('<div role="dialog"><div dir="auto">x</div></div>'), true);
+  assert.equal(fromDialog('  <div class="a" role="dialog">'), true);
+  assert.equal(fromDialog('<div role="main"><div role="dialog"></div></div>'), false);
 });

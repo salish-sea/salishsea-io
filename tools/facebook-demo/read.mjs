@@ -151,13 +151,16 @@ export function postId(url) {
   return m ? m[1] : null;
 }
 
+/** Whether the bookmarklet sent a post's dialog, not the page's main column. */
+export const fromDialog = (html) => /^\s*<\w+[^>]*\brole="dialog"/.test(String(html));
+
 /**
  * The post a sent page shows, or null, or 'several'. Its address names it on the post's own
  * page (/posts/<id>), or as the post pinned to the top of the group's feed
  * (?multi_permalinks=<id>); the comments' own permalinks (readPost's `posts`) name it
- * too, and must agree. With no
- * post dialog open, the bookmarklet sends the whole feed, which may hold other posts and
- * their comments: that is 'several', for the sender to open the post on its own.
+ * too, and must agree. Comments from more than one post are 'several', for the sender to
+ * open the post on its own. A send of the whole feed, without the post's dialog, is
+ * refused before this (fromDialog): its other posts' text would pass for this one's.
  */
 export function sentPostId(url, posts) {
   let fromUrl = postId(url);
