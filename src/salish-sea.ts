@@ -519,10 +519,6 @@ export default class SalishSea extends LitElement {
 
   constructor() {
     super();
-    // The write API's session is a cookie it set (decision 065): ask who it names.
-    fetchMe()
-      .then(me => this.#signedInAs(me))
-      .catch(err => reportError(this, "Couldn't load your account. You may not be able to report a sighting.", {cause: err}));
     this.addEventListener('report-error', evt => {
       const {message, persist} = (evt as CustomEvent<ErrorReport>).detail;
       this.errorToastRef.value?.show(message, {persist});
@@ -616,6 +612,13 @@ export default class SalishSea extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener('popstate', this.#handlePopState);
+    // The write API's session is a cookie it set (decision 065): ask who it names.
+    // Here and not in the constructor: a copy of this element that is never
+    // attached to the page (a cloned DOM) never renders its map, and the refetch
+    // that follows the answer would reach for it (SALISHSEA-IO-4X).
+    fetchMe()
+      .then(me => this.#signedInAs(me))
+      .catch(err => reportError(this, "Couldn't load your account. You may not be able to report a sighting.", {cause: err}));
     // The day comes from the read-path files, which change when a build lands; the
     // manifest says when one has (decision 056). A tab's own saves refetch on their
     // own events, and everyone else's arrive with the build the manifest announces.
@@ -798,7 +801,7 @@ export default class SalishSea extends LitElement {
 
     this.sightings = merged;
     // While a subject is open the map shows its sightings; the day's wait for it to close.
-    if (!this.subject) this.mapRef.value!.setOccurrences(merged);
+    if (!this.subject) this.mapRef.value?.setOccurrences(merged);
   }
 
   focusOccurrence(occurrence: Occurrence | null) {

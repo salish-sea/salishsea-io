@@ -158,6 +158,9 @@ async function mountWithSightings(...occurrences: Occurrence[]) {
   const el = document.createElement('salish-sea') as SalishSea;
   document.body.appendChild(el);
   await el.updateComplete;
+  // Attaching asks who is signed in, and the answer refetches the day; let that
+  // land first, or its empty day would replace the sightings put in here.
+  await new Promise(resolve => setTimeout(resolve));
   el.receiveOccurrences(occurrences, el.date, el.region.slug);
   await el.updateComplete;
   return el;
@@ -707,4 +710,14 @@ test('two reports stay two cards', async () => {
   const el = await mountWithSightings(orca('b', '2024-07-15T19:23:00Z'), orca('a', '2024-07-15T18:23:00Z'));
   expect(el.shadowRoot!.querySelectorAll('segment-summary')).toHaveLength(0);
   expect(summaryIds(el)).toEqual(['summary-b', 'summary-a']);
+});
+
+test('a copy of the page that is never attached asks nothing and reports nothing (SALISHSEA-IO-4X)', async () => {
+  // A cloned DOM (an extension's, say) constructs the element without attaching it,
+  // so it never renders its map. Asking who is signed in would refetch the day and
+  // reach for that map.
+  api.me = {user_id: 'u1', contributor: {id: 'c1'}} as typeof api.me;
+  document.createElement('salish-sea');
+  await new Promise(resolve => setTimeout(resolve));
+  expect(captureException).not.toHaveBeenCalled();
 });
