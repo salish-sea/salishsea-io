@@ -12,7 +12,7 @@
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
-import { PHRASES, readBehaviour } from '../../src/behaviour.ts';
+import { bare, isPossible, PHRASES, readBehaviour } from '../../src/behaviour.ts';
 import { reportText } from '../../src/sighting-text.ts';
 import { loadGold } from './gold.ts';
 
@@ -61,20 +61,24 @@ function sample<T>(xs: T[], n: number, seed = 1): T[] {
 }
 
 /** A Markdown table: reports per tag, by kind, in the list's order. */
+const isPossible_ = (tag: string) => (t: string) => t === `${tag}?` && isPossible(t);
+
 function counts(dir: string) {
     const reports = load(dir).map(r => ({...r, tags: readBehaviour(r.text)}));
     const perKind = KINDS.map(k => reports.filter(r => r.kind === k).length);
     console.log(`${reports.length} reports with text, ${reports.filter(r => r.tags.length).length} with a tag\n`);
-    console.log(`| tag | ${KINDS.map((k, i) => `${k} (${perKind[i]!.toLocaleString('en')})`).join(' | ')} | all |`);
-    console.log(`|---|${KINDS.map(() => '--:').join('|')}|--:|`);
+    console.log(`| tag | ${KINDS.map((k, i) => `${k} (${perKind[i]!.toLocaleString('en')})`).join(' | ')} | all | of which possible |`);
+    console.log(`|---|${KINDS.map(() => '--:').join('|')}|--:|--:|`);
     for (const {tag} of PHRASES) {
-        const hits = reports.filter(r => r.tags.includes(tag));
-        console.log(`| ${tag} | ${KINDS.map(k => hits.filter(h => h.kind === k).length || '').join(' | ')} | ${hits.length} |`);
+        // a hedged tag ends in '?' (decision 054): counted under its tag, and again as possible
+        const hits = reports.filter(r => r.tags.some(t => bare(t) === tag));
+        const possible = hits.filter(r => r.tags.some(isPossible_(tag)));
+        console.log(`| ${tag} | ${KINDS.map(k => hits.filter(h => h.kind === k).length || '').join(' | ')} | ${hits.length} | ${possible.length || ''} |`);
     }
 }
 
 function examples(dir: string, tag: string, n: number) {
-    const hits = load(dir).filter(r => readBehaviour(r.text).includes(tag));
+    const hits = load(dir).filter(r => readBehaviour(r.text).some(t => bare(t) === tag));
     for (const r of sample(hits, n)) console.log(`[${r.kind}] ${r.text.slice(0, 300)}`);
 }
 
@@ -82,8 +86,8 @@ function examples(dir: string, tag: string, n: number) {
 function gold() {
     const unread = new Map<string, number>();
     for (const row of loadGold()) {
-        const labelled = new Set(row.behaviour.flatMap(phrase => readBehaviour(phrase)));
-        const read = new Set(readBehaviour(row.text));
+        const labelled = new Set(row.behaviour.flatMap(phrase => readBehaviour(phrase).map(bare)));
+        const read = new Set(readBehaviour(row.text).map(bare));
         for (const phrase of row.behaviour) if (!readBehaviour(phrase).length) unread.set(phrase, (unread.get(phrase) ?? 0) + 1);
         const plus = [...read].filter(t => !labelled.has(t));
         const minus = [...labelled].filter(t => !read.has(t));
