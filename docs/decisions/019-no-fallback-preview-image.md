@@ -25,6 +25,13 @@ deleted** — the deploy's `s3 sync` runs without `--delete` — so
 `https://salishsea.io/preview.jpg` stays reachable and previously-scraped cards
 don't start 404ing on their image. Nothing references it.
 
+**Amendment (2026-11-25).** That S3 object stopped being served on 2026-10-03,
+when the site moved to the Fly app (decision 061), and `/preview.jpg` answered
+404 from then on, mostly to Zulip's image proxy fetching it for previews saved
+before this decision. The Fly app's web server now answers that path with the
+brand card of decision 026 (`fly/Caddyfile`, bd `salish-pi0g`), not the old
+screenshot, for the reason given under "Why no image beats a generic one".
+
 **Amendment (2026-07-27).** An image only counts if the platforms will actually
 render it — Facebook drops `og:image` below 200×200. iNaturalist photos are
 ingested as the 75×75 `square` thumbnail, so the card references the `large`

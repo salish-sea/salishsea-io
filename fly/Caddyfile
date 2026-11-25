@@ -204,6 +204,12 @@
 	handle {
 		root * /app/dist
 
+		# The fallback preview image of before decision 019. Previews that Zulip and others
+		# saved then still name it, and keep fetching it; the S3 copy 019 kept for them
+		# stopped being served with the move to this app (salish-pi0g). They get the brand
+		# card (decision 026), which is true of any link, and no redirect to follow.
+		rewrite /preview.jpg /social-card.jpg
+
 		# A profile-shaped path none of the routes above took — a designation with more
 		# after it (/individuals/T65A/photos), a haul-out by name — names nothing we
 		# publish, and says so. So does the profile shell asked for by name: it is the
