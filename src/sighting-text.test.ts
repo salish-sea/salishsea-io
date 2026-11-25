@@ -172,8 +172,48 @@ describe('reading sighting text', () => {
         expect(labels('Are these Js, Ks & Ls?')).toEqual(['J pod?', 'K pod?', 'L pod?']);
         // a plural's apostrophe may stand between the name and its "?"
         expect(labels("T46B's? and T65A")).toEqual(['T46B?', 'T65A']);
-        // a "?" standing apart still hedges the names after it, up to the comma
-        expect(labels('Who is that ? T65A, T65B')).toEqual(['T65A?', 'T65B']);
+        // a "?" standing apart, not ending a sentence, still hedges the names after it, up to the comma
+        expect(labels('Who ? the T65As, I think')).toEqual(['T65As?']);
+    });
+
+    test('a "?" that ends a sentence hedges nothing after it', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        // the year of published text had no report that relied on the old reach, and "Who is that ?" asks
+        // about the animals it follows, not those named next, so the standalone "?" no longer reaches a name
+        expect(labels('Who is that ? T65A, T65B')).toEqual(['T65A', 'T65B']);
+        expect(labels('Is this J pod? Foraging off Lime Kiln')).toEqual(['J pod?']);
+        expect(readText('Is this J pod? Foraging off Lime Kiln').behaviour).toEqual(['foraging']);
+        expect(readText('Who is that? Foraging').behaviour).toEqual(['foraging']);
+    });
+
+    test('a "?" belongs to the one mention before it, a name or a behaviour (one rule for both readers)', () => {
+        const read = (text: string) => ({labels: identifierLabels(readText(text)), tags: readText(text).behaviour});
+        expect(read('T65A? foraging')).toEqual({labels: ['T65A?'], tags: ['foraging']});
+        expect(read('milling? T65A')).toEqual({labels: ['T65A'], tags: ['milling?']});
+        expect(read('J pod ? foraging')).toEqual({labels: ['J pod?'], tags: ['foraging']});
+    });
+
+    test('a negation lists pods as pods are written, bare plurals included', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('No Js, Ks or Ls today')).toEqual([]);
+        expect(labels("No Js, K's or L pod")).toEqual([]);
+    });
+
+    test('a negated question makes pods and populations possible, and its "?" ends with it', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('No J pod, K pod or L pod?')).toEqual(['J pod?', 'K pod?', 'L pod?']);
+        expect(labels("Isn't it J pod near shore? K pod confirmed.")).toEqual(['J pod?', 'K pod']);
+        expect(labels("Isn't it T65A near shore? T65B confirmed.")).toEqual(['T65A?', 'T65B']);
+    });
+
+    test('a spaced hyphen between two names continues a list, and a hedge reaches both', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('possibly T36A - T36B')).toEqual(['T36A?', 'T36B?']);
+        expect(labels('possibly J pod - K pod')).toEqual(['J pod?', 'K pod?']);
+        expect(labels('possibly T36A - T36B northbound')).toEqual(['T36A?', 'T36B?']);
+        // not a name before the hyphen, or not one after it: the dash ends the hedge
+        expect(labels('not sure of ID - T65A northbound')).toEqual(['T65A']);
+        expect(labels('possibly T36A - 3 whales, T36B')).toEqual(['T36A?', 'T36B']);
     });
 
     test('a body as Maplify stores it: the collection tag and the attribution are not read', () => {

@@ -111,6 +111,12 @@ describe('how far a hedge reaches (src/hedge.ts)', () => {
     test('a "?" a space apart still marks the phrase before it', () => {
         expect(readBehaviour('milling ? foraging')).toEqual(['milling?', 'foraging']);
     });
+    test('a name\'s "?" hedges no tag, as read alone', () => {
+        expect(readBehaviour('T65A? foraging')).toEqual(['foraging']);
+        expect(readBehaviour('Is this J pod? Foraging off Lime Kiln')).toEqual(['foraging']);
+        expect(readBehaviour('Who is that? Foraging')).toEqual(['foraging']);
+        expect(readBehaviour('not sure of ID - feeding')).toEqual(['feeding']);
+    });
     test('"!" and a line break end a hedge', () => {
         expect(readBehaviour('Possible Ts!! Breaching')).toEqual(['breaching']);
         expect(readBehaviour('Anyone know who?\nMilling off the point')).toEqual(['milling']);
