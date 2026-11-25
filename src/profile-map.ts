@@ -63,7 +63,7 @@ export const TILE = 256;
  * its metadata; scripts/update-basemap.ts rewrites this line, and src/style.test.ts checks
  * that the two agree.
  */
-export const IMAGE_TILES = 'https://tiles.salishsea.io/images/e11e3dbec2b0c775/{z}/{x}/{y}.webp';
+export const IMAGE_TILES = 'https://tiles.salishsea.io/images/39a68273ad66066a/{z}/{x}/{y}.webp';
 /**
  * The deepest zoom the image tiles are drawn at (the basemap stops at 14 from its release
  * after 2026.11.3; Peter, 2026-11-25). A picture closer than this keeps its framing and

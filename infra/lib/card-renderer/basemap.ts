@@ -14,7 +14,7 @@ import { TILE, type Viewport, tilesFor } from './mercator.js';
  * The same set as `IMAGE_TILES` in src/profile-map.ts, which src/style.test.ts checks;
  * scripts/update-basemap.ts rewrites both.
  */
-export const IMAGE_TILES = 'https://tiles.salishsea.io/images/e11e3dbec2b0c775/{z}/{x}/{y}.webp';
+export const IMAGE_TILES = 'https://tiles.salishsea.io/images/39a68273ad66066a/{z}/{x}/{y}.webp';
 /** The deepest zoom the image tiles are drawn at; the same as in src/profile-map.ts, which src/style.test.ts checks. */
 export const IMAGE_TILES_MAX_ZOOM = 14;
 
