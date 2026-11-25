@@ -33,7 +33,7 @@ The first seven days were chosen because the rule went wrong on them, so they sa
 
 ## The columns
 
-Each row is one report, with the fields of the day file that the rule or a reader uses: `id`, `observed_at`, `observed_until`, `location`, `accuracy`, `taxon`, `count`, `direction`, `identifiers`, `pods`, `absent`, `vitality`, `provider_slug`, `place` and `body`. Every `body` is public, as the site shows it, reporter names included.
+Each row is one report, with the fields of the day file that the rule or a reader uses: `id`, `observed_at`, `observed_until`, `location`, `accuracy`, `taxon`, `count`, `direction`, `identifiers`, `absent`, `vitality`, `provider_slug`, `place` and `body`. Every `body` is public, as the site shows it, reporter names included. The `identifiers` are as the build publishes them since decision 121: the pods and populations a text names ("J pod", "Bigg's") are among them, where the days' files before it carried a `pods` key.
 
 - `track`: the label. Reports with the same label are about the same animals travelling as one party that day, and belong on one segment. The name is only a name: `J`, `T18s`, `humpback-east-passage`.
 - A label with a slash, `JK/possession-sound`, names a part of a party at a time when the party was in parts, or may have been. Reports of the same part belong together. Reports of different parts of one party, or of a part and the whole, are not scored against each other, because whether a rule should draw one line or two there is a judgement this set doesn't make.
