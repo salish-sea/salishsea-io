@@ -14,9 +14,10 @@ export const levelOf = (hedge: string): Certainty => LEVEL[hedge.toLowerCase()] 
 
 /**
  * A hedge word, and the stretch after it that it reaches: up to the next comma, period,
- * semicolon, closing bracket, "but", or a dash that ends a clause (one with a space on
- * either side, a doubled one, or a long one), so "not sure of ID - feeding" doubts the ID,
- * not the feeding. A hyphen inside a word or a code ("T65-A3", "SW-bound") ends nothing.
+ * semicolon, closing bracket, "!", line break, "but", or a dash that ends a clause (a
+ * hyphen with a space on either side, a doubled one, or a long dash with a space beside
+ * it), so "not sure of ID - feeding" doubts the ID, not the feeding. A dash inside a word,
+ * a code or a range ("T65-A3", "SW-bound", "4–6") ends nothing.
  */
 export type Reach = {from: number, to: number, level: Certainty};
 
@@ -28,7 +29,7 @@ export function reaches(text: string, skip: ReadonlySet<number> = new Set()): Re
     const found: Reach[] = [];
     for (const h of text.matchAll(HEDGE)) {
         if (skip.has(h.index!)) continue;
-        const end = text.slice(h.index!).search(/[,.;)]|\bbut\b|\s-|-\s|--|[–—]/);
+        const end = text.slice(h.index!).search(/[,.;)!\n]|\bbut\b|\s-|-\s|--|\s[–—]|[–—]\s/);
         found.push({from: h.index!, to: end < 0 ? text.length : h.index! + end, level: levelOf(h[0])});
     }
     return found;

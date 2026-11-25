@@ -155,8 +155,10 @@ describe('reading sighting text', () => {
         const labels = (text: string) => identifierLabels(readText(text));
         expect(labels('not sure of ID - T65A northbound')).toEqual(['T65A']);
         expect(labels('possibly T65A — T46s here too')).toEqual(['T65A?', 'T46s']);
-        // a hyphen inside a code ends nothing
+        // a hyphen inside a code, or a long dash in a range, ends nothing
         expect(labels('possibly T65-A3')).toEqual(['T65A3?']);
+        expect(labels("possibly 4–6 Bigg's")).toEqual(["Bigg's?"]);
+        expect(labels('possibly T65A–T65A5')).toEqual(['T65A?', 'T65A5?']);
     });
 
     test('a "?" directly after a name makes that name possible and reaches no further', () => {

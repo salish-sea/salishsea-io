@@ -5,7 +5,7 @@
  *
  * A tag is the reporters' own word, normalised only for form: "milled" and "milling" are
  * one tag, "feeding", "foraging" and "hunting" three, because different communities of
- * observers use them. A tag the reporter hedged ("possibly foraging", "flip northbound?")
+ * observers use them. A tag the reporter hedged ("possibly foraging", "possible flip northbound")
  * ends in '?', as an identifier does (decision 054; decision 116's note of 2026-11-25). Each phrase was measured over a year of published reports and the
  * gold set (docs/research/behaviour-in-sighting-text.md, scripts/gold/behaviour.ts); a new
  * one is measured the same way, and checked against the catalogue's nicknames, since a
@@ -129,8 +129,10 @@ export function readBehaviour(text: string): string[] {
         for (const m of read.matchAll(every)) {
             if (isName(read, m.index) || notNow(read.slice(0, m.index))) continue;
             const end = m.index + m[0].length;
-            const asked = read[end] === '?';
-            if (asked) own.add(end);
+            // the "?" may stand a space apart: "milling ?"
+            const mark = /^ ?\?/.exec(read.slice(end));
+            const asked = mark !== null;
+            if (asked) own.add(end + mark[0].length - 1);
             mentions.push({tag, index: m.index, end, own: asked});
         }
     }

@@ -12,7 +12,7 @@
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import * as path from 'node:path';
-import { bare, isPossible, PHRASES, readBehaviour } from '../../src/behaviour.ts';
+import { bare, PHRASES, readBehaviour } from '../../src/behaviour.ts';
 import { reportText } from '../../src/sighting-text.ts';
 import { loadGold } from './gold.ts';
 
@@ -60,8 +60,9 @@ function sample<T>(xs: T[], n: number, seed = 1): T[] {
     return a.slice(0, n);
 }
 
+const isPossible_ = (tag: string) => (t: string) => t === `${tag}?`;
+
 /** A Markdown table: reports per tag, by kind, in the list's order. */
-const isPossible_ = (tag: string) => (t: string) => t === `${tag}?` && isPossible(t);
 
 function counts(dir: string) {
     const reports = load(dir).map(r => ({...r, tags: readBehaviour(r.text)}));
