@@ -160,6 +160,11 @@ describe('labelFor', () => {
     expect(labelFor(orca(["Bigg's?"]))).toBe('Biggs?');
   });
 
+  test('a plain population outranks the same population named only by a possible code', () => {
+    expect(labelFor(orca(['T65A?', "Bigg's"]))).toBe('Biggs');
+    expect(labelFor(orca(['J27?', 'Southern Resident']))).toBe('J pod?');
+  });
+
   test('the subspecies carries the ecotype when the identifiers do not', () => {
     expect(labelFor(orca([], 'Orcinus orca rectipinnus'))).toBe('Biggs');
   });
@@ -269,6 +274,11 @@ describe('identifiersBeyond: what the name already says is left out of the list'
   test('Biggs says Bigg\'s, and SRKW says Southern Resident', () => {
     expect(identifiersBeyond('Biggs', ["Bigg's", "Bigg's?", 'T65A', 'Southern Resident'])).toEqual(['T65A', 'Southern Resident']);
     expect(identifiersBeyond('SRKW', ['Southern Resident', 'Southern Resident?', 'J27', "Bigg's"])).toEqual(['J27', "Bigg's"]);
+  });
+
+  test('a population only possibly there says its own hedged name', () => {
+    expect(identifiersBeyond('Biggs?', ["Bigg's?", 'T65A?'])).toEqual(['T65A?']);
+    expect(identifiersBeyond('SRKW?', ['Southern Resident?'])).toEqual([]);
   });
 
   test('a name with no population to say leaves the list alone', () => {

@@ -248,7 +248,12 @@ export function labelForSegment(occurrences: readonly Pick<Occurrence, 'identifi
   const head = occurrences[occurrences.length - 1]!;
   if (taxonGroup(head.taxon.scientific_name) === 'orca') {
     const identifiers = occurrences.flatMap(({identifiers}) => identifiers ?? []);
-    const named = firstNamed(identifiers, podOf) ?? firstNamed(identifiers, populationOf);
+    const pod = firstNamed(identifiers, podOf), population = firstNamed(identifiers, populationOf);
+    // A T code only possibly there names Biggs as a population does: "T65A?" beside a plain
+    // "Bigg's" is Biggs, not "Biggs? · Bigg's".
+    if (pod?.endsWith('?') && population === pod.slice(0, -1))
+      return population;
+    const named = pod ?? population;
     if (named)
       return named;
     // A record identified as the Southern Resident community says so itself: Maplify
@@ -284,8 +289,8 @@ export function labelForSegment(occurrences: readonly Pick<Occurrence, 'identifi
 /**
  * The identifiers a label lists after its name: those the name doesn't already say
  * (decision 121). "J pod" leaves out "J pod" and "J pod?", and, when the pod is plain,
- * the Southern Resident population too; "Biggs" leaves out "Bigg's"; "SRKW" leaves out
- * "Southern Resident". A name that is only possible ("J pod?") leaves out the pod's two
+ * the Southern Resident population too; "Biggs" or "Biggs?" leaves out "Bigg's" and
+ * "Bigg's?"; "SRKW" or "SRKW?" leaves out "Southern Resident" and "Southern Resident?". A name that is only possible ("J pod?") leaves out the pod's two
  * forms and keeps "Southern Resident", which it doesn't say.
  */
 export function identifiersBeyond(name: string, identifiers: readonly string[]): string[] {
@@ -294,9 +299,9 @@ export function identifiersBeyond(name: string, identifiers: readonly string[]):
     said.add(name.replace(/\?$/, '')).add(name.replace(/\?*$/, '?'));
     if (!name.endsWith('?'))
       said.add('Southern Resident').add('Southern Resident?');
-  } else if (name === 'Biggs')
+  } else if (/^Biggs\??$/.test(name))
     said.add("Bigg's").add("Bigg's?");
-  else if (name === 'SRKW')
+  else if (/^SRKW\??$/.test(name))
     said.add('Southern Resident').add('Southern Resident?');
   return identifiers.filter(identifier => !said.has(identifier));
 }
