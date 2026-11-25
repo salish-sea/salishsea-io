@@ -5,11 +5,14 @@
  *
  * A tag is the reporters' own word, normalised only for form: "milled" and "milling" are
  * one tag, "feeding", "foraging" and "hunting" three, because different communities of
- * observers use them. Each phrase was measured over a year of published reports and the
+ * observers use them. A tag the reporter hedged ("possibly foraging", "flip northbound?")
+ * ends in '?', as an identifier does (decision 054; decision 116's note of 2026-11-25). Each phrase was measured over a year of published reports and the
  * gold set (docs/research/behaviour-in-sighting-text.md, scripts/gold/behaviour.ts); a new
  * one is measured the same way, and checked against the catalogue's nicknames, since a
  * humpback can be called Zig Zag.
  */
+
+import { reaches, rank, type Certainty } from './hedge.ts';
 
 /**
  * A tag and the phrases that say it, matched against the report's text. `inSentence` is
@@ -108,21 +111,55 @@ function isName(text: string, at: number): boolean {
     return /[A-Z][a-z]+\s+$/.test(text.slice(open, at)) || /^\S+\s+[A-Z][a-z]/.test(text.slice(at));
 }
 
-/** The tags a text says, in the order of the list. */
+// A dash with a space on either side or doubled, or a long dash, ends a clause, so a hedge
+// before it is about what came before ("not sure of ID - feeding" doubts the ID, not the feeding).
+const DASH = /\s-|-\s|--|[\u2013\u2014]/;
+
+/**
+ * The tags a text says, in the order of the list. A hedge word before a phrase, in its reach
+ * (src/hedge.ts, as for the names a text gives), makes the tag possible, written with a
+ * trailing '?' as an identifier is ("possible foraging" is "foraging?"); a probable one
+ * ("likely foraging") is plain, as decision 109 writes a code. A "?" right after a phrase
+ * makes it possible. A tag the text says plainly anywhere is plain, whatever a hedge on
+ * another mention says (decision 054).
+ */
 export function readBehaviour(text: string): string[] {
     const read = unplace(text);
-    const tags: string[] = [];
+    // A "?" right after a phrase belongs to it and hedges nothing after it.
+    const own = new Set<number>();
+    const mentions: {tag: string, index: number, end: number, own: boolean}[] = [];
     for (const {tag, pattern} of PHRASES) {
         const every = new RegExp(pattern.source, pattern.flags + 'g');
-        if ([...read.matchAll(every)].some(m => !isName(read, m.index) && !notNow(read.slice(0, m.index))))
-            if (!tags.includes(tag)) tags.push(tag);
+        for (const m of read.matchAll(every)) {
+            if (isName(read, m.index) || notNow(read.slice(0, m.index))) continue;
+            const end = m.index + m[0].length;
+            const asked = read[end] === '?';
+            if (asked) own.add(end);
+            mentions.push({tag, index: m.index, end, own: asked});
+        }
     }
-    return tags;
+    const hedges = reaches(read, own);
+    const certainty = new Map<string, Certainty>();
+    for (const m of mentions) {
+        let level: Certainty = m.own ? 'possible' : 'certain';
+        if (level !== 'possible') for (const h of hedges)
+            if (h.from <= m.index && m.end <= h.to && !DASH.test(read.slice(h.from, m.index)) && rank[h.level] < rank[level]) level = h.level;
+        const have = certainty.get(m.tag);
+        if (have === undefined || rank[level] > rank[have]) certainty.set(m.tag, level);
+    }
+    return PHRASES.filter(p => certainty.has(p.tag)).map(p => certainty.get(p.tag) === 'possible' ? `${p.tag}?` : p.tag);
 }
 
-/** How a sentence says a tag: "moving quickly" for quickly, the tag itself for most. */
+/** Whether a tag the reader wrote is a possible one, which ends in '?'. */
+export const isPossible = (tag: string) => tag.endsWith('?');
+/** A tag without its '?': the reporters' word, whether or not they were sure. */
+export const bare = (tag: string) => tag.replace(/\?$/, '');
+
+/** How a sentence says a tag: "moving quickly" for quickly, the tag itself for most, "possibly foraging" for a possible one. */
 export function inSentence(tag: string): string {
-    return PHRASES.find(p => p.tag === tag)?.inSentence ?? tag;
+    const word = bare(tag);
+    const said = PHRASES.find(p => p.tag === word)?.inSentence ?? word;
+    return isPossible(tag) ? `possibly ${said}` : said;
 }
 
 /** Which part of a spread group a report's position is. */

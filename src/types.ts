@@ -65,7 +65,8 @@ export type Occurrence = {
   absent?: string[];
   /**
    * What its text says the animals were doing, in the reporters' own words: 'milling',
-   * 'spread out', 'hunting' (decision 116). Absent from a sighting the build hasn't seen yet.
+   * 'spread out', 'hunting' (decision 116). A tag the reporter hedged ends in '?', as an
+   * identifier does: 'foraging?' (decision 054). Absent from a sighting the build hasn't seen yet.
    */
   behaviour?: string[];
   /**

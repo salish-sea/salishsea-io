@@ -40,8 +40,9 @@
  */
 
 import { readBehaviour, readGroupPart, type GroupPart } from './behaviour.ts';
+import { reaches, rank, type Certainty } from './hedge.ts';
 
-export type Certainty = 'certain' | 'probable' | 'possible';
+export type { Certainty };
 export type Presence = 'present' | 'absent';
 /**
  * What kind of name a claim is (decision 121): a catalogue `code` ("T65A5", "J27s"), a `pod`
@@ -112,11 +113,6 @@ const CODE = /\b(?:([TJKL]|CRC|BC[XYZ])\s?-?\s?|([tjkl]|[Cc]rc\s?)(?=\d))?(\d{1,
 const LIST_GAP = /^\s*(?:(?:[,\/&+]|and)\s*)+$/i;
 // "Biggs 36Bs": a code without its letter right after the ecotype's name is a Bigg's code.
 const AFTER_BIGGS = /\b(?:biggs?|bigg['’]s|transients?)[\s:,]*$/i;
-const HEDGE = /\b(likely|possibly|possible|maybe|presumably|presumed|probably|probable|unconfirmed|not (?:sure|certain|positive|100\s*%?))\b|\?/gi;
-/** Decision 054's certainty for a hedge word: a strong hedge is probable, a weak one possible. */
-const LEVEL: Record<string, Certainty> = {likely: 'probable', presumably: 'probable', presumed: 'probable', probably: 'probable', probable: 'probable',
-    possibly: 'possible', possible: 'possible', maybe: 'possible', unconfirmed: 'possible', '?': 'possible'};
-const levelOf = (hedge: string): Certainty => LEVEL[hedge.toLowerCase()] ?? 'possible';
 const EXCLUDE = /\(\s*-\s*|\bminus\b|(?<=[A-Za-z0-9]s)\s+-(?=[A-Z])/g;
 // A negation in a sentence, as people write in comments on iNaturalist ("not the T090s
 // actually", "I don't recognize this as any T077 orca"): the codes it governs are absent.
@@ -378,16 +374,11 @@ export function readText(text: string): Reading {
     // confirmed." names J pod plainly.
     const mention = names.map((n, i): Certainty =>
         marked[i] || questions.some(q => n.start >= q.start && n.end <= q.end) ? 'possible' : 'certain');
-    for (const h of text.matchAll(HEDGE)) {
-        if (marks.has(h.index!)) continue;
-        const level = levelOf(h[0]);
-        const end = text.slice(h.index!).search(/[,.;)]|\bbut\b/);
-        const stop = end < 0 ? text.length : h.index! + end;
+    for (const {from, to, level} of reaches(text, marks)) {
         names.forEach((t, i) => {
-            if ((t.scopeStart ?? t.start) >= h.index! && (t.scopeEnd ?? t.end) <= stop && mention[i] !== 'possible') mention[i] = level;
+            if ((t.scopeStart ?? t.start) >= from && (t.scopeEnd ?? t.end) <= to && mention[i] !== 'possible') mention[i] = level;
         });
     }
-    const rank: Record<Certainty, number> = {possible: 0, probable: 1, certain: 2};
     const certainty = new Map<string, Certainty>();
     names.forEach((n, i) => {
         const have = certainty.get(n.text);
