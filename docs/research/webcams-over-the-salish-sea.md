@@ -8,7 +8,7 @@ This note asks which public webcams look over the Salish Sea and could appear on
 
 - **Few cameras give a wide view of open water on a whale route.** Four do: Lime Kiln (Haro Strait), the Saturna camera over Boundary Pass, Raincoast's camera on North Pender, and Skunk Bay (Admiralty Inlet). A few more are possible. Most "webcams" in this area show ferry docks, marinas, runways or roads.
 - **Nearly every camera is live only.** Apart from YouTube's rewind window of a few hours, Skunk Bay's day of time-lapses, Race Rocks' archive and DriveBC's replay of the past day, nobody keeps past images. Images from the time of a whale report exist only if we save them then.
-- **Almost no camera states a licence.** DriveBC is the exception: its images are under the Open Government Licence – British Columbia. The rest say nothing, or only "All rights reserved".
+- **Almost no camera states a licence.** Most say nothing, or only "All rights reserved". Race Rocks says its images may not be used on other websites, and asks to approve even links. DriveBC publishes its list of cameras under the Open Government Licence – British Columbia, but the licence names the list, not the images.
 - **Positions are mostly guesses.** Only WSDOT, DriveBC and the Saturna camera publish coordinates, and only Skunk Bay publishes which way it faces. Ask the operator before putting a camera on the map.
 
 ## Can we save frames when a whale is reported?
@@ -20,7 +20,7 @@ Technically it is easy. A still camera is one JPEG at a fixed URL, and a video s
 - **Republishing a frame needs a licence.** Showing a saved frame on a sighting's card or in the Darwin Core archive distributes the picture. We leave out unlicensed Maplify photos for the same reason (rights policy §1.4). A link to the camera's live page is always fine.
 - **A site's terms can bind more tightly than copyright.** YouTube's terms forbid downloading except through YouTube's own features, so frames from Lime Kiln, Raincoast or Friday Harbor need the operator's permission and a feed of their own, not frames taken from YouTube. The Windy webcam API forbids redistribution and treats downloading much of a camera's history as misuse, so we should fetch cameras from their operators rather than through Windy. WSDOT says its camera list is "intended for 'low volume' use"; a few frames per report should fit.
 
-So the plan that needs nobody's permission is: show the live camera, link to it, and record what people see on it. Saving frames needs the operator's agreement for YouTube cameras and is advisable for the small private ones, whom we'd ask anyway since they are likely partners. If we start saving frames, the rule belongs in the rights policy and gets a decision record.
+So the plan that needs nobody's permission is: show the live camera, link to it, and record what people see on it. Race Rocks is the exception: its terms ask for approval even of a link, so ask Pearson College before listing it. Saving frames needs the operator's agreement for YouTube cameras and is advisable for the small private ones, whom we'd ask anyway since they are likely partners. If we start saving frames, the rule belongs in the rights policy and gets a decision record.
 
 ## Cameras on whale routes
 
@@ -31,7 +31,7 @@ So the plan that needs nobody's permission is: show the live camera, link to it,
 | Pender Underwater Listening Station | Raincoast Conservation Foundation | North Pender, in the sanctuary zone for Southern Residents (Swanson Channel or Boundary Pass) | YouTube live, 1080p | YouTube's rewind window | None stated |
 | Skunk Bay Cam1 | Greg Johnson, privately | Admiralty Inlet, from Hansville | JPEG every 2 minutes, up to 1920×1080 | Time-lapses of the last 3 hours and of the previous day | None stated |
 | Langley Whale Cam | Whidbey Telecom | Saratoga Passage | Video stream (we could not connect to it) | None stated | None stated |
-| Race Rocks | Pearson College | Eastern Strait of Juan de Fuca | Cameras viewers can steer; low bandwidth | Archived video | Non-commercial teaching use is free; anything else needs permission |
+| Race Rocks | Pearson College | Eastern Strait of Juan de Fuca | Cameras viewers can steer; low bandwidth | Archived video | No use on other websites; links need approval |
 | East Passage, Burien | Orca Conservancy | Between the mainland and Vashon, KVI Beach to Blake Island | No stream link found | None found | None found |
 
 ### Lime Kiln lighthouse (The Whale Museum)
@@ -67,8 +67,8 @@ So the plan that needs nobody's permission is: show the live camera, link to it,
 
 ### Race Rocks (Pearson College)
 
-- Pages: <https://racerocks.ca/video-cameras/>, archive <https://racerocks.ca/archived-video/>, terms <https://racerocks.ca/copyright/>: "Information may be used for non-commercial purposes by teachers and students in classroom instruction... without requesting specific permission. Proper acknowledgement of the source must always be included."
-- The site asks viewers not to leave cameras running in the background, because the link to the island is a low-bandwidth microwave relay. Link to it rather than load it.
+- Pages: <https://racerocks.ca/video-cameras/>, archive <https://racerocks.ca/archived-video/>, terms <https://racerocks.ca/copyright/>: teachers and students may use its material in class without asking, with acknowledgement. Asked "May I use images or materials on a web site", it answers "No, but you may link with permission to educational websites", and of links it says "We welcome relevant non-commercial educational links. Please contact for approval." Permission requests go to Pearson College's administration, named on that page.
+- The site asks viewers not to leave cameras running in the background, because the link to the island is a low-bandwidth microwave relay. Even with approval, link to it rather than load it.
 
 ### East Passage, Burien (Orca Conservancy)
 
@@ -85,7 +85,7 @@ These are easy to fetch and some show water in the background, but they are poor
 - **Hood Canal Communications, Union.** [Tower and water cams](https://www.hcc.net/about-us/community-links/tower-and-water-cams/): a water camera and a boat-launch camera at Hood Canal Marina, and a tower camera looking over the canal toward Hoodsport, refreshed every 60 seconds. The site blocks automated requests, so the image URLs are still unknown. A private company: ask.
 - **Port of Friday Harbor** marina camera, YouTube live (<https://www.youtube.com/watch?v=pr2p_uvmXh8>): the harbour and the ferry lane.
 - **BC Ferries** terminal cameras (<https://www.bcferries.com/current-conditions/webcams>), for example `https://ccimg.bcferries.com/cc/support/terminals/cam1_SWB.jpg` for Swartz Bay: vehicle staging areas.
-- **DriveBC.** `https://www.drivebc.ca/api/webcams/` lists 1,072 cameras with position, direction and refresh period; images at `https://www.drivebc.ca/images/{id}.jpg`, and a replay of the past day per camera. The [dataset](https://catalogue.data.gov.bc.ca/dataset/bc-highwaycams) is under the [Open Government Licence – British Columbia](https://www2.gov.bc.ca/gov/content?id=A519A56BC2BF44E4A008B33FCF527F61), which allows copying and publishing "for any lawful purpose" with attribution. Nearly all show roads; a few along Howe Sound (Lions Bay, Furry Creek, Britannia, Horseshoe Bay) might show water.
+- **DriveBC.** `https://www.drivebc.ca/api/webcams/` lists 1,072 cameras with position, direction and refresh period; images at `https://www.drivebc.ca/images/{id}.jpg`, and a replay of the past day per camera. The [dataset](https://catalogue.data.gov.bc.ca/dataset/bc-highwaycams) is under the [Open Government Licence – British Columbia](https://www2.gov.bc.ca/gov/content?id=A519A56BC2BF44E4A008B33FCF527F61), which allows copying and publishing "for any lawful purpose" with attribution. The licence covers "a list of the locations, web addresses and attributes" of the cameras, not the images, and the list carries a credit field per camera, so the rights in the images themselves are not settled. Nearly all show roads; a few along Howe Sound (Lions Bay, Furry Creek, Britannia, Horseshoe Bay) might show water.
 - **Roche Harbor, Eastsound, Lopez Islander and others on HDOnTap**: commercial streams of marinas and bays, with tokens.
 - **FOX 13 Tacoma Narrows**: a commercial stream behind a token that expires after 30 minutes, with a sponsor's overlay. Not usable.
 
@@ -107,5 +107,6 @@ No working camera over open water was found for Active Pass, Port Townsend and P
 2. Greg Johnson, for Skunk Bay: permission, Cam1's exact position and direction, and whether he keeps the 20-second frames.
 3. Raincoast, for the Pender camera: its position and direction, and permission.
 4. The Saturna camera's owner, through EarthCam: who they are, and permission.
+5. Pearson College, for Race Rocks: approval to link to its cameras.
 
 Contacts are on each operator's page linked above.
