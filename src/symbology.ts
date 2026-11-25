@@ -250,9 +250,12 @@ export function labelForSegment(occurrences: readonly Pick<Occurrence, 'identifi
     const identifiers = occurrences.flatMap(({identifiers}) => identifiers ?? []);
     const pod = firstNamed(identifiers, podOf), population = firstNamed(identifiers, populationOf);
     // A T code only possibly there names Biggs as a population does: "T65A?" beside a plain
-    // "Bigg's" is Biggs, not "Biggs? · Bigg's".
-    if (pod?.endsWith('?') && population === pod.slice(0, -1))
-      return population;
+    // "Bigg's" is Biggs, not "Biggs? · Bigg's", whichever population comes first in the list.
+    if (pod?.endsWith('?')) {
+      const plain = pod.slice(0, -1);
+      if (identifiers.some(identifier => !identifier.endsWith('?') && populationOf(identifier) === plain))
+        return plain;
+    }
     const named = pod ?? population;
     if (named)
       return named;

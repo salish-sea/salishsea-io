@@ -163,6 +163,8 @@ describe('labelFor', () => {
   test('a plain population outranks the same population named only by a possible code', () => {
     expect(labelFor(orca(['T65A?', "Bigg's"]))).toBe('Biggs');
     expect(labelFor(orca(['J27?', 'Southern Resident']))).toBe('J pod?');
+    // another population ahead of the plain one doesn't hide it
+    expect(labelFor(orca(['T65A?', 'Southern Resident', "Bigg's"]))).toBe('Biggs');
   });
 
   test('the subspecies carries the ecotype when the identifiers do not', () => {
