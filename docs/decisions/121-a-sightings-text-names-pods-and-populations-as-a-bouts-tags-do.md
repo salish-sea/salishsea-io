@@ -37,6 +37,34 @@ The list after the name leaves out what the name already says:
 
 So the bout above reads "SRKW", not "SRKW · Southern Resident". `detectPod` and `detectEcotype` are removed. A contributor's own sighting, before the build publishes it, gets its identifiers from the same reader, in the text's order as the build writes them (`src/own-occurrence.ts`), so it is labelled by the same rule.
 
+## What changed, measured on production
+
+Over the year of day files to 2026-11-25, 69 of 5,300 killer whale labels change. Those that said only what the text says keep their label, because the reader now reads population names.
+
+| from | to | count | example |
+|---|---|---|---|
+| Killer whale | Biggs | 43 | a bout tagged Bigg's, *Intense Bigg's signals* |
+| J pod | SRKW | 11 | a bout tagged Southern Resident, titled *J pod NB Andrews Bay* |
+| Biggs | Biggs? | 5 | *possibly T46s* |
+| SRKW | J pod | 3 | a bout tagged J pod, titled *SRKWs SB near Kelp Reef* |
+| Resident | J pod | 3 | an iNaturalist observation whose remark names J pod |
+| SRKW | SRKW? | 1 | *possible Southern Residents* |
+| other | | 3 | *J pod and K pod northbound, Ks here* is now J pod, the first named |
+
+The bout this record began with, before and after:
+
+![The map label "J pod · Southern Resident" beside the Andrews Bay hydrophone](images/121-label-before.png)
+
+![The same point labelled "SRKW"](images/121-label-after.png)
+
+A report's card now shows the population its text names, as a bout's card already did. The same Maplify report, *Biggs T49C and T68Cs NW bound*, before and after:
+
+![A card whose chips are T49C and T68Cs](images/121-card-before.png)
+
+![The same card with a chip for Bigg's ahead of T49C and T68Cs](images/121-card-after.png)
+
+Over the year, 1,521 killer whale reports gain such a chip. Three reports of other species name a population, each about killer whales hunting them (*Hunted down by transient orcas*), and show it as they already show any T code their text names.
+
 ## What else changes
 
 - **The archive's `unvalidatedIdentifiers`** gains the pods and populations a text names, as it already has a bout's.
