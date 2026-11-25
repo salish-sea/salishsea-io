@@ -1,7 +1,7 @@
 /**
- * How the site reads a sighting's free text: the codes it names, each as a claim that the
- * animal or group was present or absent, with how sure the reporter was; the pods it
- * names; and the direction of travel. A few rules over the words, with no model, no
+ * How the site reads a sighting's free text: the names it gives, each as a claim that the
+ * animal or group was present or absent, with how sure the reporter was (a catalogue code,
+ * a pod or a population, decision 121); and the direction of travel. A few rules over the words, with no model, no
  * network and no dictionary, so the build (scripts/read-path/derive/readings.ts) and the
  * browser (identifiers.ts) run the same code and get the same answer every time
  * (decision 105, which replaced the build's regular expressions).
@@ -18,8 +18,12 @@
  * zeros are dropped while a digit follows ("T065A" is "T65A"), as the register's fold
  * compares codes. A hedge word marks the codes that follow it up to the next comma:
  * "likely" and "presumably" make them probable, "possibly", "maybe", "not sure" and "?"
- * possible (decision 054's certainty). Pods
- * are "J pod", "J Pod", "Jpod", "Js", "J and K pods". The direction is a compass word or
+ * possible (decision 054's certainty); a "?" directly after a name makes only that name
+ * possible. Pods are "J pod", "J Pod", "Jpod", "Js", "J and K pods", and are named "J pod"
+ * as the register labels them; populations are "Biggs", "Bigg's", "transients" ("Bigg's")
+ * and "SRKW", "southern residents" ("Southern Resident"). A pod or a population is found
+ * where it is written, as a code is, so a hedge reaches it; a negation reaches codes
+ * only. The direction is a compass word or
  * abbreviation, "NB", "SW bound", "trending N", ignoring a bearing ("north of Alki",
  * "1/2 mile southeast of"), a place name ("West Point"), a spread ("north to south", "N to
  * S") and "facing"; after "now", "then" or "turned", the direction after the cue wins,
@@ -36,13 +40,20 @@ import { readBehaviour, readGroupPart, type GroupPart } from './behaviour.ts';
 
 export type Certainty = 'certain' | 'probable' | 'possible';
 export type Presence = 'present' | 'absent';
-/** One code the text names: whether it says the animal or group was there, and how sure the reporter was. */
-export type Claim = {code: string, presence: Presence, certainty: Certainty};
+/**
+ * What kind of name a claim is (decision 121): a catalogue `code` ("T65A5", "J27s"), a `pod`
+ * ("J pod") or a `population` ("Bigg's", "Southern Resident"). A pod's and a population's
+ * names are the register's labels for them, the words a bout's tags use.
+ */
+export type ClaimKind = 'code' | 'pod' | 'population';
+/**
+ * One name the text gives: whether it says the animal or group was there, and how sure the
+ * reporter was. For a pod or a population `code` holds its name, as a bout's tag has it.
+ */
+export type Claim = {code: string, presence: Presence, certainty: Certainty, kind: ClaimKind};
 
 export type Reading = {
     claims: Claim[];
-    /** The Southern Resident pods named, as their letters. */
-    pods: string[];
     /** A compass direction ("north" … "northwest"), "milling", "unknown", or null. */
     direction: string | null;
     /** What the text says the animals were doing, in the reporters' words (decision 116). */
@@ -51,13 +62,19 @@ export type Reading = {
     groupPart: GroupPart | null;
 };
 
-export const present = (r: Pick<Reading, 'claims'>) => r.claims.filter(c => c.presence === 'present').map(c => c.code);
-export const absent = (r: Pick<Reading, 'claims'>) => r.claims.filter(c => c.presence === 'absent').map(c => c.code);
-export const hedged = (r: Pick<Reading, 'claims'>) => r.claims.filter(c => c.presence === 'present' && c.certainty !== 'certain').map(c => c.code);
+/** The catalogue codes alone: these three, and the identifier candidates, don't take pods or populations (decision 121). */
+const codesOf = (r: Pick<Reading, 'claims'>) => r.claims.filter(c => c.kind === 'code');
+export const present = (r: Pick<Reading, 'claims'>) => codesOf(r).filter(c => c.presence === 'present').map(c => c.code);
+export const absent = (r: Pick<Reading, 'claims'>) => codesOf(r).filter(c => c.presence === 'absent').map(c => c.code);
+export const hedged = (r: Pick<Reading, 'claims'>) => codesOf(r).filter(c => c.presence === 'present' && c.certainty !== 'certain').map(c => c.code);
+/** The letters of the pods the text says were there ("J pod" is "J"), as the gold set's `pods` column has them. */
+export const podLetters = (r: Pick<Reading, 'claims'>) =>
+    r.claims.filter(c => c.kind === 'pod' && c.presence === 'present').map(c => c.code.replace(/ pod$/, ''));
 /**
- * The present codes as an occurrence's identifiers write them (decision 109): one the
- * reporter says was only possibly there ends in '?', as a bout's tag does (decision 054),
- * and a probable one is plain. The build writes the same (derive/occurrences.sql).
+ * The names present as an occurrence's identifiers write them (decision 109): codes, pods
+ * and populations in the order the text gives them (decision 121). One the reporter says
+ * was only possibly there ends in '?', as a bout's tag does (decision 054), and a probable
+ * one is plain. The build writes the same (derive/occurrences.sql).
  */
 export const identifierLabels = (r: Pick<Reading, 'claims'>) =>
     r.claims.filter(c => c.presence === 'present').map(c => c.certainty === 'possible' ? `${c.code}?` : c.code);
@@ -165,6 +182,33 @@ const base = (code: string, dropLastGroup: boolean) => {
     return b;
 };
 
+// A pod's name: "Js" and "K's", then "J pod", "J Pod" (most of Orca Network's in November
+// 2026), "J AND K PODS", with the "and" of a list in any of the cases reporters write it.
+const POD_PLURAL = /\b([JKL])(?:s|'s)\b/g;
+const POD_NAMED = /\b([JKLjkl](?:\s*(?:,\s*(?:[Aa]nd|AND)|,|[Aa]nd|AND|&|\+)\s*[JKLjkl])*)\s*-?\s?(?:[Pp]ods?|PODS?)\b/g;
+// A population's name: the plural is as ordinary as the singular, "transients in Haro
+// Strait", "southern residents foraging", and \b after the singular refuses it.
+const BIGGS = /\b(?:biggs?|bigg['’]s|transients?)\b/gi;
+const SOUTHERN_RESIDENT = /\b(?:srkws?|southern residents?)\b/gi;
+
+/** Where the text names a pod or a population, in the register's words (decision 121). */
+function groupTokens(text: string): {start: number, end: number, text: string, kind: ClaimKind}[] {
+    const out: {start: number, end: number, text: string, kind: ClaimKind}[] = [];
+    for (const m of text.matchAll(POD_PLURAL)) out.push({start: m.index!, end: m.index! + m[0].length, text: `${m[1]} pod`, kind: 'pod'});
+    for (const m of text.matchAll(POD_NAMED)) {
+        const letters = [...m[1]!.matchAll(/[JKLjkl]/g)];
+        letters.forEach((l, i) => out.push({
+            start: m.index! + l.index!,
+            // a "?" after the list belongs to the last pod in it
+            end: i === letters.length - 1 ? m.index! + m[0].length : m.index! + l.index! + 1,
+            text: `${l[0].toUpperCase()} pod`, kind: 'pod',
+        }));
+    }
+    for (const m of text.matchAll(BIGGS)) out.push({start: m.index!, end: m.index! + m[0].length, text: "Bigg's", kind: 'population'});
+    for (const m of text.matchAll(SOUTHERN_RESIDENT)) out.push({start: m.index!, end: m.index! + m[0].length, text: 'Southern Resident', kind: 'population'});
+    return out;
+}
+
 /** The text a reader should read (reportText), read. */
 export function readText(text: string): Reading {
     const tokens = codeTokens(text);
@@ -181,6 +225,7 @@ export function readText(text: string): Reading {
         previous = t;
     }
     const named = tokens.filter(t => t.text);
+    const groups = groupTokens(text);
 
     // Exclusions: a cue, then codes or short suffixes up to the next word that is neither.
     const absent = new Set<string>();
@@ -266,35 +311,37 @@ export function readText(text: string): Reading {
             break;
         }
     }
-    const present: string[] = [];
-    named.forEach((t, i) => { if (!excludedIdx.has(i) && !present.includes(t.text)) present.push(t.text); });
+    // Every name present, in the order the text gives them: the codes not excluded, and the pods and populations.
+    type Name = {start: number, end: number, text: string, kind: ClaimKind};
+    const names: Name[] = [
+        ...named.flatMap((t, i): Name[] => excludedIdx.has(i) ? [] : [{start: t.start, end: t.end, text: t.text, kind: 'code'}]),
+        ...groups,
+    ].sort((a, b) => a.start - b.start);
+    const kindOf = new Map<string, ClaimKind>();
+    for (const n of names) if (!kindOf.has(n.text)) kindOf.set(n.text, n.kind);
+    const present = [...kindOf.keys()];
 
-    // Hedges: the codes after a hedge word, up to the next comma, period or closing bracket,
-    // carry the word's certainty; a code under two hedges takes the weaker.
+    // Hedges: the names after a hedge word, up to the next comma, period or closing bracket,
+    // carry the word's certainty; a name under two hedges takes the weaker. A "?" directly
+    // after a name makes that name possible and reaches no further (decision 121); a "?"
+    // standing apart hedges the names after it, as a hedge word does.
     const certainty = new Map<string, Certainty>([...questioned].map(code => [code, 'possible' as const]));
+    for (const n of names) if (text[n.end] === '?') certainty.set(n.text, 'possible');
     for (const h of text.matchAll(HEDGE)) {
+        if (names.some(n => n.end === h.index)) continue;
         const level = levelOf(h[0]);
         const end = text.slice(h.index!).search(/[,.;)]|\bbut\b/);
         const stop = end < 0 ? text.length : h.index! + end;
-        for (const t of named) {
-            if (t.start >= h.index! && t.end <= stop && present.includes(t.text) && certainty.get(t.text) !== 'possible') certainty.set(t.text, level);
+        for (const t of names) {
+            if (t.start >= h.index! && t.end <= stop && certainty.get(t.text) !== 'possible') certainty.set(t.text, level);
         }
     }
     const claims: Claim[] = [
-        ...present.map(code => ({code, presence: 'present' as const, certainty: certainty.get(code) ?? 'certain'})),
-        ...[...absent].map(code => ({code, presence: 'absent' as const, certainty: 'certain' as const})),
+        ...present.map(code => ({code, presence: 'present' as const, certainty: certainty.get(code) ?? 'certain', kind: kindOf.get(code)!})),
+        ...[...absent].map(code => ({code, presence: 'absent' as const, certainty: 'certain' as const, kind: 'code' as const})),
     ];
 
-    // Pods.
-    const pods = new Set<string>();
-    for (const m of text.matchAll(/\b([JKL])(?:s|'s)\b/g)) pods.add(m[1]!);
-    // "pod", and the "and" of a list, in any of the cases reporters write them: "J pod", "J Pod" (most of Orca
-    // Network's in November 2026), "J AND K PODS".
-    for (const m of text.matchAll(/\b([JKLjkl](?:\s*(?:,\s*(?:[Aa]nd|AND)|,|[Aa]nd|AND|&|\+)\s*[JKLjkl])*)\s*-?\s?(?:[Pp]ods?|PODS?)\b/g)) {
-        for (const l of m[1]!.toUpperCase().match(/[JKL]/g) ?? []) pods.add(l);
-    }
-
-    return {claims, pods: [...pods], direction: readDirection(text), behaviour: readBehaviour(text), groupPart: readGroupPart(text)};
+    return {claims, direction: readDirection(text), behaviour: readBehaviour(text), groupPart: readGroupPart(text)};
 }
 
 const FULL: Record<string, string> = {

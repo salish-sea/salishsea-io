@@ -22,8 +22,7 @@ export async function readWithRegex(rows: GoldRow[]): Promise<Map<number, Readin
     )).getRowObjectsJS() as unknown as {n: number, direction: string | null, identifiers: {items: string[]} | string[] | null}[];
     return new Map(got.map(r => [r.n, {
         claims: (r.identifiers === null ? [] : Array.isArray(r.identifiers) ? r.identifiers : r.identifiers.items)
-            .map(code => ({code, presence: 'present' as const, certainty: 'certain' as const})),
-        pods: [],
+            .map(code => ({code, presence: 'present' as const, certainty: 'certain' as const, kind: 'code' as const})),
         direction: r.direction,
     }]));
 }

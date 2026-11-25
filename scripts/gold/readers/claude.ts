@@ -112,7 +112,10 @@ export function claudeReader(model: string) {
         save(path, cache);
         return new Map(rows.map(r => {
             const m = cache[r.maplify_id]!.reading;
-            return [r.row, {claims: m.claims, pods: m.pods, direction: m.direction}];
+            // the model answers pods as letters; they are claims of kind pod, as the shared reader's are
+            const codes = m.claims.map(c => ({...c, kind: 'code' as const}));
+            const pods = m.pods.map(letter => ({code: `${letter} pod`, presence: 'present' as const, certainty: 'certain' as const, kind: 'pod' as const}));
+            return [r.row, {claims: [...codes, ...pods], direction: m.direction}];
         }));
     };
 }

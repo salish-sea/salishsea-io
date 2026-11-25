@@ -12,7 +12,7 @@
  */
 
 import { isHeldOut, loadGold, reportText, type GoldRow } from './gold.ts';
-import { scoreRow, table, tally, type Reading } from './score.ts';
+import { podLetters, scoreRow, table, tally, type Reading } from './score.ts';
 import { readWithRegex } from './readers/regex.ts';
 
 type Reader = (rows: GoldRow[]) => Promise<Map<number, Reading>>;
@@ -44,6 +44,6 @@ for (const name of names) {
         const got = readings.get(row.row)!;
         const bad = Object.entries(scoreRow(row, got)).filter(([, ok]) => !ok).map(([f]) => f);
         const claims = got.claims.map(c => `${c.code}${c.presence === 'absent' ? ' absent' : ''}${c.certainty === 'certain' ? '' : ` ${c.certainty}`}`).join(', ');
-        console.log(`\n#${row.row} ${reportText(row.comment)}\n  read: claims [${claims}] | pods ${got.pods} | direction ${got.direction}\n  gold: present ${row.codes_present} | absent ${row.codes_absent} | hedged ${row.codes_hedged}${row.hedge_level ? ` (${row.hedge_level})` : ''} | pods ${row.pods} | direction ${row.direction}${bad.length ? `\n  wrong: ${bad.join(', ')}` : ''}`);
+        console.log(`\n#${row.row} ${reportText(row.comment)}\n  read: claims [${claims}] | pods ${podLetters(got)} | direction ${got.direction}\n  gold: present ${row.codes_present} | absent ${row.codes_absent} | hedged ${row.codes_hedged}${row.hedge_level ? ` (${row.hedge_level})` : ''} | pods ${row.pods} | direction ${row.direction}${bad.length ? `\n  wrong: ${bad.join(', ')}` : ''}`);
     }
 }

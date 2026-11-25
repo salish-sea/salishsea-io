@@ -1,9 +1,10 @@
 /**
  * How a reading of a sighting's text is scored against its gold row.
  *
- * A reader answers claims, one per code the text names: the code, whether the text says
- * the animal was present or absent, and how sure the reporter was (decision 054's
- * certainty: certain, probable, possible); plus the pods named and the direction. Six
+ * A reader answers claims, one per name the text gives: the name, its kind (a code or a pod,
+ * decision 121), whether the text says the animal was present or absent, and how sure the
+ * reporter was (decision 054's certainty: certain, probable, possible); plus the direction.
+ * The codes are scored from the claims of kind code and the pods from those of kind pod. Six
  * fields are scored, each right or wrong per report. Codes are compared as sets after the
  * register's fold (T065A5 is T65A5), so order and zero padding don't matter, but a listed
  * absent animal, a missed code or an invented one each make the field wrong. Certainty is
@@ -15,12 +16,15 @@
  */
 
 import type { GoldRow } from './gold.ts';
-import { absent, hedged, present, type Reading as FullReading } from '../../src/sighting-text.ts';
+import { absent, hedged, podLetters, present, type Reading as FullReading } from '../../src/sighting-text.ts';
 
 export type { Certainty, Claim } from '../../src/sighting-text.ts';
-/** What the score reads of a reader's answer: the codes, the pods and the direction. Behaviour is measured by scripts/gold/behaviour.ts. */
-export type Reading = Pick<FullReading, 'claims' | 'pods' | 'direction'>;
-export { absent, hedged, present } from '../../src/sighting-text.ts';
+/**
+ * What the score reads of a reader's answer: the claims, whose codes and pods are scored apart
+ * (a claim's `kind`, decision 121), and the direction. Behaviour is measured by scripts/gold/behaviour.ts.
+ */
+export type Reading = Pick<FullReading, 'claims' | 'direction'>;
+export { absent, hedged, podLetters, present } from '../../src/sighting-text.ts';
 
 export const FIELDS = ['direction', 'codes_present', 'codes_absent', 'codes_hedged', 'certainty', 'pods'] as const;
 export type Field = typeof FIELDS[number];
@@ -41,14 +45,14 @@ export function scoreRow(gold: GoldRow, reading: Reading): Record<Field, boolean
         : reading.direction === gold.direction || (gold.direction_also !== null && reading.direction === gold.direction_also);
     const goldCertainty = gold.codes_present.map(code =>
         `${foldCode(code)}:${gold.codes_hedged.some(h => foldCode(h) === foldCode(code)) ? gold.hedge_level : 'certain'}`);
-    const readCertainty = reading.claims.filter(c => c.presence === 'present').map(c => `${foldCode(c.code)}:${c.certainty}`);
+    const readCertainty = reading.claims.filter(c => c.kind === 'code' && c.presence === 'present').map(c => `${foldCode(c.code)}:${c.certainty}`);
     return {
         direction,
         codes_present: sameSet(present(reading), gold.codes_present),
         codes_absent: sameSet(absent(reading), gold.codes_absent),
         codes_hedged: sameSet(hedged(reading), gold.codes_hedged),
         certainty: sameSet(readCertainty, goldCertainty),
-        pods: sameSet(reading.pods, gold.pods),
+        pods: sameSet(podLetters(reading), gold.pods),
     };
 }
 

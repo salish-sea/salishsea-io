@@ -46,6 +46,8 @@ CREATE OR REPLACE TABLE build.occurrence_identifier_candidates AS
     SELECT occurrence_id, x.code, x.presence = 'present' AS is_present, nullif(x.certainty, 'certain') AS certainty,
            x.origin, x.origin_id, x.by_observer, observed_at, location
     FROM named
+    -- a pod or a population a text names is not a code: "Bigg's" ends in s and would be tried as a matriline (decision 121)
+    WHERE x.kind = 'code'
   ),
   matriline AS (
     SELECT CAST(doc->>'id' AS INTEGER) AS id, doc->>'designation_folded' AS designation_folded

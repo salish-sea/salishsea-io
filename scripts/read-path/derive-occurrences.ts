@@ -126,13 +126,14 @@ const COLUMNS: readonly {name: string, type: string, from: (source: Source) => s
     {name: 'source', type: 'VARCHAR', from: source => `'${source}'`},
     {name: 'identifiers', type: 'VARCHAR[]', from: () => 'o.identifiers'},
     {name: 'location', type: 'STRUCT(lat DOUBLE, lon DOUBLE)', from: () => 'o.location'},
-    // Every code the occurrence's text names (decision 109): whether it says the animal was
+    // Every name the occurrence's text gives, a code, a pod or a population (its `kind`,
+    // decisions 109 and 121): whether it says the animal was
     // present or absent, how sure the writer was, and where it was read: the occurrence's
     // own text ('report'), or a comment or an identification on an iNaturalist observation
     // (salish-4s42, decision 106), with whether the observer wrote it. Null for a bout,
     // whose claims are its tags. Read by the identifier candidates; not in the document,
-    // which has the present codes as `identifiers` and the absent ones as `absent`.
-    {name: 'claims', type: 'STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR, origin VARCHAR, origin_id BIGINT, by_observer BOOLEAN)[]',
+    // which has the present names as `identifiers` and the absent ones as `absent`.
+    {name: 'claims', type: 'STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR, kind VARCHAR, origin VARCHAR, origin_id BIGINT, by_observer BOOLEAN)[]',
      from: () => 'o.claims'},
 ];
 const CREATE_TABLE = `CREATE OR REPLACE TABLE build.occurrences (${COLUMNS.map(c => `${c.name} ${c.type}`).join(', ')})`;

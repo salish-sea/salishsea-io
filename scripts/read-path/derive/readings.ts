@@ -6,17 +6,17 @@
  * text: Maplify's comments, iNaturalist's descriptions and our own sightings' bodies.
  * Orcasound's bouts carry their identifiers as tags, not text, so they have no reading.
  *
- * `reading(id, direction, claims, pods, behaviour, group_part)`, keyed by the occurrence's id
+ * `reading(id, direction, claims, behaviour, group_part)`, keyed by the occurrence's id
  * as its view spells it. `behaviour` is the tags the text says and `group_part` the part of
- * a spread group it puts at the reported position, `leaders` or `trailers` (decision 116). `claims` is every code the text names with whether it says the animal was present or
- * absent and how sure the reporter was; the views write the present codes as the
+ * a spread group it puts at the reported position, `leaders` or `trailers` (decision 116). `claims` is every name the text gives, a code, a pod or a population (its `kind`, decision 121), with whether it says the animal was present or
+ * absent and how sure the reporter was; the views write the present names as the
  * occurrence's identifiers, a possible one with a '?', the absent ones as its `absent`,
  * and all of them as its `claims`, which the identifier candidates read (decision 109).
  * A text that names nothing has no row.
  *
- * `remark_claims(id, origin, origin_id, by_observer, claims, pods)`: the same reading of what people
+ * `remark_claims(id, origin, origin_id, by_observer, claims)`: the same reading of what people
  * wrote on an iNaturalist observation besides its description, each comment and each
- * identification's remark read alone (salish-4s42, decision 106). The codes and pods it
+ * identification's remark read alone (salish-4s42, decision 106). The codes, pods and populations it
  * names join the occurrence's own; its direction is not read, since a direction is the
  * observer's (a commenter's "heading north" may be about another moment). Kept apart from
  * `reading` so each code keeps where it was read.
@@ -35,11 +35,11 @@ export const TEXTS = {
 export type TextSource = keyof typeof TEXTS;
 export const readsText = (source: string): source is TextSource => source in TEXTS;
 
-const READING_SHAPE = JSON.stringify({direction: 'VARCHAR', claims: [{code: 'VARCHAR', presence: 'VARCHAR', certainty: 'VARCHAR'}], pods: ['VARCHAR'], behaviour: ['VARCHAR'], groupPart: 'VARCHAR'});
+const READING_SHAPE = JSON.stringify({direction: 'VARCHAR', claims: [{code: 'VARCHAR', presence: 'VARCHAR', certainty: 'VARCHAR', kind: 'VARCHAR'}], behaviour: ['VARCHAR'], groupPart: 'VARCHAR'});
 
 export const CREATE_READING = `CREATE OR REPLACE TABLE memory.main.reading (
     id VARCHAR, direction VARCHAR,
-    claims STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR)[], pods VARCHAR[],
+    claims STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR, kind VARCHAR)[],
     behaviour VARCHAR[], group_part VARCHAR)`;
 
 /**
@@ -48,25 +48,25 @@ export const CREATE_READING = `CREATE OR REPLACE TABLE memory.main.reading (
  */
 export const REMARKS = `SELECT 'inaturalist:' || observation_id, origin, origin_id, by_observer, body FROM source_inaturalist_remarks`;
 
-const REMARK_SHAPE = JSON.stringify({claims: [{code: 'VARCHAR', presence: 'VARCHAR', certainty: 'VARCHAR'}], pods: ['VARCHAR']});
+const REMARK_SHAPE = JSON.stringify({claims: [{code: 'VARCHAR', presence: 'VARCHAR', certainty: 'VARCHAR', kind: 'VARCHAR'}]});
 
 export const CREATE_REMARK_CLAIMS = `CREATE OR REPLACE TABLE memory.main.remark_claims (
     id VARCHAR, origin VARCHAR, origin_id BIGINT, by_observer BOOLEAN,
-    claims STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR)[], pods VARCHAR[])`;
+    claims STRUCT(code VARCHAR, presence VARCHAR, certainty VARCHAR, kind VARCHAR)[])`;
 
 /**
- * Append the claims and pods of each remark that names an animal or a pod to memory.main.remark_claims,
+ * Append the claims of each remark that names an animal, a pod or a population to memory.main.remark_claims,
  * which CREATE_REMARK_CLAIMS made, as writeReadings does. A remark is read exactly as
  * written (readText): it has neither the collection tag nor the "Submitted by" tail that
  * readSighting strips from a report.
  */
 export async function writeRemarkClaims(conn: DuckDBConnection): Promise<number> {
     const result = await conn.stream(REMARKS);
-    const found: [string, string, bigint, boolean, Pick<Reading, 'claims' | 'pods'>][] = [];
+    const found: [string, string, bigint, boolean, Pick<Reading, 'claims'>][] = [];
     for await (const rows of result.yieldRows() as AsyncIterable<[string, string, bigint, boolean, string][]>) {
         for (const [id, origin, originId, byObserver, body] of rows) {
-            const {claims, pods} = readText(body);
-            if (claims.length || pods.length) found.push([id, origin, originId, byObserver, {claims, pods}]);
+            const {claims} = readText(body);
+            if (claims.length) found.push([id, origin, originId, byObserver, {claims}]);
         }
     }
     await conn.run('CREATE OR REPLACE TABLE memory.main.remark_text (id VARCHAR, origin VARCHAR, origin_id BIGINT, by_observer BOOLEAN, reading VARCHAR)');
@@ -85,7 +85,7 @@ export async function writeRemarkClaims(conn: DuckDBConnection): Promise<number>
         appender.closeSync();
     }
     await conn.run(`INSERT INTO memory.main.remark_claims
-        SELECT id, origin, origin_id, by_observer, r.claims, r.pods
+        SELECT id, origin, origin_id, by_observer, r.claims
         FROM (SELECT id, origin, origin_id, by_observer, from_json(reading, '${REMARK_SHAPE}') AS r FROM memory.main.remark_text)`);
     await conn.run('DROP TABLE memory.main.remark_text');
     return found.length;
@@ -105,7 +105,7 @@ export async function writeReadings(conn: DuckDBConnection, source: TextSource):
     for await (const rows of result.yieldRows() as AsyncIterable<[string, string][]>) {
         for (const [id, body] of rows) {
             const reading = readSighting(body);
-            if (reading.claims.length || reading.pods.length || reading.direction !== null
+            if (reading.claims.length || reading.direction !== null
                 || reading.behaviour.length || reading.groupPart !== null) found.push([id, reading]);
         }
     }
@@ -122,7 +122,7 @@ export async function writeReadings(conn: DuckDBConnection, source: TextSource):
         appender.closeSync();
     }
     await conn.run(`INSERT INTO memory.main.reading
-        SELECT id, r.direction, r.claims, r.pods, r.behaviour, r.groupPart
+        SELECT id, r.direction, r.claims, r.behaviour, r.groupPart
         FROM (SELECT id, from_json(reading, '${READING_SHAPE}') AS r FROM memory.main.reading_text)`);
     await conn.run('DROP TABLE memory.main.reading_text');
     return found.length;
