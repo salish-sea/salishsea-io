@@ -97,6 +97,17 @@ describe('what the reports say the animals were doing (decision 116)', () => {
     ]);
   });
 
+  test("a tag one report says plainly outranks the same tag hedged in another, and a hedged one is 'possibly'", async () => {
+    const reports = [
+      said(report('a', 0, ''), ['milling', 'foraging?']),
+      said(report('b', 30, ''), ['foraging', 'breaching?']),
+    ];
+    expect(behaviourSpells(reports).map(({tags}) => tags)).toEqual([['milling', 'foraging']]);
+    const card = await mount([said(report('a', 0, ''), ['milling', 'foraging?'])]);
+    expect(card.shadowRoot!.querySelector('p.behaviour')!.textContent!.replace(/\s+/g, ' ').trim())
+      .toBe('Milling and possibly foraging 12:00.');
+  });
+
   test('the card says it as a sentence, with times, and nothing when no report says anything', async () => {
     const card = await mount([
       said(report('a', 0, 'spread out'), ['spread out']),

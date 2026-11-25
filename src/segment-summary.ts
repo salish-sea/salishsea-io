@@ -14,7 +14,7 @@ import { openAnimalLinkInSidebar } from './subject.ts';
 import './obs-summary.ts';
 import { placeSpan } from './place.ts';
 import { observedClock } from './constants.ts';
-import { inSentence } from './behaviour.ts';
+import { bare, inSentence, isPossible } from './behaviour.ts';
 
 /** A segment becomes one card from this many reports up; fewer stay cards of their own (Peter, 2026-10-28). */
 export const SEGMENT_CARD_MIN = 3;
@@ -326,21 +326,27 @@ export type BehaviourSpell = {tags: string[], from: Occurrence, to: Occurrence};
  * report with a tag joins the spell when it shares a tag with the report before it, and
  * starts a new spell when it doesn't, so a change shows even when an older report in the
  * spell said the same ("spread out, then grouped up"). A report that says nothing about
- * behaviour doesn't break a spell.
+ * behaviour doesn't break a spell. A tag a report hedged ends in '?' and is said "possibly";
+ * a tag one report says plainly outranks the same tag hedged in another.
  * "Spread out 08:43, then milling and foraging 09:22, then spread out 09:52–11:20".
  */
 export function behaviourSpells(reports: readonly Occurrence[]): BehaviourSpell[] {
   const spells: BehaviourSpell[] = [];
   let before: string[] = [];
   for (const r of [...reports].sort((a, b) => a.observed_at.localeCompare(b.observed_at))) {
-    const tags = (r.behaviour ?? []).filter(t => !AT_THE_SURFACE.has(t));
+    const tags = (r.behaviour ?? []).filter(t => !AT_THE_SURFACE.has(bare(t)));
     if (!tags.length) continue;
     const spell = spells.at(-1);
-    if (spell && tags.some(t => before.includes(t))) {
-      for (const t of tags) if (!spell.tags.includes(t)) spell.tags.push(t);
+    if (spell && tags.some(t => before.includes(bare(t)))) {
+      for (const t of tags) {
+        const at = spell.tags.findIndex(have => bare(have) === bare(t));
+        if (at < 0) spell.tags.push(t);
+        // a tag one report says plainly outranks the same tag hedged in another (decision 054)
+        else if (isPossible(spell.tags[at]!) && !isPossible(t)) spell.tags[at] = t;
+      }
       spell.to = r;
     } else spells.push({tags: [...tags], from: r, to: r});
-    before = tags;
+    before = tags.map(bare);
   }
   return spells;
 }

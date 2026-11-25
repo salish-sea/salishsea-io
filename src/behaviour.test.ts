@@ -15,6 +15,22 @@ describe('readBehaviour', () => {
             .toEqual(['quickly', 'spread out', 'surface active']);
     });
 
+    test('a hedged behaviour is kept and marked, as an identifier is (decisions 054, 109)', () => {
+        expect(readBehaviour('non-directional milling, possible foraging')).toEqual(['milling', 'foraging?']);
+        expect(readBehaviour('possible flip northbound')).toEqual(['flipped?']);
+        // a strong hedge is probable, which is written plain
+        expect(readBehaviour('likely foraging')).toEqual(['foraging']);
+        expect(readBehaviour('foraging, possibly breaching')).toEqual(['foraging', 'breaching?']);
+        // a tag given plainly anywhere is plain, hedged elsewhere or not
+        expect(readBehaviour('possibly foraging. Later, foraging near the point')).toEqual(['foraging']);
+        expect(readBehaviour('foraging, maybe foraging again')).toEqual(['foraging']);
+        // a "?" right after a phrase hedges it and nothing after it; the hedge stops at a comma
+        expect(readBehaviour('milling? foraging')).toEqual(['milling?', 'foraging']);
+        expect(readBehaviour('possibly milling, foraging')).toEqual(['milling?', 'foraging']);
+        expect(inSentence('foraging?')).toBe('possibly foraging');
+        expect(inSentence('quickly?')).toBe('possibly moving quickly');
+    });
+
     test('a behaviour put in the past or denied is not read', () => {
         expect(readBehaviour('Biggs, southbound after feeding (Mollie Segall)')).toEqual([]);
         expect(readBehaviour('now committed to northbound travels after feeding')).toEqual([]);
@@ -88,6 +104,16 @@ describe('readBehaviour', () => {
     test('every tag is a phrase\'s, so the list is the vocabulary', () => {
         const tags = new Set(PHRASES.map(p => p.tag));
         expect(tags.size).toBe(PHRASES.length);
+    });
+});
+
+describe('how far a hedge reaches (src/hedge.ts)', () => {
+    test('a "?" a space apart still marks the phrase before it', () => {
+        expect(readBehaviour('milling ? foraging')).toEqual(['milling?', 'foraging']);
+    });
+    test('"!" and a line break end a hedge', () => {
+        expect(readBehaviour('Possible Ts!! Breaching')).toEqual(['breaching']);
+        expect(readBehaviour('Anyone know who?\nMilling off the point')).toEqual(['milling']);
     });
 });
 
