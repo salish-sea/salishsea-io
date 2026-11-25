@@ -213,7 +213,7 @@ let codeMap: Map<string, IndividualRef> | null = null;
 let matrilineMap: Map<string, GroupRef> | null = null;
 let populationMap: Map<string, GroupRef> | null = null;
 let podMap: Map<string, GroupRef> | null = null;
-let topMatrilineMap: Map<string, string> | null = null;
+let topMatrilineMap: Map<string, string | null> | null = null;
 let loading: Promise<Map<string, IndividualRef>> | null = null;
 
 /**
@@ -241,8 +241,11 @@ export function setCatalogCodes({ designations, groups }: CatalogCodeRows): Map<
   populationMap = new Map(groups.filter(isPopulation).map(g => [fold(g.designation), g]));
   podMap = new Map(groups.filter(g => g.kind === 'pod').map(g => [fold(podLabel(g)), g]));
   // Keyed as the lookups above are: an individual by its code, a matriline by its code with the s.
-  topMatrilineMap = new Map([
-    ...designations.flatMap(({code, matriline}): [string, string][] => matriline ? [[fold(code), written(matriline)]] : []),
+  // Every individual's row is kept, null where it has no matriline, so that when two codes fold
+  // alike the row codeMap keeps (the later) decides the matriline too.
+  topMatrilineMap = new Map<string, string | null>([
+    ...designations.flatMap(({code, individual, matriline}): [string, string | null][] =>
+      individual ? [[fold(code), matriline ? written(matriline) : null]] : []),
     ...groups.flatMap((g): [string, string][] => g.kind === 'matriline' && g.matriline ? [[fold(`${g.designation}s`), written(g.matriline)]] : []),
   ]);
   return codeMap;
