@@ -17,19 +17,19 @@ import { reportText } from '../../src/sighting-text.ts';
 import { loadGold } from './gold.ts';
 
 type Occurrence = {
-    id: string, body: string | null, pods: string[],
+    id: string, body: string | null,
     identifiers: string[], taxon: {vernacular_name: string} | null,
 };
 
-/** The kind of animal, with an orca's ecotype taken from its codes or pods when the taxon doesn't say. */
-export function kindOf(o: Pick<Occurrence, 'taxon' | 'pods' | 'identifiers'>): string {
+/** The kind of animal, with an orca's ecotype taken from its identifiers when the taxon doesn't say. */
+export function kindOf(o: Pick<Occurrence, 'taxon' | 'identifiers'>): string {
     const name = o.taxon?.vernacular_name ?? 'unknown';
     if (/killer whale/i.test(name)) {
-        // the taxon's own ecotype first, then the codes or pods the report names
+        // the taxon's own ecotype first, then the codes, pods and populations the report names (decision 121)
         if (/southern|resident/i.test(name)) return 'Southern Resident';
         if (/bigg/i.test(name)) return "Bigg's";
-        if (o.pods.length || o.identifiers.some(c => /^[JKL]\d|^[JKL]s?$/.test(c))) return 'Southern Resident';
-        if (o.identifiers.some(c => /^T\d/.test(c))) return "Bigg's";
+        if (o.identifiers.some(c => /^[JKL]\d|^[JKL]s?$|^[JKL] pod|^Southern Resident/.test(c))) return 'Southern Resident';
+        if (o.identifiers.some(c => /^T\d|^Bigg's/.test(c))) return "Bigg's";
         return 'orca, ecotype not said';
     }
     if (/humpback/i.test(name)) return 'humpback';

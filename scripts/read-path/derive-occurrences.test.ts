@@ -191,7 +191,7 @@ describe('armsFor', () => {
         try {
             await conn.run(parts.shared.split(/^-- --- The store/m)[0]!);
             const code = (c: string, origin = 'comment', id = 1) => `{'code': '${c}', 'origin': '${origin}', 'origin_id': ${id}}`;
-            const claim = (c: string, presence: string) => `{'code': '${c}', 'presence': '${presence}', 'certainty': 'certain'}`;
+            const claim = (c: string, presence: string) => `{'code': '${c.replace(/'/g, "''")}', 'presence': '${presence}', 'certainty': 'certain'}`;
             const added = async (codes: string, claims: string, absent = 'NULL') => (await conn.runAndReadAll(
                 `SELECT list_transform(remark_codes(${codes}, ${claims}, ${absent}), lambda x: x.code)`)).getRows()[0]![0];
             // the observer names T46s and says T46D was absent; a comment names all three
@@ -217,12 +217,17 @@ describe('armsFor', () => {
         const conn = await db.connect();
         try {
             await conn.run(parts.shared.split(/^-- --- The store/m)[0]!);
-            const claim = (c: string, presence: string, certainty = 'certain') => `{'code': '${c}', 'presence': '${presence}', 'certainty': '${certainty}'}`;
+            const claim = (c: string, presence: string, certainty = 'certain', kind = 'code') => `{'code': '${c.replace(/'/g, "''")}', 'presence': '${presence}', 'certainty': '${certainty}', 'kind': '${kind}'}`;
             const read = async (macro: string, claims: string) =>
                 (await conn.runAndReadAll(`SELECT ${macro}(${claims})`)).getRows()[0]![0];
             // "T46s (-D), maybe T65A, likely T137A": probable shows plain, possible with a ?
             const claims = `[${claim('T46s', 'present')}, ${claim('T65A', 'present', 'possible')}, ${claim('T137A', 'present', 'probable')}, ${claim('T46D', 'absent')}]`;
             expect(await read('reading_identifiers', claims)).toEqual({items: ['T46s', 'T65A?', 'T137A']});
+            // a pod and a population are named among the identifiers as a bout's tags are (decision 121)
+            const groups = `[${claim('J pod', 'present', 'possible', 'pod')}, ${claim("Bigg's", 'present', 'certain', 'population')}, ${claim('T65A', 'present')}]`;
+            expect(await read('reading_identifiers', groups)).toEqual({items: ['J pod?', "Bigg's", 'T65A']});
+            expect((await conn.runAndReadAll(`SELECT list_transform(report_claims(${groups}), lambda x: x.kind)`)).getRows()[0]![0])
+                .toEqual({items: ['pod', 'population', 'code']});
             expect(await read('reading_absent', claims)).toEqual({items: ['T46D']});
             // a code named both ways is present, and only present
             const both = `[${claim('T46D', 'present')}, ${claim('T46D', 'absent')}]`;
@@ -266,25 +271,29 @@ describe('the derivations over the fixture', () => {
             await promisify(execFile)('node', [path.join(import.meta.dirname, 'reference.ts'), snapshot]);
             const mirrors = await mirrorsFromSnapshot(snapshot, dir);
             // The occurrences against snapshot.occurrences. The expected rows don't carry the
-            // keys asserted on their own below: what each text names (`pods`, `absent`) and says
+            // keys asserted on their own below: what each text says was absent (`absent`) and says
             // (`behaviour`, `group_part`), where each sighting was (`place`, `landmark`), and what
             // people said on it (`activity`, `identified_as`).
             const expectOccurrences = () => withStore(snapshot, async conn => expect(
                 await documents(conn, 'SELECT doc FROM store.build.occurrences',
-                    ['place', 'landmark', 'pods', 'activity', 'identified_as', 'absent', 'behaviour', 'group_part']))
+                    ['place', 'landmark', 'activity', 'identified_as', 'absent', 'behaviour', 'group_part']))
                 .toEqual(await documents(conn, 'SELECT doc FROM store.snapshot.occurrences')));
             expect((await deriveOccurrences(snapshot, mirrors, null)).arms).toBe('all');
             await expectOccurrences();
-            // Every document says which pods its text names (decision 105): one text here names
-            // one ("J35 and J47 with Ls"), and the key is in jsonb's order, after the body.
+            // A pod or a population a text names is among its identifiers (decision 121): one text
+            // here names a pod ("J35 and J47 with Ls"), and a comment on 9000001 names J pod,
+            // which joins that observation's (decision 106). No document has a `pods` key.
             {
                 await withStore(snapshot, async conn => {
                     const docs = (await conn.runAndReadAll('SELECT doc FROM store.build.occurrences')).getRows()
                         .map(([doc]) => JSON.parse(doc as string) as Record<string, unknown>);
                     expect(docs.length).toBeGreaterThan(0);
                     // and one comment, on 9000001, names J pod, which joins that observation's (decision 106)
-                    expect(docs.filter(doc => (doc['pods'] as string[]).length)
-                        .map(doc => [doc['id'], doc['pods']]).sort()).toEqual([['inaturalist:9000001', ['J']], ['maplify:acartia:13', ['L']]]);
+                    expect(docs.filter(doc => (doc['identifiers'] as string[]).some(i => / pod\??$/.test(i)))
+                        .map(doc => [doc['id'], (doc['identifiers'] as string[]).filter(i => / pod\??$/.test(i))]).sort())
+                        .toEqual([['inaturalist:9000001', ['J pod']], ['maplify:acartia:13', ['L pod']],
+                            // and a bout's tag, as before
+                            ['orcasound:bout_twin0000000000000001:SSA:0000900', ['J pod']]]);
                     // What people said on an iNaturalist observation, as its card shows it (decision
                     // 107): its identifications grouped by taxon, and its comments and remarks, oldest
                     // first. Not the hidden identification (6000005) or comment (8000003), the
@@ -304,10 +313,7 @@ describe('the derivations over the fixture', () => {
                     // and no other source has any
                     expect(docs.filter(doc => !String(doc['id']).startsWith('inaturalist:'))
                         .every(doc => (doc['activity'] as unknown[]).length === 0 && (doc['identified_as'] as unknown[]).length === 0)).toBe(true);
-                    for (const doc of docs) {
-                        const keys = Object.keys(doc);
-                        expect(keys[keys.indexOf('body') + 1]).toBe('pods');
-                    }
+                    for (const doc of docs) expect(Object.keys(doc)).not.toContain('pods');
                     // What each text says the animals were doing (decision 116): two texts here say
                     // something, and no text puts the leaders or the trailers at its position.
                     expect(docs.filter(doc => (doc['behaviour'] as string[]).length)

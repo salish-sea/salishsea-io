@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { detectAbsent, detectIndividuals, detectPod } from './identifiers.ts';
+import { detectAbsent, detectIndividuals } from './identifiers.ts';
 
 test('finds individual identifiers', () => {
   const table: [string, string[]][] = [
@@ -15,14 +15,12 @@ test('finds individual identifiers', () => {
   }
 });
 
-test('finds pod identifiers', () => {
-  const table: [string, string | null][] = [
-    ['[Orca Network] Likely T65A5 slowly northbound (Gary Furuheim, Cynthia Macfarlan) Submitted by a Cascadia Trusted Observer Via Webmap', 'T'],
-  ];
-  for (const [input, expected] of table) {
-    const actual = detectPod(input);
-    expect(actual).toBe(expected);
-  }
+test('names pods and populations among them, in the order the text gives them (decision 121)', () => {
+  expect(detectIndividuals('J and K pods NB, J27 with them')).toEqual(['J pod', 'K pod', 'J27']);
+  expect(detectIndividuals('T137A, then Biggs T65A')).toEqual(['T137A', "Bigg's", 'T65A']);
+  expect(detectIndividuals('Faint SRKW calls, likely J pod')).toEqual(['Southern Resident', 'J pod']);
+  expect(detectIndividuals('Js? southbound')).toEqual(['J pod?']);
+  expect(detectIndividuals('[Orca Network] Likely T65A5 slowly northbound (Gary Furuheim, Cynthia Macfarlan) Submitted by a Cascadia Trusted Observer Via Webmap')).toEqual(['T65A5']);
 });
 
 // Leading zeros go only while a digit follows, so a designation never loses its number. A
@@ -42,8 +40,8 @@ test('keeps the zeros a designation needs', () => {
 });
 
 test('an animal the text says was absent is not among them, and names no pod', () => {
-  expect(detectIndividuals('Biggs T46s (-D) northbound')).toEqual(['T46s']);
-  expect(detectPod('minus K37, and some humpbacks')).toBe(null);
+  expect(detectIndividuals('Biggs T46s (-D) northbound')).toEqual(["Bigg's", 'T46s']);
+  expect(detectIndividuals('minus K37, and some humpbacks')).toEqual([]);
 });
 
 test('it is among the absent instead, as the build writes them (decision 109)', () => {
@@ -54,4 +52,6 @@ test('it is among the absent instead, as the build writes them (decision 109)', 
 test('a code only possibly there ends in ?, and a probable one is plain (decision 109)', () => {
   expect(detectIndividuals('T46s, possibly T65A')).toEqual(['T46s', 'T65A?']);
   expect(detectIndividuals('T46s, likely T65A')).toEqual(['T46s', 'T65A']);
+  // in the order the text gives them, as the build writes them, not sorted
+  expect(detectIndividuals('T65A, T46s')).toEqual(['T65A', 'T46s']);
 });

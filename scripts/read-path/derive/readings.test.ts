@@ -29,18 +29,23 @@ test('each source, read into memory.reading by its occurrence id', async () => {
         expect(await writeReadings(conn, 'native')).toBe(1);
         const rows = (await conn.runAndReadAll('SELECT * FROM memory.reading ORDER BY id')).getRowObjectsJson();
         expect(rows).toEqual([
-            {id: '0199-a', direction: 'milling', claims: [], pods: ['L'], behaviour: ['milling'], group_part: null},
-            {id: 'inaturalist:9', direction: 'west', claims: [{code: 'BCX1068', presence: 'present', certainty: 'certain'}], pods: [],
+            {id: '0199-a', direction: 'milling', claims: [{code: 'L pod', presence: 'present', certainty: 'certain', kind: 'pod'}],
+             behaviour: ['milling'], group_part: null},
+            {id: 'inaturalist:9', direction: 'west', claims: [{code: 'BCX1068', presence: 'present', certainty: 'certain', kind: 'code'}],
              behaviour: ['feeding'], group_part: null},
             {id: 'maplify:whale_alert:1', direction: 'north', claims: [
-                {code: 'T46s', presence: 'present', certainty: 'certain'},
-                {code: 'T65A5', presence: 'present', certainty: 'probable'},
-                {code: 'T46D', presence: 'absent', certainty: 'certain'},
-            ], pods: [], behaviour: [], group_part: null},
+                {code: "Bigg's", presence: 'present', certainty: 'certain', kind: 'population'},
+                {code: 'T46s', presence: 'present', certainty: 'certain', kind: 'code'},
+                {code: 'T65A5', presence: 'present', certainty: 'probable', kind: 'code'},
+                {code: 'T46D', presence: 'absent', certainty: 'certain', kind: 'code'},
+            ], behaviour: [], group_part: null},
             // a text that says only a behaviour has a row (decision 116)
-            {id: 'maplify:whale_alert:5', direction: null, claims: [], pods: [], behaviour: ['breaching'], group_part: null},
+            {id: 'maplify:whale_alert:5', direction: null, claims: [], behaviour: ['breaching'], group_part: null},
             // a text that names nothing, or none at all, has no row
-            {id: 'maplify:wras:4', direction: 'south', claims: [], pods: ['J', 'K'], behaviour: [], group_part: 'leaders'},
+            {id: 'maplify:wras:4', direction: 'south', claims: [
+                {code: 'J pod', presence: 'present', certainty: 'certain', kind: 'pod'},
+                {code: 'K pod', presence: 'present', certainty: 'certain', kind: 'pod'},
+            ], behaviour: [], group_part: 'leaders'},
         ]);
     } finally {
         conn.closeSync();

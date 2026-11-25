@@ -6,7 +6,7 @@
 import { describe, expect, test } from 'vitest';
 import { loadGold } from '../scripts/gold/gold.ts';
 import { FIELDS, scoreRow, type Field } from '../scripts/gold/score.ts';
-import { absent, hedged, present, readDirection, readSighting, readText, reportText } from './sighting-text.ts';
+import { absent, hedged, identifierLabels, podLetters, present, readDirection, readSighting, readText, reportText } from './sighting-text.ts';
 
 /**
  * Row 143 excludes an animal it fails to name ("T46s minus T46s"); row 136 names a calf's mother as context, which costs it
@@ -46,32 +46,132 @@ describe('reading sighting text', () => {
     test('a hedge word gives its certainty', () => {
         const claims = readText('Biggs T137s and likely T36A1s, maybe T65A5, northbound').claims;
         expect(claims).toEqual([
-            {code: 'T137s', presence: 'present', certainty: 'certain'},
-            {code: 'T36A1s', presence: 'present', certainty: 'probable'},
-            {code: 'T65A5', presence: 'present', certainty: 'possible'},
+            {code: "Bigg's", presence: 'present', certainty: 'certain', kind: 'population'},
+            {code: 'T137s', presence: 'present', certainty: 'certain', kind: 'code'},
+            {code: 'T36A1s', presence: 'present', certainty: 'probable', kind: 'code'},
+            {code: 'T65A5', presence: 'present', certainty: 'possible', kind: 'code'},
         ]);
         expect(readText('T46s (-D) northbound').claims).toEqual([
-            {code: 'T46s', presence: 'present', certainty: 'certain'},
-            {code: 'T46D', presence: 'absent', certainty: 'certain'},
+            {code: 'T46s', presence: 'present', certainty: 'certain', kind: 'code'},
+            {code: 'T46D', presence: 'absent', certainty: 'certain', kind: 'code'},
         ]);
     });
 
     test('a pod list', () => {
-        expect(readText('J, K, and L pods spread out northbound').pods).toEqual(['J', 'K', 'L']);
-        expect(readText('Js and Ks southbound, possibly Ls').pods).toEqual(['J', 'K', 'L']);
-        expect(readText('J Pod SB').pods).toEqual(['J']);
-        expect(readText('J POD and K Pod spread out').pods).toEqual(['J', 'K']);
-        expect(readText('J AND K PODS NB').pods).toEqual(['J', 'K']);
+        expect(podLetters(readText('J, K, and L pods spread out northbound'))).toEqual(['J', 'K', 'L']);
+        expect(podLetters(readText('Js and Ks southbound, possibly Ls'))).toEqual(['J', 'K', 'L']);
+        expect(podLetters(readText('J Pod SB'))).toEqual(['J']);
+        expect(podLetters(readText('J POD and K Pod spread out'))).toEqual(['J', 'K']);
+        expect(podLetters(readText('J AND K PODS NB'))).toEqual(['J', 'K']);
         expect(readDirection('SRKWs very spread N to S, leaders SW bound')).toBe('southwest');
         expect(readDirection('kpod, very spread out south and east bound')).toBe('southeast');
         expect(readDirection('south and east bound, then turned northbound')).toBe('north');
     });
 
+    test('pods and populations are claims, in the register\'s words, in the order the text gives them (decision 121)', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('J and K pods NB, T65A5 with them')).toEqual(['J pod', 'K pod', 'T65A5']);
+        expect(labels("Biggs and southern residents both")).toEqual(["Bigg's", 'Southern Resident']);
+        expect(labels('Transients near the ferry, SRKWs further out')).toEqual(["Bigg's", 'Southern Resident']);
+        expect(labels("Bigg's southbound")).toEqual(["Bigg's"]);
+        expect(readText('J pod').claims).toEqual([{code: 'J pod', presence: 'present', certainty: 'certain', kind: 'pod'}]);
+        // the codes alone, for the readers that want catalogue codes
+        expect(present(readText('J pod and T65A5'))).toEqual(['T65A5']);
+    });
+
+    test('a hedge word reaches a pod or a population as it reaches a code', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('Faint calls, likely J pod, northbound')).toEqual(['J pod']);
+        expect(readText('likely J pod').claims[0]!.certainty).toBe('probable');
+        expect(labels('possibly J pod, Biggs seen too')).toEqual(['J pod?', "Bigg's"]);
+        expect(labels('maybe SRKW')).toEqual(['Southern Resident?']);
+    });
+
+    test('a hedge word before a pod list reaches every pod in it', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('possibly J, K and L pods')).toEqual(['J pod?', 'K pod?', 'L pod?']);
+        expect(labels('likely J, K and L pods')).toEqual(['J pod', 'K pod', 'L pod']);
+    });
+
+    test('a name given plainly anywhere is not made possible by a "?" on another mention', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('J pod confirmed by CWR. More Js?')).toEqual(['J pod']);
+        expect(labels('J pod? More Js?')).toEqual(['J pod?']);
+    });
+
+    test('a pod or a population right after a negation is dropped, not read as present or absent', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('Not SRKW, these are transients')).toEqual(["Bigg's"]);
+        expect(labels('No J pod today, only T65As')).toEqual(['T65As']);
+        expect(readText('No J pod today').claims).toEqual([]);
+        expect(labels('residents, not transients')).toEqual([]);
+        expect(labels('no transients today')).toEqual([]);
+        expect(labels('no J and K pods')).toEqual([]);
+        // "not sure" is a hedge, "not only" and "not just" affirm, a negated question asks
+        expect(labels('not sure J pod')).toEqual(['J pod?']);
+        expect(labels('not only J pod')).toEqual(['J pod']);
+        expect(labels('not just Biggs')).toEqual(["Bigg's"]);
+        expect(labels('Isn\'t it J pod?')).toEqual(['J pod?']);
+        // a name mentioned elsewhere without a negation stays
+        expect(labels('J pod here. Not J pod later')).toEqual(['J pod']);
+    });
+
+    test('pods and populations go through the same negation rule as codes', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('No J pod or K pod')).toEqual([]);
+        expect(labels('No J pod, K pod or L pod today')).toEqual([]);
+        expect(labels('This is not J pod\'s usual range')).toEqual(['J pod']);
+        expect(labels('not sure if Biggs')).toEqual(["Bigg's?"]);
+        // the list can mix codes and groups; only the code is written as absent
+        const mixed = readText('No T65A or J pod');
+        expect(identifierLabels(mixed)).toEqual([]);
+        expect(absent(mixed)).toEqual(['T65A']);
+        expect(absent(readText('No J pod'))).toEqual([]);
+    });
+
+    test('a question applies to the mentions inside it, not to the name everywhere', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels("Isn't it J pod? J pod confirmed.")).toEqual(['J pod']);
+        expect(labels("Isn't it T65A? T65A confirmed.")).toEqual(['T65A']);
+        expect(labels("Isn't it T65A?")).toEqual(['T65A?']);
+    });
+
+    test('pod spellings: a curly apostrophe, a slash list, run-together letters', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('J’s northbound')).toEqual(['J pod']);
+        expect(labels('J/K pods')).toEqual(['J pod', 'K pod']);
+        expect(labels('JK pods')).toEqual(['J pod', 'K pod']);
+        expect(labels('JKL pods')).toEqual(['J pod', 'K pod', 'L pod']);
+        expect(labels('JK northbound')).toEqual([]);
+    });
+
+    test('a bare "Bigg" is not a population', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('Michael Bigg catalogue')).toEqual([]);
+        for (const word of ['Biggs', "Bigg's", 'Bigg’s', 'transient', 'transients']) expect(labels(`${word} southbound`)).toEqual(["Bigg's"]);
+    });
+
+    test('a "?" directly after a name makes that name possible and reaches no further', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('Js? and Ks heading north')).toEqual(['J pod?', 'K pod']);
+        expect(labels('T65A? and T65B heading north')).toEqual(['T65A?', 'T65B']);
+        expect(labels('J pod? Biggs also')).toEqual(['J pod?', "Bigg's"]);
+        // a "?" after the last pod of a list reaches the whole list
+        expect(labels('J and K pods?')).toEqual(['J pod?', 'K pod?']);
+        expect(labels('Are these Js or Ks?')).toEqual(['J pod?', 'K pod?']);
+        expect(labels('Are these Js, Ks & Ls?')).toEqual(['J pod?', 'K pod?', 'L pod?']);
+        // a plural's apostrophe may stand between the name and its "?"
+        expect(labels("T46B's? and T65A")).toEqual(['T46B?', 'T65A']);
+        // a "?" standing apart still hedges the names after it, up to the comma
+        expect(labels('Who is that ? T65A, T65B')).toEqual(['T65A?', 'T65B']);
+    });
+
     test('a body as Maplify stores it: the collection tag and the attribution are not read', () => {
         const got = readSighting('[Orca Network] Biggs T046s (-D) heading NB (Jane Doe)<br><br>Submitted by T10 Trusted Observer Via Webmap');
         expect(got.claims).toEqual([
-            {code: 'T46s', presence: 'present', certainty: 'certain'},
-            {code: 'T46D', presence: 'absent', certainty: 'certain'},
+            {code: "Bigg's", presence: 'present', certainty: 'certain', kind: 'population'},
+            {code: 'T46s', presence: 'present', certainty: 'certain', kind: 'code'},
+            {code: 'T46D', presence: 'absent', certainty: 'certain', kind: 'code'},
         ]);
         expect(got.direction).toBe('north');
     });
@@ -137,13 +237,13 @@ describe('reading sighting text', () => {
     });
 
     test('"not sure" is a hedge, and "no doubt" and "not only" affirm', () => {
-        expect(readText('not sure but maybe T65A').claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
-        expect(readText("Not sure if it's T65A").claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
-        expect(readText('No doubt T19B Galiano').claims).toEqual([{code: 'T19B', presence: 'present', certainty: 'certain'}]);
+        expect(readText('not sure but maybe T65A').claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible', kind: 'code'}]);
+        expect(readText("Not sure if it's T65A").claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible', kind: 'code'}]);
+        expect(readText('No doubt T19B Galiano').claims).toEqual([{code: 'T19B', presence: 'present', certainty: 'certain', kind: 'code'}]);
         expect(present(readText('Not only T19B but T19C too'))).toEqual(['T19B', 'T19C']);
         expect(present(readText('Not just T65A but T65B'))).toEqual(['T65A', 'T65B']);
         // a question asks; its "?" hedges
-        expect(readText("Isn't it T65A?").claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible'}]);
+        expect(readText("Isn't it T65A?").claims).toEqual([{code: 'T65A', presence: 'present', certainty: 'possible', kind: 'code'}]);
         expect(absent(readText("It isn't T65A. Maybe T65B?"))).toEqual(['T65A']);
         // a later question doesn't cancel an earlier negation
         for (const text of ['No T65A, but is it T65B?', 'No T65A, is it T65B?']) {
@@ -219,7 +319,7 @@ describe('reading sighting text', () => {
         // a distant "?" in a later clause neither cancels the negation nor hedges other codes
         const distant = readText('No T65A today, lots of T137s though, anyone know who else?');
         expect(absent(distant)).toEqual(['T65A']);
-        expect(distant.claims.find(c => c.code === 'T137s')).toEqual({code: 'T137s', presence: 'present', certainty: 'certain'});
+        expect(distant.claims.find(c => c.code === 'T137s')).toEqual({code: 'T137s', presence: 'present', certainty: 'certain', kind: 'code'});
     });
 
     test("a compass word in a reporter's name is not a direction", () => {
