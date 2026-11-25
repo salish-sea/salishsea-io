@@ -8,6 +8,8 @@
 
 *Amended 2026-10-23 (`salish-1y8`), by Peter:* a dead animal is drawn as a **bone** in place of its dot: a silhouette in the taxon's colour, the size of the dot it replaces (18 px, since a dead animal is always the head of a track of its own). Confirmed, it is solid with a thin white edge, as a track's head dot is ringed in white to stand off the water; unconfirmed, it is white edged in the taxon's colour, as an unconfirmed dot is (decision [080](080-a-sighting-is-unconfirmed-until-someone-else-agrees.md)). Its label adds "· dead". Colour still carries the taxon; the shape says what happened to the animal. Rejected: a bone emoji, which is beige, drops the taxon's colour and is drawn differently on every platform; and the † that profile pages use for a deceased individual, which at map size is a few thin pixels lost against the depth shading. The dagger stays in text.
 
+*Amended 2026-11-25, by Peter ([121](121-a-sightings-text-names-pods-and-populations-as-a-bouts-tags-do.md)):* a killer whale's label name is no longer read from each report's text in the browser. It is made from the `identifiers` and taxon the build published: a pod, else a population, else the taxon, a plain name before a possible one, and the list after the name leaves out what the name already says.
+
 ## Problem
 
 `symbolFor()` renders each occurrence as a single letter inside a bubble. Outside killer whales it fails, and not merely by being opaque — it is **ambiguous**. Across 61,411 occurrences the scheme collapses to 18 glyphs. The five carrying the most records:

@@ -1,6 +1,6 @@
 # 121 — A sighting's text names pods and populations in the words a bout's tags use, among its identifiers, and the map label reads only what the build published
 
-**Status:** proposed · **Decided:** 2026-11-25, by Peter (one vocabulary in `identifiers`, over keeping `pods` and adding a `populations` field) · **Work:** bd `salish-gw2r` · **Amends:** [105](105-the-build-and-the-browser-read-sighting-text-with-one-reader.md) (its `pods` key), [029](029-map-symbology.md) (where a label's name comes from) · **Applies:** [054](054-certainty-is-the-asserters-status-is-ours.md), [109](109-a-sighting-keeps-what-its-text-says-was-absent-or-only-possible.md)
+**Status:** accepted · **Decided:** 2026-11-25, by Peter (one vocabulary in `identifiers`, over keeping `pods` and adding a `populations` field) · **Work:** bd `salish-gw2r` · **Amends:** [105](105-the-build-and-the-browser-read-sighting-text-with-one-reader.md) (its `pods` key), [029](029-map-symbology.md) (where a label's name comes from) · **Applies:** [054](054-certainty-is-the-asserters-status-is-ours.md), [109](109-a-sighting-keeps-what-its-text-says-was-absent-or-only-possible.md)
 
 ## Context
 
