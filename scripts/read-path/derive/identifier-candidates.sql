@@ -1,7 +1,8 @@
 -- The identifier candidates, derived in the build (decision 061, salish-xv35.3): a DuckDB
 -- port of Postgres's derived.identifier_candidates, which pairs each designation an
--- occurrence names (T065A, J27s) with the individual or matriline the catalogue says it
--- means (supabase/migrations/20260928120000_occurrences_stored.sql@6898775). Postgres keeps them in
+-- occurrence names (T065A, J27s) with what the catalogue says it means: an individual, a
+-- matriline, a pod or a population (an ecotype or a community)
+-- (supabase/migrations/20260928120000_occurrences_stored.sql@6898775). Postgres keeps them in
 -- derived.occurrence_identifier_candidates, and the profile pages' link views read them.
 --
 -- A text's pods and populations are candidates too (decision 121, salish-wgv9), each resolved

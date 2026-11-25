@@ -65,7 +65,7 @@ export type Reading = {
     groupPart: GroupPart | null;
 };
 
-/** The catalogue codes alone: these three, and the identifier candidates, don't take pods or populations (decision 121). */
+/** The catalogue codes alone: these three don't take pods or populations (decision 121). */
 const codesOf = (r: Pick<Reading, 'claims'>) => r.claims.filter(c => c.kind === 'code');
 export const present = (r: Pick<Reading, 'claims'>) => codesOf(r).filter(c => c.presence === 'present').map(c => c.code);
 export const absent = (r: Pick<Reading, 'claims'>) => codesOf(r).filter(c => c.presence === 'absent').map(c => c.code);

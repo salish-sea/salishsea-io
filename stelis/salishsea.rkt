@@ -715,7 +715,8 @@
                                                (path->string places-osm-file)
                                                (path->string places-parks-file)))))
    ;; Postgres's derived.identifier_candidates as DuckDB SQL: each designation an
-   ;; occurrence names, paired with the catalogue's individual or matriline. Reads the
+   ;; occurrence names, paired with the catalogue's individual, matriline, pod or population (an
+   ;; ecotype or a community) it resolves to. Reads the
    ;; occurrences the build derived, so it is a port of the whole chain;
    ;; register.fold's twin is in the SQL, read rather than imported.
    (make-task 'derive-identifier-candidates 'transform
