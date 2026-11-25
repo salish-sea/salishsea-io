@@ -22,8 +22,9 @@
  * possible. Pods are "J pod", "J Pod", "Jpod", "Js", "J and K pods", and are named "J pod"
  * as the register labels them; populations are "Biggs", "Bigg's", "transients" ("Bigg's")
  * and "SRKW", "southern residents" ("Southern Resident"). A pod or a population is found
- * where it is written, as a code is, so a hedge reaches it; a negation reaches codes
- * only. The direction is a compass word or
+ * where it is written, as a code is, so a hedge reaches it; a negation makes only codes
+ * absent, and a pod or a population right after one ("not SRKW") is dropped from the
+ * claims, not recorded as absent. The direction is a compass word or
  * abbreviation, "NB", "SW bound", "trending N", ignoring a bearing ("north of Alki",
  * "1/2 mile southeast of"), a place name ("West Point"), a spread ("north to south", "N to
  * S") and "facing"; after "now", "then" or "turned", the direction after the cue wins,
@@ -184,17 +185,26 @@ const base = (code: string, dropLastGroup: boolean) => {
 
 // A pod's name: "Js" and "K's", then "J pod", "J Pod" (most of Orca Network's in November
 // 2026), "J AND K PODS", with the "and" of a list in any of the cases reporters write it.
-const POD_PLURAL = /\b([JKL])(?:s|'s)\b/g;
-const POD_NAMED = /\b([JKLjkl](?:\s*(?:,\s*(?:[Aa]nd|AND)|,|[Aa]nd|AND|&|\+)\s*[JKLjkl])*)\s*-?\s?(?:[Pp]ods?|PODS?)\b/g;
+const POD_PLURAL = /\b([JKL])(?:s|['’]s)\b/g;
+// Letters of a list may touch ("JK pods", "JKL pods") or be joined by a comma, "and", "&", "+" or "/".
+const POD_NAMED = /\b([JKLjkl](?:(?:\s*(?:,\s*(?:[Aa]nd|AND)|,|[Aa]nd|AND|&|\+|\/)\s*)?[JKLjkl])*)\s*-?\s?(?:[Pp]ods?|PODS?)\b/g;
+// What may join two plurals ("Js or Ks") when a "?" after the last reaches back to the first.
+const POD_JOIN = /^\s*(?:(?:[,\/&+]|and|or)\s*)+$/i;
 // A population's name: the plural is as ordinary as the singular, "transients in Haro
 // Strait", "southern residents foraging", and \b after the singular refuses it.
-const BIGGS = /\b(?:biggs?|bigg['’]s|transients?)\b/gi;
+const BIGGS = /\b(?:biggs|bigg['’]s|transients?)\b/gi;
 const SOUTHERN_RESIDENT = /\b(?:srkws?|southern residents?)\b/gi;
 
+/**
+ * One place the text names a pod or a population. The letters of one "J, K and L pods" share
+ * a `group` and a hedge scope that starts where the match does; a "Js" is `plural`.
+ */
+type Group = {start: number, end: number, text: string, kind: ClaimKind, group?: number, plural?: boolean, scopeStart?: number, scopeEnd?: number};
+
 /** Where the text names a pod or a population, in the register's words (decision 121). */
-function groupTokens(text: string): {start: number, end: number, text: string, kind: ClaimKind}[] {
-    const out: {start: number, end: number, text: string, kind: ClaimKind}[] = [];
-    for (const m of text.matchAll(POD_PLURAL)) out.push({start: m.index!, end: m.index! + m[0].length, text: `${m[1]} pod`, kind: 'pod'});
+function groupTokens(text: string): Group[] {
+    const out: Group[] = [];
+    for (const m of text.matchAll(POD_PLURAL)) out.push({start: m.index!, end: m.index! + m[0].length, text: `${m[1]} pod`, kind: 'pod', plural: true});
     for (const m of text.matchAll(POD_NAMED)) {
         const letters = [...m[1]!.matchAll(/[JKLjkl]/g)];
         letters.forEach((l, i) => out.push({
@@ -202,11 +212,12 @@ function groupTokens(text: string): {start: number, end: number, text: string, k
             // a "?" after the list belongs to the last pod in it
             end: i === letters.length - 1 ? m.index! + m[0].length : m.index! + l.index! + 1,
             text: `${l[0].toUpperCase()} pod`, kind: 'pod',
+            group: m.index!, scopeStart: m.index!, scopeEnd: m.index! + letters[0]!.index! + 1,
         }));
     }
     for (const m of text.matchAll(BIGGS)) out.push({start: m.index!, end: m.index! + m[0].length, text: "Bigg's", kind: 'population'});
     for (const m of text.matchAll(SOUTHERN_RESIDENT)) out.push({start: m.index!, end: m.index! + m[0].length, text: 'Southern Resident', kind: 'population'});
-    return out;
+    return out.sort((x, y) => x.start - y.start);
 }
 
 /** The text a reader should read (reportText), read. */
@@ -311,11 +322,30 @@ export function readText(text: string): Reading {
             break;
         }
     }
-    // Every name present, in the order the text gives them: the codes not excluded, and the pods and populations.
-    type Name = {start: number, end: number, text: string, kind: ClaimKind};
+    // A pod or a population right after a negation, by the same cue and gap words and the
+    // same exemptions, is dropped from the claims, not written as absent (absence is recorded
+    // for codes only): "Not SRKW, these are transients", "No J pod today". A negated question
+    // makes it possible instead. A name is dropped only when every mention of it is negated.
+    const negatedGroups = new Set<Group>();
+    for (const cue of text.matchAll(NEGATION)) {
+        const rest = text.slice(cue.index!);
+        const asks = ASKS.test(rest);
+        const question = (asks ? QUESTION_SENTENCE : QUESTION).exec(rest);
+        if (question) {
+            const end = cue.index! + question[0].length;
+            for (const g of groups) if (g.start >= cue.index! && g.end <= end) questioned.add(g.text);
+            continue;
+        }
+        if (asks) continue;
+        const first = groups.find(g => g.start >= cue.index! + cue[0].length);
+        if (!first || !NEGATED_GAP.test(text.slice(cue.index! + cue[0].length, first.start) || ' ')) continue;
+        for (const g of groups) if (g === first || (first.group !== undefined && g.group === first.group)) negatedGroups.add(g);
+    }
+    // Every name present, in the order the text gives them: the codes not excluded, and the pods and populations not negated.
+    type Name = Group;
     const names: Name[] = [
         ...named.flatMap((t, i): Name[] => excludedIdx.has(i) ? [] : [{start: t.start, end: t.end, text: t.text, kind: 'code'}]),
-        ...groups,
+        ...groups.filter(g => !negatedGroups.has(g)),
     ].sort((a, b) => a.start - b.start);
     const kindOf = new Map<string, ClaimKind>();
     for (const n of names) if (!kindOf.has(n.text)) kindOf.set(n.text, n.kind);
@@ -323,25 +353,44 @@ export function readText(text: string): Reading {
 
     // Hedges: the names after a hedge word, up to the next comma, period or closing bracket,
     // carry the word's certainty; a name under two hedges takes the weaker. A "?" directly
-    // after a name makes that name possible and reaches no further (decision 121); a "?"
-    // standing apart hedges the names after it, as a hedge word does.
-    const certainty = new Map<string, Certainty>([...questioned].map(code => [code, 'possible' as const]));
+    // after a name makes that name possible and reaches no further (decision 121), except
+    // that after the last pod of a list ("J and K pods?") or the last of "Js or Ks?" it
+    // reaches the whole list; a "?" standing apart hedges the names after it, as a hedge word
+    // does. Each mention has its own certainty, and a name takes the strongest of them: one
+    // given plainly anywhere is plain (decision 054), whatever a "?" on another mention says.
+    // A hedge word reaches every pod of a list through the list's first letter.
     // A plural's apostrophe may stand between a name and its "?": "T46B's?".
     const markedAt = (n: Name) => /^(?:['’]s)?\?/.exec(text.slice(n.end))?.[0].length;
     const marks = new Set<number>();
-    for (const n of names) {
+    const marked = names.map(() => false);
+    names.forEach((n, i) => {
         const length = markedAt(n);
-        if (length !== undefined) { certainty.set(n.text, 'possible'); marks.add(n.end + length - 1); }
-    }
+        if (length === undefined) return;
+        marked[i] = true; marks.add(n.end + length - 1);
+        if (n.group !== undefined) names.forEach((m, j) => { if (m.group === n.group) marked[j] = true; });
+        for (let j = i; n.plural && j > 0; j--) {
+            const before = names[j - 1]!;
+            if (!before.plural || !POD_JOIN.test(text.slice(before.end, names[j]!.start))) break;
+            marked[j - 1] = true;
+        }
+    });
+    const mention = names.map((_, i): Certainty => marked[i] ? 'possible' : 'certain');
     for (const h of text.matchAll(HEDGE)) {
         if (marks.has(h.index!)) continue;
         const level = levelOf(h[0]);
         const end = text.slice(h.index!).search(/[,.;)]|\bbut\b/);
         const stop = end < 0 ? text.length : h.index! + end;
-        for (const t of names) {
-            if (t.start >= h.index! && t.end <= stop && certainty.get(t.text) !== 'possible') certainty.set(t.text, level);
-        }
+        names.forEach((t, i) => {
+            if ((t.scopeStart ?? t.start) >= h.index! && (t.scopeEnd ?? t.end) <= stop && mention[i] !== 'possible') mention[i] = level;
+        });
     }
+    const rank: Record<Certainty, number> = {possible: 0, probable: 1, certain: 2};
+    const certainty = new Map<string, Certainty>();
+    names.forEach((n, i) => {
+        const have = certainty.get(n.text);
+        if (have === undefined || rank[mention[i]!] > rank[have]) certainty.set(n.text, mention[i]!);
+    });
+    for (const code of questioned) if (certainty.has(code)) certainty.set(code, 'possible');
     const claims: Claim[] = [
         ...present.map(code => ({code, presence: 'present' as const, certainty: certainty.get(code) ?? 'certain', kind: kindOf.get(code)!})),
         ...[...absent].map(code => ({code, presence: 'absent' as const, certainty: 'certain' as const, kind: 'code' as const})),

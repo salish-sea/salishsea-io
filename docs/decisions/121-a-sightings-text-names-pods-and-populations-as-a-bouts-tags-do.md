@@ -80,5 +80,5 @@ Over the year, 1,521 killer whale reports gain such a chip. Three reports of oth
 
 ## Not covered
 
-- **A pod or a population the text says was absent** (*SRKWs, but not J pod*) is read as present, as the reader read pods before. Negation reaches codes only.
+- **A pod or a population the text says was absent** (*SRKWs, but not J pod*) is dropped, not read as present, and not recorded as absent either: absence is recorded for codes only. A pod or population right after a negation, by the same cue and gap words and the same exemptions as for a code, is left out of the claims, unless the text names it elsewhere without a negation. A negated question (*Isn't it J pod?*) makes it possible instead.
 - **Linking the words in a card's text** (`injectIndividualLinks`) keeps its own patterns. It finds where in the text each name is, which the reader doesn't report.

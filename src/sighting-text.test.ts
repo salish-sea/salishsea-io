@@ -87,12 +87,59 @@ describe('reading sighting text', () => {
         expect(labels('maybe SRKW')).toEqual(['Southern Resident?']);
     });
 
+    test('a hedge word before a pod list reaches every pod in it', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('possibly J, K and L pods')).toEqual(['J pod?', 'K pod?', 'L pod?']);
+        expect(labels('likely J, K and L pods')).toEqual(['J pod', 'K pod', 'L pod']);
+    });
+
+    test('a name given plainly anywhere is not made possible by a "?" on another mention', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('J pod confirmed by CWR. More Js?')).toEqual(['J pod']);
+        expect(labels('J pod? More Js?')).toEqual(['J pod?']);
+    });
+
+    test('a pod or a population right after a negation is dropped, not read as present or absent', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('Not SRKW, these are transients')).toEqual(["Bigg's"]);
+        expect(labels('No J pod today, only T65As')).toEqual(['T65As']);
+        expect(readText('No J pod today').claims).toEqual([]);
+        expect(labels('residents, not transients')).toEqual([]);
+        expect(labels('no transients today')).toEqual([]);
+        expect(labels('no J and K pods')).toEqual([]);
+        // "not sure" is a hedge, "not only" and "not just" affirm, a negated question asks
+        expect(labels('not sure J pod')).toEqual(['J pod?']);
+        expect(labels('not only J pod')).toEqual(['J pod']);
+        expect(labels('not just Biggs')).toEqual(["Bigg's"]);
+        expect(labels('Isn\'t it J pod?')).toEqual(['J pod?']);
+        // a name mentioned elsewhere without a negation stays
+        expect(labels('J pod here. Not J pod later')).toEqual(['J pod']);
+    });
+
+    test('pod spellings: a curly apostrophe, a slash list, run-together letters', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('J’s northbound')).toEqual(['J pod']);
+        expect(labels('J/K pods')).toEqual(['J pod', 'K pod']);
+        expect(labels('JK pods')).toEqual(['J pod', 'K pod']);
+        expect(labels('JKL pods')).toEqual(['J pod', 'K pod', 'L pod']);
+        expect(labels('JK northbound')).toEqual([]);
+    });
+
+    test('a bare "Bigg" is not a population', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('Michael Bigg catalogue')).toEqual([]);
+        for (const word of ['Biggs', "Bigg's", 'Bigg’s', 'transient', 'transients']) expect(labels(`${word} southbound`)).toEqual(["Bigg's"]);
+    });
+
     test('a "?" directly after a name makes that name possible and reaches no further', () => {
         const labels = (text: string) => identifierLabels(readText(text));
         expect(labels('Js? and Ks heading north')).toEqual(['J pod?', 'K pod']);
         expect(labels('T65A? and T65B heading north')).toEqual(['T65A?', 'T65B']);
         expect(labels('J pod? Biggs also')).toEqual(['J pod?', "Bigg's"]);
-        expect(labels('J and K pods?')).toEqual(['J pod', 'K pod?']);
+        // a "?" after the last pod of a list reaches the whole list
+        expect(labels('J and K pods?')).toEqual(['J pod?', 'K pod?']);
+        expect(labels('Are these Js or Ks?')).toEqual(['J pod?', 'K pod?']);
+        expect(labels('Are these Js, Ks & Ls?')).toEqual(['J pod?', 'K pod?', 'L pod?']);
         // a plural's apostrophe may stand between the name and its "?"
         expect(labels("T46B's? and T65A")).toEqual(['T46B?', 'T65A']);
         // a "?" standing apart still hedges the names after it, up to the comma
