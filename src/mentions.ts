@@ -83,10 +83,7 @@ export function groupTokens(text: string): Group[] {
 }
 
 /** Where a name may start, as a pattern for a regular expression: a code, a pod or a population. */
-export const NAME_START = String.raw`(?:(?:[TJKL]|CRC|BC[XYZ])\s?-?\d|[JKLjkl]s?\s+[Pp]ods?|[JKL](?:s|['’]s)\b|(?:[Bb]iggs?|[Bb]igg['’]s|[Tt]ransients?|SRKWs?|[Ss]outhern\s+[Rr]esidents?)\b)`;
-
-/** How a name may end, for a pattern tested against the text before a point: a code, a pod or a population. */
-export const NAME_END = String.raw`(?:\d[A-Za-z\d]*(?:['’]s)?|[Pp]ods?|[JKL](?:s|['’]s)|[Bb]iggs?|[Bb]igg['’]s|[Tt]ransients?|SRKWs?|[Ss]outhern\s+[Rr]esidents?)\s*`;
+const NAME_START = String.raw`(?:(?:[TJKL]|CRC|BC[XYZ])\s?-?\d|[JKLjkl]s?\s+[Pp]ods?|[JKL](?:s|['’]s)\b|(?:[Bb]iggs?|[Bb]igg['’]s|[Tt]ransients?|SRKWs?|[Ss]outhern\s+[Rr]esidents?)\b)`;
 
 /**
  * The catalogue codes in a text, each with the letter it carries. A code without its letter
@@ -126,5 +123,48 @@ export function nameMarks(text: string): Set<number> {
         const at = markAfter(text, n.end);
         if (at !== null) marks.add(at);
     }
+    // the "?" that closes a negated question belongs to it
+    for (const q of negatedQuestions(text)) marks.add(q.end - 1);
     return marks;
+}
+
+// A negation in a sentence, as people write in comments on iNaturalist ("not the T090s
+// actually", "I don't recognize this as any T077 orca"): the codes it governs are absent.
+// "Not sure", "not certain", "not positive" and "not 100%" are hedges, not negations (see
+// HEDGE); "not only", "not just" and "no doubt" affirm; "whether or not" and "if not" say
+// nothing either way. "Never" is not a negation here: "never seen the T65As this far north
+// before" is said of animals that are there.
+export const NEGATION = /\b(?:(?<!\b(?:whether\s+or|if)\s+)not(?!\s+(?:sure|certain|positive|100\s*%?|only|just)\b)|no(?!\s+doubt\b)|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\b/gi;
+// A negated question ("Isn't it T65A?") asks rather than says, so its codes are possible,
+// not absent. A question asked with an auxiliary and a pronoun ("isn't it", "aren't they")
+// runs to the end of its sentence, commas and all ("Isn't it T65A, the one with the
+// notch?"). Otherwise the question is the negation's own clause: it ends at a sentence's
+// end, at "but", or at a comma that doesn't continue a list ("or", "and", "nor", "&" or a
+// code), so a later question ("No T65A, is it T65B?") or a distant "?" doesn't touch it.
+// A sentence ends at a semicolon, "!", or a full stop before a capital or the end; an
+// ellipsis, "i.e.", "e.g." and an abbreviation such as "Pt." or "approx." don't end it.
+// A question asked with an auxiliary and a pronoun is one even without its "?" ("Isn't
+// it T65A, that's for sure"): it never makes its codes absent.
+const QUESTION = new RegExp(String.raw`^(?:(?!\b[Bb]ut\b|${SENTENCE_END}|,(?!\s*(?:[Oo]r|[Aa]nd|[Nn]or|&)\b|\s*${NAME_START}))[^?])*\?`);
+const QUESTION_SENTENCE = new RegExp(String.raw`^(?:(?!${SENTENCE_END})[^?])*\?`);
+export const ASKS = /^(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\s+(?:it|that|this|these|those|they|he|she|you)\b/i;
+
+/**
+ * The spans of the negated questions in a text: from a negation to the "?" that closes its
+ * question ("Isn't it J pod near shore?"). The names inside one are possible, not absent.
+ */
+export function negatedQuestions(text: string): {start: number, end: number}[] {
+    const out: {start: number, end: number}[] = [];
+    for (const cue of text.matchAll(NEGATION)) {
+        const rest = text.slice(cue.index!);
+        const question = (ASKS.test(rest) ? QUESTION_SENTENCE : QUESTION).exec(rest);
+        if (question) out.push({start: cue.index!, end: cue.index! + question[0].length});
+    }
+    return out;
+}
+
+/** Whether a name (a code, a pod or a population) starts at `at` or ends at `at`, read from the same tokens the readers use. */
+export function nameEdges(text: string): {starts: Set<number>, ends: Set<number>} {
+    const tokens = [...namedCodes(text), ...groupTokens(text)];
+    return {starts: new Set(tokens.map(t => t.start)), ends: new Set(tokens.map(t => t.end))};
 }

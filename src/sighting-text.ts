@@ -45,7 +45,7 @@
  */
 
 import { readBehaviour, readGroupPart, ownMarks, type GroupPart } from './behaviour.ts';
-import { namedCodes, groupTokens, markAfter, POD_JOIN, NAME_START, SENTENCE_END, type Code, type Group, type NameKind } from './mentions.ts';
+import { namedCodes, groupTokens, markAfter, POD_JOIN, NEGATION, ASKS, negatedQuestions, SENTENCE_END, type Code, type Group, type NameKind } from './mentions.ts';
 import { reaches, rank, type Certainty } from './hedge.ts';
 
 export type { Certainty };
@@ -111,13 +111,6 @@ export function readSighting(body: string): Reading {
 }
 
 const EXCLUDE = /\(\s*-\s*|\bminus\b|(?<=[A-Za-z0-9]s)\s+-(?=[A-Z])/g;
-// A negation in a sentence, as people write in comments on iNaturalist ("not the T090s
-// actually", "I don't recognize this as any T077 orca"): the codes it governs are absent.
-// "Not sure", "not certain", "not positive" and "not 100%" are hedges, not negations (see
-// HEDGE); "not only", "not just" and "no doubt" affirm; "whether or not" and "if not" say
-// nothing either way. "Never" is not a negation here: "never seen the T65As this far north
-// before" is said of animals that are there.
-const NEGATION = /\b(?:(?<!\b(?:whether\s+or|if)\s+)not(?!\s+(?:sure|certain|positive|100\s*%?|only|just)\b)|no(?!\s+doubt\b)|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\b/gi;
 // What may stand between a negation and the first code it governs: a few words of the
 // same clause, "the", "any", "think this is", "recognize this as any", and no punctuation.
 const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['’]s|is|was|are|were|be|as|actually|from|in|part|recognize|think|believe|see|seen|seeing|either|even|quite|just))*\s+$/i;
@@ -127,19 +120,6 @@ const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['
 // or before a short form ("no T65A, A4"); elsewhere it starts a correction ("Not T090s,
 // T030Bs"), whose codes are present.
 const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
-// A negated question ("Isn't it T65A?") asks rather than says, so its codes are possible,
-// not absent. A question asked with an auxiliary and a pronoun ("isn't it", "aren't they")
-// runs to the end of its sentence, commas and all ("Isn't it T65A, the one with the
-// notch?"). Otherwise the question is the negation's own clause: it ends at a sentence's
-// end, at "but", or at a comma that doesn't continue a list ("or", "and", "nor", "&" or a
-// code), so a later question ("No T65A, is it T65B?") or a distant "?" doesn't touch it.
-// A sentence ends at a semicolon, "!", or a full stop before a capital or the end; an
-// ellipsis, "i.e.", "e.g." and an abbreviation such as "Pt." or "approx." don't end it.
-// A question asked with an auxiliary and a pronoun is one even without its "?" ("Isn't
-// it T65A, that's for sure"): it never makes its codes absent.
-const QUESTION = new RegExp(String.raw`^(?:(?!\b[Bb]ut\b|${SENTENCE_END}|,(?!\s*(?:[Oo]r|[Aa]nd|[Nn]or|&)\b|\s*${NAME_START}))[^?])*\?`);
-const QUESTION_SENTENCE = new RegExp(String.raw`^(?:(?!${SENTENCE_END})[^?])*\?`);
-const ASKS = /^(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\s+(?:it|that|this|these|those|they|he|she|you)\b/i;
 // One item of a negated comma list and where one may start: a code, a pod or a population.
 const LIST_ITEM = String.raw`(?:[A-Z]+\s?-?\d\w*(?:['’]s)?|[JKL]s?\s+[Pp]ods?|[JKL](?:s|['’]s)\b|(?:[Bb]iggs?|[Bb]igg['’]s|[Tt]ransients?|SRKWs?|[Ss]outhern\s+[Rr]esidents?))`;
 const LIST_ITEM_START = String.raw`(?:[A-Z]+\s?-?\d|[JKL]s?\s+[Pp]ods?|[JKL](?:s|['’]s)\b|(?:[Bb]iggs?|[Bb]igg['’]s|[Tt]ransients?|SRKWs?|[Ss]outhern\s+[Rr]esidents?))`;
@@ -210,19 +190,14 @@ export function readText(text: string): Reading {
     // after it, a short form of a code taking its matriline from the code before it ("Not
     // seeing T65A2 & A3"), as an exclusion's does. A negated question ("Isn't it J pod?") makes
     // its names possible instead.
-    const questions: {start: number, end: number}[] = [];
+    // A negated question's spans, for the names inside it; its closing "?" is among the shared marks.
+    const questions = negatedQuestions(text);
     // The one set of "?" positions that belong to a mention, shared with readBehaviour.
     const marks = ownMarks(text);
     for (const cue of text.matchAll(NEGATION)) {
         const rest = text.slice(cue.index!);
         const asks = ASKS.test(rest);
-        const question = (asks ? QUESTION_SENTENCE : QUESTION).exec(rest);
-        if (question) {
-            questions.push({start: cue.index!, end: cue.index! + question[0].length});
-            // the "?" that ends a recognised question belongs to it and hedges nothing after it
-            marks.add(cue.index! + question[0].length - 1);
-            continue;
-        }
+        if (questions.some(q => q.start === cue.index!)) continue;
         if (asks) continue;
         const first = all.find(t => t.start >= cue.index! + cue[0].length);
         if (!first || !NEGATED_GAP.test(text.slice(cue.index! + cue[0].length, first.start) || ' ')) continue;

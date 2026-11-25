@@ -6,7 +6,7 @@
  * src/behaviour.ts, the rule in src/mentions.ts), so a mention's own "?" hedges nothing after it.
  */
 
-import { NAME_START, NAME_END, SENTENCE_END } from './mentions.ts';
+import { SENTENCE_END, nameEdges } from './mentions.ts';
 
 export type Certainty = 'certain' | 'probable' | 'possible';
 
@@ -29,11 +29,9 @@ export const levelOf = (hedge: string): Certainty => LEVEL[hedge.toLowerCase()] 
  */
 export type Reach = {from: number, to: number, level: Certainty};
 
-const CLAUSE_END = /[,.;)!\n]|\bbut\b|\s-|-\s|--|\s[–—]|[–—]\s/g;
+const CLAUSE_END = /[,.;)!\n]|\?(?=\s+[A-Z]|\s*$)|\bbut\b|\s-|-\s|--|\s[–—]|[–—]\s/g;
 /** A "?" is the end of a sentence when a space and a capital letter, or nothing, follows. */
 const ENDS_SENTENCE = /^(?:\s+[A-Z]|\s*$)/;
-const NAME_BEFORE = new RegExp(`${NAME_END}$`);
-const NAME_AFTER = new RegExp(`^\\s*${NAME_START}`);
 
 const SENTENCE_BREAK = new RegExp(String.raw`${SENTENCE_END}|\?(?=\s+[A-Z])|\n|,`, 'g');
 
@@ -47,11 +45,15 @@ function sentenceStart(text: string, end: number): number {
 /** Where the stretch a hedge at `from` reaches ends. */
 function clauseEnd(text: string, from: number): number {
     const rest = text.slice(from);
+    let edges: ReturnType<typeof nameEdges> | undefined;
     for (const m of rest.matchAll(CLAUSE_END)) {
         // a spaced hyphen between two names continues a list of names
         const hyphen = m[0].length !== 2 ? -1 : m[0][0] === '-' ? m.index! : m[0][1] === '-' ? m.index! + 1 : -1;
-        if (hyphen >= 0 && /\s/.test(rest[hyphen - 1] ?? '') && /\s/.test(rest[hyphen + 1] ?? '')
-            && NAME_BEFORE.test(rest.slice(0, hyphen)) && NAME_AFTER.test(rest.slice(hyphen + 1))) continue;
+        if (hyphen >= 0 && /\s/.test(rest[hyphen - 1] ?? '') && /\s/.test(rest[hyphen + 1] ?? '')) {
+            edges ??= nameEdges(text);
+            const before = text.slice(0, from + hyphen).trimEnd().length, after = from + hyphen + 1 + /^\s*/.exec(rest.slice(hyphen + 1))![0].length;
+            if (edges.ends.has(before) && edges.starts.has(after)) continue;
+        }
         return from + m.index!;
     }
     return text.length;

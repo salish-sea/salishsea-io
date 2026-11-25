@@ -6,6 +6,7 @@
 import { describe, expect, test } from 'vitest';
 import { loadGold } from '../scripts/gold/gold.ts';
 import { FIELDS, scoreRow, type Field } from '../scripts/gold/score.ts';
+import { readBehaviour } from './behaviour.ts';
 import { absent, hedged, identifierLabels, podLetters, present, readDirection, readSighting, readText, reportText } from './sighting-text.ts';
 
 /**
@@ -194,6 +195,19 @@ describe('reading sighting text', () => {
         // a name given plainly elsewhere outranks it
         expect(read('T65A northbound. Was that T65A?').labels).toEqual(['T65A']);
         expect(read('perhaps T65A').labels).toEqual(['T65A?']);
+    });
+
+    test('a hyphen list continues over any name the parsers read, and a sentence-ending "?" ends an earlier hedge', () => {
+        const read = (text: string) => ({labels: identifierLabels(readText(text)), tags: readText(text).behaviour});
+        expect(read('possibly T36A - t36b').labels).toEqual(['T36A?', 'T36B?']);
+        expect(read('possibly Jpod - K POD').labels).toEqual(['J pod?', 'K pod?']);
+        expect(read('Perhaps T65A? Foraging')).toEqual({labels: ['T65A?'], tags: ['foraging']});
+    });
+
+    test('readBehaviour alone and readText agree on a negated question\'s "?"', () => {
+        const text = "Isn't it J pod near shore? foraging";
+        expect(readBehaviour(text)).toEqual(['foraging']);
+        expect(readText(text).behaviour).toEqual(['foraging']);
     });
 
     test('a "?" belongs to the one mention before it, a name or a behaviour (one rule for both readers)', () => {
