@@ -6,6 +6,8 @@ How production deploys work, and the recurring surprises they produce. Audience:
 
 Push to `main` → GitHub Actions [`deploy.yml`](../../.github/workflows/deploy.yml) → CDK (`infra/`, synthed via `ts-node`) updates the stack. The rich-preview handler is a Lambda@Edge **viewer-request** function on the CloudFront distribution, defined in [`infra/lib/infra-stack.ts`](../../infra/lib/infra-stack.ts). Its code and behaviour live in [`infra/lib/edge-handler/index.ts`](../../infra/lib/edge-handler/index.ts) — see [decision 002](../decisions/002-static-spa-edge-architecture.md).
 
+A commit reaches `main` only once the **build** check has passed on it: the [Build workflow](../../.github/workflows/build.yml), which builds the site and runs the site's, the read-path graphs' and `infra/`'s tests. A repository ruleset requires it ("main: tests pass before merge", under Settings → Rules), with no one allowed to bypass it. So `gh pr merge --auto` waits for the check, and a commit pushed straight to `main` is refused, since nothing has checked it; even a one-line bookkeeping change goes through a pull request. Before 2026-11-25 nothing was required, and an automatic merge happened at once, before the tests had finished.
+
 ### The site people see is the Fly app, and the same workflow deploys it
 
 CloudFront's default origin is the `salishsea-io` Fly app ([decision 061](../decisions/061-ingest-and-derivation-move-into-the-build.md), `salish-xv35.16`). It serves the site, runs the read-path build and holds the write API. The workflow's **Fly app** job deploys it on every push to `main`, after the deploy job has updated AWS (`salish-t3g.5`). It runs [`fly/deploy.sh`](../../fly/deploy.sh), and the same script redeploys by hand from a clean checkout:
