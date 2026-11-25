@@ -39,7 +39,7 @@ So the bout above reads "SRKW", not "SRKW · Southern Resident". `detectPod` and
 
 ## What changed, measured on production
 
-Over the year of day files to 2026-11-25, 69 of 5,300 killer whale labels change. Those that said only what the text says keep their label, because the reader now reads population names.
+Over the year of day files to 2026-11-25, 68 of 5,300 killer whale labels change. Those that said only what the text says keep their label, because the reader now reads population names.
 
 | from | to | count | example |
 |---|---|---|---|
@@ -48,8 +48,9 @@ Over the year of day files to 2026-11-25, 69 of 5,300 killer whale labels change
 | Biggs | Biggs? | 5 | *possibly T46s* |
 | SRKW | J pod | 3 | a bout tagged J pod, titled *SRKWs SB near Kelp Reef* |
 | Resident | J pod | 3 | an iNaturalist observation whose remark names J pod |
-| SRKW | SRKW? | 1 | *possible Southern Residents* |
-| other | | 3 | *J pod and K pod northbound, Ks here* is now J pod, the first named |
+| other | | 2 | *J pod and K pod northbound, Ks here* is now J pod, the first named |
+
+A report that hedges a name and later states it plainly keeps it plain: *possible Southern Residents but unconfirmed … EDIT: Confirmed SRKWs* is SRKW.
 
 The bout this record began with, before and after:
 
