@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { GROUPS, displayNameFor, labelFor, labelForSegment, taxonGroup, trackSummary } from './symbology.ts';
+import { GROUPS, displayNameFor, identifiersBeyond, labelFor, labelForSegment, taxonGroup, trackSummary } from './symbology.ts';
 import type { Occurrence } from './types.ts';
 
 const taxon = (
@@ -122,67 +122,76 @@ describe('displayNameFor', () => {
   });
 });
 
-describe('labelFor', () => {
-  const orca = (body: string, scientific_name = 'Orcinus orca') =>
-    ({body, taxon: taxon(scientific_name, 'Killer whale', 'SSA:0000900')});
+// The label is made from what the build published: each report's identifiers and its taxon
+// (decision 121). `orca(['J pod'])` is a report whose identifiers are those, as a day file has them.
+const orca = (identifiers: string[], scientific_name = 'Orcinus orca', entity_id = 'SSA:0000900') =>
+  ({identifiers, taxon: taxon(scientific_name, 'Killer whale', entity_id)});
 
-  test('a pod named in the prose becomes the label', () => {
-    expect(labelFor(orca('J pod heading north past Lime Kiln'))).toBe('J pod');
-    expect(labelFor(orca('K37 and L54 together'))).toBe('K pod');
+describe('labelFor', () => {
+  test('a pod named among the identifiers becomes the label', () => {
+    expect(labelFor(orca(['J pod']))).toBe('J pod');
+    expect(labelFor(orca(['K37', 'L54']))).toBe('K pod');
+    expect(labelFor(orca(['L pod', 'T65A']))).toBe('L pod');
   });
 
   test('Biggs is named, not lettered', () => {
-    expect(labelFor(orca('T65A group inbound'))).toBe('Biggs');
-    expect(labelFor(orca('transients in Haro Strait'))).toBe('Biggs');
+    expect(labelFor(orca(['T65A']))).toBe('Biggs');
+    expect(labelFor(orca(["Bigg's"]))).toBe('Biggs');
   });
 
-  test('the plural form is the ordinary one and must be read', () => {
-    // \b after 'transient' refuses 'transients'. This was silently missed while
-    // the ecotype only chose a letter; it is visible now that it is the label.
-    expect(labelFor(orca('a group of transients'))).toBe('Biggs');
-    expect(labelFor(orca('southern residents inbound'))).toBe('SRKW');
+  test('a population named among the identifiers says which whales', () => {
+    expect(labelFor(orca(['Southern Resident']))).toBe('SRKW');
   });
 
-  test('an ecotype without a matriline still says which whales', () => {
-    // symbolFor() answered this with 'S'; detectPod alone does not answer it
-    // at all, because it only maps Biggs back through their old pod letter.
-    expect(labelFor(orca('southern residents foraging'))).toBe('SRKW');
-    expect(labelFor(orca('SRKW westbound'))).toBe('SRKW');
+  test('the text of a report is not read: the label is what the build published', () => {
+    // The Orcasound bout of 2026-11-20 at Andrews Bay, titled "Faint SRKW calls, likely J pod",
+    // tagged Southern Resident. The title is a note; its tags are the moderators' identification.
+    const bout = {body: 'Faint SRKW calls, likely J pod (Andrews Bay)', identifiers: ['Southern Resident'],
+      taxon: taxon('Orcinus orca', 'Killer whale', 'SSA:0000900')};
+    expect(labelFor(bout)).toBe('SRKW');
+    expect(identifiersBeyond(labelFor(bout), bout.identifiers)).toEqual([]);
   });
 
-  test('the subspecies carries the ecotype when the prose does not', () => {
-    expect(labelFor(orca('', 'Orcinus orca rectipinnus'))).toBe('Biggs');
+  test('a name only possibly there keeps its ?', () => {
+    expect(labelFor(orca(['J pod?']))).toBe('J pod?');
+    expect(labelFor(orca(['J27?']))).toBe('J pod?');
+    expect(labelFor(orca(['T65A?']))).toBe('Biggs?');
+    expect(labelFor(orca(['Southern Resident?']))).toBe('SRKW?');
+    expect(labelFor(orca(["Bigg's?"]))).toBe('Biggs?');
+  });
+
+  test('the subspecies carries the ecotype when the identifiers do not', () => {
+    expect(labelFor(orca([], 'Orcinus orca rectipinnus'))).toBe('Biggs');
   });
 
   test('a resident subspecies is not narrowed to Southern Resident', () => {
     // salish-frk. `ater` covers Northern and Alaskan residents too, so the
-    // taxon alone cannot say SRKW — only prose that named them can.
-    expect(labelFor(orca('', 'Orcinus orca ater'))).toBe('Resident');
-    expect(labelFor(orca('southern residents inbound', 'Orcinus orca ater')))
-      .toBe('SRKW');
+    // taxon alone cannot say SRKW — only a report that named them can.
+    expect(labelFor(orca([], 'Orcinus orca ater'))).toBe('Resident');
+    expect(labelFor(orca(['Southern Resident'], 'Orcinus orca ater'))).toBe('SRKW');
   });
 
   test('a record identified as the Southern Resident community is SRKW', () => {
     // 4,571 Maplify records resolve to SSA:0000010 (decision 049). Their taxon still
     // reads `ater` through the crosswalk, which alone would say only "Resident".
-    const srkw = {body: '', taxon: taxon('Orcinus orca ater', 'Southern Resident killer whale', 'SSA:0000010')};
+    const srkw = orca([], 'Orcinus orca ater', 'SSA:0000010');
     expect(labelFor(srkw)).toBe('SRKW');
     // More specific than the subspecies whichever record comes first in the track...
-    expect(labelForSegment([orca('', 'Orcinus orca ater'), srkw])).toBe('SRKW');
-    expect(labelForSegment([srkw, orca('', 'Orcinus orca ater')])).toBe('SRKW');
-    // ...and less specific than a pod the prose names.
-    expect(labelForSegment([srkw, orca('J pod off Lime Kiln')])).toBe('J pod');
+    expect(labelForSegment([orca([], 'Orcinus orca ater'), srkw])).toBe('SRKW');
+    expect(labelForSegment([srkw, orca([], 'Orcinus orca ater')])).toBe('SRKW');
+    // ...and less specific than a pod a report names.
+    expect(labelForSegment([srkw, orca(['J pod'])])).toBe('J pod');
   });
 
   test('an unattributed killer whale is not renamed to Orca', () => {
     // The register holds `orca` for SSA:0000900 as a `hidden` name — a string
     // in use, explicitly not one it offers for display. Composing our way to
     // the same string would route around that.
-    expect(labelFor(orca('two whales offshore'))).toBe('Killer whale');
+    expect(labelFor(orca([]))).toBe('Killer whale');
   });
 
   test('everything else is just its name', () => {
-    expect(labelFor({body: 'J pod was here yesterday', taxon: taxon('Phoca vitulina', 'Harbour seal', 'SSA:0000904')}))
+    expect(labelFor({identifiers: ['J pod'], taxon: taxon('Phoca vitulina', 'Harbour seal', 'SSA:0000904')}))
       .toBe('Harbour seal');
   });
 });
@@ -198,37 +207,72 @@ describe('trackSummary', () => {
 });
 
 describe('labelForSegment', () => {
-  const orca = (body: string, scientific_name = 'Orcinus orca') =>
-    ({body, taxon: taxon(scientific_name, 'Killer whale', 'SSA:0000900')});
-
   test('a pod named in any sighting labels the whole track', () => {
-    // The head is the LAST point, and a pod is named in prose that belongs to
-    // one sighting — usually not the last one. Labelling the head from the head
-    // alone said "Killer whale" over a track that plainly was J pod.
-    expect(labelForSegment([orca('J pod northbound past Lime Kiln'), orca('three orca')]))
-      .toBe('J pod');
+    // The head is the LAST point, and a pod is named by one sighting — usually not the
+    // last one. Labelling the head from the head alone said "Killer whale" over a track
+    // that plainly was J pod.
+    expect(labelForSegment([orca(['J pod']), orca([])])).toBe('J pod');
   });
 
-  test('a pod anywhere beats an ecotype anywhere', () => {
+  test('a pod anywhere beats a population anywhere', () => {
     // "J pod" is a more specific claim than "residents", wherever each was said.
-    expect(labelForSegment([orca('southern residents'), orca('J17 and calf')]))
-      .toBe('J pod');
+    expect(labelForSegment([orca(['Southern Resident']), orca(['J17'])])).toBe('J pod');
   });
 
   test('the subspecies is the weakest evidence, not the first consulted', () => {
     // A report naming the pod outranks a taxon that only says "some resident".
-    expect(labelForSegment([orca('', 'Orcinus orca ater'), orca('K pod inbound')]))
-      .toBe('K pod');
-    expect(labelForSegment([orca(''), orca('', 'Orcinus orca ater')]))
-      .toBe('Resident');
+    expect(labelForSegment([orca([], 'Orcinus orca ater'), orca(['K pod'])])).toBe('K pod');
+    expect(labelForSegment([orca([]), orca([], 'Orcinus orca ater')])).toBe('Resident');
   });
 
-  test('a non-orca track is named from its head, prose ignored', () => {
-    const seal = (body: string) => ({body, taxon: taxon('Phoca vitulina', 'Harbour seal', 'SSA:0000904')});
-    expect(labelForSegment([seal('J pod was here earlier'), seal('')])).toBe('Harbour seal');
+  test('the reports are read in time order, each one in the order its text gives its names', () => {
+    expect(labelForSegment([orca(['L pod', 'J pod']), orca(['K pod'])])).toBe('L pod');
+    expect(labelForSegment([orca(['K pod']), orca(['L pod', 'J pod'])])).toBe('K pod');
+    // not the pooled, sorted list: "J pod" sorts first, and the first report named K
+    expect(labelForSegment([orca(['K27']), orca(['J pod'])])).toBe('K pod');
+  });
+
+  test('a plain name beats a possible one within each step', () => {
+    expect(labelForSegment([orca(['J pod?']), orca(['K pod'])])).toBe('K pod');
+    expect(labelForSegment([orca(['T65A?']), orca(['T137'])])).toBe('Biggs');
+    expect(labelForSegment([orca(["Bigg's?"]), orca(['Southern Resident'])])).toBe('SRKW');
+    // a name that is possible in every report that gives it stays possible
+    expect(labelForSegment([orca(['J pod?']), orca(['J27?'])])).toBe('J pod?');
+  });
+
+  test('a possible pod still comes before a plain population', () => {
+    expect(labelForSegment([orca(['J pod?', 'Southern Resident'])])).toBe('J pod?');
+    expect(labelForSegment([orca(['Southern Resident']), orca(['J pod?'])])).toBe('J pod?');
+  });
+
+  test('a non-orca track is named from its head, identifiers ignored', () => {
+    const seal = (identifiers: string[]) => ({identifiers, taxon: taxon('Phoca vitulina', 'Harbour seal', 'SSA:0000904')});
+    expect(labelForSegment([seal(['J pod']), seal([])])).toBe('Harbour seal');
   });
 
   test('labelFor is a segment of one', () => {
-    expect(labelFor(orca('J pod'))).toBe(labelForSegment([orca('J pod')]));
+    expect(labelFor(orca(['J pod']))).toBe(labelForSegment([orca(['J pod'])]));
+  });
+});
+
+describe('identifiersBeyond: what the name already says is left out of the list', () => {
+  test('a plain pod says the pod and the population it belongs to', () => {
+    expect(identifiersBeyond('J pod', ['J pod', 'J pod?', 'Southern Resident', 'Southern Resident?', 'J27', 'K pod']))
+      .toEqual(['J27', 'K pod']);
+  });
+
+  test('a possible pod says the pod, not the population', () => {
+    expect(identifiersBeyond('J pod?', ['J pod', 'J pod?', 'Southern Resident', 'J27']))
+      .toEqual(['Southern Resident', 'J27']);
+  });
+
+  test('Biggs says Bigg\'s, and SRKW says Southern Resident', () => {
+    expect(identifiersBeyond('Biggs', ["Bigg's", "Bigg's?", 'T65A', 'Southern Resident'])).toEqual(['T65A', 'Southern Resident']);
+    expect(identifiersBeyond('SRKW', ['Southern Resident', 'Southern Resident?', 'J27', "Bigg's"])).toEqual(['J27', "Bigg's"]);
+  });
+
+  test('a name with no population to say leaves the list alone', () => {
+    expect(identifiersBeyond('Killer whale', ['T65A', 'Southern Resident'])).toEqual(['T65A', 'Southern Resident']);
+    expect(identifiersBeyond('Resident', ['Southern Resident'])).toEqual(['Southern Resident']);
   });
 });

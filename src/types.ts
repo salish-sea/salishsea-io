@@ -105,12 +105,6 @@ export type Occurrence = {
    */
   landmark?: string | null;
   /**
-   * The Southern Resident pods its text names, as letters (["J", "K"]), read by the build
-   * with src/sighting-text.ts (decision 105). Empty for a bout, whose pods are among its
-   * identifiers; absent from a sighting the build hasn't seen yet.
-   */
-  pods?: string[];
-  /**
    * What people said on an iNaturalist observation, as its card shows it (decision 107):
    * each comment, and each identification with a remark, oldest first. Empty for every
    * other source; absent from a sighting the build hasn't seen yet.

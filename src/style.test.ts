@@ -38,6 +38,18 @@ describe('occurrenceProperties', () => {
     expect(label).toBe('Humpback? · BCY0409');
   });
 
+  it('adds no second ? to a name that already ends in one, and leaves out what the name says (decision 121)', () => {
+    const killerWhale = (over: Partial<Occurrence>) => ({...humpback(over), taxon: {...humpback().taxon, scientific_name: 'Orcinus orca'}}) as Occurrence;
+    expect(occurrenceProperties(killerWhale({isLast: true, certainty: 'possible', segmentIdentity: 'J pod?', segmentIdentifiers: ['J pod?', 'J27']})).label)
+      .toBe('J pod? · J27');
+    // the bout of 2026-11-20: tagged Southern Resident, titled "likely J pod"
+    expect(occurrenceProperties(killerWhale({isLast: true, segmentIdentity: 'SRKW', segmentIdentifiers: ['Southern Resident']})).label).toBe('SRKW');
+    expect(occurrenceProperties(killerWhale({isLast: true, segmentIdentity: 'J pod', segmentIdentifiers: ['J pod', 'Southern Resident', 'J27']})).label)
+      .toBe('J pod · J27');
+    expect(occurrenceProperties(killerWhale({isLast: true, segmentIdentity: 'J pod?', segmentIdentifiers: ['J pod?', 'Southern Resident']})).label)
+      .toBe('J pod? · Southern Resident');
+  });
+
   it('draws an unconfirmed or disputed sighting as a white dot edged in its colour (decision 080)', () => {
     for (const confirmation of ['unconfirmed', 'disputed'] as const)
       for (const isLast of [undefined, true] as const)

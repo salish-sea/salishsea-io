@@ -466,7 +466,7 @@ describe('the pods a report names (salish-qr32)', () => {
       id: 'maplify:whale_alert:263203', body: 'J and K pod leaders here, J27 with them', confirmation: 'confirmed', count: null,
       observed_at: '2026-11-09T23:55:00+00:00', photos: [], provider_slug: 'maplify', provider: 'Maplify', collection: 'Orca Network',
       observer: null, source_url: null, organization_url: null, url: null, attribution: null,
-      identifiers: ['J27'], pods: ['J', 'K'],
+      identifiers: ['J27', 'J pod', 'K pod'],
       taxon: {scientific_name: 'Orcinus orca', vernacular_name: 'Killer whale', species_id: 41521, entity_id: null},
     } as Partial<Occurrence>;
     document.body.append(el);

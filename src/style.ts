@@ -7,7 +7,7 @@ import viewingLocationIcon from './assets/viewing-location.svg?url';
 import { directionToRads } from './direction.ts';
 import { isUnconfirmed } from './occurrence.ts';
 import type { Occurrence } from './types.ts';
-import { GROUPS, labelFor, taxonGroup, trackSummary } from './symbology.ts';
+import { GROUPS, identifiersBeyond, labelFor, taxonGroup, trackSummary } from './symbology.ts';
 
 /**
  * What the map draws and how (decision 029, ported to MapLibre by 076).
@@ -95,10 +95,14 @@ export function occurrenceProperties(occurrence: Occurrence): OccurrenceProperti
     // which belongs to no segment; there the occurrence speaks for itself.
     // An occurrence whose species is only possibly what it says carries the same mark a
     // hedged identifier does (decision 054): "Humpback whale?", never dropped, never plain.
-    const hedge = occurrence.certainty === 'possible' ? '?' : '';
+    // A name that already ends in "?" ("J pod?") is not marked a second time.
+    const identified = segmentIdentity ?? labelFor(occurrence);
+    const hedge = occurrence.certainty === 'possible' && !identified.endsWith('?') ? '?' : '';
     // A dead animal is a segment of its own (segments.ts), so its label speaks for it alone.
-    const name = (segmentIdentity ?? labelFor(occurrence)) + hedge + (properties.dead ? ' · dead' : '');
-    const identity = identifiers?.length ? `${name} · ${identifiers.join(', ')}` : name;
+    const name = identified + hedge + (properties.dead ? ' · dead' : '');
+    // What the name already says is left out of the list after it (decision 121).
+    const beyond = identifiersBeyond(identified, identifiers ?? []);
+    const identity = beyond.length ? `${name} · ${beyond.join(', ')}` : name;
     const points = segmentLength ?? 1;
     // One label over one or two lines, so the two lines share a box and are
     // kept or dropped together when labels collide.

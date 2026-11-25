@@ -13,7 +13,6 @@
  */
 
 import type { Occurrence } from './types.ts';
-import { detectEcotype, detectPod } from './identifiers.ts';
 
 // ---------------------------------------------------------------------------
 // Taxon groups
@@ -180,44 +179,78 @@ export function displayNameFor(taxon: Occurrence['taxon']): string {
 }
 
 /**
- * The identity line of a track's label.
+ * The identity line of a track's label, made from what the build published and nothing
+ * else (decision 121): each report's `identifiers` and taxon. The pod, the population and
+ * the codes a text names are in the identifiers already, as a bout's tags are, so the
+ * label has no reader of text of its own.
  *
- * Takes the whole segment, not just the head, because a pod is reported in
- * PROSE and prose belongs to one sighting. An encounter posted as "J pod
- * northbound" at 09:00 and "three orca" at 11:00 is one track whose head — the
- * later point, and the one that carries the label — says nothing on its own.
- * The identifiers are pooled across the segment for the same reason; this is
- * the other half of that.
+ * It takes the whole segment because an encounter posted as "J pod northbound" at 09:00
+ * and "three orca" at 11:00 is one track whose head, the later point, which carries the
+ * label, says nothing on its own. The reports are read in time order and each one's
+ * identifiers in the order its text gives them, so the first named wins a tie.
  *
- * Killer whales keep their pod letter. That part of the old scheme was never
- * broken — a J/K/L or a Biggs is the distinction this audience actually draws,
- * and decision 029 keeps it while retiring the rest of `symbolFor()`.
+ * Killer whales are named, in this order, by:
+ *   1. a pod: the first pod named ("J pod"), or the pod letter of the first code ("J27" is
+ *      J pod, "T65A" is Biggs), the old pod letter of the Bigg's;
+ *   2. otherwise a population named ("Bigg's" is Biggs, "Southern Resident" is SRKW);
+ *   3. otherwise the taxon: the Southern Resident community is SRKW, `rectipinnus` is
+ *      Biggs and `ater` is Resident.
+ * Within each of the first two steps a name that any report gives plainly comes before one
+ * that is only possibly there (decision 054), and a name taken from a possible identifier
+ * keeps its "?": "J27?" alone gives "J pod?". A possible pod still comes before a plain
+ * population, so a track can read "J pod? · Southern Resident".
  *
- * The two orca subspecies carry the ecotype themselves, so they answer even when
- * no prose does: migration 20260828120000 deliberately exempts them from the
- * subspecies roll-up for exactly this reason. They are the weakest evidence and
- * come last, because a report naming J pod is more specific than a taxon saying
- * "some resident".
+ * The two orca subspecies carry the ecotype themselves, so they answer even when no
+ * identifier does: migration 20260828120000 deliberately exempts them from the subspecies
+ * roll-up for exactly this reason. They are the weakest evidence and come last, because a
+ * report naming J pod is more specific than a taxon saying "some resident".
  */
 /** The Southern Resident community in the register — SSA:0000001's replacement since Q1. */
 const SOUTHERN_RESIDENT = 'SSA:0000010';
 
-export function labelForSegment(occurrences: readonly Pick<Occurrence, 'body' | 'taxon'>[]): string {
+/** What a published identifier names for the label's first step: a pod, or Biggs by a T code; null for any other. */
+function podOf(identifier: string): string | null {
+  const letter = /^([JKL]) pod$/.exec(identifier)?.[1] ?? /^[JKL](?=\d)/.exec(identifier)?.[0];
+  if (letter)
+    return `${letter} pod`;
+  return /^T\d/.test(identifier) ? 'Biggs' : null;
+}
+
+/** What a published identifier names for the label's second step: a population, or null. */
+function populationOf(identifier: string): string | null {
+  switch (identifier) {
+    case "Bigg's": return 'Biggs';
+    case 'Southern Resident': return 'SRKW';
+    default: return null;
+  }
+}
+
+/**
+ * The first name the identifiers give by `name`, in order, a plain one before one that is
+ * only possible, and that one with its "?". The identifiers are in time order, each
+ * report's in the order its text gives them.
+ */
+function firstNamed(identifiers: readonly string[], name: (identifier: string) => string | null): string | null {
+  let possible: string | null = null;
+  for (const identifier of identifiers) {
+    const hedged = identifier.endsWith('?');
+    const named = name(hedged ? identifier.slice(0, -1) : identifier);
+    if (!named)
+      continue;
+    if (!hedged)
+      return named;
+    possible ??= `${named}?`;
+  }
+  return possible;
+}
+
+export function labelForSegment(occurrences: readonly Pick<Occurrence, 'identifiers' | 'taxon'>[]): string {
   const head = occurrences[occurrences.length - 1]!;
   if (taxonGroup(head.taxon.scientific_name) === 'orca') {
-    for (const {body} of occurrences) {
-      const pod = detectPod(body || '');
-      if (pod)
-        return pod === 'T' ? 'Biggs' : `${pod} pod`;
-    }
-    // A report that says "southern residents" without naming a matriline still
-    // said which whales it saw. detectPod only answers this for Biggs, via the
-    // T that was their old pod letter, so the ecotype is asked separately.
-    for (const {body} of occurrences) {
-      const ecotype = detectEcotype(body || '');
-      if (ecotype)
-        return ecotype;
-    }
+    const identifiers = occurrences.flatMap(({identifiers}) => identifiers ?? []);
+    const named = firstNamed(identifiers, podOf) ?? firstNamed(identifiers, populationOf);
+    if (named)
+      return named;
     // A record identified as the Southern Resident community says so itself: Maplify
     // reports sent as "Southern Resident Killer Whale" resolve to SSA:0000010
     // (decision 049). Keyed on the identifier, and a pass of its own ahead of the
@@ -237,8 +270,8 @@ export function labelForSegment(occurrences: readonly Pick<Occurrence, 'body' | 
       // the 4,377 `ater` occurrences already fall outside `salishSeaExtent`
       // ([-126, 47, -122, 50.5]) — 27 south of it, 3 north — and salish-a4y
       // scopes ingest to killer whales range-wide, so the error grows by
-      // design. A report that actually says "southern residents" is caught by
-      // detectEcotype above, which runs first — that path still reads SRKW,
+      // design. A report that actually says "southern residents" names them in
+      // its identifiers, which is checked above; that path still reads SRKW,
       // because there someone said so.
       // `rectipinnus` above narrows nothing: it and Bigg's are one population.
       if (taxon.scientific_name === 'Orcinus orca ater')
@@ -248,8 +281,28 @@ export function labelForSegment(occurrences: readonly Pick<Occurrence, 'body' | 
   return displayNameFor(head.taxon);
 }
 
+/**
+ * The identifiers a label lists after its name: those the name doesn't already say
+ * (decision 121). "J pod" leaves out "J pod" and "J pod?", and, when the pod is plain,
+ * the Southern Resident population too; "Biggs" leaves out "Bigg's"; "SRKW" leaves out
+ * "Southern Resident". A name that is only possible ("J pod?") leaves out the pod's two
+ * forms and keeps "Southern Resident", which it doesn't say.
+ */
+export function identifiersBeyond(name: string, identifiers: readonly string[]): string[] {
+  const said = new Set<string>();
+  if (/^[JKL] pod\??$/.test(name)) {
+    said.add(name.replace(/\?$/, '')).add(name.replace(/\?*$/, '?'));
+    if (!name.endsWith('?'))
+      said.add('Southern Resident').add('Southern Resident?');
+  } else if (name === 'Biggs')
+    said.add("Bigg's").add("Bigg's?");
+  else if (name === 'SRKW')
+    said.add('Southern Resident').add('Southern Resident?');
+  return identifiers.filter(identifier => !said.has(identifier));
+}
+
 /** A lone occurrence is a segment of one. */
-export function labelFor(occurrence: Pick<Occurrence, 'body' | 'taxon'>): string {
+export function labelFor(occurrence: Pick<Occurrence, 'identifiers' | 'taxon'>): string {
   return labelForSegment([occurrence]);
 }
 
