@@ -102,6 +102,18 @@ test('the brand card serves image bytes to the crawler that reads og:image', asy
   expect((await response.body()).byteLength).toBeGreaterThan(20_000);
 });
 
+// Previews saved before decision 019 name the old fallback image, and Zulip's image
+// proxy still fetches it for them; the server answers with the brand card (salish-pi0g).
+test('the old fallback image address serves the brand card', async ({ request }) => {
+  const response = await request.get('/preview.jpg', {
+    headers: { 'User-Agent': 'Zulip-Server/12.0 go-camo/2.7.3' },
+  });
+
+  expect(response.status()).toBe(200);
+  expect(response.headers()['content-type']).toBe('image/jpeg');
+  expect((await response.body()).byteLength).toBeGreaterThan(20_000);
+});
+
 test('bot UA on a dated link receives a day card', async ({ request }) => {
   const response = await request.get('/?d=2026-07-26', {
     headers: { 'User-Agent': 'facebookexternalhit/1.1' },
