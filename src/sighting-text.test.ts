@@ -116,6 +116,26 @@ describe('reading sighting text', () => {
         expect(labels('J pod here. Not J pod later')).toEqual(['J pod']);
     });
 
+    test('pods and populations go through the same negation rule as codes', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('No J pod or K pod')).toEqual([]);
+        expect(labels('No J pod, K pod or L pod today')).toEqual([]);
+        expect(labels('This is not J pod\'s usual range')).toEqual(['J pod']);
+        expect(labels('not sure if Biggs')).toEqual(["Bigg's?"]);
+        // the list can mix codes and groups; only the code is written as absent
+        const mixed = readText('No T65A or J pod');
+        expect(identifierLabels(mixed)).toEqual([]);
+        expect(absent(mixed)).toEqual(['T65A']);
+        expect(absent(readText('No J pod'))).toEqual([]);
+    });
+
+    test('a question applies to the mentions inside it, not to the name everywhere', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels("Isn't it J pod? J pod confirmed.")).toEqual(['J pod']);
+        expect(labels("Isn't it T65A? T65A confirmed.")).toEqual(['T65A']);
+        expect(labels("Isn't it T65A?")).toEqual(['T65A?']);
+    });
+
     test('pod spellings: a curly apostrophe, a slash list, run-together letters', () => {
         const labels = (text: string) => identifierLabels(readText(text));
         expect(labels('J’s northbound')).toEqual(['J pod']);
