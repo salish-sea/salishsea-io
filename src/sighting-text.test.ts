@@ -93,6 +93,8 @@ describe('reading sighting text', () => {
         expect(labels('T65A? and T65B heading north')).toEqual(['T65A?', 'T65B']);
         expect(labels('J pod? Biggs also')).toEqual(['J pod?', "Bigg's"]);
         expect(labels('J and K pods?')).toEqual(['J pod', 'K pod?']);
+        // a plural's apostrophe may stand between the name and its "?"
+        expect(labels("T46B's? and T65A")).toEqual(['T46B?', 'T65A']);
         // a "?" standing apart still hedges the names after it, up to the comma
         expect(labels('Who is that ? T65A, T65B')).toEqual(['T65A?', 'T65B']);
     });

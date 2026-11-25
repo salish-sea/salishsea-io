@@ -326,9 +326,15 @@ export function readText(text: string): Reading {
     // after a name makes that name possible and reaches no further (decision 121); a "?"
     // standing apart hedges the names after it, as a hedge word does.
     const certainty = new Map<string, Certainty>([...questioned].map(code => [code, 'possible' as const]));
-    for (const n of names) if (text[n.end] === '?') certainty.set(n.text, 'possible');
+    // A plural's apostrophe may stand between a name and its "?": "T46B's?".
+    const markedAt = (n: Name) => /^(?:['’]s)?\?/.exec(text.slice(n.end))?.[0].length;
+    const marks = new Set<number>();
+    for (const n of names) {
+        const length = markedAt(n);
+        if (length !== undefined) { certainty.set(n.text, 'possible'); marks.add(n.end + length - 1); }
+    }
     for (const h of text.matchAll(HEDGE)) {
-        if (names.some(n => n.end === h.index)) continue;
+        if (marks.has(h.index!)) continue;
         const level = levelOf(h[0]);
         const end = text.slice(h.index!).search(/[,.;)]|\bbut\b/);
         const stop = end < 0 ? text.length : h.index! + end;
