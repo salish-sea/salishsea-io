@@ -213,6 +213,7 @@ let codeMap: Map<string, IndividualRef> | null = null;
 let matrilineMap: Map<string, GroupRef> | null = null;
 let populationMap: Map<string, GroupRef> | null = null;
 let podMap: Map<string, GroupRef> | null = null;
+let topMatrilineMap: Map<string, string> | null = null;
 let loading: Promise<Map<string, IndividualRef>> | null = null;
 
 /**
@@ -221,9 +222,17 @@ let loading: Promise<Map<string, IndividualRef>> | null = null;
  * individual has carried, and the matriline, population and pod designations.
  */
 export interface CatalogCodeRows {
-  designations: { code: string; individual: IndividualRef | null }[];
-  groups: { kind: string; designation: string; entity_id: string | null }[];
+  /**
+   * `matriline`: the designation of the topmost matriline the individual belongs to, by the
+   * register's ancestry (decision 029, 2026-11-25 amendment); absent when it has none.
+   */
+  designations: { code: string; individual: IndividualRef | null; matriline?: string }[];
+  /** `matriline`: on a matriline, the designation of the topmost matriline above it, or itself. */
+  groups: { kind: string; designation: string; entity_id: string | null; matriline?: string }[];
 }
+
+// A matriline as reporters write it: no leading zeros, and the s ("T046" is "T46s").
+const written = (designation: string) => `${designation.replace(/\d+/g, digits => String(BigInt(digits)))}s`;
 
 /** Sets the lookup from its rows, whichever source they came from. */
 export function setCatalogCodes({ designations, groups }: CatalogCodeRows): Map<string, IndividualRef> {
@@ -231,6 +240,11 @@ export function setCatalogCodes({ designations, groups }: CatalogCodeRows): Map<
   matrilineMap = new Map(groups.filter(g => g.kind === 'matriline').map(g => [fold(`${g.designation}s`), g]));
   populationMap = new Map(groups.filter(isPopulation).map(g => [fold(g.designation), g]));
   podMap = new Map(groups.filter(g => g.kind === 'pod').map(g => [fold(podLabel(g)), g]));
+  // Keyed as the lookups above are: an individual by its code, a matriline by its code with the s.
+  topMatrilineMap = new Map([
+    ...designations.flatMap(({code, matriline}): [string, string][] => matriline ? [[fold(code), written(matriline)]] : []),
+    ...groups.flatMap((g): [string, string][] => g.kind === 'matriline' && g.matriline ? [[fold(`${g.designation}s`), written(g.matriline)]] : []),
+  ]);
   return codeMap;
 }
 
@@ -256,6 +270,15 @@ export function loadCatalogCodes(): Promise<Map<string, IndividualRef>> {
 
 export function catalogCodes(): Map<string, IndividualRef> | null {
   return codeMap;
+}
+
+/**
+ * The topmost matriline an identifier a report names belongs to, as reporters write it
+ * ("T46s" for T46B8, T46B2s and T46s alike), or null when the catalogue doesn't know the
+ * identifier, knows no matriline above it, or hasn't loaded yet. A '?' is the caller's to set aside.
+ */
+export function topMatrilineOf(identifier: string): string | null {
+  return topMatrilineMap?.get(fold(identifier)) ?? null;
 }
 
 export function matrilineCodes(): Map<string, GroupRef> | null {

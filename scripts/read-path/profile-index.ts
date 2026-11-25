@@ -13,7 +13,9 @@
  * - sitemap.xml: the site's own pages, as Vite writes them into <dist>/sitemap.xml,
  *   and after them every published profile.
  * - catalog-codes.json: the rows the map's sighting cards link designations from
- *   (src/individual-links.ts), so a sighting that mentions T065A links to her page.
+ *   (src/individual-links.ts), so a sighting that mentions T065A links to her page. Each
+ *   individual's and matriline's row also names the topmost matriline above it, which is
+ *   what the map's labels roll the identifiers of a segment up to (decision 029).
  * - animal-names.json: every register name the map shows for an entity (the build's
  *   animal_names), keyed by entity (src/catalog.ts's AnimalName), so the report form's
  *   species menu reads it without a database (decision 065).
@@ -26,14 +28,16 @@
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { hauloutPath, individualPath, isPopulation, matrilinePath, podPath, populationPath, type AnimalName } from '../../src/catalog.ts';
+import { groupChain, hauloutPath, individualPath, isPopulation, matrilinePath, podPath, populationPath, type AnimalName, type SocialGroup } from '../../src/catalog.ts';
 import { designationKey, type Redirects } from './redirect-keys.ts';
 import { SITE_ORIGIN } from './profile-document.ts';
 import { readSnapshot, type Doc, type Tables } from './snapshot-tables.ts';
 import type { CatalogCodeRows } from '../../src/individual-links.ts';
 
-const TABLES = ['individuals', 'designations', 'social_groups', 'haulouts', 'animal_names'] as const;
+const TABLES = ['individuals', 'designations', 'social_groups', 'group_parents', 'matriline_members', 'haulouts', 'animal_names'] as const;
 type IndexTables = Pick<Tables, 'individuals' | 'designations' | 'social_groups' | 'haulouts'>;
+// What the catalogue codes add: the groups' parents and each animal's matrilines.
+type CodeTables = IndexTables & Pick<Tables, 'group_parents' | 'matriline_members'>;
 
 export { designationKey, matrilineKey, type Redirects } from './redirect-keys.ts';
 
@@ -111,20 +115,32 @@ export function buildAnimalNames(t: Pick<Tables, 'animal_names'>): AnimalName[] 
  * pick those), then published ones from least preferred to most — for animals the
  * redirects' own precedence reversed, for groups the highest id first.
  */
-export function buildCatalogCodes(t: IndexTables): CatalogCodeRows {
+export function buildCatalogCodes(t: CodeTables): CatalogCodeRows {
     const individuals = new Map(t.individuals.map(i => [i['id'], i]));
+    // The topmost matriline above a group, itself included, by the same ancestry the pages use
+    // (groupChain over group_parents): the last matriline on the way up to its pod or population.
+    const parentOf = new Map(t.group_parents.map(p => [p['group_id'], p['parent_group_id']]));
+    const groups = new Map(t.social_groups.map(g => [g['id'], {...g, parent_group_id: parentOf.get(g['id']) ?? null} as SocialGroup]));
+    const topOf = (groupId: number | undefined) =>
+        groupId === undefined ? undefined : groupChain(groupId, groups).filter(g => g.kind === 'matriline').at(-1)?.designation;
+    const innermost = new Map(t.matriline_members.map(m => [m['individual_id'], m['innermost_group_id']]));
     const published = (d: Doc) => individuals.get(d['individual_id'])?.['entity_id'] ? 1 : 0;
     return {
         designations: [...t.designations]
             .sort((a, b) => published(a) - published(b) || byPrecedence(b, a))
             .map(d => {
                 const i = individuals.get(d['individual_id']);
-                return {code: d['code'], individual: i ? {entity_id: i['entity_id'], primary_designation: i['primary_designation']} : null};
+                const matriline = topOf(innermost.get(d['individual_id']));
+                return {code: d['code'], individual: i ? {entity_id: i['entity_id'], primary_designation: i['primary_designation']} : null,
+                    ...(matriline && {matriline})};
             }),
         groups: [...t.social_groups]
             .filter(g => g['kind'] === 'matriline' || g['kind'] === 'pod' || isPopulation({kind: g['kind']}))
             .sort((a, b) => (a['entity_id'] ? 1 : 0) - (b['entity_id'] ? 1 : 0) || b['id'] - a['id'])
-            .map(g => ({kind: g['kind'], designation: g['designation'], entity_id: g['entity_id']})),
+            .map(g => {
+                const matriline = g['kind'] === 'matriline' ? topOf(g['id']) : undefined;
+                return {kind: g['kind'], designation: g['designation'], entity_id: g['entity_id'], ...(matriline && {matriline})};
+            }),
     };
 }
 

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import basemapStyle from './basemap-style.json' with { type: 'json' };
+import { setCatalogCodes } from './individual-links.ts';
 import { PLACE_LISTS } from './places.ts';
 import { IMAGE_TILES, IMAGE_TILES_MAX_ZOOM } from './profile-map.ts';
 import { BASEMAP_VERSION, baseStyle, occurrenceProperties, SOURCES } from './style.ts';
@@ -48,6 +49,42 @@ describe('occurrenceProperties', () => {
       .toBe('J pod · J27');
     expect(occurrenceProperties(killerWhale({isLast: true, segmentIdentity: 'J pod?', segmentIdentifiers: ['J pod?', 'Southern Resident']})).label)
       .toBe('J pod? · Southern Resident');
+  });
+
+  describe('identifiers after the name (decision 029, 2026-11-25)', () => {
+    const killerWhale = (over: Partial<Occurrence>) => ({...humpback(over), taxon: {...humpback().taxon, scientific_name: 'Orcinus orca'}}) as Occurrence;
+    const biggs = ['T100s', 'T101s', 'T37Bs', 'T46B', 'T46B1s', 'T46B2', 'T46B8', 'T49A', 'T49A7'];
+    const label = (identifiers: string[]) =>
+      occurrenceProperties(killerWhale({isLast: true, segmentIdentity: 'Biggs', segmentIdentifiers: identifiers})).label;
+    const individual = (id: number, designation: string) => ({entity_id: `SSA:${id}`, primary_designation: designation});
+
+    it('before the catalogue loads, lists nothing rolled up, and counts a long list', () => {
+      expect(label(['T46B8', 'T49A7'])).toBe('Biggs · T46B8, T49A7');
+      expect(label(biggs)).toBe('Biggs · 9 identified');
+    });
+
+    it('once it has loaded, rolls identifiers up to their topmost matrilines', () => {
+      setCatalogCodes({
+        designations: [
+          {code: 'T46B8', individual: individual(1, 'T046B8'), matriline: 'T046'},
+          {code: 'T49A7', individual: individual(2, 'T049A7'), matriline: 'T049'},
+          {code: 'T65A', individual: individual(3, 'T065A'), matriline: 'T065'},
+          {code: 'T46', individual: individual(4, 'T046'), matriline: 'T046'},
+        ],
+        groups: [
+          {kind: 'matriline', designation: 'T046B2', entity_id: 'SSA:10', matriline: 'T046'},
+          {kind: 'matriline', designation: 'T049A', entity_id: 'SSA:11', matriline: 'T049'},
+          {kind: 'matriline', designation: 'T065', entity_id: 'SSA:12', matriline: 'T065'},
+        ],
+      });
+      expect(label(['T46B8', 'T46B2s', 'T46'])).toBe('Biggs · T46s');
+      expect(label(['T49A7', 'T49As', 'T65A?'])).toBe('Biggs · T49s, T65s?');
+      expect(label(['T46B8', 'T49A7', 'T65A?'])).toBe('Biggs · 3 matrilines');
+      expect(label(['T46B8', 'T49A7', 'BCX1358'])).toBe('Biggs · 3 identified');
+      // the second line is as it was
+      expect(occurrenceProperties(killerWhale({isLast: true, segmentIdentity: 'Biggs', segmentIdentifiers: ['T46B8'], segmentLength: 3, segmentSpanHours: 7})).label)
+        .toBe('Biggs · T46s\nSeen 3× over 7h');
+    });
   });
 
   it('draws an unconfirmed or disputed sighting as a white dot edged in its colour (decision 080)', () => {

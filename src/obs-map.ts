@@ -22,6 +22,7 @@ import UserLocationControl from './user-location-control.ts';
 import LayerControl from './layer-control.ts';
 import { DEFAULT_LAYERS, REFERENCE_LAYERS, type ReferenceLayer } from './reference-layers.ts';
 import { hauloutPath, type HauloutSite } from './catalog.ts';
+import { catalogCodes, loadCatalogCodes } from './individual-links.ts';
 import { formatDate } from './date-format.ts';
 import { KIND_COLOR, KINDS, type DotKind } from './profile-map.ts';
 import { fetchHauloutSites } from './read-path.ts';
@@ -510,6 +511,13 @@ user-location-control.inactive svg { color: var(--color-text); }
     const placed = segments.flatMap(placeInSegment);
     this.#occurrences = new Map(placed.map(occurrence => [occurrence.id, occurrence]));
     this.#setData('occurrences', {type: 'FeatureCollection', features: compactMap(placed, occurrenceFeature)});
+    // A label rolls its identifiers up to matrilines, which only the catalogue knows: drawn
+    // again when it arrives, from whatever the map holds by then. Without it, labels stay as drawn.
+    if (catalogCodes() === null)
+      loadCatalogCodes().then(() => {
+        this.#setData('occurrences', {type: 'FeatureCollection', features: compactMap([...this.#occurrences.values()], occurrenceFeature)});
+        this.#select(this.#selectedId);
+      }, () => { /* labels keep every identifier, capped */ });
     // One ring per place, radius and colour: a hydrophone that heard several bouts in a
     // day would otherwise stack their rings into a darker one, claiming nothing more.
     const rings = new Map(compactMap(placed, uncertaintyRing).map(ring => [JSON.stringify([ring.geometry, ring.properties]), ring]));

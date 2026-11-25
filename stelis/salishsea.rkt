@@ -363,8 +363,11 @@
   (append '(build.occurrences register.entities register.ancestor register.classification
             register.taxon_ancestor)
           (map snapshot-relation '("animal_names" "social_groups"))))
+;; With the group parents and the matriline members, which catalog-codes.json's roll-up of an
+;; identifier to its topmost matriline reads (decision 029, amended 2026-11-25).
 (define profile-index-relations
-  (map snapshot-relation '("individuals" "designations" "social_groups" "haulouts" "animal_names")))
+  (map snapshot-relation '("individuals" "designations" "social_groups" "group_parents" "matriline_members"
+                           "haulouts" "animal_names")))
 
 ;; A kind's page task. Its code is profiles.ts's import closure (all the kinds'
 ;; templates, since one script renders them), the kind's Vite-built shell, and

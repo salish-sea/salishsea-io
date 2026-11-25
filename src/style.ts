@@ -7,7 +7,8 @@ import viewingLocationIcon from './assets/viewing-location.svg?url';
 import { directionToRads } from './direction.ts';
 import { isUnconfirmed } from './occurrence.ts';
 import type { Occurrence } from './types.ts';
-import { GROUPS, identifiersBeyond, labelFor, taxonGroup, trackSummary } from './symbology.ts';
+import { topMatrilineOf } from './individual-links.ts';
+import { GROUPS, identifiersBeyond, labelFor, labelIdentifiers, taxonGroup, trackSummary } from './symbology.ts';
 
 /**
  * What the map draws and how (decision 029, ported to MapLibre by 076).
@@ -101,8 +102,9 @@ export function occurrenceProperties(occurrence: Occurrence): OccurrenceProperti
     // A dead animal is a segment of its own (segments.ts), so its label speaks for it alone.
     const name = identified + hedge + (properties.dead ? ' · dead' : '');
     // What the name already says is left out of the list after it (decision 121).
-    const beyond = identifiersBeyond(identified, identifiers ?? []);
-    const identity = beyond.length ? `${name} · ${beyond.join(', ')}` : name;
+    // Then rolled up to matrilines and capped (decision 029): the card lists every one.
+    const beyond = labelIdentifiers(identifiersBeyond(identified, identifiers ?? []), topMatrilineOf);
+    const identity = beyond ? `${name} · ${beyond}` : name;
     const points = segmentLength ?? 1;
     // One label over one or two lines, so the two lines share a box and are
     // kept or dropped together when labels collide.

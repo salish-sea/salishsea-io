@@ -309,6 +309,45 @@ export function identifiersBeyond(name: string, identifiers: readonly string[]):
   return identifiers.filter(identifier => !said.has(identifier));
 }
 
+/** Most identifiers a label lists before it counts them instead (decision 029, amended 2026-11-25). */
+const LABEL_IDENTIFIERS_LISTED = 2;
+
+/**
+ * What a label says after its name about the identifiers its reports give (decision 029,
+ * amended 2026-11-25), or null when there are none. `identifiers` are those
+ * {@link identifiersBeyond} left; `topMatriline` gives the topmost matriline of one the
+ * catalogue knows, written as reporters write it, and null for any other.
+ *
+ * Each identifier the catalogue places in a matriline becomes that matriline, keeping a "?"
+ * if it had one; duplicates merge, a plain one outranking a hedged one. At most two entries
+ * are listed. More are counted: "7 matrilines" when every entry is a matriline, otherwise
+ * "15 identified". Before the catalogue has loaded nothing rolls up, so the cap applies to the raw list.
+ */
+export function labelIdentifiers(
+  identifiers: readonly string[],
+  topMatriline: (identifier: string) => string | null,
+): string | null {
+  const entries = new Map<string, {hedged: boolean, matriline: boolean}>();
+  for (const identifier of identifiers) {
+    const hedged = identifier.endsWith('?');
+    const bare = hedged ? identifier.slice(0, -1) : identifier;
+    const top = topMatriline(bare);
+    const text = top ?? bare;
+    const already = entries.get(text);
+    if (already)
+      already.hedged &&= hedged;
+    else
+      entries.set(text, {hedged, matriline: top !== null});
+  }
+  if (!entries.size)
+    return null;
+  if (entries.size <= LABEL_IDENTIFIERS_LISTED)
+    return [...entries].map(([text, {hedged}]) => hedged ? `${text}?` : text).join(', ');
+  return [...entries.values()].every(({matriline}) => matriline)
+    ? `${entries.size} matrilines`
+    : `${entries.size} identified`;
+}
+
 /** A lone occurrence is a segment of one. */
 export function labelFor(occurrence: Pick<Occurrence, 'identifiers' | 'taxon'>): string {
   return labelForSegment([occurrence]);

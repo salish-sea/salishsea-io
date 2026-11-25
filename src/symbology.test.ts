@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { GROUPS, displayNameFor, identifiersBeyond, labelFor, labelForSegment, taxonGroup, trackSummary } from './symbology.ts';
+import { GROUPS, displayNameFor, identifiersBeyond, labelFor, labelIdentifiers, labelForSegment, taxonGroup, trackSummary } from './symbology.ts';
 import type { Occurrence } from './types.ts';
 
 const taxon = (
@@ -286,5 +286,55 @@ describe('identifiersBeyond: what the name already says is left out of the list'
   test('a name with no population to say leaves the list alone', () => {
     expect(identifiersBeyond('Killer whale', ['T65A', 'Southern Resident'])).toEqual(['T65A', 'Southern Resident']);
     expect(identifiersBeyond('Resident', ['Southern Resident'])).toEqual(['Southern Resident']);
+  });
+});
+
+describe('labelIdentifiers: roll up to matrilines, then cap (decision 029, 2026-11-25)', () => {
+  // The catalogue's answers, as topMatrilineOf gives them: T46B8, T46B2s and T46s are all T46s.
+  const tops: Record<string, string> = {
+    T46: 'T46s', T46s: 'T46s', T46B8: 'T46s', T46B2s: 'T46s', T46B1s: 'T46s',
+    T49A7: 'T49s', T49As: 'T49s', T65A: 'T65s', T100s: 'T100s', T101s: 'T101s', T37Bs: 'T37s',
+  };
+  const roll = (identifiers: string[]) => labelIdentifiers(identifiers, id => tops[id] ?? null);
+
+  test('says nothing when there are no identifiers', () => {
+    expect(roll([])).toBeNull();
+  });
+
+  test('an individual or a matriline becomes its topmost matriline, however deep', () => {
+    expect(roll(['T46B8'])).toBe('T46s');
+    expect(roll(['T46B2s'])).toBe('T46s');
+    expect(roll(['T49A7', 'T49As'])).toBe('T49s');
+  });
+
+  test('keeps a ? on the matriline, and a plain identifier outranks a hedged one', () => {
+    expect(roll(['T65A?'])).toBe('T65s?');
+    expect(roll(['T46B8?', 'T46s'])).toBe('T46s');
+    expect(roll(['T46s', 'T46B8?'])).toBe('T46s');
+    expect(roll(['T46B8?', 'T46B2s?'])).toBe('T46s?');
+  });
+
+  test('an identifier the catalogue does not know stays as written', () => {
+    expect(roll(['BCX1358', 'T46B8'])).toBe('BCX1358, T46s');
+    expect(roll(['CRC1234?'])).toBe('CRC1234?');
+  });
+
+  test('lists up to two entries and counts more', () => {
+    expect(roll(['T46B8', 'T49A7'])).toBe('T46s, T49s');
+    expect(roll(['T46B8', 'T49A7', 'T65A'])).toBe('3 matrilines');
+  });
+
+  test('counts "matrilines" only when every entry is one, and "identified" otherwise', () => {
+    const seven = ['T100s', 'T101s', 'T37Bs', 'T46B8', 'T49A7', 'T65A?'];
+    expect(roll(seven)).toBe('6 matrilines');
+    expect(roll([...seven, 'BCX1358'])).toBe('7 identified');
+    expect(roll(['BCX1', 'BCX2', 'BCX3'])).toBe('3 identified');
+  });
+
+  test('before the catalogue loads nothing rolls up, and the cap still applies to the raw list', () => {
+    const none = () => null;
+    expect(labelIdentifiers(['T46B8', 'T46B2s'], none)).toBe('T46B8, T46B2s');
+    expect(labelIdentifiers(['T46B8', 'T46B2s', 'T49A7'], none)).toBe('3 identified');
+    expect(labelIdentifiers(['T46B8?', 'T46B8'], none)).toBe('T46B8');
   });
 });
