@@ -67,7 +67,7 @@ So the plan that needs nobody's permission is: show the live camera, link to it,
 
 ### Race Rocks (Pearson College)
 
-- Pages: <https://racerocks.ca/video-cameras/>, archive <https://racerocks.ca/archived-video/>, terms <https://racerocks.ca/copyright/>: teachers and students may use its material in class without asking, with acknowledgement. Asked "May I use images or materials on a web site", it answers "No, but you may link with permission to educational websites". The page also asks to approve links, but a link copies nothing, so it needs no permission; the question is only whether we may show the picture. Permission requests go to Pearson College's administration, named on that page.
+- Pages: <https://racerocks.ca/video-cameras/>, archive <https://racerocks.ca/archived-video/>, terms <https://racerocks.ca/copyright/>: teachers and students may use its material in class without asking, with acknowledgement. Asked "May I use images or materials on a web site", it answers "No, but you may link with permission to educational websites". It also asks that links be approved, which has no force: a site can't stop anyone linking to it. The only question is whether we may show the picture. Permission requests go to Pearson College's administration, named on that page.
 - The site asks viewers not to leave cameras running in the background, because the link to the island is a low-bandwidth microwave relay. Link to it rather than load it.
 
 ### East Passage, Burien (Orca Conservancy)
