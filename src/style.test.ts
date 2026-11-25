@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import basemapStyle from './basemap-style.json' with { type: 'json' };
 import { PLACE_LISTS } from './places.ts';
-import { IMAGE_TILES } from './profile-map.ts';
+import { IMAGE_TILES, IMAGE_TILES_MAX_ZOOM } from './profile-map.ts';
 import { BASEMAP_VERSION, baseStyle, occurrenceProperties, SOURCES } from './style.ts';
 import { GROUPS } from './symbology.ts';
 import type { Occurrence } from './types.ts';
@@ -117,7 +117,9 @@ describe('baseStyle', () => {
     const named = (basemapStyle.metadata as Record<string, unknown>)['salishsea:images'];
     expect(named).toMatch(/^https:\/\/tiles\.salishsea\.io\/images\/[0-9a-f]{16}\/\{z\}\/\{x\}\/\{y\}\.webp$/);
     expect(IMAGE_TILES).toBe(named);
-    expect(readFileSync(new URL('../infra/lib/card-renderer/basemap.ts', import.meta.url), 'utf8')).toContain(`export const IMAGE_TILES = '${named}';`);
+    const card = readFileSync(new URL('../infra/lib/card-renderer/basemap.ts', import.meta.url), 'utf8');
+    expect(card).toContain(`export const IMAGE_TILES = '${named}';`);
+    expect(card).toContain(`export const IMAGE_TILES_MAX_ZOOM = ${IMAGE_TILES_MAX_ZOOM};`);
   });
 
   // The search finds the places the version labels; scripts/update-basemap.ts writes their lists' URLs.

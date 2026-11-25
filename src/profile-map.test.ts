@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { profileMapSvg, project, renderMapLegend, type MapDot } from './profile-map.ts';
+import { IMAGE_TILES_MAX_ZOOM, profileMapSvg, project, renderMapLegend, TILE, type MapDot } from './profile-map.ts';
 import { render } from 'lit';
 
 const dot = (id: string, lon: number, lat: number, observed_at = '2026-09-20T18:00:00Z'): MapDot =>
@@ -17,9 +17,14 @@ describe('profileMapSvg', () => {
     expect(svg).not.toMatch(/\/images\/\w+\/11\//);
   });
 
-  it('comes in to zoom 15 for a haul-out site, to show its radius', () => {
+  it('comes in to zoom 15 for a haul-out site, to show its radius, with zoom 14\'s tiles drawn twice as large', () => {
     const svg = profileMapSvg([], { lon: -122.92, lat: 48.12, radius_m: 50 });
-    expect(svg).toMatch(/\/images\/\w+\/15\//);
+    const zooms = [...svg.matchAll(/\/images\/\w+\/(\d+)\//g)].map(m => Number(m[1]));
+    expect(Math.max(...zooms)).toBe(IMAGE_TILES_MAX_ZOOM);
+    // A zoom-14 tile at zoom 15 covers 512 of the picture's units.
+    const sizes = [...svg.matchAll(/\/14\/\d+\/\d+\.webp" x="[-\d.]+" y="[-\d.]+" width="([\d.]+)"/g)].map(m => Number(m[1]));
+    expect(sizes.length).toBeGreaterThan(0);
+    expect(new Set(sizes)).toEqual(new Set([2 * TILE]));
     expect(svg).toContain('<path class="site"');
   });
 
@@ -29,8 +34,8 @@ describe('profileMapSvg', () => {
     const svg = profileMapSvg([], { lon: -122.4, lat: 47.9, radius_m: 500 });
     const zooms = [...svg.matchAll(/\/images\/\w+\/(\d+)\//g)].map(m => Number(m[1]));
     expect(zooms[0]).toBe(10);
-    expect(zooms.at(-1)).toBe(15);
-    expect(new Set(zooms)).toEqual(new Set([10, 15]));
+    expect(zooms.at(-1)).toBe(IMAGE_TILES_MAX_ZOOM);
+    expect(new Set(zooms)).toEqual(new Set([10, IMAGE_TILES_MAX_ZOOM]));
   });
 
   it('fits reports far apart, from a lower zoom', () => {
