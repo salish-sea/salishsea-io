@@ -6,7 +6,7 @@ import { describe, expect, test } from 'vitest';
 
 import { buildAnimalNames, buildCatalogCodes, buildRedirects, buildSitemap, profilePaths } from './profile-index.ts';
 import { redirectFor } from './redirect.ts';
-import { matrilineCodes, namedAnimals, podCodes, setCatalogCodes } from '../../src/individual-links.ts';
+import { matrilineCodes, namedAnimals, podCodes, setCatalogCodes, topMatrilineOf } from '../../src/individual-links.ts';
 import { individualPath, matrilinePath } from '../../src/catalog.ts';
 
 const animal = (id: number, entityId: string | null, designation: string) =>
@@ -31,6 +31,11 @@ function tables() {
             {id: 101, kind: 'matriline', entity_id: null, designation: 'T065A2'},
             {id: 10000020, kind: 'pod', entity_id: 'SSA:0000020', designation: 'J'},
         ],
+        // T065A2 is a matriline inside T065A, which sits in the Biggs ecotype. T065A is a member of
+        // T065A only; T065A2 (the animal) is of both, its innermost being T065A2.
+        group_parents: [{group_id: 100, parent_group_id: 200}, {group_id: 101, parent_group_id: 100}],
+        matriline_members: [{group_id: 100, individual_id: 1, innermost_group_id: 100},
+            {group_id: 100, individual_id: 2, innermost_group_id: 101}, {group_id: 101, individual_id: 2, innermost_group_id: 101}],
         haulouts: [{id: 510, name: 'Race Rocks'}, {id: 12, name: 'Protection Island'}],
     };
 }
@@ -151,19 +156,34 @@ describe('buildCatalogCodes', () => {
             // Least preferred first, so the lookup's last-row-wins picks what the redirects pick.
             designations: [
                 {code: 'X1', individual: {entity_id: null, primary_designation: 'X1'}},
-                {code: 'T65A2', individual: {entity_id: 'SSA:0010193', primary_designation: 'T065A'}},
-                {code: 'AM25', individual: {entity_id: 'SSA:0010193', primary_designation: 'T065A'}},
-                {code: 'T065A2', individual: {entity_id: 'SSA:0010002', primary_designation: 'T065A2'}},
-                {code: 'T065A', individual: {entity_id: 'SSA:0010193', primary_designation: 'T065A'}},
+                {code: 'T65A2', individual: {entity_id: 'SSA:0010193', primary_designation: 'T065A'}, matriline: 'T065A'},
+                {code: 'AM25', individual: {entity_id: 'SSA:0010193', primary_designation: 'T065A'}, matriline: 'T065A'},
+                {code: 'T065A2', individual: {entity_id: 'SSA:0010002', primary_designation: 'T065A2'}, matriline: 'T065A'},
+                {code: 'T065A', individual: {entity_id: 'SSA:0010193', primary_designation: 'T065A'}, matriline: 'T065A'},
             ],
+            // Each matriline names the topmost matriline above it (or itself); an animal with no
+            // matriline (X1) and the other kinds of group name none.
             groups: [
-                {kind: 'matriline', designation: 'T065A2', entity_id: null},
+                {kind: 'matriline', designation: 'T065A2', entity_id: null, matriline: 'T065A'},
                 // A pod, so a bout tagged 'J pod' links its chip (salish-fwyt.3).
                 {kind: 'pod', designation: 'J', entity_id: 'SSA:0000020'},
                 {kind: 'ecotype', designation: 'Biggs', entity_id: 'SSA:0000002'},
-                {kind: 'matriline', designation: 'T065A', entity_id: 'SSA:0002163'},
+                {kind: 'matriline', designation: 'T065A', entity_id: 'SSA:0002163', matriline: 'T065A'},
             ],
         });
+    });
+
+    test('a matriline in a matriline in a matriline rolls up to the outermost, and stops short of its pod', () => {
+        const t = tables();
+        // T065A is now inside T065B (id 102), itself inside a pod (300) that is not a matriline.
+        t.social_groups.push({id: 102, kind: 'matriline', entity_id: 'SSA:0002164', designation: 'T065B'},
+            {id: 300, kind: 'pod', entity_id: 'SSA:0000021', designation: 'K'});
+        t.group_parents = [{group_id: 100, parent_group_id: 102}, {group_id: 101, parent_group_id: 100}, {group_id: 102, parent_group_id: 300}];
+        const {designations, groups} = buildCatalogCodes(t);
+        expect(designations.filter(d => d.code.startsWith('T065')).map(d => d.matriline)).toEqual(['T065B', 'T065B']);
+        expect(Object.fromEntries(groups.filter(g => g.kind === 'matriline').map(g => [g.designation, g.matriline])))
+            .toEqual({T065A2: 'T065B', T065A: 'T065B', T065B: 'T065B'});
+        expect(setCatalogCodes(buildCatalogCodes(t)) && topMatrilineOf('T065A2')).toBe('T65Bs');
     });
 
     test('depends on the data alone: shuffled rows give the same file', () => {

@@ -10,6 +10,21 @@
 
 *Amended 2026-11-25, by Peter ([121](121-a-sightings-text-names-pods-and-populations-as-a-bouts-tags-do.md)):* a killer whale's label name is no longer read from each report's text in the browser. It is made from the `identifiers` and taxon the build published: a pod, else a population, else the taxon, a plain name before a possible one, and the list after the name leaves out what the name already says.
 
+*Amended 2026-11-25, decided by Peter (bd `salish-f4s`):* the list after a label's name is rolled up and capped, so a label stays short whatever its reports name. After what 121 leaves out, **each identifier the catalogue knows as an individual or a matriline becomes its topmost matriline**, written as reporters write it (T46B2, T46B2s and T46s all become `T46s`); a `?` stays on it (`T65A?` becomes `T65s?`); duplicates merge, a plain one outranking a hedged one; an identifier the catalogue does not know (a BC or CRC code), or an individual with no matriline, stays as written. **Two entries or fewer are listed** (`Biggs · T46s, T49s`); **more are counted**: "N matrilines" when every entry is a matriline (`Biggs · 7 matrilines`), otherwise "N identified" (`Humpback · 15 identified`). Before the catalogue has loaded nothing rolls up and the cap applies to the raw list; the map draws its labels again when it arrives. The second line and the sidebar's cards are unchanged, and the cards still list every identifier. *(As first decided: ~~the list after the name gives every identifier the reports name, separated by commas~~, which ran to 125 characters for a Bigg's encounter and 141 for a humpback's.)* Topmost means the highest matriline above the animal in the register's ancestry, the notion the profile pages' sub-lineages use; `catalog-codes.json` carries it as a `matriline` field on each individual's and each matriline's row, about 16 KB more (84 KB to 101 KB, 8.6 KB to 9.9 KB compressed). Where the catalogue has no group for the register's topmost matriline (T49s, today), an animal rolls up to the highest it does have (`T49As`).
+
+Measured on the 9,612 labels of a year of production days (2025-11-26 to 2026-11-25), characters in the first line:
+
+| | median | p99 | max | over 30 | over 40 |
+|---|---|---|---|---|---|
+| before | 12 | 38 | 141 | 183 | 85 |
+| after | 12 | 24 | 38 | 3 | 0 |
+
+578 labels change. The 2026-07-13 Bigg's segment goes from `Biggs · T100s, T101s, T37Bs, T46B, T46B1s, T46B2, T46B2B, T46B4, T46B7, T46B8, T46C2, T49A, T49A3, T49A4, T49A5, T49A6, T49A7` to `Biggs · 7 identified` (T46B8 and T49A7 are not in the catalogue, so the count says "identified" and not "matrilines"); the 2026-06-21 humpback segment from fifteen BC codes to `Humpback · 15 identified`. The longest label left is 38 characters, and the ten longest are now long names ("Oceanic Dolphins and Porpoises", "· dead") with at most two identifiers, not lists. Before and after, on the real page at phone width and at desktop width (the 2026-07-13 segment; the catalogue file patched with the new field, since production's lacks it):
+
+![Before: the label lists seventeen identifiers over two lines, then the second line](images/029-label-count-before.png)
+
+![After: Biggs · 7 identified](images/029-label-count-after.png)
+
 ## Problem
 
 `symbolFor()` renders each occurrence as a single letter inside a bubble. Outside killer whales it fails, and not merely by being opaque — it is **ambiguous**. Across 61,411 occurrences the scheme collapses to 18 glyphs. The five carrying the most records:

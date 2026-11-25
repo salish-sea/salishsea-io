@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { injectIndividualLinks, matrilineCodes, populationPage, namedAnimals, podCodes, pooledAnimals, populationCodes, setCatalogCodes } from './individual-links.ts';
+import { injectIndividualLinks, matrilineCodes, populationPage, namedAnimals, podCodes, pooledAnimals, populationCodes, setCatalogCodes, topMatrilineOf } from './individual-links.ts';
 
 // Links carry the register identifier and the designation as its slug (034).
 const T065A5 = { entity_id: 'SSA:0010197', primary_designation: 'T065A5' };
@@ -176,6 +176,22 @@ test('rows from either source build the lookup the links are made from', () => {
     '[T65A](/individuals/0010193/T065A) and the [T65As](/matrilines/0002163/T065As), with [T046A](/individuals/0010368/T122), among [transients](/populations/0000002/Biggs); X9 too');
   expect(injectIndividualLinks('SRKWs: J pod', byCode, matrilineCodes()!, populationCodes()!, podCodes()!)).toBe(
     '[SRKWs](/populations/0000010/Southern-Resident): [J pod](/pods/0000020/J-pod)');
+});
+
+test('when two codes fold alike, the row the animal lookup keeps also decides the matriline', () => {
+  const first = { entity_id: 'SSA:1', primary_designation: 'T065A2' };
+  const second = { entity_id: 'SSA:2', primary_designation: 'T65A2' };
+  // the later row wins in both lookups, even when it has no matriline
+  setCatalogCodes({
+    designations: [{ code: 'T065A2', individual: first, matriline: 'T065' }, { code: 'T65A2', individual: second }],
+    groups: [],
+  });
+  expect(topMatrilineOf('T65A2')).toBeNull();
+  setCatalogCodes({
+    designations: [{ code: 'T065A2', individual: first }, { code: 'T65A2', individual: second, matriline: 'T065' }],
+    groups: [],
+  });
+  expect(topMatrilineOf('T65A2')).toBe('T65s');
 });
 
 test('a sighting\'s named animals become chips, each once, in the order its text names them', () => {
