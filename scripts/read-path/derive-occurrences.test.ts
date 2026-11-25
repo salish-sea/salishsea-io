@@ -451,7 +451,7 @@ describe('the derivations over the fixture', () => {
                        (SELECT count(*) FROM archive.dwc.multimedia),
                        (SELECT no_agreement FROM archive.dwc.export_coverage WHERE branch = 'native'),
                        (SELECT exported_rows FROM archive.dwc.export_coverage WHERE branch = 'maplify')`)).getRows()[0]!.map(Number));
-            expect(withheld).toEqual([0, 0, 2, 5]);
+            expect(withheld).toEqual([0, 0, 2, 7]);
         } finally {
             await rm(dir, {recursive: true, force: true});
         }

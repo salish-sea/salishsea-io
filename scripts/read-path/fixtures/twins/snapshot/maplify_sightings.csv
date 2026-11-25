@@ -6,3 +6,5 @@ id,name,scientific_name,location_lon,location_lat,number_sighted,created_at,phot
 12,Harbor Seal,Phoca vitulina,-124.591,48.3825,12,2026-09-11 09:05:00,,Hauled out at low tide,false,whale_alert,,2,22,,SSA:0000904,true
 13,Orca,Orcinus orca,-123.2,48.5,20,2026-09-12 21:45:00,,"J35 and J47 with Ls, northbound in Haro Strait",false,acartia,,2,,,SSA:0000900,true
 14,Orca,Orcinus orca,-123.1,48.6,1,2026-09-13 12:00:00,,"test, please ignore",true,whale_alert,,2,22,,SSA:0000900,true
+15,Orca,Orcinus orca,-122.85,48.6,4,2026-09-17 15:30:00,,Biggs heading south past Orcas Island,false,whale_alert,,2,1,,SSA:0000900,true
+16,Orca,Orcinus orca,-123.15,48.55,6,2026-09-18 16:10:00,,SRKWs in Haro Strait,false,acartia,,2,,,SSA:0000900,true
