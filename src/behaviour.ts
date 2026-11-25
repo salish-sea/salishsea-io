@@ -111,10 +111,6 @@ function isName(text: string, at: number): boolean {
     return /[A-Z][a-z]+\s+$/.test(text.slice(open, at)) || /^\S+\s+[A-Z][a-z]/.test(text.slice(at));
 }
 
-// A dash with a space on either side or doubled, or a long dash, ends a clause, so a hedge
-// before it is about what came before ("not sure of ID - feeding" doubts the ID, not the feeding).
-const DASH = /\s-|-\s|--|[\u2013\u2014]/;
-
 /**
  * The tags a text says, in the order of the list. A hedge word before a phrase, in its reach
  * (src/hedge.ts, as for the names a text gives), makes the tag possible, written with a
@@ -143,7 +139,7 @@ export function readBehaviour(text: string): string[] {
     for (const m of mentions) {
         let level: Certainty = m.own ? 'possible' : 'certain';
         if (level !== 'possible') for (const h of hedges)
-            if (h.from <= m.index && m.end <= h.to && !DASH.test(read.slice(h.from, m.index)) && rank[h.level] < rank[level]) level = h.level;
+            if (h.from <= m.index && m.end <= h.to && rank[h.level] < rank[level]) level = h.level;
         const have = certainty.get(m.tag);
         if (have === undefined || rank[level] > rank[have]) certainty.set(m.tag, level);
     }
