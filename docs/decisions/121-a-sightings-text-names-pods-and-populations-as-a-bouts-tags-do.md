@@ -15,7 +15,7 @@ Pods were also split across two lists. A bout's pods are among its `identifiers`
 
 ## Decision
 
-**The shared reader names pods and populations, as claims, in the register's words.** [`src/sighting-text.ts`](../../src/sighting-text.ts) answers "J and K pods" with the claims `J pod` and `K pod`. It answers *Biggs*, *Bigg's* and *transients* with `Bigg's`, and *SRKW* and *southern residents* with `Southern Resident`. These are the labels the register gives those groups and a bout's tags already carry. A hedge reaches them as it reaches a code: *possibly J pod* is possible, *likely J pod* is probable. A question mark right after a code or a pod, as in *Js?* or *T65A?*, makes it possible too, which the reader didn't read before.
+**The shared reader names pods and populations, as claims, in the register's words.** [`src/sighting-text.ts`](../../src/sighting-text.ts) answers "J and K pods" with the claims `J pod` and `K pod`. It answers *Biggs*, *Bigg's* and *transients* with `Bigg's`, and *SRKW* and *southern residents* with `Southern Resident`. These are the labels the register gives those groups and a bout's tags already carry. Each claim says what kind of name it is: `code`, `pod` or `population`. The readers that want catalogue codes alone, which are the identifier candidates and the gold set's score of codes, take only `code` claims. A pod or a population is found where it is written, as a code is, so a hedge reaches it as it reaches a code: *possibly J pod* is possible, *likely J pod* is probable. A question mark directly after a code, a pod or a population, as in *Js?* or *T65A?*, makes that one name possible and reaches no further. A question mark standing apart still makes the names after it possible, up to the next comma.
 
 **They are written among the occurrence's `identifiers`, as a code is, and `pods` goes.** As decision 109 says, a possible one ends in `?` ("J pod?") and a probable one is plain. A report's identifiers and a bout's then mean the same things in the same words, so the cards, the map label, the rule that joins reports into tracks and the archive each read one list. The document's `pods` key is removed, along with the reader's `pods` and `namedInReport`.
 
@@ -25,13 +25,24 @@ Pods were also split across two lists. A bout's pods are among its `identifiers`
 2. otherwise a population named (`Bigg's` is Biggs, `Southern Resident` is SRKW);
 3. otherwise the taxon, as before: the Southern Resident community is SRKW, `rectipinnus` is Biggs and `ater` is Resident.
 
-A name taken from a hedged identifier keeps its `?` ("J pod?"). One that a report names plainly outranks one that another report hedges, as 054 says. The list after the name leaves out what the name already says, so the bout above reads "SRKW", not "SRKW · Southern Resident". `detectPod` and `detectEcotype` are removed. A contributor's own sighting, before the build publishes it, gets its identifiers from the same reader (`src/own-occurrence.ts`), so it is labelled by the same rule.
+The reports are taken in time order, and each one's identifiers in the order its text gives them. A name that any report gives plainly comes before one that is only hedged, as 054 says, so a hedged name is used only when no report gives a name of that step plainly. A name taken from a hedged identifier keeps its `?`: `J27?` alone gives "J pod?". A hedged pod still comes before a plain population: "J pod? · Southern Resident". The `?` that marks a species only possibly there is not added a second time.
+
+The list after the name leaves out what the name already says:
+
+| name | leaves out |
+|---|---|
+| J pod (K, L) | `J pod`, `J pod?`; and, when the pod is plain, `Southern Resident` and `Southern Resident?` |
+| Biggs | `Bigg's`, `Bigg's?` |
+| SRKW | `Southern Resident`, `Southern Resident?` |
+
+So the bout above reads "SRKW", not "SRKW · Southern Resident". `detectPod` and `detectEcotype` are removed. A contributor's own sighting, before the build publishes it, gets its identifiers from the same reader, in the text's order as the build writes them (`src/own-occurrence.ts`), so it is labelled by the same rule.
 
 ## What else changes
 
 - **The archive's `unvalidatedIdentifiers`** gains the pods and populations a text names, as it already has a bout's.
-- **The rule that joins reports into tracks** (`ecotypesOf`, `src/segments.ts`) already reads "J pod" and "Bigg's" among identifiers. A report that says only *Biggs* now names an ecotype, so it no longer joins a resident track. The hand-labelled days ([118](118-the-join-rule-is-measured-against-hand-labelled-days.md)) show what that changes, for review.
-- **The identifier candidates** keep codes only. A pod or a population named in a text doesn't reach that page's sightings in this change. A bout's tags do, through another path (`derive/profile-links.sql`). Making a text's reach the page too is left to bd follow-up work.
+- **The rule that joins reports into tracks** (`ecotypesOf`, `src/segments.ts`) already reads "J pod" and "Bigg's" among identifiers. A report that says only *Biggs* now names an ecotype, so it no longer joins a resident track. A hedged population counts, as a hedged code (`T65A?`) already does. The hand-labelled days ([118](118-the-join-rule-is-measured-against-hand-labelled-days.md)) show what that changes, for review.
+- **The identifier candidates** keep `code` claims only. A pod or a population named in a text doesn't reach that page's sightings in this change. A bout's tags do, through another path (`derive/profile-links.sql`). Making a text's reach the page too is bd `salish-wgv9`.
+- **The day files written before this change** carry `pods` and no pod among their identifiers. A change to the build's code makes its next run rewrite every day, and the site serves day files `no-cache`. So an old file can meet the new page only in the minutes between a deploy and that run, and nothing reads the old key.
 
 ## Rejected
 
