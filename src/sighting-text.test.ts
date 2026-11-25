@@ -186,6 +186,16 @@ describe('reading sighting text', () => {
         expect(readText('Who is that? Foraging').behaviour).toEqual(['foraging']);
     });
 
+    test('a "?" that ends a sentence hedges back over its own sentence', () => {
+        const read = (text: string) => ({labels: identifierLabels(readText(text)), tags: readText(text).behaviour});
+        expect(read('Perhaps it was "de-gloved" by Bigg\'s killer whales?').labels).toEqual(["Bigg's?"]);
+        expect(read('any idea which pod this is, J pod?').labels).toEqual(['J pod?']);
+        expect(read('T65B northbound. Is this T65A foraging?')).toEqual({labels: ['T65B', 'T65A'], tags: ['foraging?']});
+        // a name given plainly elsewhere outranks it
+        expect(read('T65A northbound. Was that T65A?').labels).toEqual(['T65A']);
+        expect(read('perhaps T65A').labels).toEqual(['T65A?']);
+    });
+
     test('a "?" belongs to the one mention before it, a name or a behaviour (one rule for both readers)', () => {
         const read = (text: string) => ({labels: identifierLabels(readText(text)), tags: readText(text).behaviour});
         expect(read('T65A? foraging')).toEqual({labels: ['T65A?'], tags: ['foraging']});

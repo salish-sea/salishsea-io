@@ -5,6 +5,9 @@
  * Imports nothing, so every reader may import it.
  */
 
+/** Where a sentence ends: a semicolon, "!", or a full stop before a capital or the end of the text (not an ellipsis, "i.e.", "e.g." or an abbreviation such as "Pt."). */
+export const SENTENCE_END = String.raw`[;!]|(?<!\.|\b[ie]\.[eg]|\b(?:Pt|Mt|St|Ft|Is|Mr|Dr|No|approx|ca|vs))\.(?!\.)(?=\s+[A-Z]|\s*$)`;
+
 /** What kind of name a mention is: a catalogue code, a pod or a population. */
 export type NameKind = 'code' | 'pod' | 'population';
 

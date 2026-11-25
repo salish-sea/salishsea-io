@@ -45,7 +45,7 @@
  */
 
 import { readBehaviour, readGroupPart, ownMarks, type GroupPart } from './behaviour.ts';
-import { namedCodes, groupTokens, markAfter, POD_JOIN, NAME_START, type Code, type Group, type NameKind } from './mentions.ts';
+import { namedCodes, groupTokens, markAfter, POD_JOIN, NAME_START, SENTENCE_END, type Code, type Group, type NameKind } from './mentions.ts';
 import { reaches, rank, type Certainty } from './hedge.ts';
 
 export type { Certainty };
@@ -137,7 +137,6 @@ const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
 // ellipsis, "i.e.", "e.g." and an abbreviation such as "Pt." or "approx." don't end it.
 // A question asked with an auxiliary and a pronoun is one even without its "?" ("Isn't
 // it T65A, that's for sure"): it never makes its codes absent.
-const SENTENCE_END = String.raw`[;!]|(?<!\.|\b[ie]\.[eg]|\b(?:Pt|Mt|St|Ft|Is|Mr|Dr|No|approx|ca|vs))\.(?!\.)(?=\s+[A-Z]|\s*$)`;
 const QUESTION = new RegExp(String.raw`^(?:(?!\b[Bb]ut\b|${SENTENCE_END}|,(?!\s*(?:[Oo]r|[Aa]nd|[Nn]or|&)\b|\s*${NAME_START}))[^?])*\?`);
 const QUESTION_SENTENCE = new RegExp(String.raw`^(?:(?!${SENTENCE_END})[^?])*\?`);
 const ASKS = /^(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\s+(?:it|that|this|these|those|they|he|she|you)\b/i;
