@@ -59,11 +59,18 @@ export const TILE = 256;
 /**
  * The basemap's image tiles (salish-sea/basemap's decision 014): the map without its
  * labels, in 256-pixel tiles drawn at 512 for high-density screens, close in (zooms 11 to
- * 15) only along the Salish Sea's shore. This is the set src/basemap-style.json names in
+ * 14) only along the Salish Sea's shore. This is the set src/basemap-style.json names in
  * its metadata; scripts/update-basemap.ts rewrites this line, and src/style.test.ts checks
  * that the two agree.
  */
 export const IMAGE_TILES = 'https://tiles.salishsea.io/images/e11e3dbec2b0c775/{z}/{x}/{y}.webp';
+/**
+ * The deepest zoom the image tiles are drawn at (the basemap stops at 14 from its release
+ * after 2026.11.3; Peter, 2026-11-25). A picture closer than this keeps its framing and
+ * shows this zoom's tiles enlarged. The card renderer's copy, in
+ * infra/lib/card-renderer/basemap.ts, is checked against this by src/style.test.ts.
+ */
+export const IMAGE_TILES_MAX_ZOOM = 14;
 /**
  * What the basemap's sources ask to be credited with, wherever its tiles appear. OpenStreetMap's
  * licence asks that its name link to its copyright page, which says the data is under the ODbL.
@@ -152,8 +159,9 @@ export function profileMapSvg(dots: readonly MapDot[], site: MapSite | null = nu
   // Tiles from the next zoom up, so they are never stretched much; each drawn at its
   // scaled size. A zoom a hair past a whole one takes that one's tiles, stretched a
   // little, rather than four times as many from the next. Closer than COVERED_ZOOM, that
-  // zoom's tiles go underneath first.
-  const tileZoom = Math.ceil(zoom - 0.1);
+  // zoom's tiles go underneath first; closer than IMAGE_TILES_MAX_ZOOM, that zoom's tiles
+  // are drawn larger.
+  const tileZoom = Math.min(Math.ceil(zoom - 0.1), IMAGE_TILES_MAX_ZOOM);
   const tiles: string[] = [];
   const layer = (z: number) => {
     const tileSize = TILE * 2 ** (zoom - z);

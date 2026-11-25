@@ -7,13 +7,16 @@ import { TILE, type Viewport, tilesFor } from './mercator.js';
  * without its labels, so a card looks like the map it links to. Each is a 256-pixel tile
  * drawn at 512, for high-density screens, so it is shrunk to 256 here. Cards ask for
  * zooms 8 and 9, which the tiles cover wherever SalishSea.io has data, and a card of a
- * shared view asks for that view's zoom, up to 15 (VIEW_ZOOMS in handler.ts); the deeper
- * zooms are drawn only along the shore, and a missing tile is painted as sea.
+ * shared view asks for that view's zoom, up to 15 (VIEW_ZOOMS in handler.ts); zooms 11 to
+ * IMAGE_TILES_MAX_ZOOM are drawn only along the shore, a missing tile is painted as sea, and
+ * a card closer than IMAGE_TILES_MAX_ZOOM shows that zoom's tiles enlarged.
  *
  * The same set as `IMAGE_TILES` in src/profile-map.ts, which src/style.test.ts checks;
  * scripts/update-basemap.ts rewrites both.
  */
 export const IMAGE_TILES = 'https://tiles.salishsea.io/images/e11e3dbec2b0c775/{z}/{x}/{y}.webp';
+/** The deepest zoom the image tiles are drawn at; the same as in src/profile-map.ts, which src/style.test.ts checks. */
+export const IMAGE_TILES_MAX_ZOOM = 14;
 
 /** What the basemap's sources ask to be credited with: OpenStreetMap's licence requires it. */
 export const BASEMAP_ATTRIBUTION = '© OpenStreetMap contributors; depths from NOAA, Natural Resources Canada, GEBCO';
@@ -76,7 +79,11 @@ async function fetchTile(z: number, x: number, y: number, list: Set<string> | un
  * didn't arrive, so that a card with holes isn't cached as if it were whole.
  */
 export async function renderBasemap(v: Viewport): Promise<{ image: Buffer; failed: number }> {
-  const { tiles, mosaicWidth, mosaicHeight, mosaicOffset } = tilesFor(v);
+  // Closer than the tiles go, the same picture from the deepest zoom's tiles, enlarged by `f`.
+  const z = Math.min(v.z, IMAGE_TILES_MAX_ZOOM);
+  const f = 2 ** (v.z - z);
+  const at: Viewport = f === 1 ? v : { z, left: v.left / f, top: v.top / f, width: Math.ceil(v.width / f), height: Math.ceil(v.height / f) };
+  const { tiles, mosaicWidth, mosaicHeight, mosaicOffset } = tilesFor(at);
 
   const list = await heldTiles();
   const fetched = await Promise.all(
@@ -86,14 +93,25 @@ export async function renderBasemap(v: Viewport): Promise<{ image: Buffer; faile
   const composites = fetched.flatMap(({ t, tile }) =>
     Buffer.isBuffer(tile) ? [{ input: tile, left: t.left, top: t.top }] : []);
 
-  const mosaic = await sharp({
+  let mosaic = await sharp({
     create: { width: mosaicWidth, height: mosaicHeight, channels: 3, background: SEA },
   }).composite(composites).png().toBuffer();
+  let offset = mosaicOffset;
+  if (f > 1) {
+    mosaic = await sharp(mosaic).resize(mosaicWidth * f, mosaicHeight * f).png().toBuffer();
+    // Measured from the enlarged mosaic's corner in the card's own pixels, so that rounding
+    // at the coarser zoom doesn't shift the picture by up to `f` pixels.
+    const [tx0, ty0] = [Math.floor(at.left / TILE), Math.floor(at.top / TILE)];
+    offset = {
+      left: Math.min(Math.round(v.left - tx0 * TILE * f), mosaicWidth * f - v.width),
+      top: Math.min(Math.round(v.top - ty0 * TILE * f), mosaicHeight * f - v.height),
+    };
+  }
 
   const image = await sharp(mosaic)
     .extract({
-      left: mosaicOffset.left,
-      top: mosaicOffset.top,
+      left: offset.left,
+      top: offset.top,
       width: v.width,
       height: v.height,
     })

@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { forgetHeldTiles, renderBasemap } from './basemap';
+import { forgetHeldTiles, IMAGE_TILES_MAX_ZOOM, renderBasemap } from './basemap';
 import { tilesFor, viewport } from './mercator';
 
 // A card's viewport off San Juan Island, at the zoom of an occurrence card.
@@ -60,6 +60,18 @@ describe('renderBasemap', () => {
       return aTile();
     });
     expect((await renderBasemap(V)).failed).toBe(3);
+  });
+
+  it('draws a view closer than the tiles go from the deepest zoom\'s tiles, enlarged, at the card\'s size', async () => {
+    const close = viewport({ lon: -123.09, lat: 48.61 }, IMAGE_TILES_MAX_ZOOM + 1, 600, 315);
+    // The same place at the deepest zoom, at half the size: the tiles the card should be made of.
+    const deepest = viewport({ lon: -123.09, lat: 48.61 }, IMAGE_TILES_MAX_ZOOM, 300, 158);
+    const asked = serving(tilesFor(deepest).tiles.map(t => `${t.z} ${t.x} ${t.y}`), aTile);
+    const { image, failed } = await renderBasemap(close);
+    expect(failed).toBe(0);
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.every(zxy => zxy.startsWith(`${IMAGE_TILES_MAX_ZOOM} `))).toBe(true);
+    expect(await sharp(image).metadata()).toMatchObject({ width: 600, height: 315 });
   });
 
   it("counts every tile that doesn't arrive while the list is unavailable, and asks for the list again", async () => {
