@@ -5,6 +5,7 @@ doc
 "{""entity_id"": ""SSA:0000010"", ""common_name"": ""Southern Resident killer whale"", ""taxon_entity_id"": ""SSA:0000900"", ""taxon_common_name"": ""Killer whale"", ""inaturalist_scientific_name"": ""Orcinus orca ater""}"
 "{""entity_id"": ""SSA:0000011"", ""common_name"": null, ""taxon_entity_id"": ""SSA:0000900"", ""taxon_common_name"": ""Killer whale"", ""inaturalist_scientific_name"": ""Orcinus orca ater""}"
 "{""entity_id"": ""SSA:0000020"", ""common_name"": null, ""taxon_entity_id"": ""SSA:0000900"", ""taxon_common_name"": ""Killer whale"", ""inaturalist_scientific_name"": ""Orcinus orca ater""}"
+"{""entity_id"": ""SSA:0000021"", ""common_name"": null, ""taxon_entity_id"": ""SSA:0000900"", ""taxon_common_name"": ""Killer whale"", ""inaturalist_scientific_name"": ""Orcinus orca ater""}"
 "{""entity_id"": ""SSA:0000030"", ""common_name"": null, ""taxon_entity_id"": ""SSA:0000900"", ""taxon_common_name"": ""Killer whale"", ""inaturalist_scientific_name"": ""Orcinus orca ater""}"
 "{""entity_id"": ""SSA:0000101"", ""common_name"": ""Tahlequah"", ""taxon_entity_id"": ""SSA:0000900"", ""taxon_common_name"": ""Killer whale"", ""inaturalist_scientific_name"": ""Orcinus orca ater""}"
 "{""entity_id"": ""SSA:0000900"", ""common_name"": ""Killer whale"", ""taxon_entity_id"": ""SSA:0000900"", ""taxon_common_name"": ""Killer whale"", ""inaturalist_scientific_name"": ""Orcinus orca""}"

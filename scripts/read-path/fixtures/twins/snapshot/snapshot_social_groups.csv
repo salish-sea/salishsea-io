@@ -2,4 +2,7 @@ doc
 "{""id"": 115, ""kind"": ""matriline"", ""notes"": null, ""entity_id"": ""SSA:0002033"", ""designation"": ""T065"", ""designation_folded"": ""t65"", ""anchor_individual_id"": 493}"
 "{""id"": 116, ""kind"": ""matriline"", ""notes"": null, ""entity_id"": ""SSA:0002163"", ""designation"": ""T065A"", ""designation_folded"": ""t65a"", ""anchor_individual_id"": 495}"
 "{""id"": 168, ""kind"": ""matriline"", ""notes"": null, ""entity_id"": ""SSA:0002078"", ""designation"": ""T137"", ""designation_folded"": ""t137"", ""anchor_individual_id"": 705}"
+"{""id"": 400, ""kind"": ""pod"", ""notes"": null, ""entity_id"": ""SSA:0000020"", ""designation"": ""J"", ""designation_folded"": ""j"", ""anchor_individual_id"": null}"
+"{""id"": 401, ""kind"": ""pod"", ""notes"": null, ""entity_id"": ""SSA:0000021"", ""designation"": ""L"", ""designation_folded"": ""l"", ""anchor_individual_id"": null}"
 "{""id"": 61, ""kind"": ""ecotype"", ""notes"": ""Bigg's (transient) killer whales"", ""entity_id"": ""SSA:0000002"", ""designation"": ""Biggs"", ""designation_folded"": ""biggs"", ""anchor_individual_id"": null}"
+"{""id"": 62, ""kind"": ""community"", ""notes"": null, ""entity_id"": ""SSA:0000010"", ""designation"": ""Southern Resident"", ""designation_folded"": ""southern resident"", ""anchor_individual_id"": null}"

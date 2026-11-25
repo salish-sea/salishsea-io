@@ -385,10 +385,12 @@ describe('the derivations over the fixture', () => {
             // adds nothing. A deleted account's comment, a hidden one and a withdrawn
             // identification's remark name animals too, and count for nothing. T137B is a
             // candidate all the same, one that says it was absent, read from the observer's
-            // comment (decision 109).
+            // comment (decision 109). A comment on 9000001 names J pod, which is a candidate
+            // now too, resolved to the pod (salish-wgv9).
             expect(await query(`SELECT occurrence_id, code, origin, origin_id, by_observer, is_present
                 FROM store.build.occurrence_identifier_candidates
                 WHERE occurrence_id LIKE 'inaturalist:%' ORDER BY occurrence_id, code`)).toEqual([
+                ['inaturalist:9000001', 'J pod', 'comment', 8000004n, false, true],
                 ['inaturalist:9000001', 'T137A', 'report', null, true, true],
                 ['inaturalist:9000001', 'T137B', 'report', null, true, true],
                 ['inaturalist:9000002', 'T137A', 'comment', 8000001n, false, true],
@@ -449,7 +451,7 @@ describe('the derivations over the fixture', () => {
                        (SELECT count(*) FROM archive.dwc.multimedia),
                        (SELECT no_agreement FROM archive.dwc.export_coverage WHERE branch = 'native'),
                        (SELECT exported_rows FROM archive.dwc.export_coverage WHERE branch = 'maplify')`)).getRows()[0]!.map(Number));
-            expect(withheld).toEqual([0, 0, 2, 5]);
+            expect(withheld).toEqual([0, 0, 2, 7]);
         } finally {
             await rm(dir, {recursive: true, force: true});
         }

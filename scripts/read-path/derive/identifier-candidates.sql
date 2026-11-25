@@ -1,8 +1,15 @@
 -- The identifier candidates, derived in the build (decision 061, salish-xv35.3): a DuckDB
 -- port of Postgres's derived.identifier_candidates, which pairs each designation an
--- occurrence names (T065A, J27s) with the individual or matriline the catalogue says it
--- means (supabase/migrations/20260928120000_occurrences_stored.sql@6898775). Postgres keeps them in
+-- occurrence names (T065A, J27s) with what the catalogue says it means: an individual, a
+-- matriline, a pod or a population (an ecotype or a community)
+-- (supabase/migrations/20260928120000_occurrences_stored.sql@6898775). Postgres keeps them in
 -- derived.occurrence_identifier_candidates, and the profile pages' link views read them.
+--
+-- A text's pods and populations are candidates too (decision 121, salish-wgv9), each resolved
+-- to the group it names as a bout's tag of that group is: "J pod" to the pod whose
+-- designation, the letter, folds with " pod" to the same string, "Bigg's" or "Southern
+-- Resident" to the ecotype or community whose designation folds to it. One that matches no
+-- group stays a row with no id, as an unmatched code does. Codes match as they always did.
 --
 -- Reads build.occurrences, which carries each occurrence's source, identifiers and exact
 -- location, and the catalogue as the snapshot holds it (documents). Checked against the
@@ -43,15 +50,26 @@ CREATE OR REPLACE TABLE build.occurrence_identifier_candidates AS
     WHERE o.source <> 'orcasound'
   ),
   ident AS (
-    SELECT occurrence_id, x.code, x.presence = 'present' AS is_present, nullif(x.certainty, 'certain') AS certainty,
+    SELECT occurrence_id, x.code, x.kind, x.presence = 'present' AS is_present, nullif(x.certainty, 'certain') AS certainty,
            x.origin, x.origin_id, x.by_observer, observed_at, location
     FROM named
-    -- a pod or a population a text names is not a code: "Bigg's" ends in s and would be tried as a matriline (decision 121)
-    WHERE x.kind = 'code'
+    WHERE x.kind IN ('code', 'pod', 'population')
   ),
+  -- Each kind of claim is tried against its own lookup only: "Bigg's" ends in s and
+  -- would be taken for a matriline's name if a population were tried as a code (decision 121).
   matriline AS (
     SELECT CAST(doc->>'id' AS INTEGER) AS id, doc->>'designation_folded' AS designation_folded
     FROM snapshot.social_groups WHERE doc->>'kind' = 'matriline'
+  ),
+  -- A pod's designation is its letter ("J"); the text says "J pod".
+  pod AS (
+    SELECT CAST(doc->>'id' AS INTEGER) AS id, doc->>'designation_folded' || ' pod' AS name_folded
+    FROM snapshot.social_groups WHERE doc->>'kind' = 'pod'
+  ),
+  -- A population's designation is the register's label, folded ("biggs", "southern resident").
+  population AS (
+    SELECT CAST(doc->>'id' AS INTEGER) AS id, doc->>'designation_folded' AS name_folded
+    FROM snapshot.social_groups WHERE doc->>'kind' IN ('ecotype', 'community')
   ),
   designation AS (
     SELECT CAST(doc->>'individual_id' AS INTEGER) AS individual_id, doc->>'code_folded' AS code_folded
@@ -64,13 +82,17 @@ CREATE OR REPLACE TABLE build.occurrence_identifier_candidates AS
   -- across editions, so the pick is ORDERED here: the same input must build the same
   -- bytes (Stelis's determinism rule), whatever the data comes to hold (salish-xv35.20).
   SELECT DISTINCT ON (i.occurrence_id, i.code)
-         i.occurrence_id, i.code, d.individual_id, g.id AS social_group_id, i.observed_at,
+         i.occurrence_id, i.code, d.individual_id, coalesce(m.id, p.id, pop.id) AS social_group_id, i.observed_at,
          i.location.lon AS location_lon, i.location.lat AS location_lat, i.origin, i.origin_id, i.by_observer,
          i.is_present, i.certainty
   FROM ident i
-  LEFT JOIN matriline g
-    ON regexp_matches(i.code, 's$') AND g.designation_folded || 's' = register_fold(i.code)
+  LEFT JOIN matriline m
+    ON i.kind = 'code' AND regexp_matches(i.code, 's$') AND m.designation_folded || 's' = register_fold(i.code)
   LEFT JOIN designation d
-    ON NOT regexp_matches(i.code, 's$') AND d.code_folded = register_fold(i.code)
+    ON i.kind = 'code' AND NOT regexp_matches(i.code, 's$') AND d.code_folded = register_fold(i.code)
+  LEFT JOIN pod p
+    ON i.kind = 'pod' AND p.name_folded = register_fold(i.code)
+  LEFT JOIN population pop
+    ON i.kind = 'population' AND pop.name_folded = register_fold(i.code)
   -- a code named both ways is present: the occurrence's claims list it once each way at most
-  ORDER BY i.occurrence_id, i.code, i.is_present DESC, d.individual_id NULLS LAST, g.id NULLS LAST;
+  ORDER BY i.occurrence_id, i.code, i.is_present DESC, d.individual_id NULLS LAST, m.id NULLS LAST, p.id NULLS LAST, pop.id NULLS LAST;
